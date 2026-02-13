@@ -9,6 +9,8 @@ import {
   verifyPassword,
   generateJwt,
 } from './auth/login'
+import { authMiddleware } from './middleware'
+import { contentRoutes } from './content'
 
 // Bindings per Cloudflare Workers: DB (D1) e JWT_SECRET
 type Bindings = {
@@ -16,7 +18,11 @@ type Bindings = {
   JWT_SECRET: string
 }
 
-const app = new Hono<{ Bindings: Bindings }>()
+type Variables = {
+  jwtPayload: { sub: string; email?: string }
+}
+
+const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 // CORS: permetti tutte le origini in sviluppo; in produzione restringere a ['https://dashboard.tuodominio.com']
 app.use(
@@ -70,5 +76,13 @@ app.post('/auth/login', async (c) => {
     return c.json({ error: AUTH_ERRORS.DATABASE_ERROR }, 500)
   }
 })
+
+// API Content: CRUD universale protetto da JWT
+const apiContent = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+apiContent.use('*', async (c, next) => {
+  await authMiddleware(c.env.JWT_SECRET)(c, next)
+})
+apiContent.route('/', contentRoutes)
+app.route('/api/content', apiContent)
 
 export default app
