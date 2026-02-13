@@ -11,6 +11,9 @@ build/
 .next/
 out/
 
+#cursor'
+.cursorrules
+
 # Turbo
 .turbo/
 

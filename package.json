@@ -11,7 +11,7 @@
   "main": "index.js",
   "scripts": {
     "dev": "turbo run dev --parallel",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "turbo run test"
   },
   "keywords": [],
   "author": "",
