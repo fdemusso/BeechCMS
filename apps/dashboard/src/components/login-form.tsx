@@ -76,11 +76,13 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
     setIsLoading(true)
     try {
       // Usa axios diretto per /auth/login (non passa da baseURL '/api')
-      const { data } = await axios.post<LoginResponse>('/auth/login', { email, password })
+      const { data } = await axios.post<LoginResponse>('/auth/login', { email, password }, {
+        withCredentials: true, // Necessario per ricevere refresh_token cookie
+      })
       localStorage.setItem(AUTH_TOKEN_KEY, data.token)
       
       // TODO: Rimuovere questo avviso di successo in produzione
-      setSuccessMessage('Login riuscito!')
+      setSuccessMessage('Login riuscito! Sessione valida per 7 giorni.')
       setIsLoading(false)
       
       // Attendi un momento per mostrare il messaggio di successo prima del redirect
