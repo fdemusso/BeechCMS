@@ -1,5 +1,4 @@
 /// <reference types="@cloudflare/workers-types" />
-import { SignJWT } from 'jose'
 import bcrypt from 'bcryptjs'
 
 export type LoginCredentials = {
@@ -13,7 +12,22 @@ export type UserRecord = {
   password_hash: string
 }
 
+/** Regex per validare formato email (deve contenere @) */
 const EMAIL_REGEX = /^[^@]+@[^@]+$/
+
+/** Lunghezza minima password (caratteri) */
+const MIN_PASSWORD_LENGTH = 8
+
+/** Lunghezza massima password (caratteri) - limite ragionevole per evitare DoS */
+const MAX_PASSWORD_LENGTH = 128
+
+/**
+ * Hash bcrypt dummy valido.
+ * Usato quando l'utente non esiste per evitare timing attack
+ * (stesso tempo di risposta che con password errata).
+ */
+export const DUMMY_PASSWORD_HASH =
+  '$2a$10$SbkRFOafACxVM2ahxerVDu3tSkCXWm29b62WdB.4WGG02Qjsfzni6'
 
 /**
  * Estrae e valida email e password dal body della richiesta.
@@ -33,11 +47,15 @@ export function parseLoginBody(body: unknown): LoginCredentials | null {
 /**
  * Verifica che email e password rispettino i formati richiesti.
  * @param email - Email da validare (deve contenere @)
- * @param password - Password (deve essere non vuota)
+ * @param password - Password (8-128 caratteri)
  * @returns true se valido
  */
 export function validateLoginInput(email: string, password: string): boolean {
-  return EMAIL_REGEX.test(email) && password.length > 0
+  return (
+    EMAIL_REGEX.test(email) &&
+    password.length >= MIN_PASSWORD_LENGTH &&
+    password.length <= MAX_PASSWORD_LENGTH
+  )
 }
 
 /**
@@ -68,24 +86,4 @@ export async function verifyPassword(
   hash: string
 ): Promise<boolean> {
   return bcrypt.compare(plainPassword, hash)
-}
-
-/**
- * Genera un JWT firmato con payload sub (userId) e email, scadenza 2 ore.
- * @param userId - ID utente (sub claim)
- * @param email - Email utente
- * @param secret - JWT_SECRET (stringa)
- * @returns Token JWT firmato
- */
-export async function generateJwt(
-  userId: string,
-  email: string,
-  secret: string
-): Promise<string> {
-  const secretBytes = new TextEncoder().encode(secret)
-  return new SignJWT({ sub: userId, email })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('2h')
-    .sign(secretBytes)
 }

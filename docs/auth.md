@@ -77,24 +77,26 @@ sequenceDiagram
 **Passaggi dettagliati Login:**
 
 1. **Ricezione**: L'API riceve `email` e `password` nel body JSON della richiesta POST.
-2. **Validazione**: Verifica che entrambi i campi siano presenti, di tipo stringa, e che l'email abbia formato valido (contiene `@`).
-3. **Query D1**: Cerca l'utente con `SELECT id, email, password_hash FROM users WHERE email = ?` (prepared statement).
-4. **Verifica password**: Usa `bcrypt.compare(plainPassword, storedHash)` per confrontare la password in chiaro con l'hash salvato.
-5. **Generazione Access Token**: Con `jose.SignJWT` crea un access token con payload `{sub: userId, email}`, algoritmo HS256, scadenza **15 minuti**.
-6. **Generazione Refresh Token**: Crea UUID v4 sicuro con `crypto.randomUUID()`.
-7. **Salvataggio in DB**: Salva il refresh token hashato (SHA-256) nella tabella `refresh_tokens` con scadenza 7 giorni.
-8. **Set Cookie**: Imposta il refresh token in httpOnly cookie (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/auth`).
-9. **Risposta**: Restituisce `{token, expiresIn: "15m"}` in JSON.
+2. **Validazione**: Verifica che entrambi i campi siano presenti, di tipo stringa, che l'email abbia formato valido (contiene `@`) e che la password abbia lunghezza 8-128 caratteri.
+3. **Rate limiting** (se configurato): Verifica che non siano stati superati i 5 tentativi per IP+email negli ultimi 60 secondi.
+4. **Query D1**: Cerca l'utente con `SELECT id, email, password_hash FROM users WHERE email = ?` (prepared statement).
+5. **Verifica password**: Usa sempre `bcrypt.compare` (con hash dummy se utente non esiste) per evitare timing attack.
+6. **Generazione Access Token**: Con `jose.SignJWT` crea un access token con payload `{sub: userId, email}`, algoritmo HS256, scadenza **15 minuti**.
+7. **Generazione Refresh Token**: Crea UUID v4 sicuro con `crypto.randomUUID()`.
+8. **Salvataggio in DB**: Salva il refresh token hashato (SHA-256) nella tabella `refresh_tokens` con scadenza 7 giorni.
+9. **Set Cookie**: Imposta il refresh token in httpOnly cookie (`HttpOnly`, `Secure` solo su HTTPS, `SameSite=Strict`, `Path=/auth`).
+10. **Risposta**: Restituisce `{token, expiresIn: "15m"}` in JSON.
 
 **Passaggi dettagliati Refresh:**
 
-1. **Ricezione Cookie**: L'API legge il `refresh_token` dal cookie inviato automaticamente dal browser.
-2. **Validazione**: Cerca il token hashato in DB, verifica scadenza e che non sia stato revocato.
-3. **Lookup Utente**: Recupera i dati utente (id, email) per generare nuovo access token.
-4. **Rotazione**: Invalida il vecchio refresh token (imposta `revoked_at`).
-5. **Generazione Nuovi Token**: Crea nuovo access token (15min) e nuovo refresh token (7 giorni).
-6. **Salvataggio**: Salva il nuovo refresh token hashato in DB.
-7. **Risposta**: Restituisce nuovo access token nel body + nuovo refresh token in cookie.
+1. **Rate limiting** (se configurato): Verifica che non siano state superate le 20 richieste per IP negli ultimi 60 secondi.
+2. **Ricezione Cookie**: L'API legge il `refresh_token` dal cookie inviato automaticamente dal browser.
+3. **Validazione**: Cerca il token hashato in DB, verifica scadenza e che non sia stato revocato.
+4. **Lookup Utente**: Recupera i dati utente (id, email) per generare nuovo access token.
+5. **Rotazione**: Invalida il vecchio refresh token (imposta `revoked_at`).
+6. **Generazione Nuovi Token**: Crea nuovo access token (15min) e nuovo refresh token (7 giorni).
+7. **Salvataggio**: Salva il nuovo refresh token hashato in DB.
+8. **Risposta**: Restituisce nuovo access token nel body + nuovo refresh token in cookie.
 
 **Passaggi dettagliati Logout:**
 
@@ -119,6 +121,64 @@ sequenceDiagram
 | **SameSite=Strict** | Cookie con `SameSite=Strict` per protezione CSRF. |
 | **Short-lived Access** | Access token scadenza 15 minuti invece di 2h. Riduce finestra di attacco. |
 | **Revocazione** | Refresh token in DB possono essere invalidati manualmente (logout, ban utente). |
+| **Rate Limiting** | Login: 5 tentativi per IP+email ogni 60 secondi. Refresh: 20 richieste per IP ogni 60 secondi. Protezione brute force. |
+| **Timing Attack** | Sempre `bcrypt.compare` eseguito (anche con hash dummy se utente non esiste) per evitare user enumeration via timing. |
+| **Validazione password** | Lunghezza 8-128 caratteri lato server. |
+| **Secure Cookie** | Flag `Secure` applicato solo su HTTPS (localhost HTTP funziona in sviluppo). |
+| **Security Headers** | X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, Content-Security-Policy. |
+| **Logging** | In produzione (`ENV=production`) non vengono loggati dettagli degli errori. |
+| **Errori 500** | Messaggio generico "An error occurred" per non rivelare dettagli del sistema. |
+
+---
+
+## 2.1 Variabili d'ambiente (wrangler)
+
+| Variabile | Descrizione | Default |
+|-----------|-------------|---------|
+| `JWT_SECRET` | Segreto per firma JWT (usare `wrangler secret put` in produzione) | - |
+| `CORS_ORIGINS` | Origins CORS permessi, separati da virgola | `http://localhost:5173` |
+| `ENV` | Ambiente: `development` o `production` (controlla logging) | `development` |
+
+**Esempio wrangler.jsonc:**
+```json
+"vars": {
+  "JWT_SECRET": "sviluppo-secret-cambiami",
+  "CORS_ORIGINS": "http://localhost:5173,http://localhost:5174,https://dashboard.beech.local",
+  "ENV": "development"
+}
+```
+
+**Nota:** Includere `http://localhost:5174` se Vite usa quella porta (quando 5173 è occupata).
+
+### Rate Limiting (Cloudflare API)
+
+Richiede Wrangler 4.36+. Configurazione in `wrangler.jsonc`:
+
+```json
+"ratelimits": [
+  {
+    "name": "LOGIN_RATE_LIMITER",
+    "namespace_id": "1001",
+    "simple": { "limit": 5, "period": 60 }
+  },
+  {
+    "name": "REFRESH_RATE_LIMITER",
+    "namespace_id": "1002",
+    "simple": { "limit": 20, "period": 60 }
+  }
+]
+```
+
+- **Login**: 5 tentativi per coppia IP+email ogni 60 secondi
+- **Refresh**: 20 richieste per IP ogni 60 secondi
+
+### nodejs_compat (necessario per bcryptjs)
+
+`bcryptjs` richiede le API Node.js (modulo `crypto`). Aggiungere in wrangler.jsonc:
+
+```json
+"compatibility_flags": ["nodejs_compat"]
+```
 
 ---
 
@@ -141,10 +201,11 @@ Autentica utente e genera access token + refresh token.
 
 | Status | Descrizione | Body | Headers |
 |--------|-------------|------|---------|
-| 200 | Login riuscito | `{ "token": "eyJ...", "expiresIn": "15m" }` | `Set-Cookie: refresh_token=...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/auth` |
-| 400 | Body vuoto, malformato o campi mancanti | `{ "error": "Invalid request" }` | - |
+| 200 | Login riuscito | `{ "token": "eyJ...", "expiresIn": "15m" }` | `Set-Cookie: refresh_token=...; HttpOnly; SameSite=Strict; Max-Age=604800; Path=/auth` (Secure solo su HTTPS) |
+| 400 | Body vuoto, malformato, campi mancanti, password < 8 o > 128 caratteri | `{ "error": "Invalid request" }` | - |
 | 401 | Credenziali errate (utente non trovato o password sbagliata) | `{ "error": "Invalid credentials" }` | - |
-| 500 | Errore interno (es. database non raggiungibile) | `{ "error": "Database error" }` | - |
+| 429 | Rate limit superato (5 tentativi/minuto per IP+email) | `{ "error": "Too many requests" }` | - |
+| 500 | Errore interno | `{ "error": "An error occurred" }` | - |
 
 **Note:**
 - Access token restituito nel body, valido per 15 minuti
@@ -163,9 +224,11 @@ Ottieni nuovo access token usando il refresh token (inviato automaticamente come
 
 | Status | Descrizione | Body | Headers |
 |--------|-------------|------|---------|
-| 200 | Refresh riuscito | `{ "token": "eyJ...", "expiresIn": "15m" }` | `Set-Cookie: refresh_token=...; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/auth` |
-| 401 | Refresh token mancante, invalido, scaduto o revocato | `{ "error": "Invalid refresh token" }` oppure `{ "error": "Refresh token missing" }` | - |
-| 500 | Errore interno | `{ "error": "Refresh failed" }` | - |
+| 200 | Refresh riuscito | `{ "token": "eyJ...", "expiresIn": "15m" }` | `Set-Cookie: refresh_token=...; HttpOnly; SameSite=Strict; Max-Age=604800; Path=/auth` (Secure solo su HTTPS) |
+| 401 | Refresh token mancante | `{ "error": "Refresh token missing" }` | - |
+| 401 | Refresh token invalido, scaduto, revocato o utente non trovato | `{ "error": "Invalid refresh token" }` oppure `{ "error": "User not found" }` | - |
+| 429 | Rate limit superato (20 richieste/minuto per IP) | `{ "error": "Too many requests" }` | - |
+| 500 | Errore interno | `{ "error": "An error occurred" }` | - |
 
 **Note:**
 - ROTAZIONE: Il vecchio refresh token viene invalidato (campo `revoked_at`)
@@ -184,12 +247,12 @@ Invalida il refresh token e cancella il cookie.
 
 | Status | Descrizione | Body | Headers |
 |--------|-------------|------|---------|
-| 200 | Logout riuscito | `{ "message": "Logged out" }` | `Set-Cookie: refresh_token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/auth` |
-| 500 | Errore interno | `{ "error": "Logout failed" }` | - |
+| 200 | Logout riuscito | `{ "message": "Logged out" }` | `Set-Cookie: refresh_token=; ... Max-Age=0; Path=/auth` (cancella cookie) |
+| 500 | Errore interno | `{ "error": "An error occurred" }` | - |
 
 **Note:**
-- Il refresh token viene invalidato in DB (campo `revoked_at`)
-- Il cookie viene cancellato (Max-Age=0)
+- Il refresh token viene invalidato in DB (campo `revoked_at`) se presente nel cookie
+- Il cookie viene sempre cancellato (Max-Age=0), anche se non era stato inviato
 - Il client deve anche rimuovere l'access token da localStorage
 
 ---
@@ -209,14 +272,15 @@ Risposta:
 ```json
 {"token":"eyJhbGc...","expiresIn":"15m"}
 ```
-Header: `Set-Cookie: refresh_token=<uuid>; HttpOnly; Secure; SameSite=Strict; Max-Age=604800; Path=/auth`
+Header: `Set-Cookie: refresh_token=<uuid>; HttpOnly; SameSite=Strict; Max-Age=604800; Path=/auth` (Secure su HTTPS)
 
 **Credenziali errate (401):**
 ```bash
 curl -X POST http://localhost:8787/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@beech.local","password":"wrong"}'
+  -d '{"email":"admin@beech.local","password":"wrongpassword"}'
 ```
+(Nota: password deve avere almeno 8 caratteri per superare la validazione)
 
 ---
 
@@ -254,11 +318,26 @@ Risposta:
 ```json
 {"message":"Logged out"}
 ```
-Header: `Set-Cookie: refresh_token=; HttpOnly; Secure; SameSite=Strict; Max-Age=0; Path=/auth`
+Header: `Set-Cookie: refresh_token=; ... Max-Age=0; Path=/auth`
 
 ---
 
-## 5. Tabella Database
+## 5. Setup e migrazioni
+
+### Migrazioni D1 (locale)
+
+Per applicare le migrazioni al database locale:
+
+```bash
+cd apps/api
+npm run db:migrate:local
+```
+
+Esegue in ordine: `0001_init.sql`, `0002_seed_admin.sql`, `0003_refresh_tokens.sql`.
+
+---
+
+## 6. Tabella Database
 
 ### refresh_tokens
 
@@ -281,7 +360,7 @@ CREATE TABLE refresh_tokens (
 
 ---
 
-## 6. Manutenzione
+## 7. Manutenzione
 
 ### Pulizia Token Scaduti
 

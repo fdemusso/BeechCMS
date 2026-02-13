@@ -1,6 +1,9 @@
 /// <reference types="@cloudflare/workers-types" />
 import { SignJWT } from 'jose'
 
+/** Secondi in un giorno (per calcolo scadenza) */
+const SECONDS_PER_DAY = 24 * 60 * 60
+
 export type RefreshTokenRecord = {
   id: string
   user_id: string
@@ -15,16 +18,22 @@ export function generateRefreshToken(): string {
   return crypto.randomUUID()
 }
 
-/** Hash SHA-256 del refresh token per storage sicuro - usa Web Crypto API */
+/**
+ * Hash SHA-256 del refresh token per storage sicuro.
+ * Usa Web Crypto API (crypto.subtle.digest).
+ */
 export async function hashRefreshToken(token: string): Promise<string> {
   const encoder = new TextEncoder()
   const data = encoder.encode(token)
   const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  const hashArray = Array.from(new Uint8Array(hashBuffer))
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
+  const hashBytes = Array.from(new Uint8Array(hashBuffer))
+  return hashBytes.map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-/** Salva refresh token in DB (hashed) */
+/**
+ * Salva refresh token in DB (solo hash, mai in chiaro).
+ * @param expiresInDays - Giorni di validità (default 7)
+ */
 export async function saveRefreshToken(
   db: D1Database,
   userId: string,
@@ -33,7 +42,7 @@ export async function saveRefreshToken(
 ): Promise<void> {
   const id = crypto.randomUUID()
   const tokenHash = await hashRefreshToken(token)
-  const expiresAt = Math.floor(Date.now() / 1000) + (expiresInDays * 24 * 60 * 60)
+  const expiresAt = Math.floor(Date.now() / 1000) + expiresInDays * SECONDS_PER_DAY
   
   await db.prepare(
     `INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) 
@@ -41,7 +50,10 @@ export async function saveRefreshToken(
   ).bind(id, userId, tokenHash, expiresAt).run()
 }
 
-/** Valida refresh token: controlla hash in DB, scadenza, revoca */
+/**
+ * Valida refresh token: verifica hash in DB, scadenza e che non sia revocato.
+ * @returns { valid, userId? } - userId presente solo se valido
+ */
 export async function validateRefreshToken(
   db: D1Database,
   token: string
@@ -62,7 +74,10 @@ export async function validateRefreshToken(
   return { valid: true, userId: row.user_id }
 }
 
-/** Invalida (revoca) un refresh token */
+/**
+ * Revoca un refresh token impostando revoked_at.
+ * Il token non potrà più essere usato per il refresh.
+ */
 export async function revokeRefreshToken(
   db: D1Database,
   token: string
@@ -75,7 +90,10 @@ export async function revokeRefreshToken(
   ).bind(now, tokenHash).run()
 }
 
-/** Genera access token con scadenza breve (15 min) */
+/**
+ * Genera JWT access token con scadenza breve (15 min).
+ * Payload: sub (userId), email. Algoritmo HS256.
+ */
 export async function generateAccessToken(
   userId: string,
   email: string,
@@ -85,6 +103,6 @@ export async function generateAccessToken(
   return new SignJWT({ sub: userId, email })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
-    .setExpirationTime('15m') // 15 minuti invece di 2h
+    .setExpirationTime('15m')
     .sign(secretBytes)
 }

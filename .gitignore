@@ -30,3 +30,6 @@ Thumbs.db
 # Cloudflare / Wrangler
 .wrangler/
 
+# Test coverage
+coverage/
+

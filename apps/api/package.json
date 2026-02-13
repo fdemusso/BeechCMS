@@ -3,9 +3,11 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "db:migrate:local": "wrangler d1 execute beech-db --local --file=./migrations/0001_init.sql && wrangler d1 execute beech-db --local --file=./migrations/0002_seed_admin.sql && wrangler d1 execute beech-db --local --file=./migrations/0003_refresh_tokens.sql",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -15,6 +17,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260213.0",
     "@types/bcryptjs": "^2.4.6",
+    "@vitest/coverage-v8": "^3.2.4",
     "vitest": "^3.2.4",
     "wrangler": "^4.4.0"
   }

@@ -57,7 +57,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
     mockJwtVerify.mockReset()
   })
 
-  it('POST /api/content/progetti senza Authorization -> 401', async () => {
+  it('POST senza Authorization -> 401', async () => {
     const bindCapture: { args?: unknown[] } = {}
     const mockDB = createMockD1ForInsert(bindCapture)
 
@@ -95,7 +95,25 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
     expect(mockJwtVerify).toHaveBeenCalled()
   })
 
-  it('POST /api/content/progetti con token scaduto -> 401', async () => {
+  it('POST con Authorization Bearer ma token vuoto -> 401', async () => {
+    const bindCapture: { args?: unknown[] } = {}
+    const mockDB = createMockD1ForInsert(bindCapture)
+
+    const res = await app.request('/api/content/progetti', {
+      method: 'POST',
+      body: JSON.stringify({ titolo: 'Test' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer ',
+      },
+    }, { DB: mockDB, JWT_SECRET })
+
+    expect(res.status).toBe(401)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe('Unauthorized')
+  })
+
+  it('POST con token scaduto -> 401', async () => {
     mockJwtVerify.mockRejectedValue(new Error('Token expired'))
 
     const bindCapture: { args?: unknown[] } = {}
@@ -210,6 +228,97 @@ describe('API Content - Edge Case (Not Found)', () => {
     expect(res.status).toBe(404)
     const data = await res.json() as { error?: string }
     expect(data.error).toBe(CONTENT_ERRORS.NOT_FOUND)
+  })
+})
+
+describe('API Content - Validazione slug', () => {
+  beforeEach(() => {
+    mockJwtVerify.mockResolvedValue({
+      payload: { sub: 'user-1', email: 'test@beech.local' },
+      protectedHeader: { alg: 'HS256' },
+    } as never)
+  })
+
+  it('POST con body non JSON -> 400', async () => {
+    const bindCapture: { args?: unknown[] } = {}
+    const mockDB = createMockD1ForInsert(bindCapture)
+
+    const res = await app.request('/api/content/progetti', {
+      method: 'POST',
+      body: 'not valid json',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer valid-token',
+      },
+    }, { DB: mockDB, JWT_SECRET })
+
+    expect(res.status).toBe(400)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.INVALID_JSON_BODY)
+  })
+})
+
+describe('API Content - Errori DB (500)', () => {
+  beforeEach(() => {
+    mockJwtVerify.mockResolvedValue({
+      payload: { sub: 'user-1', email: 'test@beech.local' },
+      protectedHeader: { alg: 'HS256' },
+    } as never)
+  })
+
+  it('POST con fallimento DB -> 500', async () => {
+    const mockDB = {
+      prepare: vi.fn(() => ({
+        bind: vi.fn(() => ({ run: vi.fn().mockRejectedValue(new Error('DB error')) })),
+      })),
+    }
+
+    const res = await app.request('/api/content/progetti', {
+      method: 'POST',
+      body: JSON.stringify({ titolo: 'Test' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer valid-token',
+      },
+    }, { DB: mockDB, JWT_SECRET })
+
+    expect(res.status).toBe(500)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.DATABASE_ERROR)
+  })
+
+  it('GET lista con fallimento DB -> 500', async () => {
+    const mockDB = {
+      prepare: vi.fn(() => ({
+        bind: vi.fn(() => ({ all: vi.fn().mockRejectedValue(new Error('DB error')) })),
+      })),
+    }
+
+    const res = await app.request('/api/content/progetti', {
+      method: 'GET',
+      headers: { Authorization: 'Bearer valid-token' },
+    }, { DB: mockDB, JWT_SECRET })
+
+    expect(res.status).toBe(500)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.DATABASE_ERROR)
+  })
+
+  it('GET dettaglio con fallimento DB -> 500', async () => {
+    const mockDB = {
+      prepare: vi.fn(() => ({
+        bind: vi.fn(() => ({ first: vi.fn().mockRejectedValue(new Error('DB error')) })),
+      })),
+    }
+
+    const res = await app.request('/api/content/progetti/123', {
+      method: 'GET',
+      headers: { Authorization: 'Bearer valid-token' },
+    }, { DB: mockDB, JWT_SECRET })
+
+    expect(res.status).toBe(500)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.DATABASE_ERROR)
   })
 })
 

@@ -1,8 +1,8 @@
 -- Migrazione: Tabella Refresh Tokens per JWT rotation
 -- Salva refresh tokens con hash SHA-256 per sicurezza e possibilità di revoca
+-- Idempotente: IF NOT EXISTS per esecuzioni ripetute
 
--- Tabella per salvare refresh tokens con possibilità di revoca
-CREATE TABLE refresh_tokens (
+CREATE TABLE IF NOT EXISTS refresh_tokens (
     id TEXT PRIMARY KEY,              -- UUID del token
     user_id TEXT NOT NULL,            -- Riferimento a users.id
     token_hash TEXT NOT NULL,         -- Hash SHA-256 del token (non salvare in chiaro)
@@ -12,7 +12,6 @@ CREATE TABLE refresh_tokens (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Indici per performance
-CREATE INDEX idx_refresh_user ON refresh_tokens(user_id);
-CREATE INDEX idx_refresh_hash ON refresh_tokens(token_hash);
-CREATE INDEX idx_refresh_expires ON refresh_tokens(expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_user ON refresh_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_refresh_hash ON refresh_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_refresh_expires ON refresh_tokens(expires_at);
