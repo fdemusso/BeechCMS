@@ -5,37 +5,53 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
+  font-family: "Poppins", system-ui, sans-serif;
+  font-size: 15px;
   font-weight: 400;
+  line-height: 1.5;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
+  color-scheme: light;
+  color: #171717;
+  background-color: #fcfcfc;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Palette */
+  --text: #171717;
+  --background: #fcfcfc;
+  --primary: #787878;
+  --secondary: #ffffff;
+  --accent: #171717;
+
+  /* Type scale: base 15px, Perfect Fourth 1.333 */
+  --font-size-xs: 0.703125rem;   /* 11.25px */
+  --font-size-sm: 0.9375rem;     /* 15px body */
+  --font-size-base: 1.25rem;     /* 20px */
+  --font-size-lg: 1.666875rem;   /* 26.67px */
+  --font-size-xl: 2.2225rem;     /* 35.56px */
+  --font-size-2xl: 2.963125rem;  /* 47.41px */
+  --font-size-3xl: 3.95rem;      /* 63.2px */
+
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #787878;
+  --primary-foreground: #ffffff;
+  --secondary: #ffffff;
+  --secondary-foreground: #171717;
+  --muted: #f5f5f5;
+  --muted-foreground: #787878;
+  --accent: #171717;
+  --accent-foreground: #ffffff;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #787878;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -53,59 +69,40 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--primary);
   text-decoration: inherit;
 }
 a:hover {
-  color: #535bf2;
+  color: var(--accent);
+}
+
+html {
+  width: 100%;
+  min-height: 100%;
 }
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  width: 100%;
   min-width: 320px;
   min-height: 100vh;
 }
 
 h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 @theme inline {
+  --font-sans: "Poppins", system-ui, sans-serif;
+  --font-size-xs: 0.703125rem;
+  --font-size-sm: 0.9375rem;
+  --font-size-base: 1.25rem;
+  --font-size-lg: 1.666875rem;
+  --font-size-xl: 2.2225rem;
+  --font-size-2xl: 2.963125rem;
+  --font-size-3xl: 3.95rem;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -180,11 +177,28 @@ button:focus-visible {
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+@keyframes icon-swap {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans;
+    font-size: var(--font-size-sm);
+    font-weight: 400;
+  }
+  #root {
+    width: 100%;
+    min-height: 100vh;
   }
 }
