@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { LoginForm } from '@/components/login-form'
+import { logout, AUTH_TOKEN_KEY } from '@/lib/api'
+import { Button } from '@/components/ui/button'
 import './App.css'
 
 function LoginPage() {
@@ -12,12 +14,28 @@ function LoginPage() {
   )
 }
 
+function DashboardPage() {
+  const hasToken = typeof window !== 'undefined' && localStorage.getItem(AUTH_TOKEN_KEY)
+  if (!hasToken) {
+    return <Navigate to="/login" replace />
+  }
+  return (
+    <div className="flex min-h-svh w-full flex-col items-center justify-center gap-6 bg-background p-4">
+      <h1 className="text-2xl font-semibold">Dashboard</h1>
+      <p className="text-muted-foreground text-sm">Benvenuto in Beech CMS</p>
+      <Button onClick={logout} variant="outline">
+        Logout
+      </Button>
+    </div>
+  )
+}
+
 function App() {
   return (
     <BrowserRouter>
-        <Routes>
+      <Routes>
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<DashboardPage />} />
       </Routes>
     </BrowserRouter>
   )

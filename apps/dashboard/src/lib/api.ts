@@ -5,7 +5,13 @@ import axios, { type AxiosError } from 'axios';
 export const AUTH_TOKEN_KEY = 'beech_token';
 
 /** Path della pagina di login (per evitare redirect loop) */
-const LOGIN_PATH = '/login';
+export const LOGIN_PATH = '/login';
+
+/** Risposta API POST /auth/login (auth.md) */
+export interface LoginResponse {
+  token: string
+  expiresIn: string
+}
 
 // Grazie al proxy in vite.config.ts, '/api' viene girato al worker locale
 export const api = axios.create({
@@ -28,16 +34,31 @@ api.interceptors.request.use((config) => {
 });
 
 // Interceptor: Se riceviamo 401 (Token scaduto), logout e redirect
+// Non interferisce con le richieste di login (/auth/login)
 api.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem(AUTH_TOKEN_KEY);
-      // replace() evita che il back button riporti alla pagina con errore
-      if (!window.location.pathname.startsWith(LOGIN_PATH)) {
-        window.location.replace(LOGIN_PATH);
+      const requestUrl = error.config?.url || '';
+      // Non fare logout/redirect per le richieste di login - lascia che il componente gestisca l'errore
+      const isLoginRequest = requestUrl.includes('/auth/login');
+      
+      if (!isLoginRequest) {
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        // replace() evita che il back button riporti alla pagina con errore
+        if (!window.location.pathname.startsWith(LOGIN_PATH)) {
+          window.location.replace(LOGIN_PATH);
+        }
       }
     }
     return Promise.reject(error);
   }
 );
+
+/** Rimuove il token e reindirizza alla pagina di login */
+export function logout(): void {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    window.location.replace(LOGIN_PATH);
+  }
+}

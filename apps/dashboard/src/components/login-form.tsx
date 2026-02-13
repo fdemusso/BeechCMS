@@ -1,5 +1,8 @@
 import { useState } from "react"
+import { useNavigate } from "react-router-dom"
+import axios from "axios"
 import { Eye, EyeOff } from "lucide-react"
+import { api, AUTH_TOKEN_KEY, type LoginResponse } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -19,7 +22,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const ERROR_MESSAGES = {
   EMAIL_REQUIRED: "Inserisci l'email",
   EMAIL_INVALID: "Email non valida",
-  CREDENTIALS_INVALID: "Email o password errati",
+  CREDENTIALS_INVALID: "Email o Password errate",
 } as const
 
 interface LoginFormProps extends React.ComponentProps<"div"> {
@@ -35,23 +38,27 @@ interface LoginFormProps extends React.ComponentProps<"div"> {
  * - Transizione visiva tra stato disabilitato (grigio) e attivo (accent)
  */
 export function LoginForm({ className, ...props }: LoginFormProps) {
+  const navigate = useNavigate()
   const [emailValue, setEmailValue] = useState("")
   const [passwordValue, setPasswordValue] = useState("")
   const [isPasswordVisible, setIsPasswordVisible] = useState(false)
   const [emailError, setEmailError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   /** Abilita il submit solo quando entrambi i campi hanno un valore */
   const isFormValid =
     emailValue.trim().length > 0 && passwordValue.trim().length > 0
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>): void => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()
     const email = emailValue.trim()
     const password = passwordValue
 
     setEmailError(null)
     setPasswordError(null)
+    setSuccessMessage(null)
 
     if (!email) {
       setEmailError(ERROR_MESSAGES.EMAIL_REQUIRED)
@@ -66,19 +73,47 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
       return
     }
 
-    // TODO: integrare chiamata API login
+    setIsLoading(true)
+    try {
+      // Usa axios diretto per /auth/login (non passa da baseURL '/api')
+      const { data } = await axios.post<LoginResponse>('/auth/login', { email, password })
+      localStorage.setItem(AUTH_TOKEN_KEY, data.token)
+      
+      // TODO: Rimuovere questo avviso di successo in produzione
+      setSuccessMessage('Login riuscito!')
+      setIsLoading(false)
+      
+      // Attendi un momento per mostrare il messaggio di successo prima del redirect
+      setTimeout(() => {
+        navigate('/', { replace: true })
+      }, 1000)
+    } catch (error) {
+      setIsLoading(false)
+      if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          setPasswordError(ERROR_MESSAGES.CREDENTIALS_INVALID)
+        } else {
+          // Gestione altri errori (network, 500, etc.)
+          setPasswordError('Errore durante il login. Riprova più tardi.')
+        }
+      } else {
+        setPasswordError('Errore di connessione. Verifica la tua connessione internet.')
+      }
+    }
   }
 
   const handleEmailChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     setEmailValue(event.target.value)
     setEmailError(null)
     setPasswordError(null)
+    setSuccessMessage(null)
   }
 
   const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     setPasswordValue(event.target.value)
     setPasswordError(null)
     setEmailError(null)
+    setSuccessMessage(null)
   }
 
   return (
@@ -110,7 +145,7 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
                     autoComplete="username"
                     inputMode="email"
                     value={emailValue}
-                    className={cn(emailError || passwordError ? "border-destructive" : "")}
+                    className={cn(emailError ? "border-destructive" : "")}
                     onChange={handleEmailChange}
                   />
                 </Field>
@@ -162,19 +197,24 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
                       {emailError || passwordError}
                     </FieldError>
                   )}
+                  {successMessage && (
+                    <div className="text-sm text-green-600 dark:text-green-400 font-medium">
+                      {successMessage}
+                    </div>
+                  )}
                 </Field>
                 <Field>
                   <Button
                     type="submit"
-                    disabled={!isFormValid}
+                    disabled={!isFormValid || isLoading}
                     className={cn(
                       "transition-colors duration-200 ease-out disabled:opacity-100",
-                      isFormValid
+                      isFormValid && !isLoading
                         ? "bg-accent text-accent-foreground hover:bg-accent/90"
                         : "bg-muted text-muted-foreground cursor-not-allowed"
                     )}
                   >
-                    Login
+                    {isLoading ? "Accesso in corso..." : "Login"}
                   </Button>
                 </Field>
               </FieldGroup>
