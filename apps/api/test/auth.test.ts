@@ -15,6 +15,7 @@ function createMockD1(user: { id: string; email: string; password_hash: string }
     prepare: vi.fn(() => ({
       bind: vi.fn(() => ({
         first: vi.fn(() => Promise.resolve(user)),
+        run: vi.fn(() => Promise.resolve({ success: true, meta: {} })),
       })),
     })),
   }
@@ -49,7 +50,7 @@ describe('POST /auth/login', () => {
       expect(data.token).toBeDefined()
       expect(typeof data.token).toBe('string')
       expect(data.token!.split('.')).toHaveLength(3) // JWT: header.payload.signature
-      expect(data.expiresIn).toBe('2h')
+      expect(data.expiresIn).toBe('15m') // Aggiornato da '2h' a '15m' per access token con refresh
     })
   })
 
