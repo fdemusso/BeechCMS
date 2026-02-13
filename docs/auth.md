@@ -16,21 +16,21 @@ sequenceDiagram
     participant bcrypt
     participant jose
 
-    Client->>API: POST /auth/login {email, password}
+    Client->>API: POST /auth/login con email e password
     API->>API: Parse e valida body
-    API->>D1: SELECT user WHERE email=?
-    D1-->>API: user | null
-    alt user not found
+    API->>D1: SELECT user WHERE email
+    D1-->>API: user oppure null
+    alt user non trovato
         API-->>Client: 401 Invalid credentials
     end
-    API->>bcrypt: compare(password, hash)
-    bcrypt-->>API: true | false
-    alt password invalid
+    API->>bcrypt: compare password con hash
+    bcrypt-->>API: risultato verifica
+    alt password non valida
         API-->>Client: 401 Invalid credentials
     end
-    API->>jose: SignJWT {sub, email} exp 2h
+    API->>jose: SignJWT con sub e email, exp 2h
     jose-->>API: token
-    API-->>Client: 200 {token, expiresIn}
+    API-->>Client: 200 con token e expiresIn
 ```
 
 **Passaggi dettagliati:**
