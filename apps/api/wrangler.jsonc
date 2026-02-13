@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "beech-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-02-13",
+
+  // Database D1 (recupera l'ID con: npx wrangler d1 list)
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "beech-db",
+      "database_id": "INCOLLA_QUI_IL_TUO_ID_D1"
+    }
+  ],
+
+  // Storage R2 (crea il bucket se non l'hai fatto: npx wrangler r2 bucket create beech-storage)
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "beech-storage"
+    }
+  ],
+
+  // CORS e variabili
+  "vars": {
+    "JWT_SECRET": "sviluppo-secret-cambiami"
+  }
+}

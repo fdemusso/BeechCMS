@@ -1,0 +1,24 @@
+{
+  "name": "beech-cms",
+  "version": "0.0.1",
+  "packageManager": "npm@11.9.0",
+  "private": true,
+  "description": "",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "main": "index.js",
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "turbo": "^2.8.7",
+    "typescript": "^5.9.3"
+  }
+}
