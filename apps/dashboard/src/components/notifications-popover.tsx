@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useState } from "react"
 import {
   Bell,
   Database,
@@ -32,7 +32,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
 
@@ -182,10 +181,27 @@ function NotificationCard({
   )
 }
 
+/** Simula un pointerdown esterno per far chiudere il ContextMenu Radix (che non supporta open controllato). */
+function dispatchCloseContextMenu(container: HTMLElement) {
+  const ev = new PointerEvent("pointerdown", {
+    bubbles: true,
+    cancelable: true,
+    view: window,
+    clientX: 0,
+    clientY: 0,
+  })
+  container.dispatchEvent(ev)
+}
+
 export function NotificationsPopover() {
   const [notifications, setNotifications] =
     useState<Notification[]>(MOCK_NOTIFICATIONS)
   const [filter, setFilter] = useState<"all" | "new">("all")
+
+  const handleScrollClose = useCallback((e: React.UIEvent) => {
+    const el = e.currentTarget as HTMLElement
+    if (el) dispatchCloseContextMenu(el)
+  }, [])
 
   const filteredNotifications =
     filter === "new"
@@ -239,24 +255,32 @@ export function NotificationsPopover() {
               <TabsTrigger value="new">Nuove</TabsTrigger>
             </TabsList>
             <TabsContent value="all" className="mt-0">
-              <ScrollArea className="h-[320px]">
+              <div
+                className="h-[320px] overflow-y-auto overflow-x-hidden"
+                onScroll={handleScrollClose}
+                onWheel={handleScrollClose}
+              >
                 <NotificationList
                   notifications={filteredNotifications}
                   filter={filter}
                   onMarkUnseen={handleMarkUnseen}
                   onDelete={handleDelete}
                 />
-              </ScrollArea>
+              </div>
             </TabsContent>
             <TabsContent value="new" className="mt-0">
-              <ScrollArea className="h-[320px]">
+              <div
+                className="h-[320px] overflow-y-auto overflow-x-hidden"
+                onScroll={handleScrollClose}
+                onWheel={handleScrollClose}
+              >
                 <NotificationList
                   notifications={filteredNotifications}
                   filter={filter}
                   onMarkUnseen={handleMarkUnseen}
                   onDelete={handleDelete}
                 />
-              </ScrollArea>
+              </div>
             </TabsContent>
           </Tabs>
         </div>
