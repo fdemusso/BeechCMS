@@ -239,7 +239,17 @@ Risposta: array con `data` in formato `{ "title": "...", "budget": ... }`.
 | Branch ID | Alias | Label | Type |
 |-----------|-------|-------|------|
 | `br_01` | `title` | Titolo | text |
-| `br_02` | `budget` | Budget | number |
+| `br_02` | `description` | Descrizione | text |
+| `br_03` | `budget` | Budget | number |
+| `br_04` | `progress` | Progresso % | number |
+| `br_05` | `active` | Attivo | boolean |
+| `br_06` | `published` | Pubblicato | boolean |
+| `br_07` | `startDate` | Data Inizio | date |
+| `br_08` | `endDate` | Data Fine | date |
+| `br_09` | `metadata` | Metadati | json |
+| `br_10` | `tags` | Tags | json |
 
-Payload API: `{ "title": "...", "budget": 123 }`  
-Payload DB: `{ "br_01": "...", "br_02": 123 }`
+Payload API: `{ "title": "...", "budget": 123, "tags": { "cms": "#3b82f6", "react": "#06b6d4" } }`  
+Payload DB: `{ "br_01": "...", "br_02": 123, "br_10": "{\"cms\":\"#3b82f6\",\"react\":\"#06b6d4\"}" }`
+
+**Formato tags:** Oggetto `{ "nomeTag": "#coloreHex" }` per Badge colorati nella UI.

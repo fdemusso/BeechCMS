@@ -115,6 +115,8 @@ contentApp.post('/:slug', async (c) => {
 })
 
 // GET /:slug - Lista per tipo
+// TODO: Server-side pagination per dataset grandi (>500 righe). Aggiungere ?page=&limit=,
+// usare LIMIT/OFFSET nella query, restituire { items, total }. Spostare filtri/ricerca lato server.
 contentApp.get('/:slug', async (c) => {
   const slug = c.req.param('slug')
   if (!slug) {
@@ -182,6 +184,91 @@ contentApp.get('/:slug/:id', async (c) => {
     return c.json({ ...entry, data: dbToApi(seed, entry.data) })
   } catch (err) {
     console.error('Content detail error:', err)
+    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
+  }
+})
+
+// PUT /:slug/:id - Aggiornamento
+contentApp.put('/:slug/:id', async (c) => {
+  const slug = c.req.param('slug')
+  const id = c.req.param('id')
+  if (!slug || !id) {
+    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400)
+  }
+
+  const seed = getSeed(slug)
+  if (!seed) {
+    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+  }
+
+  let body: Record<string, unknown>
+  try {
+    const raw = await c.req.json<unknown>()
+    body = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
+  } catch {
+    return c.json({ error: CONTENT_ERRORS.INVALID_JSON_BODY }, 400)
+  }
+
+  const dbPayload = apiToDb(seed, body)
+  const now = Math.floor(Date.now() / 1000)
+  const dataStr = JSON.stringify(dbPayload)
+
+  try {
+    const { DB } = c.env
+    /**
+     * UPDATE content_entries.
+     * bind(?, ?, ?, ?) → data (JSON string), updated_at, schema_slug, id
+     */
+    const result = await DB.prepare(
+      `UPDATE content_entries SET data = ?, updated_at = ? WHERE schema_slug = ? AND id = ?`
+    )
+      .bind(dataStr, now, slug, id)
+      .run()
+
+    if (!result.success || (result.meta?.changes ?? 0) === 0) {
+      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
+    }
+
+    return c.json({ success: true })
+  } catch (err) {
+    console.error('Content update error:', err)
+    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
+  }
+})
+
+// DELETE /:slug/:id - Eliminazione
+contentApp.delete('/:slug/:id', async (c) => {
+  const slug = c.req.param('slug')
+  const id = c.req.param('id')
+  if (!slug || !id) {
+    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400)
+  }
+
+  // Verifica che il seed esista (per consistenza con altri endpoint)
+  const seed = getSeed(slug)
+  if (!seed) {
+    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+  }
+
+  try {
+    const { DB } = c.env
+    /**
+     * DELETE content_entries.
+     * bind(?, ?) → schema_slug, id
+     */
+    const result = await DB.prepare(
+      `DELETE FROM content_entries WHERE schema_slug = ? AND id = ?`
+    )
+      .bind(slug, id)
+      .run()
+
+    if (!result.success || (result.meta?.changes ?? 0) === 0) {
+      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
+    }
+
+    return c.json({ success: true })
+  } catch (err) {
+    console.error('Content delete error:', err)
     return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
   }
 })

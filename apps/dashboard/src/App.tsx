@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { AUTH_TOKEN_KEY } from "@/lib/api"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { ContentListPage } from "@/pages/content-list"
 import "./App.css"
 
 function LoginPage() {
@@ -51,12 +52,32 @@ function DashboardPage() {
   )
 }
 
+// Wrapper per proteggere le route con autenticazione
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const hasToken =
+    typeof window !== "undefined" && localStorage.getItem(AUTH_TOKEN_KEY)
+  
+  if (!hasToken) {
+    return <Navigate to="/login" replace />
+  }
+  
+  return <>{children}</>
+}
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/" element={<DashboardPage />} />
+        <Route
+          path="/content/:slug"
+          element={
+            <ProtectedRoute>
+              <ContentListPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
   )

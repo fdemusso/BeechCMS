@@ -1,5 +1,5 @@
 import type { LucideIcon } from "lucide-react"
-import { LayoutDashboard, Settings } from "lucide-react"
+import { LayoutDashboard, Settings, Folder } from "lucide-react"
 
 /** Voce di navigazione principale (può avere sottomenu) */
 export interface NavItem {
@@ -24,6 +24,11 @@ export const STATIC_MENU: NavItem[] = [
     url: "/",
     icon: LayoutDashboard,
     isActive: true,
+  },
+  {
+    title: "Progetti",
+    url: "/content/progetti",
+    icon: Folder,
   },
   {
     title: "Impostazioni",

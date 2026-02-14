@@ -30,6 +30,7 @@ export function apiToDb(seed: Seed, payload: Record<string, unknown>): DbPayload
 /**
  * Trasforma il payload DB (chiavi = br_xxx) in payload API (chiavi = alias).
  * Chiavi nel DB non presenti nel Seed vengono ignorate.
+ * Per i campi di tipo 'json', fa il double-parse se il valore è una stringa JSON.
  */
 export function dbToApi(seed: Seed, data: Record<string, unknown> | null | undefined): ApiPayload {
   if (!data || typeof data !== 'object') {
@@ -40,7 +41,18 @@ export function dbToApi(seed: Seed, data: Record<string, unknown> | null | undef
 
   for (const branch of seed.branches) {
     if (branch.id in data) {
-      result[branch.alias] = data[branch.id]
+      let value = data[branch.id]
+      
+      // Per campi JSON, tenta il double-parse se è una stringa
+      if (branch.type === 'json' && typeof value === 'string') {
+        try {
+          value = JSON.parse(value)
+        } catch {
+          // Se fallisce, mantieni la stringa originale
+        }
+      }
+      
+      result[branch.alias] = value
     }
   }
 
