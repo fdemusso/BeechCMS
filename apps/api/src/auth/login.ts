@@ -12,8 +12,8 @@ export type UserRecord = {
   password_hash: string
 }
 
-/** Regex per validare formato email (deve contenere @) */
-const EMAIL_REGEX = /^[^@]+@[^@]+$/
+/** Regex per validare formato email (deve contenere @ e punto dopo @) */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /** Lunghezza minima password (caratteri) */
 const MIN_PASSWORD_LENGTH = 8
@@ -46,7 +46,7 @@ export function parseLoginBody(body: unknown): LoginCredentials | null {
 
 /**
  * Verifica che email e password rispettino i formati richiesti.
- * @param email - Email da validare (deve contenere @)
+ * @param email - Email da validare (deve contenere @ e punto dopo @)
  * @param password - Password (8-128 caratteri)
  * @returns true se valido
  */
