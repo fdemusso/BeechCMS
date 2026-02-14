@@ -18,10 +18,19 @@ import { Input } from "@/components/ui/input"
 /** Regex per validazione formato email */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+/** Lunghezza minima password (caratteri) */
+const MIN_PASSWORD_LENGTH = 8
+
+/** Lunghezza massima password (caratteri) */
+const MAX_PASSWORD_LENGTH = 128
+
 /** Messaggi di errore per validazione form */
 const ERROR_MESSAGES = {
   EMAIL_REQUIRED: "Inserisci l'email",
   EMAIL_INVALID: "Email non valida",
+  PASSWORD_REQUIRED: "Inserisci la password",
+  PASSWORD_TOO_SHORT: `La password deve essere almeno ${MIN_PASSWORD_LENGTH} caratteri`,
+  PASSWORD_TOO_LONG: `La password non può superare i ${MAX_PASSWORD_LENGTH} caratteri`,
   CREDENTIALS_INVALID: "Email o Password errate",
 } as const
 
@@ -69,7 +78,15 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
       return
     }
     if (!password) {
-      setPasswordError(ERROR_MESSAGES.CREDENTIALS_INVALID)
+      setPasswordError(ERROR_MESSAGES.PASSWORD_REQUIRED)
+      return
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setPasswordError(ERROR_MESSAGES.PASSWORD_TOO_SHORT)
+      return
+    }
+    if (password.length > MAX_PASSWORD_LENGTH) {
+      setPasswordError(ERROR_MESSAGES.PASSWORD_TOO_LONG)
       return
     }
 
@@ -120,10 +137,22 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
-      <Card className="overflow-hidden p-0">
-        <CardContent className="grid grid-cols-1 p-0 md:grid-cols-2">
+      <Card className="overflow-hidden p-0 shadow-md">
+        <CardContent className="relative grid grid-cols-1 p-0 md:grid-cols-2">
+          <img
+            src="/undraw_clouds_bmtk.svg"
+            alt=""
+            className="absolute -left-30 -top-36 z-0 h-96 w-96 rotate-150 scale-x-[-1]"
+            aria-hidden="true"
+          />
+          <img
+            src="/sol.svg"
+            alt=""
+            className="absolute right-23 -top-28 z-0 hidden h-80 w-80 md:block md:h-[29rem] md:w-[28rem]"
+            aria-hidden="true"
+          />
           <form
-            className="flex min-h-[36rem] flex-col justify-center p-6 md:p-8"
+            className="relative z-10 flex min-h-[36rem] flex-col justify-center p-6 md:p-8"
             onSubmit={handleSubmit}
             noValidate
           >
@@ -222,11 +251,11 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
               </FieldGroup>
             </div>
           </form>
-          <div className="bg-muted relative hidden md:block">
+          <div className="relative hidden md:block md:min-h-[36rem] md:overflow-hidden">
             <img
-              src="/placeholder.svg"
+              src="/undraw_enter_nwx3.svg"
               alt="Illustrazione area login"
-              className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+              className="absolute -bottom-7 -right-28 h-full max-h-[42rem] w-full max-w-lg object-contain object-right-bottom scale-x-[-1] dark:brightness-[0.2] dark:grayscale"
             />
           </div>
         </CardContent>
