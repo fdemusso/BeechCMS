@@ -54,7 +54,6 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
   const [emailError, setEmailError] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [successMessage, setSuccessMessage] = useState<string | null>(null)
 
   /** Abilita il submit solo quando entrambi i campi hanno un valore */
   const isFormValid =
@@ -67,7 +66,6 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
 
     setEmailError(null)
     setPasswordError(null)
-    setSuccessMessage(null)
 
     if (!email) {
       setEmailError(ERROR_MESSAGES.EMAIL_REQUIRED)
@@ -97,15 +95,8 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
         withCredentials: true, // Necessario per ricevere refresh_token cookie
       })
       localStorage.setItem(AUTH_TOKEN_KEY, data.token)
-      
-      // TODO: Rimuovere questo avviso di successo in produzione
-      setSuccessMessage('Login riuscito! Sessione valida per 7 giorni.')
       setIsLoading(false)
-      
-      // Attendi un momento per mostrare il messaggio di successo prima del redirect
-      setTimeout(() => {
-        navigate('/', { replace: true })
-      }, 1000)
+      navigate('/', { replace: true })
     } catch (error) {
       setIsLoading(false)
       if (axios.isAxiosError(error)) {
@@ -125,14 +116,12 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
     setEmailValue(event.target.value)
     setEmailError(null)
     setPasswordError(null)
-    setSuccessMessage(null)
   }
 
   const handlePasswordChange = (event: React.ChangeEvent<HTMLInputElement>): void => {
     setPasswordValue(event.target.value)
     setPasswordError(null)
     setEmailError(null)
-    setSuccessMessage(null)
   }
 
   return (
@@ -227,11 +216,6 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
                     <FieldError>
                       {emailError || passwordError}
                     </FieldError>
-                  )}
-                  {successMessage && (
-                    <div className="text-sm text-green-600 dark:text-green-400 font-medium">
-                      {successMessage}
-                    </div>
                   )}
                 </Field>
                 <Field>

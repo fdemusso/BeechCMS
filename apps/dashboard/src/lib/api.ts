@@ -113,6 +113,22 @@ api.interceptors.response.use(
   }
 );
 
+/** Decodifica il JWT e restituisce email e nome dal payload */
+export function getStoredUser(): { email: string; name?: string } | null {
+  if (typeof window === "undefined") return null
+  const token = localStorage.getItem(AUTH_TOKEN_KEY)
+  if (!token) return null
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]))
+    return {
+      email: payload.email ?? "",
+      name: payload.name ?? "Admin",
+    }
+  } catch {
+    return null
+  }
+}
+
 /** Rimuove il token, invalida refresh token nel backend e reindirizza alla pagina di login */
 export async function logout(): Promise<void> {
   if (typeof window !== 'undefined') {
