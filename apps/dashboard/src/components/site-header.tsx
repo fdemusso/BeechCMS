@@ -1,4 +1,4 @@
-import { Bell, SidebarIcon } from "lucide-react"
+import { SidebarIcon } from "lucide-react"
 
 import {
   Breadcrumb,
@@ -9,6 +9,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
+import { NotificationsPopover } from "@/components/notifications-popover"
 import { Separator } from "@/components/ui/separator"
 import { useSidebar } from "@/components/ui/sidebar"
 
@@ -38,14 +39,7 @@ export function SiteHeader() {
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
-        <Button
-          className="ml-auto h-8 w-8"
-          variant="ghost"
-          size="icon"
-          aria-label="Notifiche"
-        >
-          <Bell className="size-4" />
-        </Button>
+        <NotificationsPopover />
       </div>
     </header>
   )
