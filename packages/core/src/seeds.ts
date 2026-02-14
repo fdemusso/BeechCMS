@@ -2,7 +2,7 @@
  * Seed Registry: configurazione degli schemi di contenuto.
  * Ogni slug (es. 'progetti') mappa a un Seed con la definizione dei campi.
  */
-import type { Seed } from '../engine/types'
+import type { Seed } from './types'
 
 /** Seed di esempio: Progetti (slug: progetti) */
 export const PROJECT_SEED: Seed = {

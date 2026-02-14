@@ -2,7 +2,9 @@
 
 Documentazione del motore CRUD Schema-Driven: architettura ibrida SQL/JSON per contenuti dinamici.
 
-**Vedi anche:** [Botanical Engine](botanical-engine.md) — layer di traduzione alias ↔ ID interni.
+**Vedi anche:**
+- [Botanical Engine](botanical-engine.md) — layer di traduzione alias ↔ ID interni
+- [Architettura Monorepo](monorepo.md) — struttura `@beech/core` e pacchetti condivisi
 
 ---
 
@@ -38,7 +40,7 @@ JSON Body (alias) → apiToDb → JSON.stringify → colonna data (TEXT, br_xxx)
 ```
 
 1. Il client invia un body JSON con alias (es. `{ "title": "Progetto X", "budget": 5000 }`)
-2. `apiToDb(seed, body)` converte gli alias negli ID interni (`br_01`, `br_02`, …)
+2. `apiToDb(seed, body)` da `@beech/core` converte gli alias negli ID interni (`br_01`, `br_02`, …)
 3. L'API stringifica il payload trasformato e lo salva in `data`
 
 ### Lettura (GET)
@@ -48,8 +50,8 @@ colonna data (TEXT, br_xxx) → JSON.parse → dbToApi → JSON Response (alias)
 ```
 
 1. D1 restituisce `row.data` come stringa (es. `'{"br_01":"Progetto X","br_02":5000}'`)
-2. `rowToEntry` esegue `JSON.parse(row.data)` per ottenere un oggetto
-3. `dbToApi(seed, data)` converte gli ID interni negli alias
+2. `rowToEntry` (in `content.ts`) esegue `JSON.parse(row.data)` per ottenere un oggetto
+3. `dbToApi(seed, data)` da `@beech/core` converte gli ID interni negli alias
 4. L'API restituisce al frontend un JSON con `data` in formato alias
 
 ```mermaid

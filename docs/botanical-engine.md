@@ -98,19 +98,28 @@ Se lo slug non è registrato nel Seed Registry (es. `GET /api/content/xyz`), l'A
 
 ## 5. Struttura del codice
 
+Il Botanical Engine vive nel pacchetto condiviso `@beech/core` (monorepo):
+
 ```
-apps/api/src/
-├── engine/
+packages/core/
+├── src/
+│   ├── index.ts       # Barrel export del pacchetto
 │   ├── types.ts       # Branch, Seed, DbPayload, ApiPayload
-│   └── transformer.ts # apiToDb, dbToApi
-├── seeds/
-│   └── index.ts       # SEED_REGISTRY, getSeed, PROJECT_SEED
-└── content.ts         # Handler CRUD che usano il Translation Layer
+│   ├── engine.ts      # apiToDb, dbToApi (Translation Layer)
+│   └── seeds.ts       # SEED_REGISTRY, getSeed, PROJECT_SEED
+└── dist/              # Output compilato (main + .d.ts)
+
+apps/api/src/
+└── content.ts         # Handler CRUD che importano da @beech/core
 ```
+
+**Uso:** Le app (API, Dashboard) importano con `import { getSeed, apiToDb, dbToApi } from '@beech/core'`.
+
+Vedi [Architettura Monorepo](monorepo.md) per la struttura completa del progetto.
 
 ### Aggiungere un nuovo Seed
 
-1. Definire il Seed in `seeds/index.ts` (o in un file dedicato)
+1. Definire il Seed in `packages/core/src/seeds.ts` (o in un file dedicato)
 2. Registrarlo in `SEED_REGISTRY`:
 
 ```ts

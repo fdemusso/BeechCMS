@@ -1,7 +1,11 @@
 /**
  * Botanical Engine: tipi per Seed, Branch e payload.
  * Definisce la struttura dati usata dal Translation Layer.
+ *
+ * @see {@link ./engine} per le funzioni apiToDb e dbToApi
+ * @see {@link ./seeds} per SEED_REGISTRY e getSeed
  */
+
 /** Tipi di campo supportati dal Botanical Engine */
 export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date'
 

@@ -1,7 +1,11 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { getSeed } from './seeds'
-import { apiToDb, dbToApi } from './engine/transformer'
+import { getSeed, apiToDb, dbToApi } from '@beech/core'
+
+/**
+ * Content API: CRUD schema-driven per content_entries.
+ * Usa @beech/core per traduzione alias ↔ ID interni (Botanical Engine).
+ */
 
 /** Messaggi di errore API content - usati da handler e test */
 export const CONTENT_ERRORS = {

@@ -17,9 +17,9 @@ export function apiToDb(seed: Seed, payload: Record<string, unknown>): DbPayload
   const result: DbPayload = {}
 
   for (const [alias, value] of Object.entries(payload)) {
-    const branch = seed.branches.find((b) => b.alias === alias)
-    if (branch) {
-      result[branch.id] = value
+    const branchDef = seed.branches.find((branch) => branch.alias === alias)
+    if (branchDef) {
+      result[branchDef.id] = value
     }
     // Alias non trovato: ignorare (policy safe)
   }
