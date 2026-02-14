@@ -1,5 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
+import { getSeed } from './seeds'
+import { apiToDb, dbToApi } from './engine/transformer'
 
 /** Messaggi di errore API content - usati da handler e test */
 export const CONTENT_ERRORS = {
@@ -7,6 +9,7 @@ export const CONTENT_ERRORS = {
   INVALID_SLUG_OR_ID: 'Invalid slug or id',
   INVALID_JSON_BODY: 'Invalid JSON body',
   NOT_FOUND: 'Not found',
+  SEED_NOT_FOUND: 'Seed not found',
   DATABASE_ERROR: 'Database error',
 } as const
 
@@ -70,6 +73,11 @@ contentApp.post('/:slug', async (c) => {
     return c.json({ error: CONTENT_ERRORS.INVALID_SLUG }, 400)
   }
 
+  const seed = getSeed(slug)
+  if (!seed) {
+    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+  }
+
   let body: Record<string, unknown>
   try {
     const raw = await c.req.json<unknown>()
@@ -78,10 +86,10 @@ contentApp.post('/:slug', async (c) => {
     return c.json({ error: CONTENT_ERRORS.INVALID_JSON_BODY }, 400)
   }
 
-  // TODO: Validate body against schema definition here
+  const dbPayload = apiToDb(seed, body)
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
-  const dataStr = JSON.stringify(body)
+  const dataStr = JSON.stringify(dbPayload)
 
   try {
     const { DB } = c.env
@@ -109,6 +117,11 @@ contentApp.get('/:slug', async (c) => {
     return c.json({ error: CONTENT_ERRORS.INVALID_SLUG }, 400)
   }
 
+  const seed = getSeed(slug)
+  if (!seed) {
+    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+  }
+
   try {
     const { DB } = c.env
     /**
@@ -121,7 +134,10 @@ contentApp.get('/:slug', async (c) => {
       .bind(slug)
       .all<ContentEntryRow>()
 
-    const entries: ContentEntry[] = (result.results ?? []).map(rowToEntry)
+    const entries: ContentEntry[] = (result.results ?? []).map((row) => {
+      const entry = rowToEntry(row)
+      return { ...entry, data: dbToApi(seed, entry.data) }
+    })
     return c.json(entries)
   } catch (err) {
     console.error('Content list error:', err)
@@ -135,6 +151,11 @@ contentApp.get('/:slug/:id', async (c) => {
   const id = c.req.param('id')
   if (!slug || !id) {
     return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400)
+  }
+
+  const seed = getSeed(slug)
+  if (!seed) {
+    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
   }
 
   try {
@@ -154,7 +175,7 @@ contentApp.get('/:slug/:id', async (c) => {
     }
 
     const entry = rowToEntry(row)
-    return c.json(entry)
+    return c.json({ ...entry, data: dbToApi(seed, entry.data) })
   } catch (err) {
     console.error('Content detail error:', err)
     return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)

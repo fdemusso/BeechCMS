@@ -63,7 +63,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
 
     const res = await app.request('/api/content/progetti', {
       method: 'POST',
-      body: JSON.stringify({ titolo: 'Test' }),
+      body: JSON.stringify({ title: 'Test' }),
       headers: { 'Content-Type': 'application/json' },
     }, { DB: mockDB, JWT_SECRET })
 
@@ -82,7 +82,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
 
     const res = await app.request('/api/content/progetti', {
       method: 'POST',
-      body: JSON.stringify({ titolo: 'Test' }),
+      body: JSON.stringify({ title: 'Test' }),
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer invalid-token',
@@ -101,7 +101,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
 
     const res = await app.request('/api/content/progetti', {
       method: 'POST',
-      body: JSON.stringify({ titolo: 'Test' }),
+      body: JSON.stringify({ title: 'Test' }),
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer ',
@@ -121,7 +121,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
 
     const res = await app.request('/api/content/progetti', {
       method: 'POST',
-      body: JSON.stringify({ titolo: 'Test' }),
+      body: JSON.stringify({ title: 'Test' }),
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer expired-token',
@@ -142,11 +142,11 @@ describe('API Content - Write Operation (La Serializzazione)', () => {
     } as never)
   })
 
-  it('POST con body JSON complesso: DB riceve data come stringa JSON, risposta 201 con ID', async () => {
+  it('POST con body JSON: DB riceve data con br_xxx (Botanical Engine), risposta 201 con ID', async () => {
     const bindCapture: { args?: unknown[] } = {}
     const mockDB = createMockD1ForInsert(bindCapture)
 
-    const body = { titolo: 'Test', tags: ['a', 'b'], meta: { nested: true } }
+    const body = { title: 'Test', budget: 1000 }
 
     const res = await app.request('/api/content/progetti', {
       method: 'POST',
@@ -163,13 +163,13 @@ describe('API Content - Write Operation (La Serializzazione)', () => {
     expect(typeof data.id).toBe('string')
     expect(data.id).toMatch(/^[0-9a-f-]{36}$/i) // UUID format
 
-    // Verifica critica: il 3° parametro passato a bind deve essere una STRINGA JSON, non un oggetto
+    // Verifica critica: apiToDb trasforma alias -> br_xxx
     expect(bindCapture.args).toBeDefined()
     expect(bindCapture.args).toHaveLength(5) // id, schema_slug, data, created_at, updated_at
     const dataParam = bindCapture.args![2]
     expect(typeof dataParam).toBe('string')
-    expect(dataParam).toBe(JSON.stringify(body))
-    expect(JSON.parse(dataParam as string)).toEqual(body)
+    const dbPayload = JSON.parse(dataParam as string)
+    expect(dbPayload).toEqual({ br_01: 'Test', br_02: 1000 })
   })
 })
 
@@ -181,11 +181,11 @@ describe('API Content - Read Operation (La Deserializzazione)', () => {
     } as never)
   })
 
-  it('GET /api/content/progetti: data dal DB come stringa -> risposta con data come oggetto', async () => {
+  it('GET /api/content/progetti: dbToApi trasforma br_xxx -> alias, risposta con data come oggetto', async () => {
     const rawRow = {
       id: '123',
       schema_slug: 'progetti',
-      data: '{"titolo":"Test"}',
+      data: '{"br_01":"Test","br_02":1000}',
       created_at: 1700000000,
       updated_at: 1700000000,
     }
@@ -202,10 +202,9 @@ describe('API Content - Read Operation (La Deserializzazione)', () => {
     expect(entries).toHaveLength(1)
     expect(entries[0].id).toBe('123')
     expect(entries[0].schema_slug).toBe('progetti')
-    // Verifica critica: data deve essere un OGGETTO parsato, non una stringa
+    // Verifica critica: dbToApi trasforma br_01/br_02 -> title/budget
     expect(typeof entries[0].data).toBe('object')
-    expect(entries[0].data).not.toBe('{"titolo":"Test"}')
-    expect(entries[0].data).toEqual({ titolo: 'Test' })
+    expect(entries[0].data).toEqual({ title: 'Test', budget: 1000 })
   })
 })
 
@@ -228,6 +227,36 @@ describe('API Content - Edge Case (Not Found)', () => {
     expect(res.status).toBe(404)
     const data = await res.json() as { error?: string }
     expect(data.error).toBe(CONTENT_ERRORS.NOT_FOUND)
+  })
+
+  it('POST /api/content/slug-inesistente -> 404 SEED_NOT_FOUND', async () => {
+    const mockDB = createMockD1ForInsert({})
+
+    const res = await app.request('/api/content/slug-inesistente', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'Test' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer valid-token',
+      },
+    }, { DB: mockDB, JWT_SECRET })
+
+    expect(res.status).toBe(404)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.SEED_NOT_FOUND)
+  })
+
+  it('GET /api/content/slug-inesistente -> 404 SEED_NOT_FOUND', async () => {
+    const mockDB = createMockD1ForList([])
+
+    const res = await app.request('/api/content/slug-inesistente', {
+      method: 'GET',
+      headers: { Authorization: 'Bearer valid-token' },
+    }, { DB: mockDB, JWT_SECRET })
+
+    expect(res.status).toBe(404)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.SEED_NOT_FOUND)
   })
 })
 
@@ -275,7 +304,7 @@ describe('API Content - Errori DB (500)', () => {
 
     const res = await app.request('/api/content/progetti', {
       method: 'POST',
-      body: JSON.stringify({ titolo: 'Test' }),
+      body: JSON.stringify({ title: 'Test' }),
       headers: {
         'Content-Type': 'application/json',
         Authorization: 'Bearer valid-token',

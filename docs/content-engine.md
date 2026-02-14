@@ -2,6 +2,8 @@
 
 Documentazione del motore CRUD Schema-Driven: architettura ibrida SQL/JSON per contenuti dinamici.
 
+**Vedi anche:** [Botanical Engine](botanical-engine.md) — layer di traduzione alias ↔ ID interni.
+
 ---
 
 ## 1. Architettura ibrida (Schema-less storage on SQL)
@@ -9,7 +11,7 @@ Documentazione del motore CRUD Schema-Driven: architettura ibrida SQL/JSON per c
 Beech CMS usa una **tabella SQL unica** (`content_entries`) per memorizzare **payload JSON dinamici**. Questo approccio combina:
 
 - **Schema SQL stabile**: colonne fisse (`id`, `schema_slug`, `data`, `created_at`, `updated_at`) per metadati e indicizzazione
-- **Payload flessibile**: la colonna `data` (TEXT) contiene JSON arbitrario, permettendo qualsiasi struttura senza migrazioni
+- **Payload flessibile**: la colonna `data` (TEXT) contiene JSON con chiavi interne (`br_xxx`), tradotte in alias leggibili dalle API
 
 **Vantaggi:**
 
@@ -18,6 +20,7 @@ Beech CMS usa una **tabella SQL unica** (`content_entries`) per memorizzare **pa
 | **Un solo controller** | Nessun controller specifico per tipo di contenuto; la rotta `/:slug` si adatta dinamicamente |
 | **Query SQL** | Filtri per `schema_slug`, ordinamento per `created_at`, ricerca full-text futura |
 | **Consistenza** | Transazioni, foreign key, backup standard SQL |
+| **Botanical Engine** | Alias mutabili nelle API, ID immutabili nel DB — rinomine senza migrazioni |
 
 **Trade-off:**
 
@@ -31,36 +34,37 @@ Beech CMS usa una **tabella SQL unica** (`content_entries`) per memorizzare **pa
 ### Scrittura (POST)
 
 ```
-JSON Body → JSON.stringify → colonna data (TEXT)
+JSON Body (alias) → apiToDb → JSON.stringify → colonna data (TEXT, br_xxx)
 ```
 
-1. Il client invia un body JSON (es. `{ "titolo": "Progetto X", "tags": ["a", "b"] }`)
-2. L'API lo stringifica con `JSON.stringify(body)` prima dell'INSERT
-3. La colonna `data` riceve una stringa JSON valida
+1. Il client invia un body JSON con alias (es. `{ "title": "Progetto X", "budget": 5000 }`)
+2. `apiToDb(seed, body)` converte gli alias negli ID interni (`br_01`, `br_02`, …)
+3. L'API stringifica il payload trasformato e lo salva in `data`
 
 ### Lettura (GET)
 
 ```
-colonna data (TEXT) → JSON.parse → JSON Response
+colonna data (TEXT, br_xxx) → JSON.parse → dbToApi → JSON Response (alias)
 ```
 
-1. D1 restituisce `row.data` come stringa (es. `'{"titolo":"Progetto X"}'`)
+1. D1 restituisce `row.data` come stringa (es. `'{"br_01":"Progetto X","br_02":5000}'`)
 2. `rowToEntry` esegue `JSON.parse(row.data)` per ottenere un oggetto
-3. L'API restituisce al frontend un JSON con `data` come oggetto, non come stringa
+3. `dbToApi(seed, data)` converte gli ID interni negli alias
+4. L'API restituisce al frontend un JSON con `data` in formato alias
 
 ```mermaid
 flowchart LR
     subgraph Scrittura
-        A[JSON Body] --> B[JSON.stringify]
-        B --> C[colonna data TEXT]
+        A["JSON Body\n(alias)"] --> B[apiToDb]
+        B --> C[JSON.stringify]
+        C --> D[colonna data TEXT]
     end
 
     subgraph Lettura
-        D[colonna data TEXT] --> E[JSON.parse]
-        E --> F[JSON Response]
+        D --> E[JSON.parse]
+        E --> F[dbToApi]
+        F --> G["JSON Response\n(alias)"]
     end
-
-    C --> D
 ```
 
 **Parsing sicuro:** Se `data` contiene JSON corrotto, `JSON.parse` è avvolto in try/catch; l'API restituisce `data: {}` senza crashare.
@@ -79,13 +83,14 @@ Le rotte `/:slug` e `/:slug/:id` si adattano a qualsiasi tipo di contenuto. Lo `
 
 ### Esempi
 
-**Progetti:**
+**Progetti** (alias: `title`, `budget` — vedi [Botanical Engine](botanical-engine.md)):
+
 ```bash
 # Creare un progetto
 curl -X POST https://api.example.com/api/content/progetti \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{"titolo":"Sito Aziendale","client":"Acme Corp"}'
+  -d '{"title":"Sito Aziendale","budget":5000}'
 
 # Lista progetti
 curl https://api.example.com/api/content/progetti \
@@ -96,7 +101,9 @@ curl https://api.example.com/api/content/progetti/<id> \
   -H "Authorization: Bearer <token>"
 ```
 
-**Blog:**
+**Nota:** Lo slug deve essere registrato nel Seed Registry. Slug non esistenti restituiscono `404 Seed not found`.
+
+**Blog** (da registrare come Seed):
 ```bash
 # Creare un articolo
 curl -X POST https://api.example.com/api/content/blog \
@@ -114,8 +121,9 @@ curl https://api.example.com/api/content/blog \
 | Status | Descrizione | Body |
 |--------|-------------|------|
 | 201 | Creazione riuscita (POST) | `{ "id": "uuid" }` |
-| 200 | Lista o dettaglio (GET) | Array o oggetto con `id`, `schema_slug`, `data`, `created_at`, `updated_at` |
+| 200 | Lista o dettaglio (GET) | Array o oggetto con `id`, `schema_slug`, `data` (alias), `created_at`, `updated_at` |
 | 400 | Slug/body invalido | `{ "error": "Invalid slug" }` o `{ "error": "Invalid JSON body" }` |
 | 401 | Token mancante o invalido | `{ "error": "Unauthorized" }` |
 | 404 | Entry non trovata (GET dettaglio) | `{ "error": "Not found" }` |
+| 404 | Slug non registrato | `{ "error": "Seed not found" }` |
 | 500 | Errore database | `{ "error": "Database error" }` |
