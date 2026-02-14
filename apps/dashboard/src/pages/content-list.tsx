@@ -19,7 +19,11 @@ import {
   updateContent,
   deleteContent,
 } from "@/lib/content-api"
-import { generateColumns, type ContentEntry } from "@/lib/dynamic-columns"
+import {
+  generateColumns,
+  computeMaxLengths,
+  type ContentEntry,
+} from "@/lib/dynamic-columns"
 
 export function ContentListPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -112,11 +116,19 @@ export function ContentListPage() {
     await loadData()
   }, [slug, entryToDelete, loadData])
 
+  const ROWS_PER_PAGE = 10
+
+  // Lunghezza max per colonna (dalla prima pagina) per troncamento consistente
+  const maxLengths = React.useMemo(() => {
+    if (!seed || data.length === 0) return undefined
+    return computeMaxLengths(data, seed, ROWS_PER_PAGE)
+  }, [seed, data])
+
   // Genera colonne
   const columns = React.useMemo(() => {
     if (!seed) return []
-    return generateColumns(seed, handleEdit, handleDelete)
-  }, [seed, handleEdit, handleDelete])
+    return generateColumns(seed, handleEdit, handleDelete, maxLengths)
+  }, [seed, handleEdit, handleDelete, maxLengths])
   
   // Identifica colonne da nascondere di default (metadata, metadati, etc.)
   const initialHiddenColumns = React.useMemo(() => {

@@ -10,6 +10,7 @@ import {
   useReactTable,
   type ColumnDef,
   type ColumnFiltersState,
+  type PaginationState,
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table"
@@ -23,6 +24,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Pagination,
   PaginationContent,
@@ -42,6 +44,10 @@ import {
 } from "@/components/ui/table"
 
 const MAX_VISIBLE_PAGE_BUTTONS = 7
+const DEFAULT_PAGE_SIZE = 10
+const MIN_PAGE_SIZE = 1
+const MAX_PAGE_SIZE = 100
+const ROW_HEIGHT_PX = 48
 
 /**
  * Calcola l'array di pagine da mostrare (numeri o "ellipsis").
@@ -96,6 +102,10 @@ export function DataTable<TData, TValue>({
     React.useState<VisibilityState>(initialVisibility)
   const [rowSelection, setRowSelection] = React.useState({})
   const [globalFilter, setGlobalFilter] = React.useState("")
+  const [pagination, setPagination] = React.useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: DEFAULT_PAGE_SIZE,
+  })
 
   const table = useReactTable({
     data,
@@ -116,8 +126,34 @@ export function DataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
       globalFilter,
+      pagination,
     },
+    onPaginationChange: setPagination,
   })
+
+  const pageSize = table.getState().pagination.pageSize
+
+  // Stato locale per permettere di cancellare e riscrivere (valori intermedi invalidi)
+  const [pageSizeInput, setPageSizeInput] = React.useState(String(pageSize))
+  React.useEffect(() => {
+    setPageSizeInput(String(pageSize))
+  }, [pageSize])
+
+  const applyPageSize = React.useCallback(() => {
+    const val = parseInt(pageSizeInput, 10)
+    if (Number.isNaN(val) || val < MIN_PAGE_SIZE) {
+      table.setPageSize(MIN_PAGE_SIZE)
+      setPageSizeInput(String(MIN_PAGE_SIZE))
+    } else if (val > MAX_PAGE_SIZE) {
+      table.setPageSize(MAX_PAGE_SIZE)
+      setPageSizeInput(String(MAX_PAGE_SIZE))
+    } else {
+      table.setPageSize(val)
+      setPageSizeInput(String(val))
+    }
+  }, [pageSizeInput, table])
+
+  const handlePageSizeBlur = () => applyPageSize()
 
   return (
     <div className="w-full">
@@ -128,12 +164,37 @@ export function DataTable<TData, TValue>({
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Colonne <ChevronDown />
-            </Button>
-          </DropdownMenuTrigger>
+        <div className="ml-auto flex items-center gap-2">
+          <div className="flex items-center gap-2">
+            <Label htmlFor="page-size" className="text-sm text-muted-foreground whitespace-nowrap">
+              Righe
+            </Label>
+            <Input
+              id="page-size"
+              type="number"
+              min={MIN_PAGE_SIZE}
+              max={MAX_PAGE_SIZE}
+              value={pageSizeInput}
+              onChange={(e) => {
+                setPageSizeInput(e.target.value)
+                const val = parseInt(e.target.value, 10)
+                if (!Number.isNaN(val) && val >= MIN_PAGE_SIZE && val <= MAX_PAGE_SIZE) {
+                  table.setPageSize(val)
+                }
+              }}
+              onBlur={handlePageSizeBlur}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handlePageSizeBlur()
+              }}
+              className="w-16 h-9 text-center"
+            />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">
+                Colonne <ChevronDown />
+              </Button>
+            </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {table
               .getAllColumns()
@@ -153,10 +214,20 @@ export function DataTable<TData, TValue>({
                 )
               })}
           </DropdownMenuContent>
-        </DropdownMenu>
+          </DropdownMenu>
+        </div>
       </div>
       <div className="rounded-md border">
-        <div className="relative w-full overflow-x-auto">
+        <div
+          className="relative w-full overflow-x-auto"
+          style={{
+            minHeight: (() => {
+              const totalRows = table.getFilteredRowModel().rows.length
+              const rowCount = totalRows < pageSize ? totalRows : pageSize
+              return rowCount * ROW_HEIGHT_PX
+            })(),
+          }}
+        >
           <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -178,21 +249,44 @@ export function DataTable<TData, TValue>({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              <>
+                {table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                    style={{ height: ROW_HEIGHT_PX }}
+                  >
+                    {row.getVisibleCells().map((cell) => (
+                      <TableCell key={cell.id}>
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext()
+                        )}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))}
+                {(() => {
+                  const totalRows = table.getFilteredRowModel().rows.length
+                  const visibleRows = table.getRowModel().rows.length
+                  const placeholderCount =
+                    totalRows >= pageSize && visibleRows < pageSize
+                      ? pageSize - visibleRows
+                      : 0
+                  const colCount = table.getVisibleLeafColumns().length
+                  return Array.from({ length: placeholderCount }, (_, i) => (
+                    <TableRow
+                      key={`placeholder-${i}`}
+                      className="border-b border-dashed"
+                      style={{ height: ROW_HEIGHT_PX }}
+                    >
+                      {Array.from({ length: colCount }, (_, colIndex) => (
+                        <TableCell key={colIndex} className="align-middle" />
+                      ))}
+                    </TableRow>
+                  ))
+                })()}
+              </>
             ) : (
               <TableRow>
                 <TableCell

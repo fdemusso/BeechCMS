@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 
 const TEXT_TRUNCATE_LENGTH = 50
 const JSON_TRUNCATE_LENGTH = 40
+const MIN_TRUNCATE_LENGTH = 20
 const SORTABLE_BRANCH_TYPES = ["text", "number", "date"] as const
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -169,13 +170,80 @@ export interface ContentEntry {
 }
 
 /**
+ * Calcola la lunghezza massima per ogni colonna stringa dalla prima pagina di dati.
+ * Usata per troncamento consistente: tutte le stringhe più lunghe vengono tagliate con "..."
+ * @param data - Tutti i dati (si usano solo i primi rowsPerPage)
+ * @param seed - Seed con definizione dei branch
+ * @param rowsPerPage - Numero righe della prima pagina (default 10)
+ */
+export function computeMaxLengths(
+  data: ContentEntry[],
+  seed: Seed,
+  rowsPerPage: number
+): Record<string, number> {
+  const result: Record<string, number> = {}
+  const firstPage = data.slice(0, rowsPerPage)
+
+  for (const branch of seed.branches) {
+    if (branch.type === "text") {
+      let max = 0
+      for (const row of firstPage) {
+        const val = row.data[branch.alias]
+        if (val != null) {
+          const len = String(val).length
+          if (len > max) max = len
+        }
+      }
+      result[branch.alias] = Math.max(max, MIN_TRUNCATE_LENGTH)
+    } else if (branch.type === "json") {
+      const isTagsField = branch.alias.toLowerCase().includes("tag")
+      if (isTagsField) continue // I tag non usano ExpandableCell con lunghezza stringa
+      let max = 0
+      for (const row of firstPage) {
+        const val = row.data[branch.alias]
+        if (val != null) {
+          let str: string
+          if (typeof val === "string") {
+            try {
+              str = JSON.stringify(JSON.parse(val))
+            } catch {
+              str = val
+            }
+          } else {
+            str = JSON.stringify(val)
+          }
+          if (str.length > max) max = str.length
+        }
+      }
+      result[branch.alias] = Math.max(max, MIN_TRUNCATE_LENGTH)
+    } else {
+      // Tipi non riconosciuti: tratta come stringa
+      let max = 0
+      for (const row of firstPage) {
+        const val = row.data[branch.alias]
+        if (val != null) {
+          const len = String(val).length
+          if (len > max) max = len
+        }
+      }
+      result[branch.alias] = Math.max(max, MIN_TRUNCATE_LENGTH)
+    }
+  }
+
+  return result
+}
+
+/**
  * Genera le definizioni delle colonne per TanStack Table basandosi su un Seed.
  * Crea automaticamente colonne per tutti i Branch + colonne Select e Actions.
+ * @param maxLengths - Mappa alias -> lunghezza max per troncamento (da computeMaxLengths).
+ *   Se fornita, le stringhe più lunghe vengono troncate con "..."; altrimenti si usano i default.
  */
 export function generateColumns(
   seed: Seed,
   onEdit: (id: string) => void,
-  onDelete: (id: string) => void
+  onDelete: (id: string) => void,
+  maxLengths?: Record<string, number>
 ): ColumnDef<ContentEntry>[] {
   const columns: ColumnDef<ContentEntry>[] = []
 
@@ -239,9 +307,10 @@ export function generateColumns(
             const value = row.original.data[branch.alias]
             if (value == null) return <div>-</div>
             const text = String(value)
+            const maxLen = maxLengths?.[branch.alias] ?? TEXT_TRUNCATE_LENGTH
             return (
               <CopyableCell value={text} label={branch.label}>
-                <ExpandableCell content={text} maxLength={TEXT_TRUNCATE_LENGTH} />
+                <ExpandableCell content={text} maxLength={maxLen} />
               </CopyableCell>
             )
           },
@@ -358,10 +427,11 @@ export function generateColumns(
               
               // Altrimenti renderizza JSON comprimibile (per metadati)
               const str = JSON.stringify(value, null, 2)
+              const maxLen = maxLengths?.[branch.alias] ?? JSON_TRUNCATE_LENGTH
               return (
                 <ExpandableCell
                   content={str}
-                  maxLength={JSON_TRUNCATE_LENGTH}
+                  maxLength={maxLen}
                   className="font-mono text-xs text-muted-foreground"
                 />
               )
@@ -373,12 +443,17 @@ export function generateColumns(
         break
 
       default:
-        // Fallback per tipi non riconosciuti
+        // Fallback per tipi non riconosciuti (stringhe)
         columns.push({
           ...baseColumn,
           cell: ({ row }) => {
             const value = row.original.data[branch.alias]
-            return <div>{value != null ? String(value) : "-"}</div>
+            if (value == null) return <div>-</div>
+            const text = String(value)
+            const maxLen = maxLengths?.[branch.alias] ?? TEXT_TRUNCATE_LENGTH
+            return (
+              <ExpandableCell content={text} maxLength={maxLen} />
+            )
           },
         })
     }
