@@ -16,13 +16,9 @@
     }
   ],
 
-  // Storage R2 (crea il bucket se non l'hai fatto: npx wrangler r2 bucket create beech-storage)
-  "r2_buckets": [
-    {
-      "binding": "BUCKET",
-      "bucket_name": "beech-storage"
-    }
-  ],
+  // R2: usa API S3-compatibile con chiavi (configura in .dev.vars per locale, wrangler secret per produzione)
+  // Crea il bucket: npx wrangler r2 bucket create beech-media
+  // Chiavi: Dashboard Cloudflare → R2 → Manage R2 API Tokens
 
   // Rate limiting (Wrangler 4.36+)
   "ratelimits": [

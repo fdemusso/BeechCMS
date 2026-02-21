@@ -19,6 +19,7 @@ export const PROJECT_SEED: Seed = {
     { id: 'br_08', alias: 'endDate', label: 'Data Fine', type: 'date' },
     { id: 'br_09', alias: 'metadata', label: 'Metadati', type: 'json' },
     { id: 'br_10', alias: 'tags', label: 'Tags', type: 'json' },
+    { id: 'br_11', alias: 'coverImage', label: 'Immagine di copertina', type: 'file' },
   ],
 }
 

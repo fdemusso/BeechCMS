@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  font-family: "Poppins", system-ui, sans-serif;
+  font-family: "Poppins", "Inter", system-ui, sans-serif;
   font-size: 15px;
   font-weight: 400;
   line-height: 1.5;
@@ -95,7 +95,7 @@ h1 {
 }
 
 @theme inline {
-  --font-sans: "Poppins", system-ui, sans-serif;
+  --font-sans: "Poppins", "Inter", system-ui, sans-serif;
   --font-size-xs: 0.703125rem;
   --font-size-sm: 0.9375rem;
   --font-size-base: 1.25rem;
@@ -203,11 +203,88 @@ h1 {
   }
 }
 
-@layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
+/* ── Stili condivisi richtext: editor (ProseMirror) e preview ────────────── */
+
+/*
+ * .richtext-content: applicato al div di preview (dangerouslySetInnerHTML).
+ * .ProseMirror:      applicato automaticamente da TipTap all'area editabile.
+ * Entrambi condividono le stesse regole tipografiche.
+ */
+
+.ProseMirror {
+  outline: none;
+  min-height: 150px;
+}
+
+.ProseMirror p,
+.richtext-content p {
+  margin: 0 0 0.5rem;
+  line-height: 1.6;
+}
+
+.ProseMirror p:last-child,
+.richtext-content p:last-child {
+  margin-bottom: 0;
+}
+
+.ProseMirror h2,
+.richtext-content h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.ProseMirror h2:first-child,
+.richtext-content h2:first-child {
+  margin-top: 0;
+}
+
+.ProseMirror strong,
+.richtext-content strong {
+  font-weight: 700;
+}
+
+.ProseMirror em,
+.richtext-content em {
+  font-style: italic;
+}
+
+.ProseMirror ul,
+.ProseMirror ol,
+.richtext-content ul,
+.richtext-content ol {
+  padding-left: 1.5rem;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.ProseMirror ul,
+.richtext-content ul {
+  list-style-type: disc;
+}
+
+.ProseMirror ol,
+.richtext-content ol {
+  list-style-type: decimal;
+}
+
+.ProseMirror li,
+.richtext-content li {
+  line-height: 1.6;
+  margin-bottom: 0.125rem;
+}
+
+/* TipTap v3 wraps <li> content in <p> — azzera il margin per non avere doppio spazio */
+.ProseMirror li p,
+.richtext-content li p {
+  margin: 0;
+}
+
+/* Placeholder vuoto */
+.ProseMirror.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: var(--muted-foreground);
+  pointer-events: none;
+  float: left;
+  height: 0;
 }

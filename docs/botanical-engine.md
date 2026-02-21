@@ -36,7 +36,7 @@ Il **Botanical Engine** introduce un layer di traduzione:
 | `id` | Sì | Chiave nel JSON salvato su D1 | `br_01`, `br_x82` |
 | `alias` | No | Chiave nel payload API (Frontend) | `title`, `budget` |
 | `label` | No | Etichetta per la UI (Dashboard) | "Titolo Progetto" |
-| `type` | No | Tipo del valore | `text`, `number`, `boolean`, `json`, `date` |
+| `type` | No | Tipo del valore | `text`, `number`, `boolean`, `json`, `date`, `richtext`, `file` |
 
 ---
 

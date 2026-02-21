@@ -1,26 +1,30 @@
-// apps/dashboard/src/lib/api.ts
+/**
+ * Client HTTP per le API Beech.
+ * - baseURL '/api': in dev il proxy Vite inoltra al Worker locale
+ * - JWT: interceptor aggiunge Authorization Bearer
+ * - FormData: interceptor rimuove Content-Type per far impostare il boundary al browser
+ */
 import axios, { type AxiosError } from 'axios';
 
-/** Chiave usata per salvare il JWT in localStorage. Usa la stessa chiave in login-form. */
+/** Chiave localStorage per il JWT (deve coincidere con login-form) */
 export const AUTH_TOKEN_KEY = 'beech_token';
 
-/** Path della pagina di login (per evitare redirect loop) */
+/** Path della pagina di login (evita redirect loop su 401) */
 export const LOGIN_PATH = '/login';
 
-/** Risposta API POST /auth/login (auth.md) */
+/** Risposta POST /auth/login */
 export interface LoginResponse {
   token: string
   expiresIn: string
 }
 
-// Grazie al proxy in vite.config.ts, '/api' viene girato al worker locale
 export const api = axios.create({
   baseURL: '/api',
   timeout: 30_000,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // Necessario per inviare httpOnly cookies al backend
+  withCredentials: true, // Cookie refresh_token (httpOnly)
 });
 
 // Interceptor: Prima di ogni richiesta, attacca il token se esiste
@@ -30,6 +34,10 @@ api.interceptors.request.use((config) => {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+  }
+  // FormData: rimuovi Content-Type per far impostare al browser multipart/form-data con boundary
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type'];
   }
   return config;
 });

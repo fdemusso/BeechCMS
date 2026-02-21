@@ -4,6 +4,7 @@ Documentazione del motore CRUD Schema-Driven: architettura ibrida SQL/JSON per c
 
 **Vedi anche:**
 - [Botanical Engine](botanical-engine.md) — layer di traduzione alias ↔ ID interni
+- [Media Engine](media-engine.md) — upload R2, campi tipo `file` (URL in `data`)
 - [Architettura Monorepo](monorepo.md) — struttura `@beech/core` e pacchetti condivisi
 
 ---

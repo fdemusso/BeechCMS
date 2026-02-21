@@ -2,8 +2,8 @@ import * as React from "react"
 import type { Seed } from "@beech/core"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 
+import { FieldEdit } from "@/components/fields"
 import { Button } from "@/components/ui/button"
-import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -12,7 +12,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 /**
@@ -104,6 +103,7 @@ export function ContentEditDialog({
     }
   }
 
+  /** Aggiorna il valore del campo nel form; usato da FieldEdit onChange */
   const handleInputChange = (alias: string, value: unknown) => {
     setFormData((prev) => ({
       ...prev,
@@ -129,92 +129,11 @@ export function ContentEditDialog({
             {seed.branches.map((branch) => (
               <div key={branch.id} className="grid gap-2">
                 <Label htmlFor={branch.alias}>{branch.label}</Label>
-                {branch.type === "text" && (
-                  <Input
-                    id={branch.alias}
-                    type="text"
-                    value={(formData[branch.alias] as string) || ""}
-                    onChange={(e) =>
-                      handleInputChange(branch.alias, e.target.value)
-                    }
-                  />
-                )}
-                {branch.type === "number" && (
-                  <Input
-                    id={branch.alias}
-                    type="number"
-                    step="any"
-                    value={(formData[branch.alias] as number) || ""}
-                    onChange={(e) =>
-                      handleInputChange(
-                        branch.alias,
-                        e.target.value ? Number(e.target.value) : ""
-                      )
-                    }
-                  />
-                )}
-                {branch.type === "boolean" && (
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id={branch.alias}
-                      checked={
-                        formData[branch.alias] === true ||
-                        formData[branch.alias] === "true"
-                      }
-                      onCheckedChange={(checked) =>
-                        handleInputChange(branch.alias, checked === true)
-                      }
-                    />
-                    <label
-                      htmlFor={branch.alias}
-                      className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                    >
-                      {branch.label}
-                    </label>
-                  </div>
-                )}
-                {branch.type === "date" && (
-                  <Input
-                    id={branch.alias}
-                    type="date"
-                    value={
-                      formData[branch.alias]
-                        ? new Date(formData[branch.alias] as string)
-                            .toISOString()
-                            .split("T")[0]
-                        : ""
-                    }
-                    onChange={(e) =>
-                      handleInputChange(branch.alias, e.target.value)
-                    }
-                  />
-                )}
-                {branch.type === "json" && (
-                  <div>
-                    <textarea
-                      id={branch.alias}
-                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      value={
-                        typeof formData[branch.alias] === "string"
-                          ? (formData[branch.alias] as string)
-                          : JSON.stringify(formData[branch.alias], null, 2)
-                      }
-                      onChange={(e) =>
-                        handleInputChange(branch.alias, e.target.value)
-                      }
-                      placeholder={
-                        branch.alias.toLowerCase().includes("tag")
-                          ? '{"cms": "#3b82f6", "react": "#06b6d4", "typescript": "#8b5cf6"}'
-                          : '{"key": "value"}'
-                      }
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {branch.alias.toLowerCase().includes("tag")
-                        ? 'Oggetto tag→colore, es: {"cms": "blue", "react": "green"}'
-                        : 'Oggetto JSON, es: {"client": "Nome"}'}
-                    </p>
-                  </div>
-                )}
+                <FieldEdit
+                  branch={branch}
+                  value={formData[branch.alias]}
+                  onChange={(val) => handleInputChange(branch.alias, val)}
+                />
               </div>
             ))}
             {error && (

@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/site-header"
 import { AUTH_TOKEN_KEY } from "@/lib/api"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ContentListPage } from "@/pages/content-list"
+import { TestFieldsPage } from "@/pages/test-fields"
 import "./App.css"
 
 function LoginPage() {
@@ -75,6 +76,14 @@ function App() {
           element={
             <ProtectedRoute>
               <ContentListPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/test-fields"
+          element={
+            <ProtectedRoute>
+              <TestFieldsPage />
             </ProtectedRoute>
           }
         />

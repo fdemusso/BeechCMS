@@ -15,12 +15,15 @@ export const CONTENT_ERRORS = {
   NOT_FOUND: 'Not found',
   SEED_NOT_FOUND: 'Seed not found',
   DATABASE_ERROR: 'Database error',
+  SLUG_CONFLICT: 'Slug already exists for this schema',
 } as const
 
 /** Riga grezza dal DB (data è stringa JSON) */
 interface ContentEntryRow {
   id: string
   schema_slug: string
+  slug: string | null
+  status: string
   data: string
   created_at: number | null
   updated_at: number | null
@@ -30,6 +33,8 @@ interface ContentEntryRow {
 export interface ContentEntry {
   id: string
   schema_slug: string
+  slug: string | null
+  status: string
   data: Record<string, unknown>
   created_at: number | null
   updated_at: number | null
@@ -64,6 +69,8 @@ function rowToEntry(row: ContentEntryRow): ContentEntry {
   return {
     id: row.id,
     schema_slug: row.schema_slug,
+    slug: row.slug ?? null,
+    status: row.status ?? 'draft',
     data,
     created_at: row.created_at,
     updated_at: row.updated_at,
@@ -90,22 +97,33 @@ contentApp.post('/:slug', async (c) => {
     return c.json({ error: CONTENT_ERRORS.INVALID_JSON_BODY }, 400)
   }
 
-  const dbPayload = apiToDb(seed, body)
+  const entrySlug = typeof body.slug === 'string' && body.slug.trim() !== '' ? body.slug.trim() : null
+  const status = typeof body.status === 'string' && body.status.trim() !== '' ? body.status.trim() : 'draft'
+  const bodyForData = { ...body }
+  delete bodyForData.slug
+  delete bodyForData.status
+  const dbPayload = apiToDb(seed, bodyForData)
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
   const dataStr = JSON.stringify(dbPayload)
 
   try {
     const { DB } = c.env
-    /**
-     * INSERT content_entries.
-     * bind(?, ?, ?, ?, ?) → id (UUID), schema_slug, data (JSON string), created_at, updated_at
-     */
+    if (entrySlug !== null) {
+      const existing = await DB.prepare(
+        'SELECT id FROM content_entries WHERE schema_slug = ? AND slug = ?'
+      )
+        .bind(slug, entrySlug)
+        .first()
+      if (existing) {
+        return c.json({ error: CONTENT_ERRORS.SLUG_CONFLICT }, 409)
+      }
+    }
     await DB.prepare(
-      `INSERT INTO content_entries (id, schema_slug, data, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO content_entries (id, schema_slug, slug, status, data, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
-      .bind(id, slug, dataStr, now, now)
+      .bind(id, slug, entrySlug, status, dataStr, now, now)
       .run()
     return c.json({ id }, 201)
   } catch (err) {
@@ -135,7 +153,7 @@ contentApp.get('/:slug', async (c) => {
      * bind(?) → schema_slug
      */
     const result = await DB.prepare(
-      'SELECT id, schema_slug, data, created_at, updated_at FROM content_entries WHERE schema_slug = ?'
+      'SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries WHERE schema_slug = ?'
     )
       .bind(slug)
       .all<ContentEntryRow>()
@@ -147,6 +165,39 @@ contentApp.get('/:slug', async (c) => {
     return c.json(entries)
   } catch (err) {
     console.error('Content list error:', err)
+    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
+  }
+})
+
+// GET /:schema_slug/by-slug/:entry_slug - Dettaglio pubblico per slug (prima di /:slug/:id)
+contentApp.get('/:schema_slug/by-slug/:entry_slug', async (c) => {
+  const schemaSlug = c.req.param('schema_slug')
+  const entrySlug = c.req.param('entry_slug')
+  if (!schemaSlug || !entrySlug) {
+    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400)
+  }
+
+  const seed = getSeed(schemaSlug)
+  if (!seed) {
+    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+  }
+
+  try {
+    const { DB } = c.env
+    const row = await DB.prepare(
+      'SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND slug = ?'
+    )
+      .bind(schemaSlug, entrySlug)
+      .first<ContentEntryRow>()
+
+    if (!row) {
+      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
+    }
+
+    const entry = rowToEntry(row)
+    return c.json({ ...entry, data: dbToApi(seed, entry.data) })
+  } catch (err) {
+    console.error('Content by-slug error:', err)
     return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
   }
 })
@@ -166,12 +217,8 @@ contentApp.get('/:slug/:id', async (c) => {
 
   try {
     const { DB } = c.env
-    /**
-     * SELECT content_entries per schema_slug e id.
-     * bind(?, ?) → schema_slug, id
-     */
     const row = await DB.prepare(
-      'SELECT id, schema_slug, data, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND id = ?'
+      'SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND id = ?'
     )
       .bind(slug, id)
       .first<ContentEntryRow>()
@@ -209,20 +256,45 @@ contentApp.put('/:slug/:id', async (c) => {
     return c.json({ error: CONTENT_ERRORS.INVALID_JSON_BODY }, 400)
   }
 
-  const dbPayload = apiToDb(seed, body)
+  const bodyForData = { ...body }
+  delete bodyForData.slug
+  delete bodyForData.status
+  const dbPayload = apiToDb(seed, bodyForData)
   const now = Math.floor(Date.now() / 1000)
   const dataStr = JSON.stringify(dbPayload)
 
   try {
     const { DB } = c.env
-    /**
-     * UPDATE content_entries.
-     * bind(?, ?, ?, ?) → data (JSON string), updated_at, schema_slug, id
-     */
-    const result = await DB.prepare(
-      `UPDATE content_entries SET data = ?, updated_at = ? WHERE schema_slug = ? AND id = ?`
+    const current = await DB.prepare(
+      'SELECT slug, status FROM content_entries WHERE schema_slug = ? AND id = ?'
     )
-      .bind(dataStr, now, slug, id)
+      .bind(slug, id)
+      .first<{ slug: string | null; status: string }>()
+    if (!current) {
+      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
+    }
+    const entrySlugReq = body.slug !== undefined
+      ? (typeof body.slug === 'string' && body.slug.trim() !== '' ? body.slug.trim() : null)
+      : undefined
+    const statusReq = body.status !== undefined && typeof body.status === 'string' && body.status.trim() !== ''
+      ? body.status.trim()
+      : undefined
+    const newSlug = entrySlugReq !== undefined ? entrySlugReq : current.slug
+    const newStatus = statusReq !== undefined ? statusReq : current.status
+    if (newSlug !== null) {
+      const existing = await DB.prepare(
+        'SELECT id FROM content_entries WHERE schema_slug = ? AND slug = ? AND id != ?'
+      )
+        .bind(slug, newSlug, id)
+        .first()
+      if (existing) {
+        return c.json({ error: CONTENT_ERRORS.SLUG_CONFLICT }, 409)
+      }
+    }
+    const result = await DB.prepare(
+      `UPDATE content_entries SET data = ?, slug = ?, status = ?, updated_at = ? WHERE schema_slug = ? AND id = ?`
+    )
+      .bind(dataStr, newSlug, newStatus, now, slug, id)
       .run()
 
     if (!result.success || (result.meta?.changes ?? 0) === 0) {

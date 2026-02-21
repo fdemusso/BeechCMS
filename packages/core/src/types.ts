@@ -6,8 +6,11 @@
  * @see {@link ./seeds} per SEED_REGISTRY e getSeed
  */
 
-/** Tipi di campo supportati dal Botanical Engine */
-export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date'
+/**
+ * Tipi di campo supportati dal Botanical Engine.
+ * - file: stringa URL (upload R2), vedi docs/media-engine.md
+ */
+export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file'
 
 /** Branch: definizione di una proprietà. id immutabile, alias mutabile. */
 export interface Branch {
