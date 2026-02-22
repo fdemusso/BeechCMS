@@ -4,6 +4,7 @@ import { ArrowUpDown, MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
 
 import { FieldDisplay } from "@/components/fields"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -23,11 +24,15 @@ const SORTABLE_BRANCH_TYPES = ["text", "number", "date"] as const
 
 /**
  * Interfaccia ContentEntry per tipizzazione.
- * Corrisponde alla struttura restituita dall'API.
+ * Corrisponde alla struttura restituita dall'API GET /api/content/:slug.
  */
 export interface ContentEntry {
   id: string
   schema_slug: string
+  /** Slug dell'entry (URL-friendly), null se non impostato */
+  slug: string | null
+  /** Stato di pubblicazione (es. draft, published) */
+  status: string
   data: Record<string, unknown>
   created_at: number | null
   updated_at: number | null
@@ -99,9 +104,9 @@ export function computeMaxLengths(
 
 /**
  * Genera le definizioni delle colonne per TanStack Table basandosi su un Seed.
- * Crea automaticamente colonne per tutti i Branch + colonne Select e Actions.
- * @param maxLengths - Mappa alias -> lunghezza max per troncamento (da computeMaxLengths).
- *   Se fornita, le stringhe più lunghe vengono troncate con "..."; altrimenti si usano i default.
+ * Colonne fisse di sistema: Select, ID, Slug, Stato (Badge), Azioni.
+ * Colonne dinamiche: una per ogni seed.branch, con cella renderizzata solo da FieldDisplay.
+ * @param maxLengths - Mappa alias -> lunghezza max (da computeMaxLengths); passata a FieldDisplay come options.maxLength.
  */
 export function generateColumns(
   seed: Seed,
@@ -135,7 +140,53 @@ export function generateColumns(
     enableHiding: false,
   })
 
-  // Genera colonne dinamiche dai Branch
+  // Colonna di sistema: ID
+  columns.push({
+    id: "id",
+    accessorFn: (row) => row.id,
+    header: "ID",
+    cell: ({ row }) => (
+      <span className="font-mono text-xs truncate max-w-[8rem] block" title={row.original.id}>
+        {row.original.id}
+      </span>
+    ),
+    enableSorting: false,
+  })
+
+  // Colonna di sistema: Slug
+  columns.push({
+    id: "slug",
+    accessorFn: (row) => row.slug,
+    header: "Slug",
+    cell: ({ row }) => {
+      const slug = row.original.slug
+      return (
+        <span className="text-muted-foreground text-sm">
+          {slug ?? "—"}
+        </span>
+      )
+    },
+    enableSorting: false,
+  })
+
+  // Colonna di sistema: Status (Badge)
+  columns.push({
+    id: "status",
+    accessorFn: (row) => row.status,
+    header: "Stato",
+    cell: ({ row }) => {
+      const status = row.original.status ?? "draft"
+      const variant = status === "published" ? "default" : "secondary"
+      return (
+        <Badge variant={variant} className="capitalize">
+          {status}
+        </Badge>
+      )
+    },
+    enableSorting: false,
+  })
+
+  // Colonne dinamiche: solo da seed.branches, cella = solo FieldDisplay
   seed.branches.forEach((branch) => {
     const baseColumn: ColumnDef<ContentEntry> = {
       accessorFn: (row) => row.data[branch.alias],
@@ -178,7 +229,7 @@ export function generateColumns(
     })
   })
 
-  // Colonna Actions (sempre ultima)
+  // Colonna Azioni (sempre ultima): Copia ID, Modifica (TODO), Elimina (DELETE reale via onDelete)
   columns.push({
     id: "actions",
     enableHiding: false,
@@ -207,7 +258,12 @@ export function generateColumns(
                 Copia ID
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => onEdit(entry.id)}>
+              <DropdownMenuItem
+                onClick={() => {
+                  // TODO: Navigherà a /content/:slug/:id (Form View)
+                  onEdit(entry.id)
+                }}
+              >
                 Modifica
               </DropdownMenuItem>
               <DropdownMenuItem

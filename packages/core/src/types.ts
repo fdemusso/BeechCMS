@@ -28,8 +28,10 @@ export interface Branch {
 export interface Seed {
   /** Slug identificativo (es. 'progetti', 'blog') */
   slug: string
-  /** Etichetta per la UI */
+  /** Etichetta singolare per la UI (es. "Progetto", "Articolo Blog") */
   label: string
+  /** Etichetta plurale per la UI (es. "Progetti", "Articoli Blog"). Se assente si usa `label`. */
+  labelPlural?: string
   /** Lista dei campi (Branch) */
   branches: Branch[]
 }

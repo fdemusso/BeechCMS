@@ -21,6 +21,8 @@ import {
 
 export function NavMain({
   items,
+  groupLabel = "Menu",
+  className,
 }: {
   items: {
     title: string
@@ -32,10 +34,12 @@ export function NavMain({
       url: string
     }[]
   }[]
+  groupLabel?: string
+  className?: string
 }) {
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>Menu</SidebarGroupLabel>
+    <SidebarGroup className={className}>
+      <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
       <SidebarMenu>
         {items.map((item) => (
           <Collapsible key={item.title} asChild defaultOpen={item.isActive}>

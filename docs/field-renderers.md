@@ -109,10 +109,12 @@ Se l'alias del branch contiene la parola `"tag"` (case-insensitive) e il valore 
 - `computeMaxLengths` calcola le lunghezze per troncamento e le passa via `options.maxLength`
 - Nessuno `switch(branch.type)` nel file
 
-### ContentEditDialog
+### EntryEditorPage (`entry-editor.tsx`)
 
+- Pagina fullscreen per la creazione e modifica di una entry (route `/content/:slug/create` e `/content/:slug/:id`)
 - Per ogni branch: `<FieldEdit branch={branch} value={formData[branch.alias]} onChange={(val) => handleInputChange(branch.alias, val)} />`
-- La validazione JSON al submit resta nel dialog (non delegata ai sottomoduli)
+- La validazione JSON al submit resta nella pagina (non delegata ai sottomoduli)
+- Layout adattivo: se lo schema contiene un campo `richtext`, usa una griglia 70/30 (editor + sidebar); altrimenti usa una colonna singola centrata con Card per Pubblicazione, SEO e Contenuto
 
 ### Form View / Kanban View (Fase 3)
 
@@ -128,7 +130,7 @@ Per aggiungere un nuovo tipo (es. `url`, `slug`, `file`):
 2. Creare `display/<tipo>.tsx` e `edit/<tipo>.tsx`
 3. Registrarli in `registry.ts`
 
-Nessuna modifica a `FieldDisplay`, `FieldEdit`, Table View o ContentEditDialog.
+Nessuna modifica a `FieldDisplay`, `FieldEdit`, Table View o `EntryEditorPage`.
 
 ---
 

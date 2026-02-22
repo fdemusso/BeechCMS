@@ -87,6 +87,17 @@ Serve un file da R2. Route pubblica (nessuna auth).
 
 **Errori:** 404 (file non trovato)
 
+### 3.1 Cleanup alla cancellazione entry
+
+Quando si elimina un'entry (`DELETE /api/content/:slug/:id`), i file referenziati nei campi `file` e `json` vengono eliminati anche da R2.
+
+**Flusso:** L'API legge il `data` dell'entry (formato DB, chiavi = branch ID), estrae le chiavi R2 dagli URL `/api/media/KEY`
+e invia `DeleteObjectCommand` per ogni chiave. Poi procede con la delete dal DB.
+
+**Robustezza:** Se R2 non è configurato o la delete su R2 fallisce, l'entry viene comunque eliminata dal DB (priorità: non bloccare la cancellazione).
+
+**Limitazioni:** I campi `richtext` non vengono analizzati (eventuali `<img src="/api/media/...">` nel body restano su R2).
+
 ---
 
 ## 4. Field Renderers
@@ -100,7 +111,10 @@ Il tipo `file` in `BranchType` salva una stringa (URL). Vedi [Field Renderers](f
 
 ---
 
-## 5. File di esempio
+## 5. File e moduli
 
-- `apps/api/.dev.vars.example` — template per variabili locali
-- `apps/api/.env.example` — documentazione variabili (Worker usa `.dev.vars`)
+| File | Descrizione |
+|------|-------------|
+| `apps/api/src/upload.ts` | POST upload, `deleteR2Objects`, serve media |
+| `apps/api/src/media-utils.ts` | `extractMediaKey`, `extractMediaKeysFromData` (estrazione chiavi da entry) |
+| `apps/api/.dev.vars.example` | Template per variabili locali |

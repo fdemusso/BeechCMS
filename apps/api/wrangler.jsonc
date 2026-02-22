@@ -35,9 +35,11 @@
   ],
 
   // CORS e variabili
+  // MEDIA_BASE_URL: in dev punta al proxy Vite (5173) per evitare CORS e semplificare il debugging
   "vars": {
     "JWT_SECRET": "sviluppo-secret-cambiami",
     "CORS_ORIGINS": "http://localhost:5173,http://localhost:5174,https://dashboard.beech.local",
+    "MEDIA_BASE_URL": "http://localhost:5173",
     "ENV": "development"
   }
 }

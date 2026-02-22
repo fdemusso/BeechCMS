@@ -1,6 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import { getSeed, apiToDb, dbToApi } from '@beech/core'
+import { deleteR2Objects } from './upload'
+import { extractMediaKeysFromData } from './media-utils'
 
 /**
  * Content API: CRUD schema-driven per content_entries.
@@ -42,6 +44,11 @@ export interface ContentEntry {
 
 type Bindings = {
   DB: D1Database
+  R2_ACCESS_KEY_ID?: string
+  R2_SECRET_ACCESS_KEY?: string
+  R2_ENDPOINT?: string
+  R2_BUCKET_NAME?: string
+  ENV?: string
 }
 
 type Variables = {
@@ -308,30 +315,59 @@ contentApp.put('/:slug/:id', async (c) => {
   }
 })
 
-// DELETE /:slug/:id - Eliminazione
+// DELETE /:slug/:id - Eliminazione entry e file R2 associati
 contentApp.delete('/:slug/:id', async (c) => {
-  const slug = c.req.param('slug')
-  const id = c.req.param('id')
-  if (!slug || !id) {
+  const schemaSlug = c.req.param('slug')
+  const entryId = c.req.param('id')
+  if (!schemaSlug || !entryId) {
     return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400)
   }
 
-  // Verifica che il seed esista (per consistenza con altri endpoint)
-  const seed = getSeed(slug)
+  const seed = getSeed(schemaSlug)
   if (!seed) {
     return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
   }
 
   try {
     const { DB } = c.env
-    /**
-     * DELETE content_entries.
-     * bind(?, ?) → schema_slug, id
-     */
+
+    // 1. Fetch entry per estrarre chiavi R2 prima della delete
+    const entryRow = await DB.prepare(
+      'SELECT id, data FROM content_entries WHERE schema_slug = ? AND id = ?'
+    )
+      .bind(schemaSlug, entryId)
+      .first<{ id: string; data: string }>()
+
+    if (!entryRow) {
+      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
+    }
+
+    // 2. Estrai chiavi R2 da data e elimina i file (non bloccare se R2 fallisce)
+    let entryData: Record<string, unknown> = {}
+    if (entryRow.data && typeof entryRow.data === 'string') {
+      try {
+        const parsed = JSON.parse(entryRow.data)
+        entryData = typeof parsed === 'object' && parsed !== null ? parsed : {}
+      } catch {
+        // JSON corrotto: procedi senza cleanup R2
+      }
+    }
+    const r2ObjectKeys = extractMediaKeysFromData(seed, entryData)
+    if (r2ObjectKeys.length > 0) {
+      try {
+        await deleteR2Objects(c.env, r2ObjectKeys)
+      } catch (err) {
+        if (c.env.ENV !== 'production') {
+          console.warn('R2 cleanup on delete failed:', err)
+        }
+      }
+    }
+
+    // 3. Elimina entry dal DB
     const result = await DB.prepare(
       `DELETE FROM content_entries WHERE schema_slug = ? AND id = ?`
     )
-      .bind(slug, id)
+      .bind(schemaSlug, entryId)
       .run()
 
     if (!result.success || (result.meta?.changes ?? 0) === 0) {

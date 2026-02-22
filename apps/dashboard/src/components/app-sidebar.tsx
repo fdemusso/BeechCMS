@@ -4,7 +4,7 @@ import { Command } from "lucide-react"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
-import { STATIC_MENU, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
+import { STATIC_MENU, CONTENT_MENU, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
 import { getStoredUser, logout } from "@/lib/api"
 import {
   Sidebar,
@@ -16,7 +16,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-// TODO: Merge STATIC_MENU with dynamic seeds from @beech/core here
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const storedUser = getStoredUser()
@@ -47,7 +46,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={STATIC_MENU} />
+        <NavMain items={STATIC_MENU} groupLabel="Navigazione" />
+        <NavMain items={CONTENT_MENU} groupLabel="Contenuti" className="mt-4" />
         {STATIC_NAV_SECONDARY.length > 0 && (
           <NavSecondary items={STATIC_NAV_SECONDARY} className="mt-auto" />
         )}

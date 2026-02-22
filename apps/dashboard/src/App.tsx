@@ -1,10 +1,11 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom"
 import { LoginForm } from "@/components/login-form"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { AUTH_TOKEN_KEY } from "@/lib/api"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ContentListPage } from "@/pages/content-list"
+import { EntryEditorPage } from "@/pages/entry-editor"
 import { TestFieldsPage } from "@/pages/test-fields"
 import "./App.css"
 
@@ -32,7 +33,6 @@ function DashboardPage() {
           <AppSidebar />
           <SidebarInset>
             <div className="flex flex-1 flex-col gap-4 p-4">
-              {/* Wrapper anti-Tennis Neck: blocca il contenuto a max-w-screen-2xl su ultrawide */}
               <div className="mx-auto w-full max-w-screen-2xl">
                 <h1 className="text-2xl font-semibold">Dashboard</h1>
                 <p className="text-muted-foreground text-sm">
@@ -53,43 +53,60 @@ function DashboardPage() {
   )
 }
 
-// Wrapper per proteggere le route con autenticazione
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const hasToken =
     typeof window !== "undefined" && localStorage.getItem(AUTH_TOKEN_KEY)
-  
   if (!hasToken) {
     return <Navigate to="/login" replace />
   }
-  
   return <>{children}</>
 }
 
+const router = createBrowserRouter([
+  {
+    path: "/login",
+    element: <LoginPage />,
+  },
+  {
+    path: "/",
+    element: <DashboardPage />,
+  },
+  {
+    path: "/content/:slug/create",
+    element: (
+      <ProtectedRoute>
+        <EntryEditorPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/content/:slug/:id",
+    element: (
+      <ProtectedRoute>
+        <EntryEditorPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/content/:slug",
+    element: (
+      <ProtectedRoute>
+        <ContentListPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/test-fields",
+    element: (
+      <ProtectedRoute>
+        <TestFieldsPage />
+      </ProtectedRoute>
+    ),
+  },
+])
+
 function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<DashboardPage />} />
-        <Route
-          path="/content/:slug"
-          element={
-            <ProtectedRoute>
-              <ContentListPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/test-fields"
-          element={
-            <ProtectedRoute>
-              <TestFieldsPage />
-            </ProtectedRoute>
-          }
-        />
-      </Routes>
-    </BrowserRouter>
-  )
+  return <RouterProvider router={router} />
 }
 
 export default App

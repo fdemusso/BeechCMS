@@ -1,5 +1,5 @@
 import * as React from "react"
-import { useParams } from "react-router-dom"
+import { useParams, useNavigate } from "react-router-dom"
 import { getSeed } from "@beech/core"
 import { Plus } from "lucide-react"
 
@@ -11,12 +11,9 @@ import {
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { DataTable } from "@/components/ui/data-table"
-import { ContentEditDialog } from "@/components/content-edit-dialog"
 import { ContentDeleteDialog } from "@/components/content-delete-dialog"
 import {
   fetchContentList,
-  createContent,
-  updateContent,
   deleteContent,
 } from "@/lib/content-api"
 import {
@@ -27,16 +24,12 @@ import {
 
 export function ContentListPage() {
   const { slug } = useParams<{ slug: string }>()
+  const navigate = useNavigate()
   const [data, setData] = React.useState<ContentEntry[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
 
-  // Dialog state
-  const [editDialogOpen, setEditDialogOpen] = React.useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
-  const [selectedEntry, setSelectedEntry] = React.useState<ContentEntry | null>(
-    null
-  )
   const [entryToDelete, setEntryToDelete] = React.useState<string | null>(null)
 
   // Recupera il seed
@@ -49,6 +42,7 @@ export function ContentListPage() {
     setError(null)
 
     try {
+      // Dati da GET /api/content/:slug (id, schema_slug, slug, status, data, created_at, updated_at)
       const entries = await fetchContentList(slug)
       setData(entries)
     } catch (err) {
@@ -77,12 +71,12 @@ export function ContentListPage() {
     loadData()
   }, [slug, seed, loadData])
 
-  // Handlers per le azioni
-  const handleEdit = React.useCallback((id: string) => {
-    const entry = data.find((item) => item.id === id)
-    setSelectedEntry(entry || null)
-    setEditDialogOpen(true)
-  }, [data])
+  const handleEdit = React.useCallback(
+    (id: string) => {
+      if (slug) navigate(`/content/${slug}/${id}`)
+    },
+    [slug, navigate]
+  )
 
   const handleDelete = React.useCallback((id: string) => {
     setEntryToDelete(id)
@@ -90,24 +84,8 @@ export function ContentListPage() {
   }, [])
 
   const handleCreate = React.useCallback(() => {
-    setSelectedEntry(null)
-    setEditDialogOpen(true)
-  }, [])
-
-  const handleSave = React.useCallback(async (formData: Record<string, unknown>) => {
-    if (!slug) return
-
-    if (selectedEntry) {
-      // Aggiornamento
-      await updateContent(slug, selectedEntry.id, formData)
-    } else {
-      // Creazione
-      await createContent(slug, formData)
-    }
-
-    // Ricarica i dati
-    await loadData()
-  }, [slug, selectedEntry, loadData])
+    if (slug) navigate(`/content/${slug}/create`)
+  }, [slug, navigate])
 
   const handleConfirmDelete = React.useCallback(async () => {
     if (!slug || !entryToDelete) return
@@ -130,16 +108,19 @@ export function ContentListPage() {
     return generateColumns(seed, handleEdit, handleDelete, maxLengths)
   }, [seed, handleEdit, handleDelete, maxLengths])
   
-  // Identifica colonne da nascondere di default (metadata, metadati, etc.)
+  // Colonne nascoste di default: id (troppo lungo), json metadata/metadati
   const initialHiddenColumns = React.useMemo(() => {
-    if (!seed) return []
-    return seed.branches
-      .filter((branch) => 
-        branch.type === "json" && 
-        (branch.alias.toLowerCase().includes("metadata") || 
-         branch.alias.toLowerCase().includes("metadati"))
+    const hidden: string[] = ["id"]
+    if (!seed) return hidden
+    const metaAliases = seed.branches
+      .filter(
+        (b) =>
+          b.type === "json" &&
+          (b.alias.toLowerCase().includes("metadata") ||
+            b.alias.toLowerCase().includes("metadati"))
       )
-      .map((branch) => branch.alias)
+      .map((b) => b.alias)
+    return [...hidden, ...metaAliases]
   }, [seed])
 
   // Se non c'è seed, mostra errore
@@ -182,7 +163,7 @@ export function ContentListPage() {
                 {/* Header con titolo e pulsante Crea */}
                 <div className="mb-6 flex items-center justify-between">
                   <div>
-                    <h1 className="text-2xl font-semibold">{seed.label}</h1>
+                    <h1 className="text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
                     <p className="text-muted-foreground text-sm">
                       Gestisci i contenuti di tipo "{seed.slug}"
                     </p>
@@ -220,15 +201,6 @@ export function ContentListPage() {
           </SidebarInset>
         </div>
       </SidebarProvider>
-
-      {/* Modal Edit/Create */}
-      <ContentEditDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        seed={seed}
-        entry={selectedEntry}
-        onSave={handleSave}
-      />
 
       {/* Modal Delete */}
       <ContentDeleteDialog

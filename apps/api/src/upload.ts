@@ -8,7 +8,7 @@
  * @see docs/media-engine.md
  */
 /// <reference types="@cloudflare/workers-types" />
-import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { Hono } from 'hono'
 import { authMiddleware } from './middleware'
 
@@ -67,6 +67,54 @@ function createR2Client(env: UploadBindings): S3Client {
     },
     forcePathStyle: true,
   })
+}
+
+/** Env minimale per delete R2 (solo R2_* e ENV) */
+export type R2DeleteEnv = Pick<
+  UploadBindings,
+  'R2_ACCESS_KEY_ID' | 'R2_SECRET_ACCESS_KEY' | 'R2_ENDPOINT' | 'R2_BUCKET_NAME' | 'ENV'
+>
+
+/**
+ * Elimina oggetti da R2 per le chiavi date.
+ * Usato alla cancellazione entry per rimuovere i file associati.
+ *
+ * Comportamento:
+ * - Se R2 non è configurato o objectKeys è vuoto, ritorna subito
+ * - Errori di delete non bloccano: logga in dev e continua con le altre chiavi
+ *
+ * @param env - Bindings con credenziali R2 (opzionali)
+ * @param objectKeys - Chiavi R2 da eliminare (es. "1739123456-avatar.png")
+ */
+export async function deleteR2Objects(
+  env: R2DeleteEnv,
+  objectKeys: string[]
+): Promise<void> {
+  const isR2Configured =
+    env.R2_ACCESS_KEY_ID &&
+    env.R2_SECRET_ACCESS_KEY &&
+    env.R2_ENDPOINT &&
+    env.R2_BUCKET_NAME
+
+  if (!isR2Configured || objectKeys.length === 0) {
+    return
+  }
+
+  const s3Client = createR2Client(env as UploadBindings)
+  for (const objectKey of objectKeys) {
+    try {
+      await s3Client.send(
+        new DeleteObjectCommand({
+          Bucket: env.R2_BUCKET_NAME,
+          Key: objectKey,
+        })
+      )
+    } catch (err) {
+      if (env.ENV !== 'production') {
+        console.warn('R2 delete failed for key', objectKey, err)
+      }
+    }
+  }
 }
 
 export const uploadRoutes = new Hono<{
