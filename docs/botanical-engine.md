@@ -24,7 +24,7 @@ Il **Botanical Engine** introduce un layer di traduzione:
 
 | Termine | Significato | Esempio |
 |---------|-------------|---------|
-| **Seed** | Definizione dello schema di un tipo di contenuto | "Progetti" (slug: `progetti`) |
+| **Seed** | Definizione dello schema di un tipo di contenuto | slug: `progetti`, label: "Progetto", labelPlural: "Progetti" |
 | **Branch** | Definizione di un campo con `id`, `alias`, `label`, `type` | `br_01` → `title` (text) |
 | **Tree** | Record salvato nel DB (entry) | Riga in `content_entries` |
 | **Fruit** | Valore del dato | `"Sito Aziendale"`, `1000` |
@@ -36,7 +36,16 @@ Il **Botanical Engine** introduce un layer di traduzione:
 | `id` | Sì | Chiave nel JSON salvato su D1 | `br_01`, `br_x82` |
 | `alias` | No | Chiave nel payload API (Frontend) | `title`, `budget` |
 | `label` | No | Etichetta per la UI (Dashboard) | "Titolo Progetto" |
-| `type` | No | Tipo del valore | `text`, `number`, `boolean`, `json`, `date` |
+| `type` | No | Tipo del valore | `text`, `number`, `boolean`, `json`, `date`, `richtext`, `file` |
+
+### Attributi del Seed
+
+| Attributo | Obbligatorio | Uso | Esempio |
+|-----------|--------------|-----|---------|
+| `slug` | Sì | Identificativo del tipo (URL, API) | `progetti`, `blog` |
+| `label` | Sì | Etichetta singolare per la UI | "Progetto", "Articolo Blog" |
+| `labelPlural` | No | Etichetta plurale (liste, titoli). Se assente si usa `label` | "Progetti", "Articoli Blog" |
+| `branches` | Sì | Lista dei campi (Branch) | v. sopra |
 
 ---
 
@@ -106,7 +115,7 @@ packages/core/
 │   ├── index.ts       # Barrel export del pacchetto
 │   ├── types.ts       # Branch, Seed, DbPayload, ApiPayload
 │   ├── engine.ts      # apiToDb, dbToApi (Translation Layer)
-│   └── seeds.ts       # SEED_REGISTRY, getSeed, PROJECT_SEED
+│   └── seeds.ts       # SEED_REGISTRY, getSeed, 5 seed realistici
 └── dist/              # Output compilato (main + .d.ts)
 
 apps/api/src/
@@ -125,7 +134,8 @@ Vedi [Architettura Monorepo](monorepo.md) per la struttura completa del progetto
 ```ts
 export const BLOG_SEED: Seed = {
   slug: 'blog',
-  label: 'Articoli Blog',
+  label: 'Articolo Blog',
+  labelPlural: 'Articoli Blog',
   branches: [
     { id: 'br_b1', alias: 'title', label: 'Titolo', type: 'text' },
     { id: 'br_b2', alias: 'body', label: 'Corpo', type: 'text' },
@@ -134,7 +144,7 @@ export const BLOG_SEED: Seed = {
 }
 
 export const SEED_REGISTRY: Record<string, Seed> = {
-  progetti: PROJECT_SEED,
+  articoli: ARTICOLO_SEED,
   blog: BLOG_SEED,
 }
 ```
@@ -149,12 +159,12 @@ Le rotte content usano gli **alias** nel body e nella risposta. Lo slug deve esi
 
 **Request:** `Content-Type: application/json`
 
-Per `progetti` (PROJECT_SEED):
+Per `articoli` (ARTICOLO_SEED):
 
 ```json
 {
-  "title": "Sito Aziendale",
-  "budget": 5000
+  "title": "Il mio primo articolo",
+  "publishedAt": "2026-01-01"
 }
 ```
 
@@ -170,16 +180,18 @@ Per `progetti` (PROJECT_SEED):
 
 ### GET /api/content/:slug
 
-**Response:** Array di entry con `data` in formato alias.
+**Response:** Array di entry: `id`, `schema_slug`, `slug`, `status`, `data` (formato alias), `created_at`, `updated_at`.
 
-Esempio per `progetti`:
+Esempio per `articoli`:
 
 ```json
 [
   {
     "id": "uuid-1",
-    "schema_slug": "progetti",
-    "data": { "title": "Sito Aziendale", "budget": 5000 },
+    "schema_slug": "articoli",
+    "slug": "il-mio-primo-articolo",
+    "status": "published",
+    "data": { "title": "Il mio primo articolo", "publishedAt": "2026-01-01" },
     "created_at": 1700000000,
     "updated_at": 1700000000
   }
@@ -201,13 +213,13 @@ Stessa struttura di `data` con alias. `404` se entry non trovata o slug non regi
 
 ## 7. Esempi curl
 
-### Creare un progetto (POST)
+### Creare un articolo (POST)
 
 ```bash
-curl -X POST http://localhost:8787/api/content/progetti \
+curl -X POST http://localhost:8787/api/content/articoli \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
-  -d '{"title":"Sito Aziendale","budget":5000}'
+  -d '{"title":"Il mio primo articolo","publishedAt":"2026-01-01"}'
 ```
 
 Risposta: `{"id":"<uuid>"}`
@@ -223,23 +235,80 @@ curl -X POST http://localhost:8787/api/content/xyz \
 
 Risposta: `{"error":"Seed not found"}`
 
-### Lista progetti (GET)
+### Lista articoli (GET)
 
 ```bash
-curl http://localhost:8787/api/content/progetti \
+curl http://localhost:8787/api/content/articoli \
   -H "Authorization: Bearer <token>"
 ```
 
-Risposta: array con `data` in formato `{ "title": "...", "budget": ... }`.
+Risposta: array con `data` in formato `{ "title": "...", "publishedAt": "..." }`.
 
 ---
 
-## 8. Seed di esempio: progetti
+## 8. Seed registrati
+
+Il CMS include 5 seed realistici. Ognuno ha `labelPlural` per liste e sidebar.
+
+### Articolo (`articoli`) — layout a due colonne (richtext)
 
 | Branch ID | Alias | Label | Type |
 |-----------|-------|-------|------|
-| `br_01` | `title` | Titolo | text |
-| `br_02` | `budget` | Budget | number |
+| `art_01` | `title` | Titolo | text |
+| `art_02` | `publishedAt` | Data pubblicazione | date |
+| `art_03` | `coverImage` | Immagine copertina | file |
+| `art_04` | `tags` | Tag | json |
+| `art_05` | `body` | Corpo articolo | richtext |
+| `art_06` | `metaTitle` | Meta titolo (SEO) | text |
+| `art_07` | `metaDescription` | Meta descrizione (SEO) | text |
 
-Payload API: `{ "title": "...", "budget": 123 }`  
-Payload DB: `{ "br_01": "...", "br_02": 123 }`
+### Prodotto (`prodotti`) — layout a due colonne (richtext)
+
+| Branch ID | Alias | Label | Type |
+|-----------|-------|-------|------|
+| `prd_01` | `name` | Nome | text |
+| `prd_02` | `price` | Prezzo (€) | number |
+| `prd_03` | `stock` | Quantità disponibile | number |
+| `prd_04` | `active` | In vendita | boolean |
+| `prd_05` | `coverImage` | Immagine principale | file |
+| `prd_06` | `images` | Galleria immagini | json |
+| `prd_07` | `description` | Descrizione | richtext |
+| `prd_08` | `metaTitle` | Meta titolo (SEO) | text |
+| `prd_09` | `metaDescription` | Meta descrizione (SEO) | text |
+
+### Membro (`team`) — layout a colonna singola (nessun richtext)
+
+| Branch ID | Alias | Label | Type |
+|-----------|-------|-------|------|
+| `tm_01` | `name` | Nome | text |
+| `tm_02` | `role` | Ruolo | text |
+| `tm_03` | `bio` | Bio breve | text |
+| `tm_04` | `photo` | Foto | file |
+| `tm_05` | `linkedIn` | URL LinkedIn | text |
+| `tm_06` | `active` | Visibile | boolean |
+| `tm_07` | `metaTitle` | Meta titolo (SEO) | text |
+| `tm_08` | `metaDescription` | Meta descrizione (SEO) | text |
+
+### Testimonianza (`testimonianze`) — layout a colonna singola
+
+| Branch ID | Alias | Label | Type |
+|-----------|-------|-------|------|
+| `tes_01` | `author` | Autore | text |
+| `tes_02` | `company` | Azienda | text |
+| `tes_03` | `quote` | Citazione | text |
+| `tes_04` | `rating` | Valutazione (1-5) | number |
+| `tes_05` | `date` | Data | date |
+| `tes_06` | `photo` | Foto autore | file |
+| `tes_07` | `active` | Pubblica | boolean |
+| `tes_08` | `metaTitle` | Meta titolo (SEO) | text |
+| `tes_09` | `metaDescription` | Meta descrizione (SEO) | text |
+
+### Pagina (`pagine`) — layout a due colonne (richtext)
+
+| Branch ID | Alias | Label | Type |
+|-----------|-------|-------|------|
+| `pag_01` | `title` | Titolo | text |
+| `pag_02` | `coverImage` | Immagine hero | file |
+| `pag_03` | `body` | Contenuto | richtext |
+| `pag_04` | `metaTitle` | Meta titolo (SEO) | text |
+| `pag_05` | `metaDescription` | Meta descrizione (SEO) | text |

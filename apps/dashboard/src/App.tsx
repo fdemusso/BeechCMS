@@ -1,8 +1,13 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { LoginForm } from '@/components/login-form'
-import { logout, AUTH_TOKEN_KEY } from '@/lib/api'
-import { Button } from '@/components/ui/button'
-import './App.css'
+import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom"
+import { LoginForm } from "@/components/login-form"
+import { AppSidebar } from "@/components/app-sidebar"
+import { SiteHeader } from "@/components/site-header"
+import { AUTH_TOKEN_KEY } from "@/lib/api"
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { ContentListPage } from "@/pages/content-list"
+import { EntryEditorPage } from "@/pages/entry-editor"
+import { TestFieldsPage } from "@/pages/test-fields"
+import "./App.css"
 
 function LoginPage() {
   return (
@@ -15,30 +20,93 @@ function LoginPage() {
 }
 
 function DashboardPage() {
-  const hasToken = typeof window !== 'undefined' && localStorage.getItem(AUTH_TOKEN_KEY)
+  const hasToken =
+    typeof window !== "undefined" && localStorage.getItem(AUTH_TOKEN_KEY)
   if (!hasToken) {
     return <Navigate to="/login" replace />
   }
   return (
-    <div className="flex min-h-svh w-full flex-col items-center justify-center gap-6 bg-background p-4">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
-      <p className="text-muted-foreground text-sm">Benvenuto in Beech CMS</p>
-      <Button onClick={logout} variant="outline">
-        Logout
-      </Button>
+    <div className="[--header-height:calc(--spacing(14))]">
+      <SidebarProvider className="flex flex-col">
+        <SiteHeader />
+        <div className="flex flex-1">
+          <AppSidebar />
+          <SidebarInset>
+            <div className="flex flex-1 flex-col gap-4 p-4">
+              <div className="mx-auto w-full max-w-screen-2xl">
+                <h1 className="text-2xl font-semibold">Dashboard</h1>
+                <p className="text-muted-foreground text-sm">
+                  Benvenuto in Beech CMS
+                </p>
+                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
+                  <div className="bg-muted/50 aspect-video rounded-xl" />
+                  <div className="bg-muted/50 aspect-video rounded-xl" />
+                  <div className="bg-muted/50 aspect-video rounded-xl" />
+                </div>
+                <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min" />
+              </div>
+            </div>
+          </SidebarInset>
+        </div>
+      </SidebarProvider>
     </div>
   )
 }
 
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const hasToken =
+    typeof window !== "undefined" && localStorage.getItem(AUTH_TOKEN_KEY)
+  if (!hasToken) {
+    return <Navigate to="/login" replace />
+  }
+  return <>{children}</>
+}
+
+const router = createBrowserRouter([
+  {
+    path: "/login",
+    element: <LoginPage />,
+  },
+  {
+    path: "/",
+    element: <DashboardPage />,
+  },
+  {
+    path: "/content/:slug/create",
+    element: (
+      <ProtectedRoute>
+        <EntryEditorPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/content/:slug/:id",
+    element: (
+      <ProtectedRoute>
+        <EntryEditorPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/content/:slug",
+    element: (
+      <ProtectedRoute>
+        <ContentListPage />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/test-fields",
+    element: (
+      <ProtectedRoute>
+        <TestFieldsPage />
+      </ProtectedRoute>
+    ),
+  },
+])
+
 function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<DashboardPage />} />
-      </Routes>
-    </BrowserRouter>
-  )
+  return <RouterProvider router={router} />
 }
 
 export default App

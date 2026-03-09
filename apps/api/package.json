@@ -3,13 +3,14 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
-    "db:migrate:local": "wrangler d1 execute beech-db --local --file=./migrations/0001_init.sql && wrangler d1 execute beech-db --local --file=./migrations/0002_seed_admin.sql && wrangler d1 execute beech-db --local --file=./migrations/0003_refresh_tokens.sql",
+    "db:migrate:local": "wrangler d1 execute beech-db --local --file=./migrations/0001_init.sql && wrangler d1 execute beech-db --local --file=./migrations/0002_seed_admin.sql && wrangler d1 execute beech-db --local --file=./migrations/0003_refresh_tokens.sql && wrangler d1 execute beech-db --local --file=./migrations/0003_seed_projects.sql",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.995.0",
     "@beech/core": "^0.0.0",
     "bcryptjs": "^2.4.3",
     "hono": "^4.11.9",

@@ -30,8 +30,18 @@ function createMockD1ForInsert(bindCapture: { args?: unknown[] }) {
   }
 }
 
+type ContentEntryMockRow = {
+  id: string
+  schema_slug: string
+  slug: string | null
+  status: string
+  data: string
+  created_at: number | null
+  updated_at: number | null
+}
+
 /** Crea mock D1 per SELECT all (GET lista): restituisce righe con data come stringa JSON */
-function createMockD1ForList(rows: Array<{ id: string; schema_slug: string; data: string; created_at: number | null; updated_at: number | null }>) {
+function createMockD1ForList(rows: ContentEntryMockRow[]) {
   return {
     prepare: vi.fn(() => ({
       bind: vi.fn(() => ({
@@ -41,8 +51,8 @@ function createMockD1ForList(rows: Array<{ id: string; schema_slug: string; data
   }
 }
 
-/** Crea mock D1 per SELECT first (GET dettaglio): restituisce riga o null */
-function createMockD1ForDetail(row: { id: string; schema_slug: string; data: string; created_at: number | null; updated_at: number | null } | null) {
+/** Crea mock D1 per SELECT first (GET dettaglio / by-slug): restituisce riga o null */
+function createMockD1ForDetail(row: ContentEntryMockRow | null) {
   return {
     prepare: vi.fn(() => ({
       bind: vi.fn(() => ({
@@ -61,7 +71,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
     const bindCapture: { args?: unknown[] } = {}
     const mockDB = createMockD1ForInsert(bindCapture)
 
-    const res = await app.request('/api/content/progetti', {
+    const res = await app.request('/api/content/articoli', {
       method: 'POST',
       body: JSON.stringify({ title: 'Test' }),
       headers: { 'Content-Type': 'application/json' },
@@ -74,13 +84,13 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
     expect(mockJwtVerify).not.toHaveBeenCalled()
   })
 
-  it('POST /api/content/progetti con token malformato -> 401', async () => {
+  it('POST /api/content/articoli con token malformato -> 401', async () => {
     mockJwtVerify.mockRejectedValue(new Error('Invalid token'))
 
     const bindCapture: { args?: unknown[] } = {}
     const mockDB = createMockD1ForInsert(bindCapture)
 
-    const res = await app.request('/api/content/progetti', {
+    const res = await app.request('/api/content/articoli', {
       method: 'POST',
       body: JSON.stringify({ title: 'Test' }),
       headers: {
@@ -99,7 +109,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
     const bindCapture: { args?: unknown[] } = {}
     const mockDB = createMockD1ForInsert(bindCapture)
 
-    const res = await app.request('/api/content/progetti', {
+    const res = await app.request('/api/content/articoli', {
       method: 'POST',
       body: JSON.stringify({ title: 'Test' }),
       headers: {
@@ -119,7 +129,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
     const bindCapture: { args?: unknown[] } = {}
     const mockDB = createMockD1ForInsert(bindCapture)
 
-    const res = await app.request('/api/content/progetti', {
+    const res = await app.request('/api/content/articoli', {
       method: 'POST',
       body: JSON.stringify({ title: 'Test' }),
       headers: {
@@ -142,13 +152,13 @@ describe('API Content - Write Operation (La Serializzazione)', () => {
     } as never)
   })
 
-  it('POST con body JSON: DB riceve data con br_xxx (Botanical Engine), risposta 201 con ID', async () => {
+  it('POST con body JSON: DB riceve data con art_xxx (Botanical Engine), risposta 201 con ID', async () => {
     const bindCapture: { args?: unknown[] } = {}
     const mockDB = createMockD1ForInsert(bindCapture)
 
-    const body = { title: 'Test', budget: 1000 }
+    const body = { title: 'Test' }
 
-    const res = await app.request('/api/content/progetti', {
+    const res = await app.request('/api/content/articoli', {
       method: 'POST',
       body: JSON.stringify(body),
       headers: {
@@ -163,13 +173,14 @@ describe('API Content - Write Operation (La Serializzazione)', () => {
     expect(typeof data.id).toBe('string')
     expect(data.id).toMatch(/^[0-9a-f-]{36}$/i) // UUID format
 
-    // Verifica critica: apiToDb trasforma alias -> br_xxx
+    // Verifica critica: apiToDb trasforma alias -> branch.id; bind: id, schema_slug, slug, status, data, created_at, updated_at
     expect(bindCapture.args).toBeDefined()
-    expect(bindCapture.args).toHaveLength(5) // id, schema_slug, data, created_at, updated_at
-    const dataParam = bindCapture.args![2]
+    expect(bindCapture.args).toHaveLength(7)
+    expect(bindCapture.args![3]).toBe('draft') // status default
+    const dataParam = bindCapture.args![4]
     expect(typeof dataParam).toBe('string')
     const dbPayload = JSON.parse(dataParam as string)
-    expect(dbPayload).toEqual({ br_01: 'Test', br_02: 1000 })
+    expect(dbPayload).toEqual({ art_01: 'Test' })
   })
 })
 
@@ -181,30 +192,34 @@ describe('API Content - Read Operation (La Deserializzazione)', () => {
     } as never)
   })
 
-  it('GET /api/content/progetti: dbToApi trasforma br_xxx -> alias, risposta con data come oggetto', async () => {
-    const rawRow = {
+  it('GET /api/content/articoli: dbToApi trasforma art_xxx -> alias, risposta con data come oggetto', async () => {
+    const rawRow: ContentEntryMockRow = {
       id: '123',
-      schema_slug: 'progetti',
-      data: '{"br_01":"Test","br_02":1000}',
+      schema_slug: 'articoli',
+      slug: 'test-entry',
+      status: 'published',
+      data: '{"art_01":"Test","art_02":"2026-01-01"}',
       created_at: 1700000000,
       updated_at: 1700000000,
     }
     const mockDB = createMockD1ForList([rawRow])
 
-    const res = await app.request('/api/content/progetti', {
+    const res = await app.request('/api/content/articoli', {
       method: 'GET',
       headers: { Authorization: 'Bearer valid-token' },
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(200)
-    const entries = await res.json() as Array<{ id: string; schema_slug: string; data: unknown; created_at: number | null; updated_at: number | null }>
+    const entries = await res.json() as Array<{ id: string; schema_slug: string; slug: string | null; status: string; data: unknown; created_at: number | null; updated_at: number | null }>
     expect(Array.isArray(entries)).toBe(true)
     expect(entries).toHaveLength(1)
     expect(entries[0].id).toBe('123')
-    expect(entries[0].schema_slug).toBe('progetti')
-    // Verifica critica: dbToApi trasforma br_01/br_02 -> title/budget
+    expect(entries[0].schema_slug).toBe('articoli')
+    expect(entries[0].slug).toBe('test-entry')
+    expect(entries[0].status).toBe('published')
+    // Verifica critica: dbToApi trasforma art_01/art_02 -> title/publishedAt
     expect(typeof entries[0].data).toBe('object')
-    expect(entries[0].data).toEqual({ title: 'Test', budget: 1000 })
+    expect(entries[0].data).toEqual({ title: 'Test', publishedAt: '2026-01-01' })
   })
 })
 
@@ -216,10 +231,10 @@ describe('API Content - Edge Case (Not Found)', () => {
     } as never)
   })
 
-  it('GET /api/content/progetti/999 con ID inesistente -> 404', async () => {
+  it('GET /api/content/articoli/999 con ID inesistente -> 404', async () => {
     const mockDB = createMockD1ForDetail(null)
 
-    const res = await app.request('/api/content/progetti/999', {
+    const res = await app.request('/api/content/articoli/999', {
       method: 'GET',
       headers: { Authorization: 'Bearer valid-token' },
     }, { DB: mockDB, JWT_SECRET })
@@ -260,6 +275,218 @@ describe('API Content - Edge Case (Not Found)', () => {
   })
 })
 
+describe('API Content - PUT (Aggiornamento)', () => {
+  beforeEach(() => {
+    mockJwtVerify.mockResolvedValue({
+      payload: { sub: 'user-1', email: 'test@beech.local' },
+      protectedHeader: { alg: 'HS256' },
+    } as never)
+  })
+
+  it('PUT con ID inesistente -> 404', async () => {
+    const mockDB = {
+      prepare: vi.fn(() => ({
+        bind: vi.fn(() => ({
+          first: vi.fn().mockResolvedValue(null),
+        })),
+      })),
+    }
+    const res = await app.request('/api/content/articoli/non-existent-id', {
+      method: 'PUT',
+      body: JSON.stringify({ title: 'Updated' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer valid-token',
+      },
+    }, { DB: mockDB, JWT_SECRET })
+    expect(res.status).toBe(404)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.NOT_FOUND)
+  })
+
+  it('PUT con slug già usato da altra entry -> 409 SLUG_CONFLICT', async () => {
+    const firstResults = [
+      { slug: 'old-slug', status: 'draft' },
+      { id: 'other-entry-id' },
+    ]
+    let callIndex = 0
+    const mockDB = {
+      prepare: vi.fn(() => ({
+        bind: vi.fn(() => ({
+          first: vi.fn().mockImplementation(() =>
+            Promise.resolve(firstResults[callIndex++]),
+          ),
+        })),
+      })),
+    }
+    const res = await app.request('/api/content/articoli/entry-123', {
+      method: 'PUT',
+      body: JSON.stringify({ title: 'Updated', slug: 'slug-gia-usato' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer valid-token',
+      },
+    }, { DB: mockDB, JWT_SECRET })
+    expect(res.status).toBe(409)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.SLUG_CONFLICT)
+  })
+})
+
+describe('API Content - DELETE (Eliminazione)', () => {
+  beforeEach(() => {
+    mockJwtVerify.mockResolvedValue({
+      payload: { sub: 'user-1', email: 'test@beech.local' },
+      protectedHeader: { alg: 'HS256' },
+    } as never)
+  })
+
+  it('DELETE con ID esistente -> 200 success', async () => {
+    const entryRow = { id: 'entry-to-delete', data: '{}' }
+    const mockDB = {
+      prepare: vi.fn()
+        .mockReturnValueOnce({
+          bind: vi.fn().mockReturnValue({
+            first: vi.fn().mockResolvedValue(entryRow),
+          }),
+        })
+        .mockReturnValueOnce({
+          bind: vi.fn().mockReturnValue({
+            run: vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } }),
+          }),
+        }),
+    }
+    const res = await app.request('/api/content/articoli/entry-to-delete', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer valid-token' },
+    }, { DB: mockDB, JWT_SECRET })
+    expect(res.status).toBe(200)
+    const data = await res.json() as { success?: boolean }
+    expect(data.success).toBe(true)
+  })
+
+  it('DELETE con ID inesistente -> 404', async () => {
+    const mockDB = {
+      prepare: vi.fn(() => ({
+        bind: vi.fn(() => ({
+          first: vi.fn().mockResolvedValue(null),
+        })),
+      })),
+    }
+    const res = await app.request('/api/content/articoli/non-existent-id', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer valid-token' },
+    }, { DB: mockDB, JWT_SECRET })
+    expect(res.status).toBe(404)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.NOT_FOUND)
+  })
+
+  it('DELETE con entry contenente URL R2 -> elimina anche i file da R2', async () => {
+    const entryWithMedia = {
+      id: 'entry-with-cover',
+      data: JSON.stringify({
+        art_01: 'Articolo con copertina',
+        art_03: 'https://example.com/api/media/1739-copertina.png',
+      }),
+    }
+    const mockDB = {
+      prepare: vi.fn()
+        .mockReturnValueOnce({
+          bind: vi.fn().mockReturnValue({
+            first: vi.fn().mockResolvedValue(entryWithMedia),
+          }),
+        })
+        .mockReturnValueOnce({
+          bind: vi.fn().mockReturnValue({
+            run: vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } }),
+          }),
+        }),
+    }
+    const res = await app.request('/api/content/articoli/entry-with-cover', {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer valid-token' },
+    }, { DB: mockDB, JWT_SECRET })
+    expect(res.status).toBe(200)
+    const data = await res.json() as { success?: boolean }
+    expect(data.success).toBe(true)
+  })
+})
+
+describe('API Content - Slug conflict (409)', () => {
+  beforeEach(() => {
+    mockJwtVerify.mockResolvedValue({
+      payload: { sub: 'user-1', email: 'test@beech.local' },
+      protectedHeader: { alg: 'HS256' },
+    } as never)
+  })
+
+  it('POST con slug già esistente per lo stesso schema -> 409 SLUG_CONFLICT', async () => {
+    const slugCheckMock = {
+      prepare: vi.fn(() => ({
+        bind: vi.fn(() => ({
+          first: vi.fn().mockResolvedValue({ id: 'existing-id' }),
+        })),
+      })),
+    }
+    const res = await app.request('/api/content/articoli', {
+      method: 'POST',
+      body: JSON.stringify({ title: 'Test', slug: 'slug-gia-usato' }),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: 'Bearer valid-token',
+      },
+    }, { DB: slugCheckMock, JWT_SECRET })
+
+    expect(res.status).toBe(409)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.SLUG_CONFLICT)
+  })
+})
+
+describe('API Content - GET by-slug', () => {
+  beforeEach(() => {
+    mockJwtVerify.mockResolvedValue({
+      payload: { sub: 'user-1', email: 'test@beech.local' },
+      protectedHeader: { alg: 'HS256' },
+    } as never)
+  })
+
+  it('GET /api/content/articoli/by-slug/my-entry restituisce entry quando slug esiste', async () => {
+    const row: ContentEntryMockRow = {
+      id: 'id-by-slug',
+      schema_slug: 'articoli',
+      slug: 'my-entry',
+      status: 'published',
+      data: '{"art_01":"Titolo","art_02":"2026-01-01"}',
+      created_at: 1700000000,
+      updated_at: 1700000000,
+    }
+    const mockDB = createMockD1ForDetail(row)
+    const res = await app.request('/api/content/articoli/by-slug/my-entry', {
+      method: 'GET',
+      headers: { Authorization: 'Bearer valid-token' },
+    }, { DB: mockDB, JWT_SECRET })
+    expect(res.status).toBe(200)
+    const entry = await res.json() as { id: string; slug: string | null; status: string; data: unknown }
+    expect(entry.id).toBe('id-by-slug')
+    expect(entry.slug).toBe('my-entry')
+    expect(entry.status).toBe('published')
+    expect(entry.data).toEqual({ title: 'Titolo', publishedAt: '2026-01-01' })
+  })
+
+  it('GET /api/content/articoli/by-slug/slug-inesistente -> 404', async () => {
+    const mockDB = createMockD1ForDetail(null)
+    const res = await app.request('/api/content/articoli/by-slug/slug-inesistente', {
+      method: 'GET',
+      headers: { Authorization: 'Bearer valid-token' },
+    }, { DB: mockDB, JWT_SECRET })
+    expect(res.status).toBe(404)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.NOT_FOUND)
+  })
+})
+
 describe('API Content - Validazione slug', () => {
   beforeEach(() => {
     mockJwtVerify.mockResolvedValue({
@@ -272,7 +499,7 @@ describe('API Content - Validazione slug', () => {
     const bindCapture: { args?: unknown[] } = {}
     const mockDB = createMockD1ForInsert(bindCapture)
 
-    const res = await app.request('/api/content/progetti', {
+    const res = await app.request('/api/content/articoli', {
       method: 'POST',
       body: 'not valid json',
       headers: {
@@ -302,7 +529,7 @@ describe('API Content - Errori DB (500)', () => {
       })),
     }
 
-    const res = await app.request('/api/content/progetti', {
+    const res = await app.request('/api/content/articoli', {
       method: 'POST',
       body: JSON.stringify({ title: 'Test' }),
       headers: {
@@ -323,7 +550,7 @@ describe('API Content - Errori DB (500)', () => {
       })),
     }
 
-    const res = await app.request('/api/content/progetti', {
+    const res = await app.request('/api/content/articoli', {
       method: 'GET',
       headers: { Authorization: 'Bearer valid-token' },
     }, { DB: mockDB, JWT_SECRET })
@@ -340,7 +567,24 @@ describe('API Content - Errori DB (500)', () => {
       })),
     }
 
-    const res = await app.request('/api/content/progetti/123', {
+    const res = await app.request('/api/content/articoli/123', {
+      method: 'GET',
+      headers: { Authorization: 'Bearer valid-token' },
+    }, { DB: mockDB, JWT_SECRET })
+
+    expect(res.status).toBe(500)
+    const data = await res.json() as { error?: string }
+    expect(data.error).toBe(CONTENT_ERRORS.DATABASE_ERROR)
+  })
+
+  it('GET by-slug con fallimento DB -> 500', async () => {
+    const mockDB = {
+      prepare: vi.fn(() => ({
+        bind: vi.fn(() => ({ first: vi.fn().mockRejectedValue(new Error('DB error')) })),
+      })),
+    }
+
+    const res = await app.request('/api/content/articoli/by-slug/my-entry', {
       method: 'GET',
       headers: { Authorization: 'Bearer valid-token' },
     }, { DB: mockDB, JWT_SECRET })
@@ -360,16 +604,18 @@ describe('API Content - Edge Case (Dati corrotti)', () => {
   })
 
   it('GET con data JSON corrotto nel DB -> 200 con data: {} (nessun crash)', async () => {
-    const rawRow = {
+    const rawRow: ContentEntryMockRow = {
       id: '456',
-      schema_slug: 'progetti',
-      data: 'invalid-json{{{',
+      schema_slug: 'articoli',
+      slug: null,
+      status: 'draft',
+      data: 'invalid-json',
       created_at: 1700000000,
       updated_at: 1700000000,
     }
     const mockDB = createMockD1ForList([rawRow])
 
-    const res = await app.request('/api/content/progetti', {
+    const res = await app.request('/api/content/articoli', {
       method: 'GET',
       headers: { Authorization: 'Bearer valid-token' },
     }, { DB: mockDB, JWT_SECRET })

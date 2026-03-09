@@ -20,16 +20,22 @@ import {
 } from './auth/refresh'
 import { authMiddleware } from './middleware'
 import { contentRoutes } from './content'
+import { uploadRoutes, serveMediaHandler } from './upload'
 
 // --- Tipi ---
 
-/** Bindings Cloudflare Workers: DB (D1), JWT_SECRET, rate limiters, variabili env */
+/** Bindings Cloudflare Workers: DB (D1), JWT_SECRET, R2 (S3 API), rate limiters, variabili env */
 type Bindings = {
   DB: D1Database
   JWT_SECRET: string
+  R2_ACCESS_KEY_ID?: string
+  R2_SECRET_ACCESS_KEY?: string
+  R2_ENDPOINT?: string
+  R2_BUCKET_NAME?: string
   LOGIN_RATE_LIMITER?: RateLimit
   REFRESH_RATE_LIMITER?: RateLimit
   CORS_ORIGINS?: string
+  MEDIA_BASE_URL?: string
   ENV?: string
 }
 
@@ -255,5 +261,9 @@ apiContent.use('*', async (c, next) => {
 })
 apiContent.route('/', contentRoutes)
 app.route('/api/content', apiContent)
+
+// API Upload: POST /api/upload (JWT) + GET /api/media/:key (pubblico)
+app.route('/api', uploadRoutes)
+app.get('/api/media/:key', (c) => serveMediaHandler(c))
 
 export default app

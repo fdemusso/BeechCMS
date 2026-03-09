@@ -4,6 +4,7 @@ Documentazione del motore CRUD Schema-Driven: architettura ibrida SQL/JSON per c
 
 **Vedi anche:**
 - [Botanical Engine](botanical-engine.md) — layer di traduzione alias ↔ ID interni
+- [Media Engine](media-engine.md) — upload R2, campi tipo `file` (URL in `data`)
 - [Architettura Monorepo](monorepo.md) — struttura `@beech/core` e pacchetti condivisi
 
 ---
@@ -12,7 +13,7 @@ Documentazione del motore CRUD Schema-Driven: architettura ibrida SQL/JSON per c
 
 Beech CMS usa una **tabella SQL unica** (`content_entries`) per memorizzare **payload JSON dinamici**. Questo approccio combina:
 
-- **Schema SQL stabile**: colonne fisse (`id`, `schema_slug`, `data`, `created_at`, `updated_at`) per metadati e indicizzazione
+- **Schema SQL stabile**: colonne fisse (`id`, `schema_slug`, `slug`, `status`, `data`, `created_at`, `updated_at`) per metadati e indicizzazione
 - **Payload flessibile**: la colonna `data` (TEXT) contiene JSON con chiavi interne (`br_xxx`), tradotte in alias leggibili dalle API
 
 **Vantaggi:**
@@ -51,7 +52,7 @@ colonna data (TEXT, br_xxx) → JSON.parse → dbToApi → JSON Response (alias)
 
 1. D1 restituisce `row.data` come stringa (es. `'{"br_01":"Progetto X","br_02":5000}'`)
 2. `rowToEntry` (in `content.ts`) esegue `JSON.parse(row.data)` per ottenere un oggetto
-3. `dbToApi(seed, data)` da `@beech/core` converte gli ID interni negli alias
+3. `dbToApi(seed, data)` da `@beech/core` converte gli ID interni negli alias. Per campi di tipo `json`, se il valore è una stringa JSON (doppia serializzazione), viene fatto un double-parse per restituire oggetti/array.
 4. L'API restituisce al frontend un JSON con `data` in formato alias
 
 ```mermaid
@@ -82,6 +83,8 @@ Le rotte `/:slug` e `/:slug/:id` si adattano a qualsiasi tipo di contenuto. Lo `
 | POST | `/api/content/:slug` | Bearer JWT | Crea una nuova entry per il tipo `slug` |
 | GET | `/api/content/:slug` | Bearer JWT | Lista tutte le entry del tipo `slug` |
 | GET | `/api/content/:slug/:id` | Bearer JWT | Dettaglio di una entry per ID |
+| PUT | `/api/content/:slug/:id` | Bearer JWT | Aggiorna una entry esistente |
+| DELETE | `/api/content/:slug/:id` | Bearer JWT | Elimina una entry e i file R2 associati (vedi [Media Engine](media-engine.md)) |
 
 ### Esempi
 
@@ -100,6 +103,16 @@ curl https://api.example.com/api/content/progetti \
 
 # Dettaglio progetto
 curl https://api.example.com/api/content/progetti/<id> \
+  -H "Authorization: Bearer <token>"
+
+# Aggiornare un progetto
+curl -X PUT https://api.example.com/api/content/progetti/<id> \
+  -H "Authorization: Bearer <token>" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Sito Aggiornato","budget":6000}'
+
+# Eliminare un progetto
+curl -X DELETE https://api.example.com/api/content/progetti/<id> \
   -H "Authorization: Bearer <token>"
 ```
 
@@ -123,7 +136,7 @@ curl https://api.example.com/api/content/blog \
 | Status | Descrizione | Body |
 |--------|-------------|------|
 | 201 | Creazione riuscita (POST) | `{ "id": "uuid" }` |
-| 200 | Lista o dettaglio (GET) | Array o oggetto con `id`, `schema_slug`, `data` (alias), `created_at`, `updated_at` |
+| 200 | Lista, dettaglio (GET), aggiornamento (PUT), eliminazione (DELETE) | GET: ogni entry ha `id`, `schema_slug`, `slug`, `status`, `data` (alias), `created_at`, `updated_at`. PUT/DELETE: `{ "success": true }` |
 | 400 | Slug/body invalido | `{ "error": "Invalid slug" }` o `{ "error": "Invalid JSON body" }` |
 | 401 | Token mancante o invalido | `{ "error": "Unauthorized" }` |
 | 404 | Entry non trovata (GET dettaglio) | `{ "error": "Not found" }` |
