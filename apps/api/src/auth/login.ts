@@ -68,6 +68,8 @@ export async function findUserByEmail(
   db: D1Database,
   email: string
 ): Promise<UserRecord | null> {
+  // IMPORTANTE: non interpolare mai direttamente l'email (o altri input utente)
+  // dentro la stringa SQL, usa sempre il placeholder "?" con .bind(...) per evitare SQL injection.
   const stmt = db.prepare(
     'SELECT id, email, password_hash FROM users WHERE email = ? LIMIT 1'
   )
