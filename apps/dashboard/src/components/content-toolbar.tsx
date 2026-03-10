@@ -125,6 +125,88 @@ export interface ToolbarFilterGroup {
 
 export type ToolbarFiltersState = Record<string, ToolbarFilterGroup>
 
+// ─── Costanti di modulo ───────────────────────────────────────────────────────
+
+/** Strumenti abilitati di default quando la vista attiva non ne specifica uno. */
+const DEFAULT_ENABLED_TOOLS: ToolbarTool[] = [
+  "filter",
+  "sort",
+  "automation",
+  "search",
+  "settings",
+  "create",
+]
+
+// ─── Funzioni pure (nessuna dipendenza dallo scope del componente) ────────────
+
+/**
+ * Genera un ID univoco per una nuova condizione di filtro.
+ * Combina timestamp e stringa casuale per evitare collisioni in sessione.
+ */
+function generateConditionId(): string {
+  return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+}
+
+/**
+ * Restituisce true se l'operatore richiede un valore testuale/numerico/booleano
+ * da mostrare nel campo di input. Gli operatori "is_empty" e "is_not_empty"
+ * sono auto-sufficienti e non necessitano di input aggiuntivo.
+ */
+function operatorRequiresValue(op: FilterOperator): boolean {
+  return op !== "is_empty" && op !== "is_not_empty"
+}
+
+/**
+ * Restituisce l'elenco di operatori disponibili per un dato tipo di colonna.
+ * Ogni tipo espone solo gli operatori semanticamente significativi per evitare
+ * combinazioni senza senso (es. "maggiore di" su un campo boolean).
+ */
+function getOperatorOptions(type: FilterGroupType): Array<{ value: FilterOperator; label: string }> {
+  const baseOptions: Array<{ value: FilterOperator; label: string }> = [
+    { value: "eq", label: "Uguale a" },
+    { value: "is_not_empty", label: "È pieno" },
+    { value: "is_empty", label: "Non è pieno" },
+  ]
+
+  if (type === "number" || type === "date") {
+    return [
+      { value: "gt", label: "Maggiore di" },
+      { value: "lt", label: "Minore di" },
+      { value: "gte", label: "Maggiore o uguale" },
+      { value: "lte", label: "Minore o uguale" },
+      ...baseOptions,
+    ]
+  }
+
+  if (type === "tags") {
+    return [
+      { value: "contains", label: "Contiene" },
+      { value: "is_not_empty", label: "È pieno" },
+      { value: "is_empty", label: "Non è pieno" },
+    ]
+  }
+
+  if (type === "select") {
+    return [
+      { value: "eq", label: "Uguale a" },
+      { value: "is_not_empty", label: "È pieno" },
+      { value: "is_empty", label: "Non è pieno" },
+    ]
+  }
+
+  if (type === "text" || type === "system") {
+    return [
+      { value: "contains", label: "Contiene" },
+      ...baseOptions,
+    ]
+  }
+
+  // boolean e altri tipi: solo uguaglianza / pieno / vuoto
+  return baseOptions
+}
+
+// ─── Componente ───────────────────────────────────────────────────────────────
+
 export function ContentToolbar({
   seed,
   views,
@@ -146,25 +228,24 @@ export function ContentToolbar({
 }: ContentToolbarProps) {
   const [isSearchOpen, setIsSearchOpen] = React.useState(false)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
-  const [sortSearch, setSortSearch] = React.useState("")
-  const [filterSearch, setFilterSearch] = React.useState("")
+  const [sortColumnSearchTerm, setSortColumnSearchTerm] = React.useState("")
+  const [filterColumnSearchTerm, setFilterColumnSearchTerm] = React.useState("")
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
   const [openPillId, setOpenPillId] = React.useState<string | null>(null)
 
   const activeView = views.find((v) => v.id === activeViewId)
-  const enabledTools = activeView?.enabledTools ?? [
-    "filter",
-    "sort",
-    "automation",
-    "search",
-    "settings",
-    "create",
-  ]
 
-  const handleSearchOpen = () => {
-    setIsSearchOpen(true)
-    setTimeout(() => searchInputRef.current?.focus(), 50)
-  }
+  const enabledTools = React.useMemo(
+    () => activeView?.enabledTools ?? DEFAULT_ENABLED_TOOLS,
+    [activeView]
+  )
+
+  // Focus il campo di ricerca dopo che il render lo ha reso visibile nel DOM.
+  React.useEffect(() => {
+    if (isSearchOpen) searchInputRef.current?.focus()
+  }, [isSearchOpen])
+
+  const handleSearchOpen = () => setIsSearchOpen(true)
 
   const handleSearchClose = () => {
     setIsSearchOpen(false)
@@ -178,13 +259,15 @@ export function ContentToolbar({
     // TODO: collegare la ricerca all'API di fetchContentList con parametri (search per view attiva).
   }
 
+  // Chiude il campo di ricerca solo se non contiene testo, evitando di
+  // perdere una query attiva quando l'utente clicca altrove.
   const handleSearchBlur = () => {
     if (!searchValue && !searchInputRef.current?.value) {
       handleSearchClose()
     }
   }
 
-  const toolEnabled = (tool: ToolbarTool) => enabledTools.includes(tool)
+  const isToolEnabled = (tool: ToolbarTool) => enabledTools.includes(tool)
 
   const sortableBranches = React.useMemo(
     () =>
@@ -194,16 +277,22 @@ export function ContentToolbar({
     [seed.branches]
   )
 
-  const filteredBranches = React.useMemo(() => {
-    const term = sortSearch.trim().toLowerCase()
+  const filteredSortableColumns = React.useMemo(() => {
+    const term = sortColumnSearchTerm.trim().toLowerCase()
     if (!term) return sortableBranches
     return sortableBranches.filter((branch) =>
       branch.label.toLowerCase().includes(term)
     )
-  }, [sortSearch, sortableBranches])
+  }, [sortColumnSearchTerm, sortableBranches])
 
+  /**
+   * Deriva l'elenco di colonne filtrabili dal seed corrente.
+   * Le colonne di sistema (slug, status) sono sempre presenti in cima.
+   * I branch vengono mappati al FilterGroupType più appropriato; i tipi non
+   * gestiti esplicitamente ricadono nel fallback "text".
+   */
   const filterableColumns = React.useMemo(() => {
-    const cols: Array<{
+    const columns: Array<{
       columnId: string
       label: string
       type: FilterGroupType
@@ -216,34 +305,30 @@ export function ContentToolbar({
     for (const branch of seed.branches) {
       const alias = branch.alias
       if (branch.type === "number") {
-        cols.push({ columnId: alias, label: branch.label, type: "number" })
+        columns.push({ columnId: alias, label: branch.label, type: "number" })
       } else if (branch.type === "date") {
-        cols.push({ columnId: alias, label: branch.label, type: "date" })
+        columns.push({ columnId: alias, label: branch.label, type: "date" })
       } else if (branch.type === "boolean") {
-        cols.push({ columnId: alias, label: branch.label, type: "boolean" })
+        columns.push({ columnId: alias, label: branch.label, type: "boolean" })
       } else if (branch.type === "json" && alias.toLowerCase().includes("tag")) {
-        cols.push({ columnId: alias, label: branch.label, type: "tags" })
+        columns.push({ columnId: alias, label: branch.label, type: "tags" })
       } else if (branch.type === "text" || branch.type === "richtext") {
-        cols.push({ columnId: alias, label: branch.label, type: "text" })
+        columns.push({ columnId: alias, label: branch.label, type: "text" })
       } else if (branch.type === "file") {
-        cols.push({ columnId: alias, label: branch.label, type: "text" })
+        columns.push({ columnId: alias, label: branch.label, type: "text" })
       } else {
-        cols.push({ columnId: alias, label: branch.label, type: "text" })
+        columns.push({ columnId: alias, label: branch.label, type: "text" })
       }
     }
 
-    return cols
+    return columns
   }, [seed.branches])
 
-  const filteredFilterableColumns = React.useMemo(() => {
-    const term = filterSearch.trim().toLowerCase()
+  const visibleFilterColumns = React.useMemo(() => {
+    const term = filterColumnSearchTerm.trim().toLowerCase()
     if (!term) return filterableColumns
     return filterableColumns.filter((c) => c.label.toLowerCase().includes(term))
-  }, [filterSearch, filterableColumns])
-
-  const makeId = React.useCallback(() => {
-    return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
-  }, [])
+  }, [filterColumnSearchTerm, filterableColumns])
 
   const addConditionToColumn = React.useCallback(
     (columnId: string) => {
@@ -253,11 +338,10 @@ export function ContentToolbar({
 
       const next = { ...filters }
       const existing = next[columnId]
-      const defaultOp: FilterOperator =
-        col.type === "tags" ? "contains" : "eq"
+      const defaultOp: FilterOperator = col.type === "tags" ? "contains" : "eq"
 
       const newCondition: ToolbarFilterCondition = {
-        id: makeId(),
+        id: generateConditionId(),
         op: defaultOp,
         value: null,
       }
@@ -279,7 +363,7 @@ export function ContentToolbar({
 
       onFiltersChange(next)
     },
-    [filterableColumns, filters, makeId, onFiltersChange]
+    [filterableColumns, filters, onFiltersChange]
   )
 
   const removeColumnFilters = React.useCallback(
@@ -332,54 +416,6 @@ export function ContentToolbar({
     [filters, onFiltersChange]
   )
 
-  const operatorOptionsFor = React.useCallback((type: FilterGroupType) => {
-    const base: Array<{ value: FilterOperator; label: string }> = [
-      { value: "eq", label: "Uguale a" },
-      { value: "is_not_empty", label: "È pieno" },
-      { value: "is_empty", label: "Non è pieno" },
-    ]
-
-    if (type === "number" || type === "date") {
-      return [
-        { value: "gt", label: "Maggiore di" },
-        { value: "lt", label: "Minore di" },
-        { value: "gte", label: "Maggiore o uguale" },
-        { value: "lte", label: "Minore o uguale" },
-        ...base,
-      ]
-    }
-
-    if (type === "tags") {
-      return [
-        { value: "contains", label: "Contiene" },
-        { value: "is_not_empty", label: "È pieno" },
-        { value: "is_empty", label: "Non è pieno" },
-      ]
-    }
-
-    if (type === "select") {
-      return [
-        { value: "eq", label: "Uguale a" },
-        { value: "is_not_empty", label: "È pieno" },
-        { value: "is_empty", label: "Non è pieno" },
-      ]
-    }
-
-    if (type === "text" || type === "system") {
-      return [
-        { value: "contains", label: "Contiene" },
-        ...base,
-      ]
-    }
-
-    // boolean e altri tipi: solo uguaglianza / pieno / vuoto
-    return base
-  }, [])
-
-  const opNeedsValue = (op: FilterOperator) => {
-    return op !== "is_empty" && op !== "is_not_empty"
-  }
-
   const handleToggleSortDirection = () => {
     if (!onSortChange || !sortState?.columnId) return
     onSortChange({
@@ -388,7 +424,7 @@ export function ContentToolbar({
     })
   }
 
-  const handleSelectBranch = (branchAlias: string) => {
+  const handleSortColumnSelect = (branchAlias: string) => {
     if (!onSortChange) return
 
     const isCurrentlySelected = sortState?.columnId === branchAlias
@@ -398,9 +434,8 @@ export function ContentToolbar({
       return
     }
 
-    const nextDesc =
-      sortState && sortState.columnId != null ? sortState.desc : true
-
+    // Mantiene la direzione di ordinamento già impostata, se presente.
+    const nextDesc = sortState && sortState.columnId != null ? sortState.desc : true
     onSortChange({ columnId: branchAlias, desc: nextDesc })
   }
 
@@ -454,12 +489,12 @@ export function ContentToolbar({
 
           {/* Lato destro: strumenti */}
           <div className="flex items-center gap-2">
-            {toolEnabled("filter") && (
+            {isToolEnabled("filter") && (
               <DropdownMenu
                 open={filterMenuOpen}
                 onOpenChange={(open) => {
                   setFilterMenuOpen(open)
-                  if (!open) setFilterSearch("")
+                  if (!open) setFilterColumnSearchTerm("")
                 }}
               >
                 <Tooltip>
@@ -479,20 +514,20 @@ export function ContentToolbar({
                   <div className="flex items-center gap-2">
                     <Input
                       placeholder="Cerca colonna..."
-                      value={filterSearch}
-                      onChange={(e) => setFilterSearch(e.target.value)}
+                      value={filterColumnSearchTerm}
+                      onChange={(e) => setFilterColumnSearchTerm(e.target.value)}
                       className="h-8 flex-1 text-sm"
                     />
                   </div>
                   <DropdownMenuSeparator className="my-2" />
                   <div className="max-h-56 overflow-y-auto">
-                    {filteredFilterableColumns.length === 0 ? (
+                    {visibleFilterColumns.length === 0 ? (
                       <div className="py-2 text-center text-xs text-muted-foreground">
                         Nessuna colonna trovata
                       </div>
                     ) : (
                       <div className="flex flex-col gap-1 py-1">
-                        {filteredFilterableColumns.map((col) => (
+                        {visibleFilterColumns.map((col) => (
                           <Button
                             key={col.columnId}
                             type="button"
@@ -502,7 +537,7 @@ export function ContentToolbar({
                             onClick={() => {
                               addConditionToColumn(col.columnId)
                               setFilterMenuOpen(false)
-                              setFilterSearch("")
+                              setFilterColumnSearchTerm("")
                               setOpenPillId(col.columnId)
                             }}
                           >
@@ -520,12 +555,10 @@ export function ContentToolbar({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {toolEnabled("sort") && (
+            {isToolEnabled("sort") && (
               <DropdownMenu
                 onOpenChange={(open) => {
-                  if (!open) {
-                    setSortSearch("")
-                  }
+                  if (!open) setSortColumnSearchTerm("")
                 }}
               >
                 <Tooltip>
@@ -542,18 +575,15 @@ export function ContentToolbar({
                   </TooltipTrigger>
                   <TooltipContent side="top">Ordina</TooltipContent>
                 </Tooltip>
-                <DropdownMenuContent
-                  align="end"
-                  className="w-64 p-2"
-                >
+                <DropdownMenuContent align="end" className="w-64 p-2">
                   <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
                     Ordina per colonna
                   </DropdownMenuLabel>
                   <div className="flex items-center gap-2">
                     <Input
                       placeholder="Cerca colonna..."
-                      value={sortSearch}
-                      onChange={(e) => setSortSearch(e.target.value)}
+                      value={sortColumnSearchTerm}
+                      onChange={(e) => setSortColumnSearchTerm(e.target.value)}
                       className="h-8 flex-1 text-sm"
                     />
                     <Button
@@ -570,15 +600,14 @@ export function ContentToolbar({
                   </div>
                   <DropdownMenuSeparator className="my-2" />
                   <div className="max-h-56 overflow-y-auto">
-                    {filteredBranches.length === 0 ? (
+                    {filteredSortableColumns.length === 0 ? (
                       <div className="py-2 text-center text-xs text-muted-foreground">
                         Nessuna colonna trovata
                       </div>
                     ) : (
                       <div className="flex flex-col gap-1 py-1">
-                        {filteredBranches.map((branch) => {
-                          const isSelected =
-                            sortState?.columnId === branch.alias
+                        {filteredSortableColumns.map((branch) => {
+                          const isSelected = sortState?.columnId === branch.alias
                           return (
                             <Button
                               key={branch.alias}
@@ -586,7 +615,7 @@ export function ContentToolbar({
                               variant={isSelected ? "secondary" : "ghost"}
                               size="sm"
                               className="h-8 justify-between px-2 text-xs"
-                              onClick={() => handleSelectBranch(branch.alias)}
+                              onClick={() => handleSortColumnSelect(branch.alias)}
                             >
                               <span className="truncate">
                                 {branch.label}
@@ -605,7 +634,7 @@ export function ContentToolbar({
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
-            {toolEnabled("automation") && (
+            {isToolEnabled("automation") && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -614,15 +643,13 @@ export function ContentToolbar({
                     aria-label="Automazione"
                     onClick={() => onOpenAutomation?.()}
                   >
-                    
-                  
                     <Zap className="size-4" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="top">Automazione</TooltipContent>
               </Tooltip>
             )}
-            {toolEnabled("search") && (
+            {isToolEnabled("search") && (
               <div
                 className="overflow-hidden rounded-md border border-input bg-transparent transition-[width] duration-200 ease-out"
                 style={{ width: isSearchOpen ? 192 : 32 }}
@@ -672,7 +699,7 @@ export function ContentToolbar({
                 )}
               </div>
             )}
-            {toolEnabled("settings") && (
+            {isToolEnabled("settings") && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -687,7 +714,7 @@ export function ContentToolbar({
                 <TooltipContent side="top">Impostazioni vista</TooltipContent>
               </Tooltip>
             )}
-            {toolEnabled("create") && (
+            {isToolEnabled("create") && (
               <Button
                 variant="default"
                 size="sm"
@@ -749,8 +776,8 @@ export function ContentToolbar({
 
                       <div className="flex flex-col gap-2">
                         {group.conditions.map((cond) => {
-                          const ops = operatorOptionsFor(group.type)
-                          const showValue = opNeedsValue(cond.op)
+                          const ops = getOperatorOptions(group.type)
+                          const showValueInput = operatorRequiresValue(cond.op)
 
                           return (
                             <div
@@ -781,7 +808,7 @@ export function ContentToolbar({
                                 </SelectContent>
                               </Select>
 
-                              {showValue ? (
+                              {showValueInput ? (
                                 group.type === "number" ? (
                                   <Input
                                     type="number"
@@ -862,10 +889,7 @@ export function ContentToolbar({
                                         <ArrowUpDown className="size-3.5 opacity-60" />
                                       </Button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent
-                                      align="end"
-                                      className="w-48 p-1"
-                                    >
+                                    <DropdownMenuContent align="end" className="w-48 p-1">
                                       {(group.selectOptions ?? []).map((opt) => (
                                         <Button
                                           key={opt}
@@ -892,8 +916,7 @@ export function ContentToolbar({
                                         className="h-8 flex-1 justify-between"
                                       >
                                         <span className="truncate">
-                                          {typeof cond.value === "string" &&
-                                          cond.value
+                                          {typeof cond.value === "string" && cond.value
                                             ? cond.value
                                             : "Tag..."}
                                         </span>
@@ -904,25 +927,18 @@ export function ContentToolbar({
                                       align="end"
                                       className="max-h-56 w-56 overflow-y-auto p-1"
                                     >
-                                      {(availableTagsByColumnId[group.columnId] ??
-                                        []).map((t) => (
+                                      {(availableTagsByColumnId[group.columnId] ?? []).map((tag) => (
                                         <Button
-                                          key={t}
+                                          key={tag}
                                           type="button"
-                                          variant={
-                                            cond.value === t ? "secondary" : "ghost"
-                                          }
+                                          variant={cond.value === tag ? "secondary" : "ghost"}
                                           size="sm"
                                           className="h-8 w-full justify-start px-2 text-xs"
                                           onClick={() =>
-                                            updateCondition(
-                                              group.columnId,
-                                              cond.id,
-                                              { value: t }
-                                            )
+                                            updateCondition(group.columnId, cond.id, { value: tag })
                                           }
                                         >
-                                          {t}
+                                          {tag}
                                         </Button>
                                       ))}
                                     </DropdownMenuContent>
