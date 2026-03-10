@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom"
+import { createBrowserRouter, RouterProvider, Navigate, Outlet } from "react-router-dom"
 import { LoginForm } from "@/components/login-form"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ContentListPage } from "@/pages/content-list"
 import { EntryEditorPage } from "@/pages/entry-editor"
 import { TestFieldsPage } from "@/pages/test-fields"
+import { ErrorPage } from "@/pages/error-page"
 import "./App.css"
 
 function LoginPage() {
@@ -64,44 +65,50 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 const router = createBrowserRouter([
   {
-    path: "/login",
-    element: <LoginPage />,
-  },
-  {
-    path: "/",
-    element: <DashboardPage />,
-  },
-  {
-    path: "/content/:slug/create",
-    element: (
-      <ProtectedRoute>
-        <EntryEditorPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/content/:slug/:id",
-    element: (
-      <ProtectedRoute>
-        <EntryEditorPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/content/:slug",
-    element: (
-      <ProtectedRoute>
-        <ContentListPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/test-fields",
-    element: (
-      <ProtectedRoute>
-        <TestFieldsPage />
-      </ProtectedRoute>
-    ),
+    element: <Outlet />,
+    errorElement: <ErrorPage />,
+    children: [
+      {
+        path: "/login",
+        element: <LoginPage />,
+      },
+      {
+        path: "/",
+        element: <DashboardPage />,
+      },
+      {
+        path: "/content/:slug/create",
+        element: (
+          <ProtectedRoute>
+            <EntryEditorPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/content/:slug/:id",
+        element: (
+          <ProtectedRoute>
+            <EntryEditorPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/content/:slug",
+        element: (
+          <ProtectedRoute>
+            <ContentListPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/test-fields",
+        element: (
+          <ProtectedRoute>
+            <TestFieldsPage />
+          </ProtectedRoute>
+        ),
+      },
+    ],
   },
 ])
 

@@ -77,17 +77,39 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   initialHiddenColumns?: string[]
+  /** Filtro globale (ricerca) controllato dall'esterno. Se non fornito, usa stato interno. */
+  globalFilter?: string
+  onGlobalFilterChange?: (value: string) => void
+  /** Stato di ordinamento controllato dall'esterno (opzionale). */
+  sorting?: SortingState
+  /** Callback quando cambia l'ordinamento (usata in modalità controllata). */
+  onSortingChange?: (sorting: SortingState) => void
+  /** Filtri per-colonna controllati dall'esterno (opzionale). */
+  columnFilters?: ColumnFiltersState
+  /** Callback quando cambiano i filtri per-colonna (usata in modalità controllata). */
+  onColumnFiltersChange?: (filters: ColumnFiltersState) => void
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   initialHiddenColumns = [],
+  globalFilter: globalFilterProp,
+  onGlobalFilterChange,
+  sorting: sortingProp,
+  onSortingChange,
+  columnFilters: columnFiltersProp,
+  onColumnFiltersChange,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  )
+  const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
+  const [internalColumnFilters, setInternalColumnFilters] =
+    React.useState<ColumnFiltersState>([])
+  const isControlledSorting = sortingProp !== undefined
+  const sorting = isControlledSorting ? sortingProp : internalSorting
+  const isControlledColumnFilters = columnFiltersProp !== undefined
+  const columnFilters = isControlledColumnFilters
+    ? columnFiltersProp
+    : internalColumnFilters
   
   // Inizializza columnVisibility nascondendo le colonne specificate
   const initialVisibility = React.useMemo(() => {
@@ -101,17 +123,63 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>(initialVisibility)
   const [rowSelection, setRowSelection] = React.useState({})
-  const [globalFilter, setGlobalFilter] = React.useState("")
+  const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("")
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
     pageSize: DEFAULT_PAGE_SIZE,
   })
 
+  const isControlledFilter = globalFilterProp !== undefined
+  const globalFilter = isControlledFilter ? globalFilterProp : internalGlobalFilter
+  const setGlobalFilter = isControlledFilter
+    ? (onGlobalFilterChange ?? (() => {}))
+    : setInternalGlobalFilter
+
+  const handleSortingChange = React.useCallback(
+    (
+      updaterOrValue:
+        | SortingState
+        | ((old: SortingState) => SortingState)
+    ) => {
+      const nextSorting =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(sorting)
+          : updaterOrValue
+
+      if (!isControlledSorting) {
+        setInternalSorting(nextSorting)
+      }
+
+      onSortingChange?.(nextSorting)
+    },
+    [isControlledSorting, onSortingChange, sorting]
+  )
+
+  const handleColumnFiltersChange = React.useCallback(
+    (
+      updaterOrValue:
+        | ColumnFiltersState
+        | ((old: ColumnFiltersState) => ColumnFiltersState)
+    ) => {
+      const next =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(columnFilters)
+          : updaterOrValue
+
+      if (!isControlledColumnFilters) {
+        setInternalColumnFilters(next)
+      }
+
+      onColumnFiltersChange?.(next)
+    },
+    [columnFilters, isControlledColumnFilters, onColumnFiltersChange]
+  )
+
   const table = useReactTable({
     data,
     columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
+    onSortingChange: handleSortingChange,
+    onColumnFiltersChange: handleColumnFiltersChange,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
@@ -158,12 +226,6 @@ export function DataTable<TData, TValue>({
   return (
     <div className="w-full">
       <div className="flex items-center gap-2 py-4">
-        <Input
-          placeholder="Cerca..."
-          value={globalFilter ?? ""}
-          onChange={(event) => setGlobalFilter(event.target.value)}
-          className="max-w-sm"
-        />
         <div className="ml-auto flex items-center gap-2">
           <div className="flex items-center gap-2">
             <Label htmlFor="page-size" className="text-sm text-muted-foreground whitespace-nowrap">

@@ -41,7 +41,7 @@ Quindi la roadmap va intesa come **estensione di `BranchType` e di eventuali met
 | **`slug`** | string | **Spostato in CORE.** Stesso storage di `text`. Validazione: lowercase, no spazi; opzionale `sourceField` per auto-generazione da titolo. |
 | `select` | string | Valore = una delle `options`. |
 | `multiselect` | string[] | Array di valori da `options`. |
-| `tag` | Record<string, string> (tag → colore) | **Accorpabile** con struttura "lista con metadati": come oggi i tags in JSON. |
+| `tag` | Record<string, string> (tag → colore) | **Accorpabile** con struttura "lista con metadati": come oggi i tags in JSON. **TODO:** `Branch.options?: string[]` funge da vocabolario predefinito — lista statica nel Seed, non salvata nel DB. Usata in FieldEdit (badge cliccabili come suggerimenti) e in ContentToolbar (dropdown filtri con unione opzioni statiche + tag scansionati dai dati esistenti). |
 | `url` | string | Validazione URL. |
 | `email` | string | Validazione email. |
 | `phone` | string | Validazione/formatting opzionale. |

@@ -80,6 +80,7 @@ Per i contributor e i membri del team, l'architettura dettagliata di ogni modulo
 | [Field Renderers](./docs/field-renderers.md) | Registry Pattern per display/edit campi nella UI |
 | [Media Engine](./docs/media-engine.md) | Upload su Cloudflare R2, API S3-compatibile |
 | [Autenticazione](./docs/auth.md) | JWT, refresh token, login, rate limiting |
+| [Dashboard Components](./docs/dashboard-components.md) | ContentToolbar: view switcher, filtri, sort, ricerca |
 | [Field types action plan](./docs/field-types-action-plan.md) | Piano d'azione tecnico per i campi |
 | [Field types roadmap](./docs/field-types-roadmap.md) | Roadmap dei tipi di campo (WordPress killer) |
 
