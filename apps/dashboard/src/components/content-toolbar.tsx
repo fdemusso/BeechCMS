@@ -23,6 +23,13 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 // TODO: derivare views, enabledTools e impostazioni da una configurazione persistente (per-utente) non appena disponibile.
 // TODO: definire il flusso di creazione/modifica/eliminazione di una vista utente (onCreateView).
@@ -68,6 +75,11 @@ export interface ContentToolbarProps {
   isSortActive?: boolean
   isAutomationActive?: boolean
   isSettingsOpen?: boolean
+  sortState?: {
+    columnId: string | null
+    desc: boolean
+  }
+  onSortChange?: (state: { columnId: string | null; desc: boolean }) => void
   /** Contenuto sotto la row di funzioni (tabella, controlli, ecc.) */
   children?: React.ReactNode
 }
@@ -80,16 +92,18 @@ export function ContentToolbar({
   onCreateView,
   onCreate,
   onOpenFilters,
-  onOpenSort,
   onOpenAutomation,
   onOpenSettings,
   searchValue = "",
   onSearchChange,
   onSubmitSearch,
+  sortState,
+  onSortChange,
   children,
 }: ContentToolbarProps) {
   const [isSearchOpen, setIsSearchOpen] = React.useState(false)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
+  const [sortSearch, setSortSearch] = React.useState("")
 
   const activeView = views.find((v) => v.id === activeViewId)
   const enabledTools = activeView?.enabledTools ?? [
@@ -125,6 +139,46 @@ export function ContentToolbar({
   }
 
   const toolEnabled = (tool: ToolbarTool) => enabledTools.includes(tool)
+
+  const sortableBranches = React.useMemo(
+    () =>
+      seed.branches.filter((branch) =>
+        ["text", "number", "date"].includes(branch.type as string)
+      ),
+    [seed.branches]
+  )
+
+  const filteredBranches = React.useMemo(() => {
+    const term = sortSearch.trim().toLowerCase()
+    if (!term) return sortableBranches
+    return sortableBranches.filter((branch) =>
+      branch.label.toLowerCase().includes(term)
+    )
+  }, [sortSearch, sortableBranches])
+
+  const handleToggleSortDirection = () => {
+    if (!onSortChange || !sortState?.columnId) return
+    onSortChange({
+      columnId: sortState.columnId,
+      desc: !sortState.desc,
+    })
+  }
+
+  const handleSelectBranch = (branchAlias: string) => {
+    if (!onSortChange) return
+
+    const isCurrentlySelected = sortState?.columnId === branchAlias
+
+    if (isCurrentlySelected) {
+      onSortChange({ columnId: null, desc: true })
+      return
+    }
+
+    const nextDesc =
+      sortState && sortState.columnId != null ? sortState.desc : true
+
+    onSortChange({ columnId: branchAlias, desc: nextDesc })
+  }
 
   return (
     <Card className="py-3 border-0 bg-transparent shadow-none" data-seed-slug={seed.slug}>
@@ -195,19 +249,89 @@ export function ContentToolbar({
               </Tooltip>
             )}
             {toolEnabled("sort") && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Ordina"
-                    onClick={() => onOpenSort?.()}
-                  >
-                    <ArrowUpDown className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">Ordina</TooltipContent>
-              </Tooltip>
+              <DropdownMenu
+                onOpenChange={(open) => {
+                  if (!open) {
+                    setSortSearch("")
+                  }
+                }}
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Ordina"
+                      >
+                        <ArrowUpDown className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">Ordina</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-64 p-2"
+                >
+                  <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                    Ordina per colonna
+                  </DropdownMenuLabel>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      placeholder="Cerca colonna..."
+                      value={sortSearch}
+                      onChange={(e) => setSortSearch(e.target.value)}
+                      className="h-8 flex-1 text-sm"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon-sm"
+                      className="h-8 w-8 shrink-0"
+                      aria-label="Inverti ordine"
+                      onClick={handleToggleSortDirection}
+                      disabled={!sortState?.columnId}
+                    >
+                      <ArrowUpDown className="size-3.5" />
+                    </Button>
+                  </div>
+                  <DropdownMenuSeparator className="my-2" />
+                  <div className="max-h-56 overflow-y-auto">
+                    {filteredBranches.length === 0 ? (
+                      <div className="py-2 text-center text-xs text-muted-foreground">
+                        Nessuna colonna trovata
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1 py-1">
+                        {filteredBranches.map((branch) => {
+                          const isSelected =
+                            sortState?.columnId === branch.alias
+                          return (
+                            <Button
+                              key={branch.alias}
+                              type="button"
+                              variant={isSelected ? "secondary" : "ghost"}
+                              size="sm"
+                              className="h-8 justify-between px-2 text-xs"
+                              onClick={() => handleSelectBranch(branch.alias)}
+                            >
+                              <span className="truncate">
+                                {branch.label}
+                              </span>
+                              {isSelected && (
+                                <span className="text-muted-foreground text-[10px] uppercase">
+                                  {sortState?.desc ? "DESC" : "ASC"}
+                                </span>
+                              )}
+                            </Button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             {toolEnabled("automation") && (
               <Tooltip>

@@ -1,6 +1,7 @@
 import * as React from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { getSeed } from "@beech/core"
+import type { SortingState } from "@tanstack/react-table"
 
 import {
   SidebarInset,
@@ -40,6 +41,9 @@ export function ContentListPage() {
 
   // Ricerca tabella (collegata alla barra di ricerca nella toolbar)
   const [tableSearch, setTableSearch] = React.useState("")
+
+  // Ordinamento tabella (controllato, singola colonna)
+  const [sorting, setSorting] = React.useState<SortingState>([])
 
   // Recupera il seed
   const seed = slug ? getSeed(slug) : null
@@ -138,6 +142,31 @@ export function ContentListPage() {
     if (!seed) return []
     return generateColumns(seed, handleEdit, handleDelete, maxLengths)
   }, [seed, handleEdit, handleDelete, maxLengths])
+
+  const singleSort = sorting[0]
+
+  const handleTableSortingChange = React.useCallback(
+    (next: SortingState) => {
+      if (!next.length) {
+        setSorting([])
+        return
+      }
+      const [first] = next
+      setSorting([{ id: first.id, desc: first.desc ?? false }])
+    },
+    []
+  )
+
+  const handleToolbarSortChange = React.useCallback(
+    (state: { columnId: string | null; desc: boolean }) => {
+      if (!state.columnId) {
+        setSorting([])
+        return
+      }
+      setSorting([{ id: state.columnId, desc: state.desc }])
+    },
+    []
+  )
   
   // Colonne nascoste di default: id (troppo lungo), json metadata/metadati
   const initialHiddenColumns = React.useMemo(() => {
@@ -208,6 +237,11 @@ export function ContentListPage() {
                   onCreate={handleCreate}
                   searchValue={tableSearch}
                   onSearchChange={setTableSearch}
+                  sortState={{
+                    columnId: singleSort?.id ?? null,
+                    desc: singleSort?.desc ?? true,
+                  }}
+                  onSortChange={handleToolbarSortChange}
                 >
                   {error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
@@ -226,6 +260,8 @@ export function ContentListPage() {
                       initialHiddenColumns={initialHiddenColumns}
                       globalFilter={tableSearch}
                       onGlobalFilterChange={setTableSearch}
+                      sorting={sorting}
+                      onSortingChange={handleTableSortingChange}
                     />
                   )}
                 </ContentToolbar>

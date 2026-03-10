@@ -80,6 +80,10 @@ interface DataTableProps<TData, TValue> {
   /** Filtro globale (ricerca) controllato dall'esterno. Se non fornito, usa stato interno. */
   globalFilter?: string
   onGlobalFilterChange?: (value: string) => void
+  /** Stato di ordinamento controllato dall'esterno (opzionale). */
+  sorting?: SortingState
+  /** Callback quando cambia l'ordinamento (usata in modalità controllata). */
+  onSortingChange?: (sorting: SortingState) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -88,11 +92,15 @@ export function DataTable<TData, TValue>({
   initialHiddenColumns = [],
   globalFilter: globalFilterProp,
   onGlobalFilterChange,
+  sorting: sortingProp,
+  onSortingChange,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
+  const isControlledSorting = sortingProp !== undefined
+  const sorting = isControlledSorting ? sortingProp : internalSorting
   
   // Inizializza columnVisibility nascondendo le colonne specificate
   const initialVisibility = React.useMemo(() => {
@@ -118,10 +126,30 @@ export function DataTable<TData, TValue>({
     ? (onGlobalFilterChange ?? (() => {}))
     : setInternalGlobalFilter
 
+  const handleSortingChange = React.useCallback(
+    (
+      updaterOrValue:
+        | SortingState
+        | ((old: SortingState) => SortingState)
+    ) => {
+      const nextSorting =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(sorting)
+          : updaterOrValue
+
+      if (!isControlledSorting) {
+        setInternalSorting(nextSorting)
+      }
+
+      onSortingChange?.(nextSorting)
+    },
+    [isControlledSorting, onSortingChange, sorting]
+  )
+
   const table = useReactTable({
     data,
     columns,
-    onSortingChange: setSorting,
+    onSortingChange: handleSortingChange,
     onColumnFiltersChange: setColumnFilters,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),

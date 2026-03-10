@@ -1,6 +1,6 @@
 import type { ColumnDef } from "@tanstack/react-table"
 import type { Seed } from "@beech/core"
-import { ArrowUpDown, MoreHorizontal } from "lucide-react"
+import { MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
 
 import { FieldDisplay } from "@/components/fields"
@@ -18,9 +18,6 @@ import {
 
 /** Lunghezza minima per troncamento celle (evita celle troppo corte) */
 const MIN_TRUNCATE_LENGTH = 20
-
-/** Tipi di branch che supportano l'ordinamento colonna nella tabella */
-const SORTABLE_BRANCH_TYPES = ["text", "number", "date"] as const
 
 /**
  * Interfaccia ContentEntry per tipizzazione.
@@ -191,26 +188,7 @@ export function generateColumns(
     const baseColumn: ColumnDef<ContentEntry> = {
       accessorFn: (row) => row.data[branch.alias],
       id: branch.alias,
-      header: ({ column }) => {
-        // Solo text, number e date hanno ordinamento
-        const sortable = (SORTABLE_BRANCH_TYPES as readonly string[]).includes(branch.type)
-        
-        if (sortable) {
-          return (
-            <div
-              className="flex items-center gap-1 cursor-pointer select-none hover:text-foreground/80 transition-colors"
-              onClick={() =>
-                column.toggleSorting(column.getIsSorted() === "asc")
-              }
-            >
-              <span className="font-medium">{branch.label}</span>
-              <ArrowUpDown className="size-4" />
-            </div>
-          )
-        }
-        
-        return <div className="font-medium">{branch.label}</div>
-      },
+      header: () => <div className="font-medium">{branch.label}</div>,
     }
 
     columns.push({
