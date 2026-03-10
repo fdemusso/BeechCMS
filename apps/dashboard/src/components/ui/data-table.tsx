@@ -84,6 +84,10 @@ interface DataTableProps<TData, TValue> {
   sorting?: SortingState
   /** Callback quando cambia l'ordinamento (usata in modalità controllata). */
   onSortingChange?: (sorting: SortingState) => void
+  /** Filtri per-colonna controllati dall'esterno (opzionale). */
+  columnFilters?: ColumnFiltersState
+  /** Callback quando cambiano i filtri per-colonna (usata in modalità controllata). */
+  onColumnFiltersChange?: (filters: ColumnFiltersState) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -94,13 +98,18 @@ export function DataTable<TData, TValue>({
   onGlobalFilterChange,
   sorting: sortingProp,
   onSortingChange,
+  columnFilters: columnFiltersProp,
+  onColumnFiltersChange,
 }: DataTableProps<TData, TValue>) {
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  )
+  const [internalColumnFilters, setInternalColumnFilters] =
+    React.useState<ColumnFiltersState>([])
   const isControlledSorting = sortingProp !== undefined
   const sorting = isControlledSorting ? sortingProp : internalSorting
+  const isControlledColumnFilters = columnFiltersProp !== undefined
+  const columnFilters = isControlledColumnFilters
+    ? columnFiltersProp
+    : internalColumnFilters
   
   // Inizializza columnVisibility nascondendo le colonne specificate
   const initialVisibility = React.useMemo(() => {
@@ -146,11 +155,31 @@ export function DataTable<TData, TValue>({
     [isControlledSorting, onSortingChange, sorting]
   )
 
+  const handleColumnFiltersChange = React.useCallback(
+    (
+      updaterOrValue:
+        | ColumnFiltersState
+        | ((old: ColumnFiltersState) => ColumnFiltersState)
+    ) => {
+      const next =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(columnFilters)
+          : updaterOrValue
+
+      if (!isControlledColumnFilters) {
+        setInternalColumnFilters(next)
+      }
+
+      onColumnFiltersChange?.(next)
+    },
+    [columnFilters, isControlledColumnFilters, onColumnFiltersChange]
+  )
+
   const table = useReactTable({
     data,
     columns,
     onSortingChange: handleSortingChange,
-    onColumnFiltersChange: setColumnFilters,
+    onColumnFiltersChange: handleColumnFiltersChange,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),

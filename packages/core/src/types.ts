@@ -22,6 +22,13 @@ export interface Branch {
   label: string
   /** Tipo del valore */
   type: BranchType
+  /**
+   * Vocabolario predefinito per campi tag/select/multiselect.
+   * Lista statica definita nel Seed (non salvata nel DB, non richiede migrazioni).
+   * Usata come suggerimenti in fase di creazione (FieldEdit) e come opzioni
+   * nel dropdown dei filtri in ContentToolbar.
+   */
+  options?: string[]
 }
 
 /** Seed: definizione dello schema di un tipo di contenuto */

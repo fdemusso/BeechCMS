@@ -37,6 +37,7 @@ Il **Botanical Engine** introduce un layer di traduzione:
 | `alias` | No | Chiave nel payload API (Frontend) | `title`, `budget` |
 | `label` | No | Etichetta per la UI (Dashboard) | "Titolo Progetto" |
 | `type` | No | Tipo del valore | `text`, `number`, `boolean`, `json`, `date`, `richtext`, `file` |
+| `options` | No | Vocabolario predefinito (opzionale) per campi `tag`, `select`, `multiselect`. Lista statica definita nel Seed, non salvata nel DB. Usata come suggerimenti in fase di creazione (badge cliccabili in FieldEdit) e come opzioni nel dropdown dei filtri in ContentToolbar. | `['news', 'tutorial', 'release']` |
 
 ### Attributi del Seed
 

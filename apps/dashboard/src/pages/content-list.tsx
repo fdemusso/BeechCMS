@@ -2,6 +2,7 @@ import * as React from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { getSeed } from "@beech/core"
 import type { SortingState } from "@tanstack/react-table"
+import type { ColumnFiltersState } from "@tanstack/react-table"
 
 import {
   SidebarInset,
@@ -14,6 +15,7 @@ import { ContentDeleteDialog } from "@/components/content-delete-dialog"
 import {
   ContentToolbar,
   type UserViewInstance,
+  type ToolbarFiltersState,
 } from "@/components/content-toolbar"
 import {
   fetchContentList,
@@ -44,6 +46,11 @@ export function ContentListPage() {
 
   // Ordinamento tabella (controllato, singola colonna)
   const [sorting, setSorting] = React.useState<SortingState>([])
+
+  // Filtri tabella (Notion-like): 1 pill per colonna, più condizioni AND
+  const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>(
+    {}
+  )
 
   // Recupera il seed
   const seed = slug ? getSeed(slug) : null
@@ -145,6 +152,70 @@ export function ContentListPage() {
 
   const singleSort = sorting[0]
 
+  const availableTagsByColumnId = React.useMemo(() => {
+    if (!seed) return {}
+    const tagBranches = seed.branches.filter(
+      (b) => b.type === "json" && b.alias.toLowerCase().includes("tag")
+    )
+    if (tagBranches.length === 0) return {}
+
+    const result: Record<string, string[]> = {}
+    for (const branch of tagBranches) {
+      // Parte da branch.options (vocabolario statico del seed), se presenti
+      const set = new Set<string>(branch.options ?? [])
+
+      // Aggiunge i tag trovati nelle entry esistenti (vocabolario dinamico)
+      for (const row of data) {
+        const raw = row.data[branch.alias]
+        const obj =
+          typeof raw === "string"
+            ? (() => {
+                try {
+                  return JSON.parse(raw) as unknown
+                } catch {
+                  return null
+                }
+              })()
+            : raw
+        if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+          for (const key of Object.keys(obj as Record<string, unknown>)) {
+            if (key) set.add(key)
+          }
+        }
+      }
+      result[branch.alias] = Array.from(set).sort((a, b) =>
+        a.localeCompare(b, "it")
+      )
+    }
+    return result
+  }, [data, seed])
+
+  const columnFilters = React.useMemo<ColumnFiltersState>(() => {
+    const next: ColumnFiltersState = []
+    for (const [columnId, group] of Object.entries(toolbarFilters)) {
+      // Passiamo al table state solo i gruppi che hanno almeno 1 condizione “effettiva”.
+      const hasEffectiveCondition = group.conditions.some((c) => {
+        if (c.op === "is_empty" || c.op === "is_not_empty") return true
+        if (c.op === "contains") return typeof c.value === "string" && c.value.trim().length > 0
+        if (c.op === "eq") {
+          if (group.type === "boolean") return c.value === true || c.value === false
+          if (group.type === "number") return typeof c.value === "number" && !Number.isNaN(c.value)
+          if (group.type === "date") return typeof c.value === "string" && c.value.trim().length > 0
+          if (group.type === "select") return typeof c.value === "string" && c.value.trim().length > 0
+          return typeof c.value === "string" && c.value.trim().length > 0
+        }
+        if (["gt", "gte", "lt", "lte"].includes(c.op)) {
+          if (group.type === "number") return typeof c.value === "number" && !Number.isNaN(c.value)
+          if (group.type === "date") return typeof c.value === "string" && c.value.trim().length > 0
+        }
+        return false
+      })
+      if (!hasEffectiveCondition) continue
+      next.push({ id: columnId, value: group })
+    }
+    return next
+  }, [toolbarFilters])
+
   const handleTableSortingChange = React.useCallback(
     (next: SortingState) => {
       if (!next.length) {
@@ -242,6 +313,9 @@ export function ContentListPage() {
                     desc: singleSort?.desc ?? true,
                   }}
                   onSortChange={handleToolbarSortChange}
+                  filters={toolbarFilters}
+                  onFiltersChange={setToolbarFilters}
+                  availableTagsByColumnId={availableTagsByColumnId}
                 >
                   {error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
@@ -262,6 +336,7 @@ export function ContentListPage() {
                       onGlobalFilterChange={setTableSearch}
                       sorting={sorting}
                       onSortingChange={handleTableSortingChange}
+                      columnFilters={columnFilters}
                     />
                   )}
                 </ContentToolbar>
