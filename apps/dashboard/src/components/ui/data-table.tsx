@@ -77,12 +77,17 @@ interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   initialHiddenColumns?: string[]
+  /** Filtro globale (ricerca) controllato dall'esterno. Se non fornito, usa stato interno. */
+  globalFilter?: string
+  onGlobalFilterChange?: (value: string) => void
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   initialHiddenColumns = [],
+  globalFilter: globalFilterProp,
+  onGlobalFilterChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
@@ -101,11 +106,17 @@ export function DataTable<TData, TValue>({
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>(initialVisibility)
   const [rowSelection, setRowSelection] = React.useState({})
-  const [globalFilter, setGlobalFilter] = React.useState("")
+  const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("")
   const [pagination, setPagination] = React.useState<PaginationState>({
     pageIndex: 0,
     pageSize: DEFAULT_PAGE_SIZE,
   })
+
+  const isControlledFilter = globalFilterProp !== undefined
+  const globalFilter = isControlledFilter ? globalFilterProp : internalGlobalFilter
+  const setGlobalFilter = isControlledFilter
+    ? (onGlobalFilterChange ?? (() => {}))
+    : setInternalGlobalFilter
 
   const table = useReactTable({
     data,
@@ -158,12 +169,6 @@ export function DataTable<TData, TValue>({
   return (
     <div className="w-full">
       <div className="flex items-center gap-2 py-4">
-        <Input
-          placeholder="Cerca..."
-          value={globalFilter ?? ""}
-          onChange={(event) => setGlobalFilter(event.target.value)}
-          className="max-w-sm"
-        />
         <div className="ml-auto flex items-center gap-2">
           <div className="flex items-center gap-2">
             <Label htmlFor="page-size" className="text-sm text-muted-foreground whitespace-nowrap">

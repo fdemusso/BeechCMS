@@ -77,10 +77,7 @@ export function EntryEditorPage() {
   const [isDirty, setIsDirty] = React.useState(false)
   const hasJustSavedRef = React.useRef(false)
 
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      isDirty && !hasJustSavedRef.current
-  )
+  const blocker = useBlocker(() => isDirty && !hasJustSavedRef.current)
 
   const handleInputChange = React.useCallback((alias: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [alias]: value }))

@@ -1,9 +1,7 @@
 import * as React from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { getSeed } from "@beech/core"
-import { Plus } from "lucide-react"
 
-import { Button } from "@/components/ui/button"
 import {
   SidebarInset,
   SidebarProvider,
@@ -12,6 +10,10 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { DataTable } from "@/components/ui/data-table"
 import { ContentDeleteDialog } from "@/components/content-delete-dialog"
+import {
+  ContentToolbar,
+  type UserViewInstance,
+} from "@/components/content-toolbar"
 import {
   fetchContentList,
   deleteContent,
@@ -32,8 +34,36 @@ export function ContentListPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [entryToDelete, setEntryToDelete] = React.useState<string | null>(null)
 
+  // Vista attiva (per ora solo UI-state; la DataTable rimane sempre visibile)
+  // TODO: mostrare viste alternative (Grid/Kanban/Chart) in base ad activeViewId.
+  const [activeViewId, setActiveViewId] = React.useState("table")
+
+  // Ricerca tabella (collegata alla barra di ricerca nella toolbar)
+  const [tableSearch, setTableSearch] = React.useState("")
+
   // Recupera il seed
   const seed = slug ? getSeed(slug) : null
+
+  // Vista di default per testare la toolbar (hardcoded; in futuro da config per-utente)
+  // TODO: caricare e salvare la configurazione delle viste a livello di utente (quando esisterà un sistema di preferenze utente).
+  const defaultViews: UserViewInstance[] = React.useMemo(
+    () => [
+      {
+        id: "table",
+        label: "Tabella",
+        type: "table",
+        enabledTools: [
+          "filter",
+          "sort",
+          "automation",
+          "search",
+          "settings",
+          "create",
+        ],
+      },
+    ],
+    []
+  )
 
   const loadData = React.useCallback(async () => {
     if (!slug) return
@@ -43,6 +73,7 @@ export function ContentListPage() {
 
     try {
       // Dati da GET /api/content/:slug (id, schema_slug, slug, status, data, created_at, updated_at)
+      // TODO: passare al fetch i parametri di filtro/sort/search quando implementati (configurazione per view).
       const entries = await fetchContentList(slug)
       setData(entries)
     } catch (err) {
@@ -160,42 +191,44 @@ export function ContentListPage() {
           <SidebarInset>
             <div className="flex flex-1 flex-col gap-4 p-4">
               <div className="mx-auto w-full max-w-screen-2xl">
-                {/* Header con titolo e pulsante Crea */}
-                <div className="mb-6 flex items-center justify-between">
-                  <div>
-                    <h1 className="text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
-                    <p className="text-muted-foreground text-sm">
-                      Gestisci i contenuti di tipo "{seed.slug}"
-                    </p>
-                  </div>
-                  <Button onClick={handleCreate}>
-                    <Plus />
-                    Crea nuovo
-                  </Button>
+                {/* Header con titolo */}
+                <div className="mb-6">
+                  <h1 className="text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
+                  <p className="text-muted-foreground text-sm">
+                    Gestisci i contenuti di tipo "{seed.slug}"
+                  </p>
                 </div>
 
-                {/* Errore */}
-                {error && (
-                  <div className="mb-4 rounded-lg border border-destructive bg-destructive/10 p-4">
-                    <p className="text-sm text-destructive">{error}</p>
-                  </div>
-                )}
-
-                {/* Loading */}
-                {isLoading && (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="text-muted-foreground">Caricamento...</div>
-                  </div>
-                )}
-
-                {/* Data Table */}
-                {!isLoading && !error && (
-                  <DataTable 
-                    columns={columns} 
-                    data={data}
-                    initialHiddenColumns={initialHiddenColumns}
-                  />
-                )}
+                {/* Toolbar viste, strumenti e contenuto (tabella + controlli) */}
+                <ContentToolbar
+                  seed={seed}
+                  views={defaultViews}
+                  activeViewId={activeViewId}
+                  onChangeView={setActiveViewId}
+                  onCreate={handleCreate}
+                  searchValue={tableSearch}
+                  onSearchChange={setTableSearch}
+                >
+                  {error && (
+                    <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+                      <p className="text-sm text-destructive">{error}</p>
+                    </div>
+                  )}
+                  {isLoading && !error && (
+                    <div className="flex items-center justify-center py-12">
+                      <div className="text-muted-foreground">Caricamento...</div>
+                    </div>
+                  )}
+                  {!isLoading && !error && (
+                    <DataTable
+                      columns={columns}
+                      data={data}
+                      initialHiddenColumns={initialHiddenColumns}
+                      globalFilter={tableSearch}
+                      onGlobalFilterChange={setTableSearch}
+                    />
+                  )}
+                </ContentToolbar>
               </div>
             </div>
           </SidebarInset>
