@@ -7,6 +7,9 @@
 import axios, { type AxiosError } from 'axios';
 
 /** Chiave localStorage per il JWT (deve coincidere con login-form) */
+// TODO(security): access token in localStorage è un rischio XSS accettato.
+// Valutare in futuro una strategia cookie-only (httpOnly) o token binding,
+// mantenendo però la compatibilità con l'architettura attuale della dashboard.
 export const AUTH_TOKEN_KEY = 'beech_token';
 
 /** Path della pagina di login (evita redirect loop su 401) */

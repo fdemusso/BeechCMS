@@ -28,6 +28,8 @@ import { uploadRoutes, serveMediaHandler } from './upload'
 type Bindings = {
   DB: D1Database
   JWT_SECRET: string
+  JWT_ISSUER?: string
+  JWT_AUDIENCE?: string
   R2_ACCESS_KEY_ID?: string
   R2_SECRET_ACCESS_KEY?: string
   R2_ENDPOINT?: string
@@ -72,6 +74,15 @@ function getRefreshTokenCookieOptions(secure: boolean) {
   }
 }
 
+function getRefreshTokenDeleteCookieOptions(secure: boolean) {
+  return {
+    httpOnly: true,
+    secure,
+    sameSite: 'Strict' as const,
+    path: '/auth',
+  }
+}
+
 /** Logga l'errore solo in sviluppo e restituisce risposta 500 generica */
 function handleAuthError(
   c: Context<{ Bindings: Bindings }>,
@@ -95,7 +106,12 @@ app.use('*', async (c, next) => {
     .map((origin) => origin.trim())
     .filter(Boolean)
   const corsMiddleware = cors({
-    origin: (origin) => (origins.includes(origin) ? origin : origins[0] ?? null),
+    // Se l'Origin non è in allowlist, non impostare Access-Control-Allow-Origin.
+    // Con credentials=true è importante evitare fallback permissivi.
+    origin: (origin) => {
+      if (!origin) return origins[0] ?? null
+      return origins.includes(origin) ? origin : null
+    },
     allowMethods: ['GET', 'POST', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     credentials: true, // Necessario per httpOnly cookies
@@ -157,7 +173,10 @@ app.post('/auth/login', async (c) => {
     }
 
     // Genera access token (15min) e refresh token (7 giorni)
-    const accessToken = await generateAccessToken(user.id, user.email, JWT_SECRET)
+    const accessToken = await generateAccessToken(user.id, user.email, JWT_SECRET, {
+      issuer: c.env.JWT_ISSUER,
+      audience: c.env.JWT_AUDIENCE,
+    })
     const refreshToken = generateRefreshToken()
 
     // Salva refresh token in DB (hashed)
@@ -212,10 +231,17 @@ app.post('/auth/refresh', async (c) => {
     }
 
     // ROTAZIONE: Invalida vecchio refresh token
-    await revokeRefreshToken(DB, refreshToken)
+    const revoked = await revokeRefreshToken(DB, refreshToken)
+    if (!revoked) {
+      // Token già consumato/revocato (race) o appena scaduto: tratta come invalido.
+      return c.json({ error: 'Invalid refresh token' }, 401)
+    }
 
     // Genera NUOVO access token e NUOVO refresh token
-    const newAccessToken = await generateAccessToken(user.id, user.email, JWT_SECRET)
+    const newAccessToken = await generateAccessToken(user.id, user.email, JWT_SECRET, {
+      issuer: c.env.JWT_ISSUER,
+      audience: c.env.JWT_AUDIENCE,
+    })
     const newRefreshToken = generateRefreshToken()
 
     // Salva nuovo refresh token in DB
@@ -243,9 +269,7 @@ app.post('/auth/logout', async (c) => {
     }
 
     deleteCookie(c, 'refresh_token', {
-      path: '/auth',
-      secure: isRequestSecure(c.req.url),
-      sameSite: 'Strict',
+      ...getRefreshTokenDeleteCookieOptions(isRequestSecure(c.req.url)),
     })
 
     return c.json({ message: 'Logged out' }, 200)
@@ -257,7 +281,10 @@ app.post('/auth/logout', async (c) => {
 // API Content: CRUD universale protetto da JWT
 const apiContent = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 apiContent.use('*', async (c, next) => {
-  await authMiddleware(c.env.JWT_SECRET)(c, next)
+  await authMiddleware(c.env.JWT_SECRET, {
+    issuer: c.env.JWT_ISSUER,
+    audience: c.env.JWT_AUDIENCE,
+  })(c, next)
 })
 apiContent.route('/', contentRoutes)
 app.route('/api/content', apiContent)

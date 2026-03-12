@@ -94,6 +94,8 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
       const { data } = await axios.post<LoginResponse>('/auth/login', { email, password }, {
         withCredentials: true, // Necessario per ricevere refresh_token cookie
       })
+      // TODO(security): il token è salvato in localStorage per semplicità UX.
+      // Valutare in futuro alternative più resistenti a XSS (es. sessione cookie-only).
       localStorage.setItem(AUTH_TOKEN_KEY, data.token)
       setIsLoading(false)
       navigate('/', { replace: true })

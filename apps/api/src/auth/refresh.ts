@@ -4,6 +4,11 @@ import { SignJWT } from 'jose'
 /** Secondi in un giorno (per calcolo scadenza) */
 const SECONDS_PER_DAY = 24 * 60 * 60
 
+export type JwtTokenOptions = {
+  issuer?: string
+  audience?: string
+}
+
 export type RefreshTokenRecord = {
   id: string
   user_id: string
@@ -81,13 +86,20 @@ export async function validateRefreshToken(
 export async function revokeRefreshToken(
   db: D1Database,
   token: string
-): Promise<void> {
+): Promise<boolean> {
   const tokenHash = await hashRefreshToken(token)
   const now = Math.floor(Date.now() / 1000)
   
-  await db.prepare(
-    `UPDATE refresh_tokens SET revoked_at = ? WHERE token_hash = ?`
-  ).bind(now, tokenHash).run()
+  const result = await db.prepare(
+    `UPDATE refresh_tokens
+     SET revoked_at = ?
+     WHERE token_hash = ?
+       AND revoked_at IS NULL
+       AND expires_at >= ?`
+  ).bind(now, tokenHash, now).run()
+
+  const changes = (result as unknown as { meta?: { changes?: number } })?.meta?.changes ?? 0
+  return changes > 0
 }
 
 /**
@@ -97,12 +109,16 @@ export async function revokeRefreshToken(
 export async function generateAccessToken(
   userId: string,
   email: string,
-  secret: string
+  secret: string,
+  options: JwtTokenOptions = {}
 ): Promise<string> {
   const secretBytes = new TextEncoder().encode(secret)
-  return new SignJWT({ sub: userId, email })
-    .setProtectedHeader({ alg: 'HS256' })
+  let jwt = new SignJWT({ email })
+    .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
+    .setSubject(userId)
     .setIssuedAt()
     .setExpirationTime('15m')
-    .sign(secretBytes)
+  if (options.issuer) jwt = jwt.setIssuer(options.issuer)
+  if (options.audience) jwt = jwt.setAudience(options.audience)
+  return jwt.sign(secretBytes)
 }

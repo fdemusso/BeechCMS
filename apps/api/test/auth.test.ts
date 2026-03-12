@@ -266,11 +266,13 @@ function createMockD1ForRefresh(overrides?: {
   validateResult?: { user_id: string; expires_at: number; revoked_at: number | null } | null
   userResult?: { id: string; email: string } | null
   shouldFail?: boolean
+  revokeChanges?: number
 }) {
   const opts = {
     validateResult: { user_id: 'user-123', expires_at: Math.floor(Date.now() / 1000) + 86400, revoked_at: null },
     userResult: { id: 'user-123', email: 'test@beech.local' },
     shouldFail: false,
+    revokeChanges: 1,
     ...overrides,
   }
   let callIndex = 0
@@ -279,7 +281,7 @@ function createMockD1ForRefresh(overrides?: {
     const result = firstResults[callIndex++] ?? null
     return Promise.resolve(result)
   })
-  const runMock = vi.fn(() => Promise.resolve({ success: true, meta: {} }))
+  const runMock = vi.fn(() => Promise.resolve({ success: true, meta: { changes: opts.revokeChanges } }))
   const bindMock = vi.fn(() => ({ first: firstMock, run: runMock }))
   const prepareMock = vi.fn(() => {
     if (opts.shouldFail) throw new Error('D1 connection failed')
@@ -331,6 +333,19 @@ describe('POST /auth/refresh', () => {
       const res = await app.request('/auth/refresh', {
         method: 'POST',
         headers: { Cookie: 'refresh_token=invalid-token' },
+      }, { DB: mockDB, JWT_SECRET })
+
+      expect(res.status).toBe(401)
+      const data = await res.json() as { error?: string }
+      expect(data.error).toBe('Invalid refresh token')
+    })
+
+    it('refresh token valido ma già consumato (race) -> 401', async () => {
+      const mockDB = createMockD1ForRefresh({ revokeChanges: 0 })
+
+      const res = await app.request('/auth/refresh', {
+        method: 'POST',
+        headers: { Cookie: 'refresh_token=valid-token' },
       }, { DB: mockDB, JWT_SECRET })
 
       expect(res.status).toBe(401)
