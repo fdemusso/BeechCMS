@@ -88,6 +88,14 @@ interface DataTableProps<TData, TValue> {
   columnFilters?: ColumnFiltersState
   /** Callback quando cambiano i filtri per-colonna (usata in modalità controllata). */
   onColumnFiltersChange?: (filters: ColumnFiltersState) => void
+  /** Numero di righe per pagina controllato dall'esterno (opzionale). */
+  pageSize?: number
+  /** Callback quando cambia il numero di righe per pagina (in modalità controllata). */
+  onPageSizeChange?: (size: number) => void
+  /** Visibilità colonne controllata dall'esterno (opzionale). */
+  columnVisibility?: VisibilityState
+  /** Callback quando cambia la visibilità delle colonne (in modalità controllata). */
+  onColumnVisibilityChange?: (visibility: VisibilityState) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -100,6 +108,10 @@ export function DataTable<TData, TValue>({
   onSortingChange,
   columnFilters: columnFiltersProp,
   onColumnFiltersChange,
+  pageSize: pageSizeProp,
+  onPageSizeChange,
+  columnVisibility: columnVisibilityProp,
+  onColumnVisibilityChange,
 }: DataTableProps<TData, TValue>) {
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
   const [internalColumnFilters, setInternalColumnFilters] =
@@ -120,8 +132,12 @@ export function DataTable<TData, TValue>({
     return visibility
   }, [initialHiddenColumns])
   
-  const [columnVisibility, setColumnVisibility] =
+  const [internalColumnVisibility, setInternalColumnVisibility] =
     React.useState<VisibilityState>(initialVisibility)
+  const isControlledColumnVisibility = columnVisibilityProp !== undefined
+  const columnVisibility = isControlledColumnVisibility
+    ? columnVisibilityProp
+    : internalColumnVisibility
   const [rowSelection, setRowSelection] = React.useState({})
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("")
   const [pagination, setPagination] = React.useState<PaginationState>({
@@ -175,6 +191,42 @@ export function DataTable<TData, TValue>({
     [columnFilters, isControlledColumnFilters, onColumnFiltersChange]
   )
 
+  const handleColumnVisibilityChange = React.useCallback(
+    (
+      updaterOrValue:
+        | VisibilityState
+        | ((old: VisibilityState) => VisibilityState)
+    ) => {
+      const next =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(columnVisibility)
+          : updaterOrValue
+
+      if (!isControlledColumnVisibility) {
+        setInternalColumnVisibility(next)
+      }
+
+      onColumnVisibilityChange?.(next)
+    },
+    [columnVisibility, isControlledColumnVisibility, onColumnVisibilityChange]
+  )
+
+  // Sincronizza pageSize controllato dall'esterno con lo stato di paginazione interno.
+  React.useEffect(() => {
+    if (pageSizeProp === undefined) return
+    setPagination((prev) =>
+      prev.pageSize === pageSizeProp
+        ? prev
+        : { ...prev, pageSize: pageSizeProp }
+    )
+  }, [pageSizeProp])
+
+  // Propaga verso l'esterno le variazioni di pageSize interno.
+  React.useEffect(() => {
+    if (!onPageSizeChange) return
+    onPageSizeChange(pagination.pageSize)
+  }, [pagination.pageSize, onPageSizeChange])
+
   const table = useReactTable({
     data,
     columns,
@@ -184,7 +236,7 @@ export function DataTable<TData, TValue>({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    onColumnVisibilityChange: setColumnVisibility,
+    onColumnVisibilityChange: handleColumnVisibilityChange,
     onRowSelectionChange: setRowSelection,
     onGlobalFilterChange: setGlobalFilter,
     globalFilterFn: "includesString",
