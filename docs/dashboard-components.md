@@ -48,10 +48,10 @@ flowchart LR
 | `onCreateView` | `() => void` | `undefined` | Apre il flusso di creazione nuova vista (TODO: non ancora implementato) |
 | `onRenameView` | `(viewId: string, label: string) => void` | `undefined` | Rinominazione della vista attiva; aggiorna ad es. `UserViewInstance.label` e il relativo toggle |
 | `onCreate` | `() => void` | — | Apre il flusso di creazione nuova entry |
-| `onOpenFilters` | `() => void` | `undefined` | Callback pannello filtri esterno (opzionale, alternativo alle pills) |
-| `onOpenSort` | `() => void` | `undefined` | Callback pannello ordinamento esterno (opzionale) |
-| `onOpenAutomation` | `() => void` | `undefined` | Apre il pannello automazioni |
-| `onOpenSettings` | `() => void` | `undefined` | Apre le impostazioni della vista |
+| `onOpenFilters` | `() => void` | `undefined` | ⚠️ **Deprecato** — non più richiamato internamente. Il menu Filtri è ora integrato nel settings sub-menu. Mantenuto per compatibilità API. |
+| `onOpenSort` | `() => void` | `undefined` | ⚠️ **Deprecato** — non più richiamato internamente. Il menu Ordina è ora integrato nel settings sub-menu. Mantenuto per compatibilità API. |
+| `onOpenAutomation` | `() => void` | `undefined` | Apre il pannello automazioni (richiamato dal bottone Zap in toolbar) |
+| `onOpenSettings` | `() => void` | `undefined` | ⚠️ **Deprecato** — non più richiamato internamente. Mantenuto per compatibilità API. |
 | `searchValue` | `string` | `""` | Valore controllato del campo di ricerca |
 | `onSearchChange` | `(value: string) => void` | `undefined` | Aggiornamento del termine di ricerca |
 | `onSubmitSearch` | `(value: string) => void` | `undefined` | Submit della ricerca (invio form) |
@@ -60,6 +60,10 @@ flowchart LR
 | `filters` | `ToolbarFiltersState` | `{}` | Stato filtri corrente (Record columnId → gruppo) |
 | `onFiltersChange` | `(state: ToolbarFiltersState) => void` | `undefined` | Callback al cambio filtri |
 | `availableTagsByColumnId` | `Record<string, string[]>` | `{}` | Tag disponibili per colonne di tipo `tags` |
+| `pageSize` | `number` | `undefined` | Numero di righe per pagina (min 1, max 100). Se presente, mostra il controllo −/+ nel menu Impostazioni |
+| `onPageSizeChange` | `(size: number) => void` | `undefined` | Callback per aggiornare il numero di righe per pagina |
+| `columnVisibility` | `VisibilityState` (`@tanstack/react-table`) | `undefined` | Stato di visibilità delle colonne (id colonna → `true`/`false`) |
+| `onColumnVisibilityChange` | `(visibility: VisibilityState) => void` | `undefined` | Callback per aggiornare la visibilità colonne |
 | `children` | `React.ReactNode` | `undefined` | Contenuto sotto la toolbar (tabella, kanban, ecc.). Se assente, la sezione inferiore non viene renderizzata |
 
 ---
@@ -206,16 +210,43 @@ function ContentPage({ seed, entries }) {
 
 ---
 
+## Menu Impostazioni — struttura
+
+Il bottone `settings` (icona ingranaggio) apre un `DropdownMenu` organizzato in quattro sezioni. Ogni voce secondaria usa `DropdownMenuSub` + `DropdownMenuPortal` + `DropdownMenuSubContent` per aprire un pannello laterale al passaggio del mouse.
+
+```
+Impostazioni vista
+├── [input] Nome vista
+│
+├── Azioni rapide
+│   ├── Filtra ▶  [stessa UI del bottone Filter in toolbar]
+│   │              ricerca colonna + lista colonne → aggiunge condizione alla pill
+│   └── Ordina ▶  [stessa UI del bottone Sort in toolbar]
+│                  ricerca colonna + ↕ inverti direzione + lista colonne
+│
+├── Layout e stile
+│   ├── Raggruppa... ▶  (TODO)
+│   └── Colori condizionali ▶  (TODO)
+│
+└── Tabella
+    ├── Colonne visibili ▶  ricerca colonna + toggle Eye/EyeOff per colonna
+    └── Righe  [controllo −/+ senza hover, min 1 max 100]
+```
+
+Le voci "Filtra" e "Ordina" nel menu Impostazioni condividono lo stesso stato interno (`filterColumnSearchTerm`, `sortColumnSearchTerm`, `filteredSortableColumns`, ecc.) dei dropdown standalone presenti nella toolbar — non è necessaria alcuna prop aggiuntiva.
+
+---
+
 ## Note implementative
 
 - **Strumenti per vista**: `enabledTools` di `UserViewInstance` determina quali icone appaiono nella toolbar. I tool non presenti nell'array vengono omessi dal DOM (non solo nascosti).
-- **Filter Pills**: le pill appaiono solo se `children` è presente (la sezione inferiore della toolbar) e se `Object.keys(filters).length > 0`. Una pill per colonna; ogni pill apre un dropdown con tutte le condizioni AND della colonna.
+- **Filter Pills**: le pill appaiono solo se `children` è presente e se `Object.keys(filters).length > 0`. Una pill per colonna; ogni pill apre un dropdown con tutte le condizioni AND della colonna.
 - **`generateConditionId`**: usa `Date.now()` + stringa casuale base-36. Sufficiente per unicità in sessione; non è un UUID persistente.
 - **Focus campo ricerca**: gestito via `useEffect` su `isSearchOpen` per rispettare il ciclo di vita React (il DOM dell'input esiste solo dopo il render successivo alla transizione di stato).
-- **Impostazioni vista (dropdown Settings)**:
-  - Il bottone `settings` apre un `DropdownMenu` che contiene un campo di testo modificabile per il nome della vista e shortcut verso filtri/ordinamento.
-  - Il nome della vista viene salvato tramite `onRenameView` quando premi `Enter`, quando il campo perde il focus o quando il menu viene chiuso, evitando salvataggi parziali durante la digitazione.
-  - Durante l'input, i tasti singoli (es. `A`, `C`, `R` senza modifier) non propagano al `DropdownMenu`, così eventuali shortcut interni al menu non interferiscono con la scrittura del nome.
+- **Nome vista**: salvato tramite `onRenameView` su `Enter`, blur o chiusura del menu. I tasti singoli senza modifier non propagano al `DropdownMenu` per evitare conflitti con le shortcut di Radix UI.
+- **Controllo Righe**: `DropdownMenuItem` con `onSelect` bloccato e hover disabilitato. Il click sui bottoni `−`/`+` usa `e.stopPropagation()` per non propagare al menu item genitore. Valori ammessi: 1–100.
+- **Colonne visibili**: ogni colonna mostra `Eye` (visibile) o `EyeOff` (nascosta). Il sub-menu filtra le colonne tramite uno stato locale `columnSearchTerm` che viene resettato alla chiusura del menu Impostazioni.
+- **`DropdownMenuPortal`**: tutti i `DropdownMenuSubContent` sono avvolti in `DropdownMenuPortal` per garantire il corretto z-index quando il menu è posizionato vicino ai bordi della viewport.
 
 ---
 
@@ -224,3 +255,5 @@ function ContentPage({ seed, entries }) {
 - **Persistenza viste**: `views`, `enabledTools` e la vista attiva devono provenire da una configurazione persistente per-utente, non da props statiche.
 - **Flusso `onCreateView`**: la creazione/modifica/eliminazione di una vista utente non è ancora implementata; `onCreateView` è una callback stub.
 - **Ricerca server-side**: `onSubmitSearch` deve essere collegato all'API `GET /api/content/:slug?search=...` con i parametri della vista attiva.
+- **Raggruppa**: configurazione del raggruppamento per colonna non ancora implementata.
+- **Colori condizionali**: evidenziazione righe in base a regole non ancora implementata.
