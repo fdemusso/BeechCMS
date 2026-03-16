@@ -1,5 +1,6 @@
 import * as React from "react"
 import type { Seed } from "@beech/core"
+import type { VisibilityState } from "@tanstack/react-table"
 import {
   Table,
   LayoutGrid,
@@ -11,8 +12,14 @@ import {
   Search,
   Settings,
   Plus,
+  Minus,
   X,
   Trash2,
+  Rows3,
+  Rows2,
+  Eye,
+  Palette,
+  EyeOff,
 } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -30,9 +37,12 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
 import {
   Select,
@@ -97,6 +107,14 @@ export interface ContentToolbarProps {
   onFiltersChange?: (state: ToolbarFiltersState) => void
   /** Valori disponibili per i campi tags (columnId -> tags) */
   availableTagsByColumnId?: Record<string, string[]>
+  /** Numero di righe per pagina della tabella (controllato dall'esterno). */
+  pageSize?: number
+  /** Callback per aggiornare il numero di righe per pagina. */
+  onPageSizeChange?: (size: number) => void
+  /** Visibilità colonne della tabella (controllata dall'esterno). */
+  columnVisibility?: VisibilityState
+  /** Callback per aggiornare la visibilità delle colonne della tabella. */
+  onColumnVisibilityChange?: (visibility: VisibilityState) => void
   /** Contenuto sotto la row di funzioni (tabella, controlli, ecc.) */
   children?: React.ReactNode
 }
@@ -219,10 +237,7 @@ export function ContentToolbar({
   onCreateView,
   onRenameView,
   onCreate,
-  onOpenFilters,
-  onOpenSort,
   onOpenAutomation,
-  onOpenSettings,
   searchValue = "",
   onSearchChange,
   onSubmitSearch,
@@ -231,6 +246,10 @@ export function ContentToolbar({
   filters = {},
   onFiltersChange,
   availableTagsByColumnId = {},
+  pageSize,
+  onPageSizeChange,
+  columnVisibility,
+  onColumnVisibilityChange,
   children,
 }: ContentToolbarProps) {
   const activeView = views.find((v) => v.id === activeViewId)
@@ -239,6 +258,7 @@ export function ContentToolbar({
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const [sortColumnSearchTerm, setSortColumnSearchTerm] = React.useState("")
   const [filterColumnSearchTerm, setFilterColumnSearchTerm] = React.useState("")
+  const [columnSearchTerm, setColumnSearchTerm] = React.useState("")
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
   const [openPillId, setOpenPillId] = React.useState<string | null>(null)
   const [viewNameDraft, setViewNameDraft] = React.useState(activeView?.label ?? "")
@@ -347,11 +367,30 @@ export function ContentToolbar({
     return columns
   }, [seed.branches])
 
+  const tableColumns = React.useMemo(
+    () =>
+      [
+        { id: "slug", label: "Slug" },
+        { id: "status", label: "Stato" },
+        ...seed.branches.map((branch) => ({
+          id: branch.alias,
+          label: branch.label,
+        })),
+      ] as Array<{ id: string; label: string }>,
+    [seed.branches]
+  )
+
   const visibleFilterColumns = React.useMemo(() => {
     const term = filterColumnSearchTerm.trim().toLowerCase()
     if (!term) return filterableColumns
     return filterableColumns.filter((c) => c.label.toLowerCase().includes(term))
   }, [filterColumnSearchTerm, filterableColumns])
+
+  const filteredTableColumns = React.useMemo(() => {
+    const term = columnSearchTerm.trim().toLowerCase()
+    if (!term) return tableColumns
+    return tableColumns.filter((c) => c.label.toLowerCase().includes(term))
+  }, [columnSearchTerm, tableColumns])
 
   const addConditionToColumn = React.useCallback(
     (columnId: string) => {
@@ -728,6 +767,7 @@ export function ContentToolbar({
                 onOpenChange={(open) => {
                   if (!open) {
                     commitViewName()
+                    setColumnSearchTerm("")
                   }
                   setIsSettingsMenuOpen(open)
                 }}
@@ -746,89 +786,293 @@ export function ContentToolbar({
                   </TooltipTrigger>
                   <TooltipContent side="top">Impostazioni vista</TooltipContent>
                 </Tooltip>
-                <DropdownMenuContent align="end" className="w-72 p-3">
-                  <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                    Impostazioni vista
-                  </DropdownMenuLabel>
-
-                  <div className="mb-2 flex flex-col gap-1.5">
-                    <span className="text-muted-foreground text-xs">Nome vista</span>
-                    <Input
-                      value={viewNameDraft}
-                      onChange={(e) => {
-                        const next = e.target.value
-                        setViewNameDraft(next)
-                      }}
-                      onBlur={() => {
-                        commitViewName()
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault()
-                          commitViewName()
-                          return
-                        }
-
-                        // Evita che i tasti singoli (es. A, C, R) attivino
-                        // shortcut del menu mentre stai digitando nel campo.
-                        if (
-                          e.key.length === 1 &&
-                          !e.metaKey &&
-                          !e.ctrlKey &&
-                          !e.altKey
-                        ) {
-                          e.stopPropagation()
-                        }
-                      }}
-                      className="h-8 text-sm"
-                      placeholder="Nome vista"
-                    />
-                  </div>
-
-                  <DropdownMenuSeparator className="my-2" />
-
+                <DropdownMenuContent align="end" className="w-64">
+                  {/* Dettagli vista */}
                   <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        onOpenFilters?.()
-                      }}
-                    >
-                      <Filter className="text-muted-foreground" />
-                      <span>Apri filtri</span>
-                      <DropdownMenuShortcut>F</DropdownMenuShortcut>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        onOpenSort?.()
-                      }}
-                    >
-                      <ArrowUpDown className="text-muted-foreground" />
-                      <span>Apri ordinamento</span>
-                      <DropdownMenuShortcut>S</DropdownMenuShortcut>
-                    </DropdownMenuItem>
+                    <DropdownMenuLabel>Impostazioni vista</DropdownMenuLabel>
+                    <div className="px-2 pb-1.5">
+                      <Input
+                        value={viewNameDraft}
+                        onChange={(e) => setViewNameDraft(e.target.value)}
+                        onBlur={() => commitViewName()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            commitViewName()
+                            return
+                          }
+                          // Evita che i tasti singoli attivino shortcut del menu.
+                          if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                            e.stopPropagation()
+                          }
+                        }}
+                        className="h-8 text-sm"
+                        placeholder="Nome vista"
+                      />
+                    </div>
                   </DropdownMenuGroup>
 
-                  <DropdownMenuSeparator className="my-2" />
+                  <DropdownMenuSeparator />
 
+                  {/* Azioni rapide */}
                   <DropdownMenuGroup>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        // TODO: implementare configurazione di raggruppamento vista.
-                        onOpenSettings?.()
-                      }}
-                    >
-                      <span className="inline-flex size-3 rounded-sm bg-primary/70" />
-                      <span>Raggruppa...</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        // TODO: implementare colori condizionali per la vista.
-                        onOpenSettings?.()
-                      }}
-                    >
-                      <span className="inline-flex size-3 rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-400" />
-                      <span>Colori condizionali</span>
-                    </DropdownMenuItem>
+                    <DropdownMenuLabel>Azioni rapide</DropdownMenuLabel>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Filter />
+                        Filtra
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="w-64 p-2">
+                          <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                            Filtra per colonna
+                          </DropdownMenuLabel>
+                          <Input
+                            placeholder="Cerca colonna..."
+                            value={filterColumnSearchTerm}
+                            onChange={(e) => setFilterColumnSearchTerm(e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                          <DropdownMenuSeparator className="my-2" />
+                          <div className="max-h-56 overflow-y-auto">
+                            {visibleFilterColumns.length === 0 ? (
+                              <div className="py-2 text-center text-xs text-muted-foreground">
+                                Nessuna colonna trovata
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-1 py-1">
+                                {visibleFilterColumns.map((col) => (
+                                  <Button
+                                    key={col.columnId}
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 justify-between px-2 text-xs"
+                                    onClick={() => {
+                                      addConditionToColumn(col.columnId)
+                                      setFilterColumnSearchTerm("")
+                                      setOpenPillId(col.columnId)
+                                      setIsSettingsMenuOpen(false)
+                                    }}
+                                  >
+                                    <span className="truncate">{col.label}</span>
+                                    {filters[col.columnId]?.conditions?.length ? (
+                                      <span className="text-muted-foreground text-[10px] uppercase">
+                                        {filters[col.columnId].conditions.length}
+                                      </span>
+                                    ) : null}
+                                  </Button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <ArrowUpDown />
+                        Ordina
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="w-64 p-2">
+                          <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                            Ordina per colonna
+                          </DropdownMenuLabel>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="Cerca colonna..."
+                              value={sortColumnSearchTerm}
+                              onChange={(e) => setSortColumnSearchTerm(e.target.value)}
+                              className="h-8 flex-1 text-sm"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-sm"
+                              className="h-8 w-8 shrink-0"
+                              aria-label="Inverti ordine"
+                              onClick={handleToggleSortDirection}
+                              disabled={!sortState?.columnId}
+                            >
+                              <ArrowUpDown className="size-3.5" />
+                            </Button>
+                          </div>
+                          <DropdownMenuSeparator className="my-2" />
+                          <div className="max-h-56 overflow-y-auto">
+                            {filteredSortableColumns.length === 0 ? (
+                              <div className="py-2 text-center text-xs text-muted-foreground">
+                                Nessuna colonna trovata
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-1 py-1">
+                                {filteredSortableColumns.map((branch) => {
+                                  const isSelected = sortState?.columnId === branch.alias
+                                  return (
+                                    <Button
+                                      key={branch.alias}
+                                      type="button"
+                                      variant={isSelected ? "secondary" : "ghost"}
+                                      size="sm"
+                                      className="h-8 justify-between px-2 text-xs"
+                                      onClick={() => handleSortColumnSelect(branch.alias)}
+                                    >
+                                      <span className="truncate">{branch.label}</span>
+                                      {isSelected && (
+                                        <span className="text-muted-foreground text-[10px] uppercase">
+                                          {sortState?.desc ? "DESC" : "ASC"}
+                                        </span>
+                                      )}
+                                    </Button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  </DropdownMenuGroup>
+
+                  <DropdownMenuSeparator />
+
+                  {/* Layout e stile */}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Layout e stile</DropdownMenuLabel>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Rows3 />
+                        Raggruppa...
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                          {/* TODO: implementare configurazione di raggruppamento vista. */}
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            Funzione in arrivo
+                          </div>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Palette />
+                        Colori condizionali
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                          {/* TODO: implementare colori condizionali per la vista. */}
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            Funzione in arrivo
+                          </div>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  </DropdownMenuGroup>
+
+                  <DropdownMenuSeparator />
+
+                  {/* Tabella */}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Tabella</DropdownMenuLabel>
+                    {columnVisibility && onColumnVisibilityChange && (
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <Eye />
+                          Colonne visibili
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                          <DropdownMenuSubContent className="w-64 p-2">
+                            <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                              Visibilità colonne
+                            </DropdownMenuLabel>
+                            <Input
+                              placeholder="Cerca colonna..."
+                              value={columnSearchTerm}
+                              onChange={(e) => setColumnSearchTerm(e.target.value)}
+                              className="h-8 text-sm"
+                            />
+                            <DropdownMenuSeparator className="my-2" />
+                            <div className="max-h-56 overflow-y-auto">
+                              {filteredTableColumns.length === 0 ? (
+                                <div className="py-2 text-center text-xs text-muted-foreground">
+                                  Nessuna colonna trovata
+                                </div>
+                              ) : (
+                                <div className="flex flex-col gap-1 py-1">
+                                  {filteredTableColumns.map((col) => {
+                                    const isVisible = columnVisibility[col.id] ?? true
+                                    return (
+                                      <Button
+                                        key={col.id}
+                                        type="button"
+                                        variant={isVisible ? "secondary" : "ghost"}
+                                        size="sm"
+                                        className="h-8 justify-between px-2 text-xs"
+                                        onClick={() => {
+                                          const nextVisibility: VisibilityState = {
+                                            ...columnVisibility,
+                                            [col.id]: !isVisible,
+                                          }
+                                          onColumnVisibilityChange(nextVisibility)
+                                        }}
+                                      >
+                                        <span className="truncate">{col.label}</span>
+                                        {isVisible ? (
+                                          <Eye className="size-3.5 shrink-0 text-muted-foreground" />
+                                        ) : (
+                                          <EyeOff className="size-3.5 shrink-0 text-muted-foreground/50" />
+                                        )}
+                                      </Button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                      </DropdownMenuSub>
+                    )}
+                    {pageSize != null && onPageSizeChange && (
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="justify-between gap-4 focus:bg-transparent focus:text-inherit data-[highlighted]:bg-transparent data-[highlighted]:text-inherit cursor-default">
+                        <div className="flex items-center gap-2">
+                          <Rows2 />
+                          Righe
+                        </div>
+                        <div className="flex h-7 items-stretch">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-xs"
+                            className="h-7 w-7 rounded-r-none border-r-0"
+                            aria-label="Diminuisci righe"
+                            disabled={pageSize <= 1}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onPageSizeChange(Math.max(1, pageSize - 1))
+                            }}
+                          >
+                            <Minus className="size-3" />
+                          </Button>
+                          <div className="flex w-9 items-center justify-center border border-input bg-background text-xs tabular-nums">
+                            {pageSize}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-xs"
+                            className="h-7 w-7 rounded-l-none border-l-0"
+                            aria-label="Aumenta righe"
+                            disabled={pageSize >= 100}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onPageSizeChange(Math.min(100, pageSize + 1))
+                            }}
+                          >
+                            <Plus className="size-3" />
+                          </Button>
+                        </div>
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
