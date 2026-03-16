@@ -504,9 +504,9 @@ export function ContentToolbar({
   return (
     <Card className="py-3 border-0 bg-transparent shadow-none" data-seed-slug={seed.slug}>
       <CardContent className="px-4 py-0">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 min-w-0">
           {/* Lato sinistro: viste utente + icona + */}
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-1 overflow-hidden">
             <ToggleGroup
               type="single"
               value={activeViewId}
@@ -550,7 +550,7 @@ export function ContentToolbar({
           </div>
 
           {/* Lato destro: strumenti */}
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {isToolEnabled("filter") && (
               <DropdownMenu
                 open={filterMenuOpen}

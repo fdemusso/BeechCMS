@@ -14,17 +14,6 @@ import {
   type SortingState,
   type VisibilityState,
 } from "@tanstack/react-table"
-import { ChevronDown } from "lucide-react"
-
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   Pagination,
   PaginationContent,
@@ -45,8 +34,6 @@ import {
 
 const MAX_VISIBLE_PAGE_BUTTONS = 7
 const DEFAULT_PAGE_SIZE = 10
-const MIN_PAGE_SIZE = 1
-const MAX_PAGE_SIZE = 100
 const ROW_HEIGHT_PX = 48
 
 /**
@@ -88,14 +75,14 @@ interface DataTableProps<TData, TValue> {
   columnFilters?: ColumnFiltersState
   /** Callback quando cambiano i filtri per-colonna (usata in modalità controllata). */
   onColumnFiltersChange?: (filters: ColumnFiltersState) => void
-  /** Numero di righe per pagina controllato dall'esterno (opzionale). */
-  pageSize?: number
-  /** Callback quando cambia il numero di righe per pagina (in modalità controllata). */
-  onPageSizeChange?: (size: number) => void
   /** Visibilità colonne controllata dall'esterno (opzionale). */
   columnVisibility?: VisibilityState
   /** Callback quando cambia la visibilità delle colonne (in modalità controllata). */
   onColumnVisibilityChange?: (visibility: VisibilityState) => void
+  /** Numero di righe per pagina controllato dall'esterno (opzionale). */
+  pageSize?: number
+  /** Callback quando cambia il numero di righe per pagina (in modalità controllata). */
+  onPageSizeChange?: (size: number) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -108,10 +95,10 @@ export function DataTable<TData, TValue>({
   onSortingChange,
   columnFilters: columnFiltersProp,
   onColumnFiltersChange,
-  pageSize: pageSizeProp,
-  onPageSizeChange,
   columnVisibility: columnVisibilityProp,
   onColumnVisibilityChange,
+  pageSize: pageSizeProp,
+  onPageSizeChange,
 }: DataTableProps<TData, TValue>) {
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
   const [internalColumnFilters, setInternalColumnFilters] =
@@ -140,10 +127,21 @@ export function DataTable<TData, TValue>({
     : internalColumnVisibility
   const [rowSelection, setRowSelection] = React.useState({})
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("")
-  const [pagination, setPagination] = React.useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: DEFAULT_PAGE_SIZE,
-  })
+  const [internalPagination, setInternalPagination] =
+    React.useState<PaginationState>({
+      pageIndex: 0,
+      pageSize: DEFAULT_PAGE_SIZE,
+    })
+  const isControlledPageSize = pageSizeProp !== undefined
+  const pagination: PaginationState = React.useMemo(
+    () => ({
+      ...internalPagination,
+      pageSize: isControlledPageSize
+        ? pageSizeProp ?? internalPagination.pageSize
+        : internalPagination.pageSize,
+    }),
+    [internalPagination, isControlledPageSize, pageSizeProp]
+  )
 
   const isControlledFilter = globalFilterProp !== undefined
   const globalFilter = isControlledFilter ? globalFilterProp : internalGlobalFilter
@@ -211,21 +209,31 @@ export function DataTable<TData, TValue>({
     [columnVisibility, isControlledColumnVisibility, onColumnVisibilityChange]
   )
 
-  // Sincronizza pageSize controllato dall'esterno con lo stato di paginazione interno.
-  React.useEffect(() => {
-    if (pageSizeProp === undefined) return
-    setPagination((prev) =>
-      prev.pageSize === pageSizeProp
-        ? prev
-        : { ...prev, pageSize: pageSizeProp }
-    )
-  }, [pageSizeProp])
+  const handlePaginationChange = React.useCallback(
+    (
+      updaterOrValue:
+        | PaginationState
+        | ((old: PaginationState) => PaginationState)
+    ) => {
+      const next =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(pagination)
+          : updaterOrValue
 
-  // Propaga verso l'esterno le variazioni di pageSize interno.
-  React.useEffect(() => {
-    if (!onPageSizeChange) return
-    onPageSizeChange(pagination.pageSize)
-  }, [pagination.pageSize, onPageSizeChange])
+      if (!isControlledPageSize) {
+        setInternalPagination(next)
+      } else {
+        setInternalPagination((prev) => ({
+          ...prev,
+          pageIndex: next.pageIndex,
+        }))
+        if (next.pageSize !== pagination.pageSize) {
+          onPageSizeChange?.(next.pageSize)
+        }
+      }
+    },
+    [isControlledPageSize, onPageSizeChange, pagination]
+  )
 
   const table = useReactTable({
     data,
@@ -248,96 +256,21 @@ export function DataTable<TData, TValue>({
       globalFilter,
       pagination,
     },
-    onPaginationChange: setPagination,
+    onPaginationChange: handlePaginationChange,
   })
-
-  const pageSize = table.getState().pagination.pageSize
-
-  // Stato locale per permettere di cancellare e riscrivere (valori intermedi invalidi)
-  const [pageSizeInput, setPageSizeInput] = React.useState(String(pageSize))
-  React.useEffect(() => {
-    setPageSizeInput(String(pageSize))
-  }, [pageSize])
-
-  const applyPageSize = React.useCallback(() => {
-    const val = parseInt(pageSizeInput, 10)
-    if (Number.isNaN(val) || val < MIN_PAGE_SIZE) {
-      table.setPageSize(MIN_PAGE_SIZE)
-      setPageSizeInput(String(MIN_PAGE_SIZE))
-    } else if (val > MAX_PAGE_SIZE) {
-      table.setPageSize(MAX_PAGE_SIZE)
-      setPageSizeInput(String(MAX_PAGE_SIZE))
-    } else {
-      table.setPageSize(val)
-      setPageSizeInput(String(val))
-    }
-  }, [pageSizeInput, table])
-
-  const handlePageSizeBlur = () => applyPageSize()
 
   return (
     <div className="w-full">
-      <div className="flex items-center gap-2 py-4">
-        <div className="ml-auto flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            <Label htmlFor="page-size" className="text-sm text-muted-foreground whitespace-nowrap">
-              Righe
-            </Label>
-            <Input
-              id="page-size"
-              type="number"
-              min={MIN_PAGE_SIZE}
-              max={MAX_PAGE_SIZE}
-              value={pageSizeInput}
-              onChange={(e) => {
-                setPageSizeInput(e.target.value)
-                const val = parseInt(e.target.value, 10)
-                if (!Number.isNaN(val) && val >= MIN_PAGE_SIZE && val <= MAX_PAGE_SIZE) {
-                  table.setPageSize(val)
-                }
-              }}
-              onBlur={handlePageSizeBlur}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handlePageSizeBlur()
-              }}
-              className="w-16 h-9 text-center"
-            />
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline">
-                Colonne <ChevronDown />
-              </Button>
-            </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) =>
-                      column.toggleVisibility(!!value)
-                    }
-                  >
-                    {column.id}
-                  </DropdownMenuCheckboxItem>
-                )
-              })}
-          </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
       <div className="rounded-md border">
         <div
           className="relative w-full overflow-x-auto"
           style={{
             minHeight: (() => {
               const totalRows = table.getFilteredRowModel().rows.length
-              const rowCount = totalRows < pageSize ? totalRows : pageSize
+              const rowCount =
+                totalRows < pagination.pageSize
+                  ? totalRows
+                  : pagination.pageSize
               return rowCount * ROW_HEIGHT_PX
             })(),
           }}
@@ -384,8 +317,9 @@ export function DataTable<TData, TValue>({
                   const totalRows = table.getFilteredRowModel().rows.length
                   const visibleRows = table.getRowModel().rows.length
                   const placeholderCount =
-                    totalRows >= pageSize && visibleRows < pageSize
-                      ? pageSize - visibleRows
+                    totalRows >= pagination.pageSize &&
+                    visibleRows < pagination.pageSize
+                      ? pagination.pageSize - visibleRows
                       : 0
                   const colCount = table.getVisibleLeafColumns().length
                   return Array.from({ length: placeholderCount }, (_, i) => (

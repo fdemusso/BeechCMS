@@ -27,13 +27,13 @@ function DashboardPage() {
     return <Navigate to="/login" replace />
   }
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
+    <div className="[--header-height:calc(--spacing(14))] overflow-x-hidden">
       <SidebarProvider className="flex flex-col">
         <SiteHeader />
         <div className="flex flex-1">
           <AppSidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
+          <SidebarInset className="min-w-0">
+            <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
               <div className="mx-auto w-full max-w-screen-2xl">
                 <h1 className="text-2xl font-semibold">Dashboard</h1>
                 <p className="text-muted-foreground text-sm">

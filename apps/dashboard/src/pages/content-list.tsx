@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom"
 import { getSeed } from "@beech/core"
 import type { SortingState } from "@tanstack/react-table"
 import type { ColumnFiltersState } from "@tanstack/react-table"
+import type { VisibilityState } from "@tanstack/react-table"
 
 import {
   SidebarInset,
@@ -135,11 +136,33 @@ export function ContentListPage() {
 
   const ROWS_PER_PAGE = 10
 
+  const [pageSize, setPageSize] = React.useState<number>(ROWS_PER_PAGE)
+
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
+    () => {
+      const visibility: VisibilityState = {}
+      visibility["id"] = false
+      if (!seed) return visibility
+      const metaAliases = seed.branches
+        .filter(
+          (b) =>
+            b.type === "json" &&
+            (b.alias.toLowerCase().includes("metadata") ||
+              b.alias.toLowerCase().includes("metadati"))
+        )
+        .map((b) => b.alias)
+      for (const alias of metaAliases) {
+        visibility[alias] = false
+      }
+      return visibility
+    }
+  )
+
   // Lunghezza max per colonna (dalla prima pagina) per troncamento consistente
   const maxLengths = React.useMemo(() => {
     if (!seed || data.length === 0) return undefined
-    return computeMaxLengths(data, seed, ROWS_PER_PAGE)
-  }, [seed, data])
+    return computeMaxLengths(data, seed, pageSize)
+  }, [seed, data, pageSize])
 
   // Genera colonne
   const columns = React.useMemo(() => {
@@ -245,7 +268,7 @@ export function ContentListPage() {
     },
     []
   )
-  
+
   // Colonne nascoste di default: id (troppo lungo), json metadata/metadati
   const initialHiddenColumns = React.useMemo(() => {
     const hidden: string[] = ["id"]
@@ -290,13 +313,13 @@ export function ContentListPage() {
   }
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
+    <div className="[--header-height:calc(--spacing(14))] overflow-x-hidden">
       <SidebarProvider className="flex flex-col">
         <SiteHeader />
         <div className="flex flex-1">
           <AppSidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
+          <SidebarInset className="min-w-0">
+            <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
               <div className="mx-auto w-full max-w-screen-2xl">
                 {/* Header con titolo */}
                 <div className="mb-6">
@@ -324,6 +347,10 @@ export function ContentListPage() {
                   filters={toolbarFilters}
                   onFiltersChange={setToolbarFilters}
                   availableTagsByColumnId={availableTagsByColumnId}
+                  pageSize={pageSize}
+                  onPageSizeChange={setPageSize}
+                  columnVisibility={columnVisibility}
+                  onColumnVisibilityChange={setColumnVisibility}
                 >
                   {error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
@@ -340,6 +367,10 @@ export function ContentListPage() {
                       columns={columns}
                       data={data}
                       initialHiddenColumns={initialHiddenColumns}
+                      pageSize={pageSize}
+                      onPageSizeChange={setPageSize}
+                      columnVisibility={columnVisibility}
+                      onColumnVisibilityChange={setColumnVisibility}
                       globalFilter={tableSearch}
                       onGlobalFilterChange={setTableSearch}
                       sorting={sorting}
