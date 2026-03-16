@@ -55,26 +55,23 @@ export function ContentListPage() {
   // Recupera il seed
   const seed = slug ? getSeed(slug) : null
 
-  // Vista di default per testare la toolbar (hardcoded; in futuro da config per-utente)
+  // Viste disponibili per il seed corrente (per ora solo una vista tabellare di default).
   // TODO: caricare e salvare la configurazione delle viste a livello di utente (quando esisterà un sistema di preferenze utente).
-  const defaultViews: UserViewInstance[] = React.useMemo(
-    () => [
-      {
-        id: "table",
-        label: "Tabella",
-        type: "table",
-        enabledTools: [
-          "filter",
-          "sort",
-          "automation",
-          "search",
-          "settings",
-          "create",
-        ],
-      },
-    ],
-    []
-  )
+  const [views, setViews] = React.useState<UserViewInstance[]>(() => [
+    {
+      id: "table",
+      label: "Tabella",
+      type: "table",
+      enabledTools: [
+        "filter",
+        "sort",
+        "automation",
+        "search",
+        "settings",
+        "create",
+      ],
+    },
+  ])
 
   const loadData = React.useCallback(async () => {
     if (!slug) return
@@ -238,6 +235,16 @@ export function ContentListPage() {
     },
     []
   )
+  const handleRenameView = React.useCallback(
+    (viewId: string, label: string) => {
+      setViews((prev) =>
+        prev.map((view) =>
+          view.id === viewId ? { ...view, label } : view
+        )
+      )
+    },
+    []
+  )
   
   // Colonne nascoste di default: id (troppo lungo), json metadata/metadati
   const initialHiddenColumns = React.useMemo(() => {
@@ -302,9 +309,10 @@ export function ContentListPage() {
                 {/* Toolbar viste, strumenti e contenuto (tabella + controlli) */}
                 <ContentToolbar
                   seed={seed}
-                  views={defaultViews}
+                  views={views}
                   activeViewId={activeViewId}
                   onChangeView={setActiveViewId}
+                  onRenameView={handleRenameView}
                   onCreate={handleCreate}
                   searchValue={tableSearch}
                   onSearchChange={setTableSearch}

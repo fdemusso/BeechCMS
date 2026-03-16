@@ -46,6 +46,7 @@ flowchart LR
 | `activeViewId` | `string` | — | ID della vista correntemente selezionata |
 | `onChangeView` | `(viewId: string) => void` | — | Callback al cambio vista |
 | `onCreateView` | `() => void` | `undefined` | Apre il flusso di creazione nuova vista (TODO: non ancora implementato) |
+| `onRenameView` | `(viewId: string, label: string) => void` | `undefined` | Rinominazione della vista attiva; aggiorna ad es. `UserViewInstance.label` e il relativo toggle |
 | `onCreate` | `() => void` | — | Apre il flusso di creazione nuova entry |
 | `onOpenFilters` | `() => void` | `undefined` | Callback pannello filtri esterno (opzionale, alternativo alle pills) |
 | `onOpenSort` | `() => void` | `undefined` | Callback pannello ordinamento esterno (opzionale) |
@@ -211,6 +212,10 @@ function ContentPage({ seed, entries }) {
 - **Filter Pills**: le pill appaiono solo se `children` è presente (la sezione inferiore della toolbar) e se `Object.keys(filters).length > 0`. Una pill per colonna; ogni pill apre un dropdown con tutte le condizioni AND della colonna.
 - **`generateConditionId`**: usa `Date.now()` + stringa casuale base-36. Sufficiente per unicità in sessione; non è un UUID persistente.
 - **Focus campo ricerca**: gestito via `useEffect` su `isSearchOpen` per rispettare il ciclo di vita React (il DOM dell'input esiste solo dopo il render successivo alla transizione di stato).
+- **Impostazioni vista (dropdown Settings)**:
+  - Il bottone `settings` apre un `DropdownMenu` che contiene un campo di testo modificabile per il nome della vista e shortcut verso filtri/ordinamento.
+  - Il nome della vista viene salvato tramite `onRenameView` quando premi `Enter`, quando il campo perde il focus o quando il menu viene chiuso, evitando salvataggi parziali durante la digitazione.
+  - Durante l'input, i tasti singoli (es. `A`, `C`, `R` senza modifier) non propagano al `DropdownMenu`, così eventuali shortcut interni al menu non interferiscono con la scrittura del nome.
 
 ---
 

@@ -27,8 +27,11 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -71,6 +74,7 @@ export interface ContentToolbarProps {
   activeViewId: string
   onChangeView: (viewId: string) => void
   onCreateView?: () => void
+  onRenameView?: (viewId: string, label: string) => void
   onCreate: () => void
   onOpenFilters?: () => void
   onOpenSort?: () => void
@@ -213,7 +217,10 @@ export function ContentToolbar({
   activeViewId,
   onChangeView,
   onCreateView,
+  onRenameView,
   onCreate,
+  onOpenFilters,
+  onOpenSort,
   onOpenAutomation,
   onOpenSettings,
   searchValue = "",
@@ -226,14 +233,16 @@ export function ContentToolbar({
   availableTagsByColumnId = {},
   children,
 }: ContentToolbarProps) {
+  const activeView = views.find((v) => v.id === activeViewId)
+
   const [isSearchOpen, setIsSearchOpen] = React.useState(false)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const [sortColumnSearchTerm, setSortColumnSearchTerm] = React.useState("")
   const [filterColumnSearchTerm, setFilterColumnSearchTerm] = React.useState("")
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
   const [openPillId, setOpenPillId] = React.useState<string | null>(null)
-
-  const activeView = views.find((v) => v.id === activeViewId)
+  const [viewNameDraft, setViewNameDraft] = React.useState(activeView?.label ?? "")
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = React.useState(false)
 
   const enabledTools = React.useMemo(
     () => activeView?.enabledTools ?? DEFAULT_ENABLED_TOOLS,
@@ -244,6 +253,20 @@ export function ContentToolbar({
   React.useEffect(() => {
     if (isSearchOpen) searchInputRef.current?.focus()
   }, [isSearchOpen])
+
+  React.useEffect(() => {
+    setViewNameDraft(activeView?.label ?? "")
+  }, [activeView?.id])
+
+  const commitViewName = React.useCallback(
+    () => {
+      if (!activeView || !onRenameView) return
+      const trimmed = viewNameDraft.trim()
+      if (!trimmed || trimmed === activeView.label) return
+      onRenameView(activeView.id, trimmed)
+    },
+    [activeView, onRenameView, viewNameDraft]
+  )
 
   const handleSearchOpen = () => setIsSearchOpen(true)
 
@@ -700,19 +723,115 @@ export function ContentToolbar({
               </div>
             )}
             {isToolEnabled("settings") && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Impostazioni vista"
-                    onClick={() => onOpenSettings?.()}
-                  >
-                    <Settings className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">Impostazioni vista</TooltipContent>
-              </Tooltip>
+              <DropdownMenu
+                open={isSettingsMenuOpen}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    commitViewName()
+                  }
+                  setIsSettingsMenuOpen(open)
+                }}
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Impostazioni vista"
+                      >
+                        <Settings className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">Impostazioni vista</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end" className="w-72 p-3">
+                  <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                    Impostazioni vista
+                  </DropdownMenuLabel>
+
+                  <div className="mb-2 flex flex-col gap-1.5">
+                    <span className="text-muted-foreground text-xs">Nome vista</span>
+                    <Input
+                      value={viewNameDraft}
+                      onChange={(e) => {
+                        const next = e.target.value
+                        setViewNameDraft(next)
+                      }}
+                      onBlur={() => {
+                        commitViewName()
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault()
+                          commitViewName()
+                          return
+                        }
+
+                        // Evita che i tasti singoli (es. A, C, R) attivino
+                        // shortcut del menu mentre stai digitando nel campo.
+                        if (
+                          e.key.length === 1 &&
+                          !e.metaKey &&
+                          !e.ctrlKey &&
+                          !e.altKey
+                        ) {
+                          e.stopPropagation()
+                        }
+                      }}
+                      className="h-8 text-sm"
+                      placeholder="Nome vista"
+                    />
+                  </div>
+
+                  <DropdownMenuSeparator className="my-2" />
+
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        onOpenFilters?.()
+                      }}
+                    >
+                      <Filter className="text-muted-foreground" />
+                      <span>Apri filtri</span>
+                      <DropdownMenuShortcut>F</DropdownMenuShortcut>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        onOpenSort?.()
+                      }}
+                    >
+                      <ArrowUpDown className="text-muted-foreground" />
+                      <span>Apri ordinamento</span>
+                      <DropdownMenuShortcut>S</DropdownMenuShortcut>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+
+                  <DropdownMenuSeparator className="my-2" />
+
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        // TODO: implementare configurazione di raggruppamento vista.
+                        onOpenSettings?.()
+                      }}
+                    >
+                      <span className="inline-flex size-3 rounded-sm bg-primary/70" />
+                      <span>Raggruppa...</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        // TODO: implementare colori condizionali per la vista.
+                        onOpenSettings?.()
+                      }}
+                    >
+                      <span className="inline-flex size-3 rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 to-rose-400" />
+                      <span>Colori condizionali</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             {isToolEnabled("create") && (
               <Button
