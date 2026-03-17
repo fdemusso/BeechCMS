@@ -235,7 +235,8 @@ Impostazioni vista
 │   │    │    ├── Stato
 │   │    │    ├── (boolean/date/select a bassa cardinalità)
 │   │    │    └── [colonne date] ▶ Granularità: Giorno | Anno | Mese (mese+anno)
-│   │    └── Altri campi (warning “Potrebbe generare molti gruppi”)
+│   │    └── Altri campi
+│   │         nota: “Potrebbe generare molti gruppi”
 │   └── Colori condizionali ▶  (TODO)
 │
 └── Tabella

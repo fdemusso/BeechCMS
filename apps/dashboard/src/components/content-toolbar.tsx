@@ -250,8 +250,6 @@ interface GroupableColumn {
   section: GroupableSection
   /** Tipo del branch (per rendering speciale, es. "date" → sub-menu granularità). */
   branchType?: string
-  /** Testo di avviso mostrato sotto il label nel menu (solo per section "other"). */
-  warning?: string
 }
 
 /**
@@ -279,14 +277,12 @@ function getGroupableColumns(seed: Seed): GroupableColumn[] {
         columnId: branch.alias,
         label: branch.label,
         section: "other",
-        warning: "Potrebbe generare molti gruppi",
       })
     } else if (branch.type === "number") {
       result.push({
         columnId: branch.alias,
         label: branch.label,
         section: "other",
-        warning: "Potrebbe generare molti gruppi",
       })
     }
     // json, richtext, file → esclusi
@@ -1166,6 +1162,9 @@ export function ContentToolbar({
                               <DropdownMenuLabel className="px-0 pb-1 pt-0 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                                 Altri campi
                               </DropdownMenuLabel>
+                              <div className="px-0 pb-1 text-[10px] text-muted-foreground/70">
+                                Potrebbe generare molti gruppi
+                              </div>
                               <div className="flex flex-col gap-1">
                                 {otherGroupColumns.map((col) => (
                                   <Button
@@ -1185,11 +1184,6 @@ export function ContentToolbar({
                                         <Check className="size-3.5 shrink-0 text-muted-foreground" />
                                       )}
                                     </div>
-                                    {col.warning && (
-                                      <span className="text-[10px] text-muted-foreground/70">
-                                        {col.warning}
-                                      </span>
-                                    )}
                                   </Button>
                                 ))}
                               </div>
