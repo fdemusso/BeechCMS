@@ -1,5 +1,7 @@
 import * as React from "react"
 import type { Seed } from "@beech/core"
+import type { VisibilityState } from "@tanstack/react-table"
+import type { DateGroupPrecision } from "@/lib/dynamic-columns"
 import {
   Table,
   LayoutGrid,
@@ -11,8 +13,16 @@ import {
   Search,
   Settings,
   Plus,
+  Minus,
   X,
   Trash2,
+  Rows3,
+  Rows2,
+  Eye,
+  Palette,
+  EyeOff,
+  Check,
+  ListTree,
 } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -27,9 +37,17 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuPortal,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
 import {
   Select,
@@ -71,6 +89,7 @@ export interface ContentToolbarProps {
   activeViewId: string
   onChangeView: (viewId: string) => void
   onCreateView?: () => void
+  onRenameView?: (viewId: string, label: string) => void
   onCreate: () => void
   onOpenFilters?: () => void
   onOpenSort?: () => void
@@ -93,6 +112,22 @@ export interface ContentToolbarProps {
   onFiltersChange?: (state: ToolbarFiltersState) => void
   /** Valori disponibili per i campi tags (columnId -> tags) */
   availableTagsByColumnId?: Record<string, string[]>
+  /** Numero di righe per pagina della tabella (controllato dall'esterno). */
+  pageSize?: number
+  /** Callback per aggiornare il numero di righe per pagina. */
+  onPageSizeChange?: (size: number) => void
+  /** Visibilità colonne della tabella (controllata dall'esterno). */
+  columnVisibility?: VisibilityState
+  /** Callback per aggiornare la visibilità delle colonne della tabella. */
+  onColumnVisibilityChange?: (visibility: VisibilityState) => void
+  /** Colonna attiva per il raggruppamento (columnId o null). */
+  groupBy?: string | null
+  /** Callback per aggiornare la colonna di raggruppamento. */
+  onGroupByChange?: (columnId: string | null) => void
+  /** Granularità per branch di tipo date (anno/mese/giorno). */
+  dateGroupPrecision?: DateGroupPrecision
+  /** Callback per aggiornare la granularità date. */
+  onDateGroupPrecisionChange?: (precision: DateGroupPrecision) => void
   /** Contenuto sotto la row di funzioni (tabella, controlli, ecc.) */
   children?: React.ReactNode
 }
@@ -205,6 +240,61 @@ function getOperatorOptions(type: FilterGroupType): Array<{ value: FilterOperato
   return baseOptions
 }
 
+// ─── Raggruppamento ───────────────────────────────────────────────────────────
+
+type GroupableSection = "recommended" | "other"
+
+interface GroupableColumn {
+  columnId: string
+  label: string
+  section: GroupableSection
+  /** Tipo del branch (per rendering speciale, es. "date" → sub-menu granularità). */
+  branchType?: string
+  /** Testo di avviso mostrato sotto il label nel menu (solo per section "other"). */
+  warning?: string
+}
+
+/**
+ * Restituisce le colonne su cui è semanticamente sensato raggruppare,
+ * suddivise in "recommended" (cardinalità bassa/garantita) e "other"
+ * (cardinalità variabile). Esclude colonne di sistema ad alta cardinalità
+ * (id, slug), colonne UI (select, actions) e tipi non raggruppabili
+ * (json, richtext, file) che non producono un singolo valore per riga.
+ */
+function getGroupableColumns(seed: Seed): GroupableColumn[] {
+  const result: GroupableColumn[] = []
+
+  // status: sistema, sempre 2 valori (draft | published)
+  result.push({ columnId: "status", label: "Stato", section: "recommended" })
+
+  for (const branch of seed.branches) {
+    if (branch.type === "boolean") {
+      result.push({ columnId: branch.alias, label: branch.label, section: "recommended", branchType: "boolean" })
+    } else if (branch.type === "date") {
+      result.push({ columnId: branch.alias, label: branch.label, section: "recommended", branchType: "date" })
+    } else if (branch.type === "text" && branch.options && branch.options.length > 0) {
+      result.push({ columnId: branch.alias, label: branch.label, section: "recommended" })
+    } else if (branch.type === "text") {
+      result.push({
+        columnId: branch.alias,
+        label: branch.label,
+        section: "other",
+        warning: "Potrebbe generare molti gruppi",
+      })
+    } else if (branch.type === "number") {
+      result.push({
+        columnId: branch.alias,
+        label: branch.label,
+        section: "other",
+        warning: "Potrebbe generare molti gruppi",
+      })
+    }
+    // json, richtext, file → esclusi
+  }
+
+  return result
+}
+
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export function ContentToolbar({
@@ -213,9 +303,9 @@ export function ContentToolbar({
   activeViewId,
   onChangeView,
   onCreateView,
+  onRenameView,
   onCreate,
   onOpenAutomation,
-  onOpenSettings,
   searchValue = "",
   onSearchChange,
   onSubmitSearch,
@@ -224,16 +314,27 @@ export function ContentToolbar({
   filters = {},
   onFiltersChange,
   availableTagsByColumnId = {},
+  pageSize,
+  onPageSizeChange,
+  columnVisibility,
+  onColumnVisibilityChange,
+  groupBy = null,
+  onGroupByChange,
+  dateGroupPrecision = { year: true, month: true, day: false },
+  onDateGroupPrecisionChange,
   children,
 }: ContentToolbarProps) {
+  const activeView = views.find((v) => v.id === activeViewId)
+
   const [isSearchOpen, setIsSearchOpen] = React.useState(false)
   const searchInputRef = React.useRef<HTMLInputElement>(null)
   const [sortColumnSearchTerm, setSortColumnSearchTerm] = React.useState("")
   const [filterColumnSearchTerm, setFilterColumnSearchTerm] = React.useState("")
+  const [columnSearchTerm, setColumnSearchTerm] = React.useState("")
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
   const [openPillId, setOpenPillId] = React.useState<string | null>(null)
-
-  const activeView = views.find((v) => v.id === activeViewId)
+  const [viewNameDraft, setViewNameDraft] = React.useState(activeView?.label ?? "")
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = React.useState(false)
 
   const enabledTools = React.useMemo(
     () => activeView?.enabledTools ?? DEFAULT_ENABLED_TOOLS,
@@ -244,6 +345,20 @@ export function ContentToolbar({
   React.useEffect(() => {
     if (isSearchOpen) searchInputRef.current?.focus()
   }, [isSearchOpen])
+
+  React.useEffect(() => {
+    setViewNameDraft(activeView?.label ?? "")
+  }, [activeView?.id])
+
+  const commitViewName = React.useCallback(
+    () => {
+      if (!activeView || !onRenameView) return
+      const trimmed = viewNameDraft.trim()
+      if (!trimmed || trimmed === activeView.label) return
+      onRenameView(activeView.id, trimmed)
+    },
+    [activeView, onRenameView, viewNameDraft]
+  )
 
   const handleSearchOpen = () => setIsSearchOpen(true)
 
@@ -324,11 +439,82 @@ export function ContentToolbar({
     return columns
   }, [seed.branches])
 
+  const tableColumns = React.useMemo(
+    () =>
+      [
+        { id: "slug", label: "Slug" },
+        { id: "status", label: "Stato" },
+        ...seed.branches.map((branch) => ({
+          id: branch.alias,
+          label: branch.label,
+        })),
+      ] as Array<{ id: string; label: string }>,
+    [seed.branches]
+  )
+
   const visibleFilterColumns = React.useMemo(() => {
     const term = filterColumnSearchTerm.trim().toLowerCase()
     if (!term) return filterableColumns
     return filterableColumns.filter((c) => c.label.toLowerCase().includes(term))
   }, [filterColumnSearchTerm, filterableColumns])
+
+  const filteredTableColumns = React.useMemo(() => {
+    const term = columnSearchTerm.trim().toLowerCase()
+    if (!term) return tableColumns
+    return tableColumns.filter((c) => c.label.toLowerCase().includes(term))
+  }, [columnSearchTerm, tableColumns])
+
+  const groupableColumns = React.useMemo(
+    () => getGroupableColumns(seed),
+    [seed]
+  )
+
+  const recommendedGroupColumns = React.useMemo(
+    () => groupableColumns.filter((c) => c.section === "recommended"),
+    [groupableColumns]
+  )
+
+  const otherGroupColumns = React.useMemo(
+    () => groupableColumns.filter((c) => c.section === "other"),
+    [groupableColumns]
+  )
+
+  const activeGroupLabel = React.useMemo(() => {
+    if (!groupBy) return null
+    return groupableColumns.find((c) => c.columnId === groupBy)?.label ?? groupBy
+  }, [groupBy, groupableColumns])
+
+  /**
+   * Deriva una modalità unica dalla precisione corrente.
+   * - day: giorno (con anno) — esclusivo
+   * - year: solo anno
+   * - monthYear: mese + anno (default)
+   */
+  type DatePrecisionMode = "day" | "year" | "monthYear"
+
+  const datePrecisionMode: DatePrecisionMode = React.useMemo(() => {
+    if (dateGroupPrecision.day) return "day"
+    if (dateGroupPrecision.year && dateGroupPrecision.month) return "monthYear"
+    if (dateGroupPrecision.year && !dateGroupPrecision.month) return "year"
+    // fallback: qualsiasi stato “strano” lo normalizziamo al default richiesto
+    return "monthYear"
+  }, [dateGroupPrecision.day, dateGroupPrecision.month, dateGroupPrecision.year])
+
+  const applyDatePrecisionMode = React.useCallback(
+    (mode: DatePrecisionMode) => {
+      if (!onDateGroupPrecisionChange) return
+      if (mode === "day") {
+        onDateGroupPrecisionChange({ year: false, month: false, day: true })
+        return
+      }
+      if (mode === "year") {
+        onDateGroupPrecisionChange({ year: true, month: false, day: false })
+        return
+      }
+      onDateGroupPrecisionChange({ year: true, month: true, day: false })
+    },
+    [onDateGroupPrecisionChange]
+  )
 
   const addConditionToColumn = React.useCallback(
     (columnId: string) => {
@@ -442,9 +628,9 @@ export function ContentToolbar({
   return (
     <Card className="py-3 border-0 bg-transparent shadow-none" data-seed-slug={seed.slug}>
       <CardContent className="px-4 py-0">
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 min-w-0">
           {/* Lato sinistro: viste utente + icona + */}
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 items-center gap-1 overflow-hidden">
             <ToggleGroup
               type="single"
               value={activeViewId}
@@ -488,7 +674,7 @@ export function ContentToolbar({
           </div>
 
           {/* Lato destro: strumenti */}
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {isToolEnabled("filter") && (
               <DropdownMenu
                 open={filterMenuOpen}
@@ -700,19 +886,442 @@ export function ContentToolbar({
               </div>
             )}
             {isToolEnabled("settings") && (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label="Impostazioni vista"
-                    onClick={() => onOpenSettings?.()}
-                  >
-                    <Settings className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">Impostazioni vista</TooltipContent>
-              </Tooltip>
+              <DropdownMenu
+                open={isSettingsMenuOpen}
+                onOpenChange={(open) => {
+                  if (!open) {
+                    commitViewName()
+                    setColumnSearchTerm("")
+                  }
+                  setIsSettingsMenuOpen(open)
+                }}
+              >
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Impostazioni vista"
+                      >
+                        <Settings className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">Impostazioni vista</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end" className="w-64">
+                  {/* Dettagli vista */}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Impostazioni vista</DropdownMenuLabel>
+                    <div className="px-2 pb-1.5">
+                      <Input
+                        value={viewNameDraft}
+                        onChange={(e) => setViewNameDraft(e.target.value)}
+                        onBlur={() => commitViewName()}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault()
+                            commitViewName()
+                            return
+                          }
+                          // Evita che i tasti singoli attivino shortcut del menu.
+                          if (e.key.length === 1 && !e.metaKey && !e.ctrlKey && !e.altKey) {
+                            e.stopPropagation()
+                          }
+                        }}
+                        className="h-8 text-sm"
+                        placeholder="Nome vista"
+                      />
+                    </div>
+                  </DropdownMenuGroup>
+
+                  <DropdownMenuSeparator />
+
+                  {/* Azioni rapide */}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Azioni rapide</DropdownMenuLabel>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Filter />
+                        Filtra
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="w-64 p-2">
+                          <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                            Filtra per colonna
+                          </DropdownMenuLabel>
+                          <Input
+                            placeholder="Cerca colonna..."
+                            value={filterColumnSearchTerm}
+                            onChange={(e) => setFilterColumnSearchTerm(e.target.value)}
+                            className="h-8 text-sm"
+                          />
+                          <DropdownMenuSeparator className="my-2" />
+                          <div className="max-h-56 overflow-y-auto">
+                            {visibleFilterColumns.length === 0 ? (
+                              <div className="py-2 text-center text-xs text-muted-foreground">
+                                Nessuna colonna trovata
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-1 py-1">
+                                {visibleFilterColumns.map((col) => (
+                                  <Button
+                                    key={col.columnId}
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 justify-between px-2 text-xs"
+                                    onClick={() => {
+                                      addConditionToColumn(col.columnId)
+                                      setFilterColumnSearchTerm("")
+                                      setOpenPillId(col.columnId)
+                                      setIsSettingsMenuOpen(false)
+                                    }}
+                                  >
+                                    <span className="truncate">{col.label}</span>
+                                    {filters[col.columnId]?.conditions?.length ? (
+                                      <span className="text-muted-foreground text-[10px] uppercase">
+                                        {filters[col.columnId].conditions.length}
+                                      </span>
+                                    ) : null}
+                                  </Button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <ArrowUpDown />
+                        Ordina
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="w-64 p-2">
+                          <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                            Ordina per colonna
+                          </DropdownMenuLabel>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              placeholder="Cerca colonna..."
+                              value={sortColumnSearchTerm}
+                              onChange={(e) => setSortColumnSearchTerm(e.target.value)}
+                              className="h-8 flex-1 text-sm"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon-sm"
+                              className="h-8 w-8 shrink-0"
+                              aria-label="Inverti ordine"
+                              onClick={handleToggleSortDirection}
+                              disabled={!sortState?.columnId}
+                            >
+                              <ArrowUpDown className="size-3.5" />
+                            </Button>
+                          </div>
+                          <DropdownMenuSeparator className="my-2" />
+                          <div className="max-h-56 overflow-y-auto">
+                            {filteredSortableColumns.length === 0 ? (
+                              <div className="py-2 text-center text-xs text-muted-foreground">
+                                Nessuna colonna trovata
+                              </div>
+                            ) : (
+                              <div className="flex flex-col gap-1 py-1">
+                                {filteredSortableColumns.map((branch) => {
+                                  const isSelected = sortState?.columnId === branch.alias
+                                  return (
+                                    <Button
+                                      key={branch.alias}
+                                      type="button"
+                                      variant={isSelected ? "secondary" : "ghost"}
+                                      size="sm"
+                                      className="h-8 justify-between px-2 text-xs"
+                                      onClick={() => handleSortColumnSelect(branch.alias)}
+                                    >
+                                      <span className="truncate">{branch.label}</span>
+                                      {isSelected && (
+                                        <span className="text-muted-foreground text-[10px] uppercase">
+                                          {sortState?.desc ? "DESC" : "ASC"}
+                                        </span>
+                                      )}
+                                    </Button>
+                                  )
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  </DropdownMenuGroup>
+
+                  <DropdownMenuSeparator />
+
+                  {/* Layout e stile */}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Layout e stile</DropdownMenuLabel>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Rows3 />
+                        Raggruppa{groupBy ? "..." : ""}
+                        {groupBy && (
+                          <span className="ml-auto text-[10px] text-muted-foreground uppercase">
+                            attivo
+                          </span>
+                        )}
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent className="w-64 p-2">
+                          <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                            Raggruppa per colonna
+                          </DropdownMenuLabel>
+                          {/* Voce "Nessun raggruppamento" */}
+                          <Button
+                            type="button"
+                            variant={!groupBy ? "secondary" : "ghost"}
+                            size="sm"
+                            className="h-8 w-full justify-between px-2 text-xs"
+                            onClick={() => {
+                              onGroupByChange?.(null)
+                              setIsSettingsMenuOpen(false)
+                            }}
+                          >
+                            <span>Nessun raggruppamento</span>
+                            {!groupBy && <Check className="size-3.5 shrink-0 text-muted-foreground" />}
+                          </Button>
+                          {recommendedGroupColumns.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator className="my-2" />
+                              <DropdownMenuLabel className="px-0 pb-1 pt-0 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                Consigliati
+                              </DropdownMenuLabel>
+                              <div className="flex flex-col gap-1">
+                                {recommendedGroupColumns.map((col) =>
+                                  col.branchType === "date" ? (
+                                    /* Colonne date: sub-menu annidato per la granularità */
+                                    <DropdownMenuSub key={col.columnId}>
+                                      <DropdownMenuSubTrigger
+                                        className="h-8 w-full rounded-sm px-2 text-xs data-[state=open]:bg-accent"
+                                      >
+                                        <span className="flex-1 truncate text-left">{col.label}</span>
+                                        {groupBy === col.columnId && <Check className="mr-2 size-3.5 shrink-0 text-muted-foreground" />}
+                                      </DropdownMenuSubTrigger>
+                                      <DropdownMenuPortal>
+                                        <DropdownMenuSubContent className="w-48 p-2">
+                                          <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                                            Granularità
+                                          </DropdownMenuLabel>
+                                          <DropdownMenuRadioGroup
+                                            value={datePrecisionMode}
+                                            onValueChange={(v) => {
+                                              const nextMode = (v || "monthYear") as DatePrecisionMode
+                                              // Applica subito raggruppamento + precisione e chiude il menu.
+                                              onGroupByChange?.(col.columnId)
+                                              applyDatePrecisionMode(nextMode)
+                                              setIsSettingsMenuOpen(false)
+                                            }}
+                                          >
+                                            <DropdownMenuRadioItem value="day">
+                                              Giorno
+                                            </DropdownMenuRadioItem>
+                                            <DropdownMenuRadioItem value="year">
+                                              Anno
+                                            </DropdownMenuRadioItem>
+                                            <DropdownMenuRadioItem value="monthYear">
+                                              Mese
+                                            </DropdownMenuRadioItem>
+                                          </DropdownMenuRadioGroup>
+                                        </DropdownMenuSubContent>
+                                      </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+                                  ) : (
+                                    /* Tutte le altre colonne consigliate: bottone normale */
+                                    <Button
+                                      key={col.columnId}
+                                      type="button"
+                                      variant={groupBy === col.columnId ? "secondary" : "ghost"}
+                                      size="sm"
+                                      className="h-8 w-full justify-between px-2 text-xs"
+                                      onClick={() => {
+                                        onGroupByChange?.(groupBy === col.columnId ? null : col.columnId)
+                                        setIsSettingsMenuOpen(false)
+                                      }}
+                                    >
+                                      <span className="truncate">{col.label}</span>
+                                      {groupBy === col.columnId && (
+                                        <Check className="size-3.5 shrink-0 text-muted-foreground" />
+                                      )}
+                                    </Button>
+                                  )
+                                )}
+                              </div>
+                            </>
+                          )}
+                          {otherGroupColumns.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator className="my-2" />
+                              <DropdownMenuLabel className="px-0 pb-1 pt-0 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                Altri campi
+                              </DropdownMenuLabel>
+                              <div className="flex flex-col gap-1">
+                                {otherGroupColumns.map((col) => (
+                                  <Button
+                                    key={col.columnId}
+                                    type="button"
+                                    variant={groupBy === col.columnId ? "secondary" : "ghost"}
+                                    size="sm"
+                                    className="h-auto min-h-8 w-full flex-col items-start gap-0 px-2 py-1.5 text-xs"
+                                    onClick={() => {
+                                      onGroupByChange?.(groupBy === col.columnId ? null : col.columnId)
+                                      setIsSettingsMenuOpen(false)
+                                    }}
+                                  >
+                                    <div className="flex w-full items-center justify-between">
+                                      <span className="truncate">{col.label}</span>
+                                      {groupBy === col.columnId && (
+                                        <Check className="size-3.5 shrink-0 text-muted-foreground" />
+                                      )}
+                                    </div>
+                                    {col.warning && (
+                                      <span className="text-[10px] text-muted-foreground/70">
+                                        {col.warning}
+                                      </span>
+                                    )}
+                                  </Button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger>
+                        <Palette />
+                        Colori condizionali
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                          {/* TODO: implementare colori condizionali per la vista. */}
+                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                            Funzione in arrivo
+                          </div>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  </DropdownMenuGroup>
+
+                  <DropdownMenuSeparator />
+
+                  {/* Tabella */}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>Tabella</DropdownMenuLabel>
+                    {columnVisibility && onColumnVisibilityChange && (
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                          <Eye />
+                          Colonne visibili
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                          <DropdownMenuSubContent className="w-64 p-2">
+                            <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                              Visibilità colonne
+                            </DropdownMenuLabel>
+                            <Input
+                              placeholder="Cerca colonna..."
+                              value={columnSearchTerm}
+                              onChange={(e) => setColumnSearchTerm(e.target.value)}
+                              className="h-8 text-sm"
+                            />
+                            <DropdownMenuSeparator className="my-2" />
+                            <div className="max-h-56 overflow-y-auto">
+                              {filteredTableColumns.length === 0 ? (
+                                <div className="py-2 text-center text-xs text-muted-foreground">
+                                  Nessuna colonna trovata
+                                </div>
+                              ) : (
+                                <div className="flex flex-col gap-1 py-1">
+                                  {filteredTableColumns.map((col) => {
+                                    const isVisible = columnVisibility[col.id] ?? true
+                                    return (
+                                      <Button
+                                        key={col.id}
+                                        type="button"
+                                        variant={isVisible ? "secondary" : "ghost"}
+                                        size="sm"
+                                        className="h-8 justify-between px-2 text-xs"
+                                        onClick={() => {
+                                          const nextVisibility: VisibilityState = {
+                                            ...columnVisibility,
+                                            [col.id]: !isVisible,
+                                          }
+                                          onColumnVisibilityChange(nextVisibility)
+                                        }}
+                                      >
+                                        <span className="truncate">{col.label}</span>
+                                        {isVisible ? (
+                                          <Eye className="size-3.5 shrink-0 text-muted-foreground" />
+                                        ) : (
+                                          <EyeOff className="size-3.5 shrink-0 text-muted-foreground/50" />
+                                        )}
+                                      </Button>
+                                    )
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                      </DropdownMenuSub>
+                    )}
+                    {pageSize != null && onPageSizeChange && (
+                      <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="justify-between gap-4 focus:bg-transparent focus:text-inherit data-[highlighted]:bg-transparent data-[highlighted]:text-inherit cursor-default">
+                        <div className="flex items-center gap-2">
+                          <Rows2 />
+                          Righe
+                        </div>
+                        <div className="flex h-7 items-stretch">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-xs"
+                            className="h-7 w-7 rounded-r-none border-r-0"
+                            aria-label="Diminuisci righe"
+                            disabled={pageSize <= 1}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onPageSizeChange(Math.max(1, pageSize - 1))
+                            }}
+                          >
+                            <Minus className="size-3" />
+                          </Button>
+                          <div className="flex w-9 items-center justify-center border border-input bg-background text-xs tabular-nums">
+                            {pageSize}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon-xs"
+                            className="h-7 w-7 rounded-l-none border-l-0"
+                            aria-label="Aumenta righe"
+                            disabled={pageSize >= 100}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onPageSizeChange(Math.min(100, pageSize + 1))
+                            }}
+                          >
+                            <Plus className="size-3" />
+                          </Button>
+                        </div>
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
             {isToolEnabled("create") && (
               <Button
@@ -729,8 +1338,23 @@ export function ContentToolbar({
         </div>
         {children != null && (
           <div className="mt-4 border-t pt-4">
-            {Object.keys(filters).length > 0 && (
+            {(Object.keys(filters).length > 0 || activeGroupLabel) && (
               <div className="mb-3 flex flex-wrap justify-start gap-2">
+                {/* Pill raggruppamento attivo */}
+                {activeGroupLabel && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 gap-1.5 px-2.5"
+                    aria-label={`Raggruppa per ${activeGroupLabel}`}
+                    onClick={() => onGroupByChange?.(null)}
+                  >
+                    <ListTree className="size-3.5 shrink-0" />
+                    <span className="truncate max-w-40">{activeGroupLabel}</span>
+                    <X className="size-3 shrink-0 text-muted-foreground" />
+                  </Button>
+                )}
                 {Object.values(filters).map((group) => (
                   <DropdownMenu
                     key={group.columnId}

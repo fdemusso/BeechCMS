@@ -3,6 +3,9 @@ import { useParams, useNavigate } from "react-router-dom"
 import { getSeed } from "@beech/core"
 import type { SortingState } from "@tanstack/react-table"
 import type { ColumnFiltersState } from "@tanstack/react-table"
+import type { RowSelectionState } from "@tanstack/react-table"
+import type { VisibilityState } from "@tanstack/react-table"
+import type { GroupingState } from "@tanstack/react-table"
 
 import {
   SidebarInset,
@@ -18,6 +21,12 @@ import {
   type ToolbarFiltersState,
 } from "@/components/content-toolbar"
 import {
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+} from "@/components/ui/context-menu"
+import { toast } from "sonner"
+import {
   fetchContentList,
   deleteContent,
 } from "@/lib/content-api"
@@ -25,6 +34,8 @@ import {
   generateColumns,
   computeMaxLengths,
   type ContentEntry,
+  type DateGroupPrecision,
+  DEFAULT_DATE_GROUP_PRECISION,
 } from "@/lib/dynamic-columns"
 
 export function ContentListPage() {
@@ -35,7 +46,10 @@ export function ContentListPage() {
   const [error, setError] = React.useState<string | null>(null)
 
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
-  const [entryToDelete, setEntryToDelete] = React.useState<string | null>(null)
+  const [entryIdsToDelete, setEntryIdsToDelete] = React.useState<string[] | null>(
+    null
+  )
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
 
   // Vista attiva (per ora solo UI-state; la DataTable rimane sempre visibile)
   // TODO: mostrare viste alternative (Grid/Kanban/Chart) in base ad activeViewId.
@@ -55,26 +69,40 @@ export function ContentListPage() {
   // Recupera il seed
   const seed = slug ? getSeed(slug) : null
 
-  // Vista di default per testare la toolbar (hardcoded; in futuro da config per-utente)
-  // TODO: caricare e salvare la configurazione delle viste a livello di utente (quando esisterà un sistema di preferenze utente).
-  const defaultViews: UserViewInstance[] = React.useMemo(
-    () => [
-      {
-        id: "table",
-        label: "Tabella",
-        type: "table",
-        enabledTools: [
-          "filter",
-          "sort",
-          "automation",
-          "search",
-          "settings",
-          "create",
-        ],
-      },
-    ],
-    []
+  // Raggruppamento tabella: singola colonna o null
+  const [groupBy, setGroupBy] = React.useState<string | null>(null)
+
+  // Precisione per branch di tipo date (anno/mese/giorno)
+  const [dateGroupPrecision, setDateGroupPrecision] = React.useState<DateGroupPrecision>(
+    DEFAULT_DATE_GROUP_PRECISION
   )
+
+  // Quando il raggruppamento cambia verso una colonna non-date, resetta la precisione
+  React.useEffect(() => {
+    if (!groupBy || !seed) return
+    const branch = seed.branches.find((b) => b.alias === groupBy)
+    if (branch?.type !== "date") {
+      setDateGroupPrecision(DEFAULT_DATE_GROUP_PRECISION)
+    }
+  }, [groupBy, seed])
+
+  // Viste disponibili per il seed corrente (per ora solo una vista tabellare di default).
+  // TODO: caricare e salvare la configurazione delle viste a livello di utente (quando esisterà un sistema di preferenze utente).
+  const [views, setViews] = React.useState<UserViewInstance[]>(() => [
+    {
+      id: "table",
+      label: "Tabella",
+      type: "table",
+      enabledTools: [
+        "filter",
+        "sort",
+        "automation",
+        "search",
+        "settings",
+        "create",
+      ],
+    },
+  ])
 
   const loadData = React.useCallback(async () => {
     if (!slug) return
@@ -121,7 +149,14 @@ export function ContentListPage() {
   )
 
   const handleDelete = React.useCallback((id: string) => {
-    setEntryToDelete(id)
+    setEntryIdsToDelete([id])
+    setDeleteDialogOpen(true)
+  }, [])
+
+  const handleBulkDelete = React.useCallback((ids: string[]) => {
+    const unique = Array.from(new Set(ids)).filter(Boolean)
+    if (!unique.length) return
+    setEntryIdsToDelete(unique)
     setDeleteDialogOpen(true)
   }, [])
 
@@ -130,25 +165,69 @@ export function ContentListPage() {
   }, [slug, navigate])
 
   const handleConfirmDelete = React.useCallback(async () => {
-    if (!slug || !entryToDelete) return
+    if (!slug || !entryIdsToDelete || entryIdsToDelete.length === 0) return
 
-    await deleteContent(slug, entryToDelete)
+    const results = await Promise.allSettled(
+      entryIdsToDelete.map((id) => deleteContent(slug, id))
+    )
+    const failures = results.filter((r) => r.status === "rejected").length
+    if (failures > 0) {
+      throw new Error(
+        `Eliminazione parziale: ${failures} su ${entryIdsToDelete.length} fallite`
+      )
+    }
+
     await loadData()
-  }, [slug, entryToDelete, loadData])
+    setRowSelection({})
+  }, [slug, entryIdsToDelete, loadData])
+
+  const selectedIds = React.useMemo(() => {
+    return Object.keys(rowSelection).filter((id) => rowSelection[id])
+  }, [rowSelection])
 
   const ROWS_PER_PAGE = 10
+
+  const [pageSize, setPageSize] = React.useState<number>(ROWS_PER_PAGE)
+
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
+    () => {
+      const visibility: VisibilityState = {}
+      visibility["id"] = false
+      if (!seed) return visibility
+      const metaAliases = seed.branches
+        .filter(
+          (b) =>
+            b.type === "json" &&
+            (b.alias.toLowerCase().includes("metadata") ||
+              b.alias.toLowerCase().includes("metadati"))
+        )
+        .map((b) => b.alias)
+      for (const alias of metaAliases) {
+        visibility[alias] = false
+      }
+      return visibility
+    }
+  )
 
   // Lunghezza max per colonna (dalla prima pagina) per troncamento consistente
   const maxLengths = React.useMemo(() => {
     if (!seed || data.length === 0) return undefined
-    return computeMaxLengths(data, seed, ROWS_PER_PAGE)
-  }, [seed, data])
+    return computeMaxLengths(data, seed, pageSize)
+  }, [seed, data, pageSize])
 
-  // Genera colonne
+  // Genera colonne (si rigenera quando cambia la precisione date per aggiornare getGroupingValue)
   const columns = React.useMemo(() => {
     if (!seed) return []
-    return generateColumns(seed, handleEdit, handleDelete, maxLengths)
-  }, [seed, handleEdit, handleDelete, maxLengths])
+    return generateColumns(
+      seed,
+      handleEdit,
+      handleDelete,
+      maxLengths,
+      selectedIds,
+      handleBulkDelete,
+      dateGroupPrecision
+    )
+  }, [seed, handleEdit, handleDelete, maxLengths, selectedIds, handleBulkDelete, dateGroupPrecision])
 
   const singleSort = sorting[0]
 
@@ -189,6 +268,26 @@ export function ContentListPage() {
     }
     return result
   }, [data, seed])
+
+  const grouping = React.useMemo<GroupingState>(
+    () => (groupBy ? [groupBy] : []),
+    [groupBy]
+  )
+
+  const isGroupingByDate = React.useMemo(() => {
+    if (!seed || !groupBy) return false
+    const branch = seed.branches.find((b) => b.alias === groupBy)
+    return branch?.type === "date"
+  }, [groupBy, seed])
+
+  const tableKey = React.useMemo(() => {
+    // TanStack può non ricalcolare subito i gruppi quando cambia solo getGroupingValue.
+    // Forziamo un remount della tabella quando il grouping attivo è su date e cambia la precisione.
+    if (isGroupingByDate && groupBy) {
+      return `group:${groupBy}:date:${dateGroupPrecision.day ? "day" : dateGroupPrecision.year && !dateGroupPrecision.month ? "year" : "monthYear"}`
+    }
+    return `group:${groupBy ?? "none"}`
+  }, [dateGroupPrecision.day, dateGroupPrecision.month, dateGroupPrecision.year, groupBy, isGroupingByDate])
 
   const columnFilters = React.useMemo<ColumnFiltersState>(() => {
     const next: ColumnFiltersState = []
@@ -238,7 +337,17 @@ export function ContentListPage() {
     },
     []
   )
-  
+  const handleRenameView = React.useCallback(
+    (viewId: string, label: string) => {
+      setViews((prev) =>
+        prev.map((view) =>
+          view.id === viewId ? { ...view, label } : view
+        )
+      )
+    },
+    []
+  )
+
   // Colonne nascoste di default: id (troppo lungo), json metadata/metadati
   const initialHiddenColumns = React.useMemo(() => {
     const hidden: string[] = ["id"]
@@ -283,13 +392,13 @@ export function ContentListPage() {
   }
 
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
+    <div className="[--header-height:calc(--spacing(14))] overflow-x-hidden">
       <SidebarProvider className="flex flex-col">
         <SiteHeader />
         <div className="flex flex-1">
           <AppSidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
+          <SidebarInset className="min-w-0">
+            <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
               <div className="mx-auto w-full max-w-screen-2xl">
                 {/* Header con titolo */}
                 <div className="mb-6">
@@ -302,9 +411,10 @@ export function ContentListPage() {
                 {/* Toolbar viste, strumenti e contenuto (tabella + controlli) */}
                 <ContentToolbar
                   seed={seed}
-                  views={defaultViews}
+                  views={views}
                   activeViewId={activeViewId}
                   onChangeView={setActiveViewId}
+                  onRenameView={handleRenameView}
                   onCreate={handleCreate}
                   searchValue={tableSearch}
                   onSearchChange={setTableSearch}
@@ -316,6 +426,14 @@ export function ContentListPage() {
                   filters={toolbarFilters}
                   onFiltersChange={setToolbarFilters}
                   availableTagsByColumnId={availableTagsByColumnId}
+                  pageSize={pageSize}
+                  onPageSizeChange={setPageSize}
+                  columnVisibility={columnVisibility}
+                  onColumnVisibilityChange={setColumnVisibility}
+                  groupBy={groupBy}
+                  onGroupByChange={setGroupBy}
+                  dateGroupPrecision={dateGroupPrecision}
+                  onDateGroupPrecisionChange={setDateGroupPrecision}
                 >
                   {error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
@@ -329,9 +447,56 @@ export function ContentListPage() {
                   )}
                   {!isLoading && !error && (
                     <DataTable
+                      key={tableKey}
                       columns={columns}
                       data={data}
                       initialHiddenColumns={initialHiddenColumns}
+                      rowSelection={rowSelection}
+                      onRowSelectionChange={setRowSelection}
+                      grouping={grouping}
+                      onGroupingChange={(g) => setGroupBy(g[0] ?? null)}
+                      renderRowContextMenuContent={(entry) => (
+                        <>
+                          <ContextMenuLabel>Azioni</ContextMenuLabel>
+                          {selectedIds.length > 1 ? (
+                            <ContextMenuItem
+                              onSelect={() => handleBulkDelete(selectedIds)}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              Elimina
+                            </ContextMenuItem>
+                          ) : (
+                            <>
+                              <ContextMenuItem
+                                onSelect={() => {
+                                  navigator.clipboard.writeText(entry.id).then(
+                                    () => toast.success("ID copiato"),
+                                    () => toast.error("Copia fallita")
+                                  )
+                                }}
+                              >
+                                Copia ID
+                              </ContextMenuItem>
+                              <ContextMenuSeparator />
+                              <ContextMenuItem
+                                onSelect={() => handleEdit(entry.id)}
+                              >
+                                Modifica
+                              </ContextMenuItem>
+                              <ContextMenuItem
+                                onSelect={() => handleDelete(entry.id)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                Elimina
+                              </ContextMenuItem>
+                            </>
+                          )}
+                        </>
+                      )}
+                      pageSize={pageSize}
+                      onPageSizeChange={setPageSize}
+                      columnVisibility={columnVisibility}
+                      onColumnVisibilityChange={setColumnVisibility}
                       globalFilter={tableSearch}
                       onGlobalFilterChange={setTableSearch}
                       sorting={sorting}
@@ -351,7 +516,7 @@ export function ContentListPage() {
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
         seed={seed}
-        entryId={entryToDelete}
+        entryIds={entryIdsToDelete}
         onConfirm={handleConfirmDelete}
       />
     </div>

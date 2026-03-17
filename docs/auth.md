@@ -7,9 +7,9 @@ Documentazione del sistema di autenticazione JWT con Refresh Token per l'API RES
 ## 1. Flow
 
 Il sistema utilizza un approccio ibrido con:
-- **Access Token**: JWT con scadenza breve (15 minuti) salvato in localStorage
+- **Access Token**: JWT con scadenza breve (15 minuti) salvato in localStorage (rischio XSS accettato, vedi sezione Security)
 - **Refresh Token**: Token opaco con scadenza lunga (7 giorni) salvato in httpOnly cookie
-- **Rotazione automatica**: Ogni refresh genera un nuovo refresh token (invalida il vecchio)
+- **Rotazione automatica**: Ogni refresh genera un nuovo refresh token (invalida il vecchio in modo “single-use”, resistente a richieste parallele)
 
 ### 1.1 Login Flow
 
@@ -81,7 +81,7 @@ sequenceDiagram
 3. **Rate limiting** (se configurato): Verifica che non siano stati superati i 5 tentativi per IP+email negli ultimi 60 secondi.
 4. **Query D1**: Cerca l'utente con `SELECT id, email, password_hash FROM users WHERE email = ?` (prepared statement).
 5. **Verifica password**: Usa sempre `bcrypt.compare` (con hash dummy se utente non esiste) per evitare timing attack.
-6. **Generazione Access Token**: Con `jose.SignJWT` crea un access token con payload `{sub: userId, email}`, algoritmo HS256, scadenza **15 minuti**.
+6. **Generazione Access Token**: Con `jose.SignJWT` crea un access token con payload `{sub: userId, email}`, algoritmo **HS256**, header `{ alg: 'HS256', typ: 'JWT' }`, scadenza **15 minuti** e, opzionalmente, campi `iss`/`aud` se configurati.
 7. **Generazione Refresh Token**: Crea UUID v4 sicuro con `crypto.randomUUID()`.
 8. **Salvataggio in DB**: Salva il refresh token hashato (SHA-256) nella tabella `refresh_tokens` con scadenza 7 giorni.
 9. **Set Cookie**: Imposta il refresh token in httpOnly cookie (`HttpOnly`, `Secure` solo su HTTPS, `SameSite=Strict`, `Path=/auth`).
@@ -93,7 +93,7 @@ sequenceDiagram
 2. **Ricezione Cookie**: L'API legge il `refresh_token` dal cookie inviato automaticamente dal browser.
 3. **Validazione**: Cerca il token hashato in DB, verifica scadenza e che non sia stato revocato.
 4. **Lookup Utente**: Recupera i dati utente (id, email) per generare nuovo access token.
-5. **Rotazione**: Invalida il vecchio refresh token (imposta `revoked_at`).
+5. **Rotazione**: Invalida il vecchio refresh token impostando `revoked_at` solo se il token è ancora valido (non scaduto e non già revocato). In caso di richieste parallele, solo la prima riesce; le successive ricevono `401 Invalid refresh token`.
 6. **Generazione Nuovi Token**: Crea nuovo access token (15min) e nuovo refresh token (7 giorni).
 7. **Salvataggio**: Salva il nuovo refresh token hashato in DB.
 8. **Risposta**: Restituisce nuovo access token nel body + nuovo refresh token in cookie.
@@ -114,9 +114,9 @@ sequenceDiagram
 | **bcrypt** | Hashing password con salt (10 rounds). Le password non sono mai salvate in chiaro. |
 | **Prepared statements** | D1 usa `.bind()` per i parametri; nessuna concatenazione SQL per evitare SQL injection. |
 | **Messaggi generici** | "Invalid credentials" sia per utente non trovato che per password errata, per evitare user enumeration. |
-| **JWT_SECRET** | In sviluppo: `wrangler.jsonc` vars. In produzione: usare `wrangler secret put JWT_SECRET` e rotazione periodica. |
-| **httpOnly Cookie** | Refresh token salvato in httpOnly cookie (XSS protection). Access token in localStorage per flessibilità API calls. |
-| **Token Rotation** | Ogni refresh genera un nuovo refresh token; il vecchio viene invalidato. Rileva token rubati. |
+| **JWT_SECRET** | In sviluppo: `wrangler.jsonc` vars. In produzione: usare `wrangler secret put JWT_SECRET` e rotazione periodica. Verifica JWT con algoritmo bloccato su HS256 e header `typ=JWT`. |
+| **httpOnly Cookie** | Refresh token salvato in httpOnly cookie (XSS protection). Access token in localStorage per flessibilità API calls (rischio XSS accettato, mitigato tramite CSP e assenza di script inline). |
+| **Token Rotation** | Ogni refresh genera un nuovo refresh token; il vecchio viene invalidato in modo atomico (`revoked_at` impostato solo se non già revocato/scaduto). Rileva e limita l’uso di token rubati o richieste parallele. |
 | **Hash SHA-256** | Refresh token salvato hashato nel DB (come le password). |
 | **SameSite=Strict** | Cookie con `SameSite=Strict` per protezione CSRF. |
 | **Short-lived Access** | Access token scadenza 15 minuti invece di 2h. Riduce finestra di attacco. |
@@ -136,6 +136,8 @@ sequenceDiagram
 | Variabile | Descrizione | Default |
 |-----------|-------------|---------|
 | `JWT_SECRET` | Segreto per firma JWT (usare `wrangler secret put` in produzione) | - |
+| `JWT_ISSUER` | (Opzionale) Valore `iss` del JWT; se impostato, viene verificato in lettura | - |
+| `JWT_AUDIENCE` | (Opzionale) Valore `aud` del JWT; se impostato, viene verificato in lettura | - |
 | `CORS_ORIGINS` | Origins CORS permessi, separati da virgola | `http://localhost:5173` |
 | `ENV` | Ambiente: `development` o `production` (controlla logging) | `development` |
 
