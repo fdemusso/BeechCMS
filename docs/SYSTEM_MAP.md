@@ -15,6 +15,7 @@ Mappa di alto livello del sistema Beech CMS pensata per onboarding di nuovi cont
   - **UI & state**
     - `@tanstack/react-query`: `^5.90.21`
     - `@tanstack/react-table`: `^8.21.3`
+    - `@tanstack/react-virtual`: `^3.13.23`
     - `next-themes`: `^0.4.6`
     - `lucide-react`: `^0.564.0`
     - Componenti basati su `radix-ui` e shadcn (`shadcn` `^4.0.2`)

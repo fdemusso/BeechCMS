@@ -64,6 +64,10 @@ flowchart LR
 | `onPageSizeChange` | `(size: number) => void` | `undefined` | Callback per aggiornare il numero di righe per pagina |
 | `columnVisibility` | `VisibilityState` (`@tanstack/react-table`) | `undefined` | Stato di visibilità delle colonne (id colonna → `true`/`false`) |
 | `onColumnVisibilityChange` | `(visibility: VisibilityState) => void` | `undefined` | Callback per aggiornare la visibilità colonne |
+| `groupBy` | `string \| null` | `null` | Colonna attiva per il raggruppamento (singola colonna). `null` disabilita il raggruppamento |
+| `onGroupByChange` | `(columnId: string \| null) => void` | `undefined` | Callback al cambio raggruppamento |
+| `dateGroupPrecision` | `{ year: boolean; month: boolean; day: boolean }` | `{ year: true, month: true, day: false }` | Granularità per il raggruppamento su colonne `date` (vedi sezione “Raggruppamento date”) |
+| `onDateGroupPrecisionChange` | `(precision) => void` | `undefined` | Callback al cambio granularità date |
 | `children` | `React.ReactNode` | `undefined` | Contenuto sotto la toolbar (tabella, kanban, ecc.). Se assente, la sezione inferiore non viene renderizzata |
 
 ---
@@ -225,7 +229,13 @@ Impostazioni vista
 │                  ricerca colonna + ↕ inverti direzione + lista colonne
 │
 ├── Layout e stile
-│   ├── Raggruppa... ▶  (TODO)
+│   ├── Raggruppa ▶
+│   │    ├── Nessun raggruppamento
+│   │    ├── Consigliati
+│   │    │    ├── Stato
+│   │    │    ├── (boolean/date/select a bassa cardinalità)
+│   │    │    └── [colonne date] ▶ Granularità: Giorno | Anno | Mese (mese+anno)
+│   │    └── Altri campi (warning “Potrebbe generare molti gruppi”)
 │   └── Colori condizionali ▶  (TODO)
 │
 └── Tabella
@@ -234,6 +244,21 @@ Impostazioni vista
 ```
 
 Le voci "Filtra" e "Ordina" nel menu Impostazioni condividono lo stesso stato interno (`filterColumnSearchTerm`, `sortColumnSearchTerm`, `filteredSortableColumns`, ecc.) dei dropdown standalone presenti nella toolbar — non è necessaria alcuna prop aggiuntiva.
+
+---
+
+## Raggruppamento date (granularità)
+
+Quando `groupBy` punta a una colonna `date`, il sottomenu “Granularità” permette una scelta **esclusiva** (una sola alla volta) e applica subito il raggruppamento:
+
+- **Giorno**: raggruppa per giorno (include sempre l’anno nel label del gruppo)
+- **Anno**: raggruppa per anno
+- **Mese**: raggruppa per **mese + anno** (default)
+
+Comportamento UX:
+
+- La selezione applica immediatamente la nuova granularità e **chiude il menu**.
+- Se era attivo un raggruppamento diverso, viene sostituito (raggruppamento a singola colonna).
 
 ---
 
@@ -247,6 +272,7 @@ Le voci "Filtra" e "Ordina" nel menu Impostazioni condividono lo stesso stato in
 - **Controllo Righe**: `DropdownMenuItem` con `onSelect` bloccato e hover disabilitato. Il click sui bottoni `−`/`+` usa `e.stopPropagation()` per non propagare al menu item genitore. Valori ammessi: 1–100.
 - **Colonne visibili**: ogni colonna mostra `Eye` (visibile) o `EyeOff` (nascosta). Il sub-menu filtra le colonne tramite uno stato locale `columnSearchTerm` che viene resettato alla chiusura del menu Impostazioni.
 - **`DropdownMenuPortal`**: tutti i `DropdownMenuSubContent` sono avvolti in `DropdownMenuPortal` per garantire il corretto z-index quando il menu è posizionato vicino ai bordi della viewport.
+- **Grouping e aggiornamenti**: quando si cambia granularità su un raggruppamento `date`, la tabella forza un aggiornamento del modello di gruppi per riflettere immediatamente la nuova chiave di gruppo.
 
 ---
 
@@ -255,5 +281,4 @@ Le voci "Filtra" e "Ordina" nel menu Impostazioni condividono lo stesso stato in
 - **Persistenza viste**: `views`, `enabledTools` e la vista attiva devono provenire da una configurazione persistente per-utente, non da props statiche.
 - **Flusso `onCreateView`**: la creazione/modifica/eliminazione di una vista utente non è ancora implementata; `onCreateView` è una callback stub.
 - **Ricerca server-side**: `onSubmitSearch` deve essere collegato all'API `GET /api/content/:slug?search=...` con i parametri della vista attiva.
-- **Raggruppa**: configurazione del raggruppamento per colonna non ancora implementata.
 - **Colori condizionali**: evidenziazione righe in base a regole non ancora implementata.
