@@ -1,4 +1,4 @@
-import type { ColumnDef } from "@tanstack/react-table"
+import type { ColumnDef, AggregationFn, GroupingColumnDef } from "@tanstack/react-table"
 import type { Seed } from "@beech/core"
 import { MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
@@ -207,6 +207,101 @@ export interface ContentEntry {
   updated_at: number | null
 }
 
+// ─── Tipi e costanti per raggruppamento date ──────────────────────────────────
+
+/**
+ * Granularità per il raggruppamento di branch di tipo `date`.
+ * - `year` e `month` sono combinabili (es. "Gennaio 2024")
+ * - `day` è esclusivo: se true, year e month devono essere false
+ * Default: year + month → "Gennaio 2024"
+ */
+export interface DateGroupPrecision {
+  year: boolean
+  month: boolean
+  /** Esclusivo: se true, year e month vengono ignorati */
+  day: boolean
+}
+
+export const DEFAULT_DATE_GROUP_PRECISION: DateGroupPrecision = {
+  year: true,
+  month: true,
+  day: false,
+}
+
+// ─── Helpers per raggruppamento e aggregazione ────────────────────────────────
+
+/**
+ * Converte un valore di tipo date nella chiave di gruppo secondo la precisione scelta.
+ * - day (esclusivo): "15 gennaio 2024"
+ * - year + month (default): "gennaio 2024"
+ * - year only: "2024"
+ * - month only: "gennaio"
+ */
+function getDateGroupValue(
+  value: unknown,
+  precision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION
+): string {
+  const d = normalizeDateToYmd(value)
+  if (!d) return "—"
+  // Forza mezzanotte UTC per evitare drift di timezone
+  const date = new Date(d + "T00:00:00")
+
+  if (precision.day) {
+    return date.toLocaleDateString("it-IT", {
+      day: "2-digit",
+      month: "long",
+      year: "numeric",
+    })
+  }
+
+  const parts: string[] = []
+  if (precision.month) {
+    parts.push(date.toLocaleDateString("it-IT", { month: "long" }))
+  }
+  if (precision.year) {
+    parts.push(String(date.getFullYear()))
+  }
+  return parts.length ? parts.join(" ") : String(date.getFullYear())
+}
+
+/**
+ * AggregationFn custom per branch boolean:
+ * restituisce { trueCount, falseCount } contando i valori true/false
+ * tra le leaf rows del gruppo.
+ */
+const booleanAggFn: AggregationFn<ContentEntry> = (_columnId, leafRows) => {
+  let trueCount = 0
+  let falseCount = 0
+  for (const row of leafRows) {
+    const v = row.getValue(_columnId)
+    if (v === true) trueCount++
+    else if (v === false) falseCount++
+  }
+  return { trueCount, falseCount }
+}
+
+function formatBooleanAggregated(value: unknown): string {
+  if (
+    value != null &&
+    typeof value === "object" &&
+    "trueCount" in value &&
+    "falseCount" in value
+  ) {
+    const { trueCount, falseCount } = value as { trueCount: number; falseCount: number }
+    return `✓ ${trueCount} / ✗ ${falseCount}`
+  }
+  return ""
+}
+
+function formatSum(value: unknown, count: number): string {
+  if (typeof value === "number" && !Number.isNaN(value)) {
+    return `Σ ${value.toLocaleString("it-IT")} · ${count} voci`
+  }
+  return `${count} voci`
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 /**
  * Calcola la lunghezza massima per ogni colonna stringa dalla prima pagina di dati.
  * Usata per troncamento consistente: tutte le stringhe più lunghe vengono tagliate con "..."
@@ -281,7 +376,10 @@ export function generateColumns(
   seed: Seed,
   onEdit: (id: string) => void,
   onDelete: (id: string) => void,
-  maxLengths?: Record<string, number>
+  maxLengths?: Record<string, number>,
+  selectedIds: string[] = [],
+  onBulkDelete?: (ids: string[]) => void,
+  datePrecision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION
 ): ColumnDef<ContentEntry>[] {
   const columns: ColumnDef<ContentEntry>[] = []
 
@@ -361,12 +459,58 @@ export function generateColumns(
 
   // Colonne dinamiche: solo da seed.branches, cella = solo FieldDisplay
   seed.branches.forEach((branch) => {
-    const baseColumn: ColumnDef<ContentEntry> = {
+    const baseColumn: ColumnDef<ContentEntry> & GroupingColumnDef<ContentEntry, unknown> = {
       accessorFn: (row) => row.data[branch.alias],
       id: branch.alias,
       header: () => <div className="font-medium">{branch.label}</div>,
       filterFn: (row, columnId, filterValue) =>
         matchesFilterGroup(row.getValue(columnId), filterValue),
+    }
+
+    // Configurazione grouping/aggregation per tipo
+    if (branch.type === "date") {
+      baseColumn.getGroupingValue = (row) =>
+        getDateGroupValue(row.data[branch.alias], datePrecision)
+      baseColumn.aggregationFn = "count"
+      baseColumn.aggregatedCell = ({ getValue, row }) => {
+        const count = row.subRows?.length ?? 0
+        const label = getValue<string>()
+        if (!label) return null
+        return (
+          <span className="text-xs text-muted-foreground">
+            {label !== "—" ? label : "—"} · {count} {count === 1 ? "voce" : "voci"}
+          </span>
+        )
+      }
+    } else if (branch.type === "boolean") {
+      baseColumn.aggregationFn = booleanAggFn
+      baseColumn.aggregatedCell = ({ getValue }) => {
+        const formatted = formatBooleanAggregated(getValue())
+        return formatted ? (
+          <span className="text-xs text-muted-foreground">{formatted}</span>
+        ) : null
+      }
+    } else if (branch.type === "number") {
+      baseColumn.aggregationFn = "sum"
+      baseColumn.aggregatedCell = ({ getValue, row }) => {
+        const count = row.subRows?.length ?? 0
+        return (
+          <span className="text-xs text-muted-foreground">
+            {formatSum(getValue(), count)}
+          </span>
+        )
+      }
+    } else {
+      // text, richtext, file, json e altri → solo conteggio
+      baseColumn.aggregationFn = "count"
+      baseColumn.aggregatedCell = ({ row }) => {
+        const count = row.subRows?.length ?? 0
+        return (
+          <span className="text-xs text-muted-foreground">
+            {count} {count === 1 ? "voce" : "voci"}
+          </span>
+        )
+      }
     }
 
     columns.push({
@@ -391,6 +535,7 @@ export function generateColumns(
     enableHiding: false,
     cell: ({ row }) => {
       const entry = row.original
+      const hasBulkSelection = selectedIds.length > 1
 
       return (
         <div className="text-right">
@@ -403,31 +548,42 @@ export function generateColumns(
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuLabel>Azioni</DropdownMenuLabel>
-              <DropdownMenuItem
-                onClick={() => {
-                  navigator.clipboard.writeText(entry.id).then(
-                    () => toast.success("ID copiato"),
-                    () => toast.error("Copia fallita")
-                  )
-                }}
-              >
-                Copia ID
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  // TODO: Navigherà a /content/:slug/:id (Form View)
-                  onEdit(entry.id)
-                }}
-              >
-                Modifica
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => onDelete(entry.id)}
-                className="text-destructive focus:text-destructive"
-              >
-                Elimina
-              </DropdownMenuItem>
+              {hasBulkSelection ? (
+                <DropdownMenuItem
+                  onClick={() => onBulkDelete?.(selectedIds)}
+                  className="text-destructive focus:text-destructive"
+                >
+                  Elimina
+                </DropdownMenuItem>
+              ) : (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      navigator.clipboard.writeText(entry.id).then(
+                        () => toast.success("ID copiato"),
+                        () => toast.error("Copia fallita")
+                      )
+                    }}
+                  >
+                    Copia ID
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      // TODO: Navigherà a /content/:slug/:id (Form View)
+                      onEdit(entry.id)
+                    }}
+                  >
+                    Modifica
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => onDelete(entry.id)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    Elimina
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

@@ -1,6 +1,7 @@
 import * as React from "react"
 import type { Seed } from "@beech/core"
 import type { VisibilityState } from "@tanstack/react-table"
+import type { DateGroupPrecision } from "@/lib/dynamic-columns"
 import {
   Table,
   LayoutGrid,
@@ -20,6 +21,8 @@ import {
   Eye,
   Palette,
   EyeOff,
+  Check,
+  ListTree,
 } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -38,6 +41,8 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuPortal,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuSub,
@@ -115,6 +120,14 @@ export interface ContentToolbarProps {
   columnVisibility?: VisibilityState
   /** Callback per aggiornare la visibilità delle colonne della tabella. */
   onColumnVisibilityChange?: (visibility: VisibilityState) => void
+  /** Colonna attiva per il raggruppamento (columnId o null). */
+  groupBy?: string | null
+  /** Callback per aggiornare la colonna di raggruppamento. */
+  onGroupByChange?: (columnId: string | null) => void
+  /** Granularità per branch di tipo date (anno/mese/giorno). */
+  dateGroupPrecision?: DateGroupPrecision
+  /** Callback per aggiornare la granularità date. */
+  onDateGroupPrecisionChange?: (precision: DateGroupPrecision) => void
   /** Contenuto sotto la row di funzioni (tabella, controlli, ecc.) */
   children?: React.ReactNode
 }
@@ -227,6 +240,61 @@ function getOperatorOptions(type: FilterGroupType): Array<{ value: FilterOperato
   return baseOptions
 }
 
+// ─── Raggruppamento ───────────────────────────────────────────────────────────
+
+type GroupableSection = "recommended" | "other"
+
+interface GroupableColumn {
+  columnId: string
+  label: string
+  section: GroupableSection
+  /** Tipo del branch (per rendering speciale, es. "date" → sub-menu granularità). */
+  branchType?: string
+  /** Testo di avviso mostrato sotto il label nel menu (solo per section "other"). */
+  warning?: string
+}
+
+/**
+ * Restituisce le colonne su cui è semanticamente sensato raggruppare,
+ * suddivise in "recommended" (cardinalità bassa/garantita) e "other"
+ * (cardinalità variabile). Esclude colonne di sistema ad alta cardinalità
+ * (id, slug), colonne UI (select, actions) e tipi non raggruppabili
+ * (json, richtext, file) che non producono un singolo valore per riga.
+ */
+function getGroupableColumns(seed: Seed): GroupableColumn[] {
+  const result: GroupableColumn[] = []
+
+  // status: sistema, sempre 2 valori (draft | published)
+  result.push({ columnId: "status", label: "Stato", section: "recommended" })
+
+  for (const branch of seed.branches) {
+    if (branch.type === "boolean") {
+      result.push({ columnId: branch.alias, label: branch.label, section: "recommended", branchType: "boolean" })
+    } else if (branch.type === "date") {
+      result.push({ columnId: branch.alias, label: branch.label, section: "recommended", branchType: "date" })
+    } else if (branch.type === "text" && branch.options && branch.options.length > 0) {
+      result.push({ columnId: branch.alias, label: branch.label, section: "recommended" })
+    } else if (branch.type === "text") {
+      result.push({
+        columnId: branch.alias,
+        label: branch.label,
+        section: "other",
+        warning: "Potrebbe generare molti gruppi",
+      })
+    } else if (branch.type === "number") {
+      result.push({
+        columnId: branch.alias,
+        label: branch.label,
+        section: "other",
+        warning: "Potrebbe generare molti gruppi",
+      })
+    }
+    // json, richtext, file → esclusi
+  }
+
+  return result
+}
+
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export function ContentToolbar({
@@ -250,6 +318,10 @@ export function ContentToolbar({
   onPageSizeChange,
   columnVisibility,
   onColumnVisibilityChange,
+  groupBy = null,
+  onGroupByChange,
+  dateGroupPrecision = { year: true, month: true, day: false },
+  onDateGroupPrecisionChange,
   children,
 }: ContentToolbarProps) {
   const activeView = views.find((v) => v.id === activeViewId)
@@ -391,6 +463,58 @@ export function ContentToolbar({
     if (!term) return tableColumns
     return tableColumns.filter((c) => c.label.toLowerCase().includes(term))
   }, [columnSearchTerm, tableColumns])
+
+  const groupableColumns = React.useMemo(
+    () => getGroupableColumns(seed),
+    [seed]
+  )
+
+  const recommendedGroupColumns = React.useMemo(
+    () => groupableColumns.filter((c) => c.section === "recommended"),
+    [groupableColumns]
+  )
+
+  const otherGroupColumns = React.useMemo(
+    () => groupableColumns.filter((c) => c.section === "other"),
+    [groupableColumns]
+  )
+
+  const activeGroupLabel = React.useMemo(() => {
+    if (!groupBy) return null
+    return groupableColumns.find((c) => c.columnId === groupBy)?.label ?? groupBy
+  }, [groupBy, groupableColumns])
+
+  /**
+   * Deriva una modalità unica dalla precisione corrente.
+   * - day: giorno (con anno) — esclusivo
+   * - year: solo anno
+   * - monthYear: mese + anno (default)
+   */
+  type DatePrecisionMode = "day" | "year" | "monthYear"
+
+  const datePrecisionMode: DatePrecisionMode = React.useMemo(() => {
+    if (dateGroupPrecision.day) return "day"
+    if (dateGroupPrecision.year && dateGroupPrecision.month) return "monthYear"
+    if (dateGroupPrecision.year && !dateGroupPrecision.month) return "year"
+    // fallback: qualsiasi stato “strano” lo normalizziamo al default richiesto
+    return "monthYear"
+  }, [dateGroupPrecision.day, dateGroupPrecision.month, dateGroupPrecision.year])
+
+  const applyDatePrecisionMode = React.useCallback(
+    (mode: DatePrecisionMode) => {
+      if (!onDateGroupPrecisionChange) return
+      if (mode === "day") {
+        onDateGroupPrecisionChange({ year: false, month: false, day: true })
+        return
+      }
+      if (mode === "year") {
+        onDateGroupPrecisionChange({ year: true, month: false, day: false })
+        return
+      }
+      onDateGroupPrecisionChange({ year: true, month: true, day: false })
+    },
+    [onDateGroupPrecisionChange]
+  )
 
   const addConditionToColumn = React.useCallback(
     (columnId: string) => {
@@ -942,14 +1066,136 @@ export function ContentToolbar({
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger>
                         <Rows3 />
-                        Raggruppa...
+                        Raggruppa{groupBy ? "..." : ""}
+                        {groupBy && (
+                          <span className="ml-auto text-[10px] text-muted-foreground uppercase">
+                            attivo
+                          </span>
+                        )}
                       </DropdownMenuSubTrigger>
                       <DropdownMenuPortal>
-                        <DropdownMenuSubContent>
-                          {/* TODO: implementare configurazione di raggruppamento vista. */}
-                          <div className="px-2 py-1.5 text-sm text-muted-foreground">
-                            Funzione in arrivo
-                          </div>
+                        <DropdownMenuSubContent className="w-64 p-2">
+                          <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                            Raggruppa per colonna
+                          </DropdownMenuLabel>
+                          {/* Voce "Nessun raggruppamento" */}
+                          <Button
+                            type="button"
+                            variant={!groupBy ? "secondary" : "ghost"}
+                            size="sm"
+                            className="h-8 w-full justify-between px-2 text-xs"
+                            onClick={() => {
+                              onGroupByChange?.(null)
+                              setIsSettingsMenuOpen(false)
+                            }}
+                          >
+                            <span>Nessun raggruppamento</span>
+                            {!groupBy && <Check className="size-3.5 shrink-0 text-muted-foreground" />}
+                          </Button>
+                          {recommendedGroupColumns.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator className="my-2" />
+                              <DropdownMenuLabel className="px-0 pb-1 pt-0 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                Consigliati
+                              </DropdownMenuLabel>
+                              <div className="flex flex-col gap-1">
+                                {recommendedGroupColumns.map((col) =>
+                                  col.branchType === "date" ? (
+                                    /* Colonne date: sub-menu annidato per la granularità */
+                                    <DropdownMenuSub key={col.columnId}>
+                                      <DropdownMenuSubTrigger
+                                        className="h-8 w-full rounded-sm px-2 text-xs data-[state=open]:bg-accent"
+                                      >
+                                        <span className="flex-1 truncate text-left">{col.label}</span>
+                                        {groupBy === col.columnId && <Check className="mr-2 size-3.5 shrink-0 text-muted-foreground" />}
+                                      </DropdownMenuSubTrigger>
+                                      <DropdownMenuPortal>
+                                        <DropdownMenuSubContent className="w-48 p-2">
+                                          <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
+                                            Granularità
+                                          </DropdownMenuLabel>
+                                          <DropdownMenuRadioGroup
+                                            value={datePrecisionMode}
+                                            onValueChange={(v) => {
+                                              const nextMode = (v || "monthYear") as DatePrecisionMode
+                                              // Applica subito raggruppamento + precisione e chiude il menu.
+                                              onGroupByChange?.(col.columnId)
+                                              applyDatePrecisionMode(nextMode)
+                                              setIsSettingsMenuOpen(false)
+                                            }}
+                                          >
+                                            <DropdownMenuRadioItem value="day">
+                                              Giorno
+                                            </DropdownMenuRadioItem>
+                                            <DropdownMenuRadioItem value="year">
+                                              Anno
+                                            </DropdownMenuRadioItem>
+                                            <DropdownMenuRadioItem value="monthYear">
+                                              Mese
+                                            </DropdownMenuRadioItem>
+                                          </DropdownMenuRadioGroup>
+                                        </DropdownMenuSubContent>
+                                      </DropdownMenuPortal>
+                                    </DropdownMenuSub>
+                                  ) : (
+                                    /* Tutte le altre colonne consigliate: bottone normale */
+                                    <Button
+                                      key={col.columnId}
+                                      type="button"
+                                      variant={groupBy === col.columnId ? "secondary" : "ghost"}
+                                      size="sm"
+                                      className="h-8 w-full justify-between px-2 text-xs"
+                                      onClick={() => {
+                                        onGroupByChange?.(groupBy === col.columnId ? null : col.columnId)
+                                        setIsSettingsMenuOpen(false)
+                                      }}
+                                    >
+                                      <span className="truncate">{col.label}</span>
+                                      {groupBy === col.columnId && (
+                                        <Check className="size-3.5 shrink-0 text-muted-foreground" />
+                                      )}
+                                    </Button>
+                                  )
+                                )}
+                              </div>
+                            </>
+                          )}
+                          {otherGroupColumns.length > 0 && (
+                            <>
+                              <DropdownMenuSeparator className="my-2" />
+                              <DropdownMenuLabel className="px-0 pb-1 pt-0 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
+                                Altri campi
+                              </DropdownMenuLabel>
+                              <div className="flex flex-col gap-1">
+                                {otherGroupColumns.map((col) => (
+                                  <Button
+                                    key={col.columnId}
+                                    type="button"
+                                    variant={groupBy === col.columnId ? "secondary" : "ghost"}
+                                    size="sm"
+                                    className="h-auto min-h-8 w-full flex-col items-start gap-0 px-2 py-1.5 text-xs"
+                                    onClick={() => {
+                                      onGroupByChange?.(groupBy === col.columnId ? null : col.columnId)
+                                      setIsSettingsMenuOpen(false)
+                                    }}
+                                  >
+                                    <div className="flex w-full items-center justify-between">
+                                      <span className="truncate">{col.label}</span>
+                                      {groupBy === col.columnId && (
+                                        <Check className="size-3.5 shrink-0 text-muted-foreground" />
+                                      )}
+                                    </div>
+                                    {col.warning && (
+                                      <span className="text-[10px] text-muted-foreground/70">
+                                        {col.warning}
+                                      </span>
+                                    )}
+                                  </Button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+
                         </DropdownMenuSubContent>
                       </DropdownMenuPortal>
                     </DropdownMenuSub>
@@ -1092,8 +1338,23 @@ export function ContentToolbar({
         </div>
         {children != null && (
           <div className="mt-4 border-t pt-4">
-            {Object.keys(filters).length > 0 && (
+            {(Object.keys(filters).length > 0 || activeGroupLabel) && (
               <div className="mb-3 flex flex-wrap justify-start gap-2">
+                {/* Pill raggruppamento attivo */}
+                {activeGroupLabel && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    className="h-8 gap-1.5 px-2.5"
+                    aria-label={`Raggruppa per ${activeGroupLabel}`}
+                    onClick={() => onGroupByChange?.(null)}
+                  >
+                    <ListTree className="size-3.5 shrink-0" />
+                    <span className="truncate max-w-40">{activeGroupLabel}</span>
+                    <X className="size-3 shrink-0 text-muted-foreground" />
+                  </Button>
+                )}
                 {Object.values(filters).map((group) => (
                   <DropdownMenu
                     key={group.columnId}

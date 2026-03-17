@@ -23,7 +23,7 @@ interface ContentDeleteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   seed: Seed
-  entryId: string | null
+  entryIds: string[] | null
   onConfirm: () => Promise<void>
 }
 
@@ -31,7 +31,7 @@ export function ContentDeleteDialog({
   open,
   onOpenChange,
   seed,
-  entryId,
+  entryIds,
   onConfirm,
 }: ContentDeleteDialogProps) {
   const [isDeleting, setIsDeleting] = React.useState(false)
@@ -53,16 +53,23 @@ export function ContentDeleteDialog({
     }
   }
 
+  const entryCount = entryIds?.length ?? 0
+  const previewIds = entryIds?.slice(0, 3) ?? []
+  const hasMore = entryCount > previewIds.length
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Conferma eliminazione</DialogTitle>
           <DialogDescription>
-            Sei sicuro di voler eliminare questa entry di tipo "{seed.label}"?
-            {entryId && (
+            {entryCount <= 1
+              ? `Sei sicuro di voler eliminare questa entry di tipo "${seed.label}"?`
+              : `Sei sicuro di voler eliminare ${entryCount} entry di tipo "${seed.labelPlural ?? seed.label}"?`}
+            {previewIds.length > 0 && (
               <span className="mt-2 block font-mono text-xs text-muted-foreground">
-                ID: {entryId}
+                ID: {previewIds.join(", ")}
+                {hasMore ? ", …" : ""}
               </span>
             )}
           </DialogDescription>
