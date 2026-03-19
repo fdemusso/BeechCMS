@@ -8,6 +8,7 @@ on:
 
 jobs:
   test:
+    name: Unit Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +21,3 @@ jobs:
       - run: npm ci
 
       - run: npm run test
-
-      - name: SonarCloud Scan
-        uses: antonioaversa/sonarcloud-github-action@v4.0.0
