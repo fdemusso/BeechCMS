@@ -75,7 +75,7 @@ beech-cms/
 
 - **Responsabilità principali**
   - Espone le rotte di autenticazione (`/auth/login`, `/auth/refresh`, `/auth/logout`) – vedi `[docs/auth.md](auth.md)`.
-  - Espone le rotte di contenuto dinamiche (`/api/content/:slug`, `/api/content/:slug/:id`) – vedi `[docs/content-engine.md](content-engine.md)` e `[docs/botanical-engine.md](botanical-engine.md)`.
+  - Espone le rotte di contenuto dinamiche (`/api/content/:slug`, `/api/content/:slug/facets`, `/api/content/:slug/:id`) – vedi `[docs/content-engine.md](content-engine.md)` e `[docs/botanical-engine.md](botanical-engine.md)`.
   - Espone l’upload media e la distribuzione file (`/api/upload`, `/api/media/:key`) – vedi `[docs/media-engine.md](media-engine.md)`.
 - **Integrazioni chiave**
   - Importa tipi e funzioni da `@beech/core` (`getSeed`, `apiToDb`, `dbToApi`, registry Seed).
@@ -149,6 +149,9 @@ beech-cms/
   - **Lettura (GET)**:
     - Lettura riga da D1, `JSON.parse(row.data)` → `dbToApi(seed, data)` per mappare `br_xxx` → alias.
     - Restituisce payload con `data` in formato alias, più metadati (`id`, `schema_slug`, `slug`, `status`, `created_at`, `updated_at`).
+    - Se presenti query params (`search`, `sortBy`, `sortDir`, `filters`, `page`, `limit`), la lista è elaborata server-side con risposta `{ items, total, page, limit }`.
+  - **Facets (`GET /api/content/:slug/facets`)**:
+    - Calcola valori distinti di `status` e tag per colonna (`tagsByColumnId`) da usare in toolbar, filtri e colori condizionali.
 
 - **Media Engine (`/api/upload`, `/api/media/:key`)** – vedi `[docs/media-engine.md](media-engine.md)`
   - Upload:

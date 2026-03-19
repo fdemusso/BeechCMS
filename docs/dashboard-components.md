@@ -60,6 +60,7 @@ flowchart LR
 | `filters` | `ToolbarFiltersState` | `{}` | Stato filtri corrente (Record columnId → gruppo) |
 | `onFiltersChange` | `(state: ToolbarFiltersState) => void` | `undefined` | Callback al cambio filtri |
 | `availableTagsByColumnId` | `Record<string, string[]>` | `{}` | Tag disponibili per colonne di tipo `tags` |
+| `availableStatusOptions` | `string[]` | `[]` | Stati disponibili per la colonna di sistema `status` (derivati dinamicamente dalle facets server-side, con fallback locale) |
 | `pageSize` | `number` | `undefined` | Numero di righe per pagina (min 1, max 100). Se presente, mostra il controllo −/+ nel menu Impostazioni |
 | `onPageSizeChange` | `(size: number) => void` | `undefined` | Callback per aggiornare il numero di righe per pagina |
 | `columnVisibility` | `VisibilityState` (`@tanstack/react-table`) | `undefined` | Stato di visibilità delle colonne (id colonna → `true`/`false`) |
@@ -160,7 +161,7 @@ Il componente costruisce internamente l'elenco delle colonne filtrabili partendo
 | `columnId` | Tipo | Note |
 |------------|------|------|
 | `slug` | `system` | Identificatore URL dell'entry |
-| `status` | `select` | Valori: `["draft", "published"]` |
+| `status` | `select` | Valori derivati dinamicamente da `availableStatusOptions` (alimentato da `/api/content/:slug/facets`) |
 
 I branch vengono mappati secondo questa logica:
 
@@ -177,8 +178,14 @@ I branch vengono mappati secondo questa logica:
 
 ## Esempio di utilizzo minimo
 
+**Nota**: la tabella completa usata attualmente in dashboard è `DataTable` (**file**: `apps/dashboard/src/components/ui/data-table.tsx`), basata su `@tanstack/react-table` e sulle primitive `Table*` (**file**: `apps/dashboard/src/components/ui/table.tsx`).
+
 ```tsx
+import { useMemo, useState } from "react"
+import { useNavigate } from "react-router-dom"
 import { ContentToolbar, type UserViewInstance } from "@/components/content-toolbar"
+import { DataTable } from "@/components/ui/data-table"
+import { generateColumns } from "@/lib/dynamic-columns"
 
 const views: UserViewInstance[] = [
   { id: "v1", label: "Tabella", type: "table", enabledTools: ["filter", "sort", "search", "create"] },
@@ -186,10 +193,19 @@ const views: UserViewInstance[] = [
 ]
 
 function ContentPage({ seed, entries }) {
+  const navigate = useNavigate()
   const [activeViewId, setActiveViewId] = useState("v1")
   const [filters, setFilters] = useState({})
   const [sortState, setSortState] = useState({ columnId: null, desc: true })
   const [searchValue, setSearchValue] = useState("")
+
+  const columns = useMemo(() => {
+    return generateColumns(
+      seed,
+      (id) => navigate(`/content/${seed.slug}/${id}`),
+      (id) => console.log("delete", id)
+    )
+  }, [seed])
 
   return (
     <ContentToolbar
@@ -204,9 +220,8 @@ function ContentPage({ seed, entries }) {
       onSortChange={setSortState}
       searchValue={searchValue}
       onSearchChange={setSearchValue}
-      onSubmitSearch={(q) => refetch({ search: q })}
     >
-      <DataTable entries={entries} />
+      <DataTable columns={columns} data={entries} globalFilter={searchValue} />
     </ContentToolbar>
   )
 }
@@ -237,7 +252,7 @@ Impostazioni vista
 │   │    │    └── [colonne date] ▶ Granularità: Giorno | Anno | Mese (mese+anno)
 │   │    └── Altri campi
 │   │         nota: “Potrebbe generare molti gruppi”
-│   └── Colori condizionali ▶  (TODO)
+│   └── Colori condizionali ▶
 │
 └── Tabella
     ├── Colonne visibili ▶  ricerca colonna + toggle Eye/EyeOff per colonna
@@ -247,6 +262,43 @@ Impostazioni vista
 Le voci "Filtra" e "Ordina" nel menu Impostazioni condividono lo stesso stato interno (`filterColumnSearchTerm`, `sortColumnSearchTerm`, `filteredSortableColumns`, ecc.) dei dropdown standalone presenti nella toolbar — non è necessaria alcuna prop aggiuntiva.
 
 ---
+
+## Colori condizionali (formattazione)
+
+Il sottomenu **Colori condizionali** permette di creare regole di formattazione basate su condizioni **identiche ai filtri** (stessi operatori e semantica), ma usate per evidenziare:
+
+- **Cella**: enfasi sul valore della colonna (testo colorato + `font-medium`)
+- **Riga**: accento leggero per righe dense su bianco (tinta soft su background)
+- **Cella + riga**: combinazione delle due
+
+### Tipi supportati (v1)
+
+Per evitare rumore visivo, in v1 le regole sono disponibili solo per colonne con tipi:
+
+- `select` (es. `status`)
+- `number`
+- `date`
+- `boolean`
+- `tags`
+
+### Priorità regole
+
+Le regole sono valutate **dall’alto verso il basso** (priorità crescente). Per una riga/cella viene applicata la **prima regola** che matcha il valore della colonna target.
+
+### Operatori e valori
+
+La UI riusa gli operatori dei filtri:
+
+- `is_empty` / `is_not_empty` non richiedono valore
+- `number` e `date` supportano `gt/gte/lt/lte/eq`
+- `tags` supporta `contains`
+- `select` supporta `eq`
+
+### Nota
+
+Le righe header dei gruppi (quando il raggruppamento è attivo) non vengono formattate: le regole si applicano solo alle righe “leaf”.
+
+Per regole `select`, la lista valori viene letta da `rule.group.selectOptions` e viene inizializzata al momento della creazione regola dalla colonna selezionata (es. `status`).
 
 ## Raggruppamento date (granularità)
 
@@ -281,5 +333,5 @@ Comportamento UX:
 
 - **Persistenza viste**: `views`, `enabledTools` e la vista attiva devono provenire da una configurazione persistente per-utente, non da props statiche.
 - **Flusso `onCreateView`**: la creazione/modifica/eliminazione di una vista utente non è ancora implementata; `onCreateView` è una callback stub.
-- **Ricerca server-side**: `onSubmitSearch` deve essere collegato all'API `GET /api/content/:slug?search=...` con i parametri della vista attiva.
-- **Colori condizionali**: evidenziazione righe in base a regole non ancora implementata.
+- **Sincronizzazione URL**: rendere opzionale la persistenza di `page/search/sort/filters` in querystring per deep-link e share della vista.
+- **Colori condizionali**: persistire regole per-utente quando esisterà un sistema preferenze.

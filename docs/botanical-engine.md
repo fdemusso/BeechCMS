@@ -181,7 +181,10 @@ Per `articoli` (ARTICOLO_SEED):
 
 ### GET /api/content/:slug
 
-**Response:** Array di entry: `id`, `schema_slug`, `slug`, `status`, `data` (formato alias), `created_at`, `updated_at`.
+**Response:**
+
+- Senza query params: array di entry (`ContentEntry[]`) con `id`, `schema_slug`, `slug`, `status`, `data` (alias), `created_at`, `updated_at`.
+- Con query params (`search`, `sortBy`, `sortDir`, `filters`, `page`, `limit`): payload paginato `{ items, total, page, limit }`.
 
 Esempio per `articoli`:
 
@@ -201,10 +204,25 @@ Esempio per `articoli`:
 
 | Status | Descrizione |
 |--------|-------------|
-| 200 | Lista restituita |
+| 200 | Lista restituita (array o payload paginato a seconda delle query) |
 | 404 | Slug non registrato |
 | 401 | Token mancante o invalido |
 | 500 | Errore database |
+
+### GET /api/content/:slug/facets
+
+Restituisce facets dinamiche per la UI dashboard:
+
+```json
+{
+  "statuses": ["draft", "review", "published"],
+  "tagsByColumnId": {
+    "tags": ["cms", "react", "typescript"]
+  }
+}
+```
+
+`statuses` deriva dai valori distinti della colonna di sistema `status`; `tagsByColumnId` è calcolato per i branch tag (`json`).
 
 ### GET /api/content/:slug/:id
 
@@ -244,6 +262,22 @@ curl http://localhost:8787/api/content/articoli \
 ```
 
 Risposta: array con `data` in formato `{ "title": "...", "publishedAt": "..." }`.
+
+### Lista articoli con query server-side
+
+```bash
+curl "http://localhost:8787/api/content/articoli?search=articolo&sortBy=title&sortDir=asc&page=1&limit=25" \
+  -H "Authorization: Bearer <token>"
+```
+
+Risposta: `{ "items": [...], "total": 123, "page": 1, "limit": 25 }`
+
+### Facets articoli
+
+```bash
+curl "http://localhost:8787/api/content/articoli/facets" \
+  -H "Authorization: Bearer <token>"
+```
 
 ---
 

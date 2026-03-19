@@ -132,14 +132,14 @@ In sintesi: slug e status sono gestiti tramite colonne native e CRUD aggiornato;
   - Scelta dei campi da mostrare in card configurabile (seed o preferenza utente). Nessun nuovo dato, solo altro layout.
 
 - **6) Kanban View**
-  - Colonne = valori della colonna di sistema **status** (es. "draft", "published"). Non si usa un campo `select` dentro `data`.
+  - Colonne = valori dinamici della colonna di sistema **status** (es. "draft", "review", "published"). Non si usa un campo `select` dentro `data`.
   - Le card sono le entry; il contenuto della card usa **FieldDisplay** per titolo e eventuali sotto-campi.
-  - Trascinamento = aggiornamento della colonna `status`: alla drop, l'API riceve il nuovo `status` (es. tramite PUT con `status` in body o PATCH).
+  - Trascinamento = aggiornamento della colonna `status`: alla drop, l'API riceve il nuovo `status` come campo top-level del body (non in `data`).
   - Filtri e raggruppamenti Kanban lavorano esclusivamente sulla colonna `status`.
 
 ### 3.3 Flusso dati unico
 
-- **Fonte**: `fetchContentList(slug)` → `ContentEntry[]`; `getSeed(slug)` → definizione campi.
+- **Fonte**: `fetchContentListServer(slug, query)` → `{ items, total, page, limit }` (o `fetchContentList(slug)` in modalità legacy); `getSeed(slug)` → definizione campi.
 - **Viste**: ricevono `(entries, seed)` (e eventualmente "view options": quale campo per Kanban, quali campi in Grid).
 - **Aggiornamento**: dopo create/update/delete si richiama `loadData()` e si aggiornano le stesse strutture; Table/Grid/Kanban si ri-renderizzano con i nuovi dati.
 

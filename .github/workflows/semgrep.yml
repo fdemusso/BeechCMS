@@ -1,0 +1,22 @@
+name: Semgrep Security Scan
+
+on:
+  pull_request:
+    branches:
+      - devs
+      - master
+
+jobs:
+  semgrep:
+    name: Controllo Sicurezza
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Scarica il tuo codice dal branch
+      - name: Checkout del codice
+        uses: actions/checkout@v4
+
+      # 2. Esegue Semgrep con le regole open-source gratuite
+      - name: Esegui Semgrep
+        uses: semgrep/action@v1
+        with:
+          config: "p/default"

@@ -79,6 +79,18 @@ interface DataTableProps<TData, TValue> {
   data: TData[]
   initialHiddenColumns?: string[]
   /**
+   * Calcolo styling per riga eseguito una volta sola e poi riusato per tutte le celle.
+   * Se presente, ha priorità su `getRowClassName` / `getCellClassName`.
+   */
+  getRowStyles?: (row: TData) => {
+    rowClassName?: string
+    cellClassNameByColumnId?: Record<string, string | undefined>
+  }
+  /** Classi extra per la riga (esclude group header rows). */
+  getRowClassName?: (row: TData) => string | undefined
+  /** Classi extra per una cella specifica (esclude group header rows). */
+  getCellClassName?: (row: TData, columnId: string) => string | undefined
+  /**
    * Se fornito, abilita il menu contestuale (tasto destro) sulle celle della riga.
    * La funzione deve rendere SOLO gli items del menu (content interno).
    */
@@ -108,6 +120,20 @@ interface DataTableProps<TData, TValue> {
   pageSize?: number
   /** Callback quando cambia il numero di righe per pagina (in modalità controllata). */
   onPageSizeChange?: (size: number) => void
+  /** Indice pagina controllato dall'esterno (0-based). */
+  pageIndex?: number
+  /** Callback quando cambia la pagina corrente (0-based). */
+  onPageIndexChange?: (index: number) => void
+  /** Numero totale pagine (richiesto in manualPagination). */
+  pageCount?: number
+  /** Numero totale righe server-side (per testo "x di y selezionate"). */
+  totalRows?: number
+  /** Modalità paginazione server-side. */
+  manualPagination?: boolean
+  /** Modalità ordinamento server-side. */
+  manualSorting?: boolean
+  /** Modalità filtro server-side. */
+  manualFiltering?: boolean
   /**
    * Stato di raggruppamento controllato dall'esterno.
    * Quando non vuoto, la tabella passa in modalità virtual scroll
@@ -122,6 +148,9 @@ export function DataTable<TData, TValue>({
   columns,
   data,
   initialHiddenColumns = [],
+  getRowStyles,
+  getRowClassName,
+  getCellClassName,
   renderRowContextMenuContent,
   rowContextMenuExcludedColumnIds,
   rowSelection: rowSelectionProp,
@@ -136,6 +165,13 @@ export function DataTable<TData, TValue>({
   onColumnVisibilityChange,
   pageSize: pageSizeProp,
   onPageSizeChange,
+  pageIndex: pageIndexProp,
+  onPageIndexChange,
+  pageCount: pageCountProp,
+  totalRows: totalRowsProp,
+  manualPagination = false,
+  manualSorting = false,
+  manualFiltering = false,
   grouping: groupingProp,
   onGroupingChange,
 }: DataTableProps<TData, TValue>) {
@@ -177,14 +213,18 @@ export function DataTable<TData, TValue>({
       pageSize: DEFAULT_PAGE_SIZE,
     })
   const isControlledPageSize = pageSizeProp !== undefined
+  const isControlledPageIndex = pageIndexProp !== undefined
   const pagination: PaginationState = React.useMemo(
     () => ({
       ...internalPagination,
+      pageIndex: isControlledPageIndex
+        ? pageIndexProp ?? internalPagination.pageIndex
+        : internalPagination.pageIndex,
       pageSize: isControlledPageSize
         ? pageSizeProp ?? internalPagination.pageSize
         : internalPagination.pageSize,
     }),
-    [internalPagination, isControlledPageSize, pageSizeProp]
+    [internalPagination, isControlledPageIndex, isControlledPageSize, pageIndexProp, pageSizeProp]
   )
 
   const isControlledFilter = globalFilterProp !== undefined
@@ -276,19 +316,23 @@ export function DataTable<TData, TValue>({
           ? updaterOrValue(pagination)
           : updaterOrValue
 
-      if (!isControlledPageSize) {
+      if (!isControlledPageSize && !isControlledPageIndex) {
         setInternalPagination(next)
       } else {
         setInternalPagination((prev) => ({
           ...prev,
-          pageIndex: next.pageIndex,
+          pageIndex: isControlledPageIndex ? prev.pageIndex : next.pageIndex,
+          pageSize: isControlledPageSize ? prev.pageSize : next.pageSize,
         }))
+        if (next.pageIndex !== pagination.pageIndex) {
+          onPageIndexChange?.(next.pageIndex)
+        }
         if (next.pageSize !== pagination.pageSize) {
           onPageSizeChange?.(next.pageSize)
         }
       }
     },
-    [isControlledPageSize, onPageSizeChange, pagination]
+    [isControlledPageIndex, isControlledPageSize, onPageIndexChange, onPageSizeChange, pagination]
   )
 
   const handleRowSelectionChange = React.useCallback(
@@ -341,7 +385,7 @@ export function DataTable<TData, TValue>({
     onSortingChange: handleSortingChange,
     onColumnFiltersChange: handleColumnFiltersChange,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    getPaginationRowModel: manualPagination ? undefined : getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getGroupedRowModel: getGroupedRowModel(),
@@ -353,6 +397,10 @@ export function DataTable<TData, TValue>({
     onExpandedChange: setExpanded,
     globalFilterFn: "includesString",
     autoResetExpanded: false,
+    manualPagination,
+    manualSorting,
+    manualFiltering,
+    pageCount: manualPagination ? pageCountProp : undefined,
     state: {
       sorting,
       columnFilters,
@@ -434,10 +482,12 @@ export function DataTable<TData, TValue>({
       )
     }
 
+    const rowStyles = getRowStyles?.(row.original)
     return (
       <TableRow
         key={row.id}
         data-state={row.getIsSelected() && "selected"}
+        className={rowStyles?.rowClassName ?? getRowClassName?.(row.original)}
         style={{ height: ROW_HEIGHT_PX }}
       >
         {row.getVisibleCells().map((cell) => {
@@ -445,6 +495,9 @@ export function DataTable<TData, TValue>({
             cell.column.columnDef.cell,
             cell.getContext()
           )
+          const cellClassName =
+            rowStyles?.cellClassNameByColumnId?.[cell.column.id] ??
+            getCellClassName?.(row.original, cell.column.id)
 
           const shouldWrapWithContextMenu =
             !!renderRowContextMenuContent &&
@@ -452,7 +505,7 @@ export function DataTable<TData, TValue>({
 
           if (!shouldWrapWithContextMenu) {
             return (
-              <TableCell key={cell.id}>
+              <TableCell key={cell.id} className={cellClassName}>
                 {cellInner}
               </TableCell>
             )
@@ -461,7 +514,7 @@ export function DataTable<TData, TValue>({
           return (
             <ContextMenu key={cell.id}>
               <ContextMenuTrigger asChild>
-                <TableCell>{cellInner}</TableCell>
+                <TableCell className={cellClassName}>{cellInner}</TableCell>
               </ContextMenuTrigger>
               <ContextMenuContent>
                 {renderRowContextMenuContent(row.original)}
@@ -536,7 +589,9 @@ export function DataTable<TData, TValue>({
             className="relative w-full overflow-x-auto"
             style={{
               minHeight: (() => {
-                const totalRows = table.getFilteredRowModel().rows.length
+                const totalRows = manualPagination
+                  ? data.length
+                  : table.getFilteredRowModel().rows.length
                 const rowCount =
                   totalRows < pagination.pageSize
                     ? totalRows
@@ -567,7 +622,9 @@ export function DataTable<TData, TValue>({
                   <>
                     {table.getRowModel().rows.map((row) => renderRow(row))}
                     {(() => {
-                      const totalRows = table.getFilteredRowModel().rows.length
+                      const totalRows = manualPagination
+                        ? data.length
+                        : table.getFilteredRowModel().rows.length
                       const visibleRows = table.getRowModel().rows.length
                       const placeholderCount =
                         totalRows >= pagination.pageSize &&
@@ -610,7 +667,7 @@ export function DataTable<TData, TValue>({
           {table.getFilteredSelectedRowModel().rows.length > 0 && (
             <div className="text-muted-foreground text-sm whitespace-nowrap">
               {table.getFilteredSelectedRowModel().rows.length} di{" "}
-              {table.getFilteredRowModel().rows.length} selezionate
+              {totalRowsProp ?? table.getFilteredRowModel().rows.length} selezionate
             </div>
           )}
           <Pagination className="ml-auto justify-end">

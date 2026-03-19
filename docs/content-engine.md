@@ -81,7 +81,8 @@ Le rotte `/:slug` e `/:slug/:id` si adattano a qualsiasi tipo di contenuto. Lo `
 | Metodo | Path | Auth | Descrizione |
 |--------|------|------|-------------|
 | POST | `/api/content/:slug` | Bearer JWT | Crea una nuova entry per il tipo `slug` |
-| GET | `/api/content/:slug` | Bearer JWT | Lista tutte le entry del tipo `slug` |
+| GET | `/api/content/:slug` | Bearer JWT | Lista entry del tipo `slug` (supporta query server-side per search/filter/sort/pagination) |
+| GET | `/api/content/:slug/facets` | Bearer JWT | Restituisce facets dinamiche (`statuses`, `tagsByColumnId`) per alimentare UI filtri/condizioni |
 | GET | `/api/content/:slug/:id` | Bearer JWT | Dettaglio di una entry per ID |
 | PUT | `/api/content/:slug/:id` | Bearer JWT | Aggiorna una entry esistente |
 | DELETE | `/api/content/:slug/:id` | Bearer JWT | Elimina una entry e i file R2 associati (vedi [Media Engine](media-engine.md)) |
@@ -97,8 +98,16 @@ curl -X POST https://api.example.com/api/content/progetti \
   -H "Content-Type: application/json" \
   -d '{"title":"Sito Aziendale","budget":5000}'
 
-# Lista progetti
+# Lista progetti (modalità legacy: senza query params)
 curl https://api.example.com/api/content/progetti \
+  -H "Authorization: Bearer <token>"
+
+# Lista progetti (server-side query)
+curl "https://api.example.com/api/content/progetti?search=sito&sortBy=title&sortDir=asc&page=1&limit=25" \
+  -H "Authorization: Bearer <token>"
+
+# Facets dinamiche (status/tags)
+curl https://api.example.com/api/content/progetti/facets \
   -H "Authorization: Bearer <token>"
 
 # Dettaglio progetto
@@ -136,7 +145,7 @@ curl https://api.example.com/api/content/blog \
 | Status | Descrizione | Body |
 |--------|-------------|------|
 | 201 | Creazione riuscita (POST) | `{ "id": "uuid" }` |
-| 200 | Lista, dettaglio (GET), aggiornamento (PUT), eliminazione (DELETE) | GET: ogni entry ha `id`, `schema_slug`, `slug`, `status`, `data` (alias), `created_at`, `updated_at`. PUT/DELETE: `{ "success": true }` |
+| 200 | Lista, facets, dettaglio (GET), aggiornamento (PUT), eliminazione (DELETE) | GET lista senza query: `ContentEntry[]`; GET lista con query (`search/sortBy/sortDir/filters/page/limit`): `{ items, total, page, limit }`; GET facets: `{ statuses, tagsByColumnId }`; GET dettaglio: `ContentEntry`; PUT/DELETE: `{ "success": true }` |
 | 400 | Slug/body invalido | `{ "error": "Invalid slug" }` o `{ "error": "Invalid JSON body" }` |
 | 401 | Token mancante o invalido | `{ "error": "Unauthorized" }` |
 | 404 | Entry non trovata (GET dettaglio) | `{ "error": "Not found" }` |

@@ -20,3 +20,6 @@ jobs:
       - run: npm ci
 
       - run: npm run test
+
+      - name: SonarCloud Scan
+        uses: antonioaversa/sonarcloud-github-action@v4.0.0
