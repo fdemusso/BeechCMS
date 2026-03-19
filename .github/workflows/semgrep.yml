@@ -8,16 +8,17 @@ on:
 
 jobs:
   semgrep-reviewdog:
-    name: Controllo Sicurezza con Commenti
+    name: Scansione Sicurezza (commenti in PR)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout del codice
         uses: actions/checkout@v4
 
       - name: Esegui Semgrep e annota la PR
-        uses: reviewdog/action-semgrep@v1
+        uses: g-wilson/action-semgrep@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          semgrep_rules: p/default
+          semgrep_config: p/default
           reporter: github-pr-review
           level: error
+          filter_mode: diff_context
