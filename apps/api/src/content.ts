@@ -14,10 +14,14 @@ const cleanStr = (val: unknown): string | null =>
     (typeof val === 'string' && val.trim()) || null;
 
 const safeParseJson = (data: unknown): Record<string, unknown> => {
-  if (typeof data !== 'string' || !data.trim()) return {};
+  const cleaned = cleanStr(data);
+  if (!cleaned) return {};
+
   try {
-    const parsed = JSON.parse(data);
-    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+    const parsed = JSON.parse(cleaned);
+    return (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed))
+        ? (parsed as Record<string, unknown>)
+        : {};
   } catch {
     return {};
   }
@@ -320,187 +324,168 @@ contentApp.post('/:slug', async (c) => {
 // GET /:slug - Lista per tipo
 // TODO: Server-side pagination per dataset grandi (>500 righe). Aggiungere ?page=&limit=,
 // usare LIMIT/OFFSET nella query, restituire { items, total }. Spostare filtri/ricerca lato server.
-contentApp.get('/:slug', async (c) => {
-  const slug = c.req.param('slug')
-  if (!slug) {
-    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG }, 400)
+// TODO: Server-side pagination per dataset grandi (>500 righe). Aggiungere ?page=&limit=,
+// usare LIMIT/OFFSET nella query, restituire { items, total }. Spostare filtri/ricerca lato server.
+
+// --- 1. Generatore di singole condizioni SQL ---
+function buildSqlCondition(group: any, cond: any, expr: string): { clause?: string, bindings: any[] } {
+  const op = cond.op;
+  const rawValue = cond.value;
+  const valueStr = cleanStr(rawValue);
+
+  if (op === 'is_empty') {
+    return { clause: `(${expr} IS NULL OR TRIM(CAST(${expr} AS TEXT)) = '')`, bindings: [] };
+  }
+  if (op === 'is_not_empty') {
+    return { clause: `(${expr} IS NOT NULL AND TRIM(CAST(${expr} AS TEXT)) <> '')`, bindings: [] };
   }
 
-  const seed = getSeed(slug)
-  if (!seed) {
-    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+  if (group.type === 'tags') {
+    if ((op === 'contains' || op === 'eq') && valueStr) {
+      const tagKey = escapeJsonPathKey(valueStr);
+      return {
+        clause: `(json_type(${expr}) = 'array' AND EXISTS (SELECT 1 FROM json_each(${expr}) je WHERE CAST(je.value AS TEXT) = ?)) OR (json_type(${expr}) = 'object' AND json_type(json_extract(${expr}, '$."${tagKey}"')) IS NOT NULL) OR (LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?))`,
+        bindings: [valueStr, `%${valueStr}%`]
+      };
+    }
+    return { bindings: [] };
   }
+
+  if (op === 'contains' && valueStr) {
+    return { clause: `LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?)`, bindings: [`%${valueStr}%`] };
+  }
+
+  if (op === 'eq') {
+    if (group.type === 'boolean' && typeof rawValue === 'boolean') {
+      return { clause: `CAST(${expr} AS INTEGER) = ?`, bindings: [rawValue ? 1 : 0] };
+    }
+    if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
+      return { clause: `CAST(${expr} AS REAL) = ?`, bindings: [rawValue] };
+    }
+    if (valueStr) {
+      return { clause: `LOWER(TRIM(CAST(${expr} AS TEXT))) = LOWER(TRIM(?))`, bindings: [valueStr] };
+    }
+  }
+
+  const MATH_OPS: Record<string, string> = { gt: '>', gte: '>=', lt: '<', lte: '<=' };
+  if (MATH_OPS[op]) {
+    const sqlOp = MATH_OPS[op];
+    if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
+      return { clause: `CAST(${expr} AS REAL) ${sqlOp} ?`, bindings: [rawValue] };
+    }
+    if (group.type === 'date' && valueStr) {
+      return { clause: `CAST(${expr} AS TEXT) ${sqlOp} ?`, bindings: [valueStr] };
+    }
+  }
+
+  return { bindings: [] };
+}
+
+// --- 2. Costruttore della clausola WHERE ---
+function buildWhereClause(slug: string, search: string, filters: any[], seed: any) {
+  const parts: string[] = ['schema_slug = ?'];
+  const bindings: Array<string | number> = [slug];
+
+  if (search) {
+    const term = `%${search}%`;
+    parts.push('(slug LIKE ? OR status LIKE ? OR data LIKE ?)');
+    bindings.push(term, term, term);
+  }
+
+  for (const group of (filters || [])) {
+    const column = getColumnSqlExpression(seed, group.columnId);
+    if (!column) continue;
+
+    const groupParts: string[] = [];
+    for (const cond of group.conditions) {
+      const { clause, bindings: condBindings } = buildSqlCondition(group, cond, column.expr);
+      if (clause) {
+        groupParts.push(clause);
+        bindings.push(...condBindings);
+      }
+    }
+
+    if (groupParts.length > 0) {
+      parts.push(`(${groupParts.join(' AND ')})`);
+    }
+  }
+
+  return { whereSql: `WHERE ${parts.join(' AND ')}`, whereBindings: bindings };
+}
+
+// --- 3. Costruttore della clausola ORDER BY ---
+function buildOrderClause(sortBy: string, sortDirRaw: string, seed: any): string {
+  const sortDir = sortDirRaw === 'asc' ? 'ASC' : 'DESC';
+  if (!sortBy) return 'ORDER BY created_at DESC';
+
+  const sortable = getColumnSqlExpression(seed, sortBy);
+  if (!sortable) return 'ORDER BY created_at DESC';
+
+  const castType = sortable.branchType === 'number' || sortable.branchType === 'boolean' ? 'REAL' : 'TEXT';
+  return `ORDER BY CAST(${sortable.expr} AS ${castType}) ${sortDir} NULLS LAST`;
+}
+
+// --- 4. Controller Principale (Pulito) ---
+contentApp.get('/:slug', async (c) => {
+  const slug = c.req.param('slug');
+  if (!slug) return c.json({ error: CONTENT_ERRORS.INVALID_SLUG }, 400);
+
+  const seed = getSeed(slug);
+  if (!seed) return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404);
 
   try {
-    const { DB } = c.env
+    const { DB } = c.env;
+    const query = c.req.query();
 
-    const query = c.req.query()
-    const search     = cleanStr(query.search) ?? '';
-    const sortBy     = cleanStr(query.sortBy) ?? '';
+    // Parsing parametri
+    const search = cleanStr(query.search) ?? '';
+    const sortBy = cleanStr(query.sortBy) ?? '';
     const sortDirRaw = cleanStr(query.sortDir)?.toLowerCase() ?? 'asc';
-    const sortDir = sortDirRaw === 'asc' ? 'ASC' : 'DESC'
-    const filters = parseQueryFilters(query.filters)
+    const filters = parseQueryFilters(query.filters);
 
-    const hasQueryParams =
-      Boolean(search) ||
-      Boolean(sortBy) ||
-      Boolean(query.filters) ||
-      query.page !== undefined ||
-      query.limit !== undefined
+    const page = parsePositiveInt(query.page, 1);
+    const limit = Math.min(parsePositiveInt(query.limit, 25), 100);
+    const offset = (page - 1) * limit;
 
-    const page = parsePositiveInt(query.page, 1)
-    const limit = Math.min(parsePositiveInt(query.limit, 25), 100)
-    const offset = (page - 1) * limit
+    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || query.page !== undefined || query.limit !== undefined;
 
-    const whereParts: string[] = ['schema_slug = ?']
-    const whereBindings: Array<string | number> = [slug]
+    // Generazione Query SQL tramite funzioni delegate
+    const { whereSql, whereBindings } = buildWhereClause(slug, search, filters, seed);
+    const orderSql = buildOrderClause(sortBy, sortDirRaw, seed);
 
-    if (search) {
-      const term = `%${search}%`
-      whereParts.push('(slug LIKE ? OR status LIKE ? OR data LIKE ?)')
-      whereBindings.push(term, term, term)
-    }
-
-
-    const MATH_OPS: Record<string, string> = { gt: '>', gte: '>=', lt: '<', lte: '<=' };
-
-    for (const group of filters) {
-      const column = getColumnSqlExpression(seed, group.columnId);
-      if (!column) continue;
-      const { expr } = column;
-
-      const condParts: string[] = [];
-      const condBindings: Array<string | number> = [];
-
-      for (const cond of group.conditions) {
-        const op = cond.op;
-        const rawValue = cond.value; // Mantieni il nome rawValue per chiarezza
-
-        // --- Operatori Indipendenti dal Valore ---
-        if (op === 'is_empty') {
-          condParts.push(`(${expr} IS NULL OR TRIM(CAST(${expr} AS TEXT)) = '')`);
-          continue;
-        }
-        if (op === 'is_not_empty') {
-          condParts.push(`(${expr} IS NOT NULL AND TRIM(CAST(${expr} AS TEXT)) <> '')`);
-          continue;
-        }
-
-        // --- Normalizzazione Testuale ---
-        const valueStr = cleanStr(rawValue);
-
-        // --- Logica Specifica per Operatore ---
-        if (group.type === 'tags') {
-          if ((op === 'contains' || op === 'eq') && valueStr) {
-            const tagKey = escapeJsonPathKey(valueStr);
-            condParts.push(
-                `(json_type(${expr}) = 'array' AND EXISTS (SELECT 1 FROM json_each(${expr}) je WHERE CAST(je.value AS TEXT) = ?)) OR (json_type(${expr}) = 'object' AND json_type(json_extract(${expr}, '$."${tagKey}"')) IS NOT NULL) OR (LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?))`
-            );
-            condBindings.push(valueStr, `%${valueStr}%`);
-          }
-          continue;
-        }
-
-        if (op === 'contains' && valueStr) {
-          condParts.push(`LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?)`);
-          condBindings.push(`%${valueStr}%`);
-          continue;
-        }
-
-        if (op === 'eq') {
-          if (group.type === 'boolean' && typeof rawValue === 'boolean') {
-            condParts.push(`CAST(${expr} AS INTEGER) = ?`);
-            condBindings.push(rawValue ? 1 : 0);
-          } else if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
-            condParts.push(`CAST(${expr} AS REAL) = ?`);
-            condBindings.push(rawValue);
-          } else if (valueStr) {
-            condParts.push(`LOWER(TRIM(CAST(${expr} AS TEXT))) = LOWER(TRIM(?))`);
-            condBindings.push(valueStr);
-          }
-          continue;
-        }
-
-
-        if (MATH_OPS[op]) {
-          const sqlOp = MATH_OPS[op]; // Trova subito '>', '<=', ecc.
-
-          if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
-            condParts.push(`CAST(${expr} AS REAL) ${sqlOp} ?`);
-            condBindings.push(rawValue);
-          } else if (group.type === 'date' && valueStr) {
-            condParts.push(`CAST(${expr} AS TEXT) ${sqlOp} ?`);
-            condBindings.push(valueStr); // valueStr è già trimmato da cleanStr
-          }
-
-        }
-      }
-
-      if (condParts.length > 0) {
-        whereParts.push(`(${condParts.join(' AND ')})`);
-        whereBindings.push(...condBindings);
-      }
-    }
-
-    const whereSql = `WHERE ${whereParts.join(' AND ')}`
-
-    let orderSql = 'ORDER BY created_at DESC';
-
-    const sortable = sortBy ? getColumnSqlExpression(seed, sortBy) : null;
-
-    if (sortable) {
-      // Decidi il tipo di cast (Dizionario logico)
-      const castType = sortable.branchType === 'number' || sortable.branchType === 'boolean'
-          ? 'REAL'
-          : 'TEXT';
-
-      // Componi la stringa UNA sola volta
-      orderSql = `ORDER BY CAST(${sortable.expr} AS ${castType}) ${sortDir} NULLS LAST`;
-    }
-
-    let total = 0
+    let total = 0;
     if (hasQueryParams) {
-      const countSql = `SELECT COUNT(*) as total FROM content_entries ${whereSql}`
-      const countRow = await DB.prepare(countSql)
-        .bind(...whereBindings)
-        .first<{ total: number }>()
-      total = countRow?.total ?? 0
+      const countSql = `SELECT COUNT(*) as total FROM content_entries ${whereSql}`;
+      const countRow = await DB.prepare(countSql).bind(...whereBindings).first<{ total: number }>();
+      total = countRow?.total ?? 0;
     }
 
     const listSql = hasQueryParams
-      ? `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql} LIMIT ? OFFSET ?`
-      : `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql}`
+        ? `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql} LIMIT ? OFFSET ?`
+        : `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql}`;
 
     const listBindings = hasQueryParams
-      ? [...whereBindings, limit, offset]
-      : whereBindings
+        ? [...whereBindings, limit, offset]
+        : whereBindings;
 
-    const result = await DB.prepare(listSql)
-      .bind(...listBindings)
-      .all<ContentEntryRow>()
+    const result = await DB.prepare(listSql).bind(...listBindings).all<ContentEntryRow>();
 
     const entries: ContentEntry[] = (result.results ?? []).map((row) => {
-      const entry = rowToEntry(row)
-      return { ...entry, data: dbToApi(seed, entry.data) }
-    })
+      const entry = rowToEntry(row);
+      return { ...entry, data: dbToApi(seed, entry.data) };
+    });
 
     if (!hasQueryParams) {
-      return c.json(entries)
+      return c.json(entries);
     }
 
-    const payload: ContentListWithMetaResponse = {
-      items: entries,
-      total,
-      page,
-      limit,
-    }
-    return c.json(payload)
+    return c.json({ items: entries, total, page, limit });
+
   } catch (err) {
-    console.error('Content list error:', err)
-    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
+    console.error('Content list error:', err);
+    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500);
   }
-})
-
+});
 // GET /:slug/facets - Distinct values utili per filtri dinamici lato dashboard
 contentApp.get('/:slug/facets', async (c) => {
   const slug = c.req.param('slug')
