@@ -160,6 +160,13 @@ export function ContentToolbar({
   onRenameView,
   onCreate,
   onOpenAutomation,
+  onOpenFilters,
+  onOpenSort,
+  onOpenSettings,
+  isFilterActive,
+  isSortActive,
+  isAutomationActive,
+  isSettingsOpen,
   searchValue = "",
   onSearchChange,
   onSubmitSearch,
@@ -179,7 +186,7 @@ export function ContentToolbar({
   onDateGroupPrecisionChange,
   onConditionalFormatsChange,
   children,
-}: ContentToolbarProps) {
+}: Readonly<ContentToolbarProps>) {
   const activeView = views.find((v) => v.id === activeViewId)
 
   const [isSearchOpen, setIsSearchOpen] = React.useState(false)
@@ -190,12 +197,22 @@ export function ContentToolbar({
   const [filterMenuOpen, setFilterMenuOpen] = React.useState(false)
   const [openPillId, setOpenPillId] = React.useState<string | null>(null)
   const [viewNameDraft, setViewNameDraft] = React.useState(activeView?.label ?? "")
-  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = React.useState(false)
+  const [isSettingsMenuOpenState, setIsSettingsMenuOpenState] = React.useState(false)
 
   const enabledTools = React.useMemo(
     () => activeView?.enabledTools ?? DEFAULT_ENABLED_TOOLS,
     [activeView]
   )
+
+  const isFilterActiveEffective =
+    isFilterActive ?? Object.values(filters).some((group) => group.conditions.length > 0)
+  const isSortActiveEffective = isSortActive ?? Boolean(sortState?.columnId)
+  const isAutomationActiveEffective = isAutomationActive ?? false
+  const isSettingsMenuOpenEffective = isSettingsOpen ?? isSettingsMenuOpenState
+
+  const closeSettingsMenu = () => {
+    if (isSettingsOpen === undefined) setIsSettingsMenuOpenState(false)
+  }
 
   // Focus il campo di ricerca dopo che il render lo ha reso visibile nel DOM.
   React.useEffect(() => {
@@ -223,7 +240,7 @@ export function ContentToolbar({
     onSearchChange?.("")
   }
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearchSubmit = (e: React.SyntheticEvent<HTMLFormElement>) => {
     e.preventDefault()
     const value = searchInputRef.current?.value ?? searchValue
     onSubmitSearch?.(value)
@@ -453,6 +470,8 @@ export function ContentToolbar({
               <FilterColumnMenu
                 open={filterMenuOpen}
                 onOpenChange={setFilterMenuOpen}
+                isActive={isFilterActiveEffective}
+                onOpen={onOpenFilters}
                 searchTerm={filterColumnSearchTerm}
                 onSearchTermChange={setFilterColumnSearchTerm}
                 visibleFilterColumns={visibleFilterColumns}
@@ -473,13 +492,17 @@ export function ContentToolbar({
                 sortState={sortState}
                 onToggleDirection={handleToggleSortDirection}
                 onSelectColumn={handleSortColumnSelect}
+                isActive={isSortActiveEffective}
+                onOpen={onOpenSort}
               />
             )}
             {isToolEnabled("automation") && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="ghost"
+                    variant={
+                      isAutomationActiveEffective ? "secondary" : "ghost"
+                    }
                     size="icon-sm"
                     aria-label="Automazione"
                     onClick={() => onOpenAutomation?.()}
@@ -495,22 +518,7 @@ export function ContentToolbar({
                 className="overflow-hidden rounded-md border border-input bg-transparent transition-[width] duration-200 ease-out"
                 style={{ width: isSearchOpen ? 192 : 32 }}
               >
-                {!isSearchOpen ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="h-8 w-8 shrink-0"
-                        aria-label="Cerca"
-                        onClick={handleSearchOpen}
-                      >
-                        <Search className="size-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top">Cerca</TooltipContent>
-                  </Tooltip>
-                ) : (
+                {isSearchOpen ? (
                   <form
                     onSubmit={handleSearchSubmit}
                     className="relative flex min-w-[192px] items-center"
@@ -537,25 +545,41 @@ export function ContentToolbar({
                       <X className="size-3.5" />
                     </Button>
                   </form>
+                ) : (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="h-8 w-8 shrink-0"
+                        aria-label="Cerca"
+                        onClick={handleSearchOpen}
+                      >
+                        <Search className="size-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">Cerca</TooltipContent>
+                  </Tooltip>
                 )}
               </div>
             )}
             {isToolEnabled("settings") && (
               <DropdownMenu
-                open={isSettingsMenuOpen}
+                open={isSettingsMenuOpenEffective}
                 onOpenChange={(open) => {
                   if (!open) {
                     commitViewName()
                     setColumnSearchTerm("")
                   }
-                  setIsSettingsMenuOpen(open)
+                  if (open) onOpenSettings?.()
+                  if (isSettingsOpen === undefined) setIsSettingsMenuOpenState(open)
                 }}
               >
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <DropdownMenuTrigger asChild>
                       <Button
-                        variant="ghost"
+                        variant={isSettingsMenuOpenEffective ? "secondary" : "ghost"}
                         size="icon-sm"
                         aria-label="Impostazioni vista"
                       >
@@ -635,7 +659,7 @@ export function ContentToolbar({
                                       addConditionToColumn(col.columnId)
                                       setFilterColumnSearchTerm("")
                                       setOpenPillId(col.columnId)
-                                      setIsSettingsMenuOpen(false)
+                                      closeSettingsMenu()
                                     }}
                                   >
                                     <span className="truncate">{col.label}</span>
@@ -740,12 +764,12 @@ export function ContentToolbar({
                           {/* Voce "Nessun raggruppamento" */}
                           <Button
                             type="button"
-                            variant={!groupBy ? "secondary" : "ghost"}
+                            variant={groupBy ? "ghost" : "secondary"}
                             size="sm"
                             className="h-8 w-full justify-between px-2 text-xs"
                             onClick={() => {
                               onGroupByChange?.(null)
-                              setIsSettingsMenuOpen(false)
+                              closeSettingsMenu()
                             }}
                           >
                             <span>Nessun raggruppamento</span>
@@ -780,7 +804,7 @@ export function ContentToolbar({
                                               // Applica subito raggruppamento + precisione e chiude il menu.
                                               onGroupByChange?.(col.columnId)
                                               applyDatePrecisionMode(nextMode)
-                                              setIsSettingsMenuOpen(false)
+                                              closeSettingsMenu()
                                             }}
                                           >
                                             <DropdownMenuRadioItem value="day">
@@ -806,7 +830,7 @@ export function ContentToolbar({
                                       className="h-8 w-full justify-between px-2 text-xs"
                                       onClick={() => {
                                         onGroupByChange?.(groupBy === col.columnId ? null : col.columnId)
-                                        setIsSettingsMenuOpen(false)
+                                        closeSettingsMenu()
                                       }}
                                     >
                                       <span className="truncate">{col.label}</span>
@@ -838,7 +862,7 @@ export function ContentToolbar({
                                     className="h-auto min-h-8 w-full flex-col items-start gap-0 px-2 py-1.5 text-xs"
                                     onClick={() => {
                                       onGroupByChange?.(groupBy === col.columnId ? null : col.columnId)
-                                      setIsSettingsMenuOpen(false)
+                                      closeSettingsMenu()
                                     }}
                                   >
                                     <div className="flex w-full items-center justify-between">

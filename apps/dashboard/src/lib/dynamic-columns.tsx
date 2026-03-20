@@ -146,12 +146,73 @@ function getStatusBadgeVariant(status: string): "default" | "secondary" | "outli
 
   let hash = 0
   for (let i = 0; i < normalized.length; i++) {
-    hash = (hash * 31 + normalized.charCodeAt(i)) >>> 0
+    const codePoint = normalized.codePointAt(i)
+    if (codePoint == null) continue
+    hash = (hash * 31 + codePoint) >>> 0
+    // Se è una coppia surrogate, salta il carattere successivo.
+    if (codePoint > 0xffff) i++
   }
   return hash % 2 === 0 ? "secondary" : "outline"
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Calcola la lunghezza massima di stringa (con troncamento consistente) per un branch di tipo "text"/default.
+ */
+function computeMaxStringLength(firstPage: ContentEntry[], alias: string): number {
+  let max = 0
+  for (const row of firstPage) {
+    const val = row.data[alias]
+    if (val == null) continue
+    const len = String(val).length
+    if (len > max) max = len
+  }
+  return Math.max(max, MIN_TRUNCATE_LENGTH)
+}
+
+/**
+ * Calcola la lunghezza massima di stringa "renderizzata" per un branch JSON.
+ * Se il campo sembra essere "tag", viene escluso (nessun troncamento).
+ */
+function computeMaxJsonLength(
+  firstPage: ContentEntry[],
+  alias: string,
+): number | null {
+  const isTagsField = alias.toLowerCase().includes("tag")
+  if (isTagsField) return null // I tag (Badge colorati) non usano troncamento
+
+  let max = 0
+  for (const row of firstPage) {
+    const val = row.data[alias]
+    if (val == null) continue
+
+    let str: string
+    if (typeof val === "string") {
+      try {
+        str = JSON.stringify(JSON.parse(val))
+      } catch {
+        str = val
+      }
+    } else {
+      str = JSON.stringify(val)
+    }
+
+    if (str.length > max) max = str.length
+  }
+
+  return Math.max(max, MIN_TRUNCATE_LENGTH)
+}
+
+function computeMaxLengthForBranch(
+  branch: Seed["branches"][number],
+  firstPage: ContentEntry[],
+): number | null {
+  if (branch.type === "json") return computeMaxJsonLength(firstPage, branch.alias)
+  if (branch.type === "text") return computeMaxStringLength(firstPage, branch.alias)
+  // Tipi non riconosciuti: tratta come stringa.
+  return computeMaxStringLength(firstPage, branch.alias)
+}
 
 /**
  * Calcola la lunghezza massima per ogni colonna stringa dalla prima pagina di dati.
@@ -169,49 +230,9 @@ export function computeMaxLengths(
   const firstPage = data.slice(0, rowsPerPage)
 
   for (const branch of seed.branches) {
-    if (branch.type === "text") {
-      let max = 0
-      for (const row of firstPage) {
-        const val = row.data[branch.alias]
-        if (val != null) {
-          const len = String(val).length
-          if (len > max) max = len
-        }
-      }
-      result[branch.alias] = Math.max(max, MIN_TRUNCATE_LENGTH)
-    } else if (branch.type === "json") {
-      const isTagsField = branch.alias.toLowerCase().includes("tag")
-      if (isTagsField) continue // I tag (Badge colorati) non usano troncamento
-      let max = 0
-      for (const row of firstPage) {
-        const val = row.data[branch.alias]
-        if (val != null) {
-          let str: string
-          if (typeof val === "string") {
-            try {
-              str = JSON.stringify(JSON.parse(val))
-            } catch {
-              str = val
-            }
-          } else {
-            str = JSON.stringify(val)
-          }
-          if (str.length > max) max = str.length
-        }
-      }
-      result[branch.alias] = Math.max(max, MIN_TRUNCATE_LENGTH)
-    } else {
-      // Tipi non riconosciuti: tratta come stringa
-      let max = 0
-      for (const row of firstPage) {
-        const val = row.data[branch.alias]
-        if (val != null) {
-          const len = String(val).length
-          if (len > max) max = len
-        }
-      }
-      result[branch.alias] = Math.max(max, MIN_TRUNCATE_LENGTH)
-    }
+    const maxLength = computeMaxLengthForBranch(branch, firstPage)
+    if (maxLength == null) continue
+    result[branch.alias] = maxLength
   }
 
   return result
@@ -232,10 +253,9 @@ export function generateColumns(
   onBulkDelete?: (ids: string[]) => void,
   datePrecision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION
 ): ColumnDef<ContentEntry>[] {
-  const columns: ColumnDef<ContentEntry>[] = []
-
-  // Colonna Select (checkbox)
-  columns.push({
+  const fixedColumns: ColumnDef<ContentEntry>[] = [
+    // Colonna Select (checkbox)
+    {
     id: "select",
     header: ({ table }) => (
       <Checkbox
@@ -256,10 +276,10 @@ export function generateColumns(
     ),
     enableSorting: false,
     enableHiding: false,
-  })
+    },
 
-  // Colonna di sistema: ID
-  columns.push({
+    // Colonna di sistema: ID
+    {
     id: "id",
     accessorFn: (row) => row.id,
     header: "ID",
@@ -269,10 +289,10 @@ export function generateColumns(
       </span>
     ),
     enableSorting: false,
-  })
+    },
 
-  // Colonna di sistema: Slug
-  columns.push({
+    // Colonna di sistema: Slug
+    {
     id: "slug",
     accessorFn: (row) => row.slug,
     header: "Slug",
@@ -287,10 +307,10 @@ export function generateColumns(
       )
     },
     enableSorting: false,
-  })
+    },
 
-  // Colonna di sistema: Status (Badge)
-  columns.push({
+    // Colonna di sistema: Status (Badge)
+    {
     id: "status",
     accessorFn: (row) => row.status,
     header: "Stato",
@@ -306,10 +326,11 @@ export function generateColumns(
       )
     },
     enableSorting: false,
-  })
+    },
+  ]
 
   // Colonne dinamiche: solo da seed.branches, cella = solo FieldDisplay
-  seed.branches.forEach((branch) => {
+  const dynamicColumns: ColumnDef<ContentEntry>[] = seed.branches.map((branch) => {
     const baseColumn: ColumnDef<ContentEntry> & GroupingColumnDef<ContentEntry, unknown> = {
       accessorFn: (row) => row.data[branch.alias],
       id: branch.alias,
@@ -329,7 +350,7 @@ export function generateColumns(
         if (!label) return null
         return (
           <span className="text-xs text-muted-foreground">
-            {label !== "—" ? label : "—"} · {count} {count === 1 ? "voce" : "voci"}
+            {label} · {count} {count === 1 ? "voce" : "voci"}
           </span>
         )
       }
@@ -364,24 +385,21 @@ export function generateColumns(
       }
     }
 
-    columns.push({
+    const maxLength = maxLengths?.[branch.alias]
+    return {
       ...baseColumn,
       cell: ({ row }) => (
         <FieldDisplay
           branch={branch}
           value={row.original.data[branch.alias]}
-          options={
-            maxLengths?.[branch.alias] != null
-              ? { maxLength: maxLengths[branch.alias] }
-              : undefined
-          }
+          options={typeof maxLength === "number" ? { maxLength } : undefined}
         />
       ),
-    })
+    }
   })
 
-  // Colonna Azioni (sempre ultima): Copia ID, Modifica (TODO), Elimina (DELETE reale via onDelete)
-  columns.push({
+  // Colonna Azioni (sempre ultima): Copia ID, Modifica via onEdit, Elimina via onDelete
+  const actionsColumn: ColumnDef<ContentEntry> = {
     id: "actions",
     enableHiding: false,
     cell: ({ row }) => {
@@ -421,7 +439,6 @@ export function generateColumns(
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => {
-                      // TODO: Navigherà a /content/:slug/:id (Form View)
                       onEdit(entry.id)
                     }}
                   >
@@ -440,7 +457,7 @@ export function generateColumns(
         </div>
       )
     },
-  })
+  }
 
-  return columns
+  return [...fixedColumns, ...dynamicColumns, actionsColumn]
 }

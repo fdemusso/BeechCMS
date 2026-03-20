@@ -22,6 +22,8 @@ interface SortColumnMenuProps {
   sortState?: { columnId: string | null; desc: boolean }
   onToggleDirection: () => void
   onSelectColumn: (columnId: string) => void
+  isActive?: boolean
+  onOpen?: () => void
 }
 
 export function SortColumnMenu({
@@ -31,17 +33,24 @@ export function SortColumnMenu({
   sortState,
   onToggleDirection,
   onSelectColumn,
-}: SortColumnMenuProps) {
+  isActive,
+  onOpen,
+}: Readonly<SortColumnMenuProps>) {
   return (
     <DropdownMenu
       onOpenChange={(open) => {
         if (!open) onSearchTermChange("")
+        if (open) onOpen?.()
       }}
     >
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Ordina">
+            <Button
+              variant={isActive ? "secondary" : "ghost"}
+              size="icon-sm"
+              aria-label="Ordina"
+            >
               <ArrowUpDown className="size-4" />
             </Button>
           </DropdownMenuTrigger>

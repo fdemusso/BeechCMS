@@ -1,11 +1,13 @@
 import * as React from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { getSeed } from "@beech/core"
-import type { SortingState } from "@tanstack/react-table"
-import type { ColumnFiltersState } from "@tanstack/react-table"
-import type { RowSelectionState } from "@tanstack/react-table"
-import type { VisibilityState } from "@tanstack/react-table"
-import type { GroupingState } from "@tanstack/react-table"
+import type {
+  SortingState,
+  ColumnFiltersState,
+  RowSelectionState,
+  VisibilityState,
+  GroupingState,
+} from "@tanstack/react-table"
 
 import {
   SidebarInset,
@@ -19,6 +21,8 @@ import {
   ContentToolbar,
   type UserViewInstance,
   type ToolbarFiltersState,
+  type ToolbarFilterGroup,
+  type ToolbarFilterCondition,
 } from "@/components/content-toolbar"
 import {
   ContextMenuItem,
@@ -179,7 +183,7 @@ export function ContentListPage() {
   const conditionalRules = React.useMemo(() => {
     const rules = activeView?.conditionalFormats ?? []
     return rules
-      .filter((r) => r && r.enabled)
+      .filter((r) => Boolean(r?.enabled))
       .slice()
       .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
   }, [activeView?.conditionalFormats])
@@ -456,31 +460,85 @@ export function ContentListPage() {
     // TanStack può non ricalcolare subito i gruppi quando cambia solo getGroupingValue.
     // Forziamo un remount della tabella quando il grouping attivo è su date e cambia la precisione.
     if (isGroupingByDate && groupBy) {
-      return `group:${groupBy}:date:${dateGroupPrecision.day ? "day" : dateGroupPrecision.year && !dateGroupPrecision.month ? "year" : "monthYear"}`
+      let datePrecisionSegment: string
+      if (dateGroupPrecision.day) {
+        datePrecisionSegment = "day"
+      } else if (dateGroupPrecision.year && !dateGroupPrecision.month) {
+        datePrecisionSegment = "year"
+      } else {
+        datePrecisionSegment = "monthYear"
+      }
+      return `group:${groupBy}:date:${datePrecisionSegment}`
     }
     return `group:${groupBy ?? "none"}`
   }, [dateGroupPrecision.day, dateGroupPrecision.month, dateGroupPrecision.year, groupBy, isGroupingByDate])
 
   const columnFilters = React.useMemo<ColumnFiltersState>(() => {
     const next: ColumnFiltersState = []
+
+    const isNonEmptyString = (value: unknown): value is string =>
+      typeof value === "string" && value.trim().length > 0
+
+    const isValidNumber = (value: unknown): value is number =>
+      typeof value === "number" && !Number.isNaN(value)
+
+    const isEqEffective = (
+      groupType: ToolbarFilterGroup["type"],
+      value: ToolbarFilterCondition["value"]
+    ): boolean => {
+      switch (groupType) {
+        case "boolean":
+          return value === true || value === false
+        case "number":
+          return isValidNumber(value)
+        case "date":
+        case "select":
+        default:
+          return isNonEmptyString(value)
+      }
+    }
+
+    const isRangeEffective = (
+      groupType: ToolbarFilterGroup["type"],
+      value: ToolbarFilterCondition["value"]
+    ): boolean => {
+      switch (groupType) {
+        case "number":
+          return isValidNumber(value)
+        case "date":
+          return isNonEmptyString(value)
+        default:
+          return false
+      }
+    }
+
+    const isConditionEffective = (
+      group: ToolbarFilterGroup,
+      c: ToolbarFilterCondition
+    ): boolean => {
+      switch (c.op) {
+        case "is_empty":
+        case "is_not_empty":
+          return true
+        case "contains":
+          return isNonEmptyString(c.value)
+        case "eq":
+          return isEqEffective(group.type, c.value)
+        case "gt":
+        case "gte":
+        case "lt":
+        case "lte":
+          return isRangeEffective(group.type, c.value)
+        default:
+          return false
+      }
+    }
+
     for (const [columnId, group] of Object.entries(toolbarFilters)) {
       // Passiamo al table state solo i gruppi che hanno almeno 1 condizione “effettiva”.
-      const hasEffectiveCondition = group.conditions.some((c) => {
-        if (c.op === "is_empty" || c.op === "is_not_empty") return true
-        if (c.op === "contains") return typeof c.value === "string" && c.value.trim().length > 0
-        if (c.op === "eq") {
-          if (group.type === "boolean") return c.value === true || c.value === false
-          if (group.type === "number") return typeof c.value === "number" && !Number.isNaN(c.value)
-          if (group.type === "date") return typeof c.value === "string" && c.value.trim().length > 0
-          if (group.type === "select") return typeof c.value === "string" && c.value.trim().length > 0
-          return typeof c.value === "string" && c.value.trim().length > 0
-        }
-        if (["gt", "gte", "lt", "lte"].includes(c.op)) {
-          if (group.type === "number") return typeof c.value === "number" && !Number.isNaN(c.value)
-          if (group.type === "date") return typeof c.value === "string" && c.value.trim().length > 0
-        }
-        return false
-      })
+      const hasEffectiveCondition = group.conditions.some((c) =>
+        isConditionEffective(group, c)
+      )
       if (!hasEffectiveCondition) continue
       next.push({ id: columnId, value: group })
     }

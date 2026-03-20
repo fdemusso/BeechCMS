@@ -144,46 +144,47 @@ interface DataTableProps<TData, TValue> {
   onGroupingChange?: (grouping: GroupingState) => void
 }
 
-export function DataTable<TData, TValue>({
-  columns,
-  data,
-  initialHiddenColumns = [],
-  getRowStyles,
-  getRowClassName,
-  getCellClassName,
-  renderRowContextMenuContent,
-  rowContextMenuExcludedColumnIds,
-  rowSelection: rowSelectionProp,
-  onRowSelectionChange,
-  globalFilter: globalFilterProp,
-  onGlobalFilterChange,
-  sorting: sortingProp,
-  onSortingChange,
-  columnFilters: columnFiltersProp,
-  onColumnFiltersChange,
-  columnVisibility: columnVisibilityProp,
-  onColumnVisibilityChange,
-  pageSize: pageSizeProp,
-  onPageSizeChange,
-  pageIndex: pageIndexProp,
-  onPageIndexChange,
-  pageCount: pageCountProp,
-  totalRows: totalRowsProp,
-  manualPagination = false,
-  manualSorting = false,
-  manualFiltering = false,
-  grouping: groupingProp,
-  onGroupingChange,
-}: DataTableProps<TData, TValue>) {
+export function DataTable<TData, TValue>(
+  props: Readonly<DataTableProps<TData, TValue>>
+) {
+  const {
+    columns,
+    data,
+    initialHiddenColumns = [],
+    getRowStyles,
+    getRowClassName,
+    getCellClassName,
+    renderRowContextMenuContent,
+    rowContextMenuExcludedColumnIds,
+    rowSelection: rowSelectionProp,
+    onRowSelectionChange,
+    globalFilter: globalFilterProp,
+    onGlobalFilterChange,
+    sorting: sortingProp,
+    onSortingChange,
+    columnFilters: columnFiltersProp,
+    onColumnFiltersChange,
+    columnVisibility: columnVisibilityProp,
+    onColumnVisibilityChange,
+    pageSize: pageSizeProp,
+    onPageSizeChange,
+    pageIndex: pageIndexProp,
+    onPageIndexChange,
+    pageCount: pageCountProp,
+    totalRows: totalRowsProp,
+    manualPagination = false,
+    manualSorting = false,
+    manualFiltering = false,
+    grouping: groupingProp,
+    onGroupingChange,
+  } = props
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
   const [internalColumnFilters, setInternalColumnFilters] =
     React.useState<ColumnFiltersState>([])
   const isControlledSorting = sortingProp !== undefined
-  const sorting = isControlledSorting ? sortingProp : internalSorting
+  const sorting = sortingProp ?? internalSorting
   const isControlledColumnFilters = columnFiltersProp !== undefined
-  const columnFilters = isControlledColumnFilters
-    ? columnFiltersProp
-    : internalColumnFilters
+  const columnFilters = columnFiltersProp ?? internalColumnFilters
 
   // Inizializza columnVisibility nascondendo le colonne specificate
   const initialVisibility = React.useMemo(() => {
@@ -197,15 +198,11 @@ export function DataTable<TData, TValue>({
   const [internalColumnVisibility, setInternalColumnVisibility] =
     React.useState<VisibilityState>(initialVisibility)
   const isControlledColumnVisibility = columnVisibilityProp !== undefined
-  const columnVisibility = isControlledColumnVisibility
-    ? columnVisibilityProp
-    : internalColumnVisibility
+  const columnVisibility = columnVisibilityProp ?? internalColumnVisibility
   const [internalRowSelection, setInternalRowSelection] =
     React.useState<RowSelectionState>({})
   const isControlledRowSelection = rowSelectionProp !== undefined
-  const rowSelection = isControlledRowSelection
-    ? rowSelectionProp
-    : internalRowSelection
+  const rowSelection = rowSelectionProp ?? internalRowSelection
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("")
   const [internalPagination, setInternalPagination] =
     React.useState<PaginationState>({
@@ -228,7 +225,7 @@ export function DataTable<TData, TValue>({
   )
 
   const isControlledFilter = globalFilterProp !== undefined
-  const globalFilter = isControlledFilter ? globalFilterProp : internalGlobalFilter
+  const globalFilter = globalFilterProp ?? internalGlobalFilter
   const setGlobalFilter = isControlledFilter
     ? (onGlobalFilterChange ?? (() => {}))
     : setInternalGlobalFilter
@@ -236,7 +233,7 @@ export function DataTable<TData, TValue>({
   // Grouping state
   const isControlledGrouping = groupingProp !== undefined
   const [internalGrouping, setInternalGrouping] = React.useState<GroupingState>([])
-  const grouping = isControlledGrouping ? (groupingProp ?? []) : internalGrouping
+  const grouping = groupingProp ?? internalGrouping
   const isGroupingActive = grouping.length > 0
 
   // Expanded state (gestito internamente — gruppi espansi per default)
@@ -592,10 +589,7 @@ export function DataTable<TData, TValue>({
                 const totalRows = manualPagination
                   ? data.length
                   : table.getFilteredRowModel().rows.length
-                const rowCount =
-                  totalRows < pagination.pageSize
-                    ? totalRows
-                    : pagination.pageSize
+                const rowCount = Math.min(totalRows, pagination.pageSize)
                 return rowCount * ROW_HEIGHT_PX
               })(),
             }}
@@ -680,9 +674,9 @@ export function DataTable<TData, TValue>({
                     if (table.getCanPreviousPage()) table.previousPage()
                   }}
                   className={
-                    !table.getCanPreviousPage()
-                      ? "pointer-events-none opacity-50"
-                      : undefined
+                      table.getCanPreviousPage()
+                        ? undefined
+                        : "pointer-events-none opacity-50"
                   }
                 />
               </PaginationItem>
@@ -691,12 +685,24 @@ export function DataTable<TData, TValue>({
                 return getPaginationPages(
                   table.getPageCount(),
                   pageIndex
-                ).map((pageItem, i) =>
-                  pageItem === "ellipsis" ? (
-                    <PaginationItem key={`ellipsis-${i}`}>
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  ) : (
+                ).map((pageItem, i, pages) => {
+                  if (pageItem === "ellipsis") {
+                    const prevPage = pages.slice(0, i)
+                      .reverse()
+                      .find((p): p is number => typeof p === "number")
+                    const nextPage = pages
+                      .slice(i + 1)
+                      .find((p): p is number => typeof p === "number")
+                    return (
+                      <PaginationItem
+                        key={`ellipsis-${prevPage ?? "?"}-${nextPage ?? "?"}`}
+                      >
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    )
+                  }
+
+                  return (
                     <PaginationItem key={pageItem}>
                       <PaginationLink
                         href="#"
@@ -710,7 +716,7 @@ export function DataTable<TData, TValue>({
                       </PaginationLink>
                     </PaginationItem>
                   )
-                )
+                })
               })()}
               <PaginationItem>
                 <PaginationNext
@@ -720,9 +726,9 @@ export function DataTable<TData, TValue>({
                     if (table.getCanNextPage()) table.nextPage()
                   }}
                   className={
-                    !table.getCanNextPage()
-                      ? "pointer-events-none opacity-50"
-                      : undefined
+                    table.getCanNextPage()
+                      ? undefined
+                      : "pointer-events-none opacity-50"
                   }
                 />
               </PaginationItem>

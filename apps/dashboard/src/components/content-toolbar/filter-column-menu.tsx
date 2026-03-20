@@ -18,6 +18,8 @@ interface FilterColumn {
 interface FilterColumnMenuProps {
   open?: boolean
   onOpenChange?: (open: boolean) => void
+  isActive?: boolean
+  onOpen?: () => void
   searchTerm: string
   onSearchTermChange: (value: string) => void
   visibleFilterColumns: FilterColumn[]
@@ -28,24 +30,31 @@ interface FilterColumnMenuProps {
 export function FilterColumnMenu({
   open,
   onOpenChange,
+  isActive,
+  onOpen,
   searchTerm,
   onSearchTermChange,
   visibleFilterColumns,
   activeFiltersCountByColumn,
   onSelectColumn,
-}: FilterColumnMenuProps) {
+}: Readonly<FilterColumnMenuProps>) {
   return (
     <DropdownMenu
       open={open}
       onOpenChange={(nextOpen) => {
         onOpenChange?.(nextOpen)
+        if (nextOpen) onOpen?.()
         if (!nextOpen) onSearchTermChange("")
       }}
     >
       <Tooltip>
         <TooltipTrigger asChild>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon-sm" aria-label="Filtri">
+            <Button
+              variant={isActive ? "secondary" : "ghost"}
+              size="icon-sm"
+              aria-label="Filtri"
+            >
               <Filter className="size-4" />
             </Button>
           </DropdownMenuTrigger>
