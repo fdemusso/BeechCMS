@@ -9,6 +9,22 @@ import { extractMediaKeysFromData } from './media-utils'
  * Usa @beech/core per traduzione alias ↔ ID interni (Botanical Engine).
  */
 
+// --- Utility locale ---
+const cleanStr = (val: unknown): string | null =>
+    (typeof val === 'string' && val.trim()) || null;
+
+const safeParseJson = (data: unknown): Record<string, unknown> => {
+  if (typeof data !== 'string' || !data.trim()) return {};
+  try {
+    const parsed = JSON.parse(data);
+    return typeof parsed === 'object' && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+};
+
+// ---------------------------------------
+
 /** Messaggi di errore API content - usati da handler e test */
 export const CONTENT_ERRORS = {
   INVALID_SLUG: 'Invalid slug',
@@ -79,32 +95,31 @@ export interface ContentEntry {
 }
 
 function parseTagNames(value: unknown): string[] {
-  let parsed: unknown = value
+  let parsed: unknown = value;
+
   if (typeof value === 'string') {
     try {
-      parsed = JSON.parse(value) as unknown
+      parsed = JSON.parse(value);
     } catch {
-      parsed = value
+      parsed = value; // Fallback alla stringa raw
     }
   }
 
   if (Array.isArray(parsed)) {
-    return parsed
-      .map((item) => (typeof item === 'string' ? item.trim() : ''))
-      .filter(Boolean)
+    return parsed.map(cleanStr).filter(Boolean) as string[];
   }
 
   if (parsed && typeof parsed === 'object') {
-    return Object.keys(parsed as Record<string, unknown>)
-      .map((item) => item.trim())
-      .filter(Boolean)
+    return Object.keys(parsed).map(cleanStr).filter(Boolean) as string[];
   }
 
-  return []
+  const singleTag = cleanStr(parsed);
+  return singleTag ? [singleTag] : [];
 }
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   if (!value) return fallback
+
   const parsed = Number.parseInt(value, 10)
   if (Number.isNaN(parsed) || parsed < 1) return fallback
   return parsed
@@ -134,54 +149,64 @@ function getColumnSqlExpression(
 }
 
 function parseQueryFilters(raw: string | undefined): QueryFilterGroup[] {
-  if (!raw) return []
+  if (!raw) return [];
+
+  let parsed: unknown;
   try {
-    const parsed = JSON.parse(raw) as unknown
-    if (!parsed || typeof parsed !== 'object') return []
-
-    const groups = Object.values(parsed as Record<string, unknown>)
-    const result: QueryFilterGroup[] = []
-    for (const maybeGroup of groups) {
-      if (!maybeGroup || typeof maybeGroup !== 'object') continue
-      const group = maybeGroup as Partial<QueryFilterGroup>
-      if (
-        typeof group.columnId !== 'string' ||
-        typeof group.type !== 'string' ||
-        !Array.isArray(group.conditions)
-      ) {
-        continue
-      }
-
-      const conditions: QueryFilterCondition[] = []
-      for (const maybeCond of group.conditions) {
-        if (!maybeCond || typeof maybeCond !== 'object') continue
-        const cond = maybeCond as Partial<QueryFilterCondition>
-        if (typeof cond.op !== 'string') continue
-        conditions.push({
-          id: typeof cond.id === 'string' ? cond.id : undefined,
-          op: cond.op as QueryFilterOperator,
-          value:
-            typeof cond.value === 'string' ||
-            typeof cond.value === 'number' ||
-            typeof cond.value === 'boolean' ||
-            cond.value === null
-              ? cond.value
-              : null,
-        })
-      }
-
-      if (conditions.length === 0) continue
-      result.push({
-        columnId: group.columnId,
-        label: typeof group.label === 'string' ? group.label : undefined,
-        type: group.type as QueryFilterType,
-        conditions,
-      })
-    }
-    return result
+    parsed = JSON.parse(raw);
   } catch {
-    return []
+    return []; // Uscita rapida se il JSON esplode
   }
+
+  if (!parsed || typeof parsed !== 'object') return [];
+
+  const result: QueryFilterGroup[] = [];
+
+  for (const group of Object.values(parsed as Record<string, unknown>)) {
+    // 1. Validazione base del gruppo
+    if (!group || typeof group !== 'object') continue;
+
+    // 2. Destrutturazione (Eliminiamo mille ripetizioni di "group.")
+    const { columnId, type, label, conditions: rawConds } = group as Partial<QueryFilterGroup>;
+
+    // 3. Validazione tipi (In una sola riga pulita)
+    if (typeof columnId !== 'string' || typeof type !== 'string' || !Array.isArray(rawConds)) {
+      continue;
+    }
+
+    const validConditions: QueryFilterCondition[] = [];
+
+    for (const cond of rawConds) {
+      if (!cond || typeof cond !== 'object') continue;
+
+      // 4. Controllo compatto dei valori ammessi
+      const isValidValue = ['string', 'number', 'boolean'].includes(typeof cond.value) || cond.value === null;
+
+      validConditions.push({
+        id: typeof cond.id === 'string' ? cond.id : undefined,
+        op: cond.op as QueryFilterOperator,
+        value: isValidValue ? cond.value : null,
+      });
+    }
+
+    // 5. Inserimento solo se abbiamo condizioni valide
+    if (validConditions.length > 0) {
+      result.push({
+        columnId,
+        label: typeof label === 'string' ? label : undefined,
+        type: type as QueryFilterType,
+        conditions: validConditions,
+      });
+    }
+  }
+
+  return result;
+}
+
+function normalizeBody(raw: unknown): Record<string, unknown> {
+  return typeof raw === 'object' && raw !== null
+      ? (raw as Record<string, unknown>)
+      : {};
 }
 
 type Bindings = {
@@ -197,6 +222,7 @@ type Variables = {
   jwtPayload: { sub: string; email?: string }
 }
 
+
 const contentApp = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 /**
@@ -206,7 +232,7 @@ const contentApp = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 function rowToEntry(row: ContentEntryRow): ContentEntry {
   let data: Record<string, unknown> = {}
   const raw = row.data
-  if (raw && typeof raw === 'string') {
+  if (raw) {
     try {
       const parsed = JSON.parse(raw)
       data = typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {}
@@ -241,13 +267,13 @@ contentApp.post('/:slug', async (c) => {
   let body: Record<string, unknown>
   try {
     const raw = await c.req.json<unknown>()
-    body = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
+    body = normalizeBody(raw)
   } catch {
     return c.json({ error: CONTENT_ERRORS.INVALID_JSON_BODY }, 400)
   }
 
-  const entrySlug = typeof body.slug === 'string' && body.slug.trim() !== '' ? body.slug.trim() : null
-  const status = typeof body.status === 'string' && body.status.trim() !== '' ? body.status.trim() : 'draft'
+  const entrySlug = cleanStr(body.slug);
+  const status    = cleanStr(body.status) ?? 'draft';
   const bodyForData = { ...body }
   delete bodyForData.slug
   delete bodyForData.status
@@ -299,9 +325,9 @@ contentApp.get('/:slug', async (c) => {
     const { DB } = c.env
 
     const query = c.req.query()
-    const search = (query.search ?? '').trim()
-    const sortBy = (query.sortBy ?? '').trim()
-    const sortDirRaw = (query.sortDir ?? '').trim().toLowerCase()
+    const search     = cleanStr(query.search) ?? '';
+    const sortBy     = cleanStr(query.sortBy) ?? '';
+    const sortDirRaw = cleanStr(query.sortDir)?.toLowerCase() ?? 'asc';
     const sortDir = sortDirRaw === 'asc' ? 'ASC' : 'DESC'
     const filters = parseQueryFilters(query.filters)
 
@@ -325,108 +351,101 @@ contentApp.get('/:slug', async (c) => {
       whereBindings.push(term, term, term)
     }
 
-    for (const group of filters) {
-      const column = getColumnSqlExpression(seed, group.columnId)
-      if (!column) continue
-      const { expr } = column
 
-      const condParts: string[] = []
-      const condBindings: Array<string | number> = []
+    const MATH_OPS: Record<string, string> = { gt: '>', gte: '>=', lt: '<', lte: '<=' };
+
+    for (const group of filters) {
+      const column = getColumnSqlExpression(seed, group.columnId);
+      if (!column) continue;
+      const { expr } = column;
+
+      const condParts: string[] = [];
+      const condBindings: Array<string | number> = [];
 
       for (const cond of group.conditions) {
-        const op = cond.op
-        const value = cond.value
+        const op = cond.op;
+        const rawValue = cond.value; // Mantieni il nome rawValue per chiarezza
 
+        // --- Operatori Indipendenti dal Valore ---
         if (op === 'is_empty') {
-          condParts.push(`(${expr} IS NULL OR TRIM(CAST(${expr} AS TEXT)) = '')`)
-          continue
+          condParts.push(`(${expr} IS NULL OR TRIM(CAST(${expr} AS TEXT)) = '')`);
+          continue;
         }
-
         if (op === 'is_not_empty') {
-          condParts.push(`(${expr} IS NOT NULL AND TRIM(CAST(${expr} AS TEXT)) <> '')`)
-          continue
+          condParts.push(`(${expr} IS NOT NULL AND TRIM(CAST(${expr} AS TEXT)) <> '')`);
+          continue;
         }
 
+        // --- Normalizzazione Testuale ---
+        const valueStr = cleanStr(rawValue);
+
+        // --- Logica Specifica per Operatore ---
         if (group.type === 'tags') {
-          if (
-            (op === 'contains' || op === 'eq') &&
-            typeof value === 'string' &&
-            value.trim().length > 0
-          ) {
-            const tag = value.trim()
-            const tagKey = escapeJsonPathKey(tag)
+          if ((op === 'contains' || op === 'eq') && valueStr) {
+            const tagKey = escapeJsonPathKey(valueStr);
             condParts.push(
-              `(
-                json_type(${expr}) = 'array' AND EXISTS (
-                  SELECT 1 FROM json_each(${expr}) je WHERE CAST(je.value AS TEXT) = ?
-                )
-              ) OR (
-                json_type(${expr}) = 'object' AND json_type(json_extract(${expr}, '$."${tagKey}"')) IS NOT NULL
-              ) OR (
-                LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?)
-              )`
-            )
-            condBindings.push(tag, `%${tag}%`)
+                `(json_type(${expr}) = 'array' AND EXISTS (SELECT 1 FROM json_each(${expr}) je WHERE CAST(je.value AS TEXT) = ?)) OR (json_type(${expr}) = 'object' AND json_type(json_extract(${expr}, '$."${tagKey}"')) IS NOT NULL) OR (LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?))`
+            );
+            condBindings.push(valueStr, `%${valueStr}%`);
           }
-          continue
+          continue;
         }
 
-        if (op === 'contains' && typeof value === 'string' && value.trim().length > 0) {
-          condParts.push(`LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?)`)
-          condBindings.push(`%${value.trim()}%`)
-          continue
+        if (op === 'contains' && valueStr) {
+          condParts.push(`LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?)`);
+          condBindings.push(`%${valueStr}%`);
+          continue;
         }
 
         if (op === 'eq') {
-          if (group.type === 'boolean' && typeof value === 'boolean') {
-            condParts.push(`CAST(${expr} AS INTEGER) = ?`)
-            condBindings.push(value ? 1 : 0)
-          } else if (group.type === 'number' && typeof value === 'number' && !Number.isNaN(value)) {
-            condParts.push(`CAST(${expr} AS REAL) = ?`)
-            condBindings.push(value)
-          } else if (
-            typeof value === 'string' &&
-            value.trim().length > 0
-          ) {
-            condParts.push(`LOWER(TRIM(CAST(${expr} AS TEXT))) = LOWER(TRIM(?))`)
-            condBindings.push(value)
+          if (group.type === 'boolean' && typeof rawValue === 'boolean') {
+            condParts.push(`CAST(${expr} AS INTEGER) = ?`);
+            condBindings.push(rawValue ? 1 : 0);
+          } else if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
+            condParts.push(`CAST(${expr} AS REAL) = ?`);
+            condBindings.push(rawValue);
+          } else if (valueStr) {
+            condParts.push(`LOWER(TRIM(CAST(${expr} AS TEXT))) = LOWER(TRIM(?))`);
+            condBindings.push(valueStr);
           }
-          continue
+          continue;
         }
 
-        if (['gt', 'gte', 'lt', 'lte'].includes(op)) {
-          if (group.type === 'number' && typeof value === 'number' && !Number.isNaN(value)) {
-            const operator = op === 'gt' ? '>' : op === 'gte' ? '>=' : op === 'lt' ? '<' : '<='
-            condParts.push(`CAST(${expr} AS REAL) ${operator} ?`)
-            condBindings.push(value)
-          } else if (group.type === 'date' && typeof value === 'string' && value.trim().length > 0) {
-            const operator = op === 'gt' ? '>' : op === 'gte' ? '>=' : op === 'lt' ? '<' : '<='
-            condParts.push(`CAST(${expr} AS TEXT) ${operator} ?`)
-            condBindings.push(value.trim())
+
+        if (MATH_OPS[op]) {
+          const sqlOp = MATH_OPS[op]; // Trova subito '>', '<=', ecc.
+
+          if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
+            condParts.push(`CAST(${expr} AS REAL) ${sqlOp} ?`);
+            condBindings.push(rawValue);
+          } else if (group.type === 'date' && valueStr) {
+            condParts.push(`CAST(${expr} AS TEXT) ${sqlOp} ?`);
+            condBindings.push(valueStr); // valueStr è già trimmato da cleanStr
           }
-          continue
+
         }
       }
 
       if (condParts.length > 0) {
-        whereParts.push(`(${condParts.join(' AND ')})`)
-        whereBindings.push(...condBindings)
+        whereParts.push(`(${condParts.join(' AND ')})`);
+        whereBindings.push(...condBindings);
       }
     }
 
     const whereSql = `WHERE ${whereParts.join(' AND ')}`
 
-    let orderSql = 'ORDER BY created_at DESC'
-    if (sortBy) {
-      const sortable = getColumnSqlExpression(seed, sortBy)
-      if (sortable) {
-        const expr = sortable.expr
-        if (sortable.branchType === 'number' || sortable.branchType === 'boolean') {
-          orderSql = `ORDER BY CAST(${expr} AS REAL) ${sortDir} NULLS LAST`
-        } else {
-          orderSql = `ORDER BY CAST(${expr} AS TEXT) ${sortDir} NULLS LAST`
-        }
-      }
+    let orderSql = 'ORDER BY created_at DESC';
+
+    const sortable = sortBy ? getColumnSqlExpression(seed, sortBy) : null;
+
+    if (sortable) {
+      // Decidi il tipo di cast (Dizionario logico)
+      const castType = sortable.branchType === 'number' || sortable.branchType === 'boolean'
+          ? 'REAL'
+          : 'TEXT';
+
+      // Componi la stringa UNA sola volta
+      orderSql = `ORDER BY CAST(${sortable.expr} AS ${castType}) ${sortDir} NULLS LAST`;
     }
 
     let total = 0
@@ -441,6 +460,7 @@ contentApp.get('/:slug', async (c) => {
     const listSql = hasQueryParams
       ? `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql} LIMIT ? OFFSET ?`
       : `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql}`
+
     const listBindings = hasQueryParams
       ? [...whereBindings, limit, offset]
       : whereBindings
@@ -502,7 +522,8 @@ contentApp.get('/:slug/facets', async (c) => {
       .all<{ status: string | null; data: string }>()
 
     for (const row of result.results ?? []) {
-      const status = typeof row.status === 'string' ? row.status.trim() : ''
+      const status = cleanStr(row.status) ?? '';
+
       if (status) {
         statusSet.add(status)
       }
@@ -547,6 +568,7 @@ contentApp.get('/:slug/facets', async (c) => {
 contentApp.get('/:schema_slug/by-slug/:entry_slug', async (c) => {
   const schemaSlug = c.req.param('schema_slug')
   const entrySlug = c.req.param('entry_slug')
+
   if (!schemaSlug || !entrySlug) {
     return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400)
   }
@@ -613,6 +635,7 @@ contentApp.get('/:slug/:id', async (c) => {
 contentApp.put('/:slug/:id', async (c) => {
   const slug = c.req.param('slug')
   const id = c.req.param('id')
+
   if (!slug || !id) {
     return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400)
   }
@@ -625,7 +648,7 @@ contentApp.put('/:slug/:id', async (c) => {
   let body: Record<string, unknown>
   try {
     const raw = await c.req.json<unknown>()
-    body = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
+    body = normalizeBody(raw)
   } catch {
     return c.json({ error: CONTENT_ERRORS.INVALID_JSON_BODY }, 400)
   }
@@ -644,34 +667,42 @@ contentApp.put('/:slug/:id', async (c) => {
     )
       .bind(slug, id)
       .first<{ slug: string | null; status: string }>()
+
     if (!current) {
       return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
     }
-    const entrySlugReq = body.slug !== undefined
-      ? (typeof body.slug === 'string' && body.slug.trim() !== '' ? body.slug.trim() : null)
-      : undefined
-    const statusReq = body.status !== undefined && typeof body.status === 'string' && body.status.trim() !== ''
-      ? body.status.trim()
-      : undefined
+
+
+  // Distingue tra "Mancante" (undefined) e "Invalido" (null)
+    const entrySlugReq = body.slug === undefined ? undefined : cleanStr(body.slug);
+
+  // Tratta "Mancante" e "Invalido" allo stesso modo
+    const statusReq = cleanStr(body.status) ?? undefined;
+
     const newSlug = entrySlugReq !== undefined ? entrySlugReq : current.slug
     const newStatus = statusReq !== undefined ? statusReq : current.status
-    if (newSlug !== null) {
-      const existing = await DB.prepare(
+
+    if (!newSlug) {
+      return c.json({ error: "Missing required field: newSlug" }, 400);
+    }
+
+    const existing = await DB.prepare(
         'SELECT id FROM content_entries WHERE schema_slug = ? AND slug = ? AND id != ?'
       )
         .bind(slug, newSlug, id)
         .first()
-      if (existing) {
-        return c.json({ error: CONTENT_ERRORS.SLUG_CONFLICT }, 409)
-      }
+
+    if (existing) {
+      return c.json({ error: CONTENT_ERRORS.SLUG_CONFLICT }, 409)
     }
+
     const result = await DB.prepare(
       `UPDATE content_entries SET data = ?, slug = ?, status = ?, updated_at = ? WHERE schema_slug = ? AND id = ?`
     )
       .bind(dataStr, newSlug, newStatus, now, slug, id)
       .run()
 
-    if (!result.success || (result.meta?.changes ?? 0) === 0) {
+    if (!result.meta?.changes) {
       return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
     }
 
@@ -684,68 +715,66 @@ contentApp.put('/:slug/:id', async (c) => {
 
 // DELETE /:slug/:id - Eliminazione entry e file R2 associati
 contentApp.delete('/:slug/:id', async (c) => {
-  const schemaSlug = c.req.param('slug')
-  const entryId = c.req.param('id')
+  const schemaSlug = c.req.param('slug');
+  const entryId = c.req.param('id');
+
   if (!schemaSlug || !entryId) {
-    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400)
+    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400);
   }
 
-  const seed = getSeed(schemaSlug)
+  const seed = getSeed(schemaSlug);
   if (!seed) {
-    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404);
   }
 
   try {
-    const { DB } = c.env
+    const { DB } = c.env;
 
-    // 1. Fetch entry per estrarre chiavi R2 prima della delete
+    // 1. Fetch entry per estrarre i dati
     const entryRow = await DB.prepare(
-      'SELECT id, data FROM content_entries WHERE schema_slug = ? AND id = ?'
+        'SELECT id, data FROM content_entries WHERE schema_slug = ? AND id = ?'
     )
-      .bind(schemaSlug, entryId)
-      .first<{ id: string; data: string }>()
+        .bind(schemaSlug, entryId)
+        .first<{ id: string; data: string }>();
 
     if (!entryRow) {
-      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
+      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404);
     }
 
-    // 2. Estrai chiavi R2 da data e elimina i file (non bloccare se R2 fallisce)
-    let entryData: Record<string, unknown> = {}
-    if (entryRow.data && typeof entryRow.data === 'string') {
-      try {
-        const parsed = JSON.parse(entryRow.data)
-        entryData = typeof parsed === 'object' && parsed !== null ? parsed : {}
-      } catch {
-        // JSON corrotto: procedi senza cleanup R2
-      }
-    }
-    const r2ObjectKeys = extractMediaKeysFromData(seed, entryData)
-    if (r2ObjectKeys.length > 0) {
-      try {
-        await deleteR2Objects(c.env, r2ObjectKeys)
-      } catch (err) {
-        if (c.env.ENV !== 'production') {
-          console.warn('R2 cleanup on delete failed:', err)
-        }
-      }
-    }
-
-    // 3. Elimina entry dal DB
+    // 2. ELIMINA DAL DB PRIMA DI TOCCARE I FILE
     const result = await DB.prepare(
-      `DELETE FROM content_entries WHERE schema_slug = ? AND id = ?`
+        `DELETE FROM content_entries WHERE schema_slug = ? AND id = ?`
     )
-      .bind(schemaSlug, entryId)
-      .run()
+        .bind(schemaSlug, entryId)
+        .run();
 
-    if (!result.success || (result.meta?.changes ?? 0) === 0) {
-      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
+    // Se il database riporta success: false senza lanciare eccezioni, forziamo l'errore 500
+    if (!result.success) throw new Error("Database deletion failed unexpectedly");
+
+    // Se non ha cancellato nulla (qualcuno l'ha cancellato una frazione di secondo prima)
+    if (!result.meta?.changes) {
+      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404);
     }
 
-    return c.json({ success: true })
+    // 3. CLEANUP R2 (Solo ora che il DB è al sicuro)
+    const entryData = safeParseJson(entryRow.data);
+    const r2ObjectKeys = extractMediaKeysFromData(seed, entryData);
+
+    if (r2ObjectKeys.length > 0) {
+      // Usiamo catch inline per non bloccare/sporcare il codice
+      await deleteR2Objects(c.env, r2ObjectKeys).catch((err) => {
+        if (c.env.ENV !== 'production') {
+          console.warn('R2 cleanup on delete failed (orphaned files):', err);
+        }
+      });
+    }
+
+    return c.json({ success: true });
+
   } catch (err) {
-    console.error('Content delete error:', err)
-    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
+    console.error('Content delete error:', err);
+    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500);
   }
-})
+});
 
 export const contentRoutes = contentApp
