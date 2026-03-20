@@ -148,6 +148,47 @@ function getColumnSqlExpression(
   }
 }
 
+
+function parseCondition(cond: any): QueryFilterCondition | null {
+  if (!cond || typeof cond !== 'object') return null;
+
+  const isValidValue = ['string', 'number', 'boolean'].includes(typeof cond.value) || cond.value === null;
+
+  return {
+    id: typeof cond.id === 'string' ? cond.id : undefined,
+    op: cond.op as QueryFilterOperator,
+    value: isValidValue ? cond.value : null,
+  };
+}
+
+// Non si preoccupa di "come" è fatta una condizione, si fida di parseCondition.
+function parseFilterGroup(group: any): QueryFilterGroup | null {
+  if (!group || typeof group !== 'object') return null;
+
+  const { columnId, type, label, conditions: rawConds } = group as Partial<QueryFilterGroup>;
+
+  if (typeof columnId !== 'string' || typeof type !== 'string' || !Array.isArray(rawConds)) {
+    return null;
+  }
+
+  const validConditions: QueryFilterCondition[] = [];
+  for (const cond of rawConds) {
+    const parsedCond = parseCondition(cond);
+    if (parsedCond) {
+      validConditions.push(parsedCond);
+    }
+  }
+
+  if (validConditions.length === 0) return null;
+
+  return {
+    columnId,
+    label: typeof label === 'string' ? label : undefined,
+    type: type as QueryFilterType,
+    conditions: validConditions,
+  };
+}
+
 function parseQueryFilters(raw: string | undefined): QueryFilterGroup[] {
   if (!raw) return [];
 
@@ -155,7 +196,7 @@ function parseQueryFilters(raw: string | undefined): QueryFilterGroup[] {
   try {
     parsed = JSON.parse(raw);
   } catch {
-    return []; // Uscita rapida se il JSON esplode
+    return [];
   }
 
   if (!parsed || typeof parsed !== 'object') return [];
@@ -163,40 +204,9 @@ function parseQueryFilters(raw: string | undefined): QueryFilterGroup[] {
   const result: QueryFilterGroup[] = [];
 
   for (const group of Object.values(parsed as Record<string, unknown>)) {
-    // 1. Validazione base del gruppo
-    if (!group || typeof group !== 'object') continue;
-
-    // 2. Destrutturazione (Eliminiamo mille ripetizioni di "group.")
-    const { columnId, type, label, conditions: rawConds } = group as Partial<QueryFilterGroup>;
-
-    // 3. Validazione tipi (In una sola riga pulita)
-    if (typeof columnId !== 'string' || typeof type !== 'string' || !Array.isArray(rawConds)) {
-      continue;
-    }
-
-    const validConditions: QueryFilterCondition[] = [];
-
-    for (const cond of rawConds) {
-      if (!cond || typeof cond !== 'object') continue;
-
-      // 4. Controllo compatto dei valori ammessi
-      const isValidValue = ['string', 'number', 'boolean'].includes(typeof cond.value) || cond.value === null;
-
-      validConditions.push({
-        id: typeof cond.id === 'string' ? cond.id : undefined,
-        op: cond.op as QueryFilterOperator,
-        value: isValidValue ? cond.value : null,
-      });
-    }
-
-    // 5. Inserimento solo se abbiamo condizioni valide
-    if (validConditions.length > 0) {
-      result.push({
-        columnId,
-        label: typeof label === 'string' ? label : undefined,
-        type: type as QueryFilterType,
-        conditions: validConditions,
-      });
+    const parsedGroup = parseFilterGroup(group);
+    if (parsedGroup) {
+      result.push(parsedGroup);
     }
   }
 
