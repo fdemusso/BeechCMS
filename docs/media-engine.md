@@ -71,6 +71,7 @@ Carica un file su R2. Richiede JWT.
 **Validazione:**
 - MIME: `image/*`, `application/pdf`
 - Dimensione max: 5 MB
+- Robustezza Cloudflare/Workers: il valore di `formData.get('file')` può arrivare come `File`/`Blob`-like (o `string` non valido); l'API valida che esponga `name`, `type`, `size`, `arrayBuffer` prima di procedere.
 
 **Response 200:**
 ```json

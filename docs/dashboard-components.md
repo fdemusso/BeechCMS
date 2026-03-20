@@ -11,7 +11,16 @@ Documentazione dei componenti UI riutilizzabili della dashboard Beech CMS.
 
 ## `ContentToolbar`
 
-**File:** `apps/dashboard/src/components/content-toolbar.tsx`
+**File:** `apps/dashboard/src/components/content-toolbar.tsx` (compositore)
+
+Componenti e hook principali:
+- `apps/dashboard/src/components/content-toolbar/filter-column-menu.tsx` (menu filtri)
+- `apps/dashboard/src/components/content-toolbar/sort-column-menu.tsx` (menu ordinamento)
+- `apps/dashboard/src/components/content-toolbar/filter-pills-bar.tsx` (pills filtri)
+- `apps/dashboard/src/components/content-toolbar/conditional-formats-editor.tsx` (editor colori condizionali)
+- `apps/dashboard/src/components/content-toolbar/shared.ts` (tipi e funzioni pure)
+- `apps/dashboard/src/hooks/use-toolbar-filters.ts` (gestione stato filtri)
+- `apps/dashboard/src/hooks/use-conditional-formats.ts` (gestione stato colori condizionali)
 
 Barra di controllo contestuale per le viste contenuto. Raggruppa in un'unica UI:
 
@@ -45,30 +54,35 @@ flowchart LR
 | `views` | `UserViewInstance[]` | — | Viste disponibili per questo seed |
 | `activeViewId` | `string` | — | ID della vista correntemente selezionata |
 | `onChangeView` | `(viewId: string) => void` | — | Callback al cambio vista |
+| `onConditionalFormatsChange` | `(viewId: string, next: ConditionalFormatRule[]) => void` | `undefined` | Aggiorna le regole colori condizionali della vista attiva |
 | `onCreateView` | `() => void` | `undefined` | Apre il flusso di creazione nuova vista (TODO: non ancora implementato) |
 | `onRenameView` | `(viewId: string, label: string) => void` | `undefined` | Rinominazione della vista attiva; aggiorna ad es. `UserViewInstance.label` e il relativo toggle |
 | `onCreate` | `() => void` | — | Apre il flusso di creazione nuova entry |
-| `onOpenFilters` | `() => void` | `undefined` | ⚠️ **Deprecato** — non più richiamato internamente. Il menu Filtri è ora integrato nel settings sub-menu. Mantenuto per compatibilità API. |
-| `onOpenSort` | `() => void` | `undefined` | ⚠️ **Deprecato** — non più richiamato internamente. Il menu Ordina è ora integrato nel settings sub-menu. Mantenuto per compatibilità API. |
+| `onOpenFilters` | `() => void` | `undefined` | Callback quando il menu Filtri si apre (utile per tracking/integrazioni) |
+| `onOpenSort` | `() => void` | `undefined` | Callback quando il menu Ordina si apre |
 | `onOpenAutomation` | `() => void` | `undefined` | Apre il pannello automazioni (richiamato dal bottone Zap in toolbar) |
-| `onOpenSettings` | `() => void` | `undefined` | ⚠️ **Deprecato** — non più richiamato internamente. Mantenuto per compatibilità API. |
-| `searchValue` | `string` | `""` | Valore controllato del campo di ricerca |
+| `onOpenSettings` | `() => void` | `undefined` | Callback quando il menu Impostazioni si apre |
+| `searchValue` | `string` | `""` | Valore controllato della ricerca globale |
 | `onSearchChange` | `(value: string) => void` | `undefined` | Aggiornamento del termine di ricerca |
 | `onSubmitSearch` | `(value: string) => void` | `undefined` | Submit della ricerca (invio form) |
+| `isFilterActive` | `boolean` | `undefined` | Sovrascrive lo stato “Filtri attivi” (se omesso, calcolato da `filters`) |
+| `isSortActive` | `boolean` | `undefined` | Sovrascrive lo stato “Sort attivo” (se omesso, calcolato da `sortState`) |
+| `isAutomationActive` | `boolean` | `undefined` | Sovrascrive lo stato bottone Automazione |
+| `isSettingsOpen` | `boolean` | `undefined` | Controllo esterno per lo stato menu Impostazioni |
 | `sortState` | `{ columnId: string \| null; desc: boolean }` | `undefined` | Stato ordinamento corrente |
-| `onSortChange` | `(state) => void` | `undefined` | Callback al cambio ordinamento |
-| `filters` | `ToolbarFiltersState` | `{}` | Stato filtri corrente (Record columnId → gruppo) |
+| `onSortChange` | `(state: { columnId: string \| null; desc: boolean }) => void` | `undefined` | Callback al cambio ordinamento |
+| `filters` | `ToolbarFiltersState` | `{}` | Stato filtri corrente (Record `columnId` → gruppo) |
 | `onFiltersChange` | `(state: ToolbarFiltersState) => void` | `undefined` | Callback al cambio filtri |
 | `availableTagsByColumnId` | `Record<string, string[]>` | `{}` | Tag disponibili per colonne di tipo `tags` |
-| `availableStatusOptions` | `string[]` | `[]` | Stati disponibili per la colonna di sistema `status` (derivati dinamicamente dalle facets server-side, con fallback locale) |
+| `availableStatusOptions` | `string[]` | `[]` | Stati disponibili per la colonna di sistema `status` (tipicamente da `/api/content/:slug/facets`) |
 | `pageSize` | `number` | `undefined` | Numero di righe per pagina (min 1, max 100). Se presente, mostra il controllo −/+ nel menu Impostazioni |
 | `onPageSizeChange` | `(size: number) => void` | `undefined` | Callback per aggiornare il numero di righe per pagina |
 | `columnVisibility` | `VisibilityState` (`@tanstack/react-table`) | `undefined` | Stato di visibilità delle colonne (id colonna → `true`/`false`) |
 | `onColumnVisibilityChange` | `(visibility: VisibilityState) => void` | `undefined` | Callback per aggiornare la visibilità colonne |
-| `groupBy` | `string \| null` | `null` | Colonna attiva per il raggruppamento (singola colonna). `null` disabilita il raggruppamento |
+| `groupBy` | `string \| null` | `null` | Colonna attiva per il raggruppamento. `null` disabilita il raggruppamento |
 | `onGroupByChange` | `(columnId: string \| null) => void` | `undefined` | Callback al cambio raggruppamento |
 | `dateGroupPrecision` | `{ year: boolean; month: boolean; day: boolean }` | `{ year: true, month: true, day: false }` | Granularità per il raggruppamento su colonne `date` (vedi sezione “Raggruppamento date”) |
-| `onDateGroupPrecisionChange` | `(precision) => void` | `undefined` | Callback al cambio granularità date |
+| `onDateGroupPrecisionChange` | `(precision: DateGroupPrecision) => void` | `undefined` | Callback al cambio granularità date |
 | `children` | `React.ReactNode` | `undefined` | Contenuto sotto la toolbar (tabella, kanban, ecc.). Se assente, la sezione inferiore non viene renderizzata |
 
 ---
@@ -97,6 +111,8 @@ interface UserViewInstance {
   label: string
   type: ViewType
   enabledTools: ToolbarTool[]
+  /** Regole di colori condizionali legate alla vista (ordinamento per priority). */
+  conditionalFormats?: ConditionalFormatRule[]
 }
 ```
 

@@ -70,7 +70,7 @@ flowchart LR
     end
 ```
 
-**Parsing sicuro:** Se `data` contiene JSON corrotto, `JSON.parse` è avvolto in try/catch; l'API restituisce `data: {}` senza crashare.
+**Parsing sicuro:** Se `data` contiene JSON corrotto, `JSON.parse` è avvolto in try/catch; l'API restituisce `data: {}` senza crashare. Lo stesso approccio viene riusato anche quando si calcolano le `facets`, per evitare errori su righe con JSON non valido.
 
 ---
 

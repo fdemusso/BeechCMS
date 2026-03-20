@@ -93,7 +93,7 @@ beech-cms/
   - Rendering schema-driven di form, tabelle, Kanban e viste tramite Field Renderers (vedi `[docs/field-renderers.md](field-renderers.md)`).
   - Strumenti di filtraggio, sort, ricerca e creazione viste tramite `ContentToolbar` (vedi `[docs/dashboard-components.md](dashboard-components.md)`).
 - **Struttura UI (estratto)**
-  - `apps/dashboard/src/components/content-toolbar.tsx`: componente toolbar per cambiare vista, filtri, sort, ricerca, creazione entry (descritto in `[docs/dashboard-components.md](dashboard-components.md)`).
+  - `apps/dashboard/src/components/content-toolbar.tsx`: compositore toolbar per cambiare vista, filtri, sort, ricerca e creazione entry; include l'editor colori condizionali tramite hook/sub-component (descritto in `[docs/dashboard-components.md](dashboard-components.md)`).
   - `apps/dashboard/src/components/fields/`: infrastruttura Field Renderers (display/edit per ogni `BranchType`), descritta in `[docs/field-renderers.md](field-renderers.md)`.
     - `FieldDisplay.tsx`, `FieldEdit.tsx`, `registry.ts`, `display/*.tsx`, `edit/*.tsx`.
   - Pagine di editing entry (es. `EntryEditorPage`) che consumano i Field Renderers + `Seed` dal core.
@@ -173,6 +173,7 @@ beech-cms/
     - Usano `<FieldDisplay>` per ogni cella, con `options.maxLength` per troncamenti.
   - `ContentToolbar` (file `content-toolbar.tsx`):
     - Gestisce viste utenti (`UserViewInstance`), strumenti (`filter`, `sort`, `automation`, `search`, `settings`, `create`) e filtri Notion-like.
+    - (Opzionale) Gestisce regole di **colori condizionali** legate alla vista attiva.
 
 ---
 
