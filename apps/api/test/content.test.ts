@@ -355,6 +355,122 @@ describe('API Content - Query params server-side', () => {
     expect(capture.sql.some((s) => s.includes('COUNT(*)'))).toBe(true)
     expect(capture.sql.some((s) => s.includes('ORDER BY'))).toBe(true)
   })
+
+  it('GET /api/content/:slug con filters genera WHERE e bindings attesi', async () => {
+    const capture = { sql: [] as string[], binds: [] as unknown[][] }
+    const rows: ContentEntryMockRow[] = [
+      {
+        id: '1',
+        schema_slug: 'prodotti',
+        slug: 'a',
+        status: 'published',
+        data: '{"prd_01":"Nome A","prd_02":123.45,"prd_03":10,"prd_04":true}',
+        created_at: 10,
+        updated_at: 10,
+      },
+    ]
+    const mockDB = createMockD1ForListWithCount(rows, 1, capture)
+
+    const filters = {
+      emptyName: {
+        columnId: 'name',
+        type: 'text',
+        conditions: [{ op: 'is_empty', value: null }],
+      },
+      tagsImages: {
+        columnId: 'images',
+        type: 'tags',
+        conditions: [{ op: 'contains', value: 'react' }],
+      },
+      eqActive: {
+        columnId: 'active',
+        type: 'boolean',
+        conditions: [{ op: 'eq', value: true }],
+      },
+      eqPrice: {
+        columnId: 'price',
+        type: 'number',
+        conditions: [{ op: 'eq', value: 123.45 }],
+      },
+      containsName: {
+        columnId: 'name',
+        type: 'text',
+        conditions: [{ op: 'contains', value: 'Progetto' }],
+      },
+      gtStock: {
+        columnId: 'stock',
+        type: 'number',
+        conditions: [{ op: 'gt', value: 10 }],
+      },
+      lteDatePrice: {
+        columnId: 'price',
+        type: 'date',
+        conditions: [{ op: 'lte', value: '2026-01-01' }],
+      },
+    }
+
+    const filtersParam = encodeURIComponent(JSON.stringify(filters))
+    const res = await app.request(
+      `/api/content/prodotti?filters=${filtersParam}&page=1&limit=10`,
+      {
+        method: 'GET',
+        headers: { Authorization: 'Bearer valid-token' },
+      },
+      { DB: mockDB, JWT_SECRET },
+    )
+
+    expect(res.status).toBe(200)
+
+    const body = (await res.json()) as {
+      items: Array<{ id: string }>
+      total: number
+      page: number
+      limit: number
+    }
+    expect(body.total).toBe(1)
+    expect(body.page).toBe(1)
+    expect(body.limit).toBe(10)
+    expect(body.items).toHaveLength(1)
+    expect(body.items[0].id).toBe('1')
+
+    // Verifica che alcune clausole chiave siano presenti nella query SQL.
+    const allSql = capture.sql.join(' ')
+    expect(allSql).toContain('json_each')
+    expect(allSql).toContain('json_extract')
+    expect(allSql).toContain('CAST(')
+    expect(allSql).toContain('LIKE LOWER')
+
+    // Verifica ordine e valori principali dei bindings:
+    // - binding 0: schema_slug
+    // - tags contiene: value + likeValue
+    // - eq boolean: 1/0
+    // - eq/contains/gt/lte: rispettivi valori
+    expect(capture.binds).toHaveLength(2)
+
+    expect(capture.binds[0]).toEqual([
+      'prodotti',
+      'react',
+      '%react%',
+      1,
+      123.45,
+      '%Progetto%',
+      10,
+      '2026-01-01',
+    ])
+
+    expect(capture.binds[1]).toEqual([
+      'prodotti',
+      'react',
+      '%react%',
+      1,
+      123.45,
+      '%Progetto%',
+      10,
+      '2026-01-01',
+      10, // limit
+      0, // offset
+    ])
+  })
 })
 
 describe('API Content - Edge Case (Not Found)', () => {

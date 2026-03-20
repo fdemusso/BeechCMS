@@ -130,7 +130,11 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
 }
 
 function escapeJsonPathKey(key: string): string {
-  return key.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+
+  const backslash = String.fromCodePoint(92) // U+005C
+  return key
+    .replaceAll(backslash, backslash + backslash) // esegue l'escape di `\`
+    .replaceAll('"', backslash + '"') // esegue l'escape di `"`
 }
 
 function getColumnSqlExpression(
@@ -188,7 +192,7 @@ function parseFilterGroup(group: any): QueryFilterGroup | null {
   return {
     columnId,
     label: typeof label === 'string' ? label : undefined,
-    type: type as QueryFilterType,
+    type,
     conditions: validConditions,
   };
 }
@@ -328,57 +332,81 @@ contentApp.post('/:slug', async (c) => {
 // usare LIMIT/OFFSET nella query, restituire { items, total }. Spostare filtri/ricerca lato server.
 
 // --- 1. Generatore di singole condizioni SQL ---
-function buildSqlCondition(group: any, cond: any, expr: string): { clause?: string, bindings: any[] } {
-  const op = cond.op;
-  const rawValue = cond.value;
-  const valueStr = cleanStr(rawValue);
+const MATH_OPS: Record<string, string> = { gt: '>', gte: '>=', lt: '<', lte: '<=' }
 
+function buildEmptySqlCondition(op: string, expr: string): { clause: string, bindings: any[] } {
   if (op === 'is_empty') {
-    return { clause: `(${expr} IS NULL OR TRIM(CAST(${expr} AS TEXT)) = '')`, bindings: [] };
+    return { clause: `(${expr} IS NULL OR TRIM(CAST(${expr} AS TEXT)) = '')`, bindings: [] }
   }
-  if (op === 'is_not_empty') {
-    return { clause: `(${expr} IS NOT NULL AND TRIM(CAST(${expr} AS TEXT)) <> '')`, bindings: [] };
-  }
+  return { clause: `(${expr} IS NOT NULL AND TRIM(CAST(${expr} AS TEXT)) <> '')`, bindings: [] }
+}
 
-  if (group.type === 'tags') {
-    if ((op === 'contains' || op === 'eq') && valueStr) {
-      const tagKey = escapeJsonPathKey(valueStr);
-      return {
-        clause: `(json_type(${expr}) = 'array' AND EXISTS (SELECT 1 FROM json_each(${expr}) je WHERE CAST(je.value AS TEXT) = ?)) OR (json_type(${expr}) = 'object' AND json_type(json_extract(${expr}, '$."${tagKey}"')) IS NOT NULL) OR (LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?))`,
-        bindings: [valueStr, `%${valueStr}%`]
-      };
+function buildTagsSqlCondition(group: any, op: string, valueStr: string | null, expr: string): { clause?: string, bindings: any[] } {
+  if ((op === 'contains' || op === 'eq') && valueStr) {
+    const tagKey = escapeJsonPathKey(valueStr)
+    return {
+      clause: `(json_type(${expr}) = 'array' AND EXISTS (SELECT 1 FROM json_each(${expr}) je WHERE CAST(je.value AS TEXT) = ?)) OR (json_type(${expr}) = 'object' AND json_type(json_extract(${expr}, '$."${tagKey}"')) IS NOT NULL) OR (LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?))`,
+      bindings: [valueStr, `%${valueStr}%`],
     }
-    return { bindings: [] };
   }
 
+  return { bindings: [] }
+}
+
+function buildContainsSqlCondition(op: string, valueStr: string | null, expr: string): { clause?: string, bindings: any[] } {
   if (op === 'contains' && valueStr) {
-    return { clause: `LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?)`, bindings: [`%${valueStr}%`] };
+    return { clause: `LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?)`, bindings: [`%${valueStr}%`] }
+  }
+  return { bindings: [] }
+}
+
+function buildEqSqlCondition(group: any, rawValue: any, valueStr: string | null, expr: string): { clause?: string, bindings: any[] } {
+  if (group.type === 'boolean' && typeof rawValue === 'boolean') {
+    return { clause: `CAST(${expr} AS INTEGER) = ?`, bindings: [rawValue ? 1 : 0] }
+  }
+  if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
+    return { clause: `CAST(${expr} AS REAL) = ?`, bindings: [rawValue] }
+  }
+  if (valueStr) {
+    return { clause: `LOWER(TRIM(CAST(${expr} AS TEXT))) = LOWER(TRIM(?))`, bindings: [valueStr] }
   }
 
+  return { bindings: [] }
+}
+
+function buildMathSqlCondition(op: string, group: any, rawValue: any, valueStr: string | null, expr: string): { clause?: string, bindings: any[] } {
+  const sqlOp = MATH_OPS[op]
+  if (!sqlOp) return { bindings: [] }
+
+  if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
+    return { clause: `CAST(${expr} AS REAL) ${sqlOp} ?`, bindings: [rawValue] }
+  }
+  if (group.type === 'date' && valueStr) {
+    return { clause: `CAST(${expr} AS TEXT) ${sqlOp} ?`, bindings: [valueStr] }
+  }
+
+  return { bindings: [] }
+}
+
+function buildSqlCondition(group: any, cond: any, expr: string): { clause?: string, bindings: any[] } {
+  const op = cond.op
+  const rawValue = cond.value
+  const valueStr = cleanStr(rawValue)
+
+  if (op === 'is_empty' || op === 'is_not_empty') {
+    return buildEmptySqlCondition(op, expr)
+  }
+  if (group.type === 'tags') {
+    return buildTagsSqlCondition(group, op, valueStr, expr)
+  }
+  if (op === 'contains') {
+    return buildContainsSqlCondition(op, valueStr, expr)
+  }
   if (op === 'eq') {
-    if (group.type === 'boolean' && typeof rawValue === 'boolean') {
-      return { clause: `CAST(${expr} AS INTEGER) = ?`, bindings: [rawValue ? 1 : 0] };
-    }
-    if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
-      return { clause: `CAST(${expr} AS REAL) = ?`, bindings: [rawValue] };
-    }
-    if (valueStr) {
-      return { clause: `LOWER(TRIM(CAST(${expr} AS TEXT))) = LOWER(TRIM(?))`, bindings: [valueStr] };
-    }
+    return buildEqSqlCondition(group, rawValue, valueStr, expr)
   }
 
-  const MATH_OPS: Record<string, string> = { gt: '>', gte: '>=', lt: '<', lte: '<=' };
-  if (MATH_OPS[op]) {
-    const sqlOp = MATH_OPS[op];
-    if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
-      return { clause: `CAST(${expr} AS REAL) ${sqlOp} ?`, bindings: [rawValue] };
-    }
-    if (group.type === 'date' && valueStr) {
-      return { clause: `CAST(${expr} AS TEXT) ${sqlOp} ?`, bindings: [valueStr] };
-    }
-  }
-
-  return { bindings: [] };
+  return buildMathSqlCondition(op, group, rawValue, valueStr, expr)
 }
 
 // --- 2. Costruttore della clausola WHERE ---
@@ -423,6 +451,81 @@ function buildOrderClause(sortBy: string, sortDirRaw: string, seed: any): string
 
   const castType = sortable.branchType === 'number' || sortable.branchType === 'boolean' ? 'REAL' : 'TEXT';
   return `ORDER BY CAST(${sortable.expr} AS ${castType}) ${sortDir} NULLS LAST`;
+}
+
+function getTagAliasesFromSeed(seed: any): string[] {
+  return seed.branches
+    .filter((branch: any) => branch.type === 'json' && branch.alias.toLowerCase().includes('tag'))
+    .map((branch: any) => branch.alias)
+}
+
+function initTagsSetByAlias(tagAliases: string[]): Map<string, Set<string>> {
+  const map = new Map<string, Set<string>>()
+  for (const alias of tagAliases) {
+    map.set(alias, new Set<string>())
+  }
+  return map
+}
+
+function addStatusToSet(statusSet: Set<string>, status: string) {
+  if (!status) return
+  statusSet.add(status)
+}
+
+function addTagsFromEntryData(
+  dataByAlias: Record<string, unknown>,
+  tagAliases: string[],
+  tagsSetByAlias: Map<string, Set<string>>,
+) {
+  for (const alias of tagAliases) {
+    const tags = parseTagNames(dataByAlias[alias])
+    if (!tags.length) continue
+    const set = tagsSetByAlias.get(alias)
+    if (!set) continue
+    for (const tag of tags) set.add(tag)
+  }
+}
+
+function populateFacetSets(
+  seed: any,
+  slug: string,
+  rows: Array<{ status: string | null; data: string }>,
+  tagAliases: string[],
+  statusSet: Set<string>,
+  tagsSetByAlias: Map<string, Set<string>>,
+) {
+  for (const row of rows ?? []) {
+    const status = cleanStr(row.status) ?? ''
+    addStatusToSet(statusSet, status)
+
+    // Usiamo rowToEntry per rispettare la policy "no crash" in caso di JSON corrotto.
+    const entry = rowToEntry({
+      id: '',
+      schema_slug: slug,
+      slug: null,
+      status: status || 'draft',
+      data: row.data,
+      created_at: null,
+      updated_at: null,
+    })
+    const dataByAlias = dbToApi(seed, entry.data)
+    addTagsFromEntryData(dataByAlias, tagAliases, tagsSetByAlias)
+  }
+}
+
+function buildFacetsPayload(
+  statusSet: Set<string>,
+  tagsSetByAlias: Map<string, Set<string>>,
+): ContentFacetsResponse {
+  const tagsByColumnId: Record<string, string[]> = {}
+  for (const [alias, set] of tagsSetByAlias.entries()) {
+    tagsByColumnId[alias] = Array.from(set).sort((a, b) => a.localeCompare(b, 'it'))
+  }
+
+  return {
+    statuses: Array.from(statusSet).sort((a, b) => a.localeCompare(b, 'it')),
+    tagsByColumnId,
+  }
 }
 
 // --- 4. Controller Principale (Pulito) ---
@@ -498,15 +601,9 @@ contentApp.get('/:slug/facets', async (c) => {
     return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
   }
 
-  const tagAliases = seed.branches
-    .filter((branch) => branch.type === 'json' && branch.alias.toLowerCase().includes('tag'))
-    .map((branch) => branch.alias)
-
+  const tagAliases = getTagAliasesFromSeed(seed)
   const statusSet = new Set<string>()
-  const tagsSetByAlias = new Map<string, Set<string>>()
-  for (const alias of tagAliases) {
-    tagsSetByAlias.set(alias, new Set<string>())
-  }
+  const tagsSetByAlias = initTagsSetByAlias(tagAliases)
 
   try {
     const { DB } = c.env
@@ -516,43 +613,8 @@ contentApp.get('/:slug/facets', async (c) => {
       .bind(slug)
       .all<{ status: string | null; data: string }>()
 
-    for (const row of result.results ?? []) {
-      const status = cleanStr(row.status) ?? '';
-
-      if (status) {
-        statusSet.add(status)
-      }
-
-      const entry = rowToEntry({
-        id: '',
-        schema_slug: slug,
-        slug: null,
-        status: status || 'draft',
-        data: row.data,
-        created_at: null,
-        updated_at: null,
-      })
-      const data = dbToApi(seed, entry.data)
-
-      for (const alias of tagAliases) {
-        const tags = parseTagNames(data[alias])
-        if (!tags.length) continue
-        const set = tagsSetByAlias.get(alias)
-        if (!set) continue
-        for (const tag of tags) set.add(tag)
-      }
-    }
-
-    const tagsByColumnId: Record<string, string[]> = {}
-    for (const [alias, set] of tagsSetByAlias.entries()) {
-      tagsByColumnId[alias] = Array.from(set).sort((a, b) => a.localeCompare(b, 'it'))
-    }
-
-    const payload: ContentFacetsResponse = {
-      statuses: Array.from(statusSet).sort((a, b) => a.localeCompare(b, 'it')),
-      tagsByColumnId,
-    }
-    return c.json(payload)
+    populateFacetSets(seed, slug, result.results ?? [], tagAliases, statusSet, tagsSetByAlias)
+    return c.json(buildFacetsPayload(statusSet, tagsSetByAlias))
   } catch (err) {
     console.error('Content facets error:', err)
     return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
@@ -674,8 +736,11 @@ contentApp.put('/:slug/:id', async (c) => {
   // Tratta "Mancante" e "Invalido" allo stesso modo
     const statusReq = cleanStr(body.status) ?? undefined;
 
-    const newSlug = entrySlugReq !== undefined ? entrySlugReq : current.slug
-    const newStatus = statusReq !== undefined ? statusReq : current.status
+    let newSlug = current.slug
+    if (entrySlugReq !== undefined) newSlug = entrySlugReq
+
+    let newStatus = current.status
+    if (statusReq !== undefined) newStatus = statusReq
 
     if (!newSlug) {
       return c.json({ error: "Missing required field: newSlug" }, 400);

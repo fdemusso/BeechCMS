@@ -33,6 +33,25 @@ const ALLOWED_MIME_PREFIXES = ['image/', 'application/pdf']
 /** Dimensione massima file: 5 MB */
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
 
+type FileLike = {
+  name: string
+  type: string
+  size: number
+  arrayBuffer: () => Promise<ArrayBuffer>
+}
+
+function isFileLike(value: unknown): value is FileLike {
+  if (!value || typeof value === 'string') return false
+  const v = value as Record<string, unknown>
+
+  return (
+    typeof v.name === 'string' &&
+    typeof v.type === 'string' &&
+    typeof v.size === 'number' &&
+    typeof v.arrayBuffer === 'function'
+  )
+}
+
 /** Sanitizza il nome file: rimuove caratteri non sicuri, mantiene estensione */
 function sanitizeFilename(name: string): string {
   const base = name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100)
@@ -138,10 +157,13 @@ uploadRoutes.post('/upload', async (c, next) => {
     }
 
     const formData = await c.req.formData()
-    const file = formData.get('file')
-    if (!file || !(file instanceof File)) {
+    const fileEntry = formData.get('file')
+    // In Cloudflare/Workers il value può essere `string` o un oggetto (File/Blob-like).
+    // Usiamo un guard sulle proprietà richieste.
+    if (!isFileLike(fileEntry)) {
       return c.json({ error: 'No file provided. Use field name "file"' }, 400)
     }
+    const file = fileEntry
 
     const mimeOk = ALLOWED_MIME_PREFIXES.some((prefix) => file.type.startsWith(prefix))
     if (!mimeOk) {

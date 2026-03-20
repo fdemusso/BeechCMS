@@ -85,7 +85,7 @@ function getRefreshTokenDeleteCookieOptions(secure: boolean) {
 
 /** Logga l'errore solo in sviluppo e restituisce risposta 500 generica */
 function handleAuthError(
-  c: Context<{ Bindings: Bindings }>,
+  c: Context<{ Bindings: Bindings; Variables: Variables }>,
   err: unknown,
   operationName: string
 ): Response {

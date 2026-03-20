@@ -15,35 +15,18 @@ import {
   Plus,
   Minus,
   X,
-  Trash2,
   Rows3,
   Rows2,
   Eye,
   Palette,
   EyeOff,
   Check,
-  ListTree,
-  ChevronUp,
-  ChevronDown,
-  Bold,
-  Italic,
-  Underline,
 } from "lucide-react"
-import type {
-  ConditionalFormatRule,
-  ConditionalFormatTarget,
-  ConditionalFormatTextStyle,
-  ConditionalFormatTone,
-} from "@/lib/conditional-format"
-import {
-  getConditionalFormatCellClass,
-  getConditionalFormatRowClass,
-} from "@/lib/conditional-format"
+import type { ConditionalFormatRule } from "@/lib/conditional-format"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Toggle } from "@/components/ui/toggle"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   Tooltip,
@@ -65,25 +48,34 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
+import { FilterColumnMenu } from "@/components/content-toolbar/filter-column-menu"
+import { SortColumnMenu } from "@/components/content-toolbar/sort-column-menu"
+import { FilterPillsBar } from "@/components/content-toolbar/filter-pills-bar"
+import { ConditionalFormatsEditor } from "@/components/content-toolbar/conditional-formats-editor"
+import { useToolbarFilters } from "@/hooks/use-toolbar-filters"
+import { useConditionalFormats } from "@/hooks/use-conditional-formats"
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+  DEFAULT_ENABLED_TOOLS,
+  getGroupableColumns,
+} from "@/components/content-toolbar/shared"
+import type {
+  ToolbarFiltersState,
+  ToolbarTool,
+  ViewType,
+} from "@/components/content-toolbar/shared"
 
 // TODO: derivare views, enabledTools e impostazioni da una configurazione persistente (per-utente) non appena disponibile.
 // TODO: definire il flusso di creazione/modifica/eliminazione di una vista utente (onCreateView).
 
-export type ViewType = "table" | "grid" | "kanban" | "chart"
-export type ToolbarTool =
-  | "filter"
-  | "sort"
-  | "automation"
-  | "search"
-  | "settings"
-  | "create"
+export type {
+  FilterGroupType,
+  FilterOperator,
+  ToolbarFilterCondition,
+  ToolbarFilterGroup,
+  ToolbarFiltersState,
+  ToolbarTool,
+  ViewType,
+} from "@/components/content-toolbar/shared"
 
 export interface UserViewInstance {
   id: string
@@ -157,208 +149,6 @@ export interface ContentToolbarProps {
   children?: React.ReactNode
 }
 
-export type FilterGroupType = "text" | "number" | "date" | "boolean" | "tags" | "select" | "system"
-export type FilterOperator =
-  | "eq"
-  | "gt"
-  | "gte"
-  | "lt"
-  | "lte"
-  | "contains"
-  | "is_empty"
-  | "is_not_empty"
-
-export interface ToolbarFilterCondition {
-  id: string
-  op: FilterOperator
-  value: string | number | boolean | null
-}
-
-export interface ToolbarFilterGroup {
-  columnId: string
-  label: string
-  type: FilterGroupType
-  conditions: ToolbarFilterCondition[]
-  /** Opzioni disponibili per tipo "select" (es. status ricavato dal DB). */
-  selectOptions?: string[]
-}
-
-export type ToolbarFiltersState = Record<string, ToolbarFilterGroup>
-
-// ─── Costanti di modulo ───────────────────────────────────────────────────────
-
-/** Strumenti abilitati di default quando la vista attiva non ne specifica uno. */
-const DEFAULT_ENABLED_TOOLS: ToolbarTool[] = [
-  "filter",
-  "sort",
-  "automation",
-  "search",
-  "settings",
-  "create",
-]
-
-const CONDITIONAL_TONE_OPTIONS: Array<{
-  value: ConditionalFormatTone
-  label: string
-}> = [
-  { value: "success", label: "Successo" },
-  { value: "warning", label: "Attenzione" },
-  { value: "danger", label: "Critico" },
-  { value: "info", label: "Info" },
-  { value: "neutral", label: "Neutro" },
-]
-
-function normalizeConditionalTarget(value: unknown): ConditionalFormatTarget {
-  return value === "cell" ? "cell" : "row"
-}
-
-function normalizeTextStyles(value: unknown): ConditionalFormatTextStyle[] {
-  if (!Array.isArray(value)) return []
-  return value.filter(
-    (style): style is ConditionalFormatTextStyle =>
-      style === "bold" || style === "italic" || style === "underline"
-  )
-}
-
-function getConditionalToneStripClass(tone: ConditionalFormatTone): string {
-  switch (tone) {
-    case "success":
-      return "bg-emerald-500/70"
-    case "warning":
-      return "bg-amber-500/70"
-    case "danger":
-      return "bg-destructive/70"
-    case "info":
-      return "bg-sky-500/70"
-    case "neutral":
-    default:
-      return "bg-muted-foreground/40"
-  }
-}
-
-// ─── Funzioni pure (nessuna dipendenza dallo scope del componente) ────────────
-
-/**
- * Genera un ID univoco per una nuova condizione di filtro.
- * Combina timestamp e stringa casuale per evitare collisioni in sessione.
- */
-function generateConditionId(): string {
-  return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
-}
-
-/**
- * Restituisce true se l'operatore richiede un valore testuale/numerico/booleano
- * da mostrare nel campo di input. Gli operatori "is_empty" e "is_not_empty"
- * sono auto-sufficienti e non necessitano di input aggiuntivo.
- */
-function operatorRequiresValue(op: FilterOperator): boolean {
-  return op !== "is_empty" && op !== "is_not_empty"
-}
-
-/**
- * Restituisce l'elenco di operatori disponibili per un dato tipo di colonna.
- * Ogni tipo espone solo gli operatori semanticamente significativi per evitare
- * combinazioni senza senso (es. "maggiore di" su un campo boolean).
- */
-function getOperatorOptions(type: FilterGroupType): Array<{ value: FilterOperator; label: string }> {
-  const baseOptions: Array<{ value: FilterOperator; label: string }> = [
-    { value: "eq", label: "Uguale a" },
-    { value: "is_not_empty", label: "È pieno" },
-    { value: "is_empty", label: "Non è pieno" },
-  ]
-
-  if (type === "number" || type === "date") {
-    return [
-      { value: "gt", label: "Maggiore di" },
-      { value: "lt", label: "Minore di" },
-      { value: "gte", label: "Maggiore o uguale" },
-      { value: "lte", label: "Minore o uguale" },
-      ...baseOptions,
-    ]
-  }
-
-  if (type === "tags") {
-    return [
-      { value: "contains", label: "Contiene" },
-      { value: "is_not_empty", label: "È pieno" },
-      { value: "is_empty", label: "Non è pieno" },
-    ]
-  }
-
-  if (type === "select") {
-    return [
-      { value: "eq", label: "Uguale a" },
-      { value: "is_not_empty", label: "È pieno" },
-      { value: "is_empty", label: "Non è pieno" },
-    ]
-  }
-
-  if (type === "text" || type === "system") {
-    return [
-      { value: "contains", label: "Contiene" },
-      ...baseOptions,
-    ]
-  }
-
-  // boolean e altri tipi: solo uguaglianza / pieno / vuoto
-  return baseOptions
-}
-
-// ─── Raggruppamento ───────────────────────────────────────────────────────────
-
-type GroupableSection = "recommended" | "other"
-
-interface GroupableColumn {
-  columnId: string
-  label: string
-  section: GroupableSection
-  /** Tipo del branch (per rendering speciale, es. "date" → sub-menu granularità). */
-  branchType?: string
-}
-
-/**
- * Restituisce le colonne su cui è semanticamente sensato raggruppare,
- * suddivise in "recommended" (cardinalità bassa/garantita) e "other"
- * (cardinalità variabile). Esclude colonne di sistema ad alta cardinalità
- * (id, slug), colonne UI (select, actions) e tipi non raggruppabili
- * (json, richtext, file) che non producono un singolo valore per riga.
- */
-function getGroupableColumns(seed: Seed, availableStatusOptions: string[] = []): GroupableColumn[] {
-  const result: GroupableColumn[] = []
-
-  // status: dinamico. Se cardinalità contenuta è consigliato per il grouping.
-  const statusSection: GroupableSection =
-    availableStatusOptions.length > 0 && availableStatusOptions.length <= 8
-      ? "recommended"
-      : "other"
-  result.push({ columnId: "status", label: "Stato", section: statusSection })
-
-  for (const branch of seed.branches) {
-    if (branch.type === "boolean") {
-      result.push({ columnId: branch.alias, label: branch.label, section: "recommended", branchType: "boolean" })
-    } else if (branch.type === "date") {
-      result.push({ columnId: branch.alias, label: branch.label, section: "recommended", branchType: "date" })
-    } else if (branch.type === "text" && branch.options && branch.options.length > 0) {
-      result.push({ columnId: branch.alias, label: branch.label, section: "recommended" })
-    } else if (branch.type === "text") {
-      result.push({
-        columnId: branch.alias,
-        label: branch.label,
-        section: "other",
-      })
-    } else if (branch.type === "number") {
-      result.push({
-        columnId: branch.alias,
-        label: branch.label,
-        section: "other",
-      })
-    }
-    // json, richtext, file → esclusi
-  }
-
-  return result
-}
-
 // ─── Componente ───────────────────────────────────────────────────────────────
 
 export function ContentToolbar({
@@ -401,10 +191,6 @@ export function ContentToolbar({
   const [openPillId, setOpenPillId] = React.useState<string | null>(null)
   const [viewNameDraft, setViewNameDraft] = React.useState(activeView?.label ?? "")
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = React.useState(false)
-  const [activeConditionalRuleId, setActiveConditionalRuleId] = React.useState<string | null>(
-    null
-  )
-  const [isConditionalEditorOpen, setIsConditionalEditorOpen] = React.useState(false)
 
   const enabledTools = React.useMemo(
     () => activeView?.enabledTools ?? DEFAULT_ENABLED_TOOLS,
@@ -470,234 +256,40 @@ export function ContentToolbar({
     )
   }, [sortColumnSearchTerm, sortableBranches])
 
-  /**
-   * Deriva l'elenco di colonne filtrabili dal seed corrente.
-   * Le colonne di sistema (slug, status) sono sempre presenti in cima.
-   * I branch vengono mappati al FilterGroupType più appropriato; i tipi non
-   * gestiti esplicitamente ricadono nel fallback "text".
-   */
-  const filterableColumns = React.useMemo(() => {
-    const columns: Array<{
-      columnId: string
-      label: string
-      type: FilterGroupType
-      selectOptions?: string[]
-    }> = [
-      { columnId: "slug", label: "Slug", type: "system" },
-      {
-        columnId: "status",
-        label: "Stato",
-        type: "select",
-        selectOptions: availableStatusOptions,
-      },
-    ]
+  const {
+    filterableColumns,
+    formattableColumns,
+    addConditionToColumn,
+    removeColumnFilters,
+    updateCondition,
+    removeCondition,
+  } = useToolbarFilters({
+    seed,
+    filters,
+    onFiltersChange,
+    availableStatusOptions,
+  })
 
-    for (const branch of seed.branches) {
-      const alias = branch.alias
-      if (branch.type === "number") {
-        columns.push({ columnId: alias, label: branch.label, type: "number" })
-      } else if (branch.type === "date") {
-        columns.push({ columnId: alias, label: branch.label, type: "date" })
-      } else if (branch.type === "boolean") {
-        columns.push({ columnId: alias, label: branch.label, type: "boolean" })
-      } else if (branch.type === "json" && alias.toLowerCase().includes("tag")) {
-        columns.push({ columnId: alias, label: branch.label, type: "tags" })
-      } else if (branch.type === "text" || branch.type === "richtext") {
-        columns.push({ columnId: alias, label: branch.label, type: "text" })
-      } else if (branch.type === "file") {
-        columns.push({ columnId: alias, label: branch.label, type: "text" })
-      } else {
-        columns.push({ columnId: alias, label: branch.label, type: "text" })
-      }
-    }
-
-    return columns
-  }, [availableStatusOptions, seed.branches])
-
-  const formattableColumns = React.useMemo(() => {
-    const allowed: FilterGroupType[] = ["select", "number", "date", "boolean", "tags"]
-    return filterableColumns.filter((c) => allowed.includes(c.type))
-  }, [filterableColumns])
-
-  const conditionalFormats = React.useMemo(() => {
-    const rules = activeView?.conditionalFormats ?? []
-    return rules
-      .map((rule) => ({
-        ...rule,
-        target: normalizeConditionalTarget(rule.target),
-        textStyles: normalizeTextStyles(rule.textStyles),
-      }))
-      .slice()
-      .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
-  }, [activeView?.conditionalFormats])
-
-  React.useEffect(() => {
-    if (conditionalFormats.length === 0) {
-      setActiveConditionalRuleId(null)
-      setIsConditionalEditorOpen(false)
-      return
-    }
-    if (
-      !activeConditionalRuleId ||
-      !conditionalFormats.some((rule) => rule.id === activeConditionalRuleId)
-    ) {
-      setActiveConditionalRuleId(conditionalFormats[0].id)
-    }
-  }, [activeConditionalRuleId, conditionalFormats])
-
-  const activeConditionalRule = React.useMemo(() => {
-    if (!activeConditionalRuleId) return conditionalFormats[0] ?? null
-    return (
-      conditionalFormats.find((rule) => rule.id === activeConditionalRuleId) ??
-      conditionalFormats[0] ??
-      null
-    )
-  }, [activeConditionalRuleId, conditionalFormats])
-
-  const commitConditionalFormats = React.useCallback(
-    (next: ConditionalFormatRule[]) => {
-      if (!activeView || !onConditionalFormatsChange) return
-      onConditionalFormatsChange(activeView.id, next)
-    },
-    [activeView, onConditionalFormatsChange]
-  )
-
-  const addConditionalFormatRule = React.useCallback(
-    (columnId: string) => {
-      const col = formattableColumns.find((c) => c.columnId === columnId)
-      if (!col) return
-      const id = generateConditionId()
-      const defaultOp: FilterOperator = col.type === "tags" ? "contains" : "eq"
-      const nextRule: ConditionalFormatRule = {
-        id,
-        enabled: true,
-        priority: conditionalFormats.length,
-        label: col.label,
-        columnId,
-        group: {
-          columnId,
-          label: col.label,
-          type: col.type,
-          selectOptions: col.selectOptions,
-          conditions: [{ id: generateConditionId(), op: defaultOp, value: null }],
-        },
-        tone: "warning",
-        target: "row",
-        textStyles: [],
-      }
-      commitConditionalFormats([...conditionalFormats, nextRule])
-      setActiveConditionalRuleId(id)
-      setIsConditionalEditorOpen(true)
-    },
-    [commitConditionalFormats, conditionalFormats, formattableColumns]
-  )
-
-  const updateConditionalRule = React.useCallback(
-    (
-      ruleId: string,
-      patch: Partial<ConditionalFormatRule>
-    ) => {
-      const next = conditionalFormats.map((r) =>
-        r.id === ruleId ? { ...r, ...patch } : r
-      )
-      commitConditionalFormats(next)
-    },
-    [commitConditionalFormats, conditionalFormats]
-  )
-
-  const updateConditionalTextStyles = React.useCallback(
-    (ruleId: string, nextStyles: string[]) => {
-      updateConditionalRule(ruleId, {
-        textStyles: nextStyles.filter(
-          (style): style is ConditionalFormatTextStyle =>
-            style === "bold" || style === "italic" || style === "underline"
-        ),
-      })
-    },
-    [updateConditionalRule]
-  )
-
-  const removeConditionalRule = React.useCallback(
-    (ruleId: string) => {
-      const next = conditionalFormats
-        .filter((r) => r.id !== ruleId)
-        .map((r, i) => ({ ...r, priority: i }))
-      commitConditionalFormats(next)
-    },
-    [commitConditionalFormats, conditionalFormats]
-  )
-
-  const moveConditionalRule = React.useCallback(
-    (ruleId: string, dir: -1 | 1) => {
-      const idx = conditionalFormats.findIndex((r) => r.id === ruleId)
-      if (idx < 0) return
-      const nextIdx = idx + dir
-      if (nextIdx < 0 || nextIdx >= conditionalFormats.length) return
-      const next = conditionalFormats.slice()
-      const [rule] = next.splice(idx, 1)
-      next.splice(nextIdx, 0, rule)
-      commitConditionalFormats(next.map((r, i) => ({ ...r, priority: i })))
-    },
-    [commitConditionalFormats, conditionalFormats]
-  )
-
-  const updateConditionalCondition = React.useCallback(
-    (
-      ruleId: string,
-      conditionId: string,
-      patch: Partial<Pick<ToolbarFilterCondition, "op" | "value">>
-    ) => {
-      const next = conditionalFormats.map((r) => {
-        if (r.id !== ruleId) return r
-        const nextConditions = r.group.conditions.map((c) =>
-          c.id === conditionId ? { ...c, ...patch } : c
-        )
-        return { ...r, group: { ...r.group, conditions: nextConditions } }
-      })
-      commitConditionalFormats(next)
-    },
-    [commitConditionalFormats, conditionalFormats]
-  )
-
-  const addConditionalCondition = React.useCallback(
-    (ruleId: string) => {
-      const rule = conditionalFormats.find((r) => r.id === ruleId)
-      if (!rule) return
-      const defaultOp: FilterOperator =
-        rule.group.type === "tags" ? "contains" : "eq"
-      const next = conditionalFormats.map((r) =>
-        r.id === ruleId
-          ? {
-              ...r,
-              group: {
-                ...r.group,
-                conditions: [
-                  ...r.group.conditions,
-                  { id: generateConditionId(), op: defaultOp, value: null },
-                ],
-              },
-            }
-          : r
-      )
-      commitConditionalFormats(next)
-    },
-    [commitConditionalFormats, conditionalFormats]
-  )
-
-  const removeConditionalCondition = React.useCallback(
-    (ruleId: string, conditionId: string) => {
-      const next = conditionalFormats
-        .map((r) => {
-          if (r.id !== ruleId) return r
-          const nextConditions = r.group.conditions.filter((c) => c.id !== conditionId)
-          return { ...r, group: { ...r.group, conditions: nextConditions } }
-        })
-        .filter((r) => r.group.conditions.length > 0)
-        .map((r, i) => ({ ...r, priority: i }))
-      commitConditionalFormats(next)
-    },
-    [commitConditionalFormats, conditionalFormats]
-  )
+  const {
+    conditionalFormats,
+    activeConditionalRule,
+    isConditionalEditorOpen,
+    setActiveConditionalRuleId,
+    setIsConditionalEditorOpen,
+    addConditionalFormatRule,
+    updateConditionalRule,
+    updateConditionalTextStyles,
+    removeConditionalRule,
+    moveConditionalRule,
+    updateConditionalCondition,
+    addConditionalCondition,
+    removeConditionalCondition,
+  } = useConditionalFormats({
+    viewId: activeView?.id,
+    conditionalFormatsInput: activeView?.conditionalFormats,
+    formattableColumns,
+    onConditionalFormatsChange,
+  })
 
   const tableColumns = React.useMemo(
     () =>
@@ -717,6 +309,14 @@ export function ContentToolbar({
     if (!term) return filterableColumns
     return filterableColumns.filter((c) => c.label.toLowerCase().includes(term))
   }, [filterColumnSearchTerm, filterableColumns])
+
+  const activeFiltersCountByColumn = React.useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(filters).map(([columnId, group]) => [columnId, group.conditions.length])
+      ),
+    [filters]
+  )
 
   const filteredTableColumns = React.useMemo(() => {
     const term = columnSearchTerm.trim().toLowerCase()
@@ -776,92 +376,6 @@ export function ContentToolbar({
     [onDateGroupPrecisionChange]
   )
 
-  const addConditionToColumn = React.useCallback(
-    (columnId: string) => {
-      if (!onFiltersChange) return
-      const col = filterableColumns.find((c) => c.columnId === columnId)
-      if (!col) return
-
-      const next = { ...filters }
-      const existing = next[columnId]
-      const defaultOp: FilterOperator = col.type === "tags" ? "contains" : "eq"
-
-      const newCondition: ToolbarFilterCondition = {
-        id: generateConditionId(),
-        op: defaultOp,
-        value: null,
-      }
-
-      if (!existing) {
-        next[columnId] = {
-          columnId,
-          label: col.label,
-          type: col.type,
-          conditions: [newCondition],
-          selectOptions: col.selectOptions,
-        }
-      } else {
-        next[columnId] = {
-          ...existing,
-          conditions: [...existing.conditions, newCondition],
-        }
-      }
-
-      onFiltersChange(next)
-    },
-    [filterableColumns, filters, onFiltersChange]
-  )
-
-  const removeColumnFilters = React.useCallback(
-    (columnId: string) => {
-      if (!onFiltersChange) return
-      const next = { ...filters }
-      delete next[columnId]
-      onFiltersChange(next)
-    },
-    [filters, onFiltersChange]
-  )
-
-  const updateCondition = React.useCallback(
-    (
-      columnId: string,
-      conditionId: string,
-      patch: Partial<Pick<ToolbarFilterCondition, "op" | "value">>
-    ) => {
-      if (!onFiltersChange) return
-      const group = filters[columnId]
-      if (!group) return
-      const nextConditions = group.conditions.map((c) =>
-        c.id === conditionId ? { ...c, ...patch } : c
-      )
-      onFiltersChange({
-        ...filters,
-        [columnId]: { ...group, conditions: nextConditions },
-      })
-    },
-    [filters, onFiltersChange]
-  )
-
-  const removeCondition = React.useCallback(
-    (columnId: string, conditionId: string) => {
-      if (!onFiltersChange) return
-      const group = filters[columnId]
-      if (!group) return
-      const nextConditions = group.conditions.filter((c) => c.id !== conditionId)
-      if (nextConditions.length === 0) {
-        const next = { ...filters }
-        delete next[columnId]
-        onFiltersChange(next)
-        return
-      }
-      onFiltersChange({
-        ...filters,
-        [columnId]: { ...group, conditions: nextConditions },
-      })
-    },
-    [filters, onFiltersChange]
-  )
-
   const handleToggleSortDirection = () => {
     if (!onSortChange || !sortState?.columnId) return
     onSortChange({
@@ -881,7 +395,7 @@ export function ContentToolbar({
     }
 
     // Mantiene la direzione di ordinamento già impostata, se presente.
-    const nextDesc = sortState && sortState.columnId != null ? sortState.desc : true
+    const nextDesc = sortState?.columnId == null ? true : sortState.desc
     onSortChange({ columnId: branchAlias, desc: nextDesc })
   }
 
@@ -936,149 +450,30 @@ export function ContentToolbar({
           {/* Lato destro: strumenti */}
           <div className="flex shrink-0 items-center gap-2">
             {isToolEnabled("filter") && (
-              <DropdownMenu
+              <FilterColumnMenu
                 open={filterMenuOpen}
-                onOpenChange={(open) => {
-                  setFilterMenuOpen(open)
-                  if (!open) setFilterColumnSearchTerm("")
+                onOpenChange={setFilterMenuOpen}
+                searchTerm={filterColumnSearchTerm}
+                onSearchTermChange={setFilterColumnSearchTerm}
+                visibleFilterColumns={visibleFilterColumns}
+                activeFiltersCountByColumn={activeFiltersCountByColumn}
+                onSelectColumn={(columnId) => {
+                  addConditionToColumn(columnId)
+                  setFilterMenuOpen(false)
+                  setFilterColumnSearchTerm("")
+                  setOpenPillId(columnId)
                 }}
-              >
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon-sm" aria-label="Filtri">
-                        <Filter className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">Filtri</TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent align="end" className="w-64 p-2">
-                  <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                    Filtra per colonna
-                  </DropdownMenuLabel>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      placeholder="Cerca colonna..."
-                      value={filterColumnSearchTerm}
-                      onChange={(e) => setFilterColumnSearchTerm(e.target.value)}
-                      className="h-8 flex-1 text-sm"
-                    />
-                  </div>
-                  <DropdownMenuSeparator className="my-2" />
-                  <div className="max-h-56 overflow-y-auto">
-                    {visibleFilterColumns.length === 0 ? (
-                      <div className="py-2 text-center text-xs text-muted-foreground">
-                        Nessuna colonna trovata
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-1 py-1">
-                        {visibleFilterColumns.map((col) => (
-                          <Button
-                            key={col.columnId}
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 justify-between px-2 text-xs"
-                            onClick={() => {
-                              addConditionToColumn(col.columnId)
-                              setFilterMenuOpen(false)
-                              setFilterColumnSearchTerm("")
-                              setOpenPillId(col.columnId)
-                            }}
-                          >
-                            <span className="truncate">{col.label}</span>
-                            {filters[col.columnId]?.conditions?.length ? (
-                              <span className="text-muted-foreground text-[10px] uppercase">
-                                {filters[col.columnId].conditions.length}
-                              </span>
-                            ) : null}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              />
             )}
             {isToolEnabled("sort") && (
-              <DropdownMenu
-                onOpenChange={(open) => {
-                  if (!open) setSortColumnSearchTerm("")
-                }}
-              >
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label="Ordina"
-                      >
-                        <ArrowUpDown className="size-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent side="top">Ordina</TooltipContent>
-                </Tooltip>
-                <DropdownMenuContent align="end" className="w-64 p-2">
-                  <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                    Ordina per colonna
-                  </DropdownMenuLabel>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      placeholder="Cerca colonna..."
-                      value={sortColumnSearchTerm}
-                      onChange={(e) => setSortColumnSearchTerm(e.target.value)}
-                      className="h-8 flex-1 text-sm"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon-sm"
-                      className="h-8 w-8 shrink-0"
-                      aria-label="Inverti ordine"
-                      onClick={handleToggleSortDirection}
-                      disabled={!sortState?.columnId}
-                    >
-                      <ArrowUpDown className="size-3.5" />
-                    </Button>
-                  </div>
-                  <DropdownMenuSeparator className="my-2" />
-                  <div className="max-h-56 overflow-y-auto">
-                    {filteredSortableColumns.length === 0 ? (
-                      <div className="py-2 text-center text-xs text-muted-foreground">
-                        Nessuna colonna trovata
-                      </div>
-                    ) : (
-                      <div className="flex flex-col gap-1 py-1">
-                        {filteredSortableColumns.map((branch) => {
-                          const isSelected = sortState?.columnId === branch.alias
-                          return (
-                            <Button
-                              key={branch.alias}
-                              type="button"
-                              variant={isSelected ? "secondary" : "ghost"}
-                              size="sm"
-                              className="h-8 justify-between px-2 text-xs"
-                              onClick={() => handleSortColumnSelect(branch.alias)}
-                            >
-                              <span className="truncate">
-                                {branch.label}
-                              </span>
-                              {isSelected && (
-                                <span className="text-muted-foreground text-[10px] uppercase">
-                                  {sortState?.desc ? "DESC" : "ASC"}
-                                </span>
-                              )}
-                            </Button>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <SortColumnMenu
+                searchTerm={sortColumnSearchTerm}
+                onSearchTermChange={setSortColumnSearchTerm}
+                filteredSortableColumns={filteredSortableColumns}
+                sortState={sortState}
+                onToggleDirection={handleToggleSortDirection}
+                onSelectColumn={handleSortColumnSelect}
+              />
             )}
             {isToolEnabled("automation") && (
               <Tooltip>
@@ -1468,534 +863,24 @@ export function ContentToolbar({
                       </DropdownMenuSubTrigger>
                       <DropdownMenuPortal>
                         <DropdownMenuSubContent className="w-[620px] p-3">
-                          {!onConditionalFormatsChange ? (
-                            <div className="text-sm text-muted-foreground">
-                              Configurazione non disponibile
-                            </div>
-                          ) : (
-                            <div className="space-y-3">
-                              <div className="flex items-center justify-between gap-2">
-                                <DropdownMenuLabel className="px-0 py-0 text-sm font-semibold text-foreground">
-                                  Regole dei colori condizionali
-                                </DropdownMenuLabel>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="h-8 w-8 px-0"
-                                      aria-label="Aggiungi regola"
-                                    >
-                                      <Plus className="size-4" />
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-64 p-2">
-                                    <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                                      Scegli colonna
-                                    </DropdownMenuLabel>
-                                    <div className="max-h-56 overflow-y-auto">
-                                      {formattableColumns.length === 0 ? (
-                                        <div className="py-2 text-center text-xs text-muted-foreground">
-                                          Nessuna colonna disponibile
-                                        </div>
-                                      ) : (
-                                        <div className="flex flex-col gap-1 py-1">
-                                          {formattableColumns.map((col) => (
-                                            <Button
-                                              key={col.columnId}
-                                              type="button"
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-8 justify-between px-2 text-xs"
-                                              onClick={() => addConditionalFormatRule(col.columnId)}
-                                            >
-                                              <span className="truncate">{col.label}</span>
-                                              <span className="text-[10px] text-muted-foreground uppercase">
-                                                {col.type}
-                                              </span>
-                                            </Button>
-                                          ))}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-
-                              <div className="text-[11px] text-muted-foreground">
-                                Le regole si applicano dall’alto verso il basso.
-                              </div>
-
-                              <DropdownMenuSeparator />
-
-                              {!isConditionalEditorOpen ? (
-                                conditionalFormats.length === 0 ? (
-                                  <div className="flex min-h-52 flex-col items-center justify-center gap-3 rounded-md border border-dashed">
-                                    <div className="text-sm text-muted-foreground">Non ci sono regole</div>
-                                    <DropdownMenu>
-                                      <DropdownMenuTrigger asChild>
-                                        <Button type="button" variant="outline" size="sm" className="h-8">
-                                          <Plus className="size-4" />
-                                          Aggiungi
-                                        </Button>
-                                      </DropdownMenuTrigger>
-                                      <DropdownMenuContent align="center" className="w-64 p-2">
-                                        <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                                          Scegli colonna
-                                        </DropdownMenuLabel>
-                                        <div className="max-h-56 overflow-y-auto">
-                                          {formattableColumns.length === 0 ? (
-                                            <div className="py-2 text-center text-xs text-muted-foreground">
-                                              Nessuna colonna disponibile
-                                            </div>
-                                          ) : (
-                                            <div className="flex flex-col gap-1 py-1">
-                                              {formattableColumns.map((col) => (
-                                                <Button
-                                                  key={col.columnId}
-                                                  type="button"
-                                                  variant="ghost"
-                                                  size="sm"
-                                                  className="h-8 justify-between px-2 text-xs"
-                                                  onClick={() => addConditionalFormatRule(col.columnId)}
-                                                >
-                                                  <span className="truncate">{col.label}</span>
-                                                  <span className="text-[10px] text-muted-foreground uppercase">
-                                                    {col.type}
-                                                  </span>
-                                                </Button>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
-                                      </DropdownMenuContent>
-                                    </DropdownMenu>
-                                  </div>
-                                ) : (
-                                  <div className="space-y-2">
-                                    {conditionalFormats.map((rule, idx) => (
-                                      <button
-                                        key={rule.id}
-                                        type="button"
-                                        className="flex h-14 w-full overflow-hidden rounded-md border text-left transition-colors hover:bg-muted/40"
-                                        onClick={() => {
-                                          setActiveConditionalRuleId(rule.id)
-                                          setIsConditionalEditorOpen(true)
-                                        }}
-                                      >
-                                        <div className={`w-1/3 ${getConditionalToneStripClass(rule.tone)}`} />
-                                        <div className="flex flex-1 items-center justify-between px-3">
-                                          <span className="truncate text-sm">{rule.label || rule.group.label}</span>
-                                          <span className="text-[10px] text-muted-foreground">#{idx + 1}</span>
-                                        </div>
-                                      </button>
-                                    ))}
-                                  </div>
-                                )
-                              ) : activeConditionalRule ? (
-                                <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
-                                    <div className="flex items-center justify-between">
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-7 px-2 text-xs"
-                                        onClick={() => setIsConditionalEditorOpen(false)}
-                                      >
-                                        Elenco regole
-                                      </Button>
-                                      <span className="text-[11px] text-muted-foreground">
-                                        Modifica regola
-                                      </span>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                      <Toggle
-                                        pressed={activeConditionalRule.enabled}
-                                        onPressedChange={(pressed) =>
-                                          updateConditionalRule(activeConditionalRule.id, {
-                                            enabled: pressed,
-                                          })
-                                        }
-                                        variant="outline"
-                                        size="sm"
-                                        aria-label="Attiva/disattiva regola"
-                                        className="h-7 w-7 px-0"
-                                      >
-                                        {activeConditionalRule.enabled ? (
-                                          <Eye className="size-3.5" />
-                                        ) : (
-                                          <EyeOff className="size-3.5" />
-                                        )}
-                                      </Toggle>
-                                      <Input
-                                        value={activeConditionalRule.label ?? ""}
-                                        onChange={(e) =>
-                                          updateConditionalRule(activeConditionalRule.id, {
-                                            label: e.target.value,
-                                          })
-                                        }
-                                        className="h-7 text-xs"
-                                        placeholder="Nome regola"
-                                      />
-                                      <div className="ml-auto flex items-center gap-1">
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon-xs"
-                                          className="h-7 w-7"
-                                          onClick={() => moveConditionalRule(activeConditionalRule.id, -1)}
-                                          disabled={conditionalFormats.findIndex((r) => r.id === activeConditionalRule.id) === 0}
-                                          aria-label="Sposta su"
-                                        >
-                                          <ChevronUp className="size-3.5" />
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon-xs"
-                                          className="h-7 w-7"
-                                          onClick={() => moveConditionalRule(activeConditionalRule.id, 1)}
-                                          disabled={
-                                            conditionalFormats.findIndex((r) => r.id === activeConditionalRule.id) ===
-                                            conditionalFormats.length - 1
-                                          }
-                                          aria-label="Sposta giù"
-                                        >
-                                          <ChevronDown className="size-3.5" />
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="icon-xs"
-                                          className="h-7 w-7 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                                          onClick={() => removeConditionalRule(activeConditionalRule.id)}
-                                          aria-label="Elimina regola"
-                                        >
-                                          <Trash2 className="size-3.5" />
-                                        </Button>
-                                      </div>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                      <div className="text-xs font-medium">Applica a</div>
-                                      <div className="inline-flex rounded-md border p-0.5">
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="ghost"
-                                          className={
-                                            activeConditionalRule.target === "cell"
-                                              ? "h-7 px-3 text-xs bg-black text-white hover:bg-black/90 hover:text-white"
-                                              : "h-7 px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                                          }
-                                          onClick={() =>
-                                            updateConditionalRule(activeConditionalRule.id, { target: "cell" })
-                                          }
-                                        >
-                                          Cella
-                                        </Button>
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="ghost"
-                                          className={
-                                            activeConditionalRule.target === "row"
-                                              ? "h-7 px-3 text-xs bg-black text-white hover:bg-black/90 hover:text-white"
-                                              : "h-7 px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
-                                          }
-                                          onClick={() =>
-                                            updateConditionalRule(activeConditionalRule.id, { target: "row" })
-                                          }
-                                        >
-                                          Riga
-                                        </Button>
-                                      </div>
-                                    </div>
-
-                                    <div className="space-y-1">
-                                      <div className="text-xs font-medium">usa colore se</div>
-                                      <div className="h-8 rounded-md border bg-muted/20 px-2 text-xs flex items-center">
-                                        <span className="truncate">{activeConditionalRule.group.label}</span>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex flex-col gap-2">
-                                      {activeConditionalRule.group.conditions.map((cond) => {
-                                        const ops = getOperatorOptions(activeConditionalRule.group.type)
-                                        const showValueInput = operatorRequiresValue(cond.op)
-                                        return (
-                                          <div key={cond.id} className="flex items-center gap-2">
-                                            <Select
-                                              value={cond.op}
-                                              onValueChange={(v) =>
-                                                updateConditionalCondition(activeConditionalRule.id, cond.id, {
-                                                  op: v as FilterOperator,
-                                                  value:
-                                                    v === "is_empty" || v === "is_not_empty"
-                                                      ? null
-                                                      : cond.value,
-                                                })
-                                              }
-                                            >
-                                              <SelectTrigger size="sm" className="h-8 w-36 text-xs">
-                                                <SelectValue placeholder="Operatore" />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                {ops.map((o) => (
-                                                  <SelectItem key={o.value} value={o.value}>
-                                                    {o.label}
-                                                  </SelectItem>
-                                                ))}
-                                              </SelectContent>
-                                            </Select>
-
-                                            {showValueInput ? (
-                                              activeConditionalRule.group.type === "number" ? (
-                                                <Input
-                                                  type="number"
-                                                  value={typeof cond.value === "number" ? String(cond.value) : ""}
-                                                  onChange={(e) => {
-                                                    const raw = e.target.value
-                                                    updateConditionalCondition(activeConditionalRule.id, cond.id, {
-                                                      value: raw.trim() === "" ? null : Number(raw),
-                                                    })
-                                                  }}
-                                                  className="h-8 flex-1 text-xs"
-                                                  placeholder="Valore..."
-                                                />
-                                              ) : activeConditionalRule.group.type === "date" ? (
-                                                <Input
-                                                  type="date"
-                                                  value={typeof cond.value === "string" ? cond.value : ""}
-                                                  onChange={(e) =>
-                                                    updateConditionalCondition(activeConditionalRule.id, cond.id, {
-                                                      value: e.target.value || null,
-                                                    })
-                                                  }
-                                                  className="h-8 flex-1 text-xs"
-                                                />
-                                              ) : activeConditionalRule.group.type === "boolean" ? (
-                                                <Select
-                                                  value={
-                                                    cond.value === true
-                                                      ? "true"
-                                                      : cond.value === false
-                                                        ? "false"
-                                                        : ""
-                                                  }
-                                                  onValueChange={(v) =>
-                                                    updateConditionalCondition(activeConditionalRule.id, cond.id, {
-                                                      value:
-                                                        v === "true"
-                                                          ? true
-                                                          : v === "false"
-                                                            ? false
-                                                            : null,
-                                                    })
-                                                  }
-                                                >
-                                                  <SelectTrigger size="sm" className="h-8 flex-1 text-xs">
-                                                    <SelectValue placeholder="Valore..." />
-                                                  </SelectTrigger>
-                                                  <SelectContent>
-                                                    <SelectItem value="true">Vero</SelectItem>
-                                                    <SelectItem value="false">Falso</SelectItem>
-                                                  </SelectContent>
-                                                </Select>
-                                              ) : activeConditionalRule.group.type === "select" ? (
-                                                <DropdownMenu>
-                                                  <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                      type="button"
-                                                      variant="outline"
-                                                      size="sm"
-                                                      className="h-8 flex-1 justify-between text-xs"
-                                                    >
-                                                      <span className="truncate">
-                                                        {typeof cond.value === "string" && cond.value
-                                                          ? cond.value
-                                                          : "Scegli..."}
-                                                      </span>
-                                                      <ArrowUpDown className="size-3.5 opacity-60" />
-                                                    </Button>
-                                                  </DropdownMenuTrigger>
-                                                  <DropdownMenuContent align="end" className="w-48 p-1">
-                                                    {(activeConditionalRule.group.selectOptions ?? []).map((opt) => (
-                                                      <Button
-                                                        key={opt}
-                                                        type="button"
-                                                        variant={cond.value === opt ? "secondary" : "ghost"}
-                                                        size="sm"
-                                                        className="h-8 w-full justify-start px-2 text-xs"
-                                                        onClick={() =>
-                                                          updateConditionalCondition(activeConditionalRule.id, cond.id, {
-                                                            value: opt,
-                                                          })
-                                                        }
-                                                      >
-                                                        {opt}
-                                                      </Button>
-                                                    ))}
-                                                  </DropdownMenuContent>
-                                                </DropdownMenu>
-                                              ) : activeConditionalRule.group.type === "tags" ? (
-                                                <DropdownMenu>
-                                                  <DropdownMenuTrigger asChild>
-                                                    <Button
-                                                      type="button"
-                                                      variant="outline"
-                                                      size="sm"
-                                                      className="h-8 flex-1 justify-between text-xs"
-                                                    >
-                                                      <span className="truncate">
-                                                        {typeof cond.value === "string" && cond.value
-                                                          ? cond.value
-                                                          : "Tag..."}
-                                                      </span>
-                                                      <ArrowUpDown className="size-3.5 opacity-60" />
-                                                    </Button>
-                                                  </DropdownMenuTrigger>
-                                                  <DropdownMenuContent
-                                                    align="end"
-                                                    className="max-h-56 w-56 overflow-y-auto p-1"
-                                                  >
-                                                    {(availableTagsByColumnId[activeConditionalRule.columnId] ?? []).map(
-                                                      (tag) => (
-                                                        <Button
-                                                          key={tag}
-                                                          type="button"
-                                                          variant={cond.value === tag ? "secondary" : "ghost"}
-                                                          size="sm"
-                                                          className="h-8 w-full justify-start px-2 text-xs"
-                                                          onClick={() =>
-                                                            updateConditionalCondition(activeConditionalRule.id, cond.id, {
-                                                              value: tag,
-                                                            })
-                                                          }
-                                                        >
-                                                          {tag}
-                                                        </Button>
-                                                      )
-                                                    )}
-                                                  </DropdownMenuContent>
-                                                </DropdownMenu>
-                                              ) : (
-                                                <Input
-                                                  value={typeof cond.value === "string" ? cond.value : ""}
-                                                  onChange={(e) =>
-                                                    updateConditionalCondition(activeConditionalRule.id, cond.id, {
-                                                      value: e.target.value || null,
-                                                    })
-                                                  }
-                                                  className="h-8 flex-1 text-xs"
-                                                  placeholder="Valore..."
-                                                />
-                                              )
-                                            ) : (
-                                              <div className="h-8 flex-1" />
-                                            )}
-
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="icon-xs"
-                                              className="h-8 w-8"
-                                              aria-label="Rimuovi condizione"
-                                              onClick={() => removeConditionalCondition(activeConditionalRule.id, cond.id)}
-                                            >
-                                              <X className="size-3.5" />
-                                            </Button>
-                                            <Button
-                                              type="button"
-                                              variant="ghost"
-                                              size="icon-xs"
-                                              className="h-8 w-8"
-                                              aria-label="Aggiungi condizione"
-                                              onClick={() => addConditionalCondition(activeConditionalRule.id)}
-                                            >
-                                              <Plus className="size-3.5" />
-                                            </Button>
-                                          </div>
-                                        )
-                                      })}
-                                    </div>
-
-                                    <div className="space-y-1 pt-1">
-                                      <div className="text-xs font-medium">stile di formattazione</div>
-                                      <div className="rounded-md border border-dashed p-2">
-                                        <div
-                                          className={`flex min-h-12 items-center rounded-md border px-3 ${
-                                            activeConditionalRule.target === "row"
-                                              ? getConditionalFormatRowClass(
-                                                  activeConditionalRule.tone,
-                                                  activeConditionalRule.textStyles ?? []
-                                                )
-                                              : ""
-                                          }`}
-                                        >
-                                          <span
-                                            className={
-                                              activeConditionalRule.target === "cell"
-                                                ? getConditionalFormatCellClass(
-                                                    activeConditionalRule.tone,
-                                                    activeConditionalRule.textStyles ?? []
-                                                  )
-                                                : "font-medium"
-                                            }
-                                          >
-                                            Predefinito
-                                          </span>
-                                        </div>
-                                        <div className="mt-2 flex items-center justify-between gap-2">
-                                          <Select
-                                            value={activeConditionalRule.tone}
-                                            onValueChange={(v) =>
-                                              updateConditionalRule(activeConditionalRule.id, {
-                                                tone: v as ConditionalFormatTone,
-                                              })
-                                            }
-                                          >
-                                            <SelectTrigger size="sm" className="h-8 w-40 text-xs">
-                                              <SelectValue placeholder="Preset colore" />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                              {CONDITIONAL_TONE_OPTIONS.map((toneOption) => (
-                                                <SelectItem key={toneOption.value} value={toneOption.value}>
-                                                  {toneOption.label}
-                                                </SelectItem>
-                                              ))}
-                                            </SelectContent>
-                                          </Select>
-                                          <ToggleGroup
-                                            variant="outline"
-                                            type="multiple"
-                                            value={activeConditionalRule.textStyles ?? []}
-                                            onValueChange={(value) =>
-                                              updateConditionalTextStyles(activeConditionalRule.id, value)
-                                            }
-                                          >
-                                            <ToggleGroupItem value="bold" aria-label="Grassetto">
-                                              <Bold className="size-4" />
-                                            </ToggleGroupItem>
-                                            <ToggleGroupItem value="italic" aria-label="Corsivo">
-                                              <Italic className="size-4" />
-                                            </ToggleGroupItem>
-                                            <ToggleGroupItem value="underline" aria-label="Sottolineato">
-                                              <Underline className="size-4" />
-                                            </ToggleGroupItem>
-                                          </ToggleGroup>
-                                        </div>
-                                      </div>
-                                    </div>
-                                </div>
-                              ) : (
-                                <div className="px-0 py-6 text-center text-sm text-muted-foreground">
-                                  Seleziona una regola dall'elenco.
-                                </div>
-                              )}
-                            </div>
-                          )}
+                          <ConditionalFormatsEditor
+                            enabled={Boolean(onConditionalFormatsChange)}
+                            formattableColumns={formattableColumns}
+                            conditionalFormats={conditionalFormats}
+                            activeConditionalRule={activeConditionalRule}
+                            isConditionalEditorOpen={isConditionalEditorOpen}
+                            setIsConditionalEditorOpen={setIsConditionalEditorOpen}
+                            setActiveConditionalRuleId={setActiveConditionalRuleId}
+                            addConditionalFormatRule={addConditionalFormatRule}
+                            updateConditionalRule={updateConditionalRule}
+                            updateConditionalTextStyles={updateConditionalTextStyles}
+                            removeConditionalRule={removeConditionalRule}
+                            moveConditionalRule={moveConditionalRule}
+                            updateConditionalCondition={updateConditionalCondition}
+                            addConditionalCondition={addConditionalCondition}
+                            removeConditionalCondition={removeConditionalCondition}
+                            availableTagsByColumnId={availableTagsByColumnId}
+                          />
                         </DropdownMenuSubContent>
                       </DropdownMenuPortal>
                     </DropdownMenuSub>
@@ -2125,288 +1010,19 @@ export function ContentToolbar({
         {children != null && (
           <div className="mt-4 border-t pt-4">
             {(Object.keys(filters).length > 0 || activeGroupLabel) && (
-              <div className="mb-3 flex flex-wrap justify-start gap-2">
-                {/* Pill raggruppamento attivo */}
-                {activeGroupLabel && (
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="sm"
-                    className="h-8 gap-1.5 px-2.5"
-                    aria-label={`Raggruppa per ${activeGroupLabel}`}
-                    onClick={() => onGroupByChange?.(null)}
-                  >
-                    <ListTree className="size-3.5 shrink-0" />
-                    <span className="truncate max-w-40">{activeGroupLabel}</span>
-                    <X className="size-3 shrink-0 text-muted-foreground" />
-                  </Button>
-                )}
-                {Object.values(filters).map((group) => (
-                  <DropdownMenu
-                    key={group.columnId}
-                    open={openPillId === group.columnId}
-                    onOpenChange={(open) =>
-                      setOpenPillId(open ? group.columnId : null)
-                    }
-                  >
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="sm"
-                        className="h-8 gap-1.5 px-2.5"
-                        aria-label={`Filtro ${group.label}`}
-                      >
-                        <span className="truncate max-w-40">{group.label}</span>
-                        <span className="text-muted-foreground text-[10px] uppercase">
-                          {group.conditions.length}
-                        </span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start" className="w-72 p-3">
-                      <div className="flex items-center gap-2">
-                        <Input
-                          value={group.label}
-                          readOnly
-                          className="h-8 flex-1 text-sm"
-                          aria-label="Colonna"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-xs"
-                          className="h-8 w-8 shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                          aria-label="Rimuovi filtri colonna"
-                          onClick={() => removeColumnFilters(group.columnId)}
-                        >
-                          <Trash2 className="size-3.5" />
-                        </Button>
-                      </div>
-                      <DropdownMenuSeparator className="my-2" />
-
-                      <div className="flex flex-col gap-2">
-                        {group.conditions.map((cond) => {
-                          const ops = getOperatorOptions(group.type)
-                          const showValueInput = operatorRequiresValue(cond.op)
-
-                          return (
-                            <div
-                              key={cond.id}
-                              className="flex items-center gap-2"
-                            >
-                              <Select
-                                value={cond.op}
-                                onValueChange={(v) =>
-                                  updateCondition(group.columnId, cond.id, {
-                                    op: v as FilterOperator,
-                                    value:
-                                      v === "is_empty" || v === "is_not_empty"
-                                        ? null
-                                        : cond.value,
-                                  })
-                                }
-                              >
-                                <SelectTrigger size="sm" className="h-8 w-36">
-                                  <SelectValue placeholder="Operatore" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {ops.map((o) => (
-                                    <SelectItem key={o.value} value={o.value}>
-                                      {o.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-
-                              {showValueInput ? (
-                                group.type === "number" ? (
-                                  <Input
-                                    type="number"
-                                    value={
-                                      typeof cond.value === "number"
-                                        ? String(cond.value)
-                                        : ""
-                                    }
-                                    onChange={(e) => {
-                                      const raw = e.target.value
-                                      updateCondition(group.columnId, cond.id, {
-                                        value:
-                                          raw.trim() === ""
-                                            ? null
-                                            : Number(raw),
-                                      })
-                                    }}
-                                    className="h-8 flex-1 text-sm"
-                                    placeholder="Valore..."
-                                  />
-                                ) : group.type === "date" ? (
-                                  <Input
-                                    type="date"
-                                    value={
-                                      typeof cond.value === "string"
-                                        ? cond.value
-                                        : ""
-                                    }
-                                    onChange={(e) =>
-                                      updateCondition(group.columnId, cond.id, {
-                                        value: e.target.value || null,
-                                      })
-                                    }
-                                    className="h-8 flex-1 text-sm"
-                                  />
-                                ) : group.type === "boolean" ? (
-                                  <Select
-                                    value={
-                                      cond.value === true
-                                        ? "true"
-                                        : cond.value === false
-                                          ? "false"
-                                          : ""
-                                    }
-                                    onValueChange={(v) =>
-                                      updateCondition(group.columnId, cond.id, {
-                                        value:
-                                          v === "true"
-                                            ? true
-                                            : v === "false"
-                                              ? false
-                                              : null,
-                                      })
-                                    }
-                                  >
-                                    <SelectTrigger size="sm" className="h-8 flex-1">
-                                      <SelectValue placeholder="Valore..." />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="true">Vero</SelectItem>
-                                      <SelectItem value="false">Falso</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                ) : group.type === "select" ? (
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-8 flex-1 justify-between"
-                                      >
-                                        <span className="truncate">
-                                          {typeof cond.value === "string" && cond.value
-                                            ? cond.value
-                                            : "Scegli..."}
-                                        </span>
-                                        <ArrowUpDown className="size-3.5 opacity-60" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48 p-1">
-                                      {(group.selectOptions ?? []).map((opt) => (
-                                        <Button
-                                          key={opt}
-                                          type="button"
-                                          variant={cond.value === opt ? "secondary" : "ghost"}
-                                          size="sm"
-                                          className="h-8 w-full justify-start px-2 text-xs"
-                                          onClick={() =>
-                                            updateCondition(group.columnId, cond.id, { value: opt })
-                                          }
-                                        >
-                                          {opt}
-                                        </Button>
-                                      ))}
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                ) : group.type === "tags" ? (
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="h-8 flex-1 justify-between"
-                                      >
-                                        <span className="truncate">
-                                          {typeof cond.value === "string" && cond.value
-                                            ? cond.value
-                                            : "Tag..."}
-                                        </span>
-                                        <ArrowUpDown className="size-3.5 opacity-60" />
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent
-                                      align="end"
-                                      className="max-h-56 w-56 overflow-y-auto p-1"
-                                    >
-                                      {(availableTagsByColumnId[group.columnId] ?? []).map((tag) => (
-                                        <Button
-                                          key={tag}
-                                          type="button"
-                                          variant={cond.value === tag ? "secondary" : "ghost"}
-                                          size="sm"
-                                          className="h-8 w-full justify-start px-2 text-xs"
-                                          onClick={() =>
-                                            updateCondition(group.columnId, cond.id, { value: tag })
-                                          }
-                                        >
-                                          {tag}
-                                        </Button>
-                                      ))}
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                ) : (
-                                  <Input
-                                    value={
-                                      typeof cond.value === "string"
-                                        ? cond.value
-                                        : ""
-                                    }
-                                    onChange={(e) =>
-                                      updateCondition(group.columnId, cond.id, {
-                                        value: e.target.value || null,
-                                      })
-                                    }
-                                    className="h-8 flex-1 text-sm"
-                                    placeholder="Valore..."
-                                  />
-                                )
-                              ) : (
-                                <div className="h-8 flex-1" />
-                              )}
-
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-xs"
-                                className="h-8 w-8"
-                                aria-label="Rimuovi condizione"
-                                onClick={() =>
-                                  removeCondition(group.columnId, cond.id)
-                                }
-                              >
-                                <X className="size-3.5" />
-                              </Button>
-                            </div>
-                          )
-                        })}
-
-                        <DropdownMenuSeparator />
-                        <div className="flex justify-center">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="h-8"
-                            onClick={() => addConditionToColumn(group.columnId)}
-                          >
-                            <Plus className="size-4" />
-                            Aggiungi filtro
-                          </Button>
-                        </div>
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ))}
-              </div>
+              <FilterPillsBar
+                filters={filters}
+                openPillId={openPillId}
+                onOpenPillChange={setOpenPillId}
+                groupBy={groupBy}
+                activeGroupLabel={activeGroupLabel ?? ""}
+                onGroupByChange={onGroupByChange}
+                addConditionToColumn={addConditionToColumn}
+                removeColumnFilters={removeColumnFilters}
+                updateCondition={updateCondition}
+                removeCondition={removeCondition}
+                availableTagsByColumnId={availableTagsByColumnId}
+              />
             )}
             {children}
           </div>
