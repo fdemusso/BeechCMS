@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+.next/
+.turbo/
+.vercel/
+.output/
+.cache/
+.pnpm-store/
+.yarn/
+.npm/
+tmp/
+temp/
+.wrangler/
+.vite/

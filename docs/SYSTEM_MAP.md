@@ -15,6 +15,7 @@ Mappa di alto livello del sistema Beech CMS pensata per onboarding di nuovi cont
   - **UI & state**
     - `@tanstack/react-query`: `^5.90.21`
     - `@tanstack/react-table`: `^8.21.3`
+    - `@tanstack/react-virtual`: `^3.13.23`
     - `next-themes`: `^0.4.6`
     - `lucide-react`: `^0.564.0`
     - Componenti basati su `radix-ui` e shadcn (`shadcn` `^4.0.2`)
@@ -74,7 +75,7 @@ beech-cms/
 
 - **Responsabilità principali**
   - Espone le rotte di autenticazione (`/auth/login`, `/auth/refresh`, `/auth/logout`) – vedi `[docs/auth.md](auth.md)`.
-  - Espone le rotte di contenuto dinamiche (`/api/content/:slug`, `/api/content/:slug/:id`) – vedi `[docs/content-engine.md](content-engine.md)` e `[docs/botanical-engine.md](botanical-engine.md)`.
+  - Espone le rotte di contenuto dinamiche (`/api/content/:slug`, `/api/content/:slug/facets`, `/api/content/:slug/:id`) – vedi `[docs/content-engine.md](content-engine.md)` e `[docs/botanical-engine.md](botanical-engine.md)`.
   - Espone l’upload media e la distribuzione file (`/api/upload`, `/api/media/:key`) – vedi `[docs/media-engine.md](media-engine.md)`.
 - **Integrazioni chiave**
   - Importa tipi e funzioni da `@beech/core` (`getSeed`, `apiToDb`, `dbToApi`, registry Seed).
@@ -92,7 +93,7 @@ beech-cms/
   - Rendering schema-driven di form, tabelle, Kanban e viste tramite Field Renderers (vedi `[docs/field-renderers.md](field-renderers.md)`).
   - Strumenti di filtraggio, sort, ricerca e creazione viste tramite `ContentToolbar` (vedi `[docs/dashboard-components.md](dashboard-components.md)`).
 - **Struttura UI (estratto)**
-  - `apps/dashboard/src/components/content-toolbar.tsx`: componente toolbar per cambiare vista, filtri, sort, ricerca, creazione entry (descritto in `[docs/dashboard-components.md](dashboard-components.md)`).
+  - `apps/dashboard/src/components/content-toolbar.tsx`: compositore toolbar per cambiare vista, filtri, sort, ricerca e creazione entry; include l'editor colori condizionali tramite hook/sub-component (descritto in `[docs/dashboard-components.md](dashboard-components.md)`).
   - `apps/dashboard/src/components/fields/`: infrastruttura Field Renderers (display/edit per ogni `BranchType`), descritta in `[docs/field-renderers.md](field-renderers.md)`.
     - `FieldDisplay.tsx`, `FieldEdit.tsx`, `registry.ts`, `display/*.tsx`, `edit/*.tsx`.
   - Pagine di editing entry (es. `EntryEditorPage`) che consumano i Field Renderers + `Seed` dal core.
@@ -148,6 +149,9 @@ beech-cms/
   - **Lettura (GET)**:
     - Lettura riga da D1, `JSON.parse(row.data)` → `dbToApi(seed, data)` per mappare `br_xxx` → alias.
     - Restituisce payload con `data` in formato alias, più metadati (`id`, `schema_slug`, `slug`, `status`, `created_at`, `updated_at`).
+    - Se presenti query params (`search`, `sortBy`, `sortDir`, `filters`, `page`, `limit`), la lista è elaborata server-side con risposta `{ items, total, page, limit }`.
+  - **Facets (`GET /api/content/:slug/facets`)**:
+    - Calcola valori distinti di `status` e tag per colonna (`tagsByColumnId`) da usare in toolbar, filtri e colori condizionali.
 
 - **Media Engine (`/api/upload`, `/api/media/:key`)** – vedi `[docs/media-engine.md](media-engine.md)`
   - Upload:
@@ -169,6 +173,7 @@ beech-cms/
     - Usano `<FieldDisplay>` per ogni cella, con `options.maxLength` per troncamenti.
   - `ContentToolbar` (file `content-toolbar.tsx`):
     - Gestisce viste utenti (`UserViewInstance`), strumenti (`filter`, `sort`, `automation`, `search`, `settings`, `create`) e filtri Notion-like.
+    - (Opzionale) Gestisce regole di **colori condizionali** legate alla vista attiva.
 
 ---
 

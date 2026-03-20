@@ -79,6 +79,18 @@ interface DataTableProps<TData, TValue> {
   data: TData[]
   initialHiddenColumns?: string[]
   /**
+   * Calcolo styling per riga eseguito una volta sola e poi riusato per tutte le celle.
+   * Se presente, ha priorità su `getRowClassName` / `getCellClassName`.
+   */
+  getRowStyles?: (row: TData) => {
+    rowClassName?: string
+    cellClassNameByColumnId?: Record<string, string | undefined>
+  }
+  /** Classi extra per la riga (esclude group header rows). */
+  getRowClassName?: (row: TData) => string | undefined
+  /** Classi extra per una cella specifica (esclude group header rows). */
+  getCellClassName?: (row: TData, columnId: string) => string | undefined
+  /**
    * Se fornito, abilita il menu contestuale (tasto destro) sulle celle della riga.
    * La funzione deve rendere SOLO gli items del menu (content interno).
    */
@@ -108,6 +120,20 @@ interface DataTableProps<TData, TValue> {
   pageSize?: number
   /** Callback quando cambia il numero di righe per pagina (in modalità controllata). */
   onPageSizeChange?: (size: number) => void
+  /** Indice pagina controllato dall'esterno (0-based). */
+  pageIndex?: number
+  /** Callback quando cambia la pagina corrente (0-based). */
+  onPageIndexChange?: (index: number) => void
+  /** Numero totale pagine (richiesto in manualPagination). */
+  pageCount?: number
+  /** Numero totale righe server-side (per testo "x di y selezionate"). */
+  totalRows?: number
+  /** Modalità paginazione server-side. */
+  manualPagination?: boolean
+  /** Modalità ordinamento server-side. */
+  manualSorting?: boolean
+  /** Modalità filtro server-side. */
+  manualFiltering?: boolean
   /**
    * Stato di raggruppamento controllato dall'esterno.
    * Quando non vuoto, la tabella passa in modalità virtual scroll
@@ -118,36 +144,47 @@ interface DataTableProps<TData, TValue> {
   onGroupingChange?: (grouping: GroupingState) => void
 }
 
-export function DataTable<TData, TValue>({
-  columns,
-  data,
-  initialHiddenColumns = [],
-  renderRowContextMenuContent,
-  rowContextMenuExcludedColumnIds,
-  rowSelection: rowSelectionProp,
-  onRowSelectionChange,
-  globalFilter: globalFilterProp,
-  onGlobalFilterChange,
-  sorting: sortingProp,
-  onSortingChange,
-  columnFilters: columnFiltersProp,
-  onColumnFiltersChange,
-  columnVisibility: columnVisibilityProp,
-  onColumnVisibilityChange,
-  pageSize: pageSizeProp,
-  onPageSizeChange,
-  grouping: groupingProp,
-  onGroupingChange,
-}: DataTableProps<TData, TValue>) {
+export function DataTable<TData, TValue>(
+  props: Readonly<DataTableProps<TData, TValue>>
+) {
+  const {
+    columns,
+    data,
+    initialHiddenColumns = [],
+    getRowStyles,
+    getRowClassName,
+    getCellClassName,
+    renderRowContextMenuContent,
+    rowContextMenuExcludedColumnIds,
+    rowSelection: rowSelectionProp,
+    onRowSelectionChange,
+    globalFilter: globalFilterProp,
+    onGlobalFilterChange,
+    sorting: sortingProp,
+    onSortingChange,
+    columnFilters: columnFiltersProp,
+    onColumnFiltersChange,
+    columnVisibility: columnVisibilityProp,
+    onColumnVisibilityChange,
+    pageSize: pageSizeProp,
+    onPageSizeChange,
+    pageIndex: pageIndexProp,
+    onPageIndexChange,
+    pageCount: pageCountProp,
+    totalRows: totalRowsProp,
+    manualPagination = false,
+    manualSorting = false,
+    manualFiltering = false,
+    grouping: groupingProp,
+    onGroupingChange,
+  } = props
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
   const [internalColumnFilters, setInternalColumnFilters] =
     React.useState<ColumnFiltersState>([])
   const isControlledSorting = sortingProp !== undefined
-  const sorting = isControlledSorting ? sortingProp : internalSorting
+  const sorting = sortingProp ?? internalSorting
   const isControlledColumnFilters = columnFiltersProp !== undefined
-  const columnFilters = isControlledColumnFilters
-    ? columnFiltersProp
-    : internalColumnFilters
+  const columnFilters = columnFiltersProp ?? internalColumnFilters
 
   // Inizializza columnVisibility nascondendo le colonne specificate
   const initialVisibility = React.useMemo(() => {
@@ -161,15 +198,11 @@ export function DataTable<TData, TValue>({
   const [internalColumnVisibility, setInternalColumnVisibility] =
     React.useState<VisibilityState>(initialVisibility)
   const isControlledColumnVisibility = columnVisibilityProp !== undefined
-  const columnVisibility = isControlledColumnVisibility
-    ? columnVisibilityProp
-    : internalColumnVisibility
+  const columnVisibility = columnVisibilityProp ?? internalColumnVisibility
   const [internalRowSelection, setInternalRowSelection] =
     React.useState<RowSelectionState>({})
   const isControlledRowSelection = rowSelectionProp !== undefined
-  const rowSelection = isControlledRowSelection
-    ? rowSelectionProp
-    : internalRowSelection
+  const rowSelection = rowSelectionProp ?? internalRowSelection
   const [internalGlobalFilter, setInternalGlobalFilter] = React.useState("")
   const [internalPagination, setInternalPagination] =
     React.useState<PaginationState>({
@@ -177,18 +210,22 @@ export function DataTable<TData, TValue>({
       pageSize: DEFAULT_PAGE_SIZE,
     })
   const isControlledPageSize = pageSizeProp !== undefined
+  const isControlledPageIndex = pageIndexProp !== undefined
   const pagination: PaginationState = React.useMemo(
     () => ({
       ...internalPagination,
+      pageIndex: isControlledPageIndex
+        ? pageIndexProp ?? internalPagination.pageIndex
+        : internalPagination.pageIndex,
       pageSize: isControlledPageSize
         ? pageSizeProp ?? internalPagination.pageSize
         : internalPagination.pageSize,
     }),
-    [internalPagination, isControlledPageSize, pageSizeProp]
+    [internalPagination, isControlledPageIndex, isControlledPageSize, pageIndexProp, pageSizeProp]
   )
 
   const isControlledFilter = globalFilterProp !== undefined
-  const globalFilter = isControlledFilter ? globalFilterProp : internalGlobalFilter
+  const globalFilter = globalFilterProp ?? internalGlobalFilter
   const setGlobalFilter = isControlledFilter
     ? (onGlobalFilterChange ?? (() => {}))
     : setInternalGlobalFilter
@@ -196,7 +233,7 @@ export function DataTable<TData, TValue>({
   // Grouping state
   const isControlledGrouping = groupingProp !== undefined
   const [internalGrouping, setInternalGrouping] = React.useState<GroupingState>([])
-  const grouping = isControlledGrouping ? (groupingProp ?? []) : internalGrouping
+  const grouping = groupingProp ?? internalGrouping
   const isGroupingActive = grouping.length > 0
 
   // Expanded state (gestito internamente — gruppi espansi per default)
@@ -276,19 +313,23 @@ export function DataTable<TData, TValue>({
           ? updaterOrValue(pagination)
           : updaterOrValue
 
-      if (!isControlledPageSize) {
+      if (!isControlledPageSize && !isControlledPageIndex) {
         setInternalPagination(next)
       } else {
         setInternalPagination((prev) => ({
           ...prev,
-          pageIndex: next.pageIndex,
+          pageIndex: isControlledPageIndex ? prev.pageIndex : next.pageIndex,
+          pageSize: isControlledPageSize ? prev.pageSize : next.pageSize,
         }))
+        if (next.pageIndex !== pagination.pageIndex) {
+          onPageIndexChange?.(next.pageIndex)
+        }
         if (next.pageSize !== pagination.pageSize) {
           onPageSizeChange?.(next.pageSize)
         }
       }
     },
-    [isControlledPageSize, onPageSizeChange, pagination]
+    [isControlledPageIndex, isControlledPageSize, onPageIndexChange, onPageSizeChange, pagination]
   )
 
   const handleRowSelectionChange = React.useCallback(
@@ -341,7 +382,7 @@ export function DataTable<TData, TValue>({
     onSortingChange: handleSortingChange,
     onColumnFiltersChange: handleColumnFiltersChange,
     getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
+    getPaginationRowModel: manualPagination ? undefined : getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     getGroupedRowModel: getGroupedRowModel(),
@@ -353,6 +394,10 @@ export function DataTable<TData, TValue>({
     onExpandedChange: setExpanded,
     globalFilterFn: "includesString",
     autoResetExpanded: false,
+    manualPagination,
+    manualSorting,
+    manualFiltering,
+    pageCount: manualPagination ? pageCountProp : undefined,
     state: {
       sorting,
       columnFilters,
@@ -434,10 +479,12 @@ export function DataTable<TData, TValue>({
       )
     }
 
+    const rowStyles = getRowStyles?.(row.original)
     return (
       <TableRow
         key={row.id}
         data-state={row.getIsSelected() && "selected"}
+        className={rowStyles?.rowClassName ?? getRowClassName?.(row.original)}
         style={{ height: ROW_HEIGHT_PX }}
       >
         {row.getVisibleCells().map((cell) => {
@@ -445,6 +492,9 @@ export function DataTable<TData, TValue>({
             cell.column.columnDef.cell,
             cell.getContext()
           )
+          const cellClassName =
+            rowStyles?.cellClassNameByColumnId?.[cell.column.id] ??
+            getCellClassName?.(row.original, cell.column.id)
 
           const shouldWrapWithContextMenu =
             !!renderRowContextMenuContent &&
@@ -452,7 +502,7 @@ export function DataTable<TData, TValue>({
 
           if (!shouldWrapWithContextMenu) {
             return (
-              <TableCell key={cell.id}>
+              <TableCell key={cell.id} className={cellClassName}>
                 {cellInner}
               </TableCell>
             )
@@ -461,7 +511,7 @@ export function DataTable<TData, TValue>({
           return (
             <ContextMenu key={cell.id}>
               <ContextMenuTrigger asChild>
-                <TableCell>{cellInner}</TableCell>
+                <TableCell className={cellClassName}>{cellInner}</TableCell>
               </ContextMenuTrigger>
               <ContextMenuContent>
                 {renderRowContextMenuContent(row.original)}
@@ -536,11 +586,10 @@ export function DataTable<TData, TValue>({
             className="relative w-full overflow-x-auto"
             style={{
               minHeight: (() => {
-                const totalRows = table.getFilteredRowModel().rows.length
-                const rowCount =
-                  totalRows < pagination.pageSize
-                    ? totalRows
-                    : pagination.pageSize
+                const totalRows = manualPagination
+                  ? data.length
+                  : table.getFilteredRowModel().rows.length
+                const rowCount = Math.min(totalRows, pagination.pageSize)
                 return rowCount * ROW_HEIGHT_PX
               })(),
             }}
@@ -567,7 +616,9 @@ export function DataTable<TData, TValue>({
                   <>
                     {table.getRowModel().rows.map((row) => renderRow(row))}
                     {(() => {
-                      const totalRows = table.getFilteredRowModel().rows.length
+                      const totalRows = manualPagination
+                        ? data.length
+                        : table.getFilteredRowModel().rows.length
                       const visibleRows = table.getRowModel().rows.length
                       const placeholderCount =
                         totalRows >= pagination.pageSize &&
@@ -610,7 +661,7 @@ export function DataTable<TData, TValue>({
           {table.getFilteredSelectedRowModel().rows.length > 0 && (
             <div className="text-muted-foreground text-sm whitespace-nowrap">
               {table.getFilteredSelectedRowModel().rows.length} di{" "}
-              {table.getFilteredRowModel().rows.length} selezionate
+              {totalRowsProp ?? table.getFilteredRowModel().rows.length} selezionate
             </div>
           )}
           <Pagination className="ml-auto justify-end">
@@ -623,9 +674,9 @@ export function DataTable<TData, TValue>({
                     if (table.getCanPreviousPage()) table.previousPage()
                   }}
                   className={
-                    !table.getCanPreviousPage()
-                      ? "pointer-events-none opacity-50"
-                      : undefined
+                      table.getCanPreviousPage()
+                        ? undefined
+                        : "pointer-events-none opacity-50"
                   }
                 />
               </PaginationItem>
@@ -634,12 +685,24 @@ export function DataTable<TData, TValue>({
                 return getPaginationPages(
                   table.getPageCount(),
                   pageIndex
-                ).map((pageItem, i) =>
-                  pageItem === "ellipsis" ? (
-                    <PaginationItem key={`ellipsis-${i}`}>
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  ) : (
+                ).map((pageItem, i, pages) => {
+                  if (pageItem === "ellipsis") {
+                    const prevPage = pages.slice(0, i)
+                      .reverse()
+                      .find((p): p is number => typeof p === "number")
+                    const nextPage = pages
+                      .slice(i + 1)
+                      .find((p): p is number => typeof p === "number")
+                    return (
+                      <PaginationItem
+                        key={`ellipsis-${prevPage ?? "?"}-${nextPage ?? "?"}`}
+                      >
+                        <PaginationEllipsis />
+                      </PaginationItem>
+                    )
+                  }
+
+                  return (
                     <PaginationItem key={pageItem}>
                       <PaginationLink
                         href="#"
@@ -653,7 +716,7 @@ export function DataTable<TData, TValue>({
                       </PaginationLink>
                     </PaginationItem>
                   )
-                )
+                })
               })()}
               <PaginationItem>
                 <PaginationNext
@@ -663,9 +726,9 @@ export function DataTable<TData, TValue>({
                     if (table.getCanNextPage()) table.nextPage()
                   }}
                   className={
-                    !table.getCanNextPage()
-                      ? "pointer-events-none opacity-50"
-                      : undefined
+                    table.getCanNextPage()
+                      ? undefined
+                      : "pointer-events-none opacity-50"
                   }
                 />
               </PaginationItem>

@@ -48,8 +48,8 @@ function slugFromText(text: string): string {
   const normalized = String(text ?? "")
     .toLowerCase()
     .trim()
-  const withHyphens = normalized.replace(/[^a-z0-9]+/g, "-")
-  return withHyphens.replace(/^-+|-+$/g, "")
+  const withHyphens = normalized.replaceAll(/[^a-z0-9]+/g, "-")
+  return withHyphens.replaceAll(/^-+|-+$/g, "")
 }
 
 /** Alias considerati campi SEO (meta titolo, meta descrizione, ecc.). */
@@ -142,7 +142,12 @@ export function EntryEditorPage() {
   React.useEffect(() => {
     if (!isCreate || slugTouched || firstTextAlias == null) return
     const raw = firstTextValue
-    const text = typeof raw === "string" ? raw : raw != null ? String(raw) : ""
+    let text = ""
+    if (typeof raw === "string") {
+      text = raw
+    } else if (raw != null) {
+      text = String(raw)
+    }
     const next = slugFromText(text)
     setSlug(next)
   }, [isCreate, slugTouched, firstTextAlias, firstTextValue])
@@ -193,35 +198,53 @@ export function EntryEditorPage() {
     }
   }, [seed, formData, slug, status])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!schemaSlug || !seed) return
+  const validateJsonFields = () => {
+    if (!seed) return true
 
-    // Validate JSON fields
     for (const branch of seed.branches) {
-      if (branch.type === "json" && formData[branch.alias]) {
-        const value = formData[branch.alias]
-        if (typeof value === "string") {
-          try {
-            JSON.parse(value)
-          } catch {
-            toast.error(`Il campo "${branch.label}" deve contenere JSON valido`)
-            return
-          }
-        }
+      if (branch.type !== "json") continue
+      if (!formData[branch.alias]) continue
+
+      const value = formData[branch.alias]
+      if (typeof value !== "string") continue
+
+      try {
+        JSON.parse(value)
+      } catch {
+        toast.error(`Il campo "${branch.label}" deve contenere JSON valido`)
+        return false
       }
     }
+
+    return true
+  }
+
+  const persistEntry = async (
+    schemaSlug: string,
+    payload: ReturnType<typeof buildPayload>,
+    entryIdForUpdate: string | null
+  ) => {
+    if (entryIdForUpdate) {
+      await updateContent(schemaSlug, entryIdForUpdate, payload)
+      toast.success("Modifiche salvate")
+      return
+    }
+
+    await createContent(schemaSlug, payload)
+    toast.success("Entry creata")
+  }
+
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!schemaSlug || !seed) return
+    if (!isCreate && !entryId) return
+    if (!validateJsonFields()) return
 
     setIsSaving(true)
     try {
       const payload = buildPayload()
-      if (isCreate) {
-        await createContent(schemaSlug, payload)
-        toast.success("Entry creata")
-      } else {
-        await updateContent(schemaSlug, entryId!, payload)
-        toast.success("Modifiche salvate")
-      }
+      const entryIdForUpdate = isCreate ? null : entryId
+      await persistEntry(schemaSlug, payload, entryIdForUpdate)
       setIsDirty(false)
       hasJustSavedRef.current = true
       navigate(`/content/${schemaSlug}`)

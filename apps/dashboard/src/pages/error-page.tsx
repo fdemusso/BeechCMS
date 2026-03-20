@@ -3,13 +3,15 @@ import { useRouteError, isRouteErrorResponse, Link } from "react-router-dom"
 export function ErrorPage() {
   const error = useRouteError()
 
-  const message = isRouteErrorResponse(error)
-    ? error.statusText || error.data?.message || "Qualcosa è andato storto"
-    : error instanceof Error
-      ? error.message
-      : "Errore sconosciuto"
+  const isResponseError = isRouteErrorResponse(error)
+  let message = "Errore sconosciuto"
+  if (isResponseError) {
+    message = error.statusText || error.data?.message || "Qualcosa è andato storto"
+  } else if (error instanceof Error) {
+    message = error.message
+  }
 
-  const status = isRouteErrorResponse(error) ? error.status : null
+  const status = isResponseError ? error.status : null
 
   return (
     <div className="flex min-h-svh w-full flex-col items-center justify-center bg-background p-6">

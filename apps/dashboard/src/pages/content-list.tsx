@@ -1,11 +1,13 @@
 import * as React from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { getSeed } from "@beech/core"
-import type { SortingState } from "@tanstack/react-table"
-import type { ColumnFiltersState } from "@tanstack/react-table"
-import type { RowSelectionState } from "@tanstack/react-table"
-import type { VisibilityState } from "@tanstack/react-table"
-import type { GroupingState } from "@tanstack/react-table"
+import type {
+  SortingState,
+  ColumnFiltersState,
+  RowSelectionState,
+  VisibilityState,
+  GroupingState,
+} from "@tanstack/react-table"
 
 import {
   SidebarInset,
@@ -19,6 +21,8 @@ import {
   ContentToolbar,
   type UserViewInstance,
   type ToolbarFiltersState,
+  type ToolbarFilterGroup,
+  type ToolbarFilterCondition,
 } from "@/components/content-toolbar"
 import {
   ContextMenuItem,
@@ -27,7 +31,8 @@ import {
 } from "@/components/ui/context-menu"
 import { toast } from "sonner"
 import {
-  fetchContentList,
+  fetchContentListServer,
+  fetchContentFacets,
   deleteContent,
 } from "@/lib/content-api"
 import {
@@ -37,6 +42,16 @@ import {
   type DateGroupPrecision,
   DEFAULT_DATE_GROUP_PRECISION,
 } from "@/lib/dynamic-columns"
+import {
+  type ConditionalFormatRule,
+  getConditionalFormatCellClass,
+  getConditionalFormatRowClass,
+} from "@/lib/conditional-format"
+import {
+  matchesFilterGroupStrict,
+  type FilterGroupType,
+} from "@/lib/filter-dsl"
+import { extractTagNames } from "@/lib/tags-utils"
 
 export function ContentListPage() {
   const { slug } = useParams<{ slug: string }>()
@@ -44,6 +59,11 @@ export function ContentListPage() {
   const [data, setData] = React.useState<ContentEntry[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
+  const [totalRows, setTotalRows] = React.useState(0)
+  const [pageIndex, setPageIndex] = React.useState(0)
+  const [availableStatusOptions, setAvailableStatusOptions] = React.useState<string[]>([])
+  const [availableTagsByColumnIdFromServer, setAvailableTagsByColumnIdFromServer] =
+    React.useState<Record<string, string[]>>({})
 
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [entryIdsToDelete, setEntryIdsToDelete] = React.useState<string[] | null>(
@@ -65,6 +85,8 @@ export function ContentListPage() {
   const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>(
     {}
   )
+  const ROWS_PER_PAGE = 10
+  const [pageSize, setPageSize] = React.useState<number>(ROWS_PER_PAGE)
 
   // Recupera il seed
   const seed = slug ? getSeed(slug) : null
@@ -101,20 +123,154 @@ export function ContentListPage() {
         "settings",
         "create",
       ],
+      conditionalFormats: [],
     },
   ])
+
+  const activeView = React.useMemo(() => {
+    return views.find((v) => v.id === activeViewId)
+  }, [activeViewId, views])
+
+  const handleConditionalFormatsChange = React.useCallback(
+    (viewId: string, next: ConditionalFormatRule[]) => {
+      setViews((prev) =>
+        prev.map((v) => (v.id === viewId ? { ...v, conditionalFormats: next } : v))
+      )
+    },
+    []
+  )
+
+  const getEntryValueForColumn = React.useCallback(
+    (entry: ContentEntry, columnId: string): unknown => {
+      if (columnId === "id") return entry.id
+      if (columnId === "slug") return entry.slug
+      if (columnId === "status") return entry.status
+      return entry.data?.[columnId]
+    },
+    []
+  )
+
+  const tagsParseCacheRef = React.useRef<Map<string, unknown>>(new Map())
+
+  React.useEffect(() => {
+    tagsParseCacheRef.current.clear()
+  }, [slug, data])
+
+  const getCachedValueForGroupType = React.useCallback(
+    (entry: ContentEntry, columnId: string, groupType: FilterGroupType): unknown => {
+      const value = getEntryValueForColumn(entry, columnId)
+      if (groupType !== "tags") return value
+
+      const key = `${entry.id}::${columnId}`
+      if (tagsParseCacheRef.current.has(key)) {
+        return tagsParseCacheRef.current.get(key)
+      }
+
+      let parsed: unknown = value
+      if (typeof value === "string") {
+        try {
+          parsed = JSON.parse(value) as unknown
+        } catch {
+          parsed = null
+        }
+      }
+      tagsParseCacheRef.current.set(key, parsed)
+      return parsed
+    },
+    [getEntryValueForColumn]
+  )
+
+  const conditionalRules = React.useMemo(() => {
+    const rules = activeView?.conditionalFormats ?? []
+    return rules
+      .filter((r) => Boolean(r?.enabled))
+      .slice()
+      .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
+  }, [activeView?.conditionalFormats])
+
+  const rowRules = React.useMemo(() => {
+    return conditionalRules.filter((r) => {
+      const legacyTarget = (r as { target?: string }).target
+      return legacyTarget === "row" || legacyTarget === "cell+row"
+    })
+  }, [conditionalRules])
+
+  const cellRulesByColumnId = React.useMemo(() => {
+    const map = new Map<string, ConditionalFormatRule[]>()
+    for (const r of conditionalRules) {
+      const legacyTarget = (r as { target?: string }).target
+      if (legacyTarget === "row") continue
+      const arr = map.get(r.columnId) ?? []
+      arr.push(r)
+      map.set(r.columnId, arr)
+    }
+    return map
+  }, [conditionalRules])
+
+  const getRowStyles = React.useCallback(
+    (entry: ContentEntry) => {
+      let rowClassName: string | undefined
+      const cellClassNameByColumnId: Record<string, string | undefined> = {}
+
+      // Riga: prima regola che matcha
+      for (const rule of rowRules) {
+        const value = getCachedValueForGroupType(entry, rule.columnId, rule.group.type)
+        if (matchesFilterGroupStrict(value, rule.group)) {
+          rowClassName = getConditionalFormatRowClass(
+            rule.tone,
+            rule.textStyles ?? []
+          )
+          break
+        }
+      }
+
+      // Cella: valutiamo solo per le colonne che hanno regole
+      for (const [columnId, rules] of cellRulesByColumnId.entries()) {
+        for (const rule of rules) {
+          const value = getCachedValueForGroupType(entry, rule.columnId, rule.group.type)
+          if (matchesFilterGroupStrict(value, rule.group)) {
+            cellClassNameByColumnId[columnId] = getConditionalFormatCellClass(
+              rule.tone,
+              rule.textStyles ?? []
+            )
+            break
+          }
+        }
+      }
+
+      return { rowClassName, cellClassNameByColumnId }
+    },
+    [cellRulesByColumnId, getCachedValueForGroupType, rowRules]
+  )
 
   const loadData = React.useCallback(async () => {
     if (!slug) return
 
     setIsLoading(true)
     setError(null)
+    setAvailableStatusOptions([])
+    setAvailableTagsByColumnIdFromServer({})
 
     try {
-      // Dati da GET /api/content/:slug (id, schema_slug, slug, status, data, created_at, updated_at)
-      // TODO: passare al fetch i parametri di filtro/sort/search quando implementati (configurazione per view).
-      const entries = await fetchContentList(slug)
-      setData(entries)
+      const list = await fetchContentListServer(slug, {
+        page: pageIndex + 1,
+        limit: pageSize,
+        search: tableSearch.trim() || undefined,
+        sortBy: sorting[0]?.id,
+        sortDir: sorting[0]?.desc ? "desc" : "asc",
+        filters: toolbarFilters,
+      })
+      setData(list.items)
+      setTotalRows(list.total)
+
+      try {
+        const facets = await fetchContentFacets(slug)
+        setAvailableStatusOptions(facets.statuses)
+        setAvailableTagsByColumnIdFromServer(facets.tagsByColumnId)
+      } catch {
+        setAvailableStatusOptions([])
+        setAvailableTagsByColumnIdFromServer({})
+      }
     } catch (err) {
       setError(
         err instanceof Error
@@ -124,7 +280,7 @@ export function ContentListPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [slug])
+  }, [pageIndex, pageSize, slug, sorting, tableSearch, toolbarFilters])
 
   // Fetch data iniziale
   React.useEffect(() => {
@@ -140,6 +296,10 @@ export function ContentListPage() {
 
     loadData()
   }, [slug, seed, loadData])
+
+  React.useEffect(() => {
+    setPageIndex(0)
+  }, [slug, tableSearch, sorting, toolbarFilters, pageSize])
 
   const handleEdit = React.useCallback(
     (id: string) => {
@@ -185,9 +345,10 @@ export function ContentListPage() {
     return Object.keys(rowSelection).filter((id) => rowSelection[id])
   }, [rowSelection])
 
-  const ROWS_PER_PAGE = 10
-
-  const [pageSize, setPageSize] = React.useState<number>(ROWS_PER_PAGE)
+  const pageCount = React.useMemo(() => {
+    if (totalRows <= 0) return 1
+    return Math.max(1, Math.ceil(totalRows / pageSize))
+  }, [pageSize, totalRows])
 
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>(
     () => {
@@ -231,7 +392,16 @@ export function ContentListPage() {
 
   const singleSort = sorting[0]
 
-  const availableTagsByColumnId = React.useMemo(() => {
+  const availableStatusOptionsFromData = React.useMemo(() => {
+    const set = new Set<string>()
+    for (const row of data) {
+      const status = typeof row.status === "string" ? row.status.trim() : ""
+      if (status) set.add(status)
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "it"))
+  }, [data])
+
+  const availableTagsByColumnIdFromData = React.useMemo(() => {
     if (!seed) return {}
     const tagBranches = seed.branches.filter(
       (b) => b.type === "json" && b.alias.toLowerCase().includes("tag")
@@ -240,26 +410,11 @@ export function ContentListPage() {
 
     const result: Record<string, string[]> = {}
     for (const branch of tagBranches) {
-      // Parte da branch.options (vocabolario statico del seed), se presenti
       const set = new Set<string>(branch.options ?? [])
 
-      // Aggiunge i tag trovati nelle entry esistenti (vocabolario dinamico)
       for (const row of data) {
-        const raw = row.data[branch.alias]
-        const obj =
-          typeof raw === "string"
-            ? (() => {
-                try {
-                  return JSON.parse(raw) as unknown
-                } catch {
-                  return null
-                }
-              })()
-            : raw
-        if (obj && typeof obj === "object" && !Array.isArray(obj)) {
-          for (const key of Object.keys(obj as Record<string, unknown>)) {
-            if (key) set.add(key)
-          }
+        for (const tag of extractTagNames(row.data[branch.alias])) {
+          set.add(tag)
         }
       }
       result[branch.alias] = Array.from(set).sort((a, b) =>
@@ -268,6 +423,27 @@ export function ContentListPage() {
     }
     return result
   }, [data, seed])
+
+  const availableTagsByColumnId = React.useMemo(() => {
+    const aliases = new Set<string>([
+      ...Object.keys(availableTagsByColumnIdFromData),
+      ...Object.keys(availableTagsByColumnIdFromServer),
+    ])
+    const result: Record<string, string[]> = {}
+    for (const alias of aliases) {
+      const set = new Set<string>([
+        ...(availableTagsByColumnIdFromData[alias] ?? []),
+        ...(availableTagsByColumnIdFromServer[alias] ?? []),
+      ])
+      result[alias] = Array.from(set).sort((a, b) => a.localeCompare(b, "it"))
+    }
+    return result
+  }, [availableTagsByColumnIdFromData, availableTagsByColumnIdFromServer])
+
+  const effectiveStatusOptions = React.useMemo(() => {
+    if (availableStatusOptions.length > 0) return availableStatusOptions
+    return availableStatusOptionsFromData
+  }, [availableStatusOptions, availableStatusOptionsFromData])
 
   const grouping = React.useMemo<GroupingState>(
     () => (groupBy ? [groupBy] : []),
@@ -284,31 +460,85 @@ export function ContentListPage() {
     // TanStack può non ricalcolare subito i gruppi quando cambia solo getGroupingValue.
     // Forziamo un remount della tabella quando il grouping attivo è su date e cambia la precisione.
     if (isGroupingByDate && groupBy) {
-      return `group:${groupBy}:date:${dateGroupPrecision.day ? "day" : dateGroupPrecision.year && !dateGroupPrecision.month ? "year" : "monthYear"}`
+      let datePrecisionSegment: string
+      if (dateGroupPrecision.day) {
+        datePrecisionSegment = "day"
+      } else if (dateGroupPrecision.year && !dateGroupPrecision.month) {
+        datePrecisionSegment = "year"
+      } else {
+        datePrecisionSegment = "monthYear"
+      }
+      return `group:${groupBy}:date:${datePrecisionSegment}`
     }
     return `group:${groupBy ?? "none"}`
   }, [dateGroupPrecision.day, dateGroupPrecision.month, dateGroupPrecision.year, groupBy, isGroupingByDate])
 
   const columnFilters = React.useMemo<ColumnFiltersState>(() => {
     const next: ColumnFiltersState = []
+
+    const isNonEmptyString = (value: unknown): value is string =>
+      typeof value === "string" && value.trim().length > 0
+
+    const isValidNumber = (value: unknown): value is number =>
+      typeof value === "number" && !Number.isNaN(value)
+
+    const isEqEffective = (
+      groupType: ToolbarFilterGroup["type"],
+      value: ToolbarFilterCondition["value"]
+    ): boolean => {
+      switch (groupType) {
+        case "boolean":
+          return value === true || value === false
+        case "number":
+          return isValidNumber(value)
+        case "date":
+        case "select":
+        default:
+          return isNonEmptyString(value)
+      }
+    }
+
+    const isRangeEffective = (
+      groupType: ToolbarFilterGroup["type"],
+      value: ToolbarFilterCondition["value"]
+    ): boolean => {
+      switch (groupType) {
+        case "number":
+          return isValidNumber(value)
+        case "date":
+          return isNonEmptyString(value)
+        default:
+          return false
+      }
+    }
+
+    const isConditionEffective = (
+      group: ToolbarFilterGroup,
+      c: ToolbarFilterCondition
+    ): boolean => {
+      switch (c.op) {
+        case "is_empty":
+        case "is_not_empty":
+          return true
+        case "contains":
+          return isNonEmptyString(c.value)
+        case "eq":
+          return isEqEffective(group.type, c.value)
+        case "gt":
+        case "gte":
+        case "lt":
+        case "lte":
+          return isRangeEffective(group.type, c.value)
+        default:
+          return false
+      }
+    }
+
     for (const [columnId, group] of Object.entries(toolbarFilters)) {
       // Passiamo al table state solo i gruppi che hanno almeno 1 condizione “effettiva”.
-      const hasEffectiveCondition = group.conditions.some((c) => {
-        if (c.op === "is_empty" || c.op === "is_not_empty") return true
-        if (c.op === "contains") return typeof c.value === "string" && c.value.trim().length > 0
-        if (c.op === "eq") {
-          if (group.type === "boolean") return c.value === true || c.value === false
-          if (group.type === "number") return typeof c.value === "number" && !Number.isNaN(c.value)
-          if (group.type === "date") return typeof c.value === "string" && c.value.trim().length > 0
-          if (group.type === "select") return typeof c.value === "string" && c.value.trim().length > 0
-          return typeof c.value === "string" && c.value.trim().length > 0
-        }
-        if (["gt", "gte", "lt", "lte"].includes(c.op)) {
-          if (group.type === "number") return typeof c.value === "number" && !Number.isNaN(c.value)
-          if (group.type === "date") return typeof c.value === "string" && c.value.trim().length > 0
-        }
-        return false
-      })
+      const hasEffectiveCondition = group.conditions.some((c) =>
+        isConditionEffective(group, c)
+      )
       if (!hasEffectiveCondition) continue
       next.push({ id: columnId, value: group })
     }
@@ -415,6 +645,7 @@ export function ContentListPage() {
                   activeViewId={activeViewId}
                   onChangeView={setActiveViewId}
                   onRenameView={handleRenameView}
+                  onConditionalFormatsChange={handleConditionalFormatsChange}
                   onCreate={handleCreate}
                   searchValue={tableSearch}
                   onSearchChange={setTableSearch}
@@ -426,8 +657,12 @@ export function ContentListPage() {
                   filters={toolbarFilters}
                   onFiltersChange={setToolbarFilters}
                   availableTagsByColumnId={availableTagsByColumnId}
+                  availableStatusOptions={effectiveStatusOptions}
                   pageSize={pageSize}
-                  onPageSizeChange={setPageSize}
+                  onPageSizeChange={(size) => {
+                    setPageSize(size)
+                    setPageIndex(0)
+                  }}
                   columnVisibility={columnVisibility}
                   onColumnVisibilityChange={setColumnVisibility}
                   groupBy={groupBy}
@@ -451,6 +686,7 @@ export function ContentListPage() {
                       columns={columns}
                       data={data}
                       initialHiddenColumns={initialHiddenColumns}
+                      getRowStyles={getRowStyles}
                       rowSelection={rowSelection}
                       onRowSelectionChange={setRowSelection}
                       grouping={grouping}
@@ -494,7 +730,17 @@ export function ContentListPage() {
                         </>
                       )}
                       pageSize={pageSize}
-                      onPageSizeChange={setPageSize}
+                      onPageSizeChange={(size) => {
+                        setPageSize(size)
+                        setPageIndex(0)
+                      }}
+                      pageIndex={pageIndex}
+                      onPageIndexChange={setPageIndex}
+                      pageCount={pageCount}
+                      totalRows={totalRows}
+                      manualPagination
+                      manualSorting
+                      manualFiltering
                       columnVisibility={columnVisibility}
                       onColumnVisibilityChange={setColumnVisibility}
                       globalFilter={tableSearch}
