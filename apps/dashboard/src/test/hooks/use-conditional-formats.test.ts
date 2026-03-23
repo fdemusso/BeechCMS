@@ -40,4 +40,70 @@ describe("useConditionalFormats", () => {
     rerender()
     expect(committed.length).toBe(0)
   })
+
+  it("gestisce reorder e rimozione condizioni fino a drop regola", () => {
+    let committed: any[] = [
+      {
+        id: "r1",
+        enabled: true,
+        priority: 0,
+        label: "Stato",
+        columnId: "status",
+        group: {
+          columnId: "status",
+          label: "Stato",
+          type: "select",
+          selectOptions: ["draft"],
+          conditions: [
+            { id: "c1", op: "eq", value: "draft" },
+            { id: "c2", op: "eq", value: "published" },
+          ],
+        },
+        tone: "warning",
+        target: "row",
+        textStyles: [],
+      },
+      {
+        id: "r2",
+        enabled: true,
+        priority: 1,
+        label: "Stato2",
+        columnId: "status",
+        group: {
+          columnId: "status",
+          label: "Stato",
+          type: "select",
+          selectOptions: ["draft"],
+          conditions: [{ id: "c3", op: "eq", value: "draft" }],
+        },
+        tone: "info",
+        target: "row",
+        textStyles: [],
+      },
+    ]
+    const onConditionalFormatsChange = vi.fn((_viewId, next) => {
+      committed = next
+    })
+
+    const { result, rerender } = renderHook(() =>
+      useConditionalFormats({
+        viewId: "table",
+        conditionalFormatsInput: committed,
+        formattableColumns: columns,
+        onConditionalFormatsChange,
+      })
+    )
+
+    act(() => result.current.moveConditionalRule("r2", -1))
+    rerender()
+    expect(committed[0].id).toBe("r2")
+
+    act(() => result.current.removeConditionalCondition("r1", "c1"))
+    rerender()
+    expect(committed.find((r) => r.id === "r1")?.group.conditions).toHaveLength(1)
+
+    act(() => result.current.removeConditionalCondition("r1", "c2"))
+    rerender()
+    expect(committed.find((r) => r.id === "r1")).toBeUndefined()
+  })
 })

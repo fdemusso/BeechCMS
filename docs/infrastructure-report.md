@@ -147,16 +147,15 @@ La migrazione contiene un utente admin con password conosciuta (`password123`). 
 
 **File**: `apps/dashboard/src/components/content-toolbar/`
 
-**Stato Attuale:** Il componente monolitico da 46KB è stato refattorizzato separando la logica di stato e i sotto-componenti UI (view switcher, menu settings, logic hook dedicati). Tutta la struttura si trova ora nella cartella `content-toolbar/`.
+**Stato Attuale:** Il componente monolitico da 46KB è stato refattorizzato separando la logica di stato e i sotto-componenti UI (view switcher, menu settings, logic hook dedicati). Tutta la struttura si trova ora nella cartella `content-toolbar/`, coperta da test dedicati su hook e composizione.
 
-Un singolo file di questa dimensione indica un componente con troppe responsabilità. Questo crea:
+Il rischio originario di avere un singolo file molto grande era:
 - Difficoltà nella revisione del codice e debugging
 - Rischio di merge conflict elevato
 - Scarsa riutilizzabilità dei sottosistemi
 
-C'è una directory `content-toolbar/` (con 6 file) che suggerisce un refactoring parzialmente iniziato ma mai completato.
-
-**Raccomandazione**: Completare lo split del componente nella directory `content-toolbar/`, separando toolbar, filtri, ricerca, paginazione e bulk actions.
+**Stato sprint**: split completato e consolidato con test unitari.  
+**Raccomandazione residua**: mantenere il confine tra logica (`toolbar-hooks`, `use-content-toolbar`) e componenti presentazionali per evitare nuova crescita monolitica.
 
 ---
 
@@ -342,7 +341,13 @@ L'API usa `console.error` e `console.warn` per il logging. In produzione su Clou
 
 La copertura dei test API è buona per le funzionalità implementate.
 
-**Dashboard**: Directory `test/` con 2 file, dimensione da verificare. La dashboard ha una test coverage presumibilmente bassa per un'app con 71 componenti.
+**Dashboard**: nel corso dell'ultimo sprint la suite è stata estesa in modo significativo (test su pagine, toolbar, hook, dialog, auth, notifiche, field renderers e utilità), con coverage portata **intorno all'85%**.
+
+Esempi di nuove aree coperte:
+- `src/test/pages/*` (`content-list`, `entry-editor`, `error-page`)
+- `src/test/content-toolbar/*` e `src/test/hooks/*`
+- `src/test/login-form/*`, `src/test/notifications-popover/*`
+- `src/test/fields/*` e test di supporto (`dynamic-columns`, `filter-dsl`, `tags-utils`)
 
 **Core**: Nessun file di test visibile.
 
@@ -351,13 +356,13 @@ La copertura dei test API è buona per le funzionalità implementate.
 | Area | Stato |
 |------|-------|
 | Test API (unit) | ✅ Presenti |
-| Test Dashboard (unit) | ⚠️ Minimi |
+| Test Dashboard (unit) | ✅ Ampiamente presenti (coverage ~85%) |
 | Test Core (unit) | ❌ Assenti |
 | Test E2E | ❌ Assenti |
 | Test di integrazione | ❌ Assenti |
-| Coverage CI | ⚠️ Disponibile ma non enforced |
+| Coverage CI | ⚠️ Misurata e riportata; da mantenere con soglia esplicita stabile |
 
-**Raccomandazione**: Aggiungere test per `@beech/core` (funzioni `apiToDb`/`dbToApi`) e test E2E per il flusso critico (login → lista → crea → modifica → elimina).
+**Raccomandazione**: consolidare la baseline dashboard (~85%) evitando regressioni, aggiungere test per `@beech/core` (funzioni `apiToDb`/`dbToApi`) e introdurre E2E per il flusso critico (login → lista → crea → modifica → elimina).
 
 ---
 
@@ -375,22 +380,21 @@ La copertura dei test API è buona per le funzionalità implementate.
 7. Aggiungere **CD pipeline** (GitHub Actions → `wrangler deploy`)
 
 ### 🟡 Medio Termine (entro 1-2 mesi)
-8. Refactoring `content-toolbar.tsx` (split in componenti)
-9. Centralizzare tipi duplicati nell'API
-10. Sostituire `any` con tipi appropriati in `content.ts`
-11. Aggiungere test per `@beech/core`
-12. Implementare logging strutturato
-13. Aggiungere job di cleanup per refresh token scaduti/revocati
-14. Trasferire TODO in GitHub Issues
+8. Centralizzare tipi duplicati nell'API
+9. Sostituire `any` con tipi appropriati in `content.ts`
+10. Aggiungere test per `@beech/core`
+11. Implementare logging strutturato
+12. Aggiungere job di cleanup per refresh token scaduti/revocati
+13. Trasferire TODO in GitHub Issues
 
 ### 🔵 Lungo Termine (roadmap)
-15. Valutare strategia cookie-only per access token (BFF pattern)
-16. Implementare API versioning (`/v1/`)
-17. Aggiungere un layer di lettura pubblica (senza auth) per il CMS headless
-18. Implementare caching con Cloudflare KV o Cache API
-19. Aggiungere sistema di audit log
-20. Implementare soft-delete e revisioni per i contenuti
-21. Valutare migration runner automatizzato
+14. Valutare strategia cookie-only per access token (BFF pattern)
+15. Implementare API versioning (`/v1/`)
+16. Aggiungere un layer di lettura pubblica (senza auth) per il CMS headless
+17. Implementare caching con Cloudflare KV o Cache API
+18. Aggiungere sistema di audit log
+19. Implementare soft-delete e revisioni per i contenuti
+20. Valutare migration runner automatizzato
 
 ---
 

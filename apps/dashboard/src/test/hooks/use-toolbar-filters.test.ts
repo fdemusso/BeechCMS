@@ -45,4 +45,30 @@ describe("useToolbarFilters", () => {
     rerender()
     expect(currentFilters.title).toBeUndefined()
   })
+
+  it("rimuove gruppo colonna intero con removeColumnFilters", () => {
+    let currentFilters: any = {
+      status: {
+        columnId: "status",
+        label: "Stato",
+        type: "select",
+        conditions: [{ id: "c1", op: "eq", value: "draft" }],
+      },
+    }
+    const onFiltersChange = vi.fn((next) => {
+      currentFilters = next
+    })
+
+    const { result } = renderHook(() =>
+      useToolbarFilters({
+        seed,
+        filters: currentFilters,
+        onFiltersChange,
+      })
+    )
+
+    act(() => result.current.removeColumnFilters("status"))
+    expect(onFiltersChange).toHaveBeenCalled()
+    expect(currentFilters.status).toBeUndefined()
+  })
 })

@@ -35,6 +35,11 @@ Se sei un **recruiter o un hiring manager**, questo progetto dimostra la mia cap
 * **Database & Storage:** Cloudflare D1 (SQLite Edge), Cloudflare R2 (Object Storage)
 * **Architettura:** Turborepo (Monorepo), npm workspaces
 
+## ✅ Qualità e Test (ultimo sprint)
+* La suite test della dashboard è stata estesa su hook, toolbar, pagine e componenti core.
+* La coverage della dashboard è stata portata **intorno all'85%**.
+* La baseline attesa è mantenere questo livello nelle prossime PR, evitando regressioni.
+
 ---
 
 ## 🚀 Quick Start (Per gli Sviluppatori)
