@@ -36,55 +36,55 @@ import { ConditionalFormatsEditor } from "./conditional-formats-editor"
 import type { DatePrecisionMode } from "../toolbar-hooks/use-toolbar-groupby"
 
 interface SettingsMenuProps {
-  isSettingsMenuOpenEffective: boolean
-  setIsSettingsMenuOpenState: (open: boolean) => void
-  onOpenSettings?: () => void
-  isSettingsOpen?: boolean
-  commitViewName: () => void
-  setColumnSearchTerm: (term: string) => void
-  viewNameDraft: string
-  setViewNameDraft: (name: string) => void
-  setIsConditionalEditorOpen: (open: boolean) => void
-  filterColumnSearchTerm: string
-  setFilterColumnSearchTerm: (term: string) => void
-  visibleFilterColumns: any[]
-  addConditionToColumn: (columnId: string) => void
-  setOpenPillId: (id: string | null) => void
-  closeSettingsMenu: () => void
-  filters: Record<string, any>
-  sortColumnSearchTerm: string
-  setSortColumnSearchTerm: (term: string) => void
-  handleToggleSortDirection: () => void
-  sortState?: { columnId: string | null; desc: boolean }
-  filteredSortableColumns: any[]
-  handleSortColumnSelect: (alias: string) => void
-  groupBy: string | null
-  onGroupByChange?: (columnId: string | null) => void
-  recommendedGroupColumns: any[]
-  datePrecisionMode: DatePrecisionMode
-  applyDatePrecisionMode: (mode: DatePrecisionMode) => void
-  otherGroupColumns: any[]
-  onConditionalFormatsChange?: (viewId: string, next: ConditionalFormatRule[]) => void
-  formattableColumns: any[]
-  conditionalFormats: any[]
-  activeConditionalRule: any
-  isConditionalEditorOpen: boolean
-  setActiveConditionalRuleId: (id: string | null) => void
-  addConditionalFormatRule: () => void
-  updateConditionalRule: (id: string, updates: any) => void
-  updateConditionalTextStyles: (id: string, updates: any) => void
-  removeConditionalRule: (id: string) => void
-  moveConditionalRule: (id: string, direction: 1 | -1) => void
-  updateConditionalCondition: (ruleId: string, conditionId: string, updates: any) => void
-  addConditionalCondition: (ruleId: string, columnId?: string) => void
-  removeConditionalCondition: (ruleId: string, conditionId: string) => void
-  availableTagsByColumnId: Record<string, string[]>
-  columnVisibility?: VisibilityState
-  onColumnVisibilityChange?: (visibility: VisibilityState) => void
-  columnSearchTerm: string
-  filteredTableColumns: any[]
-  pageSize?: number
-  onPageSizeChange?: (size: number) => void
+  readonly isSettingsMenuOpenEffective: boolean
+  readonly setIsSettingsMenuOpenState: (open: boolean) => void
+  readonly onOpenSettings?: () => void
+  readonly isSettingsOpen?: boolean
+  readonly commitViewName: () => void
+  readonly setColumnSearchTerm: (term: string) => void
+  readonly viewNameDraft: string
+  readonly setViewNameDraft: (name: string) => void
+  readonly setIsConditionalEditorOpen: (open: boolean) => void
+  readonly filterColumnSearchTerm: string
+  readonly setFilterColumnSearchTerm: (term: string) => void
+  readonly visibleFilterColumns: any[]
+  readonly addConditionToColumn: (columnId: string) => void
+  readonly setOpenPillId: (id: string | null) => void
+  readonly closeSettingsMenu: () => void
+  readonly filters: Record<string, any>
+  readonly sortColumnSearchTerm: string
+  readonly setSortColumnSearchTerm: (term: string) => void
+  readonly handleToggleSortDirection: () => void
+  readonly sortState?: { columnId: string | null; desc: boolean }
+  readonly filteredSortableColumns: any[]
+  readonly handleSortColumnSelect: (alias: string) => void
+  readonly groupBy: string | null
+  readonly onGroupByChange?: (columnId: string | null) => void
+  readonly recommendedGroupColumns: any[]
+  readonly datePrecisionMode: DatePrecisionMode
+  readonly applyDatePrecisionMode: (mode: DatePrecisionMode) => void
+  readonly otherGroupColumns: any[]
+  readonly onConditionalFormatsChange?: (viewId: string, next: ConditionalFormatRule[]) => void
+  readonly formattableColumns: any[]
+  readonly conditionalFormats: any[]
+  readonly activeConditionalRule: any
+  readonly isConditionalEditorOpen: boolean
+  readonly setActiveConditionalRuleId: (id: string | null) => void
+  readonly addConditionalFormatRule: () => void
+  readonly updateConditionalRule: (id: string, updates: any) => void
+  readonly updateConditionalTextStyles: (id: string, updates: any) => void
+  readonly removeConditionalRule: (id: string) => void
+  readonly moveConditionalRule: (id: string, direction: 1 | -1) => void
+  readonly updateConditionalCondition: (ruleId: string, conditionId: string, updates: any) => void
+  readonly addConditionalCondition: (ruleId: string, columnId?: string) => void
+  readonly removeConditionalCondition: (ruleId: string, conditionId: string) => void
+  readonly availableTagsByColumnId: Record<string, string[]>
+  readonly columnVisibility?: VisibilityState
+  readonly onColumnVisibilityChange?: (visibility: VisibilityState) => void
+  readonly columnSearchTerm: string
+  readonly filteredTableColumns: any[]
+  readonly pageSize?: number
+  readonly onPageSizeChange?: (size: number) => void
 }
 
 export function SettingsMenu({

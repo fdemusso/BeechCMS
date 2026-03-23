@@ -5,14 +5,14 @@ import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface SearchBarProps {
-  isSearchOpen: boolean
-  searchValue: string
-  searchInputRef: React.RefObject<HTMLInputElement | null>
-  handleSearchSubmit: (e: SyntheticEvent<HTMLFormElement>) => void
-  onSearchChange?: (value: string) => void
-  handleSearchBlur: () => void
-  handleSearchClose: () => void
-  handleSearchOpen: () => void
+  readonly isSearchOpen: boolean
+  readonly searchValue: string
+  readonly searchInputRef: React.RefObject<HTMLInputElement | null>
+  readonly handleSearchSubmit: (e: SyntheticEvent<HTMLFormElement>) => void
+  readonly onSearchChange?: (value: string) => void
+  readonly handleSearchBlur: () => void
+  readonly handleSearchClose: () => void
+  readonly handleSearchOpen: () => void
 }
 
 export function SearchBar({

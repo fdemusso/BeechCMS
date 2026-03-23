@@ -16,12 +16,9 @@ export function DefaultDisplay({ value }: FieldDisplayProps) {
  * Edit fallback: input di testo generico.
  * Usato quando il BranchType non è registrato nel registro.
  */
-export function DefaultEdit({
-  branch,
-  value,
-  onChange,
-}: FieldEditProps) {
-  const str = value != null ? String(value) : ""
+export function DefaultEdit(props: Readonly<FieldEditProps>) {
+  const { branch, value, onChange } = props
+  const str = value == null ? "" : String(value)
   return (
     <Input
       id={branch.alias}

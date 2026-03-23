@@ -35,18 +35,18 @@ import type { Notification, NotificationFilter } from "./types"
 const NOTIFICATION_SCROLL_HEIGHT = 320
 
 interface NotificationListProps {
-  notifications: Notification[]
-  filter: NotificationFilter
-  onMarkSeen: (id: string) => void
-  onMarkUnseen: (id: string) => void
-  onDelete: (id: string) => void
+  readonly notifications: ReadonlyArray<Notification>
+  readonly filter: NotificationFilter
+  readonly onMarkSeen: (id: string) => void
+  readonly onMarkUnseen: (id: string) => void
+  readonly onDelete: (id: string) => void
 }
 
 interface NotificationCardProps {
-  notification: Notification
-  onMarkSeen: (id: string) => void
-  onMarkUnseen: (id: string) => void
-  onDelete: (id: string) => void
+  readonly notification: Notification
+  readonly onMarkSeen: (id: string) => void
+  readonly onMarkUnseen: (id: string) => void
+  readonly onDelete: (id: string) => void
 }
 
 function NotificationList({
@@ -98,17 +98,10 @@ function NotificationCard({
   return (
     <ContextMenu modal={false}>
       <ContextMenuTrigger asChild>
-        <div
-          role={notification.isNew ? "button" : undefined}
-          tabIndex={notification.isNew ? 0 : undefined}
+        <button
+          type="button"
           onClick={() => {
             if (notification.isNew) onMarkSeen(notification.id)
-          }}
-          onKeyDown={(event) => {
-            if (notification.isNew && (event.key === "Enter" || event.key === " ")) {
-              event.preventDefault()
-              onMarkSeen(notification.id)
-            }
           }}
           className={cn(
             "relative flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors",
@@ -133,7 +126,7 @@ function NotificationCard({
               {notification.description}
             </p>
           </div>
-        </div>
+        </button>
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuItem onClick={() => onMarkUnseen(notification.id)}>
@@ -157,7 +150,7 @@ function dispatchCloseContextMenu(container: HTMLElement) {
   const event = new PointerEvent("pointerdown", {
     bubbles: true,
     cancelable: true,
-    view: window,
+    view: globalThis as unknown as Window,
     clientX: 0,
     clientY: 0,
   })

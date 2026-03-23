@@ -23,21 +23,21 @@ import type {
 import { getOperatorOptions, operatorRequiresValue } from "../shared"
 
 interface FilterPillsBarProps {
-  filters: ToolbarFiltersState
-  openPillId: string | null
-  onOpenPillChange: (value: string | null) => void
-  groupBy: string | null
-  activeGroupLabel: string
-  onGroupByChange?: (columnId: string | null) => void
-  addConditionToColumn: (columnId: string) => void
-  removeColumnFilters: (columnId: string) => void
-  updateCondition: (
+  readonly filters: ToolbarFiltersState
+  readonly openPillId: string | null
+  readonly onOpenPillChange: (value: string | null) => void
+  readonly groupBy: string | null
+  readonly activeGroupLabel: string
+  readonly onGroupByChange?: (columnId: string | null) => void
+  readonly addConditionToColumn: (columnId: string) => void
+  readonly removeColumnFilters: (columnId: string) => void
+  readonly updateCondition: (
     columnId: string,
     conditionId: string,
     patch: Partial<Pick<ToolbarFilterCondition, "op" | "value">>
   ) => void
-  removeCondition: (columnId: string, conditionId: string) => void
-  availableTagsByColumnId: Record<string, string[]>
+  readonly removeCondition: (columnId: string, conditionId: string) => void
+  readonly availableTagsByColumnId: Record<string, string[]>
 }
 
 export function FilterPillsBar({
@@ -86,18 +86,18 @@ export function FilterPillsBar({
 }
 
 interface FilterPillProps {
-  group: ToolbarFilterGroup
-  isOpen: boolean
-  onOpenChange: (open: boolean) => void
-  addConditionToColumn: (columnId: string) => void
-  removeColumnFilters: (columnId: string) => void
-  updateCondition: (
+  readonly group: ToolbarFilterGroup
+  readonly isOpen: boolean
+  readonly onOpenChange: (open: boolean) => void
+  readonly addConditionToColumn: (columnId: string) => void
+  readonly removeColumnFilters: (columnId: string) => void
+  readonly updateCondition: (
     columnId: string,
     conditionId: string,
     patch: Partial<Pick<ToolbarFilterCondition, "op" | "value">>
   ) => void
-  removeCondition: (columnId: string, conditionId: string) => void
-  availableTagsByColumnId: Record<string, string[]>
+  readonly removeCondition: (columnId: string, conditionId: string) => void
+  readonly availableTagsByColumnId: Record<string, string[]>
 }
 
 function FilterPill({

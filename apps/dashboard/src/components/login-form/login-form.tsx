@@ -15,7 +15,7 @@ import { useLoginForm } from "./use-login-form"
 
 export interface LoginFormProps extends React.ComponentProps<"div"> {
   /** Classi CSS aggiuntive per il contenitore */
-  className?: string
+  readonly className?: string
 }
 
 /**
@@ -25,7 +25,8 @@ export interface LoginFormProps extends React.ComponentProps<"div"> {
  * - Bottone Login disabilitato finché email e password non sono entrambi compilati
  * - Transizione visiva tra stato disabilitato (grigio) e attivo (accent)
  */
-export function LoginForm({ className, ...props }: LoginFormProps) {
+export function LoginForm(props: Readonly<LoginFormProps>) {
+  const { className, ...divProps } = props
   const {
     emailValue,
     passwordValue,
@@ -41,7 +42,7 @@ export function LoginForm({ className, ...props }: LoginFormProps) {
   } = useLoginForm()
 
   return (
-    <div className={cn("flex flex-col gap-6", className)} {...props}>
+    <div className={cn("flex flex-col gap-6", className)} {...divProps}>
       <Card className="overflow-hidden p-0 shadow-md">
         <CardContent className="relative grid grid-cols-1 p-0 md:grid-cols-2">
           <img

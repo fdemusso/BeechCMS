@@ -1,4 +1,3 @@
-import { Plus } from "lucide-react"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   Tooltip,
@@ -9,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import type { UserViewInstance, ViewType } from "../shared"
 import {
   Table,
+  Plus,
   LayoutGrid,
   LayoutList,
   PieChart,
@@ -22,10 +22,10 @@ const VIEW_TYPE_ICONS: Record<ViewType, React.ComponentType<{ className?: string
 }
 
 interface ViewSwitcherProps {
-  views: UserViewInstance[]
-  activeViewId: string
-  onChangeView: (viewId: string) => void
-  onCreateView?: () => void
+  readonly views: UserViewInstance[]
+  readonly activeViewId: string
+  readonly onChangeView: (viewId: string) => void
+  readonly onCreateView?: () => void
 }
 
 export function ViewSwitcher({

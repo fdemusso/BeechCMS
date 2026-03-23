@@ -2,17 +2,17 @@ import type { Branch } from "@beech/core"
 
 /** Props condivise per i componenti di sola lettura (display) */
 export interface FieldDisplayProps {
-  branch: Branch
-  value: unknown
+  readonly branch: Branch
+  readonly value: unknown
   /** Opzioni di visualizzazione (es. troncamento in tabella) */
-  options?: {
-    maxLength?: number
+  readonly options?: {
+    readonly maxLength?: number
   }
 }
 
 /** Props condivise per i componenti di edit */
 export interface FieldEditProps {
-  branch: Branch
-  value: unknown
-  onChange: (value: unknown) => void
+  readonly branch: Branch
+  readonly value: unknown
+  readonly onChange: (value: unknown) => void
 }

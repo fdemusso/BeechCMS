@@ -19,24 +19,30 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
 
+type NavMainSubItem = {
+  readonly title: string
+  readonly url: string
+}
+
+type NavMainItem = {
+  readonly title: string
+  readonly url: string
+  readonly icon: LucideIcon
+  readonly isActive?: boolean
+  readonly items?: ReadonlyArray<NavMainSubItem>
+}
+
+type NavMainProps = {
+  readonly items: ReadonlyArray<NavMainItem>
+  readonly groupLabel?: string
+  readonly className?: string
+}
+
 export function NavMain({
   items,
   groupLabel = "Menu",
   className,
-}: {
-  items: {
-    title: string
-    url: string
-    icon: LucideIcon
-    isActive?: boolean
-    items?: {
-      title: string
-      url: string
-    }[]
-  }[]
-  groupLabel?: string
-  className?: string
-}) {
+}: NavMainProps) {
   return (
     <SidebarGroup className={className}>
       <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>

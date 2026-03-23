@@ -1,9 +1,8 @@
-import { Zap } from "lucide-react"
+import { Zap, Plus } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { Plus } from "lucide-react"
 
 import { FilterColumnMenu } from "./toolbar-components/filter-column-menu"
 import { SortColumnMenu } from "./toolbar-components/sort-column-menu"

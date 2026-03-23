@@ -48,7 +48,7 @@ export function useLoginForm() {
 
   const togglePasswordVisibility = () => setIsPasswordVisible((prev) => !prev)
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>): Promise<void> => {
+  const handleSubmit = async (event: React.SyntheticEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()
     const email = emailValue.trim()
     const password = passwordValue
