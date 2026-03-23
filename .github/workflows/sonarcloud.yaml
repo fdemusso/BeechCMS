@@ -19,6 +19,11 @@ jobs:
 
       - name: Esegui SonarCloud Scan Ufficiale
         uses: SonarSource/sonarqube-scan-action@v5.0.0
+        with:
+          # SonarScanner CLI arguments
+          args: >
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/migrations/**
+            -Dsonar.test.exclusions=**/test/**,**/*.test.ts,**/*.spec.ts,**/*.test.tsx,**/*.spec.tsx
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
