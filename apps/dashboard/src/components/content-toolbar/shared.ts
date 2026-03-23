@@ -1,5 +1,6 @@
 import type { Seed } from "@beech/core"
 import type {
+  ConditionalFormatRule,
   ConditionalFormatTarget,
   ConditionalFormatTextStyle,
   ConditionalFormatTone,
@@ -13,6 +14,14 @@ export type ToolbarTool =
   | "search"
   | "settings"
   | "create"
+
+export interface UserViewInstance {
+  id: string
+  label: string
+  type: ViewType
+  enabledTools: ToolbarTool[]
+  conditionalFormats?: ConditionalFormatRule[]
+}
 
 export type FilterGroupType =
   | "text"

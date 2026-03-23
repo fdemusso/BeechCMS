@@ -19,8 +19,8 @@ import type {
   ToolbarFilterCondition,
   ToolbarFilterGroup,
   ToolbarFiltersState,
-} from "./shared"
-import { getOperatorOptions, operatorRequiresValue } from "./shared"
+} from "../shared"
+import { getOperatorOptions, operatorRequiresValue } from "../shared"
 
 interface FilterPillsBarProps {
   filters: ToolbarFiltersState

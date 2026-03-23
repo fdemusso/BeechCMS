@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import type { FilterGroupType } from "./shared"
+import type { FilterGroupType } from "../shared"
 
 interface FilterConditionInputProps {
   readonly type: FilterGroupType
