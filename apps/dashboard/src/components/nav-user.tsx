@@ -33,17 +33,21 @@ function getInitials(name: string, email: string): string {
   return "??"
 }
 
+type NavUserUser = {
+  readonly name: string
+  readonly email: string
+  readonly avatar?: string
+}
+
+type NavUserProps = {
+  readonly user: NavUserUser
+  readonly onLogout?: () => void
+}
+
 export function NavUser({
   user,
   onLogout,
-}: {
-  user: {
-    name: string
-    email: string
-    avatar?: string
-  }
-  onLogout?: () => void
-}) {
+}: NavUserProps) {
   const { isMobile } = useSidebar()
   const initials = getInitials(user.name, user.email)
 

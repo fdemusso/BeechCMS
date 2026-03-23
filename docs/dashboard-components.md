@@ -11,16 +11,26 @@ Documentazione dei componenti UI riutilizzabili della dashboard Beech CMS.
 
 ## `ContentToolbar`
 
-**File:** `apps/dashboard/src/components/content-toolbar.tsx` (compositore)
+**Directory:** `apps/dashboard/src/components/content-toolbar/`
+
+La `ContentToolbar` è stata refattorizzata in una struttura modulare per separare l'orchestrazione dello stato, i tipi e la UI.
 
 Componenti e hook principali:
-- `apps/dashboard/src/components/content-toolbar/filter-column-menu.tsx` (menu filtri)
-- `apps/dashboard/src/components/content-toolbar/sort-column-menu.tsx` (menu ordinamento)
-- `apps/dashboard/src/components/content-toolbar/filter-pills-bar.tsx` (pills filtri)
-- `apps/dashboard/src/components/content-toolbar/conditional-formats-editor.tsx` (editor colori condizionali)
-- `apps/dashboard/src/components/content-toolbar/shared.ts` (tipi e funzioni pure)
-- `apps/dashboard/src/hooks/use-toolbar-filters.ts` (gestione stato filtri)
-- `apps/dashboard/src/hooks/use-conditional-formats.ts` (gestione stato colori condizionali)
+- `content-toolbar.tsx` (componente principale orchestratore della UI)
+- `use-content-toolbar.ts` (hook orchestratore dello stato principale)
+- `types.ts` (tipi esportati come `ViewType`, `ToolbarTool`, `ToolbarFiltersState`, etc.)
+- `shared.ts` (costanti e funzioni pure condivise)
+- `toolbar-components/` (sotto-componenti UI estratti)
+  - `view-switcher.tsx` (selezione vista)
+  - `search-bar.tsx` (barra di ricerca animata)
+  - `settings-menu.tsx` (menu impostazioni vista, raggruppamento, colonne)
+  - `filter-column-menu.tsx`, `sort-column-menu.tsx` (menu contestuali)
+  - `filter-pills-bar.tsx`, `filter-condition-input.tsx` (gestione delle condizioni)
+  - `conditional-formats-editor.tsx` (editor colori condizionali)
+- `toolbar-hooks/` (hook di logica specifici per i sotto-componenti)
+  - `use-toolbar-search.ts`, `use-toolbar-menus-state.ts`, `use-view-name.ts`, `use-toolbar-sort.ts`, `use-toolbar-groupby.ts`
+- `apps/dashboard/src/hooks/use-toolbar-filters.ts` (gestione globale stato filtri)
+- `apps/dashboard/src/hooks/use-conditional-formats.ts` (gestione globale stato colori condizionali)
 
 Barra di controllo contestuale per le viste contenuto. Raggruppa in un'unica UI:
 
@@ -88,6 +98,8 @@ flowchart LR
 ---
 
 ## Tipi esportati
+
+Definiti in `apps/dashboard/src/components/content-toolbar/types.ts`.
 
 ### `ViewType`
 

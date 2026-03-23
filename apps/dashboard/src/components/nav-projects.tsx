@@ -23,15 +23,19 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 
+type NavProject = {
+  readonly name: string
+  readonly url: string
+  readonly icon: LucideIcon
+}
+
+type NavProjectsProps = {
+  readonly projects: ReadonlyArray<NavProject>
+}
+
 export function NavProjects({
   projects,
-}: {
-  projects: {
-    name: string
-    url: string
-    icon: LucideIcon
-  }[]
-}) {
+}: NavProjectsProps) {
   const { isMobile } = useSidebar()
 
   return (

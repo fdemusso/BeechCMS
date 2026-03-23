@@ -40,8 +40,8 @@ import {
   getConditionalToneStripClass,
   getOperatorOptions,
   operatorRequiresValue,
-} from "./shared"
-import type { FilterOperator, ToolbarFilterCondition } from "./shared"
+} from "../shared"
+import type { FilterOperator, ToolbarFilterCondition } from "../shared"
 import type { FormattableColumn } from "@/hooks/use-toolbar-filters"
 
 interface ConditionalFormatsEditorProps {
