@@ -7,6 +7,10 @@
     "test": {
       "cache": false,
       "dependsOn": ["^build"]
+    },
+    "test:coverage": {
+      "cache": false,
+      "dependsOn": ["^build"]
     }
   }
 }

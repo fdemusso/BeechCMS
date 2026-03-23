@@ -17,6 +17,18 @@ jobs:
           # Disabilita i cloni superficiali: SonarCloud deve leggere tutta la storia per funzionare bene
           fetch-depth: 0 
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Tests with Coverage
+        run: npm run test:coverage
+
       - name: Esegui SonarCloud Scan Ufficiale
         uses: SonarSource/sonarqube-scan-action@v5.0.0
         with:
@@ -24,6 +36,7 @@ jobs:
           args: >
             -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/migrations/**
             -Dsonar.test.exclusions=**/test/**,**/*.test.ts,**/*.spec.ts,**/*.test.tsx,**/*.spec.tsx
+            -Dsonar.javascript.lcov.reportPaths=apps/api/coverage/lcov.info,apps/dashboard/coverage/lcov.info
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
