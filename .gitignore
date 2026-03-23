@@ -13,7 +13,9 @@ out/
 *.tsbuildinfo
 
 #cursor'
+.cursor/
 .cursorrules
+.cursorignore
 
 # Turbo
 .turbo/

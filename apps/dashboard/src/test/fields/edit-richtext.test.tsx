@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
-import { RichtextEdit } from "./richtext"
+import { RichtextEdit } from "@/components/fields/edit/richtext"
 
 const mockBranch = {
   id: "br_01",
@@ -33,3 +33,4 @@ describe("RichtextEdit", () => {
     expect(screen.getByRole("button", { name: /Elenco puntato/i })).toBeInTheDocument()
   })
 })
+

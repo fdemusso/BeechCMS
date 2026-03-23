@@ -16,7 +16,7 @@ export const ARTICOLO_SEED: Seed = {
     { id: 'art_01', alias: 'title', label: 'Titolo', type: 'text' },
     { id: 'art_02', alias: 'publishedAt', label: 'Data pubblicazione', type: 'date' },
     { id: 'art_03', alias: 'coverImage', label: 'Immagine copertina', type: 'file' },
-    { id: 'art_04', alias: 'tags', label: 'Tag', type: 'json' },
+    { id: 'art_04', alias: 'tags', label: 'Tag', type: 'json', options: ['cms', 'tutorial', 'release', 'annuncio', 'guida', 'news', 'aggiornamento'] },
     { id: 'art_05', alias: 'body', label: 'Corpo articolo', type: 'richtext' },
     { id: 'art_06', alias: 'metaTitle', label: 'Meta titolo (SEO)', type: 'text' },
     { id: 'art_07', alias: 'metaDescription', label: 'Meta descrizione (SEO)', type: 'text' },

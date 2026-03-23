@@ -35,6 +35,11 @@ Se sei un **recruiter o un hiring manager**, questo progetto dimostra la mia cap
 * **Database & Storage:** Cloudflare D1 (SQLite Edge), Cloudflare R2 (Object Storage)
 * **Architettura:** Turborepo (Monorepo), npm workspaces
 
+## ✅ Qualità e Test (ultimo sprint)
+* La suite test della dashboard è stata estesa su hook, toolbar, pagine e componenti core.
+* La coverage della dashboard è stata portata **intorno all'85%**.
+* La baseline attesa è mantenere questo livello nelle prossime PR, evitando regressioni.
+
 ---
 
 ## 🚀 Quick Start (Per gli Sviluppatori)
@@ -76,10 +81,11 @@ Per i contributor e i membri del team, l'architettura dettagliata di ogni modulo
 | ------ | ------ |
 | [Architettura Monorepo](./docs/monorepo.md) | Struttura Turborepo, `@beech/core`, workspace |
 | [Botanical Engine](./docs/botanical-engine.md) | Layer di traduzione alias ↔ ID interni (Seed, Branch) |
-| [Content Engine](./docs/content-engine.md) | CRUD schema-driven, architettura ibrida SQL/JSON |
+| [Content Engine](./docs/content-engine.md) | CRUD schema-driven + query server-side (`search/sort/filters/page/limit`) e facets dinamiche |
 | [Field Renderers](./docs/field-renderers.md) | Registry Pattern per display/edit campi nella UI |
 | [Media Engine](./docs/media-engine.md) | Upload su Cloudflare R2, API S3-compatibile |
 | [Autenticazione](./docs/auth.md) | JWT, refresh token, login, rate limiting |
+| [Dashboard Components](./docs/dashboard-components.md) | ContentToolbar + DataTable: filtri/sort/ricerca/paginazione server-driven |
 | [Field types action plan](./docs/field-types-action-plan.md) | Piano d'azione tecnico per i campi |
 | [Field types roadmap](./docs/field-types-roadmap.md) | Roadmap dei tipi di campo (WordPress killer) |
 

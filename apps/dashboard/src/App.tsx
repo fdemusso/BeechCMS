@@ -1,4 +1,4 @@
-import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom"
+import { createBrowserRouter, RouterProvider, Navigate, Outlet } from "react-router-dom"
 import { LoginForm } from "@/components/login-form"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
@@ -7,6 +7,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ContentListPage } from "@/pages/content-list"
 import { EntryEditorPage } from "@/pages/entry-editor"
 import { TestFieldsPage } from "@/pages/test-fields"
+import { ErrorPage } from "@/pages/error-page"
 import "./App.css"
 
 function LoginPage() {
@@ -26,13 +27,13 @@ function DashboardPage() {
     return <Navigate to="/login" replace />
   }
   return (
-    <div className="[--header-height:calc(--spacing(14))]">
+    <div className="[--header-height:calc(--spacing(14))] overflow-x-hidden">
       <SidebarProvider className="flex flex-col">
         <SiteHeader />
         <div className="flex flex-1">
           <AppSidebar />
-          <SidebarInset>
-            <div className="flex flex-1 flex-col gap-4 p-4">
+          <SidebarInset className="min-w-0">
+            <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
               <div className="mx-auto w-full max-w-screen-2xl">
                 <h1 className="text-2xl font-semibold">Dashboard</h1>
                 <p className="text-muted-foreground text-sm">
@@ -64,44 +65,50 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
 const router = createBrowserRouter([
   {
-    path: "/login",
-    element: <LoginPage />,
-  },
-  {
-    path: "/",
-    element: <DashboardPage />,
-  },
-  {
-    path: "/content/:slug/create",
-    element: (
-      <ProtectedRoute>
-        <EntryEditorPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/content/:slug/:id",
-    element: (
-      <ProtectedRoute>
-        <EntryEditorPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/content/:slug",
-    element: (
-      <ProtectedRoute>
-        <ContentListPage />
-      </ProtectedRoute>
-    ),
-  },
-  {
-    path: "/test-fields",
-    element: (
-      <ProtectedRoute>
-        <TestFieldsPage />
-      </ProtectedRoute>
-    ),
+    element: <Outlet />,
+    errorElement: <ErrorPage />,
+    children: [
+      {
+        path: "/login",
+        element: <LoginPage />,
+      },
+      {
+        path: "/",
+        element: <DashboardPage />,
+      },
+      {
+        path: "/content/:slug/create",
+        element: (
+          <ProtectedRoute>
+            <EntryEditorPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/content/:slug/:id",
+        element: (
+          <ProtectedRoute>
+            <EntryEditorPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/content/:slug",
+        element: (
+          <ProtectedRoute>
+            <ContentListPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/test-fields",
+        element: (
+          <ProtectedRoute>
+            <TestFieldsPage />
+          </ProtectedRoute>
+        ),
+      },
+    ],
   },
 ])
 

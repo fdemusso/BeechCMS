@@ -1,0 +1,113 @@
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { renderHook, act } from "@testing-library/react"
+
+const mocked = vi.hoisted(() => ({
+  navigate: vi.fn(),
+  axiosPost: vi.fn(),
+  isAxiosError: vi.fn(),
+}))
+
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => mocked.navigate,
+}))
+
+vi.mock("axios", () => ({
+  default: {
+    post: mocked.axiosPost,
+    isAxiosError: mocked.isAxiosError,
+  },
+}))
+
+vi.mock("@/lib/api", () => ({
+  AUTH_TOKEN_KEY: "beech_token",
+}))
+
+import { AUTH_TOKEN_KEY } from "@/lib/api"
+import { useLoginForm } from "@/components/login-form/use-login-form"
+
+const TEST_PASS = "x".repeat(10)
+
+describe("useLoginForm", () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+  })
+
+  it("inizialmente form non valido, toggle password visibile funziona", () => {
+    const { result } = renderHook(() => useLoginForm())
+    expect(result.current.isFormValid).toBe(false)
+    expect(result.current.isPasswordVisible).toBe(false)
+
+    act(() => {
+      result.current.togglePasswordVisibility()
+    })
+    expect(result.current.isPasswordVisible).toBe(true)
+  })
+
+  it("validazione: email richiesta / email invalida / password corta", async () => {
+    const { result } = renderHook(() => useLoginForm())
+
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as any)
+    })
+    expect(result.current.emailError).toContain("Inserisci l'email")
+
+    act(() => {
+      result.current.handleEmailChange({ target: { value: "not-an-email" } } as any)
+      result.current.handlePasswordChange({ target: { value: TEST_PASS } } as any)
+    })
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as any)
+    })
+    expect(result.current.emailError).toContain("Email non valida")
+
+    act(() => {
+      result.current.handleEmailChange({ target: { value: "a@b.com" } } as any)
+      result.current.handlePasswordChange({ target: { value: "123" } } as any)
+    })
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as any)
+    })
+    expect(result.current.passwordError).toContain("almeno 8 caratteri")
+  })
+
+  it("submit successo: salva token e naviga home", async () => {
+    mocked.axiosPost.mockResolvedValueOnce({ data: { token: "jwt-token", expiresIn: "15m" } })
+
+    const { result } = renderHook(() => useLoginForm())
+    act(() => {
+      result.current.handleEmailChange({ target: { value: "a@b.com" } } as any)
+      result.current.handlePasswordChange({ target: { value: TEST_PASS } } as any)
+    })
+
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as any)
+    })
+
+    expect(mocked.axiosPost).toHaveBeenCalledWith(
+      "/auth/login",
+      { email: "a@b.com", password: TEST_PASS },
+      { withCredentials: true }
+    )
+    expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBe("jwt-token")
+    expect(mocked.navigate).toHaveBeenCalledWith("/", { replace: true })
+  })
+
+  it("submit errore 401: mostra messaggio credenziali", async () => {
+    mocked.axiosPost.mockRejectedValueOnce({ response: { status: 401 } })
+    mocked.isAxiosError.mockReturnValueOnce(true)
+
+    const { result } = renderHook(() => useLoginForm())
+    act(() => {
+      result.current.handleEmailChange({ target: { value: "a@b.com" } } as any)
+      result.current.handlePasswordChange({ target: { value: TEST_PASS } } as any)
+    })
+
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as any)
+    })
+
+    expect(result.current.passwordError).toBe("Email o Password errate")
+  })
+})
+

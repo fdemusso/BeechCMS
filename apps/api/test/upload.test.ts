@@ -49,7 +49,10 @@ describe('API Upload - POST /api/upload', () => {
   beforeEach(() => {
     mockJwtVerify.mockReset()
     mockS3Send.mockReset()
-    mockJwtVerify.mockResolvedValue({ sub: 'user-1', email: 'test@test.com' })
+    mockJwtVerify.mockResolvedValue({
+      payload: { sub: 'user-1', email: 'test@test.com' },
+      protectedHeader: { alg: 'HS256', typ: 'JWT' },
+    })
     mockS3Send.mockResolvedValue({})
   })
 

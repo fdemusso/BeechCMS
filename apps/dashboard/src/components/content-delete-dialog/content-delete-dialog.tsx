@@ -1,6 +1,3 @@
-import * as React from "react"
-import type { Seed } from "@beech/core"
-
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -10,48 +7,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useContentDeleteDialog, type ContentDeleteDialogProps } from "./use-content-delete-dialog"
 
-/**
- * Props per il dialog di conferma eliminazione.
- * @property open - Stato apertura dialog
- * @property onOpenChange - Callback per cambiare stato
- * @property seed - Seed dello schema (per label nel messaggio)
- * @property entryId - ID dell'entry da eliminare
- * @property onConfirm - Callback alla conferma eliminazione
- */
-interface ContentDeleteDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  seed: Seed
-  entryId: string | null
-  onConfirm: () => Promise<void>
-}
-
-export function ContentDeleteDialog({
-  open,
-  onOpenChange,
-  seed,
-  entryId,
-  onConfirm,
-}: ContentDeleteDialogProps) {
-  const [isDeleting, setIsDeleting] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-
-  const handleConfirm = async () => {
-    setIsDeleting(true)
-    setError(null)
-
-    try {
-      await onConfirm()
-      onOpenChange(false)
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Errore durante l'eliminazione"
-      )
-    } finally {
-      setIsDeleting(false)
-    }
-  }
+export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
+  const { open, onOpenChange, seed } = props
+  const {
+    isDeleting,
+    error,
+    handleConfirm,
+    entryCount,
+    previewIds,
+    hasMore,
+  } = useContentDeleteDialog(props)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -59,10 +26,13 @@ export function ContentDeleteDialog({
         <DialogHeader>
           <DialogTitle>Conferma eliminazione</DialogTitle>
           <DialogDescription>
-            Sei sicuro di voler eliminare questa entry di tipo "{seed.label}"?
-            {entryId && (
+            {entryCount <= 1
+              ? `Sei sicuro di voler eliminare questa entry di tipo "${seed.label}"?`
+              : `Sei sicuro di voler eliminare ${entryCount} entry di tipo "${seed.labelPlural ?? seed.label}"?`}
+            {previewIds.length > 0 && (
               <span className="mt-2 block font-mono text-xs text-muted-foreground">
-                ID: {entryId}
+                ID: {previewIds.join(", ")}
+                {hasMore ? ", …" : ""}
               </span>
             )}
           </DialogDescription>

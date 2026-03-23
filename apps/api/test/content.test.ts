@@ -51,6 +51,32 @@ function createMockD1ForList(rows: ContentEntryMockRow[]) {
   }
 }
 
+/** Crea mock D1 per GET lista con COUNT + SELECT paginato */
+function createMockD1ForListWithCount(
+  rows: ContentEntryMockRow[],
+  total: number,
+  capture: { sql: string[]; binds: unknown[][] }
+) {
+  return {
+    prepare: vi.fn((sql: string) => {
+      capture.sql.push(sql)
+      return {
+        bind: vi.fn((...args: unknown[]) => {
+          capture.binds.push(args)
+          if (sql.toLowerCase().includes('count(*)')) {
+            return {
+              first: vi.fn().mockResolvedValue({ total }),
+            }
+          }
+          return {
+            all: vi.fn().mockResolvedValue({ results: rows }),
+          }
+        }),
+      }
+    }),
+  }
+}
+
 /** Crea mock D1 per SELECT first (GET dettaglio / by-slug): restituisce riga o null */
 function createMockD1ForDetail(row: ContentEntryMockRow | null) {
   return {
@@ -220,6 +246,230 @@ describe('API Content - Read Operation (La Deserializzazione)', () => {
     // Verifica critica: dbToApi trasforma art_01/art_02 -> title/publishedAt
     expect(typeof entries[0].data).toBe('object')
     expect(entries[0].data).toEqual({ title: 'Test', publishedAt: '2026-01-01' })
+  })
+})
+
+describe('API Content - Facets dinamici', () => {
+  beforeEach(() => {
+    mockJwtVerify.mockResolvedValue({
+      payload: { sub: 'user-1', email: 'test@beech.local' },
+      protectedHeader: { alg: 'HS256' },
+    } as never)
+  })
+
+  it('GET /api/content/articoli/facets restituisce status e tags distinti', async () => {
+    const rows: ContentEntryMockRow[] = [
+      {
+        id: '1',
+        schema_slug: 'articoli',
+        slug: 'a',
+        status: 'review',
+        data: '{"art_04":{"cms":"#111111","react":"#222222"}}',
+        created_at: null,
+        updated_at: null,
+      },
+      {
+        id: '2',
+        schema_slug: 'articoli',
+        slug: 'b',
+        status: 'published',
+        data: '{"art_04":["react","typescript"]}',
+        created_at: null,
+        updated_at: null,
+      },
+      {
+        id: '3',
+        schema_slug: 'articoli',
+        slug: 'c',
+        status: 'published',
+        data: '{"art_04":"[\\"edge\\",\\"cms\\"]"}',
+        created_at: null,
+        updated_at: null,
+      },
+    ]
+    const mockDB = createMockD1ForList(rows)
+
+    const res = await app.request('/api/content/articoli/facets', {
+      method: 'GET',
+      headers: { Authorization: 'Bearer valid-token' },
+    }, { DB: mockDB, JWT_SECRET })
+
+    expect(res.status).toBe(200)
+    const data = await res.json() as {
+      statuses: string[]
+      tagsByColumnId: Record<string, string[]>
+    }
+    expect(data.statuses).toEqual(['published', 'review'])
+    expect(data.tagsByColumnId.tags).toBeDefined()
+    expect(new Set(data.tagsByColumnId.tags)).toEqual(
+      new Set(['cms', 'edge', 'react', 'typescript'])
+    )
+  })
+})
+
+describe('API Content - Query params server-side', () => {
+  beforeEach(() => {
+    mockJwtVerify.mockResolvedValue({
+      payload: { sub: 'user-1', email: 'test@beech.local' },
+      protectedHeader: { alg: 'HS256' },
+    } as never)
+  })
+
+  it('GET /api/content/:slug con search/sort/pagination restituisce payload con meta', async () => {
+    const capture = { sql: [] as string[], binds: [] as unknown[][] }
+    const rows: ContentEntryMockRow[] = [
+      {
+        id: '1',
+        schema_slug: 'articoli',
+        slug: 'a',
+        status: 'review',
+        data: '{"art_01":"Titolo A"}',
+        created_at: 10,
+        updated_at: 10,
+      },
+    ]
+    const mockDB = createMockD1ForListWithCount(rows, 42, capture)
+
+    const res = await app.request(
+      '/api/content/articoli?search=titolo&sortBy=title&sortDir=asc&page=2&limit=10',
+      {
+        method: 'GET',
+        headers: { Authorization: 'Bearer valid-token' },
+      },
+      { DB: mockDB, JWT_SECRET }
+    )
+
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as {
+      items: Array<{ id: string }>
+      total: number
+      page: number
+      limit: number
+    }
+    expect(body.total).toBe(42)
+    expect(body.page).toBe(2)
+    expect(body.limit).toBe(10)
+    expect(body.items).toHaveLength(1)
+    expect(body.items[0].id).toBe('1')
+    expect(capture.sql.length).toBeGreaterThanOrEqual(2)
+    expect(capture.sql.some((s) => s.includes('COUNT(*)'))).toBe(true)
+    expect(capture.sql.some((s) => s.includes('ORDER BY'))).toBe(true)
+  })
+
+  it('GET /api/content/:slug con filters genera WHERE e bindings attesi', async () => {
+    const capture = { sql: [] as string[], binds: [] as unknown[][] }
+    const rows: ContentEntryMockRow[] = [
+      {
+        id: '1',
+        schema_slug: 'prodotti',
+        slug: 'a',
+        status: 'published',
+        data: '{"prd_01":"Nome A","prd_02":123.45,"prd_03":10,"prd_04":true}',
+        created_at: 10,
+        updated_at: 10,
+      },
+    ]
+    const mockDB = createMockD1ForListWithCount(rows, 1, capture)
+
+    const filters = {
+      emptyName: {
+        columnId: 'name',
+        type: 'text',
+        conditions: [{ op: 'is_empty', value: null }],
+      },
+      tagsImages: {
+        columnId: 'images',
+        type: 'tags',
+        conditions: [{ op: 'contains', value: 'react' }],
+      },
+      eqActive: {
+        columnId: 'active',
+        type: 'boolean',
+        conditions: [{ op: 'eq', value: true }],
+      },
+      eqPrice: {
+        columnId: 'price',
+        type: 'number',
+        conditions: [{ op: 'eq', value: 123.45 }],
+      },
+      containsName: {
+        columnId: 'name',
+        type: 'text',
+        conditions: [{ op: 'contains', value: 'Progetto' }],
+      },
+      gtStock: {
+        columnId: 'stock',
+        type: 'number',
+        conditions: [{ op: 'gt', value: 10 }],
+      },
+      lteDatePrice: {
+        columnId: 'price',
+        type: 'date',
+        conditions: [{ op: 'lte', value: '2026-01-01' }],
+      },
+    }
+
+    const filtersParam = encodeURIComponent(JSON.stringify(filters))
+    const res = await app.request(
+      `/api/content/prodotti?filters=${filtersParam}&page=1&limit=10`,
+      {
+        method: 'GET',
+        headers: { Authorization: 'Bearer valid-token' },
+      },
+      { DB: mockDB, JWT_SECRET },
+    )
+
+    expect(res.status).toBe(200)
+
+    const body = (await res.json()) as {
+      items: Array<{ id: string }>
+      total: number
+      page: number
+      limit: number
+    }
+    expect(body.total).toBe(1)
+    expect(body.page).toBe(1)
+    expect(body.limit).toBe(10)
+    expect(body.items).toHaveLength(1)
+    expect(body.items[0].id).toBe('1')
+
+    // Verifica che alcune clausole chiave siano presenti nella query SQL.
+    const allSql = capture.sql.join(' ')
+    expect(allSql).toContain('json_each')
+    expect(allSql).toContain('json_extract')
+    expect(allSql).toContain('CAST(')
+    expect(allSql).toContain('LIKE LOWER')
+
+    // Verifica ordine e valori principali dei bindings:
+    // - binding 0: schema_slug
+    // - tags contiene: value + likeValue
+    // - eq boolean: 1/0
+    // - eq/contains/gt/lte: rispettivi valori
+    expect(capture.binds).toHaveLength(2)
+
+    expect(capture.binds[0]).toEqual([
+      'prodotti',
+      'react',
+      '%react%',
+      1,
+      123.45,
+      '%Progetto%',
+      10,
+      '2026-01-01',
+    ])
+
+    expect(capture.binds[1]).toEqual([
+      'prodotti',
+      'react',
+      '%react%',
+      1,
+      123.45,
+      '%Progetto%',
+      10,
+      '2026-01-01',
+      10, // limit
+      0, // offset
+    ])
   })
 })
 
