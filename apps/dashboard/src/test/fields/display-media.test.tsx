@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
-import { MediaDisplay } from "./media"
+import { MediaDisplay } from "@/components/fields/display/media"
 
 const mockBranch = {
   id: "br_01",
@@ -37,3 +37,4 @@ describe("MediaDisplay", () => {
     expect(container).toBeInTheDocument()
   })
 })
+

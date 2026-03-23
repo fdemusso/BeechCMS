@@ -34,7 +34,7 @@ jobs:
         with:
           # SonarScanner CLI arguments
           args: >
-            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/migrations/**
+            -Dsonar.exclusions=**/node_modules/**,**/dist/**,**/build/**,**/migrations/**,**/test/**,**/*.test.ts,**/*.spec.ts,**/*.test.tsx,**/*.spec.tsx
             -Dsonar.test.exclusions=**/test/**,**/*.test.ts,**/*.spec.ts,**/*.test.tsx,**/*.spec.tsx
             -Dsonar.javascript.lcov.reportPaths=apps/api/coverage/lcov.info,apps/dashboard/coverage/lcov.info
         env:
