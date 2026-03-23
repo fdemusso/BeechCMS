@@ -93,7 +93,7 @@ beech-cms/
   - Rendering schema-driven di form, tabelle, Kanban e viste tramite Field Renderers (vedi `[docs/field-renderers.md](field-renderers.md)`).
   - Strumenti di filtraggio, sort, ricerca e creazione viste tramite `ContentToolbar` (vedi `[docs/dashboard-components.md](dashboard-components.md)`).
 - **Struttura UI (estratto)**
-  - `apps/dashboard/src/components/content-toolbar.tsx`: compositore toolbar per cambiare vista, filtri, sort, ricerca e creazione entry; include l'editor colori condizionali tramite hook/sub-component (descritto in `[docs/dashboard-components.md](dashboard-components.md)`).
+  - `apps/dashboard/src/components/content-toolbar/`: directory della toolbar modulare (compositore principale, viste, filtri, ricerca, colori condizionali). Gestione stato isolata tramite custom hook (vedi `[docs/dashboard-components.md](dashboard-components.md)`).
   - `apps/dashboard/src/components/fields/`: infrastruttura Field Renderers (display/edit per ogni `BranchType`), descritta in `[docs/field-renderers.md](field-renderers.md)`.
     - `FieldDisplay.tsx`, `FieldEdit.tsx`, `registry.ts`, `display/*.tsx`, `edit/*.tsx`.
   - Pagine di editing entry (es. `EntryEditorPage`) che consumano i Field Renderers + `Seed` dal core.
@@ -171,7 +171,7 @@ beech-cms/
   - Table/Grid/Kanban views:
     - Generano le colonne dinamicamente a partire da `Seed.branches`.
     - Usano `<FieldDisplay>` per ogni cella, con `options.maxLength` per troncamenti.
-  - `ContentToolbar` (file `content-toolbar.tsx`):
+  - `ContentToolbar` (cartella `content-toolbar/`):
     - Gestisce viste utenti (`UserViewInstance`), strumenti (`filter`, `sort`, `automation`, `search`, `settings`, `create`) e filtri Notion-like.
     - (Opzionale) Gestisce regole di **colori condizionali** legate alla vista attiva.
 
@@ -215,6 +215,17 @@ beech-cms/
     - Usare TypeScript in modalità `strict`, seguendo il `tsconfig` root.
     - Usare ESLint/TypeScript-ESLint e Vitest come da configurazione dei singoli package.
   - **Non si deve** introdurre nuove librerie di state management, routing o UI senza aggiornare `SYSTEM_MAP.md` e la documentazione relativa.
+
+---
+
+## Creare un nuovo componente
+
+La dashboard segue pattern architetturali rigorosi. Quando crei un nuovo componente:
+
+1. **Cartella vs File singolo**: Se il componente richiede UI complessa, logica di stato (hook) o ha sotto-componenti, **crea una cartella dedicata** (es. `components/my-component/`). Il `index.ts` deve esportare solo i componenti/tipi pubblici. Se è semplice e presentazionale, usa un file singolo.
+2. **Separazione logica / UI**: La logica (state e handler) deve essere estratta in **custom hooks** specifici (es. `use-my-component.ts`) separando la complessa gestione dello stato dal rendering JSX.
+3. **Componenti Atomici**: Suddividi l'interfaccia complessa in sotto-componenti mirati, passando loro solo i dati strettamente necessari come props (evita prop-drilling eccessivo). Costruisci la UI usando i primitivi radice in `components/ui/` basati su radix/shadcn.
+4. **Tipi esportati**: Colloca l'export delle prop e delle interfacce importanti in un file `types.ts` interno per importazioni incrociate più pulite.
 
 ---
 

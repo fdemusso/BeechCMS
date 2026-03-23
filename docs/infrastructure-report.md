@@ -24,7 +24,7 @@ L'architettura è solida nelle scelte tecnologiche (edge-first, schema-driven, m
 | 🟠 **ALTO** | Access token in `localStorage` (vettore XSS) | [§1.3](#13-access-token-jwt-in-localstorage) |
 | 🟠 **ALTO** | Nessuna autorizzazione RBAC nell'API | [§1.4](#14-assenza-di-rbac-role-based-access-control) |
 | 🟡 **MEDIO** | Nessun CD pipeline / processo di deploy automatico | [§3.1](#31-assenza-di-continuous-deployment) |
-| 🟡 **MEDIO** | Componente monolite `content-toolbar.tsx` (46 KB) | [§2.1](#21-componente-monolite-content-toolbartsx) |
+| 🟢 **RISOLTO** | Componente monolite `content-toolbar.tsx` (ex 46 KB) | [§2.1](#21-componente-monolite-content-toolbartsx) |
 
 ---
 
@@ -143,9 +143,11 @@ La migrazione contiene un utente admin con password conosciuta (`password123`). 
 
 ## 2. 🧱 Manutenibilità e Qualità del Codice
 
-### 2.1 Componente Monolite `content-toolbar.tsx`
+### 2.1 Componente Monolite `content-toolbar.tsx` (RISOLTO)
 
-**File**: `apps/dashboard/src/components/content-toolbar.tsx` — **45.971 byte** (46 KB)
+**File**: `apps/dashboard/src/components/content-toolbar/`
+
+**Stato Attuale:** Il componente monolitico da 46KB è stato refattorizzato separando la logica di stato e i sotto-componenti UI (view switcher, menu settings, logic hook dedicati). Tutta la struttura si trova ora nella cartella `content-toolbar/`.
 
 Un singolo file di questa dimensione indica un componente con troppe responsabilità. Questo crea:
 - Difficoltà nella revisione del codice e debugging
