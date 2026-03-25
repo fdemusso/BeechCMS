@@ -24,17 +24,23 @@ export function useConditionalFormats({
   const [activeConditionalRuleId, setActiveConditionalRuleId] = React.useState<string | null>(null)
   const [isConditionalEditorOpen, setIsConditionalEditorOpen] = React.useState(false)
 
-  const conditionalFormats = React.useMemo(() => {
-    const rules = conditionalFormatsInput ?? []
-    return rules
-      .map((rule) => ({
-        ...rule,
-        target: normalizeConditionalTarget(rule.target),
-        textStyles: normalizeTextStyles(rule.textStyles),
-      }))
-      .slice()
-      .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0))
-  }, [conditionalFormatsInput])
+  const normalizeConditionalFormats = React.useCallback(
+    (rules: ConditionalFormatRule[]) =>
+      rules
+        .map((rule) => ({
+          ...rule,
+          target: normalizeConditionalTarget(rule.target),
+          textStyles: normalizeTextStyles(rule.textStyles),
+        }))
+        .slice()
+        .sort((a, b) => (a.priority ?? 0) - (b.priority ?? 0)),
+    []
+  )
+
+  const conditionalFormats = React.useMemo(
+    () => normalizeConditionalFormats(conditionalFormatsInput ?? []),
+    [conditionalFormatsInput, normalizeConditionalFormats]
+  )
 
   React.useEffect(() => {
     if (conditionalFormats.length === 0) {
