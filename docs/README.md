@@ -1,100 +1,106 @@
-# 🌳 Beech CMS 
+# 🌳 Beech CMS
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat&logo=opensourceinitiative&logoColor=white) NON IMPLEMENTATA
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat&logo=opensourceinitiative&logoColor=white) **NOT IMPLEMENTED**
 ![TypeScript](https://img.shields.io/badge/TypeScript-%233178C6.svg?style=flat&logo=typescript&logoColor=white)
 ![Turborepo](https://img.shields.io/badge/Turborepo-%23EF4444.svg?style=flat&logo=turborepo&logoColor=white)
 
-> Un Content Management System moderno, *schema-driven* e basato su un'architettura ibrida SQL/JSON, progettato per il deployment edge su Cloudflare.
+> A modern, *schema‑driven* Content Management System built on a hybrid SQL/JSON architecture, designed for edge deployment on Cloudflare.
+
+> If you are an AI agent, you can directly read the system map at [SYSTEM_MAP.md](./docs/SYSTEM_MAP.md).
 
 ---
 
-## 👁️ Panoramica del Progetto (Perché Beech CMS?)
-**Beech CMS** nasce per risolvere un problema comune nello sviluppo di CMS: la rottura dei dati lato frontend quando si rinomina un campo nel database. 
+## 👁️ Project Overview (Why Beech CMS?)
 
-Per risolvere questo problema, ho progettato il **Botanical Engine**, un layer di traduzione che disaccoppia gli *alias* pubblici utilizzati dalle API dagli *ID interni immutabili* salvati nel database. Questo permette agli sviluppatori di far evolvere gli schemi dei dati senza dover ricorrere a complesse e rischiose migrazioni SQL.
+**Beech CMS** was created to solve a common problem in CMS development: breaking frontend data when a database field is renamed.
 
-Se sei un **recruiter o un hiring manager**, questo progetto dimostra la mia capacità di:
-* Progettare **architetture software complesse** (Monorepo, Pattern Registry per la UI).
-* Gestire la **sicurezza** (Autenticazione JWT con Refresh Token e rotazione).
-* Costruire **soluzioni full-stack** moderne e performanti (React, Cloudflare Workers, D1, R2).
+To address this, I designed the **Botanical Engine**, a translation layer that decouples public *aliases* used by the API from immutable internal *IDs* stored in the database. This lets developers evolve data schemas without costly or risky SQL migrations.
 
-![Screenshot della Dashboard di Beech CMS](assets/screenshot.png) *(Nota: Aggiungi qui una GIF o uno screen della tua UI!)*
+If you are a **recruiter or hiring manager**, this project demonstrates my ability to:
+
+- Design **complex software architectures** (Monorepo, Registry Pattern for UI).
+- Manage **security** (JWT authentication with refresh tokens and rotation).
+- Build **modern full‑stack solutions** (React, Cloudflare Workers, D1, R2).
+
+![Beech CMS Dashboard screenshot](assets/screenshot.png) *(Add a GIF or screenshot of the UI here!)*
 
 ---
 
-## ✨ Funzionalità Principali (Key Features)
-* 🧠 **Botanical Engine:** Traduzione dinamica tra Alias (Frontend) e ID Immutabili (DB). Rinomina i campi senza rompere i vecchi JSON.
-* 🗄️ **Motore Ibrido SQL/JSON (Content Engine):** Sfrutta la stabilità di SQL (Cloudflare D1) per le query e la flessibilità del JSON per i payload dinamici dei contenuti.
-* 🔒 **Autenticazione Sicura:** Flusso JWT ibrido con Access Token (memoria) e Refresh Token (httpOnly cookie) protetti da attacchi XSS e CSRF. Rate limiting integrato.
-* ☁️ **Media Engine integrato:** Upload e distribuzione dei file nativa tramite Cloudflare R2 (API S3-compatibile).
-* 🎨 **UI Schema-Driven (Field Renderers):** Dashboard React che renderizza dinamicamente tabelle, form e viste Kanban utilizzando un robusto *Registry Pattern*.
+## ✨ Core Features
+
+- 🧠 **Botanical Engine:** Dynamic translation between API aliases and immutable DB IDs. Rename fields without breaking existing JSON.
+- 🗄️ **Hybrid SQL/JSON Content Engine:** Leverages the stability of SQL (Cloudflare D1) for queries and the flexibility of JSON for dynamic content payloads.
+- 🔒 **Secure Authentication:** Hybrid JWT flow with in‑memory Access Token and httpOnly Refresh Token, protected against XSS and CSRF. Integrated rate limiting.
+- ☁️ **Integrated Media Engine:** Native file upload and delivery via Cloudflare R2 (S3‑compatible API).
+- 🎨 **Schema‑Driven UI (Field Renderers):** React dashboard that dynamically renders tables, forms, and Kanban views using a robust *Registry Pattern*.
 
 ## 🛠️ Tech Stack
-* **Frontend:** React, TypeScript, Tailwind CSS, Vite
-* **Backend:** Node.js, Cloudflare Workers
-* **Database & Storage:** Cloudflare D1 (SQLite Edge), Cloudflare R2 (Object Storage)
-* **Architettura:** Turborepo (Monorepo), npm workspaces
 
-## ✅ Qualità e Test (ultimo sprint)
-* La suite test della dashboard è stata estesa su hook, toolbar, pagine e componenti core.
-* La coverage della dashboard è stata portata **intorno all'85%**.
-* La baseline attesa è mantenere questo livello nelle prossime PR, evitando regressioni.
+- **Frontend:** React, TypeScript, Tailwind CSS, Vite
+- **Backend:** Node.js, Cloudflare Workers
+- **Database & Storage:** Cloudflare D1 (SQLite Edge), Cloudflare R2 (Object Storage)
+- **Architecture:** Turborepo (Monorepo), npm workspaces
 
 ---
 
-## 🚀 Quick Start (Per gli Sviluppatori)
+## 🚀 Quick Start (For Developers)
 
-Vuoi provare Beech CMS in locale? Il setup richiede meno di 5 minuti.
+Want to try Beech CMS locally? The setup takes under 5 minutes.
 
-### Prerequisiti
-* Node.js 18+
-* [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installato per emulare l'ambiente Cloudflare.
+### Prerequisites
+- Node.js 18+
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installed to emulate the Cloudflare environment.
 
-### Installazione
-1. **Clona il repository:**
+### Installation
+1. **Clone the repository:**
    ```bash
    git clone https://github.com/fdemusso/BeechCMS.git
    cd beech-cms
    ```
-2. **Installa le dipendenze del monorepo:**
+2. **Install monorepo dependencies:**
    ```bash
    npm install
    ```
-3. **Configura le variabili d'ambiente (per l'upload R2):**
+3. **Configure environment variables (for R2 uploads):**
    ```bash
    cp apps/api/.dev.vars.example apps/api/.dev.vars
-   # Compila con le tue credenziali Cloudflare R2
+   # Fill in your Cloudflare R2 credentials
    ```
-4. **Avvia l'ambiente di sviluppo:**
+4. **Start the development environment:**
    ```bash
    npm run dev
    ```
-   *Questo avvierà in parallelo sia l'API (Cloudflare Worker) che la Dashboard.*
+   *This runs both the API (Cloudflare Worker) and the Dashboard in parallel.*
 
 ---
 
-## 📚 Documentazione Tecnica (Deep Dive)
+## 📚 Technical Documentation (Deep Dive)
 
-Per i contributor e i membri del team, l'architettura dettagliata di ogni modulo è documentata qui sotto. L'infrastruttura si divide in un monorepo gestito tramite Turborepo:
+For contributors and team members, detailed architecture of each module is documented below. The project is organized as a Turborepo monorepo:
 
-| Documento | Descrizione |
-| ------ | ------ |
-| [Architettura Monorepo](./docs/monorepo.md) | Struttura Turborepo, `@beech/core`, workspace |
-| [Botanical Engine](./docs/botanical-engine.md) | Layer di traduzione alias ↔ ID interni (Seed, Branch) |
-| [Content Engine](./docs/content-engine.md) | CRUD schema-driven + query server-side (`search/sort/filters/page/limit`) e facets dinamiche |
-| [Field Renderers](./docs/field-renderers.md) | Registry Pattern per display/edit campi nella UI |
-| [Media Engine](./docs/media-engine.md) | Upload su Cloudflare R2, API S3-compatibile |
-| [Autenticazione](./docs/auth.md) | JWT, refresh token, login, rate limiting |
-| [Dashboard Components](./docs/dashboard-components.md) | ContentToolbar + DataTable: filtri/sort/ricerca/paginazione server-driven |
-| [Field types action plan](./docs/field-types-action-plan.md) | Piano d'azione tecnico per i campi |
-| [Field types roadmap](./docs/field-types-roadmap.md) | Roadmap dei tipi di campo (WordPress killer) |
-
-## 🤝 Contribuire
-Siamo aperti a contributi! Se vuoi aiutare a costruire il "WordPress killer" per l'era serverless, apri una issue o invia una Pull Request. Assicurati di leggere prima l'[Architettura Monorepo](./docs/monorepo.md) per capire la struttura dei pacchetti.
-
-## 📄 Licenza
-Questo progetto è distribuito sotto licenza MIT. Vedi il file `LICENSE` per maggiori informazioni. [NON ANCORA IMPLEMENTATA]
+| Document | Description |
+| -------- | ----------- |
+| [Monorepo Architecture](./docs/monorepo.md) | Turborepo layout, `@beech/core`, workspaces |
+| [Botanical Engine](./docs/botanical-engine.md) | Alias ↔ internal ID translation (Seed, Branch) |
+| [Content Engine](./docs/content-engine.md) | Schema‑driven CRUD + server‑side query (search/sort/filters/pagination) and dynamic facets |
+| [Field Renderers](./docs/field-renderers.md) | Registry Pattern for UI display/edit of fields |
+| [Media Engine](./docs/media-engine.md) | Upload to Cloudflare R2, S3‑compatible API |
+| [Authentication](./docs/auth.md) | JWT, refresh token, login, rate limiting |
+| [Dashboard Components](./docs/dashboard-components.md) | ContentToolbar + DataTable: server‑driven filters/sort/search/pagination |
+| [Field Types Action Plan](./docs/field-types-action-plan.md) | Technical implementation plan for field types |
+| [Field Types Roadmap](./docs/field-types-roadmap.md) | Roadmap of field types (WordPress‑killer) |
 
 ---
-**👨‍💻 Creato da [Flavio De Musso](https://github.com/fdemusso)**
-*Se sei un recruiter e vuoi saperne di più sul mio approccio allo sviluppo software, [contattami su Gmail](mailto:demusso1617@gmail.com).*
+
+## 🤝 Contributing
+
+We welcome contributions! If you want to help build the **“WordPress killer”** for the serverless era, open an issue or submit a Pull Request. Please read the [Monorepo Architecture](./docs/monorepo.md) first to understand the package layout.
+
+## 📄 License
+
+This project is released under the MIT license. See the `LICENSE` file for details. **NOT YET IMPLEMENTED**
+
+---
+
+**👨‍💻 Created by [Flavio De Musso](https://github.com/fdemusso)**  
+*If you’re a recruiter and want to learn more about my software development approach, feel free to [contact me via Gmail](mailto:demusso1617@gmail.com).*
