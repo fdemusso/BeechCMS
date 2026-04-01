@@ -99,7 +99,7 @@ function renderSelectDropdown(
   buttonPlaceholder: string,
 ) {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -139,7 +139,7 @@ function renderTagsDropdown(
   textClassName: string,
 ) {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
