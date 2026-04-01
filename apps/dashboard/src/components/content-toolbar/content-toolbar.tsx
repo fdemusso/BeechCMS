@@ -229,7 +229,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                 activeConditionalRule={activeConditionalRule}
                 isConditionalEditorOpen={isConditionalEditorOpen}
                 setActiveConditionalRuleId={setActiveConditionalRuleId}
-                addConditionalFormatRule={() => addConditionalFormatRule(activeView?.id ?? "")}
+                addConditionalFormatRule={addConditionalFormatRule}
                 updateConditionalRule={updateConditionalRule}
                 updateConditionalTextStyles={updateConditionalTextStyles}
                 removeConditionalRule={removeConditionalRule}

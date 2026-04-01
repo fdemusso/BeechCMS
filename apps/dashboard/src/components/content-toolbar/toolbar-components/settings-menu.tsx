@@ -70,7 +70,7 @@ interface SettingsMenuProps {
   readonly activeConditionalRule: any
   readonly isConditionalEditorOpen: boolean
   readonly setActiveConditionalRuleId: (id: string | null) => void
-  readonly addConditionalFormatRule: () => void
+  readonly addConditionalFormatRule: (columnId: string) => void
   readonly updateConditionalRule: (id: string, updates: any) => void
   readonly updateConditionalTextStyles: (id: string, updates: any) => void
   readonly removeConditionalRule: (id: string) => void

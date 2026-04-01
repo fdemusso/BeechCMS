@@ -495,7 +495,7 @@ interface ColumnPickerProps {
 
 function ColumnPicker({ columns, onSelect, compact = false }: ColumnPickerProps) {
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
