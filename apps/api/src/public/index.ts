@@ -5,4 +5,5 @@ export { sanitizePublicPayload } from './sanitize'
 export { generateEntrySlug, slugify } from './slug-utils'
 export { buildPublicListMeta, buildPublicSingleMeta } from './response-builder'
 export { parseLatestCount, parsePublicPagination } from './query-builder'
+export { publicReadHandler } from './public-read'
 

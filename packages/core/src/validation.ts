@@ -69,8 +69,9 @@ function validateBranchValue(
   options: Required<ValidateSeedPayloadOptions>
 ): { ok: true; value: unknown; dangerous?: boolean } | { ok: false; detail: ValidationDetail } {
   if (rawValue === null) {
-    if (options.allowNull) return { ok: true, value: null }
-    return { ok: false, detail: makeDetail(alias, branch.type, rawValue) }
+    return options.allowNull
+      ? { ok: true, value: null }
+      : { ok: false, detail: makeDetail(alias, branch.type, rawValue) }
   }
 
   switch (branch.type) {
@@ -203,8 +204,10 @@ export function isValidContentStatus(value: unknown): value is 'draft' | 'review
 }
 
 /**
- * FUTURE(core-zod-complete): introdurre schema Zod completo per create/update con required fields.
+ * FUTURE(core-zod-complete): introdurre schema Zod completo per payload create/update.
+ * FUTURE(core-zod-complete): modellare required fields per seed/branch nello schema.
  * FUTURE(core-zod-complete): aggiungere warning/telemetria strutturata per alias sconosciuti.
  * FUTURE(core-zod-complete): aggiungere regole avanzate per branch (vincoli composti, enum dinamici).
+ * FUTURE(core-zod-complete): differenziare regole create vs update a livello schema.
  */
 

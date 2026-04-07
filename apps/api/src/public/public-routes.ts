@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { publicReadHandler } from './public-read'
 
 type Bindings = {
   DB: D1Database
@@ -18,6 +19,8 @@ const publicApp = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 publicApp.get('/health', (c) => {
   return c.json({ ok: true, service: 'public-api' }, 200)
 })
+
+publicApp.get('/:seed', publicReadHandler)
 
 export const publicRoutes = publicApp
 
