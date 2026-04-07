@@ -114,7 +114,7 @@ app.use('*', async (c, next) => {
       if (!origin) return origins[0] ?? null
       return origins.includes(origin) ? origin : null
     },
-    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
     credentials: true, // Necessario per httpOnly cookies
   })

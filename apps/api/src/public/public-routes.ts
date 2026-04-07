@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { publicReadHandler } from './public-read'
 import { publicAddHandler } from './public-add'
+import { publicEditHandler } from './public-edit'
 
 type Bindings = {
   DB: D1Database
@@ -23,6 +24,7 @@ publicApp.get('/health', (c) => {
 
 publicApp.get('/:seed', publicReadHandler)
 publicApp.post('/:seed/add', publicAddHandler)
+publicApp.put('/:seed/edit/:id', publicEditHandler)
 
 export const publicRoutes = publicApp
 

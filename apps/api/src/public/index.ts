@@ -7,4 +7,5 @@ export { buildPublicListMeta, buildPublicSingleMeta } from './response-builder'
 export { parseLatestCount, parsePublicPagination } from './query-builder'
 export { publicReadHandler } from './public-read'
 export { publicAddHandler } from './public-add'
+export { publicEditHandler } from './public-edit'
 
