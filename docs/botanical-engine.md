@@ -94,7 +94,9 @@ flowchart LR
 
 Se il frontend invia `{ "titlo": "Test" }` (typo) invece di `title`, il campo viene **ignorato** senza errore (policy safe). Il dato non viene salvato.
 
-**TODO (Sprint Validazione Zod):** Aggiungere validazione campi obbligatori e opzionale warning per alias non riconosciuti.
+**TODO (Sprint Validazione Zod nel core):** Aggiungere validazione completa Zod in `packages/core` (required fields, regole create/update, warning/telemetria alias non riconosciuti).
+
+**Nota roadmap:** durante Sprint 02 Public API viene introdotta una foundation comune di validazione/sanitizzazione nel core per evitare duplicazioni. Lo sprint Zod completo estendera quella foundation senza spostare logica nelle app consumer.
 
 ### Chiavi DB sconosciute (dbToApi)
 

@@ -898,13 +898,21 @@ Alla fine, fornisci una **checklist di verifica**:
 
 ## Note aggiuntive per sprint futuri
 
+### Decisione architetturale (aggiornata)
+
+Per ridurre duplicazioni tra Public API e Botanical Engine, la foundation di validazione/sanitizzazione viene centralizzata in `packages/core` gia durante Sprint 02.
+
+- Sprint 02 implementa nel core le funzioni comuni necessarie ai flussi pubblici POST/PUT (sanitizzazione + validazione runtime + dettagli errore).
+- `apps/api` usa adapter locali per mappare gli esiti del core in risposte HTTP (`400`, `422`, ecc.).
+- Le validazioni Zod complete restano pianificate nel core in uno sprint dedicato.
+
 Questo sprint **NON** include:
 - Rate limiting sulle rotte pubbliche (Sprint futuro — usare Cloudflare Rate Limiter come per auth)
 - Supporto per API Key multiple (una per progetto/client)
 - Webhook su creazione/modifica (notify endpoint esterno)
 - Cache layer (Cloudflare Cache API o KV per GET frequenti)
 - Supporto per DELETE via API pubblica (per sicurezza, solo da CMS dashboard)
-- Validazione Zod completa degli schemi (Sprint dedicato, referenziato nel Botanical Engine TODO)
+- Validazione Zod completa degli schemi (Sprint dedicato nel core, referenziato nel Botanical Engine TODO)
 - Versioning API (`/api/v1/public/...`)
 
 ---
