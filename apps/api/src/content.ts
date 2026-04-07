@@ -3,31 +3,23 @@ import { Hono } from 'hono'
 import { getSeed, apiToDb, dbToApi } from '@beech/core'
 import { deleteR2Objects } from './upload'
 import { extractMediaKeysFromData } from './media-utils'
+import {
+  buildOrderClause,
+  buildWhereClause,
+  cleanStr,
+  parsePositiveInt,
+  parseQueryFilters,
+  rowToEntry,
+  safeParseJson,
+} from './shared/query-utils'
+import type { ContentEntry, ContentEntryRow } from './shared/query-utils'
 
 /**
  * Content API: CRUD schema-driven per content_entries.
  * Usa @beech/core per traduzione alias ↔ ID interni (Botanical Engine).
  */
 
-// --- Utility locale ---
-const cleanStr = (val: unknown): string | null =>
-    (typeof val === 'string' && val.trim()) || null;
-
-const safeParseJson = (data: unknown): Record<string, unknown> => {
-  const cleaned = cleanStr(data);
-  if (!cleaned) return {};
-
-  try {
-    const parsed = JSON.parse(cleaned);
-    return (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed))
-        ? (parsed as Record<string, unknown>)
-        : {};
-  } catch {
-    return {};
-  }
-};
-
-// ---------------------------------------
+export type { ContentEntry } from './shared/query-utils'
 
 /** Messaggi di errore API content - usati da handler e test */
 export const CONTENT_ERRORS = {
@@ -40,62 +32,9 @@ export const CONTENT_ERRORS = {
   SLUG_CONFLICT: 'Slug already exists for this schema',
 } as const
 
-/** Riga grezza dal DB (data è stringa JSON) */
-interface ContentEntryRow {
-  id: string
-  schema_slug: string
-  slug: string | null
-  status: string
-  data: string
-  created_at: number | null
-  updated_at: number | null
-}
-
 interface ContentFacetsResponse {
   statuses: string[]
   tagsByColumnId: Record<string, string[]>
-}
-
-type QueryFilterType = 'text' | 'number' | 'date' | 'boolean' | 'tags' | 'select' | 'system'
-type QueryFilterOperator =
-  | 'eq'
-  | 'gt'
-  | 'gte'
-  | 'lt'
-  | 'lte'
-  | 'contains'
-  | 'is_empty'
-  | 'is_not_empty'
-
-interface QueryFilterCondition {
-  id?: string
-  op: QueryFilterOperator
-  value: string | number | boolean | null
-}
-
-interface QueryFilterGroup {
-  columnId: string
-  label?: string
-  type: QueryFilterType
-  conditions: QueryFilterCondition[]
-}
-
-interface ContentListWithMetaResponse {
-  items: ContentEntry[]
-  total: number
-  page: number
-  limit: number
-}
-
-/** Entry parsata per il frontend (data è oggetto) */
-export interface ContentEntry {
-  id: string
-  schema_slug: string
-  slug: string | null
-  status: string
-  data: Record<string, unknown>
-  created_at: number | null
-  updated_at: number | null
 }
 
 function parseTagNames(value: unknown): string[] {
@@ -121,105 +60,6 @@ function parseTagNames(value: unknown): string[] {
   return singleTag ? [singleTag] : [];
 }
 
-function parsePositiveInt(value: string | undefined, fallback: number): number {
-  if (!value) return fallback
-
-  const parsed = Number.parseInt(value, 10)
-  if (Number.isNaN(parsed) || parsed < 1) return fallback
-  return parsed
-}
-
-function escapeJsonPathKey(key: string): string {
-
-  const backslash = String.fromCodePoint(92) // U+005C
-  return key
-    .replaceAll(backslash, backslash + backslash) // esegue l'escape di `\`
-    .replaceAll('"', backslash + '"') // esegue l'escape di `"`
-}
-
-function getColumnSqlExpression(
-  seed: ReturnType<typeof getSeed>,
-  columnId: string
-): { expr: string; branchType: string | null } | null {
-  if (columnId === 'slug') {
-    return { expr: 'slug', branchType: 'system' }
-  }
-  if (columnId === 'status') {
-    return { expr: 'status', branchType: 'select' }
-  }
-  const branch = seed?.branches.find((b) => b.alias === columnId)
-  if (!branch) return null
-  const path = `$."${escapeJsonPathKey(branch.id)}"`
-  return {
-    expr: `json_extract(data, '${path}')`,
-    branchType: branch.type,
-  }
-}
-
-
-function parseCondition(cond: any): QueryFilterCondition | null {
-  if (!cond || typeof cond !== 'object') return null;
-
-  const isValidValue = ['string', 'number', 'boolean'].includes(typeof cond.value) || cond.value === null;
-
-  return {
-    id: typeof cond.id === 'string' ? cond.id : undefined,
-    op: cond.op as QueryFilterOperator,
-    value: isValidValue ? cond.value : null,
-  };
-}
-
-// Non si preoccupa di "come" è fatta una condizione, si fida di parseCondition.
-function parseFilterGroup(group: any): QueryFilterGroup | null {
-  if (!group || typeof group !== 'object') return null;
-
-  const { columnId, type, label, conditions: rawConds } = group as Partial<QueryFilterGroup>;
-
-  if (typeof columnId !== 'string' || typeof type !== 'string' || !Array.isArray(rawConds)) {
-    return null;
-  }
-
-  const validConditions: QueryFilterCondition[] = [];
-  for (const cond of rawConds) {
-    const parsedCond = parseCondition(cond);
-    if (parsedCond) {
-      validConditions.push(parsedCond);
-    }
-  }
-
-  if (validConditions.length === 0) return null;
-
-  return {
-    columnId,
-    label: typeof label === 'string' ? label : undefined,
-    type,
-    conditions: validConditions,
-  };
-}
-
-function parseQueryFilters(raw: string | undefined): QueryFilterGroup[] {
-  if (!raw) return [];
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    return [];
-  }
-
-  if (!parsed || typeof parsed !== 'object') return [];
-
-  const result: QueryFilterGroup[] = [];
-
-  for (const group of Object.values(parsed as Record<string, unknown>)) {
-    const parsedGroup = parseFilterGroup(group);
-    if (parsedGroup) {
-      result.push(parsedGroup);
-    }
-  }
-
-  return result;
-}
 
 function normalizeBody(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw !== null
@@ -243,32 +83,6 @@ type Variables = {
 
 const contentApp = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-/**
- * Converte row DB in ContentEntry con data parsata.
- * Se data contiene JSON corrotto, restituisce data: {} e logga un warning (nessun crash).
- */
-function rowToEntry(row: ContentEntryRow): ContentEntry {
-  let data: Record<string, unknown> = {}
-  const raw = row.data
-  if (raw) {
-    try {
-      const parsed = JSON.parse(raw)
-      data = typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, unknown>) : {}
-    } catch (err) {
-      console.warn('Content parse error: corrupted JSON in row', row.id, err)
-      data = {}
-    }
-  }
-  return {
-    id: row.id,
-    schema_slug: row.schema_slug,
-    slug: row.slug ?? null,
-    status: row.status ?? 'draft',
-    data,
-    created_at: row.created_at,
-    updated_at: row.updated_at,
-  }
-}
 
 // POST /:slug - Creazione
 contentApp.post('/:slug', async (c) => {
@@ -330,128 +144,6 @@ contentApp.post('/:slug', async (c) => {
 // usare LIMIT/OFFSET nella query, restituire { items, total }. Spostare filtri/ricerca lato server.
 // TODO: Server-side pagination per dataset grandi (>500 righe). Aggiungere ?page=&limit=,
 // usare LIMIT/OFFSET nella query, restituire { items, total }. Spostare filtri/ricerca lato server.
-
-// --- 1. Generatore di singole condizioni SQL ---
-const MATH_OPS: Record<string, string> = { gt: '>', gte: '>=', lt: '<', lte: '<=' }
-
-function buildEmptySqlCondition(op: string, expr: string): { clause: string, bindings: any[] } {
-  if (op === 'is_empty') {
-    return { clause: `(${expr} IS NULL OR TRIM(CAST(${expr} AS TEXT)) = '')`, bindings: [] }
-  }
-  return { clause: `(${expr} IS NOT NULL AND TRIM(CAST(${expr} AS TEXT)) <> '')`, bindings: [] }
-}
-
-function buildTagsSqlCondition(group: any, op: string, valueStr: string | null, expr: string): { clause?: string, bindings: any[] } {
-  if ((op === 'contains' || op === 'eq') && valueStr) {
-    const tagKey = escapeJsonPathKey(valueStr)
-    return {
-      clause: `(json_type(${expr}) = 'array' AND EXISTS (SELECT 1 FROM json_each(${expr}) je WHERE CAST(je.value AS TEXT) = ?)) OR (json_type(${expr}) = 'object' AND json_type(json_extract(${expr}, '$."${tagKey}"')) IS NOT NULL) OR (LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?))`,
-      bindings: [valueStr, `%${valueStr}%`],
-    }
-  }
-
-  return { bindings: [] }
-}
-
-function buildContainsSqlCondition(op: string, valueStr: string | null, expr: string): { clause?: string, bindings: any[] } {
-  if (op === 'contains' && valueStr) {
-    return { clause: `LOWER(CAST(${expr} AS TEXT)) LIKE LOWER(?)`, bindings: [`%${valueStr}%`] }
-  }
-  return { bindings: [] }
-}
-
-function buildEqSqlCondition(group: any, rawValue: any, valueStr: string | null, expr: string): { clause?: string, bindings: any[] } {
-  if (group.type === 'boolean' && typeof rawValue === 'boolean') {
-    return { clause: `CAST(${expr} AS INTEGER) = ?`, bindings: [rawValue ? 1 : 0] }
-  }
-  if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
-    return { clause: `CAST(${expr} AS REAL) = ?`, bindings: [rawValue] }
-  }
-  if (valueStr) {
-    return { clause: `LOWER(TRIM(CAST(${expr} AS TEXT))) = LOWER(TRIM(?))`, bindings: [valueStr] }
-  }
-
-  return { bindings: [] }
-}
-
-function buildMathSqlCondition(op: string, group: any, rawValue: any, valueStr: string | null, expr: string): { clause?: string, bindings: any[] } {
-  const sqlOp = MATH_OPS[op]
-  if (!sqlOp) return { bindings: [] }
-
-  if (group.type === 'number' && typeof rawValue === 'number' && !Number.isNaN(rawValue)) {
-    return { clause: `CAST(${expr} AS REAL) ${sqlOp} ?`, bindings: [rawValue] }
-  }
-  if (group.type === 'date' && valueStr) {
-    return { clause: `CAST(${expr} AS TEXT) ${sqlOp} ?`, bindings: [valueStr] }
-  }
-
-  return { bindings: [] }
-}
-
-function buildSqlCondition(group: any, cond: any, expr: string): { clause?: string, bindings: any[] } {
-  const op = cond.op
-  const rawValue = cond.value
-  const valueStr = cleanStr(rawValue)
-
-  if (op === 'is_empty' || op === 'is_not_empty') {
-    return buildEmptySqlCondition(op, expr)
-  }
-  if (group.type === 'tags') {
-    return buildTagsSqlCondition(group, op, valueStr, expr)
-  }
-  if (op === 'contains') {
-    return buildContainsSqlCondition(op, valueStr, expr)
-  }
-  if (op === 'eq') {
-    return buildEqSqlCondition(group, rawValue, valueStr, expr)
-  }
-
-  return buildMathSqlCondition(op, group, rawValue, valueStr, expr)
-}
-
-// --- 2. Costruttore della clausola WHERE ---
-function buildWhereClause(slug: string, search: string, filters: any[], seed: any) {
-  const parts: string[] = ['schema_slug = ?'];
-  const bindings: Array<string | number> = [slug];
-
-  if (search) {
-    const term = `%${search}%`;
-    parts.push('(slug LIKE ? OR status LIKE ? OR data LIKE ?)');
-    bindings.push(term, term, term);
-  }
-
-  for (const group of (filters || [])) {
-    const column = getColumnSqlExpression(seed, group.columnId);
-    if (!column) continue;
-
-    const groupParts: string[] = [];
-    for (const cond of group.conditions) {
-      const { clause, bindings: condBindings } = buildSqlCondition(group, cond, column.expr);
-      if (clause) {
-        groupParts.push(clause);
-        bindings.push(...condBindings);
-      }
-    }
-
-    if (groupParts.length > 0) {
-      parts.push(`(${groupParts.join(' AND ')})`);
-    }
-  }
-
-  return { whereSql: `WHERE ${parts.join(' AND ')}`, whereBindings: bindings };
-}
-
-// --- 3. Costruttore della clausola ORDER BY ---
-function buildOrderClause(sortBy: string, sortDirRaw: string, seed: any): string {
-  const sortDir = sortDirRaw === 'asc' ? 'ASC' : 'DESC';
-  if (!sortBy) return 'ORDER BY created_at DESC';
-
-  const sortable = getColumnSqlExpression(seed, sortBy);
-  if (!sortable) return 'ORDER BY created_at DESC';
-
-  const castType = sortable.branchType === 'number' || sortable.branchType === 'boolean' ? 'REAL' : 'TEXT';
-  return `ORDER BY CAST(${sortable.expr} AS ${castType}) ${sortDir} NULLS LAST`;
-}
 
 function getTagAliasesFromSeed(seed: any): string[] {
   return seed.branches
