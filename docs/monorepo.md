@@ -30,6 +30,7 @@ Pacchetto condiviso che contiene la logica del **Botanical Engine**:
 - **Tipi**: `Branch`, `Seed`, `DbPayload`, `ApiPayload`
 - **Translation Layer**: `apiToDb`, `dbToApi` (alias ↔ ID interni)
 - **Seed Registry**: `SEED_REGISTRY`, `getSeed`, `PROJECT_SEED`
+- **Validation Foundation**: `validateAndSanitizeSeedPayload`, `isValidContentStatus`
 
 **Uso:** Import da API e Dashboard con `import { getSeed, apiToDb, dbToApi } from '@beech/core'`.
 
@@ -40,6 +41,9 @@ Vedi [Botanical Engine](botanical-engine.md) per i dettagli.
 ### apps/api
 
 API REST su Cloudflare Workers. Dipende da `@beech/core` per il Content Engine.
+
+- Rotte interne dashboard: `/api/content/*` (JWT).
+- Rotte pubbliche: `/api/v1/public/*` (API key).
 
 ### apps/dashboard
 

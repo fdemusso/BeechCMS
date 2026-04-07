@@ -43,7 +43,11 @@ import {
 } from "@/lib/content-api"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 
-/** Slug ammessi: solo a-z, 0-9, trattino. Niente accenti/spazi/underscore. */
+/** 
+ * Slug ammessi: solo a-z, 0-9, trattino. Niente accenti/spazi/underscore. 
+ * TODO: Allineare la regex con slug-utils.ts (API) e spostare la logica in @beech/core 
+ * per garantire consistenza assoluta tra dashboard e API pubbliche.
+ */
 function slugFromText(text: string): string {
   const normalized = String(text ?? "")
     .toLowerCase()

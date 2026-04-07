@@ -6,6 +6,7 @@ Documentazione del motore CRUD Schema-Driven: architettura ibrida SQL/JSON per c
 - [Botanical Engine](botanical-engine.md) — layer di traduzione alias ↔ ID interni
 - [Media Engine](media-engine.md) — upload R2, campi tipo `file` (URL in `data`)
 - [Architettura Monorepo](monorepo.md) — struttura `@beech/core` e pacchetti condivisi
+- [Public API](public-api.md) — layer pubblico `/api/v1/public/*` con API key
 
 ---
 
@@ -77,6 +78,9 @@ flowchart LR
 ## 3. API Reference dinamica
 
 Le rotte `/:slug` e `/:slug/:id` si adattano a qualsiasi tipo di contenuto. Lo `slug` identifica il tipo (es. `progetti`, `blog`, `pagine`).
+
+> Nota: questa sezione documenta il **Content Engine interno** (`/api/content/*`, protetto JWT).  
+> Le rotte pubbliche esterne (`/api/v1/public/*`, protette da API key) sono documentate in [Public API](public-api.md).
 
 | Metodo | Path | Auth | Descrizione |
 |--------|------|------|-------------|

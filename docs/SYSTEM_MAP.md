@@ -83,6 +83,7 @@ beech-cms/
 - **Main responsibilities**
   - Exposes authentication routes (`/auth/login`, `/auth/refresh`, `/auth/logout`) – see `[auth.md](auth.md)`.
   - Exposes dynamic content routes (`/api/content/:slug`, `/api/content/:slug/facets`, `/api/content/:slug/:id`) – see `[content-engine.md](content-engine.md)` and `[botanical-engine.md](botanical-engine.md)`.
+  - Exposes public routes (`/api/v1/public/health`, `/api/v1/public/:seed`, `/api/v1/public/:seed/add`, `/api/v1/public/:seed/edit/:id`) protected by API key – see `[public-api.md](public-api.md)`.
   - Handles media upload and delivery (`/api/upload`, `/api/media/:key`) – see `[media-engine.md](media-engine.md)`.
 - **Key integrations**
   - Imports types and functions from `@beech/core` (`getSeed`, `apiToDb`, `dbToApi`, Seed registry).
@@ -118,6 +119,7 @@ beech-cms/
   - `packages/core/src/types.ts` – types `Branch`, `Seed`, etc.
   - `packages/core/src/engine.ts` – functions `apiToDb`, `dbToApi`.
   - `packages/core/src/seeds.ts` – Seed definitions and registration in `SEED_REGISTRY`.
+  - `packages/core/src/validation.ts` – schema-driven validation/sanitization foundation reused by Public API.
 - **Build**
   - `npm run build -w @beech/core` produces `dist/` with JS and `.d.ts`, consumed by `apps/api` and `apps/dashboard`.
 
@@ -128,6 +130,7 @@ beech-cms/
   - `[monorepo.md](monorepo.md)` – monorepo architecture.
   - `[botanical-engine.md](botanical-engine.md)` – alias ↔ ID layer.
   - `[content-engine.md](content-engine.md)` – Content Engine SQL/JSON.
+  - `[public-api.md](public-api.md)` – Public Slug API (`/api/v1/public/*`) with API key auth.
   - `[media-engine.md](media-engine.md)` – media upload and delivery.
   - `[auth.md](auth.md)` – JWT, refresh token, login, rate limiting.
   - `[dashboard-components.md](dashboard-components.md)` – ContentToolbar + DataTable.
@@ -159,6 +162,11 @@ beech-cms/
   - Media service: `GET /api/media/:key` fetches the file from R2 with aggressive caching.
   - Cleanup: `DELETE /api/content/:slug/:id` inspects `data` for URLs under `/api/media/*` and issues a `DeleteObjectCommand` to R2.
 
+- **Public Slug API (`/api/v1/public/*`)** – see `[public-api.md](public-api.md)`
+  - API key middleware accepts `X-API-Key` (priority) or `?key=`.
+  - Read endpoint supports id lookup, filters, search, pagination, latest, field projections.
+  - Write endpoints (`add`/`edit`) sanitize and validate payloads with core foundation, enforce slug uniqueness, and use prepared statements.
+
 - **Dashboard Rendering (schema‑driven)** – see `[field-renderers.md](field-renderers.md)` and `[dashboard-components.md](dashboard-components.md)`
   - `EntryEditorPage` loads the Seed (via API + core) and renders each `Branch` using `<FieldEdit branch={branch} ... />`.
   - The concrete field type is resolved by the registry (`registry.ts`), not hard‑coded in the page.
@@ -180,6 +188,10 @@ beech-cms/
 - **Centralized content API**
   - **Must** use the dynamic routes `POST/GET/PUT/DELETE /api/content/:slug[/id]` for all content manipulation.
   - **Must not** create per‑entity controllers (e.g., `/api/projects`) that bypass the Content Engine or Seed Registry.
+
+- **Public API contract**
+  - **Must** keep external integrations on `/api/v1/public/*` protected with API key auth.
+  - **Must** keep payload translation schema-driven via `@beech/core` (`getSeed`, `apiToDb`, `dbToApi`, validation foundation).
 
 - **Authentication & security**
   - **Must** follow the JWT + refresh token flow described in `[auth.md](auth.md)`:

@@ -869,27 +869,27 @@ Per ogni file che crei o modifichi, fornisci:
 Alla fine, fornisci una **checklist di verifica**:
 
 ```
-- [ ] API Key middleware funziona (401 senza key, 403 se non configurata, pass con key valida)
-- [ ] GET /api/v1/public/:seed restituisce tutte le entry con paginazione
-- [ ] GET con ?id=<uuid> restituisce una singola entry
-- [ ] GET con ?latest=N restituisce le ultime N entry
-- [ ] GET con ?filter=<json> applica i filtri correttamente (AND/OR)
-- [ ] GET con ?search=<term> effettua ricerca full-text
-- [ ] GET con ?fields=<list> proietta solo i campi richiesti
-- [ ] GET con seed inesistente → 404 con messaggio informativo
-- [ ] POST /api/v1/public/:seed/add crea una nuova entry
-- [ ] POST valida e sanitizza il body prima dell'inserimento
-- [ ] POST auto-genera lo slug da title/name se non fornito
-- [ ] POST rifiuta tipi di dato incompatibili con dettagli specifici
-- [ ] POST rifiuta HTML pericoloso nel richtext con errore 422
-- [ ] PUT /api/v1/public/:seed/edit/:id aggiorna una entry esistente
-- [ ] PUT supporta partial update (merge con dati esistenti)
-- [ ] PUT permette di cancellare campi con null
-- [ ] PUT con entry inesistente → 404
-- [ ] Tutte le query usano prepared statements (.bind())
-- [ ] Le utility condivise sono estratte da content.ts senza duplicazione
-- [ ] Nessun errore TypeScript (npm run build -w @beech/core && npm run build -w api)
-- [ ] Funziona con tutti e 5 i seed registrati (articoli, prodotti, team, testimonianze, pagine)
+- [x] API Key middleware funziona (401 senza key, 403 se non configurata, pass con key valida)
+- [x] GET /api/v1/public/:seed restituisce tutte le entry con paginazione
+- [x] GET con ?id=<uuid> restituisce una singola entry
+- [x] GET con ?latest=N restituisce le ultime N entry
+- [x] GET con ?filter=<json> applica i filtri correttamente (AND/OR)
+- [x] GET con ?search=<term> effettua ricerca full-text
+- [x] GET con ?fields=<list> proietta solo i campi richiesti
+- [x] GET con seed inesistente → 404 con messaggio informativo
+- [x] POST /api/v1/public/:seed/add crea una nuova entry
+- [x] POST valida e sanitizza il body prima dell'inserimento
+- [x] POST auto-genera lo slug da title/name se non fornito
+- [x] POST rifiuta tipi di dato incompatibili con dettagli specifici
+- [x] POST rifiuta HTML pericoloso nel richtext con errore 422
+- [x] PUT /api/v1/public/:seed/edit/:id aggiorna una entry esistente
+- [x] PUT supporta partial update (merge con dati esistenti)
+- [x] PUT permette di cancellare campi con null
+- [x] PUT con entry inesistente → 404
+- [x] Tutte le query usano prepared statements (.bind())
+- [x] Le utility condivise sono estratte da content.ts senza duplicazione
+- [x] Nessun errore TypeScript (npm run build -w @beech/core && npm run build -w api)
+- [x] Funziona con tutti e 5 i seed registrati (articoli, prodotti, team, testimonianze, pagine)
 ```
 
 ## `</output-format>`

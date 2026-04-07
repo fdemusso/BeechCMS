@@ -1,5 +1,7 @@
 /**
  * Converte stringa in slug URL-safe.
+ * TODO: Allineare la regex con slugFromText (Dashboard) e spostare la logica 
+ * in @beech/core per garantire consistenza assoluta tra dashboard e API pubbliche.
  */
 export function slugify(value: string): string {
   return value

@@ -79,18 +79,20 @@ Per i contributor e i membri del team, l'architettura dettagliata di ogni modulo
 
 | Documento | Descrizione |
 | ------ | ------ |
-| [Architettura Monorepo](./docs/monorepo.md) | Struttura Turborepo, `@beech/core`, workspace |
-| [Botanical Engine](./docs/botanical-engine.md) | Layer di traduzione alias ↔ ID interni (Seed, Branch) |
-| [Content Engine](./docs/content-engine.md) | CRUD schema-driven + query server-side (`search/sort/filters/page/limit`) e facets dinamiche |
-| [Field Renderers](./docs/field-renderers.md) | Registry Pattern per display/edit campi nella UI |
-| [Media Engine](./docs/media-engine.md) | Upload su Cloudflare R2, API S3-compatibile |
-| [Autenticazione](./docs/auth.md) | JWT, refresh token, login, rate limiting |
-| [Dashboard Components](./docs/dashboard-components.md) | ContentToolbar + DataTable: filtri/sort/ricerca/paginazione server-driven |
-| [Field types action plan](./docs/field-types-action-plan.md) | Piano d'azione tecnico per i campi |
-| [Field types roadmap](./docs/field-types-roadmap.md) | Roadmap dei tipi di campo (WordPress killer) |
+| [Architettura Monorepo](./monorepo.md) | Struttura Turborepo, `@beech/core`, workspace |
+| [Botanical Engine](./botanical-engine.md) | Layer di traduzione alias ↔ ID interni (Seed, Branch) |
+| [Content Engine](./content-engine.md) | CRUD interno dashboard (`/api/content/*`) + query server-side e facets |
+| [Public API](./public-api.md) | Endpoint pubblici `/api/v1/public/*` con API key, GET/POST/PUT e validazione schema-driven |
+| [Field Renderers](./field-renderers.md) | Registry Pattern per display/edit campi nella UI |
+| [Media Engine](./media-engine.md) | Upload su Cloudflare R2, API S3-compatibile |
+| [Autenticazione](./auth.md) | JWT, refresh token, login, rate limiting |
+| [Dashboard Components](./dashboard-components.md) | ContentToolbar + DataTable: filtri/sort/ricerca/paginazione server-driven |
+| [Field types action plan](./field-types-action-plan.md) | Piano d'azione tecnico per i campi |
+| [Field types roadmap](./field-types-roadmap.md) | Roadmap dei tipi di campo (WordPress killer) |
+| [Sprint 02 Public Slug API](./sprints/sprint-02-public-slug-api.md) | Specifica completa e checklist sprint per il layer pubblico |
 
 ## 🤝 Contribuire
-Siamo aperti a contributi! Se vuoi aiutare a costruire il "WordPress killer" per l'era serverless, apri una issue o invia una Pull Request. Assicurati di leggere prima l'[Architettura Monorepo](./docs/monorepo.md) per capire la struttura dei pacchetti.
+Siamo aperti a contributi! Se vuoi aiutare a costruire il "WordPress killer" per l'era serverless, apri una issue o invia una Pull Request. Assicurati di leggere prima l'[Architettura Monorepo](./monorepo.md) per capire la struttura dei pacchetti.
 
 ## 📄 Licenza
 Questo progetto è distribuito sotto licenza MIT. Vedi il file `LICENSE` per maggiori informazioni. [NON ANCORA IMPLEMENTATA]
