@@ -3,6 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev",
+    "build": "tsc -p tsconfig.build.json --noEmit",
     "db:migrate:local": "wrangler d1 execute beech-db --local --file=./migrations/0001_init.sql && wrangler d1 execute beech-db --local --file=./migrations/0002_seed_admin.sql && wrangler d1 execute beech-db --local --file=./migrations/0003_refresh_tokens.sql && wrangler d1 execute beech-db --local --file=./migrations/0003_seed_projects.sql",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",

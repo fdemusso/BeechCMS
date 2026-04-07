@@ -21,6 +21,7 @@ import {
 import { authMiddleware } from './middleware'
 import { contentRoutes } from './content'
 import { uploadRoutes, serveMediaHandler } from './upload'
+import { publicRoutes, apiKeyMiddleware } from './public'
 
 // --- Tipi ---
 
@@ -37,6 +38,7 @@ type Bindings = {
   LOGIN_RATE_LIMITER?: RateLimit
   REFRESH_RATE_LIMITER?: RateLimit
   CORS_ORIGINS?: string
+  PUBLIC_API_KEY?: string
   MEDIA_BASE_URL?: string
   ENV?: string
 }
@@ -113,7 +115,7 @@ app.use('*', async (c, next) => {
       return origins.includes(origin) ? origin : null
     },
     allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
     credentials: true, // Necessario per httpOnly cookies
   })
   return corsMiddleware(c, next)
@@ -292,5 +294,11 @@ app.route('/api/content', apiContent)
 // API Upload: POST /api/upload (JWT) + GET /api/media/:key (pubblico)
 app.route('/api', uploadRoutes)
 app.get('/api/media/:key', (c) => serveMediaHandler(c))
+
+// API Pubblica: endpoint per consumatori esterni, protetti da API Key
+const apiPublic = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+apiPublic.use('*', apiKeyMiddleware())
+apiPublic.route('/', publicRoutes)
+app.route('/api/v1/public', apiPublic)
 
 export default app
