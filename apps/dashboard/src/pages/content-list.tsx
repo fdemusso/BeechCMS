@@ -17,6 +17,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { DataTable } from "@/components/ui/data-table"
 import { ContentDeleteDialog } from "@/components/content-delete-dialog"
+import { ContentGallery } from "@/components/content-gallery"
 import {
   ContentToolbar,
   type UserViewInstance,
@@ -71,8 +72,7 @@ export function ContentListPage() {
   )
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
 
-  // Vista attiva (per ora solo UI-state; la DataTable rimane sempre visibile)
-  // TODO: mostrare viste alternative (Grid/Kanban/Chart) in base ad activeViewId.
+  // Vista attiva della lista contenuti.
   const [activeViewId, setActiveViewId] = React.useState("table")
 
   // Ricerca tabella (collegata alla barra di ricerca nella toolbar)
@@ -108,7 +108,7 @@ export function ContentListPage() {
     }
   }, [groupBy, seed])
 
-  // Viste disponibili per il seed corrente (per ora solo una vista tabellare di default).
+  // Viste disponibili per il seed corrente.
   // TODO: caricare e salvare la configurazione delle viste a livello di utente (quando esisterà un sistema di preferenze utente).
   const [views, setViews] = React.useState<UserViewInstance[]>(() => [
     {
@@ -123,6 +123,13 @@ export function ContentListPage() {
         "settings",
         "create",
       ],
+      conditionalFormats: [],
+    },
+    {
+      id: "gallery",
+      label: "Galleria",
+      type: "gallery",
+      enabledTools: ["filter", "sort", "search", "create"],
       conditionalFormats: [],
     },
   ])
@@ -676,11 +683,13 @@ export function ContentListPage() {
                     </div>
                   )}
                   {isLoading && !error && (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="text-muted-foreground">Caricamento...</div>
-                    </div>
+                    activeViewId === "table" && (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-muted-foreground">Caricamento...</div>
+                      </div>
+                    )
                   )}
-                  {!isLoading && !error && (
+                  {!isLoading && !error && activeViewId === "table" && (
                     <DataTable
                       key={tableKey}
                       columns={columns}
@@ -748,6 +757,14 @@ export function ContentListPage() {
                       sorting={sorting}
                       onSortingChange={handleTableSortingChange}
                       columnFilters={columnFilters}
+                    />
+                  )}
+                  {!error && activeViewId === "gallery" && (
+                    <ContentGallery
+                      seed={seed}
+                      data={data}
+                      isLoading={isLoading}
+                      onEdit={handleEdit}
                     />
                   )}
                 </ContentToolbar>

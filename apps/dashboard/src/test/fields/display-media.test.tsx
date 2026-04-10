@@ -28,13 +28,11 @@ describe("MediaDisplay", () => {
     expect(avatar).toBeInTheDocument()
   })
 
-  it("value URL non immagine -> renderizza div con FileIcon", () => {
-    const url = "https://example.com/document.pdf"
-    render(<MediaDisplay branch={mockBranch} value={url} />)
-    const container = document.querySelector(
-      ".flex.size-10.shrink-0.items-center.justify-center.rounded-md"
-    )
-    expect(container).toBeInTheDocument()
+  it("value URL senza estensione -> mantiene rendering con Avatar", () => {
+    const url = "https://cdn.example.com/resource?id=12345"
+    const { container } = render(<MediaDisplay branch={mockBranch} value={url} />)
+    const avatar = container.querySelector('[data-slot="avatar"]')
+    expect(avatar).toBeInTheDocument()
   })
 })
 

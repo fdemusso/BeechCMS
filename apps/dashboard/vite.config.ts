@@ -14,11 +14,11 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:8787', // Indirizzo del Worker locale
+        target: 'http://127.0.0.1:8789', // Indirizzo del Worker locale
         changeOrigin: true,
       },
       '/auth': {
-        target: 'http://127.0.0.1:8787',
+        target: 'http://127.0.0.1:8789',
         changeOrigin: true,
       },
     },

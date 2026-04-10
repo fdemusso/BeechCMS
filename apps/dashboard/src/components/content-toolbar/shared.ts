@@ -6,7 +6,7 @@ import type {
   ConditionalFormatTone,
 } from "@/lib/conditional-format"
 
-export type ViewType = "table" | "grid" | "kanban" | "chart"
+export type ViewType = "table" | "gallery" | "grid" | "kanban" | "chart"
 export type ToolbarTool =
   | "filter"
   | "sort"

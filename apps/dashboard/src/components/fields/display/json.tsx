@@ -9,7 +9,7 @@ const DEFAULT_JSON_MAX_LENGTH = 40
  * Tags collassabili con Badge colorati.
  * Mostra il primo tag + badge "+N" cliccabile per espandere gli altri.
  */
-function CollapsibleTags({ entries }: { entries: [string, string][] }) {
+function CollapsibleTags({ entries }: { readonly entries: [string, string][] }) {
   const [isExpanded, setIsExpanded] = React.useState(false)
 
   if (entries.length === 0) {
@@ -36,55 +36,56 @@ function CollapsibleTags({ entries }: { entries: [string, string][] }) {
   const remainingCount = entries.length - 1
 
   return (
-    <div className="flex flex-wrap gap-1 items-center">
-      <Badge
-        variant="secondary"
-        style={{
-          backgroundColor: firstColor,
-          color: "#fff",
-          borderColor: firstColor,
-        }}
-      >
-        {firstTag}
-      </Badge>
-      {!isExpanded && (
+    <div className="flex min-w-[10rem] flex-wrap items-center gap-1">
+      <div className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
         <Badge
-          variant="outline"
-          className="cursor-pointer hover:bg-muted transition-colors"
-          onClick={(e) => {
-            e.stopPropagation()
-            setIsExpanded(true)
+          variant="secondary"
+          style={{
+            backgroundColor: firstColor,
+            color: "#fff",
+            borderColor: firstColor,
           }}
         >
-          +{remainingCount}
+          {firstTag}
         </Badge>
-      )}
-      {isExpanded && (
-        <>
-          {entries.slice(1).map(([tag, color]) => (
-            <Badge
-              key={tag}
-              variant="secondary"
-              style={{
-                backgroundColor: color,
-                color: "#fff",
-                borderColor: color,
-              }}
-            >
-              {tag}
-            </Badge>
-          ))}
+        {!isExpanded && (
           <Badge
             variant="outline"
             className="cursor-pointer hover:bg-muted transition-colors"
             onClick={(e) => {
               e.stopPropagation()
-              setIsExpanded(false)
+              setIsExpanded(true)
             }}
           >
-            −
+            +{remainingCount}
           </Badge>
-        </>
+        )}
+      </div>
+      {isExpanded &&
+        entries.slice(1).map(([tag, color]) => (
+          <Badge
+            key={tag}
+            variant="secondary"
+            style={{
+              backgroundColor: color,
+              color: "#fff",
+              borderColor: color,
+            }}
+          >
+            {tag}
+          </Badge>
+        ))}
+      {isExpanded && (
+        <Badge
+          variant="outline"
+          className="cursor-pointer hover:bg-muted transition-colors"
+          onClick={(e) => {
+            e.stopPropagation()
+            setIsExpanded(false)
+          }}
+        >
+          −
+        </Badge>
       )}
     </div>
   )
@@ -116,8 +117,8 @@ export function JsonDisplay({ branch, value, options }: FieldDisplayProps) {
     if (isTagsField && Array.isArray(parsed)) {
       return (
         <div className="flex flex-wrap gap-1">
-          {parsed.map((tag, index) => (
-            <Badge key={index} variant="secondary">
+          {parsed.map((tag) => (
+            <Badge key={String(tag)} variant="secondary">
               {String(tag)}
             </Badge>
           ))}
