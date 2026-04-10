@@ -3,9 +3,9 @@ import type { Seed } from "@beech/core"
 
 import type { ContentEntry } from "@/lib/dynamic-columns"
 
-import { buildGalleryCardDisplayModel } from "./gallery-card-display"
-import type { GalleryCardDisplayModel } from "./gallery-card-display"
-import { resolveCardFields } from "./resolve-card-fields"
+import { buildGalleryCardDisplayModel } from "../gallery-card-display"
+import type { GalleryCardDisplayModel } from "../gallery-card-display"
+import { resolveCardFields } from "../resolve-card-fields"
 
 export interface UseContentGalleryResult {
   peekId: string | null

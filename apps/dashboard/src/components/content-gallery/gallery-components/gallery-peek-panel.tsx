@@ -20,7 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import type { ContentEntry } from "@/lib/dynamic-columns"
-import { extractTagNames } from "@/lib/tags-utils"
+import { extractTagChips } from "@/lib/tags-utils"
 
 import {
   partitionGalleryDetailBranches,
@@ -85,7 +85,7 @@ export function GalleryPeekPanel({
   if (!entry) return null
 
   const title = getPeekEntryTitle(seed, entry)
-  const tagNames = tagsBranch ? extractTagNames(entry.data[tagsBranch.alias]) : []
+  const tags = tagsBranch ? extractTagChips(entry.data[tagsBranch.alias]) : []
   const hasSeoTab = seoBranches.length > 0
   const defaultTab =
     mainBranches.length === 0 && seoBranches.length > 0 ? "seo" : "content"
@@ -167,7 +167,7 @@ export function GalleryPeekPanel({
               <DialogTitle className="text-left text-xl leading-snug font-semibold">
                 {title}
               </DialogTitle>
-              <GalleryDetailTags tags={tagNames} />
+              <GalleryDetailTags tags={tags} />
               <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                 <span className="flex items-center gap-1.5">
                   <span className="font-medium">Stato</span>

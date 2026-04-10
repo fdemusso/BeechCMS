@@ -1,95 +1,9 @@
-import * as React from "react"
-import { Badge } from "@/components/ui/badge"
 import { ExpandableCell } from "@/components/ui/expandable-cell"
+import { TagChips } from "@/components/ui/tag-chips"
+import { extractTagChips } from "@/lib/tags-utils"
 import type { FieldDisplayProps } from "../types"
 
 const DEFAULT_JSON_MAX_LENGTH = 40
-
-/**
- * Tags collassabili con Badge colorati.
- * Mostra il primo tag + badge "+N" cliccabile per espandere gli altri.
- */
-function CollapsibleTags({ entries }: { readonly entries: [string, string][] }) {
-  const [isExpanded, setIsExpanded] = React.useState(false)
-
-  if (entries.length === 0) {
-    return <div className="text-muted-foreground">-</div>
-  }
-
-  if (entries.length === 1) {
-    const [tag, color] = entries[0]
-    return (
-      <Badge
-        variant="secondary"
-        style={{
-          backgroundColor: color,
-          color: "#fff",
-          borderColor: color,
-        }}
-      >
-        {tag}
-      </Badge>
-    )
-  }
-
-  const [firstTag, firstColor] = entries[0]
-  const remainingCount = entries.length - 1
-
-  return (
-    <div className="flex min-w-[10rem] flex-wrap items-center gap-1">
-      <div className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap">
-        <Badge
-          variant="secondary"
-          style={{
-            backgroundColor: firstColor,
-            color: "#fff",
-            borderColor: firstColor,
-          }}
-        >
-          {firstTag}
-        </Badge>
-        {!isExpanded && (
-          <Badge
-            variant="outline"
-            className="cursor-pointer hover:bg-muted transition-colors"
-            onClick={(e) => {
-              e.stopPropagation()
-              setIsExpanded(true)
-            }}
-          >
-            +{remainingCount}
-          </Badge>
-        )}
-      </div>
-      {isExpanded &&
-        entries.slice(1).map(([tag, color]) => (
-          <Badge
-            key={tag}
-            variant="secondary"
-            style={{
-              backgroundColor: color,
-              color: "#fff",
-              borderColor: color,
-            }}
-          >
-            {tag}
-          </Badge>
-        ))}
-      {isExpanded && (
-        <Badge
-          variant="outline"
-          className="cursor-pointer hover:bg-muted transition-colors"
-          onClick={(e) => {
-            e.stopPropagation()
-            setIsExpanded(false)
-          }}
-        >
-          −
-        </Badge>
-      )}
-    </div>
-  )
-}
 
 export function JsonDisplay({ branch, value, options }: FieldDisplayProps) {
   if (value == null || value === "") {
@@ -110,20 +24,20 @@ export function JsonDisplay({ branch, value, options }: FieldDisplayProps) {
 
   try {
     if (isTagsField && typeof parsed === "object" && !Array.isArray(parsed)) {
-      const entries = Object.entries(parsed as Record<string, string>)
-      return <CollapsibleTags entries={entries} />
+      const tags = extractTagChips(parsed)
+
+      return (
+        <TagChips
+          tags={tags}
+          maxVisible={1}
+          enableToggle
+          className="min-w-[10rem]"
+        />
+      )
     }
 
     if (isTagsField && Array.isArray(parsed)) {
-      return (
-        <div className="flex flex-wrap gap-1">
-          {parsed.map((tag) => (
-            <Badge key={String(tag)} variant="secondary">
-              {String(tag)}
-            </Badge>
-          ))}
-        </div>
-      )
+      return <TagChips tags={extractTagChips(parsed)} />
     }
 
     const str = JSON.stringify(parsed, null, 2)

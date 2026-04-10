@@ -10,8 +10,8 @@ import {
 import { GalleryCard } from "./gallery-components/gallery-card"
 import { GalleryPeekPanel } from "./gallery-components/gallery-peek-panel"
 import { GallerySkeletonGrid } from "./gallery-components/gallery-skeleton-grid"
+import { useContentGallery } from "./gallery-hooks"
 import type { ContentGalleryProps } from "./types"
-import { useContentGallery } from "./use-content-gallery"
 
 export function ContentGallery({
   seed,

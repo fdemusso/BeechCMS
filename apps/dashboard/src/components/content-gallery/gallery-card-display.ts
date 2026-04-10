@@ -1,5 +1,5 @@
 import type { ContentEntry } from "@/lib/dynamic-columns"
-import { extractTagNames } from "@/lib/tags-utils"
+import { extractTagChips, type TagChipData } from "@/lib/tags-utils"
 
 import type { ResolvedCardFields } from "./resolve-card-fields"
 
@@ -8,7 +8,7 @@ export type StatusBadgeVariant = "default" | "secondary" | "outline" | "destruct
 export interface GalleryCardDisplayModel {
   entryId: string
   status: string
-  tags: string[]
+  tags: TagChipData[]
   imageUrl: string | null
   title: string
   excerpt: string
@@ -53,7 +53,7 @@ export function resolveImageUrl(value: unknown): string | null {
 
 function toPlainText(value: unknown): string {
   if (typeof value === "string") {
-    return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+    return value.replaceAll(/<[^>]*>/g, " ").replaceAll(/\s+/g, " ").trim()
   }
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value)
@@ -94,7 +94,7 @@ export function buildGalleryCardDisplayModel(
 ): GalleryCardDisplayModel {
   const status = entry.status?.trim() || "—"
   const tags = branches.tagsBranch
-    ? extractTagNames(entry.data[branches.tagsBranch.alias])
+    ? extractTagChips(entry.data[branches.tagsBranch.alias])
     : []
   const imageUrl = branches.coverBranch
     ? resolveImageUrl(entry.data[branches.coverBranch.alias])
