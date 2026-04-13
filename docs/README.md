@@ -86,7 +86,8 @@ Per i contributor e i membri del team, l'architettura dettagliata di ogni modulo
 | [Field Renderers](./field-renderers.md) | Registry Pattern per display/edit campi nella UI |
 | [Media Engine](./media-engine.md) | Upload su Cloudflare R2, API S3-compatibile |
 | [Autenticazione](./auth.md) | JWT, refresh token, login, rate limiting |
-| [Dashboard Components](./dashboard-components.md) | ContentToolbar + DataTable: filtri/sort/ricerca/paginazione server-driven |
+| [Dashboard Components](./dashboard-components.md) | ContentToolbar + viste Table/Gallery: filtri/sort/ricerca/paginazione server-driven |
+| [Sprint 01 Gallery View](./sprints/sprint-01-gallery-view.md) | Specifica sprint della vista galleria (Bento grid + peek panel) |
 | [Field types action plan](./field-types-action-plan.md) | Piano d'azione tecnico per i campi |
 | [Field types roadmap](./field-types-roadmap.md) | Roadmap dei tipi di campo (WordPress killer) |
 | [Sprint 02 Public Slug API](./sprints/sprint-02-public-slug-api.md) | Specifica completa e checklist sprint per il layer pubblico |

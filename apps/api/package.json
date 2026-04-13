@@ -2,7 +2,7 @@
   "name": "api",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --port 8789",
     "build": "tsc -p tsconfig.build.json --noEmit",
     "db:migrate:local:seed-only": "wrangler d1 execute beech-db --local --file=./migrations/0001_init.sql && wrangler d1 execute beech-db --local --file=./migrations/0002_seed_admin.sql && wrangler d1 execute beech-db --local --file=./migrations/0003_refresh_tokens.sql && wrangler d1 execute beech-db --local --file=./migrations/0006_add_slug_and_unique_index.sql && wrangler d1 execute beech-db --local --file=./migrations/0008_seed_content_entries.sql",
     "db:reset:local:seed-only": "rm -rf .wrangler/state && npm run db:migrate:local:seed-only",
