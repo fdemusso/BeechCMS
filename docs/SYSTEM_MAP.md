@@ -98,14 +98,15 @@ beech-cms/
 
 - **Main responsibilities**
   - Admin UI for managing Seeds/Branches and content via the API.
-  - Schema‑driven rendering of forms, tables, Kanban boards via Field Renderers (see `[field-renderers.md](field-renderers.md)`).
+  - Schema-driven rendering of forms, table, and gallery views via Field Renderers (see `[field-renderers.md](field-renderers.md)`).
   - Filtering, sorting, searching, and view creation through `ContentToolbar` (see `[dashboard-components.md](dashboard-components.md)`).
 - **UI structure (excerpt)**
-  - `apps/dashboard/src/components/content-toolbar.tsx`: toolbar for view switching, filters, sorting, search, and creating entries.
+  - `apps/dashboard/src/components/content-toolbar/`: modular toolbar for view switching, filters, sorting, search, and entry creation.
+  - `apps/dashboard/src/components/content-gallery/`: gallery view (card grid + read-only peek panel) integrated in `ContentListPage`.
   - `apps/dashboard/src/components/fields/`: Field Renderers infrastructure (display/edit per `Branch` type), described in `[field-renderers.md](field-renderers.md)`.
     - `FieldDisplay.tsx`, `FieldEdit.tsx`, `registry.ts`, `display/*.tsx`, `edit/*.tsx`.
   - Entry editing pages (e.g., `EntryEditorPage`) consume Field Renderers and the Seed from the core.
-  - Table/Grid/Kanban views generate columns dynamically from `Seed.branches` and use `<FieldDisplay>` for each cell.
+  - Table and Gallery reuse the same server-side dataset and stay schema-driven; table columns come from `Seed.branches`, gallery cards use branch alias/type heuristics.
   - Key integrations: consumes `@beech/core` for shared types and logic; calls only documented APIs (`/auth/*`, `/api/content/*`, `/api/upload`, `/api/media/*`).
 
 ### `packages/core` – `@beech/core` (Botanical Engine)
@@ -170,7 +171,8 @@ beech-cms/
 - **Dashboard Rendering (schema‑driven)** – see `[field-renderers.md](field-renderers.md)` and `[dashboard-components.md](dashboard-components.md)`
   - `EntryEditorPage` loads the Seed (via API + core) and renders each `Branch` using `<FieldEdit branch={branch} ... />`.
   - The concrete field type is resolved by the registry (`registry.ts`), not hard‑coded in the page.
-  - Table/Grid/Kanban views generate columns dynamically from `Seed.branches` and use `<FieldDisplay>` for each cell, applying `options.maxLength` truncation where appropriate.
+  - In table view, columns are generated dynamically from `Seed.branches` and rendered with `<FieldDisplay>`.
+  - In gallery view, card fields (cover/title/excerpt/date/tags) are resolved from seed metadata and shown in card + peek panel read-only.
   - `ContentToolbar` manages user views, filters, sorting, search, and creation tools.
 
 ---
@@ -202,7 +204,7 @@ beech-cms/
 
 - **UI schema‑driven & Field Renderers**
   - **Must** use `FieldDisplay`/`FieldEdit` and the registry in `apps/dashboard/src/components/fields` for rendering and editing fields.
-  - **Must not** write UI that manually switches on field type in tables, forms, or Kanban views.
+  - **Must not** write UI that manually switches on field type in tables, forms, or gallery views; rendering must stay schema/registry-driven.
 
 - **Media handling**
   - **Must** use `POST /api/upload` and store only the URL in a `file`‑type field (string).

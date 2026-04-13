@@ -90,6 +90,23 @@ export const PAGINA_SEED: Seed = {
   ],
 }
 
+/** 
+ * TODO: Rimuovere al termine dei test del testsite
+ * Messaggio di contatto: per form contatti esterni 
+ */
+export const MESSAGGI_SEED: Seed = {
+  slug: 'messaggi',
+  label: 'Messaggio',
+  labelPlural: 'Messaggi',
+  branches: [
+    { id: 'msg_01', alias: 'name', label: 'Nome mittente', type: 'text' },
+    { id: 'msg_02', alias: 'email', label: 'Email mittente', type: 'text' },
+    { id: 'msg_03', alias: 'subject', label: 'Oggetto', type: 'text' },
+    { id: 'msg_04', alias: 'message', label: 'Messaggio', type: 'richtext' },
+    { id: 'msg_05', alias: 'read', label: 'Letto', type: 'boolean' },
+  ],
+}
+
 /** Registro: slug -> Seed */
 export const SEED_REGISTRY: Record<string, Seed> = {
   articoli: ARTICOLO_SEED,
@@ -97,6 +114,7 @@ export const SEED_REGISTRY: Record<string, Seed> = {
   team: TEAM_SEED,
   testimonianze: TESTIMONIANZA_SEED,
   pagine: PAGINA_SEED,
+  messaggi: MESSAGGI_SEED,
 }
 
 /**

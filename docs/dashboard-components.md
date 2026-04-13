@@ -34,7 +34,7 @@ Componenti e hook principali:
 
 Barra di controllo contestuale per le viste contenuto. Raggruppa in un'unica UI:
 
-- **View Switcher** — ToggleGroup per passare tra le viste registrate (tabella, griglia, kanban, grafico)
+- **View Switcher** — ToggleGroup per passare tra le viste registrate (tabella, galleria; altre viste opzionali via `ViewType`)
 - **Strumenti** — icone contestuali (filtri, ordinamento, automazione, ricerca, impostazioni, creazione) abilitabili/disabilitabili per singola vista
 - **Filter Pills** — pill cliccabili Notion-like, una per colonna, con condizioni AND multiple
 
@@ -93,7 +93,7 @@ flowchart LR
 | `onGroupByChange` | `(columnId: string \| null) => void` | `undefined` | Callback al cambio raggruppamento |
 | `dateGroupPrecision` | `{ year: boolean; month: boolean; day: boolean }` | `{ year: true, month: true, day: false }` | Granularità per il raggruppamento su colonne `date` (vedi sezione “Raggruppamento date”) |
 | `onDateGroupPrecisionChange` | `(precision: DateGroupPrecision) => void` | `undefined` | Callback al cambio granularità date |
-| `children` | `React.ReactNode` | `undefined` | Contenuto sotto la toolbar (tabella, kanban, ecc.). Se assente, la sezione inferiore non viene renderizzata |
+| `children` | `React.ReactNode` | `undefined` | Contenuto sotto la toolbar (tabella, galleria, ecc.). Se assente, la sezione inferiore non viene renderizzata |
 
 ---
 
@@ -104,7 +104,7 @@ Definiti in `apps/dashboard/src/components/content-toolbar/types.ts`.
 ### `ViewType`
 
 ```ts
-type ViewType = "table" | "grid" | "kanban" | "chart"
+type ViewType = "table" | "gallery" | "grid" | "kanban" | "chart"
 ```
 
 ### `ToolbarTool`
@@ -213,16 +213,17 @@ import { useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { ContentToolbar, type UserViewInstance } from "@/components/content-toolbar"
 import { DataTable } from "@/components/ui/data-table"
+import { ContentGallery } from "@/components/content-gallery"
 import { generateColumns } from "@/lib/dynamic-columns"
 
 const views: UserViewInstance[] = [
-  { id: "v1", label: "Tabella", type: "table", enabledTools: ["filter", "sort", "search", "create"] },
-  { id: "v2", label: "Griglia", type: "grid", enabledTools: ["search", "create"] },
+  { id: "table", label: "Tabella", type: "table", enabledTools: ["filter", "sort", "search", "create"] },
+  { id: "gallery", label: "Galleria", type: "gallery", enabledTools: ["filter", "sort", "search", "create"] },
 ]
 
 function ContentPage({ seed, entries }) {
   const navigate = useNavigate()
-  const [activeViewId, setActiveViewId] = useState("v1")
+  const [activeViewId, setActiveViewId] = useState("table")
   const [filters, setFilters] = useState({})
   const [sortState, setSortState] = useState({ columnId: null, desc: true })
   const [searchValue, setSearchValue] = useState("")
@@ -249,11 +250,38 @@ function ContentPage({ seed, entries }) {
       searchValue={searchValue}
       onSearchChange={setSearchValue}
     >
-      <DataTable columns={columns} data={entries} globalFilter={searchValue} />
+      {activeViewId === "table" && (
+        <DataTable columns={columns} data={entries} globalFilter={searchValue} />
+      )}
+      {activeViewId === "gallery" && (
+        <ContentGallery
+          seed={seed}
+          data={entries}
+          onEdit={(id) => navigate(`/content/${seed.slug}/${id}`)}
+        />
+      )}
     </ContentToolbar>
   )
 }
 ```
+
+---
+
+## `ContentGallery`
+
+**Directory:** `apps/dashboard/src/components/content-gallery/`
+
+Vista alternativa alla tabella per lo stesso dataset server-driven (`ContentEntry[]`) gia caricato da `ContentListPage`.
+
+Comportamento attuale:
+
+- **Grid responsiva**: layout `auto-fill` con card uniformi.
+- **Card model derivato**: usa euristiche schema-driven (`resolve-card-fields`) e mapping (`buildGalleryCardDisplayModel`) per cover, titolo, excerpt, data e badge status.
+- **Tag UX**: i tag vengono normalizzati tramite utility condivise (`extractTagChips` / `extractTagNames`) per mantenere coerenza tra toolbar, tabella e gallery.
+- **Peek panel read-only**: click card apre pannello dettaglio con `FieldDisplay`, chiusura via overlay, `Escape` o pulsante, e azione "Modifica" che naviga all'editor.
+- **Stati UI**: skeleton dedicato in loading e empty state quando non ci sono elementi.
+
+La gallery non introduce fetch aggiuntivi: riusa filtri, sort, ricerca e paginazione gia orchestrati da `ContentToolbar` + `ContentListPage`.
 
 ---
 
