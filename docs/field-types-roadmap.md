@@ -18,7 +18,7 @@ Tipi di campo da integrare in Beech CMS per il posizionamento **sito statico + c
 | **url** | Link pulsante, link esterno, sito |
 | **email** | Contatto, autore, form |
 | **phone** | Contatto, form |
-| **file** / **media** | Immagini, PDF, download, galleria (singolo o multiplo) |
+| **file** / **media** | Immagini, PDF, download, galleria (singolo o multiplo). Per gallerie usare semantica `asset-list` (`multiple: true` / `format: 'asset-list'`). |
 | **relation** | “Questa pagina usa questa galleria”, post → categoria (relazione leggera) |
 | **place** | Indirizzo, “Dove siamo”, evento |
 | **json** | Blocchi custom, metadati (già presente) |

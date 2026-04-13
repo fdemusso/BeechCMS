@@ -15,6 +15,15 @@ const mockBranch = {
   type: "file" as const,
 }
 
+const mockAssetListBranch = {
+  id: "br_02",
+  alias: "images",
+  label: "Images",
+  type: "file" as const,
+  multiple: true,
+  format: "asset-list" as const,
+}
+
 describe("MediaEdit", () => {
   const onChange = vi.fn()
   const originalImage = globalThis.Image
@@ -82,11 +91,7 @@ describe("MediaEdit", () => {
 
     expect(screen.getByText(/Inserisci un URL pubblico HTTPS/i)).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Usa link/i })).toBeInTheDocument()
-    expect(
-      screen
-        .getAllByRole("button", { name: /selezionalo/i })
-        .some((element) => element.tagName === "BUTTON")
-    ).toBe(true)
+    expect(screen.getByText(/selezionalo/i)).toBeInTheDocument()
   })
 
   it("URL non HTTPS -> mostra errore e non salva", async () => {
@@ -152,6 +157,43 @@ describe("MediaEdit", () => {
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith("/api/media/abc123.jpg")
     })
+  })
+
+  it("Asset-list: aggiunge URL senza chiudere la modale", async () => {
+    render(
+      <MediaEdit
+        branch={mockAssetListBranch}
+        value={["https://cdn.example.com/a.jpg"]}
+        onChange={onChange}
+      />
+    )
+    fireEvent.click(screen.getByRole("button", { name: /Gestisci galleria/i }))
+    const validUrl = "https://cdn.example.com/valid-image?id=999"
+    fireEvent.change(screen.getByPlaceholderText("https://example.com/image.jpg"), {
+      target: { value: validUrl },
+    })
+    fireEvent.click(screen.getByRole("button", { name: /Aggiungi/i }))
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith([
+        "https://cdn.example.com/a.jpg",
+        validUrl,
+      ])
+    })
+    expect(screen.getByText(/Link immagine/i)).toBeInTheDocument()
+  })
+
+  it("Asset-list: rimuovi tutte svuota il campo con array", () => {
+    render(
+      <MediaEdit
+        branch={mockAssetListBranch}
+        value={["https://cdn.example.com/a.jpg"]}
+        onChange={onChange}
+      />
+    )
+    fireEvent.click(screen.getByRole("button", { name: /Gestisci galleria/i }))
+    fireEvent.click(screen.getByRole("button", { name: /Rimuovi tutte/i }))
+    expect(onChange).toHaveBeenCalledWith([])
   })
 })
 

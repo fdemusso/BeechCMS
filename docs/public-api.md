@@ -78,6 +78,9 @@ Comportamenti principali:
   - fallback finale UUID corto.
 - Rich text pericoloso (es. `<script>`): `422 Unprocessable Entity`.
 - Errori di tipo/validazione: `400` con `details`.
+- Campi media:
+  - `file` singolo -> `string` URL HTTPS
+  - `asset-list` (`file` con `multiple: true` o `format: 'asset-list'`) -> `string[]` URL HTTPS
 - Successo: `201 { success: true, id, slug }`.
 
 ## PUT `/api/v1/public/:seed/edit/:id`
@@ -99,6 +102,7 @@ Comportamenti principali:
 
 - `status` valido: `draft | review | published`.
 - `slug` opzionale: se presente deve essere stringa non vuota.
+- Campi media multipli (`asset-list`) restano compatibili con payload legacy (`json`/oggetti con `url`) tramite normalizzazione nel core.
 - Successo: `200 { success: true, id, slug }`.
 
 ## Note implementative

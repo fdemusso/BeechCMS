@@ -31,6 +31,62 @@ const finiteNumberSchema = z.number().refine(Number.isFinite, 'Expected finite n
 const stringSchema = z.string()
 const booleanSchema = z.boolean()
 
+function isAssetListBranch(branch: Branch): boolean {
+  return branch.type === 'file' && (branch.multiple === true || branch.format === 'asset-list')
+}
+
+function normalizeHttpUrl(value: unknown): string | null {
+  if (!stringSchema.safeParse(value).success) {
+    return null
+  }
+  const cleaned = sanitizePlainString(value as string)
+  if (!cleaned) {
+    return null
+  }
+  try {
+    const parsed = new URL(cleaned)
+    if (!parsed.protocol.startsWith('http')) {
+      return null
+    }
+  } catch {
+    return null
+  }
+  return cleaned
+}
+
+function parseJsonString(value: string): unknown {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return value
+  }
+}
+
+function normalizeAssetListValue(rawValue: unknown): string[] | null {
+  const input = typeof rawValue === 'string' ? parseJsonString(rawValue) : rawValue
+  const values = Array.isArray(input) ? input : [input]
+  const normalized: string[] = []
+
+  for (const item of values) {
+    if (item == null) continue
+    const directUrl = normalizeHttpUrl(item)
+    if (directUrl) {
+      normalized.push(directUrl)
+      continue
+    }
+    if (typeof item === 'object' && !Array.isArray(item)) {
+      const nestedUrl = normalizeHttpUrl((item as Record<string, unknown>).url)
+      if (nestedUrl) {
+        normalized.push(nestedUrl)
+        continue
+      }
+    }
+    return null
+  }
+
+  return [...new Set(normalized)]
+}
+
 function sanitizePlainString(value: string): string {
   return value.replaceAll(CONTROL_CHARS_REGEX, '').trim()
 }
@@ -132,19 +188,18 @@ function validateBranchValue(
     }
 
     case 'file': {
-      if (!stringSchema.safeParse(rawValue).success) {
-        return { ok: false, detail: makeDetail(alias, 'url-string', rawValue) }
-      }
-      const urlValue = sanitizePlainString(rawValue as string)
-      try {
-        const parsed = new URL(urlValue)
-        if (!parsed.protocol.startsWith('http')) {
-          return { ok: false, detail: makeDetail(alias, 'url-string', rawValue) }
+      if (isAssetListBranch(branch)) {
+        const listValue = normalizeAssetListValue(rawValue)
+        if (!listValue) {
+          return { ok: false, detail: makeDetail(alias, 'url-string[]', rawValue) }
         }
-      } catch {
+        return { ok: true, value: listValue }
+      }
+      const singleUrl = normalizeHttpUrl(rawValue)
+      if (!singleUrl) {
         return { ok: false, detail: makeDetail(alias, 'url-string', rawValue) }
       }
-      return { ok: true, value: urlValue }
+      return { ok: true, value: singleUrl }
     }
   }
 }

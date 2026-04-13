@@ -37,6 +37,8 @@ Il **Botanical Engine** introduce un layer di traduzione:
 | `alias` | No | Chiave nel payload API (Frontend) | `title`, `budget` |
 | `label` | No | Etichetta per la UI (Dashboard) | "Titolo Progetto" |
 | `type` | No | Tipo del valore | `text`, `number`, `boolean`, `json`, `date`, `richtext`, `file` |
+| `format` | No | Variante semantica opzionale del campo (UI/validazione) | `asset-list` (su `file`), `markdown` (su `richtext`) |
+| `multiple` | No | Cardinalita opzionale per campi media | `true` per liste media (`asset-list`) |
 | `options` | No | Vocabolario predefinito (opzionale) per campi `tag`, `select`, `multiselect`. Lista statica definita nel Seed, non salvata nel DB. Usata come suggerimenti in fase di creazione (badge cliccabili in FieldEdit) e come opzioni nel dropdown dei filtri in ContentToolbar. | `['news', 'tutorial', 'release']` |
 
 ### Attributi del Seed
@@ -308,7 +310,7 @@ Il CMS include 5 seed realistici. Ognuno ha `labelPlural` per liste e sidebar.
 | `prd_03` | `stock` | Quantità disponibile | number |
 | `prd_04` | `active` | In vendita | boolean |
 | `prd_05` | `coverImage` | Immagine principale | file |
-| `prd_06` | `images` | Galleria immagini | json |
+| `prd_06` | `images` | Galleria immagini | file (`multiple: true`, `format: 'asset-list'`) |
 | `prd_07` | `description` | Descrizione | richtext |
 | `prd_08` | `metaTitle` | Meta titolo (SEO) | text |
 | `prd_09` | `metaDescription` | Meta descrizione (SEO) | text |

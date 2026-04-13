@@ -45,7 +45,7 @@ Quindi la roadmap va intesa come **estensione di `BranchType` e di eventuali met
 | `url` | string | Validazione URL. |
 | `email` | string | Validazione email. |
 | `phone` | string | Validazione/formatting opzionale. |
-| `file` / `media` | string \| string[] | URL singolo o array (galleria). Dopo upload R2, si salva l'URL in `data`. |
+| `file` / `media` | string \| string[] | URL singolo o array (`asset-list`). Dopo upload R2, si salva l'URL in `data`. Consigliato usare `multiple: true` o `format: 'asset-list'` per semantica esplicita. |
 | `relation` | string \| string[] | ID (o lista ID) di entry di un altro `schema_slug`. "Leggera" = niente FK nel DB, solo valore in JSON. |
 | `place` | object (es. `{ address, lat, lng }`) | Un solo formato concordato; storage = JSON. |
 | `color` | string (hex) | Opzionale; può essere anche `text` con validazione. |

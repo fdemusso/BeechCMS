@@ -35,6 +35,24 @@ describe('core validation foundation', () => {
     expect(result.details[0].field).toBeDefined()
   })
 
+  it('normalizza asset-list legacy in array URL', () => {
+    const seed = getSeed('prodotti')
+    if (!seed) throw new Error('Seed prodotti non trovato')
+
+    const result = validateAndSanitizeSeedPayload(seed, {
+      images: [
+        { url: 'https://cdn.example.com/one.jpg' },
+        'https://cdn.example.com/two.jpg',
+      ],
+    })
+
+    expect(result.details).toEqual([])
+    expect(result.data.images).toEqual([
+      'https://cdn.example.com/one.jpg',
+      'https://cdn.example.com/two.jpg',
+    ])
+  })
+
   it('segnala richtext pericoloso', () => {
     const seed = getSeed('articoli')
     if (!seed) throw new Error('Seed articoli non trovato')

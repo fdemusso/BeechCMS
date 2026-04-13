@@ -23,6 +23,17 @@ export interface Branch {
   /** Tipo del valore */
   type: BranchType
   /**
+   * Variante semantica opzionale del campo per UI/validazione.
+   * Esempio: `asset-list` su `file` multiplo.
+   */
+  format?: 'plain' | 'markdown' | 'html' | 'date' | 'datetime' | 'asset-list'
+  /**
+   * Cardinalità opzionale per campi media:
+   * - false/undefined: singolo asset (string URL)
+   * - true: lista asset (string[] URL)
+   */
+  multiple?: boolean
+  /**
    * Vocabolario predefinito per campi tag/select/multiselect.
    * Lista statica definita nel Seed (non salvata nel DB, non richiede migrazioni).
    * Usata come suggerimenti in fase di creazione (FieldEdit) e come opzioni

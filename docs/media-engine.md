@@ -20,7 +20,7 @@ Dashboard (MediaEdit)  →  POST /api/upload (JWT)  →  R2 (S3 API)
 GET /api/media/:key (pubblico)  →  R2  →  Response (immagine)
 ```
 
-- **Storage**: Solo l'URL stringa in `data` (colonna JSON). I binari restano in R2.
+- **Storage**: URL in `data` (colonna JSON): `string` per `file` singolo, `string[]` per `asset-list` (`file` multiplo). I binari restano in R2.
 - **API S3-compatibile**: Uso di `@aws-sdk/client-s3` con chiavi di accesso per portabilità.
 
 ---
@@ -90,10 +90,10 @@ Serve un file da R2. Route pubblica (nessuna auth).
 
 ### 3.1 Cleanup alla cancellazione entry
 
-Quando si elimina un'entry (`DELETE /api/content/:slug/:id`), i file referenziati nei campi `file` e `json` vengono eliminati anche da R2.
+Quando si elimina un'entry (`DELETE /api/content/:slug/:id`), i file referenziati nei campi `file` (singolo o lista) e `json` vengono eliminati anche da R2.
 
 **Flusso:** L'API legge il `data` dell'entry (formato DB, chiavi = branch ID), estrae le chiavi R2 dagli URL `/api/media/KEY`
-e invia `DeleteObjectCommand` per ogni chiave. Poi procede con la delete dal DB.
+anche in strutture annidate o JSON serializzati legacy, e invia `DeleteObjectCommand` per ogni chiave. Poi procede con la delete dal DB.
 
 **Robustezza:** Se R2 non è configurato o la delete su R2 fallisce, l'entry viene comunque eliminata dal DB (priorità: non bloccare la cancellazione).
 
@@ -108,7 +108,7 @@ e invia `DeleteObjectCommand` per ogni chiave. Poi procede con la delete dal DB.
 | MediaEdit | `edit/media.tsx` | Dropzone, upload, anteprima, Sostituisci/Rimuovi |
 | MediaDisplay | `display/media.tsx` | Miniatura (Avatar) per immagini, icona File per altri |
 
-Il tipo `file` in `BranchType` salva una stringa (URL). Vedi [Field Renderers](field-renderers.md).
+Il tipo `file` in `BranchType` salva un URL singolo o una lista URL (`multiple: true` / `format: 'asset-list'`). Vedi [Field Renderers](field-renderers.md).
 
 ---
 

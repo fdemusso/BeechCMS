@@ -211,7 +211,7 @@ beech-cms/
   - **Must not** write UI that manually switches on field type in tables, forms, or gallery views; rendering must stay schema/registry-driven.
 
 - **Media handling**
-  - **Must** use `POST /api/upload` and store only the URL in a `file`‑type field (string).
+  - **Must** use `POST /api/upload` and store only URL values in `file` fields (`string` singolo o `string[]` per `asset-list`).
   - **Must** delegate file deletion to `DELETE /api/content/:slug/:id` (which calls media‑utils).
   - **Must not** upload files directly to R2 from the frontend or store binary blobs in D1.
 

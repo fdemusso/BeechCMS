@@ -17,7 +17,7 @@ const MEDIA_URL_PATTERN = /\/api\/media\/([^/?#]+)/
  * @returns Chiave R2 o null se l'URL non è valido
  */
 export function extractMediaKey(mediaUrl: string): string | null {
-  const match = String(mediaUrl).match(MEDIA_URL_PATTERN)
+  const match = MEDIA_URL_PATTERN.exec(String(mediaUrl))
   return match ? decodeURIComponent(match[1]) : null
 }
 
@@ -28,7 +28,19 @@ export function extractMediaKey(mediaUrl: string): string | null {
 function collectMediaKeysRecursive(value: unknown, collectedKeys: Set<string>): void {
   if (typeof value === 'string') {
     const r2Key = extractMediaKey(value)
-    if (r2Key) collectedKeys.add(r2Key)
+    if (r2Key) {
+      collectedKeys.add(r2Key)
+      return
+    }
+    // Legacy compat: campi json/file possono contenere JSON serializzato.
+    try {
+      const parsed = JSON.parse(value) as unknown
+      if (parsed !== value) {
+        collectMediaKeysRecursive(parsed, collectedKeys)
+      }
+    } catch {
+      // ignore
+    }
     return
   }
   if (Array.isArray(value)) {

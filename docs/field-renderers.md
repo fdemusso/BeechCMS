@@ -92,12 +92,22 @@ I tipi attualmente registrati: `text`, `number`, `boolean`, `date`, `json`, `ric
 | `date` | Data formattata (it-IT, short) | `<Input type="date">` |
 | `json` | Tags → Badge colorati collassabili; altro → testo monospace troncato | Textarea con hint JSON/tags. Se `branch.options` è presente, mostra badge cliccabili per aggiungere/rimuovere i tag predefiniti prima della textarea |
 | `richtext` | Testo plain troncato (strip HTML) | TipTap editor con toolbar (Bold, Italic, H2, Bullet List, Ordered List) |
-| `file` | Miniatura immagine o icona file | Dropzone upload, anteprima, Sostituisci/Rimuovi (vedi [Media Engine](media-engine.md)) |
+| `file` | Miniatura immagine o stack preview (asset-list) | Dropzone upload, anteprima, Sostituisci/Rimuovi. Con `multiple: true` o `format: 'asset-list'`: aggiunta multipla, riordino e rimozione elementi (vedi [Media Engine](media-engine.md)) |
 | *(non registrato)* | `DefaultDisplay`: stringa o "-" | `DefaultEdit`: `<Input type="text">` |
 
 ### Euristica JSON per i tag
 
 Se l'alias del branch contiene la parola `"tag"` (case-insensitive) e il valore è un oggetto `Record<string, string>` (tag → colore), viene usato il renderer con Badge colorati collassabili. Altrimenti il JSON viene mostrato come testo formattato.
+
+### Semantica Asset List
+
+Per gallerie media, il contratto consigliato e:
+
+- `type: 'file'`
+- `multiple: true` (o `format: 'asset-list'`)
+- valore in `data`: `string[]` (URL HTTPS)
+
+Il renderer `file` mantiene la compatibilita in lettura con payload legacy (`json` o array di oggetti con `url`) normalizzando a lista URL.
 
 ---
 

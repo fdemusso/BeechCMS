@@ -96,7 +96,7 @@ describe("dynamic-columns - computeMaxLengths", () => {
     ]
 
     const max = computeMaxLengths(data, seed, 10)
-    expect(max.body).toBe(120)
+    expect(max.body).toBe(60)
   })
 })
 

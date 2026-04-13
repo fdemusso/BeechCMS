@@ -2,9 +2,10 @@
  * Field Renderer Edit per tipo `file`: supporta URL esterni e upload locale.
  * - URL esterno: validazione HTTPS + verifica render immagine prima del salvataggio.
  * - File locale: upload su R2 via POST /api/upload e salvataggio URL ritornato.
+ * - Asset list: quando il branch e multiplo, gestisce lista ordinabile di URL.
  */
 import * as React from "react"
-import { Loader2, Link as LinkIcon, Upload, X } from "lucide-react"
+import { ArrowDown, ArrowUp, Loader2, Link as LinkIcon, Upload, X } from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import {
@@ -21,6 +22,13 @@ import type { FieldEditProps } from "../types"
 
 const IMAGE_ACCEPT = "image/*"
 const URL_VALIDATION_TIMEOUT_MS = 8000
+
+function isAssetListBranch(maybeBranch: { type: string; multiple?: boolean; format?: string }): boolean {
+  return (
+    maybeBranch.type === "file" &&
+    (maybeBranch.multiple === true || maybeBranch.format === "asset-list")
+  )
+}
 
 function isHttpsUrl(value: string): boolean {
   try {
@@ -46,21 +54,75 @@ async function canRenderImageUrl(url: string): Promise<boolean> {
       resolve(result)
     }
 
-    const timeout = window.setTimeout(
+    const timeout = globalThis.setTimeout(
       () => finish(false),
       URL_VALIDATION_TIMEOUT_MS
     )
 
     image.onload = () => {
-      window.clearTimeout(timeout)
+      globalThis.clearTimeout(timeout)
       finish(true)
     }
     image.onerror = () => {
-      window.clearTimeout(timeout)
+      globalThis.clearTimeout(timeout)
       finish(false)
     }
     image.src = url
   })
+}
+
+function parseJsonString(value: string): unknown {
+  try {
+    return JSON.parse(value)
+  } catch {
+    return value
+  }
+}
+
+function normalizeUrl(value: unknown): string | null {
+  if (typeof value !== "string") return null
+  const trimmed = value.trim()
+  return isHttpsUrl(trimmed) ? trimmed : null
+}
+
+function parseAssetListValue(value: unknown): string[] {
+  const input = typeof value === "string" ? parseJsonString(value) : value
+  const values = Array.isArray(input) ? input : [input]
+  const urls: string[] = []
+
+  for (const item of values) {
+    if (item == null) continue
+    const direct = normalizeUrl(item)
+    if (direct) {
+      urls.push(direct)
+      continue
+    }
+    if (typeof item === "object" && !Array.isArray(item)) {
+      const nested = normalizeUrl((item as Record<string, unknown>).url)
+      if (nested) urls.push(nested)
+    }
+  }
+
+  return [...new Set(urls)]
+}
+
+function appendUniqueUrl(current: string[], nextUrl: string): string[] {
+  return current.includes(nextUrl) ? current : [...current, nextUrl]
+}
+
+function moveItem(list: string[], from: number, to: number): string[] {
+  if (to < 0 || to >= list.length || from === to) return list
+  const copy = [...list]
+  const [item] = copy.splice(from, 1)
+  copy.splice(to, 0, item)
+  return copy
+}
+
+function getCtaLabel(params: { isMultiple: boolean; hasAssets: boolean; hasImage: boolean }): string {
+  if (params.isMultiple) {
+    return params.hasAssets ? "Gestisci galleria" : "Aggiungi immagini"
+  }
+  return params.hasImage ? "Sostituisci" : "Aggiungi immagine"
 }
 
 export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
@@ -71,18 +133,24 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
   const [isValidatingUrl, setIsValidatingUrl] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [urlInput, setUrlInput] = React.useState("")
+  const isMultiple = isAssetListBranch(branch)
+  const assets = React.useMemo(
+    () => (isMultiple ? parseAssetListValue(value) : []),
+    [isMultiple, value]
+  )
 
   const url = typeof value === "string" ? value : ""
   const hasImage = url.length > 0
-  const ctaLabel = hasImage ? "Sostituisci" : "Aggiungi immagine"
+  const hasAssets = assets.length > 0
+  const ctaLabel = getCtaLabel({ isMultiple, hasAssets, hasImage })
   const isBusy = isUploading || isValidatingUrl
 
   React.useEffect(() => {
     if (!isModalOpen) return
-    setUrlInput(url)
+    setUrlInput(isMultiple ? "" : url)
     setError(null)
     setIsDragging(false)
-  }, [isModalOpen, url])
+  }, [isModalOpen, isMultiple, url])
 
   const handleFileUpload = React.useCallback(
     async (file: File) => {
@@ -97,8 +165,13 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
         const formData = new FormData()
         formData.append("file", file)
         const { data } = await api.post<{ url: string }>("/upload", formData)
-        onChange(data.url)
-        setIsModalOpen(false)
+        if (isMultiple) {
+          const current = parseAssetListValue(value)
+          onChange(appendUniqueUrl(current, data.url))
+        } else {
+          onChange(data.url)
+          setIsModalOpen(false)
+        }
       } catch (err) {
         setError(
           err instanceof Error ? err.message : "Errore durante il caricamento"
@@ -107,7 +180,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
         setIsUploading(false)
       }
     },
-    [onChange]
+    [isMultiple, onChange, value]
   )
 
   const handleApplyUrl = React.useCallback(async () => {
@@ -129,15 +202,21 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
         setError("URL non renderizzabile come immagine")
         return
       }
-      onChange(candidate)
-      setIsModalOpen(false)
+      if (isMultiple) {
+        const current = parseAssetListValue(value)
+        onChange(appendUniqueUrl(current, candidate))
+        setUrlInput("")
+      } else {
+        onChange(candidate)
+        setIsModalOpen(false)
+      }
     } finally {
       setIsValidatingUrl(false)
     }
-  }, [onChange, urlInput])
+  }, [isMultiple, onChange, urlInput, value])
 
   const handleDrop = React.useCallback(
-    (event: React.DragEvent<HTMLDivElement>) => {
+    (event: React.DragEvent<HTMLElement>) => {
       event.preventDefault()
       setIsDragging(false)
       const file = event.dataTransfer.files[0]
@@ -171,6 +250,222 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
   const handleRemove = React.useCallback(() => {
     onChange("")
   }, [onChange])
+
+  const handleRemoveAt = React.useCallback(
+    (index: number) => {
+      const current = parseAssetListValue(value)
+      onChange(current.filter((_, itemIndex) => itemIndex !== index))
+    },
+    [onChange, value]
+  )
+
+  const handleReorder = React.useCallback(
+    (index: number, direction: "up" | "down") => {
+      const current = parseAssetListValue(value)
+      const target = direction === "up" ? index - 1 : index + 1
+      onChange(moveItem(current, index, target))
+    },
+    [onChange, value]
+  )
+
+  const handleClearAll = React.useCallback(() => {
+    onChange([])
+    setIsModalOpen(false)
+  }, [onChange])
+
+  if (isMultiple) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-start gap-3">
+          {hasAssets ? (
+            <div className="grid grid-cols-2 gap-1">
+              {assets.slice(0, 4).map((assetUrl) => (
+                <div
+                  key={assetUrl}
+                  className="relative size-16 overflow-hidden rounded-md border border-input bg-muted"
+                >
+                  <img src={assetUrl} alt="" className="size-full object-cover" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-md border border-dashed border-input bg-muted/40">
+              <Upload className="size-5 text-muted-foreground" />
+            </div>
+          )}
+
+          <div className="flex flex-col items-start gap-2">
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-fit"
+                onClick={() => setIsModalOpen(true)}
+              >
+                <Upload className="size-4" />
+                {ctaLabel}
+              </Button>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>{ctaLabel}</DialogTitle>
+                  <DialogDescription>
+                    Inserisci un URL pubblico HTTPS oppure carica un file locale.
+                  </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label htmlFor={`${branch.alias}-url`} className="text-sm font-medium">
+                      Link immagine
+                    </label>
+                    <div className="flex gap-2">
+                      <Input
+                        id={`${branch.alias}-url`}
+                        type="url"
+                        value={urlInput}
+                        onChange={(event) => setUrlInput(event.target.value)}
+                        placeholder="https://example.com/image.jpg"
+                        disabled={isBusy}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => void handleApplyUrl()}
+                        disabled={isBusy}
+                      >
+                        {isValidatingUrl ? (
+                          <>
+                            <Loader2 className="size-4 animate-spin" />
+                            Verifica...
+                          </>
+                        ) : (
+                          <>
+                            <LinkIcon className="size-4" />
+                            Aggiungi
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleOpenPicker}
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    className={cn(
+                      "w-full rounded-lg border-2 border-dashed p-5 text-center transition-colors",
+                      "hover:border-primary/50 hover:bg-muted/50",
+                      isDragging && "border-primary bg-muted/50",
+                      isBusy && "pointer-events-none opacity-70"
+                    )}
+                  >
+                    <input
+                      ref={inputRef}
+                      id={`${branch.alias}-file`}
+                      type="file"
+                      accept={IMAGE_ACCEPT}
+                      className="hidden"
+                      onChange={handleInputChange}
+                    />
+
+                    {isUploading ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <Loader2 className="size-8 animate-spin text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground">Caricamento...</span>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        trascina qui il tuo file oppure selezionalo
+                      </p>
+                    )}
+                  </button>
+
+                  {assets.length > 0 ? (
+                    <div className="max-h-52 space-y-2 overflow-y-auto rounded-md border border-input p-2">
+                      {assets.map((assetUrl, index) => (
+                        <div
+                          key={`${assetUrl}-${index}`}
+                          className="flex items-center gap-2 rounded-md border border-input bg-background p-2"
+                        >
+                          <img
+                            src={assetUrl}
+                            alt=""
+                            className="size-10 shrink-0 rounded object-cover"
+                          />
+                          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+                            {assetUrl}
+                          </span>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleReorder(index, "up")}
+                              disabled={index === 0 || isBusy}
+                              aria-label="Sposta su"
+                            >
+                              <ArrowUp className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleReorder(index, "down")}
+                              disabled={index === assets.length - 1 || isBusy}
+                              aria-label="Sposta giu"
+                            >
+                              <ArrowDown className="size-4" />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleRemoveAt(index)}
+                              disabled={isBusy}
+                              aria-label="Rimuovi immagine"
+                            >
+                              <X className="size-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {error ? <p className="text-sm text-destructive">{error}</p> : null}
+                </div>
+
+                <DialogFooter>
+                  {assets.length > 0 ? (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      onClick={handleClearAll}
+                      disabled={isBusy}
+                    >
+                      <X className="size-4" />
+                      Rimuovi tutte
+                    </Button>
+                  ) : null}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsModalOpen(false)}
+                    disabled={isBusy}
+                  >
+                    Chiudi
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-3">
@@ -240,21 +535,14 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                   </div>
                 </div>
 
-                <div
-                  role="button"
-                  tabIndex={0}
+                <button
+                  type="button"
                   onClick={handleOpenPicker}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault()
-                      handleOpenPicker()
-                    }
-                  }}
                   onDrop={handleDrop}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   className={cn(
-                    "rounded-lg border-2 border-dashed p-5 text-center transition-colors",
+                    "w-full rounded-lg border-2 border-dashed p-5 text-center transition-colors",
                     "hover:border-primary/50 hover:bg-muted/50",
                     isDragging && "border-primary bg-muted/50",
                     isBusy && "pointer-events-none opacity-70"
@@ -276,22 +564,10 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      trascina qui il tuo file oppure{" "}
-                      <Button
-                        type="button"
-                        variant="link"
-                        className="h-auto p-0 align-baseline"
-                        onClick={(event) => {
-                          event.stopPropagation()
-                          handleOpenPicker()
-                        }}
-                        disabled={isBusy}
-                      >
-                        selezionalo
-                      </Button>
+                      trascina qui il tuo file oppure selezionalo
                     </p>
                   )}
-                </div>
+                </button>
 
                 {error ? <p className="text-sm text-destructive">{error}</p> : null}
               </div>
