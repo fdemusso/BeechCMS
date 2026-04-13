@@ -349,3 +349,24 @@ Il CMS include 5 seed realistici. Ognuno ha `labelPlural` per liste e sidebar.
 | `pag_03` | `body` | Contenuto | richtext |
 | `pag_04` | `metaTitle` | Meta titolo (SEO) | text |
 | `pag_05` | `metaDescription` | Meta descrizione (SEO) | text |
+
+---
+
+## 9. Considerazioni sulle Performance
+
+L'attuale implementazione del Botanical Engine dà priorità alla **leggibilità** e alla **semplicità**.
+
+### Criticità O(N*M)
+Le funzioni `apiToDb` e `dbToApi` utilizzano `.find()` o loop lineari sui branch del Seed per ogni chiave del payload. 
+- **N** = numero di campi nel payload (es. 10 campi inviati dal frontend)
+- **M** = numero di branch definiti nel Seed (es. 40 rami nel CMS)
+
+L'operazione ha una complessità di **O(N*M)**. Sebbene trascurabile per schemi piccoli, può diventare un collo di bottiglia per "Seed" molto complessi o payload massivi.
+
+**TODO (Ottimizzazione):** 
+Implementare una cache di lookup (Map/Oggetto) nel Botanical Engine:
+- `aliasToIdMap`: `Map<string, string>` (es. `title` -> `br_01`)
+- `idToAliasMap`: `Map<string, string>` (es. `br_01` -> `title`)
+
+Questi Map dovrebbero essere costruiti una sola volta per Seed (lazy loading) per portare la complessità a **O(N)**.
+

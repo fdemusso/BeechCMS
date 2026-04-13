@@ -137,6 +137,10 @@ beech-cms/
   - `[field-renderers.md](field-renderers.md)` – Registry Pattern for UI fields.
   - `[field-types-roadmap.md](field-types-roadmap.md)` and `[field-types-action-plan.md](field-types-action-plan.md)` – field type roadmap and action plan.
 
+> [!NOTE]
+> **Performance Reminder:** The Botanical Engine currently operates with O(N*M) lookup. For high-scale schemas, implement Map-based lookup as documented in `[botanical-engine.md](botanical-engine.md)`.
+
+
 ---
 
 ## Key Flows

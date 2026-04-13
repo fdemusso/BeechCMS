@@ -12,6 +12,11 @@ import type { Seed, DbPayload, ApiPayload } from './types'
  * senza avviso. Se il Frontend invia "titlo" invece di "title", il dato viene
  * silenziosamente scartato. Aggiungere validazione campi obbligatori e
  * opzionale warning per alias non riconosciuti (typo detection).
+ *
+ * TODO (Performance): le funzioni apiToDb e dbToApi hanno complessità O(N*M)
+ * dove N è il numero di chiavi nel payload e M è il numero di rami (branch) nel Seed.
+ * Per Seed con molti campi, ottimizzare pre-costruendo dei Map (aliasToId e idToAlias) 
+ * all'interno dell'oggetto Seed o gestirli tramite una cache nel Botanical Engine.
  */
 export function apiToDb(seed: Seed, payload: Record<string, unknown>): DbPayload {
   const result: DbPayload = {}
