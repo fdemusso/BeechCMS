@@ -36,3 +36,9 @@ La documentazione ammette "Alias non riconosciuti vengono ignorati (safe policy)
 ## 5. Live Reload Incompleto per i Pacchetti Condivisi (Core)
 È emerso un problema lato Developer Experience non documentato. L'aggiunta di un nuovo seed in `packages/core/src/seeds.ts` **non** si riflette automaticamente nella Dashboard (che genera il menu dinamicamente iterando proprio il `SEED_REGISTRY`, come visibile in `apps/dashboard/src/config/dashboard-menu.ts`). Il codice della dashboard non ha seed hardcoded: legge correttamente dal registro. Tuttavia, siccome il monorepo usa dipendenze al pacchetto compilato (`dist`), quando si avvia `npm run dev`, `turbo` non dispone di un file-watcher (come `tsc -w`) sul pacchetto `@beech/core` per ricompilarlo al salvataggio. Il seed non apparirà mai nella Sidebar fino a che non viene forzata una re-compilazione manuale del core (es. `npm run build -w @beech/core`).
 Manca un avviso su questo limite architetturale del tooling di sviluppo nella voce dedicata (es. in `monorepo.md`). Manca quindi un comando dev che faccia hot-reloading dei TypeScript condivisi per l'ambiente locale.
+
+### Stato: RISOLTO
+
+- aggiunto script `dev` in `@beech/core` con watcher TypeScript (`tsc -w --preserveWatchOutput`)
+- `npm run dev` root ora include anche il task `dev` di `@beech/core` via Turbo
+- documentazione `docs/monorepo.md` aggiornata con note esplicite sul comportamento live-reload dei package condivisi

@@ -36,6 +36,8 @@ Pacchetto condiviso che contiene la logica del **Botanical Engine**:
 
 **Build:** `npm run build -w @beech/core` genera `dist/` con JS e `.d.ts`. Le app consumano l'output compilato.
 
+**Dev watch:** `npm run dev -w @beech/core` avvia `tsc -w` e ricompila automaticamente `dist/` quando cambiano i file in `src/`.
+
 Vedi [Botanical Engine](botanical-engine.md) per i dettagli.
 
 ### apps/api
@@ -63,12 +65,14 @@ Frontend React. Dipende da `@beech/core` per tipi e logica condivisa (es. valida
 
 | Comando | Descrizione |
 |---------|-------------|
-| `npm run dev` | Avvia dev in parallelo (api + dashboard) |
+| `npm run dev` | Avvia dev in parallelo (api + dashboard + watcher di `@beech/core`) |
 | `npm run test` | Esegue i test di tutti i pacchetti |
 | `npm run build -w @beech/core` | Build del pacchetto core |
 | `npm run build` | Build di tutti i pacchetti (Turbo ordina per dipendenze) |
 
 Turbo compila `@beech/core` prima delle app che lo dipendono.
+
+In sviluppo locale, se modifichi file condivisi (es. `packages/core/src/seeds.ts`), il watcher di `@beech/core` mantiene `dist/` aggiornato e le app vedono i cambi in modo automatico senza build manuale.
 
 ---
 
