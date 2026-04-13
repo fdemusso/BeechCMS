@@ -12,6 +12,7 @@ export const ARTICOLO_SEED: Seed = {
   slug: 'articoli',
   label: 'Articolo',
   labelPlural: 'Articoli',
+  allowPublicRead: true,
   branches: [
     { id: 'art_01', alias: 'title', label: 'Titolo', type: 'text' },
     { id: 'art_02', alias: 'publishedAt', label: 'Data pubblicazione', type: 'date' },
@@ -28,6 +29,7 @@ export const PRODOTTO_SEED: Seed = {
   slug: 'prodotti',
   label: 'Prodotto',
   labelPlural: 'Prodotti',
+  allowPublicRead: true,
   branches: [
     { id: 'prd_01', alias: 'name', label: 'Nome', type: 'text' },
     { id: 'prd_02', alias: 'price', label: 'Prezzo (€)', type: 'number' },
@@ -53,6 +55,7 @@ export const TEAM_SEED: Seed = {
   slug: 'team',
   label: 'Membro',
   labelPlural: 'Team',
+  allowPublicRead: true,
   branches: [
     { id: 'tm_01', alias: 'name', label: 'Nome', type: 'text' },
     { id: 'tm_02', alias: 'role', label: 'Ruolo', type: 'text' },
@@ -70,6 +73,7 @@ export const TESTIMONIANZA_SEED: Seed = {
   slug: 'testimonianze',
   label: 'Testimonianza',
   labelPlural: 'Testimonianze',
+  allowPublicRead: true,
   branches: [
     { id: 'tes_01', alias: 'author', label: 'Autore', type: 'text' },
     { id: 'tes_02', alias: 'company', label: 'Azienda', type: 'text' },
@@ -88,6 +92,7 @@ export const PAGINA_SEED: Seed = {
   slug: 'pagine',
   label: 'Pagina',
   labelPlural: 'Pagine',
+  allowPublicRead: true,
   branches: [
     { id: 'pag_01', alias: 'title', label: 'Titolo', type: 'text' },
     { id: 'pag_02', alias: 'coverImage', label: 'Immagine hero', type: 'file' },
@@ -105,6 +110,8 @@ export const MESSAGGI_SEED: Seed = {
   slug: 'messaggi',
   label: 'Messaggio',
   labelPlural: 'Messaggi',
+  allowPublicPost: true,
+  allowPublicEdit: true,
   branches: [
     { id: 'msg_01', alias: 'name', label: 'Nome mittente', type: 'text' },
     { id: 'msg_02', alias: 'email', label: 'Email mittente', type: 'text' },

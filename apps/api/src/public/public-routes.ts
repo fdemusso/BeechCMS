@@ -5,7 +5,8 @@ import { publicEditHandler } from './public-edit'
 
 type Bindings = {
   DB: D1Database
-  PUBLIC_API_KEY?: string
+  PUBLIC_READ_API_KEY?: string
+  PUBLIC_WRITE_API_KEY?: string
   ENV?: string
 }
 

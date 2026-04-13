@@ -168,9 +168,11 @@ beech-cms/
   - Cleanup: `DELETE /api/content/:slug/:id` inspects `data` for URLs under `/api/media/*` and issues a `DeleteObjectCommand` to R2.
 
 - **Public Slug API (`/api/v1/public/*`)** – see `[public-api.md](public-api.md)`
-  - API key middleware accepts `X-API-Key` (priority) or `?key=`.
-  - Read endpoint supports id lookup, filters, search, pagination, latest, field projections.
-  - Write endpoints (`add`/`edit`) sanitize and validate payloads with core foundation, enforce slug uniqueness, and use prepared statements.
+  - API key middleware supports split keys (`PUBLIC_READ_API_KEY`, `PUBLIC_WRITE_API_KEY`) via header `X-API-Key`.
+  - Seed-level capabilities (`allowPublicRead`, `allowPublicPost`, `allowPublicEdit`) enforce default deny on non-authorized operations.
+  - Read endpoint supports id lookup, filters, search, pagination, latest, field projections, with default visibility `published` only.
+  - Write endpoints (`add`/`edit`) sanitize/validate payloads, enforce slug uniqueness, support idempotency via `Idempotency-Key`, and use prepared statements.
+  - Public routes support dedicated rate limiting (`PUBLIC_READ_RATE_LIMITER`, `PUBLIC_WRITE_RATE_LIMITER`).
 
 - **Dashboard Rendering (schema‑driven)** – see `[field-renderers.md](field-renderers.md)` and `[dashboard-components.md](dashboard-components.md)`
   - `EntryEditorPage` loads the Seed (via API + core) and renders each `Branch` using `<FieldEdit branch={branch} ... />`.
@@ -196,7 +198,8 @@ beech-cms/
   - **Must not** create per‑entity controllers (e.g., `/api/projects`) that bypass the Content Engine or Seed Registry.
 
 - **Public API contract**
-  - **Must** keep external integrations on `/api/v1/public/*` protected with API key auth.
+  - **Must** keep external integrations on `/api/v1/public/*` protected with API key auth (read/write split).
+  - **Must** enforce per-seed capability flags (`allowPublicRead`, `allowPublicPost`, `allowPublicEdit`) before DB access.
   - **Must** keep payload translation schema-driven via `@beech/core` (`getSeed`, `apiToDb`, `dbToApi`, validation foundation).
 
 - **Authentication & security**

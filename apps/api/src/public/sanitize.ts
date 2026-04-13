@@ -22,7 +22,7 @@ export type PublicSanitizeResult = PublicSanitizeSuccess | PublicSanitizeFailure
 export function sanitizePublicPayload(
   seed: Seed,
   payload: Record<string, unknown>,
-  options: { allowNull?: boolean } = {}
+  options: { allowNull?: boolean; strictUnknownAliases?: boolean } = {}
 ): PublicSanitizeResult {
   const result = validateAndSanitizeSeedPayload(seed, payload, {
     allowNull: options.allowNull ?? false,
@@ -44,6 +44,20 @@ export function sanitizePublicPayload(
       status: 400,
       message: 'Validation failed',
       details: result.details,
+    }
+  }
+
+  if (options.strictUnknownAliases && result.unknownAliases.length > 0) {
+    return {
+      ok: false,
+      status: 400,
+      message: `Unknown aliases: ${result.unknownAliases.join(', ')}`,
+      details: result.unknownAliases.map((alias) => ({
+        field: alias,
+        expected: 'known-seed-alias',
+        received: 'unknown-alias',
+        message: `Field '${alias}' is not defined in seed '${seed.slug}'`,
+      })),
     }
   }
 

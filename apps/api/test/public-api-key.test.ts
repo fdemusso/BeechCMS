@@ -19,7 +19,7 @@ function createMockD1() {
 }
 
 describe('Public API key middleware', () => {
-  it('restituisce 403 quando PUBLIC_API_KEY non e configurata', async () => {
+  it('restituisce 403 quando le key pubbliche non sono configurate', async () => {
     const res = await app.request('/api/v1/public/health', { method: 'GET' }, {
       DB: createMockD1(),
       JWT_SECRET: 'test-secret',
@@ -36,7 +36,7 @@ describe('Public API key middleware', () => {
     const res = await app.request('/api/v1/public/health', { method: 'GET' }, {
       DB: createMockD1(),
       JWT_SECRET: 'test-secret',
-      PUBLIC_API_KEY: 'valid-key',
+      PUBLIC_READ_API_KEY: 'valid-read-key',
       ENV: 'development',
     })
 
@@ -46,16 +46,16 @@ describe('Public API key middleware', () => {
     expect(body.message).toEqual(expect.stringContaining('Missing or invalid API key'))
   })
 
-  it('usa X-API-Key con priorita su query param key', async () => {
-    const res = await app.request('/api/v1/public/health?key=wrong-key', {
+  it('usa X-API-Key per accesso GET', async () => {
+    const res = await app.request('/api/v1/public/health', {
       method: 'GET',
       headers: {
-        'X-API-Key': 'valid-key',
+        'X-API-Key': 'valid-read-key',
       },
     }, {
       DB: createMockD1(),
       JWT_SECRET: 'test-secret',
-      PUBLIC_API_KEY: 'valid-key',
+      PUBLIC_READ_API_KEY: 'valid-read-key',
       ENV: 'development',
     })
 
@@ -65,15 +65,67 @@ describe('Public API key middleware', () => {
     expect(body.service).toBe('public-api')
   })
 
-  it('accetta key da query param quando header assente', async () => {
-    const res = await app.request('/api/v1/public/health?key=valid-key', { method: 'GET' }, {
+  it('rifiuta key in query param anche se valida', async () => {
+    const res = await app.request('/api/v1/public/health?key=valid-read-key', { method: 'GET' }, {
       DB: createMockD1(),
       JWT_SECRET: 'test-secret',
-      PUBLIC_API_KEY: 'valid-key',
+      PUBLIC_READ_API_KEY: 'valid-read-key',
       ENV: 'development',
     })
 
-    expect(res.status).toBe(200)
+    expect(res.status).toBe(401)
+  })
+
+  it('usa key write dedicata per POST', async () => {
+    const res = await app.request('/api/v1/public/messaggi/add', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': 'valid-write-key',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: {
+          name: 'Mario',
+          email: 'mario@example.com',
+          subject: 'Ciao',
+          message: '<p>Messaggio</p>',
+        },
+      }),
+    }, {
+      DB: createMockD1(),
+      JWT_SECRET: 'test-secret',
+      PUBLIC_READ_API_KEY: 'valid-read-key',
+      PUBLIC_WRITE_API_KEY: 'valid-write-key',
+      ENV: 'development',
+    })
+
+    expect([200, 201]).toContain(res.status)
+  })
+
+  it('rifiuta key read su POST', async () => {
+    const res = await app.request('/api/v1/public/messaggi/add', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': 'valid-read-key',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: {
+          name: 'Mario',
+          email: 'mario@example.com',
+          subject: 'Ciao',
+          message: '<p>Messaggio</p>',
+        },
+      }),
+    }, {
+      DB: createMockD1(),
+      JWT_SECRET: 'test-secret',
+      PUBLIC_READ_API_KEY: 'valid-read-key',
+      PUBLIC_WRITE_API_KEY: 'valid-write-key',
+      ENV: 'development',
+    })
+
+    expect(res.status).toBe(401)
   })
 })
 

@@ -50,6 +50,12 @@ export interface Seed {
   label: string
   /** Etichetta plurale per la UI (es. "Progetti", "Articoli Blog"). Se assente si usa `label`. */
   labelPlural?: string
+  /** Abilita lettura dalla Public API (`GET /api/v1/public/:seed`). Default: false */
+  allowPublicRead?: boolean
+  /** Abilita creazione dalla Public API (`POST /api/v1/public/:seed/add`). Default: false */
+  allowPublicPost?: boolean
+  /** Abilita modifica dalla Public API (`PUT /api/v1/public/:seed/edit/:id`). Default: false */
+  allowPublicEdit?: boolean
   /** Lista dei campi (Branch) */
   branches: Branch[]
 }

@@ -23,9 +23,14 @@ function createMockD1ForPublicRead(options?: {
             first: vi.fn(async () => ({ total })),
           }
         }
-        if (sql.includes('id = ? LIMIT 1')) {
+        if (sql.includes('FROM content_entries') && sql.includes('id = ?')) {
+          const enforcePublished = sql.includes("status = 'published'")
           return {
-            first: vi.fn(async () => detailRow),
+            first: vi.fn(async () => {
+              if (!enforcePublished) return detailRow
+              const row = asObject(detailRow)
+              return row.status === 'published' ? detailRow : null
+            }),
           }
         }
         return {
@@ -44,7 +49,7 @@ describe('Public API read endpoint', () => {
     }, {
       DB: createMockD1ForPublicRead(),
       JWT_SECRET: 'test-secret',
-      PUBLIC_API_KEY: 'valid-key',
+      PUBLIC_READ_API_KEY: 'valid-key',
       ENV: 'development',
     })
 
@@ -73,7 +78,7 @@ describe('Public API read endpoint', () => {
     }, {
       DB: mockDB,
       JWT_SECRET: 'test-secret',
-      PUBLIC_API_KEY: 'valid-key',
+      PUBLIC_READ_API_KEY: 'valid-key',
       ENV: 'development',
     })
 
@@ -112,7 +117,7 @@ describe('Public API read endpoint', () => {
       {
         DB: mockDB,
         JWT_SECRET: 'test-secret',
-        PUBLIC_API_KEY: 'valid-key',
+        PUBLIC_READ_API_KEY: 'valid-key',
         ENV: 'development',
       }
     )
@@ -153,7 +158,7 @@ describe('Public API read endpoint', () => {
     }, {
       DB: mockDB,
       JWT_SECRET: 'test-secret',
-      PUBLIC_API_KEY: 'valid-key',
+      PUBLIC_READ_API_KEY: 'valid-key',
       ENV: 'development',
     })
 
@@ -172,7 +177,7 @@ describe('Public API read endpoint', () => {
     }, {
       DB: createMockD1ForPublicRead(),
       JWT_SECRET: 'test-secret',
-      PUBLIC_API_KEY: 'valid-key',
+      PUBLIC_READ_API_KEY: 'valid-key',
       ENV: 'development',
     })
 
@@ -180,6 +185,47 @@ describe('Public API read endpoint', () => {
     const body = asObject(await res.json())
     expect(body.error).toBe('Bad Request')
     expect(body.message).toEqual(expect.stringContaining('Invalid filter'))
+  })
+
+  it('GET su seed non esposto in lettura pubblica restituisce 403', async () => {
+    const res = await app.request('/api/v1/public/messaggi', {
+      method: 'GET',
+      headers: { 'X-API-Key': 'valid-key' },
+    }, {
+      DB: createMockD1ForPublicRead(),
+      JWT_SECRET: 'test-secret',
+      PUBLIC_READ_API_KEY: 'valid-key',
+      ENV: 'development',
+    })
+
+    expect(res.status).toBe(403)
+  })
+
+  it('GET per id non restituisce bozze quando PUBLIC_PUBLISHED_ONLY=true', async () => {
+    const mockDB = createMockD1ForPublicRead({
+      detailRow: {
+        id: 'uuid-draft',
+        schema_slug: 'articoli',
+        slug: 'bozza',
+        status: 'draft',
+        data: JSON.stringify({ art_01: 'Bozza' }),
+        created_at: 1700000001,
+        updated_at: 1700000001,
+      },
+    })
+
+    const res = await app.request('/api/v1/public/articoli?id=uuid-draft', {
+      method: 'GET',
+      headers: { 'X-API-Key': 'valid-key' },
+    }, {
+      DB: mockDB,
+      JWT_SECRET: 'test-secret',
+      PUBLIC_READ_API_KEY: 'valid-key',
+      PUBLIC_PUBLISHED_ONLY: 'true',
+      ENV: 'development',
+    })
+
+    expect(res.status).toBe(404)
   })
 })
 

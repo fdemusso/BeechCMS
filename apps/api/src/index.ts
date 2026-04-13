@@ -21,7 +21,7 @@ import {
 import { authMiddleware } from './middleware'
 import { contentRoutes } from './content'
 import { uploadRoutes, serveMediaHandler } from './upload'
-import { publicRoutes, apiKeyMiddleware } from './public'
+import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
 
 // --- Tipi ---
 
@@ -37,8 +37,14 @@ type Bindings = {
   R2_BUCKET_NAME?: string
   LOGIN_RATE_LIMITER?: RateLimit
   REFRESH_RATE_LIMITER?: RateLimit
+  PUBLIC_READ_RATE_LIMITER?: RateLimit
+  PUBLIC_WRITE_RATE_LIMITER?: RateLimit
   CORS_ORIGINS?: string
-  PUBLIC_API_KEY?: string
+  PUBLIC_READ_API_KEY?: string
+  PUBLIC_WRITE_API_KEY?: string
+  PUBLIC_STRICT_UNKNOWN_ALIASES?: string
+  PUBLIC_PUBLISHED_ONLY?: string
+  PUBLIC_IDEMPOTENCY_TTL_SECONDS?: string
   MEDIA_BASE_URL?: string
   ENV?: string
 }
@@ -297,6 +303,7 @@ app.get('/api/media/:key', (c) => serveMediaHandler(c))
 
 // API Pubblica: endpoint per consumatori esterni, protetti da API Key
 const apiPublic = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+apiPublic.use('*', publicRateLimitMiddleware())
 apiPublic.use('*', apiKeyMiddleware())
 apiPublic.route('/', publicRoutes)
 app.route('/api/v1/public', apiPublic)

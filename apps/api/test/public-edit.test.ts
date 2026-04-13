@@ -60,13 +60,13 @@ describe('Public API edit endpoint', () => {
   const validId = '550e8400-e29b-41d4-a716-446655440000'
   const envBase = {
     JWT_SECRET: 'test-secret',
-    PUBLIC_API_KEY: 'valid-key',
+    PUBLIC_WRITE_API_KEY: 'valid-key',
     ENV: 'development',
   }
 
   it('PUT con UUID non valido -> 400', async () => {
     const res = await app.request(
-      '/api/v1/public/articoli/edit/not-a-uuid',
+      '/api/v1/public/messaggi/edit/not-a-uuid',
       {
         method: 'PUT',
         headers: {
@@ -88,14 +88,14 @@ describe('Public API edit endpoint', () => {
 
   it('PUT con entry assente -> 404', async () => {
     const res = await app.request(
-      `/api/v1/public/articoli/edit/${validId}`,
+      `/api/v1/public/messaggi/edit/${validId}`,
       {
         method: 'PUT',
         headers: {
           'X-API-Key': 'valid-key',
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ data: { title: 'Nuovo titolo' } }),
+        body: JSON.stringify({ data: { subject: 'Nuovo titolo' } }),
       },
       {
         DB: createMockD1ForPublicEdit({ currentRow: null }),
@@ -110,20 +110,20 @@ describe('Public API edit endpoint', () => {
     let bindArgs: unknown[] = []
     const currentRow = {
       id: validId,
-      schema_slug: 'articoli',
-      slug: 'articolo-esistente',
+      schema_slug: 'messaggi',
+      slug: 'messaggio-esistente',
       status: 'draft',
       data: JSON.stringify({
-        art_01: 'Titolo attuale',
-        art_05: '<p>Body invariato</p>',
-        art_06: 'Meta da rimuovere',
+        msg_01: 'Nome attuale',
+        msg_03: 'Oggetto attuale',
+        msg_04: '<p>Body invariato</p>',
       }),
       created_at: 1700000001,
       updated_at: 1700000002,
     }
 
     const res = await app.request(
-      `/api/v1/public/articoli/edit/${validId}`,
+      `/api/v1/public/messaggi/edit/${validId}`,
       {
         method: 'PUT',
         headers: {
@@ -131,11 +131,11 @@ describe('Public API edit endpoint', () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          slug: 'Articolo Aggiornato',
+          slug: 'Messaggio Aggiornato',
           status: 'published',
           data: {
-            title: 'Titolo aggiornato',
-            metaTitle: null,
+            subject: 'Oggetto aggiornato',
+            message: null,
           },
         }),
       },
@@ -153,25 +153,25 @@ describe('Public API edit endpoint', () => {
     expect(res.status).toBe(200)
     const body = asObject(await res.json())
     expect(body.success).toBe(true)
-    expect(body.slug).toBe('articolo-aggiornato')
+    expect(body.slug).toBe('messaggio-aggiornato')
 
-    const seed = getSeed('articoli')
-    if (!seed) throw new Error('Seed articoli non trovato')
+    const seed = getSeed('messaggi')
+    if (!seed) throw new Error('Seed messaggi non trovato')
     const boundData = bindArgs[2]
     const savedDbData = JSON.parse(
       typeof boundData === 'string' ? boundData : JSON.stringify(boundData)
     ) as Record<string, unknown>
     const savedAliasData = dbToApi(seed, savedDbData)
-    expect(savedAliasData.title).toBe('Titolo aggiornato')
-    expect(savedAliasData.body).toBe('<p>Body invariato</p>')
-    expect(savedAliasData.metaTitle).toBeUndefined()
-    expect(bindArgs[0]).toBe('articolo-aggiornato')
+    expect(savedAliasData.subject).toBe('Oggetto aggiornato')
+    expect(savedAliasData.name).toBe('Nome attuale')
+    expect(savedAliasData.message).toBeUndefined()
+    expect(bindArgs[0]).toBe('messaggio-aggiornato')
     expect(bindArgs[1]).toBe('published')
   })
 
   it('PUT con slug in conflitto -> 409', async () => {
     const res = await app.request(
-      `/api/v1/public/articoli/edit/${validId}`,
+      `/api/v1/public/messaggi/edit/${validId}`,
       {
         method: 'PUT',
         headers: {
@@ -186,10 +186,10 @@ describe('Public API edit endpoint', () => {
         DB: createMockD1ForPublicEdit({
           currentRow: {
             id: validId,
-            schema_slug: 'articoli',
+            schema_slug: 'messaggi',
             slug: 'old-slug',
             status: 'draft',
-            data: JSON.stringify({ art_01: 'Titolo' }),
+            data: JSON.stringify({ msg_01: 'Nome' }),
             created_at: 1700000001,
             updated_at: 1700000002,
           },
@@ -204,7 +204,7 @@ describe('Public API edit endpoint', () => {
 
   it('PUT con dato non valido -> 400 con details', async () => {
     const res = await app.request(
-      `/api/v1/public/prodotti/edit/${validId}`,
+      `/api/v1/public/messaggi/edit/${validId}`,
       {
         method: 'PUT',
         headers: {
@@ -213,7 +213,7 @@ describe('Public API edit endpoint', () => {
         },
         body: JSON.stringify({
           data: {
-            price: 'not-a-number',
+            read: 'not-a-boolean',
           },
         }),
       },
@@ -221,10 +221,10 @@ describe('Public API edit endpoint', () => {
         DB: createMockD1ForPublicEdit({
           currentRow: {
             id: validId,
-            schema_slug: 'prodotti',
-            slug: 'prodotto-1',
+            schema_slug: 'messaggi',
+            slug: 'messaggio-1',
             status: 'draft',
-            data: JSON.stringify({ prod_01: 'Prodotto' }),
+            data: JSON.stringify({ msg_01: 'Nome' }),
             created_at: 1700000001,
             updated_at: 1700000002,
           },
@@ -237,5 +237,25 @@ describe('Public API edit endpoint', () => {
     const body = asObject(await res.json())
     expect(body.message).toBe('Validation failed')
     expect(Array.isArray(body.details)).toBe(true)
+  })
+
+  it('PUT su seed non abilitato pubblicamente -> 403', async () => {
+    const res = await app.request(
+      `/api/v1/public/articoli/edit/${validId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'X-API-Key': 'valid-key',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ data: { title: 'test' } }),
+      },
+      {
+        DB: createMockD1ForPublicEdit(),
+        ...envBase,
+      }
+    )
+
+    expect(res.status).toBe(403)
   })
 })

@@ -13,11 +13,35 @@ Layer pubblico per esporre i contenuti del CMS a client esterni (siti, app, inte
 
 ## Autenticazione
 
-- Variabile richiesta: `PUBLIC_API_KEY`.
-- Priorita key: header `X-API-Key` > query param `?key=`.
+- Variabili consigliate:
+  - `PUBLIC_READ_API_KEY` per `GET`
+  - `PUBLIC_WRITE_API_KEY` per `POST`/`PUT`
+- La key e accettata solo via header `X-API-Key`.
 - Errori:
-  - `403` quando `PUBLIC_API_KEY` non e configurata.
+  - `403` quando la key richiesta (read o write) non e configurata.
   - `401` quando la key e mancante o invalida.
+  - `429` quando scatta il rate limit pubblico.
+
+## Policy per seed (allowlist)
+
+La Public API usa una policy per-seed nel `Seed Registry`:
+
+- `allowPublicRead`: abilita `GET /:seed`
+- `allowPublicPost`: abilita `POST /:seed/add`
+- `allowPublicEdit`: abilita `PUT /:seed/edit/:id`
+
+Default: **deny** su tutte le operazioni non esplicitamente abilitate.
+
+Matrice attuale:
+
+| Seed | Read | Post | Edit |
+|---|---|---|---|
+| `articoli` | si | no | no |
+| `prodotti` | si | no | no |
+| `team` | si | no | no |
+| `testimonianze` | si | no | no |
+| `pagine` | si | no | no |
+| `messaggi` | no | si | si |
 
 Esempio:
 
@@ -63,11 +87,13 @@ Operatori supportati:
 Pipeline:
 
 1. Validazione seed.
-2. Parse JSON body.
-3. Verifica `data` come oggetto non vuoto.
-4. Validazione/sanitizzazione schema-driven tramite core (`validateAndSanitizeSeedPayload` via adapter API).
-5. Verifica unicita slug.
-6. Insert con prepared statement.
+2. Verifica policy `allowPublicPost`.
+3. Parse JSON body.
+4. Verifica `data` come oggetto non vuoto.
+5. Validazione/sanitizzazione schema-driven tramite core (`validateAndSanitizeSeedPayload` via adapter API).
+6. Verifica idempotenza opzionale (`Idempotency-Key`) per retry sicuri.
+7. Verifica unicita slug.
+8. Insert con prepared statement.
 
 Comportamenti principali:
 
@@ -78,9 +104,15 @@ Comportamenti principali:
   - fallback finale UUID corto.
 - Rich text pericoloso (es. `<script>`): `422 Unprocessable Entity`.
 - Errori di tipo/validazione: `400` con `details`.
+- Alias sconosciuti:
+  - default: ignorati con warning log;
+  - strict mode (`PUBLIC_STRICT_UNKNOWN_ALIASES=true`): `400`.
 - Campi media:
   - `file` singolo -> `string` URL HTTPS
   - `asset-list` (`file` con `multiple: true` o `format: 'asset-list'`) -> `string[]` URL HTTPS
+- Idempotenza:
+  - se `Idempotency-Key` e presente e la richiesta e uguale, viene restituita la risposta salvata;
+  - se la stessa key viene riusata con payload diverso: `409 Conflict`.
 - Successo: `201 { success: true, id, slug }`.
 
 ## PUT `/api/v1/public/:seed/edit/:id`
@@ -88,15 +120,16 @@ Comportamenti principali:
 Pipeline:
 
 1. Validazione seed.
-2. Validazione UUID.
-3. Verifica esistenza entry.
-4. Parse body.
-5. Merge parziale dei dati alias:
+2. Verifica policy `allowPublicEdit`.
+3. Validazione UUID.
+4. Verifica esistenza entry.
+5. Parse body.
+6. Merge parziale dei dati alias:
    - campi presenti sovrascrivono;
    - campi assenti restano invariati;
    - campi con `null` vengono rimossi.
-6. Verifica unicita slug (escludendo la entry corrente).
-7. Update con prepared statement.
+7. Verifica unicita slug (escludendo la entry corrente).
+8. Update con prepared statement.
 
 Comportamenti principali:
 
@@ -110,3 +143,7 @@ Comportamenti principali:
 - La Public API usa il Botanical Engine (`getSeed`, `apiToDb`, `dbToApi`) e non accede direttamente ai campi interni `br_xxx`.
 - Le utility query condivise sono centralizzate in `apps/api/src/shared/query-utils.ts`.
 - In produzione (`ENV=production`) gli errori 500 sono resi con messaggio generico.
+- Rate limiting dedicato per route pubbliche:
+  - `PUBLIC_READ_RATE_LIMITER` per GET
+  - `PUBLIC_WRITE_RATE_LIMITER` per POST/PUT
+- Visibilita default sui contenuti pubblici: solo `status='published'` (`PUBLIC_PUBLISHED_ONLY=true`).

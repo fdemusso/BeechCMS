@@ -2,6 +2,7 @@ import { SEED_REGISTRY, dbToApi, getSeed } from '@beech/core'
 import type { Context } from 'hono'
 import { buildOrderClause, cleanStr, rowToEntry } from '../shared/query-utils'
 import type { ContentEntryRow } from '../shared/query-utils'
+import { checkPublicOperation } from './access-policy'
 import { buildPublicListMeta, buildPublicSingleMeta } from './response-builder'
 import {
   buildPublicFilterWhereClause,
@@ -12,7 +13,9 @@ import {
 
 type Bindings = {
   DB: D1Database
-  PUBLIC_API_KEY?: string
+  PUBLIC_READ_API_KEY?: string
+  PUBLIC_WRITE_API_KEY?: string
+  PUBLIC_PUBLISHED_ONLY?: string
   ENV?: string
 }
 
@@ -92,16 +95,24 @@ export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variabl
       404
     )
   }
+  const access = checkPublicOperation(seed, 'read')
+  if (!access.ok) {
+    return c.json(access.error, 403)
+  }
 
   const query = c.req.query()
   const id = cleanStr(query.id)
+  const publishedOnly = c.env.PUBLIC_PUBLISHED_ONLY !== 'false'
 
   try {
     const { DB } = c.env
 
     if (id) {
       const row = await DB.prepare(
-        'SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND id = ? LIMIT 1'
+        `SELECT id, schema_slug, slug, status, data, created_at, updated_at
+         FROM content_entries
+         WHERE schema_slug = ? AND id = ? ${publishedOnly ? "AND status = 'published'" : ''}
+         LIMIT 1`
       )
         .bind(seedSlug, id)
         .first<ContentEntryRow>()
@@ -132,6 +143,9 @@ export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variabl
 
     const whereParts: string[] = ['schema_slug = ?']
     const whereBindings: Array<string | number> = [seedSlug]
+    if (publishedOnly) {
+      whereParts.push("status = 'published'")
+    }
 
     if (search) {
       const term = `%${search}%`

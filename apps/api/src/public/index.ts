@@ -1,4 +1,5 @@
 export { apiKeyMiddleware } from './api-key-middleware'
+export { publicRateLimitMiddleware } from './rate-limit-middleware'
 export { publicRoutes } from './public-routes'
 export { PUBLIC_ERRORS } from './public-errors'
 export { sanitizePublicPayload } from './sanitize'

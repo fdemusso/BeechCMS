@@ -9,13 +9,30 @@ function asObject(value: unknown): Record<string, unknown> {
 function createMockD1ForPublicAdd(options?: {
   slugExists?: boolean
   shouldFailInsert?: boolean
+  idempotencyRecord?: Record<string, unknown> | null
+  captureIdempotencyInsert?: (args: unknown[]) => void
 }) {
   const slugExists = options?.slugExists ?? false
   const shouldFailInsert = options?.shouldFailInsert ?? false
+  const idempotencyRecord = options?.idempotencyRecord ?? null
+  const captureIdempotencyInsert = options?.captureIdempotencyInsert
 
   return {
     prepare: vi.fn((sql: string) => ({
       bind: vi.fn(() => {
+        if (sql.includes('FROM public_idempotency_keys')) {
+          return {
+            first: vi.fn(async () => idempotencyRecord),
+          }
+        }
+        if (sql.includes('INSERT INTO public_idempotency_keys')) {
+          return {
+            run: vi.fn(async (...args: unknown[]) => {
+              captureIdempotencyInsert?.(args)
+              return { success: true, meta: { changes: 1 } }
+            }),
+          }
+        }
         if (sql.includes('SELECT id FROM content_entries WHERE schema_slug = ? AND slug = ?')) {
           return {
             first: vi.fn(async () => (slugExists ? { id: 'existing-id' } : null)),
@@ -41,7 +58,7 @@ function createMockD1ForPublicAdd(options?: {
 describe('Public API add endpoint', () => {
   const envBase = {
     JWT_SECRET: 'test-secret',
-    PUBLIC_API_KEY: 'valid-key',
+    PUBLIC_WRITE_API_KEY: 'valid-key',
     ENV: 'development',
   }
 
@@ -62,7 +79,7 @@ describe('Public API add endpoint', () => {
   })
 
   it('POST con JSON malformato -> 400', async () => {
-    const res = await app.request('/api/v1/public/articoli/add', {
+    const res = await app.request('/api/v1/public/messaggi/add', {
       method: 'POST',
       headers: {
         'X-API-Key': 'valid-key',
@@ -80,7 +97,7 @@ describe('Public API add endpoint', () => {
   })
 
   it("POST senza data valida -> 400", async () => {
-    const res = await app.request('/api/v1/public/articoli/add', {
+    const res = await app.request('/api/v1/public/messaggi/add', {
       method: 'POST',
       headers: {
         'X-API-Key': 'valid-key',
@@ -98,13 +115,13 @@ describe('Public API add endpoint', () => {
   })
 
   it('POST con status invalido -> 400', async () => {
-    const res = await app.request('/api/v1/public/articoli/add', {
+    const res = await app.request('/api/v1/public/messaggi/add', {
       method: 'POST',
       headers: {
         'X-API-Key': 'valid-key',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ status: 'archived', data: { title: 'x' } }),
+      body: JSON.stringify({ status: 'archived', data: { name: 'x' } }),
     }, {
       DB: createMockD1ForPublicAdd(),
       ...envBase,
@@ -114,14 +131,14 @@ describe('Public API add endpoint', () => {
   })
 
   it('POST con errore validazione tipo -> 400 con details', async () => {
-    const res = await app.request('/api/v1/public/prodotti/add', {
+    const res = await app.request('/api/v1/public/messaggi/add', {
       method: 'POST',
       headers: {
         'X-API-Key': 'valid-key',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        data: { price: 'not-a-number' },
+        data: { read: 'not-a-boolean' },
       }),
     }, {
       DB: createMockD1ForPublicAdd(),
@@ -135,14 +152,14 @@ describe('Public API add endpoint', () => {
   })
 
   it('POST con richtext pericoloso -> 422', async () => {
-    const res = await app.request('/api/v1/public/articoli/add', {
+    const res = await app.request('/api/v1/public/messaggi/add', {
       method: 'POST',
       headers: {
         'X-API-Key': 'valid-key',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        data: { body: '<p>ok</p><script>alert(1)</script>' },
+        data: { message: '<p>ok</p><script>alert(1)</script>' },
       }),
     }, {
       DB: createMockD1ForPublicAdd(),
@@ -153,7 +170,7 @@ describe('Public API add endpoint', () => {
   })
 
   it('POST con slug gia esistente -> 409', async () => {
-    const res = await app.request('/api/v1/public/articoli/add', {
+    const res = await app.request('/api/v1/public/messaggi/add', {
       method: 'POST',
       headers: {
         'X-API-Key': 'valid-key',
@@ -161,7 +178,7 @@ describe('Public API add endpoint', () => {
       },
       body: JSON.stringify({
         slug: 'primo-articolo',
-        data: { title: 'Titolo' },
+        data: { name: 'Titolo' },
       }),
     }, {
       DB: createMockD1ForPublicAdd({ slugExists: true }),
@@ -172,7 +189,7 @@ describe('Public API add endpoint', () => {
   })
 
   it('POST successo con slug auto-generato -> 201', async () => {
-    const res = await app.request('/api/v1/public/articoli/add', {
+    const res = await app.request('/api/v1/public/messaggi/add', {
       method: 'POST',
       headers: {
         'X-API-Key': 'valid-key',
@@ -180,7 +197,7 @@ describe('Public API add endpoint', () => {
       },
       body: JSON.stringify({
         status: 'draft',
-        data: { title: 'Titolo Nuovo Articolo' },
+        data: { name: 'Titolo Nuovo Articolo' },
       }),
     }, {
       DB: createMockD1ForPublicAdd(),
@@ -192,6 +209,75 @@ describe('Public API add endpoint', () => {
     expect(body.success).toBe(true)
     expect(typeof body.id).toBe('string')
     expect(body.slug).toBe('titolo-nuovo-articolo')
+  })
+
+  it('POST su seed non abilitato pubblicamente -> 403', async () => {
+    const res = await app.request('/api/v1/public/articoli/add', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': 'valid-key',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: { title: 'Titolo Nuovo Articolo' },
+      }),
+    }, {
+      DB: createMockD1ForPublicAdd(),
+      ...envBase,
+    })
+
+    expect(res.status).toBe(403)
+  })
+
+  it('POST con Idempotency-Key e payload diverso -> 409', async () => {
+    const res = await app.request('/api/v1/public/messaggi/add', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': 'valid-key',
+        'Idempotency-Key': 'idem-1',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: { name: 'Titolo Nuovo Articolo' },
+      }),
+    }, {
+      DB: createMockD1ForPublicAdd({
+        idempotencyRecord: {
+          idempotency_key: 'idem-1',
+          request_fingerprint: 'old-fingerprint',
+          response_status: 201,
+          response_body: JSON.stringify({ success: true, id: 'old', slug: 'old' }),
+          expires_at: 9999999999,
+        },
+      }),
+      ...envBase,
+    })
+
+    expect(res.status).toBe(409)
+  })
+
+  it('POST con alias sconosciuto in strict mode -> 400', async () => {
+    const res = await app.request('/api/v1/public/messaggi/add', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': 'valid-key',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: {
+          name: 'Mario',
+          unknownField: 'x',
+        },
+      }),
+    }, {
+      DB: createMockD1ForPublicAdd(),
+      ...envBase,
+      PUBLIC_STRICT_UNKNOWN_ALIASES: 'true',
+    })
+
+    expect(res.status).toBe(400)
+    const body = asObject(await res.json())
+    expect(body.message).toEqual(expect.stringContaining('Unknown aliases'))
   })
 })
 

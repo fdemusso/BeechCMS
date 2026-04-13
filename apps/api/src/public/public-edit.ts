@@ -2,12 +2,15 @@ import { apiToDb, dbToApi, getSeed, isValidContentStatus } from '@beech/core'
 import type { Context } from 'hono'
 import { cleanStr, rowToEntry } from '../shared/query-utils'
 import type { ContentEntryRow } from '../shared/query-utils'
+import { checkPublicOperation } from './access-policy'
 import { slugify } from './slug-utils'
 import { sanitizePublicPayload } from './sanitize'
 
 type Bindings = {
   DB: D1Database
-  PUBLIC_API_KEY?: string
+  PUBLIC_READ_API_KEY?: string
+  PUBLIC_WRITE_API_KEY?: string
+  PUBLIC_STRICT_UNKNOWN_ALIASES?: string
   ENV?: string
 }
 
@@ -124,7 +127,11 @@ function resolveData(
     }
   }
 
-  const sanitized = sanitizePublicPayload(seed, rawData, { allowNull: true })
+  const strictUnknownAliases = c.env.PUBLIC_STRICT_UNKNOWN_ALIASES === 'true'
+  const sanitized = sanitizePublicPayload(seed, rawData, {
+    allowNull: true,
+    strictUnknownAliases,
+  })
   if (!sanitized.ok) {
     if (sanitized.status === 422) {
       return {
@@ -144,6 +151,12 @@ function resolveData(
         400
       ),
     }
+  }
+  if (sanitized.unknownAliases.length > 0) {
+    console.warn('[public-edit] Unknown aliases ignored', {
+      seed: seed.slug,
+      unknownAliases: sanitized.unknownAliases,
+    })
   }
 
   const currentEntry = rowToEntry(currentRow)
@@ -168,6 +181,10 @@ export async function publicEditHandler(c: PublicCtx) {
       },
       404
     )
+  }
+  const access = checkPublicOperation(seed, 'edit')
+  if (!access.ok) {
+    return c.json(access.error, 403)
   }
 
   if (!UUID_REGEX.test(id)) {

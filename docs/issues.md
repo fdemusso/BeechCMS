@@ -15,6 +15,13 @@ Nel seed `prodotti`, le immagini erano salvate come campo `json` (`prd_06`, alia
 Il DB in fase di POST `add` dalla Public API pare accettare tutti i campi esposti dal payload, appoggiandosi solo alla sanificazione dello schema.
 Manca una restrizione documentata su quali seed possono accettare POST pubblici. In teoria, tramite endpoint API e Public API-Key, un banale form esterno potrebbe *creare Pagine o Articoli* invece di poter postare solo "Messaggi" da moderare, non risultando esserci un RBAC esplicito a livello di Seed. (Consigliata introduzione di una property `allowPublicPost: boolean` nel SeedType).
 
+### Stato: RISOLTO
+
+- introdotte capability per-seed (`allowPublicRead`, `allowPublicPost`, `allowPublicEdit`) nel core
+- enforcement `403` nei handler Public API (`read`, `add`, `edit`) con default deny
+- split chiavi `PUBLIC_READ_API_KEY`/`PUBLIC_WRITE_API_KEY`
+- rate limit dedicato sulle route pubbliche e supporto `Idempotency-Key` su `POST /add`
+
 ## 4. Validazione Rigida vs Evolutiva
 La documentazione ammette "Alias non riconosciuti vengono ignorati (safe policy)" ma annuncia anche sprint su Zod (in `botanical-engine.md` si citano roadmap future). Al momento, spedire JSON leggermente malformati o non aderenti al tipo non produce chiari errori strutturali su tutti i tipi branch, il che potrebbe portare un contact form front-end a salvare "null" silenziosamente se l'alias del `name` del mittente non coincide col DB.
 
