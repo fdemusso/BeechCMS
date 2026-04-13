@@ -21,6 +21,7 @@ Layer pubblico per esporre i contenuti del CMS a client esterni (siti, app, inte
   - `403` quando la key richiesta (read o write) non e configurata.
   - `401` quando la key e mancante o invalida.
   - `429` quando scatta il rate limit pubblico.
+  - Error payload in formato Problem Details (`application/problem+json`) con campi legacy compatibili (`error`, `message`, `details`).
 
 ## Policy per seed (allowlist)
 
@@ -105,8 +106,10 @@ Comportamenti principali:
 - Rich text pericoloso (es. `<script>`): `422 Unprocessable Entity`.
 - Errori di tipo/validazione: `400` con `details`.
 - Alias sconosciuti:
-  - default: ignorati con warning log;
-  - strict mode (`PUBLIC_STRICT_UNKNOWN_ALIASES=true`): `400`.
+  - in ambienti deploy: rifiutati (`400`) con dettaglio field-level;
+  - in sviluppo: configurabili via `PUBLIC_STRICT_UNKNOWN_ALIASES` (raccomandato `true`).
+- Required fields per-seed (`requiredOnCreate`) enforced dal core in `operation=create`.
+- Payload senza nessun campo valido dopo sanitizzazione: `400`.
 - Campi media:
   - `file` singolo -> `string` URL HTTPS
   - `asset-list` (`file` con `multiple: true` o `format: 'asset-list'`) -> `string[]` URL HTTPS
@@ -136,7 +139,22 @@ Comportamenti principali:
 - `status` valido: `draft | review | published`.
 - `slug` opzionale: se presente deve essere stringa non vuota.
 - Campi media multipli (`asset-list`) restano compatibili con payload legacy (`json`/oggetti con `url`) tramite normalizzazione nel core.
+- `requiredOnUpdate` (se definito nel seed) viene enforced in `operation=update`.
+- Patch senza campi validi (es. solo alias sconosciuti): `400`.
 - Successo: `200 { success: true, id, slug }`.
+
+## Error Model (Problem Details)
+
+Le risposte errore della Public API usano un envelope Problem Details:
+
+- `type`: URI machine-readable del problema
+- `title`: nome breve errore (es. `Bad Request`)
+- `status`: HTTP status code
+- `detail`: descrizione errore
+- `instance`: path richiesta
+- `errors[]`: opzionale, dettagli field-level per errori di validazione
+
+Compatibilita retro: sono mantenuti anche `error`, `message` e `details` per i client esistenti.
 
 ## Note implementative
 
@@ -147,3 +165,4 @@ Comportamenti principali:
   - `PUBLIC_READ_RATE_LIMITER` per GET
   - `PUBLIC_WRITE_RATE_LIMITER` per POST/PUT
 - Visibilita default sui contenuti pubblici: solo `status='published'` (`PUBLIC_PUBLISHED_ONLY=true`).
+- Hardening consigliato per deploy: `PUBLIC_STRICT_UNKNOWN_ALIASES=true` (fail-closed sui write endpoint).

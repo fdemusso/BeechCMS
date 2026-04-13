@@ -2,6 +2,7 @@ import { apiToDb, getSeed, isValidContentStatus } from '@beech/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../shared/query-utils'
 import { checkPublicOperation } from './access-policy'
+import { publicProblem } from './problem-details'
 import { generateEntrySlug, slugify } from './slug-utils'
 import { sanitizePublicPayload } from './sanitize'
 
@@ -125,17 +126,21 @@ export async function publicAddHandler(c: Context<{ Bindings: Bindings; Variable
   const seedSlug = c.req.param('seed')
   const seed = getSeed(seedSlug)
   if (!seed) {
-    return c.json(
-      {
-        error: 'Seed Not Found',
-        message: `The content type '${seedSlug}' does not exist.`,
-      },
-      404
-    )
+    return publicProblem(c, {
+      type: 'seed-not-found',
+      title: 'Seed Not Found',
+      status: 404,
+      detail: `The content type '${seedSlug}' does not exist.`,
+    })
   }
   const access = checkPublicOperation(seed, 'add')
   if (!access.ok) {
-    return c.json(access.error, 403)
+    return publicProblem(c, {
+      type: 'operation-not-allowed',
+      title: access.error.error,
+      status: 403,
+      detail: access.error.message,
+    })
   }
 
   let body: Record<string, unknown>
@@ -143,45 +148,58 @@ export async function publicAddHandler(c: Context<{ Bindings: Bindings; Variable
     const parsed = await c.req.json<unknown>()
     body = asRecord(parsed) ?? {}
   } catch {
-    return c.json({ error: 'Bad Request', message: 'Invalid JSON body' }, 400)
+    return publicProblem(c, {
+      type: 'invalid-json-body',
+      title: 'Bad Request',
+      status: 400,
+      detail: 'Invalid JSON body',
+    })
   }
 
   const rawData = asRecord(body.data)
   if (!rawData || Object.keys(rawData).length === 0) {
-    return c.json(
-      {
-        error: 'Bad Request',
-        message: "Field 'data' is required and must be a non-empty object",
-      },
-      400
-    )
+    return publicProblem(c, {
+      type: 'invalid-data-object',
+      title: 'Bad Request',
+      status: 400,
+      detail: "Field 'data' is required and must be a non-empty object",
+    })
   }
 
   const statusValue = body.status ?? 'draft'
   if (!isValidContentStatus(statusValue)) {
-    return c.json(
-      {
-        error: 'Bad Request',
-        message: "Invalid status. Allowed values are: draft, review, published",
-      },
-      400
-    )
+    return publicProblem(c, {
+      type: 'invalid-status',
+      title: 'Bad Request',
+      status: 400,
+      detail: 'Invalid status. Allowed values are: draft, review, published',
+    })
   }
 
   const strictUnknownAliases = c.env.PUBLIC_STRICT_UNKNOWN_ALIASES === 'true'
-  const sanitized = sanitizePublicPayload(seed, rawData, { strictUnknownAliases })
+  const sanitized = sanitizePublicPayload(seed, rawData, {
+    strictUnknownAliases,
+    operation: 'create',
+    allowNull: false,
+    requireAtLeastOneValidField: true,
+    enforceRequiredFields: true,
+  })
   if (!sanitized.ok) {
     if (sanitized.status === 422) {
-      return c.json({ error: 'Unprocessable Entity', message: sanitized.message }, 422)
+      return publicProblem(c, {
+        type: sanitized.code,
+        title: 'Unprocessable Entity',
+        status: 422,
+        detail: sanitized.message,
+      })
     }
-    return c.json(
-      {
-        error: 'Bad Request',
-        message: sanitized.message,
-        details: sanitized.details,
-      },
-      400
-    )
+    return publicProblem(c, {
+      type: sanitized.code,
+      title: 'Bad Request',
+      status: 400,
+      detail: sanitized.message,
+      errors: sanitized.details,
+    })
   }
   if (sanitized.unknownAliases.length > 0) {
     console.warn('[public-add] Unknown aliases ignored', {
@@ -214,13 +232,12 @@ export async function publicAddHandler(c: Context<{ Bindings: Bindings; Variable
       const existing = await lookupIdempotency(DB, idempotencyKey)
       if (existing && existing.expires_at >= now) {
         if (existing.request_fingerprint !== fingerprint) {
-          return c.json(
-            {
-              error: 'Conflict',
-              message: 'Idempotency-Key was already used with a different request payload.',
-            },
-            409
-          )
+          return publicProblem(c, {
+            type: 'idempotency-key-conflict',
+            title: 'Conflict',
+            status: 409,
+            detail: 'Idempotency-Key was already used with a different request payload.',
+          })
         }
 
         let parsedBody: unknown = null
@@ -240,13 +257,12 @@ export async function publicAddHandler(c: Context<{ Bindings: Bindings; Variable
       .first<{ id: string }>()
 
     if (slugExisting) {
-      return c.json(
-        {
-          error: 'Conflict',
-          message: `An entry with slug '${finalSlug}' already exists for content type '${seedSlug}'.`,
-        },
-        409
-      )
+      return publicProblem(c, {
+        type: 'slug-conflict',
+        title: 'Conflict',
+        status: 409,
+        detail: `An entry with slug '${finalSlug}' already exists for content type '${seedSlug}'.`,
+      })
     }
 
     const id = crypto.randomUUID()
@@ -273,13 +289,12 @@ export async function publicAddHandler(c: Context<{ Bindings: Bindings; Variable
 
     return c.json(responseBody, 201)
   } catch (err) {
-    return c.json(
-      {
-        error: 'Internal Server Error',
-        message: errorMessage(c, err),
-      },
-      500
-    )
+    return publicProblem(c, {
+      type: 'internal-server-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: errorMessage(c, err),
+    })
   }
 }
 

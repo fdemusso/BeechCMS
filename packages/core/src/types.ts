@@ -40,6 +40,16 @@ export interface Branch {
    * nel dropdown dei filtri in ContentToolbar.
    */
   options?: string[]
+  /**
+   * Campo obbligatorio in creazione (operation=create).
+   * Se true, il payload deve includere un valore valido non nullo.
+   */
+  requiredOnCreate?: boolean
+  /**
+   * Campo obbligatorio in update (operation=update).
+   * Se true, il payload deve includere un valore valido non nullo.
+   */
+  requiredOnUpdate?: boolean
 }
 
 /** Seed: definizione dello schema di un tipo di contenuto */

@@ -1,5 +1,6 @@
 import type { Context, Next } from 'hono'
 import { PUBLIC_ERRORS } from './public-errors'
+import { publicProblem } from './problem-details'
 
 type PublicBindings = {
   PUBLIC_READ_API_KEY?: string
@@ -27,13 +28,23 @@ export function apiKeyMiddleware() {
     const configuredKey = getConfiguredKey(env, c.req.method)
 
     if (!configuredKey) {
-      return c.json(PUBLIC_ERRORS.API_KEY_FORBIDDEN, 403)
+      return publicProblem(c, {
+        type: 'public-api-not-configured',
+        title: PUBLIC_ERRORS.API_KEY_FORBIDDEN.error,
+        status: 403,
+        detail: PUBLIC_ERRORS.API_KEY_FORBIDDEN.message,
+      })
     }
 
     const providedKey = c.req.header('X-API-Key')
 
     if (!providedKey || providedKey !== configuredKey) {
-      return c.json(PUBLIC_ERRORS.API_KEY_UNAUTHORIZED, 401)
+      return publicProblem(c, {
+        type: 'public-api-key-unauthorized',
+        title: PUBLIC_ERRORS.API_KEY_UNAUTHORIZED.error,
+        status: 401,
+        detail: PUBLIC_ERRORS.API_KEY_UNAUTHORIZED.message,
+      })
     }
 
     await next()

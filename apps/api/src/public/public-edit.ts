@@ -3,6 +3,7 @@ import type { Context } from 'hono'
 import { cleanStr, rowToEntry } from '../shared/query-utils'
 import type { ContentEntryRow } from '../shared/query-utils'
 import { checkPublicOperation } from './access-policy'
+import { publicProblem } from './problem-details'
 import { slugify } from './slug-utils'
 import { sanitizePublicPayload } from './sanitize'
 
@@ -51,7 +52,12 @@ function parseBody(c: PublicCtx): Promise<ResolveResult<Record<string, unknown>>
     .then((parsed) => ({ ok: true, value: asRecord(parsed) ?? {} }) as const)
     .catch(() => ({
       ok: false,
-      response: c.json({ error: 'Bad Request', message: 'Invalid JSON body' }, 400),
+      response: publicProblem(c, {
+        type: 'invalid-json-body',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'Invalid JSON body',
+      }),
     }))
 }
 
@@ -68,13 +74,12 @@ function resolveSlug(c: PublicCtx, body: Record<string, unknown>, currentSlug: s
   if (!requestedSlug) {
     return {
       ok: false,
-      response: c.json(
-        {
-          error: 'Bad Request',
-          message: "Field 'slug' must be a non-empty string",
-        },
-        400
-      ),
+      response: publicProblem(c, {
+        type: 'invalid-slug',
+        title: 'Bad Request',
+        status: 400,
+        detail: "Field 'slug' must be a non-empty string",
+      }),
     }
   }
 
@@ -90,13 +95,12 @@ function resolveStatus(c: PublicCtx, body: Record<string, unknown>, currentStatu
   if (!isValidContentStatus(statusValue)) {
     return {
       ok: false,
-      response: c.json(
-        {
-          error: 'Bad Request',
-          message: "Invalid status. Allowed values are: draft, review, published",
-        },
-        400
-      ),
+      response: publicProblem(c, {
+        type: 'invalid-status',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'Invalid status. Allowed values are: draft, review, published',
+      }),
     }
   }
 
@@ -117,13 +121,12 @@ function resolveData(
   if (!rawData) {
     return {
       ok: false,
-      response: c.json(
-        {
-          error: 'Bad Request',
-          message: "Field 'data' must be an object when provided",
-        },
-        400
-      ),
+      response: publicProblem(c, {
+        type: 'invalid-data-object',
+        title: 'Bad Request',
+        status: 400,
+        detail: "Field 'data' must be an object when provided",
+      }),
     }
   }
 
@@ -131,25 +134,32 @@ function resolveData(
   const sanitized = sanitizePublicPayload(seed, rawData, {
     allowNull: true,
     strictUnknownAliases,
+    operation: 'update',
+    requireAtLeastOneValidField: true,
+    enforceRequiredFields: true,
   })
   if (!sanitized.ok) {
     if (sanitized.status === 422) {
       return {
         ok: false,
-        response: c.json({ error: 'Unprocessable Entity', message: sanitized.message }, 422),
+        response: publicProblem(c, {
+          type: sanitized.code,
+          title: 'Unprocessable Entity',
+          status: 422,
+          detail: sanitized.message,
+        }),
       }
     }
 
     return {
       ok: false,
-      response: c.json(
-        {
-          error: 'Bad Request',
-          message: sanitized.message,
-          details: sanitized.details,
-        },
-        400
-      ),
+      response: publicProblem(c, {
+        type: sanitized.code,
+        title: 'Bad Request',
+        status: 400,
+        detail: sanitized.message,
+        errors: sanitized.details,
+      }),
     }
   }
   if (sanitized.unknownAliases.length > 0) {
@@ -174,27 +184,30 @@ export async function publicEditHandler(c: PublicCtx) {
   const id = c.req.param('id')
   const seed = getSeed(seedSlug)
   if (!seed) {
-    return c.json(
-      {
-        error: 'Seed Not Found',
-        message: `The content type '${seedSlug}' does not exist.`,
-      },
-      404
-    )
+    return publicProblem(c, {
+      type: 'seed-not-found',
+      title: 'Seed Not Found',
+      status: 404,
+      detail: `The content type '${seedSlug}' does not exist.`,
+    })
   }
   const access = checkPublicOperation(seed, 'edit')
   if (!access.ok) {
-    return c.json(access.error, 403)
+    return publicProblem(c, {
+      type: 'operation-not-allowed',
+      title: access.error.error,
+      status: 403,
+      detail: access.error.message,
+    })
   }
 
   if (!UUID_REGEX.test(id)) {
-    return c.json(
-      {
-        error: 'Bad Request',
-        message: 'Invalid entry ID format',
-      },
-      400
-    )
+    return publicProblem(c, {
+      type: 'invalid-entry-id',
+      title: 'Bad Request',
+      status: 400,
+      detail: 'Invalid entry ID format',
+    })
   }
 
   try {
@@ -206,13 +219,12 @@ export async function publicEditHandler(c: PublicCtx) {
       .first<ContentEntryRow>()
 
     if (!currentRow) {
-      return c.json(
-        {
-          error: 'Not Found',
-          message: `Entry '${id}' not found for content type '${seedSlug}'.`,
-        },
-        404
-      )
+      return publicProblem(c, {
+        type: 'entry-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: `Entry '${id}' not found for content type '${seedSlug}'.`,
+      })
     }
 
     const bodyResult = await parseBody(c)
@@ -235,13 +247,12 @@ export async function publicEditHandler(c: PublicCtx) {
         .first<{ id: string }>()
 
       if (slugExisting) {
-        return c.json(
-          {
-            error: 'Conflict',
-            message: `An entry with slug '${slugResult.value.nextSlug}' already exists for content type '${seedSlug}'.`,
-          },
-          409
-        )
+        return publicProblem(c, {
+          type: 'slug-conflict',
+          title: 'Conflict',
+          status: 409,
+          detail: `An entry with slug '${slugResult.value.nextSlug}' already exists for content type '${seedSlug}'.`,
+        })
       }
     }
 
@@ -256,12 +267,11 @@ export async function publicEditHandler(c: PublicCtx) {
 
     return c.json({ success: true, id, slug: slugResult.value.nextSlug }, 200)
   } catch (err) {
-    return c.json(
-      {
-        error: 'Internal Server Error',
-        message: errorMessage(c, err),
-      },
-      500
-    )
+    return publicProblem(c, {
+      type: 'internal-server-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: errorMessage(c, err),
+    })
   }
 }

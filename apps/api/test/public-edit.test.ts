@@ -237,6 +237,45 @@ describe('Public API edit endpoint', () => {
     const body = asObject(await res.json())
     expect(body.message).toBe('Validation failed')
     expect(Array.isArray(body.details)).toBe(true)
+    expect(body.type).toBe('https://beechcms.dev/problems/validation_failed')
+  })
+
+  it('PUT con soli alias sconosciuti -> 400', async () => {
+    const res = await app.request(
+      `/api/v1/public/messaggi/edit/${validId}`,
+      {
+        method: 'PUT',
+        headers: {
+          'X-API-Key': 'valid-key',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: {
+            unknownField: 'x',
+          },
+        }),
+      },
+      {
+        DB: createMockD1ForPublicEdit({
+          currentRow: {
+            id: validId,
+            schema_slug: 'messaggi',
+            slug: 'messaggio-1',
+            status: 'draft',
+            data: JSON.stringify({ msg_01: 'Nome' }),
+            created_at: 1700000001,
+            updated_at: 1700000002,
+          },
+        }),
+        ...envBase,
+        PUBLIC_STRICT_UNKNOWN_ALIASES: 'true',
+      }
+    )
+
+    expect(res.status).toBe(400)
+    const body = asObject(await res.json())
+    expect(body.message).toBe('Validation failed')
+    expect(JSON.stringify(body.details)).toContain('unknownField')
   })
 
   it('PUT su seed non abilitato pubblicamente -> 403', async () => {

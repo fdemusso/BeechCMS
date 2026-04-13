@@ -171,7 +171,7 @@ beech-cms/
   - API key middleware supports split keys (`PUBLIC_READ_API_KEY`, `PUBLIC_WRITE_API_KEY`) via header `X-API-Key`.
   - Seed-level capabilities (`allowPublicRead`, `allowPublicPost`, `allowPublicEdit`) enforce default deny on non-authorized operations.
   - Read endpoint supports id lookup, filters, search, pagination, latest, field projections, with default visibility `published` only.
-  - Write endpoints (`add`/`edit`) sanitize/validate payloads, enforce slug uniqueness, support idempotency via `Idempotency-Key`, and use prepared statements.
+  - Write endpoints (`add`/`edit`) sanitize/validate payloads in fail-closed mode (operation-aware validation, required fields, unknown alias policy), enforce slug uniqueness, support idempotency via `Idempotency-Key`, and use prepared statements.
   - Public routes support dedicated rate limiting (`PUBLIC_READ_RATE_LIMITER`, `PUBLIC_WRITE_RATE_LIMITER`).
 
 - **Dashboard Rendering (schema‑driven)** – see `[field-renderers.md](field-renderers.md)` and `[dashboard-components.md](dashboard-components.md)`
@@ -201,6 +201,7 @@ beech-cms/
   - **Must** keep external integrations on `/api/v1/public/*` protected with API key auth (read/write split).
   - **Must** enforce per-seed capability flags (`allowPublicRead`, `allowPublicPost`, `allowPublicEdit`) before DB access.
   - **Must** keep payload translation schema-driven via `@beech/core` (`getSeed`, `apiToDb`, `dbToApi`, validation foundation).
+  - **Must** expose public errors with a machine-readable envelope (Problem Details + field-level validation details), preserving documented backward compatibility fields.
 
 - **Authentication & security**
   - **Must** follow the JWT + refresh token flow described in `[auth.md](auth.md)`:

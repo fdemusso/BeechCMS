@@ -3,6 +3,7 @@ import type { Context } from 'hono'
 import { buildOrderClause, cleanStr, rowToEntry } from '../shared/query-utils'
 import type { ContentEntryRow } from '../shared/query-utils'
 import { checkPublicOperation } from './access-policy'
+import { publicProblem } from './problem-details'
 import { buildPublicListMeta, buildPublicSingleMeta } from './response-builder'
 import {
   buildPublicFilterWhereClause,
@@ -90,14 +91,21 @@ export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variabl
   const seedSlug = c.req.param('seed')
   const seed = getSeed(seedSlug)
   if (!seed) {
-    return c.json(
-      { error: 'Seed Not Found', message: buildSeedNotFoundMessage(seedSlug) },
-      404
-    )
+    return publicProblem(c, {
+      type: 'seed-not-found',
+      title: 'Seed Not Found',
+      status: 404,
+      detail: buildSeedNotFoundMessage(seedSlug),
+    })
   }
   const access = checkPublicOperation(seed, 'read')
   if (!access.ok) {
-    return c.json(access.error, 403)
+    return publicProblem(c, {
+      type: 'operation-not-allowed',
+      title: access.error.error,
+      status: 403,
+      detail: access.error.message,
+    })
   }
 
   const query = c.req.query()
@@ -118,10 +126,12 @@ export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variabl
         .first<ContentEntryRow>()
 
       if (!row) {
-        return c.json(
-          { error: 'Not Found', message: `Entry '${id}' not found for content type '${seedSlug}'.` },
-          404
-        )
+        return publicProblem(c, {
+          type: 'entry-not-found',
+          title: 'Not Found',
+          status: 404,
+          detail: `Entry '${id}' not found for content type '${seedSlug}'.`,
+        })
       }
 
       return c.json(
@@ -207,16 +217,20 @@ export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variabl
     )
   } catch (err) {
     if (err instanceof Error && err.message.startsWith('Invalid filter:')) {
-      return c.json({ error: 'Bad Request', message: err.message }, 400)
+      return publicProblem(c, {
+        type: 'invalid-filter',
+        title: 'Bad Request',
+        status: 400,
+        detail: err.message,
+      })
     }
 
-    return c.json(
-      {
-        error: 'Internal Server Error',
-        message: buildInternalErrorMessage(c, err),
-      },
-      500
-    )
+    return publicProblem(c, {
+      type: 'internal-server-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: buildInternalErrorMessage(c, err),
+    })
   }
 }
 

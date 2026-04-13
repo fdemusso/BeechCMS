@@ -94,11 +94,26 @@ flowchart LR
 
 ### Alias non riconosciuti (apiToDb)
 
-Se il frontend invia `{ "titlo": "Test" }` (typo) invece di `title`, il campo viene **ignorato** senza errore (policy safe). Il dato non viene salvato.
+La foundation del core supporta due policy:
 
-**TODO (Sprint Validazione Zod nel core):** Aggiungere validazione completa Zod in `packages/core` (required fields, regole create/update, warning/telemetria alias non riconosciuti).
+- `collect` (compatibilita): traccia alias sconosciuti senza bloccare
+- `reject` (hardening): produce errore strutturato e rifiuta il payload
 
-**Nota roadmap:** durante Sprint 02 Public API viene introdotta una foundation comune di validazione/sanitizzazione nel core per evitare duplicazioni. Lo sprint Zod completo estendera quella foundation senza spostare logica nelle app consumer.
+Per la Public API write (`/add`, `/edit`) la policy consigliata e **fail-closed** (`reject`) in ambienti deploy.
+
+### Required fields e modalita operazione
+
+Il core valida in modalita:
+
+- `operation=create`
+- `operation=update`
+
+I branch possono definire:
+
+- `requiredOnCreate?: boolean`
+- `requiredOnUpdate?: boolean`
+
+Questo consente enforcement schema-driven senza duplicare logica nelle app consumer.
 
 ### Chiavi DB sconosciute (dbToApi)
 

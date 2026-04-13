@@ -30,6 +30,7 @@ describe('Public API key middleware', () => {
     const body = asObject(await res.json())
     expect(body.error).toBe('Forbidden')
     expect(body.message).toBe('Public API access is not configured for this instance.')
+    expect(body.type).toBe('https://beechcms.dev/problems/public-api-not-configured')
   })
 
   it('restituisce 401 quando la key e mancante', async () => {
@@ -44,6 +45,7 @@ describe('Public API key middleware', () => {
     const body = asObject(await res.json())
     expect(body.error).toBe('Unauthorized')
     expect(body.message).toEqual(expect.stringContaining('Missing or invalid API key'))
+    expect(body.type).toBe('https://beechcms.dev/problems/public-api-key-unauthorized')
   })
 
   it('usa X-API-Key per accesso GET', async () => {

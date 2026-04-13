@@ -10,6 +10,7 @@ type PublicSanitizeSuccess = {
 type PublicSanitizeFailure = {
   ok: false
   status: 400 | 422
+  code: 'validation_failed' | 'dangerous_content'
   message: string
   details?: ValidationDetail[]
 }
@@ -22,11 +23,22 @@ export type PublicSanitizeResult = PublicSanitizeSuccess | PublicSanitizeFailure
 export function sanitizePublicPayload(
   seed: Seed,
   payload: Record<string, unknown>,
-  options: { allowNull?: boolean; strictUnknownAliases?: boolean } = {}
+  options: {
+    allowNull?: boolean
+    strictUnknownAliases?: boolean
+    operation?: 'create' | 'update'
+    requireAtLeastOneValidField?: boolean
+    enforceRequiredFields?: boolean
+  } = {}
 ): PublicSanitizeResult {
+  const operation = options.operation ?? 'create'
   const result = validateAndSanitizeSeedPayload(seed, payload, {
     allowNull: options.allowNull ?? false,
     rejectDangerousRichtext: true,
+    operation,
+    unknownAliases: options.strictUnknownAliases ? 'reject' : 'collect',
+    requireAtLeastOneValidField: options.requireAtLeastOneValidField ?? true,
+    enforceRequiredFields: options.enforceRequiredFields ?? true,
   })
 
   if (result.dangerousFields.length > 0) {
@@ -34,6 +46,7 @@ export function sanitizePublicPayload(
     return {
       ok: false,
       status: 422,
+      code: 'dangerous_content',
       message: `Content rejected: dangerous markup detected in field '${field}'`,
     }
   }
@@ -42,22 +55,9 @@ export function sanitizePublicPayload(
     return {
       ok: false,
       status: 400,
+      code: 'validation_failed',
       message: 'Validation failed',
       details: result.details,
-    }
-  }
-
-  if (options.strictUnknownAliases && result.unknownAliases.length > 0) {
-    return {
-      ok: false,
-      status: 400,
-      message: `Unknown aliases: ${result.unknownAliases.join(', ')}`,
-      details: result.unknownAliases.map((alias) => ({
-        field: alias,
-        expected: 'known-seed-alias',
-        received: 'unknown-alias',
-        message: `Field '${alias}' is not defined in seed '${seed.slug}'`,
-      })),
     }
   }
 

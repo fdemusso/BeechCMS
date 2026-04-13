@@ -149,6 +149,7 @@ describe('Public API add endpoint', () => {
     const body = asObject(await res.json())
     expect(body.message).toBe('Validation failed')
     expect(Array.isArray(body.details)).toBe(true)
+    expect(body.type).toBe('https://beechcms.dev/problems/validation_failed')
   })
 
   it('POST con richtext pericoloso -> 422', async () => {
@@ -178,7 +179,12 @@ describe('Public API add endpoint', () => {
       },
       body: JSON.stringify({
         slug: 'primo-articolo',
-        data: { name: 'Titolo' },
+        data: {
+          name: 'Titolo',
+          email: 'mario@example.com',
+          subject: 'Contatto',
+          message: '<p>Messaggio</p>',
+        },
       }),
     }, {
       DB: createMockD1ForPublicAdd({ slugExists: true }),
@@ -197,7 +203,12 @@ describe('Public API add endpoint', () => {
       },
       body: JSON.stringify({
         status: 'draft',
-        data: { name: 'Titolo Nuovo Articolo' },
+        data: {
+          name: 'Titolo Nuovo Articolo',
+          email: 'mario@example.com',
+          subject: 'Nuovo articolo',
+          message: '<p>Messaggio</p>',
+        },
       }),
     }, {
       DB: createMockD1ForPublicAdd(),
@@ -238,7 +249,12 @@ describe('Public API add endpoint', () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        data: { name: 'Titolo Nuovo Articolo' },
+        data: {
+          name: 'Titolo Nuovo Articolo',
+          email: 'mario@example.com',
+          subject: 'Nuovo articolo',
+          message: '<p>Messaggio</p>',
+        },
       }),
     }, {
       DB: createMockD1ForPublicAdd({
@@ -277,7 +293,59 @@ describe('Public API add endpoint', () => {
 
     expect(res.status).toBe(400)
     const body = asObject(await res.json())
-    expect(body.message).toEqual(expect.stringContaining('Unknown aliases'))
+    expect(body.message).toBe('Validation failed')
+    expect(Array.isArray(body.details)).toBe(true)
+    expect(JSON.stringify(body.details)).toContain('unknownField')
+  })
+
+  it('POST con soli alias sconosciuti anche in non-strict -> 400', async () => {
+    const res = await app.request('/api/v1/public/messaggi/add', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': 'valid-key',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: {
+          unknownField: 'x',
+        },
+      }),
+    }, {
+      DB: createMockD1ForPublicAdd(),
+      ...envBase,
+      PUBLIC_STRICT_UNKNOWN_ALIASES: 'false',
+    })
+
+    expect(res.status).toBe(400)
+    const body = asObject(await res.json())
+    expect(body.message).toBe('Validation failed')
+    expect(JSON.stringify(body.details)).toContain('at-least-one-valid-field')
+  })
+
+  it('POST senza required field del seed -> 400', async () => {
+    const res = await app.request('/api/v1/public/messaggi/add', {
+      method: 'POST',
+      headers: {
+        'X-API-Key': 'valid-key',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: {
+          email: 'mario@example.com',
+          message: '<p>Ciao</p>',
+          subject: 'Info',
+        },
+      }),
+    }, {
+      DB: createMockD1ForPublicAdd(),
+      ...envBase,
+      PUBLIC_STRICT_UNKNOWN_ALIASES: 'true',
+    })
+
+    expect(res.status).toBe(400)
+    const body = asObject(await res.json())
+    expect(body.message).toBe('Validation failed')
+    expect(JSON.stringify(body.details)).toContain("'name' is required")
   })
 })
 

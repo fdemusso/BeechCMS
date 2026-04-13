@@ -113,10 +113,10 @@ export const MESSAGGI_SEED: Seed = {
   allowPublicPost: true,
   allowPublicEdit: true,
   branches: [
-    { id: 'msg_01', alias: 'name', label: 'Nome mittente', type: 'text' },
-    { id: 'msg_02', alias: 'email', label: 'Email mittente', type: 'text' },
-    { id: 'msg_03', alias: 'subject', label: 'Oggetto', type: 'text' },
-    { id: 'msg_04', alias: 'message', label: 'Messaggio', type: 'richtext' },
+    { id: 'msg_01', alias: 'name', label: 'Nome mittente', type: 'text', requiredOnCreate: true },
+    { id: 'msg_02', alias: 'email', label: 'Email mittente', type: 'text', requiredOnCreate: true },
+    { id: 'msg_03', alias: 'subject', label: 'Oggetto', type: 'text', requiredOnCreate: true },
+    { id: 'msg_04', alias: 'message', label: 'Messaggio', type: 'richtext', requiredOnCreate: true },
     { id: 'msg_05', alias: 'read', label: 'Letto', type: 'boolean' },
   ],
 }

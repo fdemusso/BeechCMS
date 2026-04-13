@@ -12,6 +12,10 @@ export interface ValidateSeedPayloadOptions {
   allowNull?: boolean
   rejectDangerousRichtext?: boolean
   maxTextLength?: number
+  operation?: 'create' | 'update'
+  unknownAliases?: 'collect' | 'reject'
+  requireAtLeastOneValidField?: boolean
+  enforceRequiredFields?: boolean
 }
 
 export interface ValidateSeedPayloadResult {
@@ -19,6 +23,8 @@ export interface ValidateSeedPayloadResult {
   details: ValidationDetail[]
   unknownAliases: string[]
   dangerousFields: string[]
+  requiredFieldsMissing: string[]
+  hasAnyValidField: boolean
 }
 
 const DEFAULT_MAX_TEXT_LENGTH = 50000
@@ -89,6 +95,13 @@ function normalizeAssetListValue(rawValue: unknown): string[] | null {
 
 function sanitizePlainString(value: string): string {
   return value.replaceAll(CONTROL_CHARS_REGEX, '').trim()
+}
+
+function isMissingRequiredValue(value: unknown): boolean {
+  if (value == null) return true
+  if (typeof value === 'string') return sanitizePlainString(value).length === 0
+  if (Array.isArray(value)) return value.length === 0
+  return false
 }
 
 function sanitizeRichtext(value: string): { value: string; dangerous: boolean } {
@@ -217,20 +230,35 @@ export function validateAndSanitizeSeedPayload(
     allowNull: options.allowNull ?? false,
     rejectDangerousRichtext: options.rejectDangerousRichtext ?? true,
     maxTextLength: options.maxTextLength ?? DEFAULT_MAX_TEXT_LENGTH,
+    operation: options.operation ?? 'create',
+    unknownAliases: options.unknownAliases ?? 'collect',
+    requireAtLeastOneValidField: options.requireAtLeastOneValidField ?? false,
+    enforceRequiredFields: options.enforceRequiredFields ?? false,
   }
 
   const details: ValidationDetail[] = []
   const data: Record<string, unknown> = {}
   const unknownAliases: string[] = []
   const dangerousFields: string[] = []
+  const requiredFieldsMissing: string[] = []
   const branchByAlias = new Map(seed.branches.map((branch) => [branch.alias, branch]))
+  const providedKnownAliases = new Set<string>()
 
   for (const [alias, rawValue] of Object.entries(payload)) {
     const branch = branchByAlias.get(alias)
     if (!branch) {
       unknownAliases.push(alias)
+      if (normalizedOptions.unknownAliases === 'reject') {
+        details.push({
+          field: alias,
+          expected: 'known-seed-alias',
+          received: 'unknown-alias',
+          message: `Field '${alias}' is not defined in seed '${seed.slug}'`,
+        })
+      }
       continue
     }
+    providedKnownAliases.add(alias)
 
     const result = validateBranchValue(branch, alias, rawValue, normalizedOptions)
     if (!result.ok) {
@@ -248,7 +276,53 @@ export function validateAndSanitizeSeedPayload(
     data[alias] = result.value
   }
 
-  return { data, details, unknownAliases, dangerousFields }
+  if (normalizedOptions.enforceRequiredFields) {
+    for (const branch of seed.branches) {
+      const isRequired =
+        normalizedOptions.operation === 'create' ? branch.requiredOnCreate : branch.requiredOnUpdate
+      if (!isRequired) continue
+
+      const hasProvidedAlias = providedKnownAliases.has(branch.alias)
+      if (!hasProvidedAlias) {
+        requiredFieldsMissing.push(branch.alias)
+        details.push({
+          field: branch.alias,
+          expected: 'required-field',
+          received: 'missing',
+          message: `Field '${branch.alias}' is required for ${normalizedOptions.operation}`,
+        })
+        continue
+      }
+
+      if (isMissingRequiredValue(data[branch.alias])) {
+        requiredFieldsMissing.push(branch.alias)
+        details.push({
+          field: branch.alias,
+          expected: 'required-field',
+          received: 'empty',
+          message: `Field '${branch.alias}' cannot be empty for ${normalizedOptions.operation}`,
+        })
+      }
+    }
+  }
+
+  if (normalizedOptions.requireAtLeastOneValidField && Object.keys(data).length === 0) {
+    details.push({
+      field: 'data',
+      expected: 'at-least-one-valid-field',
+      received: 'empty',
+      message: 'Payload does not contain any valid fields for this operation',
+    })
+  }
+
+  return {
+    data,
+    details,
+    unknownAliases,
+    dangerousFields,
+    requiredFieldsMissing,
+    hasAnyValidField: Object.keys(data).length > 0,
+  }
 }
 
 /**
