@@ -104,7 +104,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(401)
-    const data = await res.json() as { error?: string }
+    const data = await res.json<{ error?: string; detail?: string }>()
     expect(data.error).toBe('Unauthorized')
     // jwtVerify non deve essere chiamato: il middleware blocca prima
     expect(mockJwtVerify).not.toHaveBeenCalled()
@@ -126,7 +126,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(401)
-    const data = await res.json() as { error?: string }
+    const data = await res.json<{ error?: string; detail?: string }>()
     expect(data.error).toBe('Unauthorized')
     expect(mockJwtVerify).toHaveBeenCalled()
   })
@@ -145,7 +145,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(401)
-    const data = await res.json() as { error?: string }
+    const data = await res.json<{ error?: string; detail?: string }>()
     expect(data.error).toBe('Unauthorized')
   })
 
@@ -165,7 +165,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(401)
-    const data = await res.json() as { error?: string }
+    const data = await res.json<{ error?: string; detail?: string }>()
     expect(data.error).toBe('Unauthorized')
   })
 })
@@ -194,7 +194,7 @@ describe('API Content - Write Operation (La Serializzazione)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(201)
-    const data = await res.json() as { id?: string }
+    const data = await res.json<{ id?: string }>()
     expect(data.id).toBeDefined()
     expect(typeof data.id).toBe('string')
     expect(data.id).toMatch(/^[0-9a-f-]{36}$/i) // UUID format
@@ -236,7 +236,7 @@ describe('API Content - Read Operation (La Deserializzazione)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(200)
-    const entries = await res.json() as Array<{ id: string; schema_slug: string; slug: string | null; status: string; data: unknown; created_at: number | null; updated_at: number | null }>
+    const entries = await res.json<Array<{ id: string; schema_slug: string; slug: string | null; status: string; data: unknown; created_at: number | null; updated_at: number | null }>>()
     expect(Array.isArray(entries)).toBe(true)
     expect(entries).toHaveLength(1)
     expect(entries[0].id).toBe('123')
@@ -295,10 +295,10 @@ describe('API Content - Facets dinamici', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(200)
-    const data = await res.json() as {
+    const data = await res.json<{
       statuses: string[]
       tagsByColumnId: Record<string, string[]>
-    }
+    }>()
     expect(data.statuses).toEqual(['published', 'review'])
     expect(data.tagsByColumnId.tags).toBeDefined()
     expect(new Set(data.tagsByColumnId.tags)).toEqual(
@@ -340,12 +340,12 @@ describe('API Content - Query params server-side', () => {
     )
 
     expect(res.status).toBe(200)
-    const body = (await res.json()) as {
+    const body = await res.json<{
       items: Array<{ id: string }>
       total: number
       page: number
       limit: number
-    }
+    }>()
     expect(body.total).toBe(42)
     expect(body.page).toBe(2)
     expect(body.limit).toBe(10)
@@ -421,12 +421,12 @@ describe('API Content - Query params server-side', () => {
 
     expect(res.status).toBe(200)
 
-    const body = (await res.json()) as {
+    const body = await res.json<{
       items: Array<{ id: string }>
       total: number
       page: number
       limit: number
-    }
+    }>()
     expect(body.total).toBe(1)
     expect(body.page).toBe(1)
     expect(body.limit).toBe(10)
@@ -490,8 +490,8 @@ describe('API Content - Edge Case (Not Found)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(404)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.NOT_FOUND)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.NOT_FOUND)
   })
 
   it('POST /api/content/slug-inesistente -> 404 SEED_NOT_FOUND', async () => {
@@ -507,8 +507,8 @@ describe('API Content - Edge Case (Not Found)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(404)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.SEED_NOT_FOUND)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.SEED_NOT_FOUND)
   })
 
   it('GET /api/content/slug-inesistente -> 404 SEED_NOT_FOUND', async () => {
@@ -520,8 +520,8 @@ describe('API Content - Edge Case (Not Found)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(404)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.SEED_NOT_FOUND)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.SEED_NOT_FOUND)
   })
 })
 
@@ -550,13 +550,22 @@ describe('API Content - PUT (Aggiornamento)', () => {
       },
     }, { DB: mockDB, JWT_SECRET })
     expect(res.status).toBe(404)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.NOT_FOUND)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.NOT_FOUND)
   })
 
   it('PUT con slug già usato da altra entry -> 409 SLUG_CONFLICT', async () => {
     const firstResults = [
       { slug: 'old-slug', status: 'draft' },
+      {
+        id: 'entry-123',
+        schema_slug: 'articoli',
+        slug: 'old-slug',
+        status: 'draft',
+        data: JSON.stringify({ art_01: 'Titolo' }),
+        created_at: 1700000000,
+        updated_at: 1700000000,
+      },
       { id: 'other-entry-id' },
     ]
     let callIndex = 0
@@ -578,8 +587,8 @@ describe('API Content - PUT (Aggiornamento)', () => {
       },
     }, { DB: mockDB, JWT_SECRET })
     expect(res.status).toBe(409)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.SLUG_CONFLICT)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.SLUG_CONFLICT)
   })
 })
 
@@ -611,7 +620,7 @@ describe('API Content - DELETE (Eliminazione)', () => {
       headers: { Authorization: 'Bearer valid-token' },
     }, { DB: mockDB, JWT_SECRET })
     expect(res.status).toBe(200)
-    const data = await res.json() as { success?: boolean }
+    const data = await res.json<{ success?: boolean }>()
     expect(data.success).toBe(true)
   })
 
@@ -628,8 +637,8 @@ describe('API Content - DELETE (Eliminazione)', () => {
       headers: { Authorization: 'Bearer valid-token' },
     }, { DB: mockDB, JWT_SECRET })
     expect(res.status).toBe(404)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.NOT_FOUND)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.NOT_FOUND)
   })
 
   it('DELETE con entry contenente URL R2 -> elimina anche i file da R2', async () => {
@@ -658,7 +667,7 @@ describe('API Content - DELETE (Eliminazione)', () => {
       headers: { Authorization: 'Bearer valid-token' },
     }, { DB: mockDB, JWT_SECRET })
     expect(res.status).toBe(200)
-    const data = await res.json() as { success?: boolean }
+    const data = await res.json<{ success?: boolean }>()
     expect(data.success).toBe(true)
   })
 })
@@ -689,8 +698,8 @@ describe('API Content - Slug conflict (409)', () => {
     }, { DB: slugCheckMock, JWT_SECRET })
 
     expect(res.status).toBe(409)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.SLUG_CONFLICT)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.SLUG_CONFLICT)
   })
 })
 
@@ -718,7 +727,7 @@ describe('API Content - GET by-slug', () => {
       headers: { Authorization: 'Bearer valid-token' },
     }, { DB: mockDB, JWT_SECRET })
     expect(res.status).toBe(200)
-    const entry = await res.json() as { id: string; slug: string | null; status: string; data: unknown }
+    const entry = await res.json<{ id: string; slug: string | null; status: string; data: unknown }>()
     expect(entry.id).toBe('id-by-slug')
     expect(entry.slug).toBe('my-entry')
     expect(entry.status).toBe('published')
@@ -732,8 +741,8 @@ describe('API Content - GET by-slug', () => {
       headers: { Authorization: 'Bearer valid-token' },
     }, { DB: mockDB, JWT_SECRET })
     expect(res.status).toBe(404)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.NOT_FOUND)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.NOT_FOUND)
   })
 })
 
@@ -759,8 +768,8 @@ describe('API Content - Validazione slug', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(400)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.INVALID_JSON_BODY)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.INVALID_JSON_BODY)
   })
 })
 
@@ -789,8 +798,8 @@ describe('API Content - Errori DB (500)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(500)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.DATABASE_ERROR)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.DATABASE_ERROR)
   })
 
   it('GET lista con fallimento DB -> 500', async () => {
@@ -806,8 +815,8 @@ describe('API Content - Errori DB (500)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(500)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.DATABASE_ERROR)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.DATABASE_ERROR)
   })
 
   it('GET dettaglio con fallimento DB -> 500', async () => {
@@ -823,8 +832,8 @@ describe('API Content - Errori DB (500)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(500)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.DATABASE_ERROR)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.DATABASE_ERROR)
   })
 
   it('GET by-slug con fallimento DB -> 500', async () => {
@@ -840,8 +849,8 @@ describe('API Content - Errori DB (500)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(500)
-    const data = await res.json() as { error?: string }
-    expect(data.error).toBe(CONTENT_ERRORS.DATABASE_ERROR)
+    const data = await res.json<{ error?: string; detail?: string }>()
+    expect(data.detail).toBe(CONTENT_ERRORS.DATABASE_ERROR)
   })
 })
 
@@ -871,7 +880,7 @@ describe('API Content - Edge Case (Dati corrotti)', () => {
     }, { DB: mockDB, JWT_SECRET })
 
     expect(res.status).toBe(200)
-    const entries = await res.json() as Array<{ id: string; data: unknown }>
+    const entries = await res.json<Array<{ id: string; data: unknown }>>()
     expect(entries).toHaveLength(1)
     expect(entries[0].id).toBe('456')
     expect(entries[0].data).toEqual({})

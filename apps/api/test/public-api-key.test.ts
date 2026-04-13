@@ -28,8 +28,8 @@ describe('Public API key middleware', () => {
 
     expect(res.status).toBe(403)
     const body = asObject(await res.json())
-    expect(body.error).toBe('Forbidden')
-    expect(body.message).toBe('Public API access is not configured for this instance.')
+    expect(body.title).toBe('Forbidden')
+    expect(body.detail).toBe('Public API access is not configured for this instance.')
     expect(body.type).toBe('https://beechcms.dev/problems/public-api-not-configured')
   })
 
@@ -43,8 +43,8 @@ describe('Public API key middleware', () => {
 
     expect(res.status).toBe(401)
     const body = asObject(await res.json())
-    expect(body.error).toBe('Unauthorized')
-    expect(body.message).toEqual(expect.stringContaining('Missing or invalid API key'))
+    expect(body.title).toBe('Unauthorized')
+    expect(body.detail).toEqual(expect.stringContaining('Missing or invalid API key'))
     expect(body.type).toBe('https://beechcms.dev/problems/public-api-key-unauthorized')
   })
 

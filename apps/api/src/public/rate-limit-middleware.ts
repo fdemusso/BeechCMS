@@ -1,4 +1,5 @@
 import type { Context, Next } from 'hono'
+import { publicProblem } from './problem-details'
 
 type PublicBindings = {
   PUBLIC_READ_RATE_LIMITER?: RateLimit
@@ -28,7 +29,12 @@ export function publicRateLimitMiddleware() {
     const { success } = await limiter.limit({ key })
 
     if (!success) {
-      return c.json({ error: 'Too many requests' }, 429)
+      return publicProblem(c, {
+        type: 'rate-limit-exceeded',
+        title: 'Too Many Requests',
+        status: 429,
+        detail: 'Too many requests',
+      })
     }
 
     await next()

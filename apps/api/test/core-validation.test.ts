@@ -19,7 +19,8 @@ describe('core validation foundation', () => {
     expect(result.data.title).toBe('Ciao')
     expect(result.data.publishedAt).toBe('2026-04-07')
     expect(result.unknownAliases).toEqual(['invalidAlias'])
-    expect(result.details).toEqual([])
+    expect(result.details).toHaveLength(1)
+    expect(result.details[0].field).toBe('invalidAlias')
   })
 
   it('raccoglie errori tipo per valori incompatibili', () => {
@@ -31,7 +32,7 @@ describe('core validation foundation', () => {
       active: 'yes',
     })
 
-    expect(result.details).toHaveLength(2)
+    expect(result.details).toHaveLength(3)
     expect(result.details[0].field).toBeDefined()
   })
 
@@ -110,7 +111,7 @@ describe('public sanitize adapter', () => {
     expect(result.ok).toBe(true)
   })
 
-  it('espone unknownAliases nel path di successo', () => {
+  it('rifiuta alias sconosciuti nel path strict', () => {
     const seed = getSeed('articoli')
     if (!seed) throw new Error('Seed articoli non trovato')
 
@@ -119,9 +120,10 @@ describe('public sanitize adapter', () => {
       notInSchema: 'x',
     })
 
-    expect(result.ok).toBe(true)
-    if (result.ok) {
-      expect(result.unknownAliases).toEqual(['notInSchema'])
+    expect(result.ok).toBe(false)
+    if (!result.ok) {
+      expect(result.status).toBe(400)
+      expect(JSON.stringify(result.details)).toContain('notInSchema')
     }
   })
 })

@@ -1,8 +1,9 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { getSeed, apiToDb, dbToApi } from '@beech/core'
+import { getSeed, apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload } from '@beech/core'
 import { deleteR2Objects } from './upload'
 import { extractMediaKeysFromData } from './media-utils'
+import { publicProblem } from './public/problem-details'
 import {
   buildOrderClause,
   buildWhereClause,
@@ -67,6 +68,19 @@ function normalizeBody(raw: unknown): Record<string, unknown> {
       : {};
 }
 
+function contentValidationProblem(
+  c: Parameters<typeof publicProblem>[0],
+  details: Array<{ field: string; expected: string; received: string; message: string }>
+) {
+  return publicProblem(c, {
+    type: 'content-validation-failed',
+    title: 'Bad Request',
+    status: 400,
+    detail: 'Validation failed',
+    errors: details,
+  })
+}
+
 type Bindings = {
   DB: D1Database
   R2_ACCESS_KEY_ID?: string
@@ -88,12 +102,22 @@ const contentApp = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 contentApp.post('/:slug', async (c) => {
   const slug = c.req.param('slug')
   if (!slug) {
-    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG }, 400)
+    return publicProblem(c, {
+      type: 'content-invalid-slug',
+      title: 'Bad Request',
+      status: 400,
+      detail: CONTENT_ERRORS.INVALID_SLUG,
+    })
   }
 
   const seed = getSeed(slug)
   if (!seed) {
-    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+    return publicProblem(c, {
+      type: 'content-seed-not-found',
+      title: 'Not Found',
+      status: 404,
+      detail: CONTENT_ERRORS.SEED_NOT_FOUND,
+    })
   }
 
   let body: Record<string, unknown>
@@ -101,15 +125,48 @@ contentApp.post('/:slug', async (c) => {
     const raw = await c.req.json<unknown>()
     body = normalizeBody(raw)
   } catch {
-    return c.json({ error: CONTENT_ERRORS.INVALID_JSON_BODY }, 400)
+    return publicProblem(c, {
+      type: 'content-invalid-json',
+      title: 'Bad Request',
+      status: 400,
+      detail: CONTENT_ERRORS.INVALID_JSON_BODY,
+    })
   }
 
   const entrySlug = cleanStr(body.slug);
-  const status    = cleanStr(body.status) ?? 'draft';
+  const status = cleanStr(body.status) ?? 'draft';
+  if (!isValidContentStatus(status)) {
+    return publicProblem(c, {
+      type: 'content-invalid-status',
+      title: 'Bad Request',
+      status: 400,
+      detail: "Invalid status. Allowed values are: draft, review, published",
+    })
+  }
+
   const bodyForData = { ...body }
   delete bodyForData.slug
   delete bodyForData.status
-  const dbPayload = apiToDb(seed, bodyForData)
+
+  const validation = validateAndSanitizeSeedPayload(seed, bodyForData, {
+    operation: 'create',
+    allowNull: false,
+    requireAtLeastOneValidField: true,
+    enforceRequiredFields: true,
+  })
+  if (validation.dangerousFields.length > 0) {
+    return publicProblem(c, {
+      type: 'content-dangerous-content',
+      title: 'Unprocessable Entity',
+      status: 422,
+      detail: `Content rejected: dangerous markup detected in field '${validation.dangerousFields[0]}'`,
+    })
+  }
+  if (validation.details.length > 0) {
+    return contentValidationProblem(c, validation.details)
+  }
+
+  const dbPayload = apiToDb(seed, validation.data)
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
   const dataStr = JSON.stringify(dbPayload)
@@ -123,7 +180,12 @@ contentApp.post('/:slug', async (c) => {
         .bind(slug, entrySlug)
         .first()
       if (existing) {
-        return c.json({ error: CONTENT_ERRORS.SLUG_CONFLICT }, 409)
+        return publicProblem(c, {
+          type: 'content-slug-conflict',
+          title: 'Conflict',
+          status: 409,
+          detail: CONTENT_ERRORS.SLUG_CONFLICT,
+        })
       }
     }
     await DB.prepare(
@@ -135,7 +197,12 @@ contentApp.post('/:slug', async (c) => {
     return c.json({ id }, 201)
   } catch (err) {
     console.error('Content create error:', err)
-    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
   }
 })
 
@@ -223,10 +290,24 @@ function buildFacetsPayload(
 // --- 4. Controller Principale (Pulito) ---
 contentApp.get('/:slug', async (c) => {
   const slug = c.req.param('slug');
-  if (!slug) return c.json({ error: CONTENT_ERRORS.INVALID_SLUG }, 400);
+  if (!slug) {
+    return publicProblem(c, {
+      type: 'content-invalid-slug',
+      title: 'Bad Request',
+      status: 400,
+      detail: CONTENT_ERRORS.INVALID_SLUG,
+    })
+  }
 
   const seed = getSeed(slug);
-  if (!seed) return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404);
+  if (!seed) {
+    return publicProblem(c, {
+      type: 'content-seed-not-found',
+      title: 'Not Found',
+      status: 404,
+      detail: CONTENT_ERRORS.SEED_NOT_FOUND,
+    })
+  }
 
   try {
     const { DB } = c.env;
@@ -278,19 +359,34 @@ contentApp.get('/:slug', async (c) => {
 
   } catch (err) {
     console.error('Content list error:', err);
-    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500);
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
   }
 });
 // GET /:slug/facets - Distinct values utili per filtri dinamici lato dashboard
 contentApp.get('/:slug/facets', async (c) => {
   const slug = c.req.param('slug')
   if (!slug) {
-    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG }, 400)
+    return publicProblem(c, {
+      type: 'content-invalid-slug',
+      title: 'Bad Request',
+      status: 400,
+      detail: CONTENT_ERRORS.INVALID_SLUG,
+    })
   }
 
   const seed = getSeed(slug)
   if (!seed) {
-    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+    return publicProblem(c, {
+      type: 'content-seed-not-found',
+      title: 'Not Found',
+      status: 404,
+      detail: CONTENT_ERRORS.SEED_NOT_FOUND,
+    })
   }
 
   const tagAliases = getTagAliasesFromSeed(seed)
@@ -309,7 +405,12 @@ contentApp.get('/:slug/facets', async (c) => {
     return c.json(buildFacetsPayload(statusSet, tagsSetByAlias))
   } catch (err) {
     console.error('Content facets error:', err)
-    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
   }
 })
 
@@ -319,12 +420,22 @@ contentApp.get('/:schema_slug/by-slug/:entry_slug', async (c) => {
   const entrySlug = c.req.param('entry_slug')
 
   if (!schemaSlug || !entrySlug) {
-    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400)
+    return publicProblem(c, {
+      type: 'content-invalid-slug-or-id',
+      title: 'Bad Request',
+      status: 400,
+      detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID,
+    })
   }
 
   const seed = getSeed(schemaSlug)
   if (!seed) {
-    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+    return publicProblem(c, {
+      type: 'content-seed-not-found',
+      title: 'Not Found',
+      status: 404,
+      detail: CONTENT_ERRORS.SEED_NOT_FOUND,
+    })
   }
 
   try {
@@ -336,14 +447,24 @@ contentApp.get('/:schema_slug/by-slug/:entry_slug', async (c) => {
       .first<ContentEntryRow>()
 
     if (!row) {
-      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
+      return publicProblem(c, {
+        type: 'content-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: CONTENT_ERRORS.NOT_FOUND,
+      })
     }
 
     const entry = rowToEntry(row)
     return c.json({ ...entry, data: dbToApi(seed, entry.data) })
   } catch (err) {
     console.error('Content by-slug error:', err)
-    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
   }
 })
 
@@ -352,12 +473,22 @@ contentApp.get('/:slug/:id', async (c) => {
   const slug = c.req.param('slug')
   const id = c.req.param('id')
   if (!slug || !id) {
-    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400)
+    return publicProblem(c, {
+      type: 'content-invalid-slug-or-id',
+      title: 'Bad Request',
+      status: 400,
+      detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID,
+    })
   }
 
   const seed = getSeed(slug)
   if (!seed) {
-    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+    return publicProblem(c, {
+      type: 'content-seed-not-found',
+      title: 'Not Found',
+      status: 404,
+      detail: CONTENT_ERRORS.SEED_NOT_FOUND,
+    })
   }
 
   try {
@@ -369,14 +500,24 @@ contentApp.get('/:slug/:id', async (c) => {
       .first<ContentEntryRow>()
 
     if (!row) {
-      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
+      return publicProblem(c, {
+        type: 'content-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: CONTENT_ERRORS.NOT_FOUND,
+      })
     }
 
     const entry = rowToEntry(row)
     return c.json({ ...entry, data: dbToApi(seed, entry.data) })
   } catch (err) {
     console.error('Content detail error:', err)
-    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
   }
 })
 
@@ -386,12 +527,22 @@ contentApp.put('/:slug/:id', async (c) => {
   const id = c.req.param('id')
 
   if (!slug || !id) {
-    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400)
+    return publicProblem(c, {
+      type: 'content-invalid-slug-or-id',
+      title: 'Bad Request',
+      status: 400,
+      detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID,
+    })
   }
 
   const seed = getSeed(slug)
   if (!seed) {
-    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
+    return publicProblem(c, {
+      type: 'content-seed-not-found',
+      title: 'Not Found',
+      status: 404,
+      detail: CONTENT_ERRORS.SEED_NOT_FOUND,
+    })
   }
 
   let body: Record<string, unknown>
@@ -399,15 +550,18 @@ contentApp.put('/:slug/:id', async (c) => {
     const raw = await c.req.json<unknown>()
     body = normalizeBody(raw)
   } catch {
-    return c.json({ error: CONTENT_ERRORS.INVALID_JSON_BODY }, 400)
+    return publicProblem(c, {
+      type: 'content-invalid-json',
+      title: 'Bad Request',
+      status: 400,
+      detail: CONTENT_ERRORS.INVALID_JSON_BODY,
+    })
   }
 
   const bodyForData = { ...body }
   delete bodyForData.slug
   delete bodyForData.status
-  const dbPayload = apiToDb(seed, bodyForData)
   const now = Math.floor(Date.now() / 1000)
-  const dataStr = JSON.stringify(dbPayload)
 
   try {
     const { DB } = c.env
@@ -418,25 +572,92 @@ contentApp.put('/:slug/:id', async (c) => {
       .first<{ slug: string | null; status: string }>()
 
     if (!current) {
-      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
+      return publicProblem(c, {
+        type: 'content-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: CONTENT_ERRORS.NOT_FOUND,
+      })
     }
 
 
-  // Distingue tra "Mancante" (undefined) e "Invalido" (null)
     const entrySlugReq = body.slug === undefined ? undefined : cleanStr(body.slug);
-
-  // Tratta "Mancante" e "Invalido" allo stesso modo
-    const statusReq = cleanStr(body.status) ?? undefined;
+    const statusReqRaw = body.status === undefined ? undefined : cleanStr(body.status)
+    const statusReq = statusReqRaw ?? undefined
 
     let newSlug = current.slug
     if (entrySlugReq !== undefined) newSlug = entrySlugReq
 
     let newStatus = current.status
     if (statusReq !== undefined) newStatus = statusReq
+    if (!isValidContentStatus(newStatus)) {
+      return publicProblem(c, {
+        type: 'content-invalid-status',
+        title: 'Bad Request',
+        status: 400,
+        detail: "Invalid status. Allowed values are: draft, review, published",
+      })
+    }
 
     if (!newSlug) {
-      return c.json({ error: "Missing required field: newSlug" }, 400);
+      return publicProblem(c, {
+        type: 'content-missing-slug',
+        title: 'Bad Request',
+        status: 400,
+        detail: 'Missing required field: newSlug',
+      })
     }
+
+    const currentRow = await DB.prepare(
+      'SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND id = ? LIMIT 1'
+    )
+      .bind(slug, id)
+      .first<ContentEntryRow>()
+    if (!currentRow) {
+      return publicProblem(c, {
+        type: 'content-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: CONTENT_ERRORS.NOT_FOUND,
+      })
+    }
+
+    const currentEntry = rowToEntry(currentRow)
+    const currentAliasData = dbToApi(seed, currentEntry.data)
+    const hasPatchData = Object.keys(bodyForData).length > 0
+    let mergedAliasData = { ...currentAliasData }
+    if (hasPatchData) {
+      const validation = validateAndSanitizeSeedPayload(seed, bodyForData, {
+        operation: 'update',
+        allowNull: true,
+        requireAtLeastOneValidField: true,
+        enforceRequiredFields: true,
+      })
+      if (validation.dangerousFields.length > 0) {
+        return publicProblem(c, {
+          type: 'content-dangerous-content',
+          title: 'Unprocessable Entity',
+          status: 422,
+          detail: `Content rejected: dangerous markup detected in field '${validation.dangerousFields[0]}'`,
+        })
+      }
+      if (validation.details.length > 0) {
+        return contentValidationProblem(c, validation.details)
+      }
+
+      const patch = validation.data
+      mergedAliasData = {
+        ...currentAliasData,
+        ...patch,
+      }
+      for (const [alias, value] of Object.entries(mergedAliasData)) {
+        if (value === null) {
+          delete mergedAliasData[alias]
+        }
+      }
+    }
+    const dbPayload = apiToDb(seed, mergedAliasData)
+    const dataStr = JSON.stringify(dbPayload)
 
     const existing = await DB.prepare(
         'SELECT id FROM content_entries WHERE schema_slug = ? AND slug = ? AND id != ?'
@@ -445,7 +666,12 @@ contentApp.put('/:slug/:id', async (c) => {
         .first()
 
     if (existing) {
-      return c.json({ error: CONTENT_ERRORS.SLUG_CONFLICT }, 409)
+      return publicProblem(c, {
+        type: 'content-slug-conflict',
+        title: 'Conflict',
+        status: 409,
+        detail: CONTENT_ERRORS.SLUG_CONFLICT,
+      })
     }
 
     const result = await DB.prepare(
@@ -455,13 +681,23 @@ contentApp.put('/:slug/:id', async (c) => {
       .run()
 
     if (!result.meta?.changes) {
-      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404)
+      return publicProblem(c, {
+        type: 'content-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: CONTENT_ERRORS.NOT_FOUND,
+      })
     }
 
     return c.json({ success: true })
   } catch (err) {
     console.error('Content update error:', err)
-    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500)
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
   }
 })
 
@@ -471,12 +707,22 @@ contentApp.delete('/:slug/:id', async (c) => {
   const entryId = c.req.param('id');
 
   if (!schemaSlug || !entryId) {
-    return c.json({ error: CONTENT_ERRORS.INVALID_SLUG_OR_ID }, 400);
+    return publicProblem(c, {
+      type: 'content-invalid-slug-or-id',
+      title: 'Bad Request',
+      status: 400,
+      detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID,
+    })
   }
 
   const seed = getSeed(schemaSlug);
   if (!seed) {
-    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404);
+    return publicProblem(c, {
+      type: 'content-seed-not-found',
+      title: 'Not Found',
+      status: 404,
+      detail: CONTENT_ERRORS.SEED_NOT_FOUND,
+    })
   }
 
   try {
@@ -490,7 +736,12 @@ contentApp.delete('/:slug/:id', async (c) => {
         .first<{ id: string; data: string }>();
 
     if (!entryRow) {
-      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404);
+      return publicProblem(c, {
+        type: 'content-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: CONTENT_ERRORS.NOT_FOUND,
+      })
     }
 
     // 2. ELIMINA DAL DB PRIMA DI TOCCARE I FILE
@@ -505,7 +756,12 @@ contentApp.delete('/:slug/:id', async (c) => {
 
     // Se non ha cancellato nulla (qualcuno l'ha cancellato una frazione di secondo prima)
     if (!result.meta?.changes) {
-      return c.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404);
+      return publicProblem(c, {
+        type: 'content-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: CONTENT_ERRORS.NOT_FOUND,
+      })
     }
 
     // 3. CLEANUP R2 (Solo ora che il DB è al sicuro)
@@ -525,7 +781,12 @@ contentApp.delete('/:slug/:id', async (c) => {
 
   } catch (err) {
     console.error('Content delete error:', err);
-    return c.json({ error: CONTENT_ERRORS.DATABASE_ERROR }, 500);
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
   }
 });
 

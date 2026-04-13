@@ -21,7 +21,7 @@ Layer pubblico per esporre i contenuti del CMS a client esterni (siti, app, inte
   - `403` quando la key richiesta (read o write) non e configurata.
   - `401` quando la key e mancante o invalida.
   - `429` quando scatta il rate limit pubblico.
-  - Error payload in formato Problem Details (`application/problem+json`) con campi legacy compatibili (`error`, `message`, `details`).
+  - Error payload in formato Problem Details puro (`application/problem+json`).
 
 ## Policy per seed (allowlist)
 
@@ -105,9 +105,7 @@ Comportamenti principali:
   - fallback finale UUID corto.
 - Rich text pericoloso (es. `<script>`): `422 Unprocessable Entity`.
 - Errori di tipo/validazione: `400` con `details`.
-- Alias sconosciuti:
-  - in ambienti deploy: rifiutati (`400`) con dettaglio field-level;
-  - in sviluppo: configurabili via `PUBLIC_STRICT_UNKNOWN_ALIASES` (raccomandato `true`).
+- Alias sconosciuti: sempre rifiutati (`400`) con dettaglio field-level.
 - Required fields per-seed (`requiredOnCreate`) enforced dal core in `operation=create`.
 - Payload senza nessun campo valido dopo sanitizzazione: `400`.
 - Campi media:
@@ -154,7 +152,7 @@ Le risposte errore della Public API usano un envelope Problem Details:
 - `instance`: path richiesta
 - `errors[]`: opzionale, dettagli field-level per errori di validazione
 
-Compatibilita retro: sono mantenuti anche `error`, `message` e `details` per i client esistenti.
+Non sono presenti campi legacy (`error`, `message`, `details`): il contratto errore e Problem Details puro.
 
 ## Note implementative
 
@@ -165,4 +163,4 @@ Compatibilita retro: sono mantenuti anche `error`, `message` e `details` per i c
   - `PUBLIC_READ_RATE_LIMITER` per GET
   - `PUBLIC_WRITE_RATE_LIMITER` per POST/PUT
 - Visibilita default sui contenuti pubblici: solo `status='published'` (`PUBLIC_PUBLISHED_ONLY=true`).
-- Hardening consigliato per deploy: `PUBLIC_STRICT_UNKNOWN_ALIASES=true` (fail-closed sui write endpoint).
+- Hardening fail-closed e default unico del runtime su tutti gli ambienti.

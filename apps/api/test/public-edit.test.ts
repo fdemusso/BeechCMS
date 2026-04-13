@@ -83,7 +83,7 @@ describe('Public API edit endpoint', () => {
 
     expect(res.status).toBe(400)
     const body = asObject(await res.json())
-    expect(body.message).toBe('Invalid entry ID format')
+    expect(body.detail).toBe('Invalid entry ID format')
   })
 
   it('PUT con entry assente -> 404', async () => {
@@ -235,8 +235,8 @@ describe('Public API edit endpoint', () => {
 
     expect(res.status).toBe(400)
     const body = asObject(await res.json())
-    expect(body.message).toBe('Validation failed')
-    expect(Array.isArray(body.details)).toBe(true)
+    expect(body.detail).toBe('Validation failed')
+    expect(Array.isArray(body.errors)).toBe(true)
     expect(body.type).toBe('https://beechcms.dev/problems/validation_failed')
   })
 
@@ -268,14 +268,13 @@ describe('Public API edit endpoint', () => {
           },
         }),
         ...envBase,
-        PUBLIC_STRICT_UNKNOWN_ALIASES: 'true',
       }
     )
 
     expect(res.status).toBe(400)
     const body = asObject(await res.json())
-    expect(body.message).toBe('Validation failed')
-    expect(JSON.stringify(body.details)).toContain('unknownField')
+    expect(body.detail).toBe('Validation failed')
+    expect(JSON.stringify(body.errors)).toContain('unknownField')
   })
 
   it('PUT su seed non abilitato pubblicamente -> 403', async () => {

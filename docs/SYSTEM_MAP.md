@@ -201,7 +201,7 @@ beech-cms/
   - **Must** keep external integrations on `/api/v1/public/*` protected with API key auth (read/write split).
   - **Must** enforce per-seed capability flags (`allowPublicRead`, `allowPublicPost`, `allowPublicEdit`) before DB access.
   - **Must** keep payload translation schema-driven via `@beech/core` (`getSeed`, `apiToDb`, `dbToApi`, validation foundation).
-  - **Must** expose public errors with a machine-readable envelope (Problem Details + field-level validation details), preserving documented backward compatibility fields.
+  - **Must** expose errors with Problem Details (`application/problem+json`) and field-level validation details where relevant.
 
 - **Authentication & security**
   - **Must** follow the JWT + refresh token flow described in `[auth.md](auth.md)`:

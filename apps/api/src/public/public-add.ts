@@ -10,7 +10,6 @@ type Bindings = {
   DB: D1Database
   PUBLIC_READ_API_KEY?: string
   PUBLIC_WRITE_API_KEY?: string
-  PUBLIC_STRICT_UNKNOWN_ALIASES?: string
   PUBLIC_IDEMPOTENCY_TTL_SECONDS?: string
   ENV?: string
 }
@@ -176,9 +175,7 @@ export async function publicAddHandler(c: Context<{ Bindings: Bindings; Variable
     })
   }
 
-  const strictUnknownAliases = c.env.PUBLIC_STRICT_UNKNOWN_ALIASES === 'true'
   const sanitized = sanitizePublicPayload(seed, rawData, {
-    strictUnknownAliases,
     operation: 'create',
     allowNull: false,
     requireAtLeastOneValidField: true,
@@ -201,13 +198,6 @@ export async function publicAddHandler(c: Context<{ Bindings: Bindings; Variable
       errors: sanitized.details,
     })
   }
-  if (sanitized.unknownAliases.length > 0) {
-    console.warn('[public-add] Unknown aliases ignored', {
-      seed: seedSlug,
-      unknownAliases: sanitized.unknownAliases,
-    })
-  }
-
   const idempotencyKey = parseIdempotencyKey(c.req.header('Idempotency-Key'))
 
   const entrySlug = pickSlugFromBody(body, sanitized.data)

@@ -4,7 +4,6 @@ import type { Seed, ValidationDetail } from '@beech/core'
 type PublicSanitizeSuccess = {
   ok: true
   data: Record<string, unknown>
-  unknownAliases: string[]
 }
 
 type PublicSanitizeFailure = {
@@ -25,7 +24,6 @@ export function sanitizePublicPayload(
   payload: Record<string, unknown>,
   options: {
     allowNull?: boolean
-    strictUnknownAliases?: boolean
     operation?: 'create' | 'update'
     requireAtLeastOneValidField?: boolean
     enforceRequiredFields?: boolean
@@ -34,9 +32,7 @@ export function sanitizePublicPayload(
   const operation = options.operation ?? 'create'
   const result = validateAndSanitizeSeedPayload(seed, payload, {
     allowNull: options.allowNull ?? false,
-    rejectDangerousRichtext: true,
     operation,
-    unknownAliases: options.strictUnknownAliases ? 'reject' : 'collect',
     requireAtLeastOneValidField: options.requireAtLeastOneValidField ?? true,
     enforceRequiredFields: options.enforceRequiredFields ?? true,
   })
@@ -64,7 +60,6 @@ export function sanitizePublicPayload(
   return {
     ok: true,
     data: result.data,
-    unknownAliases: result.unknownAliases,
   }
 }
 

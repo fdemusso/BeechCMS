@@ -93,7 +93,7 @@ describe('Public API add endpoint', () => {
 
     expect(res.status).toBe(400)
     const body = asObject(await res.json())
-    expect(body.message).toBe('Invalid JSON body')
+    expect(body.detail).toBe('Invalid JSON body')
   })
 
   it("POST senza data valida -> 400", async () => {
@@ -111,7 +111,7 @@ describe('Public API add endpoint', () => {
 
     expect(res.status).toBe(400)
     const body = asObject(await res.json())
-    expect(body.message).toBe("Field 'data' is required and must be a non-empty object")
+    expect(body.detail).toBe("Field 'data' is required and must be a non-empty object")
   })
 
   it('POST con status invalido -> 400', async () => {
@@ -147,8 +147,8 @@ describe('Public API add endpoint', () => {
 
     expect(res.status).toBe(400)
     const body = asObject(await res.json())
-    expect(body.message).toBe('Validation failed')
-    expect(Array.isArray(body.details)).toBe(true)
+    expect(body.detail).toBe('Validation failed')
+    expect(Array.isArray(body.errors)).toBe(true)
     expect(body.type).toBe('https://beechcms.dev/problems/validation_failed')
   })
 
@@ -272,7 +272,7 @@ describe('Public API add endpoint', () => {
     expect(res.status).toBe(409)
   })
 
-  it('POST con alias sconosciuto in strict mode -> 400', async () => {
+  it('POST con alias sconosciuto -> 400', async () => {
     const res = await app.request('/api/v1/public/messaggi/add', {
       method: 'POST',
       headers: {
@@ -288,17 +288,16 @@ describe('Public API add endpoint', () => {
     }, {
       DB: createMockD1ForPublicAdd(),
       ...envBase,
-      PUBLIC_STRICT_UNKNOWN_ALIASES: 'true',
     })
 
     expect(res.status).toBe(400)
     const body = asObject(await res.json())
-    expect(body.message).toBe('Validation failed')
-    expect(Array.isArray(body.details)).toBe(true)
-    expect(JSON.stringify(body.details)).toContain('unknownField')
+    expect(body.detail).toBe('Validation failed')
+    expect(Array.isArray(body.errors)).toBe(true)
+    expect(JSON.stringify(body.errors)).toContain('unknownField')
   })
 
-  it('POST con soli alias sconosciuti anche in non-strict -> 400', async () => {
+  it('POST con soli alias sconosciuti -> 400', async () => {
     const res = await app.request('/api/v1/public/messaggi/add', {
       method: 'POST',
       headers: {
@@ -313,13 +312,12 @@ describe('Public API add endpoint', () => {
     }, {
       DB: createMockD1ForPublicAdd(),
       ...envBase,
-      PUBLIC_STRICT_UNKNOWN_ALIASES: 'false',
     })
 
     expect(res.status).toBe(400)
     const body = asObject(await res.json())
-    expect(body.message).toBe('Validation failed')
-    expect(JSON.stringify(body.details)).toContain('at-least-one-valid-field')
+    expect(body.detail).toBe('Validation failed')
+    expect(JSON.stringify(body.errors)).toContain('at-least-one-valid-field')
   })
 
   it('POST senza required field del seed -> 400', async () => {
@@ -339,13 +337,12 @@ describe('Public API add endpoint', () => {
     }, {
       DB: createMockD1ForPublicAdd(),
       ...envBase,
-      PUBLIC_STRICT_UNKNOWN_ALIASES: 'true',
     })
 
     expect(res.status).toBe(400)
     const body = asObject(await res.json())
-    expect(body.message).toBe('Validation failed')
-    expect(JSON.stringify(body.details)).toContain("'name' is required")
+    expect(body.detail).toBe('Validation failed')
+    expect(JSON.stringify(body.errors)).toContain("'name' is required")
   })
 })
 

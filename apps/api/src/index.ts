@@ -42,7 +42,6 @@ type Bindings = {
   CORS_ORIGINS?: string
   PUBLIC_READ_API_KEY?: string
   PUBLIC_WRITE_API_KEY?: string
-  PUBLIC_STRICT_UNKNOWN_ALIASES?: string
   PUBLIC_PUBLISHED_ONLY?: string
   PUBLIC_IDEMPOTENCY_TTL_SECONDS?: string
   MEDIA_BASE_URL?: string

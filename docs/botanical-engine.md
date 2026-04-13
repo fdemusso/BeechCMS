@@ -94,12 +94,10 @@ flowchart LR
 
 ### Alias non riconosciuti (apiToDb)
 
-La foundation del core supporta due policy:
+La validazione runtime del core usa policy unica **fail-closed**:
 
-- `collect` (compatibilita): traccia alias sconosciuti senza bloccare
-- `reject` (hardening): produce errore strutturato e rifiuta il payload
-
-Per la Public API write (`/add`, `/edit`) la policy consigliata e **fail-closed** (`reject`) in ambienti deploy.
+- alias sconosciuti sempre rifiutati con errore strutturato
+- nessun fallback permissivo
 
 ### Required fields e modalita operazione
 

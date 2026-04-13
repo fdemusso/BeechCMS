@@ -11,7 +11,6 @@ type Bindings = {
   DB: D1Database
   PUBLIC_READ_API_KEY?: string
   PUBLIC_WRITE_API_KEY?: string
-  PUBLIC_STRICT_UNKNOWN_ALIASES?: string
   ENV?: string
 }
 
@@ -130,10 +129,8 @@ function resolveData(
     }
   }
 
-  const strictUnknownAliases = c.env.PUBLIC_STRICT_UNKNOWN_ALIASES === 'true'
   const sanitized = sanitizePublicPayload(seed, rawData, {
     allowNull: true,
-    strictUnknownAliases,
     operation: 'update',
     requireAtLeastOneValidField: true,
     enforceRequiredFields: true,
@@ -162,13 +159,6 @@ function resolveData(
       }),
     }
   }
-  if (sanitized.unknownAliases.length > 0) {
-    console.warn('[public-edit] Unknown aliases ignored', {
-      seed: seed.slug,
-      unknownAliases: sanitized.unknownAliases,
-    })
-  }
-
   const currentEntry = rowToEntry(currentRow)
   const currentAliasData = dbToApi(seed, currentEntry.data)
   const mergedAliasData = removeNullishFields({

@@ -55,8 +55,8 @@ describe('Public API read endpoint', () => {
 
     expect(res.status).toBe(404)
     const body = asObject(await res.json())
-    expect(body.error).toBe('Seed Not Found')
-    expect(body.message).toEqual(expect.stringContaining("The content type 'invalidtype' does not exist"))
+    expect(body.title).toBe('Seed Not Found')
+    expect(body.detail).toEqual(expect.stringContaining("The content type 'invalidtype' does not exist"))
   })
 
   it('GET /api/v1/public/articoli?id=uuid restituisce singola entry flat', async () => {
@@ -183,8 +183,8 @@ describe('Public API read endpoint', () => {
 
     expect(res.status).toBe(400)
     const body = asObject(await res.json())
-    expect(body.error).toBe('Bad Request')
-    expect(body.message).toEqual(expect.stringContaining('Invalid filter'))
+    expect(body.title).toBe('Bad Request')
+    expect(body.detail).toEqual(expect.stringContaining('Invalid filter'))
   })
 
   it('GET su seed non esposto in lettura pubblica restituisce 403', async () => {

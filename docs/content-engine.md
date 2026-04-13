@@ -28,7 +28,7 @@ Beech CMS usa una **tabella SQL unica** (`content_entries`) per memorizzare **pa
 
 **Trade-off:**
 
-- La validazione dello schema JSON avviene a livello applicativo (TODO: Zod per schema definition)
+- La validazione dello schema JSON avviene a livello applicativo tramite compiler Zod runtime nel core
 - Nessun vincolo DB sui campi interni di `data`
 
 ---
@@ -102,7 +102,7 @@ curl -X POST https://api.example.com/api/content/progetti \
   -H "Content-Type: application/json" \
   -d '{"title":"Sito Aziendale","budget":5000}'
 
-# Lista progetti (modalità legacy: senza query params)
+# Lista progetti (senza query params)
 curl https://api.example.com/api/content/progetti \
   -H "Authorization: Bearer <token>"
 
@@ -150,8 +150,8 @@ curl https://api.example.com/api/content/blog \
 |--------|-------------|------|
 | 201 | Creazione riuscita (POST) | `{ "id": "uuid" }` |
 | 200 | Lista, facets, dettaglio (GET), aggiornamento (PUT), eliminazione (DELETE) | GET lista senza query: `ContentEntry[]`; GET lista con query (`search/sortBy/sortDir/filters/page/limit`): `{ items, total, page, limit }`; GET facets: `{ statuses, tagsByColumnId }`; GET dettaglio: `ContentEntry`; PUT/DELETE: `{ "success": true }` |
-| 400 | Slug/body invalido | `{ "error": "Invalid slug" }` o `{ "error": "Invalid JSON body" }` |
+| 400 | Slug/body invalido | Problem Details (`type`, `title`, `status`, `detail`, `instance`, `errors[]`) |
 | 401 | Token mancante o invalido | `{ "error": "Unauthorized" }` |
-| 404 | Entry non trovata (GET dettaglio) | `{ "error": "Not found" }` |
-| 404 | Slug non registrato | `{ "error": "Seed not found" }` |
-| 500 | Errore database | `{ "error": "Database error" }` |
+| 404 | Entry non trovata (GET dettaglio) | Problem Details |
+| 404 | Slug non registrato | Problem Details |
+| 500 | Errore database | Problem Details |

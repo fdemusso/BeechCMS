@@ -10,7 +10,7 @@ export interface PublicProblemDetailItem {
 type PublicProblemInput = {
   type: string
   title: string
-  status: 400 | 401 | 403 | 404 | 409 | 422 | 500
+  status: 400 | 401 | 403 | 404 | 409 | 422 | 429 | 500
   detail: string
   errors?: PublicProblemDetailItem[]
 }
@@ -23,8 +23,7 @@ function normalizeProblemType(type: string): string {
 }
 
 /**
- * Restituisce errori Public API in formato Problem Details, mantenendo
- * compatibilità con il payload legacy (`error`, `message`, `details`).
+ * Restituisce errori API in formato Problem Details (RFC 9457).
  */
 export function publicProblem(c: Context, input: PublicProblemInput): Response {
   const body: Record<string, unknown> = {
@@ -33,13 +32,9 @@ export function publicProblem(c: Context, input: PublicProblemInput): Response {
     status: input.status,
     detail: input.detail,
     instance: c.req.path,
-    // Legacy compatibility fields.
-    error: input.title,
-    message: input.detail,
   }
   if (input.errors && input.errors.length > 0) {
     body.errors = input.errors
-    body.details = input.errors
   }
   return c.json(body, input.status, {
     'Content-Type': 'application/problem+json',
