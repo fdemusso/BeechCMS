@@ -1,44 +1,45 @@
-# Segnalazione Criticità Documentazione e Database (Seeds)
+# Public API DX Issues & Hardships
 
-Durante la progettazione dell'integrazione del nuovo sito `testsite` con il CMS, ho analizzato la documentazione presente in `docs/` (in particolare `public-api.md`, `botanical-engine.md` e `content-engine.md`) e le definizioni dei Seed in `@beech/core`.
+Appunti e difficoltà riscontrate durante la creazione e l'integrazione del Testsite React (`apps/testsite`) con la Public API documentata:
 
-Di seguito i problemi e le criticità riscontrate:
+## 1. Wrapper `{ data }` obbligatorio sulle chiamate `POST /:seed/add`
+Sebbene la documentazione menzionasse un possibile require per il wrapper `data`, non era esplicitato ad alto livello in modo netto. In `publicAddHandler` c'è un check rigido su `body.data`:
+```json
+{
+  "status": "draft",
+  "slug": "optional",
+  "data": { ... }
+}
+```
+**Difficoltà DX:** I frontend developer potrebbero istintivamente inviare gli alias in un flat-object se non debitamente istruiti, ricevendo un errore 400 (`invalid-data-object`).
 
-## 2. Inconsistenza Formato Campi JSON e Asset Multimediali
-Nel seed `prodotti`, le immagini erano salvate come campo `json` (`prd_06`, alias `images`), lasciando al frontend l'onere di dedurre la struttura. Per risolvere in coerenza con l'architettura schema-driven:
+## 2. Assenza o scarsa chiarezza sulla gestione CORS
+Richiedendo i dati dall'ambiente Vite (es. `localhost:5173`) alla porta API configurata (`localhost:8789`), si va in contro a potenziale blocco CORS a meno che l'API non emetta correttamente `Access-Control-Allow-Origin: *` o listi specifici trusted-origins. **Task suggerita:** Confermare l'aggiunta del middleware `cors()` in API per le chiamate `/public`.
 
-- il campo e stato allineato a `type: 'file'` con `multiple: true` e `format: 'asset-list'`
-- il payload canonico e `string[]` (URL media), mantenendo compatibilita in lettura con legacy JSON
-- validazione core e renderer dashboard gestiscono in modo esplicito la semantica `asset-list`
+## 3. Gestione e Normalizzazione degli Errori (RFC Problem Details)
+L'API esegue rigidamente lo standard RFC Problem Details (`application/problem+json`).  
+Quando il frontend riceve un 400/422, deve ispezionare le chiavi `title`, `detail` e opzionalmente l'array `errors` al posto dei classici `message` o `error`. Questo è ottimo per la stabilità, ma la typed SDK (o il fetching) richiede un boilerplate standard. **Aggiunta di un SDK generico in `@beech/core` aiuterebbe molto la DX.**
 
-## 3. Mancata Sicurezza sul Public POST
-Il DB in fase di POST `add` dalla Public API pare accettare tutti i campi esposti dal payload, appoggiandosi solo alla sanificazione dello schema.
-Manca una restrizione documentata su quali seed possono accettare POST pubblici. In teoria, tramite endpoint API e Public API-Key, un banale form esterno potrebbe *creare Pagine o Articoli* invece di poter postare solo "Messaggi" da moderare, non risultando esserci un RBAC esplicito a livello di Seed. (Consigliata introduzione di una property `allowPublicPost: boolean` nel SeedType).
+## 4. Gestione Media e "asset-list"
+In `prodotti` (`prd_06`) è definito un campo di tipo `file` con `format: 'asset-list'` e `multiple: true`. Questo restituisce l'array stringificato in `JSON` e va parsato manualmente lato client prima di mostrarlo in galleria, piuttosto che arrivarci nativamente come `Array<string>`.
+```tsx
+let images = []
+try { images = JSON.parse(data.prd_06) } catch {}
+```
 
-### Stato: RISOLTO
+## 5. Idempotency Key
+Implementare un retry automatico richiede obbligatoriamente l'invio e memorizzazione di `Idempotency-Key` nel lato client se si usa POST per non triggerare conflitti (il check è molto utile, ma i DEV devono ricordarsi di abilitarlo sulla chiamata fetch).
 
-- introdotte capability per-seed (`allowPublicRead`, `allowPublicPost`, `allowPublicEdit`) nel core
-- enforcement `403` nei handler Public API (`read`, `add`, `edit`) con default deny
-- split chiavi `PUBLIC_READ_API_KEY`/`PUBLIC_WRITE_API_KEY`
-- rate limit dedicato sulle route pubbliche e supporto `Idempotency-Key` su `POST /add`
+---
+**Esito integrativo:** Nonostante questi piccoli attriti "by-design", la Public API risponde in modo estremamente rapido, documentabile e restrittivo (il fail-closed sulle whitelist dei campi funziona benissimo). Il test site dimostra la fattibilità usando modern tooling e Shadcn UI in tempi record.
 
-## 4. Validazione Rigida vs Evolutiva
-La documentazione ammette "Alias non riconosciuti vengono ignorati (safe policy)" ma annuncia anche sprint su Zod (in `botanical-engine.md` si citano roadmap future). Al momento, spedire JSON leggermente malformati o non aderenti al tipo non produce chiari errori strutturali su tutti i tipi branch, il che potrebbe portare un contact form front-end a salvare "null" silenziosamente se l'alias del `name` del mittente non coincide col DB.
+## 6. Discrepanza Chiavi API nella Documentazione
+La documentazione (`docs/public-api.md`) indicava `dev-public-key-changeme` nei curl di esempio, ma il backend (`wrangler.jsonc` e policy) richiede chiavi separate per lettura e scrittura: `dev-public-read-key-changeme` e `dev-public-write-key-changeme`.
+**Difficoltà DX:** Seguire il tutorial curl / la prima configurazione con la chiave consigliata portava a `401 Unauthorized` (risolta nel testsite usando la read-key appropriata).
 
-### Stato: RISOLTO
-
-- introdotto contratto di validazione operazionale nel core (`operation: create|update`)
-- supporto required schema-driven su branch (`requiredOnCreate`, `requiredOnUpdate`)
-- enforcement fail-closed su write pubbliche: alias sconosciuti rifiutati in strict mode
-- payload senza campi validi rifiutato con `400`
-- error model uniformato in stile Problem Details puro (`application/problem+json`)
-
-## 5. Live Reload Incompleto per i Pacchetti Condivisi (Core)
-È emerso un problema lato Developer Experience non documentato. L'aggiunta di un nuovo seed in `packages/core/src/seeds.ts` **non** si riflette automaticamente nella Dashboard (che genera il menu dinamicamente iterando proprio il `SEED_REGISTRY`, come visibile in `apps/dashboard/src/config/dashboard-menu.ts`). Il codice della dashboard non ha seed hardcoded: legge correttamente dal registro. Tuttavia, siccome il monorepo usa dipendenze al pacchetto compilato (`dist`), quando si avvia `npm run dev`, `turbo` non dispone di un file-watcher (come `tsc -w`) sul pacchetto `@beech/core` per ricompilarlo al salvataggio. Il seed non apparirà mai nella Sidebar fino a che non viene forzata una re-compilazione manuale del core (es. `npm run build -w @beech/core`).
-Manca un avviso su questo limite architetturale del tooling di sviluppo nella voce dedicata (es. in `monorepo.md`). Manca quindi un comando dev che faccia hot-reloading dei TypeScript condivisi per l'ambiente locale.
-
-### Stato: RISOLTO
-
-- aggiunto script `dev` in `@beech/core` con watcher TypeScript (`tsc -w --preserveWatchOutput`)
-- `npm run dev` root ora include anche il task `dev` di `@beech/core` via Turbo
-- documentazione `docs/monorepo.md` aggiornata con note esplicite sul comportamento live-reload dei package condivisi
+## 7. Struttura dei Dati (Flattening e Alias)
+Dai test sul campo è emerso che i client frontend tendono istintivamente a leggere i dati grezzi prelevati usando le chiavi di storage fisico (es. `art_01`, `art_02`, o `pag_01`), annidati in un ipotetico oggetto `data` interno, come definito in molte API convenzionali.
+Tuttavia la Public API di BeechCMS:
+1. **Flattizza la risposta GET**: campi come `id`, `slug`, e tutti i campi contenuto (es. `title`, `coverImage`) non sono raggruppati sotto `data` ma esposti allo stesso livello dell'oggetto `Entry`.
+2. **Utilizza gli Alias**: i campi non vengono restituiti o accettati con il loro identificativo raw (es. `art_01`), bensì con l'alias umanamente leggibile e stabilito nel seed (es. `title`, `publishedAt`, `images`). Nel frontend, mappare `data.art_01` genera errori a runtime (`undefined`). In scrittura (`POST /add`) accade lo stesso: bisogna sempre includere il mapping degli alias.
+**Difficoltà DX / Task:** Per evitare TypeError a runtime dovuti ad interfacce tipizzate erroneamente e agevolare il frontend, sarebbe utile che la documentazione includa un chiaro esempio di risposta `GET` che mostri i dati de-annidati (flattening) e utilizzi in modo inequivocabile gli alias del seed. Le interfacce TS lato client sul test site sono state fixate di conseguenza.

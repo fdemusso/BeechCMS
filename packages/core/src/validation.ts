@@ -29,6 +29,9 @@ const DEFAULT_MAX_TEXT_LENGTH = 50000
 const CONTROL_CHARS_REGEX = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g
 const DANGEROUS_TAG_REGEX = /<(script|iframe|object|embed)\b/i
 const DANGEROUS_ATTR_REGEX = /\son[a-z]+\s*=/i
+const DANGEROUS_PROTOCOL_REGEX = /^\s*javascript:/i
+const DANGEROUS_RICHTEXT_NODE_TYPES = new Set(['script', 'iframe', 'object', 'embed'])
+const LINK_LIKE_RICHTEXT_ATTRS = new Set(['href', 'src'])
 
 const statusSchema = z.enum(['draft', 'review', 'published'])
 const finiteNumberSchema = z.number().refine(Number.isFinite, 'Expected finite number')
@@ -67,6 +70,10 @@ function parseJsonString(value: string): unknown {
   }
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 function normalizeAssetListValue(rawValue: unknown): string[] | null {
   const input = typeof rawValue === 'string' ? parseJsonString(rawValue) : rawValue
   const values = Array.isArray(input) ? input : [input]
@@ -96,21 +103,141 @@ function sanitizePlainString(value: string): string {
   return value.replaceAll(CONTROL_CHARS_REGEX, '').trim()
 }
 
+function collectRichtextVisibleText(value: unknown, chunks: string[]): void {
+  if (Array.isArray(value)) {
+    for (const item of value) collectRichtextVisibleText(item, chunks)
+    return
+  }
+  if (!isPlainObject(value)) return
+
+  if (typeof value.text === 'string') {
+    chunks.push(sanitizePlainString(value.text))
+  }
+  if (Array.isArray(value.content)) {
+    for (const nested of value.content) collectRichtextVisibleText(nested, chunks)
+  }
+}
+
+function isRichtextDocEmpty(value: unknown): boolean {
+  if (!isPlainObject(value)) return false
+  if (value.type !== 'doc') return false
+  const chunks: string[] = []
+  collectRichtextVisibleText(value, chunks)
+  return chunks.join('').trim().length === 0
+}
+
 function isMissingRequiredValue(value: unknown): boolean {
   if (value == null) return true
   if (typeof value === 'string') return sanitizePlainString(value).length === 0
   if (Array.isArray(value)) return value.length === 0
+  if (isPlainObject(value)) {
+    if (isRichtextDocEmpty(value)) return true
+    return Object.keys(value).length === 0
+  }
   return false
 }
 
-function sanitizeRichtext(value: string): { value: string; dangerous: boolean } {
+function sanitizeRichtextString(value: string): {
+  value: string
+  dangerous: boolean
+  size: number
+} {
   const noControl = value.replaceAll(CONTROL_CHARS_REGEX, '')
   const dangerous = DANGEROUS_TAG_REGEX.test(noControl) || DANGEROUS_ATTR_REGEX.test(noControl)
 
   // Best-effort sanitization for Sprint 02; complete policy tracked in TODOs below.
   const strippedTags = noControl.replaceAll(/<\/?(script|iframe|object|embed)[^>]*>/gi, '')
   const strippedHandlers = strippedTags.replaceAll(/\son[a-z]+\s*=\s*(['"]).*?\1/gi, '')
-  return { value: strippedHandlers.trim(), dangerous }
+  const nextValue = strippedHandlers.trim()
+  return { value: nextValue, dangerous, size: nextValue.length }
+}
+
+function sanitizeRichtextJsonNode(value: unknown, state: { dangerous: boolean }): unknown {
+  if (typeof value === 'string') {
+    const cleaned = value.replaceAll(CONTROL_CHARS_REGEX, '')
+    if (DANGEROUS_TAG_REGEX.test(cleaned) || DANGEROUS_ATTR_REGEX.test(cleaned)) {
+      state.dangerous = true
+    }
+    return cleaned
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeRichtextJsonNode(item, state))
+  }
+
+  if (!isPlainObject(value)) {
+    return value
+  }
+
+  const next: Record<string, unknown> = {}
+  for (const [key, rawEntry] of Object.entries(value)) {
+    const loweredKey = key.toLowerCase()
+    if (loweredKey.startsWith('on')) {
+      state.dangerous = true
+    }
+    if (
+      loweredKey === 'type' &&
+      typeof rawEntry === 'string' &&
+      DANGEROUS_RICHTEXT_NODE_TYPES.has(rawEntry.toLowerCase())
+    ) {
+      state.dangerous = true
+    }
+    if (
+      LINK_LIKE_RICHTEXT_ATTRS.has(loweredKey) &&
+      typeof rawEntry === 'string' &&
+      DANGEROUS_PROTOCOL_REGEX.test(rawEntry)
+    ) {
+      state.dangerous = true
+    }
+    next[key] = sanitizeRichtextJsonNode(rawEntry, state)
+  }
+
+  return next
+}
+
+function sanitizeRichtextJson(value: Record<string, unknown>): {
+  value: Record<string, unknown>
+  dangerous: boolean
+  valid: boolean
+  size: number
+} {
+  const state = { dangerous: false }
+  const sanitized = sanitizeRichtextJsonNode(value, state)
+  const asObject = isPlainObject(sanitized) ? sanitized : {}
+  const valid = asObject.type === 'doc'
+  const serialized = JSON.stringify(asObject)
+  return {
+    value: asObject,
+    dangerous: state.dangerous,
+    valid,
+    size: serialized.length,
+  }
+}
+
+function sanitizeRichtext(value: unknown): {
+  value: unknown
+  dangerous: boolean
+  valid: boolean
+  size: number
+} {
+  if (typeof value === 'string') {
+    const sanitized = sanitizeRichtextString(value)
+    return {
+      value: sanitized.value,
+      dangerous: sanitized.dangerous,
+      valid: true,
+      size: sanitized.size,
+    }
+  }
+  if (isPlainObject(value)) {
+    return sanitizeRichtextJson(value)
+  }
+  return {
+    value,
+    dangerous: false,
+    valid: false,
+    size: 0,
+  }
 }
 
 function requiredAliases(seed: Seed, operation: 'create' | 'update'): string[] {
@@ -134,13 +261,20 @@ function buildBranchSchema(
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'richtext': {
-      const schema = stringSchema.transform((value, ctx) => {
+      const schema = z.any().transform((value, ctx) => {
         const sanitized = sanitizeRichtext(value)
-        if (sanitized.value.length > options.maxTextLength) {
+        if (!sanitized.valid) {
           ctx.addIssue({
             code: 'custom',
-            message: `Expected string(max:${options.maxTextLength})`,
-            params: { expected: `string(max:${options.maxTextLength})` },
+            message: 'Expected richtext-json|string',
+            params: { expected: 'richtext-json|string' },
+          })
+        }
+        if (sanitized.size > options.maxTextLength) {
+          ctx.addIssue({
+            code: 'custom',
+            message: `Expected richtext(max:${options.maxTextLength})`,
+            params: { expected: `richtext(max:${options.maxTextLength})` },
           })
         }
         if (sanitized.dangerous) {
@@ -293,12 +427,15 @@ function validateBranchValue(
     }
 
     case 'richtext': {
-      if (!stringSchema.safeParse(rawValue).success) {
-        return { ok: false, detail: makeDetail(alias, 'string', rawValue) }
-      }
       const sanitized = sanitizeRichtext(rawValue as string)
-      if (sanitized.value.length > options.maxTextLength) {
-        return { ok: false, detail: makeDetail(alias, `string(max:${options.maxTextLength})`, rawValue) }
+      if (!sanitized.valid) {
+        return { ok: false, detail: makeDetail(alias, 'richtext-json|string', rawValue) }
+      }
+      if (sanitized.size > options.maxTextLength) {
+        return {
+          ok: false,
+          detail: makeDetail(alias, `richtext(max:${options.maxTextLength})`, rawValue),
+        }
       }
       return { ok: true, value: sanitized.value, dangerous: sanitized.dangerous }
     }

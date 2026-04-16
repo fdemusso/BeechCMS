@@ -61,6 +61,13 @@ function isSeoBranch(branch: { alias: string }): boolean {
   return branch.alias.startsWith("meta")
 }
 
+function createEmptyRichtextDoc(): Record<string, unknown> {
+  return {
+    type: "doc",
+    content: [{ type: "paragraph" }],
+  }
+}
+
 export function EntryEditorPage() {
   const { slug: schemaSlug, id: entryId } = useParams<{
     slug: string
@@ -127,6 +134,8 @@ export function EntryEditorPage() {
     seed.branches.forEach((branch) => {
       if (branch.type === "boolean") {
         initial[branch.alias] = false
+      } else if (branch.type === "richtext") {
+        initial[branch.alias] = createEmptyRichtextDoc()
       } else {
         initial[branch.alias] = ""
       }
@@ -398,7 +407,7 @@ export function EntryEditorPage() {
                     </div>
 
                     {/* Sidebar: Metadati / SEO + Contenuto */}
-                    <aside className="flex flex-col gap-4 md:sticky md:top-4 md:self-start">
+                    <aside className="flex flex-col gap-4 md:sticky md:top-[calc(var(--header-height)+1rem)] md:self-start">
                       <Card>
                         <CardHeader>
                           <CardTitle>Metadati / SEO</CardTitle>
