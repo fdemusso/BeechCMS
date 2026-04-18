@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { getSeed, apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload } from '@beech/core'
+import { getSeed, apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload, slugify } from '@beech/core'
 import { deleteR2Objects } from './upload'
 import { extractMediaKeysFromData } from './media-utils'
 import { publicProblem } from './public/problem-details'
@@ -133,7 +133,7 @@ contentApp.post('/:slug', async (c) => {
     })
   }
 
-  const entrySlug = cleanStr(body.slug);
+  const entrySlug = body.slug ? slugify(String(body.slug)) : null;
   const status = cleanStr(body.status) ?? 'draft';
   if (!isValidContentStatus(status)) {
     return publicProblem(c, {
@@ -581,7 +581,7 @@ contentApp.put('/:slug/:id', async (c) => {
     }
 
 
-    const entrySlugReq = body.slug === undefined ? undefined : cleanStr(body.slug);
+    const entrySlugReq = body.slug === undefined ? undefined : slugify(String(body.slug));
     const statusReqRaw = body.status === undefined ? undefined : cleanStr(body.status)
     const statusReq = statusReqRaw ?? undefined
 

@@ -1,6 +1,6 @@
 import * as React from "react"
 import { useParams, useNavigate, useBlocker } from "react-router-dom"
-import { getSeed } from "@beech/core"
+import { getSeed, slugify } from "@beech/core"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { AxiosError } from "axios"
@@ -49,11 +49,7 @@ import type { ContentEntry } from "@/lib/dynamic-columns"
  * per garantire consistenza assoluta tra dashboard e API pubbliche.
  */
 function slugFromText(text: string): string {
-  const normalized = String(text ?? "")
-    .toLowerCase()
-    .trim()
-  const withHyphens = normalized.replaceAll(/[^a-z0-9]+/g, "-")
-  return withHyphens.replaceAll(/^-+|-+$/g, "")
+  return slugify(text)
 }
 
 /** Alias considerati campi SEO (meta titolo, meta descrizione, ecc.). */
@@ -430,17 +426,18 @@ export function EntryEditorPage() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="entry-slug">Slug (URL)</Label>
-                            <Input
-                              id="entry-slug"
-                              value={slug}
-                              onChange={(e) => {
-                                setSlug(e.target.value)
-                                setSlugTouched(true)
-                                setIsDirty(true)
-                              }}
-                              placeholder="es. mio-articolo"
-                              className="font-mono text-sm"
-                            />
+                              <Input
+                                id="entry-slug"
+                                value={slug}
+                                onChange={(e) => {
+                                  setSlug(slugify(e.target.value))
+                                  setSlugTouched(true)
+                                  setIsDirty(true)
+                                }}
+                                maxLength={15}
+                                placeholder="es. mio-articolo"
+                                className="font-mono text-sm"
+                              />
                           </div>
                           {seoBranches.map((branch) => (
                             <div key={branch.id} className="space-y-2">
@@ -508,10 +505,11 @@ export function EntryEditorPage() {
                               id="entry-slug"
                               value={slug}
                               onChange={(e) => {
-                                setSlug(e.target.value)
+                                setSlug(slugify(e.target.value))
                                 setSlugTouched(true)
                                 setIsDirty(true)
                               }}
+                              maxLength={15}
                               placeholder="es. mio-articolo"
                               className="font-mono text-sm"
                             />

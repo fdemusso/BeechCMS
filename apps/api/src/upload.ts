@@ -202,6 +202,17 @@ uploadRoutes.post('/upload', async (c, next) => {
   }
 })
 
+/** DELETE /upload/:key - Elimina un file da R2 */
+uploadRoutes.delete('/:key', async (c, next) => {
+  await authMiddleware(c.env.JWT_SECRET)(c, next)
+}, async (c) => {
+  const key = c.req.param('key')
+  if (!key) return c.json({ error: 'Missing key' }, 400)
+  
+  await deleteR2Objects(c.env, [decodeURIComponent(key)])
+  return c.json({ success: true }, 200)
+})
+
 /**
  * Serve un file da R2. Route pubblica (senza auth) per permettere
  * il caricamento delle immagini nei tag <img>.
