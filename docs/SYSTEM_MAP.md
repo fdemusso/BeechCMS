@@ -28,6 +28,7 @@ This high‑level system map is designed for onboarding new contributors and for
     - Components based on `radix-ui` and shadcn (`shadcn` `^4.0.2`)
   - **Rich text & advanced interactions**
     - TipTap (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/pm`): `^3.20.0`
+    - Implementazione campo: slice `apps/dashboard/src/features/richtext-editor/` con public API via `index.ts`; il registry continua a importare `RichtextEdit` da `components/fields/edit/richtext.tsx` (thin re-export). Persistenza JSON con envelope `{ schemaVersion: 1, doc }` allineata a `@beech/core` (`renderRichText`, validazione in `validation.ts`).
   - **Build & Quality**
     - ESLint 9 (`eslint` `^9.39.1`, `typescript-eslint` `^8.48.0`)
     - Vitest `^3.2.4`, Testing Library (`@testing-library/react`, `@testing-library/jest-dom`)
@@ -105,6 +106,7 @@ beech-cms/
   - `apps/dashboard/src/components/content-gallery/`: gallery view (card grid + read-only peek panel) integrated in `ContentListPage`.
   - `apps/dashboard/src/components/fields/`: Field Renderers infrastructure (display/edit per `Branch` type), described in `[field-renderers.md](field-renderers.md)`.
     - `FieldDisplay.tsx`, `FieldEdit.tsx`, `registry.ts`, `display/*.tsx`, `edit/*.tsx`.
+    - Rich text (TipTap): logica UI e estensioni in `features/richtext-editor/`; solo il barrel `features/richtext-editor/index.ts` è importabile dall’esterno del slice (registry → `edit/richtext.tsx` re-esporta `RichtextEdit`).
   - Entry editing pages (e.g., `EntryEditorPage`) consume Field Renderers and the Seed from the core.
   - Table and Gallery reuse the same server-side dataset and stay schema-driven; table columns come from `Seed.branches`, gallery cards use branch alias/type heuristics.
   - Key integrations: consumes `@beech/core` for shared types and logic; calls only documented APIs (`/auth/*`, `/api/content/*`, `/api/upload`, `/api/media/*`).

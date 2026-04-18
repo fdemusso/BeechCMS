@@ -289,3 +289,76 @@ h1 {
   float: left;
   height: 0;
 }
+
+/* Blocco codice (pre) vs codice inline nell’editor TipTap */
+.richtext-editor-root .ProseMirror pre.richtext-code-block {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  padding: 0.75rem 1rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+.richtext-editor-root .ProseMirror pre.richtext-code-block code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font-size: inherit;
+}
+
+.richtext-editor-root .ProseMirror :not(pre) > code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: color-mix(in srgb, var(--muted) 85%, transparent);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+}
+
+/* Anteprima / HTML generato (galleria, stesso aspetto blocco codice) */
+.richtext-content pre.richtext-code-block {
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.375rem;
+  border: 1px solid var(--border);
+  background: var(--muted);
+  padding: 0.5rem 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  overflow-x: auto;
+}
+
+/* Formula a blocco: centrata rispetto alla colonna di testo */
+.richtext-editor-root .ProseMirror [data-type="block-math"],
+.richtext-content [data-type="block-math"] {
+  display: block;
+  margin: 0.75rem 0;
+  text-align: center;
+}
+
+.richtext-editor-root .ProseMirror [data-type="block-math"] .block-math-inner,
+.richtext-content [data-type="block-math"] .block-math-inner {
+  display: flex;
+  justify-content: center;
+}
+
+/* KaTeX display nel blocco (editor + HTML generato se presente) */
+.richtext-editor-root .ProseMirror [data-type="block-math"] .katex-display,
+.richtext-content [data-type="block-math"] .katex-display {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Errore LaTeX renderizzato nel nodo formula (TipTap) */
+.richtext-editor-root .ProseMirror .tiptap-math-katex-error,
+.richtext-content .tiptap-math-katex-error {
+  color: var(--destructive);
+  font-size: 0.75rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  line-height: 1.35;
+}

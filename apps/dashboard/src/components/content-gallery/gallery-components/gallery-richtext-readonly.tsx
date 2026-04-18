@@ -1,11 +1,8 @@
-import * as React from "react"
-import { EditorContent, useEditor } from "@tiptap/react"
-import StarterKit from "@tiptap/starter-kit"
+import { renderRichText } from "@beech/core"
 
 import { cn } from "@/lib/utils"
 
-/** Considera vuoto HTML TipTap tipico senza testo visibile. */
-function isRichtextEmpty(html: string): boolean {
+function isRenderedEmpty(html: string): boolean {
   const text = html.replaceAll(/<[^>]*>/g, "").replaceAll("\u00a0", " ").trim()
   return text.length === 0
 }
@@ -16,40 +13,26 @@ interface GalleryRichtextReadonlyProps {
 }
 
 /**
- * Anteprima richtext con TipTap in sola lettura (stesso motore dell’editor, toolbar assente).
+ * Anteprima richtext: stesso schema JSON/envelope dell'editor, output HTML via `@beech/core`.
  */
 export function GalleryRichtextReadonly({ value, className }: GalleryRichtextReadonlyProps) {
-  const html = typeof value === "string" ? value : ""
+  const html = renderRichText(value)
 
-  const editor = useEditor({
-    extensions: [StarterKit],
-    content: html || "<p></p>",
-    editable: false,
-  })
-
-  React.useEffect(() => {
-    if (!editor) return
-    const next = typeof value === "string" ? value : ""
-    editor.commands.setContent(next || "<p></p>")
-  }, [editor, value])
-
-  if (!editor) return null
-
-  if (isRichtextEmpty(html)) {
+  if (isRenderedEmpty(html)) {
     return <div className="text-muted-foreground text-sm">—</div>
   }
 
   return (
     <div
       className={cn(
-        "rounded-md bg-transparent text-sm",
+        "richtext-content rounded-md bg-transparent text-sm leading-relaxed",
+        "[&_table]:w-full [&_table]:border-collapse [&_table]:text-sm",
+        "[&_th]:border [&_td]:border [&_th]:border-border [&_td]:border-border [&_th]:bg-muted/40 [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1",
+        "[&_p]:mb-2 [&_a]:text-primary [&_a]:underline",
         className
       )}
-    >
-      <EditorContent
-        editor={editor}
-        className="select-text [&_.ProseMirror]:min-h-[120px] [&_.ProseMirror]:bg-transparent"
-      />
-    </div>
+      // Contenuto già validato da `@beech/core` in scrittura; solo anteprima admin.
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   )
 }

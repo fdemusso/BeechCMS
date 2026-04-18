@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { Branch, Seed } from './types'
+import { RICHTEXT_SCHEMA_VERSION, isRichtextEnvelopeV1 } from './richtext'
 
 export interface ValidationDetail {
   field: string
@@ -113,6 +114,10 @@ function collectRichtextVisibleText(value: unknown, chunks: string[]): void {
   if (typeof value.text === 'string') {
     chunks.push(sanitizePlainString(value.text))
   }
+  const attrs = typeof value.attrs === 'object' && value.attrs !== null ? (value.attrs as Record<string, unknown>) : null
+  if (attrs && typeof attrs.latex === 'string') {
+    chunks.push(sanitizePlainString(attrs.latex))
+  }
   if (Array.isArray(value.content)) {
     for (const nested of value.content) collectRichtextVisibleText(nested, chunks)
   }
@@ -120,6 +125,9 @@ function collectRichtextVisibleText(value: unknown, chunks: string[]): void {
 
 function isRichtextDocEmpty(value: unknown): boolean {
   if (!isPlainObject(value)) return false
+  if (isRichtextEnvelopeV1(value)) {
+    return isRichtextDocEmpty(value.doc)
+  }
   if (value.type !== 'doc') return false
   const chunks: string[] = []
   collectRichtextVisibleText(value, chunks)
@@ -131,6 +139,9 @@ function isMissingRequiredValue(value: unknown): boolean {
   if (typeof value === 'string') return sanitizePlainString(value).length === 0
   if (Array.isArray(value)) return value.length === 0
   if (isPlainObject(value)) {
+    if (isRichtextEnvelopeV1(value)) {
+      return isRichtextDocEmpty(value.doc)
+    }
     if (isRichtextDocEmpty(value)) return true
     return Object.keys(value).length === 0
   }
@@ -214,14 +225,23 @@ function sanitizeRichtextJson(value: Record<string, unknown>): {
   }
 }
 
+function unwrapRichtextPayload(value: unknown): { inner: unknown; wrapAsEnvelope: boolean } {
+  if (isRichtextEnvelopeV1(value)) {
+    return { inner: value.doc, wrapAsEnvelope: true }
+  }
+  return { inner: value, wrapAsEnvelope: false }
+}
+
 function sanitizeRichtext(value: unknown): {
   value: unknown
   dangerous: boolean
   valid: boolean
   size: number
 } {
-  if (typeof value === 'string') {
-    const sanitized = sanitizeRichtextString(value)
+  const { inner, wrapAsEnvelope } = unwrapRichtextPayload(value)
+
+  if (typeof inner === 'string') {
+    const sanitized = sanitizeRichtextString(inner)
     return {
       value: sanitized.value,
       dangerous: sanitized.dangerous,
@@ -229,8 +249,25 @@ function sanitizeRichtext(value: unknown): {
       size: sanitized.size,
     }
   }
-  if (isPlainObject(value)) {
-    return sanitizeRichtextJson(value)
+  if (isPlainObject(inner)) {
+    const jsonResult = sanitizeRichtextJson(inner)
+    if (!jsonResult.valid) {
+      return {
+        value,
+        dangerous: jsonResult.dangerous,
+        valid: false,
+        size: jsonResult.size,
+      }
+    }
+    const outValue = wrapAsEnvelope
+      ? { schemaVersion: RICHTEXT_SCHEMA_VERSION, doc: jsonResult.value }
+      : jsonResult.value
+    return {
+      value: outValue,
+      dangerous: jsonResult.dangerous,
+      valid: true,
+      size: JSON.stringify(outValue).length,
+    }
   }
   return {
     value,
@@ -427,7 +464,7 @@ function validateBranchValue(
     }
 
     case 'richtext': {
-      const sanitized = sanitizeRichtext(rawValue as string)
+      const sanitized = sanitizeRichtext(rawValue)
       if (!sanitized.valid) {
         return { ok: false, detail: makeDetail(alias, 'richtext-json|string', rawValue) }
       }
