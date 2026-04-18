@@ -11,6 +11,7 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
 import { Hono } from 'hono'
 import { authMiddleware } from './middleware'
+import { logActivity } from './shared/activity-logger'
 
 /** Variabili d'ambiente per upload e media (R2 via S3 API) */
 type UploadBindings = {
@@ -221,6 +222,13 @@ uploadRoutes.post('/upload', async (c, next) => {
 
     const baseUrl = getMediaBaseUrl(c)
     const publicUrl = `${baseUrl}/api/media/${encodeURIComponent(objectKey)}`
+
+    logActivity(c, {
+      action: 'upload',
+      entityType: 'media',
+      entityId: objectKey,
+      details: { name: file.name, size: file.size, type: file.type }
+    })
 
     return c.json({ url: publicUrl }, 200)
   } catch (err) {

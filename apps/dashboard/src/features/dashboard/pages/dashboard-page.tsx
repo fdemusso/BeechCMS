@@ -46,13 +46,6 @@ export default function DashboardPage() {
     },
   ]
 
-  const activities = [
-    { id: "1", user: { name: "Flavio", initials: "F" }, action: "ha aggiornato", target: "Homepage", timestamp: new Date(Date.now() - 1000 * 60 * 15) },
-    { id: "2", user: { name: "Marco", initials: "M" }, action: "ha creato", target: "Nuovo Post Blog", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2) },
-    { id: "3", user: { name: "AI Agent", initials: "AI", image: "/ai-avatar.png" }, action: "ha ottimizzato", target: "SEO Immagine #42", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5) },
-    { id: "4", user: { name: "Sara", initials: "S" }, action: "ha rimosso", target: "Commento Spam", timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24) },
-  ]
-
   const handleAction = (id: string) => {
     console.log("Action triggered:", id)
   }
@@ -93,7 +86,7 @@ export default function DashboardPage() {
               <div className="grid gap-6 md:grid-cols-3">
                 {/* Left Column: Recent Activity (Spans 2 columns) */}
                 <div className="md:col-span-2 space-y-6">
-                  <RecentActivity activities={activities} />
+                  <RecentActivity />
                   
                   {/* Performance/Health Visualization Placeholder */}
                   <div className="rounded-3xl bg-neutral-900 p-8 text-white flex items-center justify-between overflow-hidden relative group">

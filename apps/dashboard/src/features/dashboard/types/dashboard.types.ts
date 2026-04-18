@@ -23,3 +23,14 @@ export interface CloudflareStats {
     percentage: number
   }
 }
+export interface RecentActivity {
+  id: string
+  user_id: string
+  user_email: string
+  action: 'create' | 'update' | 'delete' | 'upload'
+  entity_type: 'content' | 'media'
+  entity_id: string
+  entity_slug?: string
+  details?: Record<string, any>
+  created_at: number
+}

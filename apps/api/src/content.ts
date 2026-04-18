@@ -5,6 +5,7 @@ import { deleteR2Objects, createR2Client } from './upload'
 import { getBucketSize } from './shared/storage-utils'
 import { extractMediaKeysFromData } from './media-utils'
 import { publicProblem } from './public/problem-details'
+import { logActivity } from './shared/activity-logger'
 import {
   buildOrderClause,
   buildWhereClause,
@@ -195,6 +196,15 @@ contentApp.post('/:slug', async (c) => {
     )
       .bind(id, slug, entrySlug, status, dataStr, now, now)
       .run()
+
+    logActivity(c, {
+      action: 'create',
+      entityType: 'content',
+      entityId: id,
+      entitySlug: slug,
+      details: { title: validation.data.title || validation.data.name || entrySlug }
+    })
+
     return c.json({ id }, 201)
   } catch (err) {
     console.error('Content create error:', err)
@@ -390,6 +400,34 @@ contentApp.get('/stats/total', async (c) => {
     })
   } catch (err) {
     console.error('Content stats error:', err)
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
+  }
+})
+
+// GET /stats/recent-activity - Ultime attività registrate nel sistema
+contentApp.get('/stats/recent-activity', async (c) => {
+  try {
+    const { DB } = c.env
+    const result = await DB.prepare(
+      `SELECT id, user_id, user_email, action, entity_type, entity_id, entity_slug, details, created_at 
+       FROM activity_logs 
+       ORDER BY created_at DESC 
+       LIMIT 15`
+    ).all()
+
+    const activities = (result.results ?? []).map((row: any) => ({
+      ...row,
+      details: row.details ? JSON.parse(row.details) : null
+    }))
+
+    return c.json(activities)
+  } catch (err) {
+    console.error('Recent activity error:', err)
     return publicProblem(c, {
       type: 'content-database-error',
       title: 'Internal Server Error',
@@ -824,14 +862,13 @@ contentApp.put('/:slug/:id', async (c) => {
       .bind(dataStr, newSlug, newStatus, now, slug, id)
       .run()
 
-    if (!result.meta?.changes) {
-      return publicProblem(c, {
-        type: 'content-not-found',
-        title: 'Not Found',
-        status: 404,
-        detail: CONTENT_ERRORS.NOT_FOUND,
-      })
-    }
+    logActivity(c, {
+      action: 'update',
+      entityType: 'content',
+      entityId: id,
+      entitySlug: slug,
+      details: { title: mergedAliasData.title || mergedAliasData.name || newSlug }
+    })
 
     return c.json({ success: true })
   } catch (err) {
@@ -893,7 +930,22 @@ contentApp.delete('/:slug/:id', async (c) => {
         `DELETE FROM content_entries WHERE schema_slug = ? AND id = ?`
     )
         .bind(schemaSlug, entryId)
-        .run();
+      .run();
+
+    // Log attività
+    try {
+      const entryData = JSON.parse(entryRow.data)
+      const aliasData = dbToApi(seed, entryData)
+      logActivity(c, {
+        action: 'delete',
+        entityType: 'content',
+        entityId: entryId,
+        entitySlug: schemaSlug,
+        details: { title: aliasData.title || aliasData.name || entryRow.id }
+      })
+    } catch {
+      // ignore logging error if data parse fails
+    }
 
     // Se il database riporta success: false senza lanciare eccezioni, forziamo l'errore 500
     if (!result.success) throw new Error("Database deletion failed unexpectedly");
