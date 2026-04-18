@@ -34,3 +34,17 @@ export interface RecentActivity {
   details?: Record<string, any>
   created_at: number
 }
+export interface SystemHealth {
+  storage: {
+    used: number
+    limit: number
+    percentage: number
+  }
+  database: {
+    requests30d: number
+    limit: number
+    percentage: number
+  }
+  status: 'healthy' | 'warning' | 'critical'
+  lastUpdate: number
+}

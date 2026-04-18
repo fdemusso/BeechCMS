@@ -6,6 +6,7 @@ export const DASHBOARD_QUERY_KEYS = {
   stats: () => [...DASHBOARD_QUERY_KEYS.all, "stats"] as const,
   cloudflare: () => [...DASHBOARD_QUERY_KEYS.all, "cloudflare"] as const,
   activity: () => [...DASHBOARD_QUERY_KEYS.all, "activity"] as const,
+  health: () => [...DASHBOARD_QUERY_KEYS.all, "health"] as const,
 }
 
 export function useDashboardStats() {
@@ -29,5 +30,13 @@ export function useRecentActivity() {
     queryKey: DASHBOARD_QUERY_KEYS.activity(),
     queryFn: dashboardApi.getRecentActivity,
     refetchInterval: 30000, // Aggiorna ogni 30 secondi per la dashboard
+  })
+}
+
+export function useSystemHealth() {
+  return useQuery({
+    queryKey: DASHBOARD_QUERY_KEYS.health(),
+    queryFn: dashboardApi.getSystemHealth,
+    staleTime: 5 * 60 * 1000,
   })
 }

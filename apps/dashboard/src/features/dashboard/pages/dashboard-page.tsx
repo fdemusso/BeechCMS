@@ -3,7 +3,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { StatCard } from "../components/stat-card"
 import { RecentActivity } from "../components/recent-activity"
-import { QuickActions } from "../components/quick-actions"
+import { SystemHealth } from "../components/system-health"
 import { AIInsights } from "../components/ai-insights"
 import { useDashboardStats, useCloudflareStats } from "../hooks/use-dashboard-stats"
 import { FileText, Database, Globe, Zap } from "lucide-react"
@@ -58,9 +58,6 @@ export default function DashboardPage() {
     },
   ]
 
-  const handleAction = (id: string) => {
-    console.log("Action triggered:", id)
-  }
 
   return (
     <div className="[--header-height:calc(--spacing(14))] overflow-x-hidden min-h-screen bg-neutral-50/50 dark:bg-neutral-950/50 relative">
@@ -103,7 +100,7 @@ export default function DashboardPage() {
 
                 {/* Right Column: Actions & Insights */}
                 <div className="space-y-6">
-                  <QuickActions onAction={handleAction} />
+                  <SystemHealth />
                   <AIInsights />
                 </div>
               </div>

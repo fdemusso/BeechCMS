@@ -500,6 +500,59 @@ contentApp.get('/stats/recent-activity', async (c) => {
   }
 })
 
+// GET /stats/health - Stato salute sistema e quote Cloudflare
+contentApp.get('/stats/health', async (c) => {
+  try {
+    const { DB } = c.env
+    
+    // 1. Recupera storage da system_stats (aggiornato periodicamente o via sync)
+    let storageUsedBytes = 0
+    try {
+      const statsRow = await DB.prepare(
+        "SELECT value FROM system_stats WHERE id = 'total_storage_bytes'"
+      ).first<{ value: string }>()
+      if (statsRow) {
+        storageUsedBytes = parseInt(statsRow.value, 10)
+      }
+    } catch (err) {
+      console.warn('Health: Could not fetch storage stats from D1:', err)
+    }
+
+    // 2. Aggregazione richieste D1 (proxy per database health) - ultimi 30 giorni
+    const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000)
+    const d1Stats = await DB.prepare(
+      `SELECT SUM(value) as total_requests FROM analytics WHERE metric = 'requests' AND day_ts >= ?`
+    ).bind(thirtyDaysAgo).first<{ total_requests: number }>()
+
+    const totalRequests = d1Stats?.total_requests ?? 0
+
+    // 3. Definizione limiti (Free Tier Cloudflare come riferimento)
+    const R2_LIMIT = 10 * 1024 * 1024 * 1024 // 10GB
+    const D1_MONTHLY_LIMIT = 1000000 // Simuliamo un limite di 1M di richieste/mese
+
+    const storagePercentage = Math.min(Math.round((storageUsedBytes / R2_LIMIT) * 1000) / 10, 100)
+    const d1Percentage = Math.min(Math.round((totalRequests / D1_MONTHLY_LIMIT) * 1000) / 10, 100)
+
+    return c.json({
+      storage: {
+        used: storageUsedBytes,
+        limit: R2_LIMIT,
+        percentage: storagePercentage
+      },
+      database: {
+        requests30d: totalRequests,
+        limit: D1_MONTHLY_LIMIT,
+        percentage: d1Percentage
+      },
+      status: (storagePercentage < 90 && d1Percentage < 90) ? 'healthy' : 'warning',
+      lastUpdate: Math.floor(Date.now() / 1000)
+    })
+  } catch (err) {
+    console.error('System health stats error:', err)
+    return c.json({ error: 'Failed to calculate system health' }, 500)
+  }
+})
+
 // GET /stats/cloudflare - Metriche tipo Cloudflare (Richieste, Visitatori, Bandwidth)
 contentApp.get('/stats/cloudflare', async (c) => {
   try {
