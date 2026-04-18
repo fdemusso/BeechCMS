@@ -139,6 +139,36 @@ app.use('*', async (c, next) => {
 // Rota root di test
 app.get('/', (c) => c.text('Beech API is running!'))
 
+// Middleware Analytics: traccia le richieste per la dashboard (Cloudflare-style metrics)
+app.use('/api/*', async (c, next) => {
+  await next()
+  
+  // Tracciamo solo richieste andate a buon fine (2xx) e non OPTIONS
+  if (c.req.method !== 'OPTIONS' && c.res.status >= 200 && c.res.status < 300) {
+    const db = c.env.DB
+    if (db) {
+      // Usa waitUntil per non bloccare la risposta al client
+      c.executionCtx.waitUntil((async () => {
+        try {
+          const today = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
+          
+          // 1. Incrementa contatore richieste totali
+          await db.prepare(
+            `INSERT INTO analytics (day_ts, metric, value) 
+             VALUES (?, 'requests', 1) 
+             ON CONFLICT(day_ts, metric) DO UPDATE SET value = value + 1`
+          ).bind(today).run()
+          
+          // Nota: per i visitatori unici servirebbe una tabella di appoggio per gli IP.
+          // In questo prototipo simuliamo la crescita basandoci sulle richieste o tramite seed.
+        } catch (err) {
+          console.error('Analytics middleware error:', err)
+        }
+      })())
+    }
+  }
+})
+
 // POST /auth/login: autenticazione con email e password + refresh token
 app.post('/auth/login', async (c) => {
   try {
