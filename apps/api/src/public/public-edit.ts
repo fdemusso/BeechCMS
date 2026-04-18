@@ -6,6 +6,7 @@ import { checkPublicOperation } from './access-policy'
 import { publicProblem } from './problem-details'
 import { slugify } from './slug-utils'
 import { sanitizePublicPayload } from './sanitize'
+import { createNotification } from '../shared/notification-service'
 
 type Bindings = {
   DB: D1Database
@@ -254,6 +255,12 @@ export async function publicEditHandler(c: PublicCtx) {
     )
       .bind(slugResult.value.nextSlug, statusResult.value, dataResult.value, now, seedSlug, id)
       .run()
+
+    await createNotification(c, {
+      title: `${seed.label}: Modifica`,
+      message: `L'entry "${slugResult.value.nextSlug}" è stata modificata via API pubblica.`,
+      type: 'info'
+    })
 
     return c.json({ success: true, id, slug: slugResult.value.nextSlug }, 200)
   } catch (err) {

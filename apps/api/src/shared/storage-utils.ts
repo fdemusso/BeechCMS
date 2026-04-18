@@ -1,4 +1,4 @@
-import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3'
+import { S3Client, ListObjectsV2Command, ListObjectsV2CommandOutput } from '@aws-sdk/client-s3'
 
 /**
  * Calcola la dimensione totale occupata in un bucket R2 (in byte).
@@ -7,17 +7,17 @@ import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3'
  */
 export async function getBucketSize(client: S3Client, bucketName: string): Promise<number> {
   let totalSize = 0
-  let isTruncated = true
+  let isTruncatedFlag = true
   let continuationToken: string | undefined = undefined
 
   try {
-    while (isTruncated) {
+    while (isTruncatedFlag) {
       const command = new ListObjectsV2Command({
         Bucket: bucketName,
         ContinuationToken: continuationToken,
       })
 
-      const response = await client.send(command)
+      const response = (await client.send(command)) as ListObjectsV2CommandOutput
       
       if (response.Contents) {
         for (const obj of response.Contents) {
@@ -25,7 +25,7 @@ export async function getBucketSize(client: S3Client, bucketName: string): Promi
         }
       }
 
-      isTruncated = response.IsTruncated ?? false
+      isTruncatedFlag = response.IsTruncated ?? false
       continuationToken = response.NextContinuationToken
     }
     return totalSize

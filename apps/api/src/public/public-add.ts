@@ -5,6 +5,7 @@ import { checkPublicOperation } from './access-policy'
 import { publicProblem } from './problem-details'
 import { generateEntrySlug, slugify } from './slug-utils'
 import { sanitizePublicPayload } from './sanitize'
+import { createNotification } from '../shared/notification-service'
 
 type Bindings = {
   DB: D1Database
@@ -276,6 +277,12 @@ export async function publicAddHandler(c: Context<{ Bindings: Bindings; Variable
         expiresAt: now + idempotencyTtlSeconds,
       })
     }
+
+    await createNotification(c, {
+      title: `${seed.label}: Nuovo inserimento`,
+      message: `Una nuova entry ("${sanitized.data.title || sanitized.data.name || finalSlug}") è stata aggiunta via API pubblica.`,
+      type: 'success'
+    })
 
     return c.json(responseBody, 201)
   } catch (err) {

@@ -6,11 +6,23 @@ import { RecentActivity } from "../components/recent-activity"
 import { QuickActions } from "../components/quick-actions"
 import { AIInsights } from "../components/ai-insights"
 import { useDashboardStats, useCloudflareStats } from "../hooks/use-dashboard-stats"
-import { FileText, Users, Database, Activity, Star, Globe, Zap } from "lucide-react"
+import { FileText, Database, Globe, Zap } from "lucide-react"
+import { getStoredUser } from "@/lib/api"
+
+function getGreeting() {
+  const hour = new Date().getHours()
+  if (hour >= 5 && hour < 12) return "Buongiorno"
+  if (hour >= 12 && hour < 18) return "Buon pomeriggio"
+  if (hour >= 18 && hour < 22) return "Buonasera"
+  return "Buonanotte"
+}
 
 export default function DashboardPage() {
   const { data: statsData, isLoading: statsLoading } = useDashboardStats()
   const { data: cfData, isLoading: cfLoading } = useCloudflareStats()
+  const user = getStoredUser()
+  const greeting = getGreeting()
+  const userName = user?.name || "Admin"
 
   const stats = [
     { 
@@ -67,8 +79,7 @@ export default function DashboardPage() {
               {/* Welcome Header */}
               <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-bold tracking-tight md:text-4xl text-neutral-900 dark:text-neutral-100 flex items-center gap-3">
-                  Bentornato su Beech
-                  <Star className="h-8 w-8 text-amber-400 fill-amber-400 animate-pulse" />
+                  {greeting}, {userName}
                 </h1>
                 <p className="text-neutral-500 dark:text-neutral-400 text-lg">
                   Ecco cosa è successo nel tuo workspace oggi.
@@ -88,19 +99,6 @@ export default function DashboardPage() {
                 <div className="md:col-span-2 space-y-6">
                   <RecentActivity />
                   
-                  {/* Performance/Health Visualization Placeholder */}
-                  <div className="rounded-3xl bg-neutral-900 p-8 text-white flex items-center justify-between overflow-hidden relative group">
-                     <div className="relative z-10">
-                        <h3 className="text-xl font-bold mb-2">Botanical Engine</h3>
-                        <p className="text-neutral-400 max-w-xs text-sm">Il motore di generazione schemi è sincronizzato e ottimizzato.</p>
-                        <div className="mt-4 flex items-center gap-2 text-emerald-400 text-sm font-semibold">
-                           <div className="h-2 w-2 rounded-full bg-emerald-400 animate-ping" />
-                           Sistema Ottimale
-                        </div>
-                     </div>
-                     <div className="absolute right-0 top-0 h-full w-1/3 bg-gradient-to-l from-emerald-500/20 via-transparent to-transparent group-hover:from-emerald-500/30 transition-all duration-700" />
-                     <Activity className="h-24 w-24 text-neutral-800 absolute right-4 top-1/2 -translate-y-1/2 group-hover:scale-110 transition-transform duration-500" />
-                  </div>
                 </div>
 
                 {/* Right Column: Actions & Insights */}

@@ -99,6 +99,69 @@ type Variables = {
 
 const contentApp = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
+// --- NOTIFICATIONS API ---
+
+// GET /notifications - Lista notifiche
+contentApp.get('/notifications', async (c) => {
+  try {
+    const { DB } = c.env
+    const result = await DB.prepare(
+      'SELECT id, title, message, type, is_read, created_at FROM notifications ORDER BY created_at DESC LIMIT 50'
+    ).all()
+    return c.json(result.results ?? [])
+  } catch (err) {
+    console.error('Notifications fetch error:', err)
+    return c.json({ error: 'Failed to fetch notifications' }, 500)
+  }
+})
+
+// PATCH /notifications/:id/read - Segna come letta
+contentApp.patch('/notifications/:id/read', async (c) => {
+  try {
+    const id = c.req.param('id')
+    const { DB } = c.env
+    await DB.prepare('UPDATE notifications SET is_read = 1 WHERE id = ?').bind(id).run()
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: 'Failed to update notification' }, 500)
+  }
+})
+
+// PATCH /notifications/:id/unread - Segna come non letta
+contentApp.patch('/notifications/:id/unread', async (c) => {
+  try {
+    const id = c.req.param('id')
+    const { DB } = c.env
+    await DB.prepare('UPDATE notifications SET is_read = 0 WHERE id = ?').bind(id).run()
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: 'Failed to update notification' }, 500)
+  }
+})
+
+// DELETE /notifications/:id - Elimina notifica
+contentApp.delete('/notifications/:id', async (c) => {
+  try {
+    const id = c.req.param('id')
+    const { DB } = c.env
+    await DB.prepare('DELETE FROM notifications WHERE id = ?').bind(id).run()
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: 'Failed to delete notification' }, 500)
+  }
+})
+
+// POST /notifications/mark-all-read - Segna tutte come lette
+contentApp.post('/notifications/mark-all-read', async (c) => {
+  try {
+    const { DB } = c.env
+    await DB.prepare('UPDATE notifications SET is_read = 1').run()
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: 'Failed to update notifications' }, 500)
+  }
+})
+
 
 // POST /:slug - Creazione
 contentApp.post('/:slug', async (c) => {
@@ -985,5 +1048,6 @@ contentApp.delete('/:slug/:id', async (c) => {
     })
   }
 });
+
 
 export const contentRoutes = contentApp
