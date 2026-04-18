@@ -371,6 +371,35 @@ Comportamento UX:
 
 ---
 
+## `Dashboard Cockpit`
+
+**Directory:** `apps/dashboard/src/features/dashboard/`
+
+Il "Cockpit" è la pagina di atterraggio principale del CMS, progettata con un layout **Bento Grid** per fornire una panoramica immediata dello stato del sistema.
+
+### Componenti principali
+- **`DashboardPage`**: Orchestratore della vista, gestisce il layout a griglia e il caricamento dei dati tramite hook dedicati.
+- **`StatCard`**: Widget riutilizzabile per KPI (Key Performance Indicators) con supporto per trend percentuali e icone dinamiche.
+- **`RecentActivity`**: Lista delle ultime modifiche effettuate sui contenuti.
+- **`AIInsights`**: Pannello per suggerimenti e analisi generate dall'AI (placeholder per integrazioni future).
+
+### Metriche e Widget (Cloudflare Edge)
+La dashboard visualizza dati reali provenienti sia dai contenuti del database (D1) che dalle analisi del traffico di rete (Edge):
+
+| Widget | Fonte Dati | Descrizione |
+|--------|------------|-------------|
+| **Contenuti Totali** | API `/stats/total` | Conteggio globale delle entry e crescita negli ultimi 30gg. |
+| **Visitatori Unici** | API `/stats/cloudflare` | Numero di IP unici che hanno interagito con le API pubblicate. |
+| **Traffico API** | API `/stats/cloudflare` | Volume totale di richieste gestite dai Cloudflare Workers. |
+| **Storage R2** | API `/stats/cloudflare` | Spazio occupato nel bucket R2 (monitorato tramite contatore ottimizzato in D1). |
+
+### Hook e Stato
+- **`useDashboardStats`**: Fetch dei dati aggregati sui contenuti.
+- **`useCloudflareStats`**: Fetch delle metriche di traffico e storage.
+- **React Query**: Entrambi gli hook usano un `staleTime` di 5 minuti per bilanciare freschezza dei dati e performance.
+
+---
+
 ## Note implementative
 
 - **Strumenti per vista**: `enabledTools` di `UserViewInstance` determina quali icone appaiono nella toolbar. I tool non presenti nell'array vengono omessi dal DOM (non solo nascosti).

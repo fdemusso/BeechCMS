@@ -52,6 +52,7 @@ This high‑level system map is designed for onboarding new contributors and for
   - **Data Model:**
     - Single table `content_entries` with SQL metadata and a JSON `data` column (see `[content-engine.md](content-engine.md)`).
     - Authentication tables (`users`, `refresh_tokens`) (see `[auth.md](auth.md)`).
+    - Analytics and System tables (`analytics`, `system_stats`) for edge performance and storage tracking.
 
 - **Architecture & Tooling**
   - Monorepo **Turborepo** (`turbo` `^2.8.7`) with **npm workspaces**
@@ -84,6 +85,7 @@ beech-cms/
 - **Main responsibilities**
   - Exposes authentication routes (`/auth/login`, `/auth/refresh`, `/auth/logout`) – see `[auth.md](auth.md)`.
   - Exposes dynamic content routes (`/api/content/:slug`, `/api/content/:slug/facets`, `/api/content/:slug/:id`) – see `[content-engine.md](content-engine.md)` and `[botanical-engine.md](botanical-engine.md)`.
+  - Exposes statistics and analytics endpoints (`/api/content/stats/total`, `/api/content/stats/cloudflare`, `/api/content/stats/storage/sync`).
   - Exposes public routes (`/api/v1/public/health`, `/api/v1/public/:seed`, `/api/v1/public/:seed/add`, `/api/v1/public/:seed/edit/:id`) protected by API key – see `[public-api.md](public-api.md)`.
   - Handles media upload and delivery (`/api/upload`, `/api/media/:key`) – see `[media-engine.md](media-engine.md)`.
 - **Key integrations**
@@ -107,6 +109,7 @@ beech-cms/
   - `apps/dashboard/src/components/fields/`: Field Renderers infrastructure (display/edit per `Branch` type), described in `[field-renderers.md](field-renderers.md)`.
     - `FieldDisplay.tsx`, `FieldEdit.tsx`, `registry.ts`, `display/*.tsx`, `edit/*.tsx`.
     - Rich text (TipTap): logica UI e estensioni in `features/richtext-editor/`; solo il barrel `features/richtext-editor/index.ts` è importabile dall’esterno del slice (registry → `edit/richtext.tsx` re-esporta `RichtextEdit`).
+  - `apps/dashboard/src/features/dashboard/`: Dashboard "Cockpit" slice with real-time stats, bento grid widgets, and Cloudflare Edge analytics.
   - Entry editing pages (e.g., `EntryEditorPage`) consume Field Renderers and the Seed from the core.
   - Table and Gallery reuse the same server-side dataset and stay schema-driven; table columns come from `Seed.branches`, gallery cards use branch alias/type heuristics.
   - Key integrations: consumes `@beech/core` for shared types and logic; calls only documented APIs (`/auth/*`, `/api/content/*`, `/api/upload`, `/api/media/*`).
@@ -182,6 +185,11 @@ beech-cms/
   - In table view, columns are generated dynamically from `Seed.branches` and rendered with `<FieldDisplay>`.
   - In gallery view, card fields (cover/title/excerpt/date/tags) are resolved from seed metadata and shown in card + peek panel read-only.
   - `ContentToolbar` manages user views, filters, sorting, search, and creation tools.
+
+- **Edge Analytics & Stats**
+  - **Request Tracking**: Middleware in `apps/api/src/index.ts` captures API hits and stores daily aggregates in the `analytics` table using `c.executionCtx.waitUntil` for zero-latency.
+  - **Storage Monitoring**: The `system_stats` table tracks total R2 usage. It's incremented on upload, decremented on delete (via `HeadObject`), and can be synchronized via `/stats/storage/sync`.
+  - **Cockpit Dashboard**: Real-time data-driven widgets for Total Contents, Visitors, Requests, and R2 Storage using TanStack Query.
 
 ---
 

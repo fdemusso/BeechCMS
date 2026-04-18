@@ -101,7 +101,21 @@ anche in strutture annidate o JSON serializzati legacy, e invia `DeleteObjectCom
 
 ---
 
-## 4. Field Renderers
+## 4. Monitoraggio Storage (D1 Counter)
+
+Dato che Cloudflare R2 non fornisce un'API rapida per la quota di spazio, Beech CMS mantiene un contatore atomico in D1 per monitorare l'uso del bucket in tempo reale senza costi operativi eccessivi.
+
+- **Persistenza**: Tabella `system_stats`, riga `total_storage_bytes`.
+- **Tracciamento dinamico**:
+  - **Upload**: Al successo del `PutObjectCommand`, il Worker incrementa il contatore con il `file.size`.
+  - **Delete**: Prima del `DeleteObjectCommand`, il Worker recupera la dimensione tramite `HeadObjectCommand` e la sottrae dal totale.
+- **Sincronizzazione**: L'endpoint `POST /api/content/stats/storage/sync` ricalcola l'intero peso del bucket (scansione reale R2 via `ListObjectsV2`) e riallinea il contatore D1.
+
+Questo sistema permette alla dashboard di visualizzare lo spazio occupato istantaneamente con una singola lettura SQL.
+
+---
+
+## 5. Field Renderers
 
 | Componente | File | Descrizione |
 |------------|------|-------------|
@@ -118,4 +132,5 @@ Il tipo `file` in `BranchType` salva un URL singolo o una lista URL (`multiple: 
 |------|-------------|
 | `apps/api/src/upload.ts` | POST upload, `deleteR2Objects`, serve media |
 | `apps/api/src/media-utils.ts` | `extractMediaKey`, `extractMediaKeysFromData` (estrazione chiavi da entry) |
+| `apps/api/src/shared/storage-utils.ts` | Utility per scansione reale bucket R2 (`getBucketSize`) |
 | `apps/api/.dev.vars.example` | Template per variabili locali |

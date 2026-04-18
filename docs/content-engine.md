@@ -85,11 +85,14 @@ Le rotte `/:slug` e `/:slug/:id` si adattano a qualsiasi tipo di contenuto. Lo `
 | Metodo | Path | Auth | Descrizione |
 |--------|------|------|-------------|
 | POST | `/api/content/:slug` | Bearer JWT | Crea una nuova entry per il tipo `slug` |
-| GET | `/api/content/:slug` | Bearer JWT | Lista entry del tipo `slug` (supporta query server-side per search/filter/sort/pagination) |
-| GET | `/api/content/:slug/facets` | Bearer JWT | Restituisce facets dinamiche (`statuses`, `tagsByColumnId`) per alimentare UI filtri/condizioni |
+| GET | `/api/content/:slug` | Bearer JWT | Lista entry con query avanzate (search/filter/sort/pagination) |
+| GET | `/api/content/:slug/facets` | Bearer JWT | Restituisce facets dinamiche (status/tags) |
 | GET | `/api/content/:slug/:id` | Bearer JWT | Dettaglio di una entry per ID |
 | PUT | `/api/content/:slug/:id` | Bearer JWT | Aggiorna una entry esistente |
-| DELETE | `/api/content/:slug/:id` | Bearer JWT | Elimina una entry e i file R2 associati (vedi [Media Engine](media-engine.md)) |
+| DELETE | `/api/content/:slug/:id` | Bearer JWT | Elimina entry e relativi file R2 |
+| GET | `/api/content/stats/total` | Bearer JWT | Statistiche globali sui contenuti |
+| GET | `/api/content/stats/cloudflare` | Bearer JWT | Metriche Edge (Visitors, Requests, Storage R2) |
+| POST | `/api/content/stats/storage/sync` | Bearer JWT | Ricalcola e sincronizza il contatore storage D1 ↔ R2 |
 
 ### Esempi
 

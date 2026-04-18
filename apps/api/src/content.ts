@@ -1,7 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import { getSeed, apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload, slugify } from '@beech/core'
-import { deleteR2Objects } from './upload'
+import { deleteR2Objects, createR2Client } from './upload'
+import { getBucketSize } from './shared/storage-utils'
 import { extractMediaKeysFromData } from './media-utils'
 import { publicProblem } from './public/problem-details'
 import {
@@ -422,14 +423,25 @@ contentApp.get('/stats/cloudflare', async (c) => {
     )
 
     // Simuliamo alcune metriche Cloudflare non tracciate direttamente per premium feel
-    // In un caso reale, queste verrebbero dall'API di Cloudflare o da log aggregati.
     const requests = statsMap['requests'] ?? Math.floor(Math.random() * 5000) + 1000
-    const visitors = statsMap['visitors'] ?? Math.floor(requests / 12) + 1 // Approssimazione
-    const bandwidth = Math.round((requests * 0.15) * 10) / 10 // MB simulati (150KB avg)
+    const visitors = statsMap['visitors'] ?? Math.floor(requests / 12) + 1 
+    const bandwidth = Math.round((requests * 0.15) * 10) / 10 
     
-    // Metriche R2 (Simulate per ora, ma pronte per implementazione reale via S3 ListObjects)
-    const storageUsed = 425.8 // MB
-    const storageLimit = 10240 // 10 GB
+    // Metriche R2 (Dal contatore ottimizzato in D1)
+    let storageUsedBytes = 0
+    try {
+      const statsRow = await DB.prepare(
+        "SELECT value FROM system_stats WHERE id = 'total_storage_bytes'"
+      ).first<{ value: string }>()
+      if (statsRow) {
+        storageUsedBytes = parseInt(statsRow.value, 10)
+      }
+    } catch (err) {
+      console.warn('Could not fetch storage stats from D1:', err)
+    }
+
+    const storageUsedMB = Math.round((storageUsedBytes / (1024 * 1024)) * 10) / 10
+    const storageLimitMB = 10 * 1024 // 10 GB Free Tier
     
     return c.json({
       visitors: {
@@ -455,14 +467,41 @@ contentApp.get('/stats/cloudflare', async (c) => {
         isPositive: true
       },
       storage: {
-        used: storageUsed,
-        limit: storageLimit,
+        used: storageUsedMB,
+        limit: storageLimitMB,
         unit: 'MB',
-        percentage: Math.round((storageUsed / storageLimit) * 1000) / 10
+        percentage: Math.round((storageUsedMB / storageLimitMB) * 1000) / 10
       }
     })
   } catch (err) {
     console.error('Cloudflare stats error:', err)
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
+  }
+})
+
+// POST /stats/storage/sync - Ricalcola lo spazio occupato su R2 (operazione costosa, usare con cautela)
+contentApp.post('/stats/storage/sync', async (c) => {
+  try {
+    const { DB } = c.env
+    const client = createR2Client(c.env as any)
+    if (!c.env.R2_BUCKET_NAME) {
+      throw new Error('R2_BUCKET_NAME not configured')
+    }
+
+    const realSize = await getBucketSize(client, c.env.R2_BUCKET_NAME)
+    
+    await DB.prepare(
+      "UPDATE system_stats SET value = ? WHERE id = 'total_storage_bytes'"
+    ).bind(String(realSize)).run()
+
+    return c.json({ success: true, size: realSize })
+  } catch (err) {
+    console.error('Storage sync error:', err)
     return publicProblem(c, {
       type: 'content-database-error',
       title: 'Internal Server Error',
