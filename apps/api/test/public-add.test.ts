@@ -219,7 +219,8 @@ describe('Public API add endpoint', () => {
     const body = asObject(await res.json())
     expect(body.success).toBe(true)
     expect(typeof body.id).toBe('string')
-    expect(body.slug).toBe('titolo-nuovo-articolo')
+    // Nota: lo slug è limitato a 15 caratteri dal core
+    expect(body.slug).toBe('titolo-nuovo-ar')
   })
 
   it('POST su seed non abilitato pubblicamente -> 403', async () => {

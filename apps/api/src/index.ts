@@ -146,9 +146,17 @@ app.use('/api/*', async (c, next) => {
   // Tracciamo solo richieste andate a buon fine (2xx) e non OPTIONS
   if (c.req.method !== 'OPTIONS' && c.res.status >= 200 && c.res.status < 300) {
     const db = c.env.DB
-    if (db) {
+    // Protezione per ambienti (es. test) dove executionCtx non è definito
+    let executionCtx: { waitUntil: (p: Promise<any>) => void } | undefined
+    try {
+      executionCtx = c.executionCtx
+    } catch {
+      // In ambiente di test Hono lancia se non presente
+    }
+
+    if (db && executionCtx) {
       // Usa waitUntil per non bloccare la risposta al client
-      c.executionCtx.waitUntil((async () => {
+      executionCtx.waitUntil((async () => {
         try {
           const today = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
           

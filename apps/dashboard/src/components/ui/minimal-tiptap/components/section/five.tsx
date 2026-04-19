@@ -22,7 +22,7 @@ interface InsertElement extends FormatAction {
 const formatActions: InsertElement[] = [
   {
     value: "codeBlock",
-    label: "Code block",
+    label: "Block code",
     icon: <CodeIcon className="size-5" />,
     action: (editor) => editor.chain().focus().toggleCodeBlock().run(),
     isActive: (editor) => editor.isActive("codeBlock"),
@@ -80,7 +80,7 @@ export const SectionFive: React.FC<SectionFiveProps> = ({
             <CaretDownIcon className="size-5" />
           </>
         }
-        dropdownTooltip="Insert elements"
+        dropdownTooltip="Inserisci elementi"
         size={size}
         variant={variant}
       />

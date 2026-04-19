@@ -153,7 +153,8 @@ describe('Public API edit endpoint', () => {
     expect(res.status).toBe(200)
     const body = asObject(await res.json())
     expect(body.success).toBe(true)
-    expect(body.slug).toBe('messaggio-aggiornato')
+    // Nota: lo slug è limitato a 15 caratteri dal core
+    expect(body.slug).toBe('messaggio-aggio')
 
     const seed = getSeed('messaggi')
     if (!seed) throw new Error('Seed messaggi non trovato')
@@ -165,7 +166,8 @@ describe('Public API edit endpoint', () => {
     expect(savedAliasData.subject).toBe('Oggetto aggiornato')
     expect(savedAliasData.name).toBe('Nome attuale')
     expect(savedAliasData.message).toBeUndefined()
-    expect(bindArgs[0]).toBe('messaggio-aggiornato')
+    // Nota: lo slug è limitato a 15 caratteri dal core
+    expect(bindArgs[0]).toBe('messaggio-aggio')
     expect(bindArgs[1]).toBe('published')
   })
 

@@ -29,7 +29,7 @@ interface TextStyle extends FormatAction {
 const formatActions: TextStyle[] = [
   {
     value: "bold",
-    label: "Bold",
+    label: "Grassetto",
     icon: <FontBoldIcon className="size-5" />,
     action: (editor) => editor.chain().focus().toggleBold().run(),
     isActive: (editor) => editor.isActive("bold"),
@@ -40,7 +40,7 @@ const formatActions: TextStyle[] = [
   },
   {
     value: "italic",
-    label: "Italic",
+    label: "Corsivo",
     icon: <FontItalicIcon className="size-5" />,
     action: (editor) => editor.chain().focus().toggleItalic().run(),
     isActive: (editor) => editor.isActive("italic"),
@@ -51,7 +51,7 @@ const formatActions: TextStyle[] = [
   },
   {
     value: "underline",
-    label: "Underline",
+    label: "Sottolineato",
     icon: <UnderlineIcon className="size-5" />,
     action: (editor) => editor.chain().focus().toggleUnderline().run(),
     isActive: (editor) => editor.isActive("underline"),
@@ -62,7 +62,7 @@ const formatActions: TextStyle[] = [
   },
   {
     value: "strikethrough",
-    label: "Strikethrough",
+    label: "Barrato",
     icon: <StrikethroughIcon className="size-5" />,
     action: (editor) => editor.chain().focus().toggleStrike().run(),
     isActive: (editor) => editor.isActive("strike"),
@@ -73,7 +73,7 @@ const formatActions: TextStyle[] = [
   },
   {
     value: "code",
-    label: "Code",
+    label: "Inline code",
     icon: <CodeIcon className="size-5" />,
     action: (editor) => editor.chain().focus().toggleCode().run(),
     isActive: (editor) => editor.isActive("code"),
@@ -84,7 +84,7 @@ const formatActions: TextStyle[] = [
   },
   {
     value: "clearFormatting",
-    label: "Clear formatting",
+    label: "Pulisci formattazione",
     icon: <TextNoneIcon className="size-5" />,
     action: (editor) => editor.chain().focus().unsetAllMarks().run(),
     isActive: () => false,

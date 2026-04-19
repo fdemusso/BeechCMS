@@ -16,11 +16,11 @@ import { CONTENT_ERRORS } from '../src/content'
 
 const JWT_SECRET = 'test-secret-key'
 
-/** Crea mock D1 per INSERT (POST): cattura i parametri passati a bind */
-function createMockD1ForInsert(bindCapture: { args?: unknown[] }) {
+/** Crea mock D1 per INSERT (POST): cattura i parametri passati a ogni chiamata bind */
+function createMockD1ForInsert(bindCapture: { calls: unknown[][] }) {
   const runMock = vi.fn().mockResolvedValue({ success: true })
   const bindMock = vi.fn((...args: unknown[]) => {
-    bindCapture.args = args
+    bindCapture.calls.push(args)
     return { run: runMock }
   })
   return {
@@ -94,7 +94,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
   })
 
   it('POST senza Authorization -> 401', async () => {
-    const bindCapture: { args?: unknown[] } = {}
+    const bindCapture: { calls: unknown[][] } = { calls: [] }
     const mockDB = createMockD1ForInsert(bindCapture)
 
     const res = await app.request('/api/content/articoli', {
@@ -113,7 +113,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
   it('POST /api/content/articoli con token malformato -> 401', async () => {
     mockJwtVerify.mockRejectedValue(new Error('Invalid token'))
 
-    const bindCapture: { args?: unknown[] } = {}
+    const bindCapture: { calls: unknown[][] } = { calls: [] }
     const mockDB = createMockD1ForInsert(bindCapture)
 
     const res = await app.request('/api/content/articoli', {
@@ -132,7 +132,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
   })
 
   it('POST con Authorization Bearer ma token vuoto -> 401', async () => {
-    const bindCapture: { args?: unknown[] } = {}
+    const bindCapture: { calls: unknown[][] } = { calls: [] }
     const mockDB = createMockD1ForInsert(bindCapture)
 
     const res = await app.request('/api/content/articoli', {
@@ -152,7 +152,7 @@ describe('API Content - Security Layer (Il Guardiano)', () => {
   it('POST con token scaduto -> 401', async () => {
     mockJwtVerify.mockRejectedValue(new Error('Token expired'))
 
-    const bindCapture: { args?: unknown[] } = {}
+    const bindCapture: { calls: unknown[][] } = { calls: [] }
     const mockDB = createMockD1ForInsert(bindCapture)
 
     const res = await app.request('/api/content/articoli', {
@@ -178,8 +178,8 @@ describe('API Content - Write Operation (La Serializzazione)', () => {
     } as never)
   })
 
-  it('POST con body JSON: DB riceve data con art_xxx (Botanical Engine), risposta 201 con ID', async () => {
-    const bindCapture: { args?: unknown[] } = {}
+  it('POST successo con slug auto-generato -> 201', async () => {
+    const bindCapture: { calls: unknown[][] } = { calls: [] }
     const mockDB = createMockD1ForInsert(bindCapture)
 
     const body = { title: 'Test' }
@@ -200,10 +200,12 @@ describe('API Content - Write Operation (La Serializzazione)', () => {
     expect(data.id).toMatch(/^[0-9a-f-]{36}$/i) // UUID format
 
     // Verifica critica: apiToDb trasforma alias -> branch.id; bind: id, schema_slug, slug, status, data, created_at, updated_at
-    expect(bindCapture.args).toBeDefined()
-    expect(bindCapture.args).toHaveLength(7)
-    expect(bindCapture.args![3]).toBe('draft') // status default
-    const dataParam = bindCapture.args![4]
+    expect(bindCapture.calls).toBeDefined()
+    expect(bindCapture.calls.length).toBeGreaterThanOrEqual(1)
+    const firstCall = bindCapture.calls[0]
+    expect(firstCall).toHaveLength(7)
+    expect(firstCall[3]).toBe('draft') // status default
+    const dataParam = firstCall[4]
     expect(typeof dataParam).toBe('string')
     const dbPayload = JSON.parse(dataParam as string)
     expect(dbPayload).toEqual({ art_01: 'Test' })

@@ -210,15 +210,29 @@ uploadRoutes.post('/upload', async (c, next) => {
     )
 
     // Aggiorna contatore storage in D1
-    c.executionCtx.waitUntil((async () => {
-      try {
-        await c.env.DB.prepare(
-          "UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes'"
-        ).bind(file.size).run()
-      } catch (err) {
-        console.error('Failed to update storage stats on upload:', err)
-      }
-    })())
+    let executionCtx: { waitUntil: (p: Promise<any>) => void } | undefined
+    try {
+      executionCtx = c.executionCtx
+    } catch {
+      // In ambiente di test Hono lancia se non presente
+    }
+
+    if (executionCtx) {
+      executionCtx.waitUntil((async () => {
+        try {
+          await c.env.DB.prepare(
+            "UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes'"
+          ).bind(file.size).run()
+        } catch (err) {
+          console.error('Failed to update storage stats on upload:', err)
+        }
+      })())
+    } else {
+      // Fallback sync
+      c.env.DB.prepare(
+        "UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes'"
+      ).bind(file.size).run().catch(err => console.error('Failed to update storage stats on upload (sync fallback):', err))
+    }
 
     const baseUrl = getMediaBaseUrl(c)
     const publicUrl = `${baseUrl}/api/media/${encodeURIComponent(objectKey)}`

@@ -69,7 +69,7 @@ export const SectionFour: React.FC<SectionFourProps> = ({
           <CaretDownIcon className="size-5" />
         </>
       }
-      dropdownTooltip="Lists"
+      dropdownTooltip="List"
       size={size}
       variant={variant}
     />

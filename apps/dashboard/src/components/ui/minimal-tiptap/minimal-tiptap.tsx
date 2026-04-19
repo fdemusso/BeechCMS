@@ -5,6 +5,7 @@ import type { UseMinimalTiptapEditorProps } from "./hooks/use-minimal-tiptap"
 import { EditorContent, EditorContext } from "@tiptap/react"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
+import { SectionZero } from "./components/section/zero"
 import { SectionOne } from "./components/section/one"
 import { SectionTwo } from "./components/section/two"
 import { SectionThree } from "./components/section/three"
@@ -28,6 +29,10 @@ export interface MinimalTiptapProps extends Omit<
 const Toolbar = ({ editor }: { editor: Editor }) => (
   <div className="border-border flex h-12 shrink-0 overflow-x-auto border-b p-2">
     <div className="flex w-max items-center gap-px">
+      <SectionZero editor={editor} />
+
+      <Separator orientation="vertical" className="mx-2" />
+
       <SectionOne editor={editor} activeLevels={[1, 2, 3, 4, 5, 6]} />
 
       <Separator orientation="vertical" className="mx-2" />
@@ -42,7 +47,7 @@ const Toolbar = ({ editor }: { editor: Editor }) => (
           "code",
           "clearFormatting",
         ]}
-        mainActionCount={3}
+        mainActionCount={4}
       />
 
       <Separator orientation="vertical" className="mx-2" />
@@ -62,7 +67,7 @@ const Toolbar = ({ editor }: { editor: Editor }) => (
       <SectionFive
         editor={editor}
         activeActions={["codeBlock", "blockquote", "horizontalRule"]}
-        mainActionCount={0}
+        mainActionCount={2}
       />
     </div>
   </div>

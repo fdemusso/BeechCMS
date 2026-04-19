@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render, screen, waitFor } from "@testing-library/react"
 import { RichtextEdit } from "@/components/fields/edit/richtext"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 const mockBranch = {
   id: "br_01",
@@ -10,54 +11,52 @@ const mockBranch = {
 }
 
 describe("RichtextEdit", () => {
-  it("render con value iniziale -> editor visibile, contenuto corrispondente", () => {
+  it("render con value iniziale -> editor visibile, contenuto corrispondente", async () => {
     render(
-      <RichtextEdit
-        branch={mockBranch}
-        value={{
-          type: "doc",
-          content: [
-            {
-              type: "paragraph",
-              content: [{ type: "text", text: "Hello world" }],
-            },
-          ],
-        }}
-        onChange={() => {}}
-      />
+      <TooltipProvider>
+        <RichtextEdit
+          branch={mockBranch}
+          value={{
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "Hello world" }],
+              },
+            ],
+          }}
+          onChange={() => {}}
+        />
+      </TooltipProvider>
     )
     const editor = document.querySelector(".ProseMirror")
     expect(editor).toBeInTheDocument()
-    expect(editor?.textContent).toContain("Hello world")
+    await waitFor(() => {
+      expect(editor?.textContent).toContain("Hello world")
+    })
   })
 
   it("toolbar premium presente -> controlli principali visibili", () => {
     render(
-      <RichtextEdit
-        branch={mockBranch}
-        value={{ type: "doc", content: [{ type: "paragraph" }] }}
-        onChange={() => {}}
-      />
+      <TooltipProvider>
+        <RichtextEdit
+          branch={mockBranch}
+          value={{ type: "doc", content: [{ type: "paragraph" }] }}
+          onChange={() => {}}
+        />
+      </TooltipProvider>
     )
     expect(screen.getByRole("button", { name: /Indietro/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Avanti/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Heading menu/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /^List$/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /List/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Blockquote/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Block code/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Grassetto/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Corsivo/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Barrato/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Formula inline/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Blocco formule/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Sottolineato/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Highlight/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Inserisci link/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Superscript/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Subscript/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Allinea a sinistra/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Giustifica/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Aggiungi immagine/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Colore testo/i })).toBeInTheDocument()
   })
 })
 

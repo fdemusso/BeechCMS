@@ -130,8 +130,8 @@ export const SectionOne: React.FC<SectionOneProps> = ({
       <DropdownMenuTrigger asChild>
         <ToolbarButton
           isActive={editor.isActive("heading")}
-          tooltip="Text styles"
-          aria-label="Text styles"
+          tooltip="Stili testo"
+          aria-label="Heading menu"
           pressed={editor.isActive("heading")}
           disabled={editor.isActive("codeBlock")}
           size={size}

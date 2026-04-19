@@ -28,23 +28,49 @@ export function logActivity(
   const id = crypto.randomUUID()
 
   // Usa waitUntil per non bloccare la risposta al client
-  c.executionCtx.waitUntil((async () => {
-    try {
-      await db.prepare(
-        `INSERT INTO activity_logs (id, user_id, user_email, action, entity_type, entity_id, entity_slug, details)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-      ).bind(
-        id,
-        user.sub,
-        user.email || 'unknown',
-        action,
-        entityType,
-        entityId,
-        entitySlug || null,
-        details ? JSON.stringify(details) : null
-      ).run()
-    } catch (err) {
-      console.error('Failed to log activity:', err)
-    }
-  })())
+  let executionCtx: { waitUntil: (p: Promise<any>) => void } | undefined
+  try {
+    executionCtx = c.executionCtx
+  } catch {
+    // In ambiente di test Hono lancia se non presente
+  }
+
+  if (executionCtx) {
+    executionCtx.waitUntil((async () => {
+      try {
+        await db.prepare(
+          `INSERT INTO activity_logs (id, user_id, user_email, action, entity_type, entity_id, entity_slug, details)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        ).bind(
+          id,
+          user.sub,
+          user.email || 'unknown',
+          action,
+          entityType,
+          entityId,
+          entitySlug || null,
+          details ? JSON.stringify(details) : null
+        ).run()
+      } catch (err) {
+        console.error('Failed to log activity:', err)
+      }
+    })())
+  } else {
+    // Fallback sync (o ignoriamo)
+    // Facciamolo sync solo se necessario, ma dato che c'è già try/catch nel blocco async,
+    // qui lo ripetiamo per sicurezza.
+    db.prepare(
+      `INSERT INTO activity_logs (id, user_id, user_email, action, entity_type, entity_id, entity_slug, details)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(
+      id,
+      user.sub,
+      user.email || 'unknown',
+      action,
+      entityType,
+      entityId,
+      entitySlug || null,
+      details ? JSON.stringify(details) : null
+    ).run().catch(err => console.error('Failed to log activity (sync fallback):', err))
+  }
 }
