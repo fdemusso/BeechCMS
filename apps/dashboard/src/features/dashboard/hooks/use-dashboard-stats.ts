@@ -26,10 +26,10 @@ export function useCloudflareStats() {
   })
 }
 
-export function useRecentActivity() {
+export function useRecentActivity(slug?: string) {
   return useQuery({
-    queryKey: DASHBOARD_QUERY_KEYS.activity(),
-    queryFn: dashboardApi.getRecentActivity,
+    queryKey: [...DASHBOARD_QUERY_KEYS.activity(), slug],
+    queryFn: () => dashboardApi.getRecentActivity(slug),
     refetchInterval: 60 * 1000, // Aggiorna ogni minuto
     staleTime: 60 * 1000, // Valido per un minuto
   })

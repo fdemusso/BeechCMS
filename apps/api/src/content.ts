@@ -388,25 +388,84 @@ function buildFacetsPayload(
 // --- 4. Controller Principale (Pulito) ---
 // Moved /:slug generic handler down to prevent interception of /stats routes
 
+// GET /stats/unused-media - Trova media non referenziati in altri contenuti
+contentApp.get('/stats/unused-media', async (c) => {
+  try {
+    const { DB } = c.env
+    const seedSlug = cleanStr(c.req.query('seedSlug'))
+    if (!seedSlug) {
+      return c.json({ error: 'Missing seedSlug' }, 400)
+    }
+
+    // 1. Prendi tutti i "media" candidatì
+    const mediaEntries = await DB.prepare(
+      'SELECT id, data FROM content_entries WHERE slug = ?'
+    ).bind(seedSlug).all<{ id: string; data: string }>()
+
+    if (!mediaEntries.results?.length) {
+      return c.json({ items: [] })
+    }
+
+    // 2. Prendi TUTTI i dati degli ALTRI contenuti (solo la colonna data per efficienza)
+    // NOTA: In produzione con migliaia di record questo andrebbe ottimizzato 
+    // con un indice full-text o cercando solo nei campi "file".
+    const otherEntries = await DB.prepare(
+      'SELECT data FROM content_entries WHERE slug != ?'
+    ).bind(seedSlug).all<{ data: string }>()
+
+    const allOtherData = otherEntries.results?.map(r => r.data).join(' ') || ''
+
+    // 3. Filtra quelli che NON compaiono mai negli altri dati
+    const unused = mediaEntries.results.filter(m => {
+      // Cerchiamo l'ID del media o parte del suo URL nel blob JSON degli altri
+      // L'ID è il riferimento più sicuro se salvato come riferimento, 
+      // altrimenti cerchiamo se la stringa compare.
+      return !allOtherData.includes(m.id)
+    })
+
+    // 4. Recupera le entry complete per gli inutilizzati
+    if (unused.length === 0) {
+      return c.json({ items: [] })
+    }
+
+    const unusedIds = unused.map(u => u.id)
+    const placeholders = unusedIds.map(() => '?').join(',')
+    const finalEntries = await DB.prepare(
+      `SELECT * FROM content_entries WHERE id IN (${placeholders})`
+    ).bind(...unusedIds).all()
+
+    return c.json({ items: finalEntries.results })
+  } catch (err) {
+    console.error('Unused media error:', err)
+    return c.json({ error: 'Internal Server Error' }, 500)
+  }
+})
+
 // GET /stats/total - Statistiche globali contenuti per dashboard
 contentApp.get('/stats/total', async (c) => {
   try {
     const { DB } = c.env
-    const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000)
+    const now = Math.floor(Date.now() / 1000)
+    const twentyFourHoursAgo = now - (24 * 60 * 60)
+    const sevenDaysAgo = now - (7 * 24 * 60 * 60)
+    const thirtyDaysAgo = now - (30 * 24 * 60 * 60)
     
     const row = await DB.prepare(
       `SELECT 
         COUNT(*) as total,
-        COUNT(CASE WHEN created_at >= ? THEN 1 END) as recent
+        COUNT(CASE WHEN created_at >= ? THEN 1 END) as today,
+        COUNT(CASE WHEN created_at >= ? THEN 1 END) as week,
+        COUNT(CASE WHEN created_at >= ? THEN 1 END) as month
       FROM content_entries`
     )
-      .bind(thirtyDaysAgo)
-      .first<{ total: number; recent: number }>()
-
+      .bind(twentyFourHoursAgo, sevenDaysAgo, thirtyDaysAgo)
+      .first<{ total: number; today: number; week: number; month: number }>()
+ 
     return c.json({
       total: row?.total ?? 0,
-      recent: row?.recent ?? 0,
-      periodDays: 30
+      today: row?.today ?? 0,
+      week: row?.week ?? 0,
+      month: row?.month ?? 0,
     })
   } catch (err) {
     console.error('Content stats error:', err)
@@ -423,15 +482,23 @@ contentApp.get('/stats/total', async (c) => {
 contentApp.get('/stats/recent-activity', async (c) => {
   try {
     const { DB } = c.env
+    const slug = cleanStr(c.req.query('slug'))
     
     // 1. Genera ETag rapido basato su conteggio e ultimo timestamp di attività
-    const stats = await DB.prepare(
-      'SELECT COUNT(*) as count, MAX(created_at) as latest FROM activity_logs'
-    ).first<{ count: number; latest: number | null }>()
+    // Se è presente uno slug, filtriamo le statistiche per quell'entità
+    let statsQuery = 'SELECT COUNT(*) as count, MAX(created_at) as latest FROM activity_logs'
+    const statsParams: any[] = []
+    
+    if (slug) {
+      statsQuery += ' WHERE entity_slug = ?'
+      statsParams.push(slug)
+    }
+
+    const stats = await DB.prepare(statsQuery).bind(...statsParams).first<{ count: number; latest: number | null }>()
     
     const count = stats?.count ?? 0
     const latest = stats?.latest ?? 0
-    const etag = `W/"recent-${count}-${latest}"`
+    const etag = `W/"recent-${slug || 'all'}-${count}-${latest}"`
     
     const ifNoneMatch = c.req.header('If-None-Match')
     if (ifNoneMatch === etag) {
@@ -439,12 +506,18 @@ contentApp.get('/stats/recent-activity', async (c) => {
     }
 
     // 2. Se cambiato, carica le ultime 15 attività
-    const result = await DB.prepare(
-      `SELECT id, user_id, user_email, action, entity_type, entity_id, entity_slug, details, created_at 
-       FROM activity_logs 
-       ORDER BY created_at DESC 
-       LIMIT 15`
-    ).all()
+    let query = `SELECT id, user_id, user_email, action, entity_type, entity_id, entity_slug, details, created_at 
+                 FROM activity_logs `
+    const params: any[] = []
+
+    if (slug) {
+      query += ' WHERE entity_slug = ? '
+      params.push(slug)
+    }
+
+    query += ' ORDER BY created_at DESC LIMIT 15'
+    
+    const result = await DB.prepare(query).bind(...params).all()
     
     const activities = (result.results ?? []).map((row: any) => ({
       ...row,

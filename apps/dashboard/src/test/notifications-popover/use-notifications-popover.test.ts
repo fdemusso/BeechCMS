@@ -37,9 +37,9 @@ describe("useNotificationsPopover", () => {
       { id: "1", title: "New", message: "Msg 1", type: "info", is_read: 0, created_at: 1700000000 },
       { id: "2", title: "Old", message: "Msg 2", type: "success", is_read: 1, created_at: 1700000000 },
     ]
-    mockApi.get.mockResolvedValue({ data: mockData })
-    mockApi.patch.mockResolvedValue({ data: { success: true } })
-    mockApi.delete.mockResolvedValue({ data: { success: true } })
+    ;(mockApi.get as any).mockResolvedValue({ data: mockData })
+    ;(mockApi.patch as any).mockResolvedValue({ data: { success: true } })
+    ;(mockApi.delete as any).mockResolvedValue({ data: { success: true } })
 
     const wrapper = ({ children }: { children: React.ReactNode }) =>
       React.createElement(QueryClientProvider, { client: queryClient }, children)

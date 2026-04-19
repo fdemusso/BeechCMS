@@ -6,7 +6,6 @@ import type { ReactNode } from "react"
 const mockNavigate = vi.fn()
 const mockUseParams = vi.fn()
 const mockFetchContentListServer = vi.fn()
-const mockFetchContentFacets = vi.fn()
 const mockDeleteContent = vi.fn()
 const mockToastSuccess = vi.fn()
 const mockToastError = vi.fn()

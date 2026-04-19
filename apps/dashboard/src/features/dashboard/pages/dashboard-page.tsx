@@ -1,13 +1,9 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
-import { StatCard } from "../components/stat-card"
-import { RecentActivity } from "../components/recent-activity"
-import { SystemHealth } from "../components/system-health"
-import { ContentPulse } from "../components/content-pulse"
-import { AIInsights } from "../components/ai-insights"
+import { WidgetRegistry } from "../components/widget-registry"
+import { DEFAULT_DASHBOARD_CONFIG } from "../config/dashboard.config"
 import { useDashboardStats, useCloudflareStats } from "../hooks/use-dashboard-stats"
-import { FileText, Database, Globe, Zap } from "lucide-react"
 import { getStoredUser } from "@/lib/api"
 
 function getGreeting() {
@@ -25,40 +21,13 @@ export default function DashboardPage() {
   const greeting = getGreeting()
   const userName = user?.name || "Admin"
 
-  const stats = [
-    { 
-      title: "Contenuti Totali", 
-      value: statsLoading ? "..." : statsData?.total.toLocaleString() ?? "0", 
-      icon: FileText, 
-      description: "Tutte le collezioni", 
-      trend: statsData?.total ? { 
-        value: Math.round((statsData.recent / statsData.total) * 100), 
-        isPositive: true 
-      } : undefined 
-    },
-    { 
-      title: "Visitatori Unici", 
-      value: cfLoading ? "..." : cfData?.visitors.value.toLocaleString() ?? "0", 
-      icon: Globe, 
-      description: "Ultimi 30 giorni (Edge)", 
-      trend: cfData?.visitors.trend ? { value: cfData.visitors.trend, isPositive: cfData.visitors.isPositive } : undefined 
-    },
-    { 
-      title: "Traffico Totale", 
-      value: cfLoading ? "..." : `${cfData?.bandwidth.value} ${cfData?.bandwidth.unit}`, 
-      icon: Zap, 
-      description: "Bandwidth Edge", 
-      trend: cfData?.bandwidth.trend ? { value: cfData.bandwidth.trend, isPositive: cfData.bandwidth.isPositive } : undefined 
-    },
-    { 
-      title: "Storage R2", 
-      value: cfLoading ? "..." : `${cfData?.storage.used} ${cfData?.storage.unit}`, 
-      icon: Database, 
-      description: cfLoading ? "Caricamento..." : `${cfData?.storage.percentage}% di ${Math.round((cfData?.storage.limit ?? 0) / 1024)} GB`,
-      trend: cfData ? { value: cfData.storage.percentage, isPositive: false } : undefined
-    },
-  ]
-
+  // Data bundle for widgets
+  const dashboardData = {
+    statsData,
+    cfData,
+    statsLoading,
+    cfLoading
+  }
 
   return (
     <div className="[--header-height:calc(--spacing(14))] overflow-x-hidden min-h-screen bg-neutral-50/50 dark:bg-neutral-950/50 relative">
@@ -84,27 +53,31 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              {/* Stats Row */}
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                {stats.map((stat, i) => (
-                  <StatCard key={i} {...stat} />
-                ))}
-              </div>
-
-              {/* Main Bento Grid */}
-              <div className="grid gap-6 md:grid-cols-3">
-                {/* Left Column: Recent Activity (Spans 2 columns) */}
-                <div className="md:col-span-2 space-y-6">
-                  <RecentActivity />
-                  
-                </div>
-
-                {/* Right Column: Actions & Insights */}
-                <div className="space-y-6">
-                  <SystemHealth />
-                  <ContentPulse />
-                  <AIInsights />
-                </div>
+              {/* Pluggable 8-Column Grid
+                  GRID_COLS must match the `lg:grid-cols-8` class below.
+                  Spans are clamped so a misconfigured widget can never
+                  cause horizontal overflow or push columns out of bounds. */}
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-8 auto-rows-min">
+                {DEFAULT_DASHBOARD_CONFIG.layout.map((widget) => {
+                  const GRID_COLS = 8
+                  const safeW = Math.min(Math.max(1, widget.span.w), GRID_COLS)
+                  const safeH = Math.min(Math.max(1, widget.span.h), 12)
+                  return (
+                    <div
+                      key={widget.id}
+                      style={{
+                        gridColumn: `span ${safeW}`,
+                        gridRow: `span ${safeH}`,
+                      }}
+                      className="flex flex-col"
+                    >
+                      <WidgetRegistry
+                        instance={widget}
+                        data={dashboardData}
+                      />
+                    </div>
+                  )
+                })}
               </div>
             </main>
           </SidebarInset>
@@ -113,3 +86,4 @@ export default function DashboardPage() {
     </div>
   )
 }
+

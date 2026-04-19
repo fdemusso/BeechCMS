@@ -1,7 +1,8 @@
 export interface DashboardStats {
   total: number
-  recent: number
-  periodDays: number
+  today: number
+  week: number
+  month: number
 }
 
 export interface CloudflareMetric {

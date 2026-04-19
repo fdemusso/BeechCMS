@@ -10,8 +10,11 @@ export const dashboardApi = {
     const { data } = await api.get<CloudflareStats>("/content/stats/cloudflare")
     return data
   },
-  getRecentActivity: async (): Promise<RecentActivity[]> => {
-    const { data } = await api.get<RecentActivity[]>("/content/stats/recent-activity")
+  getRecentActivity: async (slug?: string): Promise<RecentActivity[]> => {
+    const { data } = await api.get<RecentActivity[]>(
+      "/content/stats/recent-activity",
+      { params: { slug } }
+    )
     return data
   },
   getSystemHealth: async (): Promise<SystemHealth> => {
