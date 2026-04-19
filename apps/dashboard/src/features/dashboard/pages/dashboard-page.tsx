@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/site-header"
 import { StatCard } from "../components/stat-card"
 import { RecentActivity } from "../components/recent-activity"
 import { SystemHealth } from "../components/system-health"
+import { ContentPulse } from "../components/content-pulse"
 import { AIInsights } from "../components/ai-insights"
 import { useDashboardStats, useCloudflareStats } from "../hooks/use-dashboard-stats"
 import { FileText, Database, Globe, Zap } from "lucide-react"
@@ -101,6 +102,7 @@ export default function DashboardPage() {
                 {/* Right Column: Actions & Insights */}
                 <div className="space-y-6">
                   <SystemHealth />
+                  <ContentPulse />
                   <AIInsights />
                 </div>
               </div>

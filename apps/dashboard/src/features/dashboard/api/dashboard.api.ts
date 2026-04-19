@@ -1,5 +1,5 @@
 import { api } from "@/lib/api"
-import type { DashboardStats, CloudflareStats, RecentActivity, SystemHealth } from "../types/dashboard.types"
+import type { DashboardStats, CloudflareStats, RecentActivity, SystemHealth, ContentBreakdown } from "../types/dashboard.types"
 
 export const dashboardApi = {
   getTotalStats: async (): Promise<DashboardStats> => {
@@ -16,6 +16,10 @@ export const dashboardApi = {
   },
   getSystemHealth: async (): Promise<SystemHealth> => {
     const { data } = await api.get<SystemHealth>("/content/stats/health")
+    return data
+  },
+  getContentBreakdown: async (): Promise<ContentBreakdown[]> => {
+    const { data } = await api.get<ContentBreakdown[]>("/content/stats/breakdown")
     return data
   },
 }

@@ -27,7 +27,8 @@ export function useNotificationsPopover() {
       const { data } = await api.get<any[]>("/content/notifications")
       return data
     },
-    refetchInterval: 5000,
+    refetchInterval: 5 * 60 * 1000, // 5 minuti
+    staleTime: 60 * 1000, // 1 minuto
     refetchOnWindowFocus: true
   })
 

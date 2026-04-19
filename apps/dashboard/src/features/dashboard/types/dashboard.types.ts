@@ -48,3 +48,10 @@ export interface SystemHealth {
   status: 'healthy' | 'warning' | 'critical'
   lastUpdate: number
 }
+
+export interface ContentBreakdown {
+  slug: string
+  label: string
+  count: number
+  color?: string
+}

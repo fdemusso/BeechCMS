@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { getSeed, apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload, slugify } from '@beech/core'
+import { getSeed, SEED_REGISTRY, apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload, slugify } from '@beech/core'
 import { deleteR2Objects, createR2Client } from './upload'
 import { getBucketSize } from './shared/storage-utils'
 import { extractMediaKeysFromData } from './media-utils'
@@ -101,13 +101,37 @@ const contentApp = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
 // --- NOTIFICATIONS API ---
 
-// GET /notifications - Lista notifiche
+// GET /notifications - Lista notifiche con supporto ETag per ottimizzazione
 contentApp.get('/notifications', async (c) => {
   try {
     const { DB } = c.env
+    
+    // 1. Genera un'impronta digitale (ETag) rapida per vedere se c'è stato qualche cambiamento
+    // Includiamo SUM(is_read) per rilevare quando una notifica viene segnata come letta/non letta
+    const stats = await DB.prepare(
+      'SELECT COUNT(*) as count, MAX(created_at) as latest, SUM(is_read) as read_sum FROM notifications'
+    ).first<{ count: number; latest: number | null; read_sum: number | null }>()
+    
+    const count = stats?.count ?? 0
+    const latest = stats?.latest ?? 0
+    const readSum = stats?.read_sum ?? 0
+    const etag = `W/"${count}-${latest}-${readSum}"`
+    
+    // 2. Controllo header If-None-Match
+    const ifNoneMatch = c.req.header('If-None-Match')
+    if (ifNoneMatch === etag) {
+      return new Response(null, { status: 304 })
+    }
+
+    // 3. Se cambiato, carica i dati completi
     const result = await DB.prepare(
       'SELECT id, title, message, type, is_read, created_at FROM notifications ORDER BY created_at DESC LIMIT 50'
     ).all()
+    
+    // 4. Rispondi con ETag e Cache-Control revalidate
+    c.header('ETag', etag)
+    c.header('Cache-Control', 'no-cache, must-revalidate')
+    
     return c.json(result.results ?? [])
   } catch (err) {
     console.error('Notifications fetch error:', err)
@@ -362,85 +386,8 @@ function buildFacetsPayload(
 }
 
 // --- 4. Controller Principale (Pulito) ---
-contentApp.get('/:slug', async (c) => {
-  const slug = c.req.param('slug');
-  if (!slug) {
-    return publicProblem(c, {
-      type: 'content-invalid-slug',
-      title: 'Bad Request',
-      status: 400,
-      detail: CONTENT_ERRORS.INVALID_SLUG,
-    })
-  }
+// Moved /:slug generic handler down to prevent interception of /stats routes
 
-  const seed = getSeed(slug);
-  if (!seed) {
-    return publicProblem(c, {
-      type: 'content-seed-not-found',
-      title: 'Not Found',
-      status: 404,
-      detail: CONTENT_ERRORS.SEED_NOT_FOUND,
-    })
-  }
-
-  try {
-    const { DB } = c.env;
-    const query = c.req.query();
-
-    // Parsing parametri
-    const search = cleanStr(query.search) ?? '';
-    const sortBy = cleanStr(query.sortBy) ?? '';
-    const sortDirRaw = cleanStr(query.sortDir)?.toLowerCase() ?? 'asc';
-    const filters = parseQueryFilters(query.filters);
-
-    const page = parsePositiveInt(query.page, 1);
-    const limit = Math.min(parsePositiveInt(query.limit, 25), 100);
-    const offset = (page - 1) * limit;
-
-    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || query.page !== undefined || query.limit !== undefined;
-
-    // Generazione Query SQL tramite funzioni delegate
-    const { whereSql, whereBindings } = buildWhereClause(slug, search, filters, seed);
-    const orderSql = buildOrderClause(sortBy, sortDirRaw, seed);
-
-    let total = 0;
-    if (hasQueryParams) {
-      const countSql = `SELECT COUNT(*) as total FROM content_entries ${whereSql}`;
-      const countRow = await DB.prepare(countSql).bind(...whereBindings).first<{ total: number }>();
-      total = countRow?.total ?? 0;
-    }
-
-    const listSql = hasQueryParams
-        ? `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql} LIMIT ? OFFSET ?`
-        : `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql}`;
-
-    const listBindings = hasQueryParams
-        ? [...whereBindings, limit, offset]
-        : whereBindings;
-
-    const result = await DB.prepare(listSql).bind(...listBindings).all<ContentEntryRow>();
-
-    const entries: ContentEntry[] = (result.results ?? []).map((row) => {
-      const entry = rowToEntry(row);
-      return { ...entry, data: dbToApi(seed, entry.data) };
-    });
-
-    if (!hasQueryParams) {
-      return c.json(entries);
-    }
-
-    return c.json({ items: entries, total, page, limit });
-
-  } catch (err) {
-    console.error('Content list error:', err);
-    return publicProblem(c, {
-      type: 'content-database-error',
-      title: 'Internal Server Error',
-      status: 500,
-      detail: CONTENT_ERRORS.DATABASE_ERROR,
-    })
-  }
-});
 // GET /stats/total - Statistiche globali contenuti per dashboard
 contentApp.get('/stats/total', async (c) => {
   try {
@@ -476,18 +423,37 @@ contentApp.get('/stats/total', async (c) => {
 contentApp.get('/stats/recent-activity', async (c) => {
   try {
     const { DB } = c.env
+    
+    // 1. Genera ETag rapido basato su conteggio e ultimo timestamp di attività
+    const stats = await DB.prepare(
+      'SELECT COUNT(*) as count, MAX(created_at) as latest FROM activity_logs'
+    ).first<{ count: number; latest: number | null }>()
+    
+    const count = stats?.count ?? 0
+    const latest = stats?.latest ?? 0
+    const etag = `W/"recent-${count}-${latest}"`
+    
+    const ifNoneMatch = c.req.header('If-None-Match')
+    if (ifNoneMatch === etag) {
+      return new Response(null, { status: 304 })
+    }
+
+    // 2. Se cambiato, carica le ultime 15 attività
     const result = await DB.prepare(
       `SELECT id, user_id, user_email, action, entity_type, entity_id, entity_slug, details, created_at 
        FROM activity_logs 
        ORDER BY created_at DESC 
        LIMIT 15`
     ).all()
-
+    
     const activities = (result.results ?? []).map((row: any) => ({
       ...row,
       details: row.details ? JSON.parse(row.details) : null
     }))
-
+    
+    c.header('ETag', etag)
+    c.header('Cache-Control', 'no-cache, must-revalidate')
+    
     return c.json(activities)
   } catch (err) {
     console.error('Recent activity error:', err)
@@ -638,6 +604,38 @@ contentApp.get('/stats/cloudflare', async (c) => {
   }
 })
 
+// GET /stats/breakdown - Distribuzione contenuti per il widget Content Pulse
+contentApp.get('/stats/breakdown', async (c) => {
+  try {
+    const { DB } = c.env
+    
+    const results = await DB.prepare(
+      'SELECT schema_slug, COUNT(*) as count FROM content_entries GROUP BY schema_slug'
+    ).all<{ schema_slug: string; count: number }>()
+    
+    const countMap = Object.fromEntries(
+      results.results?.map(r => [r.schema_slug, r.count]) ?? []
+    )
+    
+    const breakdown = Object.values(SEED_REGISTRY).map(seed => ({
+      slug: seed.slug,
+      label: seed.labelPlural || seed.label,
+      count: countMap[seed.slug] ?? 0
+    }))
+    
+    return c.json(breakdown)
+  } catch (err) {
+    console.error('Breakdown stats error:', err)
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
+  }
+})
+
+
 // POST /stats/storage/sync - Ricalcola lo spazio occupato su R2 (operazione costosa, usare con cautela)
 contentApp.post('/stats/storage/sync', async (c) => {
   try {
@@ -767,57 +765,8 @@ contentApp.get('/:schema_slug/by-slug/:entry_slug', async (c) => {
 })
 
 // GET /:slug/:id - Dettaglio
-contentApp.get('/:slug/:id', async (c) => {
-  const slug = c.req.param('slug')
-  const id = c.req.param('id')
-  if (!slug || !id) {
-    return publicProblem(c, {
-      type: 'content-invalid-slug-or-id',
-      title: 'Bad Request',
-      status: 400,
-      detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID,
-    })
-  }
+// Moved down to the bottom
 
-  const seed = getSeed(slug)
-  if (!seed) {
-    return publicProblem(c, {
-      type: 'content-seed-not-found',
-      title: 'Not Found',
-      status: 404,
-      detail: CONTENT_ERRORS.SEED_NOT_FOUND,
-    })
-  }
-
-  try {
-    const { DB } = c.env
-    const row = await DB.prepare(
-      'SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND id = ?'
-    )
-      .bind(slug, id)
-      .first<ContentEntryRow>()
-
-    if (!row) {
-      return publicProblem(c, {
-        type: 'content-not-found',
-        title: 'Not Found',
-        status: 404,
-        detail: CONTENT_ERRORS.NOT_FOUND,
-      })
-    }
-
-    const entry = rowToEntry(row)
-    return c.json({ ...entry, data: dbToApi(seed, entry.data) })
-  } catch (err) {
-    console.error('Content detail error:', err)
-    return publicProblem(c, {
-      type: 'content-database-error',
-      title: 'Internal Server Error',
-      status: 500,
-      detail: CONTENT_ERRORS.DATABASE_ERROR,
-    })
-  }
-})
 
 // PUT /:slug/:id - Aggiornamento
 contentApp.put('/:slug/:id', async (c) => {
@@ -1102,5 +1051,140 @@ contentApp.delete('/:slug/:id', async (c) => {
   }
 });
 
+
+
+// --- 5. Controller Principale (Generic Wildcards at the bottom) ---
+
+/** GET /:slug - Lista entità di un certo tipo */
+contentApp.get('/:slug', async (c) => {
+  const slug = c.req.param('slug');
+  if (!slug) {
+    return publicProblem(c, {
+      type: 'content-invalid-slug',
+      title: 'Bad Request',
+      status: 400,
+      detail: CONTENT_ERRORS.INVALID_SLUG,
+    })
+  }
+
+  const seed = getSeed(slug);
+  if (!seed) {
+    return publicProblem(c, {
+      type: 'content-seed-not-found',
+      title: 'Not Found',
+      status: 404,
+      detail: CONTENT_ERRORS.SEED_NOT_FOUND,
+    })
+  }
+
+  try {
+    const { DB } = c.env;
+    const query = c.req.query();
+
+    const search = cleanStr(query.search) ?? '';
+    const sortBy = cleanStr(query.sortBy) ?? '';
+    const sortDirRaw = cleanStr(query.sortDir)?.toLowerCase() ?? 'asc';
+    const filters = parseQueryFilters(query.filters);
+
+    const page = parsePositiveInt(query.page, 1);
+    const limit = Math.min(parsePositiveInt(query.limit, 25), 100);
+    const offset = (page - 1) * limit;
+
+    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || query.page !== undefined || query.limit !== undefined;
+
+    const { whereSql, whereBindings } = buildWhereClause(slug, search, filters, seed);
+    const orderSql = buildOrderClause(sortBy, sortDirRaw, seed);
+
+    let total = 0;
+    if (hasQueryParams) {
+      const countSql = `SELECT COUNT(*) as total FROM content_entries ${whereSql}`;
+      const countRow = await DB.prepare(countSql).bind(...whereBindings).first<{ total: number }>();
+      total = countRow?.total ?? 0;
+    }
+
+    const listSql = hasQueryParams
+        ? `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql} LIMIT ? OFFSET ?`
+        : `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql}`;
+
+    const listBindings = hasQueryParams
+        ? [...whereBindings, limit, offset]
+        : whereBindings;
+
+    const result = await DB.prepare(listSql).bind(...listBindings).all<ContentEntryRow>();
+
+    const entries: ContentEntry[] = (result.results ?? []).map((row) => {
+      const entry = rowToEntry(row);
+      return { ...entry, data: dbToApi(seed, entry.data) };
+    });
+
+    if (!hasQueryParams) {
+      return c.json(entries);
+    }
+
+    return c.json({ items: entries, total, page, limit });
+
+  } catch (err) {
+    console.error('Content list error:', err);
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
+  }
+});
+
+/** GET /:slug/:id - Dettaglio singola entità (id o slug) */
+contentApp.get('/:slug/:id', async (c) => {
+  const slug = c.req.param('slug')
+  const id = c.req.param('id')
+  if (!slug || !id) {
+    return publicProblem(c, {
+      type: 'content-invalid-slug-or-id',
+      title: 'Bad Request',
+      status: 400,
+      detail: CONTENT_ERRORS.INVALID_SLUG_OR_ID,
+    })
+  }
+
+  const seed = getSeed(slug)
+  if (!seed) {
+    return publicProblem(c, {
+      type: 'content-seed-not-found',
+      title: 'Not Found',
+      status: 404,
+      detail: CONTENT_ERRORS.SEED_NOT_FOUND,
+    })
+  }
+
+  try {
+    const { DB } = c.env
+    const row = await DB.prepare(
+      'SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND id = ?'
+    )
+      .bind(slug, id)
+      .first<ContentEntryRow>()
+
+    if (!row) {
+      return publicProblem(c, {
+        type: 'content-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: CONTENT_ERRORS.NOT_FOUND,
+      })
+    }
+
+    const entry = rowToEntry(row)
+    return c.json({ ...entry, data: dbToApi(seed, entry.data) })
+  } catch (err) {
+    console.error('Content detail error:', err)
+    return publicProblem(c, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
+    })
+  }
+})
 
 export const contentRoutes = contentApp
