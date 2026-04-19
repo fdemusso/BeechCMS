@@ -1,11 +1,16 @@
 import { describe, it, expect } from "vitest"
 import { renderHook, act } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import React from "react"
 
 import { useNotificationsPopover } from "@/components/notifications-popover/use-notifications-popover"
 
 describe("useNotificationsPopover", () => {
   it("filtra nuove notifiche e aggiorna stato seen/unseen/delete", () => {
-    const { result } = renderHook(() => useNotificationsPopover())
+    const queryClient = new QueryClient()
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+    const { result } = renderHook(() => useNotificationsPopover(), { wrapper })
 
     expect(result.current.notifications.length).toBeGreaterThan(0)
     expect(result.current.hasUnreadNotifications).toBe(true)

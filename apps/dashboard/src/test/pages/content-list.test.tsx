@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, waitFor, fireEvent } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactNode } from "react"
 
 const mockNavigate = vi.fn()
@@ -30,11 +31,27 @@ vi.mock("@beech/core", () => ({
   getSeed: (slug: string) => (slug === "posts" ? seedPosts : null),
 }))
 
-vi.mock("@/lib/content-api", () => ({
-  fetchContentListServer: (...args: unknown[]) => mockFetchContentListServer(...args),
-  fetchContentFacets: (...args: unknown[]) => mockFetchContentFacets(...args),
-  deleteContent: (...args: unknown[]) => mockDeleteContent(...args),
+vi.mock("@/features/content-management", () => ({
+  useContentList: (...args: any[]) => ({
+    data: mockFetchContentListServer(...args),
+    isLoading: false,
+    error: null,
+  }),
+  useContentFacets: (...args: any[]) => ({
+    data: mockFetchFacets(...args),
+    isLoading: false,
+    error: null,
+  }),
+  useDeleteContent: () => ({
+    mutateAsync: async (...args: any[]) => mockDeleteContent(...args),
+  }),
+  contentApi: {
+    delete: (...args: any[]) => mockDeleteContent(...args),
+  }
 }))
+
+// Mock for facets return value
+const mockFetchFacets = vi.fn()
 
 vi.mock("sonner", () => ({
   toast: {
@@ -113,12 +130,27 @@ vi.mock("@/components/ui/data-table", () => ({
 
 import { ContentListPage } from "@/pages/content-list"
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { retry: false },
+  },
+})
+
+const renderWithProviders = (ui: ReactNode) => {
+  return render(
+    <QueryClientProvider client={queryClient}>
+      {ui}
+    </QueryClientProvider>
+  )
+}
+
 describe("ContentListPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    queryClient.clear()
     mockUseParams.mockReturnValue({ slug: "posts" })
-    mockFetchContentFacets.mockResolvedValue({ statuses: ["draft"], tagsByColumnId: { tags: ["cms"] } })
-    mockFetchContentListServer.mockResolvedValue({
+    mockFetchFacets.mockReturnValue({ statuses: ["draft"], tagsByColumnId: { tags: ["cms"] } })
+    mockFetchContentListServer.mockReturnValue({
       items: [{ id: "id-1", slug: "hello", status: "draft", data: { title: "Hello" } }],
       total: 1,
     })
@@ -126,13 +158,13 @@ describe("ContentListPage", () => {
 
   it("mostra errore se seed non esiste", () => {
     mockUseParams.mockReturnValue({ slug: "missing" })
-    render(<ContentListPage />)
+    renderWithProviders(<ContentListPage />)
     expect(screen.getByText("Errore")).toBeInTheDocument()
     expect(screen.getByText(/non trovato/i)).toBeInTheDocument()
   })
 
   it("carica dati e rifà fetch quando cambiano search/sort/filter", async () => {
-    render(<ContentListPage />)
+    renderWithProviders(<ContentListPage />)
 
     await waitFor(() => {
       expect(mockFetchContentListServer).toHaveBeenCalled()
@@ -149,7 +181,7 @@ describe("ContentListPage", () => {
   })
 
   it("naviga alla create page dalla toolbar", async () => {
-    render(<ContentListPage />)
+    renderWithProviders(<ContentListPage />)
     await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
     fireEvent.click(screen.getByText("create-entry"))
     expect(mockNavigate).toHaveBeenCalledWith("/content/posts/create")
@@ -157,13 +189,13 @@ describe("ContentListPage", () => {
 
   it("apre dialog ed esegue delete con refresh dati", async () => {
     mockDeleteContent.mockResolvedValueOnce(undefined)
-    render(<ContentListPage />)
+    renderWithProviders(<ContentListPage />)
     await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
 
     fireEvent.click(await screen.findByText("Elimina"))
     fireEvent.click(await screen.findByText("confirm-delete"))
 
-    await waitFor(() => expect(mockDeleteContent).toHaveBeenCalledWith("posts", "id-1"))
+    await waitFor(() => expect(mockDeleteContent).toHaveBeenCalledWith({ slug: "posts", id: "id-1" }))
     await waitFor(() => expect(mockFetchContentListServer.mock.calls.length).toBeGreaterThanOrEqual(2))
   })
 })

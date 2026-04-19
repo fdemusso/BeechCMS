@@ -29,6 +29,13 @@ const seedPosts = {
 
 vi.mock("@beech/core", () => ({
   getSeed: () => seedPosts,
+  slugify: (text: string) =>
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_-]+/g, "-")
+      .replace(/^-+|-+$/g, ""),
 }))
 
 vi.mock("@/lib/content-api", () => ({
