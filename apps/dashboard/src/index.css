@@ -11,21 +11,20 @@
   line-height: 1.5;
 
   color-scheme: light;
-  color: #171717;
-  background-color: #fcfcfc;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  /* Palette */
-  --text: #171717;
-  --foreground: #171717;
-  --background: #fcfcfc;
-  --primary: #787878;
-  --secondary: #ffffff;
-  --accent: #171717;
+  /*
+    REGOLA INVARIANTE — non invertire mai queste coppie:
+    --popover           → sfondo del Command palette
+    --popover-foreground → testo dentro il Command palette
+    --accent            → sfondo item evidenziato nella lista
+    --accent-foreground → testo dell'item evidenziato
+    --muted-foreground  → placeholder, descrizioni, hint → SEMPRE leggibile su --muted
+  */
 
   /* Type scale: base 15px, Perfect Fourth 1.333 */
   --font-size-xs: 0.703125rem;   /* 11.25px */
@@ -37,35 +36,48 @@
   --font-size-3xl: 3.95rem;      /* 63.2px */
 
   --radius: 0.625rem;
-  --card: #ffffff;
-  --card-foreground: #171717;
-  --popover: #ffffff;
-  --popover-foreground: #171717;
-  --primary: #787878;
-  --primary-foreground: #ffffff;
-  --secondary: #ffffff;
-  --secondary-foreground: #171717;
-  --muted: #f5f5f5;
-  --muted-foreground: #787878;
-  --accent: #171717;
-  --accent-foreground: #ffffff;
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: #e5e5e5;
-  --input: #e5e5e5;
-  --ring: #787878;
+
+  /* ── Light mode tokens — palette neutro/nero, nessuna tinta di colore ── */
+  --background:            oklch(0.98 0 0);
+  --foreground:            oklch(0.13 0 0);
+
+  --card:                  oklch(1.00 0 0);
+  --card-foreground:       oklch(0.13 0 0);
+
+  --popover:               oklch(1.00 0 0);       /* sfondo palette cmdk */
+  --popover-foreground:    oklch(0.13 0 0);       /* testo dentro la palette — nero su bianco */
+
+  --primary:               oklch(0.13 0 0);       /* bottoni CTA: nero */
+  --primary-foreground:    oklch(0.98 0 0);       /* testo sul nero: bianco */
+
+  --secondary:             oklch(0.94 0 0);
+  --secondary-foreground:  oklch(0.20 0 0);
+
+  --muted:                 oklch(0.94 0 0);
+  --muted-foreground:      oklch(0.44 0 0);       /* grigio medio — ≥ 4.5:1 su --muted */
+
+  --accent:                oklch(0.92 0 0);       /* hover item: grigio chiarissimo su bianco */
+  --accent-foreground:     oklch(0.13 0 0);       /* testo sull'hover: nero – sempre leggibile */
+
+  --destructive:           oklch(0.577 0.245 27.325);
+  --border:                oklch(0.89 0 0);
+  --input:                 oklch(0.89 0 0);
+  --ring:                  oklch(0.13 0 0);
+
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+
+  --sidebar:                    oklch(0.985 0 0);       /* sfondo sidebar light */
+  --sidebar-foreground:         oklch(0.145 0 0);       /* testo sidebar: quasi nero */
+  --sidebar-primary:            oklch(0.145 0 0);       /* icona logo: nero */
+  --sidebar-primary-foreground: oklch(0.985 0 0);       /* testo su icona logo: bianco */
+  --sidebar-accent:             oklch(0.91 0 0);        /* hover: grigio visibile (ΔL 0.075 vs sfondo) */
+  --sidebar-accent-foreground:  oklch(0.145 0 0);       /* testo hover: stesso del testo normale */
+  --sidebar-border:             oklch(0.89 0 0);
+  --sidebar-ring:               oklch(0.50 0 0);
 }
 
 a {
@@ -74,7 +86,17 @@ a {
   text-decoration: inherit;
 }
 a:hover {
-  color: var(--accent);
+  /* --accent è un colore di superficie (sfondo hover), NON un colore testo.
+     Usiamo --foreground come hover dei link standalone per garantire leggibilità. */
+  color: var(--foreground);
+}
+
+/* Link di navigazione (sidebar, navbar): il colore testo NON deve cambiare
+   sull'hover — solo lo sfondo cambia grazie a hover:bg-sidebar-accent.
+   color:inherit mantiene il colore del testo del parent container. */
+[data-sidebar] a:hover,
+nav a:hover {
+  color: inherit;
 }
 
 html {
@@ -145,37 +167,55 @@ h1 {
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
+  /* ── Dark mode tokens — palette neutro/nero, nessuna tinta di colore ── */
+
+  /*
+    REGOLA HOVER: --accent deve essere abbastanza DISTANTE da --background
+    in termini di L (lightness) perché l'hover sia visibile.
+    background = 0.145 → accent = 0.32 → delta L ≈ 0.175 (ben distinguibile)
+    accent-foreground = 0.985 (bianco) su accent 0.32 → contrasto ≈ 7.5:1 ✓
+  */
+
+  --background:            oklch(0.145 0 0);           /* superficie scura */
+  --foreground:            oklch(0.985 0 0);           /* testo primario: quasi bianco */
+
+  --card:                  oklch(0.205 0 0);
+  --card-foreground:       oklch(0.985 0 0);
+
+  --popover:               oklch(0.205 0 0);           /* sfondo palette cmdk */
+  --popover-foreground:    oklch(0.985 0 0);           /* testo palette: quasi bianco */
+
+  --primary:               oklch(0.985 0 0);           /* bottoni CTA in dark: bianco */
+  --primary-foreground:    oklch(0.145 0 0);           /* testo sul bottone bianco: nero */
+
+  --secondary:             oklch(0.269 0 0);
+  --secondary-foreground:  oklch(0.985 0 0);
+
+  --muted:                 oklch(0.269 0 0);
+  --muted-foreground:      oklch(0.65 0 0);            /* grigio medio-chiaro — ≥ 4.5:1 su --muted */
+
+  --accent:                oklch(0.32 0 0);            /* hover: grigio scuro MA distinguibile */
+  --accent-foreground:     oklch(0.985 0 0);           /* testo hover: bianco — sempre leggibile */
+
+  --destructive:           oklch(0.704 0.191 22.216);
+  --border:                oklch(1 0 0 / 10%);
+  --input:                 oklch(1 0 0 / 15%);
+  --ring:                  oklch(0.556 0 0);
+
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+
+  --sidebar:                    oklch(0.205 0 0);       /* sfondo sidebar dark */
+  --sidebar-foreground:         oklch(0.985 0 0);       /* testo sidebar: quasi bianco */
+  --sidebar-primary:            oklch(0.985 0 0);       /* icona logo in dark: bianco */
+  --sidebar-primary-foreground: oklch(0.145 0 0);       /* testo su icona logo: nero */
+  --sidebar-accent:             oklch(0.34 0 0);        /* hover: grigio distinguibile (ΔL 0.135 vs sfondo 0.205) */
+  --sidebar-accent-foreground:  oklch(0.985 0 0);       /* testo hover: bianco — sempre leggibile */
+  --sidebar-border:             oklch(1 0 0 / 10%);
+  --sidebar-ring:               oklch(0.556 0 0);
 }
 
 @keyframes icon-swap {
@@ -202,6 +242,24 @@ h1 {
     width: 100%;
     min-height: 100vh;
   }
+}
+
+/* Command palette: frosted-glass backdrop on Radix Dialog overlay */
+[data-radix-dialog-overlay] {
+  backdrop-filter: blur(4px);
+}
+
+/*
+  Sidebar hover fix: forza icone e testo a ereditare il colore del parent
+  quando scatta hover:text-sidebar-accent-foreground.
+  Senza questo, svg e span con colore proprio non cambiano colore sull'hover.
+*/
+[data-sidebar="menu-button"]:hover svg,
+[data-sidebar="menu-button"]:hover span,
+[data-sidebar="menu-sub-button"]:hover svg,
+[data-sidebar="menu-sub-button"]:hover span,
+[data-sidebar="menu-action"]:hover svg {
+  color: inherit;
 }
 
 /* ── Stili condivisi richtext: editor (ProseMirror) e preview ────────────── */

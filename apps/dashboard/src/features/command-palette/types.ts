@@ -1,22 +1,30 @@
-import type { LucideIcon } from "lucide-react"
+import type React from "react"
 
-export type CommandPage = "root" | "seeds" | "create" | "search-results"
+// Tutte le pagine navigabili nella palette
+export type CommandPage =
+  | "root"
+  | "seeds"
+  | "create"
+  | "search-results"
 
+// Azione singola renderizzata come CommandItem
 export interface CommandAction {
   id: string
   label: string
   description?: string
-  icon: LucideIcon
+  icon: React.ComponentType<{ className?: string }> // LucideIcon compatible
   keywords?: string[]
-  shortcut?: string // e.g. "N" shown as kbd
+  shortcut?: string       // lettera singola: "N", "F"
   onSelect: () => void
   disabled?: boolean
 }
 
-export interface CommandPaletteContext {
+// Contratto del hook — non esposto come Context React
+export interface CommandPaletteState {
   open: boolean
   setOpen: (open: boolean) => void
   pages: CommandPage[]
+  currentPage: CommandPage
   pushPage: (page: CommandPage) => void
   popPage: () => void
   search: string

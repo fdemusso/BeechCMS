@@ -22,35 +22,8 @@ import { authMiddleware } from './middleware'
 import { contentRoutes } from './content'
 import { uploadRoutes, serveMediaHandler } from './upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
-
-// --- Tipi ---
-
-/** Bindings Cloudflare Workers: DB (D1), JWT_SECRET, R2 (S3 API), rate limiters, variabili env */
-type Bindings = {
-  DB: D1Database
-  JWT_SECRET: string
-  JWT_ISSUER?: string
-  JWT_AUDIENCE?: string
-  R2_ACCESS_KEY_ID?: string
-  R2_SECRET_ACCESS_KEY?: string
-  R2_ENDPOINT?: string
-  R2_BUCKET_NAME?: string
-  LOGIN_RATE_LIMITER?: RateLimit
-  REFRESH_RATE_LIMITER?: RateLimit
-  PUBLIC_READ_RATE_LIMITER?: RateLimit
-  PUBLIC_WRITE_RATE_LIMITER?: RateLimit
-  CORS_ORIGINS?: string
-  PUBLIC_READ_API_KEY?: string
-  PUBLIC_WRITE_API_KEY?: string
-  PUBLIC_PUBLISHED_ONLY?: string
-  PUBLIC_IDEMPOTENCY_TTL_SECONDS?: string
-  MEDIA_BASE_URL?: string
-  ENV?: string
-}
-
-type Variables = {
-  jwtPayload: { sub: string; email?: string }
-}
+import { searchRouter } from "./search"
+import type { Env, Variables } from './types'
 
 // --- Costanti e helper ---
 
@@ -92,7 +65,7 @@ function getRefreshTokenDeleteCookieOptions(secure: boolean) {
 
 /** Logga l'errore solo in sviluppo e restituisce risposta 500 generica */
 function handleAuthError(
-  c: Context<{ Bindings: Bindings; Variables: Variables }>,
+  c: Context<{ Bindings: Env; Variables: Variables }>,
   err: unknown,
   operationName: string
 ): Response {
@@ -104,7 +77,7 @@ function handleAuthError(
 
 // --- App ---
 
-const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // CORS: origins da CORS_ORIGINS (virgola-separati), default localhost per sviluppo
 app.use('*', async (c, next) => {
@@ -324,7 +297,7 @@ app.post('/auth/logout', async (c) => {
 })
 
 // API Content: CRUD universale protetto da JWT
-const apiContent = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const apiContent = new Hono<{ Bindings: Env; Variables: Variables }>()
 apiContent.use('*', async (c, next) => {
   await authMiddleware(c.env.JWT_SECRET, {
     issuer: c.env.JWT_ISSUER,
@@ -333,13 +306,14 @@ apiContent.use('*', async (c, next) => {
 })
 apiContent.route('/', contentRoutes)
 app.route('/api/content', apiContent)
+app.route('/api/search', searchRouter)
 
 // API Upload: POST /api/upload (JWT) + GET /api/media/:key (pubblico)
 app.route('/api', uploadRoutes)
 app.get('/api/media/:key', (c) => serveMediaHandler(c))
 
 // API Pubblica: endpoint per consumatori esterni, protetti da API Key
-const apiPublic = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const apiPublic = new Hono<{ Bindings: Env; Variables: Variables }>()
 apiPublic.use('*', publicRateLimitMiddleware())
 apiPublic.use('*', apiKeyMiddleware())
 apiPublic.route('/', publicRoutes)

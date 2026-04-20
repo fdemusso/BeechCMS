@@ -1168,9 +1168,12 @@ contentApp.get('/:slug', async (c) => {
     const { whereSql, whereBindings } = buildWhereClause(slug, search, filters, seed);
     const orderSql = buildOrderClause(sortBy, sortDirRaw, seed);
 
+    console.log(`[API] Content Search for ${slug}:`, { search, filters, whereSql, whereBindings });
+
     let total = 0;
     if (hasQueryParams) {
       const countSql = `SELECT COUNT(*) as total FROM content_entries ${whereSql}`;
+      console.log(`[API] Count Query for ${slug}:`, countSql);
       const countRow = await DB.prepare(countSql).bind(...whereBindings).first<{ total: number }>();
       total = countRow?.total ?? 0;
     }
@@ -1182,6 +1185,8 @@ contentApp.get('/:slug', async (c) => {
     const listBindings = hasQueryParams
         ? [...whereBindings, limit, offset]
         : whereBindings;
+
+    console.log(`[API] List Query for ${slug}:`, { listSql, listBindings });
 
     const result = await DB.prepare(listSql).bind(...listBindings).all<ContentEntryRow>();
 

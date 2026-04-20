@@ -318,6 +318,7 @@ export function buildWhereClause(
     const term = `%${search}%`
     parts.push('(slug LIKE ? OR status LIKE ? OR data LIKE ?)')
     bindings.push(term, term, term)
+    console.log(`[QueryUtils] Search term active: "${search}" -> using LIKE on slug, status, data`);
   }
 
   for (const group of filters || []) {

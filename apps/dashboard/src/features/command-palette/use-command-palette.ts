@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from "react"
-import type { CommandPage } from "./types"
+import type { CommandPage, CommandPaletteState } from "./types"
 
-export function useCommandPalette() {
+export function useCommandPalette(): CommandPaletteState {
   const [open, setOpen] = useState(false)
   const [pages, setPages] = useState<CommandPage[]>(["root"])
   const [search, setSearch] = useState("")
 
-  const currentPage = pages[pages.length - 1]
+  // safe: pages is always initialised with ["root"], at(-1) can never be undefined
+  const currentPage: CommandPage = pages.at(-1) ?? "root"
 
   const pushPage = useCallback((page: CommandPage) => {
     setPages((prev) => [...prev, page])
@@ -21,23 +22,26 @@ export function useCommandPalette() {
     setSearch("")
   }, [])
 
+  // Global keyboard listener: Cmd/Ctrl+K, Backspace-on-empty, Escape
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
-      // Cmd+K or Ctrl+K toggle
+      // Toggle palette
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
-        setOpen((open) => !open)
+        setOpen((prev) => !prev)
+        return
       }
 
       if (!open) return
 
-      // Backspace on empty search pops page
+      // Backspace on empty search → pop page
       if (e.key === "Backspace" && search === "" && pages.length > 1) {
         e.preventDefault()
         popPage()
+        return
       }
 
-      // Escape pops page if pages > 1, else cmdk handles dialog close
+      // Escape: pop sub-page or close
       if (e.key === "Escape" && pages.length > 1) {
         e.preventDefault()
         popPage()
@@ -48,7 +52,7 @@ export function useCommandPalette() {
     return () => document.removeEventListener("keydown", down)
   }, [open, search, pages.length, popPage])
 
-  // Reset search when open changes to false
+  // Reset state when palette closes
   useEffect(() => {
     if (!open) {
       setSearch("")
