@@ -405,15 +405,7 @@ Content-Type: multipart/form-data
 
 **Internal flow:**
 
-```mermaid
-flowchart LR
-    A[Dashboard\nmultipart/form-data] -->|POST /api/upload\nBearer JWT| B[Hono Upload Handler]
-    B --> C{Validate MIME\n& Size}
-    C -->|Fail| D[400 / 400 Error]
-    C -->|Pass| E[PutObjectCommand\nS3 Client → R2]
-    E --> F[Increment\nsystem_stats.total_storage_bytes\nin D1]
-    F --> G[200 { url: '/api/media/KEY' }]
-```
+[![](https://mermaid.ink/img/pako:eNpNUs1u2kAQfpXRHJqLwWDjEHyoVIxp0hYFhbRVa6NowAu43R9rvVZLjK99gDxinqRrk1Tdw2pm5_uZHU2NW5UxDHHH1a_tgbSBT3epBHveJTMqDxtFOktTKSpu8sLW3Z3SopeRoTX0em9Py9vVPbhU5G5VcEUtdspIMw0fvt6fYJpcK6ngc1eDa5IZZ3p9dpi2AhDVX4jnVpDB4mYRW_4bWOWPrDmDos5lTjk_wSwZDQbgQnvHWqtXoTNmSWV5gjhZVuZ284NtTaSEsIZWceVDxHMmDTz_eYI774UXdw3Mkxu51UzYsoWWx9Iw8VAaMmXfKEPcxkrTnj1sjoaVFpJLmA1fJOadxPskRc82VUOleQgX3TwEy3JyP8bfLqBJcY0O7nWeYWh0xRwUTAtqU6xbpRTNwbaQYmjDjPTPFFPZWE5B8rtS4pWmVbU_YLgjXtqsKtq5zXLaaxL_XjWTGdORqqTB0Bt2GhjW-BvDoXfZD4Kx7w8DfxL4wcjBo8UMrvpX49HE88aT8SjwLv3GwcfOddAV_j8O2n_ZiSzOi9PtT_MXk5G4fg?type=png)](https://mermaid.live/edit#pako:eNpNUs1u2kAQfpXRHJqLwWDjEHyoVIxp0hYFhbRVa6NowAu43R9rvVZLjK99gDxinqRrk1Tdw2pm5_uZHU2NW5UxDHHH1a_tgbSBT3epBHveJTMqDxtFOktTKSpu8sLW3Z3SopeRoTX0em9Py9vVPbhU5G5VcEUtdspIMw0fvt6fYJpcK6ngc1eDa5IZZ3p9dpi2AhDVX4jnVpDB4mYRW_4bWOWPrDmDos5lTjk_wSwZDQbgQnvHWqtXoTNmSWV5gjhZVuZ284NtTaSEsIZWceVDxHMmDTz_eYI774UXdw3Mkxu51UzYsoWWx9Iw8VAaMmXfKEPcxkrTnj1sjoaVFpJLmA1fJOadxPskRc82VUOleQgX3TwEy3JyP8bfLqBJcY0O7nWeYWh0xRwUTAtqU6xbpRTNwbaQYmjDjPTPFFPZWE5B8rtS4pWmVbU_YLgjXtqsKtq5zXLaaxL_XjWTGdORqqTB0Bt2GhjW-BvDoXfZD4Kx7w8DfxL4wcjBo8UMrvpX49HE88aT8SjwLv3GwcfOddAV_j8O2n_ZiSzOi9PtT_MXk5G4fg)
 
 **Response `200`**
 
