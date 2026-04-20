@@ -18,6 +18,19 @@ Beech CMS is not a traditional monolithic CMS — it is a headless, API-first pl
 
 ---
 
+## Documentation
+
+| Document | Description |
+|---|---|
+| [Architecture](./architecture.md) | Structural reasoning: package relationships, storage choices, and the ongoing migration to Vertical Slice Architecture |
+| [API Reference](./api-reference.md) | Complete REST API reference — Internal (JWT) and Public (API-key) surfaces, with RFC 7807 error shapes |
+| [Frontend Guide](./frontend-guide.md) | Dashboard architecture: FieldRenderer registry, TanStack Query patterns, Shadcn/Tailwind 4 composition, and how to add a new field type |
+| [System Map](./SYSTEM_MAP.md) | High-level onboarding map — tech stack, folder structure, and non-negotiable conventions at a glance |
+| [Vertical Slice Architecture](./vertical-slice.md) | Guide to the VSA organization model adopted by the project |
+| [Sprint: SEO Evolution](./Sprints/seo-evolution.md) | Roadmap for the meta/SEO engine feature |
+
+---
+
 ## Why Beech?
 
 ### Zero-Latency by Default

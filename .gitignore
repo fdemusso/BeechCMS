@@ -17,6 +17,8 @@ out/
 .cursorrules
 .cursorignore
 
+.claude
+
 # Turbo
 .turbo/
 
