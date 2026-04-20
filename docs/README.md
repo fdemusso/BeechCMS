@@ -1,103 +1,220 @@
-# 🌳 Beech CMS 
+# Beech CMS
 
-![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat&logo=opensourceinitiative&logoColor=white) NON IMPLEMENTATA
-![TypeScript](https://img.shields.io/badge/TypeScript-%233178C6.svg?style=flat&logo=typescript&logoColor=white)
-![Turborepo](https://img.shields.io/badge/Turborepo-%23EF4444.svg?style=flat&logo=turborepo&logoColor=white)
+A production-grade, **Edge-Native, Schema-Driven Content Management System** built on Cloudflare's infrastructure.
 
-> Un Content Management System moderno, *schema-driven* e basato su un'architettura ibrida SQL/JSON, progettato per il deployment edge su Cloudflare.
+Beech CMS is not a traditional monolithic CMS — it is a headless, API-first platform where every content type is defined by a typed schema, every field transformation is deterministic, and every byte served originates from the edge.
 
 ---
 
-## 👁️ Panoramica del Progetto (Perché Beech CMS?)
-**Beech CMS** nasce per risolvere un problema comune nello sviluppo di CMS: la rottura dei dati lato frontend quando si rinomina un campo nel database. 
+## Table of Contents
 
-Per risolvere questo problema, ho progettato il **Botanical Engine**, un layer di traduzione che disaccoppia gli *alias* pubblici utilizzati dalle API dagli *ID interni immutabili* salvati nel database. Questo permette agli sviluppatori di far evolvere gli schemi dei dati senza dover ricorrere a complesse e rischiose migrazioni SQL.
-
-Se sei un **recruiter o un hiring manager**, questo progetto dimostra la mia capacità di:
-* Progettare **architetture software complesse** (Monorepo, Pattern Registry per la UI).
-* Gestire la **sicurezza** (Autenticazione JWT con Refresh Token e rotazione).
-* Costruire **soluzioni full-stack** moderne e performanti (React, Cloudflare Workers, D1, R2).
-
-![Screenshot della Dashboard di Beech CMS](assets/screenshot.png) *(Nota: Aggiungi qui una GIF o uno screen della tua UI!)*
+- [Why Beech?](#why-beech)
+- [Architecture at a Glance](#architecture-at-a-glance)
+- [The Botanical Engine](#the-botanical-engine)
+- [Tech Stack](#tech-stack)
+- [Project Structure](#project-structure)
+- [Getting Started](#getting-started)
+- [Key Design Decisions](#key-design-decisions)
 
 ---
 
-## ✨ Funzionalità Principali (Key Features)
-* 🧠 **Botanical Engine:** Traduzione dinamica tra Alias (Frontend) e ID Immutabili (DB). Rinomina i campi senza rompere i vecchi JSON.
-* 🗄️ **Motore Ibrido SQL/JSON (Content Engine):** Sfrutta la stabilità di SQL (Cloudflare D1) per le query e la flessibilità del JSON per i payload dinamici dei contenuti.
-* 🔒 **Autenticazione Sicura:** Flusso JWT ibrido con Access Token (memoria) e Refresh Token (httpOnly cookie) protetti da attacchi XSS e CSRF. Rate limiting integrato.
-* ☁️ **Media Engine integrato:** Upload e distribuzione dei file nativa tramite Cloudflare R2 (API S3-compatibile).
-* 🎨 **UI Schema-Driven (Field Renderers):** Dashboard React che renderizza dinamicamente tabelle, form e viste Kanban utilizzando un robusto *Registry Pattern*.
+## Why Beech?
 
-## 🛠️ Tech Stack
-* **Frontend:** React, TypeScript, Tailwind CSS, Vite
-* **Backend:** Node.js, Cloudflare Workers
-* **Database & Storage:** Cloudflare D1 (SQLite Edge), Cloudflare R2 (Object Storage)
-* **Architettura:** Turborepo (Monorepo), npm workspaces
+### Zero-Latency by Default
 
-## ✅ Qualità e Test (ultimo sprint)
-* La suite test della dashboard è stata estesa su hook, toolbar, pagine e componenti core.
-* La coverage della dashboard è stata portata **intorno all'85%**.
-* La baseline attesa è mantenere questo livello nelle prossime PR, evitando regressioni.
+Beech runs entirely on **Cloudflare Workers** — V8-isolate-based serverless functions deployed to 300+ edge locations worldwide. There is no cold-start penalty, no origin server to route through, and no region selection to misconfigure. A `GET /api/v1/public/articles` request resolves from the edge node closest to the consumer, querying **Cloudflare D1** (SQLite at the edge) and returning a JSON payload with sub-10ms processing overhead.
+
+### Developer Experience (DX) That Scales
+
+- **One schema definition → everywhere consistent.** You define a `Seed` (a typed content schema) once in `@beech/core`. That definition drives: database writes, API reads, public endpoint permissions, validation rules, form rendering, field display, and filter generation. No drift between layers.
+- **Rename a field alias without a migration.** The Botanical Engine separates human-readable aliases (`title`, `publishedAt`) from immutable internal IDs (`br01`, `br02`). You can rename a field alias in the `Seed` definition without touching the database.
+- **Monorepo, single source of truth.** Turborepo orchestrates builds so `@beech/core` is always compiled before the apps that depend on it. Types, validation logic, and translation functions are never duplicated.
+- **RFC 7807 Problem Details on every error.** Every `4xx` and `5xx` response follows `application/problem+json` with machine-readable `type` URIs and optional field-level `errors` arrays. No ad-hoc error shapes.
 
 ---
 
-## 🚀 Quick Start (Per gli Sviluppatori)
+## Architecture at a Glance
 
-Vuoi provare Beech CMS in locale? Il setup richiede meno di 5 minuti.
-
-### Prerequisiti
-* Node.js 18+
-* [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/install-and-update/) installato per emulare l'ambiente Cloudflare.
-
-### Installazione
-1. **Clona il repository:**
-   ```bash
-   git clone https://github.com/fdemusso/BeechCMS.git
-   cd beech-cms
-   ```
-2. **Installa le dipendenze del monorepo:**
-   ```bash
-   npm install
-   ```
-3. **Configura le variabili d'ambiente (per l'upload R2):**
-   ```bash
-   cp apps/api/.dev.vars.example apps/api/.dev.vars
-   # Compila con le tue credenziali Cloudflare R2
-   ```
-4. **Avvia l'ambiente di sviluppo:**
-   ```bash
-   npm run dev
-   ```
-   *Questo avvierà in parallelo sia l'API (Cloudflare Worker) che la Dashboard.*
+[![Architecture Diagram](https://mermaid.ink/img/pako:eNp9VOFu2zYQfpUDf3WYW0dOYmf-McCW5NipjaaW2mCTh4CSzhYTmRQoKq2bBOg77A33JDtSbqAUwwQI4Hf8PvLj3ZGPLFM5sjHblupLVnBtIA42Euirm3SneVWAXwqUZskPqCFpATj0V0u03yRZI88MBLwuUsV1vtnIz8Ig_Aoxl5Hh2T18bFAfOpppEn41qCUvwVeybvaoSRVjbSCy0j7MtJIGZQ6TqjoKCW3kTwbDfIdHe3YI_3z_m0yrJt-WXCPcKH2Puu7s7CdzJRVMrhe0Ia-qus8r0ZkPkqubGCaNKWAl8rzEL7QOUe9UbU-UZvpQmbvuimHiO6sGQrkT0pL99acAHgSHqTJcioyO2c51ZLPkuklLkR2tWBv9B69fuWCftqI4vMdu1i6TT1WpeA5zLsmZTdn1hygGp23c1P-kylf6R6pSxKzoZxRwCauoRHyHtYt09psnP_t3OROxClIqUZ7GavIqeYskQsxhjTtRG30gdhSGwe06vFxE8foP0uzQWEpHc5V85qXIuRFKwkw1sh2S9qGN40TmEbkw4hta7TU_dE5qv_dJfKgwyrSoqIdpWNudidqDqeYyK3oQpEdZjxpKvF7iv5K1kFvNX_r-pZ9cmI7WZKZ5lapl8ibwXDKjj0vqYDKQtV1xS78WzpLGrca6uDXqHqUNcLoAByOy-pfOUqvkzXoAH9I7pEsVGaWpNMRdYU4NNRMlvrA7xifw9u3vT7Z1p0hG9RP47cTUTRx7iSrD8_6NJoNPMGsJviXA8eIHDoQtCB2Yt2DuwKILrrq0ZQsuHVi1YNZdYNaltXbbbn6Cy652yXpsp0XOxpRm7DF6GvbcQvZoaRtmCtzjho1pmHN9v2Eb-Uyaiss_ldr_kGnV7Ao23vKyJtRUtpECwam6-5eopgSi9qnnDBufeiduETZ-ZF_Z2BucvTs_H5163sVodDEcnZz12IGNB5737mJ09tvAG5yOhifD4fC5x765fU9o4rzHqExUs1X7tLoX9vlfjFG0XA)](https://mermaid.live/edit#pako:eNp9VOFu2zYQfpUDf3WYW0dOYmf-McCW5NipjaaW2mCTh4CSzhYTmRQoKq2bBOg77A33JDtSbqAUwwQI4Hf8PvLj3ZGPLFM5sjHblupLVnBtIA42Euirm3SneVWAXwqUZskPqCFpATj0V0u03yRZI88MBLwuUsV1vtnIz8Ig_Aoxl5Hh2T18bFAfOpppEn41qCUvwVeybvaoSRVjbSCy0j7MtJIGZQ6TqjoKCW3kTwbDfIdHe3YI_3z_m0yrJt-WXCPcKH2Puu7s7CdzJRVMrhe0Ia-qus8r0ZkPkqubGCaNKWAl8rzEL7QOUe9UbU-UZvpQmbvuimHiO6sGQrkT0pL99acAHgSHqTJcioyO2c51ZLPkuklLkR2tWBv9B69fuWCftqI4vMdu1i6TT1WpeA5zLsmZTdn1hygGp23c1P-kylf6R6pSxKzoZxRwCauoRHyHtYt09psnP_t3OROxClIqUZ7GavIqeYskQsxhjTtRG30gdhSGwe06vFxE8foP0uzQWEpHc5V85qXIuRFKwkw1sh2S9qGN40TmEbkw4hta7TU_dE5qv_dJfKgwyrSoqIdpWNudidqDqeYyK3oQpEdZjxpKvF7iv5K1kFvNX_r-pZ9cmI7WZKZ5lapl8ibwXDKjj0vqYDKQtV1xS78WzpLGrca6uDXqHqUNcLoAByOy-pfOUqvkzXoAH9I7pEsVGaWpNMRdYU4NNRMlvrA7xifw9u3vT7Z1p0hG9RP47cTUTRx7iSrD8_6NJoNPMGsJviXA8eIHDoQtCB2Yt2DuwKILrrq0ZQsuHVi1YNZdYNaltXbbbn6Cy652yXpsp0XOxpRm7DF6GvbcQvZoaRtmCtzjho1pmHN9v2Eb-Uyaiss_ldr_kGnV7Ao23vKyJtRUtpECwam6-5eopgSi9qnnDBufeiduETZ-ZF_Z2BucvTs_H5163sVodDEcnZz12IGNB5737mJ09tvAG5yOhifD4fC5x765fU9o4rzHqExUs1X7tLoX9vlfjFG0XA)
 
 ---
 
-## 📚 Documentazione Tecnica (Deep Dive)
+## The Botanical Engine
 
-Per i contributor e i membri del team, l'architettura dettagliata di ogni modulo è documentata qui sotto. L'infrastruttura si divide in un monorepo gestito tramite Turborepo:
+The **Botanical Engine** is the translation layer that sits at the heart of Beech CMS. It solves a fundamental data architecture tension: **human-readable API fields vs. stable database identifiers**.
 
-| Documento | Descrizione |
-| ------ | ------ |
-| [Architettura Monorepo](./monorepo.md) | Struttura Turborepo, `@beech/core`, workspace |
-| [Botanical Engine](./botanical-engine.md) | Layer di traduzione alias ↔ ID interni (Seed, Branch) |
-| [Content Engine](./content-engine.md) | CRUD interno dashboard (`/api/content/*`) + query server-side e facets |
-| [Public API](./public-api.md) | Endpoint pubblici `/api/v1/public/*` con API key, GET/POST/PUT e validazione schema-driven |
-| [Field Renderers](./field-renderers.md) | Registry Pattern per display/edit campi nella UI |
-| [Media Engine](./media-engine.md) | Upload su Cloudflare R2, API S3-compatibile |
-| [Autenticazione](./auth.md) | JWT, refresh token, login, rate limiting |
-| [Dashboard Components](./dashboard-components.md) | ContentToolbar + viste Table/Gallery: filtri/sort/ricerca/paginazione server-driven |
-| [Sprint 01 Gallery View](./sprints/sprint-01-gallery-view.md) | Specifica sprint della vista galleria (Bento grid + peek panel) |
-| [Field types action plan](./field-types-action-plan.md) | Piano d'azione tecnico per i campi |
-| [Field types roadmap](./field-types-roadmap.md) | Roadmap dei tipi di campo (WordPress killer) |
-| [Sprint 02 Public Slug API](./sprints/sprint-02-public-slug-api.md) | Specifica completa e checklist sprint per il layer pubblico |
+### The Problem It Solves
 
-## 🤝 Contribuire
-Siamo aperti a contributi! Se vuoi aiutare a costruire il "WordPress killer" per l'era serverless, apri una issue o invia una Pull Request. Assicurati di leggere prima l'[Architettura Monorepo](./monorepo.md) per capire la struttura dei pacchetti.
+In a schema-driven CMS, field names evolve. A field called `title` might be renamed to `headline` during a rebranding. In a conventional system, this requires a SQL column rename and a coordinated frontend deployment. In Beech, the database column key is always an immutable internal ID (`br01`, `br02`, etc.). The alias is what changes.
 
-## 📄 Licenza
-Questo progetto è distribuito sotto licenza MIT. Vedi il file `LICENSE` per maggiori informazioni. [NON ANCORA IMPLEMENTATA]
+### How It Works
+
+Every content type is defined as a `Seed`:
+
+```typescript
+// packages/core/src/types.ts
+export interface Branch {
+  id: string;        // Immutable DB key, e.g. "br01"
+  alias: string;     // Mutable API-facing name, e.g. "title"
+  label: string;     // UI label, e.g. "Titolo Progetto"
+  type: BranchType;  // "text" | "number" | "boolean" | "json" | "date" | "richtext" | "file"
+  format?: "plain" | "markdown" | "html" | "date" | "datetime" | "asset-list";
+  multiple?: boolean;
+  requiredOnCreate?: boolean;
+  requiredOnUpdate?: boolean;
+}
+
+export interface Seed {
+  slug: string;               // e.g. "progetti"
+  label: string;
+  allowPublicRead?: boolean;
+  allowPublicPost?: boolean;
+  allowPublicEdit?: boolean;
+  branches: Branch[];
+}
+```
+
+The two pure translation functions in `packages/core/src/engine.ts`:
+
+```typescript
+// API payload (aliases) → DB payload (internal IDs)
+export function apiToDb(seed: Seed, payload: Record<string, unknown>): DbPayload {
+  const result = {} as DbPayload;
+  for (const [alias, value] of Object.entries(payload)) {
+    const branchDef = seed.branches.find(branch => branch.alias === alias);
+    if (branchDef) result[branchDef.id] = value;
+  }
+  return result;
+}
+
+// DB payload (internal IDs) → API payload (aliases)
+export function dbToApi(seed: Seed, data: Record<string, unknown> | null | undefined): ApiPayload {
+  if (!data || typeof data !== 'object') return {};
+  const result = {} as ApiPayload;
+  for (const branch of seed.branches) {
+    if (branch.id in data) {
+      let value = data[branch.id];
+      if (branch.type === 'json' && typeof value === 'string') {
+        try {
+          value = JSON.parse(value);
+        } catch { /* retain original */ }
+      }
+      result[branch.alias] = value;
+    }
+  }
+  return result;
+}
+```
 
 ---
-**👨‍💻 Creato da [Flavio De Musso](https://github.com/fdemusso)**
-*Se sei un recruiter e vuoi saperne di più sul mio approccio allo sviluppo software, [contattami su Gmail](mailto:demusso1617@gmail.com).*
+
+## Tech Stack
+
+| Layer | Technology | Role |
+|---|---|---|
+| **Runtime** | Cloudflare Workers (V8 Isolates) | Edge execution, zero cold start |
+| **API Framework** | Hono | Lightweight, Worker-native HTTP router |
+| **Database** | Cloudflare D1 (SQLite) | Edge-colocated relational storage |
+| **Object Storage** | Cloudflare R2 | S3-compatible media storage, zero egress cost |
+| **Monorepo** | Turborepo + npm Workspaces | Ordered builds, shared packages |
+| **Shared Logic** | `@beech/core` | Botanical Engine, types, validation, seeds |
+| **Dashboard** | React + Vite | SPA admin interface |
+| **UI Primitives** | Tailwind CSS v4 + Shadcn/ui | Utility-first, accessible components |
+| **State / Fetching** | TanStack Query v5 | Server state, stale-while-revalidate |
+| **Rich Text** | TipTap v3 | ProseMirror-based extensible editor |
+| **Auth** | `jose` (JWT) + bcryptjs | Short-lived access tokens, refresh rotation |
+| **Validation** | Zod v4 | Compile-time-cached schema validation |
+| **Testing** | Vitest | Unit and integration tests across packages |
+
+---
+
+## Project Structure
+
+```
+beech-cms/
+├── apps/
+│   ├── api/             # Hono REST API – Cloudflare Workers
+│   │   └── src/
+│   │       ├── index.ts   # App entry, CORS, auth routes, middleware
+│   │       ├── content.ts # Universal CRUD Content Engine
+│   │       ├── upload.ts  # R2 media upload handler
+│   │       └── public/    # Public API (/api/v1/public/)
+│   └── dashboard/       # React + Vite admin SPA
+│       └── src/
+│           ├── components/fields/ # FieldDisplay + FieldEdit renderers
+│           ├── features/          # Feature slices (content, dashboard, etc.)
+│           └── lib/               # API client, utils
+├── packages/
+│   └── core/            # @beech/core – Single source of truth
+│       └── src/
+│           ├── types.ts      # Seed, Branch, DbPayload, ApiPayload
+│           ├── engine.ts     # apiToDb, dbToApi (Botanical Engine)
+│           ├── seeds.ts      # SEED_REGISTRY, getSeed
+│           ├── validation.ts # validateAndSanitizeSeedPayload (Zod)
+│           └── richtext.ts   # RichText schema and sanitization
+├── docs/                # Architecture, API, and frontend documentation
+├── turbo.json           # Turborepo pipeline configuration
+└── package.json         # Root workspace configuration
+```
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js ≥ 20
+- npm ≥ 11
+- [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) ≥ 4.36
+
+### Installation
+
+```bash
+git clone https://github.com/your-org/beech-cms.git
+cd beech-cms
+npm install
+```
+
+### Development
+
+```bash
+# Start all packages in parallel (core watcher + api + dashboard)
+npm run dev
+```
+
+### Database Setup (local D1)
+
+```bash
+cd apps/api
+npm run db:migrate:local
+```
+
+### Build
+
+```bash
+npm run build
+```
+
+---
+
+## Key Design Decisions
+
+### Why a Single `content_entries` Table?
+
+A single table with a `data TEXT` (JSON) column avoids the proliferation of per-entity tables that require schema migrations for every new content type. The trade-off — application-level schema validation instead of DB constraints — is deliberately offset by the Zod-based `validateAndSanitizeSeedPayload` in `@beech/core`.
+
+### Why Cloudflare D1 and Not Postgres?
+
+D1 is SQLite at the edge. For a headless CMS serving primarily read traffic, the co-location of compute and data on the same edge node eliminates network round-trips.
+
+### Why Separate Read and Write API Keys for the Public API?
+
+Defense-in-depth: a leaked read key cannot be used to modify content. The Public API additionally enforces per-Seed capability flags (`allowPublicRead`, etc.).
+
+### Why `@beech/core` as a Shared Package?
+
+To prevent drift. With `@beech/core` as the single source of truth, a breaking change in the type system is a compile error in every consuming package simultaneously.
+
+---
+
+_Beech CMS — Precision-engineered content infrastructure for the edge._

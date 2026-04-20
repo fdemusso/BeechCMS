@@ -1,0 +1,759 @@
+# API Reference — Beech CMS
+
+This document is the authoritative reference for the Beech CMS REST API. It covers two distinct surfaces: the **Internal API** (JWT-authenticated, used by the dashboard) and the **Public API** (API-key-gated, designed for external consumers). All error responses conform to [RFC 7807 Problem Details](https://www.rfc-editor.org/rfc/rfc7807).
+
+---
+
+## Table of Contents
+
+1. [Base URLs & Environments](#1-base-urls--environments)
+2. [Security Stack](#2-security-stack)
+   - [JWT Authentication](#21-jwt-authentication)
+   - [Refresh Token Rotation](#22-refresh-token-rotation)
+   - [Security Hardening Summary](#23-security-hardening-summary)
+3. [Auth Endpoints](#3-auth-endpoints)
+4. [Internal Content API](#4-internal-content-api)
+   - [List Entries](#41-list-entries-get-apicontentseed)
+   - [Create Entry](#42-create-entry-post-apicontentseed)
+   - [Update Entry](#43-update-entry-put-apicontentseedid)
+   - [Delete Entry](#44-delete-entry-delete-apicontentseedid)
+5. [Media Engine](#5-media-engine)
+   - [Upload](#51-upload-post-apiupload)
+   - [Serve](#52-serve-get-apimediakey)
+   - [R2 Storage Architecture](#53-r2-storage-architecture)
+6. [Public API](#6-public-api)
+   - [Permission Model](#61-permission-model)
+   - [Rate Limiting](#62-rate-limiting)
+   - [Read](#63-read-get-apiv1publicseed)
+   - [Create](#64-create-post-apiv1publicseedadd)
+   - [Update](#65-update-put-apiv1publicseededitid)
+7. [Error Model](#7-error-model)
+
+---
+
+## 1. Base URLs & Environments
+
+| Environment | Base URL |
+|---|---|
+| Local (Wrangler dev) | `http://localhost:8787` |
+| Production | Configured per deployment via Cloudflare Workers route |
+
+All endpoints are served from a single Cloudflare Worker. The routing is handled by Hono.
+
+---
+
+## 2. Security Stack
+
+### 2.1 JWT Authentication
+
+The internal API uses **JSON Web Tokens** signed with HMAC-SHA256 (`HS256`), issued via the `jose` library. The middleware in `apps/api/src/middleware.ts` intercepts every protected request:
+
+```typescript
+// apps/api/src/middleware.ts
+export function authMiddleware(secret: string, options: JwtVerifyOptions) {
+  return async (c: Context, next: Next) => {
+    const auth = c.req.header('Authorization');
+    if (!auth?.startsWith('Bearer ')) throw new HTTPException(401, { res: unauthorizedResponse() });
+
+    const token = auth.slice(7);
+    const { payload, protectedHeader } = await jwtVerify(token, secretBytes, {
+      algorithms: ['HS256'],
+      issuer: options.issuer,
+      audience: options.audience,
+    });
+
+    // Hardening: reject tokens missing the standard `typ: JWT` header
+    if (protectedHeader.typ && protectedHeader.typ !== 'JWT') throw new Error('Invalid typ header');
+
+    c.set('jwtPayload', payload as JwtPayload);
+    await next();
+  };
+}
+```
+
+Access tokens have a **15-minute TTL**. They are stored by the dashboard in `localStorage`. The short TTL deliberately minimizes the attack window if a token is intercepted.
+
+**Token payload shape:**
+
+```typescript
+type JwtPayload = {
+  sub: string;    // User ID (UUID)
+  email?: string;
+}
+```
+
+### 2.2 Refresh Token Rotation
+
+Beech implements **single-use refresh token rotation**. The protocol is:
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant API
+    participant D1
+
+    Note over Client,D1: Login
+    Client->>API: POST /auth/login { email, password }
+    API->>D1: SELECT user WHERE email = ?
+    API->>API: bcrypt.compare(password, hash)
+    API->>API: jose.SignJWT (15min access token)
+    API->>API: crypto.randomUUID() → refresh token
+    API->>D1: INSERT refresh_tokens (SHA-256 hash, expires +7d)
+    API-->>Client: 200 { token } + Set-Cookie: refresh_token (HttpOnly)
+
+    Note over Client,D1: Silent Refresh (access token expired)
+    Client->>API: POST /auth/refresh [cookie sent automatically]
+    API->>D1: SELECT WHERE token_hash = SHA-256(cookie)
+    API->>D1: UPDATE SET revoked_at = now() [atomically invalidates old token]
+    API->>API: Generate NEW access token + NEW refresh token
+    API->>D1: INSERT new refresh token
+    API-->>Client: 200 { token } + Set-Cookie: new refresh_token
+
+    Note over Client,D1: Logout
+    Client->>API: POST /auth/logout [cookie sent automatically]
+    API->>D1: UPDATE SET revoked_at = now()
+    API-->>Client: 200 { message } + Set-Cookie: refresh_token (Max-Age=0)
+```
+
+**Parallel request protection:** Only the first concurrent refresh request succeeds. Subsequent requests using the same (already-revoked) token receive `401 Invalid refresh token`. This is the primary defence against refresh token theft.
+
+Refresh tokens are stored **hashed** (SHA-256) in D1. The plaintext token never persists beyond the HTTP response.
+
+```sql
+-- apps/api/migrations/0003_refresh_tokens.sql
+CREATE TABLE refresh_tokens (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash  TEXT NOT NULL,   -- SHA-256 of the plaintext token
+  expires_at  INTEGER NOT NULL,
+  created_at  INTEGER DEFAULT (unixepoch()),
+  revoked_at  INTEGER DEFAULT NULL  -- NULL = active
+);
+-- Indexes: idx_refresh_hash (token_hash), idx_refresh_user (user_id)
+```
+
+**Cleanup:** Expired and revoked tokens should be purged periodically (e.g., via a Cloudflare Workers Cron Trigger):
+
+```sql
+DELETE FROM refresh_tokens WHERE expires_at < unixepoch() OR revoked_at IS NOT NULL;
+```
+
+### 2.3 Security Hardening Summary
+
+| Measure | Implementation |
+|---|---|
+| Password hashing | bcrypt, 10 salt rounds — passwords never stored in plaintext |
+| Timing attack prevention | `bcrypt.compare` always runs against a dummy hash when the user does not exist (`DUMMY_PASSWORD_HASH`) |
+| SQL injection prevention | All D1 queries use `.bind(...)` prepared statements — no string interpolation |
+| User enumeration prevention | `401 Invalid credentials` for both "user not found" and "wrong password" |
+| Token storage | Refresh token: `HttpOnly`, `Secure`, `SameSite=Strict` cookie. Access token: `localStorage` (XSS risk accepted, mitigated by CSP) |
+| JWT hardening | Algorithm locked to `HS256`; `typ: JWT` header required |
+| Short-lived access tokens | 15-minute TTL reduces the attack window |
+| Rate limiting (login) | 5 attempts per IP+email per 60 seconds (Cloudflare Rate Limiting API) |
+| Rate limiting (refresh) | 20 requests per IP per 60 seconds |
+| Production error masking | All 500 errors return `"An error occurred"` — no stack traces or system details |
+
+---
+
+## 3. Auth Endpoints
+
+### `POST /auth/login`
+
+Authenticates a user and issues an access token + refresh token.
+
+**Request**
+
+```http
+POST /auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@beech.local",
+  "password": "password123"
+}
+```
+
+**Validation rules:** Email must match `/.+@.+\..+/`; password must be 8–128 characters.
+
+**Responses**
+
+| Status | Condition | Body |
+|---|---|---|
+| `200` | Login successful | `{ "token": "eyJ...", "expiresIn": "15m" }` |
+| `400` | Malformed body / missing fields / password out of range | `{ "error": "Invalid request" }` |
+| `401` | Wrong credentials | `{ "error": "Invalid credentials" }` |
+| `429` | Rate limit exceeded (5/min per IP+email) | `{ "error": "Too many requests" }` |
+| `500` | Internal error | `{ "error": "An error occurred" }` |
+
+**Headers on 200:** `Set-Cookie: refresh_token=<uuid>; HttpOnly; SameSite=Strict; Max-Age=604800; Path=/auth; Secure`
+
+---
+
+### `POST /auth/refresh`
+
+Exchanges a valid refresh token cookie for a new access token. Rotates the refresh token.
+
+**Request:** No body required. The `refresh_token` cookie is sent automatically by the browser.
+
+**Responses**
+
+| Status | Condition | Body |
+|---|---|---|
+| `200` | Refresh successful | `{ "token": "eyJ...", "expiresIn": "15m" }` |
+| `401` | Token missing, expired, revoked, or user not found | `{ "error": "Invalid refresh token" }` |
+| `429` | Rate limit exceeded (20/min per IP) | `{ "error": "Too many requests" }` |
+
+---
+
+### `POST /auth/logout`
+
+Revokes the refresh token and clears the cookie.
+
+**Request:** No body. Sends cookie automatically.
+
+**Responses**
+
+| Status | Body |
+|---|---|
+| `200` | `{ "message": "Logged out" }` |
+
+---
+
+## 4. Internal Content API
+
+All routes require `Authorization: Bearer <access_token>`.
+
+The content engine uses the Botanical Engine (`apiToDb`/`dbToApi`) for all field translation. Consumers always use **field aliases** (defined in the Seed), never internal IDs (`br01`, `br02`).
+
+---
+
+### 4.1 List Entries — `GET /api/content/:seed`
+
+Returns a paginated list of entries for a given content type.
+
+**Request**
+
+```http
+GET /api/content/progetti?page=1&limit=20&status=published&orderBy=created_at&orderDir=desc
+Authorization: Bearer eyJ...
+```
+
+**Query parameters**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `page` | `number` | Page number, default `1` |
+| `limit` | `number` | Items per page, max `100` |
+| `status` | `string` | Filter by `draft`, `review`, `published` |
+| `orderBy` | `string` | Field alias or `created_at` / `updated_at` |
+| `orderDir` | `asc\|desc` | Sort direction, default `desc` |
+| `search` | `string` | Full-text search against `slug`, `status`, `data` |
+
+**Response `200`**
+
+```json
+{
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "slug": "hello-world",
+      "status": "published",
+      "created_at": 1713600000,
+      "updated_at": 1713600000,
+      "data": {
+        "title": "Hello World",
+        "budget": 5000,
+        "published_at": "2024-04-20"
+      }
+    }
+  ],
+  "meta": {
+    "total": 42,
+    "page": 1,
+    "limit": 20,
+    "returned": 20
+  }
+}
+```
+
+---
+
+### 4.2 Create Entry — `POST /api/content/:seed`
+
+Creates a new content entry. Fields are validated and sanitized via `validateAndSanitizeSeedPayload` in `@beech/core`.
+
+**Request**
+
+```http
+POST /api/content/progetti
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "status": "draft",
+  "slug": "my-project",
+  "data": {
+    "title": "My Project",
+    "budget": 15000,
+    "cover_image": "https://cdn.example.com/img.jpg"
+  }
+}
+```
+
+**Rules:**
+- `status` must be `draft | review | published`
+- `slug` is optional; auto-generated from `title` or `name` if absent, falling back to a short UUID
+- `data` keys must be valid aliases defined in the Seed; unknown aliases return `400`
+- `required_on_create` fields must be present and non-empty
+
+**Response `201`**
+
+```json
+{
+  "success": true,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "slug": "my-project"
+}
+```
+
+**Error responses**
+
+| Status | Condition |
+|---|---|
+| `400` | Unknown aliases, type mismatch, missing required fields, empty payload |
+| `409` | Slug already exists for this content type |
+| `422` | Dangerous markup detected in a richtext field |
+
+---
+
+### 4.3 Update Entry — `PUT /api/content/:seed/:id`
+
+Partially updates an existing entry. Only fields present in the payload are updated — absent fields retain their current values. Fields sent as `null` are cleared.
+
+**Request**
+
+```http
+PUT /api/content/progetti/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "status": "published",
+  "data": {
+    "title": "Updated Title",
+    "budget": null
+  }
+}
+```
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "slug": "my-project"
+}
+```
+
+---
+
+### 4.4 Delete Entry — `DELETE /api/content/:seed/:id`
+
+Deletes a content entry and removes all associated R2 media files.
+
+**R2 cascade behaviour:** Before the D1 `DELETE`, the API extracts all R2 object keys from `file` and `asset-list` fields in the entry's `data` column. It sends a `DeleteObjectCommand` per key. If R2 is not configured or a delete fails, **the D1 deletion still proceeds** — media cleanup is best-effort and does not block content deletion.
+
+> **Limitation:** Images embedded inside `richtext` fields (`<img src="/api/media/KEY">`) are not parsed during cascade deletion. Those objects remain in R2 until manually removed.
+
+**Request**
+
+```http
+DELETE /api/content/progetti/550e8400-e29b-41d4-a716-446655440000
+Authorization: Bearer eyJ...
+```
+
+**Response `200`**
+
+```json
+{ "success": true }
+```
+
+---
+
+## 5. Media Engine
+
+### 5.1 Upload — `POST /api/upload`
+
+Uploads a binary file to Cloudflare R2 via the S3-compatible API (`@aws-sdk/client-s3`). Requires JWT authentication.
+
+**Request**
+
+```http
+POST /api/upload
+Authorization: Bearer eyJ...
+Content-Type: multipart/form-data
+
+[field name: "file"] <binary>
+```
+
+**Validation:**
+- Allowed MIME types: `image/*`, `application/pdf`
+- Maximum file size: **5 MB** (`5 * 1024 * 1024` bytes)
+- Filename is sanitized: non-alphanumeric characters (except `.` and `-`) are stripped, truncated to 100 characters
+- Object key format: `<unix_timestamp>-<sanitized_filename>`
+
+**Internal flow:**
+
+```mermaid
+flowchart LR
+    A[Dashboard\nmultipart/form-data] -->|POST /api/upload\nBearer JWT| B[Hono Upload Handler]
+    B --> C{Validate MIME\n& Size}
+    C -->|Fail| D[400 / 400 Error]
+    C -->|Pass| E[PutObjectCommand\nS3 Client → R2]
+    E --> F[Increment\nsystem_stats.total_storage_bytes\nin D1]
+    F --> G[200 { url: '/api/media/KEY' }]
+```
+
+**Response `200`**
+
+```json
+{
+  "url": "https://api.beech.local/api/media/1713600000-my-image.jpg"
+}
+```
+
+The returned URL is stored as-is in the entry's `data` column (field type `file`). The client saves this URL; it does not interact with R2 directly.
+
+**Error responses**
+
+| Status | Body |
+|---|---|
+| `400` | `{ "error": "No file provided. Use field name 'file'" }` |
+| `400` | `{ "error": "File type not allowed. Allowed: images and PDF" }` |
+| `400` | `{ "error": "File too large. Max 5MB" }` |
+| `400` | `{ "error": "Content-Type must be multipart/form-data" }` |
+| `500` | `{ "error": "R2 not configured. Set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME" }` |
+
+**Required environment variables:**
+
+| Variable | Description |
+|---|---|
+| `R2_ACCESS_KEY_ID` | R2 API token access key |
+| `R2_SECRET_ACCESS_KEY` | R2 API token secret key |
+| `R2_ENDPOINT` | R2 S3-compatible endpoint URL |
+| `R2_BUCKET_NAME` | Target bucket name (e.g. `beech-media`) |
+| `MEDIA_BASE_URL` | *(Optional)* Base URL for returned media URLs; defaults to request origin |
+
+---
+
+### 5.2 Serve — `GET /api/media/:key`
+
+Proxies a file from R2 to the client. This is a **public route** — no authentication required. This is by design: media URLs stored in content entries must be directly usable in `<img src="...">` tags without token forwarding.
+
+**Response:** Binary stream with original `Content-Type` and `Cache-Control: public, max-age=31536000, immutable`.
+
+**Error responses:** `404` JSON if the key is not found in R2.
+
+---
+
+### 5.3 R2 Storage Architecture
+
+Beech does not use presigned URLs. Files are always proxied through the Worker. This is intentional: it keeps R2 credentials server-side and allows the Worker to enforce access control at the proxy layer in future iterations.
+
+**Storage counter:** R2 does not expose a real-time quota API. Beech maintains an atomic counter in D1:
+
+| Event | D1 Operation |
+|---|---|
+| Successful upload | `UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes'` |
+| Successful delete | `HeadObjectCommand` → get size → `UPDATE system_stats SET value = MAX(0, value - ?) …` |
+| Manual sync | `POST /api/content/stats/storage/sync` → `ListObjectsV2` full scan → rewrite counter |
+
+This allows the dashboard to display current storage usage with a single SQL read at zero additional cost.
+
+---
+
+## 6. Public API
+
+The Public API (`/api/v1/public/`) is a purpose-built, hardened endpoint for external consumption — headless frontends, static site generators, third-party integrations. It does **not** require a user session.
+
+### 6.1 Permission Model
+
+Access is controlled at two levels:
+
+**Level 1 — Seed capability flags** (defined in `@beech/core/src/seeds.ts`):
+
+```typescript
+interface Seed {
+  allowPublicRead?: boolean;   // Enables GET /api/v1/public/:seed
+  allowPublicPost?: boolean;   // Enables POST /api/v1/public/:seed/add
+  allowPublicEdit?: boolean;   // Enables PUT /api/v1/public/:seed/edit/:id
+}
+```
+
+If a flag is `false` or absent, the endpoint returns `403` regardless of the API key provided. This is a **fail-closed** design: new content types are private by default.
+
+**Level 2 — API key split** (environment variables):
+
+| Variable | Grants access to |
+|---|---|
+| `PUBLIC_READ_API_KEY` | `GET /api/v1/public/*` |
+| `PUBLIC_WRITE_API_KEY` | `POST` and `PUT /api/v1/public/*` |
+
+The key must be sent via the `X-API-Key` header. Separate read and write keys provide defence-in-depth: a leaked read key cannot be used to create or mutate content.
+
+**Level 3 — Published-only filter** (environment variable):
+
+Setting `PUBLIC_PUBLISHED_ONLY=true` causes all public read queries to automatically append `AND status = 'published'`. Entries in `draft` or `review` status are invisible to external consumers without any additional filtering logic in the client.
+
+---
+
+### 6.2 Rate Limiting
+
+The Public API uses Cloudflare's native Rate Limiting API (requires Wrangler ≥ 4.36). Read and write operations have separate limiters:
+
+```jsonc
+// wrangler.jsonc
+{
+  "rate_limits": [
+    { "name": "PUBLIC_READ_RATE_LIMITER",  "namespace_id": 1003, "simple": { "limit": 100, "period": 60 } },
+    { "name": "PUBLIC_WRITE_RATE_LIMITER", "namespace_id": 1004, "simple": { "limit": 20,  "period": 60 } }
+  ]
+}
+```
+
+The rate limit key is `<client_ip>:<seed>:<read|write>`, extracted from the `cf-connecting-ip` header. On limit breach, the middleware returns before executing any business logic:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Content-Type: application/problem+json
+
+{
+  "type": "https://beechcms.dev/problems/rate-limit-exceeded",
+  "title": "Too Many Requests",
+  "status": 429,
+  "detail": "Too many requests",
+  "instance": "/api/v1/public/articoli"
+}
+```
+
+---
+
+### 6.3 Read — `GET /api/v1/public/:seed`
+
+Reads one or many entries. Requires `allowPublicRead: true` on the Seed.
+
+**Query parameters**
+
+| Parameter | Description |
+|---|---|
+| `id` | Fetch a single entry by UUID |
+| `page` / `limit` | Pagination (limit clamped to max 100) |
+| `all=true` | Returns all entries (up to 100) ignoring pagination |
+| `latest=N` | Returns the N most recent entries (1–100, default 10) |
+| `search` | Full-text search against `slug`, `status`, `data` |
+| `orderBy` / `orderDir` | Sorting by field alias or `created_at` / `updated_at` |
+| `filter` | JSON filter object (see below) |
+| `fields` | Comma-separated list of aliases to include in the response |
+
+**Advanced filter syntax:**
+
+```json
+{
+  "logic": "AND",
+  "where": [
+    { "field": "status",     "op": "eq",       "value": "published" },
+    { "field": "budget",     "op": "gte",       "value": 1000 },
+    { "field": "tags",       "op": "hasanytag", "value": ["design", "dev"] }
+  ]
+}
+```
+
+Supported operators: `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `contains`, `notcontains`, `startswith`, `endswith`, `isempty`, `isnotempty`, `in`, `notin`, `hastag`, `hasanytag`, `hasalltags`.
+
+**Single entry request**
+
+```http
+GET /api/v1/public/articoli?id=550e8400-e29b-41d4-a716-446655440000
+X-API-Key: dev-public-read-key-changeme
+```
+
+**Response `200` (single)**
+
+```json
+{
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "my-article",
+    "status": "published",
+    "created_at": 1713600000,
+    "updated_at": 1713600000,
+    "title": "My Article",
+    "body": { "schemaVersion": 1, "doc": { "type": "doc", "content": [] } },
+    "cover_image": "https://api.beech.local/api/media/1713600000-cover.jpg"
+  },
+  "meta": { "seed": "articoli" }
+}
+```
+
+> **Important:** The response is **flat** — content fields (`title`, `body`, `cover_image`) are at the same level as `id`, `slug`, and `status`. There is no nested `data` object. All fields use their **alias** names, never internal IDs (`br01`, `br02`).
+
+**List request**
+
+```http
+GET /api/v1/public/articoli?page=1&limit=10&orderBy=created_at&orderDir=desc
+X-API-Key: dev-public-read-key-changeme
+```
+
+**Response `200` (list)**
+
+```json
+{
+  "data": [ { "id": "...", "slug": "...", "title": "...", "..." : "..." } ],
+  "meta": {
+    "total": 24,
+    "page": 1,
+    "limit": 10,
+    "returned": 10,
+    "seed": "articoli"
+  }
+}
+```
+
+---
+
+### 6.4 Create — `POST /api/v1/public/:seed/add`
+
+Creates an entry via the Public API. Requires `allowPublicPost: true` on the Seed and `PUBLIC_WRITE_API_KEY`.
+
+**Pipeline (in order):**
+1. Seed existence check
+2. `allowPublicPost` policy check
+3. JSON body parse
+4. `data` object non-empty check
+5. `validateAndSanitizeSeedPayload` (Zod, `operation: create`, `enforceRequiredFields: true`)
+6. Idempotency key check (optional — send `Idempotency-Key` header for safe retries)
+7. Slug uniqueness check
+8. D1 `INSERT` with prepared statement
+
+**Request**
+
+```http
+POST /api/v1/public/articoli/add
+X-API-Key: dev-public-write-key-changeme
+Content-Type: application/json
+Idempotency-Key: my-client-request-id-001   ← optional
+
+{
+  "status": "published",
+  "slug": "my-article",
+  "data": {
+    "title": "My Article",
+    "body": "Content here"
+  }
+}
+```
+
+**Response `201`**
+
+```json
+{
+  "success": true,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "slug": "my-article"
+}
+```
+
+**Idempotency behaviour:**
+
+| Condition | Response |
+|---|---|
+| Same key, same payload, within TTL | Returns cached `201` response — no duplicate insert |
+| Same key, **different** payload, within TTL | `409 Conflict` |
+| Expired key | Treated as a new request |
+
+---
+
+### 6.5 Update — `PUT /api/v1/public/:seed/edit/:id`
+
+Partially updates an existing entry. Requires `allowPublicEdit: true` on the Seed.
+
+**Merge semantics:**
+- Fields present in `data` overwrite the stored value
+- Fields absent from `data` retain their current value
+- Fields sent as `null` are **removed** from the stored data
+
+**Request**
+
+```http
+PUT /api/v1/public/articoli/edit/550e8400-e29b-41d4-a716-446655440000
+X-API-Key: dev-public-write-key-changeme
+Content-Type: application/json
+
+{
+  "status": "published",
+  "data": {
+    "title": "Updated Title",
+    "body": null
+  }
+}
+```
+
+**Response `200`**
+
+```json
+{
+  "success": true,
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "slug": "my-article"
+}
+```
+
+---
+
+## 7. Error Model
+
+All API errors from the Public API use **RFC 7807 Problem Details** (`Content-Type: application/problem+json`). Internal API errors use a simpler `{ "error": "..." }` envelope.
+
+**Public API error shape:**
+
+```json
+{
+  "type": "https://beechcms.dev/problems/validation-failed",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "Validation failed",
+  "instance": "/api/v1/public/articoli/add",
+  "errors": [
+    {
+      "field": "title",
+      "expected": "string",
+      "received": "number",
+      "message": "Field 'title' expects type 'string' but received 'number'"
+    },
+    {
+      "field": "publish_date",
+      "expected": "date|ISO",
+      "received": "string",
+      "message": "Field 'publish_date' expects type 'date|ISO' but received 'string'"
+    }
+  ]
+}
+```
+
+**Standard `type` URIs:**
+
+| `type` slug | HTTP Status | Meaning |
+|---|---|---|
+| `seed-not-found` | `404` | Content type does not exist in `SEED_REGISTRY` |
+| `operation-not-allowed` | `403` | Seed flag (`allowPublicRead` etc.) is `false` |
+| `entry-not-found` | `404` | No entry with the given `id` for this seed |
+| `validation-failed` | `400` | Field type mismatch, missing required field, unknown alias |
+| `dangerous-content` | `422` | Dangerous markup detected (script tags, `on*` handlers, `javascript:` protocols) in a richtext or text field |
+| `invalid-json-body` | `400` | Request body is not valid JSON |
+| `slug-conflict` | `409` | Slug already exists for this content type |
+| `idempotency-key-conflict` | `409` | Idempotency key reused with a different payload |
+| `rate-limit-exceeded` | `429` | IP exceeded per-seed rate limit |
+| `internal-server-error` | `500` | Unhandled server error (detail masked in production) |
+
+> **Note:** The `errors` array is only present on `validation-failed` responses. It provides field-level detail for every field that failed validation. No legacy `message` or `error` keys are present in the Public API error envelope.
