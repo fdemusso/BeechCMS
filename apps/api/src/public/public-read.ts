@@ -88,7 +88,7 @@ function buildOrderSql(
 }
 
 export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variables: Variables }>) {
-  const seedSlug = c.req.param('seed')
+  const seedSlug = c.req.param('seed') ?? ''
   const seed = getSeed(seedSlug)
   if (!seed) {
     return publicProblem(c, {
@@ -146,7 +146,7 @@ export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variabl
     const parsedFilter = parsePublicFilter(query.filter)
     const allMode = cleanStr(query.all)?.toLowerCase() === 'true'
     const latestMode = cleanStr(query.latest) !== null
-    const latestCount = latestMode ? parseLatestCount(query.latest) : null
+    const latestCount = latestMode ? parseLatestCount(query.latest ?? '') : null
     const pagination = allMode ? { page: 1, limit: 100 } : parsePublicPagination(query)
     const offset = (pagination.page - 1) * pagination.limit
     const search = cleanStr(query.search) ?? ''

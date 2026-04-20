@@ -1,4 +1,3 @@
-import { useQuery } from "@tanstack/react-query"
 import { Wifi, WifiOff } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"

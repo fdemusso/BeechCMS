@@ -3,7 +3,6 @@ import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "@/features/dashboard"
 import { useCloudflareStats } from "@/features/dashboard"
-import { cn } from "@/lib/utils"
 import { WidgetEmpty } from "./_parts/widget-empty"
 import { WidgetError } from "./_parts/widget-error"
 

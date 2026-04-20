@@ -4,7 +4,6 @@ import { Images, Trash2 } from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { DashboardWidgetShell } from "@/features/dashboard"
 import { cn } from "@/lib/utils"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { WidgetEmpty } from "./_parts/widget-empty"
@@ -37,7 +36,6 @@ function entryLabel(entry: ContentEntry): string {
 
 export function MediaGalleryWidget({ seedSlug, variant: initialVariant = "grid", onOpen }: MediaGalleryWidgetProps) {
   const [variant, setVariant] = useState(initialVariant)
-  const [brokenIds, setBrokenIds] = useState<Set<string>>(new Set())
   const queryClient = useQueryClient()
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -129,7 +127,6 @@ export function MediaGalleryWidget({ seedSlug, variant: initialVariant = "grid",
                       src={src}
                       alt={label}
                       className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      onError={() => setBrokenIds((prev) => new Set(prev).add(entry.id))}
                     />
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">

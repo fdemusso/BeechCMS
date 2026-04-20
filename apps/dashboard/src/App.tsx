@@ -6,6 +6,7 @@ import { EntryEditorPage } from "@/pages/entry-editor"
 import { TestFieldsPage } from "@/pages/test-fields"
 import { ErrorPage } from "@/pages/error-page"
 import { DashboardPage } from "@/features/dashboard"
+import { CommandPalette } from "@/features/command-palette"
 import "./App.css"
 
 function LoginPage() {
@@ -27,9 +28,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function RootLayout() {
+  return (
+    <>
+      <CommandPalette />
+      <Outlet />
+    </>
+  )
+}
+
 const router = createBrowserRouter([
   {
-    element: <Outlet />,
+    element: <RootLayout />,
     errorElement: <ErrorPage />,
     children: [
       {

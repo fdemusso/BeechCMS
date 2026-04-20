@@ -11,6 +11,7 @@ import { WidgetError } from "./_parts/widget-error"
 export interface ActivityFeedWidgetProps {
   seedSlug?: string
   variant?: "feed" | "compact"
+  limit?: number
 }
 
 const ACTION_MAP: Record<string, string> = {

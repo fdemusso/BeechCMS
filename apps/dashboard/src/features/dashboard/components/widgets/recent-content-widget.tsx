@@ -44,7 +44,7 @@ interface ContentListResponse {
   total: number
 }
 
-export function RecentContentWidget({ seedSlug, variant = "list", onOpen }: RecentContentWidgetProps) {
+export function RecentContentWidget({ seedSlug, variant = "list" }: RecentContentWidgetProps) {
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["widget", "recent-content", seedSlug],
     queryFn: async (): Promise<ContentEntry[]> => {

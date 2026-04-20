@@ -123,7 +123,7 @@ async function storeIdempotency(
 }
 
 export async function publicAddHandler(c: Context<{ Bindings: Bindings; Variables: Variables }>) {
-  const seedSlug = c.req.param('seed')
+  const seedSlug = c.req.param('seed') ?? ''
   const seed = getSeed(seedSlug)
   if (!seed) {
     return publicProblem(c, {

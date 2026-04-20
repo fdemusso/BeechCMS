@@ -171,8 +171,8 @@ function resolveData(
 }
 
 export async function publicEditHandler(c: PublicCtx) {
-  const seedSlug = c.req.param('seed')
-  const id = c.req.param('id')
+  const seedSlug = c.req.param('seed') ?? ''
+  const id = c.req.param('id') ?? ''
   const seed = getSeed(seedSlug)
   if (!seed) {
     return publicProblem(c, {
