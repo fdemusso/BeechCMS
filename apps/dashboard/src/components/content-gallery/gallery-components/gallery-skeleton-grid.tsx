@@ -13,21 +13,24 @@ const SKELETON_KEYS = [
 
 export function GallerySkeletonGrid() {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
       {SKELETON_KEYS.map((key) => (
-        <div key={key} className="h-[320px] overflow-hidden rounded-xl border">
-          <Skeleton className="h-[140px] w-full rounded-none" />
-          <div className="space-y-3 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <Skeleton className="h-5 w-20" />
-              <div className="flex gap-1">
-                <Skeleton className="h-5 w-12" />
-                <Skeleton className="h-5 w-10" />
-              </div>
+        <div
+          key={key}
+          className="flex h-[340px] flex-col overflow-hidden rounded-2xl border border-neutral-200/80 dark:border-neutral-700/50"
+        >
+          {/* Image area */}
+          <Skeleton className="min-h-0 flex-1 rounded-none" />
+
+          {/* Data shelf */}
+          <div className="w-full shrink-0 rounded-t-2xl bg-white px-4 py-3 shadow-[0_-6px_20px_0_rgb(0,0,0,0.07)] dark:bg-neutral-900 dark:shadow-[0_-6px_20px_0_rgb(0,0,0,0.30)]">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <Skeleton className="h-5 w-20 rounded-full" />
+              <Skeleton className="h-5 w-14 rounded-full" />
             </div>
             <Skeleton className="h-4 w-10/12" />
-            <Skeleton className="h-4 w-8/12" />
-            <Skeleton className="h-4 w-7/12" />
+            <Skeleton className="mt-1 h-3 w-7/12" />
+            <Skeleton className="mt-2 h-3 w-4/12" />
           </div>
         </div>
       ))}

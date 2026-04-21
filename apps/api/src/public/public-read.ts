@@ -1,4 +1,4 @@
-import { SEED_REGISTRY, dbToApi, getSeed } from '@beech/core'
+import { SEED_REGISTRY, dbToApi, getSeed, resolvePolicies } from '@beech/core'
 import type { Context } from 'hono'
 import { buildOrderClause, cleanStr, rowToEntry } from '../shared/query-utils'
 import type { ContentEntryRow } from '../shared/query-utils'
@@ -29,13 +29,37 @@ function buildSeedNotFoundMessage(seed: string): string {
   return `The content type '${seed}' does not exist. Available types: ${available}.`
 }
 
+/** Applica le policy public e visibility ai campi dell'alias data. */
+function applyPublicPolicies(
+  aliasData: Record<string, unknown>,
+  seed: NonNullable<ReturnType<typeof getSeed>>,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [alias, value] of Object.entries(aliasData)) {
+    const branch = seed.branches.find((b) => b.alias === alias)
+    if (!branch) {
+      result[alias] = value
+      continue
+    }
+    const { public: isPublic, visibility } = resolvePolicies(branch)
+    if (!isPublic) continue
+    if (visibility === 'hidden') continue
+    if (visibility === 'masked') {
+      result[alias] = typeof value === 'string' && value.length > 0 ? '••••••••' : null
+    } else {
+      result[alias] = value
+    }
+  }
+  return result
+}
+
 function toFlatPublicEntry(
   row: ContentEntryRow,
   seed: NonNullable<ReturnType<typeof getSeed>>,
   fieldsParam?: string
 ): Record<string, unknown> {
   const entry = rowToEntry(row)
-  const aliasData = dbToApi(seed, entry.data)
+  const aliasData = applyPublicPolicies(dbToApi(seed, entry.data), seed)
   const base: Record<string, unknown> = {
     id: entry.id,
     slug: entry.slug,

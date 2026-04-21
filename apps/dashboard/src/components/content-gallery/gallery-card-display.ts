@@ -101,7 +101,7 @@ export function buildGalleryCardDisplayModel(
     : null
   const title = branches.titleBranch ? toPlainText(entry.data[branches.titleBranch.alias]) : ""
   const excerpt = branches.excerptBranch
-    ? toExcerpt(entry.data[branches.excerptBranch.alias])
+    ? toExcerpt(entry.data[branches.excerptBranch.alias], 90)
     : ""
   const dateText = branches.dateBranch ? formatDate(entry.data[branches.dateBranch.alias]) : ""
 

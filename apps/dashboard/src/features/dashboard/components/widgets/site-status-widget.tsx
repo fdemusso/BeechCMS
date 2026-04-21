@@ -30,7 +30,9 @@ export function SiteStatusWidget({ variant = "badge" }: SiteStatusWidgetProps) {
   )
 
   const online = isOnline ?? false
-  const lastChecked = dataUpdatedAt ? new Date(dataUpdatedAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—"
+  const lastChecked = dataUpdatedAt
+    ? new Date(dataUpdatedAt).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })
+    : "—"
 
   if (variant === "pill-row") {
     const pills = [
@@ -45,14 +47,17 @@ export function SiteStatusWidget({ variant = "badge" }: SiteStatusWidgetProps) {
             <Badge
               key={label}
               className={cn(
-                "text-xs gap-1",
+                "text-xs gap-1.5 px-2.5 py-1",
                 ok
-                  ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
-                  : "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400 border-red-200 dark:border-red-800"
+                  ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border-emerald-200/80 dark:border-emerald-800/60"
+                  : "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border-red-200/80 dark:border-red-800/60"
               )}
               variant="outline"
             >
-              <span className={cn("size-1.5 rounded-full", ok ? "bg-emerald-500" : "bg-red-500")} />
+              <span className={cn(
+                "size-1.5 rounded-full",
+                ok ? "bg-emerald-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]" : "bg-red-500"
+              )} />
               {label}
             </Badge>
           ))}
@@ -64,12 +69,23 @@ export function SiteStatusWidget({ variant = "badge" }: SiteStatusWidgetProps) {
   return (
     <DashboardWidgetShell>
       <div className="flex items-center gap-3 h-full">
-        <span className={cn("size-3 rounded-full ring-2 shrink-0", online ? "bg-emerald-500 ring-emerald-200 dark:ring-emerald-900" : "bg-red-500 ring-red-200 dark:ring-red-900")} />
+        <div className="relative shrink-0">
+          <span className={cn(
+            "block size-3 rounded-full",
+            online ? "bg-emerald-500" : "bg-red-500"
+          )} />
+          {online && (
+            <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-60" />
+          )}
+        </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold">{online ? "Sito online" : "Errore"}</p>
           <p className="text-xs text-muted-foreground">Verificato alle {lastChecked}</p>
         </div>
-        {online ? <Wifi className="size-4 text-emerald-500 shrink-0" /> : <WifiOff className="size-4 text-red-500 shrink-0" />}
+        {online
+          ? <Wifi className="size-4 text-emerald-500 shrink-0" />
+          : <WifiOff className="size-4 text-red-500 shrink-0" />
+        }
       </div>
     </DashboardWidgetShell>
   )

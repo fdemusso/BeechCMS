@@ -50,6 +50,24 @@ export interface Branch {
    * Se true, il payload deve includere un valore valido non nullo.
    */
   requiredOnUpdate?: boolean
+  /**
+   * Policy di accesso e trattamento del campo.
+   * Tutti i valori sono opzionali — `resolvePolicies(branch)` fornisce i default.
+   */
+  policies?: {
+    /** Come il valore viene memorizzato. Default: 'plain' */
+    privacy?: 'plain' | 'hash' | 'encrypt'
+    /** Come il valore viene restituito nelle risposte API. Default: 'full' */
+    visibility?: 'full' | 'masked' | 'hidden'
+    /** Il campo è incluso nelle query di ricerca full-text. Default: true */
+    search?: boolean
+    /** Il campo è disponibile come colonna di filtro nella dashboard. Default: true */
+    filter?: boolean
+    /** Il campo è disponibile come colonna di ordinamento nella dashboard. Default: true */
+    sort?: boolean
+    /** Il campo è incluso nelle risposte della Public API. Default: true */
+    public?: boolean
+  }
 }
 
 /** Seed: definizione dello schema di un tipo di contenuto */
@@ -66,6 +84,13 @@ export interface Seed {
   allowPublicPost?: boolean
   /** Abilita modifica dalla Public API (`PUT /api/v1/public/:seed/edit/:id`). Default: false */
   allowPublicEdit?: boolean
+  /**
+   * Alias del branch usato come nome leggibile dell'entry (es. "title", "name", "author").
+   * **Obbligatorio.** Ogni seed deve dichiarare esplicitamente quale branch identifica
+   * l'entry in forma umana — senza questa informazione, le UI (QuickDraftWidget, gallery,
+   * titoli nelle liste) non hanno un riferimento affidabile al "nome" dell'elemento.
+   */
+  displayNameAlias: string
   /** Lista dei campi (Branch) */
   branches: Branch[]
 }

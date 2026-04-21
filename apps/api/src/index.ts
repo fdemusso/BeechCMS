@@ -20,6 +20,9 @@ import {
 } from './auth/refresh'
 import { authMiddleware } from './middleware'
 import { contentRoutes } from './content'
+// TODO: refactor — rotate-field è una VSA slice. Il resto di index.ts (auth inline, content monolith)
+// va migrato a slices dedicati sotto src/features/ seguendo lo stesso pattern.
+import { rotateFieldApp } from './features/rotate-field'
 import { uploadRoutes, serveMediaHandler } from './upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
 import { searchRouter } from "./search"
@@ -304,6 +307,8 @@ apiContent.use('*', async (c, next) => {
     audience: c.env.JWT_AUDIENCE,
   })(c, next)
 })
+// Specific routes before wildcard content routes to avoid pattern conflicts
+apiContent.route('/', rotateFieldApp)
 apiContent.route('/', contentRoutes)
 app.route('/api/content', apiContent)
 app.route('/api/search', searchRouter)

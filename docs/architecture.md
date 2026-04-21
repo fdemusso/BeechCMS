@@ -85,6 +85,75 @@ export * from './richtext-render'; // TipTap → HTML
 export * from './slug-utils';      // slugify logic
 ```
 
+### Branch Policies — `resolvePolicies`
+
+Every `Branch` in a seed can declare an optional `policies` object that controls how the field is stored, exposed, and surfaced in the UI:
+
+| Policy | Type | Default | Effect |
+|---|---|---|---|
+| `privacy` | `'plain' \| 'hash' \| 'encrypt'` | `'plain'` | `hash` → value is SHA-256 hex-digested server-side before writing; `encrypt` → 501 placeholder |
+| `visibility` | `'full' \| 'masked' \| 'hidden'` | `'full'` (or `'hidden'` when `privacy !== 'plain'`) | `masked` → returns `'••••••••'` on read; `hidden` → field is stripped from responses |
+| `search` | `boolean` | `true` | When `false`, the column is excluded from full-text search queries |
+| `filter` | `boolean` | `true` | When `false`, the column is not offered in the dashboard filter UI |
+| `sort` | `boolean` | `true` | When `false`, the column is not offered in the dashboard sort UI |
+| `public` | `boolean` | `true` | When `false`, the field is stripped from Public API responses |
+
+**`privacy` and `visibility` are coupled by design.** When `privacy` is `hash` or `encrypt`, `resolvePolicies` automatically defaults `visibility` to `'hidden'`, so the stored digest is never returned to callers. This default can be explicitly overridden in the seed definition if needed.
+
+**`privacy: 'hash'` write flow:**
+```
+client sends plaintext  →  API validates (Zod)  →  sha256hex()  →  apiToDb()  →  DB stores hash
+```
+The plaintext never persists. Sensitive fields cannot be updated via PUT — the handler returns `422` if any non-plain field appears in the patch.
+
+**Comparing a hashed field** (e.g. password verification): use `verifyHashField` from `@beech/core` inside a dedicated server-side handler. Never expose the hash to the client.
+
+```typescript
+import { verifyHashField } from '@beech/core'
+
+const match = await verifyHashField(storedHash, candidatePlaintext)
+```
+
+All policy resolution **must** go through `resolvePolicies(branch)` from `@beech/core`. Never inline-check `branch.policies?.x ?? default`.
+
+```typescript
+import { resolvePolicies } from '@beech/core'
+
+const { privacy, visibility, search, filter, sort, public: isPublic } = resolvePolicies(branch)
+```
+
+Existing branches without a `policies` field behave exactly as before — all defaults are permissive.
+
+---
+
+### The `Seed` Interface — Required Fields
+
+Every seed definition (`packages/core/src/seeds.ts`) must include a `displayNameAlias` field:
+
+```typescript
+export interface Seed {
+  slug: string           // URL identifier (e.g. "articoli")
+  label: string          // Singular UI label (e.g. "Articolo")
+  labelPlural?: string   // Plural UI label
+  displayNameAlias: string // REQUIRED — alias of the branch used as human-readable name
+  // ...
+  branches: Branch[]
+}
+```
+
+**`displayNameAlias` is mandatory.** It points to the alias of the branch that serves as the human-readable identifier for a content entry (e.g., `"title"` for articles, `"name"` for products, `"author"` for testimonials). Without it, UI components cannot reliably display a meaningful label for an entry without hard-coding field names:
+
+| Seed | `displayNameAlias` | Branch label |
+|---|---|---|
+| `articoli` | `title` | Titolo |
+| `prodotti` | `name` | Nome |
+| `team` | `name` | Nome |
+| `testimonianze` | `author` | Autore |
+| `pagine` | `title` | Titolo |
+| `messaggi` | `name` | Nome mittente |
+
+UI consumers (`QuickDraftWidget`, gallery title resolution, content lists) read `displayNameAlias` from the seed instead of relying on heuristics or hard-coded aliases.
+
 ---
 
 ## 4. The Botanical Engine

@@ -12,6 +12,7 @@ export const ARTICOLO_SEED: Seed = {
   slug: 'articoli',
   label: 'Articolo',
   labelPlural: 'Articoli',
+  displayNameAlias: 'title',
   allowPublicRead: true,
   branches: [
     { id: 'art_01', alias: 'title', label: 'Titolo', type: 'text' },
@@ -29,6 +30,7 @@ export const PRODOTTO_SEED: Seed = {
   slug: 'prodotti',
   label: 'Prodotto',
   labelPlural: 'Prodotti',
+  displayNameAlias: 'name',
   allowPublicRead: true,
   branches: [
     { id: 'prd_01', alias: 'name', label: 'Nome', type: 'text' },
@@ -55,6 +57,7 @@ export const TEAM_SEED: Seed = {
   slug: 'team',
   label: 'Membro',
   labelPlural: 'Team',
+  displayNameAlias: 'name',
   allowPublicRead: true,
   branches: [
     { id: 'tm_01', alias: 'name', label: 'Nome', type: 'text' },
@@ -73,6 +76,7 @@ export const TESTIMONIANZA_SEED: Seed = {
   slug: 'testimonianze',
   label: 'Testimonianza',
   labelPlural: 'Testimonianze',
+  displayNameAlias: 'author',
   allowPublicRead: true,
   branches: [
     { id: 'tes_01', alias: 'author', label: 'Autore', type: 'text' },
@@ -92,6 +96,7 @@ export const PAGINA_SEED: Seed = {
   slug: 'pagine',
   label: 'Pagina',
   labelPlural: 'Pagine',
+  displayNameAlias: 'title',
   allowPublicRead: true,
   branches: [
     { id: 'pag_01', alias: 'title', label: 'Titolo', type: 'text' },
@@ -102,14 +107,79 @@ export const PAGINA_SEED: Seed = {
   ],
 }
 
-/** 
+/**
+ * Cliente: dimostra tutte le assi di Branch.policies.
+ *
+ * Mappa delle policy usate:
+ *  clt_02 email        → visibility:masked, search:false, public:false
+ *  clt_03 passwordHash → privacy:hash, visibility:hidden, search/filter/sort/public: false
+ *  clt_05 phone        → visibility:masked, filter:false, public:false
+ *  clt_06 internalNote → visibility:hidden, search:false, public:false
+ *  clt_07 registeredAt → public:false  (data interna, non esposta)
+ */
+export const CLIENTE_SEED: Seed = {
+  slug: 'clienti',
+  label: 'Cliente',
+  labelPlural: 'Clienti',
+  displayNameAlias: 'name',
+  allowPublicRead: true,
+  branches: [
+    { id: 'clt_01', alias: 'name', label: 'Nome', type: 'text' },
+    {
+      id: 'clt_02',
+      alias: 'email',
+      label: 'Email',
+      type: 'text',
+      policies: { visibility: 'masked', search: false, public: false },
+    },
+    {
+      id: 'clt_03',
+      alias: 'passwordHash',
+      label: 'Password (hash)',
+      type: 'text',
+      policies: { privacy: 'hash', visibility: 'hidden', search: false, filter: false, sort: false, public: false },
+    },
+    {
+      id: 'clt_04',
+      alias: 'tier',
+      label: 'Piano',
+      type: 'text',
+      options: ['free', 'starter', 'pro', 'enterprise'],
+    },
+    {
+      id: 'clt_05',
+      alias: 'phone',
+      label: 'Telefono',
+      type: 'text',
+      policies: { visibility: 'masked', filter: false, public: false },
+    },
+    {
+      id: 'clt_06',
+      alias: 'internalNote',
+      label: 'Note interne',
+      type: 'text',
+      policies: { visibility: 'hidden', search: false, public: false },
+    },
+    {
+      id: 'clt_07',
+      alias: 'registeredAt',
+      label: 'Data iscrizione',
+      type: 'date',
+      policies: { public: false },
+    },
+    { id: 'clt_08', alias: 'active', label: 'Attivo', type: 'boolean' },
+  ],
+}
+
+/**
  * TODO: Rimuovere al termine dei test del testsite
- * Messaggio di contatto: per form contatti esterni 
+ * Messaggio di contatto: per form contatti esterni
  */
 export const MESSAGGI_SEED: Seed = {
   slug: 'messaggi',
   label: 'Messaggio',
   labelPlural: 'Messaggi',
+  displayNameAlias: 'name',
   allowPublicPost: true,
   allowPublicEdit: true,
   branches: [
@@ -128,6 +198,7 @@ export const SEED_REGISTRY: Record<string, Seed> = {
   team: TEAM_SEED,
   testimonianze: TESTIMONIANZA_SEED,
   pagine: PAGINA_SEED,
+  clienti: CLIENTE_SEED,
   messaggi: MESSAGGI_SEED,
 }
 

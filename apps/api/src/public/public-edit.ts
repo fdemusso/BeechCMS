@@ -1,4 +1,4 @@
-import { apiToDb, dbToApi, getSeed, isValidContentStatus } from '@beech/core'
+import { apiToDb, dbToApi, getSeed, isValidContentStatus, resolvePolicies } from '@beech/core'
 import type { Context } from 'hono'
 import { cleanStr, rowToEntry } from '../shared/query-utils'
 import type { ContentEntryRow } from '../shared/query-utils'
@@ -126,6 +126,22 @@ function resolveData(
         title: 'Bad Request',
         status: 400,
         detail: "Field 'data' must be an object when provided",
+      }),
+    }
+  }
+
+  const sensitiveAliases = Object.keys(rawData).filter((alias) => {
+    const branch = seed.branches.find((b) => b.alias === alias)
+    return branch != null && resolvePolicies(branch).privacy !== 'plain'
+  })
+  if (sensitiveAliases.length > 0) {
+    return {
+      ok: false,
+      response: publicProblem(c, {
+        type: 'sensitive-field-edit',
+        title: 'Unprocessable Entity',
+        status: 422,
+        detail: `Cannot edit sensitive fields: ${sensitiveAliases.join(', ')}`,
       }),
     }
   }

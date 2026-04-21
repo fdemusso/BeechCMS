@@ -44,11 +44,11 @@ export default function DashboardPage() {
           <SidebarInset className="min-w-0">
             <main className="flex flex-1 flex-col gap-8 p-6 md:p-8 lg:p-10">
               {/* Welcome Header */}
-              <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-bold tracking-tight md:text-4xl text-neutral-900 dark:text-neutral-100 flex items-center gap-3">
-                  {greeting}, {userName}
+              <div className="flex flex-col gap-1.5">
+                <h1 className="text-2xl font-bold tracking-tight md:text-3xl text-neutral-900 dark:text-neutral-100">
+                  {greeting}, <span className="text-primary">{userName}</span>
                 </h1>
-                <p className="text-neutral-500 dark:text-neutral-400 text-lg">
+                <p className="text-neutral-500 dark:text-neutral-400">
                   Ecco cosa è successo nel tuo workspace oggi.
                 </p>
               </div>

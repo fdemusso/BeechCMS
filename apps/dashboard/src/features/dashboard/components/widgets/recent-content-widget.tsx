@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { formatDistanceToNow } from "date-fns"
 import { it } from "date-fns/locale"
-import { FileImage } from "lucide-react"
+import { Clock, FileImage } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -20,9 +20,9 @@ export interface RecentContentWidgetProps {
 }
 
 function statusVariant(status: string): string {
-  if (status === "published") return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-  if (status === "draft") return "bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400"
-  return "bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400"
+  if (status === "published") return "bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-800/60"
+  if (status === "draft") return "bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800/60"
+  return "bg-neutral-100 text-neutral-600 border-neutral-200/80 dark:bg-neutral-800 dark:text-neutral-400"
 }
 
 function entryTitle(entry: ContentEntry): string {
@@ -57,8 +57,17 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
     staleTime: 3 * 60 * 1000,
   })
 
+  const viewAllAction = (
+    <Link
+      to={`/content/${seedSlug}`}
+      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+    >
+      Vedi tutti →
+    </Link>
+  )
+
   if (isLoading) return (
-    <DashboardWidgetShell>
+    <DashboardWidgetShell title="Contenuti recenti" icon={Clock} action={viewAllAction}>
       <div className="space-y-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-9 w-full rounded-lg animate-pulse" />
@@ -68,31 +77,31 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
   )
 
   if (isError) return (
-    <DashboardWidgetShell>
+    <DashboardWidgetShell title="Contenuti recenti" icon={Clock} action={viewAllAction}>
       <WidgetError onRetry={() => refetch()} />
     </DashboardWidgetShell>
   )
 
   if (!data?.length) return (
-    <DashboardWidgetShell>
+    <DashboardWidgetShell title="Contenuti recenti" icon={Clock}>
       <WidgetEmpty icon={FileImage} title="Nessun contenuto" description="Crea il primo contenuto per vederlo qui" />
     </DashboardWidgetShell>
   )
 
   if (variant === "cards") {
     return (
-      <DashboardWidgetShell>
-        <div className="grid grid-cols-2 gap-3 h-full">
+      <DashboardWidgetShell title="Contenuti recenti" icon={Clock} action={viewAllAction}>
+        <div className="grid grid-cols-2 gap-3">
           {data.map((entry) => (
             <Card key={entry.id} className="cursor-pointer hover:shadow-md transition-shadow border-border/60 overflow-hidden">
-              <Link to={`/content/${seedSlug}/${entry.id}`} className="block h-full">
+              <Link to={`/content/${seedSlug}/${entry.id}`} className="block">
                 <div className="h-20 bg-muted flex items-center justify-center">
                   <FileImage className="size-7 text-muted-foreground/30" />
                 </div>
                 <CardContent className="p-2 space-y-1">
                   <p className="text-xs font-medium truncate">{entryTitle(entry)}</p>
                   <div className="flex items-center justify-between gap-1">
-                    <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold", statusVariant(entry.status))}>{entry.status}</span>
+                    <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold border", statusVariant(entry.status))}>{entry.status}</span>
                     <span className="text-[10px] text-muted-foreground">{relativeTime(entry.updated_at)}</span>
                   </div>
                 </CardContent>
@@ -105,12 +114,12 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
   }
 
   return (
-    <DashboardWidgetShell>
-      <ul className="space-y-1">
+    <DashboardWidgetShell title="Contenuti recenti" icon={Clock} action={viewAllAction}>
+      <ul className="space-y-0.5">
         {data.map((entry) => (
           <li
             key={entry.id}
-            className="group flex items-center justify-between gap-2 rounded-lg px-3 py-2 hover:bg-muted/50 transition-colors"
+            className="group flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors"
           >
             <Link
               to={`/content/${seedSlug}/${entry.id}`}
@@ -118,8 +127,10 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
             >
               {entryTitle(entry)}
             </Link>
-            <Badge className={cn("shrink-0 text-[10px]", statusVariant(entry.status))} variant="outline">{entry.status}</Badge>
-            <span className="text-xs text-muted-foreground shrink-0">{relativeTime(entry.updated_at)}</span>
+            <Badge className={cn("shrink-0 text-[10px] border", statusVariant(entry.status))} variant="outline">
+              {entry.status}
+            </Badge>
+            <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{relativeTime(entry.updated_at)}</span>
           </li>
         ))}
       </ul>

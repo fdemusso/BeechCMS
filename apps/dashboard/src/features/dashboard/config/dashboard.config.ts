@@ -1,4 +1,16 @@
 import type { DashboardConfig } from "../types/widget.types"
+import { SEED_REGISTRY } from "@beech/core"
+
+/** Deriva la lista di semi per il QuickDraftWidget dall'intero SEED_REGISTRY */
+const allSeedsForQuickDraft = Object.values(SEED_REGISTRY).map((seed) => {
+  const nameBranch = seed.branches.find((b) => b.alias === seed.displayNameAlias)
+  return {
+    slug: seed.slug,
+    label: seed.label,
+    displayNameAlias: seed.displayNameAlias,
+    displayNameLabel: nameBranch?.label ?? seed.displayNameAlias,
+  }
+})
 
 export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
   layout: [
@@ -27,10 +39,7 @@ export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
       x: 6, y: 0, span: { w: 2, h: 1 },
       props: {
         variant: "minimal",
-        seeds: [
-          { slug: "articoli", label: "Articolo" },
-          { slug: "prodotti", label: "Prodotto" },
-        ],
+        seeds: allSeedsForQuickDraft,
       },
     },
 

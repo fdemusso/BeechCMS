@@ -381,6 +381,56 @@ Authorization: Bearer eyJ...
 
 ---
 
+### 4.5 Rotate Hashed Field — `POST /api/content/:seed/:id/rotate-field`
+
+Updates the value of a field marked with `privacy: 'hash'`. The caller must provide the current plaintext value for verification — the API hashes it and compares against the stored digest before accepting the new value. Both `current` and `next` are treated as plaintext and never persisted; only their SHA-256 digests are stored.
+
+**Why this exists:** Fields with `privacy: 'hash'` are write-once through the normal `PUT` endpoint (which blocks any edit of sensitive fields). This endpoint is the only way to update them, and it enforces knowledge of the current value as a prerequisite.
+
+**Request**
+
+```http
+POST /api/content/memberships/550e8400-e29b-41d4-a716-446655440000/rotate-field
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "field": "password",
+  "current": "old-plaintext",
+  "next": "new-plaintext"
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `field` | `string` | Alias of the branch to rotate. Must exist in the seed and have `privacy: 'hash'`. |
+| `current` | `string` | Current plaintext value. Used to verify identity before the update. |
+| `next` | `string` | New plaintext value. Validated against the branch type before hashing. |
+
+**Response `200`**
+
+```json
+{ "success": true }
+```
+
+**Error responses**
+
+| Status | `type` | Cause |
+|---|---|---|
+| `400` | `rotate-field-invalid-body` | Missing or empty `field`, `current`, or `next` |
+| `400` | `rotate-field-unknown-field` | `field` alias does not exist in the seed |
+| `400` | `rotate-field-invalid-next` | `next` fails the branch's Zod type validation |
+| `401` | — | Missing or invalid JWT |
+| `403` | `rotate-field-current-mismatch` | `current` does not match the stored hash |
+| `404` | `content-seed-not-found` | Seed slug does not exist |
+| `404` | `content-not-found` | Entry ID does not exist |
+| `422` | `rotate-field-not-hashable` | `field` exists but its `privacy` is not `hash` |
+| `422` | `rotate-field-not-set` | The field has no stored value (was never written) |
+
+**Implementation note:** This endpoint is implemented as a VSA slice under `apps/api/src/features/rotate-field/`. The `verifyHashField` and `sha256hex` utilities are exported from `@beech/core`.
+
+---
+
 ## 5. Media Engine
 
 ### 5.1 Upload — `POST /api/upload`

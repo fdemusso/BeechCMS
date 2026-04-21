@@ -1,8 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { formatDistanceToNow } from "date-fns"
 import { it } from "date-fns/locale"
-import { ClipboardList } from "lucide-react"
+import { ClipboardList, Send } from "lucide-react"
 import { api } from "@/lib/api"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -56,8 +57,14 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
     },
   })
 
+  const countBadge = data?.length ? (
+    <Badge className="bg-amber-100 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800/60 text-xs tabular-nums" variant="outline">
+      {data.length}
+    </Badge>
+  ) : null
+
   if (isLoading) return (
-    <DashboardWidgetShell>
+    <DashboardWidgetShell title="Bozze in attesa" icon={ClipboardList}>
       <div className="space-y-2">
         {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full animate-pulse" />)}
       </div>
@@ -65,14 +72,14 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
   )
 
   if (isError) return (
-    <DashboardWidgetShell>
+    <DashboardWidgetShell title="Bozze in attesa" icon={ClipboardList}>
       <WidgetError onRetry={() => refetch()} />
     </DashboardWidgetShell>
   )
 
   if (variant === "counter") {
     return (
-      <DashboardWidgetShell>
+      <DashboardWidgetShell title="Bozze in attesa" icon={ClipboardList}>
         <div className="flex flex-col items-center justify-center gap-2 h-full text-center">
           <span className="text-5xl font-bold tabular-nums">{data?.length ?? 0}</span>
           <p className="text-sm text-muted-foreground">bozze in attesa</p>
@@ -83,40 +90,40 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
   }
 
   if (!data?.length) return (
-    <DashboardWidgetShell>
+    <DashboardWidgetShell title="Bozze in attesa" icon={ClipboardList}>
       <WidgetEmpty icon={ClipboardList} title="Nessuna bozza in attesa" />
     </DashboardWidgetShell>
   )
 
   return (
-    <DashboardWidgetShell>
-      <div className="mb-2 flex items-center justify-between">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Bozze in attesa</p>
-        <span className="text-xs text-muted-foreground">{data.length} totali</span>
-      </div>
-      <ScrollArea className="max-h-[200px]">
+    <DashboardWidgetShell title="Bozze in attesa" icon={ClipboardList} action={countBadge}>
+      <ScrollArea className="h-[260px]">
         <ul className="space-y-1 pr-2">
           {data.map((entry) => (
-            <li key={entry.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted/40 transition-colors">
+            <li key={entry.id} className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-muted/40 transition-colors group">
               <Link
                 to={`/content/${seedSlug}/${entry.id}`}
                 className="flex-1 text-sm font-medium truncate hover:underline text-foreground decoration-primary/30"
               >
                 {entryTitle(entry)}
               </Link>
-              <span className="text-[10px] text-muted-foreground shrink-0">
-                {entry.updated_at ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: it }) : "—"}
+              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
+                {entry.updated_at
+                  ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: it })
+                  : "—"
+                }
               </span>
               <Button
                 size="sm"
                 variant="default"
-                className="h-6 text-xs px-2 shrink-0"
+                className="h-6 text-xs px-2 shrink-0 gap-1 opacity-70 group-hover:opacity-100 transition-opacity"
                 disabled={publishMutation.isPending}
                 onClick={() => {
                   publishMutation.mutate(entry.id)
                   onPublish?.(entry.id)
                 }}
               >
+                <Send className="size-3" />
                 Pubblica
               </Button>
             </li>

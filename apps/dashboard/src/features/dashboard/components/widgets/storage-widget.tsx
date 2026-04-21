@@ -8,11 +8,10 @@ import { WidgetError } from "./_parts/widget-error"
 
 export interface StorageWidgetProps {
   variant?: "bar" | "gauge"
-  /** Total storage in bytes. Default 10 GB */
   totalBytes?: number
 }
 
-const DEFAULT_TOTAL = 10 * 1024 * 1024 * 1024 // 10 GB
+const DEFAULT_TOTAL = 10 * 1024 * 1024 * 1024
 
 function formatGb(bytes: number): string {
   return (bytes / 1024 / 1024 / 1024).toFixed(1)
@@ -25,52 +24,48 @@ function gaugeColor(pct: number): string {
 }
 
 function GaugeSvg({ pct }: { pct: number }) {
-  const radius = 40
-  const cx = 56
-  const cy = 56
-  const strokeWidth = 10
+  const radius = 38
+  const cx = 52
+  const cy = 52
+  const strokeWidth = 8
   const circumference = 2 * Math.PI * radius
   const offset = circumference - (pct / 100) * circumference
   const color = gaugeColor(pct)
 
   return (
-    <svg width="112" height="112" viewBox="0 0 112 112" aria-hidden>
-      {/* Track */}
+    <svg width="104" height="104" viewBox="0 0 104 104" aria-hidden>
       <circle
-        cx={cx}
-        cy={cy}
-        r={radius}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={strokeWidth}
-        className="text-muted-foreground/20 dark:text-muted-foreground/40"
+        cx={cx} cy={cy} r={radius}
+        fill="none" stroke="currentColor" strokeWidth={strokeWidth}
+        className="text-muted-foreground/15 dark:text-muted-foreground/30"
       />
-      {/* Indicator */}
       <circle
-        cx={cx}
-        cy={cy}
-        r={radius}
-        fill="none"
-        stroke={color}
-        strokeWidth={strokeWidth}
+        cx={cx} cy={cy} r={radius}
+        fill="none" stroke={color} strokeWidth={strokeWidth}
         strokeLinecap="round"
         strokeDasharray={circumference}
         strokeDashoffset={offset}
         transform={`rotate(-90 ${cx} ${cy})`}
         className="transition-all duration-1000 ease-in-out"
+        style={{ filter: `drop-shadow(0 0 4px ${color}60)` }}
       />
-      {/* Percentuale al centro */}
       <text
-        x={cx}
-        y={cy}
-        textAnchor="middle"
-        dominantBaseline="central"
-        fontSize="16"
-        fontWeight="700"
-        fill={color}
+        x={cx} y={cy - 4}
+        textAnchor="middle" dominantBaseline="central"
+        fontSize="15" fontWeight="700" fill={color}
         className="tabular-nums"
       >
         {pct}%
+      </text>
+      <text
+        x={cx} y={cy + 12}
+        textAnchor="middle" dominantBaseline="central"
+        fontSize="9" fontWeight="500"
+        className="fill-muted-foreground"
+        fill="currentColor"
+        style={{ color: "var(--muted-foreground)" }}
+      >
+        usato
       </text>
     </svg>
   )
@@ -100,23 +95,20 @@ export function StorageWidget({ variant = "bar", totalBytes = DEFAULT_TOTAL }: S
     </DashboardWidgetShell>
   )
 
-  const label = `${formatGb(storageBytes)} GB di ${formatGb(totalBytes)} GB`
-
   if (variant === "gauge") {
     return (
       <DashboardWidgetShell>
-        <div className="flex items-center gap-4 h-full w-full">
-          {/* Donut con % al centro — a sinistra */}
+        <div className="flex items-center gap-3 h-full w-full">
           <div className="shrink-0">
             <GaugeSvg pct={pct} />
           </div>
-          {/* Dettaglio GB a destra */}
-          <div className="flex-1 text-right">
-            <p className="text-sm font-semibold text-foreground leading-tight tabular-nums">
-              {formatGb(storageBytes)}&nbsp;GB
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Storage R2</p>
+            <p className="text-base font-bold text-foreground tabular-nums leading-tight">
+              {formatGb(storageBytes)}&nbsp;<span className="text-sm font-medium text-muted-foreground">GB</span>
             </p>
-            <p className="text-xs text-muted-foreground">
-              di {formatGb(totalBytes)}&nbsp;GB
+            <p className="text-xs text-muted-foreground mt-0.5">
+              di {formatGb(totalBytes)}&nbsp;GB totali
             </p>
           </div>
         </div>
@@ -124,14 +116,16 @@ export function StorageWidget({ variant = "bar", totalBytes = DEFAULT_TOTAL }: S
     )
   }
 
+  const label = `${formatGb(storageBytes)} GB di ${formatGb(totalBytes)} GB`
+
   return (
     <DashboardWidgetShell>
       <div className="flex flex-col justify-center gap-2 h-full">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">Storage R2</span>
-          <span className="font-semibold tabular-nums">{pct}%</span>
+          <span className="text-muted-foreground font-medium">Storage R2</span>
+          <span className="font-bold tabular-nums">{pct}%</span>
         </div>
-        <Progress value={pct} className="h-2" />
+        <Progress value={pct} className="h-1.5" />
         <p className="text-xs text-muted-foreground">{label}</p>
       </div>
     </DashboardWidgetShell>

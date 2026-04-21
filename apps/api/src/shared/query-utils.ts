@@ -1,4 +1,4 @@
-import { getSeed } from '@beech/core'
+import { getSeed, resolvePolicies } from '@beech/core'
 
 /** Riga grezza dal DB (data e stringa JSON). */
 export interface ContentEntryRow {
@@ -316,9 +316,19 @@ export function buildWhereClause(
 
   if (search) {
     const term = `%${search}%`
-    parts.push('(slug LIKE ? OR status LIKE ? OR data LIKE ?)')
-    bindings.push(term, term, term)
-    console.log(`[QueryUtils] Search term active: "${search}" -> using LIKE on slug, status, data`);
+    const searchableBranches = (seed?.branches ?? []).filter((b) => resolvePolicies(b).search)
+    if (searchableBranches.length === 0) {
+      parts.push('(slug LIKE ? OR status LIKE ?)')
+      bindings.push(term, term)
+    } else {
+      const fieldExprs = searchableBranches.map((b) => {
+        const path = `$."${escapeJsonPathKey(b.id)}"`
+        return `CAST(json_extract(data, '${path}') AS TEXT) LIKE ?`
+      })
+      parts.push(`(slug LIKE ? OR status LIKE ? OR ${fieldExprs.join(' OR ')})`)
+      bindings.push(term, term, ...searchableBranches.map(() => term))
+    }
+    console.log(`[QueryUtils] Search term active: "${search}" -> per-column search on ${searchableBranches.length} branches`);
   }
 
   for (const group of filters || []) {

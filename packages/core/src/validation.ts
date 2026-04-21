@@ -531,6 +531,12 @@ function validateBranchValue(
 /**
  * Foundation comune per validazione e sanitizzazione payload schema-driven.
  * Usata da Public API e riusabile nel Botanical Engine.
+ *
+ * Ordine di esecuzione obbligatorio al momento della scrittura:
+ *   validate raw → hash (privacy policy) → store
+ * L'hashing avviene DOPO la validazione, non prima.
+ * Questo garantisce che il valore validato sia il valore raw originale,
+ * non il digest — evitando false failure su campi con formato (es. email).
  */
 export function validateAndSanitizeSeedPayload(
   seed: Seed,

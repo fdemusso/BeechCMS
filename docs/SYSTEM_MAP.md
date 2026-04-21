@@ -173,6 +173,8 @@ beech-cms/
 - **Schema-driven everywhere**
   - **Must** use `Seed`/`Branch` and the Botanical Engine (`apiToDb`, `dbToApi`) for all reads/writes of `data`.
   - **Must not** access `data` directly via hard-coded aliases or DB column names (`br_xxx`).
+  - **Must** declare `displayNameAlias` on every `Seed` — points to the alias of the branch used as the human-readable identifier of an entry (e.g., `"title"`, `"name"`, `"author"`). UI components read this field instead of relying on heuristics or hard-coded aliases.
+  - **Branch policies** (`privacy`, `visibility`, `search`, `filter`, `sort`, `public`) must be enforced via `resolvePolicies` from `@beech/core` — never inline-checked with `branch.policies?.x ?? default`.
 
 - **Monorepo & shared code**
   - **Must** place shared logic and types in `@beech/core` and consume them from both apps.

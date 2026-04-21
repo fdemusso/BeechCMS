@@ -1,6 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { getSeed, SEED_REGISTRY, apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload, slugify } from '@beech/core'
+import { getSeed, SEED_REGISTRY, apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload, slugify, resolvePolicies, sha256hex } from '@beech/core'
+import type { Seed } from '@beech/core'
 import { deleteR2Objects, createR2Client } from './upload'
 import { getBucketSize } from './shared/storage-utils'
 import { extractMediaKeysFromData } from './media-utils'
@@ -22,6 +23,66 @@ import type { ContentEntry, ContentEntryRow } from './shared/query-utils'
  * Usa @beech/core per traduzione alias ↔ ID interni (Botanical Engine).
  */
 
+// --- Policy helpers ---
+
+class PrivacyPolicyError extends Error {
+  readonly status = 501 as const
+  constructor(message: string) {
+    super(message)
+    this.name = 'PrivacyPolicyError'
+  }
+}
+
+/** Applica la privacy policy ai campi del payload prima della scrittura su DB. */
+async function applyPrivacy(
+  data: Record<string, unknown>,
+  seed: Seed,
+): Promise<Record<string, unknown>> {
+  const result: Record<string, unknown> = {}
+  for (const [alias, value] of Object.entries(data)) {
+    const branch = seed.branches.find((b) => b.alias === alias)
+    if (!branch) {
+      result[alias] = value
+      continue
+    }
+    const { privacy } = resolvePolicies(branch)
+    if (privacy === 'encrypt') {
+      throw new PrivacyPolicyError(
+        `Field '${alias}' uses 'encrypt' privacy which is not yet implemented.`,
+      )
+    }
+    if (privacy === 'hash' && value != null) {
+      result[alias] = await sha256hex(String(value))
+    } else {
+      result[alias] = value
+    }
+  }
+  return result
+}
+
+/** Applica la visibility policy ai campi del payload in uscita verso il client. */
+function applyVisibility(
+  data: Record<string, unknown>,
+  seed: Seed,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [alias, value] of Object.entries(data)) {
+    const branch = seed.branches.find((b) => b.alias === alias)
+    if (!branch) {
+      result[alias] = value
+      continue
+    }
+    const { visibility } = resolvePolicies(branch)
+    if (visibility === 'hidden') continue
+    if (visibility === 'masked') {
+      result[alias] = typeof value === 'string' && value.length > 0 ? '••••••••' : null
+    } else {
+      result[alias] = value
+    }
+  }
+  return result
+}
+
 export type { ContentEntry } from './shared/query-utils'
 
 /** Messaggi di errore API content - usati da handler e test */
@@ -33,6 +94,7 @@ export const CONTENT_ERRORS = {
   SEED_NOT_FOUND: 'Seed not found',
   DATABASE_ERROR: 'Database error',
   SLUG_CONFLICT: 'Slug already exists for this schema',
+  SENSITIVE_FIELD_EDIT: 'Cannot edit sensitive fields',
 } as const
 
 interface ContentFacetsResponse {
@@ -255,7 +317,22 @@ contentApp.post('/:slug', async (c) => {
     return contentValidationProblem(c, validation.details)
   }
 
-  const dbPayload = apiToDb(seed, validation.data)
+  // validate raw → hash → store
+  let privacyData: Record<string, unknown>
+  try {
+    privacyData = await applyPrivacy(validation.data, seed)
+  } catch (err) {
+    if (err instanceof PrivacyPolicyError) {
+      return publicProblem(c, {
+        type: 'content-policy-not-implemented',
+        title: 'Not Implemented',
+        status: 501,
+        detail: err.message,
+      })
+    }
+    throw err
+  }
+  const dbPayload = apiToDb(seed, privacyData)
   const id = crypto.randomUUID()
   const now = Math.floor(Date.now() / 1000)
   const dataStr = JSON.stringify(dbPayload)
@@ -825,7 +902,7 @@ contentApp.get('/:schema_slug/by-slug/:entry_slug', async (c) => {
     }
 
     const entry = rowToEntry(row)
-    return c.json({ ...entry, data: dbToApi(seed, entry.data) })
+    return c.json({ ...entry, data: applyVisibility(dbToApi(seed, entry.data), seed) })
   } catch (err) {
     console.error('Content by-slug error:', err)
     return publicProblem(c, {
@@ -947,6 +1024,19 @@ contentApp.put('/:slug/:id', async (c) => {
     const hasPatchData = Object.keys(bodyForData).length > 0
     let mergedAliasData = { ...currentAliasData }
     if (hasPatchData) {
+      const sensitiveAliases = Object.keys(bodyForData).filter((alias) => {
+        const branch = seed.branches.find((b) => b.alias === alias)
+        return branch != null && resolvePolicies(branch).privacy !== 'plain'
+      })
+      if (sensitiveAliases.length > 0) {
+        return publicProblem(c, {
+          type: 'content-sensitive-field-edit',
+          title: 'Unprocessable Entity',
+          status: 422,
+          detail: `${CONTENT_ERRORS.SENSITIVE_FIELD_EDIT}: ${sensitiveAliases.join(', ')}`,
+        })
+      }
+
       const validation = validateAndSanitizeSeedPayload(seed, bodyForData, {
         operation: 'update',
         allowNull: true,
@@ -965,10 +1055,24 @@ contentApp.put('/:slug/:id', async (c) => {
         return contentValidationProblem(c, validation.details)
       }
 
-      const patch = validation.data
+      // validate raw → hash → store
+      let privacyPatch: Record<string, unknown>
+      try {
+        privacyPatch = await applyPrivacy(validation.data, seed)
+      } catch (err) {
+        if (err instanceof PrivacyPolicyError) {
+          return publicProblem(c, {
+            type: 'content-policy-not-implemented',
+            title: 'Not Implemented',
+            status: 501,
+            detail: (err as PrivacyPolicyError).message,
+          })
+        }
+        throw err
+      }
       mergedAliasData = {
         ...currentAliasData,
-        ...patch,
+        ...privacyPatch,
       }
       for (const [alias, value] of Object.entries(mergedAliasData)) {
         if (value === null) {
@@ -1192,7 +1296,7 @@ contentApp.get('/:slug', async (c) => {
 
     const entries: ContentEntry[] = (result.results ?? []).map((row) => {
       const entry = rowToEntry(row);
-      return { ...entry, data: dbToApi(seed, entry.data) };
+      return { ...entry, data: applyVisibility(dbToApi(seed, entry.data), seed) };
     });
 
     if (!hasQueryParams) {
@@ -1253,7 +1357,7 @@ contentApp.get('/:slug/:id', async (c) => {
     }
 
     const entry = rowToEntry(row)
-    return c.json({ ...entry, data: dbToApi(seed, entry.data) })
+    return c.json({ ...entry, data: applyVisibility(dbToApi(seed, entry.data), seed) })
   } catch (err) {
     console.error('Content detail error:', err)
     return publicProblem(c, {

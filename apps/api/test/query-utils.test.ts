@@ -64,7 +64,16 @@ describe('shared/query-utils', () => {
     expect(whereSql).toContain('schema_slug = ?')
     expect(whereSql).toContain('slug LIKE ?')
     expect(whereSql).toContain('json_extract')
-    expect(whereBindings).toEqual(['articoli', '%cms%', '%cms%', '%cms%', '%guida%'])
+    // Per-column search: slug + status + one binding per searchable branch (7 in articoli)
+    const searchableBranchCount = seed.branches.length // all default to search: true
+    const expectedSearchBindings = 2 + searchableBranchCount // slug, status, + each branch
+    expect(whereBindings[0]).toBe('articoli')
+    // All intermediate bindings should be '%cms%'
+    for (let i = 1; i <= expectedSearchBindings; i++) {
+      expect(whereBindings[i]).toBe('%cms%')
+    }
+    // Last binding is the filter value
+    expect(whereBindings[whereBindings.length - 1]).toBe('%guida%')
   })
 
   it('buildOrderClause usa fallback sicuro e ordinamento per alias seed', () => {
