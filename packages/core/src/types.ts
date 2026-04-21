@@ -85,6 +85,17 @@ export interface Seed {
   /** Abilita modifica dalla Public API (`PUT /api/v1/public/:seed/edit/:id`). Default: false */
   allowPublicEdit?: boolean
   /**
+   * Abilita la feature "bozza in attesa" per questo seed.
+   * Quando true, le entry supportano un draft pendente separato dal contenuto live:
+   * - `PUT  /api/content/:slug/:id/draft`         → salva bozza in draft_data
+   * - `GET  /api/content/:slug/:id/draft`          → legge la bozza
+   * - `POST /api/content/:slug/:id/draft/publish`  → promuove bozza → live
+   * - `DELETE /api/content/:slug/:id/draft`        → scarta la bozza
+   * Il contenuto live in `data` rimane intatto finché la bozza non viene pubblicata.
+   * Default: false
+   */
+  allowDrafts?: boolean
+  /**
    * Alias del branch usato come nome leggibile dell'entry (es. "title", "name", "author").
    * **Obbligatorio.** Ogni seed deve dichiarare esplicitamente quale branch identifica
    * l'entry in forma umana — senza questa informazione, le UI (QuickDraftWidget, gallery,

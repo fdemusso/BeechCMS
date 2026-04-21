@@ -48,7 +48,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
 
   const publishMutation = useMutation({
     mutationFn: async (id: string) => {
-      await api.patch(`/content/${seedSlug}/${id}`, { status: "published" })
+      await api.put(`/content/${seedSlug}/${id}`, { status: "published" })
       return id
     },
     onSuccess: () => {

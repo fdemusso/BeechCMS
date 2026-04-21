@@ -98,7 +98,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
 
   return (
     <DashboardWidgetShell title="Attività recente" icon={Activity}>
-      <ScrollArea className="h-[260px] pr-2">
+      <ScrollArea className="h-full pr-2">
         <ul className="space-y-3">
           {data.map((log) => {
             const ActionIcon = ACTION_ICONS[log.action] ?? Activity

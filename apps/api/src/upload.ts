@@ -147,6 +147,9 @@ export async function deleteR2Objects(
           "UPDATE system_stats SET value = MAX(0, CAST(value AS INTEGER) - ?) WHERE id = 'total_storage_bytes'"
         ).bind(fileSize).run()
       }
+
+      // Rimuovi dalla media library
+      await env.DB.prepare('DELETE FROM media_objects WHERE key = ?').bind(objectKey).run()
     } catch (err) {
       if (env.ENV !== 'production') {
         console.warn('R2 delete failed for key', objectKey, err)
@@ -217,6 +220,7 @@ uploadRoutes.post('/upload', async (c, next) => {
       // In ambiente di test Hono lancia se non presente
     }
 
+    const uploadedBy = c.var.jwtPayload?.sub ?? ''
     if (executionCtx) {
       executionCtx.waitUntil((async () => {
         try {
@@ -226,12 +230,22 @@ uploadRoutes.post('/upload', async (c, next) => {
         } catch (err) {
           console.error('Failed to update storage stats on upload:', err)
         }
+        try {
+          await c.env.DB.prepare(
+            'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
+          ).bind(objectKey, file.name, file.type, file.size, uploadedBy).run()
+        } catch (err) {
+          console.error('Failed to track media_objects on upload:', err)
+        }
       })())
     } else {
       // Fallback sync
       c.env.DB.prepare(
         "UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes'"
       ).bind(file.size).run().catch(err => console.error('Failed to update storage stats on upload (sync fallback):', err))
+      c.env.DB.prepare(
+        'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
+      ).bind(objectKey, file.name, file.type, file.size, uploadedBy).run().catch(err => console.error('Failed to track media_objects (sync fallback):', err))
     }
 
     const baseUrl = getMediaBaseUrl(c)

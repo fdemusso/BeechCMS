@@ -23,6 +23,7 @@ import { contentRoutes } from './content'
 // TODO: refactor — rotate-field è una VSA slice. Il resto di index.ts (auth inline, content monolith)
 // va migrato a slices dedicati sotto src/features/ seguendo lo stesso pattern.
 import { rotateFieldApp } from './features/rotate-field'
+import { draftApp } from './features/draft'
 import { uploadRoutes, serveMediaHandler } from './upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
 import { searchRouter } from "./search"
@@ -115,6 +116,13 @@ app.use('*', async (c, next) => {
 // Rota root di test
 app.get('/', (c) => c.text('Beech API is running!'))
 
+/** Estrae il seed slug dalle route pubbliche (/api/v1/public/:seed).
+ *  Restituisce '' per tutte le altre route (metrica globale). */
+function extractPublicSeed(path: string): string {
+  const match = path.match(/^\/api\/v1\/public\/([^/?]+)/)
+  return match ? match[1] : ''
+}
+
 // Middleware Analytics: traccia le richieste per la dashboard (Cloudflare-style metrics)
 app.use('/api/*', async (c, next) => {
   await next()
@@ -132,19 +140,17 @@ app.use('/api/*', async (c, next) => {
 
     if (db && executionCtx) {
       // Usa waitUntil per non bloccare la risposta al client
+      const seed = extractPublicSeed(c.req.path)
       executionCtx.waitUntil((async () => {
         try {
           const today = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
-          
-          // 1. Incrementa contatore richieste totali
+
+          // Incrementa contatore richieste: seed='' per route interne, seed='articoli' per public API
           await db.prepare(
-            `INSERT INTO analytics (day_ts, metric, value) 
-             VALUES (?, 'requests', 1) 
-             ON CONFLICT(day_ts, metric) DO UPDATE SET value = value + 1`
-          ).bind(today).run()
-          
-          // Nota: per i visitatori unici servirebbe una tabella di appoggio per gli IP.
-          // In questo prototipo simuliamo la crescita basandoci sulle richieste o tramite seed.
+            `INSERT INTO analytics (day_ts, metric, seed, value)
+             VALUES (?, 'requests', ?, 1)
+             ON CONFLICT(day_ts, metric, seed) DO UPDATE SET value = value + 1`
+          ).bind(today, seed).run()
         } catch (err) {
           console.error('Analytics middleware error:', err)
         }
@@ -309,6 +315,7 @@ apiContent.use('*', async (c, next) => {
 })
 // Specific routes before wildcard content routes to avoid pattern conflicts
 apiContent.route('/', rotateFieldApp)
+apiContent.route('/', draftApp)
 apiContent.route('/', contentRoutes)
 app.route('/api/content', apiContent)
 app.route('/api/search', searchRouter)

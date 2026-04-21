@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { getSeed, SEED_REGISTRY, apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload, slugify, resolvePolicies, sha256hex } from '@beech/core'
+import { getSeed, SEED_REGISTRY, apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload, slugify, resolvePolicies } from '@beech/core'
 import type { Seed } from '@beech/core'
 import { deleteR2Objects, createR2Client } from './upload'
 import { getBucketSize } from './shared/storage-utils'
@@ -23,65 +23,9 @@ import type { ContentEntry, ContentEntryRow } from './shared/query-utils'
  * Usa @beech/core per traduzione alias ↔ ID interni (Botanical Engine).
  */
 
-// --- Policy helpers ---
-
-class PrivacyPolicyError extends Error {
-  readonly status = 501 as const
-  constructor(message: string) {
-    super(message)
-    this.name = 'PrivacyPolicyError'
-  }
-}
-
-/** Applica la privacy policy ai campi del payload prima della scrittura su DB. */
-async function applyPrivacy(
-  data: Record<string, unknown>,
-  seed: Seed,
-): Promise<Record<string, unknown>> {
-  const result: Record<string, unknown> = {}
-  for (const [alias, value] of Object.entries(data)) {
-    const branch = seed.branches.find((b) => b.alias === alias)
-    if (!branch) {
-      result[alias] = value
-      continue
-    }
-    const { privacy } = resolvePolicies(branch)
-    if (privacy === 'encrypt') {
-      throw new PrivacyPolicyError(
-        `Field '${alias}' uses 'encrypt' privacy which is not yet implemented.`,
-      )
-    }
-    if (privacy === 'hash' && value != null) {
-      result[alias] = await sha256hex(String(value))
-    } else {
-      result[alias] = value
-    }
-  }
-  return result
-}
-
-/** Applica la visibility policy ai campi del payload in uscita verso il client. */
-function applyVisibility(
-  data: Record<string, unknown>,
-  seed: Seed,
-): Record<string, unknown> {
-  const result: Record<string, unknown> = {}
-  for (const [alias, value] of Object.entries(data)) {
-    const branch = seed.branches.find((b) => b.alias === alias)
-    if (!branch) {
-      result[alias] = value
-      continue
-    }
-    const { visibility } = resolvePolicies(branch)
-    if (visibility === 'hidden') continue
-    if (visibility === 'masked') {
-      result[alias] = typeof value === 'string' && value.length > 0 ? '••••••••' : null
-    } else {
-      result[alias] = value
-    }
-  }
-  return result
-}
+// --- Policy helpers (estratti in shared/apply-policies per riuso nelle VSA slice) ---
+import { applyPrivacy, applyVisibility, PrivacyPolicyError } from './shared/apply-policies'
+import { syncFts, deleteFts } from './shared/fts-sync'
 
 export type { ContentEntry } from './shared/query-utils'
 
@@ -361,6 +305,10 @@ contentApp.post('/:slug', async (c) => {
       .bind(id, slug, entrySlug, status, dataStr, now, now)
       .run()
 
+    syncFts(DB, id, slug, seed, dbPayload, status).catch((err) => {
+      if (c.env.ENV !== 'production') console.warn('[FTS] sync failed after create:', err)
+    })
+
     logActivity(c, {
       action: 'create',
       entityType: 'content',
@@ -637,7 +585,7 @@ contentApp.get('/stats/health', async (c) => {
     // 2. Aggregazione richieste D1 (proxy per database health) - ultimi 30 giorni
     const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000)
     const d1Stats = await DB.prepare(
-      `SELECT SUM(value) as total_requests FROM analytics WHERE metric = 'requests' AND day_ts >= ?`
+      `SELECT SUM(value) as total_requests FROM analytics WHERE metric = 'requests' AND seed = '' AND day_ts >= ?`
     ).bind(thirtyDaysAgo).first<{ total_requests: number }>()
 
     const totalRequests = d1Stats?.total_requests ?? 0
@@ -678,11 +626,11 @@ contentApp.get('/stats/cloudflare', async (c) => {
     
     // Recupera sum delle metriche negli ultimi 30 giorni
     const metrics = await DB.prepare(
-      `SELECT 
-        metric, 
+      `SELECT
+        metric,
         SUM(value) as total_value
-      FROM analytics 
-      WHERE day_ts >= ?
+      FROM analytics
+      WHERE day_ts >= ? AND seed = ''
       GROUP BY metric`
     )
       .bind(thirtyDaysAgo)
@@ -887,7 +835,7 @@ contentApp.get('/:schema_slug/by-slug/:entry_slug', async (c) => {
   try {
     const { DB } = c.env
     const row = await DB.prepare(
-      'SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND slug = ?'
+      'SELECT id, schema_slug, slug, status, data, CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND slug = ?'
     )
       .bind(schemaSlug, entrySlug)
       .first<ContentEntryRow>()
@@ -1006,7 +954,7 @@ contentApp.put('/:slug/:id', async (c) => {
     }
 
     const currentRow = await DB.prepare(
-      'SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND id = ? LIMIT 1'
+      'SELECT id, schema_slug, slug, status, data, CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND id = ? LIMIT 1'
     )
       .bind(slug, id)
       .first<ContentEntryRow>()
@@ -1104,6 +1052,10 @@ contentApp.put('/:slug/:id', async (c) => {
       .bind(dataStr, newSlug, newStatus, now, slug, id)
       .run()
 
+    syncFts(DB, id, slug, seed, dbPayload, newStatus).catch((err) => {
+      if (c.env.ENV !== 'production') console.warn('[FTS] sync failed after update:', err)
+    })
+
     logActivity(c, {
       action: 'update',
       entityType: 'content',
@@ -1173,6 +1125,10 @@ contentApp.delete('/:slug/:id', async (c) => {
     )
         .bind(schemaSlug, entryId)
       .run();
+
+    deleteFts(DB, entryId).catch((err) => {
+      if (c.env.ENV !== 'production') console.warn('[FTS] delete failed after content delete:', err)
+    })
 
     // Log attività
     try {
@@ -1283,8 +1239,8 @@ contentApp.get('/:slug', async (c) => {
     }
 
     const listSql = hasQueryParams
-        ? `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql} LIMIT ? OFFSET ?`
-        : `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql}`;
+        ? `SELECT id, schema_slug, slug, status, data, CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft, created_at, updated_at FROM content_entries ${whereSql} ${orderSql} LIMIT ? OFFSET ?`
+        : `SELECT id, schema_slug, slug, status, data, CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft, created_at, updated_at FROM content_entries ${whereSql} ${orderSql}`;
 
     const listBindings = hasQueryParams
         ? [...whereBindings, limit, offset]
@@ -1342,7 +1298,7 @@ contentApp.get('/:slug/:id', async (c) => {
   try {
     const { DB } = c.env
     const row = await DB.prepare(
-      'SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND id = ?'
+      'SELECT id, schema_slug, slug, status, data, CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND id = ?'
     )
       .bind(slug, id)
       .first<ContentEntryRow>()

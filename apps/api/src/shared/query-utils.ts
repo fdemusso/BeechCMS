@@ -7,6 +7,8 @@ export interface ContentEntryRow {
   slug: string | null
   status: string
   data: string
+  /** Calcolato via `CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END`. Opzionale per costruzione manuale. */
+  has_pending_draft?: number
   created_at: number | null
   updated_at: number | null
 }
@@ -18,6 +20,8 @@ export interface ContentEntry {
   slug: string | null
   status: string
   data: Record<string, unknown>
+  /** True se esiste un draft pendente non ancora pubblicato. */
+  hasPendingDraft: boolean
   created_at: number | null
   updated_at: number | null
 }
@@ -391,6 +395,7 @@ export function rowToEntry(row: ContentEntryRow): ContentEntry {
     slug: row.slug ?? null,
     status: row.status ?? 'draft',
     data,
+    hasPendingDraft: (row.has_pending_draft ?? 0) === 1,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }

@@ -14,6 +14,7 @@ export const ARTICOLO_SEED: Seed = {
   labelPlural: 'Articoli',
   displayNameAlias: 'title',
   allowPublicRead: true,
+  allowDrafts: true,
   branches: [
     { id: 'art_01', alias: 'title', label: 'Titolo', type: 'text' },
     { id: 'art_02', alias: 'publishedAt', label: 'Data pubblicazione', type: 'date' },
@@ -98,6 +99,7 @@ export const PAGINA_SEED: Seed = {
   labelPlural: 'Pagine',
   displayNameAlias: 'title',
   allowPublicRead: true,
+  allowDrafts: true,
   branches: [
     { id: 'pag_01', alias: 'title', label: 'Titolo', type: 'text' },
     { id: 'pag_02', alias: 'coverImage', label: 'Immagine hero', type: 'file' },

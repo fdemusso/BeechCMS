@@ -16,6 +16,7 @@ Every design decision documented here is grounded in the source code and explici
 6. [Cloudflare D1 — SQLite at the Edge](#6-cloudflare-d1--sqlite-at-the-edge)
 7. [Vertical Slice Architecture — Current State & Migration Path](#7-vertical-slice-architecture--current-state--migration-path)
 8. [Dependency Rules](#8-dependency-rules)
+9. [Pending Draft Workflow](#9-pending-draft-workflow)
 
 ---
 
@@ -270,6 +271,165 @@ Every feature **must** expose a public API. Direct imports of internal feature f
 }
 
 ```
+
+---
+
+---
+
+## 9. Pending Draft Workflow
+
+### Overview
+
+The pending draft system allows editorial content types to maintain a **separate draft** on top of a live (published) entry. The live content in `data` is never touched until the draft is explicitly published.
+
+This feature is opt-in per seed via the `allowDrafts` flag in `@beech/core`:
+
+```typescript
+// packages/core/src/seeds.ts
+export const ARTICOLO_SEED: Seed = {
+  slug: 'articoli',
+  allowDrafts: true,  // ← enables draft endpoints for this type
+  // ...
+}
+```
+
+Seeds without `allowDrafts: true` (e.g. `messaggi`, `clienti`) return `405 Method Not Allowed` on draft endpoints — they have no concept of editorial workflow.
+
+### Storage
+
+A single nullable column `draft_data TEXT` sits alongside `data` in `content_entries` (migration `0018_draft_data.sql`). It stores the same JSON-with-Botanical-IDs format as `data`.
+
+```
+draft_data IS NULL     → no pending draft
+draft_data IS NOT NULL → pending draft exists
+```
+
+The `CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft` expression is projected in all list and detail SELECT queries so that `ContentEntry.hasPendingDraft` is always populated without transferring the full draft JSON in list views.
+
+### API Surface
+
+All draft endpoints are JWT-protected (internal API only — no public API exposure).
+
+| Method | Path | Description |
+|---|---|---|
+| `PUT` | `/api/content/:slug/:id/draft` | Create or overwrite the pending draft. Validates fields (relaxed: `enforceRequiredFields: false`). Blocks sensitive fields (`privacy !== 'plain'`). Botanical Engine applied on write. |
+| `GET` | `/api/content/:slug/:id/draft` | Read the pending draft. Returns `{ data: Record<string, unknown> }` with aliases (Botanical Engine applied on read). Visibility policy enforced. |
+| `POST` | `/api/content/:slug/:id/draft/publish` | Promote draft → live in a single atomic SQL statement (`SET data = draft_data, draft_data = NULL, status = 'published'`). |
+| `DELETE` | `/api/content/:slug/:id/draft` | Discard the pending draft (`SET draft_data = NULL`). Live content is unaffected. |
+
+### Data Flow
+
+```
+Editor saves changes
+       │
+       ▼
+PUT /:slug/:id/draft
+  validateAndSanitizeSeedPayload (operation=update, enforceRequired=false)
+  apiToDb → draft_data column (data column untouched)
+       │
+       ▼ (review / approval)
+POST /:slug/:id/draft/publish
+  UPDATE SET data = draft_data, draft_data = NULL, status = 'published'  ← atomic
+       │
+       ▼
+Live content updated, draft cleared
+```
+
+### Invariants
+
+- **`data` is never modified by draft endpoints.** Only `PUT /draft/publish` touches `data`.
+- **Botanical Engine applies identically to `draft_data`.** `apiToDb` on write, `dbToApi` on read — same as regular content.
+- **Sensitive fields (`privacy: 'hash'`) are blocked from drafts** — same guard as `PUT /:slug/:id`.
+- **`hasPendingDraft` in GET responses** is computed server-side via SQL expression, not by transferring `draft_data` in list queries.
+
+### Implementation Files
+
+| File | Role |
+|---|---|
+| `apps/api/migrations/0018_draft_data.sql` | Adds `draft_data TEXT` column |
+| `apps/api/src/features/draft/draft.handler.ts` | VSA slice with 4 route handlers |
+| `apps/api/src/features/draft/draft.test.ts` | Unit tests (20 cases) |
+| `apps/api/src/shared/apply-policies.ts` | Shared `applyPrivacy` / `applyVisibility` (extracted from `content.ts` for reuse) |
+| `packages/core/src/types.ts` | `Seed.allowDrafts?: boolean` |
+| `packages/core/src/seeds.ts` | `allowDrafts: true` on `articoli`, `pagine` |
+
+---
+
+---
+
+## 10. Performance Layer
+
+### FTS5 — Application-Layer Sync
+
+La sincronizzazione della virtual table `content_fts` era originariamente gestita da tre trigger SQL (`fts_after_insert`, `fts_after_update`, `fts_after_delete`) che hardcodavano i branch ID degli attuali seed di esempio (`art_01`, `prd_01`, …). Questi trigger rompevano silenziosamente l'indicizzazione per qualsiasi seed con ID diversi.
+
+I trigger sono stati rimossi (migration `0019`). La sincronizzazione avviene ora a livello applicativo in `apps/api/src/shared/fts-sync.ts`:
+
+```typescript
+// Usato da content.ts (create/update/delete) e draft.handler.ts (publish)
+import { syncFts, deleteFts } from './shared/fts-sync'
+
+syncFts(db, entryId, schemaSlug, seed, dbPayload, status)
+  .catch(err => console.warn('[FTS] sync failed:', err))
+```
+
+`syncFts` usa il Botanical Engine (`dbToApi`) e le policy del seed (`resolvePolicies`) per estrarre i campi da indicizzare in modo generico — funziona per qualsiasi seed definito dal developer. L'estrazione è:
+
+| Slot FTS | Logica di risoluzione |
+|---|---|
+| `title` | `apiData[seed.displayNameAlias]` |
+| `body` | Primo branch `richtext` o `text` diverso dal `displayNameAlias`; testo estratto ricorsivamente dal JSON TipTap |
+| `tags` | Primo branch `json` il cui alias contiene `"tag"` |
+
+Le chiamate a `syncFts`/`deleteFts` sono fire-and-forget (`.catch()` silenzioso): un fallimento FTS non blocca mai l'operazione principale.
+
+### Indici Compositi su `content_entries` (migration `0020`)
+
+Il pattern di query più frequente — `WHERE schema_slug = ? AND status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?` — era coperto solo da un indice su `schema_slug`. Tre indici compositi ottimizzano i casi principali:
+
+```sql
+-- Lista filtrata per status + ordinamento
+CREATE INDEX idx_ce_slug_status_created ON content_entries(schema_slug, status, created_at DESC);
+
+-- Widget "modificati di recente"
+CREATE INDEX idx_ce_slug_updated ON content_entries(schema_slug, updated_at DESC);
+
+-- Filtro bozze pendenti (partial index)
+CREATE INDEX idx_ce_draft_pending ON content_entries(schema_slug) WHERE draft_data IS NOT NULL;
+```
+
+### Media Library — Tabella `media_objects` (migration `0021`)
+
+Ogni file caricato su R2 viene ora tracciato in `media_objects (key, filename, mime_type, size_bytes, uploaded_by, created_at)`. Le operazioni di INSERT/DELETE avvengono in `upload.ts` tramite `waitUntil` (asincrono, non bloccante). Questa tabella abilita:
+- Media library UI (lista file con owner e dimensione)
+- Rilevamento orfani (file non referenziati in alcuna entry)
+- Utilizzo storage per utente (`WHERE uploaded_by = ?`)
+- Fonte canonica per il totale storage: `SELECT SUM(size_bytes) FROM media_objects`
+
+### Analytics per Seed (migration `0022`)
+
+La tabella `analytics` è stata ricreata con una colonna `seed TEXT NOT NULL DEFAULT ''`. La stringa vuota è il sentinel per le metriche globali (usare NULL avrebbe rotto l'upsert `ON CONFLICT` per le proprietà di unicità di SQLite sui NULL).
+
+Il middleware in `index.ts` estrae il seed dalla URL (`/api/v1/public/:seed`) e lo registra nella colonna. Le query dei widget globali filtrano con `AND seed = ''`.
+
+### Worker Cache API per Public Reads
+
+Le GET su `/api/v1/public/:seed` sono ora messe in cache via `caches.default` con TTL 60 secondi. Il pattern:
+
+```typescript
+// Check cache prima di toccare D1
+const hit = await caches.default.match(c.req.raw)
+if (hit) return hit
+
+// ... esegui query D1 ...
+
+// Cache asincrona via waitUntil
+c.executionCtx.waitUntil(
+  caches.default.put(cacheKey, cachedResponse)
+)
+```
+
+Solo le risposte 200 vengono messe in cache. Errori (404, 403, 500) non sono mai cachati. Cache key = URL completo inclusi query params — query diverse producono entry separate.
 
 ---
 

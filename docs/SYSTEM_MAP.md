@@ -56,9 +56,9 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Database**: Cloudflare D1 (SQLite edge)
   - **Object Storage**: Cloudflare R2 via S3 API
   - **Data Model:**
-    - Single table `content_entries` with SQL metadata and a JSON `data` column (see `nuovidocs/architecture.md` §5).
+    - Single table `content_entries` with SQL metadata and a JSON `data` column (see `nuovidocs/architecture.md` §5). Composite indexes on `(schema_slug, status, created_at)` and `(schema_slug, updated_at)` optimise filtered list queries.
     - Authentication tables: `users`, `refresh_tokens` (see `nuovidocs/api-reference.md` §2).
-    - System tables: `analytics`, `system_stats` for edge performance and R2 storage tracking.
+    - System tables: `analytics` (daily request metrics with per-seed dimension), `system_stats` (R2 storage counter), `media_objects` (media library — tracks every file uploaded to R2), `activity_logs`, `notifications`, `public_idempotency_keys`.
 
 - **Architecture & Tooling**
   - Monorepo **Turborepo** (`turbo` `^2.8.7`) with **npm workspaces**
@@ -95,11 +95,12 @@ beech-cms/
   - Uses Cloudflare D1 for persistence (migrated via `db:migrate:local`).
   - Uses Cloudflare R2 for binary files, storing only URLs in `data`.
 - **Important files**
-  - `apps/api/src/index.ts` — app entry, CORS, auth routes, analytics middleware.
+  - `apps/api/src/index.ts` — app entry, CORS, auth routes, analytics middleware (per-seed tracking).
   - `apps/api/src/content.ts` — universal CRUD content engine.
-  - `apps/api/src/upload.ts`, `apps/api/src/media-utils.ts` — R2 upload and cascade delete.
+  - `apps/api/src/upload.ts`, `apps/api/src/media-utils.ts` — R2 upload, cascade delete, `media_objects` tracking.
   - `apps/api/src/search.ts`, `apps/api/src/search-utils.ts` — FTS5 global search.
   - `apps/api/src/shared/query-utils.ts` — shared query building utilities.
+  - `apps/api/src/shared/fts-sync.ts` — FTS5 application-layer sync (`syncFts`, `deleteFts`). Sostituisce i trigger SQL hardcoded con logica generica via Botanical Engine.
 
 ### `apps/dashboard` – Schema-driven React Dashboard
 
@@ -143,13 +144,14 @@ beech-cms/
   - **Facets (`GET /api/content/:slug/facets`):** computes distinct `status` values and tag sets for toolbar filter UI.
 
 - **Media Engine (`/api/upload`, `/api/media/:key`)** — see `nuovidocs/api-reference.md` §5
-  - Upload: `POST /api/upload` multipart → validate MIME/size → `PutObjectCommand` → R2 → increment `system_stats` counter in D1 → return URL.
+  - Upload: `POST /api/upload` multipart → validate MIME/size → `PutObjectCommand` → R2 → increment `system_stats` + INSERT `media_objects` in D1 (via `waitUntil`) → return URL.
   - Serve: `GET /api/media/:key` proxies from R2 with `Cache-Control: public, max-age=31536000, immutable`. Public route, no auth required.
-  - Cascade delete: `DELETE /api/content/:slug/:id` extracts R2 keys from `file`/`asset-list` fields and issues `DeleteObjectCommand` per key before the D1 delete.
+  - Cascade delete: `DELETE /api/content/:slug/:id` extracts R2 keys from `file`/`asset-list` fields, issues `DeleteObjectCommand`, decrementa `system_stats` e rimuove da `media_objects`.
 
 - **Public API (`/api/v1/public/*`)** — see `nuovidocs/api-reference.md` §6
   - Three-level permission model: seed capability flags (`allowPublicRead/Post/Edit`) + split API keys (`PUBLIC_READ_API_KEY` / `PUBLIC_WRITE_API_KEY`) + published-only filter (`PUBLIC_PUBLISHED_ONLY`).
-  - Read endpoint: id lookup, filters, search, pagination, `latest`, field projections. Response is **flat** — content fields at the same level as `id`, `slug`, `status`.
+  - Read endpoint: id lookup, filters, search, pagination, `latest`, field projections. Response è **flat** — content fields at the same level as `id`, `slug`, `status`.
+  - **Worker Cache API**: le GET su `/api/v1/public/:seed` vengono messe in cache con TTL 60 secondi via `caches.default` e `waitUntil`. Zero query D1 su cache hit.
   - Write endpoints: fail-closed validation, slug uniqueness, idempotency via `Idempotency-Key`, prepared statements.
   - Dedicated rate limiters: `PUBLIC_READ_RATE_LIMITER`, `PUBLIC_WRITE_RATE_LIMITER`.
   - All errors: RFC 7807 Problem Details (`application/problem+json`).
@@ -162,8 +164,8 @@ beech-cms/
   - `ContentToolbar` drives filters, sort, search, grouping, and view switching. Filter columns are derived from `Seed.branches` at runtime via `useToolbarFilters`.
 
 - **Edge Analytics & Stats**
-  - **Request Tracking**: middleware in `apps/api/src/index.ts` captures API hits and stores daily aggregates in `analytics` via `c.executionCtx.waitUntil` (zero-latency).
-  - **Storage Monitoring**: `system_stats` counter incremented on upload, decremented on delete, resyncable via `POST /api/content/stats/storage/sync`.
+  - **Request Tracking**: middleware in `apps/api/src/index.ts` captures API hits via `c.executionCtx.waitUntil` (zero-latency). La tabella `analytics` ha una colonna `seed` (stringa vuota = globale, `'articoli'` = per-seed). I widget globali filtrano con `seed = ''`.
+  - **Storage Monitoring**: `system_stats` counter incremented on upload, decremented on delete, resyncable via `POST /api/content/stats/storage/sync`. La fonte canonica per la media library è `media_objects` (`SUM(size_bytes)`).
   - **Cockpit Dashboard**: bento grid widgets for total contents, visitors, requests, and R2 storage — driven by TanStack Query with 5-minute `staleTime`.
 
 ---

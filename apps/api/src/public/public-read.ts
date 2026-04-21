@@ -85,6 +85,23 @@ function toFlatPublicEntry(
   return { ...base, ...filteredData }
 }
 
+function withCache(
+  cache: Cache | undefined,
+  executionCtx: { waitUntil: (p: Promise<unknown>) => void } | undefined,
+  cacheKey: Request,
+  response: Response
+): Response {
+  if (cache && executionCtx) {
+    const cloned = response.clone()
+    const headers = new Headers(cloned.headers)
+    headers.set('Cache-Control', 'public, max-age=60')
+    executionCtx.waitUntil(
+      cache.put(cacheKey, new Response(cloned.body, { status: cloned.status, headers }))
+    )
+  }
+  return response
+}
+
 function buildInternalErrorMessage(c: Context<{ Bindings: Bindings; Variables: Variables }>, err: unknown): string {
   if (c.env.ENV !== 'production' && err instanceof Error) {
     return err.message
@@ -132,6 +149,20 @@ export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variabl
     })
   }
 
+  // Cache setup: lettura da Worker Cache API prima di toccare D1
+  let cache: Cache | undefined
+  let executionCtx: { waitUntil: (p: Promise<unknown>) => void } | undefined
+  try {
+    cache = caches.default
+    executionCtx = c.executionCtx as typeof executionCtx
+  } catch {}
+
+  const cacheKey = c.req.raw
+  if (cache) {
+    const hit = await cache.match(cacheKey)
+    if (hit) return hit
+  }
+
   const query = c.req.query()
   const id = cleanStr(query.id)
   const publishedOnly = c.env.PUBLIC_PUBLISHED_ONLY !== 'false'
@@ -158,12 +189,11 @@ export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variabl
         })
       }
 
-      return c.json(
-        {
-          data: toFlatPublicEntry(row, seed, query.fields),
-          meta: buildPublicSingleMeta(seedSlug),
-        },
-        200
+      return withCache(
+        cache,
+        executionCtx,
+        cacheKey,
+        c.json({ data: toFlatPublicEntry(row, seed, query.fields), meta: buildPublicSingleMeta(seedSlug) }, 200)
       )
     }
 
@@ -213,31 +243,31 @@ export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variabl
     const data = rows.map((row) => toFlatPublicEntry(row, seed, query.fields))
 
     if (latestMode) {
-      return c.json(
-        {
-          data,
-          meta: {
-            total,
-            returned: data.length,
-            seed: seedSlug,
-          },
-        },
-        200
+      return withCache(
+        cache,
+        executionCtx,
+        cacheKey,
+        c.json({ data, meta: { total, returned: data.length, seed: seedSlug } }, 200)
       )
     }
 
-    return c.json(
-      {
-        data,
-        meta: buildPublicListMeta({
-          total,
-          page: pagination.page,
-          limit: effectiveLimit,
-          returned: data.length,
-          seed: seedSlug,
-        }),
-      },
-      200
+    return withCache(
+      cache,
+      executionCtx,
+      cacheKey,
+      c.json(
+        {
+          data,
+          meta: buildPublicListMeta({
+            total,
+            page: pagination.page,
+            limit: effectiveLimit,
+            returned: data.length,
+            seed: seedSlug,
+          }),
+        },
+        200
+      )
     )
   } catch (err) {
     if (err instanceof Error && err.message.startsWith('Invalid filter:')) {
