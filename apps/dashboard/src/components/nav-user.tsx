@@ -1,6 +1,7 @@
 "use client"
 
 import { BadgeCheck, ChevronsUpDown, LogOut } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
 import {
   Avatar,
@@ -49,6 +50,7 @@ export function NavUser({
   onLogout,
 }: NavUserProps) {
   const { isMobile } = useSidebar()
+  const navigate = useNavigate()
   const initials = getInitials(user.name, user.email)
 
   return (
@@ -91,7 +93,7 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/settings')}>
                 <BadgeCheck />
                 Account
               </DropdownMenuItem>

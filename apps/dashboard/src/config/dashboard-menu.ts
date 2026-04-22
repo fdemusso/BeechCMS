@@ -46,12 +46,8 @@ export const STATIC_MENU: NavItem[] = [
   },
   {
     title: "Impostazioni",
-    url: "#",
+    url: "/settings",
     icon: Settings,
-    items: [
-      { title: "Generale", url: "#" },
-      { title: "Account", url: "#" },
-    ],
   },
 ]
 

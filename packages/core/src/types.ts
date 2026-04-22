@@ -23,12 +23,51 @@ export interface Branch {
   /** Tipo del valore */
   type: BranchType
   /**
+   * Variante semantica opzionale del campo per UI/validazione.
+   * Esempio: `asset-list` su `file` multiplo.
+   */
+  format?: 'plain' | 'markdown' | 'html' | 'date' | 'datetime' | 'asset-list'
+  /**
+   * Cardinalità opzionale per campi media:
+   * - false/undefined: singolo asset (string URL)
+   * - true: lista asset (string[] URL)
+   */
+  multiple?: boolean
+  /**
    * Vocabolario predefinito per campi tag/select/multiselect.
    * Lista statica definita nel Seed (non salvata nel DB, non richiede migrazioni).
    * Usata come suggerimenti in fase di creazione (FieldEdit) e come opzioni
    * nel dropdown dei filtri in ContentToolbar.
    */
   options?: string[]
+  /**
+   * Campo obbligatorio in creazione (operation=create).
+   * Se true, il payload deve includere un valore valido non nullo.
+   */
+  requiredOnCreate?: boolean
+  /**
+   * Campo obbligatorio in update (operation=update).
+   * Se true, il payload deve includere un valore valido non nullo.
+   */
+  requiredOnUpdate?: boolean
+  /**
+   * Policy di accesso e trattamento del campo.
+   * Tutti i valori sono opzionali — `resolvePolicies(branch)` fornisce i default.
+   */
+  policies?: {
+    /** Come il valore viene memorizzato. Default: 'plain' */
+    privacy?: 'plain' | 'hash' | 'encrypt'
+    /** Come il valore viene restituito nelle risposte API. Default: 'full' */
+    visibility?: 'full' | 'masked' | 'hidden'
+    /** Il campo è incluso nelle query di ricerca full-text. Default: true */
+    search?: boolean
+    /** Il campo è disponibile come colonna di filtro nella dashboard. Default: true */
+    filter?: boolean
+    /** Il campo è disponibile come colonna di ordinamento nella dashboard. Default: true */
+    sort?: boolean
+    /** Il campo è incluso nelle risposte della Public API. Default: true */
+    public?: boolean
+  }
 }
 
 /** Seed: definizione dello schema di un tipo di contenuto */
@@ -39,6 +78,30 @@ export interface Seed {
   label: string
   /** Etichetta plurale per la UI (es. "Progetti", "Articoli Blog"). Se assente si usa `label`. */
   labelPlural?: string
+  /** Abilita lettura dalla Public API (`GET /api/v1/public/:seed`). Default: false */
+  allowPublicRead?: boolean
+  /** Abilita creazione dalla Public API (`POST /api/v1/public/:seed/add`). Default: false */
+  allowPublicPost?: boolean
+  /** Abilita modifica dalla Public API (`PUT /api/v1/public/:seed/edit/:id`). Default: false */
+  allowPublicEdit?: boolean
+  /**
+   * Abilita la feature "bozza in attesa" per questo seed.
+   * Quando true, le entry supportano un draft pendente separato dal contenuto live:
+   * - `PUT  /api/content/:slug/:id/draft`         → salva bozza in draft_data
+   * - `GET  /api/content/:slug/:id/draft`          → legge la bozza
+   * - `POST /api/content/:slug/:id/draft/publish`  → promuove bozza → live
+   * - `DELETE /api/content/:slug/:id/draft`        → scarta la bozza
+   * Il contenuto live in `data` rimane intatto finché la bozza non viene pubblicata.
+   * Default: false
+   */
+  allowDrafts?: boolean
+  /**
+   * Alias del branch usato come nome leggibile dell'entry (es. "title", "name", "author").
+   * **Obbligatorio.** Ogni seed deve dichiarare esplicitamente quale branch identifica
+   * l'entry in forma umana — senza questa informazione, le UI (QuickDraftWidget, gallery,
+   * titoli nelle liste) non hanno un riferimento affidabile al "nome" dell'elemento.
+   */
+  displayNameAlias: string
   /** Lista dei campi (Branch) */
   branches: Branch[]
 }

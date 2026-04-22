@@ -1,4 +1,5 @@
 import { useMemo } from "react"
+import { resolvePolicies } from "@beech/core"
 import type { Seed } from "@beech/core"
 
 interface SortState {
@@ -21,8 +22,10 @@ export function useToolbarSort({
 }: UseToolbarSortProps) {
   const sortableBranches = useMemo(
     () =>
-      seed.branches.filter((branch) =>
-        ["text", "number", "date"].includes(branch.type as string)
+      seed.branches.filter(
+        (branch) =>
+          ["text", "number", "date"].includes(branch.type as string) &&
+          resolvePolicies(branch).sort,
       ),
     [seed.branches]
   )

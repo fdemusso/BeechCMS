@@ -22,6 +22,8 @@ import {
 
 /** Lunghezza minima per troncamento celle (evita celle troppo corte) */
 const MIN_TRUNCATE_LENGTH = 20
+/** Tetto massimo per troncamento celle (evita colonne ingestibili con testi lunghi). */
+const MAX_TRUNCATE_LENGTH = 60
 
 /**
  * Interfaccia ContentEntry per tipizzazione.
@@ -168,7 +170,10 @@ function computeMaxStringLength(firstPage: ContentEntry[], alias: string): numbe
     const len = String(val).length
     if (len > max) max = len
   }
-  return Math.max(max, MIN_TRUNCATE_LENGTH)
+  return Math.min(
+    Math.max(max, MIN_TRUNCATE_LENGTH),
+    MAX_TRUNCATE_LENGTH
+  )
 }
 
 /**
@@ -201,7 +206,10 @@ function computeMaxJsonLength(
     if (str.length > max) max = str.length
   }
 
-  return Math.max(max, MIN_TRUNCATE_LENGTH)
+  return Math.min(
+    Math.max(max, MIN_TRUNCATE_LENGTH),
+    MAX_TRUNCATE_LENGTH
+  )
 }
 
 function computeMaxLengthForBranch(

@@ -82,6 +82,22 @@ describe("dynamic-columns - computeMaxLengths", () => {
     // tags: non viene aggiunta a result
     expect(max).not.toHaveProperty("tagsImages")
   })
+
+  it("applica un tetto massimo al troncamento per testi molto lunghi", () => {
+    const seed = makeSeed({
+      branches: [
+        { id: "b1", alias: "body", label: "Body", type: "text" as const },
+      ] as any,
+    })
+
+    const veryLong = "x".repeat(5000)
+    const data: ContentEntry[] = [
+      makeEntry("1", "items", { body: veryLong }),
+    ]
+
+    const max = computeMaxLengths(data, seed, 10)
+    expect(max.body).toBe(60)
+  })
 })
 
 describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {

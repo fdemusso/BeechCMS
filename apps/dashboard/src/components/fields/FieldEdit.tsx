@@ -1,13 +1,20 @@
+import { resolvePolicies } from "@beech/core"
 import { getEditComponent } from "./registry"
 import type { FieldEditProps } from "./types"
 
-/**
- * Entry point per l'edit dei campi.
- * Effettua il lookup nel registro in base a branch.type e renderizza
- * il sottomodulo corrispondente, oppure il componente default se il tipo non è registrato.
- */
 export function FieldEdit(props: FieldEditProps) {
   const { branch } = props
+  const { privacy } = resolvePolicies(branch)
+
+  if (privacy === 'hash' || privacy === 'encrypt') {
+    return (
+      <div className="flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-sm text-muted-foreground">
+        <span>••••••••</span>
+        <span className="text-xs">(campo sensibile — non modificabile)</span>
+      </div>
+    )
+  }
+
   const Component = getEditComponent(branch.type)
   return <Component {...props} />
 }

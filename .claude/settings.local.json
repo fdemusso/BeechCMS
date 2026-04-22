@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx wrangler *)",
+      "Bash(npm run *)",
+      "Bash(ps *)",
+      "Bash(kill 21423 *)",
+      "Bash(npx tsc *)",
+      "Bash(npx vitest *)",
+      "Bash(wrangler d1 *)",
+      "Bash(xargs grep *)"
+    ]
+  }
+}

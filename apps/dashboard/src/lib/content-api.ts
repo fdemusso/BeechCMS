@@ -105,3 +105,4 @@ export async function deleteContent(
   )
   return response.data
 }
+

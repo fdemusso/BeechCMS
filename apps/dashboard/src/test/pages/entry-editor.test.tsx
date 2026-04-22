@@ -29,6 +29,13 @@ const seedPosts = {
 
 vi.mock("@beech/core", () => ({
   getSeed: () => seedPosts,
+  slugify: (text: string) =>
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_-]+/g, "-")
+      .replace(/^-+|-+$/g, ""),
 }))
 
 vi.mock("@/lib/content-api", () => ({
@@ -124,7 +131,11 @@ describe("EntryEditorPage", () => {
       id: "42",
       slug: "entry-42",
       status: "draft",
-      data: { title: "Old", content: "<p>x</p>", metaData: "{\"a\":1}" },
+      data: {
+        title: "Old",
+        content: { type: "doc", content: [{ type: "paragraph" }] },
+        metaData: "{\"a\":1}",
+      },
     })
     mockUpdateContent.mockResolvedValueOnce({})
 

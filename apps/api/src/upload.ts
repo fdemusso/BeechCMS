@@ -8,9 +8,10 @@
  * @see docs/media-engine.md
  */
 /// <reference types="@cloudflare/workers-types" />
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
 import { Hono } from 'hono'
 import { authMiddleware } from './middleware'
+import { logActivity } from './shared/activity-logger'
 
 /** Variabili d'ambiente per upload e media (R2 via S3 API) */
 type UploadBindings = {
@@ -21,6 +22,7 @@ type UploadBindings = {
   R2_SECRET_ACCESS_KEY?: string
   R2_ENDPOINT?: string
   R2_BUCKET_NAME?: string
+  DB: D1Database
 }
 
 type Variables = {
@@ -73,7 +75,7 @@ function getMediaBaseUrl(c: { req: { url: string }; env: UploadBindings }): stri
 }
 
 /** Crea client S3 per R2 */
-function createR2Client(env: UploadBindings): S3Client {
+export function createR2Client(env: UploadBindings): S3Client {
   if (!env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY || !env.R2_ENDPOINT) {
     throw new Error('R2 credentials not configured')
   }
@@ -91,19 +93,12 @@ function createR2Client(env: UploadBindings): S3Client {
 /** Env minimale per delete R2 (solo R2_* e ENV) */
 export type R2DeleteEnv = Pick<
   UploadBindings,
-  'R2_ACCESS_KEY_ID' | 'R2_SECRET_ACCESS_KEY' | 'R2_ENDPOINT' | 'R2_BUCKET_NAME' | 'ENV'
+  'R2_ACCESS_KEY_ID' | 'R2_SECRET_ACCESS_KEY' | 'R2_ENDPOINT' | 'R2_BUCKET_NAME' | 'ENV' | 'DB'
 >
 
 /**
  * Elimina oggetti da R2 per le chiavi date.
- * Usato alla cancellazione entry per rimuovere i file associati.
- *
- * Comportamento:
- * - Se R2 non è configurato o objectKeys è vuoto, ritorna subito
- * - Errori di delete non bloccano: logga in dev e continua con le altre chiavi
- *
- * @param env - Bindings con credenziali R2 (opzionali)
- * @param objectKeys - Chiavi R2 da eliminare (es. "1739123456-avatar.png")
+ * Usato alla cancellazione entry per rimuovere i file associati da R2.
  */
 export async function deleteR2Objects(
   env: R2DeleteEnv,
@@ -122,12 +117,39 @@ export async function deleteR2Objects(
   const s3Client = createR2Client(env as UploadBindings)
   for (const objectKey of objectKeys) {
     try {
+      // Ottieni la dimensione prima della cancellazione per aggiornare il contatore
+      let fileSize = 0
+      try {
+        const head = await s3Client.send(
+          new HeadObjectCommand({
+            Bucket: env.R2_BUCKET_NAME,
+            Key: objectKey,
+          })
+        )
+        fileSize = head.ContentLength ?? 0
+      } catch (headErr) {
+        // Se il file non esiste già su R2, fileSize resta 0
+        if (env.ENV !== 'production') {
+          console.warn('R2 head failed for key (skip size update)', objectKey, headErr)
+        }
+      }
+
       await s3Client.send(
         new DeleteObjectCommand({
           Bucket: env.R2_BUCKET_NAME,
           Key: objectKey,
         })
       )
+
+      // Decrementa contatore storage in D1 se abbiamo trovato la dimensione
+      if (fileSize > 0) {
+        await env.DB.prepare(
+          "UPDATE system_stats SET value = MAX(0, CAST(value AS INTEGER) - ?) WHERE id = 'total_storage_bytes'"
+        ).bind(fileSize).run()
+      }
+
+      // Rimuovi dalla media library
+      await env.DB.prepare('DELETE FROM media_objects WHERE key = ?').bind(objectKey).run()
     } catch (err) {
       if (env.ENV !== 'production') {
         console.warn('R2 delete failed for key', objectKey, err)
@@ -190,8 +212,51 @@ uploadRoutes.post('/upload', async (c, next) => {
       })
     )
 
+    // Aggiorna contatore storage in D1
+    let executionCtx: { waitUntil: (p: Promise<any>) => void } | undefined
+    try {
+      executionCtx = c.executionCtx
+    } catch {
+      // In ambiente di test Hono lancia se non presente
+    }
+
+    const uploadedBy = c.var.jwtPayload?.sub ?? ''
+    if (executionCtx) {
+      executionCtx.waitUntil((async () => {
+        try {
+          await c.env.DB.prepare(
+            "UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes'"
+          ).bind(file.size).run()
+        } catch (err) {
+          console.error('Failed to update storage stats on upload:', err)
+        }
+        try {
+          await c.env.DB.prepare(
+            'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
+          ).bind(objectKey, file.name, file.type, file.size, uploadedBy).run()
+        } catch (err) {
+          console.error('Failed to track media_objects on upload:', err)
+        }
+      })())
+    } else {
+      // Fallback sync
+      c.env.DB.prepare(
+        "UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes'"
+      ).bind(file.size).run().catch(err => console.error('Failed to update storage stats on upload (sync fallback):', err))
+      c.env.DB.prepare(
+        'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
+      ).bind(objectKey, file.name, file.type, file.size, uploadedBy).run().catch(err => console.error('Failed to track media_objects (sync fallback):', err))
+    }
+
     const baseUrl = getMediaBaseUrl(c)
     const publicUrl = `${baseUrl}/api/media/${encodeURIComponent(objectKey)}`
+
+    logActivity(c, {
+      action: 'upload',
+      entityType: 'media',
+      entityId: objectKey,
+      details: { name: file.name, size: file.size, type: file.type }
+    })
 
     return c.json({ url: publicUrl }, 200)
   } catch (err) {
@@ -200,6 +265,17 @@ uploadRoutes.post('/upload', async (c, next) => {
     }
     return c.json({ error: 'Upload failed' }, 500)
   }
+})
+
+/** DELETE /upload/:key - Elimina un file da R2 */
+uploadRoutes.delete('/:key', async (c, next) => {
+  await authMiddleware(c.env.JWT_SECRET)(c, next)
+}, async (c) => {
+  const key = c.req.param('key')
+  if (!key) return c.json({ error: 'Missing key' }, 400)
+  
+  await deleteR2Objects(c.env, [decodeURIComponent(key)])
+  return c.json({ success: true }, 200)
 })
 
 /**

@@ -20,30 +20,15 @@ import {
 } from './auth/refresh'
 import { authMiddleware } from './middleware'
 import { contentRoutes } from './content'
+// TODO: refactor — rotate-field è una VSA slice. Il resto di index.ts (auth inline, content monolith)
+// va migrato a slices dedicati sotto src/features/ seguendo lo stesso pattern.
+import { rotateFieldApp } from './features/rotate-field'
+import { draftApp } from './features/draft'
+import { settingsApp } from './features/settings/settings.handler'
 import { uploadRoutes, serveMediaHandler } from './upload'
-
-// --- Tipi ---
-
-/** Bindings Cloudflare Workers: DB (D1), JWT_SECRET, R2 (S3 API), rate limiters, variabili env */
-type Bindings = {
-  DB: D1Database
-  JWT_SECRET: string
-  JWT_ISSUER?: string
-  JWT_AUDIENCE?: string
-  R2_ACCESS_KEY_ID?: string
-  R2_SECRET_ACCESS_KEY?: string
-  R2_ENDPOINT?: string
-  R2_BUCKET_NAME?: string
-  LOGIN_RATE_LIMITER?: RateLimit
-  REFRESH_RATE_LIMITER?: RateLimit
-  CORS_ORIGINS?: string
-  MEDIA_BASE_URL?: string
-  ENV?: string
-}
-
-type Variables = {
-  jwtPayload: { sub: string; email?: string }
-}
+import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
+import { searchRouter } from "./search"
+import type { Env, Variables } from './types'
 
 // --- Costanti e helper ---
 
@@ -85,7 +70,7 @@ function getRefreshTokenDeleteCookieOptions(secure: boolean) {
 
 /** Logga l'errore solo in sviluppo e restituisce risposta 500 generica */
 function handleAuthError(
-  c: Context<{ Bindings: Bindings; Variables: Variables }>,
+  c: Context<{ Bindings: Env; Variables: Variables }>,
   err: unknown,
   operationName: string
 ): Response {
@@ -97,7 +82,7 @@ function handleAuthError(
 
 // --- App ---
 
-const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // CORS: origins da CORS_ORIGINS (virgola-separati), default localhost per sviluppo
 app.use('*', async (c, next) => {
@@ -112,8 +97,8 @@ app.use('*', async (c, next) => {
       if (!origin) return origins[0] ?? null
       return origins.includes(origin) ? origin : null
     },
-    allowMethods: ['GET', 'POST', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
     credentials: true, // Necessario per httpOnly cookies
   })
   return corsMiddleware(c, next)
@@ -131,6 +116,49 @@ app.use('*', async (c, next) => {
 
 // Rota root di test
 app.get('/', (c) => c.text('Beech API is running!'))
+
+/** Estrae il seed slug dalle route pubbliche (/api/v1/public/:seed).
+ *  Restituisce '' per tutte le altre route (metrica globale). */
+function extractPublicSeed(path: string): string {
+  const match = path.match(/^\/api\/v1\/public\/([^/?]+)/)
+  return match ? match[1] : ''
+}
+
+// Middleware Analytics: traccia le richieste per la dashboard (Cloudflare-style metrics)
+app.use('/api/*', async (c, next) => {
+  await next()
+  
+  // Tracciamo solo richieste andate a buon fine (2xx) e non OPTIONS
+  if (c.req.method !== 'OPTIONS' && c.res.status >= 200 && c.res.status < 300) {
+    const db = c.env.DB
+    // Protezione per ambienti (es. test) dove executionCtx non è definito
+    let executionCtx: { waitUntil: (p: Promise<any>) => void } | undefined
+    try {
+      executionCtx = c.executionCtx
+    } catch {
+      // In ambiente di test Hono lancia se non presente
+    }
+
+    if (db && executionCtx) {
+      // Usa waitUntil per non bloccare la risposta al client
+      const seed = extractPublicSeed(c.req.path)
+      executionCtx.waitUntil((async () => {
+        try {
+          const today = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
+
+          // Incrementa contatore richieste: seed='' per route interne, seed='articoli' per public API
+          await db.prepare(
+            `INSERT INTO analytics (day_ts, metric, seed, value)
+             VALUES (?, 'requests', ?, 1)
+             ON CONFLICT(day_ts, metric, seed) DO UPDATE SET value = value + 1`
+          ).bind(today, seed).run()
+        } catch (err) {
+          console.error('Analytics middleware error:', err)
+        }
+      })())
+    }
+  }
+})
 
 // POST /auth/login: autenticazione con email e password + refresh token
 app.post('/auth/login', async (c) => {
@@ -172,11 +200,14 @@ app.post('/auth/login', async (c) => {
       return c.json({ error: AUTH_ERRORS.INVALID_CREDENTIALS }, 401)
     }
 
+    // Recupera name per includerlo nel JWT
+    const userProfile = await DB.prepare('SELECT name FROM users WHERE id = ? LIMIT 1').bind(user.id).first<{ name: string | null }>()
+
     // Genera access token (15min) e refresh token (7 giorni)
     const accessToken = await generateAccessToken(user.id, user.email, JWT_SECRET, {
       issuer: c.env.JWT_ISSUER,
       audience: c.env.JWT_AUDIENCE,
-    })
+    }, userProfile?.name ?? undefined)
     const refreshToken = generateRefreshToken()
 
     // Salva refresh token in DB (hashed)
@@ -223,8 +254,8 @@ app.post('/auth/refresh', async (c) => {
 
     // Ottieni info utente per generare nuovo access token
     const user = await DB.prepare(
-      'SELECT id, email FROM users WHERE id = ? LIMIT 1'
-    ).bind(validation.userId).first<{ id: string; email: string }>()
+      'SELECT id, email, name FROM users WHERE id = ? LIMIT 1'
+    ).bind(validation.userId).first<{ id: string; email: string; name: string | null }>()
 
     if (!user) {
       return c.json({ error: 'User not found' }, 401)
@@ -241,7 +272,7 @@ app.post('/auth/refresh', async (c) => {
     const newAccessToken = await generateAccessToken(user.id, user.email, JWT_SECRET, {
       issuer: c.env.JWT_ISSUER,
       audience: c.env.JWT_AUDIENCE,
-    })
+    }, user.name ?? undefined)
     const newRefreshToken = generateRefreshToken()
 
     // Salva nuovo refresh token in DB
@@ -278,19 +309,41 @@ app.post('/auth/logout', async (c) => {
   }
 })
 
+// API Settings: gestione profilo e preferenze utente, protetto da JWT
+const apiSettings = new Hono<{ Bindings: Env; Variables: Variables }>()
+apiSettings.use('*', async (c, next) => {
+  await authMiddleware(c.env.JWT_SECRET, {
+    issuer: c.env.JWT_ISSUER,
+    audience: c.env.JWT_AUDIENCE,
+  })(c, next)
+})
+apiSettings.route('/', settingsApp)
+app.route('/api/settings', apiSettings)
+
 // API Content: CRUD universale protetto da JWT
-const apiContent = new Hono<{ Bindings: Bindings; Variables: Variables }>()
+const apiContent = new Hono<{ Bindings: Env; Variables: Variables }>()
 apiContent.use('*', async (c, next) => {
   await authMiddleware(c.env.JWT_SECRET, {
     issuer: c.env.JWT_ISSUER,
     audience: c.env.JWT_AUDIENCE,
   })(c, next)
 })
+// Specific routes before wildcard content routes to avoid pattern conflicts
+apiContent.route('/', rotateFieldApp)
+apiContent.route('/', draftApp)
 apiContent.route('/', contentRoutes)
 app.route('/api/content', apiContent)
+app.route('/api/search', searchRouter)
 
 // API Upload: POST /api/upload (JWT) + GET /api/media/:key (pubblico)
 app.route('/api', uploadRoutes)
 app.get('/api/media/:key', (c) => serveMediaHandler(c))
+
+// API Pubblica: endpoint per consumatori esterni, protetti da API Key
+const apiPublic = new Hono<{ Bindings: Env; Variables: Variables }>()
+apiPublic.use('*', publicRateLimitMiddleware())
+apiPublic.use('*', apiKeyMiddleware())
+apiPublic.route('/', publicRoutes)
+app.route('/api/v1/public', apiPublic)
 
 export default app

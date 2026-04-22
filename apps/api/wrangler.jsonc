@@ -31,6 +31,16 @@
       "name": "REFRESH_RATE_LIMITER",
       "namespace_id": "1002",
       "simple": { "limit": 20, "period": 60 }
+    },
+    {
+      "name": "PUBLIC_READ_RATE_LIMITER",
+      "namespace_id": "1003",
+      "simple": { "limit": 120, "period": 60 }
+    },
+    {
+      "name": "PUBLIC_WRITE_RATE_LIMITER",
+      "namespace_id": "1004",
+      "simple": { "limit": 20, "period": 60 }
     }
   ],
 
@@ -39,6 +49,10 @@
   "vars": {
     "JWT_SECRET": "sviluppo-secret-cambiami",
     "CORS_ORIGINS": "http://localhost:5173,http://localhost:5174,https://dashboard.beech.local",
+    "PUBLIC_READ_API_KEY": "dev-public-read-key-changeme",
+    "PUBLIC_WRITE_API_KEY": "dev-public-write-key-changeme",
+    "PUBLIC_PUBLISHED_ONLY": "true",
+    "PUBLIC_IDEMPOTENCY_TTL_SECONDS": "86400",
     "MEDIA_BASE_URL": "http://localhost:5173",
     "ENV": "development"
   }

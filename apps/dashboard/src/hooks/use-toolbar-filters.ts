@@ -1,4 +1,5 @@
 import * as React from "react"
+import { resolvePolicies } from "@beech/core"
 import type { Seed } from "@beech/core"
 import type {
   FilterGroupType,
@@ -49,6 +50,7 @@ export function useToolbarFilters({
     ]
 
     for (const branch of seed.branches) {
+      if (!resolvePolicies(branch).filter) continue
       const alias = branch.alias
       if (branch.type === "number") {
         columns.push({ columnId: alias, label: branch.label, type: "number" })

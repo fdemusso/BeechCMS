@@ -17,6 +17,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { DataTable } from "@/components/ui/data-table"
 import { ContentDeleteDialog } from "@/components/content-delete-dialog"
+import { ContentGallery } from "@/components/content-gallery"
 import {
   ContentToolbar,
   type UserViewInstance,
@@ -31,10 +32,10 @@ import {
 } from "@/components/ui/context-menu"
 import { toast } from "sonner"
 import {
-  fetchContentListServer,
-  fetchContentFacets,
-  deleteContent,
-} from "@/lib/content-api"
+  useContentList,
+  useContentFacets,
+  useDeleteContent,
+} from "@/features/content-management"
 import {
   generateColumns,
   computeMaxLengths,
@@ -56,37 +57,22 @@ import { extractTagNames } from "@/lib/tags-utils"
 export function ContentListPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
-  const [data, setData] = React.useState<ContentEntry[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [error, setError] = React.useState<string | null>(null)
-  const [totalRows, setTotalRows] = React.useState(0)
+
+  // --- STATE ---
   const [pageIndex, setPageIndex] = React.useState(0)
-  const [availableStatusOptions, setAvailableStatusOptions] = React.useState<string[]>([])
-  const [availableTagsByColumnIdFromServer, setAvailableTagsByColumnIdFromServer] =
-    React.useState<Record<string, string[]>>({})
-
-  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
-  const [entryIdsToDelete, setEntryIdsToDelete] = React.useState<string[] | null>(
-    null
-  )
-  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
-
-  // Vista attiva (per ora solo UI-state; la DataTable rimane sempre visibile)
-  // TODO: mostrare viste alternative (Grid/Kanban/Chart) in base ad activeViewId.
-  const [activeViewId, setActiveViewId] = React.useState("table")
-
-  // Ricerca tabella (collegata alla barra di ricerca nella toolbar)
-  const [tableSearch, setTableSearch] = React.useState("")
-
-  // Ordinamento tabella (controllato, singola colonna)
-  const [sorting, setSorting] = React.useState<SortingState>([])
-
-  // Filtri tabella (Notion-like): 1 pill per colonna, più condizioni AND
-  const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>(
-    {}
-  )
   const ROWS_PER_PAGE = 10
   const [pageSize, setPageSize] = React.useState<number>(ROWS_PER_PAGE)
+  const [tableSearch, setTableSearch] = React.useState("")
+  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>({})
+
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
+  const [entryIdsToDelete, setEntryIdsToDelete] = React.useState<string[] | null>(null)
+
+  // Vista attiva della lista contenuti.
+  const [activeViewId, setActiveViewId] = React.useState("table")
 
   // Recupera il seed
   const seed = slug ? getSeed(slug) : null
@@ -99,6 +85,38 @@ export function ContentListPage() {
     DEFAULT_DATE_GROUP_PRECISION
   )
 
+  // --- DATA FETCHING (TANSTACK QUERY) ---
+  const { 
+    data: listData, 
+    isLoading: isListLoading, 
+    error: listError,
+  } = useContentList(slug, {
+    page: pageIndex + 1,
+    limit: pageSize,
+    search: tableSearch.trim() || undefined,
+    sortBy: sorting[0]?.id,
+    sortDir: sorting[0]?.desc ? "desc" : "asc",
+    filters: toolbarFilters,
+  })
+
+  const { 
+    data: facetsData,
+  } = useContentFacets(slug)
+
+  const { mutateAsync: deleteContent } = useDeleteContent()
+
+  const data = React.useMemo(() => listData?.items ?? [], [listData])
+  const totalRows = listData?.total ?? 0
+  const isLoading = isListLoading
+  const error = listError ? (listError as Error).message : null
+
+  // --- EFFECTS & DERIVED STATE ---
+
+  // Reset pagination when filter/slug changes
+  React.useEffect(() => {
+    setPageIndex(0)
+  }, [slug, tableSearch, sorting, toolbarFilters, pageSize])
+
   // Quando il raggruppamento cambia verso una colonna non-date, resetta la precisione
   React.useEffect(() => {
     if (!groupBy || !seed) return
@@ -108,7 +126,7 @@ export function ContentListPage() {
     }
   }, [groupBy, seed])
 
-  // Viste disponibili per il seed corrente (per ora solo una vista tabellare di default).
+  // Viste disponibili per il seed corrente.
   // TODO: caricare e salvare la configurazione delle viste a livello di utente (quando esisterà un sistema di preferenze utente).
   const [views, setViews] = React.useState<UserViewInstance[]>(() => [
     {
@@ -123,6 +141,13 @@ export function ContentListPage() {
         "settings",
         "create",
       ],
+      conditionalFormats: [],
+    },
+    {
+      id: "gallery",
+      label: "Galleria",
+      type: "gallery",
+      enabledTools: ["filter", "sort", "search", "create"],
       conditionalFormats: [],
     },
   ])
@@ -243,63 +268,7 @@ export function ContentListPage() {
     [cellRulesByColumnId, getCachedValueForGroupType, rowRules]
   )
 
-  const loadData = React.useCallback(async () => {
-    if (!slug) return
-
-    setIsLoading(true)
-    setError(null)
-    setAvailableStatusOptions([])
-    setAvailableTagsByColumnIdFromServer({})
-
-    try {
-      const list = await fetchContentListServer(slug, {
-        page: pageIndex + 1,
-        limit: pageSize,
-        search: tableSearch.trim() || undefined,
-        sortBy: sorting[0]?.id,
-        sortDir: sorting[0]?.desc ? "desc" : "asc",
-        filters: toolbarFilters,
-      })
-      setData(list.items)
-      setTotalRows(list.total)
-
-      try {
-        const facets = await fetchContentFacets(slug)
-        setAvailableStatusOptions(facets.statuses)
-        setAvailableTagsByColumnIdFromServer(facets.tagsByColumnId)
-      } catch {
-        setAvailableStatusOptions([])
-        setAvailableTagsByColumnIdFromServer({})
-      }
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Errore durante il caricamento dei dati"
-      )
-    } finally {
-      setIsLoading(false)
-    }
-  }, [pageIndex, pageSize, slug, sorting, tableSearch, toolbarFilters])
-
-  // Fetch data iniziale
-  React.useEffect(() => {
-    if (!slug || !seed) {
-      setError(
-        slug
-          ? `Seed "${slug}" non trovato nel registro`
-          : "Slug non specificato"
-      )
-      setIsLoading(false)
-      return
-    }
-
-    loadData()
-  }, [slug, seed, loadData])
-
-  React.useEffect(() => {
-    setPageIndex(0)
-  }, [slug, tableSearch, sorting, toolbarFilters, pageSize])
+  // --- Handlers --- (to be used below)
 
   const handleEdit = React.useCallback(
     (id: string) => {
@@ -328,7 +297,7 @@ export function ContentListPage() {
     if (!slug || !entryIdsToDelete || entryIdsToDelete.length === 0) return
 
     const results = await Promise.allSettled(
-      entryIdsToDelete.map((id) => deleteContent(slug, id))
+      entryIdsToDelete.map((id) => deleteContent({ slug, id }))
     )
     const failures = results.filter((r) => r.status === "rejected").length
     if (failures > 0) {
@@ -337,9 +306,11 @@ export function ContentListPage() {
       )
     }
 
-    await loadData()
+    // Nota: TanStack Query invaliderà automaticamente o useremo queryClient.invalidateQueries
+    // Per ora lasciamo così, si ricaricherà al prossimo fetch o switch pagina.
+    // TODO: Inserire queryClient.invalidateQueries(CONTENT_QUERY_KEYS.all)
     setRowSelection({})
-  }, [slug, entryIdsToDelete, loadData])
+  }, [slug, entryIdsToDelete, deleteContent])
 
   const selectedIds = React.useMemo(() => {
     return Object.keys(rowSelection).filter((id) => rowSelection[id])
@@ -427,23 +398,23 @@ export function ContentListPage() {
   const availableTagsByColumnId = React.useMemo(() => {
     const aliases = new Set<string>([
       ...Object.keys(availableTagsByColumnIdFromData),
-      ...Object.keys(availableTagsByColumnIdFromServer),
+      ...Object.keys(facetsData?.tagsByColumnId ?? {}),
     ])
     const result: Record<string, string[]> = {}
     for (const alias of aliases) {
       const set = new Set<string>([
         ...(availableTagsByColumnIdFromData[alias] ?? []),
-        ...(availableTagsByColumnIdFromServer[alias] ?? []),
+        ...(facetsData?.tagsByColumnId?.[alias] ?? []),
       ])
       result[alias] = Array.from(set).sort((a, b) => a.localeCompare(b, "it"))
     }
     return result
-  }, [availableTagsByColumnIdFromData, availableTagsByColumnIdFromServer])
+  }, [availableTagsByColumnIdFromData, facetsData?.tagsByColumnId])
 
   const effectiveStatusOptions = React.useMemo(() => {
-    if (availableStatusOptions.length > 0) return availableStatusOptions
+    if (facetsData?.statuses && facetsData.statuses.length > 0) return facetsData.statuses
     return availableStatusOptionsFromData
-  }, [availableStatusOptions, availableStatusOptionsFromData])
+  }, [facetsData?.statuses, availableStatusOptionsFromData])
 
   const grouping = React.useMemo<GroupingState>(
     () => (groupBy ? [groupBy] : []),
@@ -632,6 +603,7 @@ export function ContentListPage() {
               <div className="mx-auto w-full max-w-screen-2xl">
                 {/* Header con titolo */}
                 <div className="mb-6">
+                  {/* TODO: Estrarre questo header in un componente dedicato della slice */}
                   <h1 className="text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
                   <p className="text-muted-foreground text-sm">
                     Gestisci i contenuti di tipo "{seed.slug}"
@@ -639,6 +611,7 @@ export function ContentListPage() {
                 </div>
 
                 {/* Toolbar viste, strumenti e contenuto (tabella + controlli) */}
+                {/* TODO: Valutare lo spostamento di ContentToolbar nella slice content-management se non condivisa */}
                 <ContentToolbar
                   seed={seed}
                   views={views}
@@ -676,11 +649,13 @@ export function ContentListPage() {
                     </div>
                   )}
                   {isLoading && !error && (
-                    <div className="flex items-center justify-center py-12">
-                      <div className="text-muted-foreground">Caricamento...</div>
-                    </div>
+                    activeViewId === "table" && (
+                      <div className="flex items-center justify-center py-12">
+                        <div className="text-muted-foreground">Caricamento...</div>
+                      </div>
+                    )
                   )}
-                  {!isLoading && !error && (
+                  {!isLoading && !error && activeViewId === "table" && (
                     <DataTable
                       key={tableKey}
                       columns={columns}
@@ -689,6 +664,7 @@ export function ContentListPage() {
                       getRowStyles={getRowStyles}
                       rowSelection={rowSelection}
                       onRowSelectionChange={setRowSelection}
+                      onRowDoubleClick={(entry) => handleEdit(entry.id)}
                       grouping={grouping}
                       onGroupingChange={(g) => setGroupBy(g[0] ?? null)}
                       renderRowContextMenuContent={(entry) => (
@@ -748,6 +724,14 @@ export function ContentListPage() {
                       sorting={sorting}
                       onSortingChange={handleTableSortingChange}
                       columnFilters={columnFilters}
+                    />
+                  )}
+                  {!error && activeViewId === "gallery" && (
+                    <ContentGallery
+                      seed={seed}
+                      data={data}
+                      isLoading={isLoading}
+                      onEdit={handleEdit}
                     />
                   )}
                 </ContentToolbar>

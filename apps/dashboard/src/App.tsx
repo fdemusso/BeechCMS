@@ -1,13 +1,13 @@
 import { createBrowserRouter, RouterProvider, Navigate, Outlet } from "react-router-dom"
 import { LoginForm } from "@/components/login-form"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
 import { AUTH_TOKEN_KEY } from "@/lib/api"
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { ContentListPage } from "@/pages/content-list"
 import { EntryEditorPage } from "@/pages/entry-editor"
 import { TestFieldsPage } from "@/pages/test-fields"
 import { ErrorPage } from "@/pages/error-page"
+import { DashboardPage } from "@/features/dashboard"
+import { SettingsPage } from "@/features/settings"
+import { CommandPalette } from "@/features/command-palette"
 import "./App.css"
 
 function LoginPage() {
@@ -16,40 +16,6 @@ function LoginPage() {
       <div className="w-full max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl">
         <LoginForm />
       </div>
-    </div>
-  )
-}
-
-function DashboardPage() {
-  const hasToken =
-    typeof window !== "undefined" && localStorage.getItem(AUTH_TOKEN_KEY)
-  if (!hasToken) {
-    return <Navigate to="/login" replace />
-  }
-  return (
-    <div className="[--header-height:calc(--spacing(14))] overflow-x-hidden">
-      <SidebarProvider className="flex flex-col">
-        <SiteHeader />
-        <div className="flex flex-1">
-          <AppSidebar />
-          <SidebarInset className="min-w-0">
-            <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
-              <div className="mx-auto w-full max-w-screen-2xl">
-                <h1 className="text-2xl font-semibold">Dashboard</h1>
-                <p className="text-muted-foreground text-sm">
-                  Benvenuto in Beech CMS
-                </p>
-                <div className="grid auto-rows-min gap-4 md:grid-cols-3">
-                  <div className="bg-muted/50 aspect-video rounded-xl" />
-                  <div className="bg-muted/50 aspect-video rounded-xl" />
-                  <div className="bg-muted/50 aspect-video rounded-xl" />
-                </div>
-                <div className="bg-muted/50 min-h-[100vh] flex-1 rounded-xl md:min-h-min" />
-              </div>
-            </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
     </div>
   )
 }
@@ -63,9 +29,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function RootLayout() {
+  return (
+    <>
+      <CommandPalette />
+      <Outlet />
+    </>
+  )
+}
+
 const router = createBrowserRouter([
   {
-    element: <Outlet />,
+    element: <RootLayout />,
     errorElement: <ErrorPage />,
     children: [
       {
@@ -74,7 +49,11 @@ const router = createBrowserRouter([
       },
       {
         path: "/",
-        element: <DashboardPage />,
+        element: (
+          <ProtectedRoute>
+            <DashboardPage />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "/content/:slug/create",
@@ -97,6 +76,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ContentListPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/settings",
+        element: (
+          <ProtectedRoute>
+            <SettingsPage />
           </ProtectedRoute>
         ),
       },

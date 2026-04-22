@@ -104,16 +104,19 @@ export async function revokeRefreshToken(
 
 /**
  * Genera JWT access token con scadenza breve (15 min).
- * Payload: sub (userId), email. Algoritmo HS256.
+ * Payload: sub (userId), email, name (opzionale). Algoritmo HS256.
  */
 export async function generateAccessToken(
   userId: string,
   email: string,
   secret: string,
-  options: JwtTokenOptions = {}
+  options: JwtTokenOptions = {},
+  name?: string
 ): Promise<string> {
+  const payload: Record<string, string> = { email }
+  if (name) payload.name = name
   const secretBytes = new TextEncoder().encode(secret)
-  let jwt = new SignJWT({ email })
+  let jwt = new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256', typ: 'JWT' })
     .setSubject(userId)
     .setIssuedAt()
