@@ -1218,35 +1218,33 @@ contentApp.get('/:slug', async (c) => {
     const sortBy = cleanStr(query.sortBy) ?? '';
     const sortDirRaw = cleanStr(query.sortDir)?.toLowerCase() ?? 'asc';
     const filters = parseQueryFilters(query.filters);
+    const hasPendingDraftFilter = query.has_pending_draft === '1' || query.has_pending_draft === 'true';
 
     const page = parsePositiveInt(query.page, 1);
     const limit = Math.min(parsePositiveInt(query.limit, 25), 100);
     const offset = (page - 1) * limit;
 
-    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || query.page !== undefined || query.limit !== undefined;
+    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || query.page !== undefined || query.limit !== undefined || hasPendingDraftFilter;
 
     const { whereSql, whereBindings } = buildWhereClause(slug, search, filters, seed);
+    const pendingDraftSuffix = hasPendingDraftFilter ? ' AND draft_data IS NOT NULL' : '';
+    const effectiveWhereSql = whereSql + pendingDraftSuffix;
     const orderSql = buildOrderClause(sortBy, sortDirRaw, seed);
-
-    console.log(`[API] Content Search for ${slug}:`, { search, filters, whereSql, whereBindings });
 
     let total = 0;
     if (hasQueryParams) {
-      const countSql = `SELECT COUNT(*) as total FROM content_entries ${whereSql}`;
-      console.log(`[API] Count Query for ${slug}:`, countSql);
+      const countSql = `SELECT COUNT(*) as total FROM content_entries ${effectiveWhereSql}`;
       const countRow = await DB.prepare(countSql).bind(...whereBindings).first<{ total: number }>();
       total = countRow?.total ?? 0;
     }
 
     const listSql = hasQueryParams
-        ? `SELECT id, schema_slug, slug, status, data, CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft, created_at, updated_at FROM content_entries ${whereSql} ${orderSql} LIMIT ? OFFSET ?`
-        : `SELECT id, schema_slug, slug, status, data, CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft, created_at, updated_at FROM content_entries ${whereSql} ${orderSql}`;
+        ? `SELECT id, schema_slug, slug, status, data, CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft, created_at, updated_at FROM content_entries ${effectiveWhereSql} ${orderSql} LIMIT ? OFFSET ?`
+        : `SELECT id, schema_slug, slug, status, data, CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft, created_at, updated_at FROM content_entries ${effectiveWhereSql} ${orderSql}`;
 
     const listBindings = hasQueryParams
         ? [...whereBindings, limit, offset]
         : whereBindings;
-
-    console.log(`[API] List Query for ${slug}:`, { listSql, listBindings });
 
     const result = await DB.prepare(listSql).bind(...listBindings).all<ContentEntryRow>();
 

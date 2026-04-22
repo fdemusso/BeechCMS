@@ -24,6 +24,7 @@ import { contentRoutes } from './content'
 // va migrato a slices dedicati sotto src/features/ seguendo lo stesso pattern.
 import { rotateFieldApp } from './features/rotate-field'
 import { draftApp } from './features/draft'
+import { settingsApp } from './features/settings/settings.handler'
 import { uploadRoutes, serveMediaHandler } from './upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
 import { searchRouter } from "./search"
@@ -96,7 +97,7 @@ app.use('*', async (c, next) => {
       if (!origin) return origins[0] ?? null
       return origins.includes(origin) ? origin : null
     },
-    allowMethods: ['GET', 'POST', 'PUT', 'OPTIONS'],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
     credentials: true, // Necessario per httpOnly cookies
   })
@@ -199,11 +200,14 @@ app.post('/auth/login', async (c) => {
       return c.json({ error: AUTH_ERRORS.INVALID_CREDENTIALS }, 401)
     }
 
+    // Recupera name per includerlo nel JWT
+    const userProfile = await DB.prepare('SELECT name FROM users WHERE id = ? LIMIT 1').bind(user.id).first<{ name: string | null }>()
+
     // Genera access token (15min) e refresh token (7 giorni)
     const accessToken = await generateAccessToken(user.id, user.email, JWT_SECRET, {
       issuer: c.env.JWT_ISSUER,
       audience: c.env.JWT_AUDIENCE,
-    })
+    }, userProfile?.name ?? undefined)
     const refreshToken = generateRefreshToken()
 
     // Salva refresh token in DB (hashed)
@@ -250,8 +254,8 @@ app.post('/auth/refresh', async (c) => {
 
     // Ottieni info utente per generare nuovo access token
     const user = await DB.prepare(
-      'SELECT id, email FROM users WHERE id = ? LIMIT 1'
-    ).bind(validation.userId).first<{ id: string; email: string }>()
+      'SELECT id, email, name FROM users WHERE id = ? LIMIT 1'
+    ).bind(validation.userId).first<{ id: string; email: string; name: string | null }>()
 
     if (!user) {
       return c.json({ error: 'User not found' }, 401)
@@ -268,7 +272,7 @@ app.post('/auth/refresh', async (c) => {
     const newAccessToken = await generateAccessToken(user.id, user.email, JWT_SECRET, {
       issuer: c.env.JWT_ISSUER,
       audience: c.env.JWT_AUDIENCE,
-    })
+    }, user.name ?? undefined)
     const newRefreshToken = generateRefreshToken()
 
     // Salva nuovo refresh token in DB
@@ -304,6 +308,17 @@ app.post('/auth/logout', async (c) => {
     return handleAuthError(c, err, 'Logout')
   }
 })
+
+// API Settings: gestione profilo e preferenze utente, protetto da JWT
+const apiSettings = new Hono<{ Bindings: Env; Variables: Variables }>()
+apiSettings.use('*', async (c, next) => {
+  await authMiddleware(c.env.JWT_SECRET, {
+    issuer: c.env.JWT_ISSUER,
+    audience: c.env.JWT_AUDIENCE,
+  })(c, next)
+})
+apiSettings.route('/', settingsApp)
+app.route('/api/settings', apiSettings)
 
 // API Content: CRUD universale protetto da JWT
 const apiContent = new Hono<{ Bindings: Env; Variables: Variables }>()

@@ -57,6 +57,8 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Object Storage**: Cloudflare R2 via S3 API
   - **Data Model:**
     - Single table `content_entries` with SQL metadata and a JSON `data` column (see `nuovidocs/architecture.md` §5). Composite indexes on `(schema_slug, status, created_at)` and `(schema_slug, updated_at)` optimise filtered list queries.
+    - Colonne di sistema rilevanti su `content_entries`: `status` (`draft | review | published`), `data` (JSON con branch ID), `draft_data` (JSON overlay per bozze pendenti — `NULL` se assente), `slug`, `created_at`, `updated_at`. Queste colonne sono gestite dall'API e non sono definibili nei Seed.
+    - **Bozze pendenti:** se un Seed ha `allowDrafts: true`, le entry supportano un overlay `draft_data` separato dal contenuto vivo `data`. La promozione è atomica (`data = draft_data, draft_data = NULL`). Vedere `nuovidocs/api-reference.md` §4.6 per gli endpoint e il ciclo di vita completo.
     - Authentication tables: `users`, `refresh_tokens` (see `nuovidocs/api-reference.md` §2).
     - System tables: `analytics` (daily request metrics with per-seed dimension), `system_stats` (R2 storage counter), `media_objects` (media library — tracks every file uploaded to R2), `activity_logs`, `notifications`, `public_idempotency_keys`.
 
@@ -177,6 +179,7 @@ beech-cms/
   - **Must not** access `data` directly via hard-coded aliases or DB column names (`br_xxx`).
   - **Must** declare `displayNameAlias` on every `Seed` — points to the alias of the branch used as the human-readable identifier of an entry (e.g., `"title"`, `"name"`, `"author"`). UI components read this field instead of relying on heuristics or hard-coded aliases.
   - **Branch policies** (`privacy`, `visibility`, `search`, `filter`, `sort`, `public`) must be enforced via `resolvePolicies` from `@beech/core` — never inline-checked with `branch.policies?.x ?? default`.
+  - **Pending drafts** are opt-in per content type: set `allowDrafts: true` on the Seed to enable the `/draft` endpoint family. `status` and `draft_data` are system columns — they cannot be defined as Seed branches. Filtering by `status` is not supported as a query parameter on the list endpoint; use `has_pending_draft=1` to retrieve entries with a pending overlay.
 
 - **Monorepo & shared code**
   - **Must** place shared logic and types in `@beech/core` and consume them from both apps.

@@ -38,7 +38,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
     queryKey: ["widget", "pending-drafts", seedSlug],
     queryFn: async (): Promise<ContentEntry[]> => {
       const res = await api.get<ContentListResponse | ContentEntry[]>(`/content/${seedSlug}`, {
-        params: { status: "draft", limit: 10 },
+        params: { has_pending_draft: 1, limit: 10 },
       })
       const d = res.data
       return Array.isArray(d) ? d : d.items
@@ -48,7 +48,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
 
   const publishMutation = useMutation({
     mutationFn: async (id: string) => {
-      await api.put(`/content/${seedSlug}/${id}`, { status: "published" })
+      await api.post(`/content/${seedSlug}/${id}/draft/publish`)
       return id
     },
     onSuccess: () => {

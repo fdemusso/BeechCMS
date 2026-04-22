@@ -6,6 +6,7 @@ import { EntryEditorPage } from "@/pages/entry-editor"
 import { TestFieldsPage } from "@/pages/test-fields"
 import { ErrorPage } from "@/pages/error-page"
 import { DashboardPage } from "@/features/dashboard"
+import { SettingsPage } from "@/features/settings"
 import { CommandPalette } from "@/features/command-palette"
 import "./App.css"
 
@@ -75,6 +76,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ContentListPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/settings",
+        element: (
+          <ProtectedRoute>
+            <SettingsPage />
           </ProtectedRoute>
         ),
       },

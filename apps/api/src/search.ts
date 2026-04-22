@@ -34,8 +34,6 @@ searchRouter.get("/", async (c) => {
     return c.json({ error: "Il parametro 'q' deve avere almeno 2 caratteri." }, 400)
   }
 
-  console.log("[API] Global Search triggered:", { q, schemaSlug, status, cursor });
-
   let queryParts: ReturnType<typeof buildFtsQuery>
   try {
     queryParts = buildFtsQuery({ q, schemaSlug, status, limit, cursor })
@@ -48,7 +46,6 @@ searchRouter.get("/", async (c) => {
   }
 
   const { sql, binds, countSql, countBinds } = queryParts
-  console.log("[API] Global Search SQL:", { sql, binds });
 
   // Due query in parallelo — FTS + COUNT
   const [ftsResult, countResult] = await Promise.all([
@@ -58,7 +55,6 @@ searchRouter.get("/", async (c) => {
 
   const rows  = ftsResult.results ?? []
   const total = countResult?.total ?? 0
-  console.log("[API] Global Search Results:", { rowCount: rows.length, total });
 
   // hasMore: abbiamo fetchato limit+1 righe
   const hasMore  = rows.length > limit

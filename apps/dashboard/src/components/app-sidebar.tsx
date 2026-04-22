@@ -6,6 +6,7 @@ import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import { STATIC_MENU, CONTENT_MENU, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
 import { getStoredUser, logout } from "@/lib/api"
+import { useProfile } from "@/features/settings"
 import {
   Sidebar,
   SidebarContent,
@@ -19,9 +20,12 @@ import {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const storedUser = getStoredUser()
-  const user = storedUser
-    ? { name: storedUser.name ?? "Admin", email: storedUser.email, avatar: undefined as string | undefined }
-    : { name: "Admin", email: "", avatar: undefined as string | undefined }
+  const { data: profile } = useProfile()
+  const user = {
+    name: profile?.name ?? storedUser?.name ?? "Admin",
+    email: profile?.email ?? storedUser?.email ?? "",
+    avatar: profile?.avatarUrl ?? undefined,
+  }
 
   return (
     <Sidebar

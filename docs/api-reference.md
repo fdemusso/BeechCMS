@@ -17,6 +17,8 @@ This document is the authoritative reference for the Beech CMS REST API. It cove
    - [Create Entry](#42-create-entry-post-apicontentseed)
    - [Update Entry](#43-update-entry-put-apicontentseedid)
    - [Delete Entry](#44-delete-entry-delete-apicontentseedid)
+   - [Rotate Hashed Field](#45-rotate-hashed-field-post-apicontentseedidrotate-field)
+   - [Pending Draft API](#46-pending-draft-api)
 5. [Media Engine](#5-media-engine)
    - [Upload](#51-upload-post-apiupload)
    - [Serve](#52-serve-get-apimediakey)
@@ -244,10 +246,11 @@ Authorization: Bearer eyJ...
 |---|---|---|
 | `page` | `number` | Page number, default `1` |
 | `limit` | `number` | Items per page, max `100` |
-| `status` | `string` | Filter by `draft`, `review`, `published` |
-| `orderBy` | `string` | Field alias or `created_at` / `updated_at` |
-| `orderDir` | `asc\|desc` | Sort direction, default `desc` |
+| `has_pending_draft` | `1\|true` | Se presente, restituisce solo le entry con una bozza pendente (`draft_data IS NOT NULL`) |
+| `sortBy` | `string` | Field alias o `created_at` / `updated_at` |
+| `sortDir` | `asc\|desc` | Sort direction, default `asc` |
 | `search` | `string` | Full-text search against `slug`, `status`, `data` |
+| `filters` | `string` | JSON serializzato di `QueryFilterGroup[]` — filtri avanzati per colonna |
 
 **Response `200`**
 
@@ -428,6 +431,168 @@ Content-Type: application/json
 | `422` | `rotate-field-not-set` | The field has no stored value (was never written) |
 
 **Implementation note:** This endpoint is implemented as a VSA slice under `apps/api/src/features/rotate-field/`. The `verifyHashField` and `sha256hex` utilities are exported from `@beech/core`.
+
+---
+
+### 4.6 Pending Draft API
+
+Il sistema di bozze pendenti permette di salvare modifiche su un'entry già pubblicata senza renderle immediatamente visibili al pubblico. Funziona tramite una colonna separata `draft_data` sulla stessa riga: `data` contiene il contenuto vivo, `draft_data` contiene l'overlay pendente.
+
+**Prerequisito:** il Seed deve avere `allowDrafts: true` in `@beech/core/src/seeds.ts`. Se il flag è assente o `false`, tutti gli endpoint di questa sezione rispondono `405 Method Not Allowed`.
+
+> **Distinzione fondamentale:** `status = 'draft'` identifica un'entry mai pubblicata (nuova, in lavorazione). Una bozza pendente è invece un'entry **già pubblicata** con `draft_data IS NOT NULL` — le due cose sono concettualmente diverse e gestite da endpoint diversi.
+
+---
+
+#### `PUT /api/content/:seed/:id/draft`
+
+Crea o sovrascrive la bozza pendente sull'entry. I dati vengono validati e tradotti tramite il Botanical Engine prima di essere scritti in `draft_data`. I campi con `privacy !== 'plain'` (campi sensibili) non sono modificabili neanche in bozza.
+
+**Request**
+
+```http
+PUT /api/content/articoli/550e8400-e29b-41d4-a716-446655440000/draft
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "title": "Titolo aggiornato",
+  "body": { "schemaVersion": 1, "doc": { "type": "doc", "content": [] } }
+}
+```
+
+Il payload usa alias (`title`, `body`), non branch ID interni. Si possono inviare anche solo alcuni campi — non è necessario inviare l'entry completa.
+
+**Response `200`**
+
+```json
+{ "success": true }
+```
+
+**Error responses**
+
+| Status | `type` | Causa |
+|---|---|---|
+| `400` | `content-invalid-json` | Body non è JSON valido |
+| `400` | `content-validation-failed` | Tipo errato o alias sconosciuto |
+| `404` | `content-not-found` | Entry non trovata |
+| `405` | `draft-not-allowed` | Il Seed non ha `allowDrafts: true` |
+| `422` | `content-sensitive-field-edit` | Il payload include campi con `privacy !== 'plain'` |
+| `422` | `content-dangerous-content` | Markup pericoloso rilevato in un campo richtext |
+
+---
+
+#### `GET /api/content/:seed/:id/draft`
+
+Legge la bozza pendente corrente. Utile per mostrare un'anteprima nell'editor prima della pubblicazione.
+
+**Request**
+
+```http
+GET /api/content/articoli/550e8400-e29b-41d4-a716-446655440000/draft
+Authorization: Bearer eyJ...
+```
+
+**Response `200`**
+
+```json
+{
+  "data": {
+    "title": "Titolo aggiornato",
+    "body": { "schemaVersion": 1, "doc": { "type": "doc", "content": [] } }
+  }
+}
+```
+
+I campi sono in formato alias, con le policy di visibilità già applicate (`applyVisibility`).
+
+**Error responses**
+
+| Status | `type` | Causa |
+|---|---|---|
+| `404` | `content-not-found` | Entry non trovata |
+| `404` | `draft-not-found` | L'entry esiste ma non ha una bozza pendente (`draft_data` è NULL) |
+| `405` | `draft-not-allowed` | Il Seed non ha `allowDrafts: true` |
+
+---
+
+#### `POST /api/content/:seed/:id/draft/publish`
+
+Promuove la bozza pendente al contenuto vivo in un'unica operazione atomica SQL:
+
+```sql
+UPDATE content_entries
+SET data = draft_data, draft_data = NULL, status = 'published', updated_at = ?
+WHERE schema_slug = ? AND id = ?
+```
+
+Dopo la scrittura, aggiorna l'indice FTS5 e registra l'attività nel log.
+
+**Request**
+
+```http
+POST /api/content/articoli/550e8400-e29b-41d4-a716-446655440000/draft/publish
+Authorization: Bearer eyJ...
+```
+
+Nessun body richiesto.
+
+**Response `200`**
+
+```json
+{ "success": true }
+```
+
+**Error responses**
+
+| Status | `type` | Causa |
+|---|---|---|
+| `404` | `content-not-found` | Entry non trovata |
+| `404` | `draft-not-found` | Nessuna bozza pendente da pubblicare |
+| `405` | `draft-not-allowed` | Il Seed non ha `allowDrafts: true` |
+
+---
+
+#### `DELETE /api/content/:seed/:id/draft`
+
+Scarta la bozza pendente impostando `draft_data = NULL`. Il contenuto vivo (`data`) non viene modificato.
+
+**Request**
+
+```http
+DELETE /api/content/articoli/550e8400-e29b-41d4-a716-446655440000/draft
+Authorization: Bearer eyJ...
+```
+
+**Response `200`**
+
+```json
+{ "success": true }
+```
+
+**Error responses**
+
+| Status | `type` | Causa |
+|---|---|---|
+| `404` | `content-not-found` | Entry non trovata |
+| `405` | `draft-not-allowed` | Il Seed non ha `allowDrafts: true` |
+
+---
+
+#### Ciclo di vita completo
+
+```
+Entry pubblicata
+      │
+      │  PUT /draft  (salva modifiche senza pubblicare)
+      ▼
+draft_data = { ...modifiche }   ←── visibile solo nell'editor (anteprima via GET /draft)
+data = { ...versione live }     ←── ancora servita al pubblico
+      │
+      ├── POST /draft/publish  →  data = draft_data, draft_data = NULL  (atomico)
+      │
+      └── DELETE /draft        →  draft_data = NULL  (scarta le modifiche)
+```
 
 ---
 
