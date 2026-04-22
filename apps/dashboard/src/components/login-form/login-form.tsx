@@ -156,7 +156,7 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
             <img
                src="/undraw_enter_nwx3.svg"
                alt="Illustrazione area login"
-               className="absolute -bottom-7 -right-28 h-full max-h-[42rem] w-full max-w-lg object-contain object-right-bottom scale-x-[-1] dark:brightness-[0.2] dark:grayscale"
+               className="absolute -bottom-7 -right-28 h-full max-h-[42rem] w-full max-w-lg object-contain object-right-bottom scale-x-[-1]"
             />
           </div>
         </CardContent>
