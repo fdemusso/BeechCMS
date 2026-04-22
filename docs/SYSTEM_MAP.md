@@ -1,13 +1,24 @@
-# 🌳 Beech CMS – System Map
+# Beech CMS – System Map
 
 ## Overview
-This high‑level system map is designed for onboarding new contributors and for AI tools. It summarizes the **tech stack**, **folder architecture**, and **non‑negotiable conventions** without diving into implementation details (covered by other docs in `docs/`).
+
+This high-level system map is designed for onboarding new contributors and for AI tools. It summarizes the **tech stack**, **folder architecture**, and **non-negotiable conventions** without diving into implementation details (covered by the documents in `docs/nuovidocs/`).
 
 > **AI Guidance:**
 > - **Do** read this document to understand the overall architecture before diving into specific modules.
-> - **Do not** rely on this file for low‑level code snippets; consult the detailed docs linked throughout.
-> - **Where to find context:** Follow the links to `README.md`, `monorepo.md`, and the individual engine docs for deeper information.
-> - **Token optimization:** Keep prompts concise; reference only the sections you need (e.g., "Tech Stack" or "Folder Architecture") to reduce token usage.
+> - **Do not** rely on this file for low-level code snippets; consult the detailed docs linked throughout.
+> - **Token optimization:** Reference only the sections you need to reduce token usage.
+
+---
+
+## Documentation
+
+| Document | Covers |
+|---|---|
+| `[nuovidocs/README.md](nuovidocs/README.md)` | Project overview, Botanical Engine primer, tech stack, getting started |
+| `[nuovidocs/architecture.md](nuovidocs/architecture.md)` | Monorepo topology, Turborepo pipeline, `@beech/core` barrel, Botanical Engine data flow, atomic data model, D1 vs Postgres, VSA migration, dependency rules |
+| `[nuovidocs/api-reference.md](nuovidocs/api-reference.md)` | Auth (JWT, refresh token rotation, security hardening), Internal Content API, Media Engine (upload, serve, R2 architecture), Public API (permission model, rate limiting, filters, error model) |
+| `[nuovidocs/frontend-guide.md](nuovidocs/frontend-guide.md)` | FieldRenderers registry pattern, TanStack Query strategy, Tailwind 4 + Shadcn component system, EntryEditorPage, how to add a new field type, ContentToolbar architecture, filter derivation from `Seed.branches`, gallery integration |
 
 ---
 
@@ -26,8 +37,9 @@ This high‑level system map is designed for onboarding new contributors and for
     - `next-themes`: `^0.4.6`
     - `lucide-react`: `^0.564.0`
     - Components based on `radix-ui` and shadcn (`shadcn` `^4.0.2`)
-  - **Rich text & advanced interactions**
+  - **Rich text**
     - TipTap (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/pm`): `^3.20.0`
+    - Implemented as a vertical slice at `apps/dashboard/src/features/richtext-editor/` with public API via `index.ts`. Persists JSON with envelope `{ schemaVersion: 1, doc }` aligned to `@beech/core` (`renderRichText`, validation in `validation.ts`).
   - **Build & Quality**
     - ESLint 9 (`eslint` `^9.39.1`, `typescript-eslint` `^8.48.0`)
     - Vitest `^3.2.4`, Testing Library (`@testing-library/react`, `@testing-library/jest-dom`)
@@ -35,35 +47,28 @@ This high‑level system map is designed for onboarding new contributors and for
 - **Backend / API**
   - **Runtime**: Cloudflare Workers
   - **HTTP Framework**: `hono` `^4.11.9`
-  - **Authentication**
-    - `jose` `^6.1.3` for JWT
-    - `bcryptjs` `^2.4.3` for password hashing
-  - **Media / Storage**
-    - `@aws-sdk/client-s3` `^3.995.0` for S3‑compatible interaction with Cloudflare R2
-  - **Infra & DX**
-    - `wrangler` `^4.4.0`
-    - Worker Types: `@cloudflare/workers-types` `^4.20260213.0`
-    - Vitest `^3.2.4` for API testing
+  - **Authentication**: `jose` `^6.1.3` (JWT), `bcryptjs` `^2.4.3` (password hashing)
+  - **Media / Storage**: `@aws-sdk/client-s3` `^3.995.0` for S3-compatible interaction with Cloudflare R2
+  - **Infra & DX**: `wrangler` `^4.4.0`, `@cloudflare/workers-types` `^4.20260213.0`
+  - Vitest `^3.2.4` for API testing
 
 - **Database & Storage**
   - **Database**: Cloudflare D1 (SQLite edge)
   - **Object Storage**: Cloudflare R2 via S3 API
   - **Data Model:**
-    - Single table `content_entries` with SQL metadata and a JSON `data` column (see `[content-engine.md](content-engine.md)`).
-    - Authentication tables (`users`, `refresh_tokens`) (see `[auth.md](auth.md)`).
+    - Single table `content_entries` with SQL metadata and a JSON `data` column (see `nuovidocs/architecture.md` §5). Composite indexes on `(schema_slug, status, created_at)` and `(schema_slug, updated_at)` optimise filtered list queries.
+    - Colonne di sistema rilevanti su `content_entries`: `status` (`draft | review | published`), `data` (JSON con branch ID), `draft_data` (JSON overlay per bozze pendenti — `NULL` se assente), `slug`, `created_at`, `updated_at`. Queste colonne sono gestite dall'API e non sono definibili nei Seed.
+    - **Bozze pendenti:** se un Seed ha `allowDrafts: true`, le entry supportano un overlay `draft_data` separato dal contenuto vivo `data`. La promozione è atomica (`data = draft_data, draft_data = NULL`). Vedere `nuovidocs/api-reference.md` §4.6 per gli endpoint e il ciclo di vita completo.
+    - Authentication tables: `users`, `refresh_tokens` (see `nuovidocs/api-reference.md` §2).
+    - System tables: `analytics` (daily request metrics with per-seed dimension), `system_stats` (R2 storage counter), `media_objects` (media library — tracks every file uploaded to R2), `activity_logs`, `notifications`, `public_idempotency_keys`.
 
 - **Architecture & Tooling**
   - Monorepo **Turborepo** (`turbo` `^2.8.7`) with **npm workspaces**
-  - Repo‑wide TypeScript (`typescript` `^5.9.3`) with a shared `tsconfig.json`
-  - Shared package `@beech/core` (version `0.0.0`) for types and the Botanical Engine
-
-For a narrative description of the stack and motivations, see the `[README.md](README.md)` (Tech Stack section).
+  - Shared package `@beech/core` (version `0.0.0`) for types, seeds, and the Botanical Engine
 
 ---
 
 ## Folder Architecture
-
-A concise view of the monorepo (details in `[monorepo.md](monorepo.md)`):
 
 ```text
 beech-cms/
@@ -72,7 +77,8 @@ beech-cms/
 │   └── dashboard/     # React frontend (Vite + Tailwind + Field Renderers)
 ├── packages/
 │   └── core/          # @beech/core – Botanical Engine and shared types
-├── docs/              # Architectural documentation
+├── docs/
+│   └── nuovidocs/     # Architectural documentation
 ├── package.json       # Root: workspaces, Turbo scripts
 ├── tsconfig.json      # Base TypeScript config
 └── turbo.json         # Turbo pipeline (dev, build, test)
@@ -81,125 +87,134 @@ beech-cms/
 ### `apps/api` – Cloudflare Workers API
 
 - **Main responsibilities**
-  - Exposes authentication routes (`/auth/login`, `/auth/refresh`, `/auth/logout`) – see `[auth.md](auth.md)`.
-  - Exposes dynamic content routes (`/api/content/:slug`, `/api/content/:slug/facets`, `/api/content/:slug/:id`) – see `[content-engine.md](content-engine.md)` and `[botanical-engine.md](botanical-engine.md)`.
-  - Handles media upload and delivery (`/api/upload`, `/api/media/:key`) – see `[media-engine.md](media-engine.md)`.
+  - Auth routes (`/auth/login`, `/auth/refresh`, `/auth/logout`) — see `nuovidocs/api-reference.md` §3.
+  - Dynamic content routes (`/api/content/:slug`, `/api/content/:slug/facets`, `/api/content/:slug/:id`) — see `nuovidocs/api-reference.md` §4.
+  - Statistics and analytics endpoints (`/api/content/stats/total`, `/api/content/stats/cloudflare`, `/api/content/stats/storage/sync`).
+  - Public routes (`/api/v1/public/health`, `/api/v1/public/:seed`, `/api/v1/public/:seed/add`, `/api/v1/public/:seed/edit/:id`) protected by API key — see `nuovidocs/api-reference.md` §6.
+  - Media upload and delivery (`/api/upload`, `/api/media/:key`) — see `nuovidocs/api-reference.md` §5.
 - **Key integrations**
   - Imports types and functions from `@beech/core` (`getSeed`, `apiToDb`, `dbToApi`, Seed registry).
   - Uses Cloudflare D1 for persistence (migrated via `db:migrate:local`).
   - Uses Cloudflare R2 for binary files, storing only URLs in `data`.
 - **Important files**
-  - CRUD handler: `apps/api/src/content.ts` (described in `[content-engine.md](content-engine.md)`).
-  - Media handling: `apps/api/src/upload.ts`, `apps/api/src/media-utils.ts` (see `[media-engine.md](media-engine.md)`).
-  - Authentication & token management: handlers described in `[auth.md](auth.md)` with DB schema for `refresh_tokens`.
+  - `apps/api/src/index.ts` — app entry, CORS, auth routes, analytics middleware (per-seed tracking).
+  - `apps/api/src/content.ts` — universal CRUD content engine.
+  - `apps/api/src/upload.ts`, `apps/api/src/media-utils.ts` — R2 upload, cascade delete, `media_objects` tracking.
+  - `apps/api/src/search.ts`, `apps/api/src/search-utils.ts` — FTS5 global search.
+  - `apps/api/src/shared/query-utils.ts` — shared query building utilities.
+  - `apps/api/src/shared/fts-sync.ts` — FTS5 application-layer sync (`syncFts`, `deleteFts`). Sostituisce i trigger SQL hardcoded con logica generica via Botanical Engine.
 
-### `apps/dashboard` – Schema‑driven React Dashboard
+### `apps/dashboard` – Schema-driven React Dashboard
 
 - **Main responsibilities**
-  - Admin UI for managing Seeds/Branches and content via the API.
-  - Schema‑driven rendering of forms, tables, Kanban boards via Field Renderers (see `[field-renderers.md](field-renderers.md)`).
-  - Filtering, sorting, searching, and view creation through `ContentToolbar` (see `[dashboard-components.md](dashboard-components.md)`).
-- **UI structure (excerpt)**
-  - `apps/dashboard/src/components/content-toolbar.tsx`: toolbar for view switching, filters, sorting, search, and creating entries.
-  - `apps/dashboard/src/components/fields/`: Field Renderers infrastructure (display/edit per `Branch` type), described in `[field-renderers.md](field-renderers.md)`.
-    - `FieldDisplay.tsx`, `FieldEdit.tsx`, `registry.ts`, `display/*.tsx`, `edit/*.tsx`.
-  - Entry editing pages (e.g., `EntryEditorPage`) consume Field Renderers and the Seed from the core.
-  - Table/Grid/Kanban views generate columns dynamically from `Seed.branches` and use `<FieldDisplay>` for each cell.
-  - Key integrations: consumes `@beech/core` for shared types and logic; calls only documented APIs (`/auth/*`, `/api/content/*`, `/api/upload`, `/api/media/*`).
+  - Admin UI for managing content via the API.
+  - Schema-driven rendering of forms, table, and gallery views via the FieldRenderers registry — see `nuovidocs/frontend-guide.md` §2.
+  - Filtering, sorting, searching, and view switching through `ContentToolbar` — see `nuovidocs/frontend-guide.md` §7.
+- **UI structure**
+  - `apps/dashboard/src/components/content-toolbar/` — modular toolbar: view switching, filters, sorting, search, grouping, conditional formats.
+  - `apps/dashboard/src/components/content-gallery/` — gallery view (card grid + read-only peek panel).
+  - `apps/dashboard/src/components/fields/` — FieldRenderers registry (`FieldDisplay`, `FieldEdit`, `registry.ts`, `display/*.tsx`, `edit/*.tsx`).
+  - `apps/dashboard/src/features/richtext-editor/` — TipTap editor slice; only `index.ts` is importable from outside the slice.
+  - `apps/dashboard/src/features/dashboard/` — Dashboard cockpit with bento grid widgets and Cloudflare Edge analytics.
+  - `apps/dashboard/src/features/command-palette/` — global command palette.
+  - Entry editing pages (`EntryEditorPage`) consume FieldRenderers and the Seed from `@beech/core`.
 
 ### `packages/core` – `@beech/core` (Botanical Engine)
 
 - **Main responsibilities**
-  - Defines shared typings: `Branch`, `Seed`, `DbPayload`, `ApiPayload`, etc.
-  - Implements the **Botanical Engine** (`apiToDb`, `dbToApi`) that translates between API aliases and internal IDs – see `[botanical-engine.md](botanical-engine.md)`.
-  - Maintains the **Seed Registry** (`SEED_REGISTRY`, `getSeed`, `PROJECT_SEED`) that defines content schemas.
-- **Structure** (from `[botanical-engine.md](botanical-engine.md)` and `[monorepo.md](monorepo.md)`)
-  - `packages/core/src/index.ts` – barrel export.
-  - `packages/core/src/types.ts` – types `Branch`, `Seed`, etc.
-  - `packages/core/src/engine.ts` – functions `apiToDb`, `dbToApi`.
-  - `packages/core/src/seeds.ts` – Seed definitions and registration in `SEED_REGISTRY`.
-- **Build**
-  - `npm run build -w @beech/core` produces `dist/` with JS and `.d.ts`, consumed by `apps/api` and `apps/dashboard`.
-
-### `docs/` – Architectural Documentation
-
-- Primary documents:
-  - `[README.md](README.md)` – project overview and tech stack.
-  - `[monorepo.md](monorepo.md)` – monorepo architecture.
-  - `[botanical-engine.md](botanical-engine.md)` – alias ↔ ID layer.
-  - `[content-engine.md](content-engine.md)` – Content Engine SQL/JSON.
-  - `[media-engine.md](media-engine.md)` – media upload and delivery.
-  - `[auth.md](auth.md)` – JWT, refresh token, login, rate limiting.
-  - `[dashboard-components.md](dashboard-components.md)` – ContentToolbar + DataTable.
-  - `[field-renderers.md](field-renderers.md)` – Registry Pattern for UI fields.
-  - `[field-types-roadmap.md](field-types-roadmap.md)` and `[field-types-action-plan.md](field-types-action-plan.md)` – field type roadmap and action plan.
+  - Shared typings: `Branch`, `Seed`, `DbPayload`, `ApiPayload`.
+  - **Botanical Engine** (`apiToDb`, `dbToApi`) — translates between API aliases and internal IDs. See `nuovidocs/architecture.md` §4.
+  - **Seed Registry** (`SEED_REGISTRY`, `getSeed`) — defines all content schemas.
+  - Schema-driven validation (`validateAndSanitizeSeedPayload`) — reused by both the internal and public API.
+  - RichText schema and sanitization (`richtext.ts`, `richtext-render.ts`).
+- **Barrel export**: `packages/core/src/index.ts` — types, seeds, engine, validation, richtext, slug utils.
+- **Build**: `npm run build -w @beech/core` produces `dist/` with JS and `.d.ts`, consumed by both apps.
 
 ---
 
 ## Key Flows
 
-- **Authentication (`/auth/*`)** – see `[auth.md](auth.md)`
-  - Login (`POST /auth/login`): validates credentials with `bcryptjs`, generates JWT via `jose.SignJWT`, creates a UUID refresh token, stores its hash in D1 (`refresh_tokens`), and sets an httpOnly cookie.
-  - Refresh (`POST /auth/refresh`): reads the refresh token cookie, validates it in D1, rotates the token (revokes the old one, creates a new one), and returns a new access token.
-  - Logout (`POST /auth/logout`): revokes the refresh token in the DB and clears the cookie.
+- **Authentication (`/auth/*`)** — see `nuovidocs/api-reference.md` §2–3
+  - Login: validates credentials with `bcryptjs`, generates JWT via `jose.SignJWT` (15 min TTL), creates UUID refresh token stored hashed in D1, sets `HttpOnly SameSite=Strict` cookie.
+  - Refresh: reads cookie, validates in D1, atomically revokes old token, issues new access + refresh token pair.
+  - Logout: revokes refresh token in D1, clears cookie.
 
-- **Content CRUD (`/api/content/:slug`)** – see `[content-engine.md](content-engine.md)` and `[botanical-engine.md](botanical-engine.md)`
-  - **Write (POST/PUT):**
-    - Request body uses alias fields (e.g., `{ "title": "Project X" }`).
-    - `getSeed(slug)` from the core maps aliases to internal IDs via `apiToDb`.
-    - Serialized into the `data` JSON column of `content_entries`.
-  - **Read (GET):**
-    - Retrieves row from D1, parses `data`, maps internal IDs back to aliases via `dbToApi`.
-    - Returns payload with `data` in alias form plus metadata (`id`, `schema_slug`, `slug`, `status`, `created_at`, `updated_at`).
-    - Supports query params (`search`, `sortBy`, `sortDir`, `filters`, `page`, `limit`) for server‑side pagination and filtering.
-  - **Facets (`GET /api/content/:slug/facets`):** computes distinct values for `status` and tags for use in the toolbar, filters, and conditional colors.
+- **Content CRUD (`/api/content/:slug`)** — see `nuovidocs/api-reference.md` §4
+  - **Write (POST/PUT):** body uses alias fields → `apiToDb` maps to internal IDs → serialized into `data` JSON column.
+  - **Read (GET):** D1 row → parse `data` → `dbToApi` maps IDs back to aliases → response with `data` in alias form plus metadata.
+  - Supports server-side pagination, filtering, sorting, and search via query params.
+  - **Facets (`GET /api/content/:slug/facets`):** computes distinct `status` values and tag sets for toolbar filter UI.
 
-- **Media Engine (`/api/upload`, `/api/media/:key`)** – see `[media-engine.md](media-engine.md)`
-  - Upload: Dashboard calls `POST /api/upload` with multipart/form-data; API validates type/size, stores file in R2 via `@aws-sdk/client-s3`, returns a public URL.
-  - Media service: `GET /api/media/:key` fetches the file from R2 with aggressive caching.
-  - Cleanup: `DELETE /api/content/:slug/:id` inspects `data` for URLs under `/api/media/*` and issues a `DeleteObjectCommand` to R2.
+- **Media Engine (`/api/upload`, `/api/media/:key`)** — see `nuovidocs/api-reference.md` §5
+  - Upload: `POST /api/upload` multipart → validate MIME/size → `PutObjectCommand` → R2 → increment `system_stats` + INSERT `media_objects` in D1 (via `waitUntil`) → return URL.
+  - Serve: `GET /api/media/:key` proxies from R2 with `Cache-Control: public, max-age=31536000, immutable`. Public route, no auth required.
+  - Cascade delete: `DELETE /api/content/:slug/:id` extracts R2 keys from `file`/`asset-list` fields, issues `DeleteObjectCommand`, decrementa `system_stats` e rimuove da `media_objects`.
 
-- **Dashboard Rendering (schema‑driven)** – see `[field-renderers.md](field-renderers.md)` and `[dashboard-components.md](dashboard-components.md)`
-  - `EntryEditorPage` loads the Seed (via API + core) and renders each `Branch` using `<FieldEdit branch={branch} ... />`.
-  - The concrete field type is resolved by the registry (`registry.ts`), not hard‑coded in the page.
-  - Table/Grid/Kanban views generate columns dynamically from `Seed.branches` and use `<FieldDisplay>` for each cell, applying `options.maxLength` truncation where appropriate.
-  - `ContentToolbar` manages user views, filters, sorting, search, and creation tools.
+- **Public API (`/api/v1/public/*`)** — see `nuovidocs/api-reference.md` §6
+  - Three-level permission model: seed capability flags (`allowPublicRead/Post/Edit`) + split API keys (`PUBLIC_READ_API_KEY` / `PUBLIC_WRITE_API_KEY`) + published-only filter (`PUBLIC_PUBLISHED_ONLY`).
+  - Read endpoint: id lookup, filters, search, pagination, `latest`, field projections. Response è **flat** — content fields at the same level as `id`, `slug`, `status`.
+  - **Worker Cache API**: le GET su `/api/v1/public/:seed` vengono messe in cache con TTL 60 secondi via `caches.default` e `waitUntil`. Zero query D1 su cache hit.
+  - Write endpoints: fail-closed validation, slug uniqueness, idempotency via `Idempotency-Key`, prepared statements.
+  - Dedicated rate limiters: `PUBLIC_READ_RATE_LIMITER`, `PUBLIC_WRITE_RATE_LIMITER`.
+  - All errors: RFC 7807 Problem Details (`application/problem+json`).
+
+- **Dashboard Rendering (schema-driven)** — see `nuovidocs/frontend-guide.md`
+  - `EntryEditorPage` loads the Seed and renders each `Branch` via `<FieldEdit branch={branch} ... />`. No hardcoded field lists.
+  - Field type is resolved by `registry.ts` — no `switch(branch.type)` in page code.
+  - Table columns are generated dynamically from `Seed.branches` and rendered with `<FieldDisplay>`.
+  - Gallery card slots (cover, title, excerpt, date, tags) are resolved by `resolveCardFields` heuristics from the Seed — no fetch beyond the shared dataset.
+  - `ContentToolbar` drives filters, sort, search, grouping, and view switching. Filter columns are derived from `Seed.branches` at runtime via `useToolbarFilters`.
+
+- **Edge Analytics & Stats**
+  - **Request Tracking**: middleware in `apps/api/src/index.ts` captures API hits via `c.executionCtx.waitUntil` (zero-latency). La tabella `analytics` ha una colonna `seed` (stringa vuota = globale, `'articoli'` = per-seed). I widget globali filtrano con `seed = ''`.
+  - **Storage Monitoring**: `system_stats` counter incremented on upload, decremented on delete, resyncable via `POST /api/content/stats/storage/sync`. La fonte canonica per la media library è `media_objects` (`SUM(size_bytes)`).
+  - **Cockpit Dashboard**: bento grid widgets for total contents, visitors, requests, and R2 storage — driven by TanStack Query with 5-minute `staleTime`.
 
 ---
 
-## Non‑Negotiable Conventions
+## Non-Negotiable Conventions
 
-- **Schema‑driven everywhere**
+- **Schema-driven everywhere**
   - **Must** use `Seed`/`Branch` and the Botanical Engine (`apiToDb`, `dbToApi`) for all reads/writes of `data`.
-  - **Must not** access `data` directly via hard‑coded aliases or DB column names (`br_xxx`) inside the API or Dashboard.
+  - **Must not** access `data` directly via hard-coded aliases or DB column names (`br_xxx`).
+  - **Must** declare `displayNameAlias` on every `Seed` — points to the alias of the branch used as the human-readable identifier of an entry (e.g., `"title"`, `"name"`, `"author"`). UI components read this field instead of relying on heuristics or hard-coded aliases.
+  - **Branch policies** (`privacy`, `visibility`, `search`, `filter`, `sort`, `public`) must be enforced via `resolvePolicies` from `@beech/core` — never inline-checked with `branch.policies?.x ?? default`.
+  - **Pending drafts** are opt-in per content type: set `allowDrafts: true` on the Seed to enable the `/draft` endpoint family. `status` and `draft_data` are system columns — they cannot be defined as Seed branches. Filtering by `status` is not supported as a query parameter on the list endpoint; use `has_pending_draft=1` to retrieve entries with a pending overlay.
 
 - **Monorepo & shared code**
-  - **Must** place shared logic and types in `@beech/core` (`packages/core`) and consume them from `apps/api` and `apps/dashboard`.
+  - **Must** place shared logic and types in `@beech/core` and consume them from both apps.
   - **Must not** duplicate types, translation functions, or Seed definitions across apps.
 
 - **Centralized content API**
-  - **Must** use the dynamic routes `POST/GET/PUT/DELETE /api/content/:slug[/id]` for all content manipulation.
-  - **Must not** create per‑entity controllers (e.g., `/api/projects`) that bypass the Content Engine or Seed Registry.
+  - **Must** use the dynamic routes `POST/GET/PUT/DELETE /api/content/:slug[/:id]` for all content manipulation.
+  - **Must not** create per-entity controllers (e.g., `/api/projects`) that bypass the Content Engine.
+
+- **Public API contract**
+  - **Must** keep external integrations on `/api/v1/public/*` with split API key auth.
+  - **Must** enforce per-seed capability flags before any DB access.
+  - **Must** expose errors as RFC 7807 Problem Details with field-level `errors` where applicable.
 
 - **Authentication & security**
-  - **Must** follow the JWT + refresh token flow described in `[auth.md](auth.md)`:
-    - Short‑lived access token (15 min) via `jose`.
-    - Opaque refresh token stored hashed in D1 (`refresh_tokens`).
-    - HttpOnly `SameSite=Strict` cookie, token rotation, and rate limiting.
-  - **Must not** store tokens in clear text in the DB or introduce undocumented session mechanisms.
+  - **Must** follow the JWT + refresh token flow: 15-min access token via `jose`, opaque refresh token hashed in D1, `HttpOnly SameSite=Strict` cookie, token rotation.
+  - **Must not** store tokens in plaintext or introduce undocumented session mechanisms.
 
-- **UI schema‑driven & Field Renderers**
-  - **Must** use `FieldDisplay`/`FieldEdit` and the registry in `apps/dashboard/src/components/fields` for rendering and editing fields.
-  - **Must not** write UI that manually switches on field type in tables, forms, or Kanban views.
+- **UI schema-driven & FieldRenderers**
+  - **Must** use `FieldDisplay`/`FieldEdit` and the registry in `apps/dashboard/src/components/fields/` for all field rendering.
+  - **Must not** write UI that switches on `branch.type` in tables, forms, or gallery views.
 
 - **Media handling**
-  - **Must** use `POST /api/upload` and store only the URL in a `file`‑type field (string).
-  - **Must** delegate file deletion to `DELETE /api/content/:slug/:id` (which calls media‑utils).
+  - **Must** use `POST /api/upload` and store only URL strings in `file` fields (`string` for single, `string[]` for `asset-list`).
+  - **Must** delegate file deletion to `DELETE /api/content/:slug/:id`.
   - **Must not** upload files directly to R2 from the frontend or store binary blobs in D1.
 
+- **Vertical Slice Architecture (dashboard)**
+  - **Must** place new feature code in `apps/dashboard/src/features/<feature-name>/` with an `index.ts` public API.
+  - **Must not** import directly from another feature's internal files — only from its `index.ts`.
+  - **Must** promote logic needed by two or more features to `@beech/core` or `src/components/ui` / `src/lib`.
+
 - **Quality & consistency**
-  - **Must** use strict TypeScript (`tsconfig` root), ESLint/TypeScript‑ESLint, and Vitest as configured.
-  - **Must not** introduce new state‑management, routing, or UI libraries without updating `SYSTEM_MAP.md` and related documentation.
+  - **Must** use strict TypeScript, ESLint 9 with `typescript-eslint`, and Vitest as configured.
+  - **Must not** introduce new state-management, routing, or UI libraries without updating `SYSTEM_MAP.md` and the relevant doc in `nuovidocs/`.
 
 ---
 
@@ -207,6 +222,7 @@ beech-cms/
 
 - **Update the stack** whenever a core technology changes (new framework, DB, CI/CD tool).
 - **Update folder architecture** when adding new apps in `apps/` or new packages in `packages/`.
-- **Update non‑negotiable conventions** when making major architectural decisions (new API patterns, UI approaches, security changes) or performing structural refactors.
+- **Update non-negotiable conventions** when making major architectural decisions.
+- **Update `nuovidocs/`** when APIs, field types, or frontend patterns change — `SYSTEM_MAP.md` links there and does not duplicate content.
 
-`SYSTEM_MAP.md` is the high‑level source of truth for understanding **how Beech CMS is built**. Implementation details remain in the individual docs under `docs/` and in the codebase.
+`SYSTEM_MAP.md` is the high-level source of truth for understanding **how Beech CMS is built**. Implementation details are in `docs/nuovidocs/` and in the codebase itself.

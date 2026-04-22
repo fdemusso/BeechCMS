@@ -21,6 +21,7 @@ import {
 } from "@tanstack/react-table"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { ChevronRight, ChevronDown } from "lucide-react"
+import { cn } from "@/lib/utils"
 import {
   Pagination,
   PaginationContent,
@@ -142,6 +143,8 @@ interface DataTableProps<TData, TValue> {
   grouping?: GroupingState
   /** Callback quando cambia il raggruppamento. */
   onGroupingChange?: (grouping: GroupingState) => void
+  /** Callback opzionale al doppio click su una riga. */
+  onRowDoubleClick?: (row: TData) => void
 }
 
 export function DataTable<TData, TValue>(
@@ -177,6 +180,7 @@ export function DataTable<TData, TValue>(
     manualFiltering = false,
     grouping: groupingProp,
     onGroupingChange,
+    onRowDoubleClick,
   } = props
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
   const [internalColumnFilters, setInternalColumnFilters] =
@@ -484,8 +488,13 @@ export function DataTable<TData, TValue>(
       <TableRow
         key={row.id}
         data-state={row.getIsSelected() && "selected"}
-        className={rowStyles?.rowClassName ?? getRowClassName?.(row.original)}
+        className={cn(
+          "transition-colors",
+          onRowDoubleClick && "cursor-pointer select-none",
+          rowStyles?.rowClassName ?? getRowClassName?.(row.original)
+        )}
         style={{ height: ROW_HEIGHT_PX }}
+        onDoubleClick={() => onRowDoubleClick?.(row.original)}
       >
         {row.getVisibleCells().map((cell) => {
           const cellInner = flexRender(

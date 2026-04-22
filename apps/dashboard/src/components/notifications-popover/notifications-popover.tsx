@@ -104,7 +104,7 @@ function NotificationCard({
             if (notification.isNew) onMarkSeen(notification.id)
           }}
           className={cn(
-            "relative flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors",
+            "relative flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors text-left",
             "hover:bg-muted/50",
             notification.isNew
               ? "cursor-pointer"
@@ -129,10 +129,17 @@ function NotificationCard({
         </button>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem onClick={() => onMarkUnseen(notification.id)}>
-          <EyeOff className="size-4" />
-          Segna come non vista
-        </ContextMenuItem>
+        {notification.isNew ? (
+          <ContextMenuItem onClick={() => onMarkSeen(notification.id)}>
+            <Bell className="size-4" />
+            Segna come vista
+          </ContextMenuItem>
+        ) : (
+          <ContextMenuItem onClick={() => onMarkUnseen(notification.id)}>
+            <EyeOff className="size-4" />
+            Segna come non vista
+          </ContextMenuItem>
+        )}
         <ContextMenuSeparator />
         <ContextMenuItem
           variant="destructive"
@@ -170,6 +177,7 @@ export function NotificationsPopover() {
     handleMarkSeen,
     handleMarkUnseen,
     handleDelete,
+    handleMarkAllRead,
   } = useNotificationsPopover()
 
   const handleScrollClose = useCallback((event: React.UIEvent) => {
@@ -206,7 +214,19 @@ export function NotificationsPopover() {
         className="w-80 p-0 sm:w-96"
       >
         <div className="border-b px-4 py-3">
-          <h3 className="font-semibold">Notifiche</h3>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Notifiche</h3>
+            {hasUnreadNotifications && (
+              <Button 
+                variant="link" 
+                size="sm" 
+                className="h-auto p-0 text-xs"
+                onClick={() => handleMarkAllRead()}
+              >
+                Segna tutte come lette
+              </Button>
+            )}
+          </div>
           <ToggleGroup
             type="single"
             value={filter}

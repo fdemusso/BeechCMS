@@ -15,19 +15,19 @@
 -- Articoli (5)
 INSERT INTO content_entries (id, schema_slug, slug, status, data, created_at, updated_at) VALUES
 ('art-0001', 'articoli', 'benvenuto-nel-blog', 'published',
- '{"art_01":"Benvenuto nel blog Beech","art_02":"2026-01-10","art_03":"/media/blog/cover-welcome.jpg","art_04":"[\"news\",\"product\"]","art_05":"<p>Scopri come Beech CMS gestisce contenuti schema-driven.</p>","art_06":"Benvenuto nel blog Beech","art_07":"Introduzione al CMS ibrido SQL/JSON."}',
+ '{"art_01":"Benvenuto nel blog Beech","art_02":"2026-01-10","art_03":"/media/blog/cover-welcome.jpg","art_04":"{\"news\":\"#3b82f6\",\"annuncio\":\"#06b6d4\"}","art_05":"<p>Scopri come Beech CMS gestisce contenuti schema-driven.</p>","art_06":"Benvenuto nel blog Beech","art_07":"Introduzione al CMS ibrido SQL/JSON."}',
  unixepoch(), unixepoch()),
 ('art-0002', 'articoli', 'roadmap-2026', 'published',
- '{"art_01":"Roadmap prodotto 2026","art_02":"2026-02-05","art_03":"/media/blog/cover-roadmap.jpg","art_04":"[\"roadmap\",\"product\"]","art_05":"<p>Tutte le novità in arrivo per Beech CMS.</p>","art_06":"Roadmap Beech CMS 2026","art_07":"Piano di sviluppo delle funzionalità per il 2026."}',
+ '{"art_01":"Roadmap prodotto 2026","art_02":"2026-02-05","art_03":"/media/blog/cover-roadmap.jpg","art_04":"{\"release\":\"#8b5cf6\",\"aggiornamento\":\"#10b981\"}","art_05":"<p>Tutte le novità in arrivo per Beech CMS.</p>","art_06":"Roadmap Beech CMS 2026","art_07":"Piano di sviluppo delle funzionalità per il 2026."}',
  unixepoch(), unixepoch()),
 ('art-0003', 'articoli', 'migrare-da-wordpress', 'published',
- '{"art_01":"Migrare da WordPress a Beech","art_02":"2026-02-20","art_03":"/media/blog/cover-migration.jpg","art_04":"[\"migration\",\"cms\"]","art_05":"<p>Guida pratica per migrare contenuti senza downtime.</p>","art_06":"Migrazione da WordPress","art_07":"Strategie per migrare contenuti in sicurezza."}',
+ '{"art_01":"Migrare da WordPress a Beech","art_02":"2026-02-20","art_03":"/media/blog/cover-migration.jpg","art_04":"{\"guida\":\"#f59e0b\",\"cms\":\"#3b82f6\"}","art_05":"<p>Guida pratica per migrare contenuti senza downtime.</p>","art_06":"Migrazione da WordPress","art_07":"Strategie per migrare contenuti in sicurezza."}',
  unixepoch(), unixepoch()),
 ('art-0004', 'articoli', 'pattern-registry-ui', 'published',
- '{"art_01":"Il Pattern Registry della UI","art_02":"2026-03-01","art_03":"/media/blog/cover-registry.jpg","art_04":"[\"frontend\",\"design-system\"]","art_05":"<p>Come il registry dei field semplifica la dashboard.</p>","art_06":"Pattern Registry UI","art_07":"Architettura dei componenti field-driven."}',
+ '{"art_01":"Il Pattern Registry della UI","art_02":"2026-03-01","art_03":"/media/blog/cover-registry.jpg","art_04":"{\"tutorial\":\"#ec4899\",\"guida\":\"#64748b\"}","art_05":"<p>Come il registry dei field semplifica la dashboard.</p>","art_06":"Pattern Registry UI","art_07":"Architettura dei componenti field-driven."}',
  unixepoch(), unixepoch()),
 ('art-0005', 'articoli', 'edge-first-architecture', 'published',
- '{"art_01":"Architettura edge-first con Cloudflare","art_02":"2026-03-05","art_03":"/media/blog/cover-edge.jpg","art_04":"[\"edge\",\"cloudflare\"]","art_05":"<p>Perché Beech nasce per l&apos;edge.</p>","art_06":"Architettura edge-first","art_07":"Vantaggi di un CMS progettato per l&apos;edge."}',
+ '{"art_01":"Architettura edge-first con Cloudflare","art_02":"2026-03-05","art_03":"/media/blog/cover-edge.jpg","art_04":"{\"news\":\"#ef4444\",\"aggiornamento\":\"#06b6d4\"}","art_05":"<p>Perché Beech nasce per l&apos;edge.</p>","art_06":"Architettura edge-first","art_07":"Vantaggi di un CMS progettato per l&apos;edge."}',
  unixepoch(), unixepoch());
 
 -- Prodotti (5)

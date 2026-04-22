@@ -1,5 +1,13 @@
+import * as React from "react"
 import { cn } from "@/lib/utils"
+import { Check, Plus, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import type { FieldEditProps } from "../types"
 
 const textareaClassName = cn(
@@ -22,9 +30,16 @@ function parseTagsValue(value: unknown): Record<string, string> {
   return {}
 }
 
+function stringifyJsonValue(value: unknown): string {
+  if (typeof value === "string") return value
+  if (value == null) return ""
+  return JSON.stringify(value, null, 2)
+}
+
 export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
   const isTagsField = branch.alias.toLowerCase().includes("tag")
   const hasOptions = isTagsField && (branch.options?.length ?? 0) > 0
+  const [isAddOpen, setIsAddOpen] = React.useState(false)
 
   if (isTagsField && hasOptions) {
     const currentTags = parseTagsValue(value)
@@ -37,63 +52,112 @@ export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
 
     const toggleTag = (tag: string) => {
       const next = { ...currentTags }
-      if (next[tag] !== undefined) {
-        delete next[tag]
-      } else {
-        // Assegna un colore default ciclico tra i predefiniti
+      if (next[tag] === undefined) {
         const idx = Object.keys(next).length % DEFAULT_COLORS.length
         next[tag] = DEFAULT_COLORS[idx]
+      } else {
+        delete next[tag]
       }
       onChange(next)
     }
 
-    return (
-      <div className="flex flex-col gap-2">
-        {/* Badge cliccabili per le opzioni predefinite */}
-        <div className="flex flex-wrap gap-1.5">
-          {predefinedOptions.map((opt: string) => {
-            const isActive = currentTags[opt] !== undefined
-            return (
-              <Badge
-                key={opt}
-                variant={isActive ? "default" : "outline"}
-                className="cursor-pointer select-none text-xs transition-opacity hover:opacity-80"
-                style={isActive ? { backgroundColor: currentTags[opt] } : undefined}
-                onClick={() => toggleTag(opt)}
-              >
-                {opt}
-              </Badge>
-            )
-          })}
-        </div>
+    const activeEntries = Object.entries(currentTags)
+    const availableOptions = predefinedOptions.filter(
+      (opt: string) => currentTags[opt] === undefined
+    )
 
-        {/* Textarea per modifiche avanzate / tag non predefiniti */}
-        <textarea
-          id={branch.alias}
-          className={textareaClassName}
-          value={
-            typeof value === "string"
-              ? value
-              : value != null
-                ? JSON.stringify(value, null, 2)
-                : ""
-          }
-          onChange={(e) => onChange(e.target.value)}
-          placeholder='{"cms": "#3b82f6", "react": "#06b6d4"}'
-        />
-        <p className="text-xs text-muted-foreground">
-          Clicca un badge per aggiungere/rimuovere un tag, oppure modifica il JSON direttamente.
-        </p>
+    return (
+      <div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {activeEntries.length > 0 ? (
+            activeEntries.map(([tag, color]) => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggleTag(tag)}
+                className="group relative"
+                aria-label={`Rimuovi tag ${tag}`}
+              >
+                <Badge
+                  variant="secondary"
+                  className="cursor-pointer select-none border-transparent pr-2 transition"
+                  style={{
+                    backgroundColor: color,
+                    color: "#fff",
+                    borderColor: color,
+                  }}
+                >
+                  {tag}
+                </Badge>
+                <span className="absolute inset-0 flex items-center justify-center rounded-full bg-destructive/90 text-white opacity-0 transition-opacity group-hover:opacity-100">
+                  <X className="size-3.5" />
+                </span>
+              </button>
+            ))
+          ) : (
+            <span className="text-xs text-muted-foreground">Nessun tag selezionato</span>
+          )}
+
+          <Popover open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-6 rounded-full"
+                aria-label="Aggiungi tag"
+              >
+                <Plus className="size-3.5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-56 p-2">
+              <div className="mb-2 text-xs text-muted-foreground">
+                Seleziona un tag dal seed
+              </div>
+              <div className="max-h-56 space-y-1 overflow-y-auto">
+                {predefinedOptions.map((opt: string) => {
+                  const isActive = currentTags[opt] !== undefined
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => {
+                        toggleTag(opt)
+                        if (isActive) return
+                        setIsAddOpen(false)
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between rounded-sm px-2 py-1.5 text-left text-sm transition-colors",
+                        isActive
+                          ? "bg-accent/70 text-foreground"
+                          : "hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      <span>{opt}</span>
+                      {isActive ? <Check className="size-4" /> : null}
+                    </button>
+                  )
+                })}
+                {availableOptions.length === 0 ? (
+                  <p className="px-2 py-1 text-xs text-muted-foreground">
+                    Tutti i tag del seed sono gia selezionati.
+                  </p>
+                ) : null}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
     )
   }
 
-  const strValue =
-    typeof value === "string"
-      ? value
-      : value != null
-        ? JSON.stringify(value, null, 2)
-        : ""
+  const strValue = stringifyJsonValue(value)
+  const placeholder = isTagsField
+    ? '{"cms": "#3b82f6", "react": "#06b6d4", "typescript": "#8b5cf6"}'
+    : '{"key": "value"}'
+  const helperText = isTagsField
+    ? 'Oggetto tag→colore, es: {"cms": "blue", "react": "green"}'
+    : 'Oggetto JSON, es: {"client": "Nome"}'
 
   return (
     <div>
@@ -102,16 +166,10 @@ export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
         className={textareaClassName}
         value={strValue}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={
-          isTagsField
-            ? '{"cms": "#3b82f6", "react": "#06b6d4", "typescript": "#8b5cf6"}'
-            : '{"key": "value"}'
-        }
+        placeholder={placeholder}
       />
       <p className="mt-1 text-xs text-muted-foreground">
-        {isTagsField
-          ? 'Oggetto tag→colore, es: {"cms": "blue", "react": "green"}'
-          : 'Oggetto JSON, es: {"client": "Nome"}'}
+        {helperText}
       </p>
     </div>
   )

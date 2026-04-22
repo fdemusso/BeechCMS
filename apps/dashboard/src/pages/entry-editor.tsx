@@ -1,6 +1,6 @@
 import * as React from "react"
 import { useParams, useNavigate, useBlocker } from "react-router-dom"
-import { getSeed } from "@beech/core"
+import { getSeed, slugify } from "@beech/core"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { AxiosError } from "axios"
@@ -43,18 +43,25 @@ import {
 } from "@/lib/content-api"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 
-/** Slug ammessi: solo a-z, 0-9, trattino. Niente accenti/spazi/underscore. */
+/** 
+ * Slug ammessi: solo a-z, 0-9, trattino. Niente accenti/spazi/underscore. 
+ * TODO: Allineare la regex con slug-utils.ts (API) e spostare la logica in @beech/core 
+ * per garantire consistenza assoluta tra dashboard e API pubbliche.
+ */
 function slugFromText(text: string): string {
-  const normalized = String(text ?? "")
-    .toLowerCase()
-    .trim()
-  const withHyphens = normalized.replaceAll(/[^a-z0-9]+/g, "-")
-  return withHyphens.replaceAll(/^-+|-+$/g, "")
+  return slugify(text)
 }
 
 /** Alias considerati campi SEO (meta titolo, meta descrizione, ecc.). */
 function isSeoBranch(branch: { alias: string }): boolean {
   return branch.alias.startsWith("meta")
+}
+
+function createEmptyRichtextDoc(): Record<string, unknown> {
+  return {
+    type: "doc",
+    content: [{ type: "paragraph" }],
+  }
 }
 
 export function EntryEditorPage() {
@@ -123,6 +130,8 @@ export function EntryEditorPage() {
     seed.branches.forEach((branch) => {
       if (branch.type === "boolean") {
         initial[branch.alias] = false
+      } else if (branch.type === "richtext") {
+        initial[branch.alias] = createEmptyRichtextDoc()
       } else {
         initial[branch.alias] = ""
       }
@@ -394,7 +403,7 @@ export function EntryEditorPage() {
                     </div>
 
                     {/* Sidebar: Metadati / SEO + Contenuto */}
-                    <aside className="flex flex-col gap-4 md:sticky md:top-4 md:self-start">
+                    <aside className="flex flex-col gap-4 md:sticky md:top-[calc(var(--header-height)+1rem)] md:self-start">
                       <Card>
                         <CardHeader>
                           <CardTitle>Metadati / SEO</CardTitle>
@@ -417,17 +426,18 @@ export function EntryEditorPage() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="entry-slug">Slug (URL)</Label>
-                            <Input
-                              id="entry-slug"
-                              value={slug}
-                              onChange={(e) => {
-                                setSlug(e.target.value)
-                                setSlugTouched(true)
-                                setIsDirty(true)
-                              }}
-                              placeholder="es. mio-articolo"
-                              className="font-mono text-sm"
-                            />
+                              <Input
+                                id="entry-slug"
+                                value={slug}
+                                onChange={(e) => {
+                                  setSlug(slugify(e.target.value))
+                                  setSlugTouched(true)
+                                  setIsDirty(true)
+                                }}
+                                maxLength={15}
+                                placeholder="es. mio-articolo"
+                                className="font-mono text-sm"
+                              />
                           </div>
                           {seoBranches.map((branch) => (
                             <div key={branch.id} className="space-y-2">
@@ -495,10 +505,11 @@ export function EntryEditorPage() {
                               id="entry-slug"
                               value={slug}
                               onChange={(e) => {
-                                setSlug(e.target.value)
+                                setSlug(slugify(e.target.value))
                                 setSlugTouched(true)
                                 setIsDirty(true)
                               }}
+                              maxLength={15}
                               placeholder="es. mio-articolo"
                               className="font-mono text-sm"
                             />

@@ -8,8 +8,16 @@ const hookState = {
       id: "1",
       title: "Nuova notifica",
       description: "Descrizione",
-      icon: () => <span>ICON</span>,
+      icon: (props: any) => <span {...props}>ICON</span>,
       isNew: true,
+      createdAt: new Date(),
+    },
+    {
+      id: "2",
+      title: "Vecchia notifica",
+      description: "Gia vista",
+      icon: (props: any) => <span {...props}>ICON</span>,
+      isNew: false,
       createdAt: new Date(),
     },
   ],
@@ -20,6 +28,7 @@ const hookState = {
   handleMarkSeen: vi.fn(),
   handleMarkUnseen: vi.fn(),
   handleDelete: vi.fn(),
+  handleMarkAllRead: vi.fn(),
 }
 
 vi.mock("@/components/notifications-popover/use-notifications-popover", () => ({
@@ -65,9 +74,9 @@ describe("NotificationsPopover", () => {
     expect(hookState.handleMarkSeen).toHaveBeenCalledWith("1")
 
     fireEvent.click(screen.getByText("Segna come non vista"))
-    expect(hookState.handleMarkUnseen).toHaveBeenCalledWith("1")
+    expect(hookState.handleMarkUnseen).toHaveBeenCalledWith("2")
 
-    fireEvent.click(screen.getByText("Elimina"))
+    fireEvent.click(screen.getAllByText("Elimina")[0])
     expect(hookState.handleDelete).toHaveBeenCalledWith("1")
   })
 })

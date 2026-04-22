@@ -1,3 +1,4 @@
+import { renderRichText } from "@beech/core"
 import { ExpandableCell } from "@/components/ui/expandable-cell"
 import type { FieldDisplayProps } from "../types"
 
@@ -11,7 +12,8 @@ export function RichtextDisplay({ value, options }: FieldDisplayProps) {
   if (value == null || value === "") {
     return <div className="text-muted-foreground">-</div>
   }
-  const plain = stripTags(String(value))
+  const html = renderRichText(value)
+  const plain = stripTags(html)
   if (!plain) {
     return <div className="text-muted-foreground">-</div>
   }

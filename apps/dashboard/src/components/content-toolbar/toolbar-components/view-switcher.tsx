@@ -16,6 +16,7 @@ import {
 
 const VIEW_TYPE_ICONS: Record<ViewType, React.ComponentType<{ className?: string }>> = {
   table: Table,
+  gallery: LayoutGrid,
   grid: LayoutGrid,
   kanban: LayoutList,
   chart: PieChart,
