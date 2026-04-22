@@ -36,9 +36,14 @@ const ACTION_COLORS: Record<string, string> = {
   upload: "bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400",
 }
 
-function initials(email?: string): string {
-  if (!email) return "?"
-  return email.slice(0, 2).toUpperCase()
+function displayName(name?: string | null, email?: string): string {
+  return name || email || "Utente"
+}
+
+function initials(name?: string | null, email?: string): string {
+  const source = name || email
+  if (!source) return "?"
+  return source.slice(0, 2).toUpperCase()
 }
 
 function relativeTime(ts: number | null): string {
@@ -82,7 +87,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
           {items.map((log) => (
             <li key={log.id} className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground truncate flex-1">
-                <span className="font-medium text-foreground">{log.user_email}</span>{" "}
+                <span className="font-medium text-foreground">{displayName(log.user_name, log.user_email)}</span>{" "}
                 {ACTION_LABELS[log.action] || log.action}{" "}
                 <span className="font-medium text-foreground">
                   {log.details?.title || log.details?.name || log.entity_slug || log.entity_id}
@@ -108,7 +113,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
                 <div className="relative shrink-0">
                   <Avatar className="size-8 border border-border/60">
                     <AvatarFallback className="text-[10px] bg-primary/5 text-primary font-semibold">
-                      {initials(log.user_email)}
+                      {initials(log.user_name, log.user_email)}
                     </AvatarFallback>
                   </Avatar>
                   <span className={cn(
@@ -120,7 +125,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
                 </div>
                 <div className="flex-1 min-w-0 space-y-0.5">
                   <p className="text-sm leading-snug">
-                    <span className="font-semibold">{log.user_email}</span>{" "}
+                    <span className="font-semibold">{displayName(log.user_name, log.user_email)}</span>{" "}
                     <span className="text-muted-foreground">
                       {ACTION_LABELS[log.action] || log.action}
                     </span>{" "}

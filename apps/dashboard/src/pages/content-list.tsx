@@ -593,7 +593,7 @@ export function ContentListPage() {
   }
 
   return (
-    <div className="[--header-height:calc(--spacing(14))] overflow-x-hidden">
+    <div className="[--header-height:calc(--spacing(14))] overflow-x-clip">
       <SidebarProvider className="flex flex-col">
         <SiteHeader />
         <div className="flex flex-1">

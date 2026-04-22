@@ -20,6 +20,7 @@
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "shadcn": "^4.4.0",
     "turbo": "^2.8.7",
     "typescript": "^5.9.3"
   },

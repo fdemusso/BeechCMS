@@ -3,10 +3,11 @@ import type { Context, Next } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import { jwtVerify } from 'jose'
 
-/** Payload JWT decodificato (sub = userId, email opzionale) */
+/** Payload JWT decodificato (sub = userId, email opzionale, name opzionale) */
 export type JwtPayload = {
   sub: string
   email?: string
+  name?: string
 }
 
 /** Variabili iniettate nel context Hono dopo auth */

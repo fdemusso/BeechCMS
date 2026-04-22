@@ -30,12 +30,12 @@ export function RecentActivity() {
               <div key={activity.id} className="flex items-center gap-4">
                 <Avatar className="h-9 w-9 border border-primary/10">
                   <AvatarFallback className="bg-primary/5 text-primary text-xs">
-                    {activity.user_email.slice(0, 2).toUpperCase()}
+                    {(activity.user_name || activity.user_email).slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-1 flex-col gap-1">
                   <p className="text-sm leading-none text-muted-foreground">
-                    <span className="font-bold text-foreground">{activity.user_email}</span>{" "}
+                    <span className="font-bold text-foreground">{activity.user_name || activity.user_email}</span>{" "}
                     {ACTION_MAP[activity.action] || activity.action}{" "}
                     <span className="font-semibold text-primary">
                       {activity.details?.title || activity.details?.name || activity.entity_slug || activity.entity_id}

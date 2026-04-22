@@ -504,54 +504,34 @@ contentApp.get('/stats/total', async (c) => {
 })
 
 // GET /stats/recent-activity - Ultime attività registrate nel sistema
+// Nessun ETag su questo endpoint: il feed di attività deve sempre essere fresco dopo
+// ogni mutazione. Cache-Control: no-store impedisce al browser di conservare una
+// risposta che potrebbe essere restituita come 304 stale.
 contentApp.get('/stats/recent-activity', async (c) => {
   try {
     const { DB } = c.env
     const slug = cleanStr(c.req.query('slug'))
-    
-    // 1. Genera ETag rapido basato su conteggio e ultimo timestamp di attività
-    // Se è presente uno slug, filtriamo le statistiche per quell'entità
-    let statsQuery = 'SELECT COUNT(*) as count, MAX(created_at) as latest FROM activity_logs'
-    const statsParams: any[] = []
-    
-    if (slug) {
-      statsQuery += ' WHERE entity_slug = ?'
-      statsParams.push(slug)
-    }
 
-    const stats = await DB.prepare(statsQuery).bind(...statsParams).first<{ count: number; latest: number | null }>()
-    
-    const count = stats?.count ?? 0
-    const latest = stats?.latest ?? 0
-    const etag = `W/"recent-${slug || 'all'}-${count}-${latest}"`
-    
-    const ifNoneMatch = c.req.header('If-None-Match')
-    if (ifNoneMatch === etag) {
-      return new Response(null, { status: 304 })
-    }
-
-    // 2. Se cambiato, carica le ultime 15 attività
-    let query = `SELECT id, user_id, user_email, action, entity_type, entity_id, entity_slug, details, created_at 
-                 FROM activity_logs `
+    let query = `SELECT id, user_id, user_email, user_name, action, entity_type, entity_id, entity_slug, details, created_at
+                 FROM activity_logs`
     const params: any[] = []
 
     if (slug) {
-      query += ' WHERE entity_slug = ? '
+      query += ' WHERE entity_slug = ?'
       params.push(slug)
     }
 
     query += ' ORDER BY created_at DESC LIMIT 15'
-    
+
     const result = await DB.prepare(query).bind(...params).all()
-    
+
     const activities = (result.results ?? []).map((row: any) => ({
       ...row,
       details: row.details ? JSON.parse(row.details) : null
     }))
-    
-    c.header('ETag', etag)
-    c.header('Cache-Control', 'no-cache, must-revalidate')
-    
+
+    c.header('Cache-Control', 'no-store')
+
     return c.json(activities)
   } catch (err) {
     console.error('Recent activity error:', err)

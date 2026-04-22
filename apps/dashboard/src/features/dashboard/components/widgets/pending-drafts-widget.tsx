@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "@/features/dashboard"
+import { DASHBOARD_QUERY_KEYS } from "@/features/dashboard/hooks/use-dashboard-stats"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { WidgetEmpty } from "./_parts/widget-empty"
 import { WidgetError } from "./_parts/widget-error"
@@ -54,6 +55,8 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["widget", "pending-drafts", seedSlug] })
       queryClient.invalidateQueries({ queryKey: ["widget", "recent-content", seedSlug] })
+      // Invalidate recent-activity so the dashboard feed reflects the publication immediately
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.activity() })
     },
   })
 

@@ -30,7 +30,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <div className="[--header-height:calc(--spacing(14))] overflow-x-hidden min-h-screen bg-neutral-50/50 dark:bg-neutral-950/50 relative">
+    <div className="[--header-height:calc(--spacing(14))] overflow-x-clip min-h-screen bg-neutral-50/50 dark:bg-neutral-950/50 relative">
       {/* Background Decorative Elements */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-emerald-500/5 rounded-full blur-[120px]" />
