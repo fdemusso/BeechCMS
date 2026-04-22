@@ -3,7 +3,6 @@ import { User, Palette, Shield, HardDrive, Bell } from 'lucide-react'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
 import { SiteHeader } from '@/components/site-header'
-import { Separator } from '@/components/ui/separator'
 import { ProfileTab } from '../components/profile-tab'
 import { InterfaceTab } from '../components/interface-tab'
 import { SecurityTab } from '../components/security-tab'
@@ -30,14 +29,11 @@ function TabContent({ tab }: { tab: SettingsTab }) {
 }
 
 export default function SettingsPage() {
-  const [searchParams, setSearchParams] = useSearchParams()
+  const [searchParams] = useSearchParams()
   const activeTab = (searchParams.get('tab') as SettingsTab) ?? 'profile'
 
   const currentTab = TABS.find(t => t.id === activeTab) ?? TABS[0]
-
-  const handleTabChange = (id: SettingsTab) => {
-    setSearchParams({ tab: id }, { replace: true })
-  }
+  const Icon = currentTab.icon
 
   return (
     <div className="[--header-height:calc(--spacing(14))] min-h-screen bg-neutral-50/50 dark:bg-neutral-950/50">
@@ -47,45 +43,19 @@ export default function SettingsPage() {
           <AppSidebar />
           <SidebarInset className="min-w-0">
             <main className="flex flex-1 flex-col gap-0 p-6 md:p-8 lg:p-10">
-              {/* Header */}
-              <div className="mb-6">
-                <h1 className="text-2xl font-bold tracking-tight">Impostazioni</h1>
-                <p className="text-muted-foreground mt-1">Gestisci il tuo profilo e le preferenze dell'account.</p>
-              </div>
-
-              <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
-                {/* Left nav */}
-                <nav className="lg:w-52 shrink-0">
-                  <ul className="space-y-1">
-                    {TABS.map(({ id, label, icon: Icon }) => (
-                      <li key={id}>
-                        <button
-                          type="button"
-                          onClick={() => handleTabChange(id)}
-                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
-                            activeTab === id
-                              ? 'bg-primary text-primary-foreground'
-                              : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
-                          }`}
-                        >
-                          <Icon className="size-4 shrink-0" />
-                          {label}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </nav>
-
-                <Separator orientation="vertical" className="hidden lg:block h-auto" />
-
-                {/* Content area */}
-                <div className="flex-1 min-w-0">
-                  <div className="mb-4 lg:hidden">
-                    <h2 className="text-lg font-semibold">{currentTab.label}</h2>
-                    <Separator className="mt-2" />
+              <div className="content-area-inner">
+                {/* Section header */}
+                <div className="mb-6 flex items-center gap-3">
+                  <Icon className="size-5 text-muted-foreground shrink-0" />
+                  <div>
+                    <h1 className="text-2xl font-bold tracking-tight">
+                      {currentTab.label}
+                    </h1>
                   </div>
-                  <TabContent tab={activeTab} />
                 </div>
+
+                {/* Tab content */}
+                <TabContent tab={activeTab} />
               </div>
             </main>
           </SidebarInset>

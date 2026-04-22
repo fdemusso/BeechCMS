@@ -574,7 +574,7 @@ export function ContentListPage() {
             <AppSidebar />
             <SidebarInset>
               <div className="flex flex-1 flex-col gap-4 p-4">
-                <div className="mx-auto w-full max-w-screen-2xl">
+                <div className="content-area-inner">
                   <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
                     <h2 className="text-lg font-semibold text-destructive">
                       Errore
@@ -600,7 +600,7 @@ export function ContentListPage() {
           <AppSidebar />
           <SidebarInset className="min-w-0">
             <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
-              <div className="mx-auto w-full max-w-screen-2xl">
+              <div className="content-area-inner">
                 {/* Header con titolo */}
                 <div className="mb-6">
                   {/* TODO: Estrarre questo header in un componente dedicato della slice */}

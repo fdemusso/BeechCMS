@@ -100,32 +100,58 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
       <ScrollArea className="h-[260px]">
         <ul className="space-y-1 pr-2">
           {data.map((entry) => (
-            <li key={entry.id} className="flex items-center gap-2 rounded-lg px-2 py-2 hover:bg-muted/40 transition-colors group">
-              <Link
-                to={`/content/${seedSlug}/${entry.id}`}
-                className="flex-1 text-sm font-medium truncate hover:underline text-foreground decoration-primary/30"
-              >
-                {entryTitle(entry)}
-              </Link>
-              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">
-                {entry.updated_at
-                  ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: it })
-                  : "—"
-                }
-              </span>
-              <Button
-                size="sm"
-                variant="default"
-                className="h-6 text-xs px-2 shrink-0 gap-1 opacity-70 group-hover:opacity-100 transition-opacity"
-                disabled={publishMutation.isPending}
-                onClick={() => {
-                  publishMutation.mutate(entry.id)
-                  onPublish?.(entry.id)
-                }}
-              >
-                <Send className="size-3" />
-                Pubblica
-              </Button>
+            <li key={entry.id} className="rounded-lg px-2 py-2 hover:bg-muted/40 transition-colors group">
+              {/* Mobile: title + timestamp row, then full-width publish button.
+                  sm+: single row with title | timestamp | button. */}
+              <div className="flex items-center gap-2 min-w-0">
+                <Link
+                  to={`/content/${seedSlug}/${entry.id}`}
+                  className="flex-1 text-sm font-medium truncate hover:underline text-foreground decoration-primary/30 min-w-0"
+                >
+                  {entryTitle(entry)}
+                </Link>
+                <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums hidden sm:inline">
+                  {entry.updated_at
+                    ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: it })
+                    : "—"
+                  }
+                </span>
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-6 text-xs px-2 shrink-0 gap-1 opacity-70 group-hover:opacity-100 transition-opacity hidden sm:flex"
+                  disabled={publishMutation.isPending}
+                  onClick={() => {
+                    publishMutation.mutate(entry.id)
+                    onPublish?.(entry.id)
+                  }}
+                >
+                  <Send className="size-3" />
+                  Pubblica
+                </Button>
+              </div>
+              {/* Mobile-only: timestamp + button on second line */}
+              <div className="flex items-center justify-between gap-2 mt-1 sm:hidden">
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {entry.updated_at
+                    ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: it })
+                    : "—"
+                  }
+                </span>
+                <Button
+                  size="sm"
+                  variant="default"
+                  className="h-6 text-xs px-2 shrink-0 gap-1"
+                  disabled={publishMutation.isPending}
+                  onClick={() => {
+                    publishMutation.mutate(entry.id)
+                    onPublish?.(entry.id)
+                  }}
+                >
+                  <Send className="size-3" />
+                  Pubblica
+                </Button>
+              </div>
             </li>
           ))}
         </ul>

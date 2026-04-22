@@ -56,18 +56,21 @@ export function PublicationStatsWidget({ variant = "single" }: PublicationStatsW
     ]
     return (
       <DashboardWidgetShell>
-        <div className="grid grid-cols-3 gap-2 h-full">
+        {/* On mobile: single scrollable row so numbers never overflow or get cut.
+            On sm+: fixed 3-column grid. */}
+        <div className="flex gap-2 overflow-x-auto pb-0.5 sm:grid sm:grid-cols-3 sm:overflow-visible h-full">
           {blocks.map(({ label, value, color, border, bg }) => (
             <div
               key={label}
               className={cn(
                 "flex flex-col justify-center rounded-lg border-l-2 px-3 py-2 gap-0.5",
+                "min-w-[80px] shrink-0 sm:min-w-0 sm:shrink",
                 border,
                 bg
               )}
             >
-              <span className={cn("text-2xl font-bold tabular-nums leading-none", color)}>{value}</span>
-              <span className="text-[10px] font-medium text-muted-foreground">{label}</span>
+              <span className={cn("text-xl font-bold tabular-nums leading-none sm:text-2xl", color)}>{value}</span>
+              <span className="text-[10px] font-medium text-muted-foreground whitespace-nowrap">{label}</span>
             </div>
           ))}
         </div>

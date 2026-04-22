@@ -98,11 +98,13 @@ export function StorageWidget({ variant = "bar", totalBytes = DEFAULT_TOTAL }: S
   if (variant === "gauge") {
     return (
       <DashboardWidgetShell>
-        <div className="flex items-center gap-3 h-full w-full">
+        {/* On very narrow mobile: stack gauge above text.
+            On sm+: side-by-side as designed. */}
+        <div className="flex flex-col items-center gap-2 h-full w-full xs:flex-row sm:flex-row sm:items-center sm:gap-3">
           <div className="shrink-0">
             <GaugeSvg pct={pct} />
           </div>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 text-center sm:text-left">
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Storage R2</p>
             <p className="text-base font-bold text-foreground tabular-nums leading-tight">
               {formatGb(storageBytes)}&nbsp;<span className="text-sm font-medium text-muted-foreground">GB</span>

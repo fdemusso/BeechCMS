@@ -119,18 +119,28 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
         {data.map((entry) => (
           <li
             key={entry.id}
-            className="group flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors"
+            className="group rounded-lg px-3 py-2.5 hover:bg-muted/50 transition-colors"
           >
+            {/* Mobile: title on its own line, meta row below.
+                sm+: single row with all three items. */}
             <Link
               to={`/content/${seedSlug}/${entry.id}`}
-              className="text-sm font-medium truncate flex-1 hover:underline decoration-primary/30"
+              className="text-sm font-medium truncate block hover:underline decoration-primary/30 mb-1 sm:hidden"
             >
               {entryTitle(entry)}
             </Link>
-            <Badge className={cn("shrink-0 text-[10px] border", statusVariant(entry.status))} variant="outline">
-              {entry.status}
-            </Badge>
-            <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{relativeTime(entry.updated_at)}</span>
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/content/${seedSlug}/${entry.id}`}
+                className="text-sm font-medium truncate flex-1 hover:underline decoration-primary/30 hidden sm:block"
+              >
+                {entryTitle(entry)}
+              </Link>
+              <Badge className={cn("shrink-0 text-[10px] border", statusVariant(entry.status))} variant="outline">
+                {entry.status}
+              </Badge>
+              <span className="text-xs text-muted-foreground shrink-0 tabular-nums ml-auto sm:ml-0">{relativeTime(entry.updated_at)}</span>
+            </div>
           </li>
         ))}
       </ul>

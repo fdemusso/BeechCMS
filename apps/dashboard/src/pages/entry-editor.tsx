@@ -316,7 +316,7 @@ export function EntryEditorPage() {
             <SidebarInset>
               <div className="flex flex-1 flex-col gap-4 p-4">
                 <Skeleton className="h-10 w-48" />
-                <div className="grid flex-1 gap-4 md:grid-cols-[1fr_320px]">
+                <div className="grid flex-1 gap-4 md:grid-cols-[1fr_320px] lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px]">
                   <Skeleton className="min-h-[70vh] rounded-lg" />
                   <Skeleton className="h-64 rounded-lg" />
                 </div>
@@ -357,10 +357,10 @@ export function EntryEditorPage() {
         <SiteHeader />
         <div className="flex flex-1">
           <AppSidebar />
-          <SidebarInset>
+          <SidebarInset className="min-w-0">
             <div className="flex flex-1 flex-col gap-4 p-4">
               <form
-                className="mx-auto w-full max-w-screen-2xl flex flex-1 flex-col"
+                className="content-area-inner flex flex-1 flex-col"
                 onSubmit={handleSubmit}
               >
                 {/* Top bar */}
@@ -390,7 +390,7 @@ export function EntryEditorPage() {
                 </div>
 
                 {hasRichtext ? (
-                  <div className="grid flex-1 gap-6 md:grid-cols-[1fr_320px] md:min-h-0">
+                  <div className="grid flex-1 gap-6 md:grid-cols-[1fr_320px] lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px] md:min-h-0">
                     {/* Main area (70%) - solo richtext, nessun placeholder */}
                     <div className="min-h-[70vh] flex flex-col rounded-lg border-0">
                       <FieldEdit
@@ -476,8 +476,10 @@ export function EntryEditorPage() {
                     </aside>
                   </div>
                 ) : (
-                  /* Layout a colonna singola centrata: nessuna area main */
-                  <div className="mx-auto w-full max-w-2xl space-y-6">
+                  /* Layout a colonna singola centrata: nessuna area main.
+                     max-w cresce progressivamente con la viewport per sfruttare
+                     lo spazio su 16:9 e 21:9 senza creare linee troppo lunghe. */
+                  <div className="mx-auto w-full max-w-2xl lg:max-w-3xl xl:max-w-4xl space-y-6">
                     <Card>
                       <CardHeader>
                         <CardTitle>Pubblicazione</CardTitle>

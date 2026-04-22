@@ -97,7 +97,15 @@ export function QuickDraftWidget({
             {customTitle || "Crea bozza rapida"}
           </p>
         )}
-        <div className={cn("flex gap-2", variant === "expanded" ? "flex-col" : "flex-row items-center")}>
+        {/* Minimal variant: on mobile stack input+select on first row, button full-width below.
+            On sm+: single row as designed.
+            Expanded variant: always stacked vertically. */}
+        <div className={cn(
+          "flex gap-2",
+          variant === "expanded"
+            ? "flex-col"
+            : "flex-col sm:flex-row sm:items-center"
+        )}>
           <div className="flex-1 space-y-1">
             {variant === "expanded" && <label className="text-xs text-muted-foreground">{nameLabel}</label>}
             <Input
@@ -110,24 +118,32 @@ export function QuickDraftWidget({
               <p className="text-xs text-muted-foreground font-mono">/{toKebab(title)}</p>
             )}
           </div>
-          <div className={cn(variant === "expanded" ? "w-full space-y-1" : "w-28 shrink-0 min-w-0")}>
-            {variant === "expanded" && <label className="text-xs text-muted-foreground">Tipo</label>}
-            <Select value={selectedSeed} onValueChange={setSelectedSeed}>
-              <SelectTrigger className="h-8 text-sm w-full overflow-hidden">
-                <span className="truncate block">{seeds.find(s => s.slug === selectedSeed)?.label ?? "Tipo"}</span>
-              </SelectTrigger>
-              <SelectContent>
-                {seeds.map((s) => (
-                  <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* On mobile (minimal): select + button side by side below the input */}
+          <div className={cn(
+            "flex gap-2",
+            variant === "minimal" ? "items-center sm:contents" : ""
+          )}>
+            <div className={cn(
+              variant === "expanded" ? "w-full space-y-1" : "flex-1 min-w-0 sm:w-28 sm:shrink-0 sm:flex-none"
+            )}>
+              {variant === "expanded" && <label className="text-xs text-muted-foreground">Tipo</label>}
+              <Select value={selectedSeed} onValueChange={setSelectedSeed}>
+                <SelectTrigger className="h-8 text-sm w-full overflow-hidden">
+                  <span className="truncate block">{seeds.find(s => s.slug === selectedSeed)?.label ?? "Tipo"}</span>
+                </SelectTrigger>
+                <SelectContent>
+                  {seeds.map((s) => (
+                    <SelectItem key={s.slug} value={s.slug}>{s.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {variant === "minimal" && (
+              <Button type="submit" size="sm" disabled={isPending || !title.trim()} className="shrink-0 h-8">
+                {isPending ? "…" : "Crea"}
+              </Button>
+            )}
           </div>
-          {variant === "minimal" && (
-            <Button type="submit" size="sm" disabled={isPending || !title.trim()} className="shrink-0 h-8">
-              {isPending ? "…" : "Crea"}
-            </Button>
-          )}
         </div>
         {variant === "expanded" && (
           <Button type="submit" size="sm" disabled={isPending || !title.trim()} className="w-full h-8">

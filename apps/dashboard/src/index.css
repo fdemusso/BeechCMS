@@ -244,6 +244,17 @@ h1 {
   }
 }
 
+/*
+  Layout content-area: limita il contenuto principale a una larghezza
+  leggibile anche su monitor ultrawide 21:9 (≥ 2560px).
+  Usato in DashboardPage, ContentListPage, EntryEditorPage.
+*/
+.content-area-inner {
+  width: 100%;
+  max-width: min(100%, 2200px);
+  margin-inline: auto;
+}
+
 /* Command palette: frosted-glass backdrop on Radix Dialog overlay */
 [data-radix-dialog-overlay] {
   backdrop-filter: blur(4px);
@@ -419,4 +430,39 @@ h1 {
   font-size: 0.75rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   line-height: 1.35;
+}
+
+/*
+  Bento grid — responsive span system.
+
+  Widget cells carry CSS custom properties set via inline style:
+    --col-span-md  (half of the 8-col lg span, min 1)
+    --col-span-lg  (full 8-col design span)
+    --row-span     (vertical size in grid rows)
+
+  Mobile (<768px):  single column, every cell fills the row.
+  md (768–1023px):  4-col grid, spans from --col-span-md.
+  lg (1024px+):     8-col grid, spans from --col-span-lg.
+
+  Row spans are suppressed below md so stacked single-column
+  cards don't reserve empty vertical space.
+*/
+.bento-cell {
+  /* mobile: always full width — grid-cols-1 handles it */
+  grid-column: span 1;
+  grid-row: span 1;
+}
+
+@media (min-width: 768px) {
+  .bento-cell {
+    grid-column: span var(--col-span-md, 1);
+    grid-row: span var(--row-span, 1);
+  }
+}
+
+@media (min-width: 1024px) {
+  .bento-cell {
+    grid-column: span var(--col-span-lg, 1);
+    grid-row: span var(--row-span, 1);
+  }
 }

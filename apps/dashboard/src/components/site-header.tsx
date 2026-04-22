@@ -1,6 +1,6 @@
 import * as React from "react"
 import { SidebarIcon } from "lucide-react"
-import { useLocation, Link } from "react-router-dom"
+import { useLocation, useSearchParams, Link } from "react-router-dom"
 import { SEED_REGISTRY } from "@beech/core"
 
 import {
@@ -21,8 +21,28 @@ interface BreadcrumbSegment {
   href?: string
 }
 
+const SETTINGS_TAB_LABELS: Record<string, string> = {
+  profile: "Profilo",
+  interface: "Interfaccia",
+  security: "Sicurezza",
+  storage: "Storage",
+  notifications: "Notifiche",
+}
+
 function useBreadcrumbs(): BreadcrumbSegment[] {
   const { pathname } = useLocation()
+  const [searchParams] = useSearchParams()
+
+  // /settings?tab=...
+  if (pathname === "/settings") {
+    const tab = searchParams.get("tab") ?? "profile"
+    const tabLabel = SETTINGS_TAB_LABELS[tab] ?? tab
+    return [
+      { label: "Beech CMS", href: "/" },
+      { label: "Impostazioni", href: "/settings" },
+      { label: tabLabel },
+    ]
+  }
 
   // /content/:slug, /content/:slug/create, /content/:slug/:id
   const contentMatch = pathname.match(/^\/content\/([^/]+)(?:\/(.+))?$/)
