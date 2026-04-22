@@ -17,7 +17,9 @@ out/
 .cursorrules
 .cursorignore
 
-.claude
+.claude/
+CLAUDE.md
+packages/
 
 # Turbo
 .turbo/
