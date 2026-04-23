@@ -28,7 +28,7 @@ export interface NavSecondaryItem {
 }
 
 /** Mappa slug seed -> icona Lucide */
-const SLUG_ICON_MAP: Record<string, LucideIcon> = {
+export const SLUG_ICON_MAP: Record<string, LucideIcon> = {
   articoli: Newspaper,
   prodotti: ShoppingBag,
   team: Users,

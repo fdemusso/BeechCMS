@@ -2,7 +2,7 @@ import {
   LayoutDashboard,
   Image as ImageIcon,
   Settings,
-  FolderOpen,
+  Folder,
   Layers,
   Plus,
   Sun,
@@ -15,6 +15,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command"
 import type { Seed } from "@beech/core"
+import { SLUG_ICON_MAP } from "@/config/dashboard-menu"
 import type { CommandPage } from "../types"
 
 interface RootViewProps {
@@ -56,16 +57,19 @@ export function RootView({
       <CommandSeparator />
 
       <CommandGroup heading="Contenuti">
-        {seeds.slice(0, 5).map((seed) => (
-          <CommandItem
-            key={seed.slug}
-            onSelect={() => nav(`/content/${seed.slug}`)}
-            keywords={[seed.slug, "contenuto", "lista"]}
-          >
-            <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
-            <span>Vai a {seed.label}…</span>
-          </CommandItem>
-        ))}
+        {seeds.slice(0, 5).map((seed) => {
+          const SeedIcon = SLUG_ICON_MAP[seed.slug] ?? Folder
+          return (
+            <CommandItem
+              key={seed.slug}
+              onSelect={() => nav(`/content/${seed.slug}`)}
+              keywords={[seed.slug, "contenuto", "lista"]}
+            >
+              <SeedIcon className="size-4 shrink-0 text-muted-foreground" />
+              <span>Vai a {seed.label}…</span>
+            </CommandItem>
+          )
+        })}
         {seeds.length > 5 && (
           <CommandItem onSelect={() => pushPage("seeds")}>
             <Layers className="size-4 shrink-0 text-muted-foreground" />
@@ -81,7 +85,7 @@ export function RootView({
           <Plus className="size-4 shrink-0 text-muted-foreground" />
           <span>Nuovo contenuto…</span>
           <CommandShortcut className="flex items-center gap-0.5">
-            <kbd className="text-xs font-mono bg-muted text-muted-foreground px-1 rounded">⌘</kbd>
+            <kbd className="text-xs font-mono bg-muted text-muted-foreground px-1 rounded">Alt</kbd>
             <kbd className="text-xs font-mono bg-muted text-muted-foreground px-1 rounded">N</kbd>
           </CommandShortcut>
         </CommandItem>
