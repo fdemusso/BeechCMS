@@ -12,7 +12,8 @@
     {
       "binding": "DB",
       "database_name": "beech-db",
-      "database_id": "INCOLLA_QUI_IL_TUO_ID_D1"
+      "database_id": "INCOLLA_QUI_IL_TUO_ID_D1",
+      "migrations_dir": "migrations"
     }
   ],
 
@@ -41,6 +42,16 @@
       "name": "PUBLIC_WRITE_RATE_LIMITER",
       "namespace_id": "1004",
       "simple": { "limit": 20, "period": 60 }
+    },
+    {
+      "name": "FORGOT_PASSWORD_RATE_LIMITER",
+      "namespace_id": "1005",
+      "simple": { "limit": 3, "period": 60 }
+    },
+    {
+      "name": "RESET_PASSWORD_RATE_LIMITER",
+      "namespace_id": "1006",
+      "simple": { "limit": 5, "period": 60 }
     }
   ],
 
@@ -54,6 +65,9 @@
     "PUBLIC_PUBLISHED_ONLY": "true",
     "PUBLIC_IDEMPOTENCY_TTL_SECONDS": "86400",
     "MEDIA_BASE_URL": "http://localhost:5173",
+    // URL del dashboard (usato per costruire i link nelle email di reset password)
+    // Configura via wrangler secret in produzione: RESEND_API_KEY, APP_URL, EMAIL_FROM
+    "APP_URL": "http://localhost:5173",
     "ENV": "development"
   }
 }

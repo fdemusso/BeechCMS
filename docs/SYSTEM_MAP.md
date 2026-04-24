@@ -19,6 +19,7 @@ This high-level system map is designed for onboarding new contributors and for A
 | `[nuovidocs/architecture.md](nuovidocs/architecture.md)` | Monorepo topology, Turborepo pipeline, `@beech/core` barrel, Botanical Engine data flow, atomic data model, D1 vs Postgres, VSA migration, dependency rules |
 | `[nuovidocs/api-reference.md](nuovidocs/api-reference.md)` | Auth (JWT, refresh token rotation, security hardening), Internal Content API, Media Engine (upload, serve, R2 architecture), Public API (permission model, rate limiting, filters, error model) |
 | `[nuovidocs/frontend-guide.md](nuovidocs/frontend-guide.md)` | FieldRenderers registry pattern, TanStack Query strategy, Tailwind 4 + Shadcn component system, EntryEditorPage, how to add a new field type, ContentToolbar architecture, filter derivation from `Seed.branches`, gallery integration |
+| `[email-module.md](email-module.md)` | Email module architecture, EmailProvider interface, template system (shell + specific templates), localisation, env vars, developer recipes (swap provider, add email type, add language, rebrand) |
 
 ---
 
@@ -54,7 +55,7 @@ This high-level system map is designed for onboarding new contributors and for A
 - **Backend / API**
   - **Runtime**: Cloudflare Workers
   - **HTTP Framework**: `hono` `^4.11.9`
-  - **Authentication**: `jose` `^6.1.3` (JWT), `bcryptjs` `^2.4.3` (password hashing)
+  - **Authentication**: `jose` `^6.1.3` (JWT), `bcryptjs` `^2.4.3` (password hashing), [Resend](https://resend.com) REST API (password reset emails — optional, activated by `RESEND_API_KEY`)
   - **Media / Storage**: `@aws-sdk/client-s3` `^3.995.0` for S3-compatible interaction with Cloudflare R2
   - **Infra & DX**: `wrangler` `^4.4.0`, `@cloudflare/workers-types` `^4.20260213.0`
   - Vitest `^3.2.4` for API testing
@@ -145,6 +146,7 @@ beech-cms/
   - Login: validates credentials with `bcryptjs`, generates JWT via `jose.SignJWT` (15 min TTL), creates UUID refresh token stored hashed in D1, sets `HttpOnly SameSite=Strict` cookie.
   - Refresh: reads cookie, validates in D1, atomically revokes old token, issues new access + refresh token pair.
   - Logout: revokes refresh token in D1, clears cookie.
+  - **Password reset (optional):** enabled only when `RESEND_API_KEY` is set. `GET /auth/features` exposes the flag to the dashboard. `POST /auth/forgot-password` issues a 30-min single-use token (SHA-256 hashed in `password_reset_tokens`) and sends the reset link via Resend (rate-limited: 3/min per IP via `FORGOT_PASSWORD_RATE_LIMITER`). `POST /auth/reset-password` validates the token, updates `password_hash`, marks it used, and revokes all active sessions — atomically via `D1.batch()` — then fires a **"password changed" security notification email** via `waitUntil` (rate-limited: 5/min per IP via `RESET_PASSWORD_RATE_LIMITER`). Both endpoints accept a `locale` field (`en` | `it`) that selects the email language; the dashboard passes `i18n.language` automatically. `APP_URL` must point to the dashboard URL.
 
 - **Content CRUD (`/api/content/:slug`)** — see `nuovidocs/api-reference.md` §4
   - **Write (POST/PUT):** body uses alias fields → `apiToDb` maps to internal IDs → serialized into `data` JSON column.

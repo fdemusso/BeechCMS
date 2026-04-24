@@ -67,7 +67,8 @@ describe("content-toolbar/shared", () => {
     expect(operatorRequiresValue("is_empty")).toBe(false)
     expect(operatorRequiresValue("is_not_empty")).toBe(false)
 
-    expect(getOperatorOptions("number").map((o) => o.value)).toEqual([
+    const t = (key: string) => key
+    expect(getOperatorOptions("number", t).map((o) => o.value)).toEqual([
       "gt",
       "lt",
       "gte",
@@ -76,19 +77,19 @@ describe("content-toolbar/shared", () => {
       "is_not_empty",
       "is_empty",
     ])
-    expect(getOperatorOptions("date")[0].value).toBe("gt")
-    expect(getOperatorOptions("tags").map((o) => o.value)).toEqual([
+    expect(getOperatorOptions("date", t)[0].value).toBe("gt")
+    expect(getOperatorOptions("tags", t).map((o) => o.value)).toEqual([
       "contains",
       "is_not_empty",
       "is_empty",
     ])
-    expect(getOperatorOptions("select").map((o) => o.value)).toEqual([
+    expect(getOperatorOptions("select", t).map((o) => o.value)).toEqual([
       "eq",
       "is_not_empty",
       "is_empty",
     ])
-    expect(getOperatorOptions("text")[0].value).toBe("contains")
-    expect(getOperatorOptions("system")[0].value).toBe("contains")
+    expect(getOperatorOptions("text", t)[0].value).toBe("contains")
+    expect(getOperatorOptions("system", t)[0].value).toBe("contains")
   })
 
   it("calcola groupable columns per branch/section", () => {

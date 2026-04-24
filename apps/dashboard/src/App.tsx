@@ -5,6 +5,8 @@ import { ContentListPage } from "@/pages/content-list"
 import { EntryEditorPage } from "@/pages/entry-editor"
 import { TestFieldsPage } from "@/pages/test-fields"
 import { ErrorPage } from "@/pages/error-page"
+import { ForgotPasswordPage } from "@/pages/forgot-password/ForgotPasswordPage"
+import { ResetPasswordPage } from "@/pages/reset-password/ResetPasswordPage"
 import { DashboardPage } from "@/features/dashboard"
 import { SettingsPage } from "@/features/settings"
 import { CommandPalette } from "@/features/command-palette"
@@ -46,6 +48,14 @@ const router = createBrowserRouter([
       {
         path: "/login",
         element: <LoginPage />,
+      },
+      {
+        path: "/forgot-password",
+        element: <ForgotPasswordPage />,
+      },
+      {
+        path: "/reset-password",
+        element: <ResetPasswordPage />,
       },
       {
         path: "/",
