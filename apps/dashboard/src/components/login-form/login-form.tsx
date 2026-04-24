@@ -1,4 +1,5 @@
 import * as React from "react"
+import { Link } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { Eye, EyeOff } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -12,6 +13,7 @@ import {
   FieldLabel,
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { useAuthFeatures } from "@/lib/use-auth-features"
 import { useLoginForm } from "./use-login-form"
 
 export interface LoginFormProps extends React.ComponentProps<"div"> {
@@ -28,6 +30,7 @@ export interface LoginFormProps extends React.ComponentProps<"div"> {
  */
 export function LoginForm(props: Readonly<LoginFormProps>) {
   const { t } = useTranslation()
+  const { passwordReset } = useAuthFeatures()
   const { className, ...divProps } = props
   const {
     emailValue,
@@ -91,12 +94,14 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
                 <Field>
                   <div className="flex items-center">
                     <FieldLabel htmlFor="password">Password</FieldLabel>
-                    <a
-                      href="#"
-                      className="ml-auto text-sm underline-offset-2 hover:underline"
-                    >
-                      Forgot your password?
-                    </a>
+                    {passwordReset && (
+                      <Link
+                        to="/forgot-password"
+                        className="ml-auto text-sm underline-offset-2 hover:underline"
+                      >
+                        {t("login.forgotPassword")}
+                      </Link>
+                    )}
                   </div>
                   <div className="relative">
                     <Input

@@ -1,0 +1,538 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "edit": "Edit",
+    "create": "Create",
+    "search": "Search",
+    "noResults": "No results",
+    "language": "Language",
+    "back": "Back",
+    "error": "Error",
+    "retry": "Retry",
+    "close": "Close",
+    "confirm": "Confirm",
+    "add": "Add",
+    "remove": "Remove",
+    "replace": "Replace",
+    "publish": "Publish",
+    "copied": "ID copied",
+    "copyFailed": "Copy failed",
+    "openMenu": "Open menu",
+    "selectAll": "Select all",
+    "selectRow": "Select row"
+  },
+  "dashboard": {
+    "greeting": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening",
+      "night": "Good night",
+      "subtitle": "Here's what happened in your workspace today."
+    },
+    "recentActivity": {
+      "title": "Recent Activity",
+      "loading": "Loading activity...",
+      "empty": "No recent activity recorded",
+      "actions": {
+        "create": "created",
+        "update": "modified",
+        "delete": "deleted",
+        "upload": "uploaded"
+      }
+    },
+    "contentPulse": {
+      "noContent": "No content found.",
+      "totalDistribution": "Total Distribution"
+    },
+    "widgets": {
+      "activityFeed": {
+        "title": "Recent activity",
+        "empty": "No activity logs",
+        "user": "User"
+      },
+      "quickDraft": {
+        "title": "New draft",
+        "createDraft": "Create quick draft",
+        "creating": "Creating…",
+        "create": "Create",
+        "draftCreated": "Draft created!",
+        "type": "Type",
+        "errorCreating": "Error creating",
+        "fieldLabels": {
+          "title": "Title",
+          "name": "Name",
+          "author": "Author",
+          "description": "Description"
+        }
+      },
+      "recentContent": {
+        "title": "Recent contents",
+        "viewAll": "View all →",
+        "noContent": "No content",
+        "noContentDesc": "Create the first content to see it here"
+      },
+      "pendingDrafts": {
+        "title": "Pending drafts",
+        "viewAll": "View all",
+        "pendingCount": "pending drafts",
+        "noPending": "No pending drafts",
+        "publish": "Publish"
+      },
+      "publicationStats": {
+        "today": "Today",
+        "week": "Week",
+        "month": "Month",
+        "totalContent": "total contents"
+      },
+      "storage": {
+        "title": "Storage R2",
+        "used": "used",
+        "total": "of {{total}} GB total",
+        "noData": "No storage data"
+      },
+      "error": {
+        "message": "Error loading",
+        "retry": "Retry"
+      },
+      "stat": {
+        "total": { "title": "Total Contents", "description": "All collections" },
+        "visitors": { "title": "Unique Visitors", "description": "Last 30 days (Edge)" },
+        "traffic": { "title": "Total Traffic", "description": "Edge Bandwidth" },
+        "storage": { "description": "{{percentage}}% of {{total}} GB" }
+      },
+      "mediaGallery": {
+        "title": "Media Gallery",
+        "all": "All",
+        "unused": "Unused",
+        "allInUseTitle": "Great job!",
+        "allInUseDesc": "All your files are in use.",
+        "emptyTitle": "No media",
+        "emptyDesc": "Upload files to see them here"
+      }
+    },
+    "widgetRegistry": {
+      "unknown": "Unknown widget:"
+    }
+  },
+  "editor": {
+    "bold": "Bold",
+    "italic": "Italic",
+    "underline": "Underline",
+    "strikethrough": "Strikethrough",
+    "inlineCode": "Inline code",
+    "clearFormatting": "Clear formatting",
+    "moreFormatting": "More formatting",
+    "textColor": "Text color",
+    "undo": "Undo (Mod+Z)",
+    "redo": "Redo (Mod+Y)",
+    "insertElements": "Insert elements",
+    "textStyles": "Text styles",
+    "normalText": "Normal text",
+    "heading1": "Heading 1",
+    "heading2": "Heading 2",
+    "heading3": "Heading 3",
+    "heading4": "Heading 4",
+    "heading5": "Heading 5",
+    "heading6": "Heading 6",
+    "numberedList": "Numbered list",
+    "bulletList": "Bullet list",
+    "blockCode": "Block code",
+    "blockquote": "Blockquote",
+    "divider": "Divider",
+    "listMenu": "List"
+  },
+  "settings": {
+    "title": "Settings",
+    "tabs": {
+      "profile": "Profile",
+      "interface": "Interface",
+      "security": "Security",
+      "storage": "Storage",
+      "notifications": "Notifications"
+    },
+    "notifications": {
+      "title": "In-app notifications",
+      "description": "Choose which events to receive notifications for.",
+      "saved": "Notification preferences saved",
+      "error": "Error saving",
+      "contentCreate": {
+        "label": "New content",
+        "description": "When a new entry is created"
+      },
+      "contentUpdate": {
+        "label": "Content modified",
+        "description": "When an entry is updated or a draft is published"
+      },
+      "contentDelete": {
+        "label": "Content deleted",
+        "description": "When an entry is permanently deleted"
+      },
+      "mediaUpload": {
+        "label": "Media uploaded",
+        "description": "When a new file is uploaded to the media library"
+      }
+    },
+    "storage": {
+      "usageTitle": "Storage usage",
+      "usageDesc": "Space used by files uploaded to R2.",
+      "orphansTitle": "Orphan files",
+      "orphansDesc": "Files uploaded but not referenced by any content. Can be manually deleted from Cloudflare R2.",
+      "fileCount": "{{count}} total files",
+      "referenceVisual": "Visual reference: 1 GB",
+      "noOrphans": "No orphan files found"
+    },
+    "profile": {
+      "infoTitle": "Profile information",
+      "infoDesc": "Update your name, email and profile photo.",
+      "noName": "No name",
+      "changePhoto": "Change photo",
+      "nameLabel": "Name",
+      "namePlaceholder": "Your name",
+      "emailLabel": "Email",
+      "emailPlaceholder": "email@example.com",
+      "saveChanges": "Save changes",
+      "passwordTitle": "Change password",
+      "passwordDesc": "Choose a secure password of at least 8 characters.",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "updatePassword": "Update password",
+      "savedSuccess": "Profile updated",
+      "savedError": "Error saving",
+      "passwordMismatch": "New passwords do not match",
+      "passwordSuccess": "Password updated",
+      "passwordError": "Current password is incorrect",
+      "avatarSuccess": "Profile photo updated",
+      "avatarError": "Error uploading photo"
+    },
+    "security": {
+      "sessionsTitle": "Active sessions",
+      "sessionsDesc": "Login sessions currently open for your account.",
+      "sessionActive": "Active session",
+      "sessionInfo": "Created on {{created}} · Expires on {{expires}}",
+      "revokeTitle": "Revoke session?",
+      "revokeDesc": "This session will be disconnected immediately.",
+      "revokeConfirm": "Revoke",
+      "noSessions": "No active sessions",
+      "revokeSuccess": "Session revoked",
+      "revokeError": "Error revoking session",
+      "activityTitle": "Recent activity",
+      "activityDesc": "Latest actions performed in the CMS with your account.",
+      "noActivity": "No activity recorded",
+      "actions": {
+        "create": "Created",
+        "update": "Modified",
+        "delete": "Deleted",
+        "upload": "Uploaded"
+      }
+    },
+    "interface": {
+      "themeTitle": "Theme",
+      "themeDesc": "Choose the visual appearance of the interface.",
+      "themeLight": "Light",
+      "themeDark": "Dark",
+      "themeSystem": "System",
+      "langTitle": "Language",
+      "langDesc": "Interface language. Applied immediately.",
+      "langLabel": "Language",
+      "rowsTitle": "Contents per page",
+      "rowsDesc": "Number of items shown in content lists.",
+      "rowsLabel": "Rows per page",
+      "rowsSaved": "Preference saved — applies on next load",
+      "rows10": "10 rows",
+      "rows20": "20 rows",
+      "rows50": "50 rows",
+      "rows100": "100 rows",
+      "langChangedIt": "Lingua cambiata in Italiano",
+      "langChangedEn": "Language switched to English"
+    }
+  },
+  "content": {
+    "list": {
+      "table": "Table",
+      "gallery": "Gallery",
+      "deletionPartial": "Partial deletion: {{failures}} of {{total}} failed"
+    },
+    "editor": {
+      "newEntry": "New {{label}}",
+      "editEntry": "Edit {{label}}",
+      "save": "Save",
+      "saving": "Saving...",
+      "back": "Back",
+      "status": "Status",
+      "slug": "Slug (URL)",
+      "slugPlaceholder": "e.g. my-article",
+      "content": "Content",
+      "metadataSeo": "Metadata / SEO",
+      "publication": "Publication",
+      "draft": "Draft",
+      "published": "Published",
+      "unsavedTitle": "Unsaved changes",
+      "unsavedDesc": "You have unsaved changes. If you exit now, they will be lost. Do you want to continue?",
+      "stay": "Stay",
+      "exitWithout": "Exit without saving",
+      "loadingError": "Error loading",
+      "seedNotFound": "Seed \"{{slug}}\" not found.",
+      "slugMissing": "Slug not specified.",
+      "savedSuccess": "Changes saved",
+      "createdSuccess": "Entry created",
+      "slugDuplicate": "Slug already exists for this schema",
+      "saveError": "Error saving",
+      "jsonError": "Field \"{{field}}\" must contain valid JSON"
+    },
+    "deleteDialog": {
+      "title": "Confirm deletion",
+      "single": "Are you sure you want to delete this entry of type \"{{type}}\"?",
+      "multiple": "Are you sure you want to delete {{count}} entries of type \"{{type}}\"?"
+    },
+    "actions": {
+      "label": "Actions",
+      "edit": "Edit",
+      "delete": "Delete",
+      "copyId": "Copy ID"
+    },
+    "table": {
+      "status": "Status",
+      "item": "item",
+      "items": "items"
+    }
+  },
+  "toolbar": {
+    "search": {
+      "placeholder": "Search...",
+      "ariaLabel": "Search",
+      "close": "Close search",
+      "open": "Open search"
+    },
+    "sort": {
+      "tooltip": "Sort",
+      "label": "Sort by column",
+      "searchPlaceholder": "Search column...",
+      "noColumns": "No columns found",
+      "invertOrder": "Invert order"
+    },
+    "filter": {
+      "tooltip": "Filters",
+      "label": "Filter by column",
+      "searchPlaceholder": "Search column...",
+      "noColumns": "No columns found",
+      "ariaLabel": "Filter {{label}}",
+      "filtersOn": "Filters on \"{{label}}\"",
+      "removeColumn": "Remove column from filters",
+      "addFilter": "Add filter",
+      "removeCondition": "Remove condition",
+      "operator": "Operator"
+    },
+    "viewSwitcher": {
+      "addView": "Add view"
+    },
+    "filterPills": {
+      "groupedBy": "Grouped by: {{label}}"
+    },
+    "settings": {
+      "tooltip": "View settings",
+      "title": "View settings",
+      "viewName": "View name",
+      "quickActions": "Quick actions",
+      "filter": "Filter",
+      "sort": "Sort",
+      "layoutStyle": "Layout & style",
+      "group": "Group",
+      "groupBy": "Group by column",
+      "noGrouping": "No grouping",
+      "recommended": "Recommended",
+      "active": "active",
+      "table": "Table",
+      "columnSearch": "Search column...",
+      "noColumns": "No columns found",
+      "invertOrder": "Invert order",
+      "decreaseRows": "Decrease rows",
+      "increaseRows": "Increase rows",
+      "rows": "Rows",
+      "conditionalColors": "Conditional colors",
+      "visibleColumns": "Visible columns",
+      "columnVisibility": "Column visibility",
+      "otherFields": "Other fields",
+      "manyGroups": "May generate many groups",
+      "day": "Day",
+      "year": "Year",
+      "month": "Month"
+    },
+    "conditionalFormats": {
+      "noRules": "No rules",
+      "add": "Add",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "deleteRule": "Delete rule",
+      "ruleName": "Rule name",
+      "removeCondition": "Remove condition",
+      "addCondition": "Add condition",
+      "operator": "Operator",
+      "colorPreset": "Color preset",
+      "bold": "Bold",
+      "italic": "Italic",
+      "underline": "Underline",
+      "addRule": "Add rule",
+      "rulesList": "Rules list",
+      "editRule": "Edit rule",
+      "toggleRule": "Enable/disable rule",
+      "applyTo": "Apply to",
+      "cell": "Cell",
+      "row": "Row",
+      "useColorIf": "use color if",
+      "formatStyle": "formatting style",
+      "default": "Default",
+      "notAvailable": "Configuration unavailable",
+      "selectRule": "Select a rule from the list.",
+      "colorRules": "Conditional color rules",
+      "rulesApplyOrder": "Rules apply from top to bottom.",
+      "chooseColumn": "Choose column",
+      "noColumns": "No columns available"
+    },
+    "operators": {
+      "eq": "Equals",
+      "is_not_empty": "Is not empty",
+      "is_empty": "Is empty",
+      "gt": "Greater than",
+      "lt": "Less than",
+      "gte": "Greater or equal",
+      "lte": "Less or equal",
+      "contains": "Contains"
+    },
+    "conditionInput": {
+      "value": "Value...",
+      "choose": "Choose...",
+      "tag": "Tag...",
+      "true": "True",
+      "false": "False"
+    }
+  },
+  "notifications": {
+    "title": "Notifications",
+    "markAllRead": "Mark all as read",
+    "all": "All",
+    "new": "New",
+    "noNotifications": "No notifications",
+    "noNotificationsNew": "You have no new notifications.",
+    "noNotificationsAll": "There are no notifications to show.",
+    "markSeen": "Mark as read",
+    "markUnseen": "Mark as unread",
+    "delete": "Delete",
+    "ariaLabel": "Notifications",
+    "unreadCount": "You have {{count}} unread notifications",
+    "noUnread": "No unread notifications"
+  },
+  "commandPalette": {
+    "navigate": "Navigate",
+    "contents": "Contents",
+    "create": "Create",
+    "tools": "Tools",
+    "goTo": "Go to {{label}}…",
+    "allSeeds": "All seeds…",
+    "chooseType": "Create in…",
+    "chooseSeed": "Choose Seed",
+    "newContent": "New content…",
+    "changeTheme": "Change theme",
+    "searching": "Searching…",
+    "noSearchResults": "No results found.",
+    "searchResults": "Search results",
+    "settings": "Settings",
+    "mediaLibrary": "Media Library",
+    "dashboard": "Dashboard",
+    "placeholderRoot": "Search actions, content, seeds…",
+    "placeholderSeeds": "Go to which seed?",
+    "placeholderCreate": "Create content in which seed?",
+    "placeholderSearch": "Search in content…",
+    "backHint": "← Backspace to go back",
+    "noResults": "No results",
+    "ariaLabel": "Global command palette"
+  },
+  "gallery": {
+    "noItems": "No items to display",
+    "noItemsDesc": "There are no contents available for this gallery view.",
+    "mainContent": "Main content",
+    "content": "Content",
+    "seo": "Metadata / SEO",
+    "status": "Status",
+    "noContent": "No content fields.",
+    "edit": "Edit",
+    "cover": "Cover"
+  },
+  "siteHeader": {
+    "settings": "Settings",
+    "contents": "Contents",
+    "new": "New",
+    "edit": "Edit"
+  },
+  "sidebar": {
+    "navigation": "Navigation",
+    "contents": "Contents"
+  },
+  "media": {
+    "manageGallery": "Manage gallery",
+    "addImages": "Add images",
+    "replace": "Replace",
+    "addImage": "Add image",
+    "imageLink": "Image link",
+    "add": "Add",
+    "verifying": "Verifying...",
+    "useLink": "Use link",
+    "dropOrSelect": "drag your file here or select it",
+    "uploading": "Uploading...",
+    "removeAll": "Remove all",
+    "removeImage": "Remove image",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "remove": "Remove image",
+    "dialogDesc": "Enter a public HTTPS URL or upload a local file.",
+    "errorNotImage": "Select an image (JPG, PNG, WebP, GIF)",
+    "errorUrl": "Enter a public image URL",
+    "errorHttps": "The URL must start with https://",
+    "errorNotRenderable": "URL not renderable as image",
+    "errorUpload": "Upload error"
+  },
+  "login": {
+    "hidePassword": "Hide password",
+    "showPassword": "Show password",
+    "signingIn": "Signing in...",
+    "forgotPassword": "Forgot your password?"
+  },
+  "forgotPassword": {
+    "title": "Forgot password",
+    "desc": "Enter your email address and we'll send you a reset link.",
+    "emailRequired": "Enter your email",
+    "emailInvalid": "Invalid email address",
+    "send": "Send reset link",
+    "sending": "Sending...",
+    "backToLogin": "Back to login",
+    "successTitle": "Check your inbox",
+    "successDesc": "If an account exists for that email, you'll receive a reset link shortly."
+  },
+  "resetPassword": {
+    "title": "Set new password",
+    "desc": "Choose a secure password of at least 8 characters.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "reset": "Reset password",
+    "resetting": "Resetting...",
+    "mismatch": "Passwords do not match",
+    "tooShort": "Password must be at least 8 characters",
+    "tooLong": "Password cannot exceed 128 characters",
+    "invalidToken": "This reset link is invalid or has expired",
+    "invalidLinkTitle": "Invalid link",
+    "invalidLink": "This reset link is not valid. Request a new one.",
+    "requestNew": "Request a new link",
+    "success": "Password reset successfully",
+    "genericError": "Something went wrong. Please try again."
+  },
+  "errorPage": {
+    "title": "Oops, there was an error",
+    "backHome": "Back to home",
+    "unknown": "Unknown error"
+  }
+}

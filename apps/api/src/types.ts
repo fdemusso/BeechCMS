@@ -19,6 +19,11 @@ export interface Env {
   PUBLIC_PUBLISHED_ONLY?: string
   PUBLIC_IDEMPOTENCY_TTL_SECONDS?: string
   MEDIA_BASE_URL?: string
+  RESEND_API_KEY?: string
+  APP_URL?: string
+  EMAIL_FROM?: string
+  FORGOT_PASSWORD_RATE_LIMITER?: RateLimit
+  RESET_PASSWORD_RATE_LIMITER?: RateLimit
   ENV?: string
 }
 
