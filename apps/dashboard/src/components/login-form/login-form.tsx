@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { Eye, EyeOff } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -26,6 +27,7 @@ export interface LoginFormProps extends React.ComponentProps<"div"> {
  * - Transizione visiva tra stato disabilitato (grigio) e attivo (accent)
  */
 export function LoginForm(props: Readonly<LoginFormProps>) {
+  const { t } = useTranslation()
   const { className, ...divProps } = props
   const {
     emailValue,
@@ -115,7 +117,7 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
                       size="icon-sm"
                       className="absolute right-1 top-1/2 -translate-y-1/2 hover:bg-transparent"
                       onClick={togglePasswordVisibility}
-                      aria-label={isPasswordVisible ? "Nascondi password" : "Mostra password"}
+                      aria-label={isPasswordVisible ? t("login.hidePassword") : t("login.showPassword")}
                     >
                       <span
                         key={isPasswordVisible ? "visible" : "hidden"}
@@ -146,7 +148,7 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
                         : "bg-muted text-muted-foreground cursor-not-allowed"
                     )}
                   >
-                    {isLoading ? "Accesso in corso..." : "Login"}
+                    {isLoading ? t("login.signingIn") : "Login"}
                   </Button>
                 </Field>
               </FieldGroup>
@@ -156,7 +158,7 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
             <img
                src="/undraw_enter_nwx3.svg"
                alt="Illustrazione area login"
-               className="absolute -bottom-7 -right-28 h-full max-h-[42rem] w-full max-w-lg object-contain object-right-bottom scale-x-[-1] dark:brightness-[0.2] dark:grayscale"
+               className="absolute -bottom-7 -right-28 h-full max-h-[42rem] w-full max-w-lg object-contain object-right-bottom scale-x-[-1]"
             />
           </div>
         </CardContent>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -38,6 +39,7 @@ export function FilterColumnMenu({
   activeFiltersCountByColumn,
   onSelectColumn,
 }: Readonly<FilterColumnMenuProps>) {
+  const { t } = useTranslation()
   return (
     <DropdownMenu
       open={open}
@@ -53,20 +55,20 @@ export function FilterColumnMenu({
             <Button
               variant={isActive ? "secondary" : "ghost"}
               size="icon-sm"
-              aria-label="Filtri"
+              aria-label={t("toolbar.filter.tooltip")}
             >
               <Filter className="size-4" />
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
-        <TooltipContent side="top">Filtri</TooltipContent>
+        <TooltipContent side="top">{t("toolbar.filter.tooltip")}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end" className="w-64 p-2">
         <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-          Filtra per colonna
+          {t("toolbar.filter.label")}
         </DropdownMenuLabel>
         <Input
-          placeholder="Cerca colonna..."
+          placeholder={t("toolbar.filter.searchPlaceholder")}
           value={searchTerm}
           onChange={(e) => onSearchTermChange(e.target.value)}
           className="h-8 text-sm"
@@ -74,7 +76,7 @@ export function FilterColumnMenu({
         <DropdownMenuSeparator className="my-2" />
         <div className="max-h-56 overflow-y-auto">
           {visibleFilterColumns.length === 0 ? (
-            <div className="py-2 text-center text-xs text-muted-foreground">Nessuna colonna trovata</div>
+            <div className="py-2 text-center text-xs text-muted-foreground">{t("toolbar.filter.noColumns")}</div>
           ) : (
             <div className="flex flex-col gap-1 py-1">
               {visibleFilterColumns.map((col) => (

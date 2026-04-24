@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -10,6 +11,7 @@ import {
 import { useContentDeleteDialog, type ContentDeleteDialogProps } from "./use-content-delete-dialog"
 
 export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
+  const { t } = useTranslation()
   const { open, onOpenChange, seed } = props
   const {
     isDeleting,
@@ -24,11 +26,11 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Conferma eliminazione</DialogTitle>
+          <DialogTitle>{t("content.deleteDialog.title")}</DialogTitle>
           <DialogDescription>
             {entryCount <= 1
-              ? `Sei sicuro di voler eliminare questa entry di tipo "${seed.label}"?`
-              : `Sei sicuro di voler eliminare ${entryCount} entry di tipo "${seed.labelPlural ?? seed.label}"?`}
+              ? t("content.deleteDialog.single", { type: seed.label })
+              : t("content.deleteDialog.multiple", { count: entryCount, type: seed.labelPlural ?? seed.label })}
             {previewIds.length > 0 && (
               <span className="mt-2 block font-mono text-xs text-muted-foreground">
                 ID: {previewIds.join(", ")}
@@ -49,7 +51,7 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
             onClick={() => onOpenChange(false)}
             disabled={isDeleting}
           >
-            Annulla
+            {t("common.cancel")}
           </Button>
           <Button
             type="button"
@@ -57,7 +59,7 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
             onClick={handleConfirm}
             disabled={isDeleting}
           >
-            {isDeleting ? "Eliminazione..." : "Elimina"}
+            {isDeleting ? t("common.deleting") : t("common.delete")}
           </Button>
         </DialogFooter>
       </DialogContent>

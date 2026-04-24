@@ -1,4 +1,5 @@
 import { useMemo, useCallback } from "react"
+import { useTranslation } from "react-i18next"
 import type { Seed } from "@beech/core"
 import { getGroupableColumns } from "../shared"
 export interface DateGroupPrecision {
@@ -23,9 +24,11 @@ export function useToolbarGroupBy({
   dateGroupPrecision,
   onDateGroupPrecisionChange,
 }: UseToolbarGroupByProps) {
+  const { t } = useTranslation()
   const groupableColumns = useMemo(
-    () => getGroupableColumns(seed, availableStatusOptions),
-    [availableStatusOptions, seed]
+    () => getGroupableColumns(seed, availableStatusOptions, t("content.table.status")),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [availableStatusOptions, seed, t]
   )
 
   const recommendedGroupColumns = useMemo(

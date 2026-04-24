@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -138,6 +139,7 @@ export function SettingsMenu({
   pageSize,
   onPageSizeChange,
 }: SettingsMenuProps) {
+  const { t } = useTranslation()
   return (
     <DropdownMenu
       open={isSettingsMenuOpenEffective}
@@ -156,18 +158,18 @@ export function SettingsMenu({
             <Button
               variant={isSettingsMenuOpenEffective ? "secondary" : "ghost"}
               size="icon-sm"
-              aria-label="Impostazioni vista"
+              aria-label={t("toolbar.settings.tooltip")}
             >
               <Settings className="size-4" />
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
-        <TooltipContent side="top">Impostazioni vista</TooltipContent>
+        <TooltipContent side="top">{t("toolbar.settings.tooltip")}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end" className="w-64">
         {/* Dettagli vista */}
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Impostazioni vista</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("toolbar.settings.title")}</DropdownMenuLabel>
           <div className="px-2 pb-1.5">
             <Input
               value={viewNameDraft}
@@ -184,7 +186,7 @@ export function SettingsMenu({
                 }
               }}
               className="h-8 text-sm"
-              placeholder="Nome vista"
+              placeholder={t("toolbar.settings.viewName")}
             />
           </div>
         </DropdownMenuGroup>
@@ -193,7 +195,7 @@ export function SettingsMenu({
 
         {/* Azioni rapide */}
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Azioni rapide</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("toolbar.settings.quickActions")}</DropdownMenuLabel>
           <DropdownMenuSub
             onOpenChange={(open) => {
               if (open) setIsConditionalEditorOpen(false)
@@ -201,15 +203,15 @@ export function SettingsMenu({
           >
             <DropdownMenuSubTrigger>
               <Filter className="size-4" />
-              Filtra
+              {t("toolbar.settings.filter")}
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
               <DropdownMenuSubContent className="w-64 p-2">
                 <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                  Filtra per colonna
+                  {t("toolbar.filter.label")}
                 </DropdownMenuLabel>
                 <Input
-                  placeholder="Cerca colonna..."
+                  placeholder={t("toolbar.filter.searchPlaceholder")}
                   value={filterColumnSearchTerm}
                   onChange={(e) => setFilterColumnSearchTerm(e.target.value)}
                   className="h-8 text-sm"
@@ -218,7 +220,7 @@ export function SettingsMenu({
                 <div className="max-h-56 overflow-y-auto">
                   {visibleFilterColumns.length === 0 ? (
                     <div className="py-2 text-center text-xs text-muted-foreground">
-                      Nessuna colonna trovata
+                      {t("toolbar.filter.noColumns")}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-1 py-1">
@@ -253,16 +255,16 @@ export function SettingsMenu({
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <ArrowUpDown className="size-4" />
-              Ordina
+              {t("toolbar.settings.sort")}
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
               <DropdownMenuSubContent className="w-64 p-2">
                 <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                  Ordina per colonna
+                  {t("toolbar.sort.label")}
                 </DropdownMenuLabel>
                 <div className="flex items-center gap-2">
                   <Input
-                    placeholder="Cerca colonna..."
+                    placeholder={t("toolbar.sort.searchPlaceholder")}
                     value={sortColumnSearchTerm}
                     onChange={(e) => setSortColumnSearchTerm(e.target.value)}
                     className="h-8 flex-1 text-sm"
@@ -272,7 +274,7 @@ export function SettingsMenu({
                     variant="outline"
                     size="icon-sm"
                     className="h-8 w-8 shrink-0"
-                    aria-label="Inverti ordine"
+                    aria-label={t("toolbar.sort.invertOrder")}
                     onClick={handleToggleSortDirection}
                     disabled={!sortState?.columnId}
                   >
@@ -283,7 +285,7 @@ export function SettingsMenu({
                 <div className="max-h-56 overflow-y-auto">
                   {filteredSortableColumns.length === 0 ? (
                     <div className="py-2 text-center text-xs text-muted-foreground">
-                      Nessuna colonna trovata
+                      {t("toolbar.sort.noColumns")}
                     </div>
                   ) : (
                     <div className="flex flex-col gap-1 py-1">
@@ -319,21 +321,21 @@ export function SettingsMenu({
 
         {/* Layout e stile */}
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Layout e stile</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("toolbar.settings.layoutStyle")}</DropdownMenuLabel>
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Rows3 className="size-4" />
-              Raggruppa{groupBy ? "..." : ""}
+              {t("toolbar.settings.group")}{groupBy ? "..." : ""}
               {groupBy && (
                 <span className="ml-auto text-[10px] text-muted-foreground uppercase">
-                  attivo
+                  {t("toolbar.settings.active")}
                 </span>
               )}
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
               <DropdownMenuSubContent className="w-64 p-2">
                 <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                  Raggruppa per colonna
+                  {t("toolbar.settings.groupBy")}
                 </DropdownMenuLabel>
                 {/* Voce "Nessun raggruppamento" */}
                 <Button
@@ -346,14 +348,14 @@ export function SettingsMenu({
                     closeSettingsMenu()
                   }}
                 >
-                  <span>Nessun raggruppamento</span>
+                  <span>{t("toolbar.settings.noGrouping")}</span>
                   {!groupBy && <Check className="size-3.5 shrink-0 text-muted-foreground" />}
                 </Button>
                 {recommendedGroupColumns.length > 0 && (
                   <>
                     <DropdownMenuSeparator className="my-2" />
                     <DropdownMenuLabel className="px-0 pb-1 pt-0 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                      Consigliati
+                      {t("toolbar.settings.recommended")}
                     </DropdownMenuLabel>
                     <div className="flex flex-col gap-1">
                       {recommendedGroupColumns.map((col: any) =>
@@ -368,7 +370,7 @@ export function SettingsMenu({
                             <DropdownMenuPortal>
                               <DropdownMenuSubContent className="w-48 p-2">
                                 <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                                  Granularità
+                                  {t("toolbar.settings.group")}
                                 </DropdownMenuLabel>
                                 <DropdownMenuRadioGroup
                                   value={datePrecisionMode}
@@ -380,13 +382,13 @@ export function SettingsMenu({
                                   }}
                                 >
                                   <DropdownMenuRadioItem value="day">
-                                    Giorno
+                                    {t("toolbar.settings.day")}
                                   </DropdownMenuRadioItem>
                                   <DropdownMenuRadioItem value="year">
-                                    Anno
+                                    {t("toolbar.settings.year")}
                                   </DropdownMenuRadioItem>
                                   <DropdownMenuRadioItem value="monthYear">
-                                    Mese
+                                    {t("toolbar.settings.month")}
                                   </DropdownMenuRadioItem>
                                 </DropdownMenuRadioGroup>
                               </DropdownMenuSubContent>
@@ -418,10 +420,10 @@ export function SettingsMenu({
                   <>
                     <DropdownMenuSeparator className="my-2" />
                     <DropdownMenuLabel className="px-0 pb-1 pt-0 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
-                      Altri campi
+                      {t("toolbar.settings.otherFields")}
                     </DropdownMenuLabel>
                     <div className="px-0 pb-1 text-[10px] text-muted-foreground/70">
-                      Potrebbe generare molti gruppi
+                      {t("toolbar.settings.manyGroups")}
                     </div>
                     <div className="flex flex-col gap-1">
                       {otherGroupColumns.map((col: any) => (
@@ -453,7 +455,7 @@ export function SettingsMenu({
           <DropdownMenuSub>
             <DropdownMenuSubTrigger>
               <Palette className="size-4" />
-              Colori condizionali
+              {t("toolbar.settings.conditionalColors")}
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
               <DropdownMenuSubContent className="w-[620px] p-3">
@@ -484,20 +486,20 @@ export function SettingsMenu({
 
         {/* Tabella */}
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Tabella</DropdownMenuLabel>
+          <DropdownMenuLabel>{t("toolbar.settings.table")}</DropdownMenuLabel>
           {columnVisibility && onColumnVisibilityChange && (
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <Eye className="size-4" />
-                Colonne visibili
+                {t("toolbar.settings.visibleColumns")}
               </DropdownMenuSubTrigger>
               <DropdownMenuPortal>
                 <DropdownMenuSubContent className="w-64 p-2">
                   <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                    Visibilità colonne
+                    {t("toolbar.settings.columnVisibility")}
                   </DropdownMenuLabel>
                   <Input
-                    placeholder="Cerca colonna..."
+                    placeholder={t("toolbar.settings.columnSearch")}
                     value={columnSearchTerm}
                     onChange={(e) => setColumnSearchTerm(e.target.value)}
                     className="h-8 text-sm"
@@ -506,7 +508,7 @@ export function SettingsMenu({
                   <div className="max-h-56 overflow-y-auto">
                     {filteredTableColumns.length === 0 ? (
                       <div className="py-2 text-center text-xs text-muted-foreground">
-                        Nessuna colonna trovata
+                        {t("toolbar.settings.noColumns")}
                       </div>
                     ) : (
                       <div className="flex flex-col gap-1 py-1">
@@ -547,7 +549,7 @@ export function SettingsMenu({
             <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="justify-between gap-4 focus:bg-transparent focus:text-inherit data-[highlighted]:bg-transparent data-[highlighted]:text-inherit cursor-default">
               <div className="flex items-center gap-2">
                 <Rows2 className="size-4" />
-                Righe
+                {t("toolbar.settings.rows")}
               </div>
               <div className="flex h-7 items-stretch">
                 <Button
@@ -555,7 +557,7 @@ export function SettingsMenu({
                   variant="outline"
                   size="icon-xs"
                   className="h-7 w-7 rounded-r-none border-r-0"
-                  aria-label="Diminuisci righe"
+                  aria-label={t("toolbar.settings.decreaseRows")}
                   disabled={pageSize <= 1}
                   onClick={(e) => {
                     e.stopPropagation()
@@ -572,7 +574,7 @@ export function SettingsMenu({
                   variant="outline"
                   size="icon-xs"
                   className="h-7 w-7 rounded-l-none border-l-0"
-                  aria-label="Aumenta righe"
+                  aria-label={t("toolbar.settings.increaseRows")}
                   disabled={pageSize >= 100}
                   onClick={(e) => {
                     e.stopPropagation()

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { Zap, Plus } from "lucide-react"
 
 import { Card, CardContent } from "@/components/ui/card"
@@ -16,7 +17,7 @@ import type { ContentToolbarProps } from "./types"
 
 export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
   const { seed, views, children, filters = {}, availableTagsByColumnId = {} } = props
-
+  const { t } = useTranslation()
   const toolbarState = useContentToolbar(props)
 
   const {
@@ -255,7 +256,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                 className="gap-1.5"
               >
                 <Plus className="size-4" />
-                Nuovo
+                {t("siteHeader.new")}
               </Button>
             )}
           </div>

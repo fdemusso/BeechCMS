@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { useTheme } from "next-themes"
 import { ChevronRight } from "lucide-react"
@@ -19,20 +20,14 @@ import { RootView } from "./_parts/root-view"
 import { SeedsView } from "./_parts/seeds-view"
 import { SearchResultsView } from "./_parts/search-results-view"
 
-const PLACEHOLDER: Record<CommandPage, string> = {
-  root: "Cerca azioni, contenuti, seed…",
-  seeds: "Vai a quale seed?",
-  create: "Crea contenuto in quale seed?",
-  "search-results": "Cerca nei contenuti…",
-}
-
 function EmptyMessage() {
+  const { t } = useTranslation()
   const search = useCommandState((s) => s.search)
   return (
     <CommandEmpty>
       {search.length === 0
-        ? "Nessun risultato"
-        : <>Nessun risultato per <span className="font-medium">"{search}"</span></>}
+        ? t("commandPalette.noResults")
+        : <>{t("commandPalette.noResults")} <span className="font-medium">"{search}"</span></>}
     </CommandEmpty>
   )
 }
@@ -71,12 +66,20 @@ function BreadcrumbChips({ pages, popPage }: BreadcrumbChipsProps) {
 }
 
 export function CommandPalette() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
   const { open, setOpen, pages, currentPage, pushPage, popPage, search, setSearch } =
     useCommandPalette()
 
   const seeds = Object.values(SEED_REGISTRY)
+
+  const PLACEHOLDER: Record<CommandPage, string> = {
+    root: t("commandPalette.placeholderRoot"),
+    seeds: t("commandPalette.placeholderSeeds"),
+    create: t("commandPalette.placeholderCreate"),
+    "search-results": t("commandPalette.placeholderSearch"),
+  }
 
   const toggleTheme = React.useCallback(() => {
     setTheme(theme === "dark" ? "light" : "dark")
@@ -91,7 +94,7 @@ export function CommandPalette() {
       <CommandDialog
         open={open}
         onOpenChange={setOpen}
-        aria-label="Palette comandi globale"
+        aria-label={t("commandPalette.ariaLabel")}
       >
         <div className="flex flex-col">
           <BreadcrumbChips pages={pages} popPage={popPage} />
@@ -128,7 +131,7 @@ export function CommandPalette() {
 
         {currentPage !== "root" && (
           <div className="p-3 border-t text-[10px] text-muted-foreground bg-muted/20">
-            ← Backspace per tornare
+            {t("commandPalette.backHint")}
           </div>
         )}
       </CommandDialog>

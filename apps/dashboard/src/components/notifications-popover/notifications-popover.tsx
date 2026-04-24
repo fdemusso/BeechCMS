@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback } from "react"
+import { useTranslation } from "react-i18next"
 import { Bell, EyeOff, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -56,6 +57,7 @@ function NotificationList({
   onMarkUnseen,
   onDelete,
 }: NotificationListProps) {
+  const { t } = useTranslation()
   return (
     <div className="space-y-3 p-2">
       {notifications.length === 0 ? (
@@ -64,11 +66,11 @@ function NotificationList({
             <EmptyMedia variant="icon">
               <Bell className="size-6" />
             </EmptyMedia>
-            <EmptyTitle>Nessuna notifica</EmptyTitle>
+            <EmptyTitle>{t("notifications.noNotifications")}</EmptyTitle>
             <EmptyDescription>
               {filter === "new"
-                ? "Non hai nuove notifiche."
-                : "Non ci sono notifiche da mostrare."}
+                ? t("notifications.noNotificationsNew")
+                : t("notifications.noNotificationsAll")}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -93,6 +95,7 @@ function NotificationCard({
   onMarkUnseen,
   onDelete,
 }: NotificationCardProps) {
+  const { t } = useTranslation()
   const Icon = notification.icon
 
   return (
@@ -132,12 +135,12 @@ function NotificationCard({
         {notification.isNew ? (
           <ContextMenuItem onClick={() => onMarkSeen(notification.id)}>
             <Bell className="size-4" />
-            Segna come vista
+            {t("notifications.markSeen")}
           </ContextMenuItem>
         ) : (
           <ContextMenuItem onClick={() => onMarkUnseen(notification.id)}>
             <EyeOff className="size-4" />
-            Segna come non vista
+            {t("notifications.markUnseen")}
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
@@ -146,7 +149,7 @@ function NotificationCard({
           onClick={() => onDelete(notification.id)}
         >
           <Trash2 className="size-4" />
-          Elimina
+          {t("notifications.delete")}
         </ContextMenuItem>
       </ContextMenuContent>
     </ContextMenu>
@@ -168,6 +171,7 @@ function dispatchCloseContextMenu(container: HTMLElement) {
  * Componente principale per la gestione e visualizzazione delle notifiche.
  */
 export function NotificationsPopover() {
+  const { t } = useTranslation()
   const {
     notifications,
     filter,
@@ -192,7 +196,7 @@ export function NotificationsPopover() {
           className="relative ml-auto h-8 w-8"
           variant="ghost"
           size="icon"
-          aria-label="Notifiche"
+          aria-label={t("notifications.ariaLabel")}
         >
           <Bell className="size-4" />
           {hasUnreadNotifications && (
@@ -203,8 +207,8 @@ export function NotificationsPopover() {
           )}
           <span className="sr-only" aria-live="polite" aria-atomic="true">
             {hasUnreadNotifications
-              ? `Hai ${unreadCount} notifiche non lette`
-              : "Nessuna notifica non letta"}
+              ? t("notifications.unreadCount", { count: unreadCount })
+              : t("notifications.noUnread")}
           </span>
         </Button>
       </PopoverTrigger>
@@ -215,15 +219,15 @@ export function NotificationsPopover() {
       >
         <div className="border-b px-4 py-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">Notifiche</h3>
+            <h3 className="font-semibold">{t("notifications.title")}</h3>
             {hasUnreadNotifications && (
-              <Button 
-                variant="link" 
-                size="sm" 
+              <Button
+                variant="link"
+                size="sm"
                 className="h-auto p-0 text-xs"
                 onClick={() => handleMarkAllRead()}
               >
-                Segna tutte come lette
+                {t("notifications.markAllRead")}
               </Button>
             )}
           </div>
@@ -237,10 +241,10 @@ export function NotificationsPopover() {
             className="mt-2 w-full justify-start"
           >
             <ToggleGroupItem value="all" className="flex-1">
-              Tutte
+              {t("notifications.all")}
             </ToggleGroupItem>
             <ToggleGroupItem value="new" className="flex-1">
-              Nuove
+              {t("notifications.new")}
             </ToggleGroupItem>
           </ToggleGroup>
         </div>

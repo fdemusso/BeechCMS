@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Camera, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,7 @@ function getInitials(name: string | null, email: string): string {
 }
 
 export function ProfileTab() {
+  const { t } = useTranslation()
   const { data: profile, isLoading } = useProfile()
   const updateProfile = useUpdateProfile()
   const changePassword = useChangePassword()
@@ -38,9 +40,9 @@ export function ProfileTab() {
     e.preventDefault()
     try {
       await updateProfile.mutateAsync({ name: name || undefined, email: email || undefined })
-      toast.success('Profilo aggiornato')
+      toast.success(t('settings.profile.savedSuccess'))
     } catch (err: any) {
-      const detail = err?.response?.data?.detail ?? 'Errore durante il salvataggio'
+      const detail = err?.response?.data?.detail ?? t('settings.profile.savedError')
       toast.error(detail)
     }
   }
@@ -48,17 +50,17 @@ export function ProfileTab() {
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     if (newPassword !== confirmPassword) {
-      toast.error('Le nuove password non coincidono')
+      toast.error(t('settings.profile.passwordMismatch'))
       return
     }
     try {
       await changePassword.mutateAsync({ currentPassword, newPassword })
-      toast.success('Password aggiornata')
+      toast.success(t('settings.profile.passwordSuccess'))
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
     } catch (err: any) {
-      const detail = err?.response?.data?.detail ?? 'Password attuale non corretta'
+      const detail = err?.response?.data?.detail ?? t('settings.profile.passwordError')
       toast.error(detail)
     }
   }
@@ -68,9 +70,9 @@ export function ProfileTab() {
     if (!file) return
     try {
       await updateAvatar.mutateAsync(file)
-      toast.success('Foto profilo aggiornata')
+      toast.success(t('settings.profile.avatarSuccess'))
     } catch {
-      toast.error('Errore durante il caricamento della foto')
+      toast.error(t('settings.profile.avatarError'))
     }
     e.target.value = ''
   }
@@ -87,8 +89,8 @@ export function ProfileTab() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Informazioni profilo</CardTitle>
-          <CardDescription>Aggiorna il tuo nome, email e foto profilo.</CardDescription>
+          <CardTitle>{t('settings.profile.infoTitle')}</CardTitle>
+          <CardDescription>{t('settings.profile.infoDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSaveProfile} className="space-y-6">
@@ -114,14 +116,14 @@ export function ProfileTab() {
                 </button>
               </div>
               <div>
-                <p className="text-sm font-medium">{profile?.name ?? 'Nessun nome'}</p>
+                <p className="text-sm font-medium">{profile?.name ?? t('settings.profile.noName')}</p>
                 <p className="text-sm text-muted-foreground">{profile?.email}</p>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   className="text-xs text-primary mt-1 hover:underline"
                 >
-                  Cambia foto
+                  {t('settings.profile.changePhoto')}
                 </button>
               </div>
               <input
@@ -137,22 +139,22 @@ export function ProfileTab() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Nome</Label>
+                <Label htmlFor="name">{t('settings.profile.nameLabel')}</Label>
                 <Input
                   id="name"
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="Il tuo nome"
+                  placeholder={t('settings.profile.namePlaceholder')}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email">{t('settings.profile.emailLabel')}</Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="email@esempio.it"
+                  placeholder={t('settings.profile.emailPlaceholder')}
                 />
               </div>
             </div>
@@ -160,7 +162,7 @@ export function ProfileTab() {
             <div className="flex justify-end">
               <Button type="submit" disabled={updateProfile.isPending}>
                 {updateProfile.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                Salva modifiche
+                {t('settings.profile.saveChanges')}
               </Button>
             </div>
           </form>
@@ -169,13 +171,13 @@ export function ProfileTab() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Cambia password</CardTitle>
-          <CardDescription>Scegli una password sicura di almeno 8 caratteri.</CardDescription>
+          <CardTitle>{t('settings.profile.passwordTitle')}</CardTitle>
+          <CardDescription>{t('settings.profile.passwordDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleChangePassword} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="current-password">Password attuale</Label>
+              <Label htmlFor="current-password">{t('settings.profile.currentPassword')}</Label>
               <Input
                 id="current-password"
                 type="password"
@@ -186,7 +188,7 @@ export function ProfileTab() {
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="new-password">Nuova password</Label>
+                <Label htmlFor="new-password">{t('settings.profile.newPassword')}</Label>
                 <Input
                   id="new-password"
                   type="password"
@@ -196,7 +198,7 @@ export function ProfileTab() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirm-password">Conferma password</Label>
+                <Label htmlFor="confirm-password">{t('settings.profile.confirmPassword')}</Label>
                 <Input
                   id="confirm-password"
                   type="password"
@@ -209,7 +211,7 @@ export function ProfileTab() {
             <div className="flex justify-end">
               <Button type="submit" variant="outline" disabled={changePassword.isPending}>
                 {changePassword.isPending && <Loader2 className="mr-2 size-4 animate-spin" />}
-                Aggiorna password
+                {t('settings.profile.updatePassword')}
               </Button>
             </div>
           </form>

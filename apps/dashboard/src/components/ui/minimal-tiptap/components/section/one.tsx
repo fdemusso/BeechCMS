@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import type { Editor } from "@tiptap/react"
 import type { FormatAction } from "../../types"
 import type { VariantProps } from "class-variance-authority"
@@ -25,57 +26,6 @@ interface TextStyle
   className: string
 }
 
-const formatActions: TextStyle[] = [
-  {
-    label: "Normal Text",
-    element: "span",
-    className: "grow",
-    shortcuts: ["mod", "alt", "0"],
-  },
-  {
-    label: "Heading 1",
-    element: "h1",
-    level: 1,
-    className: "m-0 grow text-3xl font-extrabold",
-    shortcuts: ["mod", "alt", "1"],
-  },
-  {
-    label: "Heading 2",
-    element: "h2",
-    level: 2,
-    className: "m-0 grow text-xl font-bold",
-    shortcuts: ["mod", "alt", "2"],
-  },
-  {
-    label: "Heading 3",
-    element: "h3",
-    level: 3,
-    className: "m-0 grow text-lg font-semibold",
-    shortcuts: ["mod", "alt", "3"],
-  },
-  {
-    label: "Heading 4",
-    element: "h4",
-    level: 4,
-    className: "m-0 grow text-base font-semibold",
-    shortcuts: ["mod", "alt", "4"],
-  },
-  {
-    label: "Heading 5",
-    element: "h5",
-    level: 5,
-    className: "m-0 grow text-sm font-normal",
-    shortcuts: ["mod", "alt", "5"],
-  },
-  {
-    label: "Heading 6",
-    element: "h6",
-    level: 6,
-    className: "m-0 grow text-sm font-normal",
-    shortcuts: ["mod", "alt", "6"],
-  },
-]
-
 interface SectionOneProps extends VariantProps<typeof toggleVariants> {
   editor: Editor
   activeLevels?: Level[]
@@ -87,12 +37,24 @@ export const SectionOne: React.FC<SectionOneProps> = ({
   size,
   variant,
 }) => {
+  const { t } = useTranslation()
+
+  const formatActions = React.useMemo<TextStyle[]>(() => [
+    { label: t("editor.normalText"), element: "span", className: "grow", shortcuts: ["mod", "alt", "0"] },
+    { label: t("editor.heading1"), element: "h1", level: 1, className: "m-0 grow text-3xl font-extrabold", shortcuts: ["mod", "alt", "1"] },
+    { label: t("editor.heading2"), element: "h2", level: 2, className: "m-0 grow text-xl font-bold", shortcuts: ["mod", "alt", "2"] },
+    { label: t("editor.heading3"), element: "h3", level: 3, className: "m-0 grow text-lg font-semibold", shortcuts: ["mod", "alt", "3"] },
+    { label: t("editor.heading4"), element: "h4", level: 4, className: "m-0 grow text-base font-semibold", shortcuts: ["mod", "alt", "4"] },
+    { label: t("editor.heading5"), element: "h5", level: 5, className: "m-0 grow text-sm font-normal", shortcuts: ["mod", "alt", "5"] },
+    { label: t("editor.heading6"), element: "h6", level: 6, className: "m-0 grow text-sm font-normal", shortcuts: ["mod", "alt", "6"] },
+  ], [t])
+
   const filteredActions = React.useMemo(
     () =>
       formatActions.filter(
         (action) => !action.level || activeLevels.includes(action.level)
       ),
-    [activeLevels]
+    [activeLevels, formatActions]
   )
 
   const handleStyleChange = React.useCallback(
@@ -130,8 +92,8 @@ export const SectionOne: React.FC<SectionOneProps> = ({
       <DropdownMenuTrigger asChild>
         <ToolbarButton
           isActive={editor.isActive("heading")}
-          tooltip="Stili testo"
-          aria-label="Heading menu"
+          tooltip={t("editor.textStyles")}
+          aria-label={t("editor.textStyles")}
           pressed={editor.isActive("heading")}
           disabled={editor.isActive("codeBlock")}
           size={size}

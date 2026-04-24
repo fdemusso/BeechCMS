@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import type { Editor } from "@tiptap/react"
 import type { toggleVariants } from "@/components/ui/toggle"
 import type { VariantProps } from "class-variance-authority"
@@ -148,6 +149,7 @@ export const SectionThree: React.FC<SectionThreeProps> = ({
   size,
   variant,
 }) => {
+  const { t } = useTranslation()
   const color =
     editor.getAttributes("textStyle")?.color || "var(--foreground)"
   const [selectedColor, setSelectedColor] = React.useState(color)
@@ -179,8 +181,8 @@ export const SectionThree: React.FC<SectionThreeProps> = ({
     <Popover>
       <PopoverTrigger asChild>
         <ToolbarButton
-          tooltip="Colore testo"
-          aria-label="Colore testo"
+          tooltip={t("editor.textColor")}
+          aria-label={t("editor.textColor")}
           className="gap-0"
           size={size}
           variant={variant}

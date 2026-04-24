@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { HardDrive } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -23,7 +24,7 @@ function gaugeColor(pct: number): string {
   return "#22c55e"
 }
 
-function GaugeSvg({ pct }: { pct: number }) {
+function GaugeSvg({ pct, usedLabel }: { pct: number; usedLabel: string }) {
   const radius = 38
   const cx = 52
   const cy = 52
@@ -65,13 +66,14 @@ function GaugeSvg({ pct }: { pct: number }) {
         fill="currentColor"
         style={{ color: "var(--muted-foreground)" }}
       >
-        usato
+        {usedLabel}
       </text>
     </svg>
   )
 }
 
 export function StorageWidget({ variant = "bar", totalBytes = DEFAULT_TOTAL }: StorageWidgetProps) {
+  const { t } = useTranslation()
   const { data: cfData, isLoading, isError, refetch } = useCloudflareStats()
 
   if (isLoading) return (
@@ -91,24 +93,26 @@ export function StorageWidget({ variant = "bar", totalBytes = DEFAULT_TOTAL }: S
 
   if (!cfData) return (
     <DashboardWidgetShell>
-      <WidgetEmpty icon={HardDrive} title="Nessun dato storage" />
+      <WidgetEmpty icon={HardDrive} title={t("dashboard.widgets.storage.noData")} />
     </DashboardWidgetShell>
   )
 
   if (variant === "gauge") {
     return (
       <DashboardWidgetShell>
-        <div className="flex items-center gap-3 h-full w-full">
+        {/* On very narrow mobile: stack gauge above text.
+            On sm+: side-by-side as designed. */}
+        <div className="flex flex-col items-center gap-2 h-full w-full xs:flex-row sm:flex-row sm:items-center sm:gap-3">
           <div className="shrink-0">
-            <GaugeSvg pct={pct} />
+            <GaugeSvg pct={pct} usedLabel={t("dashboard.widgets.storage.used")} />
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Storage R2</p>
+          <div className="flex-1 min-w-0 text-center sm:text-left">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">{t("dashboard.widgets.storage.title")}</p>
             <p className="text-base font-bold text-foreground tabular-nums leading-tight">
               {formatGb(storageBytes)}&nbsp;<span className="text-sm font-medium text-muted-foreground">GB</span>
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              di {formatGb(totalBytes)}&nbsp;GB totali
+              {t("dashboard.widgets.storage.total", { total: formatGb(totalBytes) })}
             </p>
           </div>
         </div>
@@ -122,7 +126,7 @@ export function StorageWidget({ variant = "bar", totalBytes = DEFAULT_TOTAL }: S
     <DashboardWidgetShell>
       <div className="flex flex-col justify-center gap-2 h-full">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground font-medium">Storage R2</span>
+          <span className="text-muted-foreground font-medium">{t("dashboard.widgets.storage.title")}</span>
           <span className="font-bold tabular-nums">{pct}%</span>
         </div>
         <Progress value={pct} className="h-1.5" />

@@ -22,13 +22,22 @@ export function useCommandPalette(): CommandPaletteState {
     setSearch("")
   }, [])
 
-  // Global keyboard listener: Cmd/Ctrl+K, Backspace-on-empty, Escape
+  // Global keyboard listener: Cmd/Ctrl+K, Alt+N, Backspace-on-empty, Escape
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       // Toggle palette
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault()
         setOpen((prev) => !prev)
+        return
+      }
+
+      // Alt+N → apre palette sulla pagina "create"
+      if (e.key === "n" && e.altKey && !e.metaKey && !e.ctrlKey) {
+        e.preventDefault()
+        setOpen(true)
+        setPages(["root", "create"])
+        setSearch("")
         return
       }
 

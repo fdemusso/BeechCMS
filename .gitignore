@@ -16,8 +16,11 @@ out/
 .cursor/
 .cursorrules
 .cursorignore
+.mcp.json
 
-.claude
+.claude/
+CLAUDE.md
+packages/
 
 # Turbo
 .turbo/

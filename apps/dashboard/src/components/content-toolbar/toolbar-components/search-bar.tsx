@@ -1,4 +1,5 @@
 import type { SyntheticEvent } from "react"
+import { useTranslation } from "react-i18next"
 import { Search, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,7 @@ export function SearchBar({
   handleSearchClose,
   handleSearchOpen,
 }: SearchBarProps) {
+  const { t } = useTranslation()
   return (
     <div
       className="overflow-hidden rounded-md border border-input bg-transparent transition-[width] duration-200 ease-out"
@@ -39,19 +41,19 @@ export function SearchBar({
           <Input
             ref={searchInputRef}
             type="search"
-            placeholder="Cerca..."
+            placeholder={t("toolbar.search.placeholder")}
             value={searchValue}
             onChange={(e) => onSearchChange?.(e.target.value)}
             onBlur={handleSearchBlur}
             className="h-8 w-full border-0 bg-transparent pl-8 pr-8 focus-visible:ring-0 focus-visible:ring-offset-0"
-            aria-label="Cerca"
+            aria-label={t("toolbar.search.ariaLabel")}
           />
           <Button
             type="button"
             variant="ghost"
             size="icon-xs"
             className="absolute right-1 h-6 w-6 shrink-0"
-            aria-label="Chiudi ricerca"
+            aria-label={t("toolbar.search.close")}
             onClick={handleSearchClose}
           >
             <X className="size-3.5" />
@@ -64,13 +66,13 @@ export function SearchBar({
               variant="ghost"
               size="icon-sm"
               className="h-8 w-8 shrink-0"
-              aria-label="Cerca"
+              aria-label={t("toolbar.search.ariaLabel")}
               onClick={handleSearchOpen}
             >
               <Search className="size-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="top">Cerca</TooltipContent>
+          <TooltipContent side="top">{t("toolbar.search.open")}</TooltipContent>
         </Tooltip>
       )}
     </div>

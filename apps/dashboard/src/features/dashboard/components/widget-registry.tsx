@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import type { WidgetInstance } from "../types/widget.types"
 import { WidgetErrorBoundary } from "./widget-error-boundary"
 import { RecentActivity } from "./recent-activity"
@@ -44,9 +45,10 @@ export function WidgetRegistry({ instance, data }: WidgetRegistryProps) {
 // Separated so the error boundary can catch rendering errors in children
 function WidgetContent({ instance, data }: WidgetRegistryProps) {
   const { type, props } = instance
+  const { t } = useTranslation()
 
   if (type === "stat") {
-    const statData = getStatData(props?.statKey, data)
+    const statData = getStatData(props?.statKey, data, t)
     return <StatCard {...statData} />
   }
 
@@ -119,7 +121,7 @@ function WidgetContent({ instance, data }: WidgetRegistryProps) {
   return (
     <div className="flex h-full min-h-[80px] items-center justify-center rounded-xl border-2 border-dashed border-muted p-4">
       <p className="text-sm text-muted-foreground">
-        Widget sconosciuto:{" "}
+        {t("dashboard.widgetRegistry.unknown")}{" "}
         <span className="font-mono font-semibold">{type}</span>
       </p>
     </div>
@@ -130,48 +132,51 @@ function WidgetContent({ instance, data }: WidgetRegistryProps) {
 // Stat data helpers
 // ---------------------------------------------------------------------------
 
-function getStatData(key: string, data: any) {
+function getStatData(key: string, data: any, t: (key: string, opts?: Record<string, unknown>) => string) {
   const { statsData, cfData, statsLoading, cfLoading } = data || {}
 
   switch (key) {
     case "total":
       return {
-        title: "Contenuti Totali",
+        title: t("dashboard.widgets.stat.total.title"),
         value: statsLoading ? "..." : statsData?.total.toLocaleString() ?? "0",
         icon: FileText,
-        description: "Tutte le collezioni",
+        description: t("dashboard.widgets.stat.total.description"),
         trend: statsData?.total
           ? { value: Math.round((statsData.recent / statsData.total) * 100), isPositive: true }
           : undefined,
       }
     case "visitors":
       return {
-        title: "Visitatori Unici",
+        title: t("dashboard.widgets.stat.visitors.title"),
         value: cfLoading ? "..." : cfData?.visitors.value.toLocaleString() ?? "0",
         icon: Globe,
-        description: "Ultimi 30 giorni (Edge)",
+        description: t("dashboard.widgets.stat.visitors.description"),
         trend: cfData?.visitors.trend
           ? { value: cfData.visitors.trend, isPositive: cfData.visitors.isPositive }
           : undefined,
       }
     case "traffic":
       return {
-        title: "Traffico Totale",
+        title: t("dashboard.widgets.stat.traffic.title"),
         value: cfLoading ? "..." : `${cfData?.bandwidth.value} ${cfData?.bandwidth.unit}`,
         icon: Zap,
-        description: "Bandwidth Edge",
+        description: t("dashboard.widgets.stat.traffic.description"),
         trend: cfData?.bandwidth.trend
           ? { value: cfData.bandwidth.trend, isPositive: cfData.bandwidth.isPositive }
           : undefined,
       }
     case "storage":
       return {
-        title: "Storage R2",
+        title: t("dashboard.widgets.storage.title"),
         value: cfLoading ? "..." : `${cfData?.storage.used} ${cfData?.storage.unit}`,
         icon: Database,
         description: cfLoading
-          ? "Caricamento..."
-          : `${cfData?.storage.percentage}% di ${Math.round((cfData?.storage.limit ?? 0) / 1024)} GB`,
+          ? t("common.loading")
+          : t("dashboard.widgets.stat.storage.description", {
+              percentage: cfData?.storage.percentage,
+              total: Math.round((cfData?.storage.limit ?? 0) / 1024),
+            }),
         trend: cfData ? { value: cfData.storage.percentage, isPositive: false } : undefined,
       }
     default:

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { contentApi } from "../api/content.api"
 import { FACET_QUERY_KEYS, CONTENT_QUERY_KEYS } from "../consts/content.keys"
+import { DASHBOARD_QUERY_KEYS } from "@/features/dashboard/hooks/use-dashboard-stats"
 
 /**
  * Hook for fetching schema facets (statuses, tags).
@@ -31,6 +32,8 @@ export function useDeleteContent() {
     onSuccess: () => {
       // Invalidate all content lists to trigger a refetch
       queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.all })
+      // Invalidate recent-activity so the dashboard feed reflects the deletion immediately
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.activity() })
     },
   })
 }
