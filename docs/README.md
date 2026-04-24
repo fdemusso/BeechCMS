@@ -1,4 +1,4 @@
-<img width="1445" height="512" alt="Logo dark" src="https://github.com/user-attachments/assets/62a5b188-4b1f-4f23-9987-7e734f2639a7" />
+<img width="1445" height="512" alt="BeechCms's logo" src="https://github.com/user-attachments/assets/62a5b188-4b1f-4f23-9987-7e734f2639a7" />
 
 
 
