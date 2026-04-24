@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
@@ -6,19 +7,19 @@ import { DEFAULT_DASHBOARD_CONFIG } from "../config/dashboard.config"
 import { useDashboardStats, useCloudflareStats } from "../hooks/use-dashboard-stats"
 import { getStoredUser } from "@/lib/api"
 
-function getGreeting() {
-  const hour = new Date().getHours()
-  if (hour >= 5 && hour < 12) return "Buongiorno"
-  if (hour >= 12 && hour < 18) return "Buon pomeriggio"
-  if (hour >= 18 && hour < 22) return "Buonasera"
-  return "Buonanotte"
-}
-
 export default function DashboardPage() {
+  const { t } = useTranslation()
   const { data: statsData, isLoading: statsLoading } = useDashboardStats()
   const { data: cfData, isLoading: cfLoading } = useCloudflareStats()
   const user = getStoredUser()
-  const greeting = getGreeting()
+  const hour = new Date().getHours()
+  const greeting = hour >= 5 && hour < 12
+    ? t("dashboard.greeting.morning")
+    : hour >= 12 && hour < 18
+      ? t("dashboard.greeting.afternoon")
+      : hour >= 18 && hour < 22
+        ? t("dashboard.greeting.evening")
+        : t("dashboard.greeting.night")
   const userName = user?.name || "Admin"
 
   // Data bundle for widgets
@@ -52,7 +53,7 @@ export default function DashboardPage() {
                     {greeting}, <span className="text-primary">{userName}</span>
                   </h1>
                   <p className="text-neutral-500 dark:text-neutral-400">
-                    Ecco cosa è successo nel tuo workspace oggi.
+                    {t("dashboard.greeting.subtitle")}
                   </p>
                 </div>
 

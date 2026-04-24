@@ -1,4 +1,5 @@
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { User, Palette, Shield, HardDrive, Bell } from 'lucide-react'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar } from '@/components/app-sidebar'
@@ -9,14 +10,6 @@ import { SecurityTab } from '../components/security-tab'
 import { StorageTab } from '../components/storage-tab'
 import { NotificationsTab } from '../components/notifications-tab'
 import type { SettingsTab } from '../types/settings.types'
-
-const TABS: { id: SettingsTab; label: string; icon: typeof User }[] = [
-  { id: 'profile', label: 'Profilo', icon: User },
-  { id: 'interface', label: 'Interfaccia', icon: Palette },
-  { id: 'security', label: 'Sicurezza', icon: Shield },
-  { id: 'storage', label: 'Storage', icon: HardDrive },
-  { id: 'notifications', label: 'Notifiche', icon: Bell },
-]
 
 function TabContent({ tab }: { tab: SettingsTab }) {
   switch (tab) {
@@ -30,9 +23,18 @@ function TabContent({ tab }: { tab: SettingsTab }) {
 
 export default function SettingsPage() {
   const [searchParams] = useSearchParams()
+  const { t } = useTranslation()
   const activeTab = (searchParams.get('tab') as SettingsTab) ?? 'profile'
 
-  const currentTab = TABS.find(t => t.id === activeTab) ?? TABS[0]
+  const TABS: { id: SettingsTab; label: string; icon: typeof User }[] = [
+    { id: 'profile', label: t('settings.tabs.profile'), icon: User },
+    { id: 'interface', label: t('settings.tabs.interface'), icon: Palette },
+    { id: 'security', label: t('settings.tabs.security'), icon: Shield },
+    { id: 'storage', label: t('settings.tabs.storage'), icon: HardDrive },
+    { id: 'notifications', label: t('settings.tabs.notifications'), icon: Bell },
+  ]
+
+  const currentTab = TABS.find(tab => tab.id === activeTab) ?? TABS[0]
   const Icon = currentTab.icon
 
   return (
@@ -44,7 +46,6 @@ export default function SettingsPage() {
           <SidebarInset className="min-w-0">
             <main className="flex flex-1 flex-col gap-0 p-6 md:p-8 lg:p-10">
               <div className="content-area-inner">
-                {/* Section header */}
                 <div className="mb-6 flex items-center gap-3">
                   <Icon className="size-5 text-muted-foreground shrink-0" />
                   <div>
@@ -53,8 +54,6 @@ export default function SettingsPage() {
                     </h1>
                   </div>
                 </div>
-
-                {/* Tab content */}
                 <TabContent tab={activeTab} />
               </div>
             </main>

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -36,6 +37,7 @@ export function SortColumnMenu({
   isActive,
   onOpen,
 }: Readonly<SortColumnMenuProps>) {
+  const { t } = useTranslation()
   return (
     <DropdownMenu
       onOpenChange={(open) => {
@@ -49,21 +51,21 @@ export function SortColumnMenu({
             <Button
               variant={isActive ? "secondary" : "ghost"}
               size="icon-sm"
-              aria-label="Ordina"
+              aria-label={t("toolbar.sort.tooltip")}
             >
               <ArrowUpDown className="size-4" />
             </Button>
           </DropdownMenuTrigger>
         </TooltipTrigger>
-        <TooltipContent side="top">Ordina</TooltipContent>
+        <TooltipContent side="top">{t("toolbar.sort.tooltip")}</TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end" className="w-64 p-2">
         <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-          Ordina per colonna
+          {t("toolbar.sort.label")}
         </DropdownMenuLabel>
         <div className="flex items-center gap-2">
           <Input
-            placeholder="Cerca colonna..."
+            placeholder={t("toolbar.sort.searchPlaceholder")}
             value={searchTerm}
             onChange={(e) => onSearchTermChange(e.target.value)}
             className="h-8 flex-1 text-sm"
@@ -73,7 +75,7 @@ export function SortColumnMenu({
             variant="outline"
             size="icon-sm"
             className="h-8 w-8 shrink-0"
-            aria-label="Inverti ordine"
+            aria-label={t("toolbar.sort.invertOrder")}
             onClick={onToggleDirection}
             disabled={!sortState?.columnId}
           >
@@ -83,7 +85,7 @@ export function SortColumnMenu({
         <DropdownMenuSeparator className="my-2" />
         <div className="max-h-56 overflow-y-auto">
           {filteredSortableColumns.length === 0 ? (
-            <div className="py-2 text-center text-xs text-muted-foreground">Nessuna colonna trovata</div>
+            <div className="py-2 text-center text-xs text-muted-foreground">{t("toolbar.sort.noColumns")}</div>
           ) : (
             <div className="flex flex-col gap-1 py-1">
               {filteredSortableColumns.map((branch) => {

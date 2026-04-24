@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import {
   LayoutDashboard,
   Image as ImageIcon,
@@ -35,28 +36,29 @@ export function RootView({
   theme,
   toggleTheme,
 }: RootViewProps) {
+  const { t } = useTranslation()
   const nav = (path: string) => { navigate(path); setOpen(false) }
 
   return (
     <>
-      <CommandGroup heading="Naviga" forceMount>
+      <CommandGroup heading={t("commandPalette.navigate")} forceMount>
         <CommandItem onSelect={() => nav("/")}>
           <LayoutDashboard className="size-4 shrink-0 text-muted-foreground" />
-          <span>Dashboard</span>
+          <span>{t("commandPalette.dashboard")}</span>
         </CommandItem>
         <CommandItem onSelect={() => nav("/media")}>
           <ImageIcon className="size-4 shrink-0 text-muted-foreground" />
-          <span>Media Library</span>
+          <span>{t("commandPalette.mediaLibrary")}</span>
         </CommandItem>
         <CommandItem onSelect={() => nav("/settings")}>
           <Settings className="size-4 shrink-0 text-muted-foreground" />
-          <span>Impostazioni</span>
+          <span>{t("commandPalette.settings")}</span>
         </CommandItem>
       </CommandGroup>
 
       <CommandSeparator />
 
-      <CommandGroup heading="Contenuti">
+      <CommandGroup heading={t("commandPalette.contents")}>
         {seeds.slice(0, 5).map((seed) => {
           const SeedIcon = SLUG_ICON_MAP[seed.slug] ?? Folder
           return (
@@ -66,24 +68,24 @@ export function RootView({
               keywords={[seed.slug, "contenuto", "lista"]}
             >
               <SeedIcon className="size-4 shrink-0 text-muted-foreground" />
-              <span>Vai a {seed.label}…</span>
+              <span>{t("commandPalette.goTo", { label: seed.label })}</span>
             </CommandItem>
           )
         })}
         {seeds.length > 5 && (
           <CommandItem onSelect={() => pushPage("seeds")}>
             <Layers className="size-4 shrink-0 text-muted-foreground" />
-            <span>Tutti i seed…</span>
+            <span>{t("commandPalette.allSeeds")}</span>
           </CommandItem>
         )}
       </CommandGroup>
 
       <CommandSeparator />
 
-      <CommandGroup heading="Crea">
+      <CommandGroup heading={t("commandPalette.create")}>
         <CommandItem onSelect={() => pushPage("create")}>
           <Plus className="size-4 shrink-0 text-muted-foreground" />
-          <span>Nuovo contenuto…</span>
+          <span>{t("commandPalette.newContent")}</span>
           <CommandShortcut className="flex items-center gap-0.5">
             <kbd className="text-xs font-mono bg-muted text-muted-foreground px-1 rounded">Alt</kbd>
             <kbd className="text-xs font-mono bg-muted text-muted-foreground px-1 rounded">N</kbd>
@@ -93,7 +95,7 @@ export function RootView({
 
       <CommandSeparator />
 
-      <CommandGroup heading="Strumenti">
+      <CommandGroup heading={t("commandPalette.tools")}>
         {/* TODO: la ricerca globale non funziona — disabilitata temporaneamente */}
         {/* <CommandItem onSelect={() => pushPage("search-results")}>
           <Search className="size-4 shrink-0 text-muted-foreground" />
@@ -112,7 +114,7 @@ export function RootView({
           ) : (
             <Moon className="size-4 shrink-0 text-muted-foreground" />
           )}
-          <span>Cambia tema</span>
+          <span>{t("commandPalette.changeTheme")}</span>
         </CommandItem>
       </CommandGroup>
     </>

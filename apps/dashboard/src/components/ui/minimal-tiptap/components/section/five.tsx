@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import type { Editor } from "@tiptap/react"
 import type { FormatAction } from "../../types"
 import type { toggleVariants } from "@/components/ui/toggle"
@@ -19,39 +20,6 @@ interface InsertElement extends FormatAction {
   value: InsertElementAction
 }
 
-const formatActions: InsertElement[] = [
-  {
-    value: "codeBlock",
-    label: "Block code",
-    icon: <CodeIcon className="size-5" />,
-    action: (editor) => editor.chain().focus().toggleCodeBlock().run(),
-    isActive: (editor) => editor.isActive("codeBlock"),
-    canExecute: (editor) =>
-      editor.can().chain().focus().toggleCodeBlock().run(),
-    shortcuts: ["mod", "alt", "C"],
-  },
-  {
-    value: "blockquote",
-    label: "Blockquote",
-    icon: <QuoteIcon className="size-5" />,
-    action: (editor) => editor.chain().focus().toggleBlockquote().run(),
-    isActive: (editor) => editor.isActive("blockquote"),
-    canExecute: (editor) =>
-      editor.can().chain().focus().toggleBlockquote().run(),
-    shortcuts: ["mod", "shift", "B"],
-  },
-  {
-    value: "horizontalRule",
-    label: "Divider",
-    icon: <DividerHorizontalIcon className="size-5" />,
-    action: (editor) => editor.chain().focus().setHorizontalRule().run(),
-    isActive: () => false,
-    canExecute: (editor) =>
-      editor.can().chain().focus().setHorizontalRule().run(),
-    shortcuts: ["mod", "alt", "-"],
-  },
-]
-
 interface SectionFiveProps extends VariantProps<typeof toggleVariants> {
   editor: Editor
   activeActions?: InsertElementAction[]
@@ -60,11 +28,43 @@ interface SectionFiveProps extends VariantProps<typeof toggleVariants> {
 
 export const SectionFive: React.FC<SectionFiveProps> = ({
   editor,
-  activeActions = formatActions.map((action) => action.value),
+  activeActions,
   mainActionCount = 0,
   size,
   variant,
 }) => {
+  const { t } = useTranslation()
+
+  const formatActions = React.useMemo<InsertElement[]>(() => [
+    {
+      value: "codeBlock",
+      label: t("editor.blockCode"),
+      icon: <CodeIcon className="size-5" />,
+      action: (editor) => editor.chain().focus().toggleCodeBlock().run(),
+      isActive: (editor) => editor.isActive("codeBlock"),
+      canExecute: (editor) => editor.can().chain().focus().toggleCodeBlock().run(),
+      shortcuts: ["mod", "alt", "C"],
+    },
+    {
+      value: "blockquote",
+      label: t("editor.blockquote"),
+      icon: <QuoteIcon className="size-5" />,
+      action: (editor) => editor.chain().focus().toggleBlockquote().run(),
+      isActive: (editor) => editor.isActive("blockquote"),
+      canExecute: (editor) => editor.can().chain().focus().toggleBlockquote().run(),
+      shortcuts: ["mod", "shift", "B"],
+    },
+    {
+      value: "horizontalRule",
+      label: t("editor.divider"),
+      icon: <DividerHorizontalIcon className="size-5" />,
+      action: (editor) => editor.chain().focus().setHorizontalRule().run(),
+      isActive: () => false,
+      canExecute: (editor) => editor.can().chain().focus().setHorizontalRule().run(),
+      shortcuts: ["mod", "alt", "-"],
+    },
+  ], [t])
+
   return (
     <>
       <LinkEditPopover editor={editor} size={size} variant={variant} />
@@ -72,7 +72,7 @@ export const SectionFive: React.FC<SectionFiveProps> = ({
       <ToolbarSection
         editor={editor}
         actions={formatActions}
-        activeActions={activeActions}
+        activeActions={activeActions ?? formatActions.map((a) => a.value)}
         mainActionCount={mainActionCount}
         dropdownIcon={
           <>
@@ -80,7 +80,7 @@ export const SectionFive: React.FC<SectionFiveProps> = ({
             <CaretDownIcon className="size-5" />
           </>
         }
-        dropdownTooltip="Inserisci elementi"
+        dropdownTooltip={t("editor.insertElements")}
         size={size}
         variant={variant}
       />

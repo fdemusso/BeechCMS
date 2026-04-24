@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { formatDistanceToNow } from "date-fns"
-import { it } from "date-fns/locale"
+import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import { Clock, FileImage } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
@@ -12,6 +13,8 @@ import type { ContentEntry } from "@/lib/dynamic-columns"
 import { WidgetEmpty } from "./_parts/widget-empty"
 import { WidgetError } from "./_parts/widget-error"
 import { Link } from "react-router-dom"
+
+const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
 
 export interface RecentContentWidgetProps {
   seedSlug: string
@@ -34,17 +37,20 @@ function entryTitle(entry: ContentEntry): string {
   return entry.id
 }
 
-function relativeTime(ts: number | null): string {
-  if (!ts) return "—"
-  return formatDistanceToNow(new Date(ts * 1000), { addSuffix: true, locale: it })
-}
-
 interface ContentListResponse {
   items: ContentEntry[]
   total: number
 }
 
 export function RecentContentWidget({ seedSlug, variant = "list" }: RecentContentWidgetProps) {
+  const { t, i18n } = useTranslation()
+  const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+
+  function relativeTime(ts: number | null): string {
+    if (!ts) return "—"
+    return formatDistanceToNow(new Date(ts * 1000), { addSuffix: true, locale: dateFnsLocale })
+  }
+
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["widget", "recent-content", seedSlug],
     queryFn: async (): Promise<ContentEntry[]> => {
@@ -62,12 +68,12 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
       to={`/content/${seedSlug}`}
       className="text-xs text-muted-foreground hover:text-foreground transition-colors"
     >
-      Vedi tutti →
+      {t("dashboard.widgets.recentContent.viewAll")}
     </Link>
   )
 
   if (isLoading) return (
-    <DashboardWidgetShell title="Contenuti recenti" icon={Clock} action={viewAllAction}>
+    <DashboardWidgetShell title={t("dashboard.widgets.recentContent.title")} icon={Clock} action={viewAllAction}>
       <div className="space-y-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-9 w-full rounded-lg animate-pulse" />
@@ -77,20 +83,20 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
   )
 
   if (isError) return (
-    <DashboardWidgetShell title="Contenuti recenti" icon={Clock} action={viewAllAction}>
+    <DashboardWidgetShell title={t("dashboard.widgets.recentContent.title")} icon={Clock} action={viewAllAction}>
       <WidgetError onRetry={() => refetch()} />
     </DashboardWidgetShell>
   )
 
   if (!data?.length) return (
-    <DashboardWidgetShell title="Contenuti recenti" icon={Clock}>
-      <WidgetEmpty icon={FileImage} title="Nessun contenuto" description="Crea il primo contenuto per vederlo qui" />
+    <DashboardWidgetShell title={t("dashboard.widgets.recentContent.title")} icon={Clock}>
+      <WidgetEmpty icon={FileImage} title={t("dashboard.widgets.recentContent.noContent")} description={t("dashboard.widgets.recentContent.noContentDesc")} />
     </DashboardWidgetShell>
   )
 
   if (variant === "cards") {
     return (
-      <DashboardWidgetShell title="Contenuti recenti" icon={Clock} action={viewAllAction}>
+      <DashboardWidgetShell title={t("dashboard.widgets.recentContent.title")} icon={Clock} action={viewAllAction}>
         <div className="grid grid-cols-2 gap-3">
           {data.map((entry) => (
             <Card key={entry.id} className="cursor-pointer hover:shadow-md transition-shadow border-border/60 overflow-hidden">
@@ -114,7 +120,7 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
   }
 
   return (
-    <DashboardWidgetShell title="Contenuti recenti" icon={Clock} action={viewAllAction}>
+    <DashboardWidgetShell title={t("dashboard.widgets.recentContent.title")} icon={Clock} action={viewAllAction}>
       <ul className="space-y-0.5">
         {data.map((entry) => (
           <li

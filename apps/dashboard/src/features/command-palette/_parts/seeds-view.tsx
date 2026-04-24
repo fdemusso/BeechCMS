@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { Folder } from "lucide-react"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
 import type { Seed } from "@beech/core"
@@ -12,7 +13,8 @@ interface SeedsViewProps {
 }
 
 export function SeedsView({ seeds, navigate, setOpen, mode }: SeedsViewProps) {
-  const heading = mode === "create" ? "Crea in…" : "Scegli Seed"
+  const { t } = useTranslation()
+  const heading = mode === "create" ? t("commandPalette.chooseType") : t("commandPalette.chooseSeed")
 
   return (
     <CommandGroup heading={heading}>

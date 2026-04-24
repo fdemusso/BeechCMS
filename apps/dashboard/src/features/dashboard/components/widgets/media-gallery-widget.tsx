@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { Images, Trash2 } from "lucide-react"
 import { api } from "@/lib/api"
@@ -36,6 +37,7 @@ function entryLabel(entry: ContentEntry): string {
 
 export function MediaGalleryWidget({ seedSlug, variant: initialVariant = "grid", onOpen }: MediaGalleryWidgetProps) {
   const [variant, setVariant] = useState(initialVariant)
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
 
   const { data, isLoading, isError, refetch } = useQuery({
@@ -68,7 +70,7 @@ export function MediaGalleryWidget({ seedSlug, variant: initialVariant = "grid",
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 shrink-0">
         <span className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Images className="size-4 text-muted-foreground" />
-          Galleria Media
+          {t("dashboard.widgets.mediaGallery.title")}
         </span>
         <div className="flex items-center gap-0.5 bg-muted/50 p-0.5 rounded-md border border-border/50">
           <Button
@@ -77,7 +79,7 @@ export function MediaGalleryWidget({ seedSlug, variant: initialVariant = "grid",
             className="h-6 px-2 text-[10px]"
             onClick={() => setVariant("grid")}
           >
-            Tutti
+            {t("dashboard.widgets.mediaGallery.all")}
           </Button>
           <Button
             variant={variant === "unused" ? "secondary" : "ghost"}
@@ -85,7 +87,7 @@ export function MediaGalleryWidget({ seedSlug, variant: initialVariant = "grid",
             className="h-6 px-2 text-[10px]"
             onClick={() => setVariant("unused")}
           >
-            Inutilizzati
+            {t("dashboard.widgets.mediaGallery.unused")}
           </Button>
         </div>
       </div>
@@ -103,8 +105,8 @@ export function MediaGalleryWidget({ seedSlug, variant: initialVariant = "grid",
         ) : !entries.length ? (
           <WidgetEmpty
             icon={Images}
-            title={variant === "unused" ? "Ottimo lavoro!" : "Nessun media"}
-            description={variant === "unused" ? "Tutti i tuoi file sono in uso." : "Carica file per vederli qui"}
+            title={variant === "unused" ? t("dashboard.widgets.mediaGallery.allInUseTitle") : t("dashboard.widgets.mediaGallery.emptyTitle")}
+            description={variant === "unused" ? t("dashboard.widgets.mediaGallery.allInUseDesc") : t("dashboard.widgets.mediaGallery.emptyDesc")}
           />
         ) : (
           <div className="grid grid-cols-4 gap-2">

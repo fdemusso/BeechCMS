@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import type { Editor } from "@tiptap/react"
 import type { toggleVariants } from "@/components/ui/toggle"
 import type { VariantProps } from "class-variance-authority"
@@ -14,13 +15,14 @@ export const SectionZero: React.FC<SectionZeroProps> = ({
   size,
   variant,
 }) => {
+  const { t } = useTranslation()
   return (
     <>
       <ToolbarButton
         onClick={() => editor.chain().focus().undo().run()}
         disabled={!editor.can().chain().focus().undo().run()}
-        tooltip="Annulla (Mod+Z)"
-        aria-label="Indietro"
+        tooltip={t("editor.undo")}
+        aria-label={t("editor.undo")}
         size={size}
         variant={variant}
       >
@@ -29,8 +31,8 @@ export const SectionZero: React.FC<SectionZeroProps> = ({
       <ToolbarButton
         onClick={() => editor.chain().focus().redo().run()}
         disabled={!editor.can().chain().focus().redo().run()}
-        tooltip="Ripristina (Mod+Y)"
-        aria-label="Avanti"
+        tooltip={t("editor.redo")}
+        aria-label={t("editor.redo")}
         size={size}
         variant={variant}
       >

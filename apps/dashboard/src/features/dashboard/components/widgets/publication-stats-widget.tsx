@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { BarChart3, TrendingUp } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "@/features/dashboard"
@@ -10,6 +11,7 @@ export interface PublicationStatsWidgetProps {
 }
 
 export function PublicationStatsWidget({ variant = "single" }: PublicationStatsWidgetProps) {
+  const { t } = useTranslation()
   const { data, isLoading, isError, refetch } = useDashboardStats()
 
   if (isLoading) return (
@@ -33,21 +35,21 @@ export function PublicationStatsWidget({ variant = "single" }: PublicationStatsW
   if (variant === "trio") {
     const blocks = [
       {
-        label: "Oggi",
+        label: t("dashboard.widgets.publicationStats.today"),
         value: today,
         color: "text-blue-600 dark:text-blue-400",
         border: "border-l-blue-400/60",
         bg: "bg-blue-50/60 dark:bg-blue-500/10",
       },
       {
-        label: "Settimana",
+        label: t("dashboard.widgets.publicationStats.week"),
         value: week,
         color: "text-violet-600 dark:text-violet-400",
         border: "border-l-violet-400/60",
         bg: "bg-violet-50/60 dark:bg-violet-500/10",
       },
       {
-        label: "Mese",
+        label: t("dashboard.widgets.publicationStats.month"),
         value: month,
         color: "text-emerald-600 dark:text-emerald-400",
         border: "border-l-emerald-400/60",
@@ -92,7 +94,7 @@ export function PublicationStatsWidget({ variant = "single" }: PublicationStatsW
             {today}
           </span>
         </div>
-        <p className="text-sm text-muted-foreground">contenuti totali</p>
+        <p className="text-sm text-muted-foreground">{t("dashboard.widgets.publicationStats.totalContent")}</p>
       </div>
     </DashboardWidgetShell>
   )

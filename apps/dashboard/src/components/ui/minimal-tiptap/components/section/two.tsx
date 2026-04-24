@@ -12,6 +12,7 @@ import {
   TextNoneIcon,
   UnderlineIcon,
 } from "@radix-ui/react-icons"
+import { useTranslation } from "react-i18next"
 import { ToolbarSection } from "../toolbar-section"
 
 type TextStyleAction =
@@ -26,75 +27,6 @@ interface TextStyle extends FormatAction {
   value: TextStyleAction
 }
 
-const formatActions: TextStyle[] = [
-  {
-    value: "bold",
-    label: "Grassetto",
-    icon: <FontBoldIcon className="size-5" />,
-    action: (editor) => editor.chain().focus().toggleBold().run(),
-    isActive: (editor) => editor.isActive("bold"),
-    canExecute: (editor) =>
-      editor.can().chain().focus().toggleBold().run() &&
-      !editor.isActive("codeBlock"),
-    shortcuts: ["mod", "B"],
-  },
-  {
-    value: "italic",
-    label: "Corsivo",
-    icon: <FontItalicIcon className="size-5" />,
-    action: (editor) => editor.chain().focus().toggleItalic().run(),
-    isActive: (editor) => editor.isActive("italic"),
-    canExecute: (editor) =>
-      editor.can().chain().focus().toggleItalic().run() &&
-      !editor.isActive("codeBlock"),
-    shortcuts: ["mod", "I"],
-  },
-  {
-    value: "underline",
-    label: "Sottolineato",
-    icon: <UnderlineIcon className="size-5" />,
-    action: (editor) => editor.chain().focus().toggleUnderline().run(),
-    isActive: (editor) => editor.isActive("underline"),
-    canExecute: (editor) =>
-      editor.can().chain().focus().toggleUnderline().run() &&
-      !editor.isActive("codeBlock"),
-    shortcuts: ["mod", "U"],
-  },
-  {
-    value: "strikethrough",
-    label: "Barrato",
-    icon: <StrikethroughIcon className="size-5" />,
-    action: (editor) => editor.chain().focus().toggleStrike().run(),
-    isActive: (editor) => editor.isActive("strike"),
-    canExecute: (editor) =>
-      editor.can().chain().focus().toggleStrike().run() &&
-      !editor.isActive("codeBlock"),
-    shortcuts: ["mod", "shift", "S"],
-  },
-  {
-    value: "code",
-    label: "Inline code",
-    icon: <CodeIcon className="size-5" />,
-    action: (editor) => editor.chain().focus().toggleCode().run(),
-    isActive: (editor) => editor.isActive("code"),
-    canExecute: (editor) =>
-      editor.can().chain().focus().toggleCode().run() &&
-      !editor.isActive("codeBlock"),
-    shortcuts: ["mod", "E"],
-  },
-  {
-    value: "clearFormatting",
-    label: "Pulisci formattazione",
-    icon: <TextNoneIcon className="size-5" />,
-    action: (editor) => editor.chain().focus().unsetAllMarks().run(),
-    isActive: () => false,
-    canExecute: (editor) =>
-      editor.can().chain().focus().unsetAllMarks().run() &&
-      !editor.isActive("codeBlock"),
-    shortcuts: ["mod", "\\"],
-  },
-]
-
 interface SectionTwoProps extends VariantProps<typeof toggleVariants> {
   editor: Editor
   activeActions?: TextStyleAction[]
@@ -103,19 +35,87 @@ interface SectionTwoProps extends VariantProps<typeof toggleVariants> {
 
 export const SectionTwo: React.FC<SectionTwoProps> = ({
   editor,
-  activeActions = formatActions.map((action) => action.value),
+  activeActions,
   mainActionCount = 2,
   size,
   variant,
 }) => {
+  const { t } = useTranslation()
+
+  const formatActions: TextStyle[] = [
+    {
+      value: "bold",
+      label: t("editor.bold"),
+      icon: <FontBoldIcon className="size-5" />,
+      action: (e) => e.chain().focus().toggleBold().run(),
+      isActive: (e) => e.isActive("bold"),
+      canExecute: (e) =>
+        e.can().chain().focus().toggleBold().run() && !e.isActive("codeBlock"),
+      shortcuts: ["mod", "B"],
+    },
+    {
+      value: "italic",
+      label: t("editor.italic"),
+      icon: <FontItalicIcon className="size-5" />,
+      action: (e) => e.chain().focus().toggleItalic().run(),
+      isActive: (e) => e.isActive("italic"),
+      canExecute: (e) =>
+        e.can().chain().focus().toggleItalic().run() && !e.isActive("codeBlock"),
+      shortcuts: ["mod", "I"],
+    },
+    {
+      value: "underline",
+      label: t("editor.underline"),
+      icon: <UnderlineIcon className="size-5" />,
+      action: (e) => e.chain().focus().toggleUnderline().run(),
+      isActive: (e) => e.isActive("underline"),
+      canExecute: (e) =>
+        e.can().chain().focus().toggleUnderline().run() &&
+        !e.isActive("codeBlock"),
+      shortcuts: ["mod", "U"],
+    },
+    {
+      value: "strikethrough",
+      label: t("editor.strikethrough"),
+      icon: <StrikethroughIcon className="size-5" />,
+      action: (e) => e.chain().focus().toggleStrike().run(),
+      isActive: (e) => e.isActive("strike"),
+      canExecute: (e) =>
+        e.can().chain().focus().toggleStrike().run() &&
+        !e.isActive("codeBlock"),
+      shortcuts: ["mod", "shift", "S"],
+    },
+    {
+      value: "code",
+      label: t("editor.inlineCode"),
+      icon: <CodeIcon className="size-5" />,
+      action: (e) => e.chain().focus().toggleCode().run(),
+      isActive: (e) => e.isActive("code"),
+      canExecute: (e) =>
+        e.can().chain().focus().toggleCode().run() && !e.isActive("codeBlock"),
+      shortcuts: ["mod", "E"],
+    },
+    {
+      value: "clearFormatting",
+      label: t("editor.clearFormatting"),
+      icon: <TextNoneIcon className="size-5" />,
+      action: (e) => e.chain().focus().unsetAllMarks().run(),
+      isActive: () => false,
+      canExecute: (e) =>
+        e.can().chain().focus().unsetAllMarks().run() &&
+        !e.isActive("codeBlock"),
+      shortcuts: ["mod", "\\"],
+    },
+  ]
+
   return (
     <ToolbarSection
       editor={editor}
       actions={formatActions}
-      activeActions={activeActions}
+      activeActions={activeActions ?? formatActions.map((a) => a.value)}
       mainActionCount={mainActionCount}
       dropdownIcon={<DotsHorizontalIcon className="size-5" />}
-      dropdownTooltip="More formatting"
+      dropdownTooltip={t("editor.moreFormatting")}
       dropdownClassName="w-8"
       size={size}
       variant={variant}

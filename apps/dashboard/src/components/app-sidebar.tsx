@@ -1,10 +1,11 @@
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { Command } from "lucide-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
-import { STATIC_MENU, CONTENT_MENU, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
+import { getStaticMenu, CONTENT_MENU, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
 import { getStoredUser, logout } from "@/lib/api"
 import { useProfile } from "@/features/settings"
 import {
@@ -19,6 +20,7 @@ import {
 
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { t } = useTranslation()
   const storedUser = getStoredUser()
   const { data: profile } = useProfile()
   const user = {
@@ -50,8 +52,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={STATIC_MENU} groupLabel="Navigazione" />
-        <NavMain items={CONTENT_MENU} groupLabel="Contenuti" className="mt-4" />
+        <NavMain items={getStaticMenu(t)} groupLabel={t("sidebar.navigation")} />
+        <NavMain items={CONTENT_MENU} groupLabel={t("sidebar.contents")} className="mt-4" />
         {STATIC_NAV_SECONDARY.length > 0 && (
           <NavSecondary items={STATIC_NAV_SECONDARY} className="mt-auto" />
         )}

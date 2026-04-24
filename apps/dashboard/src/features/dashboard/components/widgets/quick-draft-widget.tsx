@@ -1,4 +1,5 @@
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { useNavigate } from "react-router-dom"
 import { CheckCircle2, FilePlus } from "lucide-react"
@@ -38,6 +39,7 @@ export function QuickDraftWidget({
   placeholder: customPlaceholder,
   onCreated
 }: QuickDraftWidgetProps) {
+  const { t } = useTranslation()
   const [title, setTitle] = useState("")
   const [selectedSeed, setSelectedSeed] = useState(seeds[0]?.slug ?? "")
   const [success, setSuccess] = useState(false)
@@ -47,7 +49,9 @@ export function QuickDraftWidget({
 
   const selectedSeedOption = seeds.find(s => s.slug === selectedSeed)
   const nameAlias = selectedSeedOption?.displayNameAlias ?? "title"
-  const nameLabel = selectedSeedOption?.displayNameLabel ?? nameAlias
+  const nameLabel = t(`dashboard.widgets.quickDraft.fieldLabels.${nameAlias}`, {
+    defaultValue: selectedSeedOption?.displayNameLabel ?? nameAlias,
+  })
 
   const { mutate, isPending } = useMutation({
     mutationFn: async () => {
@@ -70,7 +74,7 @@ export function QuickDraftWidget({
       }, 800)
     },
     onError: (err: Error) => {
-      setErrorMsg(err.message || "Errore nella creazione")
+      setErrorMsg(err.message || t("dashboard.widgets.quickDraft.errorCreating"))
     },
   })
 
@@ -86,18 +90,18 @@ export function QuickDraftWidget({
       <DashboardWidgetShell>
         <div className="flex h-full items-center justify-center gap-2 text-emerald-600 dark:text-emerald-400">
           <CheckCircle2 className="size-5" />
-          <span className="text-sm font-semibold">Bozza creata!</span>
+          <span className="text-sm font-semibold">{t("dashboard.widgets.quickDraft.draftCreated")}</span>
         </div>
       </DashboardWidgetShell>
     )
   }
 
   return (
-    <DashboardWidgetShell icon={FilePlus} title={variant === "minimal" ? (customTitle || "Nuova bozza") : undefined}>
+    <DashboardWidgetShell icon={FilePlus} title={variant === "minimal" ? (customTitle || t("dashboard.widgets.quickDraft.title")) : undefined}>
       <form onSubmit={handleSubmit} className="space-y-3">
         {variant === "expanded" && (
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            {customTitle || "Crea bozza rapida"}
+            {customTitle || t("dashboard.widgets.quickDraft.createDraft")}
           </p>
         )}
         {/* Minimal variant: on mobile stack input+select on first row, button full-width below.
@@ -129,10 +133,10 @@ export function QuickDraftWidget({
             <div className={cn(
               variant === "expanded" ? "w-full space-y-1" : "flex-1 min-w-0 sm:w-28 sm:shrink-0 sm:flex-none"
             )}>
-              {variant === "expanded" && <label className="text-xs text-muted-foreground">Tipo</label>}
+              {variant === "expanded" && <label className="text-xs text-muted-foreground">{t("dashboard.widgets.quickDraft.type")}</label>}
               <Select value={selectedSeed} onValueChange={setSelectedSeed}>
                 <SelectTrigger className="h-8 text-sm w-full overflow-hidden">
-                  <span className="truncate block">{seeds.find(s => s.slug === selectedSeed)?.label ?? "Tipo"}</span>
+                  <span className="truncate block">{seeds.find(s => s.slug === selectedSeed)?.label ?? t("dashboard.widgets.quickDraft.type")}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {seeds.map((s) => (
@@ -143,14 +147,14 @@ export function QuickDraftWidget({
             </div>
             {variant === "minimal" && (
               <Button type="submit" size="sm" disabled={isPending || !title.trim()} className="shrink-0 h-8">
-                {isPending ? "…" : "Crea"}
+                {isPending ? "…" : t("dashboard.widgets.quickDraft.create")}
               </Button>
             )}
           </div>
         </div>
         {variant === "expanded" && (
           <Button type="submit" size="sm" disabled={isPending || !title.trim()} className="w-full h-8">
-            {isPending ? "Creazione…" : "Crea bozza"}
+            {isPending ? t("dashboard.widgets.quickDraft.creating") : t("dashboard.widgets.quickDraft.createDraft")}
           </Button>
         )}
         {errorMsg && <p className="text-xs text-destructive">{errorMsg}</p>}

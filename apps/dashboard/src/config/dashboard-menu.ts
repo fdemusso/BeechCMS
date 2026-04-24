@@ -37,26 +37,28 @@ export const SLUG_ICON_MAP: Record<string, LucideIcon> = {
 }
 
 /** Menu statico: solo Dashboard e Impostazioni */
-export const STATIC_MENU: NavItem[] = [
-  {
-    title: "Dashboard",
-    url: "/",
-    icon: LayoutDashboard,
-    isActive: true,
-  },
-  {
-    title: "Impostazioni",
-    url: "/settings",
-    icon: Settings,
-    items: [
-      { title: "Profilo", url: "/settings?tab=profile" },
-      { title: "Interfaccia", url: "/settings?tab=interface" },
-      { title: "Sicurezza", url: "/settings?tab=security" },
-      { title: "Storage", url: "/settings?tab=storage" },
-      { title: "Notifiche", url: "/settings?tab=notifications" },
-    ],
-  },
-]
+export function getStaticMenu(t: (key: string) => string): NavItem[] {
+  return [
+    {
+      title: "Dashboard",
+      url: "/",
+      icon: LayoutDashboard,
+      isActive: true,
+    },
+    {
+      title: t("settings.title"),
+      url: "/settings",
+      icon: Settings,
+      items: [
+        { title: t("settings.tabs.profile"), url: "/settings?tab=profile" },
+        { title: t("settings.tabs.interface"), url: "/settings?tab=interface" },
+        { title: t("settings.tabs.security"), url: "/settings?tab=security" },
+        { title: t("settings.tabs.storage"), url: "/settings?tab=storage" },
+        { title: t("settings.tabs.notifications"), url: "/settings?tab=notifications" },
+      ],
+    },
+  ]
+}
 
 /** Menu contenuti: generato dinamicamente dai seed registrati */
 export const CONTENT_MENU: NavItem[] = Object.values(SEED_REGISTRY).map((seed) => ({

@@ -1,6 +1,7 @@
+import { useTranslation } from "react-i18next"
 import { Activity, Plus, Pencil, Trash2, Upload } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
-import { it } from "date-fns/locale"
+import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -15,12 +16,7 @@ export interface ActivityFeedWidgetProps {
   limit?: number
 }
 
-const ACTION_LABELS: Record<string, string> = {
-  create: "ha creato",
-  update: "ha modificato",
-  delete: "ha eliminato",
-  upload: "ha caricato",
-}
+const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
 
 const ACTION_ICONS: Record<string, React.ElementType> = {
   create: Plus,
@@ -36,8 +32,8 @@ const ACTION_COLORS: Record<string, string> = {
   upload: "bg-violet-100 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400",
 }
 
-function displayName(name?: string | null, email?: string): string {
-  return name || email || "Utente"
+function displayName(name?: string | null, email?: string, fallback = "User"): string {
+  return name || email || fallback
 }
 
 function initials(name?: string | null, email?: string): string {
@@ -46,16 +42,19 @@ function initials(name?: string | null, email?: string): string {
   return source.slice(0, 2).toUpperCase()
 }
 
-function relativeTime(ts: number | null): string {
-  if (!ts) return "—"
-  return formatDistanceToNow(new Date(ts * 1000), { addSuffix: true, locale: it })
-}
-
 export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedWidgetProps) {
+  const { t, i18n } = useTranslation()
+  const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+
+  function relativeTime(ts: number | null): string {
+    if (!ts) return "—"
+    return formatDistanceToNow(new Date(ts * 1000), { addSuffix: true, locale: dateFnsLocale })
+  }
+
   const { data, isLoading, isError, refetch } = useRecentActivity(seedSlug)
 
   if (isLoading) return (
-    <DashboardWidgetShell title="Attività recente" icon={Activity}>
+    <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex gap-3">
@@ -68,27 +67,27 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
   )
 
   if (isError) return (
-    <DashboardWidgetShell title="Attività recente" icon={Activity}>
+    <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
       <WidgetError onRetry={() => refetch()} />
     </DashboardWidgetShell>
   )
 
   if (!data?.length) return (
-    <DashboardWidgetShell title="Attività recente" icon={Activity}>
-      <WidgetEmpty icon={Activity} title="Nessun log di attività" />
+    <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
+      <WidgetEmpty icon={Activity} title={t("dashboard.widgets.activityFeed.empty")} />
     </DashboardWidgetShell>
   )
 
   if (variant === "compact") {
     const items = data.slice(0, 10)
     return (
-      <DashboardWidgetShell title="Attività recente" icon={Activity}>
+      <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
         <ul className="space-y-1">
           {items.map((log) => (
             <li key={log.id} className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground truncate flex-1">
                 <span className="font-medium text-foreground">{displayName(log.user_name, log.user_email)}</span>{" "}
-                {ACTION_LABELS[log.action] || log.action}{" "}
+                {t(`dashboard.recentActivity.actions.${log.action}`, { defaultValue: log.action })}{" "}
                 <span className="font-medium text-foreground">
                   {log.details?.title || log.details?.name || log.entity_slug || log.entity_id}
                 </span>
@@ -102,7 +101,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
   }
 
   return (
-    <DashboardWidgetShell title="Attività recente" icon={Activity}>
+    <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
       <ScrollArea className="h-full pr-2">
         <ul className="space-y-3">
           {data.map((log) => {
@@ -127,7 +126,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
                   <p className="text-sm leading-snug">
                     <span className="font-semibold">{displayName(log.user_name, log.user_email)}</span>{" "}
                     <span className="text-muted-foreground">
-                      {ACTION_LABELS[log.action] || log.action}
+                      {t(`dashboard.recentActivity.actions.${log.action}`, { defaultValue: log.action })}
                     </span>{" "}
                     <span className="font-medium">
                       {log.details?.title || log.details?.name || log.entity_slug || log.entity_id}

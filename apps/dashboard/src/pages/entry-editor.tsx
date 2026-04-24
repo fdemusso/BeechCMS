@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { useParams, useNavigate, useBlocker } from "react-router-dom"
 import { getSeed, slugify } from "@beech/core"
 import { ArrowLeft, Loader2 } from "lucide-react"
@@ -65,6 +66,7 @@ function createEmptyRichtextDoc(): Record<string, unknown> {
 }
 
 export function EntryEditorPage() {
+  const { t } = useTranslation()
   const { slug: schemaSlug, id: entryId } = useParams<{
     slug: string
     id?: string
@@ -110,7 +112,7 @@ export function EntryEditorPage() {
       .catch((err) => {
         if (!cancelled) {
           setErrorEntry(
-            err instanceof Error ? err.message : "Errore nel caricamento"
+            err instanceof Error ? err.message : t("content.editor.loadingError")
           )
         }
       })
@@ -220,7 +222,7 @@ export function EntryEditorPage() {
       try {
         JSON.parse(value)
       } catch {
-        toast.error(`Il campo "${branch.label}" deve contenere JSON valido`)
+        toast.error(t("content.editor.jsonError", { field: branch.label }))
         return false
       }
     }
@@ -235,12 +237,12 @@ export function EntryEditorPage() {
   ) => {
     if (entryIdForUpdate) {
       await updateContent(schemaSlug, entryIdForUpdate, payload)
-      toast.success("Modifiche salvate")
+      toast.success(t("content.editor.savedSuccess"))
       return
     }
 
     await createContent(schemaSlug, payload)
-    toast.success("Entry creata")
+    toast.success(t("content.editor.createdSuccess"))
   }
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
@@ -260,11 +262,11 @@ export function EntryEditorPage() {
     } catch (err) {
       const ax = err as AxiosError<{ error?: string }>
       if (ax.response?.status === 409) {
-        toast.error("Slug già esistente per questo schema")
+        toast.error(t("content.editor.slugDuplicate"))
         return
       }
       toast.error(
-        err instanceof Error ? err.message : "Errore durante il salvataggio"
+        err instanceof Error ? err.message : t("content.editor.saveError")
       )
     } finally {
       setIsSaving(false)
@@ -276,7 +278,7 @@ export function EntryEditorPage() {
   if (!schemaSlug) {
     return (
       <div className="flex min-h-svh items-center justify-center p-4">
-        <p className="text-destructive">Slug non specificato.</p>
+        <p className="text-destructive">{t("content.editor.slugMissing")}</p>
       </div>
     )
   }
@@ -292,10 +294,10 @@ export function EntryEditorPage() {
               <div className="flex flex-1 flex-col gap-4 p-4">
                 <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
                   <p className="text-destructive">
-                    Seed &quot;{schemaSlug}&quot; non trovato.
+                    {t("content.editor.seedNotFound", { slug: schemaSlug })}
                   </p>
                   <Button variant="outline" className="mt-2" onClick={goBack}>
-                    Indietro
+                    {t("content.editor.back")}
                   </Button>
                 </div>
               </div>
@@ -372,19 +374,19 @@ export function EntryEditorPage() {
                     onClick={goBack}
                   >
                     <ArrowLeft className="mr-1 size-4" />
-                    Indietro
+                    {t("content.editor.back")}
                   </Button>
                   <h1 className="text-xl font-semibold truncate pb-1">
-                    {isCreate ? `Nuovo ${seed.label}` : `Modifica ${seed.label}`}
+                    {isCreate ? t("content.editor.newEntry", { label: seed.label }) : t("content.editor.editEntry", { label: seed.label })}
                   </h1>
                   <Button type="submit" disabled={isSaving}>
                     {isSaving ? (
                       <>
                         <Loader2 className="mr-2 size-4 animate-spin" />
-                        Salvataggio...
+                        {t("content.editor.saving")}
                       </>
                     ) : (
-                      "Salva"
+                      t("content.editor.save")
                     )}
                   </Button>
                 </div>
@@ -406,26 +408,26 @@ export function EntryEditorPage() {
                     <aside className="flex flex-col gap-4 md:sticky md:top-[calc(var(--header-height)+1rem)] md:self-start">
                       <Card>
                         <CardHeader>
-                          <CardTitle>Metadati / SEO</CardTitle>
+                          <CardTitle>{t("content.editor.metadataSeo")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                           <div className="space-y-2">
-                            <Label htmlFor="entry-status">Stato</Label>
+                            <Label htmlFor="entry-status">{t("content.editor.status")}</Label>
                             <Select
                               value={status}
                               onValueChange={(val) => { setStatus(val); setIsDirty(true) }}
                             >
                               <SelectTrigger id="entry-status" className="w-full">
-                                <SelectValue placeholder="Stato" />
+                                <SelectValue placeholder={t("content.editor.status")} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="draft">Bozza</SelectItem>
-                                <SelectItem value="published">Pubblicato</SelectItem>
+                                <SelectItem value="draft">{t("content.editor.draft")}</SelectItem>
+                                <SelectItem value="published">{t("content.editor.published")}</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="entry-slug">Slug (URL)</Label>
+                            <Label htmlFor="entry-slug">{t("content.editor.slug")}</Label>
                               <Input
                                 id="entry-slug"
                                 value={slug}
@@ -435,7 +437,7 @@ export function EntryEditorPage() {
                                   setIsDirty(true)
                                 }}
                                 maxLength={15}
-                                placeholder="es. mio-articolo"
+                                placeholder={t("content.editor.slugPlaceholder")}
                                 className="font-mono text-sm"
                               />
                           </div>
@@ -456,7 +458,7 @@ export function EntryEditorPage() {
 
                       <Card>
                         <CardHeader>
-                          <CardTitle>Contenuto</CardTitle>
+                          <CardTitle>{t("content.editor.content")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                           {contentBranches.map((branch) => (
@@ -482,27 +484,27 @@ export function EntryEditorPage() {
                   <div className="mx-auto w-full max-w-2xl lg:max-w-3xl xl:max-w-4xl space-y-6">
                     <Card>
                       <CardHeader>
-                        <CardTitle>Pubblicazione</CardTitle>
+                        <CardTitle>{t("content.editor.publication")}</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid gap-4 sm:grid-cols-2">
                           <div className="space-y-2">
-                            <Label htmlFor="entry-status">Stato</Label>
+                            <Label htmlFor="entry-status">{t("content.editor.status")}</Label>
                             <Select
                               value={status}
                               onValueChange={(val) => { setStatus(val); setIsDirty(true) }}
                             >
                               <SelectTrigger id="entry-status" className="w-full">
-                                <SelectValue placeholder="Stato" />
+                                <SelectValue placeholder={t("content.editor.status")} />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="draft">Bozza</SelectItem>
-                                <SelectItem value="published">Pubblicato</SelectItem>
+                                <SelectItem value="draft">{t("content.editor.draft")}</SelectItem>
+                                <SelectItem value="published">{t("content.editor.published")}</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
                           <div className="space-y-2">
-                            <Label htmlFor="entry-slug">Slug (URL)</Label>
+                            <Label htmlFor="entry-slug">{t("content.editor.slug")}</Label>
                             <Input
                               id="entry-slug"
                               value={slug}
@@ -512,7 +514,7 @@ export function EntryEditorPage() {
                                 setIsDirty(true)
                               }}
                               maxLength={15}
-                              placeholder="es. mio-articolo"
+                              placeholder={t("content.editor.slugPlaceholder")}
                               className="font-mono text-sm"
                             />
                           </div>
@@ -523,7 +525,7 @@ export function EntryEditorPage() {
                     {seoBranches.length > 0 && (
                       <Card>
                         <CardHeader>
-                          <CardTitle>Metadati / SEO</CardTitle>
+                          <CardTitle>{t("content.editor.metadataSeo")}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-4">
                           {seoBranches.map((branch) => (
@@ -544,7 +546,7 @@ export function EntryEditorPage() {
 
                     <Card>
                       <CardHeader>
-                        <CardTitle>Contenuto</CardTitle>
+                        <CardTitle>{t("content.editor.content")}</CardTitle>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         {contentBranches.map((branch) => (
@@ -573,21 +575,20 @@ export function EntryEditorPage() {
       <AlertDialog open={blocker.state === "blocked"}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Modifiche non salvate</AlertDialogTitle>
+            <AlertDialogTitle>{t("content.editor.unsavedTitle")}</AlertDialogTitle>
             <AlertDialogDescription>
-              Hai delle modifiche non salvate. Se esci ora andranno perse. Vuoi
-              continuare?
+              {t("content.editor.unsavedDesc")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => blocker.reset?.()}>
-              Rimani
+              {t("content.editor.stay")}
             </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => blocker.proceed?.()}
             >
-              Esci senza salvare
+              {t("content.editor.exitWithout")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

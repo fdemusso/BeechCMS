@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { FileText } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
@@ -33,6 +34,7 @@ export function SearchResultsView({
   navigate,
   setOpen,
 }: SearchResultsViewProps) {
+  const { t } = useTranslation()
   const { data, isLoading } = useQuery({
     queryKey: ["cmd-search", search] as const,
     queryFn: async (): Promise<SearchResponse> => {
@@ -53,13 +55,13 @@ export function SearchResultsView({
   if (isLoading) {
     return (
       <div className="px-4 py-6 text-sm text-center text-muted-foreground">
-        Ricerca in corso…
+        {t("commandPalette.searching")}
       </div>
     )
   }
 
   return (
-    <CommandGroup heading="Risultati della ricerca">
+    <CommandGroup heading={t("commandPalette.searchResults")}>
       {results.map((entry) => (
         <CommandItem
           key={entry.id}
@@ -85,7 +87,7 @@ export function SearchResultsView({
       ))}
       {results.length === 0 && !isLoading && (
         <div className="px-4 py-6 text-sm text-center text-muted-foreground">
-          Nessun risultato trovato.
+          {t("commandPalette.noSearchResults")}
         </div>
       )}
     </CommandGroup>

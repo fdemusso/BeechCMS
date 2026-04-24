@@ -1,4 +1,5 @@
-import { Loader2, FileX } from 'lucide-react'
+import { FileX } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -6,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useStorageStats } from '../hooks/use-settings'
 
-const REFERENCE_BYTES = 1 * 1024 * 1024 * 1024 // 1 GB come riferimento visivo
+const REFERENCE_BYTES = 1 * 1024 * 1024 * 1024
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -30,6 +31,7 @@ function mimeLabel(mime: string): string {
 }
 
 export function StorageTab() {
+  const { t } = useTranslation()
   const { data: stats, isLoading } = useStorageStats()
 
   if (isLoading) {
@@ -48,14 +50,16 @@ export function StorageTab() {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Utilizzo storage</CardTitle>
-          <CardDescription>Spazio occupato dai file caricati su R2.</CardDescription>
+          <CardTitle>{t('settings.storage.usageTitle')}</CardTitle>
+          <CardDescription>{t('settings.storage.usageDesc')}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-end justify-between">
             <div>
               <p className="text-3xl font-bold tabular-nums">{formatBytes(stats?.totalBytes ?? 0)}</p>
-              <p className="text-sm text-muted-foreground mt-1">{stats?.fileCount ?? 0} file totali</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {t('settings.storage.fileCount', { count: stats?.fileCount ?? 0 })}
+              </p>
             </div>
             {stats?.orphans.length ? (
               <Badge variant="secondary" className="mb-1">
@@ -64,7 +68,7 @@ export function StorageTab() {
             ) : null}
           </div>
           <Progress value={usagePercent} className="h-2" />
-          <p className="text-xs text-muted-foreground">Riferimento visivo: 1 GB</p>
+          <p className="text-xs text-muted-foreground">{t('settings.storage.referenceVisual')}</p>
         </CardContent>
       </Card>
 
@@ -72,15 +76,15 @@ export function StorageTab() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileX className="size-4" />
-            File orfani
+            {t('settings.storage.orphansTitle')}
           </CardTitle>
-          <CardDescription>
-            File caricati ma non referenziati da nessun contenuto. Possono essere eliminati manualmente da Cloudflare R2.
-          </CardDescription>
+          <CardDescription>{t('settings.storage.orphansDesc')}</CardDescription>
         </CardHeader>
         <CardContent>
           {!stats?.orphans.length ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">Nessun file orfano trovato</p>
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              {t('settings.storage.noOrphans')}
+            </p>
           ) : (
             <ScrollArea className="h-72">
               <div className="space-y-0">

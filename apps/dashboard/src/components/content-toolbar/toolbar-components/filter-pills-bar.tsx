@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { ListTree, Plus, Trash2, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -53,6 +54,7 @@ export function FilterPillsBar({
   removeCondition,
   availableTagsByColumnId,
 }: FilterPillsBarProps) {
+  const { t } = useTranslation()
   return (
     <div className="mb-2 flex min-h-9 flex-wrap items-center gap-2">
       {groupBy && (
@@ -63,7 +65,7 @@ export function FilterPillsBar({
           onClick={() => onGroupByChange?.(null)}
         >
           <ListTree className="size-3.5" />
-          Raggruppato per: {activeGroupLabel}
+          {t("toolbar.filterPills.groupedBy", { label: activeGroupLabel })}
           <X className="size-3.5 opacity-70" />
         </Button>
       )}
@@ -110,6 +112,7 @@ function FilterPill({
   removeCondition,
   availableTagsByColumnId,
 }: FilterPillProps) {
+  const { t } = useTranslation()
   return (
     <DropdownMenu open={isOpen} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -117,7 +120,7 @@ function FilterPill({
           variant="secondary"
           size="sm"
           className="h-8 rounded-full px-3 text-xs"
-          aria-label={`Filtro ${group.label}`}
+          aria-label={t("toolbar.filter.ariaLabel", { label: group.label })}
         >
           <span className="truncate">{group.label}</span>
           <span className="opacity-70">{group.conditions.length}</span>
@@ -126,14 +129,14 @@ function FilterPill({
       <DropdownMenuContent align="start" className="w-[420px] p-2">
         <div className="mb-2 flex items-center justify-between gap-2">
           <DropdownMenuLabel className="px-0 py-0 text-xs font-medium text-muted-foreground">
-            Filtri su "{group.label}"
+            {t("toolbar.filter.filtersOn", { label: group.label })}
           </DropdownMenuLabel>
           <Button
             type="button"
             variant="ghost"
             size="icon-xs"
             className="h-7 w-7"
-            aria-label="Rimuovi colonna dai filtri"
+            aria-label={t("toolbar.filter.removeColumn")}
             onClick={() => removeColumnFilters(group.columnId)}
           >
             <Trash2 className="size-3.5" />
@@ -142,7 +145,7 @@ function FilterPill({
 
         <div className="space-y-2">
           {group.conditions.map((cond) => {
-            const ops = getOperatorOptions(group.type)
+            const ops = getOperatorOptions(group.type, t)
             const showValueInput = operatorRequiresValue(cond.op)
             return (
               <div key={cond.id} className="flex items-center gap-2">
@@ -156,7 +159,7 @@ function FilterPill({
                   }
                 >
                   <SelectTrigger size="sm" className="h-8 w-40 text-xs">
-                    <SelectValue placeholder="Operatore" />
+                    <SelectValue placeholder={t("toolbar.filter.operator")} />
                   </SelectTrigger>
                   <SelectContent>
                     {ops.map((o) => (
@@ -186,7 +189,7 @@ function FilterPill({
                   variant="ghost"
                   size="icon-xs"
                   className="h-8 w-8"
-                  aria-label="Rimuovi condizione"
+                  aria-label={t("toolbar.filter.removeCondition")}
                   onClick={() => removeCondition(group.columnId, cond.id)}
                 >
                   <X className="size-3.5" />
@@ -205,7 +208,7 @@ function FilterPill({
               onClick={() => addConditionToColumn(group.columnId)}
             >
               <Plus className="size-4" />
-              Aggiungi filtro
+              {t("toolbar.filter.addFilter")}
             </Button>
           </div>
         </div>

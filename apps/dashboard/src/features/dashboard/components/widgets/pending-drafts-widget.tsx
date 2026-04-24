@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { useTranslation } from "react-i18next"
 import { formatDistanceToNow } from "date-fns"
-import { it } from "date-fns/locale"
+import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import { ClipboardList, Send } from "lucide-react"
 import { api } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
@@ -26,6 +27,8 @@ interface ContentListResponse {
   total: number
 }
 
+const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
+
 function entryTitle(entry: ContentEntry): string {
   for (const val of Object.values(entry.data)) {
     if (typeof val === "string" && val.trim()) return val
@@ -34,6 +37,8 @@ function entryTitle(entry: ContentEntry): string {
 }
 
 export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onOpen }: PendingDraftsWidgetProps) {
+  const { t, i18n } = useTranslation()
+  const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
   const queryClient = useQueryClient()
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["widget", "pending-drafts", seedSlug],
@@ -67,7 +72,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
   ) : null
 
   if (isLoading) return (
-    <DashboardWidgetShell title="Bozze in attesa" icon={ClipboardList}>
+    <DashboardWidgetShell title={t("dashboard.widgets.pendingDrafts.title")} icon={ClipboardList}>
       <div className="space-y-2">
         {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full animate-pulse" />)}
       </div>
@@ -75,31 +80,31 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
   )
 
   if (isError) return (
-    <DashboardWidgetShell title="Bozze in attesa" icon={ClipboardList}>
+    <DashboardWidgetShell title={t("dashboard.widgets.pendingDrafts.title")} icon={ClipboardList}>
       <WidgetError onRetry={() => refetch()} />
     </DashboardWidgetShell>
   )
 
   if (variant === "counter") {
     return (
-      <DashboardWidgetShell title="Bozze in attesa" icon={ClipboardList}>
+      <DashboardWidgetShell title={t("dashboard.widgets.pendingDrafts.title")} icon={ClipboardList}>
         <div className="flex flex-col items-center justify-center gap-2 h-full text-center">
           <span className="text-5xl font-bold tabular-nums">{data?.length ?? 0}</span>
-          <p className="text-sm text-muted-foreground">bozze in attesa</p>
-          <Button variant="outline" size="sm" onClick={() => onOpen?.(undefined)}>Vedi tutte</Button>
+          <p className="text-sm text-muted-foreground">{t("dashboard.widgets.pendingDrafts.pendingCount")}</p>
+          <Button variant="outline" size="sm" onClick={() => onOpen?.(undefined)}>{t("dashboard.widgets.pendingDrafts.viewAll")}</Button>
         </div>
       </DashboardWidgetShell>
     )
   }
 
   if (!data?.length) return (
-    <DashboardWidgetShell title="Bozze in attesa" icon={ClipboardList}>
-      <WidgetEmpty icon={ClipboardList} title="Nessuna bozza in attesa" />
+    <DashboardWidgetShell title={t("dashboard.widgets.pendingDrafts.title")} icon={ClipboardList}>
+      <WidgetEmpty icon={ClipboardList} title={t("dashboard.widgets.pendingDrafts.noPending")} />
     </DashboardWidgetShell>
   )
 
   return (
-    <DashboardWidgetShell title="Bozze in attesa" icon={ClipboardList} action={countBadge}>
+    <DashboardWidgetShell title={t("dashboard.widgets.pendingDrafts.title")} icon={ClipboardList} action={countBadge}>
       <ScrollArea className="h-[260px]">
         <ul className="space-y-1 pr-2">
           {data.map((entry) => (
@@ -115,7 +120,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
                 </Link>
                 <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums hidden sm:inline">
                   {entry.updated_at
-                    ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: it })
+                    ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: dateFnsLocale })
                     : "—"
                   }
                 </span>
@@ -130,14 +135,14 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
                   }}
                 >
                   <Send className="size-3" />
-                  Pubblica
+                  {t("dashboard.widgets.pendingDrafts.publish")}
                 </Button>
               </div>
               {/* Mobile-only: timestamp + button on second line */}
               <div className="flex items-center justify-between gap-2 mt-1 sm:hidden">
                 <span className="text-[10px] text-muted-foreground tabular-nums">
                   {entry.updated_at
-                    ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: it })
+                    ? formatDistanceToNow(new Date(entry.updated_at * 1000), { addSuffix: true, locale: dateFnsLocale })
                     : "—"
                   }
                 </span>
@@ -152,7 +157,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
                   }}
                 >
                   <Send className="size-3" />
-                  Pubblica
+                  {t("dashboard.widgets.pendingDrafts.publish")}
                 </Button>
               </div>
             </li>
