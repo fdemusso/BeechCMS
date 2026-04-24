@@ -19,6 +19,7 @@ This high-level system map is designed for onboarding new contributors and for A
 | `[nuovidocs/architecture.md](nuovidocs/architecture.md)` | Monorepo topology, Turborepo pipeline, `@beech/core` barrel, Botanical Engine data flow, atomic data model, D1 vs Postgres, VSA migration, dependency rules |
 | `[nuovidocs/api-reference.md](nuovidocs/api-reference.md)` | Auth (JWT, refresh token rotation, security hardening), Internal Content API, Media Engine (upload, serve, R2 architecture), Public API (permission model, rate limiting, filters, error model) |
 | `[nuovidocs/frontend-guide.md](nuovidocs/frontend-guide.md)` | FieldRenderers registry pattern, TanStack Query strategy, Tailwind 4 + Shadcn component system, EntryEditorPage, how to add a new field type, ContentToolbar architecture, filter derivation from `Seed.branches`, gallery integration |
+| `[email-module.md](email-module.md)` | Email module architecture, EmailProvider interface, template system (shell + specific templates), localisation, env vars, developer recipes (swap provider, add email type, add language, rebrand) |
 
 ---
 

@@ -1,55 +1,15 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
+import { sendPasswordResetEmail, resolveEmailLocale } from '../email'
 
 const TOKEN_EXPIRY_SECONDS = 30 * 60
 
 async function sha256hex(text: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
-}
-
-const EMAIL_COPY = {
-  en: {
-    subject: 'Reset your Beech CMS password',
-    title: 'Reset your password',
-    body: 'You requested a password reset for your Beech CMS account. Click the button below to set a new password. This link expires in 30 minutes.',
-    button: 'Reset password',
-    footer: "If you didn't request this, you can safely ignore this email.",
-  },
-  it: {
-    subject: 'Reimposta la tua password Beech CMS',
-    title: 'Reimposta la tua password',
-    body: 'Hai richiesto il reset della password per il tuo account Beech CMS. Clicca il pulsante qui sotto per impostare una nuova password. Questo link scade tra 30 minuti.',
-    button: 'Reimposta password',
-    footer: 'Se non hai richiesto questo, puoi ignorare questa email in tutta sicurezza.',
-  },
-} as const
-
-type SupportedLocale = keyof typeof EMAIL_COPY
-
-function resolveLocale(raw: unknown): SupportedLocale {
-  if (typeof raw === 'string' && raw in EMAIL_COPY) return raw as SupportedLocale
-  return 'en'
-}
-
-function buildResetEmailHtml(resetUrl: string, locale: SupportedLocale): string {
-  const c = EMAIL_COPY[locale]
-  return `<!DOCTYPE html>
-<html lang="${locale}">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="font-family:sans-serif;background:#f9f9f9;margin:0;padding:32px">
-  <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:8px;padding:32px;border:1px solid #e5e5e5">
-    <h2 style="margin:0 0 16px;font-size:20px;color:#111">${c.title}</h2>
-    <p style="margin:0 0 24px;color:#555;font-size:15px;line-height:1.5">${c.body}</p>
-    <a href="${resetUrl}"
-       style="display:inline-block;background:#111;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:15px;font-weight:500">
-      ${c.button}
-    </a>
-    <p style="margin:24px 0 0;color:#999;font-size:13px">${c.footer}</p>
-  </div>
-</body>
-</html>`
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 export async function requestPasswordReset(
@@ -71,9 +31,8 @@ export async function requestPasswordReset(
   }
 
   const email = body.email.trim().toLowerCase()
-  const locale = resolveLocale(body.locale)
+  const locale = resolveEmailLocale(body.locale)
 
-  // Rate limiting
   if (c.env.FORGOT_PASSWORD_RATE_LIMITER) {
     const ip = c.req.raw.headers.get('cf-connecting-ip') ?? 'unknown'
     const { success } = await c.env.FORGOT_PASSWORD_RATE_LIMITER.limit({ key: ip })
@@ -82,7 +41,7 @@ export async function requestPasswordReset(
     }
   }
 
-  // Always respond 200 to avoid user enumeration
+  // Sempre 200 per evitare user enumeration
   const user = await c.env.DB
     .prepare('SELECT id FROM users WHERE email = ?')
     .bind(email)
@@ -92,7 +51,7 @@ export async function requestPasswordReset(
     return c.json({ success: true })
   }
 
-  // Revoke any existing pending tokens for this user
+  // Invalida eventuali token pendenti per lo stesso utente prima di emetterne uno nuovo
   await c.env.DB
     .prepare('UPDATE password_reset_tokens SET used_at = unixepoch() WHERE user_id = ? AND used_at IS NULL')
     .bind(user.id)
@@ -109,24 +68,20 @@ export async function requestPasswordReset(
 
   const appUrl = (c.env.APP_URL ?? new URL(c.req.url).origin).replace(/\/$/, '')
   const resetUrl = `${appUrl}/reset-password?token=${token}`
-  const from = c.env.EMAIL_FROM ?? 'Beech CMS <onboarding@resend.dev>'
 
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${c.env.RESEND_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      from,
-      to: [email],
-      subject: EMAIL_COPY[locale].subject,
-      html: buildResetEmailHtml(resetUrl, locale),
-    }),
-  })
-
-  if (!res.ok && c.env.ENV !== 'production') {
-    console.error('Resend error:', await res.text())
+  try {
+    await sendPasswordResetEmail({
+      to: email,
+      resetUrl,
+      locale,
+      apiKey: c.env.RESEND_API_KEY,
+      from: c.env.EMAIL_FROM,
+      isDev: c.env.ENV !== 'production',
+    })
+  } catch (err) {
+    if (c.env.ENV !== 'production') {
+      console.error('[password-reset] invio email fallito:', err)
+    }
   }
 
   return c.json({ success: true })
