@@ -1,5 +1,4 @@
-# Beech CMS
-
+![beechLogoDark.png](images/beechLogoDark.png)
 A production-grade, **Edge-Native, Schema-Driven Content Management System** built on Cloudflare's infrastructure.
 
 Beech CMS is not a traditional monolithic CMS — it is a headless, API-first platform where every content type is defined by a typed schema, every field transformation is deterministic, and every byte served originates from the edge.

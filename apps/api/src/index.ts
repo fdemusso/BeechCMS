@@ -24,6 +24,7 @@ import { contentRoutes } from './content'
 // va migrato a slices dedicati sotto src/features/ seguendo lo stesso pattern.
 import { rotateFieldApp } from './features/rotate-field'
 import { passwordResetApp } from './features/password-reset'
+import { setupApp } from './features/setup'
 import { draftApp } from './features/draft'
 import { settingsApp } from './features/settings/settings.handler'
 import { uploadRoutes, serveMediaHandler } from './upload'
@@ -309,6 +310,9 @@ app.post('/auth/logout', async (c) => {
     return handleAuthError(c, err, 'Logout')
   }
 })
+
+// First-run setup: GET /auth/setup, POST /auth/setup (pubblici, bloccati dopo il primo utente)
+app.route('/', setupApp)
 
 // Password reset: GET /auth/features, POST /auth/forgot-password, POST /auth/reset-password (pubblici)
 app.route('/', passwordResetApp)
