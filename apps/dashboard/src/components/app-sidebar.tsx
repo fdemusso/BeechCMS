@@ -1,10 +1,11 @@
 import * as React from "react"
-import { Command } from "lucide-react"
+import { useTranslation } from "react-i18next"
+import { useTheme } from "next-themes"
 
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
-import { STATIC_MENU, CONTENT_MENU, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
+import { getStaticMenu, CONTENT_MENU, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
 import { getStoredUser, logout } from "@/lib/api"
 import { useProfile } from "@/features/settings"
 import {
@@ -19,6 +20,8 @@ import {
 
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { t } = useTranslation()
+  const { resolvedTheme } = useTheme()
   const storedUser = getStoredUser()
   const { data: profile } = useProfile()
   const user = {
@@ -37,8 +40,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <a href="/">
-                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                  <Command className="size-4" />
+                <div className="flex aspect-square size-10 items-center justify-center rounded-lg overflow-hidden">
+                  <img
+                    src={resolvedTheme === "dark" ? "/beechLogoDark.svg" : "/BeechLogoLIght.svg"}
+                    alt="BeechCMS"
+                    className="size-10 object-contain"
+                  />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">Beech CMS</span>
@@ -50,8 +57,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={STATIC_MENU} groupLabel="Navigazione" />
-        <NavMain items={CONTENT_MENU} groupLabel="Contenuti" className="mt-4" />
+        <NavMain items={getStaticMenu(t)} groupLabel={t("sidebar.navigation")} />
+        <NavMain items={CONTENT_MENU} groupLabel={t("sidebar.contents")} className="mt-4" />
         {STATIC_NAV_SECONDARY.length > 0 && (
           <NavSecondary items={STATIC_NAV_SECONDARY} className="mt-auto" />
         )}

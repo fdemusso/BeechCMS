@@ -1,11 +1,10 @@
-import * as React from 'react'
 import { toast } from 'sonner'
+import { useTranslation } from 'react-i18next'
 import { Loader2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
 import { useNotificationPrefs, useUpdateNotificationPrefs } from '../hooks/use-settings'
 import type { NotificationPrefs } from '../types/settings.types'
 
@@ -31,6 +30,7 @@ function PrefItem({ id, label, description, checked, onCheckedChange, disabled }
 }
 
 export function NotificationsTab() {
+  const { t } = useTranslation()
   const { data: prefs, isLoading } = useNotificationPrefs()
   const updatePrefs = useUpdateNotificationPrefs()
 
@@ -39,9 +39,9 @@ export function NotificationsTab() {
     const updated: NotificationPrefs = { ...prefs, [key]: value }
     try {
       await updatePrefs.mutateAsync(updated)
-      toast.success('Preferenze notifiche salvate')
+      toast.success(t('settings.notifications.saved'))
     } catch {
-      toast.error('Errore durante il salvataggio')
+      toast.error(t('settings.notifications.error'))
     }
   }
 
@@ -67,8 +67,8 @@ export function NotificationsTab() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Notifiche in-app</CardTitle>
-              <CardDescription>Scegli per quali eventi ricevere notifiche nell'interfaccia.</CardDescription>
+              <CardTitle>{t('settings.notifications.title')}</CardTitle>
+              <CardDescription>{t('settings.notifications.description')}</CardDescription>
             </div>
             {isPending && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
           </div>
@@ -77,32 +77,32 @@ export function NotificationsTab() {
           <div className="divide-y">
             <PrefItem
               id="notif-content-create"
-              label="Nuovo contenuto"
-              description="Quando viene creata una nuova entry"
+              label={t('settings.notifications.contentCreate.label')}
+              description={t('settings.notifications.contentCreate.description')}
               checked={prefs?.contentCreate ?? true}
               onCheckedChange={v => handleChange('contentCreate', v)}
               disabled={isPending}
             />
             <PrefItem
               id="notif-content-update"
-              label="Contenuto modificato"
-              description="Quando un'entry viene aggiornata o una bozza viene pubblicata"
+              label={t('settings.notifications.contentUpdate.label')}
+              description={t('settings.notifications.contentUpdate.description')}
               checked={prefs?.contentUpdate ?? true}
               onCheckedChange={v => handleChange('contentUpdate', v)}
               disabled={isPending}
             />
             <PrefItem
               id="notif-content-delete"
-              label="Contenuto eliminato"
-              description="Quando un'entry viene eliminata definitivamente"
+              label={t('settings.notifications.contentDelete.label')}
+              description={t('settings.notifications.contentDelete.description')}
               checked={prefs?.contentDelete ?? true}
               onCheckedChange={v => handleChange('contentDelete', v)}
               disabled={isPending}
             />
             <PrefItem
               id="notif-media-upload"
-              label="Media caricati"
-              description="Quando un nuovo file viene caricato nella media library"
+              label={t('settings.notifications.mediaUpload.label')}
+              description={t('settings.notifications.mediaUpload.description')}
               checked={prefs?.mediaUpload ?? false}
               onCheckedChange={v => handleChange('mediaUpload', v)}
               disabled={isPending}

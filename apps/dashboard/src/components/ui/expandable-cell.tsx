@@ -7,6 +7,7 @@ interface ExpandableCellProps {
 }
 
 const COLLAPSE_DELAY_MS = 2000
+const EXPAND_DELAY_MS = 350
 
 /**
  * Componente per celle di tabella con contenuto espandibile.
@@ -21,10 +22,12 @@ export function ExpandableCell({
   const [isPinned, setIsPinned] = React.useState(false)
   const [isHovered, setIsHovered] = React.useState(false)
   const collapseTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+  const expandTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const isLong = content.length > maxLength
 
   React.useEffect(() => () => {
     if (collapseTimerRef.current) clearTimeout(collapseTimerRef.current)
+    if (expandTimerRef.current) clearTimeout(expandTimerRef.current)
   }, [])
 
   if (!isLong) {
@@ -39,10 +42,17 @@ export function ExpandableCell({
       clearTimeout(collapseTimerRef.current)
       collapseTimerRef.current = null
     }
-    setIsHovered(true)
+    expandTimerRef.current = setTimeout(() => {
+      expandTimerRef.current = null
+      setIsHovered(true)
+    }, EXPAND_DELAY_MS)
   }
 
   const handleMouseLeave = () => {
+    if (expandTimerRef.current) {
+      clearTimeout(expandTimerRef.current)
+      expandTimerRef.current = null
+    }
     collapseTimerRef.current = setTimeout(() => {
       collapseTimerRef.current = null
       setIsHovered(false)

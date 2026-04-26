@@ -1,0 +1,538 @@
+{
+  "common": {
+    "loading": "Caricamento...",
+    "save": "Salva",
+    "saving": "Salvataggio...",
+    "cancel": "Annulla",
+    "delete": "Elimina",
+    "deleting": "Eliminazione...",
+    "edit": "Modifica",
+    "create": "Crea",
+    "search": "Cerca",
+    "noResults": "Nessun risultato",
+    "language": "Lingua",
+    "back": "Indietro",
+    "error": "Errore",
+    "retry": "Riprova",
+    "close": "Chiudi",
+    "confirm": "Conferma",
+    "add": "Aggiungi",
+    "remove": "Rimuovi",
+    "replace": "Sostituisci",
+    "publish": "Pubblica",
+    "copied": "ID copiato",
+    "copyFailed": "Copia fallita",
+    "openMenu": "Apri menu",
+    "selectAll": "Seleziona tutto",
+    "selectRow": "Seleziona riga"
+  },
+  "dashboard": {
+    "greeting": {
+      "morning": "Buongiorno",
+      "afternoon": "Buon pomeriggio",
+      "evening": "Buonasera",
+      "night": "Buonanotte",
+      "subtitle": "Ecco cosa è successo nel tuo workspace oggi."
+    },
+    "recentActivity": {
+      "title": "Attività Recente",
+      "loading": "Caricamento attività...",
+      "empty": "Nessuna attività recente registrata",
+      "actions": {
+        "create": "ha creato",
+        "update": "ha modificato",
+        "delete": "ha eliminato",
+        "upload": "ha caricato"
+      }
+    },
+    "contentPulse": {
+      "noContent": "Nessun contenuto trovato.",
+      "totalDistribution": "Distribuzione Totale"
+    },
+    "widgets": {
+      "activityFeed": {
+        "title": "Attività recente",
+        "empty": "Nessun log di attività",
+        "user": "Utente"
+      },
+      "quickDraft": {
+        "title": "Nuova bozza",
+        "createDraft": "Crea bozza rapida",
+        "creating": "Creazione…",
+        "create": "Crea",
+        "draftCreated": "Bozza creata!",
+        "type": "Tipo",
+        "errorCreating": "Errore nella creazione",
+        "fieldLabels": {
+          "title": "Titolo",
+          "name": "Nome",
+          "author": "Autore",
+          "description": "Descrizione"
+        }
+      },
+      "recentContent": {
+        "title": "Contenuti recenti",
+        "viewAll": "Vedi tutti →",
+        "noContent": "Nessun contenuto",
+        "noContentDesc": "Crea il primo contenuto per vederlo qui"
+      },
+      "pendingDrafts": {
+        "title": "Bozze in attesa",
+        "viewAll": "Vedi tutte",
+        "pendingCount": "bozze in attesa",
+        "noPending": "Nessuna bozza in attesa",
+        "publish": "Pubblica"
+      },
+      "publicationStats": {
+        "today": "Oggi",
+        "week": "Settimana",
+        "month": "Mese",
+        "totalContent": "contenuti totali"
+      },
+      "storage": {
+        "title": "Storage R2",
+        "used": "usato",
+        "total": "di {{total}} GB totali",
+        "noData": "Nessun dato storage"
+      },
+      "error": {
+        "message": "Errore nel caricamento",
+        "retry": "Riprova"
+      },
+      "stat": {
+        "total": { "title": "Contenuti Totali", "description": "Tutte le collezioni" },
+        "visitors": { "title": "Visitatori Unici", "description": "Ultimi 30 giorni (Edge)" },
+        "traffic": { "title": "Traffico Totale", "description": "Bandwidth Edge" },
+        "storage": { "description": "{{percentage}}% di {{total}} GB" }
+      },
+      "mediaGallery": {
+        "title": "Galleria Media",
+        "all": "Tutti",
+        "unused": "Inutilizzati",
+        "allInUseTitle": "Ottimo lavoro!",
+        "allInUseDesc": "Tutti i tuoi file sono in uso.",
+        "emptyTitle": "Nessun media",
+        "emptyDesc": "Carica file per vederli qui"
+      }
+    },
+    "widgetRegistry": {
+      "unknown": "Widget sconosciuto:"
+    }
+  },
+  "editor": {
+    "bold": "Grassetto",
+    "italic": "Corsivo",
+    "underline": "Sottolineato",
+    "strikethrough": "Barrato",
+    "inlineCode": "Inline code",
+    "clearFormatting": "Pulisci formattazione",
+    "moreFormatting": "Altre opzioni",
+    "textColor": "Colore testo",
+    "undo": "Annulla (Mod+Z)",
+    "redo": "Ripristina (Mod+Y)",
+    "insertElements": "Inserisci elementi",
+    "textStyles": "Stili testo",
+    "normalText": "Testo normale",
+    "heading1": "Titolo 1",
+    "heading2": "Titolo 2",
+    "heading3": "Titolo 3",
+    "heading4": "Titolo 4",
+    "heading5": "Titolo 5",
+    "heading6": "Titolo 6",
+    "numberedList": "Lista numerata",
+    "bulletList": "Lista puntata",
+    "blockCode": "Blocco codice",
+    "blockquote": "Citazione",
+    "divider": "Divisore",
+    "listMenu": "Lista"
+  },
+  "settings": {
+    "title": "Impostazioni",
+    "tabs": {
+      "profile": "Profilo",
+      "interface": "Interfaccia",
+      "security": "Sicurezza",
+      "storage": "Storage",
+      "notifications": "Notifiche"
+    },
+    "notifications": {
+      "title": "Notifiche in-app",
+      "description": "Scegli per quali eventi ricevere notifiche nell'interfaccia.",
+      "saved": "Preferenze notifiche salvate",
+      "error": "Errore durante il salvataggio",
+      "contentCreate": {
+        "label": "Nuovo contenuto",
+        "description": "Quando viene creata una nuova entry"
+      },
+      "contentUpdate": {
+        "label": "Contenuto modificato",
+        "description": "Quando un'entry viene aggiornata o una bozza viene pubblicata"
+      },
+      "contentDelete": {
+        "label": "Contenuto eliminato",
+        "description": "Quando un'entry viene eliminata definitivamente"
+      },
+      "mediaUpload": {
+        "label": "Media caricati",
+        "description": "Quando un nuovo file viene caricato nella media library"
+      }
+    },
+    "storage": {
+      "usageTitle": "Utilizzo storage",
+      "usageDesc": "Spazio occupato dai file caricati su R2.",
+      "orphansTitle": "File orfani",
+      "orphansDesc": "File caricati ma non referenziati da nessun contenuto. Possono essere eliminati manualmente da Cloudflare R2.",
+      "fileCount": "{{count}} file totali",
+      "referenceVisual": "Riferimento visivo: 1 GB",
+      "noOrphans": "Nessun file orfano trovato"
+    },
+    "profile": {
+      "infoTitle": "Informazioni profilo",
+      "infoDesc": "Aggiorna il tuo nome, email e foto profilo.",
+      "noName": "Nessun nome",
+      "changePhoto": "Cambia foto",
+      "nameLabel": "Nome",
+      "namePlaceholder": "Il tuo nome",
+      "emailLabel": "Email",
+      "emailPlaceholder": "email@esempio.it",
+      "saveChanges": "Salva modifiche",
+      "passwordTitle": "Cambia password",
+      "passwordDesc": "Scegli una password sicura di almeno 8 caratteri.",
+      "currentPassword": "Password attuale",
+      "newPassword": "Nuova password",
+      "confirmPassword": "Conferma password",
+      "updatePassword": "Aggiorna password",
+      "savedSuccess": "Profilo aggiornato",
+      "savedError": "Errore durante il salvataggio",
+      "passwordMismatch": "Le nuove password non coincidono",
+      "passwordSuccess": "Password aggiornata",
+      "passwordError": "Password attuale non corretta",
+      "avatarSuccess": "Foto profilo aggiornata",
+      "avatarError": "Errore durante il caricamento della foto"
+    },
+    "security": {
+      "sessionsTitle": "Sessioni attive",
+      "sessionsDesc": "Sessioni di accesso correntemente aperte per il tuo account.",
+      "sessionActive": "Sessione attiva",
+      "sessionInfo": "Creata il {{created}} · Scade il {{expires}}",
+      "revokeTitle": "Revocare la sessione?",
+      "revokeDesc": "Questa sessione verrà disconnessa immediatamente.",
+      "revokeConfirm": "Revoca",
+      "noSessions": "Nessuna sessione attiva",
+      "revokeSuccess": "Sessione revocata",
+      "revokeError": "Errore durante la revoca",
+      "activityTitle": "Attività recente",
+      "activityDesc": "Ultime azioni eseguite nel CMS con il tuo account.",
+      "noActivity": "Nessuna attività registrata",
+      "actions": {
+        "create": "Creato",
+        "update": "Modificato",
+        "delete": "Eliminato",
+        "upload": "Caricato"
+      }
+    },
+    "interface": {
+      "themeTitle": "Tema",
+      "themeDesc": "Scegli l'aspetto visivo dell'interfaccia.",
+      "themeLight": "Chiaro",
+      "themeDark": "Scuro",
+      "themeSystem": "Sistema",
+      "langTitle": "Lingua",
+      "langDesc": "Lingua dell'interfaccia di amministrazione. Si applica immediatamente.",
+      "langLabel": "Lingua",
+      "rowsTitle": "Contenuti per pagina",
+      "rowsDesc": "Numero di elementi mostrati nelle liste contenuti.",
+      "rowsLabel": "Righe per pagina",
+      "rowsSaved": "Preferenza salvata — si applica al prossimo caricamento",
+      "rows10": "10 righe",
+      "rows20": "20 righe",
+      "rows50": "50 righe",
+      "rows100": "100 righe",
+      "langChangedIt": "Lingua cambiata in Italiano",
+      "langChangedEn": "Language switched to English"
+    }
+  },
+  "content": {
+    "list": {
+      "table": "Tabella",
+      "gallery": "Galleria",
+      "deletionPartial": "Eliminazione parziale: {{failures}} su {{total}} fallite"
+    },
+    "editor": {
+      "newEntry": "Nuovo {{label}}",
+      "editEntry": "Modifica {{label}}",
+      "save": "Salva",
+      "saving": "Salvataggio...",
+      "back": "Indietro",
+      "status": "Stato",
+      "slug": "Slug (URL)",
+      "slugPlaceholder": "es. mio-articolo",
+      "content": "Contenuto",
+      "metadataSeo": "Metadati / SEO",
+      "publication": "Pubblicazione",
+      "draft": "Bozza",
+      "published": "Pubblicato",
+      "unsavedTitle": "Modifiche non salvate",
+      "unsavedDesc": "Hai delle modifiche non salvate. Se esci ora andranno perse. Vuoi continuare?",
+      "stay": "Rimani",
+      "exitWithout": "Esci senza salvare",
+      "loadingError": "Errore nel caricamento",
+      "seedNotFound": "Seed \"{{slug}}\" non trovato.",
+      "slugMissing": "Slug non specificato.",
+      "savedSuccess": "Modifiche salvate",
+      "createdSuccess": "Entry creata",
+      "slugDuplicate": "Slug già esistente per questo schema",
+      "saveError": "Errore durante il salvataggio",
+      "jsonError": "Il campo \"{{field}}\" deve contenere JSON valido"
+    },
+    "deleteDialog": {
+      "title": "Conferma eliminazione",
+      "single": "Sei sicuro di voler eliminare questa entry di tipo \"{{type}}\"?",
+      "multiple": "Sei sicuro di voler eliminare {{count}} entry di tipo \"{{type}}\"?"
+    },
+    "actions": {
+      "label": "Azioni",
+      "edit": "Modifica",
+      "delete": "Elimina",
+      "copyId": "Copia ID"
+    },
+    "table": {
+      "status": "Stato",
+      "item": "voce",
+      "items": "voci"
+    }
+  },
+  "toolbar": {
+    "search": {
+      "placeholder": "Cerca...",
+      "ariaLabel": "Cerca",
+      "close": "Chiudi ricerca",
+      "open": "Apri ricerca"
+    },
+    "sort": {
+      "tooltip": "Ordina",
+      "label": "Ordina per colonna",
+      "searchPlaceholder": "Cerca colonna...",
+      "noColumns": "Nessuna colonna trovata",
+      "invertOrder": "Inverti ordine"
+    },
+    "filter": {
+      "tooltip": "Filtri",
+      "label": "Filtra per colonna",
+      "searchPlaceholder": "Cerca colonna...",
+      "noColumns": "Nessuna colonna trovata",
+      "ariaLabel": "Filtro {{label}}",
+      "filtersOn": "Filtri su \"{{label}}\"",
+      "removeColumn": "Rimuovi colonna dai filtri",
+      "addFilter": "Aggiungi filtro",
+      "removeCondition": "Rimuovi condizione",
+      "operator": "Operatore"
+    },
+    "viewSwitcher": {
+      "addView": "Aggiungi vista"
+    },
+    "filterPills": {
+      "groupedBy": "Raggruppato per: {{label}}"
+    },
+    "settings": {
+      "tooltip": "Impostazioni vista",
+      "title": "Impostazioni vista",
+      "viewName": "Nome vista",
+      "quickActions": "Azioni rapide",
+      "filter": "Filtra",
+      "sort": "Ordina",
+      "layoutStyle": "Layout e stile",
+      "group": "Raggruppa",
+      "groupBy": "Raggruppa per colonna",
+      "noGrouping": "Nessun raggruppamento",
+      "recommended": "Consigliati",
+      "active": "attivo",
+      "table": "Tabella",
+      "columnSearch": "Cerca colonna...",
+      "noColumns": "Nessuna colonna trovata",
+      "invertOrder": "Inverti ordine",
+      "decreaseRows": "Diminuisci righe",
+      "increaseRows": "Aumenta righe",
+      "rows": "Righe",
+      "conditionalColors": "Colori condizionali",
+      "visibleColumns": "Colonne visibili",
+      "columnVisibility": "Visibilità colonne",
+      "otherFields": "Altri campi",
+      "manyGroups": "Potrebbe generare molti gruppi",
+      "day": "Giorno",
+      "year": "Anno",
+      "month": "Mese"
+    },
+    "conditionalFormats": {
+      "noRules": "Non ci sono regole",
+      "add": "Aggiungi",
+      "moveUp": "Sposta su",
+      "moveDown": "Sposta giù",
+      "deleteRule": "Elimina regola",
+      "ruleName": "Nome regola",
+      "removeCondition": "Rimuovi condizione",
+      "addCondition": "Aggiungi condizione",
+      "operator": "Operatore",
+      "colorPreset": "Preset colore",
+      "bold": "Grassetto",
+      "italic": "Corsivo",
+      "underline": "Sottolineato",
+      "addRule": "Aggiungi regola",
+      "rulesList": "Elenco regole",
+      "editRule": "Modifica regola",
+      "toggleRule": "Attiva/disattiva regola",
+      "applyTo": "Applica a",
+      "cell": "Cella",
+      "row": "Riga",
+      "useColorIf": "usa colore se",
+      "formatStyle": "stile di formattazione",
+      "default": "Predefinito",
+      "notAvailable": "Configurazione non disponibile",
+      "selectRule": "Seleziona una regola dall'elenco.",
+      "colorRules": "Regole dei colori condizionali",
+      "rulesApplyOrder": "Le regole si applicano dall'alto verso il basso.",
+      "chooseColumn": "Scegli colonna",
+      "noColumns": "Nessuna colonna disponibile"
+    },
+    "operators": {
+      "eq": "Uguale a",
+      "is_not_empty": "È pieno",
+      "is_empty": "Non è pieno",
+      "gt": "Maggiore di",
+      "lt": "Minore di",
+      "gte": "Maggiore o uguale",
+      "lte": "Minore o uguale",
+      "contains": "Contiene"
+    },
+    "conditionInput": {
+      "value": "Valore...",
+      "choose": "Scegli...",
+      "tag": "Tag...",
+      "true": "Vero",
+      "false": "Falso"
+    }
+  },
+  "notifications": {
+    "title": "Notifiche",
+    "markAllRead": "Segna tutte come lette",
+    "all": "Tutte",
+    "new": "Nuove",
+    "noNotifications": "Nessuna notifica",
+    "noNotificationsNew": "Non hai nuove notifiche.",
+    "noNotificationsAll": "Non ci sono notifiche da mostrare.",
+    "markSeen": "Segna come vista",
+    "markUnseen": "Segna come non vista",
+    "delete": "Elimina",
+    "ariaLabel": "Notifiche",
+    "unreadCount": "Hai {{count}} notifiche non lette",
+    "noUnread": "Nessuna notifica non letta"
+  },
+  "commandPalette": {
+    "navigate": "Naviga",
+    "contents": "Contenuti",
+    "create": "Crea",
+    "tools": "Strumenti",
+    "goTo": "Vai a {{label}}…",
+    "allSeeds": "Tutti i seed…",
+    "chooseType": "Crea in…",
+    "chooseSeed": "Scegli Seed",
+    "newContent": "Nuovo contenuto…",
+    "changeTheme": "Cambia tema",
+    "searching": "Ricerca in corso…",
+    "noSearchResults": "Nessun risultato trovato.",
+    "searchResults": "Risultati della ricerca",
+    "settings": "Impostazioni",
+    "mediaLibrary": "Media Library",
+    "dashboard": "Dashboard",
+    "placeholderRoot": "Cerca azioni, contenuti, seed…",
+    "placeholderSeeds": "Vai a quale seed?",
+    "placeholderCreate": "Crea contenuto in quale seed?",
+    "placeholderSearch": "Cerca nei contenuti…",
+    "backHint": "← Backspace per tornare",
+    "noResults": "Nessun risultato",
+    "ariaLabel": "Palette comandi globale"
+  },
+  "gallery": {
+    "noItems": "Nessun elemento da visualizzare",
+    "noItemsDesc": "Non ci sono contenuti disponibili per questa vista galleria.",
+    "mainContent": "Contenuto principale",
+    "content": "Contenuto",
+    "seo": "Metadati / SEO",
+    "status": "Stato",
+    "noContent": "Nessun campo contenuto.",
+    "edit": "Modifica",
+    "cover": "Copertina"
+  },
+  "siteHeader": {
+    "settings": "Impostazioni",
+    "contents": "Contenuti",
+    "new": "Nuovo",
+    "edit": "Modifica"
+  },
+  "sidebar": {
+    "navigation": "Navigazione",
+    "contents": "Contenuti"
+  },
+  "media": {
+    "manageGallery": "Gestisci galleria",
+    "addImages": "Aggiungi immagini",
+    "replace": "Sostituisci",
+    "addImage": "Aggiungi immagine",
+    "imageLink": "Link immagine",
+    "add": "Aggiungi",
+    "verifying": "Verifica...",
+    "useLink": "Usa link",
+    "dropOrSelect": "trascina qui il tuo file oppure selezionalo",
+    "uploading": "Caricamento...",
+    "removeAll": "Rimuovi tutte",
+    "removeImage": "Rimuovi immagine",
+    "moveUp": "Sposta su",
+    "moveDown": "Sposta giù",
+    "remove": "Rimuovi immagine",
+    "dialogDesc": "Inserisci un URL pubblico HTTPS oppure carica un file locale.",
+    "errorNotImage": "Seleziona un'immagine (JPG, PNG, WebP, GIF)",
+    "errorUrl": "Inserisci un URL immagine pubblico",
+    "errorHttps": "L'URL deve iniziare con https://",
+    "errorNotRenderable": "URL non renderizzabile come immagine",
+    "errorUpload": "Errore durante il caricamento"
+  },
+  "login": {
+    "hidePassword": "Nascondi password",
+    "showPassword": "Mostra password",
+    "signingIn": "Accesso in corso...",
+    "forgotPassword": "Password dimenticata?"
+  },
+  "forgotPassword": {
+    "title": "Password dimenticata",
+    "desc": "Inserisci il tuo indirizzo email e ti invieremo un link per reimpostare la password.",
+    "emailRequired": "Inserisci l'email",
+    "emailInvalid": "Indirizzo email non valido",
+    "send": "Invia link di reset",
+    "sending": "Invio in corso...",
+    "backToLogin": "Torna al login",
+    "successTitle": "Controlla la tua casella",
+    "successDesc": "Se esiste un account con quella email, riceverai a breve un link per il reset."
+  },
+  "resetPassword": {
+    "title": "Nuova password",
+    "desc": "Scegli una password sicura di almeno 8 caratteri.",
+    "newPassword": "Nuova password",
+    "confirmPassword": "Conferma password",
+    "reset": "Reimposta password",
+    "resetting": "Reset in corso...",
+    "mismatch": "Le password non coincidono",
+    "tooShort": "La password deve essere di almeno 8 caratteri",
+    "tooLong": "La password non può superare i 128 caratteri",
+    "invalidToken": "Questo link di reset non è valido o è scaduto",
+    "invalidLinkTitle": "Link non valido",
+    "invalidLink": "Questo link di reset non è valido. Richiedine uno nuovo.",
+    "requestNew": "Richiedi un nuovo link",
+    "success": "Password reimpostata con successo",
+    "genericError": "Qualcosa è andato storto. Riprova più tardi."
+  },
+  "errorPage": {
+    "title": "Ops, c'è stato un errore",
+    "backHome": "Torna alla home",
+    "unknown": "Errore sconosciuto"
+  }
+}

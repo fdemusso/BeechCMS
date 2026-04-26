@@ -115,42 +115,43 @@ export function operatorRequiresValue(op: FilterOperator): boolean {
 }
 
 export function getOperatorOptions(
-  type: FilterGroupType
+  type: FilterGroupType,
+  t: (key: string) => string
 ): Array<{ value: FilterOperator; label: string }> {
   const baseOptions: Array<{ value: FilterOperator; label: string }> = [
-    { value: "eq", label: "Uguale a" },
-    { value: "is_not_empty", label: "È pieno" },
-    { value: "is_empty", label: "Non è pieno" },
+    { value: "eq", label: t("toolbar.operators.eq") },
+    { value: "is_not_empty", label: t("toolbar.operators.is_not_empty") },
+    { value: "is_empty", label: t("toolbar.operators.is_empty") },
   ]
 
   if (type === "number" || type === "date") {
     return [
-      { value: "gt", label: "Maggiore di" },
-      { value: "lt", label: "Minore di" },
-      { value: "gte", label: "Maggiore o uguale" },
-      { value: "lte", label: "Minore o uguale" },
+      { value: "gt", label: t("toolbar.operators.gt") },
+      { value: "lt", label: t("toolbar.operators.lt") },
+      { value: "gte", label: t("toolbar.operators.gte") },
+      { value: "lte", label: t("toolbar.operators.lte") },
       ...baseOptions,
     ]
   }
 
   if (type === "tags") {
     return [
-      { value: "contains", label: "Contiene" },
-      { value: "is_not_empty", label: "È pieno" },
-      { value: "is_empty", label: "Non è pieno" },
+      { value: "contains", label: t("toolbar.operators.contains") },
+      { value: "is_not_empty", label: t("toolbar.operators.is_not_empty") },
+      { value: "is_empty", label: t("toolbar.operators.is_empty") },
     ]
   }
 
   if (type === "select") {
     return [
-      { value: "eq", label: "Uguale a" },
-      { value: "is_not_empty", label: "È pieno" },
-      { value: "is_empty", label: "Non è pieno" },
+      { value: "eq", label: t("toolbar.operators.eq") },
+      { value: "is_not_empty", label: t("toolbar.operators.is_not_empty") },
+      { value: "is_empty", label: t("toolbar.operators.is_empty") },
     ]
   }
 
   if (type === "text" || type === "system") {
-    return [{ value: "contains", label: "Contiene" }, ...baseOptions]
+    return [{ value: "contains", label: t("toolbar.operators.contains") }, ...baseOptions]
   }
 
   return baseOptions
@@ -167,14 +168,15 @@ export interface GroupableColumn {
 
 export function getGroupableColumns(
   seed: Seed,
-  availableStatusOptions: string[] = []
+  availableStatusOptions: string[] = [],
+  statusLabel: string = "Stato"
 ): GroupableColumn[] {
   const result: GroupableColumn[] = []
   const statusSection: GroupableSection =
     availableStatusOptions.length > 0 && availableStatusOptions.length <= 8
       ? "recommended"
       : "other"
-  result.push({ columnId: "status", label: "Stato", section: statusSection })
+  result.push({ columnId: "status", label: statusLabel, section: statusSection })
 
   for (const branch of seed.branches) {
     if (branch.type === "boolean") {

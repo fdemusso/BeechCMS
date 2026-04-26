@@ -1,12 +1,14 @@
 import { useRouteError, isRouteErrorResponse, Link } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 
 export function ErrorPage() {
+  const { t } = useTranslation()
   const error = useRouteError()
 
   const isResponseError = isRouteErrorResponse(error)
-  let message = "Errore sconosciuto"
+  let message = t("errorPage.unknown")
   if (isResponseError) {
-    message = error.statusText || error.data?.message || "Qualcosa è andato storto"
+    message = error.statusText || error.data?.message || t("errorPage.unknown")
   } else if (error instanceof Error) {
     message = error.message
   }
@@ -21,13 +23,13 @@ export function ErrorPage() {
             {status}
           </span>
         )}
-        <h1 className="text-xl font-semibold">Ops, c'è stato un errore</h1>
+        <h1 className="text-xl font-semibold">{t("errorPage.title")}</h1>
         <p className="text-sm text-muted-foreground">{message}</p>
         <Link
           to="/"
           className="rounded-md bg-accent px-4 py-2 text-sm !text-white hover:bg-accent/90"
         >
-          Torna alla home
+          {t("errorPage.backHome")}
         </Link>
       </div>
     </div>

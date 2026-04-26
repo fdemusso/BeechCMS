@@ -12,6 +12,12 @@ This document is the authoritative reference for the Beech CMS REST API. It cove
    - [Refresh Token Rotation](#22-refresh-token-rotation)
    - [Security Hardening Summary](#23-security-hardening-summary)
 3. [Auth Endpoints](#3-auth-endpoints)
+   - [Login](#post-authlogin)
+   - [Refresh](#post-authrefresh)
+   - [Logout](#post-authlogout)
+   - [Feature Flags](#get-authfeatures)
+   - [Forgot Password](#post-authforgot-password)
+   - [Reset Password](#post-authreset-password)
 4. [Internal Content API](#4-internal-content-api)
    - [List Entries](#41-list-entries-get-apicontentseed)
    - [Create Entry](#42-create-entry-post-apicontentseed)
@@ -218,6 +224,116 @@ Revokes the refresh token and clears the cookie.
 | Status | Body |
 |---|---|
 | `200` | `{ "message": "Logged out" }` |
+
+---
+
+### `GET /auth/features`
+
+Returns feature flags for the dashboard. Used to conditionally show UI elements such as the "forgot password" link. **No authentication required.**
+
+**Response `200`**
+
+```json
+{ "passwordReset": true }
+```
+
+`passwordReset` is `true` if and only if the `RESEND_API_KEY` environment variable is set on the Worker. When `false`, the forgot-password flow is entirely disabled — the dashboard hides the link and both password-reset endpoints return `503`.
+
+---
+
+### `POST /auth/forgot-password`
+
+Triggers a password reset email. **No authentication required.**
+
+**Request**
+
+```http
+POST /auth/forgot-password
+Content-Type: application/json
+
+{ "email": "user@example.com", "locale": "it" }
+```
+
+**Behaviour:**
+- If the email does not match any user, the response is still `200` — user existence is never revealed.
+- Any existing pending reset tokens for the same user are invalidated before issuing a new one.
+- The reset token has a **30-minute TTL** and is stored as SHA-256 hash in D1 (`password_reset_tokens`).
+- The email is sent via [Resend](https://resend.com) using the `RESEND_API_KEY` env var.
+- The reset link is `${APP_URL}/reset-password?token=<plaintext_token>`.
+- The `locale` field selects the email language. Supported values: `en` (default), `it`. Unknown values fall back to `en`.
+- Rate limited: **3 requests per IP per 60 seconds** (`FORGOT_PASSWORD_RATE_LIMITER`).
+
+**Required environment variables:**
+
+| Variable | Description |
+|---|---|
+| `RESEND_API_KEY` | Resend API key. If absent the endpoint returns `503` and the dashboard hides the feature. |
+| `APP_URL` | Base URL of the dashboard (e.g. `https://dashboard.beechcms.dev`). Used to build the reset link. Defaults to the API origin if not set (incorrect in most deployments — always set this). |
+| `EMAIL_FROM` | *(Optional)* Sender address. Defaults to `Beech CMS <onboarding@resend.dev>` (Resend test sender). In production set to a verified domain address. |
+
+**Responses**
+
+| Status | Condition | Body |
+|---|---|---|
+| `200` | Always (email sent or email not found) | `{ "success": true }` |
+| `400` | Missing or empty email | `{ "error": "Invalid request" }` |
+| `429` | Rate limit exceeded | `{ "error": "Too many requests" }` |
+| `503` | `RESEND_API_KEY` not configured | `{ "error": "Not available" }` |
+
+---
+
+### `POST /auth/reset-password`
+
+Consumes a reset token and updates the user's password. **No authentication required.**
+
+**Request**
+
+```http
+POST /auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "<plaintext_token_from_email_link>",
+  "password": "new-secure-password",
+  "locale": "it"
+}
+```
+
+**Behaviour:**
+- Looks up the SHA-256 hash of `token` in `password_reset_tokens` (JOIN `users` to retrieve email in one query).
+- Token must be unused (`used_at IS NULL`) and not expired (`expires_at > now()`).
+- On success, performs three operations atomically via `D1.batch()`:
+  1. Marks the reset token as used (`used_at = now()`).
+  2. Updates `users.password_hash` with a fresh bcrypt hash (10 rounds).
+  3. Revokes **all active refresh tokens** for the user — every existing session is logged out.
+- After the batch, sends a **"password changed" security notification email** to the user via Resend (fire-and-forget via `waitUntil` — never blocks the `200` response). The notification email language follows `locale`.
+- The `locale` field selects the email language. Supported values: `en` (default), `it`. Unknown values fall back to `en`.
+- Password length must be 8–128 characters.
+- Rate limited: **5 requests per IP per 60 seconds** (`RESET_PASSWORD_RATE_LIMITER`).
+
+**Responses**
+
+| Status | Condition | Body |
+|---|---|---|
+| `200` | Password updated | `{ "success": true }` |
+| `400` | Missing/empty token or password, password out of range, token invalid/expired/used | `{ "error": "..." }` |
+| `429` | Rate limit exceeded (5/min per IP) | `{ "error": "Too many requests" }` |
+| `503` | `RESEND_API_KEY` not configured | `{ "error": "Not available" }` |
+
+**D1 table — `password_reset_tokens`:**
+
+```sql
+-- apps/api/migrations/0025_password_reset_tokens.sql
+CREATE TABLE password_reset_tokens (
+  id          TEXT PRIMARY KEY,
+  user_id     TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  token_hash  TEXT NOT NULL,   -- SHA-256 of the plaintext token
+  expires_at  INTEGER NOT NULL,
+  created_at  INTEGER DEFAULT (unixepoch()),
+  used_at     INTEGER DEFAULT NULL  -- NULL = unused
+);
+-- Indexes: idx_prt_hash (token_hash), idx_prt_user (user_id)
+```
 
 ---
 

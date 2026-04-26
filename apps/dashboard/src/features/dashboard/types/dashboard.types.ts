@@ -28,6 +28,7 @@ export interface RecentActivity {
   id: string
   user_id: string
   user_email: string
+  user_name?: string | null
   action: 'create' | 'update' | 'delete' | 'upload'
   entity_type: 'content' | 'media'
   entity_id: string

@@ -413,6 +413,61 @@ function buildFacetsPayload(
 // --- 4. Controller Principale (Pulito) ---
 // Moved /:slug generic handler down to prevent interception of /stats routes
 
+// GET /stats/media-library - Lista tutti i file presenti in R2:
+// combina media_objects (upload tracciati) + URL /api/media/ nelle entry (upload pre-migration)
+contentApp.get('/stats/media-library', async (c) => {
+  try {
+    const { DB } = c.env
+    const limit = Math.min(parseInt(c.req.query('limit') ?? '12'), 100)
+    const offset = parseInt(c.req.query('offset') ?? '0')
+    const mediaBase = (c.env.MEDIA_BASE_URL?.trim().replace(/\/$/, '')) ?? new URL(c.req.url).origin
+
+    // 1. File tracciati nella media library
+    const mediaRows = await DB.prepare(
+      'SELECT key, filename, mime_type, size_bytes, created_at FROM media_objects ORDER BY created_at DESC'
+    ).all<{ key: string; filename: string; mime_type: string; size_bytes: number; created_at: number }>()
+
+    const trackedKeys = new Set<string>()
+    const allItems: Array<{ key: string; filename: string; mime_type: string; size_bytes: number; created_at: number; url: string }> = []
+
+    for (const m of mediaRows.results ?? []) {
+      trackedKeys.add(m.key)
+      allItems.push({ ...m, url: `${mediaBase}/api/media/${encodeURIComponent(m.key)}` })
+    }
+
+    // 2. URL /api/media/ nelle entry (data + draft_data) non ancora in media_objects
+    const contentRows = await DB.prepare(
+      `SELECT data, draft_data FROM content_entries
+       WHERE data LIKE '%/api/media/%'
+          OR (draft_data IS NOT NULL AND draft_data LIKE '%/api/media/%')`
+    ).all<{ data: string; draft_data: string | null }>()
+
+    const MEDIA_KEY_RE = /\/api\/media\/([^"'\s\\,}\]]+)/g
+    for (const row of contentRows.results ?? []) {
+      const combined = (row.data ?? '') + ' ' + (row.draft_data ?? '')
+      for (const match of combined.matchAll(MEDIA_KEY_RE)) {
+        const key = decodeURIComponent(match[1])
+        if (trackedKeys.has(key)) continue
+        trackedKeys.add(key)
+        const filename = key.replace(/^\d+-/, '')
+        const ext = filename.split('.').pop()?.toLowerCase() ?? ''
+        const mimeType = ext === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext || 'jpeg'}`
+        const createdAt = parseInt(key.split('-')[0]) || 0
+        allItems.push({ key, filename, mime_type: mimeType, size_bytes: 0, created_at: createdAt, url: `${mediaBase}/api/media/${encodeURIComponent(key)}` })
+      }
+    }
+
+    allItems.sort((a, b) => b.created_at - a.created_at)
+    const total = allItems.length
+    const paginated = allItems.slice(offset, offset + limit)
+
+    return c.json({ items: paginated, total })
+  } catch (err) {
+    console.error('Media library error:', err)
+    return c.json({ error: 'Internal Server Error' }, 500)
+  }
+})
+
 // GET /stats/unused-media - Trova media non referenziati in altri contenuti
 contentApp.get('/stats/unused-media', async (c) => {
   try {
@@ -504,54 +559,34 @@ contentApp.get('/stats/total', async (c) => {
 })
 
 // GET /stats/recent-activity - Ultime attività registrate nel sistema
+// Nessun ETag su questo endpoint: il feed di attività deve sempre essere fresco dopo
+// ogni mutazione. Cache-Control: no-store impedisce al browser di conservare una
+// risposta che potrebbe essere restituita come 304 stale.
 contentApp.get('/stats/recent-activity', async (c) => {
   try {
     const { DB } = c.env
     const slug = cleanStr(c.req.query('slug'))
-    
-    // 1. Genera ETag rapido basato su conteggio e ultimo timestamp di attività
-    // Se è presente uno slug, filtriamo le statistiche per quell'entità
-    let statsQuery = 'SELECT COUNT(*) as count, MAX(created_at) as latest FROM activity_logs'
-    const statsParams: any[] = []
-    
-    if (slug) {
-      statsQuery += ' WHERE entity_slug = ?'
-      statsParams.push(slug)
-    }
 
-    const stats = await DB.prepare(statsQuery).bind(...statsParams).first<{ count: number; latest: number | null }>()
-    
-    const count = stats?.count ?? 0
-    const latest = stats?.latest ?? 0
-    const etag = `W/"recent-${slug || 'all'}-${count}-${latest}"`
-    
-    const ifNoneMatch = c.req.header('If-None-Match')
-    if (ifNoneMatch === etag) {
-      return new Response(null, { status: 304 })
-    }
-
-    // 2. Se cambiato, carica le ultime 15 attività
-    let query = `SELECT id, user_id, user_email, action, entity_type, entity_id, entity_slug, details, created_at 
-                 FROM activity_logs `
+    let query = `SELECT id, user_id, user_email, user_name, action, entity_type, entity_id, entity_slug, details, created_at
+                 FROM activity_logs`
     const params: any[] = []
 
     if (slug) {
-      query += ' WHERE entity_slug = ? '
+      query += ' WHERE entity_slug = ?'
       params.push(slug)
     }
 
     query += ' ORDER BY created_at DESC LIMIT 15'
-    
+
     const result = await DB.prepare(query).bind(...params).all()
-    
+
     const activities = (result.results ?? []).map((row: any) => ({
       ...row,
       details: row.details ? JSON.parse(row.details) : null
     }))
-    
-    c.header('ETag', etag)
-    c.header('Cache-Control', 'no-cache, must-revalidate')
-    
+
+    c.header('Cache-Control', 'no-store')
+
     return c.json(activities)
   } catch (err) {
     console.error('Recent activity error:', err)

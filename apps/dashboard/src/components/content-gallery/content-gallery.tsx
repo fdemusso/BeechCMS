@@ -43,7 +43,11 @@ export function ContentGallery({
 
   return (
     <>
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-5">
+      {/* auto-fill: si adatta da 280px min a 420px max per evitare card
+          troppo larghe su monitor 21:9 dove 1fr diventerebbe enorme.
+          clamp(280px, ...) non è supportato direttamente in grid-template-columns
+          quindi usiamo minmax con un cap esplicito. */}
+      <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 420px))" }}>
         {cardModels.map((model) => (
           <GalleryCard key={model.entryId} model={model} onOpen={setPeekId} />
         ))}

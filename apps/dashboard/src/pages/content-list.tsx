@@ -1,4 +1,5 @@
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { useParams, useNavigate } from "react-router-dom"
 import { getSeed } from "@beech/core"
 import type {
@@ -57,6 +58,7 @@ import { extractTagNames } from "@/lib/tags-utils"
 export function ContentListPage() {
   const { slug } = useParams<{ slug: string }>()
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   // --- STATE ---
   const [pageIndex, setPageIndex] = React.useState(0)
@@ -131,7 +133,7 @@ export function ContentListPage() {
   const [views, setViews] = React.useState<UserViewInstance[]>(() => [
     {
       id: "table",
-      label: "Tabella",
+      label: "table",
       type: "table",
       enabledTools: [
         "filter",
@@ -145,12 +147,22 @@ export function ContentListPage() {
     },
     {
       id: "gallery",
-      label: "Galleria",
+      label: "gallery",
       type: "gallery",
       enabledTools: ["filter", "sort", "search", "create"],
       conditionalFormats: [],
     },
   ])
+
+  const VIEW_LABELS: Record<string, string> = {
+    table: t("content.list.table"),
+    gallery: t("content.list.gallery"),
+  }
+  const translatedViews = React.useMemo(
+    () => views.map((v) => ({ ...v, label: VIEW_LABELS[v.type] ?? v.label })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [views, t]
+  )
 
   const activeView = React.useMemo(() => {
     return views.find((v) => v.id === activeViewId)
@@ -574,7 +586,7 @@ export function ContentListPage() {
             <AppSidebar />
             <SidebarInset>
               <div className="flex flex-1 flex-col gap-4 p-4">
-                <div className="mx-auto w-full max-w-screen-2xl">
+                <div className="content-area-inner">
                   <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
                     <h2 className="text-lg font-semibold text-destructive">
                       Errore
@@ -593,14 +605,14 @@ export function ContentListPage() {
   }
 
   return (
-    <div className="[--header-height:calc(--spacing(14))] overflow-x-hidden">
+    <div className="[--header-height:calc(--spacing(14))] overflow-x-clip">
       <SidebarProvider className="flex flex-col">
         <SiteHeader />
         <div className="flex flex-1">
           <AppSidebar />
           <SidebarInset className="min-w-0">
             <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
-              <div className="mx-auto w-full max-w-screen-2xl">
+              <div className="content-area-inner">
                 {/* Header con titolo */}
                 <div className="mb-6">
                   {/* TODO: Estrarre questo header in un componente dedicato della slice */}
@@ -614,7 +626,7 @@ export function ContentListPage() {
                 {/* TODO: Valutare lo spostamento di ContentToolbar nella slice content-management se non condivisa */}
                 <ContentToolbar
                   seed={seed}
-                  views={views}
+                  views={translatedViews}
                   activeViewId={activeViewId}
                   onChangeView={setActiveViewId}
                   onRenameView={handleRenameView}

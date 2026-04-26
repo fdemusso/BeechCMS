@@ -1,6 +1,7 @@
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { SidebarIcon } from "lucide-react"
-import { useLocation, Link } from "react-router-dom"
+import { useLocation, useSearchParams, Link } from "react-router-dom"
 import { SEED_REGISTRY } from "@beech/core"
 
 import {
@@ -22,9 +23,20 @@ interface BreadcrumbSegment {
 }
 
 function useBreadcrumbs(): BreadcrumbSegment[] {
+  const { t } = useTranslation()
   const { pathname } = useLocation()
+  const [searchParams] = useSearchParams()
 
-  // /content/:slug, /content/:slug/create, /content/:slug/:id
+  if (pathname === "/settings") {
+    const tab = searchParams.get("tab") ?? "profile"
+    const tabLabel = t(`settings.tabs.${tab}`, { defaultValue: tab })
+    return [
+      { label: "Beech CMS", href: "/" },
+      { label: t("siteHeader.settings"), href: "/settings" },
+      { label: tabLabel },
+    ]
+  }
+
   const contentMatch = pathname.match(/^\/content\/([^/]+)(?:\/(.+))?$/)
   if (contentMatch) {
     const slug = contentMatch[1]
@@ -34,14 +46,14 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
 
     const crumbs: BreadcrumbSegment[] = [
       { label: "Beech CMS", href: "/" },
-      { label: "Contenuti", href: `/content/${slug}` },
+      { label: t("siteHeader.contents"), href: `/content/${slug}` },
       { label: seedLabel, href: sub ? `/content/${slug}` : undefined },
     ]
 
     if (sub === "create") {
-      crumbs.push({ label: "Nuovo" })
+      crumbs.push({ label: t("siteHeader.new") })
     } else if (sub) {
-      crumbs.push({ label: "Modifica" })
+      crumbs.push({ label: t("siteHeader.edit") })
     }
 
     return crumbs

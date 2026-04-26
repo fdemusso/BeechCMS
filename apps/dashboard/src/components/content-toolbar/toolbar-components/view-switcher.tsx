@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   Tooltip,
@@ -35,6 +36,7 @@ export function ViewSwitcher({
   onChangeView,
   onCreateView,
 }: ViewSwitcherProps) {
+  const { t } = useTranslation()
   return (
     <div className="flex min-w-0 items-center gap-1 overflow-hidden">
       <ToggleGroup
@@ -66,13 +68,13 @@ export function ViewSwitcher({
             variant="ghost"
             size="icon-sm"
             className="h-8 w-8 shrink-0"
-            aria-label="Aggiungi vista"
+            aria-label={t("toolbar.viewSwitcher.addView")}
             onClick={() => onCreateView?.()}
           >
             <Plus className="size-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="top">Aggiungi vista</TooltipContent>
+        <TooltipContent side="top">{t("toolbar.viewSwitcher.addView")}</TooltipContent>
       </Tooltip>
     </div>
   )

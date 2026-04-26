@@ -16,6 +16,7 @@ out/
 .cursor/
 .cursorrules
 .cursorignore
+.mcp.json
 
 .claude/
 CLAUDE.md

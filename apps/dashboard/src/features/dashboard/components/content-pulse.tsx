@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next"
 import { useContentBreakdown } from "../hooks/use-dashboard-stats"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
@@ -6,6 +7,7 @@ import { Activity, LayoutGrid } from "lucide-react"
 import { Link } from "react-router-dom"
 
 export function ContentPulse() {
+  const { t } = useTranslation()
   const { data: breakdown = [], isLoading } = useContentBreakdown()
 
   if (isLoading) {
@@ -42,7 +44,7 @@ export function ContentPulse() {
         <ScrollArea className="h-[260px] pr-4">
           <div className="space-y-5">
             {sortedBreakdown.length === 0 ? (
-              <p className="text-xs text-neutral-500 text-center py-4">Nessun contenuto trovato.</p>
+              <p className="text-xs text-neutral-500 text-center py-4">{t("dashboard.contentPulse.noContent")}</p>
             ) : (
               sortedBreakdown.map((item) => {
                 const percentage = totalCount > 0 ? (item.count / totalCount) * 100 : 0
@@ -75,7 +77,7 @@ export function ContentPulse() {
         </ScrollArea>
         
         <div className="mt-6 pt-4 border-t border-neutral-100 dark:border-neutral-800 flex justify-between items-center">
-          <span className="text-[10px] text-neutral-400 uppercase tracking-tighter font-bold">Distribuzione Totale</span>
+          <span className="text-[10px] text-neutral-400 uppercase tracking-tighter font-bold">{t("dashboard.contentPulse.totalDistribution")}</span>
           <span className="text-[10px] font-mono font-bold text-neutral-500">{totalCount} items</span>
         </div>
       </CardContent>
