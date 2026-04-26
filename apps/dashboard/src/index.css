@@ -172,11 +172,11 @@ h1 {
   /*
     REGOLA HOVER: --accent deve essere abbastanza DISTANTE da --background
     in termini di L (lightness) perché l'hover sia visibile.
-    background = 0.145 → accent = 0.32 → delta L ≈ 0.175 (ben distinguibile)
+    background = 0.11 → accent = 0.32 → delta L ≈ 0.21 (ben distinguibile)
     accent-foreground = 0.985 (bianco) su accent 0.32 → contrasto ≈ 7.5:1 ✓
   */
 
-  --background:            oklch(0.145 0 0);           /* superficie scura */
+  --background:            oklch(0.11 0 0);            /* superficie scura — più profonda per far risaltare le card */
   --foreground:            oklch(0.985 0 0);           /* testo primario: quasi bianco */
 
   --card:                  oklch(0.205 0 0);
@@ -192,13 +192,13 @@ h1 {
   --secondary-foreground:  oklch(0.985 0 0);
 
   --muted:                 oklch(0.269 0 0);
-  --muted-foreground:      oklch(0.65 0 0);            /* grigio medio-chiaro — ≥ 4.5:1 su --muted */
+  --muted-foreground:      oklch(0.72 0 0);            /* grigio chiaro — ≥ 4.5:1 su --muted e su --background */
 
   --accent:                oklch(0.32 0 0);            /* hover: grigio scuro MA distinguibile */
   --accent-foreground:     oklch(0.985 0 0);           /* testo hover: bianco — sempre leggibile */
 
   --destructive:           oklch(0.704 0.191 22.216);
-  --border:                oklch(1 0 0 / 10%);
+  --border:                oklch(1 0 0 / 18%);         /* bordi più visibili in dark mode */
   --input:                 oklch(1 0 0 / 15%);
   --ring:                  oklch(0.556 0 0);
 

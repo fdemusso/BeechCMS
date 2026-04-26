@@ -13,7 +13,7 @@ const SKELETON_KEYS = [
 
 export function GallerySkeletonGrid() {
   return (
-    <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 320px), 420px))" }}>
+    <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 420px))" }}>
       {SKELETON_KEYS.map((key) => (
         <div
           key={key}

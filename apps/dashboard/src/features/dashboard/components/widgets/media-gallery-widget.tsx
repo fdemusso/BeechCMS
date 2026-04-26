@@ -6,67 +6,96 @@ import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
-import type { ContentEntry } from "@/lib/dynamic-columns"
 import { WidgetEmpty } from "./_parts/widget-empty"
 import { WidgetError } from "./_parts/widget-error"
 
 export interface MediaGalleryWidgetProps {
-  seedSlug: string
+  seedSlug?: string
   variant?: "grid" | "unused"
-  onOpen?: (id: string) => void
+  onOpen?: (key: string) => void
 }
 
-interface ContentListResponse {
-  items: ContentEntry[]
-  total: number
+interface MediaObject {
+  key: string
+  filename: string
+  mime_type: string
+  size_bytes: number
+  created_at: number
+  url: string
 }
 
-function getFileUrl(entry: ContentEntry): string | null {
+interface UnusedEntry {
+  id: string
+  data: Record<string, unknown>
+}
+
+function getEntryFileUrl(entry: UnusedEntry): string | null {
   for (const val of Object.values(entry.data)) {
     if (typeof val === "string" && (val.startsWith("http") || val.startsWith("/"))) return val
   }
   return null
 }
 
-function entryLabel(entry: ContentEntry): string {
+function entryLabel(entry: UnusedEntry): string {
   for (const val of Object.values(entry.data)) {
     if (typeof val === "string" && val.trim() && !val.startsWith("http") && !val.startsWith("/")) return val
   }
   return entry.id
 }
 
-export function MediaGalleryWidget({ seedSlug, variant: initialVariant = "grid", onOpen }: MediaGalleryWidgetProps) {
+export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "grid", onOpen }: MediaGalleryWidgetProps) {
   const [variant, setVariant] = useState(initialVariant)
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["widget", "media-gallery", seedSlug, variant],
-    queryFn: async (): Promise<ContentEntry[]> => {
-      const endpoint = variant === "unused" ? "/content/stats/unused-media" : `/content/${seedSlug}`
-      const res = await api.get<ContentListResponse | ContentEntry[]>(endpoint, {
+  const mediaQuery = useQuery({
+    queryKey: ["widget", "media-library"],
+    queryFn: async (): Promise<MediaObject[]> => {
+      const res = await api.get<{ items: MediaObject[]; total: number }>("/content/stats/media-library", {
+        params: { limit: 12 },
+      })
+      return res.data.items
+    },
+    staleTime: 3 * 60 * 1000,
+    enabled: variant === "grid",
+  })
+
+  const unusedQuery = useQuery({
+    queryKey: ["widget", "media-gallery", seedSlug, "unused"],
+    queryFn: async (): Promise<UnusedEntry[]> => {
+      const res = await api.get<{ items: UnusedEntry[] }>("/content/stats/unused-media", {
         params: { seedSlug, limit: 12 },
       })
-      const d = res.data
-      return Array.isArray(d) ? d : d.items
+      return res.data.items
     },
-    staleTime: variant === "unused" ? 0 : 3 * 60 * 1000,
+    staleTime: 0,
+    enabled: variant === "unused" && !!seedSlug,
   })
 
   const deleteMutation = useMutation({
+    mutationFn: async (key: string) => {
+      await api.delete(`/${encodeURIComponent(key)}`)
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["widget", "media-library"] })
+    },
+  })
+
+  const deleteUnusedMutation = useMutation({
     mutationFn: async (id: string) => {
       await api.delete(`/content/${seedSlug}/${id}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["widget", "media-gallery", seedSlug] })
-    }
+    },
   })
 
-  const entries = data ?? []
+  const isLoading = variant === "grid" ? mediaQuery.isLoading : unusedQuery.isLoading
+  const isError = variant === "grid" ? mediaQuery.isError : unusedQuery.isError
+  const refetch = variant === "grid" ? mediaQuery.refetch : unusedQuery.refetch
 
   return (
     <div className="h-full w-full flex flex-col rounded-xl border border-neutral-200/60 bg-background/50 backdrop-blur-sm shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900/40 overflow-hidden">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 shrink-0">
         <span className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Images className="size-4 text-muted-foreground" />
@@ -92,7 +121,6 @@ export function MediaGalleryWidget({ seedSlug, variant: initialVariant = "grid",
         </div>
       </div>
 
-      {/* Body */}
       <div className="flex-1 p-3 overflow-y-auto min-h-0">
         {isLoading ? (
           <div className="grid grid-cols-4 gap-2">
@@ -102,44 +130,82 @@ export function MediaGalleryWidget({ seedSlug, variant: initialVariant = "grid",
           </div>
         ) : isError ? (
           <WidgetError onRetry={() => refetch()} />
-        ) : !entries.length ? (
-          <WidgetEmpty
-            icon={Images}
-            title={variant === "unused" ? t("dashboard.widgets.mediaGallery.allInUseTitle") : t("dashboard.widgets.mediaGallery.emptyTitle")}
-            description={variant === "unused" ? t("dashboard.widgets.mediaGallery.allInUseDesc") : t("dashboard.widgets.mediaGallery.emptyDesc")}
-          />
-        ) : (
-          <div className="grid grid-cols-4 gap-2">
-            {entries.map((entry) => {
-              const src = getFileUrl(entry)
-              const label = entryLabel(entry)
-              const isDeleting = deleteMutation.isPending && deleteMutation.variables === entry.id
+        ) : variant === "grid" ? (
+          !mediaQuery.data?.length ? (
+            <WidgetEmpty
+              icon={Images}
+              title={t("dashboard.widgets.mediaGallery.emptyTitle")}
+              description={t("dashboard.widgets.mediaGallery.emptyDesc")}
+            />
+          ) : (
+            <div className="grid grid-cols-4 gap-2">
+              {mediaQuery.data.map((item) => {
+                const isDeleting = deleteMutation.isPending && deleteMutation.variables === item.key
+                const isImage = item.mime_type.startsWith("image/")
 
-              return (
-                <div
-                  key={entry.id}
-                  className={cn(
-                    "group relative aspect-square overflow-hidden rounded-lg bg-muted/50 border border-border/50 cursor-pointer transition-all hover:ring-2 hover:ring-primary/20",
-                    isDeleting && "opacity-50 grayscale pointer-events-none"
-                  )}
-                  onClick={() => variant === "grid" && onOpen?.(entry.id)}
-                >
-                  {src ? (
-                    <img
-                      src={src}
-                      alt={label}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center">
-                      <Images className="size-6 text-muted-foreground/30" />
+                return (
+                  <div
+                    key={item.key}
+                    className={cn(
+                      "group relative aspect-square overflow-hidden rounded-lg bg-muted/50 border border-border/50 cursor-pointer transition-all hover:ring-2 hover:ring-primary/20",
+                      isDeleting && "opacity-50 grayscale pointer-events-none"
+                    )}
+                    onClick={() => onOpen?.(item.key)}
+                  >
+                    {isImage ? (
+                      <img
+                        src={item.url}
+                        alt={item.filename}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Images className="size-6 text-muted-foreground/30" />
+                      </div>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-[10px] text-white font-medium truncate">{item.filename}</p>
                     </div>
-                  )}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        ) : (
+          !unusedQuery.data?.length ? (
+            <WidgetEmpty
+              icon={Images}
+              title={t("dashboard.widgets.mediaGallery.allInUseTitle")}
+              description={t("dashboard.widgets.mediaGallery.allInUseDesc")}
+            />
+          ) : (
+            <div className="grid grid-cols-4 gap-2">
+              {unusedQuery.data.map((entry) => {
+                const src = getEntryFileUrl(entry)
+                const label = entryLabel(entry)
+                const isDeleting = deleteUnusedMutation.isPending && deleteUnusedMutation.variables === entry.id
 
-                  {/* Overlay with gradient */}
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-6 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <p className="text-[10px] text-white font-medium truncate mb-1.5">{label}</p>
-                    {variant === "unused" && (
+                return (
+                  <div
+                    key={entry.id}
+                    className={cn(
+                      "group relative aspect-square overflow-hidden rounded-lg bg-muted/50 border border-border/50 cursor-pointer transition-all hover:ring-2 hover:ring-primary/20",
+                      isDeleting && "opacity-50 grayscale pointer-events-none"
+                    )}
+                  >
+                    {src ? (
+                      <img
+                        src={src}
+                        alt={label}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center">
+                        <Images className="size-6 text-muted-foreground/30" />
+                      </div>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 pt-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <p className="text-[10px] text-white font-medium truncate mb-1.5">{label}</p>
                       <Button
                         variant="destructive"
                         size="sm"
@@ -147,21 +213,20 @@ export function MediaGalleryWidget({ seedSlug, variant: initialVariant = "grid",
                         onClick={(e) => {
                           e.stopPropagation()
                           if (confirm(`Eliminare definitivamente ${label}?`)) {
-                            deleteMutation.mutate(entry.id)
+                            deleteUnusedMutation.mutate(entry.id)
                           }
                         }}
                       >
                         <Trash2 className="size-3" /> Elimina
                       </Button>
-                    )}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )
         )}
       </div>
     </div>
   )
 }
-

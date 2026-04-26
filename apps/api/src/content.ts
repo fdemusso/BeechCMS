@@ -413,6 +413,61 @@ function buildFacetsPayload(
 // --- 4. Controller Principale (Pulito) ---
 // Moved /:slug generic handler down to prevent interception of /stats routes
 
+// GET /stats/media-library - Lista tutti i file presenti in R2:
+// combina media_objects (upload tracciati) + URL /api/media/ nelle entry (upload pre-migration)
+contentApp.get('/stats/media-library', async (c) => {
+  try {
+    const { DB } = c.env
+    const limit = Math.min(parseInt(c.req.query('limit') ?? '12'), 100)
+    const offset = parseInt(c.req.query('offset') ?? '0')
+    const mediaBase = (c.env.MEDIA_BASE_URL?.trim().replace(/\/$/, '')) ?? new URL(c.req.url).origin
+
+    // 1. File tracciati nella media library
+    const mediaRows = await DB.prepare(
+      'SELECT key, filename, mime_type, size_bytes, created_at FROM media_objects ORDER BY created_at DESC'
+    ).all<{ key: string; filename: string; mime_type: string; size_bytes: number; created_at: number }>()
+
+    const trackedKeys = new Set<string>()
+    const allItems: Array<{ key: string; filename: string; mime_type: string; size_bytes: number; created_at: number; url: string }> = []
+
+    for (const m of mediaRows.results ?? []) {
+      trackedKeys.add(m.key)
+      allItems.push({ ...m, url: `${mediaBase}/api/media/${encodeURIComponent(m.key)}` })
+    }
+
+    // 2. URL /api/media/ nelle entry (data + draft_data) non ancora in media_objects
+    const contentRows = await DB.prepare(
+      `SELECT data, draft_data FROM content_entries
+       WHERE data LIKE '%/api/media/%'
+          OR (draft_data IS NOT NULL AND draft_data LIKE '%/api/media/%')`
+    ).all<{ data: string; draft_data: string | null }>()
+
+    const MEDIA_KEY_RE = /\/api\/media\/([^"'\s\\,}\]]+)/g
+    for (const row of contentRows.results ?? []) {
+      const combined = (row.data ?? '') + ' ' + (row.draft_data ?? '')
+      for (const match of combined.matchAll(MEDIA_KEY_RE)) {
+        const key = decodeURIComponent(match[1])
+        if (trackedKeys.has(key)) continue
+        trackedKeys.add(key)
+        const filename = key.replace(/^\d+-/, '')
+        const ext = filename.split('.').pop()?.toLowerCase() ?? ''
+        const mimeType = ext === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext || 'jpeg'}`
+        const createdAt = parseInt(key.split('-')[0]) || 0
+        allItems.push({ key, filename, mime_type: mimeType, size_bytes: 0, created_at: createdAt, url: `${mediaBase}/api/media/${encodeURIComponent(key)}` })
+      }
+    }
+
+    allItems.sort((a, b) => b.created_at - a.created_at)
+    const total = allItems.length
+    const paginated = allItems.slice(offset, offset + limit)
+
+    return c.json({ items: paginated, total })
+  } catch (err) {
+    console.error('Media library error:', err)
+    return c.json({ error: 'Internal Server Error' }, 500)
+  }
+})
+
 // GET /stats/unused-media - Trova media non referenziati in altri contenuti
 contentApp.get('/stats/unused-media', async (c) => {
   try {
