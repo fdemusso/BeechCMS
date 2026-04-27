@@ -36,6 +36,15 @@ This document is the authoritative reference for the Beech CMS REST API. It cove
    - [Create](#64-create-post-apiv1publicseedadd)
    - [Update](#65-update-put-apiv1publicseededitid)
 7. [Error Model](#7-error-model)
+8. [Widget API](#8-widget-api)
+   - [Overview](#81-overview)
+   - [AggregateFormula](#82-aggregateformula-type)
+   - [TimeWindow](#83-timewindow-type)
+   - [Aggregate](#84-aggregate-get-apiwidgetseedaggregate)
+   - [Growth](#85-growth-get-apiwidgetseedgrowth)
+   - [Leaderboard](#86-leaderboard-get-apiwidgetseedleaderboard)
+   - [List](#87-list-get-apiwidgetseedlist)
+   - [Timeseries](#88-timeseries-get-apiwidgetseedtimeseries)
 
 ---
 
@@ -1080,3 +1089,207 @@ All API errors from the Public API use **RFC 7807 Problem Details** (`Content-Ty
 | `internal-server-error` | `500` | Unhandled server error (detail masked in production) |
 
 > **Note:** The `errors` array is only present on `validation-failed` responses. It provides field-level detail for every field that failed validation. No legacy `message` or `error` keys are present in the Public API error envelope.
+
+---
+
+## 8. Widget API
+
+### 8.1 Overview
+
+The Widget API exposes five read-only aggregate endpoints at `/api/widget/:seed/*` designed exclusively for the dashboard's widget layer. All endpoints are JWT-protected (same `Authorization: Bearer <token>` flow as §4). They never bypass the Botanical Engine: incoming `column` aliases are resolved to `json_extract(data, '$.br_XX')` expressions server-side.
+
+**Base path:** `/api/widget`  
+**Auth:** `Authorization: Bearer <access_token>` (15-min JWT, same as Internal Content API)  
+**Source file:** `apps/api/src/widget.ts`
+
+### 8.2 `AggregateFormula` Type
+
+All endpoints that accept a `formula` query parameter expect a JSON-encoded object matching this discriminated union:
+
+```typescript
+type AggregateFormula =
+  | { op: 'count' }                                                      // COUNT(*)
+  | { op: 'sum';          column: string }                               // SUM(column)
+  | { op: 'avg';          column: string }                               // AVG(column)
+  | { op: 'min';          column: string }                               // MIN(column)
+  | { op: 'max';          column: string }                               // MAX(column)
+  | { op: 'countWhere';   column: string; value: unknown }              // COUNT(CASE WHEN column = value)
+  | { op: 'percentageOf'; numeratorColumn: string; denominatorColumn: string } // SUM(num)/SUM(den)*100
+```
+
+`column` values are **API aliases** (e.g. `"price"`, `"created_at"`), not internal IDs. System columns (`id`, `slug`, `status`, `created_at`, `updated_at`) are passed through directly without Botanical Engine translation.
+
+### 8.3 `TimeWindow` Type
+
+```typescript
+type TimeWindow = 'week' | 'month' | 'year' | 'all'
+```
+
+| Value | D1 Filter Applied |
+|---|---|
+| `week` | `created_at >= unixepoch('now', '-7 days')` |
+| `month` | `created_at >= unixepoch('now', '-1 month')` |
+| `year` | `created_at >= unixepoch('now', '-1 year')` |
+| `all` | no filter (full table scan for the seed) |
+
+### 8.4 Aggregate — `GET /api/widget/:seed/aggregate`
+
+Evaluates a single formula against all entries of a seed within a time window.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `formula` | JSON string | Yes | JSON-encoded `AggregateFormula` |
+| `window` | `TimeWindow` | No | Default `'all'` |
+
+**Response `200`:**
+
+```json
+{ "value": 142, "window": "month" }
+```
+
+**Errors:** `400` if `formula` is missing or invalid JSON; `404` if seed slug not found.
+
+**Example:**
+
+```
+GET /api/widget/articoli/aggregate?formula={"op":"count"}&window=month
+→ { "value": 14, "window": "month" }
+
+GET /api/widget/prodotti/aggregate?formula={"op":"sum","column":"price"}&window=year
+→ { "value": 48920.5, "window": "year" }
+```
+
+### 8.5 Growth — `GET /api/widget/:seed/growth`
+
+Runs the formula twice — once for the current window, once for the same-length previous window — and returns the delta.
+
+**Window split logic:**
+
+| `window` | Current period | Previous period |
+|---|---|---|
+| `week` | last 7 days | 8–14 days ago |
+| `month` | last 30 days | 31–60 days ago |
+| `year` | last 365 days | 366–730 days ago |
+| `all` | entire table | empty (previous = 0) |
+
+**Query parameters:**
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `formula` | JSON string | Yes | JSON-encoded `AggregateFormula` |
+| `window` | `TimeWindow` | Yes | Determines the split boundary |
+
+**Response `200`:**
+
+```json
+{
+  "current": 14,
+  "previous": 9,
+  "percentageChange": 55.6,
+  "trend": "up"
+}
+```
+
+`percentageChange` is rounded to one decimal place. When `previous = 0` and `current > 0`, `percentageChange = 100`. `trend` is `"up"` when `percentageChange > 0`, `"down"` when `< 0`, `"flat"` when `= 0`.
+
+### 8.6 Leaderboard — `GET /api/widget/:seed/leaderboard`
+
+Returns entries sorted by a numeric field, with the label resolved from `seed.displayNameAlias`.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `scoreColumn` | string (alias) | Yes | — | Field alias to sort and score by |
+| `limit` | integer | No | `10` | Max entries (capped at 100) |
+| `orderDir` | `'asc'` \| `'desc'` | No | `'desc'` | Sort direction |
+
+**Response `200`:**
+
+```json
+[
+  { "id": "abc123", "label": "Prodotto Alpha", "score": 299.99 },
+  { "id": "def456", "label": "Prodotto Beta",  "score": 149.00 }
+]
+```
+
+Entries where `scoreColumn` is `NULL` are excluded. `label` falls back to `id` if `displayNameAlias` branch is not set.
+
+### 8.7 List — `GET /api/widget/:seed/list`
+
+Paginated list of entries with optional search, filters, and sorting. Returns entries with aliases resolved via `dbToApi`.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `search` | string | No | — | LIKE filter on `displayNameAlias` field (`%value%`) |
+| `filters` | JSON array | No | — | Array of `{ column, op, value }` — see filter ops below |
+| `orderBy` | string (alias) | No | `created_at` | Sort column (alias or system column) |
+| `orderDir` | `'asc'` \| `'desc'` | No | `'asc'` | Sort direction |
+| `limit` | integer | No | `25` | Page size (capped at 100) |
+| `offset` | integer | No | `0` | Pagination offset |
+
+**Filter operators** (`op` field):
+
+| `op` | SQL equivalent |
+|---|---|
+| `eq` or `=` | `= ?` |
+| `neq` or `!=` | `!= ?` |
+| `like` | `LIKE ?` |
+| `gt` or `>` | `CAST(…) > ?` |
+| `lt` or `<` | `CAST(…) < ?` |
+
+Unknown operators are silently ignored.
+
+**Response `200`:**
+
+```json
+{
+  "entries": [
+    {
+      "id": "abc123",
+      "slug": "prodotto-alpha",
+      "status": "published",
+      "createdAt": 1700000000,
+      "updatedAt": 1700001000,
+      "title": "Prodotto Alpha",
+      "price": 299.99
+    }
+  ],
+  "total": 42
+}
+```
+
+All content fields are returned with API aliases (never internal `br_XX` keys).
+
+### 8.8 Timeseries — `GET /api/widget/:seed/timeseries`
+
+Groups entries by a date column and aggregates a value column, returning a time series for charting.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `valueColumn` | string (alias) | Required if formula ≠ `count` | — | Numeric field to aggregate |
+| `groupColumn` | string (alias) | No | `created_at` | Date field to group by (stored as unix timestamp) |
+| `formula` | `'sum'` \| `'avg'` \| `'count'` | No | `'count'` | Aggregation function |
+| `window` | `TimeWindow` | No | `'all'` | Time range filter on `created_at` |
+
+Date buckets are formatted as `YYYY-MM-DD` strings using D1's `strftime`.
+
+**Response `200`:**
+
+```json
+{
+  "points": [
+    { "label": "2025-01-01", "value": 3 },
+    { "label": "2025-01-02", "value": 7 },
+    { "label": "2025-01-03", "value": 2 }
+  ]
+}
+```
+
+Points are ordered ascending by date. Days with no entries are omitted (no zero-fill).
