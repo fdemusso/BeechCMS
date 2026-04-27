@@ -7,6 +7,7 @@
  * @module @beech/core
  */
 export * from './types'
+export { defineSeed } from './define-seed'
 export * from './seeds'
 export * from './engine'
 export * from './validation'

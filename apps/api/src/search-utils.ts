@@ -1,7 +1,8 @@
 // apps/api/src/search-utils.ts
 // Funzioni pure — zero dipendenze Hono, importabili da Vitest
 
-import { getSeed, dbToApi } from "@beech/core"
+import { dbToApi } from "@beech/core"
+import type { Seed } from "@beech/core"
 
 // ─── Tipi ───────────────────────────────────────────────────────────────────
 
@@ -152,6 +153,7 @@ export function buildFtsQuery(params: SearchQueryParams): {
 export function mapFtsRow(
   ftsRow:  FtsRow,
   fullRow: { id: string; slug: string | null; data: string },
+  getSeed: (slug: string) => Seed | null,
 ): SearchResultItem {
   const seed   = getSeed(ftsRow.schema_slug)
   const parsed = (() => {

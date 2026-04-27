@@ -30,20 +30,31 @@
     "apps/*",
     "packages/*"
   ],
-  "main": "index.js",
+  "files": [
+    "bin/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "bin": {
+    "beech-cms": "bin/create.mjs",
+    "beech": "bin/cli.mjs"
+  },
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage"
   },
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
     "shadcn": "^4.4.0",
     "turbo": "^2.8.7",
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "cmdk": "^1.1.1"
+    "@clack/prompts": "^0.9.1",
+    "picocolors": "^1.1.1"
   }
 }
