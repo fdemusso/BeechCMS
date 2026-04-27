@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { getSeed, SEED_REGISTRY, apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload, slugify, resolvePolicies } from '@beech/core'
+import { apiToDb, dbToApi, isValidContentStatus, validateAndSanitizeSeedPayload, slugify, resolvePolicies } from '@beech/core'
 import type { Seed } from '@beech/core'
 import { deleteR2Objects, createR2Client } from './upload'
 import { getBucketSize } from './shared/storage-utils'
@@ -206,7 +206,7 @@ contentApp.post('/:slug', async (c) => {
     })
   }
 
-  const seed = getSeed(slug)
+  const seed = c.get('getSeed')(slug)
   if (!seed) {
     return publicProblem(c, {
       type: 'content-seed-not-found',
@@ -751,7 +751,7 @@ contentApp.get('/stats/breakdown', async (c) => {
       results.results?.map(r => [r.schema_slug, r.count]) ?? []
     )
     
-    const breakdown = Object.values(SEED_REGISTRY).map(seed => ({
+    const breakdown = Object.values(c.get('seedRegistry')).map(seed => ({
       slug: seed.slug,
       label: seed.labelPlural || seed.label,
       count: countMap[seed.slug] ?? 0
@@ -809,7 +809,7 @@ contentApp.get('/:slug/facets', async (c) => {
     })
   }
 
-  const seed = getSeed(slug)
+  const seed = c.get('getSeed')(slug)
   if (!seed) {
     return publicProblem(c, {
       type: 'content-seed-not-found',
@@ -858,7 +858,7 @@ contentApp.get('/:schema_slug/by-slug/:entry_slug', async (c) => {
     })
   }
 
-  const seed = getSeed(schemaSlug)
+  const seed = c.get('getSeed')(schemaSlug)
   if (!seed) {
     return publicProblem(c, {
       type: 'content-seed-not-found',
@@ -916,7 +916,7 @@ contentApp.put('/:slug/:id', async (c) => {
     })
   }
 
-  const seed = getSeed(slug)
+  const seed = c.get('getSeed')(slug)
   if (!seed) {
     return publicProblem(c, {
       type: 'content-seed-not-found',
@@ -1126,7 +1126,7 @@ contentApp.delete('/:slug/:id', async (c) => {
     })
   }
 
-  const seed = getSeed(schemaSlug);
+  const seed = c.get('getSeed')(schemaSlug);
   if (!seed) {
     return publicProblem(c, {
       type: 'content-seed-not-found',
@@ -1236,7 +1236,7 @@ contentApp.get('/:slug', async (c) => {
     })
   }
 
-  const seed = getSeed(slug);
+  const seed = c.get('getSeed')(slug);
   if (!seed) {
     return publicProblem(c, {
       type: 'content-seed-not-found',
@@ -1319,7 +1319,7 @@ contentApp.get('/:slug/:id', async (c) => {
     })
   }
 
-  const seed = getSeed(slug)
+  const seed = c.get('getSeed')(slug)
   if (!seed) {
     return publicProblem(c, {
       type: 'content-seed-not-found',

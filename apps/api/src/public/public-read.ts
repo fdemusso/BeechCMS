@@ -1,4 +1,5 @@
-import { SEED_REGISTRY, dbToApi, getSeed, resolvePolicies } from '@beech/core'
+import { dbToApi, resolvePolicies } from '@beech/core'
+import type { Seed } from '@beech/core'
 import type { Context } from 'hono'
 import { buildOrderClause, cleanStr, rowToEntry } from '../shared/query-utils'
 import type { ContentEntryRow } from '../shared/query-utils'
@@ -22,10 +23,12 @@ type Bindings = {
 
 type Variables = {
   jwtPayload: { sub: string; email?: string }
+  getSeed: (slug: string) => Seed | null
+  seedRegistry: Record<string, Seed>
 }
 
-function buildSeedNotFoundMessage(seed: string): string {
-  const available = Object.keys(SEED_REGISTRY).join(', ')
+function buildSeedNotFoundMessage(seed: string, seedRegistry: Record<string, Seed>): string {
+  const available = Object.keys(seedRegistry).join(', ')
   return `The content type '${seed}' does not exist. Available types: ${available}.`
 }
 
@@ -130,13 +133,13 @@ function buildOrderSql(
 
 export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variables: Variables }>) {
   const seedSlug = c.req.param('seed') ?? ''
-  const seed = getSeed(seedSlug)
+  const seed = c.get('getSeed')(seedSlug)
   if (!seed) {
     return publicProblem(c, {
       type: 'seed-not-found',
       title: 'Seed Not Found',
       status: 404,
-      detail: buildSeedNotFoundMessage(seedSlug),
+      detail: buildSeedNotFoundMessage(seedSlug, c.get('seedRegistry')),
     })
   }
   const access = checkPublicOperation(seed, 'read')

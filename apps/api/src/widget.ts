@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { getSeed, apiToDb, dbToApi } from '@beech/core'
+import { apiToDb, dbToApi } from '@beech/core'
 import type { Seed } from '@beech/core'
 import type { Env, Variables } from './types'
 
@@ -128,7 +128,7 @@ function error(status: number, title: string, detail: string) {
  */
 widgetApp.get('/aggregate/:seed', async (c) => {
   const seedSlug = c.req.param('seed')
-  const seed = getSeed(seedSlug)
+  const seed = c.get('getSeed')(seedSlug)
   if (!seed) {
     return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
   }
@@ -161,7 +161,7 @@ widgetApp.get('/aggregate/:seed', async (c) => {
  */
 widgetApp.get('/growth/:seed', async (c) => {
   const seedSlug = c.req.param('seed')
-  const seed = getSeed(seedSlug)
+  const seed = c.get('getSeed')(seedSlug)
   if (!seed) {
     return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
   }
@@ -215,7 +215,7 @@ widgetApp.get('/growth/:seed', async (c) => {
  */
 widgetApp.get('/leaderboard/:seed', async (c) => {
   const seedSlug = c.req.param('seed')
-  const seed = getSeed(seedSlug)
+  const seed = c.get('getSeed')(seedSlug)
   if (!seed) {
     return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
   }
@@ -269,7 +269,7 @@ widgetApp.get('/leaderboard/:seed', async (c) => {
  */
 widgetApp.get('/list/:seed', async (c) => {
   const seedSlug = c.req.param('seed')
-  const seed = getSeed(seedSlug)
+  const seed = c.get('getSeed')(seedSlug)
   if (!seed) {
     return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
   }
@@ -385,7 +385,7 @@ widgetApp.get('/list/:seed', async (c) => {
  */
 widgetApp.get('/timeseries/:seed', async (c) => {
   const seedSlug = c.req.param('seed')
-  const seed = getSeed(seedSlug)
+  const seed = c.get('getSeed')(seedSlug)
   if (!seed) {
     return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
   }

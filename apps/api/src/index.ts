@@ -1,8 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
-import { Hono } from 'hono'
-import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
+import { createBeechApp } from './factory'
+import { SEED_REGISTRY } from '@beech/core'
 import { AUTH_ERRORS } from './auth/constants'
 import {
   parseLoginBody,
@@ -85,37 +85,7 @@ function handleAuthError(
 
 // --- App ---
 
-const app = new Hono<{ Bindings: Env; Variables: Variables }>()
-
-// CORS: origins da CORS_ORIGINS (virgola-separati), default localhost per sviluppo
-app.use('*', async (c, next) => {
-  const origins = (c.env.CORS_ORIGINS ?? 'http://localhost:5173')
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean)
-  const corsMiddleware = cors({
-    // Se l'Origin non è in allowlist, non impostare Access-Control-Allow-Origin.
-    // Con credentials=true è importante evitare fallback permissivi.
-    origin: (origin) => {
-      if (!origin) return origins[0] ?? null
-      return origins.includes(origin) ? origin : null
-    },
-    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
-    credentials: true, // Necessario per httpOnly cookies
-  })
-  return corsMiddleware(c, next)
-})
-
-// Security headers: protezione XSS, clickjacking, MIME sniffing
-app.use('*', async (c, next) => {
-  await next()
-  c.header('X-Frame-Options', 'DENY')
-  c.header('X-Content-Type-Options', 'nosniff')
-  c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
-  c.header('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
-  c.header('Content-Security-Policy', "default-src 'self'; frame-ancestors 'none'")
-})
+const app = createBeechApp({ seeds: Object.values(SEED_REGISTRY) })
 
 // Rota root di test
 app.get('/', (c) => c.text('Beech API is running!'))

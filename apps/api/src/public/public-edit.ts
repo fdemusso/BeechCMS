@@ -1,4 +1,4 @@
-import { apiToDb, dbToApi, getSeed, isValidContentStatus, resolvePolicies } from '@beech/core'
+import { apiToDb, dbToApi, isValidContentStatus, resolvePolicies } from '@beech/core'
 import type { Context } from 'hono'
 import { cleanStr, rowToEntry } from '../shared/query-utils'
 import type { ContentEntryRow } from '../shared/query-utils'
@@ -189,7 +189,7 @@ function resolveData(
 export async function publicEditHandler(c: PublicCtx) {
   const seedSlug = c.req.param('seed') ?? ''
   const id = c.req.param('id') ?? ''
-  const seed = getSeed(seedSlug)
+  const seed = c.get('getSeed')(seedSlug)
   if (!seed) {
     return publicProblem(c, {
       type: 'seed-not-found',

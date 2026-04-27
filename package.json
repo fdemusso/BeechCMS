@@ -31,50 +31,30 @@
     "packages/*"
   ],
   "files": [
-    "README.md",
-    "turbo.json",
-    "tsconfig.json",
-    "apps/api/src",
-    "apps/api/migrations/0000_schema_init.sql",
-    "apps/api/package.json",
-    "apps/api/wrangler.jsonc",
-    "apps/api/.dev.vars.example",
-    "apps/api/.env.example",
-    "apps/api/tsconfig.json",
-    "apps/api/tsconfig.build.json",
-    "apps/api/vitest.config.ts",
-    "apps/dashboard/src",
-    "apps/dashboard/public",
-    "apps/dashboard/index.html",
-    "apps/dashboard/package.json",
-    "apps/dashboard/vite.config.ts",
-    "apps/dashboard/vitest.config.ts",
-    "apps/dashboard/tsconfig.json",
-    "apps/dashboard/tsconfig.app.json",
-    "apps/dashboard/tsconfig.node.json",
-    "apps/dashboard/eslint.config.js",
-    "apps/dashboard/components.json",
-    "packages/core/src",
-    "packages/core/package.json",
-    "packages/core/tsconfig.json",
-    "packages/create-beech-cms/src",
-    "packages/create-beech-cms/package.json",
-    "docs"
+    "bin/",
+    "README.md"
   ],
-  "main": "index.js",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "bin": {
+    "beech-cms": "bin/create.mjs",
+    "beech": "bin/cli.mjs"
+  },
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage"
   },
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
     "shadcn": "^4.4.0",
     "turbo": "^2.8.7",
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "cmdk": "^1.1.1"
+    "@clack/prompts": "^0.9.1",
+    "picocolors": "^1.1.1"
   }
 }
