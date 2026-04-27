@@ -1,9 +1,31 @@
 {
   "name": "beech-cms",
-  "version": "0.0.1",
+  "version": "0.2.0",
   "packageManager": "npm@11.9.0",
-  "private": true,
-  "description": "",
+  "description": "Edge-Native, Schema-Driven Headless CMS built on Cloudflare Workers, D1, and R2. Features the Botanical Engine for alias-stable field management, a modular widget layer, and a React + Vite admin dashboard.",
+  "keywords": [
+    "cms",
+    "headless-cms",
+    "cloudflare",
+    "cloudflare-workers",
+    "d1",
+    "edge",
+    "schema-driven",
+    "api-first",
+    "hono",
+    "react",
+    "turborepo"
+  ],
+  "author": "Flavio De Musso",
+  "license": "MIT",
+  "homepage": "https://github.com/fdemusso/BeechCMS#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fdemusso/BeechCMS.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fdemusso/BeechCMS/issues"
+  },
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -15,9 +37,6 @@
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
     "shadcn": "^4.4.0",
