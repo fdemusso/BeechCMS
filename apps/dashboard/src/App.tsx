@@ -6,6 +6,7 @@ import { AUTH_TOKEN_KEY } from "@/lib/api"
 import { ContentListPage } from "@/pages/content-list"
 import { EntryEditorPage } from "@/pages/entry-editor"
 import { TestFieldsPage } from "@/pages/test-fields"
+import { WidgetLabPage } from "@/pages/widget-lab"
 import { ErrorPage } from "@/pages/error-page"
 import { ForgotPasswordPage } from "@/pages/forgot-password/ForgotPasswordPage"
 import { ResetPasswordPage } from "@/pages/reset-password/ResetPasswordPage"
@@ -117,6 +118,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <TestFieldsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/widget-lab",
+        element: (
+          <ProtectedRoute>
+            <WidgetLabPage />
           </ProtectedRoute>
         ),
       },

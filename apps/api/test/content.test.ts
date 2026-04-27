@@ -497,7 +497,7 @@ describe('API Content - Edge Case (Not Found)', () => {
   })
 
   it('POST /api/content/slug-inesistente -> 404 SEED_NOT_FOUND', async () => {
-    const mockDB = createMockD1ForInsert({})
+    const mockDB = createMockD1ForInsert({ calls: [] })
 
     const res = await app.request('/api/content/slug-inesistente', {
       method: 'POST',

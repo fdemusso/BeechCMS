@@ -153,7 +153,7 @@ describe("auth/refresh utilities", () => {
 
     expect(db.prepare).toHaveBeenCalled()
     expect(bindMock).toHaveBeenCalled()
-    const args = bindMock.mock.calls[0]
+    const args = bindMock.mock.calls[0] as unknown[]
     expect(args).toHaveLength(4)
     expect(args[1]).toBe("user-1")
     expect(String(args[2])).toMatch(/^[a-f0-9]{64}$/)

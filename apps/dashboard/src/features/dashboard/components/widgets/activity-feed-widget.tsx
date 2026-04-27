@@ -82,28 +82,30 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
     const items = data.slice(0, 10)
     return (
       <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
-        <ul className="space-y-1">
-          {items.map((log) => (
-            <li key={log.id} className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground truncate flex-1">
-                <span className="font-medium text-foreground">{displayName(log.user_name, log.user_email)}</span>{" "}
-                {t(`dashboard.recentActivity.actions.${log.action}`, { defaultValue: log.action })}{" "}
-                <span className="font-medium text-foreground">
-                  {log.details?.title || log.details?.name || log.entity_slug || log.entity_id}
+        <ScrollArea className="h-full" type="auto">
+          <ul className="space-y-1 pr-3">
+            {items.map((log) => (
+              <li key={log.id} className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground truncate flex-1">
+                  <span className="font-medium text-foreground">{displayName(log.user_name, log.user_email)}</span>{" "}
+                  {t(`dashboard.recentActivity.actions.${log.action}`, { defaultValue: log.action })}{" "}
+                  <span className="font-medium text-foreground">
+                    {log.details?.title || log.details?.name || log.entity_slug || log.entity_id}
+                  </span>
                 </span>
-              </span>
-              <span className="text-[10px] text-muted-foreground/60 shrink-0">{relativeTime(log.created_at)}</span>
-            </li>
-          ))}
-        </ul>
+                <span className="text-[10px] text-muted-foreground/60 shrink-0">{relativeTime(log.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        </ScrollArea>
       </DashboardWidgetShell>
     )
   }
 
   return (
     <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
-      <ScrollArea className="h-full pr-2">
-        <ul className="space-y-3">
+      <ScrollArea className="h-[180px]" type="auto">
+        <ul className="space-y-3 pr-3">
           {data.map((log) => {
             const ActionIcon = ACTION_ICONS[log.action] ?? Activity
             const actionColor = ACTION_COLORS[log.action] ?? "bg-muted text-muted-foreground"
