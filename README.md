@@ -1,4 +1,4 @@
-![beechLogoDark.png](images/beechLogoDark.png)
+![beechLogoDark.png](docs/images/beechLogoDark.png)
 A production-grade, **Edge-Native, Schema-Driven Content Management System** built on Cloudflare's infrastructure.
 
 Beech CMS is not a traditional monolithic CMS — it is a headless, API-first platform where every content type is defined by a typed schema, every field transformation is deterministic, and every byte served originates from the edge.
@@ -14,6 +14,7 @@ Beech CMS is not a traditional monolithic CMS — it is a headless, API-first pl
 - [Project Structure](#project-structure)
 - [Getting Started](#getting-started)
 - [Key Design Decisions](#key-design-decisions)
+- [Documentation](#documentation)
 
 ---
 
@@ -21,12 +22,12 @@ Beech CMS is not a traditional monolithic CMS — it is a headless, API-first pl
 
 | Document | Description |
 |---|---|
-| [Architecture](./architecture.md) | Structural reasoning: package relationships, storage choices, and the ongoing migration to Vertical Slice Architecture |
-| [API Reference](./api-reference.md) | Complete REST API reference — Internal (JWT) and Public (API-key) surfaces, with RFC 7807 error shapes |
-| [Frontend Guide](./frontend-guide.md) | Dashboard architecture: FieldRenderer registry, TanStack Query patterns, Shadcn/Tailwind 4 composition, and how to add a new field type |
-| [System Map](./SYSTEM_MAP.md) | High-level onboarding map — tech stack, folder structure, and non-negotiable conventions at a glance |
-| [Vertical Slice Architecture](./vertical-slice.md) | Guide to the VSA organization model adopted by the project |
-| [Sprint: SEO Evolution](./Sprints/seo-evolution.md) | Roadmap for the meta/SEO engine feature |
+| [Architecture](./docs/architecture.md) | Structural reasoning: package relationships, storage choices, and the ongoing migration to Vertical Slice Architecture |
+| [API Reference](./docs/api-reference.md) | Complete REST API reference — Internal (JWT) and Public (API-key) surfaces, with RFC 7807 error shapes |
+| [Frontend Guide](./docs/frontend-guide.md) | Dashboard architecture: FieldRenderer registry, TanStack Query patterns, Shadcn/Tailwind 4 composition, and how to add a new field type |
+| [System Map](./docs/SYSTEM_MAP.md) | High-level onboarding map — tech stack, folder structure, and non-negotiable conventions at a glance |
+| [Vertical Slice Architecture](./docs/vertical-slice.md) | Guide to the VSA organization model adopted by the project |
+| [Sprint: SEO Evolution](./docs/Sprints/seo-evolution.md) | Roadmap for the meta/SEO engine feature |
 
 ---
 
@@ -178,33 +179,120 @@ beech-cms/
 - Node.js ≥ 20
 - npm ≥ 11
 - [Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) ≥ 4.36
+- A [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier is sufficient)
 
-### Installation
+### 1. Scaffold a New Project
+
+The fastest way to get started is via the official scaffolding CLI:
 
 ```bash
-git clone https://github.com/your-org/beech-cms.git
-cd beech-cms
+npx create-beech-cms@latest
+```
+
+This will interactively scaffold a fully configured Beech CMS monorepo in the current directory.
+
+Alternatively, clone the repository directly:
+
+```bash
+git clone https://github.com/fdemusso/BeechCMS.git
+cd BeechCMS
 npm install
 ```
 
-### Development
+### 2. Provision Cloudflare Infrastructure
+
+Beech CMS requires a **D1 database** and an **R2 bucket** in your Cloudflare account.
 
 ```bash
-# Start all packages in parallel (core watcher + api + dashboard)
+# Authenticate with your Cloudflare account
+npx wrangler login
+
+# Create the D1 database and note the returned database_id
+npx wrangler d1 create beech-db
+
+# Create the R2 media bucket
+npx wrangler r2 bucket create beech-media
+```
+
+Open `apps/api/wrangler.jsonc` and replace the placeholder with your real D1 database ID:
+
+```jsonc
+"d1_databases": [{
+  "binding": "DB",
+  "database_name": "beech-db",
+  "database_id": "<YOUR_D1_DATABASE_ID>",  // paste here
+  "migrations_dir": "migrations"
+}]
+```
+
+### 3. Configure Environment Variables
+
+Copy the example env file and fill in your values:
+
+```bash
+cp apps/api/.dev.vars.example apps/api/.dev.vars
+```
+
+Edit `apps/api/.dev.vars`:
+
+```bash
+# R2 S3-compatible API keys
+# Cloudflare Dashboard → R2 → Manage R2 API Tokens
+R2_ACCESS_KEY_ID=your_access_key_id
+R2_SECRET_ACCESS_KEY=your_secret_access_key
+R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+R2_BUCKET_NAME=beech-media
+```
+
+> **Note:** `.dev.vars` is git-ignored. Never commit real credentials.
+
+### 4. Run the Initial Schema Migration
+
+```bash
+# Local development (D1 local replica)
+npx wrangler d1 execute beech-db --local \
+  --file=apps/api/migrations/0000_schema_init.sql
+
+# Remote (your real Cloudflare D1 database)
+npx wrangler d1 execute beech-db \
+  --file=apps/api/migrations/0000_schema_init.sql
+```
+
+This single file creates the complete schema from scratch — no sample data, no dev users. After running it, create your first admin via `POST /auth/setup`.
+
+### 5. Start the Development Server
+
+```bash
+# Starts core watcher + API (Wrangler) + Dashboard (Vite) in parallel
 npm run dev
 ```
 
-### Database Setup (local D1)
+| Service | URL |
+|---|---|
+| Dashboard | http://localhost:5173 |
+| API (Wrangler) | http://localhost:8787 |
 
-```bash
-cd apps/api
-npm run db:migrate:local
-```
-
-### Build
+### 6. Build
 
 ```bash
 npm run build
+```
+
+### 7. Deploy to Production
+
+```bash
+# Apply migrations to the remote D1 database
+npm run db:migrate:remote --workspace=apps/api
+
+# Set production secrets (never stored in wrangler.jsonc)
+npx wrangler secret put JWT_SECRET --cwd apps/api
+npx wrangler secret put PUBLIC_READ_API_KEY --cwd apps/api
+npx wrangler secret put PUBLIC_WRITE_API_KEY --cwd apps/api
+npx wrangler secret put R2_ACCESS_KEY_ID --cwd apps/api
+npx wrangler secret put R2_SECRET_ACCESS_KEY --cwd apps/api
+
+# Deploy the API Worker
+npx wrangler deploy --cwd apps/api
 ```
 
 ---
