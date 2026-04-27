@@ -20,6 +20,7 @@ import {
 } from './auth/refresh'
 import { authMiddleware } from './middleware'
 import { contentRoutes } from './content'
+import { widgetApp } from './widget'
 // TODO: refactor — rotate-field è una VSA slice. Il resto di index.ts (auth inline, content monolith)
 // va migrato a slices dedicati sotto src/features/ seguendo lo stesso pattern.
 import { rotateFieldApp } from './features/rotate-field'
@@ -342,6 +343,17 @@ apiContent.route('/', draftApp)
 apiContent.route('/', contentRoutes)
 app.route('/api/content', apiContent)
 app.route('/api/search', searchRouter)
+
+// API Widget: endpoint aggregati per i widget della dashboard, protetti da JWT
+const apiWidget = new Hono<{ Bindings: Env; Variables: Variables }>()
+apiWidget.use('*', async (c, next) => {
+  await authMiddleware(c.env.JWT_SECRET, {
+    issuer: c.env.JWT_ISSUER,
+    audience: c.env.JWT_AUDIENCE,
+  })(c, next)
+})
+apiWidget.route('/', widgetApp)
+app.route('/api/widget', apiWidget)
 
 // API Upload: POST /api/upload (JWT) + GET /api/media/:key (pubblico)
 app.route('/api', uploadRoutes)

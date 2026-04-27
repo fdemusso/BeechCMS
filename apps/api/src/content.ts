@@ -95,6 +95,7 @@ type Bindings = {
   R2_SECRET_ACCESS_KEY?: string
   R2_ENDPOINT?: string
   R2_BUCKET_NAME?: string
+  MEDIA_BASE_URL?: string
   ENV?: string
 }
 

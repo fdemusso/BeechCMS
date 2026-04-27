@@ -91,7 +91,9 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
         <div className="flex flex-col items-center justify-center gap-2 h-full text-center">
           <span className="text-5xl font-bold tabular-nums">{data?.length ?? 0}</span>
           <p className="text-sm text-muted-foreground">{t("dashboard.widgets.pendingDrafts.pendingCount")}</p>
-          <Button variant="outline" size="sm" onClick={() => onOpen?.(undefined)}>{t("dashboard.widgets.pendingDrafts.viewAll")}</Button>
+          <Link to={`/content/${seedSlug}?status=draft`}>
+            <Button variant="outline" size="sm">{t("dashboard.widgets.pendingDrafts.viewAll")}</Button>
+          </Link>
         </div>
       </DashboardWidgetShell>
     )
@@ -104,7 +106,21 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onO
   )
 
   return (
-    <DashboardWidgetShell title={t("dashboard.widgets.pendingDrafts.title")} icon={ClipboardList} action={countBadge}>
+    <DashboardWidgetShell
+      title={t("dashboard.widgets.pendingDrafts.title")}
+      icon={ClipboardList}
+      action={
+        <div className="flex items-center gap-2">
+          {countBadge}
+          <Link
+            to={`/content/${seedSlug}?status=draft`}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {t("dashboard.widgets.pendingDrafts.viewAll")}
+          </Link>
+        </div>
+      }
+    >
       <ScrollArea className="h-[260px]">
         <ul className="space-y-1 pr-2">
           {data.map((entry) => (

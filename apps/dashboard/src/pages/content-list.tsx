@@ -1,6 +1,6 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { getSeed } from "@beech/core"
 import type {
   SortingState,
@@ -66,7 +66,21 @@ export function ContentListPage() {
   const [pageSize, setPageSize] = React.useState<number>(ROWS_PER_PAGE)
   const [tableSearch, setTableSearch] = React.useState("")
   const [sorting, setSorting] = React.useState<SortingState>([])
-  const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>({})
+  const [searchParams] = useSearchParams()
+  const prefilterStatus = searchParams.get("status")
+
+  const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>(() => {
+    if (!prefilterStatus) return {}
+    return {
+      status: {
+        columnId: "status",
+        label: "Status",
+        type: "select",
+        conditions: [{ id: "status-prefilter", op: "eq", value: prefilterStatus }],
+        selectOptions: ["draft", "published"],
+      },
+    }
+  })
 
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({})
 

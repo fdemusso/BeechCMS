@@ -6,13 +6,13 @@ import { Clock, FileImage } from "lucide-react"
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "@/features/dashboard"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { WidgetEmpty } from "./_parts/widget-empty"
 import { WidgetError } from "./_parts/widget-error"
 import { Link } from "react-router-dom"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
 
@@ -35,6 +35,20 @@ function entryTitle(entry: ContentEntry): string {
     if (typeof val === "string" && val.trim()) return val
   }
   return entry.id
+}
+
+const IMAGE_EXTENSIONS = /\.(jpg|jpeg|png|webp|gif|avif|svg)(\?.*)?$/i
+
+function entryImageUrl(entry: ContentEntry): string | null {
+  for (const val of Object.values(entry.data)) {
+    if (
+      typeof val === "string" &&
+      (val.startsWith("http") || IMAGE_EXTENSIONS.test(val))
+    ) {
+      return val
+    }
+  }
+  return null
 }
 
 interface ContentListResponse {
@@ -97,24 +111,35 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
   if (variant === "cards") {
     return (
       <DashboardWidgetShell title={t("dashboard.widgets.recentContent.title")} icon={Clock} action={viewAllAction}>
-        <div className="grid grid-cols-2 gap-3">
-          {data.map((entry) => (
-            <Card key={entry.id} className="cursor-pointer hover:shadow-md transition-shadow border-border/60 overflow-hidden">
-              <Link to={`/content/${seedSlug}/${entry.id}`} className="block">
-                <div className="h-20 bg-muted flex items-center justify-center">
-                  <FileImage className="size-7 text-muted-foreground/30" />
-                </div>
-                <CardContent className="p-2 space-y-1">
-                  <p className="text-xs font-medium truncate">{entryTitle(entry)}</p>
-                  <div className="flex items-center justify-between gap-1">
-                    <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold border", statusVariant(entry.status))}>{entry.status}</span>
-                    <span className="text-[10px] text-muted-foreground">{relativeTime(entry.updated_at)}</span>
+        <ScrollArea className="h-full">
+          <div className="grid grid-cols-2 gap-3 pr-2">
+            {data.map((entry) => {
+              const imageUrl = entryImageUrl(entry)
+              return (
+                <Link
+                  key={entry.id}
+                  to={`/content/${seedSlug}/${entry.id}`}
+                  className="flex flex-col rounded-xl border border-border/60 bg-card overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+                >
+                  {imageUrl ? (
+                    <img src={imageUrl} alt="" className="h-28 w-full object-cover shrink-0" />
+                  ) : (
+                    <div className="h-28 shrink-0 bg-muted flex items-center justify-center">
+                      <FileImage className="size-7 text-muted-foreground/30" />
+                    </div>
+                  )}
+                  <div className="flex flex-col flex-1 p-2">
+                    <p className="text-xs font-medium line-clamp-2 flex-1">{entryTitle(entry)}</p>
+                    <div className="flex items-center justify-between gap-1 mt-auto pt-2">
+                      <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-semibold border", statusVariant(entry.status))}>{entry.status}</span>
+                      <span className="text-[10px] text-muted-foreground">{relativeTime(entry.updated_at)}</span>
+                    </div>
                   </div>
-                </CardContent>
-              </Link>
-            </Card>
-          ))}
-        </div>
+                </Link>
+              )
+            })}
+          </div>
+        </ScrollArea>
       </DashboardWidgetShell>
     )
   }
