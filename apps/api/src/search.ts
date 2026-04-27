@@ -80,7 +80,7 @@ searchRouter.get("/", async (c) => {
 
   const items = pageRows
     .filter(row => fullMap.has(row.entry_id))
-    .map(row => mapFtsRow(row, fullMap.get(row.entry_id)!))  // safe: filtrato sopra
+    .map(row => mapFtsRow(row, fullMap.get(row.entry_id)!, c.get('getSeed')))  // safe: filtrato sopra
 
   return c.json({ items, nextCursor, total } satisfies SearchResponse)
 })

@@ -1,4 +1,4 @@
-import { apiToDb, getSeed, isValidContentStatus } from '@beech/core'
+import { apiToDb, isValidContentStatus } from '@beech/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../shared/query-utils'
 import { checkPublicOperation } from './access-policy'
@@ -124,7 +124,7 @@ async function storeIdempotency(
 
 export async function publicAddHandler(c: Context<{ Bindings: Bindings; Variables: Variables }>) {
   const seedSlug = c.req.param('seed') ?? ''
-  const seed = getSeed(seedSlug)
+  const seed = c.get('getSeed')(seedSlug)
   if (!seed) {
     return publicProblem(c, {
       type: 'seed-not-found',

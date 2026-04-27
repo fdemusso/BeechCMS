@@ -17,8 +17,8 @@ This high-level system map is designed for onboarding new contributors and for A
 |---|---|
 | `[nuovidocs/README.md](nuovidocs/README.md)` | Project overview, Botanical Engine primer, tech stack, getting started |
 | `[nuovidocs/architecture.md](nuovidocs/architecture.md)` | Monorepo topology, Turborepo pipeline, `@beech/core` barrel, Botanical Engine data flow, atomic data model, D1 vs Postgres, VSA migration, dependency rules |
-| `[nuovidocs/api-reference.md](nuovidocs/api-reference.md)` | Auth (JWT, refresh token rotation, security hardening), Internal Content API, Media Engine (upload, serve, R2 architecture), Public API (permission model, rate limiting, filters, error model) |
-| `[nuovidocs/frontend-guide.md](nuovidocs/frontend-guide.md)` | FieldRenderers registry pattern, TanStack Query strategy, Tailwind 4 + Shadcn component system, EntryEditorPage, how to add a new field type, ContentToolbar architecture, filter derivation from `Seed.branches`, gallery integration |
+| `[nuovidocs/api-reference.md](nuovidocs/api-reference.md)` | Auth (JWT, refresh token rotation, security hardening), Internal Content API, Media Engine (upload, serve, R2 architecture), Public API (permission model, rate limiting, filters, error model), Widget API (aggregate, growth, leaderboard, list, timeseries) |
+| `[nuovidocs/frontend-guide.md](nuovidocs/frontend-guide.md)` | FieldRenderers registry pattern, TanStack Query strategy, Tailwind 4 + Shadcn component system, EntryEditorPage, how to add a new field type, ContentToolbar architecture, filter derivation from `Seed.branches`, gallery integration, Widget Data Layer (`features/widget-data`) |
 | `[email-module.md](email-module.md)` | Email module architecture, EmailProvider interface, template system (shell + specific templates), localisation, env vars, developer recipes (swap provider, add email type, add language, rebrand) |
 
 ---
@@ -124,6 +124,7 @@ beech-cms/
   - `apps/dashboard/src/components/fields/` — FieldRenderers registry (`FieldDisplay`, `FieldEdit`, `registry.ts`, `display/*.tsx`, `edit/*.tsx`).
   - `apps/dashboard/src/features/richtext-editor/` — TipTap editor slice; only `index.ts` is importable from outside the slice.
   - `apps/dashboard/src/features/dashboard/` — Dashboard cockpit with bento grid widgets and Cloudflare Edge analytics.
+  - `apps/dashboard/src/features/widget-data/` — **Widget Data Layer**: typed hooks, formula evaluation, and Axios wrappers for the `/api/widget/*` endpoints. Public API via `index.ts`. See `nuovidocs/frontend-guide.md` §8.
   - `apps/dashboard/src/features/command-palette/` — global command palette.
   - Entry editing pages (`EntryEditorPage`) consume FieldRenderers and the Seed from `@beech/core`.
 
@@ -174,6 +175,12 @@ beech-cms/
   - Gallery card slots (cover, title, excerpt, date, tags) are resolved by `resolveCardFields` heuristics from the Seed — no fetch beyond the shared dataset.
   - `ContentToolbar` drives filters, sort, search, grouping, and view switching. Filter columns are derived from `Seed.branches` at runtime via `useToolbarFilters`.
 
+- **Widget Data Layer (`/api/widget/*`)** — see `nuovidocs/api-reference.md` §8 and `nuovidocs/frontend-guide.md` §8
+  - Five JWT-protected read-only endpoints: `aggregate`, `growth`, `leaderboard`, `list`, `timeseries` — all under `/api/widget/:seed/`.
+  - Server side (`apps/api/src/widget.ts`): resolves alias columns to `json_extract(data, '$.br_XX')` via `apiToDb`; applies time-window SQL filters on `created_at`; growth computes current vs previous window delta in two parallel D1 queries.
+  - Client side (`apps/dashboard/src/features/widget-data/`): five TanStack Query hooks expose typed results; `evaluateFormula()` provides pure client-side aggregation for cases where data is already in cache. Internal `widget.api.ts` and `query-keys.ts` are not re-exported from `index.ts`.
+  - **Changing a widget's data source = changing one `seed` prop.** No other code changes required.
+
 - **Edge Analytics & Stats**
   - **Request Tracking**: middleware in `apps/api/src/index.ts` captures API hits via `c.executionCtx.waitUntil` (zero-latency). La tabella `analytics` ha una colonna `seed` (stringa vuota = globale, `'articoli'` = per-seed). I widget globali filtrano con `seed = ''`.
   - **Storage Monitoring**: `system_stats` counter incremented on upload, decremented on delete, resyncable via `POST /api/content/stats/storage/sync`. La fonte canonica per la media library è `media_objects` (`SUM(size_bytes)`).
@@ -215,6 +222,12 @@ beech-cms/
   - **Must** use `POST /api/upload` and store only URL strings in `file` fields (`string` for single, `string[]` for `asset-list`).
   - **Must** delegate file deletion to `DELETE /api/content/:slug/:id`.
   - **Must not** upload files directly to R2 from the frontend or store binary blobs in D1.
+
+- **Widget Data Layer**
+  - **Must** use the hooks from `@/features/widget-data` for all widget data access — no direct `api.get('/widget/...')` calls in components.
+  - **Must not** import `widget.api.ts` or `query-keys.ts` from outside `features/widget-data/` — only the public `index.ts` barrel.
+  - **Must** pass API aliases to `AggregateFormula.column` — never internal `br_XX` IDs.
+  - **Must not** add direct D1 queries or content-type-specific aggregation logic in widget components; add a new hook in `features/widget-data/hooks/` instead.
 
 - **Vertical Slice Architecture (dashboard)**
   - **Must** place new feature code in `apps/dashboard/src/features/<feature-name>/` with an `index.ts` public API.

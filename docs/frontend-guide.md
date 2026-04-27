@@ -27,6 +27,14 @@ This document describes the architecture of the React dashboard: how the FieldRe
    - [ContentToolbar Architecture](#71-contenttoolbar-architecture)
    - [How Filters Derive from Seed.branches](#72-how-filters-derive-from-seedbranches)
    - [Gallery & Toolbar Integration](#73-gallery--toolbar-integration)
+8. [Widget Data Layer](#8-widget-data-layer)
+   - [Purpose & Design Goals](#81-purpose--design-goals)
+   - [Feature Slice Structure](#82-feature-slice-structure)
+   - [Types](#83-types)
+   - [React Hooks](#84-react-hooks)
+   - [Client-Side Formula Evaluation](#85-client-side-formula-evaluation)
+   - [Pilot Widgets](#86-pilot-widgets)
+   - [How to Add a New Widget](#87-how-to-add-a-new-widget)
 
 ---
 
@@ -722,3 +730,221 @@ export interface ResolvedCardFields {
   tagsBranch: Branch | null
 }
 ```
+
+---
+
+## 8. Widget Data Layer
+
+### 8.1 Purpose & Design Goals
+
+The Widget Data Layer is a VSA feature slice at `apps/dashboard/src/features/widget-data/` that provides a **single, stable interface** for all dashboard widgets to query content data. It exists to solve four problems:
+
+1. **Botanical Engine complexity is invisible to widgets.** Widget components never deal with `br_XX` IDs — they pass API aliases (e.g. `"price"`, `"created_at"`) and get back resolved values.
+2. **Switching data source = changing one prop.** Every hook accepts a `seed` string. Pointing a widget at a different content type requires changing only that one argument.
+3. **Formula/expression evaluation** for computed metrics (sum, avg, growth delta) is available both server-side (via dedicated API endpoints) and client-side (pure utility, no round-trip when data is already cached).
+4. **Consistent cache behaviour.** Each hook declares its own `staleTime` and `refetchInterval` calibrated to the nature of the data (aggregates: 5 min; leaderboards: 2 min; lists: always fresh).
+
+### 8.2 Feature Slice Structure
+
+```text
+apps/dashboard/src/features/widget-data/
+├── index.ts          ← public barrel (types + hooks + evaluateFormula only)
+├── types.ts          ← all shared TypeScript types
+├── widget.api.ts     ← internal Axios wrappers (NOT re-exported)
+├── query-keys.ts     ← WIDGET_QUERY_KEYS constants (NOT re-exported)
+├── formula.ts        ← evaluateFormula() — pure client-side computation
+└── hooks/
+    ├── use-widget-aggregate.ts
+    ├── use-widget-growth.ts
+    ├── use-widget-leaderboard.ts
+    ├── use-widget-list.ts
+    └── use-widget-timeseries.ts
+```
+
+`widget.api.ts` and `query-keys.ts` are internal implementation details — they are not re-exported from `index.ts` and must not be imported directly by widget components.
+
+### 8.3 Types
+
+All types are imported from `@/features/widget-data`:
+
+```typescript
+// Discriminated union for server-side aggregate expressions
+type AggregateFormula =
+  | { op: 'count' }
+  | { op: 'sum';          column: string }
+  | { op: 'avg';          column: string }
+  | { op: 'min';          column: string }
+  | { op: 'max';          column: string }
+  | { op: 'countWhere';   column: string; value: unknown }
+  | { op: 'percentageOf'; numeratorColumn: string; denominatorColumn: string }
+
+type TimeWindow = 'week' | 'month' | 'year' | 'all'
+type SortDirection = 'asc' | 'desc'
+
+// Entry returned by /list — always alias-resolved, never br_XX keys
+type ResolvedEntry = Record<string, unknown> & {
+  id: string; slug: string; status: string
+  createdAt: number; updatedAt: number
+}
+
+interface GrowthResult {
+  current: number; previous: number
+  percentageChange: number  // positive = growth
+  trend: 'up' | 'down' | 'flat'
+}
+
+interface LeaderboardEntry { id: string; label: string; score: number | string }
+interface AggregateResult  { value: number; window: TimeWindow }
+interface TimeseriesResult { points: Array<{ label: string; value: number }> }
+
+interface ListParams {
+  columns?: string[]; search?: string
+  filters?: Array<{ column: string; op: string; value: unknown }>
+  orderBy?: string; orderDir?: SortDirection
+  limit?: number; offset?: number
+}
+interface ListResult { entries: ResolvedEntry[]; total: number }
+```
+
+`column` values inside `AggregateFormula` and `ListParams` are always **API aliases**, never internal IDs. System columns (`id`, `slug`, `status`, `created_at`, `updated_at`) are accepted directly.
+
+### 8.4 React Hooks
+
+All hooks are imported from `@/features/widget-data` and return `{ data, isLoading, isError, error }`.
+
+| Hook | Signature | `staleTime` | `refetchInterval` |
+|---|---|---|---|
+| `useWidgetAggregate` | `(seed, formula, window?)` | 5 min | — |
+| `useWidgetGrowth` | `(seed, formula, window, windowColumn?)` | 5 min | 5 min |
+| `useWidgetLeaderboard` | `(seed, scoreColumn, options?)` | 2 min | 2 min |
+| `useWidgetList` | `(seed, params)` | 0 (always fresh) | — |
+| `useWidgetTimeseries` | `(seed, valueColumn, groupColumn, window)` | 5 min | — |
+
+**Usage example — `useWidgetGrowth`:**
+
+```typescript
+import { useWidgetGrowth } from "@/features/widget-data"
+
+const { data, isLoading, isError } = useWidgetGrowth(
+  "articoli",
+  { op: "count" },
+  "month"
+)
+// data: { current: 14, previous: 9, percentageChange: 55.6, trend: "up" }
+```
+
+**`useWidgetLeaderboard` options:**
+
+```typescript
+const { data } = useWidgetLeaderboard("prodotti", "price", {
+  limit: 5,
+  orderBy: "desc",   // 'asc' | 'desc'
+  labelAlias: "name" // override for label column (default: seed.displayNameAlias)
+})
+```
+
+**`useWidgetList` with filters:**
+
+```typescript
+const { data } = useWidgetList("articoli", {
+  search: "react",
+  filters: [{ column: "status", op: "eq", value: "published" }],
+  orderBy: "created_at",
+  orderDir: "desc",
+  limit: 10,
+  offset: 0,
+})
+// data: { entries: ResolvedEntry[], total: number }
+```
+
+### 8.5 Client-Side Formula Evaluation
+
+`evaluateFormula(entries, formula)` from `@/features/widget-data` evaluates an `AggregateFormula` purely in the browser against an array of `ResolvedEntry` objects already in cache. Use it to derive metrics from data fetched via `useWidgetList` without an extra round-trip.
+
+```typescript
+import { evaluateFormula } from "@/features/widget-data"
+
+const total = evaluateFormula(entries, { op: "sum", column: "price" })
+const ratio = evaluateFormula(entries, {
+  op: "percentageOf",
+  numeratorColumn: "published_count",
+  denominatorColumn: "total_count",
+})
+```
+
+`column` values must be API aliases present in the `ResolvedEntry` objects. Non-numeric values are coerced to `0` via `parseFloat`.
+
+### 8.6 Pilot Widgets
+
+Three reference widgets ship in `apps/dashboard/src/features/dashboard/components/widgets/`:
+
+| File | Hook used | Key props |
+|---|---|---|
+| `growth-widget.tsx` | `useWidgetGrowth` | `seed`, `formula`, `window`, `title`, `icon?`, `detailPath` |
+| `kpi-widget.tsx` | `useWidgetAggregate` | `seed`, `formula`, `title`, `icon`, `detailPath` |
+| `leaderboard-widget.tsx` | `useWidgetLeaderboard` | `seed`, `scoreColumn`, `title`, `detailPath`, `limit?` |
+
+All three follow the same pattern:
+- **Loading state:** `<Skeleton>` placeholders matching the expected layout shape
+- **Error state:** `<p className="text-sm text-destructive">` inline message — no full-page error
+- **Shell:** `<DashboardWidgetShell>` from `@/features/dashboard` — provides the card chrome, header, and optional `action` slot (used for trend badges and detail links)
+
+**`GrowthWidget` renders:**
+- Large current value (`text-4xl font-bold tabular-nums`)
+- Trend badge in the shell `action` slot: green `TrendingUp` / red `TrendingDown` / neutral `Minus`, showing `+55.6%` / `-12.0%` / `0.0%`
+- "vs periodo precedente: N" below the value
+- "Vedi di più →" link at the bottom
+
+**`LeaderboardWidget` renders:**
+- Rank badges: positions 1–3 use amber-400 (gold), slate-400 (silver), amber-700 (bronze); positions 4+ use a neutral muted badge
+- Score in a `Badge` variant pill on the right of each row
+
+### 8.7 How to Add a New Widget
+
+1. **Choose a hook** from `@/features/widget-data` that matches the data shape you need, or compose `useWidgetList` + `evaluateFormula` for custom aggregations.
+
+2. **Create the widget file** in `apps/dashboard/src/features/dashboard/components/widgets/`:
+
+```typescript
+// my-widget.tsx
+import { DashboardWidgetShell } from "@/features/dashboard"
+import { useWidgetAggregate } from "@/features/widget-data"
+import type { AggregateFormula, TimeWindow } from "@/features/widget-data"
+import { Skeleton } from "@/components/ui/skeleton"
+
+export interface MyWidgetProps {
+  seed: string
+  formula: AggregateFormula
+  window?: TimeWindow
+  title: string
+}
+
+export function MyWidget({ seed, formula, window = "all", title }: MyWidgetProps) {
+  const { data, isLoading, isError } = useWidgetAggregate(seed, formula, window)
+
+  if (isLoading) return (
+    <DashboardWidgetShell title={title}>
+      <Skeleton className="h-10 w-1/2" />
+    </DashboardWidgetShell>
+  )
+  if (isError || !data) return (
+    <DashboardWidgetShell title={title}>
+      <p className="text-sm text-destructive">Errore nel caricamento.</p>
+    </DashboardWidgetShell>
+  )
+
+  return (
+    <DashboardWidgetShell title={title}>
+      <p className="text-4xl font-bold">{data.value.toLocaleString()}</p>
+    </DashboardWidgetShell>
+  )
+}
+```
+
+3. **Register the widget type** in `apps/dashboard/src/features/dashboard/types/widget.types.ts` — add the new type string to the `WidgetType` union.
+
+4. **Add a case** in `apps/dashboard/src/features/dashboard/components/widget-registry.tsx` that maps the new type to the component.
+
+5. **Add an instance** to `DEFAULT_DASHBOARD_CONFIG` in `apps/dashboard/src/features/dashboard/config/dashboard.config.ts` with the desired `span`, `x`, `y`, and `props`.
+
+> **Do not** create custom `fetch` calls inside widget components. All data access must go through the hooks in `@/features/widget-data`. If none of the existing hooks fit, add a new one following the pattern in `hooks/use-widget-aggregate.ts`.

@@ -1,7 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import {
-  getSeed,
   apiToDb,
   dbToApi,
   resolvePolicies,
@@ -21,7 +20,7 @@ rotateFieldApp.post('/:slug/:id/rotate-field', async (c) => {
   const slug = c.req.param('slug')
   const id = c.req.param('id')
 
-  const seed = getSeed(slug)
+  const seed = c.get('getSeed')(slug)
   if (!seed) {
     return publicProblem(c, {
       type: 'content-seed-not-found',
