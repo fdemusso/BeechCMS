@@ -73,6 +73,14 @@ export default defineConfig({
         "src/components/ui/sonner.tsx",
         "src/components/ui/tabs.tsx",
         "src/components/ui/toggle-group.tsx",
+        // Widget system: componenti presentazionali e hook di fetch, nessuna logica testabile isolata.
+        "src/pages/widget-lab.tsx",
+        "src/features/dashboard/components/widgets/**/*",
+        "src/features/dashboard/components/widget-registry.tsx",
+        "src/features/dashboard/components/dashboard-widget-shell.tsx",
+        "src/features/dashboard/components/widget-error-boundary.tsx",
+        "src/features/dashboard/types/widget.types.ts",
+        "src/features/widget-data/**/*",
         // Hook/API non core per questa baseline coverage.
         "src/hooks/use-mobile.ts",
         "src/lib/api.ts",
