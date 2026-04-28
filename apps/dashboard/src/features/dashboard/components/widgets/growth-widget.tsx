@@ -1,7 +1,6 @@
 import type { LucideIcon } from 'lucide-react'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { DashboardWidgetShell } from '@/features/dashboard'
 import { useWidgetGrowth } from '@/features/widget-data'

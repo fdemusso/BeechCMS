@@ -1,4 +1,5 @@
 import { apiToDb, dbToApi, isValidContentStatus, resolvePolicies } from '@beech/core'
+import type { Seed } from '@beech/core'
 import type { Context } from 'hono'
 import { cleanStr, rowToEntry } from '../shared/query-utils'
 import type { ContentEntryRow } from '../shared/query-utils'
@@ -17,6 +18,8 @@ type Bindings = {
 
 type Variables = {
   jwtPayload: { sub: string; email?: string }
+  getSeed: (slug: string) => Seed | null
+  seedRegistry: Record<string, Seed>
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -109,7 +112,7 @@ function resolveStatus(c: PublicCtx, body: Record<string, unknown>, currentStatu
 
 function resolveData(
   c: PublicCtx,
-  seed: NonNullable<ReturnType<typeof getSeed>>,
+  seed: Seed,
   body: Record<string, unknown>,
   currentRow: ContentEntryRow
 ): ResolveResult<string> {

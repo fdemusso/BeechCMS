@@ -13,6 +13,7 @@ const mockToastError = vi.fn()
 vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
   useParams: () => mockUseParams(),
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
 const seedPosts = {

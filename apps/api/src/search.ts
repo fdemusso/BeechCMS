@@ -1,7 +1,7 @@
 // apps/api/src/search.ts
 
 import { Hono }              from "hono"
-import type { Env }          from "./types"        
+import type { Env, Variables } from "./types"
 import { authMiddleware }    from "./middleware"   // middleware JWT
 import {
   buildFtsQuery,
@@ -11,7 +11,7 @@ import {
   type SearchResponse,
 } from "./search-utils"
 
-export const searchRouter = new Hono<{ Bindings: Env }>()
+export const searchRouter = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // Applica auth middleware
 searchRouter.use("*", async (c, next) => {

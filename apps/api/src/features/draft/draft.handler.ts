@@ -1,6 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import { apiToDb, dbToApi, validateAndSanitizeSeedPayload, resolvePolicies } from '@beech/core'
+import type { Seed } from '@beech/core'
 import { publicProblem } from '../../public/problem-details'
 import { logActivity } from '../../shared/activity-logger'
 import { cleanStr, safeParseJson } from '../../shared/query-utils'
@@ -8,7 +9,11 @@ import { applyVisibility } from '../../shared/apply-policies'
 import { syncFts } from '../../shared/fts-sync'
 
 type Bindings = { DB: D1Database }
-type Variables = { jwtPayload: { sub: string; email?: string } }
+type Variables = {
+  jwtPayload: { sub: string; email?: string }
+  getSeed: (slug: string) => Seed | null
+  seedRegistry: Record<string, Seed>
+}
 
 const draftApp = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 

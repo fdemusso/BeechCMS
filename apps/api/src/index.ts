@@ -1,4 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
+import { Hono } from 'hono'
 import type { Context } from 'hono'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import { createBeechApp } from './factory'

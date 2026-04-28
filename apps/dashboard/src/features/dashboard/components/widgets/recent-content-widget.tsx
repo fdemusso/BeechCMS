@@ -16,8 +16,6 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 
 const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
 
-const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
-
 export interface RecentContentWidgetProps {
   seedSlug: string
   variant?: "list" | "cards"

@@ -9,31 +9,38 @@ vi.mock('jose', async (importOriginal) => {
   return { ...actual, jwtVerify: mockJwtVerify }
 })
 
-// --- Seed di test ---
-const DRAFT_SEED: Seed = {
-  slug: 'test-articoli',
-  label: 'Articolo',
-  displayNameAlias: 'title',
-  allowDrafts: true,
-  branches: [
-    { id: 'br_01', alias: 'title', label: 'Titolo', type: 'text', requiredOnCreate: true },
-    { id: 'br_02', alias: 'body', label: 'Corpo', type: 'text' },
-  ],
-}
-
-const NO_DRAFT_SEED: Seed = {
-  slug: 'test-messaggi',
-  label: 'Messaggio',
-  displayNameAlias: 'name',
-  branches: [
-    { id: 'br_01', alias: 'name', label: 'Nome', type: 'text' },
-  ],
-}
+// --- Seed di test (hoisted so they're available inside vi.mock factory) ---
+const { DRAFT_SEED, NO_DRAFT_SEED } = vi.hoisted(() => {
+  const DRAFT_SEED = {
+    slug: 'test-articoli',
+    label: 'Articolo',
+    displayNameAlias: 'title',
+    allowDrafts: true,
+    branches: [
+      { id: 'br_01', alias: 'title', label: 'Titolo', type: 'text', requiredOnCreate: true },
+      { id: 'br_02', alias: 'body', label: 'Corpo', type: 'text' },
+    ],
+  }
+  const NO_DRAFT_SEED = {
+    slug: 'test-messaggi',
+    label: 'Messaggio',
+    displayNameAlias: 'name',
+    branches: [
+      { id: 'br_01', alias: 'name', label: 'Nome', type: 'text' },
+    ],
+  }
+  return { DRAFT_SEED, NO_DRAFT_SEED }
+})
 
 vi.mock('@beech/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@beech/core')>()
   return {
     ...actual,
+    SEED_REGISTRY: {
+      ...actual.SEED_REGISTRY,
+      'test-articoli': DRAFT_SEED,
+      'test-messaggi': NO_DRAFT_SEED,
+    },
     getSeed: (slug: string) => {
       if (slug === 'test-articoli') return DRAFT_SEED
       if (slug === 'test-messaggi') return NO_DRAFT_SEED

@@ -35,7 +35,7 @@ function buildSeedNotFoundMessage(seed: string, seedRegistry: Record<string, See
 /** Applica le policy public e visibility ai campi dell'alias data. */
 function applyPublicPolicies(
   aliasData: Record<string, unknown>,
-  seed: NonNullable<ReturnType<typeof getSeed>>,
+  seed: Seed,
 ): Record<string, unknown> {
   const result: Record<string, unknown> = {}
   for (const [alias, value] of Object.entries(aliasData)) {
@@ -58,7 +58,7 @@ function applyPublicPolicies(
 
 function toFlatPublicEntry(
   row: ContentEntryRow,
-  seed: NonNullable<ReturnType<typeof getSeed>>,
+  seed: Seed,
   fieldsParam?: string
 ): Record<string, unknown> {
   const entry = rowToEntry(row)
@@ -113,7 +113,7 @@ function buildInternalErrorMessage(c: Context<{ Bindings: Bindings; Variables: V
 }
 
 function buildOrderSql(
-  seed: NonNullable<ReturnType<typeof getSeed>>,
+  seed: Seed,
   query: Record<string, string | undefined>,
   hasLatest: boolean
 ): string {

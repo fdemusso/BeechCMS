@@ -9,28 +9,35 @@ vi.mock('jose', async (importOriginal) => {
   return { ...actual, jwtVerify: mockJwtVerify }
 })
 
-// --- Test seed with a privacy:hash field ---
-const HASH_SEED: Seed = {
-  slug: 'test-members',
-  label: 'Member',
-  displayNameAlias: 'name',
-  branches: [
-    { id: 'br_01', alias: 'name', label: 'Name', type: 'text', requiredOnCreate: true },
-    {
-      id: 'br_02',
-      alias: 'password',
-      label: 'Password',
-      type: 'text',
-      policies: { privacy: 'hash' },
-    },
-  ],
-}
+// --- Test seed with a privacy:hash field (hoisted so it's available inside vi.mock factory) ---
+const { HASH_SEED } = vi.hoisted(() => {
+  const HASH_SEED = {
+    slug: 'test-members',
+    label: 'Member',
+    displayNameAlias: 'name',
+    branches: [
+      { id: 'br_01', alias: 'name', label: 'Name', type: 'text', requiredOnCreate: true },
+      {
+        id: 'br_02',
+        alias: 'password',
+        label: 'Password',
+        type: 'text',
+        policies: { privacy: 'hash' },
+      },
+    ],
+  }
+  return { HASH_SEED }
+})
 
-// Override getSeed for the test slug only
+// Override getSeed and SEED_REGISTRY for the test slug only
 vi.mock('@beech/core', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@beech/core')>()
   return {
     ...actual,
+    SEED_REGISTRY: {
+      ...actual.SEED_REGISTRY,
+      'test-members': HASH_SEED,
+    },
     getSeed: (slug: string) => (slug === 'test-members' ? HASH_SEED : actual.getSeed(slug)),
   }
 })

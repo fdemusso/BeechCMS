@@ -70,7 +70,7 @@ export function ContentListPage() {
   const prefilterStatus = searchParams.get("status")
 
   const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>(() => {
-    if (!prefilterStatus) return {}
+    if (!prefilterStatus) return {} as ToolbarFiltersState
     return {
       status: {
         columnId: "status",

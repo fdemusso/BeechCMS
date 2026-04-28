@@ -15,7 +15,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.995.0",
-    "@beech/core": "^0.0.0",
+    "@beech/core": "*",
     "bcryptjs": "^2.4.3",
     "hono": "^4.11.9",
     "jose": "^6.1.3"

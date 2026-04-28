@@ -1,4 +1,5 @@
 import { apiToDb, isValidContentStatus } from '@beech/core'
+import type { Seed } from '@beech/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../shared/query-utils'
 import { checkPublicOperation } from './access-policy'
@@ -17,6 +18,8 @@ type Bindings = {
 
 type Variables = {
   jwtPayload: { sub: string; email?: string }
+  getSeed: (slug: string) => Seed | null
+  seedRegistry: Record<string, Seed>
 }
 
 function errorMessage(c: Context<{ Bindings: Bindings; Variables: Variables }>, err: unknown): string {

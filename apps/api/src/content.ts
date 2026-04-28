@@ -101,6 +101,8 @@ type Bindings = {
 
 type Variables = {
   jwtPayload: { sub: string; email?: string }
+  getSeed: (slug: string) => Seed | null
+  seedRegistry: Record<string, Seed>
 }
 
 
