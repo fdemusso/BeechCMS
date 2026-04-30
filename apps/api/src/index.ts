@@ -29,6 +29,8 @@ import { passwordResetApp } from './features/password-reset'
 import { setupApp } from './features/setup'
 import { draftApp } from './features/draft'
 import { settingsApp } from './features/settings/settings.handler'
+import { notificationsApp } from './features/notifications'
+import { statsApp } from './features/stats'
 import { uploadRoutes, serveMediaHandler } from './upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
 import { searchRouter } from "./search"
@@ -309,6 +311,8 @@ apiContent.use('*', async (c, next) => {
   })(c, next)
 })
 // Specific routes before wildcard content routes to avoid pattern conflicts
+apiContent.route('/', notificationsApp)
+apiContent.route('/', statsApp)
 apiContent.route('/', rotateFieldApp)
 apiContent.route('/', draftApp)
 apiContent.route('/', contentRoutes)

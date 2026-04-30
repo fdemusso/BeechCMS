@@ -18,7 +18,6 @@ export default defineConfig({
         'src/types.ts',
         // Hono route handlers that require a live D1/R2 environment
         'src/widget.ts',
-        'src/search.ts',
         'src/features/settings/settings.handler.ts',
         'src/features/setup/**',
         'src/features/password-reset/request.ts',
