@@ -8,6 +8,8 @@ import {
   Users,
   MessageSquare,
   Layout,
+  UserCircle,
+  Mail,
 } from "lucide-react"
 import { SEED_REGISTRY } from "@beech/core"
 
@@ -34,6 +36,8 @@ export const SLUG_ICON_MAP: Record<string, LucideIcon> = {
   team: Users,
   testimonianze: MessageSquare,
   pagine: Layout,
+  clienti: UserCircle,
+  messaggi: Mail,
 }
 
 /** Menu statico: solo Dashboard e Impostazioni */

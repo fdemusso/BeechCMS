@@ -11,12 +11,12 @@ Every design decision documented here is grounded in the source code and explici
 1. [Monorepo Topology](#1-monorepo-topology)
 2. [Turborepo Build Strategy](#2-turborepo-build-strategy)
 3. [`@beech/core` — The Single Source of Truth](#3-beechcore--the-single-source-of-truth)
-4. [The Botanical Engine](#4-the-botanical-engine)
-5. [The Atomic Data Model](#5-the-atomic-data-model)
+4. [The Botanical Engine — Schema Compiler](#4-the-botanical-engine)
+5. [The Per-Type SQL Model](#5-the-per-type-sql-model)
 6. [Cloudflare D1 — SQLite at the Edge](#6-cloudflare-d1--sqlite-at-the-edge)
 7. [Vertical Slice Architecture — Current State & Migration Path](#7-vertical-slice-architecture--current-state--migration-path)
 8. [Dependency Rules](#8-dependency-rules)
-9. [Pending Draft Workflow](#9-pending-draft-workflow)
+9. [Pending Draft Workflow — Mirror Tables](#9-pending-draft-workflow)
 
 ---
 
@@ -79,7 +79,7 @@ No business logic touching schema, validation, or translation exists in the apps
 // packages/core/src/index.ts
 export * from './types';           // Seed, Branch, DbPayload, ApiPayload
 export * from './seeds';           // SEED_REGISTRY, getSeed
-export * from './engine';          // apiToDb, dbToApi
+export * from './engine';          // generateCreateTable, buildSelectQuery, etc.
 export * from './validation';      // validateAndSanitizeSeedPayload
 export * from './richtext';        // TipTap Envelopes
 export * from './richtext-render'; // TipTap → HTML
@@ -103,7 +103,7 @@ Every `Branch` in a seed can declare an optional `policies` object that controls
 
 **`privacy: 'hash'` write flow:**
 ```
-client sends plaintext  →  API validates (Zod)  →  sha256hex()  →  apiToDb()  →  DB stores hash
+client sends plaintext  →  API validates (Zod)  →  sha256hex()  →  Botanic Engine serializes  →  DB stores hash in real column
 ```
 The plaintext never persists. Sensitive fields cannot be updated via PUT — the handler returns `422` if any non-plain field appears in the patch.
 
@@ -157,52 +157,49 @@ UI consumers (`QuickDraftWidget`, gallery title resolution, content lists) read 
 
 ---
 
-## 4. The Botanical Engine
+## 4. The Botanical Engine — Schema Compiler
 
-The Botanical Engine decouples physical storage (database) from the semantic surface (API) using a two-identity model.
+In v0.4.0, the Botanical Engine evolves from a runtime translator to a **Schema Compiler**. It reads the TypeScript Seed definitions and generates deterministic SQL DDL and queries.
 
-| Identity | Location | Example | Mutability |
-|---|---|---|---|
-| **ID** (internal) | D1 JSON column | `"br01"` | **Immutable** |
-| **Alias** (API) | Seed definition | `"title"` | **Mutable** (Rename freely) |
+### Responsibilities
 
-### Translation Logic
+1. **DDL Generation**: `generateCreateTable(seed)` produces the SQL to create `content_{slug}` tables.
+2. **Migration Generation**: `generateAddColumn(seed, branch)` handles schema evolution.
+3. **Query Building**: `buildSelectQuery(seed, options)` constructs optimized SQL queries using real column names.
+4. **Serialization**: `serializeForDb` and `deserializeFromDb` handle type conversion (e.g., booleans to 0/1, JSON objects to strings).
 
-The engine uses two pure functions in `packages/core/src/engine.ts`:
+### Removal of Internal IDs
 
-1. **`apiToDb`**: Maps aliases to IDs. Unknown fields are discarded (fail-closed).
-2. **`dbToApi`**: Maps IDs back to aliases. Normalizes legacy asset formats.
-
-### Data Flow Diagram
-
-[![Botanical Engine Data Flow](https://mermaid.ink/img/pako:eNqdk29vmzAQxr_K6d40kWiDSQKpX1TKAlsrtU1VWF9MSJMDXmIV7Mwx2zrEd58JSSol6v4hIfCdn9-dH9s1ZirnSHHDv1ZcZjwUbKlZmUqwz5ppIzKxZtLArBBcmtP49OEGetdKqv5p7p0yTIqMFRDJpZD8dEZIUtlFO_751dUrkMLDPE5gkClpbG5AN5znUEOKRpiCp0jt7zUvCpUiNB3mVW1Rx_UpsLVIVLjotSTHorYgaHa9H88_P2qnLb3QLvlz5ZBQuLmPo8fEfpI57Jbw2b5a8A30cmZYH56mtx-jGHpn9QF84DZn_b0398pwUN-4hpYbG6WtD9-FWYEoy8qwhV3DM3_Z_NbLD9GxlQMq8jd6j6PbaJZA2yW8f5zfHS-gk4Xk_x063Zt8kajpWhz2puX809b81amwus4eCp7rvqlDB5da5EiNrriDJdcla4dYt0SrWfFyp8mZfk4xla3GHupPSpV7mVbVcoX0Cys2dlStrZ_7G3aIai5zrmeqkgbpkEy2EKQ1_kBKvNHFeBwMCZkEwcQP3JGDL0g9Qi4mwejSI94w8F3f9xsHf27rujYxdpDnwp6Su-5ub6948wusUTXN?type=png)](https://mermaid.live/edit#pako:eNqdk29vmzAQxr_K6d40kWiDSQKpX1TKAlsrtU1VWF9MSJMDXmIV7Mwx2zrEd58JSSol6v4hIfCdn9-dH9s1ZirnSHHDv1ZcZjwUbKlZmUqwz5ppIzKxZtLArBBcmtP49OEGetdKqv5p7p0yTIqMFRDJpZD8dEZIUtlFO_751dUrkMLDPE5gkClpbG5AN5znUEOKRpiCp0jt7zUvCpUiNB3mVW1Rx_UpsLVIVLjotSTHorYgaHa9H88_P2qnLb3QLvlz5ZBQuLmPo8fEfpI57Jbw2b5a8A30cmZYH56mtx-jGHpn9QF84DZn_b0398pwUN-4hpYbG6WtD9-FWYEoy8qwhV3DM3_Z_NbLD9GxlQMq8jd6j6PbaJZA2yW8f5zfHS-gk4Xk_x063Zt8kajpWhz2puX809b81amwus4eCp7rvqlDB5da5EiNrriDJdcla4dYt0SrWfFyp8mZfk4xla3GHupPSpV7mVbVcoX0Cys2dlStrZ_7G3aIai5zrmeqkgbpkEy2EKQ1_kBKvNHFeBwMCZkEwcQP3JGDL0g9Qi4mwejSI94w8F3f9xsHf27rujYxdpDnwp6Su-5ub6948wusUTXN)
+Internal IDs like `br01` are eliminated. The `alias` defined in the Seed is now used directly as the SQL column name. This simplifies the engine and improves database readability.
 
 ---
 
-## 5. The Atomic Data Model
+## 5. The Per-Type SQL Model
 
-### SQL Schema
+Beech CMS uses a dedicated table for each content type. This ensures maximum performance, native SQL constraints, and reliable mathematical operations.
+
+### SQL Schema (Example: `articoli`)
 
 ```sql
-CREATE TABLE content_entries (
-    id          TEXT PRIMARY KEY,     -- UUID v4
-    schema_slug TEXT NOT NULL,        -- e.g., "progetti"
-    slug        TEXT NOT NULL,        -- URL identifier
-    status      TEXT NOT NULL DEFAULT 'draft',
-    data        TEXT NOT NULL DEFAULT '{}', -- JSON blob (Botanical IDs)
-    created_at  INTEGER DEFAULT (unixepoch()),
-    updated_at  INTEGER DEFAULT (unixepoch())
+CREATE TABLE content_articoli (
+  id          TEXT    NOT NULL PRIMARY KEY, -- UUID v4
+  slug        TEXT    NOT NULL UNIQUE,      -- URL identifier
+  status      TEXT    NOT NULL DEFAULT 'draft'
+                      CHECK (status IN ('draft', 'published', 'archived')),
+  title       TEXT,                         -- Real column from alias
+  body        TEXT,                         -- Real column from alias
+  price       REAL,                         -- Correct SQLite type
+  created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
 );
-
 ```
 
 ### Design Decisions
 
--   **Single Table + JSON**: Eliminates SQL migrations when adding fields.
-
--   **Application-Level Validation**: Handled by Zod in `packages/core`.
-
--   **Top-level Columns**: `status` and `slug` are outside the JSON for high-performance SQL indexing.
+- **Per-Type Tables**: Every Seed generates a `content_{seed.slug}` table.
+- **Native Types**: `number` branches become `REAL`, `boolean` become `INTEGER` (0/1), etc.
+- **No JSON Blobs**: Content data is stored in real columns, enabling B-tree indexing and native SQL filters.
+- **Automatic Indexing**: The engine automatically generates indexes for `status`, `created_at`, and any branch marked for filtering.
 
 
 ---
@@ -276,11 +273,11 @@ Every feature **must** expose a public API. Direct imports of internal feature f
 
 ---
 
-## 9. Pending Draft Workflow
+## 9. Pending Draft Workflow — Mirror Tables
 
 ### Overview
 
-The pending draft system allows editorial content types to maintain a **separate draft** on top of a live (published) entry. The live content in `data` is never touched until the draft is explicitly published.
+The pending draft system allows editorial content types to maintain a **separate draft** on top of a live (published) entry. v0.4.0 uses a mirror table strategy instead of a JSON column.
 
 This feature is opt-in per seed via the `allowDrafts` flag in `@beech/core`:
 
@@ -288,34 +285,35 @@ This feature is opt-in per seed via the `allowDrafts` flag in `@beech/core`:
 // packages/core/src/seeds.ts
 export const ARTICOLO_SEED: Seed = {
   slug: 'articoli',
-  allowDrafts: true,  // ← enables draft endpoints for this type
+  allowDrafts: true,  // ← enables draft tables for this type
   // ...
 }
 ```
 
-Seeds without `allowDrafts: true` (e.g. `messaggi`, `clienti`) return `405 Method Not Allowed` on draft endpoints — they have no concept of editorial workflow.
-
 ### Storage
 
-A single nullable column `draft_data TEXT` sits alongside `data` in `content_entries` (migration `0018_draft_data.sql`). It stores the same JSON-with-Botanical-IDs format as `data`.
+A separate table `content_{slug}_drafts` is created for each Seed with `allowDrafts: true`. It contains the same columns as the main table (mapped from branches) plus an `entry_id` foreign key.
 
+```sql
+CREATE TABLE content_articoli_drafts (
+  entry_id    TEXT NOT NULL PRIMARY KEY REFERENCES content_articoli(id) ON DELETE CASCADE,
+  title       TEXT,
+  body        TEXT,
+  ...
+  updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+);
 ```
-draft_data IS NULL     → no pending draft
-draft_data IS NOT NULL → pending draft exists
-```
-
-The `CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft` expression is projected in all list and detail SELECT queries so that `ContentEntry.hasPendingDraft` is always populated without transferring the full draft JSON in list views.
 
 ### API Surface
 
-All draft endpoints are JWT-protected (internal API only — no public API exposure).
+All draft endpoints are JWT-protected (internal API only).
 
 | Method | Path | Description |
 |---|---|---|
-| `PUT` | `/api/content/:slug/:id/draft` | Create or overwrite the pending draft. Validates fields (relaxed: `enforceRequiredFields: false`). Blocks sensitive fields (`privacy !== 'plain'`). Botanical Engine applied on write. |
-| `GET` | `/api/content/:slug/:id/draft` | Read the pending draft. Returns `{ data: Record<string, unknown> }` with aliases (Botanical Engine applied on read). Visibility policy enforced. |
-| `POST` | `/api/content/:slug/:id/draft/publish` | Promote draft → live in a single atomic SQL statement (`SET data = draft_data, draft_data = NULL, status = 'published'`). |
-| `DELETE` | `/api/content/:slug/:id/draft` | Discard the pending draft (`SET draft_data = NULL`). Live content is unaffected. |
+| `PUT` | `/api/content/:slug/:id/draft` | Writes to the `content_{slug}_drafts` table. Relaxed validation. |
+| `GET` | `/api/content/:slug/:id/draft` | Reads from the mirror table. |
+| `POST` | `/api/content/:slug/:id/draft/publish` | Atomic promotion: `INSERT INTO content_{slug} ... SELECT ... FROM content_{slug}_drafts`. |
+| `DELETE` | `/api/content/:slug/:id/draft` | Discards the draft row. |
 
 ### Data Flow
 
@@ -325,33 +323,22 @@ Editor saves changes
        ▼
 PUT /:slug/:id/draft
   validateAndSanitizeSeedPayload (operation=update, enforceRequired=false)
-  apiToDb → draft_data column (data column untouched)
+  INSERT INTO content_{slug}_drafts (SQL columns)
        │
        ▼ (review / approval)
 POST /:slug/:id/draft/publish
-  UPDATE SET data = draft_data, draft_data = NULL, status = 'published'  ← atomic
+  INSERT INTO content_{slug} (...) SELECT ... FROM content_{slug}_drafts  ← atomic
        │
        ▼
-Live content updated, draft cleared
+Live content updated, draft row deleted
 ```
 
 ### Invariants
 
-- **`data` is never modified by draft endpoints.** Only `PUT /draft/publish` touches `data`.
-- **Botanical Engine applies identically to `draft_data`.** `apiToDb` on write, `dbToApi` on read — same as regular content.
-- **Sensitive fields (`privacy: 'hash'`) are blocked from drafts** — same guard as `PUT /:slug/:id`.
-- **`hasPendingDraft` in GET responses** is computed server-side via SQL expression, not by transferring `draft_data` in list queries.
-
-### Implementation Files
-
-| File | Role |
-|---|---|
-| `apps/api/migrations/0018_draft_data.sql` | Adds `draft_data TEXT` column |
-| `apps/api/src/features/draft/draft.handler.ts` | VSA slice with 4 route handlers |
-| `apps/api/src/features/draft/draft.test.ts` | Unit tests (20 cases) |
-| `apps/api/src/shared/apply-policies.ts` | Shared `applyPrivacy` / `applyVisibility` (extracted from `content.ts` for reuse) |
-| `packages/core/src/types.ts` | `Seed.allowDrafts?: boolean` |
-| `packages/core/src/seeds.ts` | `allowDrafts: true` on `articoli`, `pagine` |
+- **`content_{slug}` is never modified by draft endpoints.** Only `POST /draft/publish` performs the write.
+- **Botanical Engine generates optimized DDL and DML for both tables.**
+- **Sensitive fields (`privacy: 'hash'`) are blocked from drafts.**
+- **`hasPendingDraft` in GET responses** is computed server-side via `EXISTS` check on the mirror table.
 
 ---
 
@@ -359,43 +346,30 @@ Live content updated, draft cleared
 
 ## 10. Performance Layer
 
-### FTS5 — Application-Layer Sync
+### FTS5 — SQL Triggers
 
-La sincronizzazione della virtual table `content_fts` era originariamente gestita da tre trigger SQL (`fts_after_insert`, `fts_after_update`, `fts_after_delete`) che hardcodavano i branch ID degli attuali seed di esempio (`art_01`, `prd_01`, …). Questi trigger rompevano silenziosamente l'indicizzazione per qualsiasi seed con ID diversi.
+In v0.4.0, full-text search is managed entirely within the database using SQLite's FTS5 engine and triggers. This replaces the complex application-layer synchronization used in previous versions.
 
-I trigger sono stati rimossi (migration `0019`). La sincronizzazione avviene ora a livello applicativo in `apps/api/src/shared/fts-sync.ts`:
+### Sincronizzazione automatica
 
-```typescript
-// Usato da content.ts (create/update/delete) e draft.handler.ts (publish)
-import { syncFts, deleteFts } from './shared/fts-sync'
-
-syncFts(db, entryId, schemaSlug, seed, dbPayload, status)
-  .catch(err => console.warn('[FTS] sync failed:', err))
-```
-
-`syncFts` usa il Botanical Engine (`dbToApi`) e le policy del seed (`resolvePolicies`) per estrarre i campi da indicizzare in modo generico — funziona per qualsiasi seed definito dal developer. L'estrazione è:
-
-| Slot FTS | Logica di risoluzione |
-|---|---|
-| `title` | `apiData[seed.displayNameAlias]` |
-| `body` | Primo branch `richtext` o `text` diverso dal `displayNameAlias`; testo estratto ricorsivamente dal JSON TipTap |
-| `tags` | Primo branch `json` il cui alias contiene `"tag"` |
-
-Le chiamate a `syncFts`/`deleteFts` sono fire-and-forget (`.catch()` silenzioso): un fallimento FTS non blocca mai l'operazione principale.
-
-### Indici Compositi su `content_entries` (migration `0020`)
-
-Il pattern di query più frequente — `WHERE schema_slug = ? AND status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?` — era coperto solo da un indice su `schema_slug`. Tre indici compositi ottimizzano i casi principali:
+Il Botanical Engine genera i trigger SQL necessari per mantenere la tabella virtuale `fts_{slug}` sincronizzata:
 
 ```sql
--- Lista filtrata per status + ordinamento
-CREATE INDEX idx_ce_slug_status_created ON content_entries(schema_slug, status, created_at DESC);
+CREATE TRIGGER fts_articoli_insert AFTER INSERT ON content_articoli BEGIN
+  INSERT INTO fts_articoli(entry_id, body) VALUES (new.id, new.body);
+END;
+```
 
--- Widget "modificati di recente"
-CREATE INDEX idx_ce_slug_updated ON content_entries(schema_slug, updated_at DESC);
+**Limitazione:** Solo il campo `body` (di tipo `richtext`) viene indicizzato nella FTS5. Altri campi usano indici B-tree standard sulle colonne reali.
 
--- Filtro bozze pendenti (partial index)
-CREATE INDEX idx_ce_draft_pending ON content_entries(schema_slug) WHERE draft_data IS NOT NULL;
+### Indici su colonne reali
+
+Le query di filtraggio e ordinamento sono ora estremamente veloci perché operano su colonne SQL reali con indici dedicati:
+
+```sql
+CREATE INDEX idx_content_articoli_status ON content_articoli(status);
+CREATE INDEX idx_content_articoli_created_at ON content_articoli(created_at DESC);
+CREATE INDEX idx_content_articoli_title ON content_articoli(title);
 ```
 
 ### Media Library — Tabella `media_objects` (migration `0021`)

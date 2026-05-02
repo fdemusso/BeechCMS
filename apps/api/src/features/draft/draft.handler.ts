@@ -1,12 +1,11 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { apiToDb, dbToApi, validateAndSanitizeSeedPayload, resolvePolicies } from '@beech/core'
+import { validateAndSanitizeSeedPayload, resolvePolicies, serializeForDb, deserializeFromDb } from '@beech/core'
 import type { Seed } from '@beech/core'
 import { publicProblem } from '../../public/problem-details'
 import { logActivity } from '../../shared/activity-logger'
-import { cleanStr, safeParseJson } from '../../shared/query-utils'
+import { cleanStr } from '../../shared/query-utils'
 import { applyVisibility } from '../../shared/apply-policies'
-import { syncFts } from '../../shared/fts-sync'
 
 type Bindings = { DB: D1Database }
 type Variables = {
@@ -23,22 +22,18 @@ function normalizeBody(raw: unknown): Record<string, unknown> {
 
 function draftNotAllowed(c: Parameters<typeof publicProblem>[0]) {
   return publicProblem(c, {
-    type: 'draft-not-allowed',
-    title: 'Method Not Allowed',
-    status: 405,
+    type: 'draft-not-allowed', title: 'Method Not Allowed', status: 405,
     detail: 'This content type does not support pending drafts. Set allowDrafts: true on the Seed to enable.',
   })
 }
 
-// PUT /:slug/:id/draft — crea o sovrascrive la bozza pendente
+// PUT /:slug/:id/draft — crea o sovrascrive la bozza in content_{slug}_drafts
 draftApp.put('/:slug/:id/draft', async (c) => {
   const slug = c.req.param('slug')
   const id = c.req.param('id')
 
   const seed = c.get('getSeed')(slug)
-  if (!seed) {
-    return publicProblem(c, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: 'Seed not found' })
-  }
+  if (!seed) return publicProblem(c, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: 'Seed not found' })
   if (!seed.allowDrafts) return draftNotAllowed(c)
 
   let body: Record<string, unknown>
@@ -49,65 +44,50 @@ draftApp.put('/:slug/:id/draft', async (c) => {
   }
 
   const { DB } = c.env
-  const existing = await DB.prepare(
-    'SELECT id FROM content_entries WHERE schema_slug = ? AND id = ?'
-  ).bind(slug, id).first<{ id: string }>()
+  const existing = await DB.prepare(`SELECT id FROM content_${slug} WHERE id = ?`).bind(id).first<{ id: string }>()
+  if (!existing) return publicProblem(c, { type: 'content-not-found', title: 'Not Found', status: 404, detail: 'Not found' })
 
-  if (!existing) {
-    return publicProblem(c, { type: 'content-not-found', title: 'Not Found', status: 404, detail: 'Not found' })
-  }
-
-  // I campi sensibili (privacy !== 'plain') non sono modificabili neanche in bozza
   const sensitiveAliases = Object.keys(body).filter((alias) => {
     const branch = seed.branches.find((b) => b.alias === alias)
     return branch != null && resolvePolicies(branch).privacy !== 'plain'
   })
   if (sensitiveAliases.length > 0) {
-    return publicProblem(c, {
-      type: 'content-sensitive-field-edit',
-      title: 'Unprocessable Entity',
-      status: 422,
-      detail: `Cannot draft sensitive fields: ${sensitiveAliases.join(', ')}`,
-    })
+    return publicProblem(c, { type: 'content-sensitive-field-edit', title: 'Unprocessable Entity', status: 422, detail: `Cannot draft sensitive fields: ${sensitiveAliases.join(', ')}` })
   }
 
   const validation = validateAndSanitizeSeedPayload(seed, body, {
-    operation: 'update',
-    allowNull: true,
-    requireAtLeastOneValidField: true,
-    enforceRequiredFields: false,
+    operation: 'update', allowNull: true, requireAtLeastOneValidField: true, enforceRequiredFields: false,
   })
   if (validation.dangerousFields.length > 0) {
-    return publicProblem(c, {
-      type: 'content-dangerous-content',
-      title: 'Unprocessable Entity',
-      status: 422,
-      detail: `Dangerous markup in field '${validation.dangerousFields[0]}'`,
-    })
+    return publicProblem(c, { type: 'content-dangerous-content', title: 'Unprocessable Entity', status: 422, detail: `Dangerous markup in field '${validation.dangerousFields[0]}'` })
   }
   if (validation.details.length > 0) {
-    return publicProblem(c, {
-      type: 'content-validation-failed',
-      title: 'Bad Request',
-      status: 400,
-      detail: 'Validation failed',
-      errors: validation.details,
-    })
+    return publicProblem(c, { type: 'content-validation-failed', title: 'Bad Request', status: 400, detail: 'Validation failed', errors: validation.details })
   }
 
-  const dbPayload = apiToDb(seed, validation.data)
-  const draftStr = JSON.stringify(dbPayload)
-  const now = Math.floor(Date.now() / 1000)
+  // UPSERT in content_{slug}_drafts — solo colonne branch, nullable
+  const draftTable = `content_${slug}_drafts`
+  const cols: string[] = []
+  const placeholders: string[] = []
+  const bindings: (string | number | null)[] = []
+  for (const branch of seed.branches) {
+    if (Object.hasOwn(validation.data, branch.alias)) {
+      cols.push(branch.alias)
+      placeholders.push('?')
+      bindings.push(serializeForDb(branch, validation.data[branch.alias]))
+    }
+  }
 
+  const now = Math.floor(Date.now() / 1000)
+  const updateSet = cols.map((c) => `${c} = excluded.${c}`).join(', ')
   await DB.prepare(
-    'UPDATE content_entries SET draft_data = ?, updated_at = ? WHERE schema_slug = ? AND id = ?'
-  ).bind(draftStr, now, slug, id).run()
+    `INSERT INTO ${draftTable} (entry_id, ${cols.join(', ')}, updated_at)
+     VALUES (?, ${placeholders.join(', ')}, ?)
+     ON CONFLICT(entry_id) DO UPDATE SET ${updateSet}, updated_at = excluded.updated_at`
+  ).bind(id, ...bindings, now).run()
 
   logActivity(c, {
-    action: 'update',
-    entityType: 'content',
-    entityId: id,
-    entitySlug: slug,
+    action: 'update', entityType: 'content', entityId: id, entitySlug: slug,
     details: { title: cleanStr(validation.data[seed.displayNameAlias]) ?? id, note: 'draft saved' },
   })
 
@@ -120,68 +100,78 @@ draftApp.get('/:slug/:id/draft', async (c) => {
   const id = c.req.param('id')
 
   const seed = c.get('getSeed')(slug)
-  if (!seed) {
-    return publicProblem(c, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: 'Seed not found' })
-  }
+  if (!seed) return publicProblem(c, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: 'Seed not found' })
   if (!seed.allowDrafts) return draftNotAllowed(c)
 
   const { DB } = c.env
-  const row = await DB.prepare(
-    'SELECT draft_data FROM content_entries WHERE schema_slug = ? AND id = ?'
-  ).bind(slug, id).first<{ draft_data: string | null }>()
+  const row = await DB.prepare(`SELECT * FROM content_${slug}_drafts WHERE entry_id = ?`)
+    .bind(id)
+    .first<Record<string, unknown>>()
 
   if (!row) {
-    return publicProblem(c, { type: 'content-not-found', title: 'Not Found', status: 404, detail: 'Not found' })
-  }
-  if (!row.draft_data) {
+    // Verifica se entry esiste
+    const entry = await DB.prepare(`SELECT id FROM content_${slug} WHERE id = ?`).bind(id).first()
+    if (!entry) return publicProblem(c, { type: 'content-not-found', title: 'Not Found', status: 404, detail: 'Not found' })
     return publicProblem(c, { type: 'draft-not-found', title: 'Not Found', status: 404, detail: 'No pending draft for this entry' })
   }
 
-  const rawData = safeParseJson(row.draft_data)
-  return c.json({ data: applyVisibility(dbToApi(seed, rawData), seed) })
+  // Deserializza colonne branch reali
+  const data: Record<string, unknown> = {}
+  for (const branch of seed.branches) {
+    if (Object.hasOwn(row, branch.alias)) {
+      data[branch.alias] = deserializeFromDb(branch, row[branch.alias] ?? null)
+    }
+  }
+
+  return c.json({ data: applyVisibility(data, seed) })
 })
 
-// POST /:slug/:id/draft/publish — promuove draft_data → data e imposta status=published
+// POST /:slug/:id/draft/publish — promuove bozza → live atomicamente
 draftApp.post('/:slug/:id/draft/publish', async (c) => {
   const slug = c.req.param('slug')
   const id = c.req.param('id')
 
   const seed = c.get('getSeed')(slug)
-  if (!seed) {
-    return publicProblem(c, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: 'Seed not found' })
-  }
+  if (!seed) return publicProblem(c, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: 'Seed not found' })
   if (!seed.allowDrafts) return draftNotAllowed(c)
 
   const { DB } = c.env
-  const row = await DB.prepare(
-    'SELECT draft_data FROM content_entries WHERE schema_slug = ? AND id = ?'
-  ).bind(slug, id).first<{ draft_data: string | null }>()
+  const draftRow = await DB.prepare(`SELECT * FROM content_${slug}_drafts WHERE entry_id = ?`)
+    .bind(id)
+    .first<Record<string, unknown>>()
 
-  if (!row) {
-    return publicProblem(c, { type: 'content-not-found', title: 'Not Found', status: 404, detail: 'Not found' })
-  }
-  if (!row.draft_data) {
+  if (!draftRow) {
+    const entry = await DB.prepare(`SELECT id FROM content_${slug} WHERE id = ?`).bind(id).first()
+    if (!entry) return publicProblem(c, { type: 'content-not-found', title: 'Not Found', status: 404, detail: 'Not found' })
     return publicProblem(c, { type: 'draft-not-found', title: 'Not Found', status: 404, detail: 'No pending draft to publish' })
   }
 
+  // Costruisce SET clause dal draft per UPDATE atomico
   const now = Math.floor(Date.now() / 1000)
-  // Copia draft_data → data in un'unica istruzione SQL atomica
-  await DB.prepare(
-    'UPDATE content_entries SET data = draft_data, draft_data = NULL, status = ?, updated_at = ? WHERE schema_slug = ? AND id = ?'
-  ).bind('published', now, slug, id).run()
+  const setParts: string[] = ['status = ?', 'updated_at = ?']
+  const setBindings: (string | number | null)[] = ['published', now]
 
-  const publishedDbData = safeParseJson(row.draft_data)
-  syncFts(DB, id, slug, seed, publishedDbData, 'published').catch((err) => {
-    console.warn('[FTS] sync failed after draft publish:', err)
-  })
+  for (const branch of seed.branches) {
+    if (Object.hasOwn(draftRow, branch.alias) && draftRow[branch.alias] !== null) {
+      setParts.push(`${branch.alias} = ?`)
+      setBindings.push(draftRow[branch.alias] as string | number | null)
+    }
+  }
 
-  const draftAlias = dbToApi(seed, publishedDbData)
+  await DB.batch([
+    DB.prepare(`UPDATE content_${slug} SET ${setParts.join(', ')} WHERE id = ?`)
+      .bind(...setBindings, id),
+    DB.prepare(`DELETE FROM content_${slug}_drafts WHERE entry_id = ?`)
+      .bind(id),
+  ])
+
+  // Deserializza per activity log
+  const displayValue = draftRow[seed.displayNameAlias]
+  const displayStr = typeof displayValue === 'string' ? displayValue : id
+
   logActivity(c, {
-    action: 'update',
-    entityType: 'content',
-    entityId: id,
-    entitySlug: slug,
-    details: { title: cleanStr(draftAlias[seed.displayNameAlias]) ?? id, note: 'draft published' },
+    action: 'update', entityType: 'content', entityId: id, entitySlug: slug,
+    details: { title: displayStr, note: 'draft published' },
   })
 
   return c.json({ success: true })
@@ -193,24 +183,14 @@ draftApp.delete('/:slug/:id/draft', async (c) => {
   const id = c.req.param('id')
 
   const seed = c.get('getSeed')(slug)
-  if (!seed) {
-    return publicProblem(c, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: 'Seed not found' })
-  }
+  if (!seed) return publicProblem(c, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: 'Seed not found' })
   if (!seed.allowDrafts) return draftNotAllowed(c)
 
   const { DB } = c.env
-  const existing = await DB.prepare(
-    'SELECT id FROM content_entries WHERE schema_slug = ? AND id = ?'
-  ).bind(slug, id).first<{ id: string }>()
+  const existing = await DB.prepare(`SELECT id FROM content_${slug} WHERE id = ?`).bind(id).first<{ id: string }>()
+  if (!existing) return publicProblem(c, { type: 'content-not-found', title: 'Not Found', status: 404, detail: 'Not found' })
 
-  if (!existing) {
-    return publicProblem(c, { type: 'content-not-found', title: 'Not Found', status: 404, detail: 'Not found' })
-  }
-
-  const now = Math.floor(Date.now() / 1000)
-  await DB.prepare(
-    'UPDATE content_entries SET draft_data = NULL, updated_at = ? WHERE schema_slug = ? AND id = ?'
-  ).bind(now, slug, id).run()
+  await DB.prepare(`DELETE FROM content_${slug}_drafts WHERE entry_id = ?`).bind(id).run()
 
   return c.json({ success: true })
 })

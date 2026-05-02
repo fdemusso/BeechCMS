@@ -133,7 +133,7 @@ export function GalleryPeekPanel({
               </p>
             )}
             {otherMainBranches.map((branch, index) => (
-              <React.Fragment key={branch.id}>
+              <React.Fragment key={branch.alias}>
                 <FieldBlock branch={branch} entry={entry} />
                 {index < otherMainBranches.length - 1 && <Separator />}
               </React.Fragment>
@@ -157,7 +157,7 @@ export function GalleryPeekPanel({
           </div>
           <div className="space-y-5 px-4 py-4">
             {seoBranches.map((branch, index) => (
-              <React.Fragment key={branch.id}>
+              <React.Fragment key={branch.alias}>
                 <FieldBlock branch={branch} entry={entry} />
                 {index < seoBranches.length - 1 && <Separator />}
               </React.Fragment>

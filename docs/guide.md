@@ -126,10 +126,10 @@ export const posts = defineSeed({
   allowPublicRead: true,     // expose via the unauthenticated Public API
   allowDrafts: true,         // enable pending-draft workflow
   branches: [
-    { id: 'pst_01', alias: 'title',       label: 'Title',       type: 'text',     requiredOnCreate: true },
-    { id: 'pst_02', alias: 'publishedAt', label: 'Published at', type: 'date' },
-    { id: 'pst_03', alias: 'coverImage',  label: 'Cover image', type: 'file' },
-    { id: 'pst_04', alias: 'body',        label: 'Body',        type: 'richtext' },
+    { alias: 'title',       label: 'Title',       type: 'text',     requiredOnCreate: true },
+    { alias: 'publishedAt', label: 'Published at', type: 'date' },
+    { alias: 'coverImage',  label: 'Cover image', type: 'file' },
+    { alias: 'body',        label: 'Body',        type: 'richtext' },
   ],
 })
 
@@ -137,10 +137,10 @@ export const posts = defineSeed({
 export const seeds = [posts]
 ```
 
-**Branch `id` rules:**
-- Must be unique across the entire `seeds.ts` file.
-- Use a short prefix per content type to avoid collisions (`pst_`, `gal_`, `msg_`, …).
-- **Never rename an `id` after the first deploy.** The `id` is the immutable database key. The `alias` is safe to rename at any time without a migration.
+**Branch `alias` rules:**
+- Must be unique within the Seed.
+- Re-naming an alias after the first deploy requires a SQL migration (`ALTER TABLE RENAME COLUMN`).
+- The `alias` is used as the SQL column name in `content_{slug}`.
 
 ### 4.2 Branch types
 
@@ -160,7 +160,6 @@ Policies control visibility and access per field. All fields default to fully pu
 
 ```typescript
 {
-  id: 'msg_02',
   alias: 'email',
   label: 'Email',
   type: 'text',
@@ -180,16 +179,22 @@ Policies control visibility and access per field. All fields default to fully pu
 | `filter` | `boolean` | `true` | `false` hides the field from dashboard filter options |
 | `sort` | `boolean` | `true` | `false` prevents sorting by this field |
 
-After editing `seeds.ts`, no build step is needed — Wrangler picks up the change automatically on the next dev server restart or deploy.
+After editing `seeds.ts`, Wrangler picks up the code changes automatically. However, **you must synchronize the database schema** if you added or changed fields. 
+
+Run the following command to apply schema changes to your D1 database:
+
+```bash
+npx beech seed:load --local
+```
 
 ---
 
 ## 5. Running Locally
 
 ```bash
-npm install              # install dependencies (first time only)
-npm run db:migrate:local # apply D1 migrations (first time only)
-npx wrangler dev         # start the Worker on http://localhost:8789
+npm install         # install dependencies (first time only)
+npx beech seed:load # synchronize D1 schema with your seeds.ts
+npx wrangler dev    # start the Worker on http://localhost:8789
 ```
 
 Open `http://localhost:8789/dashboard` — the setup wizard will appear on first launch to create your admin account.
@@ -344,10 +349,12 @@ File uploads are handled by the dashboard. The Public API does not support direc
 |---|---|
 | `npx beech-cms` | Scaffold a new BeechCMS project |
 | `npm install` | Install dependencies |
-| `npm run db:migrate:local` | Apply pending D1 migrations locally |
-| `npm run db:reset:local` | Wipe local DB and re-run all migrations from scratch |
+| `npx beech seed:load` | Synchronize D1 schema with your seeds.ts (targets remote by default) |
+| `npx beech seed:load --local` | Synchronize local D1 schema (for development) |
+| `npx beech seed:load --diff` | Compare Seed definitions with current DB schema |
+| `npx beech seed:load --dry-run` | Print the SQL that would be executed without running it |
 | `npx wrangler dev` | Start the Worker locally on port 8789 |
-| `npm run deploy` | Deploy the Worker to Cloudflare |
+| `npm run deploy` | Deploy the Worker code to Cloudflare |
 
 ---
 
@@ -373,13 +380,19 @@ npx wrangler secret put R2_ENDPOINT
 npx wrangler secret put R2_BUCKET_NAME
 ```
 
-### Step 3 — Deploy
+### Step 3 — Deploy and Synchronize
 
-```bash
-npm run deploy
-```
+1. **Deploy the code:**
+   ```bash
+   npm run deploy
+   ```
+   Wrangler automatically applies any pending **system migrations** (users, auth, media tracking) from `node_modules/@beech/api/migrations`.
 
-Wrangler automatically applies any pending D1 migrations (from `node_modules/@beech/api/migrations`) before deploying the Worker.
+2. **Synchronize the content schema:**
+   ```bash
+   npx beech seed:load
+   ```
+   This command compiles your `seeds.ts` and applies the necessary `CREATE TABLE` and `ALTER TABLE` statements to your **production** D1 database.
 
 ### Step 4 — Deploy the dashboard
 

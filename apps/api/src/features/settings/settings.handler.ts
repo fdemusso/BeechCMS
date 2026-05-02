@@ -179,16 +179,29 @@ settingsApp.get('/storage', async (c) => {
     'SELECT COUNT(*) as file_count, COALESCE(SUM(size_bytes), 0) as total_bytes FROM media_objects'
   ).first<{ file_count: number; total_bytes: number }>()
 
-  const orphans = await c.env.DB.prepare(
-    `SELECT m.key, m.filename, m.mime_type, m.size_bytes, m.created_at
-     FROM media_objects m
-     WHERE NOT EXISTS (
-       SELECT 1 FROM content_entries ce
-       WHERE ce.data LIKE '%' || m.key || '%'
-         OR (ce.draft_data IS NOT NULL AND ce.draft_data LIKE '%' || m.key || '%')
-     )
-     ORDER BY m.created_at DESC LIMIT 50`
+  // Collect all media keys referenced in file-type columns across all seeds
+  const referencedKeys = new Set<string>()
+  const seeds = Object.values(c.get('seedRegistry'))
+  for (const seed of seeds) {
+    const fileBranches = seed.branches.filter(b => b.type === 'file')
+    if (fileBranches.length === 0) continue
+    const cols = fileBranches.map(b => b.alias).join(', ')
+    const rows = await c.env.DB.prepare(
+      `SELECT ${cols} FROM content_${seed.slug}`
+    ).all<Record<string, string | null>>()
+    for (const row of rows.results ?? []) {
+      const combined = Object.values(row).filter(Boolean).join(' ')
+      for (const match of combined.matchAll(/\/api\/media\/([^"'\s\\,}\]]+)/g)) {
+        referencedKeys.add(decodeURIComponent(match[1]))
+      }
+    }
+  }
+
+  const allMediaRows = await c.env.DB.prepare(
+    'SELECT key, filename, mime_type, size_bytes, created_at FROM media_objects ORDER BY created_at DESC LIMIT 50'
   ).all<OrphanRow>()
+  const orphanResults = (allMediaRows.results ?? []).filter(m => !referencedKeys.has(m.key))
+  const orphans = { results: orphanResults }
 
   return c.json({
     totalBytes: stats?.total_bytes ?? 0,

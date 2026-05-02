@@ -1,6 +1,6 @@
-![beecinserisci ihLogoDark.png](docs/images/beechLogoDark.png)
+![beechLogoDark.png](docs/images/beechLogoDark.png)
 
-**BeechCMS** is a headless CMS built for developers who build websites for clients.
+**BeechCMS** is a precision-engineered, solo-developer headless CMS built for developers who deliver high-performance websites for clients with **zero infrastructure overhead**.
 
 The pitch is simple: you build the site, you hand it over, and your client can manage their own content forever — with **zero hosting costs**. No monthly subscriptions, no server bills, no maintenance contract needed just to keep the lights on.
 
@@ -14,13 +14,11 @@ This is possible because BeechCMS runs entirely on **Cloudflare's free tier** �
 
 Cloudflare's free tier covers D1, R2, and Workers for the vast majority of real-world content sites. You deliver a fully self-managed product — dashboard, API, media uploads — and the client pays nothing to keep it running. That's a compelling offer.
 
-### One schema, everything follows
+### Native SQL Performance
+Unlike other "flexible" CMSs that store data in slow JSON blobs, Beech generates **dedicated SQL tables** for every content type. Enjoy native B-Tree indexing, `REAL` and `INTEGER` types for mathematical operations, and ultra-fast queries.
 
-Define your content model once in `seeds.ts`. BeechCMS generates the REST API, the admin dashboard, the validation rules, the public endpoints, and the filter/sort options automatically. No glue code, no drift between layers.
-
-### Rename a field without a migration
-
-The **Botanical Engine** separates human-readable field aliases (`title`, `publishedAt`) from immutable internal IDs (`br_01`, `br_02`). Rename an alias in your seed definition and it propagates instantly — no SQL, no deployment coordination.
+### Schema-as-Code
+Define your content model once in TypeScript. The **Botanical Engine** compiles your definitions into deterministic SQL DDL. Run `beech seed:load` and your database schema is automatically synchronized. No manual migrations, no manual SQL, no schema drift.
 
 ### Works as a dependency, not a boilerplate
 
@@ -40,21 +38,13 @@ The interactive wizard scaffolds a ready-to-use project in seconds. For everythi
 
 ## The Botanical Engine
 
-The Botanical Engine is the translation layer at the heart of BeechCMS. Every field has two identities:
+The heart of BeechCMS is the **Botanical Engine**, a high-performance **Schema Compiler** that bridges the gap between TypeScript definitions and SQL infrastructure.
 
-| Identity | Example | Mutable? |
-|---|---|---|
-| **Branch ID** — immutable DB key | `br_01` | Never |
-| **Alias** — human-readable API name | `title` | Any time |
+Instead of generic document storage, the Engine analyzes your **Seeds** (content types) and compiles them into **dedicated SQL tables** within Cloudflare D1. Every field you define becomes a native, type-safe SQL column, allowing for:
 
-Two pure functions handle all translation:
-
-```typescript
-apiToDb(seed, { title: 'Hello' })   // → { br_01: 'Hello' }
-dbToApi(seed, { br_01: 'Hello' })   // → { title: 'Hello' }
-```
-
-Every read and write passes through these functions. Field aliases are free to evolve; the database never knows they changed.
+- **Native Performance**: Real B-Tree indices and FTS5 virtual tables for ultra-fast filtering and full-text search.
+- **Data Integrity**: Native SQL types (REAL, INTEGER, TEXT) with CHECK constraints for robust data handling.
+- **Zero-Manual SQL**: Deterministic DDL generation—I define the schema in code, and the Engine handles the database synchronization.
 
 ---
 
@@ -108,7 +98,7 @@ That was the moment I understood the real gap. Small agencies and freelancers do
 
 **Why Cloudflare?** I was already looking for an alternative to Vercel that didn't require a paid plan for commercial projects. When I discovered that Cloudflare's free tier included not just Workers but also D1 (a relational database at the edge) and R2 (S3-compatible object storage), the whole architecture became clear. A full CMS backend — API, database, media storage, auth — with zero monthly cost for the client.
 
-**Why the Botanical Engine?** BeechCMS is designed to be used by developers who are not me. They define their own content schemas with their own field names. I needed the internal database layer to be stable regardless of what names a developer chose — or renamed later. The solution was to separate the two concerns completely: every field gets an immutable internal ID (`br_01`, `br_02`) that the database never sees change, and a human-readable alias (`title`, `coverImage`) that the developer controls freely. Renaming a field is a one-line change in `seeds.ts`. The database is never touched.
+**Why the Botanical Engine?** I built the Botanical Engine as a high-performance **Schema Compiler**. It bridges the gap between the flexibility of a CMS and the power of a relational database. Instead of storing data in generic blobs, it compiles TypeScript definitions into native SQL tables and columns. This ensures rigid data integrity (crucial for things like financial records) and unlocks massive performance gains by leveraging native D1 indexing. This true relational model maintains the simplicity of "Schema-as-Code" while allowing for advanced features like cross-seed relations and complex aggregations.
 
 **What I learned building it.** BeechCMS is my first serious serverless project. I had no prior experience with Cloudflare Workers, edge computing, or D1. Everything I know about this stack I learned by building this — reading documentation, hitting limits, understanding why they exist, and finding the right abstractions. The project is currently in active development toward a public 1.0 release and is already available on npm.
 

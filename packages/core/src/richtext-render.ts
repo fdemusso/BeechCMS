@@ -10,7 +10,7 @@ import TextAlign from '@tiptap/extension-text-align'
 import { Mathematics } from '@tiptap/extension-mathematics'
 import StarterKit from '@tiptap/starter-kit'
 
-import { isRichtextEnvelopeV1 } from './richtext'
+import { isRichtextEnvelopeV1 } from './richtext.js'
 
 /**
  * Allinea l'output HTML allo schema TipTap usato dall'editor dashboard.

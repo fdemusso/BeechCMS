@@ -1,30 +1,16 @@
-/**
- * Botanical Engine: tipi per Seed, Branch e payload.
- * Definisce la struttura dati usata dal Translation Layer.
- *
- * @see {@link ./engine} per le funzioni apiToDb e dbToApi
- * @see {@link ./seeds} per SEED_REGISTRY e getSeed
- */
-
-/**
- * Tipi di campo supportati dal Botanical Engine.
- * - file: stringa URL (upload R2), vedi docs/media-engine.md
- */
 export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file'
 
-/** Branch: definizione di una proprietà. id immutabile, alias mutabile. */
+/** Branch: definizione di una proprietà. alias = nome colonna SQL. */
 export interface Branch {
-  /** ID immutabile, usato come chiave nel JSON salvato su D1 (es. br_01, br_x82) */
-  id: string
-  /** Alias mutabile, usato nel payload API (Frontend) */
+  /** Alias human-readable, usato nel payload API e come nome colonna SQL nella tabella dedicata */
   alias: string
-  /** Etichetta per la UI (es. "Titolo Progetto") */
+  /** Etichetta per la UI */
   label: string
   /** Tipo del valore */
   type: BranchType
   /**
    * Variante semantica opzionale del campo per UI/validazione.
-   * Esempio: `asset-list` su `file` multiplo.
+   * `asset-list` su `file` multiplo abilita la gestione galleria.
    */
   format?: 'plain' | 'markdown' | 'html' | 'date' | 'datetime' | 'asset-list'
   /**
@@ -35,20 +21,12 @@ export interface Branch {
   multiple?: boolean
   /**
    * Vocabolario predefinito per campi tag/select/multiselect.
-   * Lista statica definita nel Seed (non salvata nel DB, non richiede migrazioni).
-   * Usata come suggerimenti in fase di creazione (FieldEdit) e come opzioni
-   * nel dropdown dei filtri in ContentToolbar.
+   * Lista statica definita nel Seed (non salvata nel DB).
    */
   options?: string[]
-  /**
-   * Campo obbligatorio in creazione (operation=create).
-   * Se true, il payload deve includere un valore valido non nullo.
-   */
+  /** Campo obbligatorio in creazione — genera NOT NULL in generateCreateTable */
   requiredOnCreate?: boolean
-  /**
-   * Campo obbligatorio in update (operation=update).
-   * Se true, il payload deve includere un valore valido non nullo.
-   */
+  /** Campo obbligatorio in update */
   requiredOnUpdate?: boolean
   /**
    * Policy di accesso e trattamento del campo.
@@ -72,11 +50,11 @@ export interface Branch {
 
 /** Seed: definizione dello schema di un tipo di contenuto */
 export interface Seed {
-  /** Slug identificativo (es. 'progetti', 'blog') */
+  /** Slug identificativo — anche nome tabella: `content_{slug}` */
   slug: string
-  /** Etichetta singolare per la UI (es. "Progetto", "Articolo Blog") */
+  /** Etichetta singolare per la UI */
   label: string
-  /** Etichetta plurale per la UI (es. "Progetti", "Articoli Blog"). Se assente si usa `label`. */
+  /** Etichetta plurale per la UI. Se assente si usa `label`. */
   labelPlural?: string
   /** Abilita lettura dalla Public API (`GET /api/v1/public/:seed`). Default: false */
   allowPublicRead?: boolean
@@ -86,31 +64,58 @@ export interface Seed {
   allowPublicEdit?: boolean
   /**
    * Abilita la feature "bozza in attesa" per questo seed.
-   * Quando true, le entry supportano un draft pendente separato dal contenuto live:
-   * - `PUT  /api/content/:slug/:id/draft`         → salva bozza in draft_data
-   * - `GET  /api/content/:slug/:id/draft`          → legge la bozza
-   * - `POST /api/content/:slug/:id/draft/publish`  → promuove bozza → live
-   * - `DELETE /api/content/:slug/:id/draft`        → scarta la bozza
-   * Il contenuto live in `data` rimane intatto finché la bozza non viene pubblicata.
+   * Quando true, genera tabella `content_{slug}_drafts` e abilita gli endpoint `/draft`.
    * Default: false
    */
   allowDrafts?: boolean
   /**
    * Alias del branch usato come nome leggibile dell'entry (es. "title", "name", "author").
-   * **Obbligatorio.** Ogni seed deve dichiarare esplicitamente quale branch identifica
-   * l'entry in forma umana — senza questa informazione, le UI (QuickDraftWidget, gallery,
-   * titoli nelle liste) non hanno un riferimento affidabile al "nome" dell'elemento.
+   * Obbligatorio — le UI lo usano per display senza euristica.
    */
   displayNameAlias: string
   /** Lista dei campi (Branch) */
   branches: Branch[]
 }
 
-/** Payload salvato nel DB: chiavi = ID interni (br_xxx) */
-export type DbPayload = Record<string, unknown>
+// ---- Query types (usati da buildSelectQuery nel Botanical Engine) ----
 
-/** Payload esposto alle API: chiavi = alias */
-export type ApiPayload = Record<string, unknown>
+export type FilterOperator =
+  | 'eq'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'contains'
+  | 'is_empty'
+  | 'is_not_empty'
 
-/** Alias per il body della richiesta API */
-export type ContentPayload = ApiPayload
+export type FilterType = 'text' | 'number' | 'date' | 'boolean' | 'tags' | 'select' | 'system'
+
+export interface FilterCondition {
+  op: FilterOperator
+  value: string | number | boolean | null
+}
+
+export interface FilterGroup {
+  /** Nome colonna: system column (id/slug/status/created_at/updated_at) o branch alias */
+  column: string
+  type: FilterType
+  conditions: FilterCondition[]
+}
+
+export interface SelectOptions {
+  filters?: FilterGroup[]
+  orderBy?: { column: string; dir: 'ASC' | 'DESC' }
+  pagination?: { limit: number; offset: number }
+  /** Filtra per status. null = nessun filtro status. */
+  status?: string | null
+  /** Full-text search — usa FTS5 se il seed ha branch richtext indicizzabili */
+  search?: string
+  /** Proiezione colonne. Vuoto = SELECT * */
+  fields?: string[]
+}
+
+export interface ParameterizedQuery {
+  sql: string
+  bindings: (string | number | boolean | null)[]
+}

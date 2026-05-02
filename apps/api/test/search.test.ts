@@ -14,48 +14,37 @@ const JWT_SECRET = 'test-secret-key'
 
 beforeEach(() => mockJwtVerify.mockReset())
 
+// v0.4.0: FTS row comes from JOIN of fts_{slug} + content_{slug}
 type FtsRow = {
   entry_id: string
   schema_slug: string
-  title: string
-  body: string
-  tags: string
+  slug: string | null
   status: string
+  title: string | null
   excerpt: string
   rank: number
 }
 
-type FullRow = { id: string; slug: string | null; data: string }
-
 /**
- * Mock D1 per la route /api/search.
- * Tre prepare() distinte per:
- *  - FTS query           → .all() FTS rows
- *  - COUNT query         → .first() { total }
- *  - full rows fetch     → .all() content_entries rows
+ * Mock D1 per la route /api/search (v0.4.0).
+ * Due prepare() distinte:
+ *  - COUNT query  → .first() { total }
+ *  - FTS UNION ALL query → .all() joined FTS rows (no separate content_entries fetch)
  */
 function createSearchMockD1(opts: {
   ftsRows: FtsRow[]
   total: number
-  fullRows: FullRow[]
 }) {
   return {
     prepare: vi.fn((sql: string) => {
-      if (sql.includes('COUNT(*)')) {
+      if (sql.includes('COUNT(*)') || sql.includes('SUM(c)')) {
         return {
           bind: vi.fn(() => ({
             first: vi.fn().mockResolvedValue({ total: opts.total }),
           })),
         }
       }
-      if (sql.includes('content_entries')) {
-        return {
-          bind: vi.fn(() => ({
-            all: vi.fn().mockResolvedValue({ results: opts.fullRows }),
-          })),
-        }
-      }
-      // FTS query
+      // FTS UNION ALL query
       return {
         bind: vi.fn(() => ({
           all: vi.fn().mockResolvedValue({ results: opts.ftsRows }),
@@ -83,7 +72,7 @@ describe('GET /api/search', () => {
       const res = await app.request(
         '/api/search?q=test',
         { method: 'GET' },
-        { DB: createSearchMockD1({ ftsRows: [], total: 0, fullRows: [] }), JWT_SECRET },
+        { DB: createSearchMockD1({ ftsRows: [], total: 0 }), JWT_SECRET },
       )
       expect(res.status).toBe(401)
     })
@@ -93,7 +82,7 @@ describe('GET /api/search', () => {
       const res = await app.request(
         '/api/search?q=',
         { method: 'GET', headers: authHeader() },
-        { DB: createSearchMockD1({ ftsRows: [], total: 0, fullRows: [] }), JWT_SECRET },
+        { DB: createSearchMockD1({ ftsRows: [], total: 0 }), JWT_SECRET },
       )
       expect(res.status).toBe(400)
     })
@@ -103,7 +92,7 @@ describe('GET /api/search', () => {
       const res = await app.request(
         '/api/search?q=a',
         { method: 'GET', headers: authHeader() },
-        { DB: createSearchMockD1({ ftsRows: [], total: 0, fullRows: [] }), JWT_SECRET },
+        { DB: createSearchMockD1({ ftsRows: [], total: 0 }), JWT_SECRET },
       )
       expect(res.status).toBe(400)
     })
@@ -116,7 +105,7 @@ describe('GET /api/search', () => {
       const res = await app.request(
         '/api/search?q=%5E%5E',
         { method: 'GET', headers: authHeader() },
-        { DB: createSearchMockD1({ ftsRows: [], total: 0, fullRows: [] }), JWT_SECRET },
+        { DB: createSearchMockD1({ ftsRows: [], total: 0 }), JWT_SECRET },
       )
       expect(res.status).toBe(200)
       const data = await res.json() as { items: unknown[]; nextCursor: unknown; total: number }
@@ -132,7 +121,7 @@ describe('GET /api/search', () => {
       const res = await app.request(
         '/api/search?q=qualcosa',
         { method: 'GET', headers: authHeader() },
-        { DB: createSearchMockD1({ ftsRows: [], total: 0, fullRows: [] }), JWT_SECRET },
+        { DB: createSearchMockD1({ ftsRows: [], total: 0 }), JWT_SECRET },
       )
       expect(res.status).toBe(200)
       const data = await res.json() as { items: unknown[]; nextCursor: unknown; total: number }
@@ -143,17 +132,16 @@ describe('GET /api/search', () => {
   })
 
   describe('happy path — risultati presenti', () => {
+    // v0.4.0: FTS row has all needed fields from JOIN (no separate content_entries fetch)
     const ftsRow: FtsRow = {
       entry_id: 'e1',
       schema_slug: 'articoli',
-      title: 'Guida a Beech',
-      body: 'testo',
-      tags: '',
+      slug: 'guida-beech',
       status: 'published',
+      title: 'Guida a Beech',
       excerpt: '<mark>Guida</mark> a Beech',
       rank: -1.5,
     }
-    const fullRow: FullRow = { id: 'e1', slug: 'guida-beech', data: '{"br_01":"Guida a Beech"}' }
 
     it('restituisce 200 con items e nextCursor null quando non ci sono altre pagine', async () => {
       mockAuthOk()
@@ -161,7 +149,7 @@ describe('GET /api/search', () => {
         '/api/search?q=Guida&limit=5',
         { method: 'GET', headers: authHeader() },
         {
-          DB: createSearchMockD1({ ftsRows: [ftsRow], total: 1, fullRows: [fullRow] }),
+          DB: createSearchMockD1({ ftsRows: [ftsRow], total: 1 }),
           JWT_SECRET,
         },
       )
@@ -174,18 +162,12 @@ describe('GET /api/search', () => {
 
     it('restituisce nextCursor quando ci sono più pagine (rows > limit)', async () => {
       mockAuthOk()
-      // Con limit=1, fetchando 2 righe (limit+1) indica hasMore
-      const ftsRow2: FtsRow = { ...ftsRow, entry_id: 'e2', rank: -1.2 }
-      const fullRow2: FullRow = { id: 'e2', slug: 'secondo', data: '{}' }
+      const ftsRow2: FtsRow = { ...ftsRow, entry_id: 'e2', slug: 'secondo', rank: -1.2 }
       const res = await app.request(
         '/api/search?q=Guida&limit=1',
         { method: 'GET', headers: authHeader() },
         {
-          DB: createSearchMockD1({
-            ftsRows: [ftsRow, ftsRow2],
-            total: 5,
-            fullRows: [fullRow, fullRow2],
-          }),
+          DB: createSearchMockD1({ ftsRows: [ftsRow, ftsRow2], total: 5 }),
           JWT_SECRET,
         },
       )
@@ -197,29 +179,12 @@ describe('GET /api/search', () => {
       expect(data.total).toBe(5)
     })
 
-    it('filtra le righe FTS la cui entry non esiste in content_entries', async () => {
-      mockAuthOk()
-      const res = await app.request(
-        '/api/search?q=Guida',
-        { method: 'GET', headers: authHeader() },
-        {
-          // FTS trova una riga, ma content_entries non la restituisce (es. cancellata)
-          DB: createSearchMockD1({ ftsRows: [ftsRow], total: 1, fullRows: [] }),
-          JWT_SECRET,
-        },
-      )
-      expect(res.status).toBe(200)
-      const data = await res.json() as { items: unknown[] }
-      expect(data.items).toHaveLength(0)
-    })
-
     it('applica il clamp limit tra 1 e 50', async () => {
       mockAuthOk()
-      // limit=999 → clampato a 50 → il mock riceve comunque la chiamata correttamente
       const res = await app.request(
         '/api/search?q=test&limit=999',
         { method: 'GET', headers: authHeader() },
-        { DB: createSearchMockD1({ ftsRows: [], total: 0, fullRows: [] }), JWT_SECRET },
+        { DB: createSearchMockD1({ ftsRows: [], total: 0 }), JWT_SECRET },
       )
       expect(res.status).toBe(200)
     })
@@ -229,7 +194,7 @@ describe('GET /api/search', () => {
       const res = await app.request(
         '/api/search?q=test&schema_slug=articoli',
         { method: 'GET', headers: authHeader() },
-        { DB: createSearchMockD1({ ftsRows: [], total: 0, fullRows: [] }), JWT_SECRET },
+        { DB: createSearchMockD1({ ftsRows: [], total: 0 }), JWT_SECRET },
       )
       expect(res.status).toBe(200)
     })
@@ -239,19 +204,18 @@ describe('GET /api/search', () => {
       const res = await app.request(
         '/api/search?q=test&status=published',
         { method: 'GET', headers: authHeader() },
-        { DB: createSearchMockD1({ ftsRows: [], total: 0, fullRows: [] }), JWT_SECRET },
+        { DB: createSearchMockD1({ ftsRows: [], total: 0 }), JWT_SECRET },
       )
       expect(res.status).toBe(200)
     })
 
     it('accetta il parametro cursor per la paginazione', async () => {
       mockAuthOk()
-      // cursor valido = base64 di "rank:entryId"
       const cursor = btoa('-1.5:e0')
       const res = await app.request(
         `/api/search?q=test&cursor=${encodeURIComponent(cursor)}`,
         { method: 'GET', headers: authHeader() },
-        { DB: createSearchMockD1({ ftsRows: [], total: 0, fullRows: [] }), JWT_SECRET },
+        { DB: createSearchMockD1({ ftsRows: [], total: 0 }), JWT_SECRET },
       )
       expect(res.status).toBe(200)
     })

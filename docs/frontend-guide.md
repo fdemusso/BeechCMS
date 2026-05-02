@@ -97,7 +97,7 @@ All display and edit components share a minimal, stable interface defined in `co
 // components/fields/types.ts
 
 export interface FieldDisplayProps {
-   branch: Branch;        // Full Branch definition (id, alias, label, type, format, options…)
+   branch: Branch;        // Full Branch definition (alias, label, type, format, options…)
    value: unknown;        // Sourced from entry.data[branch.alias]
    maxLength?: number;    // Optional truncation hint for text/json in table cells
 }
@@ -219,7 +219,7 @@ import { getDisplayComponent, getEditComponent } from 'components/fields';
 | `date` | `toLocaleDateString('it-IT', { year, month: 'short', day })` | `<Input type="date">` |
 | `json` | Coloured collapsible tag badges; other values: truncated monospace. If `branch.options` is set, shows clickable preset badges | `<Textarea>` with JSON hint; if `branch.options` present, shows pre-defined badges as add/remove shortcuts |
 | `richtext` | Plain text (HTML stripped), truncated via `ExpandableCell` | Full TipTap editor (Bold, Italic, H2, Bullet List, Ordered List, Link, Table, Math) |
-| `file` | Thumbnail if URL resolves to an image; file icon otherwise. `asset-list`: stack preview | Dropzone upload, image preview, Replace / Remove actions. `multiple: true` or `format: 'asset-list'`: multi-file add, reorder, delete |
+| `file` | Thumbnail if URL resolves to an image; file icon otherwise. | Dropzone upload, image preview, Replace / Remove actions. |
 | *(unregistered)* | `DefaultDisplay` — string or `—` | `DefaultEdit` — `<Input type="text">` |
 
 The `richtext` edit renderer is implemented in `features/richtext-editor/` as a vertical slice and re-exported via a thin wrapper at `components/fields/edit/richtext.tsx`. This is the VSA pattern in action: the complex TipTap logic is self-contained in its slice; the registry consumes only the public API.
@@ -462,7 +462,7 @@ return (
                       // The registry is invoked here — EntryEditorPage has zero knowledge
                       // of what component will be rendered for each type.
                       <FieldEdit
-                              key={branch.id}
+                              key={branch.alias}
                               branch={branch}
                               value={formData[branch.alias]}
                               onChange={val => handleInputChange(branch.alias, val)}
@@ -476,7 +476,7 @@ return (
 Key observations:
 - `seed.branches.map(...)` drives the form. There is no hardcoded list of fields anywhere in the page.
 - The page does not contain any `switch (branch.type)` logic — that is fully delegated to the registry.
-- `formData[branch.alias]` — field access always uses aliases, never internal IDs (`br01`). The Botanical Engine's translation happens at the API boundary, not in the UI.
+- `formData[branch.alias]` — field access always uses aliases. The Botanical Engine's translation happens at the database boundary, not in the UI.
 - JSON field validation (checking that the string is valid JSON before submitting) is the **only** field-type-specific logic that stays in the page. All other type-specific behaviour is encapsulated in the individual renderers.
 
 ---
@@ -590,10 +590,9 @@ export const editRegistry: Partial<Record<BranchType, ComponentType<FieldEditPro
 ```typescript
 // packages/core/src/seeds.ts — extend any existing seed
 {
-   id: 'br05',
-           alias: 'website',
-        label: 'Sito Web',
-        type: 'url',
+  alias: 'website',
+  label: 'Sito Web',
+  type: 'url',
 }
 ```
 
@@ -604,7 +603,7 @@ export const editRegistry: Partial<Record<BranchType, ComponentType<FieldEditPro
 import { render, screen } from '@testing-library/react';
 import { UrlDisplay } from './url';
 
-const branch = { id: 'br05', alias: 'website', label: 'Sito', type: 'url' as const };
+const branch = { alias: 'website', label: 'Sito', type: 'url' as const };
 
 describe('UrlDisplay', () => {
    it('renders a link for a valid URL', () => {
@@ -739,7 +738,7 @@ export interface ResolvedCardFields {
 
 The Widget Data Layer is a VSA feature slice at `apps/dashboard/src/features/widget-data/` that provides a **single, stable interface** for all dashboard widgets to query content data. It exists to solve four problems:
 
-1. **Botanical Engine complexity is invisible to widgets.** Widget components never deal with `br_XX` IDs — they pass API aliases (e.g. `"price"`, `"created_at"`) and get back resolved values.
+1. **Botanical Engine complexity is invisible to widgets.** Widget components never deal with internal IDs — they pass API aliases (e.g. `"price"`, `"created_at"`) and get back resolved values from real SQL columns.
 2. **Switching data source = changing one prop.** Every hook accepts a `seed` string. Pointing a widget at a different content type requires changing only that one argument.
 3. **Formula/expression evaluation** for computed metrics (sum, avg, growth delta) is available both server-side (via dedicated API endpoints) and client-side (pure utility, no round-trip when data is already cached).
 4. **Consistent cache behaviour.** Each hook declares its own `staleTime` and `refetchInterval` calibrated to the nature of the data (aggregates: 5 min; leaderboards: 2 min; lists: always fresh).

@@ -1,4 +1,4 @@
-import type { Branch } from './types'
+import type { Branch } from './types.js'
 
 export async function sha256hex(value: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))

@@ -192,7 +192,8 @@ describe('public/query-builder', () => {
         JSON.stringify({ where: [{ field: 'title', op: 'eq', value: false }] })
       )!
       const { clause, bindings } = buildPublicFilterWhereClause(seed, filter)
-      expect(clause).toContain('AS INTEGER)')
+      // v0.4.0: real column — no CAST needed, binding is 0/1
+      expect(clause).toContain('title')
       expect(bindings[0]).toBe(0)
     })
 
@@ -209,7 +210,8 @@ describe('public/query-builder', () => {
         JSON.stringify({ where: [{ field: 'title', op: 'eq', value: 42 }] })
       )!
       const { clause, bindings } = buildPublicFilterWhereClause(seed, filter)
-      expect(clause).toContain('AS REAL)')
+      // v0.4.0: real column — no CAST needed
+      expect(clause).toContain('title')
       expect(bindings[0]).toBe(42)
     })
 

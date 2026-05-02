@@ -29,18 +29,19 @@ describe('media-utils - extractMediaKey', () => {
 })
 
 describe('media-utils - extractMediaKeysFromData', () => {
+  // v0.4.0: entryData uses alias keys (not branch IDs like art_03)
   it('estrae chiave da campo file (stringa singola)', () => {
     const data = {
-      art_01: 'Titolo',
-      art_03: 'https://x.com/api/media/1739-copertina.png',
+      title: 'Titolo',
+      coverImage: 'https://x.com/api/media/1739-copertina.png',
     }
     expect(extractMediaKeysFromData(ARTICOLO_SEED, data)).toEqual(['1739-copertina.png'])
   })
 
   it('estrae chiavi da campo json (array di URL)', () => {
     const data = {
-      prd_05: '/api/media/111-cover.jpg',
-      prd_06: ['/api/media/222-a.jpg', '/api/media/333-b.jpg'],
+      coverImage: '/api/media/111-cover.jpg',
+      images: ['/api/media/222-a.jpg', '/api/media/333-b.jpg'],
     }
     expect(extractMediaKeysFromData(PRODOTTO_SEED, data)).toEqual(
       expect.arrayContaining(['111-cover.jpg', '222-a.jpg', '333-b.jpg'])
@@ -49,18 +50,18 @@ describe('media-utils - extractMediaKeysFromData', () => {
 
   it('restituisce chiavi uniche (no duplicati)', () => {
     const data = {
-      art_03: '/api/media/123-same.png',
-      art_04: { thumb: '/api/media/123-same.png' },
+      coverImage: '/api/media/123-same.png',
+      tags: { thumb: '/api/media/123-same.png' },
     }
     expect(extractMediaKeysFromData(ARTICOLO_SEED, data)).toEqual(['123-same.png'])
   })
 
   it('ignora campi non file/json', () => {
     const data = {
-      art_01: 'Titolo',
-      art_05: '<p>Test <img src="/api/media/999-in-richtext.png"></p>',
+      title: 'Titolo',
+      body: '<p>Test <img src="/api/media/999-in-richtext.png"></p>',
     }
-    // art_05 è richtext: non viene analizzato (solo file e json)
+    // body è richtext: non viene analizzato (solo file e json)
     expect(extractMediaKeysFromData(ARTICOLO_SEED, data)).toEqual([])
   })
 

@@ -4,7 +4,6 @@ import { FieldDisplay } from "@/components/fields/FieldDisplay"
 import type { Branch } from "@beech/core"
 
 const baseBranch: Branch = {
-  id: "br_01",
   alias: "title",
   label: "Title",
   type: "text",

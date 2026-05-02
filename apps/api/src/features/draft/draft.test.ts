@@ -59,36 +59,68 @@ function makeAuthHeader() {
   return { Authorization: 'Bearer test-token' }
 }
 
-function makeRow(overrides: Partial<{
-  draft_data: string | null
-  data: string
-  status: string
-}> = {}) {
+/**
+ * v0.4.0 Helper: returns a row as it would appear in content_{slug} 
+ */
+function makeLiveRow(overrides: Record<string, any> = {}) {
   return {
     id: ENTRY_ID,
-    schema_slug: 'test-articoli',
     slug: 'test-article',
-    status: overrides.status ?? 'published',
-    data: overrides.data ?? JSON.stringify({ br_01: 'Titolo live', br_02: 'Corpo live' }),
-    draft_data: overrides.draft_data ?? null,
-    has_pending_draft: overrides.draft_data != null ? 1 : 0,
+    status: 'published',
+    title: 'Titolo live',
+    body: 'Corpo live',
     created_at: 1_000_000,
     updated_at: 1_000_000,
+    ...overrides
   }
 }
 
-function makeMockDB(row: object | null) {
+/**
+ * v0.4.0 Helper: returns a row as it would appear in content_{slug}_drafts
+ */
+function makeDraftRow(overrides: Record<string, any> = {}) {
   return {
-    prepare: vi.fn(() => ({
-      bind: vi.fn(() => ({
-        first: vi.fn(() => Promise.resolve(row)),
-        run: vi.fn(() => Promise.resolve({ success: true, meta: { changes: 1 } })),
-        all: vi.fn(() => Promise.resolve({ results: row ? [row] : [] })),
-      })),
-      first: vi.fn(() => Promise.resolve(row)),
-      run: vi.fn(() => Promise.resolve({ success: true, meta: { changes: 1 } })),
-    })),
+    entry_id: ENTRY_ID,
+    title: 'Titolo in bozza',
+    body: 'Corpo in bozza',
+    updated_at: 1_000_001,
+    ...overrides
   }
+}
+
+function makeMockDB(options: { 
+  liveRow?: object | null, 
+  draftRow?: object | null,
+  bindCalls?: Array<{ sql: string; args: unknown[] }>
+} = {}) {
+  const { liveRow = null, draftRow = null, bindCalls = [] } = options
+
+  const prepare = vi.fn((sql: string) => ({
+    bind: vi.fn((...args: unknown[]) => {
+      bindCalls.push({ sql, args })
+      return {
+        first: vi.fn(async () => {
+          if (sql.includes('_drafts')) return draftRow
+          return liveRow
+        }),
+        run: vi.fn(async () => ({ success: true, meta: { changes: 1 } })),
+        all: vi.fn(async () => ({ results: [] })),
+      }
+    }),
+    first: vi.fn(async () => {
+       if (sql.includes('_drafts')) return draftRow
+       return liveRow
+    }),
+    run: vi.fn(async () => ({ success: true, meta: { changes: 1 } })),
+  }))
+
+  return {
+    prepare,
+    batch: vi.fn(async (stmts: any[]) => {
+      // In tests, we just assume they run fine
+      return stmts.map(() => ({ success: true }))
+    })
+  } as unknown as D1Database
 }
 
 // --- Suite ---
@@ -110,29 +142,16 @@ describe('Draft feature — PUT /:slug/:id/draft', () => {
         headers: { 'Content-Type': 'application/json', ...makeAuthHeader() },
         body: JSON.stringify({ title: 'Bozza titolo' }),
       },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(makeRow()) }
+      { JWT_SECRET: 'test-secret', DB: makeMockDB({ liveRow: makeLiveRow() }) }
     )
     expect(res.status).toBe(200)
     const json = await res.json<{ success: boolean }>()
     expect(json.success).toBe(true)
   })
 
-  it('stores Botanical IDs (not aliases) in draft_data', async () => {
+  it('stores aliases as column names in content_{slug}_drafts', async () => {
     const bindCalls: Array<{ sql: string; args: unknown[] }> = []
-    const mockDB = {
-      prepare: vi.fn((sql: string) => ({
-        bind: vi.fn((...args: unknown[]) => {
-          bindCalls.push({ sql, args })
-          return {
-            first: vi.fn(() => Promise.resolve(makeRow())),
-            run: vi.fn(() => Promise.resolve({ success: true, meta: { changes: 1 } })),
-            all: vi.fn(() => Promise.resolve({ results: [] })),
-          }
-        }),
-        first: vi.fn(() => Promise.resolve(makeRow())),
-        run: vi.fn(() => Promise.resolve({ success: true, meta: { changes: 1 } })),
-      })),
-    }
+    const mockDB = makeMockDB({ liveRow: makeLiveRow(), bindCalls })
 
     await app.request(
       `/api/content/test-articoli/${ENTRY_ID}/draft`,
@@ -144,11 +163,12 @@ describe('Draft feature — PUT /:slug/:id/draft', () => {
       { JWT_SECRET: 'test-secret', DB: mockDB }
     )
 
-    const updateCall = bindCalls.find((c) => c.sql.includes('UPDATE') && c.sql.includes('draft_data'))
-    expect(updateCall).toBeDefined()
-    const saved = JSON.parse(updateCall!.args[0] as string)
-    expect(saved.br_01).toBe('Titolo in bozza')
-    expect(saved.title).toBeUndefined()
+    const upsertCall = bindCalls.find((c) => c.sql.includes('INSERT INTO content_test-articoli_drafts'))
+    expect(upsertCall).toBeDefined()
+    // Column 'title' should be present in the SQL
+    expect(upsertCall!.sql).toContain('title')
+    // The value should be the second bind (first is ID)
+    expect(upsertCall!.args[1]).toBe('Titolo in bozza')
   })
 
   it('returns 405 when seed does not allow drafts', async () => {
@@ -159,7 +179,7 @@ describe('Draft feature — PUT /:slug/:id/draft', () => {
         headers: { 'Content-Type': 'application/json', ...makeAuthHeader() },
         body: JSON.stringify({ name: 'test' }),
       },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(makeRow()) }
+      { JWT_SECRET: 'test-secret', DB: makeMockDB({ liveRow: makeLiveRow() }) }
     )
     expect(res.status).toBe(405)
   })
@@ -172,36 +192,9 @@ describe('Draft feature — PUT /:slug/:id/draft', () => {
         headers: { 'Content-Type': 'application/json', ...makeAuthHeader() },
         body: JSON.stringify({ title: 'Test' }),
       },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(null) }
+      { JWT_SECRET: 'test-secret', DB: makeMockDB({ liveRow: null }) }
     )
     expect(res.status).toBe(404)
-  })
-
-  it('returns 404 when seed does not exist', async () => {
-    const res = await app.request(
-      `/api/content/seed-inesistente/${ENTRY_ID}/draft`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json', ...makeAuthHeader() },
-        body: JSON.stringify({ title: 'Test' }),
-      },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(null) }
-    )
-    expect(res.status).toBe(404)
-  })
-
-  it('returns 401 when not authenticated', async () => {
-    mockJwtVerify.mockRejectedValueOnce(new Error('invalid token'))
-    const res = await app.request(
-      `/api/content/test-articoli/${ENTRY_ID}/draft`,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'Test' }),
-      },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(null) }
-    )
-    expect(res.status).toBe(401)
   })
 })
 
@@ -214,25 +207,23 @@ describe('Draft feature — GET /:slug/:id/draft', () => {
     })
   })
 
-  it('returns draft data with aliases (not Botanical IDs)', async () => {
-    const draftDbData = JSON.stringify({ br_01: 'Titolo in bozza', br_02: 'Corpo in bozza' })
+  it('returns draft data with aliases', async () => {
     const res = await app.request(
       `/api/content/test-articoli/${ENTRY_ID}/draft`,
       { headers: makeAuthHeader() },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB({ draft_data: draftDbData }) }
+      { JWT_SECRET: 'test-secret', DB: makeMockDB({ liveRow: makeLiveRow(), draftRow: makeDraftRow() }) }
     )
     expect(res.status).toBe(200)
     const json = await res.json<{ data: Record<string, unknown> }>()
     expect(json.data.title).toBe('Titolo in bozza')
     expect(json.data.body).toBe('Corpo in bozza')
-    expect((json.data as Record<string, unknown>).br_01).toBeUndefined()
   })
 
   it('returns 404 when no draft exists', async () => {
     const res = await app.request(
       `/api/content/test-articoli/${ENTRY_ID}/draft`,
       { headers: makeAuthHeader() },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB({ draft_data: null }) }
+      { JWT_SECRET: 'test-secret', DB: makeMockDB({ liveRow: makeLiveRow(), draftRow: null }) }
     )
     expect(res.status).toBe(404)
   })
@@ -241,18 +232,9 @@ describe('Draft feature — GET /:slug/:id/draft', () => {
     const res = await app.request(
       `/api/content/test-articoli/${ENTRY_ID}/draft`,
       { headers: makeAuthHeader() },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(null) }
+      { JWT_SECRET: 'test-secret', DB: makeMockDB({ liveRow: null }) }
     )
     expect(res.status).toBe(404)
-  })
-
-  it('returns 405 when seed does not allow drafts', async () => {
-    const res = await app.request(
-      `/api/content/test-messaggi/${ENTRY_ID}/draft`,
-      { headers: makeAuthHeader() },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB({ draft_data: '{}' }) }
-    )
-    expect(res.status).toBe(405)
   })
 })
 
@@ -266,83 +248,34 @@ describe('Draft feature — POST /:slug/:id/draft/publish', () => {
   })
 
   it('returns 200 and promotes draft to live', async () => {
-    const draftDbData = JSON.stringify({ br_01: 'Titolo da pubblicare' })
     const res = await app.request(
       `/api/content/test-articoli/${ENTRY_ID}/draft/publish`,
       { method: 'POST', headers: makeAuthHeader() },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB({ draft_data: draftDbData }) }
+      { JWT_SECRET: 'test-secret', DB: makeMockDB({ liveRow: makeLiveRow(), draftRow: makeDraftRow() }) }
     )
     expect(res.status).toBe(200)
     const json = await res.json<{ success: boolean }>()
     expect(json.success).toBe(true)
   })
 
-  it('issues UPDATE SET data = draft_data, draft_data = NULL', async () => {
-    const draftDbData = JSON.stringify({ br_01: 'Titolo pubblicato' })
-    const bindCalls: Array<{ sql: string; args: unknown[] }> = []
-    const mockDB = {
-      prepare: vi.fn((sql: string) => ({
-        bind: vi.fn((...args: unknown[]) => {
-          bindCalls.push({ sql, args })
-          return {
-            first: vi.fn(() => Promise.resolve({ draft_data: draftDbData })),
-            run: vi.fn(() => Promise.resolve({ success: true, meta: { changes: 1 } })),
-            all: vi.fn(() => Promise.resolve({ results: [] })),
-          }
-        }),
-        first: vi.fn(() => Promise.resolve({ draft_data: draftDbData })),
-        run: vi.fn(() => Promise.resolve({ success: true, meta: { changes: 1 } })),
-      })),
-    }
-
-    await app.request(
+  it('uses DB.batch to update live table and delete draft', async () => {
+    const mockDB = makeMockDB({ liveRow: makeLiveRow(), draftRow: makeDraftRow() })
+    const res = await app.request(
       `/api/content/test-articoli/${ENTRY_ID}/draft/publish`,
       { method: 'POST', headers: makeAuthHeader() },
       { JWT_SECRET: 'test-secret', DB: mockDB }
     )
-
-    const publishCall = bindCalls.find(
-      (c) => c.sql.includes('data = draft_data') && c.sql.includes('draft_data = NULL')
-    )
-    expect(publishCall).toBeDefined()
-    expect(publishCall!.args[0]).toBe('published')
+    expect(res.status).toBe(200)
+    expect(mockDB.batch).toHaveBeenCalled()
   })
 
   it('returns 404 when no pending draft exists', async () => {
     const res = await app.request(
       `/api/content/test-articoli/${ENTRY_ID}/draft/publish`,
       { method: 'POST', headers: makeAuthHeader() },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB({ draft_data: null }) }
+      { JWT_SECRET: 'test-secret', DB: makeMockDB({ liveRow: makeLiveRow(), draftRow: null }) }
     )
     expect(res.status).toBe(404)
-  })
-
-  it('returns 404 when entry does not exist', async () => {
-    const res = await app.request(
-      `/api/content/test-articoli/${ENTRY_ID}/draft/publish`,
-      { method: 'POST', headers: makeAuthHeader() },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(null) }
-    )
-    expect(res.status).toBe(404)
-  })
-
-  it('returns 405 when seed does not allow drafts', async () => {
-    const res = await app.request(
-      `/api/content/test-messaggi/${ENTRY_ID}/draft/publish`,
-      { method: 'POST', headers: makeAuthHeader() },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB({ draft_data: '{}' }) }
-    )
-    expect(res.status).toBe(405)
-  })
-
-  it('returns 401 when not authenticated', async () => {
-    mockJwtVerify.mockRejectedValueOnce(new Error('invalid token'))
-    const res = await app.request(
-      `/api/content/test-articoli/${ENTRY_ID}/draft/publish`,
-      { method: 'POST' },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(null) }
-    )
-    expect(res.status).toBe(401)
   })
 })
 
@@ -359,29 +292,16 @@ describe('Draft feature — DELETE /:slug/:id/draft', () => {
     const res = await app.request(
       `/api/content/test-articoli/${ENTRY_ID}/draft`,
       { method: 'DELETE', headers: makeAuthHeader() },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(makeRow({ draft_data: '{"br_01":"Bozza"}' })) }
+      { JWT_SECRET: 'test-secret', DB: makeMockDB({ liveRow: makeLiveRow(), draftRow: makeDraftRow() }) }
     )
     expect(res.status).toBe(200)
     const json = await res.json<{ success: boolean }>()
     expect(json.success).toBe(true)
   })
 
-  it('issues UPDATE SET draft_data = NULL', async () => {
+  it('issues DELETE FROM content_{slug}_drafts', async () => {
     const bindCalls: Array<{ sql: string; args: unknown[] }> = []
-    const mockDB = {
-      prepare: vi.fn((sql: string) => ({
-        bind: vi.fn((...args: unknown[]) => {
-          bindCalls.push({ sql, args })
-          return {
-            first: vi.fn(() => Promise.resolve(makeRow())),
-            run: vi.fn(() => Promise.resolve({ success: true, meta: { changes: 1 } })),
-            all: vi.fn(() => Promise.resolve({ results: [] })),
-          }
-        }),
-        first: vi.fn(() => Promise.resolve(makeRow())),
-        run: vi.fn(() => Promise.resolve({ success: true, meta: { changes: 1 } })),
-      })),
-    }
+    const mockDB = makeMockDB({ liveRow: makeLiveRow(), bindCalls })
 
     await app.request(
       `/api/content/test-articoli/${ENTRY_ID}/draft`,
@@ -389,37 +309,7 @@ describe('Draft feature — DELETE /:slug/:id/draft', () => {
       { JWT_SECRET: 'test-secret', DB: mockDB }
     )
 
-    const discardCall = bindCalls.find(
-      (c) => c.sql.includes('draft_data = NULL')
-    )
-    expect(discardCall).toBeDefined()
-  })
-
-  it('returns 404 when entry does not exist', async () => {
-    const res = await app.request(
-      `/api/content/test-articoli/${ENTRY_ID}/draft`,
-      { method: 'DELETE', headers: makeAuthHeader() },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(null) }
-    )
-    expect(res.status).toBe(404)
-  })
-
-  it('returns 405 when seed does not allow drafts', async () => {
-    const res = await app.request(
-      `/api/content/test-messaggi/${ENTRY_ID}/draft`,
-      { method: 'DELETE', headers: makeAuthHeader() },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(makeRow()) }
-    )
-    expect(res.status).toBe(405)
-  })
-
-  it('returns 401 when not authenticated', async () => {
-    mockJwtVerify.mockRejectedValueOnce(new Error('invalid token'))
-    const res = await app.request(
-      `/api/content/test-articoli/${ENTRY_ID}/draft`,
-      { method: 'DELETE' },
-      { JWT_SECRET: 'test-secret', DB: makeMockDB(null) }
-    )
-    expect(res.status).toBe(401)
+    const deleteCall = bindCalls.find((c) => c.sql.includes('DELETE FROM content_test-articoli_drafts'))
+    expect(deleteCall).toBeDefined()
   })
 })

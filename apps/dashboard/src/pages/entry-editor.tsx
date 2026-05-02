@@ -171,14 +171,14 @@ export function EntryEditorPage() {
   const seoBranches = React.useMemo(
     () =>
       seed?.branches.filter(
-        (b) => b.id !== richtextBranch?.id && isSeoBranch(b)
+        (b) => b.alias !== richtextBranch?.alias && isSeoBranch(b)
       ) ?? [],
     [seed, richtextBranch]
   )
   const contentBranches = React.useMemo(
     () =>
       seed?.branches.filter(
-        (b) => b.id !== richtextBranch?.id && !isSeoBranch(b)
+        (b) => b.alias !== richtextBranch?.alias && !isSeoBranch(b)
       ) ?? [],
     [seed, richtextBranch]
   )
@@ -442,7 +442,7 @@ export function EntryEditorPage() {
                               />
                           </div>
                           {seoBranches.map((branch) => (
-                            <div key={branch.id} className="space-y-2">
+                            <div key={branch.alias} className="space-y-2">
                               <Label htmlFor={branch.alias}>{branch.label}</Label>
                               <FieldEdit
                                 branch={branch}
@@ -462,7 +462,7 @@ export function EntryEditorPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                           {contentBranches.map((branch) => (
-                            <div key={branch.id} className="space-y-2">
+                            <div key={branch.alias} className="space-y-2">
                               <Label htmlFor={branch.alias}>{branch.label}</Label>
                               <FieldEdit
                                 branch={branch}
@@ -529,7 +529,7 @@ export function EntryEditorPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                           {seoBranches.map((branch) => (
-                            <div key={branch.id} className="space-y-2">
+                            <div key={branch.alias} className="space-y-2">
                               <Label htmlFor={branch.alias}>{branch.label}</Label>
                               <FieldEdit
                                 branch={branch}
@@ -550,7 +550,7 @@ export function EntryEditorPage() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         {contentBranches.map((branch) => (
-                          <div key={branch.id} className="space-y-2">
+                          <div key={branch.alias} className="space-y-2">
                             <Label htmlFor={branch.alias}>{branch.label}</Label>
                             <FieldEdit
                               branch={branch}

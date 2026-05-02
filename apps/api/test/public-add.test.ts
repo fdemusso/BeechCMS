@@ -33,12 +33,14 @@ function createMockD1ForPublicAdd(options?: {
             }),
           }
         }
-        if (sql.includes('SELECT id FROM content_entries WHERE schema_slug = ? AND slug = ?')) {
+        // v0.4.0: slug conflict check — content_{slug} WHERE slug = ?
+        if (sql.includes('slug = ?') && sql.includes('content_')) {
           return {
             first: vi.fn(async () => (slugExists ? { id: 'existing-id' } : null)),
           }
         }
-        if (sql.includes('INSERT INTO content_entries')) {
+        // v0.4.0: INSERT INTO content_{slug}
+        if (sql.startsWith('INSERT INTO content_')) {
           return {
             run: vi.fn(async () => {
               if (shouldFailInsert) throw new Error('Insert failed')

@@ -5,6 +5,7 @@ import { CommandGroup, CommandItem } from "@/components/ui/command"
 import type { Seed } from "@beech/core"
 
 import { api } from "@/lib/api"
+import { useDebounce } from "@/hooks/use-debounce"
 
 interface SearchResultItem {
   id: string
@@ -35,16 +36,16 @@ export function SearchResultsView({
   setOpen,
 }: SearchResultsViewProps) {
   const { t } = useTranslation()
+  const debouncedSearch = useDebounce(search, 300)
   const { data, isLoading } = useQuery({
-    queryKey: ["cmd-search", search] as const,
+    queryKey: ["cmd-search", debouncedSearch] as const,
     queryFn: async (): Promise<SearchResponse> => {
-      console.log("[CommandPalette] Global search for:", search);
       const res = await api.get<SearchResponse>(
-        `/search?q=${encodeURIComponent(search)}&limit=8`
+        `/search?q=${encodeURIComponent(debouncedSearch)}&limit=8`
       )
       return res.data
     },
-    enabled: search.length >= 2,
+    enabled: debouncedSearch.length >= 2,
     staleTime: 30_000,
   })
 

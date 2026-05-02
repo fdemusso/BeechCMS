@@ -24,7 +24,7 @@ export function partitionGalleryDetailBranches(seed: Seed): PartitionGalleryDeta
   const tagsBranch = seed.branches.find(isTagsBranch) ?? null
   const seoBranches = seed.branches.filter(isSeoBranch)
   const mainBranches = seed.branches.filter(
-    (b) => !isSeoBranch(b) && !isTitleBranch(b) && b.id !== tagsBranch?.id
+    (b) => !isSeoBranch(b) && !isTitleBranch(b) && b.alias !== tagsBranch?.alias
   )
   return { tagsBranch, seoBranches, mainBranches }
 }
@@ -35,7 +35,7 @@ export function splitMainRichtext(mainBranches: Branch[]): {
 } {
   const richtextBranch = mainBranches.find((b) => b.type === "richtext") ?? null
   const otherMainBranches = richtextBranch
-    ? mainBranches.filter((b) => b.id !== richtextBranch.id)
+    ? mainBranches.filter((b) => b.alias !== richtextBranch.alias)
     : mainBranches
   return { richtextBranch, otherMainBranches }
 }

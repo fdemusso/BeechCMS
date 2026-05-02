@@ -44,6 +44,7 @@ import {
   type DateGroupPrecision,
   DEFAULT_DATE_GROUP_PRECISION,
 } from "@/lib/dynamic-columns"
+import { useDebounce } from "@/hooks/use-debounce"
 import {
   type ConditionalFormatRule,
   getConditionalFormatCellClass,
@@ -65,6 +66,7 @@ export function ContentListPage() {
   const ROWS_PER_PAGE = 10
   const [pageSize, setPageSize] = React.useState<number>(ROWS_PER_PAGE)
   const [tableSearch, setTableSearch] = React.useState("")
+  const debouncedSearch = useDebounce(tableSearch, 300)
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [searchParams] = useSearchParams()
   const prefilterStatus = searchParams.get("status")
@@ -109,7 +111,7 @@ export function ContentListPage() {
   } = useContentList(slug, {
     page: pageIndex + 1,
     limit: pageSize,
-    search: tableSearch.trim() || undefined,
+    search: debouncedSearch.trim() || undefined,
     sortBy: sorting[0]?.id,
     sortDir: sorting[0]?.desc ? "desc" : "asc",
     filters: toolbarFilters,
@@ -131,7 +133,7 @@ export function ContentListPage() {
   // Reset pagination when filter/slug changes
   React.useEffect(() => {
     setPageIndex(0)
-  }, [slug, tableSearch, sorting, toolbarFilters, pageSize])
+  }, [slug, debouncedSearch, sorting, toolbarFilters, pageSize])
 
   // Quando il raggruppamento cambia verso una colonna non-date, resetta la precisione
   React.useEffect(() => {

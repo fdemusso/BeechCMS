@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import type { Branch, Seed } from './types'
-import { RICHTEXT_SCHEMA_VERSION, isRichtextEnvelopeV1 } from './richtext'
+import type { Branch, Seed } from './types.js'
+import { RICHTEXT_SCHEMA_VERSION, isRichtextEnvelopeV1 } from './richtext.js'
 
 export interface ValidationDetail {
   field: string
@@ -386,7 +386,6 @@ function seedFingerprint(seed: Seed): string {
   return JSON.stringify({
     slug: seed.slug,
     branches: seed.branches.map((branch) => ({
-      id: branch.id,
       alias: branch.alias,
       type: branch.type,
       format: branch.format ?? null,

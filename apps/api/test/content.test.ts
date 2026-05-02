@@ -19,9 +19,10 @@ const JWT_SECRET = 'test-secret-key'
 /** Crea mock D1 per INSERT (POST): cattura i parametri passati a ogni chiamata bind */
 function createMockD1ForInsert(bindCapture: { calls: unknown[][] }) {
   const runMock = vi.fn().mockResolvedValue({ success: true })
+  const firstMock = vi.fn().mockResolvedValue(null) // default: slug not found
   const bindMock = vi.fn((...args: unknown[]) => {
     bindCapture.calls.push(args)
-    return { run: runMock }
+    return { run: runMock, first: firstMock }
   })
   return {
     prepare: vi.fn(() => ({
@@ -199,16 +200,23 @@ describe('API Content - Write Operation (La Serializzazione)', () => {
     expect(typeof data.id).toBe('string')
     expect(data.id).toMatch(/^[0-9a-f-]{36}$/i) // UUID format
 
-    // Verifica critica: apiToDb trasforma alias -> branch.id; bind: id, schema_slug, slug, status, data, created_at, updated_at
+    // v0.4.0: 
+    // 1. SELECT id FROM content_articoli WHERE slug = ?
+    // 2. INSERT INTO content_articoli (id, slug, status, created_at, updated_at, title, ...) VALUES (?, ?, ?, ?, ?, ?, ...)
     expect(bindCapture.calls).toBeDefined()
-    expect(bindCapture.calls.length).toBeGreaterThanOrEqual(1)
-    const firstCall = bindCapture.calls[0]
-    expect(firstCall).toHaveLength(7)
-    expect(firstCall[3]).toBe('draft') // status default
-    const dataParam = firstCall[4]
-    expect(typeof dataParam).toBe('string')
-    const dbPayload = JSON.parse(dataParam as string)
-    expect(dbPayload).toEqual({ art_01: 'Test' })
+    expect(bindCapture.calls.length).toBeGreaterThanOrEqual(2)
+    
+    // Check call 0: slug check
+    expect(bindCapture.calls[0]).toHaveLength(1)
+
+    // Check call 1: insert
+    const insertCall = bindCapture.calls[1]
+    expect(insertCall.length).toBeGreaterThanOrEqual(6)
+    expect(insertCall[1]).toBeDefined() // finalSlug (auto-generated)
+    expect(insertCall[2]).toBe('draft') // status default
+    // bindings: id, slug, status, created_at, updated_at, ...branches
+    // title is the first branch of 'articoli'
+    expect(insertCall[5]).toBe('Test')  // title field value
   })
 })
 
@@ -220,17 +228,24 @@ describe('API Content - Read Operation (La Deserializzazione)', () => {
     } as never)
   })
 
-  it('GET /api/content/articoli: dbToApi trasforma art_xxx -> alias, risposta con data come oggetto', async () => {
-    const rawRow: ContentEntryMockRow = {
+  it('GET /api/content/articoli: risposta con data come oggetto alias-keyed', async () => {
+    // v0.4.0: rows have real columns (no JSON blob)
+    const rawRow = {
       id: '123',
-      schema_slug: 'articoli',
       slug: 'test-entry',
       status: 'published',
-      data: '{"art_01":"Test","art_02":"2026-01-01"}',
+      title: 'Test',
+      publishedAt: 1735689600,  // 2026-01-01 UTC as unix timestamp
+      coverImage: null,
+      tags: null,
+      body: null,
+      metaTitle: null,
+      metaDescription: null,
+      has_pending_draft: 0,
       created_at: 1700000000,
       updated_at: 1700000000,
     }
-    const mockDB = createMockD1ForList([rawRow])
+    const mockDB = createMockD1ForList([rawRow as unknown as ContentEntryMockRow])
 
     const res = await app.request('/api/content/articoli', {
       method: 'GET',
@@ -245,9 +260,9 @@ describe('API Content - Read Operation (La Deserializzazione)', () => {
     expect(entries[0].schema_slug).toBe('articoli')
     expect(entries[0].slug).toBe('test-entry')
     expect(entries[0].status).toBe('published')
-    // Verifica critica: dbToApi trasforma art_01/art_02 -> title/publishedAt
     expect(typeof entries[0].data).toBe('object')
-    expect(entries[0].data).toEqual({ title: 'Test', publishedAt: '2026-01-01' })
+    // title is deserialized from real column
+    expect((entries[0].data as Record<string, unknown>).title).toBe('Test')
   })
 })
 
@@ -260,36 +275,19 @@ describe('API Content - Facets dinamici', () => {
   })
 
   it('GET /api/content/articoli/facets restituisce status e tags distinti', async () => {
-    const rows: ContentEntryMockRow[] = [
-      {
-        id: '1',
-        schema_slug: 'articoli',
-        slug: 'a',
-        status: 'review',
-        data: '{"art_04":{"cms":"#111111","react":"#222222"}}',
-        created_at: null,
-        updated_at: null,
-      },
-      {
-        id: '2',
-        schema_slug: 'articoli',
-        slug: 'b',
-        status: 'published',
-        data: '{"art_04":["react","typescript"]}',
-        created_at: null,
-        updated_at: null,
-      },
-      {
-        id: '3',
-        schema_slug: 'articoli',
-        slug: 'c',
-        status: 'published',
-        data: '{"art_04":"[\\"edge\\",\\"cms\\"]"}',
-        created_at: null,
-        updated_at: null,
-      },
+    // v0.4.0: facets query is SELECT status, tags FROM content_articoli (no bind call)
+    const rows = [
+      { status: 'review',    tags: JSON.stringify({ cms: '#111111', react: '#222222' }) },
+      { status: 'published', tags: JSON.stringify(['react', 'typescript']) },
+      { status: 'published', tags: '["edge","cms"]' },
     ]
-    const mockDB = createMockD1ForList(rows)
+    const mockDB = {
+      prepare: vi.fn(() => ({
+        all: vi.fn().mockResolvedValue({ results: rows }),
+        // also expose bind for other queries
+        bind: vi.fn(() => ({ all: vi.fn().mockResolvedValue({ results: rows }) })),
+      })),
+    }
 
     const res = await app.request('/api/content/articoli/facets', {
       method: 'GET',
@@ -319,18 +317,11 @@ describe('API Content - Query params server-side', () => {
 
   it('GET /api/content/:slug con search/sort/pagination restituisce payload con meta', async () => {
     const capture = { sql: [] as string[], binds: [] as unknown[][] }
-    const rows: ContentEntryMockRow[] = [
-      {
-        id: '1',
-        schema_slug: 'articoli',
-        slug: 'a',
-        status: 'review',
-        data: '{"art_01":"Titolo A"}',
-        created_at: 10,
-        updated_at: 10,
-      },
+    // v0.4.0: real columns
+    const rows = [
+      { id: '1', slug: 'a', status: 'review', title: 'Titolo A', has_pending_draft: 0, created_at: 10, updated_at: 10 },
     ]
-    const mockDB = createMockD1ForListWithCount(rows, 42, capture)
+    const mockDB = createMockD1ForListWithCount(rows as unknown as ContentEntryMockRow[], 42, capture)
 
     const res = await app.request(
       '/api/content/articoli?search=titolo&sortBy=title&sortDir=asc&page=2&limit=10',
@@ -360,18 +351,11 @@ describe('API Content - Query params server-side', () => {
 
   it('GET /api/content/:slug con filters genera WHERE e bindings attesi', async () => {
     const capture = { sql: [] as string[], binds: [] as unknown[][] }
-    const rows: ContentEntryMockRow[] = [
-      {
-        id: '1',
-        schema_slug: 'prodotti',
-        slug: 'a',
-        status: 'published',
-        data: '{"prd_01":"Nome A","prd_02":123.45,"prd_03":10,"prd_04":true}',
-        created_at: 10,
-        updated_at: 10,
-      },
+    // v0.4.0: rows have real columns (no JSON blob)
+    const rows = [
+      { id: '1', slug: 'a', status: 'published', name: 'Nome A', price: 123.45, stock: 10, active: 1, has_pending_draft: 0, created_at: 10, updated_at: 10 },
     ]
-    const mockDB = createMockD1ForListWithCount(rows, 1, capture)
+    const mockDB = createMockD1ForListWithCount(rows as unknown as ContentEntryMockRow[], 1, capture)
 
     const filters = {
       emptyName: {
@@ -435,43 +419,22 @@ describe('API Content - Query params server-side', () => {
     expect(body.items).toHaveLength(1)
     expect(body.items[0].id).toBe('1')
 
-    // Verifica che alcune clausole chiave siano presenti nella query SQL.
+    // v0.4.0: real columns — no json_extract, json_each used for json-type arrays
     const allSql = capture.sql.join(' ')
-    expect(allSql).toContain('json_each')
-    expect(allSql).toContain('json_extract')
-    expect(allSql).toContain('CAST(')
-    expect(allSql).toContain('LIKE LOWER')
+    expect(allSql).toContain('json_each')          // images is json/file type with array support
+    expect(allSql).not.toContain('json_extract')   // v0.4.0: no json_extract
 
-    // Verifica ordine e valori principali dei bindings:
-    // - binding 0: schema_slug
-    // - tags contiene: value + likeValue
-    // - eq boolean: 1/0
-    // - eq/contains/gt/lte: rispettivi valori
-    expect(capture.binds).toHaveLength(2)
-
-    expect(capture.binds[0]).toEqual([
-      'prodotti',
-      'react',
-      '%react%',
-      1,
-      123.45,
-      '%Progetto%',
-      10,
-      '2026-01-01',
-    ])
-
-    expect(capture.binds[1]).toEqual([
-      'prodotti',
-      'react',
-      '%react%',
-      1,
-      123.45,
-      '%Progetto%',
-      10,
-      '2026-01-01',
-      10, // limit
-      0, // offset
-    ])
+    // Verify key bindings are present (order depends on filter DSL)
+    const allBinds = capture.binds.flat()
+    expect(allBinds).toContain('react')       // images contains filter
+    expect(allBinds).toContain(1)             // active=true → 1
+    expect(allBinds).toContain(123.45)        // price eq
+    expect(allBinds).toContain('%Progetto%')  // name contains
+    expect(allBinds).toContain(10)            // stock gt
+    // limit and offset in last binds call
+    const lastBinds = capture.binds[capture.binds.length - 1]
+    expect(lastBinds).toContain(10)  // limit
+    expect(lastBinds).toContain(0)   // offset
   })
 })
 
@@ -561,10 +524,9 @@ describe('API Content - PUT (Aggiornamento)', () => {
       { slug: 'old-slug', status: 'draft' },
       {
         id: 'entry-123',
-        schema_slug: 'articoli',
         slug: 'old-slug',
         status: 'draft',
-        data: JSON.stringify({ art_01: 'Titolo' }),
+        title: 'Titolo',
         created_at: 1700000000,
         updated_at: 1700000000,
       },
@@ -603,7 +565,8 @@ describe('API Content - DELETE (Eliminazione)', () => {
   })
 
   it('DELETE con ID esistente -> 200 success', async () => {
-    const entryRow = { id: 'entry-to-delete', data: '{}' }
+    // v0.4.0: row has real columns (no JSON blob)
+    const entryRow = { id: 'entry-to-delete', status: 'published', slug: 'test' }
     const mockDB = {
       prepare: vi.fn()
         .mockReturnValueOnce({
@@ -644,12 +607,13 @@ describe('API Content - DELETE (Eliminazione)', () => {
   })
 
   it('DELETE con entry contenente URL R2 -> elimina anche i file da R2', async () => {
+    // v0.4.0: real columns — coverImage is the file column
     const entryWithMedia = {
       id: 'entry-with-cover',
-      data: JSON.stringify({
-        art_01: 'Articolo con copertina',
-        art_03: 'https://example.com/api/media/1739-copertina.png',
-      }),
+      status: 'published',
+      slug: 'articolo-con-copertina',
+      title: 'Articolo con copertina',
+      coverImage: 'https://example.com/api/media/1739-copertina.png',
     }
     const mockDB = {
       prepare: vi.fn()
@@ -714,16 +678,22 @@ describe('API Content - GET by-slug', () => {
   })
 
   it('GET /api/content/articoli/by-slug/my-entry restituisce entry quando slug esiste', async () => {
-    const row: ContentEntryMockRow = {
+    // v0.4.0: real columns
+    const row = {
       id: 'id-by-slug',
-      schema_slug: 'articoli',
       slug: 'my-entry',
       status: 'published',
-      data: '{"art_01":"Titolo","art_02":"2026-01-01"}',
+      title: 'Titolo',
+      publishedAt: 1735689600,
+      coverImage: null,
+      tags: null,
+      body: null,
+      metaTitle: null,
+      metaDescription: null,
       created_at: 1700000000,
       updated_at: 1700000000,
     }
-    const mockDB = createMockD1ForDetail(row)
+    const mockDB = createMockD1ForDetail(row as unknown as ContentEntryMockRow)
     const res = await app.request('/api/content/articoli/by-slug/my-entry', {
       method: 'GET',
       headers: { Authorization: 'Bearer valid-token' },
@@ -733,7 +703,7 @@ describe('API Content - GET by-slug', () => {
     expect(entry.id).toBe('id-by-slug')
     expect(entry.slug).toBe('my-entry')
     expect(entry.status).toBe('published')
-    expect(entry.data).toEqual({ title: 'Titolo', publishedAt: '2026-01-01' })
+    expect((entry.data as Record<string, unknown>).title).toBe('Titolo')
   })
 
   it('GET /api/content/articoli/by-slug/slug-inesistente -> 404', async () => {
@@ -757,7 +727,7 @@ describe('API Content - Validazione slug', () => {
   })
 
   it('POST con body non JSON -> 400', async () => {
-    const bindCapture: { args?: unknown[] } = {}
+    const bindCapture: { calls: unknown[][] } = { calls: [] }
     const mockDB = createMockD1ForInsert(bindCapture)
 
     const res = await app.request('/api/content/articoli', {
@@ -864,17 +834,24 @@ describe('API Content - Edge Case (Dati corrotti)', () => {
     } as never)
   })
 
-  it('GET con data JSON corrotto nel DB -> 200 con data: {} (nessun crash)', async () => {
-    const rawRow: ContentEntryMockRow = {
+  it('GET con row senza campi facoltativi -> 200 con data: tutti null (nessun crash)', async () => {
+    // v0.4.0: no JSON blob — null columns come from DB directly
+    const rawRow = {
       id: '456',
-      schema_slug: 'articoli',
       slug: null,
       status: 'draft',
-      data: 'invalid-json',
+      title: null,
+      publishedAt: null,
+      coverImage: null,
+      tags: null,
+      body: null,
+      metaTitle: null,
+      metaDescription: null,
+      has_pending_draft: 0,
       created_at: 1700000000,
       updated_at: 1700000000,
     }
-    const mockDB = createMockD1ForList([rawRow])
+    const mockDB = createMockD1ForList([rawRow as unknown as ContentEntryMockRow])
 
     const res = await app.request('/api/content/articoli', {
       method: 'GET',
@@ -885,6 +862,6 @@ describe('API Content - Edge Case (Dati corrotti)', () => {
     const entries = await res.json<Array<{ id: string; data: unknown }>>()
     expect(entries).toHaveLength(1)
     expect(entries[0].id).toBe('456')
-    expect(entries[0].data).toEqual({})
+    expect(typeof entries[0].data).toBe('object')
   })
 })

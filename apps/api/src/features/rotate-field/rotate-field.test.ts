@@ -57,13 +57,14 @@ function makeAuthHeader() {
   return { Authorization: 'Bearer test-token' }
 }
 
+// v0.4.0: entry has real columns (no JSON blob)
 function makeEntry(id: string, dbData: Record<string, unknown>) {
   return {
     id,
-    schema_slug: 'test-members',
     slug: 'member-1',
     status: 'published',
-    data: JSON.stringify(dbData),
+    name: dbData.name ?? null,
+    password: dbData.password ?? dbData.br_02 ?? null,  // accept both alias and old id for compat
     created_at: 1000000,
     updated_at: 1000000,
   }
@@ -284,12 +285,13 @@ describe('POST /:slug/:id/rotate-field', () => {
     )
 
     expect(res.status).toBe(200)
-    const updateCall = bindCalls.find((c) => c.sql.includes('UPDATE content_entries SET data'))
+    // v0.4.0: UPDATE content_test-members SET password = ?, updated_at = ? WHERE id = ?
+    const updateCall = bindCalls.find((c) => c.sql.includes('UPDATE content_test-members'))
     expect(updateCall).toBeDefined()
-    const saved = JSON.parse(updateCall!.args[0] as string)
-    // The stored value must be a SHA-256 hex string, not the plaintext
-    expect(saved.br_02).not.toBe(NEXT_PLAINTEXT)
-    expect(saved.br_02).toMatch(/^[0-9a-f]{64}$/)
-    expect(saved.br_02).toBe(await sha256hex(NEXT_PLAINTEXT))
+    // args[0] = password hash value (real column, not JSON blob)
+    const savedHash = updateCall!.args[0] as string
+    expect(savedHash).not.toBe(NEXT_PLAINTEXT)
+    expect(savedHash).toMatch(/^[0-9a-f]{64}$/)
+    expect(savedHash).toBe(await sha256hex(NEXT_PLAINTEXT))
   })
 })

@@ -70,7 +70,7 @@ export function extractMediaKeysFromData(
   const r2Keys = new Set<string>()
   for (const branch of seed.branches) {
     if (branch.type !== 'file' && branch.type !== 'json') continue
-    const fieldValue = entryData[branch.id]
+    const fieldValue = entryData[branch.alias]
     if (fieldValue == null) continue
     collectMediaKeysRecursive(fieldValue, r2Keys)
   }

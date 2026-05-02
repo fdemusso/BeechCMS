@@ -1,5 +1,4 @@
 /// <reference types="@cloudflare/workers-types" />
-import { dbToApi, getSeed } from '@beech/core'
 import { describe, expect, it, vi } from 'vitest'
 import app from '../src/index'
 
@@ -21,23 +20,8 @@ function createMockD1ForPublicEdit(options?: {
   return {
     prepare: vi.fn((sql: string) => ({
       bind: vi.fn((...args: unknown[]) => {
-        if (
-          sql.includes(
-            'SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries WHERE schema_slug = ? AND id = ? LIMIT 1'
-          )
-        ) {
-          return {
-            first: vi.fn(async () => currentRow),
-          }
-        }
-
-        if (sql.includes('SELECT id FROM content_entries WHERE schema_slug = ? AND slug = ? AND id != ?')) {
-          return {
-            first: vi.fn(async () => (slugConflict ? { id: 'existing-id' } : null)),
-          }
-        }
-
-        if (sql.includes('UPDATE content_entries')) {
+        // UPDATE must be checked before SELECT (both contain 'content_' and 'WHERE id = ?')
+        if (sql.startsWith('UPDATE content_')) {
           return {
             run: vi.fn(async () => {
               captureUpdateBind?.(args)
@@ -45,6 +29,16 @@ function createMockD1ForPublicEdit(options?: {
               return { success: true, meta: { changes: 1 } }
             }),
           }
+        }
+
+        // v0.4.0: SELECT * FROM content_{slug} WHERE id = ?
+        if (sql.startsWith('SELECT') && sql.includes('WHERE id = ?') && sql.includes('content_')) {
+          return { first: vi.fn(async () => currentRow) }
+        }
+
+        // v0.4.0: slug conflict check — content_{slug} WHERE slug = ? AND id != ?
+        if (sql.includes('slug = ?') && sql.includes('id != ?')) {
+          return { first: vi.fn(async () => (slugConflict ? { id: 'existing-id' } : null)) }
         }
 
         return {
@@ -108,16 +102,16 @@ describe('Public API edit endpoint', () => {
 
   it('PUT applica merge parziale e cancellazione esplicita con null', async () => {
     let bindArgs: unknown[] = []
+    // v0.4.0: currentRow uses real columns (not JSON blob)
     const currentRow = {
       id: validId,
-      schema_slug: 'messaggi',
       slug: 'messaggio-esistente',
       status: 'draft',
-      data: JSON.stringify({
-        msg_01: 'Nome attuale',
-        msg_03: 'Oggetto attuale',
-        msg_04: '<p>Body invariato</p>',
-      }),
+      name: 'Nome attuale',
+      email: null,
+      subject: 'Oggetto attuale',
+      message: '<p>Body invariato</p>',
+      read: null,
       created_at: 1700000001,
       updated_at: 1700000002,
     }
@@ -156,19 +150,16 @@ describe('Public API edit endpoint', () => {
     // Nota: lo slug è limitato a 15 caratteri dal core
     expect(body.slug).toBe('messaggio-aggio')
 
-    const seed = getSeed('messaggi')
-    if (!seed) throw new Error('Seed messaggi non trovato')
-    const boundData = bindArgs[2]
-    const savedDbData = JSON.parse(
-      typeof boundData === 'string' ? boundData : JSON.stringify(boundData)
-    ) as Record<string, unknown>
-    const savedAliasData = dbToApi(seed, savedDbData)
-    expect(savedAliasData.subject).toBe('Oggetto aggiornato')
-    expect(savedAliasData.name).toBe('Nome attuale')
-    expect(savedAliasData.message).toBeUndefined()
-    // Nota: lo slug è limitato a 15 caratteri dal core
-    expect(bindArgs[0]).toBe('messaggio-aggio')
-    expect(bindArgs[1]).toBe('published')
+    // v0.4.0 bind order: slug, status, updated_at, ...field bindings, id
+    // Only non-null fields are included. name='Nome attuale', subject='Oggetto aggiornato'.
+    // message=null was removed by removeNullishFields, so message is NOT in bindings.
+    expect(bindArgs[0]).toBe('messaggio-aggio')  // slug
+    expect(bindArgs[1]).toBe('published')         // status
+    expect(typeof bindArgs[2]).toBe('number')     // updated_at timestamp
+    expect(bindArgs).toContain('Nome attuale')    // name preserved from current
+    expect(bindArgs).toContain('Oggetto aggiornato')  // subject patched
+    expect(bindArgs).not.toContain('<p>Body invariato</p>')  // message removed (was null)
+    expect(bindArgs[bindArgs.length - 1]).toBe(validId)  // id at end
   })
 
   it('PUT con slug in conflitto -> 409', async () => {
@@ -188,10 +179,13 @@ describe('Public API edit endpoint', () => {
         DB: createMockD1ForPublicEdit({
           currentRow: {
             id: validId,
-            schema_slug: 'messaggi',
             slug: 'old-slug',
             status: 'draft',
-            data: JSON.stringify({ msg_01: 'Nome' }),
+            name: 'Nome',
+            email: null,
+            subject: null,
+            message: null,
+            read: null,
             created_at: 1700000001,
             updated_at: 1700000002,
           },
@@ -223,10 +217,9 @@ describe('Public API edit endpoint', () => {
         DB: createMockD1ForPublicEdit({
           currentRow: {
             id: validId,
-            schema_slug: 'messaggi',
             slug: 'messaggio-1',
             status: 'draft',
-            data: JSON.stringify({ msg_01: 'Nome' }),
+            name: 'Nome',
             created_at: 1700000001,
             updated_at: 1700000002,
           },
@@ -261,10 +254,9 @@ describe('Public API edit endpoint', () => {
         DB: createMockD1ForPublicEdit({
           currentRow: {
             id: validId,
-            schema_slug: 'messaggi',
             slug: 'messaggio-1',
             status: 'draft',
-            data: JSON.stringify({ msg_01: 'Nome' }),
+            name: 'Nome',
             created_at: 1700000001,
             updated_at: 1700000002,
           },

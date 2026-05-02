@@ -11,7 +11,7 @@ const DATABASE_ERROR = 'Database error'
 const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
 // GET /stats/media-library - Lista tutti i file presenti in R2:
-// combina media_objects (upload tracciati) + URL /api/media/ nelle entry (upload pre-migration)
+// combina media_objects (upload tracciati) + URL /api/media/ nelle colonne file di ogni seed
 statsApp.get('/stats/media-library', async (c) => {
     try {
         const { DB } = c.env
@@ -32,25 +32,33 @@ statsApp.get('/stats/media-library', async (c) => {
             allItems.push({ ...m, url: `${mediaBase}/api/media/${encodeURIComponent(m.key)}` })
         }
 
-        // 2. URL /api/media/ nelle entry (data + draft_data) non ancora in media_objects
-        const contentRows = await DB.prepare(
-            `SELECT data, draft_data FROM content_entries
-       WHERE data LIKE '%/api/media/%'
-          OR (draft_data IS NOT NULL AND draft_data LIKE '%/api/media/%')`
-        ).all<{ data: string; draft_data: string | null }>()
-
+        // 2. URL /api/media/ nelle colonne file di ogni seed (v0.4.0 — colonne reali)
         const MEDIA_KEY_RE = /\/api\/media\/([^"'\s\\,}\]]+)/g
-        for (const row of contentRows.results ?? []) {
-            const combined = (row.data ?? '') + ' ' + (row.draft_data ?? '')
-            for (const match of combined.matchAll(MEDIA_KEY_RE)) {
-                const key = decodeURIComponent(match[1])
-                if (trackedKeys.has(key)) continue
-                trackedKeys.add(key)
-                const filename = key.replace(/^\d+-/, '')
-                const ext = filename.split('.').pop()?.toLowerCase() ?? ''
-                const mimeType = ext === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext || 'jpeg'}`
-                const createdAt = parseInt(key.split('-')[0]) || 0
-                allItems.push({ key, filename, mime_type: mimeType, size_bytes: 0, created_at: createdAt, url: `${mediaBase}/api/media/${encodeURIComponent(key)}` })
+        const seeds = Object.values(c.get('seedRegistry'))
+
+        for (const seed of seeds) {
+            const fileBranches = seed.branches.filter(b => b.type === 'file')
+            if (fileBranches.length === 0) continue
+
+            const cols = fileBranches.map(b => b.alias).join(', ')
+            const whereClause = fileBranches.map(b => `${b.alias} LIKE '%/api/media/%'`).join(' OR ')
+
+            const rows = await DB.prepare(
+                `SELECT ${cols} FROM content_${seed.slug} WHERE ${whereClause}`
+            ).all<Record<string, string | null>>()
+
+            for (const row of rows.results ?? []) {
+                const combined = Object.values(row).filter(Boolean).join(' ')
+                for (const match of combined.matchAll(MEDIA_KEY_RE)) {
+                    const key = decodeURIComponent(match[1])
+                    if (trackedKeys.has(key)) continue
+                    trackedKeys.add(key)
+                    const filename = key.replace(/^\d+-/, '')
+                    const ext = filename.split('.').pop()?.toLowerCase() ?? ''
+                    const mimeType = ext === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext || 'jpeg'}`
+                    const createdAt = parseInt(key.split('-')[0]) || 0
+                    allItems.push({ key, filename, mime_type: mimeType, size_bytes: 0, created_at: createdAt, url: `${mediaBase}/api/media/${encodeURIComponent(key)}` })
+                }
             }
         }
 
@@ -65,53 +73,41 @@ statsApp.get('/stats/media-library', async (c) => {
     }
 })
 
-// GET /stats/unused-media - Trova media non referenziati in altri contenuti
+// GET /stats/unused-media - Trova media in media_objects non referenziati in nessuna colonna file
 statsApp.get('/stats/unused-media', async (c) => {
     try {
         const { DB } = c.env
-        const seedSlug = cleanStr(c.req.query('seedSlug'))
-        if (!seedSlug) {
-            return c.json({ error: 'Missing seedSlug' }, 400)
-        }
+        const seeds = Object.values(c.get('seedRegistry'))
 
-        // 1. Prendi tutti i "media" candidatì
-        const mediaEntries = await DB.prepare(
-            'SELECT id, data FROM content_entries WHERE slug = ?'
-        ).bind(seedSlug).all<{ id: string; data: string }>()
+        // Tutte le chiavi media tracciate
+        const mediaRows = await DB.prepare(
+            'SELECT key, filename, mime_type, size_bytes, created_at FROM media_objects ORDER BY created_at DESC'
+        ).all<{ key: string; filename: string; mime_type: string; size_bytes: number; created_at: number }>()
 
-        if (!mediaEntries.results?.length) {
+        if (!mediaRows.results?.length) {
             return c.json({ items: [] })
         }
 
-        // 2. Prendi TUTTI i dati degli ALTRI contenuti (solo la colonna data per efficienza)
-        // NOTA: In produzione con migliaia di record questo andrebbe ottimizzato
-        // con un indice full-text o cercando solo nei campi "file".
-        const otherEntries = await DB.prepare(
-            'SELECT data FROM content_entries WHERE slug != ?'
-        ).bind(seedSlug).all<{ data: string }>()
+        // Raccoglie tutte le chiavi referenziate nelle colonne file di ogni seed
+        const referencedKeys = new Set<string>()
+        for (const seed of seeds) {
+            const fileBranches = seed.branches.filter(b => b.type === 'file')
+            if (fileBranches.length === 0) continue
+            const cols = fileBranches.map(b => b.alias).join(', ')
+            const rows = await DB.prepare(
+                `SELECT ${cols} FROM content_${seed.slug}`
+            ).all<Record<string, string | null>>()
 
-        const allOtherData = otherEntries.results?.map(r => r.data).join(' ') || ''
-
-        // 3. Filtra quelli che NON compaiono mai negli altri dati
-        const unused = mediaEntries.results.filter(m => {
-            // Cerchiamo l'ID del media o parte del suo URL nel blob JSON degli altri
-            // L'ID è il riferimento più sicuro se salvato come riferimento,
-            // altrimenti cerchiamo se la stringa compare.
-            return !allOtherData.includes(m.id)
-        })
-
-        // 4. Recupera le entry complete per gli inutilizzati
-        if (unused.length === 0) {
-            return c.json({ items: [] })
+            for (const row of rows.results ?? []) {
+                const combined = Object.values(row).filter(Boolean).join(' ')
+                for (const match of combined.matchAll(/\/api\/media\/([^"'\s\\,}\]]+)/g)) {
+                    referencedKeys.add(decodeURIComponent(match[1]))
+                }
+            }
         }
 
-        const unusedIds = unused.map(u => u.id)
-        const placeholders = unusedIds.map(() => '?').join(',')
-        const finalEntries = await DB.prepare(
-            `SELECT * FROM content_entries WHERE id IN (${placeholders})`
-        ).bind(...unusedIds).all()
-
-        return c.json({ items: finalEntries.results })
+        const unused = (mediaRows.results ?? []).filter(m => !referencedKeys.has(m.key))
+        return c.json({ items: unused })
     } catch (err) {
         console.error('Unused media error:', err)
         return c.json({ error: 'Internal Server Error' }, 500)
@@ -124,25 +120,32 @@ statsApp.get('/stats/total', async (c) => {
         const { DB } = c.env
         const now = Math.floor(Date.now() / 1000)
         const twentyFourHoursAgo = now - (24 * 60 * 60)
-        const sevenDaysAgo = now - (7 * 24 * 60 * 60)
-        const thirtyDaysAgo = now - (30 * 24 * 60 * 60)
+        const sevenDaysAgo       = now - (7 * 24 * 60 * 60)
+        const thirtyDaysAgo      = now - (30 * 24 * 60 * 60)
 
-        const row = await DB.prepare(
-            `SELECT 
-        COUNT(*) as total,
+        // Total: SUM of per-seed counts (current live entries)
+        const seeds = Object.values(c.get('seedRegistry'))
+        const countResults = await Promise.all(
+            seeds.map(s => DB.prepare(`SELECT COUNT(*) as n FROM content_${s.slug}`).first<{ n: number }>())
+        )
+        const total = countResults.reduce((acc, r) => acc + (r?.n ?? 0), 0)
+
+        // today/week/month: create events in content_event_log
+        const eventRow = await DB.prepare(
+            `SELECT
         COUNT(CASE WHEN created_at >= ? THEN 1 END) as today,
         COUNT(CASE WHEN created_at >= ? THEN 1 END) as week,
         COUNT(CASE WHEN created_at >= ? THEN 1 END) as month
-      FROM content_entries`
+      FROM content_event_log WHERE action = 'create'`
         )
             .bind(twentyFourHoursAgo, sevenDaysAgo, thirtyDaysAgo)
-            .first<{ total: number; today: number; week: number; month: number }>()
+            .first<{ today: number; week: number; month: number }>()
 
         return c.json({
-            total: row?.total ?? 0,
-            today: row?.today ?? 0,
-            week: row?.week ?? 0,
-            month: row?.month ?? 0,
+            total,
+            today: eventRow?.today ?? 0,
+            week:  eventRow?.week  ?? 0,
+            month: eventRow?.month ?? 0,
         })
     } catch (err) {
         console.error('Content stats error:', err)
@@ -338,19 +341,16 @@ statsApp.get('/stats/cloudflare', async (c) => {
 statsApp.get('/stats/breakdown', async (c) => {
     try {
         const { DB } = c.env
+        const seeds = Object.values(c.get('seedRegistry'))
 
-        const results = await DB.prepare(
-            'SELECT schema_slug, COUNT(*) as count FROM content_entries GROUP BY schema_slug'
-        ).all<{ schema_slug: string; count: number }>()
-
-        const countMap = Object.fromEntries(
-            results.results?.map(r => [r.schema_slug, r.count]) ?? []
+        const counts = await Promise.all(
+            seeds.map(s => DB.prepare(`SELECT COUNT(*) as n FROM content_${s.slug}`).first<{ n: number }>())
         )
 
-        const breakdown = Object.values(c.get('seedRegistry')).map(seed => ({
-            slug: seed.slug,
+        const breakdown = seeds.map((seed, i) => ({
+            slug:  seed.slug,
             label: seed.labelPlural || seed.label,
-            count: countMap[seed.slug] ?? 0
+            count: counts[i]?.n ?? 0,
         }))
 
         return c.json(breakdown)

@@ -350,7 +350,7 @@ CREATE TABLE password_reset_tokens (
 
 All routes require `Authorization: Bearer <access_token>`.
 
-The content engine uses the Botanical Engine (`apiToDb`/`dbToApi`) for all field translation. Consumers always use **field aliases** (defined in the Seed), never internal IDs (`br01`, `br02`).
+The content engine uses the Botanical Engine to generate optimized SQL queries. Consumers always use **field aliases** (defined in the Seed).
 
 ---
 
@@ -403,6 +403,8 @@ Authorization: Bearer eyJ...
   }
 }
 ```
+
+> **Note:** Although the data is stored in separate SQL columns, the API continues to return a `data` object containing the fields for backward compatibility with the dashboard and public API consumers.
 
 ---
 
@@ -490,9 +492,9 @@ Content-Type: application/json
 
 Deletes a content entry and removes all associated R2 media files.
 
-**R2 cascade behaviour:** Before the D1 `DELETE`, the API extracts all R2 object keys from `file` and `asset-list` fields in the entry's `data` column. It sends a `DeleteObjectCommand` per key. If R2 is not configured or a delete fails, **the D1 deletion still proceeds** — media cleanup is best-effort and does not block content deletion.
+**cascade behaviour:** Before the deletion, the API extracts all media keys from the entry's fields. It sends a `DeleteObjectCommand` per key. If R2 is not configured or a delete fails, **the deletion still proceeds** — media cleanup is best-effort.
 
-> **Limitation:** Images embedded inside `richtext` fields (`<img src="/api/media/KEY">`) are not parsed during cascade deletion. Those objects remain in R2 until manually removed.
+> **Limitation:** Images embedded inside `richtext` fields (`<img src="/api/media/KEY">`) are not parsed during cascade deletion.
 
 **Request**
 
@@ -559,19 +561,15 @@ Content-Type: application/json
 
 ---
 
-### 4.6 Pending Draft API
-
-Il sistema di bozze pendenti permette di salvare modifiche su un'entry già pubblicata senza renderle immediatamente visibili al pubblico. Funziona tramite una colonna separata `draft_data` sulla stessa riga: `data` contiene il contenuto vivo, `draft_data` contiene l'overlay pendente.
+Il sistema di bozze pendenti permette di salvare modifiche su un'entry già pubblicata senza renderle immediatamente visibili al pubblico. In v0.4.0, questo è gestito tramite una tabella speculare `content_{slug}_drafts` che contiene le modifiche non ancora pubblicate.
 
 **Prerequisito:** il Seed deve avere `allowDrafts: true` in `@beech/core/src/seeds.ts`. Se il flag è assente o `false`, tutti gli endpoint di questa sezione rispondono `405 Method Not Allowed`.
 
-> **Distinzione fondamentale:** `status = 'draft'` identifica un'entry mai pubblicata (nuova, in lavorazione). Una bozza pendente è invece un'entry **già pubblicata** con `draft_data IS NOT NULL` — le due cose sono concettualmente diverse e gestite da endpoint diversi.
+> **Distinzione fondamentale:** `status = 'draft'` identifica un'entry mai pubblicata. Una bozza pendente è invece un'entry **già pubblicata** che ha una riga corrispondente nella tabella dei draft.
 
 ---
 
-#### `PUT /api/content/:seed/:id/draft`
-
-Crea o sovrascrive la bozza pendente sull'entry. I dati vengono validati e tradotti tramite il Botanical Engine prima di essere scritti in `draft_data`. I campi con `privacy !== 'plain'` (campi sensibili) non sono modificabili neanche in bozza.
+Crea o sovrascrive la bozza pendente nella tabella `content_{slug}_drafts`. I dati vengono validati e serializzati tramite il Botanical Engine.
 
 **Request**
 
@@ -586,7 +584,7 @@ Content-Type: application/json
 }
 ```
 
-Il payload usa alias (`title`, `body`), non branch ID interni. Si possono inviare anche solo alcuni campi — non è necessario inviare l'entry completa.
+Il payload usa alias (`title`, `body`). Si possono inviare anche solo alcuni campi — non è necessario inviare l'entry completa.
 
 **Response `200`**
 
@@ -636,22 +634,14 @@ I campi sono in formato alias, con le policy di visibilità già applicate (`app
 | Status | `type` | Causa |
 |---|---|---|
 | `404` | `content-not-found` | Entry non trovata |
-| `404` | `draft-not-found` | L'entry esiste ma non ha una bozza pendente (`draft_data` è NULL) |
+| `404` | `draft-not-found` | L'entry esiste ma non ha una bozza pendente (nessuna riga in `content_{slug}_drafts`) |
 | `405` | `draft-not-allowed` | Il Seed non ha `allowDrafts: true` |
 
 ---
 
-#### `POST /api/content/:seed/:id/draft/publish`
+Promuove la bozza pendente al contenuto vivo in un'unica operazione atomica SQL (`INSERT INTO ... SELECT ...`).
 
-Promuove la bozza pendente al contenuto vivo in un'unica operazione atomica SQL:
-
-```sql
-UPDATE content_entries
-SET data = draft_data, draft_data = NULL, status = 'published', updated_at = ?
-WHERE schema_slug = ? AND id = ?
-```
-
-Dopo la scrittura, aggiorna l'indice FTS5 e registra l'attività nel log.
+Dopo la scrittura, i trigger SQL aggiornano l'indice FTS5 e viene registrata l'attività nel log.
 
 **Request**
 
@@ -680,7 +670,7 @@ Nessun body richiesto.
 
 #### `DELETE /api/content/:seed/:id/draft`
 
-Scarta la bozza pendente impostando `draft_data = NULL`. Il contenuto vivo (`data`) non viene modificato.
+Scarta la bozza pendente eliminando la riga dalla tabella dei draft. Il contenuto vivo non viene modificato.
 
 **Request**
 
@@ -709,14 +699,14 @@ Authorization: Bearer eyJ...
 ```
 Entry pubblicata
       │
-      │  PUT /draft  (salva modifiche senza pubblicare)
+      │  PUT /draft  (salva modifiche nella tabella mirror)
       ▼
-draft_data = { ...modifiche }   ←── visibile solo nell'editor (anteprima via GET /draft)
-data = { ...versione live }     ←── ancora servita al pubblico
+content_{slug}_drafts  ←── visibile solo nell'editor (anteprima via GET /draft)
+content_{slug}         ←── ancora servita al pubblico
       │
-      ├── POST /draft/publish  →  data = draft_data, draft_data = NULL  (atomico)
+      ├── POST /draft/publish  →  aggiorna riga principale dalla mirror (atomico)
       │
-      └── DELETE /draft        →  draft_data = NULL  (scarta le modifiche)
+      └── DELETE /draft        →  elimina riga mirror (scarta le modifiche)
 ```
 
 ---

@@ -19,11 +19,10 @@ function createMockD1ForPublicRead(options?: {
     prepare: vi.fn((sql: string) => ({
       bind: vi.fn(() => {
         if (sql.includes('COUNT(*)')) {
-          return {
-            first: vi.fn(async () => ({ total })),
-          }
+          return { first: vi.fn(async () => ({ total })) }
         }
-        if (sql.includes('FROM content_entries') && sql.includes('id = ?')) {
+        // v0.4.0: detail query → SELECT * FROM content_{slug} WHERE id = ?
+        if (sql.includes('content_') && sql.includes('id = ?')) {
           const enforcePublished = sql.includes("status = 'published'")
           return {
             first: vi.fn(async () => {
@@ -33,9 +32,7 @@ function createMockD1ForPublicRead(options?: {
             }),
           }
         }
-        return {
-          all: vi.fn(async () => ({ results: listRows })),
-        }
+        return { all: vi.fn(async () => ({ results: listRows })) }
       }),
     })),
   }
@@ -63,10 +60,15 @@ describe('Public API read endpoint', () => {
     const mockDB = createMockD1ForPublicRead({
       detailRow: {
         id: 'uuid-1',
-        schema_slug: 'articoli',
         slug: 'primo-articolo',
         status: 'published',
-        data: JSON.stringify({ art_01: 'Titolo uno', art_02: '2026-04-07' }),
+        title: 'Titolo uno',
+        publishedAt: 1775520000,  // 2026-04-07 UTC as unix timestamp
+        coverImage: null,
+        tags: null,
+        body: null,
+        metaTitle: null,
+        metaDescription: null,
         created_at: 1700000001,
         updated_at: 1700000001,
       },
@@ -89,7 +91,7 @@ describe('Public API read endpoint', () => {
     expect(meta.seed).toBe('articoli')
     expect(data.id).toBe('uuid-1')
     expect(data.title).toBe('Titolo uno')
-    expect(data.publishedAt).toBe('2026-04-07')
+    expect(String(data.publishedAt)).toContain('2026-04-07')
   })
 
   it('GET lista con fields applica projection + metadata obbligatori', async () => {
@@ -97,10 +99,15 @@ describe('Public API read endpoint', () => {
       listRows: [
         {
           id: 'uuid-1',
-          schema_slug: 'articoli',
           slug: 'primo-articolo',
           status: 'published',
-          data: JSON.stringify({ art_01: 'Titolo uno', art_02: '2026-04-07', art_06: 'Meta' }),
+          title: 'Titolo uno',
+          publishedAt: 1775520000,
+          metaTitle: 'Meta',
+          coverImage: null,
+          tags: null,
+          body: null,
+          metaDescription: null,
           created_at: 1700000001,
           updated_at: 1700000001,
         },
@@ -130,7 +137,7 @@ describe('Public API read endpoint', () => {
     expect(dataList).toHaveLength(1)
     expect(first.id).toBe('uuid-1')
     expect(first.title).toBe('Titolo uno')
-    expect(first.publishedAt).toBe('2026-04-07')
+    expect(String(first.publishedAt)).toContain('2026-04-07')
     expect(first.metaTitle).toBeUndefined()
     expect(meta.seed).toBe('articoli')
     expect(meta.returned).toBe(1)
@@ -141,10 +148,9 @@ describe('Public API read endpoint', () => {
       listRows: [
         {
           id: 'uuid-1',
-          schema_slug: 'articoli',
           slug: 'art-1',
           status: 'published',
-          data: JSON.stringify({ art_01: 'Titolo 1' }),
+          title: 'Titolo 1',
           created_at: 1700000001,
           updated_at: 1700000001,
         },
@@ -205,10 +211,9 @@ describe('Public API read endpoint', () => {
     const mockDB = createMockD1ForPublicRead({
       detailRow: {
         id: 'uuid-draft',
-        schema_slug: 'articoli',
         slug: 'bozza',
         status: 'draft',
-        data: JSON.stringify({ art_01: 'Bozza' }),
+        title: 'Bozza',
         created_at: 1700000001,
         updated_at: 1700000001,
       },
