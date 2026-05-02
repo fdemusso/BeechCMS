@@ -108,8 +108,8 @@ function buildPackageJson(name) {
       'db:reset:local': 'node -e "require(\'fs\').rmSync(\'.wrangler/state\',{recursive:true,force:true})" && npm run db:migrate:local',
     },
     dependencies: {
-      '@beechcms/api': '^0.4.0-preview.4',
-      '@beechcms/core': '^0.4.0-preview.4',
+      '@beechcms/api': '^0.4.0-preview.5',
+      '@beechcms/core': '^0.4.0-preview.5',
     },
     devDependencies: {
       '@cloudflare/workers-types': '^4.0.0',

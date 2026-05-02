@@ -6,14 +6,14 @@ import { WidgetRegistry } from "../components/widget-registry"
 import { getDashboardConfig } from "../config/dashboard.config"
 import { useDashboardStats, useCloudflareStats } from "../hooks/use-dashboard-stats"
 import { useSchema } from "@/features/schema/hooks/use-schema"
-import { getStoredUser } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 
 export default function DashboardPage() {
   const { t } = useTranslation()
   const { data: seeds = [] } = useSchema()
   const { data: statsData, isLoading: statsLoading } = useDashboardStats()
   const { data: cfData, isLoading: cfLoading } = useCloudflareStats()
-  const user = getStoredUser()
+  const { user } = useAuth()
   const hour = new Date().getHours()
   const greeting = hour >= 5 && hour < 12
     ? t("dashboard.greeting.morning")

@@ -26,6 +26,7 @@ export interface Env {
   FORGOT_PASSWORD_RATE_LIMITER?: RateLimit
   RESET_PASSWORD_RATE_LIMITER?: RateLimit
   ENV?: string
+  ASSETS?: Fetcher
 }
 
 export interface Variables {

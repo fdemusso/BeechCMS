@@ -175,6 +175,10 @@ export function buildFtsQuery(
 
 // ─── Mapper ──────────────────────────────────────────────────────────────────
 
+function stripHtmlPreserveMark(html: string): string {
+  return html.replace(/<(?!\/?mark\b)[^>]*>/gi, ' ').replace(/\s+/g, ' ').trim()
+}
+
 export function mapFtsRow(row: FtsRow): SearchResultItem {
   return {
     id:          row.entry_id,
@@ -182,7 +186,7 @@ export function mapFtsRow(row: FtsRow): SearchResultItem {
     slug:        row.slug,
     status:      row.status,
     title:       row.title ?? "",
-    excerpt:     row.excerpt ?? "",
+    excerpt:     stripHtmlPreserveMark(row.excerpt ?? ""),
     data:        {},
   }
 }

@@ -67,7 +67,7 @@ export async function requestPasswordReset(
     .run()
 
   const appUrl = (c.env.APP_URL ?? new URL(c.req.url).origin).replace(/\/$/, '')
-  const resetUrl = `${appUrl}/reset-password?token=${token}`
+  const resetUrl = `${appUrl}/admin/reset-password?token=${token}`
 
   try {
     await sendPasswordResetEmail({

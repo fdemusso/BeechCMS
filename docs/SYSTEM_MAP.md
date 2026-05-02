@@ -150,7 +150,9 @@ This high-level system map is designed for onboarding new contributors and for A
 - **Authentication (`/auth/*`)** — see `nuovidocs/api-reference.md` §2–3
   - Login: validates credentials with `bcryptjs`, generates JWT via `jose.SignJWT` (15 min TTL), creates UUID refresh token stored hashed in D1, sets `HttpOnly SameSite=Strict` cookie.
   - Refresh: reads cookie, validates in D1, atomically revokes old token, issues new access + refresh token pair.
-  - Logout: revokes refresh token in D1, clears cookie.
+  - Logout: revokes refresh token in D1, clears cookie, clears in-memory token on the client.
+  - **Access token storage:** the JWT access token lives **in-memory only** (`_accessToken` module variable in `apps/dashboard/src/lib/api.ts`). It is never written to `localStorage` or `sessionStorage`. On page load, `AuthProvider` silently calls `POST /auth/refresh`; if the `HttpOnly` refresh cookie is valid, a new access token is issued and stored in memory. This eliminates the XSS → token-theft attack surface.
+  - **AuthContext** (`apps/dashboard/src/lib/auth-context.tsx`): `AuthProvider` mounts at app root and manages `{ status: 'loading' | 'authenticated' | 'unauthenticated', user }`. `useAuth()` is the hook for all components. `ProtectedRoute` renders `<SplashScreen />` during the initial refresh, then either the protected content or `<Navigate to="/login">`.
   - **Password reset (optional):** enabled only when `RESEND_API_KEY` is set. `GET /auth/features` exposes the flag to the dashboard. `POST /auth/forgot-password` issues a 30-min single-use token (SHA-256 hashed in `password_reset_tokens`) and sends the reset link via Resend (rate-limited: 3/min per IP via `FORGOT_PASSWORD_RATE_LIMITER`). `POST /auth/reset-password` validates the token, updates `password_hash`, marks it used, and revokes all active sessions — atomically via `D1.batch()` — then fires a **"password changed" security notification email** via `waitUntil` (rate-limited: 5/min per IP via `RESET_PASSWORD_RATE_LIMITER`). Both endpoints accept a `locale` field (`en` | `it`) that selects the email language; the dashboard passes `i18n.language` automatically. `APP_URL` must point to the dashboard URL.
 
 - **Content CRUD (`/api/content/:slug`)**
@@ -214,7 +216,11 @@ This high-level system map is designed for onboarding new contributors and for A
 
 - **Authentication & security**
   - **Must** follow the JWT + refresh token flow: 15-min access token via `jose`, opaque refresh token hashed in D1, `HttpOnly SameSite=Strict` cookie, token rotation.
+  - **Must** store the access token **in-memory only** (`_accessToken` in `api.ts`). Never write it to `localStorage`, `sessionStorage`, or cookies from the client.
+  - **Must** use `useAuth()` from `apps/dashboard/src/lib/auth-context.tsx` for auth state and user info in components. Never read `localStorage` for token presence checks.
   - **Must not** store tokens in plaintext or introduce undocumented session mechanisms.
+  - **Must** inject security headers (`Content-Security-Policy`, `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`) on all `/admin/*` responses by wrapping the immutable ASSETS `Response` — the middleware approach does not work for static asset responses.
+  - **Must not** use `dangerouslySetInnerHTML` with content derived from the FTS `snippet()` function or any richtext field. Strip HTML and preserve only `<mark>` tags before rendering search excerpts.
 
 - **UI schema-driven & FieldRenderers**
   - **Must** use `FieldDisplay`/`FieldEdit` and the registry in `apps/dashboard/src/components/fields/` for all field rendering.

@@ -4,6 +4,15 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-02-13",
 
+  // Dashboard SPA — Workers Assets
+  // Monorepo dev: punta a ../dashboard/dist (build dashboard prima: npm run build -w @beechcms/dashboard)
+  // Progetto utente: punta a node_modules/@beechcms/dashboard/dist
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "../dashboard/dist",
+    "not_found_handling": "none"
+  },
+
   // Necessario per bcryptjs (usa Node.js crypto)
   "compatibility_flags": ["nodejs_compat"],
 

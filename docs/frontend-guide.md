@@ -41,6 +41,13 @@ This document describes the architecture of the React dashboard: how the FieldRe
    - [Sidebar Grouping](#93-sidebar-grouping)
    - [Feature Toggles](#94-feature-toggles)
    - [Adding a new icon](#95-adding-a-new-icon)
+10. [Authentication Context & In-Memory Token](#10-authentication-context--in-memory-token)
+    - [Overview](#101-overview)
+    - [Files](#102-files)
+    - [AuthProvider Lifecycle](#103-authprovider-lifecycle)
+    - [useAuth() Hook](#104-useauth-hook)
+    - [ProtectedRoute](#105-protectedroute)
+    - [Axios Interceptors](#106-axios-interceptors)
 
 ---
 
@@ -951,6 +958,76 @@ export function MyWidget({ seed, formula, window = "all", title }: MyWidgetProps
 4. **Add a case** in `apps/dashboard/src/features/dashboard/components/widget-registry.tsx` that maps the new type to the component.
 
 5. **Add an instance** to `DEFAULT_DASHBOARD_CONFIG` in `apps/dashboard/src/features/dashboard/config/dashboard.config.ts` with the desired `span`, `x`, `y`, and `props`.
+
+---
+
+## 10. Authentication Context & In-Memory Token
+
+### 10.1 Overview
+
+The dashboard uses a React context (`AuthContext`) to manage authentication state. The JWT access token is stored exclusively in a **module-level variable** (`_accessToken` in `apps/dashboard/src/lib/api.ts`) — it never touches `localStorage` or any browser storage. This prevents XSS-based token theft.
+
+The refresh token remains in an `HttpOnly SameSite=Strict` cookie and is handled entirely by the browser — the dashboard never reads or writes it.
+
+### 10.2 Files
+
+| File | Role |
+|---|---|
+| `apps/dashboard/src/lib/api.ts` | Declares `_accessToken`, exports `getAccessToken / setAccessToken / clearAccessToken`. Axios interceptors read and update it. |
+| `apps/dashboard/src/lib/auth-context.tsx` | `AuthProvider`, `useAuth()` hook. Manages `{ status, user }` React state. |
+| `apps/dashboard/src/App.tsx` | Wraps `<RouterProvider>` in `<AuthProvider>`. `ProtectedRoute` consumes `useAuth()`. |
+
+### 10.3 AuthProvider Lifecycle
+
+```
+App mount
+  └─ AuthProvider mounts
+       └─ useEffect: POST /auth/refresh (withCredentials)
+            ├─ success → setAccessToken(token), setUser(decoded), status = 'authenticated'
+            └─ failure → clearAccessToken(), status = 'unauthenticated'
+```
+
+On page reload the access token is gone (it was in-memory). `AuthProvider` silently re-issues it via the `HttpOnly` refresh cookie before any protected route renders.
+
+### 10.4 `useAuth()` Hook
+
+```typescript
+import { useAuth } from '@/lib/auth-context'
+
+const { status, user, setToken, clearToken } = useAuth()
+// status: 'loading' | 'authenticated' | 'unauthenticated'
+// user:   { email: string; name?: string } | null
+```
+
+**Rules:**
+- `useAuth()` **must** be called inside a component that is a descendant of `<AuthProvider>`. It throws if called outside.
+- Use `user` from `useAuth()` wherever user identity is needed (sidebar, header, etc.). Do not call `localStorage.getItem` or any token-decoding function in component code.
+- Call `setToken(token)` after a successful login to update the in-memory token and React state atomically.
+- Call `clearToken()` to log out from client state; pair it with `POST /auth/logout` to revoke the refresh token server-side.
+
+### 10.5 ProtectedRoute
+
+```tsx
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { status } = useAuth()
+  if (status === 'loading') return <SplashScreen />        // initial refresh in progress
+  if (status === 'unauthenticated') return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+```
+
+`SplashScreen` is a minimal full-screen spinner shown only during the initial `POST /auth/refresh` call at app mount. It is never shown again after the first resolution.
+
+### 10.6 Axios Interceptors
+
+The request interceptor in `api.ts` reads `getAccessToken()` and injects `Authorization: Bearer <token>` on every outbound request.
+
+The 401 response interceptor:
+1. Calls `POST /auth/refresh` once (guarded by `isRefreshing` flag to prevent concurrent refresh storms).
+2. On success: calls `setAccessToken(newToken)` and retries all queued requests.
+3. On failure: calls `clearAccessToken()` and redirects to `/login`.
+
+The interceptor does **not** call `clearToken()` from `AuthContext` — it only manages the module variable. The redirect to `/login` is enough to reset the React tree and trigger a new `AuthProvider` mount.
 
 ---
 

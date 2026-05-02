@@ -5,6 +5,10 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: '/admin/',
+  build: {
+    outDir: 'dist/admin',
+  },
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

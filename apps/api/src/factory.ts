@@ -118,6 +118,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
   app.use('*', async (c, next) => {
     await next()
+    if (c.req.path.startsWith('/admin')) return
     c.header('X-Frame-Options', 'DENY')
     c.header('X-Content-Type-Options', 'nosniff')
     c.header('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -270,6 +271,28 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   apiPublic.use('*', apiKeyMiddleware())
   apiPublic.route('/', publicRoutes)
   app.route('/api/v1/public', apiPublic)
+
+  // 7. Dashboard SPA — serve static assets from Workers Assets binding
+  app.get('/admin', (c) => c.redirect('/admin/', 301))
+  app.get('/admin/*', async (c) => {
+    if (!c.env.ASSETS) {
+      return c.text('Dashboard not configured. Set up the ASSETS binding in wrangler.toml pointing to @beechcms/dashboard/dist', 503)
+    }
+    let assetResponse = await c.env.ASSETS.fetch(c.req.raw)
+    if (assetResponse.status === 404) {
+      // SPA fallback: any unmatched /admin/* route serves index.html
+      assetResponse = await c.env.ASSETS.fetch(new Request(new URL('/admin/index.html', c.req.url)))
+    }
+    // ASSETS returns an immutable Response — wrap it to inject security headers
+    const headers = new Headers(assetResponse.headers)
+    headers.set('Content-Security-Policy',
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none'"
+    )
+    headers.set('X-Frame-Options', 'DENY')
+    headers.set('X-Content-Type-Options', 'nosniff')
+    headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+    return new Response(assetResponse.body, { status: assetResponse.status, headers })
+  })
 
   return app
 }

@@ -7,6 +7,20 @@ import type { Seed } from "@beechcms/core"
 import { api } from "@/lib/api"
 import { useDebounce } from "@/hooks/use-debounce"
 
+function renderExcerpt(raw: string): React.ReactNode[] {
+  const cleaned = raw.replace(/<(?!\/?mark\b)[^>]*>/gi, '')
+  const parts = cleaned.split(/(<mark>|<\/mark>)/gi)
+  const nodes: React.ReactNode[] = []
+  let inMark = false
+  let key = 0
+  for (const part of parts) {
+    if (part.toLowerCase() === '<mark>') { inMark = true; continue }
+    if (part.toLowerCase() === '</mark>') { inMark = false; continue }
+    if (part) nodes.push(inMark ? <mark key={key++}>{part}</mark> : part)
+  }
+  return nodes
+}
+
 interface SearchResultItem {
   id: string
   schema_slug: string
@@ -75,10 +89,9 @@ export function SearchResultsView({
           <div className="flex flex-col">
             <span className="font-medium">{entry.title}</span>
             {entry.excerpt && (
-              <span
-                className="text-xs text-muted-foreground line-clamp-1"
-                dangerouslySetInnerHTML={{ __html: entry.excerpt }}
-              />
+              <span className="text-xs text-muted-foreground line-clamp-1">
+                {renderExcerpt(entry.excerpt)}
+              </span>
             )}
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
               {entry.schema_slug} · {entry.status}

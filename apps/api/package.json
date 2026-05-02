@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/api",
-  "version": "0.4.0-preview.4",
+  "version": "0.4.0-preview.5",
   "type": "module",
   "exports": {
     ".": "./src/factory.ts"
@@ -21,7 +21,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.995.0",
-    "@beechcms/core": "^0.4.0-preview.4",
+    "@beechcms/core": "^0.4.0-preview.5",
     "bcryptjs": "^2.4.3",
     "hono": "^4.11.9",
     "jose": "^6.1.3"

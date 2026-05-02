@@ -1,8 +1,10 @@
 {
   "name": "@beechcms/dashboard",
-  "private": true,
-  "version": "0.0.0",
+  "version": "0.4.0-preview.5",
   "type": "module",
+  "files": [
+    "dist/admin"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
