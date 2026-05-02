@@ -37,7 +37,7 @@ import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './pub
 import { searchRouter } from "./search"
 
 export interface BeechConfig {
-  seeds: Seed[]
+  seeds: Seed[] | Record<string, Seed>
 }
 
 // --- Costanti e helper ---
@@ -88,7 +88,8 @@ function extractPublicSeed(path: string): string {
  * This is the main entry point for a BeechCMS project.
  */
 export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Variables: Variables }> {
-  const registry: Record<string, Seed> = Object.fromEntries(config.seeds.map(s => [s.slug, s]))
+  const seedsArray = Array.isArray(config.seeds) ? config.seeds : Object.values(config.seeds)
+  const registry: Record<string, Seed> = Object.fromEntries(seedsArray.map(s => [s.slug, s]))
   const getSeedFn = (slug: string): Seed | null => registry[slug] ?? null
 
   const app = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -278,10 +279,14 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     if (!c.env.ASSETS) {
       return c.text('Dashboard not configured. Set up the ASSETS binding in wrangler.toml pointing to node_modules/@beechcms/api/assets/dashboard', 503)
     }
-    let assetResponse = await c.env.ASSETS.fetch(c.req.raw)
+    const url = new URL(c.req.url)
+    const originalPath = url.pathname
+    url.pathname = originalPath.replace(/^\/admin/, '') || '/'
+    
+    let assetResponse = await c.env.ASSETS.fetch(new Request(url.toString(), c.req.raw))
     if (assetResponse.status === 404) {
       // SPA fallback: any unmatched /admin/* route serves index.html
-      assetResponse = await c.env.ASSETS.fetch(new Request(new URL('/admin/index.html', c.req.url)))
+      assetResponse = await c.env.ASSETS.fetch(new Request(new URL('/index.html', c.req.url)))
     }
     // ASSETS returns an immutable Response — wrap it to inject security headers
     const headers = new Headers(assetResponse.headers)

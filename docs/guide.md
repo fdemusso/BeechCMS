@@ -9,7 +9,7 @@ Everything you need to go from a fresh scaffold to a live project: configuration
 1. [Scaffolding a New Project](#1-scaffolding-a-new-project)
 2. [Project Structure](#2-project-structure)
 3. [Configuration](#3-configuration)
-   - [wrangler.jsonc](#31-wranglerjsonc)
+   - [wrangler.jsonc / wrangler.toml](#31-wranglerjsonc--wrangler-toml)
    - [.dev.vars](#32-devvars)
 4. [Defining Content Types (Seeds)](#4-defining-content-types-seeds)
    - [Seed anatomy](#41-seed-anatomy)
@@ -62,9 +62,9 @@ That is the entire project. BeechCMS engine, dashboard, and API logic live insid
 
 ## 3. Configuration
 
-### 3.1 `wrangler.jsonc`
+### 3.1 `wrangler.jsonc` / `wrangler.toml`
 
-The scaffold pre-fills the values you provided during setup. If you skipped Cloudflare configuration, fill in the placeholders before running the dev server.
+The scaffold pre-fills the values you provided during setup. BeechCMS supports both `.jsonc`, `.json`, and `.toml` formats for your Cloudflare configuration. If you skipped Cloudflare configuration, fill in the placeholders before running the dev server.
 
 ```jsonc
 {
@@ -80,8 +80,7 @@ The scaffold pre-fills the values you provided during setup. If you skipped Clou
 
   "assets": {
     "binding": "ASSETS",
-    "directory": "./node_modules/@beechcms/api/assets/dashboard",
-    "not_found_handling": "none"
+    "directory": "./node_modules/@beechcms/api/assets/dashboard"
   },
 
   "d1_databases": [{
@@ -140,13 +139,13 @@ export const posts = defineSeed({
   ],
 })
 
-// Both export shapes are accepted by `npx beech seed:load`:
-
-// Option A — named map (keyed by slug)
+// Option A — named map (keyed by slug) — RECOMMENDED
 export const SEED_REGISTRY = { posts }
 
 // Option B — flat array (slug is read from each seed's definition)
-// export const seeds = [posts]
+export const seeds = [posts]
+
+// Both export names are accepted by the CLI and by createBeechApp() in your worker.ts.
 ```
 
 **Branch `alias` rules:**
@@ -404,10 +403,11 @@ File uploads are handled by the dashboard. The Public API does not support direc
 |---|---|
 | `npx @beechcms/cms` | Scaffold a new BeechCMS project |
 | `npm install` | Install dependencies |
-| `npx beech seed:load` | Synchronize D1 schema with your seeds.ts (targets remote by default) |
+| `npx beech seed:load` | Synchronize D1 schema (targets remote by default) |
 | `npx beech seed:load --local` | Synchronize local D1 schema (for development) |
 | `npx beech seed:load --diff` | Compare Seed definitions with current DB schema |
-| `npx beech seed:load --dry-run` | Print the SQL that would be executed without running it |
+| `npx beech seed:load --dry-run` | Print the SQL that would be executed |
+| `npx beech seed:load --db <name>` | Override the D1 database name from config |
 | `npx wrangler dev` | Start the Worker locally on port 8789 |
 | `npm run deploy` | Deploy the Worker code to Cloudflare |
 

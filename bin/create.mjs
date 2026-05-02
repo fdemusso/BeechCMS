@@ -87,7 +87,7 @@ function buildWorkerTs() {
 import { createBeechApp } from '@beechcms/api'
 import { SEED_REGISTRY } from './seeds'
 
-export default createBeechApp({ seeds: Object.values(SEED_REGISTRY) })
+export default createBeechApp({ seeds: SEED_REGISTRY })
 `
 }
 
@@ -104,12 +104,14 @@ function buildPackageJson(name) {
     scripts: {
       dev: 'wrangler dev --port 8789',
       deploy: 'wrangler deploy --minify',
+      'seed:load': 'npx beech seed:load',
+      'seed:load:local': 'npx beech seed:load --local',
       'db:migrate:local': 'wrangler d1 migrations apply ' + name + '-db --local',
       'db:reset:local': 'node -e "require(\'fs\').rmSync(\'.wrangler/state\',{recursive:true,force:true})" && npm run db:migrate:local',
     },
     dependencies: {
-      '@beechcms/api': '^0.4.0-preview.5',
-      '@beechcms/core': '^0.4.0-preview.5',
+      '@beechcms/api': '^0.4.0-preview.6',
+      '@beechcms/core': '^0.4.0-preview.6',
     },
     devDependencies: {
       '@cloudflare/workers-types': '^4.0.0',
@@ -131,6 +133,11 @@ function buildWranglerJsonc(cfg) {
     "PUBLIC_READ_API_KEY": "${cfg.publicReadKey}",
     "PUBLIC_WRITE_API_KEY": "${cfg.publicWriteKey}",
     "APP_URL": "${cfg.appUrl || 'http://localhost:5173'}"
+  },
+
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "node_modules/@beechcms/api/assets/dashboard"
   },
 
   "d1_databases": [

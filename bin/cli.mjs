@@ -74,9 +74,18 @@ else if (Array.isArray(mod.seeds)) out = Object.fromEntries(mod.seeds.map(s => [
 else if (Array.isArray(mod.default)) out = Object.fromEntries(mod.default.map(s => [s.slug, s]));
 if (out) process.stdout.write(JSON.stringify(out));
       `.trim(),
-    ], { encoding: 'utf-8' })
+    ], { encoding: 'utf-8', shell: true })
+    
     if (result.status === 0 && result.stdout) {
-      try { return JSON.parse(result.stdout) } catch {}
+      try { return JSON.parse(result.stdout) } catch (err) {
+        console.error('  Failed to parse seeds.ts output:', err)
+      }
+    } else if (result.status !== 0) {
+      console.error('  Error loading seeds.ts:')
+      console.error(result.stderr || result.stdout || 'Unknown error')
+      if (process.version.slice(1).split('.')[0] < 22) {
+        console.warn('  Note: Node.js 22.6+ is required to load .ts files directly. Current version:', process.version)
+      }
     }
   }
 
