@@ -134,8 +134,8 @@ export const posts = defineSeed({
   ],
 })
 
-// Export an array — passed to createBeechApp in worker.ts
-export const seeds = [posts]
+// Export as a named map — consumed by `npx beech seed:load` and worker.ts
+export const SEED_REGISTRY = { posts }
 ```
 
 **Branch `alias` rules:**

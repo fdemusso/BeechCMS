@@ -1,4 +1,4 @@
-import type { DashboardConfig, DashboardWidgetInstance } from "../types/widget.types"
+import type { DashboardConfig, WidgetInstance } from "../types/widget.types"
 import type { Seed } from "@beechcms/core"
 
 /** 
@@ -6,7 +6,7 @@ import type { Seed } from "@beechcms/core"
  * Se non ci sono seed, mostra solo i widget di sistema.
  */
 export function getDashboardConfig(seeds: Seed[]): DashboardConfig {
-  const layout: DashboardWidgetInstance[] = [
+  const layout: WidgetInstance[] = [
     // ─── Row 0: Status & Stats (Sempre presenti) ──────────────────────────
     {
       id: "site-status",

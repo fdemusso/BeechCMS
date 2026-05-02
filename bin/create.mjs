@@ -85,9 +85,9 @@ function writeFile(path, content) {
 function buildWorkerTs() {
   return `/// <reference types="@cloudflare/workers-types" />
 import { createBeechApp } from '@beechcms/api'
-import { seeds } from './seeds'
+import { SEED_REGISTRY } from './seeds'
 
-export default createBeechApp({ seeds })
+export default createBeechApp({ seeds: Object.values(SEED_REGISTRY) })
 `
 }
 
@@ -108,8 +108,8 @@ function buildPackageJson(name) {
       'db:reset:local': 'node -e "require(\'fs\').rmSync(\'.wrangler/state\',{recursive:true,force:true})" && npm run db:migrate:local',
     },
     dependencies: {
-      '@beechcms/api': '^0.4.0-preview.3',
-      '@beechcms/core': '^0.4.0-preview.3',
+      '@beechcms/api': '^0.4.0-preview.4',
+      '@beechcms/core': '^0.4.0-preview.4',
     },
     devDependencies: {
       '@cloudflare/workers-types': '^4.0.0',

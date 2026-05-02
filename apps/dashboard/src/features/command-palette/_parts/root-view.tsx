@@ -3,7 +3,6 @@ import {
   LayoutDashboard,
   Image as ImageIcon,
   Settings,
-  Folder,
   Layers,
   Plus,
   Sun,
@@ -16,7 +15,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command"
 import type { Seed } from "@beechcms/core"
-import { SLUG_ICON_MAP } from "@/config/dashboard-menu"
+import { resolveIcon } from "@/lib/icon-registry"
 import type { CommandPage } from "../types"
 
 interface RootViewProps {
@@ -60,7 +59,7 @@ export function RootView({
 
       <CommandGroup heading={t("commandPalette.contents")}>
         {seeds.slice(0, 5).map((seed) => {
-          const SeedIcon = SLUG_ICON_MAP[seed.slug] ?? Folder
+          const SeedIcon = resolveIcon(seed.dashboard?.icon)
           return (
             <CommandItem
               key={seed.slug}

@@ -1,8 +1,7 @@
 import { useTranslation } from "react-i18next"
-import { Folder } from "lucide-react"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
 import type { Seed } from "@beechcms/core"
-import { SLUG_ICON_MAP } from "@/config/dashboard-menu"
+import { resolveIcon } from "@/lib/icon-registry"
 
 interface SeedsViewProps {
   seeds: Seed[]
@@ -19,7 +18,7 @@ export function SeedsView({ seeds, navigate, setOpen, mode }: SeedsViewProps) {
   return (
     <CommandGroup heading={heading}>
       {seeds.map((seed) => {
-        const SeedIcon = SLUG_ICON_MAP[seed.slug] ?? Folder
+        const SeedIcon = resolveIcon(seed.dashboard?.icon)
         return (
           <CommandItem
             key={seed.slug}
