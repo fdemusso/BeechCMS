@@ -276,7 +276,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.get('/admin', (c) => c.redirect('/admin/', 301))
   app.get('/admin/*', async (c) => {
     if (!c.env.ASSETS) {
-      return c.text('Dashboard not configured. Set up the ASSETS binding in wrangler.toml pointing to @beechcms/dashboard/dist', 503)
+      return c.text('Dashboard not configured. Set up the ASSETS binding in wrangler.toml pointing to node_modules/@beechcms/api/assets/dashboard', 503)
     }
     let assetResponse = await c.env.ASSETS.fetch(c.req.raw)
     if (assetResponse.status === 404) {

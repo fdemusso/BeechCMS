@@ -1,13 +1,14 @@
 {
   "name": "@beechcms/api",
-  "version": "0.4.0-preview.5",
+  "version": "0.4.0-preview.6",
   "type": "module",
   "exports": {
     ".": "./src/factory.ts"
   },
   "files": [
     "src/",
-    "migrations/0000_v040_base.sql"
+    "migrations/0000_v040_base.sql",
+    "assets/"
   ],
   "scripts": {
     "dev": "wrangler dev --port 8789",
@@ -21,7 +22,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.995.0",
-    "@beechcms/core": "^0.4.0-preview.5",
+    "@beechcms/core": "^0.4.0-preview.6",
     "bcryptjs": "^2.4.3",
     "hono": "^4.11.9",
     "jose": "^6.1.3"

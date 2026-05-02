@@ -78,6 +78,12 @@ The scaffold pre-fills the values you provided during setup. If you skipped Clou
     "APP_URL": "https://my-site.com" // Production URL (used in password reset emails)
   },
 
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./node_modules/@beechcms/api/assets/dashboard",
+    "not_found_handling": "none"
+  },
+
   "d1_databases": [{
     "binding": "DB",
     "database_name": "my-project-db",
@@ -134,8 +140,13 @@ export const posts = defineSeed({
   ],
 })
 
-// Export as a named map — consumed by `npx beech seed:load` and worker.ts
+// Both export shapes are accepted by `npx beech seed:load`:
+
+// Option A — named map (keyed by slug)
 export const SEED_REGISTRY = { posts }
+
+// Option B — flat array (slug is read from each seed's definition)
+// export const seeds = [posts]
 ```
 
 **Branch `alias` rules:**
@@ -241,7 +252,7 @@ npx beech seed:load # synchronize D1 schema with your seeds.ts
 npx wrangler dev    # start the Worker on http://localhost:8789
 ```
 
-Open `http://localhost:8789/dashboard` — the setup wizard will appear on first launch to create your admin account.
+Open `http://localhost:8789/admin` — the setup wizard will appear on first launch to create your admin account.
 
 ---
 
@@ -440,4 +451,4 @@ npx wrangler secret put R2_BUCKET_NAME
 
 ### Step 4 — Deploy the dashboard
 
-The BeechCMS dashboard is a static SPA served by the Worker. No separate deployment is needed — it is included in `@beechcms/api` and available at `/dashboard` after `npm run deploy`.
+The BeechCMS dashboard is a static SPA served by the Worker. No separate deployment is needed — it is included in `@beechcms/api` and available at `/admin` after `npm run deploy`.

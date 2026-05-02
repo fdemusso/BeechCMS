@@ -162,6 +162,19 @@ try {
   rollback('Build failed.')
 }
 
+// ── Step 2b: copy dashboard dist into api package ─────────────────────────────
+
+log('')
+log('2b/4  Copying dashboard assets into @beechcms/api...')
+
+try {
+  run('rm -rf apps/api/assets/dashboard')
+  run('mkdir -p apps/api/assets/dashboard')
+  run('cp -r apps/dashboard/dist/. apps/api/assets/dashboard/')
+} catch {
+  rollback('Dashboard asset copy failed.')
+}
+
 // ── Step 3: publish ───────────────────────────────────────────────────────────
 
 log('')

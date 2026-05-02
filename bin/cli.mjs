@@ -49,6 +49,12 @@ async function tryLoadLocalRegistry() {
         if (mod.SEED_REGISTRY && typeof mod.SEED_REGISTRY === 'object') {
           return mod.SEED_REGISTRY
         }
+        if (Array.isArray(mod.seeds)) {
+          return Object.fromEntries(mod.seeds.map(s => [s.slug, s]))
+        }
+        if (Array.isArray(mod.default)) {
+          return Object.fromEntries(mod.default.map(s => [s.slug, s]))
+        }
       } catch {}
     }
   }
@@ -60,7 +66,14 @@ async function tryLoadLocalRegistry() {
       '--experimental-strip-types',
       '--input-type=module',
       '--eval',
-      `import { SEED_REGISTRY } from ${JSON.stringify(pathToFileURL(tsPath).href)}; process.stdout.write(JSON.stringify(SEED_REGISTRY))`,
+      `
+import * as mod from ${JSON.stringify(pathToFileURL(tsPath).href)};
+let out = null;
+if (mod.SEED_REGISTRY && typeof mod.SEED_REGISTRY === 'object') out = mod.SEED_REGISTRY;
+else if (Array.isArray(mod.seeds)) out = Object.fromEntries(mod.seeds.map(s => [s.slug, s]));
+else if (Array.isArray(mod.default)) out = Object.fromEntries(mod.default.map(s => [s.slug, s]));
+if (out) process.stdout.write(JSON.stringify(out));
+      `.trim(),
     ], { encoding: 'utf-8' })
     if (result.status === 0 && result.stdout) {
       try { return JSON.parse(result.stdout) } catch {}

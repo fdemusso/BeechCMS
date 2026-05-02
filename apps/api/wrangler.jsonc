@@ -5,8 +5,8 @@
   "compatibility_date": "2026-02-13",
 
   // Dashboard SPA — Workers Assets
-  // Monorepo dev: punta a ../dashboard/dist (build dashboard prima: npm run build -w @beechcms/dashboard)
-  // Progetto utente: punta a node_modules/@beechcms/dashboard/dist
+  // Monorepo dev: punta a ../dashboard/dist (build dashboard prima: npm run build -w apps/dashboard)
+  // Progetto utente: punta a node_modules/@beechcms/api/assets/dashboard
   "assets": {
     "binding": "ASSETS",
     "directory": "../dashboard/dist",
