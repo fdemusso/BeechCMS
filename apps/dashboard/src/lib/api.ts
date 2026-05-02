@@ -71,7 +71,7 @@ api.interceptors.response.use(
         return new Promise((resolve) => {
           subscribeTokenRefresh((token: string) => {
             originalRequest.headers.Authorization = `Bearer ${token}`;
-            resolve(axios(originalRequest));
+            resolve(api(originalRequest));
           });
         });
       }
@@ -89,7 +89,7 @@ api.interceptors.response.use(
         onRefreshed(newToken);
         isRefreshing = false;
 
-        return axios(originalRequest);
+        return api(originalRequest);
       } catch (refreshError) {
         isRefreshing = false;
         clearAccessToken();

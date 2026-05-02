@@ -74,7 +74,7 @@ else if (Array.isArray(mod.seeds)) out = Object.fromEntries(mod.seeds.map(s => [
 else if (Array.isArray(mod.default)) out = Object.fromEntries(mod.default.map(s => [s.slug, s]));
 if (out) process.stdout.write(JSON.stringify(out));
       `.trim(),
-    ], { encoding: 'utf-8', shell: true })
+    ], { encoding: 'utf-8' })
     
     if (result.status === 0 && result.stdout) {
       try { return JSON.parse(result.stdout) } catch (err) {

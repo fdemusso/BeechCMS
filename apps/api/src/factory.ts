@@ -108,8 +108,19 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
       .filter(Boolean)
     return cors({
       origin: (origin) => {
-        if (!origin) return origins[0] ?? null
-        return origins.includes(origin) ? origin : null
+        // If same-origin (no Origin header) or matched in CORS_ORIGINS
+        if (!origin || origins.includes(origin)) return origin || origins[0]
+        
+        // Allow same-origin if the host matches
+        try {
+          const originUrl = new URL(origin)
+          const requestUrl = new URL(c.req.url)
+          if (originUrl.hostname === requestUrl.hostname && originUrl.port === requestUrl.port) {
+            return origin
+          }
+        } catch {}
+
+        return null
       },
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
