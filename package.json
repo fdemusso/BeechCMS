@@ -45,7 +45,9 @@
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "test": "turbo run test",
-    "test:coverage": "turbo run test:coverage"
+    "test:coverage": "turbo run test:coverage",
+    "release": "node scripts/release.mjs",
+    "release:preview": "node scripts/release.mjs --preview"
   },
   "type": "module",
   "devDependencies": {

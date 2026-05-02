@@ -20,6 +20,7 @@ This high-level system map is designed for onboarding new contributors and for A
 | `[api-reference.md](api-reference.md)` | Auth, Internal Content API, Media Engine, Public API, Widget API |
 | `[frontend-guide.md](frontend-guide.md)` | FieldRenderers, TanStack Query, Tailwind 4, EntryEditorPage, ContentToolbar |
 | `[email-module.md](email-module.md)` | Email module architecture, localization, templates |
+| `[release.md](release.md)` | Release script, versioning scheme, preview vs stable workflow |
 
 ---
 
