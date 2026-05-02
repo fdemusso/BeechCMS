@@ -1,5 +1,5 @@
 import * as React from "react"
-import type { Branch } from "@beech/core"
+import type { Branch } from "@beechcms/core"
 import { FieldEdit } from "@/components/fields/FieldEdit"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"

@@ -1,11 +1,11 @@
 /**
- * @beech/core - Botanical Engine
+ * @beechcms/core - Botanical Engine
  *
  * Pacchetto condiviso del monorepo Beech CMS.
  * In v0.4.0 il Botanical Engine è un compilatore di schema SQL: legge i Seed
  * TypeScript e genera DDL deterministico + query parametrizzate.
  *
- * @module @beech/core
+ * @module @beechcms/core
  */
 
 export * from './types.js'

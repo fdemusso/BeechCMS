@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
-import { getSeed } from "@beech/core"
+import { getSeed } from "@beechcms/core"
 import type {
   SortingState,
   ColumnFiltersState,

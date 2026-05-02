@@ -27,7 +27,7 @@ const seedPosts = {
   ],
 }
 
-vi.mock("@beech/core", () => ({
+vi.mock("@beechcms/core", () => ({
   getSeed: (slug: string) => (slug === "posts" ? seedPosts : null),
 }))
 

@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { validateAndSanitizeSeedPayload, resolvePolicies, serializeForDb, deserializeFromDb } from '@beech/core'
-import type { Seed } from '@beech/core'
+import { validateAndSanitizeSeedPayload, resolvePolicies, serializeForDb, deserializeFromDb } from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
 import { logActivity } from '../../shared/activity-logger'
 import { cleanStr } from '../../shared/query-utils'

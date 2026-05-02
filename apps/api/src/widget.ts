@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { deserializeFromDb } from '@beech/core'
-import type { Seed } from '@beech/core'
+import { deserializeFromDb } from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
 import type { Env, Variables } from './types'
 
 const widgetApp = new Hono<{ Bindings: Env; Variables: Variables }>()

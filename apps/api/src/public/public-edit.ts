@@ -1,5 +1,5 @@
-import { isValidContentStatus, resolvePolicies } from '@beech/core'
-import type { Seed } from '@beech/core'
+import { isValidContentStatus, resolvePolicies } from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../shared/query-utils'
 import { rowToApiData, buildUpdateBindings } from '../shared/content-utils'

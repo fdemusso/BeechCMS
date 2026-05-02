@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getSeed } from '@beech/core'
+import { getSeed } from '@beechcms/core'
 import {
   parsePublicFilter,
   buildPublicFilterWhereClause,

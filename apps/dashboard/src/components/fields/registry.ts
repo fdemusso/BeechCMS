@@ -1,5 +1,5 @@
 import type { ComponentType } from "react"
-import type { BranchType } from "@beech/core"
+import type { BranchType } from "@beechcms/core"
 import type { FieldDisplayProps, FieldEditProps } from "./types"
 
 import { DefaultDisplay, DefaultEdit } from "./default"

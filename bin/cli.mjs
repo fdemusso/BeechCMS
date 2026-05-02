@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 // @ts-check
 
-import { execSync } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 
 const [,, command, ...args] = process.argv
@@ -18,36 +19,55 @@ function help() {
   beech <command> [options]
 
   Commands:
-    build           Rebuild @beech/core after editing seeds.ts
+    build           Rebuild @beechcms/core after editing seeds.ts
     seed:load       Create/update DB tables from SEED_REGISTRY
       --dry-run       Print SQL without executing
       --diff          Show schema differences vs current DB
       --remote        Execute against remote D1 (default: local)
       --db <name>     Override D1 database name
 
-  Run npx beech-cms to scaffold a new project.
+  Run npx @beechcms/cms to scaffold a new project.
 `)
 }
 
 function cmdBuild() {
-  const corePath = resolve(process.cwd(), 'packages', 'core')
+  console.log(
+    '\nNo build step needed for BeechCMS projects.\n' +
+    'Edit seeds.ts then run `npx beech seed:load` to sync schema changes to D1.\n'
+  )
+}
 
-  if (!existsSync(corePath)) {
-    console.error(
-      '\nError: packages/core not found.\n' +
-      'Make sure you are running this command from the root of a BeechCMS project.\n'
-    )
-    process.exit(1)
+async function tryLoadLocalRegistry() {
+  const cwd = process.cwd()
+
+  // Try compiled JS first
+  for (const name of ['seeds.js', 'seeds.mjs']) {
+    const p = resolve(cwd, name)
+    if (existsSync(p)) {
+      try {
+        const mod = await import(pathToFileURL(p).href)
+        if (mod.SEED_REGISTRY && typeof mod.SEED_REGISTRY === 'object') {
+          return mod.SEED_REGISTRY
+        }
+      } catch {}
+    }
   }
 
-  console.log('\nBuilding @beech/core…\n')
-  try {
-    execSync('npm run build -w @beech/core', { stdio: 'inherit' })
-    console.log('\n✔ @beech/core built — your seed changes are now live.\n')
-  } catch {
-    console.error('\nBuild failed. Check the output above for errors.\n')
-    process.exit(1)
+  // Try seeds.ts via Node's experimental strip-types (Node 22.6+)
+  const tsPath = resolve(cwd, 'seeds.ts')
+  if (existsSync(tsPath)) {
+    const result = spawnSync(process.execPath, [
+      '--experimental-strip-types',
+      '--input-type=module',
+      '--eval',
+      `import { SEED_REGISTRY } from ${JSON.stringify(pathToFileURL(tsPath).href)}; process.stdout.write(JSON.stringify(SEED_REGISTRY))`,
+    ], { encoding: 'utf-8' })
+    if (result.status === 0 && result.stdout) {
+      try { return JSON.parse(result.stdout) } catch {}
+    }
   }
+
+  return null
 }
 
 async function cmdSeedLoad(args) {
@@ -57,14 +77,18 @@ async function cmdSeedLoad(args) {
   const dbIdx  = args.indexOf('--db')
   const db     = dbIdx !== -1 ? args[dbIdx + 1] : undefined
 
-  const { seedLoad } = await import('@beech/cli')
-  await seedLoad({ dryRun, diff, local: !remote, db })
+  const registry = await tryLoadLocalRegistry()
+
+  const { seedLoad } = await import('@beechcms/cli')
+  await seedLoad({ dryRun, diff, local: !remote, db, registry })
 }
 
 const handler = COMMANDS[command]
 if (!handler) {
   help()
   if (command) process.exit(1)
+} else if (args.includes('--help') || args.includes('-h')) {
+  help()
 } else {
   await handler(args)
 }

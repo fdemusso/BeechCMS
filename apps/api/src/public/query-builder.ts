@@ -1,4 +1,4 @@
-import type { Seed } from '@beech/core'
+import type { Seed } from '@beechcms/core'
 import { parsePositiveInt } from '../shared/query-utils'
 
 export type PublicQueryInput = {

@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Seed } from '@beech/core'
+import type { Seed } from '@beechcms/core'
 
 // --- Mock jose (auth bypass) ---
 const mockJwtVerify = vi.hoisted(() => vi.fn())
@@ -30,8 +30,8 @@ const { HASH_SEED } = vi.hoisted(() => {
 })
 
 // Override getSeed and SEED_REGISTRY for the test slug only
-vi.mock('@beech/core', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@beech/core')>()
+vi.mock('@beechcms/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@beechcms/core')>()
   return {
     ...actual,
     SEED_REGISTRY: {

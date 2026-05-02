@@ -1,4 +1,4 @@
-import { resolvePolicies } from "@beech/core"
+import { resolvePolicies } from "@beechcms/core"
 import { getEditComponent } from "./registry"
 import type { FieldEditProps } from "./types"
 

@@ -2,7 +2,7 @@
 // Pure functions — zero Hono dependencies, importable from Vitest.
 // v0.4.0: FTS is per-seed (fts_{slug}), joined with content_{slug} for metadata.
 
-import type { Seed } from "@beech/core"
+import type { Seed } from "@beechcms/core"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

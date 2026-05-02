@@ -1,4 +1,4 @@
-import type { Seed } from "@beech/core"
+import type { Seed } from "@beechcms/core"
 import type { VisibilityState } from "@tanstack/react-table"
 import type { DateGroupPrecision } from "@/lib/dynamic-columns"
 import type { ConditionalFormatRule } from "@/lib/conditional-format"

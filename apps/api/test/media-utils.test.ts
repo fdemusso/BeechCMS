@@ -1,7 +1,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { describe, it, expect } from 'vitest'
 import { extractMediaKey, extractMediaKeysFromData } from '../src/media-utils'
-import { ARTICOLO_SEED, PRODOTTO_SEED } from '@beech/core'
+import { ARTICOLO_SEED, PRODOTTO_SEED } from '@beechcms/core'
 
 describe('media-utils - extractMediaKey', () => {
   it('estrae chiave da URL assoluto', () => {

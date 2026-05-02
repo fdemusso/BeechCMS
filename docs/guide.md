@@ -15,6 +15,7 @@ Everything you need to go from a fresh scaffold to a live project: configuration
    - [Seed anatomy](#41-seed-anatomy)
    - [Branch types](#42-branch-types)
    - [Branch policies](#43-branch-policies)
+   - [Dashboard config](#44-dashboard-config)
 5. [Running Locally](#5-running-locally)
 6. [Consuming the Public API](#6-consuming-the-public-api)
    - [Authentication](#61-authentication)
@@ -31,7 +32,7 @@ Everything you need to go from a fresh scaffold to a live project: configuration
 ## 1. Scaffolding a New Project
 
 ```bash
-npx beech-cms
+npx @beechcms/cms
 ```
 
 The interactive wizard asks for:
@@ -55,7 +56,7 @@ my-project/
 └── package.json
 ```
 
-That is the entire project. BeechCMS engine, dashboard, and API logic live inside `node_modules/@beech/api` — invisible, updatable with `npm update @beech/api`.
+That is the entire project. BeechCMS engine, dashboard, and API logic live inside `node_modules/@beechcms/api` — invisible, updatable with `npm update @beechcms/api`.
 
 ---
 
@@ -81,7 +82,7 @@ The scaffold pre-fills the values you provided during setup. If you skipped Clou
     "binding": "DB",
     "database_name": "my-project-db",
     "database_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",  // from Cloudflare dashboard
-    "migrations_dir": "node_modules/@beech/api/migrations"  // migrations shipped with the package
+    "migrations_dir": "node_modules/@beechcms/api/migrations"  // migrations shipped with the package
   }],
 
   "r2_buckets": [{
@@ -111,12 +112,12 @@ To create R2 credentials: Cloudflare Dashboard → R2 → **Manage R2 API Tokens
 
 ## 4. Defining Content Types (Seeds)
 
-`seeds.ts` is the only file you write. It defines your content model using `defineSeed()` from `@beech/core`.
+`seeds.ts` is the only file you write. It defines your content model using `defineSeed()` from `@beechcms/core`.
 
 ### 4.1 Seed anatomy
 
 ```typescript
-import { defineSeed } from '@beech/core'
+import { defineSeed } from '@beechcms/core'
 
 export const posts = defineSeed({
   slug: 'posts',             // used in API URLs: /api/v1/public/posts
@@ -150,7 +151,7 @@ export const seeds = [posts]
 | `number` | Integer or float | |
 | `boolean` | True / false toggle | |
 | `date` | ISO 8601 date string | |
-| `richtext` | Structured rich text | TipTap document — render with `richTextToHtml()` from `@beech/core` |
+| `richtext` | Structured rich text | TipTap document — render with `richTextToHtml()` from `@beechcms/core` |
 | `file` | R2 asset URL | Single file; add `multiple: true` for a list of URLs |
 | `json` | Array or object | Add `options: [...]` for a tag / select field |
 
@@ -179,13 +180,56 @@ Policies control visibility and access per field. All fields default to fully pu
 | `filter` | `boolean` | `true` | `false` hides the field from dashboard filter options |
 | `sort` | `boolean` | `true` | `false` prevents sorting by this field |
 
-After editing `seeds.ts`, Wrangler picks up the code changes automatically. However, **you must synchronize the database schema** if you added or changed fields. 
+After editing `seeds.ts`, Wrangler picks up the code changes automatically. However, **you must synchronize the database schema** if you added or changed fields.
 
 Run the following command to apply schema changes to your D1 database:
 
 ```bash
 npx beech seed:load --local
 ```
+
+### 4.4 Dashboard config
+
+Each Seed can include an optional `dashboard` field that controls how it appears in the admin UI. This config is **ignored by the Botanical Engine and the database** — it only affects the dashboard sidebar and content views.
+
+```typescript
+export const posts = defineSeed({
+  slug: 'posts',
+  label: 'Post',
+  labelPlural: 'Posts',
+  displayNameAlias: 'title',
+  branches: [...],
+
+  dashboard: {
+    icon: 'Newspaper',      // Lucide icon name — see full list below
+    group: 'Blog',          // sidebar section label; seeds with the same group are grouped together
+    order: 1,               // sort order within the group (lower = higher)
+    hidden: false,          // set true to hide from sidebar entirely
+    description: 'Blog posts and articles',  // tooltip shown in the sidebar
+    features: {
+      search: true,         // show search bar (default: true)
+      filter: true,         // show column filters (default: true)
+      export: true,         // show export button (default: false)
+      bulkDelete: true,     // show bulk-delete action (default: false)
+    },
+  },
+})
+```
+
+Seeds without a `dashboard` field get sensible defaults: `Folder` icon, no group (all grouped under the sidebar's default "Contents" label), order 99.
+
+**Sidebar grouping example** — given these seeds:
+
+```typescript
+defineSeed({ slug: 'posts',    dashboard: { icon: 'Newspaper',   group: 'Blog',    order: 1 } })
+defineSeed({ slug: 'comments', dashboard: { icon: 'MessageSquare', group: 'Blog',  order: 2 } })
+defineSeed({ slug: 'products', dashboard: { icon: 'ShoppingBag', group: 'Shop',    order: 1 } })
+defineSeed({ slug: 'orders',   dashboard: { icon: 'ShoppingCart', group: 'Shop',   order: 2 } })
+```
+
+The sidebar renders two separate sections: **Blog** (Posts, Comments) and **Shop** (Products, Orders).
+
+**Available icons** — any [Lucide](https://lucide.dev/icons/) icon name in PascalCase is valid (e.g. `Newspaper`, `ShoppingBag`, `Users`, `Calendar`, `Globe`, `BookOpen`, `Award`, `BarChart`, `Shield`, `Briefcase`, `DollarSign`, `Truck`, `Tag`, `Star`, `Image`, `Video`, `Map`, `Building`, `Store`, `Code`, `Database`, `Wrench`, `GraduationCap`). The full list is maintained in `apps/dashboard/src/lib/icon-registry.ts`. Unknown names fall back to `Folder`.
 
 ---
 
@@ -347,7 +391,7 @@ File uploads are handled by the dashboard. The Public API does not support direc
 
 | Command | Description |
 |---|---|
-| `npx beech-cms` | Scaffold a new BeechCMS project |
+| `npx @beechcms/cms` | Scaffold a new BeechCMS project |
 | `npm install` | Install dependencies |
 | `npx beech seed:load` | Synchronize D1 schema with your seeds.ts (targets remote by default) |
 | `npx beech seed:load --local` | Synchronize local D1 schema (for development) |
@@ -386,7 +430,7 @@ npx wrangler secret put R2_BUCKET_NAME
    ```bash
    npm run deploy
    ```
-   Wrangler automatically applies any pending **system migrations** (users, auth, media tracking) from `node_modules/@beech/api/migrations`.
+   Wrangler automatically applies any pending **system migrations** (users, auth, media tracking) from `node_modules/@beechcms/api/migrations`.
 
 2. **Synchronize the content schema:**
    ```bash
@@ -396,4 +440,4 @@ npx wrangler secret put R2_BUCKET_NAME
 
 ### Step 4 — Deploy the dashboard
 
-The BeechCMS dashboard is a static SPA served by the Worker. No separate deployment is needed — it is included in `@beech/api` and available at `/dashboard` after `npm run deploy`.
+The BeechCMS dashboard is a static SPA served by the Worker. No separate deployment is needed — it is included in `@beechcms/api` and available at `/dashboard` after `npm run deploy`.

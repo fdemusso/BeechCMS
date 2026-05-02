@@ -1,5 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed } from '@beech/core'
+import type { Seed } from '@beechcms/core'
 
 export interface Env {
   DB: D1Database

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { SEED_REGISTRY, getSeed } from '@beech/core'
-import type { Seed } from '@beech/core'
+import { SEED_REGISTRY, getSeed } from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
 import {
   encodeCursor,
   decodeCursor,

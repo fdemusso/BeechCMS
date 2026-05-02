@@ -12,7 +12,7 @@ import {
   CommandEmpty,
 } from "@/components/ui/command"
 import { Badge } from "@/components/ui/badge"
-import { SEED_REGISTRY } from "@beech/core"
+import { SEED_REGISTRY } from "@beechcms/core"
 import { cn } from "@/lib/utils"
 import { useCommandPalette } from "./use-command-palette"
 import type { CommandPage } from "./types"

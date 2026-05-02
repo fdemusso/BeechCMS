@@ -4,7 +4,7 @@
  *
  * @see docs/media-engine.md
  */
-import type { Seed } from '@beech/core'
+import type { Seed } from '@beechcms/core'
 
 /** Pattern per estrarre la chiave R2 da URL in formato /api/media/KEY */
 const MEDIA_URL_PATTERN = /\/api\/media\/([^/?#]+)/

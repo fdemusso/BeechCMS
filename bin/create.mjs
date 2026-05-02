@@ -40,7 +40,7 @@ function readTemplate(filename) {
 }
 
 function buildSeedsFile(selectedKeys) {
-  const header = `import type { Seed } from '@beech/core'\n\n`
+  const header = `import type { Seed } from '@beechcms/core'\n\n`
 
   if (selectedKeys.length === 0) {
     const example = readFileSync(join(__dirname, 'templates', 'empty.ts'), 'utf8')
@@ -84,7 +84,7 @@ function writeFile(path, content) {
 
 function buildWorkerTs() {
   return `/// <reference types="@cloudflare/workers-types" />
-import { createBeechApp } from '@beech/api'
+import { createBeechApp } from '@beechcms/api'
 import { seeds } from './seeds'
 
 export default createBeechApp({ seeds })
@@ -108,8 +108,8 @@ function buildPackageJson(name) {
       'db:reset:local': 'node -e "require(\'fs\').rmSync(\'.wrangler/state\',{recursive:true,force:true})" && npm run db:migrate:local',
     },
     dependencies: {
-      '@beech/api': '^0.4.0-preview.1',
-      '@beech/core': '^0.4.0-preview.1',
+      '@beechcms/api': '^0.4.0-preview.3',
+      '@beechcms/core': '^0.4.0-preview.3',
     },
     devDependencies: {
       '@cloudflare/workers-types': '^4.0.0',
@@ -138,7 +138,7 @@ function buildWranglerJsonc(cfg) {
       "binding": "DB",
       "database_name": "${cfg.d1Name}",
       "database_id": "${cfg.d1Id}",
-      "migrations_dir": "node_modules/@beech/api/migrations"
+      "migrations_dir": "node_modules/@beechcms/api/migrations"
     }
   ],
 
@@ -272,52 +272,66 @@ async function askCloudflareConfig(name) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
+  const argv = process.argv.slice(2)
+  const silent = argv.includes('--yes') || argv.includes('-y') || !process.stdout.isTTY
+
   console.log()
-  p.intro(pc.bgGreen(pc.black(' beech-cms ')))
+  p.intro(pc.bgGreen(pc.black(' @beechcms/cms ')))
 
-  // Project name
-  const projectName = await p.text({
-    message: 'Project name',
-    placeholder: 'my-website',
-    validate: (v) => {
-      if (!v.trim()) return 'Required'
-      if (!/^[a-z0-9][a-z0-9-]*$/.test(v.trim())) return 'Lowercase letters, numbers and hyphens only'
-    },
-  })
-  if (p.isCancel(projectName)) { p.cancel('Cancelled'); process.exit(0) }
-  const name = projectName.trim()
+  let name, selectedTemplates, cloudflare
+
+  if (silent) {
+    // Non-interactive: use first positional arg or default name, no templates, skip Cloudflare
+    const positional = argv.find((a) => !a.startsWith('-'))
+    name = positional ?? 'my-beech-project'
+    selectedTemplates = []
+    cloudflare = null
+    console.log(pc.dim(`  Running in non-interactive mode. Project name: ${name}`))
+  } else {
+    // Project name
+    const projectName = await p.text({
+      message: 'Project name',
+      placeholder: 'my-website',
+      validate: (v) => {
+        if (!v.trim()) return 'Required'
+        if (!/^[a-z0-9][a-z0-9-]*$/.test(v.trim())) return 'Lowercase letters, numbers and hyphens only'
+      },
+    })
+    if (p.isCancel(projectName)) { p.cancel('Cancelled'); process.exit(0) }
+    name = projectName.trim()
+
+    // Content types
+    const tmpl = await p.multiselect({
+      message: 'Which content types do you need?',
+      hint: 'Space to select, Enter to confirm. You can add more later in seeds.ts',
+      options: [
+        { value: 'blog',    label: 'Blog',    hint: 'posts with rich text, cover image, tags and authors' },
+        { value: 'gallery', label: 'Gallery', hint: 'media items with image, tags and featured flag' },
+        { value: 'contact', label: 'Contact', hint: 'public form submissions with masked email and read status' },
+      ],
+      required: false,
+    })
+    if (p.isCancel(tmpl)) { p.cancel('Cancelled'); process.exit(0) }
+    selectedTemplates = tmpl
+
+    // Cloudflare now or later?
+    const configureNow = await p.confirm({
+      message: 'Configure Cloudflare credentials now?',
+      hint: 'Choose "No" to scaffold the project and fill in the values later',
+      initialValue: true,
+    })
+    if (p.isCancel(configureNow)) { p.cancel('Cancelled'); process.exit(0) }
+
+    if (configureNow) {
+      cloudflare = await askCloudflareConfig(name)
+      if (!cloudflare) { p.cancel('Cancelled'); process.exit(0) }
+    }
+  }
+
   const targetDir = resolve(process.cwd(), name)
-
   if (existsSync(targetDir)) {
     p.cancel(`Directory '${name}' already exists. Choose a different name or delete the folder.`)
     process.exit(1)
-  }
-
-  // Content types
-  const selectedTemplates = await p.multiselect({
-    message: 'Which content types do you need?',
-    hint: 'Space to select, Enter to confirm. You can add more later in seeds.ts',
-    options: [
-      { value: 'blog',    label: 'Blog',    hint: 'posts with rich text, cover image, tags and authors' },
-      { value: 'gallery', label: 'Gallery', hint: 'media items with image, tags and featured flag' },
-      { value: 'contact', label: 'Contact', hint: 'public form submissions with masked email and read status' },
-    ],
-    required: false,
-  })
-  if (p.isCancel(selectedTemplates)) { p.cancel('Cancelled'); process.exit(0) }
-
-  // Cloudflare now or later?
-  const configureNow = await p.confirm({
-    message: 'Configure Cloudflare credentials now?',
-    hint: 'Choose "No" to scaffold the project and fill in the values later',
-    initialValue: true,
-  })
-  if (p.isCancel(configureNow)) { p.cancel('Cancelled'); process.exit(0) }
-
-  let cloudflare = null
-  if (configureNow) {
-    cloudflare = await askCloudflareConfig(name)
-    if (!cloudflare) { p.cancel('Cancelled'); process.exit(0) }
   }
 
   const jwtSecret = generateSecret(32)

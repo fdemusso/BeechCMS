@@ -1,4 +1,4 @@
-import type { FilterGroup, FilterType } from '@beech/core'
+import type { FilterGroup, FilterType } from '@beechcms/core'
 
 /** Entry parsata per le risposte API — contratto immutabile (C7). */
 export interface ContentEntry {

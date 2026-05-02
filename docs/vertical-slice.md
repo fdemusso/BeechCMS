@@ -538,12 +538,12 @@ Questa sezione adatta i principi delle sezioni precedenti al repository **Beech 
 
 - **Dashboard (Vite + React)**: le nuove feature verticali vanno sotto `apps/dashboard/src/features/<nome-feature>/` (es. `richtext-editor/`), con **`index.ts` come public API** (vedi §4).
 - **Shared nel dashboard**: componenti generici shadcn/radix, utilità e client HTTP sotto `apps/dashboard/src/components/ui/`, `apps/dashboard/src/lib/`, ecc. — equivalente pratico dello `shared/` descritto in §7.
-- **Condiviso tra API e dashboard**: tipi, Seed, validazione e Botanical Engine in `packages/core` (`@beech/core`). **Non** duplicare logica di dominio nel slice: import da `@beech/core` come da SYSTEM_MAP.
+- **Condiviso tra API e dashboard**: tipi, Seed, validazione e Botanical Engine in `packages/core` (`@beechcms/core`). **Non** duplicare logica di dominio nel slice: import da `@beechcms/core` come da SYSTEM_MAP.
 
 ### Regole di dipendenza (Beech)
 
-1. **Routing / pages** (`apps/dashboard/src/pages/`, `App.tsx`): possono importare da `@/features/...` (public API) e da `@/components`, `@/lib`, `@beech/core`.
-2. **Feature** (`apps/dashboard/src/features/*`): possono importare da `@beech/core`, `@/components`, `@/lib`, `@/hooks` condivisi; **non** importare da un’altra cartella `features/*` (stesso principio del §5).
+1. **Routing / pages** (`apps/dashboard/src/pages/`, `App.tsx`): possono importare da `@/features/...` (public API) e da `@/components`, `@/lib`, `@beechcms/core`.
+2. **Feature** (`apps/dashboard/src/features/*`): possono importare da `@beechcms/core`, `@/components`, `@/lib`, `@/hooks` condivisi; **non** importare da un’altra cartella `features/*` (stesso principio del §5).
 3. **Field Renderers**: il registry (`apps/dashboard/src/components/fields/registry.ts`) resta il punto di aggancio schema-driven. Un campo complesso (es. richtext) può essere implementato nello slice e **esposto** come un solo componente dal `index.ts` della feature; il file sottile in `components/fields/edit/` re-esporta o wrappa quel componente senza duplicare logica.
 
 ### Media e API
@@ -560,4 +560,4 @@ Questa sezione adatta i principi delle sezioni precedenti al repository **Beech 
 - [ ] Cartella `apps/dashboard/src/features/<nome>/` con `index.ts` che esporta solo l’API pubblica.
 - [ ] Nessun import da `features/<altra-feature>/...`.
 - [ ] Test co-locati (`*.test.ts` / `*.test.tsx`) accanto ai sorgenti.
-- [ ] Se la feature tocca tipi o validazione condivisi, estendere `@beech/core` invece di copiare tipi nel slice.
+- [ ] Se la feature tocca tipi o validazione condivisi, estendere `@beechcms/core` invece di copiare tipi nel slice.

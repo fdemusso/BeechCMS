@@ -1,4 +1,4 @@
-import { renderRichText } from "@beech/core"
+import { renderRichText } from "@beechcms/core"
 
 import { cn } from "@/lib/utils"
 
@@ -13,7 +13,7 @@ interface GalleryRichtextReadonlyProps {
 }
 
 /**
- * Anteprima richtext: stesso schema JSON/envelope dell'editor, output HTML via `@beech/core`.
+ * Anteprima richtext: stesso schema JSON/envelope dell'editor, output HTML via `@beechcms/core`.
  */
 export function GalleryRichtextReadonly({ value, className }: GalleryRichtextReadonlyProps) {
   const html = renderRichText(value)
@@ -31,7 +31,7 @@ export function GalleryRichtextReadonly({ value, className }: GalleryRichtextRea
         "[&_p]:mb-2 [&_a]:text-primary [&_a]:underline",
         className
       )}
-      // Contenuto già validato da `@beech/core` in scrittura; solo anteprima admin.
+      // Contenuto già validato da `@beechcms/core` in scrittura; solo anteprima admin.
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )

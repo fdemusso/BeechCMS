@@ -1,19 +1,9 @@
 import type { LucideIcon } from "lucide-react"
-import {
-  LayoutDashboard,
-  Settings,
-  Folder,
-  Newspaper,
-  ShoppingBag,
-  Users,
-  MessageSquare,
-  Layout,
-  UserCircle,
-  Mail,
-} from "lucide-react"
-import { SEED_REGISTRY } from "@beech/core"
+import { LayoutDashboard, Settings } from "lucide-react"
+import type { Seed } from "@beechcms/core"
+import { resolveIcon } from "@/lib/icon-registry"
 
-/** Voce di navigazione principale (può avere sottomenu) */
+/** Single navigation entry */
 export interface NavItem {
   title: string
   url: string
@@ -22,25 +12,19 @@ export interface NavItem {
   items?: { title: string; url: string }[]
 }
 
-/** Voce di navigazione secondaria (senza sottomenu) */
+/** Secondary navigation entry */
 export interface NavSecondaryItem {
   title: string
   url: string
   icon: LucideIcon
 }
 
-/** Mappa slug seed -> icona Lucide */
-export const SLUG_ICON_MAP: Record<string, LucideIcon> = {
-  articoli: Newspaper,
-  prodotti: ShoppingBag,
-  team: Users,
-  testimonianze: MessageSquare,
-  pagine: Layout,
-  clienti: UserCircle,
-  messaggi: Mail,
+/** Grouped block of nav items — maps to one NavMain section in the sidebar */
+export interface NavGroup {
+  label: string
+  items: NavItem[]
 }
 
-/** Menu statico: solo Dashboard e Impostazioni */
 export function getStaticMenu(t: (key: string) => string): NavItem[] {
   return [
     {
@@ -64,12 +48,32 @@ export function getStaticMenu(t: (key: string) => string): NavItem[] {
   ]
 }
 
-/** Menu contenuti: generato dinamicamente dai seed registrati */
-export const CONTENT_MENU: NavItem[] = Object.values(SEED_REGISTRY).map((seed) => ({
-  title: seed.labelPlural ?? seed.label,
-  url: `/content/${seed.slug}`,
-  icon: SLUG_ICON_MAP[seed.slug] ?? Folder,
-}))
+/**
+ * Builds grouped content menu from seeds.
+ * Seeds with no `dashboard.group` fall into the default group.
+ * Within each group, seeds are sorted by `dashboard.order` (lower = first).
+ */
+export function buildContentMenu(seeds: Seed[], defaultGroupLabel: string): NavGroup[] {
+  const visible = seeds.filter(s => !s.dashboard?.hidden)
 
-/** Voci secondarie (Support, Feedback, ecc.). Vuoto per CMS minimale */
+  const byGroup = new Map<string, Seed[]>()
+  for (const seed of visible) {
+    const group = seed.dashboard?.group ?? defaultGroupLabel
+    const existing = byGroup.get(group) ?? []
+    existing.push(seed)
+    byGroup.set(group, existing)
+  }
+
+  return Array.from(byGroup.entries()).map(([label, groupSeeds]) => ({
+    label,
+    items: groupSeeds
+      .sort((a, b) => (a.dashboard?.order ?? 99) - (b.dashboard?.order ?? 99))
+      .map(seed => ({
+        title: seed.labelPlural ?? seed.label,
+        url: `/content/${seed.slug}`,
+        icon: resolveIcon(seed.dashboard?.icon),
+      })),
+  }))
+}
+
 export const STATIC_NAV_SECONDARY: NavSecondaryItem[] = []

@@ -1,5 +1,5 @@
 -- Migrazione 0008: Seed contenuti demo per tutti i Seed registrati
--- Slug supportati (vedi SEED_REGISTRY in @beech/core):
+-- Slug supportati (vedi SEED_REGISTRY in @beechcms/core):
 -- - articoli
 -- - prodotti
 -- - team

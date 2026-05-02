@@ -10,7 +10,7 @@ Every design decision documented here is grounded in the source code and explici
 
 1. [Monorepo Topology](#1-monorepo-topology)
 2. [Turborepo Build Strategy](#2-turborepo-build-strategy)
-3. [`@beech/core` — The Single Source of Truth](#3-beechcore--the-single-source-of-truth)
+3. [`@beechcms/core` — The Single Source of Truth](#3-beechcore--the-single-source-of-truth)
 4. [The Botanical Engine — Schema Compiler](#4-the-botanical-engine)
 5. [The Per-Type SQL Model](#5-the-per-type-sql-model)
 6. [Cloudflare D1 — SQLite at the Edge](#6-cloudflare-d1--sqlite-at-the-edge)
@@ -22,15 +22,15 @@ Every design decision documented here is grounded in the source code and explici
 
 ## 1. Monorepo Topology
 
-The monorepo uses **npm workspaces** at the root. `apps/api` and `apps/dashboard` both declare `"@beech/core": "*"` (workspace protocol) in their `package.json` dependencies.
+The monorepo uses **npm workspaces** at the root. `apps/api` and `apps/dashboard` both declare `"@beechcms/core": "*"` (workspace protocol) in their `package.json` dependencies.
 
 ```text
-beech-cms/
+@beechcms/cms/
 ├── apps/
 │   ├── api/          # Hono REST API — Cloudflare Workers
 │   └── dashboard/    # React + Vite SPA
 ├── packages/
-│   └── core/         # @beech/core — shared engine, types, validation
+│   └── core/         # @beechcms/core — shared engine, types, validation
 ├── docs/
 ├── turbo.json
 └── package.json      # Root: npm workspaces ["apps/*", "packages/*"]
@@ -41,9 +41,9 @@ beech-cms/
 
 | Layer | Package | Allowed Imports |
 |---|---|---|
-| **Apps** | `apps/api`, `apps/dashboard` | `@beech/core`, npm, local src |
+| **Apps** | `apps/api`, `apps/dashboard` | `@beechcms/core`, npm, local src |
 | **Core** | `packages/core` | npm only (no app imports) |
-| **Shared** | `src/components/ui`, `src/lib` | npm, `@beech/core` — _never_ `features/*` |
+| **Shared** | `src/components/ui`, `src/lib` | npm, `@beechcms/core` — _never_ `features/*` |
 
 ---
 
@@ -51,9 +51,9 @@ beech-cms/
 
 `turbo.json` defines a DAG-based pipeline. Turborepo resolves the workspace dependency graph and executes tasks in topological order:
 
--   **@beech/core (build)** → **apps/api (build)**
+-   **@beechcms/core (build)** → **apps/api (build)**
 
--   **@beech/core (build)** → **apps/dashboard (build)**
+-   **@beechcms/core (build)** → **apps/dashboard (build)**
 
 
 This means `packages/core` is **always compiled first**. The apps consume the compiled output at `packages/core/dist/index.js`.
@@ -63,17 +63,17 @@ This means `packages/core` is **always compiled first**. The apps consume the co
 npm run dev
 
 # 1. packages/core: tsc -w (rebuilds dist/ on change)
-# 2. apps/api: wrangler dev (reads dist/ via @beech/core)
-# 3. apps/dashboard: vite dev (reads dist/ via @beech/core)
+# 2. apps/api: wrangler dev (reads dist/ via @beechcms/core)
+# 3. apps/dashboard: vite dev (reads dist/ via @beechcms/core)
 ```
 
 **Why this matters:** Any type mismatch in the core results in a **compile-time error** across all apps simultaneously, preventing runtime drift.
 
 ---
 
-## 3. `@beech/core` — The Single Source of Truth
+## 3. `@beechcms/core` — The Single Source of Truth
 
-No business logic touching schema, validation, or translation exists in the apps. They are pure consumers of `@beech/core`.
+No business logic touching schema, validation, or translation exists in the apps. They are pure consumers of `@beechcms/core`.
 
 ```typescript
 // packages/core/src/index.ts
@@ -107,18 +107,18 @@ client sends plaintext  →  API validates (Zod)  →  sha256hex()  →  Botanic
 ```
 The plaintext never persists. Sensitive fields cannot be updated via PUT — the handler returns `422` if any non-plain field appears in the patch.
 
-**Comparing a hashed field** (e.g. password verification): use `verifyHashField` from `@beech/core` inside a dedicated server-side handler. Never expose the hash to the client.
+**Comparing a hashed field** (e.g. password verification): use `verifyHashField` from `@beechcms/core` inside a dedicated server-side handler. Never expose the hash to the client.
 
 ```typescript
-import { verifyHashField } from '@beech/core'
+import { verifyHashField } from '@beechcms/core'
 
 const match = await verifyHashField(storedHash, candidatePlaintext)
 ```
 
-All policy resolution **must** go through `resolvePolicies(branch)` from `@beech/core`. Never inline-check `branch.policies?.x ?? default`.
+All policy resolution **must** go through `resolvePolicies(branch)` from `@beechcms/core`. Never inline-check `branch.policies?.x ?? default`.
 
 ```typescript
-import { resolvePolicies } from '@beech/core'
+import { resolvePolicies } from '@beechcms/core'
 
 const { privacy, visibility, search, filter, sort, public: isPublic } = resolvePolicies(branch)
 ```
@@ -248,7 +248,7 @@ Every feature **must** expose a public API. Direct imports of internal feature f
 
 1.  **Feature Isolation**: Features **never** import from other features.
 
-2.  **Shared Promotion**: If two features need the same logic, it is promoted to the `shared` layer or `@beech/core`.
+2.  **Shared Promotion**: If two features need the same logic, it is promoted to the `shared` layer or `@beechcms/core`.
 
 3.  **Encapsulation**: Pages only interact with the `index.ts` of a feature.
 
@@ -279,7 +279,7 @@ Every feature **must** expose a public API. Direct imports of internal feature f
 
 The pending draft system allows editorial content types to maintain a **separate draft** on top of a live (published) entry. v0.4.0 uses a mirror table strategy instead of a JSON column.
 
-This feature is opt-in per seed via the `allowDrafts` flag in `@beech/core`:
+This feature is opt-in per seed via the `allowDrafts` flag in `@beechcms/core`:
 
 ```typescript
 // packages/core/src/seeds.ts

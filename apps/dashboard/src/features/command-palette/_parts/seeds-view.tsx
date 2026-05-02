@@ -1,7 +1,7 @@
 import { useTranslation } from "react-i18next"
 import { Folder } from "lucide-react"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
-import type { Seed } from "@beech/core"
+import type { Seed } from "@beechcms/core"
 import { SLUG_ICON_MAP } from "@/config/dashboard-menu"
 
 interface SeedsViewProps {

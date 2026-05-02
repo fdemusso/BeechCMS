@@ -48,6 +48,27 @@ export interface Branch {
   }
 }
 
+/** Dashboard-specific config embedded in a Seed. All fields optional — defaults applied by the dashboard. */
+export interface DashboardSeedConfig {
+  /** Lucide icon name (string, resolved to component client-side). Default: 'Folder' */
+  icon?: string
+  /** Sidebar group label. Ungrouped seeds share a single 'Contents' section. */
+  group?: string
+  /** Sort order within the group. Lower = higher. Default: 99 */
+  order?: number
+  /** Hide from sidebar navigation. Default: false */
+  hidden?: boolean
+  /** Tooltip description shown in the sidebar. */
+  description?: string
+  /** UI feature toggles. All default to true unless specified. */
+  features?: {
+    search?: boolean
+    filter?: boolean
+    export?: boolean
+    bulkDelete?: boolean
+  }
+}
+
 /** Seed: definizione dello schema di un tipo di contenuto */
 export interface Seed {
   /** Slug identificativo — anche nome tabella: `content_{slug}` */
@@ -75,6 +96,8 @@ export interface Seed {
   displayNameAlias: string
   /** Lista dei campi (Branch) */
   branches: Branch[]
+  /** Optional dashboard-specific UI config. Ignored by the Botanical Engine. */
+  dashboard?: DashboardSeedConfig
 }
 
 // ---- Query types (usati da buildSelectQuery nel Botanical Engine) ----

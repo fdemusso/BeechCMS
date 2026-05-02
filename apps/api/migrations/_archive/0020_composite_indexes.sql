@@ -1,6 +1,6 @@
 -- Indici compositi su content_entries per ottimizzare le query di lista filtrata.
 -- Tutti gli indici sono agnostici rispetto ai seed: funzionano per qualsiasi
--- content type che il developer definirà in @beech/core.
+-- content type che il developer definirà in @beechcms/core.
 
 -- Copre il pattern più frequente: WHERE schema_slug = ? AND status = ? ORDER BY created_at DESC
 CREATE INDEX IF NOT EXISTS idx_ce_slug_status_created

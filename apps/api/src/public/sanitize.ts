@@ -1,5 +1,5 @@
-import { validateAndSanitizeSeedPayload } from '@beech/core'
-import type { Seed, ValidationDetail } from '@beech/core'
+import { validateAndSanitizeSeedPayload } from '@beechcms/core'
+import type { Seed, ValidationDetail } from '@beechcms/core'
 
 type PublicSanitizeSuccess = {
   ok: true

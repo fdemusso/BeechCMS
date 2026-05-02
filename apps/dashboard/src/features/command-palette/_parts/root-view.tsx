@@ -15,7 +15,7 @@ import {
   CommandSeparator,
   CommandShortcut,
 } from "@/components/ui/command"
-import type { Seed } from "@beech/core"
+import type { Seed } from "@beechcms/core"
 import { SLUG_ICON_MAP } from "@/config/dashboard-menu"
 import type { CommandPage } from "../types"
 

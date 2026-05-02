@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useNavigate, useBlocker } from "react-router-dom"
-import { getSeed, slugify } from "@beech/core"
+import { getSeed, slugify } from "@beechcms/core"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { AxiosError } from "axios"
@@ -46,7 +46,7 @@ import type { ContentEntry } from "@/lib/dynamic-columns"
 
 /** 
  * Slug ammessi: solo a-z, 0-9, trattino. Niente accenti/spazi/underscore. 
- * TODO: Allineare la regex con slug-utils.ts (API) e spostare la logica in @beech/core 
+ * TODO: Allineare la regex con slug-utils.ts (API) e spostare la logica in @beechcms/core 
  * per garantire consistenza assoluta tra dashboard e API pubbliche.
  */
 function slugFromText(text: string): string {

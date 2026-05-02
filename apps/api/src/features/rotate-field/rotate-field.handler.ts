@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { resolvePolicies, verifyHashField, sha256hex, validateAndSanitizeSeedPayload, serializeForDb } from '@beech/core'
+import { resolvePolicies, verifyHashField, sha256hex, validateAndSanitizeSeedPayload, serializeForDb } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
 import { rotateFieldBodySchema } from './rotate-field.schema'
 import type { Env, Variables } from '../../types'

@@ -5,9 +5,10 @@ import { useTheme } from "next-themes"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
-import { getStaticMenu, CONTENT_MENU, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
+import { getStaticMenu, buildContentMenu, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
 import { getStoredUser, logout } from "@/lib/api"
 import { useProfile } from "@/features/settings"
+import { useSchema } from "@/features/schema/hooks/use-schema"
 import {
   Sidebar,
   SidebarContent,
@@ -24,11 +25,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { resolvedTheme } = useTheme()
   const storedUser = getStoredUser()
   const { data: profile } = useProfile()
+  const { data: seeds = [] } = useSchema()
   const user = {
     name: profile?.name ?? storedUser?.name ?? "Admin",
     email: profile?.email ?? storedUser?.email ?? "",
     avatar: profile?.avatarUrl ?? undefined,
   }
+
+  const contentGroups = buildContentMenu(seeds, t("sidebar.contents"))
 
   return (
     <Sidebar
@@ -58,7 +62,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={getStaticMenu(t)} groupLabel={t("sidebar.navigation")} />
-        <NavMain items={CONTENT_MENU} groupLabel={t("sidebar.contents")} className="mt-4" />
+        {contentGroups.map((group, i) => (
+          <NavMain
+            key={group.label}
+            items={group.items}
+            groupLabel={group.label}
+            className={i === 0 ? "mt-4" : undefined}
+          />
+        ))}
         {STATIC_NAV_SECONDARY.length > 0 && (
           <NavSecondary items={STATIC_NAV_SECONDARY} className="mt-auto" />
         )}

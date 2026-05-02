@@ -1,8 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 import { describe, it, expect, vi } from 'vitest'
 import app from '../src/index'
-import { ARTICOLO_SEED } from '@beech/core'
-import type { Seed } from '@beech/core'
+import { ARTICOLO_SEED } from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
 
 const JWT_SECRET = 'test-secret-key'
 

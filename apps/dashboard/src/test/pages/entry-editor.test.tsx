@@ -27,7 +27,7 @@ const seedPosts = {
   ],
 }
 
-vi.mock("@beech/core", () => ({
+vi.mock("@beechcms/core", () => ({
   getSeed: () => seedPosts,
   slugify: (text: string) =>
     text

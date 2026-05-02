@@ -1,4 +1,4 @@
-import { resolvePolicies } from "@beech/core"
+import { resolvePolicies } from "@beechcms/core"
 import { getDisplayComponent } from "./registry"
 import type { FieldDisplayProps } from "./types"
 

@@ -1,4 +1,4 @@
-import type { Branch, Seed } from "@beech/core"
+import type { Branch, Seed } from "@beechcms/core"
 
 /** Allineato a `entry-editor.tsx`: campi SEO con alias che iniziano per `meta`. */
 export function isSeoBranch(branch: Branch): boolean {

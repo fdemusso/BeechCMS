@@ -12,22 +12,11 @@ import {
   MediaGalleryWidget,
   ActivityFeedWidget,
 } from "@/features/dashboard/components/widgets"
-import { SEED_REGISTRY } from "@beech/core"
+import { useSchema } from "@/features/schema/hooks/use-schema"
 import { cn } from "@/lib/utils"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
-const allSeeds = Object.values(SEED_REGISTRY).map((seed) => {
-  const nameBranch = seed.branches.find((b) => b.alias === seed.displayNameAlias)
-  return {
-    slug: seed.slug,
-    label: seed.label,
-    displayNameAlias: seed.displayNameAlias,
-    displayNameLabel: nameBranch?.label ?? seed.displayNameAlias,
-  }
-})
-
-const FIRST_SEED_SLUG = allSeeds[0]?.slug ?? "articoli"
 
 // ─── Layout primitives ──────────────────────────────────────────────────────
 
@@ -87,6 +76,20 @@ function LabPlaceholder({ name }: { name: string }) {
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export function WidgetLabPage() {
+  const { data: seeds = [] } = useSchema()
+  
+  const allSeeds = seeds.map((seed) => {
+    const nameBranch = seed.branches.find((b) => b.alias === seed.displayNameAlias)
+    return {
+      slug: seed.slug,
+      label: seed.label,
+      displayNameAlias: seed.displayNameAlias,
+      displayNameLabel: nameBranch?.label ?? seed.displayNameAlias,
+    }
+  })
+
+  const firstSeedSlug = allSeeds[0]?.slug ?? ""
+
   return (
     <div className="[--header-height:calc(--spacing(14))]">
       <SidebarProvider className="flex flex-col">
@@ -172,10 +175,10 @@ export function WidgetLabPage() {
               >
                 <LabRow className="grid-cols-2">
                   <LabCell label={"variant=\"list\" · span w:4 h:2"} h={280}>
-                    <RecentContentWidget seedSlug={FIRST_SEED_SLUG} variant="list" />
+                    <RecentContentWidget seedSlug={firstSeedSlug} variant="list" />
                   </LabCell>
                   <LabCell label={"variant=\"cards\" · span w:4 h:2"} h={280}>
-                    <RecentContentWidget seedSlug={FIRST_SEED_SLUG} variant="cards" />
+                    <RecentContentWidget seedSlug={firstSeedSlug} variant="cards" />
                   </LabCell>
                 </LabRow>
               </LabSection>
@@ -187,10 +190,10 @@ export function WidgetLabPage() {
               >
                 <LabRow className="grid-cols-2">
                   <LabCell label={"variant=\"counter\" · span w:2 h:1"}>
-                    <PendingDraftsWidget seedSlug={FIRST_SEED_SLUG} variant="counter" />
+                    <PendingDraftsWidget seedSlug={firstSeedSlug} variant="counter" />
                   </LabCell>
                   <LabCell label={"variant=\"list\" · span w:4 h:2"} h={280}>
-                    <PendingDraftsWidget seedSlug={FIRST_SEED_SLUG} variant="list" />
+                    <PendingDraftsWidget seedSlug={firstSeedSlug} variant="list" />
                   </LabCell>
                 </LabRow>
               </LabSection>
@@ -202,10 +205,10 @@ export function WidgetLabPage() {
               >
                 <LabRow className="grid-cols-2">
                   <LabCell label={"variant=\"grid\" · span w:4 h:2"} h={280}>
-                    <MediaGalleryWidget seedSlug={FIRST_SEED_SLUG} variant="grid" />
+                    <MediaGalleryWidget seedSlug={firstSeedSlug} variant="grid" />
                   </LabCell>
                   <LabCell label={"variant=\"unused\" · span w:4 h:2"} h={280}>
-                    <MediaGalleryWidget seedSlug={FIRST_SEED_SLUG} variant="unused" />
+                    <MediaGalleryWidget seedSlug={firstSeedSlug} variant="unused" />
                   </LabCell>
                 </LabRow>
               </LabSection>

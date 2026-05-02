@@ -22,14 +22,14 @@ Define your content model once in TypeScript. The **Botanical Engine** compiles 
 
 ### Works as a dependency, not a boilerplate
 
-Your project is four files. The BeechCMS engine, dashboard, and API live inside `node_modules/@beech/api`. Update with `npm update @beech/api`.
+Your project is four files. The BeechCMS engine, dashboard, and API live inside `node_modules/@beechcms/api`. Update with `npm update @beechcms/api`.
 
 ---
 
 ## Getting Started
 
 ```bash
-npx beech-cms
+npx @beechcms/cms
 ```
 
 The interactive wizard scaffolds a ready-to-use project in seconds. For everything from configuration to deployment, see the **[Developer Guide](./docs/guide.md)**.
@@ -56,7 +56,7 @@ Instead of generic document storage, the Engine analyzes your **Seeds** (content
 | API framework | Hono v4 |
 | Database | Cloudflare D1 (SQLite at the edge) |
 | Object storage | Cloudflare R2 (zero egress cost) |
-| Shared logic | `@beech/core` — Botanical Engine, types, validation |
+| Shared logic | `@beechcms/core` — Botanical Engine, types, validation |
 | Dashboard | React 19 + Vite 7 |
 | UI | Tailwind CSS v4 + Shadcn/ui |
 | Server state | TanStack Query v5 |

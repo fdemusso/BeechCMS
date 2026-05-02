@@ -35,6 +35,12 @@ This document describes the architecture of the React dashboard: how the FieldRe
    - [Client-Side Formula Evaluation](#85-client-side-formula-evaluation)
    - [Pilot Widgets](#86-pilot-widgets)
    - [How to Add a New Widget](#87-how-to-add-a-new-widget)
+9. [Dashboard Seed Config — Sidebar & UI Behaviour](#9-dashboard-seed-config--sidebar--ui-behaviour)
+   - [How it works](#91-how-it-works)
+   - [Icon Registry](#92-icon-registry)
+   - [Sidebar Grouping](#93-sidebar-grouping)
+   - [Feature Toggles](#94-feature-toggles)
+   - [Adding a new icon](#95-adding-a-new-icon)
 
 ---
 
@@ -42,7 +48,7 @@ This document describes the architecture of the React dashboard: how the FieldRe
 
 The dashboard is a React + Vite SPA served from `apps/dashboard`. It communicates exclusively with the Hono API over HTTP — there is no direct database access. Its primary responsibilities are:
 
-- Rendering content forms and tables **driven entirely by the `Seed` schema** from `@beech/core`, not by hardcoded layouts.
+- Rendering content forms and tables **driven entirely by the `Seed` schema** from `@beechcms/core`, not by hardcoded layouts.
 - Managing all server state through **TanStack Query**, with typed query keys and deterministic cache invalidation.
 - Exposing a **pluggable field rendering system** that allows new data types to be added without modifying existing view code.
 
@@ -109,7 +115,7 @@ export interface FieldEditProps {
 }
 ```
 
-The `Branch` type comes directly from `@beech/core/src/types.ts`. A field renderer never fetches data — it only renders what it receives. This makes every renderer independently unit-testable in isolation.
+The `Branch` type comes directly from `@beechcms/core/src/types.ts`. A field renderer never fetches data — it only renders what it receives. This makes every renderer independently unit-testable in isolation.
 
 ### 2.3 The Registry
 
@@ -119,7 +125,7 @@ The `Branch` type comes directly from `@beech/core/src/types.ts`. A field render
 // components/fields/registry.ts
 
 import type { ComponentType } from 'react';
-import type { BranchType } from '@beech/core';
+import type { BranchType } from '@beechcms/core';
 import type { FieldDisplayProps, FieldEditProps } from './types';
 
 // --- Display renderers (read-only) ---
@@ -172,7 +178,7 @@ export function getEditComponent(type: BranchType): ComponentType<FieldEditProps
 }
 ```
 
-The `Partial<Record<BranchType, ...>>` type is intentional. Unregistered types silently fall back to `DefaultDisplay` (renders `unknown` as a string or `—`) and `DefaultEdit` (renders a plain `<input type="text">`). This makes the system **fail-safe** by design: a new `BranchType` added to `@beech/core` without a corresponding renderer will still produce a usable, non-crashing UI.
+The `Partial<Record<BranchType, ...>>` type is intentional. Unregistered types silently fall back to `DefaultDisplay` (renders `unknown` as a string or `—`) and `DefaultEdit` (renders a plain `<input type="text">`). This makes the system **fail-safe** by design: a new `BranchType` added to `@beechcms/core` without a corresponding renderer will still produce a usable, non-crashing UI.
 
 ### 2.4 Entry Points: FieldDisplay & FieldEdit
 
@@ -434,7 +440,7 @@ The `EntryEditorPage` (`pages/entry-editor.tsx`) is the canonical consumer of th
 ```tsx
 // Simplified structure of EntryEditorPage
 
-const seed = getSeed(slug);  // From @beech/core — never hardcoded
+const seed = getSeed(slug);  // From @beechcms/core — never hardcoded
 
 // TanStack Query: fetch existing entry in edit mode
 const { data: entry } = useQuery({
@@ -485,7 +491,7 @@ Key observations:
 
 This is the complete, step-by-step procedure for adding a new field type (e.g., `url`) to the system. The procedure is designed so that **no existing view file is modified**.
 
-### Step 1 — Extend `BranchType` in `@beech/core`
+### Step 1 — Extend `BranchType` in `@beechcms/core`
 
 ```typescript
 // packages/core/src/types.ts
@@ -501,9 +507,9 @@ export type BranchType =
         | 'url';   // ← add here
 ```
 
-This is the only change to `@beech/core`. Turborepo will compile `@beech/core` before the apps, so the new type becomes available immediately.
+This is the only change to `@beechcms/core`. Turborepo will compile `@beechcms/core` before the apps, so the new type becomes available immediately.
 
-### Step 2 — Add Validation in `@beech/core` (if required)
+### Step 2 — Add Validation in `@beechcms/core` (if required)
 
 If the new type requires server-side validation/sanitization, extend `buildBranchSchema` and `validateBranchValue` in `packages/core/src/validation.ts`:
 
@@ -945,5 +951,84 @@ export function MyWidget({ seed, formula, window = "all", title }: MyWidgetProps
 4. **Add a case** in `apps/dashboard/src/features/dashboard/components/widget-registry.tsx` that maps the new type to the component.
 
 5. **Add an instance** to `DEFAULT_DASHBOARD_CONFIG` in `apps/dashboard/src/features/dashboard/config/dashboard.config.ts` with the desired `span`, `x`, `y`, and `props`.
+
+---
+
+## 9. Dashboard Seed Config — Sidebar & UI Behaviour
+
+The sidebar and per-content-type UI behaviour are driven by the optional `dashboard` field on each `Seed`. This is the **only** source of truth for dashboard UI configuration — no slug-to-icon maps, no separate registries.
+
+### 9.1 How it works
+
+1. `defineSeed({ ..., dashboard: { icon, group, order, hidden, features } })` — declared alongside the Seed, never in a separate file.
+2. The `GET /api/schema` endpoint returns all seeds including their `dashboard` field. `useSchema()` in `apps/dashboard/src/features/schema/hooks/use-schema.ts` fetches this once and caches it for 5 minutes.
+3. `buildContentMenu(seeds, defaultGroupLabel)` in `apps/dashboard/src/config/dashboard-menu.ts` groups, sorts, and filters the seeds, returning `NavGroup[]`.
+4. `AppSidebar` renders one `NavMain` section per group, in the order they appear in `NavGroup[]`.
+
+### 9.2 Icon Registry
+
+**File:** `apps/dashboard/src/lib/icon-registry.ts`
+
+Icon names are strings on the wire (safe to serialize to JSON). The registry resolves them to `LucideIcon` components client-side:
+
+```typescript
+import { resolveIcon } from '@/lib/icon-registry'
+
+const Icon = resolveIcon('Newspaper')   // → LucideIcon component
+const Fallback = resolveIcon(undefined) // → Folder (default)
+```
+
+Unknown names always fall back to `Folder` — they never throw.
+
+### 9.3 Sidebar Grouping
+
+Seeds with the same `dashboard.group` string share a sidebar section. Seeds with no `group` fall into the default section (labelled with the i18n key `sidebar.contents`). Within a group, seeds are sorted by `dashboard.order` (ascending; default 99).
+
+```
+Sidebar
+├── Navigation          ← static: Dashboard, Settings
+├── Blog                ← group: seeds with dashboard.group = 'Blog', sorted by order
+│   ├── Posts           ← order: 1
+│   └── Comments        ← order: 2
+└── Shop                ← group: seeds with dashboard.group = 'Shop'
+    ├── Products        ← order: 1
+    └── Orders          ← order: 2
+```
+
+Set `dashboard.hidden: true` to exclude a seed from the sidebar entirely (it remains accessible via direct URL).
+
+### 9.4 Feature Toggles
+
+`dashboard.features` controls which UI elements appear in the content views. All values default to `true` for `search` and `filter`; `export` and `bulkDelete` default to `false`.
+
+| Key | Default | Effect |
+|---|---|---|
+| `search` | `true` | Show search bar in the content list toolbar |
+| `filter` | `true` | Show column filters in the content list toolbar |
+| `export` | `false` | Show export (CSV/JSON) button in the toolbar |
+| `bulkDelete` | `false` | Show bulk-delete action in the content list |
+
+> **Note:** feature toggle rendering is opt-in — each component must read `seed.dashboard?.features` and conditionally render. The schema provides the data; consuming components must implement the check.
+
+### 9.5 Adding a New Icon
+
+1. Import the Lucide icon in `apps/dashboard/src/lib/icon-registry.ts`.
+2. Add it to both the import list and the `ICON_MAP` object using its PascalCase name as key.
+3. Reference it by name string in any Seed's `dashboard.icon` field.
+
+```typescript
+// icon-registry.ts — add to both import and ICON_MAP
+import { Rocket } from 'lucide-react'
+
+const ICON_MAP = {
+  // ...existing icons
+  Rocket,
+}
+```
+
+```typescript
+// seeds.ts
+defineSeed({ slug: 'launches', dashboard: { icon: 'Rocket' } })
+```
 
 > **Do not** create custom `fetch` calls inside widget components. All data access must go through the hooks in `@/features/widget-data`. If none of the existing hooks fit, add a new one following the pattern in `hooks/use-widget-aggregate.ts`.

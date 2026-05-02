@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getSeed, isValidContentStatus, validateAndSanitizeSeedPayload } from '@beech/core'
+import { getSeed, isValidContentStatus, validateAndSanitizeSeedPayload } from '@beechcms/core'
 import { sanitizePublicPayload } from '../src/public/sanitize'
 import { generateEntrySlug, slugify } from '../src/public/slug-utils'
 import { parseLatestCount, parsePublicPagination } from '../src/public/query-builder'

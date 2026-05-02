@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
-import { deserializeFromDb, serializeForDb } from '@beech/core'
-import type { Seed } from '@beech/core'
+import { deserializeFromDb, serializeForDb } from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
 import type { ContentEntry } from './query-utils'
 
 /** Deserializza ogni branch colonna di un DB row in formato API alias. */

@@ -1,5 +1,5 @@
 import type { ColumnDef, AggregationFn, GroupingColumnDef } from "@tanstack/react-table"
-import type { Seed } from "@beech/core"
+import type { Seed } from "@beechcms/core"
 import { MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
 

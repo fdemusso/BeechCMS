@@ -1,5 +1,5 @@
 import * as React from "react"
-import type { Branch, Seed } from "@beech/core"
+import type { Branch, Seed } from "@beechcms/core"
 import { Pencil } from "lucide-react"
 
 import { FieldDisplay } from "@/components/fields"

@@ -16,7 +16,7 @@ This high-level system map is designed for onboarding new contributors and for A
 | Document | Covers |
 |---|---|
 | `[README.md](README.md)` | Project overview, Botanical Engine primer, tech stack, getting started |
-| `[architecture.md](architecture.md)` | Monorepo topology, Turborepo pipeline, `@beech/core` barrel, Botanical Engine (Schema Compiler), Per-type SQL model, VSA migration |
+| `[architecture.md](architecture.md)` | Monorepo topology, Turborepo pipeline, `@beechcms/core` barrel, Botanical Engine (Schema Compiler), Per-type SQL model, VSA migration |
 | `[api-reference.md](api-reference.md)` | Auth, Internal Content API, Media Engine, Public API, Widget API |
 | `[frontend-guide.md](frontend-guide.md)` | FieldRenderers, TanStack Query, Tailwind 4, EntryEditorPage, ContentToolbar |
 | `[email-module.md](email-module.md)` | Email module architecture, localization, templates |
@@ -47,7 +47,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - **Must not** use i18n for content data (Seed/Branch values) — only for dashboard UI strings.
   - **Rich text**
     - TipTap (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/pm`): `^3.20.0`
-    - Implemented as a vertical slice at `apps/dashboard/src/features/richtext-editor/` with public API via `index.ts`. Persists JSON with envelope `{ schemaVersion: 1, doc }` aligned to `@beech/core` (`renderRichText`, validation in `validation.ts`).
+    - Implemented as a vertical slice at `apps/dashboard/src/features/richtext-editor/` with public API via `index.ts`. Persists JSON with envelope `{ schemaVersion: 1, doc }` aligned to `@beechcms/core` (`renderRichText`, validation in `validation.ts`).
   - **Build & Quality**
     - ESLint 9 (`eslint` `^9.39.1`, `typescript-eslint` `^8.48.0`)
     - Vitest `^3.2.4`, Testing Library (`@testing-library/react`, `@testing-library/jest-dom`)
@@ -72,19 +72,19 @@ This high-level system map is designed for onboarding new contributors and for A
 
 - **Architecture & Tooling**
   - Monorepo **Turborepo** (`turbo` `^2.8.7`) with **npm workspaces**
-  - Shared package `@beech/core` (version `0.0.0`) for types, seeds, and the Botanical Engine
+  - Shared package `@beechcms/core` (version `0.0.0`) for types, seeds, and the Botanical Engine
 
 ---
 
 ## Folder Architecture
 
 ```text
-beech-cms/
+@beechcms/cms/
 ├── apps/
 │   ├── api/           # REST API (Hono + Cloudflare Workers/D1/R2)
 │   └── dashboard/     # React frontend (Vite + Tailwind + Field Renderers)
 ├── packages/
-│   └── core/          # @beech/core – Botanical Engine and shared types
+│   └── core/          # @beechcms/core – Botanical Engine and shared types
 ├── docs/
 │   └── nuovidocs/     # Architectural documentation
 ├── package.json       # Root: workspaces, Turbo scripts
@@ -101,7 +101,7 @@ beech-cms/
   - Public routes (`/api/v1/public/health`, `/api/v1/public/:seed`, `/api/v1/public/:seed/add`, `/api/v1/public/:seed/edit/:id`) protected by API key — see `nuovidocs/api-reference.md` §6.
   - Media upload and delivery (`/api/upload`, `/api/media/:key`) — see `nuovidocs/api-reference.md` §5.
 - **Key integrations**
-  - Imports types and functions from `@beech/core` (`getSeed`, Botanical Engine).
+  - Imports types and functions from `@beechcms/core` (`getSeed`, Botanical Engine).
   - Uses Cloudflare D1 for persistence (schema generated via `beech seed:load`).
   - Uses Cloudflare R2 for binary files.
 - **Important files**
@@ -123,9 +123,16 @@ beech-cms/
   - `apps/dashboard/src/features/dashboard/` — Dashboard cockpit with bento grid widgets and Cloudflare Edge analytics.
   - `apps/dashboard/src/features/widget-data/` — **Widget Data Layer**: typed hooks, formula evaluation, and Axios wrappers for the `/api/widget/*` endpoints. Public API via `index.ts`. See `nuovidocs/frontend-guide.md` §8.
   - `apps/dashboard/src/features/command-palette/` — global command palette.
-  - Entry editing pages (`EntryEditorPage`) consume FieldRenderers and the Seed from `@beech/core`.
+  - Entry editing pages (`EntryEditorPage`) consume FieldRenderers and the Seed from `@beechcms/core`.
+- **Dashboard Seed Config** — sidebar and content-view behaviour is driven by the optional `dashboard` field on each `Seed` (type `DashboardSeedConfig`, defined in `@beechcms/core`). No separate registry or hardcoded map.
+  - `icon` — Lucide icon name (string); resolved to a component by `apps/dashboard/src/lib/icon-registry.ts`.
+  - `group` — sidebar section label; seeds sharing the same group appear under one collapsible section.
+  - `order` — sort order within the group.
+  - `hidden` — exclude from sidebar.
+  - `features` — per-seed UI toggles: `search`, `filter`, `export`, `bulkDelete`.
+  - The sidebar (`AppSidebar`) calls `buildContentMenu(seeds, defaultLabel)` from `apps/dashboard/src/config/dashboard-menu.ts`, which returns `NavGroup[]` — one `NavMain` section per group, sorted and filtered automatically.
 
-### `packages/core` – `@beech/core` (Botanical Engine)
+### `packages/core` – `@beechcms/core` (Botanical Engine)
 
 - **Main responsibilities**
   - Shared typings: `Branch`, `Seed`, `DbPayload`, `ApiPayload`.
@@ -134,7 +141,7 @@ beech-cms/
   - Schema-driven validation (`validateAndSanitizeSeedPayload`) — reused by both the internal and public API.
   - RichText schema and sanitization (`richtext.ts`, `richtext-render.ts`).
 - **Barrel export**: `packages/core/src/index.ts` — types, seeds, engine, validation, richtext, slug utils.
-- **Build**: `npm run build -w @beech/core` produces `dist/` with JS and `.d.ts`, consumed by both apps.
+- **Build**: `npm run build -w @beechcms/core` produces `dist/` with JS and `.d.ts`, consumed by both apps.
 
 ---
 
@@ -193,7 +200,7 @@ beech-cms/
   - **Pending drafts** are opt-in: set `allowDrafts: true` on the Seed to enable the `/draft` endpoint family. Uses mirror tables `content_{slug}_drafts`.
 
 - **Monorepo & shared code**
-  - **Must** place shared logic and types in `@beech/core` and consume them from both apps.
+  - **Must** place shared logic and types in `@beechcms/core` and consume them from both apps.
   - **Must not** duplicate types, translation functions, or Seed definitions across apps.
 
 - **Centralized content API**
@@ -213,6 +220,12 @@ beech-cms/
   - **Must** use `FieldDisplay`/`FieldEdit` and the registry in `apps/dashboard/src/components/fields/` for all field rendering.
   - **Must not** write UI that switches on `branch.type` in tables, forms, or gallery views.
 
+- **Dashboard sidebar & Seed UI config**
+  - **Must** declare all dashboard-specific UI config (icon, group, order, hidden, features) in the `dashboard` field of the `Seed` definition — the only source of truth.
+  - **Must not** add slug-to-icon or slug-to-group mappings outside of the Seed's `dashboard` field (no hardcoded maps in `dashboard-menu.ts` or elsewhere).
+  - **Must** use `resolveIcon(name)` from `apps/dashboard/src/lib/icon-registry.ts` to convert icon name strings to Lucide components — never import icons directly in menu/sidebar config files.
+  - **Must** add new Lucide icons to `icon-registry.ts` before referencing them in a Seed's `dashboard.icon` field.
+
 - **Media handling**
   - **Must** use `POST /api/upload` and store only URL strings in `file` fields (`string` for single, `string[]` for `asset-list`).
   - **Must** delegate file deletion to `DELETE /api/content/:slug/:id`.
@@ -227,7 +240,7 @@ beech-cms/
 - **Vertical Slice Architecture (dashboard)**
   - **Must** place new feature code in `apps/dashboard/src/features/<feature-name>/` with an `index.ts` public API.
   - **Must not** import directly from another feature's internal files — only from its `index.ts`.
-  - **Must** promote logic needed by two or more features to `@beech/core` or `src/components/ui` / `src/lib`.
+  - **Must** promote logic needed by two or more features to `@beechcms/core` or `src/components/ui` / `src/lib`.
 
 - **Quality & consistency**
   - **Must** use strict TypeScript, ESLint 9 with `typescript-eslint`, and Vitest as configured.

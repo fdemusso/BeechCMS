@@ -1,20 +1,13 @@
-import type { DashboardConfig } from "../types/widget.types"
-import { SEED_REGISTRY } from "@beech/core"
+import type { DashboardConfig, DashboardWidgetInstance } from "../types/widget.types"
+import type { Seed } from "@beechcms/core"
 
-/** Deriva la lista di semi per il QuickDraftWidget dall'intero SEED_REGISTRY */
-const allSeedsForQuickDraft = Object.values(SEED_REGISTRY).map((seed) => {
-  const nameBranch = seed.branches.find((b) => b.alias === seed.displayNameAlias)
-  return {
-    slug: seed.slug,
-    label: seed.label,
-    displayNameAlias: seed.displayNameAlias,
-    displayNameLabel: nameBranch?.label ?? seed.displayNameAlias,
-  }
-})
-
-export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
-  layout: [
-    // ─── Row 0: Status & Stats ──────────────────────────────────────────────
+/** 
+ * Genera la configurazione della dashboard in base ai seed disponibili.
+ * Se non ci sono seed, mostra solo i widget di sistema.
+ */
+export function getDashboardConfig(seeds: Seed[]): DashboardConfig {
+  const layout: DashboardWidgetInstance[] = [
+    // ─── Row 0: Status & Stats (Sempre presenti) ──────────────────────────
     {
       id: "site-status",
       type: "site-status",
@@ -33,43 +26,62 @@ export const DEFAULT_DASHBOARD_CONFIG: DashboardConfig = {
       x: 4, y: 0, span: { w: 2, h: 1 },
       props: { variant: "trio" },
     },
-    {
-      id: "quick-draft-minimal",
-      type: "quick-draft",
-      x: 6, y: 0, span: { w: 2, h: 1 },
-      props: {
-        variant: "minimal",
-        seeds: allSeedsForQuickDraft,
+  ]
+
+  // Se ci sono seed, aggiungiamo i widget di contenuto
+  if (seeds.length > 0) {
+    const firstSeed = seeds[0]
+    const defaultSeedSlug = seeds.find(s => s.slug === "articoli")?.slug ?? firstSeed.slug
+
+    // Preparazione per Quick Draft
+    const seedsForQuickDraft = seeds.map((seed) => {
+      const nameBranch = seed.branches.find((b) => b.alias === seed.displayNameAlias)
+      return {
+        slug: seed.slug,
+        label: seed.label,
+        displayNameAlias: seed.displayNameAlias,
+        displayNameLabel: nameBranch?.label ?? seed.displayNameAlias,
+      }
+    })
+
+    layout.push(
+      {
+        id: "quick-draft-minimal",
+        type: "quick-draft",
+        x: 6, y: 0, span: { w: 2, h: 1 },
+        props: {
+          variant: "minimal",
+          seeds: seedsForQuickDraft,
+        },
       },
-    },
+      // ─── Rows 1-2: Content Lists ────────────────────────────────────────────
+      {
+        id: "recent-content-list",
+        type: "recent-content",
+        x: 0, y: 1, span: { w: 4, h: 2 },
+        props: { seedSlug: defaultSeedSlug, variant: "list" },
+      },
+      {
+        id: "pending-drafts-list",
+        type: "pending-drafts",
+        x: 4, y: 1, span: { w: 4, h: 2 },
+        props: { seedSlug: defaultSeedSlug, variant: "list" },
+      },
+      // ─── Rows 3-4: Media & Activity ─────────────────────────────────────────
+      {
+        id: "media-gallery-grid",
+        type: "media-gallery",
+        x: 0, y: 3, span: { w: 4, h: 2 },
+        props: { seedSlug: defaultSeedSlug, variant: "grid" },
+      },
+      {
+        id: "activity-feed-full",
+        type: "activity-feed",
+        x: 4, y: 3, span: { w: 4, h: 2 },
+        props: { seedSlug: defaultSeedSlug, variant: "feed" },
+      }
+    )
+  }
 
-    // ─── Rows 1-2: Content Lists ────────────────────────────────────────────
-    {
-      id: "recent-content-list",
-      type: "recent-content",
-      x: 0, y: 1, span: { w: 4, h: 2 },
-      props: { seedSlug: "articoli", variant: "list" },
-    },
-    {
-      id: "pending-drafts-list",
-      type: "pending-drafts",
-      x: 4, y: 1, span: { w: 4, h: 2 },
-      props: { seedSlug: "articoli", variant: "list" },
-    },
-
-    // ─── Rows 3-4: Media & Activity ─────────────────────────────────────────
-    {
-      id: "media-gallery-grid",
-      type: "media-gallery",
-      x: 0, y: 3, span: { w: 4, h: 2 },
-      props: { seedSlug: "articoli", variant: "grid" },
-    },
-    {
-      id: "activity-feed-full",
-      type: "activity-feed",
-      x: 4, y: 3, span: { w: 4, h: 2 },
-      props: { seedSlug: "articoli", variant: "feed" },
-    },
-
-  ],
+  return { layout }
 }

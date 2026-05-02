@@ -410,7 +410,7 @@ Authorization: Bearer eyJ...
 
 ### 4.2 Create Entry — `POST /api/content/:seed`
 
-Creates a new content entry. Fields are validated and sanitized via `validateAndSanitizeSeedPayload` in `@beech/core`.
+Creates a new content entry. Fields are validated and sanitized via `validateAndSanitizeSeedPayload` in `@beechcms/core`.
 
 **Request**
 
@@ -557,13 +557,13 @@ Content-Type: application/json
 | `422` | `rotate-field-not-hashable` | `field` exists but its `privacy` is not `hash` |
 | `422` | `rotate-field-not-set` | The field has no stored value (was never written) |
 
-**Implementation note:** This endpoint is implemented as a VSA slice under `apps/api/src/features/rotate-field/`. The `verifyHashField` and `sha256hex` utilities are exported from `@beech/core`.
+**Implementation note:** This endpoint is implemented as a VSA slice under `apps/api/src/features/rotate-field/`. The `verifyHashField` and `sha256hex` utilities are exported from `@beechcms/core`.
 
 ---
 
 Il sistema di bozze pendenti permette di salvare modifiche su un'entry già pubblicata senza renderle immediatamente visibili al pubblico. In v0.4.0, questo è gestito tramite una tabella speculare `content_{slug}_drafts` che contiene le modifiche non ancora pubblicate.
 
-**Prerequisito:** il Seed deve avere `allowDrafts: true` in `@beech/core/src/seeds.ts`. Se il flag è assente o `false`, tutti gli endpoint di questa sezione rispondono `405 Method Not Allowed`.
+**Prerequisito:** il Seed deve avere `allowDrafts: true` in `@beechcms/core/src/seeds.ts`. Se il flag è assente o `false`, tutti gli endpoint di questa sezione rispondono `405 Method Not Allowed`.
 
 > **Distinzione fondamentale:** `status = 'draft'` identifica un'entry mai pubblicata. Una bozza pendente è invece un'entry **già pubblicata** che ha una riga corrispondente nella tabella dei draft.
 
@@ -803,7 +803,7 @@ The Public API (`/api/v1/public/`) is a purpose-built, hardened endpoint for ext
 
 Access is controlled at two levels:
 
-**Level 1 — Seed capability flags** (defined in `@beech/core/src/seeds.ts`):
+**Level 1 — Seed capability flags** (defined in `@beechcms/core/src/seeds.ts`):
 
 ```typescript
 interface Seed {

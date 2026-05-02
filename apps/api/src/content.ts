@@ -6,8 +6,8 @@ import {
   validateAndSanitizeSeedPayload,
   slugify,
   resolvePolicies,
-} from '@beech/core'
-import type { Seed } from '@beech/core'
+} from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
 import { deleteR2Objects } from './upload'
 import { extractMediaKeysFromData } from './media-utils'
 import { publicProblem } from './public/problem-details'
