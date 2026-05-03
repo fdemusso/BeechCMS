@@ -51,6 +51,37 @@ export const contentApi = {
   },
 
   /**
+   * Fetch single content entry by ID
+   */
+  fetchById: async (slug: string, id: string): Promise<ContentEntry> => {
+    const response = await api.get<ContentEntry>(`/content/${slug}/${id}`)
+    return response.data
+  },
+
+  /**
+   * Create new content entry
+   */
+  create: async (
+    slug: string,
+    data: Record<string, unknown>
+  ): Promise<{ id: string }> => {
+    const response = await api.post<{ id: string }>(`/content/${slug}`, data)
+    return response.data
+  },
+
+  /**
+   * Update existing content entry
+   */
+  update: async (
+    slug: string,
+    id: string,
+    data: Record<string, unknown>
+  ): Promise<{ success: boolean }> => {
+    const response = await api.put<{ success: boolean }>(`/content/${slug}/${id}`, data)
+    return response.data
+  },
+
+  /**
    * Delete content entry
    */
   delete: async (slug: string, id: string): Promise<{ success: boolean }> => {

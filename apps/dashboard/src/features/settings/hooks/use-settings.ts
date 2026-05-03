@@ -9,6 +9,15 @@ export const SETTINGS_QUERY_KEYS = {
   activity: () => [...SETTINGS_QUERY_KEYS.all, 'activity'] as const,
   storage: () => [...SETTINGS_QUERY_KEYS.all, 'storage'] as const,
   notifications: () => [...SETTINGS_QUERY_KEYS.all, 'notifications'] as const,
+  general: () => [...SETTINGS_QUERY_KEYS.all, 'general'] as const,
+}
+
+export function useGeneralSettings() {
+  return useQuery({
+    queryKey: SETTINGS_QUERY_KEYS.general(),
+    queryFn: settingsApi.getGeneralSettings,
+    staleTime: 24 * 60 * 60 * 1000, // Very stable
+  })
 }
 
 export function useProfile() {

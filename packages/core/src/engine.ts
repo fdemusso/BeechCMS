@@ -322,6 +322,37 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
   return { sql, bindings }
 }
 
+function normalizeFilterValue(
+  type: FilterType,
+  value: unknown
+): string | number | boolean | null {
+  if (value === null || value === undefined) return null
+
+  if (type === 'date') {
+    if (typeof value === 'number') return value
+    if (typeof value === 'string' && value.trim() !== '') {
+      const d = new Date(value)
+      return isNaN(d.getTime()) ? null : Math.floor(d.getTime() / 1000)
+    }
+    return null
+  }
+
+  if (type === 'boolean') {
+    return value ? 1 : 0
+  }
+
+  if (type === 'number') {
+    if (typeof value === 'number') return value
+    if (typeof value === 'string' && value.trim() !== '') {
+      const n = Number(value)
+      return isNaN(n) ? null : n
+    }
+    return null
+  }
+
+  return value as string | number | boolean | null
+}
+
 function buildFilterCondition(
   col: string,
   type: FilterType,
@@ -339,8 +370,14 @@ function buildFilterCondition(
   
   if (op === 'in' || op === 'not_in') {
     if (!Array.isArray(value) || value.length === 0) return null
-    const placeholders = value.map(() => '?').join(', ')
-    bindings.push(...(value as (string | number | boolean | null)[]))
+    const normalizedValues = value
+      .map((v) => normalizeFilterValue(type, v))
+      .filter((v) => v !== null)
+    
+    if (normalizedValues.length === 0) return null
+    
+    const placeholders = normalizedValues.map(() => '?').join(', ')
+    bindings.push(...(normalizedValues as (string | number | boolean | null)[]))
     return `${col} ${op === 'in' ? 'IN' : 'NOT IN'} (${placeholders})`
   }
 
@@ -363,11 +400,12 @@ function buildFilterCondition(
     return `(${clauses.join(' AND ')})`
   }
 
-  if (value === null || value === undefined) return null
+  const normalized = normalizeFilterValue(type, value)
+  if (normalized === null) return null
 
   if (op === 'eq' || op === 'neq') {
     const sqlOp = op === 'eq' ? '=' : '!='
-    bindings.push(type === 'boolean' ? (value ? 1 : 0) : (value as string | number))
+    bindings.push(normalized as string | number)
     return `${col} ${sqlOp} ?`
   }
 
@@ -384,7 +422,7 @@ function buildFilterCondition(
 
   const mathOps: Record<string, string> = { gt: '>', gte: '>=', lt: '<', lte: '<=' }
   if (mathOps[op]) {
-    bindings.push(value as number)
+    bindings.push(normalized as number)
     return `${col} ${mathOps[op]} ?`
   }
 

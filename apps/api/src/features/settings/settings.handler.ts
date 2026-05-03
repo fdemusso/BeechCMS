@@ -51,6 +51,7 @@ settingsApp.get('/', async (c) => {
     siteTitle: 'Beech CMS',
     siteLogo: '/beechLogoDark.svg',
     defaultLanguage: 'it',
+    dateFormat: c.env.DATE_FORMAT || 'DD-MM-YYYY',
     features: {
       drafts: true,
       media: true,

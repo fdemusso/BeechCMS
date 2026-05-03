@@ -38,10 +38,9 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
-  fetchContentById,
-  createContent,
-  updateContent,
-} from "@/lib/content-api"
+  useContentEntry,
+  useSaveContent,
+} from "@/features/content-management"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 
 /** 
@@ -75,14 +74,19 @@ export function EntryEditorPage() {
   const isCreate = !entryId
 
   const seed = schemaSlug ? getSeed(schemaSlug) : null
-  const [isLoadingEntry, setIsLoadingEntry] = React.useState(!!entryId)
-  const [errorEntry, setErrorEntry] = React.useState<string | null>(null)
+  
+  const { 
+    data: entryData, 
+    isLoading: isLoadingEntry, 
+    error: errorEntryQuery 
+  } = useContentEntry(schemaSlug, entryId)
+
+  const { mutateAsync: saveContent, isPending: isSaving } = useSaveContent()
 
   const [formData, setFormData] = React.useState<Record<string, unknown>>({})
   const [status, setStatus] = React.useState<string>("draft")
   const [slug, setSlug] = React.useState<string>("")
   const [slugTouched, setSlugTouched] = React.useState(false)
-  const [isSaving, setIsSaving] = React.useState(false)
   const [isDirty, setIsDirty] = React.useState(false)
   const hasJustSavedRef = React.useRef(false)
 
@@ -93,37 +97,17 @@ export function EntryEditorPage() {
     setIsDirty(true)
   }, [])
 
-  // Fetch entry in edit mode
+  // Sync data from query to local state
   React.useEffect(() => {
-    if (!schemaSlug || !entryId || !seed) return
-
-    let cancelled = false
-    setIsLoadingEntry(true)
-    setErrorEntry(null)
-
-    fetchContentById(schemaSlug, entryId)
-      .then((data: ContentEntry) => {
-        if (!cancelled) {
-          setFormData(data.data ?? {})
-          setStatus(data.status ?? "draft")
-          setSlug(data.slug ?? "")
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setErrorEntry(
-            err instanceof Error ? err.message : t("content.editor.loadingError")
-          )
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingEntry(false)
-      })
-
-    return () => {
-      cancelled = true
+    if (entryData) {
+      setFormData(entryData.data ?? {})
+      setStatus(entryData.status ?? "draft")
+      setSlug(entryData.slug ?? "")
+      setIsDirty(false)
     }
-  }, [schemaSlug, entryId, seed])
+  }, [entryData])
+
+  const errorEntry = errorEntryQuery instanceof Error ? errorEntryQuery.message : null
 
   // Initialize form for create mode
   React.useEffect(() => {
@@ -235,14 +219,17 @@ export function EntryEditorPage() {
     payload: ReturnType<typeof buildPayload>,
     entryIdForUpdate: string | null
   ) => {
+    await saveContent({ 
+      slug: schemaSlug, 
+      id: entryIdForUpdate ?? undefined, 
+      data: payload 
+    })
+    
     if (entryIdForUpdate) {
-      await updateContent(schemaSlug, entryIdForUpdate, payload)
       toast.success(t("content.editor.savedSuccess"))
-      return
+    } else {
+      toast.success(t("content.editor.createdSuccess"))
     }
-
-    await createContent(schemaSlug, payload)
-    toast.success(t("content.editor.createdSuccess"))
   }
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
@@ -251,7 +238,6 @@ export function EntryEditorPage() {
     if (!isCreate && !entryId) return
     if (!validateJsonFields()) return
 
-    setIsSaving(true)
     try {
       const payload = buildPayload()
       const entryIdForUpdate = isCreate ? null : entryId
@@ -268,8 +254,6 @@ export function EntryEditorPage() {
       toast.error(
         err instanceof Error ? err.message : t("content.editor.saveError")
       )
-    } finally {
-      setIsSaving(false)
     }
   }
 

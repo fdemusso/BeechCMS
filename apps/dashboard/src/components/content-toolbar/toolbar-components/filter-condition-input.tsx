@@ -1,5 +1,8 @@
+import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { ArrowUpDown } from "lucide-react"
+import { ArrowUpDown, Calendar as CalendarIcon } from "lucide-react"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -14,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { DatePickerInput } from "@/components/ui/date-picker-input"
 import type { FilterGroupType } from "../shared"
 
 interface FilterConditionInputProps {
@@ -56,15 +60,16 @@ export function FilterConditionInput({
         />
       )
 
-    case "date":
+    case "date": {
       return (
-        <Input
-          type="date"
-          value={typeof value === "string" ? value : ""}
-          onChange={(e) => onChange(e.target.value || null)}
-          className={`${className} ${textClassName}`.trim()}
+        <DatePickerInput
+          id="toolbar-filter-date"
+          value={value as string | null}
+          onChange={onChange}
+          placeholder={choosePlaceholder}
         />
       )
+    }
 
     case "boolean": {
       let selectValue = ""

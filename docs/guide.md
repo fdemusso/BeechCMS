@@ -75,6 +75,7 @@ The scaffold pre-fills the values you provided during setup. BeechCMS supports b
     "CORS_ORIGINS": "http://localhost:5173,https://my-site.com",
     "PUBLIC_READ_API_KEY": "...",     // Header key for GET /api/v1/public/* — auto-generated
     "PUBLIC_WRITE_API_KEY": "...",    // Header key for POST/PUT /api/v1/public/* — auto-generated
+    "DATE_FORMAT": "DD-MM-YYYY",      // Global date display format (e.g. DD-MM-YYYY, MM/DD/YYYY)
     "APP_URL": "https://my-site.com" // Production URL (used in password reset emails)
   },
 
