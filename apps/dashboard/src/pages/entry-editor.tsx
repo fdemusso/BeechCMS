@@ -41,7 +41,6 @@ import {
   useContentEntry,
   useSaveContent,
 } from "@/features/content-management"
-import type { ContentEntry } from "@/lib/dynamic-columns"
 
 /** 
  * Slug ammessi: solo a-z, 0-9, trattino. Niente accenti/spazi/underscore. 
