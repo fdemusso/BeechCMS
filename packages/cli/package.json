@@ -1,0 +1,21 @@
+{
+  "name": "@beechcms/cli",
+  "version": "0.4.0-preview.10",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc --noEmit && esbuild src/index.ts --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js",
+    "dev": "esbuild src/index.ts --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js --watch"
+  },
+  "dependencies": {
+    "@beechcms/core": "^0.4.0-preview.10",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.3",
+    "typescript": "^5.9.3"
+  }
+}

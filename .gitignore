@@ -21,7 +21,6 @@ out/
 
 .claude/
 CLAUDE.md
-packages/
 
 # Turbo
 .turbo/
