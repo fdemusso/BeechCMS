@@ -34,14 +34,16 @@ export const TEST_SEEDS = [
     displayNameAlias: 'title',
     allowPublicRead: true,
     allowPublicPost: true,
+    allowPublicEdit: true,
     allowDrafts: true,
     branches: [
       { alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true, policies: { public: true } },
-      { alias: 'body', label: 'Body', type: 'text', policies: { public: true } },
+      { alias: 'body', label: 'Body', type: 'richtext', policies: { public: true } }, // Changed to richtext for validation tests
       { alias: 'internal_note', label: 'Internal Note', type: 'text', policies: { public: false } },
       { alias: 'contact_email', label: 'Contact Email', type: 'text' },
       { alias: 'view_count', label: 'View Count', type: 'number' },
       { alias: 'image', label: 'Featured Image', type: 'file' },
+      { alias: 'tags', label: 'Tags', type: 'tags' },
     ],
   }),
   defineSeed({

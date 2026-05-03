@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, waitFor, fireEvent } from "@testing-library/react"
 import type { ReactNode } from "react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
 const mockNavigate = vi.fn()
 const mockUseParams = vi.fn()
@@ -38,10 +39,24 @@ vi.mock("@beechcms/core", () => ({
       .replace(/^-+|-+$/g, ""),
 }))
 
-vi.mock("@/lib/content-api", () => ({
-  fetchContentById: (...args: unknown[]) => mockFetchContentById(...args),
-  createContent: (...args: unknown[]) => mockCreateContent(...args),
-  updateContent: (...args: unknown[]) => mockUpdateContent(...args),
+vi.mock("@/features/content-management", () => ({
+  contentApi: {
+    fetchById: (...args: unknown[]) => mockFetchContentById(...args),
+    create: (...args: unknown[]) => mockCreateContent(...args),
+    update: (...args: unknown[]) => mockUpdateContent(...args),
+  },
+  useContentEntry: (slug: string, id: string) => ({
+    data: id ? mockFetchContentById(slug, id) : undefined,
+    isLoading: false,
+    error: null,
+  }),
+  useSaveContent: () => ({
+    mutateAsync: async ({ slug, id, data }: any) => {
+      if (id) return mockUpdateContent(slug, id, data)
+      return mockCreateContent(slug, data)
+    },
+    isPending: false,
+  }),
 }))
 
 vi.mock("sonner", () => ({
@@ -87,17 +102,57 @@ vi.mock("@/components/ui/alert-dialog", () => ({
   AlertDialogAction: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
 }))
 
+// Mock di i18next potenziato per coprire i bottoni e le etichette
+vi.mock("react-i18next", () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: any) => {
+      const translations: Record<string, string> = {
+        "content.editor.save": "Salva",
+        "content.editor.saving": "Salvataggio...",
+        "content.editor.back": "Indietro",
+        "content.editor.newEntry": `Nuova entry ${params?.label}`,
+        "content.editor.editEntry": `Modifica entry ${params?.label}`,
+        "content.editor.createdSuccess": "Entry creata",
+        "content.editor.savedSuccess": "Modifiche salvate",
+        "content.editor.metadataSeo": "Metadati / SEO",
+        "content.editor.content": "Contenuto",
+        "content.editor.status": "Stato",
+        "content.editor.slug": "Slug",
+        "content.editor.draft": "Bozza",
+        "content.editor.published": "Pubblicato",
+      }
+      return translations[key] || key
+    },
+  }),
+}))
+
 import { EntryEditorPage } from "@/pages/entry-editor"
 
 describe("EntryEditorPage", () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mockUseParams.mockReturnValue({ slug: "posts" })
   })
 
+  const renderWithProvider = (ui: React.ReactElement) => {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        {ui}
+      </QueryClientProvider>
+    )
+  }
+
   it("in create mode auto-genera slug dal primo campo testo e salva", async () => {
-    mockCreateContent.mockResolvedValueOnce({})
-    render(<EntryEditorPage />)
+    mockCreateContent.mockResolvedValueOnce({ id: "new-id" })
+    renderWithProvider(<EntryEditorPage />)
 
     const titleInput = await screen.findByLabelText("field-title")
     fireEvent.change(titleInput, { target: { value: "Ciao Mondo!" } })
@@ -113,7 +168,7 @@ describe("EntryEditorPage", () => {
   })
 
   it("blocca submit e mostra errore se json non valido", async () => {
-    render(<EntryEditorPage />)
+    renderWithProvider(<EntryEditorPage />)
     const metaInput = await screen.findByLabelText("field-metaData")
     fireEvent.change(metaInput, { target: { value: "{bad json}" } })
 
@@ -127,7 +182,7 @@ describe("EntryEditorPage", () => {
 
   it("in edit mode carica entry e usa updateContent", async () => {
     mockUseParams.mockReturnValue({ slug: "posts", id: "42" })
-    mockFetchContentById.mockResolvedValueOnce({
+    mockFetchContentById.mockReturnValue({
       id: "42",
       slug: "entry-42",
       status: "draft",
@@ -137,11 +192,14 @@ describe("EntryEditorPage", () => {
         metaData: "{\"a\":1}",
       },
     })
-    mockUpdateContent.mockResolvedValueOnce({})
+    mockUpdateContent.mockResolvedValueOnce({ success: true })
 
-    render(<EntryEditorPage />)
+    renderWithProvider(<EntryEditorPage />)
     await waitFor(() => expect(mockFetchContentById).toHaveBeenCalledWith("posts", "42"))
-    fireEvent.click(screen.getByRole("button", { name: "Salva" }))
+    
+    const saveButton = await screen.findByRole("button", { name: "Salva" })
+    fireEvent.click(saveButton)
+    
     await waitFor(() => expect(mockUpdateContent).toHaveBeenCalled())
     expect(mockToastSuccess).toHaveBeenCalledWith("Modifiche salvate")
   })

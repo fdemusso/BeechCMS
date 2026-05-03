@@ -7,6 +7,7 @@ export class MockD1Database {
   refreshTokens: Array<{ id: string, token_hash: string, user_id: string, expires_at: number, revoked_at: number | null }> = []
   mediaObjects: Array<{ key: string, filename: string, mime_type: string, size_bytes: number, uploaded_by: string }> = []
   systemStats: Record<string, number> = { 'total_storage_bytes': 0 }
+  activityLogs: any[] = []
 
   constructor(initialData: { users?: any[] } = {}) {
     this.users = initialData.users || []
@@ -70,7 +71,9 @@ export class MockD1Database {
             this.mediaObjects = this.mediaObjects.filter(m => m.key !== args[0])
             return { success: true, meta: { changes: 1 } }
           }
-          if (normalizedSql.includes('INSERT INTO activity_log')) {
+          if (normalizedSql.includes('INSERT INTO activity_logs')) {
+             const [id, user_id, user_email, user_name, action, entity_type, entity_id, entity_slug, details] = args
+             this.activityLogs.push({ id, user_id, user_email, user_name, action, entity_type, entity_id, entity_slug, details })
              return { success: true, meta: { changes: 1 } }
           }
           return { success: true, meta: {} }

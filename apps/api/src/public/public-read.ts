@@ -119,20 +119,23 @@ export async function publicReadHandler(context: Context<AppEnv>) {
 
   const query = context.req.query()
   const id = cleanStr(query.id)
+  const slug = cleanStr(query.slug)
   const publishedOnly = context.env.PUBLIC_PUBLISHED_ONLY !== 'false'
   const repository = context.get('repository')
 
   try {
-    if (id) {
+    if (id || slug) {
       try {
-        const entry = await repository.findById(seed, id)
+        const entry = id 
+          ? await repository.findById(seed, id)
+          : await repository.findBySlug(seed, slug!)
         
         if (publishedOnly && entry.status !== 'published') {
           return publicProblem(context, { 
             type: 'entry-not-found', 
             title: 'Not Found', 
             status: 404, 
-            detail: `Entry '${id}' not found or not published.` 
+            detail: `Entry '${id || slug}' not found or not published.` 
           })
         }
 
@@ -148,7 +151,7 @@ export async function publicReadHandler(context: Context<AppEnv>) {
             type: 'entry-not-found', 
             title: 'Not Found', 
             status: 404, 
-            detail: `Entry '${id}' not found for content type '${seedSlug}'.` 
+            detail: `Entry '${id || slug}' not found for content type '${seedSlug}'.` 
           })
         }
         throw error

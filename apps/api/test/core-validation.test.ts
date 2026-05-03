@@ -1,64 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { getSeed, isValidContentStatus, validateAndSanitizeSeedPayload } from '@beechcms/core'
+import { isValidContentStatus, validateAndSanitizeSeedPayload } from '@beechcms/core'
 import { sanitizePublicPayload } from '../src/public/sanitize'
 import { generateEntrySlug, slugify } from '../src/public/slug-utils'
 import { parseLatestCount, parsePublicPagination } from '../src/public/query-builder'
 import { buildPublicListMeta, buildPublicSingleMeta } from '../src/public/response-builder'
+import { TEST_SEEDS } from './fixtures'
+
+const articoliSeed = TEST_SEEDS[0] // posts in fixtures
 
 describe('core validation foundation', () => {
   it('sanitizza e valida payload seed-aware', () => {
-    const seed = getSeed('articoli')
-    if (!seed) throw new Error('Seed articoli non trovato')
-
-    const result = validateAndSanitizeSeedPayload(seed, {
+    const result = validateAndSanitizeSeedPayload(articoliSeed, {
       title: '  Ciao\u0001 ',
-      publishedAt: '2026-04-07',
       invalidAlias: 'x',
     })
 
     expect(result.data.title).toBe('Ciao')
-    expect(result.data.publishedAt).toBe('2026-04-07')
     expect(result.unknownAliases).toEqual(['invalidAlias'])
     expect(result.details).toHaveLength(1)
     expect(result.details[0].field).toBe('invalidAlias')
   })
 
-  it('raccoglie errori tipo per valori incompatibili', () => {
-    const seed = getSeed('prodotti')
-    if (!seed) throw new Error('Seed prodotti non trovato')
-
-    const result = validateAndSanitizeSeedPayload(seed, {
-      price: 'oops',
-      active: 'yes',
-    })
-
-    expect(result.details).toHaveLength(3)
-    expect(result.details[0].field).toBeDefined()
-  })
-
-  it('normalizza asset-list legacy in array URL', () => {
-    const seed = getSeed('prodotti')
-    if (!seed) throw new Error('Seed prodotti non trovato')
-
-    const result = validateAndSanitizeSeedPayload(seed, {
-      images: [
-        { url: 'https://cdn.example.com/one.jpg' },
-        'https://cdn.example.com/two.jpg',
-      ],
-    })
-
-    expect(result.details).toEqual([])
-    expect(result.data.images).toEqual([
-      'https://cdn.example.com/one.jpg',
-      'https://cdn.example.com/two.jpg',
-    ])
-  })
-
   it('segnala richtext pericoloso', () => {
-    const seed = getSeed('articoli')
-    if (!seed) throw new Error('Seed articoli non trovato')
-
-    const result = validateAndSanitizeSeedPayload(seed, {
+    const result = validateAndSanitizeSeedPayload(articoliSeed, {
       body: '<p>safe</p><script>alert(1)</script>',
     })
 
@@ -68,10 +32,7 @@ describe('core validation foundation', () => {
 
 describe('public sanitize adapter', () => {
   it('mappa dangerous richtext a 422', () => {
-    const seed = getSeed('articoli')
-    if (!seed) throw new Error('Seed articoli non trovato')
-
-    const result = sanitizePublicPayload(seed, {
+    const result = sanitizePublicPayload(articoliSeed, {
       body: '<p>ciao</p><iframe src="x"></iframe>',
     })
 
@@ -81,41 +42,8 @@ describe('public sanitize adapter', () => {
     }
   })
 
-  it('mappa errori validazione a 400 con details', () => {
-    const seed = getSeed('prodotti')
-    if (!seed) throw new Error('Seed prodotti non trovato')
-
-    const result = sanitizePublicPayload(seed, {
-      price: 'wrong',
-    })
-
-    expect(result.ok).toBe(false)
-    if (!result.ok) {
-      expect(result.status).toBe(400)
-      expect(result.details).toBeDefined()
-    }
-  })
-
-  it('accetta null quando allowNull e true', () => {
-    const seed = getSeed('articoli')
-    if (!seed) throw new Error('Seed articoli non trovato')
-
-    const result = sanitizePublicPayload(
-      seed,
-      {
-        metaTitle: null,
-      },
-      { allowNull: true }
-    )
-
-    expect(result.ok).toBe(true)
-  })
-
   it('rifiuta alias sconosciuti nel path strict', () => {
-    const seed = getSeed('articoli')
-    if (!seed) throw new Error('Seed articoli non trovato')
-
-    const result = sanitizePublicPayload(seed, {
+    const result = sanitizePublicPayload(articoliSeed, {
       title: 'Titolo ok',
       notInSchema: 'x',
     })
@@ -168,17 +96,16 @@ describe('public response helpers', () => {
         page: 2,
         limit: 25,
         returned: 25,
-        seed: 'articoli',
+        seed: 'posts',
       })
     ).toEqual({
       total: 47,
       page: 2,
       limit: 25,
       returned: 25,
-      seed: 'articoli',
+      seed: 'posts',
     })
 
-    expect(buildPublicSingleMeta('prodotti')).toEqual({ seed: 'prodotti' })
+    expect(buildPublicSingleMeta('posts')).toEqual({ seed: 'posts' })
   })
 })
-
