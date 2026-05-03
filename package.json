@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/cms",
-  "version": "0.4.0-preview.10",
+  "version": "0.4.0-preview.11",
   "packageManager": "npm@11.9.0",
   "description": "Edge-Native, Schema-Driven Headless CMS built on Cloudflare Workers, D1, and R2. Features the Botanical Engine for alias-stable field management, a modular widget layer, and a React + Vite admin dashboard.",
   "keywords": [
@@ -56,7 +56,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "@beechcms/cli": "^0.4.0-preview.10",
+    "@beechcms/cli": "^0.4.0-preview.11",
     "@clack/prompts": "^0.9.1",
     "picocolors": "^1.1.1"
   }

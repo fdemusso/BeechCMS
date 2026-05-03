@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/cli",
-  "version": "0.4.0-preview.10",
+  "version": "0.4.0-preview.11",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -11,7 +11,7 @@
     "dev": "esbuild src/index.ts --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js --watch"
   },
   "dependencies": {
-    "@beechcms/core": "^0.4.0-preview.10",
+    "@beechcms/core": "^0.4.0-preview.11",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
