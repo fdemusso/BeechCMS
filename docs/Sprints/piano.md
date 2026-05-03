@@ -46,5 +46,5 @@ Rimozione dei file legacy che violano i nuovi vincoli architetturali.
 - [x] **Task 5.2**: Migrare rotte pubbliche.
 
 ### Fase 6: Mocking e Validazione Test
-- [ ] **Task 6.1**: Implementare `StaticContentRepository` in `apps/api/test/mocks/`.
-- [ ] **Task 6.2**: Migrare la suite di test esistente al nuovo pattern deterministico.
+- [x] **Task 6.1**: Implementare `StaticContentRepository` e `StaticIdempotencyRepository` in `apps/api/test/mocks/`. Iniezione via `BeechConfig` in `createBeechApp`.
+- [ ] **Task 6.2**: Migrare la suite di test esistente al nuovo pattern deterministico (sostituire `createMockD1*` inline in `content.test.ts`, `public-read.test.ts`, `public-add.test.ts`, `public-edit.test.ts`).

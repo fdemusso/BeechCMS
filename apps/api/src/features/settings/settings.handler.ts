@@ -43,6 +43,23 @@ type OrphanRow = {
 }
 
 
+// GET /api/settings
+settingsApp.get('/', async (c) => {
+  // General site configuration. 
+  // In the future, these could be loaded from a 'system_settings' table in D1.
+  return c.json({
+    siteTitle: 'Beech CMS',
+    siteLogo: '/beechLogoDark.svg',
+    defaultLanguage: 'it',
+    features: {
+      drafts: true,
+      media: true,
+      search: true,
+      activityLog: true
+    }
+  })
+})
+
 // GET /api/settings/me
 settingsApp.get('/me', async (c) => {
   const { sub } = c.get('jwtPayload')

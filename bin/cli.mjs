@@ -40,28 +40,41 @@ function cmdBuild() {
 async function tryLoadLocalRegistry() {
   const cwd = process.cwd()
 
-  // Try compiled JS first
-  for (const name of ['seeds.js', 'seeds.mjs']) {
-    const p = resolve(cwd, name)
-    if (existsSync(p)) {
-      try {
-        const mod = await import(pathToFileURL(p).href)
-        if (mod.SEED_REGISTRY && typeof mod.SEED_REGISTRY === 'object') {
-          return mod.SEED_REGISTRY
-        }
-        if (Array.isArray(mod.seeds)) {
-          return Object.fromEntries(mod.seeds.map(s => [s.slug, s]))
-        }
-        if (Array.isArray(mod.default)) {
-          return Object.fromEntries(mod.default.map(s => [s.slug, s]))
-        }
-      } catch {}
+  // Try compiled JS first (root or apps/api)
+  const searchDirs = [cwd, resolve(cwd, 'apps', 'api')]
+  for (const dir of searchDirs) {
+    for (const name of ['seeds.js', 'seeds.mjs', 'seed.js', 'seed.mjs']) {
+      const p = resolve(dir, name)
+      if (existsSync(p)) {
+        try {
+          const mod = await import(pathToFileURL(p).href)
+          if (mod.SEED_REGISTRY && typeof mod.SEED_REGISTRY === 'object') {
+            return mod.SEED_REGISTRY
+          }
+          if (Array.isArray(mod.seeds)) {
+            return Object.fromEntries(mod.seeds.map(s => [s.slug, s]))
+          }
+          if (Array.isArray(mod.default)) {
+            return Object.fromEntries(mod.default.map(s => [s.slug, s]))
+          }
+        } catch {}
+      }
     }
   }
 
-  // Try seeds.ts via Node's experimental strip-types (Node 22.6+)
-  const tsPath = resolve(cwd, 'seeds.ts')
-  if (existsSync(tsPath)) {
+  // Try seeds.ts / seed.ts (root or apps/api)
+  let tsPath = null
+  for (const dir of searchDirs) {
+    const p = existsSync(resolve(dir, 'seeds.ts')) 
+      ? resolve(dir, 'seeds.ts') 
+      : resolve(dir, 'seed.ts')
+    if (existsSync(p)) {
+      tsPath = p
+      break
+    }
+  }
+
+  if (tsPath) {
     const result = spawnSync(process.execPath, [
       '--experimental-strip-types',
       '--input-type=module',

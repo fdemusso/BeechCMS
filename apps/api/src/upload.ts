@@ -164,9 +164,7 @@ export const uploadRoutes = new Hono<{
 }>()
 
 /** POST /upload - Carica file su R2, restituisce URL pubblico */
-uploadRoutes.post('/upload', async (c, next) => {
-  await authMiddleware(c.env.JWT_SECRET)(c, next)
-}, async (c) => {
+uploadRoutes.post('/upload', async (c) => {
   try {
     const { R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME } = c.env
     if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_ENDPOINT || !R2_BUCKET_NAME) {
@@ -267,10 +265,8 @@ uploadRoutes.post('/upload', async (c, next) => {
   }
 })
 
-/** DELETE /upload/:key - Elimina un file da R2 */
-uploadRoutes.delete('/:key', async (c, next) => {
-  await authMiddleware(c.env.JWT_SECRET)(c, next)
-}, async (c) => {
+/** DELETE /api/upload/:key - Elimina un file da R2 */
+uploadRoutes.delete('/upload/:key', async (c) => {
   const key = c.req.param('key')
   if (!key) return c.json({ error: 'Missing key' }, 400)
   

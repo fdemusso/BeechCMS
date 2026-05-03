@@ -2,7 +2,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
-import type { Seed } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository } from '@beechcms/core'
 import type { Env, Variables } from './types'
 
 // Imports delle rotte e middleware
@@ -39,6 +39,8 @@ import { repositoryMiddleware } from './middleware/repository.middleware'
 
 export interface BeechConfig {
   seeds: Seed[] | Record<string, Seed>
+  repository?: ContentRepository
+  idempotencyRepository?: IdempotencyRepository
 }
 
 // --- Costanti e helper ---
@@ -90,7 +92,9 @@ function extractPublicSeed(path: string): string {
  */
 export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Variables: Variables }> {
   const seedsArray = Array.isArray(config.seeds) ? config.seeds : Object.values(config.seeds)
-  const registry: Record<string, Seed> = Object.fromEntries(seedsArray.map(s => [s.slug, s]))
+  // Filter out any invalid objects that might have leaked into the registry (e.g. module exports)
+  const validSeeds = seedsArray.filter(s => s && typeof s === 'object' && 'slug' in s)
+  const registry: Record<string, Seed> = Object.fromEntries(validSeeds.map(s => [s.slug, s]))
   const getSeedFn = (slug: string): Seed | null => registry[slug] ?? null
 
   const app = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -103,7 +107,10 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   })
 
   // 1.1 Repository Injection
-  app.use('*', repositoryMiddleware())
+  app.use('*', repositoryMiddleware({
+    repository: config.repository,
+    idempotencyRepository: config.idempotencyRepository,
+  }))
 
   app.use('*', async (context, next) => {
     const origins = (context.env.CORS_ORIGINS ?? 'http://localhost:5173')
@@ -275,18 +282,18 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   apiProtected.route('/content', draftApp)
   apiProtected.route('/content', contentFeature)
   apiProtected.route('/widget', widgetApp)
+  apiProtected.route('/', uploadRoutes)
   
-  app.route('/api', apiProtected)
-  app.route('/api/search', searchRouter)
-  app.route('/api', uploadRoutes)
-  app.get('/api/media/:key', (context) => serveMediaHandler(context))
-
-  // 6. Public API
+  // 6. Public API (must be registered before apiProtected to avoid auth middleware interception)
   const apiPublic = new Hono<{ Bindings: Env; Variables: Variables }>()
   apiPublic.use('*', publicRateLimitMiddleware())
   apiPublic.use('*', apiKeyMiddleware())
   apiPublic.route('/', publicRoutes)
   app.route('/api/v1/public', apiPublic)
+
+  app.get('/api/media/:key', (context) => serveMediaHandler(context))
+  app.route('/api', apiProtected)
+  app.route('/api/search', searchRouter)
 
   // 7. Dashboard SPA — serve static assets from Workers Assets binding
   app.get('/admin', (context) => context.redirect('/admin/', 301))

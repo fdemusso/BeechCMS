@@ -1,9 +1,10 @@
+import { useEffect } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "../../../lib/api"
-import type { Seed } from "@beechcms/core"
+import { registerSeeds, type Seed } from "@beechcms/core"
 
 export function useSchema() {
-  return useQuery<Seed[]>({
+  const query = useQuery<Seed[]>({
     queryKey: ["schema"],
     queryFn: async () => {
       const { data } = await api.get<Seed[]>("/schema")
@@ -11,4 +12,13 @@ export function useSchema() {
     },
     staleTime: 1000 * 60 * 5, // 5 minuti
   })
+
+  // Popola il registro globale di @beechcms/core quando i dati sono pronti
+  useEffect(() => {
+    if (query.data) {
+      registerSeeds(query.data)
+    }
+  }, [query.data])
+
+  return query
 }

@@ -339,7 +339,8 @@ function buildBranchSchema(
         .refine((value) => isIsoDateString(value), { message: 'Expected date(ISO)' })
       return nullable ? z.union([schema, nullable]) : schema
     }
-    case 'json': {
+    case 'json':
+    case 'tags': {
       const schema = jsonObjectOrArraySchema
       return nullable ? z.union([schema, nullable]) : schema
     }
@@ -377,6 +378,8 @@ function buildBranchSchema(
         .pipe(z.url())
       return nullable ? z.union([schema, nullable]) : schema
     }
+    default:
+      throw new Error(`Unhandled branch type: ${(branch as any).type}`)
   }
 }
 
@@ -501,7 +504,8 @@ function validateBranchValue(
       return { ok: true, value }
     }
 
-    case 'json': {
+    case 'json':
+    case 'tags': {
       const isValidJsonLike =
         (typeof rawValue === 'object' && rawValue !== null) || Array.isArray(rawValue)
       if (!isValidJsonLike || typeof rawValue === 'string') {
@@ -524,6 +528,8 @@ function validateBranchValue(
       }
       return { ok: true, value: singleUrl }
     }
+    default:
+      throw new Error(`Unhandled branch type: ${(branch as any).type}`)
   }
 }
 
