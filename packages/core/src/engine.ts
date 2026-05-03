@@ -30,6 +30,7 @@ const BRANCH_TYPE_SQL: Record<BranchType, BranchSqlDef> = {
   json:     { sqlType: 'TEXT'    },  // JSON serializzato
   richtext: { sqlType: 'TEXT'    },
   file:     { sqlType: 'TEXT'    },  // URL singolo o JSON array di URL
+  tags:     { sqlType: 'TEXT'    },  // JSON array di stringhe
 }
 
 const SYSTEM_COLUMNS = new Set(['id', 'slug', 'status', 'created_at', 'updated_at'])
@@ -335,19 +336,50 @@ function buildFilterCondition(
   if (op === 'is_not_empty') {
     return type === 'text' ? `(${col} IS NOT NULL AND ${col} != '')` : `${col} IS NOT NULL`
   }
+  
+  if (op === 'in' || op === 'not_in') {
+    if (!Array.isArray(value) || value.length === 0) return null
+    const placeholders = value.map(() => '?').join(', ')
+    bindings.push(...(value as (string | number | boolean | null)[]))
+    return `${col} ${op === 'in' ? 'IN' : 'NOT IN'} (${placeholders})`
+  }
+
+  if (op === 'has_tag' || op === 'has_any_tag' || op === 'has_all_tags') {
+    if (type !== 'tags' && type !== 'json') return null
+    const tags = (op === 'has_tag' ? [value] : Array.isArray(value) ? value : [value])
+      .map(t => String(t))
+    
+    if (tags.length === 0) return null
+
+    if (op === 'has_tag' || op === 'has_any_tag') {
+      const placeholders = tags.map(() => '?').join(', ')
+      bindings.push(...tags)
+      return `EXISTS (SELECT 1 FROM json_each(${col}) WHERE value IN (${placeholders}))`
+    }
+    
+    // has_all_tags: each tag must exist
+    const clauses = tags.map(() => `EXISTS (SELECT 1 FROM json_each(${col}) WHERE value = ?)`)
+    bindings.push(...tags)
+    return `(${clauses.join(' AND ')})`
+  }
+
   if (value === null || value === undefined) return null
 
-  if (op === 'eq') {
+  if (op === 'eq' || op === 'neq') {
+    const sqlOp = op === 'eq' ? '=' : '!='
     bindings.push(type === 'boolean' ? (value ? 1 : 0) : (value as string | number))
-    return `${col} = ?`
+    return `${col} ${sqlOp} ?`
   }
-  if (op === 'contains') {
-    if (type === 'tags') {
-      bindings.push(String(value))
-      return `EXISTS (SELECT 1 FROM json_each(${col}) WHERE value = ?)`
-    }
-    bindings.push(`%${String(value)}%`)
-    return `${col} LIKE ?`
+
+  if (op === 'contains' || op === 'not_contains' || op === 'starts_with' || op === 'ends_with') {
+    const sqlOp = op === 'not_contains' ? 'NOT LIKE' : 'LIKE'
+    let pattern = String(value)
+    if (op === 'contains' || op === 'not_contains') pattern = `%${pattern}%`
+    else if (op === 'starts_with') pattern = `${pattern}%`
+    else if (op === 'ends_with') pattern = `%${pattern}`
+    
+    bindings.push(pattern)
+    return `${col} ${sqlOp} ?`
   }
 
   const mathOps: Record<string, string> = { gt: '>', gte: '>=', lt: '<', lte: '<=' }
@@ -402,6 +434,7 @@ export function serializeForDb(branch: Branch, value: unknown): string | number 
       return value ? 1 : 0
 
     case 'json':
+    case 'tags':
     case 'richtext':
       return typeof value === 'string' ? value : JSON.stringify(value)
 
@@ -442,6 +475,7 @@ export function deserializeFromDb(branch: Branch, value: unknown): unknown {
       return value === 1 || value === true
 
     case 'json':
+    case 'tags':
     case 'richtext': {
       if (typeof value === 'string') {
         try { return JSON.parse(value) } catch { return value }

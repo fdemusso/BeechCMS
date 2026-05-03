@@ -1283,3 +1283,29 @@ Date buckets are formatted as `YYYY-MM-DD` strings using D1's `strftime`.
 ```
 
 Points are ordered ascending by date. Days with no entries are omitted (no zero-fill).
+
+---
+
+## 9. Technical Architecture (v0.4.0 Refactor)
+
+Starting from v0.4.0, the Beech CMS API has been refactored to follow a **Vertical Slice Architecture** and the **Repository Pattern**.
+
+### Content Repository Pattern
+
+The API no longer interacts directly with the Cloudflare D1 database inside its handlers. Instead, it uses a platform-agnostic `ContentRepository` interface defined in `@beechcms/core`.
+
+- **Decoupling**: Business logic is separated from SQL execution.
+- **Atomic Operations**: Operations like publishing a draft use the Repository's batching capabilities to ensure data integrity.
+- **Error Mapping**: Internal database errors are caught at the repository level and mapped to standard Beech error classes (`EntryNotFoundError`, `SlugConflictError`).
+
+### Vertical Slice Implementation
+
+Each API feature (Content, Drafts, Auth) is a self-contained slice under `apps/api/src/features/`. Handlers are "thin" and focus on request validation and response formatting, delegating the heavy lifting to the repository layer.
+
+### R2 Media Cleanup
+
+Media cleanup during entry deletion is now handled by the API handlers using data returned by the repository. This ensures that when a row is deleted from D1, its associated assets in R2 are also removed (best-effort).
+
+---
+
+_Beech CMS API Reference — Documentation for v0.4.0 and beyond._

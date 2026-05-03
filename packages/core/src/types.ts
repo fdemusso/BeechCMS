@@ -1,4 +1,4 @@
-export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file'
+export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags'
 
 /** Branch: definizione di una proprietà. alias = nome colonna SQL. */
 export interface Branch {
@@ -104,15 +104,24 @@ export interface Seed {
 
 export type FilterOperator =
   | 'eq'
+  | 'neq'
   | 'gt'
   | 'gte'
   | 'lt'
   | 'lte'
   | 'contains'
+  | 'not_contains'
+  | 'starts_with'
+  | 'ends_with'
   | 'is_empty'
   | 'is_not_empty'
+  | 'in'
+  | 'not_in'
+  | 'has_tag'
+  | 'has_any_tag'
+  | 'has_all_tags'
 
-export type FilterType = 'text' | 'number' | 'date' | 'boolean' | 'tags' | 'select' | 'system'
+export type FilterType = 'text' | 'number' | 'date' | 'boolean' | 'tags' | 'select' | 'system' | 'json'
 
 export interface FilterCondition {
   op: FilterOperator

@@ -14,9 +14,11 @@ Every design decision documented here is grounded in the source code and explici
 4. [The Botanical Engine — Schema Compiler](#4-the-botanical-engine)
 5. [The Per-Type SQL Model](#5-the-per-type-sql-model)
 6. [Cloudflare D1 — SQLite at the Edge](#6-cloudflare-d1--sqlite-at-the-edge)
-7. [Vertical Slice Architecture — Current State & Migration Path](#7-vertical-slice-architecture--current-state--migration-path)
+7. [Vertical Slice Architecture — API Feature Implementation](#7-vertical-slice-architecture--api-feature-implementation)
 8. [Dependency Rules](#8-dependency-rules)
-9. [Pending Draft Workflow — Mirror Tables](#9-pending-draft-workflow)
+9. [Content Repository Pattern](#9-content-repository-pattern)
+10. [Pending Draft Workflow — Mirror Tables](#10-pending-draft-workflow)
+11. [Performance Layer](#11-performance-layer)
 
 ---
 
@@ -215,65 +217,79 @@ Beech leverages D1 to co-locate read replicas with Worker execution nodes, elimi
 
 ---
 
-## 7. Vertical Slice Architecture (VSA)
+## 7. Vertical Slice Architecture — API Feature Implementation
 
-We are migrating from a Layered Architecture (folders by technical type) to a **Feature-Based** structure.
+Beech CMS API has migrated to a **Vertical Slice Architecture (VSA)**. Instead of organizing code by technical layers (controllers, services, etc.), we organize by business features.
 
-### Target Structure (`apps/dashboard/src/`)
+### Feature Structure (`apps/api/src/features/`)
+
+Each feature (e.g., `content`, `auth`, `draft`) is self-contained:
+
+```text
+features/content/
+├── handlers/          # Thin Hono handlers
+│   ├── list.ts
+│   ├── get.ts
+│   ├── create.ts
+│   ├── update.ts
+│   └── delete.ts
+├── constants.ts       # Feature-specific constants and error messages
+├── types.ts           # Local types
+└── index.ts           # Feature entry point (Barrel)
 ```
-features/
-├── content-management/
-│   ├── index.ts        # Public API (Barrel)
-│   ├── components/     # Feature-scoped UI
-│   ├── hooks/          # useContentList, etc.
-│   └── api/            # content.api.ts
-├── richtext-editor/
-│   ├── index.ts
-│   └── extensions/     # TipTap config
-└── dashboard/          # Stats & Widgets
 
-```
+### The "Thin Handler" Pattern
 
-### The `index.ts` Contract
-
-Every feature **must** expose a public API. Direct imports of internal feature files from outside the slice are forbidden.
-
-### VSA Dependency Flow
-
-[![VSA Dependency Flow](https://mermaid.ink/img/pako:eNp9ksFSwjAQhl-ls1dbIAFa7MGLDCedYcSTrYfQLG3GNumkiYIM726gBYrjmFP-_Lv5djfZQ6Y4QgybUn1lBdPGe52n0nOrsetcs7rwXpQ1QuZPbIfaS2qWYzN8b2OOa0mSTEmD0gSlaEzfoReHo2Gi7DyUPJW_IAtkxmpsOsqmk33Q4gqqmHRlVG7b92miRVYY3JoAuTBK_8NbuV6Rd7RMVbWS7rZm6N15pVj3sSuSWBHUWlTCiE9s-hZNWC2CrBTXSnqwJfGC4MHV3Un6p6Tn8EUbviK3kt7INWJWDDOlEXzIteAQG23Rhwp1xY4S9seEFEzhBpRC7Lac6Y8UUnlwOTWTb0pV5zStbF5AvGFl45StOTM4F8wNqbqcatcT6kdlpYF4TCanSyDewxZiQieD6TQaEzKLolkYjZy7g5gSMphFk3tK6DgKR2EYHnz4PnFHzpj60L7Qc_v7Tp_w8AMRPcXf?type=png)](https://mermaid.live/edit#pako:eNp9ksFSwjAQhl-ls1dbIAFa7MGLDCedYcSTrYfQLG3GNumkiYIM726gBYrjmFP-_Lv5djfZQ6Y4QgybUn1lBdPGe52n0nOrsetcs7rwXpQ1QuZPbIfaS2qWYzN8b2OOa0mSTEmD0gSlaEzfoReHo2Gi7DyUPJW_IAtkxmpsOsqmk33Q4gqqmHRlVG7b92miRVYY3JoAuTBK_8NbuV6Rd7RMVbWS7rZm6N15pVj3sSuSWBHUWlTCiE9s-hZNWC2CrBTXSnqwJfGC4MHV3Un6p6Tn8EUbviK3kt7INWJWDDOlEXzIteAQG23Rhwp1xY4S9seEFEzhBpRC7Lac6Y8UUnlwOTWTb0pV5zStbF5AvGFl45StOTM4F8wNqbqcatcT6kdlpYF4TCanSyDewxZiQieD6TQaEzKLolkYjZy7g5gSMphFk3tK6DgKR2EYHnz4PnFHzpj60L7Qc_v7Tp_w8AMRPcXf)
+Handlers are responsible for:
+1. Parsing and validating request parameters.
+2. Retrieving the **Repository** from the Hono context.
+3. Delegating data operations to the Repository.
+4. Handling specific repository errors (e.g., `EntryNotFoundError`) and mapping them to HTTP responses.
+5. Performing side effects like R2 cleanup or activity logging.
 
 ---
 
 ## 8. Dependency Rules
 
 1.  **Feature Isolation**: Features **never** import from other features.
+2.  **Repository Access**: Features interact with the database ONLY through the `ContentRepository` interface.
+3.  **Encapsulation**: The main application factory (`factory.ts`) registers features via their barrel `index.ts`.
 
-2.  **Shared Promotion**: If two features need the same logic, it is promoted to the `shared` layer or `@beechcms/core`.
+---
 
-3.  **Encapsulation**: Pages only interact with the `index.ts` of a feature.
+## 9. Content Repository Pattern
 
+To decouple business logic from the underlying database (Cloudflare D1), Beech CMS implements a Repository Pattern.
 
-### ESLint Enforcement
+### Core Interface (`@beechcms/core`)
 
-```json
-{
-  "rules": {
-    "no-restricted-imports": ["error", {
-      "patterns": [{
-        "group": ["../features/*", "../../features/*"],
-        "message": "Do not import directly from another feature. Use the barrel index."
-      }]
-    }]
-  }
-}
+The `ContentRepository` interface defines all supported data operations. This allows for:
+- **Testability**: Easily swap D1 implementation with a `StaticContentRepository` for deterministic testing.
+- **Portability**: The API logic remains agnostic of the SQL dialect or database provider.
 
+### D1 Implementation (`apps/api/src/shared/`)
+
+- **`BaseD1Repository`**: An abstract class providing common D1 utilities (table name resolution, error mapping).
+- **`D1ContentRepository`**: The production implementation that handles SQL generation, Mirror Tables logic, and atomic batch operations.
+
+### Middleware Injection
+
+The repository is instantiated and injected into the Hono request context via `repositoryMiddleware`:
+
+```typescript
+// apps/api/src/middleware/repository.middleware.ts
+export const repositoryMiddleware = () => {
+  return async (c: Context, next: Next) => {
+    const repo = new D1ContentRepository(c.env.DB);
+    c.set('repository', repo);
+    await next();
+  };
+};
 ```
 
 ---
 
----
-
-## 9. Pending Draft Workflow — Mirror Tables
+## 10. Pending Draft Workflow — Mirror Tables
 
 ### Overview
 
@@ -336,23 +352,15 @@ Live content updated, draft row deleted
 ### Invariants
 
 - **`content_{slug}` is never modified by draft endpoints.** Only `POST /draft/publish` performs the write.
-- **Botanical Engine generates optimized DDL and DML for both tables.**
-- **Sensitive fields (`privacy: 'hash'`) are blocked from drafts.**
-- **`hasPendingDraft` in GET responses** is computed server-side via `EXISTS` check on the mirror table.
-
----
-
----
-
-## 10. Performance Layer
+- **Botanical Engine generates optimized DD## 11. Performance Layer
 
 ### FTS5 — SQL Triggers
 
 In v0.4.0, full-text search is managed entirely within the database using SQLite's FTS5 engine and triggers. This replaces the complex application-layer synchronization used in previous versions.
 
-### Sincronizzazione automatica
+### Automatic Synchronization
 
-Il Botanical Engine genera i trigger SQL necessari per mantenere la tabella virtuale `fts_{slug}` sincronizzata:
+The Botanical Engine generates the necessary SQL triggers to keep the virtual `fts_{slug}` table synchronized:
 
 ```sql
 CREATE TRIGGER fts_articoli_insert AFTER INSERT ON content_articoli BEGIN
@@ -360,11 +368,11 @@ CREATE TRIGGER fts_articoli_insert AFTER INSERT ON content_articoli BEGIN
 END;
 ```
 
-**Limitazione:** Solo il campo `body` (di tipo `richtext`) viene indicizzato nella FTS5. Altri campi usano indici B-tree standard sulle colonne reali.
+**Limitation:** Only the `body` field (of type `richtext`) is indexed in FTS5. Other fields use standard B-tree indexes on real columns.
 
-### Indici su colonne reali
+### Indexes on Real Columns
 
-Le query di filtraggio e ordinamento sono ora estremamente veloci perché operano su colonne SQL reali con indici dedicati:
+Filtering and sorting queries are now extremely fast because they operate on real SQL columns with dedicated indexes:
 
 ```sql
 CREATE INDEX idx_content_articoli_status ON content_articoli(status);
@@ -372,38 +380,43 @@ CREATE INDEX idx_content_articoli_created_at ON content_articoli(created_at DESC
 CREATE INDEX idx_content_articoli_title ON content_articoli(title);
 ```
 
-### Media Library — Tabella `media_objects` (migration `0021`)
+### Media Library — `media_objects` Table (migration `0021`)
 
-Ogni file caricato su R2 viene ora tracciato in `media_objects (key, filename, mime_type, size_bytes, uploaded_by, created_at)`. Le operazioni di INSERT/DELETE avvengono in `upload.ts` tramite `waitUntil` (asincrono, non bloccante). Questa tabella abilita:
-- Media library UI (lista file con owner e dimensione)
-- Rilevamento orfani (file non referenziati in alcuna entry)
-- Utilizzo storage per utente (`WHERE uploaded_by = ?`)
-- Fonte canonica per il totale storage: `SELECT SUM(size_bytes) FROM media_objects`
+Every file uploaded to R2 is now tracked in `media_objects (key, filename, mime_type, size_bytes, uploaded_by, created_at)`. INSERT/DELETE operations occur in `upload.ts` via `waitUntil` (asynchronous, non-blocking). This table enables:
+- Media library UI (file list with owner and size)
+- Orphan detection (files not referenced in any entry)
+- User storage usage (`WHERE uploaded_by = ?`)
+- Canonical source for total storage: `SELECT SUM(size_bytes) FROM media_objects`
 
-### Analytics per Seed (migration `0022`)
+### Per-Seed Analytics (migration `0022`)
 
-La tabella `analytics` è stata ricreata con una colonna `seed TEXT NOT NULL DEFAULT ''`. La stringa vuota è il sentinel per le metriche globali (usare NULL avrebbe rotto l'upsert `ON CONFLICT` per le proprietà di unicità di SQLite sui NULL).
+The `analytics` table has been recreated with a `seed TEXT NOT NULL DEFAULT ''` column. The empty string is the sentinel for global metrics (using NULL would have broken the `ON CONFLICT` upsert due to SQLite's uniqueness property constraints on NULLs).
 
-Il middleware in `index.ts` estrae il seed dalla URL (`/api/v1/public/:seed`) e lo registra nella colonna. Le query dei widget globali filtrano con `AND seed = ''`.
+The middleware in `index.ts` extracts the seed from the URL (`/api/v1/public/:seed`) and logs it in the column. Global widget queries filter with `AND seed = ''`.
 
-### Worker Cache API per Public Reads
+### Worker Cache API for Public Reads
 
-Le GET su `/api/v1/public/:seed` sono ora messe in cache via `caches.default` con TTL 60 secondi. Il pattern:
+GET requests on `/api/v1/public/:seed` are now cached via `caches.default` with a 60-second TTL. The pattern:
 
 ```typescript
-// Check cache prima di toccare D1
+// Check cache before hitting D1
 const hit = await caches.default.match(c.req.raw)
 if (hit) return hit
 
-// ... esegui query D1 ...
+// ... execute D1 query ...
 
-// Cache asincrona via waitUntil
+// Asynchronous caching via waitUntil
 c.executionCtx.waitUntil(
   caches.default.put(cacheKey, cachedResponse)
 )
 ```
 
-Solo le risposte 200 vengono messe in cache. Errori (404, 403, 500) non sono mai cachati. Cache key = URL completo inclusi query params — query diverse producono entry separate.
+Only 200 responses are cached. Errors (404, 403, 500) are never cached. Cache key = full URL including query params — different queries produce separate entries.
+
+---
+
+_Beech CMS Architecture Guide — Built for Scale at the Edge._
+engono messe in cache. Errori (404, 403, 500) non sono mai cachati. Cache key = URL completo inclusi query params — query diverse producono entry separate.
 
 ---
 
