@@ -502,6 +502,12 @@ In this case, the URL would be: `https://cdn.my-project.com/1714900000-cover.jpg
 | `npx beech seed:load --dry-run` | Print the SQL that would be executed without touching the DB |
 | `npx beech seed:load --db <name>` | Override the D1 database name from config |
 
+### Maintenance
+
+| Command | Description |
+|---|---|
+| `npx beech update` | Update `@beechcms/api` and `@beechcms/core` to latest, then apply any new system migrations to the local database. Prints next steps for syncing local/remote schema. |
+
 ### Development & deployment
 
 | Command | Description |
@@ -566,6 +572,21 @@ npx beech validate && npx beech seed:load --local
 ```
 
 > `beech seed:load` already runs the same validation checks automatically and prints a warning if it finds issues, but exits `0` to avoid breaking existing scripts. Use `beech validate` in CI where a hard exit `1` is needed.
+
+### Updating BeechCMS
+
+When a new version of BeechCMS is released, use `beech update` instead of running `npm install` manually:
+
+```bash
+npx beech update
+```
+
+This single command:
+1. Installs `@beechcms/api@latest` and `@beechcms/core@latest`.
+2. Applies any new system migrations to your local D1 database.
+3. Prints the next steps to sync local and remote schema.
+
+After running it, follow the printed instructions (usually `npx beech seed:load --local`, then `npm run deploy`, then `npx beech seed:load`).
 
 ---
 

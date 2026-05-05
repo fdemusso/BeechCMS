@@ -60,10 +60,9 @@ export async function deploy(args: DeployOptions): Promise<void> {
 
   if (deployResult.status !== 0) {
     console.log(pc.red('\n  ✗ Worker deploy failed\n'))
-    console.log(pc.dim('  Check the output above for wrangler errors.'))
-    console.log(pc.dim('  Common causes:'))
-    console.log(pc.dim('    - Not logged in to Cloudflare  →  npx wrangler login'))
-    console.log(pc.dim('    - Wrong database_id in wrangler.jsonc\n'))
+    console.log(pc.dim('  Check the wrangler output above for details.'))
+    console.log(pc.cyan('\n  → Run:  npx wrangler login           # if not authenticated'))
+    console.log(pc.cyan('  → Or:   Update wrangler.jsonc        # if database_id is wrong\n'))
     process.exit(1)
   }
 
@@ -82,7 +81,9 @@ export async function deploy(args: DeployOptions): Promise<void> {
       shell: true,
     })
     if (seedResult.status !== 0) {
-      console.log(pc.yellow('\n  ⚠ seed:load failed — run manually: npx beech seed:load'))
+      console.log(pc.yellow('\n  ⚠ seed:load failed\n'))
+      console.log(pc.dim('  Sync the remote content schema manually:'))
+      console.log(pc.cyan('  → Run: npx beech seed:load\n'))
     } else {
       console.log(pc.green('\n  ✓ Content schema synced'))
     }

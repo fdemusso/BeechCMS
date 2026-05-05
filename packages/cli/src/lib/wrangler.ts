@@ -27,16 +27,14 @@ function buildArgs(options: WranglerOptions): string[] {
   return args
 }
 
-/** Esegue SQL da file temporaneo via `wrangler d1 execute --file`. */
-export function executeD1File(sql: string, options: WranglerOptions): void {
+/** Esegue SQL da file temporaneo via `wrangler d1 execute --file`. Returns true on success. */
+export function executeD1File(sql: string, options: WranglerOptions): boolean {
   const tmpFile = join(tmpdir(), `beech-seed-${Date.now()}.sql`)
   try {
     writeFileSync(tmpFile, sql, 'utf-8')
     const args = ['d1', 'execute', options.db, '--file', tmpFile, ...buildArgs(options)]
     const result = spawnSync('npx', ['wrangler', ...args], { stdio: 'inherit', cwd: process.cwd(), shell: true })
-    if (result.status !== 0) {
-      process.exit(result.status ?? 1)
-    }
+    return result.status === 0
   } finally {
     try { rmSync(tmpFile) } catch {}
   }

@@ -627,7 +627,7 @@ Implementazione dettagliata e backend per la telemetria sono fuori scope immedia
   - [x] Scan placeholder in `wrangler.jsonc`.
   - [x] Output “Next steps” chiaro dopo successo.
 - [x] Aggiornare `create.mjs` per chiarire che `.dev.vars` è solo per produzione (R2 credenziali).
-- [ ] Implementare Zero-Touch Infrastructure (auto-creation D1/R2) in `beech init`.
+- [x] Implementare Zero-Touch Infrastructure (auto-creation D1/R2) in `beech init`.
 
 ### Phase 1.5
 - [x] Aggiungere widget “Project Health / Checklist” in dashboard.
@@ -653,13 +653,13 @@ Implementazione dettagliata e backend per la telemetria sono fuori scope immedia
 
 ### Phase 5
 
-- [ ] Implementare `beech update`.
-- [ ] Migliorare output `beech seed:diff` (colonne orfane).
-- [ ] Aggiornare `docs/guide.md` con “Schema evolution” e “Daily workflow”.
+- [x] Implementare `beech update`.
+- [x] Migliorare output `beech seed:diff` (colonne orfane).
+- [x] Aggiornare `docs/guide.md` con “Schema evolution” e “Daily workflow”.
 
 ### Cross-Cutting
 
-- [ ] Rivedere tutti i messaggi di errore CLI secondo il nuovo formato.
+- [x] Rivedere tutti i messaggi di errore CLI secondo il nuovo formato.
 - [ ] (Futuro) Progettare struttura minima per telemetria opt-in.
 
 ---
@@ -780,4 +780,4 @@ Tutti i comandi `beech` escono con code 0 (successo) o 1 (errore). Nessun prompt
 5. [x] **Phase 2 completata**: `beech validate`, auto-validate in `seed:load`, `beech seed:create`, `--with-examples`.
 6. [x] **Phase 3 completata**: CORS auto-permissivo localhost, `GET /api/v1/public/schema` (JSON + HTML), API key echo in `beech init`.
 7. [x] **Phase 4 completata** — `beech init --db --remote` hardening + `beech deploy` wrapper.
-8. [ ] **Procedere con Phase 5** — `beech update`, `seed:diff` orphaned columns, doc schema evolution.
+8. [x] **Phase 5 completata** — `beech update`, `seed:diff` orphaned columns, doc schema evolution.

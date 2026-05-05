@@ -97,7 +97,23 @@ async function runLoad(options: WranglerOptions, dryRun: boolean, registry: Reco
     const stmts = buildStatements(seed)
     const sql = stmts.join('\n\n') + '\n'
     process.stdout.write(`  ${pc.dim('→')} content_${seed.slug}… `)
-    executeD1File(sql, options)
+    const ok = executeD1File(sql, options)
+    if (!ok) {
+      console.log(pc.red('failed'))
+      console.log(pc.red(`\n  ✗ Failed to apply schema for content_${seed.slug}\n`))
+      console.log(pc.dim('  wrangler reported an error above.'))
+      console.log(pc.dim(`  Most likely causes:`))
+      console.log(pc.dim(`    - Database "${options.db}" not found or wrong database_id`))
+      if (!options.local) {
+        console.log(pc.dim('    - Not logged in to Cloudflare'))
+        console.log(pc.cyan('\n  → Run:  npx wrangler login'))
+        console.log(pc.cyan('  → Then: npx beech seed:load\n'))
+      } else {
+        console.log(pc.cyan('\n  → Run:  npx beech init --db --local   # re-initialise local DB'))
+        console.log(pc.cyan('  → Then: npx beech seed:load --local\n'))
+      }
+      process.exit(1)
+    }
     console.log(pc.green('done'))
   }
 
@@ -108,7 +124,9 @@ export async function seedLoad(args: SeedLoadOptions): Promise<void> {
   const registry = args.registry ?? SEED_REGISTRY
 
   if (Object.keys(registry).length === 0) {
-    console.warn(pc.yellow('\n  Warning: SEED_REGISTRY is empty. Create a seeds.ts in your project root.\n'))
+    console.log(pc.yellow('\n  ✗ No seeds found\n'))
+    console.log(pc.dim('  Create a seeds.ts file in your project root with at least one content type.'))
+    console.log(pc.cyan('\n  → Run: npx beech seed:create\n'))
     return
   }
 

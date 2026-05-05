@@ -16,6 +16,7 @@ const COMMANDS = {
   'init':         cmdInit,
   'validate':     cmdValidate,
   'deploy':       cmdDeploy,
+  'update':       cmdUpdate,
 }
 
 function help() {
@@ -45,6 +46,9 @@ function help() {
     deploy          Deploy Worker, sync remote schema, and verify /admin
       --skip-seed     Skip remote seed:load step
       --skip-check    Skip /admin reachability check
+
+    update          Update @beechcms/api and @beechcms/core to latest, then
+                    apply any new system migrations to the local database
 
   Scaffold a new project (interactive, or pass --yes for non-interactive defaults):
     npm create @beechcms/cms [project-name] [--yes] [--with-examples]
@@ -175,6 +179,11 @@ async function cmdDeploy(args) {
   const registry  = skipSeed ? null : await tryLoadLocalRegistry()
   const { deploy } = await import('@beechcms/cli')
   await deploy({ registry, skipSeed, skipCheck })
+}
+
+async function cmdUpdate(_args) {
+  const { update } = await import('@beechcms/cli')
+  await update({})
 }
 
 const handler = COMMANDS[command]

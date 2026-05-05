@@ -1,5 +1,6 @@
 import pc from 'picocolors'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { createInterface } from 'node:readline/promises'
 import { resolve, basename } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { findWranglerConfig, resolveDbName, executeD1File, queryD1, type WranglerOptions } from '../lib/wrangler.js'
@@ -185,6 +186,77 @@ function checkWranglerPlaceholders(configPath: string): string[] {
   }
 }
 
+function readProjectName(configPath: string | null): string {
+  if (!configPath) return basename(process.cwd())
+  try {
+    const raw = readFileSync(configPath, 'utf-8')
+    const stripped = raw.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
+    const parsed = JSON.parse(stripped)
+    return (parsed?.name as string | undefined) || basename(process.cwd())
+  } catch {
+    return basename(process.cwd())
+  }
+}
+
+function readBucketName(configPath: string | null): string | null {
+  if (!configPath) return null
+  try {
+    const raw = readFileSync(configPath, 'utf-8')
+    const stripped = raw.replace(/\/\/[^\n]*/g, '').replace(/\/\*[\s\S]*?\*\//g, '')
+    const parsed = JSON.parse(stripped)
+    const buckets: { bucket_name?: string }[] = parsed?.r2_buckets ?? []
+    return buckets[0]?.bucket_name ?? null
+  } catch {
+    return null
+  }
+}
+
+function createD1Database(dbName: string): string | null {
+  const result = spawnSync('npx', ['wrangler', 'd1', 'create', dbName, '--json'], {
+    encoding: 'utf-8',
+    cwd: process.cwd(),
+    shell: true,
+    stdio: ['inherit', 'pipe', 'pipe'],
+  })
+  if (result.status !== 0) return null
+  try {
+    const parsed = JSON.parse(result.stdout)
+    return (parsed?.uuid ?? parsed?.database_id ?? null) as string | null
+  } catch {
+    return null
+  }
+}
+
+function createR2Bucket(bucketName: string): boolean {
+  const result = spawnSync('npx', ['wrangler', 'r2', 'bucket', 'create', bucketName], {
+    stdio: 'inherit',
+    cwd: process.cwd(),
+    shell: true,
+  })
+  return result.status === 0
+}
+
+function patchWranglerConfig(configPath: string, dbId: string): boolean {
+  try {
+    let raw = readFileSync(configPath, 'utf-8')
+    for (const placeholder of PLACEHOLDER_DB_IDS) {
+      raw = raw.split(placeholder).join(dbId)
+    }
+    raw = raw.replace(/"database_id"\s*:\s*""/g, `"database_id": "${dbId}"`)
+    writeFileSync(configPath, raw, 'utf-8')
+    return true
+  } catch {
+    return false
+  }
+}
+
+function printManualDbInstructions(): void {
+  console.log(pc.dim('\n  Update your D1 database_id in wrangler.jsonc,'))
+  console.log(pc.dim('  or create a new database with:'))
+  console.log(pc.cyan('\n  → Run:  npx wrangler d1 create my-project-db'))
+  console.log(pc.cyan('  → Then: npx beech init --db\n'))
+}
+
 function echoApiKeys(configPath: string | null | undefined): void {
   if (!configPath) return
   try {
@@ -289,7 +361,9 @@ export async function init(args: InitOptions): Promise<void> {
   const filesOk = checkFiles(cwd, args.local)
 
   if (!filesOk) {
-    console.log(pc.red('\n  ✗ Required files missing. Fix the errors above before initialising the database.\n'))
+    console.log(pc.red('\n  ✗ Required files missing\n'))
+    console.log(pc.dim('  Fix the errors above before initialising the database.'))
+    console.log(pc.cyan('\n  → See: https://beechcms.dev/docs/getting-started\n'))
     process.exit(1)
   }
 
@@ -317,11 +391,73 @@ export async function init(args: InitOptions): Promise<void> {
       for (const issue of placeholders) {
         console.log(pc.yellow(`    - ${issue}`))
       }
-      console.log(pc.dim('\n  Update your D1 database_id in wrangler.jsonc,'))
-      console.log(pc.dim('  or create a new database with:'))
-      console.log(pc.cyan('\n    npx wrangler d1 create my-project-db\n'))
-      console.log(pc.dim('  Then retry: npx beech init --db\n'))
-      process.exit(1)
+
+      if (process.stdin.isTTY) {
+        // Interactive: offer auto-creation of D1 + R2
+        const rl = createInterface({ input: process.stdin, output: process.stdout })
+        let autoCreate = false
+        try {
+          const answer = (await rl.question(
+            pc.cyan('\n  → Create a new D1 database (and R2 bucket) on Cloudflare automatically? (Y/n): ')
+          )).trim().toLowerCase()
+          autoCreate = !answer || answer === 'y' || answer === 'yes'
+        } finally {
+          rl.close()
+        }
+
+        if (autoCreate) {
+          // Auth required for resource creation
+          const authed = checkWranglerAuth()
+          if (!authed) {
+            console.log(pc.red('\n  ✗ Not logged in to Cloudflare\n'))
+            console.log(pc.dim('  BeechCMS needs access to your Cloudflare account to create the database.'))
+            console.log(pc.cyan('\n  → Run:  npx wrangler login'))
+            console.log(pc.cyan('  → Then: npx beech init --db\n'))
+            process.exit(1)
+          }
+
+          const projectName = readProjectName(configPath)
+          const dbName = `${projectName}-db`
+          const bucketName = readBucketName(configPath) || `${projectName}-media`
+
+          console.log(pc.dim(`\n  Creating D1 database "${dbName}"…`))
+          const dbId = createD1Database(dbName)
+          if (!dbId) {
+            console.log(pc.red('\n  ✗ Failed to create D1 database\n'))
+            console.log(pc.dim('  Create it manually and retry:'))
+            console.log(pc.cyan(`\n  → Run:  npx wrangler d1 create ${dbName}`))
+            console.log(pc.cyan('  → Then: npx beech init --db\n'))
+            process.exit(1)
+          }
+          console.log(pc.green(`  ✓ D1 database created (id: ${dbId})`))
+
+          console.log(pc.dim(`\n  Creating R2 bucket "${bucketName}"…`))
+          const r2Ok = createR2Bucket(bucketName)
+          if (r2Ok) {
+            console.log(pc.green(`  ✓ R2 bucket "${bucketName}" created`))
+          } else {
+            console.log(pc.yellow(`  ⚠ R2 bucket creation failed (may already exist — continuing)`))
+          }
+
+          console.log(pc.dim('\n  Updating wrangler.jsonc…'))
+          const patched = patchWranglerConfig(configPath, dbId)
+          if (patched) {
+            console.log(pc.green('  ✓ wrangler.jsonc updated\n'))
+          } else {
+            console.log(pc.yellow(`  ⚠ Could not update wrangler.jsonc automatically\n`))
+            console.log(pc.dim(`  Set database_id = "${dbId}" in wrangler.jsonc manually, then retry:`))
+            console.log(pc.cyan('  → Run: npx beech init --db\n'))
+            process.exit(1)
+          }
+          // Fall through to continue DB initialization with the newly created database
+        } else {
+          printManualDbInstructions()
+          process.exit(1)
+        }
+      } else {
+        printManualDbInstructions()
+        process.exit(1)
+      }
     }
   }
 
@@ -330,8 +466,8 @@ export async function init(args: InitOptions): Promise<void> {
     const authed = checkWranglerAuth()
     if (!authed) {
       console.log(pc.red('  ✗ Not logged in to Cloudflare\n'))
-      console.log(pc.dim('  BeechCMS needs access to your Cloudflare account to manage the D1 database.\n'))
-      console.log(pc.cyan('  → Run:  npx wrangler login'))
+      console.log(pc.dim('  BeechCMS needs access to your Cloudflare account to manage the D1 database.'))
+      console.log(pc.cyan('\n  → Run:  npx wrangler login'))
       console.log(pc.cyan('  → Then: npx beech init --db\n'))
       process.exit(1)
     }
@@ -352,10 +488,9 @@ export async function init(args: InitOptions): Promise<void> {
       console.log(pc.red('  ✗ Remote database unreachable\n'))
       console.log(pc.dim('  Most likely causes:'))
       console.log(pc.dim('    - Wrong database_id in wrangler.jsonc'))
-      console.log(pc.dim('    - Worker not yet deployed\n'))
-      console.log(pc.dim('  Fix the configuration and re-deploy:\n'))
-      console.log(pc.cyan('    1. Update d1_databases.database_id in wrangler.jsonc'))
-      console.log(pc.cyan('    2. npm run deploy\n'))
+      console.log(pc.dim('    - Worker not yet deployed'))
+      console.log(pc.cyan('\n  → Fix:  Update d1_databases.database_id in wrangler.jsonc'))
+      console.log(pc.cyan('  → Then: npm run deploy\n'))
       process.exit(1)
     }
 
@@ -363,10 +498,9 @@ export async function init(args: InitOptions): Promise<void> {
       console.log(pc.yellow(`  ⚠ Missing system tables: ${missingTables.join(', ')}\n`))
       console.log(pc.dim('  Most likely causes:'))
       console.log(pc.dim('    - Wrong database_id in wrangler.jsonc'))
-      console.log(pc.dim('    - Migrations did not run during deploy\n'))
-      console.log(pc.dim('  Fix the configuration and re-deploy:\n'))
-      console.log(pc.cyan('    1. Update d1_databases.database_id in wrangler.jsonc'))
-      console.log(pc.cyan('    2. npm run deploy\n'))
+      console.log(pc.dim('    - Migrations did not run during deploy'))
+      console.log(pc.cyan('\n  → Fix:  Update d1_databases.database_id in wrangler.jsonc'))
+      console.log(pc.cyan('  → Then: npm run deploy\n'))
       process.exit(1)
     }
 
@@ -389,7 +523,13 @@ export async function init(args: InitOptions): Promise<void> {
     console.log(pc.cyan('\n  Applying base schema…\n'))
   }
 
-  executeD1File(BASE_SCHEMA_SQL, options)
+  const ok = executeD1File(BASE_SCHEMA_SQL, options)
+  if (!ok) {
+    console.log(pc.red('\n  ✗ Database initialisation failed\n'))
+    console.log(pc.dim('  wrangler reported an error above.'))
+    console.log(pc.cyan('\n  → Run: npx beech init --db --local\n'))
+    process.exit(1)
+  }
 
   console.log(pc.green('\n  ✓ worker.ts'))
   console.log(pc.green(`  ✓ ${configPath ? basename(configPath) : 'wrangler.jsonc'}`))
