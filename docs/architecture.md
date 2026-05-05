@@ -18,7 +18,8 @@ Every design decision documented here is grounded in the source code and explici
 8. [Dependency Rules](#8-dependency-rules)
 9. [Content Repository Pattern](#9-content-repository-pattern)
 10. [Pending Draft Workflow — Mirror Tables](#10-pending-draft-workflow)
-11. [Performance Layer](#11-performance-layer)
+11. [Storage & Media Abstraction](#11-storage--media-abstraction)
+12. [Performance Layer](#12-performance-layer)
 
 ---
 
@@ -352,7 +353,43 @@ Live content updated, draft row deleted
 ### Invariants
 
 - **`content_{slug}` is never modified by draft endpoints.** Only `POST /draft/publish` performs the write.
-- **Botanical Engine generates optimized DD## 11. Performance Layer
+- **Botanical Engine generates optimized DD## 11. Storage & Media Abstraction
+
+Beech CMS abstracts object storage and media metadata tracking to ensure the same business logic works across Local (R2 Binding), Production (S3/R2 via HTTP), and CDN environments.
+
+### The `BeechBucket` Interface
+
+Object storage operations are handled through the `BeechBucket` interface in `@beechcms/core`.
+
+- **`R2BindingBucket`**: Uses native Cloudflare R2 bindings. Used in local development and production when the Worker has direct bucket access.
+- **`S3Bucket`**: Connects via S3-compatible HTTP API. Used for production environments requiring cross-account access or specific CDN configurations.
+- **`NullBucket`**: A fail-safe provider that throws only when storage operations are invoked, allowing the rest of the API to function without configuration.
+
+### Media & Stats Repositories
+
+Database tracking for media is separated from the storage provider via specialized repositories:
+
+- **`MediaRepository`**: Tracks `media_objects` (key, filename, size, owner). Used for the Media Library UI and orphan detection.
+- **`SystemStatsRepository`**: Manages global metrics like `total_storage_bytes`.
+
+### Middleware Injection
+
+Providers are instantiated via `createBucketProvider` (using capability detection) and injected into the Hono context:
+
+```typescript
+const bucket = c.get('bucket');
+const mediaRepo = c.get('mediaRepository');
+const statsRepo = c.get('systemStatsRepository');
+
+// Agnostic upload flow
+await bucket.put(key, body, { contentType });
+await mediaRepo.trackUpload({ key, filename, ... });
+await statsRepo.incrementStorage(size);
+```
+
+---
+
+## 12. Performance Layer
 
 ### FTS5 — SQL Triggers
 
@@ -380,9 +417,9 @@ CREATE INDEX idx_content_articoli_created_at ON content_articoli(created_at DESC
 CREATE INDEX idx_content_articoli_title ON content_articoli(title);
 ```
 
-### Media Library — `media_objects` Table (migration `0021`)
+### Media Library — Metadata Tracking
 
-Every file uploaded to R2 is now tracked in `media_objects (key, filename, mime_type, size_bytes, uploaded_by, created_at)`. INSERT/DELETE operations occur in `upload.ts` via `waitUntil` (asynchronous, non-blocking). This table enables:
+Every file uploaded to R2 is tracked in the `media_objects` table via the `MediaRepository`. This table enables:
 - Media library UI (file list with owner and size)
 - Orphan detection (files not referenced in any entry)
 - User storage usage (`WHERE uploaded_by = ?`)

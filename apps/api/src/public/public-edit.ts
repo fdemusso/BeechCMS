@@ -142,8 +142,8 @@ export async function publicEditHandler(context: PublicCtx) {
     await repository.update(seed, id, updateData, statusResult.value)
 
     await createNotification(context, {
-      title: `${seed.label}: Modifica`,
-      message: `L'entry "${slugResult.value.nextSlug}" è stata modificata via API pubblica.`,
+      title: `${seed.label}: Update`,
+      message: `The entry "${slugResult.value.nextSlug}" has been modified via the public API.`,
       type: 'info',
     })
 

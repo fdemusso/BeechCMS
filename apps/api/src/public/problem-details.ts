@@ -15,6 +15,12 @@ type PublicProblemInput = {
   errors?: PublicProblemDetailItem[]
 }
 
+/**
+ * TODO: UPDATE DOMAIN ONCE REGISTERED
+ * Currently uses 'beechcms.dev' as a placeholder. 
+ * When a real domain is registered for BeechCMS, update the URL below 
+ * to point to the official API error documentation (RFC 9457).
+ */
 function normalizeProblemType(type: string): string {
   if (type.startsWith('http://') || type.startsWith('https://')) {
     return type

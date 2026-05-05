@@ -22,3 +22,13 @@ export function useSchema() {
 
   return query
 }
+
+export function useActiveSeed(slug: string | undefined): { seed: Seed | null; isLoading: boolean } {
+  const { data: seeds, isLoading } = useSchema()
+  if (!slug) return { seed: null, isLoading: false }
+  if (isLoading) return { seed: null, isLoading: true }
+  return {
+    seed: seeds?.find(s => s.slug === slug) ?? null,
+    isLoading
+  }
+}

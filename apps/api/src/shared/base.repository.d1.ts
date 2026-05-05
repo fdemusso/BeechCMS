@@ -6,7 +6,7 @@ import { RepositoryError } from '@beechcms/core'
  * Handles the D1 instance and provides common database utilities and error mapping.
  */
 export abstract class BaseD1Repository {
-  constructor(protected readonly db: D1Database) {}
+  constructor(protected readonly database: D1Database) {}
 
   /**
    * Utility method to extract a table name for a given seed.

@@ -1,16 +1,16 @@
 /**
- * Email Service — orchestratore del modulo email di Beech CMS.
+ * Email Service — orchestrator of the Beech CMS email module.
  *
- * Pipeline di invio:
- *   chiamante → funzione service → template builder → provider → Resend (o altro)
+ * Sending pipeline:
+ *   caller → service function → template builder → provider → Resend (or other)
  *
- * Questo è l'unico file che importa sia dai template che dal provider.
- * Nessun altro layer conosce l'intera pipeline.
+ * This is the only file that imports from both templates and the provider.
+ * No other layer knows the entire pipeline.
  *
- * ─── CAMBIO PROVIDER ─────────────────────────────────────────────────────────
- * Per sostituire Resend con un altro servizio, modifica SOLO la funzione
- * `createProvider()` qui sotto: cambia l'import e l'istanziazione.
- * Nessun altro file del modulo — né nel resto del progetto — va toccato.
+ * ─── CHANGING PROVIDER ───────────────────────────────────────────────────────
+ * To replace Resend with another service, ONLY modify the
+ * `createProvider()` function below: change the import and instantiation.
+ * No other module file — nor anywhere else in the project — needs to be touched.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 import { ResendEmailProvider } from './providers/resend'
@@ -22,28 +22,28 @@ import type {
   PasswordChangedEmailParams,
 } from './email.types'
 
-/** Indirizzo mittente di default (mittente di test Resend, funziona senza dominio verificato). */
+/** Default sender address (Resend test sender, works without a verified domain). */
 const DEFAULT_FROM = 'Beech CMS <onboarding@resend.dev>'
 
 /**
- * Istanzia il provider email attivo.
+ * Instantiates the active email provider.
  *
- * Questo è il punto singolo di cambio provider: sostituisci la riga
- * `new ResendEmailProvider(…)` con qualsiasi classe che implementi `EmailProvider`.
+ * This is the single point for changing the provider: replace the
+ * `new ResendEmailProvider(...)` line with any class that implements `EmailProvider`.
  */
 function createProvider(apiKey: string, isDev: boolean): EmailProvider {
   return new ResendEmailProvider(apiKey, isDev)
 }
 
 /**
- * Invia l'email con il link di reset password al destinatario specificato.
+ * Sends the password reset link email to the specified recipient.
  *
- * Il corpo dell'email è costruito dal template localizzato in
- * `templates/password-reset.ts` e composto con il layout base in
+ * The email body is built from the localized template in
+ * `templates/password-reset.ts` and composed with the base layout in
  * `templates/shell.ts`.
  *
- * @throws Se il provider rifiuta la richiesta. Il chiamante decide se propagare
- *         l'errore (fail della request) o gestirlo silenziosamente (fire-and-forget).
+ * @throws If the provider rejects the request. The caller decides whether to propagate
+ *         the error (request fail) or handle it silently (fire-and-forget).
  */
 export async function sendPasswordResetEmail(
   params: PasswordResetEmailParams,
@@ -59,12 +59,12 @@ export async function sendPasswordResetEmail(
 }
 
 /**
- * Invia la notifica di sicurezza "password modificata" al proprietario dell'account.
+ * Sends the "password changed" security notification to the account owner.
  *
- * Chiamata dopo un reset password riuscito per avvisare l'utente. Non ha un
- * pulsante CTA — è una pura notifica, nessuna azione richiesta all'utente.
+ * Called after a successful password reset to notify the user. It does not have a
+ * CTA button — it is a pure notification, no action required from the user.
  *
- * @throws Se il provider rifiuta la richiesta.
+ * @throws If the provider rejects the request.
  */
 export async function sendPasswordChangedEmail(
   params: PasswordChangedEmailParams,

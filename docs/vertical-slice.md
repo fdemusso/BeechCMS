@@ -530,15 +530,14 @@ export const productsApi = {
 1. **Routing / App Factory**: `apps/api/src/factory.ts` e `index.ts` importano le feature solo tramite il loro barrel export (`index.ts`).
 2. **Handlers → Repository**: Gli handler API recuperano l'istanza del repository dal contesto Hono (`context.get('repository')`).
 3. **Isolamento Feature**: Una feature API (es. `content`) non deve mai importare logica da un'altra (es. `auth`).
-4. **Shared Layer**: Logica comune (logging, utilities R2) vive in `apps/api/src/shared/` o `apps/api/src/utils/`.
+4. **Shared Layer**: Logica comune (logging, storage utils) vive in `apps/api/src/shared/`.
+5. **Storage Abstraction**: L'accesso ai file avviene tramite l'interfaccia `BeechBucket` (R2/S3), iniettata via middleware.
 
-### Repository Pattern & Vertical Slice
+In Beech CMS, la Vertical Slice Architecture si appoggia al Repository Pattern per garantire l'indipendenza dal database e dal provider di storage:
 
-In Beech CMS, la Vertical Slice Architecture si appoggia al Repository Pattern per garantire l'indipendenza dal database:
-
-- **Contratto**: `packages/core/src/content.repository.ts` definisce l'interfaccia `ContentRepository`.
-- **Iniezione**: Un middleware (`apps/api/src/middleware/repository.middleware.ts`) inietta l'implementazione concreta (D1) in ogni richiesta.
-- **Utilizzo**: Gli handler consumano l'interfaccia, rendendo la business logic facilmente testabile con mock.
+- **Contratti**: `packages/core` definisce le interfacce `ContentRepository`, `MediaRepository`, `SystemStatsRepository` e `BeechBucket`.
+- **Iniezione**: Middleware dedicati iniettano le implementazioni concrete (D1 per DB, R2/S3 per storage) nel contesto Hono.
+- **Utilizzo**: Gli handler consumano le interfacce, rendendo la business logic agnostica rispetto all'infrastruttura e facilmente testabile.
 
 ### Documenti collegati
 

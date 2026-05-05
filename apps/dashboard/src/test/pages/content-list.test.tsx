@@ -27,8 +27,11 @@ const seedPosts = {
   ],
 }
 
-vi.mock("@beechcms/core", () => ({
-  getSeed: (slug: string) => (slug === "posts" ? seedPosts : null),
+vi.mock("@/features/schema/hooks/use-schema", () => ({
+  useActiveSeed: (slug: string) => ({
+    seed: slug === "posts" ? seedPosts : null,
+    isLoading: false,
+  })
 }))
 
 vi.mock("@/features/content-management", () => ({

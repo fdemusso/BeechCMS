@@ -59,5 +59,17 @@
     "@beechcms/cli": "^0.4.0-preview.12",
     "@clack/prompts": "^0.9.1",
     "picocolors": "^1.1.1"
+  },
+  "peerDependencies": {
+    "@beechcms/api": "^0.4.0-preview.12",
+    "@beechcms/core": "^0.4.0-preview.12"
+  },
+  "peerDependenciesMeta": {
+    "@beechcms/api": {
+      "optional": true
+    },
+    "@beechcms/core": {
+      "optional": true
+    }
   }
 }

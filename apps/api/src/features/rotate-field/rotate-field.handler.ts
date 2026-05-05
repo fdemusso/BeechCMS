@@ -2,81 +2,131 @@
 import { Hono } from 'hono'
 import { resolvePolicies, verifyHashField, sha256hex, validateAndSanitizeSeedPayload, serializeForDb } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
-import { rotateFieldBodySchema } from './rotate-field.schema'
+import { rotateFieldRequestSchema } from './rotate-field.schema'
 import type { Env, Variables } from '../../types'
 
 const rotateFieldApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
-rotateFieldApp.post('/:slug/:id/rotate-field', async (c) => {
-  const slug = c.req.param('slug')
-  const id = c.req.param('id')
+rotateFieldApp.post('/:slug/:id/rotate-field', async (context) => {
+  const seedSlug = context.req.param('slug')
+  const entryId = context.req.param('id')
 
-  const seed = c.get('getSeed')(slug)
+  const seed = context.get('getSeed')(seedSlug)
   if (!seed) {
-    return publicProblem(c, { type: 'content-seed-not-found', title: 'Not Found', status: 404, detail: `Seed '${slug}' not found` })
+    return publicProblem(context, { 
+      type: 'content-seed-not-found', 
+      title: 'Not Found', 
+      status: 404, 
+      detail: `Seed '${seedSlug}' not found` 
+    })
   }
 
-  let rawBody: unknown
+  let requestBody: unknown
   try {
-    rawBody = await c.req.json()
+    requestBody = await context.req.json()
   } catch {
-    return publicProblem(c, { type: 'rotate-field-invalid-json', title: 'Bad Request', status: 400, detail: 'Invalid JSON body' })
+    return publicProblem(context, { 
+      type: 'rotate-field-invalid-json', 
+      title: 'Bad Request', 
+      status: 400, 
+      detail: 'Invalid JSON body' 
+    })
   }
 
-  const parsed = rotateFieldBodySchema.safeParse(rawBody)
-  if (!parsed.success) {
-    return publicProblem(c, { type: 'rotate-field-invalid-body', title: 'Bad Request', status: 400, detail: parsed.error.issues[0]?.message ?? 'Invalid body' })
+  const parsedRequestBody = rotateFieldRequestSchema.safeParse(requestBody)
+  if (!parsedRequestBody.success) {
+    return publicProblem(context, { 
+      type: 'rotate-field-invalid-body', 
+      title: 'Bad Request', 
+      status: 400, 
+      detail: parsedRequestBody.error.issues[0]?.message ?? 'Invalid body' 
+    })
   }
 
-  const { field, current, next } = parsed.data
+  const { fieldAlias, currentValue, nextValue } = parsedRequestBody.data
 
-  const branch = seed.branches.find((b) => b.alias === field)
-  if (!branch) {
-    return publicProblem(c, { type: 'rotate-field-unknown-field', title: 'Bad Request', status: 400, detail: `Field '${field}' does not exist in seed '${slug}'` })
+  const targetFieldBranch = seed.branches.find((branch) => branch.alias === fieldAlias)
+  if (!targetFieldBranch) {
+    return publicProblem(context, { 
+      type: 'rotate-field-unknown-field', 
+      title: 'Bad Request', 
+      status: 400, 
+      detail: `Field '${fieldAlias}' does not exist in seed '${seedSlug}'` 
+    })
   }
 
-  const { privacy } = resolvePolicies(branch)
+  const { privacy } = resolvePolicies(targetFieldBranch)
   if (privacy !== 'hash') {
-    return publicProblem(c, { type: 'rotate-field-not-hashable', title: 'Unprocessable Entity', status: 422, detail: `Field '${field}' does not use hash privacy and cannot be rotated with this endpoint` })
+    return publicProblem(context, { 
+      type: 'rotate-field-not-hashable', 
+      title: 'Unprocessable Entity', 
+      status: 422, 
+      detail: `Field '${fieldAlias}' does not use hash privacy and cannot be rotated with this endpoint` 
+    })
   }
 
-  const { DB } = c.env
-  // In v0.4.0 il valore hash è in una colonna reale: row[branch.alias]
-  const row = await DB.prepare(`SELECT ${branch.alias} FROM content_${slug} WHERE id = ? LIMIT 1`)
-    .bind(id)
+  const database = context.env.DB
+  
+  // In v0.4.0, the hash value is stored in a dedicated column: contentRecord[targetFieldBranch.alias]
+  const contentRecord = await database.prepare(`SELECT ${targetFieldBranch.alias} FROM content_${seedSlug} WHERE id = ? LIMIT 1`)
+    .bind(entryId)
     .first<Record<string, unknown>>()
 
-  if (!row) {
-    return publicProblem(c, { type: 'content-not-found', title: 'Not Found', status: 404, detail: `Entry '${id}' not found` })
+  if (!contentRecord) {
+    return publicProblem(context, { 
+      type: 'content-not-found', 
+      title: 'Not Found', 
+      status: 404, 
+      detail: `Entry '${entryId}' not found` 
+    })
   }
 
-  const storedHash = row[branch.alias]
+  const storedFieldValueHash = contentRecord[targetFieldBranch.alias]
 
-  if (typeof storedHash !== 'string' || storedHash.length === 0) {
-    return publicProblem(c, { type: 'rotate-field-not-set', title: 'Unprocessable Entity', status: 422, detail: `Field '${field}' has no stored value to rotate` })
+  if (typeof storedFieldValueHash !== 'string' || storedFieldValueHash.length === 0) {
+    return publicProblem(context, { 
+      type: 'rotate-field-not-set', 
+      title: 'Unprocessable Entity', 
+      status: 422, 
+      detail: `Field '${fieldAlias}' has no stored value to rotate` 
+    })
   }
 
-  const matches = await verifyHashField(storedHash, current)
-  if (!matches) {
-    return publicProblem(c, { type: 'rotate-field-current-mismatch', title: 'Forbidden', status: 403, detail: 'Current value does not match stored value' })
+  const isCurrentValueValid = await verifyHashField(storedFieldValueHash, currentValue)
+  if (!isCurrentValueValid) {
+    return publicProblem(context, { 
+      type: 'rotate-field-current-mismatch', 
+      title: 'Forbidden', 
+      status: 403, 
+      detail: 'Current value does not match stored value' 
+    })
   }
 
-  const validation = validateAndSanitizeSeedPayload(
-    seed, { [field]: next },
+  const fieldValidationResult = validateAndSanitizeSeedPayload(
+    seed, 
+    { [fieldAlias]: nextValue },
     { operation: 'update', allowNull: false, requireAtLeastOneValidField: true, enforceRequiredFields: false }
   )
-  if (validation.details.length > 0) {
-    return publicProblem(c, { type: 'rotate-field-invalid-next', title: 'Bad Request', status: 400, detail: `Invalid value for field '${field}': ${validation.details[0]?.message ?? 'validation failed'}` })
+
+  if (fieldValidationResult.details.length > 0) {
+    return publicProblem(context, { 
+      type: 'rotate-field-invalid-next', 
+      title: 'Bad Request', 
+      status: 400, 
+      detail: `Invalid value for field '${fieldAlias}': ${fieldValidationResult.details[0]?.message ?? 'validation failed'}` 
+    })
   }
 
-  const nextHash = await sha256hex(next)
-  const now = Math.floor(Date.now() / 1000)
+  const newFieldValueHash = await sha256hex(nextValue)
+  const currentTimestamp = Math.floor(Date.now() / 1000)
 
-  await DB.prepare(`UPDATE content_${slug} SET ${branch.alias} = ?, updated_at = ? WHERE id = ?`)
-    .bind(serializeForDb(branch, nextHash), now, id)
+  await database.prepare(`UPDATE content_${seedSlug} SET ${targetFieldBranch.alias} = ?, updated_at = ? WHERE id = ?`)
+    .bind(serializeForDb(targetFieldBranch, newFieldValueHash), currentTimestamp, entryId)
     .run()
 
-  return c.json({ success: true })
+  return context.json({ success: true })
 })
 
+
 export { rotateFieldApp }
+

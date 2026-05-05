@@ -18,7 +18,7 @@ function buildSeedNotFoundMessage(seed: string, seedRegistry: Record<string, See
   return `The content type '${seed}' does not exist. Available types: ${available}.`
 }
 
-/** Applica policy public/visibility per la Public API. */
+/** Applies public/visibility policies for the Public API. */
 function applyPublicPolicies(data: Record<string, unknown>, seed: Seed): Record<string, unknown> {
   const result: Record<string, unknown> = {}
   

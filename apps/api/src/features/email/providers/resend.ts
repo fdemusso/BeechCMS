@@ -2,30 +2,30 @@
 import type { EmailProvider } from '../email.provider'
 import type { OutboundEmail } from '../email.types'
 
-/** Endpoint REST di Resend per l'invio email. */
+/** Resend REST endpoint for sending emails. */
 const RESEND_API_URL = 'https://api.resend.com/emails'
 
 /**
- * Implementazione Resend di EmailProvider.
+ * Resend implementation of EmailProvider.
  *
- * Questo è l'UNICO file del modulo email che conosce Resend.
- * Ogni altro file è completamente ignaro di quale provider sia attivo.
+ * This is the ONLY file in the email module that knows about Resend.
+ * Every other file is completely unaware of which provider is active.
  *
- * ─── COME SOSTITUIRE QUESTO PROVIDER ─────────────────────────────────────────
- *  1. Crea un nuovo file in `providers/`  (es. `providers/sendgrid.ts`).
- *  2. Esporta una classe che implementa `EmailProvider`  (un solo metodo: `send`).
- *  3. In `email.service.ts` sostituisci `new ResendEmailProvider(…)` con la
- *     tua nuova classe nella funzione `createProvider()`.
- *  4. Aggiorna le variabili d'ambiente in `types.ts` e `wrangler.jsonc`.
- *  5. Nessun altro file nel progetto va modificato.
+ * ─── HOW TO REPLACE THIS PROVIDER ──────────────────────────────────────────
+ *  1. Create a new file in `providers/` (e.g., `providers/sendgrid.ts`).
+ *  2. Export a class that implements `EmailProvider` (a single method: `send`).
+ *  3. In `email.service.ts`, replace `new ResendEmailProvider(...)` with
+ *     your new class in the `createProvider()` function.
+ *  4. Update the environment variables in `types.ts` and `wrangler.jsonc`.
+ *  5. No other file in the project needs to be modified.
  *
- * Documentazione API Resend: https://resend.com/docs/api-reference/emails/send-email
+ * Resend API Documentation: https://resend.com/docs/api-reference/emails/send-email
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export class ResendEmailProvider implements EmailProvider {
   private readonly apiKey: string
 
-  /** Quando `true`, gli errori vengono loggati in console (solo in sviluppo). */
+  /** When `true`, errors are logged to the console (development only). */
   private readonly isDev: boolean
 
   constructor(apiKey: string, isDev = false) {
@@ -34,14 +34,14 @@ export class ResendEmailProvider implements EmailProvider {
   }
 
   /**
-   * Invia l'email tramite la REST API di Resend (`POST /emails`).
+   * Sends the email via the Resend REST API (`POST /emails`).
    *
-   * Lancia un'eccezione se Resend risponde con uno status non-2xx, in modo
-   * che il chiamante (`email.service.ts`) possa decidere se propagare l'errore
-   * o gestirlo silenziosamente (fire-and-forget).
+   * Throws an exception if Resend responds with a non-2xx status, so that
+   * the caller (`email.service.ts`) can decide whether to propagate the error
+   * or handle it silently (fire-and-forget).
    *
-   * Il corpo della response viene letto per il log solo in ambiente di sviluppo,
-   * per evitare di consumare il body stream in produzione inutilmente.
+   * The response body is read for logging only in the development environment,
+   * to avoid unnecessarily consuming the body stream in production.
    */
   async send(email: OutboundEmail): Promise<void> {
     const response = await fetch(RESEND_API_URL, {
@@ -49,7 +49,7 @@ export class ResendEmailProvider implements EmailProvider {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
-      },
+        },
       body: JSON.stringify(email),
     })
 
@@ -57,7 +57,7 @@ export class ResendEmailProvider implements EmailProvider {
       const detail = this.isDev
         ? await response.text()
         : `HTTP ${response.status}`
-      throw new Error(`[ResendEmailProvider] invio fallito — ${detail}`)
+      throw new Error(`[ResendEmailProvider] send failed — ${detail}`)
     }
   }
 }

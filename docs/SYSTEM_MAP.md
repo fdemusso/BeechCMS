@@ -162,10 +162,10 @@ This high-level system map is designed for onboarding new contributors and for A
   - Supports server-side pagination, filtering, sorting, and search (via B-tree and FTS5).
   - **Facets (`GET /api/content/:slug/facets`):** computes distinct `status` values and tag sets.
 
-- **Media Engine (`/api/upload`, `/api/media/:key`)** — see `nuovidocs/api-reference.md` §5
-  - Upload: `POST /api/upload` multipart → validate MIME/size → `PutObjectCommand` → R2 → increment `system_stats` + INSERT `media_objects` in D1 (via `waitUntil`) → return URL.
-  - Serve: `GET /api/media/:key` proxies from R2 with `Cache-Control: public, max-age=31536000, immutable`. Public route, no auth required.
-  - Cascade delete: `DELETE /api/content/:slug/:id` extracts R2 keys from `file`/`asset-list` fields, issues `DeleteObjectCommand`, decrementa `system_stats` e rimuove da `media_objects`.
+- **Media Engine (`/api/upload`, `/api/media/:key`)** — see `architecture.md` §11
+  - Upload: `POST /api/upload` multipart → validate MIME/size → `BeechBucket.put` (R2/S3) → `MediaRepository.trackUpload` + `SystemStatsRepository.incrementStorage` → return URL.
+  - Serve: `GET /api/media/:key` proxies via `BeechBucket.get` (R2/S3) with `Cache-Control: public, max-age=31536000, immutable`. Public route, no auth required.
+  - Cascade delete: `DELETE /api/content/:slug/:id` extracts keys from fields → `BeechBucket.delete` + `MediaRepository.deleteObject` + `SystemStatsRepository.decrementStorage`.
 
 - **Public API (`/api/v1/public/*`)** — see `nuovidocs/api-reference.md` §6
   - Three-level permission model: seed capability flags (`allowPublicRead/Post/Edit`) + split API keys (`PUBLIC_READ_API_KEY` / `PUBLIC_WRITE_API_KEY`) + published-only filter (`PUBLIC_PUBLISHED_ONLY`).

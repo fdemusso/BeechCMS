@@ -87,7 +87,7 @@ function buildWorkerTs() {
 import { createBeechApp } from '@beechcms/api'
 import { SEED_REGISTRY } from './seeds'
 
-export default createBeechApp({ seeds: SEED_REGISTRY })
+export default createBeechApp({ seeds: Object.values(SEED_REGISTRY) })
 `
 }
 
@@ -110,8 +110,8 @@ function buildPackageJson(name) {
       'db:reset:local': 'node -e "require(\'fs\').rmSync(\'.wrangler/state\',{recursive:true,force:true})" && npm run db:migrate:local',
     },
     dependencies: {
-      '@beechcms/api': '^0.4.0-preview.6',
-      '@beechcms/core': '^0.4.0-preview.6',
+      '@beechcms/api': '^0.4.0-preview.12',
+      '@beechcms/core': '^0.4.0-preview.12',
     },
     devDependencies: {
       '@cloudflare/workers-types': '^4.0.0',
@@ -169,7 +169,9 @@ function buildDevVars(cloudflare) {
     ].join('\n') + '\n'
   }
   return [
-    '# Fill these in before starting the dev server.',
+    '# R2 credentials — only needed if you want production-like S3 media uploads locally.',
+    '# For local development, media uploads work automatically via the Miniflare R2 binding.',
+    '# Fill these in only when testing production media behaviour:',
     '# Guide: https://developers.cloudflare.com/r2/api/s3/tokens/',
     'R2_ACCESS_KEY_ID=',
     'R2_SECRET_ACCESS_KEY=',
@@ -400,9 +402,9 @@ async function main() {
       '',
       ...(pendingConfig ? [
         `${pc.bold('3. Complete Cloudflare configuration')}  ${pc.yellow('← pending')}`,
-        `   Edit ${pc.underline('wrangler.jsonc')}  →  fill in ${pc.yellow('database_id')} and R2 bucket`,
-        `   Edit ${pc.underline('.dev.vars')}        →  fill in R2 credentials`,
+        `   Edit ${pc.underline('wrangler.jsonc')}  →  fill in ${pc.yellow('database_id')} (D1) and ${pc.yellow('bucket_name')} (R2)`,
         `   Guide: https://developers.cloudflare.com/d1/`,
+        `   ${pc.dim('Note: media uploads work locally without R2 credentials (.dev.vars optional)')}`,
         '',
       ] : []),
       `${step(3)}. Run local migrations`,
@@ -410,6 +412,7 @@ async function main() {
       '',
       `${step(4)}. Start the dev server`,
       `   ${pc.cyan('npx wrangler dev')}`,
+      `   Then open: ${pc.underline('http://localhost:8789/admin')}`,
       '',
       `${step(5)}. Deploy to production`,
       `   ${pc.cyan('npm run deploy')}`,

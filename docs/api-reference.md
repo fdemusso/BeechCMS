@@ -28,7 +28,7 @@ This document is the authoritative reference for the Beech CMS REST API. It cove
 5. [Media Engine](#5-media-engine)
    - [Upload](#51-upload-post-apiupload)
    - [Serve](#52-serve-get-apimediakey)
-   - [R2 Storage Architecture](#53-r2-storage-architecture)
+   - [Storage Abstraction](#53-storage-abstraction)
 6. [Public API](#6-public-api)
    - [Permission Model](#61-permission-model)
    - [Rate Limiting](#62-rate-limiting)
@@ -715,7 +715,7 @@ content_{slug}         ←── ancora servita al pubblico
 
 ### 5.1 Upload — `POST /api/upload`
 
-Uploads a binary file to Cloudflare R2 via the S3-compatible API (`@aws-sdk/client-s3`). Requires JWT authentication.
+Uploads a binary file to the configured storage provider (`BeechBucket`). The metadata and storage statistics are automatically tracked in the database via the `MediaRepository` and `SystemStatsRepository`. Requires JWT authentication.
 
 **Request**
 
@@ -734,8 +734,11 @@ Content-Type: multipart/form-data
 - Object key format: `<unix_timestamp>-<sanitized_filename>`
 
 **Internal flow:**
-
-[![](https://mermaid.ink/img/pako:eNpNUs1u2kAQfpXRHJqLwWDjEHyoVIxp0hYFhbRVa6NowAu43R9rvVZLjK99gDxinqRrk1Tdw2pm5_uZHU2NW5UxDHHH1a_tgbSBT3epBHveJTMqDxtFOktTKSpu8sLW3Z3SopeRoTX0em9Py9vVPbhU5G5VcEUtdspIMw0fvt6fYJpcK6ngc1eDa5IZZ3p9dpi2AhDVX4jnVpDB4mYRW_4bWOWPrDmDos5lTjk_wSwZDQbgQnvHWqtXoTNmSWV5gjhZVuZ284NtTaSEsIZWceVDxHMmDTz_eYI774UXdw3Mkxu51UzYsoWWx9Iw8VAaMmXfKEPcxkrTnj1sjoaVFpJLmA1fJOadxPskRc82VUOleQgX3TwEy3JyP8bfLqBJcY0O7nWeYWh0xRwUTAtqU6xbpRTNwbaQYmjDjPTPFFPZWE5B8rtS4pWmVbU_YLgjXtqsKtq5zXLaaxL_XjWTGdORqqTB0Bt2GhjW-BvDoXfZD4Kx7w8DfxL4wcjBo8UMrvpX49HE88aT8SjwLv3GwcfOddAV_j8O2n_ZiSzOi9PtT_MXk5G4fg?type=png)](https://mermaid.live/edit#pako:eNpNUs1u2kAQfpXRHJqLwWDjEHyoVIxp0hYFhbRVa6NowAu43R9rvVZLjK99gDxinqRrk1Tdw2pm5_uZHU2NW5UxDHHH1a_tgbSBT3epBHveJTMqDxtFOktTKSpu8sLW3Z3SopeRoTX0em9Py9vVPbhU5G5VcEUtdspIMw0fvt6fYJpcK6ngc1eDa5IZZ3p9dpi2AhDVX4jnVpDB4mYRW_4bWOWPrDmDos5lTjk_wSwZDQbgQnvHWqtXoTNmSWV5gjhZVuZ284NtTaSEsIZWceVDxHMmDTz_eYI774UXdw3Mkxu51UzYsoWWx9Iw8VAaMmXfKEPcxkrTnj1sjoaVFpJLmA1fJOadxPskRc82VUOleQgX3TwEy3JyP8bfLqBJcY0O7nWeYWh0xRwUTAtqU6xbpRTNwbaQYmjDjPTPFFPZWE5B8rtS4pWmVbU_YLgjXtqsKtq5zXLaaxL_XjWTGdORqqTB0Bt2GhjW-BvDoXfZD4Kx7w8DfxL4wcjBo8UMrvpX49HE88aT8SjwLv3GwcfOddAV_j8O2n_ZiSzOi9PtT_MXk5G4fg)
+1. Parse multipart form and validate file.
+2. Initialize `BeechBucket` via capability detection (R2 Binding > S3 Credentials).
+3. Upload file to storage provider.
+4. Atomically track upload in `media_objects` and increment `system_stats`.
+5. Return the public URL.
 
 **Response `200`**
 
@@ -771,27 +774,24 @@ The returned URL is stored as-is in the entry's `data` column (field type `file`
 
 ### 5.2 Serve — `GET /api/media/:key`
 
-Proxies a file from R2 to the client. This is a **public route** — no authentication required. This is by design: media URLs stored in content entries must be directly usable in `<img src="...">` tags without token forwarding.
+Proxies a file from the configured storage provider to the client. This is a **public route** — no authentication required.
 
 **Response:** Binary stream with original `Content-Type` and `Cache-Control: public, max-age=31536000, immutable`.
 
-**Error responses:** `404` JSON if the key is not found in R2.
+**CDN Support:** If `MEDIA_CDN_URL` is configured, the dashboard and API will generate URLs pointing directly to the CDN, bypassing the proxy for better performance.
 
 ---
 
-### 5.3 R2 Storage Architecture
+### 5.3 Storage Abstraction
 
-Beech does not use presigned URLs. Files are always proxied through the Worker. This is intentional: it keeps R2 credentials server-side and allows the Worker to enforce access control at the proxy layer in future iterations.
+BeechCMS uses a vendor-agnostic storage layer (`BeechBucket`) that supports multiple providers:
 
-**Storage counter:** R2 does not expose a real-time quota API. Beech maintains an atomic counter in D1:
+1. **R2 Binding**: High-performance native binding for Cloudflare Workers.
+2. **S3 Compatible**: Supports any S3-compatible storage (R2 via HTTP, AWS S3, etc.).
+3. **Null Provider**: Used in environments where storage is not configured to prevent crashes during startup.
 
-| Event | D1 Operation |
-|---|---|
-| Successful upload | `UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes'` |
-| Successful delete | `HeadObjectCommand` → get size → `UPDATE system_stats SET value = MAX(0, value - ?) …` |
-| Manual sync | `POST /api/content/stats/storage/sync` → `ListObjectsV2` full scan → rewrite counter |
-
-This allows the dashboard to display current storage usage with a single SQL read at zero additional cost.
+**Storage Tracking:** 
+Unlike previous versions that required manual header checks or full scans, v0.4.0 uses the `MediaRepository` as the single source of truth. Every upload and deletion is tracked in the `media_objects` table, and the `total_storage_bytes` counter is updated atomically.
 
 ---
 

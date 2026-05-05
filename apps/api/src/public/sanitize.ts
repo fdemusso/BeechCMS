@@ -17,7 +17,7 @@ type PublicSanitizeFailure = {
 export type PublicSanitizeResult = PublicSanitizeSuccess | PublicSanitizeFailure
 
 /**
- * Adapter Public API: usa la foundation del core e mappa errori nel formato sprint.
+ * Public API Adapter: uses the core foundation and maps errors into the sprint format.
  */
 export function sanitizePublicPayload(
   seed: Seed,

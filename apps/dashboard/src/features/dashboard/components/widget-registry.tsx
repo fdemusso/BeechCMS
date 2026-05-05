@@ -17,6 +17,7 @@ import {
   StorageWidget,
   MediaGalleryWidget,
   ActivityFeedWidget,
+  SetupChecklistWidget,
 } from "./widgets"
 
 interface WidgetRegistryProps {
@@ -115,6 +116,9 @@ function WidgetContent({ instance, data }: WidgetRegistryProps) {
         limit={props?.limit}
       />
     )
+  }
+  if (type === "setup-checklist") {
+    return <SetupChecklistWidget variant={props?.variant} />
   }
 
   // Fallback: unknown widget type (developer debugging aid)

@@ -11,7 +11,6 @@ import { applyPrivacy, PrivacyPolicyError } from '../../../shared/apply-policies
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { logActivity } from '../../../shared/activity-logger'
-import { logContentEvent } from '../../../shared/content-utils'
 import { cleanStr } from '../../../shared/query-utils'
 import { AppEnv } from '../../../types'
 
@@ -171,14 +170,6 @@ export async function updateHandler(context: Context<AppEnv>) {
     const userId = context.get('jwtPayload')?.sub
     const title = mergedData.title || mergedData.name || newSlug
     
-    logContentEvent(context.env.DB, { 
-      action: 'update', 
-      schemaSlug: slug, 
-      entryId: id, 
-      userId, 
-      details: { title } 
-    }).catch(() => {})
-
     logActivity(context, { 
       action: 'update', 
       entityType: 'content', 

@@ -2,7 +2,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
-import type { Seed, ContentRepository, IdempotencyRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository } from '@beechcms/core'
 import type { Env, Variables } from './types'
 
 // Imports delle rotte e middleware
@@ -36,11 +36,15 @@ import { uploadRoutes, serveMediaHandler } from './upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
 import { searchRouter } from "./search"
 import { repositoryMiddleware } from './middleware/repository.middleware'
+import { storageMiddleware } from './middleware/storage.middleware'
 
 export interface BeechConfig {
   seeds: Seed[] | Record<string, Seed>
   repository?: ContentRepository
   idempotencyRepository?: IdempotencyRepository
+  bucket?: BeechBucket
+  mediaRepository?: MediaRepository
+  systemStatsRepository?: SystemStatsRepository
 }
 
 // --- Costanti e helper ---
@@ -110,6 +114,12 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.use('*', repositoryMiddleware({
     repository: config.repository,
     idempotencyRepository: config.idempotencyRepository,
+    mediaRepository: config.mediaRepository,
+    systemStatsRepository: config.systemStatsRepository,
+  }))
+
+  app.use('*', storageMiddleware({
+    bucket: config.bucket,
   }))
 
   app.use('*', async (context, next) => {

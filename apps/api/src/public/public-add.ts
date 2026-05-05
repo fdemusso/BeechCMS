@@ -148,8 +148,8 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     }
 
     await createNotification(context, {
-      title: `${seed.label}: Nuovo inserimento`,
-      message: `Una nuova entry ("${sanitized.data.title || sanitized.data.name || finalSlug}") è stata aggiunta via API pubblica.`,
+      title: `${seed.label}: New entry`,
+      message: `A new entry ("${sanitized.data.title || sanitized.data.name || finalSlug}") has been added via the public API.`,
       type: 'success',
     })
 

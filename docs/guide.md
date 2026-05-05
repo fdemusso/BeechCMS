@@ -73,10 +73,11 @@ The scaffold pre-fills the values you provided during setup. BeechCMS supports b
   "vars": {
     "JWT_SECRET": "...",              // Signs JWT tokens — auto-generated, do not share
     "CORS_ORIGINS": "http://localhost:5173,https://my-site.com",
-    "PUBLIC_READ_API_KEY": "...",     // Header key for GET /api/v1/public/* — auto-generated
-    "PUBLIC_WRITE_API_KEY": "...",    // Header key for POST/PUT /api/v1/public/* — auto-generated
-    "DATE_FORMAT": "DD-MM-YYYY",      // Global date display format (e.g. DD-MM-YYYY, MM/DD/YYYY)
-    "APP_URL": "https://my-site.com" // Production URL (used in password reset emails)
+    "PUBLIC_IDEMPOTENCY_TTL_SECONDS": "3600",
+    "DATE_FORMAT": "DD-MM-YYYY",
+    "APP_URL": "https://my-site.com",
+    "MEDIA_BASE_URL": "https://api.my-site.com", // Base URL for media proxy
+    "MEDIA_CDN_URL": "https://cdn.my-site.com"   // Optional: direct CDN/R2 domain
   },
 
   "assets": {
@@ -247,12 +248,17 @@ The sidebar renders two separate sections: **Blog** (Posts, Comments) and **Shop
 ## 5. Running Locally
 
 ```bash
-npm install         # install dependencies (first time only)
-npx beech seed:load # synchronize D1 schema with your seeds.ts
-npx wrangler dev    # start the Worker on http://localhost:8789
+npm install                    # install dependencies (first time only)
+npx beech init --db            # check config files + initialise local D1 system tables
+npx beech seed:load --local    # create your content tables from seeds.ts
+npx wrangler dev               # start the Worker on http://localhost:8789
 ```
 
 Open `http://localhost:8789/admin` — the setup wizard will appear on first launch to create your admin account.
+
+> **Note:** `beech init --db` only needs to run once (or after cloning on a new machine). `beech seed:load --local` must be re-run whenever you add or change fields in `seeds.ts`.
+>
+> `beech init` without `--db` runs only the file checks (useful to verify a fresh clone).
 
 ---
 
@@ -381,20 +387,34 @@ All errors follow [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) (`applicati
 
 ## 7. Media (images and files)
 
-Files are stored in Cloudflare R2. To serve an image from a `file` field:
+Files are stored in Cloudflare R2 and tracked in the database. BeechCMS provides a managed proxy to serve these files with proper caching and security headers.
+
+### Serving Media
+
+You can access any uploaded file via the media proxy:
 
 ```
 GET /api/media/:key
 ```
 
-The `key` is the value stored in the field (the R2 object key).
+The `key` is the value stored in the `file` field.
 
 ```javascript
-// Field value: "uploads/2026/01/cover.jpg"
-const imageUrl = `https://my-project-api.workers.dev/api/media/uploads/2026/01/cover.jpg`
+// Field value: "1714900000-cover.jpg"
+const imageUrl = `https://my-project-api.workers.dev/api/media/1714900000-cover.jpg`
 ```
 
-File uploads are handled by the dashboard. The Public API does not support direct file uploads.
+### Production CDN Support
+
+If you have a custom domain or CDN (e.g., Cloudflare CDN) pointing to your R2 bucket, you can set `MEDIA_CDN_URL` in your configuration. When set, `getUrl()` will automatically return the direct CDN URL instead of the proxied one, reducing latency and worker execution time.
+
+```jsonc
+"vars": {
+  "MEDIA_CDN_URL": "https://cdn.my-project.com"
+}
+```
+
+In this case, the URL would be: `https://cdn.my-project.com/1714900000-cover.jpg`.
 
 ---
 

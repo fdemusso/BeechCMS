@@ -2,10 +2,10 @@ import type { EmailLocale } from '../email.types'
 import { buildEmailShell } from './shell'
 
 /**
- * Testi localizzati per la notifica di sicurezza "password modificata".
+ * Localized texts for the "password changed" security notification.
  *
- * ─── AGGIUNGERE UNA NUOVA LINGUA ─────────────────────────────────────────────
- * Vedi le istruzioni in `templates/password-reset.ts`.
+ * ─── ADDING A NEW LANGUAGE ──────────────────────────────────────────────────
+ * See instructions in `templates/password-reset.ts`.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 const COPY: Record<EmailLocale, {
@@ -34,14 +34,14 @@ const COPY: Record<EmailLocale, {
 }
 
 /**
- * Costruisce l'email di notifica "password modificata".
+ * Builds the "password changed" notification email.
  *
- * Questa email non ha un pulsante CTA — è una pura notifica di sicurezza.
- * Il blocco `warning` (testo rosso) avvisa l'utente di agire se non è
- * stato lui a modificare la password.
+ * This email does not have a CTA button — it is a pure security notification.
+ * The `warning` block (red text) warns the user to take action if they
+ * were not the one who changed the password.
  *
- * @param locale - Lingua per oggetto e corpo dell'email.
- * @returns Oggetto con `subject` (stringa) e `html` (documento HTML completo).
+ * @param locale - Language for the email subject and body.
+ * @returns Object with `subject` (string) and `html` (complete HTML document).
  */
 export function buildPasswordChangedEmail(
   locale: EmailLocale,

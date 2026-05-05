@@ -7,23 +7,30 @@ import type { Seed } from "@beechcms/core"
  */
 export function getDashboardConfig(seeds: Seed[]): DashboardConfig {
   const layout: WidgetInstance[] = [
-    // ─── Row 0: Status & Stats (Sempre presenti) ──────────────────────────
+    // ─── Row 0: Setup Checklist (auto-hides when setup complete) ──────────
+    {
+      id: "setup-checklist",
+      type: "setup-checklist",
+      x: 0, y: 0, span: { w: 8, h: 1 },
+      props: { variant: "full" },
+    },
+    // ─── Row 1: Status & Stats (Sempre presenti) ──────────────────────────
     {
       id: "site-status",
       type: "site-status",
-      x: 0, y: 0, span: { w: 2, h: 1 },
+      x: 0, y: 1, span: { w: 2, h: 1 },
       props: { variant: "badge" },
     },
     {
       id: "storage-gauge",
       type: "storage",
-      x: 2, y: 0, span: { w: 2, h: 1 },
+      x: 2, y: 1, span: { w: 2, h: 1 },
       props: { variant: "gauge" },
     },
     {
       id: "pub-stats-trio",
       type: "publication-stats",
-      x: 4, y: 0, span: { w: 2, h: 1 },
+      x: 4, y: 1, span: { w: 2, h: 1 },
       props: { variant: "trio" },
     },
   ]
@@ -48,36 +55,36 @@ export function getDashboardConfig(seeds: Seed[]): DashboardConfig {
       {
         id: "quick-draft-minimal",
         type: "quick-draft",
-        x: 6, y: 0, span: { w: 2, h: 1 },
+        x: 6, y: 1, span: { w: 2, h: 1 },
         props: {
           variant: "minimal",
           seeds: seedsForQuickDraft,
         },
       },
-      // ─── Rows 1-2: Content Lists ────────────────────────────────────────────
+      // ─── Rows 2-3: Content Lists ────────────────────────────────────────────
       {
         id: "recent-content-list",
         type: "recent-content",
-        x: 0, y: 1, span: { w: 4, h: 2 },
+        x: 0, y: 2, span: { w: 4, h: 2 },
         props: { seedSlug: defaultSeedSlug, variant: "list" },
       },
       {
         id: "pending-drafts-list",
         type: "pending-drafts",
-        x: 4, y: 1, span: { w: 4, h: 2 },
+        x: 4, y: 2, span: { w: 4, h: 2 },
         props: { seedSlug: defaultSeedSlug, variant: "list" },
       },
-      // ─── Rows 3-4: Media & Activity ─────────────────────────────────────────
+      // ─── Rows 4-5: Media & Activity ─────────────────────────────────────────
       {
         id: "media-gallery-grid",
         type: "media-gallery",
-        x: 0, y: 3, span: { w: 4, h: 2 },
+        x: 0, y: 4, span: { w: 4, h: 2 },
         props: { seedSlug: defaultSeedSlug, variant: "grid" },
       },
       {
         id: "activity-feed-full",
         type: "activity-feed",
-        x: 4, y: 3, span: { w: 4, h: 2 },
+        x: 4, y: 4, span: { w: 4, h: 2 },
         props: { seedSlug: defaultSeedSlug, variant: "feed" },
       }
     )

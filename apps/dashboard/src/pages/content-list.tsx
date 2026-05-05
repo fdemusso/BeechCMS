@@ -1,7 +1,6 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
-import { getSeed } from "@beechcms/core"
 import type {
   SortingState,
   ColumnFiltersState,
@@ -37,6 +36,7 @@ import {
   useContentFacets,
   useDeleteContent,
 } from "@/features/content-management"
+import { useActiveSeed } from "@/features/schema/hooks/use-schema"
 import {
   generateColumns,
   computeMaxLengths,
@@ -92,8 +92,8 @@ export function ContentListPage() {
   // Vista attiva della lista contenuti.
   const [activeViewId, setActiveViewId] = React.useState("table")
 
-  // Recupera il seed
-  const seed = slug ? getSeed(slug) : null
+  // Recupera il seed reactively
+  const { seed, isLoading: isSeedLoading } = useActiveSeed(slug)
 
   // Raggruppamento tabella: singola colonna o null
   const [groupBy, setGroupBy] = React.useState<string | null>(null)
@@ -593,7 +593,7 @@ export function ContentListPage() {
   }, [seed])
 
   // Se non c'è seed, mostra errore
-  if (!seed) {
+  if (!seed && !isSeedLoading) {
     return (
       <div className="[--header-height:calc(--spacing(14))]">
         <SidebarProvider className="flex flex-col">
@@ -612,6 +612,25 @@ export function ContentListPage() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </SidebarInset>
+          </div>
+        </SidebarProvider>
+      </div>
+    )
+  }
+
+  // Loading skeleton while seed is fetching
+  if (isSeedLoading || !seed) {
+    return (
+      <div className="[--header-height:calc(--spacing(14))]">
+        <SidebarProvider className="flex flex-col">
+          <SiteHeader />
+          <div className="flex flex-1">
+            <AppSidebar />
+            <SidebarInset>
+              <div className="flex flex-1 items-center justify-center py-12">
+                <div className="text-muted-foreground">Caricamento configurazione...</div>
               </div>
             </SidebarInset>
           </div>

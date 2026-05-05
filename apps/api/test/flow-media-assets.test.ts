@@ -217,10 +217,8 @@ describe('Flow: Media & Assets', () => {
       db.mediaObjects.push({ key, filename: 'test.png', mime_type: 'image/png', size_bytes: fileSize, uploaded_by: 'admin' })
       db.systemStats['total_storage_bytes'] = fileSize
 
-      // Mock S3 HeadObject (to get size) and DeleteObject
-      mockS3Send
-        .mockResolvedValueOnce({ ContentLength: fileSize }) // HeadObject response
-        .mockResolvedValueOnce({}) // DeleteObject response
+      // Mock S3 DeleteObject (size comes from D1, no HEAD needed)
+      mockS3Send.mockResolvedValueOnce({}) // DeleteObject response
 
       const res = await app.request(`/api/upload/${key}`, {
         method: 'DELETE',
@@ -234,7 +232,7 @@ describe('Flow: Media & Assets', () => {
       expect(db.systemStats['total_storage_bytes']).toBe(0)
       
       // Verify R2 deletion was called
-      expect(mockS3Send).toHaveBeenCalledTimes(2) // Head + Delete
+      expect(mockS3Send).toHaveBeenCalledTimes(1) // Delete only (size from D1)
     })
   })
 })

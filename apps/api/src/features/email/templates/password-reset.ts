@@ -2,12 +2,12 @@ import type { EmailLocale } from '../email.types'
 import { buildEmailShell } from './shell'
 
 /**
- * Testi localizzati per l'email di reset password.
+ * Localized texts for the password reset email.
  *
- * ─── AGGIUNGERE UNA NUOVA LINGUA ─────────────────────────────────────────────
- * 1. Aggiungi il codice ISO in `SUPPORTED_EMAIL_LOCALES` (email.types.ts).
- * 2. Aggiungi una chiave corrispondente in questo oggetto con tutti i campi.
- *    TypeScript segnala immediatamente le chiavi mancanti grazie a
+ * ─── ADDING A NEW LANGUAGE ──────────────────────────────────────────────────
+ * 1. Add the ISO code in `SUPPORTED_EMAIL_LOCALES` (`email.types.ts`).
+ * 2. Add a corresponding key in this object with all fields.
+ *    TypeScript immediately reports missing keys thanks to
  *    `Record<EmailLocale, …>`.
  * ─────────────────────────────────────────────────────────────────────────────
  */
@@ -35,17 +35,17 @@ const COPY: Record<EmailLocale, {
 }
 
 /**
- * Costruisce l'email con il link di reset password.
+ * Builds the email with the password reset link.
  *
- * Compone il contenuto localizzato con il layout base (`buildEmailShell`)
- * iniettando il pulsante CTA che punta all'URL di reset.
+ * Composes the localized content with the base layout (`buildEmailShell`)
+ * injecting the CTA button pointing to the reset URL.
  *
- * @param resetUrl - URL completo con il token in chiaro, es.
+ * @param resetUrl - Complete URL with the token in plain text, e.g.
  *                   `https://dashboard.beechcms.dev/reset-password?token=<uuid>`.
- *                   Viene incorporato direttamente nel pulsante CTA — non sanificare
- *                   ulteriormente: il token è un UUID generato internamente.
- * @param locale   - Lingua per oggetto e corpo dell'email.
- * @returns Oggetto con `subject` (stringa) e `html` (documento HTML completo).
+ *                   It is directly embedded in the CTA button — do not sanitize
+ *                   further: the token is an internally generated UUID.
+ * @param locale   - Language for the email subject and body.
+ * @returns Object with `subject` (string) and `html` (complete HTML document).
  */
 export function buildPasswordResetEmail(
   resetUrl: string,

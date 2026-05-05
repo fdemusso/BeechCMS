@@ -39,6 +39,13 @@ vi.mock("@beechcms/core", () => ({
       .replace(/^-+|-+$/g, ""),
 }))
 
+vi.mock("@/features/schema/hooks/use-schema", () => ({
+  useActiveSeed: (slug: string) => ({
+    seed: slug === "posts" ? seedPosts : null,
+    isLoading: false,
+  })
+}))
+
 vi.mock("@/features/content-management", () => ({
   contentApi: {
     fetchById: (...args: unknown[]) => mockFetchContentById(...args),

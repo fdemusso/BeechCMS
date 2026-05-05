@@ -57,3 +57,12 @@ export interface ContentBreakdown {
   count: number
   color?: string
 }
+
+export interface SetupChecklist {
+  systemTablesOk: boolean
+  seedsCount: number
+  contentTablesOk: boolean
+  adminExists: boolean
+  hasContent: boolean
+  firstSeedSlug: string | null
+}

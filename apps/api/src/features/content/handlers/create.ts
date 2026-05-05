@@ -9,7 +9,6 @@ import { applyPrivacy, PrivacyPolicyError } from '../../../shared/apply-policies
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { logActivity } from '../../../shared/activity-logger'
-import { logContentEvent } from '../../../shared/content-utils'
 import { cleanStr } from '../../../shared/query-utils'
 import { AppEnv } from '../../../types'
 
@@ -125,15 +124,6 @@ export async function createHandler(context: Context<AppEnv>) {
     const userId = context.get('jwtPayload')?.sub
     const title = privacyData.title || privacyData.name || finalSlug
     
-    // We use the DB from env for legacy logging utils until they are migrated
-    logContentEvent(context.env.DB, { 
-      action: 'create', 
-      schemaSlug: slug, 
-      entryId: id, 
-      userId, 
-      details: { title } 
-    }).catch(() => {})
-
     logActivity(context, { 
       action: 'create', 
       entityType: 'content', 

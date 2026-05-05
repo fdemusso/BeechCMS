@@ -5,7 +5,6 @@ import { extractMediaKeysFromData } from '../../../media-utils'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { logActivity } from '../../../shared/activity-logger'
-import { logContentEvent } from '../../../shared/content-utils'
 import { AppEnv } from '../../../types'
 
 export async function deleteHandler(context: Context<AppEnv>) {
@@ -38,14 +37,6 @@ export async function deleteHandler(context: Context<AppEnv>) {
     const userId = context.get('jwtPayload')?.sub
     const title = row.title || row.name || entryId
     
-    logContentEvent(context.env.DB, { 
-      action: 'delete', 
-      schemaSlug, 
-      entryId, 
-      userId, 
-      details: { title } 
-    }).catch(() => {})
-
     logActivity(context, { 
       action: 'delete', 
       entityType: 'content', 
@@ -54,10 +45,10 @@ export async function deleteHandler(context: Context<AppEnv>) {
       details: { title } 
     })
 
-    // Task 4.3: Cleanup R2 logic
+    
     const r2ObjectKeys = extractMediaKeysFromData(seed, row)
     if (r2ObjectKeys.length > 0) {
-      await deleteR2Objects(context.env, r2ObjectKeys).catch((error) => {
+      await deleteR2Objects(context, r2ObjectKeys).catch((error) => {
         if (context.env.ENV !== 'production') {
           console.warn('R2 cleanup on delete failed (orphaned files):', error)
         }

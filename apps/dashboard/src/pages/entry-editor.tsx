@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useNavigate, useBlocker } from "react-router-dom"
-import { getSeed, slugify } from "@beechcms/core"
+import { slugify } from "@beechcms/core"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { AxiosError } from "axios"
@@ -41,6 +41,7 @@ import {
   useContentEntry,
   useSaveContent,
 } from "@/features/content-management"
+import { useActiveSeed } from "@/features/schema/hooks/use-schema"
 
 /** 
  * Slug ammessi: solo a-z, 0-9, trattino. Niente accenti/spazi/underscore. 
@@ -72,7 +73,7 @@ export function EntryEditorPage() {
   const navigate = useNavigate()
   const isCreate = !entryId
 
-  const seed = schemaSlug ? getSeed(schemaSlug) : null
+  const { seed, isLoading: isSeedLoading } = useActiveSeed(schemaSlug)
   
   const { 
     data: entryData, 
@@ -266,7 +267,7 @@ export function EntryEditorPage() {
     )
   }
 
-  if (!seed) {
+  if (!seed && !isSeedLoading) {
     return (
       <div className="[--header-height:calc(--spacing(14))]">
         <SidebarProvider className="flex flex-col">
@@ -282,6 +283,28 @@ export function EntryEditorPage() {
                   <Button variant="outline" className="mt-2" onClick={goBack}>
                     {t("content.editor.back")}
                   </Button>
+                </div>
+              </div>
+            </SidebarInset>
+          </div>
+        </SidebarProvider>
+      </div>
+    )
+  }
+
+  if (isSeedLoading || !seed) {
+    return (
+      <div className="[--header-height:calc(--spacing(14))]">
+        <SidebarProvider className="flex flex-col">
+          <SiteHeader />
+          <div className="flex flex-1">
+            <AppSidebar />
+            <SidebarInset>
+              <div className="flex flex-1 flex-col gap-4 p-4">
+                <Skeleton className="h-10 w-48" />
+                <div className="grid flex-1 gap-4 md:grid-cols-[1fr_320px] lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px]">
+                  <Skeleton className="min-h-[70vh] rounded-lg" />
+                  <Skeleton className="h-64 rounded-lg" />
                 </div>
               </div>
             </SidebarInset>

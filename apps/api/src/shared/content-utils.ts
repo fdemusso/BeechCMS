@@ -79,30 +79,4 @@ export async function hasDraft(db: D1Database, seed: Seed, entryId: string): Pro
   return row !== null
 }
 
-/** Scrive un evento CRUD in content_event_log per l'activity feed. */
-export async function logContentEvent(
-  db: D1Database,
-  opts: {
-    action: 'create' | 'update' | 'delete'
-    schemaSlug: string
-    entryId: string
-    userId?: string | null
-    details?: Record<string, unknown>
-  }
-): Promise<void> {
-  await db
-    .prepare(
-      `INSERT INTO content_event_log (id, schema_slug, entry_id, action, user_id, details, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
-    )
-    .bind(
-      crypto.randomUUID(),
-      opts.schemaSlug,
-      opts.entryId,
-      opts.action,
-      opts.userId ?? null,
-      opts.details ? JSON.stringify(opts.details) : null,
-      Math.floor(Date.now() / 1000)
-    )
-    .run()
-}
+

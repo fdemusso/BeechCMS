@@ -1,155 +1,229 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { cleanStr } from '../../shared/query-utils'
-import { getBucketSize } from '../../shared/storage-utils'
-import { createR2Client } from '../../upload'
-import { publicProblem } from '../../public/problem-details'
 import type { Env, Variables } from '../../types'
+import { publicProblem } from '../../public/problem-details'
+import { cleanStr } from '../../shared/query-utils'
 
 const DATABASE_ERROR = 'Database error'
 
 const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
-// GET /stats/media-library - Lista tutti i file presenti in R2:
-// combina media_objects (upload tracciati) + URL /api/media/ nelle colonne file di ogni seed
-statsApp.get('/stats/media-library', async (c) => {
+/**
+ * GET /stats/media-library - Lists all files present in R2:
+ * combines media_objects (tracked uploads) + /api/media/ URLs found in file columns of each seed
+ */
+statsApp.get('/stats/media-library', async (context) => {
     try {
-        const { DB } = c.env
-        const limit = Math.min(parseInt(c.req.query('limit') ?? '12'), 100)
-        const offset = parseInt(c.req.query('offset') ?? '0')
-        const mediaBase = (c.env.MEDIA_BASE_URL?.trim().replace(/\/$/, '')) ?? new URL(c.req.url).origin
+        const { DB } = context.env
+        const mediaRepository = context.get('mediaRepository')
+        const limit = Math.min(parseInt(context.req.query('limit') ?? '12'), 100)
+        const offset = parseInt(context.req.query('offset') ?? '0')
+        const mediaBaseUrl = (context.env.MEDIA_BASE_URL?.trim().replace(/\/$/, '')) ?? new URL(context.req.url).origin
 
-        // 1. File tracciati nella media library
-        const mediaRows = await DB.prepare(
-            'SELECT key, filename, mime_type, size_bytes, created_at FROM media_objects ORDER BY created_at DESC'
-        ).all<{ key: string; filename: string; mime_type: string; size_bytes: number; created_at: number }>()
+        // 1. Files tracked in the media library
+        // Take the first 1000 for cross-scanning
+        const { items: mediaRows } = await mediaRepository.list({ limit: 1000, offset: 0 })
 
         const trackedKeys = new Set<string>()
         const allItems: Array<{ key: string; filename: string; mime_type: string; size_bytes: number; created_at: number; url: string }> = []
 
-        for (const m of mediaRows.results ?? []) {
-            trackedKeys.add(m.key)
-            allItems.push({ ...m, url: `${mediaBase}/api/media/${encodeURIComponent(m.key)}` })
+        for (const mediaRow of mediaRows) {
+            trackedKeys.add(mediaRow.key)
+            allItems.push({ ...mediaRow, url: `${mediaBaseUrl}/api/media/${encodeURIComponent(mediaRow.key)}` })
         }
 
-        // 2. URL /api/media/ nelle colonne file di ogni seed (v0.4.0 — colonne reali)
-        const MEDIA_KEY_RE = /\/api\/media\/([^"'\s\\,}\]]+)/g
-        const seeds = Object.values(c.get('seedRegistry'))
+        // 2. /api/media/ URLs in the file columns of each seed (v0.4.0 — real columns)
+        const MEDIA_KEY_REGEX = /\/api\/media\/([^"'\s\\,}\]]+)/g
+        const seeds = Object.values(context.get('seedRegistry'))
 
         for (const seed of seeds) {
-            const fileBranches = seed.branches.filter(b => b.type === 'file')
+            const fileBranches = seed.branches.filter(branch => branch.type === 'file')
             if (fileBranches.length === 0) continue
 
-            const cols = fileBranches.map(b => b.alias).join(', ')
-            const whereClause = fileBranches.map(b => `${b.alias} LIKE '%/api/media/%'`).join(' OR ')
+            const columns = fileBranches.map(branch => branch.alias).join(', ')
+            const whereClause = fileBranches.map(branch => `${branch.alias} LIKE '%/api/media/%'`).join(' OR ')
 
             const rows = await DB.prepare(
-                `SELECT ${cols} FROM content_${seed.slug} WHERE ${whereClause}`
+                `SELECT ${columns} FROM content_${seed.slug} WHERE ${whereClause}`
             ).all<Record<string, string | null>>()
 
             for (const row of rows.results ?? []) {
-                const combined = Object.values(row).filter(Boolean).join(' ')
-                for (const match of combined.matchAll(MEDIA_KEY_RE)) {
+                const combinedValues = Object.values(row).filter(Boolean).join(' ')
+                for (const match of combinedValues.matchAll(MEDIA_KEY_REGEX)) {
                     const key = decodeURIComponent(match[1])
                     if (trackedKeys.has(key)) continue
                     trackedKeys.add(key)
                     const filename = key.replace(/^\d+-/, '')
-                    const ext = filename.split('.').pop()?.toLowerCase() ?? ''
-                    const mimeType = ext === 'pdf' ? 'application/pdf' : `image/${ext === 'jpg' ? 'jpeg' : ext || 'jpeg'}`
+                    const extension = filename.split('.').pop()?.toLowerCase() ?? ''
+                    const mimeType = extension === 'pdf' ? 'application/pdf' : `image/${extension === 'jpg' ? 'jpeg' : extension || 'jpeg'}`
                     const createdAt = parseInt(key.split('-')[0]) || 0
-                    allItems.push({ key, filename, mime_type: mimeType, size_bytes: 0, created_at: createdAt, url: `${mediaBase}/api/media/${encodeURIComponent(key)}` })
+                    allItems.push({
+                        key,
+                        filename,
+                        mime_type: mimeType,
+                        size_bytes: 0,
+                        created_at: createdAt,
+                        url: `${mediaBaseUrl}/api/media/${encodeURIComponent(key)}`
+                    })
                 }
             }
         }
 
         allItems.sort((a, b) => b.created_at - a.created_at)
         const total = allItems.length
-        const paginated = allItems.slice(offset, offset + limit)
+        const paginatedItems = allItems.slice(offset, offset + limit)
 
-        return c.json({ items: paginated, total })
-    } catch (err) {
-        console.error('Media library error:', err)
-        return c.json({ error: 'Internal Server Error' }, 500)
+        return context.json({ items: paginatedItems, total })
+    } catch (error) {
+        console.error('Media library error:', error)
+        return context.json({ error: 'Internal Server Error' }, 500)
     }
 })
 
-// GET /stats/unused-media - Trova media in media_objects non referenziati in nessuna colonna file
-statsApp.get('/stats/unused-media', async (c) => {
+/**
+ * GET /stats/unused-media - Finds media in media_objects not referenced in any file column
+ */
+statsApp.get('/stats/unused-media', async (context) => {
     try {
-        const { DB } = c.env
-        const seeds = Object.values(c.get('seedRegistry'))
+        const { DB } = context.env
+        const mediaRepository = context.get('mediaRepository')
+        const seeds = Object.values(context.get('seedRegistry'))
 
-        // Tutte le chiavi media tracciate
-        const mediaRows = await DB.prepare(
-            'SELECT key, filename, mime_type, size_bytes, created_at FROM media_objects ORDER BY created_at DESC'
-        ).all<{ key: string; filename: string; mime_type: string; size_bytes: number; created_at: number }>()
+        // All tracked media keys
+        const { items: mediaRows } = await mediaRepository.list({ limit: 1000, offset: 0 })
 
-        if (!mediaRows.results?.length) {
-            return c.json({ items: [] })
+        if (mediaRows.length === 0) {
+            return context.json({ items: [] })
         }
 
-        // Raccoglie tutte le chiavi referenziate nelle colonne file di ogni seed
+        // Collect all referenced keys in the file columns of each seed
         const referencedKeys = new Set<string>()
         for (const seed of seeds) {
-            const fileBranches = seed.branches.filter(b => b.type === 'file')
+            const fileBranches = seed.branches.filter(branch => branch.type === 'file')
             if (fileBranches.length === 0) continue
-            const cols = fileBranches.map(b => b.alias).join(', ')
+            const columns = fileBranches.map(branch => branch.alias).join(', ')
             const rows = await DB.prepare(
-                `SELECT ${cols} FROM content_${seed.slug}`
+                `SELECT ${columns} FROM content_${seed.slug}`
             ).all<Record<string, string | null>>()
 
             for (const row of rows.results ?? []) {
-                const combined = Object.values(row).filter(Boolean).join(' ')
-                for (const match of combined.matchAll(/\/api\/media\/([^"'\s\\,}\]]+)/g)) {
+                const combinedValues = Object.values(row).filter(Boolean).join(' ')
+                for (const match of combinedValues.matchAll(/\/api\/media\/([^"'\s\\,}\]]+)/g)) {
                     referencedKeys.add(decodeURIComponent(match[1]))
                 }
             }
         }
 
-        const unused = (mediaRows.results ?? []).filter(m => !referencedKeys.has(m.key))
-        return c.json({ items: unused })
-    } catch (err) {
-        console.error('Unused media error:', err)
-        return c.json({ error: 'Internal Server Error' }, 500)
+        const unusedMedia = mediaRows.filter(mediaItem => !referencedKeys.has(mediaItem.key))
+        return context.json({ items: unusedMedia })
+    } catch (error) {
+        console.error('Unused media error:', error)
+        return context.json({ error: 'Internal Server Error' }, 500)
     }
 })
 
-// GET /stats/total - Statistiche globali contenuti per dashboard
-statsApp.get('/stats/total', async (c) => {
+/**
+ * GET /stats/setup-checklist - Project setup status for "Project Health" widget
+ */
+statsApp.get('/stats/setup-checklist', async (context) => {
     try {
-        const { DB } = c.env
+        const { DB } = context.env
+        const seeds = Object.values(context.get('seedRegistry'))
+
+        // 1. System tables present
+        const systemTableNames = [
+            'users', 'refresh_tokens', 'media_objects',
+            'analytics', 'system_stats', 'activity_logs',
+        ]
+        const tablesResult = await DB.prepare(
+            `SELECT name FROM sqlite_master WHERE type='table'`
+        ).all<{ name: string }>()
+        const existingTables = new Set((tablesResult.results ?? []).map(row => row.name))
+        const systemTablesOk = systemTableNames.every(tableName => existingTables.has(tableName))
+
+        // 2. Seeds defined
+        const seedsCount = seeds.length
+
+        // 3. Content tables created (seed:load was run)
+        const contentTablesOk = seedsCount > 0 && seeds.every(seed => existingTables.has(`content_${seed.slug}`))
+
+        // 4. Admin account exists
+        let adminExists = false
+        try {
+            const adminCountResult = await DB.prepare(
+                `SELECT COUNT(*) as count FROM users WHERE role = 'admin'`
+            ).first<{ count: number }>()
+            adminExists = (adminCountResult?.count ?? 0) > 0
+        } catch {
+            // table may not exist yet
+        }
+
+        // 5. At least one content entry in the first seed's table
+        let hasContent = false
+        const firstSeedSlug = seeds[0]?.slug ?? null
+        if (firstSeedSlug && existingTables.has(`content_${firstSeedSlug}`)) {
+            try {
+                const contentCountResult = await DB.prepare(
+                    `SELECT COUNT(*) as count FROM content_${firstSeedSlug}`
+                ).first<{ count: number }>()
+                hasContent = (contentCountResult?.count ?? 0) > 0
+            } catch {
+                // ignore
+            }
+        }
+
+        return context.json({
+            systemTablesOk,
+            seedsCount,
+            contentTablesOk,
+            adminExists,
+            hasContent,
+            firstSeedSlug,
+        })
+    } catch (error) {
+        console.error('Setup checklist error:', error)
+        return context.json({ error: 'Failed to compute setup checklist' }, 500)
+    }
+})
+
+/**
+ * GET /stats/total - Global content statistics for dashboard
+ */
+statsApp.get('/stats/total', async (context) => {
+    try {
+        const { DB } = context.env
         const now = Math.floor(Date.now() / 1000)
         const twentyFourHoursAgo = now - (24 * 60 * 60)
         const sevenDaysAgo       = now - (7 * 24 * 60 * 60)
         const thirtyDaysAgo      = now - (30 * 24 * 60 * 60)
 
         // Total: SUM of per-seed counts (current live entries)
-        const seeds = Object.values(c.get('seedRegistry'))
+        const seeds = Object.values(context.get('seedRegistry'))
         const countResults = await Promise.all(
-            seeds.map(s => DB.prepare(`SELECT COUNT(*) as n FROM content_${s.slug}`).first<{ n: number }>())
+            seeds.map(seed => DB.prepare(`SELECT COUNT(*) as count FROM content_${seed.slug}`).first<{ count: number }>())
         )
-        const total = countResults.reduce((acc, r) => acc + (r?.n ?? 0), 0)
+        const totalEntriesCount = countResults.reduce((accumulator, result) => accumulator + (result?.count ?? 0), 0)
 
-        // today/week/month: create events in content_event_log
+        // today/week/month: create events in activity_logs (entity_type = 'content')
         const eventRow = await DB.prepare(
             `SELECT
         COUNT(CASE WHEN created_at >= ? THEN 1 END) as today,
         COUNT(CASE WHEN created_at >= ? THEN 1 END) as week,
         COUNT(CASE WHEN created_at >= ? THEN 1 END) as month
-      FROM content_event_log WHERE action = 'create'`
+      FROM activity_logs WHERE action = 'create' AND entity_type = 'content'`
         )
             .bind(twentyFourHoursAgo, sevenDaysAgo, thirtyDaysAgo)
             .first<{ today: number; week: number; month: number }>()
 
-        return c.json({
-            total,
+        return context.json({
+            total: totalEntriesCount,
             today: eventRow?.today ?? 0,
             week:  eventRow?.week  ?? 0,
             month: eventRow?.month ?? 0,
         })
-    } catch (err) {
-        console.error('Content stats error:', err)
-        return publicProblem(c, {
+    } catch (error) {
+        console.error('Content stats error:', error)
+        return publicProblem(context, {
             type: 'content-database-error',
             title: 'Internal Server Error',
             status: 500,
@@ -158,39 +232,41 @@ statsApp.get('/stats/total', async (c) => {
     }
 })
 
-// GET /stats/recent-activity - Ultime attività registrate nel sistema
-// Nessun ETag su questo endpoint: il feed di attività deve sempre essere fresco dopo
-// ogni mutazione. Cache-Control: no-store impedisce al browser di conservare una
-// risposta che potrebbe essere restituita come 304 stale.
-statsApp.get('/stats/recent-activity', async (c) => {
+/**
+ * GET /stats/recent-activity - Latest activities registered in the system
+ * No ETag on this endpoint: the activity feed must always be fresh after
+ * every mutation. Cache-Control: no-store prevents the browser from keeping a
+ * response that could be returned as a 304 stale.
+ */
+statsApp.get('/stats/recent-activity', async (context) => {
     try {
-        const { DB } = c.env
-        const slug = cleanStr(c.req.query('slug'))
+        const { DB } = context.env
+        const slug = cleanStr(context.req.query('slug'))
 
         let query = `SELECT id, user_id, user_email, user_name, action, entity_type, entity_id, entity_slug, details, created_at
                  FROM activity_logs`
-        const params: any[] = []
+        const queryParameters: any[] = []
 
         if (slug) {
             query += ' WHERE entity_slug = ?'
-            params.push(slug)
+            queryParameters.push(slug)
         }
 
         query += ' ORDER BY created_at DESC LIMIT 15'
 
-        const result = await DB.prepare(query).bind(...params).all()
+        const result = await DB.prepare(query).bind(...queryParameters).all()
 
         const activities = (result.results ?? []).map((row: any) => ({
             ...row,
             details: row.details ? JSON.parse(row.details) : null
         }))
 
-        c.header('Cache-Control', 'no-store')
+        context.header('Cache-Control', 'no-store')
 
-        return c.json(activities)
-    } catch (err) {
-        console.error('Recent activity error:', err)
-        return publicProblem(c, {
+        return context.json(activities)
+    } catch (error) {
+        console.error('Recent activity error:', error)
+        return publicProblem(context, {
             type: 'content-database-error',
             title: 'Internal Server Error',
             status: 500,
@@ -199,25 +275,23 @@ statsApp.get('/stats/recent-activity', async (c) => {
     }
 })
 
-// GET /stats/health - Stato salute sistema e quote Cloudflare
-statsApp.get('/stats/health', async (c) => {
+/**
+ * GET /stats/health - System health status and Cloudflare quotas
+ */
+statsApp.get('/stats/health', async (context) => {
     try {
-        const { DB } = c.env
+        const { DB } = context.env
+        const systemStatsRepository = context.get('systemStatsRepository')
 
-        // 1. Recupera storage da system_stats (aggiornato periodicamente o via sync)
+        // 1. Retrieve storage usage from repository (system_stats)
         let storageUsedBytes = 0
         try {
-            const statsRow = await DB.prepare(
-                "SELECT value FROM system_stats WHERE id = 'total_storage_bytes'"
-            ).first<{ value: string }>()
-            if (statsRow) {
-                storageUsedBytes = parseInt(statsRow.value, 10)
-            }
-        } catch (err) {
-            console.warn('Health: Could not fetch storage stats from D1:', err)
+            storageUsedBytes = await systemStatsRepository.getStorageUsage()
+        } catch (error) {
+            console.warn('Health: Could not fetch storage stats from repo:', error)
         }
 
-        // 2. Aggregazione richieste D1 (proxy per database health) - ultimi 30 giorni
+        // 2. Aggregate D1 requests (proxy for database health) - last 30 days
         const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000)
         const d1Stats = await DB.prepare(
             `SELECT SUM(value) as total_requests FROM analytics WHERE metric = 'requests' AND seed = '' AND day_ts >= ?`
@@ -225,42 +299,43 @@ statsApp.get('/stats/health', async (c) => {
 
         const totalRequests = d1Stats?.total_requests ?? 0
 
-        // 3. Definizione limiti (Free Tier Cloudflare come riferimento)
-        const R2_LIMIT = 10 * 1024 * 1024 * 1024 // 10GB
-        const D1_MONTHLY_LIMIT = 1000000 // Simuliamo un limite di 1M di richieste/mese
+        // 3. Define limits (Cloudflare Free Tier as reference)
+        const R2_STORAGE_LIMIT = 10 * 1024 * 1024 * 1024 // 10GB
+        const D1_MONTHLY_REQUESTS_LIMIT = 1000000 // Simulate a limit of 1M requests/month
 
-        const storagePercentage = Math.min(Math.round((storageUsedBytes / R2_LIMIT) * 1000) / 10, 100)
-        const d1Percentage = Math.min(Math.round((totalRequests / D1_MONTHLY_LIMIT) * 1000) / 10, 100)
+        const storagePercentage = Math.min(Math.round((storageUsedBytes / R2_STORAGE_LIMIT) * 1000) / 10, 100)
+        const d1Percentage = Math.min(Math.round((totalRequests / D1_MONTHLY_REQUESTS_LIMIT) * 1000) / 10, 100)
 
-        return c.json({
+        return context.json({
             storage: {
                 used: storageUsedBytes,
-                limit: R2_LIMIT,
+                limit: R2_STORAGE_LIMIT,
                 percentage: storagePercentage
             },
             database: {
                 requests30d: totalRequests,
-                limit: D1_MONTHLY_LIMIT,
+                limit: D1_MONTHLY_REQUESTS_LIMIT,
                 percentage: d1Percentage
             },
             status: (storagePercentage < 90 && d1Percentage < 90) ? 'healthy' : 'warning',
             lastUpdate: Math.floor(Date.now() / 1000)
         })
-    } catch (err) {
-        console.error('System health stats error:', err)
-        return c.json({ error: 'Failed to calculate system health' }, 500)
+    } catch (error) {
+        console.error('System health stats error:', error)
+        return context.json({ error: 'Failed to calculate system health' }, 500)
     }
 })
 
-// GET /stats/cloudflare - Metriche tipo Cloudflare (Richieste, Visitatori, Bandwidth)
-statsApp.get('/stats/cloudflare', async (c) => {
+/**
+ * GET /stats/cloudflare - Cloudflare-like metrics (Visitors, Requests, Bandwidth)
+ */
+statsApp.get('/stats/cloudflare', async (context) => {
     try {
-        const { DB } = c.env
-        const nowTs = Math.floor(Date.now() / 1000)
+        const { DB } = context.env
         const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000)
 
-        // Recupera sum delle metriche negli ultimi 30 giorni
-        const metrics = await DB.prepare(
+        // Retrieve sum of metrics in the last 30 days
+        const metricsResult = await DB.prepare(
             `SELECT
         metric,
         SUM(value) as total_value
@@ -272,43 +347,38 @@ statsApp.get('/stats/cloudflare', async (c) => {
             .all<{ metric: string; total_value: number }>()
 
         const statsMap = Object.fromEntries(
-            metrics.results?.map(m => [m.metric, m.total_value]) ?? []
+            metricsResult.results?.map(metricRow => [metricRow.metric, metricRow.total_value]) ?? []
         )
 
-        // Simuliamo alcune metriche Cloudflare non tracciate direttamente per premium feel
-        const requests = statsMap['requests'] ?? Math.floor(Math.random() * 5000) + 1000
-        const visitors = statsMap['visitors'] ?? Math.floor(requests / 12) + 1
-        const bandwidth = Math.round((requests * 0.15) * 10) / 10
+        // Simulate some Cloudflare metrics not directly tracked for a premium feel
+        const requestsCount = statsMap['requests'] ?? Math.floor(Math.random() * 5000) + 1000
+        const visitorsCount = statsMap['visitors'] ?? Math.floor(requestsCount / 12) + 1
+        const bandwidthMB = Math.round((requestsCount * 0.15) * 10) / 10
 
-        // Metriche R2 (Dal contatore ottimizzato in D1)
+        const systemStatsRepository = context.get('systemStatsRepository')
         let storageUsedBytes = 0
         try {
-            const statsRow = await DB.prepare(
-                "SELECT value FROM system_stats WHERE id = 'total_storage_bytes'"
-            ).first<{ value: string }>()
-            if (statsRow) {
-                storageUsedBytes = parseInt(statsRow.value, 10)
-            }
-        } catch (err) {
-            console.warn('Could not fetch storage stats from D1:', err)
+            storageUsedBytes = await systemStatsRepository.getStorageUsage()
+        } catch (error) {
+            console.warn('Could not fetch storage stats from repo:', error)
         }
 
         const storageUsedMB = Math.round((storageUsedBytes / (1024 * 1024)) * 10) / 10
         const storageLimitMB = 10 * 1024 // 10 GB Free Tier
 
-        return c.json({
+        return context.json({
             visitors: {
-                value: visitors,
-                trend: 12, // % crescita simulata
+                value: visitorsCount,
+                trend: 12, // simulated growth %
                 isPositive: true
             },
             requests: {
-                value: requests,
+                value: requestsCount,
                 trend: 8,
                 isPositive: true
             },
             bandwidth: {
-                value: bandwidth,
+                value: bandwidthMB,
                 unit: 'MB',
                 trend: 5,
                 isPositive: false
@@ -326,9 +396,9 @@ statsApp.get('/stats/cloudflare', async (c) => {
                 percentage: Math.round((storageUsedMB / storageLimitMB) * 1000) / 10
             }
         })
-    } catch (err) {
-        console.error('Cloudflare stats error:', err)
-        return publicProblem(c, {
+    } catch (error) {
+        console.error('Cloudflare stats error:', error)
+        return publicProblem(context, {
             type: 'content-database-error',
             title: 'Internal Server Error',
             status: 500,
@@ -337,26 +407,28 @@ statsApp.get('/stats/cloudflare', async (c) => {
     }
 })
 
-// GET /stats/breakdown - Distribuzione contenuti per il widget Content Pulse
-statsApp.get('/stats/breakdown', async (c) => {
+/**
+ * GET /stats/breakdown - Content distribution for "Content Pulse" widget
+ */
+statsApp.get('/stats/breakdown', async (context) => {
     try {
-        const { DB } = c.env
-        const seeds = Object.values(c.get('seedRegistry'))
+        const { DB } = context.env
+        const seeds = Object.values(context.get('seedRegistry'))
 
         const counts = await Promise.all(
-            seeds.map(s => DB.prepare(`SELECT COUNT(*) as n FROM content_${s.slug}`).first<{ n: number }>())
+            seeds.map(seed => DB.prepare(`SELECT COUNT(*) as count FROM content_${seed.slug}`).first<{ count: number }>())
         )
 
-        const breakdown = seeds.map((seed, i) => ({
+        const breakdown = seeds.map((seed, index) => ({
             slug:  seed.slug,
             label: seed.labelPlural || seed.label,
-            count: counts[i]?.n ?? 0,
+            count: counts[index]?.count ?? 0,
         }))
 
-        return c.json(breakdown)
-    } catch (err) {
-        console.error('Breakdown stats error:', err)
-        return publicProblem(c, {
+        return context.json(breakdown)
+    } catch (error) {
+        console.error('Breakdown stats error:', error)
+        return publicProblem(context, {
             type: 'content-database-error',
             title: 'Internal Server Error',
             status: 500,
@@ -365,30 +437,21 @@ statsApp.get('/stats/breakdown', async (c) => {
     }
 })
 
-// POST /stats/storage/sync - Ricalcola lo spazio occupato su R2 (operazione costosa, usare con cautela)
-statsApp.post('/stats/storage/sync', async (c) => {
+/**
+ * POST /stats/storage/sync - Recalculates space occupied on R2 (expensive operation, use with caution)
+ */
+statsApp.post('/stats/storage/sync', async (context) => {
     try {
-        const { DB } = c.env
-        const client = createR2Client(c.env as any)
-        if (!c.env.R2_BUCKET_NAME) {
-            throw new Error('R2_BUCKET_NAME not configured')
-        }
+        const bucket = context.get('bucket')
+        const systemStatsRepository = context.get('systemStatsRepository')
 
-        const realSize = await getBucketSize(client, c.env.R2_BUCKET_NAME)
+        const realSize = await bucket.getTotalSize()
+        await systemStatsRepository.setStorage(realSize)
 
-        await DB.prepare(
-            "UPDATE system_stats SET value = ? WHERE id = 'total_storage_bytes'"
-        ).bind(String(realSize)).run()
-
-        return c.json({ success: true, size: realSize })
-    } catch (err) {
-        console.error('Storage sync error:', err)
-        return publicProblem(c, {
-            type: 'content-database-error',
-            title: 'Internal Server Error',
-            status: 500,
-            detail: DATABASE_ERROR,
-        })
+        return context.json({ success: true, size: realSize })
+    } catch (error) {
+        console.error('Storage sync error:', error)
+        return context.json({ error: 'Internal Server Error' }, 500)
     }
 })
 

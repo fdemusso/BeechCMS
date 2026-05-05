@@ -51,15 +51,15 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       
       const countBindings = bindings.slice(0, bindings.length - (options.pagination ? 2 : 0))
 
-      const [results, countResult] = await this.db.batch([
-        this.db.prepare(sql).bind(...bindings),
-        this.db.prepare(countSql).bind(...countBindings)
+      const [batchResults, totalCountResult] = await this.database.batch([
+        this.database.prepare(sql).bind(...bindings),
+        this.database.prepare(countSql).bind(...countBindings)
       ])
 
-      const items = (results.results || []).map((row) => this.rowToData(seed, row))
-      const total = (countResult.results?.[0] as any)?.total || 0
+      const contentEntries = (batchResults.results || []).map((entryRow) => this.rowToData(seed, entryRow))
+      const totalEntriesCount = (totalCountResult.results?.[0] as any)?.total || 0
 
-      return { items, total }
+      return { items: contentEntries, total: totalEntriesCount }
     } catch (error) {
       throw this.mapError(error, `findMany(${seed.slug})`)
     }
@@ -67,17 +67,17 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
   async findById(seed: Seed, id: string): Promise<Record<string, any>> {
     try {
-      const table = this.getTableName(seed.slug)
-      const row = await this.db
-        .prepare(`SELECT * FROM ${table} WHERE id = ? LIMIT 1`)
+      const tableName = this.getTableName(seed.slug)
+      const entryRow = await this.database
+        .prepare(`SELECT * FROM ${tableName} WHERE id = ? LIMIT 1`)
         .bind(id)
         .first()
 
-      if (!row) {
+      if (!entryRow) {
         throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
       }
 
-      return this.rowToData(seed, row)
+      return this.rowToData(seed, entryRow)
     } catch (error) {
       if (error instanceof EntryNotFoundError) throw error
       throw this.mapError(error, `findById(${seed.slug}, ${id})`)
@@ -86,17 +86,17 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
   async findBySlug(seed: Seed, slug: string): Promise<Record<string, any>> {
     try {
-      const table = this.getTableName(seed.slug)
-      const row = await this.db
-        .prepare(`SELECT * FROM ${table} WHERE slug = ? LIMIT 1`)
+      const tableName = this.getTableName(seed.slug)
+      const entryRow = await this.database
+        .prepare(`SELECT * FROM ${tableName} WHERE slug = ? LIMIT 1`)
         .bind(slug)
         .first()
 
-      if (!row) {
+      if (!entryRow) {
         throw new EntryNotFoundError(`Entry with slug "${slug}" not found in ${seed.slug}`)
       }
 
-      return this.rowToData(seed, row)
+      return this.rowToData(seed, entryRow)
     } catch (error) {
       if (error instanceof EntryNotFoundError) throw error
       throw this.mapError(error, `findBySlug(${seed.slug}, ${slug})`)
@@ -108,31 +108,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     tagsByColumn: Record<string, string[]>
   }> {
     try {
-      const table = this.getTableName(seed.slug)
+      const tableName = this.getTableName(seed.slug)
       
-      // Status counts
-      const statusResults = await this.db
-        .prepare(`SELECT status, COUNT(*) as count FROM ${table} GROUP BY status`)
+      // Retrieve count per status
+      const statusResults = await this.database
+        .prepare(`SELECT status, COUNT(*) as count FROM ${tableName} GROUP BY status`)
         .all()
       
-      const statuses: Record<string, number> = {}
-      for (const row of statusResults.results || []) {
-        statuses[row.status as string] = row.count as number
+      const statusesCount: Record<string, number> = {}
+      for (const statusRow of statusResults.results || []) {
+        statusesCount[statusRow.status as string] = statusRow.count as number
       }
 
-      // Tags facets (for branches of type 'tags')
+      // Collect unique tags for branches of type 'tags'
       const tagsByColumn: Record<string, string[]> = {}
-      const tagBranches = seed.branches.filter(b => b.type === 'tags')
+      const tagBranches = seed.branches.filter(branch => branch.type === 'tags')
       
       for (const branch of tagBranches) {
-        // SQLite json_each for tags stored as JSON arrays
-        const tagResults = await this.db
-          .prepare(`SELECT DISTINCT value FROM ${table}, json_each(${table}.${branch.alias}) WHERE value IS NOT NULL`)
+        // Use SQLite json_each to expand tags stored as JSON arrays
+        const tagResults = await this.database
+          .prepare(`SELECT DISTINCT value FROM ${tableName}, json_each(${tableName}.${branch.alias}) WHERE value IS NOT NULL`)
           .all()
-        tagsByColumn[branch.alias] = (tagResults.results || []).map(r => r.value as string)
+        tagsByColumn[branch.alias] = (tagResults.results || []).map(row => row.value as string)
       }
 
-      return { statuses, tagsByColumn }
+      return { statuses: statusesCount, tagsByColumn }
     } catch (error) {
       throw this.mapError(error, `getFacets(${seed.slug})`)
     }
@@ -140,17 +140,17 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
   async existsSlug(seed: Seed, slug: string, excludeId?: string): Promise<boolean> {
     try {
-      const table = this.getTableName(seed.slug)
-      let sql = `SELECT 1 FROM ${table} WHERE slug = ?`
-      const bindings: any[] = [slug]
+      const tableName = this.getTableName(seed.slug)
+      let sql = `SELECT 1 FROM ${tableName} WHERE slug = ?`
+      const queryBindings: any[] = [slug]
       
       if (excludeId) {
         sql += ` AND id != ?`
-        bindings.push(excludeId)
+        queryBindings.push(excludeId)
       }
       
-      const row = await this.db.prepare(sql).bind(...bindings).first()
-      return row !== null
+      const entryExistsResult = await this.database.prepare(sql).bind(...queryBindings).first()
+      return entryExistsResult !== null
     } catch (error) {
       throw this.mapError(error, `existsSlug(${seed.slug}, ${slug})`)
     }
@@ -168,21 +168,21 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         throw new SlugConflictError(`Slug "${slug}" already exists for ${seed.slug}`)
       }
 
-      const table = this.getTableName(seed.slug)
-      const cols = ['id', 'slug', 'status']
+      const tableName = this.getTableName(seed.slug)
+      const columnNames = ['id', 'slug', 'status']
       const placeholders = ['?', '?', '?']
-      const bindings: any[] = [id, slug, status]
+      const queryBindings: any[] = [id, slug, status]
 
       for (const branch of seed.branches) {
         if (Object.hasOwn(data, branch.alias)) {
-          cols.push(branch.alias)
+          columnNames.push(branch.alias)
           placeholders.push('?')
-          bindings.push(serializeForDb(branch, data[branch.alias]))
+          queryBindings.push(serializeForDb(branch, data[branch.alias]))
         }
       }
 
-      const sql = `INSERT INTO ${table} (${cols.join(', ')}) VALUES (${placeholders.join(', ')})`
-      await this.db.prepare(sql).bind(...bindings).run()
+      const sql = `INSERT INTO ${tableName} (${columnNames.join(', ')}) VALUES (${placeholders.join(', ')})`
+      await this.database.prepare(sql).bind(...queryBindings).run()
     } catch (error) {
       if (error instanceof SlugConflictError) throw error
       throw this.mapError(error, `create(${seed.slug})`)
@@ -196,31 +196,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     status?: string
   ): Promise<void> {
     try {
-      const table = this.getTableName(seed.slug)
-      const setParts: string[] = []
-      const bindings: any[] = []
+      const tableName = this.getTableName(seed.slug)
+      const updateClauses: string[] = []
+      const queryBindings: any[] = []
 
       if (status) {
-        setParts.push('status = ?')
-        bindings.push(status)
+        updateClauses.push('status = ?')
+        queryBindings.push(status)
       }
 
       for (const branch of seed.branches) {
         if (Object.hasOwn(data, branch.alias)) {
-          setParts.push(`${branch.alias} = ?`)
-          bindings.push(serializeForDb(branch, data[branch.alias]))
+          updateClauses.push(`${branch.alias} = ?`)
+          queryBindings.push(serializeForDb(branch, data[branch.alias]))
         }
       }
 
-      if (setParts.length === 0) return
+      if (updateClauses.length === 0) return
 
-      setParts.push('updated_at = (unixepoch())')
+      updateClauses.push('updated_at = (unixepoch())')
       
-      const sql = `UPDATE ${table} SET ${setParts.join(', ')} WHERE id = ?`
-      bindings.push(id)
+      const sql = `UPDATE ${tableName} SET ${updateClauses.join(', ')} WHERE id = ?`
+      queryBindings.push(id)
 
-      const result = await this.db.prepare(sql).bind(...bindings).run()
-      if (result.meta.changes === 0) {
+      const updateResult = await this.database.prepare(sql).bind(...queryBindings).run()
+      if (updateResult.meta.changes === 0) {
         throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
       }
     } catch (error) {
@@ -231,21 +231,21 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
   async delete(seed: Seed, id: string): Promise<{ row: Record<string, any> }> {
     try {
-      const table = this.getTableName(seed.slug)
+      const tableName = this.getTableName(seed.slug)
       
-      // We need to return the row for R2 cleanup
-      const row = await this.db
-        .prepare(`SELECT * FROM ${table} WHERE id = ?`)
+      // Retrieve the row before deletion to allow for potential cleanup (e.g., media files in R2)
+      const entryRow = await this.database
+        .prepare(`SELECT * FROM ${tableName} WHERE id = ?`)
         .bind(id)
         .first()
 
-      if (!row) {
+      if (!entryRow) {
         throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
       }
 
-      await this.db.prepare(`DELETE FROM ${table} WHERE id = ?`).bind(id).run()
+      await this.database.prepare(`DELETE FROM ${tableName} WHERE id = ?`).bind(id).run()
 
-      return { row: this.rowToData(seed, row) }
+      return { row: this.rowToData(seed, entryRow) }
     } catch (error) {
       if (error instanceof EntryNotFoundError) throw error
       throw this.mapError(error, `delete(${seed.slug}, ${id})`)
@@ -258,30 +258,30 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         throw new RepositoryError(`Drafts not allowed for ${seed.slug}`)
       }
 
-      const table = this.getTableName(seed.slug, true)
-      const cols = ['entry_id']
+      const draftTableName = this.getTableName(seed.slug, true)
+      const columnNames = ['entry_id']
       const placeholders = ['?']
-      const bindings: any[] = [entryId]
-      const updateParts: string[] = []
+      const queryBindings: any[] = [entryId]
+      const updateClauses: string[] = []
 
       for (const branch of seed.branches) {
         if (Object.hasOwn(data, branch.alias)) {
-          const val = serializeForDb(branch, data[branch.alias])
-          cols.push(branch.alias)
+          const serializedValue = serializeForDb(branch, data[branch.alias])
+          columnNames.push(branch.alias)
           placeholders.push('?')
-          bindings.push(val)
-          updateParts.push(`${branch.alias} = EXCLUDED.${branch.alias}`)
+          queryBindings.push(serializedValue)
+          updateClauses.push(`${branch.alias} = EXCLUDED.${branch.alias}`)
         }
       }
 
-      updateParts.push('updated_at = (unixepoch())')
+      updateClauses.push('updated_at = (unixepoch())')
 
       const sql = `
-        INSERT INTO ${table} (${cols.join(', ')}) 
+        INSERT INTO ${draftTableName} (${columnNames.join(', ')}) 
         VALUES (${placeholders.join(', ')})
-        ON CONFLICT(entry_id) DO UPDATE SET ${updateParts.join(', ')}
+        ON CONFLICT(entry_id) DO UPDATE SET ${updateClauses.join(', ')}
       `
-      await this.db.prepare(sql).bind(...bindings).run()
+      await this.database.prepare(sql).bind(...queryBindings).run()
     } catch (error) {
       throw this.mapError(error, `saveDraft(${seed.slug}, ${entryId})`)
     }
@@ -291,23 +291,23 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     try {
       if (!seed.allowDrafts) return null
 
-      const table = this.getTableName(seed.slug, true)
-      const row = await this.db
-        .prepare(`SELECT * FROM ${table} WHERE entry_id = ?`)
+      const draftTableName = this.getTableName(seed.slug, true)
+      const draftRow = await this.database
+        .prepare(`SELECT * FROM ${draftTableName} WHERE entry_id = ?`)
         .bind(entryId)
         .first()
 
-      if (!row) return null
+      if (!draftRow) return null
 
-      // Filter out nulls from draft row (only include provided fields)
-      const data: Record<string, any> = {}
+      // Filter out nulls from draft row (only include explicitly provided fields)
+      const draftData: Record<string, any> = {}
       for (const branch of seed.branches) {
-        if (row[branch.alias] !== null) {
-          data[branch.alias] = deserializeFromDb(branch, row[branch.alias])
+        if (draftRow[branch.alias] !== null) {
+          draftData[branch.alias] = deserializeFromDb(branch, draftRow[branch.alias])
         }
       }
 
-      return data
+      return draftData
     } catch (error) {
       throw this.mapError(error, `getDraft(${seed.slug}, ${entryId})`)
     }
@@ -316,12 +316,12 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   async hasDraft(seed: Seed, entryId: string): Promise<boolean> {
     try {
       if (!seed.allowDrafts) return false
-      const table = this.getTableName(seed.slug, true)
-      const row = await this.db
-        .prepare(`SELECT 1 FROM ${table} WHERE entry_id = ? LIMIT 1`)
+      const draftTableName = this.getTableName(seed.slug, true)
+      const draftExistsResult = await this.database
+        .prepare(`SELECT 1 FROM ${draftTableName} WHERE entry_id = ? LIMIT 1`)
         .bind(entryId)
         .first()
-      return row !== null
+      return draftExistsResult !== null
     } catch (error) {
       throw this.mapError(error, `hasDraft(${seed.slug}, ${entryId})`)
     }
@@ -331,11 +331,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     try {
       if (!seed.allowDrafts) return
 
-      const draftTable = this.getTableName(seed.slug, true)
-      const liveTable = this.getTableName(seed.slug)
+      const draftTableName = this.getTableName(seed.slug, true)
+      const liveTableName = this.getTableName(seed.slug)
 
-      const draftRow = await this.db
-        .prepare(`SELECT * FROM ${draftTable} WHERE entry_id = ?`)
+      const draftRow = await this.database
+        .prepare(`SELECT * FROM ${draftTableName} WHERE entry_id = ?`)
         .bind(entryId)
         .first()
 
@@ -343,26 +343,26 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         throw new EntryNotFoundError(`No draft found for ${entryId} in ${seed.slug}`)
       }
 
-      // Build UPDATE for live table
-      const setParts: string[] = []
-      const bindings: any[] = []
+      // Build UPDATE clause for the live table using data from the draft
+      const updateClauses: string[] = []
+      const queryBindings: any[] = []
 
       for (const branch of seed.branches) {
         if (draftRow[branch.alias] !== null) {
-          setParts.push(`${branch.alias} = ?`)
-          bindings.push(draftRow[branch.alias])
+          updateClauses.push(`${branch.alias} = ?`)
+          queryBindings.push(draftRow[branch.alias])
         }
       }
 
-      setParts.push('updated_at = (unixepoch())')
+      updateClauses.push('updated_at = (unixepoch())')
       
-      const updateSql = `UPDATE ${liveTable} SET ${setParts.join(', ')} WHERE id = ?`
-      bindings.push(entryId)
+      const updateSql = `UPDATE ${liveTableName} SET ${updateClauses.join(', ')} WHERE id = ?`
+      queryBindings.push(entryId)
 
-      // Atomic batch
-      await this.db.batch([
-        this.db.prepare(updateSql).bind(...bindings),
-        this.db.prepare(`DELETE FROM ${draftTable} WHERE entry_id = ?`).bind(entryId)
+      // Execute batch to atomically update live table and delete draft
+      await this.database.batch([
+        this.database.prepare(updateSql).bind(...queryBindings),
+        this.database.prepare(`DELETE FROM ${draftTableName} WHERE entry_id = ?`).bind(entryId)
       ])
     } catch (error) {
       if (error instanceof EntryNotFoundError) throw error
@@ -373,8 +373,8 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   async deleteDraft(seed: Seed, entryId: string): Promise<void> {
     try {
       if (!seed.allowDrafts) return
-      const table = this.getTableName(seed.slug, true)
-      await this.db.prepare(`DELETE FROM ${table} WHERE entry_id = ?`).bind(entryId).run()
+      const draftTableName = this.getTableName(seed.slug, true)
+      await this.database.prepare(`DELETE FROM ${draftTableName} WHERE entry_id = ?`).bind(entryId).run()
     } catch (error) {
       throw this.mapError(error, `deleteDraft(${seed.slug}, ${entryId})`)
     }

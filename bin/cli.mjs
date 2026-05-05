@@ -12,6 +12,7 @@ const [,, command, ...args] = process.argv
 const COMMANDS = {
   build:        cmdBuild,
   'seed:load':  cmdSeedLoad,
+  'init':       cmdInit,
 }
 
 function help() {
@@ -19,14 +20,26 @@ function help() {
   beech <command> [options]
 
   Commands:
+    init            Check project files and optionally initialise the database
+      --db            Also initialise the D1 database (system tables)
+      --remote        Target remote D1 instead of local (default: local)
+      --db-name <n>   Override D1 database name
+
     build           Rebuild @beechcms/core after editing seeds.ts
-    seed:load       Create/update DB tables from SEED_REGISTRY
+
+    seed:load       Create/update content tables from SEED_REGISTRY
       --dry-run       Print SQL without executing
       --diff          Show schema differences vs current DB
       --remote        Execute against remote D1 (default: local)
       --db <name>     Override D1 database name
 
-  Run npx @beechcms/cms to scaffold a new project.
+  Scaffold a new project (interactive, or pass --yes for non-interactive defaults):
+    npm create @beechcms/cms [project-name] [--yes]
+
+  Golden path (local):
+    npx beech init --db --local
+    npx beech seed:load --local
+    npx wrangler dev
 `)
 }
 
@@ -103,6 +116,16 @@ if (out) process.stdout.write(JSON.stringify(out));
   }
 
   return null
+}
+
+async function cmdInit(args) {
+  const initDb  = args.includes('--db')
+  const remote  = args.includes('--remote')
+  const dbIdx   = args.indexOf('--db-name')
+  const db      = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+
+  const { init } = await import('@beechcms/cli')
+  await init({ initDb, local: !remote, db })
 }
 
 async function cmdSeedLoad(args) {

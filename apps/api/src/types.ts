@@ -1,5 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository } from '@beechcms/core'
 
 export interface Env {
   DB: D1Database
@@ -20,6 +20,7 @@ export interface Env {
   PUBLIC_PUBLISHED_ONLY?: string
   PUBLIC_IDEMPOTENCY_TTL_SECONDS?: string
   MEDIA_BASE_URL?: string
+  MEDIA_CDN_URL?: string
   RESEND_API_KEY?: string
   APP_URL?: string
   EMAIL_FROM?: string
@@ -28,6 +29,7 @@ export interface Env {
   ENV?: string
   DATE_FORMAT?: string
   ASSETS?: Fetcher
+  MEDIA_BUCKET?: R2Bucket
 }
 
 export interface Variables {
@@ -36,6 +38,9 @@ export interface Variables {
   seedRegistry: Record<string, Seed>
   repository: ContentRepository
   idempotencyRepository: IdempotencyRepository
+  bucket: BeechBucket
+  mediaRepository: MediaRepository
+  systemStatsRepository: SystemStatsRepository
 }
 
 export type AppEnv = { Bindings: Env; Variables: Variables }
