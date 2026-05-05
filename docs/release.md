@@ -52,6 +52,13 @@ npm run release:preview   # preview release (same base, increment N)
 | `--preview` | Publish to `next` tag with `-preview.N` suffix |
 | `--dry-run` | Print every step without writing files or publishing |
 
+> Both syntaxes work — npm passes `--dry-run` via the `npm_config_dry_run` environment variable:
+> ```bash
+> npm run release --dry-run          # ✅ works
+> npm run release -- --dry-run       # ✅ also works
+> npm run release:preview --dry-run  # ✅ works
+> ```
+
 ### Examples
 
 ```bash

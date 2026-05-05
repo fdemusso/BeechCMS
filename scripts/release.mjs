@@ -14,7 +14,7 @@
  */
 
 import { execSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, rmSync, mkdirSync, cpSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -25,7 +25,9 @@ const ROOT = resolve(__dirname, '..')
 
 const args = process.argv.slice(2)
 const isPreview = args.includes('--preview')
-const isDryRun = args.includes('--dry-run')
+// npm intercepts --dry-run itself and sets npm_config_dry_run=true in env,
+// so we check both argv and the env var to support `npm run release --dry-run`
+const isDryRun = args.includes('--dry-run') || process.env.npm_config_dry_run === 'true'
 const bumpIdx = args.indexOf('--bump')
 const bump = bumpIdx !== -1 ? args[bumpIdx + 1] : null
 
@@ -168,11 +170,16 @@ log('')
 log('2b/4  Copying dashboard assets into @beechcms/api...')
 
 try {
-  run('rm -rf apps/api/assets/dashboard')
-  run('mkdir -p apps/api/assets/dashboard')
-  run('cp -r apps/dashboard/dist/admin/. apps/api/assets/dashboard/')
-} catch {
-  rollback('Dashboard asset copy failed.')
+  const src  = resolve(ROOT, 'apps/dashboard/dist/admin')
+  const dest = resolve(ROOT, 'apps/api/assets/dashboard')
+  if (!isDryRun) {
+    rmSync(dest, { recursive: true, force: true })
+    mkdirSync(dest, { recursive: true })
+    cpSync(src, dest, { recursive: true })
+  }
+  log(`  $ [node] cp ${src} → ${dest}`)
+} catch (err) {
+  rollback(`Dashboard asset copy failed: ${err.message}`)
 }
 
 // ── Step 3: publish ───────────────────────────────────────────────────────────
