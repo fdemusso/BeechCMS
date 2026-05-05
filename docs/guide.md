@@ -17,15 +17,20 @@ Everything you need to go from a fresh scaffold to a live project: configuration
    - [Branch policies](#43-branch-policies)
    - [Dashboard config](#44-dashboard-config)
 5. [Running Locally](#5-running-locally)
+   - [CORS in development](#cors-in-development)
+   - [API key echo](#api-key-echo)
 6. [Consuming the Public API](#6-consuming-the-public-api)
    - [Authentication](#61-authentication)
-   - [Read entries](#62-read-entries)
-   - [Submit a form](#63-submit-a-form)
-   - [Response format](#64-response-format)
-   - [Error format](#65-error-format)
+   - [Discover available content types](#62-discover-available-content-types-schema-endpoint)
+   - [Read entries](#63-read-entries)
+   - [Submit a form](#64-submit-a-form)
+   - [Response format](#65-response-format)
+   - [Error format](#66-error-format)
 7. [Media (images and files)](#7-media-images-and-files)
 8. [CLI Reference](#8-cli-reference)
-9. [Deploying to Production](#9-deploying-to-production)
+9. [Schema Evolution](#9-schema-evolution)
+10. [Daily Workflow](#10-daily-workflow)
+11. [Deploying to Production](#11-deploying-to-production)
 
 ---
 
@@ -42,6 +47,12 @@ The interactive wizard asks for:
 - **Cloudflare credentials** — Account ID, D1 database ID, R2 bucket and keys. You can skip this and fill them in later.
 
 After the wizard completes, a ready-to-use project is in `./<project-name>/`.
+
+**Non-interactive mode** — skip all prompts with `--yes`. Pass `--with-examples` to scaffold with Blog content types (Posts + Authors) pre-configured:
+
+```bash
+npx @beechcms/cms my-project --yes --with-examples
+```
 
 ---
 
@@ -104,9 +115,13 @@ The scaffold pre-fills the values you provided during setup. BeechCMS supports b
 
 ### 3.2 `.dev.vars`
 
-Contains R2 credentials for the local dev server. This file is git-ignored and never deployed.
+This file is **optional for local development**. Media uploads work out of the box locally via the Miniflare R2 binding — no credentials needed.
+
+Fill in `.dev.vars` only if you want to test production-like S3 behaviour locally (e.g. verifying CDN URLs or R2 API tokens):
 
 ```bash
+# .dev.vars — git-ignored, never deployed
+# Leave empty for local dev; media uploads work automatically via Miniflare.
 R2_ACCESS_KEY_ID=your-access-key
 R2_SECRET_ACCESS_KEY=your-secret-key
 R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
@@ -260,6 +275,25 @@ Open `http://localhost:8789/admin` — the setup wizard will appear on first lau
 >
 > `beech init` without `--db` runs only the file checks (useful to verify a fresh clone).
 
+### CORS in development
+
+When `ENV` is not set to `production`, the API automatically allows any origin on `localhost` or `127.0.0.1`, regardless of port. You do **not** need to add your frontend dev server to `CORS_ORIGINS` in `wrangler.jsonc` — Next.js on 3000, Nuxt on 3001, Vite on 5173, and any other local port all work out of the box.
+
+In production, only the origins listed in `CORS_ORIGINS` are allowed.
+
+### API key echo
+
+`beech init` prints the public API keys found in `wrangler.jsonc` after a successful check. Use them as the `X-API-Key` header in your frontend:
+
+```
+API keys detected in wrangler.jsonc:
+
+  PUBLIC_READ_API_KEY  = dev-****-key
+  PUBLIC_WRITE_API_KEY = dev-****-key
+
+Use these in your frontend as the X-API-Key header.
+```
+
 ---
 
 ## 6. Consuming the Public API
@@ -276,7 +310,27 @@ The Public API is designed for external frontends. It requires no user login —
 | Read (`GET`) | `X-API-Key: <key>` | `PUBLIC_READ_API_KEY` |
 | Write (`POST`, `PUT`) | `X-API-Key: <key>` | `PUBLIC_WRITE_API_KEY` |
 
-### 6.2 Read entries
+### 6.2 Discover available content types (schema endpoint)
+
+Before writing fetch calls, you can inspect which content types are publicly accessible and what fields they expose:
+
+```
+GET /api/v1/public/schema
+X-API-Key: your-public-read-key
+```
+
+The response lists every seed with `allowPublicRead`, `allowPublicPost`, or `allowPublicEdit` enabled, along with each branch's alias, type, label, and visibility policy.
+
+For a quick human-readable view, open it in a browser:
+
+```
+GET /api/v1/public/schema.html
+X-API-Key: your-public-read-key
+```
+
+This is useful when onboarding to an existing project or generating a typed client from the live schema.
+
+### 6.3 Read entries
 
 ```
 GET /api/v1/public/:seed
@@ -316,7 +370,7 @@ const res = await fetch(`https://my-project-api.workers.dev/api/v1/public/posts/
 const { data } = await res.json()
 ```
 
-### 6.3 Submit a form
+### 6.4 Submit a form
 
 ```
 POST /api/v1/public/:seed/add
@@ -342,7 +396,7 @@ const { data } = await res.json()
 // data.id → ID of the created entry
 ```
 
-### 6.4 Response format
+### 6.5 Response format
 
 ```json
 {
@@ -360,7 +414,7 @@ const { data } = await res.json()
 
 Fields with `policies.public: false` are automatically stripped from all Public API responses.
 
-### 6.5 Error format
+### 6.6 Error format
 
 All errors follow [RFC 7807](https://www.rfc-editor.org/rfc/rfc7807) (`application/problem+json`):
 
@@ -420,21 +474,102 @@ In this case, the URL would be: `https://cdn.my-project.com/1714900000-cover.jpg
 
 ## 8. CLI Reference
 
+### Scaffolding
+
 | Command | Description |
 |---|---|
-| `npx @beechcms/cms` | Scaffold a new BeechCMS project |
-| `npm install` | Install dependencies |
-| `npx beech seed:load` | Synchronize D1 schema (targets remote by default) |
-| `npx beech seed:load --local` | Synchronize local D1 schema (for development) |
-| `npx beech seed:load --diff` | Compare Seed definitions with current DB schema |
-| `npx beech seed:load --dry-run` | Print the SQL that would be executed |
+| `npx @beechcms/cms` | Scaffold a new project (interactive wizard) |
+| `npx @beechcms/cms my-app --yes` | Non-interactive scaffold with default values |
+| `npx @beechcms/cms my-app --yes --with-examples` | Non-interactive scaffold with Blog content types pre-configured |
+
+### Project setup
+
+| Command | Description |
+|---|---|
+| `npx beech init` | Check that all required project files are present |
+| `npx beech init --db` | Check files + initialise local D1 system tables |
+| `npx beech init --db --remote` | Verify that the remote D1 database is correctly initialised (useful after deploy) |
+
+### Seed management
+
+| Command | Description |
+|---|---|
+| `npx beech validate` | Validate `SEED_REGISTRY` for errors (duplicate aliases, missing `displayNameAlias`, duplicate slugs). Exits with code `1` if issues are found — CI-friendly. |
+| `npx beech seed:create` | Interactive wizard: generate a new Seed definition and append it to `seeds.ts`, including the `SEED_REGISTRY` entry |
+| `npx beech seed:load --local` | Synchronize local D1 schema from `seeds.ts` |
+| `npx beech seed:load` | Synchronize remote D1 schema (production) |
+| `npx beech seed:load --diff --local` | Compare Seed definitions with current local DB schema; orphaned columns are clearly labelled |
+| `npx beech seed:load --dry-run` | Print the SQL that would be executed without touching the DB |
 | `npx beech seed:load --db <name>` | Override the D1 database name from config |
+
+### Development & deployment
+
+| Command | Description |
+|---|---|
 | `npx wrangler dev` | Start the Worker locally on port 8789 |
 | `npm run deploy` | Deploy the Worker code to Cloudflare |
 
 ---
 
-## 9. Deploying to Production
+## 9. Schema Evolution
+
+BeechCMS **never drops columns or tables automatically**. `beech seed:load` is strictly additive: it adds missing tables and missing columns, but leaves everything else untouched.
+
+### Adding a field
+
+1. Add the new `Branch` to your Seed in `seeds.ts`.
+2. Run `npx beech seed:load --local` to add the column locally.
+3. After deploying, run `npx beech seed:load` to add it to production.
+
+### Removing a field
+
+1. Delete the `Branch` from `seeds.ts`.
+2. The column is now **orphaned** — it still exists in the database, but BeechCMS ignores it.
+3. Run `npx beech seed:load --diff --local` to see which columns are orphaned.
+4. If you want to clean it up, run an `ALTER TABLE DROP COLUMN` manually via `wrangler d1 execute`.
+
+```bash
+npx wrangler d1 execute <db-name> --local --command \
+  "ALTER TABLE content_posts DROP COLUMN old_field"
+```
+
+> Beech deliberately never drops data automatically. Orphaned columns are harmless — clean them up on your own schedule.
+
+### Renaming a field alias
+
+Renaming a `Branch` alias after the first migration requires a SQL rename — the alias is the SQL column name.
+
+```bash
+npx wrangler d1 execute <db-name> --local --command \
+  "ALTER TABLE content_posts RENAME COLUMN old_name TO new_name"
+```
+
+Apply the same command to production after deploying.
+
+---
+
+## 10. Daily Workflow
+
+After a `git pull` from a teammate:
+
+```bash
+npm install                        # install any new packages
+npx beech seed:load --local        # apply any schema changes from seeds.ts
+npx beech seed:load --diff --local # health check: spot missing or orphaned columns
+npx wrangler dev                   # start the local server
+```
+
+Use `beech validate` before loading to catch errors in `seeds.ts` early:
+
+```bash
+npx beech validate && npx beech seed:load --local
+```
+
+> `beech seed:load` already runs the same validation checks automatically and prints a warning if it finds issues, but exits `0` to avoid breaking existing scripts. Use `beech validate` in CI where a hard exit `1` is needed.
+
+---
+
+## 11. Deploying to Production
 
 ### Step 1 — Create Cloudflare resources (if not done during scaffolding)
 

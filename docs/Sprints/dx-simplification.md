@@ -168,7 +168,27 @@ or create the database with:
 Then retry: npx beech init --db
 ```
 
-#### 4. Checklist di avvio & Output migliorato
+#### 4. Zero-Touch Infrastructure (Optional Auto-creation)
+
+**File:** `packages/cli/src/commands/init.ts`
+
+**Logica:**
+
+- Se vengono rilevati placeholder in `wrangler.jsonc` durante `beech init --db`:
+  - Invece di uscire subito con errore, offrire un prompt interattivo (se in modalità TTY):
+    - *"D1 database ID not found. Would you like me to create a new database for you on Cloudflare? (Y/n)"*
+  - Se l'utente accetta:
+    1. Eseguire `npx wrangler d1 create <project-name>-db --json`.
+    2. Estrarre `database_id` dal JSON di output.
+    3. Eseguire lo stesso per R2: `npx wrangler r2 bucket create <project-name>-media`.
+    4. Aggiornare `wrangler.jsonc` tramite regex/sostituzione di stringa (per preservare commenti e formatting) iniettando i nuovi ID.
+    5. Procedere con l'inizializzazione del database.
+
+**Outcome DX:**
+- Riduzione drastica del "context switching" tra terminale e browser (dashboard Cloudflare).
+- Setup "finito" in un unico comando.
+
+#### 5. Checklist di avvio & Output migliorato
 
 **File:** `packages/cli/src/commands/init.ts` + docs.  
 
@@ -607,6 +627,7 @@ Implementazione dettagliata e backend per la telemetria sono fuori scope immedia
   - [x] Scan placeholder in `wrangler.jsonc`.
   - [x] Output “Next steps” chiaro dopo successo.
 - [x] Aggiornare `create.mjs` per chiarire che `.dev.vars` è solo per produzione (R2 credenziali).
+- [ ] Implementare Zero-Touch Infrastructure (auto-creation D1/R2) in `beech init`.
 
 ### Phase 1.5
 - [x] Aggiungere widget “Project Health / Checklist” in dashboard.
@@ -614,21 +635,21 @@ Implementazione dettagliata e backend per la telemetria sono fuori scope immedia
 
 ### Phase 2
 
-- [ ] Implementare `beech validate` (`packages/cli/src/commands/validate.ts`).
-- [ ] Integrare auto-validate in `beech seed:load`.
-- [ ] Implementare `beech seed:create` wizard.
-- [ ] Estendere scaffolder per `--with-examples`.
+- [x] Implementare `beech validate` (`packages/cli/src/commands/validate.ts`).
+- [x] Integrare auto-validate in `beech seed:load`.
+- [x] Implementare `beech seed:create` wizard.
+- [x] Estendere scaffolder per `--with-examples`.
 
 ### Phase 3
 
-- [ ] Modificare CORS in `apps/api/src/factory.ts` per auto-allow localhost in dev.
-- [ ] Implementare `GET /api/v1/public/schema` (JSON + opzionale HTML).
-- [ ] Aggiungere echo di API key in `beech init`.
+- [x] Modificare CORS in `apps/api/src/factory.ts` per auto-allow localhost in dev.
+- [x] Implementare `GET /api/v1/public/schema` (JSON + opzionale HTML).
+- [x] Aggiungere echo di API key in `beech init`.
 
 ### Phase 4
 
-- [ ] Rafforzare `beech init --db --remote` come verifica post-deploy.
-- [ ] Implementare `beech deploy` wrapper.
+- [x] Rafforzare `beech init --db --remote` come verifica post-deploy.
+- [x] Implementare `beech deploy` wrapper.
 
 ### Phase 5
 
@@ -694,11 +715,30 @@ Aggiungere a questo array se si introduce un nuovo placeholder in `create.mjs` o
 
 `apps/api/.dev.vars` non è committato (in `.gitignore`). Contiene le credenziali R2 per simulare produzione in locale. Da Phase 1 non è più necessario per il dev workflow base.
 
-### Phase 2 — dipendenze note
+### Phase 2 — implementazione completata
 
-- `beech validate` e `beech seed:create` vanno aggiunti come nuovi file in `packages/cli/src/commands/` e registrati in `bin/cli.mjs` (oggetto `COMMANDS`).
-- Il loader seeds esistente (`tryLoadLocalRegistry()` in `cli.mjs`) può essere riusato as-is.
-- Per `seed:create` wizard: evitare `ts-morph` se possibile (dipendenza pesante) — valutare append testuale con template string su `seeds.ts`.
+Tutti e quattro i task di Phase 2 sono stati implementati e il package compilato senza errori.
+
+**File nuovi:**
+- `packages/cli/src/commands/validate.ts` — esporta `validateSeeds(registry)` (funzione pura, riusabile) e `validate(args)` (handler CLI).
+- `packages/cli/src/commands/seed-create.ts` — wizard interattivo con `readline/promises` (nessuna dipendenza aggiuntiva). Append a `seeds.ts`, auto-insert in `SEED_REGISTRY`, aggiunge `import { defineSeed }` se assente.
+
+**File modificati:**
+- `packages/cli/src/commands/seed-load.ts` — importa `validateSeeds` e lo chiama all'inizio di `seedLoad()`; stampa warning non-bloccante se ci sono errori. Output `extra` colonne rinominato in "orphaned" con spiegazione.
+- `packages/cli/src/index.ts` — esporta `validate`, `validateSeeds`, `seedCreate` e i relativi tipi.
+- `bin/cli.mjs` — registra `validate` e `seed:create` nell'oggetto `COMMANDS`; help aggiornato; aggiunge `--with-examples` al path silenzioso.
+- `bin/create.mjs` — `--with-examples` / `--examples` in modalità `--yes` seleziona automaticamente il template `blog`.
+
+**Pattern wizard `seed:create`:**
+- Usa `readline/promises` (Node 17+, già garantito dall'engine Node ≥18).
+- `displayNameAlias` impostato automaticamente al primo branch di tipo `text` (o al primo branch in assoluto).
+- `SEED_REGISTRY` aggiornato con regex `/SEED_REGISTRY[^{]*\{[\s\S]*?\n\}/m` — se non trova il pattern, stampa l'entry da aggiungere manualmente.
+- Nessuna dipendenza aggiuntiva nel package CLI.
+
+**Checks eseguiti da `beech validate`:**
+1. Duplicate `slug` tra Seeds.
+2. Duplicate `alias` dentro un Seed.
+3. `displayNameAlias` non presente tra gli alias dei branch.
 
 ### Phase 3 — CORS
 
@@ -737,7 +777,7 @@ Tutti i comandi `beech` escono con code 0 (successo) o 1 (errore). Nessun prompt
 2. [x] **Segnare Phase 1.5 come completata** nella checklist.
 3. [x] **Refactoring Storage Abstraction**: Implementazione `BeechBucket`, `MediaRepository` e `SystemStatsRepository`.
 4. [x] **Hardening Prod/Dev**: Gestione corretta di CDN, error handling e capability detection.
-5. [ ] **Procedere con Phase 2** — `beech validate` è il task più isolato e privo di dipendenze, ottimo punto di partenza.
-6. [ ] **Integrare auto-validate** in `beech seed:load`.
-7. [ ] **Implementare `beech seed:create`** wizard.
-8. [ ] **Estendere scaffolder** per `--with-examples`.
+5. [x] **Phase 2 completata**: `beech validate`, auto-validate in `seed:load`, `beech seed:create`, `--with-examples`.
+6. [x] **Phase 3 completata**: CORS auto-permissivo localhost, `GET /api/v1/public/schema` (JSON + HTML), API key echo in `beech init`.
+7. [x] **Phase 4 completata** — `beech init --db --remote` hardening + `beech deploy` wrapper.
+8. [ ] **Procedere con Phase 5** — `beech update`, `seed:diff` orphaned columns, doc schema evolution.

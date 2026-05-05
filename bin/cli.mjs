@@ -10,9 +10,12 @@ import { pathToFileURL } from 'node:url'
 const [,, command, ...args] = process.argv
 
 const COMMANDS = {
-  build:        cmdBuild,
-  'seed:load':  cmdSeedLoad,
-  'init':       cmdInit,
+  build:          cmdBuild,
+  'seed:load':    cmdSeedLoad,
+  'seed:create':  cmdSeedCreate,
+  'init':         cmdInit,
+  'validate':     cmdValidate,
+  'deploy':       cmdDeploy,
 }
 
 function help() {
@@ -27,19 +30,33 @@ function help() {
 
     build           Rebuild @beechcms/core after editing seeds.ts
 
+    validate        Validate SEED_REGISTRY for common errors (duplicate aliases,
+                    missing displayNameAlias, duplicate slugs). Exit code 1 on errors.
+
     seed:load       Create/update content tables from SEED_REGISTRY
       --dry-run       Print SQL without executing
       --diff          Show schema differences vs current DB
       --remote        Execute against remote D1 (default: local)
       --db <name>     Override D1 database name
 
+    seed:create     Interactive wizard — generate a new Seed definition and append
+                    it to seeds.ts, including SEED_REGISTRY entry
+
+    deploy          Deploy Worker, sync remote schema, and verify /admin
+      --skip-seed     Skip remote seed:load step
+      --skip-check    Skip /admin reachability check
+
   Scaffold a new project (interactive, or pass --yes for non-interactive defaults):
-    npm create @beechcms/cms [project-name] [--yes]
+    npm create @beechcms/cms [project-name] [--yes] [--with-examples]
 
   Golden path (local):
     npx beech init --db --local
     npx beech seed:load --local
     npx wrangler dev
+
+  Golden path (deploy):
+    npx beech deploy
+    npx beech init --db --remote   # verify remote DB post-deploy
 `)
 }
 
@@ -139,6 +156,25 @@ async function cmdSeedLoad(args) {
 
   const { seedLoad } = await import('@beechcms/cli')
   await seedLoad({ dryRun, diff, local: !remote, db, registry })
+}
+
+async function cmdValidate(args) {
+  const registry = await tryLoadLocalRegistry()
+  const { validate } = await import('@beechcms/cli')
+  await validate({ registry })
+}
+
+async function cmdSeedCreate(_args) {
+  const { seedCreate } = await import('@beechcms/cli')
+  await seedCreate({})
+}
+
+async function cmdDeploy(args) {
+  const skipSeed  = args.includes('--skip-seed')
+  const skipCheck = args.includes('--skip-check')
+  const registry  = skipSeed ? null : await tryLoadLocalRegistry()
+  const { deploy } = await import('@beechcms/cli')
+  await deploy({ registry, skipSeed, skipCheck })
 }
 
 const handler = COMMANDS[command]

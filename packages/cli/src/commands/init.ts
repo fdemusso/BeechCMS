@@ -185,6 +185,33 @@ function checkWranglerPlaceholders(configPath: string): string[] {
   }
 }
 
+function echoApiKeys(configPath: string | null | undefined): void {
+  if (!configPath) return
+  try {
+    const raw = readFileSync(configPath, 'utf-8')
+    const stripped = raw
+      .replace(/\/\/[^\n]*/g, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+    const parsed = JSON.parse(stripped)
+    const vars: Record<string, string> = parsed?.vars ?? {}
+    const readKey = vars['PUBLIC_READ_API_KEY']
+    const writeKey = vars['PUBLIC_WRITE_API_KEY']
+    if (!readKey && !writeKey) return
+    console.log(pc.dim('  API keys detected in wrangler.jsonc:\n'))
+    if (readKey) {
+      const masked = readKey.length > 8 ? readKey.slice(0, 4) + '****' + readKey.slice(-4) : '****'
+      console.log(pc.dim(`    PUBLIC_READ_API_KEY  = ${masked}`))
+    }
+    if (writeKey) {
+      const masked = writeKey.length > 8 ? writeKey.slice(0, 4) + '****' + writeKey.slice(-4) : '****'
+      console.log(pc.dim(`    PUBLIC_WRITE_API_KEY = ${masked}`))
+    }
+    console.log(pc.dim('\n  Use these in your frontend as the X-API-Key header.\n'))
+  } catch {
+    // wrangler.jsonc may be missing or malformed — skip silently
+  }
+}
+
 function checkFiles(cwd: string, checkDevVars: boolean): boolean {
   let ok = true
 
@@ -269,6 +296,7 @@ export async function init(args: InitOptions): Promise<void> {
   console.log(pc.green('\n  All required files present.\n'))
 
   if (!args.initDb) {
+    echoApiKeys(findWranglerConfig())
     const localFlag = args.local ? ' --local' : ''
     console.log(pc.dim('  Next steps:'))
     console.log(pc.dim(`  1. npx beech init --db${localFlag}     # initialise D1 database`))
@@ -317,6 +345,39 @@ export async function init(args: InitOptions): Promise<void> {
   const existingTables = getExistingTables(options)
   const missingTables = SYSTEM_TABLES.filter(t => !existingTables?.includes(t))
 
+  // Remote mode: verification only — do not auto-apply schema.
+  // In production, system tables are created by `wrangler deploy` migrations.
+  if (!args.local) {
+    if (existingTables === null) {
+      console.log(pc.red('  ✗ Remote database unreachable\n'))
+      console.log(pc.dim('  Most likely causes:'))
+      console.log(pc.dim('    - Wrong database_id in wrangler.jsonc'))
+      console.log(pc.dim('    - Worker not yet deployed\n'))
+      console.log(pc.dim('  Fix the configuration and re-deploy:\n'))
+      console.log(pc.cyan('    1. Update d1_databases.database_id in wrangler.jsonc'))
+      console.log(pc.cyan('    2. npm run deploy\n'))
+      process.exit(1)
+    }
+
+    if (missingTables.length > 0) {
+      console.log(pc.yellow(`  ⚠ Missing system tables: ${missingTables.join(', ')}\n`))
+      console.log(pc.dim('  Most likely causes:'))
+      console.log(pc.dim('    - Wrong database_id in wrangler.jsonc'))
+      console.log(pc.dim('    - Migrations did not run during deploy\n'))
+      console.log(pc.dim('  Fix the configuration and re-deploy:\n'))
+      console.log(pc.cyan('    1. Update d1_databases.database_id in wrangler.jsonc'))
+      console.log(pc.cyan('    2. npm run deploy\n'))
+      process.exit(1)
+    }
+
+    for (const table of SYSTEM_TABLES) {
+      console.log(pc.green(`  ✓ ${table}`))
+    }
+    console.log(pc.green('\n  All system tables present. Remote database is initialized.\n'))
+    return
+  }
+
+  // Local mode: apply schema if tables are missing.
   if (existingTables === null) {
     console.log(pc.yellow('  Database unreachable or not yet created — applying base schema…\n'))
   } else if (missingTables.length === 0) {
@@ -333,6 +394,7 @@ export async function init(args: InitOptions): Promise<void> {
   console.log(pc.green('\n  ✓ worker.ts'))
   console.log(pc.green(`  ✓ ${configPath ? basename(configPath) : 'wrangler.jsonc'}`))
   console.log(pc.green('  ✓ seeds.ts'))
-  console.log(pc.green(`  ✓ Local D1 system tables ready\n`))
+  console.log(pc.green('  ✓ Local D1 system tables ready\n'))
+  echoApiKeys(configPath)
   printNextSteps(args.local)
 }

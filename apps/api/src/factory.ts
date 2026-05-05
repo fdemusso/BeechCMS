@@ -123,16 +123,28 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   }))
 
   app.use('*', async (context, next) => {
-    const origins = (context.env.CORS_ORIGINS ?? 'http://localhost:5173')
-      .split(',')
-      .map((o) => o.trim())
-      .filter(Boolean)
+    const isDev = context.env.ENV !== 'production'
+
     return cors({
       origin: (origin) => {
-        // If same-origin (no Origin header) or matched in CORS_ORIGINS
-        if (!origin || origins.includes(origin)) return origin || origins[0]
-        
-        // Allow same-origin if the host matches
+        if (!origin) return origin ?? ''
+
+        // In dev, allow all localhost/127.0.0.1 origins regardless of port
+        if (isDev) {
+          try {
+            const { hostname } = new URL(origin)
+            if (hostname === 'localhost' || hostname === '127.0.0.1') return origin
+          } catch {}
+        }
+
+        const origins = (context.env.CORS_ORIGINS ?? 'http://localhost:5173')
+          .split(',')
+          .map((o) => o.trim())
+          .filter(Boolean)
+
+        if (origins.includes(origin)) return origin
+
+        // Allow same-origin requests
         try {
           const originUrl = new URL(origin)
           const requestUrl = new URL(context.req.url)

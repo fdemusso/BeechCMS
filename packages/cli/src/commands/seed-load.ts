@@ -10,6 +10,7 @@ import {
 } from '@beechcms/core'
 import { executeD1File, findWranglerConfig, resolveDbName, type WranglerOptions } from '../lib/wrangler.js'
 import { diffSeed } from '../lib/schema-diff.js'
+import { validateSeeds } from './validate.js'
 
 export interface SeedLoadOptions {
   dryRun: boolean
@@ -60,7 +61,7 @@ async function runDiff(options: WranglerOptions, registry: Record<string, Seed>)
       if (col.status === 'missing') {
         console.log(pc.red(`    + missing column: ${col.name} ${col.expectedType}`))
       } else if (col.status === 'extra') {
-        console.log(pc.dim(`    ~ extra column:   ${col.name} ${col.actualType}`))
+        console.log(pc.dim(`    ~ orphaned column: "${col.name}" (${col.actualType}) — exists in DB but not in seeds.ts`))
       } else if (col.status === 'type_mismatch') {
         console.log(pc.red(`    ≠ type mismatch:  ${col.name} (expected ${col.expectedType}, got ${col.actualType})`))
       }
@@ -109,6 +110,14 @@ export async function seedLoad(args: SeedLoadOptions): Promise<void> {
   if (Object.keys(registry).length === 0) {
     console.warn(pc.yellow('\n  Warning: SEED_REGISTRY is empty. Create a seeds.ts in your project root.\n'))
     return
+  }
+
+  const validationErrors = validateSeeds(registry)
+  if (validationErrors.length > 0) {
+    const total = validationErrors.reduce((n, e) => n + e.messages.length, 0)
+    const s = total !== 1 ? 's' : ''
+    console.log(pc.yellow(`\n  ⚠ Seed validation found ${total} issue${s}. Schema changes will still be applied.\n`))
+    console.log(pc.dim('  Run "npx beech validate" for details.\n'))
   }
 
   const configPath = findWranglerConfig()

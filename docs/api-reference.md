@@ -32,9 +32,10 @@ This document is the authoritative reference for the Beech CMS REST API. It cove
 6. [Public API](#6-public-api)
    - [Permission Model](#61-permission-model)
    - [Rate Limiting](#62-rate-limiting)
-   - [Read](#63-read-get-apiv1publicseed)
-   - [Create](#64-create-post-apiv1publicseedadd)
-   - [Update](#65-update-put-apiv1publicseededitid)
+   - [Schema](#63-schema-get-apiv1publicschema)
+   - [Read](#64-read-get-apiv1publicseed)
+   - [Create](#65-create-post-apiv1publicseedadd)
+   - [Update](#66-update-put-apiv1publicseededitid)
 7. [Error Model](#7-error-model)
 8. [Widget API](#8-widget-api)
    - [Overview](#81-overview)
@@ -861,7 +862,66 @@ Content-Type: application/problem+json
 
 ---
 
-### 6.3 Read — `GET /api/v1/public/:seed`
+### 6.3 Schema — `GET /api/v1/public/schema`
+
+Returns the public-facing schema: only seeds that have at least one public operation enabled (`allowPublicRead`, `allowPublicPost`, or `allowPublicEdit`). Useful for frontend introspection, SDK generation, and onboarding.
+
+**Auth:** requires `PUBLIC_READ_API_KEY` via `X-API-Key` header (same as all other public `GET` routes).
+
+**Request**
+
+```http
+GET /api/v1/public/schema
+X-API-Key: your-public-read-key
+```
+
+**Response `200`**
+
+```json
+{
+  "seeds": [
+    {
+      "slug": "posts",
+      "label": "Post",
+      "labelPlural": "Posts",
+      "allowPublicRead": true,
+      "allowPublicPost": false,
+      "allowPublicEdit": false,
+      "branches": [
+        {
+          "alias": "title",
+          "type": "text",
+          "label": "Title",
+          "requiredOnCreate": true,
+          "policies": { "public": true, "visibility": "full" }
+        },
+        {
+          "alias": "body",
+          "type": "richtext",
+          "label": "Body",
+          "requiredOnCreate": false,
+          "policies": { "public": true, "visibility": "full" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Branches with `policies.public: false` (i.e. stripped from read responses) are still listed here — the `policies` object tells the consumer exactly what is and is not returned at runtime.
+
+**HTML variant**
+
+Append `.html` to get a browser-readable render of the same data — useful for quick manual inspection:
+
+```
+GET /api/v1/public/schema.html
+X-API-Key: your-public-read-key
+```
+
+---
+
+### 6.4 Read — `GET /api/v1/public/:seed`
 
 Reads one or many entries. Requires `allowPublicRead: true` on the Seed.
 
@@ -944,7 +1004,7 @@ X-API-Key: dev-public-read-key-changeme
 
 ---
 
-### 6.4 Create — `POST /api/v1/public/:seed/add`
+### 6.5 Create — `POST /api/v1/public/:seed/add`
 
 Creates an entry via the Public API. Requires `allowPublicPost: true` on the Seed and `PUBLIC_WRITE_API_KEY`.
 
@@ -996,7 +1056,7 @@ Idempotency-Key: my-client-request-id-001   ← optional
 
 ---
 
-### 6.5 Update — `PUT /api/v1/public/:seed/edit/:id`
+### 6.6 Update — `PUT /api/v1/public/:seed/edit/:id`
 
 Partially updates an existing entry. Requires `allowPublicEdit: true` on the Seed.
 

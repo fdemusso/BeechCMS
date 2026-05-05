@@ -290,12 +290,14 @@ async function main() {
   let name, selectedTemplates, cloudflare
 
   if (silent) {
-    // Non-interactive: use first positional arg or default name, no templates, skip Cloudflare
+    // Non-interactive: use first positional arg or default name, skip Cloudflare
     const positional = argv.find((a) => !a.startsWith('-'))
     name = positional ?? 'my-beech-project'
-    selectedTemplates = []
+    const withExamples = argv.includes('--with-examples') || argv.includes('--examples')
+    selectedTemplates = withExamples ? ['blog'] : []
     cloudflare = null
-    console.log(pc.dim(`  Running in non-interactive mode. Project name: ${name}`))
+    const examplesNote = withExamples ? ' (with blog example content types)' : ''
+    console.log(pc.dim(`  Running in non-interactive mode. Project name: ${name}${examplesNote}`))
   } else {
     // Project name
     const projectName = await p.text({
