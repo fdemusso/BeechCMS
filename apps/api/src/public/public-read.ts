@@ -1,91 +1,65 @@
-import { dbToApi, resolvePolicies } from '@beech/core'
-import type { Seed } from '@beech/core'
+import { resolvePolicies, EntryNotFoundError } from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
 import type { Context } from 'hono'
-import { buildOrderClause, cleanStr, rowToEntry } from '../shared/query-utils'
-import type { ContentEntryRow } from '../shared/query-utils'
+import { cleanStr } from '../shared/query-utils'
 import { checkPublicOperation } from './access-policy'
 import { publicProblem } from './problem-details'
 import { buildPublicListMeta, buildPublicSingleMeta } from './response-builder'
 import {
-  buildPublicFilterWhereClause,
   parseLatestCount,
   parsePublicFilter,
   parsePublicPagination,
+  toEngineFilters,
 } from './query-builder'
-
-type Bindings = {
-  DB: D1Database
-  PUBLIC_READ_API_KEY?: string
-  PUBLIC_WRITE_API_KEY?: string
-  PUBLIC_PUBLISHED_ONLY?: string
-  ENV?: string
-}
-
-type Variables = {
-  jwtPayload: { sub: string; email?: string }
-  getSeed: (slug: string) => Seed | null
-  seedRegistry: Record<string, Seed>
-}
+import { AppEnv } from '../types'
 
 function buildSeedNotFoundMessage(seed: string, seedRegistry: Record<string, Seed>): string {
   const available = Object.keys(seedRegistry).join(', ')
   return `The content type '${seed}' does not exist. Available types: ${available}.`
 }
 
-/** Applica le policy public e visibility ai campi dell'alias data. */
-function applyPublicPolicies(
-  aliasData: Record<string, unknown>,
-  seed: NonNullable<ReturnType<typeof getSeed>>,
-): Record<string, unknown> {
+/** Applies public/visibility policies for the Public API. */
+function applyPublicPolicies(data: Record<string, unknown>, seed: Seed): Record<string, unknown> {
   const result: Record<string, unknown> = {}
-  for (const [alias, value] of Object.entries(aliasData)) {
-    const branch = seed.branches.find((b) => b.alias === alias)
-    if (!branch) {
-      result[alias] = value
-      continue
-    }
+  
+  // System fields are mapped to top-level for public API
+  const system = ['id', 'slug', 'status', 'created_at', 'updated_at']
+  for (const key of system) {
+    if (key in data) result[key] = data[key]
+  }
+
+  for (const branch of seed.branches) {
+    const value = data[branch.alias]
     const { public: isPublic, visibility } = resolvePolicies(branch)
     if (!isPublic) continue
     if (visibility === 'hidden') continue
     if (visibility === 'masked') {
-      result[alias] = typeof value === 'string' && value.length > 0 ? '••••••••' : null
+      result[branch.alias] = typeof value === 'string' && value.length > 0 ? '••••••••' : null
     } else {
-      result[alias] = value
+      result[branch.alias] = value
     }
   }
   return result
 }
 
-function toFlatPublicEntry(
-  row: ContentEntryRow,
-  seed: NonNullable<ReturnType<typeof getSeed>>,
-  fieldsParam?: string
-): Record<string, unknown> {
-  const entry = rowToEntry(row)
-  const aliasData = applyPublicPolicies(dbToApi(seed, entry.data), seed)
-  const base: Record<string, unknown> = {
-    id: entry.id,
-    slug: entry.slug,
-    status: entry.status,
-    created_at: entry.created_at,
-    updated_at: entry.updated_at,
-  }
-
-  const requestedFields = (fieldsParam ?? '')
-    .split(',')
-    .map((f) => f.trim())
-    .filter(Boolean)
-  if (requestedFields.length === 0) {
-    return { ...base, ...aliasData }
-  }
-
+function toFlatPublicEntry(data: Record<string, unknown>, seed: Seed, fieldsParam?: string): Record<string, unknown> {
+  const aliasData = applyPublicPolicies(data, seed)
+  const requestedFields = (fieldsParam ?? '').split(',').map((f) => f.trim()).filter(Boolean)
+  
+  if (requestedFields.length === 0) return aliasData
+  
   const filteredData: Record<string, unknown> = {}
   for (const field of requestedFields) {
-    if (field in aliasData) {
-      filteredData[field] = aliasData[field]
-    }
+    if (field in aliasData) filteredData[field] = aliasData[field]
   }
-  return { ...base, ...filteredData }
+  
+  // Always include basic identity fields if they exist in filtered data or if requested
+  const identity = ['id', 'slug']
+  for (const key of identity) {
+    if (key in aliasData && !filteredData[key]) filteredData[key] = aliasData[key]
+  }
+  
+  return filteredData
 }
 
 function withCache(
@@ -98,106 +72,90 @@ function withCache(
     const cloned = response.clone()
     const headers = new Headers(cloned.headers)
     headers.set('Cache-Control', 'public, max-age=60')
-    executionCtx.waitUntil(
-      cache.put(cacheKey, new Response(cloned.body, { status: cloned.status, headers }))
-    )
+    executionCtx.waitUntil(cache.put(cacheKey, new Response(cloned.body, { status: cloned.status, headers })))
   }
   return response
 }
 
-function buildInternalErrorMessage(c: Context<{ Bindings: Bindings; Variables: Variables }>, err: unknown): string {
-  if (c.env.ENV !== 'production' && err instanceof Error) {
-    return err.message
-  }
+function buildInternalErrorMessage(context: Context<AppEnv>, error: unknown): string {
+  if (context.env.ENV !== 'production' && error instanceof Error) return error.message
   return 'An unexpected error occurred.'
 }
 
-function buildOrderSql(
-  seed: NonNullable<ReturnType<typeof getSeed>>,
-  query: Record<string, string | undefined>,
-  hasLatest: boolean
-): string {
-  if (hasLatest) {
-    return 'ORDER BY created_at DESC'
-  }
-  const orderBy = cleanStr(query.orderBy) ?? ''
-  const orderDir = (cleanStr(query.orderDir) ?? 'desc').toLowerCase()
-
-  if (orderBy === 'created_at' || orderBy === 'updated_at') {
-    const direction = orderDir === 'asc' ? 'ASC' : 'DESC'
-    return `ORDER BY ${orderBy} ${direction}`
-  }
-
-  return buildOrderClause(orderBy, orderDir, seed)
-}
-
-export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variables: Variables }>) {
-  const seedSlug = c.req.param('seed') ?? ''
-  const seed = c.get('getSeed')(seedSlug)
+export async function publicReadHandler(context: Context<AppEnv>) {
+  const seedSlug = context.req.param('seed') ?? ''
+  const seed = context.get('getSeed')(seedSlug)
   if (!seed) {
-    return publicProblem(c, {
-      type: 'seed-not-found',
-      title: 'Seed Not Found',
+    return publicProblem(context, {
+      type: 'seed-not-found', 
+      title: 'Seed Not Found', 
       status: 404,
-      detail: buildSeedNotFoundMessage(seedSlug, c.get('seedRegistry')),
+      detail: buildSeedNotFoundMessage(seedSlug, context.get('seedRegistry')),
     })
   }
+  
   const access = checkPublicOperation(seed, 'read')
   if (!access.ok) {
-    return publicProblem(c, {
-      type: 'operation-not-allowed',
-      title: access.error.error,
-      status: 403,
-      detail: access.error.message,
+    return publicProblem(context, { 
+      type: 'operation-not-allowed', 
+      title: access.error.error, 
+      status: 403, 
+      detail: access.error.message 
     })
   }
 
-  // Cache setup: lettura da Worker Cache API prima di toccare D1
   let cache: Cache | undefined
   let executionCtx: { waitUntil: (p: Promise<unknown>) => void } | undefined
   try {
     cache = caches.default
-    executionCtx = c.executionCtx as typeof executionCtx
+    executionCtx = context.executionCtx as typeof executionCtx
   } catch {}
 
-  const cacheKey = c.req.raw
+  const cacheKey = context.req.raw
   if (cache) {
     const hit = await cache.match(cacheKey)
     if (hit) return hit
   }
 
-  const query = c.req.query()
+  const query = context.req.query()
   const id = cleanStr(query.id)
-  const publishedOnly = c.env.PUBLIC_PUBLISHED_ONLY !== 'false'
+  const slug = cleanStr(query.slug)
+  const publishedOnly = context.env.PUBLIC_PUBLISHED_ONLY !== 'false'
+  const repository = context.get('repository')
 
   try {
-    const { DB } = c.env
+    if (id || slug) {
+      try {
+        const entry = id 
+          ? await repository.findById(seed, id)
+          : await repository.findBySlug(seed, slug!)
+        
+        if (publishedOnly && entry.status !== 'published') {
+          return publicProblem(context, { 
+            type: 'entry-not-found', 
+            title: 'Not Found', 
+            status: 404, 
+            detail: `Entry '${id || slug}' not found or not published.` 
+          })
+        }
 
-    if (id) {
-      const row = await DB.prepare(
-        `SELECT id, schema_slug, slug, status, data, created_at, updated_at
-         FROM content_entries
-         WHERE schema_slug = ? AND id = ? ${publishedOnly ? "AND status = 'published'" : ''}
-         LIMIT 1`
-      )
-        .bind(seedSlug, id)
-        .first<ContentEntryRow>()
-
-      if (!row) {
-        return publicProblem(c, {
-          type: 'entry-not-found',
-          title: 'Not Found',
-          status: 404,
-          detail: `Entry '${id}' not found for content type '${seedSlug}'.`,
-        })
+        return withCache(cache, executionCtx, cacheKey,
+          context.json({ 
+            data: toFlatPublicEntry(entry, seed, query.fields), 
+            meta: buildPublicSingleMeta(seedSlug) 
+          }, 200)
+        )
+      } catch (error) {
+        if (error instanceof EntryNotFoundError) {
+          return publicProblem(context, { 
+            type: 'entry-not-found', 
+            title: 'Not Found', 
+            status: 404, 
+            detail: `Entry '${id || slug}' not found for content type '${seedSlug}'.` 
+          })
+        }
+        throw error
       }
-
-      return withCache(
-        cache,
-        executionCtx,
-        cacheKey,
-        c.json({ data: toFlatPublicEntry(row, seed, query.fields), meta: buildPublicSingleMeta(seedSlug) }, 200)
-      )
     }
 
     const parsedFilter = parsePublicFilter(query.filter)
@@ -208,86 +166,51 @@ export async function publicReadHandler(c: Context<{ Bindings: Bindings; Variabl
     const offset = (pagination.page - 1) * pagination.limit
     const search = cleanStr(query.search) ?? ''
 
-    const whereParts: string[] = ['schema_slug = ?']
-    const whereBindings: Array<string | number> = [seedSlug]
-    if (publishedOnly) {
-      whereParts.push("status = 'published'")
-    }
+    const engineFilters = toEngineFilters(seed, parsedFilter)
+    const sortBy = cleanStr(query.orderBy) ?? 'created_at'
+    const sortDir = (cleanStr(query.orderDir) ?? 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC'
 
-    if (search) {
-      const term = `%${search}%`
-      whereParts.push('(slug LIKE ? OR status LIKE ? OR data LIKE ?)')
-      whereBindings.push(term, term, term)
-    }
+    const { items, total } = await repository.findMany(seed, {
+      filters: engineFilters,
+      search: search || undefined,
+      status: publishedOnly ? 'published' : null,
+      pagination: { 
+        limit: latestMode ? (latestCount ?? 10) : pagination.limit, 
+        offset: latestMode ? 0 : offset 
+      },
+      orderBy: latestMode ? { column: 'created_at', dir: 'DESC' } : { column: sortBy, dir: sortDir }
+    })
 
-    const filterClause = buildPublicFilterWhereClause(seed, parsedFilter)
-    if (filterClause.clause) {
-      whereParts.push(`(${filterClause.clause})`)
-      whereBindings.push(...filterClause.bindings)
-    }
-
-    const whereSql = `WHERE ${whereParts.join(' AND ')}`
-    const countRow = await DB.prepare(`SELECT COUNT(*) as total FROM content_entries ${whereSql}`)
-      .bind(...whereBindings)
-      .first<{ total: number }>()
-    const total = countRow?.total ?? 0
-
-    const orderSql = buildOrderSql(seed, query, latestMode)
-    const effectiveLimit = latestMode ? (latestCount ?? 10) : pagination.limit
-    const effectiveOffset = latestMode ? 0 : offset
-
-    const rowsResult = await DB.prepare(
-      `SELECT id, schema_slug, slug, status, data, created_at, updated_at FROM content_entries ${whereSql} ${orderSql} LIMIT ? OFFSET ?`
-    )
-      .bind(...whereBindings, effectiveLimit, effectiveOffset)
-      .all<ContentEntryRow>()
-
-    const rows = rowsResult.results ?? []
-    const data = rows.map((row) => toFlatPublicEntry(row, seed, query.fields))
+    const data = items.map((item) => toFlatPublicEntry(item, seed, query.fields))
 
     if (latestMode) {
-      return withCache(
-        cache,
-        executionCtx,
-        cacheKey,
-        c.json({ data, meta: { total, returned: data.length, seed: seedSlug } }, 200)
+      return withCache(cache, executionCtx, cacheKey,
+        context.json({ data, meta: { total, returned: data.length, seed: seedSlug } }, 200)
       )
     }
 
-    return withCache(
-      cache,
-      executionCtx,
-      cacheKey,
-      c.json(
-        {
-          data,
-          meta: buildPublicListMeta({
-            total,
-            page: pagination.page,
-            limit: effectiveLimit,
-            returned: data.length,
-            seed: seedSlug,
-          }),
-        },
-        200
-      )
+    return withCache(cache, executionCtx, cacheKey,
+      context.json({
+        data,
+        meta: buildPublicListMeta({ 
+          total, 
+          page: pagination.page, 
+          limit: latestMode ? (latestCount ?? 10) : pagination.limit, 
+          returned: data.length, 
+          seed: seedSlug 
+        }),
+      }, 200)
     )
-  } catch (err) {
-    if (err instanceof Error && err.message.startsWith('Invalid filter:')) {
-      return publicProblem(c, {
-        type: 'invalid-filter',
-        title: 'Bad Request',
-        status: 400,
-        detail: err.message,
-      })
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Invalid filter:')) {
+      return publicProblem(context, { type: 'invalid-filter', title: 'Bad Request', status: 400, detail: error.message })
     }
-
-    return publicProblem(c, {
-      type: 'internal-server-error',
-      title: 'Internal Server Error',
-      status: 500,
-      detail: buildInternalErrorMessage(c, err),
+    console.error('Public read error:', error)
+    return publicProblem(context, { 
+      type: 'internal-server-error', 
+      title: 'Internal Server Error', 
+      status: 500, 
+      detail: buildInternalErrorMessage(context, error) 
     })
   }
 }
-

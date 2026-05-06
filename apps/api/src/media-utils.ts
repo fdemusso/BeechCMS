@@ -4,7 +4,7 @@
  *
  * @see docs/media-engine.md
  */
-import type { Seed } from '@beech/core'
+import type { Seed } from '@beechcms/core'
 
 /** Pattern per estrarre la chiave R2 da URL in formato /api/media/KEY */
 const MEDIA_URL_PATTERN = /\/api\/media\/([^/?#]+)/
@@ -70,7 +70,7 @@ export function extractMediaKeysFromData(
   const r2Keys = new Set<string>()
   for (const branch of seed.branches) {
     if (branch.type !== 'file' && branch.type !== 'json') continue
-    const fieldValue = entryData[branch.id]
+    const fieldValue = entryData[branch.alias]
     if (fieldValue == null) continue
     collectMediaKeysRecursive(fieldValue, r2Keys)
   }

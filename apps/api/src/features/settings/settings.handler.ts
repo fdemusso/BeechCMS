@@ -5,10 +5,10 @@ import type { Env, Variables } from '../../types'
 
 const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const EMAIL_VALIDATION_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 128
-const BCRYPT_ROUNDS = 10
+const BCRYPT_SALT_ROUNDS = 10
 
 type UserRow = {
   id: string
@@ -34,7 +34,7 @@ type ActivityRow = {
   created_at: number
 }
 
-type OrphanRow = {
+type MediaFileRow = {
   key: string
   filename: string
   mime_type: string
@@ -43,194 +43,372 @@ type OrphanRow = {
 }
 
 
-// GET /api/settings/me
-settingsApp.get('/me', async (c) => {
-  const { sub } = c.get('jwtPayload')
-  const user = await c.env.DB.prepare(
+/**
+ * GET /api/settings
+ * Retrieves the general site configuration.
+ */
+settingsApp.get('/', async (context) => {
+  // General site configuration. 
+  // In the future, these could be loaded from a 'system_settings' table in D1.
+  return context.json({
+    siteTitle: 'Beech CMS',
+    siteLogo: '/beechLogoDark.svg',
+    defaultLanguage: 'it',
+    dateFormat: context.env.DATE_FORMAT || 'DD-MM-YYYY',
+    features: {
+      drafts: true,
+      media: true,
+      search: true,
+      activityLog: true
+    }
+  })
+})
+
+/**
+ * GET /api/settings/me
+ * Retrieves the currently authenticated user's profile and preferences.
+ */
+settingsApp.get('/me', async (context) => {
+  const { sub: userId } = context.get('jwtPayload')
+  
+  const currentUser = await context.env.DB.prepare(
     'SELECT id, email, name, avatar_url, notification_prefs FROM users WHERE id = ? LIMIT 1'
-  ).bind(sub).first<Omit<UserRow, 'password_hash'>>()
-  if (!user) return c.json({ error: 'User not found' }, 404)
+  ).bind(userId).first<Omit<UserRow, 'password_hash'>>()
+  
+  if (!currentUser) {
+    return context.json({ error: 'User not found' }, 404)
+  }
 
-  let notificationPrefs: Record<string, boolean>
-  try { notificationPrefs = JSON.parse(user.notification_prefs || '{}') } catch { notificationPrefs = {} }
+  let notificationPreferences: Record<string, boolean>
+  try {
+    notificationPreferences = JSON.parse(currentUser.notification_prefs || '{}')
+  } catch {
+    notificationPreferences = {}
+  }
 
-  return c.json({
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    avatarUrl: user.avatar_url,
+  return context.json({
+    id: currentUser.id,
+    email: currentUser.email,
+    name: currentUser.name,
+    avatarUrl: currentUser.avatar_url,
     notificationPrefs: {
-      contentCreate: notificationPrefs.contentCreate ?? true,
-      contentUpdate: notificationPrefs.contentUpdate ?? true,
-      contentDelete: notificationPrefs.contentDelete ?? true,
-      mediaUpload: notificationPrefs.mediaUpload ?? false,
+      contentCreate: notificationPreferences.contentCreate ?? true,
+      contentUpdate: notificationPreferences.contentUpdate ?? true,
+      contentDelete: notificationPreferences.contentDelete ?? true,
+      mediaUpload: notificationPreferences.mediaUpload ?? false,
     },
   })
 })
 
-// PUT /api/settings/profile
-settingsApp.put('/profile', async (c) => {
-  const { sub } = c.get('jwtPayload')
-  let body: Record<string, unknown>
-  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON' }, 400) }
-
-  const name = typeof body.name === 'string' ? body.name.trim() : null
-  const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : null
-
-  if (email !== null && !EMAIL_REGEX.test(email)) {
-    return c.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Formato email non valido' }, 400)
-  }
-  if (name !== null && name.length > 100) {
-    return c.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Nome troppo lungo (max 100 caratteri)' }, 400)
+/**
+ * PUT /api/settings/profile
+ * Updates the user's name and email address.
+ */
+settingsApp.put('/profile', async (context) => {
+  const { sub: userId } = context.get('jwtPayload')
+  
+  let payload: Record<string, unknown>
+  try {
+    payload = await context.req.json()
+  } catch {
+    return context.json({ error: 'Invalid JSON body' }, 400)
   }
 
-  const updates: string[] = []
-  const values: unknown[] = []
-  if (name !== null) { updates.push('name = ?'); values.push(name) }
-  if (email !== null) { updates.push('email = ?'); values.push(email) }
-  if (updates.length === 0) return c.json({ error: 'No fields to update' }, 400)
+  const nameInput = typeof payload.name === 'string' ? payload.name.trim() : null
+  const emailInput = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : null
 
-  if (email !== null) {
-    const existing = await c.env.DB.prepare(
+  if (emailInput !== null && !EMAIL_VALIDATION_REGEX.test(emailInput)) {
+    return context.json({ 
+      type: 'bad-request', 
+      title: 'Bad Request', 
+      status: 400, 
+      detail: 'Invalid email format' 
+    }, 400)
+  }
+  
+  if (nameInput !== null && nameInput.length > 100) {
+    return context.json({ 
+      type: 'bad-request', 
+      title: 'Bad Request', 
+      status: 400, 
+      detail: 'Name is too long (maximum 100 characters)' 
+    }, 400)
+  }
+
+  const fieldsToUpdate: string[] = []
+  const valuesToUpdate: unknown[] = []
+  
+  if (nameInput !== null) {
+    fieldsToUpdate.push('name = ?')
+    valuesToUpdate.push(nameInput)
+  }
+  
+  if (emailInput !== null) {
+    fieldsToUpdate.push('email = ?')
+    valuesToUpdate.push(emailInput)
+  }
+  
+  if (fieldsToUpdate.length === 0) {
+    return context.json({ error: 'No fields to update' }, 400)
+  }
+
+  // Check if the new email is already taken by another user
+  if (emailInput !== null) {
+    const existingUserWithEmail = await context.env.DB.prepare(
       'SELECT id FROM users WHERE email = ? AND id != ? LIMIT 1'
-    ).bind(email, sub).first()
-    if (existing) return c.json({ type: 'conflict', title: 'Conflict', status: 409, detail: 'Email già in uso' }, 409)
+    ).bind(emailInput, userId).first()
+    
+    if (existingUserWithEmail) {
+      return context.json({ 
+        type: 'conflict', 
+        title: 'Conflict', 
+        status: 409, 
+        detail: 'Email address is already in use' 
+      }, 409)
+    }
   }
 
-  values.push(sub)
-  await c.env.DB.prepare(`UPDATE users SET ${updates.join(', ')} WHERE id = ?`).bind(...values).run()
-  return c.json({ success: true })
+  valuesToUpdate.push(userId)
+  await context.env.DB.prepare(
+    `UPDATE users SET ${fieldsToUpdate.join(', ')} WHERE id = ?`
+  ).bind(...valuesToUpdate).run()
+  
+  return context.json({ success: true })
 })
 
-// PUT /api/settings/password
-settingsApp.put('/password', async (c) => {
-  const { sub } = c.get('jwtPayload')
-  let body: Record<string, unknown>
-  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON' }, 400) }
+/**
+ * PUT /api/settings/password
+ * Updates the user's password after verifying the current one.
+ */
+settingsApp.put('/password', async (context) => {
+  const { sub: userId } = context.get('jwtPayload')
+  
+  let payload: Record<string, unknown>
+  try {
+    payload = await context.req.json()
+  } catch {
+    return context.json({ error: 'Invalid JSON body' }, 400)
+  }
 
-  const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : ''
-  const newPassword = typeof body.newPassword === 'string' ? body.newPassword : ''
+  const currentPassword = typeof payload.currentPassword === 'string' ? payload.currentPassword : ''
+  const newPassword = typeof payload.newPassword === 'string' ? payload.newPassword : ''
 
-  if (!currentPassword || !newPassword) return c.json({ error: 'currentPassword e newPassword obbligatori' }, 400)
-  if (newPassword.length < MIN_PASSWORD_LENGTH) return c.json({ error: `La password deve essere di almeno ${MIN_PASSWORD_LENGTH} caratteri` }, 400)
-  if (newPassword.length > MAX_PASSWORD_LENGTH) return c.json({ error: 'Password troppo lunga' }, 400)
+  if (!currentPassword || !newPassword) {
+    return context.json({ error: 'Both currentPassword and newPassword are required' }, 400)
+  }
+  
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    return context.json({ error: `Password must be at least ${MIN_PASSWORD_LENGTH} characters long` }, 400)
+  }
+  
+  if (newPassword.length > MAX_PASSWORD_LENGTH) {
+    return context.json({ error: 'Password is too long' }, 400)
+  }
 
-  const user = await c.env.DB.prepare('SELECT password_hash FROM users WHERE id = ? LIMIT 1').bind(sub).first<{ password_hash: string }>()
-  if (!user) return c.json({ error: 'User not found' }, 404)
+  const userRecord = await context.env.DB.prepare(
+    'SELECT password_hash FROM users WHERE id = ? LIMIT 1'
+  ).bind(userId).first<{ password_hash: string }>()
+  
+  if (!userRecord) {
+    return context.json({ error: 'User not found' }, 404)
+  }
 
-  const valid = await bcrypt.compare(currentPassword, user.password_hash)
-  if (!valid) return c.json({ type: 'invalid-credentials', title: 'Unauthorized', status: 401, detail: 'Password attuale non corretta' }, 401)
+  const isPasswordCorrect = await bcrypt.compare(currentPassword, userRecord.password_hash)
+  if (!isPasswordCorrect) {
+    return context.json({ 
+      type: 'invalid-credentials', 
+      title: 'Unauthorized', 
+      status: 401, 
+      detail: 'Current password is incorrect' 
+    }, 401)
+  }
 
-  const newHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
-  await c.env.DB.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(newHash, sub).run()
-  return c.json({ success: true })
+  const hashedNewPassword = await bcrypt.hash(newPassword, BCRYPT_SALT_ROUNDS)
+  await context.env.DB.prepare(
+    'UPDATE users SET password_hash = ? WHERE id = ?'
+  ).bind(hashedNewPassword, userId).run()
+  
+  return context.json({ success: true })
 })
 
-// PUT /api/settings/avatar
-settingsApp.put('/avatar', async (c) => {
-  const { sub } = c.get('jwtPayload')
-  let body: Record<string, unknown>
-  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON' }, 400) }
+/**
+ * PUT /api/settings/avatar
+ * Updates the user's avatar URL.
+ */
+settingsApp.put('/avatar', async (context) => {
+  const { sub: userId } = context.get('jwtPayload')
+  
+  let payload: Record<string, unknown>
+  try {
+    payload = await context.req.json()
+  } catch {
+    return context.json({ error: 'Invalid JSON body' }, 400)
+  }
 
-  const avatarUrl = typeof body.avatarUrl === 'string' ? body.avatarUrl.trim() : null
-  await c.env.DB.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').bind(avatarUrl, sub).run()
-  return c.json({ success: true })
+  const avatarUrl = typeof payload.avatarUrl === 'string' ? payload.avatarUrl.trim() : null
+  
+  await context.env.DB.prepare(
+    'UPDATE users SET avatar_url = ? WHERE id = ?'
+  ).bind(avatarUrl, userId).run()
+  
+  return context.json({ success: true })
 })
 
-// GET /api/settings/sessions
-settingsApp.get('/sessions', async (c) => {
-  const { sub } = c.get('jwtPayload')
-  const now = Math.floor(Date.now() / 1000)
-  const result = await c.env.DB.prepare(
+/**
+ * GET /api/settings/sessions
+ * Retrieves a list of active refresh tokens for the user.
+ */
+settingsApp.get('/sessions', async (context) => {
+  const { sub: userId } = context.get('jwtPayload')
+  const currentTimestamp = Math.floor(Date.now() / 1000)
+  
+  const sessionsResult = await context.env.DB.prepare(
     `SELECT id, created_at, expires_at FROM refresh_tokens
      WHERE user_id = ? AND revoked_at IS NULL AND expires_at > ?
      ORDER BY created_at DESC LIMIT 20`
-  ).bind(sub, now).all<SessionRow>()
-  return c.json(result.results ?? [])
+  ).bind(userId, currentTimestamp).all<SessionRow>()
+  
+  return context.json(sessionsResult.results ?? [])
 })
 
-// DELETE /api/settings/sessions/:id
-settingsApp.delete('/sessions/:id', async (c) => {
-  const { sub } = c.get('jwtPayload')
-  const sessionId = c.req.param('id')
-  const now = Math.floor(Date.now() / 1000)
-  const result = await c.env.DB.prepare(
+/**
+ * DELETE /api/settings/sessions/:id
+ * Revokes a specific refresh token (session).
+ */
+settingsApp.delete('/sessions/:id', async (context) => {
+  const { sub: userId } = context.get('jwtPayload')
+  const sessionId = context.req.param('id')
+  const currentTimestamp = Math.floor(Date.now() / 1000)
+  
+  const dbUpdateResult = await context.env.DB.prepare(
     `UPDATE refresh_tokens SET revoked_at = ? WHERE id = ? AND user_id = ? AND revoked_at IS NULL`
-  ).bind(now, sessionId, sub).run()
-  const changes = (result as unknown as { meta?: { changes?: number } })?.meta?.changes ?? 0
-  if (changes === 0) return c.json({ error: 'Sessione non trovata o già revocata' }, 404)
-  return c.json({ success: true })
+  ).bind(currentTimestamp, sessionId, userId).run()
+  
+  const affectedRowsCount = (dbUpdateResult as unknown as { meta?: { changes?: number } })?.meta?.changes ?? 0
+  
+  if (affectedRowsCount === 0) {
+    return context.json({ error: 'Session not found or already revoked' }, 404)
+  }
+  
+  return context.json({ success: true })
 })
 
-// GET /api/settings/activity
-settingsApp.get('/activity', async (c) => {
-  const { sub } = c.get('jwtPayload')
-  const result = await c.env.DB.prepare(
+/**
+ * GET /api/settings/activity
+ * Retrieves the latest activity logs for the user.
+ */
+settingsApp.get('/activity', async (context) => {
+  const { sub: userId } = context.get('jwtPayload')
+  
+  const activityLogsResult = await context.env.DB.prepare(
     `SELECT id, action, entity_type, entity_slug, details, created_at
      FROM activity_logs WHERE user_id = ?
      ORDER BY created_at DESC LIMIT 30`
-  ).bind(sub).all<ActivityRow>()
-  return c.json(result.results ?? [])
+  ).bind(userId).all<ActivityRow>()
+  
+  return context.json(activityLogsResult.results ?? [])
 })
 
-// GET /api/settings/storage
-settingsApp.get('/storage', async (c) => {
-  const stats = await c.env.DB.prepare(
-    'SELECT COUNT(*) as file_count, COALESCE(SUM(size_bytes), 0) as total_bytes FROM media_objects'
-  ).first<{ file_count: number; total_bytes: number }>()
+/**
+ * GET /api/settings/storage
+ * Calculates storage usage and identifies orphaned media files.
+ */
+settingsApp.get('/storage', async (context) => {
+  const mediaRepo = context.get('mediaRepository')
+  const statsRepo = context.get('systemStatsRepository')
+  
+  const totalStorageUsedBytes = await statsRepo.getStorageUsage()
+  const totalFileCount = await mediaRepo.count()
 
-  const orphans = await c.env.DB.prepare(
-    `SELECT m.key, m.filename, m.mime_type, m.size_bytes, m.created_at
-     FROM media_objects m
-     WHERE NOT EXISTS (
-       SELECT 1 FROM content_entries ce
-       WHERE ce.data LIKE '%' || m.key || '%'
-         OR (ce.draft_data IS NOT NULL AND ce.draft_data LIKE '%' || m.key || '%')
-     )
-     ORDER BY m.created_at DESC LIMIT 50`
-  ).all<OrphanRow>()
-
-  return c.json({
-    totalBytes: stats?.total_bytes ?? 0,
-    fileCount: stats?.file_count ?? 0,
-    orphans: orphans.results ?? [],
-  })
-})
-
-// GET /api/settings/notifications
-settingsApp.get('/notifications', async (c) => {
-  const { sub } = c.get('jwtPayload')
-  const user = await c.env.DB.prepare(
-    'SELECT notification_prefs FROM users WHERE id = ? LIMIT 1'
-  ).bind(sub).first<{ notification_prefs: string }>()
-  if (!user) return c.json({ error: 'User not found' }, 404)
-
-  let prefs: Record<string, boolean>
-  try { prefs = JSON.parse(user.notification_prefs || '{}') } catch { prefs = {} }
-
-  return c.json({
-    contentCreate: prefs.contentCreate ?? true,
-    contentUpdate: prefs.contentUpdate ?? true,
-    contentDelete: prefs.contentDelete ?? true,
-    mediaUpload: prefs.mediaUpload ?? false,
-  })
-})
-
-// PUT /api/settings/notifications
-settingsApp.put('/notifications', async (c) => {
-  const { sub } = c.get('jwtPayload')
-  let body: Record<string, unknown>
-  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON' }, 400) }
-
-  const prefs = {
-    contentCreate: body.contentCreate === true,
-    contentUpdate: body.contentUpdate === true,
-    contentDelete: body.contentDelete === true,
-    mediaUpload: body.mediaUpload === true,
+  // Collect all media keys referenced in file-type columns across all seeds
+  const referencedMediaKeys = new Set<string>()
+  const registeredSeeds = Object.values(context.get('seedRegistry'))
+  
+  for (const seed of registeredSeeds) {
+    const mediaFields = seed.branches.filter(branch => branch.type === 'file')
+    if (mediaFields.length === 0) continue
+    
+    const mediaColumns = mediaFields.map(field => field.alias).join(', ')
+    const contentData = await context.env.DB.prepare(
+      `SELECT ${mediaColumns} FROM content_${seed.slug}`
+    ).all<Record<string, string | null>>()
+    
+    for (const contentRow of contentData.results ?? []) {
+      const rowContentString = Object.values(contentRow).filter(Boolean).join(' ')
+      // Simple regex to find media keys in stored URLs or strings
+      for (const keyMatch of rowContentString.matchAll(/\/api\/media\/([^"'\s\\,}\]]+)/g)) {
+        referencedMediaKeys.add(decodeURIComponent(keyMatch[1]))
+      }
+    }
   }
 
-  await c.env.DB.prepare('UPDATE users SET notification_prefs = ? WHERE id = ?').bind(JSON.stringify(prefs), sub).run()
-  return c.json({ success: true })
+  const { items: allMediaRows } = await mediaRepo.list({ limit: 50, offset: 0 })
+  const orphanedMediaFiles = allMediaRows.filter(mediaFile => !referencedMediaKeys.has(mediaFile.key))
+
+  return context.json({
+    totalBytes: totalStorageUsedBytes,
+    fileCount: totalFileCount,
+    orphans: orphanedMediaFiles,
+  })
+})
+
+/**
+ * GET /api/settings/notifications
+ * Retrieves the user's notification preferences.
+ */
+settingsApp.get('/notifications', async (context) => {
+  const { sub: userId } = context.get('jwtPayload')
+  
+  const userRecord = await context.env.DB.prepare(
+    'SELECT notification_prefs FROM users WHERE id = ? LIMIT 1'
+  ).bind(userId).first<{ notification_prefs: string }>()
+  
+  if (!userRecord) {
+    return context.json({ error: 'User not found' }, 404)
+  }
+
+  let userPreferences: Record<string, boolean>
+  try {
+    userPreferences = JSON.parse(userRecord.notification_prefs || '{}')
+  } catch {
+    userPreferences = {}
+  }
+
+  return context.json({
+    contentCreate: userPreferences.contentCreate ?? true,
+    contentUpdate: userPreferences.contentUpdate ?? true,
+    contentDelete: userPreferences.contentDelete ?? true,
+    mediaUpload: userPreferences.mediaUpload ?? false,
+  })
+})
+
+/**
+ * PUT /api/settings/notifications
+ * Updates the user's notification preferences.
+ */
+settingsApp.put('/notifications', async (context) => {
+  const { sub: userId } = context.get('jwtPayload')
+  
+  let payload: Record<string, unknown>
+  try {
+    payload = await context.req.json()
+  } catch {
+    return context.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  const newPreferences = {
+    contentCreate: payload.contentCreate === true,
+    contentUpdate: payload.contentUpdate === true,
+    contentDelete: payload.contentDelete === true,
+    mediaUpload: payload.mediaUpload === true,
+  }
+
+  await context.env.DB.prepare(
+    'UPDATE users SET notification_prefs = ? WHERE id = ?'
+  ).bind(JSON.stringify(newPreferences), userId).run()
+  
+  return context.json({ success: true })
 })
 
 export { settingsApp }
+

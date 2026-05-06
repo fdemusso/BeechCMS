@@ -100,10 +100,21 @@
         "retry": "Riprova"
       },
       "stat": {
-        "total": { "title": "Contenuti Totali", "description": "Tutte le collezioni" },
-        "visitors": { "title": "Visitatori Unici", "description": "Ultimi 30 giorni (Edge)" },
-        "traffic": { "title": "Traffico Totale", "description": "Bandwidth Edge" },
-        "storage": { "description": "{{percentage}}% di {{total}} GB" }
+        "total": {
+          "title": "Contenuti Totali",
+          "description": "Tutte le collezioni"
+        },
+        "visitors": {
+          "title": "Visitatori Unici",
+          "description": "Ultimi 30 giorni (Edge)"
+        },
+        "traffic": {
+          "title": "Traffico Totale",
+          "description": "Bandwidth Edge"
+        },
+        "storage": {
+          "description": "{{percentage}}% di {{total}} GB"
+        }
       },
       "mediaGallery": {
         "title": "Galleria Media",
@@ -117,6 +128,21 @@
     },
     "widgetRegistry": {
       "unknown": "Widget sconosciuto:"
+    },
+    "setupChecklist": {
+      "title": "Checklist di configurazione",
+      "allDone": "Progetto pronto — tutti i passaggi completati",
+      "systemTables": "Database inizializzato",
+      "systemTablesHint": "Esegui: npx beech init --db --local",
+      "seeds": "{{count}} seed definiti in seeds.ts",
+      "seedsNone": "Nessun seed definito in seeds.ts",
+      "seedsAction": "Leggi la guida ai seeds",
+      "contentTables": "Tabelle contenuto create",
+      "contentTablesHint": "Esegui seed:load per creare le tabelle in D1",
+      "adminAccount": "Account admin creato",
+      "adminAction": "Vai al wizard di setup",
+      "firstContent": "Primo contenuto inserito",
+      "firstContentAction": "Crea il primo elemento"
     }
   },
   "editor": {

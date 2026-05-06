@@ -1,9 +1,13 @@
 import { z } from 'zod'
 
-export const rotateFieldBodySchema = z.object({
-  field: z.string().min(1, "field is required"),
-  current: z.string().min(1, "current is required"),
-  next: z.string().min(1, "next is required"),
+/**
+ * Schema for rotating a hashed field value.
+ * Used to update fields that have 'hash' privacy (e.g., passwords, PINs).
+ */
+export const rotateFieldRequestSchema = z.object({
+  fieldAlias: z.string().min(1, "The field alias is required"),
+  currentValue: z.string().min(1, "The current value is required"),
+  nextValue: z.string().min(1, "The new value is required"),
 })
 
-export type RotateFieldBody = z.infer<typeof rotateFieldBodySchema>
+export type RotateFieldRequest = z.infer<typeof rotateFieldRequestSchema>

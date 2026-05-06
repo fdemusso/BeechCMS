@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
-import { resolvePolicies, sha256hex } from '@beech/core'
-import type { Seed } from '@beech/core'
+import { resolvePolicies, sha256hex } from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
 
 class PrivacyPolicyError extends Error {
   readonly status = 501 as const

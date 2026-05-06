@@ -1,5 +1,5 @@
 import * as React from "react"
-import type { Seed } from "@beech/core"
+import type { Seed } from "@beechcms/core"
 
 import type { ContentEntry } from "@/lib/dynamic-columns"
 

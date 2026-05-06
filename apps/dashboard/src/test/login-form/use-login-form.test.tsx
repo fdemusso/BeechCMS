@@ -5,6 +5,7 @@ const mocked = vi.hoisted(() => ({
   navigate: vi.fn(),
   axiosPost: vi.fn(),
   isAxiosError: vi.fn(),
+  setToken: vi.fn(),
 }))
 
 vi.mock("react-router-dom", () => ({
@@ -15,14 +16,19 @@ vi.mock("axios", () => ({
   default: {
     post: mocked.axiosPost,
     isAxiosError: mocked.isAxiosError,
+    create: vi.fn().mockReturnValue({
+      interceptors: {
+        request: { use: vi.fn() },
+        response: { use: vi.fn() },
+      },
+    }),
   },
 }))
 
-vi.mock("@/lib/api", () => ({
-  AUTH_TOKEN_KEY: "beech_token",
+vi.mock("@/lib/auth-context", () => ({
+  useAuth: () => ({ setToken: mocked.setToken }),
 }))
 
-import { AUTH_TOKEN_KEY } from "@/lib/api"
 import { useLoginForm } from "@/components/login-form/use-login-form"
 
 const TEST_PASS = "x".repeat(10)
@@ -30,7 +36,6 @@ const TEST_PASS = "x".repeat(10)
 describe("useLoginForm", () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    localStorage.clear()
   })
 
   it("inizialmente form non valido, toggle password visibile funziona", () => {
@@ -71,7 +76,7 @@ describe("useLoginForm", () => {
     expect(result.current.passwordError).toContain("almeno 8 caratteri")
   })
 
-  it("submit successo: salva token e naviga home", async () => {
+  it("submit successo: chiama setToken e naviga home", async () => {
     mocked.axiosPost.mockResolvedValueOnce({ data: { token: "jwt-token", expiresIn: "15m" } })
 
     const { result } = renderHook(() => useLoginForm())
@@ -89,7 +94,7 @@ describe("useLoginForm", () => {
       { email: "a@b.com", password: TEST_PASS },
       { withCredentials: true }
     )
-    expect(localStorage.getItem(AUTH_TOKEN_KEY)).toBe("jwt-token")
+    expect(mocked.setToken).toHaveBeenCalledWith("jwt-token")
     expect(mocked.navigate).toHaveBeenCalledWith("/", { replace: true })
   })
 
@@ -110,4 +115,3 @@ describe("useLoginForm", () => {
     expect(result.current.passwordError).toBe("Email o Password errate")
   })
 })
-

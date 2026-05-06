@@ -1,13 +1,8 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { apiToDb, dbToApi } from '@beech/core'
-import type { Seed } from '@beech/core'
+import { deserializeFromDb } from '@beechcms/core'
+import type { Seed } from '@beechcms/core'
 import type { Env, Variables } from './types'
-
-/**
- * Widget API: endpoint aggregati per i widget della dashboard.
- * Tutti i route sono JWT-protetti (auth applicata in index.ts).
- */
 
 const widgetApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -55,21 +50,13 @@ function previousWindowSql(window: TimeWindow): { current: string; previous: str
   }
 }
 
-/**
- * Resolve an alias column name to a json_extract expression.
- * If the alias maps to a branch, returns json_extract(data, '$.br_XX').
- * Otherwise falls back to the raw column name (for system columns: created_at, updated_at, status, id, slug).
- */
+const SYSTEM_COLUMNS = new Set(['created_at', 'updated_at', 'status', 'id', 'slug'])
+
+// In v0.4.0 alias = column name. Validate against seed to prevent injection.
 function resolveColumnExpr(seed: Seed, alias: string): string {
-  const SYSTEM_COLUMNS = new Set(['created_at', 'updated_at', 'status', 'id', 'slug'])
   if (SYSTEM_COLUMNS.has(alias)) return alias
-  const dbMap = apiToDb(seed, { [alias]: 1 })
-  const branchId = Object.keys(dbMap)[0]
-  if (branchId) {
-    return `json_extract(data, '$.${branchId}')`
-  }
-  // Fallback: treat as a raw column expression (unlikely to be needed but safe)
-  return alias
+  const branch = seed.branches.find(b => b.alias === alias)
+  return branch ? branch.alias : 'id'
 }
 
 function buildAggregateExpr(seed: Seed, formula: AggregateFormula): string {
@@ -122,32 +109,21 @@ function error(status: number, title: string, detail: string) {
 
 // ─── Routes ─────────────────────────────────────────────────────────────────
 
-/**
- * GET /aggregate/:seed
- * Query params: formula (JSON), window ('week'|'month'|'year'|'all')
- */
 widgetApp.get('/aggregate/:seed', async (c) => {
   const seedSlug = c.req.param('seed')
   const seed = c.get('getSeed')(seedSlug)
-  if (!seed) {
-    return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
-  }
+  if (!seed) return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
 
   const formula = parseFormula(c.req.query('formula'))
-  if (!formula) {
-    return c.json(error(400, 'Bad Request', 'Invalid or missing formula parameter (must be JSON)'), 400)
-  }
+  if (!formula) return c.json(error(400, 'Bad Request', 'Invalid or missing formula parameter (must be JSON)'), 400)
 
   const window = parseWindow(c.req.query('window'))
-  const windowSql = timeWindowSql(window)
   const aggExpr = buildAggregateExpr(seed, formula)
 
   try {
-    const { DB } = c.env
-    const row = await DB.prepare(
-      `SELECT ${aggExpr} as value FROM content_entries WHERE schema_slug = ? AND (${windowSql})`
-    ).bind(seed.slug).first<{ value: number | null }>()
-
+    const row = await c.env.DB.prepare(
+      `SELECT ${aggExpr} as value FROM content_${seed.slug} WHERE (${timeWindowSql(window)})`
+    ).first<{ value: number | null }>()
     return c.json({ value: row?.value ?? 0, window })
   } catch (err) {
     console.error('[widget/aggregate] DB error:', err)
@@ -155,36 +131,23 @@ widgetApp.get('/aggregate/:seed', async (c) => {
   }
 })
 
-/**
- * GET /growth/:seed
- * Query params: formula (JSON), window, windowColumn (optional, unused server-side)
- */
 widgetApp.get('/growth/:seed', async (c) => {
   const seedSlug = c.req.param('seed')
   const seed = c.get('getSeed')(seedSlug)
-  if (!seed) {
-    return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
-  }
+  if (!seed) return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
 
   const formula = parseFormula(c.req.query('formula'))
-  if (!formula) {
-    return c.json(error(400, 'Bad Request', 'Invalid or missing formula parameter (must be JSON)'), 400)
-  }
+  if (!formula) return c.json(error(400, 'Bad Request', 'Invalid or missing formula parameter (must be JSON)'), 400)
 
   const window = parseWindow(c.req.query('window'))
   const { current: currentSql, previous: previousSql } = previousWindowSql(window)
   const aggExpr = buildAggregateExpr(seed, formula)
+  const table = `content_${seed.slug}`
 
   try {
-    const { DB } = c.env
-
     const [currentRow, previousRow] = await Promise.all([
-      DB.prepare(
-        `SELECT ${aggExpr} as value FROM content_entries WHERE schema_slug = ? AND (${currentSql})`
-      ).bind(seed.slug).first<{ value: number | null }>(),
-      DB.prepare(
-        `SELECT ${aggExpr} as value FROM content_entries WHERE schema_slug = ? AND (${previousSql})`
-      ).bind(seed.slug).first<{ value: number | null }>(),
+      c.env.DB.prepare(`SELECT ${aggExpr} as value FROM ${table} WHERE (${currentSql})`).first<{ value: number | null }>(),
+      c.env.DB.prepare(`SELECT ${aggExpr} as value FROM ${table} WHERE (${previousSql})`).first<{ value: number | null }>(),
     ])
 
     const current = currentRow?.value ?? 0
@@ -209,48 +172,31 @@ widgetApp.get('/growth/:seed', async (c) => {
   }
 })
 
-/**
- * GET /leaderboard/:seed
- * Query params: scoreColumn, limit (default 10), orderDir ('asc'|'desc')
- */
 widgetApp.get('/leaderboard/:seed', async (c) => {
   const seedSlug = c.req.param('seed')
   const seed = c.get('getSeed')(seedSlug)
-  if (!seed) {
-    return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
-  }
+  if (!seed) return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
 
   const scoreColumn = c.req.query('scoreColumn')
-  if (!scoreColumn) {
-    return c.json(error(400, 'Bad Request', 'Missing scoreColumn parameter'), 400)
-  }
+  if (!scoreColumn) return c.json(error(400, 'Bad Request', 'Missing scoreColumn parameter'), 400)
 
   const limitRaw = parseInt(c.req.query('limit') ?? '10', 10)
   const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 10
   const orderDir = c.req.query('orderDir') === 'asc' ? 'ASC' : 'DESC'
-
   const scoreExpr = resolveColumnExpr(seed, scoreColumn)
-
-  // Resolve displayNameAlias branch id for the label
-  const displayBranchId = (() => {
-    const dbMap = apiToDb(seed, { [seed.displayNameAlias]: 1 })
-    return Object.keys(dbMap)[0] ?? null
-  })()
-  const labelExpr = displayBranchId
-    ? `json_extract(data, '$.${displayBranchId}')`
-    : "''"
+  const labelCol = resolveColumnExpr(seed, seed.displayNameAlias)
+  const table = `content_${seed.slug}`
 
   try {
-    const { DB } = c.env
-    const rows = await DB.prepare(
-      `SELECT id, ${labelExpr} as label, ${scoreExpr} as score
-       FROM content_entries
-       WHERE schema_slug = ? AND ${scoreExpr} IS NOT NULL
+    const rows = await c.env.DB.prepare(
+      `SELECT id, ${labelCol} as label, ${scoreExpr} as score
+       FROM ${table}
+       WHERE ${scoreExpr} IS NOT NULL
        ORDER BY CAST(${scoreExpr} AS REAL) ${orderDir}
        LIMIT ?`
-    ).bind(seed.slug, limit).all<{ id: string; label: string | null; score: number | string | null }>()
+    ).bind(limit).all<{ id: string; label: string | null; score: number | string | null }>()
 
-    const entries = (rows.results ?? []).map((row) => ({
+    const entries = (rows.results ?? []).map(row => ({
       id: row.id,
       label: row.label ?? row.id,
       score: row.score ?? 0,
@@ -263,42 +209,31 @@ widgetApp.get('/leaderboard/:seed', async (c) => {
   }
 })
 
-/**
- * GET /list/:seed
- * Query params: columns (JSON array), search, filters (JSON array), orderBy, orderDir, limit, offset
- */
 widgetApp.get('/list/:seed', async (c) => {
   const seedSlug = c.req.param('seed')
   const seed = c.get('getSeed')(seedSlug)
-  if (!seed) {
-    return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
-  }
+  if (!seed) return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
 
   const { DB } = c.env
   const query = c.req.query()
+  const table = `content_${seed.slug}`
 
-  // Pagination
   const limitRaw = parseInt(query.limit ?? '25', 10)
   const limit = Number.isFinite(limitRaw) && limitRaw > 0 ? Math.min(limitRaw, 100) : 25
   const offsetRaw = parseInt(query.offset ?? '0', 10)
   const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0
 
-  // Search: LIKE on displayNameAlias field
   const search = query.search?.trim() ?? ''
-  const displayBranchId = (() => {
-    const dbMap = apiToDb(seed, { [seed.displayNameAlias]: 1 })
-    return Object.keys(dbMap)[0] ?? null
-  })()
+  const displayCol = resolveColumnExpr(seed, seed.displayNameAlias)
 
-  const conditions: string[] = [`schema_slug = ?`]
-  const bindings: unknown[] = [seed.slug]
+  const conditions: string[] = []
+  const bindings: unknown[] = []
 
-  if (search && displayBranchId) {
-    conditions.push(`json_extract(data, '$.${displayBranchId}') LIKE ?`)
+  if (search) {
+    conditions.push(`${displayCol} LIKE ?`)
     bindings.push(`%${search}%`)
   }
 
-  // Filters
   if (query.filters) {
     try {
       const rawFilters = JSON.parse(query.filters) as Array<{ column: string; op: string; value: unknown }>
@@ -306,30 +241,14 @@ widgetApp.get('/list/:seed', async (c) => {
         const expr = resolveColumnExpr(seed, f.column)
         switch (f.op) {
           case '=':
-          case 'eq':
-            conditions.push(`${expr} = ?`)
-            bindings.push(f.value)
-            break
+          case 'eq':   conditions.push(`${expr} = ?`);                      bindings.push(f.value); break
           case '!=':
-          case 'neq':
-            conditions.push(`${expr} != ?`)
-            bindings.push(f.value)
-            break
-          case 'like':
-            conditions.push(`${expr} LIKE ?`)
-            bindings.push(f.value)
-            break
+          case 'neq':  conditions.push(`${expr} != ?`);                     bindings.push(f.value); break
+          case 'like': conditions.push(`${expr} LIKE ?`);                   bindings.push(f.value); break
           case '>':
-          case 'gt':
-            conditions.push(`CAST(${expr} AS REAL) > ?`)
-            bindings.push(f.value)
-            break
+          case 'gt':   conditions.push(`CAST(${expr} AS REAL) > ?`);        bindings.push(f.value); break
           case '<':
-          case 'lt':
-            conditions.push(`CAST(${expr} AS REAL) < ?`)
-            bindings.push(f.value)
-            break
-          // unknown ops are silently skipped for safety
+          case 'lt':   conditions.push(`CAST(${expr} AS REAL) < ?`);        bindings.push(f.value); break
         }
       }
     } catch {
@@ -337,38 +256,36 @@ widgetApp.get('/list/:seed', async (c) => {
     }
   }
 
-  // Order
   const orderByAlias = query.orderBy ?? ''
   const orderDir = query.orderDir === 'desc' ? 'DESC' : 'ASC'
   const orderExpr = orderByAlias ? resolveColumnExpr(seed, orderByAlias) : 'created_at'
-  const orderSql = `ORDER BY ${orderExpr} ${orderDir}`
-
-  const whereSql = `WHERE ${conditions.join(' AND ')}`
+  const whereSql = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
   try {
     const [countRow, listRows] = await Promise.all([
-      DB.prepare(`SELECT COUNT(*) as total FROM content_entries ${whereSql}`)
+      DB.prepare(`SELECT COUNT(*) as total FROM ${table} ${whereSql}`)
         .bind(...bindings)
         .first<{ total: number }>(),
       DB.prepare(
-        `SELECT id, slug, status, data, created_at, updated_at
-         FROM content_entries ${whereSql} ${orderSql} LIMIT ? OFFSET ?`
+        `SELECT id, slug, status, created_at, updated_at, ${seed.branches.map(b => b.alias).join(', ')}
+         FROM ${table} ${whereSql} ORDER BY ${orderExpr} ${orderDir} LIMIT ? OFFSET ?`
       )
         .bind(...bindings, limit, offset)
-        .all<{ id: string; slug: string | null; status: string; data: string; created_at: number | null; updated_at: number | null }>(),
+        .all<Record<string, unknown>>(),
     ])
 
-    const entries = (listRows.results ?? []).map((row) => {
-      let rawData: Record<string, unknown> = {}
-      try { rawData = JSON.parse(row.data) } catch { /* ignore */ }
-      const apiData = dbToApi(seed, rawData)
+    const entries = (listRows.results ?? []).map(row => {
+      const data: Record<string, unknown> = {}
+      for (const branch of seed.branches) {
+        data[branch.alias] = deserializeFromDb(branch, row[branch.alias] ?? null)
+      }
       return {
-        id: row.id,
-        slug: row.slug ?? '',
-        status: row.status,
-        createdAt: row.created_at ?? 0,
-        updatedAt: row.updated_at ?? 0,
-        ...apiData,
+        id: row.id as string,
+        slug: (row.slug as string | null) ?? '',
+        status: row.status as string,
+        createdAt: (row.created_at as number) ?? 0,
+        updatedAt: (row.updated_at as number) ?? 0,
+        ...data,
       }
     })
 
@@ -379,30 +296,22 @@ widgetApp.get('/list/:seed', async (c) => {
   }
 })
 
-/**
- * GET /timeseries/:seed
- * Query params: valueColumn, groupColumn, formula ('sum'|'avg'|'count'), window
- */
 widgetApp.get('/timeseries/:seed', async (c) => {
   const seedSlug = c.req.param('seed')
   const seed = c.get('getSeed')(seedSlug)
-  if (!seed) {
-    return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
-  }
+  if (!seed) return c.json(error(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
 
   const valueColumn = c.req.query('valueColumn')
   const groupColumn = c.req.query('groupColumn') ?? 'created_at'
   const formulaOp = c.req.query('formula') ?? 'count'
   const window = parseWindow(c.req.query('window'))
-  const windowSql = timeWindowSql(window)
+  const table = `content_${seed.slug}`
 
   if (!valueColumn && formulaOp !== 'count') {
     return c.json(error(400, 'Bad Request', 'valueColumn is required when formula is not count'), 400)
   }
 
   const groupExpr = resolveColumnExpr(seed, groupColumn)
-
-  // Date bucket: format as YYYY-MM-DD from unix timestamp
   const dateBucketExpr = `strftime('%Y-%m-%d', ${groupExpr === 'created_at' ? groupExpr : `CAST(${groupExpr} AS INTEGER)`}, 'unixepoch')`
 
   let aggExpr: string
@@ -417,16 +326,15 @@ widgetApp.get('/timeseries/:seed', async (c) => {
   }
 
   try {
-    const { DB } = c.env
-    const rows = await DB.prepare(
+    const rows = await c.env.DB.prepare(
       `SELECT ${dateBucketExpr} as label, ${aggExpr} as value
-       FROM content_entries
-       WHERE schema_slug = ? AND (${windowSql})
+       FROM ${table}
+       WHERE (${timeWindowSql(window)})
        GROUP BY ${dateBucketExpr}
        ORDER BY ${dateBucketExpr} ASC`
-    ).bind(seed.slug).all<{ label: string | null; value: number | null }>()
+    ).bind().all<{ label: string | null; value: number | null }>()
 
-    const points = (rows.results ?? []).map((row) => ({
+    const points = (rows.results ?? []).map(row => ({
       label: row.label ?? '',
       value: row.value ?? 0,
     }))

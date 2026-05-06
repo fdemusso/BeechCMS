@@ -31,6 +31,6 @@ export async function getBucketSize(client: S3Client, bucketName: string): Promi
     return totalSize
   } catch (err) {
     console.error('Error calculating bucket size:', err)
-    return 0
+    throw new Error('Failed to calculate bucket size. Check your R2/S3 credentials and endpoint.')
   }
 }

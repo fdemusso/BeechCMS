@@ -10,7 +10,7 @@
   font-weight: 400;
   line-height: 1.5;
 
-  color-scheme: light;
+  color-scheme: light dark;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -166,7 +166,8 @@ h1 {
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-.dark {
+.dark, html.dark {
+  color-scheme: dark;
   /* ── Dark mode tokens — palette neutro/nero, nessuna tinta di colore ── */
 
   /*

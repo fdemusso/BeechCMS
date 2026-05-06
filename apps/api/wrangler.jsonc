@@ -4,6 +4,15 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-02-13",
 
+  // Dashboard SPA — Workers Assets
+  // Monorepo dev: punta a ../dashboard/dist (build dashboard prima: npm run build -w apps/dashboard)
+  // Progetto utente: punta a node_modules/@beechcms/api/assets/dashboard
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "../dashboard/dist",
+    "not_found_handling": "none"
+  },
+
   // Necessario per bcryptjs (usa Node.js crypto)
   "compatibility_flags": ["nodejs_compat"],
 
@@ -17,9 +26,16 @@
     }
   ],
 
-  // R2: usa API S3-compatibile con chiavi (configura in .dev.vars per locale, wrangler secret per produzione)
+  // R2: in locale usa il binding Miniflare (nessuna credenziale necessaria — .dev.vars può restare vuoto).
+  // In produzione aggiungere le credenziali come wrangler secret: R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME
   // Crea il bucket: npx wrangler r2 bucket create beech-media
-  // Chiavi: Dashboard Cloudflare → R2 → Manage R2 API Tokens
+  // Chiavi API R2: Dashboard Cloudflare → R2 → Manage R2 API Tokens
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "beech-media"
+    }
+  ],
 
   // Rate limiting (Wrangler 4.36+)
   "ratelimits": [
@@ -65,6 +81,7 @@
     "PUBLIC_PUBLISHED_ONLY": "true",
     "PUBLIC_IDEMPOTENCY_TTL_SECONDS": "86400",
     "MEDIA_BASE_URL": "http://localhost:5173",
+    "DATE_FORMAT": "DD-MM-YYYY",
     // URL del dashboard (usato per costruire i link nelle email di reset password)
     // Configura via wrangler secret in produzione: RESEND_API_KEY, APP_URL, EMAIL_FROM
     "APP_URL": "http://localhost:5173",

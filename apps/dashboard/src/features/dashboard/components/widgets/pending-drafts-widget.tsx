@@ -36,7 +36,7 @@ function entryTitle(entry: ContentEntry): string {
   return entry.id
 }
 
-export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, onOpen }: PendingDraftsWidgetProps) {
+export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish }: PendingDraftsWidgetProps) {
   const { t, i18n } = useTranslation()
   const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
   const queryClient = useQueryClient()

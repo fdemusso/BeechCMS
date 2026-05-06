@@ -28,13 +28,14 @@ This document is the authoritative reference for the Beech CMS REST API. It cove
 5. [Media Engine](#5-media-engine)
    - [Upload](#51-upload-post-apiupload)
    - [Serve](#52-serve-get-apimediakey)
-   - [R2 Storage Architecture](#53-r2-storage-architecture)
+   - [Storage Abstraction](#53-storage-abstraction)
 6. [Public API](#6-public-api)
    - [Permission Model](#61-permission-model)
    - [Rate Limiting](#62-rate-limiting)
-   - [Read](#63-read-get-apiv1publicseed)
-   - [Create](#64-create-post-apiv1publicseedadd)
-   - [Update](#65-update-put-apiv1publicseededitid)
+   - [Schema](#63-schema-get-apiv1publicschema)
+   - [Read](#64-read-get-apiv1publicseed)
+   - [Create](#65-create-post-apiv1publicseedadd)
+   - [Update](#66-update-put-apiv1publicseededitid)
 7. [Error Model](#7-error-model)
 8. [Widget API](#8-widget-api)
    - [Overview](#81-overview)
@@ -350,7 +351,7 @@ CREATE TABLE password_reset_tokens (
 
 All routes require `Authorization: Bearer <access_token>`.
 
-The content engine uses the Botanical Engine (`apiToDb`/`dbToApi`) for all field translation. Consumers always use **field aliases** (defined in the Seed), never internal IDs (`br01`, `br02`).
+The content engine uses the Botanical Engine to generate optimized SQL queries. Consumers always use **field aliases** (defined in the Seed).
 
 ---
 
@@ -404,11 +405,13 @@ Authorization: Bearer eyJ...
 }
 ```
 
+> **Note:** Although the data is stored in separate SQL columns, the API continues to return a `data` object containing the fields for backward compatibility with the dashboard and public API consumers.
+
 ---
 
 ### 4.2 Create Entry — `POST /api/content/:seed`
 
-Creates a new content entry. Fields are validated and sanitized via `validateAndSanitizeSeedPayload` in `@beech/core`.
+Creates a new content entry. Fields are validated and sanitized via `validateAndSanitizeSeedPayload` in `@beechcms/core`.
 
 **Request**
 
@@ -490,9 +493,9 @@ Content-Type: application/json
 
 Deletes a content entry and removes all associated R2 media files.
 
-**R2 cascade behaviour:** Before the D1 `DELETE`, the API extracts all R2 object keys from `file` and `asset-list` fields in the entry's `data` column. It sends a `DeleteObjectCommand` per key. If R2 is not configured or a delete fails, **the D1 deletion still proceeds** — media cleanup is best-effort and does not block content deletion.
+**cascade behaviour:** Before the deletion, the API extracts all media keys from the entry's fields. It sends a `DeleteObjectCommand` per key. If R2 is not configured or a delete fails, **the deletion still proceeds** — media cleanup is best-effort.
 
-> **Limitation:** Images embedded inside `richtext` fields (`<img src="/api/media/KEY">`) are not parsed during cascade deletion. Those objects remain in R2 until manually removed.
+> **Limitation:** Images embedded inside `richtext` fields (`<img src="/api/media/KEY">`) are not parsed during cascade deletion.
 
 **Request**
 
@@ -555,23 +558,19 @@ Content-Type: application/json
 | `422` | `rotate-field-not-hashable` | `field` exists but its `privacy` is not `hash` |
 | `422` | `rotate-field-not-set` | The field has no stored value (was never written) |
 
-**Implementation note:** This endpoint is implemented as a VSA slice under `apps/api/src/features/rotate-field/`. The `verifyHashField` and `sha256hex` utilities are exported from `@beech/core`.
+**Implementation note:** This endpoint is implemented as a VSA slice under `apps/api/src/features/rotate-field/`. The `verifyHashField` and `sha256hex` utilities are exported from `@beechcms/core`.
 
 ---
 
-### 4.6 Pending Draft API
+Il sistema di bozze pendenti permette di salvare modifiche su un'entry già pubblicata senza renderle immediatamente visibili al pubblico. In v0.4.0, questo è gestito tramite una tabella speculare `content_{slug}_drafts` che contiene le modifiche non ancora pubblicate.
 
-Il sistema di bozze pendenti permette di salvare modifiche su un'entry già pubblicata senza renderle immediatamente visibili al pubblico. Funziona tramite una colonna separata `draft_data` sulla stessa riga: `data` contiene il contenuto vivo, `draft_data` contiene l'overlay pendente.
+**Prerequisito:** il Seed deve avere `allowDrafts: true` in `@beechcms/core/src/seeds.ts`. Se il flag è assente o `false`, tutti gli endpoint di questa sezione rispondono `405 Method Not Allowed`.
 
-**Prerequisito:** il Seed deve avere `allowDrafts: true` in `@beech/core/src/seeds.ts`. Se il flag è assente o `false`, tutti gli endpoint di questa sezione rispondono `405 Method Not Allowed`.
-
-> **Distinzione fondamentale:** `status = 'draft'` identifica un'entry mai pubblicata (nuova, in lavorazione). Una bozza pendente è invece un'entry **già pubblicata** con `draft_data IS NOT NULL` — le due cose sono concettualmente diverse e gestite da endpoint diversi.
+> **Distinzione fondamentale:** `status = 'draft'` identifica un'entry mai pubblicata. Una bozza pendente è invece un'entry **già pubblicata** che ha una riga corrispondente nella tabella dei draft.
 
 ---
 
-#### `PUT /api/content/:seed/:id/draft`
-
-Crea o sovrascrive la bozza pendente sull'entry. I dati vengono validati e tradotti tramite il Botanical Engine prima di essere scritti in `draft_data`. I campi con `privacy !== 'plain'` (campi sensibili) non sono modificabili neanche in bozza.
+Crea o sovrascrive la bozza pendente nella tabella `content_{slug}_drafts`. I dati vengono validati e serializzati tramite il Botanical Engine.
 
 **Request**
 
@@ -586,7 +585,7 @@ Content-Type: application/json
 }
 ```
 
-Il payload usa alias (`title`, `body`), non branch ID interni. Si possono inviare anche solo alcuni campi — non è necessario inviare l'entry completa.
+Il payload usa alias (`title`, `body`). Si possono inviare anche solo alcuni campi — non è necessario inviare l'entry completa.
 
 **Response `200`**
 
@@ -636,22 +635,14 @@ I campi sono in formato alias, con le policy di visibilità già applicate (`app
 | Status | `type` | Causa |
 |---|---|---|
 | `404` | `content-not-found` | Entry non trovata |
-| `404` | `draft-not-found` | L'entry esiste ma non ha una bozza pendente (`draft_data` è NULL) |
+| `404` | `draft-not-found` | L'entry esiste ma non ha una bozza pendente (nessuna riga in `content_{slug}_drafts`) |
 | `405` | `draft-not-allowed` | Il Seed non ha `allowDrafts: true` |
 
 ---
 
-#### `POST /api/content/:seed/:id/draft/publish`
+Promuove la bozza pendente al contenuto vivo in un'unica operazione atomica SQL (`INSERT INTO ... SELECT ...`).
 
-Promuove la bozza pendente al contenuto vivo in un'unica operazione atomica SQL:
-
-```sql
-UPDATE content_entries
-SET data = draft_data, draft_data = NULL, status = 'published', updated_at = ?
-WHERE schema_slug = ? AND id = ?
-```
-
-Dopo la scrittura, aggiorna l'indice FTS5 e registra l'attività nel log.
+Dopo la scrittura, i trigger SQL aggiornano l'indice FTS5 e viene registrata l'attività nel log.
 
 **Request**
 
@@ -680,7 +671,7 @@ Nessun body richiesto.
 
 #### `DELETE /api/content/:seed/:id/draft`
 
-Scarta la bozza pendente impostando `draft_data = NULL`. Il contenuto vivo (`data`) non viene modificato.
+Scarta la bozza pendente eliminando la riga dalla tabella dei draft. Il contenuto vivo non viene modificato.
 
 **Request**
 
@@ -709,14 +700,14 @@ Authorization: Bearer eyJ...
 ```
 Entry pubblicata
       │
-      │  PUT /draft  (salva modifiche senza pubblicare)
+      │  PUT /draft  (salva modifiche nella tabella mirror)
       ▼
-draft_data = { ...modifiche }   ←── visibile solo nell'editor (anteprima via GET /draft)
-data = { ...versione live }     ←── ancora servita al pubblico
+content_{slug}_drafts  ←── visibile solo nell'editor (anteprima via GET /draft)
+content_{slug}         ←── ancora servita al pubblico
       │
-      ├── POST /draft/publish  →  data = draft_data, draft_data = NULL  (atomico)
+      ├── POST /draft/publish  →  aggiorna riga principale dalla mirror (atomico)
       │
-      └── DELETE /draft        →  draft_data = NULL  (scarta le modifiche)
+      └── DELETE /draft        →  elimina riga mirror (scarta le modifiche)
 ```
 
 ---
@@ -725,7 +716,7 @@ data = { ...versione live }     ←── ancora servita al pubblico
 
 ### 5.1 Upload — `POST /api/upload`
 
-Uploads a binary file to Cloudflare R2 via the S3-compatible API (`@aws-sdk/client-s3`). Requires JWT authentication.
+Uploads a binary file to the configured storage provider (`BeechBucket`). The metadata and storage statistics are automatically tracked in the database via the `MediaRepository` and `SystemStatsRepository`. Requires JWT authentication.
 
 **Request**
 
@@ -744,8 +735,11 @@ Content-Type: multipart/form-data
 - Object key format: `<unix_timestamp>-<sanitized_filename>`
 
 **Internal flow:**
-
-[![](https://mermaid.ink/img/pako:eNpNUs1u2kAQfpXRHJqLwWDjEHyoVIxp0hYFhbRVa6NowAu43R9rvVZLjK99gDxinqRrk1Tdw2pm5_uZHU2NW5UxDHHH1a_tgbSBT3epBHveJTMqDxtFOktTKSpu8sLW3Z3SopeRoTX0em9Py9vVPbhU5G5VcEUtdspIMw0fvt6fYJpcK6ngc1eDa5IZZ3p9dpi2AhDVX4jnVpDB4mYRW_4bWOWPrDmDos5lTjk_wSwZDQbgQnvHWqtXoTNmSWV5gjhZVuZ284NtTaSEsIZWceVDxHMmDTz_eYI774UXdw3Mkxu51UzYsoWWx9Iw8VAaMmXfKEPcxkrTnj1sjoaVFpJLmA1fJOadxPskRc82VUOleQgX3TwEy3JyP8bfLqBJcY0O7nWeYWh0xRwUTAtqU6xbpRTNwbaQYmjDjPTPFFPZWE5B8rtS4pWmVbU_YLgjXtqsKtq5zXLaaxL_XjWTGdORqqTB0Bt2GhjW-BvDoXfZD4Kx7w8DfxL4wcjBo8UMrvpX49HE88aT8SjwLv3GwcfOddAV_j8O2n_ZiSzOi9PtT_MXk5G4fg?type=png)](https://mermaid.live/edit#pako:eNpNUs1u2kAQfpXRHJqLwWDjEHyoVIxp0hYFhbRVa6NowAu43R9rvVZLjK99gDxinqRrk1Tdw2pm5_uZHU2NW5UxDHHH1a_tgbSBT3epBHveJTMqDxtFOktTKSpu8sLW3Z3SopeRoTX0em9Py9vVPbhU5G5VcEUtdspIMw0fvt6fYJpcK6ngc1eDa5IZZ3p9dpi2AhDVX4jnVpDB4mYRW_4bWOWPrDmDos5lTjk_wSwZDQbgQnvHWqtXoTNmSWV5gjhZVuZ284NtTaSEsIZWceVDxHMmDTz_eYI774UXdw3Mkxu51UzYsoWWx9Iw8VAaMmXfKEPcxkrTnj1sjoaVFpJLmA1fJOadxPskRc82VUOleQgX3TwEy3JyP8bfLqBJcY0O7nWeYWh0xRwUTAtqU6xbpRTNwbaQYmjDjPTPFFPZWE5B8rtS4pWmVbU_YLgjXtqsKtq5zXLaaxL_XjWTGdORqqTB0Bt2GhjW-BvDoXfZD4Kx7w8DfxL4wcjBo8UMrvpX49HE88aT8SjwLv3GwcfOddAV_j8O2n_ZiSzOi9PtT_MXk5G4fg)
+1. Parse multipart form and validate file.
+2. Initialize `BeechBucket` via capability detection (R2 Binding > S3 Credentials).
+3. Upload file to storage provider.
+4. Atomically track upload in `media_objects` and increment `system_stats`.
+5. Return the public URL.
 
 **Response `200`**
 
@@ -781,27 +775,24 @@ The returned URL is stored as-is in the entry's `data` column (field type `file`
 
 ### 5.2 Serve — `GET /api/media/:key`
 
-Proxies a file from R2 to the client. This is a **public route** — no authentication required. This is by design: media URLs stored in content entries must be directly usable in `<img src="...">` tags without token forwarding.
+Proxies a file from the configured storage provider to the client. This is a **public route** — no authentication required.
 
 **Response:** Binary stream with original `Content-Type` and `Cache-Control: public, max-age=31536000, immutable`.
 
-**Error responses:** `404` JSON if the key is not found in R2.
+**CDN Support:** If `MEDIA_CDN_URL` is configured, the dashboard and API will generate URLs pointing directly to the CDN, bypassing the proxy for better performance.
 
 ---
 
-### 5.3 R2 Storage Architecture
+### 5.3 Storage Abstraction
 
-Beech does not use presigned URLs. Files are always proxied through the Worker. This is intentional: it keeps R2 credentials server-side and allows the Worker to enforce access control at the proxy layer in future iterations.
+BeechCMS uses a vendor-agnostic storage layer (`BeechBucket`) that supports multiple providers:
 
-**Storage counter:** R2 does not expose a real-time quota API. Beech maintains an atomic counter in D1:
+1. **R2 Binding**: High-performance native binding for Cloudflare Workers.
+2. **S3 Compatible**: Supports any S3-compatible storage (R2 via HTTP, AWS S3, etc.).
+3. **Null Provider**: Used in environments where storage is not configured to prevent crashes during startup.
 
-| Event | D1 Operation |
-|---|---|
-| Successful upload | `UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes'` |
-| Successful delete | `HeadObjectCommand` → get size → `UPDATE system_stats SET value = MAX(0, value - ?) …` |
-| Manual sync | `POST /api/content/stats/storage/sync` → `ListObjectsV2` full scan → rewrite counter |
-
-This allows the dashboard to display current storage usage with a single SQL read at zero additional cost.
+**Storage Tracking:** 
+Unlike previous versions that required manual header checks or full scans, v0.4.0 uses the `MediaRepository` as the single source of truth. Every upload and deletion is tracked in the `media_objects` table, and the `total_storage_bytes` counter is updated atomically.
 
 ---
 
@@ -813,7 +804,7 @@ The Public API (`/api/v1/public/`) is a purpose-built, hardened endpoint for ext
 
 Access is controlled at two levels:
 
-**Level 1 — Seed capability flags** (defined in `@beech/core/src/seeds.ts`):
+**Level 1 — Seed capability flags** (defined in `@beechcms/core/src/seeds.ts`):
 
 ```typescript
 interface Seed {
@@ -871,7 +862,66 @@ Content-Type: application/problem+json
 
 ---
 
-### 6.3 Read — `GET /api/v1/public/:seed`
+### 6.3 Schema — `GET /api/v1/public/schema`
+
+Returns the public-facing schema: only seeds that have at least one public operation enabled (`allowPublicRead`, `allowPublicPost`, or `allowPublicEdit`). Useful for frontend introspection, SDK generation, and onboarding.
+
+**Auth:** requires `PUBLIC_READ_API_KEY` via `X-API-Key` header (same as all other public `GET` routes).
+
+**Request**
+
+```http
+GET /api/v1/public/schema
+X-API-Key: your-public-read-key
+```
+
+**Response `200`**
+
+```json
+{
+  "seeds": [
+    {
+      "slug": "posts",
+      "label": "Post",
+      "labelPlural": "Posts",
+      "allowPublicRead": true,
+      "allowPublicPost": false,
+      "allowPublicEdit": false,
+      "branches": [
+        {
+          "alias": "title",
+          "type": "text",
+          "label": "Title",
+          "requiredOnCreate": true,
+          "policies": { "public": true, "visibility": "full" }
+        },
+        {
+          "alias": "body",
+          "type": "richtext",
+          "label": "Body",
+          "requiredOnCreate": false,
+          "policies": { "public": true, "visibility": "full" }
+        }
+      ]
+    }
+  ]
+}
+```
+
+Branches with `policies.public: false` (i.e. stripped from read responses) are still listed here — the `policies` object tells the consumer exactly what is and is not returned at runtime.
+
+**HTML variant**
+
+Append `.html` to get a browser-readable render of the same data — useful for quick manual inspection:
+
+```
+GET /api/v1/public/schema.html
+X-API-Key: your-public-read-key
+```
+
+---
+
+### 6.4 Read — `GET /api/v1/public/:seed`
 
 Reads one or many entries. Requires `allowPublicRead: true` on the Seed.
 
@@ -954,7 +1004,7 @@ X-API-Key: dev-public-read-key-changeme
 
 ---
 
-### 6.4 Create — `POST /api/v1/public/:seed/add`
+### 6.5 Create — `POST /api/v1/public/:seed/add`
 
 Creates an entry via the Public API. Requires `allowPublicPost: true` on the Seed and `PUBLIC_WRITE_API_KEY`.
 
@@ -1006,7 +1056,7 @@ Idempotency-Key: my-client-request-id-001   ← optional
 
 ---
 
-### 6.5 Update — `PUT /api/v1/public/:seed/edit/:id`
+### 6.6 Update — `PUT /api/v1/public/:seed/edit/:id`
 
 Partially updates an existing entry. Requires `allowPublicEdit: true` on the Seed.
 
@@ -1293,3 +1343,29 @@ Date buckets are formatted as `YYYY-MM-DD` strings using D1's `strftime`.
 ```
 
 Points are ordered ascending by date. Days with no entries are omitted (no zero-fill).
+
+---
+
+## 9. Technical Architecture (v0.4.0 Refactor)
+
+Starting from v0.4.0, the Beech CMS API has been refactored to follow a **Vertical Slice Architecture** and the **Repository Pattern**.
+
+### Content Repository Pattern
+
+The API no longer interacts directly with the Cloudflare D1 database inside its handlers. Instead, it uses a platform-agnostic `ContentRepository` interface defined in `@beechcms/core`.
+
+- **Decoupling**: Business logic is separated from SQL execution.
+- **Atomic Operations**: Operations like publishing a draft use the Repository's batching capabilities to ensure data integrity.
+- **Error Mapping**: Internal database errors are caught at the repository level and mapped to standard Beech error classes (`EntryNotFoundError`, `SlugConflictError`).
+
+### Vertical Slice Implementation
+
+Each API feature (Content, Drafts, Auth) is a self-contained slice under `apps/api/src/features/`. Handlers are "thin" and focus on request validation and response formatting, delegating the heavy lifting to the repository layer.
+
+### R2 Media Cleanup
+
+Media cleanup during entry deletion is now handled by the API handlers using data returned by the repository. This ensures that when a row is deleted from D1, its associated assets in R2 are also removed (best-effort).
+
+---
+
+_Beech CMS API Reference — Documentation for v0.4.0 and beyond._

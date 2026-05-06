@@ -1,4 +1,4 @@
-import type { Branch, Seed } from "@beech/core"
+import type { Branch, Seed } from "@beechcms/core"
 
 export interface ResolvedCardFields {
   coverBranch: Branch | null

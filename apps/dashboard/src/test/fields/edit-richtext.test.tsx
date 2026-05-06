@@ -46,12 +46,12 @@ describe("RichtextEdit", () => {
         />
       </TooltipProvider>
     )
-    expect(screen.getByRole("button", { name: /Indietro/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Avanti/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Heading menu/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /List/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Blockquote/i })).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Block code/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Annulla/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Ripristina/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Stili testo/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Lista/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Citazione/i })).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /Blocco codice/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Grassetto/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Corsivo/i })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: /Barrato/i })).toBeInTheDocument()

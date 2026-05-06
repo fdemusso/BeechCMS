@@ -1,63 +1,62 @@
 import type { EmailLocale } from '../email.types'
 
 /**
- * Slot di contenuto che ogni template deve fornire per comporre un'email completa.
- * Ogni slot corrisponde a un blocco visivo nel layout della card email.
+ * Content slots that every template must provide to compose a complete email.
+ * Each slot corresponds to a visual block in the email card layout.
  */
 export interface EmailShellSlots {
   /**
-   * Heading H2 mostrato in cima alla card. Mantienilo sotto ~50 caratteri
-   * per garantire una buona leggibilità su client mobile.
+   * H2 heading shown at the top of the card. Keep it under ~50 characters
+   * to ensure good readability on mobile clients.
    */
   title: string
 
   /**
-   * Testo principale del corpo. Renderizzato come paragrafo.
-   * È ammesso HTML inline sicuro (es. `<strong>`, `<a href="...">`),
-   * ma evita elementi block (`<p>`, `<div>`) che potrebbero rompere
-   * la struttura del layout in client email rigidi (Outlook, Gmail).
+   * Main body text. Rendered as a paragraph.
+   * Safe inline HTML is allowed (e.g., `<strong>`, `<a href="...">`),
+   * but avoid block elements (`<p>`, `<div>`) that could break
+   * the layout structure in rigid email clients (Outlook, Gmail).
    */
   body: string
 
   /**
-   * Pulsante call-to-action opzionale, renderizzato come link-button scuro.
-   * Ometti per email di sola notifica che non richiedono azione da parte dell'utente.
+   * Optional call-to-action button, rendered as a dark link-button.
+   * Omit for notification-only emails that do not require user action.
    */
   cta?: { label: string; href: string }
 
   /**
-   * Paragrafo di avviso opzionale. Renderizzato in rosso (#ef4444) per attirare
-   * l'attenzione. Usalo per avvisi di sicurezza
-   * ("se non sei stato tu, agisci immediatamente").
+   * Optional warning paragraph. Rendered in red (#ef4444) to attract
+   * attention. Use it for security alerts
+   * ("if it wasn't you, act immediately").
    */
   warning?: string
 
   /**
-   * Testo piccolo grigio in fondo alla card.
-   * Usato per note del tipo "notifica automatica, non rispondere".
+   * Small gray text at the bottom of the card.
+   * Used for notes like "automated notification, do not reply".
    */
   footer: string
 }
 
 /**
- * Costruisce il layout HTML base condiviso da tutte le email transazionali
- * di Beech CMS.
+ * Builds the base HTML layout shared by all Beech CMS transactional emails.
  *
- * ─── FONTE UNICA DI VERITÀ PER IL BRANDING ───────────────────────────────────
- * Modificare questa funzione cambia l'aspetto visivo di TUTTE le email
- * in uscita contemporaneamente:
- *   - colore di sfondo e della card
- *   - stile del bordo e del border-radius
- *   - scala tipografica e spaziatura
- *   - stile del pulsante CTA
+ * ─── SINGLE SOURCE OF TRUTH FOR BRANDING ─────────────────────────────────────
+ * Modifying this function changes the visual appearance of ALL outgoing emails
+ * simultaneously:
+ *   - background and card color
+ *   - border style and border-radius
+ *   - typographic scale and spacing
+ *   - CTA button style
  *
- * Per cambiare il testo o la struttura di una email specifica, modifica invece
- * il file template corrispondente (`templates/password-reset.ts`, ecc.).
+ * To change the text or structure of a specific email, instead modify
+ * the corresponding template file (`templates/password-reset.ts`, etc.).
  * ─────────────────────────────────────────────────────────────────────────────
  *
- * @param locale - Usato per l'attributo `lang` del tag `<html>`.
- * @param slots  - Blocchi di contenuto iniettati nel layout.
- * @returns Un documento HTML completo e self-contained pronto per l'invio.
+ * @param locale - Used for the `lang` attribute of the `<html>` tag.
+ * @param slots  - Content blocks injected into the layout.
+ * @returns A complete and self-contained HTML document ready to be sent.
  */
 export function buildEmailShell(locale: EmailLocale, slots: EmailShellSlots): string {
   const ctaBlock = slots.cta

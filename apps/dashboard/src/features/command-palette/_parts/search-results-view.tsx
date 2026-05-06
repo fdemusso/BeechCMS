@@ -2,9 +2,24 @@ import { useTranslation } from "react-i18next"
 import { FileText } from "lucide-react"
 import { useQuery } from "@tanstack/react-query"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
-import type { Seed } from "@beech/core"
+import type { Seed } from "@beechcms/core"
 
 import { api } from "@/lib/api"
+import { useDebounce } from "@/hooks/use-debounce"
+
+function renderExcerpt(raw: string): React.ReactNode[] {
+  const cleaned = raw.replace(/<(?!\/?mark\b)[^>]*>/gi, '')
+  const parts = cleaned.split(/(<mark>|<\/mark>)/gi)
+  const nodes: React.ReactNode[] = []
+  let inMark = false
+  let key = 0
+  for (const part of parts) {
+    if (part.toLowerCase() === '<mark>') { inMark = true; continue }
+    if (part.toLowerCase() === '</mark>') { inMark = false; continue }
+    if (part) nodes.push(inMark ? <mark key={key++}>{part}</mark> : part)
+  }
+  return nodes
+}
 
 interface SearchResultItem {
   id: string
@@ -35,16 +50,16 @@ export function SearchResultsView({
   setOpen,
 }: SearchResultsViewProps) {
   const { t } = useTranslation()
+  const debouncedSearch = useDebounce(search, 300)
   const { data, isLoading } = useQuery({
-    queryKey: ["cmd-search", search] as const,
+    queryKey: ["cmd-search", debouncedSearch] as const,
     queryFn: async (): Promise<SearchResponse> => {
-      console.log("[CommandPalette] Global search for:", search);
       const res = await api.get<SearchResponse>(
-        `/search?q=${encodeURIComponent(search)}&limit=8`
+        `/search?q=${encodeURIComponent(debouncedSearch)}&limit=8`
       )
       return res.data
     },
-    enabled: search.length >= 2,
+    enabled: debouncedSearch.length >= 2,
     staleTime: 30_000,
   })
 
@@ -74,10 +89,9 @@ export function SearchResultsView({
           <div className="flex flex-col">
             <span className="font-medium">{entry.title}</span>
             {entry.excerpt && (
-              <span
-                className="text-xs text-muted-foreground line-clamp-1"
-                dangerouslySetInnerHTML={{ __html: entry.excerpt }}
-              />
+              <span className="text-xs text-muted-foreground line-clamp-1">
+                {renderExcerpt(entry.excerpt)}
+              </span>
             )}
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
               {entry.schema_slug} · {entry.status}

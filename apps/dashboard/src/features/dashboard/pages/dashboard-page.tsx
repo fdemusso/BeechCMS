@@ -3,15 +3,17 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { WidgetRegistry } from "../components/widget-registry"
-import { DEFAULT_DASHBOARD_CONFIG } from "../config/dashboard.config"
+import { getDashboardConfig } from "../config/dashboard.config"
 import { useDashboardStats, useCloudflareStats } from "../hooks/use-dashboard-stats"
-import { getStoredUser } from "@/lib/api"
+import { useSchema } from "@/features/schema/hooks/use-schema"
+import { useAuth } from "@/lib/auth-context"
 
 export default function DashboardPage() {
   const { t } = useTranslation()
+  const { data: seeds = [] } = useSchema()
   const { data: statsData, isLoading: statsLoading } = useDashboardStats()
   const { data: cfData, isLoading: cfLoading } = useCloudflareStats()
-  const user = getStoredUser()
+  const { user } = useAuth()
   const hour = new Date().getHours()
   const greeting = hour >= 5 && hour < 12
     ? t("dashboard.greeting.morning")
@@ -73,7 +75,7 @@ export default function DashboardPage() {
                     Inline styles carry the real span values; the CSS utility
                     resets them on mobile without dynamic Tailwind class names. */}
                 <div className="bento-grid grid grid-cols-1 gap-6 md:grid-cols-4 lg:grid-cols-8 auto-rows-min">
-                  {DEFAULT_DASHBOARD_CONFIG.layout.map((widget) => {
+                  {getDashboardConfig(seeds).layout.map((widget) => {
                     const GRID_COLS = 8
                     const safeW = Math.min(Math.max(1, widget.span.w), GRID_COLS)
                     const safeH = Math.min(Math.max(1, widget.span.h), 12)

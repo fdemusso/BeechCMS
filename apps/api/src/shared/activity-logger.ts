@@ -57,22 +57,23 @@ export function logActivity(
       }
     })())
   } else {
-    // Fallback sync (o ignoriamo)
-    // Facciamolo sync solo se necessario, ma dato che c'è già try/catch nel blocco async,
-    // qui lo ripetiamo per sicurezza.
-    db.prepare(
-      `INSERT INTO activity_logs (id, user_id, user_email, user_name, action, entity_type, entity_id, entity_slug, details)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).bind(
-      id,
-      user.sub,
-      user.email || 'unknown',
-      user.name || null,
-      action,
-      entityType,
-      entityId,
-      entitySlug || null,
-      details ? JSON.stringify(details) : null
-    ).run().catch(err => console.error('Failed to log activity (sync fallback):', err))
+    try {
+      db.prepare(
+        `INSERT INTO activity_logs (id, user_id, user_email, user_name, action, entity_type, entity_id, entity_slug, details)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      ).bind(
+        id,
+        user.sub,
+        user.email || 'unknown',
+        user.name || null,
+        action,
+        entityType,
+        entityId,
+        entitySlug || null,
+        details ? JSON.stringify(details) : null
+      ).run().catch(err => console.error('Failed to log activity (sync fallback):', err))
+    } catch (err) {
+      console.error('Failed to log activity (sync fallback):', err)
+    }
   }
 }

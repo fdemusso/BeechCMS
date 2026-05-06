@@ -1,10 +1,9 @@
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { FieldDisplay } from "@/components/fields/FieldDisplay"
-import type { Branch } from "@beech/core"
+import type { Branch } from "@beechcms/core"
 
 const baseBranch: Branch = {
-  id: "br_01",
   alias: "title",
   label: "Title",
   type: "text",

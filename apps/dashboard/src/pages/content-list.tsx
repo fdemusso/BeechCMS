@@ -1,7 +1,6 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
-import { getSeed } from "@beech/core"
 import type {
   SortingState,
   ColumnFiltersState,
@@ -37,6 +36,7 @@ import {
   useContentFacets,
   useDeleteContent,
 } from "@/features/content-management"
+import { useActiveSeed } from "@/features/schema/hooks/use-schema"
 import {
   generateColumns,
   computeMaxLengths,
@@ -44,6 +44,7 @@ import {
   type DateGroupPrecision,
   DEFAULT_DATE_GROUP_PRECISION,
 } from "@/lib/dynamic-columns"
+import { useDebounce } from "@/hooks/use-debounce"
 import {
   type ConditionalFormatRule,
   getConditionalFormatCellClass,
@@ -65,12 +66,13 @@ export function ContentListPage() {
   const ROWS_PER_PAGE = 10
   const [pageSize, setPageSize] = React.useState<number>(ROWS_PER_PAGE)
   const [tableSearch, setTableSearch] = React.useState("")
+  const debouncedSearch = useDebounce(tableSearch, 300)
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [searchParams] = useSearchParams()
   const prefilterStatus = searchParams.get("status")
 
   const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>(() => {
-    if (!prefilterStatus) return {}
+    if (!prefilterStatus) return {} as ToolbarFiltersState
     return {
       status: {
         columnId: "status",
@@ -90,8 +92,8 @@ export function ContentListPage() {
   // Vista attiva della lista contenuti.
   const [activeViewId, setActiveViewId] = React.useState("table")
 
-  // Recupera il seed
-  const seed = slug ? getSeed(slug) : null
+  // Recupera il seed reactively
+  const { seed, isLoading: isSeedLoading } = useActiveSeed(slug)
 
   // Raggruppamento tabella: singola colonna o null
   const [groupBy, setGroupBy] = React.useState<string | null>(null)
@@ -109,7 +111,7 @@ export function ContentListPage() {
   } = useContentList(slug, {
     page: pageIndex + 1,
     limit: pageSize,
-    search: tableSearch.trim() || undefined,
+    search: debouncedSearch.trim() || undefined,
     sortBy: sorting[0]?.id,
     sortDir: sorting[0]?.desc ? "desc" : "asc",
     filters: toolbarFilters,
@@ -131,7 +133,7 @@ export function ContentListPage() {
   // Reset pagination when filter/slug changes
   React.useEffect(() => {
     setPageIndex(0)
-  }, [slug, tableSearch, sorting, toolbarFilters, pageSize])
+  }, [slug, debouncedSearch, sorting, toolbarFilters, pageSize])
 
   // Quando il raggruppamento cambia verso una colonna non-date, resetta la precisione
   React.useEffect(() => {
@@ -591,7 +593,7 @@ export function ContentListPage() {
   }, [seed])
 
   // Se non c'è seed, mostra errore
-  if (!seed) {
+  if (!seed && !isSeedLoading) {
     return (
       <div className="[--header-height:calc(--spacing(14))]">
         <SidebarProvider className="flex flex-col">
@@ -610,6 +612,25 @@ export function ContentListPage() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </SidebarInset>
+          </div>
+        </SidebarProvider>
+      </div>
+    )
+  }
+
+  // Loading skeleton while seed is fetching
+  if (isSeedLoading || !seed) {
+    return (
+      <div className="[--header-height:calc(--spacing(14))]">
+        <SidebarProvider className="flex flex-col">
+          <SiteHeader />
+          <div className="flex flex-1">
+            <AppSidebar />
+            <SidebarInset>
+              <div className="flex flex-1 items-center justify-center py-12">
+                <div className="text-muted-foreground">Caricamento configurazione...</div>
               </div>
             </SidebarInset>
           </div>

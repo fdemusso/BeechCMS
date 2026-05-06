@@ -2,58 +2,95 @@
 import { Hono } from 'hono'
 import bcrypt from 'bcryptjs'
 import type { Env, Variables } from '../../types'
+import { publicProblem } from '../../public/problem-details'
 
-export const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
+const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
-/** GET /auth/setup — tells the dashboard whether first-run setup is needed */
-setupApp.get('/auth/setup', async (c) => {
-  const row = await c.env.DB
+/**
+ * GET /auth/setup
+ * Checks if the application needs an initial setup (i.e., if no users exist).
+ */
+setupApp.get('/auth/setup', async (context) => {
+  const userCountResult = await context.env.DB
     .prepare('SELECT COUNT(*) as count FROM users')
     .first<{ count: number }>()
-  return c.json({ needsSetup: (row?.count ?? 0) === 0 })
+    
+  const needsInitialSetup = (userCountResult?.count ?? 0) === 0
+  return context.json({ needsSetup: needsInitialSetup })
 })
 
-/** POST /auth/setup — creates the first admin; rejected once any user exists */
-setupApp.post('/auth/setup', async (c) => {
-  const row = await c.env.DB
+/**
+ * POST /auth/setup
+ * Creates the first administrator account. This endpoint is disabled once at least one user exists.
+ */
+setupApp.post('/auth/setup', async (context) => {
+  const userCountResult = await context.env.DB
     .prepare('SELECT COUNT(*) as count FROM users')
     .first<{ count: number }>()
 
-  if ((row?.count ?? 0) > 0) {
-    return c.json(
-      { type: 'https://beech.local/errors/setup-already-done', title: 'Setup already completed', status: 403 },
-      403
-    )
+  if ((userCountResult?.count ?? 0) > 0) {
+    return publicProblem(context, {
+      type: 'setup-already-done',
+      title: 'Setup already completed',
+      status: 403,
+      detail: 'An administrator account already exists. Initial setup can only be performed once.'
+    })
   }
 
-  let body: unknown
-  try { body = await c.req.json() } catch {
-    return c.json({ type: 'https://beech.local/errors/bad-request', title: 'Invalid JSON body', status: 400 }, 400)
+  let payload: unknown
+  try {
+    payload = await context.req.json()
+  } catch {
+    return publicProblem(context, {
+      type: 'bad-request',
+      title: 'Invalid JSON body',
+      status: 400,
+      detail: 'The request body could not be parsed as valid JSON.'
+    })
   }
 
-  if (!body || typeof body !== 'object') {
-    return c.json({ type: 'https://beech.local/errors/bad-request', title: 'Invalid request', status: 400 }, 400)
+  if (!payload || typeof payload !== 'object') {
+    return publicProblem(context, {
+      type: 'bad-request',
+      title: 'Invalid request',
+      status: 400,
+      detail: 'The request payload is missing or invalid.'
+    })
   }
 
-  const { email, password, name } = body as Record<string, unknown>
+  const { email, password, name } = payload as Record<string, unknown>
 
   if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-    return c.json({ type: 'https://beech.local/errors/validation', title: 'Valid email required', status: 422 }, 422)
+    return publicProblem(context, {
+      type: 'validation-error',
+      title: 'Valid email required',
+      status: 422,
+      detail: 'A valid email address is required for the administrator account.'
+    })
   }
 
   if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
-    return c.json({ type: 'https://beech.local/errors/validation', title: 'Password must be 8–128 characters', status: 422 }, 422)
+    return publicProblem(context, {
+      type: 'validation-error',
+      title: 'Invalid password',
+      status: 422,
+      detail: 'Password must be between 8 and 128 characters long.'
+    })
   }
 
-  const passwordHash = await bcrypt.hash(password, 12)
-  const id = crypto.randomUUID()
-  const cleanEmail = email.trim().toLowerCase()
-  const cleanName = typeof name === 'string' ? name.trim() : null
+  const hashedPassword = await bcrypt.hash(password, 12)
+  const newUserId = crypto.randomUUID()
+  const normalizedEmail = email.trim().toLowerCase()
+  const normalizedName = typeof name === 'string' ? name.trim() : null
 
-  await c.env.DB
+  await context.env.DB
     .prepare('INSERT INTO users (id, email, password_hash, role, name) VALUES (?, ?, ?, ?, ?)')
-    .bind(id, cleanEmail, passwordHash, 'admin', cleanName)
+    .bind(newUserId, normalizedEmail, hashedPassword, 'admin', normalizedName)
     .run()
 
-  return c.json({ success: true }, 201)
+  return context.json({ success: true }, 201)
 })
+
+export { setupApp }
+
+

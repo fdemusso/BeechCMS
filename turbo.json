@@ -4,6 +4,7 @@
     "dev": { "cache": false, "persistent": true, "dependsOn": ["^build"] },
     "build": { "dependsOn": ["^build"], "outputs": ["dist/**", ".next/**"] },
     "deploy": { "dependsOn": ["build"] },
+    "@beechcms/api#deploy": { "dependsOn": ["@beechcms/dashboard#build", "build"] },
     "test": {
       "cache": false,
       "dependsOn": ["^build"]

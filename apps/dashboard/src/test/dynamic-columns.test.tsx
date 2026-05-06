@@ -11,7 +11,7 @@ vi.mock("sonner", () => ({
 
 import { toast } from "sonner"
 
-import type { Seed } from "@beech/core"
+import type { Seed } from "@beechcms/core"
 import { DataTable } from "@/components/ui/data-table"
 import { generateColumns, computeMaxLengths } from "@/lib/dynamic-columns"
 import type { ContentEntry } from "@/lib/dynamic-columns"

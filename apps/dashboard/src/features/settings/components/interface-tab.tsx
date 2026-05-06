@@ -18,6 +18,11 @@ export function InterfaceTab() {
   const { theme, setTheme } = useTheme()
   const { t, i18n } = useTranslation()
   const [rows, setRows] = React.useState(() => localStorage.getItem(ROWS_KEY) ?? '20')
+  const [mounted, setMounted] = React.useState(false)
+
+  React.useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const THEME_OPTIONS = [
     { value: 'light', label: t('settings.interface.themeLight'), icon: Sun },
@@ -58,7 +63,7 @@ export function InterfaceTab() {
                 type="button"
                 onClick={() => setTheme(value)}
                 className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-colors cursor-pointer ${
-                  theme === value
+                  mounted && theme === value
                     ? 'border-primary bg-primary/5'
                     : 'border-border hover:border-primary/50'
                 }`}

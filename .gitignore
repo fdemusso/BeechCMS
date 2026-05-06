@@ -8,6 +8,7 @@ pnpm-debug.log*
 # Build output
 dist/
 build/
+apps/api/assets/
 .next/
 out/
 *.tsbuildinfo
@@ -20,7 +21,6 @@ out/
 
 .claude/
 CLAUDE.md
-packages/
 
 # Turbo
 .turbo/
