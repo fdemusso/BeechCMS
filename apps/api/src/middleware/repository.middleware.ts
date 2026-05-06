@@ -3,7 +3,10 @@ import { D1ContentRepository } from '../shared/content.repository.d1'
 import { D1IdempotencyRepository } from '../shared/idempotency.repository.d1'
 import { D1MediaRepository } from '../shared/media.repository.d1'
 import { D1SystemStatsRepository } from '../shared/system-stats.repository.d1'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository } from '@beechcms/core'
+import { D1UserRepository } from '../shared/d1-user.repository'
+import { D1SessionRepository } from '../shared/d1-session.repository'
+import { D1PasswordResetTokenRepository } from '../shared/d1-password-reset-token.repository'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository } from '@beechcms/core'
 import type { Env, Variables } from '../types'
 
 interface RepositoryOverrides {
@@ -11,6 +14,9 @@ interface RepositoryOverrides {
   idempotencyRepository?: IdempotencyRepository
   mediaRepository?: MediaRepository
   systemStatsRepository?: SystemStatsRepository
+  userRepository?: IUserRepository
+  sessionRepository?: ISessionRepository
+  passwordResetTokenRepository?: IPasswordResetTokenRepository
 }
 
 export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
@@ -19,6 +25,9 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('idempotencyRepository', overrides?.idempotencyRepository ?? new D1IdempotencyRepository(context.env.DB))
     context.set('mediaRepository', overrides?.mediaRepository ?? new D1MediaRepository(context.env.DB))
     context.set('systemStatsRepository', overrides?.systemStatsRepository ?? new D1SystemStatsRepository(context.env.DB))
+    context.set('userRepository', overrides?.userRepository ?? new D1UserRepository(context.env.DB))
+    context.set('sessionRepository', overrides?.sessionRepository ?? new D1SessionRepository(context.env.DB))
+    context.set('passwordResetTokenRepository', overrides?.passwordResetTokenRepository ?? new D1PasswordResetTokenRepository(context.env.DB))
     await next()
   })
 }

@@ -26,12 +26,14 @@ sonar-project.properties
 .mcp.json
 
 # --- Test files --------------------------------------------------------------
+**/*.test.ts
+**/*.spec.ts
 apps/api/test/
-apps/api/src/features/draft/draft.test.ts
-apps/api/src/features/rotate-field/rotate-field.test.ts
+apps/api/vitest.config.ts
 apps/dashboard/src/test/
 apps/dashboard/src/pages/test-fields.tsx
 apps/dashboard/src/pages/widget-lab.tsx
+apps/dashboard/vitest.config.ts
 
 # --- Turborepo / build artifacts ---------------------------------------------
 .turbo/

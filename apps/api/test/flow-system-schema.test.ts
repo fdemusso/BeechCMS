@@ -89,12 +89,6 @@ describe('Flow: System & Schema', () => {
       headers: { 'Authorization': `Bearer ${authToken}` }
     }, { ...TEST_ENV, DB: db as any })
 
-    // If it's 404, it means it's not implemented yet.
-    // Given the user's request to proceed with Phase 6, I should ensure it's implemented.
-    if (res.status === 404) {
-      console.warn('GET /api/settings returned 404. Implementation might be missing.')
-    }
-    
     expect(res.status).toBe(200)
     const settings = await res.json() as any
     expect(settings).toHaveProperty('siteTitle')

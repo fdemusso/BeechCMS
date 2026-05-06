@@ -1,10 +1,6 @@
 import type { Context, Next } from 'hono'
+import type { AppEnv } from '../types'
 import { publicProblem } from './problem-details'
-
-type PublicBindings = {
-  PUBLIC_READ_RATE_LIMITER?: RateLimit
-  PUBLIC_WRITE_RATE_LIMITER?: RateLimit
-}
 
 function isReadMethod(method: string): boolean {
   return method === 'GET' || method === 'HEAD' || method === 'OPTIONS'
@@ -15,20 +11,15 @@ function getClientIp(headers: Headers): string {
 }
 
 export function publicRateLimitMiddleware() {
-  return async (c: Context, next: Next): Promise<Response | void> => {
-    const env = c.env as PublicBindings
+  return async (c: Context<AppEnv>, next: Next): Promise<Response | void> => {
     const readMethod = isReadMethod(c.req.method)
-    const limiter = readMethod ? env.PUBLIC_READ_RATE_LIMITER : env.PUBLIC_WRITE_RATE_LIMITER
-    if (!limiter) {
-      await next()
-      return
-    }
+    const limiterName = readMethod ? ('publicApiRead' as const) : ('publicApiWrite' as const)
 
     const seed = c.req.param('seed') ?? 'no-seed'
-    const key = `${getClientIp(c.req.raw.headers)}:${seed}:${readMethod ? 'read' : 'write'}`
-    const { success } = await limiter.limit({ key })
+    const key = `${getClientIp(c.req.raw.headers)}:${seed}:${limiterName}`
+    const result = await c.get('rateLimiters').getLimiter(limiterName).checkLimit(key)
 
-    if (!success) {
+    if (!result.isAllowed) {
       return publicProblem(c, {
         type: 'rate-limit-exceeded',
         title: 'Too Many Requests',

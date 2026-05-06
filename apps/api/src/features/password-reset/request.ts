@@ -2,21 +2,9 @@
 import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
 import { sendPasswordResetEmail, resolveEmailLocale } from '../email'
+import { sha256hex } from '@beechcms/core'
 
 const PASSWORD_RESET_TOKEN_EXPIRY_SECONDS = 30 * 60
-
-/**
- * Computes the SHA-256 hash of a string and returns it as a hex string.
- */
-async function computeSha256Hash(text: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(text)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-  
-  return Array.from(new Uint8Array(hashBuffer))
-    .map(byte => byte.toString(16).padStart(2, '0'))
-    .join('')
-}
 
 /**
  * Handles the password reset request.
@@ -46,41 +34,31 @@ export async function requestPasswordReset(
   const normalizedEmail = emailInput.trim().toLowerCase()
   const emailLocale = resolveEmailLocale(payload.locale)
 
-  // Rate limiting based on IP address
-  if (env.FORGOT_PASSWORD_RATE_LIMITER) {
-    const clientIpAddress = req.raw.headers.get('cf-connecting-ip') ?? 'unknown'
-    const { success: isRateLimitAllowed } = await env.FORGOT_PASSWORD_RATE_LIMITER.limit({ key: clientIpAddress })
-    
-    if (!isRateLimitAllowed) {
-      return context.json({ error: 'Too many requests' }, 429)
-    }
+  const clientIpAddress = req.raw.headers.get('cf-connecting-ip') ?? 'unknown'
+  const forgotPasswordRateLimit = await context.get('rateLimiters').getLimiter('forgotPassword').checkLimit(clientIpAddress)
+  if (!forgotPasswordRateLimit.isAllowed) {
+    return context.json({ error: 'Too many requests' }, 429)
   }
 
-  // Find user by email. We always return 200 success even if the user is not found to prevent user enumeration.
-  const registeredUser = await env.DB
-    .prepare('SELECT id FROM users WHERE email = ?')
-    .bind(normalizedEmail)
-    .first<{ id: string }>()
-
+  // Always return 200 even when the user is not found to prevent user enumeration.
+  const registeredUser = await context.get('userRepository').findByEmail(normalizedEmail)
   if (!registeredUser) {
     return context.json({ success: true })
   }
 
-  // Invalidate any existing pending tokens for the same user before issuing a new one.
-  await env.DB
-    .prepare('UPDATE password_reset_tokens SET used_at = unixepoch() WHERE user_id = ? AND used_at IS NULL')
-    .bind(registeredUser.id)
-    .run()
+  const nowTimestamp = Math.floor(Date.now() / 1000)
+  await context.get('passwordResetTokenRepository').invalidatePending(registeredUser.id, nowTimestamp)
 
   const resetToken = crypto.randomUUID()
-  const hashedResetToken = await computeSha256Hash(resetToken)
-  const expirationTimestamp = Math.floor(Date.now() / 1000) + PASSWORD_RESET_TOKEN_EXPIRY_SECONDS
+  const tokenHash = await sha256hex(resetToken)
+  const expiresAt = nowTimestamp + PASSWORD_RESET_TOKEN_EXPIRY_SECONDS
 
-  // Store the hashed token in the database
-  await env.DB
-    .prepare('INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)')
-    .bind(crypto.randomUUID(), registeredUser.id, hashedResetToken, expirationTimestamp)
-    .run()
+  await context.get('passwordResetTokenRepository').create({
+    id: crypto.randomUUID(),
+    userId: registeredUser.id,
+    tokenHash,
+    expiresAt,
+  })
 
   const baseUrl = (env.APP_URL ?? new URL(req.url).origin).replace(/\/$/, '')
   const resetUrl = `${baseUrl}/admin/reset-password?token=${resetToken}`
@@ -95,7 +73,6 @@ export async function requestPasswordReset(
       isDev: env.ENV !== 'production',
     })
   } catch (error) {
-    // Only log errors in non-production environments
     if (env.ENV !== 'production') {
       console.error('[password-reset] Failed to send email:', error)
     }
@@ -103,4 +80,3 @@ export async function requestPasswordReset(
 
   return context.json({ success: true })
 }
-

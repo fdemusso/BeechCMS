@@ -1,18 +1,12 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { Context, Next } from 'hono'
 import { HTTPException } from 'hono/http-exception'
-import { jwtVerify } from 'jose'
+import type { Env, Variables } from './types'
 
-/** Payload JWT decodificato (sub = userId, email opzionale, name opzionale) */
 export type JwtPayload = {
   sub: string
   email?: string
   name?: string
-}
-
-/** Variabili iniettate nel context Hono dopo auth */
-export type AuthVariables = {
-  jwtPayload: JwtPayload
 }
 
 const UNAUTHORIZED_JSON = JSON.stringify({ error: 'Unauthorized' })
@@ -24,44 +18,30 @@ function unauthorizedResponse() {
   })
 }
 
-export type JwtVerifyOptions = {
-  issuer?: string
-  audience?: string
-}
-
 /**
- * Middleware di autenticazione JWT.
- * Intercetta Authorization: Bearer <token>, verifica con jose e JWT_SECRET.
- * Se valido: imposta jwtPayload nel context e chiama next().
- * Se invalido/mancante: lancia HTTPException 401 (gestita dal framework).
+ * JWT authentication middleware. Reads the Bearer token from the Authorization
+ * header and delegates verification to the ITokenService injected in context.
+ * Returns 401 on any missing or invalid token; never exposes failure details.
  */
-export function authMiddleware(secret: string, options: JwtVerifyOptions = {}) {
-  return async (c: Context, next: Next): Promise<Response | void> => {
-    const auth = c.req.header('Authorization')
-    if (!auth?.startsWith('Bearer ')) {
+export function authMiddleware() {
+  return async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next): Promise<Response | void> => {
+    const authHeader = c.req.header('Authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
       throw new HTTPException(401, { res: unauthorizedResponse() })
     }
 
-    const token = auth.slice(7)
+    const token = authHeader.slice(7)
     if (!token) {
       throw new HTTPException(401, { res: unauthorizedResponse() })
     }
 
-    try {
-      const secretBytes = new TextEncoder().encode(secret)
-      const { payload, protectedHeader } = await jwtVerify(token, secretBytes, {
-        algorithms: ['HS256'],
-        issuer: options.issuer,
-        audience: options.audience,
-      })
-      // Hardening: accetta solo token JWT standard (se presente il typ)
-      if (protectedHeader.typ && protectedHeader.typ !== 'JWT') {
-        throw new Error('Invalid typ header')
-      }
-      c.set('jwtPayload', payload as JwtPayload)
-      await next()
-    } catch {
+    const claims = await c.get('tokenService').verify(token)
+
+    if (!claims) {
       throw new HTTPException(401, { res: unauthorizedResponse() })
     }
+
+    c.set('jwtPayload', claims as JwtPayload)
+    await next()
   }
 }

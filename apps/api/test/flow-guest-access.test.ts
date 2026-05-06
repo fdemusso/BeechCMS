@@ -50,7 +50,49 @@ describe('Flow: Guest Access (Public API)', () => {
       expect(body.data[2].title).toBe('C')
     })
 
-    it('security: rate limiting returns 429 when too many requests', async () => {
+    it('success: filter=JSON returns only matching entries', async () => {
+      repo.load('posts', [
+        { id: '1', status: 'published', title: 'Alpha' },
+        { id: '2', status: 'published', title: 'Beta' },
+        { id: '3', status: 'published', title: 'Gamma' },
+      ])
+
+      const filter = JSON.stringify({ where: [{ field: 'title', op: 'eq', value: 'Beta' }] })
+      const res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+
+      expect(res.status).toBe(200)
+      const body = await res.json<{ data: any[] }>()
+      expect(body.data).toHaveLength(1)
+      expect(body.data[0].id).toBe('2')
+    })
+
+    it('success: filter with contains operator returns partial matches', async () => {
+      repo.load('posts', [
+        { id: '1', status: 'published', title: 'Hello World' },
+        { id: '2', status: 'published', title: 'Goodbye World' },
+        { id: '3', status: 'published', title: 'No match here' },
+      ])
+
+      const filter = JSON.stringify({ where: [{ field: 'title', op: 'contains', value: 'World' }] })
+      const res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+
+      expect(res.status).toBe(200)
+      const body = await res.json<{ data: any[] }>()
+      expect(body.data).toHaveLength(2)
+    })
+
+    it('error: unknown seed returns 404', async () => {
+      const res = await app.request('/api/v1/public/nonexistent-seed', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(404)
+    })
+
+    it('security: read rate limiting returns 429 when too many requests', async () => {
       const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: false }) }
       const res = await app.request('/api/v1/public/posts', {
         headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createBeechApp } from '../src/factory'
 import { TEST_ENV, TEST_USERS, TEST_SEEDS } from './fixtures'
 import { MockD1Database } from './mocks/mock-d1-database'
-import { generateAccessToken } from '../src/auth/refresh'
+import { JoseTokenService } from '../src/auth/jose-token-service'
 
 /**
  * MOCK: S3 CLIENT (Cloudflare R2)
@@ -42,11 +42,8 @@ describe('Flow: Media & Assets', () => {
     app = createBeechApp({ seeds: TEST_SEEDS })
     
     // Generate a valid admin token for protected upload/delete routes
-    adminToken = await generateAccessToken(
-      TEST_USERS[0].id, 
-      TEST_USERS[0].email, 
-      TEST_ENV.JWT_SECRET
-    )
+    const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {})
+    adminToken = await tokenService.issue({ sub: TEST_USERS[0].id, email: TEST_USERS[0].email })
 
     mockS3Send.mockReset()
   })
@@ -148,6 +145,33 @@ describe('Flow: Media & Assets', () => {
       const body = await res.json<{ error: string }>()
       expect(body.error).toContain('large')
     })
+
+    it('tracking: each upload creates a separate media_objects record with a unique key', async () => {
+      mockS3Send.mockResolvedValue({})
+
+      const upload = (name: string) => {
+        const fd = new FormData()
+        fd.append('file', new Blob(['content'], { type: 'image/png' }), name)
+        return app.request('/api/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${adminToken}` },
+          body: fd,
+        }, { ...TEST_ENV, DB: db as any })
+      }
+
+      const r1 = await upload('photo-a.png')
+      const r2 = await upload('photo-b.png')
+
+      expect(r1.status).toBe(200)
+      expect(r2.status).toBe(200)
+
+      // Both uploads must be tracked in D1
+      expect(db.mediaObjects).toHaveLength(2)
+      // Keys must differ (UUID-based naming)
+      expect(db.mediaObjects[0].key).not.toBe(db.mediaObjects[1].key)
+      // S3 PutObject called once per file — no skips, no double-calls
+      expect(mockS3Send).toHaveBeenCalledTimes(2)
+    })
   })
 
   /**
@@ -196,6 +220,18 @@ describe('Flow: Media & Assets', () => {
       }, { ...TEST_ENV, DB: db as any })
 
       expect(res.status).toBe(404)
+    })
+
+    it('error: R2 access denied returns 500', async () => {
+      const err = new Error('AccessDenied')
+      ;(err as any).name = 'AccessDenied'
+      mockS3Send.mockRejectedValue(err)
+
+      const res = await app.request('/api/media/restricted-key.jpg', {
+        method: 'GET'
+      }, { ...TEST_ENV, DB: db as any })
+
+      expect(res.status).toBe(500)
     })
   })
 

@@ -141,7 +141,13 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Seed Registry** (`SEED_REGISTRY`, `getSeed`) — defines all content schemas.
   - Schema-driven validation (`validateAndSanitizeSeedPayload`) — reused by both the internal and public API.
   - RichText schema and sanitization (`richtext.ts`, `richtext-render.ts`).
-- **Barrel export**: `packages/core/src/index.ts` — types, seeds, engine, validation, richtext, slug utils.
+- **Barrel export**: `packages/core/src/index.ts` — types, seeds, engine, validation, richtext, slug utils, and the auth/rate-limit abstractions:
+  - `IHashProvider` — password hashing contract (implemented by `BcryptHashProvider` in the API)
+  - `ITokenService`, `JwtClaims`, `IssueTokenOptions` — JWT issuance/verification contract (implemented by `JoseTokenService`)
+  - `IUserRepository`, `UserRecord`, `NewUserInput` — user persistence interface
+  - `ISessionRepository`, `NewRefreshToken`, `RefreshTokenRecord`, `ActiveSessionSummary` — session persistence interface
+  - `IPasswordResetTokenRepository`, `NewPasswordResetToken`, `ValidatedResetToken` — reset token persistence interface
+  - `IRateLimiter`, `RateLimitResult` — rate limiting contract (implemented by `CloudflareRateLimiter` / `NoOpRateLimiter` / `InMemoryRateLimiter`)
 - **Build**: `npm run build -w @beechcms/core` produces `dist/` with JS and `.d.ts`, consumed by both apps.
 
 ---
@@ -149,9 +155,10 @@ This high-level system map is designed for onboarding new contributors and for A
 ## Key Flows
 
 - **Authentication (`/auth/*`)** — see `nuovidocs/api-reference.md` §2–3
-  - Login: validates credentials with `bcryptjs`, generates JWT via `jose.SignJWT` (15 min TTL), creates UUID refresh token stored hashed in D1, sets `HttpOnly SameSite=Strict` cookie.
-  - Refresh: reads cookie, validates in D1, atomically revokes old token, issues new access + refresh token pair.
-  - Logout: revokes refresh token in D1, clears cookie, clears in-memory token on the client.
+  - Login: finds user via `IUserRepository.findByEmail`, verifies password via `IHashProvider.verify` (bcrypt under the hood), issues JWT via `ITokenService.issue` (jose under the hood, 15 min TTL), stores refresh token hash via `ISessionRepository.saveRefreshToken`, sets `HttpOnly SameSite=Strict` cookie.
+  - Refresh: reads cookie, validates via `ISessionRepository.findActiveByHash`, revokes old token, issues new access + refresh token pair.
+  - Logout: revokes refresh token via `ISessionRepository.revokeByHash`, clears cookie, clears in-memory token on the client.
+  - `IHashProvider`, `ITokenService`, `IUserRepository`, `ISessionRepository`, and `IPasswordResetTokenRepository` are injected into the Hono context via `authProvidersMiddleware` and `repositoryMiddleware` respectively. Concrete implementations live in `apps/api/src/auth/` and `apps/api/src/shared/`. Rate limiting uses `IRateLimiterRegistry` (injected via `rateLimiterMiddleware`), backed by `CloudflareRateLimiter` in production and `NoOpRateLimiter` when bindings are absent.
   - **Access token storage:** the JWT access token lives **in-memory only** (`_accessToken` module variable in `apps/dashboard/src/lib/api.ts`). It is never written to `localStorage` or `sessionStorage`. On page load, `AuthProvider` silently calls `POST /auth/refresh`; if the `HttpOnly` refresh cookie is valid, a new access token is issued and stored in memory. This eliminates the XSS → token-theft attack surface.
   - **AuthContext** (`apps/dashboard/src/lib/auth-context.tsx`): `AuthProvider` mounts at app root and manages `{ status: 'loading' | 'authenticated' | 'unauthenticated', user }`. `useAuth()` is the hook for all components. `ProtectedRoute` renders `<SplashScreen />` during the initial refresh, then either the protected content or `<Navigate to="/login">`.
   - **Password reset (optional):** enabled only when `RESEND_API_KEY` is set. `GET /auth/features` exposes the flag to the dashboard. `POST /auth/forgot-password` issues a 30-min single-use token (SHA-256 hashed in `password_reset_tokens`) and sends the reset link via Resend (rate-limited: 3/min per IP via `FORGOT_PASSWORD_RATE_LIMITER`). `POST /auth/reset-password` validates the token, updates `password_hash`, marks it used, and revokes all active sessions — atomically via `D1.batch()` — then fires a **"password changed" security notification email** via `waitUntil` (rate-limited: 5/min per IP via `RESET_PASSWORD_RATE_LIMITER`). Both endpoints accept a `locale` field (`en` | `it`) that selects the email language; the dashboard passes `i18n.language` automatically. `APP_URL` must point to the dashboard URL.

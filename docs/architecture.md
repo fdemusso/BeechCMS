@@ -20,6 +20,7 @@ Every design decision documented here is grounded in the source code and explici
 10. [Pending Draft Workflow — Mirror Tables](#10-pending-draft-workflow)
 11. [Storage & Media Abstraction](#11-storage--media-abstraction)
 12. [Performance Layer](#12-performance-layer)
+13. [Auth & Rate-Limit Abstraction Layer](#13-auth--rate-limit-abstraction-layer)
 
 ---
 
@@ -453,8 +454,69 @@ Only 200 responses are cached. Errors (404, 403, 500) are never cached. Cache ke
 ---
 
 _Beech CMS Architecture Guide — Built for Scale at the Edge._
-engono messe in cache. Errori (404, 403, 500) non sono mai cachati. Cache key = URL completo inclusi query params — query diverse producono entry separate.
 
 ---
 
-_Beech CMS Architecture Guide — Built for Scale at the Edge._
+## 13. Auth & Rate-Limit Abstraction Layer
+
+Phase 1 of the abstraction plan decoupled every external dependency in the auth and rate-limiting subsystems behind interfaces defined in `@beechcms/core`. The goal: `bcryptjs`, `jose`, and Cloudflare RateLimit bindings are each imported in exactly one file. All other code references the interface.
+
+### Interfaces in `@beechcms/core`
+
+| Interface | Contract | Core types |
+|---|---|---|
+| `IHashProvider` | `hash(plaintext): Promise<string>`, `verify(plaintext, stored): Promise<boolean>` | — |
+| `ITokenService` | `issue(claims, options?): Promise<string>`, `verify(token): Promise<JwtClaims \| null>` | `JwtClaims`, `IssueTokenOptions` |
+| `IUserRepository` | CRUD + profile update operations on the `users` table | `UserRecord`, `NewUserInput` |
+| `ISessionRepository` | Refresh token lifecycle (save, validate, revoke, list) on `refresh_tokens` | `NewRefreshToken`, `RefreshTokenRecord`, `ActiveSessionSummary` |
+| `IPasswordResetTokenRepository` | Reset token lifecycle on `password_reset_tokens` | `NewPasswordResetToken`, `ValidatedResetToken` |
+| `IRateLimiter` | `checkLimit(key): Promise<RateLimitResult>` | `RateLimitResult` |
+
+### Concrete Implementations in `apps/api`
+
+```text
+apps/api/src/
+  auth/
+    bcrypt-hash-provider.ts      -- BcryptHashProvider (sole bcryptjs import)
+    in-memory-hash-provider.ts   -- InMemoryHashProvider (test double)
+    jose-token-service.ts        -- JoseTokenService (sole jose import)
+    static-token-service.ts      -- StaticTokenService (test double)
+  shared/
+    d1-user.repository.ts        -- D1UserRepository (sole user SQL)
+    d1-session.repository.ts     -- D1SessionRepository (sole session SQL)
+    d1-password-reset-token.repository.ts -- D1PasswordResetTokenRepository
+  rate-limit/
+    cloudflare-rate-limiter.ts   -- CloudflareRateLimiter (sole RateLimit binding access)
+    no-op-rate-limiter.ts        -- NoOpRateLimiter (fallback when binding absent)
+    in-memory-rate-limiter.ts    -- InMemoryRateLimiter (test double)
+```
+
+### Middleware Injection Chain
+
+```
+factory.ts
+  ├── repositoryMiddleware()       → c.set("userRepository", "sessionRepository", "passwordResetTokenRepository", ...)
+  ├── authProvidersMiddleware()    → c.set("hashProvider", "tokenService")
+  └── rateLimiterMiddleware()      → c.set("rateLimiters": IRateLimiterRegistry)
+```
+
+`authProvidersMiddleware` accepts an optional `overrides` parameter (`{ hashProvider?, tokenService? }`) for injecting test doubles in Vitest. `rateLimiterMiddleware` similarly accepts `{ registry? }`.
+
+### Rate Limiter Names
+
+`IRateLimiterRegistry.getLimiter(name)` accepts a typed union:
+
+```typescript
+type RateLimiterName =
+  | 'login' | 'tokenRefresh' | 'forgotPassword' | 'resetPassword'
+  | 'publicApiRead' | 'publicApiWrite'
+```
+
+Each name maps to a Cloudflare RateLimit binding in `wrangler.jsonc`. If the binding is absent (local dev without `--remote`), `buildDefaultRegistry` falls back to `NoOpRateLimiter` so the API remains functional.
+
+### Isolation Rules
+
+- `bcryptjs` → imported only in `bcrypt-hash-provider.ts`
+- `jose` → imported only in `jose-token-service.ts`
+- Cloudflare RateLimit binding → accessed only in `cloudflare-rate-limiter.ts`
+- `D1Database` → accessed only in `D1*Repository` files and the three remaining direct-query sites (analytics, activity log, storage scan) which are deferred to Phase 2 and Phase 4 with `// TODO` markers.

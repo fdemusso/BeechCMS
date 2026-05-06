@@ -2,10 +2,10 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    include: ['test/**/*.test.ts', 'src/features/**/*.test.ts'],
-    /** Mostra console/stderr solo per test falliti; output pulito per test passati */
+    // Flow tests in test/ + unit tests colocated in src/
+    include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
+    /** Show console/stderr only for failing tests */
     silent: 'passed-only',
-    /** Reporter verbose: nome di ogni test + ✓/✗ */
     reporters: ['verbose'],
     coverage: {
       provider: 'v8',
@@ -16,29 +16,36 @@ export default defineConfig({
         '**/*.d.ts',
         // Pure type definitions — no runtime statements to cover
         'src/types.ts',
-        // Hono route handlers that require a live D1/R2 environment
+        // Cloudflare Worker entry point — dynamic seed import, not unit-testable
+        'src/index.ts',
+        // FTS5 route handler — requires live D1 FTS5 tables
+        'src/search.ts',
+        // Empty compatibility shim — no runtime statements
+        'src/shared/fts-sync.ts',
+        // Hono route handlers that require a live D1/R2/email environment
         'src/widget.ts',
         'src/features/settings/settings.handler.ts',
         'src/features/setup/**',
         'src/features/password-reset/request.ts',
         'src/features/password-reset/reset.ts',
-        // External service integrations (Resend HTTP, S3 client)
+        'src/features/notifications/notifications.handler.ts',
+        'src/features/stats/stats.handler.ts',
+        'src/features/rotate-field/rotate-field.handler.ts',
+        // External service integrations (Resend HTTP, S3 client, Cloudflare R2)
         'src/features/email/providers/**',
         'src/features/email/email.provider.ts',
         'src/features/email/email.service.ts',
         'src/features/email/templates/**',
         'src/shared/storage-utils.ts',
-        // Seed definitions non logiche
-        'src/features/schema/schema.handler.ts'
+        'src/shared/storage/**',
+        // Seed definitions
+        'src/features/schema/schema.handler.ts',
       ],
-      // Thresholds ricalibrati sul nuovo modello di test flow deterministici.
-      // Poiché ora usiamo StaticContentRepository nei flow test, i repository D1 reali 
-      // (es. content.repository.d1.ts) non sono coperti dal coverage in questo layer.
       thresholds: {
-        statements: 45,
-        branches: 55,
-        functions: 60,
-        lines: 45,
+        statements: 80,
+        branches: 75,
+        functions: 80,
+        lines: 80,
       },
     },
   },

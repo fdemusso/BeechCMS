@@ -1,5 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository } from '@beechcms/core'
+import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 
 export interface Env {
   DB: D1Database
@@ -41,6 +42,12 @@ export interface Variables {
   bucket: BeechBucket
   mediaRepository: MediaRepository
   systemStatsRepository: SystemStatsRepository
+  hashProvider: IHashProvider
+  tokenService: ITokenService
+  userRepository: IUserRepository
+  sessionRepository: ISessionRepository
+  passwordResetTokenRepository: IPasswordResetTokenRepository
+  rateLimiters: IRateLimiterRegistry
 }
 
 export type AppEnv = { Bindings: Env; Variables: Variables }

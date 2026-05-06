@@ -45,24 +45,41 @@ describe('Flow: Stats', () => {
    * Looking at common BeechCMS patterns, it's usually under /api/content/stats.
    */
   it('GET /api/content/stats/setup-checklist returns the project health state', async () => {
-    // We need to ensure the system tables exist in the mock DB for the test
-    // SQLite master check in stats.handler.ts:128
-    // In our MockD1Database, we can simulate this by ensuring tables are tracked.
-    
     const res = await app.request('/api/content/stats/setup-checklist', {
       headers: { 'Authorization': `Bearer ${authToken}` }
     }, { ...TEST_ENV, DB: db as any })
 
     expect(res.status).toBe(200)
     const checklist = await res.json() as any
-    
+
+    // Required properties
     expect(checklist).toHaveProperty('systemTablesOk')
     expect(checklist).toHaveProperty('seedsCount')
     expect(checklist).toHaveProperty('contentTablesOk')
     expect(checklist).toHaveProperty('adminExists')
     expect(checklist).toHaveProperty('hasContent')
-    
-    // With TEST_USERS including an admin, adminExists should be true if users table is found
-    // Since MockD1Database is initialized with TEST_USERS, it should have the users table.
+
+    // With TEST_USERS containing users, adminExists should be true
+    // MockD1Database returns 'users' table in the sqlite_master query
+    expect(typeof checklist.systemTablesOk).toBe('boolean')
+    expect(typeof checklist.adminExists).toBe('boolean')
+    expect(checklist.seedsCount).toBe(TEST_SEEDS.length)
+  })
+
+  it('GET /api/content/stats/setup-checklist returns adminExists=false when user table is empty', async () => {
+    const emptyDb = new MockD1Database({ users: [] })
+
+    // Use a pre-issued token since we cannot login without users
+    const { JoseTokenService } = await import('../src/auth/jose-token-service')
+    const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {})
+    const token = await tokenService.issue({ sub: 'u_fake', email: 'ghost@test.io' })
+
+    const res = await app.request('/api/content/stats/setup-checklist', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    }, { ...TEST_ENV, DB: emptyDb as any })
+
+    expect(res.status).toBe(200)
+    const checklist = await res.json() as any
+    expect(checklist.adminExists).toBe(false)
   })
 })
