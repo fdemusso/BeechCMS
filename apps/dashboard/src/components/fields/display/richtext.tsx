@@ -1,4 +1,4 @@
-import { renderRichText } from "@beech/core"
+import { renderRichText } from "@beechcms/core"
 import { ExpandableCell } from "@/components/ui/expandable-cell"
 import type { FieldDisplayProps } from "../types"
 

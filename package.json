@@ -1,6 +1,6 @@
 {
-  "name": "beech-cms",
-  "version": "0.2.0",
+  "name": "@beechcms/cms",
+  "version": "0.4.0-preview.13",
   "packageManager": "npm@11.9.0",
   "description": "Edge-Native, Schema-Driven Headless CMS built on Cloudflare Workers, D1, and R2. Features the Botanical Engine for alias-stable field management, a modular widget layer, and a React + Vite admin dashboard.",
   "keywords": [
@@ -38,14 +38,16 @@
     "node": ">=18.0.0"
   },
   "bin": {
-    "beech-cms": "bin/create.mjs",
+    "beechcms": "bin/create.mjs",
     "beech": "bin/cli.mjs"
   },
   "scripts": {
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "test": "turbo run test",
-    "test:coverage": "turbo run test:coverage"
+    "test:coverage": "turbo run test:coverage",
+    "release": "node scripts/release.mjs",
+    "release:preview": "node scripts/release.mjs --preview"
   },
   "type": "module",
   "devDependencies": {
@@ -54,7 +56,20 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@beechcms/cli": "^0.4.0-preview.13",
     "@clack/prompts": "^0.9.1",
     "picocolors": "^1.1.1"
+  },
+  "peerDependencies": {
+    "@beechcms/api": "^0.4.0-preview.13",
+    "@beechcms/core": "^0.4.0-preview.13"
+  },
+  "peerDependenciesMeta": {
+    "@beechcms/api": {
+      "optional": true
+    },
+    "@beechcms/core": {
+      "optional": true
+    }
   }
 }

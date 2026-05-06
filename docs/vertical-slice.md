@@ -16,7 +16,7 @@ La Vertical Slice Architecture (VSA) organizza il codice **per feature**, non pe
 | Navigazione codebase | Saltare tra N cartelle per capire 1 feature | Tutto in 1 cartella |
 | Modifica di una feature | Tocca file in molte cartelle | Tocca file in 1 cartella |
 | Eliminare una feature | Caccia al tesoro in tutto il progetto | Cancella 1 cartella |
-| Onboarding | Richiede capire tutta l\'architettura | Basta capire 1 slice |
+| Onboarding | Richiede capire tutta l'architettura | Basta capire 1 slice |
 | Scalabilità del team | Conflitti di merge frequenti | Team ownership chiara per feature |
 
 ### Principio fondamentale
@@ -137,7 +137,7 @@ api/
 
 ## 3. Naming Convention dei File
 
-Un sistema di naming consistente riduce l\'ambiguità e rende la codebase leggibile senza aprire i file.
+Un sistema di naming consistente riduce l'ambiguità e rende la codebase leggibile senza aprire i file.
 
 ### Regole generali
 
@@ -165,7 +165,7 @@ Un sistema di naming consistente riduce l\'ambiguità e rende la codebase leggib
 
 ## 4. Il Pattern `index.ts` — Public API della Feature
 
-Il file `index.ts` di ogni feature è il **contratto pubblico** della slice. Solo ciò che viene esportato da questo file può essere importato da altre parti dell\'app (routing layer o shared).
+Il file `index.ts` di ogni feature è il **contratto pubblico** della slice. Solo ciò che viene esportato da questo file può essere importato da altre parti dell'app (routing layer o shared).
 
 ```typescript
 // features/products/index.ts
@@ -179,13 +179,13 @@ export type { Product, ProductFilters } from './types/product.types';
 // NON esportare internals come utils, consts, repository
 ```
 
-**Regola d\'oro:** se un file non appare nell\'`index.ts`, è un **dettaglio implementativo privato** della feature e non deve mai essere importato dall\'esterno.
+**Regola d'oro:** se un file non appare nell'`index.ts`, è un **dettaglio implementativo privato** della feature e non deve mai essere importato dall'esterno.
 
 ***
 
 ## 5. Dependency Rules — Le Regole di Dipendenza
 
-Queste regole sono **non negoziabili** per mantenere l\'isolamento tra slice:
+Queste regole sono **non negoziabili** per mantenere l'isolamento tra slice:
 
 ```
 ┌─────────────────────────────────────────┐
@@ -229,7 +229,7 @@ La pagina in `app/` funge da orchestratore e passa callback verso feature indipe
 
 ## 6. Struttura delle Serverless Functions
 
-In un\'architettura serverless React (Vercel, AWS Lambda, Cloudflare Workers), ogni handler segue il pattern **Thin Handler + Handler Logic + Repository**:
+In un'architettura serverless React (Vercel, AWS Lambda, Cloudflare Workers), ogni handler segue il pattern **Thin Handler + Handler Logic + Repository**:
 
 ```typescript
 // api/products/index.ts — Handler principale (Thin)
@@ -312,7 +312,7 @@ shared/
 
 ### Regola 1 — La Feature deve essere deletable
 
-Una feature ben isolata può essere **eliminata cancellando la sua cartella** senza rompere il resto dell\'app. Se eliminarla causa errori in altre feature, hai un problema di accoppiamento.
+Una feature ben isolata può essere **eliminata cancellando la sua cartella** senza rompere il resto dell'app. Se eliminarla causa errori in altre feature, hai un problema di accoppiamento.
 
 ### Regola 2 — Niente cross-feature imports diretti
 
@@ -334,7 +334,7 @@ Configura ESLint per forzare questa regola:
 
 ### Regola 3 — Il barrel export `index.ts` è il contratto
 
-Mai importare da percorsi interni di una feature. Solo dall\'`index.ts`:
+Mai importare da percorsi interni di una feature. Solo dall'`index.ts`:
 
 ```typescript
 // CORRETTO
@@ -359,12 +359,12 @@ features/products/
 │   └── ProductCard.test.tsx   ← test accanto al componente
 ├── hooks/
 │   ├── useProducts.ts
-│   └── useProducts.test.ts    ← test accanto all\'hook
+│   └── useProducts.test.ts    ← test accanto all'hook
 ```
 
 ### Regola 6 — Screaming Architecture
 
-Leggendo la struttura delle cartelle devi poter capire **cosa fa l\'applicazione**, non com\'è fatta tecnicamente. `features/checkout/`, `features/auth/`, `features/analytics/` sono nomi di dominio, non nomi tecnici.
+Leggendo la struttura delle cartelle devi poter capire **cosa fa l'applicazione**, non com'è fatta tecnicamente. `features/checkout/`, `features/auth/`, `features/analytics/` sono nomi di dominio, non nomi tecnici.
 
 ***
 
@@ -429,7 +429,7 @@ export default function LoginPage() {
 
 ## 10. Integrazione con React Query (TanStack Query)
 
-In un\'architettura serverless React, TanStack Query è lo stack ideale per gestire lo stato server:
+In un'architettura serverless React, TanStack Query è lo stack ideale per gestire lo stato server:
 
 ```typescript
 // features/products/hooks/useProducts.ts
@@ -439,9 +439,9 @@ import type { ProductFilters } from '../types/product.types';
 
 // Query keys come costanti tipizzate
 export const PRODUCTS_QUERY_KEYS = {
-  all: [\'products\'] as const,
-  filtered: (filters: ProductFilters) => [\'products\', \'list\', filters] as const,
-  detail: (id: string) => [\'products\', \'detail\', id] as const,
+  all: ['products'] as const,
+  filtered: (filters: ProductFilters) => ['products', 'list', filters] as const,
+  detail: (id: string) => ['products', 'detail', id] as const,
 };
 
 export function useProducts(filters: ProductFilters) {
@@ -465,18 +465,18 @@ export function useCreateProduct() {
 
 ```typescript
 // features/products/api/products.api.ts
-import { apiClient } from \'@/shared/lib/api-client\';
-import type { Product, ProductFilters, CreateProductDto } from \'../types/product.types\';
+import { apiClient } from '@/shared/lib/api-client';
+import type { Product, ProductFilters, CreateProductDto } from '../types/product.types';
 
 export const productsApi = {
   getAll: (filters: ProductFilters) =>
-    apiClient.get<Product[]>(\'/api/products\', { params: filters }),
+    apiClient.get<Product[]>('/api/products', { params: filters }),
 
   getById: (id: string) =>
     apiClient.get<Product>(`/api/products/${id}`),
 
   create: (payload: CreateProductDto) =>
-    apiClient.post<Product>(\'/api/products\', payload),
+    apiClient.post<Product>('/api/products', payload),
 
   update: (id: string, payload: Partial<CreateProductDto>) =>
     apiClient.put<Product>(`/api/products/${id}`, payload),
@@ -489,8 +489,6 @@ export const productsApi = {
 ***
 
 ## 11. Checklist di Qualità per ogni Feature
-
-Prima di considerare una feature "completa", verifica queste condizioni:
 
 ### Struttura
 - [ ] La feature ha un `index.ts` con public API esplicita
@@ -506,7 +504,7 @@ Prima di considerare una feature "completa", verifica queste condizioni:
 ### Backend Serverless
 - [ ] Ogni handler è thin (< 20 righe): delega a handler file dedicati
 - [ ] Validazione input con Zod schema prima di entrare nella business logic
-- [ ] Repository pattern per separare l\'accesso dati dalla logica
+- [ ] Repository pattern per separare l'accesso dati dalla logica
 - [ ] Tipi condivisi frontend/backend in `shared/types/` o via schema Zod con `.infer<>`
 
 ### Qualità del codice
@@ -517,47 +515,41 @@ Prima di considerare una feature "completa", verifica queste condizioni:
 
 ***
 
-## 12. Quando NON usare Vertical Slice
+## 12. Applicazione a Beech CMS (monorepo)
 
-La VSA non è la soluzione giusta per tutti i contesti:
+### Dove vivono le feature (Beech CMS)
 
-- **Progetti molto piccoli** (< 5 feature, team di 1-2 persone): la struttura piatta è più veloce
-- **Component library pura**: usa Atomic Design, non VSA
-- **Proof of concept / hackathon**: la velocità supera la struttura; refactoring in seguito
-- **Quando il team è nuovissimo**: introducila gradualmente, non tutto in una volta
+- **Dashboard (Vite + React)**: le nuove feature verticali vanno sotto `apps/dashboard/src/features/<nome-feature>/`.
+- **API (Hono + Cloudflare D1)**: le feature API vanno sotto `apps/api/src/features/<nome-feature>/`.
+  - Ogni feature ha una cartella `handlers/` per i punti di ingresso Hono.
+  - La logica di business è isolata negli handler.
+  - L'accesso ai dati avviene esclusivamente tramite il **Repository Pattern** (vedi `architecture.md`).
 
-La VSA brilla quando il progetto cresce oltre le 10 feature, il team supera le 3 persone, e la manutenzione a lungo termine è una priorità.
+### Regole di dipendenza (Beech CMS)
 
-***
+1. **Routing / App Factory**: `apps/api/src/factory.ts` e `index.ts` importano le feature solo tramite il loro barrel export (`index.ts`).
+2. **Handlers → Repository**: Gli handler API recuperano l'istanza del repository dal contesto Hono (`context.get('repository')`).
+3. **Isolamento Feature**: Una feature API (es. `content`) non deve mai importare logica da un'altra (es. `auth`).
+4. **Shared Layer**: Logica comune (logging, storage utils) vive in `apps/api/src/shared/`.
+5. **Storage Abstraction**: L'accesso ai file avviene tramite l'interfaccia `BeechBucket` (R2/S3), iniettata via middleware.
 
-## 13. Applicazione a Beech CMS (monorepo)
+In Beech CMS, la Vertical Slice Architecture si appoggia al Repository Pattern per garantire l'indipendenza dal database e dal provider di storage:
 
-Questa sezione adatta i principi delle sezioni precedenti al repository **Beech CMS**, senza sostituire la mappa tecnica completa: la fonte di verità resta [SYSTEM_MAP.md](SYSTEM_MAP.md).
-
-### Dove vivono le feature
-
-- **Dashboard (Vite + React)**: le nuove feature verticali vanno sotto `apps/dashboard/src/features/<nome-feature>/` (es. `richtext-editor/`), con **`index.ts` come public API** (vedi §4).
-- **Shared nel dashboard**: componenti generici shadcn/radix, utilità e client HTTP sotto `apps/dashboard/src/components/ui/`, `apps/dashboard/src/lib/`, ecc. — equivalente pratico dello `shared/` descritto in §7.
-- **Condiviso tra API e dashboard**: tipi, Seed, validazione e Botanical Engine in `packages/core` (`@beech/core`). **Non** duplicare logica di dominio nel slice: import da `@beech/core` come da SYSTEM_MAP.
-
-### Regole di dipendenza (Beech)
-
-1. **Routing / pages** (`apps/dashboard/src/pages/`, `App.tsx`): possono importare da `@/features/...` (public API) e da `@/components`, `@/lib`, `@beech/core`.
-2. **Feature** (`apps/dashboard/src/features/*`): possono importare da `@beech/core`, `@/components`, `@/lib`, `@/hooks` condivisi; **non** importare da un’altra cartella `features/*` (stesso principio del §5).
-3. **Field Renderers**: il registry (`apps/dashboard/src/components/fields/registry.ts`) resta il punto di aggancio schema-driven. Un campo complesso (es. richtext) può essere implementato nello slice e **esposto** come un solo componente dal `index.ts` della feature; il file sottile in `components/fields/edit/` re-esporta o wrappa quel componente senza duplicare logica.
-
-### Media e API
-
-- Upload file: solo **`POST /api/upload`** dal client (vedi SYSTEM_MAP e [media-engine.md](media-engine.md)). Il codice nello slice usa il client API del dashboard, non accesso diretto a R2.
+- **Contratti**: `packages/core` definisce le interfacce `ContentRepository`, `MediaRepository`, `SystemStatsRepository` e `BeechBucket`.
+- **Iniezione**: Middleware dedicati iniettano le implementazioni concrete (D1 per DB, R2/S3 per storage) nel contesto Hono.
+- **Utilizzo**: Gli handler consumano le interfacce, rendendo la business logic agnostica rispetto all'infrastruttura e facilmente testabile.
 
 ### Documenti collegati
 
 - Sprint editor: [Sprints/tiptap-elevation.md](Sprints/tiptap-elevation.md).
-- Piano operativo (gap, priorità P0/P1, refactor slice) è tracciato nel file di piano Cursor del workspace (stesso contenuto sintetico richiamato da questo documento quando si lavora all’editor).
+- Piano operativo: [Sprints/piano.md](Sprints/piano.md).
+- Media Engine: [media-engine.md](media-engine.md).
+- API Reference: [api-reference.md](api-reference.md).
 
 ### Checklist rapida per una nuova slice in Beech
 
-- [ ] Cartella `apps/dashboard/src/features/<nome>/` con `index.ts` che esporta solo l’API pubblica.
-- [ ] Nessun import da `features/<altra-feature>/...`.
-- [ ] Test co-locati (`*.test.ts` / `*.test.tsx`) accanto ai sorgenti.
-- [ ] Se la feature tocca tipi o validazione condivisi, estendere `@beech/core` invece di copiare tipi nel slice.
+- [ ] Cartella `apps/api/src/features/<nome>/` o `apps/dashboard/src/features/<nome>/`.
+- [ ] Barrel export `index.ts` come unica API pubblica.
+- [ ] Nessun import cross-feature.
+- [ ] Test co-locati (`*.test.ts`) accanto ai sorgenti.
+- [ ] Se la feature tocca tipi o validazione condivisi, estendere `@beechcms/core`.

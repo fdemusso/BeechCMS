@@ -1,6 +1,6 @@
 import { useMemo } from "react"
-import { resolvePolicies } from "@beech/core"
-import type { Seed } from "@beech/core"
+import { resolvePolicies } from "@beechcms/core"
+import type { Seed } from "@beechcms/core"
 
 interface SortState {
   columnId: string | null

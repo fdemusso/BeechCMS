@@ -5,6 +5,9 @@ export const CONTENT_QUERY_KEYS = {
   lists: () => [...CONTENT_QUERY_KEYS.all, "list"] as const,
   list: (slug: string, params: ContentListQueryParams) =>
     [...CONTENT_QUERY_KEYS.lists(), slug, params] as const,
+  details: () => [...CONTENT_QUERY_KEYS.all, "detail"] as const,
+  detail: (slug: string, id: string) =>
+    [...CONTENT_QUERY_KEYS.details(), slug, id] as const,
 }
 
 export const FACET_QUERY_KEYS = {

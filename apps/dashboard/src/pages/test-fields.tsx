@@ -1,12 +1,11 @@
 import * as React from "react"
-import type { Branch } from "@beech/core"
+import type { Branch } from "@beechcms/core"
 import { FieldEdit } from "@/components/fields/FieldEdit"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 
 const RICHTEXT_BRANCH: Branch = {
-  id: "br_test_rt",
   alias: "body",
   label: "Corpo del testo",
   type: "richtext",

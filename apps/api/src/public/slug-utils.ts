@@ -1,14 +1,14 @@
-import { slugify, generateEntrySlug } from '@beech/core'
+import { slugify, generateEntrySlug } from '@beechcms/core'
 
 /**
- * Converte stringa in slug URL-safe.
- * Logica spostata in @beech/core per consistenza tra Dashboard e API.
+ * Converts a string into a URL-safe slug.
+ * Logic moved to @beechcms/core for consistency between Dashboard and API.
  */
 export { slugify }
 
 /**
- * Genera slug da title/name o fallback UUID-like.
- * Logica spostata in @beech/core per consistenza tra Dashboard e API.
+ * Generates a slug from a title/name or a UUID-like fallback.
+ * Logic moved to @beechcms/core for consistency between Dashboard and API.
  */
 export { generateEntrySlug }
 

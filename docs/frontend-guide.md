@@ -35,6 +35,19 @@ This document describes the architecture of the React dashboard: how the FieldRe
    - [Client-Side Formula Evaluation](#85-client-side-formula-evaluation)
    - [Pilot Widgets](#86-pilot-widgets)
    - [How to Add a New Widget](#87-how-to-add-a-new-widget)
+9. [Dashboard Seed Config — Sidebar & UI Behaviour](#9-dashboard-seed-config--sidebar--ui-behaviour)
+   - [How it works](#91-how-it-works)
+   - [Icon Registry](#92-icon-registry)
+   - [Sidebar Grouping](#93-sidebar-grouping)
+   - [Feature Toggles](#94-feature-toggles)
+   - [Adding a new icon](#95-adding-a-new-icon)
+10. [Authentication Context & In-Memory Token](#10-authentication-context--in-memory-token)
+    - [Overview](#101-overview)
+    - [Files](#102-files)
+    - [AuthProvider Lifecycle](#103-authprovider-lifecycle)
+    - [useAuth() Hook](#104-useauth-hook)
+    - [ProtectedRoute](#105-protectedroute)
+    - [Axios Interceptors](#106-axios-interceptors)
 
 ---
 
@@ -42,7 +55,7 @@ This document describes the architecture of the React dashboard: how the FieldRe
 
 The dashboard is a React + Vite SPA served from `apps/dashboard`. It communicates exclusively with the Hono API over HTTP — there is no direct database access. Its primary responsibilities are:
 
-- Rendering content forms and tables **driven entirely by the `Seed` schema** from `@beech/core`, not by hardcoded layouts.
+- Rendering content forms and tables **driven entirely by the `Seed` schema** from `@beechcms/core`, not by hardcoded layouts.
 - Managing all server state through **TanStack Query**, with typed query keys and deterministic cache invalidation.
 - Exposing a **pluggable field rendering system** that allows new data types to be added without modifying existing view code.
 
@@ -97,7 +110,7 @@ All display and edit components share a minimal, stable interface defined in `co
 // components/fields/types.ts
 
 export interface FieldDisplayProps {
-   branch: Branch;        // Full Branch definition (id, alias, label, type, format, options…)
+   branch: Branch;        // Full Branch definition (alias, label, type, format, options…)
    value: unknown;        // Sourced from entry.data[branch.alias]
    maxLength?: number;    // Optional truncation hint for text/json in table cells
 }
@@ -109,7 +122,7 @@ export interface FieldEditProps {
 }
 ```
 
-The `Branch` type comes directly from `@beech/core/src/types.ts`. A field renderer never fetches data — it only renders what it receives. This makes every renderer independently unit-testable in isolation.
+The `Branch` type comes directly from `@beechcms/core/src/types.ts`. A field renderer never fetches data — it only renders what it receives. This makes every renderer independently unit-testable in isolation.
 
 ### 2.3 The Registry
 
@@ -119,7 +132,7 @@ The `Branch` type comes directly from `@beech/core/src/types.ts`. A field render
 // components/fields/registry.ts
 
 import type { ComponentType } from 'react';
-import type { BranchType } from '@beech/core';
+import type { BranchType } from '@beechcms/core';
 import type { FieldDisplayProps, FieldEditProps } from './types';
 
 // --- Display renderers (read-only) ---
@@ -172,7 +185,7 @@ export function getEditComponent(type: BranchType): ComponentType<FieldEditProps
 }
 ```
 
-The `Partial<Record<BranchType, ...>>` type is intentional. Unregistered types silently fall back to `DefaultDisplay` (renders `unknown` as a string or `—`) and `DefaultEdit` (renders a plain `<input type="text">`). This makes the system **fail-safe** by design: a new `BranchType` added to `@beech/core` without a corresponding renderer will still produce a usable, non-crashing UI.
+The `Partial<Record<BranchType, ...>>` type is intentional. Unregistered types silently fall back to `DefaultDisplay` (renders `unknown` as a string or `—`) and `DefaultEdit` (renders a plain `<input type="text">`). This makes the system **fail-safe** by design: a new `BranchType` added to `@beechcms/core` without a corresponding renderer will still produce a usable, non-crashing UI.
 
 ### 2.4 Entry Points: FieldDisplay & FieldEdit
 
@@ -219,7 +232,7 @@ import { getDisplayComponent, getEditComponent } from 'components/fields';
 | `date` | `toLocaleDateString('it-IT', { year, month: 'short', day })` | `<Input type="date">` |
 | `json` | Coloured collapsible tag badges; other values: truncated monospace. If `branch.options` is set, shows clickable preset badges | `<Textarea>` with JSON hint; if `branch.options` present, shows pre-defined badges as add/remove shortcuts |
 | `richtext` | Plain text (HTML stripped), truncated via `ExpandableCell` | Full TipTap editor (Bold, Italic, H2, Bullet List, Ordered List, Link, Table, Math) |
-| `file` | Thumbnail if URL resolves to an image; file icon otherwise. `asset-list`: stack preview | Dropzone upload, image preview, Replace / Remove actions. `multiple: true` or `format: 'asset-list'`: multi-file add, reorder, delete |
+| `file` | Thumbnail if URL resolves to an image; file icon otherwise. | Dropzone upload, image preview, Replace / Remove actions. |
 | *(unregistered)* | `DefaultDisplay` — string or `—` | `DefaultEdit` — `<Input type="text">` |
 
 The `richtext` edit renderer is implemented in `features/richtext-editor/` as a vertical slice and re-exported via a thin wrapper at `components/fields/edit/richtext.tsx`. This is the VSA pattern in action: the complex TipTap logic is self-contained in its slice; the registry consumes only the public API.
@@ -434,7 +447,7 @@ The `EntryEditorPage` (`pages/entry-editor.tsx`) is the canonical consumer of th
 ```tsx
 // Simplified structure of EntryEditorPage
 
-const seed = getSeed(slug);  // From @beech/core — never hardcoded
+const seed = getSeed(slug);  // From @beechcms/core — never hardcoded
 
 // TanStack Query: fetch existing entry in edit mode
 const { data: entry } = useQuery({
@@ -462,7 +475,7 @@ return (
                       // The registry is invoked here — EntryEditorPage has zero knowledge
                       // of what component will be rendered for each type.
                       <FieldEdit
-                              key={branch.id}
+                              key={branch.alias}
                               branch={branch}
                               value={formData[branch.alias]}
                               onChange={val => handleInputChange(branch.alias, val)}
@@ -476,7 +489,7 @@ return (
 Key observations:
 - `seed.branches.map(...)` drives the form. There is no hardcoded list of fields anywhere in the page.
 - The page does not contain any `switch (branch.type)` logic — that is fully delegated to the registry.
-- `formData[branch.alias]` — field access always uses aliases, never internal IDs (`br01`). The Botanical Engine's translation happens at the API boundary, not in the UI.
+- `formData[branch.alias]` — field access always uses aliases. The Botanical Engine's translation happens at the database boundary, not in the UI.
 - JSON field validation (checking that the string is valid JSON before submitting) is the **only** field-type-specific logic that stays in the page. All other type-specific behaviour is encapsulated in the individual renderers.
 
 ---
@@ -485,7 +498,7 @@ Key observations:
 
 This is the complete, step-by-step procedure for adding a new field type (e.g., `url`) to the system. The procedure is designed so that **no existing view file is modified**.
 
-### Step 1 — Extend `BranchType` in `@beech/core`
+### Step 1 — Extend `BranchType` in `@beechcms/core`
 
 ```typescript
 // packages/core/src/types.ts
@@ -501,9 +514,9 @@ export type BranchType =
         | 'url';   // ← add here
 ```
 
-This is the only change to `@beech/core`. Turborepo will compile `@beech/core` before the apps, so the new type becomes available immediately.
+This is the only change to `@beechcms/core`. Turborepo will compile `@beechcms/core` before the apps, so the new type becomes available immediately.
 
-### Step 2 — Add Validation in `@beech/core` (if required)
+### Step 2 — Add Validation in `@beechcms/core` (if required)
 
 If the new type requires server-side validation/sanitization, extend `buildBranchSchema` and `validateBranchValue` in `packages/core/src/validation.ts`:
 
@@ -590,10 +603,9 @@ export const editRegistry: Partial<Record<BranchType, ComponentType<FieldEditPro
 ```typescript
 // packages/core/src/seeds.ts — extend any existing seed
 {
-   id: 'br05',
-           alias: 'website',
-        label: 'Sito Web',
-        type: 'url',
+  alias: 'website',
+  label: 'Sito Web',
+  type: 'url',
 }
 ```
 
@@ -604,7 +616,7 @@ export const editRegistry: Partial<Record<BranchType, ComponentType<FieldEditPro
 import { render, screen } from '@testing-library/react';
 import { UrlDisplay } from './url';
 
-const branch = { id: 'br05', alias: 'website', label: 'Sito', type: 'url' as const };
+const branch = { alias: 'website', label: 'Sito', type: 'url' as const };
 
 describe('UrlDisplay', () => {
    it('renders a link for a valid URL', () => {
@@ -739,7 +751,7 @@ export interface ResolvedCardFields {
 
 The Widget Data Layer is a VSA feature slice at `apps/dashboard/src/features/widget-data/` that provides a **single, stable interface** for all dashboard widgets to query content data. It exists to solve four problems:
 
-1. **Botanical Engine complexity is invisible to widgets.** Widget components never deal with `br_XX` IDs — they pass API aliases (e.g. `"price"`, `"created_at"`) and get back resolved values.
+1. **Botanical Engine complexity is invisible to widgets.** Widget components never deal with internal IDs — they pass API aliases (e.g. `"price"`, `"created_at"`) and get back resolved values from real SQL columns.
 2. **Switching data source = changing one prop.** Every hook accepts a `seed` string. Pointing a widget at a different content type requires changing only that one argument.
 3. **Formula/expression evaluation** for computed metrics (sum, avg, growth delta) is available both server-side (via dedicated API endpoints) and client-side (pure utility, no round-trip when data is already cached).
 4. **Consistent cache behaviour.** Each hook declares its own `staleTime` and `refetchInterval` calibrated to the nature of the data (aggregates: 5 min; leaderboards: 2 min; lists: always fresh).
@@ -946,5 +958,154 @@ export function MyWidget({ seed, formula, window = "all", title }: MyWidgetProps
 4. **Add a case** in `apps/dashboard/src/features/dashboard/components/widget-registry.tsx` that maps the new type to the component.
 
 5. **Add an instance** to `DEFAULT_DASHBOARD_CONFIG` in `apps/dashboard/src/features/dashboard/config/dashboard.config.ts` with the desired `span`, `x`, `y`, and `props`.
+
+---
+
+## 10. Authentication Context & In-Memory Token
+
+### 10.1 Overview
+
+The dashboard uses a React context (`AuthContext`) to manage authentication state. The JWT access token is stored exclusively in a **module-level variable** (`_accessToken` in `apps/dashboard/src/lib/api.ts`) — it never touches `localStorage` or any browser storage. This prevents XSS-based token theft.
+
+The refresh token remains in an `HttpOnly SameSite=Strict` cookie and is handled entirely by the browser — the dashboard never reads or writes it.
+
+### 10.2 Files
+
+| File | Role |
+|---|---|
+| `apps/dashboard/src/lib/api.ts` | Declares `_accessToken`, exports `getAccessToken / setAccessToken / clearAccessToken`. Axios interceptors read and update it. |
+| `apps/dashboard/src/lib/auth-context.tsx` | `AuthProvider`, `useAuth()` hook. Manages `{ status, user }` React state. |
+| `apps/dashboard/src/App.tsx` | Wraps `<RouterProvider>` in `<AuthProvider>`. `ProtectedRoute` consumes `useAuth()`. |
+
+### 10.3 AuthProvider Lifecycle
+
+```
+App mount
+  └─ AuthProvider mounts
+       └─ useEffect: POST /auth/refresh (withCredentials)
+            ├─ success → setAccessToken(token), setUser(decoded), status = 'authenticated'
+            └─ failure → clearAccessToken(), status = 'unauthenticated'
+```
+
+On page reload the access token is gone (it was in-memory). `AuthProvider` silently re-issues it via the `HttpOnly` refresh cookie before any protected route renders.
+
+### 10.4 `useAuth()` Hook
+
+```typescript
+import { useAuth } from '@/lib/auth-context'
+
+const { status, user, setToken, clearToken } = useAuth()
+// status: 'loading' | 'authenticated' | 'unauthenticated'
+// user:   { email: string; name?: string } | null
+```
+
+**Rules:**
+- `useAuth()` **must** be called inside a component that is a descendant of `<AuthProvider>`. It throws if called outside.
+- Use `user` from `useAuth()` wherever user identity is needed (sidebar, header, etc.). Do not call `localStorage.getItem` or any token-decoding function in component code.
+- Call `setToken(token)` after a successful login to update the in-memory token and React state atomically.
+- Call `clearToken()` to log out from client state; pair it with `POST /auth/logout` to revoke the refresh token server-side.
+
+### 10.5 ProtectedRoute
+
+```tsx
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { status } = useAuth()
+  if (status === 'loading') return <SplashScreen />        // initial refresh in progress
+  if (status === 'unauthenticated') return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+```
+
+`SplashScreen` is a minimal full-screen spinner shown only during the initial `POST /auth/refresh` call at app mount. It is never shown again after the first resolution.
+
+### 10.6 Axios Interceptors
+
+The request interceptor in `api.ts` reads `getAccessToken()` and injects `Authorization: Bearer <token>` on every outbound request.
+
+The 401 response interceptor:
+1. Calls `POST /auth/refresh` once (guarded by `isRefreshing` flag to prevent concurrent refresh storms).
+2. On success: calls `setAccessToken(newToken)` and retries all queued requests.
+3. On failure: calls `clearAccessToken()` and redirects to `/login`.
+
+The interceptor does **not** call `clearToken()` from `AuthContext` — it only manages the module variable. The redirect to `/login` is enough to reset the React tree and trigger a new `AuthProvider` mount.
+
+---
+
+## 9. Dashboard Seed Config — Sidebar & UI Behaviour
+
+The sidebar and per-content-type UI behaviour are driven by the optional `dashboard` field on each `Seed`. This is the **only** source of truth for dashboard UI configuration — no slug-to-icon maps, no separate registries.
+
+### 9.1 How it works
+
+1. `defineSeed({ ..., dashboard: { icon, group, order, hidden, features } })` — declared alongside the Seed, never in a separate file.
+2. The `GET /api/schema` endpoint returns all seeds including their `dashboard` field. `useSchema()` in `apps/dashboard/src/features/schema/hooks/use-schema.ts` fetches this once and caches it for 5 minutes.
+3. `buildContentMenu(seeds, defaultGroupLabel)` in `apps/dashboard/src/config/dashboard-menu.ts` groups, sorts, and filters the seeds, returning `NavGroup[]`.
+4. `AppSidebar` renders one `NavMain` section per group, in the order they appear in `NavGroup[]`.
+
+### 9.2 Icon Registry
+
+**File:** `apps/dashboard/src/lib/icon-registry.ts`
+
+Icon names are strings on the wire (safe to serialize to JSON). The registry resolves them to `LucideIcon` components client-side:
+
+```typescript
+import { resolveIcon } from '@/lib/icon-registry'
+
+const Icon = resolveIcon('Newspaper')   // → LucideIcon component
+const Fallback = resolveIcon(undefined) // → Folder (default)
+```
+
+Unknown names always fall back to `Folder` — they never throw.
+
+### 9.3 Sidebar Grouping
+
+Seeds with the same `dashboard.group` string share a sidebar section. Seeds with no `group` fall into the default section (labelled with the i18n key `sidebar.contents`). Within a group, seeds are sorted by `dashboard.order` (ascending; default 99).
+
+```
+Sidebar
+├── Navigation          ← static: Dashboard, Settings
+├── Blog                ← group: seeds with dashboard.group = 'Blog', sorted by order
+│   ├── Posts           ← order: 1
+│   └── Comments        ← order: 2
+└── Shop                ← group: seeds with dashboard.group = 'Shop'
+    ├── Products        ← order: 1
+    └── Orders          ← order: 2
+```
+
+Set `dashboard.hidden: true` to exclude a seed from the sidebar entirely (it remains accessible via direct URL).
+
+### 9.4 Feature Toggles
+
+`dashboard.features` controls which UI elements appear in the content views. All values default to `true` for `search` and `filter`; `export` and `bulkDelete` default to `false`.
+
+| Key | Default | Effect |
+|---|---|---|
+| `search` | `true` | Show search bar in the content list toolbar |
+| `filter` | `true` | Show column filters in the content list toolbar |
+| `export` | `false` | Show export (CSV/JSON) button in the toolbar |
+| `bulkDelete` | `false` | Show bulk-delete action in the content list |
+
+> **Note:** feature toggle rendering is opt-in — each component must read `seed.dashboard?.features` and conditionally render. The schema provides the data; consuming components must implement the check.
+
+### 9.5 Adding a New Icon
+
+1. Import the Lucide icon in `apps/dashboard/src/lib/icon-registry.ts`.
+2. Add it to both the import list and the `ICON_MAP` object using its PascalCase name as key.
+3. Reference it by name string in any Seed's `dashboard.icon` field.
+
+```typescript
+// icon-registry.ts — add to both import and ICON_MAP
+import { Rocket } from 'lucide-react'
+
+const ICON_MAP = {
+  // ...existing icons
+  Rocket,
+}
+```
+
+```typescript
+// seeds.ts
+defineSeed({ slug: 'launches', dashboard: { icon: 'Rocket' } })
+```
 
 > **Do not** create custom `fetch` calls inside widget components. All data access must go through the hooks in `@/features/widget-data`. If none of the existing hooks fit, add a new one following the pattern in `hooks/use-widget-aggregate.ts`.

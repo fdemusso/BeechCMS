@@ -8,16 +8,22 @@ on:
 
 jobs:
   test:
-    name: Unit Tests
+    name: Suite BeechCMS (Deterministic)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-      - run: npm run test
+      - name: Build packages (Core)
+        run: npm run build -w @beechcms/core
+
+      - name: Run Deterministic Flow Tests
+        run: npm test -w @beechcms/api

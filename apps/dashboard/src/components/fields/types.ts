@@ -1,4 +1,4 @@
-import type { Branch } from "@beech/core"
+import type { Branch } from "@beechcms/core"
 
 /** Props condivise per i componenti di sola lettura (display) */
 export interface FieldDisplayProps {

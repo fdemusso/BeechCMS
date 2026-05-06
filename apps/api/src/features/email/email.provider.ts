@@ -1,38 +1,38 @@
 import type { OutboundEmail } from './email.types'
 
 /**
- * EmailProvider — contratto formale per i provider di invio email.
+ * EmailProvider — formal contract for email sending providers.
  *
- * Ogni implementazione (Resend, SendGrid, Mailgun, SMTP, …) DEVE rispettare
- * questa interfaccia. È l'unico punto di accoppiamento tra il modulo email e
- * qualsiasi servizio esterno di terze parti.
+ * Every implementation (Resend, SendGrid, Mailgun, SMTP, ...) MUST comply
+ * with this interface. It is the only point of coupling between the email module and
+ * any third-party external service.
  *
- * ─── COME CAMBIARE PROVIDER ──────────────────────────────────────────────────
- *  1. Crea un nuovo file sotto `providers/`  (es. `providers/sendgrid.ts`).
- *  2. Esporta una classe che implementa questa interfaccia.
- *  3. In `email.service.ts` sostituisci l'import e l'istanziazione del provider
- *     attuale con la tua nuova classe nella funzione `createProvider()`.
- *  4. Aggiorna le variabili d'ambiente necessarie in `types.ts` e `wrangler.jsonc`.
- *  5. Nessun altro file del progetto va toccato.
+ * ─── HOW TO CHANGE PROVIDER ──────────────────────────────────────────────────
+ *  1. Create a new file under `providers/` (e.g., `providers/sendgrid.ts`).
+ *  2. Export a class that implements this interface.
+ *  3. In `email.service.ts`, replace the import and instantiation of the current
+ *     provider with your new class in the `createProvider()` function.
+ *  4. Update the necessary environment variables in `types.ts` and `wrangler.jsonc`.
+ *  5. No other file in the project needs to be touched.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export interface EmailProvider {
   /**
-   * Invia una singola email transazionale.
+   * Sends a single transactional email.
    *
-   * @param email - Il messaggio completamente risolto: mittente, destinatario,
-   *               oggetto e corpo HTML. Usa i builder in `templates/` per
-   *               costruire questo oggetto in modo corretto.
+   * @param email - The fully resolved message: sender, recipient,
+   *               subject, and HTML body. Use the builders in `templates/` to
+   *               construct this object correctly.
    *
-   * @returns Promise che si risolve quando il provider ha **accettato** il
-   *          messaggio per la consegna. L'accettazione non garantisce la ricezione
-   *          in inbox — quella dipende dal server del destinatario e dalla
-   *          deliverability del provider.
+   * @returns Promise that resolves when the provider has **accepted** the
+   *          message for delivery. Acceptance does not guarantee delivery
+   *          to the inbox — that depends on the recipient's server and the
+   *          provider's deliverability.
    *
-   * @throws {Error} Se il provider rifiuta la richiesta (autenticazione fallita,
-   *                 errore di rete, payload non valido). Il chiamante
-   *                 (`email.service.ts`) è responsabile di catturare e gestire
-   *                 questo errore in modo appropriato.
+   * @throws {Error} If the provider rejects the request (failed authentication,
+   *                 network error, invalid payload). The caller
+   *                 (`email.service.ts`) is responsible for catching and handling
+   *                 this error appropriately.
    */
   send(email: OutboundEmail): Promise<void>
 }

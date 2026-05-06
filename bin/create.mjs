@@ -40,7 +40,7 @@ function readTemplate(filename) {
 }
 
 function buildSeedsFile(selectedKeys) {
-  const header = `import type { Seed } from '@beech/core'\n\n`
+  const header = `import type { Seed } from '@beechcms/core'\n\n`
 
   if (selectedKeys.length === 0) {
     const example = readFileSync(join(__dirname, 'templates', 'empty.ts'), 'utf8')
@@ -84,10 +84,10 @@ function writeFile(path, content) {
 
 function buildWorkerTs() {
   return `/// <reference types="@cloudflare/workers-types" />
-import { createBeechApp } from '@beech/api'
-import { seeds } from './seeds'
+import { createBeechApp } from '@beechcms/api'
+import { SEED_REGISTRY } from './seeds'
 
-export default createBeechApp({ seeds })
+export default createBeechApp({ seeds: Object.values(SEED_REGISTRY) })
 `
 }
 
@@ -104,12 +104,14 @@ function buildPackageJson(name) {
     scripts: {
       dev: 'wrangler dev --port 8789',
       deploy: 'wrangler deploy --minify',
+      'seed:load': 'npx beech seed:load',
+      'seed:load:local': 'npx beech seed:load --local',
       'db:migrate:local': 'wrangler d1 migrations apply ' + name + '-db --local',
       'db:reset:local': 'node -e "require(\'fs\').rmSync(\'.wrangler/state\',{recursive:true,force:true})" && npm run db:migrate:local',
     },
     dependencies: {
-      '@beech/api': '^0.1.0',
-      '@beech/core': '^0.1.0',
+      '@beechcms/api': '^0.4.0-preview.12',
+      '@beechcms/core': '^0.4.0-preview.12',
     },
     devDependencies: {
       '@cloudflare/workers-types': '^4.0.0',
@@ -133,12 +135,17 @@ function buildWranglerJsonc(cfg) {
     "APP_URL": "${cfg.appUrl || 'http://localhost:5173'}"
   },
 
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "node_modules/@beechcms/api/assets/dashboard"
+  },
+
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "${cfg.d1Name}",
       "database_id": "${cfg.d1Id}",
-      "migrations_dir": "node_modules/@beech/api/migrations"
+      "migrations_dir": "node_modules/@beechcms/api/migrations"
     }
   ],
 
@@ -162,7 +169,9 @@ function buildDevVars(cloudflare) {
     ].join('\n') + '\n'
   }
   return [
-    '# Fill these in before starting the dev server.',
+    '# R2 credentials — only needed if you want production-like S3 media uploads locally.',
+    '# For local development, media uploads work automatically via the Miniflare R2 binding.',
+    '# Fill these in only when testing production media behaviour:',
     '# Guide: https://developers.cloudflare.com/r2/api/s3/tokens/',
     'R2_ACCESS_KEY_ID=',
     'R2_SECRET_ACCESS_KEY=',
@@ -272,52 +281,68 @@ async function askCloudflareConfig(name) {
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
+  const argv = process.argv.slice(2)
+  const silent = argv.includes('--yes') || argv.includes('-y') || !process.stdout.isTTY
+
   console.log()
-  p.intro(pc.bgGreen(pc.black(' beech-cms ')))
+  p.intro(pc.bgGreen(pc.black(' @beechcms/cms ')))
 
-  // Project name
-  const projectName = await p.text({
-    message: 'Project name',
-    placeholder: 'my-website',
-    validate: (v) => {
-      if (!v.trim()) return 'Required'
-      if (!/^[a-z0-9][a-z0-9-]*$/.test(v.trim())) return 'Lowercase letters, numbers and hyphens only'
-    },
-  })
-  if (p.isCancel(projectName)) { p.cancel('Cancelled'); process.exit(0) }
-  const name = projectName.trim()
+  let name, selectedTemplates, cloudflare
+
+  if (silent) {
+    // Non-interactive: use first positional arg or default name, skip Cloudflare
+    const positional = argv.find((a) => !a.startsWith('-'))
+    name = positional ?? 'my-beech-project'
+    const withExamples = argv.includes('--with-examples') || argv.includes('--examples')
+    selectedTemplates = withExamples ? ['blog'] : []
+    cloudflare = null
+    const examplesNote = withExamples ? ' (with blog example content types)' : ''
+    console.log(pc.dim(`  Running in non-interactive mode. Project name: ${name}${examplesNote}`))
+  } else {
+    // Project name
+    const projectName = await p.text({
+      message: 'Project name',
+      placeholder: 'my-website',
+      validate: (v) => {
+        if (!v.trim()) return 'Required'
+        if (!/^[a-z0-9][a-z0-9-]*$/.test(v.trim())) return 'Lowercase letters, numbers and hyphens only'
+      },
+    })
+    if (p.isCancel(projectName)) { p.cancel('Cancelled'); process.exit(0) }
+    name = projectName.trim()
+
+    // Content types
+    const tmpl = await p.multiselect({
+      message: 'Which content types do you need?',
+      hint: 'Space to select, Enter to confirm. You can add more later in seeds.ts',
+      options: [
+        { value: 'blog',    label: 'Blog',    hint: 'posts with rich text, cover image, tags and authors' },
+        { value: 'gallery', label: 'Gallery', hint: 'media items with image, tags and featured flag' },
+        { value: 'contact', label: 'Contact', hint: 'public form submissions with masked email and read status' },
+      ],
+      required: false,
+    })
+    if (p.isCancel(tmpl)) { p.cancel('Cancelled'); process.exit(0) }
+    selectedTemplates = tmpl
+
+    // Cloudflare now or later?
+    const configureNow = await p.confirm({
+      message: 'Configure Cloudflare credentials now?',
+      hint: 'Choose "No" to scaffold the project and fill in the values later',
+      initialValue: true,
+    })
+    if (p.isCancel(configureNow)) { p.cancel('Cancelled'); process.exit(0) }
+
+    if (configureNow) {
+      cloudflare = await askCloudflareConfig(name)
+      if (!cloudflare) { p.cancel('Cancelled'); process.exit(0) }
+    }
+  }
+
   const targetDir = resolve(process.cwd(), name)
-
   if (existsSync(targetDir)) {
     p.cancel(`Directory '${name}' already exists. Choose a different name or delete the folder.`)
     process.exit(1)
-  }
-
-  // Content types
-  const selectedTemplates = await p.multiselect({
-    message: 'Which content types do you need?',
-    hint: 'Space to select, Enter to confirm. You can add more later in seeds.ts',
-    options: [
-      { value: 'blog',    label: 'Blog',    hint: 'posts with rich text, cover image, tags and authors' },
-      { value: 'gallery', label: 'Gallery', hint: 'media items with image, tags and featured flag' },
-      { value: 'contact', label: 'Contact', hint: 'public form submissions with masked email and read status' },
-    ],
-    required: false,
-  })
-  if (p.isCancel(selectedTemplates)) { p.cancel('Cancelled'); process.exit(0) }
-
-  // Cloudflare now or later?
-  const configureNow = await p.confirm({
-    message: 'Configure Cloudflare credentials now?',
-    hint: 'Choose "No" to scaffold the project and fill in the values later',
-    initialValue: true,
-  })
-  if (p.isCancel(configureNow)) { p.cancel('Cancelled'); process.exit(0) }
-
-  let cloudflare = null
-  if (configureNow) {
-    cloudflare = await askCloudflareConfig(name)
-    if (!cloudflare) { p.cancel('Cancelled'); process.exit(0) }
   }
 
   const jwtSecret = generateSecret(32)
@@ -379,9 +404,9 @@ async function main() {
       '',
       ...(pendingConfig ? [
         `${pc.bold('3. Complete Cloudflare configuration')}  ${pc.yellow('← pending')}`,
-        `   Edit ${pc.underline('wrangler.jsonc')}  →  fill in ${pc.yellow('database_id')} and R2 bucket`,
-        `   Edit ${pc.underline('.dev.vars')}        →  fill in R2 credentials`,
+        `   Edit ${pc.underline('wrangler.jsonc')}  →  fill in ${pc.yellow('database_id')} (D1) and ${pc.yellow('bucket_name')} (R2)`,
         `   Guide: https://developers.cloudflare.com/d1/`,
+        `   ${pc.dim('Note: media uploads work locally without R2 credentials (.dev.vars optional)')}`,
         '',
       ] : []),
       `${step(3)}. Run local migrations`,
@@ -389,6 +414,7 @@ async function main() {
       '',
       `${step(4)}. Start the dev server`,
       `   ${pc.cyan('npx wrangler dev')}`,
+      `   Then open: ${pc.underline('http://localhost:8789/admin')}`,
       '',
       `${step(5)}. Deploy to production`,
       `   ${pc.cyan('npm run deploy')}`,

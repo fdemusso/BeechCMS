@@ -100,10 +100,21 @@
         "retry": "Retry"
       },
       "stat": {
-        "total": { "title": "Total Contents", "description": "All collections" },
-        "visitors": { "title": "Unique Visitors", "description": "Last 30 days (Edge)" },
-        "traffic": { "title": "Total Traffic", "description": "Edge Bandwidth" },
-        "storage": { "description": "{{percentage}}% of {{total}} GB" }
+        "total": {
+          "title": "Total Contents",
+          "description": "All collections"
+        },
+        "visitors": {
+          "title": "Unique Visitors",
+          "description": "Last 30 days (Edge)"
+        },
+        "traffic": {
+          "title": "Total Traffic",
+          "description": "Edge Bandwidth"
+        },
+        "storage": {
+          "description": "{{percentage}}% of {{total}} GB"
+        }
       },
       "mediaGallery": {
         "title": "Media Gallery",
@@ -117,6 +128,21 @@
     },
     "widgetRegistry": {
       "unknown": "Unknown widget:"
+    },
+    "setupChecklist": {
+      "title": "Setup Checklist",
+      "allDone": "Project ready — all setup steps complete",
+      "systemTables": "Database initialised",
+      "systemTablesHint": "Run: npx beech init --db --local",
+      "seeds": "{{count}} seed(s) defined in seeds.ts",
+      "seedsNone": "No seeds defined in seeds.ts",
+      "seedsAction": "Read the seeds guide",
+      "contentTables": "Content tables created",
+      "contentTablesHint": "Run seed:load to create content tables in D1",
+      "adminAccount": "Admin account created",
+      "adminAction": "Go to setup wizard",
+      "firstContent": "First content entry",
+      "firstContentAction": "Create first entry"
     }
   },
   "editor": {

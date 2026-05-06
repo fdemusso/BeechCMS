@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useNavigate, useBlocker } from "react-router-dom"
-import { getSeed, slugify } from "@beech/core"
+import { slugify } from "@beechcms/core"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { AxiosError } from "axios"
@@ -38,15 +38,14 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import {
-  fetchContentById,
-  createContent,
-  updateContent,
-} from "@/lib/content-api"
-import type { ContentEntry } from "@/lib/dynamic-columns"
+  useContentEntry,
+  useSaveContent,
+} from "@/features/content-management"
+import { useActiveSeed } from "@/features/schema/hooks/use-schema"
 
 /** 
  * Slug ammessi: solo a-z, 0-9, trattino. Niente accenti/spazi/underscore. 
- * TODO: Allineare la regex con slug-utils.ts (API) e spostare la logica in @beech/core 
+ * TODO: Allineare la regex con slug-utils.ts (API) e spostare la logica in @beechcms/core 
  * per garantire consistenza assoluta tra dashboard e API pubbliche.
  */
 function slugFromText(text: string): string {
@@ -74,15 +73,20 @@ export function EntryEditorPage() {
   const navigate = useNavigate()
   const isCreate = !entryId
 
-  const seed = schemaSlug ? getSeed(schemaSlug) : null
-  const [isLoadingEntry, setIsLoadingEntry] = React.useState(!!entryId)
-  const [errorEntry, setErrorEntry] = React.useState<string | null>(null)
+  const { seed, isLoading: isSeedLoading } = useActiveSeed(schemaSlug)
+  
+  const { 
+    data: entryData, 
+    isLoading: isLoadingEntry, 
+    error: errorEntryQuery 
+  } = useContentEntry(schemaSlug, entryId)
+
+  const { mutateAsync: saveContent, isPending: isSaving } = useSaveContent()
 
   const [formData, setFormData] = React.useState<Record<string, unknown>>({})
   const [status, setStatus] = React.useState<string>("draft")
   const [slug, setSlug] = React.useState<string>("")
   const [slugTouched, setSlugTouched] = React.useState(false)
-  const [isSaving, setIsSaving] = React.useState(false)
   const [isDirty, setIsDirty] = React.useState(false)
   const hasJustSavedRef = React.useRef(false)
 
@@ -93,37 +97,17 @@ export function EntryEditorPage() {
     setIsDirty(true)
   }, [])
 
-  // Fetch entry in edit mode
+  // Sync data from query to local state
   React.useEffect(() => {
-    if (!schemaSlug || !entryId || !seed) return
-
-    let cancelled = false
-    setIsLoadingEntry(true)
-    setErrorEntry(null)
-
-    fetchContentById(schemaSlug, entryId)
-      .then((data: ContentEntry) => {
-        if (!cancelled) {
-          setFormData(data.data ?? {})
-          setStatus(data.status ?? "draft")
-          setSlug(data.slug ?? "")
-        }
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setErrorEntry(
-            err instanceof Error ? err.message : t("content.editor.loadingError")
-          )
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingEntry(false)
-      })
-
-    return () => {
-      cancelled = true
+    if (entryData) {
+      setFormData(entryData.data ?? {})
+      setStatus(entryData.status ?? "draft")
+      setSlug(entryData.slug ?? "")
+      setIsDirty(false)
     }
-  }, [schemaSlug, entryId, seed])
+  }, [entryData])
+
+  const errorEntry = errorEntryQuery instanceof Error ? errorEntryQuery.message : null
 
   // Initialize form for create mode
   React.useEffect(() => {
@@ -171,14 +155,14 @@ export function EntryEditorPage() {
   const seoBranches = React.useMemo(
     () =>
       seed?.branches.filter(
-        (b) => b.id !== richtextBranch?.id && isSeoBranch(b)
+        (b) => b.alias !== richtextBranch?.alias && isSeoBranch(b)
       ) ?? [],
     [seed, richtextBranch]
   )
   const contentBranches = React.useMemo(
     () =>
       seed?.branches.filter(
-        (b) => b.id !== richtextBranch?.id && !isSeoBranch(b)
+        (b) => b.alias !== richtextBranch?.alias && !isSeoBranch(b)
       ) ?? [],
     [seed, richtextBranch]
   )
@@ -235,14 +219,17 @@ export function EntryEditorPage() {
     payload: ReturnType<typeof buildPayload>,
     entryIdForUpdate: string | null
   ) => {
+    await saveContent({ 
+      slug: schemaSlug, 
+      id: entryIdForUpdate ?? undefined, 
+      data: payload 
+    })
+    
     if (entryIdForUpdate) {
-      await updateContent(schemaSlug, entryIdForUpdate, payload)
       toast.success(t("content.editor.savedSuccess"))
-      return
+    } else {
+      toast.success(t("content.editor.createdSuccess"))
     }
-
-    await createContent(schemaSlug, payload)
-    toast.success(t("content.editor.createdSuccess"))
   }
 
   const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
@@ -251,7 +238,6 @@ export function EntryEditorPage() {
     if (!isCreate && !entryId) return
     if (!validateJsonFields()) return
 
-    setIsSaving(true)
     try {
       const payload = buildPayload()
       const entryIdForUpdate = isCreate ? null : entryId
@@ -268,8 +254,6 @@ export function EntryEditorPage() {
       toast.error(
         err instanceof Error ? err.message : t("content.editor.saveError")
       )
-    } finally {
-      setIsSaving(false)
     }
   }
 
@@ -283,7 +267,7 @@ export function EntryEditorPage() {
     )
   }
 
-  if (!seed) {
+  if (!seed && !isSeedLoading) {
     return (
       <div className="[--header-height:calc(--spacing(14))]">
         <SidebarProvider className="flex flex-col">
@@ -299,6 +283,28 @@ export function EntryEditorPage() {
                   <Button variant="outline" className="mt-2" onClick={goBack}>
                     {t("content.editor.back")}
                   </Button>
+                </div>
+              </div>
+            </SidebarInset>
+          </div>
+        </SidebarProvider>
+      </div>
+    )
+  }
+
+  if (isSeedLoading || !seed) {
+    return (
+      <div className="[--header-height:calc(--spacing(14))]">
+        <SidebarProvider className="flex flex-col">
+          <SiteHeader />
+          <div className="flex flex-1">
+            <AppSidebar />
+            <SidebarInset>
+              <div className="flex flex-1 flex-col gap-4 p-4">
+                <Skeleton className="h-10 w-48" />
+                <div className="grid flex-1 gap-4 md:grid-cols-[1fr_320px] lg:grid-cols-[1fr_360px] xl:grid-cols-[1fr_400px]">
+                  <Skeleton className="min-h-[70vh] rounded-lg" />
+                  <Skeleton className="h-64 rounded-lg" />
                 </div>
               </div>
             </SidebarInset>
@@ -442,7 +448,7 @@ export function EntryEditorPage() {
                               />
                           </div>
                           {seoBranches.map((branch) => (
-                            <div key={branch.id} className="space-y-2">
+                            <div key={branch.alias} className="space-y-2">
                               <Label htmlFor={branch.alias}>{branch.label}</Label>
                               <FieldEdit
                                 branch={branch}
@@ -462,7 +468,7 @@ export function EntryEditorPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                           {contentBranches.map((branch) => (
-                            <div key={branch.id} className="space-y-2">
+                            <div key={branch.alias} className="space-y-2">
                               <Label htmlFor={branch.alias}>{branch.label}</Label>
                               <FieldEdit
                                 branch={branch}
@@ -529,7 +535,7 @@ export function EntryEditorPage() {
                         </CardHeader>
                         <CardContent className="space-y-4">
                           {seoBranches.map((branch) => (
-                            <div key={branch.id} className="space-y-2">
+                            <div key={branch.alias} className="space-y-2">
                               <Label htmlFor={branch.alias}>{branch.label}</Label>
                               <FieldEdit
                                 branch={branch}
@@ -550,7 +556,7 @@ export function EntryEditorPage() {
                       </CardHeader>
                       <CardContent className="space-y-4">
                         {contentBranches.map((branch) => (
-                          <div key={branch.id} className="space-y-2">
+                          <div key={branch.alias} className="space-y-2">
                             <Label htmlFor={branch.alias}>{branch.label}</Label>
                             <FieldEdit
                               branch={branch}

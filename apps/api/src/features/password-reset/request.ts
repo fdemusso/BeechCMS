@@ -3,86 +3,104 @@ import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
 import { sendPasswordResetEmail, resolveEmailLocale } from '../email'
 
-const TOKEN_EXPIRY_SECONDS = 30 * 60
+const PASSWORD_RESET_TOKEN_EXPIRY_SECONDS = 30 * 60
 
-async function sha256hex(text: string): Promise<string> {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))
-  return Array.from(new Uint8Array(buf))
-    .map(b => b.toString(16).padStart(2, '0'))
+/**
+ * Computes the SHA-256 hash of a string and returns it as a hex string.
+ */
+async function computeSha256Hash(text: string): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(text)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(byte => byte.toString(16).padStart(2, '0'))
     .join('')
 }
 
+/**
+ * Handles the password reset request.
+ * Generates a reset token, stores its hash in the database, and sends an email to the user.
+ */
 export async function requestPasswordReset(
-  c: Context<{ Bindings: Env; Variables: Variables }>
+  context: Context<{ Bindings: Env; Variables: Variables }>
 ): Promise<Response> {
-  if (!c.env.RESEND_API_KEY) {
-    return c.json({ error: 'Not available' }, 503)
+  const { env, req } = context
+
+  if (!env.RESEND_API_KEY) {
+    return context.json({ error: 'Service not available' }, 503)
   }
 
-  let body: Record<string, unknown>
+  let payload: Record<string, unknown>
   try {
-    body = await c.req.json()
+    payload = await req.json()
   } catch {
-    return c.json({ error: 'Invalid request body' }, 400)
+    return context.json({ error: 'Invalid request body' }, 400)
   }
 
-  if (typeof body.email !== 'string' || !body.email.trim()) {
-    return c.json({ error: 'Invalid request' }, 400)
+  const emailInput = payload.email
+  if (typeof emailInput !== 'string' || !emailInput.trim()) {
+    return context.json({ error: 'Invalid request' }, 400)
   }
 
-  const email = body.email.trim().toLowerCase()
-  const locale = resolveEmailLocale(body.locale)
+  const normalizedEmail = emailInput.trim().toLowerCase()
+  const emailLocale = resolveEmailLocale(payload.locale)
 
-  if (c.env.FORGOT_PASSWORD_RATE_LIMITER) {
-    const ip = c.req.raw.headers.get('cf-connecting-ip') ?? 'unknown'
-    const { success } = await c.env.FORGOT_PASSWORD_RATE_LIMITER.limit({ key: ip })
-    if (!success) {
-      return c.json({ error: 'Too many requests' }, 429)
+  // Rate limiting based on IP address
+  if (env.FORGOT_PASSWORD_RATE_LIMITER) {
+    const clientIpAddress = req.raw.headers.get('cf-connecting-ip') ?? 'unknown'
+    const { success: isRateLimitAllowed } = await env.FORGOT_PASSWORD_RATE_LIMITER.limit({ key: clientIpAddress })
+    
+    if (!isRateLimitAllowed) {
+      return context.json({ error: 'Too many requests' }, 429)
     }
   }
 
-  // Sempre 200 per evitare user enumeration
-  const user = await c.env.DB
+  // Find user by email. We always return 200 success even if the user is not found to prevent user enumeration.
+  const registeredUser = await env.DB
     .prepare('SELECT id FROM users WHERE email = ?')
-    .bind(email)
+    .bind(normalizedEmail)
     .first<{ id: string }>()
 
-  if (!user) {
-    return c.json({ success: true })
+  if (!registeredUser) {
+    return context.json({ success: true })
   }
 
-  // Invalida eventuali token pendenti per lo stesso utente prima di emetterne uno nuovo
-  await c.env.DB
+  // Invalidate any existing pending tokens for the same user before issuing a new one.
+  await env.DB
     .prepare('UPDATE password_reset_tokens SET used_at = unixepoch() WHERE user_id = ? AND used_at IS NULL')
-    .bind(user.id)
+    .bind(registeredUser.id)
     .run()
 
-  const token = crypto.randomUUID()
-  const tokenHash = await sha256hex(token)
-  const expiresAt = Math.floor(Date.now() / 1000) + TOKEN_EXPIRY_SECONDS
+  const resetToken = crypto.randomUUID()
+  const hashedResetToken = await computeSha256Hash(resetToken)
+  const expirationTimestamp = Math.floor(Date.now() / 1000) + PASSWORD_RESET_TOKEN_EXPIRY_SECONDS
 
-  await c.env.DB
+  // Store the hashed token in the database
+  await env.DB
     .prepare('INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)')
-    .bind(crypto.randomUUID(), user.id, tokenHash, expiresAt)
+    .bind(crypto.randomUUID(), registeredUser.id, hashedResetToken, expirationTimestamp)
     .run()
 
-  const appUrl = (c.env.APP_URL ?? new URL(c.req.url).origin).replace(/\/$/, '')
-  const resetUrl = `${appUrl}/reset-password?token=${token}`
+  const baseUrl = (env.APP_URL ?? new URL(req.url).origin).replace(/\/$/, '')
+  const resetUrl = `${baseUrl}/admin/reset-password?token=${resetToken}`
 
   try {
     await sendPasswordResetEmail({
-      to: email,
+      to: normalizedEmail,
       resetUrl,
-      locale,
-      apiKey: c.env.RESEND_API_KEY,
-      from: c.env.EMAIL_FROM,
-      isDev: c.env.ENV !== 'production',
+      locale: emailLocale,
+      apiKey: env.RESEND_API_KEY,
+      from: env.EMAIL_FROM,
+      isDev: env.ENV !== 'production',
     })
-  } catch (err) {
-    if (c.env.ENV !== 'production') {
-      console.error('[password-reset] invio email fallito:', err)
+  } catch (error) {
+    // Only log errors in non-production environments
+    if (env.ENV !== 'production') {
+      console.error('[password-reset] Failed to send email:', error)
     }
   }
 
-  return c.json({ success: true })
+  return context.json({ success: true })
 }
+

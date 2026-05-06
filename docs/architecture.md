@@ -10,27 +10,30 @@ Every design decision documented here is grounded in the source code and explici
 
 1. [Monorepo Topology](#1-monorepo-topology)
 2. [Turborepo Build Strategy](#2-turborepo-build-strategy)
-3. [`@beech/core` — The Single Source of Truth](#3-beechcore--the-single-source-of-truth)
-4. [The Botanical Engine](#4-the-botanical-engine)
-5. [The Atomic Data Model](#5-the-atomic-data-model)
+3. [`@beechcms/core` — The Single Source of Truth](#3-beechcore--the-single-source-of-truth)
+4. [The Botanical Engine — Schema Compiler](#4-the-botanical-engine)
+5. [The Per-Type SQL Model](#5-the-per-type-sql-model)
 6. [Cloudflare D1 — SQLite at the Edge](#6-cloudflare-d1--sqlite-at-the-edge)
-7. [Vertical Slice Architecture — Current State & Migration Path](#7-vertical-slice-architecture--current-state--migration-path)
+7. [Vertical Slice Architecture — API Feature Implementation](#7-vertical-slice-architecture--api-feature-implementation)
 8. [Dependency Rules](#8-dependency-rules)
-9. [Pending Draft Workflow](#9-pending-draft-workflow)
+9. [Content Repository Pattern](#9-content-repository-pattern)
+10. [Pending Draft Workflow — Mirror Tables](#10-pending-draft-workflow)
+11. [Storage & Media Abstraction](#11-storage--media-abstraction)
+12. [Performance Layer](#12-performance-layer)
 
 ---
 
 ## 1. Monorepo Topology
 
-The monorepo uses **npm workspaces** at the root. `apps/api` and `apps/dashboard` both declare `"@beech/core": "*"` (workspace protocol) in their `package.json` dependencies.
+The monorepo uses **npm workspaces** at the root. `apps/api` and `apps/dashboard` both declare `"@beechcms/core": "*"` (workspace protocol) in their `package.json` dependencies.
 
 ```text
-beech-cms/
+@beechcms/cms/
 ├── apps/
 │   ├── api/          # Hono REST API — Cloudflare Workers
 │   └── dashboard/    # React + Vite SPA
 ├── packages/
-│   └── core/         # @beech/core — shared engine, types, validation
+│   └── core/         # @beechcms/core — shared engine, types, validation
 ├── docs/
 ├── turbo.json
 └── package.json      # Root: npm workspaces ["apps/*", "packages/*"]
@@ -41,9 +44,9 @@ beech-cms/
 
 | Layer | Package | Allowed Imports |
 |---|---|---|
-| **Apps** | `apps/api`, `apps/dashboard` | `@beech/core`, npm, local src |
+| **Apps** | `apps/api`, `apps/dashboard` | `@beechcms/core`, npm, local src |
 | **Core** | `packages/core` | npm only (no app imports) |
-| **Shared** | `src/components/ui`, `src/lib` | npm, `@beech/core` — _never_ `features/*` |
+| **Shared** | `src/components/ui`, `src/lib` | npm, `@beechcms/core` — _never_ `features/*` |
 
 ---
 
@@ -51,9 +54,9 @@ beech-cms/
 
 `turbo.json` defines a DAG-based pipeline. Turborepo resolves the workspace dependency graph and executes tasks in topological order:
 
--   **@beech/core (build)** → **apps/api (build)**
+-   **@beechcms/core (build)** → **apps/api (build)**
 
--   **@beech/core (build)** → **apps/dashboard (build)**
+-   **@beechcms/core (build)** → **apps/dashboard (build)**
 
 
 This means `packages/core` is **always compiled first**. The apps consume the compiled output at `packages/core/dist/index.js`.
@@ -63,23 +66,23 @@ This means `packages/core` is **always compiled first**. The apps consume the co
 npm run dev
 
 # 1. packages/core: tsc -w (rebuilds dist/ on change)
-# 2. apps/api: wrangler dev (reads dist/ via @beech/core)
-# 3. apps/dashboard: vite dev (reads dist/ via @beech/core)
+# 2. apps/api: wrangler dev (reads dist/ via @beechcms/core)
+# 3. apps/dashboard: vite dev (reads dist/ via @beechcms/core)
 ```
 
 **Why this matters:** Any type mismatch in the core results in a **compile-time error** across all apps simultaneously, preventing runtime drift.
 
 ---
 
-## 3. `@beech/core` — The Single Source of Truth
+## 3. `@beechcms/core` — The Single Source of Truth
 
-No business logic touching schema, validation, or translation exists in the apps. They are pure consumers of `@beech/core`.
+No business logic touching schema, validation, or translation exists in the apps. They are pure consumers of `@beechcms/core`.
 
 ```typescript
 // packages/core/src/index.ts
 export * from './types';           // Seed, Branch, DbPayload, ApiPayload
 export * from './seeds';           // SEED_REGISTRY, getSeed
-export * from './engine';          // apiToDb, dbToApi
+export * from './engine';          // generateCreateTable, buildSelectQuery, etc.
 export * from './validation';      // validateAndSanitizeSeedPayload
 export * from './richtext';        // TipTap Envelopes
 export * from './richtext-render'; // TipTap → HTML
@@ -103,22 +106,22 @@ Every `Branch` in a seed can declare an optional `policies` object that controls
 
 **`privacy: 'hash'` write flow:**
 ```
-client sends plaintext  →  API validates (Zod)  →  sha256hex()  →  apiToDb()  →  DB stores hash
+client sends plaintext  →  API validates (Zod)  →  sha256hex()  →  Botanic Engine serializes  →  DB stores hash in real column
 ```
 The plaintext never persists. Sensitive fields cannot be updated via PUT — the handler returns `422` if any non-plain field appears in the patch.
 
-**Comparing a hashed field** (e.g. password verification): use `verifyHashField` from `@beech/core` inside a dedicated server-side handler. Never expose the hash to the client.
+**Comparing a hashed field** (e.g. password verification): use `verifyHashField` from `@beechcms/core` inside a dedicated server-side handler. Never expose the hash to the client.
 
 ```typescript
-import { verifyHashField } from '@beech/core'
+import { verifyHashField } from '@beechcms/core'
 
 const match = await verifyHashField(storedHash, candidatePlaintext)
 ```
 
-All policy resolution **must** go through `resolvePolicies(branch)` from `@beech/core`. Never inline-check `branch.policies?.x ?? default`.
+All policy resolution **must** go through `resolvePolicies(branch)` from `@beechcms/core`. Never inline-check `branch.policies?.x ?? default`.
 
 ```typescript
-import { resolvePolicies } from '@beech/core'
+import { resolvePolicies } from '@beechcms/core'
 
 const { privacy, visibility, search, filter, sort, public: isPublic } = resolvePolicies(branch)
 ```
@@ -157,52 +160,49 @@ UI consumers (`QuickDraftWidget`, gallery title resolution, content lists) read 
 
 ---
 
-## 4. The Botanical Engine
+## 4. The Botanical Engine — Schema Compiler
 
-The Botanical Engine decouples physical storage (database) from the semantic surface (API) using a two-identity model.
+In v0.4.0, the Botanical Engine evolves from a runtime translator to a **Schema Compiler**. It reads the TypeScript Seed definitions and generates deterministic SQL DDL and queries.
 
-| Identity | Location | Example | Mutability |
-|---|---|---|---|
-| **ID** (internal) | D1 JSON column | `"br01"` | **Immutable** |
-| **Alias** (API) | Seed definition | `"title"` | **Mutable** (Rename freely) |
+### Responsibilities
 
-### Translation Logic
+1. **DDL Generation**: `generateCreateTable(seed)` produces the SQL to create `content_{slug}` tables.
+2. **Migration Generation**: `generateAddColumn(seed, branch)` handles schema evolution.
+3. **Query Building**: `buildSelectQuery(seed, options)` constructs optimized SQL queries using real column names.
+4. **Serialization**: `serializeForDb` and `deserializeFromDb` handle type conversion (e.g., booleans to 0/1, JSON objects to strings).
 
-The engine uses two pure functions in `packages/core/src/engine.ts`:
+### Removal of Internal IDs
 
-1. **`apiToDb`**: Maps aliases to IDs. Unknown fields are discarded (fail-closed).
-2. **`dbToApi`**: Maps IDs back to aliases. Normalizes legacy asset formats.
-
-### Data Flow Diagram
-
-[![Botanical Engine Data Flow](https://mermaid.ink/img/pako:eNqdk29vmzAQxr_K6d40kWiDSQKpX1TKAlsrtU1VWF9MSJMDXmIV7Mwx2zrEd58JSSol6v4hIfCdn9-dH9s1ZirnSHHDv1ZcZjwUbKlZmUqwz5ppIzKxZtLArBBcmtP49OEGetdKqv5p7p0yTIqMFRDJpZD8dEZIUtlFO_751dUrkMLDPE5gkClpbG5AN5znUEOKRpiCp0jt7zUvCpUiNB3mVW1Rx_UpsLVIVLjotSTHorYgaHa9H88_P2qnLb3QLvlz5ZBQuLmPo8fEfpI57Jbw2b5a8A30cmZYH56mtx-jGHpn9QF84DZn_b0398pwUN-4hpYbG6WtD9-FWYEoy8qwhV3DM3_Z_NbLD9GxlQMq8jd6j6PbaJZA2yW8f5zfHS-gk4Xk_x063Zt8kajpWhz2puX809b81amwus4eCp7rvqlDB5da5EiNrriDJdcla4dYt0SrWfFyp8mZfk4xla3GHupPSpV7mVbVcoX0Cys2dlStrZ_7G3aIai5zrmeqkgbpkEy2EKQ1_kBKvNHFeBwMCZkEwcQP3JGDL0g9Qi4mwejSI94w8F3f9xsHf27rujYxdpDnwp6Su-5ub6948wusUTXN?type=png)](https://mermaid.live/edit#pako:eNqdk29vmzAQxr_K6d40kWiDSQKpX1TKAlsrtU1VWF9MSJMDXmIV7Mwx2zrEd58JSSol6v4hIfCdn9-dH9s1ZirnSHHDv1ZcZjwUbKlZmUqwz5ppIzKxZtLArBBcmtP49OEGetdKqv5p7p0yTIqMFRDJpZD8dEZIUtlFO_751dUrkMLDPE5gkClpbG5AN5znUEOKRpiCp0jt7zUvCpUiNB3mVW1Rx_UpsLVIVLjotSTHorYgaHa9H88_P2qnLb3QLvlz5ZBQuLmPo8fEfpI57Jbw2b5a8A30cmZYH56mtx-jGHpn9QF84DZn_b0398pwUN-4hpYbG6WtD9-FWYEoy8qwhV3DM3_Z_NbLD9GxlQMq8jd6j6PbaJZA2yW8f5zfHS-gk4Xk_x063Zt8kajpWhz2puX809b81amwus4eCp7rvqlDB5da5EiNrriDJdcla4dYt0SrWfFyp8mZfk4xla3GHupPSpV7mVbVcoX0Cys2dlStrZ_7G3aIai5zrmeqkgbpkEy2EKQ1_kBKvNHFeBwMCZkEwcQP3JGDL0g9Qi4mwejSI94w8F3f9xsHf27rujYxdpDnwp6Su-5ub6948wusUTXN)
+Internal IDs like `br01` are eliminated. The `alias` defined in the Seed is now used directly as the SQL column name. This simplifies the engine and improves database readability.
 
 ---
 
-## 5. The Atomic Data Model
+## 5. The Per-Type SQL Model
 
-### SQL Schema
+Beech CMS uses a dedicated table for each content type. This ensures maximum performance, native SQL constraints, and reliable mathematical operations.
+
+### SQL Schema (Example: `articoli`)
 
 ```sql
-CREATE TABLE content_entries (
-    id          TEXT PRIMARY KEY,     -- UUID v4
-    schema_slug TEXT NOT NULL,        -- e.g., "progetti"
-    slug        TEXT NOT NULL,        -- URL identifier
-    status      TEXT NOT NULL DEFAULT 'draft',
-    data        TEXT NOT NULL DEFAULT '{}', -- JSON blob (Botanical IDs)
-    created_at  INTEGER DEFAULT (unixepoch()),
-    updated_at  INTEGER DEFAULT (unixepoch())
+CREATE TABLE content_articoli (
+  id          TEXT    NOT NULL PRIMARY KEY, -- UUID v4
+  slug        TEXT    NOT NULL UNIQUE,      -- URL identifier
+  status      TEXT    NOT NULL DEFAULT 'draft'
+                      CHECK (status IN ('draft', 'published', 'archived')),
+  title       TEXT,                         -- Real column from alias
+  body        TEXT,                         -- Real column from alias
+  price       REAL,                         -- Correct SQLite type
+  created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
 );
-
 ```
 
 ### Design Decisions
 
--   **Single Table + JSON**: Eliminates SQL migrations when adding fields.
-
--   **Application-Level Validation**: Handled by Zod in `packages/core`.
-
--   **Top-level Columns**: `status` and `slug` are outside the JSON for high-performance SQL indexing.
+- **Per-Type Tables**: Every Seed generates a `content_{seed.slug}` table.
+- **Native Types**: `number` branches become `REAL`, `boolean` become `INTEGER` (0/1), etc.
+- **No JSON Blobs**: Content data is stored in real columns, enabling B-tree indexing and native SQL filters.
+- **Automatic Indexing**: The engine automatically generates indexes for `status`, `created_at`, and any branch marked for filtering.
 
 
 ---
@@ -218,104 +218,119 @@ Beech leverages D1 to co-locate read replicas with Worker execution nodes, elimi
 
 ---
 
-## 7. Vertical Slice Architecture (VSA)
+## 7. Vertical Slice Architecture — API Feature Implementation
 
-We are migrating from a Layered Architecture (folders by technical type) to a **Feature-Based** structure.
+Beech CMS API has migrated to a **Vertical Slice Architecture (VSA)**. Instead of organizing code by technical layers (controllers, services, etc.), we organize by business features.
 
-### Target Structure (`apps/dashboard/src/`)
+### Feature Structure (`apps/api/src/features/`)
+
+Each feature (e.g., `content`, `auth`, `draft`) is self-contained:
+
+```text
+features/content/
+├── handlers/          # Thin Hono handlers
+│   ├── list.ts
+│   ├── get.ts
+│   ├── create.ts
+│   ├── update.ts
+│   └── delete.ts
+├── constants.ts       # Feature-specific constants and error messages
+├── types.ts           # Local types
+└── index.ts           # Feature entry point (Barrel)
 ```
-features/
-├── content-management/
-│   ├── index.ts        # Public API (Barrel)
-│   ├── components/     # Feature-scoped UI
-│   ├── hooks/          # useContentList, etc.
-│   └── api/            # content.api.ts
-├── richtext-editor/
-│   ├── index.ts
-│   └── extensions/     # TipTap config
-└── dashboard/          # Stats & Widgets
 
-```
+### The "Thin Handler" Pattern
 
-### The `index.ts` Contract
-
-Every feature **must** expose a public API. Direct imports of internal feature files from outside the slice are forbidden.
-
-### VSA Dependency Flow
-
-[![VSA Dependency Flow](https://mermaid.ink/img/pako:eNp9ksFSwjAQhl-ls1dbIAFa7MGLDCedYcSTrYfQLG3GNumkiYIM726gBYrjmFP-_Lv5djfZQ6Y4QgybUn1lBdPGe52n0nOrsetcs7rwXpQ1QuZPbIfaS2qWYzN8b2OOa0mSTEmD0gSlaEzfoReHo2Gi7DyUPJW_IAtkxmpsOsqmk33Q4gqqmHRlVG7b92miRVYY3JoAuTBK_8NbuV6Rd7RMVbWS7rZm6N15pVj3sSuSWBHUWlTCiE9s-hZNWC2CrBTXSnqwJfGC4MHV3Un6p6Tn8EUbviK3kt7INWJWDDOlEXzIteAQG23Rhwp1xY4S9seEFEzhBpRC7Lac6Y8UUnlwOTWTb0pV5zStbF5AvGFl45StOTM4F8wNqbqcatcT6kdlpYF4TCanSyDewxZiQieD6TQaEzKLolkYjZy7g5gSMphFk3tK6DgKR2EYHnz4PnFHzpj60L7Qc_v7Tp_w8AMRPcXf?type=png)](https://mermaid.live/edit#pako:eNp9ksFSwjAQhl-ls1dbIAFa7MGLDCedYcSTrYfQLG3GNumkiYIM726gBYrjmFP-_Lv5djfZQ6Y4QgybUn1lBdPGe52n0nOrsetcs7rwXpQ1QuZPbIfaS2qWYzN8b2OOa0mSTEmD0gSlaEzfoReHo2Gi7DyUPJW_IAtkxmpsOsqmk33Q4gqqmHRlVG7b92miRVYY3JoAuTBK_8NbuV6Rd7RMVbWS7rZm6N15pVj3sSuSWBHUWlTCiE9s-hZNWC2CrBTXSnqwJfGC4MHV3Un6p6Tn8EUbviK3kt7INWJWDDOlEXzIteAQG23Rhwp1xY4S9seEFEzhBpRC7Lac6Y8UUnlwOTWTb0pV5zStbF5AvGFl45StOTM4F8wNqbqcatcT6kdlpYF4TCanSyDewxZiQieD6TQaEzKLolkYjZy7g5gSMphFk3tK6DgKR2EYHnz4PnFHzpj60L7Qc_v7Tp_w8AMRPcXf)
+Handlers are responsible for:
+1. Parsing and validating request parameters.
+2. Retrieving the **Repository** from the Hono context.
+3. Delegating data operations to the Repository.
+4. Handling specific repository errors (e.g., `EntryNotFoundError`) and mapping them to HTTP responses.
+5. Performing side effects like R2 cleanup or activity logging.
 
 ---
 
 ## 8. Dependency Rules
 
 1.  **Feature Isolation**: Features **never** import from other features.
+2.  **Repository Access**: Features interact with the database ONLY through the `ContentRepository` interface.
+3.  **Encapsulation**: The main application factory (`factory.ts`) registers features via their barrel `index.ts`.
 
-2.  **Shared Promotion**: If two features need the same logic, it is promoted to the `shared` layer or `@beech/core`.
+---
 
-3.  **Encapsulation**: Pages only interact with the `index.ts` of a feature.
+## 9. Content Repository Pattern
 
+To decouple business logic from the underlying database (Cloudflare D1), Beech CMS implements a Repository Pattern.
 
-### ESLint Enforcement
+### Core Interface (`@beechcms/core`)
 
-```json
-{
-  "rules": {
-    "no-restricted-imports": ["error", {
-      "patterns": [{
-        "group": ["../features/*", "../../features/*"],
-        "message": "Do not import directly from another feature. Use the barrel index."
-      }]
-    }]
-  }
-}
+The `ContentRepository` interface defines all supported data operations. This allows for:
+- **Testability**: Easily swap D1 implementation with a `StaticContentRepository` for deterministic testing.
+- **Portability**: The API logic remains agnostic of the SQL dialect or database provider.
 
+### D1 Implementation (`apps/api/src/shared/`)
+
+- **`BaseD1Repository`**: An abstract class providing common D1 utilities (table name resolution, error mapping).
+- **`D1ContentRepository`**: The production implementation that handles SQL generation, Mirror Tables logic, and atomic batch operations.
+
+### Middleware Injection
+
+The repository is instantiated and injected into the Hono request context via `repositoryMiddleware`:
+
+```typescript
+// apps/api/src/middleware/repository.middleware.ts
+export const repositoryMiddleware = () => {
+  return async (c: Context, next: Next) => {
+    const repo = new D1ContentRepository(c.env.DB);
+    c.set('repository', repo);
+    await next();
+  };
+};
 ```
 
 ---
 
----
-
-## 9. Pending Draft Workflow
+## 10. Pending Draft Workflow — Mirror Tables
 
 ### Overview
 
-The pending draft system allows editorial content types to maintain a **separate draft** on top of a live (published) entry. The live content in `data` is never touched until the draft is explicitly published.
+The pending draft system allows editorial content types to maintain a **separate draft** on top of a live (published) entry. v0.4.0 uses a mirror table strategy instead of a JSON column.
 
-This feature is opt-in per seed via the `allowDrafts` flag in `@beech/core`:
+This feature is opt-in per seed via the `allowDrafts` flag in `@beechcms/core`:
 
 ```typescript
 // packages/core/src/seeds.ts
 export const ARTICOLO_SEED: Seed = {
   slug: 'articoli',
-  allowDrafts: true,  // ← enables draft endpoints for this type
+  allowDrafts: true,  // ← enables draft tables for this type
   // ...
 }
 ```
 
-Seeds without `allowDrafts: true` (e.g. `messaggi`, `clienti`) return `405 Method Not Allowed` on draft endpoints — they have no concept of editorial workflow.
-
 ### Storage
 
-A single nullable column `draft_data TEXT` sits alongside `data` in `content_entries` (migration `0018_draft_data.sql`). It stores the same JSON-with-Botanical-IDs format as `data`.
+A separate table `content_{slug}_drafts` is created for each Seed with `allowDrafts: true`. It contains the same columns as the main table (mapped from branches) plus an `entry_id` foreign key.
 
+```sql
+CREATE TABLE content_articoli_drafts (
+  entry_id    TEXT NOT NULL PRIMARY KEY REFERENCES content_articoli(id) ON DELETE CASCADE,
+  title       TEXT,
+  body        TEXT,
+  ...
+  updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+);
 ```
-draft_data IS NULL     → no pending draft
-draft_data IS NOT NULL → pending draft exists
-```
-
-The `CASE WHEN draft_data IS NOT NULL THEN 1 ELSE 0 END as has_pending_draft` expression is projected in all list and detail SELECT queries so that `ContentEntry.hasPendingDraft` is always populated without transferring the full draft JSON in list views.
 
 ### API Surface
 
-All draft endpoints are JWT-protected (internal API only — no public API exposure).
+All draft endpoints are JWT-protected (internal API only).
 
 | Method | Path | Description |
 |---|---|---|
-| `PUT` | `/api/content/:slug/:id/draft` | Create or overwrite the pending draft. Validates fields (relaxed: `enforceRequiredFields: false`). Blocks sensitive fields (`privacy !== 'plain'`). Botanical Engine applied on write. |
-| `GET` | `/api/content/:slug/:id/draft` | Read the pending draft. Returns `{ data: Record<string, unknown> }` with aliases (Botanical Engine applied on read). Visibility policy enforced. |
-| `POST` | `/api/content/:slug/:id/draft/publish` | Promote draft → live in a single atomic SQL statement (`SET data = draft_data, draft_data = NULL, status = 'published'`). |
-| `DELETE` | `/api/content/:slug/:id/draft` | Discard the pending draft (`SET draft_data = NULL`). Live content is unaffected. |
+| `PUT` | `/api/content/:slug/:id/draft` | Writes to the `content_{slug}_drafts` table. Relaxed validation. |
+| `GET` | `/api/content/:slug/:id/draft` | Reads from the mirror table. |
+| `POST` | `/api/content/:slug/:id/draft/publish` | Atomic promotion: `INSERT INTO content_{slug} ... SELECT ... FROM content_{slug}_drafts`. |
+| `DELETE` | `/api/content/:slug/:id/draft` | Discards the draft row. |
 
 ### Data Flow
 
@@ -325,111 +340,120 @@ Editor saves changes
        ▼
 PUT /:slug/:id/draft
   validateAndSanitizeSeedPayload (operation=update, enforceRequired=false)
-  apiToDb → draft_data column (data column untouched)
+  INSERT INTO content_{slug}_drafts (SQL columns)
        │
        ▼ (review / approval)
 POST /:slug/:id/draft/publish
-  UPDATE SET data = draft_data, draft_data = NULL, status = 'published'  ← atomic
+  INSERT INTO content_{slug} (...) SELECT ... FROM content_{slug}_drafts  ← atomic
        │
        ▼
-Live content updated, draft cleared
+Live content updated, draft row deleted
 ```
 
 ### Invariants
 
-- **`data` is never modified by draft endpoints.** Only `PUT /draft/publish` touches `data`.
-- **Botanical Engine applies identically to `draft_data`.** `apiToDb` on write, `dbToApi` on read — same as regular content.
-- **Sensitive fields (`privacy: 'hash'`) are blocked from drafts** — same guard as `PUT /:slug/:id`.
-- **`hasPendingDraft` in GET responses** is computed server-side via SQL expression, not by transferring `draft_data` in list queries.
+- **`content_{slug}` is never modified by draft endpoints.** Only `POST /draft/publish` performs the write.
+- **Botanical Engine generates optimized DD## 11. Storage & Media Abstraction
 
-### Implementation Files
+Beech CMS abstracts object storage and media metadata tracking to ensure the same business logic works across Local (R2 Binding), Production (S3/R2 via HTTP), and CDN environments.
 
-| File | Role |
-|---|---|
-| `apps/api/migrations/0018_draft_data.sql` | Adds `draft_data TEXT` column |
-| `apps/api/src/features/draft/draft.handler.ts` | VSA slice with 4 route handlers |
-| `apps/api/src/features/draft/draft.test.ts` | Unit tests (20 cases) |
-| `apps/api/src/shared/apply-policies.ts` | Shared `applyPrivacy` / `applyVisibility` (extracted from `content.ts` for reuse) |
-| `packages/core/src/types.ts` | `Seed.allowDrafts?: boolean` |
-| `packages/core/src/seeds.ts` | `allowDrafts: true` on `articoli`, `pagine` |
+### The `BeechBucket` Interface
 
----
+Object storage operations are handled through the `BeechBucket` interface in `@beechcms/core`.
 
----
+- **`R2BindingBucket`**: Uses native Cloudflare R2 bindings. Used in local development and production when the Worker has direct bucket access.
+- **`S3Bucket`**: Connects via S3-compatible HTTP API. Used for production environments requiring cross-account access or specific CDN configurations.
+- **`NullBucket`**: A fail-safe provider that throws only when storage operations are invoked, allowing the rest of the API to function without configuration.
 
-## 10. Performance Layer
+### Media & Stats Repositories
 
-### FTS5 — Application-Layer Sync
+Database tracking for media is separated from the storage provider via specialized repositories:
 
-La sincronizzazione della virtual table `content_fts` era originariamente gestita da tre trigger SQL (`fts_after_insert`, `fts_after_update`, `fts_after_delete`) che hardcodavano i branch ID degli attuali seed di esempio (`art_01`, `prd_01`, …). Questi trigger rompevano silenziosamente l'indicizzazione per qualsiasi seed con ID diversi.
+- **`MediaRepository`**: Tracks `media_objects` (key, filename, size, owner). Used for the Media Library UI and orphan detection.
+- **`SystemStatsRepository`**: Manages global metrics like `total_storage_bytes`.
 
-I trigger sono stati rimossi (migration `0019`). La sincronizzazione avviene ora a livello applicativo in `apps/api/src/shared/fts-sync.ts`:
+### Middleware Injection
+
+Providers are instantiated via `createBucketProvider` (using capability detection) and injected into the Hono context:
 
 ```typescript
-// Usato da content.ts (create/update/delete) e draft.handler.ts (publish)
-import { syncFts, deleteFts } from './shared/fts-sync'
+const bucket = c.get('bucket');
+const mediaRepo = c.get('mediaRepository');
+const statsRepo = c.get('systemStatsRepository');
 
-syncFts(db, entryId, schemaSlug, seed, dbPayload, status)
-  .catch(err => console.warn('[FTS] sync failed:', err))
+// Agnostic upload flow
+await bucket.put(key, body, { contentType });
+await mediaRepo.trackUpload({ key, filename, ... });
+await statsRepo.incrementStorage(size);
 ```
 
-`syncFts` usa il Botanical Engine (`dbToApi`) e le policy del seed (`resolvePolicies`) per estrarre i campi da indicizzare in modo generico — funziona per qualsiasi seed definito dal developer. L'estrazione è:
+---
 
-| Slot FTS | Logica di risoluzione |
-|---|---|
-| `title` | `apiData[seed.displayNameAlias]` |
-| `body` | Primo branch `richtext` o `text` diverso dal `displayNameAlias`; testo estratto ricorsivamente dal JSON TipTap |
-| `tags` | Primo branch `json` il cui alias contiene `"tag"` |
+## 12. Performance Layer
 
-Le chiamate a `syncFts`/`deleteFts` sono fire-and-forget (`.catch()` silenzioso): un fallimento FTS non blocca mai l'operazione principale.
+### FTS5 — SQL Triggers
 
-### Indici Compositi su `content_entries` (migration `0020`)
+In v0.4.0, full-text search is managed entirely within the database using SQLite's FTS5 engine and triggers. This replaces the complex application-layer synchronization used in previous versions.
 
-Il pattern di query più frequente — `WHERE schema_slug = ? AND status = ? ORDER BY created_at DESC LIMIT ? OFFSET ?` — era coperto solo da un indice su `schema_slug`. Tre indici compositi ottimizzano i casi principali:
+### Automatic Synchronization
+
+The Botanical Engine generates the necessary SQL triggers to keep the virtual `fts_{slug}` table synchronized:
 
 ```sql
--- Lista filtrata per status + ordinamento
-CREATE INDEX idx_ce_slug_status_created ON content_entries(schema_slug, status, created_at DESC);
-
--- Widget "modificati di recente"
-CREATE INDEX idx_ce_slug_updated ON content_entries(schema_slug, updated_at DESC);
-
--- Filtro bozze pendenti (partial index)
-CREATE INDEX idx_ce_draft_pending ON content_entries(schema_slug) WHERE draft_data IS NOT NULL;
+CREATE TRIGGER fts_articoli_insert AFTER INSERT ON content_articoli BEGIN
+  INSERT INTO fts_articoli(entry_id, body) VALUES (new.id, new.body);
+END;
 ```
 
-### Media Library — Tabella `media_objects` (migration `0021`)
+**Limitation:** Only the `body` field (of type `richtext`) is indexed in FTS5. Other fields use standard B-tree indexes on real columns.
 
-Ogni file caricato su R2 viene ora tracciato in `media_objects (key, filename, mime_type, size_bytes, uploaded_by, created_at)`. Le operazioni di INSERT/DELETE avvengono in `upload.ts` tramite `waitUntil` (asincrono, non bloccante). Questa tabella abilita:
-- Media library UI (lista file con owner e dimensione)
-- Rilevamento orfani (file non referenziati in alcuna entry)
-- Utilizzo storage per utente (`WHERE uploaded_by = ?`)
-- Fonte canonica per il totale storage: `SELECT SUM(size_bytes) FROM media_objects`
+### Indexes on Real Columns
 
-### Analytics per Seed (migration `0022`)
+Filtering and sorting queries are now extremely fast because they operate on real SQL columns with dedicated indexes:
 
-La tabella `analytics` è stata ricreata con una colonna `seed TEXT NOT NULL DEFAULT ''`. La stringa vuota è il sentinel per le metriche globali (usare NULL avrebbe rotto l'upsert `ON CONFLICT` per le proprietà di unicità di SQLite sui NULL).
+```sql
+CREATE INDEX idx_content_articoli_status ON content_articoli(status);
+CREATE INDEX idx_content_articoli_created_at ON content_articoli(created_at DESC);
+CREATE INDEX idx_content_articoli_title ON content_articoli(title);
+```
 
-Il middleware in `index.ts` estrae il seed dalla URL (`/api/v1/public/:seed`) e lo registra nella colonna. Le query dei widget globali filtrano con `AND seed = ''`.
+### Media Library — Metadata Tracking
 
-### Worker Cache API per Public Reads
+Every file uploaded to R2 is tracked in the `media_objects` table via the `MediaRepository`. This table enables:
+- Media library UI (file list with owner and size)
+- Orphan detection (files not referenced in any entry)
+- User storage usage (`WHERE uploaded_by = ?`)
+- Canonical source for total storage: `SELECT SUM(size_bytes) FROM media_objects`
 
-Le GET su `/api/v1/public/:seed` sono ora messe in cache via `caches.default` con TTL 60 secondi. Il pattern:
+### Per-Seed Analytics (migration `0022`)
+
+The `analytics` table has been recreated with a `seed TEXT NOT NULL DEFAULT ''` column. The empty string is the sentinel for global metrics (using NULL would have broken the `ON CONFLICT` upsert due to SQLite's uniqueness property constraints on NULLs).
+
+The middleware in `index.ts` extracts the seed from the URL (`/api/v1/public/:seed`) and logs it in the column. Global widget queries filter with `AND seed = ''`.
+
+### Worker Cache API for Public Reads
+
+GET requests on `/api/v1/public/:seed` are now cached via `caches.default` with a 60-second TTL. The pattern:
 
 ```typescript
-// Check cache prima di toccare D1
+// Check cache before hitting D1
 const hit = await caches.default.match(c.req.raw)
 if (hit) return hit
 
-// ... esegui query D1 ...
+// ... execute D1 query ...
 
-// Cache asincrona via waitUntil
+// Asynchronous caching via waitUntil
 c.executionCtx.waitUntil(
   caches.default.put(cacheKey, cachedResponse)
 )
 ```
 
-Solo le risposte 200 vengono messe in cache. Errori (404, 403, 500) non sono mai cachati. Cache key = URL completo inclusi query params — query diverse producono entry separate.
+Only 200 responses are cached. Errors (404, 403, 500) are never cached. Cache key = full URL including query params — different queries produce separate entries.
+
+---
+
+_Beech CMS Architecture Guide — Built for Scale at the Edge._
+engono messe in cache. Errori (404, 403, 500) non sono mai cachati. Cache key = URL completo inclusi query params — query diverse producono entry separate.
 
 ---
 

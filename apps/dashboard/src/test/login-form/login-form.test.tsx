@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
 
+vi.mock("@/lib/use-auth-features", () => ({
+  useAuthFeatures: () => ({ passwordReset: false }),
+}))
+
 vi.mock("@/components/login-form/use-login-form", () => ({
   useLoginForm: () => ({
     emailValue: "admin@beech.local",

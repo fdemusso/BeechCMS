@@ -1,8 +1,19 @@
 {
-  "name": "@beech/core",
-  "version": "0.1.0",
+  "name": "@beechcms/core",
+  "version": "0.4.0-preview.13",
+  "type": "module",
   "main": "./dist/index.js",
+  "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc -w --preserveWatchOutput",

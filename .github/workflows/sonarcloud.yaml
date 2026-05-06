@@ -30,7 +30,7 @@ jobs:
         run: npm run test:coverage
 
       - name: Esegui SonarCloud Scan Ufficiale
-        uses: SonarSource/sonarqube-scan-action@v5.0.0
+        uses: SonarSource/sonarqube-scan-action@v6.0.0
         with:
           # SonarScanner CLI arguments
           args: >

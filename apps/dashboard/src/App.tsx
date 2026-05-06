@@ -2,7 +2,7 @@ import { useEffect } from "react"
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useNavigate } from "react-router-dom"
 import axios from "axios"
 import { LoginForm } from "@/components/login-form"
-import { AUTH_TOKEN_KEY } from "@/lib/api"
+import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { ContentListPage } from "@/pages/content-list"
 import { EntryEditorPage } from "@/pages/entry-editor"
 import { TestFieldsPage } from "@/pages/test-fields"
@@ -15,6 +15,14 @@ import { DashboardPage } from "@/features/dashboard"
 import { SettingsPage } from "@/features/settings"
 import { CommandPalette } from "@/features/command-palette"
 import "./App.css"
+
+function SplashScreen() {
+  return (
+    <div className="flex min-h-svh w-full items-center justify-center bg-background">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>
+  )
+}
 
 function LoginPage() {
   const navigate = useNavigate()
@@ -35,11 +43,9 @@ function LoginPage() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const hasToken =
-    typeof window !== "undefined" && localStorage.getItem(AUTH_TOKEN_KEY)
-  if (!hasToken) {
-    return <Navigate to="/login" replace />
-  }
+  const { status } = useAuth()
+  if (status === 'loading') return <SplashScreen />
+  if (status === 'unauthenticated') return <Navigate to="/login" replace />
   return <>{children}</>
 }
 
@@ -131,10 +137,14 @@ const router = createBrowserRouter([
       },
     ],
   },
-])
+], { basename: '/admin' })
 
 function App() {
-  return <RouterProvider router={router} />
+  return (
+    <AuthProvider>
+      <RouterProvider router={router} />
+    </AuthProvider>
+  )
 }
 
 export default App

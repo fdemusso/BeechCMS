@@ -1,7 +1,8 @@
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import axios from "axios"
-import { AUTH_TOKEN_KEY, type LoginResponse } from "@/lib/api"
+import { type LoginResponse } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 
 /** Regex per validazione formato email */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -24,6 +25,7 @@ const ERROR_MESSAGES = {
 
 export function useLoginForm() {
   const navigate = useNavigate()
+  const { setToken } = useAuth()
   const [emailValue, setEmailValue] = useState("")
   const [passwordValue, setPasswordValue] = useState("")
   const [isPasswordVisible, setIsPasswordVisible] = useState(false)
@@ -83,9 +85,7 @@ export function useLoginForm() {
       const { data } = await axios.post<LoginResponse>('/auth/login', { email, password }, {
         withCredentials: true, // Necessario per ricevere refresh_token cookie
       })
-      // TODO(security): il token è salvato in localStorage per semplicità UX.
-      // Valutare in futuro alternative più resistenti a XSS (es. sessione cookie-only).
-      localStorage.setItem(AUTH_TOKEN_KEY, data.token)
+      setToken(data.token)
       setIsLoading(false)
       navigate('/', { replace: true })
     } catch (error) {

@@ -6,6 +6,8 @@
 
 # --- SECRETS (critical) ------------------------------------------------------
 apps/api/.dev.vars
+apps/api/seed.ts
+apps/api/seeds.ts
 **/.env
 **/.env.*
 !**/.env.example

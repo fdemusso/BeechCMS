@@ -8,6 +8,7 @@ export const DASHBOARD_QUERY_KEYS = {
   activity: () => [...DASHBOARD_QUERY_KEYS.all, "activity"] as const,
   health: () => [...DASHBOARD_QUERY_KEYS.all, "health"] as const,
   breakdown: () => [...DASHBOARD_QUERY_KEYS.all, "breakdown"] as const,
+  setupChecklist: () => [...DASHBOARD_QUERY_KEYS.all, "setup-checklist"] as const,
 }
 
 export function useDashboardStats() {
@@ -47,5 +48,14 @@ export function useContentBreakdown() {
     queryKey: DASHBOARD_QUERY_KEYS.breakdown(),
     queryFn: dashboardApi.getContentBreakdown,
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useSetupChecklist() {
+  return useQuery({
+    queryKey: DASHBOARD_QUERY_KEYS.setupChecklist(),
+    queryFn: dashboardApi.getSetupChecklist,
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
   })
 }

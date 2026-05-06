@@ -1,20 +1,20 @@
 // apps/api/src/search-utils.ts
-// Funzioni pure — zero dipendenze Hono, importabili da Vitest
+// Pure functions — zero Hono dependencies, importable from Vitest.
+// v0.4.0: FTS is per-seed (fts_{slug}), joined with content_{slug} for metadata.
 
-import { dbToApi } from "@beech/core"
-import type { Seed } from "@beech/core"
+import type { Seed } from "@beechcms/core"
 
-// ─── Tipi ───────────────────────────────────────────────────────────────────
+// ─── Types ───────────────────────────────────────────────────────────────────
 
+// Row returned by UNION ALL query across fts_{slug} JOIN content_{slug}
 export interface FtsRow {
   entry_id:    string
   schema_slug: string
-  title:       string
-  body:        string
-  tags:        string
+  slug:        string | null
   status:      string
-  excerpt:     string   // snippet() di FTS5
-  rank:        number   // bm25()
+  title:       string | null
+  excerpt:     string
+  rank:        number
 }
 
 export interface SearchResultItem {
@@ -23,30 +23,26 @@ export interface SearchResultItem {
   slug:        string | null
   status:      string
   title:       string
-  excerpt:     string   // snippet HTML con <mark> attorno ai match
-  data:        Record<string, unknown>  // campi in formato alias
+  excerpt:     string
+  data:        Record<string, unknown>
 }
 
 export interface SearchResponse {
   items:      SearchResultItem[]
-  nextCursor: string | null   // null → ultima pagina raggiunta
-  total:      number          // totale match su tutte le pagine
+  nextCursor: string | null
+  total:      number
 }
 
 export interface SearchQueryParams {
   q:          string
   schemaSlug: string | null
   status:     string | null
-  limit:      number        // già clampato 1–50 dall'handler
+  limit:      number         // already clamped 1–50 by handler
   cursor:     string | null
 }
 
-// ─── Cursor ─────────────────────────────────────────────────────────────────
+// ─── Cursor ──────────────────────────────────────────────────────────────────
 
-/**
- * Cursor opaco = base64(`${rank}:${entry_id}`)
- * Stabile rispetto all'ordinamento BM25 + entry_id.
- */
 export function encodeCursor(rank: number, entryId: string): string {
   return btoa(`${rank}:${entryId}`)
 }
@@ -65,34 +61,24 @@ export function decodeCursor(cursor: string): { rank: number; entryId: string } 
   }
 }
 
-// ─── Query builder ───────────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
-export function buildFtsQuery(params: SearchQueryParams): {
-  sql:        string
-  binds:      unknown[]
-  countSql:   string
-  countBinds: unknown[]
-} {
-  const { q, schemaSlug, status, limit, cursor } = params
+function hasSearchableFts(seed: Seed): boolean {
+  return seed.branches.some(b =>
+    (b.type === 'text' || b.type === 'richtext') && b.policies?.search !== false
+  )
+}
 
-  // 1. Sanitizzazione e split in termini
+function buildMatchExpr(q: string): string {
+  const MIN_PREFIX = 3
   const safeQ = q.replace(/["*^()]/g, " ").trim()
   const terms = safeQ.split(/\s+/).filter(t => t.length >= 2)
-
   if (terms.length === 0) throw new Error("EMPTY_QUERY")
 
-  /**
-   * Strategia fuzzy multi-prefisso:
-   * Per ogni termine non numerico, genera OR di tutti i sotto-prefissi a partire da
-   * MIN_PREFIX_LEN caratteri. Questo copre trasposizioni, lettere mancanti e typo
-   * vicini all'inizio del termine (es. "Desing"→"Design" via prefisso comune "Desi").
-   * I termini multipli restano in AND implicito (spazio tra i gruppi).
-   */
-  const MIN_PREFIX = 3
-  const ftsMatch = terms
+  return terms
     .map(t => {
-      if (/^\d+$/.test(t)) return `"${t}"`                  // numeri: match esatto
-      if (t.length <= MIN_PREFIX) return `"${t}"*`           // termine corto: solo prefix
+      if (/^\d+$/.test(t)) return `"${t}"`
+      if (t.length <= MIN_PREFIX) return `"${t}"*`
       const prefixes: string[] = []
       for (let i = MIN_PREFIX; i <= t.length; i++) {
         prefixes.push(`"${t.slice(0, i)}"*`)
@@ -100,75 +86,107 @@ export function buildFtsQuery(params: SearchQueryParams): {
       return `(${prefixes.join(" OR ")})`
     })
     .join(" ")
+}
 
-  const whereClauses: string[] = ["content_fts MATCH ?"]
-  const binds: unknown[]       = [ftsMatch]
+// ─── Query builder ───────────────────────────────────────────────────────────
 
-  if (schemaSlug) { whereClauses.push("schema_slug = ?"); binds.push(schemaSlug) }
-  if (status)     { whereClauses.push("status = ?");      binds.push(status) }
+/**
+ * Builds a UNION ALL query across all per-seed fts_{slug} tables (v0.4.0).
+ * Each SELECT joins fts_{slug} with content_{slug} to fetch title, slug, status.
+ * Seeds param: full registry — filtered internally by schemaSlug and FTS availability.
+ */
+export function buildFtsQuery(
+  params: SearchQueryParams,
+  seeds: Seed[],
+): {
+  sql:        string
+  binds:      unknown[]
+  countSql:   string
+  countBinds: unknown[]
+} {
+  const { q, schemaSlug, status, limit, cursor } = params
 
-  // Keyset pagination — evita OFFSET (non scalabile)
-  if (cursor) {
-    const decoded = decodeCursor(cursor)
-    if (decoded) {
-      whereClauses.push(
-        "(bm25(content_fts) > ? OR (bm25(content_fts) = ? AND entry_id > ?))"
-      )
-      binds.push(decoded.rank, decoded.rank, decoded.entryId)
+  const matchExpr = buildMatchExpr(q)  // throws EMPTY_QUERY if needed
+
+  const targetSeeds = seeds.filter(s =>
+    hasSearchableFts(s) && (schemaSlug === null || s.slug === schemaSlug)
+  )
+
+  if (targetSeeds.length === 0) {
+    return {
+      sql:        "SELECT NULL as entry_id, NULL as schema_slug, NULL as slug, NULL as status, NULL as title, '' as excerpt, 0 as rank WHERE 1=0",
+      binds:      [],
+      countSql:   "SELECT 0 as total",
+      countBinds: [],
     }
   }
 
-  const where = whereClauses.join(" AND ")
+  const decoded = cursor ? decodeCursor(cursor) : null
 
-  const sql = `
-    SELECT
-      entry_id,
-      schema_slug,
-      title,
-      body,
-      tags,
-      status,
-      snippet(content_fts, 2, '<mark>', '</mark>', '…', 16) AS excerpt,
-      bm25(content_fts) AS rank
-    FROM content_fts
-    WHERE ${where}
-    ORDER BY bm25(content_fts), entry_id
-    LIMIT ?
-  `
-  binds.push(limit + 1)   // fetch limit+1 per rilevare hasMore senza COUNT aggiuntivo
+  const parts:       string[]  = []
+  const binds:       unknown[] = []
+  const countParts:  string[]  = []
+  const countBinds:  unknown[] = []
 
-  // Count query separata — senza cursor, senza limit
-  const countBinds: unknown[] = [ftsMatch]
-  const countWhere: string[]  = ["content_fts MATCH ?"]
-  if (schemaSlug) { countWhere.push("schema_slug = ?"); countBinds.push(schemaSlug) }
-  if (status)     { countWhere.push("status = ?");      countBinds.push(status) }
+  for (const seed of targetSeeds) {
+    const fts   = `fts_${seed.slug}`
+    const table = `content_${seed.slug}`
+    const title = seed.displayNameAlias
 
-  const countSql = `SELECT COUNT(*) AS total FROM content_fts WHERE ${countWhere.join(" AND ")}`
+    // Main query per seed
+    const where: string[]  = [`${fts} MATCH ?`]
+    const lb:    unknown[] = [matchExpr]
+
+    if (status) { where.push("ce.status = ?"); lb.push(status) }
+
+    if (decoded) {
+      where.push(`(bm25(${fts}) > ? OR (bm25(${fts}) = ? AND f.entry_id > ?))`)
+      lb.push(decoded.rank, decoded.rank, decoded.entryId)
+    }
+
+    parts.push(
+      `SELECT f.entry_id, '${seed.slug}' AS schema_slug, ce.slug, ce.status,` +
+      ` ce.${title} AS title,` +
+      ` snippet(${fts}, 1, '<mark>', '</mark>', '…', 16) AS excerpt,` +
+      ` bm25(${fts}) AS rank` +
+      ` FROM ${fts} f JOIN ${table} ce ON ce.id = f.entry_id` +
+      ` WHERE ${where.join(' AND ')}`
+    )
+    binds.push(...lb)
+
+    // Count per seed (no cursor, no limit)
+    const cw: string[]  = [`${fts} MATCH ?`]
+    const cb: unknown[] = [matchExpr]
+    if (status) { cw.push("ce.status = ?"); cb.push(status) }
+
+    countParts.push(
+      `SELECT COUNT(*) as c FROM ${fts} f JOIN ${table} ce ON ce.id = f.entry_id WHERE ${cw.join(' AND ')}`
+    )
+    countBinds.push(...cb)
+  }
+
+  const sql      = `${parts.join(' UNION ALL ')} ORDER BY rank, entry_id LIMIT ?`
+  binds.push(limit + 1)
+
+  const countSql = `SELECT SUM(c) as total FROM (${countParts.join(' UNION ALL ')})`
 
   return { sql, binds, countSql, countBinds }
 }
 
 // ─── Mapper ──────────────────────────────────────────────────────────────────
 
-export function mapFtsRow(
-  ftsRow:  FtsRow,
-  fullRow: { id: string; slug: string | null; data: string },
-  getSeed: (slug: string) => Seed | null,
-): SearchResultItem {
-  const seed   = getSeed(ftsRow.schema_slug)
-  const parsed = (() => {
-    try { return JSON.parse(fullRow.data) as Record<string, unknown> }
-    catch { return {} }
-  })()
-  const data = seed ? dbToApi(seed, parsed) : parsed
+function stripHtmlPreserveMark(html: string): string {
+  return html.replace(/<(?!\/?mark\b)[^>]*>/gi, ' ').replace(/\s+/g, ' ').trim()
+}
 
+export function mapFtsRow(row: FtsRow): SearchResultItem {
   return {
-    id:          ftsRow.entry_id,
-    schema_slug: ftsRow.schema_slug,
-    slug:        fullRow.slug,
-    status:      ftsRow.status,
-    title:       ftsRow.title ?? "",
-    excerpt:     ftsRow.excerpt ?? "",
-    data,
+    id:          row.entry_id,
+    schema_slug: row.schema_slug,
+    slug:        row.slug,
+    status:      row.status,
+    title:       row.title ?? "",
+    excerpt:     stripHtmlPreserveMark(row.excerpt ?? ""),
+    data:        {},
   }
 }

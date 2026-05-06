@@ -1,33 +1,12 @@
 /**
- * Media Engine: upload e servizio file da Cloudflare R2.
- *
- * Usa l'API S3-compatibile (@aws-sdk/client-s3) con chiavi di accesso per
- * portabilità e configurabilità. Le credenziali vanno in .dev.vars (locale)
- * o wrangler secret (produzione).
- *
- * @see docs/media-engine.md
+ * Media Engine: upload e servizio file gestiti tramite BeechBucket e Repository.
+ * 
+ * Astrae lo storage (R2/S3) e il database (D1) per garantire scalabilità
+ * e facilità di sviluppo locale.
  */
-/// <reference types="@cloudflare/workers-types" />
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
 import { Hono } from 'hono'
-import { authMiddleware } from './middleware'
 import { logActivity } from './shared/activity-logger'
-
-/** Variabili d'ambiente per upload e media (R2 via S3 API) */
-type UploadBindings = {
-  JWT_SECRET: string
-  MEDIA_BASE_URL?: string
-  ENV?: string
-  R2_ACCESS_KEY_ID?: string
-  R2_SECRET_ACCESS_KEY?: string
-  R2_ENDPOINT?: string
-  R2_BUCKET_NAME?: string
-  DB: D1Database
-}
-
-type Variables = {
-  jwtPayload: { sub: string; email?: string }
-}
+import { AppEnv } from './types'
 
 /** Prefissi MIME consentiti (immagini e PDF) */
 const ALLOWED_MIME_PREFIXES = ['image/', 'application/pdf']
@@ -45,7 +24,6 @@ type FileLike = {
 function isFileLike(value: unknown): value is FileLike {
   if (!value || typeof value === 'string') return false
   const v = value as Record<string, unknown>
-
   return (
     typeof v.name === 'string' &&
     typeof v.type === 'string' &&
@@ -54,124 +32,53 @@ function isFileLike(value: unknown): value is FileLike {
   )
 }
 
-/** Sanitizza il nome file: rimuove caratteri non sicuri, mantiene estensione */
+/** Sanitizza il nome file */
 function sanitizeFilename(name: string): string {
   const base = name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100)
   return base || 'file'
 }
 
-/** Genera chiave univoca per R2 (timestamp-sanitized-name) */
+/** Genera chiave univoca (timestamp-sanitized-name) */
 function generateObjectKey(originalName: string): string {
   const timestamp = Math.floor(Date.now() / 1000)
   const sanitized = sanitizeFilename(originalName)
   return `${timestamp}-${sanitized}`
 }
 
-/** Restituisce l'URL base per costruire gli URL pubblici dei media */
-function getMediaBaseUrl(c: { req: { url: string }; env: UploadBindings }): string {
-  const base = c.env.MEDIA_BASE_URL?.trim()
-  if (base) return base.replace(/\/$/, '')
-  return new URL(c.req.url).origin
-}
-
-/** Crea client S3 per R2 */
-export function createR2Client(env: UploadBindings): S3Client {
-  if (!env.R2_ACCESS_KEY_ID || !env.R2_SECRET_ACCESS_KEY || !env.R2_ENDPOINT) {
-    throw new Error('R2 credentials not configured')
-  }
-  return new S3Client({
-    region: 'auto',
-    endpoint: env.R2_ENDPOINT,
-    credentials: {
-      accessKeyId: env.R2_ACCESS_KEY_ID!,
-      secretAccessKey: env.R2_SECRET_ACCESS_KEY!,
-    },
-    forcePathStyle: true,
-  })
-}
-
-/** Env minimale per delete R2 (solo R2_* e ENV) */
-export type R2DeleteEnv = Pick<
-  UploadBindings,
-  'R2_ACCESS_KEY_ID' | 'R2_SECRET_ACCESS_KEY' | 'R2_ENDPOINT' | 'R2_BUCKET_NAME' | 'ENV' | 'DB'
->
-
 /**
- * Elimina oggetti da R2 per le chiavi date.
- * Usato alla cancellazione entry per rimuovere i file associati da R2.
+ * Elimina oggetti dallo storage e tracciamento dal DB.
  */
 export async function deleteR2Objects(
-  env: R2DeleteEnv,
+  c: { var: { bucket: any, mediaRepository: any, systemStatsRepository: any } },
   objectKeys: string[]
 ): Promise<void> {
-  const isR2Configured =
-    env.R2_ACCESS_KEY_ID &&
-    env.R2_SECRET_ACCESS_KEY &&
-    env.R2_ENDPOINT &&
-    env.R2_BUCKET_NAME
+  const { bucket, mediaRepository, systemStatsRepository } = c.var
 
-  if (!isR2Configured || objectKeys.length === 0) {
-    return
-  }
-
-  const s3Client = createR2Client(env as UploadBindings)
-  for (const objectKey of objectKeys) {
+  for (const key of objectKeys) {
     try {
-      // Ottieni la dimensione prima della cancellazione per aggiornare il contatore
-      let fileSize = 0
-      try {
-        const head = await s3Client.send(
-          new HeadObjectCommand({
-            Bucket: env.R2_BUCKET_NAME,
-            Key: objectKey,
-          })
-        )
-        fileSize = head.ContentLength ?? 0
-      } catch (headErr) {
-        // Se il file non esiste già su R2, fileSize resta 0
-        if (env.ENV !== 'production') {
-          console.warn('R2 head failed for key (skip size update)', objectKey, headErr)
-        }
+      const media = await mediaRepository.getByKey(key)
+      const size = media?.size_bytes ?? 0
+
+      await bucket.delete(key)
+      await mediaRepository.untrack(key)
+
+      if (size > 0) {
+        await systemStatsRepository.decrementStorage(size)
       }
-
-      await s3Client.send(
-        new DeleteObjectCommand({
-          Bucket: env.R2_BUCKET_NAME,
-          Key: objectKey,
-        })
-      )
-
-      // Decrementa contatore storage in D1 se abbiamo trovato la dimensione
-      if (fileSize > 0) {
-        await env.DB.prepare(
-          "UPDATE system_stats SET value = MAX(0, CAST(value AS INTEGER) - ?) WHERE id = 'total_storage_bytes'"
-        ).bind(fileSize).run()
-      }
-
-      // Rimuovi dalla media library
-      await env.DB.prepare('DELETE FROM media_objects WHERE key = ?').bind(objectKey).run()
     } catch (err) {
-      if (env.ENV !== 'production') {
-        console.warn('R2 delete failed for key', objectKey, err)
-      }
+      console.warn(`Failed to delete media object: ${key}`, err)
     }
   }
 }
 
-export const uploadRoutes = new Hono<{
-  Bindings: UploadBindings
-  Variables: Variables
-}>()
+export const uploadRoutes = new Hono<AppEnv>()
 
-/** POST /upload - Carica file su R2, restituisce URL pubblico */
-uploadRoutes.post('/upload', async (c, next) => {
-  await authMiddleware(c.env.JWT_SECRET)(c, next)
-}, async (c) => {
+/** POST /upload - Carica file su BeechBucket */
+uploadRoutes.post('/upload', async (c) => {
   try {
-    const { R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME } = c.env
-    if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_ENDPOINT || !R2_BUCKET_NAME) {
-      return c.json({ error: 'R2 not configured. Set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME' }, 500)
-    }
+    const bucket = c.var.bucket
+    const mediaRepo = c.var.mediaRepository
+    const statsRepo = c.var.systemStatsRepository
 
     const contentType = c.req.header('Content-Type') ?? ''
     if (!contentType.includes('multipart/form-data')) {
@@ -180,8 +87,7 @@ uploadRoutes.post('/upload', async (c, next) => {
 
     const formData = await c.req.formData()
     const fileEntry = formData.get('file')
-    // In Cloudflare/Workers il value può essere `string` o un oggetto (File/Blob-like).
-    // Usiamo un guard sulle proprietà richieste.
+
     if (!isFileLike(fileEntry)) {
       return c.json({ error: 'No file provided. Use field name "file"' }, 400)
     }
@@ -189,10 +95,7 @@ uploadRoutes.post('/upload', async (c, next) => {
 
     const mimeOk = ALLOWED_MIME_PREFIXES.some((prefix) => file.type.startsWith(prefix))
     if (!mimeOk) {
-      return c.json(
-        { error: 'File type not allowed. Allowed: images and PDF' },
-        400
-      )
+      return c.json({ error: 'File type not allowed. Allowed: images and PDF' }, 400)
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {
@@ -200,56 +103,35 @@ uploadRoutes.post('/upload', async (c, next) => {
     }
 
     const objectKey = generateObjectKey(file.name)
-    const client = createR2Client(c.env)
-
     const body = await file.arrayBuffer()
-    await client.send(
-      new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: objectKey,
-        Body: new Uint8Array(body),
-        ContentType: file.type,
-      })
-    )
 
-    // Aggiorna contatore storage in D1
-    let executionCtx: { waitUntil: (p: Promise<any>) => void } | undefined
-    try {
-      executionCtx = c.executionCtx
-    } catch {
-      // In ambiente di test Hono lancia se non presente
-    }
+    // 1. Upload allo storage
+    await bucket.put(objectKey, body, { contentType: file.type })
 
+    // 2. Aggiorna DB e Stats (in background se possibile)
     const uploadedBy = c.var.jwtPayload?.sub ?? ''
-    if (executionCtx) {
-      executionCtx.waitUntil((async () => {
-        try {
-          await c.env.DB.prepare(
-            "UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes'"
-          ).bind(file.size).run()
-        } catch (err) {
-          console.error('Failed to update storage stats on upload:', err)
-        }
-        try {
-          await c.env.DB.prepare(
-            'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
-          ).bind(objectKey, file.name, file.type, file.size, uploadedBy).run()
-        } catch (err) {
-          console.error('Failed to track media_objects on upload:', err)
-        }
-      })())
-    } else {
-      // Fallback sync
-      c.env.DB.prepare(
-        "UPDATE system_stats SET value = CAST(value AS INTEGER) + ? WHERE id = 'total_storage_bytes'"
-      ).bind(file.size).run().catch(err => console.error('Failed to update storage stats on upload (sync fallback):', err))
-      c.env.DB.prepare(
-        'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
-      ).bind(objectKey, file.name, file.type, file.size, uploadedBy).run().catch(err => console.error('Failed to track media_objects (sync fallback):', err))
+    const trackOperation = (async () => {
+      try {
+        await statsRepo.incrementStorage(file.size)
+        await mediaRepo.trackUpload({
+          key: objectKey,
+          filename: file.name,
+          mime_type: file.type,
+          size_bytes: file.size,
+          uploaded_by: uploadedBy
+        })
+      } catch (err) {
+        console.error('Failed to update DB tracking for upload:', err)
+      }
+    })()
+
+    try {
+      c.executionCtx.waitUntil(trackOperation)
+    } catch {
+      await trackOperation
     }
 
-    const baseUrl = getMediaBaseUrl(c)
-    const publicUrl = `${baseUrl}/api/media/${encodeURIComponent(objectKey)}`
+    const publicUrl = bucket.getUrl(objectKey)
 
     logActivity(c, {
       action: 'upload',
@@ -260,76 +142,38 @@ uploadRoutes.post('/upload', async (c, next) => {
 
     return c.json({ url: publicUrl }, 200)
   } catch (err) {
-    if (c.env.ENV !== 'production') {
-      console.error('Upload error:', err)
-    }
+    console.error('Upload error:', err)
     return c.json({ error: 'Upload failed' }, 500)
   }
 })
 
-/** DELETE /upload/:key - Elimina un file da R2 */
-uploadRoutes.delete('/:key', async (c, next) => {
-  await authMiddleware(c.env.JWT_SECRET)(c, next)
-}, async (c) => {
+/** DELETE /upload/:key - Elimina un file */
+uploadRoutes.delete('/upload/:key', async (c) => {
   const key = c.req.param('key')
   if (!key) return c.json({ error: 'Missing key' }, 400)
   
-  await deleteR2Objects(c.env, [decodeURIComponent(key)])
+  await deleteR2Objects(c, [decodeURIComponent(key)])
   return c.json({ success: true }, 200)
 })
 
 /**
- * Serve un file da R2. Route pubblica (senza auth) per permettere
- * il caricamento delle immagini nei tag <img>.
+ * Serve un file dallo storage.
  */
-export async function serveMediaHandler(
-  c: { env: UploadBindings; req: { param: (key: string) => string } }
-): Promise<Response> {
+export async function serveMediaHandler(c: any): Promise<Response> {
   const key = c.req.param('key')
-  if (!key) {
-    return new Response(JSON.stringify({ error: 'Missing key' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
+  if (!key) return new Response('Missing key', { status: 400 })
 
-  const { R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME } = c.env
-  if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_ENDPOINT || !R2_BUCKET_NAME) {
-    return new Response(JSON.stringify({ error: 'R2 not configured' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
+  const bucket = c.var.bucket
   try {
-    const client = createR2Client(c.env)
-    const response = await client.send(
-      new GetObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: decodeURIComponent(key),
-      })
-    )
-
-    if (!response.Body) {
-      return new Response(JSON.stringify({ error: 'Not found' }), {
-        status: 404,
-        headers: { 'Content-Type': 'application/json' },
-      })
-    }
+    const object = await bucket.get(decodeURIComponent(key))
+    if (!object) return new Response('Not found', { status: 404 })
 
     const headers = new Headers()
-    const ct = response.ContentType ?? 'application/octet-stream'
-    headers.set('Content-Type', ct)
+    headers.set('Content-Type', object.contentType ?? 'application/octet-stream')
     headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-
-    return new Response(response.Body as ReadableStream, {
-      status: 200,
-      headers,
-    })
-  } catch {
-    return new Response(JSON.stringify({ error: 'Not found' }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    })
+    
+    return new Response(object.body, { status: 200, headers })
+  } catch (err) {
+    return new Response('Internal error', { status: 500 })
   }
 }

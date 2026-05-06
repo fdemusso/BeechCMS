@@ -51,13 +51,13 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
       <Card className="overflow-hidden p-0 shadow-md">
         <CardContent className="relative grid grid-cols-1 p-0 md:grid-cols-2">
           <img
-            src="/undraw_clouds_bmtk.svg"
+            src={`${import.meta.env.BASE_URL}undraw_clouds_bmtk.svg`}
             alt=""
             className="absolute -left-30 -top-36 z-0 h-96 w-96 rotate-150 scale-x-[-1]"
             aria-hidden="true"
           />
           <img
-            src="/sol.svg"
+            src={`${import.meta.env.BASE_URL}sol.svg`}
             alt=""
             className="absolute right-23 -top-28 z-0 hidden h-80 w-80 md:block md:h-[29rem] md:w-[28rem]"
             aria-hidden="true"
@@ -161,7 +161,7 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
           </form>
           <div className="relative hidden md:block md:min-h-[36rem] md:overflow-hidden">
             <img
-               src="/undraw_enter_nwx3.svg"
+               src={`${import.meta.env.BASE_URL}undraw_enter_nwx3.svg`}
                alt="Illustrazione area login"
                className="absolute -bottom-7 -right-28 h-full max-h-[42rem] w-full max-w-lg object-contain object-right-bottom scale-x-[-1]"
             />

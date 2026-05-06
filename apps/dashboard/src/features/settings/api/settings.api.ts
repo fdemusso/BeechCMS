@@ -53,4 +53,9 @@ export const settingsApi = {
   updateNotifications: async (prefs: NotificationPrefs): Promise<void> => {
     await api.put('/settings/notifications', prefs)
   },
+
+  getGeneralSettings: async (): Promise<{ dateFormat: string; siteTitle: string }> => {
+    const { data } = await api.get<{ dateFormat: string; siteTitle: string }>('/settings')
+    return data
+  },
 }

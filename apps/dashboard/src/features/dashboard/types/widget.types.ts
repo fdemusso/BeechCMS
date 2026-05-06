@@ -15,6 +15,7 @@ export type WidgetType =
   | "storage"
   | "media-gallery"
   | "activity-feed"
+  | "setup-checklist"
 
 export interface WidgetGridSpan {
   w: number // Number of columns (out of 8)
