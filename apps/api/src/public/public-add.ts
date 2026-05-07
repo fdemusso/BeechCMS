@@ -5,7 +5,6 @@ import { checkPublicOperation } from './access-policy'
 import { publicProblem } from './problem-details'
 import { generateEntrySlug, slugify } from './slug-utils'
 import { sanitizePublicPayload } from './sanitize'
-import { createNotification } from '../shared/notification-service'
 import { AppEnv } from '../types'
 
 function errorMessage(context: Context<AppEnv>, error: unknown): string {
@@ -147,7 +146,7 @@ export async function publicAddHandler(context: Context<AppEnv>) {
       })
     }
 
-    await createNotification(context, {
+    context.get('notificationService').notify({
       title: `${seed.label}: New entry`,
       message: `A new entry ("${sanitized.data.title || sanitized.data.name || finalSlug}") has been added via the public API.`,
       type: 'success',

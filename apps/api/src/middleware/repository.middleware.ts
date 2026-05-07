@@ -6,7 +6,9 @@ import { D1SystemStatsRepository } from '../shared/system-stats.repository.d1'
 import { D1UserRepository } from '../shared/d1-user.repository'
 import { D1SessionRepository } from '../shared/d1-session.repository'
 import { D1PasswordResetTokenRepository } from '../shared/d1-password-reset-token.repository'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository } from '@beechcms/core'
+import { D1ActivityLogRepository } from '../shared/d1-activity-log.repository'
+import { D1NotificationRepository } from '../shared/d1-notification.repository'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository } from '@beechcms/core'
 import type { Env, Variables } from '../types'
 
 interface RepositoryOverrides {
@@ -17,6 +19,8 @@ interface RepositoryOverrides {
   userRepository?: IUserRepository
   sessionRepository?: ISessionRepository
   passwordResetTokenRepository?: IPasswordResetTokenRepository
+  activityLogRepository?: IActivityLogRepository
+  notificationRepository?: INotificationRepository
 }
 
 export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
@@ -28,6 +32,8 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('userRepository', overrides?.userRepository ?? new D1UserRepository(context.env.DB))
     context.set('sessionRepository', overrides?.sessionRepository ?? new D1SessionRepository(context.env.DB))
     context.set('passwordResetTokenRepository', overrides?.passwordResetTokenRepository ?? new D1PasswordResetTokenRepository(context.env.DB))
+    context.set('activityLogRepository', overrides?.activityLogRepository ?? new D1ActivityLogRepository(context.env.DB))
+    context.set('notificationRepository', overrides?.notificationRepository ?? new D1NotificationRepository(context.env.DB))
     await next()
   })
 }

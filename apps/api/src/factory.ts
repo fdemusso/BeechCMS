@@ -33,6 +33,7 @@ import { repositoryMiddleware } from './middleware/repository.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'
 import { authProvidersMiddleware } from './middleware/auth-providers.middleware'
 import { rateLimiterMiddleware } from './middleware/rate-limit.middleware'
+import { observabilityMiddleware } from './middleware/observability.middleware'
 
 export interface BeechConfig {
   seeds: Seed[] | Record<string, Seed>
@@ -120,6 +121,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
   app.use('*', authProvidersMiddleware())
   app.use('*', rateLimiterMiddleware())
+  app.use('*', observabilityMiddleware())
 
   app.use('*', async (context, next) => {
     const isDev = context.env.ENV !== 'production'

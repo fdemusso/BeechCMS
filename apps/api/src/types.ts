@@ -1,5 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 
 export interface Env {
@@ -34,7 +34,7 @@ export interface Env {
 }
 
 export interface Variables {
-  jwtPayload: { sub: string; email?: string }
+  jwtPayload: { sub: string; email?: string; name?: string | null }
   getSeed: (slug: string) => Seed | null
   seedRegistry: Record<string, Seed>
   repository: ContentRepository
@@ -48,6 +48,10 @@ export interface Variables {
   sessionRepository: ISessionRepository
   passwordResetTokenRepository: IPasswordResetTokenRepository
   rateLimiters: IRateLimiterRegistry
+  activityLogger: IActivityLogger
+  activityLogRepository: IActivityLogRepository
+  notificationRepository: INotificationRepository
+  notificationService: INotificationService
 }
 
 export type AppEnv = { Bindings: Env; Variables: Variables }

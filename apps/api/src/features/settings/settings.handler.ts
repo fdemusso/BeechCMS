@@ -10,15 +10,6 @@ const MAX_PASSWORD_LENGTH = 128
 const SESSION_LIST_LIMIT = 20
 const ACTIVITY_LOG_LIMIT = 30
 
-type ActivityRow = {
-  id: string
-  action: string
-  entity_type: string
-  entity_slug: string | null
-  details: string | null
-  created_at: number
-}
-
 /**
  * GET /api/settings
  * Retrieves the general site configuration.
@@ -213,14 +204,22 @@ settingsApp.delete('/sessions/:id', async (context) => {
 settingsApp.get('/activity', async (context) => {
   const { sub: userId } = context.get('jwtPayload')
 
-  // TODO: Phase 2 — replace with c.get("activityLogger").listForUser() once IActivityLogRepository is defined
-  const activityLogsResult = await context.env.DB.prepare(
-    `SELECT id, action, entity_type, entity_slug, details, created_at
-     FROM activity_logs WHERE user_id = ?
-     ORDER BY created_at DESC LIMIT ?`
-  ).bind(userId, ACTIVITY_LOG_LIMIT).all<ActivityRow>()
+  const entries = await context.get('activityLogRepository').list({
+    userId,
+    limit: ACTIVITY_LOG_LIMIT,
+  })
 
-  return context.json(activityLogsResult.results ?? [])
+  // Preserve legacy snake_case shape consumed by the dashboard activity tab.
+  const responseEntries = entries.map((entry) => ({
+    id: entry.id,
+    action: entry.action,
+    entity_type: entry.entityType,
+    entity_slug: entry.entitySlug,
+    details: entry.details ? JSON.stringify(entry.details) : null,
+    created_at: entry.createdAt,
+  }))
+
+  return context.json(responseEntries)
 })
 
 /**

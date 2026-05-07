@@ -205,21 +205,18 @@ statsApp.get('/stats/total', async (context) => {
         const totalEntriesCount = countResults.reduce((accumulator, result) => accumulator + (result?.count ?? 0), 0)
 
         // today/week/month: create events in activity_logs (entity_type = 'content')
-        const eventRow = await DB.prepare(
-            `SELECT
-        COUNT(CASE WHEN created_at >= ? THEN 1 END) as today,
-        COUNT(CASE WHEN created_at >= ? THEN 1 END) as week,
-        COUNT(CASE WHEN created_at >= ? THEN 1 END) as month
-      FROM activity_logs WHERE action = 'create' AND entity_type = 'content'`
-        )
-            .bind(twentyFourHoursAgo, sevenDaysAgo, thirtyDaysAgo)
-            .first<{ today: number; week: number; month: number }>()
+        const activityLogRepository = context.get('activityLogRepository')
+        const [todayCount, weekCount, monthCount] = await Promise.all([
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: twentyFourHoursAgo }),
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: sevenDaysAgo }),
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: thirtyDaysAgo }),
+        ])
 
         return context.json({
             total: totalEntriesCount,
-            today: eventRow?.today ?? 0,
-            week:  eventRow?.week  ?? 0,
-            month: eventRow?.month ?? 0,
+            today: todayCount,
+            week: weekCount,
+            month: monthCount,
         })
     } catch (error) {
         console.error('Content stats error:', error)
@@ -240,25 +237,27 @@ statsApp.get('/stats/total', async (context) => {
  */
 statsApp.get('/stats/recent-activity', async (context) => {
     try {
-        const { DB } = context.env
         const slug = cleanStr(context.req.query('slug'))
 
-        let query = `SELECT id, user_id, user_email, user_name, action, entity_type, entity_id, entity_slug, details, created_at
-                 FROM activity_logs`
-        const queryParameters: any[] = []
+        const entries = await context.get('activityLogRepository').list({
+            entitySlug: slug ?? undefined,
+            limit: 15,
+        })
 
-        if (slug) {
-            query += ' WHERE entity_slug = ?'
-            queryParameters.push(slug)
-        }
-
-        query += ' ORDER BY created_at DESC LIMIT 15'
-
-        const result = await DB.prepare(query).bind(...queryParameters).all()
-
-        const activities = (result.results ?? []).map((row: any) => ({
-            ...row,
-            details: row.details ? JSON.parse(row.details) : null
+        // Preserve the legacy snake_case wire format consumed by the dashboard
+        // recent-activity widget. The repository returns camelCase records,
+        // so we reshape only on the way out.
+        const activities = entries.map((entry) => ({
+            id: entry.id,
+            user_id: entry.userId,
+            user_email: entry.userEmail,
+            user_name: entry.userName,
+            action: entry.action,
+            entity_type: entry.entityType,
+            entity_id: entry.entityId,
+            entity_slug: entry.entitySlug,
+            details: entry.details,
+            created_at: entry.createdAt,
         }))
 
         context.header('Cache-Control', 'no-store')

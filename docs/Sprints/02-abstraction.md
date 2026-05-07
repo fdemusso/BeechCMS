@@ -637,22 +637,89 @@ SECTION 10 — PHASE 2 COMPLETION CHECKLIST
 
 Before marking Phase 2 complete, verify every produced file against these rules:
 
-  [ ] No abbreviations in variable, function, parameter or type names
-  [ ] Every exported interface method has a JSDoc explaining WHY (not the obvious what)
-  [ ] Inline comments only where code alone is insufficient, always in English
-  [ ] No if nesting beyond 2 levels — guard clauses used instead
-  [ ] No condition chains with 3+ inline && operators — extracted to named booleans
-  [ ] No chained ternary expressions
-  [ ] All magic numbers are named constants at the top of the file
-  [ ] Each file has a single responsibility
-  [ ] D1Database accessed only in D1* repository and D1* logger files
-  [ ] Hono Context never passed into IActivityLogger.log() or INotificationService.notify()
-  [ ] The actor object in activity log entries is always built by the caller (the handler)
-  [ ] INotificationService is injected AFTER INotificationRepository in middleware order
-  [ ] The old activity-logger.ts and notification-service.ts free functions are deleted
-  [ ] notifications.handler.ts contains zero db.prepare() or c.env.DB references
-  [ ] settings.handler.ts and stats.handler.ts contain zero inline SELECT on activity_logs
-  [ ] Future-phase interfaces (IClock, IAnalyticsRepository) are referenced via TODO comments
+  [x] No abbreviations in variable, function, parameter or type names
+  [x] Every exported interface method has a JSDoc explaining WHY (not the obvious what)
+  [x] Inline comments only where code alone is insufficient, always in English
+  [x] No if nesting beyond 2 levels — guard clauses used instead
+  [x] No condition chains with 3+ inline && operators — extracted to named booleans
+  [x] No chained ternary expressions
+  [x] All magic numbers are named constants at the top of the file
+  [x] Each file has a single responsibility
+  [x] D1Database accessed only in D1* repository and D1* logger files
+  [x] Hono Context never passed into IActivityLogger.log() or INotificationService.notify()
+  [x] The actor object in activity log entries is always built by the caller (the handler)
+  [x] INotificationService is injected AFTER INotificationRepository in middleware order
+  [x] The old activity-logger.ts and notification-service.ts free functions are deleted
+  [x] notifications.handler.ts contains zero db.prepare() or c.env.DB references
+  [x] settings.handler.ts and stats.handler.ts contain zero inline SELECT on activity_logs
+  [x] Future-phase interfaces (IClock, IAnalyticsRepository) are referenced via TODO comments
+
+==========================================================================
+SECTION 11 — PHASE 2 COMPLETION REPORT (2026-05-07)
+==========================================================================
+
+Status: COMPLETE. 329 tests pass (302 pre-existing + 27 new).
+
+Steps executed:
+  Step 1 — IActivityLogger + D1ActivityLogger + InMemoryActivityLogger ✓
+  Step 2 — Caller migration (create/update/delete/upload + draft + public-edit) ✓
+  Step 3 — IActivityLogRepository + D1ActivityLogRepository ✓
+  Step 4 — INotificationRepository + D1NotificationRepository ✓
+  Step 5 — INotificationService + BackgroundNotificationService ✓
+  Step 6 — observabilityMiddleware consolidation ✓
+
+Files created (core):
+  packages/core/src/observability/activity-logger.ts
+  packages/core/src/observability/activity-log.repository.ts
+  packages/core/src/notifications/notification.repository.ts
+  packages/core/src/notifications/notification-service.ts
+
+Files created (api):
+  apps/api/src/shared/d1-activity-logger.ts
+  apps/api/src/shared/in-memory-activity-logger.ts
+  apps/api/src/shared/d1-activity-log.repository.ts
+  apps/api/src/shared/d1-notification.repository.ts
+  apps/api/src/shared/background-notification-service.ts
+  apps/api/src/shared/in-memory-notification-service.ts
+  apps/api/src/middleware/observability.middleware.ts
+  apps/api/src/shared/d1-activity-logger.test.ts
+  apps/api/src/shared/d1-activity-log.repository.test.ts
+  apps/api/src/shared/d1-notification.repository.test.ts
+  apps/api/src/shared/background-notification-service.test.ts
+  docs/observability-and-notifications.md
+
+Files deleted:
+  apps/api/src/shared/activity-logger.ts (legacy free function)
+  apps/api/src/shared/notification-service.ts (legacy free function)
+
+Files modified:
+  packages/core/src/index.ts                                         -- barrel exports
+  apps/api/src/types.ts                                              -- AppEnv.Variables + jwtPayload.name
+  apps/api/src/middleware/repository.middleware.ts                   -- inject activityLog/notification repositories
+  apps/api/src/factory.ts                                            -- register observabilityMiddleware
+  apps/api/src/features/content/handlers/{create,update,delete}.ts   -- migrated to activityLogger.log
+  apps/api/src/features/draft/draft.handler.ts                       -- migrated (saveDraft + publishDraft)
+  apps/api/src/upload.ts                                             -- migrated to activityLogger.log
+  apps/api/src/public/public-add.ts                                  -- migrated to notificationService.notify
+  apps/api/src/public/public-edit.ts                                 -- migrated to notificationService.notify
+  apps/api/src/features/notifications/notifications.handler.ts      -- full rewrite, zero SQL
+  apps/api/src/features/settings/settings.handler.ts                 -- activity tab via repository
+  apps/api/src/features/stats/stats.handler.ts                       -- recent-activity + total via repository
+  CLAUDE.md                                                          -- doc link
+
+Extras beyond spec (gap-closure to satisfy checklist row 15):
+  IActivityLogRepository.countSince({ action, entityType, sinceTimestamp }): Promise<number>
+    Reason: /stats/total widget needed today/week/month create-event counts
+    on activity_logs. Plan only specified list(); without countSince the
+    handler would have retained inline SELECT, violating the checklist.
+    Method documented with WHY-focused JSDoc; 2 dedicated test cases added.
+
+Middleware order in factory.ts (verified):
+  1. repositoryMiddleware
+  2. storageMiddleware
+  3. authProvidersMiddleware
+  4. rateLimiterMiddleware
+  5. observabilityMiddleware  (depends on notificationRepository from #1)
 
 Begin with Step 1. List the files you will create and modify, then proceed file by file.
 After each file, stop and ask: "Ready for the next file?"
