@@ -1,5 +1,10 @@
 import { describe, it, expect, vi } from 'vitest'
 import { D1NotificationRepository } from './d1-notification.repository'
+import { FixedClock } from './fixed-clock'
+import { SequentialIdGenerator } from './sequential-id-generator'
+
+const clock = new FixedClock(1700000000_000)
+const makeIdGen = () => new SequentialIdGenerator()
 
 function makeMockDb(opts: { firstResult?: unknown; allResults?: unknown[] } = {}) {
   const { firstResult = null, allResults = [] } = opts
@@ -39,7 +44,7 @@ describe('D1NotificationRepository', () => {
           },
         ],
       })
-      const records = await new D1NotificationRepository(db).list(10)
+      const records = await new D1NotificationRepository(db, clock, makeIdGen()).list(10)
       expect(records).toEqual([
         { id: 'n-1', title: 'T', message: 'M', type: 'success', isRead: false, createdAt: 100 },
         { id: 'n-2', title: 'T2', message: 'M2', type: 'info', isRead: true, createdAt: 99 },
@@ -48,7 +53,7 @@ describe('D1NotificationRepository', () => {
 
     it('orders by created_at DESC with LIMIT bound', async () => {
       const { db, prepareMock, bindMock } = makeMockDb()
-      await new D1NotificationRepository(db).list(25)
+      await new D1NotificationRepository(db, clock, makeIdGen()).list(25)
       expect(prepareMock.mock.calls[0][0]).toMatch(/ORDER BY created_at DESC/)
       expect(bindMock).toHaveBeenCalledWith(25)
     })
@@ -59,7 +64,7 @@ describe('D1NotificationRepository', () => {
       const { db } = makeMockDb({
         firstResult: { total_count: 7, latest_created_at: 1234, read_count: 3 },
       })
-      const stats = await new D1NotificationRepository(db).stats()
+      const stats = await new D1NotificationRepository(db, clock, makeIdGen()).stats()
       expect(stats).toEqual({ totalCount: 7, latestCreatedAt: 1234, readCount: 3 })
     })
 
@@ -67,7 +72,7 @@ describe('D1NotificationRepository', () => {
       const { db } = makeMockDb({
         firstResult: { total_count: 0, latest_created_at: null, read_count: null },
       })
-      const stats = await new D1NotificationRepository(db).stats()
+      const stats = await new D1NotificationRepository(db, clock, makeIdGen()).stats()
       expect(stats).toEqual({ totalCount: 0, latestCreatedAt: 0, readCount: 0 })
     })
   })
@@ -75,7 +80,7 @@ describe('D1NotificationRepository', () => {
   describe('create', () => {
     it('inserts a new notification and returns the generated id', async () => {
       const { db, prepareMock, bindMock } = makeMockDb()
-      const id = await new D1NotificationRepository(db).create({
+      const id = await new D1NotificationRepository(db, clock, makeIdGen()).create({
         title: 'Hello',
         message: 'World',
         type: 'info',
@@ -90,28 +95,28 @@ describe('D1NotificationRepository', () => {
   describe('markRead / markUnread / delete / markAllRead', () => {
     it('markRead binds the given id', async () => {
       const { db, prepareMock, bindMock } = makeMockDb()
-      await new D1NotificationRepository(db).markRead('n-1')
+      await new D1NotificationRepository(db, clock, makeIdGen()).markRead('n-1')
       expect(prepareMock.mock.calls[0][0]).toMatch(/UPDATE notifications SET is_read = 1 WHERE id = \?/)
       expect(bindMock).toHaveBeenCalledWith('n-1')
     })
 
     it('markUnread binds the given id', async () => {
       const { db, prepareMock, bindMock } = makeMockDb()
-      await new D1NotificationRepository(db).markUnread('n-2')
+      await new D1NotificationRepository(db, clock, makeIdGen()).markUnread('n-2')
       expect(prepareMock.mock.calls[0][0]).toMatch(/UPDATE notifications SET is_read = 0 WHERE id = \?/)
       expect(bindMock).toHaveBeenCalledWith('n-2')
     })
 
     it('delete binds the given id', async () => {
       const { db, prepareMock, bindMock } = makeMockDb()
-      await new D1NotificationRepository(db).delete('n-3')
+      await new D1NotificationRepository(db, clock, makeIdGen()).delete('n-3')
       expect(prepareMock.mock.calls[0][0]).toMatch(/DELETE FROM notifications WHERE id = \?/)
       expect(bindMock).toHaveBeenCalledWith('n-3')
     })
 
     it('markAllRead runs without bindings', async () => {
       const { db, prepareMock, runMock } = makeMockDb()
-      await new D1NotificationRepository(db).markAllRead()
+      await new D1NotificationRepository(db, clock, makeIdGen()).markAllRead()
       expect(prepareMock.mock.calls[0][0]).toMatch(/^UPDATE notifications SET is_read = 1$/)
       expect(runMock).toHaveBeenCalled()
     })

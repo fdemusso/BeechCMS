@@ -1,5 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { IPasswordResetTokenRepository, NewPasswordResetToken, ValidatedResetToken } from '@beechcms/core'
+import type { IPasswordResetTokenRepository, NewPasswordResetToken, ValidatedResetToken, IIdGenerator } from '@beechcms/core'
 
 type ValidatedResetTokenRow = {
   id: string
@@ -8,7 +8,10 @@ type ValidatedResetTokenRow = {
 }
 
 export class D1PasswordResetTokenRepository implements IPasswordResetTokenRepository {
-  constructor(private readonly db: D1Database) {}
+  constructor(
+    private readonly db: D1Database,
+    private readonly idGenerator: IIdGenerator,
+  ) {}
 
   async invalidatePending(userId: string, nowTimestamp: number): Promise<void> {
     await this.db
@@ -18,9 +21,10 @@ export class D1PasswordResetTokenRepository implements IPasswordResetTokenReposi
   }
 
   async create(record: NewPasswordResetToken): Promise<void> {
+    const generatedId = this.idGenerator.uuid()
     await this.db
       .prepare('INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)')
-      .bind(record.id, record.userId, record.tokenHash, record.expiresAt)
+      .bind(generatedId, record.userId, record.tokenHash, record.expiresAt)
       .run()
   }
 

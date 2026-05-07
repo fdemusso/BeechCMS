@@ -1,5 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { IActivityLogger, ActivityLogEntry } from '@beechcms/core'
+import type { IActivityLogger, ActivityLogEntry, IClock, IIdGenerator } from '@beechcms/core'
 
 const ACTIVITY_LOG_INSERT_SQL =
   `INSERT INTO activity_logs
@@ -21,6 +21,8 @@ type ScheduleBackgroundTask = (task: Promise<unknown>) => void
 export class D1ActivityLogger implements IActivityLogger {
   constructor(
     private readonly database: D1Database,
+    private readonly clock: IClock,
+    private readonly idGenerator: IIdGenerator,
     private readonly scheduleBackgroundTask?: ScheduleBackgroundTask
   ) {}
 
@@ -37,7 +39,7 @@ export class D1ActivityLogger implements IActivityLogger {
 
   private async runInsert(entry: ActivityLogEntry): Promise<void> {
     try {
-      const recordId = crypto.randomUUID()
+      const recordId = this.idGenerator.uuid()
       const serializedDetails = entry.details ? JSON.stringify(entry.details) : null
 
       await this.database

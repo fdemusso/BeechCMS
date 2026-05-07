@@ -46,6 +46,24 @@ repositoryMiddleware → storageMiddleware → authProvidersMiddleware
   → rateLimiterMiddleware → observabilityMiddleware
 ```
 
+### Phase 4 update — `IClock` and `IIdGenerator`
+
+`D1ActivityLogger` and `D1NotificationRepository` no longer call `crypto.randomUUID()` or `Date.now()` directly. Both accept the new cross-cutting utilities as constructor arguments:
+
+```ts
+new D1ActivityLogger(db, clock, idGenerator, scheduleBackgroundTask?)
+new D1NotificationRepository(db, clock, idGenerator)
+```
+
+In production, `repositoryMiddleware` and `observabilityMiddleware` resolve them to `SystemClock` / `SystemIdGenerator` (from `@beechcms/core`). Tests pass `FixedClock` / `SequentialIdGenerator` from `apps/api/src/shared/` for deterministic IDs and timestamps without `vi.useFakeTimers()` or global `Date` patching.
+
+Both middlewares accept matching overrides:
+
+```ts
+observabilityMiddleware({ clock?, idGenerator?, activityLogger?, notificationService? })
+repositoryMiddleware({ clock?, idGenerator?, … })
+```
+
 ## Calling the activity logger from a handler
 
 ```ts

@@ -1,5 +1,6 @@
 import { createMiddleware } from 'hono/factory'
-import type { IActivityLogger, INotificationService } from '@beechcms/core'
+import type { IActivityLogger, INotificationService, IClock, IIdGenerator } from '@beechcms/core'
+import { SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { AppEnv } from '../types'
 import { D1ActivityLogger } from '../shared/d1-activity-logger'
 import { BackgroundNotificationService } from '../shared/background-notification-service'
@@ -7,6 +8,8 @@ import { BackgroundNotificationService } from '../shared/background-notification
 export interface ObservabilityOverrides {
   activityLogger?: IActivityLogger
   notificationService?: INotificationService
+  clock?: IClock
+  idGenerator?: IIdGenerator
 }
 
 /**
@@ -30,8 +33,12 @@ export const observabilityMiddleware = (overrides?: ObservabilityOverrides) => {
       scheduleBackgroundTask = undefined
     }
 
+    const resolvedClock = overrides?.clock ?? SystemClock
+    const resolvedIdGenerator = overrides?.idGenerator ?? SystemIdGenerator
+
     const activityLogger =
-      overrides?.activityLogger ?? new D1ActivityLogger(context.env.DB, scheduleBackgroundTask)
+      overrides?.activityLogger ??
+      new D1ActivityLogger(context.env.DB, resolvedClock, resolvedIdGenerator, scheduleBackgroundTask)
 
     const notificationService =
       overrides?.notificationService ??

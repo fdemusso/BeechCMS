@@ -4,6 +4,8 @@ import type {
   NotificationRecord,
   NotificationStats,
   NotificationType,
+  IClock,
+  IIdGenerator,
 } from '@beechcms/core'
 
 interface NotificationRow {
@@ -25,7 +27,11 @@ interface NotificationStatsRow {
  * D1-backed implementation of {@link INotificationRepository}.
  */
 export class D1NotificationRepository implements INotificationRepository {
-  constructor(private readonly database: D1Database) {}
+  constructor(
+    private readonly database: D1Database,
+    private readonly clock: IClock,
+    private readonly idGenerator: IIdGenerator,
+  ) {}
 
   async list(limit: number): Promise<NotificationRecord[]> {
     const queryResult = await this.database
@@ -59,7 +65,7 @@ export class D1NotificationRepository implements INotificationRepository {
   }
 
   async create(record: Omit<NotificationRecord, 'id' | 'createdAt' | 'isRead'>): Promise<string> {
-    const generatedId = crypto.randomUUID()
+    const generatedId = this.idGenerator.uuid()
     await this.database
       .prepare(
         `INSERT INTO notifications (id, title, message, type)

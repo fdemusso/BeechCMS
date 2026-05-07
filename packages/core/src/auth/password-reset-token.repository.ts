@@ -1,5 +1,4 @@
 export interface NewPasswordResetToken {
-  id: string
   userId: string
   tokenHash: string
   expiresAt: number

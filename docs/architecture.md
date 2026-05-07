@@ -21,6 +21,7 @@ Every design decision documented here is grounded in the source code and explici
 11. [Storage & Media Abstraction](#11-storage--media-abstraction)
 12. [Performance Layer](#12-performance-layer)
 13. [Auth & Rate-Limit Abstraction Layer](#13-auth--rate-limit-abstraction-layer)
+14. [Widget, Search & Analytics Abstraction (Phase 3)](#14-widget-search--analytics-abstraction-phase-3)
 
 ---
 
@@ -519,4 +520,87 @@ Each name maps to a Cloudflare RateLimit binding in `wrangler.jsonc`. If the bin
 - `bcryptjs` → imported only in `bcrypt-hash-provider.ts`
 - `jose` → imported only in `jose-token-service.ts`
 - Cloudflare RateLimit binding → accessed only in `cloudflare-rate-limiter.ts`
-- `D1Database` → accessed only in `D1*Repository` files and the three remaining direct-query sites (analytics, activity log, storage scan) which are deferred to Phase 2 and Phase 4 with `// TODO` markers.
+- `D1Database` → accessed only in `D1*Repository` files. Phase 3 closed the remaining direct-query sites in `widget.ts`, `search.ts`, the analytics middleware, and the analytics counters of `stats.handler.ts` (see §14).
+
+---
+
+## 14. Widget, Search & Analytics Abstraction (Phase 3)
+
+Phase 3 of the abstraction plan removed every direct `c.env.DB.prepare` call from the widget, search, and analytics surfaces. Three new contracts now live in `@beechcms/core`:
+
+- `IWidgetRepository` (`packages/core/src/widget/widget.repository.ts`) — `aggregate`, `growth`, `leaderboard`, `list`, `timeseries`. Implementations validate every column alias against `seed.branches` (or a `SYSTEM_COLUMNS` allowlist) before composing SQL, and bind every user-supplied value through `?` placeholders. ORDER direction is selected via hardcoded `ASC`/`DESC` branches, never interpolated. Unknown aliases throw `UNSAFE_COLUMN`, which `widget.ts` maps to `400 Bad Request`.
+- `ISearchRepository` (`packages/core/src/search/search.repository.ts`) — `search` and `count`. Implementations delegate SQL composition to the existing pure helper `buildFtsQuery`. The `EMPTY_QUERY` sentinel surfaces as an empty result set, never a 500. The route handler shapes the wire response via `mapSearchResultRow`.
+- `IAnalyticsRepository` (`packages/core/src/observability/analytics.repository.ts`) — `recordRequest`, `sumByMetric`, `groupByMetric`. The interface is metric-aware (`AnalyticsMetric = 'requests' | 'visitors'`); the metric name is bound, not interpolated. The D1 implementation maps onto the long-format table `analytics(day_ts, metric, seed, value)` with `INSERT … ON CONFLICT(day_ts, metric, seed) DO UPDATE`.
+
+### Concrete Implementations
+
+```
+apps/api/src/shared/
+  d1-widget.repository.ts
+  d1-search.repository.ts
+  d1-analytics.repository.ts
+```
+
+All three are wired into the Hono context by `repositoryMiddleware`:
+
+```ts
+c.set('widgetRepository',    new D1WidgetRepository(c.env.DB))
+c.set('searchRepository',    new D1SearchRepository(c.env.DB))
+c.set('analyticsRepository', new D1AnalyticsRepository(c.env.DB))
+```
+
+### Migration Surface
+
+| Site | Before | After |
+|------|--------|-------|
+| `apps/api/src/widget.ts` | 5 routes building SQL by string concatenation | Routes call `widgetRepository.{aggregate,growth,leaderboard,list,timeseries}`; only query-string parsing and response shaping remain |
+| `apps/api/src/search.ts` | Direct `DB.prepare(sql).bind(...)` for FTS query and count | Parallel `searchRepository.search` + `searchRepository.count`; mapping via `mapSearchResultRow` |
+| `apps/api/src/factory.ts` (analytics middleware) | Inline `INSERT INTO analytics … ON CONFLICT` | `analyticsRepository.recordRequest(seedSlug)` inside `executionCtx.waitUntil` (day bucket computed inside the repository via injected `IClock`) |
+| `apps/api/src/features/stats/stats.handler.ts` (`/health`, `/cloudflare`) | Inline `SELECT SUM(value) … GROUP BY metric` | `analyticsRepository.sumByMetric('requests'|'visitors', '', sinceTimestamp)` |
+
+## Phase 4: Time and ID Abstractions (`IClock`, `IIdGenerator`)
+
+Phase 4 introduces two cross-cutting utilities that replace direct calls to `Date.now()` / `Math.floor(Date.now() / 1000)` and `crypto.randomUUID()` in repository and service code, making time- and ID-sensitive logic deterministic in tests.
+
+```
+packages/core/src/clock.ts          → IClock + SystemClock (production singleton)
+packages/core/src/id-generator.ts   → IIdGenerator + SystemIdGenerator (production singleton)
+apps/api/src/shared/fixed-clock.ts          → FixedClock (test-only)
+apps/api/src/shared/sequential-id-generator.ts → SequentialIdGenerator (test-only)
+```
+
+### Injection Strategy
+
+Unlike repositories and providers from Phases 1–3, `IClock` and `IIdGenerator` are **constructor-injected** into the concrete D1* classes and `JoseTokenService`. They are *not* exposed via `c.var` — the granularity is the class that needs them, not the request context.
+
+The middleware that instantiates each class passes `SystemClock` / `SystemIdGenerator` by default and accepts override objects for testing:
+
+```ts
+repositoryMiddleware({ clock?, idGenerator?, … })
+authProvidersMiddleware({ clock?, … })
+observabilityMiddleware({ clock?, idGenerator?, … })
+```
+
+### Updated Constructor Signatures
+
+| Class | Constructor |
+|------|-------------|
+| `D1ActivityLogger` | `(db, clock, idGenerator, scheduleBackgroundTask?)` |
+| `D1NotificationRepository` | `(db, clock, idGenerator)` |
+| `D1PasswordResetTokenRepository` | `(db, idGenerator)` — generates the token id internally |
+| `D1SessionRepository` | `(db, clock)` — `saveRefreshToken` writes `created_at` from clock |
+| `D1AnalyticsRepository` | `(db, clock)` — `recordRequest(seedSlug)` computes the day bucket internally |
+| `JoseTokenService` | `(secret, config, clock)` — passes `nowSeconds()` to `setIssuedAt()` and uses absolute `setExpirationTime(iat + ttl)` |
+
+### Interface Refactor
+
+`IAnalyticsRepository.recordRequest(seedSlug)` no longer accepts a `dayTimestamp`. The day-bucket math (`Math.floor(seconds / SECONDS_PER_DAY) * SECONDS_PER_DAY`) is encapsulated inside `D1AnalyticsRepository`, with `SECONDS_PER_DAY` as a named constant.
+
+### Test Surface
+
+```ts
+new D1ActivityLogger(db, new FixedClock(1700000000_000), new SequentialIdGenerator())
+new JoseTokenService(secret, {}, new FixedClock(1700000000_000))
+```
+
+`FixedClock` returns a constant millisecond timestamp; `SequentialIdGenerator` emits `test-id-0001`, `test-id-0002`, … with `reset()` for per-test isolation.

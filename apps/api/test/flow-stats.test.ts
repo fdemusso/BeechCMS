@@ -71,7 +71,8 @@ describe('Flow: Stats', () => {
 
     // Use a pre-issued token since we cannot login without users
     const { JoseTokenService } = await import('../src/auth/jose-token-service')
-    const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {})
+    const { SystemClock } = await import('@beechcms/core')
+    const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
     const token = await tokenService.issue({ sub: 'u_fake', email: 'ghost@test.io' })
 
     const res = await app.request('/api/content/stats/setup-checklist', {

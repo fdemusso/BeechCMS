@@ -1,11 +1,12 @@
 import { describe, it, expect } from 'vitest'
+import { SystemClock } from '@beechcms/core'
 import { JoseTokenService } from './jose-token-service'
 import { StaticTokenService } from './static-token-service'
 
 const TEST_SECRET = 'super-secret-key-used-only-in-the-vitest-suite-min-length'
 
 describe('JoseTokenService', () => {
-  const service = new JoseTokenService(TEST_SECRET, {})
+  const service = new JoseTokenService(TEST_SECRET, {}, SystemClock)
 
   it('issue returns a three-part JWT string', async () => {
     const token = await service.issue({ sub: 'user-1', email: 'a@b.com' })
@@ -24,7 +25,7 @@ describe('JoseTokenService', () => {
   })
 
   it('verify returns null for a token signed with a different secret', async () => {
-    const otherService = new JoseTokenService('completely-different-secret-key-xyz', {})
+    const otherService = new JoseTokenService('completely-different-secret-key-xyz', {}, SystemClock)
     const token = await otherService.issue({ sub: 'user-1' })
     expect(await service.verify(token)).toBeNull()
   })
@@ -35,8 +36,8 @@ describe('JoseTokenService', () => {
   })
 
   it('issuer mismatch causes verify to return null', async () => {
-    const issuerA = new JoseTokenService(TEST_SECRET, { issuer: 'issuer-a' })
-    const issuerB = new JoseTokenService(TEST_SECRET, { issuer: 'issuer-b' })
+    const issuerA = new JoseTokenService(TEST_SECRET, { issuer: 'issuer-a' }, SystemClock)
+    const issuerB = new JoseTokenService(TEST_SECRET, { issuer: 'issuer-b' }, SystemClock)
     const token = await issuerA.issue({ sub: 'user-1' })
     expect(await issuerB.verify(token)).toBeNull()
   })

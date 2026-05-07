@@ -54,7 +54,6 @@ export async function requestPasswordReset(
   const expiresAt = nowTimestamp + PASSWORD_RESET_TOKEN_EXPIRY_SECONDS
 
   await context.get('passwordResetTokenRepository').create({
-    id: crypto.randomUUID(),
     userId: registeredUser.id,
     tokenHash,
     expiresAt,

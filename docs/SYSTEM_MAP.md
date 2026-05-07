@@ -148,6 +148,10 @@ This high-level system map is designed for onboarding new contributors and for A
   - `ISessionRepository`, `NewRefreshToken`, `RefreshTokenRecord`, `ActiveSessionSummary` — session persistence interface
   - `IPasswordResetTokenRepository`, `NewPasswordResetToken`, `ValidatedResetToken` — reset token persistence interface
   - `IRateLimiter`, `RateLimitResult` — rate limiting contract (implemented by `CloudflareRateLimiter` / `NoOpRateLimiter` / `InMemoryRateLimiter`)
+  - **Phase 4 — cross-cutting utilities:**
+    - `IClock` + `SystemClock` (`packages/core/src/clock.ts`) — wraps `Date.now()` and `Math.floor(Date.now() / 1000)`. Constructor-injected into `D1ActivityLogger`, `D1NotificationRepository`, `D1SessionRepository`, `D1AnalyticsRepository`, `JoseTokenService`. Test impl: `FixedClock` (`apps/api/src/shared/fixed-clock.ts`).
+    - `IIdGenerator` + `SystemIdGenerator` (`packages/core/src/id-generator.ts`) — wraps `crypto.randomUUID()`. Injected into `D1ActivityLogger`, `D1NotificationRepository`, `D1PasswordResetTokenRepository`. Test impl: `SequentialIdGenerator` (`apps/api/src/shared/sequential-id-generator.ts`) emitting `test-id-NNNN`.
+    - Both are NOT placed in `c.var`. They are constructor params of the concrete classes. Override hooks live on `repositoryMiddleware`, `authProvidersMiddleware`, and `observabilityMiddleware` (`{ clock?, idGenerator? }`).
 - **Build**: `npm run build -w @beechcms/core` produces `dist/` with JS and `.d.ts`, consumed by both apps.
 
 ---
@@ -168,6 +172,9 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Read (GET):** retrieves rows from `content_{slug}`, deserializes complex types, and returns JSON response.
   - Supports server-side pagination, filtering, sorting, and search (via B-tree and FTS5).
   - **Facets (`GET /api/content/:slug/facets`):** computes distinct `status` values and tag sets.
+
+- **Global Search (`/api/search`)**
+  - Route handler in `apps/api/src/search.ts` parses query params and calls `c.get('searchRepository').search(...)` and `.count(...)` in parallel. All FTS5 SQL composition is delegated to the pure helper `buildFtsQuery` consumed by `D1SearchRepository`. `mapSearchResultRow` strips HTML while preserving `<mark>` tags for the excerpt field.
 
 - **Media Engine (`/api/upload`, `/api/media/:key`)** — see `architecture.md` §11
   - Upload: `POST /api/upload` multipart → validate MIME/size → `BeechBucket.put` (R2/S3) → `MediaRepository.trackUpload` + `SystemStatsRepository.incrementStorage` → return URL.
@@ -191,11 +198,11 @@ This high-level system map is designed for onboarding new contributors and for A
 
 - **Widget Data Layer (`/api/widget/*`)**
   - Five JWT-protected read-only endpoints: `aggregate`, `growth`, `leaderboard`, `list`, `timeseries`.
-  - Server side (`apps/api/src/widget.ts`): uses `buildSelectQuery` to generate optimized SQL; applies time-window filters on `created_at`.
+  - Server side (`apps/api/src/widget.ts`): route handlers parse query strings and shape responses; all D1 access flows through `IWidgetRepository` (Phase 3). Concrete `D1WidgetRepository` in `apps/api/src/shared/d1-widget.repository.ts` validates column aliases against `seed.branches` before SQL composition and uses `?` placeholders for every user-supplied value.
   - Client side (`apps/dashboard/src/features/widget-data/`): TanStack Query hooks.
 
 - **Edge Analytics & Stats**
-  - **Request Tracking**: middleware in `apps/api/src/index.ts` captures API hits via `c.executionCtx.waitUntil` (zero-latency). La tabella `analytics` ha una colonna `seed` (stringa vuota = globale, `'articoli'` = per-seed). I widget globali filtrano con `seed = ''`.
+  - **Request Tracking**: middleware in `apps/api/src/factory.ts` invokes `c.get('analyticsRepository').recordRequest(seedSlug)` inside `c.executionCtx.waitUntil` (zero-latency). La tabella `analytics(day_ts, metric, seed, value)` ha una colonna `seed` (stringa vuota = globale, `'articoli'` = per-seed). `IAnalyticsRepository` (Phase 3) è l'unico canale per leggere/scrivere counters; `D1AnalyticsRepository` è in `apps/api/src/shared/`. Phase 4: il day-bucket viene calcolato internamente da `D1AnalyticsRepository` tramite l'`IClock` iniettato — la middleware non passa più un timestamp.
   - **Storage Monitoring**: `system_stats` counter incremented on upload, decremented on delete, resyncable via `POST /api/content/stats/storage/sync`. La fonte canonica per la media library è `media_objects` (`SUM(size_bytes)`).
   - **Cockpit Dashboard**: bento grid widgets for total contents, visitors, requests, and R2 storage — driven by TanStack Query with 5-minute `staleTime`.
 

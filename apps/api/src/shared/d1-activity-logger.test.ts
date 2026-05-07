@@ -1,6 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 import { D1ActivityLogger } from './d1-activity-logger'
 import type { ActivityLogEntry } from '@beechcms/core'
+import { FixedClock } from './fixed-clock'
+import { SequentialIdGenerator } from './sequential-id-generator'
+
+const clock = new FixedClock(1700000000_000)
+const makeIdGen = () => new SequentialIdGenerator()
 
 function makeMockDb(opts: { runShouldThrow?: boolean } = {}) {
   const runMock = opts.runShouldThrow
@@ -23,7 +28,7 @@ const SAMPLE_ENTRY: ActivityLogEntry = {
 describe('D1ActivityLogger', () => {
   it('inserts into activity_logs with the actor and entry payload bound in order', async () => {
     const { db, prepareMock, bindMock } = makeMockDb()
-    const logger = new D1ActivityLogger(db)
+    const logger = new D1ActivityLogger(db, clock, makeIdGen())
 
     await logger.log(SAMPLE_ENTRY)
 
@@ -41,13 +46,13 @@ describe('D1ActivityLogger', () => {
 
   it('serialises details as null when absent', async () => {
     const { db, bindMock } = makeMockDb()
-    await new D1ActivityLogger(db).log({ ...SAMPLE_ENTRY, details: undefined })
+    await new D1ActivityLogger(db, clock, makeIdGen()).log({ ...SAMPLE_ENTRY, details: undefined })
     expect(bindMock.mock.calls[0][8]).toBeNull()
   })
 
   it('falls back to "unknown" when actor email is empty', async () => {
     const { db, bindMock } = makeMockDb()
-    await new D1ActivityLogger(db).log({
+    await new D1ActivityLogger(db, clock, makeIdGen()).log({
       ...SAMPLE_ENTRY,
       actor: { id: 'u', email: '', name: null },
     })
@@ -57,7 +62,7 @@ describe('D1ActivityLogger', () => {
   it('schedules the insert via the background hook when provided', async () => {
     const { db } = makeMockDb()
     const scheduleBackgroundTask = vi.fn()
-    const logger = new D1ActivityLogger(db, scheduleBackgroundTask)
+    const logger = new D1ActivityLogger(db, clock, makeIdGen(), scheduleBackgroundTask)
 
     logger.log(SAMPLE_ENTRY)
 
@@ -68,7 +73,7 @@ describe('D1ActivityLogger', () => {
   it('never throws to the caller when the underlying INSERT fails', async () => {
     const { db } = makeMockDb({ runShouldThrow: true })
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const logger = new D1ActivityLogger(db)
+    const logger = new D1ActivityLogger(db, clock, makeIdGen())
 
     await expect(logger.log(SAMPLE_ENTRY)).resolves.toBeUndefined()
     expect(consoleSpy).toHaveBeenCalled()

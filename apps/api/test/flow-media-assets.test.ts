@@ -3,6 +3,7 @@ import { createBeechApp } from '../src/factory'
 import { TEST_ENV, TEST_USERS, TEST_SEEDS } from './fixtures'
 import { MockD1Database } from './mocks/mock-d1-database'
 import { JoseTokenService } from '../src/auth/jose-token-service'
+import { SystemClock } from '@beechcms/core'
 
 /**
  * MOCK: S3 CLIENT (Cloudflare R2)
@@ -42,7 +43,7 @@ describe('Flow: Media & Assets', () => {
     app = createBeechApp({ seeds: TEST_SEEDS })
     
     // Generate a valid admin token for protected upload/delete routes
-    const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {})
+    const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
     adminToken = await tokenService.issue({ sub: TEST_USERS[0].id, email: TEST_USERS[0].email })
 
     mockS3Send.mockReset()

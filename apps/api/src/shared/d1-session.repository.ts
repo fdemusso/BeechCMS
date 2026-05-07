@@ -1,5 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { ISessionRepository, NewRefreshToken, RefreshTokenRecord, ActiveSessionSummary } from '@beechcms/core'
+import type { ISessionRepository, NewRefreshToken, RefreshTokenRecord, ActiveSessionSummary, IClock } from '@beechcms/core'
 
 type RefreshTokenRow = {
   id: string
@@ -28,12 +28,15 @@ function rowToRecord(row: RefreshTokenRow): RefreshTokenRecord {
 }
 
 export class D1SessionRepository implements ISessionRepository {
-  constructor(private readonly db: D1Database) {}
+  constructor(
+    private readonly db: D1Database,
+    private readonly clock: IClock,
+  ) {}
 
   async saveRefreshToken(record: NewRefreshToken): Promise<void> {
     await this.db
-      .prepare('INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)')
-      .bind(record.id, record.userId, record.tokenHash, record.expiresAt)
+      .prepare('INSERT INTO refresh_tokens (id, user_id, token_hash, expires_at, created_at) VALUES (?, ?, ?, ?, ?)')
+      .bind(record.id, record.userId, record.tokenHash, record.expiresAt, this.clock.nowSeconds())
       .run()
   }
 

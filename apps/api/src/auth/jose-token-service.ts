@@ -1,5 +1,5 @@
 import { SignJWT, jwtVerify } from 'jose'
-import type { ITokenService, IssueTokenOptions, JwtClaims } from '@beechcms/core'
+import type { ITokenService, IssueTokenOptions, JwtClaims, IClock } from '@beechcms/core'
 
 const DEFAULT_TOKEN_TTL_SECONDS = 900
 const DEFAULT_ALGORITHM = 'HS256' as const
@@ -13,22 +13,25 @@ export interface JoseTokenServiceConfig {
 export class JoseTokenService implements ITokenService {
   private readonly secretBytes: Uint8Array
   private readonly config: JoseTokenServiceConfig
+  private readonly clock: IClock
 
-  constructor(secret: string, config: JoseTokenServiceConfig = {}) {
+  constructor(secret: string, config: JoseTokenServiceConfig, clock: IClock) {
     this.secretBytes = new TextEncoder().encode(secret)
     this.config = config
+    this.clock = clock
   }
 
   async issue(claims: JwtClaims, options?: IssueTokenOptions): Promise<string> {
     const { sub, ...remainingClaims } = claims
     const ttlSeconds = options?.ttlSeconds ?? DEFAULT_TOKEN_TTL_SECONDS
     const algorithm = this.config.algorithm ?? DEFAULT_ALGORITHM
+    const issuedAtSeconds = this.clock.nowSeconds()
 
     let builder = new SignJWT(remainingClaims)
       .setProtectedHeader({ alg: algorithm, typ: 'JWT' })
       .setSubject(sub)
-      .setIssuedAt()
-      .setExpirationTime(`${ttlSeconds}s`)
+      .setIssuedAt(issuedAtSeconds)
+      .setExpirationTime(issuedAtSeconds + ttlSeconds)
 
     if (this.config.issuer) builder = builder.setIssuer(this.config.issuer)
     if (this.config.audience) builder = builder.setAudience(this.config.audience)

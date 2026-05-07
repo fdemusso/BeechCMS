@@ -3,7 +3,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository } from '@beechcms/core'
-import { sha256hex } from '@beechcms/core'
+import { sha256hex, SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { Env, Variables } from './types'
 
 // Imports delle rotte e middleware
@@ -175,28 +175,23 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   // 2. Analytics Middleware
   app.use('/api/*', async (context, next) => {
     await next()
-    if (context.req.method !== 'OPTIONS' && context.res.status >= 200 && context.res.status < 300) {
-      const db = context.env.DB
-      let executionCtx: any
-      try { executionCtx = context.executionCtx } catch {}
+    if (context.req.method === 'OPTIONS') return
+    if (context.res.status < 200 || context.res.status >= 300) return
 
-      if (db && executionCtx) {
-        const seed = extractPublicSeed(context.req.path)
-        executionCtx.waitUntil((async () => {
-          try {
-            // TODO: Phase 4 — replace with c.get("analyticsRepository").recordRequest() once IAnalyticsRepository is defined
-            const today = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
-            await db.prepare(
-              `INSERT INTO analytics (day_ts, metric, seed, value)
-               VALUES (?, 'requests', ?, 1)
-               ON CONFLICT(day_ts, metric, seed) DO UPDATE SET value = value + 1`
-            ).bind(today, seed).run()
-          } catch (error) {
-            console.error('Analytics middleware error:', error)
-          }
-        })())
-      }
-    }
+    let executionCtx: any
+    try { executionCtx = context.executionCtx } catch {}
+    if (!executionCtx) return
+
+    const analyticsRepository = context.get('analyticsRepository')
+    if (!analyticsRepository) return
+
+    const seedSlug = extractPublicSeed(context.req.path)
+
+    executionCtx.waitUntil(
+      analyticsRepository.recordRequest(seedSlug).catch((error: unknown) => {
+        console.error('Analytics middleware error:', error)
+      })
+    )
   })
 
   // 3. Auth Routes
@@ -222,10 +217,10 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
       const accessToken = await context.get('tokenService').issue({ sub: user.id, email: user.email, name: user.name ?? undefined })
       const refreshToken = generateRefreshToken()
       const refreshTokenHash = await sha256hex(refreshToken)
-      const nowSeconds = Math.floor(Date.now() / 1000)
+      const nowSeconds = SystemClock.nowSeconds()
 
       await context.get('sessionRepository').saveRefreshToken({
-        id: crypto.randomUUID(),
+        id: SystemIdGenerator.uuid(),
         userId: user.id,
         tokenHash: refreshTokenHash,
         expiresAt: nowSeconds + REFRESH_TOKEN_EXPIRY_DAYS * SECONDS_PER_DAY,
@@ -246,7 +241,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
       const refreshToken = getCookie(context, 'refresh_token')
       if (!refreshToken) return context.json({ error: 'Refresh token missing' }, 401)
 
-      const nowSeconds = Math.floor(Date.now() / 1000)
+      const nowSeconds = SystemClock.nowSeconds()
       const tokenHash = await sha256hex(refreshToken)
       const activeSession = await context.get('sessionRepository').findActiveByHash(tokenHash, nowSeconds)
       if (!activeSession) return context.json({ error: 'Invalid refresh token' }, 401)
@@ -262,7 +257,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
       const newRefreshTokenHash = await sha256hex(newRefreshToken)
 
       await context.get('sessionRepository').saveRefreshToken({
-        id: crypto.randomUUID(),
+        id: SystemIdGenerator.uuid(),
         userId: user.id,
         tokenHash: newRefreshTokenHash,
         expiresAt: nowSeconds + REFRESH_TOKEN_EXPIRY_DAYS * SECONDS_PER_DAY,
@@ -278,7 +273,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     try {
       const refreshToken = getCookie(context, 'refresh_token')
       if (refreshToken) {
-        const nowSeconds = Math.floor(Date.now() / 1000)
+        const nowSeconds = SystemClock.nowSeconds()
         const tokenHash = await sha256hex(refreshToken)
         await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
       }
@@ -295,7 +290,6 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
   // 5. Protected CMS API
   const apiProtected = new Hono<{ Bindings: Env; Variables: Variables }>()
-  // TODO: Phase 1 Step 4 — authProvidersMiddleware injects tokenService before this runs
   apiProtected.use('*', authMiddleware())
 
   apiProtected.route('/settings', settingsApp)

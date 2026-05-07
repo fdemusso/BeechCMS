@@ -233,26 +233,8 @@ settingsApp.get('/storage', async (context) => {
   const totalStorageUsedBytes = await statsRepo.getStorageUsage()
   const totalFileCount = await mediaRepo.count()
 
-  const referencedMediaKeys = new Set<string>()
   const registeredSeeds = Object.values(context.get('seedRegistry'))
-
-  for (const seed of registeredSeeds) {
-    const mediaFields = seed.branches.filter(branch => branch.type === 'file')
-    if (mediaFields.length === 0) continue
-
-    const mediaColumns = mediaFields.map(field => field.alias).join(', ')
-    // TODO: Phase 2 — cross-seed media scan; move to a dedicated IContentScanRepository once defined
-    const contentData = await context.env.DB.prepare(
-      `SELECT ${mediaColumns} FROM content_${seed.slug}`
-    ).all<Record<string, string | null>>()
-
-    for (const contentRow of contentData.results ?? []) {
-      const rowContentString = Object.values(contentRow).filter(Boolean).join(' ')
-      for (const keyMatch of rowContentString.matchAll(/\/api\/media\/([^"'\s\\,}\]]+)/g)) {
-        referencedMediaKeys.add(decodeURIComponent(keyMatch[1]))
-      }
-    }
-  }
+  const referencedMediaKeys = await context.get('contentScanRepository').getReferencedMediaKeys(registeredSeeds)
 
   const { items: allMediaRows } = await mediaRepo.list({ limit: 50, offset: 0 })
   const orphanedMediaFiles = allMediaRows.filter(mediaFile => !referencedMediaKeys.has(mediaFile.key))
