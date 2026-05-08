@@ -2,7 +2,7 @@
 // Pure functions — zero Hono dependencies, importable from Vitest.
 // v0.4.0: FTS is per-seed (fts_{slug}), joined with content_{slug} for metadata.
 
-import type { Seed } from "@beechcms/core"
+import type { Seed, SearchResultRow } from "@beechcms/core"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -183,6 +183,23 @@ export function mapFtsRow(row: FtsRow): SearchResultItem {
   return {
     id:          row.entry_id,
     schema_slug: row.schema_slug,
+    slug:        row.slug,
+    status:      row.status,
+    title:       row.title ?? "",
+    excerpt:     stripHtmlPreserveMark(row.excerpt ?? ""),
+    data:        {},
+  }
+}
+
+/**
+ * Maps a repository-shaped SearchResultRow (camelCase) to the wire-format
+ * SearchResultItem returned by the /api/search route. Keeps the HTML
+ * stripping behaviour previously inlined inside mapFtsRow.
+ */
+export function mapSearchResultRow(row: SearchResultRow): SearchResultItem {
+  return {
+    id:          row.entryId,
+    schema_slug: row.schemaSlug,
     slug:        row.slug,
     status:      row.status,
     title:       row.title ?? "",

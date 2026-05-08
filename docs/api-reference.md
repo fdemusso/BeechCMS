@@ -64,32 +64,28 @@ All endpoints are served from a single Cloudflare Worker. The routing is handled
 
 ### 2.1 JWT Authentication
 
-The internal API uses **JSON Web Tokens** signed with HMAC-SHA256 (`HS256`), issued via the `jose` library. The middleware in `apps/api/src/middleware.ts` intercepts every protected request:
+The internal API uses **JSON Web Tokens** signed with HMAC-SHA256 (`HS256`). Token issuance and verification are handled by `ITokenService` (implemented by `JoseTokenService` using the `jose` library — the only file in the project that imports jose). The middleware in `apps/api/src/middleware.ts` intercepts every protected request:
 
 ```typescript
 // apps/api/src/middleware.ts
-export function authMiddleware(secret: string, options: JwtVerifyOptions) {
-  return async (c: Context, next: Next) => {
-    const auth = c.req.header('Authorization');
-    if (!auth?.startsWith('Bearer ')) throw new HTTPException(401, { res: unauthorizedResponse() });
+export function authMiddleware() {
+  return async (c: Context<AppEnv>, next: Next) => {
+    const auth = c.req.header('Authorization')
+    if (!auth?.startsWith('Bearer ')) throw new HTTPException(401, { res: unauthorizedResponse() })
 
-    const token = auth.slice(7);
-    const { payload, protectedHeader } = await jwtVerify(token, secretBytes, {
-      algorithms: ['HS256'],
-      issuer: options.issuer,
-      audience: options.audience,
-    });
+    const token = auth.slice(7)
+    const claims = await c.get('tokenService').verify(token)
+    if (!claims) throw new HTTPException(401, { res: unauthorizedResponse() })
 
-    // Hardening: reject tokens missing the standard `typ: JWT` header
-    if (protectedHeader.typ && protectedHeader.typ !== 'JWT') throw new Error('Invalid typ header');
-
-    c.set('jwtPayload', payload as JwtPayload);
-    await next();
-  };
+    c.set('jwtPayload', claims)
+    await next()
+  }
 }
 ```
 
-Access tokens have a **15-minute TTL**. They are stored by the dashboard in `localStorage`. The short TTL deliberately minimizes the attack window if a token is intercepted.
+`ITokenService.verify()` returns `null` on any failure (expired, wrong signature, malformed) — it never throws. The concrete `JoseTokenService` enforces `typ: JWT` in the protected header and locks the algorithm to `HS256`. Both the secret and issuer/audience options are injected at startup via `authProvidersMiddleware`.
+
+Access tokens have a **15-minute TTL**. They are stored **in-memory only** (`_accessToken` module variable in `apps/dashboard/src/lib/api.ts`) — never in `localStorage` or `sessionStorage`. The short TTL minimizes the attack window if a token is intercepted.
 
 **Token payload shape:**
 
@@ -112,19 +108,19 @@ sequenceDiagram
 
     Note over Client,D1: Login
     Client->>API: POST /auth/login { email, password }
-    API->>D1: SELECT user WHERE email = ?
-    API->>API: bcrypt.compare(password, hash)
-    API->>API: jose.SignJWT (15min access token)
+    API->>D1: SELECT user WHERE email = ? (via IUserRepository)
+    API->>API: IHashProvider.verify(password, hash)
+    API->>API: ITokenService.issue (15min access token)
     API->>API: crypto.randomUUID() → refresh token
-    API->>D1: INSERT refresh_tokens (SHA-256 hash, expires +7d)
+    API->>D1: INSERT refresh_tokens (SHA-256 hash, expires +7d) (via ISessionRepository)
     API-->>Client: 200 { token } + Set-Cookie: refresh_token (HttpOnly)
 
     Note over Client,D1: Silent Refresh (access token expired)
     Client->>API: POST /auth/refresh [cookie sent automatically]
-    API->>D1: SELECT WHERE token_hash = SHA-256(cookie)
+    API->>D1: SELECT WHERE token_hash = SHA-256(cookie) (via ISessionRepository)
     API->>D1: UPDATE SET revoked_at = now() [atomically invalidates old token]
-    API->>API: Generate NEW access token + NEW refresh token
-    API->>D1: INSERT new refresh token
+    API->>API: Generate NEW access token (ITokenService) + NEW refresh token
+    API->>D1: INSERT new refresh token (via ISessionRepository)
     API-->>Client: 200 { token } + Set-Cookie: new refresh_token
 
     Note over Client,D1: Logout
@@ -160,8 +156,8 @@ DELETE FROM refresh_tokens WHERE expires_at < unixepoch() OR revoked_at IS NOT N
 
 | Measure | Implementation |
 |---|---|
-| Password hashing | bcrypt, 10 salt rounds — passwords never stored in plaintext |
-| Timing attack prevention | `bcrypt.compare` always runs against a dummy hash when the user does not exist (`DUMMY_PASSWORD_HASH`) |
+| Password hashing | bcrypt, 10 salt rounds via `IHashProvider` (`BcryptHashProvider`) — passwords never stored in plaintext |
+| Timing attack prevention | `IHashProvider.verify` always runs against a dummy hash when the user does not exist (`DUMMY_PASSWORD_HASH`) |
 | SQL injection prevention | All D1 queries use `.bind(...)` prepared statements — no string interpolation |
 | User enumeration prevention | `401 Invalid credentials` for both "user not found" and "wrong password" |
 | Token storage | Refresh token: `HttpOnly`, `Secure`, `SameSite=Strict` cookie. Access token: `localStorage` (XSS risk accepted, mitigated by CSP) |
@@ -312,10 +308,10 @@ Content-Type: application/json
 **Behaviour:**
 - Looks up the SHA-256 hash of `token` in `password_reset_tokens` (JOIN `users` to retrieve email in one query).
 - Token must be unused (`used_at IS NULL`) and not expired (`expires_at > now()`).
-- On success, performs three operations atomically via `D1.batch()`:
-  1. Marks the reset token as used (`used_at = now()`).
-  2. Updates `users.password_hash` with a fresh bcrypt hash (10 rounds).
-  3. Revokes **all active refresh tokens** for the user — every existing session is logged out.
+- On success, performs three sequential repository operations:
+  1. Marks the reset token as used (`IPasswordResetTokenRepository.markUsed`).
+  2. Updates `users.password_hash` with a fresh bcrypt hash via `IHashProvider` (`IUserRepository.updatePasswordHash`).
+  3. Revokes **all active refresh tokens** for the user via `ISessionRepository.revokeAllForUser` — every existing session is logged out.
 - After the batch, sends a **"password changed" security notification email** to the user via Resend (fire-and-forget via `waitUntil` — never blocks the `200` response). The notification email language follows `locale`.
 - The `locale` field selects the email language. Supported values: `en` (default), `it`. Unknown values fall back to `en`.
 - Password length must be 8–128 characters.

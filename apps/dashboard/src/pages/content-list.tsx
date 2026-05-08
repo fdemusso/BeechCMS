@@ -36,7 +36,7 @@ import {
   useContentFacets,
   useDeleteContent,
 } from "@/features/content-management"
-import { useActiveSeed } from "@/features/schema/hooks/use-schema"
+import { useActiveSeed } from "@/features/schema"
 import {
   generateColumns,
   computeMaxLengths,
@@ -89,16 +89,16 @@ export function ContentListPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [entryIdsToDelete, setEntryIdsToDelete] = React.useState<string[] | null>(null)
 
-  // Vista attiva della lista contenuti.
+  // Active view of the content list.
   const [activeViewId, setActiveViewId] = React.useState("table")
 
-  // Recupera il seed reactively
+  // Fetch the seed reactively
   const { seed, isLoading: isSeedLoading } = useActiveSeed(slug)
 
-  // Raggruppamento tabella: singola colonna o null
+  // Table grouping: single column or null
   const [groupBy, setGroupBy] = React.useState<string | null>(null)
 
-  // Precisione per branch di tipo date (anno/mese/giorno)
+  // Precision for date-type branches (year/month/day)
   const [dateGroupPrecision, setDateGroupPrecision] = React.useState<DateGroupPrecision>(
     DEFAULT_DATE_GROUP_PRECISION
   )
@@ -135,7 +135,7 @@ export function ContentListPage() {
     setPageIndex(0)
   }, [slug, debouncedSearch, sorting, toolbarFilters, pageSize])
 
-  // Quando il raggruppamento cambia verso una colonna non-date, resetta la precisione
+  // When grouping changes to a non-date column, reset precision
   React.useEffect(() => {
     if (!groupBy || !seed) return
     const branch = seed.branches.find((b) => b.alias === groupBy)
@@ -144,8 +144,8 @@ export function ContentListPage() {
     }
   }, [groupBy, seed])
 
-  // Viste disponibili per il seed corrente.
-  // TODO: caricare e salvare la configurazione delle viste a livello di utente (quando esisterà un sistema di preferenze utente).
+  // Views available for the current seed.
+  // TODO: load and save view configuration at the user level (when a user preferences system exists).
   const [views, setViews] = React.useState<UserViewInstance[]>(() => [
     {
       id: "table",
@@ -265,7 +265,7 @@ export function ContentListPage() {
       let rowClassName: string | undefined
       const cellClassNameByColumnId: Record<string, string | undefined> = {}
 
-      // Riga: prima regola che matcha
+      // Row: first matching rule
       for (const rule of rowRules) {
         const value = getCachedValueForGroupType(entry, rule.columnId, rule.group.type)
         if (matchesFilterGroupStrict(value, rule.group)) {
@@ -277,7 +277,7 @@ export function ContentListPage() {
         }
       }
 
-      // Cella: valutiamo solo per le colonne che hanno regole
+      // Cell: evaluated only for columns with rules
       for (const [columnId, rules] of cellRulesByColumnId.entries()) {
         for (const rule of rules) {
           const value = getCachedValueForGroupType(entry, rule.columnId, rule.group.type)
@@ -330,13 +330,13 @@ export function ContentListPage() {
     const failures = results.filter((r) => r.status === "rejected").length
     if (failures > 0) {
       throw new Error(
-        `Eliminazione parziale: ${failures} su ${entryIdsToDelete.length} fallite`
+        `Partial deletion: ${failures} out of ${entryIdsToDelete.length} failed`
       )
     }
 
-    // Nota: TanStack Query invaliderà automaticamente o useremo queryClient.invalidateQueries
-    // Per ora lasciamo così, si ricaricherà al prossimo fetch o switch pagina.
-    // TODO: Inserire queryClient.invalidateQueries(CONTENT_QUERY_KEYS.all)
+    // Note: TanStack Query will invalidate automatically or we'll use queryClient.invalidateQueries
+    // For now leave as is, it will reload on next fetch or page switch.
+    // TODO: Insert queryClient.invalidateQueries(CONTENT_QUERY_KEYS.all)
     setRowSelection({})
   }, [slug, entryIdsToDelete, deleteContent])
 
@@ -385,9 +385,10 @@ export function ContentListPage() {
       maxLengths,
       selectedIds,
       handleBulkDelete,
-      dateGroupPrecision
+      dateGroupPrecision,
+      t
     )
-  }, [seed, handleEdit, handleDelete, maxLengths, selectedIds, handleBulkDelete, dateGroupPrecision])
+  }, [seed, handleEdit, handleDelete, maxLengths, selectedIds, handleBulkDelete, dateGroupPrecision, t])
 
   const singleSort = sorting[0]
 
@@ -456,8 +457,8 @@ export function ContentListPage() {
   }, [groupBy, seed])
 
   const tableKey = React.useMemo(() => {
-    // TanStack può non ricalcolare subito i gruppi quando cambia solo getGroupingValue.
-    // Forziamo un remount della tabella quando il grouping attivo è su date e cambia la precisione.
+    // TanStack might not immediately recalculate groups when only getGroupingValue changes.
+    // Force a table remount when active grouping is on date and precision changes.
     if (isGroupingByDate && groupBy) {
       let datePrecisionSegment: string
       if (dateGroupPrecision.day) {
@@ -534,7 +535,7 @@ export function ContentListPage() {
     }
 
     for (const [columnId, group] of Object.entries(toolbarFilters)) {
-      // Passiamo al table state solo i gruppi che hanno almeno 1 condizione “effettiva”.
+      // Pass only groups with at least 1 "effective" condition to the table state.
       const hasEffectiveCondition = group.conditions.some((c) =>
         isConditionEffective(group, c)
       )
@@ -577,7 +578,7 @@ export function ContentListPage() {
     []
   )
 
-  // Colonne nascoste di default: id (troppo lungo), json metadata/metadati
+  // Hidden columns by default: id (too long), json metadata/metadati
   const initialHiddenColumns = React.useMemo(() => {
     const hidden: string[] = ["id"]
     if (!seed) return hidden
@@ -592,7 +593,7 @@ export function ContentListPage() {
     return [...hidden, ...metaAliases]
   }, [seed])
 
-  // Se non c'è seed, mostra errore
+  // Show error if seed doesn't exist
   if (!seed && !isSeedLoading) {
     return (
       <div className="[--header-height:calc(--spacing(14))]">
@@ -605,10 +606,10 @@ export function ContentListPage() {
                 <div className="content-area-inner">
                   <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
                     <h2 className="text-lg font-semibold text-destructive">
-                      Errore
+                      Error
                     </h2>
                     <p className="text-sm text-destructive/90">
-                      {error || `Seed "${slug}" non trovato`}
+                      {error || `Seed "${slug}" not found`}
                     </p>
                   </div>
                 </div>
@@ -630,7 +631,7 @@ export function ContentListPage() {
             <AppSidebar />
             <SidebarInset>
               <div className="flex flex-1 items-center justify-center py-12">
-                <div className="text-muted-foreground">Caricamento configurazione...</div>
+                <div className="text-muted-foreground">Loading configuration...</div>
               </div>
             </SidebarInset>
           </div>
@@ -648,17 +649,17 @@ export function ContentListPage() {
           <SidebarInset className="min-w-0">
             <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
               <div className="content-area-inner">
-                {/* Header con titolo */}
+                {/* Header with title */}
                 <div className="mb-6">
-                  {/* TODO: Estrarre questo header in un componente dedicato della slice */}
+                  {/* TODO: Extract this header to a dedicated slice component */}
                   <h1 className="text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
                   <p className="text-muted-foreground text-sm">
-                    Gestisci i contenuti di tipo "{seed.slug}"
+                    Manage "{seed.slug}" content
                   </p>
                 </div>
 
-                {/* Toolbar viste, strumenti e contenuto (tabella + controlli) */}
-                {/* TODO: Valutare lo spostamento di ContentToolbar nella slice content-management se non condivisa */}
+                {/* View toolbar, tools and content (table + controls) */}
+                {/* TODO: Consider moving ContentToolbar to content-management slice if not shared */}
                 <ContentToolbar
                   seed={seed}
                   views={translatedViews}
@@ -698,7 +699,7 @@ export function ContentListPage() {
                   {isLoading && !error && (
                     activeViewId === "table" && (
                       <div className="flex items-center justify-center py-12">
-                        <div className="text-muted-foreground">Caricamento...</div>
+                        <div className="text-muted-foreground">Loading...</div>
                       </div>
                     )
                   )}
@@ -716,37 +717,37 @@ export function ContentListPage() {
                       onGroupingChange={(g) => setGroupBy(g[0] ?? null)}
                       renderRowContextMenuContent={(entry) => (
                         <>
-                          <ContextMenuLabel>Azioni</ContextMenuLabel>
+                          <ContextMenuLabel>Actions</ContextMenuLabel>
                           {selectedIds.length > 1 ? (
                             <ContextMenuItem
                               onSelect={() => handleBulkDelete(selectedIds)}
                               className="text-destructive focus:text-destructive"
                             >
-                              Elimina
+                              Delete
                             </ContextMenuItem>
                           ) : (
                             <>
                               <ContextMenuItem
                                 onSelect={() => {
                                   navigator.clipboard.writeText(entry.id).then(
-                                    () => toast.success("ID copiato"),
-                                    () => toast.error("Copia fallita")
+                                    () => toast.success("ID copied"),
+                                    () => toast.error("Copy failed")
                                   )
                                 }}
                               >
-                                Copia ID
+                                Copy ID
                               </ContextMenuItem>
                               <ContextMenuSeparator />
                               <ContextMenuItem
                                 onSelect={() => handleEdit(entry.id)}
                               >
-                                Modifica
+                                Edit
                               </ContextMenuItem>
                               <ContextMenuItem
                                 onSelect={() => handleDelete(entry.id)}
                                 className="text-destructive focus:text-destructive"
                               >
-                                Elimina
+                                Delete
                               </ContextMenuItem>
                             </>
                           )}

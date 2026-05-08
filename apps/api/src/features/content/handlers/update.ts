@@ -10,7 +10,6 @@ import {
 import { applyPrivacy, PrivacyPolicyError } from '../../../shared/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
-import { logActivity } from '../../../shared/activity-logger'
 import { cleanStr } from '../../../shared/query-utils'
 import { AppEnv } from '../../../types'
 
@@ -167,15 +166,20 @@ export async function updateHandler(context: Context<AppEnv>) {
 
     await repository.update(seed, id, mergedData, newStatus)
 
-    const userId = context.get('jwtPayload')?.sub
+    const jwtPayload = context.get('jwtPayload')
     const title = mergedData.title || mergedData.name || newSlug
-    
-    logActivity(context, { 
-      action: 'update', 
-      entityType: 'content', 
-      entityId: id, 
-      entitySlug: slug, 
-      details: { title } 
+
+    context.get('activityLogger').log({
+      action: 'update',
+      entityType: 'content',
+      entityId: id,
+      entitySlug: slug,
+      details: { title },
+      actor: {
+        id: jwtPayload.sub,
+        email: jwtPayload.email ?? 'unknown',
+        name: jwtPayload.name ?? null,
+      },
     })
 
     return context.json({ success: true })

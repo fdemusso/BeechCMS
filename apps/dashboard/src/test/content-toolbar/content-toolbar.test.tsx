@@ -121,7 +121,7 @@ describe("ContentToolbar", () => {
       </ContentToolbar>
     )
 
-    fireEvent.click(screen.getByText("Nuovo"))
+    fireEvent.click(screen.getByText("New"))
     expect(onCreate).toHaveBeenCalled()
     expect(screen.getByText("SEARCH_BAR")).toBeInTheDocument()
     expect(screen.getByText("SETTINGS_MENU")).toBeInTheDocument()

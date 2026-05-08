@@ -1,6 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import bcrypt from 'bcryptjs'
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/problem-details'
 
@@ -11,12 +10,8 @@ const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
  * Checks if the application needs an initial setup (i.e., if no users exist).
  */
 setupApp.get('/auth/setup', async (context) => {
-  const userCountResult = await context.env.DB
-    .prepare('SELECT COUNT(*) as count FROM users')
-    .first<{ count: number }>()
-    
-  const needsInitialSetup = (userCountResult?.count ?? 0) === 0
-  return context.json({ needsSetup: needsInitialSetup })
+  const userCount = await context.get('userRepository').countAll()
+  return context.json({ needsSetup: userCount === 0 })
 })
 
 /**
@@ -24,11 +19,9 @@ setupApp.get('/auth/setup', async (context) => {
  * Creates the first administrator account. This endpoint is disabled once at least one user exists.
  */
 setupApp.post('/auth/setup', async (context) => {
-  const userCountResult = await context.env.DB
-    .prepare('SELECT COUNT(*) as count FROM users')
-    .first<{ count: number }>()
+  const userCount = await context.get('userRepository').countAll()
 
-  if ((userCountResult?.count ?? 0) > 0) {
+  if (userCount > 0) {
     return publicProblem(context, {
       type: 'setup-already-done',
       title: 'Setup already completed',
@@ -78,15 +71,17 @@ setupApp.post('/auth/setup', async (context) => {
     })
   }
 
-  const hashedPassword = await bcrypt.hash(password, 12)
-  const newUserId = crypto.randomUUID()
+  const passwordHash = await context.get('hashProvider').hash(password)
   const normalizedEmail = email.trim().toLowerCase()
   const normalizedName = typeof name === 'string' ? name.trim() : null
 
-  await context.env.DB
-    .prepare('INSERT INTO users (id, email, password_hash, role, name) VALUES (?, ?, ?, ?, ?)')
-    .bind(newUserId, normalizedEmail, hashedPassword, 'admin', normalizedName)
-    .run()
+  await context.get('userRepository').create({
+    id: context.get('idGenerator').uuid(),
+    email: normalizedEmail,
+    passwordHash,
+    role: 'admin',
+    name: normalizedName,
+  })
 
   return context.json({ success: true }, 201)
 })

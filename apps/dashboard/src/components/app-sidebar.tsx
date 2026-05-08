@@ -9,7 +9,7 @@ import { getStaticMenu, buildContentMenu, STATIC_NAV_SECONDARY } from "@/config/
 import { logout } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { useProfile } from "@/features/settings"
-import { useSchema } from "@/features/schema/hooks/use-schema"
+import { useSchema } from "@/features/schema"
 import {
   Sidebar,
   SidebarContent,

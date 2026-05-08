@@ -10,7 +10,7 @@ export class D1MediaRepository implements MediaRepository {
   /**
    * Registers a new media upload in the database.
    */
-  async trackUpload(mediaObject: MediaObject): Promise<void> {
+  async trackUpload(mediaObject: Omit<MediaObject, 'created_at'>): Promise<void> {
     await this.database.prepare(
       'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
     ).bind(

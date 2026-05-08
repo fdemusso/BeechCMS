@@ -1,10 +1,32 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
+import { SystemClock } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/problem-details'
 import { cleanStr } from '../../shared/query-utils'
 
 const DATABASE_ERROR = 'Database error'
+const INTERNAL_SERVER_ERROR = 'Internal Server Error'
+
+const SECONDS_PER_MINUTE = 60
+const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE
+const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR
+const HOURS_24_IN_SECONDS = 24 * SECONDS_PER_HOUR
+const DAYS_7_IN_SECONDS = 7 * SECONDS_PER_DAY
+const DAYS_30_IN_SECONDS = 30 * SECONDS_PER_DAY
+const MAX_MEDIA_SCAN = 1000
+const DEFAULT_LIMIT = 12
+const MAX_LIMIT = 100
+const R2_STORAGE_LIMIT = 10 * 1024 * 1024 * 1024 // 10GB
+const D1_MONTHLY_REQUESTS_LIMIT = 1000000 // 1M requests/month
+
+function getMimeType(extension: string): string {
+    if (extension === 'pdf') {
+        return 'application/pdf'
+    }
+    const type = extension === 'jpg' ? 'jpeg' : (extension || 'jpeg')
+    return `image/${type}`
+}
 
 const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -14,15 +36,14 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
  */
 statsApp.get('/stats/media-library', async (context) => {
     try {
-        const { DB } = context.env
         const mediaRepository = context.get('mediaRepository')
-        const limit = Math.min(parseInt(context.req.query('limit') ?? '12'), 100)
-        const offset = parseInt(context.req.query('offset') ?? '0')
+        const limit = Math.min(Number.parseInt(context.req.query('limit') ?? String(DEFAULT_LIMIT), 10), MAX_LIMIT)
+        const offset = Number.parseInt(context.req.query('offset') ?? '0', 10)
         const mediaBaseUrl = (context.env.MEDIA_BASE_URL?.trim().replace(/\/$/, '')) ?? new URL(context.req.url).origin
 
         // 1. Files tracked in the media library
-        // Take the first 1000 for cross-scanning
-        const { items: mediaRows } = await mediaRepository.list({ limit: 1000, offset: 0 })
+        // Take the first MAX_MEDIA_SCAN for cross-scanning
+        const { items: mediaRows } = await mediaRepository.list({ limit: MAX_MEDIA_SCAN, offset: 0 })
 
         const trackedKeys = new Set<string>()
         const allItems: Array<{ key: string; filename: string; mime_type: string; size_bytes: number; created_at: number; url: string }> = []
@@ -33,40 +54,25 @@ statsApp.get('/stats/media-library', async (context) => {
         }
 
         // 2. /api/media/ URLs in the file columns of each seed (v0.4.0 — real columns)
-        const MEDIA_KEY_REGEX = /\/api\/media\/([^"'\s\\,}\]]+)/g
-        const seeds = Object.values(context.get('seedRegistry'))
+        const seeds = context.get('seedRegistry').all()
+        const contentScanRepository = context.get('contentScanRepository')
+        const referencedKeysFromContent = await contentScanRepository.getReferencedMediaKeys(seeds)
 
-        for (const seed of seeds) {
-            const fileBranches = seed.branches.filter(branch => branch.type === 'file')
-            if (fileBranches.length === 0) continue
-
-            const columns = fileBranches.map(branch => branch.alias).join(', ')
-            const whereClause = fileBranches.map(branch => `${branch.alias} LIKE '%/api/media/%'`).join(' OR ')
-
-            const rows = await DB.prepare(
-                `SELECT ${columns} FROM content_${seed.slug} WHERE ${whereClause}`
-            ).all<Record<string, string | null>>()
-
-            for (const row of rows.results ?? []) {
-                const combinedValues = Object.values(row).filter(Boolean).join(' ')
-                for (const match of combinedValues.matchAll(MEDIA_KEY_REGEX)) {
-                    const key = decodeURIComponent(match[1])
-                    if (trackedKeys.has(key)) continue
-                    trackedKeys.add(key)
-                    const filename = key.replace(/^\d+-/, '')
-                    const extension = filename.split('.').pop()?.toLowerCase() ?? ''
-                    const mimeType = extension === 'pdf' ? 'application/pdf' : `image/${extension === 'jpg' ? 'jpeg' : extension || 'jpeg'}`
-                    const createdAt = parseInt(key.split('-')[0]) || 0
-                    allItems.push({
-                        key,
-                        filename,
-                        mime_type: mimeType,
-                        size_bytes: 0,
-                        created_at: createdAt,
-                        url: `${mediaBaseUrl}/api/media/${encodeURIComponent(key)}`
-                    })
-                }
-            }
+        for (const key of referencedKeysFromContent) {
+            if (trackedKeys.has(key)) continue
+            trackedKeys.add(key)
+            const filename = key.replace(/^\d+-/, '')
+            const extension = filename.split('.').pop()?.toLowerCase() ?? ''
+            const mimeType = getMimeType(extension)
+            const createdAt = Number.parseInt(key.split('-')[0], 10) || 0
+            allItems.push({
+                key,
+                filename,
+                mime_type: mimeType,
+                size_bytes: 0,
+                created_at: createdAt,
+                url: `${mediaBaseUrl}/api/media/${encodeURIComponent(key)}`
+            })
         }
 
         allItems.sort((a, b) => b.created_at - a.created_at)
@@ -76,7 +82,7 @@ statsApp.get('/stats/media-library', async (context) => {
         return context.json({ items: paginatedItems, total })
     } catch (error) {
         console.error('Media library error:', error)
-        return context.json({ error: 'Internal Server Error' }, 500)
+        return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
 })
 
@@ -85,40 +91,25 @@ statsApp.get('/stats/media-library', async (context) => {
  */
 statsApp.get('/stats/unused-media', async (context) => {
     try {
-        const { DB } = context.env
         const mediaRepository = context.get('mediaRepository')
-        const seeds = Object.values(context.get('seedRegistry'))
+        const seeds = context.get('seedRegistry').all()
 
         // All tracked media keys
-        const { items: mediaRows } = await mediaRepository.list({ limit: 1000, offset: 0 })
+        const { items: mediaRows } = await mediaRepository.list({ limit: MAX_MEDIA_SCAN, offset: 0 })
 
         if (mediaRows.length === 0) {
             return context.json({ items: [] })
         }
 
         // Collect all referenced keys in the file columns of each seed
-        const referencedKeys = new Set<string>()
-        for (const seed of seeds) {
-            const fileBranches = seed.branches.filter(branch => branch.type === 'file')
-            if (fileBranches.length === 0) continue
-            const columns = fileBranches.map(branch => branch.alias).join(', ')
-            const rows = await DB.prepare(
-                `SELECT ${columns} FROM content_${seed.slug}`
-            ).all<Record<string, string | null>>()
-
-            for (const row of rows.results ?? []) {
-                const combinedValues = Object.values(row).filter(Boolean).join(' ')
-                for (const match of combinedValues.matchAll(/\/api\/media\/([^"'\s\\,}\]]+)/g)) {
-                    referencedKeys.add(decodeURIComponent(match[1]))
-                }
-            }
-        }
+        const contentScanRepository = context.get('contentScanRepository')
+        const referencedKeys = await contentScanRepository.getReferencedMediaKeys(seeds)
 
         const unusedMedia = mediaRows.filter(mediaItem => !referencedKeys.has(mediaItem.key))
         return context.json({ items: unusedMedia })
     } catch (error) {
         console.error('Unused media error:', error)
-        return context.json({ error: 'Internal Server Error' }, 500)
+        return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
 })
 
@@ -128,7 +119,7 @@ statsApp.get('/stats/unused-media', async (context) => {
 statsApp.get('/stats/setup-checklist', async (context) => {
     try {
         const { DB } = context.env
-        const seeds = Object.values(context.get('seedRegistry'))
+        const seeds = context.get('seedRegistry').all()
 
         // 1. System tables present
         const systemTableNames = [
@@ -191,41 +182,38 @@ statsApp.get('/stats/setup-checklist', async (context) => {
  */
 statsApp.get('/stats/total', async (context) => {
     try {
-        const { DB } = context.env
-        const now = Math.floor(Date.now() / 1000)
-        const twentyFourHoursAgo = now - (24 * 60 * 60)
-        const sevenDaysAgo       = now - (7 * 24 * 60 * 60)
-        const thirtyDaysAgo      = now - (30 * 24 * 60 * 60)
+        const now = SystemClock.nowSeconds()
+        const twentyFourHoursAgo = now - HOURS_24_IN_SECONDS
+        const sevenDaysAgo       = now - DAYS_7_IN_SECONDS
+        const thirtyDaysAgo      = now - DAYS_30_IN_SECONDS
 
         // Total: SUM of per-seed counts (current live entries)
-        const seeds = Object.values(context.get('seedRegistry'))
+        const seeds = context.get('seedRegistry').all()
+        const widgetRepository = context.get('widgetRepository')
         const countResults = await Promise.all(
-            seeds.map(seed => DB.prepare(`SELECT COUNT(*) as count FROM content_${seed.slug}`).first<{ count: number }>())
+            seeds.map(seed => widgetRepository.aggregate(seed, { op: 'count' }, 'all'))
         )
-        const totalEntriesCount = countResults.reduce((accumulator, result) => accumulator + (result?.count ?? 0), 0)
+        const totalEntriesCount = countResults.reduce((accumulator, count) => accumulator + count, 0)
 
         // today/week/month: create events in activity_logs (entity_type = 'content')
-        const eventRow = await DB.prepare(
-            `SELECT
-        COUNT(CASE WHEN created_at >= ? THEN 1 END) as today,
-        COUNT(CASE WHEN created_at >= ? THEN 1 END) as week,
-        COUNT(CASE WHEN created_at >= ? THEN 1 END) as month
-      FROM activity_logs WHERE action = 'create' AND entity_type = 'content'`
-        )
-            .bind(twentyFourHoursAgo, sevenDaysAgo, thirtyDaysAgo)
-            .first<{ today: number; week: number; month: number }>()
+        const activityLogRepository = context.get('activityLogRepository')
+        const [todayCount, weekCount, monthCount] = await Promise.all([
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: twentyFourHoursAgo }),
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: sevenDaysAgo }),
+            activityLogRepository.countSince({ action: 'create', entityType: 'content', sinceTimestamp: thirtyDaysAgo }),
+        ])
 
         return context.json({
             total: totalEntriesCount,
-            today: eventRow?.today ?? 0,
-            week:  eventRow?.week  ?? 0,
-            month: eventRow?.month ?? 0,
+            today: todayCount,
+            week: weekCount,
+            month: monthCount,
         })
     } catch (error) {
         console.error('Content stats error:', error)
         return publicProblem(context, {
             type: 'content-database-error',
-            title: 'Internal Server Error',
+            title: INTERNAL_SERVER_ERROR,
             status: 500,
             detail: DATABASE_ERROR,
         })
@@ -240,25 +228,27 @@ statsApp.get('/stats/total', async (context) => {
  */
 statsApp.get('/stats/recent-activity', async (context) => {
     try {
-        const { DB } = context.env
         const slug = cleanStr(context.req.query('slug'))
 
-        let query = `SELECT id, user_id, user_email, user_name, action, entity_type, entity_id, entity_slug, details, created_at
-                 FROM activity_logs`
-        const queryParameters: any[] = []
+        const entries = await context.get('activityLogRepository').list({
+            entitySlug: slug ?? undefined,
+            limit: 15,
+        })
 
-        if (slug) {
-            query += ' WHERE entity_slug = ?'
-            queryParameters.push(slug)
-        }
-
-        query += ' ORDER BY created_at DESC LIMIT 15'
-
-        const result = await DB.prepare(query).bind(...queryParameters).all()
-
-        const activities = (result.results ?? []).map((row: any) => ({
-            ...row,
-            details: row.details ? JSON.parse(row.details) : null
+        // Preserve the legacy snake_case wire format consumed by the dashboard
+        // recent-activity widget. The repository returns camelCase records,
+        // so we reshape only on the way out.
+        const activities = entries.map((entry) => ({
+            id: entry.id,
+            user_id: entry.userId,
+            user_email: entry.userEmail,
+            user_name: entry.userName,
+            action: entry.action,
+            entity_type: entry.entityType,
+            entity_id: entry.entityId,
+            entity_slug: entry.entitySlug,
+            details: entry.details,
+            created_at: entry.createdAt,
         }))
 
         context.header('Cache-Control', 'no-store')
@@ -268,7 +258,7 @@ statsApp.get('/stats/recent-activity', async (context) => {
         console.error('Recent activity error:', error)
         return publicProblem(context, {
             type: 'content-database-error',
-            title: 'Internal Server Error',
+            title: INTERNAL_SERVER_ERROR,
             status: 500,
             detail: DATABASE_ERROR,
         })
@@ -280,7 +270,6 @@ statsApp.get('/stats/recent-activity', async (context) => {
  */
 statsApp.get('/stats/health', async (context) => {
     try {
-        const { DB } = context.env
         const systemStatsRepository = context.get('systemStatsRepository')
 
         // 1. Retrieve storage usage from repository (system_stats)
@@ -292,16 +281,10 @@ statsApp.get('/stats/health', async (context) => {
         }
 
         // 2. Aggregate D1 requests (proxy for database health) - last 30 days
-        const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000)
-        const d1Stats = await DB.prepare(
-            `SELECT SUM(value) as total_requests FROM analytics WHERE metric = 'requests' AND seed = '' AND day_ts >= ?`
-        ).bind(thirtyDaysAgo).first<{ total_requests: number }>()
-
-        const totalRequests = d1Stats?.total_requests ?? 0
-
-        // 3. Define limits (Cloudflare Free Tier as reference)
-        const R2_STORAGE_LIMIT = 10 * 1024 * 1024 * 1024 // 10GB
-        const D1_MONTHLY_REQUESTS_LIMIT = 1000000 // Simulate a limit of 1M requests/month
+        const thirtyDaysAgo = SystemClock.nowSeconds() - DAYS_30_IN_SECONDS
+        const totalRequests = await context
+            .get('analyticsRepository')
+            .sumByMetric('requests', '', thirtyDaysAgo)
 
         const storagePercentage = Math.min(Math.round((storageUsedBytes / R2_STORAGE_LIMIT) * 1000) / 10, 100)
         const d1Percentage = Math.min(Math.round((totalRequests / D1_MONTHLY_REQUESTS_LIMIT) * 1000) / 10, 100)
@@ -318,7 +301,7 @@ statsApp.get('/stats/health', async (context) => {
                 percentage: d1Percentage
             },
             status: (storagePercentage < 90 && d1Percentage < 90) ? 'healthy' : 'warning',
-            lastUpdate: Math.floor(Date.now() / 1000)
+            lastUpdate: SystemClock.nowSeconds()
         })
     } catch (error) {
         console.error('System health stats error:', error)
@@ -331,28 +314,17 @@ statsApp.get('/stats/health', async (context) => {
  */
 statsApp.get('/stats/cloudflare', async (context) => {
     try {
-        const { DB } = context.env
-        const thirtyDaysAgo = Math.floor((Date.now() - 30 * 24 * 60 * 60 * 1000) / 1000)
+        const thirtyDaysAgo = SystemClock.nowSeconds() - DAYS_30_IN_SECONDS
+        const analyticsRepository = context.get('analyticsRepository')
 
-        // Retrieve sum of metrics in the last 30 days
-        const metricsResult = await DB.prepare(
-            `SELECT
-        metric,
-        SUM(value) as total_value
-      FROM analytics
-      WHERE day_ts >= ? AND seed = ''
-      GROUP BY metric`
-        )
-            .bind(thirtyDaysAgo)
-            .all<{ metric: string; total_value: number }>()
-
-        const statsMap = Object.fromEntries(
-            metricsResult.results?.map(metricRow => [metricRow.metric, metricRow.total_value]) ?? []
-        )
+        const [recordedRequests, recordedVisitors] = await Promise.all([
+            analyticsRepository.sumByMetric('requests', '', thirtyDaysAgo),
+            analyticsRepository.sumByMetric('visitors', '', thirtyDaysAgo),
+        ])
 
         // Simulate some Cloudflare metrics not directly tracked for a premium feel
-        const requestsCount = statsMap['requests'] ?? Math.floor(Math.random() * 5000) + 1000
-        const visitorsCount = statsMap['visitors'] ?? Math.floor(requestsCount / 12) + 1
+        const requestsCount = recordedRequests > 0 ? recordedRequests : Math.floor(Math.random() * 5000) + 1000
+        const visitorsCount = recordedVisitors > 0 ? recordedVisitors : Math.floor(requestsCount / 12) + 1
         const bandwidthMB = Math.round((requestsCount * 0.15) * 10) / 10
 
         const systemStatsRepository = context.get('systemStatsRepository')
@@ -400,7 +372,7 @@ statsApp.get('/stats/cloudflare', async (context) => {
         console.error('Cloudflare stats error:', error)
         return publicProblem(context, {
             type: 'content-database-error',
-            title: 'Internal Server Error',
+            title: INTERNAL_SERVER_ERROR,
             status: 500,
             detail: DATABASE_ERROR,
         })
@@ -412,17 +384,17 @@ statsApp.get('/stats/cloudflare', async (context) => {
  */
 statsApp.get('/stats/breakdown', async (context) => {
     try {
-        const { DB } = context.env
-        const seeds = Object.values(context.get('seedRegistry'))
+        const seeds = context.get('seedRegistry').all()
 
+        const widgetRepository = context.get('widgetRepository')
         const counts = await Promise.all(
-            seeds.map(seed => DB.prepare(`SELECT COUNT(*) as count FROM content_${seed.slug}`).first<{ count: number }>())
+            seeds.map(seed => widgetRepository.aggregate(seed, { op: 'count' }, 'all'))
         )
-
+        
         const breakdown = seeds.map((seed, index) => ({
             slug:  seed.slug,
             label: seed.labelPlural || seed.label,
-            count: counts[index]?.count ?? 0,
+            count: counts[index] ?? 0,
         }))
 
         return context.json(breakdown)
@@ -430,7 +402,7 @@ statsApp.get('/stats/breakdown', async (context) => {
         console.error('Breakdown stats error:', error)
         return publicProblem(context, {
             type: 'content-database-error',
-            title: 'Internal Server Error',
+            title: INTERNAL_SERVER_ERROR,
             status: 500,
             detail: DATABASE_ERROR,
         })
@@ -451,7 +423,7 @@ statsApp.post('/stats/storage/sync', async (context) => {
         return context.json({ success: true, size: realSize })
     } catch (error) {
         console.error('Storage sync error:', error)
-        return context.json({ error: 'Internal Server Error' }, 500)
+        return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
 })
 

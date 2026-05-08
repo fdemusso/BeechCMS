@@ -436,7 +436,8 @@
       "tag": "Tag...",
       "true": "True",
       "false": "False"
-    }
+    },
+    "automation": "Automation"
   },
   "notifications": {
     "title": "Notifications",

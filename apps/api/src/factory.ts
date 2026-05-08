@@ -3,24 +3,19 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository } from '@beechcms/core'
+import { sha256hex, SystemClock, SystemIdGenerator, SeedRegistry } from '@beechcms/core'
 import type { Env, Variables } from './types'
+import { getClientIp } from './shared/request-utils'
 
 // Imports delle rotte e middleware
 import { AUTH_ERRORS } from './auth/constants'
 import {
   parseLoginBody,
   validateLoginInput,
-  findUserByEmail,
   verifyPassword,
   DUMMY_PASSWORD_HASH,
 } from './auth/login'
-import {
-  generateRefreshToken,
-  saveRefreshToken,
-  generateAccessToken,
-  validateRefreshToken,
-  revokeRefreshToken,
-} from './auth/refresh'
+import { generateRefreshToken } from './auth/refresh'
 import { authMiddleware } from './middleware'
 import contentFeature from './features/content'
 import { widgetApp } from './widget'
@@ -37,6 +32,9 @@ import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './pub
 import { searchRouter } from "./search"
 import { repositoryMiddleware } from './middleware/repository.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'
+import { authProvidersMiddleware } from './middleware/auth-providers.middleware'
+import { rateLimiterMiddleware } from './middleware/rate-limit.middleware'
+import { observabilityMiddleware } from './middleware/observability.middleware'
 
 export interface BeechConfig {
   seeds: Seed[] | Record<string, Seed>
@@ -53,10 +51,6 @@ const SECONDS_PER_DAY = 24 * 60 * 60
 
 function isRequestSecure(url: string): boolean {
   return new URL(url).protocol === 'https:'
-}
-
-function getClientIp(headers: Headers): string {
-  return headers.get('cf-connecting-ip') ?? 'unknown'
 }
 
 function getRefreshTokenCookieOptions(secure: boolean) {
@@ -98,15 +92,14 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   const seedsArray = Array.isArray(config.seeds) ? config.seeds : Object.values(config.seeds)
   // Filter out any invalid objects that might have leaked into the registry (e.g. module exports)
   const validSeeds = seedsArray.filter(s => s && typeof s === 'object' && 'slug' in s)
-  const registry: Record<string, Seed> = Object.fromEntries(validSeeds.map(s => [s.slug, s]))
-  const getSeedFn = (slug: string): Seed | null => registry[slug] ?? null
+  const seedRegistry = new SeedRegistry(validSeeds)
 
   const app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
   // 1. Core Middleware (Seeds, CORS, Security)
   app.use('*', async (context, next) => {
-    context.set('getSeed', getSeedFn)
-    context.set('seedRegistry', registry)
+    context.set('getSeed', (slug: string) => seedRegistry.get(slug))
+    context.set('seedRegistry', seedRegistry)
     await next()
   })
 
@@ -121,6 +114,10 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.use('*', storageMiddleware({
     bucket: config.bucket,
   }))
+
+  app.use('*', authProvidersMiddleware())
+  app.use('*', rateLimiterMiddleware())
+  app.use('*', observabilityMiddleware())
 
   app.use('*', async (context, next) => {
     const isDev = context.env.ENV !== 'production'
@@ -174,27 +171,23 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   // 2. Analytics Middleware
   app.use('/api/*', async (context, next) => {
     await next()
-    if (context.req.method !== 'OPTIONS' && context.res.status >= 200 && context.res.status < 300) {
-      const db = context.env.DB
-      let executionCtx: any
-      try { executionCtx = context.executionCtx } catch {}
+    if (context.req.method === 'OPTIONS') return
+    if (context.res.status < 200 || context.res.status >= 300) return
 
-      if (db && executionCtx) {
-        const seed = extractPublicSeed(context.req.path)
-        executionCtx.waitUntil((async () => {
-          try {
-            const today = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
-            await db.prepare(
-              `INSERT INTO analytics (day_ts, metric, seed, value)
-               VALUES (?, 'requests', ?, 1)
-               ON CONFLICT(day_ts, metric, seed) DO UPDATE SET value = value + 1`
-            ).bind(today, seed).run()
-          } catch (error) {
-            console.error('Analytics middleware error:', error)
-          }
-        })())
-      }
-    }
+    let executionCtx: any
+    try { executionCtx = context.executionCtx } catch {}
+    if (!executionCtx) return
+
+    const analyticsRepository = context.get('analyticsRepository')
+    if (!analyticsRepository) return
+
+    const seedSlug = extractPublicSeed(context.req.path)
+
+    executionCtx.waitUntil(
+      analyticsRepository.recordRequest(seedSlug).catch((error: unknown) => {
+        console.error('Analytics middleware error:', error)
+      })
+    )
   })
 
   // 3. Auth Routes
@@ -207,28 +200,27 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
       const { email, password } = credentials
       if (!validateLoginInput(email, password)) return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
 
-      const loginLimiter = context.env.LOGIN_RATE_LIMITER
-      if (loginLimiter) {
-        const clientIp = getClientIp(context.req.raw.headers)
-        const { success } = await loginLimiter.limit({ key: `${clientIp}:${email}` })
-        if (!success) return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429)
-      }
+      const clientIp = getClientIp(context.req)
+      const loginRateLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(clientIp)
+      if (!loginRateLimit.isAllowed) return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429)
 
-      const { DB, JWT_SECRET } = context.env
-      const user = await findUserByEmail(DB, email)
-      const hashToCompare = user?.password_hash ?? DUMMY_PASSWORD_HASH
-      const isValid = await verifyPassword(password, hashToCompare)
+      const user = await context.get('userRepository').findByEmail(email)
+      const hashToCompare = user?.passwordHash ?? DUMMY_PASSWORD_HASH
+      const isValid = await verifyPassword(password, hashToCompare, context.get('hashProvider'))
 
       if (!user || !isValid) return context.json({ error: AUTH_ERRORS.INVALID_CREDENTIALS }, 401)
 
-      const userProfile = await DB.prepare('SELECT name FROM users WHERE id = ? LIMIT 1').bind(user.id).first<{ name: string | null }>()
-      const accessToken = await generateAccessToken(user.id, user.email, JWT_SECRET, {
-        issuer: context.env.JWT_ISSUER,
-        audience: context.env.JWT_AUDIENCE,
-      }, userProfile?.name ?? undefined)
+      const accessToken = await context.get('tokenService').issue({ sub: user.id, email: user.email, name: user.name ?? undefined })
       const refreshToken = generateRefreshToken()
+      const refreshTokenHash = await sha256hex(refreshToken)
+      const nowSeconds = SystemClock.nowSeconds()
 
-      await saveRefreshToken(DB, user.id, refreshToken, REFRESH_TOKEN_EXPIRY_DAYS)
+      await context.get('sessionRepository').saveRefreshToken({
+        id: SystemIdGenerator.uuid(),
+        userId: user.id,
+        tokenHash: refreshTokenHash,
+        expiresAt: nowSeconds + REFRESH_TOKEN_EXPIRY_DAYS * SECONDS_PER_DAY,
+      })
       setCookie(context, 'refresh_token', refreshToken, getRefreshTokenCookieOptions(isRequestSecure(context.req.url)))
       return context.json({ token: accessToken, expiresIn: '15m' }, 200)
     } catch (error) {
@@ -238,33 +230,34 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
   app.post('/auth/refresh', async (context) => {
     try {
-      const refreshLimiter = context.env.REFRESH_RATE_LIMITER
-      if (refreshLimiter) {
-        const clientIp = getClientIp(context.req.raw.headers)
-        const { success } = await refreshLimiter.limit({ key: clientIp })
-        if (!success) return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429)
-      }
+      const refreshClientIp = getClientIp(context.req)
+      const refreshRateLimit = await context.get('rateLimiters').getLimiter('tokenRefresh').checkLimit(refreshClientIp)
+      if (!refreshRateLimit.isAllowed) return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429)
 
       const refreshToken = getCookie(context, 'refresh_token')
       if (!refreshToken) return context.json({ error: 'Refresh token missing' }, 401)
 
-      const { DB, JWT_SECRET } = context.env
-      const validation = await validateRefreshToken(DB, refreshToken)
-      if (!validation.valid || !validation.userId) return context.json({ error: 'Invalid refresh token' }, 401)
+      const nowSeconds = SystemClock.nowSeconds()
+      const tokenHash = await sha256hex(refreshToken)
+      const activeSession = await context.get('sessionRepository').findActiveByHash(tokenHash, nowSeconds)
+      if (!activeSession) return context.json({ error: 'Invalid refresh token' }, 401)
 
-      const user = await DB.prepare('SELECT id, email, name FROM users WHERE id = ? LIMIT 1').bind(validation.userId).first<{ id: string; email: string; name: string | null }>()
+      const user = await context.get('userRepository').findById(activeSession.userId)
       if (!user) return context.json({ error: 'User not found' }, 401)
 
-      const revoked = await revokeRefreshToken(DB, refreshToken)
+      const revoked = await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
       if (!revoked) return context.json({ error: 'Invalid refresh token' }, 401)
 
-      const newAccessToken = await generateAccessToken(user.id, user.email, JWT_SECRET, {
-        issuer: context.env.JWT_ISSUER,
-        audience: context.env.JWT_AUDIENCE,
-      }, user.name ?? undefined)
+      const newAccessToken = await context.get('tokenService').issue({ sub: user.id, email: user.email, name: user.name ?? undefined })
       const newRefreshToken = generateRefreshToken()
+      const newRefreshTokenHash = await sha256hex(newRefreshToken)
 
-      await saveRefreshToken(DB, user.id, newRefreshToken, REFRESH_TOKEN_EXPIRY_DAYS)
+      await context.get('sessionRepository').saveRefreshToken({
+        id: SystemIdGenerator.uuid(),
+        userId: user.id,
+        tokenHash: newRefreshTokenHash,
+        expiresAt: nowSeconds + REFRESH_TOKEN_EXPIRY_DAYS * SECONDS_PER_DAY,
+      })
       setCookie(context, 'refresh_token', newRefreshToken, getRefreshTokenCookieOptions(isRequestSecure(context.req.url)))
       return context.json({ token: newAccessToken, expiresIn: '15m' }, 200)
     } catch (error) {
@@ -275,7 +268,11 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.post('/auth/logout', async (context) => {
     try {
       const refreshToken = getCookie(context, 'refresh_token')
-      if (refreshToken) await revokeRefreshToken(context.env.DB, refreshToken)
+      if (refreshToken) {
+        const nowSeconds = SystemClock.nowSeconds()
+        const tokenHash = await sha256hex(refreshToken)
+        await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
+      }
       deleteCookie(context, 'refresh_token', getRefreshTokenDeleteCookieOptions(isRequestSecure(context.req.url)))
       return context.json({ message: 'Logged out' }, 200)
     } catch (error) {
@@ -289,12 +286,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
   // 5. Protected CMS API
   const apiProtected = new Hono<{ Bindings: Env; Variables: Variables }>()
-  apiProtected.use('*', async (context, next) => {
-    await authMiddleware(context.env.JWT_SECRET, {
-      issuer: context.env.JWT_ISSUER,
-      audience: context.env.JWT_AUDIENCE,
-    })(context, next)
-  })
+  apiProtected.use('*', authMiddleware())
 
   apiProtected.route('/settings', settingsApp)
   apiProtected.route('/schema', schemaApp)

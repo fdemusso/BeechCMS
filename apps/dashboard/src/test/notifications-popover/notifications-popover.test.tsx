@@ -6,16 +6,16 @@ const hookState = {
   notifications: [
     {
       id: "1",
-      title: "Nuova notifica",
-      description: "Descrizione",
+      title: "New notification",
+      description: "Description",
       icon: (props: any) => <span {...props}>ICON</span>,
       isNew: true,
       createdAt: new Date(),
     },
     {
       id: "2",
-      title: "Vecchia notifica",
-      description: "Gia vista",
+      title: "Old notification",
+      description: "Already seen",
       icon: (props: any) => <span {...props}>ICON</span>,
       isNew: false,
       createdAt: new Date(),
@@ -67,16 +67,16 @@ import { NotificationsPopover } from "@/components/notifications-popover/notific
 describe("NotificationsPopover", () => {
   it("renderizza elenco e invoca azioni principali", () => {
     render(<NotificationsPopover />)
-    expect(screen.getByText("Notifiche")).toBeInTheDocument()
-    expect(screen.getByText("Nuova notifica")).toBeInTheDocument()
+    expect(screen.getByText("Notifications")).toBeInTheDocument()
+    expect(screen.getByText("New notification")).toBeInTheDocument()
 
-    fireEvent.click(screen.getByText("Nuova notifica"))
+    fireEvent.click(screen.getByText("New notification"))
     expect(hookState.handleMarkSeen).toHaveBeenCalledWith("1")
 
-    fireEvent.click(screen.getByText("Segna come non vista"))
+    fireEvent.click(screen.getByText("Mark as unread"))
     expect(hookState.handleMarkUnseen).toHaveBeenCalledWith("2")
 
-    fireEvent.click(screen.getAllByText("Elimina")[0])
+    fireEvent.click(screen.getAllByText("Delete")[0])
     expect(hookState.handleDelete).toHaveBeenCalledWith("1")
   })
 })

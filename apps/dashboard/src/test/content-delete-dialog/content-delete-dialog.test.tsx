@@ -22,7 +22,7 @@ describe("ContentDeleteDialog", () => {
       />
     )
 
-    expect(screen.getByText(/Sei sicuro di voler eliminare questa entry/i)).toBeInTheDocument()
+    expect(screen.getByText(/Are you sure you want to delete this entry/i)).toBeInTheDocument()
     expect(screen.getByText(/ID: id-1/)).toBeInTheDocument()
   })
 
@@ -37,7 +37,7 @@ describe("ContentDeleteDialog", () => {
       />
     )
 
-    expect(screen.getByText(/eliminare 4 entry/i)).toBeInTheDocument()
+    expect(screen.getByText(/delete 4 entries/i)).toBeInTheDocument()
     expect(screen.getByText(/ID: id-1, id-2, id-3, …/)).toBeInTheDocument()
   })
 
@@ -53,7 +53,7 @@ describe("ContentDeleteDialog", () => {
       />
     )
 
-    fireEvent.click(screen.getByRole("button", { name: /annulla/i }))
+    fireEvent.click(screen.getByRole("button", { name: /cancel/i }))
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
@@ -71,7 +71,7 @@ describe("ContentDeleteDialog", () => {
       />
     )
 
-    fireEvent.click(screen.getByRole("button", { name: /^elimina$/i }))
+    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }))
 
     await waitFor(() => {
       expect(onConfirm).toHaveBeenCalledTimes(1)
@@ -81,7 +81,7 @@ describe("ContentDeleteDialog", () => {
 
   it("onConfirm errore: mostra messaggio e non chiude", async () => {
     const onOpenChange = vi.fn()
-    const onConfirm = vi.fn().mockRejectedValue(new Error("Errore custom delete"))
+    const onConfirm = vi.fn().mockRejectedValue(new Error("Custom delete error"))
 
     render(
       <ContentDeleteDialog
@@ -93,9 +93,9 @@ describe("ContentDeleteDialog", () => {
       />
     )
 
-    fireEvent.click(screen.getByRole("button", { name: /^elimina$/i }))
+    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }))
 
-    expect(await screen.findByText("Errore custom delete")).toBeInTheDocument()
+    expect(await screen.findByText("Custom delete error")).toBeInTheDocument()
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
   })
 })

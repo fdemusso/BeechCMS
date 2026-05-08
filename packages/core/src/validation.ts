@@ -534,14 +534,14 @@ function validateBranchValue(
 }
 
 /**
- * Foundation comune per validazione e sanitizzazione payload schema-driven.
- * Usata da Public API e riusabile nel Botanical Engine.
+ * Common foundation for schema-driven validation and sanitization of payloads.
+ * Used by the Public API and reusable in the Botanical Engine.
  *
- * Ordine di esecuzione obbligatorio al momento della scrittura:
+ * Mandatory execution order at the time of writing:
  *   validate raw → hash (privacy policy) → store
- * L'hashing avviene DOPO la validazione, non prima.
- * Questo garantisce che il valore validato sia il valore raw originale,
- * non il digest — evitando false failure su campi con formato (es. email).
+ * Hashing occurs AFTER validation, not before.
+ * This ensures that the validated value is the original raw value,
+ * not the digest — avoiding false failures on fields with formats (e.g., email).
  */
 export function validateAndSanitizeSeedPayload(
   seed: Seed,
@@ -659,7 +659,7 @@ export function validateAndSanitizeSeedPayload(
 }
 
 /**
- * Valida status content supportati dal CMS.
+ * Validates content status supported by the CMS.
  */
 export function isValidContentStatus(value: unknown): value is 'draft' | 'review' | 'published' {
   return statusSchema.safeParse(value).success

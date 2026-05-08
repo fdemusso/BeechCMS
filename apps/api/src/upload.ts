@@ -5,7 +5,6 @@
  * e facilità di sviluppo locale.
  */
 import { Hono } from 'hono'
-import { logActivity } from './shared/activity-logger'
 import { AppEnv } from './types'
 
 /** Prefissi MIME consentiti (immagini e PDF) */
@@ -133,12 +132,20 @@ uploadRoutes.post('/upload', async (c) => {
 
     const publicUrl = bucket.getUrl(objectKey)
 
-    logActivity(c, {
-      action: 'upload',
-      entityType: 'media',
-      entityId: objectKey,
-      details: { name: file.name, size: file.size, type: file.type }
-    })
+    const jwtPayload = c.get('jwtPayload')
+    if (jwtPayload) {
+      c.get('activityLogger').log({
+        action: 'upload',
+        entityType: 'media',
+        entityId: objectKey,
+        details: { name: file.name, size: file.size, type: file.type },
+        actor: {
+          id: jwtPayload.sub,
+          email: jwtPayload.email ?? 'unknown',
+          name: jwtPayload.name ?? null,
+        },
+      })
+    }
 
     return c.json({ url: publicUrl }, 200)
   } catch (err) {

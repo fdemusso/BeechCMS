@@ -27,7 +27,12 @@ export class MockD1Database {
           return this.users.find(u => u.id === args[0]) as T || null
         }
         if (normalizedSql.includes('FROM refresh_tokens WHERE token_hash = ?')) {
-          return this.refreshTokens.find(t => t.token_hash === args[0]) as T || null
+          const nowTimestamp = typeof args[1] === 'number' ? args[1] : 0
+          return this.refreshTokens.find(t =>
+            t.token_hash === args[0] &&
+            t.revoked_at === null &&
+            t.expires_at > nowTimestamp
+          ) as T || null
         }
         if (normalizedSql.includes('SELECT name FROM users WHERE id = ?')) {
           return this.users.find(u => u.id === args[0]) as T || null

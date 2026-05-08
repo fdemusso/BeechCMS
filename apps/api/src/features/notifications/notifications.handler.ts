@@ -3,47 +3,40 @@ import { Hono } from 'hono'
 import type { Env, Variables } from '../../types'
 
 /**
- * Notifications Feature Handler
+ * Notifications Feature Handler.
  *
- * Manages the retrieval, marking as read/unread, and deletion of system notifications.
- * Uses ETags for efficient client-side caching of the notification list.
+ * Manages retrieval, mark read/unread, and deletion of system notifications.
+ * All persistence goes through the {@link INotificationRepository} injected
+ * by `repositoryMiddleware`. The handler owns the HTTP concerns only:
+ * ETag negotiation, status codes, error mapping.
  */
 const notificationsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
+const NOTIFICATION_LIST_LIMIT = 50
+
 /**
  * GET /notifications
- * Fetches the latest 50 notifications.
- * Implements ETag/304 Not Modified caching based on count and last update.
+ *
+ * Returns the most recent notifications. The ETag is built from aggregate
+ * stats so unchanged inboxes return 304 without serialising the full list.
  */
 notificationsApp.get('/notifications', async (context) => {
   try {
-    const { DB } = context.env
-
-    // Fetch aggregate stats to generate a robust ETag
-    const stats = await DB.prepare(
-      'SELECT COUNT(*) as count, MAX(created_at) as latest, SUM(is_read) as read_sum FROM notifications'
-    ).first<{ count: number; latest: number | null; read_sum: number | null }>()
-
-    const totalCount = stats?.count ?? 0
-    const lastUpdateTimestamp = stats?.latest ?? 0
-    const totalReadCount = stats?.read_sum ?? 0
-
-    // ETag is derived from count, latest timestamp, and read status to ensure freshness
-    const etag = `W/"${totalCount}-${lastUpdateTimestamp}-${totalReadCount}"`
+    const notificationRepository = context.get('notificationRepository')
+    const notificationStats = await notificationRepository.stats()
+    const etagValue = `W/"${notificationStats.totalCount}-${notificationStats.latestCreatedAt}-${notificationStats.readCount}"`
 
     const ifNoneMatch = context.req.header('If-None-Match')
-    if (ifNoneMatch === etag) {
+    if (ifNoneMatch === etagValue) {
       return new Response(null, { status: 304 })
     }
 
-    const dbResult = await DB.prepare(
-      'SELECT id, title, message, type, is_read, created_at FROM notifications ORDER BY created_at DESC LIMIT 50'
-    ).all()
+    const notifications = await notificationRepository.list(NOTIFICATION_LIST_LIMIT)
 
-    context.header('ETag', etag)
+    context.header('ETag', etagValue)
     context.header('Cache-Control', 'no-cache, must-revalidate')
 
-    return context.json(dbResult.results ?? [])
+    return context.json(notifications)
   } catch (error) {
     console.error('[Notifications] Fetch error:', error)
     return context.json({ error: 'Failed to fetch notifications' }, 500)
@@ -51,18 +44,12 @@ notificationsApp.get('/notifications', async (context) => {
 })
 
 /**
- * PATCH /notifications/:id/read
- * Marks a specific notification as read.
+ * PATCH /notifications/:id/read — mark a single notification as read.
  */
 notificationsApp.patch('/notifications/:id/read', async (context) => {
   try {
     const notificationId = context.req.param('id')
-    const { DB } = context.env
-
-    await DB.prepare('UPDATE notifications SET is_read = 1 WHERE id = ?')
-      .bind(notificationId)
-      .run()
-
+    await context.get('notificationRepository').markRead(notificationId)
     return context.json({ success: true })
   } catch (error) {
     console.error('[Notifications] Mark read error:', error)
@@ -71,18 +58,12 @@ notificationsApp.patch('/notifications/:id/read', async (context) => {
 })
 
 /**
- * PATCH /notifications/:id/unread
- * Marks a specific notification as unread.
+ * PATCH /notifications/:id/unread — mark a single notification as unread.
  */
 notificationsApp.patch('/notifications/:id/unread', async (context) => {
   try {
     const notificationId = context.req.param('id')
-    const { DB } = context.env
-
-    await DB.prepare('UPDATE notifications SET is_read = 0 WHERE id = ?')
-      .bind(notificationId)
-      .run()
-
+    await context.get('notificationRepository').markUnread(notificationId)
     return context.json({ success: true })
   } catch (error) {
     console.error('[Notifications] Mark unread error:', error)
@@ -91,18 +72,12 @@ notificationsApp.patch('/notifications/:id/unread', async (context) => {
 })
 
 /**
- * DELETE /notifications/:id
- * Permanently deletes a notification.
+ * DELETE /notifications/:id — permanently remove a notification.
  */
 notificationsApp.delete('/notifications/:id', async (context) => {
   try {
     const notificationId = context.req.param('id')
-    const { DB } = context.env
-
-    await DB.prepare('DELETE FROM notifications WHERE id = ?')
-      .bind(notificationId)
-      .run()
-
+    await context.get('notificationRepository').delete(notificationId)
     return context.json({ success: true })
   } catch (error) {
     console.error('[Notifications] Delete error:', error)
@@ -111,15 +86,11 @@ notificationsApp.delete('/notifications/:id', async (context) => {
 })
 
 /**
- * POST /notifications/mark-all-read
- * Marks all notifications in the database as read.
+ * POST /notifications/mark-all-read — mark every notification as read.
  */
 notificationsApp.post('/notifications/mark-all-read', async (context) => {
   try {
-    const { DB } = context.env
-
-    await DB.prepare('UPDATE notifications SET is_read = 1').run()
-
+    await context.get('notificationRepository').markAllRead()
     return context.json({ success: true })
   } catch (error) {
     console.error('[Notifications] Mark all read error:', error)

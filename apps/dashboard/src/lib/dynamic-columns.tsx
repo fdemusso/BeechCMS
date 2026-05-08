@@ -77,11 +77,11 @@ function getDateGroupValue(
 ): string {
   const d = normalizeDateToYmd(value)
   if (!d) return "—"
-  // Forza mezzanotte UTC per evitare drift di timezone
+  // Force UTC midnight to avoid timezone drift
   const date = new Date(d + "T00:00:00")
 
   if (precision.day) {
-    return date.toLocaleDateString("it-IT", {
+    return date.toLocaleDateString("en-US", {
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -90,7 +90,7 @@ function getDateGroupValue(
 
   const parts: string[] = []
   if (precision.month) {
-    parts.push(date.toLocaleDateString("it-IT", { month: "long" }))
+    parts.push(date.toLocaleDateString("en-US", { month: "long" }))
   }
   if (precision.year) {
     parts.push(String(date.getFullYear()))
@@ -127,11 +127,11 @@ function formatBooleanAggregated(value: unknown): string {
   return ""
 }
 
-function formatSum(value: unknown, count: number): string {
+function formatSum(value: unknown, count: number, t: (k: string, o?: any) => string): string {
   if (typeof value === "number" && !Number.isNaN(value)) {
-    return `Σ ${value.toLocaleString("it-IT")} · ${count} voci`
+    return `Σ ${value.toLocaleString("en-US")} · ${count} ${count === 1 ? t("content.table.item") : t("content.table.items")}`
   }
-  return `${count} voci`
+  return `${count} ${count === 1 ? t("content.table.item") : t("content.table.items")}`
 }
 
 function getStatusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
@@ -259,7 +259,8 @@ export function generateColumns(
   maxLengths?: Record<string, number>,
   selectedIds: string[] = [],
   onBulkDelete?: (ids: string[]) => void,
-  datePrecision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION
+  datePrecision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION,
+  t: (key: string, options?: any) => string = (k) => k
 ): ColumnDef<ContentEntry>[] {
   const fixedColumns: ColumnDef<ContentEntry>[] = [
     // Colonna Select (checkbox)
@@ -272,14 +273,14 @@ export function generateColumns(
           (table.getIsSomePageRowsSelected() && "indeterminate")
         }
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Seleziona tutto"
+        aria-label={t("common.selectAll")}
       />
     ),
     cell: ({ row }) => (
       <Checkbox
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Seleziona riga"
+        aria-label={t("common.selectRow")}
       />
     ),
     enableSorting: false,
@@ -321,7 +322,7 @@ export function generateColumns(
     {
     id: "status",
     accessorFn: (row) => row.status,
-    header: "Stato",
+    header: t("content.table.status"),
     filterFn: (row, columnId, filterValue) =>
       matchesFilterGroup(row.getValue(columnId), filterValue),
     cell: ({ row }) => {
@@ -358,7 +359,7 @@ export function generateColumns(
         if (!label) return null
         return (
           <span className="text-xs text-muted-foreground">
-            {label} · {count} {count === 1 ? "voce" : "voci"}
+            {label} · {count} {count === 1 ? t("content.table.item") : t("content.table.items")}
           </span>
         )
       }
@@ -376,7 +377,7 @@ export function generateColumns(
         const count = row.subRows?.length ?? 0
         return (
           <span className="text-xs text-muted-foreground">
-            {formatSum(getValue(), count)}
+            {formatSum(getValue(), count, t)}
           </span>
         )
       }
@@ -387,7 +388,7 @@ export function generateColumns(
         const count = row.subRows?.length ?? 0
         return (
           <span className="text-xs text-muted-foreground">
-            {count} {count === 1 ? "voce" : "voci"}
+            {count} {count === 1 ? t("content.table.item") : t("content.table.items")}
           </span>
         )
       }
@@ -419,30 +420,30 @@ export function generateColumns(
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon-xs">
-                <span className="sr-only">Apri menu</span>
+                <span className="sr-only">{t("common.openMenu")}</span>
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuLabel>Azioni</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("content.actions.label")}</DropdownMenuLabel>
               {hasBulkSelection ? (
                 <DropdownMenuItem
                   onClick={() => onBulkDelete?.(selectedIds)}
                   className="text-destructive focus:text-destructive"
                 >
-                  Elimina
+                  {t("common.delete")}
                 </DropdownMenuItem>
               ) : (
                 <>
                   <DropdownMenuItem
                     onClick={() => {
                       navigator.clipboard.writeText(entry.id).then(
-                        () => toast.success("ID copiato"),
-                        () => toast.error("Copia fallita")
+                        () => toast.success(t("common.copied")),
+                        () => toast.error(t("common.copyFailed"))
                       )
                     }}
                   >
-                    Copia ID
+                    {t("content.actions.copyId")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -450,13 +451,13 @@ export function generateColumns(
                       onEdit(entry.id)
                     }}
                   >
-                    Modifica
+                    {t("common.edit")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onDelete(entry.id)}
                     className="text-destructive focus:text-destructive"
                   >
-                    Elimina
+                    {t("common.delete")}
                   </DropdownMenuItem>
                 </>
               )}

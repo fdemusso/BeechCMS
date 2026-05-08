@@ -30,15 +30,15 @@ describe("ErrorPage", () => {
     render(<ErrorPage />)
     expect(screen.getByText("404")).toBeInTheDocument()
     expect(screen.getByText("Not Found")).toBeInTheDocument()
-    expect(screen.getByRole("link", { name: /torna alla home/i })).toHaveAttribute("href", "/")
+    expect(screen.getByRole("link", { name: /Back to home/i })).toHaveAttribute("href", "/")
   })
 
   it("mostra messaggio da Error standard", () => {
-    useRouteErrorMock.mockReturnValueOnce(new Error("Errore custom"))
+    useRouteErrorMock.mockReturnValueOnce(new Error("Custom error"))
     isRouteErrorResponseMock.mockReturnValueOnce(false)
 
     render(<ErrorPage />)
-    expect(screen.getByText("Errore custom")).toBeInTheDocument()
+    expect(screen.getByText("Custom error")).toBeInTheDocument()
   })
 })
 

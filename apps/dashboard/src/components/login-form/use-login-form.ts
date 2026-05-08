@@ -4,23 +4,23 @@ import axios from "axios"
 import { type LoginResponse } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 
-/** Regex per validazione formato email */
+/** Regex for email format validation */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-/** Lunghezza minima password (caratteri) */
+/** Minimum password length (characters) */
 const MIN_PASSWORD_LENGTH = 8
 
-/** Lunghezza massima password (caratteri) */
+/** Maximum password length (characters) */
 const MAX_PASSWORD_LENGTH = 128
 
-/** Messaggi di errore per validazione form */
+/** Form validation error messages */
 const ERROR_MESSAGES = {
-  EMAIL_REQUIRED: "Inserisci l'email",
-  EMAIL_INVALID: "Email non valida",
-  PASSWORD_REQUIRED: "Inserisci la password",
-  PASSWORD_TOO_SHORT: `La password deve essere almeno ${MIN_PASSWORD_LENGTH} caratteri`,
-  PASSWORD_TOO_LONG: `La password non può superare i ${MAX_PASSWORD_LENGTH} caratteri`,
-  CREDENTIALS_INVALID: "Email o Password errate",
+  EMAIL_REQUIRED: "Email is required",
+  EMAIL_INVALID: "Invalid email",
+  PASSWORD_REQUIRED: "Password is required",
+  PASSWORD_TOO_SHORT: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+  PASSWORD_TOO_LONG: `Password cannot exceed ${MAX_PASSWORD_LENGTH} characters`,
+  CREDENTIALS_INVALID: "Invalid email or password",
 } as const
 
 export function useLoginForm() {
@@ -81,9 +81,9 @@ export function useLoginForm() {
 
     setIsLoading(true)
     try {
-      // Usa axios diretto per /auth/login (non passa da baseURL '/api')
+      // Use direct axios for /auth/login (does not go through baseURL '/api')
       const { data } = await axios.post<LoginResponse>('/auth/login', { email, password }, {
-        withCredentials: true, // Necessario per ricevere refresh_token cookie
+        withCredentials: true, // Required to receive refresh_token cookie
       })
       setToken(data.token)
       setIsLoading(false)
@@ -94,11 +94,11 @@ export function useLoginForm() {
         if (error.response?.status === 401) {
           setPasswordError(ERROR_MESSAGES.CREDENTIALS_INVALID)
         } else {
-          // Gestione altri errori (network, 500, etc.)
-          setPasswordError('Errore durante il login. Riprova più tardi.')
+          // Handle other errors (network, 500, etc.)
+          setPasswordError('Login error. Please try again later.')
         }
       } else {
-        setPasswordError('Errore di connessione. Verifica la tua connessione internet.')
+        setPasswordError('Connection error. Please check your internet connection.')
       }
     }
   }
