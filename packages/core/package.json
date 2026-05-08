@@ -18,18 +18,24 @@
     "build": "tsc",
     "dev": "tsc -w --preserveWatchOutput",
     "lint": "eslint .",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@vitest/coverage-v8": "^3.2.4",
+    "vitest": "^3.2.4"
   },
   "dependencies": {
     "@tiptap/core": "^3.22.3",
     "@tiptap/extension-highlight": "^3.22.3",
     "@tiptap/extension-image": "^3.22.3",
     "@tiptap/extension-link": "^3.22.3",
+    "@tiptap/extension-mathematics": "^3.22.3",
     "@tiptap/extension-subscript": "^3.22.3",
     "@tiptap/extension-superscript": "^3.22.3",
     "@tiptap/extension-table": "^3.22.3",
     "@tiptap/extension-text-align": "^3.22.3",
-    "@tiptap/extension-mathematics": "^3.22.3",
     "@tiptap/html": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
     "katex": "^0.16.11",

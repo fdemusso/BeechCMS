@@ -76,7 +76,7 @@ export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
                 type="button"
                 onClick={() => toggleTag(tag)}
                 className="group relative"
-                aria-label={`Rimuovi tag ${tag}`}
+                aria-label={`Remove tag ${tag}`}
               >
                 <Badge
                   variant="secondary"
@@ -95,7 +95,7 @@ export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
               </button>
             ))
           ) : (
-            <span className="text-xs text-muted-foreground">Nessun tag selezionato</span>
+            <span className="text-xs text-muted-foreground">No tags selected</span>
           )}
 
           <Popover open={isAddOpen} onOpenChange={setIsAddOpen}>
@@ -105,14 +105,14 @@ export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
                 variant="outline"
                 size="icon"
                 className="size-6 rounded-full"
-                aria-label="Aggiungi tag"
+                aria-label="Add tag"
               >
                 <Plus className="size-3.5" />
               </Button>
             </PopoverTrigger>
             <PopoverContent align="start" className="w-56 p-2">
               <div className="mb-2 text-xs text-muted-foreground">
-                Seleziona un tag dal seed
+                Select a tag from the seed
               </div>
               <div className="max-h-56 space-y-1 overflow-y-auto">
                 {predefinedOptions.map((opt: string) => {
@@ -140,7 +140,7 @@ export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
                 })}
                 {availableOptions.length === 0 ? (
                   <p className="px-2 py-1 text-xs text-muted-foreground">
-                    Tutti i tag del seed sono gia selezionati.
+                    All tags from the seed are already selected.
                   </p>
                 ) : null}
               </div>
@@ -156,8 +156,8 @@ export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
     ? '{"cms": "#3b82f6", "react": "#06b6d4", "typescript": "#8b5cf6"}'
     : '{"key": "value"}'
   const helperText = isTagsField
-    ? 'Oggetto tag→colore, es: {"cms": "blue", "react": "green"}'
-    : 'Oggetto JSON, es: {"client": "Nome"}'
+    ? 'Tag→color object, e.g.: {"cms": "blue", "react": "green"}'
+    : 'JSON object, e.g.: {"client": "Name"}'
 
   return (
     <div>

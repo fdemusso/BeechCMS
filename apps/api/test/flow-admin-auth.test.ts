@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { sha256hex } from '@beechcms/core'
 import { createBeechApp } from '../src/factory'
 import { AUTH_ERRORS } from '../src/auth/constants'
-import { hashRefreshToken } from '../src/auth/refresh'
 import { MockD1Database } from './mocks/mock-d1-database'
 import { TEST_USERS, TEST_ENV } from './fixtures'
 
@@ -9,10 +9,10 @@ const VALID_EMAIL = TEST_USERS[0].email
 const VALID_PASSWORD = 'password123'
 
 /**
- * SPRINT: BeechCMS Test Redesign
  * FLOW: Admin Authentication
- * 
- * This suite covers the full administrative session lifecycle and security protections.
+ *
+ * Covers the full session lifecycle: login → access protected routes →
+ * token rotation → logout, plus all security edge cases and rate limiting.
  */
 describe('Flow: Admin Authentication', () => {
   let db: MockD1Database
@@ -23,98 +23,192 @@ describe('Flow: Admin Authentication', () => {
     app = createBeechApp({ seeds: [] })
   })
 
-  describe('Login Flow', () => {
-    it('success: valid credentials return tokens and set secure cookie', async () => {
-      const res = await app.request('/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: VALID_EMAIL, password: VALID_PASSWORD })
-      }, { ...TEST_ENV, DB: db as any })
+  // ---------------------------------------------------------------------------
+  // Helper
+  // ---------------------------------------------------------------------------
 
+  async function login(email = VALID_EMAIL, password = VALID_PASSWORD) {
+    const res = await app.request('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password }),
+    }, { ...TEST_ENV, DB: db as any })
+    const refreshToken = res.headers.get('set-cookie')?.match(/refresh_token=([^;]+)/)?.[1] ?? ''
+    // Only consume the body on success to allow callers to read it themselves on failure.
+    let accessToken = ''
+    if (res.status === 200) {
+      const body = await res.json<{ token?: string }>()
+      accessToken = body.token ?? ''
+    }
+    return { res, refreshToken, accessToken }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Login
+  // ---------------------------------------------------------------------------
+
+  describe('Login', () => {
+    it('valid credentials return an access token and set a Secure HttpOnly cookie', async () => {
+      const { res, accessToken } = await login()
       expect(res.status).toBe(200)
-      const body = await res.json<{ token: string }>()
-      expect(body.token).toBeDefined()
+      expect(accessToken).toBeTruthy()
       expect(res.headers.get('set-cookie')).toContain('refresh_token=')
     })
 
-    it('error: incorrect password returns 401', async () => {
-      const res = await app.request('/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: VALID_EMAIL, password: 'wrongpassword' })
-      }, { ...TEST_ENV, DB: db as any })
-
+    it('wrong password returns 401 INVALID_CREDENTIALS', async () => {
+      const { res } = await login(VALID_EMAIL, 'wrongpassword')
       expect(res.status).toBe(401)
-      const body = await res.json<{ error: string }>()
-      expect(body.error).toBe(AUTH_ERRORS.INVALID_CREDENTIALS)
+      expect((await res.json<{ error: string }>()).error).toBe(AUTH_ERRORS.INVALID_CREDENTIALS)
     })
 
-    it('error: malformed email returns 400', async () => {
-      const res = await app.request('/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'not-an-email', password: VALID_PASSWORD })
-      }, { ...TEST_ENV, DB: db as any })
+    it('unknown email returns 401 without revealing user existence', async () => {
+      const { res } = await login('nobody@beech.io', VALID_PASSWORD)
+      expect(res.status).toBe(401)
+      expect((await res.json<{ error: string }>()).error).toBe(AUTH_ERRORS.INVALID_CREDENTIALS)
+    })
 
+    it('malformed email returns 400', async () => {
+      const { res } = await login('not-an-email', VALID_PASSWORD)
       expect(res.status).toBe(400)
     })
 
-    it('edge case: email with leading/trailing spaces is trimmed', async () => {
+    it('missing password field returns 400', async () => {
       const res = await app.request('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: `  ${VALID_EMAIL}  `, password: VALID_PASSWORD })
+        body: JSON.stringify({ email: VALID_EMAIL }),
       }, { ...TEST_ENV, DB: db as any })
+      expect(res.status).toBe(400)
+    })
 
+    it('email with surrounding whitespace is trimmed and accepted', async () => {
+      const res = await app.request('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: `  ${VALID_EMAIL}  `, password: VALID_PASSWORD }),
+      }, { ...TEST_ENV, DB: db as any })
       expect(res.status).toBe(200)
     })
 
-    it('security: rate limiting returns 429 when too many attempts', async () => {
-      const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: false }) }
+    it('rate limit returns 429 when LOGIN_RATE_LIMITER blocks the request', async () => {
+      const blockedLimiter = { limit: () => Promise.resolve({ success: false }) }
       const res = await app.request('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: VALID_EMAIL, password: VALID_PASSWORD })
-      }, { ...TEST_ENV, DB: db as any, LOGIN_RATE_LIMITER: mockLimiter as any })
-
+        body: JSON.stringify({ email: VALID_EMAIL, password: VALID_PASSWORD }),
+      }, { ...TEST_ENV, DB: db as any, LOGIN_RATE_LIMITER: blockedLimiter as any })
       expect(res.status).toBe(429)
     })
   })
 
-  describe('Refresh & Rotation Flow', () => {
-    it('success: valid refresh token generates new tokens and rotates', async () => {
-      const loginRes = await app.request('/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: VALID_EMAIL, password: VALID_PASSWORD })
+  // ---------------------------------------------------------------------------
+  // Protected Route Access
+  // ---------------------------------------------------------------------------
+
+  describe('Protected route access', () => {
+    it('authenticated request to /api/settings/me returns the user profile', async () => {
+      const { accessToken } = await login()
+      const res = await app.request('/api/settings/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
       }, { ...TEST_ENV, DB: db as any })
-      
-      const refreshToken = loginRes.headers.get('set-cookie')?.match(/refresh_token=([^;]+)/)?.[1]
-      const tokenHash = await hashRefreshToken(refreshToken!)
+      expect(res.status).toBe(200)
+      const profile = await res.json<{ email: string }>()
+      expect(profile.email).toBe(VALID_EMAIL)
+    })
 
-      const refreshRes = await app.request('/auth/refresh', {
-        method: 'POST',
-        headers: { 'Cookie': `refresh_token=${refreshToken}` }
+    it('request without Authorization header returns 401', async () => {
+      const res = await app.request('/api/settings/me', {}, { ...TEST_ENV, DB: db as any })
+      expect(res.status).toBe(401)
+    })
+
+    it('request with a tampered token returns 401', async () => {
+      const res = await app.request('/api/settings/me', {
+        headers: { Authorization: 'Bearer this.is.not.a.valid.jwt' },
       }, { ...TEST_ENV, DB: db as any })
-
-      expect(refreshRes.status).toBe(200)
-      const newRefreshToken = refreshRes.headers.get('set-cookie')?.match(/refresh_token=([^;]+)/)?.[1]
-      expect(newRefreshToken).not.toBe(refreshToken)
-
-      // Verify revocation
-      const oldToken = db.refreshTokens.find(t => t.token_hash === tokenHash)
-      expect(oldToken?.revoked_at).not.toBeNull()
+      expect(res.status).toBe(401)
     })
   })
 
-  describe('Logout Flow', () => {
-    it('success: logout revokes token and clears cookie', async () => {
+  // ---------------------------------------------------------------------------
+  // Token Refresh & Rotation
+  // ---------------------------------------------------------------------------
+
+  describe('Token refresh and rotation', () => {
+    it('valid refresh cookie issues new tokens and revokes the old one', async () => {
+      const { refreshToken } = await login()
+      const oldTokenHash = await sha256hex(refreshToken)
+
+      const refreshRes = await app.request('/auth/refresh', {
+        method: 'POST',
+        headers: { Cookie: `refresh_token=${refreshToken}` },
+      }, { ...TEST_ENV, DB: db as any })
+
+      expect(refreshRes.status).toBe(200)
+      expect((await refreshRes.json<{ token: string }>()).token).toBeTruthy()
+
+      const newCookie = refreshRes.headers.get('set-cookie')?.match(/refresh_token=([^;]+)/)?.[1]
+      expect(newCookie).not.toBe(refreshToken)
+
+      const oldRecord = db.refreshTokens.find(t => t.token_hash === oldTokenHash)
+      expect(oldRecord?.revoked_at).not.toBeNull()
+    })
+
+    it('missing refresh cookie returns 401', async () => {
+      const res = await app.request('/auth/refresh', { method: 'POST' }, { ...TEST_ENV, DB: db as any })
+      expect(res.status).toBe(401)
+    })
+
+    it('unknown refresh token returns 401', async () => {
+      const res = await app.request('/auth/refresh', {
+        method: 'POST',
+        headers: { Cookie: 'refresh_token=does-not-exist-in-db' },
+      }, { ...TEST_ENV, DB: db as any })
+      expect(res.status).toBe(401)
+    })
+
+    it('already-used refresh token is rejected (single-use rotation protection)', async () => {
+      const { refreshToken } = await login()
+
+      // First refresh — succeeds and revokes the original token
+      await app.request('/auth/refresh', {
+        method: 'POST',
+        headers: { Cookie: `refresh_token=${refreshToken}` },
+      }, { ...TEST_ENV, DB: db as any })
+
+      // Second use of the same token — must be rejected because it was revoked
+      const secondRes = await app.request('/auth/refresh', {
+        method: 'POST',
+        headers: { Cookie: `refresh_token=${refreshToken}` },
+      }, { ...TEST_ENV, DB: db as any })
+
+      expect(secondRes.status).toBe(401)
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // Logout
+  // ---------------------------------------------------------------------------
+
+  describe('Logout', () => {
+    it('logout with a valid cookie revokes the session and clears the cookie', async () => {
+      const { refreshToken } = await login()
+      const tokenHash = await sha256hex(refreshToken)
+
       const res = await app.request('/auth/logout', {
         method: 'POST',
+        headers: { Cookie: `refresh_token=${refreshToken}` },
       }, { ...TEST_ENV, DB: db as any })
 
       expect(res.status).toBe(200)
       expect(res.headers.get('set-cookie')).toMatch(/refresh_token=;|Max-Age=0/)
+
+      const revokedRecord = db.refreshTokens.find(t => t.token_hash === tokenHash)
+      expect(revokedRecord?.revoked_at).not.toBeNull()
+    })
+
+    it('logout without a cookie still returns 200 (graceful no-op)', async () => {
+      const res = await app.request('/auth/logout', { method: 'POST' }, { ...TEST_ENV, DB: db as any })
+      expect(res.status).toBe(200)
     })
   })
 })

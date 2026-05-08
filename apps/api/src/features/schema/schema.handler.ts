@@ -10,7 +10,7 @@ const schemaApp = new Hono<{ Bindings: Env; Variables: Variables }>()
  */
 schemaApp.get('/', async (context) => {
   const registry = context.get('seedRegistry')
-  return context.json(Object.values(registry))
+  return context.json(registry.all())
 })
 
 export { schemaApp }

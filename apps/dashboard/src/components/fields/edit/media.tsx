@@ -5,6 +5,7 @@
  * - Asset list: quando il branch e multiplo, gestisce lista ordinabile di URL.
  */
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { ArrowDown, ArrowUp, Loader2, Link as LinkIcon, Upload, X } from "lucide-react"
 import { api } from "@/lib/api"
 import { Button } from "@/components/ui/button"
@@ -118,14 +119,15 @@ function moveItem(list: string[], from: number, to: number): string[] {
   return copy
 }
 
-function getCtaLabel(params: { isMultiple: boolean; hasAssets: boolean; hasImage: boolean }): string {
+function getCtaLabel(params: { isMultiple: boolean; hasAssets: boolean; hasImage: boolean }, t: (k: string) => string): string {
   if (params.isMultiple) {
-    return params.hasAssets ? "Gestisci galleria" : "Aggiungi immagini"
+    return params.hasAssets ? t("media.manageGallery") : t("media.addImages")
   }
-  return params.hasImage ? "Sostituisci" : "Aggiungi immagine"
+  return params.hasImage ? t("media.replace") : t("media.addImage")
 }
 
 export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
+  const { t } = useTranslation()
   const inputRef = React.useRef<HTMLInputElement>(null)
   const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)
@@ -142,7 +144,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
   const url = typeof value === "string" ? value : ""
   const hasImage = url.length > 0
   const hasAssets = assets.length > 0
-  const ctaLabel = getCtaLabel({ isMultiple, hasAssets, hasImage })
+  const ctaLabel = getCtaLabel({ isMultiple, hasAssets, hasImage }, t)
   const isBusy = isUploading || isValidatingUrl
 
   React.useEffect(() => {
@@ -155,7 +157,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
   const handleFileUpload = React.useCallback(
     async (file: File) => {
       if (!file.type.startsWith("image/")) {
-        setError("Seleziona un'immagine (JPG, PNG, WebP, GIF)")
+        setError(t("media.errorNotImage"))
         return
       }
 
@@ -174,7 +176,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
         }
       } catch (err) {
         setError(
-          err instanceof Error ? err.message : "Errore durante il caricamento"
+          err instanceof Error ? err.message : "Error during upload"
         )
       } finally {
         setIsUploading(false)
@@ -186,11 +188,11 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
   const handleApplyUrl = React.useCallback(async () => {
     const candidate = urlInput.trim()
     if (!candidate) {
-      setError("Inserisci un URL immagine pubblico")
+      setError(t("media.errorUrl"))
       return
     }
     if (!isHttpsUrl(candidate)) {
-      setError("L'URL deve iniziare con https://")
+      setError(t("media.errorHttps"))
       return
     }
 
@@ -199,7 +201,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
     try {
       const isRenderable = await canRenderImageUrl(candidate)
       if (!isRenderable) {
-        setError("URL non renderizzabile come immagine")
+        setError(t("media.errorNotRenderable"))
         return
       }
       if (isMultiple) {
@@ -310,14 +312,14 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                 <DialogHeader>
                   <DialogTitle>{ctaLabel}</DialogTitle>
                   <DialogDescription>
-                    Inserisci un URL pubblico HTTPS oppure carica un file locale.
-                  </DialogDescription>
+                  {t("media.dialogDesc")}
+                </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <label htmlFor={`${branch.alias}-url`} className="text-sm font-medium">
-                      Link immagine
+                      {t("media.imageLink")}
                     </label>
                     <div className="flex gap-2">
                       <Input
@@ -337,12 +339,12 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                         {isValidatingUrl ? (
                           <>
                             <Loader2 className="size-4 animate-spin" />
-                            Verifica...
+                            {t("media.verifying")}
                           </>
                         ) : (
                           <>
                             <LinkIcon className="size-4" />
-                            Aggiungi
+                            {t("media.add")}
                           </>
                         )}
                       </Button>
@@ -374,11 +376,11 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                     {isUploading ? (
                       <div className="flex flex-col items-center gap-2">
                         <Loader2 className="size-8 animate-spin text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Caricamento...</span>
+                        <span className="text-sm text-muted-foreground">{t("media.uploading")}</span>
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground">
-                        trascina qui il tuo file oppure selezionalo
+                        {t("media.dropOrSelect")}
                       </p>
                     )}
                   </button>
@@ -405,7 +407,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                               size="icon"
                               onClick={() => handleReorder(index, "up")}
                               disabled={index === 0 || isBusy}
-                              aria-label="Sposta su"
+                              aria-label={t("media.moveUp")}
                             >
                               <ArrowUp className="size-4" />
                             </Button>
@@ -415,7 +417,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                               size="icon"
                               onClick={() => handleReorder(index, "down")}
                               disabled={index === assets.length - 1 || isBusy}
-                              aria-label="Sposta giu"
+                              aria-label={t("media.moveDown")}
                             >
                               <ArrowDown className="size-4" />
                             </Button>
@@ -425,7 +427,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                               size="icon"
                               onClick={() => handleRemoveAt(index)}
                               disabled={isBusy}
-                              aria-label="Rimuovi immagine"
+                              aria-label={t("media.removeImage")}
                             >
                               <X className="size-4" />
                             </Button>
@@ -447,7 +449,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                       disabled={isBusy}
                     >
                       <X className="size-4" />
-                      Rimuovi tutte
+                      {t("media.removeAll")}
                     </Button>
                   ) : null}
                   <Button
@@ -456,7 +458,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                     onClick={() => setIsModalOpen(false)}
                     disabled={isBusy}
                   >
-                    Chiudi
+                    {t("common.close")}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -494,16 +496,16 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
             </Button>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>{ctaLabel} immagine</DialogTitle>
+                <DialogTitle>{ctaLabel} image</DialogTitle>
                 <DialogDescription>
-                  Inserisci un URL pubblico HTTPS oppure carica un file locale.
+                  {t("media.dialogDesc")}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label htmlFor={`${branch.alias}-url`} className="text-sm font-medium">
-                    Link immagine
+                    {t("media.imageLink")}
                   </label>
                   <div className="flex gap-2">
                     <Input
@@ -523,12 +525,12 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                       {isValidatingUrl ? (
                         <>
                           <Loader2 className="size-4 animate-spin" />
-                          Verifica...
+                          {t("media.verifying")}
                         </>
                       ) : (
                         <>
                           <LinkIcon className="size-4" />
-                          Usa link
+                          {t("media.useLink")}
                         </>
                       )}
                     </Button>
@@ -560,11 +562,11 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                   {isUploading ? (
                     <div className="flex flex-col items-center gap-2">
                       <Loader2 className="size-8 animate-spin text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">Caricamento...</span>
+                      <span className="text-sm text-muted-foreground">{t("media.uploading")}</span>
                     </div>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      trascina qui il tuo file oppure selezionalo
+                      {t("media.dropOrSelect")}
                     </p>
                   )}
                 </button>
@@ -584,7 +586,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                     disabled={isBusy}
                   >
                     <X className="size-4" />
-                    Rimuovi immagine
+                    {t("media.removeImage")}
                   </Button>
                 ) : null}
                 <Button
@@ -593,7 +595,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
                   onClick={() => setIsModalOpen(false)}
                   disabled={isBusy}
                 >
-                  Chiudi
+                  {t("common.close")}
                 </Button>
               </DialogFooter>
             </DialogContent>

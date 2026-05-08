@@ -55,7 +55,7 @@ describe("useLoginForm", () => {
     await act(async () => {
       await result.current.handleSubmit({ preventDefault: vi.fn() } as any)
     })
-    expect(result.current.emailError).toContain("Inserisci l'email")
+    expect(result.current.emailError).toContain("Email is required")
 
     act(() => {
       result.current.handleEmailChange({ target: { value: "not-an-email" } } as any)
@@ -64,7 +64,7 @@ describe("useLoginForm", () => {
     await act(async () => {
       await result.current.handleSubmit({ preventDefault: vi.fn() } as any)
     })
-    expect(result.current.emailError).toContain("Email non valida")
+    expect(result.current.emailError).toContain("Invalid email")
 
     act(() => {
       result.current.handleEmailChange({ target: { value: "a@b.com" } } as any)
@@ -73,7 +73,7 @@ describe("useLoginForm", () => {
     await act(async () => {
       await result.current.handleSubmit({ preventDefault: vi.fn() } as any)
     })
-    expect(result.current.passwordError).toContain("almeno 8 caratteri")
+    expect(result.current.passwordError).toContain("at least 8 characters")
   })
 
   it("submit successo: chiama setToken e naviga home", async () => {
@@ -112,6 +112,6 @@ describe("useLoginForm", () => {
       await result.current.handleSubmit({ preventDefault: vi.fn() } as any)
     })
 
-    expect(result.current.passwordError).toBe("Email o Password errate")
+    expect(result.current.passwordError).toBe("Invalid email or password")
   })
 })

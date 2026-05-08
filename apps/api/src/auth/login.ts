@@ -1,19 +1,18 @@
 /// <reference types="@cloudflare/workers-types" />
-import bcrypt from 'bcryptjs'
+import type { IHashProvider } from '@beechcms/core'
 
 export type LoginCredentials = {
   email: string
   password: string
 }
 
-export type UserRecord = {
-  id: string
-  email: string
-  password_hash: string
-}
-
-/** Regex per validare formato email (deve contenere @ e punto dopo @) */
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+/** 
+ * Regex per validare formato email.
+ * Utilizza classi di caratteri che non si sovrappongono per evitare il backtracking catastrofico (ReDoS).
+ */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/
+/** Lunghezza massima email secondo standard RFC 5321 */
+const MAX_EMAIL_LENGTH = 254
 
 /** Lunghezza minima password (caratteri) */
 const MIN_PASSWORD_LENGTH = 8
@@ -52,6 +51,7 @@ export function parseLoginBody(body: unknown): LoginCredentials | null {
  */
 export function validateLoginInput(email: string, password: string): boolean {
   return (
+    email.length <= MAX_EMAIL_LENGTH &&
     EMAIL_REGEX.test(email) &&
     password.length >= MIN_PASSWORD_LENGTH &&
     password.length <= MAX_PASSWORD_LENGTH
@@ -59,33 +59,16 @@ export function validateLoginInput(email: string, password: string): boolean {
 }
 
 /**
- * Cerca un utente nel database D1 per email.
- * @param db - Istanza D1Database
- * @param email - Email dell'utente
- * @returns UserRecord se trovato, null altrimenti
- */
-export async function findUserByEmail(
-  db: D1Database,
-  email: string
-): Promise<UserRecord | null> {
-  // IMPORTANTE: non interpolare mai direttamente l'email (o altri input utente)
-  // dentro la stringa SQL, usa sempre il placeholder "?" con .bind(...) per evitare SQL injection.
-  const stmt = db.prepare(
-    'SELECT id, email, password_hash FROM users WHERE email = ? LIMIT 1'
-  )
-  const row = await stmt.bind(email).first<UserRecord>()
-  return row
-}
-
-/**
- * Verifica che la password in chiaro corrisponda all'hash bcrypt salvato.
+ * Verifica che la password in chiaro corrisponda all'hash salvato.
  * @param plainPassword - Password in chiaro
- * @param hash - Hash bcrypt salvato nel DB
+ * @param hash - Hash salvato nel DB
+ * @param hashProvider - Provider usato per la comparazione costante-time
  * @returns true se la password è corretta
  */
 export async function verifyPassword(
   plainPassword: string,
-  hash: string
+  hash: string,
+  hashProvider: IHashProvider
 ): Promise<boolean> {
-  return bcrypt.compare(plainPassword, hash)
+  return hashProvider.verify(plainPassword, hash)
 }

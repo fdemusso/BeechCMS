@@ -1,9 +1,9 @@
 /**
  * @beechcms/core - Botanical Engine
  *
- * Pacchetto condiviso del monorepo Beech CMS.
- * In v0.4.0 il Botanical Engine è un compilatore di schema SQL: legge i Seed
- * TypeScript e genera DDL deterministico + query parametrizzate.
+ * Shared package of the Beech CMS monorepo.
+ * In v0.4.0 the Botanical Engine is a SQL schema compiler: it reads TypeScript
+ * Seeds and generates deterministic DDL + parameterized queries.
  *
  * @module @beechcms/core
  */
@@ -21,3 +21,20 @@ export * from './idempotency.repository.js'
 export * from './media.repository.js'
 export * from './storage.js'
 export * from './policies.js'
+export * from './auth/hash-provider.js'
+export * from './auth/token-service.js'
+export * from './auth/user.repository.js'
+export * from './auth/session.repository.js'
+export * from './auth/password-reset-token.repository.js'
+export * from './rate-limit/rate-limiter.js'
+export * from './observability/activity-logger.js'
+export * from './observability/activity-log.repository.js'
+export * from './observability/analytics.repository.js'
+export * from './notifications/notification.repository.js'
+export * from './notifications/notification-service.js'
+export * from './widget/widget.repository.js'
+export * from './search/search.repository.js'
+export * from './content-scan.repository.js'
+export * from './clock.js'
+export * from './id-generator.js'
+export * from './seed-registry.js'

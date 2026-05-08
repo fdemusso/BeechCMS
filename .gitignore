@@ -41,3 +41,19 @@ Thumbs.db
 # Test coverage
 coverage/
 
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+
+
+# Graphify
+graphify-out/
+GRAPH_REPORT.md
+.graphifyignore
+graphify-obsidian/
+scratch/

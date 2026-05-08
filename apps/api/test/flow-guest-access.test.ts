@@ -50,7 +50,49 @@ describe('Flow: Guest Access (Public API)', () => {
       expect(body.data[2].title).toBe('C')
     })
 
-    it('security: rate limiting returns 429 when too many requests', async () => {
+    it('success: filter=JSON returns only matching entries', async () => {
+      repo.load('posts', [
+        { id: '1', status: 'published', title: 'Alpha' },
+        { id: '2', status: 'published', title: 'Beta' },
+        { id: '3', status: 'published', title: 'Gamma' },
+      ])
+
+      const filter = JSON.stringify({ where: [{ field: 'title', op: 'eq', value: 'Beta' }] })
+      const res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+
+      expect(res.status).toBe(200)
+      const body = await res.json<{ data: any[] }>()
+      expect(body.data).toHaveLength(1)
+      expect(body.data[0].id).toBe('2')
+    })
+
+    it('success: filter with contains operator returns partial matches', async () => {
+      repo.load('posts', [
+        { id: '1', status: 'published', title: 'Hello World' },
+        { id: '2', status: 'published', title: 'Goodbye World' },
+        { id: '3', status: 'published', title: 'No match here' },
+      ])
+
+      const filter = JSON.stringify({ where: [{ field: 'title', op: 'contains', value: 'World' }] })
+      const res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent(filter)}`, {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+
+      expect(res.status).toBe(200)
+      const body = await res.json<{ data: any[] }>()
+      expect(body.data).toHaveLength(2)
+    })
+
+    it('error: unknown seed returns 404', async () => {
+      const res = await app.request('/api/v1/public/nonexistent-seed', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(404)
+    })
+
+    it('security: read rate limiting returns 429 when too many requests', async () => {
       const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: false }) }
       const res = await app.request('/api/v1/public/posts', {
         headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
@@ -84,6 +126,73 @@ describe('Flow: Guest Access (Public API)', () => {
 
       expect(res.status).toBe(201)
     })
+
+    it('error: invalid JSON body returns 400', async () => {
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: 'not-json',
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+    })
+
+    it('error: missing data object returns 400', async () => {
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ title: 'Missing data wrapper' }),
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+    })
+
+    it('error: invalid status returns 400', async () => {
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'X' }, status: 'invalid' }),
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+    })
+
+    it('error: slug conflict returns 409', async () => {
+      repo.load('posts', [{ id: 'existing', slug: 'conflict', status: 'published', title: 'Existing' }])
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'X' }, slug: 'conflict' }),
+      }, TEST_ENV)
+      expect(res.status).toBe(409)
+    })
+
+    it('success: idempotency-key returns cached result', async () => {
+      const key = 'test-key'
+      const payload = JSON.stringify({ data: { title: 'Idempotent' } })
+      
+      const res1 = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json', 
+          'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY,
+          'Idempotency-Key': key
+        },
+        body: payload,
+      }, TEST_ENV)
+      expect(res1.status).toBe(201)
+      const body1 = await res1.json<{ id: string }>()
+
+      const res2 = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json', 
+          'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY,
+          'Idempotency-Key': key
+        },
+        body: payload,
+      }, TEST_ENV)
+      expect(res2.status).toBe(201)
+      const body2 = await res2.json<{ id: string }>()
+      expect(body1.id).toBe(body2.id)
+    })
   })
 
   describe('PUT /api/v1/public/:seed/edit/:id (Public Edit)', () => {
@@ -111,6 +220,49 @@ describe('Flow: Guest Access (Public API)', () => {
       }, TEST_ENV)
 
       expect(res.status).toBe(403)
+    })
+
+    it('error: returns 404 if entry does not exist', async () => {
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'X' } }),
+      }, TEST_ENV)
+      expect(res.status).toBe(404)
+    })
+
+    it('error: returns 400 if ID is not a UUID', async () => {
+      const res = await app.request('/api/v1/public/posts/edit/invalid-id', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'X' } }),
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+    })
+
+    it('error: returns 409 if new slug conflicts', async () => {
+      repo.load('posts', [
+        { id: validUuid, status: 'published', title: 'Target', slug: 'target' },
+        { id: 'other-id', status: 'published', title: 'Other', slug: 'other' }
+      ])
+
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ slug: 'other' }),
+      }, TEST_ENV)
+      expect(res.status).toBe(409)
+    })
+
+    it('error: returns 422 when trying to edit sensitive fields', async () => {
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'X' }])
+      // In TEST_SEEDS, internal_note is private
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { internal_note: 'Sneaky update' } }),
+      }, TEST_ENV)
+      expect(res.status).toBe(422)
     })
   })
 })

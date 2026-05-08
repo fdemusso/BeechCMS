@@ -6,7 +6,6 @@ import {
   EntryNotFoundError 
 } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
-import { logActivity } from '../../shared/activity-logger'
 import { cleanStr } from '../../shared/query-utils'
 import { applyVisibility } from '../../shared/apply-policies'
 import { AppEnv } from '../../types'
@@ -114,14 +113,20 @@ draftApp.put('/:slug/:id/draft', async (context) => {
 
   await repository.saveDraft(seed, id, validation.data)
 
-  logActivity(context, {
-    action: 'update', 
-    entityType: 'content', 
-    entityId: id, 
+  const draftSaveActor = context.get('jwtPayload')
+  context.get('activityLogger').log({
+    action: 'update',
+    entityType: 'content',
+    entityId: id,
     entitySlug: slug,
-    details: { 
-      title: cleanStr(validation.data[seed.displayNameAlias]) ?? id, 
-      note: 'draft saved' 
+    details: {
+      title: cleanStr(validation.data[seed.displayNameAlias]) ?? id,
+      note: 'draft saved',
+    },
+    actor: {
+      id: draftSaveActor.sub,
+      email: draftSaveActor.email ?? 'unknown',
+      name: draftSaveActor.name ?? null,
     },
   })
 
@@ -220,12 +225,18 @@ draftApp.post('/:slug/:id/draft/publish', async (context) => {
   const displayValue = draft[seed.displayNameAlias]
   const displayStr = typeof displayValue === 'string' ? displayValue : id
 
-  logActivity(context, {
-    action: 'update', 
-    entityType: 'content', 
-    entityId: id, 
+  const draftPublishActor = context.get('jwtPayload')
+  context.get('activityLogger').log({
+    action: 'update',
+    entityType: 'content',
+    entityId: id,
     entitySlug: slug,
     details: { title: displayStr, note: 'draft published' },
+    actor: {
+      id: draftPublishActor.sub,
+      email: draftPublishActor.email ?? 'unknown',
+      name: draftPublishActor.name ?? null,
+    },
   })
 
   return context.json({ success: true })

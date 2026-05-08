@@ -76,7 +76,7 @@ describe('Flow: Content Management (Protected API)', () => {
   })
 
   describe('GET /api/content/:slug/facets (Admin Facets)', () => {
-    it('success: returns unique statuses and tags', async () => {
+    it('success: returns unique statuses with counts', async () => {
       repo.load('posts', [
         { id: '1', status: 'published', tags: ['news', 'tech'] },
         { id: '2', status: 'draft', tags: ['news'] },
@@ -88,11 +88,31 @@ describe('Flow: Content Management (Protected API)', () => {
       }, { ...TEST_ENV, DB: db as any })
 
       expect(res.status).toBe(200)
-      const body = await res.json<{ statuses: string[], tagsByColumnId: Record<string, string[]> }>()
+      const body = await res.json<{ statuses: string[]; tagsByColumnId: Record<string, string[]> }>()
       expect(body.statuses).toContain('published')
       expect(body.statuses).toContain('draft')
-      // Assuming 'tags' branch exists in fixtures for 'posts' or similar
-      // Wait, fixtures 'posts' has no tags branch. Let's assume it has one for this test or use what's there.
+    })
+
+    it('success: returns unique tags grouped by column alias', async () => {
+      repo.load('posts', [
+        { id: '1', status: 'published', tags: ['news', 'tech'] },
+        { id: '2', status: 'draft', tags: ['news'] },
+        { id: '3', status: 'published', tags: ['tutorial'] },
+      ])
+
+      const res = await app.request('/api/content/posts/facets', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db as any })
+
+      expect(res.status).toBe(200)
+      const body = await res.json<{ statuses: string[]; tagsByColumnId: Record<string, string[]> }>()
+      // 'posts' seed has a 'tags' branch of type 'tags'
+      const tagsForColumn = body.tagsByColumnId?.['tags'] ?? []
+      expect(tagsForColumn).toContain('news')
+      expect(tagsForColumn).toContain('tech')
+      expect(tagsForColumn).toContain('tutorial')
+      // 'news' appears twice but must be deduplicated
+      expect(tagsForColumn.filter((t: string) => t === 'news')).toHaveLength(1)
     })
   })
 
@@ -138,6 +158,54 @@ describe('Flow: Content Management (Protected API)', () => {
       }, { ...TEST_ENV, DB: db as any })
 
       expect(res.status).toBe(400)
+    })
+  })
+
+  describe('PUT /api/content/:slug/:id (Admin Update)', () => {
+    it('success: updates existing entry fields and persists changes', async () => {
+      repo.load('posts', [{ id: 'p_upd', slug: 'old-slug', status: 'published', title: 'Old Title' }])
+
+      const res = await app.request('/api/content/posts/p_upd', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Updated Title' }),
+      }, { ...TEST_ENV, DB: db as any })
+
+      expect(res.status).toBe(200)
+      const updated = await repo.findById(TEST_SEEDS[0], 'p_upd')
+      expect(updated.title).toBe('Updated Title')
+    })
+
+    it('error: update non-existent entry returns 404', async () => {
+      const res = await app.request('/api/content/posts/ghost-id', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Will not be saved' }),
+      }, { ...TEST_ENV, DB: db as any })
+
+      expect(res.status).toBe(404)
+    })
+
+    it('success: successive updates apply correctly (last-write-wins)', async () => {
+      repo.load('posts', [{ id: 'p_multi', slug: 'multi-slug', status: 'published', title: 'V1' }])
+
+      // First update
+      await app.request('/api/content/posts/p_multi', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'V2' }),
+      }, { ...TEST_ENV, DB: db as any })
+
+      // Second update
+      const res = await app.request('/api/content/posts/p_multi', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'V3' }),
+      }, { ...TEST_ENV, DB: db as any })
+
+      expect(res.status).toBe(200)
+      const entry = await repo.findById(TEST_SEEDS[0], 'p_multi')
+      expect(entry.title).toBe('V3')
     })
   })
 

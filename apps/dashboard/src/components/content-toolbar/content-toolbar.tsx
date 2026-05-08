@@ -176,13 +176,13 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                       <Button
                         variant={isAutomationActiveEffective ? "secondary" : "ghost"}
                         size="icon-sm"
-                        aria-label="Automazione"
+                        aria-label={t("toolbar.automation")}
                         onClick={() => onOpenAutomation?.()}
                       >
                         <Zap className="size-4" />
                       </Button>
                     </TooltipTrigger>
-                    <TooltipContent side="top">Automazione</TooltipContent>
+                    <TooltipContent side="top">{t("toolbar.automation")}</TooltipContent>
                   </Tooltip>
                 )}
 

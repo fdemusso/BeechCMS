@@ -1,5 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator } from '@beechcms/core'
+import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 
 export interface Env {
   DB: D1Database
@@ -33,14 +34,30 @@ export interface Env {
 }
 
 export interface Variables {
-  jwtPayload: { sub: string; email?: string }
+  jwtPayload: { sub: string; email?: string; name?: string | null }
   getSeed: (slug: string) => Seed | null
-  seedRegistry: Record<string, Seed>
+  seedRegistry: ISeedRegistry
   repository: ContentRepository
   idempotencyRepository: IdempotencyRepository
   bucket: BeechBucket
   mediaRepository: MediaRepository
   systemStatsRepository: SystemStatsRepository
+  hashProvider: IHashProvider
+  tokenService: ITokenService
+  userRepository: IUserRepository
+  sessionRepository: ISessionRepository
+  passwordResetTokenRepository: IPasswordResetTokenRepository
+  rateLimiters: IRateLimiterRegistry
+  activityLogger: IActivityLogger
+  activityLogRepository: IActivityLogRepository
+  notificationRepository: INotificationRepository
+  notificationService: INotificationService
+  widgetRepository: IWidgetRepository
+  searchRepository: ISearchRepository
+  analyticsRepository: IAnalyticsRepository
+  contentScanRepository: IContentScanRepository
+  clock: IClock
+  idGenerator: IIdGenerator
 }
 
 export type AppEnv = { Bindings: Env; Variables: Variables }

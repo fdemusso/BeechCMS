@@ -8,7 +8,6 @@ import {
 import { applyPrivacy, PrivacyPolicyError } from '../../../shared/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
-import { logActivity } from '../../../shared/activity-logger'
 import { cleanStr } from '../../../shared/query-utils'
 import { AppEnv } from '../../../types'
 
@@ -110,7 +109,7 @@ export async function createHandler(context: Context<AppEnv>) {
     throw error
   }
 
-  const id = crypto.randomUUID()
+  const id = context.get('idGenerator').uuid()
   let finalSlug = entrySlug
   if (!finalSlug) {
     const fallbackSource = privacyData[seed.displayNameAlias ?? 'title'] || privacyData.title || privacyData.name || id
@@ -121,15 +120,20 @@ export async function createHandler(context: Context<AppEnv>) {
     const repository = context.get('repository')
     await repository.create(seed, id, finalSlug, status, privacyData)
 
-    const userId = context.get('jwtPayload')?.sub
+    const jwtPayload = context.get('jwtPayload')
     const title = privacyData.title || privacyData.name || finalSlug
-    
-    logActivity(context, { 
-      action: 'create', 
-      entityType: 'content', 
-      entityId: id, 
-      entitySlug: slug, 
-      details: { title } 
+
+    context.get('activityLogger').log({
+      action: 'create',
+      entityType: 'content',
+      entityId: id,
+      entitySlug: slug,
+      details: { title },
+      actor: {
+        id: jwtPayload.sub,
+        email: jwtPayload.email ?? 'unknown',
+        name: jwtPayload.name ?? null,
+      },
     })
 
     return context.json({ id }, 201)

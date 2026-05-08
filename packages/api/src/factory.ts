@@ -2,6 +2,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import type { Seed } from '@beechcms/core'
+import { SeedRegistry } from '@beechcms/core'
 import type { Env, Variables } from './types'
 
 export interface BeechConfig {
@@ -9,14 +10,13 @@ export interface BeechConfig {
 }
 
 export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Variables: Variables }> {
-  const registry: Record<string, Seed> = Object.fromEntries(config.seeds.map(s => [s.slug, s]))
-  const getSeedFn = (slug: string): Seed | null => registry[slug] ?? null
+  const seedRegistry = new SeedRegistry(config.seeds)
 
   const app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
   app.use('*', async (c, next) => {
-    c.set('getSeed', getSeedFn)
-    c.set('seedRegistry', registry)
+    c.set('getSeed', (slug: string) => seedRegistry.get(slug))
+    c.set('seedRegistry', seedRegistry)
     await next()
   })
 

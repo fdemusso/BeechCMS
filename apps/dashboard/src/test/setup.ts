@@ -6,16 +6,16 @@ import enTranslations from "@/locales/en.json"
 
 if (!i18n.isInitialized) {
   i18n.use(initReactI18next).init({
-    lng: "it",
+    lng: "en",
     resources: {
       it: { translation: itTranslations },
       en: { translation: enTranslations },
     },
-    fallbackLng: "it",
+    fallbackLng: "en",
     interpolation: { escapeValue: false },
   })
 } else {
-  i18n.changeLanguage("it")
+  i18n.changeLanguage("en")
 }
 
 // Radix UI (DropdownMenu/ContextMenu) in jsdom può richiedere PointerEvent/ResizeObserver.

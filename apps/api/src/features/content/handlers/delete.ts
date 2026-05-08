@@ -4,7 +4,6 @@ import { deleteR2Objects } from '../../../upload'
 import { extractMediaKeysFromData } from '../../../media-utils'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
-import { logActivity } from '../../../shared/activity-logger'
 import { AppEnv } from '../../../types'
 
 export async function deleteHandler(context: Context<AppEnv>) {
@@ -34,15 +33,20 @@ export async function deleteHandler(context: Context<AppEnv>) {
     // Repository.delete returns the row data for cleanup
     const { row } = await repository.delete(seed, entryId)
 
-    const userId = context.get('jwtPayload')?.sub
+    const jwtPayload = context.get('jwtPayload')
     const title = row.title || row.name || entryId
-    
-    logActivity(context, { 
-      action: 'delete', 
-      entityType: 'content', 
-      entityId: entryId, 
-      entitySlug: schemaSlug, 
-      details: { title } 
+
+    context.get('activityLogger').log({
+      action: 'delete',
+      entityType: 'content',
+      entityId: entryId,
+      entitySlug: schemaSlug,
+      details: { title },
+      actor: {
+        id: jwtPayload.sub,
+        email: jwtPayload.email ?? 'unknown',
+        name: jwtPayload.name ?? null,
+      },
     })
 
     
