@@ -1,5 +1,5 @@
 import { resolvePolicies, EntryNotFoundError } from '@beechcms/core'
-import type { Seed } from '@beechcms/core'
+import type { Seed, ISeedRegistry } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../shared/query-utils'
 import { checkPublicOperation } from './access-policy'
@@ -13,8 +13,8 @@ import {
 } from './query-builder'
 import { AppEnv } from '../types'
 
-function buildSeedNotFoundMessage(seed: string, seedRegistry: Record<string, Seed>): string {
-  const available = Object.keys(seedRegistry).join(', ')
+function buildSeedNotFoundMessage(seed: string, seedRegistry: ISeedRegistry): string {
+  const available = seedRegistry.all().map(s => s.slug).join(', ')
   return `The content type '${seed}' does not exist. Available types: ${available}.`
 }
 
