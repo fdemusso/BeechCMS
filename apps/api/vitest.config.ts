@@ -22,6 +22,11 @@ export default defineConfig({
         'src/search.ts',
         // Empty compatibility shim — no runtime statements
         'src/shared/fts-sync.ts',
+        // Test doubles and helpers used in test suites but not in production
+        'src/shared/fixed-clock.ts',
+        'src/shared/sequential-id-generator.ts',
+        'src/shared/in-memory-activity-logger.ts',
+        'src/shared/in-memory-notification-service.ts',
         // Hono route handlers that require a live D1/R2/email environment
         'src/widget.ts',
         'src/features/settings/settings.handler.ts',

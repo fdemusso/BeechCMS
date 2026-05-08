@@ -76,7 +76,9 @@ function resolveData(
 
   const sensitiveAliases = Object.keys(rawData).filter((alias) => {
     const branch = seed.branches.find((b) => b.alias === alias)
-    return branch != null && resolvePolicies(branch).privacy !== 'plain'
+    if (!branch) return false
+    const policies = resolvePolicies(branch)
+    return policies.privacy !== 'plain' || policies.public === false
   })
   if (sensitiveAliases.length > 0) {
     return { ok: false, response: publicProblem(context, { type: 'sensitive-field-edit', title: 'Unprocessable Entity', status: 422, detail: `Cannot edit sensitive fields: ${sensitiveAliases.join(', ')}` }) }
