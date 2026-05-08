@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { DashboardWidgetShell } from "@/features/dashboard"
-import { DASHBOARD_QUERY_KEYS } from "@/features/dashboard/hooks/use-dashboard-stats"
+import { DASHBOARD_QUERY_KEYS } from "../../hooks/use-dashboard-stats"
 import { cn } from "@/lib/utils"
 
 export interface QuickDraftSeedOption {

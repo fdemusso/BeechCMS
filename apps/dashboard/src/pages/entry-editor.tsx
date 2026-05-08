@@ -41,7 +41,7 @@ import {
   useContentEntry,
   useSaveContent,
 } from "@/features/content-management"
-import { useActiveSeed } from "@/features/schema/hooks/use-schema"
+import { useActiveSeed } from "@/features/schema"
 
 /** 
  * Allowed slugs: a-z, 0-9, hyphen only. No accents, spaces, or underscores.
