@@ -43,34 +43,9 @@ apps/dashboard/dist/
 packages/core/dist/
 packages/core/tsconfig.tsbuildinfo
 
-# --- Incremental migrations (only 0000_schema_init.sql is needed) ------------
-apps/api/migrations/0001_init.sql
-apps/api/migrations/0002_seed_admin.sql
-apps/api/migrations/0003_refresh_tokens.sql
-apps/api/migrations/0004_seed_projects.sql
-apps/api/migrations/0005_update_projects.sql
-apps/api/migrations/0006_add_slug_and_unique_index.sql
-apps/api/migrations/0007_cleanup_test_data.sql
-apps/api/migrations/0008_seed_content_entries.sql
-apps/api/migrations/0009_public_idempotency.sql
-apps/api/migrations/0010_seed_real_data.sql
-apps/api/migrations/0010_testsite_data.sql
-apps/api/migrations/0011_analytics.sql
-apps/api/migrations/0012_seed_analytics.sql
-apps/api/migrations/0013_system_stats.sql
-apps/api/migrations/0014_activity_logs.sql
-apps/api/migrations/0015_notifications.sql
-apps/api/migrations/0016_fts5_global_search.sql
-apps/api/migrations/0017_seed_clienti.sql
-apps/api/migrations/0018_draft_data.sql
-apps/api/migrations/0019_drop_fts_triggers.sql
-apps/api/migrations/0020_composite_indexes.sql
-apps/api/migrations/0021_media_objects.sql
-apps/api/migrations/0022_analytics_seed.sql
-apps/api/migrations/0023_user_profile.sql
-apps/api/migrations/0024_activity_user_name.sql
-apps/api/migrations/0025_password_reset_tokens.sql
-apps/api/migrations/0026_remove_dev_admin.sql
+# --- Incremental migrations (only 0000_v040_base.sql is needed) ---------
+apps/api/migrations/_archive/
+apps/api/migrations/0028_v040_seed_data.sql
 
 # --- Agents / internal tooling -----------------------------------------------
 apps/dashboard/.agents/
