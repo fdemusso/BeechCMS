@@ -24,16 +24,27 @@ const ROOT = resolve(__dirname, '..')
 // ── CLI args ──────────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2)
-const isPreview = args.includes('--preview')
-// npm intercepts --dry-run itself and sets npm_config_dry_run=true in env,
-// so we check both argv and the env var to support `npm run release --dry-run`
-const isDryRun = args.includes('--dry-run') || process.env.npm_config_dry_run === 'true'
-const bumpIdx = args.indexOf('--bump')
-const bump = bumpIdx !== -1 ? args[bumpIdx + 1] : null
 
-if (bump && !['patch', 'minor', 'major'].includes(bump)) {
-  console.error('Error: --bump must be patch, minor, or major')
-  process.exit(1)
+// Support both --preview flag and npm config (npm run release --preview)
+const isPreview = args.includes('--preview') || process.env.npm_config_preview === 'true'
+
+// Support both --dry-run flag and npm config (npm run release --dry-run)
+const isDryRun = args.includes('--dry-run') || process.env.npm_config_dry_run === 'true'
+
+// Support --bump patch, npm config, or positional argument (npm run release patch)
+const validBumps = ['patch', 'minor', 'major']
+const bumpIdx = args.indexOf('--bump')
+let bump = bumpIdx !== -1 ? args[bumpIdx + 1] : null
+
+if (!validBumps.includes(bump)) {
+  // fallback to npm config (only if it's a string and valid)
+  const npmBump = process.env.npm_config_bump
+  if (typeof npmBump === 'string' && validBumps.includes(npmBump)) {
+    bump = npmBump
+  } else {
+    // fallback to positional argument
+    bump = args.find(a => validBumps.includes(a)) || null
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
