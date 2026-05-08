@@ -6,8 +6,13 @@ export type LoginCredentials = {
   password: string
 }
 
-/** Regex per validare formato email (deve contenere @ e punto dopo @) */
-const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+/** 
+ * Regex per validare formato email.
+ * Utilizza classi di caratteri che non si sovrappongono per evitare il backtracking catastrofico (ReDoS).
+ */
+const EMAIL_REGEX = /^[^\s@]+@[^\s@.]+(?:\.[^\s@.]+)+$/
+/** Lunghezza massima email secondo standard RFC 5321 */
+const MAX_EMAIL_LENGTH = 254
 
 /** Lunghezza minima password (caratteri) */
 const MIN_PASSWORD_LENGTH = 8
@@ -46,6 +51,7 @@ export function parseLoginBody(body: unknown): LoginCredentials | null {
  */
 export function validateLoginInput(email: string, password: string): boolean {
   return (
+    email.length <= MAX_EMAIL_LENGTH &&
     EMAIL_REGEX.test(email) &&
     password.length >= MIN_PASSWORD_LENGTH &&
     password.length <= MAX_PASSWORD_LENGTH

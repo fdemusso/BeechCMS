@@ -6,6 +6,7 @@ import { publicProblem } from '../../public/problem-details'
 import { cleanStr } from '../../shared/query-utils'
 
 const DATABASE_ERROR = 'Database error'
+const INTERNAL_SERVER_ERROR = 'Internal Server Error'
 
 const SECONDS_PER_MINUTE = 60
 const SECONDS_PER_HOUR = 60 * SECONDS_PER_MINUTE
@@ -13,6 +14,19 @@ const SECONDS_PER_DAY = 24 * SECONDS_PER_HOUR
 const HOURS_24_IN_SECONDS = 24 * SECONDS_PER_HOUR
 const DAYS_7_IN_SECONDS = 7 * SECONDS_PER_DAY
 const DAYS_30_IN_SECONDS = 30 * SECONDS_PER_DAY
+const MAX_MEDIA_SCAN = 1000
+const DEFAULT_LIMIT = 12
+const MAX_LIMIT = 100
+const R2_STORAGE_LIMIT = 10 * 1024 * 1024 * 1024 // 10GB
+const D1_MONTHLY_REQUESTS_LIMIT = 1000000 // 1M requests/month
+
+function getMimeType(extension: string): string {
+    if (extension === 'pdf') {
+        return 'application/pdf'
+    }
+    const type = extension === 'jpg' ? 'jpeg' : (extension || 'jpeg')
+    return `image/${type}`
+}
 
 const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -22,15 +36,14 @@ const statsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
  */
 statsApp.get('/stats/media-library', async (context) => {
     try {
-        const { DB } = context.env
         const mediaRepository = context.get('mediaRepository')
-        const limit = Math.min(parseInt(context.req.query('limit') ?? '12'), 100)
-        const offset = parseInt(context.req.query('offset') ?? '0')
+        const limit = Math.min(Number.parseInt(context.req.query('limit') ?? String(DEFAULT_LIMIT), 10), MAX_LIMIT)
+        const offset = Number.parseInt(context.req.query('offset') ?? '0', 10)
         const mediaBaseUrl = (context.env.MEDIA_BASE_URL?.trim().replace(/\/$/, '')) ?? new URL(context.req.url).origin
 
         // 1. Files tracked in the media library
-        // Take the first 1000 for cross-scanning
-        const { items: mediaRows } = await mediaRepository.list({ limit: 1000, offset: 0 })
+        // Take the first MAX_MEDIA_SCAN for cross-scanning
+        const { items: mediaRows } = await mediaRepository.list({ limit: MAX_MEDIA_SCAN, offset: 0 })
 
         const trackedKeys = new Set<string>()
         const allItems: Array<{ key: string; filename: string; mime_type: string; size_bytes: number; created_at: number; url: string }> = []
@@ -50,8 +63,8 @@ statsApp.get('/stats/media-library', async (context) => {
             trackedKeys.add(key)
             const filename = key.replace(/^\d+-/, '')
             const extension = filename.split('.').pop()?.toLowerCase() ?? ''
-            const mimeType = extension === 'pdf' ? 'application/pdf' : `image/${extension === 'jpg' ? 'jpeg' : extension || 'jpeg'}`
-            const createdAt = parseInt(key.split('-')[0]) || 0
+            const mimeType = getMimeType(extension)
+            const createdAt = Number.parseInt(key.split('-')[0], 10) || 0
             allItems.push({
                 key,
                 filename,
@@ -69,7 +82,7 @@ statsApp.get('/stats/media-library', async (context) => {
         return context.json({ items: paginatedItems, total })
     } catch (error) {
         console.error('Media library error:', error)
-        return context.json({ error: 'Internal Server Error' }, 500)
+        return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
 })
 
@@ -78,12 +91,11 @@ statsApp.get('/stats/media-library', async (context) => {
  */
 statsApp.get('/stats/unused-media', async (context) => {
     try {
-        const { DB } = context.env
         const mediaRepository = context.get('mediaRepository')
         const seeds = context.get('seedRegistry').all()
 
         // All tracked media keys
-        const { items: mediaRows } = await mediaRepository.list({ limit: 1000, offset: 0 })
+        const { items: mediaRows } = await mediaRepository.list({ limit: MAX_MEDIA_SCAN, offset: 0 })
 
         if (mediaRows.length === 0) {
             return context.json({ items: [] })
@@ -97,7 +109,7 @@ statsApp.get('/stats/unused-media', async (context) => {
         return context.json({ items: unusedMedia })
     } catch (error) {
         console.error('Unused media error:', error)
-        return context.json({ error: 'Internal Server Error' }, 500)
+        return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
 })
 
@@ -170,7 +182,6 @@ statsApp.get('/stats/setup-checklist', async (context) => {
  */
 statsApp.get('/stats/total', async (context) => {
     try {
-        const { DB } = context.env
         const now = SystemClock.nowSeconds()
         const twentyFourHoursAgo = now - HOURS_24_IN_SECONDS
         const sevenDaysAgo       = now - DAYS_7_IN_SECONDS
@@ -202,7 +213,7 @@ statsApp.get('/stats/total', async (context) => {
         console.error('Content stats error:', error)
         return publicProblem(context, {
             type: 'content-database-error',
-            title: 'Internal Server Error',
+            title: INTERNAL_SERVER_ERROR,
             status: 500,
             detail: DATABASE_ERROR,
         })
@@ -247,7 +258,7 @@ statsApp.get('/stats/recent-activity', async (context) => {
         console.error('Recent activity error:', error)
         return publicProblem(context, {
             type: 'content-database-error',
-            title: 'Internal Server Error',
+            title: INTERNAL_SERVER_ERROR,
             status: 500,
             detail: DATABASE_ERROR,
         })
@@ -259,7 +270,6 @@ statsApp.get('/stats/recent-activity', async (context) => {
  */
 statsApp.get('/stats/health', async (context) => {
     try {
-        const { DB } = context.env
         const systemStatsRepository = context.get('systemStatsRepository')
 
         // 1. Retrieve storage usage from repository (system_stats)
@@ -275,10 +285,6 @@ statsApp.get('/stats/health', async (context) => {
         const totalRequests = await context
             .get('analyticsRepository')
             .sumByMetric('requests', '', thirtyDaysAgo)
-
-        // 3. Define limits (Cloudflare Free Tier as reference)
-        const R2_STORAGE_LIMIT = 10 * 1024 * 1024 * 1024 // 10GB
-        const D1_MONTHLY_REQUESTS_LIMIT = 1000000 // Simulate a limit of 1M requests/month
 
         const storagePercentage = Math.min(Math.round((storageUsedBytes / R2_STORAGE_LIMIT) * 1000) / 10, 100)
         const d1Percentage = Math.min(Math.round((totalRequests / D1_MONTHLY_REQUESTS_LIMIT) * 1000) / 10, 100)
@@ -366,7 +372,7 @@ statsApp.get('/stats/cloudflare', async (context) => {
         console.error('Cloudflare stats error:', error)
         return publicProblem(context, {
             type: 'content-database-error',
-            title: 'Internal Server Error',
+            title: INTERNAL_SERVER_ERROR,
             status: 500,
             detail: DATABASE_ERROR,
         })
@@ -378,7 +384,6 @@ statsApp.get('/stats/cloudflare', async (context) => {
  */
 statsApp.get('/stats/breakdown', async (context) => {
     try {
-        const { DB } = context.env
         const seeds = context.get('seedRegistry').all()
 
         const widgetRepository = context.get('widgetRepository')
@@ -397,7 +402,7 @@ statsApp.get('/stats/breakdown', async (context) => {
         console.error('Breakdown stats error:', error)
         return publicProblem(context, {
             type: 'content-database-error',
-            title: 'Internal Server Error',
+            title: INTERNAL_SERVER_ERROR,
             status: 500,
             detail: DATABASE_ERROR,
         })
@@ -418,7 +423,7 @@ statsApp.post('/stats/storage/sync', async (context) => {
         return context.json({ success: true, size: realSize })
     } catch (error) {
         console.error('Storage sync error:', error)
-        return context.json({ error: 'Internal Server Error' }, 500)
+        return context.json({ error: INTERNAL_SERVER_ERROR }, 500)
     }
 })
 
