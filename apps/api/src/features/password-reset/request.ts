@@ -3,6 +3,7 @@ import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
 import { sendPasswordResetEmail, resolveEmailLocale } from '../email'
 import { sha256hex } from '@beechcms/core'
+import { getClientIp } from '../../shared/request-utils'
 
 const PASSWORD_RESET_TOKEN_EXPIRY_SECONDS = 30 * 60
 
@@ -34,7 +35,7 @@ export async function requestPasswordReset(
   const normalizedEmail = emailInput.trim().toLowerCase()
   const emailLocale = resolveEmailLocale(payload.locale)
 
-  const clientIpAddress = req.raw.headers.get('cf-connecting-ip') ?? 'unknown'
+  const clientIpAddress = getClientIp(req)
   const forgotPasswordRateLimit = await context.get('rateLimiters').getLimiter('forgotPassword').checkLimit(clientIpAddress)
   if (!forgotPasswordRateLimit.isAllowed) {
     return context.json({ error: 'Too many requests' }, 429)

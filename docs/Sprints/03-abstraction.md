@@ -769,22 +769,22 @@ SECTION 11 — PHASE 3 COMPLETION CHECKLIST
 
 Before marking Phase 3 complete, verify every produced file:
 
-  [ ] No abbreviations in names
-  [ ] JSDoc on every exported interface method (WHY, not the obvious WHAT)
-  [ ] No ifs nested beyond 2 levels — guard clauses used
-  [ ] No 3+ inline && chains — extracted to named booleans
-  [ ] No chained ternary expressions
-  [ ] Magic numbers are named constants at top of file
-  [ ] widget.ts contains zero c.env.DB references after Step 3
-  [ ] search.ts contains zero c.env.DB references after Step 4
-  [ ] factory.ts analytics block contains zero inline SQL after Step 7
-  [ ] stats.handler.ts contains zero inline SQL for analytics after Step 7
-  [ ] All SQL uses ? placeholders; ORDER BY direction uses hardcoded branches
-  [ ] Column aliases from user input validated via resolveColumnExpression before SQL use
-  [ ] D1Database accessed only in D1* files
-  [ ] buildFtsQuery, encodeCursor, decodeCursor, mapFtsRow unchanged in search-utils.ts
-  [ ] deserializeFromDb called by route handlers, not by D1WidgetRepository
-  [ ] Future-phase items (IClock, IIdGenerator) referenced via TODO comments
+  [x] No abbreviations in names
+  [x] JSDoc on every exported interface method (WHY, not the obvious WHAT)
+  [x] No ifs nested beyond 2 levels — guard clauses used
+  [x] No 3+ inline && chains — extracted to named booleans
+  [x] No chained ternary expressions
+  [x] Magic numbers are named constants at top of file
+  [x] widget.ts contains zero c.env.DB references after Step 3
+  [x] search.ts contains zero c.env.DB references after Step 4
+  [x] factory.ts analytics block contains zero inline SQL after Step 7
+  [x] stats.handler.ts contains zero inline SQL for analytics after Step 7
+  [x] All SQL uses ? placeholders; ORDER BY direction uses hardcoded branches
+  [x] Column aliases from user input validated via resolveColumnExpression before SQL use
+  [x] D1Database accessed only in D1* files
+  [x] buildFtsQuery, encodeCursor, decodeCursor, mapFtsRow unchanged in search-utils.ts
+  [x] deserializeFromDb called by route handlers, not by D1WidgetRepository
+  [x] Future-phase items (IClock, IIdGenerator) referenced via TODO comments
 
 Begin with Step 1. List the files you will create and modify, then proceed file by file.
 After each file, stop and ask: "Ready for the next file?"

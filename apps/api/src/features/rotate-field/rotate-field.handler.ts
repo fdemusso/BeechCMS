@@ -1,6 +1,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { resolvePolicies, verifyHashField, sha256hex, validateAndSanitizeSeedPayload, serializeForDb } from '@beechcms/core'
+import { resolvePolicies, verifyHashField, sha256hex, validateAndSanitizeSeedPayload, EntryNotFoundError } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
 import { rotateFieldRequestSchema } from './rotate-field.schema'
 import type { Env, Variables } from '../../types'
@@ -65,20 +65,19 @@ rotateFieldApp.post('/:slug/:id/rotate-field', async (context) => {
     })
   }
 
-  const database = context.env.DB
-  
-  // In v0.4.0, the hash value is stored in a dedicated column: contentRecord[targetFieldBranch.alias]
-  const contentRecord = await database.prepare(`SELECT ${targetFieldBranch.alias} FROM content_${seedSlug} WHERE id = ? LIMIT 1`)
-    .bind(entryId)
-    .first<Record<string, unknown>>()
-
-  if (!contentRecord) {
-    return publicProblem(context, { 
-      type: 'content-not-found', 
-      title: 'Not Found', 
-      status: 404, 
-      detail: `Entry '${entryId}' not found` 
-    })
+  let contentRecord: Record<string, unknown>
+  try {
+    contentRecord = await context.get('repository').findById(seed, entryId)
+  } catch (error) {
+    if (error instanceof EntryNotFoundError) {
+      return publicProblem(context, {
+        type: 'content-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: `Entry '${entryId}' not found`
+      })
+    }
+    throw error
   }
 
   const storedFieldValueHash = contentRecord[targetFieldBranch.alias]
@@ -118,11 +117,8 @@ rotateFieldApp.post('/:slug/:id/rotate-field', async (context) => {
   }
 
   const newFieldValueHash = await sha256hex(nextValue)
-  const currentTimestamp = Math.floor(Date.now() / 1000)
 
-  await database.prepare(`UPDATE content_${seedSlug} SET ${targetFieldBranch.alias} = ?, updated_at = ? WHERE id = ?`)
-    .bind(serializeForDb(targetFieldBranch, newFieldValueHash), currentTimestamp, entryId)
-    .run()
+  await context.get('repository').update(seed, entryId, { [targetFieldBranch.alias]: newFieldValueHash })
 
   return context.json({ success: true })
 })

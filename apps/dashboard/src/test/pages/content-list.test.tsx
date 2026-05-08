@@ -21,9 +21,9 @@ const seedPosts = {
   label: "Post",
   labelPlural: "Post",
   branches: [
-    { id: "b1", alias: "title", label: "Titolo", type: "text" },
-    { id: "b2", alias: "createdAt", label: "Data", type: "date" },
-    { id: "b3", alias: "tags", label: "Tag", type: "json", options: ["cms"] },
+    { id: "b1", alias: "title", label: "Title", type: "text" },
+    { id: "b2", alias: "createdAt", label: "Date", type: "date" },
+    { id: "b3", alias: "tags", label: "Tags", type: "json", options: ["cms"] },
   ],
 }
 
@@ -162,8 +162,8 @@ describe("ContentListPage", () => {
   it("mostra errore se seed non esiste", () => {
     mockUseParams.mockReturnValue({ slug: "missing" })
     renderWithProviders(<ContentListPage />)
-    expect(screen.getByText("Errore")).toBeInTheDocument()
-    expect(screen.getByText(/non trovato/i)).toBeInTheDocument()
+    expect(screen.getByText("Error")).toBeInTheDocument()
+    expect(screen.getByText(/not found/i)).toBeInTheDocument()
   })
 
   it("carica dati e rifà fetch quando cambiano search/sort/filter", async () => {
@@ -195,7 +195,7 @@ describe("ContentListPage", () => {
     renderWithProviders(<ContentListPage />)
     await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
 
-    fireEvent.click(await screen.findByText("Elimina"))
+    fireEvent.click(await screen.findByText("Delete"))
     fireEvent.click(await screen.findByText("confirm-delete"))
 
     await waitFor(() => expect(mockDeleteContent).toHaveBeenCalledWith({ slug: "posts", id: "id-1" }))

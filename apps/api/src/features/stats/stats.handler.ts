@@ -41,7 +41,7 @@ statsApp.get('/stats/media-library', async (context) => {
         }
 
         // 2. /api/media/ URLs in the file columns of each seed (v0.4.0 — real columns)
-        const seeds = Object.values(context.get('seedRegistry'))
+        const seeds = context.get('seedRegistry').all()
         const contentScanRepository = context.get('contentScanRepository')
         const referencedKeysFromContent = await contentScanRepository.getReferencedMediaKeys(seeds)
 
@@ -80,7 +80,7 @@ statsApp.get('/stats/unused-media', async (context) => {
     try {
         const { DB } = context.env
         const mediaRepository = context.get('mediaRepository')
-        const seeds = Object.values(context.get('seedRegistry'))
+        const seeds = context.get('seedRegistry').all()
 
         // All tracked media keys
         const { items: mediaRows } = await mediaRepository.list({ limit: 1000, offset: 0 })
@@ -107,7 +107,7 @@ statsApp.get('/stats/unused-media', async (context) => {
 statsApp.get('/stats/setup-checklist', async (context) => {
     try {
         const { DB } = context.env
-        const seeds = Object.values(context.get('seedRegistry'))
+        const seeds = context.get('seedRegistry').all()
 
         // 1. System tables present
         const systemTableNames = [
@@ -177,7 +177,7 @@ statsApp.get('/stats/total', async (context) => {
         const thirtyDaysAgo      = now - DAYS_30_IN_SECONDS
 
         // Total: SUM of per-seed counts (current live entries)
-        const seeds = Object.values(context.get('seedRegistry'))
+        const seeds = context.get('seedRegistry').all()
         const widgetRepository = context.get('widgetRepository')
         const countResults = await Promise.all(
             seeds.map(seed => widgetRepository.aggregate(seed, { op: 'count' }, 'all'))
@@ -379,7 +379,7 @@ statsApp.get('/stats/cloudflare', async (context) => {
 statsApp.get('/stats/breakdown', async (context) => {
     try {
         const { DB } = context.env
-        const seeds = Object.values(context.get('seedRegistry'))
+        const seeds = context.get('seedRegistry').all()
 
         const widgetRepository = context.get('widgetRepository')
         const counts = await Promise.all(

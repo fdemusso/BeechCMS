@@ -1,4 +1,4 @@
-import { isValidContentStatus, SlugConflictError } from '@beechcms/core'
+import { isValidContentStatus, SlugConflictError, sha256hex } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../shared/query-utils'
 import { checkPublicOperation } from './access-policy'
@@ -31,15 +31,6 @@ function parseIdempotencyKey(rawValue: string | undefined): string | null {
   return key
 }
 
-function toHex(buffer: ArrayBuffer): string {
-  return [...new Uint8Array(buffer)].map((v) => v.toString(16).padStart(2, '0')).join('')
-}
-
-async function sha256Hex(input: string): Promise<string> {
-  const data = new TextEncoder().encode(input)
-  const digest = await crypto.subtle.digest('SHA-256', data)
-  return toHex(digest)
-}
 
 export async function publicAddHandler(context: Context<AppEnv>) {
   const seedSlug = context.req.param('seed') ?? ''
@@ -97,14 +88,14 @@ export async function publicAddHandler(context: Context<AppEnv>) {
 
   const idempotencyKey = parseIdempotencyKey(context.req.header('Idempotency-Key'))
   const entrySlug = pickSlugFromBody(body, sanitized.data)
-  const finalSlug = entrySlug || crypto.randomUUID().slice(0, 8)
+  const finalSlug = entrySlug || context.get('idGenerator').uuid().slice(0, 8)
   const repository = context.get('repository')
   const idempotencyRepository = context.get('idempotencyRepository')
 
   try {
     const now = Math.floor(Date.now() / 1000)
     const fingerprintPayload = JSON.stringify({ seedSlug, statusValue, slug: cleanStr(body.slug) ?? null, data: sanitized.data })
-    const fingerprint = await sha256Hex(fingerprintPayload)
+    const fingerprint = await sha256hex(fingerprintPayload)
     const idempotencyTtlSeconds = Math.max(60, Number.parseInt(context.env.PUBLIC_IDEMPOTENCY_TTL_SECONDS ?? '86400', 10) || 86400)
 
     if (idempotencyKey) {
@@ -119,7 +110,7 @@ export async function publicAddHandler(context: Context<AppEnv>) {
       }
     }
 
-    const id = crypto.randomUUID()
+    const id = context.get('idGenerator').uuid()
     
     try {
       await repository.create(seed, id, finalSlug, statusValue as any, sanitized.data)

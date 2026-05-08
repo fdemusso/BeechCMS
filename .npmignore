@@ -74,3 +74,17 @@ apps/api/migrations/0026_remove_dev_admin.sql
 
 # --- Agents / internal tooling -----------------------------------------------
 apps/dashboard/.agents/
+graphify-out/
+GRAPH_REPORT.md
+.graphifyignore
+graphify-obsidian/
+graphify-obsidian/
+.graphifyignore
+scratch/
+
+# AI / Agents (local)
+.agents/
+.claude/
+.cursor/
+.cursorrules
+.mcp.json

@@ -681,21 +681,21 @@ SECTION 10 — PHASE 4 COMPLETION CHECKLIST
 
 Before marking Phase 4 complete, verify every produced file:
 
-  [ ] No abbreviations in names
-  [ ] JSDoc on every exported interface method (WHY, not the obvious WHAT)
-  [ ] No ifs nested beyond 2 levels — guard clauses used
-  [ ] No chained ternary expressions
-  [ ] No 3+ inline && chains
-  [ ] Magic numbers are named constants (SECONDS_PER_DAY, etc.)
-  [ ] IClock and IIdGenerator are constructor-injected, NOT in c.var
-  [ ] FixedClock and SequentialIdGenerator are marked as test-only in JSDoc
-  [ ] All TODO Phase 4 comments for Date.now() and crypto.randomUUID() removed
-  [ ] IAnalyticsRepository.recordRequest signature updated to remove dayTimestamp
-  [ ] D1AnalyticsRepository.recordRequest uses clock internally
-  [ ] factory.ts passes only seedSlug to analyticsRepository.recordRequest
-  [ ] stats.handler.ts uses SystemClock.now() / SystemClock.nowSeconds()
-  [ ] Production code never references FixedClock or SequentialIdGenerator
-  [ ] No circular imports introduced
+  [x] No abbreviations in names
+  [x] JSDoc on every exported interface method (WHY, not the obvious WHAT)
+  [x] No ifs nested beyond 2 levels — guard clauses used
+  [x] No chained ternary expressions
+  [x] No 3+ inline && chains
+  [x] Magic numbers are named constants (SECONDS_PER_DAY, etc.)
+  [x] IClock and IIdGenerator are constructor-injected, NOT in c.var
+  [x] FixedClock and SequentialIdGenerator are marked as test-only in JSDoc
+  [x] All TODO Phase 4 comments for Date.now() and crypto.randomUUID() removed
+  [x] IAnalyticsRepository.recordRequest signature updated to remove dayTimestamp
+  [x] D1AnalyticsRepository.recordRequest uses clock internally
+  [x] factory.ts passes only seedSlug to analyticsRepository.recordRequest
+  [x] stats.handler.ts uses SystemClock.now() / SystemClock.nowSeconds()
+  [x] Production code never references FixedClock or SequentialIdGenerator
+  [x] No circular imports introduced
 
 Begin with Step 1. List the files you will create and modify, then proceed file by file.
 After each file, stop and ask: "Ready for the next file?"

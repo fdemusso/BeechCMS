@@ -76,7 +76,7 @@ setupApp.post('/auth/setup', async (context) => {
   const normalizedName = typeof name === 'string' ? name.trim() : null
 
   await context.get('userRepository').create({
-    id: crypto.randomUUID(),
+    id: context.get('idGenerator').uuid(),
     email: normalizedEmail,
     passwordHash,
     role: 'admin',

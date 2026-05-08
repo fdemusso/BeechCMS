@@ -13,7 +13,7 @@ publicApp.get('/health', (c) => {
 /** Returns the public-facing schema: only seeds with public read or post enabled. */
 publicApp.get('/schema', (c) => {
   const registry = c.get('seedRegistry')
-  const publicSeeds = Object.values(registry)
+  const publicSeeds = registry.all()
     .filter(seed => seed.allowPublicRead === true || seed.allowPublicPost === true || seed.allowPublicEdit === true)
     .map(seed => ({
       slug: seed.slug,
@@ -39,7 +39,7 @@ publicApp.get('/schema', (c) => {
 /** HTML render of the public schema for quick browser inspection. */
 publicApp.get('/schema.html', (c) => {
   const registry = c.get('seedRegistry')
-  const publicSeeds = Object.values(registry)
+  const publicSeeds = registry.all()
     .filter(seed => seed.allowPublicRead === true || seed.allowPublicPost === true || seed.allowPublicEdit === true)
 
   const seedHtml = publicSeeds.map(seed => {

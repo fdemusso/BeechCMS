@@ -1,5 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 
 export interface Env {
@@ -36,7 +36,7 @@ export interface Env {
 export interface Variables {
   jwtPayload: { sub: string; email?: string; name?: string | null }
   getSeed: (slug: string) => Seed | null
-  seedRegistry: Record<string, Seed>
+  seedRegistry: ISeedRegistry
   repository: ContentRepository
   idempotencyRepository: IdempotencyRepository
   bucket: BeechBucket
@@ -56,6 +56,8 @@ export interface Variables {
   searchRepository: ISearchRepository
   analyticsRepository: IAnalyticsRepository
   contentScanRepository: IContentScanRepository
+  clock: IClock
+  idGenerator: IIdGenerator
 }
 
 export type AppEnv = { Bindings: Env; Variables: Variables }

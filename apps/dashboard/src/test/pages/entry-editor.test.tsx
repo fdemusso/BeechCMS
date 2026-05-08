@@ -22,9 +22,9 @@ const seedPosts = {
   slug: "posts",
   label: "Post",
   branches: [
-    { id: "t1", alias: "title", label: "Titolo", type: "text" },
-    { id: "r1", alias: "content", label: "Contenuto", type: "richtext" },
-    { id: "j1", alias: "metaData", label: "Metadati", type: "json" },
+    { id: "t1", alias: "title", label: "Title", type: "text" },
+    { id: "r1", alias: "content", label: "Content", type: "richtext" },
+    { id: "j1", alias: "metaData", label: "Metadata", type: "json" },
   ],
 }
 
@@ -114,19 +114,19 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: any) => {
       const translations: Record<string, string> = {
-        "content.editor.save": "Salva",
-        "content.editor.saving": "Salvataggio...",
-        "content.editor.back": "Indietro",
-        "content.editor.newEntry": `Nuova entry ${params?.label}`,
-        "content.editor.editEntry": `Modifica entry ${params?.label}`,
-        "content.editor.createdSuccess": "Entry creata",
-        "content.editor.savedSuccess": "Modifiche salvate",
-        "content.editor.metadataSeo": "Metadati / SEO",
-        "content.editor.content": "Contenuto",
-        "content.editor.status": "Stato",
+        "content.editor.save": "Save",
+        "content.editor.saving": "Saving...",
+        "content.editor.back": "Back",
+        "content.editor.newEntry": `New entry ${params?.label}`,
+        "content.editor.editEntry": `Edit entry ${params?.label}`,
+        "content.editor.createdSuccess": "Entry created",
+        "content.editor.savedSuccess": "Changes saved",
+        "content.editor.metadataSeo": "Metadata / SEO",
+        "content.editor.content": "Content",
+        "content.editor.status": "Status",
         "content.editor.slug": "Slug",
-        "content.editor.draft": "Bozza",
-        "content.editor.published": "Pubblicato",
+        "content.editor.draft": "Draft",
+        "content.editor.published": "Published",
       }
       return translations[key] || key
     },
@@ -167,10 +167,10 @@ describe("EntryEditorPage", () => {
     const slugInput = screen.getByLabelText(/slug/i)
     await waitFor(() => expect((slugInput as HTMLInputElement).value).toBe("ciao-mondo"))
 
-    fireEvent.click(screen.getByRole("button", { name: "Salva" }))
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
 
     await waitFor(() => expect(mockCreateContent).toHaveBeenCalled())
-    expect(mockToastSuccess).toHaveBeenCalledWith("Entry creata")
+    expect(mockToastSuccess).toHaveBeenCalledWith("Entry created")
     expect(mockNavigate).toHaveBeenCalledWith("/content/posts")
   })
 
@@ -179,7 +179,7 @@ describe("EntryEditorPage", () => {
     const metaInput = await screen.findByLabelText("field-metaData")
     fireEvent.change(metaInput, { target: { value: "{bad json}" } })
 
-    fireEvent.click(screen.getByRole("button", { name: "Salva" }))
+    fireEvent.click(screen.getByRole("button", { name: "Save" }))
 
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalled()
@@ -204,10 +204,10 @@ describe("EntryEditorPage", () => {
     renderWithProvider(<EntryEditorPage />)
     await waitFor(() => expect(mockFetchContentById).toHaveBeenCalledWith("posts", "42"))
     
-    const saveButton = await screen.findByRole("button", { name: "Salva" })
+    const saveButton = await screen.findByRole("button", { name: "Save" })
     fireEvent.click(saveButton)
     
     await waitFor(() => expect(mockUpdateContent).toHaveBeenCalled())
-    expect(mockToastSuccess).toHaveBeenCalledWith("Modifiche salvate")
+    expect(mockToastSuccess).toHaveBeenCalledWith("Changes saved")
   })
 })

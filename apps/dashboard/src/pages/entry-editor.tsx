@@ -44,15 +44,15 @@ import {
 import { useActiveSeed } from "@/features/schema/hooks/use-schema"
 
 /** 
- * Slug ammessi: solo a-z, 0-9, trattino. Niente accenti/spazi/underscore. 
- * TODO: Allineare la regex con slug-utils.ts (API) e spostare la logica in @beechcms/core 
- * per garantire consistenza assoluta tra dashboard e API pubbliche.
+ * Allowed slugs: a-z, 0-9, hyphen only. No accents, spaces, or underscores.
+ * TODO: Align the regex with slug-utils.ts (API) and move logic to @beechcms/core 
+ * to ensure absolute consistency between dashboard and public APIs.
  */
 function slugFromText(text: string): string {
   return slugify(text)
 }
 
-/** Alias considerati campi SEO (meta titolo, meta descrizione, ecc.). */
+/** Aliases considered SEO fields (meta title, meta description, etc.). */
 function isSeoBranch(branch: { alias: string }): boolean {
   return branch.alias.startsWith("meta")
 }
@@ -348,7 +348,7 @@ export function EntryEditorPage() {
                 <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
                   <p className="text-destructive">{errorEntry}</p>
                   <Button variant="outline" className="mt-2" onClick={goBack}>
-                    Indietro
+                    Back
                   </Button>
                 </div>
               </div>

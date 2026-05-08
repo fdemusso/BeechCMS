@@ -3,8 +3,9 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository } from '@beechcms/core'
-import { sha256hex, SystemClock, SystemIdGenerator } from '@beechcms/core'
+import { sha256hex, SystemClock, SystemIdGenerator, SeedRegistry } from '@beechcms/core'
 import type { Env, Variables } from './types'
+import { getClientIp } from './shared/request-utils'
 
 // Imports delle rotte e middleware
 import { AUTH_ERRORS } from './auth/constants'
@@ -52,10 +53,6 @@ function isRequestSecure(url: string): boolean {
   return new URL(url).protocol === 'https:'
 }
 
-function getClientIp(headers: Headers): string {
-  return headers.get('cf-connecting-ip') ?? 'unknown'
-}
-
 function getRefreshTokenCookieOptions(secure: boolean) {
   return {
     httpOnly: true,
@@ -95,15 +92,14 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   const seedsArray = Array.isArray(config.seeds) ? config.seeds : Object.values(config.seeds)
   // Filter out any invalid objects that might have leaked into the registry (e.g. module exports)
   const validSeeds = seedsArray.filter(s => s && typeof s === 'object' && 'slug' in s)
-  const registry: Record<string, Seed> = Object.fromEntries(validSeeds.map(s => [s.slug, s]))
-  const getSeedFn = (slug: string): Seed | null => registry[slug] ?? null
+  const seedRegistry = new SeedRegistry(validSeeds)
 
   const app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
   // 1. Core Middleware (Seeds, CORS, Security)
   app.use('*', async (context, next) => {
-    context.set('getSeed', getSeedFn)
-    context.set('seedRegistry', registry)
+    context.set('getSeed', (slug: string) => seedRegistry.get(slug))
+    context.set('seedRegistry', seedRegistry)
     await next()
   })
 
@@ -204,7 +200,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
       const { email, password } = credentials
       if (!validateLoginInput(email, password)) return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
 
-      const clientIp = getClientIp(context.req.raw.headers)
+      const clientIp = getClientIp(context.req)
       const loginRateLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(clientIp)
       if (!loginRateLimit.isAllowed) return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429)
 
@@ -234,7 +230,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
   app.post('/auth/refresh', async (context) => {
     try {
-      const refreshClientIp = getClientIp(context.req.raw.headers)
+      const refreshClientIp = getClientIp(context.req)
       const refreshRateLimit = await context.get('rateLimiters').getLimiter('tokenRefresh').checkLimit(refreshClientIp)
       if (!refreshRateLimit.isAllowed) return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429)
 

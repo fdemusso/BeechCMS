@@ -79,8 +79,8 @@ export function SiteStatusWidget({ variant = "badge" }: SiteStatusWidgetProps) {
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">{online ? "Sito online" : "Errore"}</p>
-          <p className="text-xs text-muted-foreground">Verificato alle {lastChecked}</p>
+          <p className="text-sm font-semibold">{online ? "Site online" : "Error"}</p>
+          <p className="text-xs text-muted-foreground">Verified at {lastChecked}</p>
         </div>
         {online
           ? <Wifi className="size-4 text-emerald-500 shrink-0" />

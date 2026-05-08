@@ -53,6 +53,8 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('searchRepository', overrides?.searchRepository ?? new D1SearchRepository(database))
     context.set('analyticsRepository', overrides?.analyticsRepository ?? new D1AnalyticsRepository(database, resolvedClock))
     context.set('contentScanRepository', overrides?.contentScanRepository ?? new D1ContentScanRepository(database))
+    context.set('clock', resolvedClock)
+    context.set('idGenerator', resolvedIdGenerator)
     await next()
   })
 }

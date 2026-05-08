@@ -2,7 +2,7 @@
 
 ## Overview
 
-This high-level system map is designed for onboarding new contributors and for AI tools. It summarizes the **tech stack**, **folder architecture**, and **non-negotiable conventions** without diving into implementation details (covered by the documents in `docs/nuovidocs/`).
+This high-level system map is designed for onboarding new contributors and for AI tools. It summarizes the **tech stack**, **folder architecture**, and **non-negotiable conventions** without diving into implementation details (covered by the documents in the `docs/` directory).
 
 > **AI Guidance:**
 > - **Do** read this document to understand the overall architecture before diving into specific modules.
@@ -20,6 +20,8 @@ This high-level system map is designed for onboarding new contributors and for A
 | `[api-reference.md](api-reference.md)` | Auth, Internal Content API, Media Engine, Public API, Widget API |
 | `[frontend-guide.md](frontend-guide.md)` | FieldRenderers, TanStack Query, Tailwind 4, EntryEditorPage, ContentToolbar |
 | `[email-module.md](email-module.md)` | Email module architecture, localization, templates |
+| `[observability-and-notifications.md](observability-and-notifications.md)` | Abstractions for logging, notifications, and cross-cutting utilities (Clock/IdGenerator) |
+| `[vertical-slice.md](vertical-slice.md)` | Guide to Vertical Slice Architecture (VSA) implementation in Beech CMS |
 | `[release.md](release.md)` | Release script, versioning scheme, preview vs stable workflow |
 
 ---
@@ -82,47 +84,50 @@ This high-level system map is designed for onboarding new contributors and for A
 ```text
 @beechcms/cms/
 ├── apps/
-│   ├── api/           # REST API (Hono + Cloudflare Workers/D1/R2)
-│   └── dashboard/     # React frontend (Vite + Tailwind + Field Renderers)
+│   ├── api/           # REST API (Hono + Cloudflare Workers/D1/R2) — Vertical Slice Architecture
+│   └── dashboard/     # React frontend (Vite + Tailwind + Field Renderers) — Vertical Slice Architecture
 ├── packages/
 │   └── core/          # @beechcms/core – Botanical Engine and shared types
 ├── docs/
-│   └── nuovidocs/     # Architectural documentation
+│   ├── Sprints/       # Technical debt and sprint tracking
+│   └── *.md           # Architectural documentation (architecture, api-reference, etc.)
 ├── package.json       # Root: workspaces, Turbo scripts
 ├── tsconfig.json      # Base TypeScript config
 └── turbo.json         # Turbo pipeline (dev, build, test)
 ```
 
-### `apps/api` – Cloudflare Workers API
+### `apps/api` – Cloudflare Workers API (VSA)
 
 - **Main responsibilities**
-  - Auth routes (`/auth/login`, `/auth/refresh`, `/auth/logout`) — see `nuovidocs/api-reference.md` §3.
-  - Dynamic content routes (`/api/content/:slug`, `/api/content/:slug/facets`, `/api/content/:slug/:id`) — see `nuovidocs/api-reference.md` §4.
+  - Modularized by feature under `src/features/` (e.g., `content`, `auth`, `notifications`, `email`).
+  - Auth routes (`/auth/login`, `/auth/refresh`, `/auth/logout`) — see `api-reference.md` §3.
+  - Dynamic content routes (`/api/content/:slug`, `/api/content/:slug/facets`, `/api/content/:slug/:id`) — see `api-reference.md` §4.
   - Statistics and analytics endpoints (`/api/content/stats/total`, `/api/content/stats/cloudflare`, `/api/content/stats/storage/sync`).
-  - Public routes (`/api/v1/public/health`, `/api/v1/public/:seed`, `/api/v1/public/:seed/add`, `/api/v1/public/:seed/edit/:id`) protected by API key — see `nuovidocs/api-reference.md` §6.
-  - Media upload and delivery (`/api/upload`, `/api/media/:key`) — see `nuovidocs/api-reference.md` §5.
+  - Public routes (`/api/v1/public/health`, `/api/v1/public/:seed`, `/api/v1/public/:seed/add`, `/api/v1/public/:seed/edit/:id`) protected by API key — see `api-reference.md` §6.
+  - Media upload and delivery (`/api/upload`, `/api/media/:key`) — see `api-reference.md` §5.
 - **Key integrations**
   - Imports types and functions from `@beechcms/core` (`getSeed`, Botanical Engine).
   - Uses Cloudflare D1 for persistence (schema generated via `beech seed:load`).
   - Uses Cloudflare R2 for binary files.
 - **Important files**
   - `apps/api/src/index.ts` — app entry, CORS, auth routes, analytics middleware.
-  - `apps/api/src/content.ts` — universal CRUD content engine using Botanical Engine.
-  - `apps/api/src/shared/query-utils.ts` — query building utilities.
+  - `apps/api/src/features/content/` — universal CRUD content engine using Botanical Engine.
+  - `apps/api/src/shared/` — cross-feature utilities and repository implementations.
+  - `apps/api/src/middleware/` — Hono middlewares (auth, repository, rate-limiting, observability).
 
 ### `apps/dashboard` – Schema-driven React Dashboard
 
 - **Main responsibilities**
   - Admin UI for managing content via the API.
-  - Schema-driven rendering of forms, table, and gallery views via the FieldRenderers registry — see `nuovidocs/frontend-guide.md` §2.
-  - Filtering, sorting, searching, and view switching through `ContentToolbar` — see `nuovidocs/frontend-guide.md` §7.
+  - Schema-driven rendering of forms, table, and gallery views via the FieldRenderers registry — see `frontend-guide.md` §2.
+  - Filtering, sorting, searching, and view switching through `ContentToolbar` — see `frontend-guide.md` §7.
 - **UI structure**
   - `apps/dashboard/src/components/content-toolbar/` — modular toolbar: view switching, filters, sorting, search, grouping, conditional formats.
   - `apps/dashboard/src/components/content-gallery/` — gallery view (card grid + read-only peek panel).
-  - `apps/dashboard/src/components/fields/` — FieldRenderers registry (`FieldDisplay`, `FieldEdit`, `registry.ts`, `display/*.tsx`, `edit/*.tsx`).
+  - `apps/dashboard/src/components/fields/` — FieldRenderers registry (`FieldDisplay`, `FieldEdit`, `registry.ts`, `field-registry.ts`, `display/*.tsx`, `edit/*.tsx`). `registry.ts` holds a module-level `fieldRegistry: IFieldRegistry` singleton (Phase 5); `getDisplayComponent`/`getEditComponent` delegate to it. External plugins import `{ fieldRegistry }` from `registry.ts` and call `.registerDisplay/.registerEdit(...)` before mount.
   - `apps/dashboard/src/features/richtext-editor/` — TipTap editor slice; only `index.ts` is importable from outside the slice.
   - `apps/dashboard/src/features/dashboard/` — Dashboard cockpit with bento grid widgets and Cloudflare Edge analytics.
-  - `apps/dashboard/src/features/widget-data/` — **Widget Data Layer**: typed hooks, formula evaluation, and Axios wrappers for the `/api/widget/*` endpoints. Public API via `index.ts`. See `nuovidocs/frontend-guide.md` §8.
+  - `apps/dashboard/src/features/widget-data/` — **Widget Data Layer**: typed hooks, formula evaluation, and Axios wrappers for the `/api/widget/*` endpoints. Public API via `index.ts`. See `frontend-guide.md` §8.
   - `apps/dashboard/src/features/command-palette/` — global command palette.
   - Entry editing pages (`EntryEditorPage`) consume FieldRenderers and the Seed from `@beechcms/core`.
 - **Dashboard Seed Config** — sidebar and content-view behaviour is driven by the optional `dashboard` field on each `Seed` (type `DashboardSeedConfig`, defined in `@beechcms/core`). No separate registry or hardcoded map.
@@ -152,13 +157,16 @@ This high-level system map is designed for onboarding new contributors and for A
     - `IClock` + `SystemClock` (`packages/core/src/clock.ts`) — wraps `Date.now()` and `Math.floor(Date.now() / 1000)`. Constructor-injected into `D1ActivityLogger`, `D1NotificationRepository`, `D1SessionRepository`, `D1AnalyticsRepository`, `JoseTokenService`. Test impl: `FixedClock` (`apps/api/src/shared/fixed-clock.ts`).
     - `IIdGenerator` + `SystemIdGenerator` (`packages/core/src/id-generator.ts`) — wraps `crypto.randomUUID()`. Injected into `D1ActivityLogger`, `D1NotificationRepository`, `D1PasswordResetTokenRepository`. Test impl: `SequentialIdGenerator` (`apps/api/src/shared/sequential-id-generator.ts`) emitting `test-id-NNNN`.
     - Both are NOT placed in `c.var`. They are constructor params of the concrete classes. Override hooks live on `repositoryMiddleware`, `authProvidersMiddleware`, and `observabilityMiddleware` (`{ clock?, idGenerator? }`).
+  - **Phase 5 — seed and field registries:**
+    - `ISeedRegistry` + `SeedRegistry` + `InMemorySeedRegistry` (`packages/core/src/seed-registry.ts`) — façade over the flat seed list. `c.var.seedRegistry` is now typed as `ISeedRegistry` (not `Record<string, Seed>`). Methods: `all()`, `get(slug)`, `visibleInDashboard()`, `publicReadable()`, `draftEnabled()`. `getSeed` in `c.var` continues to delegate to `seedRegistry.get()` for backwards compatibility. `SeedRegistry` is constructed in `createBeechApp` (both `apps/api` and `packages/api`).
+    - `IFieldRegistry` + `FieldRegistryImpl` (`apps/dashboard/src/components/fields/field-registry.ts`) — plugin-extensible registry for field renderers. Module-level singleton `fieldRegistry` in `registry.ts` registers all built-in types at startup. External plugins call `fieldRegistry.registerDisplay/registerEdit(...)` before the app mounts. The public API (`getDisplayComponent`, `getEditComponent`) is unchanged for existing callers.
 - **Build**: `npm run build -w @beechcms/core` produces `dist/` with JS and `.d.ts`, consumed by both apps.
 
 ---
 
 ## Key Flows
 
-- **Authentication (`/auth/*`)** — see `nuovidocs/api-reference.md` §2–3
+- **Authentication (`/auth/*`)** — see `api-reference.md` §2–3
   - Login: finds user via `IUserRepository.findByEmail`, verifies password via `IHashProvider.verify` (bcrypt under the hood), issues JWT via `ITokenService.issue` (jose under the hood, 15 min TTL), stores refresh token hash via `ISessionRepository.saveRefreshToken`, sets `HttpOnly SameSite=Strict` cookie.
   - Refresh: reads cookie, validates via `ISessionRepository.findActiveByHash`, revokes old token, issues new access + refresh token pair.
   - Logout: revokes refresh token via `ISessionRepository.revokeByHash`, clears cookie, clears in-memory token on the client.
@@ -181,7 +189,7 @@ This high-level system map is designed for onboarding new contributors and for A
   - Serve: `GET /api/media/:key` proxies via `BeechBucket.get` (R2/S3) with `Cache-Control: public, max-age=31536000, immutable`. Public route, no auth required.
   - Cascade delete: `DELETE /api/content/:slug/:id` extracts keys from fields → `BeechBucket.delete` + `MediaRepository.deleteObject` + `SystemStatsRepository.decrementStorage`.
 
-- **Public API (`/api/v1/public/*`)** — see `nuovidocs/api-reference.md` §6
+- **Public API (`/api/v1/public/*`)** — see `api-reference.md` §6
   - Three-level permission model: seed capability flags (`allowPublicRead/Post/Edit`) + split API keys (`PUBLIC_READ_API_KEY` / `PUBLIC_WRITE_API_KEY`) + published-only filter (`PUBLIC_PUBLISHED_ONLY`).
   - Read endpoint: id lookup, filters, search, pagination, `latest`, field projections. Response è **flat** — content fields at the same level as `id`, `slug`, `status`.
   - **Worker Cache API**: le GET su `/api/v1/public/:seed` vengono messe in cache con TTL 60 secondi via `caches.default` e `waitUntil`. Zero query D1 su cache hit.
@@ -189,7 +197,7 @@ This high-level system map is designed for onboarding new contributors and for A
   - Dedicated rate limiters: `PUBLIC_READ_RATE_LIMITER`, `PUBLIC_WRITE_RATE_LIMITER`.
   - All errors: RFC 7807 Problem Details (`application/problem+json`).
 
-- **Dashboard Rendering (schema-driven)** — see `nuovidocs/frontend-guide.md`
+- **Dashboard Rendering (schema-driven)** — see `frontend-guide.md`
   - `EntryEditorPage` loads the Seed and renders each `Branch` via `<FieldEdit branch={branch} ... />`. No hardcoded field lists.
   - Field type is resolved by `registry.ts` — no `switch(branch.type)` in page code.
   - Table columns are generated dynamically from `Seed.branches` and rendered with `<FieldDisplay>`.
@@ -205,6 +213,11 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Request Tracking**: middleware in `apps/api/src/factory.ts` invokes `c.get('analyticsRepository').recordRequest(seedSlug)` inside `c.executionCtx.waitUntil` (zero-latency). La tabella `analytics(day_ts, metric, seed, value)` ha una colonna `seed` (stringa vuota = globale, `'articoli'` = per-seed). `IAnalyticsRepository` (Phase 3) è l'unico canale per leggere/scrivere counters; `D1AnalyticsRepository` è in `apps/api/src/shared/`. Phase 4: il day-bucket viene calcolato internamente da `D1AnalyticsRepository` tramite l'`IClock` iniettato — la middleware non passa più un timestamp.
   - **Storage Monitoring**: `system_stats` counter incremented on upload, decremented on delete, resyncable via `POST /api/content/stats/storage/sync`. La fonte canonica per la media library è `media_objects` (`SUM(size_bytes)`).
   - **Cockpit Dashboard**: bento grid widgets for total contents, visitors, requests, and R2 storage — driven by TanStack Query with 5-minute `staleTime`.
+
+- **Observability & Notifications** — see `observability-and-notifications.md`
+  - Handlers use `context.get('activityLogger').log(...)` for auditing (async, fire-and-forget).
+  - Handlers use `context.get('notificationService').notify(...)` for system alerts.
+  - Abstractions (`IClock`, `IIdGenerator`) ensure testability without global state patching.
 
 ---
 
@@ -265,7 +278,7 @@ This high-level system map is designed for onboarding new contributors and for A
 
 - **Quality & consistency**
   - **Must** use strict TypeScript, ESLint 9 with `typescript-eslint`, and Vitest as configured.
-  - **Must not** introduce new state-management, routing, or UI libraries without updating `SYSTEM_MAP.md` and the relevant doc in `nuovidocs/`.
+  - **Must not** introduce new state-management, routing, or UI libraries without updating `SYSTEM_MAP.md` and the relevant docs in `docs/`.
 
 ---
 
@@ -274,6 +287,6 @@ This high-level system map is designed for onboarding new contributors and for A
 - **Update the stack** whenever a core technology changes (new framework, DB, CI/CD tool).
 - **Update folder architecture** when adding new apps in `apps/` or new packages in `packages/`.
 - **Update non-negotiable conventions** when making major architectural decisions.
-- **Update `nuovidocs/`** when APIs, field types, or frontend patterns change — `SYSTEM_MAP.md` links there and does not duplicate content.
+- **Update `docs/`** when APIs, field types, or frontend patterns change — `SYSTEM_MAP.md` links there and does not duplicate content.
 
-`SYSTEM_MAP.md` is the high-level source of truth for understanding **how Beech CMS is built**. Implementation details are in `docs/nuovidocs/` and in the codebase itself.
+`SYSTEM_MAP.md` is the high-level source of truth for understanding **how Beech CMS is built**. Implementation details are in the `docs/` directory and in the codebase itself.

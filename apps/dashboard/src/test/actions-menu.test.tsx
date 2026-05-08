@@ -33,13 +33,26 @@ function renderTable({
     updated_at: null,
   }
 
+  const t = (k: string) => {
+    const m: any = {
+      "common.openMenu": "Open menu",
+      "content.actions.label": "Actions",
+      "common.delete": "Delete",
+      "common.edit": "Edit",
+      "content.actions.copyId": "Copy ID"
+    }
+    return m[k] || k
+  }
+
   const columns = generateColumns(
     seed,
     () => {},
     onDelete,
     undefined,
     selectedIds,
-    onBulkDelete
+    onBulkDelete,
+    undefined,
+    t
   )
 
   render(<DataTable columns={columns} data={[entry]} />)
@@ -56,13 +69,13 @@ describe("Actions menu (3 puntini) – bulk selection", () => {
       onBulkDelete,
     })
 
-    fireEvent.pointerDown(screen.getByRole("button", { name: /apri menu/i }))
+    fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
 
-    expect(await screen.findByText("Elimina")).toBeInTheDocument()
-    expect(screen.queryByText("Copia ID")).not.toBeInTheDocument()
-    expect(screen.queryByText("Modifica")).not.toBeInTheDocument()
+    expect(await screen.findByText("Delete")).toBeInTheDocument()
+    expect(screen.queryByText("Copy ID")).not.toBeInTheDocument()
+    expect(screen.queryByText("Edit")).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByText("Elimina"))
+    fireEvent.click(screen.getByText("Delete"))
 
     expect(onBulkDelete).toHaveBeenCalledTimes(1)
     expect(onBulkDelete).toHaveBeenCalledWith(["id-1", "id-2"])
@@ -79,13 +92,13 @@ describe("Actions menu (3 puntini) – bulk selection", () => {
       onBulkDelete,
     })
 
-    fireEvent.pointerDown(screen.getByRole("button", { name: /apri menu/i }))
+    fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
 
-    expect(await screen.findByText("Copia ID")).toBeInTheDocument()
-    expect(screen.getByText("Modifica")).toBeInTheDocument()
-    expect(screen.getByText("Elimina")).toBeInTheDocument()
+    expect(await screen.findByText("Copy ID")).toBeInTheDocument()
+    expect(screen.getByText("Edit")).toBeInTheDocument()
+    expect(screen.getByText("Delete")).toBeInTheDocument()
 
-    fireEvent.click(screen.getByText("Elimina"))
+    fireEvent.click(screen.getByText("Delete"))
 
     expect(onDelete).toHaveBeenCalledTimes(1)
     expect(onDelete).toHaveBeenCalledWith("id-1")

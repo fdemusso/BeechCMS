@@ -118,7 +118,8 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       undefined,
       [],
       undefined,
-      { year: true, month: false, day: false }
+      { year: true, month: false, day: false },
+      (k) => (k === "content.table.items" ? "entries" : k)
     )
 
     const dateCol = cols.find((c) => c.id === "publishedAt") as any
@@ -132,7 +133,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       row: { subRows: [{}, {}] },
     })
     render(el1)
-    expect(screen.getByText(/2026 · 2 voci/i)).toBeInTheDocument()
+    expect(screen.getByText(/2026 · 2 entries/i)).toBeInTheDocument()
   })
 
   it("boolean: booleanAggFn conta true/false e aggregatedCell formatta ✓/✗", () => {
@@ -159,7 +160,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
   })
 
   it("number: formatSum usa Σ quando value è number e fallback su NaN", () => {
-    const cols = generateColumns(baseSeed, vi.fn(), vi.fn())
+    const cols = generateColumns(baseSeed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, (k) => (k === "content.table.items" ? "entries" : k))
     const numCol = cols.find((c) => c.id === "price") as any
 
     const el = numCol.aggregatedCell({
@@ -168,7 +169,7 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
     })
     const utils1 = render(el)
     expect(utils1.getByText(/Σ/)).toBeInTheDocument()
-    expect(utils1.getByText(/2 voci/i)).toBeInTheDocument()
+    expect(utils1.getByText(/2 entries/i)).toBeInTheDocument()
     utils1.unmount()
 
     const elNaN = numCol.aggregatedCell({
@@ -176,25 +177,29 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       row: { subRows: [{}, {}] },
     })
     const utils2 = render(elNaN)
-    expect(utils2.getByText(/2 voci/i)).toBeInTheDocument()
+    expect(utils2.getByText(/2 entries/i)).toBeInTheDocument()
   })
 
-  it("default/text: aggregatedCell rende 'voce' quando count=1 e 'voci' quando count>1", () => {
-    const cols = generateColumns(baseSeed, vi.fn(), vi.fn())
+  it("default/text: aggregatedCell rende 'entry' quando count=1 e 'entries' quando count>1", () => {
+    const cols = generateColumns(baseSeed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, (k) => {
+      if (k === "content.table.item") return "entry"
+      if (k === "content.table.items") return "entries"
+      return k
+    })
     const textCol = cols.find((c) => c.id === "title") as any
 
     const elSingle = textCol.aggregatedCell({
       row: { subRows: [{}] },
     })
     const utils1 = render(elSingle)
-    expect(utils1.getByText(/1 voce/i)).toBeInTheDocument()
+    expect(utils1.getByText(/1 entry/i)).toBeInTheDocument()
     utils1.unmount()
 
     const elMany = textCol.aggregatedCell({
       row: { subRows: [{}, {}] },
     })
     const utils2 = render(elMany)
-    expect(utils2.getByText(/2 voci/i)).toBeInTheDocument()
+    expect(utils2.getByText(/2 entries/i)).toBeInTheDocument()
   })
 
   describe("azioni column", () => {
@@ -216,26 +221,37 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
 
       const seed = makeSeed({ branches: [] })
       const entry = makeEntry("id-1", "items", {})
-      const cols = generateColumns(seed, onEdit, onDelete, undefined, [], onBulkDelete)
+      const t = (k: string) => {
+        const m: any = {
+          "common.openMenu": "Open menu",
+          "content.actions.label": "Actions",
+          "common.delete": "Delete",
+          "common.edit": "Edit",
+          "content.actions.copyId": "Copy ID",
+          "common.copied": "ID copied"
+        }
+        return m[k] || k
+      }
+      const cols = generateColumns(seed, onEdit, onDelete, undefined, [], onBulkDelete, undefined, t)
 
       render(<DataTable columns={cols} data={[entry]} />)
 
-      fireEvent.pointerDown(screen.getByRole("button", { name: /apri menu/i }))
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
 
-      expect(await screen.findByText("Copia ID")).toBeInTheDocument()
-      fireEvent.click(screen.getByText("Modifica"))
+      expect(await screen.findByText("Copy ID")).toBeInTheDocument()
+      fireEvent.click(screen.getByText("Edit"))
       expect(onEdit).toHaveBeenCalledWith("id-1")
 
-      fireEvent.pointerDown(screen.getByRole("button", { name: /apri menu/i }))
-      fireEvent.click(screen.getByText("Elimina"))
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
+      fireEvent.click(screen.getByText("Delete"))
       expect(onDelete).toHaveBeenCalledWith("id-1")
 
-      fireEvent.pointerDown(screen.getByRole("button", { name: /apri menu/i }))
-      fireEvent.click(screen.getByText("Copia ID"))
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
+      fireEvent.click(screen.getByText("Copy ID"))
 
       await waitFor(() => {
         expect((navigator as any).clipboard.writeText).toHaveBeenCalledWith("id-1")
-        expect(toast.success).toHaveBeenCalledWith("ID copiato")
+        expect(toast.success).toHaveBeenCalledWith("ID copied")
       })
     })
 
@@ -251,14 +267,22 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
 
       const seed = makeSeed({ branches: [] })
       const entry = makeEntry("id-1", "items", {})
-      const cols = generateColumns(seed, onEdit, onDelete)
+      const t = (k: string) => {
+        const m: any = {
+          "common.openMenu": "Open menu",
+          "content.actions.copyId": "Copy ID",
+          "common.copyFailed": "Copy failed"
+        }
+        return m[k] || k
+      }
+      const cols = generateColumns(seed, onEdit, onDelete, undefined, [], undefined, undefined, t)
 
       render(<DataTable columns={cols} data={[entry]} />)
-      fireEvent.pointerDown(screen.getByRole("button", { name: /apri menu/i }))
-      fireEvent.click(screen.getByText("Copia ID"))
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
+      fireEvent.click(screen.getByText("Copy ID"))
 
       await waitFor(() => {
-        expect(toast.error).toHaveBeenCalledWith("Copia fallita")
+        expect(toast.error).toHaveBeenCalledWith("Copy failed")
       })
     })
 
@@ -268,15 +292,16 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
 
       const seed = makeSeed({ branches: [] })
       const entry = makeEntry("id-1", "items", {})
-      const cols = generateColumns(seed, vi.fn(), onDelete, undefined, ["id-1", "id-2"], onBulkDelete)
+      const t = (k: string) => (k === "common.delete" || k === "common.openMenu") ? (k === "common.delete" ? "Delete" : "Open menu") : k
+      const cols = generateColumns(seed, vi.fn(), onDelete, undefined, ["id-1", "id-2"], onBulkDelete, undefined, t)
 
       render(<DataTable columns={cols} data={[entry]} />)
-      fireEvent.pointerDown(screen.getByRole("button", { name: /apri menu/i }))
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
 
-      expect(await screen.findByText("Elimina")).toBeInTheDocument()
-      expect(screen.queryByText("Copia ID")).not.toBeInTheDocument()
+      expect(await screen.findByText("Delete")).toBeInTheDocument()
+      expect(screen.queryByText("Copy ID")).not.toBeInTheDocument()
 
-      fireEvent.click(screen.getByText("Elimina"))
+      fireEvent.click(screen.getByText("Delete"))
       expect(onBulkDelete).toHaveBeenCalledWith(["id-1", "id-2"])
     })
   })

@@ -233,7 +233,7 @@ settingsApp.get('/storage', async (context) => {
   const totalStorageUsedBytes = await statsRepo.getStorageUsage()
   const totalFileCount = await mediaRepo.count()
 
-  const registeredSeeds = Object.values(context.get('seedRegistry'))
+  const registeredSeeds = context.get('seedRegistry').all()
   const referencedMediaKeys = await context.get('contentScanRepository').getReferencedMediaKeys(registeredSeeds)
 
   const { items: allMediaRows } = await mediaRepo.list({ limit: 50, offset: 0 })

@@ -26,7 +26,7 @@ export function useContentDeleteDialog({
       onOpenChange(false)
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Errore durante l'eliminazione"
+        err instanceof Error ? err.message : "Error during deletion"
       )
     } finally {
       setIsDeleting(false)

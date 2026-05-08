@@ -3,6 +3,7 @@ import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
 import { sendPasswordChangedEmail, resolveEmailLocale } from '../email'
 import { sha256hex } from '@beechcms/core'
+import { getClientIp } from '../../shared/request-utils'
 
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 128
@@ -19,7 +20,7 @@ export async function resetPassword(
     return context.json({ error: 'Service not available' }, 503)
   }
 
-  const clientIpAddress = req.raw.headers.get('cf-connecting-ip') ?? 'unknown'
+  const clientIpAddress = getClientIp(req)
   const resetPasswordRateLimit = await context.get('rateLimiters').getLimiter('resetPassword').checkLimit(clientIpAddress)
   if (!resetPasswordRateLimit.isAllowed) {
     return context.json({ error: 'Too many requests' }, 429)

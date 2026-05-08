@@ -1,5 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed } from '@beechcms/core'
+import type { Seed, ISeedRegistry } from '@beechcms/core'
 
 export interface Env {
   DB: D1Database
@@ -31,5 +31,5 @@ export interface Env {
 export interface Variables {
   jwtPayload: { sub: string; email?: string }
   getSeed: (slug: string) => Seed | null
-  seedRegistry: Record<string, Seed>
+  seedRegistry: ISeedRegistry
 }

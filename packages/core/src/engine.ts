@@ -1,9 +1,9 @@
 /**
  * Botanical Engine: Schema Compiler + Query Builder.
  *
- * In v0.4.0 ogni Seed ha una tabella SQL dedicata (`content_{slug}`) con colonne
- * reali tipizzate. Questo modulo genera il DDL e costruisce query parametrizzate.
- * Non conosce HTTP, auth o UI — è una libreria Node.js pura (C6).
+ * In v0.4.0 each Seed has a dedicated SQL table (`content_{slug}`) with
+ * real typed columns. This module generates the DDL and builds parameterized queries.
+ * It does not know about HTTP, auth, or UI — it's a pure TypeScript library.
  */
 import type {
   Seed,
@@ -95,8 +95,8 @@ function normalizeAssetListValue(rawValue: unknown): string[] {
 // ---- DDL Generators ----
 
 /**
- * Genera `CREATE TABLE IF NOT EXISTS content_{slug}` con colonne di sistema
- * + una colonna per ogni Branch. Funzione pura: stesso Seed → stesso SQL.
+ * Generates `CREATE TABLE IF NOT EXISTS content_{slug}` with system columns
+ * + one column per Branch. Pure function: same Seed → same SQL.
  */
 export function generateCreateTable(seed: Seed): string {
   const table = tableName(seed)
@@ -123,9 +123,9 @@ export function generateCreateTable(seed: Seed): string {
 }
 
 /**
- * Genera la tabella bozze `content_{slug}_drafts` per i Seed con `allowDrafts: true`.
- * Tutte le colonne branch sono nullable (le bozze sono parziali).
- * Ritorna null se il Seed non ha `allowDrafts: true`.
+ * Generates the drafts table `content_{slug}_drafts` for Seeds with `allowDrafts: true`.
+ * All branch columns are nullable (drafts are partial).
+ * Returns null if the Seed does not have `allowDrafts: true`.
  */
 export function generateDraftTable(seed: Seed): string | null {
   if (!seed.allowDrafts) return null
@@ -141,7 +141,7 @@ export function generateDraftTable(seed: Seed): string | null {
   for (const branch of seed.branches) {
     const { sqlType } = BRANCH_TYPE_SQL[branch.type]
     let col = `  ${branch.alias}  ${sqlType}`
-    // boolean CHECK: in SQLite, NULL IN (0,1) → NULL, che passa il CHECK (solo FALSE lo fallisce)
+    // boolean CHECK: in SQLite, NULL IN (0,1) → NULL, which passes the CHECK (only FALSE fails it)
     if (branch.type === 'boolean') col += ` CHECK (${branch.alias} IN (0, 1))`
     lines.push(col + ',')
   }
@@ -153,8 +153,8 @@ export function generateDraftTable(seed: Seed): string | null {
 }
 
 /**
- * Genera `ALTER TABLE content_{slug} ADD COLUMN {alias} {type}`.
- * Nuove colonne sono sempre nullable (limite SQLite su ALTER TABLE).
+ * Generates `ALTER TABLE content_{slug} ADD COLUMN {alias} {type}`.
+ * New columns are always nullable (SQLite limit on ALTER TABLE).
  */
 export function generateAddColumn(seed: Seed, branch: Branch): string {
   const { sqlType } = BRANCH_TYPE_SQL[branch.type]
@@ -162,8 +162,8 @@ export function generateAddColumn(seed: Seed, branch: Branch): string {
 }
 
 /**
- * Genera indici B-tree per status, created_at e ogni Branch filtrabile
- * con tipo indicizzabile (text, number, date, boolean).
+ * Generates B-tree indexes for status, created_at and every filterable Branch
+ * with an indexable type (text, number, date, boolean).
  */
 export function generateIndexes(seed: Seed): string[] {
   const table = tableName(seed)
@@ -186,8 +186,8 @@ export function generateIndexes(seed: Seed): string[] {
 }
 
 /**
- * Genera la virtual table FTS5 per i Branch text/richtext indicizzabili.
- * Ritorna null se il Seed non ha branch con search abilitato.
+ * Generates the FTS5 virtual table for indexable text/richtext Branches.
+ * Returns null if the Seed has no branches with search enabled.
  */
 export function generateFtsTable(seed: Seed): string | null {
   const rtBranches = indexableSearchBranches(seed)
@@ -206,9 +206,9 @@ export function generateFtsTable(seed: Seed): string | null {
 }
 
 /**
- * Genera i 3 trigger SQLite (insert/update/delete) che mantengono la FTS
- * sincronizzata automaticamente — elimina la necessità di syncFts manuale.
- * Ritorna array vuoto se il Seed non ha branch indicizzabili.
+ * Generates the 3 SQLite triggers (insert/update/delete) that keep the FTS
+ * automatically synchronized — eliminates the need for manual syncFts.
+ * Returns an empty array if the Seed has no indexable branches.
  */
 export function generateFtsTriggers(seed: Seed): string[] {
   const rtBranches = indexableSearchBranches(seed)
@@ -247,9 +247,9 @@ export function generateFtsTriggers(seed: Seed): string[] {
 // ---- Query Builder ----
 
 /**
- * Costruisce una SELECT parametrizzata su `content_{slug}`.
- * Non usa mai json_extract — ogni colonna è una colonna reale.
- * Colonne sconosciute nei filtri/orderBy vengono ignorate (fail-closed).
+ * Builds a parameterized SELECT on `content_{slug}`.
+ * Never uses json_extract — every column is a real column.
+ * Unknown columns in filters/orderBy are ignored (fail-closed).
  */
 export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): ParameterizedQuery {
   const table = tableName(seed)
@@ -439,8 +439,8 @@ export interface SchemaColumn {
 }
 
 /**
- * Ritorna la lista di colonne attese per la tabella di un Seed.
- * Usato da `beech seed:load --diff` per confrontare schema attuale vs atteso.
+ * Returns the list of expected columns for a Seed's table.
+ * Used by `beech seed:load --diff` to compare current vs expected schema.
  */
 export function getExpectedColumns(seed: Seed): SchemaColumn[] {
   return [
@@ -461,7 +461,7 @@ export function getExpectedColumns(seed: Seed): SchemaColumn[] {
 // ---- Serialization / Deserialization ----
 
 /**
- * Serializza un valore per la scrittura nel DB.
+ * Serializes a value for writing to the DB.
  * boolean → 0/1 | date → Unix timestamp | json/asset-list → JSON string
  */
 export function serializeForDb(branch: Branch, value: unknown): string | number | null {
@@ -502,7 +502,7 @@ export function serializeForDb(branch: Branch, value: unknown): string | number 
 }
 
 /**
- * Deserializza un valore letto dal DB per la risposta API.
+ * Deserializes a value read from the DB for the API response.
  * 0/1 → boolean | Unix timestamp → ISO 8601 | JSON string → object
  */
 export function deserializeFromDb(branch: Branch, value: unknown): unknown {

@@ -26,7 +26,7 @@ searchRouter.get("/", async (c) => {
     return c.json({ error: "Il parametro 'q' deve avere almeno 2 caratteri." }, 400)
   }
 
-  const seeds = Object.values(c.get('seedRegistry'))
+  const seeds = c.get('seedRegistry').all()
   const searchRepository = c.get('searchRepository')
 
   const queryOptions = {

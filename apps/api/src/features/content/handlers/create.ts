@@ -109,7 +109,7 @@ export async function createHandler(context: Context<AppEnv>) {
     throw error
   }
 
-  const id = crypto.randomUUID()
+  const id = context.get('idGenerator').uuid()
   let finalSlug = entrySlug
   if (!finalSlug) {
     const fallbackSource = privacyData[seed.displayNameAlias ?? 'title'] || privacyData.title || privacyData.name || id
