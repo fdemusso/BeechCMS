@@ -27,7 +27,7 @@ const seedPosts = {
   ],
 }
 
-vi.mock("@/features/schema/hooks/use-schema", () => ({
+vi.mock("@/features/schema", () => ({
   useActiveSeed: (slug: string) => ({
     seed: slug === "posts" ? seedPosts : null,
     isLoading: false,

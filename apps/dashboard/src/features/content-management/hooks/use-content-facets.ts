@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { contentApi } from "../api/content.api"
 import { FACET_QUERY_KEYS, CONTENT_QUERY_KEYS } from "../consts/content.keys"
-import { DASHBOARD_QUERY_KEYS } from "@/features/dashboard/hooks/use-dashboard-stats"
+import { DASHBOARD_QUERY_KEYS } from "@/features/dashboard"
 
 /**
  * Hook for fetching schema facets (statuses, tags).

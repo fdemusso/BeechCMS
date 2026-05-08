@@ -39,7 +39,7 @@ vi.mock("@beechcms/core", () => ({
       .replace(/^-+|-+$/g, ""),
 }))
 
-vi.mock("@/features/schema/hooks/use-schema", () => ({
+vi.mock("@/features/schema", () => ({
   useActiveSeed: (slug: string) => ({
     seed: slug === "posts" ? seedPosts : null,
     isLoading: false,

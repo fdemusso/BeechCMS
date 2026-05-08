@@ -5,7 +5,7 @@ import { SiteHeader } from "@/components/site-header"
 import { WidgetRegistry } from "../components/widget-registry"
 import { getDashboardConfig } from "../config/dashboard.config"
 import { useDashboardStats, useCloudflareStats } from "../hooks/use-dashboard-stats"
-import { useSchema } from "@/features/schema/hooks/use-schema"
+import { useSchema } from "@/features/schema"
 import { useAuth } from "@/lib/auth-context"
 
 export default function DashboardPage() {

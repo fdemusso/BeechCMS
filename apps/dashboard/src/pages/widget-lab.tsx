@@ -12,7 +12,7 @@ import {
   MediaGalleryWidget,
   ActivityFeedWidget,
 } from "@/features/dashboard/components/widgets"
-import { useSchema } from "@/features/schema/hooks/use-schema"
+import { useSchema } from "@/features/schema"
 import { cn } from "@/lib/utils"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────

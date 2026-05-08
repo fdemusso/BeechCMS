@@ -36,7 +36,7 @@ import {
   useContentFacets,
   useDeleteContent,
 } from "@/features/content-management"
-import { useActiveSeed } from "@/features/schema/hooks/use-schema"
+import { useActiveSeed } from "@/features/schema"
 import {
   generateColumns,
   computeMaxLengths,
