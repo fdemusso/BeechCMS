@@ -17,16 +17,16 @@ export async function getBucketSize(client: S3Client, bucketName: string): Promi
         ContinuationToken: continuationToken,
       })
 
-      const s3Response: ListObjectsV2CommandOutput = await client.send(command)
-      
-      if (s3Response.Contents) {
-        for (const obj of s3Response.Contents) {
+      const response = await client.send(command)
+
+      if (response.Contents) {
+        for (const obj of response.Contents) {
           totalSize += obj.Size ?? 0
         }
       }
 
-      isTruncatedFlag = s3Response.IsTruncated ?? false
-      continuationToken = s3Response.NextContinuationToken
+      isTruncatedFlag = response.IsTruncated ?? false
+      continuationToken = response.NextContinuationToken
     }
     return totalSize
   } catch (err) {
