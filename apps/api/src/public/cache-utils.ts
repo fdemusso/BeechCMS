@@ -1,14 +1,22 @@
+import type { Context } from 'hono'
+
 type EdgeCache = {
   cache: Cache
   executionCtx: { waitUntil: (p: Promise<unknown>) => void }
 } | null
 
-export function resolveEdgeCache(rawCtx: unknown): EdgeCache {
+export function resolveEdgeCache(c: Context): EdgeCache {
   try {
     const cache = caches.default
-    const ctx = rawCtx as { waitUntil?: (p: Promise<unknown>) => void } | undefined
-    if (!ctx?.waitUntil) return null
-    return { cache, executionCtx: ctx as { waitUntil: (p: Promise<unknown>) => void } }
+    let executionCtx: any
+    try {
+      executionCtx = c.executionCtx
+    } catch {
+      return null
+    }
+
+    if (!executionCtx?.waitUntil) return null
+    return { cache, executionCtx: executionCtx as { waitUntil: (p: Promise<unknown>) => void } }
   } catch {
     return null
   }

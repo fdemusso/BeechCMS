@@ -25,7 +25,7 @@ export async function publicReadHandler(context: Context<AppEnv>) {
     return publicProblem(context, { type: 'operation-not-allowed', title: access.error.error, status: 403, detail: access.error.message })
   }
 
-  const edgeCache = resolveEdgeCache(context.executionCtx)
+  const edgeCache = resolveEdgeCache(context)
   const cacheKey = context.req.raw
   if (edgeCache) {
     const hit = await edgeCache.cache.match(cacheKey)
