@@ -28,6 +28,11 @@ function normalizeProblemType(type: string): string {
   return `https://beechcms.dev/problems/${type}`
 }
 
+export function internalErrorDetail(env: { ENV?: string }, error: unknown): string {
+  if (env.ENV !== 'production' && error instanceof Error) return error.message
+  return 'An unexpected error occurred.'
+}
+
 /**
  * Restituisce errori API in formato Problem Details (RFC 9457).
  */
