@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
-import { MediaEdit } from "@/components/fields/edit/media"
+import { MediaEdit } from "@/features/fields/edit/media"
 
 vi.mock("@/lib/api", () => ({
   api: {

@@ -16,7 +16,7 @@ vi.mock("@/lib/api", () => ({
 import { api } from "@/lib/api"
 const mockApi = vi.mocked(api)
 
-import { useNotificationsPopover } from "@/components/notifications-popover/use-notifications-popover"
+import { useNotificationsPopover } from "@/features/notifications/components/notifications-popover/use-notifications-popover"
 
 describe("useNotificationsPopover", () => {
   let queryClient: QueryClient

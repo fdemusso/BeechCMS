@@ -4,7 +4,7 @@ import type { ReactNode } from "react"
 
 const mockUseContentToolbar = vi.fn()
 
-vi.mock("@/components/content-toolbar/use-content-toolbar", () => ({
+vi.mock("@/features/content-toolbar/use-content-toolbar", () => ({
   useContentToolbar: (...args: unknown[]) => mockUseContentToolbar(...args),
 }))
 
@@ -21,30 +21,30 @@ vi.mock("@/components/ui/tooltip", () => ({
   TooltipContent: ({ children }: any) => <div>{children}</div>,
 }))
 
-vi.mock("@/components/content-toolbar/toolbar-components/view-switcher", () => ({
+vi.mock("@/features/content-toolbar/toolbar-components/view-switcher", () => ({
   ViewSwitcher: ({ onChangeView }: any) => <button onClick={() => onChangeView("table")}>view</button>,
 }))
-vi.mock("@/components/content-toolbar/toolbar-components/filter-column-menu", () => ({
+vi.mock("@/features/content-toolbar/toolbar-components/filter-column-menu", () => ({
   FilterColumnMenu: ({ onSelectColumn }: any) => (
     <button onClick={() => onSelectColumn("title")}>filter-menu</button>
   ),
 }))
-vi.mock("@/components/content-toolbar/toolbar-components/sort-column-menu", () => ({
+vi.mock("@/features/content-toolbar/toolbar-components/sort-column-menu", () => ({
   SortColumnMenu: ({ onSelectColumn }: any) => (
     <button onClick={() => onSelectColumn("title")}>sort-menu</button>
   ),
 }))
-vi.mock("@/components/content-toolbar/toolbar-components/search-bar", () => ({
+vi.mock("@/features/content-toolbar/toolbar-components/search-bar", () => ({
   SearchBar: () => <div>SEARCH_BAR</div>,
 }))
-vi.mock("@/components/content-toolbar/toolbar-components/settings-menu", () => ({
+vi.mock("@/features/content-toolbar/toolbar-components/settings-menu", () => ({
   SettingsMenu: () => <div>SETTINGS_MENU</div>,
 }))
-vi.mock("@/components/content-toolbar/toolbar-components/filter-pills-bar", () => ({
+vi.mock("@/features/content-toolbar/toolbar-components/filter-pills-bar", () => ({
   FilterPillsBar: () => <div>FILTER_PILLS</div>,
 }))
 
-import { ContentToolbar } from "@/components/content-toolbar/content-toolbar"
+import { ContentToolbar } from "@/features/content-toolbar/content-toolbar"
 
 describe("ContentToolbar", () => {
   it("renderizza strumenti e crea nuova entry", () => {

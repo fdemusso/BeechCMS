@@ -1,7 +1,6 @@
 import { useTranslation } from "react-i18next"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { WidgetRegistry } from "../components/widget-registry"
 import { getDashboardConfig } from "../config/dashboard.config"
 import { useDashboardStats, useCloudflareStats } from "../hooks/use-dashboard-stats"

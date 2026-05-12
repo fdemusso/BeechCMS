@@ -1,7 +1,7 @@
 import { useEffect } from "react"
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useNavigate } from "react-router-dom"
 import axios from "axios"
-import { LoginForm } from "@/components/login-form"
+import { LoginForm } from "@/features/auth/components/login-form"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { ContentListPage } from "@/pages/content-list"
 import { EntryEditorPage } from "@/pages/entry-editor"

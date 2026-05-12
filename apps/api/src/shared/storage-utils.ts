@@ -12,12 +12,12 @@ export async function getBucketSize(client: S3Client, bucketName: string): Promi
 
   try {
     while (isTruncatedFlag) {
-      const command = new ListObjectsV2Command({
+      const command: ListObjectsV2Command = new ListObjectsV2Command({
         Bucket: bucketName,
         ContinuationToken: continuationToken,
       })
 
-      const response = await client.send(command)
+      const response: ListObjectsV2CommandOutput = await client.send(command)
 
       if (response.Contents) {
         for (const obj of response.Contents) {

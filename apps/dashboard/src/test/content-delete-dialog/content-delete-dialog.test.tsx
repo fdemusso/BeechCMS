@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 
-import { ContentDeleteDialog } from "@/components/content-delete-dialog/content-delete-dialog"
+import { ContentDeleteDialog } from "@/features/content-delete-dialog/content-delete-dialog"
 
 const seed = {
   slug: "items",
