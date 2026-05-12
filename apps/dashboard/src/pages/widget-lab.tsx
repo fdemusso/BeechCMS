@@ -11,7 +11,7 @@ import {
   PendingDraftsWidget,
   MediaGalleryWidget,
   ActivityFeedWidget,
-} from "@/features/dashboard/components/widgets"
+} from "@/features/dashboard/widgets"
 import { useSchema } from "@/features/schema"
 import { cn } from "@/lib/utils"
 
