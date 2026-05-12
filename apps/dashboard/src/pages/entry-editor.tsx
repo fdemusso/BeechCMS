@@ -6,7 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { AxiosError } from "axios"
 
-import { FieldEdit } from "@/components/fields"
+import { FieldEdit } from "@/features/fields"
 import {
   AlertDialog,
   AlertDialogAction,

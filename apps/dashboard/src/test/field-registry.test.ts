@@ -1,11 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { FieldRegistryImpl } from '@/components/fields/field-registry'
+import { FieldRegistryImpl } from '@/features/fields/field-registry'
 import {
   getDisplayComponent,
   getEditComponent,
   fieldRegistry,
-} from '@/components/fields/registry'
-import { DefaultDisplay, DefaultEdit } from '@/components/fields/default'
+} from '@/features/fields/registry'
+import { DefaultDisplay, DefaultEdit } from '@/features/fields/default'
 import type { BranchType } from '@beechcms/core'
 
 // ─── FieldRegistryImpl ────────────────────────────────────────────────────────

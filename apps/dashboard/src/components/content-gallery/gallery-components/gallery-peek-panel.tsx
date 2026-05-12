@@ -2,7 +2,7 @@ import * as React from "react"
 import type { Branch, Seed } from "@beechcms/core"
 import { Pencil } from "lucide-react"
 
-import { FieldDisplay } from "@/components/fields"
+import { FieldDisplay } from "@/features/fields"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {

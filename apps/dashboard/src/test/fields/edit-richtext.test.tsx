@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { render, screen, waitFor } from "@testing-library/react"
-import { RichtextEdit } from "@/components/fields/edit/richtext"
+import { RichtextEdit } from "@/features/fields/edit/richtext"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
 const mockBranch = {
