@@ -73,8 +73,10 @@ vi.mock("@/components/ui/context-menu", () => ({
   ContextMenuSeparator: () => <div />,
 }))
 
-vi.mock("@/components/app-sidebar", () => ({ AppSidebar: () => <div>APP_SIDEBAR</div> }))
-vi.mock("@/components/site-header", () => ({ SiteHeader: () => <div>SITE_HEADER</div> }))
+vi.mock("@/features/navigation", () => ({
+  AppSidebar: () => <div>APP_SIDEBAR</div>,
+  SiteHeader: () => <div>SITE_HEADER</div>,
+}))
 
 vi.mock("@/lib/dynamic-columns", () => ({
   DEFAULT_DATE_GROUP_PRECISION: { year: true, month: true, day: false },

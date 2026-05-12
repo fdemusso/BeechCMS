@@ -2,8 +2,7 @@ import * as React from "react"
 import type { Branch } from "@beechcms/core"
 import { FieldEdit } from "@/features/fields/FieldEdit"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { AppSidebar, SiteHeader } from "@/features/navigation"
 
 const RICHTEXT_BRANCH: Branch = {
   alias: "body",

@@ -13,8 +13,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { DataTable } from "@/components/ui/data-table"
 import { ContentDeleteDialog } from "@/features/content-delete-dialog"
 import { ContentGallery } from "@/features/content-gallery"
