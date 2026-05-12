@@ -666,8 +666,7 @@ STEP 7: Phase C1 — minimal-tiptap core cycle
 --------------------------------------------------------------------------
 
 Implement §5.7 exactly. After writing `shared.ts`, repointing imports,
-and verifying zero cycles with madge / graphify, stop and ask:
-"Ready for the next step?"
+and verifying zero cycles with madge / graphify. Procede with C2
 
 --------------------------------------------------------------------------
 STEP 8: Phase C2 — extensions/image/ cycle
