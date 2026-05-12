@@ -13,3 +13,4 @@ Rules:
 - If the graphify MCP server is active, utilize tools like `query_graph`, `get_node`, and `shortest_path` for precise architecture navigation instead of falling back to `grep`
 - If the MCP server is not active, the CLI equivalents are `graphify query "<question>"`, `graphify path "<A>" "<B>"`, and `graphify explain "<concept>"` - prefer these over grep for cross-module questions
 - After modifying code files in this session, run `graphify update .` to keep the graph current (AST-only, no API cost)
+- When regenerating or exporting the Obsidian vault (`graphify-obsidian/`), automatically run a script to sanitize queries in `.obsidian/graph.json` using `_obsidian_tag` (converting special chars/spaces to double underscores) to ensure group colors render correctly, and always remind the user to close Obsidian before updating to prevent in-memory overwrites.

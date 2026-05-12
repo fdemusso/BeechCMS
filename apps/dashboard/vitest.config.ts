@@ -39,11 +39,13 @@ export default defineConfig({
         "src/components/ui/**",
         
         // Non-business critical components (Purely layout/shell)
-        "src/components/app-sidebar.tsx",
-        "src/components/site-header.tsx",
+        // NOTE: app-sidebar, site-header, notifications-popover were moved to
+        // features/ during Sprint 02. Exclude their new canonical paths as they
+        // are application-shell glue code, not business-logic units.
+        "src/features/navigation/**",
+        "src/features/notifications/**",
         "src/components/nav-*.tsx",
         "src/components/search-form.tsx",
-        "src/components/notifications-popover/**",
         
         // Demo/Lab pages
         "src/pages/test-fields.tsx",
