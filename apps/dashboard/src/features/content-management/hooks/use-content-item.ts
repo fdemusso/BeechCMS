@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { contentApi } from "../api/content.api"
 import { CONTENT_QUERY_KEYS, FACET_QUERY_KEYS } from "../consts/content.keys"
-import { DASHBOARD_QUERY_KEYS } from "@/features/dashboard"
+import { DASHBOARD_QUERY_KEYS } from "@/features/shared"
 
 /**
  * Hook for fetching a single content entry.
