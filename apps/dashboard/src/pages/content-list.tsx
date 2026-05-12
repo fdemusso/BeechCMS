@@ -17,7 +17,7 @@ import { AppSidebar } from "@/components/app-sidebar"
 import { SiteHeader } from "@/components/site-header"
 import { DataTable } from "@/components/ui/data-table"
 import { ContentDeleteDialog } from "@/components/content-delete-dialog"
-import { ContentGallery } from "@/components/content-gallery"
+import { ContentGallery } from "@/features/content-gallery"
 import {
   ContentToolbar,
   type UserViewInstance,
