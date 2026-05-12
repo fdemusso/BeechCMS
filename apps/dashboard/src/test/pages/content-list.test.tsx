@@ -109,7 +109,7 @@ vi.mock("@/features/content-toolbar", () => ({
   ),
 }))
 
-vi.mock("@/components/content-delete-dialog", () => ({
+vi.mock("@/features/content-delete-dialog", () => ({
   ContentDeleteDialog: (props: any) =>
     props.open ? <button onClick={props.onConfirm}>confirm-delete</button> : null,
 }))
