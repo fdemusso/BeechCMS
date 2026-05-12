@@ -1,355 +1,708 @@
-# Beech CMS Dashboard — Piano di Refactoring Frontend
+You are a senior TypeScript engineer working on the Beech CMS monorepo.
+
+## PROJECT CONTEXT
+
+Do NOT explore the codebase further. All relevant context is provided in this prompt.
+Read it fully before writing any code.
+
+This sprint covers **Frontend Chore — Sprint 01**: tightening the
+Vertical Slice Architecture (VSA) in `apps/dashboard/src`, removing
+cross-slice import inversions, splitting the `lib/utils.ts` god leaf,
+promoting two domain folders out of `components/` and breaking the
+import cycles inside the vendored `minimal-tiptap` editor.
+
+The project is in **beta**. No production frontend artifact preservation
+is required: paths can be rewritten freely as long as `tsc --noEmit`
+and the existing test suite stay green.
+
+### Stack
+
+- Dashboard: React 19 + Vite 5 + Vitest, TanStack Query, react-router,
+  axios with in-memory JWT, i18next (`it` / `en`)
+- Shared package: @beechcms/core (pure TypeScript, no Cloudflare)
+- Monorepo: Turborepo
+
+==========================================================================
+SECTION 1 — WHY THIS SPRINT EXISTS
+==========================================================================
+
+A `/graphify` run on `apps/dashboard/src` (2026-05-12) produced:
+1289 nodes · 3178 edges · 69 communities · 99% EXTRACTED edges.
+
+The graph surfaces three classes of fragility:
+
+1. `lib/utils.ts` is the #1 god leaf (`cn()` has 251 in-edges, the file
+   has 70 importers). Any helper added here inherits the full importer
+   set — safe today, brittle as the codebase grows.
+
+2. `components/fields/` and `components/content-toolbar/` are *feature
+   shaped folders* living inside `components/`. They own domain logic
+   (`registry.ts`, `FilterOperator`, `Seed`, `Branch`) but bypass the
+   VSA contract that reserves `components/` for stateless primitives.
+   `components/content-toolbar/index.ts` is also a `export *` barrel,
+   which makes every internal symbol public by accident.
 
-> Analisi basata su graphify (grafo AST diretto) su `apps/dashboard/src`.  
-> Ordinato per impatto decrescente. Ogni item include: problema, blast radius, fix concreto, effort stimato, rischio.
-
-***
-
-## Executive Summary
-
-Il grafo rivela **tre classi di problemi distinte** che si combinano a produrre la fragilità osservata (un'icona rotta che abbatte la dashboard):
-
-1. **God nodes** — file con fan-in altissimo che diventano single point of failure (SPOF)
-2. **Slice mal posizionate** — `components/fields` e `components/content-toolbar` agiscono da feature ma vivono fuori da `features/`, bypassando il contratto VSA
-3. **Barrel troppo largo** — `features/dashboard/index.ts` aggrega tutto, quindi un crash interno si propaga a tutti i 15 consumer
-
-Nessun problema richiede una riscrittura. Il refactoring è interamente **move + split + wrap**, senza cambiare la logica applicativa.
-
-***
-
-## P1 — `lib/utils.ts` God Node (70 importers)
-
-### Problema
-
-`lib/utils.ts` ha fan-in 70 e fan-out 0: è un leaf node che tutto il codebase dipende. Non è di per sé un errore — la funzione `cn()` di Tailwind deve essere accessibile ovunque — ma se il file contiene anche utilità di dominio (formatter, helper API, parser), qualsiasi refactor o bug qui impatta 70 file.
-
-### Fix
-
-Split per dominio senza cambiare i path di import dei consumer:
-
-```
-lib/
-  utils.ts          ← mantieni, ri-esporta tutto (backward compat)
-  utils/
-    cn.ts           ← solo la funzione cn() di Tailwind
-    format.ts       ← Intl, date, number formatters
-    dom.ts          ← helper DOM/evento
-    api.ts          ← fetch wrapper, error normalizer
-```
-
-`lib/utils.ts` diventa un barrel puro:
-
-```ts
-// lib/utils.ts — backward-compat barrel, zero breaking changes
-export * from './utils/cn';
-export * from './utils/format';
-export * from './utils/dom';
-export * from './utils/api';
-```
-
-I 70 importers non cambiano nulla. I nuovi file importano solo il sotto-modulo di cui hanno bisogno.
-
-**Effort:** 2–3 ore | **Rischio:** Basso (nessun breaking change) | **Blast radius ridotto:** 70 → ~15 per sotto-modulo
-
-***
-
-## P2 — `components/fields/` come Feature Non Dichiarata (28 importers, 21 file)
-
-### Problema
-
-`components/fields/registry.ts` (out=17) e `components/fields/types.ts` (in=19) sono il cuore del FieldRenderers system — una feature con logica di dominio CMS complessa. Vivono però in `components/`, che per convenzione VSA dovrebbe contenere solo **primitive UI stateless**. Il risultato: 28 file non-feature dipendono da path interni senza contratto pubblico.
-
-### Fix
-
-Promozione a slice con public API:
-
-```
-Attuale:  components/fields/registry.ts
-          components/fields/types.ts
-          components/fields/FieldDisplay.tsx
-          ...
-
-Dopo:     features/fields/
-            index.ts          ← PUBLIC API (unico import consentito dall'esterno)
-            registry.ts       ← internal
-            types.ts          ← internal
-            FieldDisplay.tsx  ← internal
-            display/          ← internal
-            edit/             ← internal
-```
-
-`index.ts` espone esattamente quello che `components/fields` espone oggi:
-
-```ts
-// features/fields/index.ts
-export { FieldDisplay } from './FieldDisplay';
-export { FieldEdit } from './FieldEdit';
-export { getDisplayComponent, getEditComponent } from './registry';
-export type { FieldDisplayProps, FieldEditProps } from './types';
-```
-
-**I 28 importers cambiano solo il path** da `components/fields` a `features/fields` — un sed one-liner.
-
-```bash
-find apps/dashboard/src -type f -name "*.tsx" -o -name "*.ts" | \
-  xargs sed -i 's|from ".*components/fields|from "features/fields|g'
-```
-
-**Effort:** 3–4 ore | **Rischio:** Basso (rename puro) | **Beneficio:** fields ottiene un contratto VSA formale
-
-***
-
-## P3 — `components/content-toolbar/` come Micro-Slice Non Dichiarata (18 importers)
-
-### Problema
-
-Stesso pattern di P2: 8 file esterni importano da path interni di `content-toolbar`, bypassando qualsiasi barrel. La toolbar conosce `Seed`, `Branch`, `ContentQuery` — è logica di feature CMS, non un primitivo UI.
-
-### Fix
-
-```
-Attuale:  components/content-toolbar/ContentToolbar.tsx
-          components/content-toolbar/shared.ts
-          components/content-toolbar/filters/...
-          ...
-
-Dopo:     features/content-toolbar/
-            index.ts          ← PUBLIC API
-            ContentToolbar.tsx
-            shared.ts
-            filters/
-            sort/
-            search/
-```
-
-```bash
-find apps/dashboard/src -type f | \
-  xargs sed -i 's|from ".*components/content-toolbar|from "features/content-toolbar|g'
-```
-
-**Effort:** 2–3 ore | **Rischio:** Basso | **Beneficio:** elimina 8 import da path interni
-
-***
-
-## P4 — Cicli di Dipendenza in `minimal-tiptap` (4 cicli, 7 file)
-
-### Problema
-
-Il wrapper TipTap vendored ha 4 cicli import:
-
-- `use-minimal-tiptap.ts` ↔ `utils.ts` ↔ `minimal-tiptap.tsx`
-- `section/four.tsx` → `toolbar-section.tsx` → `utils.ts` → `minimal-tiptap.tsx`
-- `image-view-block.tsx` ↔ `image.ts`
-
-I cicli non crashano in sé con i bundler moderni (Vite gestisce HMR con cicli), ma causano **ordine di inizializzazione non deterministico** e rendono il tree-shaking impossibile su quei moduli.
-
-### Fix
-
-Estrarre tipi e utility condivisi in un modulo senza retro-import:
-
-```
-features/richtext-editor/minimal-tiptap/
-  shared.ts         ← tipi condivisi, utility pure — NESSUN import da altri file della slice
-  utils.ts          ← importa da shared.ts, mai da minimal-tiptap.tsx
-  minimal-tiptap.tsx ← importa da utils.ts e shared.ts
-  use-minimal-tiptap.ts ← importa da shared.ts, non da utils.ts
-  image/
-    shared.ts       ← tipi Image condivisi
-    image.ts        ← importa da image/shared.ts
-    image-view-block.tsx ← importa da image/shared.ts
-```
-
-**Effort:** 4–6 ore | **Rischio:** Medio (logica vendored, testare manualmente l'editor) | **Beneficio:** tree-shaking + HMR stabile
-
-***
-
-## P5 — `lib/icon-registry.ts` SPOF (16 file blast radius) ← Causa del bug icona→dashboard
-
-### Problema
-
-Questo è il **root cause del bug segnalato**. `icon-registry.ts` è un singleton che mappa stringhe Lucide a componenti React. Se un'icona nel `Seed` non esiste nel registry (typo nel nome, icona rimossa da Lucide, import lazy fallito), il registry lancia un errore — e i 16 file che dipendono da esso (transitivamente: `config/dashboard-menu.ts` → sidebar → `App.tsx`) non renderizzano.
-
-### Fix in due step
-
-**Step 1 — Fallback immediato (fix del bug, 30 minuti):**
-
-```ts
-// lib/icon-registry.ts
-import { HelpCircle } from 'lucide-react'; // icona fallback
-
-export function getIcon(name: string): LucideIcon {
-  const icon = registry[name];
-  if (!icon) {
-    console.warn(`[icon-registry] Icon "${name}" not found, using fallback`);
-    return HelpCircle; // mai throw, mai undefined
-  }
-  return icon;
-}
-```
-
-**Step 2 — Lazy loading (fix strutturale, 2 ore):**
-
-```ts
-// lib/icon-registry.ts — lazy per ridurre il bundle iniziale
-const iconLoaders: Record<string, () => Promise<LucideIcon>> = {
-  LayoutDashboard: () => import('lucide-react').then(m => m.LayoutDashboard),
-  Settings: () => import('lucide-react').then(m => m.Settings),
-  // ...
-};
-
-export async function getIconAsync(name: string): Promise<LucideIcon> {
-  const loader = iconLoaders[name];
-  if (!loader) return HelpCircle;
-  try {
-    return await loader();
-  } catch {
-    return HelpCircle;
-  }
-}
-```
-
-**Effort:** Step 1 = 30 min (applica subito) | Step 2 = 2 ore | **Rischio:** Basso | **Beneficio diretto:** dashboard non crasha più per icone mancanti
-
-***
-
-## P6 — Coupling Feature→Feature (6 edge, 3 coppie)
-
-### Problema
-
-| Da | A | Archi | Tipo violazione |
-|----|---|-------|-----------------|
-| `dashboard` | `widget-data` | 3 | Accettabile — widget-data è sub-feature dichiarata |
-| `content-management` | `dashboard` | 2 | **Inversione anomala** — CM dovrebbe essere più basso-livello |
-| `dashboard` | `schema` | 1 | Accettabile — schema è read-only core data |
-
-Il problema reale è `content-management → dashboard`: `use-content-facets` e `use-content-item` importano da `features/dashboard`. Una feature "contenuto" non dovrebbe conoscere il "dashboard".
-
-### Fix
-
-Spostare gli hook condivisi in `features/shared/`:
-
-```
-features/
-  shared/
-    index.ts
-    hooks/
-      use-content-facets.ts   ← spostato da dashboard
-      use-content-item.ts     ← spostato da dashboard
-```
-
-Sia `dashboard` che `content-management` importano da `features/shared` — nessuno dei due dipende dall'altro.
-
-**Effort:** 3–4 ore | **Rischio:** Medio (verificare che i test passino) | **Beneficio:** elimina l'inversione di dipendenza
-
-***
-
-## P7 — Violazioni VSA Dirette (2 edge)
-
-### Violazione 1: `components/ui/date-picker-input.tsx` → `features/settings/hooks/use-settings.ts`
-
-Un componente UI globale non può leggere stato da una slice settings. Questo crea un accoppiamento nascosto: chi usa `<DatePickerInput>` importa inconsapevolmente anche lo stato settings.
-
-**Fix:** Passare il valore settings come prop, o esporre un hook generico in `features/shared/`.
-
-```tsx
-// Prima (violazione)
-const { dateFormat } = useSettings(); // import diretto dalla slice
-
-// Dopo (corretto)
-interface DatePickerInputProps {
-  dateFormat?: string; // il consumer porta il valore dalla slice
-}
-```
-
-### Violazione 2: `pages/widget-lab.tsx` → `features/dashboard/components/widgets/index.ts`
-
-Bypass del barrel principale. Fragile: se la struttura interna di dashboard cambia, widget-lab si rompe silenziosamente.
-
-**Fix:**
-
-```ts
-// Prima
-import { KpiWidget } from 'features/dashboard/components/widgets';
-
-// Dopo
-import { KpiWidget } from 'features/dashboard'; // barrel ufficiale
-```
-
-**Effort totale P7:** 1 ora | **Rischio:** Basso
-
-***
-
-## P8 — Dashboard Barrel Blast Radius (15 importers)
-
-### Problema
-
-`features/dashboard/index.ts` è un mega-barrel che aggrega 12 widget + hook + tipi. Con `import { KpiWidget } from 'features/dashboard'`, il bundler carica l'intero barrel — se **un solo widget** ha un errore di runtime (es. divisione per zero in una formula, risposta API malformata), React non riesce a renderizzare il modulo e tutti i 15 consumer mostrano schermo bianco.
-
-### Fix: barrel granulare con sub-path exports
-
-```ts
-// features/dashboard/index.ts — esporta solo tipi e hook stabili
-export type { DashboardStats, WidgetConfig } from './types';
-export { useDashboardStats } from './hooks/use-dashboard-stats';
-
-// features/dashboard/widgets/index.ts — barrel separato per i widget
-export { KpiWidget } from './kpi-widget';
-export { GrowthWidget } from './growth-widget';
-// ...
-```
-
-In alternativa (più rapida), wrappare ogni widget in un **ErrorBoundary** individuale così un crash è isolato:
-
-```tsx
-// features/dashboard/DashboardPage.tsx
-<ErrorBoundary fallback={<WidgetErrorCard name="KPI" />}>
-  <KpiWidget ... />
-</ErrorBoundary>
-<ErrorBoundary fallback={<WidgetErrorCard name="Growth" />}>
-  <GrowthWidget ... />
-</ErrorBoundary>
-```
-
-L'ErrorBoundary è il fix più rapido (2 ore). Il barrel split è il fix strutturale (4–6 ore).
-
-**Effort:** ErrorBoundary = 2 ore | Barrel split = 4–6 ore | **Rischio:** Basso
-
-***
-
-## Roadmap di Esecuzione
-
-### Sprint 1 — Fix immediati (< 1 giorno, zero rischio)
-
-| # | Azione | File | Tempo |
-|---|--------|------|-------|
-| 1 | Aggiungere fallback `HelpCircle` in `icon-registry.ts` | 1 file | 30 min |
-| 2 | Aggiungere `ErrorBoundary` per ogni widget in `DashboardPage` | 1 file | 2 ore |
-| 3 | Fix P7: barrel corretto in `widget-lab.tsx`, prop drilling in `date-picker-input` | 2 file | 1 ora |
-
-**Risultato:** il bug icona→dashboard è risolto. La dashboard non crasha più per errori isolati nei widget.
-
-### Sprint 2 — Riorganizzazione VSA (2–3 giorni, rischio basso)
-
-| # | Azione | Effort |
-|---|--------|--------|
-| 1 | Promuovere `components/fields/` → `features/fields/` | 3–4 ore |
-| 2 | Promuovere `components/content-toolbar/` → `features/content-toolbar/` | 2–3 ore |
-| 3 | Split `lib/utils.ts` in sotto-moduli con barrel backward-compat | 2–3 ore |
-
-**Risultato:** il grafo delle dipendenze è conforme VSA. Nuovi contributor capiscono immediatamente i confini.
-
-### Sprint 3 — Disaccoppiamento e cicli (3–4 giorni, rischio medio)
-
-| # | Azione | Effort |
-|---|--------|--------|
-| 1 | Spostare hook condivisi in `features/shared/` (P6) | 3–4 ore |
-| 2 | Rompere cicli `minimal-tiptap` con `shared.ts` (P4) | 4–6 ore |
-| 3 | Barrel granulare `features/dashboard/` (P8 strutturale) | 4–6 ore |
-
-**Risultato:** zero cicli di import, zero inversioni di dipendenza, dashboard resiliente a crash isolati.
-
-***
-
-## Principio guida
-
-> Ogni modifica di questi tre sprint è **move + split + wrap**. Zero logica applicativa cambia. Il refactoring è verificabile con lo stesso comando graphify usato per l'analisi: il grafo dopo deve avere fan-in massimo < 30 e zero cicli.
+3. Three concrete cross-slice import inversions:
+   - `features/content-management/hooks/use-content-facets.ts` and
+     `use-content-item.ts` import `DASHBOARD_QUERY_KEYS` from
+     `@/features/dashboard`. Content depends on dashboard — wrong way.
+   - `components/ui/date-picker-input.tsx` imports
+     `useGeneralSettings` from `@/features/settings/hooks/use-settings`.
+     A UI primitive must not read slice state directly.
+   - `pages/widget-lab.tsx` imports widgets from
+     `@/features/dashboard/components/widgets` (deep path) instead of
+     the public barrel.
+
+Plus four import cycles inside `components/ui/minimal-tiptap/`,
+documented by the graph, that block tree-shaking on the editor module.
+
+==========================================================================
+SECTION 2 — ALREADY SHIPPED (verified, do not redo)
+==========================================================================
+
+Two earlier items from the original draft of this sprint are already
+landed and are visible in the current graph:
+
+  - `lib/icon-registry.ts` exposes `resolveIcon(name?: string)` that
+    returns `Folder` when the name is missing or unknown. No throw path
+    reaches the sidebar anymore. Do not modify this file in this sprint.
+
+  - `features/dashboard/components/widget-error-boundary.tsx` exists
+    (class `WidgetErrorBoundary`) and is wired through
+    `features/dashboard/components/widget-registry.tsx` so every dynamic
+    widget instance is wrapped. `WidgetErrorBoundary` is also
+    re-exported from `features/dashboard/index.ts`. Do not duplicate
+    this work.
+
+==========================================================================
+SECTION 3 — CURRENT STATE (verified, do not re-explore)
+==========================================================================
+
+3.1 `lib/utils.ts` — god leaf
+
+  - 70 files import from `@/lib/utils`.
+  - The file currently exports `cn()` (Tailwind class merger) plus a
+    handful of format / DOM / API helpers in one mixed module.
+  - It is a true leaf node (fan-out 0) in the import graph.
+
+3.2 `components/fields/` — feature shaped folder
+
+  Current contents:
+    FieldDisplay.tsx, FieldEdit.tsx, default.tsx,
+    field-registry.ts, registry.ts, types.ts,
+    display/, edit/, index.ts
+
+  Current `components/fields/index.ts` (already a clean named barrel):
+    export { FieldDisplay } from "./FieldDisplay"
+    export { FieldEdit } from "./FieldEdit"
+    export type { FieldDisplayProps, FieldEditProps } from "./types"
+    export { getDisplayComponent, getEditComponent } from "./registry"
+
+  Nine files outside the folder import from it, all via the public
+  barrel — no deep imports today. The rename is therefore a path
+  codemod, not an API rewrite.
+
+3.3 `components/content-toolbar/` — feature shaped folder + leaky barrel
+
+  Current contents:
+    content-toolbar.tsx, use-content-toolbar.ts, shared.ts,
+    types.ts, toolbar-components/, toolbar-hooks/, index.ts
+
+  Current `components/content-toolbar/index.ts`:
+    export * from "./content-toolbar"
+    export * from "./types"
+    export * from "./shared"
+
+  Eight non-test files outside the folder import from it. Two of them
+  reach internals through `hooks/use-conditional-formats.ts` and
+  `hooks/use-toolbar-filters.ts` (those hooks read `shared.ts` types).
+  The `export *` form leaks every internal symbol of all three modules.
+
+3.4 `components/ui/minimal-tiptap/` — cycles
+
+  Folder layout:
+    minimal-tiptap.tsx, utils.ts, types.ts, index.ts,
+    hooks/, extensions/, components/, styles/
+
+  Graphify reports cycles among:
+    - `hooks/use-minimal-tiptap.ts` ↔ `utils.ts` ↔ `minimal-tiptap.tsx`
+    - `components/section/four.tsx` → `components/toolbar-section.tsx`
+       → `utils.ts` → `minimal-tiptap.tsx`
+    - `extensions/image/image-view-block.tsx` ↔ `extensions/image/image.ts`
+
+  The cycles do not crash at runtime under Vite, but they block
+  tree-shaking and make init order non-deterministic.
+
+3.5 Cross-slice inversions — exact lines
+
+  features/content-management/hooks/use-content-facets.ts:
+    import { DASHBOARD_QUERY_KEYS } from "@/features/dashboard"
+
+  features/content-management/hooks/use-content-item.ts:
+    import { DASHBOARD_QUERY_KEYS } from "@/features/dashboard"
+
+  components/ui/date-picker-input.tsx:
+    import { useGeneralSettings } from "@/features/settings/hooks/use-settings"
+
+  pages/widget-lab.tsx:
+    import {
+      SiteStatusWidget, StorageWidget, PublicationStatsWidget,
+      QuickDraftWidget, RecentContentWidget, PendingDraftsWidget,
+      MediaGalleryWidget, ActivityFeedWidget,
+    } from "@/features/dashboard/components/widgets"
+
+3.6 Current `features/dashboard/index.ts`
+
+  export * from "./types/dashboard.types"
+  export * from "./types/widget.types"
+  export * from "./hooks/use-dashboard-stats"
+  export { default as DashboardPage } from "./pages/dashboard-page"
+  export { DashboardWidgetShell } from "./components/dashboard-widget-shell"
+  export { WidgetErrorBoundary } from "./components/widget-error-boundary"
+  export { WidgetRegistry } from "./components/widget-registry"
+
+  Widgets are NOT re-exported here — that is why `widget-lab.tsx`
+  reaches into the internal `components/widgets/` path. We will add a
+  dedicated sub-barrel `features/dashboard/widgets.ts` instead of
+  fattening the main `index.ts`.
+
+==========================================================================
+SECTION 4 — DELIVERABLES
+==========================================================================
+
+This sprint produces ten changes, grouped into three sequential phases.
+All phases land as a single PR per phase. Do not collapse phases — each
+one is independently reviewable and reversible.
+
+  Phase A — VSA tightening (no folder moves):
+    A1. Add `features/shared/query-keys.ts`; move `DASHBOARD_QUERY_KEYS`
+        and `CONTENT_QUERY_KEYS` there. Update both `features/dashboard`
+        and `features/content-management` to import from `features/shared`.
+    A2. Add a `dateFormat` prop to `DatePickerInput`; remove its
+        `useGeneralSettings` import; update all call sites to pass the
+        format from where settings is already in scope.
+    A3. Create `features/dashboard/widgets.ts` sub-barrel that re-exports
+        the public widget set; point `pages/widget-lab.tsx` at it; remove
+        deep imports.
+
+  Phase B — Folder moves and lib split (codemod-heavy, low risk):
+    B1. Move `components/fields/` → `features/fields/`. Codemod imports.
+    B2. Move `components/content-toolbar/` → `features/content-toolbar/`.
+        Replace `export *` in its `index.ts` with a named barrel. Audit
+        the two outside hooks that reach into `shared.ts` and route them
+        through the public surface (or move them inside the slice).
+    B3. Split `lib/utils.ts` into `lib/utils/cn.ts`, `lib/utils/format.ts`,
+        `lib/utils/dom.ts`, `lib/utils/api.ts`. Keep `lib/utils.ts` as a
+        thin backward-compat barrel so the 70 consumers continue to work
+        without changes.
+
+  Phase C — Editor cycles:
+    C1. Extract `components/ui/minimal-tiptap/shared.ts` (pure types +
+        utils, imports nothing from siblings). Repoint `utils.ts`,
+        `minimal-tiptap.tsx`, `hooks/use-minimal-tiptap.ts` to depend on
+        `shared.ts` only — never on `minimal-tiptap.tsx`.
+    C2. Mirror the same shape for `extensions/image/`: add
+        `extensions/image/shared.ts`, make `image.ts` and
+        `image-view-block.tsx` depend only on it.
+
+==========================================================================
+SECTION 5 — PHASE DETAILS
+==========================================================================
+
+5.1 PHASE A1 — `features/shared/query-keys.ts`
+
+  Files to create:
+    apps/dashboard/src/features/shared/query-keys.ts
+    apps/dashboard/src/features/shared/index.ts
+
+  query-keys.ts content:
+    /**
+     * Cross-slice TanStack Query keys.
+     *
+     * Lives in `features/shared` so neither `features/dashboard` nor
+     * `features/content-management` has to import from the other. The
+     * actual invalidation logic still lives in the slice that owns the
+     * data; this file only owns the key names so both producers and
+     * consumers agree on them.
+     */
+    export const DASHBOARD_QUERY_KEYS = {
+      stats:           ["dashboard", "stats"]      as const,
+      activity:        ["dashboard", "activity"]   as const,
+      // ...copy verbatim from the current definition in features/dashboard
+    } as const
+
+    export const CONTENT_QUERY_KEYS = {
+      // ...copy from features/content-management if a constant exists;
+      // otherwise omit this export until needed.
+    } as const
+
+  index.ts content:
+    export * from "./query-keys"
+
+  Files to modify:
+    apps/dashboard/src/features/dashboard/hooks/use-dashboard-stats.ts
+      Replace any local DASHBOARD_QUERY_KEYS const with:
+        import { DASHBOARD_QUERY_KEYS } from "@/features/shared"
+      Re-export it from features/dashboard/index.ts ONLY if external
+      consumers still import it from there for backward compatibility;
+      otherwise remove the re-export.
+
+    apps/dashboard/src/features/content-management/hooks/use-content-facets.ts
+      Replace:
+        import { DASHBOARD_QUERY_KEYS } from "@/features/dashboard"
+      With:
+        import { DASHBOARD_QUERY_KEYS } from "@/features/shared"
+
+    apps/dashboard/src/features/content-management/hooks/use-content-item.ts
+      Same replacement.
+
+  Acceptance:
+    [ ] No file under features/content-management/ imports from
+        @/features/dashboard.
+    [ ] DASHBOARD_QUERY_KEYS is defined exactly once, in features/shared.
+
+5.2 PHASE A2 — Prop-drill `dateFormat` into `DatePickerInput`
+
+  File to modify:
+    apps/dashboard/src/components/ui/date-picker-input.tsx
+      - Remove the import:
+          import { useGeneralSettings } from "@/features/settings/hooks/use-settings"
+      - Add an optional `dateFormat?: string` prop to the component's
+        props interface.
+      - Replace any internal reference to `useGeneralSettings().dateFormat`
+        with the new prop. Keep the existing default-value behavior:
+        if `dateFormat` is undefined, fall back to the same default
+        the hook returned (audit `useGeneralSettings` for the default
+        string and inline it as a `const DEFAULT_DATE_FORMAT = "..."`
+        at the top of the file).
+
+  Call sites to update:
+    Grep for `<DatePickerInput` across `apps/dashboard/src` (exclude
+    the component file itself). For every match:
+      - If the file already calls `useGeneralSettings()` or
+        `useSettings()`, read `dateFormat` from there and forward it as
+        a prop: `<DatePickerInput dateFormat={dateFormat} ... />`.
+      - If the file does NOT already have settings in scope, add the
+        hook call at the top of the component and forward the value.
+
+  Acceptance:
+    [ ] No file under components/ imports from features/settings.
+    [ ] Every `<DatePickerInput>` call site passes `dateFormat`, or
+        explicitly opts into the default (commented).
+    [ ] Visual smoke test: the date picker renders the same format in
+        the same screens as before.
+
+5.3 PHASE A3 — `features/dashboard/widgets.ts` sub-barrel
+
+  File to create:
+    apps/dashboard/src/features/dashboard/widgets.ts
+
+  Content:
+    /**
+     * Public surface for the dashboard widget catalog.
+     *
+     * Heavy modules (charts, schema-aware tables, R2 media gallery) are
+     * grouped here so the main features/dashboard barrel can stay
+     * cheap to import for callers that only need DashboardPage or
+     * useDashboardStats.
+     */
+    export { SiteStatusWidget }       from "./components/widgets/site-status-widget"
+    export { StorageWidget }          from "./components/widgets/storage-widget"
+    export { PublicationStatsWidget } from "./components/widgets/publication-stats-widget"
+    export { QuickDraftWidget }       from "./components/widgets/quick-draft-widget"
+    export { RecentContentWidget }    from "./components/widgets/recent-content-widget"
+    export { PendingDraftsWidget }    from "./components/widgets/pending-drafts-widget"
+    export { MediaGalleryWidget }     from "./components/widgets/media-gallery-widget"
+    export { ActivityFeedWidget }     from "./components/widgets/activity-feed-widget"
+    // Add new public widgets here. Do NOT export internal helpers.
+
+  Note: verify each filename against the current
+  `features/dashboard/components/widgets/` folder before writing — if a
+  widget file is named differently (e.g. `kpi.tsx` vs `kpi-widget.tsx`),
+  use the actual filename.
+
+  File to modify:
+    apps/dashboard/src/pages/widget-lab.tsx
+      Replace:
+        import {
+          SiteStatusWidget, StorageWidget, PublicationStatsWidget,
+          QuickDraftWidget, RecentContentWidget, PendingDraftsWidget,
+          MediaGalleryWidget, ActivityFeedWidget,
+        } from "@/features/dashboard/components/widgets"
+      With:
+        import {
+          SiteStatusWidget, StorageWidget, PublicationStatsWidget,
+          QuickDraftWidget, RecentContentWidget, PendingDraftsWidget,
+          MediaGalleryWidget, ActivityFeedWidget,
+        } from "@/features/dashboard/widgets"
+
+  Acceptance:
+    [ ] No file outside features/dashboard/ imports from
+        @/features/dashboard/components/widgets.
+    [ ] widget-lab.tsx compiles and the page renders every widget.
+
+5.4 PHASE B1 — Promote `components/fields/` → `features/fields/`
+
+  Move command (do NOT use plain `mv` — the move must be a `git mv` so
+  blame survives):
+    cd apps/dashboard
+    git mv src/components/fields src/features/fields
+
+  Path codemod (BSD sed flavor for macOS — adjust `-i ''` to `-i` on
+  GNU/Linux):
+    grep -rlE "from ['\"]@?/?[^'\"]*components/fields" src \
+      | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/fields|\1@/features/fields|g"
+
+  After the codemod:
+    - Run `npx tsc --noEmit` in `apps/dashboard/`. Some files inside
+      the moved folder will fail because they used relative imports
+      that now point one level deeper. Fix each one by switching the
+      relative form to the absolute `@/` alias (e.g.
+      `../../ui/button` becomes `@/components/ui/button`).
+    - Re-run `tsc --noEmit` until it is zero errors.
+    - Run `npm test` in `apps/dashboard/`. Fix any path-only failures.
+
+  Do NOT change `index.ts`: the existing named barrel is correct.
+
+  Acceptance:
+    [ ] No file under apps/dashboard/src imports from
+        @/components/fields, ./components/fields, or any relative form
+        of it.
+    [ ] features/fields/index.ts has the same exported names as the old
+        components/fields/index.ts (verify by diffing).
+    [ ] tsc --noEmit is zero errors. Test suite is green.
+
+5.5 PHASE B2 — Promote `components/content-toolbar/` and tighten barrel
+
+  Move:
+    cd apps/dashboard
+    git mv src/components/content-toolbar src/features/content-toolbar
+
+  Path codemod:
+    grep -rlE "from ['\"]@?/?[^'\"]*components/content-toolbar" src \
+      | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/content-toolbar|\1@/features/content-toolbar|g"
+
+  Then REPLACE `features/content-toolbar/index.ts` ENTIRELY with a
+  named barrel. Before writing, run:
+    grep -rE "from ['\"]@/features/content-toolbar['\"]" apps/dashboard/src
+  to enumerate the symbols actually imported by consumers. The new
+  `index.ts` exports exactly that set. Example skeleton (replace the
+  symbol list with the real one from the grep):
+
+    /**
+     * Public API of the content-toolbar slice.
+     *
+     * Internal helpers in `shared.ts`, `toolbar-hooks/`, and
+     * `toolbar-components/` are intentionally NOT re-exported here.
+     * If an external caller needs one of them, expose it explicitly
+     * after reviewing the dependency.
+     */
+    export { ContentToolbar }     from "./content-toolbar"
+    export { useContentToolbar }  from "./use-content-toolbar"
+    export type {
+      ContentToolbarProps,
+      ToolbarFilterGroup,
+      ToolbarSortRule,
+      // ... add every type/value that the grep above reported
+    } from "./types"
+
+  Audit the two hooks that currently reach into `shared.ts` from
+  outside:
+    apps/dashboard/src/hooks/use-conditional-formats.ts
+    apps/dashboard/src/hooks/use-toolbar-filters.ts
+
+  For each:
+    - If the imported symbol is a domain type that callers of the
+      toolbar need too, add it to the named barrel.
+    - If the symbol is only ever used by these two hooks and they
+      conceptually belong to the toolbar feature, move the hooks
+      inside `features/content-toolbar/toolbar-hooks/` and remove them
+      from `apps/dashboard/src/hooks/`.
+    - Decide one option per hook; do not split the difference.
+
+  Acceptance:
+    [ ] No file outside features/content-toolbar/ imports from
+        @/features/content-toolbar/shared (or any deep path).
+    [ ] features/content-toolbar/index.ts contains zero `export *`.
+    [ ] tsc --noEmit and the test suite are green.
+
+5.6 PHASE B3 — Split `lib/utils.ts` into domain sub-modules
+
+  Files to create:
+    apps/dashboard/src/lib/utils/cn.ts
+    apps/dashboard/src/lib/utils/format.ts
+    apps/dashboard/src/lib/utils/dom.ts
+    apps/dashboard/src/lib/utils/api.ts
+
+  Procedure:
+    1. Audit the current `lib/utils.ts`. Bucket every exported symbol
+       into one of: `cn` (Tailwind class merger), `format` (Intl,
+       date, number, currency), `dom` (event helpers, focus, scroll),
+       `api` (fetch wrapper, error normalizer, URL builders).
+    2. If a symbol does not fit any bucket, leave it inline in
+       `lib/utils.ts` for now and flag it in the PR description — do
+       not invent a fifth bucket in this sprint.
+    3. Move each symbol into its target file with the exact same
+       export name. Preserve JSDoc comments verbatim.
+
+  File to modify:
+    apps/dashboard/src/lib/utils.ts
+      Replace its entire content with the backward-compat barrel:
+        /**
+         * Backward-compat barrel.
+         *
+         * New code should import directly from a sub-module
+         * (`@/lib/utils/cn`, `@/lib/utils/format`, ...). The 70 existing
+         * importers continue to work unchanged through this re-export
+         * so this split is a zero-breaking-change refactor.
+         */
+        export * from "./utils/cn"
+        export * from "./utils/format"
+        export * from "./utils/dom"
+        export * from "./utils/api"
+
+  Acceptance:
+    [ ] No public export disappears. (Diff the public symbols before
+        and after.)
+    [ ] tsc --noEmit and the test suite are green.
+    [ ] `grep -r "from.*lib/utils\"" apps/dashboard/src | wc -l` still
+        returns 70 (or higher, if some `lib/utils/<sub>` imports were
+        added). It must not return 0 — that would mean we accidentally
+        broke the barrel.
+
+5.7 PHASE C1 — Break the `minimal-tiptap` core cycle
+
+  Files to create:
+    apps/dashboard/src/components/ui/minimal-tiptap/shared.ts
+
+  Content rules:
+    - Only contains pure types and pure functions (no React hooks, no
+      TipTap editor references).
+    - Imports nothing from sibling files in `minimal-tiptap/`. It may
+      import from `@/lib/utils/*` or external packages.
+    - Houses every symbol that today is defined in `utils.ts` AND used
+      by `minimal-tiptap.tsx` (the cyclic crossings).
+
+  Files to modify:
+    apps/dashboard/src/components/ui/minimal-tiptap/utils.ts
+      - Import everything it needs from `./shared` (and external pkgs).
+      - It MUST NOT import from `./minimal-tiptap`.
+
+    apps/dashboard/src/components/ui/minimal-tiptap/minimal-tiptap.tsx
+      - Import from `./utils` and `./shared` only.
+      - Must not be imported by `./utils.ts` (the cycle to break).
+
+    apps/dashboard/src/components/ui/minimal-tiptap/hooks/use-minimal-tiptap.ts
+      - Import from `../shared` only. Must NOT import from `../utils`
+        or `../minimal-tiptap`.
+
+  Verify with:
+    npx madge --circular apps/dashboard/src/components/ui/minimal-tiptap
+  (or re-run `/graphify --update` and inspect the cycles list).
+
+  Acceptance:
+    [ ] Zero cycles among the four files above.
+    [ ] Editor still renders, formats, and persists content in the
+        existing content editor pages (manual smoke).
+
+5.8 PHASE C2 — Break the `extensions/image/` cycle
+
+  Files to create:
+    apps/dashboard/src/components/ui/minimal-tiptap/extensions/image/shared.ts
+
+  Content: image-specific types and small pure helpers used by both
+  `image.ts` and `image-view-block.tsx`.
+
+  Files to modify:
+    apps/dashboard/src/components/ui/minimal-tiptap/extensions/image/image.ts
+      - Import from `./shared` only (not from `./image-view-block`).
+
+    apps/dashboard/src/components/ui/minimal-tiptap/extensions/image/image-view-block.tsx
+      - Import from `./shared` only (not from `./image`).
+
+  Acceptance:
+    [ ] Zero cycles inside extensions/image/.
+    [ ] Insert-image, drag-image, paste-image flows still work
+        (manual smoke).
+
+==========================================================================
+SECTION 6 — VALIDATION (run after each phase)
+==========================================================================
+
+From repo root:
+
+  1. `npx tsc --noEmit` in `apps/dashboard/` — zero errors.
+  2. `npm run lint` in `apps/dashboard/` — zero new errors. Pre-existing
+     warnings are out of scope; do not fix them in this sprint.
+  3. `npm run test` in `apps/dashboard/` — green. Path-only failures
+     are expected after Phase B1/B2; fix them by updating the test
+     file paths, not by reverting the move.
+  4. `npm run dev` at root — dashboard (`:5173`) boots, the following
+     screens render without console errors:
+        - /dashboard (widget grid)
+        - /content/<any-seed> (uses ContentToolbar, FieldDisplay)
+        - /content/<any-seed>/new (uses FieldEdit, DatePickerInput)
+        - /widget-lab
+        - any rich-text field (exercises minimal-tiptap)
+
+After all three phases:
+  5. Re-run `/graphify --update` on `apps/dashboard/src`. The new
+     `GRAPH_REPORT.md` must show:
+        - Zero cycles inside `features/**`.
+        - Zero edges from `components/**` into `features/**`.
+        - No feature → feature edges except through `features/shared/`.
+        - No deep imports into `features/dashboard/components/widgets`
+          from outside the slice.
+
+==========================================================================
+SECTION 7 — OUT OF SCOPE
+==========================================================================
+
+  - Bundle size optimisation for lucide-react icons (lazy
+    `resolveIconAsync`). Defer until a vite-bundle-visualizer audit
+    justifies it.
+  - Renaming or refactoring any widget. The widget surface only moves;
+    its logic is untouched.
+  - Migrating any other `components/<feature>` folder into `features/`
+    beyond fields and content-toolbar. If the audit reveals a third
+    candidate, file it as a follow-up sprint, not a scope expansion.
+  - Adding new tests. Keep existing coverage green; do not write new
+    tests in this sprint unless a refactor exposes a missing one.
+  - i18n strings, theming, or auth flows.
+
+==========================================================================
+SECTION 8 — CODE QUALITY CONVENTIONS (non-negotiable)
+==========================================================================
+
+NAMING:
+  Full descriptive English words. Zero abbreviations.
+    BAD:  qk, fmtDate, useSet, idx
+    GOOD: queryKeys, formatDate, useGeneralSettings, currentIndex
+
+  Constants: SCREAMING_SNAKE_CASE (e.g. DEFAULT_DATE_FORMAT).
+  Files: kebab-case, full words.
+
+COMMENTS (English only):
+  JSDoc on every NEW exported symbol explaining WHY it exists.
+  Inline comments only where intent cannot be inferred from the code
+  alone. Do NOT add comments that restate the code.
+
+IMPORTS:
+  Prefer the `@/` alias over deep relative paths once a file lives
+  more than two levels from its dependency.
+
+==========================================================================
+SECTION 9 — YOUR OPERATING RULES
+==========================================================================
+
+1. Work ONE phase at a time. Never start phase N+1 before the user
+   confirms phase N is merged and green.
+
+2. Before writing any code inside a phase, state:
+   - FILES TO CREATE: list with full paths.
+   - FILES TO MODIFY: list with full paths and a one-line change
+     description.
+   - FILES TO DELETE: list (if any).
+
+3. After each phase, stop and ask: "Ready for the next phase?"
+
+4. Never touch files outside the current phase's inventory.
+
+5. If `tsc --noEmit` reports an error that requires touching a file
+   not listed in the current phase, STOP. Report the error and the
+   file. Do not silently expand scope.
+
+==========================================================================
+SECTION 10 — CURRENT TASK: FRONTEND CHORE — SPRINT 01
+==========================================================================
+
+Execute the three phases in order: A1 → A2 → A3 → B1 → B2 → B3 → C1 → C2.
+
+--------------------------------------------------------------------------
+STEP 1: Phase A1 — features/shared/query-keys.ts
+--------------------------------------------------------------------------
+
+Implement §5.1 exactly. After writing the files and running validation,
+stop and ask: "Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 2: Phase A2 — DatePickerInput prop drill
+--------------------------------------------------------------------------
+
+Implement §5.2 exactly. After writing the files and running validation,
+stop and ask: "Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 3: Phase A3 — features/dashboard/widgets.ts
+--------------------------------------------------------------------------
+
+Implement §5.3 exactly. After writing the files and running validation,
+stop and ask: "Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 4: Phase B1 — Promote components/fields/
+--------------------------------------------------------------------------
+
+Implement §5.4 exactly. Use `git mv`. After codemod + validation, stop
+and ask: "Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 5: Phase B2 — Promote components/content-toolbar/ + tighten barrel
+--------------------------------------------------------------------------
+
+Implement §5.5 exactly. After codemod, barrel rewrite, hook audit, and
+validation, stop and ask: "Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 6: Phase B3 — Split lib/utils.ts
+--------------------------------------------------------------------------
+
+Implement §5.6 exactly. After writing the four sub-modules, rewriting
+the barrel, and running validation, stop and ask:
+"Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 7: Phase C1 — minimal-tiptap core cycle
+--------------------------------------------------------------------------
+
+Implement §5.7 exactly. After writing `shared.ts`, repointing imports,
+and verifying zero cycles with madge / graphify, stop and ask:
+"Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 8: Phase C2 — extensions/image/ cycle
+--------------------------------------------------------------------------
+
+Implement §5.8 exactly. After verification, announce
+"Frontend Chore — Sprint 01 complete" and paste the final graphify
+acceptance results (Section 6 step 5).
+
+==========================================================================
+SECTION 11 — SPRINT 01 COMPLETION CHECKLIST
+==========================================================================
+
+Before marking this sprint complete, verify:
+
+  [ ] features/shared/query-keys.ts owns DASHBOARD_QUERY_KEYS;
+      content-management no longer imports from features/dashboard.
+  [ ] components/ui/date-picker-input.tsx has no import from
+      features/settings. Every call site forwards `dateFormat`.
+  [ ] features/dashboard/widgets.ts exists; widget-lab.tsx imports
+      from it. No deep import into
+      features/dashboard/components/widgets remains outside the slice.
+  [ ] components/fields/ no longer exists. features/fields/ has the
+      same public surface as before.
+  [ ] components/content-toolbar/ no longer exists.
+      features/content-toolbar/index.ts uses named exports only
+      (zero `export *`). The two outside hooks were resolved
+      (relocated or rerouted through the public barrel).
+  [ ] lib/utils.ts re-exports from lib/utils/cn, /format, /dom, /api.
+      Every symbol previously exported still exists.
+  [ ] Zero import cycles inside
+      components/ui/minimal-tiptap/ (madge or graphify clean).
+  [ ] tsc --noEmit clean, lint clean (no new errors), tests green.
+  [ ] /graphify --update report shows zero cross-slice violations
+      and zero cycles in features/**.
+
+Begin with Step 1. List the files, then write the first file.
+After each phase, stop and ask: "Ready for the next phase?"
