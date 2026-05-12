@@ -1,0 +1,355 @@
+# Beech CMS Dashboard — Piano di Refactoring Frontend
+
+> Analisi basata su graphify (grafo AST diretto) su `apps/dashboard/src`.  
+> Ordinato per impatto decrescente. Ogni item include: problema, blast radius, fix concreto, effort stimato, rischio.
+
+***
+
+## Executive Summary
+
+Il grafo rivela **tre classi di problemi distinte** che si combinano a produrre la fragilità osservata (un'icona rotta che abbatte la dashboard):
+
+1. **God nodes** — file con fan-in altissimo che diventano single point of failure (SPOF)
+2. **Slice mal posizionate** — `components/fields` e `components/content-toolbar` agiscono da feature ma vivono fuori da `features/`, bypassando il contratto VSA
+3. **Barrel troppo largo** — `features/dashboard/index.ts` aggrega tutto, quindi un crash interno si propaga a tutti i 15 consumer
+
+Nessun problema richiede una riscrittura. Il refactoring è interamente **move + split + wrap**, senza cambiare la logica applicativa.
+
+***
+
+## P1 — `lib/utils.ts` God Node (70 importers)
+
+### Problema
+
+`lib/utils.ts` ha fan-in 70 e fan-out 0: è un leaf node che tutto il codebase dipende. Non è di per sé un errore — la funzione `cn()` di Tailwind deve essere accessibile ovunque — ma se il file contiene anche utilità di dominio (formatter, helper API, parser), qualsiasi refactor o bug qui impatta 70 file.
+
+### Fix
+
+Split per dominio senza cambiare i path di import dei consumer:
+
+```
+lib/
+  utils.ts          ← mantieni, ri-esporta tutto (backward compat)
+  utils/
+    cn.ts           ← solo la funzione cn() di Tailwind
+    format.ts       ← Intl, date, number formatters
+    dom.ts          ← helper DOM/evento
+    api.ts          ← fetch wrapper, error normalizer
+```
+
+`lib/utils.ts` diventa un barrel puro:
+
+```ts
+// lib/utils.ts — backward-compat barrel, zero breaking changes
+export * from './utils/cn';
+export * from './utils/format';
+export * from './utils/dom';
+export * from './utils/api';
+```
+
+I 70 importers non cambiano nulla. I nuovi file importano solo il sotto-modulo di cui hanno bisogno.
+
+**Effort:** 2–3 ore | **Rischio:** Basso (nessun breaking change) | **Blast radius ridotto:** 70 → ~15 per sotto-modulo
+
+***
+
+## P2 — `components/fields/` come Feature Non Dichiarata (28 importers, 21 file)
+
+### Problema
+
+`components/fields/registry.ts` (out=17) e `components/fields/types.ts` (in=19) sono il cuore del FieldRenderers system — una feature con logica di dominio CMS complessa. Vivono però in `components/`, che per convenzione VSA dovrebbe contenere solo **primitive UI stateless**. Il risultato: 28 file non-feature dipendono da path interni senza contratto pubblico.
+
+### Fix
+
+Promozione a slice con public API:
+
+```
+Attuale:  components/fields/registry.ts
+          components/fields/types.ts
+          components/fields/FieldDisplay.tsx
+          ...
+
+Dopo:     features/fields/
+            index.ts          ← PUBLIC API (unico import consentito dall'esterno)
+            registry.ts       ← internal
+            types.ts          ← internal
+            FieldDisplay.tsx  ← internal
+            display/          ← internal
+            edit/             ← internal
+```
+
+`index.ts` espone esattamente quello che `components/fields` espone oggi:
+
+```ts
+// features/fields/index.ts
+export { FieldDisplay } from './FieldDisplay';
+export { FieldEdit } from './FieldEdit';
+export { getDisplayComponent, getEditComponent } from './registry';
+export type { FieldDisplayProps, FieldEditProps } from './types';
+```
+
+**I 28 importers cambiano solo il path** da `components/fields` a `features/fields` — un sed one-liner.
+
+```bash
+find apps/dashboard/src -type f -name "*.tsx" -o -name "*.ts" | \
+  xargs sed -i 's|from ".*components/fields|from "features/fields|g'
+```
+
+**Effort:** 3–4 ore | **Rischio:** Basso (rename puro) | **Beneficio:** fields ottiene un contratto VSA formale
+
+***
+
+## P3 — `components/content-toolbar/` come Micro-Slice Non Dichiarata (18 importers)
+
+### Problema
+
+Stesso pattern di P2: 8 file esterni importano da path interni di `content-toolbar`, bypassando qualsiasi barrel. La toolbar conosce `Seed`, `Branch`, `ContentQuery` — è logica di feature CMS, non un primitivo UI.
+
+### Fix
+
+```
+Attuale:  components/content-toolbar/ContentToolbar.tsx
+          components/content-toolbar/shared.ts
+          components/content-toolbar/filters/...
+          ...
+
+Dopo:     features/content-toolbar/
+            index.ts          ← PUBLIC API
+            ContentToolbar.tsx
+            shared.ts
+            filters/
+            sort/
+            search/
+```
+
+```bash
+find apps/dashboard/src -type f | \
+  xargs sed -i 's|from ".*components/content-toolbar|from "features/content-toolbar|g'
+```
+
+**Effort:** 2–3 ore | **Rischio:** Basso | **Beneficio:** elimina 8 import da path interni
+
+***
+
+## P4 — Cicli di Dipendenza in `minimal-tiptap` (4 cicli, 7 file)
+
+### Problema
+
+Il wrapper TipTap vendored ha 4 cicli import:
+
+- `use-minimal-tiptap.ts` ↔ `utils.ts` ↔ `minimal-tiptap.tsx`
+- `section/four.tsx` → `toolbar-section.tsx` → `utils.ts` → `minimal-tiptap.tsx`
+- `image-view-block.tsx` ↔ `image.ts`
+
+I cicli non crashano in sé con i bundler moderni (Vite gestisce HMR con cicli), ma causano **ordine di inizializzazione non deterministico** e rendono il tree-shaking impossibile su quei moduli.
+
+### Fix
+
+Estrarre tipi e utility condivisi in un modulo senza retro-import:
+
+```
+features/richtext-editor/minimal-tiptap/
+  shared.ts         ← tipi condivisi, utility pure — NESSUN import da altri file della slice
+  utils.ts          ← importa da shared.ts, mai da minimal-tiptap.tsx
+  minimal-tiptap.tsx ← importa da utils.ts e shared.ts
+  use-minimal-tiptap.ts ← importa da shared.ts, non da utils.ts
+  image/
+    shared.ts       ← tipi Image condivisi
+    image.ts        ← importa da image/shared.ts
+    image-view-block.tsx ← importa da image/shared.ts
+```
+
+**Effort:** 4–6 ore | **Rischio:** Medio (logica vendored, testare manualmente l'editor) | **Beneficio:** tree-shaking + HMR stabile
+
+***
+
+## P5 — `lib/icon-registry.ts` SPOF (16 file blast radius) ← Causa del bug icona→dashboard
+
+### Problema
+
+Questo è il **root cause del bug segnalato**. `icon-registry.ts` è un singleton che mappa stringhe Lucide a componenti React. Se un'icona nel `Seed` non esiste nel registry (typo nel nome, icona rimossa da Lucide, import lazy fallito), il registry lancia un errore — e i 16 file che dipendono da esso (transitivamente: `config/dashboard-menu.ts` → sidebar → `App.tsx`) non renderizzano.
+
+### Fix in due step
+
+**Step 1 — Fallback immediato (fix del bug, 30 minuti):**
+
+```ts
+// lib/icon-registry.ts
+import { HelpCircle } from 'lucide-react'; // icona fallback
+
+export function getIcon(name: string): LucideIcon {
+  const icon = registry[name];
+  if (!icon) {
+    console.warn(`[icon-registry] Icon "${name}" not found, using fallback`);
+    return HelpCircle; // mai throw, mai undefined
+  }
+  return icon;
+}
+```
+
+**Step 2 — Lazy loading (fix strutturale, 2 ore):**
+
+```ts
+// lib/icon-registry.ts — lazy per ridurre il bundle iniziale
+const iconLoaders: Record<string, () => Promise<LucideIcon>> = {
+  LayoutDashboard: () => import('lucide-react').then(m => m.LayoutDashboard),
+  Settings: () => import('lucide-react').then(m => m.Settings),
+  // ...
+};
+
+export async function getIconAsync(name: string): Promise<LucideIcon> {
+  const loader = iconLoaders[name];
+  if (!loader) return HelpCircle;
+  try {
+    return await loader();
+  } catch {
+    return HelpCircle;
+  }
+}
+```
+
+**Effort:** Step 1 = 30 min (applica subito) | Step 2 = 2 ore | **Rischio:** Basso | **Beneficio diretto:** dashboard non crasha più per icone mancanti
+
+***
+
+## P6 — Coupling Feature→Feature (6 edge, 3 coppie)
+
+### Problema
+
+| Da | A | Archi | Tipo violazione |
+|----|---|-------|-----------------|
+| `dashboard` | `widget-data` | 3 | Accettabile — widget-data è sub-feature dichiarata |
+| `content-management` | `dashboard` | 2 | **Inversione anomala** — CM dovrebbe essere più basso-livello |
+| `dashboard` | `schema` | 1 | Accettabile — schema è read-only core data |
+
+Il problema reale è `content-management → dashboard`: `use-content-facets` e `use-content-item` importano da `features/dashboard`. Una feature "contenuto" non dovrebbe conoscere il "dashboard".
+
+### Fix
+
+Spostare gli hook condivisi in `features/shared/`:
+
+```
+features/
+  shared/
+    index.ts
+    hooks/
+      use-content-facets.ts   ← spostato da dashboard
+      use-content-item.ts     ← spostato da dashboard
+```
+
+Sia `dashboard` che `content-management` importano da `features/shared` — nessuno dei due dipende dall'altro.
+
+**Effort:** 3–4 ore | **Rischio:** Medio (verificare che i test passino) | **Beneficio:** elimina l'inversione di dipendenza
+
+***
+
+## P7 — Violazioni VSA Dirette (2 edge)
+
+### Violazione 1: `components/ui/date-picker-input.tsx` → `features/settings/hooks/use-settings.ts`
+
+Un componente UI globale non può leggere stato da una slice settings. Questo crea un accoppiamento nascosto: chi usa `<DatePickerInput>` importa inconsapevolmente anche lo stato settings.
+
+**Fix:** Passare il valore settings come prop, o esporre un hook generico in `features/shared/`.
+
+```tsx
+// Prima (violazione)
+const { dateFormat } = useSettings(); // import diretto dalla slice
+
+// Dopo (corretto)
+interface DatePickerInputProps {
+  dateFormat?: string; // il consumer porta il valore dalla slice
+}
+```
+
+### Violazione 2: `pages/widget-lab.tsx` → `features/dashboard/components/widgets/index.ts`
+
+Bypass del barrel principale. Fragile: se la struttura interna di dashboard cambia, widget-lab si rompe silenziosamente.
+
+**Fix:**
+
+```ts
+// Prima
+import { KpiWidget } from 'features/dashboard/components/widgets';
+
+// Dopo
+import { KpiWidget } from 'features/dashboard'; // barrel ufficiale
+```
+
+**Effort totale P7:** 1 ora | **Rischio:** Basso
+
+***
+
+## P8 — Dashboard Barrel Blast Radius (15 importers)
+
+### Problema
+
+`features/dashboard/index.ts` è un mega-barrel che aggrega 12 widget + hook + tipi. Con `import { KpiWidget } from 'features/dashboard'`, il bundler carica l'intero barrel — se **un solo widget** ha un errore di runtime (es. divisione per zero in una formula, risposta API malformata), React non riesce a renderizzare il modulo e tutti i 15 consumer mostrano schermo bianco.
+
+### Fix: barrel granulare con sub-path exports
+
+```ts
+// features/dashboard/index.ts — esporta solo tipi e hook stabili
+export type { DashboardStats, WidgetConfig } from './types';
+export { useDashboardStats } from './hooks/use-dashboard-stats';
+
+// features/dashboard/widgets/index.ts — barrel separato per i widget
+export { KpiWidget } from './kpi-widget';
+export { GrowthWidget } from './growth-widget';
+// ...
+```
+
+In alternativa (più rapida), wrappare ogni widget in un **ErrorBoundary** individuale così un crash è isolato:
+
+```tsx
+// features/dashboard/DashboardPage.tsx
+<ErrorBoundary fallback={<WidgetErrorCard name="KPI" />}>
+  <KpiWidget ... />
+</ErrorBoundary>
+<ErrorBoundary fallback={<WidgetErrorCard name="Growth" />}>
+  <GrowthWidget ... />
+</ErrorBoundary>
+```
+
+L'ErrorBoundary è il fix più rapido (2 ore). Il barrel split è il fix strutturale (4–6 ore).
+
+**Effort:** ErrorBoundary = 2 ore | Barrel split = 4–6 ore | **Rischio:** Basso
+
+***
+
+## Roadmap di Esecuzione
+
+### Sprint 1 — Fix immediati (< 1 giorno, zero rischio)
+
+| # | Azione | File | Tempo |
+|---|--------|------|-------|
+| 1 | Aggiungere fallback `HelpCircle` in `icon-registry.ts` | 1 file | 30 min |
+| 2 | Aggiungere `ErrorBoundary` per ogni widget in `DashboardPage` | 1 file | 2 ore |
+| 3 | Fix P7: barrel corretto in `widget-lab.tsx`, prop drilling in `date-picker-input` | 2 file | 1 ora |
+
+**Risultato:** il bug icona→dashboard è risolto. La dashboard non crasha più per errori isolati nei widget.
+
+### Sprint 2 — Riorganizzazione VSA (2–3 giorni, rischio basso)
+
+| # | Azione | Effort |
+|---|--------|--------|
+| 1 | Promuovere `components/fields/` → `features/fields/` | 3–4 ore |
+| 2 | Promuovere `components/content-toolbar/` → `features/content-toolbar/` | 2–3 ore |
+| 3 | Split `lib/utils.ts` in sotto-moduli con barrel backward-compat | 2–3 ore |
+
+**Risultato:** il grafo delle dipendenze è conforme VSA. Nuovi contributor capiscono immediatamente i confini.
+
+### Sprint 3 — Disaccoppiamento e cicli (3–4 giorni, rischio medio)
+
+| # | Azione | Effort |
+|---|--------|--------|
+| 1 | Spostare hook condivisi in `features/shared/` (P6) | 3–4 ore |
+| 2 | Rompere cicli `minimal-tiptap` con `shared.ts` (P4) | 4–6 ore |
+| 3 | Barrel granulare `features/dashboard/` (P8 strutturale) | 4–6 ore |
+
+**Risultato:** zero cicli di import, zero inversioni di dipendenza, dashboard resiliente a crash isolati.
+
+***
+
+## Principio guida
+
+> Ogni modifica di questi tre sprint è **move + split + wrap**. Zero logica applicativa cambia. Il refactoring è verificabile con lo stesso comando graphify usato per l'analisi: il grafo dopo deve avere fan-in massimo < 30 e zero cicli.
