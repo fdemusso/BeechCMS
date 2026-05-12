@@ -66,8 +66,20 @@ SECTION 3 — CURRENT STATE (verified, do not re-explore)
   - Consumed by `components/site-header.tsx`. Barrel uses `export *`.
 
 3.5 Navigation Infrastructure
-  - `components/nav-main.tsx`, `nav-secondary.tsx`, `nav-user.tsx`, and `nav-projects.tsx` are pure presentational UI components. They are fully stateless and fit perfectly in `components/`.
-  - `components/app-sidebar.tsx` and `components/site-header.tsx` act as layout shells but are highly stateful and domain-coupled.
+  - `components/nav-main.tsx`, `nav-secondary.tsx`, `nav-user.tsx`, and `nav-projects.tsx` are pure presentational UI components. They are fully stateless and fit perfectly in `components/`. Verified: zero imports from `@/features`.
+  - `components/app-sidebar.tsx` imports `useProfile` from `@/features/settings` and `useSchema` from `@/features/schema`.
+  - `components/site-header.tsx` imports `SEED_REGISTRY` from `@beechcms/core` and `NotificationsPopover` from `@/components/notifications-popover`.
+  - Both shells are consumed by the same 6 files (NOT by `App.tsx`):
+      - `features/settings/pages/settings-page.tsx`
+      - `features/dashboard/pages/dashboard-page.tsx`
+      - `pages/content-list.tsx`
+      - `pages/entry-editor.tsx`
+      - `pages/widget-lab.tsx`
+      - `pages/test-fields.tsx`
+
+3.6 Cross-Cutting Test File: `test/barrels.test.ts`
+  - Imports barrels from `@/components/login-form`, `@/components/notifications-popover`, `@/components/content-delete-dialog`, and `@/features/content-toolbar`.
+  - Phases A2, A3, A4 codemods will catch it automatically (they search all of `src/`), but verify explicitly.
 
 ==========================================================================
 SECTION 4 — DELIVERABLES
@@ -102,8 +114,12 @@ SECTION 5 — PHASE DETAILS
     grep -rlE "from ['\"]@?/?[^'\"]*components/content-gallery" src \
       | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/content-gallery|\1@/features/content-gallery|g"
 
+  Files affected by codemod (verified):
+    - `pages/content-list.tsx` — sole barrel consumer.
+
   Barrel rewrite (`features/content-gallery/index.ts`):
-    Audit consumer imports. Replace `export *` entirely with explicit named exports:
+    Current barrel leaks `export * from "./content-gallery"`, `export * from "./types"`, `export * from "./shared"`.
+    Replace entirely with explicit named exports:
     ```typescript
     /**
      * Public API of the content-gallery slice.
@@ -111,8 +127,8 @@ SECTION 5 — PHASE DETAILS
      */
     export { ContentGallery } from "./content-gallery"
     export type { ContentGalleryProps } from "./types"
-    // Export additional shared interfaces if explicitly required by pages/tests.
     ```
+    Note: `ContentGalleryProps` is only consumed internally today, but exported for type-safe page composition.
 
 5.2 PHASE A2 — Promote `components/content-delete-dialog/`
   Move command:
@@ -122,6 +138,11 @@ SECTION 5 — PHASE DETAILS
   Path codemod:
     grep -rlE "from ['\"]@?/?[^'\"]*components/content-delete-dialog" src \
       | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/content-delete-dialog|\1@/features/content-delete-dialog|g"
+
+  Files affected by codemod (verified):
+    - `pages/content-list.tsx` — barrel import.
+    - `test/content-delete-dialog/content-delete-dialog.test.tsx` — deep import.
+    - `test/barrels.test.ts` — barrel import.
 
   Barrel rewrite (`features/content-delete-dialog/index.ts`):
     ```typescript
@@ -140,6 +161,12 @@ SECTION 5 — PHASE DETAILS
     grep -rlE "from ['\"]@?/?[^'\"]*components/login-form" src \
       | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/login-form|\1@/features/auth/components/login-form|g"
 
+  Files affected by codemod (verified):
+    - `App.tsx` — barrel import (`LoginForm`).
+    - `test/login-form/login-form.test.tsx` — deep import (`login-form/login-form`).
+    - `test/login-form/use-login-form.test.tsx` — deep import (`login-form/use-login-form`).
+    - `test/barrels.test.ts` — barrel import.
+
   Barrel rewrite (`features/auth/components/login-form/index.ts`):
     ```typescript
     /** Public export for the authentication login form component. */
@@ -155,6 +182,12 @@ SECTION 5 — PHASE DETAILS
   Path codemod:
     grep -rlE "from ['\"]@?/?[^'\"]*components/notifications-popover" src \
       | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/notifications-popover|\1@/features/notifications/components/notifications-popover|g"
+
+  Files affected by codemod (verified):
+    - `components/site-header.tsx` — barrel import (will be moved in Phase B).
+    - `test/notifications-popover/notifications-popover.test.tsx` — deep import.
+    - `test/notifications-popover/use-notifications-popover.test.ts` — deep import.
+    - `test/barrels.test.ts` — barrel import.
 
   Barrel rewrite (`features/notifications/components/notifications-popover/index.ts`):
     ```typescript
@@ -179,12 +212,27 @@ SECTION 5 — PHASE DETAILS
     export { SiteHeader } from "./components/site-header"
     ```
 
-  Update Call Sites:
-    Audit all references to `app-sidebar` and `site-header` across `src/pages/`, `src/features/`, and `src/App.tsx`. Point them directly to the new named barrel:
+  Path codemod:
+    grep -rlE "from ['\"]@?/?[^'\"]*components/app-sidebar" src \
+      | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/app-sidebar|\1@/features/navigation|g"
+    grep -rlE "from ['\"]@?/?[^'\"]*components/site-header" src \
+      | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/site-header|\1@/features/navigation|g"
+
+  Consumer files (verified — `App.tsx` does NOT import these shells):
+    - `features/settings/pages/settings-page.tsx`
+    - `features/dashboard/pages/dashboard-page.tsx`
+    - `pages/content-list.tsx`
+    - `pages/entry-editor.tsx`
+    - `pages/widget-lab.tsx`
+    - `pages/test-fields.tsx`
+    After codemod each file will have two separate imports from `@/features/navigation`.
+    Merge them manually into a single line:
     ```typescript
     import { AppSidebar, SiteHeader } from "@/features/navigation"
     ```
+
     Ensure any internal relative imports inside `app-sidebar.tsx` and `site-header.tsx` broken by the depth change are adjusted to use the absolute `@/` alias.
+    In particular, `site-header.tsx` now imports `NotificationsPopover` from `@/features/notifications/components/notifications-popover` (updated in Phase A4). Verify this path is correct after the move.
 
 ==========================================================================
 SECTION 6 — VALIDATION (run after each phase)
@@ -214,6 +262,7 @@ SECTION 7 — OUT OF SCOPE
   - Adding new tests beyond fixing broken paths in existing test suites.
   - Restructuring stateless navigation components (`nav-main.tsx`, etc.).
   - Modifying global authentication context shims (`@/lib/auth-context.tsx`).
+  - Tightening `export *` barrels already inside `features/`. Note: `features/shared/index.ts`, `features/dashboard/index.ts`, and `features/content-management/index.ts` still use `export *`. These are candidates for a follow-up sprint.
 
 ==========================================================================
 SECTION 8 — CODE QUALITY CONVENTIONS (non-negotiable)
@@ -283,6 +332,14 @@ Stop and ask: "Ready for the next step?"
 --------------------------------------------------------------------------
 STEP 6: Phase C1 — Final Alignment
 --------------------------------------------------------------------------
+The `sed` codemods in Phases A1–B2 search all of `src/` (including `src/test/`), so test
+paths should already be updated. Explicitly verify these test files compiled correctly:
+  - `test/barrels.test.ts` — barrel paths updated by A2, A3, A4 codemods.
+  - `test/login-form/login-form.test.tsx` — deep path updated by A3.
+  - `test/login-form/use-login-form.test.tsx` — deep path updated by A3.
+  - `test/content-delete-dialog/content-delete-dialog.test.tsx` — deep path updated by A2.
+  - `test/notifications-popover/notifications-popover.test.tsx` — deep path updated by A4.
+  - `test/notifications-popover/use-notifications-popover.test.ts` — deep path updated by A4.
 Ensure perfect zero-error builds under `tsc --noEmit`. Rerun tests and update the vector graph via `graphify update .`.
 Announce "Frontend Chore — Sprint 02 complete".
 
