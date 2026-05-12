@@ -1,12 +1,12 @@
 import * as React from "react"
 import type { ConditionalFormatRule, ConditionalFormatTextStyle } from "@/lib/conditional-format"
-import type { FilterOperator, ToolbarFilterCondition } from "@/components/content-toolbar/shared"
+import type { FilterOperator, ToolbarFilterCondition } from "@/features/content-toolbar/shared"
 import {
   generateConditionId,
   normalizeConditionalTarget,
   normalizeTextStyles,
-} from "@/components/content-toolbar/shared"
-import type { FormattableColumn } from "@/hooks/use-toolbar-filters"
+} from "@/features/content-toolbar/shared"
+import type { FormattableColumn } from "./use-toolbar-filters"
 
 interface UseConditionalFormatsOptions {
   viewId?: string

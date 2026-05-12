@@ -82,7 +82,7 @@ vi.mock("@/lib/dynamic-columns", () => ({
   generateColumns: () => [],
 }))
 
-vi.mock("@/components/content-toolbar", () => ({
+vi.mock("@/features/content-toolbar", () => ({
   ContentToolbar: (props: any) => (
     <div>
       <button onClick={props.onCreate}>create-entry</button>

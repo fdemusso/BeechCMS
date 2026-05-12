@@ -257,9 +257,9 @@ SECTION 5 — PHASE DETAILS
       Same replacement.
 
   Acceptance:
-    [ ] No file under features/content-management/ imports from
+    [x] No file under features/content-management/ imports from
         @/features/dashboard.
-    [ ] DASHBOARD_QUERY_KEYS is defined exactly once, in features/shared.
+    [x] DASHBOARD_QUERY_KEYS is defined exactly once, in features/shared.
 
 5.2 PHASE A2 — Prop-drill `dateFormat` into `DatePickerInput`
 
@@ -286,8 +286,8 @@ SECTION 5 — PHASE DETAILS
         hook call at the top of the component and forward the value.
 
   Acceptance:
-    [ ] No file under components/ imports from features/settings.
-    [ ] Every `<DatePickerInput>` call site passes `dateFormat`, or
+    [x] No file under components/ imports from features/settings.
+    [x] Every `<DatePickerInput>` call site passes `dateFormat`, or
         explicitly opts into the default (commented).
     [ ] Visual smoke test: the date picker renders the same format in
         the same screens as before.
@@ -337,9 +337,9 @@ SECTION 5 — PHASE DETAILS
         } from "@/features/dashboard/widgets"
 
   Acceptance:
-    [ ] No file outside features/dashboard/ imports from
+    [x] No file outside features/dashboard/ imports from
         @/features/dashboard/components/widgets.
-    [ ] widget-lab.tsx compiles and the page renders every widget.
+    [x] widget-lab.tsx compiles and the page renders every widget.
 
 5.4 PHASE B1 — Promote `components/fields/` → `features/fields/`
 
@@ -365,12 +365,12 @@ SECTION 5 — PHASE DETAILS
   Do NOT change `index.ts`: the existing named barrel is correct.
 
   Acceptance:
-    [ ] No file under apps/dashboard/src imports from
+    [x] No file under apps/dashboard/src imports from
         @/components/fields, ./components/fields, or any relative form
         of it.
-    [ ] features/fields/index.ts has the same exported names as the old
+    [x] features/fields/index.ts has the same exported names as the old
         components/fields/index.ts (verify by diffing).
-    [ ] tsc --noEmit is zero errors. Test suite is green.
+    [x] tsc --noEmit is zero errors. Test suite is green.
 
 5.5 PHASE B2 — Promote `components/content-toolbar/` and tighten barrel
 
@@ -421,10 +421,10 @@ SECTION 5 — PHASE DETAILS
     - Decide one option per hook; do not split the difference.
 
   Acceptance:
-    [ ] No file outside features/content-toolbar/ imports from
+    [x] No file outside features/content-toolbar/ imports from
         @/features/content-toolbar/shared (or any deep path).
-    [ ] features/content-toolbar/index.ts contains zero `export *`.
-    [ ] tsc --noEmit and the test suite are green.
+    [x] features/content-toolbar/index.ts contains zero `export *`.
+    [x] tsc --noEmit and the test suite are green.
 
 5.6 PHASE B3 — Split `lib/utils.ts` into domain sub-modules
 
@@ -619,35 +619,35 @@ SECTION 10 — CURRENT TASK: FRONTEND CHORE — SPRINT 01
 Execute the three phases in order: A1 → A2 → A3 → B1 → B2 → B3 → C1 → C2.
 
 --------------------------------------------------------------------------
-STEP 1: Phase A1 — features/shared/query-keys.ts
+STEP 1: Phase A1 — features/shared/query-keys.ts [DONE]
 --------------------------------------------------------------------------
 
 Implement §5.1 exactly. After writing the files and running validation,
 stop and ask: "Ready for the next step?"
 
 --------------------------------------------------------------------------
-STEP 2: Phase A2 — DatePickerInput prop drill
+STEP 2: Phase A2 — DatePickerInput prop drill [DONE]
 --------------------------------------------------------------------------
 
 Implement §5.2 exactly. After writing the files and running validation,
 stop and ask: "Ready for the next step?"
 
 --------------------------------------------------------------------------
-STEP 3: Phase A3 — features/dashboard/widgets.ts
+STEP 3: Phase A3 — features/dashboard/widgets.ts [DONE]
 --------------------------------------------------------------------------
 
 Implement §5.3 exactly. After writing the files and running validation,
 stop and ask: "Ready for the next step?"
 
 --------------------------------------------------------------------------
-STEP 4: Phase B1 — Promote components/fields/
+STEP 4: Phase B1 — Promote components/fields/ [DONE]
 --------------------------------------------------------------------------
 
 Implement §5.4 exactly. Use `git mv`. After codemod + validation, stop
 and ask: "Ready for the next step?"
 
 --------------------------------------------------------------------------
-STEP 5: Phase B2 — Promote components/content-toolbar/ + tighten barrel
+STEP 5: Phase B2 — Promote components/content-toolbar/ + tighten barrel [DONE]
 --------------------------------------------------------------------------
 
 Implement §5.5 exactly. After codemod, barrel rewrite, hook audit, and
@@ -683,19 +683,19 @@ SECTION 11 — SPRINT 01 COMPLETION CHECKLIST
 
 Before marking this sprint complete, verify:
 
-  [ ] features/shared/query-keys.ts owns DASHBOARD_QUERY_KEYS;
+  [x] features/shared/query-keys.ts owns DASHBOARD_QUERY_KEYS;
       content-management no longer imports from features/dashboard.
-  [ ] components/ui/date-picker-input.tsx has no import from
+  [x] components/ui/date-picker-input.tsx has no import from
       features/settings. Every call site forwards `dateFormat`.
-  [ ] features/dashboard/widgets.ts exists; widget-lab.tsx imports
+  [x] features/dashboard/widgets.ts exists; widget-lab.tsx imports
       from it. No deep import into
       features/dashboard/components/widgets remains outside the slice.
-  [ ] components/fields/ no longer exists. features/fields/ has the
+  [x] components/fields/ no longer exists. features/fields/ has the
       same public surface as before.
-  [ ] components/content-toolbar/ no longer exists.
+  [x] components/content-toolbar/ no longer exists.
       features/content-toolbar/index.ts uses named exports only
       (zero `export *`). The two outside hooks were resolved
-      (relocated or rerouted through the public barrel).
+      (relocated into features/content-toolbar/toolbar-hooks/).
   [ ] lib/utils.ts re-exports from lib/utils/cn, /format, /dom, /api.
       Every symbol previously exported still exists.
   [ ] Zero import cycles inside

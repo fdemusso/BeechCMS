@@ -24,7 +24,7 @@ import {
   type ToolbarFiltersState,
   type ToolbarFilterGroup,
   type ToolbarFilterCondition,
-} from "@/components/content-toolbar"
+} from "@/features/content-toolbar"
 import {
   ContextMenuItem,
   ContextMenuLabel,

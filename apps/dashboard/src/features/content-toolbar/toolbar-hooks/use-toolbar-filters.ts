@@ -6,8 +6,8 @@ import type {
   FilterOperator,
   ToolbarFilterCondition,
   ToolbarFiltersState,
-} from "@/components/content-toolbar/shared"
-import { generateConditionId } from "@/components/content-toolbar/shared"
+} from "@/features/content-toolbar/shared"
+import { generateConditionId } from "@/features/content-toolbar/shared"
 
 interface FilterableColumn {
   columnId: string

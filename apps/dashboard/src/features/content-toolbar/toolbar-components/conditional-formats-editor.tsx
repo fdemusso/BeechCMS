@@ -43,7 +43,7 @@ import {
   operatorRequiresValue,
 } from "../shared"
 import type { FilterOperator, ToolbarFilterCondition } from "../shared"
-import type { FormattableColumn } from "@/hooks/use-toolbar-filters"
+import type { FormattableColumn } from "../toolbar-hooks/use-toolbar-filters"
 
 interface ConditionalFormatsEditorProps {
   readonly enabled: boolean
