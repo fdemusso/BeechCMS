@@ -29,7 +29,7 @@ export function SearchBar({
   const { t } = useTranslation()
   return (
     <div
-      className="overflow-hidden rounded-md border border-input bg-transparent transition-[width] duration-200 ease-out"
+      className="overflow-hidden rounded-md bg-transparent transition-[width] duration-200 ease-out"
       style={{ width: isSearchOpen ? 192 : 32 }}
     >
       {isSearchOpen ? (
