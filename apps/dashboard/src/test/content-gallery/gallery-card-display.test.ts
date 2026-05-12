@@ -179,4 +179,70 @@ describe("buildGalleryCardDisplayModel", () => {
     const model = buildGalleryCardDisplayModel(entry, emptyBranches)
     expect(model.status).toBe("—")
   })
+
+  it("converte numeri e booleani in testo per excerpt", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("count", "text"),
+    }
+    const entryNum = makeEntry({ data: { count: 42 } })
+    expect(buildGalleryCardDisplayModel(entryNum, branches).excerpt).toBe("42")
+
+    const entryBool = makeEntry({ data: { count: true } })
+    expect(buildGalleryCardDisplayModel(entryBool, branches).excerpt).toBe("true")
+  })
+
+  it("converte array in testo per excerpt (join con spazio)", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("items", "text"),
+    }
+    const entry = makeEntry({ data: { items: ["alpha", "beta"] } })
+    const model = buildGalleryCardDisplayModel(entry, branches)
+    expect(model.excerpt).toContain("alpha")
+    expect(model.excerpt).toContain("beta")
+  })
+
+  it("converte oggetti annidati in testo per excerpt", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("meta", "text"),
+    }
+    const entry = makeEntry({ data: { meta: { description: "Nested value" } } })
+    const model = buildGalleryCardDisplayModel(entry, branches)
+    expect(model.excerpt).toContain("Nested value")
+  })
+
+  it("formatta date valide nel dateBranch", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      dateBranch: makeBranch("publishedAt", "date"),
+    }
+    const entry = makeEntry({ data: { publishedAt: "2024-03-15" } })
+    const model = buildGalleryCardDisplayModel(entry, branches)
+    expect(model.dateText).not.toBe("")
+  })
+
+  it("gestisce date invalide nel dateBranch con fallback al valore grezzo", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      dateBranch: makeBranch("publishedAt", "date"),
+    }
+    const entry = makeEntry({ data: { publishedAt: "not-a-date" } })
+    const model = buildGalleryCardDisplayModel(entry, branches)
+    // Invalid date: falls back to the raw string value
+    expect(model.dateText).toBe("not-a-date")
+  })
+
+  it("rimuove tag HTML dall'excerpt", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      excerptBranch: makeBranch("body", "richtext"),
+    }
+    const entry = makeEntry({ data: { body: "<p>Hello <strong>world</strong></p>" } })
+    const model = buildGalleryCardDisplayModel(entry, branches)
+    expect(model.excerpt).not.toContain("<p>")
+    expect(model.excerpt).toContain("Hello")
+    expect(model.excerpt).toContain("world")
+  })
 })
