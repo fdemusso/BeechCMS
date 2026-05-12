@@ -97,6 +97,12 @@ export default defineConfig({
         // feasible without a dedicated E2E harness.
         "src/features/command-palette/**",
 
+        // ─── Toolbar UI components (pure rendering, no isolated logic) ──────
+        // These are complex interactive UI panels. All testable logic lives in
+        // toolbar-hooks/. Testing the components themselves would require full
+        // DOM event simulation with no meaningful coverage gain.
+        "src/features/content-toolbar/toolbar-components/**",
+
         // ─── Feature-level shared.ts barrel files ────────────────────────────
         // These files contain only `export { ... } from "..."` re-exports.
         // V8 reports them as 0% statements but there is no executable logic
