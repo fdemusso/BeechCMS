@@ -1,0 +1,304 @@
+You are a senior TypeScript engineer working on the Beech CMS monorepo.
+
+## PROJECT CONTEXT
+
+Do NOT explore the codebase further. All relevant context is provided in this prompt.
+Read it fully before writing any code.
+
+This sprint covers **Frontend Chore — Sprint 02**: completing the Vertical Slice Architecture (VSA) isolation in `apps/dashboard/src`, promoting the final set of feature-shaped folders out of `components/`, eliminating all leaky `export *` barrels, and relocating stateful navigation shells to break the remaining component-to-feature dependency inversions.
+
+The project is in **beta**. No production frontend artifact preservation is required: paths can be rewritten freely as long as `tsc --noEmit` and the existing test suite stay green.
+
+### Stack
+
+- Dashboard: React 19 + Vite 5 + Vitest, TanStack Query, react-router, axios with in-memory JWT, i18next (`it` / `en`)
+- Shared package: @beechcms/core (pure TypeScript, no Cloudflare)
+- Monorepo: Turborepo
+
+==========================================================================
+SECTION 1 — WHY THIS SPRINT EXISTS
+==========================================================================
+
+Frontend Chore — Sprint 01 successfully initiated VSA enforcement by promoting `components/fields/` and `components/content-toolbar/` to `features/`. However, to prevent scope creep, Sprint 01 explicitly designated any further feature folder migrations as candidates for a follow-up sprint.
+
+A subsequent audit reveals that `apps/dashboard/src/components/` still houses several modules that violate the VSA contract reserving `components/` strictly for stateless presentational primitives:
+
+1. **Feature-Shaped Folders with Leaky Barrels**:
+   - `components/content-gallery/` owns domain-specific display models, resolution hooks, and detail branch parsing. Its barrel (`index.ts`) uses `export *`, leaking internal symbols.
+   - `components/content-delete-dialog/` orchestrates deletion API workflows and multi-entry previews. Its barrel uses `export *`.
+   - `components/login-form/` handles authentication domain inputs and HTTP requests. Its barrel uses `export *`.
+   - `components/notifications-popover/` polls and renders system notifications via `@/lib/api`. Its barrel uses `export *`.
+
+2. **Stateful Navigation Shells (Component → Feature Inversions)**:
+   - `components/app-sidebar.tsx` directly imports and reads slice hooks (`useProfile` from `@/features/settings` and `useSchema` from `@/features/schema`).
+   - `components/site-header.tsx` directly imports `SEED_REGISTRY` to compute breadcrumbs and hosts the stateful `NotificationsPopover`.
+   - Because these live in `components/`, they introduce backward edges from the primitive layer into the feature/domain slice layer.
+
+==========================================================================
+SECTION 2 — ALREADY SHIPPED (verified, do not redo)
+==========================================================================
+
+Sprint 01 deliverables are fully integrated into the current architecture:
+- `features/fields/` and `features/content-toolbar/` are established with strict named barrels.
+- `features/shared/query-keys.ts` unifies TanStack Query keys.
+- `lib/utils.ts` is split into pure sub-modules (`cn.ts`, `format.ts`, `dom.ts`, `api.ts`).
+- `DatePickerInput` receives `dateFormat` via prop drilling.
+- Do not repeat or revert these changes.
+
+==========================================================================
+SECTION 3 — CURRENT STATE (verified, do not re-explore)
+==========================================================================
+
+3.1 `components/content-gallery/`
+  - Contents: `content-gallery.tsx`, `gallery-card-display.ts`, `gallery-detail-branches.ts`, `gallery-peek-title.ts`, `resolve-card-fields.ts`, `shared.ts`, `types.ts`, `gallery-components/`, `gallery-hooks/`, `index.ts`.
+  - Imported primarily by `pages/content-list.tsx`. Barrel uses `export *`.
+
+3.2 `components/content-delete-dialog/`
+  - Contents: `content-delete-dialog.tsx`, `use-content-delete-dialog.ts`, `index.ts`.
+  - Consumed by `pages/content-list.tsx`. Barrel uses `export *`.
+
+3.3 `components/login-form/`
+  - Contents: `login-form.tsx`, `use-login-form.ts`, `index.ts`.
+  - Consumed by `App.tsx` and unit tests. Barrel uses `export *`.
+
+3.4 `components/notifications-popover/`
+  - Contents: `notifications-popover.tsx`, `use-notifications-popover.ts`, `types.ts`, `index.ts`.
+  - Consumed by `components/site-header.tsx`. Barrel uses `export *`.
+
+3.5 Navigation Infrastructure
+  - `components/nav-main.tsx`, `nav-secondary.tsx`, `nav-user.tsx`, and `nav-projects.tsx` are pure presentational UI components. They are fully stateless and fit perfectly in `components/`.
+  - `components/app-sidebar.tsx` and `components/site-header.tsx` act as layout shells but are highly stateful and domain-coupled.
+
+==========================================================================
+SECTION 4 — DELIVERABLES
+==========================================================================
+
+This sprint produces eight clean architectural changes grouped into three sequential phases. Land each phase independently to ensure clean validation and zero scope bleed.
+
+  Phase A — Feature Folder Promotions & Barrel Tightening (`git mv` + named barrels):
+    A1. Promote `components/content-gallery/` → `features/content-gallery/`. Rewrite `index.ts` to export named symbols only (e.g., `ContentGallery` plus required shared types). Codemod consumers.
+    A2. Promote `components/content-delete-dialog/` → `features/content-delete-dialog/`. Rewrite `index.ts` to export named symbols only. Codemod consumers.
+    A3. Promote `components/login-form/` → `features/auth/components/login-form/` (establishing the `features/auth/` domain slice). Rewrite its `index.ts` to export named symbols only. Codemod consumers.
+    A4. Promote `components/notifications-popover/` → `features/notifications/components/notifications-popover/` (establishing the `features/notifications/` domain slice). Rewrite its `index.ts` to export named symbols only. Codemod consumers.
+
+  Phase B — Application Shell Isolation:
+    B1. Create the `features/navigation/` slice. Move `components/app-sidebar.tsx` and `components/site-header.tsx` into `features/navigation/components/`.
+    B2. Provide a clean public barrel `features/navigation/index.ts` exporting `{ AppSidebar, SiteHeader }`. Update all call sites across routing pages and `App.tsx` to consume the new named barrel.
+    B3. Verify that pure presentational navigation primitives (`nav-main.tsx`, etc.) remain untouched inside `components/`.
+
+  Phase C — Final Dependency & Validation Alignment:
+    C1. Fix any test import paths broken by the folder moves. Ensure strict zero-warning compilation under `tsc --noEmit`. Update the vector knowledge graph via `graphify update .`.
+
+==========================================================================
+SECTION 5 — PHASE DETAILS
+==========================================================================
+
+5.1 PHASE A1 — Promote `components/content-gallery/`
+  Move command (use `git mv` to preserve Git blame history):
+    cd apps/dashboard
+    git mv src/components/content-gallery src/features/content-gallery
+
+  Path codemod:
+    grep -rlE "from ['\"]@?/?[^'\"]*components/content-gallery" src \
+      | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/content-gallery|\1@/features/content-gallery|g"
+
+  Barrel rewrite (`features/content-gallery/index.ts`):
+    Audit consumer imports. Replace `export *` entirely with explicit named exports:
+    ```typescript
+    /**
+     * Public API of the content-gallery slice.
+     * Internal domain logic and display sub-components are intentionally hidden.
+     */
+    export { ContentGallery } from "./content-gallery"
+    export type { ContentGalleryProps } from "./types"
+    // Export additional shared interfaces if explicitly required by pages/tests.
+    ```
+
+5.2 PHASE A2 — Promote `components/content-delete-dialog/`
+  Move command:
+    cd apps/dashboard
+    git mv src/components/content-delete-dialog src/features/content-delete-dialog
+
+  Path codemod:
+    grep -rlE "from ['\"]@?/?[^'\"]*components/content-delete-dialog" src \
+      | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/content-delete-dialog|\1@/features/content-delete-dialog|g"
+
+  Barrel rewrite (`features/content-delete-dialog/index.ts`):
+    ```typescript
+    /** Public surface for the content deletion confirmation workflow. */
+    export { ContentDeleteDialog } from "./content-delete-dialog"
+    export type { ContentDeleteDialogProps } from "./use-content-delete-dialog"
+    ```
+
+5.3 PHASE A3 — Establish `features/auth/`
+  Move command:
+    cd apps/dashboard
+    mkdir -p src/features/auth/components
+    git mv src/components/login-form src/features/auth/components/login-form
+
+  Path codemod:
+    grep -rlE "from ['\"]@?/?[^'\"]*components/login-form" src \
+      | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/login-form|\1@/features/auth/components/login-form|g"
+
+  Barrel rewrite (`features/auth/components/login-form/index.ts`):
+    ```typescript
+    /** Public export for the authentication login form component. */
+    export { LoginForm, type LoginFormProps } from "./login-form"
+    ```
+
+5.4 PHASE A4 — Establish `features/notifications/`
+  Move command:
+    cd apps/dashboard
+    mkdir -p src/features/notifications/components
+    git mv src/components/notifications-popover src/features/notifications/components/notifications-popover
+
+  Path codemod:
+    grep -rlE "from ['\"]@?/?[^'\"]*components/notifications-popover" src \
+      | xargs sed -i '' -E "s|(['\"])(\.\.?/)*components/notifications-popover|\1@/features/notifications/components/notifications-popover|g"
+
+  Barrel rewrite (`features/notifications/components/notifications-popover/index.ts`):
+    ```typescript
+    /** Public export for the notifications stateful polling popover. */
+    export { NotificationsPopover } from "./notifications-popover"
+    ```
+
+5.5 PHASE B1 & B2 — Application Shell Isolation
+  Move commands:
+    cd apps/dashboard
+    mkdir -p src/features/navigation/components
+    git mv src/components/app-sidebar.tsx src/features/navigation/components/
+    git mv src/components/site-header.tsx src/features/navigation/components/
+
+  Create public barrel (`src/features/navigation/index.ts`):
+    ```typescript
+    /**
+     * Public API for the application navigation shell.
+     * Houses layout components that coordinate routing, slice states, and schemas.
+     */
+    export { AppSidebar } from "./components/app-sidebar"
+    export { SiteHeader } from "./components/site-header"
+    ```
+
+  Update Call Sites:
+    Audit all references to `app-sidebar` and `site-header` across `src/pages/`, `src/features/`, and `src/App.tsx`. Point them directly to the new named barrel:
+    ```typescript
+    import { AppSidebar, SiteHeader } from "@/features/navigation"
+    ```
+    Ensure any internal relative imports inside `app-sidebar.tsx` and `site-header.tsx` broken by the depth change are adjusted to use the absolute `@/` alias.
+
+==========================================================================
+SECTION 6 — VALIDATION (run after each phase)
+==========================================================================
+
+From repo root:
+
+  1. `npx tsc --noEmit` in `apps/dashboard/` — zero errors.
+  2. `npm run lint` in `apps/dashboard/` — zero new errors. Pre-existing warnings are out of scope.
+  3. `npm run test` in `apps/dashboard/` — green. Adjust test paths if required by folder relocations.
+  4. `npm run dev` at root — dashboard boots cleanly, rendering without console errors across:
+        - /dashboard
+        - /content/<any-seed>
+        - /settings
+        - Login flows and popover triggers.
+
+After all phases complete:
+  5. Re-run `graphify update .` to synchronize vector storage. The new `GRAPH_REPORT.md` must reflect:
+        - Zero edges from `components/**` into `features/**`.
+        - Perfect segregation where stateless UI primitives reside in `components/` and slice-aware logic resides in `features/`.
+
+==========================================================================
+SECTION 7 — OUT OF SCOPE
+==========================================================================
+
+  - Refactoring the internal polling or rendering logic of any relocated component.
+  - Adding new tests beyond fixing broken paths in existing test suites.
+  - Restructuring stateless navigation components (`nav-main.tsx`, etc.).
+  - Modifying global authentication context shims (`@/lib/auth-context.tsx`).
+
+==========================================================================
+SECTION 8 — CODE QUALITY CONVENTIONS (non-negotiable)
+==========================================================================
+
+NAMING:
+  Full descriptive English words. Zero abbreviations.
+  Constants: SCREAMING_SNAKE_CASE.
+  Files: kebab-case, full words.
+
+COMMENTS (English only):
+  JSDoc on every NEW exported symbol explaining WHY it exists.
+  Inline comments only where intent cannot be inferred from code alone.
+
+IMPORTS:
+  Enforce the `@/` alias over deep relative paths.
+
+==========================================================================
+SECTION 9 — YOUR OPERATING RULES
+==========================================================================
+
+1. Work ONE phase at a time. Never start phase N+1 before confirming phase N is merged and green.
+2. Before writing any code inside a phase, state:
+   - FILES TO CREATE: list with full paths.
+   - FILES TO MODIFY: list with full paths and a one-line change description.
+   - FILES TO DELETE: list (if any).
+3. After each phase, stop and ask: "Ready for the next phase?"
+4. Never touch files outside the current phase's inventory.
+5. If `tsc --noEmit` reports an error requiring an unlisted file, STOP and report it.
+
+==========================================================================
+SECTION 10 — CURRENT TASK: FRONTEND CHORE — SPRINT 02
+==========================================================================
+
+Execute the phases in strict sequential order: A1 → A2 → A3 → A4 → B1/B2 → C1.
+
+--------------------------------------------------------------------------
+STEP 1: Phase A1 — Promote components/content-gallery/
+--------------------------------------------------------------------------
+Implement §5.1 exactly. Execute move, path codemod, rewrite barrel, and validate.
+Stop and ask: "Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 2: Phase A2 — Promote components/content-delete-dialog/
+--------------------------------------------------------------------------
+Implement §5.2 exactly. Execute move, path codemod, rewrite barrel, and validate.
+Stop and ask: "Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 3: Phase A3 — Establish features/auth/
+--------------------------------------------------------------------------
+Implement §5.3 exactly. Execute move, path codemod, rewrite barrel, and validate.
+Stop and ask: "Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 4: Phase A4 — Establish features/notifications/
+--------------------------------------------------------------------------
+Implement §5.4 exactly. Execute move, path codemod, rewrite barrel, and validate.
+Stop and ask: "Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 5: Phase B1 & B2 — Application Shell Isolation
+--------------------------------------------------------------------------
+Implement §5.5 exactly. Move navigation shells, establish public barrel, update call sites, and validate.
+Stop and ask: "Ready for the next step?"
+
+--------------------------------------------------------------------------
+STEP 6: Phase C1 — Final Alignment
+--------------------------------------------------------------------------
+Ensure perfect zero-error builds under `tsc --noEmit`. Rerun tests and update the vector graph via `graphify update .`.
+Announce "Frontend Chore — Sprint 02 complete".
+
+==========================================================================
+SECTION 11 — SPRINT 02 COMPLETION CHECKLIST
+==========================================================================
+
+Before marking this sprint complete, verify:
+  [ ] components/content-gallery/ resides in features/content-gallery/ with strict named exports.
+  [ ] components/content-delete-dialog/ resides in features/content-delete-dialog/ with strict named exports.
+  [ ] components/login-form/ resides in features/auth/components/login-form/ with strict named exports.
+  [ ] components/notifications-popover/ resides in features/notifications/components/notifications-popover/ with strict named exports.
+  [ ] features/navigation/ owns app-sidebar.tsx and site-header.tsx, accessible via a named barrel.
+  [ ] Zero import edges originate from components/ targeting features/.
+  [ ] tsc --noEmit clean, lint clean, tests green.
+  [ ] graphify update . executed successfully.
+
+Begin with Step 1. List the files, then execute the first move/write.
+After each phase, stop and ask: "Ready for the next phase?"
