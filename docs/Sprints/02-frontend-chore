@@ -348,14 +348,14 @@ SECTION 11 — SPRINT 02 COMPLETION CHECKLIST
 ==========================================================================
 
 Before marking this sprint complete, verify:
-  [ ] components/content-gallery/ resides in features/content-gallery/ with strict named exports.
-  [ ] components/content-delete-dialog/ resides in features/content-delete-dialog/ with strict named exports.
-  [ ] components/login-form/ resides in features/auth/components/login-form/ with strict named exports.
-  [ ] components/notifications-popover/ resides in features/notifications/components/notifications-popover/ with strict named exports.
-  [ ] features/navigation/ owns app-sidebar.tsx and site-header.tsx, accessible via a named barrel.
-  [ ] Zero import edges originate from components/ targeting features/.
-  [ ] tsc --noEmit clean, lint clean, tests green.
-  [ ] graphify update . executed successfully.
+  [x] components/content-gallery/ resides in features/content-gallery/ with strict named exports.
+  [x] components/content-delete-dialog/ resides in features/content-delete-dialog/ with strict named exports.
+  [x] components/login-form/ resides in features/auth/components/login-form/ with strict named exports.
+  [x] components/notifications-popover/ resides in features/notifications/components/notifications-popover/ with strict named exports.
+  [x] features/navigation/ owns app-sidebar.tsx and site-header.tsx, accessible via a named barrel.
+  [x] Zero import edges originate from components/ targeting features/.
+  [x] tsc --noEmit clean, lint clean, tests green.
+  [x] graphify update . executed successfully.
 
 Begin with Step 1. List the files, then execute the first move/write.
 After each phase, stop and ask: "Ready for the next phase?"
