@@ -15,7 +15,7 @@ vi.mock("react-router-dom", () => ({
   Outlet: () => <div>OUTLET</div>,
 }))
 
-vi.mock("@/components/login-form", () => ({ LoginForm: () => <div>LOGIN_FORM</div> }))
+vi.mock("@/features/auth/components/login-form", () => ({ LoginForm: () => <div>LOGIN_FORM</div> }))
 vi.mock("@/components/app-sidebar", () => ({ AppSidebar: () => <div>APP_SIDEBAR</div> }))
 vi.mock("@/components/site-header", () => ({ SiteHeader: () => <div>SITE_HEADER</div> }))
 vi.mock("@/components/ui/sidebar", () => ({
