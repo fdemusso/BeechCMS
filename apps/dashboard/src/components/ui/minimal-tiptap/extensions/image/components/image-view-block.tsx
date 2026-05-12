@@ -11,7 +11,7 @@ import { blobUrlToBase64, randomId } from "../../../utils"
 import { InfoCircledIcon, TrashIcon } from "@radix-ui/react-icons"
 import { ImageOverlay } from "./image-overlay"
 import { Spinner } from "../../../components/spinner"
-import type { UploadReturnType } from "../image"
+import type { UploadReturnType } from "../shared"
 
 const MAX_HEIGHT = 600
 const MIN_HEIGHT = 120

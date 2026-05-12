@@ -695,12 +695,12 @@ Before marking this sprint complete, verify:
       features/content-toolbar/index.ts uses named exports only
       (zero `export *`). The two outside hooks were resolved
       (relocated into features/content-toolbar/toolbar-hooks/).
-  [ ] lib/utils.ts re-exports from lib/utils/cn, /format, /dom, /api.
+  [x] lib/utils.ts re-exports from lib/utils/cn, /format, /dom, /api.
       Every symbol previously exported still exists.
-  [ ] Zero import cycles inside
+  [x] Zero import cycles inside
       components/ui/minimal-tiptap/ (madge or graphify clean).
-  [ ] tsc --noEmit clean, lint clean (no new errors), tests green.
-  [ ] /graphify --update report shows zero cross-slice violations
+  [x] tsc --noEmit clean, lint clean (no new errors), tests green.
+  [x] /graphify --update report shows zero cross-slice violations
       and zero cycles in features/**.
 
 Begin with Step 1. List the files, then write the first file.
