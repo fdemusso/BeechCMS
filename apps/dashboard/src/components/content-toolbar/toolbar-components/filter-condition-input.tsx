@@ -59,6 +59,7 @@ export function FilterConditionInput({
 
     case "date": {
       return (
+        // dateFormat: uses DEFAULT_DATE_FORMAT until this component moves to features/content-toolbar in Phase B2
         <DatePickerInput
           id="toolbar-filter-date"
           value={value as string | null}
