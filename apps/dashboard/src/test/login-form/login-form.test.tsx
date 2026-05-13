@@ -5,7 +5,7 @@ vi.mock("@/lib/use-auth-features", () => ({
   useAuthFeatures: () => ({ passwordReset: false }),
 }))
 
-vi.mock("@/components/login-form/use-login-form", () => ({
+vi.mock("@/features/auth/components/login-form/use-login-form", () => ({
   useLoginForm: () => ({
     emailValue: "admin@beech.local",
     passwordValue: "x".repeat(10),
@@ -21,7 +21,7 @@ vi.mock("@/components/login-form/use-login-form", () => ({
   }),
 }))
 
-import { LoginForm } from "@/components/login-form/login-form"
+import { LoginForm } from "@/features/auth/components/login-form/login-form"
 
 describe("LoginForm", () => {
   it("renderizza titolo, campi e bottone login abilitato", () => {

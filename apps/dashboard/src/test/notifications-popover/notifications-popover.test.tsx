@@ -31,7 +31,7 @@ const hookState = {
   handleMarkAllRead: vi.fn(),
 }
 
-vi.mock("@/components/notifications-popover/use-notifications-popover", () => ({
+vi.mock("@/features/notifications/components/notifications-popover/use-notifications-popover", () => ({
   useNotificationsPopover: () => hookState,
 }))
 
@@ -62,7 +62,7 @@ vi.mock("@/components/ui/empty", () => ({
   EmptyDescription: ({ children }: any) => <div>{children}</div>,
 }))
 
-import { NotificationsPopover } from "@/components/notifications-popover/notifications-popover"
+import { NotificationsPopover } from "@/features/notifications/components/notifications-popover/notifications-popover"
 
 describe("NotificationsPopover", () => {
   it("renderizza elenco e invoca azioni principali", () => {

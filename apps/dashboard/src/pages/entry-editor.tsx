@@ -6,7 +6,7 @@ import { ArrowLeft, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { AxiosError } from "axios"
 
-import { FieldEdit } from "@/components/fields"
+import { FieldEdit } from "@/features/fields"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,8 +35,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { AppSidebar, SiteHeader } from "@/features/navigation"
 import {
   useContentEntry,
   useSaveContent,

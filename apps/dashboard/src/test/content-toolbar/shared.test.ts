@@ -10,7 +10,7 @@ import {
   normalizeConditionalTarget,
   normalizeTextStyles,
   operatorRequiresValue,
-} from "@/components/content-toolbar/shared"
+} from "@/features/content-toolbar/shared"
 
 describe("content-toolbar/shared", () => {
   it("espone default tools e toni attesi", () => {

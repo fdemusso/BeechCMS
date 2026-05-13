@@ -13,18 +13,17 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { DataTable } from "@/components/ui/data-table"
-import { ContentDeleteDialog } from "@/components/content-delete-dialog"
-import { ContentGallery } from "@/components/content-gallery"
+import { ContentDeleteDialog } from "@/features/content-delete-dialog"
+import { ContentGallery } from "@/features/content-gallery"
 import {
   ContentToolbar,
   type UserViewInstance,
   type ToolbarFiltersState,
   type ToolbarFilterGroup,
   type ToolbarFilterCondition,
-} from "@/components/content-toolbar"
+} from "@/features/content-toolbar"
 import {
   ContextMenuItem,
   ContextMenuLabel,

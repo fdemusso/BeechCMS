@@ -122,11 +122,15 @@ This high-level system map is designed for onboarding new contributors and for A
   - Schema-driven rendering of forms, table, and gallery views via the FieldRenderers registry — see `frontend-guide.md` §2.
   - Filtering, sorting, searching, and view switching through `ContentToolbar` — see `frontend-guide.md` §7.
 - **UI structure**
-  - `apps/dashboard/src/components/content-toolbar/` — modular toolbar: view switching, filters, sorting, search, grouping, conditional formats.
-  - `apps/dashboard/src/components/content-gallery/` — gallery view (card grid + read-only peek panel).
-  - `apps/dashboard/src/components/fields/` — FieldRenderers registry (`FieldDisplay`, `FieldEdit`, `registry.ts`, `field-registry.ts`, `display/*.tsx`, `edit/*.tsx`). `registry.ts` holds a module-level `fieldRegistry: IFieldRegistry` singleton (Phase 5); `getDisplayComponent`/`getEditComponent` delegate to it. External plugins import `{ fieldRegistry }` from `registry.ts` and call `.registerDisplay/.registerEdit(...)` before mount.
+  - `apps/dashboard/src/features/content-toolbar/` — modular toolbar slice: view switching, filters, sorting, search, grouping, conditional formats. Strict named exports.
+  - `apps/dashboard/src/features/content-gallery/` — gallery view slice (card grid + read-only peek panel). Strict named exports.
+  - `apps/dashboard/src/features/fields/` — FieldRenderers registry slice (`FieldDisplay`, `FieldEdit`, `registry.ts`, `field-registry.ts`, `display/*.tsx`, `edit/*.tsx`). `registry.ts` holds a module-level `fieldRegistry: IFieldRegistry` singleton (Phase 5); `getDisplayComponent`/`getEditComponent` delegate to it. External plugins import `{ fieldRegistry }` from `registry.ts` and call `.registerDisplay/.registerEdit(...)` before mount.
+  - `apps/dashboard/src/features/content-delete-dialog/` — deletion confirmation dialog slice. Strict named exports.
+  - `apps/dashboard/src/features/auth/` — authentication domain slice containing the `login-form` component. Strict named exports.
+  - `apps/dashboard/src/features/notifications/` — notifications slice containing the `notifications-popover` component. Strict named exports.
+  - `apps/dashboard/src/features/navigation/` — navigation shell slice containing `app-sidebar` and `site-header` components. Named barrel export.
   - `apps/dashboard/src/features/richtext-editor/` — TipTap editor slice; only `index.ts` is importable from outside the slice.
-  - `apps/dashboard/src/features/dashboard/` — Dashboard cockpit with bento grid widgets and Cloudflare Edge analytics.
+  - `apps/dashboard/src/features/dashboard/` — Dashboard cockpit with bento grid widgets and Cloudflare Edge analytics. Sub-barrel `widgets.ts` isolates public widget components.
   - `apps/dashboard/src/features/widget-data/` — **Widget Data Layer**: typed hooks, formula evaluation, and Axios wrappers for the `/api/widget/*` endpoints. Public API via `index.ts`. See `frontend-guide.md` §8.
   - `apps/dashboard/src/features/command-palette/` — global command palette.
   - Entry editing pages (`EntryEditorPage`) consume FieldRenderers and the Seed from `@beechcms/core`.
@@ -159,7 +163,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - Both are NOT placed in `c.var`. They are constructor params of the concrete classes. Override hooks live on `repositoryMiddleware`, `authProvidersMiddleware`, and `observabilityMiddleware` (`{ clock?, idGenerator? }`).
   - **Phase 5 — seed and field registries:**
     - `ISeedRegistry` + `SeedRegistry` + `InMemorySeedRegistry` (`packages/core/src/seed-registry.ts`) — façade over the flat seed list. `c.var.seedRegistry` is now typed as `ISeedRegistry` (not `Record<string, Seed>`). Methods: `all()`, `get(slug)`, `visibleInDashboard()`, `publicReadable()`, `draftEnabled()`. `getSeed` in `c.var` continues to delegate to `seedRegistry.get()` for backwards compatibility. `SeedRegistry` is constructed in `createBeechApp` (both `apps/api` and `packages/api`).
-    - `IFieldRegistry` + `FieldRegistryImpl` (`apps/dashboard/src/components/fields/field-registry.ts`) — plugin-extensible registry for field renderers. Module-level singleton `fieldRegistry` in `registry.ts` registers all built-in types at startup. External plugins call `fieldRegistry.registerDisplay/registerEdit(...)` before the app mounts. The public API (`getDisplayComponent`, `getEditComponent`) is unchanged for existing callers.
+    - `IFieldRegistry` + `FieldRegistryImpl` (`apps/dashboard/src/features/fields/field-registry.ts`) — plugin-extensible registry for field renderers. Module-level singleton `fieldRegistry` in `registry.ts` registers all built-in types at startup. External plugins call `fieldRegistry.registerDisplay/registerEdit(...)` before the app mounts. The public API (`getDisplayComponent`, `getEditComponent`) is unchanged for existing callers.
 - **Build**: `npm run build -w @beechcms/core` produces `dist/` with JS and `.d.ts`, consumed by both apps.
 
 ---
@@ -251,7 +255,7 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Must not** use `dangerouslySetInnerHTML` with content derived from the FTS `snippet()` function or any richtext field. Strip HTML and preserve only `<mark>` tags before rendering search excerpts.
 
 - **UI schema-driven & FieldRenderers**
-  - **Must** use `FieldDisplay`/`FieldEdit` and the registry in `apps/dashboard/src/components/fields/` for all field rendering.
+  - **Must** use `FieldDisplay`/`FieldEdit` and the registry in `apps/dashboard/src/features/fields/` for all field rendering.
   - **Must not** write UI that switches on `branch.type` in tables, forms, or gallery views.
 
 - **Dashboard sidebar & Seed UI config**

@@ -59,7 +59,10 @@ export interface Variables {
   clock: IClock
   idGenerator: IIdGenerator
   automationRunner: IAutomationRunner
+<<<<<<< Automations-02
   scheduler: IScheduler
+=======
+>>>>>>> devs
 }
 
 export type AppEnv = { Bindings: Env; Variables: Variables }

@@ -11,6 +11,9 @@ import {
 } from "../../utils"
 import { ReplaceStep } from "@tiptap/pm/transform"
 import type { Attrs } from "@tiptap/pm/model"
+import type { UploadReturnType } from "./shared"
+
+export type { UploadReturnType }
 
 type ImageAction = "download" | "copyImage" | "copyLink"
 
@@ -22,13 +25,6 @@ interface DownloadImageCommandProps {
 interface ImageActionProps extends DownloadImageCommandProps {
   action: ImageAction
 }
-
-export type UploadReturnType =
-  | string
-  | {
-      id: string | number
-      src: string
-    }
 
 interface CustomImageOptions
   extends ImageOptions, Omit<FileValidationOptions, "allowBase64"> {

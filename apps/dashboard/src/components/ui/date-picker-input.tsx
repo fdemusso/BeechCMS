@@ -17,12 +17,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { useGeneralSettings } from "@/features/settings/hooks/use-settings"
 
-// Helper to map wrangler/standard formats to date-fns formats
+/**
+ * Raw config-style date format used when the caller does not supply one.
+ * Matches the server-side default returned by `/settings`.
+ */
+const DEFAULT_DATE_FORMAT = "DD-MM-YYYY"
+
+// Maps config-style format tokens (DD, YYYY) to date-fns tokens (dd, yyyy).
 function getDisplayFormat(configFormat: string | undefined): string {
   if (!configFormat) return "dd-MM-yyyy"
-  // Map DD-MM-YYYY to dd-MM-yyyy, etc.
   return configFormat
     .replace(/DD/g, "dd")
     .replace(/YYYY/g, "yyyy")
@@ -48,15 +52,17 @@ export function DatePickerInput({
   placeholder,
   id,
   label,
+  dateFormat,
 }: {
   value?: string | null
   onChange?: (value: string | null) => void
   placeholder?: string
   id?: string
   label?: string
+  /** Config-style date format string (e.g. "DD-MM-YYYY"). Caller should read this from useGeneralSettings. Defaults to DEFAULT_DATE_FORMAT when omitted. */
+  dateFormat?: string
 }) {
-  const { data: settings } = useGeneralSettings()
-  const displayFormat = getDisplayFormat(settings?.dateFormat)
+  const displayFormat = getDisplayFormat(dateFormat ?? DEFAULT_DATE_FORMAT)
   
   const [open, setOpen] = React.useState(false)
   

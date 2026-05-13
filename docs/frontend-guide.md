@@ -59,7 +59,7 @@ The dashboard is a React + Vite SPA served from `apps/dashboard`. It communicate
 - Managing all server state through **TanStack Query**, with typed query keys and deterministic cache invalidation.
 - Exposing a **pluggable field rendering system** that allows new data types to be added without modifying existing view code.
 
-The dashboard follows the **Vertical Slice Architecture** transition described in `docs/architecture.md`. New feature code belongs in `apps/dashboard/src/features/<feature-name>/` with an `index.ts` public API. Shared UI primitives live in `components/ui/`. The FieldRenderers system lives in `components/fields/` because it is consumed by multiple features (the table view, the entry editor, and the gallery peek panel).
+The dashboard follows the **Vertical Slice Architecture** transition described in `docs/architecture.md`. New feature code belongs in `apps/dashboard/src/features/<feature-name>/` with an `index.ts` public API. Shared UI primitives live in `components/ui/`. The FieldRenderers system lives in `features/fields/` as a dedicated slice because it is consumed by multiple features (the table view, the entry editor, and the gallery peek panel).
 
 ---
 
@@ -104,10 +104,10 @@ field types.
 
 ### 2.2 Props Contracts
 
-All display and edit components share a minimal, stable interface defined in `components/fields/types.ts`:
+All display and edit components share a minimal, stable interface defined in `features/fields/types.ts`:
 
 ```typescript
-// components/fields/types.ts
+// features/fields/types.ts
 
 export interface FieldDisplayProps {
    branch: Branch;        // Full Branch definition (alias, label, type, format, options…)
@@ -126,10 +126,10 @@ The `Branch` type comes directly from `@beechcms/core/src/types.ts`. A field ren
 
 ### 2.3 The Registry
 
-`components/fields/registry.ts` contains the two maps and their accessor functions:
+`features/fields/registry.ts` contains the two maps and their accessor functions:
 
 ```typescript
-// components/fields/registry.ts
+// features/fields/registry.ts
 
 import type { ComponentType } from 'react';
 import type { BranchType } from '@beechcms/core';
@@ -192,7 +192,7 @@ The `Partial<Record<BranchType, ...>>` type is intentional. Unregistered types s
 The two public entry points are thin delegators. They perform the registry lookup and forward all props to the resolved component:
 
 ```typescript
-// components/fields/FieldDisplay.tsx
+// features/fields/FieldDisplay.tsx
 import { getDisplayComponent } from './registry';
 import type { FieldDisplayProps } from './types';
 
@@ -202,7 +202,7 @@ export function FieldDisplay(props: FieldDisplayProps) {
    return <Component {...props} />;
 }
 
-// components/fields/FieldEdit.tsx
+// features/fields/FieldEdit.tsx
 import { getEditComponent } from './registry';
 import type { FieldEditProps } from './types';
 
@@ -216,10 +216,10 @@ export function FieldEdit(props: FieldEditProps) {
 Consumers never import display or edit sub-modules directly. They always import from the barrel:
 
 ```typescript
-import { FieldDisplay, FieldEdit } from 'components/fields';
-import type { FieldDisplayProps, FieldEditProps } from 'components/fields';
+import { FieldDisplay, FieldEdit } from '@/features/fields';
+import type { FieldDisplayProps, FieldEditProps } from '@/features/fields';
 // Advanced: access the registry directly
-import { getDisplayComponent, getEditComponent } from 'components/fields';
+import { getDisplayComponent, getEditComponent } from '@/features/fields';
 ```
 
 ### 2.5 Behaviour Per Type
@@ -235,7 +235,7 @@ import { getDisplayComponent, getEditComponent } from 'components/fields';
 | `file` | Thumbnail if URL resolves to an image; file icon otherwise. | Dropzone upload, image preview, Replace / Remove actions. |
 | *(unregistered)* | `DefaultDisplay` — string or `—` | `DefaultEdit` — `<Input type="text">` |
 
-The `richtext` edit renderer is implemented in `features/richtext-editor/` as a vertical slice and re-exported via a thin wrapper at `components/fields/edit/richtext.tsx`. This is the VSA pattern in action: the complex TipTap logic is self-contained in its slice; the registry consumes only the public API.
+The `richtext` edit renderer is implemented in `features/richtext-editor/` as a vertical slice and re-exported via a thin wrapper at `features/fields/edit/richtext.tsx`. This is the VSA pattern in action: the complex TipTap logic is self-contained in its slice; the registry consumes only the public API.
 
 ---
 
@@ -245,19 +245,20 @@ TanStack Query v5 manages all remote data. There is a strict rule: **no server s
 
 ### 3.1 Query Key Architecture
 
-Query keys are defined as typed constants co-located with their hook, not scattered as inline strings. This pattern is sourced directly from the dashboard feature hooks:
+Query keys are defined as typed constants centralized in shared modules to avoid cross-slice import inversions, not scattered as inline strings. For example, dashboard keys live in a shared dictionary:
 
 ```typescript
-// features/dashboard/hooks/use-dashboard-stats.ts
+// features/shared/query-keys.ts
 
 export const DASHBOARD_QUERY_KEYS = {
-   all:       ['dashboard']              as const,
-   stats:     ['dashboard', 'stats']    as const,
-   cloudflare:['dashboard', 'cloudflare'] as const,
-   activity:  ['dashboard', 'activity'] as const,
-   health:    ['dashboard', 'health']   as const,
-   breakdown: ['dashboard', 'breakdown'] as const,
-};
+  all: ["dashboard"] as const,
+  stats: () => [...DASHBOARD_QUERY_KEYS.all, "stats"] as const,
+  cloudflare: () => [...DASHBOARD_QUERY_KEYS.all, "cloudflare"] as const,
+  activity: () => [...DASHBOARD_QUERY_KEYS.all, "activity"] as const,
+  health: () => [...DASHBOARD_QUERY_KEYS.all, "health"] as const,
+  breakdown: () => [...DASHBOARD_QUERY_KEYS.all, "breakdown"] as const,
+  setupChecklist: () => [...DASHBOARD_QUERY_KEYS.all, "setup-checklist"] as const,
+} as const
 ```
 
 For content data, the key hierarchy follows `[resource, operation, ...params]`:
@@ -337,15 +338,15 @@ The dashboard uses **Tailwind CSS v4** with **Shadcn/ui** primitives, layered on
 
 ### 4.1 The `cn` Utility
 
-All components use the `cn` utility from `lib/utils` for conditional class merging. It combines `clsx` (conditional classes) with `tailwind-merge` (de-duplicates conflicting Tailwind classes):
+All components use the `cn` utility from `lib/utils/cn` for conditional class merging. It combines `clsx` (conditional classes) with `tailwind-merge` (de-duplicates conflicting Tailwind classes). The original `lib/utils.ts` is kept as a thin backward-compatible barrel re-exporting the sub-modules:
 
 ```typescript
-// lib/utils.ts
-import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+// lib/utils/cn.ts
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
-   return twMerge(clsx(inputs));
+  return twMerge(clsx(inputs))
 }
 ```
 
@@ -534,7 +535,7 @@ return nullable ? z.union([schema, z.null()]) : schema;
 ### Step 3 — Create the Display Renderer
 
 ```typescript
-// apps/dashboard/src/components/fields/display/url.tsx
+// apps/dashboard/src/features/fields/display/url.tsx
 
 import type { FieldDisplayProps } from '../types';
 
@@ -558,7 +559,7 @@ export function UrlDisplay({ value }: FieldDisplayProps) {
 ### Step 4 — Create the Edit Renderer
 
 ```typescript
-// apps/dashboard/src/components/fields/edit/url.tsx
+// apps/dashboard/src/features/fields/edit/url.tsx
 
 import { Input } from 'components/ui/input';
 import type { FieldEditProps } from '../types';
@@ -580,7 +581,7 @@ export function UrlEdit({ branch, value, onChange }: FieldEditProps) {
 ### Step 5 — Register Both Renderers
 
 ```typescript
-// apps/dashboard/src/components/fields/registry.ts
+// apps/dashboard/src/features/fields/registry.ts
 // Add the two imports:
 import { UrlDisplay } from './display/url';
 import { UrlEdit }    from './edit/url';
@@ -612,7 +613,7 @@ export const editRegistry: Partial<Record<BranchType, ComponentType<FieldEditPro
 ### Step 7 — Write co-located tests
 
 ```typescript
-// apps/dashboard/src/components/fields/display/url.test.tsx
+// apps/dashboard/src/features/fields/display/url.test.tsx
 import { render, screen } from '@testing-library/react';
 import { UrlDisplay } from './url';
 
@@ -637,9 +638,9 @@ describe('UrlDisplay', () => {
 |---|---|---|
 | 1 | `packages/core/src/types.ts` | Add one union member to `BranchType` |
 | 2 | `packages/core/src/validation.ts` | Add one `case` to the Zod schema builder |
-| 3 | `components/fields/display/url.tsx` | New file |
-| 4 | `components/fields/edit/url.tsx` | New file |
-| 5 | `components/fields/registry.ts` | Add 2 imports + 2 object entries |
+| 3 | `features/fields/display/url.tsx` | New file |
+| 4 | `features/fields/edit/url.tsx` | New file |
+| 5 | `features/fields/registry.ts` | Add 2 imports + 2 object entries |
 | 6 | `packages/core/src/seeds.ts` | Optional — add a `Branch` to a seed for testing |
 | 7 | `display/url.test.tsx`, `edit/url.test.tsx` | New co-located test files |
 
@@ -651,7 +652,7 @@ describe('UrlDisplay', () => {
 
 ### 7.1 ContentToolbar Architecture
 
-`ContentToolbar` (`apps/dashboard/src/components/content-toolbar/`) is the orchestrator for all content list views. It receives the active `Seed` and drives filtering, sorting, search, grouping, and view switching — all without knowing which view (table or gallery) is rendered below it. Views are passed as children.
+`ContentToolbar` (`apps/dashboard/src/features/content-toolbar/`) is the orchestrator for all content list views. It receives the active `Seed` and drives filtering, sorting, search, grouping, and view switching — all without knowing which view (table or gallery) is rendered below it. Views are passed as children.
 
 ```
 Seed (branches)
@@ -675,7 +676,7 @@ Available view types (`ViewType`): `"table" | "gallery" | "grid" | "kanban" | "c
 Each view declares which tools it exposes via `UserViewInstance.enabledTools`. Tools absent from the array are removed from the DOM entirely — not just hidden.
 
 ```typescript
-// apps/dashboard/src/components/content-toolbar/shared.ts
+// apps/dashboard/src/features/content-toolbar/shared.ts
 export type ToolbarTool = "filter" | "sort" | "automation" | "search" | "settings" | "create"
 
 export interface UserViewInstance {
@@ -689,7 +690,7 @@ export interface UserViewInstance {
 
 ### 7.2 How Filters Derive from `Seed.branches`
 
-The hook `useToolbarFilters` (`apps/dashboard/src/hooks/use-toolbar-filters.ts`) builds the list of filterable columns from `seed.branches` at runtime. Two system columns are always prepended:
+The hook `useToolbarFilters` (`apps/dashboard/src/features/content-toolbar/toolbar-hooks/use-toolbar-filters.ts`) builds the list of filterable columns from `seed.branches` at runtime. Two system columns are always prepended:
 
 | `columnId` | `FilterGroupType` | Source |
 |---|---|---|
@@ -718,7 +719,7 @@ The `FilterGroupType` determines which operators are available in the filter UI:
 
 ### 7.3 Gallery & Toolbar Integration
 
-`ContentGallery` (`apps/dashboard/src/components/content-gallery/`) is a drop-in replacement for `DataTable` inside `ContentToolbar`. It receives the same already-filtered, already-sorted `ContentEntry[]` dataset that the table view uses — it introduces **no additional fetches**.
+`ContentGallery` (`apps/dashboard/src/features/content-gallery/`) is a drop-in replacement for `DataTable` inside `ContentToolbar`. It receives the same already-filtered, already-sorted `ContentEntry[]` dataset that the table view uses — it introduces **no additional fetches**.
 
 Card fields are resolved schema-driven by `resolveCardFields` (`resolve-card-fields.ts`). The heuristics, verified against source:
 
@@ -733,7 +734,7 @@ Card fields are resolved schema-driven by `resolveCardFields` (`resolve-card-fie
 All slots are nullable — if no branch matches a heuristic, that slot is omitted from the card. The peek panel (opened on card click) uses `FieldDisplay` from the registry, making it automatically consistent with the table view.
 
 ```typescript
-// apps/dashboard/src/components/content-gallery/resolve-card-fields.ts
+// apps/dashboard/src/features/content-gallery/resolve-card-fields.ts
 export interface ResolvedCardFields {
   coverBranch: Branch | null
   titleBranch: Branch | null
@@ -888,7 +889,7 @@ const ratio = evaluateFormula(entries, {
 
 ### 8.6 Pilot Widgets
 
-Three reference widgets ship in `apps/dashboard/src/features/dashboard/components/widgets/`:
+Reference widgets ship in `apps/dashboard/src/features/dashboard/components/widgets/` and are isolated via the sub-barrel `features/dashboard/widgets.ts`:
 
 | File | Hook used | Key props |
 |---|---|---|
@@ -915,7 +916,7 @@ All three follow the same pattern:
 
 1. **Choose a hook** from `@/features/widget-data` that matches the data shape you need, or compose `useWidgetList` + `evaluateFormula` for custom aggregations.
 
-2. **Create the widget file** in `apps/dashboard/src/features/dashboard/components/widgets/`:
+2. **Create the widget file** in `apps/dashboard/src/features/dashboard/components/widgets/` and export it in `widgets.ts`:
 
 ```typescript
 // my-widget.tsx
@@ -955,7 +956,7 @@ export function MyWidget({ seed, formula, window = "all", title }: MyWidgetProps
 
 3. **Register the widget type** in `apps/dashboard/src/features/dashboard/types/widget.types.ts` — add the new type string to the `WidgetType` union.
 
-4. **Add a case** in `apps/dashboard/src/features/dashboard/components/widget-registry.tsx` that maps the new type to the component.
+4. **Add a case** in `apps/dashboard/src/features/dashboard/components/widget-registry.tsx` that maps the new type to the sub-barrel imported component.
 
 5. **Add an instance** to `DEFAULT_DASHBOARD_CONFIG` in `apps/dashboard/src/features/dashboard/config/dashboard.config.ts` with the desired `span`, `x`, `y`, and `props`.
 
