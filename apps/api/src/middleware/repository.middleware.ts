@@ -1,4 +1,5 @@
 import { createMiddleware } from 'hono/factory'
+import type { Context } from 'hono'
 import { D1ContentRepository } from '../shared/content.repository.d1'
 import { D1IdempotencyRepository } from '../shared/idempotency.repository.d1'
 import { D1MediaRepository } from '../shared/media.repository.d1'
@@ -13,9 +14,11 @@ import { D1SearchRepository } from '../shared/d1-search.repository'
 import { D1AnalyticsRepository } from '../shared/d1-analytics.repository'
 import { D1ContentScanRepository } from '../shared/d1-content-scan.repository'
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IScheduler } from '@beechcms/core'
+import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations'
 import { D1AutomationRepository } from '../shared/automations.repository.d1'
+import { ExecutionContextScheduler } from '../shared/execution-context-scheduler'
 import type { Env, Variables } from '../types'
 
 interface RepositoryOverrides {
@@ -35,6 +38,15 @@ interface RepositoryOverrides {
   clock?: IClock
   idGenerator?: IIdGenerator
   automationRunner?: IAutomationRunner
+  scheduler?: IScheduler
+}
+
+function buildScheduler(context: Context): IScheduler {
+  try {
+    return new ExecutionContextScheduler(context.executionCtx)
+  } catch {
+    return new NoOpScheduler()
+  }
 }
 
 export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
@@ -68,6 +80,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
         env: context.env as unknown as Record<string, string | undefined>,
       }),
     )
+    context.set('scheduler', overrides?.scheduler ?? buildScheduler(context))
     await next()
   })
 }

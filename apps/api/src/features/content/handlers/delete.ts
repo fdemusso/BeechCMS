@@ -49,7 +49,7 @@ export async function deleteHandler(context: Context<AppEnv>) {
       },
     })
 
-    context.executionCtx.waitUntil(
+    context.get('scheduler').waitUntil(
       context.get('automationRunner').run({
         seedSlug: schemaSlug,
         event: 'delete',

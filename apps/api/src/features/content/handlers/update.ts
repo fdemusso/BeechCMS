@@ -182,7 +182,7 @@ export async function updateHandler(context: Context<AppEnv>) {
       },
     })
 
-    context.executionCtx.waitUntil(
+    context.get('scheduler').waitUntil(
       context.get('automationRunner').run({
         seedSlug: slug,
         event: 'update',
