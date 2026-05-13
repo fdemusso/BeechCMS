@@ -182,6 +182,14 @@ export async function updateHandler(context: Context<AppEnv>) {
       },
     })
 
+    context.executionCtx.waitUntil(
+      context.get('automationRunner').run({
+        seedSlug: slug,
+        event: 'update',
+        entry: { ...current, ...mergedData, id, status: newStatus },
+      }),
+    )
+
     return context.json({ success: true })
   } catch (error) {
     if (error instanceof EntryNotFoundError) {

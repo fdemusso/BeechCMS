@@ -765,25 +765,25 @@ Run from repo root after all tasks:
 SECTION 6 — ACCEPTANCE CRITERIA
 ==========================================================================
 
-  [ ] `AutomationRunner` implements `IAutomationRunner`
-  [ ] Constructor takes `AutomationRunnerDeps` — no `D1Database` arg
-  [ ] `D1AutomationRepository` implements `IAutomationRepository`;
+  [x] `AutomationRunner` implements `IAutomationRunner`
+  [x] Constructor takes `AutomationRunnerDeps` — no `D1Database` arg
+  [x] `D1AutomationRepository` implements `IAutomationRepository`;
       `findActive` is functional, CRUD methods throw `not implemented`
-  [ ] `evaluateConditions` and `interpolate` are pure (no DB, no fetch)
+  [x] `evaluateConditions` and `interpolate` are pure (no DB, no fetch)
       and unit-tested
-  [ ] Each action executor lives in its own file under
+  [x] Each action executor lives in its own file under
       `action-executors/` and is invoked via the dispatcher switch
-  [ ] Error in one action is logged and does NOT skip remaining actions
+  [x] Error in one action is logged and does NOT skip remaining actions
       in the same automation
-  [ ] `executeAction` switch is exhaustive over `AutomationAction['type']`
+  [x] `executeAction` switch is exhaustive over `AutomationAction['type']`
       (TypeScript `never` guard)
-  [ ] Email slice exposes `sendAutomationMail` via its public barrel;
+  [x] Email slice exposes `sendAutomationMail` via its public barrel;
       runner never imports `providers/resend` directly
-  [ ] `repositoryMiddleware` registers `AutomationRunner` (not the
+  [x] `repositoryMiddleware` registers `AutomationRunner` (not the
       no-op); `NoOpAutomationRunner` no longer imported in middleware
-  [ ] `create.ts`, `update.ts`, `delete.ts` each add exactly one
+  [x] `create.ts`, `update.ts`, `delete.ts` each add exactly one
       `waitUntil(runner.run(...))` block; no other changes to handlers
-  [ ] `tsc --noEmit` passes across the monorepo
+  [x] `tsc --noEmit` passes across the monorepo
   [ ] Smoke test in Section 5.6 succeeds end-to-end
 
 ==========================================================================

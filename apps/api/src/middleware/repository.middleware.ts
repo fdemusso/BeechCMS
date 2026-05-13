@@ -12,8 +12,10 @@ import { D1WidgetRepository } from '../shared/d1-widget.repository'
 import { D1SearchRepository } from '../shared/d1-search.repository'
 import { D1AnalyticsRepository } from '../shared/d1-analytics.repository'
 import { D1ContentScanRepository } from '../shared/d1-content-scan.repository'
-import { SystemClock, SystemIdGenerator, NoOpAutomationRunner } from '@beechcms/core'
+import { SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner } from '@beechcms/core'
+import { AutomationRunner } from '../features/automations'
+import { D1AutomationRepository } from '../shared/automations.repository.d1'
 import type { Env, Variables } from '../types'
 
 interface RepositoryOverrides {
@@ -56,7 +58,16 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('contentScanRepository', overrides?.contentScanRepository ?? new D1ContentScanRepository(database))
     context.set('clock', resolvedClock)
     context.set('idGenerator', resolvedIdGenerator)
-    context.set('automationRunner', overrides?.automationRunner ?? new NoOpAutomationRunner())
+    context.set(
+      'automationRunner',
+      overrides?.automationRunner ?? new AutomationRunner({
+        automationRepository: new D1AutomationRepository(database),
+        contentRepository: context.get('repository'),
+        getSeed: context.get('getSeed'),
+        idGenerator: resolvedIdGenerator,
+        env: context.env as unknown as Record<string, string | undefined>,
+      }),
+    )
     await next()
   })
 }
