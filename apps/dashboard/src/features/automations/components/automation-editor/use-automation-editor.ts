@@ -95,6 +95,7 @@ interface UseAutomationEditorOptions {
   seedSlug: string
   seedDisplayName: string
   automation?: Automation
+  open: boolean
   onSuccess: () => void
 }
 
@@ -102,6 +103,7 @@ export function useAutomationEditor({
   seedSlug,
   seedDisplayName: _,
   automation,
+  open,
   onSuccess,
 }: UseAutomationEditorOptions) {
   const { user } = useAuth()
@@ -137,8 +139,7 @@ export function useAutomationEditor({
         },
   })
 
-  // Re-hydrate when automation prop changes (panel opens for a different item)
-  useEffect(() => {
+  function resetForm() {
     if (automation) {
       form.reset({
         name: automation.name,
@@ -160,8 +161,15 @@ export function useAutomationEditor({
         actions: [],
       })
     }
+  }
+
+  // Re-hydrate when automation prop changes or dialog opens
+  useEffect(() => {
+    if (open) {
+      resetForm()
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [automation?.id])
+  }, [automation?.id, open])
 
   const isPending = createMutation.isPending || updateMutation.isPending
 
@@ -175,5 +183,5 @@ export function useAutomationEditor({
     onSuccess()
   }
 
-  return { form, isEdit, isPending, onSubmit: form.handleSubmit(onSubmit) }
+  return { form, isEdit, isPending, resetForm, onSubmit: form.handleSubmit(onSubmit) }
 }

@@ -32,7 +32,7 @@ export function TriggerSection({ seedBranches }: TriggerSectionProps) {
       />
 
       {errors.trigger_event && (
-        <p className="mt-1 text-xs text-destructive">{errors.trigger_event.message}</p>
+        <p className="mt-1 text-xs text-destructive">{t(errors.trigger_event.message ?? '')}</p>
       )}
 
       {isCron && (
@@ -46,7 +46,7 @@ export function TriggerSection({ seedBranches }: TriggerSectionProps) {
             className="h-8 text-sm font-mono"
           />
           {errors.trigger_cron && (
-            <p className="mt-1 text-xs text-destructive">{errors.trigger_cron.message}</p>
+            <p className="mt-1 text-xs text-destructive">{t(errors.trigger_cron.message ?? '')}</p>
           )}
           <p className="mt-1 text-[10px] text-muted-foreground">{t('automations.editor.cronHint')}</p>
         </div>

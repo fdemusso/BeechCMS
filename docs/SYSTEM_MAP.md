@@ -16,8 +16,8 @@ This high-level system map is designed for onboarding new contributors and for A
 | Document | Covers |
 |---|---|
 | `[README.md](README.md)` | Project overview, Botanical Engine primer, tech stack, getting started |
-| `[architecture.md](architecture.md)` | Monorepo topology, Turborepo pipeline, `@beechcms/core` barrel, Botanical Engine (Schema Compiler), Per-type SQL model, VSA migration |
-| `[api-reference.md](api-reference.md)` | Auth, Internal Content API, Media Engine, Public API, Widget API |
+| `[architecture.md](architecture.md)` | Monorepo topology, Turborepo pipeline, `@beechcms/core` barrel, Botanical Engine (Schema Compiler), Per-type SQL model, VSA migration, abstraction phases 1–7 (repositories, auth, analytics, clock/id, seed registry, automation engine, scheduler) |
+| `[api-reference.md](api-reference.md)` | Auth, Internal Content API, Media Engine, Public API, Widget API, Automations CRUD API |
 | `[frontend-guide.md](frontend-guide.md)` | FieldRenderers, TanStack Query, Tailwind 4, EntryEditorPage, ContentToolbar |
 | `[email-module.md](email-module.md)` | Email module architecture, localization, templates |
 | `[observability-and-notifications.md](observability-and-notifications.md)` | Abstractions for logging, notifications, and cross-cutting utilities (Clock/IdGenerator) |
@@ -72,6 +72,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - **Mirror Tables for Drafts:** if a Seed has `allowDrafts: true`, a mirror table `content_{slug}_drafts` handles pending changes.
     - Authentication tables: `users`, `refresh_tokens`.
     - System tables: `analytics`, `system_stats`, `media_objects`, `content_event_log` (activity log).
+    - Automation table: `automations` (id, seed_slug, name, enabled, trigger_event, trigger_cron, trigger_conditions JSON, actions JSON, created_at, updated_at). Indexed on `seed_slug` and `enabled`.
 
 - **Architecture & Tooling**
   - Monorepo **Turborepo** (`turbo` `^2.8.7`) with **npm workspaces**
@@ -105,13 +106,15 @@ This high-level system map is designed for onboarding new contributors and for A
   - Statistics and analytics endpoints (`/api/content/stats/total`, `/api/content/stats/cloudflare`, `/api/content/stats/storage/sync`).
   - Public routes (`/api/v1/public/health`, `/api/v1/public/:seed`, `/api/v1/public/:seed/add`, `/api/v1/public/:seed/edit/:id`) protected by API key — see `api-reference.md` §6.
   - Media upload and delivery (`/api/upload`, `/api/media/:key`) — see `api-reference.md` §5.
+  - Automation CRUD routes (`/api/automations`, `/api/automations/:id`, `/api/automations/:id/toggle`) — see `api-reference.md` §10.
 - **Key integrations**
   - Imports types and functions from `@beechcms/core` (`getSeed`, Botanical Engine).
   - Uses Cloudflare D1 for persistence (schema generated via `beech seed:load`).
   - Uses Cloudflare R2 for binary files.
 - **Important files**
-  - `apps/api/src/index.ts` — app entry, CORS, auth routes, analytics middleware.
+  - `apps/api/src/index.ts` — app entry, CORS, auth routes, analytics middleware, `scheduled` handler for cron automations.
   - `apps/api/src/features/content/` — universal CRUD content engine using Botanical Engine.
+  - `apps/api/src/features/automations/` — automation CRUD handler, `AutomationRunner`, `CronRunner`, and four action executors (`webhook`, `send_mail`, `edit_field`, `create_entry`).
   - `apps/api/src/shared/` — cross-feature utilities and repository implementations.
   - `apps/api/src/middleware/` — Hono middlewares (auth, repository, rate-limiting, observability).
 
@@ -133,6 +136,7 @@ This high-level system map is designed for onboarding new contributors and for A
   - `apps/dashboard/src/features/dashboard/` — Dashboard cockpit with bento grid widgets and Cloudflare Edge analytics. Sub-barrel `widgets.ts` isolates public widget components.
   - `apps/dashboard/src/features/widget-data/` — **Widget Data Layer**: typed hooks, formula evaluation, and Axios wrappers for the `/api/widget/*` endpoints. Public API via `index.ts`. See `frontend-guide.md` §8.
   - `apps/dashboard/src/features/command-palette/` — global command palette.
+  - `apps/dashboard/src/features/automations/` — Automations UI slice: `AutomationPanel` (list + toggle), `AutomationEditor` (trigger + conditions + actions), and typed API wrappers via `automations.api.ts`. Public API via `index.ts`.
   - Entry editing pages (`EntryEditorPage`) consume FieldRenderers and the Seed from `@beechcms/core`.
 - **Dashboard Seed Config** — sidebar and content-view behaviour is driven by the optional `dashboard` field on each `Seed` (type `DashboardSeedConfig`, defined in `@beechcms/core`). No separate registry or hardcoded map.
   - `icon` — Lucide icon name (string); resolved to a component by `apps/dashboard/src/lib/icon-registry.ts`.
@@ -164,6 +168,19 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Phase 5 — seed and field registries:**
     - `ISeedRegistry` + `SeedRegistry` + `InMemorySeedRegistry` (`packages/core/src/seed-registry.ts`) — façade over the flat seed list. `c.var.seedRegistry` is now typed as `ISeedRegistry` (not `Record<string, Seed>`). Methods: `all()`, `get(slug)`, `visibleInDashboard()`, `publicReadable()`, `draftEnabled()`. `getSeed` in `c.var` continues to delegate to `seedRegistry.get()` for backwards compatibility. `SeedRegistry` is constructed in `createBeechApp` (both `apps/api` and `packages/api`).
     - `IFieldRegistry` + `FieldRegistryImpl` (`apps/dashboard/src/features/fields/field-registry.ts`) — plugin-extensible registry for field renderers. Module-level singleton `fieldRegistry` in `registry.ts` registers all built-in types at startup. External plugins call `fieldRegistry.registerDisplay/registerEdit(...)` before the app mounts. The public API (`getDisplayComponent`, `getEditComponent`) is unchanged for existing callers.
+  - **Phase 6 — Automation Engine:**
+    - `AutomationTriggerEvent` — `'create' | 'update' | 'delete' | 'cron'`
+    - `AutomationAction` — discriminated union: `webhook`, `send_mail`, `edit_field`, `create_entry`
+    - `TriggerCondition` — `{ field, op, value }` where `op` is one of `eq | neq | contains | gt | lt | isempty | isnotempty`
+    - `Automation` — full entity type (id, seed_slug, name, enabled, trigger_event, trigger_cron, trigger_conditions, actions, timestamps)
+    - `IAutomationRepository` (`packages/core/src/automations.repository.interface.ts`) — `list`, `findById`, `create`, `update`, `toggle`, `delete`, `findActive`
+    - `IAutomationRunner` + `AutomationEventPayload` (`packages/core/src/automations.runner.interface.ts`) — single `run(payload)` method
+    - `NoOpAutomationRunner` (`packages/core/src/automations.runner.stub.ts`) — used in tests and as a safe default before the real runner is wired
+    - `IContentScanRepository` (`packages/core/src/content-scan.repository.ts`) — `getReferencedMediaKeys(seeds)` for orphaned-media detection across all seeds
+  - **Phase 7 — Scheduler abstraction:**
+    - `IScheduler` (`packages/core/src/scheduler.interface.ts`) — `waitUntil(promise)` contract; decouples Cloudflare `ExecutionContext` from handlers
+    - `NoOpScheduler` (`packages/core/src/scheduler.stub.ts`) — test/non-CF environments
+    - `ExecutionContextScheduler` (`apps/api/src/shared/execution-context-scheduler.ts`) — production implementation wrapping `context.executionCtx.waitUntil`
 - **Build**: `npm run build -w @beechcms/core` produces `dist/` with JS and `.d.ts`, consumed by both apps.
 
 ---
@@ -184,6 +201,7 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Read (GET):** retrieves rows from `content_{slug}`, deserializes complex types, and returns JSON response.
   - Supports server-side pagination, filtering, sorting, and search (via B-tree and FTS5).
   - **Facets (`GET /api/content/:slug/facets`):** computes distinct `status` values and tag sets.
+  - **Automation trigger:** after each successful `create`, `update`, or `delete`, the handler fires automations asynchronously: `c.get('scheduler').waitUntil(c.get('automationRunner').run({ seedSlug, event, entry }))`. The `IScheduler` wrapper ensures the operation completes even after the HTTP response is sent.
 
 - **Global Search (`/api/search`)**
   - Route handler in `apps/api/src/search.ts` parses query params and calls `c.get('searchRepository').search(...)` and `.count(...)` in parallel. All FTS5 SQL composition is delegated to the pure helper `buildFtsQuery` consumed by `D1SearchRepository`. `mapSearchResultRow` strips HTML while preserving `<mark>` tags for the excerpt field.
@@ -222,6 +240,17 @@ This high-level system map is designed for onboarding new contributors and for A
   - Handlers use `context.get('activityLogger').log(...)` for auditing (async, fire-and-forget).
   - Handlers use `context.get('notificationService').notify(...)` for system alerts.
   - Abstractions (`IClock`, `IIdGenerator`) ensure testability without global state patching.
+
+- **Automation Engine (`/api/automations/*`)** — see `api-reference.md` §10
+  - CRUD: `GET /api/automations?seed=<slug>`, `POST /api/automations`, `GET /api/automations/:id`, `PUT /api/automations/:id`, `PATCH /api/automations/:id/toggle`, `DELETE /api/automations/:id`. All JWT-protected. Validation via Zod (`automations.schema.ts`).
+  - **Runtime execution:** content handlers (`create`, `update`, `delete`) call `c.get('scheduler').waitUntil(c.get('automationRunner').run({ seedSlug, event, entry }))` after a successful write. `AutomationRunner` queries `IAutomationRepository.findActive(seedSlug, event)`, evaluates `TriggerCondition[]` via `evaluateConditions`, then dispatches each `AutomationAction` to the matching executor.
+  - **Action executors** (`apps/api/src/features/automations/action-executors/`):
+    - `webhook` — HTTP call to `action.url` with optional template interpolation of `{{field}}` placeholders from the entry payload.
+    - `send_mail` — calls the shared `sendAutomationMail` helper (Resend REST API); requires `EMAIL_API_KEY` or `RESEND_API_KEY` in env.
+    - `edit_field` — updates a single field on the triggering entry via `ContentRepository`.
+    - `create_entry` — creates a new entry in a (potentially different) seed, mapping fields via `action.field_map`.
+  - **Cron automations:** the Cloudflare Workers `scheduled` event handler in `apps/api/src/index.ts` calls `runCronAutomations(deps, event.scheduledTime)`. `CronRunner` fetches all enabled `trigger_event='cron'` automations via `findActive('*', 'cron')`, matches `trigger_cron` against the current time using `cronMatches`, then fetches matching entries via `ContentRepository.findMany` (applying `trigger_conditions` as filters), and dispatches each through `IAutomationRunner.run`.
+  - **Injection:** `IAutomationRepository` (→ `D1AutomationRepository`) and `IAutomationRunner` (→ `AutomationRunner`) are injected by `repositoryMiddleware`. Both are overridable in tests via the `overrides` parameter.
 
 ---
 
@@ -279,6 +308,12 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Must** place new feature code in `apps/dashboard/src/features/<feature-name>/` with an `index.ts` public API.
   - **Must not** import directly from another feature's internal files — only from its `index.ts`.
   - **Must** promote logic needed by two or more features to `@beechcms/core` or `src/components/ui` / `src/lib`.
+
+- **Automation Engine**
+  - **Must** fire automations from content handlers via `c.get('scheduler').waitUntil(c.get('automationRunner').run(...))` — never call `AutomationRunner` directly from a handler.
+  - **Must not** import concrete implementations (`AutomationRunner`, `D1AutomationRepository`) from inside automation feature handlers — only interact through the `IAutomationRunner` and `IAutomationRepository` interfaces on `c.var`.
+  - **Must** declare automation contracts (types, interfaces, stubs) in `@beechcms/core`; never import from `apps/api/src/features/automations/` in content handlers.
+  - **Must** use `IScheduler` (injected as `c.get('scheduler')`) for any operation that must outlive the HTTP response — never call `c.executionCtx.waitUntil(...)` directly in handlers.
 
 - **Quality & consistency**
   - **Must** use strict TypeScript, ESLint 9 with `typescript-eslint`, and Vitest as configured.

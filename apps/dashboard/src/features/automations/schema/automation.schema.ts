@@ -58,39 +58,39 @@ const actionFormItemSchema = z
   .superRefine((data, ctx) => {
     if (data.type === 'webhook') {
       if (!data.url) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'URL è obbligatorio', path: ['url'] })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.urlRequired', path: ['url'] })
       } else if (!z.string().url().safeParse(data.url).success) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'URL non valido', path: ['url'] })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.urlInvalid', path: ['url'] })
       }
     }
     if (data.type === 'send_mail') {
       if (!data.to) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Email obbligatoria', path: ['to'] })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.emailRequired', path: ['to'] })
       } else if (!z.string().email().safeParse(data.to).success) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Email non valida', path: ['to'] })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.emailInvalid', path: ['to'] })
       }
       if (!data.subject_template) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Oggetto obbligatorio', path: ['subject_template'] })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.subjectRequired', path: ['subject_template'] })
       }
       if (!data.body_template) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Corpo obbligatorio', path: ['body_template'] })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.bodyRequired', path: ['body_template'] })
       }
     }
     if (data.type === 'edit_field') {
       if (!data.field) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Campo obbligatorio', path: ['field'] })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.fieldRequired', path: ['field'] })
       }
     }
     if (data.type === 'create_entry') {
       if (!data.seed_slug) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Seed obbligatorio', path: ['seed_slug'] })
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.seedRequired', path: ['seed_slug'] })
       }
     }
   })
 
 export const automationFormSchema = z
   .object({
-    name: z.string().min(1, 'Nome obbligatorio').max(100),
+    name: z.string().min(1, 'automations.editor.errors.nameRequired').max(100),
     trigger_event: z.enum(['create', 'update', 'delete', 'cron']),
     trigger_cron: z.string(),
     trigger_conditions: z.array(
@@ -100,13 +100,13 @@ export const automationFormSchema = z
         value: z.string(),
       })
     ),
-    actions: z.array(actionFormItemSchema).min(1, 'Almeno un\'azione richiesta'),
+    actions: z.array(actionFormItemSchema).min(1, 'automations.editor.errors.actionsMin'),
   })
   .superRefine((data, ctx) => {
     if (data.trigger_event === 'cron' && !data.trigger_cron) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'Espressione cron obbligatoria',
+        message: 'automations.editor.errors.cronRequired',
         path: ['trigger_cron'],
       })
     }

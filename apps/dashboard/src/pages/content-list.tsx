@@ -169,7 +169,7 @@ export function ContentListPage() {
       id: "gallery",
       label: "gallery",
       type: "gallery",
-      enabledTools: ["filter", "sort", "search", "create"],
+      enabledTools: ["filter", "sort", "automation", "search", "create"],
       conditionalFormats: [],
     },
   ])
@@ -357,6 +357,7 @@ export function ContentListPage() {
     () => {
       const visibility: VisibilityState = {}
       visibility["id"] = false
+      visibility["slug"] = false
       if (!seed) return visibility
       const metaAliases = seed.branches
         .filter(
@@ -582,9 +583,9 @@ export function ContentListPage() {
     []
   )
 
-  // Hidden columns by default: id (too long), json metadata/metadati
+  // Hidden columns by default: system columns (id, slug) + json metadata/metadati
   const initialHiddenColumns = React.useMemo(() => {
-    const hidden: string[] = ["id"]
+    const hidden: string[] = ["id", "slug"]
     if (!seed) return hidden
     const metaAliases = seed.branches
       .filter(
@@ -695,7 +696,7 @@ export function ContentListPage() {
                   dateGroupPrecision={dateGroupPrecision}
                   onDateGroupPrecisionChange={setDateGroupPrecision}
                   onOpenAutomation={() => setAutomationPanelOpen(true)}
-                  isAutomationActive={(automationsData?.length ?? 0) > 0}
+                  isAutomationActive={automationPanelOpen}
                 >
                   {error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">

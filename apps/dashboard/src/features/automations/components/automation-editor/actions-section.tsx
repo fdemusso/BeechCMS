@@ -48,10 +48,10 @@ export function ActionsSection({ seedBranches }: ActionsSectionProps) {
       ))}
 
       {(errors.actions as any)?.root?.message && (
-        <p className="mt-1 text-xs text-destructive">{(errors.actions as any).root.message}</p>
+        <p className="mt-1 text-xs text-destructive">{t((errors.actions as any).root.message)}</p>
       )}
       {typeof errors.actions?.message === 'string' && (
-        <p className="mt-1 text-xs text-destructive">{errors.actions.message}</p>
+        <p className="mt-1 text-xs text-destructive">{t(errors.actions.message)}</p>
       )}
 
       <div className="mt-3">

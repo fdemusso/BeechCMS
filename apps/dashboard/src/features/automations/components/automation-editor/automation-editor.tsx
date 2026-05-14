@@ -33,10 +33,11 @@ export function AutomationEditor({
   automation,
 }: AutomationEditorProps) {
   const { t } = useTranslation()
-  const { form, isEdit, isPending, onSubmit } = useAutomationEditor({
+  const { form, isEdit, isPending, resetForm, onSubmit } = useAutomationEditor({
     seedSlug,
     seedDisplayName,
     automation,
+    open,
     onSuccess: () => onOpenChange(false),
   })
 
@@ -44,7 +45,7 @@ export function AutomationEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl p-0 gap-0">
+      <DialogContent showCloseButton={false} className="max-w-2xl p-0 gap-0">
         <FormProvider {...form}>
           <form onSubmit={onSubmit}>
             {/* Header */}
@@ -52,12 +53,12 @@ export function AutomationEditor({
               <DialogTitle asChild>
                 <Input
                   {...register('name')}
-                  className="text-lg font-semibold border-0 px-0 h-auto focus-visible:ring-0 shadow-none"
+                  className="text-lg font-semibold border-0 bg-secondary dark:bg-secondary px-3 py-1.5 h-auto transition-colors focus-visible:ring-1 focus-visible:ring-ring shadow-none"
                   placeholder={t('automations.editor.namePlaceholder')}
                 />
               </DialogTitle>
               {errors.name && (
-                <p className="text-xs text-destructive mt-1">{errors.name.message}</p>
+                <p className="text-xs text-destructive mt-1">{t(errors.name.message ?? '')}</p>
               )}
               <p className="text-sm text-muted-foreground">
                 {t('automations.editor.subtitle', { seed: seedDisplayName })}
@@ -77,10 +78,13 @@ export function AutomationEditor({
             <DialogFooter className="px-6 py-4 border-t">
               <Button
                 type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
+                variant={isEdit ? 'outline' : 'destructive'}
+                onClick={() => {
+                  if (!isEdit) resetForm()
+                  onOpenChange(false)
+                }}
               >
-                {t('common.cancel')}
+                {isEdit ? t('common.back') : t('common.cancel')}
               </Button>
               <Button
                 type="submit"

@@ -578,7 +578,7 @@
       "subtitle": "Per tutti gli elementi in {{seed}}",
       "triggerLabel": "Quando",
       "actionsLabel": "Esegui",
-      "addCondition": "+ Aggiungi condizione",
+      "addCondition": "Aggiungi condizione",
       "addAction": "+ Aggiungi azione",
       "enableButton": "Abilita",
       "noActions": "Nessuna azione ancora. Aggiungine una.",
@@ -588,7 +588,20 @@
       "cronHint": "Formato cron: minuto ora giorno mese giorno-settimana — es. 0 9 * * 1 = ogni lunedì alle 9:00",
       "conditionField": "Campo",
       "conditionValue": "Valore",
-      "defaultName": "Automazione di {{name}}"
+      "defaultName": "Automazione di {{name}}",
+      "errors": {
+        "nameRequired": "Nome obbligatorio",
+        "actionsMin": "Almeno un'azione richiesta",
+        "cronRequired": "Espressione cron obbligatoria",
+        "urlRequired": "URL obbligatorio",
+        "urlInvalid": "URL non valido",
+        "emailRequired": "Email obbligatoria",
+        "emailInvalid": "Email non valida",
+        "subjectRequired": "Oggetto obbligatorio",
+        "bodyRequired": "Corpo obbligatorio",
+        "fieldRequired": "Campo obbligatorio",
+        "seedRequired": "Seed obbligatorio"
+      }
     },
     "triggers": {
       "create": "Creazione contenuto",
@@ -610,7 +623,7 @@
       "send_mail": "Invia email",
       "edit_field": "Modifica campo",
       "create_entry": "Crea elemento",
-      "templateHint": "Usa {fieldAlias} o {{fieldAlias}} per inserire i valori dei campi",
+      "templateHint": "Usa {fieldAlias} per inserire i valori dei campi",
       "webhookUrl": "URL",
       "webhookMethod": "Metodo HTTP",
       "webhookHeaders": "Header",

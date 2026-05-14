@@ -48,7 +48,7 @@ export function CreateEntryForm({ index }: CreateEntryFormProps) {
           </SelectContent>
         </Select>
         {actionErrors?.seed_slug && (
-          <p className="mt-1 text-xs text-destructive">{actionErrors.seed_slug.message}</p>
+          <p className="mt-1 text-xs text-destructive">{t(actionErrors.seed_slug.message)}</p>
         )}
       </div>
 

@@ -40,12 +40,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    axios.post<LoginResponse>('/auth/refresh', {}, { withCredentials: true })
+    const controller = new AbortController()
+
+    axios.post<LoginResponse>('/auth/refresh', {}, {
+      withCredentials: true,
+      signal: controller.signal,
+    })
       .then(({ data }) => setToken(data.token))
-      .catch(() => {
+      .catch((err) => {
+        if (axios.isCancel(err)) return
         clearAccessToken()
         setStatus('unauthenticated')
       })
+
+    return () => controller.abort()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

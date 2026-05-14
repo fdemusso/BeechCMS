@@ -578,7 +578,7 @@
       "subtitle": "For all entries in {{seed}}",
       "triggerLabel": "When",
       "actionsLabel": "Do",
-      "addCondition": "+ Add condition",
+      "addCondition": "Add condition",
       "addAction": "+ Add action",
       "enableButton": "Enable",
       "noActions": "No actions yet. Add one below.",
@@ -588,7 +588,20 @@
       "cronHint": "Cron format: minute hour day month weekday — e.g. 0 9 * * 1 = every Monday at 9:00",
       "conditionField": "Field",
       "conditionValue": "Value",
-      "defaultName": "{{name}}'s automation"
+      "defaultName": "{{name}}'s automation",
+      "errors": {
+        "nameRequired": "Name is required",
+        "actionsMin": "At least one action is required",
+        "cronRequired": "Cron expression is required",
+        "urlRequired": "URL is required",
+        "urlInvalid": "Invalid URL",
+        "emailRequired": "Email is required",
+        "emailInvalid": "Invalid email",
+        "subjectRequired": "Subject is required",
+        "bodyRequired": "Body is required",
+        "fieldRequired": "Field is required",
+        "seedRequired": "Seed is required"
+      }
     },
     "triggers": {
       "create": "Entry created",
@@ -610,7 +623,7 @@
       "send_mail": "Send email",
       "edit_field": "Edit field",
       "create_entry": "Create entry",
-      "templateHint": "Use {fieldAlias} or {{fieldAlias}} to insert field values",
+      "templateHint": "Use {fieldAlias} to insert field values",
       "webhookUrl": "URL",
       "webhookMethod": "HTTP Method",
       "webhookHeaders": "Headers",

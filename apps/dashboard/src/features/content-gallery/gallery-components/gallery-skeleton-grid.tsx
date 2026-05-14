@@ -1,3 +1,4 @@
+import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 
 const SKELETON_KEYS = [
@@ -13,24 +14,31 @@ const SKELETON_KEYS = [
 
 export function GallerySkeletonGrid() {
   return (
-    <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 280px), 420px))" }}>
+    <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 420px))", justifyContent: "center" }}>
       {SKELETON_KEYS.map((key) => (
         <div
           key={key}
-          className="flex h-[340px] flex-col overflow-hidden rounded-2xl border border-neutral-200/80 dark:border-neutral-700/50"
+          className="flex flex-col overflow-hidden rounded-2xl border border-neutral-200/80 bg-card dark:border-neutral-700/50"
         >
           {/* Image area */}
-          <Skeleton className="min-h-0 flex-1 rounded-none" />
-
-          {/* Data shelf */}
-          <div className="w-full shrink-0 rounded-t-2xl bg-white px-4 py-3 shadow-[0_-6px_20px_0_rgb(0,0,0,0.07)] dark:bg-neutral-900 dark:shadow-[0_-6px_20px_0_rgb(0,0,0,0.30)]">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <Skeleton className="h-5 w-20 rounded-full" />
-              <Skeleton className="h-5 w-14 rounded-full" />
+          <div className="relative h-44 w-full shrink-0">
+            <Skeleton className="h-full w-full rounded-none" />
+            <div className="absolute left-3 top-3">
+              <Skeleton className="h-5 w-16 rounded-full" />
             </div>
+          </div>
+
+          {/* Content area */}
+          <div className="flex flex-1 flex-col gap-2 px-4 py-3">
             <Skeleton className="h-4 w-10/12" />
-            <Skeleton className="mt-1 h-3 w-7/12" />
-            <Skeleton className="mt-2 h-3 w-4/12" />
+            <Skeleton className="h-3 w-7/12" />
+            <div className="mt-auto flex flex-col gap-2 pt-1">
+              <Separator />
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-5 w-14 rounded-full" />
+              </div>
+            </div>
           </div>
         </div>
       ))}

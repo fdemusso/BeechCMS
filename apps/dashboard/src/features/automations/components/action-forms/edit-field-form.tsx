@@ -44,7 +44,7 @@ export function EditFieldForm({ index, seedBranches }: EditFieldFormProps) {
           </SelectContent>
         </Select>
         {actionErrors?.field && (
-          <p className="mt-1 text-xs text-destructive">{actionErrors.field.message}</p>
+          <p className="mt-1 text-xs text-destructive">{t(actionErrors.field.message)}</p>
         )}
       </div>
 
@@ -57,7 +57,6 @@ export function EditFieldForm({ index, seedBranches }: EditFieldFormProps) {
           placeholder={t('automations.actions.editValuePlaceholder')}
           className="h-8 text-sm"
         />
-        <p className="mt-1 text-[10px] text-muted-foreground">{t('automations.actions.templateHint')}</p>
       </div>
     </div>
   )

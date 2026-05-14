@@ -25,7 +25,7 @@ export function SendMailForm({ index }: SendMailFormProps) {
           className="h-8 text-sm"
         />
         {actionErrors?.to && (
-          <p className="mt-1 text-xs text-destructive">{actionErrors.to.message}</p>
+          <p className="mt-1 text-xs text-destructive">{t(actionErrors.to.message)}</p>
         )}
       </div>
 
@@ -39,7 +39,7 @@ export function SendMailForm({ index }: SendMailFormProps) {
           className="h-8 text-sm"
         />
         {actionErrors?.subject_template && (
-          <p className="mt-1 text-xs text-destructive">{actionErrors.subject_template.message}</p>
+          <p className="mt-1 text-xs text-destructive">{t(actionErrors.subject_template.message)}</p>
         )}
         <p className="mt-1 text-[10px] text-muted-foreground">{t('automations.actions.templateHint')}</p>
       </div>
@@ -55,7 +55,7 @@ export function SendMailForm({ index }: SendMailFormProps) {
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
         {actionErrors?.body_template && (
-          <p className="mt-1 text-xs text-destructive">{actionErrors.body_template.message}</p>
+          <p className="mt-1 text-xs text-destructive">{t(actionErrors.body_template.message)}</p>
         )}
         <p className="mt-1 text-[10px] text-muted-foreground">{t('automations.actions.templateHint')}</p>
       </div>

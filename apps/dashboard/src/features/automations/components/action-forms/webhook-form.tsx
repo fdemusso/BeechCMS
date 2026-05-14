@@ -36,7 +36,7 @@ export function WebhookForm({ index }: WebhookFormProps) {
           className="h-8 text-sm"
         />
         {actionErrors?.url && (
-          <p className="mt-1 text-xs text-destructive">{actionErrors.url.message}</p>
+          <p className="mt-1 text-xs text-destructive">{t(actionErrors.url.message)}</p>
         )}
       </div>
 
