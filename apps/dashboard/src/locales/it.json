@@ -561,5 +561,84 @@
     "title": "Ops, c'è stato un errore",
     "backHome": "Torna alla home",
     "unknown": "Errore sconosciuto"
+  },
+  "automations": {
+    "panel": {
+      "title": "Automazioni",
+      "newButton": "Nuova automazione",
+      "emptyTitle": "Nessuna automazione",
+      "emptyDescription": "Crea la prima automazione per questo contenuto",
+      "emptyAction": "Crea automazione",
+      "toggleAriaLabel": "Abilita/disabilita automazione"
+    },
+    "editor": {
+      "namePlaceholder": "Nome automazione",
+      "subtitle": "Per tutti gli elementi in {{seed}}",
+      "triggerLabel": "Quando",
+      "actionsLabel": "Esegui",
+      "addCondition": "+ Aggiungi condizione",
+      "addAction": "+ Aggiungi azione",
+      "enableButton": "Abilita",
+      "noActions": "Nessuna azione ancora. Aggiungine una.",
+      "triggerSelectPlaceholder": "Scegli un trigger...",
+      "searchPlaceholder": "Cerca...",
+      "cronExpression": "Espressione cron",
+      "cronHint": "Formato cron: minuto ora giorno mese giorno-settimana — es. 0 9 * * 1 = ogni lunedì alle 9:00",
+      "conditionField": "Campo",
+      "conditionValue": "Valore",
+      "defaultName": "Automazione di {{name}}"
+    },
+    "triggers": {
+      "create": "Creazione contenuto",
+      "update": "Aggiornamento contenuto",
+      "delete": "Eliminazione contenuto",
+      "cron": "Programmata (cron)"
+    },
+    "ops": {
+      "eq": "uguale a",
+      "neq": "diverso da",
+      "contains": "contiene",
+      "gt": "maggiore di",
+      "lt": "minore di",
+      "isempty": "è vuoto",
+      "isnotempty": "non è vuoto"
+    },
+    "actions": {
+      "webhook": "Webhook",
+      "send_mail": "Invia email",
+      "edit_field": "Modifica campo",
+      "create_entry": "Crea elemento",
+      "templateHint": "Usa {{fieldAlias}} per inserire valori dei campi",
+      "webhookUrl": "URL",
+      "webhookMethod": "Metodo HTTP",
+      "webhookHeaders": "Header",
+      "webhookBody": "Body template",
+      "addHeader": "Aggiungi header",
+      "webhookHeaderKeyPlaceholder": "Header",
+      "webhookHeaderValuePlaceholder": "Valore",
+      "mailTo": "Destinatario",
+      "mailToPlaceholder": "destinatario@esempio.it",
+      "mailSubject": "Oggetto",
+      "mailSubjectPlaceholder": "Nuovo elemento: {{title}}",
+      "mailBody": "Corpo",
+      "mailBodyPlaceholder": "Ciao,\n\nUn nuovo elemento è stato creato: {{title}}",
+      "editField": "Campo",
+      "editFieldPlaceholder": "Scegli un campo...",
+      "editValue": "Valore",
+      "editValuePlaceholder": "Inserisci valore...",
+      "targetSeed": "Seed di destinazione",
+      "targetSeedPlaceholder": "Scegli un seed...",
+      "fieldMap": "Mappa dei campi",
+      "fieldMapTarget": "Campo destinazione",
+      "fieldMapSource": "Campo sorgente",
+      "addFieldMap": "Aggiungi mappatura"
+    },
+    "toast": {
+      "created": "Automazione creata",
+      "updated": "Automazione aggiornata",
+      "deleted": "Automazione eliminata",
+      "toggled": "Automazione aggiornata",
+      "error": "Errore durante l'operazione"
+    }
   }
 }

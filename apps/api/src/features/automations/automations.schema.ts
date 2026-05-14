@@ -1,3 +1,4 @@
+// Mirror: apps/dashboard/src/features/automations/schema/automation.schema.ts — keep structurally identical.
 import { z } from 'zod'
 
 const triggerConditionSchema = z.object({

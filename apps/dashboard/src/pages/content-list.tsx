@@ -35,6 +35,7 @@ import {
   useContentFacets,
   useDeleteContent,
 } from "@/features/content-management"
+import { AutomationPanel, useAutomations } from "@/features/automations"
 import { useActiveSeed } from "@/features/schema"
 import {
   generateColumns,
@@ -88,6 +89,8 @@ export function ContentListPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [entryIdsToDelete, setEntryIdsToDelete] = React.useState<string[] | null>(null)
 
+  const [automationPanelOpen, setAutomationPanelOpen] = React.useState(false)
+
   // Active view of the content list.
   const [activeViewId, setActiveViewId] = React.useState("table")
 
@@ -121,6 +124,8 @@ export function ContentListPage() {
   } = useContentFacets(slug)
 
   const { mutateAsync: deleteContent } = useDeleteContent()
+
+  const { data: automationsData } = useAutomations(slug)
 
   const data = React.useMemo(() => listData?.items ?? [], [listData])
   const totalRows = listData?.total ?? 0
@@ -689,6 +694,8 @@ export function ContentListPage() {
                   onGroupByChange={setGroupBy}
                   dateGroupPrecision={dateGroupPrecision}
                   onDateGroupPrecisionChange={setDateGroupPrecision}
+                  onOpenAutomation={() => setAutomationPanelOpen(true)}
+                  isAutomationActive={(automationsData?.length ?? 0) > 0}
                 >
                   {error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
@@ -795,6 +802,14 @@ export function ContentListPage() {
         seed={seed}
         entryIds={entryIdsToDelete}
         onConfirm={handleConfirmDelete}
+      />
+
+      <AutomationPanel
+        open={automationPanelOpen}
+        onOpenChange={setAutomationPanelOpen}
+        seedSlug={seed.slug}
+        seedDisplayName={seed.label}
+        seedBranches={seed.branches}
       />
     </div>
   )

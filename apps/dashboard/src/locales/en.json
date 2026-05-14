@@ -561,5 +561,84 @@
     "title": "Oops, there was an error",
     "backHome": "Back to home",
     "unknown": "Unknown error"
+  },
+  "automations": {
+    "panel": {
+      "title": "Automations",
+      "newButton": "New automation",
+      "emptyTitle": "No automations",
+      "emptyDescription": "Create the first automation for this content type",
+      "emptyAction": "Create automation",
+      "toggleAriaLabel": "Enable/disable automation"
+    },
+    "editor": {
+      "namePlaceholder": "Automation name",
+      "subtitle": "For all entries in {{seed}}",
+      "triggerLabel": "When",
+      "actionsLabel": "Do",
+      "addCondition": "+ Add condition",
+      "addAction": "+ Add action",
+      "enableButton": "Enable",
+      "noActions": "No actions yet. Add one below.",
+      "triggerSelectPlaceholder": "Choose a trigger...",
+      "searchPlaceholder": "Search...",
+      "cronExpression": "Cron expression",
+      "cronHint": "Cron format: minute hour day month weekday — e.g. 0 9 * * 1 = every Monday at 9:00",
+      "conditionField": "Field",
+      "conditionValue": "Value",
+      "defaultName": "{{name}}'s automation"
+    },
+    "triggers": {
+      "create": "Entry created",
+      "update": "Entry updated",
+      "delete": "Entry deleted",
+      "cron": "Scheduled (cron)"
+    },
+    "ops": {
+      "eq": "equals",
+      "neq": "not equals",
+      "contains": "contains",
+      "gt": "greater than",
+      "lt": "less than",
+      "isempty": "is empty",
+      "isnotempty": "is not empty"
+    },
+    "actions": {
+      "webhook": "Webhook",
+      "send_mail": "Send email",
+      "edit_field": "Edit field",
+      "create_entry": "Create entry",
+      "templateHint": "Use {{fieldAlias}} to insert field values",
+      "webhookUrl": "URL",
+      "webhookMethod": "HTTP Method",
+      "webhookHeaders": "Headers",
+      "webhookBody": "Body template",
+      "addHeader": "Add header",
+      "webhookHeaderKeyPlaceholder": "Header",
+      "webhookHeaderValuePlaceholder": "Value",
+      "mailTo": "To",
+      "mailToPlaceholder": "recipient@example.com",
+      "mailSubject": "Subject",
+      "mailSubjectPlaceholder": "New entry: {{title}}",
+      "mailBody": "Body",
+      "mailBodyPlaceholder": "Hello,\n\nA new entry was created: {{title}}",
+      "editField": "Field",
+      "editFieldPlaceholder": "Choose a field...",
+      "editValue": "Value",
+      "editValuePlaceholder": "Enter value...",
+      "targetSeed": "Target seed",
+      "targetSeedPlaceholder": "Choose a seed...",
+      "fieldMap": "Field map",
+      "fieldMapTarget": "Target field",
+      "fieldMapSource": "Source field",
+      "addFieldMap": "Add mapping"
+    },
+    "toast": {
+      "created": "Automation created",
+      "updated": "Automation updated",
+      "deleted": "Automation deleted",
+      "toggled": "Automation updated",
+      "error": "Operation failed"
+    }
   }
 }
