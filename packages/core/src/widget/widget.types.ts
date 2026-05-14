@@ -1,0 +1,16 @@
+export type WidgetType = 
+  | "stat" 
+  | "recent-activity" 
+  | "system-health" 
+  | "content-pulse" 
+  | "ai-insights" 
+  | "quick-actions"
+  | "recent-content"
+  | "quick-draft"
+  | "pending-drafts"
+  | "publication-stats"
+  | "site-status"
+  | "storage"
+  | "media-gallery"
+  | "activity-feed"
+  | "setup-checklist";

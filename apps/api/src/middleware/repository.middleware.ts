@@ -12,8 +12,9 @@ import { D1WidgetRepository } from '../shared/d1-widget.repository'
 import { D1SearchRepository } from '../shared/d1-search.repository'
 import { D1AnalyticsRepository } from '../shared/d1-analytics.repository'
 import { D1ContentScanRepository } from '../shared/d1-content-scan.repository'
+import { D1SettingsRepository } from '../shared/settings.repository.d1'
 import { SystemClock, SystemIdGenerator, NoOpAutomationRunner } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, SettingsRepository } from '@beechcms/core'
 import type { Env, Variables } from '../types'
 
 interface RepositoryOverrides {
@@ -33,6 +34,7 @@ interface RepositoryOverrides {
   clock?: IClock
   idGenerator?: IIdGenerator
   automationRunner?: IAutomationRunner
+  settingsRepository?: SettingsRepository
 }
 
 export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
@@ -54,6 +56,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('searchRepository', overrides?.searchRepository ?? new D1SearchRepository(database))
     context.set('analyticsRepository', overrides?.analyticsRepository ?? new D1AnalyticsRepository(database, resolvedClock))
     context.set('contentScanRepository', overrides?.contentScanRepository ?? new D1ContentScanRepository(database))
+    context.set('settingsRepository', overrides?.settingsRepository ?? new D1SettingsRepository(database))
     context.set('clock', resolvedClock)
     context.set('idGenerator', resolvedIdGenerator)
     context.set('automationRunner', overrides?.automationRunner ?? new NoOpAutomationRunner())

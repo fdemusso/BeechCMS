@@ -1,6 +1,9 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
+import { z } from 'zod'
 import type { Env, Variables } from '../../types'
+
+const DashboardConfigSchema = z.record(z.string(), z.unknown());
 
 const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -296,6 +299,38 @@ settingsApp.put('/notifications', async (context) => {
 
   await context.get('userRepository').updateNotificationPreferences(userId, JSON.stringify(newPreferences))
   return context.json({ success: true })
+})
+
+/**
+ * GET /api/settings/dashboard
+ * Retrieves the dashboard configuration.
+ */
+settingsApp.get('/dashboard', async (c) => {
+  const repo = c.get('settingsRepository')
+  const config = await repo.getDashboardConfig()
+  return c.json({ data: config })
+})
+
+/**
+ * PUT /api/settings/dashboard
+ * Updates the dashboard configuration.
+ */
+settingsApp.put('/dashboard', async (c) => {
+  const contentType = c.req.header('Content-Type') || '';
+  if (!contentType.includes('application/json')) {
+    return c.json({ error: 'Unsupported Media Type' }, 415);
+  }
+
+  const body = await c.req.json().catch(() => null)
+
+  const parsed = DashboardConfigSchema.safeParse(body)
+  if (!parsed.success) {
+    return c.json({ error: 'Invalid payload', details: parsed.error.flatten() }, 400)
+  }
+
+  const repo = c.get('settingsRepository')
+  await repo.putDashboardConfig(parsed.data)
+  return c.json({ success: true }, 200)
 })
 
 export { settingsApp }

@@ -2,13 +2,13 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.spec.ts'],
     reporters: ['verbose'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/seeds.ts', 'src/index.ts'],
+      exclude: ['src/**/*.test.ts', 'src/**/*.spec.ts', 'src/seeds.ts', 'src/index.ts'],
     },
   },
 })

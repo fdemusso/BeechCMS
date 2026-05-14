@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   test: {
     // Flow tests in test/ + unit tests colocated in src/
-    include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
+    include: ['test/**/*.test.ts', 'src/**/*.test.ts', 'src/**/*.spec.ts', 'test/**/*.spec.ts'],
     /** Show console/stderr only for failing tests */
     silent: 'passed-only',
     reporters: ['verbose'],
@@ -13,6 +13,7 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: [
         'src/**/*.test.ts',
+        'src/**/*.spec.ts',
         '**/*.d.ts',
         // Pure type definitions — no runtime statements to cover
         'src/types.ts',
