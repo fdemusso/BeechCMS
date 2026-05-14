@@ -16,6 +16,11 @@ vi.mock("react-router-dom", () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
+vi.mock("@/features/automations", () => ({
+  AutomationPanel: () => null,
+  useAutomations: () => ({ data: [], isLoading: false }),
+}))
+
 const seedPosts = {
   slug: "posts",
   label: "Post",

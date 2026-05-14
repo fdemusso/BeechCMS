@@ -54,8 +54,8 @@ export const settingsApi = {
     await api.put('/settings/notifications', prefs)
   },
 
-  getGeneralSettings: async (): Promise<{ dateFormat: string; siteTitle: string }> => {
-    const { data } = await api.get<{ dateFormat: string; siteTitle: string }>('/settings')
+  getGeneralSettings: async (): Promise<{ dateFormat: string; siteTitle: string; features?: { email?: boolean } }> => {
+    const { data } = await api.get<{ dateFormat: string; siteTitle: string; features?: { email?: boolean } }>('/settings')
     return data
   },
 }

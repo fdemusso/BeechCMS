@@ -82,7 +82,7 @@ export async function sendPasswordChangedEmail(
 }
 
 export async function sendAutomationMail(params: AutomationMailParams): Promise<void> {
-  const provider = createProvider(params.resendApiKey ?? '', false)
+  const provider = createProvider(params.apiKey ?? params.resendApiKey ?? '', false)
   const message = buildAutomationEmail(params)
   await provider.send({
     from: params.from ?? DEFAULT_FROM,

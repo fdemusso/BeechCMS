@@ -102,6 +102,7 @@ export interface AutomationMailParams {
   subject: string
   /** Plain text or HTML — passed verbatim to provider. */
   body: string
+  apiKey?: string
   resendApiKey?: string
   from?: string
 }

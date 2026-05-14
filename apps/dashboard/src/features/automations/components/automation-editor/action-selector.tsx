@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu'
+import { useGeneralSettings } from '@/features/settings'
 import { ACTION_TYPES, DEFAULT_ACTION_ITEM } from '../../schema/automation.schema'
 import type { ActionFormItem } from '../../schema/automation.schema'
 
@@ -19,10 +20,18 @@ interface ActionSelectorProps {
 
 export function ActionSelector({ onAdd }: ActionSelectorProps) {
   const { t } = useTranslation()
+  const { data: settings } = useGeneralSettings()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
 
-  const filtered = ACTION_TYPES.filter((type) =>
+  const availableTypes = ACTION_TYPES.filter((type) => {
+    if (type === 'send_mail' && settings?.features?.email === false) {
+      return false
+    }
+    return true
+  })
+
+  const filtered = availableTypes.filter((type) =>
     t(`automations.actions.${type}`).toLowerCase().includes(search.toLowerCase())
   )
 

@@ -23,6 +23,7 @@ export interface Env {
   MEDIA_BASE_URL?: string
   MEDIA_CDN_URL?: string
   RESEND_API_KEY?: string
+  EMAIL_API_KEY?: string
   APP_URL?: string
   EMAIL_FROM?: string
   FORGOT_PASSWORD_RATE_LIMITER?: RateLimit

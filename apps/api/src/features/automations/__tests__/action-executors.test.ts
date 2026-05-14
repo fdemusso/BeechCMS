@@ -83,6 +83,11 @@ vi.mock('../../email', () => ({
 }))
 
 describe('send_mail executor', () => {
+  beforeEach(async () => {
+    const { sendAutomationMail } = await import('../../email')
+    vi.mocked(sendAutomationMail).mockClear()
+  })
+
   it('interpolates to/subject/body and calls sendAutomationMail', async () => {
     const { sendAutomationMail } = await import('../../email')
     const ctx = makeCtx({ entry: { id: '1', email: 'user@example.com', title: 'Hello' } })
@@ -104,6 +109,76 @@ describe('send_mail executor', () => {
         body: 'Your entry Hello was created.',
       }),
     )
+  })
+
+  it('supports single brace notation {campo} with spaces to avoid excess parentheses', async () => {
+    const { sendAutomationMail } = await import('../../email')
+    const ctx = makeCtx({ entry: { id: '1', 'author.email': 'admin@beech.io', name: 'Flavio' } })
+
+    await executeAction(
+      {
+        type: 'send_mail',
+        to: '{ author.email }',
+        subject_template: 'Notification for {name}',
+        body_template: 'Hello { name }',
+      },
+      ctx,
+    )
+
+    expect(sendAutomationMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'admin@beech.io',
+        subject: 'Notification for Flavio',
+        body: 'Hello Flavio',
+      }),
+    )
+  })
+
+  it('substitutes default value [missing] and logs a warning when concrete data is absent', async () => {
+    const { sendAutomationMail } = await import('../../email')
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const ctx = makeCtx({ entry: { id: '1' } }) // missing email and title
+
+    await executeAction(
+      {
+        type: 'send_mail',
+        to: '{email}',
+        subject_template: 'Re: {title}',
+        body_template: 'Content: {desc}',
+      },
+      ctx,
+    )
+
+    expect(sendAutomationMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: '[missing]',
+        subject: 'Re: [missing]',
+        body: 'Content: [missing]',
+      }),
+    )
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('missing concrete data'),
+      ['email', 'title', 'desc'],
+    )
+  })
+
+  it('skips execution gracefully and logs an error without calling sendAutomationMail if apiKey is missing', async () => {
+    const { sendAutomationMail } = await import('../../email')
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const ctx = makeCtx({ env: {} }) // missing email/resend api keys
+
+    await executeAction(
+      {
+        type: 'send_mail',
+        to: 'user@beech.io',
+        subject_template: 'Hello',
+        body_template: 'World',
+      },
+      ctx,
+    )
+
+    expect(sendAutomationMail).not.toHaveBeenCalled()
+    expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Execution skipped'))
   })
 })
 

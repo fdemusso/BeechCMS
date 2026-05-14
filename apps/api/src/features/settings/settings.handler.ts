@@ -24,7 +24,8 @@ settingsApp.get('/', async (context) => {
       drafts: true,
       media: true,
       search: true,
-      activityLog: true
+      activityLog: true,
+      email: !!(context.env.EMAIL_API_KEY || context.env.RESEND_API_KEY),
     }
   })
 })

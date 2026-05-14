@@ -74,7 +74,7 @@ describe('interpolate', () => {
     expect(interpolate('{{greeting}}, {{name}}!', { greeting: 'Hi', name: 'Alice' })).toBe('Hi, Alice!')
   })
 
-  it('missing field becomes empty string', () => {
+  it('missing field becomes empty string by default', () => {
     expect(interpolate('Hello {{name}}!', {})).toBe('Hello !')
   })
 
@@ -84,5 +84,30 @@ describe('interpolate', () => {
 
   it('handles numeric values', () => {
     expect(interpolate('Count: {{count}}', { count: 42 })).toBe('Count: 42')
+  })
+
+  it('supports single brace notation {campo} to avoid excess parentheses', () => {
+    expect(interpolate('Hello {name}!', { name: 'World' })).toBe('Hello World!')
+  })
+
+  it('supports spaces inside braces', () => {
+    expect(interpolate('Hello { name }!', { name: 'Space' })).toBe('Hello Space!')
+    expect(interpolate('Hello {{ name }}!', { name: 'DoubleSpace' })).toBe('Hello DoubleSpace!')
+  })
+
+  it('supports concrete nested data fetching via dot notation', () => {
+    const entry = { author: { name: 'Flavio', role: 'admin' } }
+    expect(interpolate('Author: { author.name } ({author.role})', entry)).toBe('Author: Flavio (admin)')
+  })
+
+  it('uses custom default value when a field is missing', () => {
+    expect(interpolate('Hello {name}!', {}, '[missing]')).toBe('Hello [missing]!')
+  })
+
+  it('triggers onMissing callback when concrete data is absent', () => {
+    const missing: string[] = []
+    const res = interpolate('Hello {name}! From {city}', {}, '[mancante]', (f) => missing.push(f))
+    expect(res).toBe('Hello [mancante]! From [mancante]')
+    expect(missing).toEqual(['name', 'city'])
   })
 })

@@ -288,6 +288,9 @@ function buildBranchSchema(
   options: Required<ValidateSeedPayloadOptions>
 ): z.ZodType<unknown> {
   const nullable = options.allowNull ? z.null() : null
+  const preprocessEmpty = (schema: z.ZodType<unknown>) =>
+    z.preprocess((val) => (val === '' || val === null ? (options.allowNull ? null : undefined) : val), schema.optional())
+
   switch (branch.type) {
     case 'text': {
       const schema = stringSchema
@@ -326,56 +329,54 @@ function buildBranchSchema(
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'number': {
-      const schema = finiteNumberSchema
+      const schema = preprocessEmpty(finiteNumberSchema)
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'boolean': {
-      const schema = booleanSchema
+      const schema = preprocessEmpty(booleanSchema)
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'date': {
-      const schema = stringSchema
-        .transform((value) => sanitizePlainString(value))
-        .refine((value) => isIsoDateString(value), { message: 'Expected date(ISO)' })
+      const schema = preprocessEmpty(
+        stringSchema
+          .transform((value) => sanitizePlainString(value as string))
+          .refine((value) => isIsoDateString(value), { message: 'Expected date(ISO)' })
+      )
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'json':
     case 'tags': {
-      const schema = jsonObjectOrArraySchema
+      const schema = preprocessEmpty(jsonObjectOrArraySchema)
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'file': {
       if (isAssetListBranch(branch)) {
-        const schema = z
-          .any()
+        const schema = preprocessEmpty(
+          z.any()
+            .transform((rawValue, ctx) => {
+              const normalized = normalizeAssetListValue(rawValue)
+              if (!normalized) {
+                ctx.addIssue({ code: 'custom', message: 'Expected url-string[]' })
+                return z.NEVER
+              }
+              return normalized
+            })
+            .pipe(z.array(z.string().url()))
+        )
+        return nullable ? z.union([schema, nullable]) : schema
+      }
+      const schema = preprocessEmpty(
+        z.any()
           .transform((rawValue, ctx) => {
-            const normalized = normalizeAssetListValue(rawValue)
+            const normalized = normalizeHttpUrl(rawValue)
             if (!normalized) {
-              ctx.addIssue({
-                code: 'custom',
-                message: 'Expected url-string[]',
-              })
+              ctx.addIssue({ code: 'custom', message: 'Expected url-string' })
               return z.NEVER
             }
             return normalized
           })
-          .pipe(z.array(z.url()))
-        return nullable ? z.union([schema, nullable]) : schema
-      }
-      const schema = z
-        .any()
-        .transform((rawValue, ctx) => {
-          const normalized = normalizeHttpUrl(rawValue)
-          if (!normalized) {
-            ctx.addIssue({
-              code: 'custom',
-              message: 'Expected url-string',
-            })
-            return z.NEVER
-          }
-          return normalized
-        })
-        .pipe(z.url())
+          .pipe(z.string().url())
+      )
       return nullable ? z.union([schema, nullable]) : schema
     }
     default:
@@ -438,7 +439,10 @@ function makeDetail(field: string, expected: string, received: unknown): Validat
 
 function isIsoDateString(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}/.test(value)) return false
-  return !Number.isNaN(Date.parse(value))
+  const parsed = Date.parse(value)
+  if (Number.isNaN(parsed)) return false
+  const d = new Date(parsed)
+  return d.toISOString().startsWith(value.substring(0, 10))
 }
 
 function validateBranchValue(
@@ -596,6 +600,10 @@ export function validateAndSanitizeSeedPayload(
         continue
       }
 
+      if (issue.message === 'Required' && normalizedOptions.enforceRequiredFields) {
+        continue // Let enforceRequiredFields logic below handle it properly with detailed messages
+      }
+
       const field = String(issue.path[0] ?? 'payload')
       const receivedValue = filteredPayload[field]
       const expected =
@@ -627,7 +635,9 @@ export function validateAndSanitizeSeedPayload(
         continue
       }
 
-      if (isMissingRequiredValue(data[branch.alias])) {
+      const valueToCheck = parsed.success ? data[branch.alias] : filteredPayload[branch.alias]
+
+      if (isMissingRequiredValue(valueToCheck)) {
         requiredFieldsMissing.push(branch.alias)
         details.push({
           field: branch.alias,

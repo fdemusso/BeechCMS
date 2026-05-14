@@ -87,6 +87,7 @@ export function EntryEditorPage() {
   const [slug, setSlug] = React.useState<string>("")
   const [slugTouched, setSlugTouched] = React.useState(false)
   const [isDirty, setIsDirty] = React.useState(false)
+  const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({})
   const hasJustSavedRef = React.useRef(false)
 
   const blocker = useBlocker(() => isDirty && !hasJustSavedRef.current)
@@ -237,6 +238,7 @@ export function EntryEditorPage() {
     if (!isCreate && !entryId) return
     if (!validateJsonFields()) return
 
+    setFieldErrors({})
     try {
       const payload = buildPayload()
       const entryIdForUpdate = isCreate ? null : entryId
@@ -245,10 +247,22 @@ export function EntryEditorPage() {
       hasJustSavedRef.current = true
       navigate(`/content/${schemaSlug}`)
     } catch (err) {
-      const ax = err as AxiosError<{ error?: string }>
+      type ApiValidationError = { field: string; message: string }
+      type ApiErrorBody = { error?: string; status?: number; errors?: ApiValidationError[] }
+      const ax = err as AxiosError<ApiErrorBody>
       if (ax.response?.status === 409) {
         toast.error(t("content.editor.slugDuplicate"))
         return
+      }
+      if (ax.response?.status === 400) {
+        const errors = ax.response.data?.errors
+        if (errors && errors.length > 0) {
+          const mapped: Record<string, string> = {}
+          errors.forEach((e) => { mapped[e.field] = e.message })
+          setFieldErrors(mapped)
+          toast.error(t("content.editor.validationError", { count: errors.length }))
+          return
+        }
       }
       toast.error(
         err instanceof Error ? err.message : t("content.editor.saveError")
@@ -407,6 +421,9 @@ export function EntryEditorPage() {
                           handleInputChange(richtextBranch.alias, val)
                         }
                       />
+                      {fieldErrors[richtextBranch.alias] && (
+                        <p className="text-xs text-destructive mt-1">{fieldErrors[richtextBranch.alias]}</p>
+                      )}
                     </div>
 
                     {/* Sidebar: Metadati / SEO + Contenuto */}
@@ -456,6 +473,9 @@ export function EntryEditorPage() {
                                   handleInputChange(branch.alias, val)
                                 }
                               />
+                              {fieldErrors[branch.alias] && (
+                                <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
+                              )}
                             </div>
                           ))}
                         </CardContent>
@@ -476,6 +496,9 @@ export function EntryEditorPage() {
                                   handleInputChange(branch.alias, val)
                                 }
                               />
+                              {fieldErrors[branch.alias] && (
+                                <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
+                              )}
                             </div>
                           ))}
                         </CardContent>
@@ -543,6 +566,9 @@ export function EntryEditorPage() {
                                   handleInputChange(branch.alias, val)
                                 }
                               />
+                              {fieldErrors[branch.alias] && (
+                                <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
+                              )}
                             </div>
                           ))}
                         </CardContent>
