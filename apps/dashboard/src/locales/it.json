@@ -589,6 +589,27 @@
       "conditionField": "Campo",
       "conditionValue": "Valore",
       "defaultName": "Automazione di {{name}}",
+      "cron": {
+        "title": "Frequenza",
+        "presetHourly": "Ogni ora",
+        "presetDaily": "Ogni giorno",
+        "presetWeekly": "Ogni settimana",
+        "presetMonthly": "Ogni mese",
+        "presetAdvanced": "Cron / Avanzato",
+        "timeLabel": "Orario di esecuzione (UTC)",
+        "dayOfWeekLabel": "Giorno della settimana",
+        "dayOfMonthLabel": "Giorno del mese",
+        "expressionPreview": "Espressione:",
+        "days": {
+          "1": "Lunedì",
+          "2": "Martedì",
+          "3": "Mercoledì",
+          "4": "Giovedì",
+          "5": "Venerdì",
+          "6": "Sabato",
+          "0": "Domenica"
+        }
+      },
       "errors": {
         "nameRequired": "Nome obbligatorio",
         "actionsMin": "Almeno un'azione richiesta",

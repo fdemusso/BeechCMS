@@ -1,7 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Automation, IAutomationRepository, IAutomationRunner, ContentRepository, Seed, AutomationEventPayload } from '@beechcms/core'
+import type { Automation, IAutomationRepository, ContentRepository, Seed, IIdGenerator } from '@beechcms/core'
 import { runCronAutomations } from '../cron-runner'
 import type { CronRunnerDeps } from '../cron-runner'
+
+vi.mock('../action-executors', () => ({
+  executeAction: vi.fn().mockResolvedValue(undefined),
+}))
+
+import { executeAction } from '../action-executors'
+const executeActionMock = executeAction as ReturnType<typeof vi.fn>
 
 // 2026-05-14T09:00:00Z → minute=0, hour=9, dow=4 (Thursday)
 const TICK = new Date('2026-05-14T09:00:00Z').getTime()
@@ -21,6 +28,11 @@ const SEED: Seed = {
   ],
 }
 
+const STUB_ID_GENERATOR: IIdGenerator = {
+  id: () => 'test-id',
+  uuid: () => 'test-uuid',
+}
+
 function makeAutomation(overrides: Partial<Automation> = {}): Automation {
   return {
     id: 'auto_01',
@@ -38,11 +50,9 @@ function makeAutomation(overrides: Partial<Automation> = {}): Automation {
 }
 
 function makeDeps(overrides: Partial<CronRunnerDeps> = {}): CronRunnerDeps & {
-  runSpy: ReturnType<typeof vi.fn>
   listSpy: ReturnType<typeof vi.fn>
   findActiveSpy: ReturnType<typeof vi.fn>
 } {
-  const runSpy = vi.fn().mockResolvedValue(undefined)
   const listSpy = vi.fn().mockResolvedValue({ items: [{ id: 'e1', title: 'Hello' }], total: 1 })
   const findActiveSpy = vi.fn().mockResolvedValue([makeAutomation()])
 
@@ -52,10 +62,10 @@ function makeDeps(overrides: Partial<CronRunnerDeps> = {}): CronRunnerDeps & {
       list: vi.fn(), findById: vi.fn(), create: vi.fn(),
       update: vi.fn(), toggle: vi.fn(), delete: vi.fn(),
     } as unknown as IAutomationRepository,
-    runner: { run: runSpy } as unknown as IAutomationRunner,
     contentRepository: { findMany: listSpy } as unknown as ContentRepository,
     getSeed: (slug: string) => slug === 'posts' ? SEED : null,
-    runSpy,
+    env: {},
+    idGenerator: STUB_ID_GENERATOR,
     listSpy,
     findActiveSpy,
     ...overrides,
@@ -63,16 +73,44 @@ function makeDeps(overrides: Partial<CronRunnerDeps> = {}): CronRunnerDeps & {
 }
 
 describe('runCronAutomations', () => {
+  beforeEach(() => {
+    executeActionMock.mockReset()
+    executeActionMock.mockResolvedValue(undefined)
+  })
+
   it('calls findActive with ("*", "cron")', async () => {
     const deps = makeDeps()
     await runCronAutomations(deps, TICK)
     expect(deps.findActiveSpy).toHaveBeenCalledWith('*', 'cron')
   })
 
-  it('invokes runner once per matching entry when one of two automations matches the tick', async () => {
+  it('batch actions (webhook, send_mail) run once per automation with _count context', async () => {
+    const entries = [{ id: 'e1', title: 'A' }, { id: 'e2', title: 'B' }]
+    const deps = makeDeps()
+    deps.listSpy.mockResolvedValue({ items: entries, total: 2 })
+
+    await runCronAutomations(deps, TICK)
+
+    expect(executeActionMock).toHaveBeenCalledTimes(1)
+    const [, ctx] = executeActionMock.mock.calls[0]
+    expect(ctx.entry).toMatchObject({ id: 'e1', title: 'A', _count: 2 })
+  })
+
+  it('per-entry actions (edit_field, create_entry) run once per matching entry', async () => {
+    const entries = [{ id: 'e1' }, { id: 'e2' }]
+    const deps = makeDeps()
+    deps.findActiveSpy.mockResolvedValue([makeAutomation({ actions: [{ type: 'edit_field', field: 'title', value: 'updated' }] })])
+    deps.listSpy.mockResolvedValue({ items: entries, total: 2 })
+
+    await runCronAutomations(deps, TICK)
+
+    expect(executeActionMock).toHaveBeenCalledTimes(2)
+    expect(executeActionMock.mock.calls[0][1].entry).toMatchObject({ id: 'e1' })
+    expect(executeActionMock.mock.calls[1][1].entry).toMatchObject({ id: 'e2' })
+  })
+
+  it('skips non-matching cron expression, runs matching one', async () => {
     const matchingAuto = makeAutomation({ id: 'auto_match', trigger_cron: '* * * * *' })
-    // 0 9 * * * also matches TICK (minute=0, hour=9) — wait, both match
-    // Use a non-matching cron for the second one
     const nonMatchingAuto = makeAutomation({ id: 'auto_skip', trigger_cron: '30 9 * * *' })
     const entries = [{ id: 'e1' }, { id: 'e2' }]
 
@@ -82,11 +120,8 @@ describe('runCronAutomations', () => {
 
     await runCronAutomations(deps, TICK)
 
-    // Only the matching automation fires, one call per entry
-    expect(deps.runSpy).toHaveBeenCalledTimes(2)
-    expect(deps.runSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ seedSlug: 'posts', event: 'cron', entry: entries[0] })
-    )
+    // webhook = batch, runs once for the matching automation only
+    expect(executeActionMock).toHaveBeenCalledTimes(1)
   })
 
   it('passes trigger_conditions as translated filters to repository.findMany', async () => {
@@ -114,8 +149,8 @@ describe('runCronAutomations', () => {
         { field: 'tags_list', op: 'isnotempty', value: null },
         { field: 'meta_json', op: 'eq', value: '{}' },
         { field: 'body_rich', op: 'contains', value: 'hello' },
-        { field: 'status', op: 'eq', value: 'draft' }, // system column
-        { field: 'unknown_custom', op: 'eq', value: 'test' }, // fallback text
+        { field: 'status', op: 'eq', value: 'draft' },
+        { field: 'unknown_custom', op: 'eq', value: 'test' },
       ],
     })
     const deps = makeDeps()
@@ -144,25 +179,26 @@ describe('runCronAutomations', () => {
 
     await runCronAutomations(deps, TICK)
 
-    expect(deps.runSpy).not.toHaveBeenCalled()
+    expect(executeActionMock).not.toHaveBeenCalled()
     expect(warnSpy).toHaveBeenCalledWith('[cron] unknown seed', expect.anything())
     warnSpy.mockRestore()
   })
 
-  it('continues processing remaining entries when runner.run throws on one', async () => {
+  it('continues processing remaining per-entry actions when one entry throws', async () => {
     const entries = [{ id: 'e1' }, { id: 'e2' }, { id: 'e3' }]
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const deps = makeDeps()
+    deps.findActiveSpy.mockResolvedValue([makeAutomation({ actions: [{ type: 'edit_field', field: 'title', value: 'x' }] })])
     deps.listSpy.mockResolvedValue({ items: entries, total: 3 })
-    deps.runSpy
-      .mockResolvedValueOnce(undefined)   // e1 ok
-      .mockRejectedValueOnce(new Error('boom'))  // e2 throws
-      .mockResolvedValueOnce(undefined)   // e3 ok
+    executeActionMock
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce(undefined)
 
     await runCronAutomations(deps, TICK)
 
-    expect(deps.runSpy).toHaveBeenCalledTimes(3)
-    expect(errorSpy).toHaveBeenCalledWith('[cron] entry processing failed', expect.anything())
+    expect(executeActionMock).toHaveBeenCalledTimes(3)
+    expect(errorSpy).toHaveBeenCalledWith('[cron] entry action failed', expect.anything())
     errorSpy.mockRestore()
   })
 
@@ -179,8 +215,22 @@ describe('runCronAutomations', () => {
     await runCronAutomations(deps, TICK)
 
     expect(errorSpy).toHaveBeenCalledWith('[cron] fetch entries failed', expect.anything())
-    // auto2 still processed
-    expect(deps.runSpy).toHaveBeenCalledTimes(1)
+    // auto2 still processed (webhook = batch, 1 call)
+    expect(executeActionMock).toHaveBeenCalledTimes(1)
+    errorSpy.mockRestore()
+  })
+
+  it('logs error and returns gracefully when findActive throws', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const deps = makeDeps()
+    deps.findActiveSpy.mockRejectedValueOnce(new Error('no such table'))
+
+    await expect(runCronAutomations(deps, TICK)).resolves.toBeUndefined()
+    expect(errorSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[cron] Failed to fetch automations'),
+      expect.anything(),
+    )
+    expect(executeActionMock).not.toHaveBeenCalled()
     errorSpy.mockRestore()
   })
 
@@ -189,6 +239,15 @@ describe('runCronAutomations', () => {
     deps.findActiveSpy.mockResolvedValue([])
 
     await expect(runCronAutomations(deps, TICK)).resolves.toBeUndefined()
-    expect(deps.runSpy).not.toHaveBeenCalled()
+    expect(executeActionMock).not.toHaveBeenCalled()
+  })
+
+  it('skips automation silently when entries list is empty', async () => {
+    const deps = makeDeps()
+    deps.listSpy.mockResolvedValue({ items: [], total: 0 })
+
+    await runCronAutomations(deps, TICK)
+
+    expect(executeActionMock).not.toHaveBeenCalled()
   })
 })

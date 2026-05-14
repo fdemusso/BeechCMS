@@ -1,10 +1,10 @@
 import { useTranslation } from 'react-i18next'
 import { useFormContext } from 'react-hook-form'
 import { Zap } from 'lucide-react'
-import { Input } from '@/components/ui/input'
 import type { Branch } from '@beechcms/core'
 import { TriggerSelector } from './trigger-selector'
 import { TriggerConditions } from './trigger-conditions'
+import { CronSchedulerUi } from './cron-scheduler-ui'
 import type { AutomationFormValues } from '../../schema/automation.schema'
 
 interface TriggerSectionProps {
@@ -13,7 +13,7 @@ interface TriggerSectionProps {
 
 export function TriggerSection({ seedBranches }: TriggerSectionProps) {
   const { t } = useTranslation()
-  const { watch, setValue, register, formState: { errors } } = useFormContext<AutomationFormValues>()
+  const { watch, setValue, formState: { errors } } = useFormContext<AutomationFormValues>()
   const triggerEvent = watch('trigger_event')
   const isCron = triggerEvent === 'cron'
 
@@ -35,22 +35,7 @@ export function TriggerSection({ seedBranches }: TriggerSectionProps) {
         <p className="mt-1 text-xs text-destructive">{t(errors.trigger_event.message ?? '')}</p>
       )}
 
-      {isCron && (
-        <div className="mt-3">
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">
-            {t('automations.editor.cronExpression')}
-          </label>
-          <Input
-            {...register('trigger_cron')}
-            placeholder="0 9 * * 1"
-            className="h-8 text-sm font-mono"
-          />
-          {errors.trigger_cron && (
-            <p className="mt-1 text-xs text-destructive">{t(errors.trigger_cron.message ?? '')}</p>
-          )}
-          <p className="mt-1 text-[10px] text-muted-foreground">{t('automations.editor.cronHint')}</p>
-        </div>
-      )}
+      {isCron && <CronSchedulerUi />}
 
       {!isCron && triggerEvent && (
         <TriggerConditions seedBranches={seedBranches} />

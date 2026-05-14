@@ -125,7 +125,7 @@ export function ContentListPage() {
 
   const { mutateAsync: deleteContent } = useDeleteContent()
 
-  const { data: automationsData } = useAutomations(slug)
+  useAutomations(slug)
 
   const data = React.useMemo(() => listData?.items ?? [], [listData])
   const totalRows = listData?.total ?? 0

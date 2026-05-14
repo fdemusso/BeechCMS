@@ -1,6 +1,6 @@
 import { createBeechApp } from './factory'
 import { SeedRegistry, SystemIdGenerator } from '@beechcms/core'
-import { runCronAutomations, AutomationRunner } from './features/automations'
+import { runCronAutomations } from './features/automations'
 import { D1AutomationRepository } from './shared/automations.repository.d1'
 import { D1ContentRepository } from './shared/content.repository.d1'
 import type { Env } from './types'
@@ -28,6 +28,8 @@ export default {
   fetch: app.fetch,
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    const scheduledTime = controller?.scheduledTime ?? Date.now()
+
     if (!env.DB) {
       console.warn('[cron] D1 binding missing. Skipping cron automations.')
       return
@@ -35,22 +37,19 @@ export default {
 
     const automationRepository = new D1AutomationRepository(env.DB)
     const contentRepository = new D1ContentRepository(env.DB)
-    const idGenerator = SystemIdGenerator
     const registry = new SeedRegistry(validSeeds)
     const getSeed = (slug: string) => registry.get(slug) ?? null
 
-    const runner = new AutomationRunner({
-      automationRepository,
-      contentRepository,
-      getSeed,
-      idGenerator,
-      env: env as unknown as Record<string, string | undefined>,
-    })
-
     ctx.waitUntil(
       runCronAutomations(
-        { automationRepository, runner, contentRepository, getSeed },
-        controller.scheduledTime,
+        {
+          automationRepository,
+          contentRepository,
+          getSeed,
+          env: env as unknown as Record<string, string | undefined>,
+          idGenerator: SystemIdGenerator,
+        },
+        scheduledTime,
       ),
     )
   },

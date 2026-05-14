@@ -589,6 +589,27 @@
       "conditionField": "Field",
       "conditionValue": "Value",
       "defaultName": "{{name}}'s automation",
+      "cron": {
+        "title": "Frequency",
+        "presetHourly": "Hourly",
+        "presetDaily": "Daily",
+        "presetWeekly": "Weekly",
+        "presetMonthly": "Monthly",
+        "presetAdvanced": "Cron / Advanced",
+        "timeLabel": "Execution time (UTC)",
+        "dayOfWeekLabel": "Day of the week",
+        "dayOfMonthLabel": "Day of the month",
+        "expressionPreview": "Expression:",
+        "days": {
+          "1": "Monday",
+          "2": "Tuesday",
+          "3": "Wednesday",
+          "4": "Thursday",
+          "5": "Friday",
+          "6": "Saturday",
+          "0": "Sunday"
+        }
+      },
       "errors": {
         "nameRequired": "Name is required",
         "actionsMin": "At least one action is required",
