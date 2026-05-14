@@ -60,24 +60,57 @@ describe('GET /', () => {
 })
 
 describe('POST /', () => {
-  it('returns 400 for invalid body', async () => {
+  it('returns 400 invalid-json for malformed JSON body', async () => {
     const app = buildApp(makeStub())
     const res = await app.request('/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seed_slug: 'posts' }),
+      body: 'malformed-not-json',
     })
     expect(res.status).toBe(400)
+    const body = await res.json() as { type: string }
+    expect(body.type).toContain('invalid-json')
   })
 
-  it('returns 201 with id for valid body', async () => {
+  it('returns 400 automation-validation-failed for schema non-compliant body', async () => {
+    const app = buildApp(makeStub())
+    const res = await app.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ seed_slug: 'posts' }), // missing name, trigger_event, actions
+    })
+    expect(res.status).toBe(400)
+    const body = await res.json() as { type: string }
+    expect(body.type).toContain('automation-validation-failed')
+  })
+
+  it('returns 201 with id for valid body including optional trigger fields', async () => {
     const app = buildApp(makeStub())
     const res = await app.request('/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         seed_slug: 'posts',
-        name: 'test',
+        name: 'test-cron-automation',
+        trigger_event: 'cron',
+        trigger_cron: '0 0 * * *',
+        trigger_conditions: [{ field: 'status', op: 'eq', value: 'draft' }],
+        actions: [{ type: 'webhook', url: 'https://example.com' }],
+      }),
+    })
+    expect(res.status).toBe(201)
+    const body = await res.json() as { id: string }
+    expect(body.id).toBe('new-id')
+  })
+
+  it('returns 201 with id for valid body omitting optional trigger fields', async () => {
+    const app = buildApp(makeStub())
+    const res = await app.request('/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        seed_slug: 'posts',
+        name: 'test-create-automation',
         trigger_event: 'create',
         actions: [{ type: 'webhook', url: 'https://example.com' }],
       }),
@@ -113,6 +146,30 @@ describe('PUT /:id', () => {
     expect(res.status).toBe(404)
   })
 
+  it('returns 400 invalid-json for malformed JSON body', async () => {
+    const app = buildApp(makeStub())
+    const res = await app.request('/test-id', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'malformed-not-json',
+    })
+    expect(res.status).toBe(400)
+    const body = await res.json() as { type: string }
+    expect(body.type).toContain('invalid-json')
+  })
+
+  it('returns 400 automation-validation-failed for invalid update values', async () => {
+    const app = buildApp(makeStub())
+    const res = await app.request('/test-id', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 12345 }), // name must be string
+    })
+    expect(res.status).toBe(400)
+    const body = await res.json() as { type: string }
+    expect(body.type).toContain('automation-validation-failed')
+  })
+
   it('returns 400 when trigger_event is cron and no trigger_cron in body or existing', async () => {
     const existingNoCron: Automation = { ...baseAutomation, trigger_event: 'create', trigger_cron: null }
     const app = buildApp(makeStub({ findById: vi.fn().mockResolvedValue(existingNoCron) }))
@@ -138,6 +195,40 @@ describe('PUT /:id', () => {
 })
 
 describe('PATCH /:id/toggle', () => {
+  it('returns 404 when automation not found', async () => {
+    const app = buildApp(makeStub({ findById: vi.fn().mockResolvedValue(null) }))
+    const res = await app.request('/unknown-id/toggle', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: false }),
+    })
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 400 invalid-json for malformed JSON body', async () => {
+    const app = buildApp(makeStub())
+    const res = await app.request('/test-id/toggle', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: 'malformed-not-json',
+    })
+    expect(res.status).toBe(400)
+    const body = await res.json() as { type: string }
+    expect(body.type).toContain('invalid-json')
+  })
+
+  it('returns 400 automation-validation-failed for invalid payload', async () => {
+    const app = buildApp(makeStub())
+    const res = await app.request('/test-id/toggle', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: 'not-a-boolean' }),
+    })
+    expect(res.status).toBe(400)
+    const body = await res.json() as { type: string }
+    expect(body.type).toContain('automation-validation-failed')
+  })
+
   it('returns 204 and calls toggle(id, false)', async () => {
     const stub = makeStub()
     const app = buildApp(stub)

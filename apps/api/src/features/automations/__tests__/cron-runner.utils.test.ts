@@ -117,4 +117,24 @@ describe('cronMatches', () => {
       expect(cronMatches('5-30/5 * * * *', ts('2026-05-14T09:35:00Z'))).toBe(false)
     })
   })
+
+  describe('edge cases and malformed field expressions', () => {
+    it('returns false for non-finite or zero step', () => {
+      expect(cronMatches('*/0 * * * *', ts('2026-05-14T09:00:00Z'))).toBe(false)
+      expect(cronMatches('*/abc * * * *', ts('2026-05-14T09:00:00Z'))).toBe(false)
+      expect(cronMatches('*/-5 * * * *', ts('2026-05-14T09:00:00Z'))).toBe(false)
+    })
+
+    it('returns false when step is applied to a single value instead of range or wildcard', () => {
+      expect(cronMatches('5/2 * * * *', ts('2026-05-14T09:05:00Z'))).toBe(false)
+    })
+
+    it('returns false for malformed range bounds', () => {
+      expect(cronMatches('abc-def * * * *', ts('2026-05-14T09:00:00Z'))).toBe(false)
+    })
+
+    it('returns false for invalid single numeric field', () => {
+      expect(cronMatches('abc * * * *', ts('2026-05-14T09:00:00Z'))).toBe(false)
+    })
+  })
 })

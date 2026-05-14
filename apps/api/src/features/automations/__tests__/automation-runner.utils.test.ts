@@ -63,6 +63,11 @@ describe('evaluateConditions', () => {
   it('missing field evaluates against undefined', () => {
     expect(evaluateConditions([{ field: 'missing', op: 'isempty', value: null }], {})).toBe(true)
   })
+
+  it('returns false for unknown operator (edge case)', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(evaluateConditions([{ field: 'status', op: 'unknown' as any, value: 'test' }], { status: 'test' })).toBe(false)
+  })
 })
 
 describe('interpolate', () => {
@@ -109,5 +114,15 @@ describe('interpolate', () => {
     const res = interpolate('Hello {name}! From {city}', {}, '[mancante]', (f) => missing.push(f))
     expect(res).toBe('Hello [mancante]! From [mancante]')
     expect(missing).toEqual(['name', 'city'])
+  })
+
+  it('returns default value when nested object lookup encounters primitive or null intermediate parts', () => {
+    const entry = { author: 'Flavio' } // not an object
+    expect(interpolate('Author Name: {author.name}', entry, '[missing]')).toBe('Author Name: [missing]')
+  })
+
+  it('returns empty string when template is falsy', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect(interpolate('' as any, {})).toBe('')
   })
 })

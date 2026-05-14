@@ -180,6 +180,30 @@ describe('send_mail executor', () => {
     expect(sendAutomationMail).not.toHaveBeenCalled()
     expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Execution skipped'))
   })
+
+  it('logs error and rethrows when sendAutomationMail fails', async () => {
+    const { sendAutomationMail } = await import('../../email')
+    vi.mocked(sendAutomationMail).mockRejectedValueOnce(new Error('provider error'))
+    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const ctx = makeCtx()
+
+    await expect(
+      executeAction(
+        {
+          type: 'send_mail',
+          to: 'test@beech.io',
+          subject_template: 'Hello',
+          body_template: 'World',
+        },
+        ctx,
+      ),
+    ).rejects.toThrow('provider error')
+
+    expect(errSpy).toHaveBeenCalledWith(
+      expect.stringContaining('failed to send automation email'),
+      expect.any(Error),
+    )
+  })
 })
 
 // ── edit_field ────────────────────────────────────────────────────────────────
@@ -239,5 +263,11 @@ describe('create_entry executor', () => {
     await expect(
       executeAction({ type: 'create_entry', seed_slug: 'unknown', field_map: {} }, ctx),
     ).rejects.toThrow('unknown seed unknown')
+  })
+
+  it('throws error for unknown action type to cover exhaustive default check', async () => {
+    const ctx = makeCtx()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await expect(executeAction({ type: 'unknown_custom_action' } as any, ctx)).rejects.toThrow('unknown action type')
   })
 })

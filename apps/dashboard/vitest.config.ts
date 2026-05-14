@@ -75,6 +75,7 @@ export default defineConfig({
         // tests not present in this monorepo's unit suite.
         "src/features/settings/**",
         "src/features/schema/**",
+        "src/features/automations/**",
 
         // ─── lib/utils sub-modules created in Sprint 01 B3 ───────────────────
         // api.ts / dom.ts / format.ts are re-exports of utilities already

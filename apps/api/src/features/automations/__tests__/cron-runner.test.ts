@@ -10,7 +10,15 @@ const SEED: Seed = {
   slug: 'posts',
   label: 'Post',
   displayNameAlias: 'title',
-  branches: [{ id: 'br_01', alias: 'title', type: 'text', label: 'Title' }],
+  branches: [
+    { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
+    { id: 'br_02', alias: 'count', type: 'number', label: 'Count' },
+    { id: 'br_03', alias: 'published', type: 'boolean', label: 'Published' },
+    { id: 'br_04', alias: 'publish_date', type: 'date', label: 'Publish Date' },
+    { id: 'br_05', alias: 'tags_list', type: 'tags', label: 'Tags' },
+    { id: 'br_06', alias: 'meta_json', type: 'json', label: 'Meta JSON' },
+    { id: 'br_07', alias: 'body_rich', type: 'richtext', label: 'Body' },
+  ],
 }
 
 function makeAutomation(overrides: Partial<Automation> = {}): Automation {
@@ -94,6 +102,37 @@ describe('runCronAutomations', () => {
     const options = call[1]
     expect(options.filters).toEqual([
       { column: 'title', type: 'text', conditions: [{ op: 'eq', value: 'Hello' }] },
+    ])
+  })
+
+  it('maps all branch types, system columns, unknown columns, and special operators correctly', async () => {
+    const auto = makeAutomation({
+      trigger_conditions: [
+        { field: 'count', op: 'gt', value: 5 },
+        { field: 'published', op: 'eq', value: true },
+        { field: 'publish_date', op: 'isempty', value: null },
+        { field: 'tags_list', op: 'isnotempty', value: null },
+        { field: 'meta_json', op: 'eq', value: '{}' },
+        { field: 'body_rich', op: 'contains', value: 'hello' },
+        { field: 'status', op: 'eq', value: 'draft' }, // system column
+        { field: 'unknown_custom', op: 'eq', value: 'test' }, // fallback text
+      ],
+    })
+    const deps = makeDeps()
+    deps.findActiveSpy.mockResolvedValue([auto])
+
+    await runCronAutomations(deps, TICK)
+
+    const call = deps.listSpy.mock.calls[0]
+    expect(call[1].filters).toEqual([
+      { column: 'count', type: 'number', conditions: [{ op: 'gt', value: 5 }] },
+      { column: 'published', type: 'boolean', conditions: [{ op: 'eq', value: true }] },
+      { column: 'publish_date', type: 'date', conditions: [{ op: 'is_empty', value: null }] },
+      { column: 'tags_list', type: 'tags', conditions: [{ op: 'is_not_empty', value: null }] },
+      { column: 'meta_json', type: 'json', conditions: [{ op: 'eq', value: '{}' }] },
+      { column: 'body_rich', type: 'text', conditions: [{ op: 'contains', value: 'hello' }] },
+      { column: 'status', type: 'system', conditions: [{ op: 'eq', value: 'draft' }] },
+      { column: 'unknown_custom', type: 'text', conditions: [{ op: 'eq', value: 'test' }] },
     ])
   })
 
