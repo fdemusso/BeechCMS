@@ -14,7 +14,7 @@ import { D1SearchRepository } from '../shared/d1-search.repository'
 import { D1AnalyticsRepository } from '../shared/d1-analytics.repository'
 import { D1ContentScanRepository } from '../shared/d1-content-scan.repository'
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IScheduler } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations'
 import { D1AutomationRepository } from '../shared/automations.repository.d1'
@@ -37,6 +37,7 @@ interface RepositoryOverrides {
   contentScanRepository?: IContentScanRepository
   clock?: IClock
   idGenerator?: IIdGenerator
+  automationRepository?: IAutomationRepository
   automationRunner?: IAutomationRunner
   scheduler?: IScheduler
 }
@@ -70,10 +71,14 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('contentScanRepository', overrides?.contentScanRepository ?? new D1ContentScanRepository(database))
     context.set('clock', resolvedClock)
     context.set('idGenerator', resolvedIdGenerator)
+    const automationRepository = overrides?.automationRepository
+      ?? new D1AutomationRepository(database)
+
+    context.set('automationRepository', automationRepository)
     context.set(
       'automationRunner',
       overrides?.automationRunner ?? new AutomationRunner({
-        automationRepository: new D1AutomationRepository(database),
+        automationRepository,
         contentRepository: context.get('repository'),
         getSeed: context.get('getSeed'),
         idGenerator: resolvedIdGenerator,

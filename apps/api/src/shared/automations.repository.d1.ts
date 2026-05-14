@@ -37,12 +37,93 @@ export class D1AutomationRepository implements IAutomationRepository {
     return (result.results ?? []).map(rowToAutomation)
   }
 
-  list(_seedSlug: string): Promise<Automation[]>          { throw new Error('not implemented in sprint 08') }
-  findById(_id: string): Promise<Automation | null>       { throw new Error('not implemented in sprint 08') }
-  create(_input: CreateAutomationInput): Promise<string>  { throw new Error('not implemented in sprint 08') }
-  update(_id: string, _input: UpdateAutomationInput): Promise<void> { throw new Error('not implemented in sprint 08') }
-  toggle(_id: string, _enabled: boolean): Promise<void>  { throw new Error('not implemented in sprint 08') }
-  delete(_id: string): Promise<void>                      { throw new Error('not implemented in sprint 08') }
+  async list(seedSlug: string): Promise<Automation[]> {
+    const result = await this.db
+      .prepare(`SELECT * FROM automations WHERE seed_slug = ? ORDER BY created_at DESC`)
+      .bind(seedSlug)
+      .all<AutomationRow>()
+    return (result.results ?? []).map(rowToAutomation)
+  }
+
+  async findById(id: string): Promise<Automation | null> {
+    const row = await this.db
+      .prepare(`SELECT * FROM automations WHERE id = ?`)
+      .bind(id)
+      .first<AutomationRow>()
+    return row ? rowToAutomation(row) : null
+  }
+
+  async create(input: CreateAutomationInput): Promise<string> {
+    const id = crypto.randomUUID()
+    const now = Math.floor(Date.now() / 1000)
+    await this.db
+      .prepare(
+        `INSERT INTO automations
+           (id, seed_slug, name, enabled, trigger_event, trigger_cron,
+            trigger_conditions, actions, created_at, updated_at)
+         VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+      )
+      .bind(
+        id,
+        input.seed_slug,
+        input.name,
+        input.trigger_event,
+        input.trigger_cron ?? null,
+        input.trigger_conditions ? JSON.stringify(input.trigger_conditions) : null,
+        JSON.stringify(input.actions),
+        now,
+        now,
+      )
+      .run()
+    return id
+  }
+
+  async update(id: string, input: UpdateAutomationInput): Promise<void> {
+    const now = Math.floor(Date.now() / 1000)
+    const fields: string[] = []
+    const values: unknown[] = []
+
+    const map: Record<string, unknown> = {
+      seed_slug: input.seed_slug,
+      name: input.name,
+      trigger_event: input.trigger_event,
+      trigger_cron: input.trigger_cron,
+      trigger_conditions:
+        input.trigger_conditions !== undefined
+          ? input.trigger_conditions === null
+            ? null
+            : JSON.stringify(input.trigger_conditions)
+          : undefined,
+      actions: input.actions !== undefined ? JSON.stringify(input.actions) : undefined,
+    }
+
+    for (const [column, value] of Object.entries(map)) {
+      if (value !== undefined) {
+        fields.push(`${column} = ?`)
+        values.push(value)
+      }
+    }
+
+    if (fields.length === 0) return
+
+    values.push(now, id)
+    await this.db
+      .prepare(`UPDATE automations SET ${fields.join(', ')}, updated_at = ? WHERE id = ?`)
+      .bind(...values)
+      .run()
+  }
+
+  async toggle(id: string, enabled: boolean): Promise<void> {
+    const now = Math.floor(Date.now() / 1000)
+    await this.db
+      .prepare(`UPDATE automations SET enabled = ?, updated_at = ? WHERE id = ?`)
+      .bind(enabled ? 1 : 0, now, id)
+      .run()
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.db.prepare(`DELETE FROM automations WHERE id = ?`).bind(id).run()
+  }
 }
 
 function rowToAutomation(row: AutomationRow): Automation {

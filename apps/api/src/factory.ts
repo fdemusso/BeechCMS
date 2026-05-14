@@ -26,6 +26,7 @@ import { draftApp } from './features/draft'
 import { settingsApp } from './features/settings/settings.handler'
 import { schemaApp } from './features/schema/schema.handler'
 import { notificationsApp } from './features/notifications'
+import { automationsApp } from './features/automations'
 import { statsApp } from './features/stats'
 import { uploadRoutes, serveMediaHandler } from './upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
@@ -296,6 +297,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   apiProtected.route('/content', draftApp)
   apiProtected.route('/content', contentFeature)
   apiProtected.route('/widget', widgetApp)
+  apiProtected.route('/automations', automationsApp)
   apiProtected.route('/', uploadRoutes)
   
   // 6. Public API (must be registered before apiProtected to avoid auth middleware interception)
