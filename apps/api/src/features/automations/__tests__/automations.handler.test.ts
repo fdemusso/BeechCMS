@@ -12,6 +12,7 @@ const baseAutomation: Automation = {
   trigger_cron: null,
   trigger_conditions: null,
   actions: [{ type: 'webhook', url: 'https://example.com' }],
+  context: null,
   created_at: 1000,
   updated_at: 1000,
 }

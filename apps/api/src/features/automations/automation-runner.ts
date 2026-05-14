@@ -7,7 +7,11 @@ import type {
   IIdGenerator,
 } from '@beechcms/core'
 import { evaluateConditions } from './automation-runner.utils'
+import { resolveAutomationContext } from './context-resolver'
 import { executeAction } from './action-executors'
+
+// TODO Sprint 8 (Task 13): replace evaluateConditions with evaluateWhen() once
+// recursive WhenNode groups are implemented.
 
 export interface AutomationRunnerDeps {
   automationRepository: IAutomationRepository
@@ -30,6 +34,12 @@ export class AutomationRunner implements IAutomationRunner {
     for (const automation of automations) {
       if (!evaluateConditions(automation.trigger_conditions, entry)) continue
 
+      const resolverDeps = {
+        contentRepository: this.deps.contentRepository,
+        getSeed: this.deps.getSeed,
+      }
+      const resolved = await resolveAutomationContext(resolverDeps, automation, entry, [entry])
+
       for (const action of automation.actions) {
         try {
           await executeAction(action, {
@@ -39,6 +49,7 @@ export class AutomationRunner implements IAutomationRunner {
             getSeed: this.deps.getSeed,
             seed,
             idGenerator: this.deps.idGenerator,
+            context: resolved,
           })
         } catch (error) {
           console.error('[automations] action failed', {

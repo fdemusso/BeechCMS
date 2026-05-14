@@ -1,4 +1,5 @@
 import type { AutomationAction } from '@beechcms/core'
+import type { ResolvedContext } from '../context-resolver'
 import { sendAutomationMail } from '../../email'
 import { interpolate } from '../automation-runner.utils'
 
@@ -6,15 +7,15 @@ type SendMailAction = Extract<AutomationAction, { type: 'send_mail' }>
 
 export async function executeSendMail(
   action: SendMailAction,
-  entry: Record<string, unknown>,
+  context: ResolvedContext,
   env: Record<string, string | undefined>,
 ): Promise<void> {
   const missingFields: string[] = []
   const logMissing = (field: string) => missingFields.push(field)
 
-  const to = interpolate(action.to, entry, '[missing]', logMissing)
-  const subject = interpolate(action.subject_template, entry, '[missing]', logMissing)
-  const body = interpolate(action.body_template, entry, '[missing]', logMissing)
+  const to = interpolate(action.to, context, '[missing]', logMissing)
+  const subject = interpolate(action.subject_template, context, '[missing]', logMissing)
+  const body = interpolate(action.body_template, context, '[missing]', logMissing)
 
   if (missingFields.length > 0) {
     console.warn('[automations:send_mail] placeholders evaluated to default value due to missing concrete data:', missingFields)

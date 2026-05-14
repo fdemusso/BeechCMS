@@ -2,6 +2,7 @@ import type {
   IAutomationRepository,
   Automation,
   AutomationAction,
+  AutomationContextLoad,
   TriggerCondition,
   AutomationTriggerEvent,
   CreateAutomationInput,
@@ -17,6 +18,7 @@ interface AutomationRow {
   trigger_cron: string | null
   trigger_conditions: string | null
   actions: string
+  context: string | null
   created_at: number
   updated_at: number
 }
@@ -60,8 +62,8 @@ export class D1AutomationRepository implements IAutomationRepository {
       .prepare(
         `INSERT INTO automations
            (id, seed_slug, name, enabled, trigger_event, trigger_cron,
-            trigger_conditions, actions, created_at, updated_at)
-         VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?)`,
+            trigger_conditions, actions, context, created_at, updated_at)
+         VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .bind(
         id,
@@ -71,6 +73,7 @@ export class D1AutomationRepository implements IAutomationRepository {
         input.trigger_cron ?? null,
         input.trigger_conditions ? JSON.stringify(input.trigger_conditions) : null,
         JSON.stringify(input.actions),
+        input.context ? JSON.stringify(input.context) : null,
         now,
         now,
       )
@@ -95,6 +98,12 @@ export class D1AutomationRepository implements IAutomationRepository {
             : JSON.stringify(input.trigger_conditions)
           : undefined,
       actions: input.actions !== undefined ? JSON.stringify(input.actions) : undefined,
+      context:
+        input.context !== undefined
+          ? input.context === null
+            ? null
+            : JSON.stringify(input.context)
+          : undefined,
     }
 
     for (const [column, value] of Object.entries(map)) {
@@ -138,6 +147,9 @@ function rowToAutomation(row: AutomationRow): Automation {
       ? (JSON.parse(row.trigger_conditions) as TriggerCondition[])
       : null,
     actions: JSON.parse(row.actions) as AutomationAction[],
+    context: row.context
+      ? (JSON.parse(row.context) as AutomationContextLoad[])
+      : null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }

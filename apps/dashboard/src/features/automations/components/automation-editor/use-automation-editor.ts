@@ -11,8 +11,10 @@ import {
   DEFAULT_ACTION_ITEM,
   type AutomationFormValues,
   type ActionFormItem,
+  type ContextLoadForm,
   type FieldMapPair,
 } from '../../schema/automation.schema'
+import type { AutomationContextLoad } from '@beechcms/core'
 
 function actionToFormItem(action: AutomationAction): ActionFormItem {
   const base = { ...DEFAULT_ACTION_ITEM }
@@ -53,6 +55,35 @@ function actionToFormItem(action: AutomationAction): ActionFormItem {
   }
 }
 
+function contextLoadToApi(c: ContextLoadForm): AutomationContextLoad {
+  const selector: AutomationContextLoad['selector'] =
+    c.selector_kind === 'byid'
+      ? { kind: 'byid', id: c.byid_value }
+      : { kind: c.selector_kind }
+
+  return {
+    as: c.as,
+    seed_slug: c.seed_slug,
+    selector,
+    order_by: c.order_by || undefined,
+    order: c.order,
+    limit: c.limit,
+  }
+}
+
+function contextLoadFromApi(c: AutomationContextLoad): ContextLoadForm {
+  const sel = c.selector ?? { kind: 'lastone' }
+  return {
+    as: c.as,
+    seed_slug: c.seed_slug,
+    selector_kind: sel.kind === 'where' ? 'lastone' : sel.kind,
+    byid_value: sel.kind === 'byid' ? sel.id : '',
+    order_by: c.order_by ?? '',
+    order: c.order ?? 'desc',
+    limit: c.limit ?? 100,
+  }
+}
+
 function formToApiPayload(values: AutomationFormValues, seedSlug: string) {
   return {
     seed_slug: seedSlug,
@@ -63,6 +94,7 @@ function formToApiPayload(values: AutomationFormValues, seedSlug: string) {
       values.trigger_event !== 'cron' && values.trigger_conditions.length > 0
         ? values.trigger_conditions.map((c) => ({ field: c.field, op: c.op, value: c.value }))
         : null,
+    context: values.context.length > 0 ? values.context.map(contextLoadToApi) : null,
     actions: values.actions.map((a) => {
       switch (a.type) {
         case 'webhook':
@@ -128,6 +160,7 @@ export function useAutomationEditor({
             op: c.op,
             value: String(c.value ?? ''),
           })),
+          context: (automation.context ?? []).map(contextLoadFromApi),
           actions: automation.actions.map(actionToFormItem),
         }
       : {
@@ -135,6 +168,7 @@ export function useAutomationEditor({
           trigger_event: undefined as any,
           trigger_cron: '',
           trigger_conditions: [],
+          context: [],
           actions: [],
         },
   })
@@ -150,6 +184,7 @@ export function useAutomationEditor({
           op: c.op,
           value: String(c.value ?? ''),
         })),
+        context: (automation.context ?? []).map(contextLoadFromApi),
         actions: automation.actions.map(actionToFormItem),
       })
     } else {
@@ -158,6 +193,7 @@ export function useAutomationEditor({
         trigger_event: undefined as any,
         trigger_cron: '',
         trigger_conditions: [],
+        context: [],
         actions: [],
       })
     }

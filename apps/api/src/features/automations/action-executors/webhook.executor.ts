@@ -1,14 +1,16 @@
 import type { AutomationAction } from '@beechcms/core'
+import type { ResolvedContext } from '../context-resolver'
 import { interpolate } from '../automation-runner.utils'
 
 type WebhookAction = Extract<AutomationAction, { type: 'webhook' }>
 
 export async function executeWebhook(
   action: WebhookAction,
-  entry: Record<string, unknown>,
+  context: ResolvedContext,
 ): Promise<void> {
+  const entry = context.triggerEntry ?? {}
   const body = action.body_template
-    ? interpolate(action.body_template, entry)
+    ? interpolate(action.body_template, context)
     : JSON.stringify(entry)
 
   const response = await fetch(action.url, {

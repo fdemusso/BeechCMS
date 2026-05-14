@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS automations (
   trigger_event      TEXT    NOT NULL CHECK(trigger_event IN ('create','update','delete','cron')),
   trigger_cron       TEXT,
   trigger_conditions TEXT,
+  context            TEXT,
   actions            TEXT    NOT NULL,
   created_at         INTEGER NOT NULL DEFAULT (unixepoch()),
   updated_at         INTEGER NOT NULL DEFAULT (unixepoch())

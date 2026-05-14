@@ -675,6 +675,23 @@
       "deleted": "Automation deleted",
       "toggled": "Automation updated",
       "error": "Operation failed"
+    },
+    "context": {
+      "title": "Context",
+      "add": "Load data",
+      "load": "Load",
+      "empty": "No context loads. Add one to reference data from other seeds.",
+      "as": "Variable name",
+      "seed": "Seed",
+      "seedPlaceholder": "Choose a seed...",
+      "selector": "Entry selector",
+      "byidValue": "Entry ID",
+      "orderBy": "Order by field",
+      "limit": "Limit",
+      "selector.lastone": "Most recent",
+      "selector.firstone": "Oldest",
+      "selector.all": "All matching entries",
+      "selector.byid": "Specific entry by ID"
     }
   }
 }

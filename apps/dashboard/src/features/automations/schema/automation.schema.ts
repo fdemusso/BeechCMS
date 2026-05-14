@@ -1,5 +1,6 @@
 // Mirror of apps/api/src/features/automations/automations.schema.ts
 // Keep structurally identical. Changes here must be reflected there and vice versa.
+// TODO Sprint 8 (Task 14): add recursive whenNodeSchema for WhenNode validation.
 import { z } from 'zod'
 import type { AutomationTriggerEvent, TriggerCondition } from '@beechcms/core'
 
@@ -33,11 +34,24 @@ export type TriggerConditionForm = {
   value: string
 }
 
+export type ContextSelectorKind = 'lastone' | 'firstone' | 'all' | 'byid'
+
+export type ContextLoadForm = {
+  as: string
+  seed_slug: string
+  selector_kind: ContextSelectorKind
+  byid_value: string
+  order_by: string
+  order: 'asc' | 'desc'
+  limit: number
+}
+
 export type AutomationFormValues = {
   name: string
   trigger_event: AutomationTriggerEvent
   trigger_cron: string
   trigger_conditions: TriggerConditionForm[]
+  context: ContextLoadForm[]
   actions: ActionFormItem[]
 }
 
@@ -88,6 +102,26 @@ const actionFormItemSchema = z
     }
   })
 
+const contextLoadFormSchema = z.object({
+  as: z.string().min(1),
+  seed_slug: z.string().min(1),
+  selector_kind: z.enum(['lastone', 'firstone', 'all', 'byid']),
+  byid_value: z.string(),
+  order_by: z.string(),
+  order: z.enum(['asc', 'desc']),
+  limit: z.number().int().min(1).max(1000),
+})
+
+export const DEFAULT_CONTEXT_LOAD: ContextLoadForm = {
+  as: '',
+  seed_slug: '',
+  selector_kind: 'lastone',
+  byid_value: '',
+  order_by: '',
+  order: 'desc',
+  limit: 100,
+}
+
 export const automationFormSchema = z
   .object({
     name: z.string().min(1, 'automations.editor.errors.nameRequired').max(100),
@@ -100,6 +134,7 @@ export const automationFormSchema = z
         value: z.string(),
       })
     ),
+    context: z.array(contextLoadFormSchema),
     actions: z.array(actionFormItemSchema).min(1, 'automations.editor.errors.actionsMin'),
   })
   .superRefine((data, ctx) => {

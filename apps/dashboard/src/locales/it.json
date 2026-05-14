@@ -675,6 +675,23 @@
       "deleted": "Automazione eliminata",
       "toggled": "Automazione aggiornata",
       "error": "Errore durante l'operazione"
+    },
+    "context": {
+      "title": "Contesto",
+      "add": "Carica dati",
+      "load": "Caricamento",
+      "empty": "Nessun caricamento contesto. Aggiungine uno per fare riferimento a dati di altri seed.",
+      "as": "Nome variabile",
+      "seed": "Seed",
+      "seedPlaceholder": "Scegli un seed...",
+      "selector": "Selettore entry",
+      "byidValue": "ID entry",
+      "orderBy": "Ordina per campo",
+      "limit": "Limite",
+      "selector.lastone": "Più recente",
+      "selector.firstone": "Meno recente",
+      "selector.all": "Tutte le entry corrispondenti",
+      "selector.byid": "Entry specifica per ID"
     }
   }
 }

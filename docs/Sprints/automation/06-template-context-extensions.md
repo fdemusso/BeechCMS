@@ -269,40 +269,42 @@ SECTION 4 — DELIVERABLES
 
 Single PR. Order within a file matters; files are independent.
 
-  Task 1 — Types
+  [x] Task 1 — Types
     `packages/core/src/automations.types.ts`
       + `AutomationContextLoad`, `AutomationContextSelector`
       + `Automation.context?: AutomationContextLoad[]`
 
-  Task 2 — D1 migration
+  [x] Task 2 — D1 migration
     `apps/api/migrations/0030_automations_context.sql`
       ALTER TABLE automations ADD COLUMN context TEXT NULL.
       Repository (read+write paths in
       `apps/api/src/shared/automations.repository.d1.ts`) parses/serialises
       it as JSON, identical to `actions`.
 
-  Task 3 — Template grammar parser (pure)
+  [x] Task 3 — Template grammar parser (pure)
     `apps/api/src/features/automations/template-grammar.ts`
       `parseTemplateKey(raw: string): ParsedKey`
       Returns a discriminated union covering `{simple}`, `{scope, selector,
       field, aggregate, args}` etc. Pure function, fully unit-testable.
 
-  Task 4 — Resolver
+  [x] Task 4 — Resolver
     `apps/api/src/features/automations/context-resolver.ts`
       `resolveAutomationContext(deps, automation, triggerEntry, batchEntries):
         Promise<ResolvedContext>`
       Pre-loads `automation.context` declarations and exposes `lookup(key)`
       used by the new `interpolate`. Handles caching, slug/field
       validation, aggregates.
+    `apps/api/src/features/automations/filter-translation.ts`
+      `conditionToFilterGroup` extracted as shared util (was in cron-runner).
 
-  Task 5 — Interpolate v2
+  [x] Task 5 — Interpolate v2
     Replace `interpolate` body in `automation-runner.utils.ts` with the
     grammar-aware version. Existing call sites (`webhook`, `send_mail`,
     `edit_field`, `create_entry`) pass `ResolvedContext` instead of the
     raw entry object — keep a thin `interpolateLegacy(template, entry)`
     overload for tests that still pass a plain record.
 
-  Task 6 — Runner integration
+  [x] Task 6 — Runner integration
     `automation-runner.ts` and `cron-runner.ts`:
       - Build `ResolvedContext` once per `run()` (CRUD) or per automation
         (cron) before iterating actions.
@@ -310,26 +312,25 @@ Single PR. Order within a file matters; files are independent.
         `{ this: entries[0] ?? null, batch: entries }`.
       - Keep `_count` working as a legacy alias mapped to
         `batch:all:count` — emit a console.warn once per run.
+      - `deriveEntryContext()` for per-entry cron (shared seed-query cache).
 
-  Task 7 — CRUD API
+  [x] Task 7 — CRUD API
     Sprint 4 handler / schema files in
     `apps/api/src/features/automations/automations.{handler,schema}.ts`:
       - Zod schema accepts optional `context` with the new shape.
       - Validation rejects unknown selector kinds, `limit > 1000`,
         unknown `seed_slug`.
 
-  Task 8 — Dashboard UI
+  [x] Task 8 — Dashboard UI
     `apps/dashboard/src/features/automations/components/automation-editor/`:
-      - New "Context" panel above "Actions" allowing declaration of
-        named loads (seed picker, selector dropdown, where-condition
-        builder reusing the existing `TriggerCondition` UI, order/limit).
-      - Template input fields gain an autocomplete dropdown listing
-        available keys: `this.*`, `batch.*`, every declared context key,
-        and every registered seed slug with its public selectors.
-      - i18n: add keys under `automations.context.*` in
+      - New "Context" panel (ContextSection + ContextLoadCard) above "Actions".
+      - Seed picker, selector dropdown (lastone/firstone/all/byid), order/limit.
+      - TODO: where-condition builder (requires TriggerCondition UI reuse).
+      - TODO: template input autocomplete dropdown.
+      - i18n: added keys under `automations.context.*` in
         `apps/dashboard/src/locales/{it,en}.json`.
 
-  Task 9 — Tests
+  [x] Task 9 — Tests
     `apps/api/src/features/automations/__tests__/`
       `template-grammar.test.ts`     — parser, ~25 cases
       `context-resolver.test.ts`     — resolver with mock repository:
@@ -645,7 +646,252 @@ SECTION 7 — ACCEPTANCE CRITERIA
       (one console.warn per run)
 
 ==========================================================================
-SECTION 8 — OUT OF SCOPE
+SECTION 8 — BONUS: BOOLEAN CONDITION GROUPS ON `when`
+==========================================================================
+
+8.1 PROBLEM
+
+  Today `trigger_conditions` is a flat `TriggerCondition[]` evaluated as a
+  pure AND chain by `evaluateConditions`
+  (`automation-runner.utils.ts:3-9`). Two limits:
+
+  - **No OR**. "Fire when `status = paid` OR `status = refunded`" requires
+    duplicating the whole automation.
+  - **No context-aware predicates**. The check only sees `entry[field]` —
+    it cannot compare against another seed's value, a context load, or
+    an aggregate. Users have to choose between flexible templates (this
+    sprint) and flexible triggers (today: none).
+
+  Bonus scope: extend `when` so it
+    (a) supports nested AND/OR groups, and
+    (b) accepts predicates whose left- *or* right-hand side is any
+        template key resolvable by §3.1's grammar.
+
+8.2 NEW SHAPE — recursive group
+
+  ```ts
+  // packages/core/src/automations.types.ts
+
+  export type WhenOperand =
+    | { kind: 'literal'; value: unknown }
+    | { kind: 'ref';     key: string }   // template grammar key, e.g.
+                                         // "this.total", "orders:all:sum:total",
+                                         // "topCustomer.tier"
+
+  export interface WhenPredicate {
+    kind: 'predicate'
+    left:  WhenOperand                   // usually a `ref`
+    op:    'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte'
+         | 'contains' | 'startswith' | 'endswith'
+         | 'in' | 'notin'
+         | 'isempty' | 'isnotempty'
+         | 'matches'                      // regex, anchored
+    right?: WhenOperand                  // omitted for isempty/isnotempty
+  }
+
+  export interface WhenGroup {
+    kind: 'group'
+    op: 'AND' | 'OR'
+    children: WhenNode[]                 // 1..N
+    negate?: boolean                     // optional NOT-wrapper
+  }
+
+  export type WhenNode = WhenPredicate | WhenGroup
+
+  export interface Automation {
+    // …existing fields…
+    trigger_conditions: WhenNode | TriggerCondition[] | null
+    //                  ^ new shape    ^ legacy shape (read-only fallback)
+  }
+  ```
+
+  Storage stays one JSON column. The repository's `rowToAutomation`
+  detects the shape: array → wrap in `{ kind: 'group', op: 'AND',
+  children: <converted predicates> }`; object → pass through. Writes
+  always emit the new shape. Migration `0031_automations_when.sql` is a
+  data-only backfill (in beta — safe to rewrite). No schema change
+  needed.
+
+  `negate` on a group is sugar for "NOT(group)" — keeps the tree flat
+  for the common case (e.g. exclusion lists) without forcing users to
+  introduce a "fake" outer group.
+
+8.3 EVALUATION SEMANTICS
+
+  ```ts
+  // automation-runner.utils.ts (replaces evaluateConditions)
+
+  export function evaluateWhen(
+    node: WhenNode | null,
+    context: ResolvedContext,
+  ): boolean {
+    if (!node) return true
+    if (node.kind === 'predicate') return evalPredicate(node, context)
+    const results = node.children.map((c) => evaluateWhen(c, context))
+    const combined = node.op === 'AND'
+      ? results.every(Boolean)
+      : results.some(Boolean)
+    return node.negate ? !combined : combined
+  }
+  ```
+
+  - Short-circuit: `AND` stops at first `false`, `OR` at first `true`.
+    Implementation uses an imperative loop, not `.every`/`.some`, so
+    side-effectful `lookup()` calls (memoised, but still measurable)
+    are skipped after the result is decided.
+  - Operands are resolved through the same `ResolvedContext` built for
+    templates — zero extra I/O, full reuse of caching.
+  - Coercion table (mirrors `query-builder.ts:toEngineFilters`):
+    `gt/gte/lt/lte` cast both sides to `Number`; `contains/startswith/
+    endswith/matches` cast to `String`; `in/notin` require an array
+    literal on the right; `eq/neq` compare with `===` after string
+    normalisation when one side is numeric-looking string and the
+    other is a number.
+  - Missing-key resolution: any `ref` that resolves to `undefined`
+    propagates as `null`. Comparisons against `null`:
+        `eq null`        → true only when the other side is null
+        `isempty`        → true
+        `gt/gte/lt/lte`  → false (no exception)
+    This matches SQL `WHERE` semantics and the existing `is_empty`
+    operator in `query-builder.ts`.
+
+8.4 TRIGGER COVERAGE
+
+  - **create / update / delete**: `when` evaluated *after*
+    `ResolvedContext` is built, *before* dispatching actions. A failed
+    `when` skips the entire action list for that entry — no partial
+    execution.
+  - **cron**: `when` is evaluated **per entry** even for batch actions.
+    Today the cron handler applies `trigger_conditions` as SQL filters
+    via `conditionToFilterGroup` (`cron-runner.ts:128-139`) and relies
+    on the runner to re-evaluate. With the new shape this becomes
+    two-tier:
+      - SQL pre-filter: only the **predicates inside the outermost
+        AND group whose `left` is a `this:<field>` ref against a
+        literal** are pushed down to `findMany`. Everything else
+        (OR branches, cross-seed refs, aggregates) is evaluated in
+        memory. This preserves the 1000-row cap as an upper bound
+        without losing expressiveness.
+      - In-memory: `evaluateWhen(node, perEntryContext)` decides.
+
+8.5 NEW DELIVERABLES (added to Section 4)
+
+  Task 10 — Types + migration shim
+    `packages/core/src/automations.types.ts` (types above)
+    `apps/api/src/shared/automations.repository.d1.ts`
+      `rowToAutomation` upcasts legacy arrays to a root AND group;
+      `automationToRow` always serialises the new shape.
+
+  Task 11 — Evaluator (pure)
+    `apps/api/src/features/automations/when-evaluator.ts`
+      `evaluateWhen`, `evalPredicate`, operand resolution.
+
+  Task 12 — SQL push-down helper
+    `apps/api/src/features/automations/when-pushdown.ts`
+      `extractPushdownFilters(node: WhenNode, seed: Seed): FilterGroup[]`
+      Returns ONLY the predicates safe to push down (literal-compared,
+      single-seed, inside the root AND). Pure, deterministic. Cron
+      handler uses this in place of `conditionToFilterGroup` mapping.
+
+  Task 13 — Runner wiring
+    Replace every `evaluateConditions(...)` call site with
+    `evaluateWhen(automation.trigger_conditions, resolved)`. Two sites:
+    `automation-runner.ts` per-action loop, `cron-runner.ts` cron
+    branch (in-memory re-check after SQL pre-filter).
+
+  Task 14 — CRUD schema
+    `automations.schema.ts`: recursive Zod schema for `WhenNode`.
+    Reject groups with zero children; reject `in`/`notin` whose right
+    is not an array literal; cap nesting depth at 10.
+
+  Task 15 — Dashboard editor
+    `apps/dashboard/src/features/automations/components/automation-editor/`:
+      - Replace the flat `WhenSection` with a recursive tree builder:
+        each node is either a `+ Add condition` row (predicate) or a
+        `+ Group` row with `AND`/`OR` toggle.
+        Drag-to-reparent NOT required for v1 — add/remove/clone is
+        enough.
+      - Each predicate row: left key picker (same dropdown as the
+        template variable picker from Task 8 — full grammar), op
+        select, right input. Right input switches between literal and
+        ref (toggle button), so users can compare two refs.
+      - i18n keys under `automations.when.*` (group, and, or, not,
+        operator labels, add-condition, add-group).
+
+  Task 16 — Tests
+    `when-evaluator.test.ts`     — operator matrix, short-circuit,
+                                    null handling, negate.
+    `when-pushdown.test.ts`      — only safe predicates pushed down;
+                                    OR / cross-seed / aggregate refs
+                                    stay in-memory.
+    Update existing automation tests that pass `TriggerCondition[]`
+    to verify the upcast path still works (one assertion: the
+    repository round-trips a legacy array into a root AND group).
+
+8.6 EXAMPLES
+
+  "Fire on order.create when total > 100 AND (customer.tier = 'gold'
+  OR customer.lifetime_spend > 5000)":
+
+  ```jsonc
+  {
+    "trigger_conditions": {
+      "kind": "group", "op": "AND",
+      "children": [
+        { "kind": "predicate",
+          "left":  { "kind": "ref", "key": "this.total" },
+          "op":    "gt",
+          "right": { "kind": "literal", "value": 100 } },
+        { "kind": "group", "op": "OR",
+          "children": [
+            { "kind": "predicate",
+              "left":  { "kind": "ref", "key": "customers:byid({{this.customer_id}}):tier" },
+              "op":    "eq",
+              "right": { "kind": "literal", "value": "gold" } },
+            { "kind": "predicate",
+              "left":  { "kind": "ref", "key": "customers:byid({{this.customer_id}}):lifetime_spend" },
+              "op":    "gt",
+              "right": { "kind": "literal", "value": 5000 } }
+          ] }
+      ]
+    }
+  }
+  ```
+
+  "Fire cron when there exist >= 10 unpaid orders":
+
+  ```jsonc
+  {
+    "trigger_event": "cron",
+    "trigger_cron": "0 9 * * *",
+    "trigger_conditions": {
+      "kind": "predicate",
+      "left":  { "kind": "ref", "key": "orders:where(status=unpaid):all:count" },
+      "op":    "gte",
+      "right": { "kind": "literal", "value": 10 }
+    }
+  }
+  ```
+
+8.7 ACCEPTANCE CRITERIA (added)
+
+  [ ] `evaluateWhen` handles arbitrary nested AND/OR/NOT with
+      short-circuit and identical results to the legacy
+      `evaluateConditions` when fed an upcasted flat AND group
+  [ ] Both operands of every predicate accept the full §3.1 template
+      grammar — verified by a test that compares
+      `orders:all:sum:total > customers:byid(c_1):credit_limit`
+  [ ] SQL push-down keeps the 1000-row cap effective: a `when` whose
+      root is an AND containing one `this.status = 'active'` literal
+      predicate must reduce the rows fetched by `findMany`
+  [ ] Legacy `TriggerCondition[]` payloads continue to work for read
+      (upcast at boundary) and are rewritten on next save
+  [ ] Dashboard editor renders the tree, lets users add/remove
+      predicates and groups, and toggles between literal and ref on
+      the right operand
+
+==========================================================================
+SECTION 9 — OUT OF SCOPE
 ==========================================================================
 
   - SQL-side aggregates (always client-side over capped result sets).

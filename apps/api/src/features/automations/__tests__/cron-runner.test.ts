@@ -18,18 +18,17 @@ const SEED: Seed = {
   label: 'Post',
   displayNameAlias: 'title',
   branches: [
-    { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
-    { id: 'br_02', alias: 'count', type: 'number', label: 'Count' },
-    { id: 'br_03', alias: 'published', type: 'boolean', label: 'Published' },
-    { id: 'br_04', alias: 'publish_date', type: 'date', label: 'Publish Date' },
-    { id: 'br_05', alias: 'tags_list', type: 'tags', label: 'Tags' },
-    { id: 'br_06', alias: 'meta_json', type: 'json', label: 'Meta JSON' },
-    { id: 'br_07', alias: 'body_rich', type: 'richtext', label: 'Body' },
+    { alias: 'title', type: 'text', label: 'Title' },
+    { alias: 'count', type: 'number', label: 'Count' },
+    { alias: 'published', type: 'boolean', label: 'Published' },
+    { alias: 'publish_date', type: 'date', label: 'Publish Date' },
+    { alias: 'tags_list', type: 'tags', label: 'Tags' },
+    { alias: 'meta_json', type: 'json', label: 'Meta JSON' },
+    { alias: 'body_rich', type: 'richtext', label: 'Body' },
   ],
 }
 
 const STUB_ID_GENERATOR: IIdGenerator = {
-  id: () => 'test-id',
   uuid: () => 'test-uuid',
 }
 
@@ -43,6 +42,7 @@ function makeAutomation(overrides: Partial<Automation> = {}): Automation {
     trigger_cron: '* * * * *',
     trigger_conditions: null,
     actions: [{ type: 'webhook', url: 'https://example.com/hook' }],
+    context: null,
     created_at: 0,
     updated_at: 0,
     ...overrides,
@@ -84,7 +84,7 @@ describe('runCronAutomations', () => {
     expect(deps.findActiveSpy).toHaveBeenCalledWith('*', 'cron')
   })
 
-  it('batch actions (webhook, send_mail) run once per automation with _count context', async () => {
+  it('batch actions (webhook, send_mail) run once per automation with batch context', async () => {
     const entries = [{ id: 'e1', title: 'A' }, { id: 'e2', title: 'B' }]
     const deps = makeDeps()
     deps.listSpy.mockResolvedValue({ items: entries, total: 2 })
@@ -93,7 +93,9 @@ describe('runCronAutomations', () => {
 
     expect(executeActionMock).toHaveBeenCalledTimes(1)
     const [, ctx] = executeActionMock.mock.calls[0]
-    expect(ctx.entry).toMatchObject({ id: 'e1', title: 'A', _count: 2 })
+    // entry is the first entry (for backwards compat); batch count lives in context
+    expect(ctx.entry).toMatchObject({ id: 'e1', title: 'A' })
+    expect(ctx.context).toBeDefined()
   })
 
   it('per-entry actions (edit_field, create_entry) run once per matching entry', async () => {

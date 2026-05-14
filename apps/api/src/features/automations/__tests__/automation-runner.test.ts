@@ -13,6 +13,7 @@ function makeAutomation(overrides: Partial<Automation> = {}): Automation {
     trigger_cron: null,
     trigger_conditions: null,
     actions: [],
+    context: null,
     created_at: 0,
     updated_at: 0,
     ...overrides,

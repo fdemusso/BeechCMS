@@ -1,10 +1,6 @@
 import type {
   Automation,
-  BranchType,
   ContentRepository,
-  FilterGroup,
-  FilterOperator,
-  FilterType,
   IAutomationRepository,
   IIdGenerator,
   Seed,
@@ -12,6 +8,13 @@ import type {
 } from '@beechcms/core'
 import { cronMatches } from './cron-runner.utils'
 import { executeAction } from './action-executors'
+import { resolveAutomationContext, deriveEntryContext } from './context-resolver'
+import { conditionToFilterGroup } from './filter-translation'
+import { evaluateConditions } from './automation-runner.utils'
+
+// TODO Sprint 8 (Task 12): replace conditionToFilterGroup mapping with
+// extractPushdownFilters(node, seed) so only safe WhenNode predicates go to SQL.
+// TODO Sprint 8 (Task 13): replace evaluateConditions with evaluateWhen().
 
 export interface CronRunnerDeps {
   automationRepository: IAutomationRepository
@@ -41,6 +44,11 @@ export async function runCronAutomations(
 
   console.log(`[cron] Found ${automations.length} active cron automation(s)`)
 
+  const resolverDeps = {
+    contentRepository: deps.contentRepository,
+    getSeed: deps.getSeed,
+  }
+
   for (const automation of automations) {
     if (!cronMatches(automation.trigger_cron, scheduledTime)) {
       console.log(`[cron] Skipping "${automation.name}": cron expression "${automation.trigger_cron}" does not match.`)
@@ -64,6 +72,15 @@ export async function runCronAutomations(
 
     if (entries.length === 0) continue
 
+    // Build the base ResolvedContext once per automation (shared seed-query cache).
+    // triggerEntry = first entry; batchEntries = full list.
+    const batchResolved = await resolveAutomationContext(
+      resolverDeps,
+      automation,
+      entries[0] ?? null,
+      entries,
+    )
+
     const baseCtx = {
       env: deps.env,
       repository: deps.contentRepository,
@@ -75,8 +92,11 @@ export async function runCronAutomations(
     for (const action of automation.actions) {
       if (PER_ENTRY_ACTIONS.has(action.type)) {
         for (const entry of entries) {
+          // Per-entry: derive a lightweight context whose `this` is the current entry.
+          // Seed-query cache is reused from batchResolved.
+          const entryResolved = deriveEntryContext(batchResolved, entry)
           try {
-            await executeAction(action, { ...baseCtx, entry })
+            await executeAction(action, { ...baseCtx, entry, context: entryResolved })
           } catch (err) {
             console.error('[cron] entry action failed', {
               automationId: automation.id,
@@ -87,11 +107,9 @@ export async function runCronAutomations(
           }
         }
       } else {
-        // Batch actions run once per automation. Template context uses the first
-        // entry's fields plus {{_count}} = total number of matching entries.
-        const batchEntry = { ...entries[0], _count: entries.length }
+        // Batch actions run once per automation with the shared batch context.
         try {
-          await executeAction(action, { ...baseCtx, entry: batchEntry })
+          await executeAction(action, { ...baseCtx, entry: entries[0] ?? {}, context: batchResolved })
         } catch (err) {
           console.error('[cron] batch action failed', {
             automationId: automation.id,
@@ -104,46 +122,12 @@ export async function runCronAutomations(
   }
 }
 
-const SYSTEM_COLUMNS = new Set(['id', 'slug', 'status', 'created_at', 'updated_at'])
-
-function mapBranchTypeToFilterType(type: BranchType): FilterType {
-  switch (type) {
-    case 'number': return 'number'
-    case 'boolean': return 'boolean'
-    case 'date': return 'date'
-    case 'tags': return 'tags'
-    case 'json': return 'json'
-    default: return 'text'
-  }
-}
-
-function mapOp(op: TriggerCondition['op']): FilterOperator {
-  switch (op) {
-    case 'isempty': return 'is_empty'
-    case 'isnotempty': return 'is_not_empty'
-    default: return op
-  }
-}
-
-function conditionToFilterGroup(c: TriggerCondition, seed: Seed): FilterGroup {
-  const branch = seed.branches.find((b) => b.alias === c.field)
-  const type: FilterType = branch
-    ? mapBranchTypeToFilterType(branch.type)
-    : SYSTEM_COLUMNS.has(c.field) ? 'system' : 'text'
-
-  return {
-    column: c.field,
-    type,
-    conditions: [{ op: mapOp(c.op), value: c.value as string | number | boolean | null }],
-  }
-}
-
 async function fetchMatchingEntries(
   repository: ContentRepository,
   seed: Seed,
   automation: Automation,
 ): Promise<Array<Record<string, unknown>>> {
-  const filters = (automation.trigger_conditions ?? []).map((c) => conditionToFilterGroup(c, seed))
+  const filters = (automation.trigger_conditions ?? []).map((c: TriggerCondition) => conditionToFilterGroup(c, seed))
   const result = await repository.findMany(seed, {
     filters,
     status: null,

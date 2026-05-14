@@ -64,6 +64,7 @@ automationsApp.post('/', async (context) => {
     trigger_cron: parsed.data.trigger_cron ?? null,
     trigger_conditions: parsed.data.trigger_conditions ?? null,
     actions: parsed.data.actions,
+    context: parsed.data.context ?? null,
   })
   return context.json({ id }, 201)
 })

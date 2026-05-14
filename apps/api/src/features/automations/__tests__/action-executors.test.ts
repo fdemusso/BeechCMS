@@ -6,8 +6,24 @@ import type { ContentRepository, Seed, IIdGenerator } from '@beechcms/core'
 // ── Shared mock context factory ───────────────────────────────────────────────
 
 function makeCtx(overrides: Partial<ActionContext> = {}): ActionContext {
+  const { entry: entryOverride, context: contextOverride, ...rest } = overrides
+  const entry: Record<string, unknown> = entryOverride ?? { id: 'entry-1', title: 'Test Entry', status: 'published' }
+  const context = contextOverride ?? {
+    triggerEntry: entry,
+    lookup(parsed: import('../template-grammar').ParsedKey, onMissing?: (f: string) => void) {
+      if (parsed.kind === 'simple') {
+        const val = entry[parsed.path]
+        if (val == null && onMissing) onMissing(parsed.path)
+        return val
+      }
+      if (parsed.kind === 'scoped' && parsed.scope === 'this' && parsed.field) {
+        return entry[parsed.field]
+      }
+      return undefined
+    },
+  }
   return {
-    entry: { id: 'entry-1', title: 'Test Entry', status: 'published' },
+    entry,
     env: { RESEND_API_KEY: 'test-key', EMAIL_FROM: 'test@example.com' },
     repository: {
       update: vi.fn().mockResolvedValue(undefined),
@@ -16,7 +32,8 @@ function makeCtx(overrides: Partial<ActionContext> = {}): ActionContext {
     getSeed: vi.fn().mockReturnValue({ branches: [] } as unknown as Seed),
     seed: { slug: 'posts', branches: [] } as unknown as Seed,
     idGenerator: { uuid: vi.fn().mockReturnValue('new-id-123') } as unknown as IIdGenerator,
-    ...overrides,
+    context,
+    ...rest,
   }
 }
 
