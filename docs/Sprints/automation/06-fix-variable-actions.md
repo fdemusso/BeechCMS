@@ -89,7 +89,7 @@ L'azione si integra in modo trasparente e retrocompatibile nella colonna JSON te
 **File**: `apps/api/migrations/`
 - Bloccare o eliminare la migrazione `0030_automations_context.sql`. Il passaggio al paradigma basato sulle Azioni azzera la necessità di eseguire mutazioni strutturali (`ALTER TABLE`) sul database. Considera che il database attuale è puramente di testing puoi fare un drop diretto della colonna aggiusta per annulare l operazione creata da 0030 e ricordarti di A cancellare 0030, B rimuovere alter table identico da 0000 e poi rimuovere dal json di esecuzione delle migrazioni i riferimenti alla 0030 
 
-### [ ] Task C: Schema di Validazione Zod (CRUD API)
+### [x] Task C: Schema di Validazione Zod (CRUD API)
 **File**: `apps/api/src/features/automations/automations.schema.ts`
 - Estendere lo schema `automationActionSchema` per supportare la validazione rigorosa del nuovo blocco:
   ```typescript
