@@ -25,13 +25,15 @@ export class D1AutomationRepository implements IAutomationRepository {
   constructor(private readonly db: D1Database) {}
 
   async findActive(seedSlug: string, event: AutomationTriggerEvent): Promise<Automation[]> {
-    const result = await this.db
-      .prepare(
-        `SELECT * FROM automations
-         WHERE seed_slug = ? AND trigger_event = ? AND enabled = 1`,
-      )
-      .bind(seedSlug, event)
-      .all<AutomationRow>()
+    const result = seedSlug === '*'
+      ? await this.db
+          .prepare(`SELECT * FROM automations WHERE trigger_event = ? AND enabled = 1`)
+          .bind(event)
+          .all<AutomationRow>()
+      : await this.db
+          .prepare(`SELECT * FROM automations WHERE seed_slug = ? AND trigger_event = ? AND enabled = 1`)
+          .bind(seedSlug, event)
+          .all<AutomationRow>()
     return (result.results ?? []).map(rowToAutomation)
   }
 
