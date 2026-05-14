@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach, beforeEach } from "vitest"
+import { describe, it, expect } from "vitest"
 
 /**
  * Tests for pure utility functions extracted from minimal-tiptap into shared.ts

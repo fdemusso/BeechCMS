@@ -27,10 +27,15 @@ const validSeeds = seeds.filter((s: any) => s && typeof s === 'object' && 'slug'
 export default {
   fetch: app.fetch,
 
-  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    if (!env.DB) {
+      console.warn('[cron] D1 binding missing. Skipping cron automations.')
+      return
+    }
+
     const automationRepository = new D1AutomationRepository(env.DB)
     const contentRepository = new D1ContentRepository(env.DB)
-    const idGenerator = new SystemIdGenerator()
+    const idGenerator = SystemIdGenerator
     const registry = new SeedRegistry(validSeeds)
     const getSeed = (slug: string) => registry.get(slug) ?? null
 
@@ -39,12 +44,13 @@ export default {
       contentRepository,
       getSeed,
       idGenerator,
+      env: env as unknown as Record<string, string | undefined>,
     })
 
     ctx.waitUntil(
       runCronAutomations(
         { automationRepository, runner, contentRepository, getSeed },
-        event.scheduledTime,
+        controller.scheduledTime,
       ),
     )
   },

@@ -9,7 +9,7 @@ import type { ContentEntry } from "@/lib/dynamic-columns"
 // ---------------------------------------------------------------------------
 
 vi.mock("@/features/content-gallery/gallery-hooks", () => ({
-  useContentGallery: (seed: Seed, data: ContentEntry[]) => ({
+  useContentGallery: (_seed: Seed, data: ContentEntry[]) => ({
     setPeekId: vi.fn(),
     peekEntry: null,
     cardModels: data.map((entry) => ({
@@ -64,7 +64,7 @@ const seed: Seed = {
 } as Seed
 
 function makeEntry(id: string, title = `Entry ${id}`): ContentEntry {
-  return { id, slug: id, data: { title }, status: "draft" } as ContentEntry
+  return { id, slug: id, data: { title }, status: "draft" } as unknown as ContentEntry
 }
 
 // ---------------------------------------------------------------------------
