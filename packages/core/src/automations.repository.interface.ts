@@ -1,4 +1,4 @@
-import type { Automation, AutomationAction, AutomationContextLoad, TriggerCondition, AutomationTriggerEvent } from './automations.types.js'
+import type { Automation, AutomationAction, TriggerCondition, AutomationTriggerEvent } from './automations.types.js'
 
 export interface CreateAutomationInput {
   seed_slug: string
@@ -7,7 +7,6 @@ export interface CreateAutomationInput {
   trigger_cron: string | null
   trigger_conditions: TriggerCondition[] | null
   actions: AutomationAction[]
-  context?: AutomationContextLoad[] | null
 }
 
 export type UpdateAutomationInput = Partial<CreateAutomationInput>
