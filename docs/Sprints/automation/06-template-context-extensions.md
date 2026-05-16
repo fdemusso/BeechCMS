@@ -271,15 +271,18 @@ Single PR. Order within a file matters; files are independent.
 
   [x] Task 1 — Types
     `packages/core/src/automations.types.ts`
-      + `AutomationContextLoad`, `AutomationContextSelector`
-      + `Automation.context?: AutomationContextLoad[]`
+      + `AutomationContextSelector` (spostato in `template-grammar.ts`)
+      + `SetVariableAction` — sostituisce `AutomationContextLoad` (vedere 06-fix)
+      NOTA 06-fix: `AutomationContextLoad` e `Automation.context` aboliti.
+      Il blocco `context[]` è stato sostituito dall'azione `set_variable`.
 
-  [x] Task 2 — D1 migration
-    `apps/api/migrations/0030_automations_context.sql`
-      ALTER TABLE automations ADD COLUMN context TEXT NULL.
-      Repository (read+write paths in
-      `apps/api/src/shared/automations.repository.d1.ts`) parses/serialises
-      it as JSON, identical to `actions`.
+  [~] Task 2 — D1 migration (SUPERATO da sprint 06-fix)
+    La migrazione `0030_automations_context.sql` è stata cancellata.
+    Il campo `context TEXT NULL` non esiste nel DB — il dato contestuale
+    vive ora nell'array `actions` come azioni `set_variable`.
+    `apps/api/src/shared/automations.repository.d1.ts`: rimuovere tutti
+    i riferimenti a `context` (campo non più presente su `Automation` /
+    `CreateAutomationInput`).
 
   [x] Task 3 — Template grammar parser (pure)
     `apps/api/src/features/automations/template-grammar.ts`
@@ -314,21 +317,21 @@ Single PR. Order within a file matters; files are independent.
         `batch:all:count` — emit a console.warn once per run.
       - `deriveEntryContext()` for per-entry cron (shared seed-query cache).
 
-  [x] Task 7 — CRUD API
+  [~] Task 7 — CRUD API (AGGIORNATO da sprint 06-fix)
     Sprint 4 handler / schema files in
     `apps/api/src/features/automations/automations.{handler,schema}.ts`:
-      - Zod schema accepts optional `context` with the new shape.
-      - Validation rejects unknown selector kinds, `limit > 1000`,
-        unknown `seed_slug`.
+      - `setVariableActionSchema` aggiunto alla discriminated union (fatto).
+      - Rimuovere la validazione del blocco `context` (campo abolito).
+      - `apps/api/src/shared/automations.repository.d1.ts`: rimuovere
+        serializzazione/deserializzazione di `context`.
 
-  [x] Task 8 — Dashboard UI
+  [~] Task 8 — Dashboard UI (AGGIORNATO da sprint 06-fix)
     `apps/dashboard/src/features/automations/components/automation-editor/`:
-      - New "Context" panel (ContextSection + ContextLoadCard) above "Actions".
-      - Seed picker, selector dropdown (lastone/firstone/all/byid), order/limit.
-      - TODO: where-condition builder (requires TriggerCondition UI reuse).
-      - TODO: template input autocomplete dropdown.
-      - i18n: added keys under `automations.context.*` in
-        `apps/dashboard/src/locales/{it,en}.json`.
+      - Il pannello "Context" (ContextSection + ContextLoadCard) è DEPRECATO.
+        Il caricamento dati avviene tramite azioni `set_variable` nell'array
+        "Actions" — vedi `SetVariableForm.tsx` (implementato in 06-fix).
+      - TODO: rimuovere o nascondere `context-section.tsx` e `context-load-card.tsx`.
+      - TODO: template input autocomplete dropdown (ancora valido).
 
   [x] Task 9 — Tests
     `apps/api/src/features/automations/__tests__/`
@@ -347,35 +350,38 @@ Single PR. Order within a file matters; files are independent.
 SECTION 5 — TASK DETAILS
 ==========================================================================
 
-5.1 TASK 1 — Types
+5.1 TASK 1 — Types (AGGIORNATO da sprint 06-fix)
+
+  > **NOTA 06-fix**: `AutomationContextLoad`, `AutomationContextSelector` e
+  > `Automation.context` NON esistono più in `@beechcms/core`. Sostituiti da
+  > `SetVariableAction` nell'array `actions`. `AutomationContextSelector` vive
+  > ora in `template-grammar.ts` (usata internamente dal resolver).
+
+  Stato attuale di `packages/core/src/automations.types.ts`:
 
   ```ts
-  // packages/core/src/automations.types.ts
-
-  export type AutomationContextSelector =
-    | { kind: 'lastone' }
-    | { kind: 'firstone' }
-    | { kind: 'all' }
-    | { kind: 'byid'; id: string }
-
-  export interface AutomationContextLoad {
-    as: string
+  export interface SetVariableAction {
+    type: 'set_variable'
+    name: string
     seed_slug: string
-    selector?: AutomationContextSelector   // default { kind: 'lastone' }
-    where?: TriggerCondition[]
+    load_type: 'fruit' | 'branch'
+    filters: TriggerCondition[]
     order_by?: string
     order?: 'asc' | 'desc'
-    limit?: number                         // default 100, max 1000
   }
+
+  export type AutomationAction =
+    | { type: 'webhook'; … }
+    | { type: 'send_mail'; … }
+    | { type: 'edit_field'; … }
+    | { type: 'create_entry'; … }
+    | SetVariableAction
 
   export interface Automation {
     // …existing fields…
-    context: AutomationContextLoad[] | null
+    // context[] RIMOSSO — usare azioni set_variable
   }
   ```
-
-  `context` is `null` when no loads are declared — matches the existing
-  `trigger_conditions: TriggerCondition[] | null` convention.
 
 5.2 TASK 3 — Grammar parser (pure)
 
@@ -409,24 +415,28 @@ SECTION 5 — TASK DETAILS
 
   This file has zero imports — pure string handling.
 
-5.3 TASK 4 — Resolver
+5.3 TASK 4 — Resolver (AGGIORNATO da sprint 06-fix)
+
+  > **NOTA 06-fix**: `context-resolver.ts` NON deve più importare
+  > `AutomationContextLoad` / `AutomationContextSelector` da `@beechcms/core`
+  > (rimossi). `AutomationContextSelector` viene importato da `./template-grammar`.
+  > Il loop `for (const decl of automation.context ?? [])` va rimosso poiché
+  > `Automation` non ha più il campo `context`. Il caricamento pre-dichiarato
+  > è ora delegato alle azioni `set_variable` eseguite sequenzialmente dal runner.
+  > Il resolver continua a gestire i lookup inline (`{{seedSlug:selector:field}}`)
+  > e la scope `batch` per il cron.
+
+  Firma aggiornata (invariata a runtime):
 
   ```ts
   // context-resolver.ts
 
-  import type {
-    Automation, AutomationContextLoad, ContentRepository, Seed,
-    TriggerCondition,
-  } from '@beechcms/core'
-  import type { ParsedKey } from './template-grammar'
-
-  export interface ResolverDeps {
-    contentRepository: ContentRepository
-    getSeed: (slug: string) => Seed | null
-  }
+  import type { Automation, ContentRepository, Seed, TriggerCondition } from '@beechcms/core'
+  import type { AutomationContextSelector, ParsedKey } from './template-grammar'
 
   export interface ResolvedContext {
-    lookup(key: ParsedKey): unknown      // returns value or undefined
+    lookup(key: ParsedKey, onMissing?: (field: string) => void): unknown
+    triggerEntry: Record<string, unknown> | null
   }
 
   export async function resolveAutomationContext(
@@ -435,34 +445,17 @@ SECTION 5 — TASK DETAILS
     triggerEntry: Record<string, unknown> | null,
     batchEntries: Array<Record<string, unknown>>,
   ): Promise<ResolvedContext>
+
+  // Per cron — condivide la cache seed-query, sostituisce solo triggerEntry
+  export function deriveEntryContext(
+    base: ResolvedContext,
+    entry: Record<string, unknown>,
+  ): ResolvedContext
   ```
 
-  Implementation outline:
-
-  - Build a `Map<string, Promise<unknown>>` keyed by the canonical scope
-    signature `${slug}|${selector}|${whereHash}|${order}|${limit}`.
-  - For each declared `automation.context[i]`:
-      a. Interpolate `where[*].value` against the partial context built
-         so far (one pass).
-      b. Fire `contentRepository.findMany(seed, …)` with translated
-         filters via the existing `conditionToFilterGroup` helper —
-         **promote it to a shared util** in
-         `apps/api/src/features/automations/filter-translation.ts` so
-         the cron handler and the resolver share one implementation.
-      c. Store the result under `as`.
-  - `lookup(parsed)`:
-      - `simple` → `resolvePath(this, path)`
-      - `scoped` with scope `this` → `resolvePath(triggerEntry, field)`
-      - scope `batch` → operates on `batchEntries` (count/sum/pluck/…)
-      - scope is a named context key → use the stored result
-      - scope is an unknown identifier → check seed registry; if it's a
-        seed slug, build an anonymous load with the parsed selector
-        and resolve on-demand (memoised). If neither → `undefined`
-        (triggers `onMissing` in `interpolate`).
-
-  Aggregate implementations are arithmetic on the result array — no
-  SQL aggregates yet (D1 is fast enough at 1000-row caps, and keeping
-  the aggregate semantics in TS avoids dialect drift).
+  Il runner aggiunge il layer `variables` via `withVariables(base, variables)`
+  in `automation-runner.ts` — le variabili `set_variable` sono accessibili
+  come dot-path semplici (`{{cliente.name}}`) senza passare dal resolver.
 
 5.4 TASK 5 — Interpolate v2
 
@@ -585,29 +578,34 @@ SECTION 6 — VALIDATION
   4. `npm run test` in `apps/api/` — all new tests pass; pre-existing
      automation tests pass without modification (the legacy interpolate
      overload guarantees this).
-  5. `npm run db:reset:local` — `0030_automations_context.sql` applies.
+  5. `npm run db:reset:local` — migrazioni applicate (0030 RIMOSSA).
   6. End-to-end smoke (cron, real Worker):
 
      a. Seed: `orders` (alias `total: number`, `customer_id: text`,
         `status: text`) and `customers` (alias `email`, `name`).
      b. Insert one customer `c_1`, three orders for `c_1` with totals
         10, 20, 30.
-     c. Create automation:
+     c. Create automation (aggiornato — usa `set_variable` al posto di `context`):
         ```jsonc
         {
           "seed_slug": "orders",
           "trigger_event": "cron",
           "trigger_cron": "* * * * *",
-          "context": [
-            { "as": "topCustomer", "seed_slug": "customers",
-              "selector": { "kind": "byid", "id": "c_1" } }
-          ],
-          "actions": [{
-            "type": "send_mail",
-            "to": "{{topCustomer.email}}",
-            "subject_template": "Your {{batch:all:count}} orders",
-            "body_template": "Total spent: {{orders:all:sum:total}}"
-          }]
+          "actions": [
+            {
+              "type": "set_variable",
+              "name": "topCustomer",
+              "seed_slug": "customers",
+              "load_type": "fruit",
+              "filters": [{ "field": "id", "op": "eq", "value": "c_1" }]
+            },
+            {
+              "type": "send_mail",
+              "to": "{{topCustomer.email}}",
+              "subject_template": "Your {{batch:all:count}} orders",
+              "body_template": "Total spent: {{orders:all:sum:total}}"
+            }
+          ]
         }
         ```
      d. `wrangler dev --test-scheduled` + `curl /__scheduled?cron=*+*+*+*+*`
@@ -625,29 +623,50 @@ SECTION 6 — VALIDATION
 SECTION 7 — ACCEPTANCE CRITERIA
 ==========================================================================
 
-  [ ] `interpolate` understands the new `scope:selector:field` grammar
+  [x] `interpolate` understands the new `scope:selector:field` grammar
       AND remains backwards compatible — every existing test passes
       without edits
-  [ ] `Automation.context` is persisted (migration `0030`), validated
-      by the CRUD API, and round-trips through the dashboard editor
-  [ ] Resolver caches identical scoped lookups within one automation
+  [~] ~~`Automation.context` is persisted (migration `0030`), validated
+      by the CRUD API, and round-trips through the dashboard editor~~
+      SUPERATO: il caricamento contestuale avviene tramite `set_variable`.
+      `automations.repository.d1.ts` e `automations.handler.ts` vanno
+      bonificati dai riferimenti a `context` (Task 10).
+  [x] Resolver caches identical scoped lookups within one automation
       run (verified by spying on `findMany`)
-  [ ] Aggregates `count`, `sum`, `avg`, `min`, `max`, `pluck` produce
+  [x] Aggregates `count`, `sum`, `avg`, `min`, `max`, `pluck` produce
       correct results on `batch` and on `<slug>:all`
-  [ ] Unknown slug, unknown field, and unknown selector all degrade
+  [x] Unknown slug, unknown field, and unknown selector all degrade
       safely to `defaultValue` + `onMissing` — never throw
-  [ ] Hard caps enforced: max 1000 rows per scoped load, max 100
+  [x] Hard caps enforced: max 1000 rows per scoped load, max 100
       values per `pluck`
-  [ ] Cron handler, CRUD handlers, and every action executor share one
+  [x] Cron handler, CRUD handlers, and every action executor share one
       `ResolvedContext` per automation run
-  [ ] Dashboard editor exposes a Context panel and a variable picker
-      whose entries match the parser's accepted grammar
-  [ ] `_count` continues to work as an alias for `batch:all:count`
+  [~] ~~Dashboard editor exposes a Context panel~~ SUPERATO: pannello
+      `context` sostituito da `SetVariableForm.tsx` nelle azioni.
+      Variable picker ancora da implementare (Task 15).
+  [x] `_count` continues to work as an alias for `batch:all:count`
       (one console.warn per run)
 
 ==========================================================================
 SECTION 8 — BONUS: BOOLEAN CONDITION GROUPS ON `when`
 ==========================================================================
+
+> **NOTA SPRINT 06-fix** — Il blocco `context[]` dichiarativo (Sections 3.2,
+> Tasks 1-2, Task 7-8) è stato **abolito** e sostituito dall'azione nativa
+> `set_variable` (sprint `06-fix-variable-actions.md`). Di conseguenza:
+>
+> - `AutomationContextLoad` e `AutomationContextSelector` non esistono più
+>   in `@beechcms/core`; `AutomationContextSelector` vive in
+>   `template-grammar.ts`.
+> - `Automation.context` non è un campo valido — `automations.repository.d1.ts`
+>   e `automations.handler.ts` hanno riferimenti obsoleti da rimuovere.
+> - Il resolver (`context-resolver.ts`) gestisce ancora i lookup inline
+>   (`{{seedSlug:selector:field}}`) e la scope `batch`; il loop
+>   `for (const decl of automation.context ?? [])` va rimosso.
+> - `context-section.tsx` e `context-load-card.tsx` nel dashboard sono
+>   obsoleti; il caricamento avviene ora via `SetVariableForm.tsx`.
+> - I Task 10-16 sottostanti sono validi nel merito (WhenNode) ma vanno
+>   letti escludendo qualsiasi dipendenza dal campo `context`.
 
 8.1 PROBLEM
 
@@ -658,8 +677,8 @@ SECTION 8 — BONUS: BOOLEAN CONDITION GROUPS ON `when`
   - **No OR**. "Fire when `status = paid` OR `status = refunded`" requires
     duplicating the whole automation.
   - **No context-aware predicates**. The check only sees `entry[field]` —
-    it cannot compare against another seed's value, a context load, or
-    an aggregate. Users have to choose between flexible templates (this
+    it cannot compare against another seed's value, a `set_variable` result,
+    or an aggregate. Users have to choose between flexible templates (this
     sprint) and flexible triggers (today: none).
 
   Bonus scope: extend `when` so it
@@ -702,15 +721,19 @@ SECTION 8 — BONUS: BOOLEAN CONDITION GROUPS ON `when`
     // …existing fields…
     trigger_conditions: WhenNode | TriggerCondition[] | null
     //                  ^ new shape    ^ legacy shape (read-only fallback)
+    // context[] NON PRESENTE — vedere nota sprint 06-fix
   }
   ```
 
   Storage stays one JSON column. The repository's `rowToAutomation`
   detects the shape: array → wrap in `{ kind: 'group', op: 'AND',
   children: <converted predicates> }`; object → pass through. Writes
-  always emit the new shape. Migration `0031_automations_when.sql` is a
-  data-only backfill (in beta — safe to rewrite). No schema change
-  needed.
+  always emit the new shape. Migration `0031_automations_when.sql` è una
+  backfill sui soli dati (beta — safe to rewrite). No schema change needed.
+
+  **Pre-requisito**: prima di implementare i task 10-16, rimuovere da
+  `automations.repository.d1.ts` e `automations.handler.ts` tutti i
+  riferimenti a `context` (campo rimosso da `Automation` in 06-fix).
 
   `negate` on a group is sugar for "NOT(group)" — keeps the tree flat
   for the common case (e.g. exclusion lists) without forcing users to
@@ -718,8 +741,13 @@ SECTION 8 — BONUS: BOOLEAN CONDITION GROUPS ON `when`
 
 8.3 EVALUATION SEMANTICS
 
+  > **NOTA**: `evaluateWhen` riceve un `ResolvedContext` già esteso con le
+  > variabili `set_variable` tramite `withVariables(base, variables)` in
+  > `automation-runner.ts`. I ref come `{{cliente.name}}` sono quindi
+  > accessibili senza modifiche al valutatore.
+
   ```ts
-  // automation-runner.utils.ts (replaces evaluateConditions)
+  // when-evaluator.ts (nuovo file — non sostituisce evaluateConditions in-place)
 
   export function evaluateWhen(
     node: WhenNode | null,
@@ -776,49 +804,66 @@ SECTION 8 — BONUS: BOOLEAN CONDITION GROUPS ON `when`
 
 8.5 NEW DELIVERABLES (added to Section 4)
 
-  Task 10 — Types + migration shim
-    `packages/core/src/automations.types.ts` (types above)
+  [ ] Task 10 — Types + cleanup repository
+    `packages/core/src/automations.types.ts`
+      + `WhenOperand`, `WhenPredicate`, `WhenGroup`, `WhenNode`
+      + `Automation.trigger_conditions: WhenNode | TriggerCondition[] | null`
     `apps/api/src/shared/automations.repository.d1.ts`
-      `rowToAutomation` upcasts legacy arrays to a root AND group;
-      `automationToRow` always serialises the new shape.
+      - Rimuovere tutti i riferimenti a `context` (campo abolito in 06-fix).
+      - `rowToAutomation`: upcast legacy `TriggerCondition[]` a root AND group.
+      - `automationToRow`: serializza sempre la nuova forma WhenNode.
+      - `AutomationContextLoad` non va importato — rimosso da `@beechcms/core`.
+    `apps/api/src/features/automations/context-resolver.ts`
+      - Rimuovere import di `AutomationContextLoad` / `AutomationContextSelector`
+        da `@beechcms/core`; importare `AutomationContextSelector` da
+        `./template-grammar`.
+      - Rimuovere il loop `for (const decl of automation.context ?? [])`.
+    `apps/api/src/features/automations/automations.handler.ts`
+      - Rimuovere gestione del campo `context` nel body di create/update.
 
-  Task 11 — Evaluator (pure)
+  [ ] Task 11 — Evaluator (pure)
     `apps/api/src/features/automations/when-evaluator.ts`
       `evaluateWhen`, `evalPredicate`, operand resolution.
+      Riceve `ResolvedContext` già esteso da `withVariables` — le variabili
+      `set_variable` sono accessibili come ref senza modifiche.
 
-  Task 12 — SQL push-down helper
+  [ ] Task 12 — SQL push-down helper
     `apps/api/src/features/automations/when-pushdown.ts`
       `extractPushdownFilters(node: WhenNode, seed: Seed): FilterGroup[]`
       Returns ONLY the predicates safe to push down (literal-compared,
       single-seed, inside the root AND). Pure, deterministic. Cron
       handler uses this in place of `conditionToFilterGroup` mapping.
+      TODO già annotato in `cron-runner.ts` (Task 12 comment).
 
-  Task 13 — Runner wiring
+  [ ] Task 13 — Runner wiring
     Replace every `evaluateConditions(...)` call site with
-    `evaluateWhen(automation.trigger_conditions, resolved)`. Two sites:
-    `automation-runner.ts` per-action loop, `cron-runner.ts` cron
-    branch (in-memory re-check after SQL pre-filter).
+    `evaluateWhen(automation.trigger_conditions, resolved)`. Due siti:
+    `automation-runner.ts` (già con `withVariables`) e `cron-runner.ts`
+    (in-memory re-check after SQL pre-filter).
+    TODO già annotato nei file (Task 13 comment).
 
-  Task 14 — CRUD schema
-    `automations.schema.ts`: recursive Zod schema for `WhenNode`.
-    Reject groups with zero children; reject `in`/`notin` whose right
-    is not an array literal; cap nesting depth at 10.
+  [ ] Task 14 — CRUD schema
+    `automations.schema.ts` (sia API che Dashboard): recursive Zod schema
+    per `WhenNode`. Reject groups with zero children; reject `in`/`notin`
+    whose right is not an array literal; cap nesting depth at 10.
+    Rimuovere dalla validazione il campo `context` (abolito).
+    TODO già annotato in `automations.schema.ts` (Task 14 comment).
 
-  Task 15 — Dashboard editor
+  [ ] Task 15 — Dashboard editor
     `apps/dashboard/src/features/automations/components/automation-editor/`:
-      - Replace the flat `WhenSection` with a recursive tree builder:
-        each node is either a `+ Add condition` row (predicate) or a
-        `+ Group` row with `AND`/`OR` toggle.
-        Drag-to-reparent NOT required for v1 — add/remove/clone is
-        enough.
-      - Each predicate row: left key picker (same dropdown as the
-        template variable picker from Task 8 — full grammar), op
-        select, right input. Right input switches between literal and
-        ref (toggle button), so users can compare two refs.
+      - Sostituire il flat `TriggerConditions` con un recursive tree builder:
+        ogni nodo è `+ Add condition` (predicate) o `+ Group` (AND/OR toggle).
+        Drag-to-reparent NOT required for v1 — add/remove/clone sufficiente.
+      - Ogni predicate row: left key picker (stessa dropdown del template
+        variable picker — full grammar), op select, right input con toggle
+        literal/ref.
+      - Rimuovere o nascondere `context-section.tsx` / `context-load-card.tsx`
+        (deprecati dopo 06-fix — il caricamento dati avviene via
+        `SetVariableForm.tsx`).
       - i18n keys under `automations.when.*` (group, and, or, not,
         operator labels, add-condition, add-group).
 
-  Task 16 — Tests
+  [ ] Task 16 — Tests
     `when-evaluator.test.ts`     — operator matrix, short-circuit,
                                     null handling, negate.
     `when-pushdown.test.ts`      — only safe predicates pushed down;
@@ -827,14 +872,21 @@ SECTION 8 — BONUS: BOOLEAN CONDITION GROUPS ON `when`
     Update existing automation tests that pass `TriggerCondition[]`
     to verify the upcast path still works (one assertion: the
     repository round-trips a legacy array into a root AND group).
+    Aggiungere test per `set_variable` ref in WhenNode predicate
+    (`{{cliente.tier}}` resolved via `withVariables`).
 
 8.6 EXAMPLES
 
   "Fire on order.create when total > 100 AND (customer.tier = 'gold'
   OR customer.lifetime_spend > 5000)":
 
+  > NOTA 06-fix: il cliente viene caricato tramite azione `set_variable`
+  > prima della valutazione del `when`. I ref `cliente.tier` e
+  > `cliente.lifetime_spend` sono accessibili via `withVariables`.
+
   ```jsonc
   {
+    "trigger_event": "create",
     "trigger_conditions": {
       "kind": "group", "op": "AND",
       "children": [
@@ -845,18 +897,34 @@ SECTION 8 — BONUS: BOOLEAN CONDITION GROUPS ON `when`
         { "kind": "group", "op": "OR",
           "children": [
             { "kind": "predicate",
-              "left":  { "kind": "ref", "key": "customers:byid({{this.customer_id}}):tier" },
+              "left":  { "kind": "ref", "key": "cliente.tier" },
               "op":    "eq",
               "right": { "kind": "literal", "value": "gold" } },
             { "kind": "predicate",
-              "left":  { "kind": "ref", "key": "customers:byid({{this.customer_id}}):lifetime_spend" },
+              "left":  { "kind": "ref", "key": "cliente.lifetime_spend" },
               "op":    "gt",
               "right": { "kind": "literal", "value": 5000 } }
           ] }
       ]
-    }
+    },
+    "actions": [
+      {
+        "type": "set_variable",
+        "name": "cliente",
+        "seed_slug": "customers",
+        "load_type": "fruit",
+        "filters": [{ "field": "id", "op": "eq", "value": "{{this.customer_id}}" }]
+      }
+      // … azioni successive che usano {{cliente.tier}} etc.
+    ]
   }
   ```
+
+  > Nota architetturale: `evaluateWhen` viene chiamato DOPO il ciclo delle
+  > azioni `set_variable` (o in un pre-pass dedicato), così i ref alle
+  > variabili sono già disponibili nel `ResolvedContext` esteso.
+  > Alternativa più semplice per v1: `evaluateWhen` usa il lookup inline
+  > `customers:byid({{this.customer_id}}):tier` direttamente senza `set_variable`.
 
   "Fire cron when there exist >= 10 unpaid orders":
 

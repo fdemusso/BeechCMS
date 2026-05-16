@@ -2,20 +2,22 @@
  * Sprint 6 — Automation context resolver.
  *
  * Builds a ResolvedContext before action execution. Handles:
- *   - Named pre-loaded queries (automation.context declarations)
- *   - Inline seed lookups ({{seed:selector:field}})
+ *   - Inline seed lookups ({{seed:selector:field}}) — registered async, resolved on demand
  *   - batch scope (cron: full entry list; CRUD: single-element)
  *   - this scope (triggering entry)
  *   - Aggregates: count, sum, avg, min, max, pluck
  *   - Memoisation by canonical query key
  *
- * TODO Sprint 8 (Tasks 10-16): ResolvedContext.lookup will also be called by
- * evaluateWhen() for operand resolution in recursive WhenNode predicates.
+ * Named context variables are populated by set_variable actions via withVariables()
+ * in automation-runner.ts (Sprint 06-fix).
+ *
+ * NOTE: Inline seed lookups register an async fetch but lookup() is synchronous,
+ * so they currently return undefined. Use set_variable actions for actual data access.
+ * Making lookup() async is deferred to a future sprint.
  */
-import type { AutomationContextLoad, AutomationContextSelector, ContentRepository, FilterGroup, Seed, TriggerCondition } from '@beechcms/core'
+import type { ContentRepository, FilterGroup, Seed } from '@beechcms/core'
 import type { Automation } from '@beechcms/core'
-import type { ParsedKey } from './template-grammar'
-import { conditionToFilterGroup } from './filter-translation'
+import type { AutomationContextSelector, ParsedKey } from './template-grammar'
 
 export interface ResolverDeps {
   contentRepository: ContentRepository
@@ -155,37 +157,17 @@ function applyAggregate(
 }
 
 // ---------------------------------------------------------------------------
-// One-pass interpolation of a template string using only simple keys
-// (used to expand {{this.field}} inside context-load where.values)
-// ---------------------------------------------------------------------------
-function interpolateSimple(
-  template: string,
-  thisEntry: Record<string, unknown> | null,
-): string {
-  if (!template) return template
-  return template.replace(/\{\{\s*([a-zA-Z0-9_.:-]+)\s*\}\}/g, (_, key: string) => {
-    const trimmed = key.trim()
-    // Only expand simple dot-path keys (no colon) to avoid forward-ref issues
-    if (trimmed.includes(':')) return `{{${trimmed}}}`
-    const val = resolvePath(thisEntry ?? {}, trimmed)
-    return val != null ? String(val) : ''
-  })
-}
-
-// ---------------------------------------------------------------------------
 // Public factory
 // ---------------------------------------------------------------------------
 
 export async function resolveAutomationContext(
   deps: ResolverDeps,
-  automation: Automation,
+  _automation: Automation,
   triggerEntry: Record<string, unknown> | null,
   batchEntries: Array<Record<string, unknown>>,
 ): Promise<ResolvedContext> {
   // Cache: canonical query key → resolved row list (Promise)
   const cache = new Map<string, Promise<Array<Record<string, unknown>>>>()
-  // Named loads resolved in declaration order
-  const named = new Map<string, Array<Record<string, unknown>> | Record<string, unknown> | null>()
 
   function memoFetch(
     seed: Seed,
@@ -202,48 +184,18 @@ export async function resolveAutomationContext(
     return cache.get(key)!
   }
 
-  // Resolve named context declarations in order (one-pass: no forward refs)
-  for (const decl of automation.context ?? []) {
-    const seed = deps.getSeed(decl.seed_slug)
-    if (!seed) {
-      named.set(decl.as, null)
-      continue
-    }
-
-    const selector: AutomationContextSelector = decl.selector ?? { kind: 'lastone' }
-    const limit = Math.min(decl.limit ?? 100, MAX_ROWS)
-    const orderBy = decl.order_by ?? (selector.kind === 'lastone' ? 'created_at' : selector.kind === 'firstone' ? 'created_at' : '')
-    const order: 'asc' | 'desc' = decl.order ?? (selector.kind === 'firstone' ? 'asc' : 'desc')
-
-    // Interpolate where.value against this + previously resolved named loads (one pass)
-    const resolvedFilters: FilterGroup[] = (decl.where ?? []).map((c) => {
-      const interpolatedValue = typeof c.value === 'string'
-        ? interpolateSimple(c.value, triggerEntry)
-        : c.value
-      return conditionToFilterGroup({ ...c, value: interpolatedValue } as typeof c, seed)
-    })
-
-    const rows = await memoFetch(seed, selector, resolvedFilters, orderBy, order, limit)
-
-    if (selector.kind === 'all') {
-      named.set(decl.as, rows)
-    } else {
-      named.set(decl.as, rows[0] ?? null)
-    }
-  }
-
   // ---------------------------------------------------------------------------
   // lookup implementation
   // ---------------------------------------------------------------------------
 
   function lookup(parsed: ParsedKey, onMissing?: (field: string) => void): unknown {
     if (parsed.kind === 'simple') {
-      const val = resolvePath(triggerEntry ?? {}, parsed.path)
       // Legacy: _count sugar
       if (parsed.path === '_count') {
         console.warn('[automations] {{_count}} is deprecated — use {{batch:all:count}} instead')
         return batchEntries.length
       }
+      const val = resolvePath(triggerEntry ?? {}, parsed.path)
       if (val === undefined && onMissing) onMissing(parsed.path)
       return val
     }
@@ -269,28 +221,8 @@ export async function resolveAutomationContext(
       return applyAggregate(op, field, batchEntries, onMissing)
     }
 
-    // Named context key
-    if (named.has(scope)) {
-      const stored = named.get(scope)
-      if (stored === null) { if (onMissing) onMissing(scope); return undefined }
-
-      if (Array.isArray(stored)) {
-        // Named load was declared with selector:all — aggregate ops
-        if (op !== 'field') return applyAggregate(op, field, stored, onMissing)
-        // Pluck first entry field if no aggregate
-        const val = resolvePath(stored[0] ?? {}, field ?? '')
-        if (val === undefined && onMissing) onMissing(`${scope}.${field}`)
-        return val
-      }
-
-      // Single-entry named load
-      if (op !== 'field') { if (onMissing) onMissing(`${scope}:${op}`); return undefined }
-      const val = resolvePath(stored as Record<string, unknown>, field ?? '')
-      if (val === undefined && onMissing) onMissing(`${scope}.${field}`)
-      return val
-    }
-
-    // Inline seed lookup — resolve on-demand, memoised
+    // Inline seed lookup — registers an async fetch (memoised), returns undefined until async.
+    // Use set_variable actions for synchronous data access.
     const seed = deps.getSeed(scope)
     if (!seed) {
       if (onMissing) onMissing(scope)
@@ -301,13 +233,10 @@ export async function resolveAutomationContext(
     const orderBy = selector.kind === 'lastone' || selector.kind === 'firstone' ? 'created_at' : ''
     const order: 'asc' | 'desc' = selector.kind === 'firstone' ? 'asc' : 'desc'
 
-    // Synchronous memoisation isn't possible here — inline lookups must be pre-resolved.
-    // Return a sentinel that forces callers to pre-resolve via resolveInlineLookups.
-    // For now we return undefined and fire onMissing; in a future sprint this becomes
-    // async-friendly by converting interpolate to async.
-    if (onMissing) onMissing(`${scope}:${selectorKey(selector)}`)
-
+    // Fire the memoised fetch as a side-effect (deduplicates identical requests).
+    // lookup() is synchronous so it cannot await; convert interpolate to async in a future sprint.
     void memoFetch(seed, selector, [], orderBy, order, limit)
+    if (onMissing) onMissing(`${scope}:${selectorKey(selector)}`)
     return undefined
   }
 

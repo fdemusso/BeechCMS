@@ -1,13 +1,12 @@
 import { api } from '@/lib/api'
-import type { Automation } from '@beechcms/core'
+import type { Automation, WhenNode } from '@beechcms/core'
 
 // Local DTO types — mirror of API schema. Do not import API code directly.
 export interface CreateAutomationDto {
   seed_slug: string
   name: string
-  trigger_event: 'create' | 'update' | 'delete' | 'cron'
-  trigger_cron?: string | null
-  trigger_conditions?: Array<{ field: string; op: string; value: unknown }> | null
+  triggers: Array<{ event: 'create' | 'update' | 'delete' | 'cron'; cron?: string | null }>
+  trigger_conditions?: WhenNode | Array<{ field: string; op: string; value: unknown }> | null
   actions: Array<unknown>
 }
 

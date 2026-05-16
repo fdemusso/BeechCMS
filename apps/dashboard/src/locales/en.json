@@ -583,6 +583,7 @@
       "enableButton": "Enable",
       "noActions": "No actions yet. Add one below.",
       "triggerSelectPlaceholder": "Choose a trigger...",
+      "addTrigger": "Add trigger",
       "searchPlaceholder": "Search...",
       "cronExpression": "Cron expression",
       "cronHint": "Cron format: minute hour day month weekday — e.g. 0 9 * * 1 = every Monday at 9:00",
@@ -613,6 +614,8 @@
       "errors": {
         "nameRequired": "Name is required",
         "actionsMin": "At least one action is required",
+        "triggersMin": "At least one trigger is required",
+        "triggerEventRequired": "Select an event for this trigger",
         "cronRequired": "Cron expression is required",
         "urlRequired": "URL is required",
         "urlInvalid": "Invalid URL",
@@ -621,7 +624,8 @@
         "subjectRequired": "Subject is required",
         "bodyRequired": "Body is required",
         "fieldRequired": "Field is required",
-        "seedRequired": "Seed is required"
+        "seedRequired": "Seed is required",
+        "variableNameInvalid": "Variable name must be alphanumeric with underscores"
       }
     },
     "triggers": {
@@ -667,7 +671,8 @@
       "fieldMap": "Field map",
       "fieldMapTarget": "Target field",
       "fieldMapSource": "Source field",
-      "addFieldMap": "Add mapping"
+      "addFieldMap": "Add mapping",
+      "set_variable": "Set variable"
     },
     "toast": {
       "created": "Automation created",
@@ -692,6 +697,39 @@
       "selector.firstone": "Oldest",
       "selector.all": "All matching entries",
       "selector.byid": "Specific entry by ID"
+    },
+    "when": {
+      "and": "AND",
+      "or": "OR",
+      "not": "NOT",
+      "addCondition": "Add condition",
+      "removeGroup": "Remove group",
+      "wrapGroup": "Group with alternative",
+      "fieldPlaceholder": "Field...",
+      "customRef": "Custom ref...",
+      "literalPlaceholder": "Value...",
+      "refPlaceholder": "Ref key...",
+      "valuePlaceholder": "Value...",
+      "true": "True",
+      "false": "False",
+      "chooseDate": "Pick a date...",
+      "chooseTag": "Choose value...",
+      "ops": {
+        "eq": "equals",
+        "neq": "not equals",
+        "gt": "greater than",
+        "gte": "greater or equal",
+        "lt": "less than",
+        "lte": "less or equal",
+        "contains": "contains",
+        "startswith": "starts with",
+        "endswith": "ends with",
+        "in": "in list",
+        "notin": "not in list",
+        "isempty": "is empty",
+        "isnotempty": "is not empty",
+        "matches": "matches regex"
+      }
     }
   }
 }

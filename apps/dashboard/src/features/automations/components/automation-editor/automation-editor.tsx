@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import type { Automation, Branch } from '@beechcms/core'
 import { TriggerSection } from './trigger-section'
-import { ContextSection } from './context-section'
 import { ActionsSection } from './actions-section'
 import { VisualConnector } from './visual-connector'
 import { useAutomationEditor } from './use-automation-editor'
@@ -70,8 +69,6 @@ export function AutomationEditor({
             <div className="max-h-[60vh] overflow-y-auto">
               <div className="px-6 py-4 flex flex-col gap-0">
                 <TriggerSection seedBranches={seedBranches} />
-                <VisualConnector />
-                <ContextSection />
                 <VisualConnector />
                 <ActionsSection seedBranches={seedBranches} />
               </div>

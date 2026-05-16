@@ -1,10 +1,47 @@
 export type AutomationTriggerEvent = 'create' | 'update' | 'delete' | 'cron'
 
+export interface AutomationTrigger {
+  event: AutomationTriggerEvent
+  cron?: string | null
+}
+
 export interface TriggerCondition {
   field: string
   op: 'eq' | 'neq' | 'contains' | 'gt' | 'lt' | 'isempty' | 'isnotempty'
   value: unknown
 }
+
+// ---------------------------------------------------------------------------
+// WhenNode — recursive condition groups (Sprint 8 Task 10)
+// ---------------------------------------------------------------------------
+
+export type WhenOperand =
+  | { kind: 'literal'; value: unknown }
+  | { kind: 'ref'; key: string }  // template grammar key, e.g. "this.total"
+
+export type WhenOp =
+  | 'eq' | 'neq'
+  | 'gt' | 'gte' | 'lt' | 'lte'
+  | 'contains' | 'startswith' | 'endswith'
+  | 'in' | 'notin'
+  | 'isempty' | 'isnotempty'
+  | 'matches'
+
+export interface WhenPredicate {
+  kind: 'predicate'
+  left: WhenOperand
+  op: WhenOp
+  right?: WhenOperand
+}
+
+export interface WhenGroup {
+  kind: 'group'
+  op: 'AND' | 'OR'
+  children: WhenNode[]
+  negate?: boolean
+}
+
+export type WhenNode = WhenPredicate | WhenGroup
 
 export interface SetVariableAction {
   type: 'set_variable'
@@ -23,25 +60,14 @@ export type AutomationAction =
   | { type: 'create_entry'; seed_slug: string; field_map: Record<string, string> }
   | SetVariableAction
 
-// ---------------------------------------------------------------------------
-// TODO Sprint 8 (Tasks 10-16): WhenNode recursive condition groups
-//
-// export type WhenOperand = { kind: 'literal'; value: unknown } | { kind: 'ref'; key: string }
-// export interface WhenPredicate { kind: 'predicate'; left: WhenOperand; op: string; right?: WhenOperand }
-// export interface WhenGroup { kind: 'group'; op: 'AND' | 'OR'; children: WhenNode[]; negate?: boolean }
-// export type WhenNode = WhenPredicate | WhenGroup
-//
-// When implemented, trigger_conditions becomes: WhenNode | TriggerCondition[] | null
-// ---------------------------------------------------------------------------
-
 export interface Automation {
   id: string
   seed_slug: string
   name: string
   enabled: boolean
-  trigger_event: AutomationTriggerEvent
-  trigger_cron: string | null
-  trigger_conditions: TriggerCondition[] | null
+  triggers: AutomationTrigger[]
+  /** New shape: WhenNode. Legacy read path returns TriggerCondition[]; repository upcasts to WhenNode. */
+  trigger_conditions: WhenNode | TriggerCondition[] | null
   actions: AutomationAction[]
   created_at: number
   updated_at: number

@@ -16,14 +16,16 @@ import { TRIGGER_EVENTS } from '../../schema/automation.schema'
 interface TriggerSelectorProps {
   value: AutomationTriggerEvent | ''
   onChange: (event: AutomationTriggerEvent) => void
+  allowedEvents?: AutomationTriggerEvent[]
 }
 
-export function TriggerSelector({ value, onChange }: TriggerSelectorProps) {
+export function TriggerSelector({ value, onChange, allowedEvents }: TriggerSelectorProps) {
   const { t } = useTranslation()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
 
-  const filtered = TRIGGER_EVENTS.filter((e) =>
+  const pool = allowedEvents ?? TRIGGER_EVENTS
+  const filtered = pool.filter((e) =>
     t(`automations.triggers.${e}`).toLowerCase().includes(search.toLowerCase())
   )
 

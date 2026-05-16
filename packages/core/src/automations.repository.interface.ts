@@ -1,11 +1,10 @@
-import type { Automation, AutomationAction, TriggerCondition, AutomationTriggerEvent } from './automations.types.js'
+import type { Automation, AutomationAction, AutomationTrigger, TriggerCondition, AutomationTriggerEvent, WhenNode } from './automations.types.js'
 
 export interface CreateAutomationInput {
   seed_slug: string
   name: string
-  trigger_event: AutomationTriggerEvent
-  trigger_cron: string | null
-  trigger_conditions: TriggerCondition[] | null
+  triggers: AutomationTrigger[]
+  trigger_conditions: WhenNode | TriggerCondition[] | null
   actions: AutomationAction[]
 }
 

@@ -215,7 +215,11 @@ CREATE INDEX IF NOT EXISTS idx_event_log_entry_id    ON content_event_log(entry_
 
 -- =============================================================================
 -- 11. AUTOMATIONS
---     System automations triggered by content lifecycle events or cron schedules.
+--     Event-driven automation rules. Each automation defines one or more
+--     triggers (JSON array of {event, cron?}), optional WhenNode conditions,
+--     and a sequence of actions to execute.
+--     triggers: [{ event: 'create'|'update'|'delete'|'cron', cron?: string }]
+--     Max one cron trigger per automation, enforced at the application layer.
 -- =============================================================================
 
 CREATE TABLE IF NOT EXISTS automations (
@@ -223,8 +227,7 @@ CREATE TABLE IF NOT EXISTS automations (
   seed_slug          TEXT    NOT NULL,
   name               TEXT    NOT NULL,
   enabled            INTEGER NOT NULL DEFAULT 1,
-  trigger_event      TEXT    NOT NULL CHECK(trigger_event IN ('create','update','delete','cron')),
-  trigger_cron       TEXT,
+  triggers           TEXT    NOT NULL DEFAULT '[]',
   trigger_conditions TEXT,
   actions            TEXT    NOT NULL,
   created_at         INTEGER NOT NULL DEFAULT (unixepoch()),

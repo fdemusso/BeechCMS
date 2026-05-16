@@ -583,6 +583,7 @@
       "enableButton": "Abilita",
       "noActions": "Nessuna azione ancora. Aggiungine una.",
       "triggerSelectPlaceholder": "Scegli un trigger...",
+      "addTrigger": "Aggiungi trigger",
       "searchPlaceholder": "Cerca...",
       "cronExpression": "Espressione cron",
       "cronHint": "Formato cron: minuto ora giorno mese giorno-settimana — es. 0 9 * * 1 = ogni lunedì alle 9:00",
@@ -613,6 +614,8 @@
       "errors": {
         "nameRequired": "Nome obbligatorio",
         "actionsMin": "Almeno un'azione richiesta",
+        "triggersMin": "Almeno un trigger richiesto",
+        "triggerEventRequired": "Seleziona un evento per questo trigger",
         "cronRequired": "Espressione cron obbligatoria",
         "urlRequired": "URL obbligatorio",
         "urlInvalid": "URL non valido",
@@ -621,7 +624,8 @@
         "subjectRequired": "Oggetto obbligatorio",
         "bodyRequired": "Corpo obbligatorio",
         "fieldRequired": "Campo obbligatorio",
-        "seedRequired": "Seed obbligatorio"
+        "seedRequired": "Seed obbligatorio",
+        "variableNameInvalid": "Il nome variabile deve contenere solo lettere, numeri e underscore"
       }
     },
     "triggers": {
@@ -667,7 +671,8 @@
       "fieldMap": "Mappa dei campi",
       "fieldMapTarget": "Campo destinazione",
       "fieldMapSource": "Campo sorgente",
-      "addFieldMap": "Aggiungi mappatura"
+      "addFieldMap": "Aggiungi mappatura",
+      "set_variable": "Imposta variabile"
     },
     "toast": {
       "created": "Automazione creata",
@@ -692,6 +697,39 @@
       "selector.firstone": "Meno recente",
       "selector.all": "Tutte le entry corrispondenti",
       "selector.byid": "Entry specifica per ID"
+    },
+    "when": {
+      "and": "E",
+      "or": "O",
+      "not": "NON",
+      "addCondition": "Aggiungi condizione",
+      "removeGroup": "Rimuovi gruppo",
+      "wrapGroup": "Raggruppa con alternativa",
+      "fieldPlaceholder": "Campo...",
+      "customRef": "Ref personalizzato...",
+      "literalPlaceholder": "Valore...",
+      "refPlaceholder": "Chiave ref...",
+      "valuePlaceholder": "Valore...",
+      "true": "Vero",
+      "false": "Falso",
+      "chooseDate": "Scegli data...",
+      "chooseTag": "Scegli valore...",
+      "ops": {
+        "eq": "uguale a",
+        "neq": "diverso da",
+        "gt": "maggiore di",
+        "gte": "maggiore o uguale",
+        "lt": "minore di",
+        "lte": "minore o uguale",
+        "contains": "contiene",
+        "startswith": "inizia con",
+        "endswith": "finisce con",
+        "in": "nella lista",
+        "notin": "non nella lista",
+        "isempty": "è vuoto",
+        "isnotempty": "non è vuoto",
+        "matches": "corrisponde a regex"
+      }
     }
   }
 }

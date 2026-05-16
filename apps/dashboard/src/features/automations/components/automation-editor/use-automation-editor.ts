@@ -2,23 +2,141 @@ import { useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { zodResolver } from '@hookform/resolvers/zod'
-import type { Automation, AutomationAction } from '@beechcms/core'
+import type { Automation, AutomationAction, AutomationTrigger, WhenNode, WhenPredicate, WhenGroup, TriggerCondition } from '@beechcms/core'
 import { useAuth } from '@/lib/auth-context'
 import { useCreateAutomation } from '../../hooks/use-create-automation'
 import { useUpdateAutomation } from '../../hooks/use-update-automation'
 import {
   automationFormSchema,
   DEFAULT_ACTION_ITEM,
+  DEFAULT_TRIGGER_FORM,
+  DEFAULT_WHEN_GROUP,
+  DEFAULT_WHEN_PREDICATE,
   type AutomationFormValues,
   type ActionFormItem,
-  type ContextLoadForm,
   type FieldMapPair,
+  type TriggerForm,
+  type WhenGroupForm,
+  type WhenNodeForm,
+  type WhenPredicateForm,
+  type WhenOp,
 } from '../../schema/automation.schema'
-import type { AutomationContextLoad } from '@beechcms/core'
+
+// ---------------------------------------------------------------------------
+// Triggers ↔ form conversion helpers
+// ---------------------------------------------------------------------------
+
+function triggersToForm(triggers: AutomationTrigger[]): TriggerForm[] {
+  if (!triggers || triggers.length === 0) return [{ ...DEFAULT_TRIGGER_FORM }]
+  return triggers.map((t) => ({ event: t.event, cron: t.cron ?? '' }))
+}
+
+// ---------------------------------------------------------------------------
+// WhenNode ↔ form conversion helpers
+// ---------------------------------------------------------------------------
+
+function whenPredicateToForm(p: WhenPredicate): WhenPredicateForm {
+  return {
+    ...DEFAULT_WHEN_PREDICATE,
+    left_kind: p.left.kind,
+    left_ref: p.left.kind === 'ref' ? p.left.key : '',
+    left_literal: p.left.kind === 'literal' ? String(p.left.value ?? '') : '',
+    op: p.op as WhenOp,
+    right_kind: p.right?.kind ?? 'literal',
+    right_ref: p.right?.kind === 'ref' ? p.right.key : '',
+    right_literal: p.right?.kind === 'literal' ? String(p.right.value ?? '') : '',
+  }
+}
+
+function whenGroupToForm(g: WhenGroup): WhenGroupForm {
+  return {
+    kind: 'group',
+    op: g.op,
+    negate: g.negate ?? false,
+    children: g.children.map(whenNodeToForm),
+  }
+}
+
+function whenNodeToForm(n: WhenNode): WhenNodeForm {
+  if (n.kind === 'predicate') return whenPredicateToForm(n)
+  return whenGroupToForm(n)
+}
+
+function triggerConditionsToWhenGroupForm(
+  conditions: WhenNode | TriggerCondition[] | null,
+): WhenGroupForm {
+  if (!conditions) return { ...DEFAULT_WHEN_GROUP }
+
+  if (Array.isArray(conditions)) {
+    if (conditions.length === 0) return { ...DEFAULT_WHEN_GROUP }
+    return {
+      kind: 'group',
+      op: 'AND',
+      negate: false,
+      children: conditions.map((c): WhenPredicateForm => ({
+        ...DEFAULT_WHEN_PREDICATE,
+        left_kind: 'ref',
+        left_ref: `this.${c.field}`,
+        op: c.op as WhenOp,
+        right_kind: 'literal',
+        right_literal: String(c.value ?? ''),
+      })),
+    }
+  }
+
+  if (conditions.kind === 'predicate') {
+    return { kind: 'group', op: 'AND', negate: false, children: [whenNodeToForm(conditions)] }
+  }
+
+  return whenGroupToForm(conditions)
+}
+
+function whenPredicateFormToNode(p: WhenPredicateForm): WhenPredicate {
+  const noRight = p.op === 'isempty' || p.op === 'isnotempty'
+  return {
+    kind: 'predicate',
+    left: p.left_kind === 'ref'
+      ? { kind: 'ref', key: p.left_ref }
+      : { kind: 'literal', value: p.left_literal },
+    op: p.op,
+    right: noRight
+      ? undefined
+      : p.right_kind === 'ref'
+        ? { kind: 'ref', key: p.right_ref }
+        : { kind: 'literal', value: p.right_literal },
+  }
+}
+
+function whenGroupFormToNode(g: WhenGroupForm): WhenGroup {
+  return {
+    kind: 'group',
+    op: g.op,
+    negate: g.negate || undefined,
+    children: g.children.map(whenNodeFormToNode),
+  }
+}
+
+function whenNodeFormToNode(n: WhenNodeForm): WhenNode {
+  if (n.kind === 'predicate') return whenPredicateFormToNode(n)
+  return whenGroupFormToNode(n)
+}
+
+// ---------------------------------------------------------------------------
+// Action form conversion
+// ---------------------------------------------------------------------------
 
 function actionToFormItem(action: AutomationAction): ActionFormItem {
   const base = { ...DEFAULT_ACTION_ITEM }
   switch (action.type) {
+    case 'set_variable':
+      return {
+        ...base,
+        type: 'set_variable',
+        name: action.name,
+        seed_slug: action.seed_slug,
+        load_type: action.load_type,
+        filters: action.filters.map((f) => ({ field: f.field, op: f.op, value: String(f.value ?? '') })),
+      }
     case 'webhook':
       return {
         ...base,
@@ -55,48 +173,30 @@ function actionToFormItem(action: AutomationAction): ActionFormItem {
   }
 }
 
-function contextLoadToApi(c: ContextLoadForm): AutomationContextLoad {
-  const selector: AutomationContextLoad['selector'] =
-    c.selector_kind === 'byid'
-      ? { kind: 'byid', id: c.byid_value }
-      : { kind: c.selector_kind }
-
-  return {
-    as: c.as,
-    seed_slug: c.seed_slug,
-    selector,
-    order_by: c.order_by || undefined,
-    order: c.order,
-    limit: c.limit,
-  }
-}
-
-function contextLoadFromApi(c: AutomationContextLoad): ContextLoadForm {
-  const sel = c.selector ?? { kind: 'lastone' }
-  return {
-    as: c.as,
-    seed_slug: c.seed_slug,
-    selector_kind: sel.kind === 'where' ? 'lastone' : sel.kind,
-    byid_value: sel.kind === 'byid' ? sel.id : '',
-    order_by: c.order_by ?? '',
-    order: c.order ?? 'desc',
-    limit: c.limit ?? 100,
-  }
-}
-
 function formToApiPayload(values: AutomationFormValues, seedSlug: string) {
+  const whenGroup = whenGroupFormToNode(values.trigger_conditions)
+  const hasConditions = values.trigger_conditions.children.length > 0
+
   return {
     seed_slug: seedSlug,
     name: values.name,
-    trigger_event: values.trigger_event,
-    trigger_cron: values.trigger_event === 'cron' ? values.trigger_cron || null : null,
-    trigger_conditions:
-      values.trigger_event !== 'cron' && values.trigger_conditions.length > 0
-        ? values.trigger_conditions.map((c) => ({ field: c.field, op: c.op, value: c.value }))
-        : null,
-    context: values.context.length > 0 ? values.context.map(contextLoadToApi) : null,
+    triggers: values.triggers
+      .filter((t) => !!t.event)
+      .map((t) => ({
+        event: t.event as AutomationTrigger['event'],
+        ...(t.event === 'cron' ? { cron: t.cron || null } : {}),
+      })),
+    trigger_conditions: hasConditions ? whenGroup : null,
     actions: values.actions.map((a) => {
       switch (a.type) {
+        case 'set_variable':
+          return {
+            type: 'set_variable' as const,
+            name: a.name,
+            seed_slug: a.seed_slug,
+            load_type: a.load_type,
+            filters: a.filters.map((f) => ({ field: f.field, op: f.op, value: f.value })),
+          }
         case 'webhook':
           return {
             type: 'webhook' as const,
@@ -122,6 +222,10 @@ function formToApiPayload(values: AutomationFormValues, seedSlug: string) {
     }),
   }
 }
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
 
 interface UseAutomationEditorOptions {
   seedSlug: string
@@ -153,22 +257,14 @@ export function useAutomationEditor({
     defaultValues: automation
       ? {
           name: automation.name,
-          trigger_event: automation.trigger_event,
-          trigger_cron: automation.trigger_cron ?? '',
-          trigger_conditions: (automation.trigger_conditions ?? []).map((c) => ({
-            field: c.field,
-            op: c.op,
-            value: String(c.value ?? ''),
-          })),
-          context: (automation.context ?? []).map(contextLoadFromApi),
+          triggers: triggersToForm(automation.triggers),
+          trigger_conditions: triggerConditionsToWhenGroupForm(automation.trigger_conditions),
           actions: automation.actions.map(actionToFormItem),
         }
       : {
           name: defaultName,
-          trigger_event: undefined as any,
-          trigger_cron: '',
-          trigger_conditions: [],
-          context: [],
+          triggers: [{ ...DEFAULT_TRIGGER_FORM }],
+          trigger_conditions: { ...DEFAULT_WHEN_GROUP },
           actions: [],
         },
   })
@@ -177,29 +273,20 @@ export function useAutomationEditor({
     if (automation) {
       form.reset({
         name: automation.name,
-        trigger_event: automation.trigger_event,
-        trigger_cron: automation.trigger_cron ?? '',
-        trigger_conditions: (automation.trigger_conditions ?? []).map((c) => ({
-          field: c.field,
-          op: c.op,
-          value: String(c.value ?? ''),
-        })),
-        context: (automation.context ?? []).map(contextLoadFromApi),
+        triggers: triggersToForm(automation.triggers),
+        trigger_conditions: triggerConditionsToWhenGroupForm(automation.trigger_conditions),
         actions: automation.actions.map(actionToFormItem),
       })
     } else {
       form.reset({
         name: defaultName,
-        trigger_event: undefined as any,
-        trigger_cron: '',
-        trigger_conditions: [],
-        context: [],
+        triggers: [{ ...DEFAULT_TRIGGER_FORM }],
+        trigger_conditions: { ...DEFAULT_WHEN_GROUP },
         actions: [],
       })
     }
   }
 
-  // Re-hydrate when automation prop changes or dialog opens
   useEffect(() => {
     if (open) {
       resetForm()

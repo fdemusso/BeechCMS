@@ -60,11 +60,9 @@ automationsApp.post('/', async (context) => {
   const id = await repository.create({
     seed_slug: parsed.data.seed_slug,
     name: parsed.data.name,
-    trigger_event: parsed.data.trigger_event,
-    trigger_cron: parsed.data.trigger_cron ?? null,
+    triggers: parsed.data.triggers,
     trigger_conditions: parsed.data.trigger_conditions ?? null,
     actions: parsed.data.actions,
-    context: parsed.data.context ?? null,
   })
   return context.json({ id }, 201)
 })
@@ -88,9 +86,8 @@ automationsApp.get('/:id', async (context) => {
 
 /**
  * PUT /automations/:id
- * Full update — partial bodies allowed; `trigger_cron` validation
- * (required when `trigger_event` is `cron`) is enforced only on
- * payloads that carry both fields.
+ * Full update — partial bodies allowed; cron expression validation
+ * is enforced by the triggers array schema.
  */
 automationsApp.put('/:id', async (context) => {
   const id = context.req.param('id')
@@ -124,17 +121,6 @@ automationsApp.put('/:id', async (context) => {
       status: 400,
       title: 'Bad Request',
       detail: parsed.error.message,
-    })
-  }
-
-  const nextEvent = parsed.data.trigger_event ?? existing.trigger_event
-  const nextCron  = parsed.data.trigger_cron  ?? existing.trigger_cron
-  if (nextEvent === 'cron' && !nextCron) {
-    return publicProblem(context, {
-      type: 'automation-validation-failed',
-      status: 400,
-      title: 'Bad Request',
-      detail: 'trigger_cron is required when trigger_event is cron',
     })
   }
 

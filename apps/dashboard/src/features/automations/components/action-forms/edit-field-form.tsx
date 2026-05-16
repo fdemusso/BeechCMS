@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next'
 import { useFormContext } from 'react-hook-form'
-import { Input } from '@/components/ui/input'
 import {
   Select,
   SelectContent,
@@ -10,6 +9,7 @@ import {
 } from '@/components/ui/select'
 import type { Branch } from '@beechcms/core'
 import type { AutomationFormValues } from '../../schema/automation.schema'
+import { AutomationValueInput } from '../automation-editor/automation-value-input'
 
 interface EditFieldFormProps {
   index: number
@@ -18,9 +18,17 @@ interface EditFieldFormProps {
 
 export function EditFieldForm({ index, seedBranches }: EditFieldFormProps) {
   const { t } = useTranslation()
-  const { register, watch, setValue, formState: { errors } } = useFormContext<AutomationFormValues>()
+  const { watch, setValue, formState: { errors } } = useFormContext<AutomationFormValues>()
   const field = watch(`actions.${index}.field` as any) as string
+  const value = watch(`actions.${index}.value` as any) as string
   const actionErrors = (errors.actions as any)?.[index]
+
+  const selectedBranch: Branch | undefined = seedBranches.find((b) => b.alias === field)
+
+  function handleFieldChange(alias: string) {
+    setValue(`actions.${index}.field` as any, alias)
+    setValue(`actions.${index}.value` as any, '')
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -30,7 +38,7 @@ export function EditFieldForm({ index, seedBranches }: EditFieldFormProps) {
         </label>
         <Select
           value={field ?? ''}
-          onValueChange={(v) => setValue(`actions.${index}.field` as any, v)}
+          onValueChange={handleFieldChange}
         >
           <SelectTrigger size="sm" className="h-8 text-sm">
             <SelectValue placeholder={t('automations.actions.editFieldPlaceholder')} />
@@ -52,10 +60,11 @@ export function EditFieldForm({ index, seedBranches }: EditFieldFormProps) {
         <label className="text-xs font-medium text-muted-foreground mb-1 block">
           {t('automations.actions.editValue')}
         </label>
-        <Input
-          {...register(`actions.${index}.value` as any)}
-          placeholder={t('automations.actions.editValuePlaceholder')}
-          className="h-8 text-sm"
+        <AutomationValueInput
+          branch={selectedBranch}
+          value={value ?? ''}
+          onChange={(v) => setValue(`actions.${index}.value` as any, v)}
+          className="h-8 flex-1"
         />
       </div>
     </div>

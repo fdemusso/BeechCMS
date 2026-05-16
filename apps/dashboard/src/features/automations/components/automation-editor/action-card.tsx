@@ -4,6 +4,7 @@ import { X, ChevronUp, ChevronDown } from 'lucide-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import type { Branch } from '@beechcms/core'
+import { SetVariableForm } from '../action-forms/set-variable-form'
 import { WebhookForm } from '../action-forms/webhook-form'
 import { SendMailForm } from '../action-forms/send-mail-form'
 import { EditFieldForm } from '../action-forms/edit-field-form'
@@ -11,6 +12,7 @@ import { CreateEntryForm } from '../action-forms/create-entry-form'
 import type { AutomationFormValues } from '../../schema/automation.schema'
 
 const ACTION_BORDER: Record<string, string> = {
+  set_variable: 'border-l-cyan-500',
   webhook: 'border-l-blue-500',
   send_mail: 'border-l-green-500',
   edit_field: 'border-l-amber-500',
@@ -71,6 +73,7 @@ export function ActionCard({ index, total, seedBranches, onRemove, onMoveUp, onM
         </div>
       </CardHeader>
       <CardContent className="p-3 pt-0">
+        {type === 'set_variable' && <SetVariableForm index={index} />}
         {type === 'webhook' && <WebhookForm index={index} />}
         {type === 'send_mail' && <SendMailForm index={index} />}
         {type === 'edit_field' && <EditFieldForm index={index} seedBranches={seedBranches} />}

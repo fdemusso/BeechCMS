@@ -33,6 +33,7 @@ function makeCtx(overrides: Partial<ActionContext> = {}): ActionContext {
     seed: { slug: 'posts', branches: [] } as unknown as Seed,
     idGenerator: { uuid: vi.fn().mockReturnValue('new-id-123') } as unknown as IIdGenerator,
     context,
+    variables: {},
     ...rest,
   }
 }

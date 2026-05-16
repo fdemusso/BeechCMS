@@ -6,12 +6,12 @@ import type {
   Seed,
   IIdGenerator,
 } from '@beechcms/core'
-import { evaluateConditions } from './automation-runner.utils'
+import { resolvePath } from './automation-runner.utils'
 import { resolveAutomationContext } from './context-resolver'
+import type { ResolvedContext } from './context-resolver'
+import type { ParsedKey } from './template-grammar'
 import { executeAction } from './action-executors'
-
-// TODO Sprint 8 (Task 13): replace evaluateConditions with evaluateWhen() once
-// recursive WhenNode groups are implemented.
+import { evaluateWhen } from './when-evaluator'
 
 export interface AutomationRunnerDeps {
   automationRepository: IAutomationRepository
@@ -19,6 +19,19 @@ export interface AutomationRunnerDeps {
   getSeed: (slug: string) => Seed | null
   idGenerator: IIdGenerator
   env: Record<string, string | undefined>
+}
+
+function withVariables(base: ResolvedContext, variables: Record<string, unknown>): ResolvedContext {
+  return {
+    triggerEntry: base.triggerEntry,
+    lookup(parsed: ParsedKey, onMissing?: (field: string) => void): unknown {
+      if (parsed.kind === 'simple') {
+        const varVal = resolvePath(variables, parsed.path)
+        if (varVal !== undefined) return varVal
+      }
+      return base.lookup(parsed, onMissing)
+    },
+  }
 }
 
 export class AutomationRunner implements IAutomationRunner {
@@ -32,13 +45,18 @@ export class AutomationRunner implements IAutomationRunner {
     const automations = await this.deps.automationRepository.findActive(seedSlug, event)
 
     for (const automation of automations) {
-      if (!evaluateConditions(automation.trigger_conditions, entry)) continue
-
       const resolverDeps = {
         contentRepository: this.deps.contentRepository,
         getSeed: this.deps.getSeed,
       }
       const resolved = await resolveAutomationContext(resolverDeps, automation, entry, [entry])
+
+      // Evaluate conditions with the resolved context (this + batch scopes available).
+      // Variables from set_variable actions are not yet available here; use inline refs
+      // like {{customers:byid({{this.id}}):field}} for cross-seed conditions in v1.
+      if (!evaluateWhen(automation.trigger_conditions, resolved)) continue
+
+      const variables: Record<string, unknown> = {}
 
       for (const action of automation.actions) {
         try {
@@ -49,7 +67,8 @@ export class AutomationRunner implements IAutomationRunner {
             getSeed: this.deps.getSeed,
             seed,
             idGenerator: this.deps.idGenerator,
-            context: resolved,
+            context: withVariables(resolved, variables),
+            variables,
           })
         } catch (error) {
           console.error('[automations] action failed', {

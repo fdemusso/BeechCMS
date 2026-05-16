@@ -8,11 +8,9 @@ const baseAutomation: Automation = {
   seed_slug: 'posts',
   name: 'test',
   enabled: true,
-  trigger_event: 'create',
-  trigger_cron: null,
+  triggers: [{ event: 'create' }],
   trigger_conditions: null,
   actions: [{ type: 'webhook', url: 'https://example.com' }],
-  context: null,
   created_at: 1000,
   updated_at: 1000,
 }
@@ -78,7 +76,7 @@ describe('POST /', () => {
     const res = await app.request('/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ seed_slug: 'posts' }), // missing name, trigger_event, actions
+      body: JSON.stringify({ seed_slug: 'posts' }), // missing name, triggers, actions
     })
     expect(res.status).toBe(400)
     const body = await res.json() as { type: string }
@@ -93,8 +91,7 @@ describe('POST /', () => {
       body: JSON.stringify({
         seed_slug: 'posts',
         name: 'test-cron-automation',
-        trigger_event: 'cron',
-        trigger_cron: '0 0 * * *',
+        triggers: [{ event: 'cron', cron: '0 0 * * *' }],
         trigger_conditions: [{ field: 'status', op: 'eq', value: 'draft' }],
         actions: [{ type: 'webhook', url: 'https://example.com' }],
       }),
@@ -112,7 +109,7 @@ describe('POST /', () => {
       body: JSON.stringify({
         seed_slug: 'posts',
         name: 'test-create-automation',
-        trigger_event: 'create',
+        triggers: [{ event: 'create' }],
         actions: [{ type: 'webhook', url: 'https://example.com' }],
       }),
     })
@@ -171,13 +168,12 @@ describe('PUT /:id', () => {
     expect(body.type).toContain('automation-validation-failed')
   })
 
-  it('returns 400 when trigger_event is cron and no trigger_cron in body or existing', async () => {
-    const existingNoCron: Automation = { ...baseAutomation, trigger_event: 'create', trigger_cron: null }
-    const app = buildApp(makeStub({ findById: vi.fn().mockResolvedValue(existingNoCron) }))
+  it('returns 400 when cron trigger has no cron expression', async () => {
+    const app = buildApp(makeStub())
     const res = await app.request('/test-id', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ trigger_event: 'cron' }),
+      body: JSON.stringify({ triggers: [{ event: 'cron' }] }),
     })
     expect(res.status).toBe(400)
     const body = await res.json() as { type: string }

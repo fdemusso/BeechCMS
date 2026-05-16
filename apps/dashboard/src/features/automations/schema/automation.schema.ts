@@ -1,13 +1,27 @@
 // Mirror of apps/api/src/features/automations/automations.schema.ts
 // Keep structurally identical. Changes here must be reflected there and vice versa.
-// TODO Sprint 8 (Task 14): add recursive whenNodeSchema for WhenNode validation.
 import { z } from 'zod'
 import type { AutomationTriggerEvent, TriggerCondition } from '@beechcms/core'
 
 export const TRIGGER_OPS = ['eq', 'neq', 'contains', 'gt', 'lt', 'isempty', 'isnotempty'] as const
 export type TriggerOp = typeof TRIGGER_OPS[number]
 
+export const WHEN_OPS = [
+  'eq', 'neq',
+  'gt', 'gte', 'lt', 'lte',
+  'contains', 'startswith', 'endswith',
+  'in', 'notin',
+  'isempty', 'isnotempty',
+  'matches',
+] as const
+export type WhenOp = typeof WHEN_OPS[number]
+
 export const TRIGGER_EVENTS: AutomationTriggerEvent[] = ['create', 'update', 'delete', 'cron']
+
+export type TriggerForm = {
+  event: AutomationTriggerEvent | ''
+  cron: string
+}
 export const ACTION_TYPES = ['set_variable', 'webhook', 'send_mail', 'edit_field', 'create_entry'] as const
 
 export type HeaderPair = { key: string; value: string }
@@ -42,24 +56,35 @@ export type TriggerConditionForm = {
   value: string
 }
 
-export type ContextSelectorKind = 'lastone' | 'firstone' | 'all' | 'byid'
+// ---------------------------------------------------------------------------
+// WhenNode form types (Task 15)
+// Flat representation to keep RHF-compatible; converted to WhenNode for the API.
+// ---------------------------------------------------------------------------
 
-export type ContextLoadForm = {
-  as: string
-  seed_slug: string
-  selector_kind: ContextSelectorKind
-  byid_value: string
-  order_by: string
-  order: 'asc' | 'desc'
-  limit: number
+export type WhenPredicateForm = {
+  kind: 'predicate'
+  left_kind: 'ref' | 'literal'
+  left_ref: string     // e.g. "this.status", "orders:all:sum:total"
+  left_literal: string
+  op: WhenOp
+  right_kind: 'ref' | 'literal'
+  right_ref: string
+  right_literal: string
 }
+
+export type WhenGroupForm = {
+  kind: 'group'
+  op: 'AND' | 'OR'
+  negate: boolean
+  children: WhenNodeForm[]
+}
+
+export type WhenNodeForm = WhenPredicateForm | WhenGroupForm
 
 export type AutomationFormValues = {
   name: string
-  trigger_event: AutomationTriggerEvent
-  trigger_cron: string
-  trigger_conditions: TriggerConditionForm[]
-  context: ContextLoadForm[]
+  triggers: TriggerForm[]
+  trigger_conditions: WhenGroupForm
   actions: ActionFormItem[]
 }
 
@@ -121,49 +146,32 @@ const actionFormItemSchema = z
     }
   })
 
-const contextLoadFormSchema = z.object({
-  as: z.string().min(1),
-  seed_slug: z.string().min(1),
-  selector_kind: z.enum(['lastone', 'firstone', 'all', 'byid']),
-  byid_value: z.string(),
-  order_by: z.string(),
-  order: z.enum(['asc', 'desc']),
-  limit: z.number().int().min(1).max(1000),
-})
-
-export const DEFAULT_CONTEXT_LOAD: ContextLoadForm = {
-  as: '',
-  seed_slug: '',
-  selector_kind: 'lastone',
-  byid_value: '',
-  order_by: '',
-  order: 'desc',
-  limit: 100,
-}
-
 export const automationFormSchema = z
   .object({
     name: z.string().min(1, 'automations.editor.errors.nameRequired').max(100),
-    trigger_event: z.enum(['create', 'update', 'delete', 'cron']),
-    trigger_cron: z.string(),
-    trigger_conditions: z.array(
-      z.object({
-        field: z.string().min(1),
-        op: z.enum(TRIGGER_OPS),
-        value: z.string(),
-      })
-    ),
-    context: z.array(contextLoadFormSchema),
+    triggers: z
+      .array(z.object({
+        event: z.union([z.literal(''), z.enum(['create', 'update', 'delete', 'cron'])]),
+        cron: z.string(),
+      }))
+      .min(1, 'automations.editor.errors.triggersMin'),
+    trigger_conditions: z.object({
+      kind: z.literal('group'),
+      op: z.enum(['AND', 'OR']),
+      negate: z.boolean(),
+      children: z.array(z.any()),
+    }),
     actions: z.array(actionFormItemSchema).min(1, 'automations.editor.errors.actionsMin'),
   })
   .superRefine((data, ctx) => {
-    if (data.trigger_event === 'cron' && !data.trigger_cron) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'automations.editor.errors.cronRequired',
-        path: ['trigger_cron'],
-      })
-    }
+    data.triggers.forEach((t, i) => {
+      if (!t.event) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.triggerEventRequired', path: ['triggers', i, 'event'] })
+      }
+      if (t.event === 'cron' && !t.cron) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.cronRequired', path: ['triggers', i, 'cron'] })
+      }
+    })
   })
 
 export const DEFAULT_ACTION_ITEM: Omit<ActionFormItem, 'type'> = {
@@ -180,4 +188,27 @@ export const DEFAULT_ACTION_ITEM: Omit<ActionFormItem, 'type'> = {
   value: '',
   seed_slug: '',
   field_map: [],
+}
+
+export const DEFAULT_TRIGGER_FORM: TriggerForm = {
+  event: '',
+  cron: '',
+}
+
+export const DEFAULT_WHEN_GROUP: WhenGroupForm = {
+  kind: 'group',
+  op: 'AND',
+  negate: false,
+  children: [],
+}
+
+export const DEFAULT_WHEN_PREDICATE: WhenPredicateForm = {
+  kind: 'predicate',
+  left_kind: 'ref',
+  left_ref: '',
+  left_literal: '',
+  op: 'eq',
+  right_kind: 'literal',
+  right_ref: '',
+  right_literal: '',
 }

@@ -10,7 +10,7 @@ const validWebhookAction = { type: 'webhook' as const, url: 'https://example.com
 const minimalValid = {
   seed_slug: 'posts',
   name: 'notify-on-create',
-  trigger_event: 'create' as const,
+  triggers: [{ event: 'create' as const }],
   actions: [validWebhookAction],
 }
 
@@ -19,23 +19,34 @@ describe('createAutomationSchema', () => {
     expect(createAutomationSchema.safeParse(minimalValid).success).toBe(true)
   })
 
-  it('rejects cron event without trigger_cron', () => {
+  it('rejects cron trigger without cron expression', () => {
     const result = createAutomationSchema.safeParse({
       ...minimalValid,
-      trigger_event: 'cron',
+      triggers: [{ event: 'cron' }],
     })
     expect(result.success).toBe(false)
-    if (!result.success) {
-      const issue = result.error.issues.find(i => i.path.includes('trigger_cron'))
-      expect(issue).toBeDefined()
-    }
   })
 
-  it('accepts cron event with trigger_cron', () => {
+  it('accepts cron trigger with cron expression', () => {
     const result = createAutomationSchema.safeParse({
       ...minimalValid,
-      trigger_event: 'cron',
-      trigger_cron: '0 * * * *',
+      triggers: [{ event: 'cron', cron: '0 * * * *' }],
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects duplicate trigger events', () => {
+    const result = createAutomationSchema.safeParse({
+      ...minimalValid,
+      triggers: [{ event: 'create' }, { event: 'create' }],
+    })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts multiple distinct triggers', () => {
+    const result = createAutomationSchema.safeParse({
+      ...minimalValid,
+      triggers: [{ event: 'create' }, { event: 'update' }],
     })
     expect(result.success).toBe(true)
   })
@@ -74,6 +85,7 @@ describe('createAutomationSchema', () => {
       ...minimalValid,
       trigger_conditions: null,
     })
+
     expect(result.success).toBe(true)
   })
 
@@ -91,7 +103,7 @@ describe('updateAutomationSchema', () => {
     expect(updateAutomationSchema.safeParse({}).success).toBe(true)
   })
 
-  it('accepts name-only without requiring trigger_cron', () => {
+  it('accepts name-only without requiring triggers', () => {
     const result = updateAutomationSchema.safeParse({ name: 'renamed' })
     expect(result.success).toBe(true)
   })

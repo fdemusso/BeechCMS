@@ -18,7 +18,9 @@ export function AutomationRow({ automation, onEdit, onDelete, onToggle, isToggli
     <div className="flex items-center gap-3 py-3 px-1 border-b last:border-0">
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{automation.name}</p>
-        <p className="text-xs text-muted-foreground">{t(`automations.triggers.${automation.trigger_event}`)}</p>
+        <p className="text-xs text-muted-foreground">
+          {automation.triggers.map((tr) => t(`automations.triggers.${tr.event}`)).join(' / ')}
+        </p>
       </div>
       <Switch
         checked={automation.enabled}

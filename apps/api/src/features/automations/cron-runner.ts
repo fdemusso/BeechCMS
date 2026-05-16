@@ -1,20 +1,16 @@
 import type {
   Automation,
   ContentRepository,
+  FilterGroup,
   IAutomationRepository,
   IIdGenerator,
   Seed,
-  TriggerCondition,
 } from '@beechcms/core'
 import { cronMatches } from './cron-runner.utils'
 import { executeAction } from './action-executors'
 import { resolveAutomationContext, deriveEntryContext } from './context-resolver'
-import { conditionToFilterGroup } from './filter-translation'
-import { evaluateConditions } from './automation-runner.utils'
-
-// TODO Sprint 8 (Task 12): replace conditionToFilterGroup mapping with
-// extractPushdownFilters(node, seed) so only safe WhenNode predicates go to SQL.
-// TODO Sprint 8 (Task 13): replace evaluateConditions with evaluateWhen().
+import { extractPushdownFilters } from './when-pushdown'
+import { evaluateWhen } from './when-evaluator'
 
 export interface CronRunnerDeps {
   automationRepository: IAutomationRepository
@@ -50,8 +46,9 @@ export async function runCronAutomations(
   }
 
   for (const automation of automations) {
-    if (!cronMatches(automation.trigger_cron, scheduledTime)) {
-      console.log(`[cron] Skipping "${automation.name}": cron expression "${automation.trigger_cron}" does not match.`)
+    const cronTrigger = automation.triggers.find((t) => t.event === 'cron')
+    if (!cronMatches(cronTrigger?.cron ?? null, scheduledTime)) {
+      console.log(`[cron] Skipping "${automation.name}": cron expression "${cronTrigger?.cron}" does not match.`)
       continue
     }
 
@@ -73,7 +70,7 @@ export async function runCronAutomations(
     if (entries.length === 0) continue
 
     // Build the base ResolvedContext once per automation (shared seed-query cache).
-    // triggerEntry = first entry; batchEntries = full list.
+    // triggerEntry = first entry; batchEntries = full SQL-filtered list.
     const batchResolved = await resolveAutomationContext(
       resolverDeps,
       automation,
@@ -81,12 +78,14 @@ export async function runCronAutomations(
       entries,
     )
 
+    const variables: Record<string, unknown> = {}
     const baseCtx = {
       env: deps.env,
       repository: deps.contentRepository,
       getSeed: deps.getSeed,
       seed,
       idGenerator: deps.idGenerator,
+      variables,
     }
 
     for (const action of automation.actions) {
@@ -95,6 +94,8 @@ export async function runCronAutomations(
           // Per-entry: derive a lightweight context whose `this` is the current entry.
           // Seed-query cache is reused from batchResolved.
           const entryResolved = deriveEntryContext(batchResolved, entry)
+          // In-memory per-entry condition check (Task 13)
+          if (!evaluateWhen(automation.trigger_conditions, entryResolved)) continue
           try {
             await executeAction(action, { ...baseCtx, entry, context: entryResolved })
           } catch (err) {
@@ -127,7 +128,11 @@ async function fetchMatchingEntries(
   seed: Seed,
   automation: Automation,
 ): Promise<Array<Record<string, unknown>>> {
-  const filters = (automation.trigger_conditions ?? []).map((c: TriggerCondition) => conditionToFilterGroup(c, seed))
+  // Task 12: push down only safe predicates to SQL (this.<field> = literal, AND group only).
+  // OR branches, cross-seed refs, and gte/lte/etc. ops are evaluated in-memory by evaluateWhen().
+  const filters: FilterGroup[] = automation.trigger_conditions
+    ? extractPushdownFilters(automation.trigger_conditions, seed)
+    : []
   const result = await repository.findMany(seed, {
     filters,
     status: null,

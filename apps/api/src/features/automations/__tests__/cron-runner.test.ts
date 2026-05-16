@@ -38,11 +38,9 @@ function makeAutomation(overrides: Partial<Automation> = {}): Automation {
     seed_slug: 'posts',
     name: 'every-minute',
     enabled: true,
-    trigger_event: 'cron',
-    trigger_cron: '* * * * *',
+    triggers: [{ event: 'cron' as const, cron: '* * * * *' }],
     trigger_conditions: null,
     actions: [{ type: 'webhook', url: 'https://example.com/hook' }],
-    context: null,
     created_at: 0,
     updated_at: 0,
     ...overrides,
@@ -112,8 +110,8 @@ describe('runCronAutomations', () => {
   })
 
   it('skips non-matching cron expression, runs matching one', async () => {
-    const matchingAuto = makeAutomation({ id: 'auto_match', trigger_cron: '* * * * *' })
-    const nonMatchingAuto = makeAutomation({ id: 'auto_skip', trigger_cron: '30 9 * * *' })
+    const matchingAuto = makeAutomation({ id: 'auto_match', triggers: [{ event: 'cron', cron: '* * * * *' }] })
+    const nonMatchingAuto = makeAutomation({ id: 'auto_skip', triggers: [{ event: 'cron', cron: '30 9 * * *' }] })
     const entries = [{ id: 'e1' }, { id: 'e2' }]
 
     const deps = makeDeps()

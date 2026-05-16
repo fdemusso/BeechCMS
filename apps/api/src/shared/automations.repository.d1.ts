@@ -2,11 +2,14 @@ import type {
   IAutomationRepository,
   Automation,
   AutomationAction,
-  AutomationContextLoad,
+  AutomationTrigger,
   TriggerCondition,
   AutomationTriggerEvent,
   CreateAutomationInput,
   UpdateAutomationInput,
+  WhenNode,
+  WhenGroup,
+  WhenPredicate,
 } from '@beechcms/core'
 
 interface AutomationRow {
@@ -14,11 +17,9 @@ interface AutomationRow {
   seed_slug: string
   name: string
   enabled: number
-  trigger_event: AutomationTriggerEvent
-  trigger_cron: string | null
+  triggers: string
   trigger_conditions: string | null
   actions: string
-  context: string | null
   created_at: number
   updated_at: number
 }
@@ -29,11 +30,17 @@ export class D1AutomationRepository implements IAutomationRepository {
   async findActive(seedSlug: string, event: AutomationTriggerEvent): Promise<Automation[]> {
     const result = seedSlug === '*'
       ? await this.db
-          .prepare(`SELECT * FROM automations WHERE trigger_event = ? AND enabled = 1`)
+          .prepare(
+            `SELECT DISTINCT a.* FROM automations a, json_each(a.triggers) t
+             WHERE a.enabled = 1 AND json_extract(t.value, '$.event') = ?`,
+          )
           .bind(event)
           .all<AutomationRow>()
       : await this.db
-          .prepare(`SELECT * FROM automations WHERE seed_slug = ? AND trigger_event = ? AND enabled = 1`)
+          .prepare(
+            `SELECT DISTINCT a.* FROM automations a, json_each(a.triggers) t
+             WHERE a.seed_slug = ? AND a.enabled = 1 AND json_extract(t.value, '$.event') = ?`,
+          )
           .bind(seedSlug, event)
           .all<AutomationRow>()
     return (result.results ?? []).map(rowToAutomation)
@@ -61,19 +68,16 @@ export class D1AutomationRepository implements IAutomationRepository {
     await this.db
       .prepare(
         `INSERT INTO automations
-           (id, seed_slug, name, enabled, trigger_event, trigger_cron,
-            trigger_conditions, actions, context, created_at, updated_at)
-         VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, seed_slug, name, enabled, triggers, trigger_conditions, actions, created_at, updated_at)
+         VALUES (?, ?, ?, 1, ?, ?, ?, ?, ?)`,
       )
       .bind(
         id,
         input.seed_slug,
         input.name,
-        input.trigger_event,
-        input.trigger_cron ?? null,
+        JSON.stringify(input.triggers),
         input.trigger_conditions ? JSON.stringify(input.trigger_conditions) : null,
         JSON.stringify(input.actions),
-        input.context ? JSON.stringify(input.context) : null,
         now,
         now,
       )
@@ -89,8 +93,7 @@ export class D1AutomationRepository implements IAutomationRepository {
     const map: Record<string, unknown> = {
       seed_slug: input.seed_slug,
       name: input.name,
-      trigger_event: input.trigger_event,
-      trigger_cron: input.trigger_cron,
+      triggers: input.triggers !== undefined ? JSON.stringify(input.triggers) : undefined,
       trigger_conditions:
         input.trigger_conditions !== undefined
           ? input.trigger_conditions === null
@@ -98,12 +101,6 @@ export class D1AutomationRepository implements IAutomationRepository {
             : JSON.stringify(input.trigger_conditions)
           : undefined,
       actions: input.actions !== undefined ? JSON.stringify(input.actions) : undefined,
-      context:
-        input.context !== undefined
-          ? input.context === null
-            ? null
-            : JSON.stringify(input.context)
-          : undefined,
     }
 
     for (const [column, value] of Object.entries(map)) {
@@ -135,21 +132,38 @@ export class D1AutomationRepository implements IAutomationRepository {
   }
 }
 
+function upcastTriggerConditions(parsed: unknown): WhenNode | null {
+  if (!parsed) return null
+  if (Array.isArray(parsed)) {
+    const conditions = parsed as TriggerCondition[]
+    if (conditions.length === 0) return null
+    return {
+      kind: 'group',
+      op: 'AND',
+      children: conditions.map((c): WhenPredicate => ({
+        kind: 'predicate',
+        left: { kind: 'ref', key: `this.${c.field}` },
+        op: c.op as WhenPredicate['op'],
+        right: c.op === 'isempty' || c.op === 'isnotempty'
+          ? undefined
+          : { kind: 'literal', value: c.value },
+      })),
+    } satisfies WhenGroup
+  }
+  return parsed as WhenNode
+}
+
 function rowToAutomation(row: AutomationRow): Automation {
   return {
     id: row.id,
     seed_slug: row.seed_slug,
     name: row.name,
     enabled: row.enabled === 1,
-    trigger_event: row.trigger_event,
-    trigger_cron: row.trigger_cron,
+    triggers: JSON.parse(row.triggers) as AutomationTrigger[],
     trigger_conditions: row.trigger_conditions
-      ? (JSON.parse(row.trigger_conditions) as TriggerCondition[])
+      ? upcastTriggerConditions(JSON.parse(row.trigger_conditions))
       : null,
     actions: JSON.parse(row.actions) as AutomationAction[],
-    context: row.context
-      ? (JSON.parse(row.context) as AutomationContextLoad[])
-      : null,
     created_at: row.created_at,
     updated_at: row.updated_at,
   }

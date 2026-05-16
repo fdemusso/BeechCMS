@@ -25,7 +25,6 @@ export function parseCronToState(cron: string) {
   }
   const [min, hr, dom, mon, dow] = parts
 
-  // hourly: 0 * * * *
   if (min === '0' && hr === '*' && dom === '*' && mon === '*' && dow === '*') {
     return { preset: 'hourly' as CronPreset, hour: '00', minute: '00', dayOfWeek: '1', dayOfMonth: '1' }
   }
@@ -35,17 +34,14 @@ export function parseCronToState(cron: string) {
   const paddedMin = isNumericMin ? min.padStart(2, '0') : '00'
   const paddedHr = isNumericHr ? hr.padStart(2, '0') : '09'
 
-  // daily: min hr * * *
   if (isNumericMin && isNumericHr && dom === '*' && mon === '*' && dow === '*') {
     return { preset: 'daily' as CronPreset, hour: paddedHr, minute: paddedMin, dayOfWeek: '1', dayOfMonth: '1' }
   }
 
-  // weekly: min hr * * dow
   if (isNumericMin && isNumericHr && dom === '*' && mon === '*' && /^\d+$/.test(dow)) {
     return { preset: 'weekly' as CronPreset, hour: paddedHr, minute: paddedMin, dayOfWeek: dow, dayOfMonth: '1' }
   }
 
-  // monthly: min hr dom * *
   if (isNumericMin && isNumericHr && /^\d+$/.test(dom) && mon === '*' && dow === '*') {
     return { preset: 'monthly' as CronPreset, hour: paddedHr, minute: paddedMin, dayOfWeek: '1', dayOfMonth: dom }
   }
@@ -53,18 +49,23 @@ export function parseCronToState(cron: string) {
   return { preset: 'advanced' as CronPreset, hour: paddedHr, minute: paddedMin, dayOfWeek: '1', dayOfMonth: '1' }
 }
 
-export function CronSchedulerUi() {
+interface CronSchedulerUiProps {
+  triggerIndex: number
+}
+
+export function CronSchedulerUi({ triggerIndex }: CronSchedulerUiProps) {
   const { t } = useTranslation()
   const { watch, setValue, register, formState: { errors } } = useFormContext<AutomationFormValues>()
-  const currentCron = watch('trigger_cron')
+
+  const cronField = `triggers.${triggerIndex}.cron` as const
+  const currentCron = watch(cronField as any) as string ?? ''
+  const cronError = (errors.triggers as any)?.[triggerIndex]?.cron
 
   const [state, setState] = useState(() => parseCronToState(currentCron || ''))
 
-  // Keep internal state updated if loaded asynchronously from server
   useEffect(() => {
     if (currentCron) {
       const parsed = parseCronToState(currentCron)
-      // Only set if we haven't selected a custom preset yet or if it differs structurally
       setState((prev) => {
         if (!prev.preset || prev.preset === 'advanced' || currentCron.trim() === '') {
           return parsed
@@ -74,7 +75,6 @@ export function CronSchedulerUi() {
     }
   }, [currentCron])
 
-  // Synchronize high-level controls to the underlying RHF trigger_cron string
   useEffect(() => {
     if (state.preset !== 'advanced') {
       let expr = ''
@@ -89,10 +89,10 @@ export function CronSchedulerUi() {
       }
 
       if (currentCron !== expr) {
-        setValue('trigger_cron', expr, { shouldValidate: true })
+        setValue(cronField as any, expr, { shouldValidate: true })
       }
     }
-  }, [state.preset, state.hour, state.minute, state.dayOfWeek, state.dayOfMonth, setValue, currentCron])
+  }, [state.preset, state.hour, state.minute, state.dayOfWeek, state.dayOfMonth, setValue, currentCron, cronField])
 
   function updateSchedule(updates: Partial<typeof state>) {
     setState((prev) => ({ ...prev, ...updates }))
@@ -125,7 +125,6 @@ export function CronSchedulerUi() {
         {t('automations.editor.cron.title')}
       </label>
 
-      {/* Preset Frequencies Switcher */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
         {presets.map((p) => {
           const Icon = p.icon
@@ -136,13 +135,13 @@ export function CronSchedulerUi() {
               type="button"
               onClick={() => updateSchedule({ preset: p.id })}
               className={cn(
-                "flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs font-medium transition-all relative overflow-hidden select-none cursor-pointer",
+                'flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs font-medium transition-all relative overflow-hidden select-none cursor-pointer',
                 isActive
-                  ? "bg-primary/10 border-primary text-primary dark:bg-primary/20 shadow-xs"
-                  : "bg-background hover:bg-muted/50 border-border text-muted-foreground hover:text-foreground"
+                  ? 'bg-primary/10 border-primary text-primary dark:bg-primary/20 shadow-xs'
+                  : 'bg-background hover:bg-muted/50 border-border text-muted-foreground hover:text-foreground',
               )}
             >
-              <Icon className={cn("size-4 mb-1.5 transition-transform", isActive ? "scale-110" : "")} />
+              <Icon className={cn('size-4 mb-1.5 transition-transform', isActive ? 'scale-110' : '')} />
               <span className="text-[11px] text-center leading-tight">
                 {t(`automations.editor.cron.${p.labelKey}`)}
               </span>
@@ -151,10 +150,8 @@ export function CronSchedulerUi() {
         })}
       </div>
 
-      {/* Dynamic Settings per Preset */}
       {state.preset !== 'hourly' && state.preset !== 'advanced' && (
         <div className="mt-3 p-3 rounded-lg bg-secondary/30 dark:bg-secondary/10 border border-secondary flex flex-wrap items-center gap-4 animate-in fade-in-50 duration-200">
-          {/* Execution Time */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[11px] font-medium text-muted-foreground">
               {t('automations.editor.cron.timeLabel')}
@@ -184,7 +181,6 @@ export function CronSchedulerUi() {
             </div>
           </div>
 
-          {/* Day of Week */}
           {state.preset === 'weekly' && (
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-medium text-muted-foreground">
@@ -203,7 +199,6 @@ export function CronSchedulerUi() {
             </div>
           )}
 
-          {/* Day of Month */}
           {state.preset === 'monthly' && (
             <div className="flex flex-col gap-1.5">
               <label className="text-[11px] font-medium text-muted-foreground">
@@ -224,16 +219,15 @@ export function CronSchedulerUi() {
         </div>
       )}
 
-      {/* Advanced Raw Input */}
       {state.preset === 'advanced' && (
         <div className="mt-3 p-3 rounded-lg bg-secondary/30 dark:bg-secondary/10 border border-secondary animate-in fade-in-50 duration-200">
           <Input
-            {...register('trigger_cron')}
+            {...register(cronField as any)}
             placeholder="0 9 * * 1"
             className="h-8 text-sm font-mono bg-background"
           />
-          {errors.trigger_cron && (
-            <p className="mt-1 text-xs text-destructive">{t(errors.trigger_cron.message ?? '')}</p>
+          {cronError && (
+            <p className="mt-1 text-xs text-destructive">{t(cronError.message ?? '')}</p>
           )}
           <p className="mt-1.5 text-[10px] text-muted-foreground leading-relaxed">
             {t('automations.editor.cronHint')}
@@ -241,8 +235,8 @@ export function CronSchedulerUi() {
         </div>
       )}
 
-      {state.preset !== 'advanced' && errors.trigger_cron && (
-        <p className="mt-1.5 text-xs text-destructive px-1">{t(errors.trigger_cron.message ?? '')}</p>
+      {state.preset !== 'advanced' && cronError && (
+        <p className="mt-1.5 text-xs text-destructive px-1">{t(cronError.message ?? '')}</p>
       )}
     </div>
   )

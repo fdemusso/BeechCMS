@@ -1,12 +1,63 @@
 // Mirror: apps/dashboard/src/features/automations/schema/automation.schema.ts — keep structurally identical.
-// TODO Sprint 8 (Task 14): add recursive whenNodeSchema for WhenNode validation.
 import { z } from 'zod'
+import type { WhenNode } from '@beechcms/core'
 
+// ---------------------------------------------------------------------------
+// Trigger conditions — recursive WhenNode schema (Task 14)
+// ---------------------------------------------------------------------------
+
+const whenOperandSchema = z.union([
+  z.object({ kind: z.literal('literal'), value: z.unknown() }),
+  z.object({ kind: z.literal('ref'), key: z.string().min(1) }),
+])
+
+const whenPredicateSchema = z.object({
+  kind: z.literal('predicate'),
+  left: whenOperandSchema,
+  op: z.enum(['eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'contains', 'startswith', 'endswith', 'in', 'notin', 'isempty', 'isnotempty', 'matches']),
+  right: whenOperandSchema.optional(),
+})
+
+const whenNodeSchema: z.ZodType<WhenNode> = z.lazy(() =>
+  z.union([
+    whenPredicateSchema,
+    z.object({
+      kind: z.literal('group'),
+      op: z.enum(['AND', 'OR']),
+      children: z.array(whenNodeSchema).min(1),
+      negate: z.boolean().optional(),
+    }).refine(
+      (g) => depthOf(g) <= 10,
+      { message: 'WhenNode nesting exceeds maximum depth of 10' },
+    ),
+  ]),
+)
+
+function depthOf(node: unknown, d = 0): number {
+  if (d > 10) return d
+  if (typeof node !== 'object' || !node) return d
+  const n = node as Record<string, unknown>
+  if (n['kind'] === 'group' && Array.isArray(n['children'])) {
+    return Math.max(...(n['children'] as unknown[]).map((c) => depthOf(c, d + 1)))
+  }
+  return d
+}
+
+// Legacy flat conditions — accepted for backward compatibility
 const triggerConditionSchema = z.object({
   field: z.string().min(1),
   op: z.enum(['eq', 'neq', 'contains', 'gt', 'lt', 'isempty', 'isnotempty']),
   value: z.unknown(),
 })
+
+const triggerConditionsSchema = z.union([
+  whenNodeSchema,
+  z.array(triggerConditionSchema),
+]).nullable().optional()
+
+// ---------------------------------------------------------------------------
+// Action schemas
+// ---------------------------------------------------------------------------
 
 const setVariableActionSchema = z.object({
   type: z.literal('set_variable'),
@@ -53,21 +104,48 @@ export const automationActionSchema = z.discriminatedUnion('type', [
   createEntryActionSchema,
 ])
 
+// ---------------------------------------------------------------------------
+// Triggers schema
+// ---------------------------------------------------------------------------
+
+const automationTriggerSchema = z.object({
+  event: z.enum(['create', 'update', 'delete', 'cron']),
+  cron: z.string().nullable().optional(),
+})
+
+const triggersSchema = z
+  .array(automationTriggerSchema)
+  .min(1, 'At least one trigger is required')
+  .refine(
+    (triggers) => triggers.filter((t) => t.event === 'cron').length <= 1,
+    { message: 'Only one cron trigger is allowed per automation' },
+  )
+  .refine(
+    (triggers) => {
+      const events = triggers.map((t) => t.event)
+      return new Set(events).size === events.length
+    },
+    { message: 'Duplicate trigger events are not allowed' },
+  )
+  .refine(
+    (triggers) => triggers.every((t) => t.event !== 'cron' || !!t.cron),
+    { message: 'cron expression is required for cron triggers', path: ['cron'] },
+  )
+
+// ---------------------------------------------------------------------------
+// Automation create/update schemas
+// ---------------------------------------------------------------------------
+
 const createAutomationBaseSchema = z.object({
   seed_slug: z.string().min(1),
   name: z.string().min(1).max(100),
-  trigger_event: z.enum(['create', 'update', 'delete', 'cron']),
-  trigger_cron: z.string().nullable().optional(),
-  trigger_conditions: z.array(triggerConditionSchema).nullable().optional(),
+  triggers: triggersSchema,
+  trigger_conditions: triggerConditionsSchema,
   actions: z.array(automationActionSchema).min(1, 'At least one action is required'),
 })
 
-export const createAutomationSchema = createAutomationBaseSchema.refine(
-  (data) => data.trigger_event !== 'cron' || !!data.trigger_cron,
-  { message: 'trigger_cron is required when trigger_event is cron', path: ['trigger_cron'] },
-)
+export const createAutomationSchema = createAutomationBaseSchema
 
-// Partial drops the cron-required refinement — patching only `name` should not require `trigger_cron`
 export const updateAutomationSchema = createAutomationBaseSchema.partial()
 
 export const toggleAutomationSchema = z.object({
