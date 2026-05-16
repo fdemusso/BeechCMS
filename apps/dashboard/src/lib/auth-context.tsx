@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import axios from 'axios'
-import type { LoginResponse } from './api'
-import { setAccessToken, clearAccessToken } from './api'
+import { setAccessToken, clearAccessToken, refreshToken } from './api'
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -40,11 +38,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   useEffect(() => {
-    axios.post<LoginResponse>('/auth/refresh', {}, { withCredentials: true })
-      .then(({ data }) => setToken(data.token))
+    refreshToken()
+      .then((token) => setToken(token))
       .catch(() => {
-        clearAccessToken()
-        setStatus('unauthenticated')
+        // If the refresh failed (e.g. 401 or network error), we are unauthenticated
+        clearToken()
       })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])

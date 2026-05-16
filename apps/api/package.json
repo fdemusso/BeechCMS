@@ -8,12 +8,13 @@
   "files": [
     "src/",
     "migrations/0000_v040_base.sql",
+    "migrations/0029_automations.sql",
     "assets/"
   ],
   "scripts": {
     "dev": "wrangler dev --port 8789",
     "build": "tsc -p tsconfig.build.json --noEmit",
-    "db:migrate:local": "wrangler d1 execute beech-db --local --file=./migrations/0000_v040_base.sql",
+    "db:migrate:local": "wrangler d1 execute beech-db --local --file=./migrations/0000_v040_base.sql && wrangler d1 execute beech-db --local --file=./migrations/0029_automations.sql",
     "db:reset:local": "node -e \"require('fs').rmSync('.wrangler/state', {recursive:true,force:true})\" && npm run db:migrate:local && cd ../.. && node bin/cli.mjs seed:load --local && cd apps/api && wrangler d1 execute beech-db --local --file=./migrations/0028_v040_seed_data.sql",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",

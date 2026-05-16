@@ -49,7 +49,14 @@ export async function deleteHandler(context: Context<AppEnv>) {
       },
     })
 
-    
+    context.get('scheduler').waitUntil(
+      context.get('automationRunner').run({
+        seedSlug: schemaSlug,
+        event: 'delete',
+        entry: { ...row, id: entryId },
+      }),
+    )
+
     const r2ObjectKeys = extractMediaKeysFromData(seed, row)
     if (r2ObjectKeys.length > 0) {
       await deleteR2Objects(context, r2ObjectKeys).catch((error) => {

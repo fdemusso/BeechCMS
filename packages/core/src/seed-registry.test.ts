@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { SeedRegistry, InMemorySeedRegistry } from './seed-registry'
-import type { Seed } from './types'
+import type { Seed, Branch } from './types'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -126,6 +126,50 @@ describe('SeedRegistry', () => {
     it('returns an empty array for an empty registry', () => {
       expect(new SeedRegistry([]).draftEnabled()).toEqual([])
     })
+  })
+})
+
+// ─── Reserved alias guard ─────────────────────────────────────────────────────
+
+describe('SeedRegistry reserved alias guard', () => {
+  function makeSeeds(alias: string): Seed[] {
+    return [makeSeed({
+      slug: 'test',
+      branches: [{ alias, label: alias, type: 'text', id: 'br_01' } as Branch],
+    })]
+  }
+
+  it('throws when a branch alias is a reserved word', () => {
+    expect(() => new SeedRegistry(makeSeeds('count'))).toThrow(
+      'Seed "test" uses reserved alias "count"',
+    )
+  })
+
+  it('includes seed slug and alias in the error message', () => {
+    expect(() => new SeedRegistry(makeSeeds('sum'))).toThrow(
+      /Seed "test" uses reserved alias "sum"/,
+    )
+  })
+
+  it('throws for every reserved word in the set', () => {
+    const reserved = ['this', 'batch', 'all', 'firstone', 'lastone', 'byid', 'where',
+      'array', 'count', 'sum', 'avg', 'min', 'max', 'pluck', 'true', 'false', 'null']
+    for (const word of reserved) {
+      expect(() => new SeedRegistry(makeSeeds(word))).toThrow(`"${word}"`)
+    }
+  })
+
+  it('does not throw for non-reserved aliases', () => {
+    expect(() => new SeedRegistry(makeSeeds('nome'))).not.toThrow()
+    expect(() => new SeedRegistry(makeSeeds('total_amount'))).not.toThrow()
+  })
+
+  it('does not throw for an empty registry', () => {
+    expect(() => new SeedRegistry([])).not.toThrow()
+  })
+
+  it('does not throw for seeds with no branches', () => {
+    expect(() => new SeedRegistry([makeSeed({ slug: 'bare' })])).not.toThrow()
   })
 })
 

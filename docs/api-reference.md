@@ -1342,6 +1342,139 @@ Points are ordered ascending by date. Days with no entries are omitted (no zero-
 
 ---
 
+## 10. Automations API
+
+All automation routes require JWT authentication (same `Authorization: Bearer` header as the content API).
+
+Base path: `/api/automations`
+
+### List Automations
+
+**`GET /api/automations?seed=<slug>`**
+
+Returns all automations declared for a seed, ordered by `created_at DESC`.
+
+**Query params:**
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `seed` | string | Yes | Seed slug |
+
+**Response `200 OK`:**
+
+```json
+[
+  {
+    "id": "uuid",
+    "seed_slug": "articles",
+    "name": "Notify on publish",
+    "enabled": true,
+    "trigger_event": "update",
+    "trigger_cron": null,
+    "trigger_conditions": [{ "field": "status", "op": "eq", "value": "published" }],
+    "actions": [{ "type": "webhook", "url": "https://example.com/hook" }],
+    "created_at": 1700000000,
+    "updated_at": 1700000000
+  }
+]
+```
+
+---
+
+### Get Automation
+
+**`GET /api/automations/:id`**
+
+**Response `200 OK`:** Single automation object (same shape as above).
+
+**Response `404 Not Found`:** RFC 7807 Problem Details.
+
+---
+
+### Create Automation
+
+**`POST /api/automations`**
+
+**Request body:**
+
+```json
+{
+  "seed_slug": "articles",
+  "name": "Send welcome email",
+  "trigger_event": "create",
+  "trigger_cron": null,
+  "trigger_conditions": null,
+  "actions": [
+    {
+      "type": "send_mail",
+      "to": "{{email}}",
+      "subject_template": "Welcome, {{name}}!",
+      "body_template": "Your entry has been created."
+    }
+  ]
+}
+```
+
+**Trigger events:** `create | update | delete | cron`
+
+When `trigger_event` is `cron`, `trigger_cron` must be a valid cron expression (e.g. `"0 9 * * 1"` = every Monday at 09:00).
+
+**Action types:**
+
+| type | Required fields | Optional fields |
+|------|-----------------|-----------------|
+| `webhook` | `url` | `method` (POST/GET/PUT), `headers`, `body_template` |
+| `send_mail` | `to`, `subject_template`, `body_template` | — |
+| `edit_field` | `field`, `value` | — |
+| `create_entry` | `seed_slug`, `field_map` | — |
+| `set_variable` | `name` | `seed_slug`, `fixed_id`, `column`, `filters`, `order_by`, `order` |
+
+`body_template`, `subject_template`, `to`, and `field_map` values support template interpolation. You can access the triggering entry via `{{this.fieldAlias}}` or `{{this:fieldAlias}}`, and access variables declared by `set_variable`. See the [Automations Guide](automations.md) for full syntax and variable resolution semantics.
+
+**Response `201 Created`:**
+
+```json
+{ "id": "uuid" }
+```
+
+**Response `400 Bad Request`:** Zod validation failure or missing `trigger_cron` when event is `cron`.
+
+---
+
+### Update Automation
+
+**`PUT /api/automations/:id`**
+
+Partial update — only fields present in the body are changed. Same shape as the create body; all fields are optional. If `trigger_event` resolves to `cron` after merge, `trigger_cron` must be non-null.
+
+**Response `204 No Content`**
+
+---
+
+### Toggle Automation
+
+**`PATCH /api/automations/:id/toggle`**
+
+Atomic single-field flip. Does not require the full automation body.
+
+**Request body:**
+
+```json
+{ "enabled": false }
+```
+
+**Response `204 No Content`**
+
+---
+
+### Delete Automation
+
+**`DELETE /api/automations/:id`**
+
+**Response `204 No Content`**
+
+---
+
 ## 9. Technical Architecture (v0.4.0 Refactor)
 
 Starting from v0.4.0, the Beech CMS API has been refactored to follow a **Vertical Slice Architecture** and the **Repository Pattern**.

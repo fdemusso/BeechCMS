@@ -18,6 +18,7 @@ const SYSTEM_TABLES = [
   'notifications',
   'media_objects',
   'content_event_log',
+  'automations',
 ]
 
 // Embedded copy of 0000_v040_base.sql — all DDL uses CREATE TABLE IF NOT EXISTS,
@@ -142,6 +143,22 @@ CREATE TABLE IF NOT EXISTS content_event_log (
 CREATE INDEX IF NOT EXISTS idx_event_log_schema_slug ON content_event_log(schema_slug);
 CREATE INDEX IF NOT EXISTS idx_event_log_created_at  ON content_event_log(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_event_log_entry_id    ON content_event_log(entry_id);
+
+CREATE TABLE IF NOT EXISTS automations (
+  id                 TEXT    NOT NULL PRIMARY KEY,
+  seed_slug          TEXT    NOT NULL,
+  name               TEXT    NOT NULL,
+  enabled            INTEGER NOT NULL DEFAULT 1,
+  trigger_event      TEXT    NOT NULL CHECK(trigger_event IN ('create','update','delete','cron')),
+  trigger_cron       TEXT,
+  trigger_conditions TEXT,
+  actions            TEXT    NOT NULL,
+  created_at         INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at         INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_automations_seed_slug ON automations(seed_slug);
+CREATE INDEX IF NOT EXISTS idx_automations_enabled   ON automations(enabled);
 `.trim()
 
 const PLACEHOLDER_DB_IDS = [

@@ -71,6 +71,10 @@
     }
   ],
 
+  "triggers": {
+    "crons": ["* * * * *"]
+  },
+
   // CORS e variabili
   // MEDIA_BASE_URL: in dev punta al proxy Vite (5173) per evitare CORS e semplificare il debugging
   "vars": {

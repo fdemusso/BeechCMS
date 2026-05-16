@@ -26,6 +26,7 @@ import { draftApp } from './features/draft'
 import { settingsApp } from './features/settings/settings.handler'
 import { schemaApp } from './features/schema/schema.handler'
 import { notificationsApp } from './features/notifications'
+import { automationsApp } from './features/automations'
 import { statsApp } from './features/stats'
 import { uploadRoutes, serveMediaHandler } from './upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
@@ -243,11 +244,13 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
       if (!activeSession) return context.json({ error: 'Invalid refresh token' }, 401)
 
       const user = await context.get('userRepository').findById(activeSession.userId)
-      if (!user) return context.json({ error: 'User not found' }, 401)
+      if (!user) {
+        await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
+        return context.json({ error: 'User not found' }, 401)
+      }
 
-      const revoked = await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
-      if (!revoked) return context.json({ error: 'Invalid refresh token' }, 401)
-
+      // Issue new tokens before revoking the old one: if saveRefreshToken fails,
+      // the old token stays valid and the user is not locked out.
       const newAccessToken = await context.get('tokenService').issue({ sub: user.id, email: user.email, name: user.name ?? undefined })
       const newRefreshToken = generateRefreshToken()
       const newRefreshTokenHash = await sha256hex(newRefreshToken)
@@ -258,6 +261,10 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
         tokenHash: newRefreshTokenHash,
         expiresAt: nowSeconds + REFRESH_TOKEN_EXPIRY_DAYS * SECONDS_PER_DAY,
       })
+
+      const revoked = await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
+      if (!revoked) return context.json({ error: 'Invalid refresh token' }, 401)
+
       setCookie(context, 'refresh_token', newRefreshToken, getRefreshTokenCookieOptions(isRequestSecure(context.req.url)))
       return context.json({ token: newAccessToken, expiresIn: '15m' }, 200)
     } catch (error) {
@@ -296,6 +303,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   apiProtected.route('/content', draftApp)
   apiProtected.route('/content', contentFeature)
   apiProtected.route('/widget', widgetApp)
+  apiProtected.route('/automations', automationsApp)
   apiProtected.route('/', uploadRoutes)
   
   // 6. Public API (must be registered before apiProtected to avoid auth middleware interception)
