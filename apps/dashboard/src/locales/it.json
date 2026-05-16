@@ -625,7 +625,8 @@
         "bodyRequired": "Corpo obbligatorio",
         "fieldRequired": "Campo obbligatorio",
         "seedRequired": "Seed obbligatorio",
-        "variableNameInvalid": "Il nome variabile deve contenere solo lettere, numeri e underscore"
+        "variableNameInvalid": "Il nome variabile deve contenere solo lettere, numeri e underscore",
+        "variableNameReserved": "Questo nome è riservato dal motore di template"
       }
     },
     "triggers": {
@@ -672,7 +673,22 @@
       "fieldMapTarget": "Campo destinazione",
       "fieldMapSource": "Campo sorgente",
       "addFieldMap": "Aggiungi mappatura",
-      "set_variable": "Imposta variabile"
+      "set_variable": "Imposta variabile",
+      "variableName": "Nome variabile",
+      "variableNameHint": "Solo lettere, numeri e underscore. Es: cliente, ordini_attivi",
+      "source": "Sorgente",
+      "sourcePlaceholder": "Scegli una tabella o incolla un ID...",
+      "thisSeed": "questo seed",
+      "useAsFixedId": "Usa '{{value}}' come ID fisso",
+      "fixedIdBadge": "ID: {{id}}",
+      "column": "Colonna (opzionale)",
+      "columnAll": "— tutte le colonne —",
+      "filters": "Filtri",
+      "noFilters": "Nessun filtro. Verranno caricati tutti i record.",
+      "filterTemplateHint": "I valori possono usare template: {{this.campo}}, {{variabile.campo}}",
+      "templateHintTitle": "Accesso nel template",
+      "hintCollection": "{{varname}}                          → oggetto ricco\n{{varname.firstone.campo}}           → primo record\n{{varname.count}}                    → numero di record\n{{varname.sum.campo}}                → somma colonna\n{{varname.count.(status=attivo)}}    → count filtrato",
+      "hintFixed": "{{varname}}                          → intero oggetto (o null)\n{{varname.campo}}                    → valore colonna"
     },
     "toast": {
       "created": "Automazione creata",

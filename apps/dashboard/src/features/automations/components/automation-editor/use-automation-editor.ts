@@ -128,15 +128,24 @@ function whenNodeFormToNode(n: WhenNodeForm): WhenNode {
 function actionToFormItem(action: AutomationAction): ActionFormItem {
   const base = { ...DEFAULT_ACTION_ITEM }
   switch (action.type) {
-    case 'set_variable':
+    case 'set_variable': {
+      const fixedId = action.fixed_id ?? ''
+      const seedSlug = action.seed_slug ?? ''
+      const filters = fixedId
+        ? []
+        : (action.filters ?? [])
+            .filter((f) => !(f.field === 'id' && f.op === 'eq'))
+            .map((f) => ({ field: f.field, op: f.op, value: String(f.value ?? '') }))
       return {
         ...base,
         type: 'set_variable',
         name: action.name,
-        seed_slug: action.seed_slug,
-        load_type: action.load_type,
-        filters: action.filters.map((f) => ({ field: f.field, op: f.op, value: String(f.value ?? '') })),
+        seed_slug: seedSlug,
+        fixed_id: fixedId,
+        column: action.column ?? '',
+        filters,
       }
+    }
     case 'webhook':
       return {
         ...base,
@@ -193,8 +202,9 @@ function formToApiPayload(values: AutomationFormValues, seedSlug: string) {
           return {
             type: 'set_variable' as const,
             name: a.name,
-            seed_slug: a.seed_slug,
-            load_type: a.load_type,
+            ...(a.seed_slug ? { seed_slug: a.seed_slug } : {}),
+            ...(a.fixed_id ? { fixed_id: a.fixed_id } : {}),
+            ...(a.column ? { column: a.column } : {}),
             filters: a.filters.map((f) => ({ field: f.field, op: f.op, value: f.value })),
           }
         case 'webhook':

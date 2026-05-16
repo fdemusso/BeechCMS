@@ -1,4 +1,5 @@
 import type { AutomationAction, ContentRepository, Seed } from '@beechcms/core'
+import type { ResolvedContext } from '../context-resolver'
 import { conditionToFilterGroup } from '../filter-translation'
 import { interpolate } from '../automation-runner.utils'
 
@@ -11,61 +12,114 @@ export async function executeSetVariable(
     variables: Record<string, unknown>
     repository: ContentRepository
     getSeed: (slug: string) => Seed | null
+    seed: Seed
+    context: ResolvedContext
   },
 ): Promise<void> {
-  const targetSeed = ctx.getSeed(action.seed_slug)
+  const seedSlug = action.seed_slug ?? ctx.seed.slug
+  const targetSeed = ctx.getSeed(seedSlug)
   if (!targetSeed) {
-    console.warn(
-      `[set_variable] Seed "${action.seed_slug}" not found. Variable "${action.name}" set to null/empty.`,
-    )
-    ctx.variables[action.name] =
-      action.load_type === 'fruit' ? null : { count: 0, sum: {}, avg: {}, pluck: {} }
+    console.warn(`[set_variable] seed "${seedSlug}" not found; "${action.name}" → null`)
+    ctx.variables[action.name] = null
     return
   }
 
-  const unifiedScope = { this: ctx.entry, ...ctx.variables } as Record<string, unknown>
+  if (action.fixed_id !== undefined) {
+    const resolvedId = interpolate(action.fixed_id, ctx.context)
+    const { items } = await ctx.repository.findMany(targetSeed, {
+      filters: [{ column: 'id', type: 'system', conditions: [{ op: 'eq', value: resolvedId }] }],
+      status: null,
+      pagination: { limit: 1, offset: 0 },
+    })
+    const item = items[0] ?? null
+    if (!item) console.warn(`[set_variable] "${action.name}": id "${resolvedId}" not found`)
+    ctx.variables[action.name] = action.column
+      ? (item ? { _value: item[action.column] } : null)
+      : item
+    return
+  }
 
-  const resolvedFilters = action.filters.map((f) => {
-    const resolvedValue =
-      typeof f.value === 'string' ? interpolate(f.value, unifiedScope) : f.value
-    return conditionToFilterGroup({ ...f, value: resolvedValue } as typeof f, targetSeed)
+  const resolvedFilters = (action.filters ?? []).map((f) => {
+    const value = typeof f.value === 'string' ? interpolate(f.value, ctx.context) : f.value
+    return conditionToFilterGroup({ ...f, value }, targetSeed)
   })
 
-  const limit = action.load_type === 'fruit' ? 1 : 1000
-  const orderDir = (action.order === 'asc' ? 'ASC' : 'DESC') as 'ASC' | 'DESC'
-
-  const result = await ctx.repository.findMany(targetSeed, {
+  const orderDir: 'ASC' | 'DESC' = action.order === 'asc' ? 'ASC' : 'DESC'
+  const { items } = await ctx.repository.findMany(targetSeed, {
     filters: resolvedFilters,
     status: null,
-    pagination: { limit, offset: 0 },
+    pagination: { limit: 1000, offset: 0 },
     orderBy: action.order_by ? { column: action.order_by, dir: orderDir } : undefined,
   })
 
-  if (action.load_type === 'fruit') {
-    ctx.variables[action.name] = result.items[0] ?? null
-    return
-  }
+  ctx.variables[action.name] = materializeCollection(targetSeed, items, action.column ?? null)
+}
 
-  const items = result.items
-  const sum: Record<string, number> = {}
-  const avg: Record<string, number> = {}
-  const pluck: Record<string, string> = {}
+export function materializeCollection(
+  seed: Seed,
+  items: Array<Record<string, unknown>>,
+  pinned: string | null,
+): Record<string, unknown> {
+  const firstone = items.length > 0
+    ? items.reduce((best, r) => Number(r['created_at']) < Number(best['created_at']) ? r : best)
+    : null
+  const lastone = items.length > 0
+    ? items.reduce((best, r) => Number(r['created_at']) > Number(best['created_at']) ? r : best)
+    : null
 
-  for (const branch of targetSeed.branches) {
-    if (branch.type === 'number') {
-      const total = items.reduce((acc, r) => {
-        const v = Number(r[branch.alias])
-        return Number.isNaN(v) ? acc : acc + v
-      }, 0)
-      sum[branch.alias] = total
-      avg[branch.alias] = items.length > 0 ? total / items.length : 0
-    } else {
-      pluck[branch.alias] = items
-        .slice(0, 100)
-        .map((r) => String(r[branch.alias] ?? ''))
-        .join(', ')
+  let out: Record<string, unknown>
+
+  if (pinned !== null) {
+    const nonNull = items.filter((r) => r[pinned] != null)
+    const count = nonNull.length
+    const nums = nonNull.map((r) => Number(r[pinned]))
+    const validNums = nums.filter((n) => !Number.isNaN(n))
+    const total = validNums.reduce((a, n) => a + n, 0)
+    const pluckVals = items.slice(0, 100).map((r) => String(r[pinned] ?? ''))
+    const pluck = pluckVals.join(', ') + (items.length > 100 ? ' …' : '')
+
+    out = {
+      count,
+      sum: validNums.length > 0 ? total : 0,
+      avg: validNums.length > 0 ? total / validNums.length : 0,
+      min: validNums.length > 0 ? Math.min(...validNums) : 0,
+      max: validNums.length > 0 ? Math.max(...validNums) : 0,
+      pluck,
+      firstone,
+      lastone,
     }
+  } else {
+    const sum: Record<string, number> = {}
+    const avg: Record<string, number> = {}
+    const min: Record<string, number> = {}
+    const max: Record<string, number> = {}
+    const pluck: Record<string, string> = {}
+
+    for (const branch of seed.branches) {
+      if (branch.type === 'number' || branch.type === 'date') {
+        const nums = items
+          .map((r) => {
+            const v = r[branch.alias]
+            const n = Number(v)
+            if (!Number.isNaN(n)) return n
+            if (typeof v === 'string') { const d = Date.parse(v); return Number.isNaN(d) ? NaN : d / 1000 }
+            return NaN
+          })
+          .filter((n) => !Number.isNaN(n))
+        const total = nums.reduce((a, n) => a + n, 0)
+        sum[branch.alias] = total
+        avg[branch.alias] = items.length > 0 ? total / items.length : 0
+        min[branch.alias] = nums.length > 0 ? Math.min(...nums) : 0
+        max[branch.alias] = nums.length > 0 ? Math.max(...nums) : 0
+      } else {
+        const vals = items.slice(0, 100).map((r) => String(r[branch.alias] ?? ''))
+        pluck[branch.alias] = vals.join(', ') + (items.length > 100 ? ' …' : '')
+      }
+    }
+
+    out = { count: items.length, sum, avg, min, max, pluck, firstone, lastone }
   }
 
-  ctx.variables[action.name] = { count: items.length, sum, avg, pluck }
+  Object.defineProperty(out, '_items', { value: items, enumerable: false })
+  return out
 }

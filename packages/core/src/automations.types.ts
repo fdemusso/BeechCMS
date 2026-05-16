@@ -46,9 +46,10 @@ export type WhenNode = WhenPredicate | WhenGroup
 export interface SetVariableAction {
   type: 'set_variable'
   name: string
-  seed_slug: string
-  load_type: 'fruit' | 'branch'
-  filters: TriggerCondition[]
+  seed_slug?: string
+  fixed_id?: string
+  column?: string
+  filters?: TriggerCondition[]
   order_by?: string
   order?: 'asc' | 'desc'
 }
@@ -66,8 +67,7 @@ export interface Automation {
   name: string
   enabled: boolean
   triggers: AutomationTrigger[]
-  /** New shape: WhenNode. Legacy read path returns TriggerCondition[]; repository upcasts to WhenNode. */
-  trigger_conditions: WhenNode | TriggerCondition[] | null
+  trigger_conditions: WhenNode | null
   actions: AutomationAction[]
   created_at: number
   updated_at: number

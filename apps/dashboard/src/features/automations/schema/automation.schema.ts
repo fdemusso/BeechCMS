@@ -2,6 +2,9 @@
 // Keep structurally identical. Changes here must be reflected there and vice versa.
 import { z } from 'zod'
 import type { AutomationTriggerEvent, TriggerCondition } from '@beechcms/core'
+import { AUTOMATION_RESERVED_WORDS } from '@beechcms/core'
+
+export { AUTOMATION_RESERVED_WORDS }
 
 export const TRIGGER_OPS = ['eq', 'neq', 'contains', 'gt', 'lt', 'isempty', 'isnotempty'] as const
 export type TriggerOp = typeof TRIGGER_OPS[number]
@@ -32,7 +35,8 @@ export type ActionFormItem = {
   type: 'set_variable' | 'webhook' | 'send_mail' | 'edit_field' | 'create_entry'
   // set_variable fields
   name: string
-  load_type: 'fruit' | 'branch'
+  fixed_id: string
+  column: string
   filters: TriggerConditionForm[]
   // webhook fields
   url: string
@@ -92,7 +96,8 @@ const actionFormItemSchema = z
   .object({
     type: z.enum(['set_variable', 'webhook', 'send_mail', 'edit_field', 'create_entry']),
     name: z.string(),
-    load_type: z.enum(['fruit', 'branch']),
+    fixed_id: z.string(),
+    column: z.string(),
     filters: z.array(z.object({ field: z.string(), op: z.enum(TRIGGER_OPS), value: z.string() })),
     url: z.string(),
     method: z.enum(['POST', 'GET', 'PUT']),
@@ -107,11 +112,11 @@ const actionFormItemSchema = z
   })
   .superRefine((data, ctx) => {
     if (data.type === 'set_variable') {
-      if (!data.name || !/^[a-zA-Z0-9_]+$/.test(data.name)) {
+      if (!data.name || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(data.name)) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.variableNameInvalid', path: ['name'] })
       }
-      if (!data.seed_slug) {
-        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.seedRequired', path: ['seed_slug'] })
+      if (data.name && AUTOMATION_RESERVED_WORDS.has(data.name)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.variableNameReserved', path: ['name'] })
       }
     }
     if (data.type === 'webhook') {
@@ -176,7 +181,8 @@ export const automationFormSchema = z
 
 export const DEFAULT_ACTION_ITEM: Omit<ActionFormItem, 'type'> = {
   name: '',
-  load_type: 'fruit',
+  fixed_id: '',
+  column: '',
   filters: [],
   url: '',
   method: 'POST',

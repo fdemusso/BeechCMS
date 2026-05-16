@@ -1,32 +1,12 @@
-/**
- * Sprint 8 Task 11 — Recursive WhenNode evaluator.
- *
- * Evaluates a WhenNode (or legacy TriggerCondition[]) against a ResolvedContext.
- * Does NOT replace evaluateConditions in-place — existing call sites are migrated
- * in Task 13.
- *
- * Short-circuit semantics:
- *   AND → stops at first false
- *   OR  → stops at first true
- *   negate → wraps the group result in NOT
- *
- * Operands are resolved via ResolvedContext.lookup(), reusing the full template
- * grammar including batch, this, and inline seed scopes.
- */
-import type { WhenNode, WhenPredicate, WhenGroup, WhenOperand, TriggerCondition } from '@beechcms/core'
+import type { WhenNode, WhenPredicate, WhenGroup, WhenOperand } from '@beechcms/core'
 import type { ResolvedContext } from './context-resolver'
 import { parseTemplateKey } from './template-grammar'
 
 export function evaluateWhen(
-  node: WhenNode | TriggerCondition[] | null,
+  node: WhenNode | null,
   context: ResolvedContext,
 ): boolean {
   if (!node) return true
-
-  if (Array.isArray(node)) {
-    return node.every((c) => evalLegacyCondition(c, context))
-  }
-
   if (node.kind === 'predicate') return evalPredicate(node, context)
   return evalGroup(node, context)
 }
@@ -100,10 +80,4 @@ function coerceEqual(a: unknown, b: unknown): boolean {
   if (typeof a === 'number' && typeof b === 'string' && !Number.isNaN(Number(b))) return a === Number(b)
   if (typeof b === 'number' && typeof a === 'string' && !Number.isNaN(Number(a))) return Number(a) === b
   return a === b
-}
-
-function evalLegacyCondition(c: TriggerCondition, context: ResolvedContext): boolean {
-  const parsed = parseTemplateKey(`this:${c.field}`)
-  const actual = parsed ? context.lookup(parsed) : undefined
-  return compare(c.op, actual, c.value)
 }

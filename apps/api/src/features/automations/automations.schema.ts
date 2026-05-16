@@ -1,6 +1,7 @@
 // Mirror: apps/dashboard/src/features/automations/schema/automation.schema.ts — keep structurally identical.
 import { z } from 'zod'
 import type { WhenNode } from '@beechcms/core'
+import { AUTOMATION_RESERVED_WORDS } from './template-grammar'
 
 // ---------------------------------------------------------------------------
 // Trigger conditions — recursive WhenNode schema (Task 14)
@@ -43,17 +44,13 @@ function depthOf(node: unknown, d = 0): number {
   return d
 }
 
-// Legacy flat conditions — accepted for backward compatibility
-const triggerConditionSchema = z.object({
+const triggerConditionsSchema = whenNodeSchema.nullable().optional()
+
+const setVariableFilterSchema = z.object({
   field: z.string().min(1),
   op: z.enum(['eq', 'neq', 'contains', 'gt', 'lt', 'isempty', 'isnotempty']),
   value: z.unknown(),
 })
-
-const triggerConditionsSchema = z.union([
-  whenNodeSchema,
-  z.array(triggerConditionSchema),
-]).nullable().optional()
 
 // ---------------------------------------------------------------------------
 // Action schemas
@@ -61,10 +58,17 @@ const triggerConditionsSchema = z.union([
 
 const setVariableActionSchema = z.object({
   type: z.literal('set_variable'),
-  name: z.string().min(1).regex(/^[a-zA-Z0-9_]+$/),
-  seed_slug: z.string().min(1),
-  load_type: z.enum(['fruit', 'branch']),
-  filters: z.array(triggerConditionSchema).default([]),
+  name: z
+    .string()
+    .min(1)
+    .regex(/^[a-zA-Z_][a-zA-Z0-9_]*$/)
+    .refine((v) => !AUTOMATION_RESERVED_WORDS.has(v), {
+      message: 'automations.editor.errors.variableNameReserved',
+    }),
+  seed_slug: z.string().min(1).optional(),
+  fixed_id: z.string().min(1).optional(),
+  column: z.string().min(1).optional(),
+  filters: z.array(setVariableFilterSchema).default([]),
   order_by: z.string().optional(),
   order: z.enum(['asc', 'desc']).optional(),
 })

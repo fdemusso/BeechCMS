@@ -126,7 +126,13 @@ describe('runCronAutomations', () => {
 
   it('passes trigger_conditions as translated filters to repository.findMany', async () => {
     const auto = makeAutomation({
-      trigger_conditions: [{ field: 'title', op: 'eq', value: 'Hello' }],
+      trigger_conditions: {
+        kind: 'group',
+        op: 'AND',
+        children: [
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.title' }, op: 'eq', right: { kind: 'literal', value: 'Hello' } },
+        ],
+      },
     })
     const deps = makeDeps()
     deps.findActiveSpy.mockResolvedValue([auto])
@@ -142,16 +148,20 @@ describe('runCronAutomations', () => {
 
   it('maps all branch types, system columns, unknown columns, and special operators correctly', async () => {
     const auto = makeAutomation({
-      trigger_conditions: [
-        { field: 'count', op: 'gt', value: 5 },
-        { field: 'published', op: 'eq', value: true },
-        { field: 'publish_date', op: 'isempty', value: null },
-        { field: 'tags_list', op: 'isnotempty', value: null },
-        { field: 'meta_json', op: 'eq', value: '{}' },
-        { field: 'body_rich', op: 'contains', value: 'hello' },
-        { field: 'status', op: 'eq', value: 'draft' },
-        { field: 'unknown_custom', op: 'eq', value: 'test' },
-      ],
+      trigger_conditions: {
+        kind: 'group',
+        op: 'AND',
+        children: [
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.count' }, op: 'gt', right: { kind: 'literal', value: 5 } },
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.published' }, op: 'eq', right: { kind: 'literal', value: true } },
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.publish_date' }, op: 'isempty' },
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.tags_list' }, op: 'isnotempty' },
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.meta_json' }, op: 'eq', right: { kind: 'literal', value: '{}' } },
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.body_rich' }, op: 'contains', right: { kind: 'literal', value: 'hello' } },
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.status' }, op: 'eq', right: { kind: 'literal', value: 'draft' } },
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.unknown_custom' }, op: 'eq', right: { kind: 'literal', value: 'test' } },
+        ],
+      },
     })
     const deps = makeDeps()
     deps.findActiveSpy.mockResolvedValue([auto])

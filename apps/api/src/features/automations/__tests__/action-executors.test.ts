@@ -129,40 +129,17 @@ describe('send_mail executor', () => {
     )
   })
 
-  it('supports single brace notation {campo} with spaces to avoid excess parentheses', async () => {
-    const { sendAutomationMail } = await import('../../email')
-    const ctx = makeCtx({ entry: { id: '1', 'author.email': 'admin@beech.io', name: 'Flavio' } })
-
-    await executeAction(
-      {
-        type: 'send_mail',
-        to: '{ author.email }',
-        subject_template: 'Notification for {name}',
-        body_template: 'Hello { name }',
-      },
-      ctx,
-    )
-
-    expect(sendAutomationMail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: 'admin@beech.io',
-        subject: 'Notification for Flavio',
-        body: 'Hello Flavio',
-      }),
-    )
-  })
-
   it('substitutes default value [missing] and logs a warning when concrete data is absent', async () => {
     const { sendAutomationMail } = await import('../../email')
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const ctx = makeCtx({ entry: { id: '1' } }) // missing email and title
+    const ctx = makeCtx({ entry: { id: '1' } })
 
     await executeAction(
       {
         type: 'send_mail',
-        to: '{email}',
-        subject_template: 'Re: {title}',
-        body_template: 'Content: {desc}',
+        to: '{{email}}',
+        subject_template: 'Re: {{title}}',
+        body_template: 'Content: {{desc}}',
       },
       ctx,
     )

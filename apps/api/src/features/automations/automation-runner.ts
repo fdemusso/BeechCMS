@@ -7,11 +7,11 @@ import type {
   IIdGenerator,
 } from '@beechcms/core'
 import { resolvePath } from './automation-runner.utils'
-import { resolveAutomationContext } from './context-resolver'
-import type { ResolvedContext } from './context-resolver'
+import { resolveAutomationContext, type ResolvedContext } from './context-resolver'
 import type { ParsedKey } from './template-grammar'
 import { executeAction } from './action-executors'
 import { evaluateWhen } from './when-evaluator'
+import { resolveVarAccess } from './var-access-resolver'
 
 export interface AutomationRunnerDeps {
   automationRepository: IAutomationRepository
@@ -28,6 +28,8 @@ function withVariables(base: ResolvedContext, variables: Record<string, unknown>
       if (parsed.kind === 'simple') {
         const varVal = resolvePath(variables, parsed.path)
         if (varVal !== undefined) return varVal
+      } else if (parsed.kind === 'var_access') {
+        return resolveVarAccess(parsed, variables, onMissing)
       }
       return base.lookup(parsed, onMissing)
     },
@@ -45,11 +47,7 @@ export class AutomationRunner implements IAutomationRunner {
     const automations = await this.deps.automationRepository.findActive(seedSlug, event)
 
     for (const automation of automations) {
-      const resolverDeps = {
-        contentRepository: this.deps.contentRepository,
-        getSeed: this.deps.getSeed,
-      }
-      const resolved = await resolveAutomationContext(resolverDeps, automation, entry, [entry])
+      const resolved = await resolveAutomationContext(automation, entry, [entry])
 
       // Evaluate conditions with the resolved context (this + batch scopes available).
       // Variables from set_variable actions are not yet available here; use inline refs

@@ -9,9 +9,10 @@ import type { AutomationFormValues, ActionFormItem } from '../../schema/automati
 
 interface ActionsSectionProps {
   seedBranches: Branch[]
+  seedSlug?: string
 }
 
-export function ActionsSection({ seedBranches }: ActionsSectionProps) {
+export function ActionsSection({ seedBranches, seedSlug }: ActionsSectionProps) {
   const { t } = useTranslation()
   const { control, formState: { errors } } = useFormContext<AutomationFormValues>()
   const { fields, append, remove, swap } = useFieldArray({ control, name: 'actions' })
@@ -39,6 +40,7 @@ export function ActionsSection({ seedBranches }: ActionsSectionProps) {
             index={idx}
             total={fields.length}
             seedBranches={seedBranches}
+            seedSlug={seedSlug}
             onRemove={() => remove(idx)}
             onMoveUp={() => swap(idx, idx - 1)}
             onMoveDown={() => swap(idx, idx + 1)}

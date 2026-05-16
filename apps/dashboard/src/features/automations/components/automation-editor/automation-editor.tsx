@@ -70,7 +70,7 @@ export function AutomationEditor({
               <div className="px-6 py-4 flex flex-col gap-0">
                 <TriggerSection seedBranches={seedBranches} />
                 <VisualConnector />
-                <ActionsSection seedBranches={seedBranches} />
+                <ActionsSection seedBranches={seedBranches} seedSlug={seedSlug} />
               </div>
             </div>
 

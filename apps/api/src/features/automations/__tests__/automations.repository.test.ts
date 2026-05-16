@@ -49,11 +49,16 @@ describe('D1AutomationRepository.create', () => {
   it('serialises actions and trigger_conditions to JSON', async () => {
     const db = makeDb()
     const repo = new D1AutomationRepository(db)
+    const whenNode = {
+      kind: 'group' as const,
+      op: 'AND' as const,
+      children: [{ kind: 'predicate' as const, left: { kind: 'ref' as const, key: 'this.status' }, op: 'eq' as const, right: { kind: 'literal' as const, value: 'published' } }],
+    }
     await repo.create({
       seed_slug: 'posts',
       name: 'test',
       triggers: [{ event: 'create' }],
-      trigger_conditions: [{ field: 'status', op: 'eq', value: 'published' }],
+      trigger_conditions: whenNode,
       actions: [{ type: 'webhook', url: 'https://example.com' }],
     })
     expect(db._calls).toHaveLength(1)
@@ -62,7 +67,7 @@ describe('D1AutomationRepository.create', () => {
     expect(typeof bindings[3]).toBe('string')
     expect(JSON.parse(bindings[3] as string)).toEqual([{ event: 'create' }])
     expect(typeof bindings[4]).toBe('string')
-    expect(JSON.parse(bindings[4] as string)).toEqual([{ field: 'status', op: 'eq', value: 'published' }])
+    expect(JSON.parse(bindings[4] as string)).toEqual(whenNode)
     expect(typeof bindings[5]).toBe('string')
     expect(JSON.parse(bindings[5] as string)).toEqual([{ type: 'webhook', url: 'https://example.com' }])
   })
@@ -122,16 +127,9 @@ describe('rowToAutomation JSON round-trip', () => {
     expect(rows[0].trigger_conditions).toBeNull()
   })
 
-  it('deserialises trigger_conditions as WhenGroup (upcasted from legacy array)', async () => {
+  it('deserialises trigger_conditions as WhenNode when column contains WhenNode JSON', async () => {
     const db = makeDb()
-    const rowWithConditions = {
-      ...fixtureRow,
-      trigger_conditions: JSON.stringify([{ field: 'status', op: 'eq', value: 'published' }]),
-    }
-    db._setAllResult([rowWithConditions])
-    const repo = new D1AutomationRepository(db)
-    const rows = await repo.list('posts')
-    expect(rows[0].trigger_conditions).toEqual({
+    const whenNode = {
       kind: 'group',
       op: 'AND',
       children: [{
@@ -140,7 +138,15 @@ describe('rowToAutomation JSON round-trip', () => {
         op: 'eq',
         right: { kind: 'literal', value: 'published' },
       }],
-    })
+    }
+    const rowWithConditions = {
+      ...fixtureRow,
+      trigger_conditions: JSON.stringify(whenNode),
+    }
+    db._setAllResult([rowWithConditions])
+    const repo = new D1AutomationRepository(db)
+    const rows = await repo.list('posts')
+    expect(rows[0].trigger_conditions).toEqual(whenNode)
   })
 
   it('deserialises actions as parsed array', async () => {

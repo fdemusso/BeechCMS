@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { WhenNode, TriggerCondition, Seed } from '@beechcms/core'
+import type { WhenNode, Seed } from '@beechcms/core'
 import { extractPushdownFilters } from '../when-pushdown'
 
 // ---------------------------------------------------------------------------
@@ -275,31 +275,3 @@ describe('extractPushdownFilters — cross-seed refs stay in-memory', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Legacy TriggerCondition[] — all conditions pushed
-// ---------------------------------------------------------------------------
-
-describe('extractPushdownFilters — legacy TriggerCondition[]', () => {
-  it('flat array: all conditions are pushed', () => {
-    const conditions: TriggerCondition[] = [
-      { field: 'status', op: 'eq', value: 'paid' },
-      { field: 'total', op: 'gt', value: 100 },
-    ]
-    const result = extractPushdownFilters(conditions, seed)
-    expect(result).toHaveLength(2)
-    expect(result.map((r) => r.column)).toContain('status')
-    expect(result.map((r) => r.column)).toContain('total')
-  })
-
-  it('empty legacy array returns []', () => {
-    expect(extractPushdownFilters([], seed)).toHaveLength(0)
-  })
-
-  it('single legacy condition is pushed', () => {
-    const conditions: TriggerCondition[] = [{ field: 'status', op: 'eq', value: 'paid' }]
-    const result = extractPushdownFilters(conditions, seed)
-    expect(result).toHaveLength(1)
-    expect(result[0].column).toBe('status')
-    expect(result[0].conditions[0].value).toBe('paid')
-  })
-})

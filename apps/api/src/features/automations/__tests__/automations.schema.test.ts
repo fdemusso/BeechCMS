@@ -89,10 +89,16 @@ describe('createAutomationSchema', () => {
     expect(result.success).toBe(true)
   })
 
-  it('accepts trigger_conditions as array', () => {
+  it('accepts trigger_conditions as WhenNode', () => {
     const result = createAutomationSchema.safeParse({
       ...minimalValid,
-      trigger_conditions: [{ field: 'status', op: 'eq', value: 'published' }],
+      trigger_conditions: {
+        kind: 'group',
+        op: 'AND',
+        children: [
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.status' }, op: 'eq', right: { kind: 'literal', value: 'published' } },
+        ],
+      },
     })
     expect(result.success).toBe(true)
   })

@@ -23,12 +23,13 @@ interface ActionCardProps {
   index: number
   total: number
   seedBranches: Branch[]
+  seedSlug?: string
   onRemove: () => void
   onMoveUp: () => void
   onMoveDown: () => void
 }
 
-export function ActionCard({ index, total, seedBranches, onRemove, onMoveUp, onMoveDown }: ActionCardProps) {
+export function ActionCard({ index, total, seedBranches, seedSlug, onRemove, onMoveUp, onMoveDown }: ActionCardProps) {
   const { t } = useTranslation()
   const { watch } = useFormContext<AutomationFormValues>()
   const type = watch(`actions.${index}.type` as any) as string
@@ -73,7 +74,7 @@ export function ActionCard({ index, total, seedBranches, onRemove, onMoveUp, onM
         </div>
       </CardHeader>
       <CardContent className="p-3 pt-0">
-        {type === 'set_variable' && <SetVariableForm index={index} />}
+        {type === 'set_variable' && <SetVariableForm index={index} triggerSeedSlug={seedSlug} />}
         {type === 'webhook' && <WebhookForm index={index} />}
         {type === 'send_mail' && <SendMailForm index={index} />}
         {type === 'edit_field' && <EditFieldForm index={index} seedBranches={seedBranches} />}

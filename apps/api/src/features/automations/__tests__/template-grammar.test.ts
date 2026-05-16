@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseTemplateKey } from '../template-grammar'
-import type { ParsedKey } from '../template-grammar'
+import type { ParsedKey, VarStep, InlineCondition } from '../template-grammar'
 
 describe('parseTemplateKey', () => {
   describe('simple keys', () => {
@@ -201,5 +201,104 @@ describe('parseTemplateKey', () => {
         kind: 'scoped', scope: 'this', selector: { kind: 'lastone' }, op: 'field', field: 'name',
       })
     })
+  })
+})
+
+// ── Sprint 07 var_access cases ─────────────────────────────────────────────────
+
+describe('parseTemplateKey — var_access (Sprint 07)', () => {
+  it('1 — ordini.array[a,b].count → var_access with array + agg:count', () => {
+    const result = parseTemplateKey('ordini.array[a,b].count')
+    expect(result).toEqual<ParsedKey>({
+      kind: 'var_access',
+      name: 'ordini',
+      steps: [
+        { type: 'array', ids: ['a', 'b'] },
+        { type: 'agg', op: 'count' },
+      ],
+      conditions: [],
+    })
+  })
+
+  it('2 — ordini.count.(status=paid) → var_access with agg:count + condition', () => {
+    const result = parseTemplateKey('ordini.count.(status=paid)')
+    expect(result).toEqual<ParsedKey>({
+      kind: 'var_access',
+      name: 'ordini',
+      steps: [{ type: 'agg', op: 'count' }],
+      conditions: [{ column: 'status', op: '=', value: 'paid' }],
+    })
+  })
+
+  it('3 — ordini.sum.total.(amount>100) → var_access with agg:sum:total + condition', () => {
+    const result = parseTemplateKey('ordini.sum.total.(amount>100)')
+    expect(result).toEqual<ParsedKey>({
+      kind: 'var_access',
+      name: 'ordini',
+      steps: [{ type: 'agg', op: 'sum', field: 'total' }],
+      conditions: [{ column: 'amount', op: '>', value: '100' }],
+    })
+  })
+
+  it('4 — ordini.firstone.id.(status=paid) → nav + field + condition', () => {
+    const result = parseTemplateKey('ordini.firstone.id.(status=paid)')
+    expect(result).toEqual<ParsedKey>({
+      kind: 'var_access',
+      name: 'ordini',
+      steps: [
+        { type: 'nav', nav: 'firstone' },
+        { type: 'field', name: 'id' },
+      ],
+      conditions: [{ column: 'status', op: '=', value: 'paid' }],
+    })
+  })
+
+  it('5 — ordini.array[a,b].(status=paid).count → array + condition + agg', () => {
+    const result = parseTemplateKey('ordini.array[a,b].(status=paid).count')
+    expect(result).toMatchObject({
+      kind: 'var_access',
+      name: 'ordini',
+      steps: [
+        { type: 'array', ids: ['a', 'b'] },
+        { type: 'agg', op: 'count' },
+      ],
+      conditions: [{ column: 'status', op: '=', value: 'paid' }],
+    })
+  })
+
+  it('6 — cliente.email → falls through to simple (fast path)', () => {
+    const result = parseTemplateKey('cliente.email')
+    expect(result).toEqual<ParsedKey>({ kind: 'simple', path: 'cliente.email' })
+  })
+
+  it('handles multiple inline conditions (AND-chained)', () => {
+    const result = parseTemplateKey('ordini.count.(status=paid).(amount>10)')
+    expect(result).toMatchObject({
+      kind: 'var_access',
+      conditions: [
+        { column: 'status', op: '=', value: 'paid' },
+        { column: 'amount', op: '>', value: '10' },
+      ],
+    })
+  })
+
+  it('handles != operator', () => {
+    const result = parseTemplateKey('ordini.count.(status!=draft)')
+    expect(result).toMatchObject({
+      kind: 'var_access',
+      conditions: [{ column: 'status', op: '!=', value: 'draft' }],
+    })
+  })
+
+  it('handles <= and >= operators', () => {
+    const r1 = parseTemplateKey('ordini.count.(amount<=100)')
+    const r2 = parseTemplateKey('ordini.count.(amount>=50)')
+    expect(r1).toMatchObject({ conditions: [{ op: '<=' }] })
+    expect(r2).toMatchObject({ conditions: [{ op: '>=' }] })
+  })
+
+  it('plain dot-path without special chars stays simple', () => {
+    expect(parseTemplateKey('ordini.count')).toEqual({ kind: 'simple', path: 'ordini.count' })
+    expect(parseTemplateKey('cliente.nome')).toEqual({ kind: 'simple', path: 'cliente.nome' })
   })
 })

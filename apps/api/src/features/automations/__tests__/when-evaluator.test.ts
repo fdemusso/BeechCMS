@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { WhenNode, TriggerCondition } from '@beechcms/core'
+import type { WhenNode } from '@beechcms/core'
 import { evaluateWhen } from '../when-evaluator'
 import type { ResolvedContext } from '../context-resolver'
 import { parseTemplateKey } from '../template-grammar'
@@ -268,27 +268,3 @@ describe('evaluateWhen — null operands', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Legacy TriggerCondition[] (upcast path)
-// ---------------------------------------------------------------------------
-
-describe('evaluateWhen — legacy TriggerCondition[]', () => {
-  it('flat AND array — all pass', () => {
-    const conditions: TriggerCondition[] = [
-      { field: 'status', op: 'eq', value: 'paid' },
-      { field: 'total', op: 'gt', value: 100 },
-    ]
-    expect(evaluateWhen(conditions, ctx)).toBe(true)
-  })
-
-  it('flat AND array — one fails', () => {
-    const conditions: TriggerCondition[] = [
-      { field: 'status', op: 'eq', value: 'unpaid' },
-    ]
-    expect(evaluateWhen(conditions, ctx)).toBe(false)
-  })
-
-  it('empty array → true', () => {
-    expect(evaluateWhen([], ctx)).toBe(true)
-  })
-})

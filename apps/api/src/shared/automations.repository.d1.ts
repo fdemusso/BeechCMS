@@ -3,13 +3,10 @@ import type {
   Automation,
   AutomationAction,
   AutomationTrigger,
-  TriggerCondition,
   AutomationTriggerEvent,
   CreateAutomationInput,
   UpdateAutomationInput,
   WhenNode,
-  WhenGroup,
-  WhenPredicate,
 } from '@beechcms/core'
 
 interface AutomationRow {
@@ -132,27 +129,6 @@ export class D1AutomationRepository implements IAutomationRepository {
   }
 }
 
-function upcastTriggerConditions(parsed: unknown): WhenNode | null {
-  if (!parsed) return null
-  if (Array.isArray(parsed)) {
-    const conditions = parsed as TriggerCondition[]
-    if (conditions.length === 0) return null
-    return {
-      kind: 'group',
-      op: 'AND',
-      children: conditions.map((c): WhenPredicate => ({
-        kind: 'predicate',
-        left: { kind: 'ref', key: `this.${c.field}` },
-        op: c.op as WhenPredicate['op'],
-        right: c.op === 'isempty' || c.op === 'isnotempty'
-          ? undefined
-          : { kind: 'literal', value: c.value },
-      })),
-    } satisfies WhenGroup
-  }
-  return parsed as WhenNode
-}
-
 function rowToAutomation(row: AutomationRow): Automation {
   return {
     id: row.id,
@@ -161,7 +137,7 @@ function rowToAutomation(row: AutomationRow): Automation {
     enabled: row.enabled === 1,
     triggers: JSON.parse(row.triggers) as AutomationTrigger[],
     trigger_conditions: row.trigger_conditions
-      ? upcastTriggerConditions(JSON.parse(row.trigger_conditions))
+      ? (JSON.parse(row.trigger_conditions) as WhenNode)
       : null,
     actions: JSON.parse(row.actions) as AutomationAction[],
     created_at: row.created_at,

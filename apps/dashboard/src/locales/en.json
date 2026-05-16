@@ -625,7 +625,8 @@
         "bodyRequired": "Body is required",
         "fieldRequired": "Field is required",
         "seedRequired": "Seed is required",
-        "variableNameInvalid": "Variable name must be alphanumeric with underscores"
+        "variableNameInvalid": "Variable name must be alphanumeric with underscores",
+        "variableNameReserved": "This name is reserved by the template engine"
       }
     },
     "triggers": {
@@ -672,7 +673,22 @@
       "fieldMapTarget": "Target field",
       "fieldMapSource": "Source field",
       "addFieldMap": "Add mapping",
-      "set_variable": "Set variable"
+      "set_variable": "Set variable",
+      "variableName": "Variable name",
+      "variableNameHint": "Letters, numbers and underscores only. E.g: customer, active_orders",
+      "source": "Source",
+      "sourcePlaceholder": "Choose a table or paste an ID...",
+      "thisSeed": "this seed",
+      "useAsFixedId": "Use '{{value}}' as fixed ID",
+      "fixedIdBadge": "ID: {{id}}",
+      "column": "Column (optional)",
+      "columnAll": "— all columns —",
+      "filters": "Filters",
+      "noFilters": "No filters. All records will be loaded.",
+      "filterTemplateHint": "Values can use templates: {{this.field}}, {{variable.field}}",
+      "templateHintTitle": "Template access",
+      "hintCollection": "{{varname}}                          → rich object\n{{varname.firstone.field}}           → first record's field\n{{varname.count}}                    → row count\n{{varname.sum.field}}                → column sum\n{{varname.count.(status=active)}}    → filtered count",
+      "hintFixed": "{{varname}}                          → entire object (or null)\n{{varname.field}}                    → column value"
     },
     "toast": {
       "created": "Automation created",

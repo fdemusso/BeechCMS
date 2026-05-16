@@ -92,7 +92,13 @@ describe('POST /', () => {
         seed_slug: 'posts',
         name: 'test-cron-automation',
         triggers: [{ event: 'cron', cron: '0 0 * * *' }],
-        trigger_conditions: [{ field: 'status', op: 'eq', value: 'draft' }],
+        trigger_conditions: {
+          kind: 'group',
+          op: 'AND',
+          children: [
+            { kind: 'predicate', left: { kind: 'ref', key: 'this.status' }, op: 'eq', right: { kind: 'literal', value: 'draft' } },
+          ],
+        },
         actions: [{ type: 'webhook', url: 'https://example.com' }],
       }),
     })

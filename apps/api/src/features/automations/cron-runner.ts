@@ -40,11 +40,6 @@ export async function runCronAutomations(
 
   console.log(`[cron] Found ${automations.length} active cron automation(s)`)
 
-  const resolverDeps = {
-    contentRepository: deps.contentRepository,
-    getSeed: deps.getSeed,
-  }
-
   for (const automation of automations) {
     const cronTrigger = automation.triggers.find((t) => t.event === 'cron')
     if (!cronMatches(cronTrigger?.cron ?? null, scheduledTime)) {
@@ -72,7 +67,6 @@ export async function runCronAutomations(
     // Build the base ResolvedContext once per automation (shared seed-query cache).
     // triggerEntry = first entry; batchEntries = full SQL-filtered list.
     const batchResolved = await resolveAutomationContext(
-      resolverDeps,
       automation,
       entries[0] ?? null,
       entries,
