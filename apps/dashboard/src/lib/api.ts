@@ -76,13 +76,13 @@ api.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as any;
 
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
+    if (error.response?.status === 401 && globalThis.window !== undefined) {
       const requestUrl = originalRequest?.url || '';
       const isLoginRequest = requestUrl.includes('/auth/login');
       const isRefreshRequest = requestUrl.includes('/auth/refresh');
 
       if (isLoginRequest || isRefreshRequest) {
-        return Promise.reject(error);
+        throw error;
       }
 
       try {
@@ -90,14 +90,14 @@ api.interceptors.response.use(
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        if (!window.location.pathname.startsWith(LOGIN_PATH)) {
-          window.location.replace(LOGIN_PATH);
+        if (!globalThis.location.pathname.startsWith(LOGIN_PATH)) {
+          globalThis.location.replace(LOGIN_PATH);
         }
-        return Promise.reject(refreshError);
+        throw refreshError;
       }
     }
 
-    return Promise.reject(error);
+    throw error;
   }
 );
 
@@ -113,7 +113,7 @@ export function isTokenValid(token: string | null): boolean {
 
 /** Rimuove il token, invalida refresh token nel backend e reindirizza alla pagina di login */
 export async function logout(): Promise<void> {
-  if (typeof window !== 'undefined') {
+  if (globalThis.window !== undefined) {
     try {
       await axios.post('/auth/logout', {}, { withCredentials: true });
     } catch (err) {
@@ -121,6 +121,6 @@ export async function logout(): Promise<void> {
     }
 
     clearAccessToken();
-    window.location.replace(LOGIN_PATH);
+    globalThis.location.replace(LOGIN_PATH);
   }
 }

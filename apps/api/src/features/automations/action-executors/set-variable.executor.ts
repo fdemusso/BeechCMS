@@ -33,9 +33,11 @@ export async function executeSetVariable(
     })
     const item = items[0] ?? null
     if (!item) console.warn(`[set_variable] "${action.name}": id "${resolvedId}" not found`)
-    ctx.variables[action.name] = action.column
-      ? (item ? { _value: item[action.column] } : null)
-      : item
+    if (action.column) {
+      ctx.variables[action.name] = item ? { _value: item[action.column] } : null
+    } else {
+      ctx.variables[action.name] = item
+    }
     return
   }
 
@@ -61,65 +63,84 @@ export function materializeCollection(
   pinned: string | null,
 ): Record<string, unknown> {
   const firstone = items.length > 0
-    ? items.reduce((best, r) => Number(r['created_at']) < Number(best['created_at']) ? r : best)
+    ? items.reduce((best, r) => (Number(r['created_at']) < Number(best['created_at']) ? r : best), items[0])
     : null
   const lastone = items.length > 0
-    ? items.reduce((best, r) => Number(r['created_at']) > Number(best['created_at']) ? r : best)
+    ? items.reduce((best, r) => (Number(r['created_at']) > Number(best['created_at']) ? r : best), items[0])
     : null
 
   let out: Record<string, unknown>
 
-  if (pinned !== null) {
-    const nonNull = items.filter((r) => r[pinned] != null)
-    const count = nonNull.length
-    const nums = nonNull.map((r) => Number(r[pinned]))
-    const validNums = nums.filter((n) => !Number.isNaN(n))
-    const total = validNums.reduce((a, n) => a + n, 0)
-    const pluckVals = items.slice(0, 100).map((r) => String(r[pinned] ?? ''))
-    const pluck = pluckVals.join(', ') + (items.length > 100 ? ' …' : '')
-
-    out = {
-      count,
-      sum: validNums.length > 0 ? total : 0,
-      avg: validNums.length > 0 ? total / validNums.length : 0,
-      min: validNums.length > 0 ? Math.min(...validNums) : 0,
-      max: validNums.length > 0 ? Math.max(...validNums) : 0,
-      pluck,
-      firstone,
-      lastone,
-    }
+  if (pinned === null) {
+    out = calculateGeneralStats(seed, items)
+    out.firstone = firstone
+    out.lastone = lastone
   } else {
-    const sum: Record<string, number> = {}
-    const avg: Record<string, number> = {}
-    const min: Record<string, number> = {}
-    const max: Record<string, number> = {}
-    const pluck: Record<string, string> = {}
-
-    for (const branch of seed.branches) {
-      if (branch.type === 'number' || branch.type === 'date') {
-        const nums = items
-          .map((r) => {
-            const v = r[branch.alias]
-            const n = Number(v)
-            if (!Number.isNaN(n)) return n
-            if (typeof v === 'string') { const d = Date.parse(v); return Number.isNaN(d) ? NaN : d / 1000 }
-            return NaN
-          })
-          .filter((n) => !Number.isNaN(n))
-        const total = nums.reduce((a, n) => a + n, 0)
-        sum[branch.alias] = total
-        avg[branch.alias] = items.length > 0 ? total / items.length : 0
-        min[branch.alias] = nums.length > 0 ? Math.min(...nums) : 0
-        max[branch.alias] = nums.length > 0 ? Math.max(...nums) : 0
-      } else {
-        const vals = items.slice(0, 100).map((r) => String(r[branch.alias] ?? ''))
-        pluck[branch.alias] = vals.join(', ') + (items.length > 100 ? ' …' : '')
-      }
-    }
-
-    out = { count: items.length, sum, avg, min, max, pluck, firstone, lastone }
+    out = calculatePinnedStats(items, pinned)
+    out.firstone = firstone
+    out.lastone = lastone
   }
 
   Object.defineProperty(out, '_items', { value: items, enumerable: false })
   return out
+}
+
+function formatPluckValues(items: Array<Record<string, unknown>>, key: string): string {
+  const vals = items.slice(0, 100).map((r) => String(r[key] ?? ''))
+  return vals.join(', ') + (items.length > 100 ? ' …' : '')
+}
+
+function calculatePinnedStats(items: Array<Record<string, unknown>>, pinned: string): Record<string, unknown> {
+  const nonNull = items.filter((r) => r[pinned] != null)
+  const nums = nonNull.map((r) => Number(r[pinned]))
+  const validNums = nums.filter((n) => !Number.isNaN(n))
+  const total = validNums.reduce((a, n) => a + n, 0)
+  const pluck = formatPluckValues(items, pinned)
+
+  return {
+    count: nonNull.length,
+    sum: validNums.length > 0 ? total : 0,
+    avg: validNums.length > 0 ? total / validNums.length : 0,
+    min: validNums.length > 0 ? Math.min(...validNums) : 0,
+    max: validNums.length > 0 ? Math.max(...validNums) : 0,
+    pluck,
+  }
+}
+
+function extractValidNumbers(items: Array<Record<string, unknown>>, key: string): number[] {
+  return items
+    .map((r) => {
+      const v = r[key]
+      const n = Number(v)
+      if (!Number.isNaN(n)) return n
+      if (typeof v === 'string') {
+        const d = Date.parse(v)
+        return Number.isNaN(d) ? Number.NaN : d / 1000
+      }
+      return Number.NaN
+    })
+    .filter((n) => !Number.isNaN(n))
+}
+
+function calculateGeneralStats(seed: Seed, items: Array<Record<string, unknown>>): Record<string, unknown> {
+  const sum: Record<string, number> = {}
+  const avg: Record<string, number> = {}
+  const min: Record<string, number> = {}
+  const max: Record<string, number> = {}
+  const pluck: Record<string, string> = {}
+
+  for (const branch of seed.branches) {
+    if (branch.type === 'number' || branch.type === 'date') {
+      const nums = extractValidNumbers(items, branch.alias)
+      const total = nums.reduce((a, n) => a + n, 0)
+      sum[branch.alias] = total
+      avg[branch.alias] = items.length > 0 ? total / items.length : 0
+      min[branch.alias] = nums.length > 0 ? Math.min(...nums) : 0
+      max[branch.alias] = nums.length > 0 ? Math.max(...nums) : 0
+    } else {
+      pluck[branch.alias] = formatPluckValues(items, branch.alias)
+    }
+  }
+
+  return { count: items.length, sum, avg, min, max, pluck }
 }

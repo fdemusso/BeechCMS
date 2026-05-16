@@ -1,6 +1,4 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import axios from 'axios'
-import type { LoginResponse } from './api'
 import { setAccessToken, clearAccessToken, refreshToken } from './api'
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
@@ -42,7 +40,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     refreshToken()
       .then((token) => setToken(token))
-      .catch((err) => {
+      .catch(() => {
         // If the refresh failed (e.g. 401 or network error), we are unauthenticated
         clearToken()
       })

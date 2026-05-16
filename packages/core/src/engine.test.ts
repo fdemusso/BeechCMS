@@ -17,6 +17,7 @@ const mockSeed: Seed = {
   slug: 'articles',
   label: 'Articles',
   allowDrafts: true,
+  displayNameAlias: 'title',
   branches: [
     { alias: 'title', type: 'text', label: 'Title', requiredOnCreate: true },
     { alias: 'content', type: 'richtext', label: 'Content' },
