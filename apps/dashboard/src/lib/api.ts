@@ -41,16 +41,34 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-let isRefreshing = false;
-let refreshSubscribers: Array<(token: string) => void> = [];
+let refreshPromise: Promise<string> | null = null;
 
-function subscribeTokenRefresh(cb: (token: string) => void): void {
-  refreshSubscribers.push(cb);
-}
+/**
+ * Esegue il refresh del token, assicurandosi che non ci siano chiamate parallele.
+ * Ritorna una promise che risolve al nuovo access token.
+ */
+export async function refreshToken(): Promise<string> {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
 
-function onRefreshed(token: string): void {
-  refreshSubscribers.forEach(cb => cb(token));
-  refreshSubscribers = [];
+  refreshPromise = (async () => {
+    try {
+      const { data } = await axios.post<LoginResponse>('/auth/refresh', {}, {
+        withCredentials: true,
+      });
+      const newToken = data.token;
+      setAccessToken(newToken);
+      return newToken;
+    } catch (error) {
+      clearAccessToken();
+      throw error;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
 }
 
 api.interceptors.response.use(
@@ -67,32 +85,11 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
-      if (isRefreshing) {
-        return new Promise((resolve) => {
-          subscribeTokenRefresh((token: string) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            resolve(api(originalRequest));
-          });
-        });
-      }
-
-      isRefreshing = true;
-
       try {
-        const { data } = await axios.post<LoginResponse>('/auth/refresh', {}, {
-          withCredentials: true,
-        });
-
-        const newToken = data.token;
-        setAccessToken(newToken);
+        const newToken = await refreshToken();
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        onRefreshed(newToken);
-        isRefreshing = false;
-
         return api(originalRequest);
       } catch (refreshError) {
-        isRefreshing = false;
-        clearAccessToken();
         if (!window.location.pathname.startsWith(LOGIN_PATH)) {
           window.location.replace(LOGIN_PATH);
         }
