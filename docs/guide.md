@@ -31,6 +31,7 @@ Everything you need to go from a fresh scaffold to a live project: configuration
 9. [Schema Evolution](#9-schema-evolution)
 10. [Daily Workflow](#10-daily-workflow)
 11. [Deploying to Production](#11-deploying-to-production)
+12. [Automations](automations.md)
 
 ---
 

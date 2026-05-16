@@ -1427,8 +1427,9 @@ When `trigger_event` is `cron`, `trigger_cron` must be a valid cron expression (
 | `send_mail` | `to`, `subject_template`, `body_template` | — |
 | `edit_field` | `field`, `value` | — |
 | `create_entry` | `seed_slug`, `field_map` | — |
+| `set_variable` | `name` | `seed_slug`, `fixed_id`, `column`, `filters`, `order_by`, `order` |
 
-`body_template`, `subject_template`, `to`, and `field_map` values support `{{fieldAlias}}` interpolation — placeholders are replaced at runtime with the corresponding field value from the triggering entry.
+`body_template`, `subject_template`, `to`, and `field_map` values support template interpolation. You can access the triggering entry via `{{this.fieldAlias}}` or `{{this:fieldAlias}}`, and access variables declared by `set_variable`. See the [Automations Guide](automations.md) for full syntax and variable resolution semantics.
 
 **Response `201 Created`:**
 
