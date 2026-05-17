@@ -18,18 +18,10 @@ export function useNumberRating(opts: NumberFieldOptions | undefined, value: unk
     return { isFull, isHalf, starValue }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent, targetValue: number, onChange: (val: unknown) => void) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      onChange(targetValue)
-    }
-  }
-
   return {
     max,
     allowHalf,
     setHoverValue,
-    getStarState,
-    handleKeyDown
+    getStarState
   }
 }

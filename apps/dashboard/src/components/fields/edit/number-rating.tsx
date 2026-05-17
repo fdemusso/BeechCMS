@@ -4,18 +4,21 @@ import type { FieldEditProps } from "../types"
 import { useNumberRating } from "./use-number-rating"
 
 export function NumberRating({ branch, value, onChange }: FieldEditProps) {
-  const { max, allowHalf, setHoverValue, getStarState, handleKeyDown } = useNumberRating(branch.numberOptions, value)
+  const { max, allowHalf, setHoverValue, getStarState } = useNumberRating(branch.numberOptions, value)
 
   return (
-    <div className="flex items-center space-x-1" id={branch.alias}>
+    <div 
+      className="flex items-center space-x-1" 
+      id={branch.alias} 
+      onMouseLeave={() => setHoverValue(null)}
+    >
       {Array.from({ length: max }).map((_, i) => {
         const { isFull, isHalf, starValue } = getStarState(i + 1)
 
         return (
           <div 
-            key={i} 
+            key={starValue} 
             className="relative cursor-pointer"
-            onMouseLeave={() => setHoverValue(null)}
           >
             {/* Background outline star */}
             <Star className="h-6 w-6 text-muted-foreground/30" />
@@ -36,34 +39,28 @@ export function NumberRating({ branch, value, onChange }: FieldEditProps) {
             <div className="absolute inset-0 flex">
               {allowHalf ? (
                 <>
-                  <div 
-                    className="h-full w-1/2"
-                    role="button"
-                    tabIndex={0}
+                  <button 
+                    type="button"
+                    className="h-full w-1/2 appearance-none bg-transparent border-none p-0 cursor-pointer"
                     aria-label={`Imposta voto ${starValue - 0.5}`}
                     onMouseEnter={() => setHoverValue(starValue - 0.5)}
                     onClick={() => onChange(starValue - 0.5)}
-                    onKeyDown={(e) => handleKeyDown(e, starValue - 0.5, onChange)}
                   />
-                  <div 
-                    className="h-full w-1/2"
-                    role="button"
-                    tabIndex={0}
+                  <button 
+                    type="button"
+                    className="h-full w-1/2 appearance-none bg-transparent border-none p-0 cursor-pointer"
                     aria-label={`Imposta voto ${starValue}`}
                     onMouseEnter={() => setHoverValue(starValue)}
                     onClick={() => onChange(starValue)}
-                    onKeyDown={(e) => handleKeyDown(e, starValue, onChange)}
                   />
                 </>
               ) : (
-                <div 
-                  className="h-full w-full"
-                  role="button"
-                  tabIndex={0}
+                <button 
+                  type="button"
+                  className="h-full w-full appearance-none bg-transparent border-none p-0 cursor-pointer"
                   aria-label={`Imposta voto ${starValue}`}
                   onMouseEnter={() => setHoverValue(starValue)}
                   onClick={() => onChange(starValue)}
-                  onKeyDown={(e) => handleKeyDown(e, starValue, onChange)}
                 />
               )}
             </div>

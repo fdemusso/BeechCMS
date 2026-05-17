@@ -15,15 +15,15 @@ export function formatNumber(num: number, options?: NumberFieldOptions): string 
     intlOpts.notation = "compact"
   }
 
-  if (options?.decimals !== undefined) {
-    intlOpts.minimumFractionDigits = options.decimals
-    intlOpts.maximumFractionDigits = options.decimals
-  } else {
+  if (options?.decimals == null) {
     // Default fallback to keep backward compatibility
     intlOpts.maximumFractionDigits = 2
+  } else {
+    intlOpts.minimumFractionDigits = options.decimals
+    intlOpts.maximumFractionDigits = options.decimals
   }
 
-  if (options?.grouping !== undefined) {
+  if (options?.grouping != null) {
     intlOpts.useGrouping = options.grouping
   }
 
