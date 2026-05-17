@@ -2,29 +2,20 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Minus, Plus } from "lucide-react"
 import type { FieldEditProps } from "../types"
+import { useNumberStepper } from "./use-number-stepper"
 
 export function NumberStepper({ branch, value, onChange }: FieldEditProps) {
-  const raw = value as number | undefined
-  const displayValue = raw !== undefined && raw !== null ? raw : ""
-  const opts = branch.numberOptions
-  
-  const min = opts?.min
-  const max = opts?.max
-  const step = opts?.step ?? 1
-
-  const handleDecrement = () => {
-    const current = raw ?? 0
-    const next = current - step
-    if (min !== undefined && next < min) return
-    onChange(next)
-  }
-
-  const handleIncrement = () => {
-    const current = raw ?? 0
-    const next = current + step
-    if (max !== undefined && next > max) return
-    onChange(next)
-  }
+  const { 
+    displayValue, 
+    step, 
+    min, 
+    max, 
+    canDecrement, 
+    canIncrement, 
+    handleDecrement, 
+    handleIncrement, 
+    parseInput 
+  } = useNumberStepper(branch.numberOptions, value)
 
   return (
     <div className="flex items-center space-x-2">
@@ -32,8 +23,8 @@ export function NumberStepper({ branch, value, onChange }: FieldEditProps) {
         variant="outline" 
         size="icon" 
         type="button" 
-        onClick={handleDecrement}
-        disabled={raw !== undefined && min !== undefined && raw <= min}
+        onClick={() => handleDecrement(onChange)}
+        disabled={!canDecrement}
       >
         <Minus className="h-4 w-4" />
       </Button>
@@ -44,17 +35,15 @@ export function NumberStepper({ branch, value, onChange }: FieldEditProps) {
         min={min}
         max={max}
         value={displayValue}
-        onChange={(e) =>
-          onChange(e.target.value === "" ? null : Number(e.target.value))
-        }
+        onChange={(e) => onChange(parseInput(e.target.value))}
         className="w-24 text-center"
       />
       <Button 
         variant="outline" 
         size="icon" 
         type="button" 
-        onClick={handleIncrement}
-        disabled={raw !== undefined && max !== undefined && raw >= max}
+        onClick={() => handleIncrement(onChange)}
+        disabled={!canIncrement}
       >
         <Plus className="h-4 w-4" />
       </Button>

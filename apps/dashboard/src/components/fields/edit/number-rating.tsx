@@ -1,27 +1,15 @@
 import { Star } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { FieldEditProps } from "../types"
-import { useState } from "react"
+import { useNumberRating } from "./use-number-rating"
 
 export function NumberRating({ branch, value, onChange }: FieldEditProps) {
-  const raw = value as number | undefined
-  const opts = branch.numberOptions
-  
-  const max = opts?.max ?? 5
-  // Support half steps if step is <= 0.5
-  const allowHalf = opts?.step !== undefined && opts.step <= 0.5
-  
-  const current = raw ?? 0
-  const [hoverValue, setHoverValue] = useState<number | null>(null)
-
-  const displayValue = hoverValue !== null ? hoverValue : current
+  const { max, allowHalf, setHoverValue, getStarState, handleKeyDown } = useNumberRating(branch.numberOptions, value)
 
   return (
     <div className="flex items-center space-x-1" id={branch.alias}>
       {Array.from({ length: max }).map((_, i) => {
-        const starValue = i + 1
-        const isFull = displayValue >= starValue
-        const isHalf = allowHalf && displayValue >= starValue - 0.5 && displayValue < starValue
+        const { isFull, isHalf, starValue } = getStarState(i + 1)
 
         return (
           <div 
@@ -50,20 +38,32 @@ export function NumberRating({ branch, value, onChange }: FieldEditProps) {
                 <>
                   <div 
                     className="h-full w-1/2"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Imposta voto ${starValue - 0.5}`}
                     onMouseEnter={() => setHoverValue(starValue - 0.5)}
                     onClick={() => onChange(starValue - 0.5)}
+                    onKeyDown={(e) => handleKeyDown(e, starValue - 0.5, onChange)}
                   />
                   <div 
                     className="h-full w-1/2"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Imposta voto ${starValue}`}
                     onMouseEnter={() => setHoverValue(starValue)}
                     onClick={() => onChange(starValue)}
+                    onKeyDown={(e) => handleKeyDown(e, starValue, onChange)}
                   />
                 </>
               ) : (
                 <div 
                   className="h-full w-full"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Imposta voto ${starValue}`}
                   onMouseEnter={() => setHoverValue(starValue)}
                   onClick={() => onChange(starValue)}
+                  onKeyDown={(e) => handleKeyDown(e, starValue, onChange)}
                 />
               )}
             </div>
