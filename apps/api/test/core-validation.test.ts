@@ -7,6 +7,63 @@ import { buildPublicListMeta, buildPublicSingleMeta } from '../src/public/respon
 import { TEST_SEEDS } from './fixtures'
 
 const articoliSeed = TEST_SEEDS[0] // posts in fixtures
+const numericalSeed = TEST_SEEDS[2] // numerical in fixtures
+
+describe('number field validation with numberOptions', () => {
+  it('accetta un valore all\'interno del range', () => {
+    const result = validateAndSanitizeSeedPayload(numericalSeed, { score: 4 })
+    expect(result.details).toHaveLength(0)
+    expect(result.data.score).toBe(4)
+  })
+
+  it('rifiuta un valore sotto il minimo', () => {
+    const result = validateAndSanitizeSeedPayload(numericalSeed, { score: -2 })
+    expect(result.details).toHaveLength(1)
+    expect(result.details[0].expected).toContain('min:0')
+  })
+
+  it('rifiuta un valore sopra il massimo', () => {
+    const result = validateAndSanitizeSeedPayload(numericalSeed, { score: 12 })
+    expect(result.details).toHaveLength(1)
+    expect(result.details[0].expected).toContain('max:10')
+  })
+
+  it('accetta step intero valido', () => {
+    const result = validateAndSanitizeSeedPayload(numericalSeed, { score: 6 })
+    expect(result.details).toHaveLength(0)
+  })
+
+  it('rifiuta step intero invalido', () => {
+    const result = validateAndSanitizeSeedPayload(numericalSeed, { score: 5 })
+    expect(result.details).toHaveLength(1)
+    expect(result.details[0].expected).toContain('step:2')
+  })
+
+  it('accetta step decimale valido', () => {
+    const result = validateAndSanitizeSeedPayload(numericalSeed, { rating: 2.5 })
+    expect(result.details).toHaveLength(0)
+  })
+
+  it('rifiuta step decimale invalido', () => {
+    const result = validateAndSanitizeSeedPayload(numericalSeed, { rating: 2.3 })
+    expect(result.details).toHaveLength(1)
+    expect(result.details[0].expected).toContain('step:0.5')
+  })
+
+  it('accetta esatto boundary min e max', () => {
+    let result = validateAndSanitizeSeedPayload(numericalSeed, { score: 0 })
+    expect(result.details).toHaveLength(0)
+
+    result = validateAndSanitizeSeedPayload(numericalSeed, { score: 10 })
+    expect(result.details).toHaveLength(0)
+  })
+
+  it('accetta campi numerici senza opzioni', () => {
+    const result = validateAndSanitizeSeedPayload(numericalSeed, { unbounded: 42.42 })
+    expect(result.details).toHaveLength(0)
+    expect(result.data.unbounded).toBe(42.42)
+  })
+})
 
 describe('core validation foundation', () => {
   it('sanitizza e valida payload seed-aware', () => {
