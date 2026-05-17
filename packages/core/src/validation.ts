@@ -326,7 +326,24 @@ function buildBranchSchema(
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'number': {
-      const schema = finiteNumberSchema
+      const opts = branch.numberOptions
+      let numSchema = z.number()
+      if (opts?.min !== undefined) numSchema = numSchema.min(opts.min)
+      if (opts?.max !== undefined) numSchema = numSchema.max(opts.max)
+      
+      let schema = numSchema.refine(Number.isFinite, 'Expected finite number')
+      
+      if (opts?.step !== undefined) {
+        const step = opts.step
+        const min = opts.min ?? 0
+        schema = schema.refine((val) => {
+          const valDecimals = (val.toString().split('.')[1] || '').length
+          const stepDecimals = (step.toString().split('.')[1] || '').length
+          const decimals = Math.max(valDecimals, stepDecimals)
+          const multiplier = Math.pow(10, decimals)
+          return (Math.round((val - min) * multiplier) % Math.round(step * multiplier)) === 0
+        }, `Expected multiple of ${step}`)
+      }
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'boolean': {
@@ -395,6 +412,7 @@ function seedFingerprint(seed: Seed): string {
       multiple: branch.multiple ?? false,
       requiredOnCreate: branch.requiredOnCreate ?? false,
       requiredOnUpdate: branch.requiredOnUpdate ?? false,
+      numberOptions: branch.numberOptions ?? null,
     })),
   })
 }
@@ -482,6 +500,27 @@ function validateBranchValue(
     case 'number': {
       if (!finiteNumberSchema.safeParse(rawValue).success) {
         return { ok: false, detail: makeDetail(alias, 'number', rawValue) }
+      }
+      const val = rawValue as number
+      const opts = branch.numberOptions
+      if (opts) {
+        if (opts.min !== undefined && val < opts.min) {
+          return { ok: false, detail: makeDetail(alias, `number(min:${opts.min})`, rawValue) }
+        }
+        if (opts.max !== undefined && val > opts.max) {
+          return { ok: false, detail: makeDetail(alias, `number(max:${opts.max})`, rawValue) }
+        }
+        if (opts.step !== undefined) {
+          const step = opts.step
+          const min = opts.min ?? 0
+          const valDecimals = (val.toString().split('.')[1] || '').length
+          const stepDecimals = (step.toString().split('.')[1] || '').length
+          const decimals = Math.max(valDecimals, stepDecimals)
+          const multiplier = Math.pow(10, decimals)
+          if ((Math.round((val - min) * multiplier) % Math.round(step * multiplier)) !== 0) {
+            return { ok: false, detail: makeDetail(alias, `number(step:${step})`, rawValue) }
+          }
+        }
       }
       return { ok: true, value: rawValue }
     }
