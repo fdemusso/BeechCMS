@@ -9,29 +9,29 @@ const mockUseToolbarGroupBy = vi.fn()
 const mockUseToolbarFilters = vi.fn()
 const mockUseConditionalFormats = vi.fn()
 
-vi.mock("@/components/content-toolbar/toolbar-hooks/use-toolbar-search", () => ({
+vi.mock("@/features/content-toolbar/toolbar-hooks/use-toolbar-search", () => ({
   useToolbarSearch: (...args: unknown[]) => mockUseToolbarSearch(...args),
 }))
-vi.mock("@/components/content-toolbar/toolbar-hooks/use-toolbar-menus-state", () => ({
+vi.mock("@/features/content-toolbar/toolbar-hooks/use-toolbar-menus-state", () => ({
   useToolbarMenusState: (...args: unknown[]) => mockUseToolbarMenusState(...args),
 }))
-vi.mock("@/components/content-toolbar/toolbar-hooks/use-view-name", () => ({
+vi.mock("@/features/content-toolbar/toolbar-hooks/use-view-name", () => ({
   useViewName: (...args: unknown[]) => mockUseViewName(...args),
 }))
-vi.mock("@/components/content-toolbar/toolbar-hooks/use-toolbar-sort", () => ({
+vi.mock("@/features/content-toolbar/toolbar-hooks/use-toolbar-sort", () => ({
   useToolbarSort: (...args: unknown[]) => mockUseToolbarSort(...args),
 }))
-vi.mock("@/components/content-toolbar/toolbar-hooks/use-toolbar-groupby", () => ({
+vi.mock("@/features/content-toolbar/toolbar-hooks/use-toolbar-groupby", () => ({
   useToolbarGroupBy: (...args: unknown[]) => mockUseToolbarGroupBy(...args),
 }))
-vi.mock("@/hooks/use-toolbar-filters", () => ({
+vi.mock("@/features/content-toolbar/toolbar-hooks/use-toolbar-filters", () => ({
   useToolbarFilters: (...args: unknown[]) => mockUseToolbarFilters(...args),
 }))
-vi.mock("@/hooks/use-conditional-formats", () => ({
+vi.mock("@/features/content-toolbar/toolbar-hooks/use-conditional-formats", () => ({
   useConditionalFormats: (...args: unknown[]) => mockUseConditionalFormats(...args),
 }))
 
-import { useContentToolbar } from "@/components/content-toolbar/use-content-toolbar"
+import { useContentToolbar } from "@/features/content-toolbar/use-content-toolbar"
 
 const baseProps: any = {
   seed: { branches: [{ alias: "title", label: "Titolo", type: "text" }] },

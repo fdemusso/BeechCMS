@@ -1,15 +1,8 @@
 import { useQuery } from "@tanstack/react-query"
 import { dashboardApi } from "../api/dashboard.api"
+import { DASHBOARD_QUERY_KEYS } from "@/features/shared"
 
-export const DASHBOARD_QUERY_KEYS = {
-  all: ["dashboard"] as const,
-  stats: () => [...DASHBOARD_QUERY_KEYS.all, "stats"] as const,
-  cloudflare: () => [...DASHBOARD_QUERY_KEYS.all, "cloudflare"] as const,
-  activity: () => [...DASHBOARD_QUERY_KEYS.all, "activity"] as const,
-  health: () => [...DASHBOARD_QUERY_KEYS.all, "health"] as const,
-  breakdown: () => [...DASHBOARD_QUERY_KEYS.all, "breakdown"] as const,
-  setupChecklist: () => [...DASHBOARD_QUERY_KEYS.all, "setup-checklist"] as const,
-}
+export { DASHBOARD_QUERY_KEYS }
 
 export function useDashboardStats() {
   return useQuery({

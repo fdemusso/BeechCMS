@@ -45,6 +45,8 @@ export default defineConfig({
         'src/shared/storage/**',
         // Seed definitions
         'src/features/schema/schema.handler.ts',
+        // Pure barrel feature export files
+        'src/features/**/index.ts',
       ],
       thresholds: {
         statements: 80,

@@ -29,7 +29,7 @@ vi.mock("@/lib/auth-context", () => ({
   useAuth: () => ({ setToken: mocked.setToken }),
 }))
 
-import { useLoginForm } from "@/components/login-form/use-login-form"
+import { useLoginForm } from "@/features/auth/components/login-form/use-login-form"
 
 const TEST_PASS = "x".repeat(10)
 

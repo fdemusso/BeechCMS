@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 
-import { useToolbarMenusState } from "@/components/content-toolbar/toolbar-hooks/use-toolbar-menus-state"
-import { useViewName } from "@/components/content-toolbar/toolbar-hooks/use-view-name"
-import { useToolbarSearch } from "@/components/content-toolbar/toolbar-hooks/use-toolbar-search"
-import { useToolbarSort } from "@/components/content-toolbar/toolbar-hooks/use-toolbar-sort"
-import { useToolbarGroupBy } from "@/components/content-toolbar/toolbar-hooks/use-toolbar-groupby"
+import { useToolbarMenusState } from "@/features/content-toolbar/toolbar-hooks/use-toolbar-menus-state"
+import { useViewName } from "@/features/content-toolbar/toolbar-hooks/use-view-name"
+import { useToolbarSearch } from "@/features/content-toolbar/toolbar-hooks/use-toolbar-search"
+import { useToolbarSort } from "@/features/content-toolbar/toolbar-hooks/use-toolbar-sort"
+import { useToolbarGroupBy } from "@/features/content-toolbar/toolbar-hooks/use-toolbar-groupby"
 
 const seed: any = {
   branches: [

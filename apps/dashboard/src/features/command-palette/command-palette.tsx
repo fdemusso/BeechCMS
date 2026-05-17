@@ -68,7 +68,7 @@ function BreadcrumbChips({ pages, popPage }: BreadcrumbChipsProps) {
 export function CommandPalette() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { theme, setTheme } = useTheme()
+  const { resolvedTheme, setTheme } = useTheme()
   const { open, setOpen, pages, currentPage, pushPage, popPage, search, setSearch } =
     useCommandPalette()
 
@@ -82,9 +82,9 @@ export function CommandPalette() {
   }
 
   const toggleTheme = React.useCallback(() => {
-    setTheme(theme === "dark" ? "light" : "dark")
+    setTheme(resolvedTheme === "dark" ? "light" : "dark")
     setOpen(false)
-  }, [theme, setTheme, setOpen])
+  }, [resolvedTheme, setTheme, setOpen])
 
   return (
     <>
@@ -114,7 +114,7 @@ export function CommandPalette() {
               pushPage={pushPage}
               navigate={navigate}
               setOpen={setOpen}
-              theme={theme}
+              theme={resolvedTheme}
               toggleTheme={toggleTheme}
             />
           )}

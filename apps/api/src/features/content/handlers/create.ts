@@ -136,6 +136,14 @@ export async function createHandler(context: Context<AppEnv>) {
       },
     })
 
+    context.get('scheduler').waitUntil(
+      context.get('automationRunner').run({
+        seedSlug: slug,
+        event: 'create',
+        entry: { id, slug: finalSlug, status, ...privacyData },
+      }),
+    )
+
     return context.json({ id }, 201)
   } catch (error) {
     if (error instanceof SlugConflictError) {

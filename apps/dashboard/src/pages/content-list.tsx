@@ -13,18 +13,17 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { DataTable } from "@/components/ui/data-table"
-import { ContentDeleteDialog } from "@/components/content-delete-dialog"
-import { ContentGallery } from "@/components/content-gallery"
+import { ContentDeleteDialog } from "@/features/content-delete-dialog"
+import { ContentGallery } from "@/features/content-gallery"
 import {
   ContentToolbar,
   type UserViewInstance,
   type ToolbarFiltersState,
   type ToolbarFilterGroup,
   type ToolbarFilterCondition,
-} from "@/components/content-toolbar"
+} from "@/features/content-toolbar"
 import {
   ContextMenuItem,
   ContextMenuLabel,
@@ -36,6 +35,7 @@ import {
   useContentFacets,
   useDeleteContent,
 } from "@/features/content-management"
+import { AutomationPanel, useAutomations } from "@/features/automations"
 import { useActiveSeed } from "@/features/schema"
 import {
   generateColumns,
@@ -89,6 +89,8 @@ export function ContentListPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [entryIdsToDelete, setEntryIdsToDelete] = React.useState<string[] | null>(null)
 
+  const [automationPanelOpen, setAutomationPanelOpen] = React.useState(false)
+
   // Active view of the content list.
   const [activeViewId, setActiveViewId] = React.useState("table")
 
@@ -122,6 +124,8 @@ export function ContentListPage() {
   } = useContentFacets(slug)
 
   const { mutateAsync: deleteContent } = useDeleteContent()
+
+  useAutomations(slug)
 
   const data = React.useMemo(() => listData?.items ?? [], [listData])
   const totalRows = listData?.total ?? 0
@@ -165,7 +169,7 @@ export function ContentListPage() {
       id: "gallery",
       label: "gallery",
       type: "gallery",
-      enabledTools: ["filter", "sort", "search", "create"],
+      enabledTools: ["filter", "sort", "automation", "search", "create"],
       conditionalFormats: [],
     },
   ])
@@ -353,6 +357,7 @@ export function ContentListPage() {
     () => {
       const visibility: VisibilityState = {}
       visibility["id"] = false
+      visibility["slug"] = false
       if (!seed) return visibility
       const metaAliases = seed.branches
         .filter(
@@ -578,9 +583,9 @@ export function ContentListPage() {
     []
   )
 
-  // Hidden columns by default: id (too long), json metadata/metadati
+  // Hidden columns by default: system columns (id, slug) + json metadata/metadati
   const initialHiddenColumns = React.useMemo(() => {
-    const hidden: string[] = ["id"]
+    const hidden: string[] = ["id", "slug"]
     if (!seed) return hidden
     const metaAliases = seed.branches
       .filter(
@@ -690,6 +695,8 @@ export function ContentListPage() {
                   onGroupByChange={setGroupBy}
                   dateGroupPrecision={dateGroupPrecision}
                   onDateGroupPrecisionChange={setDateGroupPrecision}
+                  onOpenAutomation={() => setAutomationPanelOpen(true)}
+                  isAutomationActive={automationPanelOpen}
                 >
                   {error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
@@ -796,6 +803,14 @@ export function ContentListPage() {
         seed={seed}
         entryIds={entryIdsToDelete}
         onConfirm={handleConfirmDelete}
+      />
+
+      <AutomationPanel
+        open={automationPanelOpen}
+        onOpenChange={setAutomationPanelOpen}
+        seedSlug={seed.slug}
+        seedDisplayName={seed.label}
+        seedBranches={seed.branches}
       />
     </div>
   )

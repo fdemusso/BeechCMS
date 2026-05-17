@@ -18,7 +18,7 @@ out/
 .cursorrules
 .cursorignore
 .mcp.json
-
+.agents/
 .claude/
 CLAUDE.md
 

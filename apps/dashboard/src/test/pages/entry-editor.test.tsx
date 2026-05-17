@@ -77,10 +77,12 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarProvider: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   SidebarInset: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }))
-vi.mock("@/components/app-sidebar", () => ({ AppSidebar: () => <div>APP_SIDEBAR</div> }))
-vi.mock("@/components/site-header", () => ({ SiteHeader: () => <div>SITE_HEADER</div> }))
+vi.mock("@/features/navigation", () => ({
+  AppSidebar: () => <div>APP_SIDEBAR</div>,
+  SiteHeader: () => <div>SITE_HEADER</div>,
+}))
 
-vi.mock("@/components/fields", () => ({
+vi.mock("@/features/fields", () => ({
   FieldEdit: ({ branch, value, onChange }: any) => (
     <input
       aria-label={`field-${branch.alias}`}

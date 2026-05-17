@@ -16,10 +16,12 @@
 import { ResendEmailProvider } from './providers/resend'
 import { buildPasswordResetEmail } from './templates/password-reset'
 import { buildPasswordChangedEmail } from './templates/password-changed'
+import { buildAutomationEmail } from './templates/automation-mail'
 import type { EmailProvider } from './email.provider'
 import type {
   PasswordResetEmailParams,
   PasswordChangedEmailParams,
+  AutomationMailParams,
 } from './email.types'
 
 /** Default sender address (Resend test sender, works without a verified domain). */
@@ -76,5 +78,16 @@ export async function sendPasswordChangedEmail(
     to: [params.to],
     subject,
     html,
+  })
+}
+
+export async function sendAutomationMail(params: AutomationMailParams): Promise<void> {
+  const provider = createProvider(params.apiKey ?? params.resendApiKey ?? '', false)
+  const message = buildAutomationEmail(params)
+  await provider.send({
+    from: params.from ?? DEFAULT_FROM,
+    to: [message.to],
+    subject: message.subject,
+    html: message.html,
   })
 }

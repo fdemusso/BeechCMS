@@ -1,0 +1,35 @@
+
+ RUN  v3.2.4 /Users/flaviodemusso/Documents/Progetti/BeechCMS/apps/dashboard
+
+ ✓ src/test/fields/edit-media.test.tsx (10 tests) 468ms
+ ✓ src/test/pages/error-page.test.tsx (2 tests) 59ms
+ ✓ src/test/content-delete-dialog/content-delete-dialog.test.tsx (5 tests) 189ms
+ ✓ src/test/pages/entry-editor.test.tsx (3 tests) 165ms
+ ✓ src/test/notifications-popover/use-notifications-popover.test.ts (1 test) 162ms
+ ✓ src/test/ui/card-table-toggle.test.tsx (3 tests) 99ms
+ ✓ src/test/fields/edit-richtext.test.tsx (2 tests) 594ms
+   ✓ RichtextEdit > toolbar premium presente -> controlli principali visibili  353ms
+ ✓ src/test/fields/display-media.test.tsx (5 tests) 81ms
+ ✓ src/test/content-toolbar/toolbar-hooks.test.ts (5 tests) 26ms
+ ✓ src/test/content-toolbar/content-toolbar.test.tsx (1 test) 103ms
+ ✓ src/test/notifications-popover/notifications-popover.test.tsx (1 test) 67ms
+ ✓ src/test/hooks/use-conditional-formats.test.ts (2 tests) 14ms
+ ✓ src/test/content-toolbar/use-content-toolbar.test.ts (2 tests) 12ms
+ ✓ src/test/hooks/use-toolbar-filters.test.ts (2 tests) 11ms
+ ✓ src/test/content-toolbar/shared.test.ts (6 tests) 6ms
+ ✓ src/test/dynamic-columns.test.tsx (9 tests) 664ms
+   ✓ dynamic-columns - generateColumns aggregazioni e azioni > azioni column > selectedIds vuoto: Copia ID (success) + Modifica + Elimina chiamano le callback  465ms
+ ✓ src/test/tags-utils.test.ts (3 tests) 3ms
+ ✓ src/test/conditional-format.test.ts (5 tests) 2ms
+ ✓ src/test/filter-dsl.test.ts (28 tests) 15ms
+ ✓ src/test/actions-menu.test.tsx (2 tests) 253ms
+ ✓ src/test/content-api.test.ts (8 tests) 3ms
+ ✓ src/test/pages/content-list.test.tsx (4 tests) 51ms
+ ✓ src/test/fields/field-display-policy.test.tsx (6 tests) 14ms
+ ✓ src/test/field-registry.test.ts (26 tests) 2ms
+
+ Test Files  4 failed | 24 passed (28)
+      Tests  141 passed (141)
+   Start at  18:21:19
+   Duration  6.91s (transform 1.37s, setup 2.74s, collect 17.44s, tests 3.06s, environment 8.57s, prepare 1.68s)
+

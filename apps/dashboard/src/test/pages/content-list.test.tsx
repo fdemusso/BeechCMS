@@ -16,6 +16,11 @@ vi.mock("react-router-dom", () => ({
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }))
 
+vi.mock("@/features/automations", () => ({
+  AutomationPanel: () => null,
+  useAutomations: () => ({ data: [], isLoading: false }),
+}))
+
 const seedPosts = {
   slug: "posts",
   label: "Post",
@@ -73,8 +78,10 @@ vi.mock("@/components/ui/context-menu", () => ({
   ContextMenuSeparator: () => <div />,
 }))
 
-vi.mock("@/components/app-sidebar", () => ({ AppSidebar: () => <div>APP_SIDEBAR</div> }))
-vi.mock("@/components/site-header", () => ({ SiteHeader: () => <div>SITE_HEADER</div> }))
+vi.mock("@/features/navigation", () => ({
+  AppSidebar: () => <div>APP_SIDEBAR</div>,
+  SiteHeader: () => <div>SITE_HEADER</div>,
+}))
 
 vi.mock("@/lib/dynamic-columns", () => ({
   DEFAULT_DATE_GROUP_PRECISION: { year: true, month: true, day: false },
@@ -82,7 +89,7 @@ vi.mock("@/lib/dynamic-columns", () => ({
   generateColumns: () => [],
 }))
 
-vi.mock("@/components/content-toolbar", () => ({
+vi.mock("@/features/content-toolbar", () => ({
   ContentToolbar: (props: any) => (
     <div>
       <button onClick={props.onCreate}>create-entry</button>
@@ -109,7 +116,7 @@ vi.mock("@/components/content-toolbar", () => ({
   ),
 }))
 
-vi.mock("@/components/content-delete-dialog", () => ({
+vi.mock("@/features/content-delete-dialog", () => ({
   ContentDeleteDialog: (props: any) =>
     props.open ? <button onClick={props.onConfirm}>confirm-delete</button> : null,
 }))

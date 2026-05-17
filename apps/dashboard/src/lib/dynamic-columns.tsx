@@ -3,7 +3,7 @@ import type { Seed } from "@beechcms/core"
 import { MoreHorizontal } from "lucide-react"
 import { toast } from "sonner"
 
-import { FieldDisplay } from "@/components/fields"
+import { FieldDisplay } from "@/features/fields"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
