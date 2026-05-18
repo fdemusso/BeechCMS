@@ -158,7 +158,7 @@ uploadRoutes.post('/upload', async (c) => {
 uploadRoutes.delete('/upload/:key', async (c) => {
   const key = c.req.param('key')
   if (!key) return c.json({ error: 'Missing key' }, 400)
-  
+
   await deleteR2Objects(c, [decodeURIComponent(key)])
   return c.json({ success: true }, 200)
 })
@@ -178,9 +178,10 @@ export async function serveMediaHandler(c: any): Promise<Response> {
     const headers = new Headers()
     headers.set('Content-Type', object.contentType ?? 'application/octet-stream')
     headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-    
+
     return new Response(object.body, { status: 200, headers })
   } catch (err) {
+    console.error(`[serveMediaHandler] Error serving file ${key}:`, err)
     return new Response('Internal error', { status: 500 })
   }
 }

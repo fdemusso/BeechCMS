@@ -603,4 +603,152 @@ new D1ActivityLogger(db, new FixedClock(1700000000_000), new SequentialIdGenerat
 new JoseTokenService(secret, {}, new FixedClock(1700000000_000))
 ```
 
+---
+
+## Phase 5: Seed Registry (`ISeedRegistry`)
+
+Phase 5 replaces the raw `Record<string, Seed>` map with a typed façade exposed through `c.var.seedRegistry`.
+
+```
+packages/core/src/seed-registry.ts  →  ISeedRegistry + SeedRegistry + InMemorySeedRegistry
+```
+
+`ISeedRegistry` exposes five read-only methods:
+
+| Method | Description |
+|--------|-------------|
+| `all()` | All registered seeds |
+| `get(slug)` | Single seed by slug, or `null` |
+| `visibleInDashboard()` | Seeds where `dashboard.hidden !== true` |
+| `publicReadable()` | Seeds where `allowPublicRead === true` |
+| `draftEnabled()` | Seeds where `allowDrafts === true` |
+
+`SeedRegistry` wraps the static `SEED_REGISTRY` array; `InMemorySeedRegistry` accepts an array at construction time and is used in tests.
+
+`c.var.getSeed` continues to delegate to `seedRegistry.get()` for backwards compatibility — existing callers need no changes.
+
+---
+
+## Phase 6: Automation Engine
+
+Phase 6 adds a reactive automation system that fires side-effects on content lifecycle events and on a cron schedule. The entire contract lives in `@beechcms/core`; the concrete runner and executors live in `apps/api/src/features/automations/`.
+
+### Contracts in `@beechcms/core`
+
+```
+packages/core/src/automations.types.ts              →  AutomationTriggerEvent, TriggerCondition, AutomationAction, Automation
+packages/core/src/automations.repository.interface.ts →  CreateAutomationInput, UpdateAutomationInput, IAutomationRepository
+packages/core/src/automations.runner.interface.ts   →  AutomationEventPayload, IAutomationRunner
+packages/core/src/automations.runner.stub.ts        →  NoOpAutomationRunner
+```
+
+**`AutomationAction`** is a discriminated union keyed on `type`:
+
+| Action type | What it does |
+|-------------|-------------|
+| `webhook` | HTTP request to `url`; body is `body_template` with `{{field}}` interpolation, falls back to `JSON.stringify(entry)` |
+| `send_mail` | Email via Resend; `subject_template` and `body_template` support `{{field}}` interpolation; requires `EMAIL_API_KEY` / `RESEND_API_KEY` |
+| `edit_field` | Updates a single field on the triggering entry via `ContentRepository` |
+| `create_entry` | Creates a new entry in `seed_slug` mapping source fields via `field_map` |
+
+**`TriggerCondition`** evaluates entry fields at runtime: `{ field, op, value }` where `op ∈ { eq, neq, contains, gt, lt, isempty, isnotempty }`.
+
+### Concrete Implementation (`apps/api/src/features/automations/`)
+
+```
+automation-runner.ts          →  AutomationRunner (IAutomationRunner)
+automation-runner.utils.ts    →  evaluateConditions(), interpolate()
+cron-runner.ts                →  runCronAutomations()
+cron-runner.utils.ts          →  cronMatches()
+automations.handler.ts        →  Hono sub-app (CRUD routes)
+automations.schema.ts         →  Zod validation (createAutomationSchema, updateAutomationSchema, toggleAutomationSchema)
+action-executors/
+  webhook.executor.ts
+  send-mail.executor.ts
+  edit-field.executor.ts
+  create-entry.executor.ts
+  index.ts                    →  executeAction() dispatcher
+```
+
+### Event-Driven Execution
+
+Content handlers fire automations **asynchronously** after a successful write:
+
+```ts
+c.get('scheduler').waitUntil(
+  c.get('automationRunner').run({ seedSlug, event: 'create', entry })
+)
+```
+
+`AutomationRunner.run` does three things:
+1. Loads enabled automations for `(seedSlug, event)` via `IAutomationRepository.findActive`.
+2. Evaluates `trigger_conditions` via `evaluateConditions` — a pure function with no I/O.
+3. Calls `executeAction` for each passing condition; logs but does not rethrow individual executor failures (best-effort delivery).
+
+### Cron Execution
+
+The Cloudflare Workers `scheduled` event in `apps/api/src/index.ts` calls:
+
+```ts
+await runCronAutomations(
+  { automationRepository, runner, contentRepository, getSeed },
+  event.scheduledTime,
+)
+```
+
+`runCronAutomations` fetches all enabled `trigger_event='cron'` automations across all seeds (`findActive('*', 'cron')`), matches each against the scheduled timestamp using `cronMatches`, fetches matching entries via `ContentRepository.findMany` (applying `trigger_conditions` as `FilterGroup[]`), and dispatches each entry through `IAutomationRunner.run`.
+
+### Injection
+
+| Variable | Interface | Production implementation | Override path |
+|----------|-----------|--------------------------|---------------|
+| `c.var.automationRepository` | `IAutomationRepository` | `D1AutomationRepository` (`apps/api/src/shared/automations.repository.d1.ts`) | `repositoryMiddleware({ automationRepository })` |
+| `c.var.automationRunner` | `IAutomationRunner` | `AutomationRunner` | `repositoryMiddleware({ automationRunner })` |
+
+### D1 Schema
+
+Migration `0029_automations.sql`:
+
+```sql
+CREATE TABLE automations (
+  id                 TEXT    NOT NULL PRIMARY KEY,
+  seed_slug          TEXT    NOT NULL,
+  name               TEXT    NOT NULL,
+  enabled            INTEGER NOT NULL DEFAULT 1,
+  trigger_event      TEXT    NOT NULL CHECK(trigger_event IN ('create','update','delete','cron')),
+  trigger_cron       TEXT,
+  trigger_conditions TEXT,    -- JSON array of TriggerCondition
+  actions            TEXT    NOT NULL,  -- JSON array of AutomationAction
+  created_at         INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at         INTEGER NOT NULL DEFAULT (unixepoch())
+);
+```
+
+---
+
+## Phase 7: Scheduler Abstraction (`IScheduler`)
+
+Phase 7 decouples content handlers from the Cloudflare `ExecutionContext` API by introducing a thin `IScheduler` contract.
+
+```
+packages/core/src/scheduler.interface.ts  →  IScheduler { waitUntil(promise): void }
+packages/core/src/scheduler.stub.ts       →  NoOpScheduler (test/non-CF environments)
+apps/api/src/shared/execution-context-scheduler.ts  →  ExecutionContextScheduler (production)
+```
+
+**Why this matters:** handlers that call `c.executionCtx.waitUntil(...)` directly cannot be unit-tested without a real `ExecutionContext`. `IScheduler` wraps that call and can be replaced with `NoOpScheduler` in tests, making async side-effects (automation firing, analytics recording) fully deterministic.
+
+`ExecutionContextScheduler` is constructed inside `repositoryMiddleware`; if `context.executionCtx` is unavailable (e.g., in a non-CF test environment), the middleware falls back to `NoOpScheduler` automatically.
+
+```ts
+// Injection pattern in repositoryMiddleware
+function buildScheduler(context: Context): IScheduler {
+  try {
+    return new ExecutionContextScheduler(context.executionCtx)
+  } catch {
+    return new NoOpScheduler()
+  }
+}
+```
+
 `FixedClock` returns a constant millisecond timestamp; `SequentialIdGenerator` emits `test-id-0001`, `test-id-0002`, … with `reset()` for per-test isolation.

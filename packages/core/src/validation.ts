@@ -288,6 +288,9 @@ function buildBranchSchema(
   options: Required<ValidateSeedPayloadOptions>
 ): z.ZodType<unknown> {
   const nullable = options.allowNull ? z.null() : null
+  const preprocessEmpty = (schema: z.ZodType<unknown>) =>
+    z.preprocess((val) => (val === '' || val === null ? (options.allowNull ? null : undefined) : val), schema.optional())
+
   switch (branch.type) {
     case 'text': {
       const schema = stringSchema
@@ -327,16 +330,16 @@ function buildBranchSchema(
     }
     case 'number': {
       const opts = branch.numberOptions
-      let numSchema = z.number()
+      let numSchema: z.ZodNumber = z.number()
       if (opts?.min !== undefined) numSchema = numSchema.min(opts.min)
       if (opts?.max !== undefined) numSchema = numSchema.max(opts.max)
-      
-      let schema = numSchema.refine(Number.isFinite, 'Expected finite number')
-      
+
+      let refinedSchema: z.ZodType<number> = numSchema.refine(Number.isFinite, 'Expected finite number')
+
       if (opts?.step !== undefined) {
         const step = opts.step
         const min = opts.min ?? 0
-        schema = schema.refine((val) => {
+        refinedSchema = refinedSchema.refine((val) => {
           const valDecimals = (val.toString().split('.')[1] || '').length
           const stepDecimals = (step.toString().split('.')[1] || '').length
           const decimals = Math.max(valDecimals, stepDecimals)
@@ -344,55 +347,55 @@ function buildBranchSchema(
           return (Math.round((val - min) * multiplier) % Math.round(step * multiplier)) === 0
         }, `Expected multiple of ${step}`)
       }
+
+      const schema = preprocessEmpty(refinedSchema)
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'boolean': {
-      const schema = booleanSchema
+      const schema = preprocessEmpty(booleanSchema)
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'date': {
-      const schema = stringSchema
-        .transform((value) => sanitizePlainString(value))
-        .refine((value) => isIsoDateString(value), { message: 'Expected date(ISO)' })
+      const schema = preprocessEmpty(
+        stringSchema
+          .transform((value) => sanitizePlainString(value as string))
+          .refine((value) => isIsoDateString(value), { message: 'Expected date(ISO)' })
+      )
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'json':
     case 'tags': {
-      const schema = jsonObjectOrArraySchema
+      const schema = preprocessEmpty(jsonObjectOrArraySchema)
       return nullable ? z.union([schema, nullable]) : schema
     }
     case 'file': {
       if (isAssetListBranch(branch)) {
-        const schema = z
-          .any()
+        const schema = preprocessEmpty(
+          z.any()
+            .transform((rawValue, ctx) => {
+              const normalized = normalizeAssetListValue(rawValue)
+              if (!normalized) {
+                ctx.addIssue({ code: 'custom', message: 'Expected url-string[]' })
+                return z.NEVER
+              }
+              return normalized
+            })
+            .pipe(z.array(z.string().url()))
+        )
+        return nullable ? z.union([schema, nullable]) : schema
+      }
+      const schema = preprocessEmpty(
+        z.any()
           .transform((rawValue, ctx) => {
-            const normalized = normalizeAssetListValue(rawValue)
+            const normalized = normalizeHttpUrl(rawValue)
             if (!normalized) {
-              ctx.addIssue({
-                code: 'custom',
-                message: 'Expected url-string[]',
-              })
+              ctx.addIssue({ code: 'custom', message: 'Expected url-string' })
               return z.NEVER
             }
             return normalized
           })
-          .pipe(z.array(z.url()))
-        return nullable ? z.union([schema, nullable]) : schema
-      }
-      const schema = z
-        .any()
-        .transform((rawValue, ctx) => {
-          const normalized = normalizeHttpUrl(rawValue)
-          if (!normalized) {
-            ctx.addIssue({
-              code: 'custom',
-              message: 'Expected url-string',
-            })
-            return z.NEVER
-          }
-          return normalized
-        })
-        .pipe(z.url())
+          .pipe(z.string().url())
+      )
       return nullable ? z.union([schema, nullable]) : schema
     }
     default:
@@ -456,120 +459,10 @@ function makeDetail(field: string, expected: string, received: unknown): Validat
 
 function isIsoDateString(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}/.test(value)) return false
-  return !Number.isNaN(Date.parse(value))
-}
-
-function validateBranchValue(
-  branch: Branch,
-  alias: string,
-  rawValue: unknown,
-  options: Required<ValidateSeedPayloadOptions>
-): { ok: true; value: unknown; dangerous?: boolean } | { ok: false; detail: ValidationDetail } {
-  if (rawValue === null) {
-    return options.allowNull
-      ? { ok: true, value: null }
-      : { ok: false, detail: makeDetail(alias, branch.type, rawValue) }
-  }
-
-  switch (branch.type) {
-    case 'text': {
-      if (!stringSchema.safeParse(rawValue).success) {
-        return { ok: false, detail: makeDetail(alias, 'string', rawValue) }
-      }
-      const sanitized = sanitizePlainString(rawValue as string)
-      if (sanitized.length > options.maxTextLength) {
-        return { ok: false, detail: makeDetail(alias, `string(max:${options.maxTextLength})`, rawValue) }
-      }
-      return { ok: true, value: sanitized }
-    }
-
-    case 'richtext': {
-      const sanitized = sanitizeRichtext(rawValue)
-      if (!sanitized.valid) {
-        return { ok: false, detail: makeDetail(alias, 'richtext-json|string', rawValue) }
-      }
-      if (sanitized.size > options.maxTextLength) {
-        return {
-          ok: false,
-          detail: makeDetail(alias, `richtext(max:${options.maxTextLength})`, rawValue),
-        }
-      }
-      return { ok: true, value: sanitized.value, dangerous: sanitized.dangerous }
-    }
-
-    case 'number': {
-      if (!finiteNumberSchema.safeParse(rawValue).success) {
-        return { ok: false, detail: makeDetail(alias, 'number', rawValue) }
-      }
-      const val = rawValue as number
-      const opts = branch.numberOptions
-      if (opts) {
-        if (opts.min !== undefined && val < opts.min) {
-          return { ok: false, detail: makeDetail(alias, `number(min:${opts.min})`, rawValue) }
-        }
-        if (opts.max !== undefined && val > opts.max) {
-          return { ok: false, detail: makeDetail(alias, `number(max:${opts.max})`, rawValue) }
-        }
-        if (opts.step !== undefined) {
-          const step = opts.step
-          const min = opts.min ?? 0
-          const valDecimals = (val.toString().split('.')[1] || '').length
-          const stepDecimals = (step.toString().split('.')[1] || '').length
-          const decimals = Math.max(valDecimals, stepDecimals)
-          const multiplier = Math.pow(10, decimals)
-          if ((Math.round((val - min) * multiplier) % Math.round(step * multiplier)) !== 0) {
-            return { ok: false, detail: makeDetail(alias, `number(step:${step})`, rawValue) }
-          }
-        }
-      }
-      return { ok: true, value: rawValue }
-    }
-
-    case 'boolean': {
-      if (!booleanSchema.safeParse(rawValue).success) {
-        return { ok: false, detail: makeDetail(alias, 'boolean', rawValue) }
-      }
-      return { ok: true, value: rawValue }
-    }
-
-    case 'date': {
-      if (!stringSchema.safeParse(rawValue).success) {
-        return { ok: false, detail: makeDetail(alias, 'date(ISO)', rawValue) }
-      }
-      const value = sanitizePlainString(rawValue as string)
-      if (!isIsoDateString(value)) {
-        return { ok: false, detail: makeDetail(alias, 'date(ISO)', rawValue) }
-      }
-      return { ok: true, value }
-    }
-
-    case 'json':
-    case 'tags': {
-      const isValidJsonLike =
-        (typeof rawValue === 'object' && rawValue !== null) || Array.isArray(rawValue)
-      if (!isValidJsonLike || typeof rawValue === 'string') {
-        return { ok: false, detail: makeDetail(alias, 'object|array', rawValue) }
-      }
-      return { ok: true, value: rawValue }
-    }
-
-    case 'file': {
-      if (isAssetListBranch(branch)) {
-        const listValue = normalizeAssetListValue(rawValue)
-        if (!listValue) {
-          return { ok: false, detail: makeDetail(alias, 'url-string[]', rawValue) }
-        }
-        return { ok: true, value: listValue }
-      }
-      const singleUrl = normalizeHttpUrl(rawValue)
-      if (!singleUrl) {
-        return { ok: false, detail: makeDetail(alias, 'url-string', rawValue) }
-      }
-      return { ok: true, value: singleUrl }
-    }
-    default:
-      throw new Error(`Unhandled branch type: ${(branch as any).type}`)
-  }
+  const parsed = Date.parse(value)
+  if (Number.isNaN(parsed)) return false
+  const d = new Date(parsed)
+  return d.toISOString().startsWith(value.substring(0, 10))
 }
 
 /**
@@ -635,6 +528,10 @@ export function validateAndSanitizeSeedPayload(
         continue
       }
 
+      if (issue.message === 'Required' && normalizedOptions.enforceRequiredFields) {
+        continue // Let enforceRequiredFields logic below handle it properly with detailed messages
+      }
+
       const field = String(issue.path[0] ?? 'payload')
       const receivedValue = filteredPayload[field]
       const expected =
@@ -666,7 +563,9 @@ export function validateAndSanitizeSeedPayload(
         continue
       }
 
-      if (isMissingRequiredValue(data[branch.alias])) {
+      const valueToCheck = parsed.success ? data[branch.alias] : filteredPayload[branch.alias]
+
+      if (isMissingRequiredValue(valueToCheck)) {
         requiredFieldsMissing.push(branch.alias)
         details.push({
           field: branch.alias,

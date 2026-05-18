@@ -46,17 +46,17 @@ npm run release:preview   # preview release (same base, increment N)
 
 | Flag | Description |
 |---|---|
-| `--bump patch` | Increment patch version (`0.4.0` → `0.4.1`) |
-| `--bump minor` | Increment minor version (`0.4.0` → `0.5.0`) |
-| `--bump major` | Increment major version (`0.4.0` → `1.0.0`) |
+| `patch`, `minor`, `major` | Positional argument to bump version (e.g. `npm run release patch`) |
+| `--bump <type>` | Alternative syntax for bumping (requires `--` if using `npm run`) |
 | `--preview` | Publish to `next` tag with `-preview.N` suffix |
 | `--dry-run` | Print every step without writing files or publishing |
 
-> Both syntaxes work — npm passes `--dry-run` via the `npm_config_dry_run` environment variable:
+> **Note on `npm run` syntax:** 
+> When using `npm run release`, npm might consume some flags. To be safe, either use positional arguments or use the `--` separator:
 > ```bash
-> npm run release --dry-run          # ✅ works
-> npm run release -- --dry-run       # ✅ also works
-> npm run release:preview --dry-run  # ✅ works
+> npm run release patch --dry-run      # ✅ Works (positional)
+> npm run release -- --bump patch      # ✅ Works (with --)
+> npm run release --preview            # ✅ Works
 > ```
 
 ### Examples
@@ -113,6 +113,10 @@ Updates `"version"` in all four package manifests to the computed next version, 
 ### 2. Build
 
 Runs `npm run build` at the monorepo root, which delegates to Turborepo. Build order is enforced by `turbo.json` (`@beechcms/core` before consumers).
+
+### 2b. Copy dashboard assets
+
+Copies the compiled React admin dashboard from `apps/dashboard/dist/admin` into `apps/api/assets/dashboard`. This ensures the API package includes the latest UI when published.
 
 ### 3. Publish
 

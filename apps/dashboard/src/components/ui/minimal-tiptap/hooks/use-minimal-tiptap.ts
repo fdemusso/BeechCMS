@@ -20,7 +20,7 @@ import {
   MarkdownPaste,
 } from "../extensions"
 import { cn } from "@/lib/utils"
-import { fileToBase64, getOutput, randomId } from "../utils"
+import { fileToBase64, getOutput, randomId } from "../shared"
 import { useThrottle } from "../hooks/use-throttle"
 import { toast } from "sonner"
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 
-import { useToolbarFilters } from "@/hooks/use-toolbar-filters"
+import { useToolbarFilters } from "@/features/content-toolbar/toolbar-hooks/use-toolbar-filters"
 
 const seed: any = {
   branches: [

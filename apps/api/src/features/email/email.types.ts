@@ -96,3 +96,13 @@ export interface PasswordResetEmailParams extends BaseEmailParams {
 
 /** Parameters for the "password changed" notification. No additional fields. */
 export type PasswordChangedEmailParams = BaseEmailParams
+
+export interface AutomationMailParams {
+  to: string
+  subject: string
+  /** Plain text or HTML — passed verbatim to provider. */
+  body: string
+  apiKey?: string
+  resendApiKey?: string
+  from?: string
+}

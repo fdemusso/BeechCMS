@@ -156,7 +156,7 @@ export type FilterType = 'text' | 'number' | 'date' | 'boolean' | 'tags' | 'sele
 
 export interface FilterCondition {
   op: FilterOperator
-  value: string | number | boolean | null
+  value: string | number | boolean | null | string[] | number[]
 }
 
 export interface FilterGroup {

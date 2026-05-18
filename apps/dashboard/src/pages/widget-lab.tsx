@@ -1,6 +1,5 @@
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
-import { AppSidebar } from "@/components/app-sidebar"
-import { SiteHeader } from "@/components/site-header"
+import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { DashboardWidgetShell } from "@/features/dashboard"
 import {
   SiteStatusWidget,
@@ -11,7 +10,7 @@ import {
   PendingDraftsWidget,
   MediaGalleryWidget,
   ActivityFeedWidget,
-} from "@/features/dashboard/components/widgets"
+} from "@/features/dashboard/widgets"
 import { useSchema } from "@/features/schema"
 import { cn } from "@/lib/utils"
 

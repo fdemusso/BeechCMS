@@ -1,5 +1,5 @@
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 
 export interface Env {
@@ -23,6 +23,7 @@ export interface Env {
   MEDIA_BASE_URL?: string
   MEDIA_CDN_URL?: string
   RESEND_API_KEY?: string
+  EMAIL_API_KEY?: string
   APP_URL?: string
   EMAIL_FROM?: string
   FORGOT_PASSWORD_RATE_LIMITER?: RateLimit
@@ -58,6 +59,9 @@ export interface Variables {
   contentScanRepository: IContentScanRepository
   clock: IClock
   idGenerator: IIdGenerator
+  automationRepository: IAutomationRepository
+  automationRunner: IAutomationRunner
+  scheduler: IScheduler
 }
 
 export type AppEnv = { Bindings: Env; Variables: Variables }

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
-import { MediaDisplay } from "@/components/fields/display/media"
+import { MediaDisplay } from "@/features/fields/display/media"
 
 const mockBranch = {
   id: "br_01",

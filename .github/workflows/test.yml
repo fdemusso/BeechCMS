@@ -7,8 +7,8 @@ on:
     branches: [master, devs]
 
 jobs:
-  test:
-    name: Suite BeechCMS (Deterministic)
+  test-api:
+    name: API Tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,5 +25,26 @@ jobs:
       - name: Build packages (Core)
         run: npm run build -w @beechcms/core
 
-      - name: Run Deterministic Flow Tests
+      - name: Run API Tests
         run: npm test -w @beechcms/api
+
+  test-dashboard:
+    name: Dashboard Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build packages (Core)
+        run: npm run build -w @beechcms/core
+
+      - name: Run Dashboard Tests
+        run: npm test -w @beechcms/dashboard

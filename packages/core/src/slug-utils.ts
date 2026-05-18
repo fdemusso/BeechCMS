@@ -10,13 +10,15 @@
 export function slugify(value: string): string {
   return value
     .normalize('NFKD')               // Normalizza caratteri accentati
-    .replace(/[^\w\s-]/g, '')        // Rimuove tutto ciò che non è alfanumerico (accetta underscore temporaneamente)
+    .replace(/[^\w\s-]/g, '')        // Rimuove tutto ciò che non è alfanumerico
     .trim()
     .toLowerCase()
-    .replace(/[\s_-]+/g, '-')        // Sostituisce spazi, underscore e trattini multipli con singolo trattino
+    .replace(/[\s_-]+/g, '-')        // Sostituisce spazi e underscore con trattino
     .replace(/^-+|-+$/g, '')         // Rimuove trattini all'inizio o alla fine
     .slice(0, 15)                    // Limita a 15 caratteri
+    .replace(/-+$/g, '')             // Rimuove trattini rimasti alla fine dopo il taglio
 }
+
 
 /**
  * Genera uno slug da un input (es. titolo o nome) o un fallback UUID.

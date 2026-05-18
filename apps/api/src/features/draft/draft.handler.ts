@@ -1,47 +1,50 @@
 /// <reference types="@cloudflare/workers-types" />
-import { Hono } from 'hono'
+import { Context, Hono } from 'hono'
 import { 
   validateAndSanitizeSeedPayload, 
-  resolvePolicies, 
-  EntryNotFoundError 
+  resolvePolicies 
 } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
 import { cleanStr } from '../../shared/query-utils'
 import { applyVisibility } from '../../shared/apply-policies'
 import { AppEnv } from '../../types'
 import { CONTENT_ERRORS } from '../content/constants'
+import { draftGuard } from './draft.middleware'
 
 const draftApp = new Hono<AppEnv>()
+
 
 function normalizeBody(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
 }
 
-function draftNotAllowed(context: any) {
-  return publicProblem(context, {
-    type: 'draft-not-allowed', 
-    title: 'Method Not Allowed', 
-    status: 405,
-    detail: 'This content type does not support pending drafts. Set allowDrafts: true on the Seed to enable.',
+function logDraftActivity(
+  context: Context<AppEnv>,
+  id: string,
+  slug: string,
+  title: string,
+  note: 'draft saved' | 'draft published'
+) {
+  const actor = context.get('jwtPayload')
+  context.get('activityLogger').log({
+    action: 'update',
+    entityType: 'content',
+    entityId: id,
+    entitySlug: slug,
+    details: { title, note },
+    actor: {
+      id: actor.sub,
+      email: actor.email ?? 'unknown',
+      name: actor.name ?? null,
+    },
   })
 }
 
-// PUT /:slug/:id/draft — crea o sovrascrive la bozza in content_{slug}_drafts
-draftApp.put('/:slug/:id/draft', async (context) => {
+// PUT /:slug/:id/draft — Creates or overwrites the pending draft
+draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
   const slug = context.req.param('slug')
   const id = context.req.param('id')
-
-  const seed = context.get('getSeed')(slug)
-  if (!seed) {
-    return publicProblem(context, { 
-      type: 'content-seed-not-found', 
-      title: 'Not Found', 
-      status: 404, 
-      detail: CONTENT_ERRORS.SEED_NOT_FOUND 
-    })
-  }
-  
-  if (!seed.allowDrafts) return draftNotAllowed(context)
+  const seed = context.get('getSeed')(slug)!
 
   let body: Record<string, unknown>
   try {
@@ -53,22 +56,6 @@ draftApp.put('/:slug/:id/draft', async (context) => {
       status: 400, 
       detail: CONTENT_ERRORS.INVALID_JSON_BODY 
     })
-  }
-
-  const repository = context.get('repository')
-  try {
-    // Verify entry existence
-    await repository.findById(seed, id)
-  } catch (error) {
-    if (error instanceof EntryNotFoundError) {
-      return publicProblem(context, { 
-        type: 'content-not-found', 
-        title: 'Not Found', 
-        status: 404, 
-        detail: CONTENT_ERRORS.NOT_FOUND 
-      })
-    }
-    throw error
   }
 
   const sensitiveAliases = Object.keys(body).filter((alias) => {
@@ -111,173 +98,73 @@ draftApp.put('/:slug/:id/draft', async (context) => {
     })
   }
 
+  const repository = context.get('repository')
   await repository.saveDraft(seed, id, validation.data)
 
-  const draftSaveActor = context.get('jwtPayload')
-  context.get('activityLogger').log({
-    action: 'update',
-    entityType: 'content',
-    entityId: id,
-    entitySlug: slug,
-    details: {
-      title: cleanStr(validation.data[seed.displayNameAlias]) ?? id,
-      note: 'draft saved',
-    },
-    actor: {
-      id: draftSaveActor.sub,
-      email: draftSaveActor.email ?? 'unknown',
-      name: draftSaveActor.name ?? null,
-    },
-  })
+  const displayTitle = cleanStr(validation.data[seed.displayNameAlias]) ?? id
+  logDraftActivity(context, id, slug, displayTitle, 'draft saved')
 
   return context.json({ success: true })
 })
 
-// GET /:slug/:id/draft — legge la bozza pendente
-draftApp.get('/:slug/:id/draft', async (context) => {
+// GET /:slug/:id/draft — Retrieves the pending draft
+draftApp.get('/:slug/:id/draft', draftGuard, async (context) => {
   const slug = context.req.param('slug')
   const id = context.req.param('id')
-
-  const seed = context.get('getSeed')(slug)
-  if (!seed) {
-    return publicProblem(context, { 
-      type: 'content-seed-not-found', 
-      title: 'Not Found', 
-      status: 404, 
-      detail: CONTENT_ERRORS.SEED_NOT_FOUND 
-    })
-  }
-  
-  if (!seed.allowDrafts) return draftNotAllowed(context)
+  const seed = context.get('getSeed')(slug)!
 
   const repository = context.get('repository')
   const draft = await repository.getDraft(seed, id)
 
   if (!draft) {
-    try {
-      await repository.findById(seed, id)
-      return publicProblem(context, { 
-        type: 'draft-not-found', 
-        title: 'Not Found', 
-        status: 404, 
-        detail: 'No pending draft for this entry' 
-      })
-    } catch (error) {
-      if (error instanceof EntryNotFoundError) {
-        return publicProblem(context, { 
-          type: 'content-not-found', 
-          title: 'Not Found', 
-          status: 404, 
-          detail: CONTENT_ERRORS.NOT_FOUND 
-        })
-      }
-      throw error
-    }
+    return publicProblem(context, { 
+      type: 'draft-not-found', 
+      title: 'Not Found', 
+      status: 404, 
+      detail: 'No pending draft for this entry' 
+    })
   }
 
   return context.json({ data: applyVisibility(draft, seed) })
 })
 
-// POST /:slug/:id/draft/publish — promuove bozza → live atomicamente
-draftApp.post('/:slug/:id/draft/publish', async (context) => {
+// POST /:slug/:id/draft/publish — Atomically promotes draft to live
+draftApp.post('/:slug/:id/draft/publish', draftGuard, async (context) => {
   const slug = context.req.param('slug')
   const id = context.req.param('id')
-
-  const seed = context.get('getSeed')(slug)
-  if (!seed) {
-    return publicProblem(context, { 
-      type: 'content-seed-not-found', 
-      title: 'Not Found', 
-      status: 404, 
-      detail: CONTENT_ERRORS.SEED_NOT_FOUND 
-    })
-  }
-  
-  if (!seed.allowDrafts) return draftNotAllowed(context)
+  const seed = context.get('getSeed')(slug)!
 
   const repository = context.get('repository')
   const draft = await repository.getDraft(seed, id)
 
   if (!draft) {
-    try {
-      await repository.findById(seed, id)
-      return publicProblem(context, { 
-        type: 'draft-not-found', 
-        title: 'Not Found', 
-        status: 404, 
-        detail: 'No pending draft to publish' 
-      })
-    } catch (error) {
-      if (error instanceof EntryNotFoundError) {
-        return publicProblem(context, { 
-          type: 'content-not-found', 
-          title: 'Not Found', 
-          status: 404, 
-          detail: CONTENT_ERRORS.NOT_FOUND 
-        })
-      }
-      throw error
-    }
+    return publicProblem(context, { 
+      type: 'draft-not-found', 
+      title: 'Not Found', 
+      status: 404, 
+      detail: 'No pending draft to publish' 
+    })
   }
 
   await repository.publishDraft(seed, id)
 
   const displayValue = draft[seed.displayNameAlias]
   const displayStr = typeof displayValue === 'string' ? displayValue : id
-
-  const draftPublishActor = context.get('jwtPayload')
-  context.get('activityLogger').log({
-    action: 'update',
-    entityType: 'content',
-    entityId: id,
-    entitySlug: slug,
-    details: { title: displayStr, note: 'draft published' },
-    actor: {
-      id: draftPublishActor.sub,
-      email: draftPublishActor.email ?? 'unknown',
-      name: draftPublishActor.name ?? null,
-    },
-  })
+  logDraftActivity(context, id, slug, displayStr, 'draft published')
 
   return context.json({ success: true })
 })
 
-// DELETE /:slug/:id/draft — scarta la bozza pendente
-draftApp.delete('/:slug/:id/draft', async (context) => {
+// DELETE /:slug/:id/draft — Discards the pending draft
+draftApp.delete('/:slug/:id/draft', draftGuard, async (context) => {
   const slug = context.req.param('slug')
   const id = context.req.param('id')
-
-  const seed = context.get('getSeed')(slug)
-  if (!seed) {
-    return publicProblem(context, { 
-      type: 'content-seed-not-found', 
-      title: 'Not Found', 
-      status: 404, 
-      detail: CONTENT_ERRORS.SEED_NOT_FOUND 
-    })
-  }
-  
-  if (!seed.allowDrafts) return draftNotAllowed(context)
+  const seed = context.get('getSeed')(slug)!
 
   const repository = context.get('repository')
-  try {
-    await repository.findById(seed, id)
-  } catch (error) {
-    if (error instanceof EntryNotFoundError) {
-      return publicProblem(context, { 
-        type: 'content-not-found', 
-        title: 'Not Found', 
-        status: 404, 
-        detail: CONTENT_ERRORS.NOT_FOUND 
-      })
-    }
-    throw error
-  }
-
   await repository.deleteDraft(seed, id)
 
   return context.json({ success: true })
 })
 
 export { draftApp }
-

@@ -24,16 +24,27 @@ const ROOT = resolve(__dirname, '..')
 // ── CLI args ──────────────────────────────────────────────────────────────────
 
 const args = process.argv.slice(2)
-const isPreview = args.includes('--preview')
-// npm intercepts --dry-run itself and sets npm_config_dry_run=true in env,
-// so we check both argv and the env var to support `npm run release --dry-run`
-const isDryRun = args.includes('--dry-run') || process.env.npm_config_dry_run === 'true'
-const bumpIdx = args.indexOf('--bump')
-const bump = bumpIdx !== -1 ? args[bumpIdx + 1] : null
 
-if (bump && !['patch', 'minor', 'major'].includes(bump)) {
-  console.error('Error: --bump must be patch, minor, or major')
-  process.exit(1)
+// Support both --preview flag and npm config (npm run release --preview)
+const isPreview = args.includes('--preview') || process.env.npm_config_preview === 'true'
+
+// Support both --dry-run flag and npm config (npm run release --dry-run)
+const isDryRun = args.includes('--dry-run') || process.env.npm_config_dry_run === 'true'
+
+// Support --bump patch, npm config, or positional argument (npm run release patch)
+const validBumps = ['patch', 'minor', 'major']
+const bumpIdx = args.indexOf('--bump')
+let bump = bumpIdx !== -1 ? args[bumpIdx + 1] : null
+
+if (!validBumps.includes(bump)) {
+  // fallback to npm config (only if it's a string and valid)
+  const npmBump = process.env.npm_config_bump
+  if (typeof npmBump === 'string' && validBumps.includes(npmBump)) {
+    bump = npmBump
+  } else {
+    // fallback to positional argument
+    bump = args.find(a => validBumps.includes(a)) || null
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -76,6 +87,7 @@ function parseVersion(v) {
 
 function computeNextVersion(current, bump, preview) {
   const v = parseVersion(current)
+  
   if (preview) {
     if (!bump) {
       const next = v.isPreview ? v.previewNum + 1 : 1
@@ -87,7 +99,19 @@ function computeNextVersion(current, bump, preview) {
     else { patch++ }
     return `${major}.${minor}.${patch}-preview.1`
   }
-  if (!bump) return `${v.major}.${v.minor}.${v.patch}`
+
+  // Stable release
+  if (!bump) {
+    if (!v.isPreview) {
+      log(`  ⚠️  Current version ${current} is already stable.`)
+      log(`     To release a new version, use: npm run release patch|minor|major`)
+      log('')
+      return current // We'll handle the 'no change' case in main
+    }
+    // Promoting preview to stable
+    return `${v.major}.${v.minor}.${v.patch}`
+  }
+
   let { major, minor, patch } = v
   if (bump === 'major') { major++; minor = 0; patch = 0 }
   else if (bump === 'minor') { minor++; patch = 0 }
@@ -98,10 +122,12 @@ function computeNextVersion(current, bump, preview) {
 // ── Package manifest paths ────────────────────────────────────────────────────
 
 const PACKAGES = [
-  { path: resolve(ROOT, 'packages/core/package.json'), name: '@beechcms/core' },
-  { path: resolve(ROOT, 'packages/cli/package.json'),  name: '@beechcms/cli' },
-  { path: resolve(ROOT, 'apps/api/package.json'),      name: '@beechcms/api' },
-  { path: resolve(ROOT, 'package.json'),               name: '@beechcms/cms' },
+  { path: resolve(ROOT, 'packages/core/package.json'), name: '@beechcms/core', publish: true },
+  { path: resolve(ROOT, 'packages/cli/package.json'),  name: '@beechcms/cli',  publish: true },
+  { path: resolve(ROOT, 'packages/api/package.json'),  name: '@beech/api',     publish: false }, // Internal/Legacy
+  { path: resolve(ROOT, 'apps/api/package.json'),      name: '@beechcms/api',  publish: true },
+  { path: resolve(ROOT, 'apps/dashboard/package.json'),name: '@beechcms/dashboard', publish: false }, // Built into API assets
+  { path: resolve(ROOT, 'package.json'),               name: '@beechcms/cms',  publish: true },
 ]
 
 const DEP_KEYS = ['dependencies', 'devDependencies', 'peerDependencies']
@@ -124,13 +150,20 @@ function rollback(reason) {
 
 const currentVersion = readJson(resolve(ROOT, 'packages/core/package.json')).version
 const nextVersion = computeNextVersion(currentVersion, bump, isPreview)
+
+if (currentVersion === nextVersion && !isDryRun) {
+  log('  No version change detected. Aborting release.')
+  log('  If you want to release a new version, specify a bump type (patch, minor, major).')
+  process.exit(0)
+}
+
 const npmTag = isPreview ? 'next' : 'latest'
 
 log('')
 log('  BeechCMS Release')
 log('  ─────────────────────────────────────')
 log(`  Current : ${currentVersion}`)
-log(`  Next    : ${nextVersion}`)
+log(`  Next    : ${nextVersion}${currentVersion === nextVersion ? ' (no change)' : ''}`)
 log(`  npm tag : ${npmTag}`)
 log(`  Dry run : ${isDryRun}`)
 log('  ─────────────────────────────────────')
@@ -142,15 +175,24 @@ log('1/4  Bumping versions...')
 
 for (const pkg of PACKAGES) {
   const json = readJson(pkg.path)
+  const oldVersion = json.version
   json.version = nextVersion
+  
   for (const key of DEP_KEYS) {
     if (!json[key]) continue
     for (const dep of Object.keys(json[key])) {
-      if (dep.startsWith('@beechcms/')) json[key][dep] = `^${nextVersion}`
+      if (dep.startsWith('@beechcms/') || dep.startsWith('@beech/')) {
+        json[key][dep] = `^${nextVersion}`
+      }
     }
   }
+  
   writeJson(pkg.path, json)
-  log(`     ${pkg.name}  →  ${nextVersion}`)
+  if (oldVersion !== nextVersion) {
+    log(`     ${pkg.name.padEnd(16)}  ${oldVersion} → ${nextVersion}`)
+  } else {
+    log(`     ${pkg.name.padEnd(16)}  ${nextVersion} (unchanged)`)
+  }
 }
 
 // ── Step 2: build ─────────────────────────────────────────────────────────────
@@ -188,6 +230,11 @@ log('')
 log(`3/4  Publishing to npm (tag: ${npmTag})...`)
 
 for (const pkg of PACKAGES) {
+  if (!pkg.publish) {
+    log(`     skipping ${pkg.name} (not for publication)`)
+    continue
+  }
+  
   log(`     publishing ${pkg.name}...`)
   try {
     run(`npm publish --access public --tag ${npmTag}`, { cwd: resolve(pkg.path, '..') })
@@ -204,9 +251,17 @@ log('4/4  Creating git commit and tag...')
 const tagName = `v${nextVersion}`
 
 try {
+  // Add all package.jsons
   for (const pkg of PACKAGES) run(`git add ${pkg.path}`)
-  run(`git commit -m "chore: release ${nextVersion}"`)
-  run(`git tag ${tagName}`)
+  // Also add dashboard assets if they changed
+  run(`git add apps/api/assets/dashboard`)
+  
+  if (currentVersion !== nextVersion) {
+    run(`git commit -m "chore: release ${nextVersion}"`)
+    run(`git tag ${tagName}`)
+  } else {
+    log('     skipping git commit/tag (no version change)')
+  }
 } catch {
   // files already published — don't rollback file changes, just warn
   console.error('  ✗ Git step failed. Packages are published on npm but git tag is missing.')
@@ -215,10 +270,15 @@ try {
 }
 
 log('')
-log(`  ✓ Released ${nextVersion} (${npmTag})`)
-log(`  Tag: ${tagName}`)
-log(`  Push: git push && git push --tags`)
+if (isDryRun) {
+  log('  ✓ Dry run complete. No changes were made.')
+} else {
+  log(`  ✓ Released ${nextVersion} (${npmTag})`)
+  log(`  Tag: ${tagName}`)
+  log(`  Push: git push && git push --tags`)
+}
 log(isPreview
   ? `  Install: npm install @beechcms/api@next`
   : `  Install: npm install @beechcms/api@latest`)
 log('')
+

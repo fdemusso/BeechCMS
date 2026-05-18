@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 
-import { useConditionalFormats } from "@/hooks/use-conditional-formats"
+import { useConditionalFormats } from "@/features/content-toolbar/toolbar-hooks/use-conditional-formats"
 
 const columns = [{ columnId: "status", label: "Stato", type: "select", selectOptions: ["draft"] }] as any
 
