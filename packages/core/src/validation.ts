@@ -283,121 +283,149 @@ function requiredAliases(seed: Seed, operation: 'create' | 'update'): string[] {
     .map((branch) => branch.alias)
 }
 
+function getPreprocessEmpty(allowNull: boolean) {
+  return (schema: z.ZodType<unknown>) =>
+    z.preprocess((val) => (val === '' || val === null ? (allowNull ? null : undefined) : val), schema.optional())
+}
+
+function buildTextSchema(options: Required<ValidateSeedPayloadOptions>, nullable: z.ZodNull | null) {
+  const schema = stringSchema
+    .transform((value) => sanitizePlainString(value))
+    .refine((value) => value.length <= options.maxTextLength, {
+      message: `Expected string(max:${options.maxTextLength})`,
+    })
+  return nullable ? z.union([schema, nullable]) : schema
+}
+
+function buildRichtextSchema(options: Required<ValidateSeedPayloadOptions>, nullable: z.ZodNull | null) {
+  const schema = z.any().transform((value, ctx) => {
+    const sanitized = sanitizeRichtext(value)
+    if (!sanitized.valid) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Expected richtext-json|string',
+        params: { expected: 'richtext-json|string' },
+      })
+    }
+    if (sanitized.size > options.maxTextLength) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Expected richtext(max:${options.maxTextLength})`,
+        params: { expected: `richtext(max:${options.maxTextLength})` },
+      })
+    }
+    if (sanitized.dangerous) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Dangerous richtext content',
+        params: { dangerous: true },
+      })
+    }
+    return sanitized.value
+  })
+  return nullable ? z.union([schema, nullable]) : schema
+}
+
+function buildNumberSchema(branch: Branch, allowNull: boolean, nullable: z.ZodNull | null) {
+  const opts = branch.numberOptions
+  const numSchema = z.number()
+  
+  const refinedSchema = numSchema.superRefine((val, ctx) => {
+    if (!Number.isFinite(val)) {
+      ctx.addIssue({ code: 'custom', message: 'Expected finite number' })
+      return z.NEVER
+    }
+    if (opts?.min !== undefined && val < opts.min) {
+      ctx.addIssue({ code: 'custom', message: `Expected number(min:${opts.min})` })
+      return z.NEVER
+    }
+    if (opts?.max !== undefined && val > opts.max) {
+      ctx.addIssue({ code: 'custom', message: `Expected number(max:${opts.max})` })
+      return z.NEVER
+    }
+    if (opts?.step !== undefined) {
+      const step = opts.step
+      const min = opts.min ?? 0
+      const valDecimals = (val.toString().split('.')[1] || '').length
+      const stepDecimals = (step.toString().split('.')[1] || '').length
+      const decimals = Math.max(valDecimals, stepDecimals)
+      const multiplier = Math.pow(10, decimals)
+      if ((Math.round((val - min) * multiplier) % Math.round(step * multiplier)) !== 0) {
+        ctx.addIssue({ code: 'custom', message: `Expected number(step:${step})` })
+      }
+    }
+  })
+
+  const schema = getPreprocessEmpty(allowNull)(refinedSchema)
+  return nullable ? z.union([schema, nullable]) : schema
+}
+
+function buildDateSchema(allowNull: boolean, nullable: z.ZodNull | null) {
+  const schema = getPreprocessEmpty(allowNull)(
+    stringSchema
+      .transform((value) => sanitizePlainString(value as string))
+      .refine((value) => isIsoDateString(value), { message: 'Expected date(ISO)' })
+  )
+  return nullable ? z.union([schema, nullable]) : schema
+}
+
+function buildFileSchema(branch: Branch, allowNull: boolean, nullable: z.ZodNull | null) {
+  if (isAssetListBranch(branch)) {
+    const schema = getPreprocessEmpty(allowNull)(
+      z.any()
+        .transform((rawValue, ctx) => {
+          const normalized = normalizeAssetListValue(rawValue)
+          if (!normalized) {
+            ctx.addIssue({ code: 'custom', message: 'Expected url-string[]' })
+            return z.NEVER
+          }
+          return normalized
+        })
+        .pipe(z.array(z.string().url()))
+    )
+    return nullable ? z.union([schema, nullable]) : schema
+  }
+  const schema = getPreprocessEmpty(allowNull)(
+    z.any()
+      .transform((rawValue, ctx) => {
+        const normalized = normalizeHttpUrl(rawValue)
+        if (!normalized) {
+          ctx.addIssue({ code: 'custom', message: 'Expected url-string' })
+          return z.NEVER
+        }
+        return normalized
+      })
+      .pipe(z.string().url())
+  )
+  return nullable ? z.union([schema, nullable]) : schema
+}
+
 function buildBranchSchema(
   branch: Branch,
   options: Required<ValidateSeedPayloadOptions>
 ): z.ZodType<unknown> {
   const nullable = options.allowNull ? z.null() : null
-  const preprocessEmpty = (schema: z.ZodType<unknown>) =>
-    z.preprocess((val) => (val === '' || val === null ? (options.allowNull ? null : undefined) : val), schema.optional())
 
   switch (branch.type) {
-    case 'text': {
-      const schema = stringSchema
-        .transform((value) => sanitizePlainString(value))
-        .refine((value) => value.length <= options.maxTextLength, {
-          message: `Expected string(max:${options.maxTextLength})`,
-        })
-      return nullable ? z.union([schema, nullable]) : schema
-    }
-    case 'richtext': {
-      const schema = z.any().transform((value, ctx) => {
-        const sanitized = sanitizeRichtext(value)
-        if (!sanitized.valid) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'Expected richtext-json|string',
-            params: { expected: 'richtext-json|string' },
-          })
-        }
-        if (sanitized.size > options.maxTextLength) {
-          ctx.addIssue({
-            code: 'custom',
-            message: `Expected richtext(max:${options.maxTextLength})`,
-            params: { expected: `richtext(max:${options.maxTextLength})` },
-          })
-        }
-        if (sanitized.dangerous) {
-          ctx.addIssue({
-            code: 'custom',
-            message: 'Dangerous richtext content',
-            params: { dangerous: true },
-          })
-        }
-        return sanitized.value
-      })
-      return nullable ? z.union([schema, nullable]) : schema
-    }
-    case 'number': {
-      const opts = branch.numberOptions
-      let numSchema: z.ZodNumber = z.number()
-      if (opts?.min !== undefined) numSchema = numSchema.min(opts.min)
-      if (opts?.max !== undefined) numSchema = numSchema.max(opts.max)
-
-      let refinedSchema: z.ZodType<number> = numSchema.refine(Number.isFinite, 'Expected finite number')
-
-      if (opts?.step !== undefined) {
-        const step = opts.step
-        const min = opts.min ?? 0
-        refinedSchema = refinedSchema.refine((val) => {
-          const valDecimals = (val.toString().split('.')[1] || '').length
-          const stepDecimals = (step.toString().split('.')[1] || '').length
-          const decimals = Math.max(valDecimals, stepDecimals)
-          const multiplier = Math.pow(10, decimals)
-          return (Math.round((val - min) * multiplier) % Math.round(step * multiplier)) === 0
-        }, `Expected multiple of ${step}`)
-      }
-
-      const schema = preprocessEmpty(refinedSchema)
-      return nullable ? z.union([schema, nullable]) : schema
-    }
+    case 'text':
+      return buildTextSchema(options, nullable)
+    case 'richtext':
+      return buildRichtextSchema(options, nullable)
+    case 'number':
+      return buildNumberSchema(branch, options.allowNull, nullable)
     case 'boolean': {
-      const schema = preprocessEmpty(booleanSchema)
+      const schema = getPreprocessEmpty(options.allowNull)(booleanSchema)
       return nullable ? z.union([schema, nullable]) : schema
     }
-    case 'date': {
-      const schema = preprocessEmpty(
-        stringSchema
-          .transform((value) => sanitizePlainString(value as string))
-          .refine((value) => isIsoDateString(value), { message: 'Expected date(ISO)' })
-      )
-      return nullable ? z.union([schema, nullable]) : schema
-    }
+    case 'date':
+      return buildDateSchema(options.allowNull, nullable)
     case 'json':
     case 'tags': {
-      const schema = preprocessEmpty(jsonObjectOrArraySchema)
+      const schema = getPreprocessEmpty(options.allowNull)(jsonObjectOrArraySchema)
       return nullable ? z.union([schema, nullable]) : schema
     }
-    case 'file': {
-      if (isAssetListBranch(branch)) {
-        const schema = preprocessEmpty(
-          z.any()
-            .transform((rawValue, ctx) => {
-              const normalized = normalizeAssetListValue(rawValue)
-              if (!normalized) {
-                ctx.addIssue({ code: 'custom', message: 'Expected url-string[]' })
-                return z.NEVER
-              }
-              return normalized
-            })
-            .pipe(z.array(z.string().url()))
-        )
-        return nullable ? z.union([schema, nullable]) : schema
-      }
-      const schema = preprocessEmpty(
-        z.any()
-          .transform((rawValue, ctx) => {
-            const normalized = normalizeHttpUrl(rawValue)
-            if (!normalized) {
-              ctx.addIssue({ code: 'custom', message: 'Expected url-string' })
-              return z.NEVER
-            }
-            return normalized
-          })
-          .pipe(z.string().url())
-      )
-      return nullable ? z.union([schema, nullable]) : schema
-    }
+    case 'file':
+      return buildFileSchema(branch, options.allowNull, nullable)
     default:
       throw new Error(`Unhandled branch type: ${(branch as any).type}`)
   }
@@ -465,6 +493,113 @@ function isIsoDateString(value: string): boolean {
   return d.toISOString().startsWith(value.substring(0, 10))
 }
 
+function filterPayloadAliases(seed: Seed, payload: Record<string, unknown>) {
+  const unknownAliases: string[] = []
+  const details: ValidationDetail[] = []
+  const allowedAliases = new Set(seed.branches.map((branch) => branch.alias))
+  const filteredPayload: Record<string, unknown> = {}
+
+  for (const [alias, rawValue] of Object.entries(payload)) {
+    if (!allowedAliases.has(alias)) {
+      unknownAliases.push(alias)
+      details.push({
+        field: alias,
+        expected: 'known-seed-alias',
+        received: 'unknown-alias',
+        message: `Field '${alias}' is not defined in seed '${seed.slug}'`,
+      })
+      continue
+    }
+    filteredPayload[alias] = rawValue
+  }
+  return { filteredPayload, unknownAliases, unknownDetails: details }
+}
+
+function collectZodIssueDetails(
+  seed: Seed,
+  issues: z.ZodIssue[],
+  filteredPayload: Record<string, unknown>,
+  normalizedOptions: Required<ValidateSeedPayloadOptions>
+) {
+  const unknownAliases: string[] = []
+  const details: ValidationDetail[] = []
+  const dangerousFields: string[] = []
+
+  for (const issue of issues) {
+    if (issue.code === 'unrecognized_keys') {
+      for (const alias of issue.keys) {
+        unknownAliases.push(alias)
+        details.push({
+          field: alias,
+          expected: 'known-seed-alias',
+          received: 'unknown-alias',
+          message: `Field '${alias}' is not defined in seed '${seed.slug}'`,
+        })
+      }
+      continue
+    }
+
+    if (issue.message === 'Required' && normalizedOptions.enforceRequiredFields) {
+      continue // Let enforceRequiredFields logic handle it properly
+    }
+
+    const field = String(issue.path[0] ?? 'payload')
+    const receivedValue = filteredPayload[field]
+    const expected =
+      typeof issue.message === 'string' && issue.message.startsWith('Expected ')
+        ? issue.message.replace('Expected ', '')
+        : 'valid-field-value'
+    if ((issue as { params?: Record<string, unknown> }).params?.dangerous === true) {
+      dangerousFields.push(field)
+    }
+    details.push(makeDetail(field, expected, receivedValue))
+  }
+  return { unknownAliases, zodDetails: details, dangerousFields }
+}
+
+function enforceRequiredFields(
+  seed: Seed,
+  payload: Record<string, unknown>,
+  filteredPayload: Record<string, unknown>,
+  data: Record<string, unknown>,
+  isSuccess: boolean,
+  normalizedOptions: Required<ValidateSeedPayloadOptions>
+) {
+  const requiredFieldsMissing: string[] = []
+  const details: ValidationDetail[] = []
+
+  for (const branch of seed.branches) {
+    const isRequired =
+      normalizedOptions.operation === 'create' ? branch.requiredOnCreate : branch.requiredOnUpdate
+    if (!isRequired) continue
+
+    const hasProvidedAlias = Object.hasOwn(payload, branch.alias)
+    if (!hasProvidedAlias) {
+      requiredFieldsMissing.push(branch.alias)
+      details.push({
+        field: branch.alias,
+        expected: 'required-field',
+        received: 'missing',
+        message: `Field '${branch.alias}' is required for ${normalizedOptions.operation}`,
+      })
+      continue
+    }
+
+    const valueToCheck = isSuccess ? data[branch.alias] : filteredPayload[branch.alias]
+
+    if (isMissingRequiredValue(valueToCheck)) {
+      requiredFieldsMissing.push(branch.alias)
+      details.push({
+        field: branch.alias,
+        expected: 'required-field',
+        received: 'empty',
+        message: `Field '${branch.alias}' cannot be empty for ${normalizedOptions.operation}`,
+      })
+    }
+  }
+  return { requiredFieldsMissing, requiredDetails: details }
+}
+
 /**
  * Common foundation for schema-driven validation and sanitization of payloads.
  * Used by the Public API and reusable in the Botanical Engine.
@@ -488,94 +623,20 @@ export function validateAndSanitizeSeedPayload(
     maxTextLength: options.maxTextLength ?? DEFAULT_MAX_TEXT_LENGTH,
   }
 
-  const details: ValidationDetail[] = []
-  const data: Record<string, unknown> = {}
-  const unknownAliases: string[] = []
-  const dangerousFields: string[] = []
-  const requiredFieldsMissing: string[] = []
-  const allowedAliases = new Set(seed.branches.map((branch) => branch.alias))
-  const filteredPayload: Record<string, unknown> = {}
-  for (const [alias, rawValue] of Object.entries(payload)) {
-    if (!allowedAliases.has(alias)) {
-      unknownAliases.push(alias)
-      details.push({
-        field: alias,
-        expected: 'known-seed-alias',
-        received: 'unknown-alias',
-        message: `Field '${alias}' is not defined in seed '${seed.slug}'`,
-      })
-      continue
-    }
-    filteredPayload[alias] = rawValue
-  }
+  const { filteredPayload, unknownAliases: initialUnknown, unknownDetails } = filterPayloadAliases(seed, payload)
   const schema = compileSeedSchema(seed, normalizedOptions)
   const parsed = schema.safeParse(filteredPayload)
 
-  if (parsed.success) {
-    Object.assign(data, parsed.data)
-  } else {
-    for (const issue of parsed.error.issues) {
-      if (issue.code === 'unrecognized_keys') {
-        for (const alias of issue.keys) {
-          unknownAliases.push(alias)
-          details.push({
-            field: alias,
-            expected: 'known-seed-alias',
-            received: 'unknown-alias',
-            message: `Field '${alias}' is not defined in seed '${seed.slug}'`,
-          })
-        }
-        continue
-      }
+  const data = parsed.success ? { ...parsed.data } : {}
+  const { unknownAliases: zodUnknown, zodDetails, dangerousFields } = parsed.success
+    ? { unknownAliases: [], zodDetails: [], dangerousFields: [] }
+    : collectZodIssueDetails(seed, parsed.error.issues, filteredPayload, normalizedOptions)
 
-      if (issue.message === 'Required' && normalizedOptions.enforceRequiredFields) {
-        continue // Let enforceRequiredFields logic below handle it properly with detailed messages
-      }
+  const { requiredFieldsMissing, requiredDetails } = normalizedOptions.enforceRequiredFields
+    ? enforceRequiredFields(seed, payload, filteredPayload, data, parsed.success, normalizedOptions)
+    : { requiredFieldsMissing: [], requiredDetails: [] }
 
-      const field = String(issue.path[0] ?? 'payload')
-      const receivedValue = filteredPayload[field]
-      const expected =
-        typeof issue.message === 'string' && issue.message.startsWith('Expected ')
-          ? issue.message.replace('Expected ', '')
-          : 'valid-field-value'
-      if ((issue as { params?: Record<string, unknown> }).params?.dangerous === true) {
-        dangerousFields.push(field)
-      }
-      details.push(makeDetail(field, expected, receivedValue))
-    }
-  }
-
-  if (normalizedOptions.enforceRequiredFields) {
-    for (const branch of seed.branches) {
-      const isRequired =
-        normalizedOptions.operation === 'create' ? branch.requiredOnCreate : branch.requiredOnUpdate
-      if (!isRequired) continue
-
-      const hasProvidedAlias = Object.hasOwn(payload, branch.alias)
-      if (!hasProvidedAlias) {
-        requiredFieldsMissing.push(branch.alias)
-        details.push({
-          field: branch.alias,
-          expected: 'required-field',
-          received: 'missing',
-          message: `Field '${branch.alias}' is required for ${normalizedOptions.operation}`,
-        })
-        continue
-      }
-
-      const valueToCheck = parsed.success ? data[branch.alias] : filteredPayload[branch.alias]
-
-      if (isMissingRequiredValue(valueToCheck)) {
-        requiredFieldsMissing.push(branch.alias)
-        details.push({
-          field: branch.alias,
-          expected: 'required-field',
-          received: 'empty',
-          message: `Field '${branch.alias}' cannot be empty for ${normalizedOptions.operation}`,
-        })
-      }
-    }
-  }
+  const details = [...unknownDetails, ...zodDetails, ...requiredDetails]
 
   if (normalizedOptions.requireAtLeastOneValidField && Object.keys(data).length === 0) {
     details.push({
@@ -589,7 +650,7 @@ export function validateAndSanitizeSeedPayload(
   return {
     data,
     details,
-    unknownAliases: [...new Set(unknownAliases)],
+    unknownAliases: [...new Set([...initialUnknown, ...zodUnknown])],
     dangerousFields: [...new Set(dangerousFields)],
     requiredFieldsMissing,
     hasAnyValidField: Object.keys(data).length > 0,

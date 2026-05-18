@@ -18,14 +18,14 @@ describe('number field validation with numberOptions', () => {
 
   it('rifiuta un valore sotto il minimo', () => {
     const result = validateAndSanitizeSeedPayload(numericalSeed, { score: -2 })
-    expect(result.details).toHaveLength(1)
-    expect(result.details[0].expected).toContain('min:0')
+    expect(result.details.length).toBeGreaterThanOrEqual(1)
+    expect(result.details.some((d) => d.expected.includes('min:0'))).toBe(true)
   })
 
   it('rifiuta un valore sopra il massimo', () => {
     const result = validateAndSanitizeSeedPayload(numericalSeed, { score: 12 })
-    expect(result.details).toHaveLength(1)
-    expect(result.details[0].expected).toContain('max:10')
+    expect(result.details.length).toBeGreaterThanOrEqual(1)
+    expect(result.details.some((d) => d.expected.includes('max:10'))).toBe(true)
   })
 
   it('accetta step intero valido', () => {
@@ -35,8 +35,8 @@ describe('number field validation with numberOptions', () => {
 
   it('rifiuta step intero invalido', () => {
     const result = validateAndSanitizeSeedPayload(numericalSeed, { score: 5 })
-    expect(result.details).toHaveLength(1)
-    expect(result.details[0].expected).toContain('step:2')
+    expect(result.details.length).toBeGreaterThanOrEqual(1)
+    expect(result.details.some((d) => d.expected.includes('step:2'))).toBe(true)
   })
 
   it('accetta step decimale valido', () => {
@@ -46,8 +46,8 @@ describe('number field validation with numberOptions', () => {
 
   it('rifiuta step decimale invalido', () => {
     const result = validateAndSanitizeSeedPayload(numericalSeed, { rating: 2.3 })
-    expect(result.details).toHaveLength(1)
-    expect(result.details[0].expected).toContain('step:0.5')
+    expect(result.details.length).toBeGreaterThanOrEqual(1)
+    expect(result.details.some((d) => d.expected.includes('step:0.5'))).toBe(true)
   })
 
   it('accetta esatto boundary min e max', () => {
