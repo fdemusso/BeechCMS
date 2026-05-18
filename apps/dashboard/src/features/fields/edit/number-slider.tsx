@@ -22,6 +22,7 @@ export function NumberSlider({ branch, value, onChange }: FieldEditProps) {
         value={[current]}
         onValueChange={(vals) => onChange(vals[0])}
         className="flex-1"
+        aria-label={branch.label ?? branch.alias}
       />
       <Badge variant="secondary" className="w-12 justify-center font-mono">
         {current}

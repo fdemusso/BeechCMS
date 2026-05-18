@@ -36,4 +36,14 @@ describe("formatNumber", () => {
     const result = formatNumber(1.23456)
     expect(result).toBe("1,23")
   })
+
+  it("applica l'opzione grouping correttamente", () => {
+    const resultNoGroup = formatNumber(1000000, { grouping: false })
+    expect(resultNoGroup).toBe("1000000")
+
+    const resultGroup = formatNumber(1000000, { grouping: true })
+    // La localizzazione "it-IT" usa il punto spaziatore o standard per le migliaia.
+    // L'Intl standard spesso utilizza "1.000.000" in IT.
+    expect(resultGroup).toMatch(/1(\.| )000(\.| )000/)
+  })
 })

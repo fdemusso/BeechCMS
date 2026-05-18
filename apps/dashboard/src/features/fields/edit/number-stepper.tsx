@@ -25,6 +25,7 @@ export function NumberStepper({ branch, value, onChange }: FieldEditProps) {
         type="button" 
         onClick={() => handleDecrement(onChange)}
         disabled={!canDecrement}
+        aria-label="Riduci valore"
       >
         <Minus className="h-4 w-4" />
       </Button>
@@ -44,6 +45,7 @@ export function NumberStepper({ branch, value, onChange }: FieldEditProps) {
         type="button" 
         onClick={() => handleIncrement(onChange)}
         disabled={!canIncrement}
+        aria-label="Aumenta valore"
       >
         <Plus className="h-4 w-4" />
       </Button>

@@ -22,6 +22,22 @@ describe("useNumberStepper", () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  it("esegue l'incremento se canIncrement è true", () => {
+    const onChange = vi.fn()
+    const { handleIncrement, canIncrement } = useNumberStepper({ max: 10, step: 2 }, 5)
+    expect(canIncrement).toBe(true)
+    handleIncrement(onChange)
+    expect(onChange).toHaveBeenCalledWith(7)
+  })
+
+  it("esegue il decremento se canDecrement è true", () => {
+    const onChange = vi.fn()
+    const { handleDecrement, canDecrement } = useNumberStepper({ min: 0, step: 2 }, 5)
+    expect(canDecrement).toBe(true)
+    handleDecrement(onChange)
+    expect(onChange).toHaveBeenCalledWith(3)
+  })
+
   it("calcola correttamente i bound con step", () => {
     const { canIncrement, canDecrement } = useNumberStepper({ min: 0, max: 10, step: 2 }, 9)
     expect(canIncrement).toBe(false) // 9 + 2 = 11 > 10
