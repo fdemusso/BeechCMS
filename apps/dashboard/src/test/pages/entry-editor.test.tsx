@@ -129,6 +129,7 @@ vi.mock("react-i18next", () => ({
         "content.editor.slug": "Slug",
         "content.editor.draft": "Draft",
         "content.editor.published": "Published",
+        "content.editor.pendingDraftNotice": "This entry has a pending draft.",
       }
       return translations[key] || key
     },
@@ -211,5 +212,24 @@ describe("EntryEditorPage", () => {
     
     await waitFor(() => expect(mockUpdateContent).toHaveBeenCalled())
     expect(mockToastSuccess).toHaveBeenCalledWith("Changes saved")
+  })
+
+  it("mostra un avviso esplicito quando l'entry ha una bozza in sospeso", async () => {
+    mockUseParams.mockReturnValue({ slug: "posts", id: "42" })
+    mockFetchContentById.mockReturnValue({
+      id: "42",
+      slug: "entry-42",
+      status: "published",
+      has_pending_draft: true,
+      data: {
+        title: "Published",
+        content: { type: "doc", content: [{ type: "paragraph" }] },
+        metaData: "{}",
+      },
+    })
+
+    renderWithProvider(<EntryEditorPage />)
+
+    expect(await screen.findByText("This entry has a pending draft.")).toBeInTheDocument()
   })
 })

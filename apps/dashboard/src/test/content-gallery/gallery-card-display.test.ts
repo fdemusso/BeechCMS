@@ -133,6 +133,24 @@ describe("buildGalleryCardDisplayModel", () => {
     expect(model.statusVariant).toBe("default")
   })
 
+  it("segnala hasPendingDraft per entry pubblicate con bozza in sospeso", () => {
+    const model = buildGalleryCardDisplayModel(
+      makeEntry({ status: "published", has_pending_draft: true } as Partial<ContentEntry>),
+      emptyBranches
+    )
+
+    expect(model.hasPendingDraft).toBe(true)
+  })
+
+  it("non segnala hasPendingDraft per entry archived", () => {
+    const model = buildGalleryCardDisplayModel(
+      makeEntry({ status: "archived", has_pending_draft: true } as Partial<ContentEntry>),
+      emptyBranches
+    )
+
+    expect(model.hasPendingDraft).toBe(false)
+  })
+
   it("popola title e ariaLabel dal branch corretto", () => {
     const branches: ResolvedCardFields = {
       ...emptyBranches,

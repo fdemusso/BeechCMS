@@ -19,6 +19,10 @@ import {
   matchesFilterGroup,
   normalizeDateToYmd,
 } from "@/lib/filter-dsl"
+import {
+  pendingDraftBadgeClass,
+  shouldShowPendingDraftBadge,
+} from "@/lib/pending-draft"
 
 /** Lunghezza minima per troncamento celle (evita celle troppo corte) */
 const MIN_TRUNCATE_LENGTH = 20
@@ -36,6 +40,8 @@ export interface ContentEntry {
   slug: string | null
   /** Stato di pubblicazione (es. draft, published) */
   status: string
+  /** True quando esiste una bozza non ancora pubblicata per l'entry. */
+  has_pending_draft?: boolean
   data: Record<string, unknown>
   created_at: number | null
   updated_at: number | null
@@ -328,10 +334,24 @@ export function generateColumns(
     cell: ({ row }) => {
       const status = (row.original.status ?? "").trim() || "—"
       const variant = getStatusBadgeVariant(status)
+      const hasPendingDraft = shouldShowPendingDraftBadge(
+        row.original.status,
+        row.original.has_pending_draft
+      )
       return (
-        <Badge variant={variant}>
-          {status}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant={variant}>
+            {status}
+          </Badge>
+          {hasPendingDraft && (
+            <Badge
+              variant="outline"
+              className={`text-xs ${pendingDraftBadgeClass}`}
+            >
+              {t("content.table.pendingDraft")}
+            </Badge>
+          )}
+        </div>
       )
     },
     enableSorting: false,

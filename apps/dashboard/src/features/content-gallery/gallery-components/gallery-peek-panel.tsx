@@ -14,6 +14,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  pendingDraftBadgeClass,
+  shouldShowPendingDraftBadge,
+} from "@/lib/pending-draft"
 import { cn } from "@/lib/utils"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { extractTagChips } from "@/lib/tags-utils"
@@ -102,6 +106,10 @@ export function GalleryPeekPanel({
     ? resolveImageUrl(entry.data[cardFields.coverBranch.alias])
     : null
   const hasCoverImage = !!coverImageUrl
+  const hasPendingDraft = shouldShowPendingDraftBadge(
+    entry.status,
+    entry.has_pending_draft
+  )
 
   const fixedDetailViewportClass = hasCoverImage
     ? "h-[min(52vh,520px)] min-h-0"
@@ -213,6 +221,14 @@ export function GalleryPeekPanel({
                   >
                     {entry.status?.trim() || "—"}
                   </Badge>
+                  {hasPendingDraft && (
+                    <Badge
+                      variant="outline"
+                      className={cn("text-[11px] font-medium", pendingDraftBadgeClass)}
+                    >
+                      Bozza in sospeso
+                    </Badge>
+                  )}
                 </span>
                 {entry.slug != null && String(entry.slug).trim() !== "" && (
                   <>

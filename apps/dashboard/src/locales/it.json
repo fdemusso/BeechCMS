@@ -298,6 +298,7 @@
       "publication": "Pubblicazione",
       "draft": "Bozza",
       "published": "Pubblicato",
+      "pendingDraftNotice": "Questa entry ha una bozza in sospeso.",
       "unsavedTitle": "Modifiche non salvate",
       "unsavedDesc": "Hai delle modifiche non salvate. Se esci ora andranno perse. Vuoi continuare?",
       "stay": "Rimani",
@@ -326,6 +327,7 @@
     },
     "table": {
       "status": "Stato",
+      "pendingDraft": "Bozza in sospeso",
       "item": "voce",
       "items": "voci"
     }

@@ -298,6 +298,7 @@
       "publication": "Publication",
       "draft": "Draft",
       "published": "Published",
+      "pendingDraftNotice": "This entry has a pending draft.",
       "unsavedTitle": "Unsaved changes",
       "unsavedDesc": "You have unsaved changes. If you exit now, they will be lost. Do you want to continue?",
       "stay": "Stay",
@@ -326,6 +327,7 @@
     },
     "table": {
       "status": "Status",
+      "pendingDraft": "Pending draft",
       "item": "item",
       "items": "items"
     }
