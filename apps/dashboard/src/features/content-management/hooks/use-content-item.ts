@@ -18,6 +18,63 @@ export function useContentEntry(slug: string | undefined, id: string | undefined
   })
 }
 
+export function useDraftEntry(slug: string | undefined, id: string | undefined) {
+  return useQuery({
+    queryKey: CONTENT_QUERY_KEYS.draft(slug || "", id || ""),
+    queryFn: () => {
+      if (!slug || !id) throw new Error("Slug and ID are required")
+      return contentApi.fetchDraft(slug, id)
+    },
+    enabled: Boolean(slug && id),
+    staleTime: 10 * 1000,
+    retry: false,
+  })
+}
+
+export function useSaveDraft() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ slug, id, data }: { slug: string; id: string; data: Record<string, unknown> }) =>
+      contentApi.saveDraft(slug, id, data),
+    onSuccess: (_, { slug, id }) => {
+      queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.draft(slug, id) })
+      queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.detail(slug, id) })
+      queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.all })
+    },
+  })
+}
+
+export function usePublishDraft() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ slug, id }: { slug: string; id: string }) =>
+      contentApi.publishDraft(slug, id),
+    onSuccess: (_, { slug, id }) => {
+      queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: FACET_QUERY_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.draft(slug, id) })
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.activity() })
+      queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.stats() })
+    },
+  })
+}
+
+export function useDiscardDraft() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ slug, id }: { slug: string; id: string }) =>
+      contentApi.discardDraft(slug, id),
+    onSuccess: (_, { slug, id }) => {
+      queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.draft(slug, id) })
+      queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.detail(slug, id) })
+      queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.all })
+    },
+  })
+}
+
 /**
  * Hook for creating or updating content entries.
  * Automatically invalidates content lists on success.
