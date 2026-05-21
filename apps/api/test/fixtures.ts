@@ -57,6 +57,38 @@ export const TEST_SEEDS = [
       { alias: 'title', label: 'Title', type: 'text' },
     ],
   }),
+  defineSeed({
+    slug: 'numerical',
+    label: 'Numerical',
+    labelPlural: 'Numericals',
+    displayNameAlias: 'id',
+    branches: [
+      { 
+        alias: 'score', 
+        label: 'Score', 
+        type: 'number',
+        numberOptions: {
+          min: 0,
+          max: 10,
+          step: 2
+        }
+      },
+      {
+        alias: 'rating',
+        label: 'Rating',
+        type: 'number',
+        numberOptions: {
+          min: 0,
+          step: 0.5
+        }
+      },
+      {
+        alias: 'unbounded',
+        label: 'Unbounded',
+        type: 'number'
+      }
+    ],
+  }),
 ]
 
 /**
