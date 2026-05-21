@@ -23,7 +23,7 @@ rewritten freely.
 SECTION 1 — WHY THIS SPRINT EXISTS
 ==========================================================================
 
-Sprint 07 delivered the contracts: `IAutomationRunner`,
+Sprint 02 delivered the contracts: `IAutomationRunner`,
 `IAutomationRepository`, `Automation`/`AutomationAction` types,
 `NoOpAutomationRunner` registered in `repositoryMiddleware`. Content handlers
 do not yet call `c.get('automationRunner').run(...)` — automations are inert.
@@ -46,7 +46,7 @@ SECTION 2 — CURRENT STATE (verified, do not re-explore)
 
 2.1 CONTRACTS — packages/core/src/
 
-  Already exported by Sprint 07 (verified):
+  Already exported by Sprint 02 (verified):
     automations.types.ts            → Automation, AutomationAction (discriminated union),
                                        TriggerCondition, AutomationTriggerEvent
     automations.runner.interface.ts → IAutomationRunner, AutomationEventPayload
@@ -372,7 +372,7 @@ SECTION 4 — TASK DETAILS
   NOTE: verify the exact `ContentRepository.update` signature in
   `packages/core/src/content.repository.ts`. The above uses the
   `(seed, id, slug, status, data)` shape that matches `create()` in
-  Sprint 07's documented call site. If the real `update` signature
+  Sprint 02's documented call site. If the real `update` signature
   differs, adapt — but do NOT inline alias→ID translation; the
   repository handles it via the Botanical Engine.
 

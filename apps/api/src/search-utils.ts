@@ -53,7 +53,7 @@ export function decodeCursor(cursor: string): { rank: number; entryId: string } 
     const sep     = decoded.lastIndexOf(":")
     if (sep === -1) return null
     return {
-      rank:    parseFloat(decoded.slice(0, sep)),
+      rank:    Number.parseFloat(decoded.slice(0, sep)),
       entryId: decoded.slice(sep + 1),
     }
   } catch {
