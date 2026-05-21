@@ -202,6 +202,46 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
     expect(utils2.getByText(/2 entries/i)).toBeInTheDocument()
   })
 
+  it("status: mostra il badge bozza in sospeso quando has_pending_draft è true", async () => {
+    const seed = makeSeed({ branches: [] })
+    const entry = {
+      ...makeEntry("id-1", "items", {}),
+      status: "published",
+      has_pending_draft: true,
+    } as ContentEntry
+    const t = (k: string) => {
+      if (k === "content.table.pendingDraft") return "Pending draft"
+      return k
+    }
+    const cols = generateColumns(seed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, t)
+
+    render(<DataTable columns={cols} data={[entry]} />)
+
+    expect(await screen.findByText("published")).toBeInTheDocument()
+    expect(await screen.findByText("Pending draft")).toBeInTheDocument()
+  })
+
+  it("status: non mostra il badge bozza in sospeso per entry archived", async () => {
+    const seed = makeSeed({ branches: [] })
+    const entry = {
+      ...makeEntry("id-1", "items", {}),
+      status: "archived",
+      has_pending_draft: true,
+    } as ContentEntry
+    const t = (k: string) => {
+      if (k === "content.table.pendingDraft") return "Pending draft"
+      return k
+    }
+    const cols = generateColumns(seed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, t)
+
+    render(<DataTable columns={cols} data={[entry]} />)
+
+    expect(await screen.findByText("archived")).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByText("Pending draft")).not.toBeInTheDocument()
+    })
+  })
+
   describe("azioni column", () => {
     beforeEach(() => {
       ;(toast.success as any).mockClear?.()
@@ -306,4 +346,3 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
     })
   })
 })
-
