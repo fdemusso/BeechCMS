@@ -33,6 +33,18 @@ const TEMPLATES = {
     file: 'contact.ts',
     registryEntries: ['messages: MESSAGE_SEED'],
   },
+  commerce: {
+    label: 'Commerce',
+    hint: 'e-commerce product catalog with prices, inventory and ratings',
+    file: 'commerce.ts',
+    registryEntries: ['products: PRODUCT_SEED', 'reviews: REVIEW_SEED'],
+  },
+  tasks: {
+    label: 'Tasks',
+    hint: 'project management tasks with progress slider',
+    file: 'tasks.ts',
+    registryEntries: ['tasks: TASK_SEED'],
+  },
 }
 
 function readTemplate(filename) {
@@ -319,6 +331,8 @@ async function main() {
         { value: 'blog',    label: 'Blog',    hint: 'posts with rich text, cover image, tags and authors' },
         { value: 'gallery', label: 'Gallery', hint: 'media items with image, tags and featured flag' },
         { value: 'contact', label: 'Contact', hint: 'public form submissions with masked email and read status' },
+        { value: 'commerce',label: 'Commerce',hint: 'e-commerce product catalog with prices, inventory and ratings' },
+        { value: 'tasks',   label: 'Tasks',   hint: 'project management tasks with progress slider' },
       ],
       required: false,
     })
