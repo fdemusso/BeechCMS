@@ -39,6 +39,10 @@ import { AppSidebar, SiteHeader } from "@/features/navigation"
 import {
   useContentEntry,
   useSaveContent,
+  useDraftEntry,
+  useSaveDraft,
+  usePublishDraft,
+  useDiscardDraft,
 } from "@/features/content-management"
 import { useActiveSeed } from "@/features/schema"
 
@@ -471,6 +475,20 @@ export function EntryEditorPage() {
 
   const { mutateAsync: saveContent, isPending: isSaving } = useSaveContent()
 
+  const hasPendingDraftNotice = !isCreate && entryData?.has_pending_draft === true
+
+  const [isDraftMode, setIsDraftMode] = React.useState(false)
+  const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false)
+
+  const { data: draftData } = useDraftEntry(
+    hasPendingDraftNotice ? schemaSlug : undefined,
+    hasPendingDraftNotice ? entryId : undefined
+  )
+
+  const { mutateAsync: saveDraft, isPending: isSavingDraft } = useSaveDraft()
+  const { mutateAsync: publishDraft, isPending: isPublishing } = usePublishDraft()
+  const { mutateAsync: discardDraft, isPending: isDiscarding } = useDiscardDraft()
+
   const [formData, setFormData] = React.useState<Record<string, unknown>>({})
   const [status, setStatus] = React.useState<string>("draft")
   const [slug, setSlug] = React.useState<string>("")
@@ -501,6 +519,44 @@ export function EntryEditorPage() {
     setSlugTouched(true)
     setIsDirty(true)
   }, [])
+
+  const handleResumeDraft = React.useCallback(() => {
+    if (!draftData) return
+    setFormData(draftData.data ?? draftData as Record<string, unknown>)
+    setIsDraftMode(true)
+    setIsDirty(false)
+  }, [draftData])
+
+  const handlePublishDraft = async () => {
+    if (!schemaSlug || !entryId) return
+    try {
+      await publishDraft({ slug: schemaSlug, id: entryId })
+      toast.success(t("content.editor.draftPublishSuccess"))
+      hasJustSavedRef.current = true
+      navigate(`/content/${schemaSlug}`)
+    } catch {
+      toast.error(t("content.editor.saveError"))
+    }
+  }
+
+  const handleDiscardDraft = async () => {
+    if (!schemaSlug || !entryId) return
+    try {
+      await discardDraft({ slug: schemaSlug, id: entryId })
+      toast.success(t("content.editor.draftDiscardSuccess"))
+      setIsDraftMode(false)
+      setIsDirty(false)
+      if (entryData) {
+        setFormData(entryData.data ?? {})
+        setStatus(entryData.status ?? "draft")
+        setSlug(entryData.slug ?? "")
+      }
+    } catch {
+      toast.error(t("content.editor.saveError"))
+    } finally {
+      setShowDiscardConfirm(false)
+    }
+  }
 
   // Sync data from query to local state
   React.useEffect(() => {
@@ -590,17 +646,21 @@ export function EntryEditorPage() {
 
     setFieldErrors({})
     try {
-      const payload = prepareSubmissionPayload({
-        branches,
-        formData,
-        slug,
-        status,
-      })
-      const entryIdForUpdate = isCreate ? null : entryId
-      await persistEntry(schemaSlug, payload, entryIdForUpdate)
-      setIsDirty(false)
-      hasJustSavedRef.current = true
-      navigate(`/content/${schemaSlug}`)
+      if (isDraftMode && entryId) {
+        const payload = prepareSubmissionPayload({ branches, formData, slug, status })
+        await saveDraft({ slug: schemaSlug, id: entryId, data: payload })
+        toast.success(t("content.editor.draftSaveSuccess"))
+        setIsDirty(false)
+        hasJustSavedRef.current = true
+        navigate(`/content/${schemaSlug}`)
+      } else {
+        const payload = prepareSubmissionPayload({ branches, formData, slug, status })
+        const entryIdForUpdate = isCreate ? null : entryId
+        await persistEntry(schemaSlug, payload, entryIdForUpdate)
+        setIsDirty(false)
+        hasJustSavedRef.current = true
+        navigate(`/content/${schemaSlug}`)
+      }
     } catch (err) {
       type ApiValidationError = { field: string; message: string }
       type ApiErrorBody = {
@@ -687,11 +747,13 @@ export function EntryEditorPage() {
     ? t("content.editor.newEntry", { label: seed.label })
     : t("content.editor.editEntry", { label: seed.label })
 
-  const submitButtonLabel = isSaving ? (
+  const submitButtonLabel = isSaving || isSavingDraft ? (
     <>
       <Loader2 className="mr-2 size-4 animate-spin" />
       {t("content.editor.saving")}
     </>
+  ) : isDraftMode ? (
+    t("content.editor.saveDraft")
   ) : (
     t("content.editor.save")
   )
@@ -713,6 +775,53 @@ export function EntryEditorPage() {
             {submitButtonLabel}
           </Button>
         </div>
+
+        {(hasPendingDraftNotice || isDraftMode) && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-200">
+            <span className="flex-1">
+              {isDraftMode
+                ? t("content.editor.draftModeNotice")
+                : t("content.editor.pendingDraftNotice")}
+            </span>
+            <div className="flex gap-2">
+              {!isDraftMode && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                  onClick={handleResumeDraft}
+                  disabled={!draftData}
+                >
+                  {t("content.editor.resumeDraft")}
+                </Button>
+              )}
+              {isDraftMode && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                  onClick={handlePublishDraft}
+                  disabled={isPublishing}
+                >
+                  {isPublishing ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
+                  {t("content.editor.publishDraft")}
+                </Button>
+              )}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                onClick={() => setShowDiscardConfirm(true)}
+                disabled={isDiscarding}
+              >
+                {t("content.editor.discardDraft")}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {hasRichtext ? (
           <SplitEditorLayout
@@ -762,6 +871,25 @@ export function EntryEditorPage() {
               onClick={() => blocker.proceed?.()}
             >
               {t("content.editor.exitWithout")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Discard draft confirmation */}
+      <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("content.editor.discardDraftTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("content.editor.discardDraftDesc")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDiscardConfirm(false)}>
+              {t("content.editor.stay")}
+            </AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleDiscardDraft} disabled={isDiscarding}>
+              {isDiscarding ? <Loader2 className="mr-1 size-4 animate-spin" /> : null}
+              {t("content.editor.discardDraft")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

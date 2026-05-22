@@ -88,4 +88,28 @@ export const contentApi = {
     const response = await api.delete<{ success: boolean }>(`/content/${slug}/${id}`)
     return response.data
   },
+
+  fetchDraft: async (slug: string, id: string): Promise<ContentEntry> => {
+    const response = await api.get<{ data: ContentEntry }>(`/content/${slug}/${id}/draft`)
+    return response.data.data
+  },
+
+  saveDraft: async (
+    slug: string,
+    id: string,
+    data: Record<string, unknown>
+  ): Promise<{ success: boolean }> => {
+    const response = await api.put<{ success: boolean }>(`/content/${slug}/${id}/draft`, data)
+    return response.data
+  },
+
+  publishDraft: async (slug: string, id: string): Promise<{ success: boolean }> => {
+    const response = await api.post<{ success: boolean }>(`/content/${slug}/${id}/draft/publish`)
+    return response.data
+  },
+
+  discardDraft: async (slug: string, id: string): Promise<{ success: boolean }> => {
+    const response = await api.delete<{ success: boolean }>(`/content/${slug}/${id}/draft`)
+    return response.data
+  },
 }

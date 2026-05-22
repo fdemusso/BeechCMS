@@ -9,7 +9,7 @@ import type {
   Seed,
   Branch,
   BranchType,
-  FilterGroup,
+  FilterGroup,  //TODO: verificare perchè non  è usato
   FilterType,
   FilterCondition,
   SelectOptions,
@@ -251,6 +251,8 @@ export function generateFtsTriggers(seed: Seed): string[] {
  * Never uses json_extract — every column is a real column.
  * Unknown columns in filters/orderBy are ignored (fail-closed).
  */
+
+//TODO: buildSelectQuery ha troppe responsabilità, va suddiviso in più funzioni
 export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): ParameterizedQuery {
   const table = tableName(seed)
   const { filters = [], orderBy, pagination, status, search, fields } = options
@@ -322,6 +324,7 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
   return { sql, bindings }
 }
 
+//TODO: normalizeFilterValue ha troppe responsabilità, va suddiviso in più funzioni
 function normalizeFilterValue(
   type: FilterType,
   value: unknown
@@ -332,7 +335,7 @@ function normalizeFilterValue(
     if (typeof value === 'number') return value
     if (typeof value === 'string' && value.trim() !== '') {
       const d = new Date(value)
-      return isNaN(d.getTime()) ? null : Math.floor(d.getTime() / 1000)
+      return Number.isNaN(d.getTime()) ? null : Math.floor(d.getTime() / 1000)
     }
     return null
   }
@@ -345,14 +348,14 @@ function normalizeFilterValue(
     if (typeof value === 'number') return value
     if (typeof value === 'string' && value.trim() !== '') {
       const n = Number(value)
-      return isNaN(n) ? null : n
+      return Number.isNaN(n) ? null : n
     }
     return null
   }
 
   return value as string | number | boolean | null
 }
-
+//TODO: buildFilterCondition ha troppe responsabilità, va suddiviso in più funzioni
 function buildFilterCondition(
   col: string,
   type: FilterType,
@@ -464,6 +467,7 @@ export function getExpectedColumns(seed: Seed): SchemaColumn[] {
  * Serializes a value for writing to the DB.
  * boolean → 0/1 | date → Unix timestamp | json/asset-list → JSON string
  */
+//TODO: serializeForDb ha troppe responsabilità, va suddiviso in più funzioni
 export function serializeForDb(branch: Branch, value: unknown): string | number | null {
   if (value === null || value === undefined) return null
 
@@ -480,7 +484,7 @@ export function serializeForDb(branch: Branch, value: unknown): string | number 
       if (typeof value === 'number') return value
       if (typeof value === 'string') {
         const d = new Date(value)
-        if (isNaN(d.getTime())) return null
+        if (Number.isNaN(d.getTime())) return null
         if (branch.format === 'date') {
           const midnight = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
           return Math.floor(midnight / 1000)

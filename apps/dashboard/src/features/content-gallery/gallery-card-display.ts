@@ -1,4 +1,5 @@
 import type { ContentEntry } from "@/lib/dynamic-columns"
+import { shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 import { extractTagChips, type TagChipData } from "@/lib/tags-utils"
 
 import type { ResolvedCardFields } from "./resolve-card-fields"
@@ -15,6 +16,7 @@ export interface GalleryCardDisplayModel {
   dateText: string
   ariaLabel: string
   statusVariant: StatusBadgeVariant
+  hasPendingDraft: boolean
 }
 
 export function getStatusBadgeVariant(status: string): StatusBadgeVariant {
@@ -119,5 +121,6 @@ export function buildGalleryCardDisplayModel(
     dateText,
     ariaLabel,
     statusVariant: getStatusBadgeVariant(status),
+    hasPendingDraft: shouldShowPendingDraftBadge(status, entry.has_pending_draft),
   }
 }

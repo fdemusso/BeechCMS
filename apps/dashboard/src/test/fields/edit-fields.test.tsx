@@ -62,11 +62,11 @@ describe("NumberEdit", () => {
     expect(onChange).toHaveBeenCalledWith(99)
   })
 
-  it("onChange chiamato con '' quando campo svuotato", () => {
+  it("onChange chiamato con null quando campo svuotato", () => {
     const onChange = vi.fn()
     render(<NumberEdit branch={branch} value={5} onChange={onChange} />)
     fireEvent.change(screen.getByRole("spinbutton"), { target: { value: "" } })
-    expect(onChange).toHaveBeenCalledWith("")
+    expect(onChange).toHaveBeenCalledWith(null)
   })
 })
 

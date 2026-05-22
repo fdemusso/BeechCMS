@@ -8,6 +8,8 @@ export const CONTENT_QUERY_KEYS = {
   details: () => [...CONTENT_QUERY_KEYS.all, "detail"] as const,
   detail: (slug: string, id: string) =>
     [...CONTENT_QUERY_KEYS.details(), slug, id] as const,
+  draft: (slug: string, id: string) =>
+    [...CONTENT_QUERY_KEYS.all, "draft", slug, id] as const,
 }
 
 export const FACET_QUERY_KEYS = {

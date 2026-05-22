@@ -18,7 +18,7 @@ searchRouter.get("/", async (c) => {
   const queryText  = c.req.query("q")?.trim() ?? ""
   const schemaSlug = c.req.query("schema_slug") ?? null
   const status     = c.req.query("status") ?? null
-  const rawLimit   = parseInt(c.req.query("limit") ?? "20", 10)
+  const rawLimit   = Number.parseInt(c.req.query("limit") ?? "20", 10)
   const limit      = Math.min(Math.max(rawLimit, 1), 50)
   const cursor     = c.req.query("cursor") ?? null
 

@@ -4,6 +4,7 @@ import { Calendar, ImageIcon, ImageOff } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { TagChips } from "@/components/ui/tag-chips"
+import { pendingDraftBadgeClass } from "@/lib/pending-draft"
 import { cn } from "@/lib/utils"
 
 import type { GalleryCardDisplayModel } from "../gallery-card-display"
@@ -66,8 +67,8 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
           </div>
         )}
 
-        {/* Status badge overlaid top-left */}
-        <div className="absolute left-3 top-3">
+        {/* Status badges overlaid top-left */}
+        <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
           <Badge
             variant="outline"
             className={cn(
@@ -77,6 +78,17 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
           >
             {model.status}
           </Badge>
+          {model.hasPendingDraft && (
+            <Badge
+              variant="outline"
+              className={cn(
+                "text-[10px] font-semibold tracking-wide backdrop-blur-sm",
+                pendingDraftBadgeClass,
+              )}
+            >
+              Bozza in sospeso
+            </Badge>
+          )}
         </div>
       </div>
 

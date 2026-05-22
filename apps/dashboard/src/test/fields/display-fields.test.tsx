@@ -74,6 +74,56 @@ describe("NumberDisplay", () => {
     render(<NumberDisplay branch={branch} value={3.14159} />)
     expect(screen.getByText(/3,14/)).toBeInTheDocument()
   })
+
+  it("rating: renderizza 5 stelle per valore 3 su max 5", () => {
+    const ratingBranch = {
+      ...branch,
+      numberOptions: { control: "rating", max: 5 },
+    } as unknown as Branch
+    const { container } = render(<NumberDisplay branch={ratingBranch} value={3} />)
+    const stars = container.querySelectorAll("svg")
+    // ogni stella ha 2 SVG (outline + fill) solo per quelle piene, ma almeno max SVG outline
+    expect(stars.length).toBeGreaterThanOrEqual(5)
+  })
+
+  it("rating: null value mostra '-'", () => {
+    const ratingBranch = {
+      ...branch,
+      numberOptions: { control: "rating", max: 5 },
+    } as unknown as Branch
+    render(<NumberDisplay branch={ratingBranch} value={null} />)
+    expect(screen.getByText("-")).toBeInTheDocument()
+  })
+
+  it("percentage: renderizza una progress bar con aria-label formattato", () => {
+    const pctBranch = {
+      ...branch,
+      numberOptions: { format: "percentage" },
+    } as unknown as Branch
+    const { container } = render(<NumberDisplay branch={pctBranch} value={75} />)
+    const progress = container.querySelector("[data-slot=progress]")
+    expect(progress).toBeInTheDocument()
+    expect(progress).toHaveAttribute("aria-label", expect.stringMatching(/%/))
+  })
+
+  it("percentage: valore 0-1 normalizzato correttamente", () => {
+    const pctBranch = {
+      ...branch,
+      numberOptions: { format: "percentage" },
+    } as unknown as Branch
+    const { container } = render(<NumberDisplay branch={pctBranch} value={0.4} />)
+    const progress = container.querySelector("[data-slot=progress]")
+    expect(progress).toBeInTheDocument()
+  })
+
+  it("percentage: null value mostra '-'", () => {
+    const pctBranch = {
+      ...branch,
+      numberOptions: { format: "percentage" },
+    } as unknown as Branch
+    render(<NumberDisplay branch={pctBranch} value={null} />)
+    expect(screen.getByText("-")).toBeInTheDocument()
+  })
 })
 
 describe("RichtextDisplay", () => {

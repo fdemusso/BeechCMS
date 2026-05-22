@@ -1,5 +1,34 @@
 export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags'
 
+/** Configurazioni specializzate per il tipo di branch 'number' */
+export interface NumberFieldOptions {
+  // ---- Presentazione & Formattazione ----
+  /** Stile di presentazione visiva. Default: 'decimal' */
+  format?: 'decimal' | 'currency' | 'percentage' | 'compact'
+  /** Codice valuta ISO 4217 (obbligatorio se format === 'currency'). Es. 'EUR', 'USD' */
+  currency?: string
+  /** Testo personalizzato da anteporre al valore formattato */
+  prefix?: string
+  /** Unità di misura personalizzata da appendere al valore formattato (es. 'kg', 'm²') */
+  suffix?: string
+  /** Numero esplicito di cifre decimali da visualizzare e imporre */
+  decimals?: number
+  /** Abilita/disabilita il separatore delle migliaia. Default: true */
+  grouping?: boolean
+
+  // ---- Controlli UI dell'Editor ----
+  /** Meccanismo di input alternativo per l'editor delle entità. Default: 'input' */
+  control?: 'input' | 'slider' | 'rating' | 'stepper'
+
+  // ---- Vincoli & Validazione ----
+  /** Valore minimo consentito */
+  min?: number
+  /** Valore massimo consentito */
+  max?: number
+  /** Incremento del valore (es. 1 per interi stretti, 0.5 per mezzi passi) */
+  step?: number
+}
+
 /** Branch: definizione di una proprietà. alias = nome colonna SQL. */
 export interface Branch {
   /** Alias human-readable, usato nel payload API e come nome colonna SQL nella tabella dedicata */
@@ -46,6 +75,8 @@ export interface Branch {
     /** Il campo è incluso nelle risposte della Public API. Default: true */
     public?: boolean
   }
+  /** Opzioni avanzate per i campi numerici. Ignorato se type !== 'number' */
+  numberOptions?: NumberFieldOptions
 }
 
 /** Dashboard-specific config embedded in a Seed. All fields optional — defaults applied by the dashboard. */

@@ -298,6 +298,17 @@
       "publication": "Publication",
       "draft": "Draft",
       "published": "Published",
+      "pendingDraftNotice": "This entry has a pending draft.",
+      "draftModeNotice": "Editing pending draft — changes will not go live until published.",
+      "resumeDraft": "Resume draft",
+      "saveDraft": "Save draft",
+      "publishDraft": "Publish draft",
+      "discardDraft": "Discard draft",
+      "discardDraftTitle": "Discard pending draft",
+      "discardDraftDesc": "This will permanently delete the pending draft. The published entry remains unchanged. This action cannot be undone.",
+      "draftPublishSuccess": "Draft published successfully",
+      "draftSaveSuccess": "Draft saved",
+      "draftDiscardSuccess": "Pending draft discarded",
       "unsavedTitle": "Unsaved changes",
       "unsavedDesc": "You have unsaved changes. If you exit now, they will be lost. Do you want to continue?",
       "stay": "Stay",
@@ -326,6 +337,7 @@
     },
     "table": {
       "status": "Status",
+      "pendingDraft": "Pending draft",
       "item": "item",
       "items": "items"
     }
