@@ -89,8 +89,8 @@ export const contentApi = {
     return response.data
   },
 
-  fetchDraft: async (slug: string, id: string): Promise<ContentEntry> => {
-    const response = await api.get<{ data: ContentEntry }>(`/content/${slug}/${id}/draft`)
+  fetchDraft: async (slug: string, id: string): Promise<Record<string, unknown>> => {
+    const response = await api.get<{ data: Record<string, unknown> }>(`/content/${slug}/${id}/draft`)
     return response.data.data
   },
 

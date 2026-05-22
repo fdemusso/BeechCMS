@@ -522,7 +522,7 @@ export function EntryEditorPage() {
 
   const handleResumeDraft = React.useCallback(() => {
     if (!draftData) return
-    setFormData(draftData.data ?? draftData as Record<string, unknown>)
+    setFormData(draftData)
     setIsDraftMode(true)
     setIsDirty(false)
   }, [draftData])
