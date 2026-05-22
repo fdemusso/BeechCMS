@@ -1,4 +1,5 @@
-<img width="1516" height="527" alt="Frame 9" src="https://github.com/user-attachments/assets/6ee463ae-d598-435b-998e-0a7ade3e518e" />
+<img width="1516" height="527" alt="Frame 9 (1)" src="https://github.com/user-attachments/assets/5b3783e7-6152-4ba2-95cd-c7e26e149f7f" />
+
 
 # Contributing to BeechCMS
 Thank you for your interest in contributing to BeechCMS.
