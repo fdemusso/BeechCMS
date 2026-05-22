@@ -1,0 +1,114 @@
+name: 🚀 Feature Request
+description: Suggest a new feature or improvement for BeechCMS
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## 🚀 Thanks for suggesting a feature!
+        Before opening a request, please search through the [existing issues](https://github.com/fdemusso/BeechCMS/issues) to make sure it hasn't already been proposed.
+
+  - type: checkboxes
+    id: prerequisites
+    attributes:
+      label: ✅ Prerequisites
+      description: Please confirm the following before submitting
+      options:
+        - label: I searched existing issues and this feature has not already been requested
+          required: true
+        - label: I read the documentation and this feature does not already exist
+          required: true
+
+  - type: dropdown
+    id: feature_area
+    attributes:
+      label: 🗂️ Feature area
+      description: Which part of BeechCMS does this feature relate to?
+      options:
+        - "Schema / Content types"
+        - "API / REST endpoints"
+        - "Field transformations"
+        - "Edge / Cloudflare Workers"
+        - "Cloudflare Pages integration"
+        - "CLI / Developer tooling"
+        - "Authentication & permissions"
+        - "Performance & caching"
+        - "Documentation"
+        - "Other (describe below)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: 🧩 Problem statement
+      description: Is your feature request related to a problem? Describe it clearly. What are you trying to do that you currently can't?
+      placeholder: I'm always frustrated when... / There is no way to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: 💡 Proposed solution
+      description: Describe the feature you'd like to see. How should it work? What would the API, schema, or behavior look like?
+      placeholder: I'd like BeechCMS to support...
+    validations:
+      required: true
+
+  - type: textarea
+    id: code_example
+    attributes:
+      label: 📐 Example / sketch
+      description: If applicable, provide a code snippet, schema example, or API design that illustrates the proposed feature.
+      render: typescript
+      placeholder: |
+        // Example of how the feature could be used
+        const schema = {
+          fields: {
+            myField: { type: '...', transform: '...' }
+          }
+        }
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 🔄 Alternatives considered
+      description: Have you considered any alternative solutions or workarounds? Why are they not sufficient?
+      placeholder: I tried to work around this by... but it doesn't work because...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 📊 Priority / impact
+      description: How impactful would this feature be for your use case?
+      options:
+        - "🔴 Blocker — I cannot use BeechCMS without this"
+        - "🟠 High — significantly improves my workflow"
+        - "🟡 Medium — useful but I have a workaround"
+        - "🟢 Low — nice to have"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: 🤝 Contribution
+      options:
+        - label: I am willing to open a pull request to implement this feature
+          required: false
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: 💬 Additional context
+      description: Add any other context, references, links, or screenshots that may help clarify the request.
+    validations:
+      required: false
