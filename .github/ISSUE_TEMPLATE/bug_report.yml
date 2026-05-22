@@ -1,5 +1,5 @@
 name: 🐛 Bug Report
-description: Segnala un problema riscontrato in BeechCMS
+description: Report a bug in BeechCMS
 title: "[Bug]: "
 labels: ["bug", "needs-triage"]
 assignees: []
@@ -8,99 +8,99 @@ body:
   - type: markdown
     attributes:
       value: |
-        ## 🐛 Grazie per aver segnalato un bug!
-        Prima di aprire una issue, assicurati di aver letto la [documentazione](https://github.com/fdemusso/BeechCMS#readme) e di aver cercato tra le [issue esistenti](https://github.com/fdemusso/BeechCMS/issues) per evitare duplicati.
+        ## 🐛 Thanks for reporting a bug!
+        Before opening an issue, please make sure you have read the [documentation](https://github.com/fdemusso/BeechCMS#readme) and searched through the [existing issues](https://github.com/fdemusso/BeechCMS/issues) to avoid duplicates.
 
   - type: checkboxes
     id: prerequisites
     attributes:
-      label: ✅ Prerequisiti
-      description: Verifica questi punti prima di procedere
+      label: ✅ Prerequisites
+      description: Please confirm the following before submitting
       options:
-        - label: Ho cercato tra le issue esistenti e questo bug non è già stato segnalato
+        - label: I searched the existing issues and this bug has not already been reported
           required: true
-        - label: Ho letto la documentazione
+        - label: I read the documentation
           required: true
-        - label: "**Il bug è riproducibile sull'ultima versione npm del pacchetto oppure sul branch `master`**"
+        - label: "**The bug is reproducible on the latest npm package version or on the `master` branch**"
           required: true
 
   - type: dropdown
     id: version_type
     attributes:
-      label: 📦 Dove si verifica il bug?
-      description: Specifica se il bug si verifica sulla versione npm o sul branch master
+      label: 📦 Where does the bug occur?
+      description: Specify whether the bug happens on the npm release or on the master branch
       options:
-        - "Versione npm (stabile)"
-        - "Branch master (development)"
-        - "Entrambi"
+        - "npm package version (stable)"
+        - "master branch (development)"
+        - "Both"
     validations:
       required: true
 
   - type: input
     id: npm_version
     attributes:
-      label: 🔖 Versione npm (se applicabile)
-      description: Inserisci il numero di versione esatto del pacchetto npm (es. `1.2.3`). Puoi verificarlo con `npm list beech-cms` o nel tuo `package.json`.
-      placeholder: es. 1.2.3
+      label: 🔖 npm package version (if applicable)
+      description: Enter the exact npm package version (for example `1.2.3`). You can verify it with `npm list beech-cms` or in your `package.json`.
+      placeholder: e.g. 1.2.3
     validations:
       required: false
 
   - type: input
     id: commit_sha
     attributes:
-      label: 🔀 Commit SHA su master (se applicabile)
-      description: Se stai usando il branch master, inserisci il commit SHA attuale (puoi trovarlo con `git rev-parse HEAD`).
-      placeholder: es. a1b2c3d
+      label: 🔀 Commit SHA on master (if applicable)
+      description: If you are testing against the master branch, provide the current commit SHA (you can get it with `git rev-parse HEAD`).
+      placeholder: e.g. a1b2c3d
     validations:
       required: false
 
   - type: textarea
     id: description
     attributes:
-      label: 📝 Descrizione del bug
-      description: Una descrizione chiara e concisa del problema riscontrato.
-      placeholder: Quando faccio X, accade Y invece di Z...
+      label: 📝 Bug description
+      description: Provide a clear and concise description of the issue.
+      placeholder: When I do X, Y happens instead of Z...
     validations:
       required: true
 
   - type: textarea
     id: steps_to_reproduce
     attributes:
-      label: 🔁 Passi per riprodurre
-      description: Elenca i passaggi precisi per riprodurre il bug.
+      label: 🔁 Steps to reproduce
+      description: List the exact steps required to reproduce the bug.
       placeholder: |
-        1. Configurare il campo di tipo '...'
-        2. Inviare una richiesta a '...'
-        3. Osservare l'errore
+        1. Configure a field of type '...'
+        2. Send a request to '...'
+        3. Observe the error
     validations:
       required: true
 
   - type: textarea
     id: expected_behavior
     attributes:
-      label: ✅ Comportamento atteso
-      description: Cosa ti aspettavi che accadesse?
-      placeholder: Mi aspettavo che...
+      label: ✅ Expected behavior
+      description: What did you expect to happen?
+      placeholder: I expected that...
     validations:
       required: true
 
   - type: textarea
     id: actual_behavior
     attributes:
-      label: ❌ Comportamento effettivo
-      description: Cosa è successo invece?
-      placeholder: Invece è successo che...
+      label: ❌ Actual behavior
+      description: What happened instead?
+      placeholder: Instead, this happened...
     validations:
       required: true
 
   - type: textarea
     id: minimal_reproduction
     attributes:
-      label: 🧪 Esempio minimo di riproduzione
-      description: Incolla un frammento di codice o la configurazione minima che riproduce il bug. Più è ridotto, prima può essere risolto.
+      label: 🧪 Minimal reproduction example
+      description: Paste a minimal code snippet or configuration that reproduces the bug. The smaller it is, the faster it can be diagnosed.
       render: typescript
       placeholder: |
-        // Esempio di schema o chiamata API che causa il bug
+        // Minimal schema or API call that triggers the bug
         const schema = { ... }
     validations:
       required: false
@@ -108,35 +108,35 @@ body:
   - type: textarea
     id: logs
     attributes:
-      label: 📋 Log / Stack trace
-      description: Incolla qui eventuali messaggi di errore, stack trace o log rilevanti.
+      label: 📋 Logs / stack trace
+      description: Paste any relevant error messages, stack traces, or logs here.
       render: shell
-      placeholder: Incolla qui l'output dell'errore...
+      placeholder: Paste the error output here...
     validations:
       required: false
 
   - type: dropdown
     id: environment_runtime
     attributes:
-      label: 🌐 Runtime / Ambiente
-      description: In quale ambiente si verifica il bug?
+      label: 🌐 Runtime / environment
+      description: In which environment does the bug occur?
       options:
         - "Cloudflare Workers"
         - "Cloudflare Pages"
-        - "Node.js (sviluppo locale)"
-        - "Altro (specifica nelle note aggiuntive)"
+        - "Node.js (local development)"
+        - "Other (describe in additional context)"
     validations:
       required: true
 
   - type: textarea
     id: environment_details
     attributes:
-      label: 🖥️ Dettagli ambiente
-      description: Fornisci informazioni aggiuntive sull'ambiente di esecuzione.
+      label: 🖥️ Environment details
+      description: Provide any additional runtime or system details.
       placeholder: |
         - Node.js: v20.x
         - OS: macOS 14 / Ubuntu 22.04 / Windows 11
-        - Wrangler: v3.x (se applicabile)
+        - Wrangler: v3.x (if applicable)
         - Package manager: npm / pnpm / yarn
     validations:
       required: false
@@ -144,20 +144,20 @@ body:
   - type: dropdown
     id: severity
     attributes:
-      label: 🚨 Gravità
-      description: Quanto è critico questo bug per il tuo utilizzo?
+      label: 🚨 Severity
+      description: How critical is this bug for your use case?
       options:
-        - "🔴 Critico — blocca completamente l'utilizzo"
-        - "🟠 Alto — funzionalità importante non funziona"
-        - "🟡 Medio — funzionalità degradata ma c'è un workaround"
-        - "🟢 Basso — problema estetico o minore"
+        - "🔴 Critical — completely blocks usage"
+        - "🟠 High — an important feature is broken"
+        - "🟡 Medium — degraded behavior but a workaround exists"
+        - "🟢 Low — cosmetic or minor issue"
     validations:
       required: true
 
   - type: textarea
     id: additional_context
     attributes:
-      label: 💬 Contesto aggiuntivo
-      description: Qualsiasi altra informazione che possa essere utile (screenshot, link a risorse, workaround trovati, ecc.).
+      label: 💬 Additional context
+      description: Add anything else that may help (screenshots, links, workarounds, related notes, and so on).
     validations:
       required: false
