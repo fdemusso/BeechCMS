@@ -1,5 +1,8 @@
 # Contributing to BeechCMS
 
+<img width="1516" height="527" alt="Frame 9" src="https://github.com/user-attachments/assets/6ee463ae-d598-435b-998e-0a7ade3e518e" />
+
+
 Thank you for your interest in contributing to BeechCMS.
 This document outlines every rule and convention that **must be followed** before opening a pull request. Please read it in full — it is the single source of truth for contributors.
 
