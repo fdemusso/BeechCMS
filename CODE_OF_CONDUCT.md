@@ -1,3 +1,5 @@
+<img width="1516" height="527" alt="Frame 10" src="https://github.com/user-attachments/assets/40a35caf-c3ec-417b-927d-4171fdb00d02" />
+
 # Code of Conduct
 
 Beech CMS is an open project and everyone who participates in it — by writing code, opening issues, reviewing pull requests, or joining discussions — is expected to follow this code of conduct.
