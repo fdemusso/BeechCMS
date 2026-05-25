@@ -8,6 +8,10 @@ vi.mock("@/lib/api", () => ({
   },
 }))
 
+vi.mock("@/lib/upload", () => ({
+  uploadFile: vi.fn(),
+}))
+
 const mockBranch = {
   id: "br_01",
   alias: "cover",
@@ -136,11 +140,8 @@ describe("MediaEdit", () => {
   })
 
   it("Upload: in stato uploading mostra Loader; su successo chiama onChange con url", async () => {
-    const { api } = await import("@/lib/api")
-    const postMock = vi.mocked(api.post)
-    postMock.mockResolvedValue({
-      data: { url: "/api/media/abc123.jpg" },
-    } as never)
+    const { uploadFile } = await import("@/lib/upload")
+    vi.mocked(uploadFile).mockResolvedValue("/api/media/abc123.jpg")
 
     render(<MediaEdit branch={mockBranch} value="" onChange={onChange} />)
     fireEvent.click(screen.getByRole("button", { name: /Add image/i }))

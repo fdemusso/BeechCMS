@@ -25,7 +25,18 @@ app.get('/', (c) => c.text('Beech API is running (Local Dev Mode)'))
 const validSeeds = seeds.filter((s: any) => s && typeof s === 'object' && 'slug' in s)
 
 export default {
-  fetch: app.fetch,
+  fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    if (env.ENV === 'development' && env.R2_ENDPOINT) {
+      fetch(env.R2_ENDPOINT + '/minio/health/live').catch(() => {
+        console.warn(
+          '\n⚠️  STORAGE NON RAGGIUNGIBILE su ' + env.R2_ENDPOINT + '\n' +
+          '   Gli upload media falliranno. Avvia MinIO con:\n' +
+          '     npm run dev:storage    (oppure usa "npm run dev:full" la prossima volta)\n'
+        )
+      })
+    }
+    return app.fetch(request, env, ctx)
+  },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
     const scheduledTime = controller?.scheduledTime ?? Date.now()

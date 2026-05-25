@@ -363,8 +363,7 @@ Beech CMS abstracts object storage and media metadata tracking to ensure the sam
 
 Object storage operations are handled through the `BeechBucket` interface in `@beechcms/core`.
 
-- **`R2BindingBucket`**: Uses native Cloudflare R2 bindings. Used in local development and production when the Worker has direct bucket access.
-- **`S3Bucket`**: Connects via S3-compatible HTTP API. Used for production environments requiring cross-account access or specific CDN configurations.
+- **`S3Bucket`**: Connects via S3-compatible HTTP API. Used in both production (Cloudflare R2) and development (MinIO). Supports presigned URLs.
 - **`NullBucket`**: A fail-safe provider that throws only when storage operations are invoked, allowing the rest of the API to function without configuration.
 
 ### Media & Stats Repositories
@@ -374,19 +373,25 @@ Database tracking for media is separated from the storage provider via specializ
 - **`MediaRepository`**: Tracks `media_objects` (key, filename, size, owner). Used for the Media Library UI and orphan detection.
 - **`SystemStatsRepository`**: Manages global metrics like `total_storage_bytes`.
 
+### Upload Flow (presigned)
+
+Il Worker non riceve mai bytes di file. Il client ottiene una URL firmata da `/upload/presign`, carica direttamente su R2, poi chiama `/upload/confirm` per registrare i metadati.
+
+```typescript
+// Worker: solo gatekeeper
+const uploadUrl = await bucket.presignPut(key, { expiresIn: 900, contentType, contentLength })
+// Client: PUT diretto a R2
+// Worker: conferma via HEAD + trackUpload
+```
+
 ### Middleware Injection
 
-Providers are instantiated via `createBucketProvider` (using capability detection) and injected into the Hono context:
+Providers are instantiated via `createBucketProvider` and injected into the Hono context:
 
 ```typescript
 const bucket = c.get('bucket');
 const mediaRepo = c.get('mediaRepository');
 const statsRepo = c.get('systemStatsRepository');
-
-// Agnostic upload flow
-await bucket.put(key, body, { contentType });
-await mediaRepo.trackUpload({ key, filename, ... });
-await statsRepo.incrementStorage(size);
 ```
 
 ---

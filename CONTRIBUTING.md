@@ -9,6 +9,7 @@ This document outlines every rule and convention that **must be followed** befor
 
 ## Table of Contents
 
+0. [Development setup](#0-development-setup)
 1. [Branching strategy](#1-branching-strategy)
 2. [Commit conventions](#2-commit-conventions)
 3. [Code quality standards](#3-code-quality-standards)
@@ -16,6 +17,50 @@ This document outlines every rule and convention that **must be followed** befor
 5. [Documentation and System Map](#5-documentation-and-system-map)
 6. [AI-assisted development](#6-ai-assisted-development)
 7. [Submitting a pull request](#7-submitting-a-pull-request)
+
+---
+
+## 0. Development setup
+
+### Prerequisites
+
+| Tool | Version | Notes |
+|------|---------|-------|
+| Node.js | 20+ | Required |
+| npm | 11+ | Required |
+| **Docker Desktop** or **Docker Engine** | any recent | **Required** — media uploads use presigned URLs and need a local S3-compatible endpoint (MinIO) |
+
+Docker is a hard prerequisite. Without it, the API and dashboard start normally but any file upload will fail at runtime.
+
+### First-time setup
+
+```bash
+# 1. Clone and install dependencies
+npm install
+
+# 2. Configure local environment variables
+cp apps/api/.dev.vars.example apps/api/.dev.vars
+# The example file is pre-filled with MinIO credentials — no edits needed for local dev.
+
+# 3. Start the full development environment
+npm run dev:full
+```
+
+`npm run dev:full` starts MinIO (local S3-compatible storage), the Cloudflare Workers API, and the React dashboard in parallel. It is the **canonical development command**.
+
+### Storage commands
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev:full` | **Canonical**: starts MinIO + API + Dashboard |
+| `npm run dev:storage` | Starts only MinIO (useful when restarting API/Dashboard independently) |
+| `npm run dev:storage:stop` | Stops MinIO containers |
+| `npm run dev:storage:reset` | Destroys MinIO containers and volumes (full reset) |
+| `npm run dev` | API + Dashboard only — requires MinIO already running |
+
+> **MinIO console**: [http://localhost:9001](http://localhost:9001) — username `beechdev`, password `beechdevsecret`.
+
+For a full explanation of the storage setup and environment variables, see [`docs/development.md`](./docs/development.md).
 
 ---
 
@@ -240,10 +285,13 @@ AI-generated code is subject to all the same rules as human-authored code: VSA c
 - [ ] The branch targets `devs`, not `master`.
 - [ ] All commits follow the Conventional Commits format.
 - [ ] `npm run build` in `packages/core` exits with code 0.
-- [ ] `npx tsc --noEmit` in `apps/api` and `apps/dashboard` exits with code 0.
+- [ ] `npm run build` in `apps/api` exits with code 0 (`tsc --noEmit`).
+- [ ] `npm run build` in `apps/dashboard` exits with code 0 (`tsc -b`).
 - [ ] `npm run test` at the repo root — all suites are green.
+- [ ] If the change touches media upload, `npm run dev:full` was used and an end-to-end upload (presign → PUT → confirm) was verified manually.
 - [ ] No cross-slice imports — each feature only imports from `shared/` or the routing layer.
 - [ ] No unexplained acronyms, dangling ternaries, or half-resolved logic.
+- [ ] No use of `any` without a documented reason in a comment.
 - [ ] New or changed public-facing behaviour is documented in the relevant `docs/` file.
 - [ ] `docs/system-map.md` is updated if the folder structure, tech stack, or major conventions changed.
 

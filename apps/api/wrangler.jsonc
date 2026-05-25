@@ -26,16 +26,10 @@
     }
   ],
 
-  // R2: in locale usa il binding Miniflare (nessuna credenziale necessaria — .dev.vars può restare vuoto).
-  // In produzione aggiungere le credenziali come wrangler secret: R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME
-  // Crea il bucket: npx wrangler r2 bucket create beech-media
-  // Chiavi API R2: Dashboard Cloudflare → R2 → Manage R2 API Tokens
-  "r2_buckets": [
-    {
-      "binding": "MEDIA_BUCKET",
-      "bucket_name": "beech-media"
-    }
-  ],
+  // R2 (S3 API). In dev imposta in .dev.vars; in prod come wrangler secret:
+  //   R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME
+  //   MEDIA_CDN_URL (opzionale)
+  //   MAX_UPLOAD_BYTES (opzionale, default 50MB)
 
   // Rate limiting (Wrangler 4.36+)
   "ratelimits": [

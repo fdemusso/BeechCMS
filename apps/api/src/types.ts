@@ -22,6 +22,7 @@ export interface Env {
   PUBLIC_IDEMPOTENCY_TTL_SECONDS?: string
   MEDIA_BASE_URL?: string
   MEDIA_CDN_URL?: string
+  MAX_UPLOAD_BYTES?: string
   RESEND_API_KEY?: string
   EMAIL_API_KEY?: string
   APP_URL?: string
@@ -31,7 +32,6 @@ export interface Env {
   ENV?: string
   DATE_FORMAT?: string
   ASSETS?: Fetcher
-  MEDIA_BUCKET?: R2Bucket
 }
 
 export interface Variables {

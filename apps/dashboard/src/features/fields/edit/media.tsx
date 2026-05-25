@@ -7,7 +7,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { ArrowDown, ArrowUp, Loader2, Link as LinkIcon, Upload, X } from "lucide-react"
-import { api } from "@/lib/api"
+import { uploadFile } from "@/lib/upload"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -156,28 +156,23 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
 
   const handleFileUpload = React.useCallback(
     async (file: File) => {
-      if (!file.type.startsWith("image/")) {
-        setError(t("media.errorNotImage"))
+      if (!file.type.startsWith('image/')) {
+        setError(t('media.errorNotImage'))
         return
       }
-
       setError(null)
       setIsUploading(true)
       try {
-        const formData = new FormData()
-        formData.append("file", file)
-        const { data } = await api.post<{ url: string }>("/upload", formData)
+        const url = await uploadFile(file)
         if (isMultiple) {
           const current = parseAssetListValue(value)
-          onChange(appendUniqueUrl(current, data.url))
+          onChange(appendUniqueUrl(current, url))
         } else {
-          onChange(data.url)
+          onChange(url)
           setIsModalOpen(false)
         }
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Error during upload"
-        )
+        setError(err instanceof Error ? err.message : 'Error during upload')
       } finally {
         setIsUploading(false)
       }

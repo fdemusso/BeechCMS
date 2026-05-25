@@ -43,12 +43,17 @@
   },
   "scripts": {
     "dev": "turbo run dev --parallel",
+    "dev:full": "npm run dev:storage && turbo run dev --parallel",
+    "dev:storage": "docker compose up -d minio minio-init",
+    "dev:storage:stop": "docker compose stop minio minio-init",
+    "dev:storage:reset": "docker compose down -v minio",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
     "setup:graph": "node scripts/setup-graph.mjs",
     "release": "node scripts/release.mjs",
-    "release:preview": "node scripts/release.mjs --preview"
+    "release:preview": "node scripts/release.mjs --preview",
+    "postinstall": "node scripts/check-docker.mjs"
   },
   "type": "module",
   "devDependencies": {
@@ -58,7 +63,13 @@
   },
   "overrides": {
     "qs": "^6.15.2",
-    "ws": "^8.20.1"
+    "ws": "^8.20.1",
+    "miniflare": {
+      "ws": "^8.20.1"
+    },
+    "jsdom": {
+      "ws": "^8.20.1"
+    }
   },
   "dependencies": {
     "@beechcms/cli": "^0.5.0",
