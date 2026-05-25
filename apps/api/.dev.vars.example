@@ -19,3 +19,13 @@ MAX_UPLOAD_BYTES=52428800
 
 # Opzionale: URL base per i media (se non impostato, usa origin della richiesta)
 # MEDIA_BASE_URL=http://localhost:5173
+
+# --- Email (Sprint 03) ---
+# In dev usa Mailpit. In prod (wrangler secret) imposta EMAIL_PROVIDER=resend e RESEND_API_KEY.
+EMAIL_PROVIDER=smtp
+SMTP_HOST=localhost
+SMTP_PORT=8025
+EMAIL_FROM=Beech CMS <dev@beech.local>
+
+# --- Webhook tester (Sprint 03, solo dev/test) ---
+WEBHOOK_TESTER_URL=http://localhost:8084

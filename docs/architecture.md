@@ -757,3 +757,51 @@ function buildScheduler(context: Context): IScheduler {
 ```
 
 `FixedClock` returns a constant millisecond timestamp; `SequentialIdGenerator` emits `test-id-0001`, `test-id-0002`, … with `reset()` for per-test isolation.
+
+---
+
+## 15. Local Dev & Testing Infrastructure
+
+### Principio
+
+Zero dipendenze esterne, zero mock invisibili. Lo sviluppo locale di Beech gira **offline** e i test usano **gli stessi servizi reali** che il dev usa nel browser.
+
+### Stack Docker (`docker-compose.yml`)
+
+```text
+Worker (wrangler dev :8787)
+  │
+  ├── S3Bucket ──────────────→ MinIO (:9000)        [storage R2-compatibile]
+  │
+  ├── SmtpEmailProvider ─────→ Mailpit (:8025)      [SMTP → inbox web UI]
+  │
+  └── fetch(webhookUrl) ─────→ webhook-tester (:8084) [assertion payload receiver]
+
+Dev tools:
+  SQLite Web (:8080)   → ispezione read-only D1 locale
+  cloudflared tunnel   → URL pubblica *.trycloudflare.com per webhook entranti da terzi
+```
+
+### Email — selettore provider
+
+```
+EMAIL_PROVIDER=smtp   →  SmtpEmailProvider  →  Mailpit (dev/test)
+EMAIL_PROVIDER=resend →  ResendEmailProvider →  Resend API (produzione)
+```
+
+Lo switch avviene via env var, non via build flag. La factory `createProvider(env)` in `email.service.ts` istanzia il provider corretto. Tutti i call site (`password-reset/request.ts`, `password-reset/reset.ts`, `automations/action-executors/send-mail.executor.ts`) propagano `provider` e `smtpBaseUrl` uniformemente.
+
+### Strategia test — no-mock per i layer di integrazione esterna
+
+| Layer | Approccio test | Motivazione |
+|---|---|---|
+| Email | Integration contro Mailpit reale | Elimina divergenza mock/real già accaduta in passato |
+| R2 / Storage | Integration contro MinIO reale (bucket effimero `beech-media-test-<pid>`) | Stessa API S3, stesse presigned URL |
+| Webhook | Integration contro webhook-tester reale | Assert payload reale ricevuto, non spy su fetch |
+| Database D1 | `D1TestDatabase` (better-sqlite3 in-memory) | SQLite identico a D1, isolamento per test, FTS5 nativo |
+
+Il `D1TestDatabase` non usa un container perché SQLite è un binding in-process: ogni test istanzia un DB pulito in-memory applicando tutte le migrazioni in costruttore. I layer di integrazione esterna (R2, email, webhook) usano invece container reali — la distinzione è intenzionale.
+
+### Precheck fail-fast
+
+Il `globalSetup` Vitest (`test/docker-precheck.runner.ts` → `test/global-setup.ts`) pinga MinIO, Mailpit e webhook-tester in parallelo prima che parta qualsiasi test. Se anche solo uno non risponde, la suite si interrompe con un banner che indica il fix (`npm run dev:full`) invece di accumulare errori opachi nei singoli test.

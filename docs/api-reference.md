@@ -264,7 +264,7 @@ Content-Type: application/json
 - If the email does not match any user, the response is still `200` — user existence is never revealed.
 - Any existing pending reset tokens for the same user are invalidated before issuing a new one.
 - The reset token has a **30-minute TTL** and is stored as SHA-256 hash in D1 (`password_reset_tokens`).
-- The email is sent via [Resend](https://resend.com) using the `RESEND_API_KEY` env var.
+- The email is sent via [Resend](https://resend.com) using the `RESEND_API_KEY` env var (production). In sviluppo locale il provider è Mailpit (vedi `docs/development.md`). Le chiamate seguono lo stesso contratto (`EmailProvider.send`), così la pipeline è identica a quella di produzione.
 - The reset link is `${APP_URL}/reset-password?token=<plaintext_token>`.
 - The `locale` field selects the email language. Supported values: `en` (default), `it`. Unknown values fall back to `en`.
 - Rate limited: **3 requests per IP per 60 seconds** (`FORGOT_PASSWORD_RATE_LIMITER`).
@@ -273,7 +273,8 @@ Content-Type: application/json
 
 | Variable | Description |
 |---|---|
-| `RESEND_API_KEY` | Resend API key. If absent the endpoint returns `503` and the dashboard hides the feature. |
+| `EMAIL_PROVIDER` | `smtp` (dev/test via Mailpit) or `resend` (production). Defaults to `resend` if absent. |
+| `RESEND_API_KEY` | Resend API key. Required when `EMAIL_PROVIDER=resend`. If absent (and not using SMTP), the endpoint returns `503` and the dashboard hides the feature. |
 | `APP_URL` | Base URL of the dashboard (e.g. `https://dashboard.beechcms.dev`). Used to build the reset link. Defaults to the API origin if not set (incorrect in most deployments — always set this). |
 | `EMAIL_FROM` | *(Optional)* Sender address. Defaults to `Beech CMS <onboarding@resend.dev>` (Resend test sender). In production set to a verified domain address. |
 

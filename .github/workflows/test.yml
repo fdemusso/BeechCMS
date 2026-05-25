@@ -10,6 +10,35 @@ jobs:
   test-api:
     name: API Tests
     runs-on: ubuntu-latest
+
+    # Mailpit and webhook-tester via services (their default entrypoints are correct).
+    # MinIO requires a custom command so it is started via docker run in a step below.
+    services:
+      mailpit:
+        image: axllent/mailpit:latest
+        ports:
+          - 1025:1025
+          - 8025:8025
+        env:
+          MP_MAX_MESSAGES: 500
+          MP_SMTP_AUTH_ACCEPT_ANY: 1
+          MP_SMTP_AUTH_ALLOW_INSECURE: 1
+        options: >-
+          --health-cmd "wget --spider -q http://localhost:8025/livez || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      webhook-tester:
+        image: tarampampam/webhook-tester:latest
+        ports:
+          - 8084:8080
+        options: >-
+          --health-cmd "wget -q --spider http://localhost:8080/ready || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -19,13 +48,49 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
+      # MinIO requires `server /data --console-address ":9001"` which services: cannot pass.
+      - name: Start MinIO
+        run: |
+          docker run -d --name beech-minio \
+            -p 9000:9000 -p 9001:9001 \
+            -e MINIO_ROOT_USER=beechdev \
+            -e MINIO_ROOT_PASSWORD=beechdevsecret \
+            minio/minio:latest server /data --console-address ":9001"
+          for i in {1..20}; do
+            curl -sf http://localhost:9000/minio/health/live && break
+            sleep 1
+          done
+
+      - name: Create test bucket
+        run: |
+          docker run --rm --network host minio/mc:latest sh -c "
+            until mc alias set local http://localhost:9000 beechdev beechdevsecret; do sleep 1; done
+            mc mb -p local/beech-media-test-ci || true
+          "
+
       - name: Install dependencies
         run: npm ci
 
       - name: Build packages (Core)
         run: npm run build -w @beechcms/core
 
+      - name: Verify Docker stack reachable
+        run: |
+          curl -sf http://localhost:9000/minio/health/live
+          curl -sf http://localhost:8025/livez
+          curl -sf http://localhost:8084/ready
+
       - name: Run API Tests
+        env:
+          BEECH_TEST_BUCKET: beech-media-test-ci
+          R2_ENDPOINT: http://localhost:9000
+          R2_ACCESS_KEY_ID: beechdev
+          R2_SECRET_ACCESS_KEY: beechdevsecret
+          R2_BUCKET_NAME: beech-media-test-ci
+          EMAIL_PROVIDER: smtp
+          SMTP_HOST: localhost
+          SMTP_PORT: '8025'
+          WEBHOOK_TESTER_URL: http://localhost:8084
         run: npm test -w @beechcms/api
 
   test-dashboard:

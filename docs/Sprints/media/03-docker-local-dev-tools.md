@@ -1202,42 +1202,42 @@ Quick start: aggiornare il blocco con la nuova lista porte/servizi avviata da `n
 
 ## 9. Acceptance Criteria finali (riepilogo Issue)
 
-- [ ] `docker-compose.yml` contiene `minio`, `minio-init`, `mailpit`, `sqlite-web`, `webhook-tester`, `tunnel`, tutti con bind `127.0.0.1` e healthcheck dove previsto.
-- [ ] `npm run dev:full` avvia tutto lo stack, esegue `bootstrap-d1.mjs` e poi `turbo dev`; gli sviluppatori non hanno bisogno di altri comandi.
-- [ ] Su un clone fresco senza `.wrangler/state`, `npm run dev:full` produce un DB locale popolato con migrazioni 0000→ultima (sentinella: tabella `users` presente).
-- [ ] Riesecuzione di `npm run dev:full` è no-op sul DB (log `bootstrap-d1: DB already initialized — skipping`).
-- [ ] `npm run dev` è alias esatto di `npm run dev:full`; non esistono script che avviano l'API senza lo stack Docker.
-- [ ] Rimossi da `package.json` root: `dev:storage`, `dev:storage:stop`, `dev:storage:reset`.
-- [ ] `apps/api/src/features/email/providers/smtp.ts` esiste e implementa `EmailProvider` via Mailpit HTTP send API.
-- [ ] `createProvider` in `email.service.ts` seleziona SMTP/Resend in base a `env.EMAIL_PROVIDER`.
-- [ ] Tutti i call site (`password-reset/request.ts`, `password-reset/reset.ts`, `automations/action-executors/send-mail.executor.ts`) propagano provider + smtpBaseUrl.
-- [ ] `apps/api/.dev.vars.example` documenta `EMAIL_PROVIDER`, `SMTP_HOST`, `SMTP_PORT`, `WEBHOOK_TESTER_URL`.
-- [ ] `wrangler.jsonc` `vars` include i nuovi valori dev.
-- [ ] `apps/api/src/index.ts` warning copre MinIO e Mailpit quando in `ENV=development`.
-- [ ] `apps/api/test/docker-precheck.ts` esiste, esporta `assertDockerStackReady()` che pinga MinIO/Mailpit/webhook-tester in parallelo e produce un errore aggregato con la lista di tutti i servizi mancanti.
-- [ ] `apps/api/test/docker-precheck.runner.ts` è registrato come **primo** `globalSetup` in `vitest.config.ts`, prima di `global-setup.ts`.
-- [ ] Se anche solo uno dei container è giù, `npm test -w apps/api` termina **subito** (zero test eseguiti) con il banner formattato che indica `npm run dev:full` come fix.
-- [ ] Eseguendo `npm test -w apps/api` con stack down, il messaggio di errore compare in cima al log, non sepolto fra errori dei singoli test.
-- [ ] `apps/api/test/helpers/d1-test-database.ts` esiste e implementa l'interfaccia `D1Database` su `better-sqlite3` in-memory, applicando in costruttore tutte le migrazioni `migrations/*.sql` in ordine.
-- [ ] FTS5 funzionante: un test che esegue `MATCH` contro una tabella `fts_*` passa contro `D1TestDatabase`.
-- [ ] Grep `MockD1Database` su `apps/api`: zero match. File `mock-d1-database.ts` eliminato.
-- [ ] I 6 flow test (`flow-admin-auth`, `flow-content-management`, `flow-draft-management`, `flow-media-assets`, `flow-stats`, `flow-system-schema`) usano `D1TestDatabase` e passano verdi.
-- [ ] `better-sqlite3` aggiunto a `apps/api/package.json` devDependencies; `npm ci` funziona in CI Linux senza step extra.
+- [x] `docker-compose.yml` contiene `minio`, `minio-init`, `mailpit`, `sqlite-web`, `webhook-tester`, `tunnel`, tutti con bind `127.0.0.1` e healthcheck dove previsto.
+- [x] `npm run dev:full` avvia tutto lo stack, esegue `bootstrap-d1.mjs` e poi `turbo dev`; gli sviluppatori non hanno bisogno di altri comandi.
+- [x] Su un clone fresco senza `.wrangler/state`, `npm run dev:full` produce un DB locale popolato con migrazioni 0000→ultima (sentinella: tabella `users` presente).
+- [x] Riesecuzione di `npm run dev:full` è no-op sul DB (log `bootstrap-d1: DB already initialized — skipping`).
+- [x] `npm run dev` è alias esatto di `npm run dev:full`; non esistono script che avviano l'API senza lo stack Docker.
+- [x] Rimossi da `package.json` root: `dev:storage`, `dev:storage:stop`, `dev:storage:reset`.
+- [x] `apps/api/src/features/email/providers/smtp.ts` esiste e implementa `EmailProvider` via Mailpit HTTP send API.
+- [x] `createProvider` in `email.service.ts` seleziona SMTP/Resend in base a `env.EMAIL_PROVIDER`.
+- [x] Tutti i call site (`password-reset/request.ts`, `password-reset/reset.ts`, `automations/action-executors/send-mail.executor.ts`) propagano provider + smtpBaseUrl.
+- [x] `apps/api/.dev.vars.example` documenta `EMAIL_PROVIDER`, `SMTP_HOST`, `SMTP_PORT`, `WEBHOOK_TESTER_URL`.
+- [x] `wrangler.jsonc` `vars` include i nuovi valori dev.
+- [x] `apps/api/src/index.ts` warning copre MinIO e Mailpit quando in `ENV=development`.
+- [x] `apps/api/test/docker-precheck.ts` esiste, esporta `assertDockerStackReady()` che pinga MinIO/Mailpit/webhook-tester in parallelo e produce un errore aggregato con la lista di tutti i servizi mancanti.
+- [x] `apps/api/test/docker-precheck.runner.ts` è registrato come **primo** `globalSetup` in `vitest.config.ts`, prima di `global-setup.ts`.
+- [x] Se anche solo uno dei container è giù, `npm test -w apps/api` termina **subito** (zero test eseguiti) con il banner formattato che indica `npm run dev:full` come fix.
+- [x] Eseguendo `npm test -w apps/api` con stack down, il messaggio di errore compare in cima al log, non sepolto fra errori dei singoli test.
+- [x] `apps/api/test/helpers/d1-test-database.ts` esiste e implementa l'interfaccia `D1Database` su `better-sqlite3` in-memory, applicando in costruttore tutte le migrazioni `migrations/*.sql` in ordine.
+- [x] FTS5 funzionante: un test che esegue `MATCH` contro una tabella `fts_*` passa contro `D1TestDatabase`.
+- [x] Grep `MockD1Database` su `apps/api`: zero match. File `mock-d1-database.ts` eliminato.
+- [x] I 6 flow test (`flow-admin-auth`, `flow-content-management`, `flow-draft-management`, `flow-media-assets`, `flow-stats`, `flow-system-schema`) usano `D1TestDatabase` e passano verdi.
+- [x] `better-sqlite3` aggiunto a `apps/api/package.json` devDependencies; `npm ci` funziona in CI Linux senza step extra.
 - [ ] `.github/workflows/test.yml` job `test-api` avvia MinIO, Mailpit, webhook-tester con le **stesse immagini, credenziali, porte** di `docker-compose.yml`.
 - [ ] `.github/actions/docker-stack/action.yml` esiste come composite action riusabile.
 - [ ] Step "Verify Docker stack reachable" in CI fallisce esplicitamente prima di lanciare vitest se uno dei servizi non risponde.
 - [ ] La tabella di parità (dev locale vs CI) in `docs/Sprints/media/03-docker-local-dev-tools.md` §9.bis.4 è rispettata: stesse immagini, stesse credenziali, stesso bucket pattern.
-- [ ] `apps/api/test/flow-media-assets.test.ts` **non contiene** `vi.mock('@aws-sdk/...')` né `vi.hoisted`; usa MinIO reale con bucket effimero.
-- [ ] `apps/api/test/mocks/mock-r2-client.ts` eliminato.
-- [ ] `apps/api/src/features/automations/__tests__/action-executors.test.ts` **non contiene** `vi.mock('../../email', ...)` né `vi.stubGlobal('fetch')` per webhook; usa Mailpit e webhook-tester reali.
-- [ ] Helpers `test/helpers/mailpit-client.ts`, `test/helpers/webhook-tester-client.ts`, `test/helpers/minio-test-bucket.ts` esistono e sono usati dai test.
-- [ ] Test `email-smtp.integration.test.ts` (nuovo) verde.
-- [ ] `npm test -w apps/api` verde con stack Docker attivo.
+- [x] `apps/api/test/flow-media-assets.test.ts` **non contiene** `vi.mock('@aws-sdk/...')` né `vi.hoisted`; usa MinIO reale con bucket effimero.
+- [x] `apps/api/test/mocks/mock-r2-client.ts` eliminato.
+- [x] `apps/api/src/features/automations/__tests__/action-executors.test.ts` **non contiene** `vi.mock('../../email', ...)` né `vi.stubGlobal('fetch')` per webhook; usa Mailpit e webhook-tester reali.
+- [x] Helpers `test/helpers/mailpit-client.ts`, `test/helpers/webhook-tester-client.ts`, `test/helpers/minio-test-bucket.ts` esistono e sono usati dai test.
+- [x] Test `email-smtp.integration.test.ts` (nuovo) verde.
+- [x] `npm test -w apps/api` verde con stack Docker attivo.
 - [ ] `docs/development.md` documenta lo stack completo, le porte, i comandi e la sezione Testing.
 - [ ] `docs/api-reference.md` e `docs/architecture.md` aggiornati con i riferimenti a Mailpit e alla strategia "no-mock per i layer di integrazione".
 - [ ] `CLAUDE.md` (root) e `README.md` aggiornano Quick start e Tech Stack.
 - [ ] Grep `webhook\.site` su `docs/` e `apps/`: zero match (eccetto CHANGELOG).
-- [ ] Grep `vi\.mock\(['"]\@aws-sdk` su `apps/api`: zero match.
+- [x] Grep `vi\.mock\(['"]\@aws-sdk` su `apps/api`: zero match.
 
 ---
 

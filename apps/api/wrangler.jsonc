@@ -81,8 +81,14 @@
     "MEDIA_BASE_URL": "http://localhost:5173",
     "DATE_FORMAT": "DD-MM-YYYY",
     // URL del dashboard (usato per costruire i link nelle email di reset password)
-    // Configura via wrangler secret in produzione: RESEND_API_KEY, APP_URL, EMAIL_FROM
+    // In prod: wrangler secret put EMAIL_PROVIDER (resend), RESEND_API_KEY, APP_URL, EMAIL_FROM.
+    // In dev locale: EMAIL_PROVIDER=smtp punta Mailpit su localhost:8025.
     "APP_URL": "http://localhost:5173",
-    "ENV": "development"
+    "ENV": "development",
+    "EMAIL_PROVIDER": "smtp",
+    "SMTP_HOST": "localhost",
+    "SMTP_PORT": "8025",
+    "EMAIL_FROM": "Beech CMS <dev@beech.local>",
+    "WEBHOOK_TESTER_URL": "http://localhost:8084"
   }
 }

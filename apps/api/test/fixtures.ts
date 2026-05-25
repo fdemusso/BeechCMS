@@ -15,11 +15,16 @@ export const TEST_ENV = {
   JWT_SECRET: TEST_JWT_SECRET,
   PUBLIC_READ_API_KEY: TEST_PUBLIC_READ_KEY,
   PUBLIC_WRITE_API_KEY: TEST_PUBLIC_WRITE_KEY,
-  R2_ACCESS_KEY_ID: 'test-access-key',
-  R2_SECRET_ACCESS_KEY: 'test-secret-key',
-  R2_ENDPOINT: 'https://test-endpoint.r2.cloudflarestorage.com',
-  R2_BUCKET_NAME: 'test-bucket',
+  R2_ACCESS_KEY_ID: 'beechdev',
+  R2_SECRET_ACCESS_KEY: 'beechdevsecret',
+  R2_ENDPOINT: 'http://localhost:9000',
+  R2_BUCKET_NAME: process.env.BEECH_TEST_BUCKET ?? 'beech-media-test',
   ENV: 'development',
+  EMAIL_PROVIDER: 'smtp',
+  SMTP_HOST: 'localhost',
+  SMTP_PORT: '8025',
+  EMAIL_FROM: 'Test <test@beech.local>',
+  WEBHOOK_TESTER_URL: 'http://localhost:8084',
 }
 
 /**

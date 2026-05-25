@@ -92,10 +92,15 @@ export interface PasswordResetEmailParams extends BaseEmailParams {
    * Constructed by the caller as `${APP_URL}/reset-password?token=${token}`.
    */
   resetUrl: string
+  provider?: 'smtp' | 'resend'
+  smtpBaseUrl?: string
 }
 
 /** Parameters for the "password changed" notification. No additional fields. */
-export type PasswordChangedEmailParams = BaseEmailParams
+export interface PasswordChangedEmailParams extends BaseEmailParams {
+  provider?: 'smtp' | 'resend'
+  smtpBaseUrl?: string
+}
 
 export interface AutomationMailParams {
   to: string
@@ -105,4 +110,6 @@ export interface AutomationMailParams {
   apiKey?: string
   resendApiKey?: string
   from?: string
+  provider?: 'smtp' | 'resend'
+  smtpBaseUrl?: string
 }

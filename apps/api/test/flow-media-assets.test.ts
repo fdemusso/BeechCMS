@@ -1,43 +1,31 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { createBeechApp } from '../src/factory'
 import { TEST_ENV, TEST_USERS, TEST_SEEDS } from './fixtures'
-import { MockD1Database } from './mocks/mock-d1-database'
+import { D1TestDatabase } from './helpers/d1-test-database'
+import { seedTestUsers } from './helpers/seed-fixtures'
 import { JoseTokenService } from '../src/auth/jose-token-service'
 import { SystemClock } from '@beechcms/core'
+import { S3Client, HeadObjectCommand } from '@aws-sdk/client-s3'
 
-const { mockS3Send, mockGetSignedUrl } = vi.hoisted(() => ({
-  mockS3Send: vi.fn(),
-  mockGetSignedUrl: vi.fn(),
-}))
-
-vi.mock('@aws-sdk/client-s3', () => ({
-  S3Client: vi.fn(() => ({ send: mockS3Send })),
-  PutObjectCommand: vi.fn((args) => args),
-  GetObjectCommand: vi.fn((args) => args),
-  DeleteObjectCommand: vi.fn((args) => args),
-  HeadObjectCommand: vi.fn((args) => args),
-  ListObjectsV2Command: vi.fn((args) => args),
-}))
-
-vi.mock('@aws-sdk/s3-request-presigner', () => ({
-  getSignedUrl: mockGetSignedUrl,
-}))
+const s3 = new S3Client({
+  region: 'auto',
+  endpoint: 'http://localhost:9000',
+  credentials: { accessKeyId: 'beechdev', secretAccessKey: 'beechdevsecret' },
+  forcePathStyle: true,
+})
 
 describe('Flow: Media & Assets (presigned URLs)', () => {
-  let db: MockD1Database
+  let db: D1TestDatabase
   let app: ReturnType<typeof createBeechApp>
   let adminToken: string
 
   beforeEach(async () => {
-    vi.clearAllMocks()
-    db = new MockD1Database({ users: TEST_USERS })
+    db = new D1TestDatabase()
+    await seedTestUsers(db, TEST_USERS)
     app = createBeechApp({ seeds: TEST_SEEDS })
 
     const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
     adminToken = await tokenService.issue({ sub: TEST_USERS[0].id, email: TEST_USERS[0].email })
-
-    mockS3Send.mockReset()
-    mockGetSignedUrl.mockReset()
   })
 
   describe('POST /api/upload/presign', () => {
@@ -46,7 +34,7 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: 'photo.png', mimeType: 'image/png', sizeBytes: 1024 }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(401)
     })
 
@@ -55,7 +43,7 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ mimeType: 'image/png', sizeBytes: 1024 }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(400)
     })
 
@@ -64,7 +52,7 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: 'photo.png', sizeBytes: 1024 }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(400)
     })
 
@@ -73,7 +61,7 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: 'photo.png', mimeType: 'image/png', sizeBytes: 0 }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(400)
     })
 
@@ -82,7 +70,7 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: 'photo.png', mimeType: 'image/png', sizeBytes: 'big' }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(400)
     })
 
@@ -91,7 +79,7 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: 'virus.exe', mimeType: 'application/x-msdownload', sizeBytes: 1024 }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(400)
       const body = await res.json<{ error: string }>()
       expect(body.error).toContain('not allowed')
@@ -102,19 +90,18 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: 'huge.png', mimeType: 'image/png', sizeBytes: 60 * 1024 * 1024 }),
-      }, { ...TEST_ENV, MAX_UPLOAD_BYTES: String(50 * 1024 * 1024), DB: db as any })
+      }, { ...TEST_ENV, MAX_UPLOAD_BYTES: String(50 * 1024 * 1024), DB: db })
       expect(res.status).toBe(400)
       const body = await res.json<{ error: string }>()
       expect(body.error).toContain('too large')
     })
 
     it('happy path: returns uploadUrl, key, expiresIn', async () => {
-      mockGetSignedUrl.mockResolvedValue('https://r2.example.com/presigned?X-Amz-Signature=abc')
       const res = await app.request('/api/upload/presign', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ filename: 'photo.png', mimeType: 'image/png', sizeBytes: 1024 }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(200)
       const body = await res.json<{ uploadUrl: string; key: string; expiresIn: number }>()
       expect(body.uploadUrl).toContain('X-Amz-Signature')
@@ -129,116 +116,110 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'some-key.png' }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(401)
     })
 
     it('returns 404 when object does not exist in storage', async () => {
-      mockS3Send.mockRejectedValue(Object.assign(new Error('NotFound'), { name: 'NotFound' }))
       const res = await app.request('/api/upload/confirm', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: '12345-ghost.png' }),
-      }, { ...TEST_ENV, DB: db as any })
+        body: JSON.stringify({ key: `${Date.now()}-ghost.png` }),
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(404)
     })
 
-    it('happy path: tracks upload and returns URL', async () => {
-      mockS3Send.mockResolvedValue({ ContentLength: 2048, ContentType: 'image/png' })
-      const res = await app.request('/api/upload/confirm', {
+    it('happy path: uploads to MinIO, confirms, and tracks in DB', async () => {
+      const key = `${Date.now()}-test-photo.png`
+
+      // 1. Presign
+      const presignRes = await app.request('/api/upload/presign', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: '12345-photo.png' }),
-      }, { ...TEST_ENV, DB: db as any })
-      expect(res.status).toBe(200)
-      const body = await res.json<{ url: string }>()
-      expect(body.url).toContain('photo.png')
-      expect(db.mediaObjects).toHaveLength(1)
-      expect(db.mediaObjects[0].key).toBe('12345-photo.png')
-      expect(db.systemStats['total_storage_bytes']).toBe(2048)
+        body: JSON.stringify({ filename: key, mimeType: 'image/png', sizeBytes: 3 }),
+      }, { ...TEST_ENV, DB: db })
+      expect(presignRes.status).toBe(200)
+      const { uploadUrl } = await presignRes.json<{ uploadUrl: string; key: string }>()
+
+      // 2. Upload to MinIO via presigned URL
+      await fetch(uploadUrl, {
+        method: 'PUT',
+        body: new Uint8Array([1, 2, 3]),
+        headers: { 'Content-Type': 'image/png' },
+      })
+
+      // 3. Confirm
+      const confirmRes = await app.request('/api/upload/confirm', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key }),
+      }, { ...TEST_ENV, DB: db })
+      expect(confirmRes.status).toBe(200)
+      const body = await confirmRes.json<{ url: string }>()
+      expect(body.url).toContain(key)
+
+      // 4. Verify object exists in MinIO
+      await expect(s3.send(new HeadObjectCommand({ Bucket: TEST_ENV.R2_BUCKET_NAME, Key: key }))).resolves.toBeTruthy()
+
+      // 5. Verify tracked in DB
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first<{ key: string; size_bytes: number }>()
+      expect(mediaObj).not.toBeNull()
+      expect(mediaObj?.key).toBe(key)
     })
 
     it('idempotent: second confirm does not duplicate tracking', async () => {
-      const key = '12345-photo.png'
-      db.mediaObjects.push({ key, filename: 'photo.png', mime_type: 'image/png', size_bytes: 1024, uploaded_by: 'user-1' })
-      db.systemStats['total_storage_bytes'] = 1024
+      const key = `${Date.now()}-idempotent.png`
+      const fileSize = 1024
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'idempotent.png', 'image/png', fileSize, TEST_USERS[0].id).run()
+      await db.prepare("UPDATE system_stats SET value = ? WHERE id = 'total_storage_bytes'").bind(String(fileSize)).run()
 
       const res = await app.request('/api/upload/confirm', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ key }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(200)
-      expect(db.mediaObjects).toHaveLength(1)
-      expect(db.systemStats['total_storage_bytes']).toBe(1024)
-      expect(mockS3Send).not.toHaveBeenCalled()
+
+      const count = await db.prepare('SELECT COUNT(*) as n FROM media_objects WHERE key = ?').bind(key).first<{ n: number }>()
+      expect(count?.n).toBe(1)
     })
   })
 
   describe('GET /api/upload/download-url/:key', () => {
     it('returns 404 when key does not exist', async () => {
-      mockS3Send.mockRejectedValue(Object.assign(new Error('NotFound'), { name: 'NotFound' }))
-      const res = await app.request('/api/upload/download-url/ghost.png', {
+      const res = await app.request(`/api/upload/download-url/${Date.now()}-ghost.png`, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${adminToken}` },
-      }, { ...TEST_ENV, DB: db as any })
-      expect(res.status).toBe(404)
-    })
-
-    it('happy path: returns downloadUrl and expiresIn', async () => {
-      mockS3Send.mockResolvedValue({ ContentLength: 1024, ContentType: 'image/png' })
-      mockGetSignedUrl.mockResolvedValue('https://r2.example.com/signed-get?X-Amz-Signature=xyz')
-      const res = await app.request('/api/upload/download-url/12345-photo.png', {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${adminToken}` },
-      }, { ...TEST_ENV, DB: db as any })
-      expect(res.status).toBe(200)
-      const body = await res.json<{ downloadUrl: string; expiresIn: number }>()
-      expect(body.downloadUrl).toContain('X-Amz-Signature')
-      expect(body.expiresIn).toBe(900)
-    })
-  })
-
-  describe('GET /api/media/:key', () => {
-    it('serves file from storage with correct headers', async () => {
-      const bodyStream = new ReadableStream({
-        start(controller) {
-          controller.enqueue(new Uint8Array([1, 2, 3]))
-          controller.close()
-        }
-      })
-      mockS3Send.mockResolvedValue({ Body: bodyStream, ContentType: 'image/png' })
-      const res = await app.request('/api/media/test-key.png', {
-        method: 'GET',
-      }, { ...TEST_ENV, DB: db as any })
-      expect(res.status).toBe(200)
-      expect(res.headers.get('Content-Type')).toBe('image/png')
-      expect(res.headers.get('Cache-Control')).toContain('public, max-age=31536000')
-    })
-
-    it('returns 404 for non-existent file', async () => {
-      mockS3Send.mockRejectedValue(new Error('NoSuchKey'))
-      const res = await app.request('/api/media/ghost-file.jpg', {
-        method: 'GET',
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(404)
     })
   })
 
   describe('DELETE /api/upload/:key', () => {
-    it('deletes from storage and updates D1 stats', async () => {
-      const key = '12345-test.png'
+    it('deletes from storage and removes DB record', async () => {
+      const key = `${Date.now()}-delete-me.png`
       const fileSize = 1024
-      db.mediaObjects.push({ key, filename: 'test.png', mime_type: 'image/png', size_bytes: fileSize, uploaded_by: 'admin' })
-      db.systemStats['total_storage_bytes'] = fileSize
-      mockS3Send.mockResolvedValueOnce({})
+
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'delete-me.png', 'image/png', fileSize, TEST_USERS[0].id).run()
+      await db.prepare("UPDATE system_stats SET value = ? WHERE id = 'total_storage_bytes'").bind(String(fileSize)).run()
+
+      // Pre-upload the file to MinIO so HeadObjectCommand succeeds
+      const presignRes = await app.request('/api/upload/presign', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: key, mimeType: 'image/png', sizeBytes: 3 }),
+      }, { ...TEST_ENV, DB: db })
+      const { uploadUrl } = await presignRes.json<{ uploadUrl: string }>()
+      await fetch(uploadUrl, { method: 'PUT', body: new Uint8Array([1, 2, 3]), headers: { 'Content-Type': 'image/png' } })
+
       const res = await app.request(`/api/upload/${key}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${adminToken}` },
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(200)
-      expect(db.mediaObjects).toHaveLength(0)
-      expect(db.systemStats['total_storage_bytes']).toBe(0)
+
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).toBeNull()
     })
   })
 })

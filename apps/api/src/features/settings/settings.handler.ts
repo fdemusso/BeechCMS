@@ -25,7 +25,7 @@ settingsApp.get('/', async (context) => {
       media: true,
       search: true,
       activityLog: true,
-      email: !!(context.env.EMAIL_API_KEY || context.env.RESEND_API_KEY),
+      email: context.env.EMAIL_PROVIDER === 'smtp' || !!(context.env.EMAIL_API_KEY || context.env.RESEND_API_KEY),
     }
   })
 })

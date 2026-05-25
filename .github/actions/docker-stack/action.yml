@@ -1,0 +1,35 @@
+name: 'Beech Docker Stack'
+description: 'Starts MinIO + Mailpit + webhook-tester for integration tests (mirrors docker-compose.yml)'
+runs:
+  using: composite
+  steps:
+    - name: Start MinIO
+      shell: bash
+      run: |
+        docker run -d --name beech-minio -p 9000:9000 -p 9001:9001 \
+          -e MINIO_ROOT_USER=beechdev -e MINIO_ROOT_PASSWORD=beechdevsecret \
+          minio/minio:latest server /data --console-address ":9001"
+        for i in {1..20}; do curl -sf http://localhost:9000/minio/health/live && break; sleep 1; done
+
+    - name: Start Mailpit
+      shell: bash
+      run: |
+        docker run -d --name beech-mailpit -p 1025:1025 -p 8025:8025 \
+          -e MP_SMTP_AUTH_ACCEPT_ANY=1 -e MP_SMTP_AUTH_ALLOW_INSECURE=1 \
+          axllent/mailpit:latest
+        for i in {1..20}; do curl -sf http://localhost:8025/livez && break; sleep 1; done
+
+    - name: Start webhook-tester
+      shell: bash
+      run: |
+        docker run -d --name beech-webhook-tester -p 8084:8080 \
+          tarampampam/webhook-tester:latest
+        for i in {1..20}; do curl -sf http://localhost:8084/ready && break; sleep 1; done
+
+    - name: Create MinIO test bucket
+      shell: bash
+      run: |
+        docker run --rm --network host minio/mc:latest sh -c "
+          until mc alias set local http://localhost:9000 beechdev beechdevsecret; do sleep 1; done
+          mc mb -p local/beech-media-test-ci || true
+        "

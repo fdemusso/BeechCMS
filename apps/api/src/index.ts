@@ -26,14 +26,20 @@ const validSeeds = seeds.filter((s: any) => s && typeof s === 'object' && 'slug'
 
 export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    if (env.ENV === 'development' && env.R2_ENDPOINT) {
-      fetch(env.R2_ENDPOINT + '/minio/health/live').catch(() => {
-        console.warn(
-          '\n⚠️  STORAGE NON RAGGIUNGIBILE su ' + env.R2_ENDPOINT + '\n' +
-          '   Gli upload media falliranno. Avvia MinIO con:\n' +
-          '     npm run dev:storage    (oppure usa "npm run dev:full" la prossima volta)\n'
-        )
-      })
+    if (env.ENV === 'development') {
+      const checks: Array<{ name: string; url: string }> = [
+        { name: 'MinIO',   url: (env.R2_ENDPOINT ?? 'http://localhost:9000') + '/minio/health/live' },
+        { name: 'Mailpit', url: `http://${env.SMTP_HOST ?? 'localhost'}:${env.SMTP_PORT ?? '8025'}/livez` },
+      ]
+      for (const c of checks) {
+        fetch(c.url).catch(() => {
+          console.warn(
+            `\n⚠️  ${c.name} non raggiungibile su ${c.url}\n` +
+            `   Beech in dev richiede lo stack Docker completo.\n` +
+            `   Avvialo con: npm run dev:full\n`
+          )
+        })
+      }
     }
     return app.fetch(request, env, ctx)
   },

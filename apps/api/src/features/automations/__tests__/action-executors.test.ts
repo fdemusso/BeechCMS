@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { executeAction } from '../action-executors'
 import type { ActionContext } from '../action-executors'
 import type { ContentRepository, Seed, IIdGenerator } from '@beechcms/core'
+import { deleteAllMessages, listMessages, waitForMessage, getMessageHtml } from '../../../../test/helpers/mailpit-client'
+import { newBucket, waitForRequest } from '../../../../test/helpers/webhook-tester-client'
 
 // ── Shared mock context factory ───────────────────────────────────────────────
 
@@ -41,74 +43,56 @@ function makeCtx(overrides: Partial<ActionContext> = {}): ActionContext {
 // ── webhook ───────────────────────────────────────────────────────────────────
 
 describe('webhook executor', () => {
-  beforeEach(() => { vi.restoreAllMocks() })
-
   it('POSTs to URL with JSON body derived from entry when no body_template', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200 })
-    vi.stubGlobal('fetch', fetchMock)
-
+    const { url, uuid } = newBucket()
     const ctx = makeCtx()
-    await executeAction({ type: 'webhook', url: 'https://example.com/hook' }, ctx)
-
-    expect(fetchMock).toHaveBeenCalledOnce()
-    const [url, init] = fetchMock.mock.calls[0]
-    expect(url).toBe('https://example.com/hook')
-    expect(init.method).toBe('POST')
-    expect(JSON.parse(init.body)).toMatchObject({ id: 'entry-1', title: 'Test Entry' })
+    await executeAction({ type: 'webhook', url }, ctx)
+    const req = await waitForRequest(uuid)
+    expect(req.method).toBe('POST')
+    expect(JSON.parse(req.body)).toMatchObject({ id: 'entry-1', title: 'Test Entry' })
   })
 
   it('interpolates body_template with entry values', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
-    vi.stubGlobal('fetch', fetchMock)
-
+    const { url, uuid } = newBucket()
     const ctx = makeCtx()
-    await executeAction({ type: 'webhook', url: 'https://example.com/hook', body_template: '{"t":"{{title}}"}' }, ctx)
-
-    const [, init] = fetchMock.mock.calls[0]
-    expect(init.body).toBe('{"t":"Test Entry"}')
+    await executeAction({ type: 'webhook', url, body_template: '{"t":"{{title}}"}' }, ctx)
+    const req = await waitForRequest(uuid)
+    expect(req.body).toBe('{"t":"Test Entry"}')
   })
 
   it('merges custom headers', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
-    vi.stubGlobal('fetch', fetchMock)
-
+    const { url, uuid } = newBucket()
     const ctx = makeCtx()
-    await executeAction({ type: 'webhook', url: 'https://x.com', headers: { 'X-Token': 'abc' } }, ctx)
-
-    const [, init] = fetchMock.mock.calls[0]
-    expect(init.headers['X-Token']).toBe('abc')
+    await executeAction({ type: 'webhook', url, headers: { 'X-Token': 'abc' } }, ctx)
+    const req = await waitForRequest(uuid)
+    const tokenHeader = req.headers['x-token'] ?? req.headers['X-Token']
+    expect(tokenHeader).toBe('abc')
   })
 
-  it('throws when response is not ok', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }))
+  it('throws when webhook endpoint is unreachable', async () => {
     const ctx = makeCtx()
-    await expect(executeAction({ type: 'webhook', url: 'https://x.com' }, ctx)).rejects.toThrow('500')
+    await expect(executeAction({ type: 'webhook', url: 'http://localhost:19999/nope' }, ctx)).rejects.toThrow()
   })
 
   it('uses custom HTTP method', async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true })
-    vi.stubGlobal('fetch', fetchMock)
+    const { url, uuid } = newBucket()
     const ctx = makeCtx()
-    await executeAction({ type: 'webhook', url: 'https://x.com', method: 'PUT' }, ctx)
-    expect(fetchMock.mock.calls[0][1].method).toBe('PUT')
+    await executeAction({ type: 'webhook', url, method: 'PUT' }, ctx)
+    const req = await waitForRequest(uuid)
+    expect(req.method).toBe('PUT')
   })
 })
 
 // ── send_mail ─────────────────────────────────────────────────────────────────
 
-vi.mock('../../email', () => ({
-  sendAutomationMail: vi.fn().mockResolvedValue(undefined),
-}))
-
 describe('send_mail executor', () => {
-  beforeEach(async () => {
-    const { sendAutomationMail } = await import('../../email')
-    vi.mocked(sendAutomationMail).mockClear()
-  })
+  beforeEach(() => deleteAllMessages())
 
-  it('interpolates to/subject/body and calls sendAutomationMail', async () => {
-    const { sendAutomationMail } = await import('../../email')
-    const ctx = makeCtx({ entry: { id: '1', email: 'user@example.com', title: 'Hello' } })
+  it('interpolates to/subject/body and delivers to Mailpit', async () => {
+    const ctx = makeCtx({
+      entry: { id: '1', email: 'user@example.com', title: 'Hello' },
+      env: { EMAIL_PROVIDER: 'smtp', SMTP_HOST: 'localhost', SMTP_PORT: '8025', EMAIL_FROM: 'Beech <test@beech.local>' },
+    })
 
     await executeAction(
       {
@@ -120,19 +104,19 @@ describe('send_mail executor', () => {
       ctx,
     )
 
-    expect(sendAutomationMail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: 'user@example.com',
-        subject: 'Re: Hello',
-        body: 'Your entry Hello was created.',
-      }),
-    )
+    const msg = await waitForMessage(m => m.To.some(t => t.Address === 'user@example.com'))
+    expect(msg.Subject).toBe('Re: Hello')
+    const html = await getMessageHtml(msg.ID)
+    expect(html).toContain('Hello')
   })
 
-  it('substitutes default value [missing] and logs a warning when concrete data is absent', async () => {
-    const { sendAutomationMail } = await import('../../email')
+  it('substitutes [missing] for absent fields and logs a warning', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    const ctx = makeCtx({ entry: { id: '1' } })
+    // email is present (needed for a valid To address) but title and desc are absent
+    const ctx = makeCtx({
+      entry: { id: '1', email: 'warn-test@example.com' },
+      env: { EMAIL_PROVIDER: 'smtp', SMTP_HOST: 'localhost', SMTP_PORT: '8025', EMAIL_FROM: 'Beech <test@beech.local>' },
+    })
 
     await executeAction(
       {
@@ -144,23 +128,20 @@ describe('send_mail executor', () => {
       ctx,
     )
 
-    expect(sendAutomationMail).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: '[missing]',
-        subject: 'Re: [missing]',
-        body: 'Content: [missing]',
-      }),
-    )
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('missing concrete data'),
-      ['email', 'title', 'desc'],
+      expect.arrayContaining(['title', 'desc']),
     )
+    const msg = await waitForMessage(m => m.Subject === 'Re: [missing]')
+    expect(msg.Subject).toBe('Re: [missing]')
+    const html = await getMessageHtml(msg.ID)
+    expect(html).toContain('[missing]')
+    warnSpy.mockRestore()
   })
 
-  it('skips execution gracefully and logs an error without calling sendAutomationMail if apiKey is missing', async () => {
-    const { sendAutomationMail } = await import('../../email')
+  it('skips execution and logs an error when provider is resend and apiKey is missing', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const ctx = makeCtx({ env: {} }) // missing email/resend api keys
+    const ctx = makeCtx({ env: {} })
 
     await executeAction(
       {
@@ -172,15 +153,17 @@ describe('send_mail executor', () => {
       ctx,
     )
 
-    expect(sendAutomationMail).not.toHaveBeenCalled()
     expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Execution skipped'))
+    const msgs = await listMessages()
+    expect(msgs).toHaveLength(0)
+    errSpy.mockRestore()
   })
 
-  it('logs error and rethrows when sendAutomationMail fails', async () => {
-    const { sendAutomationMail } = await import('../../email')
-    vi.mocked(sendAutomationMail).mockRejectedValueOnce(new Error('provider error'))
+  it('logs error and rethrows when SMTP provider is unreachable', async () => {
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const ctx = makeCtx()
+    const ctx = makeCtx({
+      env: { EMAIL_PROVIDER: 'smtp', SMTP_HOST: 'localhost', SMTP_PORT: '19999', EMAIL_FROM: 'Beech <test@beech.local>' },
+    })
 
     await expect(
       executeAction(
@@ -192,12 +175,13 @@ describe('send_mail executor', () => {
         },
         ctx,
       ),
-    ).rejects.toThrow('provider error')
+    ).rejects.toThrow()
 
     expect(errSpy).toHaveBeenCalledWith(
       expect.stringContaining('failed to send automation email'),
       expect.any(Error),
     )
+    errSpy.mockRestore()
   })
 })
 

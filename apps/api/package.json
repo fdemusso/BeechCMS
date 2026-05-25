@@ -15,8 +15,8 @@
   "scripts": {
     "dev": "wrangler dev --port 8789",
     "build": "tsc -p tsconfig.build.json --noEmit",
-    "db:migrate:local": "wrangler d1 execute beech-db --local --file=./migrations/0000_v040_base.sql && wrangler d1 execute beech-db --local --file=./migrations/0029_automations.sql && wrangler d1 execute beech-db --local --file=./migrations/0030_test_seeds.sql",
-    "db:reset:local": "node -e \"require('fs').rmSync('.wrangler/state', {recursive:true,force:true})\" && npm run db:migrate:local && cd ../.. && node bin/cli.mjs seed:load --local && cd apps/api && wrangler d1 execute beech-db --local --file=./migrations/0028_v040_seed_data.sql",
+    "db:migrate:local": "node ./scripts/bootstrap-d1.mjs",
+    "db:reset:local": "node -e \"require('fs').rmSync('.wrangler/state', {recursive:true,force:true})\" && node ./scripts/bootstrap-d1.mjs",
     "deploy": "wrangler deploy --minify",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "test": "vitest run",
@@ -33,7 +33,9 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260213.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.11",
     "@vitest/coverage-v8": "^3.2.4",
+    "better-sqlite3": "^11.3.0",
     "vitest": "^3.2.4",
     "wrangler": "^4.4.0"
   }

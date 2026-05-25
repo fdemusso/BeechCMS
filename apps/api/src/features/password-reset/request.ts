@@ -16,7 +16,8 @@ export async function requestPasswordReset(
 ): Promise<Response> {
   const { env, req } = context
 
-  if (!env.RESEND_API_KEY) {
+  const useSmtp = env.EMAIL_PROVIDER === 'smtp'
+  if (!useSmtp && !env.RESEND_API_KEY) {
     return context.json({ error: 'Service not available' }, 503)
   }
 
@@ -63,14 +64,19 @@ export async function requestPasswordReset(
   const baseUrl = (env.APP_URL ?? new URL(req.url).origin).replace(/\/$/, '')
   const resetUrl = `${baseUrl}/admin/reset-password?token=${resetToken}`
 
+  const smtpBaseUrl = env.SMTP_HOST
+    ? `http://${env.SMTP_HOST}:${env.SMTP_PORT ?? '8025'}`
+    : undefined
   try {
     await sendPasswordResetEmail({
       to: normalizedEmail,
       resetUrl,
       locale: emailLocale,
-      apiKey: env.RESEND_API_KEY,
+      apiKey: env.RESEND_API_KEY ?? '',
       from: env.EMAIL_FROM,
       isDev: env.ENV !== 'production',
+      provider: env.EMAIL_PROVIDER as 'smtp' | 'resend' | undefined,
+      smtpBaseUrl,
     })
   } catch (error) {
     if (env.ENV !== 'production') {

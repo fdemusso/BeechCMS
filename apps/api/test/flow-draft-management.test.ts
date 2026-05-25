@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createBeechApp } from '../src/factory'
 import { StaticContentRepository } from './mocks/static-content.repository'
-import { MockD1Database } from './mocks/mock-d1-database'
+import { D1TestDatabase } from './helpers/d1-test-database'
+import { seedTestUsers } from './helpers/seed-fixtures'
 import { TEST_SEEDS, TEST_USERS, TEST_ENV } from './fixtures'
 
 /**
@@ -18,7 +19,7 @@ import { TEST_SEEDS, TEST_USERS, TEST_ENV } from './fixtures'
  */
 describe('Flow: Draft Management (Mirror Tables)', () => {
   let repository: StaticContentRepository
-  let database: MockD1Database
+  let database: D1TestDatabase
   let application: ReturnType<typeof createBeechApp>
   let adminAccessToken: string
 
@@ -30,7 +31,8 @@ describe('Flow: Draft Management (Mirror Tables)', () => {
   beforeEach(async () => {
     // Note: TEST_SEEDS[0] ('posts') has allowDrafts: true (updated in fixtures.ts)
     repository = new StaticContentRepository(TEST_SEEDS)
-    database = new MockD1Database({ users: TEST_USERS })
+    database = new D1TestDatabase()
+    await seedTestUsers(database, TEST_USERS)
     application = createBeechApp({ 
       seeds: TEST_SEEDS, 
       repository: repository 
@@ -44,7 +46,7 @@ describe('Flow: Draft Management (Mirror Tables)', () => {
         email: TEST_USERS[0].email, 
         password: 'password123' 
       })
-    }, { ...TEST_ENV, DB: database as any })
+    }, { ...TEST_ENV, DB: database })
 
     const loginData = await loginResponse.json<{ token: string }>()
     adminAccessToken = loginData.token
@@ -73,7 +75,7 @@ describe('Flow: Draft Management (Mirror Tables)', () => {
           'Content-Type': 'application/json' 
         },
         body: JSON.stringify({ title: 'New Draft Title' })
-      }, { ...TEST_ENV, DB: database as any })
+      }, { ...TEST_ENV, DB: database })
 
       expect(response.status).toBe(200)
       
@@ -98,7 +100,7 @@ describe('Flow: Draft Management (Mirror Tables)', () => {
           'Content-Type': 'application/json' 
         },
         body: JSON.stringify({ title: 'Second Draft' })
-      }, { ...TEST_ENV, DB: database as any })
+      }, { ...TEST_ENV, DB: database })
 
       expect(response.status).toBe(200)
       const draftData = await repository.getDraft(TEST_SEEDS[0], entryId)
@@ -117,7 +119,7 @@ describe('Flow: Draft Management (Mirror Tables)', () => {
           'Content-Type': 'application/json' 
         },
         body: JSON.stringify({ title: 'Draft Not Allowed' })
-      }, { ...TEST_ENV, DB: database as any })
+      }, { ...TEST_ENV, DB: database })
 
       expect(response.status).toBe(405)
       const body = await response.json<{ type: string }>()
@@ -132,7 +134,7 @@ describe('Flow: Draft Management (Mirror Tables)', () => {
           'Content-Type': 'application/json' 
         },
         body: JSON.stringify({ title: 'Ghost Draft' })
-      }, { ...TEST_ENV, DB: database as any })
+      }, { ...TEST_ENV, DB: database })
 
       expect(response.status).toBe(404)
     })
@@ -150,7 +152,7 @@ describe('Flow: Draft Management (Mirror Tables)', () => {
 
       const response = await application.request(`/api/content/posts/${entryId}/draft`, {
         headers: { 'Authorization': `Bearer ${adminAccessToken}` }
-      }, { ...TEST_ENV, DB: database as any })
+      }, { ...TEST_ENV, DB: database })
 
       expect(response.status).toBe(200)
       const { data } = await response.json<{ data: any }>()
@@ -163,7 +165,7 @@ describe('Flow: Draft Management (Mirror Tables)', () => {
 
       const response = await application.request(`/api/content/posts/${entryId}/draft`, {
         headers: { 'Authorization': `Bearer ${adminAccessToken}` }
-      }, { ...TEST_ENV, DB: database as any })
+      }, { ...TEST_ENV, DB: database })
 
       expect(response.status).toBe(404)
       const body = await response.json<{ type: string }>()
@@ -184,7 +186,7 @@ describe('Flow: Draft Management (Mirror Tables)', () => {
       const response = await application.request(`/api/content/posts/${entryId}/draft/publish`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminAccessToken}` }
-      }, { ...TEST_ENV, DB: database as any })
+      }, { ...TEST_ENV, DB: database })
 
       expect(response.status).toBe(200)
 
@@ -204,7 +206,7 @@ describe('Flow: Draft Management (Mirror Tables)', () => {
       const response = await application.request(`/api/content/posts/${entryId}/draft/publish`, {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminAccessToken}` }
-      }, { ...TEST_ENV, DB: database as any })
+      }, { ...TEST_ENV, DB: database })
 
       expect(response.status).toBe(404)
     })
@@ -223,7 +225,7 @@ describe('Flow: Draft Management (Mirror Tables)', () => {
       const response = await application.request(`/api/content/posts/${entryId}/draft`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${adminAccessToken}` }
-      }, { ...TEST_ENV, DB: database as any })
+      }, { ...TEST_ENV, DB: database })
 
       expect(response.status).toBe(200)
 

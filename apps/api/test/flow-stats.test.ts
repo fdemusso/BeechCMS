@@ -3,7 +3,8 @@ import { createBeechApp } from '../src/factory'
 import { TEST_SEEDS, TEST_USERS, TEST_ENV } from './fixtures'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
-import { MockD1Database } from './mocks/mock-d1-database'
+import { D1TestDatabase } from './helpers/d1-test-database'
+import { seedTestUsers } from './helpers/seed-fixtures'
 
 /**
  * Flow: Stats & Setup Checklist
@@ -13,11 +14,11 @@ import { MockD1Database } from './mocks/mock-d1-database'
 describe('Flow: Stats', () => {
   let app: ReturnType<typeof createBeechApp>
   let authToken: string
-  let db: MockD1Database
+  let db: D1TestDatabase
 
   beforeEach(async () => {
-    // Setup app with static repositories and mock DB
-    db = new MockD1Database({ users: TEST_USERS })
+    db = new D1TestDatabase()
+    await seedTestUsers(db, TEST_USERS)
     const repo = new StaticContentRepository(TEST_SEEDS)
     const idempotencyRepo = new StaticIdempotencyRepository()
 
@@ -60,14 +61,14 @@ describe('Flow: Stats', () => {
     expect(checklist).toHaveProperty('hasContent')
 
     // With TEST_USERS containing users, adminExists should be true
-    // MockD1Database returns 'users' table in the sqlite_master query
     expect(typeof checklist.systemTablesOk).toBe('boolean')
     expect(typeof checklist.adminExists).toBe('boolean')
     expect(checklist.seedsCount).toBe(TEST_SEEDS.length)
   })
 
   it('GET /api/content/stats/setup-checklist returns adminExists=false when user table is empty', async () => {
-    const emptyDb = new MockD1Database({ users: [] })
+    const emptyDb = new D1TestDatabase()
+    // No users seeded — adminExists must be false
 
     // Use a pre-issued token since we cannot login without users
     const { JoseTokenService } = await import('../src/auth/jose-token-service')

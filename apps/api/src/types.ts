@@ -27,6 +27,10 @@ export interface Env {
   EMAIL_API_KEY?: string
   APP_URL?: string
   EMAIL_FROM?: string
+  EMAIL_PROVIDER?: string
+  SMTP_HOST?: string
+  SMTP_PORT?: string
+  WEBHOOK_TESTER_URL?: string
   FORGOT_PASSWORD_RATE_LIMITER?: RateLimit
   RESET_PASSWORD_RATE_LIMITER?: RateLimit
   ENV?: string

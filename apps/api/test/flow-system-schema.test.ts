@@ -3,7 +3,8 @@ import { createBeechApp } from '../src/factory'
 import { TEST_SEEDS, TEST_USERS, TEST_ENV } from './fixtures'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
-import { MockD1Database } from './mocks/mock-d1-database'
+import { D1TestDatabase } from './helpers/d1-test-database'
+import { seedTestUsers } from './helpers/seed-fixtures'
 
 /**
  * Flow: System & Schema
@@ -17,11 +18,11 @@ import { MockD1Database } from './mocks/mock-d1-database'
 describe('Flow: System & Schema', () => {
   let app: ReturnType<typeof createBeechApp>
   let authToken: string
-  let db: MockD1Database
+  let db: D1TestDatabase
 
   beforeEach(async () => {
-    // Setup app with static repositories and mock DB
-    db = new MockD1Database({ users: TEST_USERS })
+    db = new D1TestDatabase()
+    await seedTestUsers(db, TEST_USERS)
     const repo = new StaticContentRepository(TEST_SEEDS)
     const idempotencyRepo = new StaticIdempotencyRepository()
 

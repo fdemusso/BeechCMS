@@ -21,19 +21,26 @@ export async function executeSendMail(
     console.warn('[automations:send_mail] placeholders evaluated to default value due to missing concrete data:', missingFields)
   }
 
+  const useSmtp = env.EMAIL_PROVIDER === 'smtp'
   const apiKey = env.EMAIL_API_KEY ?? env.RESEND_API_KEY
-  if (!apiKey) {
+  if (!useSmtp && !apiKey) {
     console.error('[automations:send_mail] Execution skipped: Email API key is missing from the environment configuration.')
     return
   }
+
+  const smtpBaseUrl = env.SMTP_HOST
+    ? `http://${env.SMTP_HOST}:${env.SMTP_PORT ?? '8025'}`
+    : undefined
 
   try {
     await sendAutomationMail({
       to,
       subject,
       body,
-      apiKey,
+      apiKey: apiKey ?? '',
       from: env.EMAIL_FROM,
+      provider: env.EMAIL_PROVIDER as 'smtp' | 'resend' | undefined,
+      smtpBaseUrl,
     })
   } catch (error) {
     console.error('[automations:send_mail] failed to send automation email via provider:', error)
