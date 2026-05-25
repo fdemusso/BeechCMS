@@ -1,12 +1,12 @@
 import bcrypt from 'bcryptjs'
 import type { IHashProvider } from '@beechcms/core'
 
-const DEFAULT_BCRYPT_ROUNDS = 10
+export const BCRYPT_SALT_ROUNDS = 10
 
 export class BcryptHashProvider implements IHashProvider {
   private readonly saltRounds: number
 
-  constructor(saltRounds: number = DEFAULT_BCRYPT_ROUNDS) {
+  constructor(saltRounds: number = BCRYPT_SALT_ROUNDS) {
     this.saltRounds = saltRounds
   }
 

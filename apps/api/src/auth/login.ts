@@ -53,7 +53,7 @@ export function validateLoginInput(email: string, password: string): boolean {
   return (
     email.length <= MAX_EMAIL_LENGTH &&
     EMAIL_REGEX.test(email) &&
-    password.length >= MIN_PASSWORD_LENGTH &&
+    password.trim().length >= MIN_PASSWORD_LENGTH &&
     password.length <= MAX_PASSWORD_LENGTH
   )
 }

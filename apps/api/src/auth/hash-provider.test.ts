@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { InMemoryHashProvider } from './in-memory-hash-provider'
-import { BcryptHashProvider } from './bcrypt-hash-provider'
+import { InMemoryHashProvider } from './__fixtures__/in-memory-hash-provider'
+import { BcryptHashProvider, BCRYPT_SALT_ROUNDS } from './bcrypt-hash-provider'
+import { DUMMY_PASSWORD_HASH } from './login'
 
 describe('InMemoryHashProvider', () => {
   const provider = new InMemoryHashProvider()
@@ -39,8 +40,12 @@ describe('BcryptHashProvider', () => {
   })
 
   it('verify returns false against the DUMMY_PASSWORD_HASH for any plaintext', async () => {
-    // The dummy hash is used for timing-attack mitigation; it must not match real passwords.
-    const dummyHash = '$2a$10$SbkRFOafACxVM2ahxerVDu3tSkCXWm29b62WdB.4WGG02Qjsfzni6'
-    expect(await provider.verify('password123', dummyHash)).toBe(false)
+    expect(await provider.verify('password123', DUMMY_PASSWORD_HASH)).toBe(false)
+  })
+
+  it('DUMMY_PASSWORD_HASH bcrypt cost matches BCRYPT_SALT_ROUNDS — timing oracle invariant', () => {
+    const match = DUMMY_PASSWORD_HASH.match(/^\$2[aby]\$(\d+)\$/)
+    expect(match).not.toBeNull()
+    expect(Number(match![1])).toBe(BCRYPT_SALT_ROUNDS)
   })
 })

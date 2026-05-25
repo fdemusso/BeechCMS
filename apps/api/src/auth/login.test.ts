@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { parseLoginBody, validateLoginInput, verifyPassword, DUMMY_PASSWORD_HASH } from './login'
-import { InMemoryHashProvider } from './in-memory-hash-provider'
+import { InMemoryHashProvider } from './__fixtures__/in-memory-hash-provider'
 
 describe('parseLoginBody', () => {
   it('returns credentials for a valid object body', () => {
@@ -68,6 +68,10 @@ describe('validateLoginInput', () => {
 
   it('accepts passwords at the upper boundary (exactly 128 characters)', () => {
     expect(validateLoginInput('user@test.com', 'a'.repeat(128))).toBe(true)
+  })
+
+  it('rejects a password made only of whitespace', () => {
+    expect(validateLoginInput('user@test.com', ' '.repeat(8))).toBe(false)
   })
 })
 

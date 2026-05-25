@@ -17,6 +17,9 @@ export class JoseTokenService implements ITokenService {
 
   constructor(secret: string, config: JoseTokenServiceConfig, clock: IClock) {
     this.secretBytes = new TextEncoder().encode(secret)
+    if (this.secretBytes.length < 32) {
+      throw new Error('JWT secret must be at least 32 bytes (256-bit)')
+    }
     this.config = config
     this.clock = clock
   }

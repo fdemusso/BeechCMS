@@ -1,25 +1,27 @@
-import { S3Client, CreateBucketCommand, DeleteBucketCommand, ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { assertDockerStackReady } from './docker-precheck'
 
-const TEST_BUCKET = process.env.BEECH_TEST_BUCKET ?? `beech-media-test-${process.pid}`
+const TEST_BUCKET = 'beech-media-test'
+
+const s3 = new S3Client({
+  region: 'auto',
+  endpoint: 'http://localhost:9000',
+  credentials: { accessKeyId: 'beechdev', secretAccessKey: 'beechdevsecret' },
+  forcePathStyle: true,
+})
+
+async function emptyBucket(): Promise<void> {
+  const list = await s3.send(new ListObjectsV2Command({ Bucket: TEST_BUCKET })).catch(() => null)
+  for (const obj of list?.Contents ?? []) {
+    if (obj.Key) await s3.send(new DeleteObjectCommand({ Bucket: TEST_BUCKET, Key: obj.Key }))
+  }
+}
 
 export async function setup() {
   await assertDockerStackReady()
-
-  const s3 = new S3Client({
-    region: 'auto',
-    endpoint: 'http://localhost:9000',
-    credentials: { accessKeyId: 'beechdev', secretAccessKey: 'beechdevsecret' },
-    forcePathStyle: true,
-  })
-  await s3.send(new CreateBucketCommand({ Bucket: TEST_BUCKET })).catch(() => { /* exists */ })
-  process.env.BEECH_TEST_BUCKET = TEST_BUCKET
+  await emptyBucket()
 
   return async () => {
-    const list = await s3.send(new ListObjectsV2Command({ Bucket: TEST_BUCKET }))
-    for (const obj of list.Contents ?? []) {
-      if (obj.Key) await s3.send(new DeleteObjectCommand({ Bucket: TEST_BUCKET, Key: obj.Key }))
-    }
-    await s3.send(new DeleteBucketCommand({ Bucket: TEST_BUCKET })).catch(() => {})
+    await emptyBucket()
   }
 }

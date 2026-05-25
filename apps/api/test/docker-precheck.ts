@@ -7,7 +7,7 @@ export interface RequiredService {
 export const REQUIRED_SERVICES: RequiredService[] = [
   { name: 'MinIO',          url: 'http://localhost:9000/minio/health/live', containerName: 'beech-minio' },
   { name: 'Mailpit',        url: 'http://localhost:8025/livez',             containerName: 'beech-mailpit' },
-  { name: 'webhook-tester', url: 'http://localhost:8084/ready',             containerName: 'beech-webhook-tester' },
+  { name: 'webhook-tester', url: 'http://localhost:8084/api/version',       containerName: 'beech-webhook-tester' },
 ]
 
 interface CheckResult { service: RequiredService; ok: boolean; reason?: string }

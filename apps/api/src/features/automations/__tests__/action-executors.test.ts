@@ -44,7 +44,7 @@ function makeCtx(overrides: Partial<ActionContext> = {}): ActionContext {
 
 describe('webhook executor', () => {
   it('POSTs to URL with JSON body derived from entry when no body_template', async () => {
-    const { url, uuid } = newBucket()
+    const { url, uuid } = await newBucket()
     const ctx = makeCtx()
     await executeAction({ type: 'webhook', url }, ctx)
     const req = await waitForRequest(uuid)
@@ -53,7 +53,7 @@ describe('webhook executor', () => {
   })
 
   it('interpolates body_template with entry values', async () => {
-    const { url, uuid } = newBucket()
+    const { url, uuid } = await newBucket()
     const ctx = makeCtx()
     await executeAction({ type: 'webhook', url, body_template: '{"t":"{{title}}"}' }, ctx)
     const req = await waitForRequest(uuid)
@@ -61,12 +61,11 @@ describe('webhook executor', () => {
   })
 
   it('merges custom headers', async () => {
-    const { url, uuid } = newBucket()
+    const { url, uuid } = await newBucket()
     const ctx = makeCtx()
     await executeAction({ type: 'webhook', url, headers: { 'X-Token': 'abc' } }, ctx)
     const req = await waitForRequest(uuid)
-    const tokenHeader = req.headers['x-token'] ?? req.headers['X-Token']
-    expect(tokenHeader).toBe('abc')
+    expect(req.headers['x-token']).toBe('abc')
   })
 
   it('throws when webhook endpoint is unreachable', async () => {
@@ -75,7 +74,7 @@ describe('webhook executor', () => {
   })
 
   it('uses custom HTTP method', async () => {
-    const { url, uuid } = newBucket()
+    const { url, uuid } = await newBucket()
     const ctx = makeCtx()
     await executeAction({ type: 'webhook', url, method: 'PUT' }, ctx)
     const req = await waitForRequest(uuid)

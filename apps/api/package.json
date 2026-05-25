@@ -33,9 +33,7 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20260213.0",
     "@types/bcryptjs": "^2.4.6",
-    "@types/better-sqlite3": "^7.6.11",
     "@vitest/coverage-v8": "^3.2.4",
-    "better-sqlite3": "^11.3.0",
     "vitest": "^3.2.4",
     "wrangler": "^4.4.0"
   }

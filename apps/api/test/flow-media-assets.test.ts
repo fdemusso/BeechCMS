@@ -130,25 +130,26 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
     })
 
     it('happy path: uploads to MinIO, confirms, and tracks in DB', async () => {
-      const key = `${Date.now()}-test-photo.png`
+      const filename = `${Date.now()}-test-photo.png`
 
-      // 1. Presign
+      // 1. Presign — the API generates a storage key from the filename
       const presignRes = await app.request('/api/upload/presign', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: key, mimeType: 'image/png', sizeBytes: 3 }),
+        body: JSON.stringify({ filename, mimeType: 'image/png', sizeBytes: 3 }),
       }, { ...TEST_ENV, DB: db })
       expect(presignRes.status).toBe(200)
-      const { uploadUrl } = await presignRes.json<{ uploadUrl: string; key: string }>()
+      const { uploadUrl, key } = await presignRes.json<{ uploadUrl: string; key: string }>()
 
       // 2. Upload to MinIO via presigned URL
-      await fetch(uploadUrl, {
+      const putRes = await fetch(uploadUrl, {
         method: 'PUT',
         body: new Uint8Array([1, 2, 3]),
         headers: { 'Content-Type': 'image/png' },
       })
+      expect(putRes.ok).toBe(true)
 
-      // 3. Confirm
+      // 3. Confirm using the key returned by the presign endpoint
       const confirmRes = await app.request('/api/upload/confirm', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },

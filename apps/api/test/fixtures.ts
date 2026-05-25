@@ -18,7 +18,7 @@ export const TEST_ENV = {
   R2_ACCESS_KEY_ID: 'beechdev',
   R2_SECRET_ACCESS_KEY: 'beechdevsecret',
   R2_ENDPOINT: 'http://localhost:9000',
-  R2_BUCKET_NAME: process.env.BEECH_TEST_BUCKET ?? 'beech-media-test',
+  R2_BUCKET_NAME: 'beech-media-test',
   ENV: 'development',
   EMAIL_PROVIDER: 'smtp',
   SMTP_HOST: 'localhost',
