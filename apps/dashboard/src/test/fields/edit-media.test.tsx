@@ -13,6 +13,7 @@ const mockBranch = {
   alias: "cover",
   label: "Cover",
   type: "file" as const,
+  fileOptions: { accept: "image" as const },
 }
 
 const mockAssetListBranch = {

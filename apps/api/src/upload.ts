@@ -5,10 +5,8 @@
  * e facilità di sviluppo locale.
  */
 import { Hono } from 'hono'
+import { isMimeAccepted } from '@beechcms/core'
 import { AppEnv } from './types'
-
-/** Prefissi MIME consentiti (immagini e PDF) */
-const ALLOWED_MIME_PREFIXES = ['image/', 'application/pdf']
 
 /** Dimensione massima file: 5 MB */
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
@@ -92,9 +90,9 @@ uploadRoutes.post('/upload', async (c) => {
     }
     const file = fileEntry
 
-    const mimeOk = ALLOWED_MIME_PREFIXES.some((prefix) => file.type.startsWith(prefix))
+    const mimeOk = isMimeAccepted(file.type, 'any')
     if (!mimeOk) {
-      return c.json({ error: 'File type not allowed. Allowed: images and PDF' }, 400)
+      return c.json({ error: 'File type not allowed' }, 400)
     }
 
     if (file.size > MAX_FILE_SIZE_BYTES) {

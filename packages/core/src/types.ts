@@ -1,3 +1,5 @@
+import type { FileAccept } from './file-types.js'
+
 export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags'
 
 /** Configurazioni specializzate per il tipo di branch 'number' */
@@ -27,6 +29,25 @@ export interface NumberFieldOptions {
   max?: number
   /** Incremento del valore (es. 1 per interi stretti, 0.5 per mezzi passi) */
   step?: number
+}
+
+/** Configurazioni specializzate per il tipo di branch 'file' */
+export interface FileFieldOptions {
+  /**
+   * Tipo semantico di file accettato.
+   * - 'image': immagini renderizzabili come anteprima
+   * - 'document': PDF/Office/text
+   * - 'any': qualsiasi file (default — UI mostra icona generica, nessun tentativo di render immagine)
+   * Default: 'any'.
+   */
+  accept?: FileAccept
+  /**
+   * Dimensione massima del singolo file in byte.
+   * NOTA: il backend /upload applica MAX_FILE_SIZE_BYTES (5MB) globale —
+   * questo campo è informativo per la UI; non viene enforced in upload.
+   * Default: 5_242_880.
+   */
+  maxSize?: number
 }
 
 /** Branch: definizione di una proprietà. alias = nome colonna SQL. */
@@ -77,6 +98,8 @@ export interface Branch {
   }
   /** Opzioni avanzate per i campi numerici. Ignorato se type !== 'number' */
   numberOptions?: NumberFieldOptions
+  /** Opzioni avanzate per i campi file. Ignorato se type !== 'file' */
+  fileOptions?: FileFieldOptions
 }
 
 /** Dashboard-specific config embedded in a Seed. All fields optional — defaults applied by the dashboard. */

@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import type { Branch, Seed } from './types.js'
 import { RICHTEXT_SCHEMA_VERSION, isRichtextEnvelopeV1 } from './richtext.js'
+import type { FileAccept } from './file-types.js'
+import { extensionFromUrl, isExtensionAccepted } from './file-types.js'
 
 export interface ValidationDetail {
   field: string
@@ -42,6 +44,14 @@ const jsonObjectOrArraySchema = z.union([z.record(z.string(), z.unknown()), z.ar
 
 function isAssetListBranch(branch: Branch): boolean {
   return branch.type === 'file' && (branch.multiple === true || branch.format === 'asset-list')
+}
+
+// TODO: spostare in file-types.ts insieme alle costanti correlate quando la funzione cresce
+export function resolveFileOptions(branch: Branch): { accept: FileAccept; maxSize: number } {
+  return {
+    accept: branch.fileOptions?.accept ?? 'any',
+    maxSize: branch.fileOptions?.maxSize ?? 5 * 1024 * 1024,
+  }
 }
 
 function normalizeHttpUrl(value: unknown): string | null {
@@ -370,6 +380,18 @@ function buildDateSchema(allowNull: boolean, nullable: z.ZodNull | null) {
 }
 
 function buildFileSchema(branch: Branch, allowNull: boolean, nullable: z.ZodNull | null) {
+  const { accept } = resolveFileOptions(branch)
+
+  const checkAccept = (url: string, ctx: z.RefinementCtx): boolean => {
+    if (accept === 'any') return true
+    const ext = extensionFromUrl(url)
+    if (!isExtensionAccepted(ext, accept)) {
+      ctx.addIssue({ code: 'custom', message: `Expected file(accept:${accept})` })
+      return false
+    }
+    return true
+  }
+
   if (isAssetListBranch(branch)) {
     const schema = getPreprocessEmpty(allowNull)(
       z.any()
@@ -379,12 +401,16 @@ function buildFileSchema(branch: Branch, allowNull: boolean, nullable: z.ZodNull
             ctx.addIssue({ code: 'custom', message: 'Expected url-string[]' })
             return z.NEVER
           }
+          for (const url of normalized) {
+            if (!checkAccept(url, ctx)) return z.NEVER
+          }
           return normalized
         })
         .pipe(z.array(z.string().url()))
     )
     return nullable ? z.union([schema, nullable]) : schema
   }
+
   const schema = getPreprocessEmpty(allowNull)(
     z.any()
       .transform((rawValue, ctx) => {
@@ -393,6 +419,7 @@ function buildFileSchema(branch: Branch, allowNull: boolean, nullable: z.ZodNull
           ctx.addIssue({ code: 'custom', message: 'Expected url-string' })
           return z.NEVER
         }
+        if (!checkAccept(normalized, ctx)) return z.NEVER
         return normalized
       })
       .pipe(z.string().url())
@@ -444,6 +471,7 @@ function seedFingerprint(seed: Seed): string {
       requiredOnCreate: branch.requiredOnCreate ?? false,
       requiredOnUpdate: branch.requiredOnUpdate ?? false,
       numberOptions: branch.numberOptions ?? null,
+      fileOptions: branch.fileOptions ?? null,
     })),
   })
 }

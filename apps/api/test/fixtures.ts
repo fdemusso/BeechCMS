@@ -42,7 +42,7 @@ export const TEST_SEEDS = [
       { alias: 'internal_note', label: 'Internal Note', type: 'text', policies: { public: false } },
       { alias: 'contact_email', label: 'Contact Email', type: 'text' },
       { alias: 'view_count', label: 'View Count', type: 'number' },
-      { alias: 'image', label: 'Featured Image', type: 'file' },
+      { alias: 'image', label: 'Featured Image', type: 'file', fileOptions: { accept: 'image' } },
       { alias: 'tags', label: 'Tags', type: 'tags' },
     ],
   }),

@@ -9,6 +9,7 @@
  */
 
 export * from './types.js'
+export * from './file-types.js'
 export * from './define-seed.js'
 export * from './seeds.js'
 export * from './engine.js'

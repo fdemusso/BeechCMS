@@ -9,7 +9,7 @@ export const POST_SEED: Seed = {
   branches: [
     { id: 'pst_01', alias: 'title',           label: 'Title',                type: 'text',     requiredOnCreate: true },
     { id: 'pst_02', alias: 'publishedAt',      label: 'Published at',         type: 'date' },
-    { id: 'pst_03', alias: 'coverImage',       label: 'Cover image',          type: 'file' },
+    { id: 'pst_03', alias: 'coverImage',       label: 'Cover image',          type: 'file', fileOptions: { accept: 'image' } },
     { id: 'pst_04', alias: 'excerpt',          label: 'Excerpt',              type: 'text' },
     { id: 'pst_05', alias: 'tags',             label: 'Tags',                 type: 'json',     options: ['news', 'tutorial', 'release', 'guide', 'opinion'] },
     { id: 'pst_06', alias: 'body',             label: 'Body',                 type: 'richtext' },
@@ -28,7 +28,7 @@ export const AUTHOR_SEED: Seed = {
   branches: [
     { id: 'aut_01', alias: 'name',    label: 'Name',        type: 'text', requiredOnCreate: true },
     { id: 'aut_02', alias: 'bio',     label: 'Bio',         type: 'text' },
-    { id: 'aut_03', alias: 'photo',   label: 'Photo',       type: 'file' },
+    { id: 'aut_03', alias: 'photo',   label: 'Photo',       type: 'file', fileOptions: { accept: 'image' } },
     { id: 'aut_04', alias: 'website', label: 'Website URL', type: 'text' },
     { id: 'aut_05', alias: 'active',  label: 'Active',      type: 'boolean' },
   ],

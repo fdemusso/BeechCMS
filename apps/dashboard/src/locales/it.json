@@ -531,11 +531,15 @@
     "moveDown": "Sposta giù",
     "remove": "Rimuovi immagine",
     "dialogDesc": "Inserisci un URL pubblico HTTPS oppure carica un file locale.",
+    "documentPreview": "Documento",
+    "filePreview": "File",
     "errorNotImage": "Seleziona un'immagine (JPG, PNG, WebP, GIF)",
     "errorUrl": "Inserisci un URL immagine pubblico",
     "errorHttps": "L'URL deve iniziare con https://",
     "errorNotRenderable": "URL non renderizzabile come immagine",
-    "errorUpload": "Errore durante il caricamento"
+    "errorUpload": "Errore durante il caricamento",
+    "errorNotDocument": "Seleziona un documento (PDF, DOC, XLS, TXT, CSV)",
+    "errorNotAccepted": "Tipo di file non accettato"
   },
   "login": {
     "hidePassword": "Nascondi password",

@@ -6,7 +6,7 @@
  */
 import axios, { type AxiosError } from 'axios';
 
-export const LOGIN_PATH = '/login';
+export const LOGIN_PATH = '/admin/login';
 
 /** Risposta POST /auth/login */
 export interface LoginResponse {

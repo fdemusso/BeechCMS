@@ -531,11 +531,15 @@
     "moveDown": "Move down",
     "remove": "Remove image",
     "dialogDesc": "Enter a public HTTPS URL or upload a local file.",
+    "documentPreview": "Document",
+    "filePreview": "File",
     "errorNotImage": "Select an image (JPG, PNG, WebP, GIF)",
     "errorUrl": "Enter a public image URL",
     "errorHttps": "The URL must start with https://",
     "errorNotRenderable": "URL not renderable as image",
-    "errorUpload": "Upload error"
+    "errorUpload": "Upload error",
+    "errorNotDocument": "Select a document (PDF, DOC, XLS, TXT, CSV)",
+    "errorNotAccepted": "File type not accepted"
   },
   "login": {
     "hidePassword": "Hide password",

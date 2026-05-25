@@ -147,6 +147,37 @@ describe('Flow: Media & Assets', () => {
       expect(body.error).toContain('large')
     })
 
+    it('accetta zip e csv', async () => {
+      mockS3Send.mockResolvedValue({})
+
+      const uploadMime = async (mime: string, name: string) => {
+        const fd = new FormData()
+        fd.append('file', new Blob(['content'], { type: mime }), name)
+        return app.request('/api/upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${adminToken}` },
+          body: fd,
+        }, { ...TEST_ENV, DB: db as any })
+      }
+
+      const rZip = await uploadMime('application/zip', 'backup.zip')
+      expect(rZip.status).toBe(200)
+
+      const rCsv = await uploadMime('text/csv', 'data.csv')
+      expect(rCsv.status).toBe(200)
+    })
+
+    it('rifiuta application/x-msdownload', async () => {
+      const formData = new FormData()
+      formData.append('file', new Blob(['binary'], { type: 'application/x-msdownload' }), 'virus.exe')
+      const res = await app.request('/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+        body: formData,
+      }, { ...TEST_ENV, DB: db as any })
+      expect(res.status).toBe(400)
+    })
+
     it('tracking: each upload creates a separate media_objects record with a unique key', async () => {
       mockS3Send.mockResolvedValue({})
 
