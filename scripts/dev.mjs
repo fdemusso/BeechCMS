@@ -1,4 +1,32 @@
 import { spawn, execSync } from 'node:child_process'
+import pc from 'picocolors'
+
+// Pre-check if Docker is running and reachable
+try {
+  execSync('docker info', { stdio: 'ignore' })
+} catch (error) {
+  console.error(pc.red('\n═══════════════════════════════════════════════════════════════════════'))
+  console.error(pc.red('  ❌  Cannot start Beech CMS dev stack — Docker is not running.'))
+  console.error(pc.red('═══════════════════════════════════════════════════════════════════════\n'))
+  
+  let dockerInstalled = false
+  try {
+    execSync('docker --version', { stdio: 'ignore' })
+    dockerInstalled = true
+  } catch (e) {
+    // Docker not installed
+  }
+
+  if (dockerInstalled) {
+    console.error(pc.yellow('  Docker is installed, but the Docker daemon/service is NOT running.'))
+    console.error(pc.yellow('  Please start Docker Desktop (or your system\'s Docker service) and try again.\n'))
+  } else {
+    console.error(pc.yellow('  Docker is not installed or not found in your PATH.'))
+    console.error(pc.yellow('  Docker is required to run the local MinIO, Mailpit, and webhook-tester services.'))
+    console.error(pc.yellow('  Please install Docker: https://www.docker.com/get-started/\n'))
+  }
+  process.exit(1)
+}
 
 console.log('🚀 Starting Docker containers...')
 try {
@@ -7,6 +35,7 @@ try {
   console.error('❌ Failed to start Docker. Is Docker running?')
   process.exit(1)
 }
+
 
 console.log('⚙️  Bootstrapping local D1 database...')
 try {

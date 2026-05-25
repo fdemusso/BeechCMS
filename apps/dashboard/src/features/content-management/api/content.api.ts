@@ -36,7 +36,7 @@ export const contentApi = {
     const response = await api.get<ContentListWithMeta>(`/content/${slug}`, {
       params: {
         ...params,
-        filters: params.filters != null ? JSON.stringify(params.filters) : undefined,
+        filters: params.filters == null ? undefined : JSON.stringify(params.filters),
       },
     })
     return response.data
