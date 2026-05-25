@@ -1,6 +1,7 @@
 // Mirror: apps/dashboard/src/features/automations/schema/automation.schema.ts — keep structurally identical.
 import { z } from 'zod'
 import type { WhenNode } from '@beechcms/core'
+import { isPrivateHost } from '@beechcms/core'
 import { AUTOMATION_RESERVED_WORDS } from './template-grammar'
 
 // ---------------------------------------------------------------------------
@@ -75,10 +76,21 @@ const setVariableActionSchema = z.object({
 
 const webhookActionSchema = z.object({
   type: z.literal('webhook'),
-  url: z.string().url(),
+  url: z
+    .string()
+    .url()
+    .refine((u) => {
+      try { return new URL(u).protocol === 'https:' } catch { return false }
+    }, { message: 'automations.editor.errors.webhookHttpsRequired' })
+    .refine((u) => {
+      try { return !isPrivateHost(new URL(u).hostname) } catch { return false }
+    }, { message: 'automations.editor.errors.webhookPrivateHostBlocked' }),
   method: z.enum(['POST', 'GET', 'PUT']).optional(),
   headers: z.record(z.string(), z.string()).optional(),
-  body_template: z.string().optional(),
+  body_template: z.preprocess(
+    (v) => (v == null ? '' : v),
+    z.string().min(1, 'automations.editor.errors.bodyRequired'),
+  ),
 })
 
 const sendMailActionSchema = z.object({

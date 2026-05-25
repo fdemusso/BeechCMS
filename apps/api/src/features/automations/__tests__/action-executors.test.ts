@@ -43,10 +43,10 @@ function makeCtx(overrides: Partial<ActionContext> = {}): ActionContext {
 // ── webhook ───────────────────────────────────────────────────────────────────
 
 describe('webhook executor', () => {
-  it('POSTs to URL with JSON body derived from entry when no body_template', async () => {
+  it('POSTs to URL with interpolated body_template', async () => {
     const { url, uuid } = await newBucket()
     const ctx = makeCtx()
-    await executeAction({ type: 'webhook', url }, ctx)
+    await executeAction({ type: 'webhook', url, body_template: '{"id":"{{id}}","title":"{{title}}"}' }, ctx)
     const req = await waitForRequest(uuid)
     expect(req.method).toBe('POST')
     expect(JSON.parse(req.body)).toMatchObject({ id: 'entry-1', title: 'Test Entry' })

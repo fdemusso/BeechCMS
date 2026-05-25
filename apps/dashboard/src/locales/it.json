@@ -642,7 +642,9 @@
         "fieldRequired": "Campo obbligatorio",
         "seedRequired": "Seed obbligatorio",
         "variableNameInvalid": "Il nome variabile deve contenere solo lettere, numeri e underscore",
-        "variableNameReserved": "Questo nome è riservato dal motore di template"
+        "variableNameReserved": "Questo nome è riservato dal motore di template",
+        "webhookHttpsRequired": "Sono consentiti solo URL HTTPS",
+        "webhookPrivateHostBlocked": "Gli host privati, di loopback e link-local non sono consentiti"
       }
     },
     "triggers": {
@@ -670,6 +672,8 @@
       "webhookMethod": "Metodo HTTP",
       "webhookHeaders": "Header",
       "webhookBody": "Body template",
+      "webhookBodyHint": "Definisci il payload JSON esatto inviato all'endpoint.",
+      "webhookSecretHint": "Beech firma ogni richiesta con HMAC-SHA256 nell'header X-BeechCMS-Signature. Configura WEBHOOK_SECRET nel worker per abilitare la firma. Verifica la firma sul ricevente prima di elaborare il payload.",
       "addHeader": "Aggiungi header",
       "webhookHeaderKeyPlaceholder": "Header",
       "webhookHeaderValuePlaceholder": "Valore",

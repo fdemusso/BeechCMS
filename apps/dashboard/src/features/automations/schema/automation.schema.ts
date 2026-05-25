@@ -2,7 +2,7 @@
 // Keep structurally identical. Changes here must be reflected there and vice versa.
 import { z } from 'zod'
 import type { AutomationTriggerEvent, TriggerCondition } from '@beechcms/core'
-import { AUTOMATION_RESERVED_WORDS } from '@beechcms/core'
+import { AUTOMATION_RESERVED_WORDS, isPrivateHost } from '@beechcms/core'
 
 export { AUTOMATION_RESERVED_WORDS }
 
@@ -124,6 +124,18 @@ const actionFormItemSchema = z
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.urlRequired', path: ['url'] })
       } else if (!z.string().url().safeParse(data.url).success) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.urlInvalid', path: ['url'] })
+      } else {
+        try {
+          const parsed = new URL(data.url)
+          if (parsed.protocol !== 'https:') {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.webhookHttpsRequired', path: ['url'] })
+          } else if (isPrivateHost(parsed.hostname)) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.webhookPrivateHostBlocked', path: ['url'] })
+          }
+        } catch { /* unreachable: url() parse already passed */ }
+      }
+      if (!data.body_template || data.body_template.trim() === '') {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.bodyRequired', path: ['body_template'] })
       }
     }
     if (data.type === 'send_mail') {

@@ -642,7 +642,9 @@
         "fieldRequired": "Field is required",
         "seedRequired": "Seed is required",
         "variableNameInvalid": "Variable name must be alphanumeric with underscores",
-        "variableNameReserved": "This name is reserved by the template engine"
+        "variableNameReserved": "This name is reserved by the template engine",
+        "webhookHttpsRequired": "Only HTTPS URLs are allowed",
+        "webhookPrivateHostBlocked": "Private, loopback, and link-local hosts are not allowed"
       }
     },
     "triggers": {
@@ -670,6 +672,8 @@
       "webhookMethod": "HTTP Method",
       "webhookHeaders": "Headers",
       "webhookBody": "Body template",
+      "webhookBodyHint": "Define the exact JSON payload sent to the endpoint.",
+      "webhookSecretHint": "Beech signs each request with HMAC-SHA256 in the X-BeechCMS-Signature header. Set WEBHOOK_SECRET in the worker to enable signing. Verify the signature on the receiver before processing the payload.",
       "addHeader": "Add header",
       "webhookHeaderKeyPlaceholder": "Header",
       "webhookHeaderValuePlaceholder": "Value",
