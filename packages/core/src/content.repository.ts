@@ -34,6 +34,26 @@ export class SlugConflictError extends RepositoryError {
 }
 
 /**
+ * Thrown by publishDraft when a non-null relation value points to a missing
+ * target row. Mapped to 422 Unprocessable Entity by the API problem-mapper.
+ */
+export class RelationTargetNotFoundError extends RepositoryError {
+  readonly alias: string
+  readonly targetSeed: string
+  readonly value: string
+
+  constructor(params: { alias: string; targetSeed: string; value: string }) {
+    super(
+      `Relation target not found: field '${params.alias}' references '${params.targetSeed}' id='${params.value}' which does not exist`,
+    )
+    this.name = 'RelationTargetNotFoundError'
+    this.alias = params.alias
+    this.targetSeed = params.targetSeed
+    this.value = params.value
+  }
+}
+
+/**
  * Interface defining the standard operations for content persistence.
  * This is platform-agnostic and should be implemented for specific databases (e.g., D1).
  */

@@ -8,6 +8,7 @@ import {
   EntryNotFoundError,
   RepositoryError,
   SlugConflictError,
+  RelationTargetNotFoundError,
   Seed,
   SelectOptions,
   buildSelectQuery,
@@ -341,10 +342,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       const draftRow = await this.database
         .prepare(`SELECT * FROM ${draftTableName} WHERE entry_id = ?`)
         .bind(entryId)
-        .first()
+        .first<Record<string, unknown>>()
 
       if (!draftRow) {
         throw new EntryNotFoundError(`No draft found for ${entryId} in ${seed.slug}`)
+      }
+
+      // Pre-validate relation branches before the atomic promote.
+      // The drafts mirror table has no FK on branch columns (only on entry_id),
+      // so a draft can reference a target that has since been deleted.
+      // This check runs O(R) queries (R = relation branches) only on publish — never on save.
+      const relationBranches = seed.branches.filter(b => b.type === 'relation')
+      for (const branch of relationBranches) {
+        const value = draftRow[branch.alias]
+        if (value == null) continue
+        const exists = await this.database
+          .prepare(`SELECT 1 FROM content_${branch.targetSeed} WHERE id = ? LIMIT 1`)
+          .bind(value)
+          .first()
+        if (!exists) {
+          throw new RelationTargetNotFoundError({
+            alias: branch.alias,
+            targetSeed: branch.targetSeed!,
+            value: String(value),
+          })
+        }
       }
 
       // Build UPDATE clause for the live table using data from the draft
@@ -370,6 +392,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       ])
     } catch (error) {
       if (error instanceof EntryNotFoundError) throw error
+      if (error instanceof RelationTargetNotFoundError) throw error
       throw this.mapError(error, `publishDraft(${seed.slug}, ${entryId})`)
     }
   }

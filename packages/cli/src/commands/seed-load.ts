@@ -9,6 +9,7 @@ import {
   generateIndexes,
   generateFtsTable,
   generateFtsTriggers,
+  sortSeedsByDependencies,
   type Seed,
 } from '@beechcms/core'
 import { executeD1File, findWranglerConfig, resolveDbName, type WranglerOptions } from '../lib/wrangler.js'
@@ -38,7 +39,7 @@ function buildStatements(seed: Seed): string[] {
 }
 
 async function runDiff(options: WranglerOptions, registry: Record<string, Seed>): Promise<void> {
-  const seeds = Object.values(registry)
+  const seeds = sortSeedsByDependencies(Object.values(registry))
   console.log(pc.cyan('\n  Diffing schema…\n'))
 
   let allOk = true
@@ -67,6 +68,12 @@ async function runDiff(options: WranglerOptions, registry: Record<string, Seed>)
         console.log(pc.dim(`    ~ orphaned column: "${col.name}" (${col.actualType}) — exists in DB but not in seeds.ts`))
       } else if (col.status === 'type_mismatch') {
         console.log(pc.red(`    ≠ type mismatch:  ${col.name} (expected ${col.expectedType}, got ${col.actualType})`))
+      } else if (col.status === 'fk_missing') {
+        console.log(pc.red(`    ⤬ missing FK: ${col.name} → content_${col.expectedTarget}(id)`))
+      } else if (col.status === 'fk_mismatch') {
+        console.log(pc.yellow(`    ⤬ FK mismatch: ${col.name} expected ${col.expected}, got ${col.actual}`))
+      } else if (col.status === 'index_missing') {
+        console.log(pc.yellow(`    ⊘ missing index on ${col.name}`))
       }
     }
   }
@@ -80,7 +87,7 @@ async function runDiff(options: WranglerOptions, registry: Record<string, Seed>)
 }
 
 async function runLoad(options: WranglerOptions, dryRun: boolean, registry: Record<string, Seed>): Promise<void> {
-  const seeds = Object.values(registry)
+  const seeds = sortSeedsByDependencies(Object.values(registry))
 
   if (dryRun) {
     console.log(pc.cyan('\n  -- dry-run: SQL that would be executed\n'))
@@ -134,8 +141,25 @@ export async function seedLoad(args: SeedLoadOptions): Promise<void> {
   }
 
   const validationErrors = validateSeeds(registry)
-  if (validationErrors.length > 0) {
-    const total = validationErrors.reduce((n, e) => n + e.messages.length, 0)
+  const fatalErrors = validationErrors.filter(e => e.fatal)
+  const warnings = validationErrors.filter(e => !e.fatal)
+
+  if (fatalErrors.length > 0) {
+    const total = fatalErrors.reduce((n, e) => n + e.messages.length, 0)
+    const s = total !== 1 ? 's' : ''
+    console.log(pc.red(`\n  ✗ Seed validation found ${total} fatal error${s}. Cannot load schema.\n`))
+    for (const e of fatalErrors) {
+      console.log(pc.red(`  ✗ ${e.slug}`))
+      for (const msg of e.messages) {
+        console.log(pc.red(`      → ${msg}`))
+      }
+    }
+    console.log('')
+    process.exit(1)
+  }
+
+  if (warnings.length > 0) {
+    const total = warnings.reduce((n, e) => n + e.messages.length, 0)
     const s = total !== 1 ? 's' : ''
     console.log(pc.yellow(`\n  ⚠ Seed validation found ${total} issue${s}. Schema changes will still be applied.\n`))
     console.log(pc.dim('  Run "npx beech validate" for details.\n'))

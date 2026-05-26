@@ -4,9 +4,10 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Context, Hono } from 'hono'
-import { 
-  validateAndSanitizeSeedPayload, 
-  resolvePolicies 
+import {
+  validateAndSanitizeSeedPayload,
+  resolvePolicies,
+  RelationTargetNotFoundError,
 } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
 import { cleanStr } from '../../shared/query-utils'
@@ -77,10 +78,11 @@ draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
   }
 
   const validation = validateAndSanitizeSeedPayload(seed, body, {
-    operation: 'update', 
-    allowNull: true, 
-    requireAtLeastOneValidField: true, 
+    operation: 'update',
+    allowNull: true,
+    requireAtLeastOneValidField: true,
     enforceRequiredFields: false,
+    idGenerator: context.get('idGenerator'),
   })
   
   if (validation.dangerousFields.length > 0) {
@@ -150,7 +152,19 @@ draftApp.post('/:slug/:id/draft/publish', draftGuard, async (context) => {
     })
   }
 
-  await repository.publishDraft(seed, id)
+  try {
+    await repository.publishDraft(seed, id)
+  } catch (err) {
+    if (err instanceof RelationTargetNotFoundError) {
+      return publicProblem(context, {
+        type: 'relation-target-not-found',
+        title: 'Relation Target Not Found',
+        status: 422,
+        detail: `Field '${err.alias}' references '${err.targetSeed}' id='${err.value}' which does not exist`,
+      })
+    }
+    throw err
+  }
 
   const displayValue = draft[seed.displayNameAlias]
   const displayStr = typeof displayValue === 'string' ? displayValue : id
