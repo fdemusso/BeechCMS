@@ -9,6 +9,9 @@ import {
   generateIndexes,
   generateFtsTable,
   generateFtsTriggers,
+  generateJunctionTable,
+  generateJunctionIndexes,
+  generateJunctionDraftTable,
   sortSeedsByDependencies,
   type Seed,
 } from '@beechcms/core'
@@ -33,6 +36,15 @@ function buildStatements(seed: Seed): string[] {
   const fts = generateFtsTable(seed)
   if (fts) {
     stmts.push(fts, ...generateFtsTriggers(seed))
+  }
+
+  // Many-to-many: junction table + indexes after parent table exists (topological order
+  // from sortSeedsByDependencies guarantees the target table also exists at this point).
+  for (const branch of seed.branches) {
+    if (branch.type !== 'relation' || branch.multiple !== true) continue
+    stmts.push(generateJunctionTable(seed, branch), ...generateJunctionIndexes(seed, branch))
+    const draftJunction = generateJunctionDraftTable(seed, branch)
+    if (draftJunction) stmts.push(draftJunction)
   }
 
   return stmts

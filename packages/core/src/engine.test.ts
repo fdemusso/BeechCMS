@@ -2,17 +2,21 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { 
-  generateCreateTable, 
-  generateDraftTable, 
-  generateIndexes, 
+import {
+  generateCreateTable,
+  generateDraftTable,
+  generateIndexes,
   generateAddColumn,
   generateFtsTable,
   generateFtsTriggers,
   getExpectedColumns,
   buildSelectQuery,
   serializeForDb,
-  deserializeFromDb
+  deserializeFromDb,
+  junctionTableName,
+  generateJunctionTable,
+  generateJunctionIndexes,
+  generateJunctionDraftTable,
 } from './engine.js'
 import type { Seed, Branch } from './types.js'
 
@@ -371,6 +375,97 @@ describe('Botanical Engine', () => {
       // Remove the system-level entry_id REFERENCES line, then check no branch-level FK exists
       const withoutSystemFk = sql!.replace(/REFERENCES content_articles\(id\) ON DELETE CASCADE/, '')
       expect(withoutSystemFk).not.toContain('REFERENCES')
+    })
+  })
+
+  // ─── many-to-many / junction tables ──────────────────────────────────────────
+
+  describe('many-to-many (Sprint 5)', () => {
+    const multiRelSeed: Seed = {
+      slug: 'articles',
+      label: 'Articles',
+      allowDrafts: true,
+      displayNameAlias: 'title',
+      branches: [
+        { alias: 'title', type: 'text', label: 'Title', requiredOnCreate: true },
+        { alias: 'tags', type: 'relation', label: 'Tags', targetSeed: 'tag', multiple: true, onDelete: 'CASCADE' },
+      ],
+    }
+
+    it('junctionTableName returns rel_<seed>_<alias>', () => {
+      expect(junctionTableName('articles', 'tags')).toBe('rel_articles_tags')
+    })
+
+    it('generateJunctionTable produces correct DDL with CASCADE target', () => {
+      const sql = generateJunctionTable(multiRelSeed, multiRelSeed.branches[1])
+      expect(sql).toContain('CREATE TABLE IF NOT EXISTS rel_articles_tags')
+      expect(sql).toContain('parent_id  TEXT NOT NULL REFERENCES content_articles(id)    ON DELETE CASCADE')
+      expect(sql).toContain('target_id  TEXT NOT NULL REFERENCES content_tag(id) ON DELETE CASCADE')
+      expect(sql).toContain('position   INTEGER NOT NULL DEFAULT 0')
+      expect(sql).toContain('PRIMARY KEY (parent_id, target_id)')
+    })
+
+    it('generateJunctionTable defaults onDelete to CASCADE when not specified', () => {
+      const seed: Seed = {
+        ...multiRelSeed,
+        branches: [{ alias: 'co_authors', type: 'relation', label: 'Co-authors', targetSeed: 'team', multiple: true }],
+      }
+      const sql = generateJunctionTable(seed, seed.branches[0])
+      expect(sql).toContain('ON DELETE CASCADE')
+    })
+
+    it('generateJunctionTable throws for non-multi-relation branch', () => {
+      expect(() => generateJunctionTable(multiRelSeed, multiRelSeed.branches[0])).toThrow(/not a multi-relation/)
+    })
+
+    it('generateJunctionTable throws when targetSeed is missing', () => {
+      const branch: Branch = { alias: 'tags', type: 'relation', label: 'Tags', multiple: true }
+      expect(() => generateJunctionTable(multiRelSeed, branch)).toThrow(/targetSeed/)
+    })
+
+    it('generateJunctionIndexes emits parent + target indexes', () => {
+      const indexes = generateJunctionIndexes(multiRelSeed, multiRelSeed.branches[1])
+      expect(indexes).toHaveLength(2)
+      expect(indexes[0]).toContain('idx_rel_articles_tags_parent ON rel_articles_tags(parent_id)')
+      expect(indexes[1]).toContain('idx_rel_articles_tags_target ON rel_articles_tags(target_id)')
+    })
+
+    it('generateCreateTable does NOT include a column for multi-relation branches', () => {
+      const sql = generateCreateTable(multiRelSeed)
+      expect(sql).not.toContain('tags  TEXT')
+    })
+
+    it('generateDraftTable does NOT include a column for multi-relation branches', () => {
+      const sql = generateDraftTable(multiRelSeed)
+      expect(sql).not.toBeNull()
+      expect(sql).not.toContain('tags  TEXT')
+    })
+
+    it('generateIndexes does NOT emit an index for multi-relation branches', () => {
+      const indexes = generateIndexes(multiRelSeed)
+      expect(indexes.some(i => i.includes('idx_articles_tags'))).toBe(false)
+    })
+
+    it('getExpectedColumns excludes multi-relation branches', () => {
+      const cols = getExpectedColumns(multiRelSeed)
+      expect(cols.find(c => c.name === 'tags')).toBeUndefined()
+      expect(cols.find(c => c.name === 'title')).toBeDefined()
+    })
+
+    it('generateJunctionDraftTable emits correct DDL without FK on target_id', () => {
+      const sql = generateJunctionDraftTable(multiRelSeed, multiRelSeed.branches[1])
+      expect(sql).not.toBeNull()
+      expect(sql).toContain('CREATE TABLE IF NOT EXISTS rel_articles_tags_drafts')
+      expect(sql).toContain('REFERENCES content_articles_drafts(entry_id) ON DELETE CASCADE')
+      expect(sql).toContain('target_id  TEXT NOT NULL')
+      // Must NOT have a FK on target_id — target may be deleted before publish
+      const withoutEntryFk = sql!.replace(/REFERENCES content_articles_drafts\(entry_id\) ON DELETE CASCADE/, '')
+      expect(withoutEntryFk).not.toContain('REFERENCES')
+    })
+
+    it('generateJunctionDraftTable returns null when allowDrafts is false', () => {
+      const seed: Seed = { ...multiRelSeed, allowDrafts: false }
+      expect(generateJunctionDraftTable(seed, seed.branches[1])).toBeNull()
     })
   })
 })

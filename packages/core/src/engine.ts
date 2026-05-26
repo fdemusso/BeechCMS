@@ -101,21 +101,18 @@ function normalizeAssetListValue(rawValue: unknown): string[] {
 const DEFAULT_ON_DELETE_RULE: NonNullable<Branch['onDelete']> = 'SET NULL'
 
 /**
- * Returns the trailing FK fragment for a relation branch, or '' if the branch
- * is not a relation. Throws when a relation branch is missing `targetSeed`,
- * because that is a programmer error that must surface immediately at DDL time
- * rather than producing silently invalid SQL.
+ * Returns the trailing FK fragment for a single-value relation branch, or ''
+ * if the branch is not a relation. Throws when a single-value relation branch
+ * is missing `targetSeed` — that is a programmer error that must surface at
+ * DDL time rather than producing silently invalid SQL.
  *
- * Also throws when `multiple: true` on a relation branch — many-to-many is not
- * yet supported (see Sprint 5).
+ * Multi-relation branches (multiple: true) produce NO column on the parent
+ * table; they live in a dedicated junction table. Returns '' for them.
  */
 function buildForeignKeyClause(branch: Branch): string {
   if (branch.type !== 'relation') return ''
-  if (branch.multiple === true) {
-    throw new Error(
-      `Branch "${branch.alias}": multiple relations not yet supported — see Sprint 5`,
-    )
-  }
+  // Many-to-many branches: no column on parent table — see generateJunctionTable()
+  if (branch.multiple === true) return ''
   if (!branch.targetSeed) {
     throw new Error(
       `Branch "${branch.alias}" is of type 'relation' but has no targetSeed`,
@@ -141,6 +138,9 @@ export function generateCreateTable(seed: Seed): string {
   ]
 
   for (const branch of seed.branches) {
+    // Many-to-many relation branches produce no column on the parent table;
+    // they are represented by a dedicated junction table. See generateJunctionTable().
+    if (branch.type === 'relation' && branch.multiple === true) continue
     const { sqlType } = BRANCH_TYPE_SQL[branch.type]
     let col = `  ${branch.alias}  ${sqlType}`
     if (branch.requiredOnCreate) col += ' NOT NULL'
@@ -173,6 +173,8 @@ export function generateDraftTable(seed: Seed): string | null {
   ]
 
   for (const branch of seed.branches) {
+    // Many-to-many relation branches mirror in their own junction drafts table.
+    if (branch.type === 'relation' && branch.multiple === true) continue
     const { sqlType } = BRANCH_TYPE_SQL[branch.type]
     let col = `  ${branch.alias}  ${sqlType}`
     // boolean CHECK: in SQLite, NULL IN (0,1) → NULL, which passes the CHECK (only FALSE fails it)
@@ -208,6 +210,9 @@ export function generateIndexes(seed: Seed): string[] {
   ]
 
   for (const branch of seed.branches) {
+    // Multi-relation branches have no column on the parent table; their indexes
+    // live on the junction table. See generateJunctionIndexes().
+    if (branch.type === 'relation' && branch.multiple === true) continue
     const isRelation = branch.type === 'relation'
     // Relation indexes are a system concern (JOIN performance) — bypass editorial filter policy
     if (!isRelation && branch.policies?.filter === false) continue
@@ -486,12 +491,15 @@ export function getExpectedColumns(seed: Seed): SchemaColumn[] {
     { name: 'id',         sqlType: 'TEXT',    notNull: true,  isPk: true  },
     { name: 'slug',       sqlType: 'TEXT',    notNull: true,  isPk: false },
     { name: 'status',     sqlType: 'TEXT',    notNull: true,  isPk: false },
-    ...seed.branches.map(b => ({
-      name:    b.alias,
-      sqlType: BRANCH_TYPE_SQL[b.type].sqlType,
-      notNull: b.requiredOnCreate ?? false,
-      isPk:    false,
-    })),
+    // Multi-relation branches produce no column on the parent table.
+    ...seed.branches
+      .filter(b => !(b.type === 'relation' && b.multiple === true))
+      .map(b => ({
+        name:    b.alias,
+        sqlType: BRANCH_TYPE_SQL[b.type].sqlType,
+        notNull: b.requiredOnCreate ?? false,
+        isPk:    false,
+      })),
     { name: 'created_at', sqlType: 'INTEGER', notNull: true,  isPk: false },
     { name: 'updated_at', sqlType: 'INTEGER', notNull: true,  isPk: false },
   ]
@@ -539,6 +547,78 @@ export function serializeForDb(branch: Branch, value: unknown): string | number 
     default:
       return typeof value === 'string' ? value : typeof value === 'number' ? value : null
   }
+}
+
+// ---- Junction table DDL (many-to-many relations, Sprint 5) ----
+
+/**
+ * Returns the junction table name for a many-to-many relation branch.
+ * Format: `rel_<seedSlug>_<branchAlias>`.
+ */
+export function junctionTableName(seedSlug: string, branchAlias: string): string {
+  return `rel_${seedSlug}_${branchAlias}`
+}
+
+/**
+ * Generates `CREATE TABLE IF NOT EXISTS rel_<seed>_<alias>` for a multi-relation
+ * branch. The parent FK always cascades (parent lifecycle owns the edge);
+ * the target FK uses `branch.onDelete` (default CASCADE).
+ *
+ * @throws {Error} when called on a non-multi-relation branch
+ * @throws {Error} when `branch.targetSeed` is missing
+ */
+export function generateJunctionTable(seed: Seed, branch: Branch): string {
+  if (branch.type !== 'relation' || branch.multiple !== true) {
+    throw new Error(`Branch "${branch.alias}" is not a multi-relation`)
+  }
+  if (!branch.targetSeed) {
+    throw new Error(`Branch "${branch.alias}" has no targetSeed`)
+  }
+  const onDeleteRule = branch.onDelete ?? 'CASCADE'
+  const table = junctionTableName(seed.slug, branch.alias)
+  return [
+    `CREATE TABLE IF NOT EXISTS ${table} (`,
+    `  parent_id  TEXT NOT NULL REFERENCES content_${seed.slug}(id)    ON DELETE CASCADE,`,
+    `  target_id  TEXT NOT NULL REFERENCES content_${branch.targetSeed}(id) ON DELETE ${onDeleteRule},`,
+    `  position   INTEGER NOT NULL DEFAULT 0,`,
+    `  created_at INTEGER NOT NULL DEFAULT (unixepoch()),`,
+    `  PRIMARY KEY (parent_id, target_id)`,
+    `);`,
+  ].join('\n')
+}
+
+/**
+ * Generates the two B-tree indexes for a junction table:
+ * one on `parent_id` (list entries by parent) and one on `target_id`
+ * (cascade checks from target side).
+ */
+export function generateJunctionIndexes(seed: Seed, branch: Branch): string[] {
+  const table = junctionTableName(seed.slug, branch.alias)
+  return [
+    `CREATE INDEX IF NOT EXISTS idx_${table}_parent ON ${table}(parent_id);`,
+    `CREATE INDEX IF NOT EXISTS idx_${table}_target ON ${table}(target_id);`,
+  ]
+}
+
+/**
+ * Generates the drafts junction table `rel_<seed>_<alias>_drafts` for a
+ * many-to-many relation branch. Note: no FK on `target_id` — targets may be
+ * deleted between draft save and publish; the FK would be wrong here.
+ * Returns null when `seed.allowDrafts` is falsy.
+ */
+export function generateJunctionDraftTable(seed: Seed, branch: Branch): string | null {
+  if (!seed.allowDrafts) return null
+  if (branch.type !== 'relation' || branch.multiple !== true) return null
+  const table = `${junctionTableName(seed.slug, branch.alias)}_drafts`
+  const mainDraftTable = `content_${seed.slug}_drafts`
+  return [
+    `CREATE TABLE IF NOT EXISTS ${table} (`,
+    `  entry_id   TEXT NOT NULL REFERENCES ${mainDraftTable}(entry_id) ON DELETE CASCADE,`,
+    `  target_id  TEXT NOT NULL,`,
+    `  position   INTEGER NOT NULL DEFAULT 0,`,
+    `  PRIMARY KEY (entry_id, target_id)`,
+    `);`,
+  ].join('\n')
 }
 
 /**

@@ -370,7 +370,7 @@ function jsonOrTagsSchema(allowNull: boolean): z.ZodTypeAny {
   return withNullable(withEmptyPreprocessing(base, allowNull), allowNull)
 }
 
-function relationSchema(options: ResolvedOptions): z.ZodTypeAny {
+function relationSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny {
   const gen = options.idGenerator
   if (!gen) {
     throw new Error(
@@ -378,11 +378,19 @@ function relationSchema(options: ResolvedOptions): z.ZodTypeAny {
       'Pass `idGenerator` (e.g. SystemIdGenerator) in the options object.',
     )
   }
-  const inner = z.string().refine(
+  const idSchema = z.string().refine(
     (value) => gen.isValid(value),
     { message: 'Invalid relation id format' },
   )
-  return withNullable(inner, options.allowNull)
+  // Many-to-many: expect string[] with no duplicates
+  if (branch.multiple === true) {
+    const arraySchema = z.array(idSchema).refine(
+      (arr) => new Set(arr).size === arr.length,
+      { message: 'Duplicate ids in multi-relation array' },
+    )
+    return options.allowNull ? z.union([arraySchema, z.null()]) : arraySchema
+  }
+  return withNullable(idSchema, options.allowNull)
 }
 
 function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
@@ -437,7 +445,7 @@ const BRANCH_SCHEMA_BUILDERS: Record<string, (branch: Branch, options: ResolvedO
   json: (_branch, options) => jsonOrTagsSchema(options.allowNull),
   tags: (_branch, options) => jsonOrTagsSchema(options.allowNull),
   file: (branch, options) => fileSchema(branch, options.allowNull),
-  relation: (_branch, options) => relationSchema(options),
+  relation: (branch, options) => relationSchema(branch, options),
 }
 
 function schemaForBranch(branch: Branch, options: ResolvedOptions): z.ZodTypeAny {

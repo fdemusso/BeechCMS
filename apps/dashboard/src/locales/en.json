@@ -329,6 +329,13 @@
         "clear": "Clear selection",
         "empty": "No results",
         "loading": "Loading…"
+      },
+      "relationMulti": {
+        "add": "Add…",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "remove": "Remove",
+        "selectedItems": "Selected items"
       }
     },
     "deleteDialog": {

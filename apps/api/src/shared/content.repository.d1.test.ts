@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { D1ContentRepository } from './content.repository.d1'
-import { EntryNotFoundError, SlugConflictError } from '@beechcms/core'
+import { EntryNotFoundError, SlugConflictError, RelationTargetNotFoundError } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 
 const SEED = {
@@ -22,6 +22,17 @@ const NO_DRAFT_SEED = {
   displayNameAlias: 'name',
   allowDrafts: false,
   branches: [{ id: 'br_01', alias: 'name', type: 'text' }],
+} as unknown as Seed
+
+// Seed with a multi-relation branch
+const M2M_SEED = {
+  slug: 'articles',
+  displayNameAlias: 'title',
+  allowDrafts: true,
+  branches: [
+    { alias: 'title', type: 'text' },
+    { alias: 'tags', type: 'relation', multiple: true, targetSeed: 'tag' },
+  ],
 } as unknown as Seed
 
 function makeMockDb(opts: {
@@ -311,6 +322,137 @@ describe('D1ContentRepository', () => {
       const { db, prepareMock } = makeMockDb()
       await new D1ContentRepository(db).deleteDraft(SEED, 'e1')
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('content_posts_drafts'))
+    })
+  })
+
+  // ─── many-to-many (Sprint 5) ──────────────────────────────────────────────────
+
+  describe('many-to-many relations', () => {
+    it('create: multi-relation values go to junction table, not main INSERT', async () => {
+      const { db, prepareMock, batchMock } = makeMockDb({ firstResult: null })
+      batchMock.mockResolvedValue([{ success: true, meta: { changes: 1 } }])
+
+      await new D1ContentRepository(db).create(
+        M2M_SEED, 'e1', 'art-1', 'draft',
+        { title: 'Hello', tags: ['tag-1', 'tag-2'] },
+      )
+
+      const sqls = prepareMock.mock.calls.map((c: any[]) => c[0] as string)
+      // Main INSERT must not contain 'tags'
+      const insertSql = sqls.find(s => s.includes('INSERT INTO content_articles '))
+      expect(insertSql).toBeDefined()
+      expect(insertSql).not.toContain('tags')
+      // Junction INSERTs must exist
+      const junctionInserts = sqls.filter(s => s.includes('rel_articles_tags'))
+      expect(junctionInserts.length).toBeGreaterThan(0)
+    })
+
+    it('create: uses batch when multi-relation values present', async () => {
+      const { db, batchMock } = makeMockDb({ firstResult: null })
+      batchMock.mockResolvedValue([{ success: true }])
+
+      await new D1ContentRepository(db).create(
+        M2M_SEED, 'e1', 'art-1', 'draft',
+        { title: 'Hello', tags: ['tag-1'] },
+      )
+
+      expect(batchMock).toHaveBeenCalled()
+    })
+
+    it('update: replaces junction rows (DELETE + INSERT) in batch', async () => {
+      const { db, prepareMock, batchMock } = makeMockDb({ runChanges: 1 })
+      batchMock.mockResolvedValue([
+        { meta: { changes: 1 } },
+        { success: true },
+        { success: true },
+      ])
+
+      await new D1ContentRepository(db).update(
+        M2M_SEED, 'e1',
+        { tags: ['tag-3', 'tag-4'] },
+      )
+
+      const sqls = prepareMock.mock.calls.map((c: any[]) => c[0] as string)
+      expect(sqls.some(s => s.includes('DELETE FROM rel_articles_tags WHERE parent_id'))).toBe(true)
+      expect(sqls.some(s => s.includes('INSERT INTO rel_articles_tags'))).toBe(true)
+    })
+
+    it('update: empty array deletes all junction rows', async () => {
+      const { db, prepareMock, batchMock } = makeMockDb({ runChanges: 1 })
+      batchMock.mockResolvedValue([{ meta: { changes: 1 } }, { success: true }])
+
+      await new D1ContentRepository(db).update(M2M_SEED, 'e1', { tags: [] })
+
+      const sqls = prepareMock.mock.calls.map((c: any[]) => c[0] as string)
+      expect(sqls.some(s => s.includes('DELETE FROM rel_articles_tags WHERE parent_id'))).toBe(true)
+      // No INSERT because array is empty
+      expect(sqls.filter(s => s.includes('INSERT INTO rel_articles_tags'))).toHaveLength(0)
+    })
+
+    it('findById: attaches multi-relation ids from junction table', async () => {
+      const row = { id: 'e1', slug: 'art-1', status: 'published', title: 'Hello', created_at: 0, updated_at: 0 }
+      const { db, firstMock, batchMock } = makeMockDb({ firstResult: row })
+      // First call: main SELECT; batch: junction query
+      batchMock.mockResolvedValueOnce([{ results: [{ target_id: 'tag-1' }, { target_id: 'tag-2' }] }])
+
+      const result = await new D1ContentRepository(db).findById(M2M_SEED, 'e1')
+      expect(result.tags).toEqual(['tag-1', 'tag-2'])
+    })
+
+    it('findById: attaches empty array when no junction rows', async () => {
+      const row = { id: 'e1', slug: 'art-1', status: 'published', title: 'Hello', created_at: 0, updated_at: 0 }
+      const { db, batchMock } = makeMockDb({ firstResult: row })
+      batchMock.mockResolvedValueOnce([{ results: [] }])
+
+      const result = await new D1ContentRepository(db).findById(M2M_SEED, 'e1')
+      expect(result.tags).toEqual([])
+    })
+
+    it('findMany: attaches multi-relation ids per entry', async () => {
+      const rows = [
+        { id: 'e1', slug: 'art-1', status: 'published', title: 'A', created_at: 0, updated_at: 0 },
+        { id: 'e2', slug: 'art-2', status: 'published', title: 'B', created_at: 0, updated_at: 0 },
+      ]
+      const { db, batchMock } = makeMockDb()
+      // First batch: main select + count; second batch: junction query
+      batchMock
+        .mockResolvedValueOnce([{ results: rows }, { results: [{ total: 2 }] }])
+        .mockResolvedValueOnce([{
+          results: [
+            { parent_id: 'e1', target_id: 'tag-1' },
+            { parent_id: 'e1', target_id: 'tag-2' },
+            { parent_id: 'e2', target_id: 'tag-3' },
+          ],
+        }])
+
+      const result = await new D1ContentRepository(db).findMany(M2M_SEED, {})
+      expect(result.items[0].tags).toEqual(['tag-1', 'tag-2'])
+      expect(result.items[1].tags).toEqual(['tag-3'])
+    })
+
+    it('saveDraft: multi-relation values go to junction draft table', async () => {
+      const { db, prepareMock, batchMock } = makeMockDb()
+      batchMock.mockResolvedValue([{ success: true }])
+
+      await new D1ContentRepository(db).saveDraft(M2M_SEED, 'e1', { tags: ['tag-1', 'tag-2'] })
+
+      const sqls = prepareMock.mock.calls.map((c: any[]) => c[0] as string)
+      expect(sqls.some(s => s.includes('rel_articles_tags_drafts'))).toBe(true)
+      expect(batchMock).toHaveBeenCalled()
+    })
+
+    it('publishDraft: throws RelationTargetNotFoundError when draft multi-rel target missing', async () => {
+      const draftRow = { entry_id: 'e1', title: 'Hello' }
+      const { db, firstMock, allMock, batchMock } = makeMockDb()
+      firstMock
+        .mockResolvedValueOnce(draftRow)  // getDraft row
+        .mockResolvedValueOnce(null)       // target existence check → not found
+      allMock.mockResolvedValueOnce({ results: [{ target_id: 'missing-tag' }] })
+      batchMock.mockResolvedValue([{}])
+
+      await expect(
+        new D1ContentRepository(db).publishDraft(M2M_SEED, 'e1'),
+      ).rejects.toBeInstanceOf(RelationTargetNotFoundError)
     })
   })
 })

@@ -36,7 +36,47 @@ export function validateSeeds(registry: Record<string, Seed>): SeedValidationErr
     }
   }
 
-  // ── Fatal check 2: dependency cycles ────────────────────────────────────
+  // ── Fatal check 2: multi-relation with SET NULL ──────────────────────────
+  for (const seed of Object.values(registry)) {
+    const messages: string[] = []
+    for (const branch of seed.branches) {
+      if (branch.type === 'relation' && branch.multiple === true) {
+        if (branch.onDelete === 'SET NULL') {
+          messages.push(
+            `Branch '${branch.alias}': multi-relations cannot use ON DELETE SET NULL. ` +
+            `Use 'CASCADE' or 'RESTRICT'.`,
+          )
+        }
+      }
+    }
+    if (messages.length > 0) {
+      result.push({ slug: seed.slug, messages, fatal: true })
+    }
+  }
+
+  // ── Fatal check 3: junction table name collisions ────────────────────────
+  {
+    const junctionNames = new Set<string>()
+    for (const seed of Object.values(registry)) {
+      const messages: string[] = []
+      for (const branch of seed.branches) {
+        if (branch.type !== 'relation' || branch.multiple !== true) continue
+        const name = `rel_${seed.slug}_${branch.alias}`
+        if (name.length > 256) {
+          messages.push(`Junction table name '${name}' exceeds 256 characters (${name.length})`)
+        }
+        if (junctionNames.has(name)) {
+          messages.push(`Junction table name collision: '${name}' already used by another seed/branch`)
+        }
+        junctionNames.add(name)
+      }
+      if (messages.length > 0) {
+        result.push({ slug: seed.slug, messages, fatal: true })
+      }
+    }
+  }
+
+  // ── Fatal check 4: dependency cycles ────────────────────────────────────
   // Skip if unknown targets were found — sortSeedsByDependencies would throw
   // on the same unknown targets, producing duplicate fatal messages.
   const hasUnknownTargets = result.some(e => e.fatal)

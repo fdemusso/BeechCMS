@@ -60,6 +60,15 @@ const relationBranch: Branch = {
   targetSeed: "team",
 } as unknown as Branch
 
+const multiRelationBranch: Branch = {
+  id: "br_02",
+  alias: "tags",
+  label: "Tags",
+  type: "relation",
+  targetSeed: "team",
+  multiple: true,
+} as unknown as Branch
+
 const teamSeed = {
   slug: "team",
   label: "Team",
@@ -305,5 +314,165 @@ describe("RelationEdit", () => {
     )
 
     expect(screen.queryByLabelText("Clear selection")).not.toBeInTheDocument()
+  })
+})
+
+// ─── RelationDisplay — multi-value ────────────────────────────────────────────
+
+describe("RelationDisplay (multiple: true)", () => {
+  let queryClient: QueryClient
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    queryClient = makeQueryClient()
+    ;(useSchema as ReturnType<typeof vi.fn>).mockReturnValue({ data: [teamSeed], isLoading: false })
+  })
+
+  it("renders em-dash when value is empty array", () => {
+    render(
+      <RelationDisplay branch={multiRelationBranch} value={[]} />,
+      { wrapper: wrapper(queryClient) }
+    )
+    expect(screen.getByText("—")).toBeInTheDocument()
+  })
+
+  it("renders em-dash when value is null", () => {
+    render(
+      <RelationDisplay branch={multiRelationBranch} value={null} />,
+      { wrapper: wrapper(queryClient) }
+    )
+    expect(screen.getByText("—")).toBeInTheDocument()
+  })
+
+  it("renders a chip for each primed id", () => {
+    const entry2 = { ...authorEntry, id: "author-2", data: { name: "Grace Hopper" } }
+    queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+    queryClient.setQueryData(["content", "detail", "team", "author-2"], entry2)
+
+    render(
+      <RelationDisplay branch={multiRelationBranch} value={["author-1", "author-2"]} />,
+      { wrapper: wrapper(queryClient) }
+    )
+
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
+    expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
+  })
+
+  it("renders correct chip count", () => {
+    queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+
+    render(
+      <RelationDisplay branch={multiRelationBranch} value={["author-1"]} />,
+      { wrapper: wrapper(queryClient) }
+    )
+
+    const links = screen.getAllByRole("link")
+    expect(links).toHaveLength(1)
+    expect(links[0]).toHaveAttribute("href", "/content/team/author-1")
+  })
+})
+
+// ─── RelationEdit — multi-value ───────────────────────────────────────────────
+
+describe("RelationEdit (multiple: true)", () => {
+  let queryClient: QueryClient
+  const mockOnChange = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    queryClient = makeQueryClient()
+    ;(useSchema as ReturnType<typeof vi.fn>).mockReturnValue({ data: [teamSeed], isLoading: false })
+    ;(api.get as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: {
+        items: [authorEntry, {
+          id: "author-2",
+          schema_slug: "team",
+          slug: null,
+          status: "published",
+          data: { name: "Grace Hopper" },
+          created_at: null,
+          updated_at: null,
+        }],
+        total: 2,
+        page: 1,
+        limit: 20,
+      },
+    })
+  })
+
+  it("renders chips for selected ids from primed cache", () => {
+    queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+
+    render(
+      <RelationEdit branch={multiRelationBranch} value={["author-1"]} onChange={mockOnChange} />,
+      { wrapper: wrapper(queryClient) }
+    )
+
+    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
+  })
+
+  it("calls onChange with added id appended to existing array", async () => {
+    queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+
+    render(
+      <RelationEdit branch={multiRelationBranch} value={["author-1"]} onChange={mockOnChange} />,
+      { wrapper: wrapper(queryClient) }
+    )
+
+    const trigger = screen.getByRole("combobox")
+    fireEvent.click(trigger)
+
+    await waitFor(() => {
+      expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText("Grace Hopper"))
+    expect(mockOnChange).toHaveBeenCalledWith(["author-1", "author-2"])
+  })
+
+  it("remove button calls onChange with id removed", () => {
+    queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+
+    render(
+      <RelationEdit branch={multiRelationBranch} value={["author-1"]} onChange={mockOnChange} />,
+      { wrapper: wrapper(queryClient) }
+    )
+
+    const removeBtn = screen.getByLabelText("Remove")
+    fireEvent.click(removeBtn)
+    expect(mockOnChange).toHaveBeenCalledWith([])
+  })
+
+  it("already-selected ids are filtered from combobox list", async () => {
+    queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+
+    render(
+      <RelationEdit branch={multiRelationBranch} value={["author-1"]} onChange={mockOnChange} />,
+      { wrapper: wrapper(queryClient) }
+    )
+
+    fireEvent.click(screen.getByRole("combobox"))
+
+    await waitFor(() => {
+      // author-1 already selected — should not appear in dropdown
+      // Grace Hopper (author-2) should still be visible
+      expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
+    })
+  })
+
+  it("move-up button reorders ids", () => {
+    const entry2 = { ...authorEntry, id: "author-2", data: { name: "Grace Hopper" } }
+    queryClient.setQueryData(["content", "detail", "team", "author-1"], authorEntry)
+    queryClient.setQueryData(["content", "detail", "team", "author-2"], entry2)
+
+    render(
+      <RelationEdit branch={multiRelationBranch} value={["author-1", "author-2"]} onChange={mockOnChange} />,
+      { wrapper: wrapper(queryClient) }
+    )
+
+    const upBtns = screen.getAllByLabelText("Move up")
+    // Second chip's "Move up" button moves author-2 before author-1
+    fireEvent.click(upBtns[1])
+    expect(mockOnChange).toHaveBeenCalledWith(["author-2", "author-1"])
   })
 })
