@@ -1330,7 +1330,7 @@ jobs:
 
       - name: Create test bucket
         run: |
-          docker run --rm --network host minio/mc:latest sh -c "
+          docker run --rm --network host --entrypoint sh minio/mc:latest -c "
             until mc alias set local http://localhost:9000 beechdev beechdevsecret; do sleep 1; done;
             mc mb -p local/beech-media || true;
             mc anonymous set download local/beech-media || true;
@@ -1405,7 +1405,7 @@ runs:
     - name: Create MinIO bucket
       shell: bash
       run: |
-        docker run --rm --network host minio/mc:latest sh -c "
+        docker run --rm --network host --entrypoint sh minio/mc:latest -c "
           until mc alias set local http://localhost:9000 beechdev beechdevsecret; do sleep 1; done;
           mc mb -p local/beech-media || true;
           mc anonymous set download local/beech-media || true;
