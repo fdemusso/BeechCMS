@@ -525,9 +525,91 @@ describe('fileOptions', () => {
   })
 })
 
-// ─── 9. GARBAGE KEYS & OVERALL RESILIENCE ────────────────────────────────────
+// ─── 9. RELATION FIELD ───────────────────────────────────────────────────────
 
-describe('garbage keys and overall resilience', () => {
+const UUID_V4 = '550e8400-e29b-41d4-a716-446655440000'
+
+// Minimal generator that accepts only UUID v4 (mirrors SystemIdGenerator semantics)
+const testIdGen = {
+  uuid: () => UUID_V4,
+  isValid: (v: unknown): v is string =>
+    typeof v === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v),
+}
+
+const RELATION_SEED: Seed = {
+  slug: 'articles',
+  label: 'Article',
+  displayNameAlias: 'title',
+  branches: [
+    { alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+    { alias: 'author_id', label: 'Author', type: 'relation', targetSeed: 'team' },
+    { alias: 'editor_id', label: 'Editor', type: 'relation', targetSeed: 'team', requiredOnCreate: true },
+  ],
+}
+
+describe('relation field', () => {
+  it('accepts a valid UUID v4', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', author_id: UUID_V4, editor_id: UUID_V4 },
+      { operation: 'create', idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: true },
+    )
+    expect(r.data.author_id).toBe(UUID_V4)
+    expect(r.details.some(d => d.field === 'author_id')).toBe(false)
+  })
+
+  it('rejects empty string', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', author_id: '', editor_id: UUID_V4 },
+      { operation: 'create', idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: true },
+    )
+    expect(r.details.some(d => d.field === 'author_id')).toBe(true)
+  })
+
+  it('rejects a non-id-shaped string', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', author_id: 'hello', editor_id: UUID_V4 },
+      { operation: 'create', idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: true },
+    )
+    expect(r.details.some(d => d.field === 'author_id')).toBe(true)
+  })
+
+  it('accepts null for optional relation when allowNull is true (update context)', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', author_id: null, editor_id: UUID_V4 },
+      { operation: 'update', allowNull: true, idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: false },
+    )
+    expect(r.details.some(d => d.field === 'author_id')).toBe(false)
+    expect(r.data.author_id).toBeNull()
+  })
+
+  it('rejects null for a required relation when allowNull is false', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', author_id: UUID_V4, editor_id: null },
+      { operation: 'create', allowNull: false, idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: true },
+    )
+    expect(r.requiredFieldsMissing).toContain('editor_id')
+  })
+
+  it('throws when idGenerator is missing and seed has relation branches', () => {
+    expect(() =>
+      validateAndSanitizeSeedPayload(
+        RELATION_SEED,
+        { title: 'T', editor_id: UUID_V4 },
+        { operation: 'create' },
+      )
+    ).toThrow('IIdGenerator must be provided')
+  })
+})
+
+// ─── 10. GARBAGE KEYS & OVERALL RESILIENCE ───────────────────────────────────
+
+describe('garbage keys and overall resilience (§10)', () => {
   it('isolates unknown properties into unknownAliases without failing valid keys', () => {
     const r = safeValidate({
       ...validBase(),

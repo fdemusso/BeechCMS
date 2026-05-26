@@ -6,6 +6,7 @@ import type { Branch, Seed } from './types.js'
 import { RICHTEXT_SCHEMA_VERSION, isRichtextEnvelopeV1 } from './richtext.js'
 import type { FileAccept } from './file-types.js'
 import { extensionFromUrl, isExtensionAccepted } from './file-types.js'
+import type { IIdGenerator } from './id-generator.js'
 
 export interface ValidationDetail {
   field: string
@@ -20,6 +21,13 @@ export interface ValidateSeedPayloadOptions {
   requireAtLeastOneValidField?: boolean
   enforceRequiredFields?: boolean
   maxTextLength?: number
+  /**
+   * Required when the seed has branches of type `'relation'`.
+   * Must be the same IIdGenerator instance used for id generation so that
+   * swapping implementations (e.g. ULIDs) automatically updates validation.
+   * Do NOT pass a concrete class — inject via the middleware / factory.
+   */
+  idGenerator?: IIdGenerator
 }
 
 export interface ValidateSeedPayloadResult {
@@ -31,7 +39,14 @@ export interface ValidateSeedPayloadResult {
   hasAnyValidField: boolean
 }
 
-type ResolvedOptions = Required<ValidateSeedPayloadOptions>
+type ResolvedOptions = {
+  allowNull: boolean
+  operation: 'create' | 'update'
+  requireAtLeastOneValidField: boolean
+  enforceRequiredFields: boolean
+  maxTextLength: number
+  idGenerator: IIdGenerator | undefined
+}
 
 const DEFAULT_MAX_TEXT_LENGTH = 50_000
 const DEFAULT_FILE_MAX_SIZE = 5 * 1024 * 1024
@@ -355,6 +370,21 @@ function jsonOrTagsSchema(allowNull: boolean): z.ZodTypeAny {
   return withNullable(withEmptyPreprocessing(base, allowNull), allowNull)
 }
 
+function relationSchema(options: ResolvedOptions): z.ZodTypeAny {
+  const gen = options.idGenerator
+  if (!gen) {
+    throw new Error(
+      'IIdGenerator must be provided in ValidateSeedPayloadOptions when validating seeds with relation branches. ' +
+      'Pass `idGenerator` (e.g. SystemIdGenerator) in the options object.',
+    )
+  }
+  const inner = z.string().refine(
+    (value) => gen.isValid(value),
+    { message: 'Invalid relation id format' },
+  )
+  return withNullable(inner, options.allowNull)
+}
+
 function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
   const { accept } = resolveFileOptions(branch)
   const verifyExtension = (url: string, ctx: z.RefinementCtx): boolean => {
@@ -407,6 +437,7 @@ const BRANCH_SCHEMA_BUILDERS: Record<string, (branch: Branch, options: ResolvedO
   json: (_branch, options) => jsonOrTagsSchema(options.allowNull),
   tags: (_branch, options) => jsonOrTagsSchema(options.allowNull),
   file: (branch, options) => fileSchema(branch, options.allowNull),
+  relation: (_branch, options) => relationSchema(options),
 }
 
 function schemaForBranch(branch: Branch, options: ResolvedOptions): z.ZodTypeAny {
@@ -447,9 +478,16 @@ function buildCacheKey(seed: Seed, options: ResolvedOptions): string {
 }
 
 function compileSeedSchema(seed: Seed, options: ResolvedOptions): z.ZodObject<Record<string, z.ZodTypeAny>> {
-  const key = buildCacheKey(seed, options)
-  const cached = seedSchemaCache.get(key)
-  if (cached) return cached
+  // Seeds with relation branches cannot be safely cached because the schema
+  // captures the idGenerator by closure, and different generators (e.g.
+  // SystemIdGenerator vs SequentialIdGenerator) have different isValid() semantics.
+  const hasRelation = seed.branches.some((b) => b.type === 'relation')
+
+  if (!hasRelation) {
+    const key = buildCacheKey(seed, options)
+    const cached = seedSchemaCache.get(key)
+    if (cached) return cached
+  }
 
   const requiredFlag = options.operation === 'create' ? 'requiredOnCreate' : 'requiredOnUpdate'
   const shape: Record<string, z.ZodTypeAny> = {}
@@ -458,7 +496,12 @@ function compileSeedSchema(seed: Seed, options: ResolvedOptions): z.ZodObject<Re
     shape[branch.alias] = branch[requiredFlag] ? branchSchema : branchSchema.optional()
   }
   const compiled = z.object(shape).strict()
-  seedSchemaCache.set(key, compiled)
+
+  if (!hasRelation) {
+    const key = buildCacheKey(seed, options)
+    seedSchemaCache.set(key, compiled)
+  }
+
   return compiled
 }
 
@@ -626,6 +669,7 @@ export function validateAndSanitizeSeedPayload(
     requireAtLeastOneValidField: options.requireAtLeastOneValidField ?? true,
     enforceRequiredFields: options.enforceRequiredFields ?? true,
     maxTextLength: options.maxTextLength ?? DEFAULT_MAX_TEXT_LENGTH,
+    idGenerator: options.idGenerator,
   }
 
   const { filtered, unknown: preUnknown, details: preDetails } = splitUnknownAliases(seed, payload)

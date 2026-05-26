@@ -6,7 +6,7 @@ import { Context } from 'hono'
 import { EntryNotFoundError } from '@beechcms/core'
 import { deleteR2Objects } from '../../../upload'
 import { extractMediaKeysFromData } from '../../../media-utils'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem, fkProblemOrNull } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 
@@ -73,19 +73,21 @@ export async function deleteHandler(context: Context<AppEnv>) {
     return context.json({ success: true })
   } catch (error) {
     if (error instanceof EntryNotFoundError) {
-      return publicProblem(context, { 
-        type: 'content-not-found', 
-        title: 'Not Found', 
-        status: 404, 
-        detail: CONTENT_ERRORS.NOT_FOUND 
+      return publicProblem(context, {
+        type: 'content-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: CONTENT_ERRORS.NOT_FOUND,
       })
     }
+    const fkResponse = fkProblemOrNull(context, error, context.req.method)
+    if (fkResponse) return fkResponse
     console.error('Content delete error:', error)
-    return publicProblem(context, { 
-      type: 'content-database-error', 
-      title: 'Internal Server Error', 
-      status: 500, 
-      detail: CONTENT_ERRORS.DATABASE_ERROR 
+    return publicProblem(context, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
     })
   }
 }

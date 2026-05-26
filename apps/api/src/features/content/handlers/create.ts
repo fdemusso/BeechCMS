@@ -10,7 +10,7 @@ import {
   SlugConflictError
 } from '@beechcms/core'
 import { applyPrivacy, PrivacyPolicyError } from '../../../shared/apply-policies'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem, fkProblemOrNull } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { cleanStr } from '../../../shared/query-utils'
 import { AppEnv } from '../../../types'
@@ -81,10 +81,11 @@ export async function createHandler(context: Context<AppEnv>) {
   delete bodyForData.status
 
   const validation = validateAndSanitizeSeedPayload(seed, bodyForData, {
-    operation: 'create', 
-    allowNull: false, 
-    requireAtLeastOneValidField: true, 
+    operation: 'create',
+    allowNull: false,
+    requireAtLeastOneValidField: true,
     enforceRequiredFields: true,
+    idGenerator: context.get('idGenerator'),
   })
 
   if (validation.dangerousFields.length > 0) {
@@ -151,19 +152,21 @@ export async function createHandler(context: Context<AppEnv>) {
     return context.json({ id }, 201)
   } catch (error) {
     if (error instanceof SlugConflictError) {
-      return publicProblem(context, { 
-        type: 'content-slug-conflict', 
-        title: 'Conflict', 
-        status: 409, 
-        detail: CONTENT_ERRORS.SLUG_CONFLICT 
+      return publicProblem(context, {
+        type: 'content-slug-conflict',
+        title: 'Conflict',
+        status: 409,
+        detail: CONTENT_ERRORS.SLUG_CONFLICT,
       })
     }
+    const fkResponse = fkProblemOrNull(context, error, context.req.method)
+    if (fkResponse) return fkResponse
     console.error('Content create error:', error)
-    return publicProblem(context, { 
-      type: 'content-database-error', 
-      title: 'Internal Server Error', 
-      status: 500, 
-      detail: CONTENT_ERRORS.DATABASE_ERROR 
+    return publicProblem(context, {
+      type: 'content-database-error',
+      title: 'Internal Server Error',
+      status: 500,
+      detail: CONTENT_ERRORS.DATABASE_ERROR,
     })
   }
 }
