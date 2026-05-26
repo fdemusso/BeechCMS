@@ -83,4 +83,13 @@ try {
   console.warn('[bootstrap-d1] ⚠  seed:load failed — content tables may be missing. Run: node bin/cli.mjs seed:load')
 }
 
-console.log(`[bootstrap-d1] done. (${applied} applied${skipped ? `, ${skipped} skipped` : ''})`)
+let finalApplied = applied
+let finalSkipped = skipped
+if (skipped > 0) {
+  console.log('[bootstrap-d1] retrying skipped migrations after seed:load…')
+  const retryResult = applyMigrationsInOrder()
+  finalApplied += retryResult.applied
+  finalSkipped = retryResult.skipped
+}
+
+console.log(`[bootstrap-d1] done. (${finalApplied} applied${finalSkipped ? `, ${finalSkipped} skipped` : ''})`)

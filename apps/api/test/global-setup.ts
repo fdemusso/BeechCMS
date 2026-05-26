@@ -5,12 +5,15 @@
 import { S3Client, ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { assertDockerStackReady } from './docker-precheck'
 
-const TEST_BUCKET = 'beech-media-test'
+const TEST_BUCKET = process.env.R2_BUCKET_NAME ?? 'beech-media-test'
 
 const s3 = new S3Client({
   region: 'auto',
-  endpoint: 'http://localhost:9000',
-  credentials: { accessKeyId: 'beechdev', secretAccessKey: 'beechdevsecret' },
+  endpoint: process.env.R2_ENDPOINT ?? 'http://localhost:9000',
+  credentials: {
+    accessKeyId: process.env.R2_ACCESS_KEY_ID ?? 'beechdev',
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? 'beechdevsecret',
+  },
   forcePathStyle: true,
 })
 

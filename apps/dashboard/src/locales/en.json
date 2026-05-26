@@ -322,7 +322,14 @@
       "saveError": "Error saving",
       "validationError_one": "{{count}} field has a validation error — check the highlighted fields",
       "validationError_other": "{{count}} fields have validation errors — check the highlighted fields",
-      "jsonError": "Field \"{{field}}\" must contain valid JSON"
+      "jsonError": "Field \"{{field}}\" must contain valid JSON",
+      "relation": {
+        "placeholder": "Select a related entry…",
+        "search": "Search…",
+        "clear": "Clear selection",
+        "empty": "No results",
+        "loading": "Loading…"
+      }
     },
     "deleteDialog": {
       "title": "Confirm deletion",

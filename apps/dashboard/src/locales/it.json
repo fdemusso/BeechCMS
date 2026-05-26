@@ -322,7 +322,14 @@
       "saveError": "Errore durante il salvataggio",
       "validationError_one": "{{count}} campo ha un errore di validazione — controlla i campi evidenziati",
       "validationError_other": "{{count}} campi hanno errori di validazione — controlla i campi evidenziati",
-      "jsonError": "Il campo \"{{field}}\" deve contenere JSON valido"
+      "jsonError": "Il campo \"{{field}}\" deve contenere JSON valido",
+      "relation": {
+        "placeholder": "Seleziona una voce correlata…",
+        "search": "Cerca…",
+        "clear": "Rimuovi selezione",
+        "empty": "Nessun risultato",
+        "loading": "Caricamento…"
+      }
     },
     "deleteDialog": {
       "title": "Conferma eliminazione",

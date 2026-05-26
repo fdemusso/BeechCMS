@@ -24,6 +24,13 @@ export interface ContentListWithMeta {
   total: number
   page: number
   limit: number
+  /**
+   * Compact relation label map emitted by the API list handler.
+   * Shape: { [branchAlias]: { [targetId]: labelString } }
+   * Used by the dashboard to prime the TanStack Query cache so RelationDisplay
+   * can resolve synchronously without firing per-row requests.
+   */
+  relations?: Record<string, Record<string, string>>
 }
 
 /**
