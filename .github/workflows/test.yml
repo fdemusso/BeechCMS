@@ -34,7 +34,6 @@ jobs:
         ports:
           - 8084:8080
         options: >-
-          --health-cmd "/bin/app start healthcheck"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
