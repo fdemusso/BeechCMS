@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 /**
  * @file validation.test.ts
  * Chaos & edge-case test suite for `validateAndSanitizeSeedPayload`.

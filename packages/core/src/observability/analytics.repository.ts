@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 /**
  * Metric tracked by the analytics table. Today only request counts and
  * unique-visitor counts are recorded; new metric names should be appended

@@ -36,5 +36,7 @@
     "@vitest/coverage-v8": "^3.2.4",
     "vitest": "^3.2.4",
     "wrangler": "^4.4.0"
-  }
+  },
+  "license": "BUSL-1.1",
+  "licenseFile": "../../LICENSE"
 }

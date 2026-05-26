@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 /// <reference types="@cloudflare/workers-types" />
 import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'

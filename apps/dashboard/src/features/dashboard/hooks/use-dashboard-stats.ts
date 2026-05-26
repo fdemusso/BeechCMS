@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { useQuery } from "@tanstack/react-query"
 import { dashboardApi } from "../api/dashboard.api"
 import { DASHBOARD_QUERY_KEYS } from "@/features/shared"

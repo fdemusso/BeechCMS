@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 import pc from 'picocolors'
 import type { Seed } from '@beechcms/core'
 import { SEED_REGISTRY } from '@beechcms/core'

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 // Mirror of apps/api/src/features/automations/automations.schema.ts
 // Keep structurally identical. Changes here must be reflected there and vice versa.
 import { z } from 'zod'

@@ -105,3 +105,21 @@ That was the moment I understood the real gap. Small agencies and freelancers do
 ---
 
 _BeechCMS — Precision-engineered content infrastructure for the edge._
+
+
+## Licensing
+
+| Package | License | Details |
+|---|---|---|
+| `@beechcms/core` | MIT | Free for any use, including commercial |
+| `apps/api` | BUSL-1.1 | Free for self-hosting; see Additional Use Grant |
+| `apps/dashboard` | BUSL-1.1 | Free for self-hosting; see Additional Use Grant |
+
+**Self-hosting is always free.**  
+The BUSL-1.1 only restricts offering BeechCMS as a managed SaaS service
+in direct competition with BeechCMS Cloud.  
+After 2030-05-26, these components convert automatically to GPL v2+.
+
+For commercial licensing inquiries: flavio@beechcms.com
+
+For more detailed information, see our [Licensing Guide](./docs/LICENSING.md).

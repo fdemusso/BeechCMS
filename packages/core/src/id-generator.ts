@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 /**
  * Identifier abstraction. Hides direct calls to {@link crypto.randomUUID}
  * so callers can swap in deterministic generators during tests for stable

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 /**
  * Field Renderer Edit per tipo `file`: supporta URL esterni e upload locale.
  * - URL esterno: validazione HTTPS + verifica render immagine prima del salvataggio.

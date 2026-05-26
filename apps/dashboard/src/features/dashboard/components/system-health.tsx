@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { useSystemHealth } from "../hooks/use-dashboard-stats"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"

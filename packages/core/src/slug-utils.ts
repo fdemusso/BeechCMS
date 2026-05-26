@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 /**
  * Utility per la gestione degli slug.
  * Condivisa tra Dashboard e API pubbliche.

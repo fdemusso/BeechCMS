@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 export type AutomationTriggerEvent = 'create' | 'update' | 'delete' | 'cron'
 
 export interface AutomationTrigger {

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 export function cronMatches(expression: string | null, scheduledTime: number): boolean {
   if (!expression) return false
   const parts = expression.trim().split(/\s+/)

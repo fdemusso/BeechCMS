@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 import type { Branch } from './types.js'
 
 export async function sha256hex(value: string): Promise<string> {

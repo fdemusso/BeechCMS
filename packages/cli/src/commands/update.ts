@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 import pc from 'picocolors'
 import { spawnSync } from 'node:child_process'
 

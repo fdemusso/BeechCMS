@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 export const CONTENT_ERRORS = {
   INVALID_SLUG: 'Invalid slug',
   INVALID_SLUG_OR_ID: 'Invalid slug or id',

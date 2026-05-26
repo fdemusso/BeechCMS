@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 import type { Seed } from '@beechcms/core'
 import { getExpectedColumns, type SchemaColumn } from '@beechcms/core'
 import type { WranglerOptions, D1Row } from './wrangler.js'

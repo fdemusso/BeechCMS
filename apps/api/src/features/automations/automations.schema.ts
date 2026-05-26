@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 // Mirror: apps/dashboard/src/features/automations/schema/automation.schema.ts — keep structurally identical.
 import { z } from 'zod'
 import type { WhenNode } from '@beechcms/core'
