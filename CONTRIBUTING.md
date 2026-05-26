@@ -280,6 +280,15 @@ AI-generated code is subject to all the same rules as human-authored code: VSA c
 
 ## 7. Submitting a pull request
 
+### Contributor License Agreement (CLA)
+
+By submitting a pull request to BeechCMS, you agree to the following terms:
+1. **License Grant:** You grant BeechCMS (and Flavio De Musso) a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, publicly perform, sublicense, and distribute your contributions and such derivative works.
+2. **Originality:** You confirm that you are the original author of the contribution and have the legal right to grant these rights.
+3. **Licensing:** Your contribution is submitted under the same licensing terms that govern the repository (MIT for \`packages/core\`, BUSL-1.1 for \`apps/*\`).
+
+**Note:** This serves as a lightweight Contributor License Agreement. By opening a PR, you explicitly agree to these terms. No separate CLA Assistant signing is required.
+
 ### Checklist before opening a PR
 
 - [ ] The branch targets `devs`, not `master`.
