@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { SeedRegistry, InMemorySeedRegistry } from './seed-registry'
+import { SeedRegistry, InMemorySeedRegistry, sortSeedsByDependencies } from './seed-registry'
 import type { Seed, Branch } from './types'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -173,6 +173,72 @@ describe('SeedRegistry reserved alias guard', () => {
 
   it('does not throw for seeds with no branches', () => {
     expect(() => new SeedRegistry([makeSeed({ slug: 'bare' })])).not.toThrow()
+  })
+})
+
+// ─── sortSeedsByDependencies ──────────────────────────────────────────────────
+
+describe('sortSeedsByDependencies', () => {
+  function makeRelationSeed(
+    slug: string,
+    targets: string[] = [],
+    extra: Partial<Seed> = {},
+  ): Seed {
+    return {
+      slug,
+      label: slug,
+      displayNameAlias: 'title',
+      branches: targets.map((t, i) => ({
+        alias: `${t}_id`,
+        label: `${t} ref`,
+        type: 'relation' as const,
+        targetSeed: t,
+      })),
+      ...extra,
+    }
+  }
+
+  it('returns independent seeds (no relations) in any order containing all slugs', () => {
+    const a = makeRelationSeed('a')
+    const b = makeRelationSeed('b')
+    const c = makeRelationSeed('c')
+    const result = sortSeedsByDependencies([a, b, c])
+    expect(result).toHaveLength(3)
+    expect(result.map(s => s.slug)).toEqual(expect.arrayContaining(['a', 'b', 'c']))
+  })
+
+  it('places the dependency before the dependant (articles → team)', () => {
+    const team = makeRelationSeed('team')
+    const articles = makeRelationSeed('articles', ['team'])
+    const result = sortSeedsByDependencies([articles, team])
+    const slugs = result.map(s => s.slug)
+    expect(slugs.indexOf('team')).toBeLessThan(slugs.indexOf('articles'))
+  })
+
+  it('resolves a diamond: d before b and c, b and c before a', () => {
+    // a → b, a → c, b → d, c → d
+    const d = makeRelationSeed('d')
+    const b = makeRelationSeed('b', ['d'])
+    const c = makeRelationSeed('c', ['d'])
+    const a = makeRelationSeed('a', ['b', 'c'])
+    const result = sortSeedsByDependencies([a, b, c, d])
+    const pos = Object.fromEntries(result.map((s, i) => [s.slug, i]))
+    expect(pos.d).toBeLessThan(pos.b)
+    expect(pos.d).toBeLessThan(pos.c)
+    expect(pos.b).toBeLessThan(pos.a)
+    expect(pos.c).toBeLessThan(pos.a)
+  })
+
+  it('throws on a cycle (a → b → a), mentioning both slugs', () => {
+    const a = makeRelationSeed('a', ['b'])
+    const b = makeRelationSeed('b', ['a'])
+    expect(() => sortSeedsByDependencies([a, b])).toThrow(/a/)
+    expect(() => sortSeedsByDependencies([a, b])).toThrow(/b/)
+  })
+
+  it('throws when a relation targets an unknown slug', () => {
+    const a = makeRelationSeed('a', ['missing_target'])
+    expect(() => sortSeedsByDependencies([a])).toThrow(/missing_target/)
   })
 })
 

@@ -276,4 +276,101 @@ describe('Botanical Engine', () => {
       expect(deserializeFromDb(assetListBranch, ['https://a.com'])).toEqual(['https://a.com'])
     })
   })
+
+  // ─── relation branches ────────────────────────────────────────────────────────
+
+  describe('relation branches', () => {
+    const relationSeed: Seed = {
+      slug: 'articles',
+      label: 'Articles',
+      displayNameAlias: 'title',
+      branches: [
+        { alias: 'title', type: 'text', label: 'Title', requiredOnCreate: true },
+        { alias: 'author_id', type: 'relation', label: 'Author', targetSeed: 'team' },
+      ],
+    }
+
+    it('BRANCH_TYPE_SQL maps relation to TEXT', () => {
+      // Verify via DDL output — relation column must be TEXT
+      const sql = generateCreateTable(relationSeed)
+      expect(sql).toContain('author_id  TEXT REFERENCES')
+    })
+
+    it('generateCreateTable emits FK clause with default SET NULL', () => {
+      const sql = generateCreateTable(relationSeed)
+      expect(sql).toContain('author_id  TEXT REFERENCES content_team(id) ON DELETE SET NULL')
+    })
+
+    it('generateCreateTable emits FK clause with onDelete CASCADE', () => {
+      const seed: Seed = {
+        ...relationSeed,
+        branches: [
+          { alias: 'author_id', type: 'relation', label: 'Author', targetSeed: 'team', onDelete: 'CASCADE' },
+        ],
+      }
+      const sql = generateCreateTable(seed)
+      expect(sql).toContain('author_id  TEXT REFERENCES content_team(id) ON DELETE CASCADE')
+    })
+
+    it('generateCreateTable emits FK clause with onDelete RESTRICT', () => {
+      const seed: Seed = {
+        ...relationSeed,
+        branches: [
+          { alias: 'author_id', type: 'relation', label: 'Author', targetSeed: 'team', onDelete: 'RESTRICT' },
+        ],
+      }
+      const sql = generateCreateTable(seed)
+      expect(sql).toContain('author_id  TEXT REFERENCES content_team(id) ON DELETE RESTRICT')
+    })
+
+    it('generateCreateTable throws when targetSeed is missing', () => {
+      const seed: Seed = {
+        ...relationSeed,
+        branches: [
+          { alias: 'author_id', type: 'relation', label: 'Author' },
+        ],
+      }
+      expect(() => generateCreateTable(seed)).toThrow(/author_id/)
+      expect(() => generateCreateTable(seed)).toThrow(/targetSeed/)
+    })
+
+    it('generateAddColumn emits ALTER TABLE with FK clause', () => {
+      const branch: Branch = { alias: 'author_id', type: 'relation', label: 'Author', targetSeed: 'team' }
+      const sql = generateAddColumn(relationSeed, branch)
+      expect(sql).toBe(
+        'ALTER TABLE content_articles ADD COLUMN author_id TEXT REFERENCES content_team(id) ON DELETE SET NULL;',
+      )
+    })
+
+    it('generateIndexes always emits B-tree index for relation branches', () => {
+      const seedNoFilter: Seed = {
+        ...relationSeed,
+        branches: [
+          {
+            alias: 'author_id',
+            type: 'relation',
+            label: 'Author',
+            targetSeed: 'team',
+            policies: { filter: false },
+          },
+        ],
+      }
+      const indexes = generateIndexes(seedNoFilter)
+      expect(indexes).toContain(
+        'CREATE INDEX IF NOT EXISTS idx_articles_author_id ON content_articles(author_id);',
+      )
+    })
+
+    it('draft mirror table must NOT contain REFERENCES for relation columns', () => {
+      const draftSeed: Seed = {
+        ...relationSeed,
+        allowDrafts: true,
+      }
+      const sql = generateDraftTable(draftSeed)
+      expect(sql).not.toBeNull()
+      // Remove the system-level entry_id REFERENCES line, then check no branch-level FK exists
+      const withoutSystemFk = sql!.replace(/REFERENCES content_articles\(id\) ON DELETE CASCADE/, '')
+      expect(withoutSystemFk).not.toContain('REFERENCES')
+    })
+  })
 })

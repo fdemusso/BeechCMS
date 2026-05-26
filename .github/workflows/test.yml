@@ -34,7 +34,7 @@ jobs:
         ports:
           - 8084:8080
         options: >-
-          --health-cmd "wget -q --spider http://localhost:8080/ready || exit 1"
+          --health-cmd "/bin/app start healthcheck"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10

@@ -3,7 +3,7 @@
 
 import type { FileAccept } from './file-types.js'
 
-export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags'
+export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation'
 
 /** Configurazioni specializzate per il tipo di branch 'number' */
 export interface NumberFieldOptions {
@@ -103,6 +103,25 @@ export interface Branch {
   numberOptions?: NumberFieldOptions
   /** Opzioni avanzate per i campi file. Ignorato se type !== 'file' */
   fileOptions?: FileFieldOptions
+
+  /**
+   * Slug of the referenced Seed (without the `content_` prefix).
+   * REQUIRED when `type === 'relation'`. Ignored otherwise.
+   * Example: 'team' → references table `content_team(id)`.
+   */
+  targetSeed?: string
+
+  /**
+   * SQLite ON DELETE rule applied to the foreign-key constraint.
+   * Defaults to 'SET NULL' when `type === 'relation'` and no value is provided.
+   * - CASCADE  : delete dependent rows when the parent is deleted.
+   * - SET NULL : null out the column when the parent is deleted (default).
+   * - RESTRICT : block parent deletion while dependent rows exist.
+   *
+   * NOTE: When `multiple: true` (introduced in Sprint 5 for many-to-many), this
+   * rule applies to the FK from the junction table to the target table.
+   */
+  onDelete?: 'CASCADE' | 'SET NULL' | 'RESTRICT'
 }
 
 /** Dashboard-specific config embedded in a Seed. All fields optional — defaults applied by the dashboard. */

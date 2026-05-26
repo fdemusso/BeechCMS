@@ -34,6 +34,7 @@ const BRANCH_TYPE_SQL: Record<BranchType, BranchSqlDef> = {
   richtext: { sqlType: 'TEXT'    },
   file:     { sqlType: 'TEXT'    },  // URL singolo o JSON array di URL
   tags:     { sqlType: 'TEXT'    },  // JSON array di stringhe
+  relation: { sqlType: 'TEXT'    },  // FK reference stored as TEXT (id of the target row)
 }
 
 const SYSTEM_COLUMNS = new Set(['id', 'slug', 'status', 'created_at', 'updated_at'])
@@ -95,6 +96,35 @@ function normalizeAssetListValue(rawValue: unknown): string[] {
   return [...new Set(normalized)]
 }
 
+// ---- FK helpers ----
+
+const DEFAULT_ON_DELETE_RULE: NonNullable<Branch['onDelete']> = 'SET NULL'
+
+/**
+ * Returns the trailing FK fragment for a relation branch, or '' if the branch
+ * is not a relation. Throws when a relation branch is missing `targetSeed`,
+ * because that is a programmer error that must surface immediately at DDL time
+ * rather than producing silently invalid SQL.
+ *
+ * Also throws when `multiple: true` on a relation branch — many-to-many is not
+ * yet supported (see Sprint 5).
+ */
+function buildForeignKeyClause(branch: Branch): string {
+  if (branch.type !== 'relation') return ''
+  if (branch.multiple === true) {
+    throw new Error(
+      `Branch "${branch.alias}": multiple relations not yet supported — see Sprint 5`,
+    )
+  }
+  if (!branch.targetSeed) {
+    throw new Error(
+      `Branch "${branch.alias}" is of type 'relation' but has no targetSeed`,
+    )
+  }
+  const onDeleteRule = branch.onDelete ?? DEFAULT_ON_DELETE_RULE
+  return ` REFERENCES content_${branch.targetSeed}(id) ON DELETE ${onDeleteRule}`
+}
+
 // ---- DDL Generators ----
 
 /**
@@ -115,6 +145,7 @@ export function generateCreateTable(seed: Seed): string {
     let col = `  ${branch.alias}  ${sqlType}`
     if (branch.requiredOnCreate) col += ' NOT NULL'
     if (branch.type === 'boolean') col += ` CHECK (${branch.alias} IN (0, 1))`
+    col += buildForeignKeyClause(branch)
     lines.push(col + ',')
   }
 
@@ -161,7 +192,7 @@ export function generateDraftTable(seed: Seed): string | null {
  */
 export function generateAddColumn(seed: Seed, branch: Branch): string {
   const { sqlType } = BRANCH_TYPE_SQL[branch.type]
-  return `ALTER TABLE ${tableName(seed)} ADD COLUMN ${branch.alias} ${sqlType};`
+  return `ALTER TABLE ${tableName(seed)} ADD COLUMN ${branch.alias} ${sqlType}${buildForeignKeyClause(branch)};`
 }
 
 /**
@@ -177,8 +208,10 @@ export function generateIndexes(seed: Seed): string[] {
   ]
 
   for (const branch of seed.branches) {
-    if (branch.policies?.filter === false) continue
-    if (['text', 'number', 'date', 'boolean'].includes(branch.type)) {
+    const isRelation = branch.type === 'relation'
+    // Relation indexes are a system concern (JOIN performance) — bypass editorial filter policy
+    if (!isRelation && branch.policies?.filter === false) continue
+    if (['text', 'number', 'date', 'boolean', 'relation'].includes(branch.type)) {
       indexes.push(
         `CREATE INDEX IF NOT EXISTS idx_${slug}_${branch.alias} ON ${table}(${branch.alias});`
       )
