@@ -330,16 +330,16 @@ write the new one.
 ## 4. Deliverables
 
 ```
-[ ] Task 1 — Update SetVariableAction in @beechcms/core
-[ ] Task 2 — API zod schema (set_variable + reserved-name check)
-[ ] Task 3 — Dashboard zod schema + form types (mirror Task 2)
-[ ] Task 4 — Executor rewrite (modes + materialization + legacy read)
-[ ] Task 5 — Template grammar: var_access kind + parser
-[ ] Task 6 — Resolver: var_access evaluator in withVariables
-[ ] Task 7 — Reserved words list + SeedRegistry guard
-[ ] Task 8 — UI: SetVariableForm redesign + form ↔ payload conversion
-[ ] Task 9 — Tests (executor + grammar + resolver + seed-registry)
-[ ] Task 10 — Manual smoke + retro-compat check
+[x] Task 1 — Update SetVariableAction in @beechcms/core
+[x] Task 2 — API zod schema (set_variable + reserved-name check)
+[x] Task 3 — Dashboard zod schema + form types (mirror Task 2)
+[x] Task 4 — Executor rewrite (modes + materialization + legacy read)
+[x] Task 5 — Template grammar: var_access kind + parser
+[x] Task 6 — Resolver: var_access evaluator in withVariables
+[x] Task 7 — Reserved words list + SeedRegistry guard
+[x] Task 8 — UI: SetVariableForm redesign + form ↔ payload conversion
+[x] Task 9 — Tests (executor + grammar + resolver + seed-registry)
+[ ] Task 10 — Manual smoke + retro-compat check (requires Docker stack)
 ```
 
 ---

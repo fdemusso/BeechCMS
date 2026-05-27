@@ -76,6 +76,7 @@ const setVariableActionSchema = z.object({
   filters: z.array(setVariableFilterSchema).default([]),
   order_by: z.string().optional(),
   order: z.enum(['asc', 'desc']).optional(),
+  load_type: z.enum(['fruit', 'branch']).optional(),  // accepted but ignored at runtime
 })
 
 const webhookActionSchema = z.object({

@@ -133,7 +133,14 @@ function actionToFormItem(action: AutomationAction): ActionFormItem {
   const base = { ...DEFAULT_ACTION_ITEM }
   switch (action.type) {
     case 'set_variable': {
-      const fixedId = action.fixed_id ?? ''
+      // Translate legacy load_type: 'fruit' + single id-eq filter → fixed_id
+      let fixedId = action.fixed_id ?? ''
+      if (!fixedId && (action as any).load_type === 'fruit') {
+        const idFilter = (action.filters ?? []).find(
+          (f) => f.field === 'id' && f.op === 'eq' && typeof f.value === 'string',
+        )
+        if (idFilter) fixedId = String(idFilter.value)
+      }
       const seedSlug = action.seed_slug ?? ''
       const filters = fixedId
         ? []

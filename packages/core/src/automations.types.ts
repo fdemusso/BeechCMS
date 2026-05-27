@@ -55,6 +55,8 @@ export interface SetVariableAction {
   filters?: TriggerCondition[]
   order_by?: string
   order?: 'asc' | 'desc'
+  /** @deprecated Read but ignored at runtime. Removed on next save. */
+  load_type?: 'fruit' | 'branch'
 }
 
 export type AutomationAction =
