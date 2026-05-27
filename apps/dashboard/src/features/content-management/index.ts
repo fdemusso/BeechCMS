@@ -5,4 +5,5 @@
 export * from "./hooks/use-content-list"
 export * from "./hooks/use-content-facets"
 export * from "./hooks/use-content-item"
+export * from "./hooks/use-bulk-update"
 export * from "./api/content.api"

@@ -53,6 +53,12 @@ export class RelationTargetNotFoundError extends RepositoryError {
   }
 }
 
+export type BulkFieldUpdate =
+  | { kind: 'set'; value: unknown }
+  | { kind: 'array_replace'; value: string[] }
+  | { kind: 'array_add'; value: string[] }
+  | { kind: 'array_remove'; value: string[] }
+
 /**
  * Interface defining the standard operations for content persistence.
  * This is platform-agnostic and should be implemented for specific databases (e.g., D1).
@@ -133,4 +139,15 @@ export interface ContentRepository {
    * Checks if an entry has a pending draft.
    */
   hasDraft(seed: Seed, entryId: string): Promise<boolean>
+
+  /**
+   * Apply the same field update to many entries. Returns per-id outcome.
+   * Caller is responsible for validation; this method assumes the payload is
+   * already shape-checked against the seed.
+   */
+  bulkUpdate(
+    seedSlug: string,
+    ids: string[],
+    fields: Record<string, BulkFieldUpdate>,
+  ): Promise<{ updated: number; failed: Array<{ id: string; reason: string }> }>
 }

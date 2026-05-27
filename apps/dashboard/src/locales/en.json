@@ -789,5 +789,21 @@
     "showAll": "Show all {{count}}",
     "empty": "No references",
     "deleteBlocked": "Cannot delete: {{count}} entries depend on this record"
+  },
+  "bulkEdit": {
+    "trigger": "Edit selected",
+    "title": "Edit {{count}} entries",
+    "pickField": "Choose a field to update",
+    "mode": {
+      "replace": "Replace",
+      "add": "Add",
+      "remove": "Remove"
+    },
+    "confirm": "Update {{count}} entries?",
+    "executing": "Updating…",
+    "successAll": "{{count}} entries updated",
+    "successPartial": "{{updated}} of {{total}} updated. {{failed}} failed.",
+    "downloadReport": "Download failure report",
+    "tooLarge": "Cannot edit more than {{max}} entries at once"
   }
 }

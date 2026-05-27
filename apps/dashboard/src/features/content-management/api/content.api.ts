@@ -5,6 +5,30 @@
 import { api } from "@/lib/api"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 
+export type BulkMultiRelMode = "replace" | "add" | "remove"
+
+export interface BulkMultiRelValue {
+  mode: BulkMultiRelMode
+  value: string[]
+}
+
+export type BulkFieldValue = unknown | BulkMultiRelValue
+
+export interface BulkUpdateBody {
+  ids: string[]
+  fields: Record<string, BulkFieldValue>
+}
+
+export interface BulkUpdateFailedItem {
+  id: string
+  problem: { status: number; type: string; detail: string }
+}
+
+export interface BulkUpdateResult {
+  updated: number
+  failed: BulkUpdateFailedItem[]
+}
+
 export interface ContentFacets {
   statuses: string[]
   tagsByColumnId: Record<string, string[]>
@@ -121,6 +145,11 @@ export const contentApi = {
 
   discardDraft: async (slug: string, id: string): Promise<{ success: boolean }> => {
     const response = await api.delete<{ success: boolean }>(`/content/${slug}/${id}/draft`)
+    return response.data
+  },
+
+  bulkUpdate: async (slug: string, body: BulkUpdateBody): Promise<BulkUpdateResult> => {
+    const response = await api.patch<BulkUpdateResult>(`/content/${slug}/bulk`, body)
     return response.data
   },
 }

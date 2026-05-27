@@ -9,6 +9,7 @@ import {
   RepositoryError,
   SlugConflictError,
   RelationTargetNotFoundError,
+  type BulkFieldUpdate,
   type Seed,
   type Branch,
   type SelectOptions,
@@ -641,6 +642,96 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       if (error instanceof RelationTargetNotFoundError) throw error
       throw this.mapError(error, `publishDraft(${seed.slug}, ${entryId})`)
     }
+  }
+
+  async bulkUpdate(
+    seedSlug: string,
+    ids: string[],
+    fields: Record<string, BulkFieldUpdate>,
+  ): Promise<{ updated: number; failed: Array<{ id: string; reason: string }> }> {
+    const CHUNK = 50
+    const tableName = this.getTableName(seedSlug)
+    let updated = 0
+    const failed: Array<{ id: string; reason: string }> = []
+
+    for (let offset = 0; offset < ids.length; offset += CHUNK) {
+      const chunk = ids.slice(offset, offset + CHUNK)
+
+      for (const id of chunk) {
+        try {
+          const stmts: D1PreparedStatement[] = []
+
+          // Collect scalar SET fields
+          const setClauses: string[] = ['updated_at = (unixepoch())']
+          const setBindings: unknown[] = []
+
+          for (const [alias, update] of Object.entries(fields)) {
+            if (update.kind === 'set') {
+              setClauses.unshift(`${alias} = ?`)
+              setBindings.push(update.value)
+            }
+          }
+
+          stmts.push(
+            this.database
+              .prepare(`UPDATE ${tableName} SET ${setClauses.join(', ')} WHERE id = ?`)
+              .bind(...setBindings, id),
+          )
+
+          // Junction table operations
+          for (const [alias, update] of Object.entries(fields)) {
+            const jt = jTable(seedSlug, alias)
+
+            if (update.kind === 'array_replace') {
+              stmts.push(
+                this.database.prepare(`DELETE FROM ${jt} WHERE parent_id = ?`).bind(id),
+              )
+              for (let i = 0; i < update.value.length; i++) {
+                stmts.push(
+                  this.database
+                    .prepare(`INSERT INTO ${jt} (parent_id, target_id, position) VALUES (?, ?, ?)`)
+                    .bind(id, update.value[i], i),
+                )
+              }
+            } else if (update.kind === 'array_add') {
+              for (const targetId of update.value) {
+                stmts.push(
+                  this.database
+                    .prepare(
+                      `INSERT OR IGNORE INTO ${jt} (parent_id, target_id, position)` +
+                      ` VALUES (?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM ${jt} WHERE parent_id = ?))`,
+                    )
+                    .bind(id, targetId, id),
+                )
+              }
+            } else if (update.kind === 'array_remove') {
+              if (update.value.length > 0) {
+                const placeholders = update.value.map(() => '?').join(', ')
+                stmts.push(
+                  this.database
+                    .prepare(`DELETE FROM ${jt} WHERE parent_id = ? AND target_id IN (${placeholders})`)
+                    .bind(id, ...update.value),
+                )
+              }
+            }
+          }
+
+          const results = await this.database.batch(stmts)
+          // First statement is the UPDATE; check it matched the row
+          if ((results[0].meta?.changes ?? 0) === 0) {
+            failed.push({ id, reason: 'not-found' })
+          } else {
+            updated++
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          const isFk = /FOREIGN KEY constraint failed/i.test(msg)
+          failed.push({ id, reason: isFk ? `relation-target-not-found:${id}` : `error:${msg}` })
+        }
+      }
+    }
+
+    return { updated, failed }
   }
 
   async deleteDraft(seed: Seed, entryId: string): Promise<void> {

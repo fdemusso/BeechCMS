@@ -789,5 +789,21 @@
     "showAll": "Mostra tutte le {{count}}",
     "empty": "Nessun riferimento",
     "deleteBlocked": "Eliminazione bloccata: {{count}} voci dipendono da questo record"
+  },
+  "bulkEdit": {
+    "trigger": "Modifica selezionati",
+    "title": "Modifica {{count}} voci",
+    "pickField": "Scegli un campo da aggiornare",
+    "mode": {
+      "replace": "Sostituisci",
+      "add": "Aggiungi",
+      "remove": "Rimuovi"
+    },
+    "confirm": "Aggiornare {{count}} voci?",
+    "executing": "Aggiornamento in corso…",
+    "successAll": "{{count}} voci aggiornate",
+    "successPartial": "{{updated}} di {{total}} aggiornate. {{failed}} fallite.",
+    "downloadReport": "Scarica report errori",
+    "tooLarge": "Impossibile modificare più di {{max}} voci alla volta"
   }
 }

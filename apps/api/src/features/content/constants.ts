@@ -11,4 +11,6 @@ export const CONTENT_ERRORS = {
   DATABASE_ERROR: 'Database error',
   SLUG_CONFLICT: 'Slug already exists for this schema',
   SENSITIVE_FIELD_EDIT: 'Cannot edit sensitive fields',
+  BULK_SIZE_EXCEEDED: 'Cannot edit more than 500 entries at once',
+  FIELD_NOT_BULK_EDITABLE: 'Field cannot be bulk-edited',
 } as const
