@@ -33,6 +33,7 @@ import { notificationsApp } from './features/notifications'
 import { automationsApp } from './features/automations'
 import { statsApp } from './features/stats'
 import { backrefsApp } from './features/backrefs'
+import { webhooksApp } from './features/webhooks'
 import { uploadRoutes, serveMediaHandler } from './upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
 import { searchRouter } from "./search"
@@ -322,6 +323,9 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   apiPublic.use('*', apiKeyMiddleware())
   apiPublic.route('/', publicRoutes)
   app.route('/api/v1/public', apiPublic)
+
+  // Webhooks API (public, verified via signature)
+  app.route('/api/webhooks', webhooksApp)
 
   app.get('/api/media/:key', (context) => serveMediaHandler(context))
   app.route('/api', apiProtected)

@@ -40,6 +40,10 @@ export interface Env {
   ENV?: string
   DATE_FORMAT?: string
   ASSETS?: Fetcher
+  QSTASH_TOKEN?: string
+  QSTASH_URL?: string
+  QSTASH_CURRENT_SIGNING_KEY?: string
+  QSTASH_NEXT_SIGNING_KEY?: string
 }
 
 export interface Variables {

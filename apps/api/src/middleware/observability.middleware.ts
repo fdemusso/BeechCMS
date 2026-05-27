@@ -8,6 +8,7 @@ import { SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { AppEnv } from '../types'
 import { D1ActivityLogger } from '../shared/d1-activity-logger'
 import { BackgroundNotificationService } from '../shared/background-notification-service'
+import { QStashNotificationService } from '../shared/qstash-notification-service'
 
 export interface ObservabilityOverrides {
   activityLogger?: IActivityLogger
@@ -44,9 +45,22 @@ export const observabilityMiddleware = (overrides?: ObservabilityOverrides) => {
       overrides?.activityLogger ??
       new D1ActivityLogger(context.env.DB, resolvedClock, resolvedIdGenerator, scheduleBackgroundTask)
 
-    const notificationService =
-      overrides?.notificationService ??
-      new BackgroundNotificationService(context.get('notificationRepository'), scheduleBackgroundTask)
+    let notificationService: INotificationService
+    if (overrides?.notificationService) {
+      notificationService = overrides.notificationService
+    } else if (context.env.QSTASH_TOKEN && context.env.APP_URL) {
+      notificationService = new QStashNotificationService(
+        context.env.QSTASH_TOKEN,
+        context.env.APP_URL,
+        scheduleBackgroundTask,
+        context.env.QSTASH_URL
+      )
+    } else {
+      notificationService = new BackgroundNotificationService(
+        context.get('notificationRepository'),
+        scheduleBackgroundTask
+      )
+    }
 
     context.set('activityLogger', activityLogger)
     context.set('notificationService', notificationService)
