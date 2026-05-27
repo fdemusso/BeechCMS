@@ -781,5 +781,13 @@
         "matches": "corrisponde a regex"
       }
     }
+  },
+  "backrefs": {
+    "title": "Riferimenti in entrata",
+    "summary_one": "1 voce fa riferimento a questa",
+    "summary_other": "{{count}} voci fanno riferimento a questa",
+    "showAll": "Mostra tutte le {{count}}",
+    "empty": "Nessun riferimento",
+    "deleteBlocked": "Eliminazione bloccata: {{count}} voci dipendono da questo record"
   }
 }

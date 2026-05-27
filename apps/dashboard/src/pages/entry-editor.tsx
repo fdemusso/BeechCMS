@@ -47,8 +47,16 @@ import {
   useSaveDraft,
   usePublishDraft,
   useDiscardDraft,
+  useDeleteContent,
 } from "@/features/content-management"
 import { useActiveSeed } from "@/features/schema"
+import { ReferencedByPanel } from "@/features/backrefs"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { Trash2 } from "lucide-react"
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -478,6 +486,7 @@ export function EntryEditorPage() {
   } = useContentEntry(schemaSlug, entryId)
 
   const { mutateAsync: saveContent, isPending: isSaving } = useSaveContent()
+  const { mutateAsync: deleteContent, isPending: isDeleting } = useDeleteContent()
 
   const hasPendingDraftNotice = !isCreate && entryData?.has_pending_draft === true
 
@@ -499,6 +508,8 @@ export function EntryEditorPage() {
   const [slugTouched, setSlugTouched] = React.useState(false)
   const [isDirty, setIsDirty] = React.useState(false)
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({})
+  const [hasRestrictedRefs, setHasRestrictedRefs] = React.useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
   const hasJustSavedRef = React.useRef(false)
 
   const blocker = useBlocker(() => isDirty && !hasJustSavedRef.current)
@@ -616,6 +627,20 @@ export function EntryEditorPage() {
       ),
     [branches, richtextBranch]
   )
+
+  const handleDelete = async () => {
+    if (!schemaSlug || !entryId) return
+    try {
+      await deleteContent({ slug: schemaSlug, id: entryId })
+      toast.success(t("content.editor.deletedSuccess", "Deleted"))
+      hasJustSavedRef.current = true
+      navigate(`/content/${schemaSlug}`)
+    } catch {
+      toast.error(t("content.editor.deleteError", "Could not delete entry"))
+    } finally {
+      setShowDeleteConfirm(false)
+    }
+  }
 
   const persistEntry = async (
     targetSchemaSlug: string,
@@ -775,9 +800,39 @@ export function EntryEditorPage() {
             {t("content.editor.back")}
           </Button>
           <h1 className="text-xl font-semibold truncate pb-1">{pageTitle}</h1>
-          <Button type="submit" disabled={isSaving}>
-            {submitButtonLabel}
-          </Button>
+          <div className="flex items-center gap-2">
+            {!isCreate && (
+              hasRestrictedRefs ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex">
+                      <Button type="button" variant="destructive" size="sm" disabled>
+                        <Trash2 className="mr-1 size-4" />
+                        {t("common.delete", "Delete")}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    {t("backrefs.deleteBlocked", { count: "?" })}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="sm"
+                  disabled={isDeleting}
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  <Trash2 className="mr-1 size-4" />
+                  {t("common.delete", "Delete")}
+                </Button>
+              )
+            )}
+            <Button type="submit" disabled={isSaving}>
+              {submitButtonLabel}
+            </Button>
+          </div>
         </div>
 
         {(hasPendingDraftNotice || isDraftMode) && (
@@ -853,6 +908,17 @@ export function EntryEditorPage() {
             onSlugChange={handleSlugChange}
           />
         )}
+
+        {/* Back-references panel — edit mode only */}
+        {!isCreate && schemaSlug && entryId && (
+          <div className="mx-auto w-full max-w-2xl lg:max-w-3xl xl:max-w-4xl mt-2">
+            <ReferencedByPanel
+              targetSlug={schemaSlug}
+              targetId={entryId}
+              onRestrictsChange={setHasRestrictedRefs}
+            />
+          </div>
+        )}
       </form>
 
       {/* Unsaved changes warning alert */}
@@ -894,6 +960,27 @@ export function EntryEditorPage() {
             <AlertDialogAction variant="destructive" onClick={handleDiscardDraft} disabled={isDiscarding}>
               {isDiscarding ? <Loader2 className="mr-1 size-4 animate-spin" /> : null}
               {t("content.editor.discardDraft")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete entry confirmation */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("content.editor.deleteTitle", "Delete entry?")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("content.editor.deleteDesc", "This action cannot be undone.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteConfirm(false)}>
+              {t("content.editor.stay")}
+            </AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting ? <Loader2 className="mr-1 size-4 animate-spin" /> : null}
+              {t("common.delete", "Delete")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

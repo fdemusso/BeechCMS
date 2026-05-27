@@ -88,6 +88,14 @@ vi.mock("@/features/content-management", () => ({
     mutateAsync: mockDiscardDraft,
     isPending: false,
   }),
+  useDeleteContent: () => ({
+    mutateAsync: vi.fn(),
+    isPending: false,
+  }),
+}))
+
+vi.mock("@/features/backrefs", () => ({
+  ReferencedByPanel: () => null,
 }))
 
 vi.mock("sonner", () => ({

@@ -280,3 +280,208 @@ SECTION 5 — COMPLETION CHECKLIST
 [ ] Server-side validation errors surface inline without closing the dialog.
 [ ] i18n keys present in both locales.
 [ ] All tests pass; no regression in the standalone entry-editor page.
+
+==========================================================================
+SECTION 6 — CODEBASE EXPLORATION NOTES (added 2026-05-27)
+==========================================================================
+
+DO NOT RE-EXPLORE. All findings below are verified from the actual codebase.
+
+--------------------------------------------------------------------------
+6.1 — File paths (exact, verified)
+--------------------------------------------------------------------------
+
+EXISTING files to modify:
+  apps/dashboard/src/features/fields/edit/relation.tsx      ← RelationEdit (single + multi)
+  apps/dashboard/src/locales/en.json                        ← add keys under "content.editor.relation"
+  apps/dashboard/src/locales/it.json                        ← add same keys
+
+NEW files to create:
+  apps/dashboard/src/features/auth/use-can-create.ts
+  apps/dashboard/src/features/inline-create/depth-context.tsx
+  apps/dashboard/src/features/inline-create/inline-create-dialog.tsx
+  apps/dashboard/src/features/inline-create/index.ts
+  apps/dashboard/src/test/features/inline-create/inline-create-dialog.test.tsx
+
+--------------------------------------------------------------------------
+6.2 — Permission system: no per-seed permissions exist
+--------------------------------------------------------------------------
+
+The JWT issued at login contains ONLY: { sub, email, name }
+  → See: apps/api/src/factory.ts:223 — tokenService.issue({ sub, email, name })
+  → See: packages/core/src/auth/token-service.ts — JwtClaims interface
+
+The dashboard AuthContext (apps/dashboard/src/lib/auth-context.tsx) decodes:
+  { email: string; name?: string }
+  → No role, no permissions, no per-seed caps.
+
+The DB has a `role` column on users (always 'admin' in current setup — only
+one user type exists). See: apps/api/src/shared/d1-user.repository.ts:13
+
+CONCLUSION: `useCanCreate(slug)` must be a stub returning `true` for all
+authenticated users. Do NOT add API calls. Signature:
+
+  // apps/dashboard/src/features/auth/use-can-create.ts
+  import { useAuth } from "@/lib/auth-context"
+  export function useCanCreate(_slug: string): boolean {
+    const { status } = useAuth()
+    return status === 'authenticated'
+  }
+
+Export from auth barrel when one exists, otherwise import directly.
+NOTE: auth feature has NO index.ts barrel — import directly by path.
+  apps/dashboard/src/features/auth/use-can-create.ts
+
+--------------------------------------------------------------------------
+6.3 — Schema / seed resolution pattern
+--------------------------------------------------------------------------
+
+Use `useSchema()` from apps/dashboard/src/features/schema/hooks/use-schema.ts
+
+  const { data: seeds } = useSchema()
+  const targetSeed = seeds?.find(s => s.slug === targetSlug)
+  const labelAlias = targetSeed?.displayNameAlias ?? "title"
+
+`Seed` type from @beechcms/core. `displayNameAlias` and `branches` are on it.
+`Branch` type from @beechcms/core has: id, alias, type, label, requiredOnCreate,
+requiredOnUpdate, targetSeed, multiple, etc.
+
+--------------------------------------------------------------------------
+6.4 — contentApi.create signature (verified)
+--------------------------------------------------------------------------
+
+  // apps/dashboard/src/features/content-management/api/content.api.ts:75
+  create: async (slug: string, data: Record<string, unknown>): Promise<{ id: string }>
+
+Returns `{ id: string }`. No slug/status needed for inline-create (API handles
+defaults). Pass only the formData fields.
+
+Cache key for priming:
+  CONTENT_QUERY_KEYS.detail(targetSlug, newId)
+  // from: apps/dashboard/src/features/content-management/consts/content.keys.ts
+
+Backrefs invalidation key:
+  BACKREF_QUERY_KEY = 'backrefs'
+  // from: apps/dashboard/src/features/backrefs/hooks/use-backrefs.ts:8
+  // invalidate: queryClient.invalidateQueries({ queryKey: ['backrefs', targetSlug] })
+
+--------------------------------------------------------------------------
+6.5 — FieldEdit usage pattern (from entry-editor.tsx)
+--------------------------------------------------------------------------
+
+  import { FieldEdit } from "@/features/fields"
+
+  <FieldEdit
+    branch={branch as any}   // cast needed: branch from seed is typed slightly differently
+    value={formData[branch.alias]}
+    onChange={(val) => onInputChange(branch.alias, val)}
+  />
+
+FieldEditProps = { branch: Branch, value: unknown, onChange: (value: unknown) => void }
+FieldEdit.tsx checks resolvePolicies(branch).privacy and delegates to registry.
+Wrap with <InlineCreateDepthContext.Provider value={1}> around each FieldEdit
+inside the dialog (not around the whole dialog).
+
+--------------------------------------------------------------------------
+6.6 — Dialog component available
+--------------------------------------------------------------------------
+
+  apps/dashboard/src/components/ui/dialog.tsx  ← use this
+
+Import:
+  import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+  } from "@/components/ui/dialog"
+
+--------------------------------------------------------------------------
+6.7 — i18n: existing "relation" namespace location
+--------------------------------------------------------------------------
+
+In both en.json and it.json the existing keys are at:
+  "content" > "editor" > "relation": { placeholder, search, clear, empty, loading }
+  "content" > "editor" > "relationMulti": { add, moveUp, moveDown, remove, selectedItems }
+
+ADD the Sprint 7 keys INSIDE "content" > "editor" > "relation":
+  "createNew": "+ Create new {{label}}",
+  "createTitle": "New {{label}}",
+  "createSubmit": "Create & link",
+  "showAllFields": "Show all fields",
+  "createSuccess": "{{label}} created and linked"
+
+Usage in code: t('content.editor.relation.createNew', { label: targetSeed?.label })
+
+--------------------------------------------------------------------------
+6.8 — Existing RelationEdit structure summary
+--------------------------------------------------------------------------
+
+relation.tsx exports:
+  - RelationEdit (public, dispatches on branch.multiple)
+  - SingleRelationEdit (internal)
+  - MultiRelationEdit (internal)
+
+SingleRelationEdit already has `onInlineCreate?: () => void` prop
+BUT it is stubbed out: `void onInlineCreate` — not wired to UI yet.
+Remove the stub and implement the full footer affordance.
+
+MultiRelationEdit does NOT have `onInlineCreate` prop yet — needs adding.
+
+RelationEdit (dispatcher) already accepts `onInlineCreate?: () => void`
+but does NOT pass it to MultiRelationEdit — fix this in the dispatcher.
+
+--------------------------------------------------------------------------
+6.9 — Cache priming pattern (TanStack Query v5)
+--------------------------------------------------------------------------
+
+  const queryClient = useQueryClient()
+  queryClient.setQueryData(
+    CONTENT_QUERY_KEYS.detail(targetSlug, newId),
+    {
+      id: newId,
+      slug: null,
+      status: 'published',
+      data: formData,       // formData already has displayNameAlias field
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    } satisfies ContentEntry
+  )
+
+ContentEntry type is from: apps/dashboard/src/lib/dynamic-columns.ts
+(imported in content.api.ts as `import type { ContentEntry } from "@/lib/dynamic-columns"`)
+
+--------------------------------------------------------------------------
+6.10 — Test file patterns
+--------------------------------------------------------------------------
+
+Existing test: apps/dashboard/src/test/pages/entry-editor.test.tsx
+  → Uses vitest + @testing-library/react
+  → Mocks: vi.mock('@/features/schema'), vi.mock('@/features/content-management')
+  → Uses renderWithProviders pattern
+
+New test file goes in:
+  apps/dashboard/src/test/features/inline-create/inline-create-dialog.test.tsx
+
+--------------------------------------------------------------------------
+6.11 — Validation in the dialog
+--------------------------------------------------------------------------
+
+The sprint says "client-side via existing Zod compiler from @beechcms/core".
+The relevant function is:
+  validateAndSanitizeSeedPayload (used in API, not on dashboard)
+
+On the dashboard, entry-editor.tsx does its own simple validation:
+  validateEntryJsonFields() — checks JSON field syntax only
+  No Zod schema validation on dashboard side currently.
+
+DECISION: For the inline-create dialog, do minimal validation:
+  1. Check required fields (requiredOnCreate === true) are non-empty
+  2. Check JSON fields parse correctly (reuse validateEntryJsonFields logic)
+  3. Let API return 4xx for deeper validation — show detail in error region
+
+--------------------------------------------------------------------------
+6.12 — BUSL header required
+--------------------------------------------------------------------------
+
+All new files must start with:
+  // SPDX-License-Identifier: BUSL-1.1
+  // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+  // See LICENSE in the repository root for license terms.

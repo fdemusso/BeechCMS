@@ -781,5 +781,13 @@
         "matches": "matches regex"
       }
     }
+  },
+  "backrefs": {
+    "title": "Referenced by",
+    "summary_one": "1 entry references this",
+    "summary_other": "{{count}} entries reference this",
+    "showAll": "Show all {{count}}",
+    "empty": "No references",
+    "deleteBlocked": "Cannot delete: {{count}} entries depend on this record"
   }
 }

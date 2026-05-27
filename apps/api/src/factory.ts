@@ -7,7 +7,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository } from '@beechcms/core'
-import { sha256hex, SystemClock, SystemIdGenerator, SeedRegistry } from '@beechcms/core'
+import { sha256hex, SystemClock, SystemIdGenerator, SeedRegistry, buildBackrefMap } from '@beechcms/core'
 import type { Env, Variables } from './types'
 import { getClientIp } from './shared/request-utils'
 
@@ -32,6 +32,7 @@ import { schemaApp } from './features/schema/schema.handler'
 import { notificationsApp } from './features/notifications'
 import { automationsApp } from './features/automations'
 import { statsApp } from './features/stats'
+import { backrefsApp } from './features/backrefs'
 import { uploadRoutes, serveMediaHandler } from './upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
 import { searchRouter } from "./search"
@@ -99,12 +100,16 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   const validSeeds = seedsArray.filter(s => s && typeof s === 'object' && 'slug' in s)
   const seedRegistry = new SeedRegistry(validSeeds)
 
+  // Build once at factory time — read-only, safe to share across requests
+  const backrefMap = buildBackrefMap(validSeeds)
+
   const app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
   // 1. Core Middleware (Seeds, CORS, Security)
   app.use('*', async (context, next) => {
     context.set('getSeed', (slug: string) => seedRegistry.get(slug))
     context.set('seedRegistry', seedRegistry)
+    context.set('backrefMap', backrefMap)
     await next()
   })
 
@@ -305,6 +310,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   apiProtected.route('/content', statsApp)
   apiProtected.route('/content', rotateFieldApp)
   apiProtected.route('/content', draftApp)
+  apiProtected.route('/content', backrefsApp)
   apiProtected.route('/content', contentFeature)
   apiProtected.route('/widget', widgetApp)
   apiProtected.route('/automations', automationsApp)

@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { contentApi } from "../api/content.api"
 import { CONTENT_QUERY_KEYS, FACET_QUERY_KEYS } from "../consts/content.keys"
 import { DASHBOARD_QUERY_KEYS } from "@/features/shared"
+import { BACKREF_QUERY_KEY } from "@/features/backrefs"
 
 /**
  * Hook for fetching a single content entry.
@@ -117,9 +118,12 @@ export function useSaveContent() {
       
       // Invalidate recent-activity so the dashboard feed reflects the change immediately
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.activity() })
-      
+
       // Invalidate stats as status change might affect counts
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.stats() })
+
+      // Invalidate back-refs — saved entry may point to new/different targets
+      queryClient.invalidateQueries({ queryKey: [BACKREF_QUERY_KEY] })
     },
   })
 }

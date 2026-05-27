@@ -32,7 +32,7 @@ export async function executeWebhook(
   context: ResolvedContext,
   env: Record<string, string | undefined>,
 ): Promise<void> {
-  const body = interpolate(action.body_template ?? '', context)
+  const body = interpolate(action.body_template ?? '{}', context)
 
   const secret = env.WEBHOOK_SECRET
   let signatureHeader: Record<string, string> = {}
