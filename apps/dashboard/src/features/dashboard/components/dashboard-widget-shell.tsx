@@ -39,7 +39,7 @@ export function DashboardWidgetShell({
         "shadow-[0_1px_3px_0_rgb(0,0,0,0.05),0_1px_2px_-1px_rgb(0,0,0,0.04)]",
         "transition-all duration-200 hover:shadow-[0_4px_12px_0_rgb(0,0,0,0.08),0_2px_4px_-1px_rgb(0,0,0,0.06)]",
         "hover:border-neutral-300/80",
-        "dark:border-neutral-700/50 dark:bg-neutral-900/65 dark:hover:border-neutral-600/60",
+        "dark:border-neutral-700/50 dark:bg-card/65 dark:hover:border-neutral-600/60",
         "dark:shadow-[0_1px_3px_0_rgb(0,0,0,0.2)] dark:hover:shadow-[0_4px_12px_0_rgb(0,0,0,0.3)]",
         "p-5",
         className

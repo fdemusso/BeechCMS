@@ -16,7 +16,7 @@ export function ContentPulse() {
 
   if (isLoading) {
     return (
-      <Card className="overflow-hidden border-none bg-white/50 backdrop-blur-xl dark:bg-neutral-900/50">
+      <Card className="overflow-hidden border-none bg-white/50 backdrop-blur-xl dark:bg-card/50">
         <CardHeader>
           <CardTitle className="text-sm font-medium">Content Pulse</CardTitle>
         </CardHeader>
@@ -36,7 +36,7 @@ export function ContentPulse() {
   const totalCount = sortedBreakdown.reduce((acc, curr) => acc + curr.count, 0)
 
   return (
-    <Card className="overflow-hidden border-none bg-white/50 backdrop-blur-xl dark:bg-neutral-900/50 shadow-sm transition-all hover:shadow-md">
+    <Card className="overflow-hidden border-none bg-white/50 backdrop-blur-xl dark:bg-card/50 shadow-sm transition-all hover:shadow-md">
       <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Activity className="size-4 text-emerald-500" />

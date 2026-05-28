@@ -177,13 +177,13 @@ h1 {
     accent-foreground = 0.985 (bianco) su accent 0.32 → contrasto ≈ 7.5:1 ✓
   */
 
-  --background:            oklch(0.11 0 0);            /* superficie scura — più profonda per far risaltare le card */
+  --background:            oklch(0.213 0 0);            /* superficie scura — #191919 */
   --foreground:            oklch(0.985 0 0);           /* testo primario: quasi bianco */
 
-  --card:                  oklch(0.205 0 0);
+  --card:                  oklch(0.297 0 0);           /* sfondo card — #2D2D2D */
   --card-foreground:       oklch(0.985 0 0);
 
-  --popover:               oklch(0.205 0 0);           /* sfondo palette cmdk */
+  --popover:               oklch(0.297 0 0);           /* sfondo palette cmdk — #2D2D2D */
   --popover-foreground:    oklch(0.985 0 0);           /* testo palette: quasi bianco */
 
   --primary:               oklch(0.985 0 0);           /* bottoni CTA in dark: bianco */
@@ -195,7 +195,7 @@ h1 {
   --muted:                 oklch(0.269 0 0);
   --muted-foreground:      oklch(0.72 0 0);            /* grigio chiaro — ≥ 4.5:1 su --muted e su --background */
 
-  --accent:                oklch(0.32 0 0);            /* hover: grigio scuro MA distinguibile */
+  --accent:                oklch(0.35 0 0);            /* hover: grigio scuro MA distinguibile — #3A3A3A */
   --accent-foreground:     oklch(0.985 0 0);           /* testo hover: bianco — sempre leggibile */
 
   --destructive:           oklch(0.704 0.191 22.216);
@@ -209,11 +209,11 @@ h1 {
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
 
-  --sidebar:                    oklch(0.205 0 0);       /* sfondo sidebar dark */
+  --sidebar:                    oklch(0.244 0 0);       /* sfondo sidebar dark — #202020 */
   --sidebar-foreground:         oklch(0.985 0 0);       /* testo sidebar: quasi bianco */
   --sidebar-primary:            oklch(0.985 0 0);       /* icona logo in dark: bianco */
   --sidebar-primary-foreground: oklch(0.145 0 0);       /* testo su icona logo: nero */
-  --sidebar-accent:             oklch(0.34 0 0);        /* hover: grigio distinguibile (ΔL 0.135 vs sfondo 0.205) */
+  --sidebar-accent:             oklch(0.293 0 0);        /* hover: grigio distinguibile — #2C2C2C */
   --sidebar-accent-foreground:  oklch(0.985 0 0);       /* testo hover: bianco — sempre leggibile */
   --sidebar-border:             oklch(1 0 0 / 10%);
   --sidebar-ring:               oklch(0.556 0 0);

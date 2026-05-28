@@ -1,0 +1,238 @@
+You are a senior TypeScript engineer working on the Beech CMS monorepo.
+
+## PROJECT CONTEXT
+
+This sprint covers **UI Refactoring — Sprint 01: Live/Draft Separation & Unified Drafts view**.
+
+Currently, drafts live in a separate shadow table for each seed (e.g. `content_articoli_drafts`). However, the dashboard does not provide a single, unified view to see all drafts across all seeds. Users have to navigate into each seed's page individually and look for entries with drafts.
+
+This sprint will introduce:
+1. A new backend endpoint `GET /api/content/drafts` that collects all drafts across all active seeds.
+2. A static link in the main dashboard sidebar navbar to access a new "Drafts" section.
+3. A unified page `/drafts` in the dashboard with a single `DataTable` view displaying all drafts showing: seed type (fruit type), seed entry name (fruit name), last modification date, and user who performed the last modification.
+4. Actions on each row to quickly Edit, Publish, or Discard the draft.
+
+==========================================================================
+SECTION 1 — WHY THIS SPRINT EXISTS
+==========================================================================
+
+1. **UX Differentiation**: Users cannot easily see what work is currently in progress (draft) versus published. A centralized drafts drawer/page improves visibility and control over pending modifications.
+2. **Simplified Audit & Review**: Content editors need a unified queue of drafts to review and approve before publishing them live, without hunting through every content category.
+
+==========================================================================
+SECTION 2 — CURRENT STATE & CODE REUSE
+==========================================================================
+
+1. **Schema Check**: In BeechCMS, a seed defines its structure. If `allowDrafts` is true, the D1 database creates a shadow table named `content_${slug}_drafts` to store draft values.
+2. **Activity Log**: The system logs every draft save. In `draft.handler.ts`:
+   ```typescript
+   logDraftActivity(context, id, slug, displayTitle, 'draft saved')
+   ```
+   This writes a record to the `activity_logs` table containing the `user_name` and `user_email` of the actor.
+3. **DataTable & Shadcn UI**: The dashboard already provides a reusable `@/components/ui/data-table` component that can render a list of entries with custom columns. All dashboard UI elements MUST reuse existing Shadcn UI components located in `@/components/ui/` (such as `Button`, `Dialog`, `DropdownMenu`, etc.) to maintain visual and functional consistency.
+4. **API and Client**: Hono handles backend routing under `/api` in `apps/api/src/factory.ts`. Axios and React Query (`useQuery` / `useMutation`) manage client-side fetching in the dashboard.
+
+==========================================================================
+SECTION 3 — DELIVERABLES
+==========================================================================
+
+The sprint is split into three phases:
+
+- **Phase A — Backend: Unified Drafts API (Single Optimized SQL Query)**
+  - Register a new API endpoint `GET /api/content/drafts`.
+  - Dynamically construct a single optimized SQL query using `UNION ALL` and a Common Table Expression (CTE) to fetch drafts from all draft-enabled seeds in a single database roundtrip.
+  - Join with `activity_logs` using a correlated subquery to fetch the last editor details.
+
+- **Phase B — Dashboard Menu & Route Setup**
+  - Add "Drafts" to the dashboard static sidebar menu.
+  - Setup the `/drafts` route in `App.tsx`.
+  - Add i18n keys for "Drafts" in English and Italian.
+
+- **Phase C — Unified Drafts Table Page**
+  - Implement a new frontend hook `useGlobalDrafts`.
+  - Create the `<DraftsListPage />` utilizing `DataTable` with the required columns: Fruit Type (Seed), Fruit Name, Last Modified Date, Last Modified User.
+  - Implement actions (Edit, Publish, Discard) with proper query invalidation.
+
+==========================================================================
+SECTION 4 — PHASE DETAILS
+==========================================================================
+
+### Phase A — Backend: Unified Drafts API
+
+#### Files to modify:
+- `apps/api/src/features/draft/draft.handler.ts`
+  Expose a new endpoint `GET /drafts` (mounted under `/api/content/drafts`):
+  ```typescript
+  // GET /drafts — Retrieves all pending drafts across all seeds in a single query
+  draftApp.get('/drafts', async (context) => {
+    const repository = context.get('repository')
+    const seedRegistry = context.get('seedRegistry')
+    
+    // Find all seeds allowing drafts
+    const seeds = seedRegistry.all().filter((s) => s.allowDrafts)
+    if (seeds.length === 0) {
+      return context.json([])
+    }
+
+    // Build a dynamic UNION ALL query to scan all draft tables in a single D1 execution
+    const unionSelects: string[] = []
+    const bindings: string[] = []
+
+    for (const seed of seeds) {
+      const draftTable = `content_${seed.slug}_drafts`
+      const liveTable = `content_${seed.slug}`
+      const titleColumn = seed.displayNameAlias ?? 'title'
+
+      unionSelects.push(`
+        SELECT 
+          ? as seed_slug,
+          ? as seed_label,
+          d.entry_id as id,
+          d.updated_at,
+          COALESCE(d.${titleColumn}, l.${titleColumn}) as title
+        FROM ${draftTable} d
+        LEFT JOIN ${liveTable} l ON l.id = d.entry_id
+      `)
+      bindings.push(seed.slug, seed.labelPlural ?? seed.label)
+    }
+
+    const unionSql = unionSelects.join('\nUNION ALL\n')
+
+    // CTE query joining the union results with activity_logs for actor details
+    const fullSql = `
+      WITH all_drafts AS (
+        ${unionSql}
+      )
+      SELECT 
+        ad.seed_slug as seedSlug,
+        ad.seed_label as seedLabel,
+        ad.id,
+        ad.updated_at as updatedAt,
+        ad.title,
+        al.user_name as last_modified_by_name,
+        al.user_email as last_modified_by_email
+      FROM all_drafts ad
+      LEFT JOIN activity_logs al ON al.entity_id = ad.id 
+                                 AND al.entity_slug = ad.seed_slug
+                                 AND al.id = (
+                                   SELECT id FROM activity_logs
+                                   WHERE entity_id = ad.id 
+                                     AND entity_slug = ad.seed_slug
+                                     AND action = 'update'
+                                   ORDER BY created_at DESC LIMIT 1
+                                 )
+      ORDER BY ad.updated_at DESC
+    `
+
+    try {
+      const stmt = repository.database.prepare(fullSql).bind(...bindings)
+      const { results } = await stmt.all()
+
+      const draftsList = (results || []).map((row: any) => ({
+        id: row.id,
+        seedSlug: row.seedSlug,
+        seedLabel: row.seedLabel,
+        title: row.title || row.id,
+        updatedAt: row.updatedAt,
+        lastModifiedBy: {
+          name: row.last_modified_by_name || 'Unknown',
+          email: row.last_modified_by_email || ''
+        }
+      }))
+
+      return context.json(draftsList)
+    } catch (err) {
+      console.error('Unified drafts query error:', err)
+      return context.json([], 500)
+    }
+  })
+  ```
+
+#### Files to create:
+- `apps/api/test/draft-global.test.ts`
+  Write integration tests that seed mock drafts, update them, and verify that `GET /api/content/drafts` aggregates and returns them correctly with names and last editor details.
+
+---
+
+### Phase B — Dashboard Menu & Route Setup
+
+#### Files to modify:
+- `apps/dashboard/src/config/dashboard-menu.ts`
+  Add the "Drafts" item to `getStaticMenu(t)`:
+  ```typescript
+  {
+    title: t("navigation.drafts"),
+    url: "/drafts",
+    icon: resolveIcon("PenTool"),
+  }
+  ```
+  Ensure "PenTool" or a similar editing icon is registered/imported.
+
+- `apps/dashboard/src/App.tsx`
+  Import `DraftsListPage` from `@/pages/drafts-list` and add it to the routing array:
+  ```typescript
+  {
+    path: "/drafts",
+    element: (
+      <ProtectedRoute>
+        <DraftsListPage />
+      </ProtectedRoute>
+    ),
+  },
+  ```
+
+- `apps/dashboard/src/config/i18n/locales/en.json` (and `it.json`)
+  Add translations:
+  - English: `"navigation": { "drafts": "Drafts" }`
+  - Italian: `"navigation": { "drafts": "Bozze" }`
+
+---
+
+### Phase C — Unified Drafts Table Page
+
+#### Files to create:
+- `apps/dashboard/src/pages/drafts-list.tsx`
+  Implement the React component for the page.
+  Use TanStack Query to fetch from `/content/drafts`:
+  ```typescript
+  import { useQuery } from "@tanstack/react-query"
+  import { api } from "@/lib/api"
+
+  export function useGlobalDrafts() {
+    return useQuery({
+      queryKey: ["global-drafts"],
+      queryFn: async () => {
+        const { data } = await api.get<any[]>("/content/drafts")
+        return data
+      }
+    })
+  }
+  ```
+  Use `DataTable` from `@/components/ui/data-table` to display.
+  Define columns:
+  1. **Seed Type (Fruit type)**: Render the `seedLabel` with a status badge or normal text.
+  2. **Draft Name (Fruit name)**: Render `title` with a link directing to `/content/${seedSlug}/${id}` so clicking it opens the editor immediately.
+  3. **Last Modified Date**: Format `updatedAt` using `formatDistanceToNow`.
+  4. **Last Modified User**: Display `lastModifiedBy.name` (with email as a tooltip if available).
+
+  Add column actions / context menu:
+  - **Edit**: Navigate to `/content/${seedSlug}/${id}`
+  - **Publish**: Trigger POST `/content/${seedSlug}/${id}/draft/publish` using a `useMutation` hook. On success, invalidate the `["global-drafts"]` query and trigger toast notification.
+  - **Discard**: Trigger DELETE `/content/${seedSlug}/${id}/draft` using a `useMutation` hook. Show a confirmation dialog before deletion. On success, invalidate and toast.
+
+==========================================================================
+SECTION 5 — VALIDATION
+==========================================================================
+
+1. Run `npx tsc --noEmit` on both `apps/api` and `apps/dashboard` to verify compilation.
+2. Run frontend and backend test suites (`npm run test`).
+3. Boot the local server (`npm run dev`) and test manually:
+   - Save a draft of an article.
+   - Go to the "Drafts" ("Bozze") section in the sidebar.
+   - Verify that the draft appears with:
+     - Seed Type: "Articolo"
+     - Title: (Your saved title)
+     - Modified date: "just now" / "1 minute ago"
+     - User: (Your login name / email)
+   - Click "Edit" and confirm it opens the editor.
+   - Click "Publish" from the context menu/actions, confirm it publishes the draft, and verifies it disappears from the drafts list.

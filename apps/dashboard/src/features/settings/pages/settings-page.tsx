@@ -41,7 +41,7 @@ export default function SettingsPage() {
   const Icon = currentTab.icon
 
   return (
-    <div className="[--header-height:calc(--spacing(14))] min-h-screen bg-neutral-50/50 dark:bg-neutral-950/50">
+    <div className="[--header-height:calc(--spacing(14))] min-h-screen bg-background/50 dark:bg-background/50">
       <SidebarProvider className="flex flex-col">
         <SiteHeader />
         <div className="flex flex-1">

@@ -116,6 +116,30 @@ describe('Flow: Admin Authentication', () => {
       expect(profile.email).toBe(VALID_EMAIL)
     })
 
+    it('/api/settings/me returns Gravatar fallback URL when user has no custom avatar', async () => {
+      const { accessToken } = await login()
+      const res = await app.request('/api/settings/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(200)
+      const profile = await res.json<{ avatarUrl: string | null }>()
+      const expectedHash = await sha256hex(VALID_EMAIL.trim().toLowerCase())
+      expect(profile.avatarUrl).toBe(`https://gravatar.com/avatar/${expectedHash}?d=mp`)
+    })
+
+    it('/api/settings/me returns custom avatar URL when user has one set', async () => {
+      await db.prepare('UPDATE users SET avatar_url = ? WHERE email = ?')
+        .bind('https://cdn.example.com/my-avatar.jpg', VALID_EMAIL)
+        .run()
+      const { accessToken } = await login()
+      const res = await app.request('/api/settings/me', {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(200)
+      const profile = await res.json<{ avatarUrl: string | null }>()
+      expect(profile.avatarUrl).toBe('https://cdn.example.com/my-avatar.jpg')
+    })
+
     it('request without Authorization header returns 401', async () => {
       const res = await app.request('/api/settings/me', {}, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(401)

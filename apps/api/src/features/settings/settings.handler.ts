@@ -4,6 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
+import { sha256hex } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 
 const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -53,11 +54,17 @@ settingsApp.get('/me', async (context) => {
     notificationPreferences = {}
   }
 
+  let avatarUrl = currentUser.avatarUrl
+  if (!avatarUrl && currentUser.email) {
+    const emailHash = await sha256hex(currentUser.email.trim().toLowerCase())
+    avatarUrl = `https://gravatar.com/avatar/${emailHash}?d=mp`
+  }
+
   return context.json({
     id: currentUser.id,
     email: currentUser.email,
     name: currentUser.name,
-    avatarUrl: currentUser.avatarUrl,
+    avatarUrl,
     notificationPrefs: {
       contentCreate: notificationPreferences.contentCreate ?? true,
       contentUpdate: notificationPreferences.contentUpdate ?? true,
