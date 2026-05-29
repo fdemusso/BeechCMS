@@ -20,26 +20,9 @@ vi.mock("@/components/ui/dialog", () => ({
   DialogFooter: ({ children }: any) => <div>{children}</div>,
 }))
 
-vi.mock("@/components/ui/select", () => ({
-  Select: ({ children, value, onValueChange }: any) => (
-    <div data-testid="select" data-value={value} onClick={() => {}}>
-      {/* Inject a hidden button per child SelectItem so we can click them */}
-      {children}
-    </div>
-  ),
-  SelectTrigger: ({ children }: any) => <div role="combobox">{children}</div>,
-  SelectValue: ({ placeholder }: any) => <span>{placeholder}</span>,
-  SelectContent: ({ children }: any) => <div role="listbox">{children}</div>,
-  SelectItem: ({ children, value, onClick }: any) => (
-    <button role="option" data-value={value} onClick={onClick}>
-      {children}
-    </button>
-  ),
-}))
-
 // Make Select forward onValueChange when a SelectItem is clicked
 vi.mock("@/components/ui/select", () => {
-  const React = require("react")
+  const React = require("react") as typeof import("react")
   const SelectContext = React.createContext<any>(null)
 
   function Select({ children, value, onValueChange }: any) {
@@ -146,13 +129,6 @@ function renderDialog(open = true, selectedIds = ["id1", "id2"]) {
       sampleLabels={["Item 1", "Item 2"]}
     />
   )
-}
-
-async function pickFieldAndConfirm(alias: string) {
-  // Click the option in the listbox
-  fireEvent.click(screen.getByRole("option", { name: mockSeed.branches.find(b => b.alias === alias)?.label ?? alias }))
-  // Click Confirm (step 1 → step 2)
-  fireEvent.click(screen.getAllByRole("button", { name: "Confirm" })[0])
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

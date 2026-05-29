@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import axios from 'axios'
@@ -20,9 +20,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { Check, ChevronsUpDown } from 'lucide-react'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { TimezoneSelect, TIMEZONES } from '@/components/ui/timezone-select'
 import { CurrencySelect } from '@/components/ui/currency-select'
 
@@ -33,7 +30,7 @@ interface SetupEnvironment {
 
 
 
-function passwordStrength(pw: string): number {
+function passwordStrength(pw: string, name?: string, surname?: string, email?: string): number {
   if (!pw) return 0
   let score = 0
   if (pw.length >= 8) score += 20
@@ -43,7 +40,37 @@ function passwordStrength(pw: string): number {
   if (/[A-Z]/.test(pw)) score += 15
   if (/[0-9]/.test(pw)) score += 15
   if (/[^a-zA-Z0-9]/.test(pw)) score += 15
-  return Math.min(score, 100)
+
+  const lowerPw = pw.toLowerCase()
+  let penalty = 0
+
+  if (name && name.trim().length >= 3) {
+    const n = name.trim().toLowerCase()
+    if (lowerPw.includes(n)) {
+      penalty += 25
+    }
+  }
+
+  if (surname && surname.trim().length >= 3) {
+    const s = surname.trim().toLowerCase()
+    if (lowerPw.includes(s)) {
+      penalty += 25
+    }
+  }
+
+  if (email && email.trim().length >= 3) {
+    const e = email.trim().toLowerCase()
+    if (lowerPw.includes(e)) {
+      penalty += 25
+    } else {
+      const localPart = e.split('@')[0]
+      if (localPart && localPart.length >= 3 && lowerPw.includes(localPart)) {
+        penalty += 25
+      }
+    }
+  }
+
+  return Math.max(0, Math.min(score - penalty, 100))
 }
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
@@ -81,7 +108,7 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 }
 
 export function SetupPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -128,6 +155,10 @@ export function SetupPage() {
   }, [])
 
   useEffect(() => {
+    i18n.changeLanguage('en')
+  }, [i18n])
+
+  useEffect(() => {
     axios.get('/auth/setup').then((res) => {
       const env: SetupEnvironment = res.data.environment
       setEnvironment(env)
@@ -135,7 +166,7 @@ export function SetupPage() {
     })
   }, [])
 
-  const strength = passwordStrength(password)
+  const strength = passwordStrength(password, name, surname, email)
   const strengthColor =
     strength < 40 ? 'bg-destructive' : strength < 70 ? 'bg-amber-500' : 'bg-green-500'
   const strengthLabel =
@@ -267,7 +298,7 @@ export function SetupPage() {
 
                <div className="space-y-2">
                 <Label>{t('setup.languageLabel')}</Label>
-                <Select value={language} onValueChange={setLanguage}>
+                <Select value={language} onValueChange={(lng) => { setLanguage(lng); i18n.changeLanguage(lng) }}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder={t('setup.languagePlaceholder')} />
                   </SelectTrigger>
