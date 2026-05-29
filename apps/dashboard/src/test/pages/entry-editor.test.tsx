@@ -7,9 +7,34 @@ import { render, screen, waitFor, fireEvent } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
-const mockNavigate = vi.fn()
-const mockUseParams = vi.fn()
-const mockBlockerState = { state: "unblocked", reset: vi.fn(), proceed: vi.fn() }
+const {
+  mockNavigate,
+  mockUseParams,
+  mockBlockerState,
+  getMockLocationState,
+  setMockLocationState,
+  mockLocationListeners,
+} = vi.hoisted(() => {
+  let state: any = null
+  const listeners = new Set<() => void>()
+  return {
+    mockNavigate: vi.fn((to, options) => {
+      if (options?.state) {
+        state = options.state
+        listeners.forEach((l) => l())
+      }
+    }),
+    mockUseParams: vi.fn(),
+    mockBlockerState: { state: "unblocked", reset: vi.fn(), proceed: vi.fn() },
+    getMockLocationState: () => state,
+    setMockLocationState: (s: any) => {
+      state = s
+      listeners.forEach((l) => l())
+    },
+    mockLocationListeners: listeners,
+  }
+})
+
 const mockFetchContentById = vi.fn()
 const mockCreateContent = vi.fn()
 const mockUpdateContent = vi.fn()
@@ -20,15 +45,30 @@ const mockSaveDraft = vi.fn()
 const mockPublishDraft = vi.fn()
 const mockDiscardDraft = vi.fn()
 
-vi.mock("react-router-dom", () => ({
-  useNavigate: () => mockNavigate,
-  useParams: () => mockUseParams(),
-  useBlocker: () => mockBlockerState,
-}))
+vi.mock("react-router-dom", async () => {
+  const { useState, useEffect } = await import("react")
+  return {
+    useNavigate: () => mockNavigate,
+    useParams: () => mockUseParams(),
+    useBlocker: () => mockBlockerState,
+    useLocation: () => {
+      const [state, setState] = useState(getMockLocationState())
+      useEffect(() => {
+        const handler = () => setState(getMockLocationState())
+        mockLocationListeners.add(handler)
+        return () => {
+          mockLocationListeners.delete(handler)
+        }
+      }, [])
+      return { state }
+    },
+  }
+})
 
 const seedPosts = {
   slug: "posts",
   label: "Post",
+  allowDrafts: true,
   branches: [
     { id: "t1", alias: "title", label: "Title", type: "text" },
     { id: "r1", alias: "content", label: "Content", type: "richtext" },
@@ -143,6 +183,13 @@ vi.mock("@/components/ui/alert-dialog", () => ({
   AlertDialogAction: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
 }))
 
+vi.mock("@/components/ui/dropdown-menu", () => ({
+  DropdownMenu: ({ children }: any) => <div>{children}</div>,
+  DropdownMenuTrigger: ({ children }: any) => <div>{children}</div>,
+  DropdownMenuContent: ({ children }: any) => <div>{children}</div>,
+  DropdownMenuItem: ({ children, onClick }: any) => <button onClick={onClick}>{children}</button>,
+}))
+
 // Mock di i18next potenziato per coprire i bottoni e le etichette
 vi.mock("react-i18next", () => ({
   useTranslation: () => ({
@@ -163,6 +210,7 @@ vi.mock("react-i18next", () => ({
         "content.editor.published": "Published",
         "content.editor.pendingDraftNotice": "This entry has a pending draft.",
         "content.editor.draftModeNotice": "Editing pending draft — changes will not go live until published.",
+        "content.editor.editDraft": "Resume draft",
         "content.editor.resumeDraft": "Resume draft",
         "content.editor.saveDraft": "Save draft",
         "content.editor.publishDraft": "Publish draft",
@@ -192,6 +240,7 @@ describe("EntryEditorPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockUseParams.mockReturnValue({ slug: "posts" })
+    setMockLocationState(null)
   })
 
   const renderWithProvider = (ui: React.ReactElement) => {
@@ -282,6 +331,7 @@ describe("DraftActionBanner", () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    setMockLocationState(null)
   })
 
   const renderWithProvider = (ui: React.ReactElement) =>
@@ -339,7 +389,7 @@ describe("DraftActionBanner", () => {
 
     await waitFor(() => {
       expect(mockPublishDraft).toHaveBeenCalledWith({ slug: "posts", id: "entry-1" })
-      expect(mockNavigate).toHaveBeenCalledWith("/content/posts")
+      expect(mockNavigate).toHaveBeenCalledWith("/drafts")
     })
   })
 

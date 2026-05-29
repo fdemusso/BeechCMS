@@ -57,6 +57,10 @@ vi.mock("@/features/content-management", () => ({
   useDeleteContent: () => ({
     mutateAsync: async (...args: any[]) => mockDeleteContent(...args),
   }),
+  useBulkUpdate: () => ({
+    mutateAsync: async () => ({ updated: 0, failed: [] }),
+    isPending: false,
+  }),
   contentApi: {
     delete: (...args: any[]) => mockDeleteContent(...args),
   }
