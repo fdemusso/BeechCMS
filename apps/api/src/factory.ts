@@ -221,7 +221,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
       if (!user || !isValid) return context.json({ error: AUTH_ERRORS.INVALID_CREDENTIALS }, 401)
 
-      const accessToken = await context.get('tokenService').issue({ sub: user.id, email: user.email, name: user.name ?? undefined })
+      const accessToken = await context.get('tokenService').issue({ sub: user.id, email: user.email, name: user.name ?? undefined, surname: user.surname ?? undefined })
       const refreshToken = generateRefreshToken()
       const refreshTokenHash = await sha256hex(refreshToken)
       const nowSeconds = SystemClock.nowSeconds()
@@ -261,7 +261,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
       // Issue new tokens before revoking the old one: if saveRefreshToken fails,
       // the old token stays valid and the user is not locked out.
-      const newAccessToken = await context.get('tokenService').issue({ sub: user.id, email: user.email, name: user.name ?? undefined })
+      const newAccessToken = await context.get('tokenService').issue({ sub: user.id, email: user.email, name: user.name ?? undefined, surname: user.surname ?? undefined })
       const newRefreshToken = generateRefreshToken()
       const newRefreshTokenHash = await sha256hex(newRefreshToken)
 

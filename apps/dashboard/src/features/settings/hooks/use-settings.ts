@@ -24,6 +24,16 @@ export function useGeneralSettings() {
   })
 }
 
+export function useUpdateGeneralSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: settingsApi.updateGeneralSettings,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SETTINGS_QUERY_KEYS.general() })
+    },
+  })
+}
+
 export function useProfile() {
   return useQuery({
     queryKey: SETTINGS_QUERY_KEYS.profile(),

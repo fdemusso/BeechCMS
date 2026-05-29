@@ -179,7 +179,8 @@
       "interface": "Interfaccia",
       "security": "Sicurezza",
       "storage": "Storage",
-      "notifications": "Notifiche"
+      "notifications": "Notifiche",
+      "general": "Sito"
     },
     "notifications": {
       "title": "Notifiche in-app",
@@ -219,6 +220,8 @@
       "changePhoto": "Cambia foto",
       "nameLabel": "Nome",
       "namePlaceholder": "Il tuo nome",
+      "surnameLabel": "Cognome",
+      "surnamePlaceholder": "Il tuo cognome",
       "emailLabel": "Email",
       "emailPlaceholder": "email@esempio.it",
       "saveChanges": "Salva modifiche",
@@ -235,6 +238,29 @@
       "passwordError": "Password attuale non corretta",
       "avatarSuccess": "Foto profilo aggiornata",
       "avatarError": "Errore durante il caricamento della foto"
+    },
+    "general": {
+      "title": "Impostazioni sito",
+      "description": "Gestisci la configurazione generale del sito e i dati dell'azienda.",
+      "siteDefaultsTitle": "Impostazioni predefinite del sito",
+      "siteDefaultsDesc": "Imposta la lingua predefinita, il fuso orario e la valuta del sito.",
+      "companyInfoTitle": "Informazioni azienda",
+      "companyInfoDesc": "Dati legali e di contatto dell'azienda proprietaria del sito.",
+      "siteTitleLabel": "Titolo del sito / Nome azienda",
+      "siteTitlePlaceholder": "es. Acme Corp",
+      "companyWebsiteLabel": "Sito web azienda",
+      "companyWebsitePlaceholder": "https://acme.com",
+      "companyAbbreviationLabel": "Abbreviazione azienda",
+      "companyAbbreviationPlaceholder": "es. ACM",
+      "languageLabel": "Lingua predefinita",
+      "languagePlaceholder": "Seleziona lingua predefinita",
+      "timezoneLabel": "Fuso orario predefinito",
+      "timezonePlaceholder": "Seleziona fuso orario predefinito",
+      "currencyLabel": "Valuta predefinita",
+      "currencyPlaceholder": "Seleziona valuta predefinita",
+      "savedSuccess": "Impostazioni del sito salvate con successo",
+      "savedError": "Errore durante il salvataggio delle impostazioni",
+      "saveChanges": "Salva modifiche"
     },
     "security": {
       "sessionsTitle": "Sessioni attive",
@@ -302,6 +328,8 @@
       "draftModeNotice": "Stai modificando la bozza in sospeso — le modifiche non saranno live finché non viene pubblicata.",
       "resumeDraft": "Riprendi bozza",
       "saveDraft": "Salva bozza",
+      "saveAsDraft": "Salva come bozza",
+      "editDraft": "Modifica bozza",
       "publishDraft": "Pubblica bozza",
       "discardDraft": "Scarta bozza",
       "discardDraftTitle": "Scarta bozza in sospeso",
@@ -541,8 +569,11 @@
     "actions": {
       "edit": "Modifica",
       "publish": "Pubblica",
-      "discard": "Scarta"
+      "discard": "Scarta",
+      "create": "Nuova bozza"
     },
+    "selectType": "Seleziona tipo di contenuto",
+    "searchPlaceholder": "Cerca bozze…",
     "empty": "Nessuna bozza in sospeso",
     "discardConfirm": "Scartare questa bozza? L'operazione è irreversibile.",
     "published": "Bozza pubblicata",

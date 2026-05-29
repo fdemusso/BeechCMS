@@ -9,17 +9,17 @@ type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
 interface AuthState {
   status: AuthStatus
-  user: { email: string; name?: string } | null
+  user: { email: string; name?: string; surname?: string } | null
   setToken: (token: string) => void
   clearToken: () => void
 }
 
 const AuthContext = createContext<AuthState | null>(null)
 
-function decodeUser(token: string): { email: string; name?: string } | null {
+function decodeUser(token: string): { email: string; name?: string; surname?: string } | null {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]))
-    return { email: payload.email ?? '', name: payload.name ?? 'Admin' }
+    return { email: payload.email ?? '', name: payload.name ?? 'Admin', surname: payload.surname }
   } catch {
     return null
   }
@@ -27,7 +27,7 @@ function decodeUser(token: string): { email: string; name?: string } | null {
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading')
-  const [user, setUser] = useState<{ email: string; name?: string } | null>(null)
+  const [user, setUser] = useState<{ email: string; name?: string; surname?: string } | null>(null)
 
   function setToken(token: string) {
     setAccessToken(token)

@@ -4,9 +4,9 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { useParams, useNavigate, useBlocker } from "react-router-dom"
+import { useParams, useNavigate, useBlocker, useLocation } from "react-router-dom"
 import { slugify } from "@beechcms/core"
-import { ArrowLeft, Loader2 } from "lucide-react"
+import { ArrowLeft, ChevronDown, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import type { AxiosError } from "axios"
 
@@ -22,6 +22,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Card,
   CardContent,
@@ -475,6 +481,8 @@ export function EntryEditorPage() {
     id?: string
   }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const isDraftContext = !!(location.state as { isDraftContext?: boolean } | null)?.isDraftContext
   const isCreate = !entryId
 
   const { seed, isLoading: isSeedLoading } = useActiveSeed(schemaSlug)
@@ -490,12 +498,16 @@ export function EntryEditorPage() {
 
   const hasPendingDraftNotice = !isCreate && entryData?.has_pending_draft === true
 
-  const [isDraftMode, setIsDraftMode] = React.useState(false)
+  // isDraftContext: user navigated from the Drafts list (router state carries the flag).
+  // effectiveDraftContext: full condition — draft context is only meaningful on edit-mode
+  // entries belonging to a draft-enabled seed.
+  const effectiveDraftContext = isDraftContext && !isCreate && !!entryId && !!seed?.allowDrafts
+
   const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false)
 
   const { data: draftData } = useDraftEntry(
-    hasPendingDraftNotice ? schemaSlug : undefined,
-    hasPendingDraftNotice ? entryId : undefined
+    (hasPendingDraftNotice || effectiveDraftContext) ? schemaSlug : undefined,
+    (hasPendingDraftNotice || effectiveDraftContext) ? entryId : undefined
   )
 
   const { mutateAsync: saveDraft, isPending: isSavingDraft } = useSaveDraft()
@@ -535,20 +547,13 @@ export function EntryEditorPage() {
     setIsDirty(true)
   }, [])
 
-  const handleResumeDraft = React.useCallback(() => {
-    if (!draftData) return
-    setFormData(draftData)
-    setIsDraftMode(true)
-    setIsDirty(false)
-  }, [draftData])
-
   const handlePublishDraft = async () => {
     if (!schemaSlug || !entryId) return
     try {
       await publishDraft({ slug: schemaSlug, id: entryId })
       toast.success(t("content.editor.draftPublishSuccess"))
       hasJustSavedRef.current = true
-      navigate(`/content/${schemaSlug}`)
+      navigate(effectiveDraftContext ? "/drafts" : `/content/${schemaSlug}`)
     } catch {
       toast.error(t("content.editor.saveError"))
     }
@@ -559,12 +564,16 @@ export function EntryEditorPage() {
     try {
       await discardDraft({ slug: schemaSlug, id: entryId })
       toast.success(t("content.editor.draftDiscardSuccess"))
-      setIsDraftMode(false)
-      setIsDirty(false)
-      if (entryData) {
-        setFormData(entryData.data ?? {})
-        setStatus(entryData.status ?? "draft")
-        setSlug(entryData.slug ?? "")
+      if (effectiveDraftContext) {
+        hasJustSavedRef.current = true
+        navigate("/drafts")
+      } else {
+        setIsDirty(false)
+        if (entryData) {
+          setFormData(entryData.data ?? {})
+          setStatus(entryData.status ?? "draft")
+          setSlug(entryData.slug ?? "")
+        }
       }
     } catch {
       toast.error(t("content.editor.saveError"))
@@ -573,7 +582,7 @@ export function EntryEditorPage() {
     }
   }
 
-  // Sync data from query to local state
+  // Sync live data from query to local state
   React.useEffect(() => {
     if (entryData) {
       setFormData(entryData.data ?? {})
@@ -582,6 +591,15 @@ export function EntryEditorPage() {
       setIsDirty(false)
     }
   }, [entryData])
+
+  // When entering from the Drafts list, override form with draft data once loaded.
+  // Runs after the live-data effect so draft values win.
+  React.useEffect(() => {
+    if (effectiveDraftContext && draftData) {
+      setFormData(draftData)
+      setIsDirty(false)
+    }
+  }, [effectiveDraftContext, draftData])
 
   const errorEntry =
     errorEntryQuery instanceof Error ? errorEntryQuery.message : null
@@ -642,61 +660,28 @@ export function EntryEditorPage() {
     }
   }
 
-  const persistEntry = async (
-    targetSchemaSlug: string,
-    payload: Record<string, unknown>,
-    entryIdForUpdate: string | null
-  ) => {
-    await saveContent({
-      slug: targetSchemaSlug,
-      id: entryIdForUpdate ?? undefined,
-      data: payload,
-    })
-
-    if (entryIdForUpdate) {
-      toast.success(t("content.editor.savedSuccess"))
-    } else {
-      toast.success(t("content.editor.createdSuccess"))
-    }
-  }
-
-  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
-    e.preventDefault()
+  const handleSaveLive = async () => {
     if (!schemaSlug || !seed) return
     if (!isCreate && !entryId) return
 
     const jsonValidation = validateEntryJsonFields(branches, formData)
     if (!jsonValidation.isValid) {
-      toast.error(
-        t("content.editor.jsonError", { field: jsonValidation.errorFieldLabel })
-      )
+      toast.error(t("content.editor.jsonError", { field: jsonValidation.errorFieldLabel }))
       return
     }
 
     setFieldErrors({})
     try {
-      if (isDraftMode && entryId) {
-        const payload = prepareSubmissionPayload({ branches, formData, slug, status })
-        await saveDraft({ slug: schemaSlug, id: entryId, data: payload })
-        toast.success(t("content.editor.draftSaveSuccess"))
-        setIsDirty(false)
-        hasJustSavedRef.current = true
-        navigate(`/content/${schemaSlug}`)
-      } else {
-        const payload = prepareSubmissionPayload({ branches, formData, slug, status })
-        const entryIdForUpdate = isCreate ? null : entryId
-        await persistEntry(schemaSlug, payload, entryIdForUpdate)
-        setIsDirty(false)
-        hasJustSavedRef.current = true
-        navigate(`/content/${schemaSlug}`)
-      }
+      const payload = prepareSubmissionPayload({ branches, formData, slug, status })
+      const entryIdForUpdate = isCreate ? null : entryId!
+      await saveContent({ slug: schemaSlug, id: entryIdForUpdate ?? undefined, data: payload })
+      toast.success(isCreate ? t("content.editor.createdSuccess") : t("content.editor.savedSuccess"))
+      setIsDirty(false)
+      hasJustSavedRef.current = true
+      navigate(`/content/${schemaSlug}`)
     } catch (err) {
       type ApiValidationError = { field: string; message: string }
-      type ApiErrorBody = {
-        error?: string
-        status?: number
-        errors?: ApiValidationError[]
-      }
+      type ApiErrorBody = { error?: string; status?: number; errors?: ApiValidationError[] }
       const ax = err as AxiosError<ApiErrorBody>
       if (ax.response?.status === 409) {
         toast.error(t("content.editor.slugDuplicate"))
@@ -706,23 +691,49 @@ export function EntryEditorPage() {
         const errors = ax.response.data?.errors
         if (errors && errors.length > 0) {
           const mapped: Record<string, string> = {}
-          errors.forEach((errItem) => {
-            mapped[errItem.field] = errItem.message
-          })
+          errors.forEach((errItem) => { mapped[errItem.field] = errItem.message })
           setFieldErrors(mapped)
-          toast.error(
-            t("content.editor.validationError", { count: errors.length })
-          )
+          toast.error(t("content.editor.validationError", { count: errors.length }))
           return
         }
       }
-      toast.error(
-        err instanceof Error ? err.message : t("content.editor.saveError")
-      )
+      toast.error(err instanceof Error ? err.message : t("content.editor.saveError"))
     }
   }
 
-  const goBack = () => navigate(schemaSlug ? `/content/${schemaSlug}` : "/")
+  const handleSaveDraftOnly = async () => {
+    if (!schemaSlug || !entryId || !seed) return
+
+    const jsonValidation = validateEntryJsonFields(branches, formData)
+    if (!jsonValidation.isValid) {
+      toast.error(t("content.editor.jsonError", { field: jsonValidation.errorFieldLabel }))
+      return
+    }
+
+    setFieldErrors({})
+    try {
+      const fullPayload = prepareSubmissionPayload({ branches, formData, slug, status })
+      const { slug: _s, status: _st, ...draftPayload } = fullPayload
+      await saveDraft({ slug: schemaSlug, id: entryId, data: draftPayload })
+      toast.success(t("content.editor.draftSaveSuccess"))
+      setIsDirty(false)
+      hasJustSavedRef.current = true
+      navigate(effectiveDraftContext ? "/drafts" : `/content/${schemaSlug}`)
+    } catch {
+      toast.error(t("content.editor.saveError"))
+    }
+  }
+
+  const handleSubmit = async (e: React.SyntheticEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (effectiveDraftContext) {
+      await handleSaveDraftOnly()
+    } else {
+      await handleSaveLive()
+    }
+  }
+
+  const goBack = () => navigate(effectiveDraftContext ? "/drafts" : (schemaSlug ? `/content/${schemaSlug}` : "/"))
 
   if (!schemaSlug) {
     return (
@@ -776,16 +787,9 @@ export function EntryEditorPage() {
     ? t("content.editor.newEntry", { label: seed.label })
     : t("content.editor.editEntry", { label: seed.label })
 
-  const submitButtonLabel = isSaving || isSavingDraft ? (
-    <>
-      <Loader2 className="mr-2 size-4 animate-spin" />
-      {t("content.editor.saving")}
-    </>
-  ) : isDraftMode ? (
-    t("content.editor.saveDraft")
-  ) : (
-    t("content.editor.save")
-  )
+  const isBusy = isSaving || isSavingDraft || isPublishing
+  // Show dropdown when allowDrafts is active and we have an existing entry to draft.
+  const hasSaveDropdown = !isCreate && !!entryId && !!seed?.allowDrafts
 
   return (
     <EditorShellLayout>
@@ -801,7 +805,7 @@ export function EntryEditorPage() {
           </Button>
           <h1 className="text-xl font-semibold truncate pb-1">{pageTitle}</h1>
           <div className="flex items-center gap-2">
-            {!isCreate && (
+            {!isCreate && !effectiveDraftContext && (
               hasRestrictedRefs ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -829,45 +833,81 @@ export function EntryEditorPage() {
                 </Button>
               )
             )}
-            <Button type="submit" disabled={isSaving}>
-              {submitButtonLabel}
-            </Button>
+
+            {/* Split save button: main action + dropdown for secondary save action */}
+            <div className="flex items-center">
+              <Button
+                type="submit"
+                disabled={isBusy}
+                className={hasSaveDropdown ? "rounded-r-none border-r border-r-primary-foreground/20 pr-3" : ""}
+              >
+                {isBusy ? (
+                  <><Loader2 className="mr-2 size-4 animate-spin" />{t("content.editor.saving")}</>
+                ) : effectiveDraftContext ? (
+                  t("content.editor.saveDraft")
+                ) : (
+                  t("content.editor.save")
+                )}
+              </Button>
+              {hasSaveDropdown && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      type="button"
+                      disabled={isBusy}
+                      className="rounded-l-none px-2 border-l-0"
+                    >
+                      <ChevronDown className="size-3" />
+                      <span className="sr-only">{t("common.openMenu")}</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {effectiveDraftContext ? (
+                      <>
+                        <DropdownMenuItem onClick={handlePublishDraft} disabled={isPublishing}>
+                          {isPublishing && <Loader2 className="mr-2 size-3 animate-spin" />}
+                          {t("content.editor.publishDraft")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setShowDiscardConfirm(true)}
+                        >
+                          {t("content.editor.discardDraft")}
+                        </DropdownMenuItem>
+                      </>
+                    ) : (
+                      <DropdownMenuItem onClick={handleSaveDraftOnly}>
+                        {t("content.editor.saveAsDraft")}
+                      </DropdownMenuItem>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
           </div>
         </div>
 
-        {(hasPendingDraftNotice || isDraftMode) && (
+        {/* Draft context: simple "you're editing a draft" notice — actions are in the save button dropdown */}
+        {effectiveDraftContext && (
+          <div className="mb-4 flex items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-200">
+            <span>{t("content.editor.draftModeNotice")}</span>
+          </div>
+        )}
+
+        {/* Normal context: pending draft exists — offer to open it or discard it */}
+        {!effectiveDraftContext && hasPendingDraftNotice && (
           <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-200">
-            <span className="flex-1">
-              {isDraftMode
-                ? t("content.editor.draftModeNotice")
-                : t("content.editor.pendingDraftNotice")}
-            </span>
+            <span className="flex-1">{t("content.editor.pendingDraftNotice")}</span>
             <div className="flex gap-2">
-              {!isDraftMode && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
-                  onClick={handleResumeDraft}
-                  disabled={!draftData}
-                >
-                  {t("content.editor.resumeDraft")}
-                </Button>
-              )}
-              {isDraftMode && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
-                  onClick={handlePublishDraft}
-                  disabled={isPublishing}
-                >
-                  {isPublishing ? <Loader2 className="mr-1 size-3 animate-spin" /> : null}
-                  {t("content.editor.publishDraft")}
-                </Button>
-              )}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                onClick={() => navigate(`/content/${schemaSlug}/${entryId}`, { state: { isDraftContext: true }, replace: true })}
+              >
+                {t("content.editor.editDraft")}
+              </Button>
               <Button
                 type="button"
                 size="sm"

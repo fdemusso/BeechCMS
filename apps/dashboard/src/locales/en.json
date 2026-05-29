@@ -179,7 +179,8 @@
       "interface": "Interface",
       "security": "Security",
       "storage": "Storage",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "general": "Site"
     },
     "notifications": {
       "title": "In-app notifications",
@@ -219,6 +220,8 @@
       "changePhoto": "Change photo",
       "nameLabel": "Name",
       "namePlaceholder": "Your name",
+      "surnameLabel": "Last name",
+      "surnamePlaceholder": "Your last name",
       "emailLabel": "Email",
       "emailPlaceholder": "email@example.com",
       "saveChanges": "Save changes",
@@ -235,6 +238,29 @@
       "passwordError": "Current password is incorrect",
       "avatarSuccess": "Profile photo updated",
       "avatarError": "Error uploading photo"
+    },
+    "general": {
+      "title": "Site Settings",
+      "description": "Manage general site settings and company metadata.",
+      "siteDefaultsTitle": "Site Defaults",
+      "siteDefaultsDesc": "Set default language, timezone and currency for the site.",
+      "companyInfoTitle": "Company Info",
+      "companyInfoDesc": "Legal and contact information of the company that owns the site.",
+      "siteTitleLabel": "Site Title / Company Name",
+      "siteTitlePlaceholder": "e.g. Acme Corp",
+      "companyWebsiteLabel": "Company Website",
+      "companyWebsitePlaceholder": "https://acme.com",
+      "companyAbbreviationLabel": "Company Abbreviation",
+      "companyAbbreviationPlaceholder": "e.g. ACM",
+      "languageLabel": "Default Language",
+      "languagePlaceholder": "Select default language",
+      "timezoneLabel": "Default Timezone",
+      "timezonePlaceholder": "Select default timezone",
+      "currencyLabel": "Default Currency",
+      "currencyPlaceholder": "Select default currency",
+      "savedSuccess": "Site settings saved successfully",
+      "savedError": "Error saving settings",
+      "saveChanges": "Save changes"
     },
     "security": {
       "sessionsTitle": "Active sessions",
@@ -302,6 +328,8 @@
       "draftModeNotice": "Editing pending draft — changes will not go live until published.",
       "resumeDraft": "Resume draft",
       "saveDraft": "Save draft",
+      "saveAsDraft": "Save as draft",
+      "editDraft": "Edit draft",
       "publishDraft": "Publish draft",
       "discardDraft": "Discard draft",
       "discardDraftTitle": "Discard pending draft",
@@ -541,8 +569,11 @@
     "actions": {
       "edit": "Edit",
       "publish": "Publish",
-      "discard": "Discard"
+      "discard": "Discard",
+      "create": "New Draft"
     },
+    "selectType": "Select content type",
+    "searchPlaceholder": "Search drafts…",
     "empty": "No pending drafts",
     "discardConfirm": "Discard this draft? This cannot be undone.",
     "published": "Draft published",

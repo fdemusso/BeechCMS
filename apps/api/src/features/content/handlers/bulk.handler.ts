@@ -163,7 +163,7 @@ export async function bulkHandler(context: Context<AppEnv>) {
     actor: {
       id: jwtPayload.sub,
       email: jwtPayload.email ?? 'unknown',
-      name: jwtPayload.name ?? null,
+      name: [jwtPayload.name, jwtPayload.surname].filter(Boolean).join(' ') || null,
     },
   })
 

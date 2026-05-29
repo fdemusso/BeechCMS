@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { api } from '@/lib/api'
-import type { UserProfile, NotificationPrefs, Session, ActivityEntry, StorageStats } from '../types/settings.types'
+import type { UserProfile, NotificationPrefs, Session, ActivityEntry, StorageStats, GeneralSettings } from '../types/settings.types'
 
 export const settingsApi = {
   getProfile: async (): Promise<UserProfile> => {
@@ -11,7 +11,7 @@ export const settingsApi = {
     return data
   },
 
-  updateProfile: async (payload: { name?: string; email?: string }): Promise<void> => {
+  updateProfile: async (payload: { name?: string; surname?: string; email?: string }): Promise<void> => {
     await api.put('/settings/profile', payload)
   },
 
@@ -58,8 +58,12 @@ export const settingsApi = {
     await api.put('/settings/notifications', prefs)
   },
 
-  getGeneralSettings: async (): Promise<{ dateFormat: string; siteTitle: string; features?: { email?: boolean } }> => {
-    const { data } = await api.get<{ dateFormat: string; siteTitle: string; features?: { email?: boolean } }>('/settings')
+  getGeneralSettings: async (): Promise<GeneralSettings> => {
+    const { data } = await api.get<GeneralSettings>('/settings')
     return data
+  },
+
+  updateGeneralSettings: async (payload: Partial<GeneralSettings>): Promise<void> => {
+    await api.put('/settings', payload)
   },
 }

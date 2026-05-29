@@ -47,7 +47,7 @@ export interface Env {
 }
 
 export interface Variables {
-  jwtPayload: { sub: string; email?: string; name?: string | null }
+  jwtPayload: { sub: string; email?: string; name?: string | null; surname?: string | null }
   getSeed: (slug: string) => Seed | null
   seedRegistry: ISeedRegistry
   repository: ContentRepository

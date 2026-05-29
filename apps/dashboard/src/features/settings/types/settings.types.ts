@@ -13,6 +13,7 @@ export interface UserProfile {
   id: string
   email: string
   name: string | null
+  surname: string | null
   avatarUrl: string | null
   notificationPrefs: NotificationPrefs
 }
@@ -46,4 +47,25 @@ export interface StorageStats {
   orphans: OrphanFile[]
 }
 
-export type SettingsTab = 'profile' | 'interface' | 'security' | 'storage' | 'notifications'
+export interface GeneralSettings {
+  siteTitle: string
+  siteLogo?: string
+  defaultLanguage: string
+  timezone: string
+  currency: string
+  company: {
+    name: string | null
+    website: string | null
+    abbreviation: string | null
+  }
+  dateFormat: string
+  features?: {
+    drafts?: boolean
+    media?: boolean
+    search?: boolean
+    activityLog?: boolean
+    email?: boolean
+  }
+}
+
+export type SettingsTab = 'profile' | 'interface' | 'security' | 'storage' | 'notifications' | 'general'

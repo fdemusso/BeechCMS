@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { sha256hex } from '@beechcms/core'
+import { sha256hex, type SiteSettings } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 
 const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -41,6 +41,70 @@ settingsApp.get('/', async (context) => {
       email: context.env.EMAIL_PROVIDER === 'smtp' || !!(context.env.EMAIL_API_KEY || context.env.RESEND_API_KEY),
     },
   })
+})
+
+/**
+ * PUT /api/settings
+ * Updates the general site configuration in the database.
+ */
+settingsApp.put('/', async (context) => {
+  let payload: Record<string, unknown>
+  try {
+    payload = await context.req.json()
+  } catch {
+    return context.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  const siteTitle = typeof payload.siteTitle === 'string' ? payload.siteTitle.trim() : undefined
+  const defaultLanguage = typeof payload.defaultLanguage === 'string' ? payload.defaultLanguage.trim() : undefined
+  const timezone = typeof payload.timezone === 'string' ? payload.timezone.trim() : undefined
+  const currency = typeof payload.currency === 'string' ? payload.currency.trim() : undefined
+
+  let companyName: string | undefined | null = undefined
+  let companyWebsite: string | undefined | null = undefined
+  let companyAbbreviation: string | undefined | null = undefined
+
+  if (payload.company !== undefined) {
+    if (payload.company === null) {
+      companyName = null
+      companyWebsite = null
+      companyAbbreviation = null
+    } else if (typeof payload.company === 'object') {
+      const company = payload.company as Record<string, unknown>
+      companyName = typeof company.name === 'string' ? company.name.trim() : (company.name === null ? null : undefined)
+      companyWebsite = typeof company.website === 'string' ? (company.website.trim() || null) : (company.website === null ? null : undefined)
+      companyAbbreviation = typeof company.abbreviation === 'string' ? (company.abbreviation.trim() || null) : (company.abbreviation === null ? null : undefined)
+    }
+  }
+
+  if (defaultLanguage !== undefined && !['it', 'en'].includes(defaultLanguage)) {
+    return context.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Invalid default language (must be it or en)' }, 400)
+  }
+
+  if (companyWebsite && companyWebsite !== '') {
+    try {
+      new URL(companyWebsite)
+    } catch {
+      return context.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Invalid company website URL' }, 400)
+    }
+  }
+
+  const fieldsToUpdate: Partial<SiteSettings> = {}
+  if (siteTitle !== undefined) fieldsToUpdate.siteTitle = siteTitle
+  if (defaultLanguage !== undefined) fieldsToUpdate.defaultLanguage = defaultLanguage
+  if (timezone !== undefined) fieldsToUpdate.timezone = timezone
+  if (currency !== undefined) fieldsToUpdate.currency = currency
+  if (companyName !== undefined) fieldsToUpdate.companyName = companyName
+  if (companyWebsite !== undefined) fieldsToUpdate.companyWebsite = companyWebsite
+  if (companyAbbreviation !== undefined) fieldsToUpdate.companyAbbreviation = companyAbbreviation
+
+  // If companyName is updated and siteTitle isn't specified, sync siteTitle
+  if (companyName && siteTitle === undefined) {
+    fieldsToUpdate.siteTitle = companyName
+  }
+
+  await context.get('siteSettingsRepository').setMany(fieldsToUpdate)
+  return context.json({ success: true })
 })
 
 /**

@@ -794,7 +794,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
             ORDER BY created_at DESC
             LIMIT 1
           )
-        ORDER BY ad.updatedAt DESC
+        ORDER BY ad.updated_at DESC
       `
 
       const { results } = await this.database.prepare(sql).bind(...bindings).all()

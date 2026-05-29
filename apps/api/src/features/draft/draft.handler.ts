@@ -47,7 +47,7 @@ function logDraftActivity(
     actor: {
       id: actor.sub,
       email: actor.email ?? 'unknown',
-      name: actor.name ?? null,
+      name: [actor.name, actor.surname].filter(Boolean).join(' ') || null,
     },
   })
 }
