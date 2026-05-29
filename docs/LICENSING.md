@@ -58,4 +58,4 @@ The code converts to GPL v2.0 or later on **2030-05-26** (the "Change Date").
 
 If your use case falls outside the BSL Additional Use Grant (for example, you want to offer BeechCMS as a SaaS to your customers), or if you require a white-label version, you must purchase a commercial license.
 
-For commercial licensing inquiries, please contact: flavio@beechcms.com
+For commercial licensing inquiries, please contact: demusso1617@gmail.com

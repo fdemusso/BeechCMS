@@ -120,6 +120,6 @@ The BUSL-1.1 only restricts offering BeechCMS as a managed SaaS service
 in direct competition with BeechCMS Cloud.  
 After 2030-05-26, these components convert automatically to GPL v2+.
 
-For commercial licensing inquiries: flavio@beechcms.com
+For commercial licensing inquiries: demusso1617@gmail.com
 
 For more detailed information, see our [Licensing Guide](./docs/LICENSING.md).
