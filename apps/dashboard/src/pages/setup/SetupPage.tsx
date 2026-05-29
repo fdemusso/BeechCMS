@@ -343,17 +343,15 @@ export function SetupPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete="new-password"
                 />
-                {password && (
-                  <div className="space-y-1">
-                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${strengthColor}`}
-                        style={{ width: `${strength}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">{strengthLabel}</p>
+                <div className={cn("space-y-1", !password && "invisible")}>
+                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${strengthColor}`}
+                      style={{ width: `${strength}%` }}
+                    />
                   </div>
-                )}
+                  <p className="text-xs text-muted-foreground">{strengthLabel}</p>
+                </div>
               </div>
 
               <div className="space-y-2">
