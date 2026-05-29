@@ -11,7 +11,7 @@ export default defineConfig({
       exclude: [
         'src/test/**',
         'src/**/*.test.ts',
-        'src/index.ts',
+        'src/**/index.ts',
         'src/commands/deploy.ts',
         'src/commands/init.ts',
         'src/commands/seed-create.ts',
