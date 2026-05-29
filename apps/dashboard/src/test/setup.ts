@@ -35,3 +35,7 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     disconnect() {}
   }
 }
+
+if (!window.HTMLElement.prototype.scrollIntoView) {
+  window.HTMLElement.prototype.scrollIntoView = function() {};
+}
