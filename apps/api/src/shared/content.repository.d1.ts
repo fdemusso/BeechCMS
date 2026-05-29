@@ -10,6 +10,7 @@ import {
   SlugConflictError,
   RelationTargetNotFoundError,
   type BulkFieldUpdate,
+  type DraftSummary,
   type Seed,
   type Branch,
   type SelectOptions,
@@ -741,6 +742,76 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       await this.database.prepare(`DELETE FROM ${draftTableName} WHERE entry_id = ?`).bind(entryId).run()
     } catch (error) {
       throw this.mapError(error, `deleteDraft(${seed.slug}, ${entryId})`)
+    }
+  }
+
+  async findPendingDrafts(seeds: Seed[]): Promise<DraftSummary[]> {
+    try {
+      if (seeds.length === 0) return []
+
+      const unionSelects: string[] = []
+      const bindings: (string | number)[] = []
+
+      for (const seed of seeds) {
+        const draftTable = `content_${seed.slug}_drafts`
+        const liveTable = `content_${seed.slug}`
+        const titleCol = seed.displayNameAlias
+        const seedLabel = seed.labelPlural ?? seed.label
+
+        unionSelects.push(`
+          SELECT
+            ? AS seed_slug,
+            ? AS seed_label,
+            d.entry_id AS id,
+            d.updated_at AS updated_at,
+            COALESCE(d.${titleCol}, l.${titleCol}) AS title
+          FROM ${draftTable} d
+          LEFT JOIN ${liveTable} l ON l.id = d.entry_id
+        `)
+        bindings.push(seed.slug, seedLabel)
+      }
+
+      const sql = `
+        WITH all_drafts AS (
+          ${unionSelects.join('\nUNION ALL\n')}
+        )
+        SELECT
+          ad.seed_slug   AS seedSlug,
+          ad.seed_label  AS seedLabel,
+          ad.id          AS id,
+          ad.updated_at  AS updatedAt,
+          ad.title       AS title,
+          al.user_name   AS lastName,
+          al.user_email  AS lastEmail
+        FROM all_drafts ad
+        LEFT JOIN activity_logs al
+          ON al.id = (
+            SELECT id FROM activity_logs
+            WHERE entity_id = ad.id
+              AND entity_slug = ad.seed_slug
+              AND action = 'update'
+              AND json_extract(details, '$.note') = 'draft saved'
+            ORDER BY created_at DESC
+            LIMIT 1
+          )
+        ORDER BY ad.updatedAt DESC
+      `
+
+      const { results } = await this.database.prepare(sql).bind(...bindings).all()
+
+      return (results ?? []).map((row: any): DraftSummary => ({
+        id: String(row.id),
+        seedSlug: String(row.seedSlug),
+        seedLabel: String(row.seedLabel),
+        title: row.title != null && String(row.title).trim() ? String(row.title) : String(row.id),
+        updatedAt: Number(row.updatedAt),
+        lastModifiedBy: {
+          name: row.lastName ?? null,
+          email: row.lastEmail ?? '',
+        },
+      }))
+    } catch (error) {
+      throw this.mapError(error, 'findPendingDrafts')
     }
   }
 }

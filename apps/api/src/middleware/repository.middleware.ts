@@ -17,8 +17,10 @@ import { D1WidgetRepository } from '../shared/d1-widget.repository'
 import { D1SearchRepository } from '../shared/d1-search.repository'
 import { D1AnalyticsRepository } from '../shared/d1-analytics.repository'
 import { D1ContentScanRepository } from '../shared/d1-content-scan.repository'
+import { D1SiteSettingsRepository } from '../shared/site-settings.repository.d1'
+import { D1DemoDataRepository } from '../shared/demo-data.repository.d1'
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations'
 import { D1AutomationRepository } from '../shared/automations.repository.d1'
@@ -44,6 +46,8 @@ interface RepositoryOverrides {
   automationRepository?: IAutomationRepository
   automationRunner?: IAutomationRunner
   scheduler?: IScheduler
+  siteSettingsRepository?: ISiteSettingsRepository
+  demoDataRepository?: IDemoDataRepository
 }
 
 function buildScheduler(context: Context): IScheduler {
@@ -90,6 +94,8 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
       }),
     )
     context.set('scheduler', overrides?.scheduler ?? buildScheduler(context))
+    context.set('siteSettingsRepository', overrides?.siteSettingsRepository ?? new D1SiteSettingsRepository(database))
+    context.set('demoDataRepository', overrides?.demoDataRepository ?? new D1DemoDataRepository(database))
     await next()
   })
 }

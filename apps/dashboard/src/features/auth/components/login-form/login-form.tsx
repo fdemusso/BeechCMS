@@ -150,12 +150,6 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
                   <Button
                     type="submit"
                     disabled={!isFormValid || isLoading}
-                    className={cn(
-                      "transition-colors duration-200 ease-out disabled:opacity-100",
-                      isFormValid && !isLoading
-                        ? "bg-accent text-accent-foreground hover:bg-accent/90"
-                        : "bg-muted text-muted-foreground cursor-not-allowed"
-                    )}
                   >
                     {isLoading ? t("login.signingIn") : "Login"}
                   </Button>

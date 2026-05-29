@@ -16,6 +16,7 @@ import { ForgotPasswordPage } from "@/pages/forgot-password/ForgotPasswordPage"
 import { ResetPasswordPage } from "@/pages/reset-password/ResetPasswordPage"
 import { SetupPage } from "@/pages/setup/SetupPage"
 import { DashboardPage } from "@/features/dashboard"
+import { DraftsListPage } from "@/pages/drafts-list"
 import { SettingsPage } from "@/features/settings"
 import { CommandPalette } from "@/features/command-palette"
 import "./App.css"
@@ -88,6 +89,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/drafts",
+        element: (
+          <ProtectedRoute>
+            <DraftsListPage />
           </ProtectedRoute>
         ),
       },

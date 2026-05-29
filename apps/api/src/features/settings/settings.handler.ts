@@ -17,13 +17,21 @@ const ACTIVITY_LOG_LIMIT = 30
 
 /**
  * GET /api/settings
- * Retrieves the general site configuration.
+ * Retrieves the general site configuration from the database.
  */
 settingsApp.get('/', async (context) => {
+  const s = await context.get('siteSettingsRepository').getAll()
   return context.json({
-    siteTitle: 'Beech CMS',
+    siteTitle: s.siteTitle,
     siteLogo: '/beechLogoDark.svg',
-    defaultLanguage: 'it',
+    defaultLanguage: s.defaultLanguage,
+    timezone: s.timezone,
+    currency: s.currency,
+    company: {
+      name: s.companyName,
+      website: s.companyWebsite,
+      abbreviation: s.companyAbbreviation,
+    },
     dateFormat: context.env.DATE_FORMAT || 'DD-MM-YYYY',
     features: {
       drafts: true,
@@ -31,7 +39,7 @@ settingsApp.get('/', async (context) => {
       search: true,
       activityLog: true,
       email: context.env.EMAIL_PROVIDER === 'smtp' || !!(context.env.EMAIL_API_KEY || context.env.RESEND_API_KEY),
-    }
+    },
   })
 })
 
@@ -64,6 +72,7 @@ settingsApp.get('/me', async (context) => {
     id: currentUser.id,
     email: currentUser.email,
     name: currentUser.name,
+    surname: currentUser.surname,
     avatarUrl,
     notificationPrefs: {
       contentCreate: notificationPreferences.contentCreate ?? true,
@@ -89,6 +98,7 @@ settingsApp.put('/profile', async (context) => {
   }
 
   const nameInput = typeof payload.name === 'string' ? payload.name.trim() : null
+  const surnameInput = typeof payload.surname === 'string' ? payload.surname.trim() : null
   const emailInput = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : null
 
   if (emailInput !== null && !EMAIL_VALIDATION_REGEX.test(emailInput)) {
@@ -99,7 +109,11 @@ settingsApp.put('/profile', async (context) => {
     return context.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Name is too long (maximum 100 characters)' }, 400)
   }
 
-  const hasNoFields = nameInput === null && emailInput === null
+  if (surnameInput !== null && surnameInput.length > 100) {
+    return context.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Surname is too long (maximum 100 characters)' }, 400)
+  }
+
+  const hasNoFields = nameInput === null && surnameInput === null && emailInput === null
   if (hasNoFields) {
     return context.json({ error: 'No fields to update' }, 400)
   }
@@ -111,8 +125,9 @@ settingsApp.put('/profile', async (context) => {
     }
   }
 
-  const fieldsToUpdate: { name?: string; email?: string } = {}
+  const fieldsToUpdate: { name?: string; surname?: string; email?: string } = {}
   if (nameInput !== null) fieldsToUpdate.name = nameInput
+  if (surnameInput !== null) fieldsToUpdate.surname = surnameInput
   if (emailInput !== null) fieldsToUpdate.email = emailInput
 
   await context.get('userRepository').updateProfile(userId, fieldsToUpdate)

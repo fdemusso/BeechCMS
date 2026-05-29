@@ -18,6 +18,13 @@ import { draftGuard } from './draft.middleware'
 
 const draftApp = new Hono<AppEnv>()
 
+// GET /drafts — Unified list of pending drafts across all draft-enabled seeds.
+draftApp.get('/drafts', async (context) => {
+  const seeds = context.get('seedRegistry').draftEnabled()
+  const repository = context.get('repository')
+  const drafts = await repository.findPendingDrafts(seeds)
+  return context.json(drafts)
+})
 
 function normalizeBody(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}

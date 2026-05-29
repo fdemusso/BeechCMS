@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { LucideIcon } from "lucide-react"
-import { LayoutDashboard, Settings } from "lucide-react"
+import { LayoutDashboard, Settings, PenLine } from "lucide-react"
 import type { Seed } from "@beechcms/core"
 import { resolveIcon } from "@/lib/icon-registry"
 
@@ -36,6 +36,11 @@ export function getStaticMenu(t: (key: string) => string): NavItem[] {
       url: "/",
       icon: LayoutDashboard,
       isActive: true,
+    },
+    {
+      title: t("sidebar.drafts"),
+      url: "/drafts",
+      icon: PenLine,
     },
     {
       title: t("settings.title"),

@@ -83,17 +83,17 @@ describe('D1UserRepository', () => {
     it('calls prepare with an INSERT INTO users statement', async () => {
       const { db, prepareMock } = makeMockDb()
       await new D1UserRepository(db).create({
-        id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test',
+        id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
       })
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO users'))
     })
 
-    it('binds id, email, passwordHash, role, name in the correct order', async () => {
+    it('binds id, email, passwordHash, role, name, surname in the correct order', async () => {
       const { db, bindMock } = makeMockDb()
       await new D1UserRepository(db).create({
-        id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test',
+        id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
       })
-      expect(bindMock).toHaveBeenCalledWith('u1', 'a@b.com', 'hash', 'admin', 'Test')
+      expect(bindMock).toHaveBeenCalledWith('u1', 'a@b.com', 'hash', 'admin', 'Test', null)
     })
   })
 

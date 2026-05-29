@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash       TEXT    NOT NULL,
     role                TEXT    NOT NULL DEFAULT 'editor' CHECK (role IN ('admin', 'editor')),
     name                TEXT,
+    surname             TEXT,
     avatar_url          TEXT,
     notification_prefs  TEXT    NOT NULL DEFAULT '{}',
     created_at          INTEGER NOT NULL DEFAULT (unixepoch())

@@ -90,12 +90,6 @@ export function ForgotPasswordPage() {
                     <Button
                       type="submit"
                       disabled={!email.trim() || isLoading}
-                      className={cn(
-                        "transition-colors duration-200 ease-out disabled:opacity-100",
-                        email.trim() && !isLoading
-                          ? "bg-accent text-accent-foreground hover:bg-accent/90"
-                          : "bg-muted text-muted-foreground cursor-not-allowed"
-                      )}
                     >
                       {isLoading ? t("forgotPassword.sending") : t("forgotPassword.send")}
                     </Button>

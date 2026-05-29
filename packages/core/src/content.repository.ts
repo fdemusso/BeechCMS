@@ -4,6 +4,23 @@
 import { Seed, SelectOptions } from './types.js'
 
 /**
+ * One row of the cross-seed pending-drafts overview. Aggregates the minimum a
+ * reviewer needs to triage a draft without opening it: which seed it belongs to,
+ * a human title, when it was last touched, and who touched it.
+ */
+export interface DraftSummary {
+  id: string
+  seedSlug: string
+  seedLabel: string
+  title: string
+  updatedAt: number
+  lastModifiedBy: {
+    name: string | null
+    email: string
+  }
+}
+
+/**
  * Base Repository Error
  */
 export class RepositoryError extends Error {
@@ -139,6 +156,14 @@ export interface ContentRepository {
    * Checks if an entry has a pending draft.
    */
   hasDraft(seed: Seed, entryId: string): Promise<boolean>
+
+  /**
+   * Aggregates pending drafts across every draft-enabled seed in a single round-trip.
+   * Exists so the unified /drafts view never issues one query per seed.
+   * @param seeds The draft-enabled seeds to scan (caller passes seedRegistry.draftEnabled()).
+   * @returns Drafts newest-first; empty array when no seeds or no drafts.
+   */
+  findPendingDrafts(seeds: Seed[]): Promise<DraftSummary[]>
 
   /**
    * Apply the same field update to many entries. Returns per-id outcome.
