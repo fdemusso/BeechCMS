@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { describe, it, expect, vi, beforeEach, afterAll } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import { MediaEdit } from "@/features/fields/edit/media"
@@ -8,11 +12,16 @@ vi.mock("@/lib/api", () => ({
   },
 }))
 
+vi.mock("@/lib/upload", () => ({
+  uploadFile: vi.fn(),
+}))
+
 const mockBranch = {
   id: "br_01",
   alias: "cover",
   label: "Cover",
   type: "file" as const,
+  fileOptions: { accept: "image" as const },
 }
 
 const mockAssetListBranch = {
@@ -135,11 +144,8 @@ describe("MediaEdit", () => {
   })
 
   it("Upload: in stato uploading mostra Loader; su successo chiama onChange con url", async () => {
-    const { api } = await import("@/lib/api")
-    const postMock = vi.mocked(api.post)
-    postMock.mockResolvedValue({
-      data: { url: "/api/media/abc123.jpg" },
-    } as never)
+    const { uploadFile } = await import("@/lib/upload")
+    vi.mocked(uploadFile).mockResolvedValue("/api/media/abc123.jpg")
 
     render(<MediaEdit branch={mockBranch} value="" onChange={onChange} />)
     fireEvent.click(screen.getByRole("button", { name: /Add image/i }))

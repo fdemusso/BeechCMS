@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useTheme } from "next-themes"
@@ -27,8 +31,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user: storedUser } = useAuth()
   const { data: profile } = useProfile()
   const { data: seeds = [] } = useSchema()
+  
+  const fullName = profile
+    ? [profile.name, profile.surname].filter(Boolean).join(' ')
+    : storedUser
+    ? [storedUser.name, storedUser.surname].filter(Boolean).join(' ')
+    : "Admin"
+
   const user = {
-    name: profile?.name ?? storedUser?.name ?? "Admin",
+    name: fullName || "Admin",
     email: profile?.email ?? storedUser?.email ?? "",
     avatar: profile?.avatarUrl ?? undefined,
   }

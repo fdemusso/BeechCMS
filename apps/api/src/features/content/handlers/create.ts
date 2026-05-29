@@ -1,32 +1,27 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { Context } from 'hono'
 import { 
   slugify, 
   isValidContentStatus, 
-  validateAndSanitizeSeedPayload,
-  SlugConflictError
+  validateAndSanitizeSeedPayload
 } from '@beechcms/core'
 import { applyPrivacy, PrivacyPolicyError } from '../../../shared/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
+import {
+  normalizeBody,
+  contentValidationProblem,
+  logContentActivity,
+  dispatchContentAutomation,
+  handleContentDatabaseError
+} from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import { cleanStr } from '../../../shared/query-utils'
 import { AppEnv } from '../../../types'
 
-function normalizeBody(raw: unknown): Record<string, unknown> {
-  return typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
-}
 
-function contentValidationProblem(
-  context: Context,
-  details: Array<{ field: string; expected: string; received: string; message: string }>
-) {
-  return publicProblem(context, { 
-    type: 'content-validation-failed', 
-    title: 'Bad Request', 
-    status: 400, 
-    detail: 'Validation failed', 
-    errors: details 
-  })
-}
 
 export async function createHandler(context: Context<AppEnv>) {
   const slug = context.req.param('slug')
@@ -77,10 +72,11 @@ export async function createHandler(context: Context<AppEnv>) {
   delete bodyForData.status
 
   const validation = validateAndSanitizeSeedPayload(seed, bodyForData, {
-    operation: 'create', 
-    allowNull: false, 
-    requireAtLeastOneValidField: true, 
+    operation: 'create',
+    allowNull: false,
+    requireAtLeastOneValidField: true,
     enforceRequiredFields: true,
+    idGenerator: context.get('idGenerator'),
   })
 
   if (validation.dangerousFields.length > 0) {
@@ -123,43 +119,11 @@ export async function createHandler(context: Context<AppEnv>) {
     const jwtPayload = context.get('jwtPayload')
     const title = privacyData.title || privacyData.name || finalSlug
 
-    context.get('activityLogger').log({
-      action: 'create',
-      entityType: 'content',
-      entityId: id,
-      entitySlug: slug,
-      details: { title },
-      actor: {
-        id: jwtPayload.sub,
-        email: jwtPayload.email ?? 'unknown',
-        name: jwtPayload.name ?? null,
-      },
-    })
-
-    context.get('scheduler').waitUntil(
-      context.get('automationRunner').run({
-        seedSlug: slug,
-        event: 'create',
-        entry: { id, slug: finalSlug, status, ...privacyData },
-      }),
-    )
+    logContentActivity(context, 'create', id, slug, String(title))
+    dispatchContentAutomation(context, slug, 'create', { id, slug: finalSlug, status, ...privacyData })
 
     return context.json({ id }, 201)
   } catch (error) {
-    if (error instanceof SlugConflictError) {
-      return publicProblem(context, { 
-        type: 'content-slug-conflict', 
-        title: 'Conflict', 
-        status: 409, 
-        detail: CONTENT_ERRORS.SLUG_CONFLICT 
-      })
-    }
-    console.error('Content create error:', error)
-    return publicProblem(context, { 
-      type: 'content-database-error', 
-      title: 'Internal Server Error', 
-      status: 500, 
-      detail: CONTENT_ERRORS.DATABASE_ERROR 
-    })
+    return handleContentDatabaseError(context, error)
   }
 }

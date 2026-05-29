@@ -1,4 +1,9 @@
-export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags'
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
+import type { FileAccept } from './file-types.js'
+
+export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation'
 
 /** Configurazioni specializzate per il tipo di branch 'number' */
 export interface NumberFieldOptions {
@@ -27,6 +32,25 @@ export interface NumberFieldOptions {
   max?: number
   /** Incremento del valore (es. 1 per interi stretti, 0.5 per mezzi passi) */
   step?: number
+}
+
+/** Configurazioni specializzate per il tipo di branch 'file' */
+export interface FileFieldOptions {
+  /**
+   * Tipo semantico di file accettato.
+   * - 'image': immagini renderizzabili come anteprima
+   * - 'document': PDF/Office/text
+   * - 'any': qualsiasi file (default — UI mostra icona generica, nessun tentativo di render immagine)
+   * Default: 'any'.
+   */
+  accept?: FileAccept
+  /**
+   * Dimensione massima del singolo file in byte.
+   * NOTA: il backend /upload applica MAX_FILE_SIZE_BYTES (5MB) globale —
+   * questo campo è informativo per la UI; non viene enforced in upload.
+   * Default: 5_242_880.
+   */
+  maxSize?: number
 }
 
 /** Branch: definizione di una proprietà. alias = nome colonna SQL. */
@@ -77,6 +101,27 @@ export interface Branch {
   }
   /** Opzioni avanzate per i campi numerici. Ignorato se type !== 'number' */
   numberOptions?: NumberFieldOptions
+  /** Opzioni avanzate per i campi file. Ignorato se type !== 'file' */
+  fileOptions?: FileFieldOptions
+
+  /**
+   * Slug of the referenced Seed (without the `content_` prefix).
+   * REQUIRED when `type === 'relation'`. Ignored otherwise.
+   * Example: 'team' → references table `content_team(id)`.
+   */
+  targetSeed?: string
+
+  /**
+   * SQLite ON DELETE rule applied to the foreign-key constraint.
+   * Defaults to 'SET NULL' when `type === 'relation'` and no value is provided.
+   * - CASCADE  : delete dependent rows when the parent is deleted.
+   * - SET NULL : null out the column when the parent is deleted (default).
+   * - RESTRICT : block parent deletion while dependent rows exist.
+   *
+   * NOTE: When `multiple: true` (introduced in Sprint 5 for many-to-many), this
+   * rule applies to the FK from the junction table to the target table.
+   */
+  onDelete?: 'CASCADE' | 'SET NULL' | 'RESTRICT'
 }
 
 /** Dashboard-specific config embedded in a Seed. All fields optional — defaults applied by the dashboard. */

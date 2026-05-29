@@ -179,7 +179,8 @@
       "interface": "Interfaccia",
       "security": "Sicurezza",
       "storage": "Storage",
-      "notifications": "Notifiche"
+      "notifications": "Notifiche",
+      "general": "Sito"
     },
     "notifications": {
       "title": "Notifiche in-app",
@@ -219,6 +220,8 @@
       "changePhoto": "Cambia foto",
       "nameLabel": "Nome",
       "namePlaceholder": "Il tuo nome",
+      "surnameLabel": "Cognome",
+      "surnamePlaceholder": "Il tuo cognome",
       "emailLabel": "Email",
       "emailPlaceholder": "email@esempio.it",
       "saveChanges": "Salva modifiche",
@@ -235,6 +238,29 @@
       "passwordError": "Password attuale non corretta",
       "avatarSuccess": "Foto profilo aggiornata",
       "avatarError": "Errore durante il caricamento della foto"
+    },
+    "general": {
+      "title": "Impostazioni sito",
+      "description": "Gestisci la configurazione generale del sito e i dati dell'azienda.",
+      "siteDefaultsTitle": "Impostazioni predefinite del sito",
+      "siteDefaultsDesc": "Imposta la lingua predefinita, il fuso orario e la valuta del sito.",
+      "companyInfoTitle": "Informazioni azienda",
+      "companyInfoDesc": "Dati legali e di contatto dell'azienda proprietaria del sito.",
+      "siteTitleLabel": "Titolo del sito / Nome azienda",
+      "siteTitlePlaceholder": "es. Acme Corp",
+      "companyWebsiteLabel": "Sito web azienda",
+      "companyWebsitePlaceholder": "https://acme.com",
+      "companyAbbreviationLabel": "Abbreviazione azienda",
+      "companyAbbreviationPlaceholder": "es. ACM",
+      "languageLabel": "Lingua predefinita",
+      "languagePlaceholder": "Seleziona lingua predefinita",
+      "timezoneLabel": "Fuso orario predefinito",
+      "timezonePlaceholder": "Seleziona fuso orario predefinito",
+      "currencyLabel": "Valuta predefinita",
+      "currencyPlaceholder": "Seleziona valuta predefinita",
+      "savedSuccess": "Impostazioni del sito salvate con successo",
+      "savedError": "Errore durante il salvataggio delle impostazioni",
+      "saveChanges": "Salva modifiche"
     },
     "security": {
       "sessionsTitle": "Sessioni attive",
@@ -302,6 +328,8 @@
       "draftModeNotice": "Stai modificando la bozza in sospeso — le modifiche non saranno live finché non viene pubblicata.",
       "resumeDraft": "Riprendi bozza",
       "saveDraft": "Salva bozza",
+      "saveAsDraft": "Salva come bozza",
+      "editDraft": "Modifica bozza",
       "publishDraft": "Pubblica bozza",
       "discardDraft": "Scarta bozza",
       "discardDraftTitle": "Scarta bozza in sospeso",
@@ -322,7 +350,21 @@
       "saveError": "Errore durante il salvataggio",
       "validationError_one": "{{count}} campo ha un errore di validazione — controlla i campi evidenziati",
       "validationError_other": "{{count}} campi hanno errori di validazione — controlla i campi evidenziati",
-      "jsonError": "Il campo \"{{field}}\" deve contenere JSON valido"
+      "jsonError": "Il campo \"{{field}}\" deve contenere JSON valido",
+      "relation": {
+        "placeholder": "Seleziona una voce correlata…",
+        "search": "Cerca…",
+        "clear": "Rimuovi selezione",
+        "empty": "Nessun risultato",
+        "loading": "Caricamento…"
+      },
+      "relationMulti": {
+        "add": "Aggiungi…",
+        "moveUp": "Sposta su",
+        "moveDown": "Sposta giù",
+        "remove": "Rimuovi",
+        "selectedItems": "Elementi selezionati"
+      }
     },
     "deleteDialog": {
       "title": "Conferma eliminazione",
@@ -512,7 +554,31 @@
   },
   "sidebar": {
     "navigation": "Navigazione",
-    "contents": "Contenuti"
+    "contents": "Contenuti",
+    "drafts": "Bozze"
+  },
+  "drafts": {
+    "title": "Bozze",
+    "subtitle": "Tutte le bozze in sospeso tra i tuoi contenuti",
+    "columns": {
+      "seed": "Tipo",
+      "name": "Nome",
+      "updatedAt": "Ultima modifica",
+      "user": "Modificato da"
+    },
+    "actions": {
+      "edit": "Modifica",
+      "publish": "Pubblica",
+      "discard": "Scarta",
+      "create": "Nuova bozza"
+    },
+    "selectType": "Seleziona tipo di contenuto",
+    "searchPlaceholder": "Cerca bozze…",
+    "empty": "Nessuna bozza in sospeso",
+    "discardConfirm": "Scartare questa bozza? L'operazione è irreversibile.",
+    "published": "Bozza pubblicata",
+    "discarded": "Bozza scartata",
+    "error": "Azione non riuscita"
   },
   "media": {
     "manageGallery": "Gestisci galleria",
@@ -531,11 +597,15 @@
     "moveDown": "Sposta giù",
     "remove": "Rimuovi immagine",
     "dialogDesc": "Inserisci un URL pubblico HTTPS oppure carica un file locale.",
+    "documentPreview": "Documento",
+    "filePreview": "File",
     "errorNotImage": "Seleziona un'immagine (JPG, PNG, WebP, GIF)",
     "errorUrl": "Inserisci un URL immagine pubblico",
     "errorHttps": "L'URL deve iniziare con https://",
     "errorNotRenderable": "URL non renderizzabile come immagine",
-    "errorUpload": "Errore durante il caricamento"
+    "errorUpload": "Errore durante il caricamento",
+    "errorNotDocument": "Seleziona un documento (PDF, DOC, XLS, TXT, CSV)",
+    "errorNotAccepted": "Tipo di file non accettato"
   },
   "login": {
     "hidePassword": "Nascondi password",
@@ -638,7 +708,9 @@
         "fieldRequired": "Campo obbligatorio",
         "seedRequired": "Seed obbligatorio",
         "variableNameInvalid": "Il nome variabile deve contenere solo lettere, numeri e underscore",
-        "variableNameReserved": "Questo nome è riservato dal motore di template"
+        "variableNameReserved": "Questo nome è riservato dal motore di template",
+        "webhookHttpsRequired": "Sono consentiti solo URL HTTPS",
+        "webhookPrivateHostBlocked": "Gli host privati, di loopback e link-local non sono consentiti"
       }
     },
     "triggers": {
@@ -666,6 +738,8 @@
       "webhookMethod": "Metodo HTTP",
       "webhookHeaders": "Header",
       "webhookBody": "Body template",
+      "webhookBodyHint": "Definisci il payload JSON esatto inviato all'endpoint.",
+      "webhookSecretHint": "Beech firma ogni richiesta con HMAC-SHA256 nell'header X-BeechCMS-Signature. Configura WEBHOOK_SECRET nel worker per abilitare la firma. Verifica la firma sul ricevente prima di elaborare il payload.",
       "addHeader": "Aggiungi header",
       "webhookHeaderKeyPlaceholder": "Header",
       "webhookHeaderValuePlaceholder": "Valore",
@@ -759,5 +833,84 @@
         "matches": "corrisponde a regex"
       }
     }
+  },
+  "backrefs": {
+    "title": "Riferimenti in entrata",
+    "summary_one": "1 voce fa riferimento a questa",
+    "summary_other": "{{count}} voci fanno riferimento a questa",
+    "showAll": "Mostra tutte le {{count}}",
+    "empty": "Nessun riferimento",
+    "deleteBlocked": "Eliminazione bloccata: {{count}} voci dipendono da questo record"
+  },
+  "bulkEdit": {
+    "trigger": "Modifica selezionati",
+    "title": "Modifica {{count}} voci",
+    "pickField": "Scegli un campo da aggiornare",
+    "mode": {
+      "replace": "Sostituisci",
+      "add": "Aggiungi",
+      "remove": "Rimuovi"
+    },
+    "confirm": "Aggiornare {{count}} voci?",
+    "executing": "Aggiornamento in corso…",
+    "successAll": "{{count}} voci aggiornate",
+    "successPartial": "{{updated}} di {{total}} aggiornate. {{failed}} fallite.",
+    "downloadReport": "Scarica report errori",
+    "tooLarge": "Impossibile modificare più di {{max}} voci alla volta"
+  },
+  "setup": {
+    "title": "Benvenuto in Beech CMS",
+    "subtitle": "Configura il tuo workspace in pochi passi.",
+    "step1Title": "Impostazioni sito",
+    "step2Title": "Credenziali amministratore",
+    "step3Title": "Configurazione finale",
+    "languageLabel": "Lingua predefinita",
+    "languagePlaceholder": "Seleziona lingua",
+    "timezoneLabel": "Fuso orario",
+    "timezonePlaceholder": "Seleziona fuso orario",
+    "searchTimezonePlaceholder": "Cerca fuso orario...",
+    "noTimezoneFound": "Nessun fuso orario trovato.",
+    "currencyLabel": "Valuta",
+    "currencyPlaceholder": "Seleziona valuta",
+    "devAlertTitle": "Ambiente sviluppatore rilevato",
+    "devAlertDesc": "Stai configurando Beech in modalità sviluppatore.",
+    "switchToNormal": "Passa alla configurazione normale",
+    "switchToDeveloper": "Passa alla configurazione sviluppatore",
+    "nameLabel": "Nome",
+    "namePlaceholder": "Il tuo nome",
+    "surnameLabel": "Cognome",
+    "surnamePlaceholder": "Il tuo cognome",
+    "emailLabel": "Email",
+    "emailPlaceholder": "admin@example.com",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Minimo 8 caratteri",
+    "confirmLabel": "Conferma password",
+    "confirmPlaceholder": "Ripeti la password",
+    "strengthWeak": "Debole",
+    "strengthFair": "Discreta",
+    "strengthStrong": "Forte",
+    "servicesTitle": "Servizi rilevati",
+    "serviceMail": "Email",
+    "serviceQstash": "QStash",
+    "serviceActive": "Attivo",
+    "serviceInactive": "Non configurato",
+    "loadDemoLabel": "Carica contenuti demo nel database",
+    "companyNameLabel": "Nome azienda",
+    "companyNamePlaceholder": "Acme Corp",
+    "companyWebsiteLabel": "Sito web aziendale",
+    "companyWebsitePlaceholder": "https://example.com",
+    "companyAbbreviationLabel": "Abbreviazione (opzionale)",
+    "companyAbbreviationPlaceholder": "ACM",
+    "buttonNext": "Avanti",
+    "buttonBack": "Indietro",
+    "buttonFinish": "Completa configurazione",
+    "loadingAccount": "Creazione account in corso…",
+    "loadingDemo": "Caricamento dati demo…",
+    "errorFallback": "Configurazione fallita. Riprova.",
+    "passwordMismatch": "Le password non corrispondono.",
+    "passwordTooShort": "La password deve essere di almeno 8 caratteri.",
+    "emailInvalid": "Inserisci un indirizzo email valido.",
+    "companyNameRequired": "Il nome azienda è obbligatorio.",
+    "companyWebsiteRequired": "Inserisci un URL valido per il sito web."
   }
 }

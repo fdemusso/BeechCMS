@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 /**
  * Activity Logger contract.
  *
@@ -10,7 +13,7 @@
  * @module @beechcms/core/observability/activity-logger
  */
 
-export type ActivityAction = 'create' | 'update' | 'delete' | 'upload'
+export type ActivityAction = 'create' | 'update' | 'delete' | 'upload' | 'bulk_update'
 export type EntityType = 'content' | 'media'
 
 /**

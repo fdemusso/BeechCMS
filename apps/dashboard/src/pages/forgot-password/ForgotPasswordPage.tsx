@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import React, { useState } from "react"
 import { Link } from "react-router-dom"
 import { useTranslation } from "react-i18next"
@@ -86,12 +90,6 @@ export function ForgotPasswordPage() {
                     <Button
                       type="submit"
                       disabled={!email.trim() || isLoading}
-                      className={cn(
-                        "transition-colors duration-200 ease-out disabled:opacity-100",
-                        email.trim() && !isLoading
-                          ? "bg-accent text-accent-foreground hover:bg-accent/90"
-                          : "bg-muted text-muted-foreground cursor-not-allowed"
-                      )}
                     >
                       {isLoading ? t("forgotPassword.sending") : t("forgotPassword.send")}
                     </Button>

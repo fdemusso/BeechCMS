@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { SignJWT, jwtVerify } from 'jose'
 import type { ITokenService, IssueTokenOptions, JwtClaims, IClock } from '@beechcms/core'
 
@@ -17,6 +21,9 @@ export class JoseTokenService implements ITokenService {
 
   constructor(secret: string, config: JoseTokenServiceConfig, clock: IClock) {
     this.secretBytes = new TextEncoder().encode(secret)
+    if (this.secretBytes.length < 32) {
+      throw new Error('JWT secret must be at least 32 bytes (256-bit)')
+    }
     this.config = config
     this.clock = clock
   }

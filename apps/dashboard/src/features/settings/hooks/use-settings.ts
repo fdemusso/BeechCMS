@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi } from '../api/settings.api'
 import type { NotificationPrefs } from '../types/settings.types'
@@ -17,6 +21,16 @@ export function useGeneralSettings() {
     queryKey: SETTINGS_QUERY_KEYS.general(),
     queryFn: settingsApi.getGeneralSettings,
     staleTime: 24 * 60 * 60 * 1000, // Very stable
+  })
+}
+
+export function useUpdateGeneralSettings() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: settingsApi.updateGeneralSettings,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: SETTINGS_QUERY_KEYS.general() })
+    },
   })
 }
 

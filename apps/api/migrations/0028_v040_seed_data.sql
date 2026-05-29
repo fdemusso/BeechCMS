@@ -12,107 +12,15 @@
 
 
 -- =============================================================================
--- ARTICOLI (seed: articoli)
--- Colonne: title, publishedAt, coverImage, tags, body, metaTitle, metaDescription
+-- AUTORI (seed: autori)
+-- Colonne: name, bio
 -- =============================================================================
-INSERT OR IGNORE INTO content_articoli (id, slug, status, title, publishedAt, coverImage, tags, body, metaTitle, metaDescription, created_at, updated_at) VALUES
-
-('art-0001', 'benvenuto-nel-blog', 'published',
- 'Benvenuto nel blog Beech',
- 1736467200,
- 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
- '["news","annuncio"]',
- '<p>Scopri come Beech CMS gestisce contenuti schema-driven con tabelle SQL dedicate per ogni tipo di contenuto.</p><h3>Architettura moderna</h3><p>Beech v0.4.0 elimina il JSON blob e usa colonne reali per ogni Branch del Seed. Il risultato è performance migliorate e query native SQLite.</p>',
- 'Benvenuto nel blog Beech',
- 'Introduzione al CMS headless schema-driven.',
- unixepoch(), unixepoch()),
-
-('art-0002', 'roadmap-2026', 'published',
- 'Roadmap prodotto 2026',
- 1738713600,
- 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80',
- '["release","aggiornamento"]',
- '<p>Tutte le novità in arrivo per Beech CMS nel 2026: Doctype Architecture, CLI seed:load, FTS5 per-seed, e molto altro.</p><h3>Fase 1 — Core</h3><p>Il Botanical Engine diventa un compilatore di schema che genera DDL SQL dalla definizione TypeScript dei Seed.</p>',
- 'Roadmap Beech CMS 2026',
- 'Piano di sviluppo delle funzionalità per il 2026.',
- unixepoch(), unixepoch()),
-
-('art-0003', 'migrare-da-wordpress', 'published',
- 'Migrare da WordPress a Beech',
- 1740182400,
- 'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&q=80',
- '["guida","cms"]',
- '<p>Guida pratica per migrare contenuti da WordPress a Beech CMS senza downtime. Esporta, trasforma e importa usando la Public API.</p><h3>Step 1: Esporta da WordPress</h3><p>Usa il plugin WP All Export per ottenere CSV o JSON dai post. Poi mappali alle colonne del tuo Seed.</p>',
- 'Migrazione da WordPress a Beech',
- 'Strategie per migrare contenuti in sicurezza.',
- unixepoch(), unixepoch()),
-
-('art-0004', 'pattern-registry-ui', 'published',
- 'Il Pattern Registry della UI',
- 1740873600,
- 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&q=80',
- '["tutorial","guida"]',
- '<p>Come il registry dei field renderer semplifica la dashboard: ogni Branch type ha un renderer React dedicato, registrato centralmente e richiamato automaticamente.</p>',
- 'Pattern Registry UI Beech',
- 'Architettura dei componenti field-driven.',
- unixepoch(), unixepoch()),
-
-('art-0005', 'edge-first-architecture', 'published',
- 'Architettura edge-first con Cloudflare',
- 1741132800,
- 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80',
- '["news","aggiornamento"]',
- '<p>Perché Beech nasce per l''edge: latenza minima, zero cold start, D1 SQLite replicato globalmente su Cloudflare. Il CMS arriva dove si trovano gli utenti.</p>',
- 'Architettura edge-first',
- 'Vantaggi di un CMS progettato per l''edge.',
- unixepoch(), unixepoch());
-
-
--- =============================================================================
--- PRODOTTI (seed: prodotti)
--- Colonne: name, price, stock, active, coverImage, images, description, metaTitle, metaDescription
--- =============================================================================
-INSERT OR IGNORE INTO content_prodotti (id, slug, status, name, price, stock, active, coverImage, images, description, metaTitle, metaDescription, created_at, updated_at) VALUES
-
-('prd-0001', 'beech-starter', 'published',
- 'Beech Starter', 490, 50, 1,
- 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&q=80',
- '[]',
- '<p>Piano entry-level per piccoli siti e landing page. Include il Botanical Engine, la dashboard, e 1GB di storage R2.</p>',
- 'Beech Starter', 'Piano starter per progetti piccoli e medi.',
- unixepoch(), unixepoch()),
-
-('prd-0002', 'beech-pro', 'published',
- 'Beech Pro', 1290, 30, 1,
- 'https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?w=800&q=80',
- '[]',
- '<p>Tutte le feature avanzate per team strutturati: draft workflow, analytics per-seed, FTS5 full-text search, 10GB storage R2.</p>',
- 'Beech Pro', 'Piano professionale per agenzie e team marketing.',
- unixepoch(), unixepoch()),
-
-('prd-0003', 'beech-enterprise', 'published',
- 'Beech Enterprise', 3990, 10, 1,
- 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80',
- '[]',
- '<p>Funzionalità enterprise, audit log, SLA garantito, multi-ambiente staging/production, e storage R2 illimitato.</p>',
- 'Beech Enterprise', 'Soluzione enterprise per grandi organizzazioni.',
- unixepoch(), unixepoch()),
-
-('prd-0004', 'implementazione-custom', 'published',
- 'Implementazione custom', 15000, 3, 1,
- 'https://images.unsplash.com/photo-1593642532744-d377ab507dc8?w=800&q=80',
- '[]',
- '<p>Servizio di implementazione su misura di Beech CMS: analisi dei requisiti, definizione dei Seed, deploy su Cloudflare, formazione team.</p>',
- 'Implementazione custom Beech', 'Servizio di onboarding e integrazione personalizzata.',
- unixepoch(), unixepoch()),
-
-('prd-0005', 'workshop-botanical-engine', 'published',
- 'Workshop Botanical Engine', 990, 20, 1,
- 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&q=80',
- '[]',
- '<p>Workshop avanzato sul Botanical Engine e sul registry dei seed. Impara a definire Seed ottimali e a usare beech seed:load per deployare schemi.</p>',
- 'Workshop Botanical Engine', 'Formazione per team tecnici su Beech CMS.',
- unixepoch(), unixepoch());
+INSERT OR IGNORE INTO content_autori (id, slug, status, name, bio, created_at, updated_at) VALUES
+('tm-0001', 'flavio-de-musso', 'published', 'Flavio De Musso', 'Founder e creatore di Beech CMS.', unixepoch(), unixepoch()),
+('tm-0002', 'laura-rossi', 'published', 'Laura Rossi', 'UX designer focalizzata su strumenti per content team.', unixepoch(), unixepoch()),
+('tm-0003', 'marco-bianchi', 'published', 'Marco Bianchi', 'Sviluppatore frontend specializzato in React e UX.', unixepoch(), unixepoch()),
+('tm-0004', 'giulia-verdi', 'published', 'Giulia Verdi', 'Developer advocate per la community Beech.', unixepoch(), unixepoch()),
+('f1b9b2b2-6548-4f18-8f8d-dbfdfbfdfbfd', 'marie-curie', 'published', 'Marie Curie', 'Pioniera nello studio della radioattività.', unixepoch(), unixepoch());
 
 
 -- =============================================================================
@@ -164,6 +72,126 @@ INSERT OR IGNORE INTO content_team (id, slug, status, name, role, bio, photo, li
  'https://www.linkedin.com/in/',
  1,
  'Andrea Neri – Support', 'Supporto tecnico e customer success.',
+ unixepoch(), unixepoch());
+
+
+-- =============================================================================
+-- PRODOTTI (seed: prodotti)
+-- Colonne: name, price, stock, active, coverImage, images, description, metaTitle, metaDescription
+-- =============================================================================
+INSERT OR IGNORE INTO content_prodotti (id, slug, status, name, price, stock, active, coverImage, images, description, metaTitle, metaDescription, created_at, updated_at) VALUES
+
+('prd-0001', 'beech-starter', 'published',
+ 'Beech Starter', 490, 50, 1,
+ 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&q=80',
+ '[]',
+ '<p>Piano entry-level per piccoli siti e landing page. Include il Botanical Engine, la dashboard, e 1GB di storage R2.</p>',
+ 'Beech Starter', 'Piano starter per progetti piccoli e medi.',
+ unixepoch(), unixepoch()),
+
+('prd-0002', 'beech-pro', 'published',
+ 'Beech Pro', 1290, 30, 1,
+ 'https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?w=800&q=80',
+ '[]',
+ '<p>Tutte le feature avanzate per team strutturati: draft workflow, analytics per-seed, FTS5 full-text search, 10GB storage R2.</p>',
+ 'Beech Pro', 'Piano professionale per agenzie e team marketing.',
+ unixepoch(), unixepoch()),
+
+('prd-0003', 'beech-enterprise', 'published',
+ 'Beech Enterprise', 3990, 10, 1,
+ 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?w=800&q=80',
+ '[]',
+ '<p>Funzionalità enterprise, audit log, SLA garantito, multi-ambiente staging/production, e storage R2 illimitato.</p>',
+ 'Beech Enterprise', 'Soluzione enterprise per grandi organizzazioni.',
+ unixepoch(), unixepoch()),
+
+('prd-0004', 'implementazione-custom', 'published',
+ 'Implementazione custom', 15000, 3, 1,
+ 'https://images.unsplash.com/photo-1593642532744-d377ab507dc8?w=800&q=80',
+ '[]',
+ '<p>Servizio di implementazione su misura di Beech CMS: analisi dei requisiti, definizione dei Seed, deploy su Cloudflare, formazione team.</p>',
+ 'Implementazione custom Beech', 'Servizio di onboarding e integrazione personalizzata.',
+ unixepoch(), unixepoch()),
+
+('prd-0005', 'workshop-botanical-engine', 'published',
+ 'Workshop Botanical Engine', 990, 20, 1,
+ 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&q=80',
+ '[]',
+ '<p>Workshop avanzato sul Botanical Engine e sul registry dei seed. Impara a definire Seed ottimali e a usare beech seed:load per deployare schemi.</p>',
+ 'Workshop Botanical Engine', 'Formazione per team tecnici su Beech CMS.',
+ unixepoch(), unixepoch());
+
+
+-- =============================================================================
+-- ARTICOLI (seed: articoli)
+-- Colonne: title, publishedAt, coverImage, tags, body, metaTitle, metaDescription, author_id
+-- =============================================================================
+INSERT OR IGNORE INTO content_articoli (id, slug, status, title, publishedAt, coverImage, tags, body, metaTitle, metaDescription, author_id, created_at, updated_at) VALUES
+
+('art-0001', 'benvenuto-nel-blog', 'published',
+ 'Benvenuto nel blog Beech',
+ 1736467200,
+ 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800&q=80',
+ '["news","annuncio"]',
+ '<p>Scopri come Beech CMS gestisce contenuti schema-driven con tabelle SQL dedicate per ogni tipo di contenuto.</p><h3>Architettura moderna</h3><p>Beech v0.4.0 elimina il JSON blob e usa colonne reali per ogni Branch del Seed. Il risultato è performance migliorate e query native SQLite.</p>',
+ 'Benvenuto nel blog Beech',
+ 'Introduzione al CMS headless schema-driven.',
+ 'tm-0001',
+ unixepoch(), unixepoch()),
+
+('art-0002', 'roadmap-2026', 'published',
+ 'Roadmap prodotto 2026',
+ 1738713600,
+ 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80',
+ '["release","aggiornamento"]',
+ '<p>Tutte le novità in arrivo per Beech CMS nel 2026: Doctype Architecture, CLI seed:load, FTS5 per-seed, e molto altro.</p><h3>Fase 1 — Core</h3><p>Il Botanical Engine diventa un compilatore di schema che genera DDL SQL dalla definizione TypeScript dei Seed.</p>',
+ 'Roadmap Beech CMS 2026',
+ 'Piano di sviluppo delle funzionalità per il 2026.',
+ 'tm-0001',
+ unixepoch(), unixepoch()),
+
+('art-0003', 'migrare-da-wordpress', 'published',
+ 'Migrare da WordPress a Beech',
+ 1740182400,
+ 'https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=800&q=80',
+ '["guida","cms"]',
+ '<p>Guida pratica per migrare contenuti da WordPress a Beech CMS senza downtime. Esporta, trasforma e importa usando la Public API.</p><h3>Step 1: Esporta da WordPress</h3><p>Usa il plugin WP All Export per ottenere CSV o JSON dai post. Poi mappali alle colonne del tuo Seed.</p>',
+ 'Migrazione da WordPress a Beech',
+ 'Strategie per migrare contenuti in sicurezza.',
+ 'tm-0002',
+ unixepoch(), unixepoch()),
+
+('art-0004', 'pattern-registry-ui', 'published',
+ 'Il Pattern Registry della UI',
+ 1740873600,
+ 'https://images.unsplash.com/photo-1561070791-2526d30994b5?w=800&q=80',
+ '["tutorial","guida"]',
+ '<p>Come il registry dei field renderer semplifica la dashboard: ogni Branch type ha un renderer React dedicato, registrato centralmente e richiamato automaticamente.</p>',
+ 'Pattern Registry UI Beech',
+ 'Architettura dei componenti field-driven.',
+ 'tm-0003',
+ unixepoch(), unixepoch()),
+
+('art-0005', 'edge-first-architecture', 'published',
+ 'Architettura edge-first con Cloudflare',
+ 1741132800,
+ 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800&q=80',
+ '["news","aggiornamento"]',
+ '<p>Perché Beech nasce per l''edge: latenza minima, zero cold start, D1 SQLite replicato globalmente su Cloudflare. Il CMS arriva dove si trovano gli utenti.</p>',
+ 'Architettura edge-first',
+ 'Vantaggi di un CMS progettato per l''edge.',
+ 'tm-0004',
+ unixepoch(), unixepoch()),
+
+('a2b2b2b2-6548-4f18-8f8d-dbfdfbfdfbfd', 'scoperta-della-radioattivita', 'published',
+ 'La scoperta della radioattività',
+ 1741132800,
+ 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80',
+ '["scienza","storia"]',
+ '<p>La radioattività è il processo attraverso il quale un nucleo atomico instabile emette radiazioni...</p>',
+ 'La scoperta della radioattività',
+ 'Marie Curie e la radioattività.',
+ 'f1b9b2b2-6548-4f18-8f8d-dbfdfbfdfbfd',
  unixepoch(), unixepoch());
 
 

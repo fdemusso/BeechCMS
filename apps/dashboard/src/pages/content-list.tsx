@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useNavigate, useSearchParams } from "react-router-dom"
@@ -16,6 +20,7 @@ import {
 import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { DataTable } from "@/components/ui/data-table"
 import { ContentDeleteDialog } from "@/features/content-delete-dialog"
+import { BulkEditDialog } from "@/features/bulk-edit"
 import { ContentGallery } from "@/features/content-gallery"
 import {
   ContentToolbar,
@@ -88,6 +93,7 @@ export function ContentListPage() {
 
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
   const [entryIdsToDelete, setEntryIdsToDelete] = React.useState<string[] | null>(null)
+  const [bulkEditOpen, setBulkEditOpen] = React.useState(false)
 
   const [automationPanelOpen, setAutomationPanelOpen] = React.useState(false)
 
@@ -381,6 +387,13 @@ export function ContentListPage() {
   }, [seed, data, pageSize])
 
   // Genera colonne (si rigenera quando cambia la precisione date per aggiornare getGroupingValue)
+  const handleBulkEdit = React.useCallback((ids: string[]) => {
+    const unique = Array.from(new Set(ids)).filter(Boolean)
+    if (!unique.length) return
+    setRowSelection(Object.fromEntries(unique.map((id) => [id, true])))
+    setBulkEditOpen(true)
+  }, [])
+
   const columns = React.useMemo(() => {
     if (!seed) return []
     return generateColumns(
@@ -391,9 +404,10 @@ export function ContentListPage() {
       selectedIds,
       handleBulkDelete,
       dateGroupPrecision,
-      t
+      t,
+      handleBulkEdit,
     )
-  }, [seed, handleEdit, handleDelete, maxLengths, selectedIds, handleBulkDelete, dateGroupPrecision, t])
+  }, [seed, handleEdit, handleDelete, maxLengths, selectedIds, handleBulkDelete, dateGroupPrecision, t, handleBulkEdit])
 
   const singleSort = sorting[0]
 
@@ -803,6 +817,17 @@ export function ContentListPage() {
         seed={seed}
         entryIds={entryIdsToDelete}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Modal Bulk Edit */}
+      <BulkEditDialog
+        open={bulkEditOpen}
+        onOpenChange={(open) => {
+          setBulkEditOpen(open)
+          if (!open) setRowSelection({})
+        }}
+        seed={seed}
+        selectedIds={selectedIds}
       />
 
       <AutomationPanel

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { describe, it, expect, vi } from 'vitest'
 import { executeSetVariable } from '../action-executors/set-variable.executor'
 import { resolveAutomationContext } from '../context-resolver'
@@ -302,5 +306,78 @@ describe('collection mode', () => {
     expect(json).not.toContain('_items')
     const result = ctx.variables.ordini as any
     expect(result._items).toEqual(items)
+  })
+})
+
+// ── Sprint 07: backward-compatibility with legacy load_type field ──────────────
+
+describe('legacy load_type backward compatibility', () => {
+  it('L1 — load_type: fruit + single id-eq filter → upgraded to fixed_id path', async () => {
+    const item = { id: 'c_1', name: 'Mario', email: 'mario@x.com', total: 99 }
+    const findMany = vi.fn().mockResolvedValue({ items: [item] })
+    const ctx = await makeCtx({ repository: { findMany } as unknown as ContentRepository })
+
+    await executeSetVariable(
+      {
+        type: 'set_variable',
+        name: 'cliente',
+        seed_slug: 'clienti',
+        load_type: 'fruit',
+        filters: [{ field: 'id', op: 'eq', value: 'c_1' }],
+      } as any,
+      ctx,
+    )
+
+    // Should use fixed_id path: pagination.limit = 1, filter on id column
+    const [, opts] = findMany.mock.calls[0]
+    expect(opts.filters[0].column).toBe('id')
+    expect(opts.filters[0].conditions[0].value).toBe('c_1')
+    expect(opts.pagination.limit).toBe(1)
+    expect(ctx.variables.cliente).toEqual(item)
+  })
+
+  it('L2 — load_type: fruit + non-id filter → collection path (degraded)', async () => {
+    const items = [{ id: '1', name: 'Mario', email: 'mario@x.com', total: 10, created_at: 1 }]
+    const findMany = vi.fn().mockResolvedValue({ items })
+    const ctx = await makeCtx({ repository: { findMany } as unknown as ContentRepository })
+
+    await executeSetVariable(
+      {
+        type: 'set_variable',
+        name: 'clienti',
+        seed_slug: 'clienti',
+        load_type: 'fruit',
+        filters: [{ field: 'name', op: 'eq', value: 'Mario' }],
+      } as any,
+      ctx,
+    )
+
+    // Non-id filter: falls through to collection path
+    const result = ctx.variables.clienti as any
+    expect(result.count).toBe(1)
+  })
+
+  it('L3 — load_type: branch → collection path', async () => {
+    const items = [
+      { id: '1', name: 'A', email: 'a@x.com', total: 10, created_at: 1 },
+      { id: '2', name: 'B', email: 'b@x.com', total: 20, created_at: 2 },
+    ]
+    const findMany = vi.fn().mockResolvedValue({ items })
+    const ctx = await makeCtx({ repository: { findMany } as unknown as ContentRepository })
+
+    await executeSetVariable(
+      {
+        type: 'set_variable',
+        name: 'ordini',
+        seed_slug: 'clienti',
+        load_type: 'branch',
+      } as any,
+      ctx,
+    )
+
+    const result = ctx.variables.ordini as any
+    expect(result.count).toBe(2)
+    expect(result.sum).toBeDefined()
+    expect(result.pluck).toBeDefined()
   })
 })

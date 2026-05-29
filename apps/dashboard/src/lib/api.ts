@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 /**
  * Client HTTP per le API Beech.
  * - baseURL '/api': in dev il proxy Vite inoltra al Worker locale
@@ -6,7 +10,7 @@
  */
 import axios, { type AxiosError } from 'axios';
 
-export const LOGIN_PATH = '/login';
+export const LOGIN_PATH = '/admin/login';
 
 /** Risposta POST /auth/login */
 export interface LoginResponse {

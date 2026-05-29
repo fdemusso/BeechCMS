@@ -363,8 +363,7 @@ Beech CMS abstracts object storage and media metadata tracking to ensure the sam
 
 Object storage operations are handled through the `BeechBucket` interface in `@beechcms/core`.
 
-- **`R2BindingBucket`**: Uses native Cloudflare R2 bindings. Used in local development and production when the Worker has direct bucket access.
-- **`S3Bucket`**: Connects via S3-compatible HTTP API. Used for production environments requiring cross-account access or specific CDN configurations.
+- **`S3Bucket`**: Connects via S3-compatible HTTP API. Used in both production (Cloudflare R2) and development (MinIO). Supports presigned URLs.
 - **`NullBucket`**: A fail-safe provider that throws only when storage operations are invoked, allowing the rest of the API to function without configuration.
 
 ### Media & Stats Repositories
@@ -374,19 +373,25 @@ Database tracking for media is separated from the storage provider via specializ
 - **`MediaRepository`**: Tracks `media_objects` (key, filename, size, owner). Used for the Media Library UI and orphan detection.
 - **`SystemStatsRepository`**: Manages global metrics like `total_storage_bytes`.
 
+### Upload Flow (presigned)
+
+Il Worker non riceve mai bytes di file. Il client ottiene una URL firmata da `/upload/presign`, carica direttamente su R2, poi chiama `/upload/confirm` per registrare i metadati.
+
+```typescript
+// Worker: solo gatekeeper
+const uploadUrl = await bucket.presignPut(key, { expiresIn: 900, contentType, contentLength })
+// Client: PUT diretto a R2
+// Worker: conferma via HEAD + trackUpload
+```
+
 ### Middleware Injection
 
-Providers are instantiated via `createBucketProvider` (using capability detection) and injected into the Hono context:
+Providers are instantiated via `createBucketProvider` and injected into the Hono context:
 
 ```typescript
 const bucket = c.get('bucket');
 const mediaRepo = c.get('mediaRepository');
 const statsRepo = c.get('systemStatsRepository');
-
-// Agnostic upload flow
-await bucket.put(key, body, { contentType });
-await mediaRepo.trackUpload({ key, filename, ... });
-await statsRepo.incrementStorage(size);
 ```
 
 ---
@@ -752,3 +757,51 @@ function buildScheduler(context: Context): IScheduler {
 ```
 
 `FixedClock` returns a constant millisecond timestamp; `SequentialIdGenerator` emits `test-id-0001`, `test-id-0002`, … with `reset()` for per-test isolation.
+
+---
+
+## 15. Local Dev & Testing Infrastructure
+
+### Principio
+
+Zero dipendenze esterne, zero mock invisibili. Lo sviluppo locale di Beech gira **offline** e i test usano **gli stessi servizi reali** che il dev usa nel browser.
+
+### Stack Docker (`docker-compose.yml`)
+
+```text
+Worker (wrangler dev :8787)
+  │
+  ├── S3Bucket ──────────────→ MinIO (:9000)        [storage R2-compatibile]
+  │
+  ├── SmtpEmailProvider ─────→ Mailpit (:8025)      [SMTP → inbox web UI]
+  │
+  └── fetch(webhookUrl) ─────→ webhook-tester (:8084) [assertion payload receiver]
+
+Dev tools:
+  SQLite Web (:8080)   → ispezione read-only D1 locale
+  cloudflared tunnel   → URL pubblica *.trycloudflare.com per webhook entranti da terzi
+```
+
+### Email — selettore provider
+
+```
+EMAIL_PROVIDER=smtp   →  SmtpEmailProvider  →  Mailpit (dev/test)
+EMAIL_PROVIDER=resend →  ResendEmailProvider →  Resend API (produzione)
+```
+
+Lo switch avviene via env var, non via build flag. La factory `createProvider(env)` in `email.service.ts` istanzia il provider corretto. Tutti i call site (`password-reset/request.ts`, `password-reset/reset.ts`, `automations/action-executors/send-mail.executor.ts`) propagano `provider` e `smtpBaseUrl` uniformemente.
+
+### Strategia test — no-mock per i layer di integrazione esterna
+
+| Layer | Approccio test | Motivazione |
+|---|---|---|
+| Email | Integration contro Mailpit reale | Elimina divergenza mock/real già accaduta in passato |
+| R2 / Storage | Integration contro MinIO reale (bucket effimero `beech-media-test-<pid>`) | Stessa API S3, stesse presigned URL |
+| Webhook | Integration contro webhook-tester reale | Assert payload reale ricevuto, non spy su fetch |
+| Database D1 | `D1TestDatabase` (better-sqlite3 in-memory) | SQLite identico a D1, isolamento per test, FTS5 nativo |
+
+Il `D1TestDatabase` non usa un container perché SQLite è un binding in-process: ogni test istanzia un DB pulito in-memory applicando tutte le migrazioni in costruttore. I layer di integrazione esterna (R2, email, webhook) usano invece container reali — la distinzione è intenzionale.
+
+### Precheck fail-fast
+
+Il `globalSetup` Vitest (`test/docker-precheck.runner.ts` → `test/global-setup.ts`) pinga MinIO, Mailpit e webhook-tester in parallelo prima che parta qualsiasi test. Se anche solo uno non risponde, la suite si interrompe con un banner che indica il fix (`npm run dev:full`) invece di accumulare errori opachi nei singoli test.

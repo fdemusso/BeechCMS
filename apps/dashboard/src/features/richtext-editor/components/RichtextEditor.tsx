@@ -1,6 +1,11 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { useEffect, useRef } from "react"
 import { MinimalTiptapEditor } from "@/components/ui/minimal-tiptap"
 import { api } from "@/lib/api"
+import { uploadFile } from "@/lib/upload"
 import type { Content } from "@tiptap/react"
 
 interface RichtextEditorProps {
@@ -18,18 +23,10 @@ export function RichtextEditor({ value, onChange, placeholder }: RichtextEditorP
     lastValue.current = value
   }, [value])
 
-  // Real upload handler that tracks URLs for later cleanup
   const handleUpload = async (file: File) => {
-    const formData = new FormData()
-    formData.append("file", file)
-    
-    // api.post points to /api/upload as configured in api.ts
-    const { data } = await api.post<{ url: string }>("/upload", formData)
-    
-    // Add to session tracking
-    sessionImages.current.push(data.url)
-    
-    return data.url
+    const url = await uploadFile(file)
+    sessionImages.current.push(url)
+    return url
   }
 
   // Session cleanup: delete images that were uploaded but not kept in the final text

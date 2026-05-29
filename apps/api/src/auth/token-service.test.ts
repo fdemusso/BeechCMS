@@ -1,7 +1,11 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { describe, it, expect } from 'vitest'
 import { SystemClock } from '@beechcms/core'
 import { JoseTokenService } from './jose-token-service'
-import { StaticTokenService } from './static-token-service'
+import { StaticTokenService } from './__fixtures__/static-token-service'
 
 const TEST_SECRET = 'super-secret-key-used-only-in-the-vitest-suite-min-length'
 
@@ -46,6 +50,10 @@ describe('JoseTokenService', () => {
     const token = await service.issue({ sub: 'user-1' }, { ttlSeconds: 3600 })
     const claims = await service.verify(token)
     expect(claims?.sub).toBe('user-1')
+  })
+
+  it('throws if the secret is shorter than 32 bytes', () => {
+    expect(() => new JoseTokenService('short-secret', {}, SystemClock)).toThrow('JWT secret must be at least 32 bytes')
   })
 })
 

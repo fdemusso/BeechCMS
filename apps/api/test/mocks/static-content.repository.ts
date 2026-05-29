@@ -1,8 +1,13 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import {
   ContentRepository,
   EntryNotFoundError,
   RepositoryError,
   SlugConflictError,
+  type BulkFieldUpdate,
   Seed,
   SelectOptions,
 } from '@beechcms/core'
@@ -190,5 +195,41 @@ export class StaticContentRepository implements ContentRepository {
   async deleteDraft(seed: Seed, entryId: string): Promise<void> {
     if (!seed.allowDrafts) return
     this.drafts.get(seed.slug)?.delete(entryId)
+  }
+
+  async bulkUpdate(
+    seedSlug: string,
+    ids: string[],
+    fields: Record<string, BulkFieldUpdate>,
+  ): Promise<{ updated: number; failed: Array<{ id: string; reason: string }> }> {
+    const table = this.tables.get(seedSlug)
+    if (!table) return { updated: 0, failed: ids.map((id) => ({ id, reason: 'seed-not-found' })) }
+
+    let updated = 0
+    const failed: Array<{ id: string; reason: string }> = []
+
+    for (const id of ids) {
+      const idx = table.findIndex((e) => e.id === id)
+      if (idx === -1) { failed.push({ id, reason: 'not-found' }); continue }
+
+      const patch: Record<string, unknown> = {}
+      for (const [alias, update] of Object.entries(fields)) {
+        if (update.kind === 'set') {
+          patch[alias] = update.value
+        } else if (update.kind === 'array_replace') {
+          patch[alias] = update.value
+        } else if (update.kind === 'array_add') {
+          const existing = (table[idx][alias] as string[]) ?? []
+          patch[alias] = [...new Set([...existing, ...update.value])]
+        } else if (update.kind === 'array_remove') {
+          const existing = (table[idx][alias] as string[]) ?? []
+          patch[alias] = existing.filter((v) => !update.value.includes(v))
+        }
+      }
+      table[idx] = { ...table[idx], ...patch, updated_at: Math.floor(Date.now() / 1000) }
+      updated++
+    }
+
+    return { updated, failed }
   }
 }

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { createMiddleware } from 'hono/factory'
 import type { Context } from 'hono'
 import { D1ContentRepository } from '../shared/content.repository.d1'
@@ -13,8 +17,11 @@ import { D1WidgetRepository } from '../shared/d1-widget.repository'
 import { D1SearchRepository } from '../shared/d1-search.repository'
 import { D1AnalyticsRepository } from '../shared/d1-analytics.repository'
 import { D1ContentScanRepository } from '../shared/d1-content-scan.repository'
+import { D1SiteSettingsRepository } from '../shared/site-settings.repository.d1'
+import { D1DemoDataRepository } from '../shared/demo-data.repository.d1'
+import { D1SetupChecklistRepository } from '../shared/d1-setup-checklist.repository'
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations'
 import { D1AutomationRepository } from '../shared/automations.repository.d1'
@@ -40,6 +47,8 @@ interface RepositoryOverrides {
   automationRepository?: IAutomationRepository
   automationRunner?: IAutomationRunner
   scheduler?: IScheduler
+  siteSettingsRepository?: ISiteSettingsRepository
+  demoDataRepository?: IDemoDataRepository
 }
 
 function buildScheduler(context: Context): IScheduler {
@@ -86,6 +95,9 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
       }),
     )
     context.set('scheduler', overrides?.scheduler ?? buildScheduler(context))
+    context.set('siteSettingsRepository', overrides?.siteSettingsRepository ?? new D1SiteSettingsRepository(database))
+    context.set('demoDataRepository', overrides?.demoDataRepository ?? new D1DemoDataRepository(database))
+    context.set('setupChecklistRepository', new D1SetupChecklistRepository(database))
     await next()
   })
 }

@@ -134,7 +134,10 @@ const DEP_KEYS = ['dependencies', 'devDependencies', 'peerDependencies']
 
 // ── Snapshot (rollback) ───────────────────────────────────────────────────────
 
-const snapshots = PACKAGES.map(pkg => ({ path: pkg.path, content: readRaw(pkg.path) }))
+const snapshots = [
+  ...PACKAGES.map(pkg => ({ path: pkg.path, content: readRaw(pkg.path) })),
+  { path: resolve(ROOT, 'LICENSE'), content: readRaw(resolve(ROOT, 'LICENSE')) }
+]
 
 function rollback(reason) {
   console.error(`\n  ✗ ${reason}`)
@@ -194,6 +197,17 @@ for (const pkg of PACKAGES) {
     log(`     ${pkg.name.padEnd(16)}  ${nextVersion} (unchanged)`)
   }
 }
+
+log('')
+log('1b/4  Updating LICENSE change date...')
+
+const licensePath = resolve(ROOT, 'LICENSE')
+let licenseContent = readRaw(licensePath)
+const changeDate = new Date()
+changeDate.setFullYear(changeDate.getFullYear() + 4)
+const changeDateStr = changeDate.toISOString().split('T')[0]
+licenseContent = licenseContent.replace(/Change Date:\s+\d{4}-\d{2}-\d{2}/, `Change Date:          ${changeDateStr}`)
+writeRaw(licensePath, licenseContent)
 
 // ── Step 2: build ─────────────────────────────────────────────────────────────
 
@@ -255,6 +269,7 @@ try {
   for (const pkg of PACKAGES) run(`git add ${pkg.path}`)
   // Also add dashboard assets if they changed
   run(`git add apps/api/assets/dashboard`)
+  run(`git add LICENSE`)
   
   if (currentVersion !== nextVersion) {
     run(`git commit -m "chore: release ${nextVersion}"`)

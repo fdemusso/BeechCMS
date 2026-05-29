@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 /** API auth error messages - used by handlers and tests */
 export const AUTH_ERRORS = {
   INVALID_REQUEST: 'Invalid request',

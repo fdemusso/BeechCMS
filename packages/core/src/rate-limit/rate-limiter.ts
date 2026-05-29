@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 export interface RateLimitResult {
   isAllowed: boolean
   retryAfterSeconds?: number

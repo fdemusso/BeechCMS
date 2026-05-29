@@ -1,7 +1,12 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { contentApi } from "../api/content.api"
 import { CONTENT_QUERY_KEYS, FACET_QUERY_KEYS } from "../consts/content.keys"
-import { DASHBOARD_QUERY_KEYS } from "@/features/shared"
+import { DASHBOARD_QUERY_KEYS, GLOBAL_DRAFTS_QUERY_KEY } from "@/features/shared"
+import { BACKREF_QUERY_KEY } from "@/features/backrefs"
 
 /**
  * Hook for fetching a single content entry.
@@ -57,6 +62,7 @@ export function usePublishDraft() {
       queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.draft(slug, id) })
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.activity() })
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.stats() })
+      queryClient.invalidateQueries({ queryKey: GLOBAL_DRAFTS_QUERY_KEY })
     },
   })
 }
@@ -71,6 +77,7 @@ export function useDiscardDraft() {
       queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.draft(slug, id) })
       queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.detail(slug, id) })
       queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: GLOBAL_DRAFTS_QUERY_KEY })
     },
   })
 }
@@ -113,9 +120,12 @@ export function useSaveContent() {
       
       // Invalidate recent-activity so the dashboard feed reflects the change immediately
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.activity() })
-      
+
       // Invalidate stats as status change might affect counts
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.stats() })
+
+      // Invalidate back-refs — saved entry may point to new/different targets
+      queryClient.invalidateQueries({ queryKey: [BACKREF_QUERY_KEY] })
     },
   })
 }

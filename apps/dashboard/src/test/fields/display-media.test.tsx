@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { MediaDisplay } from "@/features/fields/display/media"
@@ -6,6 +10,14 @@ const mockBranch = {
   id: "br_01",
   alias: "cover",
   label: "Cover",
+  type: "file" as const,
+  fileOptions: { accept: "image" as const },
+}
+
+const mockBranchNoOptions = {
+  id: "br_03",
+  alias: "attachment",
+  label: "Attachment",
   type: "file" as const,
 }
 
@@ -30,21 +42,36 @@ describe("MediaDisplay", () => {
     expect(screen.getByText("-")).toBeInTheDocument()
   })
 
-  it("value URL immagine -> renderizza Avatar con img", () => {
-    const url = "https://example.com/photo.jpg"
+  it("accept:'image' + URL immagine -> renderizza Avatar con img", () => {
+    const url = "https://example.com/photo.png"
     const { container } = render(<MediaDisplay branch={mockBranch} value={url} />)
     const avatar = container.querySelector('[data-slot="avatar"]')
     expect(avatar).toBeInTheDocument()
   })
 
-  it("value URL senza estensione -> mantiene rendering con Avatar", () => {
+  it("accept:'image' + URL senza estensione -> mantiene rendering con Avatar", () => {
     const url = "https://cdn.example.com/resource?id=12345"
     const { container } = render(<MediaDisplay branch={mockBranch} value={url} />)
     const avatar = container.querySelector('[data-slot="avatar"]')
     expect(avatar).toBeInTheDocument()
   })
 
-  it("asset-list -> mostra fino a 3 preview e contatore overflow", () => {
+  it("senza fileOptions + URL .pdf -> no <img>, presente FileIcon", () => {
+    const url = "https://example.com/report.pdf"
+    const { container } = render(<MediaDisplay branch={mockBranchNoOptions} value={url} />)
+    expect(container.querySelector("img")).not.toBeInTheDocument()
+    expect(container.querySelector('[data-slot="avatar"]')).not.toBeInTheDocument()
+    expect(container.querySelector("svg")).toBeInTheDocument()
+  })
+
+  it("senza fileOptions + URL qualsiasi -> icona generica, nessuna richiesta HTTP", () => {
+    const url = "https://example.com/archive.zip"
+    const { container } = render(<MediaDisplay branch={mockBranchNoOptions} value={url} />)
+    expect(container.querySelector('[data-slot="avatar"]')).not.toBeInTheDocument()
+    expect(container.querySelector("svg")).toBeInTheDocument()
+  })
+
+  it("asset-list senza fileOptions (accept:'any') -> icone generiche, nessun <img>", () => {
     const values = [
       "https://cdn.example.com/1.jpg",
       "https://cdn.example.com/2.jpg",
@@ -54,9 +81,8 @@ describe("MediaDisplay", () => {
     const { container } = render(
       <MediaDisplay branch={mockAssetListBranch} value={values} />
     )
-    const avatars = container.querySelectorAll('[data-slot="avatar"]')
-    expect(avatars.length).toBe(3)
+    expect(container.querySelectorAll('[data-slot="avatar"]').length).toBe(0)
+    expect(container.querySelectorAll("svg").length).toBe(3)
     expect(screen.getByText("+1")).toBeInTheDocument()
   })
 })
-

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 /**
  * @beechcms/core - Botanical Engine
  *
@@ -9,6 +12,7 @@
  */
 
 export * from './types.js'
+export * from './file-types.js'
 export * from './define-seed.js'
 export * from './seeds.js'
 export * from './engine.js'
@@ -42,6 +46,9 @@ export * from './automations.types.js'
 export * from './automations-grammar-words.js'
 export * from './automations.runner.interface.js'
 export * from './automations.repository.interface.js'
-export * from './automations.runner.stub.js'
 export * from './scheduler.interface.js'
 export * from './scheduler.stub.js'
+export * from './webhook-validation.js'
+export * from './relations.js'
+export * from './site-settings.repository.js'
+export * from './demo-data.repository.js'

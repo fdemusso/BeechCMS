@@ -26,16 +26,10 @@
     }
   ],
 
-  // R2: in locale usa il binding Miniflare (nessuna credenziale necessaria — .dev.vars può restare vuoto).
-  // In produzione aggiungere le credenziali come wrangler secret: R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME
-  // Crea il bucket: npx wrangler r2 bucket create beech-media
-  // Chiavi API R2: Dashboard Cloudflare → R2 → Manage R2 API Tokens
-  "r2_buckets": [
-    {
-      "binding": "MEDIA_BUCKET",
-      "bucket_name": "beech-media"
-    }
-  ],
+  // R2 (S3 API). In dev imposta in .dev.vars; in prod come wrangler secret:
+  //   R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME
+  //   MEDIA_CDN_URL (opzionale)
+  //   MAX_UPLOAD_BYTES (opzionale, default 50MB)
 
   // Rate limiting (Wrangler 4.36+)
   "ratelimits": [
@@ -78,7 +72,7 @@
   // CORS e variabili
   // MEDIA_BASE_URL: in dev punta al proxy Vite (5173) per evitare CORS e semplificare il debugging
   "vars": {
-    "JWT_SECRET": "sviluppo-secret-cambiami",
+    "JWT_SECRET": "sviluppo-secret-cambiami-almeno-32-byte-per-sicurezza-hono",
     "CORS_ORIGINS": "http://localhost:5173,http://localhost:5174,https://dashboard.beech.local",
     "PUBLIC_READ_API_KEY": "dev-public-read-key-changeme",
     "PUBLIC_WRITE_API_KEY": "dev-public-write-key-changeme",
@@ -87,8 +81,16 @@
     "MEDIA_BASE_URL": "http://localhost:5173",
     "DATE_FORMAT": "DD-MM-YYYY",
     // URL del dashboard (usato per costruire i link nelle email di reset password)
-    // Configura via wrangler secret in produzione: RESEND_API_KEY, APP_URL, EMAIL_FROM
+    // In prod: wrangler secret put EMAIL_PROVIDER (resend), RESEND_API_KEY, APP_URL, EMAIL_FROM.
+    // In dev locale: EMAIL_PROVIDER=smtp punta Mailpit su localhost:8025.
     "APP_URL": "http://localhost:5173",
-    "ENV": "development"
+    "ENV": "development",
+    "EMAIL_PROVIDER": "smtp",
+    "SMTP_HOST": "localhost",
+    "SMTP_PORT": "8025",
+    "EMAIL_FROM": "Beech CMS <dev@beech.local>",
+    "WEBHOOK_TESTER_URL": "http://localhost:8084",
+    // In produzione impostare come secret: npx wrangler secret put WEBHOOK_SECRET
+    "WEBHOOK_SECRET": "dev-webhook-secret-changeme"
   }
 }

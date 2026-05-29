@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -10,8 +14,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator'
 import { useProfile, useUpdateProfile, useChangePassword, useUpdateAvatar } from '../hooks/use-settings'
 
-function getInitials(name: string | null, email: string): string {
-  if (name) return name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
+function getInitials(name: string | null, surname: string | null, email: string): string {
+  if (name || surname) {
+    const parts = []
+    if (name) parts.push(name.trim())
+    if (surname) parts.push(surname.trim())
+    return parts.map(w => w[0]).join('').toUpperCase().slice(0, 2)
+  }
   return email.slice(0, 2).toUpperCase()
 }
 
@@ -24,6 +33,7 @@ export function ProfileTab() {
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const [name, setName] = React.useState('')
+  const [surname, setSurname] = React.useState('')
   const [email, setEmail] = React.useState('')
   const [currentPassword, setCurrentPassword] = React.useState('')
   const [newPassword, setNewPassword] = React.useState('')
@@ -32,6 +42,7 @@ export function ProfileTab() {
   React.useEffect(() => {
     if (profile) {
       setName(profile.name ?? '')
+      setSurname(profile.surname ?? '')
       setEmail(profile.email)
     }
   }, [profile])
@@ -39,10 +50,15 @@ export function ProfileTab() {
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await updateProfile.mutateAsync({ name: name || undefined, email: email || undefined })
+      await updateProfile.mutateAsync({
+        name: name || undefined,
+        surname: surname || undefined,
+        email: email || undefined,
+      })
       toast.success(t('settings.profile.savedSuccess'))
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail ?? t('settings.profile.savedError')
+    } catch (err) {
+      const axiosError = err as { response?: { data?: { detail?: string } } }
+      const detail = axiosError?.response?.data?.detail ?? t('settings.profile.savedError')
       toast.error(detail)
     }
   }
@@ -59,8 +75,9 @@ export function ProfileTab() {
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail ?? t('settings.profile.passwordError')
+    } catch (err) {
+      const axiosError = err as { response?: { data?: { detail?: string } } }
+      const detail = axiosError?.response?.data?.detail ?? t('settings.profile.passwordError')
       toast.error(detail)
     }
   }
@@ -100,7 +117,7 @@ export function ProfileTab() {
                 <Avatar className="size-20">
                   <AvatarImage src={profile?.avatarUrl ?? undefined} />
                   <AvatarFallback className="text-lg">
-                    {getInitials(profile?.name ?? null, profile?.email ?? '')}
+                    {getInitials(profile?.name ?? null, profile?.surname ?? null, profile?.email ?? '')}
                   </AvatarFallback>
                 </Avatar>
                 <button
@@ -116,7 +133,11 @@ export function ProfileTab() {
                 </button>
               </div>
               <div>
-                <p className="text-sm font-medium">{profile?.name ?? t('settings.profile.noName')}</p>
+                <p className="text-sm font-medium">
+                  {profile?.name
+                    ? `${profile.name}${profile.surname ? ' ' + profile.surname : ''}`
+                    : t('settings.profile.noName')}
+                </p>
                 <p className="text-sm text-muted-foreground">{profile?.email}</p>
                 <button
                   type="button"
@@ -148,6 +169,15 @@ export function ProfileTab() {
                 />
               </div>
               <div className="space-y-2">
+                <Label htmlFor="surname">{t('settings.profile.surnameLabel')}</Label>
+                <Input
+                  id="surname"
+                  value={surname}
+                  onChange={e => setSurname(e.target.value)}
+                  placeholder={t('settings.profile.surnamePlaceholder')}
+                />
+              </div>
+              <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="email">{t('settings.profile.emailLabel')}</Label>
                 <Input
                   id="email"

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import type { AutomationAction, ContentRepository, Seed } from '@beechcms/core'
 import type { ResolvedContext } from '../context-resolver'
 import { conditionToFilterGroup } from '../filter-translation'
@@ -24,8 +28,17 @@ export async function executeSetVariable(
     return
   }
 
-  if (action.fixed_id !== undefined) {
-    const resolvedId = interpolate(action.fixed_id, ctx.context)
+  // ── legacy read normalisation ─────────────────────────────────────────────
+  let effectiveFixedId = action.fixed_id
+  if (effectiveFixedId === undefined && action.load_type === 'fruit') {
+    const idFilter = (action.filters ?? []).find(
+      (f) => f.field === 'id' && f.op === 'eq' && typeof f.value === 'string',
+    )
+    if (idFilter) effectiveFixedId = String(idFilter.value)
+  }
+
+  if (effectiveFixedId !== undefined) {
+    const resolvedId = interpolate(effectiveFixedId, ctx.context)
     const { items } = await ctx.repository.findMany(targetSeed, {
       filters: [{ column: 'id', type: 'system', conditions: [{ op: 'eq', value: resolvedId }] }],
       status: null,

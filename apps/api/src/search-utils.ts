@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 // apps/api/src/search-utils.ts
 // Pure functions — zero Hono dependencies, importable from Vitest.
 // v0.4.0: FTS is per-seed (fts_{slug}), joined with content_{slug} for metadata.

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 /**
  * Seed Registry: configurazione degli schemi di contenuto.
  * In v0.4.0 ogni Seed genera una tabella `content_{slug}` con colonne reali.

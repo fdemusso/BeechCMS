@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Hono } from 'hono'
 import type { IAutomationRepository, Automation } from '@beechcms/core'
@@ -10,7 +14,7 @@ const baseAutomation: Automation = {
   enabled: true,
   triggers: [{ event: 'create' }],
   trigger_conditions: null,
-  actions: [{ type: 'webhook', url: 'https://example.com' }],
+  actions: [{ type: 'webhook', url: 'https://example.com', body_template: '{}' }],
   created_at: 1000,
   updated_at: 1000,
 }
@@ -99,7 +103,7 @@ describe('POST /', () => {
             { kind: 'predicate', left: { kind: 'ref', key: 'this.status' }, op: 'eq', right: { kind: 'literal', value: 'draft' } },
           ],
         },
-        actions: [{ type: 'webhook', url: 'https://example.com' }],
+        actions: [{ type: 'webhook', url: 'https://example.com', body_template: '{}' }],
       }),
     })
     expect(res.status).toBe(201)
@@ -116,7 +120,7 @@ describe('POST /', () => {
         seed_slug: 'posts',
         name: 'test-create-automation',
         triggers: [{ event: 'create' }],
-        actions: [{ type: 'webhook', url: 'https://example.com' }],
+        actions: [{ type: 'webhook', url: 'https://example.com', body_template: '{}' }],
       }),
     })
     expect(res.status).toBe(201)

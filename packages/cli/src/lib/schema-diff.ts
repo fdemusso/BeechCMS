@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 import type { Seed } from '@beechcms/core'
 import { getExpectedColumns, type SchemaColumn } from '@beechcms/core'
 import type { WranglerOptions, D1Row } from './wrangler.js'
@@ -10,11 +13,33 @@ interface PragmaRow extends D1Row {
   pk: number
 }
 
+interface FkRow extends D1Row {
+  id: number
+  seq: number
+  table: string
+  from: string
+  to: string
+  on_update: string
+  on_delete: string
+  match: string
+}
+
+interface IndexRow extends D1Row {
+  seq: number
+  name: string
+  unique: number
+}
+
 export interface ColumnDiff {
   name: string
-  status: 'ok' | 'missing' | 'extra' | 'type_mismatch'
+  status: 'ok' | 'missing' | 'extra' | 'type_mismatch' | 'fk_missing' | 'fk_mismatch' | 'index_missing'
   expectedType?: string
   actualType?: string
+  /** For fk_missing/fk_mismatch: expected FK target table */
+  expectedTarget?: string
+  /** For fk_mismatch: what the DB actually has */
+  expected?: string
+  actual?: string
 }
 
 export interface SeedDiff {
@@ -43,12 +68,13 @@ export async function diffSeed(seed: Seed, options: WranglerOptions): Promise<Se
 
   const columns: ColumnDiff[] = []
 
+  // ── Column presence + type checks ────────────────────────────────────────
   for (const col of expected) {
-    const actual = actualMap.get(col.name)
-    if (!actual) {
+    const actualRow = actualMap.get(col.name)
+    if (!actualRow) {
       columns.push({ name: col.name, status: 'missing', expectedType: col.sqlType })
-    } else if (actual.type.toUpperCase() !== col.sqlType) {
-      columns.push({ name: col.name, status: 'type_mismatch', expectedType: col.sqlType, actualType: actual.type })
+    } else if (actualRow.type.toUpperCase() !== col.sqlType) {
+      columns.push({ name: col.name, status: 'type_mismatch', expectedType: col.sqlType, actualType: actualRow.type })
     } else {
       columns.push({ name: col.name, status: 'ok' })
     }
@@ -57,6 +83,66 @@ export async function diffSeed(seed: Seed, options: WranglerOptions): Promise<Se
   for (const row of actual) {
     if (!expectedSet.has(row.name)) {
       columns.push({ name: row.name, status: 'extra', actualType: row.type })
+    }
+  }
+
+  // ── FK + index checks for relation branches ──────────────────────────────
+  const relationBranches = seed.branches.filter(b => b.type === 'relation' && b.targetSeed)
+
+  if (relationBranches.length > 0) {
+    let fkList: FkRow[] = []
+    let indexList: IndexRow[] = []
+    try {
+      fkList = queryD1<FkRow>(`PRAGMA foreign_key_list(${tableName})`, options)
+      indexList = queryD1<IndexRow>(`PRAGMA index_list(${tableName})`, options)
+    } catch {
+      // If PRAGMA fails (table may not exist yet), skip FK checks
+    }
+
+    // Build maps for fast lookup
+    // fkList has one row per FK column; `from` = local col, `table` = referenced table
+    const fkByCol = new Map<string, FkRow>()
+    for (const fk of fkList) {
+      fkByCol.set(fk.from, fk)
+    }
+    const indexNames = new Set(indexList.map(i => i.name))
+
+    for (const branch of relationBranches) {
+      const expectedFkTable = `content_${branch.targetSeed}`
+      const expectedOnDelete = (branch.onDelete ?? 'SET NULL').toUpperCase()
+      const expectedIndexName = `idx_${seed.slug}_${branch.alias}`
+
+      // Find column diff entry for this branch (already evaluated above)
+      const colDiff = columns.find(c => c.name === branch.alias)
+      if (!colDiff || colDiff.status === 'missing') continue // already flagged
+
+      const fk = fkByCol.get(branch.alias)
+
+      if (!fk) {
+        // Column exists but no FK
+        colDiff.status = 'fk_missing'
+        colDiff.expectedTarget = branch.targetSeed
+      } else {
+        const actualTable = fk.table
+        const actualOnDelete = fk.on_delete.toUpperCase()
+        if (actualTable !== expectedFkTable || actualOnDelete !== expectedOnDelete) {
+          colDiff.status = 'fk_mismatch'
+          colDiff.expected = `→ ${expectedFkTable}(id) ON DELETE ${expectedOnDelete}`
+          colDiff.actual = `→ ${actualTable}(id) ON DELETE ${actualOnDelete}`
+          colDiff.expectedTarget = branch.targetSeed
+        }
+      }
+
+      // Check index separately (can coexist with fk status)
+      if (!indexNames.has(expectedIndexName)) {
+        // Only add index_missing if the column is otherwise OK (FK issue takes precedence)
+        if (colDiff.status === 'ok') {
+          colDiff.status = 'index_missing'
+        } else {
+          // Append index info to the existing diff row as a separate entry
+          columns.push({ name: branch.alias, status: 'index_missing' })
+        }
+      }
     }
   }
 

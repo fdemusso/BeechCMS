@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import path from "node:path"
 import { defineConfig } from "vitest/config"
 import react from "@vitejs/plugin-react"
@@ -28,12 +32,16 @@ export default defineConfig({
         // ─── Boilerplate & App entry points ──────────────────────────────────
         "src/main.tsx",
         "src/App.tsx",         // pure routing glue, no logic
-        "src/i18n.ts",
+        "src/lib/i18n.ts",
         "src/vite-env.d.ts",
         "src/config/**",
         "src/lib/api.ts",      // axios client factory — no unit testable logic
         "src/lib/query-client.ts",
         "src/lib/icon-registry.ts",
+        "src/lib/upload.ts",
+        "src/lib/use-auth-features.ts",
+        "src/lib/auth-context.tsx",
+        "src/hooks/use-mobile.ts",
 
         // ─── Shadcn UI — third-party component wrappers, presentational only ─
         "src/components/ui/**",
@@ -118,6 +126,7 @@ export default defineConfig({
         // ─── Data constants, barrel re-exports, type-only files ──────────────
         "src/**/*.types.ts",
         "src/**/types.ts",
+        "src/**/types/**",
         "src/**/consts/**",
         "src/**/index.ts",
       ],

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 import { describe, it, expect } from 'vitest'
 import { resolvePolicies, verifyHashField } from './policies'
 import type { Branch } from './types'

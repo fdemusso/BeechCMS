@@ -1,5 +1,10 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3'
-import { BeechBucket, PutBucketOptions, GetBucketResult } from '@beechcms/core'
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { BeechBucket, PutBucketOptions, GetBucketResult, PresignOptions } from '@beechcms/core'
 
 /**
  * Implementation of BeechBucket using S3-compatible API (AWS SDK).
@@ -20,6 +25,10 @@ export class S3Bucket implements BeechBucket {
     baseUrl: string,
     cdnUrl?: string,
   }) {
+    // requestChecksumCalculation/responseChecksumValidation exist at runtime in AWS SDK v3
+    // but are not yet in the TypeScript types for this version. Casting via unknown to pass them
+    // through: without them the SDK adds x-amz-checksum-crc32 to presigned URLs, which causes
+    // R2 to reject PUT requests when the CRC32 of the uploaded file doesn't match.
     this.client = new S3Client({
       region: 'auto',
       endpoint: config.endpoint,
@@ -28,7 +37,9 @@ export class S3Bucket implements BeechBucket {
         secretAccessKey: config.secretAccessKey,
       },
       forcePathStyle: true,
-    })
+      requestChecksumCalculation: 'when_required',
+      responseChecksumValidation: 'when_required',
+    } as unknown as import('@aws-sdk/client-s3').S3ClientConfig)
     this.bucketName = config.bucketName
     this.baseUrl = config.baseUrl
     this.cdnUrl = config.cdnUrl ?? null
@@ -142,6 +153,27 @@ export class S3Bucket implements BeechBucket {
       token = response.NextContinuationToken
     } while (token)
     return total
+  }
+
+  async presignPut(key: string, options: PresignOptions): Promise<string> {
+    // ContentLength intentionally excluded: including it adds content-length to
+    // X-Amz-SignedHeaders, requiring the uploading client to send an exact
+    // Content-Length header. Some fetch implementations omit it, causing MinIO/R2
+    // to reject the PUT with 400. Size validation already happened server-side.
+    const command = new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      ContentType: options.contentType,
+    })
+    return getSignedUrl(this.client, command, { expiresIn: options.expiresIn })
+  }
+
+  async presignGet(key: string, options: PresignOptions): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+    })
+    return getSignedUrl(this.client, command, { expiresIn: options.expiresIn })
   }
 
   async list(options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{ objects: Array<{ key: string; size: number }>; cursor?: string }> {

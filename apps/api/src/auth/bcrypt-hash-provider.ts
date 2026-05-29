@@ -1,12 +1,16 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import bcrypt from 'bcryptjs'
 import type { IHashProvider } from '@beechcms/core'
 
-const DEFAULT_BCRYPT_ROUNDS = 10
+export const BCRYPT_SALT_ROUNDS = 10
 
 export class BcryptHashProvider implements IHashProvider {
   private readonly saltRounds: number
 
-  constructor(saltRounds: number = DEFAULT_BCRYPT_ROUNDS) {
+  constructor(saltRounds: number = BCRYPT_SALT_ROUNDS) {
     this.saltRounds = saltRounds
   }
 

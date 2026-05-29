@@ -3,15 +3,29 @@
 # .dev.vars è in .gitignore - NON committare mai le chiavi reali.
 #
 # Per produzione: wrangler secret put R2_ACCESS_KEY_ID, ecc.
-
-# R2 - API S3-compatibile (obbligatorie per upload/media)
-# Chiavi: Dashboard Cloudflare → R2 → Manage R2 API Tokens
-# Endpoint: https://<ACCOUNT_ID>.r2.cloudflarestorage.com (ACCOUNT_ID in Dashboard)
-R2_ACCESS_KEY_ID=tuo_access_key_id_qui
-R2_SECRET_ACCESS_KEY=tua_secret_access_key_qui
-R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+#
+# Dev con MinIO (npm run dev:full):
+R2_ENDPOINT=http://localhost:9000
+R2_ACCESS_KEY_ID=beechdev
+R2_SECRET_ACCESS_KEY=beechdevsecret
 R2_BUCKET_NAME=beech-media
+MAX_UPLOAD_BYTES=52428800
+
+# Dev con R2 staging:
+# R2_ACCESS_KEY_ID=tuo_access_key_id_qui
+# R2_SECRET_ACCESS_KEY=tua_secret_access_key_qui
+# R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+# R2_BUCKET_NAME=beech-media
 
 # Opzionale: URL base per i media (se non impostato, usa origin della richiesta)
-# Dev con proxy Vite: http://localhost:5173
 # MEDIA_BASE_URL=http://localhost:5173
+
+# --- Email (Sprint 03) ---
+# In dev usa Mailpit. In prod (wrangler secret) imposta EMAIL_PROVIDER=resend e RESEND_API_KEY.
+EMAIL_PROVIDER=smtp
+SMTP_HOST=localhost
+SMTP_PORT=8025
+EMAIL_FROM=Beech CMS <dev@beech.local>
+
+# --- Webhook tester (Sprint 03, solo dev/test) ---
+WEBHOOK_TESTER_URL=http://localhost:8084

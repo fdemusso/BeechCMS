@@ -1,5 +1,10 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
+import { sha256hex, type SiteSettings } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 
 const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -12,22 +17,94 @@ const ACTIVITY_LOG_LIMIT = 30
 
 /**
  * GET /api/settings
- * Retrieves the general site configuration.
+ * Retrieves the general site configuration from the database.
  */
 settingsApp.get('/', async (context) => {
+  const s = await context.get('siteSettingsRepository').getAll()
   return context.json({
-    siteTitle: 'Beech CMS',
+    siteTitle: s.siteTitle,
     siteLogo: '/beechLogoDark.svg',
-    defaultLanguage: 'it',
+    defaultLanguage: s.defaultLanguage,
+    timezone: s.timezone,
+    currency: s.currency,
+    company: {
+      name: s.companyName,
+      website: s.companyWebsite,
+      abbreviation: s.companyAbbreviation,
+    },
     dateFormat: context.env.DATE_FORMAT || 'DD-MM-YYYY',
     features: {
       drafts: true,
       media: true,
       search: true,
       activityLog: true,
-      email: !!(context.env.EMAIL_API_KEY || context.env.RESEND_API_KEY),
-    }
+      email: context.env.EMAIL_PROVIDER === 'smtp' || !!(context.env.EMAIL_API_KEY || context.env.RESEND_API_KEY),
+    },
   })
+})
+
+/**
+ * PUT /api/settings
+ * Updates the general site configuration in the database.
+ */
+settingsApp.put('/', async (context) => {
+  let payload: Record<string, unknown>
+  try {
+    payload = await context.req.json()
+  } catch {
+    return context.json({ error: 'Invalid JSON body' }, 400)
+  }
+
+  const siteTitle = typeof payload.siteTitle === 'string' ? payload.siteTitle.trim() : undefined
+  const defaultLanguage = typeof payload.defaultLanguage === 'string' ? payload.defaultLanguage.trim() : undefined
+  const timezone = typeof payload.timezone === 'string' ? payload.timezone.trim() : undefined
+  const currency = typeof payload.currency === 'string' ? payload.currency.trim() : undefined
+
+  let companyName: string | undefined | null = undefined
+  let companyWebsite: string | undefined | null = undefined
+  let companyAbbreviation: string | undefined | null = undefined
+
+  if (payload.company !== undefined) {
+    if (payload.company === null) {
+      companyName = null
+      companyWebsite = null
+      companyAbbreviation = null
+    } else if (typeof payload.company === 'object') {
+      const company = payload.company as Record<string, unknown>
+      companyName = typeof company.name === 'string' ? company.name.trim() : (company.name === null ? null : undefined)
+      companyWebsite = typeof company.website === 'string' ? (company.website.trim() || null) : (company.website === null ? null : undefined)
+      companyAbbreviation = typeof company.abbreviation === 'string' ? (company.abbreviation.trim() || null) : (company.abbreviation === null ? null : undefined)
+    }
+  }
+
+  if (defaultLanguage !== undefined && !['it', 'en'].includes(defaultLanguage)) {
+    return context.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Invalid default language (must be it or en)' }, 400)
+  }
+
+  if (companyWebsite && companyWebsite !== '') {
+    try {
+      new URL(companyWebsite)
+    } catch {
+      return context.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Invalid company website URL' }, 400)
+    }
+  }
+
+  const fieldsToUpdate: Partial<SiteSettings> = {}
+  if (siteTitle !== undefined) fieldsToUpdate.siteTitle = siteTitle
+  if (defaultLanguage !== undefined) fieldsToUpdate.defaultLanguage = defaultLanguage
+  if (timezone !== undefined) fieldsToUpdate.timezone = timezone
+  if (currency !== undefined) fieldsToUpdate.currency = currency
+  if (companyName !== undefined) fieldsToUpdate.companyName = companyName
+  if (companyWebsite !== undefined) fieldsToUpdate.companyWebsite = companyWebsite
+  if (companyAbbreviation !== undefined) fieldsToUpdate.companyAbbreviation = companyAbbreviation
+
+  // If companyName is updated and siteTitle isn't specified, sync siteTitle
+  if (companyName && siteTitle === undefined) {
+    fieldsToUpdate.siteTitle = companyName
+  }
+
+  await context.get('siteSettingsRepository').setMany(fieldsToUpdate)
+  return context.json({ success: true })
 })
 
 /**
@@ -49,11 +126,18 @@ settingsApp.get('/me', async (context) => {
     notificationPreferences = {}
   }
 
+  let avatarUrl = currentUser.avatarUrl
+  if (!avatarUrl && currentUser.email) {
+    const emailHash = await sha256hex(currentUser.email.trim().toLowerCase())
+    avatarUrl = `https://gravatar.com/avatar/${emailHash}?d=mp`
+  }
+
   return context.json({
     id: currentUser.id,
     email: currentUser.email,
     name: currentUser.name,
-    avatarUrl: currentUser.avatarUrl,
+    surname: currentUser.surname,
+    avatarUrl,
     notificationPrefs: {
       contentCreate: notificationPreferences.contentCreate ?? true,
       contentUpdate: notificationPreferences.contentUpdate ?? true,
@@ -78,6 +162,7 @@ settingsApp.put('/profile', async (context) => {
   }
 
   const nameInput = typeof payload.name === 'string' ? payload.name.trim() : null
+  const surnameInput = typeof payload.surname === 'string' ? payload.surname.trim() : null
   const emailInput = typeof payload.email === 'string' ? payload.email.trim().toLowerCase() : null
 
   if (emailInput !== null && !EMAIL_VALIDATION_REGEX.test(emailInput)) {
@@ -88,7 +173,11 @@ settingsApp.put('/profile', async (context) => {
     return context.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Name is too long (maximum 100 characters)' }, 400)
   }
 
-  const hasNoFields = nameInput === null && emailInput === null
+  if (surnameInput !== null && surnameInput.length > 100) {
+    return context.json({ type: 'bad-request', title: 'Bad Request', status: 400, detail: 'Surname is too long (maximum 100 characters)' }, 400)
+  }
+
+  const hasNoFields = nameInput === null && surnameInput === null && emailInput === null
   if (hasNoFields) {
     return context.json({ error: 'No fields to update' }, 400)
   }
@@ -100,8 +189,9 @@ settingsApp.put('/profile', async (context) => {
     }
   }
 
-  const fieldsToUpdate: { name?: string; email?: string } = {}
+  const fieldsToUpdate: { name?: string; surname?: string; email?: string } = {}
   if (nameInput !== null) fieldsToUpdate.name = nameInput
+  if (surnameInput !== null) fieldsToUpdate.surname = surnameInput
   if (emailInput !== null) fieldsToUpdate.email = emailInput
 
   await context.get('userRepository').updateProfile(userId, fieldsToUpdate)

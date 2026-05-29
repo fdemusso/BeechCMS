@@ -1,3 +1,8 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
+import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { Plus, Trash2 } from 'lucide-react'
@@ -10,19 +15,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { useSchema } from '@/features/schema'
 import type { AutomationFormValues } from '../../schema/automation.schema'
 
 interface WebhookFormProps {
   index: number
+  triggerSeedSlug?: string
 }
 
-export function WebhookForm({ index }: WebhookFormProps) {
+export function WebhookForm({ index, triggerSeedSlug }: WebhookFormProps) {
   const { t } = useTranslation()
-  const { register, control, watch, setValue, formState: { errors } } = useFormContext<AutomationFormValues>()
+  const { register, control, watch, setValue, getValues, formState: { errors } } = useFormContext<AutomationFormValues>()
   const { fields, append, remove } = useFieldArray({ control, name: `actions.${index}.headers` as any })
   const method = watch(`actions.${index}.method` as any) as string
+  const { data: seeds = [] } = useSchema()
 
   const actionErrors = (errors.actions as any)?.[index]
+
+  useEffect(() => {
+    const current = getValues(`actions.${index}.body_template` as any) as string
+    if (current && current.trim() !== '') return
+    const seed = seeds.find((s) => s.slug === triggerSeedSlug)
+    if (!seed) return
+    const publicBranches = seed.branches.filter((b: any) => b.policies?.public !== false)
+    const obj: Record<string, string> = { id: '{{id}}' }
+    for (const b of publicBranches) obj[b.alias] = `{{${b.alias}}}`
+    setValue(`actions.${index}.body_template` as any, JSON.stringify(obj, null, 2))
+  }, [index, triggerSeedSlug, seeds])
 
   return (
     <div className="flex flex-col gap-3">
@@ -102,15 +121,22 @@ export function WebhookForm({ index }: WebhookFormProps) {
 
       <div>
         <label className="text-xs font-medium text-muted-foreground mb-1 block">
-          {t('automations.actions.webhookBody')}
+          {t('automations.actions.webhookBody')} *
         </label>
         <textarea
           {...register(`actions.${index}.body_template` as any)}
-          rows={3}
+          rows={4}
           placeholder='{"event": "{{trigger_event}}"}'
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         />
+        {actionErrors?.body_template && (
+          <p className="mt-1 text-xs text-destructive">{t(actionErrors.body_template.message)}</p>
+        )}
         <p className="mt-1 text-[10px] text-muted-foreground">{t('automations.actions.templateHint')}</p>
+      </div>
+
+      <div className="rounded-md bg-muted/50 border border-border px-3 py-2 text-[10px] text-muted-foreground">
+        {t('automations.actions.webhookSecretHint')}
       </div>
     </div>
   )

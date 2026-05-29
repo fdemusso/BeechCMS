@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 export type AutomationTriggerEvent = 'create' | 'update' | 'delete' | 'cron'
 
 export interface AutomationTrigger {
@@ -52,6 +55,8 @@ export interface SetVariableAction {
   filters?: TriggerCondition[]
   order_by?: string
   order?: 'asc' | 'desc'
+  /** @deprecated Read but ignored at runtime. Removed on next save. */
+  load_type?: 'fruit' | 'branch'
 }
 
 export type AutomationAction =

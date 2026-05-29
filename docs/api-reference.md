@@ -264,7 +264,7 @@ Content-Type: application/json
 - If the email does not match any user, the response is still `200` — user existence is never revealed.
 - Any existing pending reset tokens for the same user are invalidated before issuing a new one.
 - The reset token has a **30-minute TTL** and is stored as SHA-256 hash in D1 (`password_reset_tokens`).
-- The email is sent via [Resend](https://resend.com) using the `RESEND_API_KEY` env var.
+- The email is sent via [Resend](https://resend.com) using the `RESEND_API_KEY` env var (production). In sviluppo locale il provider è Mailpit (vedi `docs/development.md`). Le chiamate seguono lo stesso contratto (`EmailProvider.send`), così la pipeline è identica a quella di produzione.
 - The reset link is `${APP_URL}/reset-password?token=<plaintext_token>`.
 - The `locale` field selects the email language. Supported values: `en` (default), `it`. Unknown values fall back to `en`.
 - Rate limited: **3 requests per IP per 60 seconds** (`FORGOT_PASSWORD_RATE_LIMITER`).
@@ -273,7 +273,8 @@ Content-Type: application/json
 
 | Variable | Description |
 |---|---|
-| `RESEND_API_KEY` | Resend API key. If absent the endpoint returns `503` and the dashboard hides the feature. |
+| `EMAIL_PROVIDER` | `smtp` (dev/test via Mailpit) or `resend` (production). Defaults to `resend` if absent. |
+| `RESEND_API_KEY` | Resend API key. Required when `EMAIL_PROVIDER=resend`. If absent (and not using SMTP), the endpoint returns `503` and the dashboard hides the feature. |
 | `APP_URL` | Base URL of the dashboard (e.g. `https://dashboard.beechcms.dev`). Used to build the reset link. Defaults to the API origin if not set (incorrect in most deployments — always set this). |
 | `EMAIL_FROM` | *(Optional)* Sender address. Defaults to `Beech CMS <onboarding@resend.dev>` (Resend test sender). In production set to a verified domain address. |
 
@@ -710,54 +711,119 @@ content_{slug}         ←── ancora servita al pubblico
 
 ## 5. Media Engine
 
-### 5.1 Upload — `POST /api/upload`
+Il Worker non riceve mai bytes di file. Agisce solo da gatekeeper (auth, validazione, firma). Il client carica direttamente su R2/MinIO tramite URL presigned.
 
-Uploads a binary file to the configured storage provider (`BeechBucket`). The metadata and storage statistics are automatically tracked in the database via the `MediaRepository` and `SystemStatsRepository`. Requires JWT authentication.
+**Client upload sequence:**
+
+```
+1. POST /api/upload/presign  →  { uploadUrl, key, expiresIn }
+2. PUT <uploadUrl> (diretto a R2)  →  200 OK
+3. POST /api/upload/confirm  →  { url }
+```
+
+---
+
+### 5.1 Presign — `POST /api/upload/presign`
+
+Genera una URL firmata (Signature V4, TTL 900 s) per upload diretto client → R2. Richiede JWT.
 
 **Request**
 
 ```http
-POST /api/upload
+POST /api/upload/presign
 Authorization: Bearer eyJ...
-Content-Type: multipart/form-data
+Content-Type: application/json
 
-[field name: "file"] <binary>
+{
+  "filename": "photo.jpg",
+  "mimeType": "image/jpeg",
+  "sizeBytes": 204800
+}
 ```
-
-**Validation:**
-- Allowed MIME types: `image/*`, `application/pdf`
-- Maximum file size: **5 MB** (`5 * 1024 * 1024` bytes)
-- Filename is sanitized: non-alphanumeric characters (except `.` and `-`) are stripped, truncated to 100 characters
-- Object key format: `<unix_timestamp>-<sanitized_filename>`
-
-**Internal flow:**
-1. Parse multipart form and validate file.
-2. Initialize `BeechBucket` via capability detection (R2 Binding > S3 Credentials).
-3. Upload file to storage provider.
-4. Atomically track upload in `media_objects` and increment `system_stats`.
-5. Return the public URL.
 
 **Response `200`**
 
 ```json
 {
-  "url": "https://api.beech.local/api/media/1713600000-my-image.jpg"
+  "uploadUrl": "https://<bucket>.r2.cloudflarestorage.com/12345-photo.jpg?X-Amz-Signature=...",
+  "key": "12345-photo.jpg",
+  "expiresIn": 900
 }
 ```
-
-The returned URL is stored as-is in the entry's `data` column (field type `file`). The client saves this URL; it does not interact with R2 directly.
 
 **Error responses**
 
 | Status | Body |
 |---|---|
-| `400` | `{ "error": "No file provided. Use field name 'file'" }` |
-| `400` | `{ "error": "File type not allowed. Allowed: images and PDF" }` |
-| `400` | `{ "error": "File too large. Max 5MB" }` |
-| `400` | `{ "error": "Content-Type must be multipart/form-data" }` |
-| `500` | `{ "error": "R2 not configured. Set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME" }` |
+| `400` | `{ "error": "filename is required" }` |
+| `400` | `{ "error": "mimeType is required" }` |
+| `400` | `{ "error": "sizeBytes must be a positive number" }` |
+| `400` | `{ "error": "File too large. Max <N> bytes" }` |
+| `400` | `{ "error": "File type not allowed" }` |
 
-**Required environment variables:**
+**Limiti dimensione:**
+- Default: **50 MB** (`DEFAULT_MAX_UPLOAD_BYTES`)
+- Configurabile via `MAX_UPLOAD_BYTES` (env/secret)
+- Hard cap assoluto: **500 MB** (non superabile via env)
+
+---
+
+### 5.2 Confirm — `POST /api/upload/confirm`
+
+Verifica che l'oggetto sia effettivamente presente su R2 via `HEAD`, quindi registra i metadati in D1. **Idempotente**: un secondo confirm sullo stesso key ritorna 200 senza duplicare tracking o stats.
+
+**Request**
+
+```http
+POST /api/upload/confirm
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{ "key": "12345-photo.jpg" }
+```
+
+**Response `200`**
+
+```json
+{ "url": "https://api.beech.local/api/media/12345-photo.jpg" }
+```
+
+**Error responses**
+
+| Status | Body |
+|---|---|
+| `400` | `{ "error": "key is required" }` |
+| `404` | `{ "error": "Object not found in storage" }` |
+
+---
+
+### 5.3 Download URL — `GET /api/upload/download-url/:key`
+
+Genera una URL firmata di **lettura** per asset privati. TTL 900 s. Richiede JWT.
+
+**Response `200`**
+
+```json
+{ "downloadUrl": "https://...", "expiresIn": 900 }
+```
+
+---
+
+### 5.4 Serve — `GET /api/media/:key`
+
+Proxy pubblico: scarica il file da R2 e lo restituisce con `Content-Type` originale e `Cache-Control: public, max-age=31536000, immutable`. Non richiede autenticazione.
+
+**CDN Support:** Se `MEDIA_CDN_URL` è configurato, le URL pubbliche puntano direttamente al CDN.
+
+---
+
+### 5.5 Delete — `DELETE /api/upload/:key`
+
+Elimina l'oggetto da R2 e rimuove il tracciamento da D1 (`media_objects` + `system_stats`). Richiede JWT.
+
+---
+
+### 5.6 Variabili ambiente
 
 | Variable | Description |
 |---|---|
@@ -765,30 +831,19 @@ The returned URL is stored as-is in the entry's `data` column (field type `file`
 | `R2_SECRET_ACCESS_KEY` | R2 API token secret key |
 | `R2_ENDPOINT` | R2 S3-compatible endpoint URL |
 | `R2_BUCKET_NAME` | Target bucket name (e.g. `beech-media`) |
-| `MEDIA_BASE_URL` | *(Optional)* Base URL for returned media URLs; defaults to request origin |
+| `MEDIA_CDN_URL` | *(Opzionale)* URL CDN per media pubblici |
+| `MAX_UPLOAD_BYTES` | *(Opzionale)* Limite dimensione upload in bytes (default 50 MB, max 500 MB) |
 
 ---
 
-### 5.2 Serve — `GET /api/media/:key`
+### 5.7 Storage Abstraction
 
-Proxies a file from the configured storage provider to the client. This is a **public route** — no authentication required.
+BeechCMS usa uno storage layer vendor-agnostic (`BeechBucket`, `@beechcms/core`) con path unico:
 
-**Response:** Binary stream with original `Content-Type` and `Cache-Control: public, max-age=31536000, immutable`.
+- **`S3Bucket`**: S3-compatible HTTP API. Usato in produzione (R2) e in sviluppo (MinIO). Supporta presigning.
+- **`NullBucket`**: fail-safe — lancia errore solo quando le operazioni storage vengono invocate.
 
-**CDN Support:** If `MEDIA_CDN_URL` is configured, the dashboard and API will generate URLs pointing directly to the CDN, bypassing the proxy for better performance.
-
----
-
-### 5.3 Storage Abstraction
-
-BeechCMS uses a vendor-agnostic storage layer (`BeechBucket`) that supports multiple providers:
-
-1. **R2 Binding**: High-performance native binding for Cloudflare Workers.
-2. **S3 Compatible**: Supports any S3-compatible storage (R2 via HTTP, AWS S3, etc.).
-3. **Null Provider**: Used in environments where storage is not configured to prevent crashes during startup.
-
-**Storage Tracking:** 
-Unlike previous versions that required manual header checks or full scans, v0.4.0 uses the `MediaRepository` as the single source of truth. Every upload and deletion is tracked in the `media_objects` table, and the `total_storage_bytes` counter is updated atomically.
+**Storage Tracking:** ogni upload e cancellazione è tracciato in `media_objects`. Il counter `total_storage_bytes` in `system_stats` è aggiornato atomicamente al confirm/delete.
 
 ---
 

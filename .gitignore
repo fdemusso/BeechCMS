@@ -37,6 +37,7 @@ Thumbs.db
 
 # Cloudflare / Wrangler
 .wrangler/
+apps/api/worker-configuration.d.ts
 
 # Test coverage
 coverage/
@@ -57,3 +58,7 @@ GRAPH_REPORT.md
 .graphifyignore
 graphify-obsidian/
 scratch/
+
+# Intellectual Property / Provenance
+docs/IP_PROVENANCE.md
+

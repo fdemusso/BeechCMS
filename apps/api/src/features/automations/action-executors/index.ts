@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import type { AutomationAction, ContentRepository, Seed, IIdGenerator } from '@beechcms/core'
 import type { ResolvedContext } from '../context-resolver'
 import { executeWebhook }      from './webhook.executor'
@@ -21,7 +25,7 @@ export interface ActionContext {
 export async function executeAction(action: AutomationAction, ctx: ActionContext): Promise<void> {
   switch (action.type) {
     case 'set_variable':  return executeSetVariable(action, ctx)
-    case 'webhook':       return executeWebhook(action, ctx.context)
+    case 'webhook':       return executeWebhook(action, ctx.context, ctx.env)
     case 'send_mail':     return executeSendMail(action, ctx.context, ctx.env)
     case 'edit_field':    return executeEditField(action, ctx.entry, ctx.context, ctx.repository, ctx.seed)
     case 'create_entry':  return executeCreateEntry(action, ctx.entry, ctx.repository, ctx.getSeed, ctx.idGenerator)

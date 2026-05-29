@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { useTranslation } from 'react-i18next'
 import { useFormContext } from 'react-hook-form'
 import { X, ChevronUp, ChevronDown } from 'lucide-react'
@@ -75,7 +79,7 @@ export function ActionCard({ index, total, seedBranches, seedSlug, onRemove, onM
       </CardHeader>
       <CardContent className="p-3 pt-0">
         {type === 'set_variable' && <SetVariableForm index={index} triggerSeedSlug={seedSlug} />}
-        {type === 'webhook' && <WebhookForm index={index} />}
+        {type === 'webhook' && <WebhookForm index={index} triggerSeedSlug={seedSlug} />}
         {type === 'send_mail' && <SendMailForm index={index} />}
         {type === 'edit_field' && <EditFieldForm index={index} seedBranches={seedBranches} />}
         {type === 'create_entry' && <CreateEntryForm index={index} />}

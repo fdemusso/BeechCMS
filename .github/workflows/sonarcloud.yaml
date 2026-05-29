@@ -20,13 +20,29 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci
 
+      - name: Build packages (Core)
+        run: npm run build -w @beechcms/core
+
+      - name: Start Docker Stack
+        uses: ./.github/actions/docker-stack
+
       - name: Run Tests with Coverage
+        env:
+          BEECH_TEST_BUCKET: beech-media-test-ci
+          R2_ENDPOINT: http://localhost:9000
+          R2_ACCESS_KEY_ID: beechdev
+          R2_SECRET_ACCESS_KEY: beechdevsecret
+          R2_BUCKET_NAME: beech-media-test-ci
+          EMAIL_PROVIDER: smtp
+          SMTP_HOST: localhost
+          SMTP_PORT: '8025'
+          WEBHOOK_TESTER_URL: http://localhost:8084
         run: npm run test:coverage
 
       - name: Esegui SonarCloud Scan Ufficiale

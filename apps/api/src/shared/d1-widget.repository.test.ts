@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { describe, it, expect, vi } from 'vitest'
 import type { Seed } from '@beechcms/core'
 import { D1WidgetRepository } from './d1-widget.repository'

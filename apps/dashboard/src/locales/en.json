@@ -179,7 +179,8 @@
       "interface": "Interface",
       "security": "Security",
       "storage": "Storage",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "general": "Site"
     },
     "notifications": {
       "title": "In-app notifications",
@@ -219,6 +220,8 @@
       "changePhoto": "Change photo",
       "nameLabel": "Name",
       "namePlaceholder": "Your name",
+      "surnameLabel": "Last name",
+      "surnamePlaceholder": "Your last name",
       "emailLabel": "Email",
       "emailPlaceholder": "email@example.com",
       "saveChanges": "Save changes",
@@ -235,6 +238,29 @@
       "passwordError": "Current password is incorrect",
       "avatarSuccess": "Profile photo updated",
       "avatarError": "Error uploading photo"
+    },
+    "general": {
+      "title": "Site Settings",
+      "description": "Manage general site settings and company metadata.",
+      "siteDefaultsTitle": "Site Defaults",
+      "siteDefaultsDesc": "Set default language, timezone and currency for the site.",
+      "companyInfoTitle": "Company Info",
+      "companyInfoDesc": "Legal and contact information of the company that owns the site.",
+      "siteTitleLabel": "Site Title / Company Name",
+      "siteTitlePlaceholder": "e.g. Acme Corp",
+      "companyWebsiteLabel": "Company Website",
+      "companyWebsitePlaceholder": "https://acme.com",
+      "companyAbbreviationLabel": "Company Abbreviation",
+      "companyAbbreviationPlaceholder": "e.g. ACM",
+      "languageLabel": "Default Language",
+      "languagePlaceholder": "Select default language",
+      "timezoneLabel": "Default Timezone",
+      "timezonePlaceholder": "Select default timezone",
+      "currencyLabel": "Default Currency",
+      "currencyPlaceholder": "Select default currency",
+      "savedSuccess": "Site settings saved successfully",
+      "savedError": "Error saving settings",
+      "saveChanges": "Save changes"
     },
     "security": {
       "sessionsTitle": "Active sessions",
@@ -302,6 +328,8 @@
       "draftModeNotice": "Editing pending draft — changes will not go live until published.",
       "resumeDraft": "Resume draft",
       "saveDraft": "Save draft",
+      "saveAsDraft": "Save as draft",
+      "editDraft": "Edit draft",
       "publishDraft": "Publish draft",
       "discardDraft": "Discard draft",
       "discardDraftTitle": "Discard pending draft",
@@ -322,7 +350,21 @@
       "saveError": "Error saving",
       "validationError_one": "{{count}} field has a validation error — check the highlighted fields",
       "validationError_other": "{{count}} fields have validation errors — check the highlighted fields",
-      "jsonError": "Field \"{{field}}\" must contain valid JSON"
+      "jsonError": "Field \"{{field}}\" must contain valid JSON",
+      "relation": {
+        "placeholder": "Select a related entry…",
+        "search": "Search…",
+        "clear": "Clear selection",
+        "empty": "No results",
+        "loading": "Loading…"
+      },
+      "relationMulti": {
+        "add": "Add…",
+        "moveUp": "Move up",
+        "moveDown": "Move down",
+        "remove": "Remove",
+        "selectedItems": "Selected items"
+      }
     },
     "deleteDialog": {
       "title": "Confirm deletion",
@@ -512,7 +554,31 @@
   },
   "sidebar": {
     "navigation": "Navigation",
-    "contents": "Contents"
+    "contents": "Contents",
+    "drafts": "Drafts"
+  },
+  "drafts": {
+    "title": "Drafts",
+    "subtitle": "All pending drafts across your content",
+    "columns": {
+      "seed": "Type",
+      "name": "Name",
+      "updatedAt": "Last modified",
+      "user": "Modified by"
+    },
+    "actions": {
+      "edit": "Edit",
+      "publish": "Publish",
+      "discard": "Discard",
+      "create": "New Draft"
+    },
+    "selectType": "Select content type",
+    "searchPlaceholder": "Search drafts…",
+    "empty": "No pending drafts",
+    "discardConfirm": "Discard this draft? This cannot be undone.",
+    "published": "Draft published",
+    "discarded": "Draft discarded",
+    "error": "Action failed"
   },
   "media": {
     "manageGallery": "Manage gallery",
@@ -531,11 +597,15 @@
     "moveDown": "Move down",
     "remove": "Remove image",
     "dialogDesc": "Enter a public HTTPS URL or upload a local file.",
+    "documentPreview": "Document",
+    "filePreview": "File",
     "errorNotImage": "Select an image (JPG, PNG, WebP, GIF)",
     "errorUrl": "Enter a public image URL",
     "errorHttps": "The URL must start with https://",
     "errorNotRenderable": "URL not renderable as image",
-    "errorUpload": "Upload error"
+    "errorUpload": "Upload error",
+    "errorNotDocument": "Select a document (PDF, DOC, XLS, TXT, CSV)",
+    "errorNotAccepted": "File type not accepted"
   },
   "login": {
     "hidePassword": "Hide password",
@@ -638,7 +708,9 @@
         "fieldRequired": "Field is required",
         "seedRequired": "Seed is required",
         "variableNameInvalid": "Variable name must be alphanumeric with underscores",
-        "variableNameReserved": "This name is reserved by the template engine"
+        "variableNameReserved": "This name is reserved by the template engine",
+        "webhookHttpsRequired": "Only HTTPS URLs are allowed",
+        "webhookPrivateHostBlocked": "Private, loopback, and link-local hosts are not allowed"
       }
     },
     "triggers": {
@@ -666,6 +738,8 @@
       "webhookMethod": "HTTP Method",
       "webhookHeaders": "Headers",
       "webhookBody": "Body template",
+      "webhookBodyHint": "Define the exact JSON payload sent to the endpoint.",
+      "webhookSecretHint": "Beech signs each request with HMAC-SHA256 in the X-BeechCMS-Signature header. Set WEBHOOK_SECRET in the worker to enable signing. Verify the signature on the receiver before processing the payload.",
       "addHeader": "Add header",
       "webhookHeaderKeyPlaceholder": "Header",
       "webhookHeaderValuePlaceholder": "Value",
@@ -759,5 +833,84 @@
         "matches": "matches regex"
       }
     }
+  },
+  "backrefs": {
+    "title": "Referenced by",
+    "summary_one": "1 entry references this",
+    "summary_other": "{{count}} entries reference this",
+    "showAll": "Show all {{count}}",
+    "empty": "No references",
+    "deleteBlocked": "Cannot delete: {{count}} entries depend on this record"
+  },
+  "bulkEdit": {
+    "trigger": "Edit selected",
+    "title": "Edit {{count}} entries",
+    "pickField": "Choose a field to update",
+    "mode": {
+      "replace": "Replace",
+      "add": "Add",
+      "remove": "Remove"
+    },
+    "confirm": "Update {{count}} entries?",
+    "executing": "Updating…",
+    "successAll": "{{count}} entries updated",
+    "successPartial": "{{updated}} of {{total}} updated. {{failed}} failed.",
+    "downloadReport": "Download failure report",
+    "tooLarge": "Cannot edit more than {{max}} entries at once"
+  },
+  "setup": {
+    "title": "Welcome to Beech CMS",
+    "subtitle": "Configure your workspace in a few steps.",
+    "step1Title": "Site settings",
+    "step2Title": "Admin credentials",
+    "step3Title": "Final configuration",
+    "languageLabel": "Default language",
+    "languagePlaceholder": "Select language",
+    "timezoneLabel": "Timezone",
+    "timezonePlaceholder": "Select timezone",
+    "searchTimezonePlaceholder": "Search timezone...",
+    "noTimezoneFound": "No timezone found.",
+    "currencyLabel": "Currency",
+    "currencyPlaceholder": "Select currency",
+    "devAlertTitle": "Developer environment detected",
+    "devAlertDesc": "You are setting up Beech in developer mode.",
+    "switchToNormal": "Switch to normal setup",
+    "switchToDeveloper": "Switch to developer setup",
+    "nameLabel": "First name",
+    "namePlaceholder": "Your first name",
+    "surnameLabel": "Last name",
+    "surnamePlaceholder": "Your last name",
+    "emailLabel": "Email",
+    "emailPlaceholder": "admin@example.com",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "Minimum 8 characters",
+    "confirmLabel": "Confirm password",
+    "confirmPlaceholder": "Repeat password",
+    "strengthWeak": "Weak",
+    "strengthFair": "Fair",
+    "strengthStrong": "Strong",
+    "servicesTitle": "Detected services",
+    "serviceMail": "Email",
+    "serviceQstash": "QStash",
+    "serviceActive": "Active",
+    "serviceInactive": "Not configured",
+    "loadDemoLabel": "Load demo content into the database",
+    "companyNameLabel": "Company name",
+    "companyNamePlaceholder": "Acme Corp",
+    "companyWebsiteLabel": "Company website",
+    "companyWebsitePlaceholder": "https://example.com",
+    "companyAbbreviationLabel": "Abbreviation (optional)",
+    "companyAbbreviationPlaceholder": "ACM",
+    "buttonNext": "Next",
+    "buttonBack": "Back",
+    "buttonFinish": "Complete setup",
+    "loadingAccount": "Creating your account…",
+    "loadingDemo": "Loading demo data…",
+    "errorFallback": "Setup failed. Please try again.",
+    "passwordMismatch": "Passwords do not match.",
+    "passwordTooShort": "Password must be at least 8 characters.",
+    "emailInvalid": "Please enter a valid email address.",
+    "companyNameRequired": "Company name is required.",
+    "companyWebsiteRequired": "Please enter a valid URL for the website."
   }
 }

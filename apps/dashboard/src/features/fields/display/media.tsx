@@ -1,9 +1,15 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 /**
- * Field Renderer Display per tipo `file`: prova sempre a renderizzare l'URL
- * come immagine e usa fallback icona quando la risorsa non è visualizzabile.
+ * Field Renderer Display per tipo `file`: renderizza come immagine solo se
+ * `fileOptions.accept === 'image'`; altrimenti mostra icona generica senza
+ * effettuare richieste HTTP verso l'URL.
  */
 import { FileIcon } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { resolveFileOptions } from "@beechcms/core"
 import type { FieldDisplayProps } from "../types"
 
 function isAssetListBranch(maybeBranch: { type: string; multiple?: boolean; format?: string }): boolean {
@@ -39,6 +45,9 @@ export function MediaDisplay({ branch, value }: FieldDisplayProps) {
     return <div className="text-muted-foreground">-</div>
   }
 
+  const { accept } = resolveFileOptions(branch)
+  const renderAsImage = accept === "image"
+
   if (isAssetListBranch(branch)) {
     const urls = parseAssetListValue(value)
     if (!urls.length) {
@@ -46,17 +55,26 @@ export function MediaDisplay({ branch, value }: FieldDisplayProps) {
     }
     return (
       <div className="flex items-center gap-1">
-        {urls.slice(0, 3).map((url, index) => (
-          <Avatar
-            key={`${url}-${index}`}
-            className="size-10 shrink-0 rounded-md border border-input bg-muted"
-          >
-            <AvatarImage src={url} alt="" className="object-cover" />
-            <AvatarFallback className="rounded-md bg-muted">
+        {urls.slice(0, 3).map((url, index) =>
+          renderAsImage ? (
+            <Avatar
+              key={`${url}-${index}`}
+              className="size-10 shrink-0 rounded-md border border-input bg-muted"
+            >
+              <AvatarImage src={url} alt="" className="object-cover" />
+              <AvatarFallback className="rounded-md bg-muted">
+                <FileIcon className="size-5 text-muted-foreground" />
+              </AvatarFallback>
+            </Avatar>
+          ) : (
+            <div
+              key={`${url}-${index}`}
+              className="flex size-10 items-center justify-center rounded-md border border-input bg-muted"
+            >
               <FileIcon className="size-5 text-muted-foreground" />
-            </AvatarFallback>
-          </Avatar>
-        ))}
+            </div>
+          )
+        )}
         {urls.length > 3 ? (
           <span className="text-xs text-muted-foreground">+{urls.length - 3}</span>
         ) : null}
@@ -67,6 +85,17 @@ export function MediaDisplay({ branch, value }: FieldDisplayProps) {
   const url = parseSingleUrl(value)
   if (!url) {
     return <div className="text-muted-foreground">-</div>
+  }
+
+  if (!renderAsImage) {
+    return (
+      <div
+        className="flex size-10 items-center justify-center rounded-md border border-input bg-muted"
+        title={url}
+      >
+        <FileIcon className="size-5 text-muted-foreground" />
+      </div>
+    )
   }
 
   return (

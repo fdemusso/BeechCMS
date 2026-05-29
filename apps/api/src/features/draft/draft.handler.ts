@@ -1,8 +1,13 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 /// <reference types="@cloudflare/workers-types" />
 import { Context, Hono } from 'hono'
-import { 
-  validateAndSanitizeSeedPayload, 
-  resolvePolicies 
+import {
+  validateAndSanitizeSeedPayload,
+  resolvePolicies,
+  RelationTargetNotFoundError,
 } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
 import { cleanStr } from '../../shared/query-utils'
@@ -13,6 +18,13 @@ import { draftGuard } from './draft.middleware'
 
 const draftApp = new Hono<AppEnv>()
 
+// GET /drafts — Unified list of pending drafts across all draft-enabled seeds.
+draftApp.get('/drafts', async (context) => {
+  const seeds = context.get('seedRegistry').draftEnabled()
+  const repository = context.get('repository')
+  const drafts = await repository.findPendingDrafts(seeds)
+  return context.json(drafts)
+})
 
 function normalizeBody(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
@@ -35,7 +47,7 @@ function logDraftActivity(
     actor: {
       id: actor.sub,
       email: actor.email ?? 'unknown',
-      name: actor.name ?? null,
+      name: [actor.name, actor.surname].filter(Boolean).join(' ') || null,
     },
   })
 }
@@ -73,10 +85,11 @@ draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
   }
 
   const validation = validateAndSanitizeSeedPayload(seed, body, {
-    operation: 'update', 
-    allowNull: true, 
-    requireAtLeastOneValidField: true, 
+    operation: 'update',
+    allowNull: true,
+    requireAtLeastOneValidField: true,
     enforceRequiredFields: false,
+    idGenerator: context.get('idGenerator'),
   })
   
   if (validation.dangerousFields.length > 0) {
@@ -146,7 +159,19 @@ draftApp.post('/:slug/:id/draft/publish', draftGuard, async (context) => {
     })
   }
 
-  await repository.publishDraft(seed, id)
+  try {
+    await repository.publishDraft(seed, id)
+  } catch (err) {
+    if (err instanceof RelationTargetNotFoundError) {
+      return publicProblem(context, {
+        type: 'relation-target-not-found',
+        title: 'Relation Target Not Found',
+        status: 422,
+        detail: `Field '${err.alias}' references '${err.targetSeed}' id='${err.value}' which does not exist`,
+      })
+    }
+    throw err
+  }
 
   const displayValue = draft[seed.displayNameAlias]
   const displayStr = typeof displayValue === 'string' ? displayValue : id

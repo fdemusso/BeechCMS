@@ -1,30 +1,32 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { BeechBucket, PutBucketOptions, GetBucketResult } from '@beechcms/core'
 import { Env } from '../../types'
-import { R2BindingBucket } from './r2-binding-bucket'
 import { S3Bucket } from './s3-bucket'
 
 class NullBucket implements BeechBucket {
   private fail(): never {
-    throw new Error('No storage provider configured. Set MEDIA_BUCKET or R2 credentials.')
+    throw new Error('Storage not configured. Set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME.')
   }
-  put(_key: string, _body: ArrayBuffer | Uint8Array | ReadableStream, _options?: PutBucketOptions): Promise<void> { return this.fail() }
-  get(_key: string): Promise<GetBucketResult | null> { return this.fail() }
-  delete(_key: string): Promise<void> { return this.fail() }
-  head(_key: string): Promise<{ size: number; contentType?: string; metadata?: Record<string, string> } | null> { return this.fail() }
-  getUrl(_key: string): string { return this.fail() }
+  put(): Promise<void> { return this.fail() }
+  get(): Promise<GetBucketResult | null> { return this.fail() }
+  delete(): Promise<void> { return this.fail() }
+  head(): Promise<{ size: number } | null> { return this.fail() }
+  getUrl(): string { return this.fail() }
   getTotalSize(): Promise<number> { return this.fail() }
-  list(_options?: { prefix?: string; limit?: number; cursor?: string }): Promise<{ objects: Array<{ key: string; size: number }>; cursor?: string }> { return this.fail() }
+  list(): Promise<{ objects: Array<{ key: string; size: number }>; cursor?: string }> { return this.fail() }
+  presignPut(): Promise<string> { return this.fail() }
+  presignGet(): Promise<string> { return this.fail() }
 }
 
 /**
- * Creates the appropriate BeechBucket based on available bindings/credentials.
- * Uses capability detection: R2 binding takes precedence over S3-compatible credentials.
+ * Single storage path: S3-compatible HTTP API.
+ * Prod → Cloudflare R2 with S3 API token.
+ * Dev  → MinIO container (or R2 staging bucket).
  */
 export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
-  if (env.MEDIA_BUCKET) {
-    return new R2BindingBucket(env.MEDIA_BUCKET, baseUrl)
-  }
-
   if (env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_ENDPOINT && env.R2_BUCKET_NAME) {
     return new S3Bucket({
       endpoint: env.R2_ENDPOINT,
@@ -35,6 +37,5 @@ export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
       cdnUrl: env.MEDIA_CDN_URL?.trim().replace(/\/$/, '') || undefined,
     })
   }
-
   return new NullBucket()
 }

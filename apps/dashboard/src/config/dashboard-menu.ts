@@ -1,5 +1,9 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import type { LucideIcon } from "lucide-react"
-import { LayoutDashboard, Settings } from "lucide-react"
+import { LayoutDashboard, Settings, PenLine } from "lucide-react"
 import type { Seed } from "@beechcms/core"
 import { resolveIcon } from "@/lib/icon-registry"
 
@@ -32,6 +36,11 @@ export function getStaticMenu(t: (key: string) => string): NavItem[] {
       url: "/",
       icon: LayoutDashboard,
       isActive: true,
+    },
+    {
+      title: t("sidebar.drafts"),
+      url: "/drafts",
+      icon: PenLine,
     },
     {
       title: t("settings.title"),

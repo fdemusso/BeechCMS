@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 /// <reference types="@cloudflare/workers-types" />
 import type { IUserRepository, UserRecord, NewUserInput } from '@beechcms/core'
 
@@ -5,6 +9,7 @@ type UserRow = {
   id: string
   email: string
   name: string | null
+  surname: string | null
   password_hash: string
   role: string
   avatar_url: string | null
@@ -16,6 +21,7 @@ function rowToRecord(row: UserRow): UserRecord {
     id: row.id,
     email: row.email,
     name: row.name,
+    surname: row.surname,
     passwordHash: row.password_hash,
     role: row.role,
     avatarUrl: row.avatar_url,
@@ -35,7 +41,7 @@ export class D1UserRepository implements IUserRepository {
 
   async findById(userId: string): Promise<UserRecord | null> {
     const row = await this.db
-      .prepare('SELECT id, email, name, password_hash, role, avatar_url, notification_prefs FROM users WHERE id = ? LIMIT 1')
+      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs FROM users WHERE id = ? LIMIT 1')
       .bind(userId)
       .first<UserRow>()
     return row ? rowToRecord(row) : null
@@ -43,7 +49,7 @@ export class D1UserRepository implements IUserRepository {
 
   async findByEmail(email: string): Promise<UserRecord | null> {
     const row = await this.db
-      .prepare('SELECT id, email, name, password_hash, role, avatar_url, notification_prefs FROM users WHERE email = ? LIMIT 1')
+      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs FROM users WHERE email = ? LIMIT 1')
       .bind(email)
       .first<UserRow>()
     return row ? rowToRecord(row) : null
@@ -51,18 +57,22 @@ export class D1UserRepository implements IUserRepository {
 
   async create(user: NewUserInput): Promise<void> {
     await this.db
-      .prepare('INSERT INTO users (id, email, password_hash, role, name) VALUES (?, ?, ?, ?, ?)')
-      .bind(user.id, user.email, user.passwordHash, user.role, user.name)
+      .prepare('INSERT INTO users (id, email, password_hash, role, name, surname) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(user.id, user.email, user.passwordHash, user.role, user.name, user.surname)
       .run()
   }
 
-  async updateProfile(userId: string, fields: { name?: string; email?: string }): Promise<void> {
+  async updateProfile(userId: string, fields: { name?: string; surname?: string; email?: string }): Promise<void> {
     const columnAssignments: string[] = []
     const boundValues: unknown[] = []
 
     if (fields.name !== undefined) {
       columnAssignments.push('name = ?')
       boundValues.push(fields.name)
+    }
+    if (fields.surname !== undefined) {
+      columnAssignments.push('surname = ?')
+      boundValues.push(fields.surname)
     }
     if (fields.email !== undefined) {
       columnAssignments.push('email = ?')

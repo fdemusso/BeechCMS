@@ -1,22 +1,22 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import * as React from 'react'
 import { useTheme } from 'next-themes'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { Monitor, Moon, Sun } from 'lucide-react'
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const ROWS_KEY = 'beech_rows_per_page'
 
-const LANGUAGE_OPTIONS = [
-  { value: 'it', label: 'Italiano' },
-  { value: 'en', label: 'English' },
-]
-
 export function InterfaceTab() {
   const { theme, setTheme } = useTheme()
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const [rows, setRows] = React.useState(() => localStorage.getItem(ROWS_KEY) ?? '20')
   const [mounted, setMounted] = React.useState(false)
 
@@ -43,11 +43,6 @@ export function InterfaceTab() {
     toast.success(t('settings.interface.rowsSaved'))
   }
 
-  const handleLanguageChange = (value: string) => {
-    i18n.changeLanguage(value)
-    toast.success(value === 'it' ? t('settings.interface.langChangedIt') : t('settings.interface.langChangedEn'))
-  }
-
   return (
     <div className="space-y-6">
       <Card>
@@ -72,28 +67,6 @@ export function InterfaceTab() {
                 <span className="text-sm font-medium">{label}</span>
               </button>
             ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t('settings.interface.langTitle')}</CardTitle>
-          <CardDescription>{t('settings.interface.langDesc')}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <Label htmlFor="language">{t('settings.interface.langLabel')}</Label>
-            <Select value={i18n.language} onValueChange={handleLanguageChange}>
-              <SelectTrigger id="language" className="w-full sm:w-64">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LANGUAGE_OPTIONS.map(opt => (
-                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>

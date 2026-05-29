@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, waitFor, fireEvent } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
@@ -52,6 +56,10 @@ vi.mock("@/features/content-management", () => ({
   }),
   useDeleteContent: () => ({
     mutateAsync: async (...args: any[]) => mockDeleteContent(...args),
+  }),
+  useBulkUpdate: () => ({
+    mutateAsync: async () => ({ updated: 0, failed: [] }),
+    isPending: false,
   }),
   contentApi: {
     delete: (...args: any[]) => mockDeleteContent(...args),

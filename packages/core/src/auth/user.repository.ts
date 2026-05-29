@@ -1,7 +1,11 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 export interface UserRecord {
   id: string
   email: string
   name: string | null
+  surname: string | null
   passwordHash: string
   role: string
   avatarUrl: string | null
@@ -14,6 +18,7 @@ export interface NewUserInput {
   passwordHash: string
   role: string
   name: string | null
+  surname: string | null
 }
 
 export interface IUserRepository {
@@ -32,8 +37,8 @@ export interface IUserRepository {
   /** Inserts a new user record. */
   create(user: NewUserInput): Promise<void>
 
-  /** Updates the user's display name and/or email address. */
-  updateProfile(userId: string, fields: { name?: string; email?: string }): Promise<void>
+  /** Updates the user's display name, surname, and/or email address. */
+  updateProfile(userId: string, fields: { name?: string; surname?: string; email?: string }): Promise<void>
 
   /** Replaces the user's stored password hash after a successful password change. */
   updatePasswordHash(userId: string, newPasswordHash: string): Promise<void>

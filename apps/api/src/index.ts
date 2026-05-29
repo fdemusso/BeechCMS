@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { createBeechApp } from './factory'
 import { SeedRegistry, SystemIdGenerator } from '@beechcms/core'
 import { runCronAutomations } from './features/automations'
@@ -25,7 +29,24 @@ app.get('/', (c) => c.text('Beech API is running (Local Dev Mode)'))
 const validSeeds = seeds.filter((s: any) => s && typeof s === 'object' && 'slug' in s)
 
 export default {
-  fetch: app.fetch,
+  fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    if (env.ENV === 'development') {
+      const checks: Array<{ name: string; url: string }> = [
+        { name: 'MinIO',   url: (env.R2_ENDPOINT ?? 'http://localhost:9000') + '/minio/health/live' },
+        { name: 'Mailpit', url: `http://${env.SMTP_HOST ?? 'localhost'}:${env.SMTP_PORT ?? '8025'}/livez` },
+      ]
+      for (const c of checks) {
+        fetch(c.url).catch(() => {
+          console.warn(
+            `\n⚠️  ${c.name} non raggiungibile su ${c.url}\n` +
+            `   Beech in dev richiede lo stack Docker completo.\n` +
+            `   Avvialo con: npm run dev:full\n`
+          )
+        })
+      }
+    }
+    return app.fetch(request, env, ctx)
+  },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
     const scheduledTime = controller?.scheduledTime ?? Date.now()

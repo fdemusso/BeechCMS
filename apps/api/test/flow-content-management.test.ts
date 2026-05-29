@@ -1,10 +1,14 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createBeechApp } from '../src/factory'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
-import { MockD1Database } from './mocks/mock-d1-database'
-import { mockR2 } from './mocks/mock-r2-client'
-import { DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { D1TestDatabase } from './helpers/d1-test-database'
+import { seedTestUsers } from './helpers/seed-fixtures'
+import { S3Client } from '@aws-sdk/client-s3'
 import { TEST_SEEDS, TEST_USERS, TEST_ENV } from './fixtures'
 
 /**
@@ -18,23 +22,26 @@ import { TEST_SEEDS, TEST_USERS, TEST_ENV } from './fixtures'
 describe('Flow: Content Management (Protected API)', () => {
   let repo: StaticContentRepository
   let idempotencyRepo: StaticIdempotencyRepository
-  let db: MockD1Database
+  let db: D1TestDatabase
   let app: ReturnType<typeof createBeechApp>
   let adminToken: string
+  let s3SendSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(async () => {
     repo = new StaticContentRepository(TEST_SEEDS)
     idempotencyRepo = new StaticIdempotencyRepository()
-    db = new MockD1Database({ users: TEST_USERS })
+    db = new D1TestDatabase()
+    await seedTestUsers(db, TEST_USERS)
     app = createBeechApp({ seeds: TEST_SEEDS, repository: repo, idempotencyRepository: idempotencyRepo })
 
-    mockR2.reset()
+    s3SendSpy = vi.spyOn(S3Client.prototype, 'send')
+    s3SendSpy.mockReset()
 
     const loginRes = await app.request('/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: TEST_USERS[0].email, password: 'password123' })
-    }, { ...TEST_ENV, DB: db as any })
+    }, { ...TEST_ENV, DB: db })
 
     const loginBody = await loginRes.json<{ token: string }>()
     adminToken = loginBody.token
@@ -48,7 +55,7 @@ describe('Flow: Content Management (Protected API)', () => {
 
       const res = await app.request('/api/content/posts', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(200)
       const body = await res.json<any[]>()
@@ -67,7 +74,7 @@ describe('Flow: Content Management (Protected API)', () => {
 
       const res = await app.request(`/api/content/posts?filters=${encodeURIComponent(filters)}`, {
         headers: { 'Authorization': `Bearer ${adminToken}` }
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       const body = await res.json<{ items: any[] }>()
       expect(body.items.length).toBe(1)
@@ -85,7 +92,7 @@ describe('Flow: Content Management (Protected API)', () => {
 
       const res = await app.request('/api/content/posts/facets', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(200)
       const body = await res.json<{ statuses: string[]; tagsByColumnId: Record<string, string[]> }>()
@@ -102,7 +109,7 @@ describe('Flow: Content Management (Protected API)', () => {
 
       const res = await app.request('/api/content/posts/facets', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(200)
       const body = await res.json<{ statuses: string[]; tagsByColumnId: Record<string, string[]> }>()
@@ -122,7 +129,7 @@ describe('Flow: Content Management (Protected API)', () => {
 
       const res = await app.request('/api/content/posts/by-slug/find-me', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(200)
       const body = await res.json<{ id: string }>()
@@ -132,7 +139,7 @@ describe('Flow: Content Management (Protected API)', () => {
     it('error: returns 404 if slug not found', async () => {
       const res = await app.request('/api/content/posts/by-slug/ghost', {
         headers: { 'Authorization': `Bearer ${adminToken}` }
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(404)
     })
@@ -144,10 +151,11 @@ describe('Flow: Content Management (Protected API)', () => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'New Admin Post' })
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(201)
-      expect(db.activityLogs.length).toBeGreaterThan(0)
+      const logCount = await db.prepare('SELECT COUNT(*) as count FROM activity_logs').first<{ count: number }>()
+      expect(logCount?.count).toBeGreaterThan(0)
     })
 
     it('error: malformed JSON returns 400', async () => {
@@ -155,7 +163,7 @@ describe('Flow: Content Management (Protected API)', () => {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: '{"invalid":'
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(400)
     })
@@ -169,7 +177,7 @@ describe('Flow: Content Management (Protected API)', () => {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Updated Title' }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(200)
       const updated = await repo.findById(TEST_SEEDS[0], 'p_upd')
@@ -181,7 +189,7 @@ describe('Flow: Content Management (Protected API)', () => {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'Will not be saved' }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(404)
     })
@@ -194,14 +202,14 @@ describe('Flow: Content Management (Protected API)', () => {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'V2' }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       // Second update
       const res = await app.request('/api/content/posts/p_multi', {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: 'V3' }),
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(200)
       const entry = await repo.findById(TEST_SEEDS[0], 'p_multi')
@@ -211,16 +219,16 @@ describe('Flow: Content Management (Protected API)', () => {
 
   describe('DELETE /api/content/:slug/:id', () => {
     it('success: removes entry and triggers R2 cleanup', async () => {
-      mockR2.setupSuccess({ fileSize: 100 })
+      s3SendSpy.mockResolvedValue({ ContentLength: 100 } as any)
       repo.load('posts', [{ id: 'p_del', status: 'published', image: 'https://ex.com/api/media/f.png' }])
 
       const res = await app.request('/api/content/posts/p_del', {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${adminToken}` }
-      }, { ...TEST_ENV, DB: db as any })
+      }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(200)
-      expect(mockR2.send).toHaveBeenCalled()
+      expect(s3SendSpy).toHaveBeenCalled()
     })
   })
 })

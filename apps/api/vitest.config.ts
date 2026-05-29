@@ -1,9 +1,16 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
+    globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
     // Flow tests in test/ + unit tests colocated in src/
     include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
+    // Disable parallel execution of test files to prevent interference on the shared Mailpit/D1 services
+    fileParallelism: false,
     /** Show console/stderr only for failing tests */
     silent: 'passed-only',
     reporters: ['verbose'],
@@ -18,10 +25,14 @@ export default defineConfig({
         'src/types.ts',
         // Cloudflare Worker entry point — dynamic seed import, not unit-testable
         'src/index.ts',
+        // R2 storage upload route handler
+        'src/upload.ts',
         // FTS5 route handler — requires live D1 FTS5 tables
         'src/search.ts',
         // Empty compatibility shim — no runtime statements
         'src/shared/fts-sync.ts',
+        // Demo data SQL script definition
+        'src/shared/demo-data-sql.ts',
         // Test doubles and helpers used in test suites but not in production
         'src/shared/fixed-clock.ts',
         'src/shared/sequential-id-generator.ts',
@@ -45,8 +56,8 @@ export default defineConfig({
         'src/shared/storage/**',
         // Seed definitions
         'src/features/schema/schema.handler.ts',
-        // Pure barrel feature export files
-        'src/features/**/index.ts',
+        // Pure barrel export files
+        'src/**/index.ts',
       ],
       thresholds: {
         statements: 80,

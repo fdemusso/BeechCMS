@@ -1,184 +1,164 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 /**
- * Media Engine: upload e servizio file gestiti tramite BeechBucket e Repository.
- * 
- * Astrae lo storage (R2/S3) e il database (D1) per garantire scalabilità
- * e facilità di sviluppo locale.
+ * Media Engine — Single-path presigned uploads.
+ * Il Worker non riceve mai i bytes: agisce solo da gatekeeper (auth, validazione, firma).
  */
 import { Hono } from 'hono'
+import { isMimeAccepted } from '@beechcms/core'
 import { AppEnv } from './types'
 
-/** Prefissi MIME consentiti (immagini e PDF) */
-const ALLOWED_MIME_PREFIXES = ['image/', 'application/pdf']
+const DEFAULT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+const ABSOLUTE_MAX_UPLOAD_BYTES = 500 * 1024 * 1024
+const PRESIGN_TTL_SECONDS = 900
 
-/** Dimensione massima file: 5 MB */
-const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024
-
-type FileLike = {
-  name: string
-  type: string
-  size: number
-  arrayBuffer: () => Promise<ArrayBuffer>
+function resolveMaxUploadBytes(env: { MAX_UPLOAD_BYTES?: string }): number {
+  const raw = env.MAX_UPLOAD_BYTES
+  if (!raw) return DEFAULT_MAX_UPLOAD_BYTES
+  const parsed = Number.parseInt(raw, 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) return DEFAULT_MAX_UPLOAD_BYTES
+  return Math.min(parsed, ABSOLUTE_MAX_UPLOAD_BYTES)
 }
 
-function isFileLike(value: unknown): value is FileLike {
-  if (!value || typeof value === 'string') return false
-  const v = value as Record<string, unknown>
-  return (
-    typeof v.name === 'string' &&
-    typeof v.type === 'string' &&
-    typeof v.size === 'number' &&
-    typeof v.arrayBuffer === 'function'
-  )
-}
-
-/** Sanitizza il nome file */
 function sanitizeFilename(name: string): string {
   const base = name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100)
   return base || 'file'
 }
 
-/** Genera chiave univoca (timestamp-sanitized-name) */
 function generateObjectKey(originalName: string): string {
   const timestamp = Math.floor(Date.now() / 1000)
-  const sanitized = sanitizeFilename(originalName)
-  return `${timestamp}-${sanitized}`
+  return `${timestamp}-${sanitizeFilename(originalName)}`
 }
 
-/**
- * Elimina oggetti dallo storage e tracciamento dal DB.
- */
 export async function deleteR2Objects(
   c: { var: { bucket: any, mediaRepository: any, systemStatsRepository: any } },
   objectKeys: string[]
 ): Promise<void> {
   const { bucket, mediaRepository, systemStatsRepository } = c.var
-
   for (const key of objectKeys) {
+    const media = await mediaRepository.getByKey(key).catch(() => null)
+    const size = media?.size_bytes ?? 0
     try {
-      const media = await mediaRepository.getByKey(key)
-      const size = media?.size_bytes ?? 0
-
       await bucket.delete(key)
-      await mediaRepository.untrack(key)
-
-      if (size > 0) {
-        await systemStatsRepository.decrementStorage(size)
-      }
     } catch (err) {
-      console.warn(`Failed to delete media object: ${key}`, err)
+      console.warn(`Failed to delete storage object: ${key}`, err)
+    }
+    try {
+      await mediaRepository.untrack(key)
+      if (size > 0) await systemStatsRepository.decrementStorage(size)
+    } catch (err) {
+      console.warn(`Failed to untrack media object: ${key}`, err)
     }
   }
 }
 
 export const uploadRoutes = new Hono<AppEnv>()
 
-/** POST /upload - Carica file su BeechBucket */
-uploadRoutes.post('/upload', async (c) => {
-  try {
-    const bucket = c.var.bucket
-    const mediaRepo = c.var.mediaRepository
-    const statsRepo = c.var.systemStatsRepository
+/** POST /upload/presign — Richiede URL firmata per upload diretto a R2. */
+uploadRoutes.post('/upload/presign', async (c) => {
+  let body: { filename?: unknown, mimeType?: unknown, sizeBytes?: unknown }
+  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
 
-    const contentType = c.req.header('Content-Type') ?? ''
-    if (!contentType.includes('multipart/form-data')) {
-      return c.json({ error: 'Content-Type must be multipart/form-data' }, 400)
-    }
-
-    const formData = await c.req.formData()
-    const fileEntry = formData.get('file')
-
-    if (!isFileLike(fileEntry)) {
-      return c.json({ error: 'No file provided. Use field name "file"' }, 400)
-    }
-    const file = fileEntry
-
-    const mimeOk = ALLOWED_MIME_PREFIXES.some((prefix) => file.type.startsWith(prefix))
-    if (!mimeOk) {
-      return c.json({ error: 'File type not allowed. Allowed: images and PDF' }, 400)
-    }
-
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      return c.json({ error: 'File too large. Max 5MB' }, 400)
-    }
-
-    const objectKey = generateObjectKey(file.name)
-    const body = await file.arrayBuffer()
-
-    // 1. Upload allo storage
-    await bucket.put(objectKey, body, { contentType: file.type })
-
-    // 2. Aggiorna DB e Stats (in background se possibile)
-    const uploadedBy = c.var.jwtPayload?.sub ?? ''
-    const trackOperation = (async () => {
-      try {
-        await statsRepo.incrementStorage(file.size)
-        await mediaRepo.trackUpload({
-          key: objectKey,
-          filename: file.name,
-          mime_type: file.type,
-          size_bytes: file.size,
-          uploaded_by: uploadedBy
-        })
-      } catch (err) {
-        console.error('Failed to update DB tracking for upload:', err)
-      }
-    })()
-
-    try {
-      c.executionCtx.waitUntil(trackOperation)
-    } catch {
-      await trackOperation
-    }
-
-    const publicUrl = bucket.getUrl(objectKey)
-
-    const jwtPayload = c.get('jwtPayload')
-    if (jwtPayload) {
-      c.get('activityLogger').log({
-        action: 'upload',
-        entityType: 'media',
-        entityId: objectKey,
-        details: { name: file.name, size: file.size, type: file.type },
-        actor: {
-          id: jwtPayload.sub,
-          email: jwtPayload.email ?? 'unknown',
-          name: jwtPayload.name ?? null,
-        },
-      })
-    }
-
-    return c.json({ url: publicUrl }, 200)
-  } catch (err) {
-    console.error('Upload error:', err)
-    return c.json({ error: 'Upload failed' }, 500)
+  const { filename, mimeType, sizeBytes } = body
+  if (typeof filename !== 'string' || !filename.trim()) return c.json({ error: 'filename is required' }, 400)
+  if (typeof mimeType !== 'string' || !mimeType.trim()) return c.json({ error: 'mimeType is required' }, 400)
+  if (typeof sizeBytes !== 'number' || !Number.isFinite(sizeBytes) || sizeBytes <= 0) {
+    return c.json({ error: 'sizeBytes must be a positive number' }, 400)
   }
+
+  const maxBytes = resolveMaxUploadBytes(c.env)
+  if (sizeBytes > maxBytes) return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
+  if (!isMimeAccepted(mimeType, 'any')) return c.json({ error: 'File type not allowed' }, 400)
+
+  const key = generateObjectKey(filename)
+  const uploadUrl = await c.var.bucket.presignPut(key, {
+    expiresIn: PRESIGN_TTL_SECONDS,
+    contentType: mimeType,
+    contentLength: sizeBytes,
+  })
+
+  return c.json({ uploadUrl, key, expiresIn: PRESIGN_TTL_SECONDS }, 200)
 })
 
-/** DELETE /upload/:key - Elimina un file */
+/** POST /upload/confirm — Verifica l'oggetto su R2 e registra metadati. Idempotente sul key. */
+uploadRoutes.post('/upload/confirm', async (c) => {
+  const { bucket, mediaRepository: mediaRepo, systemStatsRepository: statsRepo } = c.var
+
+  let body: { key?: unknown }
+  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
+  const { key } = body
+  if (typeof key !== 'string' || !key.trim()) return c.json({ error: 'key is required' }, 400)
+
+  const existing = await mediaRepo.getByKey(key)
+  if (existing) return c.json({ url: bucket.getUrl(key) }, 200)
+
+  const head = await bucket.head(key)
+  if (!head) return c.json({ error: 'Object not found in storage' }, 404)
+
+  const uploadedBy = c.var.jwtPayload?.sub ?? ''
+  const size = head.size ?? 0
+  const mime = head.contentType ?? 'application/octet-stream'
+  const filename = key.replace(/^\d+-/, '') || key
+
+  await statsRepo.incrementStorage(size)
+  await mediaRepo.trackUpload({
+    key,
+    filename,
+    mime_type: mime,
+    size_bytes: size,
+    uploaded_by: uploadedBy,
+  })
+
+  const jwtPayload = c.get('jwtPayload')
+  if (jwtPayload) {
+    c.get('activityLogger').log({
+      action: 'upload',
+      entityType: 'media',
+      entityId: key,
+      details: { name: filename, size, type: mime },
+      actor: {
+        id: jwtPayload.sub,
+        email: jwtPayload.email ?? 'unknown',
+        name: [jwtPayload.name, jwtPayload.surname].filter(Boolean).join(' ') || null,
+      },
+    })
+  }
+
+  return c.json({ url: bucket.getUrl(key) }, 200)
+})
+
+/** GET /upload/download-url/:key — URL firmata di lettura per asset privati. */
+uploadRoutes.get('/upload/download-url/:key', async (c) => {
+  const key = decodeURIComponent(c.req.param('key') ?? '')
+  if (!key) return c.json({ error: 'Missing key' }, 400)
+
+  const head = await c.var.bucket.head(key)
+  if (!head) return c.json({ error: 'Object not found' }, 404)
+
+  const downloadUrl = await c.var.bucket.presignGet(key, { expiresIn: PRESIGN_TTL_SECONDS })
+  return c.json({ downloadUrl, expiresIn: PRESIGN_TTL_SECONDS }, 200)
+})
+
+/** DELETE /upload/:key — Invariato. */
 uploadRoutes.delete('/upload/:key', async (c) => {
   const key = c.req.param('key')
   if (!key) return c.json({ error: 'Missing key' }, 400)
-
   await deleteR2Objects(c, [decodeURIComponent(key)])
   return c.json({ success: true }, 200)
 })
 
-/**
- * Serve un file dallo storage.
- */
+/** Serve un file dallo storage (usato dalla rotta pubblica /api/media/:key). */
 export async function serveMediaHandler(c: any): Promise<Response> {
   const key = c.req.param('key')
   if (!key) return new Response('Missing key', { status: 400 })
-
-  const bucket = c.var.bucket
   try {
-    const object = await bucket.get(decodeURIComponent(key))
+    const object = await c.var.bucket.get(decodeURIComponent(key))
     if (!object) return new Response('Not found', { status: 404 })
-
     const headers = new Headers()
     headers.set('Content-Type', object.contentType ?? 'application/octet-stream')
     headers.set('Cache-Control', 'public, max-age=31536000, immutable')
-
     return new Response(object.body, { status: 200, headers })
   } catch (err) {
     console.error(`[serveMediaHandler] Error serving file ${key}:`, err)

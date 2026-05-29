@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 /**
  * @file validation.test.ts
  * Chaos & edge-case test suite for `validateAndSanitizeSeedPayload`.
@@ -36,6 +39,11 @@ const CHAOS_SEED: Seed = {
     { alias: 'cover',       label: 'Cover',       type: 'file' },
     // file (asset-list)
     { alias: 'gallery',     label: 'Gallery',     type: 'file', multiple: true, format: 'asset-list' },
+    // file with fileOptions
+    { alias: 'avatar',      label: 'Avatar',      type: 'file', fileOptions: { accept: 'image' } },
+    { alias: 'manual',      label: 'Manual',      type: 'file', fileOptions: { accept: 'document' } },
+    { alias: 'archive',     label: 'Archive',     type: 'file', fileOptions: { accept: 'any' } },
+    { alias: 'docs',        label: 'Docs',        type: 'file', multiple: true, format: 'asset-list', fileOptions: { accept: 'document' } },
     // json
     { alias: 'meta',        label: 'Meta',        type: 'json' },
     // tags
@@ -418,9 +426,190 @@ describe('richtext field', () => {
   })
 })
 
-// ─── 8. GARBAGE KEYS & OVERALL RESILIENCE ─────────────────────────────────────
+// ─── 8. FILE OPTIONS ─────────────────────────────────────────────────────────
 
-describe('garbage keys and overall resilience', () => {
+describe('fileOptions', () => {
+  // accept: 'image'
+  it("accept:'image' accetta URL con estensione .png", () => {
+    const r = safeValidate({ ...validBase(), avatar: 'https://x.com/a.png' })
+    expect(r.data.avatar).toBe('https://x.com/a.png')
+    expect(r.details.some(d => d.field === 'avatar')).toBe(false)
+  })
+
+  it("accept:'image' accetta URL con estensione maiuscola e query string", () => {
+    const r = safeValidate({ ...validBase(), avatar: 'https://x.com/A.JPEG?q=1' })
+    expect(r.data.avatar).toBe('https://x.com/A.JPEG?q=1')
+    expect(r.details.some(d => d.field === 'avatar')).toBe(false)
+  })
+
+  it("accept:'image' rifiuta URL con estensione .pdf", () => {
+    const r = safeValidate({ ...validBase(), avatar: 'https://x.com/a.pdf' })
+    expect(r.details.some(d => d.field === 'avatar' && d.expected.includes('accept:image'))).toBe(true)
+  })
+
+  // accept: 'document'
+  it("accept:'document' accetta .pdf", () => {
+    const r = safeValidate({ ...validBase(), manual: 'https://x.com/doc.pdf' })
+    expect(r.data.manual).toBe('https://x.com/doc.pdf')
+    expect(r.details.some(d => d.field === 'manual')).toBe(false)
+  })
+
+  it("accept:'document' accetta .docx", () => {
+    const r = safeValidate({ ...validBase(), manual: 'https://x.com/report.docx' })
+    expect(r.data.manual).toBe('https://x.com/report.docx')
+    expect(r.details.some(d => d.field === 'manual')).toBe(false)
+  })
+
+  it("accept:'document' accetta .csv", () => {
+    const r = safeValidate({ ...validBase(), manual: 'https://x.com/data.csv' })
+    expect(r.data.manual).toBe('https://x.com/data.csv')
+    expect(r.details.some(d => d.field === 'manual')).toBe(false)
+  })
+
+  it("accept:'document' rifiuta .png", () => {
+    const r = safeValidate({ ...validBase(), manual: 'https://x.com/photo.png' })
+    expect(r.details.some(d => d.field === 'manual' && d.expected.includes('accept:document'))).toBe(true)
+  })
+
+  // accept: 'any'
+  it("accept:'any' accetta qualsiasi URL valido con estensione .zip", () => {
+    const r = safeValidate({ ...validBase(), archive: 'https://x.com/backup.zip' })
+    expect(r.data.archive).toBe('https://x.com/backup.zip')
+    expect(r.details.some(d => d.field === 'archive')).toBe(false)
+  })
+
+  it("accept:'any' accetta URL valido senza estensione", () => {
+    const r = safeValidate({ ...validBase(), archive: 'https://api.example.com/resource/abc123' })
+    expect(r.data.archive).toBeDefined()
+    expect(r.details.some(d => d.field === 'archive')).toBe(false)
+  })
+
+  // branch senza fileOptions → accept:'any'
+  it("branch senza fileOptions si comporta come accept:'any' — accetta .exe", () => {
+    const r = safeValidate({ ...validBase(), cover: 'https://x.com/app.exe' })
+    expect(r.data.cover).toBe('https://x.com/app.exe')
+    expect(r.details.some(d => d.field === 'cover')).toBe(false)
+  })
+
+  // asset-list con accept:'document'
+  it("asset-list accept:'document' rifiuta intero array se un item è .png", () => {
+    const r = safeValidate({ ...validBase(), docs: ['https://x.com/doc.pdf', 'https://x.com/photo.png'] })
+    expect(r.details.some(d => d.field === 'docs')).toBe(true)
+  })
+
+  it("asset-list accept:'document' accetta array di soli documenti", () => {
+    const r = safeValidate({ ...validBase(), docs: ['https://x.com/a.pdf', 'https://x.com/b.docx'] })
+    expect(r.data.docs).toEqual(['https://x.com/a.pdf', 'https://x.com/b.docx'])
+    expect(r.details.some(d => d.field === 'docs')).toBe(false)
+  })
+
+  // cache check: stessa URL valida per 'any' ma non per 'image'
+  it("cache: schemi con fileOptions diversi producono comportamenti distinti", () => {
+    const seedImage: Seed = {
+      slug: 'cache-test',
+      label: 'Cache Test',
+      displayNameAlias: 'file',
+      branches: [{ alias: 'file', label: 'File', type: 'file', fileOptions: { accept: 'image' } }],
+    }
+    const seedAny: Seed = {
+      slug: 'cache-test',
+      label: 'Cache Test',
+      displayNameAlias: 'file',
+      branches: [{ alias: 'file', label: 'File', type: 'file', fileOptions: { accept: 'any' } }],
+    }
+    const zipUrl = 'https://x.com/archive.zip'
+    const rImage = validateAndSanitizeSeedPayload(seedImage, { file: zipUrl }, { requireAtLeastOneValidField: true })
+    const rAny = validateAndSanitizeSeedPayload(seedAny, { file: zipUrl }, { requireAtLeastOneValidField: true })
+    expect(rImage.details.some(d => d.field === 'file')).toBe(true)
+    expect(rAny.data.file).toBe(zipUrl)
+  })
+})
+
+// ─── 9. RELATION FIELD ───────────────────────────────────────────────────────
+
+const UUID_V4 = '550e8400-e29b-41d4-a716-446655440000'
+
+// Minimal generator that accepts only UUID v4 (mirrors SystemIdGenerator semantics)
+const testIdGen = {
+  uuid: () => UUID_V4,
+  isValid: (v: unknown): v is string =>
+    typeof v === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v),
+}
+
+const RELATION_SEED: Seed = {
+  slug: 'articles',
+  label: 'Article',
+  displayNameAlias: 'title',
+  branches: [
+    { alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+    { alias: 'author_id', label: 'Author', type: 'relation', targetSeed: 'team' },
+    { alias: 'editor_id', label: 'Editor', type: 'relation', targetSeed: 'team', requiredOnCreate: true },
+  ],
+}
+
+describe('relation field', () => {
+  it('accepts a valid UUID v4', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', author_id: UUID_V4, editor_id: UUID_V4 },
+      { operation: 'create', idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: true },
+    )
+    expect(r.data.author_id).toBe(UUID_V4)
+    expect(r.details.some(d => d.field === 'author_id')).toBe(false)
+  })
+
+  it('rejects empty string', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', author_id: '', editor_id: UUID_V4 },
+      { operation: 'create', idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: true },
+    )
+    expect(r.details.some(d => d.field === 'author_id')).toBe(true)
+  })
+
+  it('rejects a non-id-shaped string', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', author_id: 'hello', editor_id: UUID_V4 },
+      { operation: 'create', idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: true },
+    )
+    expect(r.details.some(d => d.field === 'author_id')).toBe(true)
+  })
+
+  it('accepts null for optional relation when allowNull is true (update context)', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', author_id: null, editor_id: UUID_V4 },
+      { operation: 'update', allowNull: true, idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: false },
+    )
+    expect(r.details.some(d => d.field === 'author_id')).toBe(false)
+    expect(r.data.author_id).toBeNull()
+  })
+
+  it('rejects null for a required relation when allowNull is false', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', author_id: UUID_V4, editor_id: null },
+      { operation: 'create', allowNull: false, idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: true },
+    )
+    expect(r.requiredFieldsMissing).toContain('editor_id')
+  })
+
+  it('throws when idGenerator is missing and seed has relation branches', () => {
+    expect(() =>
+      validateAndSanitizeSeedPayload(
+        RELATION_SEED,
+        { title: 'T', editor_id: UUID_V4 },
+        { operation: 'create' },
+      )
+    ).toThrow('IIdGenerator must be provided')
+  })
+})
+
+// ─── 10. GARBAGE KEYS & OVERALL RESILIENCE ───────────────────────────────────
+
+describe('garbage keys and overall resilience (§10)', () => {
   it('isolates unknown properties into unknownAliases without failing valid keys', () => {
     const r = safeValidate({
       ...validBase(),

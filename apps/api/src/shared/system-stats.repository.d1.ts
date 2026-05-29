@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { SystemStatsRepository } from '@beechcms/core'
 
 /**
@@ -39,6 +43,6 @@ export class D1SystemStatsRepository implements SystemStatsRepository {
    */
   async getStorageUsage(): Promise<number> {
     const statsRecordResult = await this.database.prepare("SELECT value FROM system_stats WHERE id = 'total_storage_bytes'").first<{ value: string }>()
-    return statsRecordResult ? parseInt(statsRecordResult.value, 10) : 0
+    return statsRecordResult ? Number.parseInt(statsRecordResult.value, 10) : 0
   }
 }

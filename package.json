@@ -17,7 +17,7 @@
     "turborepo"
   ],
   "author": "Flavio De Musso",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "homepage": "https://github.com/fdemusso/BeechCMS#readme",
   "repository": {
     "type": "git",
@@ -42,19 +42,41 @@
     "beech": "bin/cli.mjs"
   },
   "scripts": {
-    "dev": "turbo run dev --parallel",
+    "dev": "node scripts/dev.mjs",
+    "dev:full": "node scripts/dev.mjs",
+    "dev:tunnel-url": "docker compose logs tunnel 2>&1 | grep -Eo 'https://[a-z0-9-]+\\.trycloudflare\\.com' | tail -n 1",
+    "dev:logs:mailpit": "docker compose logs -f mailpit",
+    "dev:logs:sqlite": "docker compose logs -f sqlite-web",
+    "dev:logs:tunnel": "docker compose logs -f tunnel",
+    "dev:logs:minio": "docker compose logs -f minio",
+    "dev:mailpit:reset": "curl -X DELETE http://localhost:8025/api/v1/messages",
+    "dev:stop": "docker compose stop",
+    "dev:reset": "docker compose down -v",
     "build": "turbo run build",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
     "setup:graph": "node scripts/setup-graph.mjs",
     "release": "node scripts/release.mjs",
-    "release:preview": "node scripts/release.mjs --preview"
+    "release:preview": "node scripts/release.mjs --preview",
+    "postinstall": "node scripts/check-docker.mjs",
+    "prepare": "husky"
   },
   "type": "module",
   "devDependencies": {
+    "husky": "^9.1.7",
     "shadcn": "^4.4.0",
-    "turbo": "^2.8.7",
+    "turbo": "^2.9.14",
     "typescript": "^5.9.3"
+  },
+  "overrides": {
+    "qs": "^6.15.2",
+    "ws": "^8.21.0",
+    "miniflare": {
+      "ws": "^8.21.0"
+    },
+    "jsdom": {
+      "ws": "^8.21.0"
+    }
   },
   "dependencies": {
     "@beechcms/cli": "^0.5.0",

@@ -1,34 +1,28 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { Context } from 'hono'
 import { 
   slugify, 
   isValidContentStatus, 
   validateAndSanitizeSeedPayload,
-  resolvePolicies,
-  EntryNotFoundError,
-  SlugConflictError
+  resolvePolicies
 } from '@beechcms/core'
 import { applyPrivacy, PrivacyPolicyError } from '../../../shared/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
+import {
+  normalizeBody,
+  contentValidationProblem,
+  logContentActivity,
+  dispatchContentAutomation,
+  handleContentDatabaseError
+} from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import { cleanStr } from '../../../shared/query-utils'
 import { AppEnv } from '../../../types'
 
-function normalizeBody(raw: unknown): Record<string, unknown> {
-  return typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
-}
 
-function contentValidationProblem(
-  context: Context,
-  details: Array<{ field: string; expected: string; received: string; message: string }>
-) {
-  return publicProblem(context, { 
-    type: 'content-validation-failed', 
-    title: 'Bad Request', 
-    status: 400, 
-    detail: 'Validation failed', 
-    errors: details 
-  })
-}
 
 export async function updateHandler(context: Context<AppEnv>) {
   const slug = context.req.param('slug')
@@ -113,10 +107,11 @@ export async function updateHandler(context: Context<AppEnv>) {
       }
 
       const validation = validateAndSanitizeSeedPayload(seed, bodyForData, {
-        operation: 'update', 
-        allowNull: true, 
-        requireAtLeastOneValidField: true, 
+        operation: 'update',
+        allowNull: true,
+        requireAtLeastOneValidField: true,
         enforceRequiredFields: true,
+        idGenerator: context.get('idGenerator'),
       })
 
       if (validation.dangerousFields.length > 0) {
@@ -169,51 +164,11 @@ export async function updateHandler(context: Context<AppEnv>) {
     const jwtPayload = context.get('jwtPayload')
     const title = mergedData.title || mergedData.name || newSlug
 
-    context.get('activityLogger').log({
-      action: 'update',
-      entityType: 'content',
-      entityId: id,
-      entitySlug: slug,
-      details: { title },
-      actor: {
-        id: jwtPayload.sub,
-        email: jwtPayload.email ?? 'unknown',
-        name: jwtPayload.name ?? null,
-      },
-    })
-
-    context.get('scheduler').waitUntil(
-      context.get('automationRunner').run({
-        seedSlug: slug,
-        event: 'update',
-        entry: { ...current, ...mergedData, id, status: newStatus },
-      }),
-    )
+    logContentActivity(context, 'update', id, slug, String(title))
+    dispatchContentAutomation(context, slug, 'update', { ...current, ...mergedData, id, status: newStatus })
 
     return context.json({ success: true })
   } catch (error) {
-    if (error instanceof EntryNotFoundError) {
-      return publicProblem(context, { 
-        type: 'content-not-found', 
-        title: 'Not Found', 
-        status: 404, 
-        detail: CONTENT_ERRORS.NOT_FOUND 
-      })
-    }
-    if (error instanceof SlugConflictError) {
-       return publicProblem(context, { 
-        type: 'content-slug-conflict', 
-        title: 'Conflict', 
-        status: 409, 
-        detail: CONTENT_ERRORS.SLUG_CONFLICT 
-      })
-    }
-    console.error('Content update error:', error)
-    return publicProblem(context, { 
-      type: 'content-database-error', 
-      title: 'Internal Server Error', 
-      status: 500, 
-      detail: CONTENT_ERRORS.DATABASE_ERROR 
-    })
+    return handleContentDatabaseError(context, error)
   }
 }

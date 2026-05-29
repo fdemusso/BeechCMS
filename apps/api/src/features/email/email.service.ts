@@ -1,19 +1,9 @@
-/**
- * Email Service — orchestrator of the Beech CMS email module.
- *
- * Sending pipeline:
- *   caller → service function → template builder → provider → Resend (or other)
- *
- * This is the only file that imports from both templates and the provider.
- * No other layer knows the entire pipeline.
- *
- * ─── CHANGING PROVIDER ───────────────────────────────────────────────────────
- * To replace Resend with another service, ONLY modify the
- * `createProvider()` function below: change the import and instantiation.
- * No other module file — nor anywhere else in the project — needs to be touched.
- * ─────────────────────────────────────────────────────────────────────────────
- */
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { ResendEmailProvider } from './providers/resend'
+import { SmtpEmailProvider } from './providers/smtp'
 import { buildPasswordResetEmail } from './templates/password-reset'
 import { buildPasswordChangedEmail } from './templates/password-changed'
 import { buildAutomationEmail } from './templates/automation-mail'
@@ -24,33 +14,46 @@ import type {
   AutomationMailParams,
 } from './email.types'
 
-/** Default sender address (Resend test sender, works without a verified domain). */
 const DEFAULT_FROM = 'Beech CMS <onboarding@resend.dev>'
 
-/**
- * Instantiates the active email provider.
- *
- * This is the single point for changing the provider: replace the
- * `new ResendEmailProvider(...)` line with any class that implements `EmailProvider`.
- */
-function createProvider(apiKey: string, isDev: boolean): EmailProvider {
-  return new ResendEmailProvider(apiKey, isDev)
+export interface EmailProviderEnv {
+  /** "smtp" | "resend"; default "resend" if absent */
+  provider?: string
+  /** Resend API key, used when provider is "resend" */
+  apiKey?: string
+  /** Mailpit base URL (e.g. http://localhost:8025), used when provider is "smtp" */
+  smtpBaseUrl?: string
+  isDev?: boolean
 }
 
-/**
- * Sends the password reset link email to the specified recipient.
- *
- * The email body is built from the localized template in
- * `templates/password-reset.ts` and composed with the base layout in
- * `templates/shell.ts`.
- *
- * @throws If the provider rejects the request. The caller decides whether to propagate
- *         the error (request fail) or handle it silently (fire-and-forget).
- */
+// TODO: il sistema di selezione provider è attualmente hardcoded su "smtp" | "resend".
+// Sarebbe meglio aprirlo a provider di terze parti (Postmark, SendGrid, Brevo, SES, ...)
+// senza che l'utente debba toccare il codice. Opzioni da valutare:
+//   1. Strategia plugin: EMAIL_PROVIDER accetta un path a modulo ES (`./my-provider.ts`)
+//      che esporta default class implementing EmailProvider — zero lock-in.
+//   2. Provider SMTP generico: rimuovere il coupling con Mailpit dalla denominazione
+//      e accettare qualsiasi server SMTP via SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS
+//      (il SmtpEmailProvider attuale usa già l'HTTP API di Mailpit, non SMTP raw —
+//      andrebbe riscritto con nodemailer o un client SMTP standard per coprire qualsiasi server).
+//   3. Webhook email: EMAIL_PROVIDER=webhook + EMAIL_WEBHOOK_URL per integrazioni custom.
+// Riferimento: email.provider.ts definisce l'interfaccia — è già sufficientemente astratta.
+function createProvider(env: EmailProviderEnv): EmailProvider {
+  if (env.provider === 'smtp') {
+    if (!env.smtpBaseUrl) throw new Error('SMTP provider selected but SMTP_HOST is missing')
+    return new SmtpEmailProvider({ baseUrl: env.smtpBaseUrl })
+  }
+  return new ResendEmailProvider(env.apiKey ?? '', env.isDev ?? false)
+}
+
 export async function sendPasswordResetEmail(
   params: PasswordResetEmailParams,
 ): Promise<void> {
-  const provider = createProvider(params.apiKey, params.isDev ?? false)
+  const provider = createProvider({
+    provider: params.provider,
+    apiKey: params.apiKey,
+    smtpBaseUrl: params.smtpBaseUrl,
+    isDev: params.isDev ?? false,
+  })
   const { subject, html } = buildPasswordResetEmail(params.resetUrl, params.locale)
   await provider.send({
     from: params.from ?? DEFAULT_FROM,
@@ -60,18 +63,15 @@ export async function sendPasswordResetEmail(
   })
 }
 
-/**
- * Sends the "password changed" security notification to the account owner.
- *
- * Called after a successful password reset to notify the user. It does not have a
- * CTA button — it is a pure notification, no action required from the user.
- *
- * @throws If the provider rejects the request.
- */
 export async function sendPasswordChangedEmail(
   params: PasswordChangedEmailParams,
 ): Promise<void> {
-  const provider = createProvider(params.apiKey, params.isDev ?? false)
+  const provider = createProvider({
+    provider: params.provider,
+    apiKey: params.apiKey,
+    smtpBaseUrl: params.smtpBaseUrl,
+    isDev: params.isDev ?? false,
+  })
   const { subject, html } = buildPasswordChangedEmail(params.locale)
   await provider.send({
     from: params.from ?? DEFAULT_FROM,
@@ -82,7 +82,12 @@ export async function sendPasswordChangedEmail(
 }
 
 export async function sendAutomationMail(params: AutomationMailParams): Promise<void> {
-  const provider = createProvider(params.apiKey ?? params.resendApiKey ?? '', false)
+  const provider = createProvider({
+    provider: params.provider,
+    apiKey: params.apiKey ?? params.resendApiKey,
+    smtpBaseUrl: params.smtpBaseUrl,
+    isDev: false,
+  })
   const message = buildAutomationEmail(params)
   await provider.send({
     from: params.from ?? DEFAULT_FROM,

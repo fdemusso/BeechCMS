@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { defineSeed } from '@beechcms/core'
 import bcrypt from 'bcryptjs'
 
@@ -15,11 +19,16 @@ export const TEST_ENV = {
   JWT_SECRET: TEST_JWT_SECRET,
   PUBLIC_READ_API_KEY: TEST_PUBLIC_READ_KEY,
   PUBLIC_WRITE_API_KEY: TEST_PUBLIC_WRITE_KEY,
-  R2_ACCESS_KEY_ID: 'test-access-key',
-  R2_SECRET_ACCESS_KEY: 'test-secret-key',
-  R2_ENDPOINT: 'https://test-endpoint.r2.cloudflarestorage.com',
-  R2_BUCKET_NAME: 'test-bucket',
+  R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID ?? 'beechdev',
+  R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY ?? 'beechdevsecret',
+  R2_ENDPOINT: process.env.R2_ENDPOINT ?? 'http://localhost:9000',
+  R2_BUCKET_NAME: process.env.R2_BUCKET_NAME ?? 'beech-media-test',
   ENV: 'development',
+  EMAIL_PROVIDER: 'smtp',
+  SMTP_HOST: 'localhost',
+  SMTP_PORT: '8025',
+  EMAIL_FROM: 'Test <test@beech.local>',
+  WEBHOOK_TESTER_URL: 'http://localhost:8084',
 }
 
 /**
@@ -42,7 +51,7 @@ export const TEST_SEEDS = [
       { alias: 'internal_note', label: 'Internal Note', type: 'text', policies: { public: false } },
       { alias: 'contact_email', label: 'Contact Email', type: 'text' },
       { alias: 'view_count', label: 'View Count', type: 'number' },
-      { alias: 'image', label: 'Featured Image', type: 'file' },
+      { alias: 'image', label: 'Featured Image', type: 'file', fileOptions: { accept: 'image' } },
       { alias: 'tags', label: 'Tags', type: 'tags' },
     ],
   }),

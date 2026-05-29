@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
@@ -16,7 +20,8 @@ export async function resetPassword(
 ): Promise<Response> {
   const { env, req, executionCtx } = context
 
-  if (!env.RESEND_API_KEY) {
+  const useSmtp = env.EMAIL_PROVIDER === 'smtp'
+  if (!useSmtp && !env.RESEND_API_KEY) {
     return context.json({ error: 'Service not available' }, 503)
   }
 
@@ -65,14 +70,19 @@ export async function resetPassword(
   await context.get('userRepository').updatePasswordHash(tokenRecord.userId, hashedNewPassword)
   await context.get('sessionRepository').revokeAllForUser(tokenRecord.userId, nowTimestamp)
 
+  const smtpBaseUrl = env.SMTP_HOST
+    ? `http://${env.SMTP_HOST}:${env.SMTP_PORT ?? '8025'}`
+    : undefined
   const sendNotification = async () => {
     try {
       await sendPasswordChangedEmail({
         to: tokenRecord.email,
         locale: emailLocale,
-        apiKey: env.RESEND_API_KEY!,
+        apiKey: env.RESEND_API_KEY ?? '',
         from: env.EMAIL_FROM,
         isDev: env.ENV !== 'production',
+        provider: env.EMAIL_PROVIDER as 'smtp' | 'resend' | undefined,
+        smtpBaseUrl,
       })
     } catch (error) {
       if (env.ENV !== 'production') {

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
@@ -11,7 +14,7 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: [
         'src/**/*.test.ts',
-        'src/index.ts',
+        'src/**/index.ts',
         'src/seeds.ts',
         '**/*.interface.ts',
         '**/*.repository.ts',
@@ -28,6 +31,8 @@ export default defineConfig({
         'src/notifications/notification-service.ts',
         'src/observability/activity-logger.ts',
         'src/rate-limit/rate-limiter.ts',
+        'src/relations.ts',
+        'src/webhook-validation.ts',
       ],
       thresholds: {
         statements: 80,

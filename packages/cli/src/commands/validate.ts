@@ -1,6 +1,9 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 import pc from 'picocolors'
 import type { Seed } from '@beechcms/core'
-import { SEED_REGISTRY } from '@beechcms/core'
+import { SEED_REGISTRY, sortSeedsByDependencies } from '@beechcms/core'
 
 export interface ValidateOptions {
   registry?: Record<string, Seed> | null
@@ -9,10 +12,84 @@ export interface ValidateOptions {
 export interface SeedValidationError {
   slug: string
   messages: string[]
+  /** true = abort seed:load; false = warning only */
+  fatal: boolean
 }
 
 export function validateSeeds(registry: Record<string, Seed>): SeedValidationError[] {
   const result: SeedValidationError[] = []
+
+  // ── Fatal check 1: unknown relation targets ──────────────────────────────
+  for (const seed of Object.values(registry)) {
+    const messages: string[] = []
+    for (const branch of seed.branches) {
+      if (branch.type === 'relation' && branch.targetSeed) {
+        if (!registry[branch.targetSeed]) {
+          messages.push(
+            `branch '${branch.alias}' targets unknown seed '${branch.targetSeed}'`,
+          )
+        }
+      }
+    }
+    if (messages.length > 0) {
+      result.push({ slug: seed.slug, messages, fatal: true })
+    }
+  }
+
+  // ── Fatal check 2: multi-relation with SET NULL ──────────────────────────
+  for (const seed of Object.values(registry)) {
+    const messages: string[] = []
+    for (const branch of seed.branches) {
+      if (branch.type === 'relation' && branch.multiple === true) {
+        if (branch.onDelete === 'SET NULL') {
+          messages.push(
+            `Branch '${branch.alias}': multi-relations cannot use ON DELETE SET NULL. ` +
+            `Use 'CASCADE' or 'RESTRICT'.`,
+          )
+        }
+      }
+    }
+    if (messages.length > 0) {
+      result.push({ slug: seed.slug, messages, fatal: true })
+    }
+  }
+
+  // ── Fatal check 3: junction table name collisions ────────────────────────
+  {
+    const junctionNames = new Set<string>()
+    for (const seed of Object.values(registry)) {
+      const messages: string[] = []
+      for (const branch of seed.branches) {
+        if (branch.type !== 'relation' || branch.multiple !== true) continue
+        const name = `rel_${seed.slug}_${branch.alias}`
+        if (name.length > 256) {
+          messages.push(`Junction table name '${name}' exceeds 256 characters (${name.length})`)
+        }
+        if (junctionNames.has(name)) {
+          messages.push(`Junction table name collision: '${name}' already used by another seed/branch`)
+        }
+        junctionNames.add(name)
+      }
+      if (messages.length > 0) {
+        result.push({ slug: seed.slug, messages, fatal: true })
+      }
+    }
+  }
+
+  // ── Fatal check 4: dependency cycles ────────────────────────────────────
+  // Skip if unknown targets were found — sortSeedsByDependencies would throw
+  // on the same unknown targets, producing duplicate fatal messages.
+  const hasUnknownTargets = result.some(e => e.fatal)
+  if (!hasUnknownTargets) {
+    try {
+      sortSeedsByDependencies(Object.values(registry))
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      result.push({ slug: '<graph>', messages: [msg], fatal: true })
+    }
+  }
+
+  // ── Warning checks (existing) ────────────────────────────────────────────
   const slugsSeen = new Set<string>()
 
   for (const seed of Object.values(registry)) {
@@ -37,7 +114,7 @@ export function validateSeeds(registry: Record<string, Seed>): SeedValidationErr
     }
 
     if (messages.length > 0) {
-      result.push({ slug: seed.slug, messages })
+      result.push({ slug: seed.slug, messages, fatal: false })
     }
   }
 
@@ -55,28 +132,49 @@ export async function validate(args: ValidateOptions): Promise<void> {
   console.log(pc.cyan('\n  beech validate — checking seeds\n'))
 
   const errors = validateSeeds(registry)
-  const errorMap = new Map(errors.map(e => [e.slug, e.messages]))
+  const fatalErrors = errors.filter(e => e.fatal)
+  const warnings = errors.filter(e => !e.fatal)
 
-  let totalIssues = 0
+  // Print fatal errors first
+  for (const e of fatalErrors) {
+    console.log(pc.red(`  ✗ ${e.slug} (fatal)`))
+    for (const msg of e.messages) {
+      console.log(pc.red(`      → ${msg}`))
+    }
+  }
+
+  // Print per-seed warnings
+  const warningMap = new Map(warnings.map(e => [e.slug, e.messages]))
+  const allWarningSlugsSeen = new Set(warnings.map(e => e.slug))
+
   for (const seed of Object.values(registry)) {
-    const msgs = errorMap.get(seed.slug)
+    const msgs = warningMap.get(seed.slug)
     if (!msgs) {
-      console.log(pc.green(`  ✓ ${seed.slug}`))
+      if (!allWarningSlugsSeen.has(seed.slug)) {
+        // only print ✓ if no fatal error for this slug either
+        const hasFatal = fatalErrors.some(e => e.slug === seed.slug)
+        if (!hasFatal) console.log(pc.green(`  ✓ ${seed.slug}`))
+      }
     } else {
-      totalIssues += msgs.length
-      console.log(pc.red(`  ✗ ${seed.slug}`))
+      console.log(pc.yellow(`  ⚠ ${seed.slug}`))
       for (const msg of msgs) {
-        console.log(pc.red(`      → ${msg}`))
+        console.log(pc.yellow(`      → ${msg}`))
       }
     }
   }
 
   console.log('')
 
-  if (totalIssues > 0) {
-    const s = totalIssues !== 1 ? 's' : ''
-    console.log(pc.red(`  Found ${totalIssues} issue${s}. Fix the seeds above before loading.\n`))
+  const totalFatal = fatalErrors.reduce((n, e) => n + e.messages.length, 0)
+  const totalWarnings = warnings.reduce((n, e) => n + e.messages.length, 0)
+
+  if (totalFatal > 0) {
+    const s = totalFatal !== 1 ? 's' : ''
+    console.log(pc.red(`  Found ${totalFatal} fatal error${s}. Fix before loading.\n`))
     process.exit(1)
+  } else if (totalWarnings > 0) {
+    const s = totalWarnings !== 1 ? 's' : ''
+    console.log(pc.yellow(`  Found ${totalWarnings} warning${s}. Review seeds above.\n`))
   } else {
     console.log(pc.green('  All seeds valid.\n'))
   }

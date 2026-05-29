@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import type { ColumnDef, AggregationFn, GroupingColumnDef } from "@tanstack/react-table"
 import type { Seed } from "@beechcms/core"
 import { MoreHorizontal } from "lucide-react"
@@ -266,7 +270,8 @@ export function generateColumns(
   selectedIds: string[] = [],
   onBulkDelete?: (ids: string[]) => void,
   datePrecision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION,
-  t: (key: string, options?: any) => string = (k) => k
+  t: (key: string, options?: any) => string = (k) => k,
+  onBulkEdit?: (ids: string[]) => void,
 ): ColumnDef<ContentEntry>[] {
   const fixedColumns: ColumnDef<ContentEntry>[] = [
     // Colonna Select (checkbox)
@@ -447,12 +452,18 @@ export function generateColumns(
             <DropdownMenuContent align="end" className="w-40">
               <DropdownMenuLabel>{t("content.actions.label")}</DropdownMenuLabel>
               {hasBulkSelection ? (
-                <DropdownMenuItem
-                  onClick={() => onBulkDelete?.(selectedIds)}
-                  className="text-destructive focus:text-destructive"
-                >
-                  {t("common.delete")}
-                </DropdownMenuItem>
+                <>
+                  <DropdownMenuItem onClick={() => onBulkEdit?.(selectedIds)}>
+                    {t("bulkEdit.trigger")}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onBulkDelete?.(selectedIds)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    {t("common.delete")}
+                  </DropdownMenuItem>
+                </>
               ) : (
                 <>
                   <DropdownMenuItem

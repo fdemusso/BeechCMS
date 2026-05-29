@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 /// <reference types="@cloudflare/workers-types" />
 import type { IHashProvider } from '@beechcms/core'
 
@@ -53,7 +57,7 @@ export function validateLoginInput(email: string, password: string): boolean {
   return (
     email.length <= MAX_EMAIL_LENGTH &&
     EMAIL_REGEX.test(email) &&
-    password.length >= MIN_PASSWORD_LENGTH &&
+    password.trim().length >= MIN_PASSWORD_LENGTH &&
     password.length <= MAX_PASSWORD_LENGTH
   )
 }

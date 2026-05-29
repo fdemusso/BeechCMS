@@ -1,6 +1,10 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { User, Palette, Shield, HardDrive, Bell } from 'lucide-react'
+import { User, Palette, Shield, HardDrive, Bell, Settings } from 'lucide-react'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { ProfileTab } from '../components/profile-tab'
@@ -8,6 +12,7 @@ import { InterfaceTab } from '../components/interface-tab'
 import { SecurityTab } from '../components/security-tab'
 import { StorageTab } from '../components/storage-tab'
 import { NotificationsTab } from '../components/notifications-tab'
+import { GeneralTab } from '../components/general-tab'
 import type { SettingsTab } from '../types/settings.types'
 
 function TabContent({ tab }: { tab: SettingsTab }) {
@@ -17,6 +22,7 @@ function TabContent({ tab }: { tab: SettingsTab }) {
     case 'security': return <SecurityTab />
     case 'storage': return <StorageTab />
     case 'notifications': return <NotificationsTab />
+    case 'general': return <GeneralTab />
   }
 }
 
@@ -27,6 +33,7 @@ export default function SettingsPage() {
 
   const TABS: { id: SettingsTab; label: string; icon: typeof User }[] = [
     { id: 'profile', label: t('settings.tabs.profile'), icon: User },
+    { id: 'general', label: t('settings.tabs.general'), icon: Settings },
     { id: 'interface', label: t('settings.tabs.interface'), icon: Palette },
     { id: 'security', label: t('settings.tabs.security'), icon: Shield },
     { id: 'storage', label: t('settings.tabs.storage'), icon: HardDrive },
@@ -37,7 +44,7 @@ export default function SettingsPage() {
   const Icon = currentTab.icon
 
   return (
-    <div className="[--header-height:calc(--spacing(14))] min-h-screen bg-neutral-50/50 dark:bg-neutral-950/50">
+    <div className="[--header-height:calc(--spacing(14))] min-h-screen bg-background/50 dark:bg-background/50">
       <SidebarProvider className="flex flex-col">
         <SiteHeader />
         <div className="flex flex-1">

@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
@@ -95,7 +99,7 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
   const refetch = variant === "grid" ? mediaQuery.refetch : unusedQuery.refetch
 
   return (
-    <div className="h-full w-full flex flex-col rounded-xl border border-neutral-200/60 bg-background/50 backdrop-blur-sm shadow-sm dark:border-neutral-800/60 dark:bg-neutral-900/40 overflow-hidden">
+    <div className="h-full w-full flex flex-col rounded-xl border border-neutral-200/60 bg-background/50 backdrop-blur-sm shadow-sm dark:border-neutral-800/60 dark:bg-card/40 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 shrink-0">
         <span className="text-sm font-semibold text-foreground flex items-center gap-2">
           <Images className="size-4 text-muted-foreground" />

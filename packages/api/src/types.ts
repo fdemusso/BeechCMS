@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 /// <reference types="@cloudflare/workers-types" />
 import type { Seed, ISeedRegistry } from '@beechcms/core'
 

@@ -1,0 +1,89 @@
+services:
+  minio:
+    image: minio/minio:latest
+    container_name: beech-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: beechdev
+      MINIO_ROOT_PASSWORD: beechdevsecret
+    command: server /data --console-address ":9001"
+    volumes:
+      - beech-minio-data:/data
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on: [minio]
+    entrypoint: >
+      /bin/sh -c "
+      until /usr/bin/mc alias set local http://minio:9000 beechdev beechdevsecret; do sleep 1; done;
+      /usr/bin/mc mb -p local/beech-media || true;
+      /usr/bin/mc anonymous set download local/beech-media || true;
+      /usr/bin/mc mb -p local/beech-media-test || true;
+      /usr/bin/mc anonymous set download local/beech-media-test || true;
+      "
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: beech-mailpit
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "127.0.0.1:8025:8025"
+    environment:
+      MP_MAX_MESSAGES: 500
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8025/livez"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  sqlite-web:
+    image: coleifer/sqlite-web:latest
+    container_name: beech-sqlite-web
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./apps/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject:/data
+    working_dir: /data
+    entrypoint: ["sh", "-c"]
+    command:
+      - >
+        DB_FILE=$$(ls /data/*.sqlite 2>/dev/null | grep -v metadata | head -n 1);
+        if [ -z "$$DB_FILE" ]; then
+          echo "[sqlite-web] No D1 database found. Run 'npm run db:migrate:local' first." >&2;
+          sleep infinity;
+        fi;
+        echo "[sqlite-web] Serving $$DB_FILE";
+        sqlite_web -H 0.0.0.0 -p 8080 --read-only "$$DB_FILE"
+    depends_on:
+      minio:
+        condition: service_started
+
+  webhook-tester:
+    image: tarampampam/webhook-tester:latest
+    container_name: beech-webhook-tester
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8084:8080"
+    command: ["serve", "--port", "8080"]
+    healthcheck:
+      test: ["CMD", "/bin/app", "start", "healthcheck"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: beech-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --url http://host.docker.internal:8787
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  beech-minio-data:

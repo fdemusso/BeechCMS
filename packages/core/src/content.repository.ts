@@ -1,4 +1,24 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
 import { Seed, SelectOptions } from './types.js'
+
+/**
+ * One row of the cross-seed pending-drafts overview. Aggregates the minimum a
+ * reviewer needs to triage a draft without opening it: which seed it belongs to,
+ * a human title, when it was last touched, and who touched it.
+ */
+export interface DraftSummary {
+  id: string
+  seedSlug: string
+  seedLabel: string
+  title: string
+  updatedAt: number
+  lastModifiedBy: {
+    name: string | null
+    email: string
+  }
+}
 
 /**
  * Base Repository Error
@@ -29,6 +49,32 @@ export class SlugConflictError extends RepositoryError {
     this.name = 'SlugConflictError'
   }
 }
+
+/**
+ * Thrown by publishDraft when a non-null relation value points to a missing
+ * target row. Mapped to 422 Unprocessable Entity by the API problem-mapper.
+ */
+export class RelationTargetNotFoundError extends RepositoryError {
+  readonly alias: string
+  readonly targetSeed: string
+  readonly value: string
+
+  constructor(params: { alias: string; targetSeed: string; value: string }) {
+    super(
+      `Relation target not found: field '${params.alias}' references '${params.targetSeed}' id='${params.value}' which does not exist`,
+    )
+    this.name = 'RelationTargetNotFoundError'
+    this.alias = params.alias
+    this.targetSeed = params.targetSeed
+    this.value = params.value
+  }
+}
+
+export type BulkFieldUpdate =
+  | { kind: 'set'; value: unknown }
+  | { kind: 'array_replace'; value: string[] }
+  | { kind: 'array_add'; value: string[] }
+  | { kind: 'array_remove'; value: string[] }
 
 /**
  * Interface defining the standard operations for content persistence.
@@ -110,4 +156,23 @@ export interface ContentRepository {
    * Checks if an entry has a pending draft.
    */
   hasDraft(seed: Seed, entryId: string): Promise<boolean>
+
+  /**
+   * Aggregates pending drafts across every draft-enabled seed in a single round-trip.
+   * Exists so the unified /drafts view never issues one query per seed.
+   * @param seeds The draft-enabled seeds to scan (caller passes seedRegistry.draftEnabled()).
+   * @returns Drafts newest-first; empty array when no seeds or no drafts.
+   */
+  findPendingDrafts(seeds: Seed[]): Promise<DraftSummary[]>
+
+  /**
+   * Apply the same field update to many entries. Returns per-id outcome.
+   * Caller is responsible for validation; this method assumes the payload is
+   * already shape-checked against the seed.
+   */
+  bulkUpdate(
+    seedSlug: string,
+    ids: string[],
+    fields: Record<string, BulkFieldUpdate>,
+  ): Promise<{ updated: number; failed: Array<{ id: string; reason: string }> }>
 }

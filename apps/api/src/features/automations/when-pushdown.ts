@@ -1,3 +1,7 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import type { WhenNode, WhenPredicate, TriggerCondition, FilterGroup, Seed } from '@beechcms/core'
 import { conditionToFilterGroup } from './filter-translation'
 

@@ -120,3 +120,94 @@ Here is a comprehensive webhook payload example demonstrating the rich template 
   }
 }
 ```
+
+---
+
+## Webhook Security
+
+### URL restrictions
+
+Beech enforces two rules on every webhook URL at schema validation time:
+
+- **HTTPS only** — `http://` URLs are rejected.
+- **No private hosts** — loopback (`127.x.x.x`, `localhost`, `::1`), RFC-1918 (`10.x`, `172.16–31.x`, `192.168.x`), link-local (`169.254.x.x`), and ULA/IPv6 local ranges are blocked to prevent SSRF attacks against cloud metadata APIs and internal services.
+
+> **Known limitation**: DNS-based SSRF (a public hostname that resolves to a private IP) is not blocked at the schema level. Cloudflare Workers do not expose pre-fetch DNS resolution; this limitation is documented and mitigated by network-level egress controls in production.
+
+### Webhook signature verification
+
+Every outgoing webhook request includes the header `X-BeechCMS-Signature: sha256=<hex>` when `WEBHOOK_SECRET` is configured in the worker. The value is an HMAC-SHA256 digest of the raw request body computed with that secret.
+
+**Set the secret in production:**
+
+```bash
+npx wrangler secret put WEBHOOK_SECRET
+```
+
+If `WEBHOOK_SECRET` is not set the header is omitted and a warning is logged once per worker instance (`[webhook] WEBHOOK_SECRET not set — outgoing webhooks are unsigned`).
+
+### Verifying the signature — generic Node.js / Cloudflare Workers
+
+```ts
+import { createHmac } from 'node:crypto' // Node.js
+// Workers: use crypto.subtle (see snippet below)
+
+function verifySignature(body: string, signature: string, secret: string): boolean {
+  const expected = 'sha256=' + createHmac('sha256', secret).update(body).digest('hex')
+  return expected === signature
+}
+
+// In your handler:
+const rawBody = await request.text()
+const sig = request.headers.get('X-BeechCMS-Signature') ?? ''
+if (!verifySignature(rawBody, sig, process.env.WEBHOOK_SECRET!)) {
+  return new Response('Forbidden', { status: 403 })
+}
+```
+
+**Cloudflare Workers / n8n Code node (SubtleCrypto):**
+
+```ts
+async function verifySignature(body: string, signature: string, secret: string): Promise<boolean> {
+  const encoder = new TextEncoder()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['verify'],
+  )
+  const sigBytes = hexToBytes(signature.replace('sha256=', ''))
+  return crypto.subtle.verify('HMAC', key, sigBytes, encoder.encode(body))
+}
+
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2)
+  for (let i = 0; i < hex.length; i += 2) bytes[i / 2] = Number.parseInt(hex.slice(i, i + 2), 16)
+  return bytes
+}
+```
+
+### Verifying the signature — n8n Code node
+
+In an n8n **Code** node placed after the webhook trigger:
+
+```js
+const body = JSON.stringify($input.first().json) // raw body as received
+const signature = $input.first().headers['x-beechcms-signature'] ?? ''
+const secret = 'your-webhook-secret' // use an n8n credential instead
+
+const encoder = new TextEncoder()
+const key = await crypto.subtle.importKey(
+  'raw', encoder.encode(secret),
+  { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'],
+)
+const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(body))
+const computed = 'sha256=' + Array.from(new Uint8Array(sig))
+  .map(b => b.toString(16).padStart(2, '0')).join('')
+
+if (computed !== signature) throw new Error('Invalid webhook signature')
+return $input.all()
+```
+
+> **Note**: n8n receives the body as a parsed JSON object. Re-serialise with `JSON.stringify` using the same field order Beech sent. For deterministic verification, use the raw body bytes from the webhook trigger node (`$input.first().binary` / `$input.first().rawBody`) if your n8n version exposes them.
