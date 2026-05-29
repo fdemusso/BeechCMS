@@ -11,16 +11,6 @@
 -- =============================================================================
 
 
--- =============================================================================
--- AUTORI (seed: autori)
--- Colonne: name, bio
--- =============================================================================
-INSERT OR IGNORE INTO content_autori (id, slug, status, name, bio, created_at, updated_at) VALUES
-('tm-0001', 'flavio-de-musso', 'published', 'Flavio De Musso', 'Founder e creatore di Beech CMS.', unixepoch(), unixepoch()),
-('tm-0002', 'laura-rossi', 'published', 'Laura Rossi', 'UX designer focalizzata su strumenti per content team.', unixepoch(), unixepoch()),
-('tm-0003', 'marco-bianchi', 'published', 'Marco Bianchi', 'Sviluppatore frontend specializzato in React e UX.', unixepoch(), unixepoch()),
-('tm-0004', 'giulia-verdi', 'published', 'Giulia Verdi', 'Developer advocate per la community Beech.', unixepoch(), unixepoch()),
-('f1b9b2b2-6548-4f18-8f8d-dbfdfbfdfbfd', 'marie-curie', 'published', 'Marie Curie', 'Pioniera nello studio della radioattività.', unixepoch(), unixepoch());
 
 
 -- =============================================================================
@@ -124,9 +114,9 @@ INSERT OR IGNORE INTO content_prodotti (id, slug, status, name, price, stock, ac
 
 -- =============================================================================
 -- ARTICOLI (seed: articoli)
--- Colonne: title, publishedAt, coverImage, tags, body, metaTitle, metaDescription, author_id
+-- Colonne: title, publishedAt, coverImage, tags, body, metaTitle, metaDescription
 -- =============================================================================
-INSERT OR IGNORE INTO content_articoli (id, slug, status, title, publishedAt, coverImage, tags, body, metaTitle, metaDescription, author_id, created_at, updated_at) VALUES
+INSERT OR IGNORE INTO content_articoli (id, slug, status, title, publishedAt, coverImage, tags, body, metaTitle, metaDescription, created_at, updated_at) VALUES
 
 ('art-0001', 'benvenuto-nel-blog', 'published',
  'Benvenuto nel blog Beech',
@@ -136,7 +126,6 @@ INSERT OR IGNORE INTO content_articoli (id, slug, status, title, publishedAt, co
  '<p>Scopri come Beech CMS gestisce contenuti schema-driven con tabelle SQL dedicate per ogni tipo di contenuto.</p><h3>Architettura moderna</h3><p>Beech v0.4.0 elimina il JSON blob e usa colonne reali per ogni Branch del Seed. Il risultato è performance migliorate e query native SQLite.</p>',
  'Benvenuto nel blog Beech',
  'Introduzione al CMS headless schema-driven.',
- 'tm-0001',
  unixepoch(), unixepoch()),
 
 ('art-0002', 'roadmap-2026', 'published',
@@ -147,7 +136,6 @@ INSERT OR IGNORE INTO content_articoli (id, slug, status, title, publishedAt, co
  '<p>Tutte le novità in arrivo per Beech CMS nel 2026: Doctype Architecture, CLI seed:load, FTS5 per-seed, e molto altro.</p><h3>Fase 1 — Core</h3><p>Il Botanical Engine diventa un compilatore di schema che genera DDL SQL dalla definizione TypeScript dei Seed.</p>',
  'Roadmap Beech CMS 2026',
  'Piano di sviluppo delle funzionalità per il 2026.',
- 'tm-0001',
  unixepoch(), unixepoch()),
 
 ('art-0003', 'migrare-da-wordpress', 'published',
@@ -158,7 +146,6 @@ INSERT OR IGNORE INTO content_articoli (id, slug, status, title, publishedAt, co
  '<p>Guida pratica per migrare contenuti da WordPress a Beech CMS senza downtime. Esporta, trasforma e importa usando la Public API.</p><h3>Step 1: Esporta da WordPress</h3><p>Usa il plugin WP All Export per ottenere CSV o JSON dai post. Poi mappali alle colonne del tuo Seed.</p>',
  'Migrazione da WordPress a Beech',
  'Strategie per migrare contenuti in sicurezza.',
- 'tm-0002',
  unixepoch(), unixepoch()),
 
 ('art-0004', 'pattern-registry-ui', 'published',
@@ -169,7 +156,6 @@ INSERT OR IGNORE INTO content_articoli (id, slug, status, title, publishedAt, co
  '<p>Come il registry dei field renderer semplifica la dashboard: ogni Branch type ha un renderer React dedicato, registrato centralmente e richiamato automaticamente.</p>',
  'Pattern Registry UI Beech',
  'Architettura dei componenti field-driven.',
- 'tm-0003',
  unixepoch(), unixepoch()),
 
 ('art-0005', 'edge-first-architecture', 'published',
@@ -180,18 +166,6 @@ INSERT OR IGNORE INTO content_articoli (id, slug, status, title, publishedAt, co
  '<p>Perché Beech nasce per l''edge: latenza minima, zero cold start, D1 SQLite replicato globalmente su Cloudflare. Il CMS arriva dove si trovano gli utenti.</p>',
  'Architettura edge-first',
  'Vantaggi di un CMS progettato per l''edge.',
- 'tm-0004',
- unixepoch(), unixepoch()),
-
-('a2b2b2b2-6548-4f18-8f8d-dbfdfbfdfbfd', 'scoperta-della-radioattivita', 'published',
- 'La scoperta della radioattività',
- 1741132800,
- 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&q=80',
- '["scienza","storia"]',
- '<p>La radioattività è il processo attraverso il quale un nucleo atomico instabile emette radiazioni...</p>',
- 'La scoperta della radioattività',
- 'Marie Curie e la radioattività.',
- 'f1b9b2b2-6548-4f18-8f8d-dbfdfbfdfbfd',
  unixepoch(), unixepoch());
 
 

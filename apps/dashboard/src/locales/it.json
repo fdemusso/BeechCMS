@@ -308,7 +308,9 @@
     "list": {
       "table": "Tabella",
       "gallery": "Galleria",
-      "deletionPartial": "Eliminazione parziale: {{failures}} su {{total}} fallite"
+      "deletionPartial": "Eliminazione parziale: {{failures}} su {{total}} fallite",
+      "emptyTitle": "Qui non c'è nulla",
+      "emptyCreateFirst": "Crea il tuo primo {{label}}"
     },
     "editor": {
       "newEntry": "Nuovo {{label}}",

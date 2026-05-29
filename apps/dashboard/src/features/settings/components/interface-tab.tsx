@@ -16,7 +16,7 @@ const ROWS_KEY = 'beech_rows_per_page'
 
 export function InterfaceTab() {
   const { theme, setTheme } = useTheme()
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const [rows, setRows] = React.useState(() => localStorage.getItem(ROWS_KEY) ?? '20')
   const [mounted, setMounted] = React.useState(false)
 
@@ -43,8 +43,43 @@ export function InterfaceTab() {
     toast.success(t('settings.interface.rowsSaved'))
   }
 
+  const handleLangChange = (lang: string) => {
+    i18n.changeLanguage(lang)
+    toast.success(lang === 'it' ? t('settings.interface.langChangedIt') : t('settings.interface.langChangedEn'))
+  }
+
+  const LANG_OPTIONS = [
+    { value: 'it', label: 'Italiano' },
+    { value: 'en', label: 'English' },
+  ]
+
   return (
     <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t('settings.interface.langTitle')}</CardTitle>
+          <CardDescription>{t('settings.interface.langDesc')}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3 w-full sm:w-64">
+            {LANG_OPTIONS.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => handleLangChange(value)}
+                className={`flex items-center justify-center rounded-lg border-2 p-3 transition-colors cursor-pointer text-sm font-medium ${
+                  i18n.language === value
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:border-primary/50'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>{t('settings.interface.themeTitle')}</CardTitle>

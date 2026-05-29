@@ -35,6 +35,14 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu"
 import { toast } from "sonner"
+import { Button } from "@/components/ui/button"
+import {
+  Empty,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  EmptyContent,
+} from "@/components/ui/empty"
 import {
   useContentList,
   useContentFacets,
@@ -564,6 +572,9 @@ export function ContentListPage() {
     return next
   }, [toolbarFilters])
 
+  const hasActiveFilters = columnFilters.length > 0 || debouncedSearch.trim().length > 0
+  const isEmptySeed = !isLoading && !hasActiveFilters && totalRows === 0
+
   const handleTableSortingChange = React.useCallback(
     (next: SortingState) => {
       if (!next.length) {
@@ -793,6 +804,29 @@ export function ContentListPage() {
                       sorting={sorting}
                       onSortingChange={handleTableSortingChange}
                       columnFilters={columnFilters}
+                      emptyState={
+                        isEmptySeed ? (
+                          <Empty className="border-none py-12 gap-3">
+                            <EmptyMedia>
+                              <img
+                                src={`${import.meta.env.BASE_URL}working.svg`}
+                                alt=""
+                                className="w-64 h-auto opacity-80"
+                              />
+                            </EmptyMedia>
+                            <EmptyHeader>
+                              <EmptyTitle className="text-3xl font-semibold">
+                                {t("content.list.emptyTitle")}
+                              </EmptyTitle>
+                            </EmptyHeader>
+                            <EmptyContent>
+                              <Button size="lg" className="mt-1" onClick={handleCreate}>
+                                {t("content.list.emptyCreateFirst", { label: seed.label })}
+                              </Button>
+                            </EmptyContent>
+                          </Empty>
+                        ) : undefined
+                      }
                     />
                   )}
                   {!error && activeViewId === "gallery" && (

@@ -308,7 +308,9 @@
     "list": {
       "table": "Table",
       "gallery": "Gallery",
-      "deletionPartial": "Partial deletion: {{failures}} of {{total}} failed"
+      "deletionPartial": "Partial deletion: {{failures}} of {{total}} failed",
+      "emptyTitle": "There isn't anything here",
+      "emptyCreateFirst": "Create your first {{label}}"
     },
     "editor": {
       "newEntry": "New {{label}}",

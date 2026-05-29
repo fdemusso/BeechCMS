@@ -48,6 +48,7 @@ export function getStaticMenu(t: (key: string) => string): NavItem[] {
       icon: Settings,
       items: [
         { title: t("settings.tabs.profile"), url: "/settings?tab=profile" },
+        { title: t("settings.tabs.general"), url: "/settings?tab=general" },
         { title: t("settings.tabs.interface"), url: "/settings?tab=interface" },
         { title: t("settings.tabs.security"), url: "/settings?tab=security" },
         { title: t("settings.tabs.storage"), url: "/settings?tab=storage" },

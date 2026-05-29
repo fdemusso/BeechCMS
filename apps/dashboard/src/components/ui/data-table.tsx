@@ -139,6 +139,8 @@ interface DataTableProps<TData, TValue> {
   manualSorting?: boolean
   /** Modalità filtro server-side. */
   manualFiltering?: boolean
+  /** Contenuto custom quando la tabella non ha righe (sostituisce "Nessun risultato."). */
+  emptyState?: React.ReactNode
   /**
    * Stato di raggruppamento controllato dall'esterno.
    * Quando non vuoto, la tabella passa in modalità virtual scroll
@@ -182,6 +184,7 @@ export function DataTable<TData, TValue>(
     manualPagination = false,
     manualSorting = false,
     manualFiltering = false,
+    emptyState,
     grouping: groupingProp,
     onGroupingChange,
     onRowDoubleClick,
@@ -584,9 +587,9 @@ export function DataTable<TData, TValue>(
                   <TableRow>
                     <TableCell
                       colSpan={columns.length}
-                      className="h-24 text-center"
+                      className={emptyState ? "text-center" : "h-24 text-center"}
                     >
-                      Nessun risultato.
+                      {emptyState ?? "Nessun risultato."}
                     </TableCell>
                   </TableRow>
                 )}
@@ -656,9 +659,9 @@ export function DataTable<TData, TValue>(
                   <TableRow>
                     <TableCell
                       colSpan={columns.length}
-                      className="h-24 text-center"
+                      className={emptyState ? "text-center" : "h-24 text-center"}
                     >
-                      Nessun risultato.
+                      {emptyState ?? "Nessun risultato."}
                     </TableCell>
                   </TableRow>
                 )}
