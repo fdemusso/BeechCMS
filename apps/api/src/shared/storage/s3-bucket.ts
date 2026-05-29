@@ -156,11 +156,14 @@ export class S3Bucket implements BeechBucket {
   }
 
   async presignPut(key: string, options: PresignOptions): Promise<string> {
+    // ContentLength intentionally excluded: including it adds content-length to
+    // X-Amz-SignedHeaders, requiring the uploading client to send an exact
+    // Content-Length header. Some fetch implementations omit it, causing MinIO/R2
+    // to reject the PUT with 400. Size validation already happened server-side.
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
       ContentType: options.contentType,
-      ContentLength: options.contentLength,
     })
     return getSignedUrl(this.client, command, { expiresIn: options.expiresIn })
   }

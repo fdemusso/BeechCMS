@@ -38,14 +38,18 @@ export async function deleteR2Objects(
 ): Promise<void> {
   const { bucket, mediaRepository, systemStatsRepository } = c.var
   for (const key of objectKeys) {
+    const media = await mediaRepository.getByKey(key).catch(() => null)
+    const size = media?.size_bytes ?? 0
     try {
-      const media = await mediaRepository.getByKey(key)
-      const size = media?.size_bytes ?? 0
       await bucket.delete(key)
+    } catch (err) {
+      console.warn(`Failed to delete storage object: ${key}`, err)
+    }
+    try {
       await mediaRepository.untrack(key)
       if (size > 0) await systemStatsRepository.decrementStorage(size)
     } catch (err) {
-      console.warn(`Failed to delete media object: ${key}`, err)
+      console.warn(`Failed to untrack media object: ${key}`, err)
     }
   }
 }
