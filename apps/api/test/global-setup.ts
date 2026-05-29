@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { S3Client, ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, CreateBucketCommand, ListObjectsV2Command, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { assertDockerStackReady } from './docker-precheck'
 
 const TEST_BUCKET = process.env.R2_BUCKET_NAME ?? 'beech-media-test'
@@ -17,6 +17,10 @@ const s3 = new S3Client({
   forcePathStyle: true,
 })
 
+async function ensureBucket(): Promise<void> {
+  await s3.send(new CreateBucketCommand({ Bucket: TEST_BUCKET })).catch(() => {})
+}
+
 async function emptyBucket(): Promise<void> {
   const list = await s3.send(new ListObjectsV2Command({ Bucket: TEST_BUCKET })).catch(() => null)
   for (const obj of list?.Contents ?? []) {
@@ -26,6 +30,7 @@ async function emptyBucket(): Promise<void> {
 
 export async function setup() {
   await assertDockerStackReady()
+  await ensureBucket()
   await emptyBucket()
 
   return async () => {

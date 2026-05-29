@@ -18,7 +18,7 @@ const {
   let state: any = null
   const listeners = new Set<() => void>()
   return {
-    mockNavigate: vi.fn((to, options) => {
+    mockNavigate: vi.fn((options) => { //removed mockNavigate: vi.fn((to, options) => {
       if (options?.state) {
         state = options.state
         listeners.forEach((l) => l())
