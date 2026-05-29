@@ -3,10 +3,14 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { EntryNotFoundError } from '@beechcms/core'
 import { deleteR2Objects } from '../../../upload'
 import { extractMediaKeysFromData } from '../../../media-utils'
-import { publicProblem, fkProblemOrNull } from '../../../public/problem-details'
+import { publicProblem } from '../../../public/problem-details'
+import {
+  logContentActivity,
+  dispatchContentAutomation,
+  handleContentDatabaseError
+} from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 
@@ -37,29 +41,10 @@ export async function deleteHandler(context: Context<AppEnv>) {
     // Repository.delete returns the row data for cleanup
     const { row } = await repository.delete(seed, entryId)
 
-    const jwtPayload = context.get('jwtPayload')
     const title = row.title || row.name || entryId
 
-    context.get('activityLogger').log({
-      action: 'delete',
-      entityType: 'content',
-      entityId: entryId,
-      entitySlug: schemaSlug,
-      details: { title },
-      actor: {
-        id: jwtPayload.sub,
-        email: jwtPayload.email ?? 'unknown',
-        name: [jwtPayload.name, jwtPayload.surname].filter(Boolean).join(' ') || null,
-      },
-    })
-
-    context.get('scheduler').waitUntil(
-      context.get('automationRunner').run({
-        seedSlug: schemaSlug,
-        event: 'delete',
-        entry: { ...row, id: entryId },
-      }),
-    )
+    logContentActivity(context, 'delete', entryId, schemaSlug, String(title))
+    dispatchContentAutomation(context, schemaSlug, 'delete', { ...row, id: entryId })
 
     const r2ObjectKeys = extractMediaKeysFromData(seed, row)
     if (r2ObjectKeys.length > 0) {
@@ -72,22 +57,6 @@ export async function deleteHandler(context: Context<AppEnv>) {
 
     return context.json({ success: true })
   } catch (error) {
-    if (error instanceof EntryNotFoundError) {
-      return publicProblem(context, {
-        type: 'content-not-found',
-        title: 'Not Found',
-        status: 404,
-        detail: CONTENT_ERRORS.NOT_FOUND,
-      })
-    }
-    const fkResponse = fkProblemOrNull(context, error, context.req.method)
-    if (fkResponse) return fkResponse
-    console.error('Content delete error:', error)
-    return publicProblem(context, {
-      type: 'content-database-error',
-      title: 'Internal Server Error',
-      status: 500,
-      detail: CONTENT_ERRORS.DATABASE_ERROR,
-    })
+    return handleContentDatabaseError(context, error)
   }
 }

@@ -23,55 +23,15 @@ import { cn } from '@/lib/utils'
 import { Check, ChevronsUpDown } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { TimezoneSelect, TIMEZONES } from '@/components/ui/timezone-select'
+import { CurrencySelect } from '@/components/ui/currency-select'
 
 interface SetupEnvironment {
   isDeveloper: boolean
   services: { mail: boolean; qstash: boolean }
 }
 
-const TIMEZONES = (() => {
-  try {
-    return Intl.supportedValuesOf('timeZone')
-  } catch {
-    return [
-      'Europe/Rome',
-      'Europe/London',
-      'Europe/Paris',
-      'Europe/Berlin',
-      'UTC',
-      'America/New_York',
-      'America/Chicago',
-      'America/Los_Angeles',
-      'Asia/Tokyo',
-      'Asia/Shanghai',
-      'Australia/Sydney',
-    ]
-  }
-})()
 
-function getTimezoneLabel(tz: string): string {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: tz,
-      timeZoneName: 'shortOffset',
-    }).formatToParts(new Date())
-    const tzPart = parts.find((part) => part.type === 'timeZoneName')
-    const offset = tzPart ? tzPart.value.replace('GMT', 'UTC') : ''
-    
-    const tzParts = tz.split('/')
-    const city = tzParts[tzParts.length - 1].replace('_', ' ')
-    const region = tzParts.slice(0, -1).join('/')
-    
-    if (region) {
-      return `${city} (${region}, ${offset})`
-    }
-    return offset ? `${city} (${offset})` : city
-  } catch {
-    return tz
-  }
-}
-
-const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'JPY', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK']
 
 function passwordStrength(pw: string): number {
   if (!pw) return 0
@@ -142,8 +102,6 @@ export function SetupPage() {
     return 'Europe/Rome'
   })
   const [currency, setCurrency] = useState('EUR')
-  const [openTimezone, setOpenTimezone] = useState(false)
-  const timezoneListRef = useRef<HTMLDivElement>(null)
 
   // Step 2
   const [name, setName] = useState('')
@@ -322,81 +280,12 @@ export function SetupPage() {
 
               <div className="space-y-2 flex flex-col">
                 <Label className="mb-1">{t('setup.timezoneLabel')}</Label>
-                <Popover open={openTimezone} onOpenChange={setOpenTimezone}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={openTimezone}
-                      className="w-full justify-between font-normal h-9 border-input bg-transparent text-sm"
-                    >
-                      <span className="truncate">
-                        {timezone ? getTimezoneLabel(timezone) : t('setup.timezonePlaceholder')}
-                      </span>
-                      <ChevronsUpDown className="opacity-50 size-4 shrink-0" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
-                    <Command>
-                      <CommandInput
-                        placeholder={t('setup.searchTimezonePlaceholder')}
-                        onValueChange={() => {
-                          if (timezoneListRef.current) {
-                            timezoneListRef.current.scrollTop = 0
-                          }
-                        }}
-                      />
-                      <CommandList ref={timezoneListRef}>
-                        <CommandEmpty>{t('setup.noTimezoneFound')}</CommandEmpty>
-                        <CommandGroup>
-                          {TIMEZONES.map((tz) => {
-                            const label = getTimezoneLabel(tz)
-                            const city = tz.split('/').pop()?.replace('_', ' ') || ''
-                            const searchValue = `${city} ${tz}`
-                            return (
-                              <CommandItem
-                                key={tz}
-                                value={searchValue}
-                                onSelect={(currentValue) => {
-                                  const matchedTz = TIMEZONES.find((t) => {
-                                    const c = t.split('/').pop()?.replace('_', ' ') || ''
-                                    return `${c} ${t}`.toLowerCase() === currentValue.toLowerCase()
-                                  }) || tz
-                                  setTimezone(matchedTz)
-                                  setOpenTimezone(false)
-                                }}
-                              >
-                                {label}
-                                <Check
-                                  className={cn(
-                                    "ml-auto size-4",
-                                    timezone === tz ? "opacity-100" : "opacity-0"
-                                  )}
-                                />
-                              </CommandItem>
-                            )
-                          })}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
+                <TimezoneSelect value={timezone} onValueChange={setTimezone} />
               </div>
 
               <div className="space-y-2">
                 <Label>{t('setup.currencyLabel')}</Label>
-                <Select value={currency} onValueChange={setCurrency}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={t('setup.currencyPlaceholder')} />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    {CURRENCIES.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <CurrencySelect value={currency} onValueChange={setCurrency} />
               </div>
 
               <Button className="w-full" onClick={goNext}>

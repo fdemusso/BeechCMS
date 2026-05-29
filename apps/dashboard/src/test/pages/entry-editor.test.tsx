@@ -173,7 +173,7 @@ vi.mock("@/components/ui/select", () => ({
 }))
 
 vi.mock("@/components/ui/alert-dialog", () => ({
-  AlertDialog: ({ children, open }: any) => open !== false ? <div>{children}</div> : null,
+  AlertDialog: ({ children, open }: any) => open === false ? null : <div>{children}</div>,
   AlertDialogContent: ({ children }: any) => <div role="alertdialog">{children}</div>,
   AlertDialogHeader: ({ children }: any) => <div>{children}</div>,
   AlertDialogTitle: ({ children }: any) => <div>{children}</div>,

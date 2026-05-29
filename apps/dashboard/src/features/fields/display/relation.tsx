@@ -16,9 +16,9 @@ const RELATION_STALE_MS = 5 * 60 * 1000
 // ── Single chip resolved from cache or fetch ─────────────────────────────────
 
 interface RelationChipProps {
-  targetSlug: string
-  targetId: string
-  labelAlias: string
+  readonly targetSlug: string
+  readonly targetId: string
+  readonly labelAlias: string
 }
 
 function RelationChip({ targetSlug, targetId, labelAlias }: RelationChipProps) {
@@ -31,7 +31,16 @@ function RelationChip({ targetSlug, targetId, labelAlias }: RelationChipProps) {
 
   if (isLoading) return <Badge variant="secondary" className="opacity-50">…</Badge>
 
-  const label = String((entry?.data as Record<string, unknown> | undefined)?.[labelAlias] ?? targetId)
+  const rawLabel = (entry?.data as Record<string, unknown> | undefined)?.[labelAlias]
+  
+  let label = targetId
+  if (typeof rawLabel === "string") {
+    label = rawLabel
+  } else if (typeof rawLabel === "number") {
+    label = rawLabel.toString()
+  } else if (rawLabel !== undefined && rawLabel !== null) {
+    label = JSON.stringify(rawLabel)
+  }
 
   return (
     <Badge variant="secondary" asChild className="hover:bg-secondary/80 cursor-pointer">
@@ -40,10 +49,50 @@ function RelationChip({ targetSlug, targetId, labelAlias }: RelationChipProps) {
   )
 }
 
+// ── Single value component ───────────────────────────────────────────────────
+
+interface SingleRelationProps {
+  readonly targetSlug: string
+  readonly id: string | null
+  readonly labelAlias: string
+}
+
+function SingleRelation({ targetSlug, id, labelAlias }: SingleRelationProps) {
+  const { t } = useTranslation()
+  const { data: entry, isLoading } = useQuery({
+    queryKey: CONTENT_QUERY_KEYS.detail(targetSlug, id ?? ""),
+    queryFn: () => contentApi.fetchById(targetSlug, id!),
+    enabled: Boolean(targetSlug && id),
+    staleTime: RELATION_STALE_MS,
+  })
+
+  if (!id) return <span className="text-muted-foreground">—</span>
+  if (isLoading) return <span className="text-muted-foreground">{t("common.loading")}</span>
+
+  const rawLabel = (entry?.data as Record<string, unknown> | undefined)?.[labelAlias]
+  
+  let label = id ?? ""
+  if (typeof rawLabel === "string") {
+    label = rawLabel
+  } else if (typeof rawLabel === "number") {
+    label = rawLabel.toString()
+  } else if (rawLabel !== undefined && rawLabel !== null) {
+    label = JSON.stringify(rawLabel)
+  }
+
+  return (
+    <Link
+      to={`/content/${targetSlug}/${id}`}
+      className="text-primary hover:underline truncate"
+    >
+      {label}
+    </Link>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
 export function RelationDisplay({ branch, value }: FieldDisplayProps) {
-  const { t } = useTranslation()
   const targetSlug = (branch as { targetSeed?: string; multiple?: boolean }).targetSeed
   const isMultiple = (branch as { multiple?: boolean }).multiple === true
 
@@ -73,24 +122,5 @@ export function RelationDisplay({ branch, value }: FieldDisplayProps) {
   // ── Single value ──────────────────────────────────────────────────────────
   const id = typeof value === "string" && value.length > 0 ? value : null
 
-  const { data: entry, isLoading } = useQuery({
-    queryKey: CONTENT_QUERY_KEYS.detail(targetSlug ?? "", id ?? ""),
-    queryFn: () => contentApi.fetchById(targetSlug!, id!),
-    enabled: Boolean(targetSlug && id),
-    staleTime: RELATION_STALE_MS,
-  })
-
-  if (!id) return <span className="text-muted-foreground">—</span>
-  if (isLoading) return <span className="text-muted-foreground">{t("common.loading")}</span>
-
-  const label = (entry?.data as Record<string, unknown> | undefined)?.[labelAlias] ?? id
-
-  return (
-    <Link
-      to={`/content/${targetSlug}/${id}`}
-      className="text-primary hover:underline truncate"
-    >
-      {String(label)}
-    </Link>
-  )
+  return <SingleRelation targetSlug={targetSlug ?? ""} id={id} labelAlias={labelAlias} />
 }
