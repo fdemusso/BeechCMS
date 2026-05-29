@@ -886,6 +886,8 @@
     "passwordPlaceholder": "Minimum 8 characters",
     "confirmLabel": "Confirm password",
     "confirmPlaceholder": "Repeat password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "strengthWeak": "Weak",
     "strengthFair": "Fair",
     "strengthStrong": "Strong",

@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
+import { Eye, EyeOff } from 'lucide-react'
 import { TimezoneSelect, TIMEZONES } from '@/components/ui/timezone-select'
 import { CurrencySelect } from '@/components/ui/currency-select'
 
@@ -191,11 +192,11 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 
         let base = ''
         if (active) {
-          base = 'bg-slate-950 text-white font-semibold ring-2 ring-slate-950 ring-offset-2'
+          base = 'bg-primary text-primary-foreground font-semibold ring-2 ring-primary ring-offset-2'
         } else if (done) {
-          base = 'bg-slate-800 text-white'
+          base = 'bg-primary/80 text-primary-foreground'
         } else {
-          base = 'bg-slate-200 text-slate-500'
+          base = 'bg-muted text-muted-foreground'
         }
 
         return (
@@ -206,7 +207,7 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
               {step}
             </div>
             {step < total && (
-              <div className={`h-px w-8 transition-all duration-300 ${done ? 'bg-slate-800' : 'bg-slate-200'}`} />
+              <div className={`h-px w-8 transition-all duration-300 ${done ? 'bg-primary/80' : 'bg-muted'}`} />
             )}
           </div>
         )
@@ -244,6 +245,8 @@ export function SetupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   // Step 3
   const [loadDemoData, setLoadDemoData] = useState(false)
@@ -474,14 +477,26 @@ export function SetupPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="password">{t('setup.passwordLabel')}</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder={t('setup.passwordPlaceholder')}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={t('setup.passwordPlaceholder')}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                    aria-label={showPassword ? t('setup.hidePassword') : t('setup.showPassword')}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
                 <div className={cn("space-y-1", !password && "invisible")}>
                   <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
                     <div
@@ -495,14 +510,26 @@ export function SetupPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="confirm">{t('setup.confirmLabel')}</Label>
-                <Input
-                  id="confirm"
-                  type="password"
-                  placeholder={t('setup.confirmPlaceholder')}
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  autoComplete="new-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="confirm"
+                    type={showConfirm ? 'text' : 'password'}
+                    placeholder={t('setup.confirmPlaceholder')}
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    autoComplete="new-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                    aria-label={showConfirm ? t('setup.hidePassword') : t('setup.showPassword')}
+                  >
+                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               {error && <p className="text-sm text-destructive">{error}</p>}
