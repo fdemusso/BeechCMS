@@ -59,8 +59,8 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
   }
 
   // 4. Pagination
-  const page = Math.max(1, parseInt(pageParam ?? '1', 10) || 1)
-  const rawLimit = parseInt(limitParam ?? String(DEFAULT_PAGE_LIMIT), 10) || DEFAULT_PAGE_LIMIT
+  const page = Math.max(1, Number.parseInt(pageParam ?? '1', 10) || 1)
+  const rawLimit = Number.parseInt(limitParam ?? String(DEFAULT_PAGE_LIMIT), 10) || DEFAULT_PAGE_LIMIT
   const limit = Math.min(Math.max(1, rawLimit), MAX_PAGE_LIMIT)
   const offset = (page - 1) * limit
 

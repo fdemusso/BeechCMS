@@ -32,7 +32,7 @@ function parseWindow(raw: string | undefined): TimeWindow {
 }
 
 function parseBoundedInt(raw: string | undefined, fallback: number, maximum: number, minimum = 1): number {
-  const parsed = parseInt(raw ?? String(fallback), 10)
+  const parsed = Number.parseInt(raw ?? String(fallback), 10)
   if (!Number.isFinite(parsed) || parsed < minimum) return fallback
   return Math.min(parsed, maximum)
 }
@@ -129,7 +129,7 @@ widgetApp.get('/list/:seed', async (context) => {
 
   const query = context.req.query()
   const limit = parseBoundedInt(query.limit, DEFAULT_LIST_LIMIT, MAXIMUM_LIST_LIMIT)
-  const offsetRaw = parseInt(query.offset ?? '0', 10)
+  const offsetRaw = Number.parseInt(query.offset ?? '0', 10)
   const offset = Number.isFinite(offsetRaw) && offsetRaw >= 0 ? offsetRaw : 0
   const search = query.search?.trim() || undefined
   const orderByColumn = query.orderBy || undefined

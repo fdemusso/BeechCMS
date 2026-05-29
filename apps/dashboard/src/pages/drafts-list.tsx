@@ -61,7 +61,7 @@ async function gravatarUrl(email: string): Promise<string> {
   return `https://www.gravatar.com/avatar/${hex}?d=mp&s=40`
 }
 
-function UserCell({ name, email }: { name: string | null; email: string }) {
+function UserCell({ name, email }: Readonly<{ name: string | null; email: string }>) {
   const [src, setSrc] = React.useState("")
   React.useEffect(() => {
     if (email) gravatarUrl(email).then(setSrc)
@@ -94,6 +94,103 @@ function getDraftFieldValue(draft: DraftSummary, columnId: string): unknown {
   }
 }
 
+function SeedLabelCell({ row }: Readonly<{ row: { original: DraftSummary } }>) {
+  return <Badge variant="outline">{row.original.seedLabel}</Badge>
+}
+
+function TitleCell({ row }: Readonly<{ row: { original: DraftSummary } }>) {
+  return (
+    <Link
+      to={`/content/${row.original.seedSlug}/${row.original.id}`}
+      state={{ isDraftContext: true }}
+      className="font-medium hover:underline text-foreground decoration-primary/30"
+    >
+      {row.original.title}
+    </Link>
+  )
+}
+
+function LastModifiedByCell({ row }: Readonly<{ row: { original: DraftSummary } }>) {
+  return (
+    <UserCell
+      name={row.original.lastModifiedBy.name}
+      email={row.original.lastModifiedBy.email}
+    />
+  )
+}
+
+function ActionsCell({ row }: Readonly<{ row: { original: DraftSummary } }>) {
+  const { t } = useTranslation()
+  const navigate = useNavigate()
+  const publishDraft = usePublishDraft()
+  const discardDraft = useDiscardDraft()
+  const [showDiscard, setShowDiscard] = React.useState(false)
+  const { seedSlug, id } = row.original
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+            <MoreHorizontal className="h-4 w-4" />
+            <span className="sr-only">{t("common.openMenu")}</span>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => navigate(`/content/${seedSlug}/${id}`, { state: { isDraftContext: true } })}>
+            {t("drafts.actions.edit")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={async () => {
+              try {
+                await publishDraft.mutateAsync({ slug: seedSlug, id })
+                toast.success(t("drafts.published"))
+              } catch {
+                toast.error(t("drafts.error"))
+              }
+            }}
+          >
+            {t("drafts.actions.publish")}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            className="text-destructive"
+            onClick={() => setShowDiscard(true)}
+          >
+            {t("drafts.actions.discard")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <AlertDialog open={showDiscard} onOpenChange={setShowDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("drafts.actions.discard")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("drafts.discardConfirm")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={async () => {
+                try {
+                  await discardDraft.mutateAsync({ slug: seedSlug, id })
+                  toast.success(t("drafts.discarded"))
+                } catch {
+                  toast.error(t("drafts.error"))
+                } finally {
+                  setShowDiscard(false)
+                }
+              }}
+            >
+              {t("drafts.actions.discard")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
+}
+
 export function DraftsListPage() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
@@ -101,14 +198,11 @@ export function DraftsListPage() {
 
   const { data, isLoading, isError, refetch } = useGlobalDrafts()
   const { data: seeds } = useSchema()
-  const publishDraft = usePublishDraft()
-  const discardDraft = useDiscardDraft()
 
   const [tableSearch, setTableSearch] = React.useState("")
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [discardTarget, setDiscardTarget] = React.useState<{ slug: string; id: string } | null>(null)
   const [seedPickerOpen, setSeedPickerOpen] = React.useState(false)
 
   const draftSeeds = React.useMemo(
@@ -117,7 +211,7 @@ export function DraftsListPage() {
   )
 
   const seedLabelOptions = React.useMemo(
-    () => Array.from(new Set((data ?? []).map((d) => d.seedLabel))).sort(),
+    () => Array.from(new Set((data ?? []).map((d) => d.seedLabel))).sort((a, b) => a.localeCompare(b)),
     [data]
   )
 
@@ -202,7 +296,7 @@ export function DraftsListPage() {
         const cmp =
           typeof av === "number" && typeof bv === "number"
             ? av - bv
-            : String(av ?? "").localeCompare(String(bv ?? ""))
+            : String(av as string | undefined ?? "").localeCompare(String(bv as string | undefined ?? ""))
         return desc ? -cmp : cmp
       })
     }
@@ -214,22 +308,12 @@ export function DraftsListPage() {
     {
       id: "seedLabel",
       header: t("drafts.columns.seed"),
-      cell: ({ row }) => (
-        <Badge variant="outline">{row.original.seedLabel}</Badge>
-      ),
+      cell: SeedLabelCell,
     },
     {
       id: "title",
       header: t("drafts.columns.name"),
-      cell: ({ row }) => (
-        <Link
-          to={`/content/${row.original.seedSlug}/${row.original.id}`}
-          state={{ isDraftContext: true }}
-          className="font-medium hover:underline text-foreground decoration-primary/30"
-        >
-          {row.original.title}
-        </Link>
-      ),
+      cell: TitleCell,
     },
     {
       id: "updatedAt",
@@ -243,54 +327,14 @@ export function DraftsListPage() {
     {
       id: "lastModifiedBy",
       header: t("drafts.columns.user"),
-      cell: ({ row }) => (
-        <UserCell
-          name={row.original.lastModifiedBy.name}
-          email={row.original.lastModifiedBy.email}
-        />
-      ),
+      cell: LastModifiedByCell,
     },
     {
       id: "actions",
       header: "",
-      cell: ({ row }) => {
-        const { seedSlug, id } = row.original
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                <MoreHorizontal className="h-4 w-4" />
-                <span className="sr-only">{t("common.openMenu")}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => navigate(`/content/${seedSlug}/${id}`, { state: { isDraftContext: true } })}>
-                {t("drafts.actions.edit")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={async () => {
-                  try {
-                    await publishDraft.mutateAsync({ slug: seedSlug, id })
-                    toast.success(t("drafts.published"))
-                  } catch {
-                    toast.error(t("drafts.error"))
-                  }
-                }}
-              >
-                {t("drafts.actions.publish")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => setDiscardTarget({ slug: seedSlug, id })}
-              >
-                {t("drafts.actions.discard")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )
-      },
+      cell: ActionsCell,
     },
-  ], [t, dateFnsLocale, navigate, publishDraft])
+  ], [t, dateFnsLocale])
 
   const singleSort = sorting[0]
 
@@ -321,10 +365,10 @@ export function DraftsListPage() {
                     desc: singleSort?.desc ?? false,
                   }}
                   onSortChange={(state) => {
-                    if (!state.columnId) {
-                      setSorting([])
-                    } else {
+                    if (state.columnId) {
                       setSorting([{ id: state.columnId, desc: state.desc }])
+                    } else {
+                      setSorting([])
                     }
                   }}
                   filters={toolbarFilters}
@@ -391,33 +435,6 @@ export function DraftsListPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={!!discardTarget} onOpenChange={(open) => { if (!open) setDiscardTarget(null) }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("drafts.actions.discard")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("drafts.discardConfirm")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              onClick={async () => {
-                if (!discardTarget) return
-                try {
-                  await discardDraft.mutateAsync(discardTarget)
-                  toast.success(t("drafts.discarded"))
-                } catch {
-                  toast.error(t("drafts.error"))
-                } finally {
-                  setDiscardTarget(null)
-                }
-              }}
-            >
-              {t("drafts.actions.discard")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }
