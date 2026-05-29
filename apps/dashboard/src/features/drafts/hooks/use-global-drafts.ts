@@ -3,8 +3,9 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { fetchGlobalDrafts } from "../api/drafts.api"
+import { GLOBAL_DRAFTS_QUERY_KEY } from "@/features/shared"
 
-export const GLOBAL_DRAFTS_QUERY_KEY = ["global-drafts"] as const
+export { GLOBAL_DRAFTS_QUERY_KEY }
 
 export function useGlobalDrafts() {
   return useQuery({

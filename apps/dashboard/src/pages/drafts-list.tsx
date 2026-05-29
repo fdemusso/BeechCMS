@@ -108,7 +108,7 @@ export function DraftsListPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>({})
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({})
-  const [discardTarget, setDiscardTarget] = React.useState<{ seedSlug: string; id: string } | null>(null)
+  const [discardTarget, setDiscardTarget] = React.useState<{ slug: string; id: string } | null>(null)
   const [seedPickerOpen, setSeedPickerOpen] = React.useState(false)
 
   const draftSeeds = React.useMemo(
@@ -270,7 +270,7 @@ export function DraftsListPage() {
               <DropdownMenuItem
                 onClick={async () => {
                   try {
-                    await publishDraft.mutateAsync({ seedSlug, id })
+                    await publishDraft.mutateAsync({ slug: seedSlug, id })
                     toast.success(t("drafts.published"))
                   } catch {
                     toast.error(t("drafts.error"))
@@ -281,7 +281,7 @@ export function DraftsListPage() {
               </DropdownMenuItem>
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={() => setDiscardTarget({ seedSlug, id })}
+                onClick={() => setDiscardTarget({ slug: seedSlug, id })}
               >
                 {t("drafts.actions.discard")}
               </DropdownMenuItem>

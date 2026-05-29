@@ -31,6 +31,8 @@ export default defineConfig({
         'src/notifications/notification-service.ts',
         'src/observability/activity-logger.ts',
         'src/rate-limit/rate-limiter.ts',
+        'src/relations.ts',
+        'src/webhook-validation.ts',
       ],
       thresholds: {
         statements: 80,

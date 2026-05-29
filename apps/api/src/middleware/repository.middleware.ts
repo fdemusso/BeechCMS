@@ -19,6 +19,7 @@ import { D1AnalyticsRepository } from '../shared/d1-analytics.repository'
 import { D1ContentScanRepository } from '../shared/d1-content-scan.repository'
 import { D1SiteSettingsRepository } from '../shared/site-settings.repository.d1'
 import { D1DemoDataRepository } from '../shared/demo-data.repository.d1'
+import { D1SetupChecklistRepository } from '../shared/d1-setup-checklist.repository'
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
@@ -96,6 +97,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('scheduler', overrides?.scheduler ?? buildScheduler(context))
     context.set('siteSettingsRepository', overrides?.siteSettingsRepository ?? new D1SiteSettingsRepository(database))
     context.set('demoDataRepository', overrides?.demoDataRepository ?? new D1DemoDataRepository(database))
+    context.set('setupChecklistRepository', new D1SetupChecklistRepository(database))
     await next()
   })
 }

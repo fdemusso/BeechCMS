@@ -9,6 +9,8 @@ export default defineConfig({
     globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
     // Flow tests in test/ + unit tests colocated in src/
     include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
+    // Disable parallel execution of test files to prevent interference on the shared Mailpit/D1 services
+    fileParallelism: false,
     /** Show console/stderr only for failing tests */
     silent: 'passed-only',
     reporters: ['verbose'],
@@ -23,10 +25,14 @@ export default defineConfig({
         'src/types.ts',
         // Cloudflare Worker entry point — dynamic seed import, not unit-testable
         'src/index.ts',
+        // R2 storage upload route handler
+        'src/upload.ts',
         // FTS5 route handler — requires live D1 FTS5 tables
         'src/search.ts',
         // Empty compatibility shim — no runtime statements
         'src/shared/fts-sync.ts',
+        // Demo data SQL script definition
+        'src/shared/demo-data-sql.ts',
         // Test doubles and helpers used in test suites but not in production
         'src/shared/fixed-clock.ts',
         'src/shared/sequential-id-generator.ts',

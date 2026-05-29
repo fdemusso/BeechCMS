@@ -5,6 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
+import type { ISetupChecklistRepository } from './shared/d1-setup-checklist.repository'
 
 export interface Env {
   DB: D1Database
@@ -77,6 +78,7 @@ export interface Variables {
   backrefMap: BackrefMap
   siteSettingsRepository: ISiteSettingsRepository
   demoDataRepository: IDemoDataRepository
+  setupChecklistRepository: ISetupChecklistRepository
 }
 
 export type AppEnv = { Bindings: Env; Variables: Variables }

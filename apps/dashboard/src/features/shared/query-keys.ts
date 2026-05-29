@@ -11,6 +11,8 @@
  * data; this file only owns the key names so both producers and
  * consumers agree on them.
  */
+export const GLOBAL_DRAFTS_QUERY_KEY = ["global-drafts"] as const
+
 export const DASHBOARD_QUERY_KEYS = {
   all: ["dashboard"] as const,
   stats: () => [...DASHBOARD_QUERY_KEYS.all, "stats"] as const,

@@ -122,46 +122,32 @@ statsApp.get('/stats/unused-media', async (context) => {
  */
 statsApp.get('/stats/setup-checklist', async (context) => {
     try {
-        const { DB } = context.env
+        const setupChecklistRepository = context.get('setupChecklistRepository')
         const seeds = context.get('seedRegistry').all()
 
-        // 1. System tables present
+        const existingTables = await setupChecklistRepository.getExistingTableNames()
+
         const systemTableNames = [
             'users', 'refresh_tokens', 'media_objects',
             'analytics', 'system_stats', 'activity_logs',
         ]
-        const tablesResult = await DB.prepare(
-            `SELECT name FROM sqlite_master WHERE type='table'`
-        ).all<{ name: string }>()
-        const existingTables = new Set((tablesResult.results ?? []).map(row => row.name))
-        const systemTablesOk = systemTableNames.every(tableName => existingTables.has(tableName))
+        const systemTablesOk = systemTableNames.every(name => existingTables.has(name))
 
-        // 2. Seeds defined
         const seedsCount = seeds.length
-
-        // 3. Content tables created (seed:load was run)
         const contentTablesOk = seedsCount > 0 && seeds.every(seed => existingTables.has(`content_${seed.slug}`))
 
-        // 4. Admin account exists
         let adminExists = false
         try {
-            const adminCountResult = await DB.prepare(
-                `SELECT COUNT(*) as count FROM users WHERE role = 'admin'`
-            ).first<{ count: number }>()
-            adminExists = (adminCountResult?.count ?? 0) > 0
+            adminExists = (await setupChecklistRepository.countAdmins()) > 0
         } catch {
-            // table may not exist yet
+            // users table may not exist yet
         }
 
-        // 5. At least one content entry in the first seed's table
         let hasContent = false
         const firstSeedSlug = seeds[0]?.slug ?? null
         if (firstSeedSlug && existingTables.has(`content_${firstSeedSlug}`)) {
             try {
-                const contentCountResult = await DB.prepare(
-                    `SELECT COUNT(*) as count FROM content_${firstSeedSlug}`
-                ).first<{ count: number }>()
-                hasContent = (contentCountResult?.count ?? 0) > 0
+                hasContent = (await setupChecklistRepository.countEntriesInSeed(firstSeedSlug)) > 0
             } catch {
                 // ignore
             }

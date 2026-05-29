@@ -7,6 +7,7 @@ import { Hono } from 'hono'
 import { resolvePolicies } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
 import type { AppEnv } from '../../types'
+import { D1BackrefRepository, type BackrefItem } from './d1-backref.repository'
 
 const PREVIEW_LIMIT = 3
 const DEFAULT_PAGE_LIMIT = 20
@@ -25,9 +26,9 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
   const pageParam = c.req.query('page')
   const limitParam = c.req.query('limit')
 
-  const db = c.env.DB
   const getSeed = c.get('getSeed')
   const backrefMap = c.get('backrefMap')
+  const backrefRepository = new D1BackrefRepository(c.env.DB)
 
   // 1. Resolve target seed
   const targetSeed = getSeed(targetSlug)
@@ -40,13 +41,9 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
     })
   }
 
-  // 2. Verify targetId exists in content_<targetSlug>
-  const existsRow = await db
-    .prepare(`SELECT id FROM content_${targetSlug} WHERE id = ? LIMIT 1`)
-    .bind(targetId)
-    .first<{ id: string }>()
-
-  if (!existsRow) {
+  // 2. Verify targetId exists
+  const exists = await backrefRepository.entryExists(targetSlug, targetId)
+  if (!exists) {
     return publicProblem(c, {
       type: 'not-found',
       title: 'Not Found',
@@ -98,15 +95,7 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
       return c.json({ groups: [] })
     }
 
-    const { items, total } = await queryGroup({
-      db,
-      source,
-      sourceSeed,
-      targetId,
-      limit,
-      offset,
-    })
-
+    const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, limit, offset)
     const filteredItems = filterVisibility(items, sourceSeed)
 
     return c.json({
@@ -129,15 +118,7 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
       const sourceSeed = getSeed(source.sourceSlug)
       if (!sourceSeed) return null
 
-      const { items, total } = await queryGroup({
-        db,
-        source,
-        sourceSeed,
-        targetId,
-        limit: PREVIEW_LIMIT,
-        offset: 0,
-      })
-
+      const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, PREVIEW_LIMIT, 0)
       const filteredItems = filterVisibility(items, sourceSeed)
 
       return {
@@ -164,97 +145,10 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
 // Internal helpers
 // ---------------------------------------------------------------------------
 
-interface BackrefItem {
-  id: string
-  displayName: string | null
-  status: string
-  updated_at: number | null
-}
-
-interface QueryGroupResult {
-  items: BackrefItem[]
-  total: number
-}
-
-interface QueryGroupParams {
-  db: D1Database
-  source: import('@beechcms/core').BackrefSource
-  sourceSeed: import('@beechcms/core').Seed
-  targetId: string
-  limit: number
-  offset: number
-}
-
-async function queryGroup({
-  db,
-  source,
-  sourceSeed,
-  targetId,
-  limit,
-  offset,
-}: QueryGroupParams): Promise<QueryGroupResult> {
-  const displayCol = sourceSeed.displayNameAlias
-
-  if (source.relationship === 'single') {
-    const [rowsResult, countResult] = await Promise.all([
-      db
-        .prepare(
-          `SELECT id, status, updated_at, ${displayCol} AS displayName
-             FROM content_${source.sourceSlug}
-            WHERE ${source.branchAlias} = ?
-            ORDER BY updated_at DESC
-            LIMIT ? OFFSET ?`
-        )
-        .bind(targetId, limit, offset)
-        .all<BackrefItem>(),
-      db
-        .prepare(
-          `SELECT COUNT(*) AS total FROM content_${source.sourceSlug} WHERE ${source.branchAlias} = ?`
-        )
-        .bind(targetId)
-        .first<{ total: number }>(),
-    ])
-
-    return {
-      items: rowsResult.results ?? [],
-      total: countResult?.total ?? 0,
-    }
-  }
-
-  // multi — join table: rel_<sourceSlug>_<branchAlias>
-  const joinTable = `rel_${source.sourceSlug}_${source.branchAlias}`
-  const [rowsResult, countResult] = await Promise.all([
-    db
-      .prepare(
-        `SELECT c.id, c.status, c.updated_at, c.${displayCol} AS displayName
-           FROM content_${source.sourceSlug} c
-           JOIN ${joinTable} r ON r.parent_id = c.id
-          WHERE r.target_id = ?
-          ORDER BY c.updated_at DESC
-          LIMIT ? OFFSET ?`
-      )
-      .bind(targetId, limit, offset)
-      .all<BackrefItem>(),
-    db
-      .prepare(
-        `SELECT COUNT(DISTINCT parent_id) AS total FROM ${joinTable} WHERE target_id = ?`
-      )
-      .bind(targetId)
-      .first<{ total: number }>(),
-  ])
-
-  return {
-    items: rowsResult.results ?? [],
-    total: countResult?.total ?? 0,
-  }
-}
-
 function filterVisibility(
   items: BackrefItem[],
   sourceSeed: import('@beechcms/core').Seed
 ): BackrefItem[] {
-  // Apply visibility policy to displayName field only.
-  // Other returned fields (id, status, updated_at) are system fields, always visible.
   const displayBranch = sourceSeed.branches.find(
     b => b.alias === sourceSeed.displayNameAlias
   )
