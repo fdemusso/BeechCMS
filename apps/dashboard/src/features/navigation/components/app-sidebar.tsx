@@ -9,7 +9,7 @@ import { useTheme } from "next-themes"
 import { NavMain } from "@/components/nav-main"
 import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
-import { getStaticMenu, buildContentMenu, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
+import { getStaticMenu, getContentCategoryMenu, getSettingsMenu, buildContentMenu, STATIC_NAV_SECONDARY } from "@/config/dashboard-menu"
 import { logout } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { useProfile } from "@/features/settings"
@@ -74,17 +74,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={getStaticMenu(t)} groupLabel={t("sidebar.navigation")} />
+        <NavMain items={getContentCategoryMenu(t)} groupLabel={t("sidebar.contentGroup")} />
         {contentGroups.map((group, i) => (
           <NavMain
             key={group.label}
             items={group.items}
             groupLabel={group.label}
             className={i === 0 ? "mt-4" : undefined}
+            hasLine
           />
         ))}
         {STATIC_NAV_SECONDARY.length > 0 && (
-          <NavSecondary items={STATIC_NAV_SECONDARY} className="mt-auto" />
+          <NavSecondary items={STATIC_NAV_SECONDARY} />
         )}
+        <NavMain items={getSettingsMenu(t)} className="mt-auto pt-0" openUpwards />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} onLogout={logout} />

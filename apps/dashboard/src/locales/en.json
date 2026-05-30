@@ -559,9 +559,13 @@
     "edit": "Edit"
   },
   "sidebar": {
-    "navigation": "Navigation",
+    "navigation": "Main",
     "contents": "Contents",
-    "drafts": "Drafts"
+    "drafts": "Drafts",
+    "contentGroup": "Content",
+    "createNew": "Create New",
+    "scheduled": "Scheduled",
+    "analytics": "Analytics"
   },
   "drafts": {
     "title": "Drafts",

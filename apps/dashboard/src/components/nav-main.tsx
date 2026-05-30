@@ -7,6 +7,7 @@
 import { ChevronRight, type LucideIcon } from "lucide-react"
 import { Link, useLocation } from "react-router-dom"
 
+import { cn } from "@/lib/utils"
 import {
   Collapsible,
   CollapsibleContent,
@@ -41,12 +42,16 @@ type NavMainProps = {
   readonly items: ReadonlyArray<NavMainItem>
   readonly groupLabel?: string
   readonly className?: string
+  readonly hasLine?: boolean
+  readonly openUpwards?: boolean
 }
 
 export function NavMain({
   items,
-  groupLabel = "Menu",
+  groupLabel,
   className,
+  hasLine = false,
+  openUpwards = false,
 }: NavMainProps) {
   const location = useLocation()
   const currentPath = location.pathname
@@ -54,8 +59,9 @@ export function NavMain({
 
   return (
     <SidebarGroup className={className}>
-      <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
-      <SidebarMenu>
+      {groupLabel && <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>}
+      <div className={cn(hasLine && "border-l border-sidebar-border/40 ml-3.5 pl-3.5")}>
+        <SidebarMenu>
         {items.map((item) => {
           // A collapsible parent is open when the current path starts with its base path
           const isParentActive =
@@ -63,9 +69,38 @@ export function NavMain({
               ? currentPath === item.url || currentPath.startsWith(item.url + "/") || currentPath.startsWith(item.url + "?")
               : currentPath === item.url
 
+          const subItemsContent = item.items?.length ? (
+            <SidebarMenuSub className={cn(openUpwards ? "settings-sub-menu mb-1 mt-0" : "")}>
+              {item.items.map((subItem) => {
+                // Match sub-item: compare full path + search string
+                const [subPath, subQuery] = subItem.url.split("?")
+                const subSearch = subQuery ? `?${subQuery}` : ""
+                const isSubActive =
+                  currentPath === subPath &&
+                  (subSearch === "" || currentSearch === subSearch)
+
+                return (
+                  <SidebarMenuSubItem key={subItem.title} className={cn(openUpwards ? "settings-item" : "")}>
+                    <SidebarMenuSubButton asChild isActive={isSubActive}>
+                      <Link to={subItem.url}>
+                        <span>{subItem.title}</span>
+                      </Link>
+                    </SidebarMenuSubButton>
+                  </SidebarMenuSubItem>
+                )
+              })}
+            </SidebarMenuSub>
+          ) : null
+
           return (
             <Collapsible key={item.title} asChild defaultOpen={item.isActive || isParentActive}>
               <SidebarMenuItem>
+                {openUpwards && item.items?.length ? (
+                  <CollapsibleContent>
+                    {subItemsContent}
+                  </CollapsibleContent>
+                ) : null}
+
                 <SidebarMenuButton asChild tooltip={item.title} isActive={isParentActive && !item.items?.length}>
                   <Link to={item.url}>
                     <item.icon />
@@ -75,33 +110,16 @@ export function NavMain({
                 {item.items?.length ? (
                   <>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuAction className="data-[state=open]:rotate-90">
+                      <SidebarMenuAction className={cn(openUpwards ? "top-auto! bottom-1.5! data-[state=open]:-rotate-90" : "data-[state=open]:rotate-90")}>
                         <ChevronRight />
                         <span className="sr-only">Toggle</span>
                       </SidebarMenuAction>
                     </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        {item.items?.map((subItem) => {
-                          // Match sub-item: compare full path + search string
-                          const [subPath, subQuery] = subItem.url.split("?")
-                          const subSearch = subQuery ? `?${subQuery}` : ""
-                          const isSubActive =
-                            currentPath === subPath &&
-                            (subSearch === "" || currentSearch === subSearch)
-
-                          return (
-                            <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton asChild isActive={isSubActive}>
-                                <Link to={subItem.url}>
-                                  <span>{subItem.title}</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          )
-                        })}
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
+                    {!openUpwards && (
+                      <CollapsibleContent>
+                        {subItemsContent}
+                      </CollapsibleContent>
+                    )}
                   </>
                 ) : null}
               </SidebarMenuItem>
@@ -109,6 +127,7 @@ export function NavMain({
           )
         })}
       </SidebarMenu>
+      </div>
     </SidebarGroup>
   )
 }

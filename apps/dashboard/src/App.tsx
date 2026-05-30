@@ -19,6 +19,9 @@ import { DashboardPage } from "@/features/dashboard"
 import { DraftsListPage } from "@/pages/drafts-list"
 import { SettingsPage } from "@/features/settings"
 import { CommandPalette } from "@/features/command-palette"
+import { AnalyticsPage } from "@/pages/analytics"
+import { CreateNewPage } from "@/pages/create-new"
+import { ScheduledPage } from "@/pages/scheduled"
 import "./App.css"
 
 function SplashScreen() {
@@ -93,10 +96,34 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "/analytics",
+        element: (
+          <ProtectedRoute>
+            <AnalyticsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "/drafts",
         element: (
           <ProtectedRoute>
             <DraftsListPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/content/create-new",
+        element: (
+          <ProtectedRoute>
+            <CreateNewPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/scheduled",
+        element: (
+          <ProtectedRoute>
+            <ScheduledPage />
           </ProtectedRoute>
         ),
       },

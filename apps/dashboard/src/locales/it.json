@@ -559,9 +559,13 @@
     "edit": "Modifica"
   },
   "sidebar": {
-    "navigation": "Navigazione",
+    "navigation": "Main",
     "contents": "Contenuti",
-    "drafts": "Bozze"
+    "drafts": "Bozze",
+    "contentGroup": "Content",
+    "createNew": "Crea Nuovo",
+    "scheduled": "Programmati",
+    "analytics": "Analitiche"
   },
   "drafts": {
     "title": "Bozze",
