@@ -26,7 +26,9 @@
     "selectAll": "Seleziona tutto",
     "selectRow": "Seleziona riga",
     "yes": "Sì",
-    "no": "No"
+    "no": "No",
+    "previous": "Precedente",
+    "next": "Successivo"
   },
   "dashboard": {
     "greeting": {

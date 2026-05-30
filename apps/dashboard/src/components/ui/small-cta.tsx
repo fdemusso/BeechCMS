@@ -122,7 +122,7 @@ function SmallCta({
         <img
           src={svgPath}
           alt=""
-          className="w-64 h-auto opacity-80"
+          className="w-64 h-auto opacity-80 transition-transform duration-300 ease-in-out hover:scale-105 cursor-pointer"
         />
       </EmptyMedia>
       {hasText && (

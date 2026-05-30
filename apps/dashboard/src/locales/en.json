@@ -26,7 +26,9 @@
     "selectAll": "Select all",
     "selectRow": "Select row",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "previous": "Previous",
+    "next": "Next"
   },
   "dashboard": {
     "greeting": {

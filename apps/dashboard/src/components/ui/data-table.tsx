@@ -25,6 +25,7 @@ import {
 } from "@tanstack/react-table"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { ChevronRight, ChevronDown } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import {
   Pagination,
@@ -189,6 +190,7 @@ export function DataTable<TData, TValue>(
     onGroupingChange,
     onRowDoubleClick,
   } = props
+  const { t } = useTranslation()
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
   const [internalColumnFilters, setInternalColumnFilters] =
     React.useState<ColumnFiltersState>([])
@@ -684,6 +686,8 @@ export function DataTable<TData, TValue>(
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
+                  text={t("common.previous")}
+                  siblingText={t("common.next")}
                   href="#"
                   onClick={(e) => {
                     e.preventDefault()
@@ -736,6 +740,8 @@ export function DataTable<TData, TValue>(
               })()}
               <PaginationItem>
                 <PaginationNext
+                  text={t("common.next")}
+                  siblingText={t("common.previous")}
                   href="#"
                   onClick={(e) => {
                     e.preventDefault()
