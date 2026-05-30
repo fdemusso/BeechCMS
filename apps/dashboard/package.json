@@ -71,6 +71,7 @@
     "react-i18next": "^17.0.4",
     "react-medium-image-zoom": "^5.4.3",
     "react-router-dom": "^7.13.0",
+    "recharts": "^3.8.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.4.3"
