@@ -36,13 +36,7 @@ import {
 } from "@/components/ui/context-menu"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import {
-  Empty,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-  EmptyContent,
-} from "@/components/ui/empty"
+import { SmallCta } from "@/components/ui/small-cta"
 import {
   useContentList,
   useContentFacets,
@@ -806,26 +800,18 @@ export function ContentListPage() {
                       columnFilters={columnFilters}
                       emptyState={
                         isEmptySeed ? (
-                          <Empty className="border-none py-12 gap-3">
-                            <EmptyMedia>
-                              <img
-                                src={`${import.meta.env.BASE_URL}working.svg`}
-                                alt=""
-                                className="w-64 h-auto opacity-80"
-                              />
-                            </EmptyMedia>
-                            <EmptyHeader>
-                              <EmptyTitle className="text-3xl font-semibold">
-                                {t("content.list.emptyTitle")}
-                              </EmptyTitle>
-                            </EmptyHeader>
-                            <EmptyContent>
-                              <Button size="lg" className="mt-1" onClick={handleCreate}>
-                                {t("content.list.emptyCreateFirst", { label: seed.label })}
-                              </Button>
-                            </EmptyContent>
-                          </Empty>
-                        ) : undefined
+                          <SmallCta
+                            svgPath={`${import.meta.env.BASE_URL}working.svg`}
+                            title={t("content.list.emptyTitle")}
+                            buttonText={t("content.list.emptyCreateFirst", { label: seed.label })}
+                            onButtonClick={handleCreate}
+                          />
+                        ) : (
+                          <SmallCta
+                            svgPath={`${import.meta.env.BASE_URL}noResult.svg`}
+                            title={t("common.noResults")}
+                          />
+                        )
                       }
                     />
                   )}

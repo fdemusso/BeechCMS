@@ -42,7 +42,7 @@ vi.mock("@/features/content-gallery/gallery-components/gallery-skeleton-grid", (
   GallerySkeletonGrid: () => <div data-testid="skeleton-grid" />,
 }))
 
-vi.mock("@/components/ui/empty", () => ({
+vi.mock("@/components/ui/small-cta", () => ({
   Empty: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   EmptyHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   EmptyMedia: ({ children }: { children: ReactNode }) => <div>{children}</div>,

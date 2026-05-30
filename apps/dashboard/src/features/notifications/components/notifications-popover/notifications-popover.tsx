@@ -22,7 +22,7 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty"
+} from "@/components/ui/small-cta"
 import {
   Popover,
   PopoverContent,

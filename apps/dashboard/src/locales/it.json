@@ -24,7 +24,9 @@
     "copyFailed": "Copia fallita",
     "openMenu": "Apri menu",
     "selectAll": "Seleziona tutto",
-    "selectRow": "Seleziona riga"
+    "selectRow": "Seleziona riga",
+    "yes": "Sì",
+    "no": "No"
   },
   "dashboard": {
     "greeting": {

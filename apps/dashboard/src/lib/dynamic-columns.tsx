@@ -4,7 +4,17 @@
 
 import type { ColumnDef, AggregationFn, GroupingColumnDef } from "@tanstack/react-table"
 import type { Seed } from "@beechcms/core"
-import { MoreHorizontal } from "lucide-react"
+import {
+  MoreHorizontal,
+  Type,
+  Hash,
+  ToggleLeft,
+  Calendar,
+  Code,
+  FileText,
+  File,
+  Link as LinkIcon
+} from "lucide-react"
 import { toast } from "sonner"
 
 import { FieldDisplay } from "@/features/fields"
@@ -70,6 +80,29 @@ export const DEFAULT_DATE_GROUP_PRECISION: DateGroupPrecision = {
   year: true,
   month: true,
   day: false,
+}
+
+function getIconForType(type: string) {
+  switch (type) {
+    case "text":
+      return Type
+    case "number":
+      return Hash
+    case "boolean":
+      return ToggleLeft
+    case "date":
+      return Calendar
+    case "json":
+      return Code
+    case "richtext":
+      return FileText
+    case "file":
+      return File
+    case "relation":
+      return LinkIcon
+    default:
+      return File
+  }
 }
 
 // ─── Helpers per raggruppamento e aggregazione ────────────────────────────────
@@ -365,10 +398,16 @@ export function generateColumns(
 
   // Colonne dinamiche: solo da seed.branches, cella = solo FieldDisplay
   const dynamicColumns: ColumnDef<ContentEntry>[] = seed.branches.map((branch) => {
+    const IconComponent = getIconForType(branch.type)
     const baseColumn: ColumnDef<ContentEntry> & GroupingColumnDef<ContentEntry, unknown> = {
       accessorFn: (row) => row.data[branch.alias],
       id: branch.alias,
-      header: () => <div className="font-medium">{branch.label}</div>,
+      header: () => (
+        <div className="flex items-center gap-[0.5em] font-medium">
+          <IconComponent className="h-[1em] w-[1em] shrink-0 text-muted-foreground" />
+          <span>{branch.label}</span>
+        </div>
+      ),
       filterFn: (row, columnId, filterValue) =>
         matchesFilterGroup(row.getValue(columnId), filterValue),
     }

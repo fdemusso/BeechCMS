@@ -13,14 +13,14 @@ import type { Branch } from "@beechcms/core"
 const branch = { id: "br_01", alias: "field", label: "Field", type: "text" } as unknown as Branch
 
 describe("BooleanDisplay", () => {
-  it("true value mostra 'Sì'", () => {
+  it("true value mostra 'Yes'", () => {
     render(<BooleanDisplay branch={branch} value={true} />)
-    expect(screen.getByText("Sì")).toBeInTheDocument()
+    expect(screen.getByText("Yes")).toBeInTheDocument()
   })
 
-  it("stringa 'true' mostra 'Sì'", () => {
+  it("stringa 'true' mostra 'Yes'", () => {
     render(<BooleanDisplay branch={branch} value="true" />)
-    expect(screen.getByText("Sì")).toBeInTheDocument()
+    expect(screen.getByText("Yes")).toBeInTheDocument()
   })
 
   it("false value mostra 'No'", () => {

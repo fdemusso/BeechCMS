@@ -24,7 +24,9 @@
     "copyFailed": "Copy failed",
     "openMenu": "Open menu",
     "selectAll": "Select all",
-    "selectRow": "Select row"
+    "selectRow": "Select row",
+    "yes": "Yes",
+    "no": "No"
   },
   "dashboard": {
     "greeting": {
