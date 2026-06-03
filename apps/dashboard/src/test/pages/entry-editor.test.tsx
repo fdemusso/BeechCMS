@@ -195,6 +195,8 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: any) => {
       const translations: Record<string, string> = {
+        "common.create": "Create",
+        "common.delete": "Delete",
         "content.editor.save": "Save",
         "content.editor.saving": "Saving...",
         "content.editor.back": "Back",
@@ -261,7 +263,7 @@ describe("EntryEditorPage", () => {
     const slugInput = screen.getByLabelText(/slug/i)
     await waitFor(() => expect((slugInput as HTMLInputElement).value).toBe("ciao-mondo"))
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create" }))
 
     await waitFor(() => expect(mockCreateContent).toHaveBeenCalled())
     expect(mockToastSuccess).toHaveBeenCalledWith("Entry created")
@@ -273,7 +275,7 @@ describe("EntryEditorPage", () => {
     const metaInput = await screen.findByLabelText("field-metaData")
     fireEvent.change(metaInput, { target: { value: "{bad json}" } })
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create" }))
 
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalled()

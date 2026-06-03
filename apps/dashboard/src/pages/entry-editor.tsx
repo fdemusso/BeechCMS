@@ -798,93 +798,12 @@ export function EntryEditorPage() {
         onSubmit={handleSubmit}
       >
         {/* Top bar */}
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-4 flex items-center gap-4">
           <Button type="button" variant="ghost" size="sm" onClick={goBack}>
             <ArrowLeft className="mr-1 size-4" />
             {t("content.editor.back")}
           </Button>
           <h1 className="text-xl font-semibold truncate pb-1">{pageTitle}</h1>
-          <div className="flex items-center gap-2">
-            {!isCreate && !effectiveDraftContext && (
-              hasRestrictedRefs ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="inline-flex">
-                      <Button type="button" variant="destructive" size="sm" disabled>
-                        <Trash2 className="mr-1 size-4" />
-                        {t("common.delete", "Delete")}
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {t("backrefs.deleteBlocked", { count: "?" })}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  disabled={isDeleting}
-                  onClick={() => setShowDeleteConfirm(true)}
-                >
-                  <Trash2 className="mr-1 size-4" />
-                  {t("common.delete", "Delete")}
-                </Button>
-              )
-            )}
-
-            {/* Split save button: main action + dropdown for secondary save action */}
-            <div className="flex items-center">
-              <Button
-                type="submit"
-                disabled={isBusy}
-                className={hasSaveDropdown ? "rounded-r-none border-r border-r-primary-foreground/20 pr-3" : ""}
-              >
-                {isBusy ? (
-                  <><Loader2 className="mr-2 size-4 animate-spin" />{t("content.editor.saving")}</>
-                ) : effectiveDraftContext ? (
-                  t("content.editor.saveDraft")
-                ) : (
-                  t("content.editor.save")
-                )}
-              </Button>
-              {hasSaveDropdown && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      disabled={isBusy}
-                      className="rounded-l-none px-2 border-l-0"
-                    >
-                      <ChevronDown className="size-3" />
-                      <span className="sr-only">{t("common.openMenu")}</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {effectiveDraftContext ? (
-                      <>
-                        <DropdownMenuItem onClick={handlePublishDraft} disabled={isPublishing}>
-                          {isPublishing && <Loader2 className="mr-2 size-3 animate-spin" />}
-                          {t("content.editor.publishDraft")}
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-destructive"
-                          onClick={() => setShowDiscardConfirm(true)}
-                        >
-                          {t("content.editor.discardDraft")}
-                        </DropdownMenuItem>
-                      </>
-                    ) : (
-                      <DropdownMenuItem onClick={handleSaveDraftOnly}>
-                        {t("content.editor.saveAsDraft")}
-                      </DropdownMenuItem>
-                    )}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              )}
-            </div>
-          </div>
         </div>
 
         {/* Draft context: simple "you're editing a draft" notice — actions are in the save button dropdown */}
@@ -959,6 +878,91 @@ export function EntryEditorPage() {
             />
           </div>
         )}
+
+        {/* Sticky footer — Delete (edit only) + Save/Create, aligned bottom-right */}
+        <div className="sticky bottom-0 z-10 mt-4 flex items-center justify-end gap-2 border-t bg-background/95 backdrop-blur py-3 px-1">
+          {!isCreate && !effectiveDraftContext && (
+            hasRestrictedRefs ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button type="button" variant="destructive" size="sm" disabled>
+                      <Trash2 className="mr-1 size-4" />
+                      {t("common.delete", "Delete")}
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t("backrefs.deleteBlocked", { count: "?" })}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={isDeleting}
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                <Trash2 className="mr-1 size-4" />
+                {t("common.delete", "Delete")}
+              </Button>
+            )
+          )}
+
+          {/* Split save button: main action + dropdown for secondary save action */}
+          <div className="flex items-center">
+            <Button
+              type="submit"
+              disabled={isBusy}
+              className={hasSaveDropdown ? "rounded-r-none border-r border-r-primary-foreground/20 pr-3" : ""}
+            >
+              {isBusy ? (
+                <><Loader2 className="mr-2 size-4 animate-spin" />{t("content.editor.saving")}</>
+              ) : effectiveDraftContext ? (
+                t("content.editor.saveDraft")
+              ) : isCreate ? (
+                t("common.create")
+              ) : (
+                t("content.editor.save")
+              )}
+            </Button>
+            {hasSaveDropdown && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    disabled={isBusy}
+                    className="rounded-l-none px-2 border-l-0"
+                  >
+                    <ChevronDown className="size-3" />
+                    <span className="sr-only">{t("common.openMenu")}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {effectiveDraftContext ? (
+                    <>
+                      <DropdownMenuItem onClick={handlePublishDraft} disabled={isPublishing}>
+                        {isPublishing && <Loader2 className="mr-2 size-3 animate-spin" />}
+                        {t("content.editor.publishDraft")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => setShowDiscardConfirm(true)}
+                      >
+                        {t("content.editor.discardDraft")}
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <DropdownMenuItem onClick={handleSaveDraftOnly}>
+                      {t("content.editor.saveAsDraft")}
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
       </form>
 
       {/* Unsaved changes warning alert */}

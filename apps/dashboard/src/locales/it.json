@@ -325,6 +325,9 @@
       "status": "Stato",
       "slug": "Slug (URL)",
       "slugPlaceholder": "es. mio-articolo",
+      "placeholder": "Scrivi qui il tuo contenuto...",
+      "writeField": "Scrivi {{field}}...",
+      "selectDate": "Seleziona una data",
       "content": "Contenuto",
       "metadataSeo": "Metadati / SEO",
       "publication": "Pubblicazione",
@@ -357,6 +360,8 @@
       "validationError_one": "{{count}} campo ha un errore di validazione — controlla i campi evidenziati",
       "validationError_other": "{{count}} campi hanno errori di validazione — controlla i campi evidenziati",
       "jsonError": "Il campo \"{{field}}\" deve contenere JSON valido",
+      "emptyTab": "Nessun campo in questa tab.",
+      "emptyColumn": "Vuoto",
       "relation": {
         "placeholder": "Seleziona una voce correlata…",
         "search": "Cerca…",

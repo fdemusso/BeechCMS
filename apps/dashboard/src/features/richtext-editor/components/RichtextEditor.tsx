@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useEffect, useRef } from "react"
+import { useTranslation } from "react-i18next"
 import { MinimalTiptapEditor } from "@/components/ui/minimal-tiptap"
 import { api } from "@/lib/api"
 import { uploadFile } from "@/lib/upload"
@@ -15,6 +16,7 @@ interface RichtextEditorProps {
 }
 
 export function RichtextEditor({ value, onChange, placeholder }: RichtextEditorProps) {
+  const { t } = useTranslation()
   const sessionImages = useRef<string[]>([])
   const lastValue = useRef(value)
 
@@ -59,10 +61,10 @@ export function RichtextEditor({ value, onChange, placeholder }: RichtextEditorP
       onChange={(newContent) => {
         onChange(typeof newContent === "string" ? newContent : String(newContent))
       }}
-      className="w-full"
-      editorContentClassName="p-5"
+      className="w-full min-h-[400px]"
+      editorContentClassName="p-5 flex-1 flex flex-col"
       output="html"
-      placeholder={placeholder || "Scrivi qui il tuo contenuto..."}
+      placeholder={placeholder || t("content.editor.placeholder", "Scrivi qui il tuo contenuto...")}
       autofocus={false}
       editable={true}
       editorClassName="focus:outline-none"

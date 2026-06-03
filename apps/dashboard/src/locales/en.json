@@ -325,6 +325,9 @@
       "status": "Status",
       "slug": "Slug (URL)",
       "slugPlaceholder": "e.g. my-article",
+      "placeholder": "Write your content here...",
+      "writeField": "Write {{field}}...",
+      "selectDate": "Select a date",
       "content": "Content",
       "metadataSeo": "Metadata / SEO",
       "publication": "Publication",
@@ -357,6 +360,8 @@
       "validationError_one": "{{count}} field has a validation error — check the highlighted fields",
       "validationError_other": "{{count}} fields have validation errors — check the highlighted fields",
       "jsonError": "Field \"{{field}}\" must contain valid JSON",
+      "emptyTab": "No fields in this tab yet.",
+      "emptyColumn": "Empty",
       "relation": {
         "placeholder": "Select a related entry…",
         "search": "Search…",

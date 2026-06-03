@@ -21,8 +21,10 @@ function InputGroupInput({ className, ...props }: React.ComponentProps<"input">)
     <input
       data-slot="input-group-input"
       className={cn(
-        "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-        "pr-10", // Space for the addon button
+        "h-7 w-full min-w-0 rounded-md border border-input bg-transparent px-2.5 py-0 text-xs shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-5 file:border-0 file:bg-transparent file:text-xs file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-xs dark:bg-input/30",
+        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+        "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
+        "pr-8", // Space for the addon button
         className
       )}
       {...props}
@@ -51,12 +53,14 @@ function InputGroupAddon({
 
 function InputGroupButton({
   className,
+  size = "icon-xs",
   ...props
 }: React.ComponentProps<typeof Button>) {
   return (
     <Button
       data-slot="input-group-button"
-      className={cn("size-7", className)}
+      size={size}
+      className={cn(className)}
       {...props}
     />
   )

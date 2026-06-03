@@ -62,14 +62,13 @@ describe("MediaEdit", () => {
     globalThis.Image = originalImage
   })
 
-  it("value vuoto -> mostra pulsante 'Aggiungi immagine'", () => {
+  it("value vuoto -> mostra input di testo e pulsante di upload", () => {
     render(<MediaEdit branch={mockBranch} value="" onChange={onChange} />)
-    expect(
-      screen.getByRole("button", { name: /Add image/i })
-    ).toBeInTheDocument()
+    expect(screen.getByRole("textbox")).toBeInTheDocument()
+    expect(screen.getByRole("button")).toBeInTheDocument()
   })
 
-  it("value con URL -> mostra anteprima e solo pulsante Sostituisci nell'area principale", () => {
+  it("value con URL -> mostra anteprima e textbox con URL", () => {
     render(
       <MediaEdit
         branch={mockBranch}
@@ -77,11 +76,11 @@ describe("MediaEdit", () => {
         onChange={onChange}
       />
     )
-    expect(screen.getByRole("button", { name: /Replace/i })).toBeInTheDocument()
-    expect(screen.queryByRole("button", { name: /^Remove$/i })).not.toBeInTheDocument()
+    expect(screen.getByRole("img")).toBeInTheDocument()
+    expect(screen.getByRole("textbox")).toHaveValue("https://example.com/photo.jpg")
   })
 
-  it("Rimozione da modale -> chiama onChange('')", () => {
+  it("Rimozione -> chiama onChange('')", () => {
     render(
       <MediaEdit
         branch={mockBranch}
@@ -89,40 +88,37 @@ describe("MediaEdit", () => {
         onChange={onChange}
       />
     )
-    fireEvent.click(screen.getByRole("button", { name: /Replace/i }))
     fireEvent.click(screen.getByRole("button", { name: /Remove image/i }))
     expect(onChange).toHaveBeenCalledWith("")
   })
 
-  it("Apre la modale con input URL e area drag/drop", () => {
+  it("Mostra input URL con placeholder", () => {
     render(<MediaEdit branch={mockBranch} value="" onChange={onChange} />)
-    fireEvent.click(screen.getByRole("button", { name: /Add image/i }))
-
-    expect(screen.getByText(/Enter a public HTTPS URL/i)).toBeInTheDocument()
-    expect(screen.getByRole("button", { name: /Use link/i })).toBeInTheDocument()
-    expect(screen.getByText(/select it/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/Image link/i)).toBeInTheDocument()
   })
 
   it("URL non HTTPS -> mostra errore e non salva", async () => {
     render(<MediaEdit branch={mockBranch} value="" onChange={onChange} />)
-    fireEvent.click(screen.getByRole("button", { name: /Add image/i }))
-    fireEvent.change(screen.getByPlaceholderText("https://example.com/image.jpg"), {
+    const input = screen.getByRole("textbox")
+    fireEvent.change(input, {
       target: { value: "http://example.com/image.jpg" },
     })
-    fireEvent.click(screen.getByRole("button", { name: /Use link/i }))
+    fireEvent.blur(input)
 
-    expect(screen.getByText(/must start with https/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.getByText(/must start with https/i)).toBeInTheDocument()
+    })
     expect(onChange).not.toHaveBeenCalled()
   })
 
   it("URL renderizzabile -> chiama onChange con link esterno", async () => {
     render(<MediaEdit branch={mockBranch} value="" onChange={onChange} />)
-    fireEvent.click(screen.getByRole("button", { name: /Add image/i }))
+    const input = screen.getByRole("textbox")
     const validUrl = "https://cdn.example.com/valid-image?id=123"
-    fireEvent.change(screen.getByPlaceholderText("https://example.com/image.jpg"), {
+    fireEvent.change(input, {
       target: { value: validUrl },
     })
-    fireEvent.click(screen.getByRole("button", { name: /Use link/i }))
+    fireEvent.blur(input)
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith(validUrl)
@@ -131,11 +127,11 @@ describe("MediaEdit", () => {
 
   it("URL non renderizzabile -> mostra errore e blocca salvataggio", async () => {
     render(<MediaEdit branch={mockBranch} value="" onChange={onChange} />)
-    fireEvent.click(screen.getByRole("button", { name: /Add image/i }))
-    fireEvent.change(screen.getByPlaceholderText("https://example.com/image.jpg"), {
+    const input = screen.getByRole("textbox")
+    fireEvent.change(input, {
       target: { value: "https://example.com/not-image" },
     })
-    fireEvent.click(screen.getByRole("button", { name: /Use link/i }))
+    fireEvent.blur(input)
 
     await waitFor(() => {
       expect(screen.getByText(/not renderable as image/i)).toBeInTheDocument()
@@ -143,12 +139,11 @@ describe("MediaEdit", () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
-  it("Upload: in stato uploading mostra Loader; su successo chiama onChange con url", async () => {
+  it("Upload: disabilita input durante uploading e su successo chiama onChange con url", async () => {
     const { uploadFile } = await import("@/lib/upload")
     vi.mocked(uploadFile).mockResolvedValue("/api/media/abc123.jpg")
 
     render(<MediaEdit branch={mockBranch} value="" onChange={onChange} />)
-    fireEvent.click(screen.getByRole("button", { name: /Add image/i }))
 
     const input = document.querySelector('input[type="file"]')
     expect(input).toBeInTheDocument()
@@ -157,7 +152,7 @@ describe("MediaEdit", () => {
     fireEvent.change(input!, { target: { files: [file] } })
 
     await waitFor(() => {
-      expect(screen.getByText(/Uploading/i)).toBeInTheDocument()
+      expect(screen.getByRole("textbox")).toBeDisabled()
     })
 
     await waitFor(() => {
@@ -165,7 +160,7 @@ describe("MediaEdit", () => {
     })
   })
 
-  it("Asset-list: aggiunge URL senza chiudere la modale", async () => {
+  it("Asset-list: aggiunge URL", async () => {
     render(
       <MediaEdit
         branch={mockAssetListBranch}
@@ -173,12 +168,12 @@ describe("MediaEdit", () => {
         onChange={onChange}
       />
     )
-    fireEvent.click(screen.getByRole("button", { name: /Manage gallery/i }))
+    const input = screen.getByRole("textbox")
     const validUrl = "https://cdn.example.com/valid-image?id=999"
-    fireEvent.change(screen.getByPlaceholderText("https://example.com/image.jpg"), {
+    fireEvent.change(input, {
       target: { value: validUrl },
     })
-    fireEvent.click(screen.getByRole("button", { name: /Add/i }))
+    fireEvent.blur(input)
 
     await waitFor(() => {
       expect(onChange).toHaveBeenCalledWith([
@@ -186,20 +181,5 @@ describe("MediaEdit", () => {
         validUrl,
       ])
     })
-    expect(screen.getByText(/Image link/i)).toBeInTheDocument()
-  })
-
-  it("Asset-list: rimuovi tutte svuota il campo con array", () => {
-    render(
-      <MediaEdit
-        branch={mockAssetListBranch}
-        value={["https://cdn.example.com/a.jpg"]}
-        onChange={onChange}
-      />
-    )
-    fireEvent.click(screen.getByRole("button", { name: /Manage gallery/i }))
-    fireEvent.click(screen.getByRole("button", { name: /Remove all/i }))
-    expect(onChange).toHaveBeenCalledWith([])
   })
 })
-

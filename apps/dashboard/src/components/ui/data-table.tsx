@@ -49,6 +49,7 @@ import {
   ContextMenuContent,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 
 const MAX_VISIBLE_PAGE_BUTTONS = 7
 const DEFAULT_PAGE_SIZE = 10
@@ -600,8 +601,8 @@ export function DataTable<TData, TValue>(
           </div>
         ) : (
           /* ── Modalità paginata (grouping inattivo) ── */
-          <div
-            className="relative w-full overflow-x-auto"
+          <ScrollArea
+            className="w-full"
             style={{
               minHeight: (() => {
                 const totalRows = manualPagination
@@ -669,7 +670,8 @@ export function DataTable<TData, TValue>(
                 )}
               </TableBody>
             </Table>
-          </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         )}
       </div>
 

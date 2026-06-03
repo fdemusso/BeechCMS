@@ -4,7 +4,8 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { useParams, useNavigate, useSearchParams } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom"
+import { EntryEditorDialog } from "@/features/entry-editor"
 import type {
   SortingState,
   ColumnFiltersState,
@@ -63,9 +64,19 @@ import {
 import { extractTagNames } from "@/lib/tags-utils"
 
 export function ContentListPage() {
-  const { slug } = useParams<{ slug: string }>()
+  const { slug, id: entryId } = useParams<{ slug: string; id?: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
+
+  const location = useLocation()
+  const isCreatePath = location.pathname.endsWith("/create")
+  const isEditPath = !!entryId && !isCreatePath
+  const dialogOpen = isCreatePath || isEditPath
+
+  const handleDialogClose = React.useCallback(
+    () => navigate(`/content/${slug}`),
+    [navigate, slug]
+  )
 
   // --- STATE ---
   const [pageIndex, setPageIndex] = React.useState(0)
@@ -856,6 +867,16 @@ export function ContentListPage() {
         seedDisplayName={seed.label}
         seedBranches={seed.branches}
       />
+
+      {slug && dialogOpen && (
+        <EntryEditorDialog
+          schemaSlug={slug}
+          entryId={isCreatePath ? undefined : entryId}
+          isDraftContext={!!(location.state as { isDraftContext?: boolean } | null)?.isDraftContext}
+          open={dialogOpen}
+          onClose={handleDialogClose}
+        />
+      )}
     </div>
   )
 }
