@@ -30,8 +30,8 @@ This high-level system map is designed for onboarding new contributors and for A
 ## Tech Stack (with versions)
 
 - **Frontend (Dashboard)**
-  - **React**: `^19.2.0`
-  - **React DOM**: `^19.2.0`
+  - **React**: `^19.2.5`
+  - **React DOM**: `^19.2.5`
   - **TypeScript**: `~5.9.3`
   - **Vite**: `^7.3.1`
   - **Tailwind CSS**: `^4.1.18` (with `@tailwindcss/vite`)
@@ -42,6 +42,19 @@ This high-level system map is designed for onboarding new contributors and for A
     - `next-themes`: `^0.4.6`
     - `lucide-react`: `^0.564.0`
     - Components based on `radix-ui` and shadcn (`shadcn` `^4.0.2`)
+    - `sonner`: `^2.0.7` (toast notifications)
+    - `recharts`: `^3.8.0` (charts for analytics/widgets)
+    - `react-day-picker`: `^9.14.0` (date picker)
+    - `react-medium-image-zoom`: `^5.4.3` (image zoom in gallery/media)
+  - **Forms**
+    - `react-hook-form`: `^7.75.0` + `@hookform/resolvers`: `^5.2.2` (used in settings, entry editor forms)
+    - `zod`: `^4.4.3` (client-side validation, mirrors the core Zod schemas)
+  - **Drag & Drop**
+    - `@dnd-kit/core`: `^6.3.1`, `@dnd-kit/sortable`: `^10.0.0`, `@dnd-kit/utilities`: `^3.2.2` (used by `LayoutBuilderDialog`)
+  - **Utilities**
+    - `date-fns`: `^4.1.0` (date formatting)
+    - `lowlight`: `^3.3.0` (syntax highlighting in TipTap code blocks)
+    - `agentation`: `^3.0.2` (visual feedback toolbar — development tool)
   - **Internationalisation (i18n)**
     - `i18next` `^26.0.6`, `react-i18next` `^17.0.4`, `i18next-browser-languagedetector` `^8.2.1`
     - Setup: `apps/dashboard/src/lib/i18n.ts` — initialized before render via `import '@/lib/i18n'` in `main.tsx`.
@@ -50,7 +63,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - Language switcher UI component: `apps/dashboard/src/components/ui/language-switcher.tsx`.
     - **Must not** use i18n for content data (Seed/Branch values) — only for dashboard UI strings.
   - **Rich text**
-    - TipTap (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/pm`): `^3.20.0`
+    - TipTap (`@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/pm`): `^3.22.4`
     - Implemented as a vertical slice at `apps/dashboard/src/features/richtext-editor/` with public API via `index.ts`. Persists JSON with envelope `{ schemaVersion: 1, doc }` aligned to `@beechcms/core` (`renderRichText`, validation in `validation.ts`).
   - **Build & Quality**
     - ESLint 9 (`eslint` `^9.39.1`, `typescript-eslint` `^8.48.0`)
@@ -60,7 +73,8 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Runtime**: Cloudflare Workers
   - **HTTP Framework**: `hono` `^4.11.9`
   - **Authentication**: `jose` `^6.1.3` (JWT), `bcryptjs` `^2.4.3` (password hashing), [Resend](https://resend.com) REST API (password reset emails — optional, activated by `RESEND_API_KEY`)
-  - **Media / Storage**: `@aws-sdk/client-s3` `^3.995.0` for S3-compatible interaction with Cloudflare R2
+  - **Media / Storage**: `@aws-sdk/client-s3` `^3.995.0` + `@aws-sdk/s3-request-presigner` `^3.995.0` for S3-compatible interaction with Cloudflare R2 (presigned upload URLs)
+  - **Background tasks**: `@upstash/qstash` `^2.11.0` — `QStashNotificationService` dispatches background notifications via Upstash QStash (opt-in alternative to `BackgroundNotificationService`)
   - **Infra & DX**: `wrangler` `^4.4.0`, `@cloudflare/workers-types` `^4.20260213.0`
   - Vitest `^3.2.4` for API testing
 
@@ -77,7 +91,7 @@ This high-level system map is designed for onboarding new contributors and for A
 
 - **Architecture & Tooling**
   - Monorepo **Turborepo** (`turbo` `^2.8.7`) with **npm workspaces**
-  - Shared package `@beechcms/core` (version `0.0.0`) for types, seeds, and the Botanical Engine
+  - Shared package `@beechcms/core` (version `0.5.0`) for types, seeds, and the Botanical Engine
 
 ---
 
@@ -116,7 +130,15 @@ This high-level system map is designed for onboarding new contributors and for A
   - `apps/api/src/index.ts` — app entry, CORS, auth routes, analytics middleware, `scheduled` handler for cron automations.
   - `apps/api/src/features/content/` — universal CRUD content engine using Botanical Engine.
   - `apps/api/src/features/automations/` — automation CRUD handler, `AutomationRunner`, `CronRunner`, and four action executors (`webhook`, `send_mail`, `edit_field`, `create_entry`).
+  - `apps/api/src/features/backrefs/` — back-references API: given a target entry, returns all entries across seeds that reference it via `relation` branches. Uses `D1BackrefRepository` backed by `buildBackrefMap` from `@beechcms/core`.
+  - `apps/api/src/features/schema/` — exposes compiled seed schema to authenticated dashboard consumers.
+  - `apps/api/src/features/settings/` — site-wide settings CRUD (title, language, timezone, etc.) backed by `ISiteSettingsRepository`.
+  - `apps/api/src/features/setup/` — first-run setup wizard endpoint.
+  - `apps/api/src/features/rotate-field/` — regenerates a single field value (e.g. slug) for an existing entry without a full update.
+  - `apps/api/src/features/webhooks/` — inbound webhook receiver (e.g. for QStash callbacks).
+  - `apps/api/src/features/password-reset/` — password reset flow (extracted from `auth`).
   - `apps/api/src/shared/` — cross-feature utilities and repository implementations.
+  - `apps/api/src/shared/qstash-notification-service.ts` — `QStashNotificationService`: dispatches background notifications via Upstash QStash; injectable as `INotificationService`.
   - `apps/api/src/middleware/` — Hono middlewares (auth, repository, rate-limiting, observability).
 
 ### `apps/dashboard` – Schema-driven React Dashboard
@@ -138,7 +160,15 @@ This high-level system map is designed for onboarding new contributors and for A
   - `apps/dashboard/src/features/widget-data/` — **Widget Data Layer**: typed hooks, formula evaluation, and Axios wrappers for the `/api/widget/*` endpoints. Public API via `index.ts`. See `frontend-guide.md` §8.
   - `apps/dashboard/src/features/command-palette/` — global command palette.
   - `apps/dashboard/src/features/automations/` — Automations UI slice: `AutomationPanel` (list + toggle), `AutomationEditor` (trigger + conditions + actions), and typed API wrappers via `automations.api.ts`. Public API via `index.ts`.
-  - Entry editing pages (`EntryEditorPage`) consume FieldRenderers and the Seed from `@beechcms/core`.
+  - `apps/dashboard/src/features/entry-editor/` — Entry editor slice (replaces the deleted `src/pages/entry-editor.tsx`). Exports: `EntryEditorDialog` (modal create/edit form), `LayoutRenderer` (renders a `FormLayout` into a tabbed/sectioned field grid), `LayoutBuilderDialog` (drag-and-drop layout builder — powered by `@dnd-kit`). Public API via `index.ts`.
+  - `apps/dashboard/src/features/backrefs/` — Back-references slice: `ReferencedByPanel` (shows which entries link to the current one), `DeleteButtonWithRestrict` (blocks deletion when back-references exist), `useBackrefs` / `useBackrefsGroup` hooks, `backrefsApi`. Public API via `index.ts`.
+  - `apps/dashboard/src/features/bulk-edit/` — `BulkEditDialog`: allows editing a shared field across multiple selected entries in one operation. Public API via `index.ts`.
+  - `apps/dashboard/src/features/drafts/` — Global drafts slice: `useGlobalDrafts` hook, `DraftSummary` type, `drafts.api.ts`. Used by the `DraftsListPage` and sidebar badge. Public API via `index.ts`.
+  - `apps/dashboard/src/features/schema/` — `useSchema` hook: fetches compiled seed schema from `/api/schema`. Used internally by features that need runtime branch metadata. Public API via `index.ts`.
+  - `apps/dashboard/src/features/settings/` — Settings page slice: tabbed UI (General, Interface, Notifications, Profile, Security, Storage). `useSettings` and `useGeneralTab` hooks. Integrates with `ISiteSettingsRepository` via API. Public API via `index.ts`.
+  - `apps/dashboard/src/features/shared/` — Cross-feature shared utilities (components, hooks, helpers) that serve more than one slice but are not general enough for `src/components/ui` or `src/lib`.
+  - Entry editor is now a dialog (`EntryEditorDialog` from `entry-editor` slice); the standalone page `src/pages/entry-editor.tsx` has been removed.
+  - New pages: `src/pages/drafts-list.tsx` (`DraftsListPage`), `src/pages/scheduled.tsx` (`ScheduledPage`), `src/pages/create-new.tsx` (`CreateNewPage`), `src/pages/widget-lab.tsx` (`WidgetLabPage`).
 - **Dashboard Seed Config** — sidebar and content-view behaviour is driven by the optional `dashboard` field on each `Seed` (type `DashboardSeedConfig`, defined in `@beechcms/core`). No separate registry or hardcoded map.
   - `icon` — Lucide icon name (string); resolved to a component by `apps/dashboard/src/lib/icon-registry.ts`.
   - `group` — sidebar section label; seeds sharing the same group appear under one collapsible section.
@@ -182,6 +212,18 @@ This high-level system map is designed for onboarding new contributors and for A
     - `IScheduler` (`packages/core/src/scheduler.interface.ts`) — `waitUntil(promise)` contract; decouples Cloudflare `ExecutionContext` from handlers
     - `NoOpScheduler` (`packages/core/src/scheduler.stub.ts`) — test/non-CF environments
     - `ExecutionContextScheduler` (`apps/api/src/shared/execution-context-scheduler.ts`) — production implementation wrapping `context.executionCtx.waitUntil`
+  - **Phase 8 — Form Layout System:**
+    - `FormLayout`, `LayoutTab`, `LayoutSection`, `LayoutColumn`, `LayoutField` (`packages/core/src/seed-layout.ts`) — typed drag-and-drop form layout model. Layouts are per-Seed, stored in D1 via `ISeedLayoutRepository`. `generateDefaultLayout(seed)` produces a default single-tab layout from the seed's branches. `validateLayoutAgainstSeed` strips orphaned `branchId` references on read. `isFullWidthBranch`, `isGalleryBranch`, `isSeoBranch` helpers classify branch types for layout constraints.
+    - `ISeedLayoutRepository` (`packages/core/src/seed-layout.repository.ts`) — `getLayout(seedSlug)`, `saveLayout(seedSlug, layout)`.
+    - `layout-permissions.ts` — permission helpers for who can read/write layouts.
+  - **Back-references:**
+    - `buildBackrefMap(seeds)` + `BackrefSource` + `BackrefMap` (`packages/core/src/relations.ts`) — pure function that scans `SEED_REGISTRY` for `relation` branches and builds a `targetSlug → sources[]` lookup. Built once in `factory.ts` and cached for the process lifetime.
+  - **Site Settings:**
+    - `SiteSettings` + `ISiteSettingsRepository` (`packages/core/src/site-settings.repository.ts`) — contract for reading/writing site-wide settings (title, language, timezone, currency, company info).
+  - **Demo Data:**
+    - `IDemoDataRepository` (`packages/core/src/demo-data.repository.ts`) — contract for seeding and clearing demo content.
+  - **Webhook validation:**
+    - `webhook-validation.ts` — helpers for validating inbound webhook signatures (used by the `webhooks` feature in the API).
 - **Build**: `npm run build -w @beechcms/core` produces `dist/` with JS and `.d.ts`, consumed by both apps.
 
 ---
@@ -315,6 +357,21 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Must not** import concrete implementations (`AutomationRunner`, `D1AutomationRepository`) from inside automation feature handlers — only interact through the `IAutomationRunner` and `IAutomationRepository` interfaces on `c.var`.
   - **Must** declare automation contracts (types, interfaces, stubs) in `@beechcms/core`; never import from `apps/api/src/features/automations/` in content handlers.
   - **Must** use `IScheduler` (injected as `c.get('scheduler')`) for any operation that must outlive the HTTP response — never call `c.executionCtx.waitUntil(...)` directly in handlers.
+
+- **Form Layouts**
+  - **Must** use `ISeedLayoutRepository` (injected via middleware) for all layout persistence — never query the layout table directly.
+  - **Must** call `validateLayoutAgainstSeed(layout, seed)` before rendering a stored layout; orphaned `branchId` references are stripped automatically.
+  - **Must** use `generateDefaultLayout(seed)` when no persisted layout exists — never construct a `FormLayout` object manually in handlers or components.
+
+- **Back-references**
+  - **Must** use `buildBackrefMap` (called once at factory init) and inject the resulting `BackrefMap` into the Hono context — never re-scan seeds per request.
+  - **Must** expose back-reference data exclusively through the `backrefs` API feature and the `backrefsApi` client — never query relation branches directly in components.
+  - **Must** use `DeleteButtonWithRestrict` from `features/backrefs/` instead of a plain delete button for any entry that could have inbound relations.
+
+- **Entry Editor**
+  - **Must** use `EntryEditorDialog` from `features/entry-editor/` for all create/edit flows — the standalone `EntryEditorPage` has been removed.
+  - **Must** use `LayoutRenderer` to render fields inside a dialog/panel — never iterate `seed.branches` directly in the editor UI.
+  - **Must** use `LayoutBuilderDialog` to expose layout customization — never build layout-editing UI ad hoc in other slices.
 
 - **Quality & consistency**
   - **Must** use strict TypeScript, ESLint 9 with `typescript-eslint`, and Vitest as configured.
