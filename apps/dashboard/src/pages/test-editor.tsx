@@ -42,6 +42,7 @@ import { AppSidebar, SiteHeader } from "@/features/navigation"
 // ============================================================================
 
 type EditorBranch = {
+  id: string
   alias: string
   label: string
   type: string
@@ -58,45 +59,50 @@ const SANDBOX_SEED = {
   allowPublicRead: true,
   allowDrafts: true,
   branches: [
-    { alias: "title", label: "Titolo Principale (text)", type: "text", requiredOnCreate: true },
-    { alias: "subtitle", label: "Sottotitolo (text)", type: "text" },
-    { alias: "publishedAt", label: "Data di Pubblicazione (date)", type: "date" },
+    { id: "br_01", alias: "title", label: "Titolo Principale (text)", type: "text", requiredOnCreate: true },
+    { id: "br_02", alias: "subtitle", label: "Sottotitolo (text)", type: "text" },
+    { id: "br_03", alias: "publishedAt", label: "Data di Pubblicazione (date)", type: "date" },
     {
+      id: "br_04",
       alias: "price",
       label: "Prezzo (number - currency)",
       type: "number",
       numberOptions: { format: "currency", currency: "EUR", decimals: 2, min: 0 }
     },
     {
+      id: "br_05",
       alias: "rating",
       label: "Valutazione (number - rating)",
       type: "number",
       numberOptions: { min: 1, max: 5, step: 0.5, control: "rating" }
     },
     {
+      id: "br_06",
       alias: "progress",
       label: "Completamento % (number - slider)",
       type: "number",
       numberOptions: { min: 0, max: 100, step: 5, control: "slider" }
     },
     {
+      id: "br_07",
       alias: "featured",
       label: "Metti in Evidenza (boolean)",
       type: "boolean"
     },
     {
+      id: "br_08",
       alias: "category",
       label: "Categoria (text - options)",
       type: "text",
       options: ["News", "Guide", "Tutorial", "Review"]
     },
-    { alias: "tags", label: "Tag Correlati (tags)", type: "tags" },
-    { alias: "coverImage", label: "Immagine Copertina (file)", type: "file" },
-    { alias: "gallery", label: "Galleria Immagini (file multiple)", type: "file", multiple: true, format: "asset-list" },
-    { alias: "body", label: "Contenuto Articolo (richtext)", type: "richtext" },
-    { alias: "metadata", label: "Configurazione Avanzata (json)", type: "json" },
-    { alias: "metaTitle", label: "Meta Title SEO (SEO)", type: "text" },
-    { alias: "metaDescription", label: "Meta Description SEO (SEO)", type: "text" }
+    { id: "br_09", alias: "tags", label: "Tag Correlati (tags)", type: "tags" },
+    { id: "br_10", alias: "coverImage", label: "Immagine Copertina (file)", type: "file" },
+    { id: "br_11", alias: "gallery", label: "Galleria Immagini (file multiple)", type: "file", multiple: true, format: "asset-list" },
+    { id: "br_12", alias: "body", label: "Contenuto Articolo (richtext)", type: "richtext" },
+    { id: "br_13", alias: "metadata", label: "Configurazione Avanzata (json)", type: "json" },
+    { id: "br_14", alias: "metaTitle", label: "Meta Title SEO (SEO)", type: "text" },
+    { id: "br_15", alias: "metaDescription", label: "Meta Description SEO (SEO)", type: "text" }
   ] as EditorBranch[]
 }
 

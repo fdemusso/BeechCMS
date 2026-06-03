@@ -184,6 +184,10 @@ export interface Seed {
   branches: Branch[]
   /** Optional dashboard-specific UI config. Ignored by the Botanical Engine. */
   dashboard?: DashboardSeedConfig
+  /** Custom editor form layout. Absent when no override is stored.
+   *  Populated server-side by GET /api/schema. Ignored by the Botanical Engine.
+   *  Type matches FormLayout from seed-layout.ts — kept as unknown here to avoid circular imports. */
+  layout?: unknown
 }
 
 // ---- Query types (usati da buildSelectQuery nel Botanical Engine) ----

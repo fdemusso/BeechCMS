@@ -237,3 +237,29 @@ CREATE TABLE IF NOT EXISTS automations (
 
 CREATE INDEX IF NOT EXISTS idx_automations_seed_slug ON automations(seed_slug);
 CREATE INDEX IF NOT EXISTS idx_automations_enabled   ON automations(enabled);
+
+
+-- =============================================================================
+-- 12. SITE SETTINGS
+--     Key-value store for site-level configuration (title, locale, timezone…).
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS site_settings (
+    key   TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+
+-- =============================================================================
+-- 13. SEED LAYOUTS
+--     Persists per-Seed custom editor form layouts (sprint 04a).
+--     layout column stores a FormLayout JSON blob.
+--     Reset = DELETE the row; client recomputes the generated default.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS seed_layouts (
+    slug       TEXT    NOT NULL PRIMARY KEY,
+    layout     TEXT    NOT NULL,           -- JSON of FormLayout
+    updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_by TEXT    NOT NULL            -- users.id of the writer
+);
