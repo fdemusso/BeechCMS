@@ -7,6 +7,7 @@ import { Filter } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -78,7 +79,7 @@ export function FilterColumnMenu({
           className="h-8 text-sm"
         />
         <DropdownMenuSeparator className="my-2" />
-        <div className="max-h-56 overflow-y-auto">
+        <ScrollArea className="max-h-56 pr-2">
           {visibleFilterColumns.length === 0 ? (
             <div className="py-2 text-center text-xs text-muted-foreground">{t("toolbar.filter.noColumns")}</div>
           ) : (
@@ -102,7 +103,7 @@ export function FilterColumnMenu({
               ))}
             </div>
           )}
-        </div>
+        </ScrollArea>
       </DropdownMenuContent>
     </DropdownMenu>
   )

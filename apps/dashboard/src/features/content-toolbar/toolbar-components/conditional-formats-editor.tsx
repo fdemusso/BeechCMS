@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Toggle } from "@/components/ui/toggle"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -522,7 +523,7 @@ function ColumnPicker({ columns, onSelect, compact = false }: ColumnPickerProps)
         <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
           {t("toolbar.conditionalFormats.chooseColumn")}
         </DropdownMenuLabel>
-        <div className="max-h-56 overflow-y-auto">
+        <ScrollArea className="max-h-56 pr-2">
           {columns.length === 0 ? (
             <div className="py-2 text-center text-xs text-muted-foreground">
               {t("toolbar.conditionalFormats.noColumns")}
@@ -544,7 +545,7 @@ function ColumnPicker({ columns, onSelect, compact = false }: ColumnPickerProps)
               ))}
             </div>
           )}
-        </div>
+        </ScrollArea>
       </DropdownMenuContent>
     </DropdownMenu>
   )

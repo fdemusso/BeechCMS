@@ -7,6 +7,7 @@ import { ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -87,7 +88,7 @@ export function SortColumnMenu({
           </Button>
         </div>
         <DropdownMenuSeparator className="my-2" />
-        <div className="max-h-56 overflow-y-auto">
+        <ScrollArea className="max-h-56 pr-2">
           {filteredSortableColumns.length === 0 ? (
             <div className="py-2 text-center text-xs text-muted-foreground">{t("toolbar.sort.noColumns")}</div>
           ) : (
@@ -114,7 +115,7 @@ export function SortColumnMenu({
               })}
             </div>
           )}
-        </div>
+        </ScrollArea>
       </DropdownMenuContent>
     </DropdownMenu>
   )
