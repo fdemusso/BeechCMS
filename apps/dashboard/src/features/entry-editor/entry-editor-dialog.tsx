@@ -4,8 +4,8 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useBlocker } from "react-router-dom"
-import { slugify, generateDefaultLayout, type FormLayout } from "@beechcms/core"
-import { ChevronDown, Loader2, Trash2 } from "lucide-react"
+import { slugify, generateDefaultLayout, canEditLayout, type FormLayout } from "@beechcms/core"
+import { ChevronDown, Loader2, Pencil, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import type { AxiosError } from "axios"
 
@@ -52,6 +52,8 @@ import {
   useDeleteContent,
 } from "@/features/content-management"
 import { useActiveSeed } from "@/features/schema"
+import { useAuth } from "@/lib/auth-context"
+import { LayoutBuilderDialog } from "./builder/layout-builder-dialog"
 import { ReferencedByPanel } from "@/features/backrefs"
 import {
   Tooltip,
@@ -278,7 +280,11 @@ export function EntryEditorDialog({
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({})
   const [hasRestrictedRefs, setHasRestrictedRefs] = React.useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
+  const [builderOpen, setBuilderOpen] = React.useState(false)
   const hasJustSavedRef = React.useRef(false)
+
+  const { user } = useAuth()
+  const canEditLayoutFlag = canEditLayout(user?.role)
 
   const blocker = useBlocker(() => isDirty && !hasJustSavedRef.current)
 
@@ -572,6 +578,24 @@ export function EntryEditorDialog({
             <DialogTitle>{pageTitle}</DialogTitle>
           </DialogHeader>
 
+          {canEditLayoutFlag && seed && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setBuilderOpen(true)}
+                  className="absolute top-4 right-10 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+                >
+                  <Pencil className="size-4" />
+                  <span className="sr-only">{t("layoutBuilder.editLayout")}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {t("layoutBuilder.editLayout")}
+              </TooltipContent>
+            </Tooltip>
+          )}
+
           <form
             className="flex-1 flex flex-col min-h-0"
             onSubmit={handleSubmit}
@@ -778,6 +802,16 @@ export function EntryEditorDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Layout builder */}
+      {seed && (
+        <LayoutBuilderDialog
+          seed={seed}
+          open={builderOpen}
+          onClose={() => setBuilderOpen(false)}
+          onSaved={() => { /* schema query invalidation handled inside builder */ }}
+        />
+      )}
 
       {/* Delete entry confirmation */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

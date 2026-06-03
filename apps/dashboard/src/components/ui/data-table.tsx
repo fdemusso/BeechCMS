@@ -547,10 +547,10 @@ export function DataTable<TData, TValue>(
       <div className="rounded-md border">
         {isGroupingActive ? (
           /* ── Modalità virtual scroll (grouping attivo) ── */
-          <div
+          <ScrollArea
             ref={scrollContainerRef}
-            className="relative w-full overflow-auto"
-            style={{ height: VIRTUAL_CONTAINER_HEIGHT }}
+            className="w-full"
+            style={{ maxHeight: VIRTUAL_CONTAINER_HEIGHT }}
           >
             <Table>
               <TableHeader>
@@ -598,7 +598,8 @@ export function DataTable<TData, TValue>(
                 )}
               </TableBody>
             </Table>
-          </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         ) : (
           /* ── Modalità paginata (grouping inattivo) ── */
           <ScrollArea

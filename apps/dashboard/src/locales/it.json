@@ -929,5 +929,45 @@
     "emailInvalid": "Inserisci un indirizzo email valido.",
     "companyNameRequired": "Il nome azienda è obbligatorio.",
     "companyWebsiteRequired": "Inserisci un URL valido per il sito web."
+  },
+  "layoutBuilder": {
+    "editLayout": "Modifica layout",
+    "title": "Modifica layout — {{seed}}",
+    "showPreview": "Mostra anteprima",
+    "reset": "Ripristina",
+    "resetConfirmTitle": "Ripristinare il default?",
+    "resetConfirmDesc": "Rimuove il layout personalizzato. Verrà usato il default.",
+    "resetDone": "Layout ripristinato al default.",
+    "save": "Salva",
+    "saved": "Layout salvato.",
+    "saveError": "Impossibile salvare il layout.",
+    "discardTitle": "Annullare le modifiche?",
+    "discardDesc": "Le modifiche non salvate andranno perse.",
+    "addSection": "Aggiungi sezione",
+    "addField": "Aggiungi campo",
+    "addTab": "Aggiungi tab",
+    "newTab": "Nuova tab",
+    "searchFields": "Cerca campi…",
+    "noFields": "Nessun campo disponibile.",
+    "noLabel": "Senza etichetta",
+    "fieldCount_one": "{{count}} campo",
+    "fieldCount_other": "{{count}} campi",
+    "fieldCount": "{{count}} campi",
+    "sectionMenu": {
+      "rename": "Rinomina",
+      "hideLabel": "Nascondi etichetta",
+      "hideBorder": "Nascondi bordo",
+      "collapsible": "Collassabile",
+      "columns": "Colonne",
+      "remove": "Rimuovi"
+    },
+    "tabMenu": {
+      "rename": "Rinomina tab",
+      "delete": "Elimina tab"
+    },
+    "warnFullWidth": "{{label}} richiede una sezione full-width dedicata.",
+    "warnNoEmptyColumn": "La tab di destinazione non ha colonne vuote. Aggiungine una prima.",
+    "warnNoCrossTabSection": "Sposta le sezioni all'interno della loro tab.",
+    "defaultTabBadge": "Predefinita"
   }
 }

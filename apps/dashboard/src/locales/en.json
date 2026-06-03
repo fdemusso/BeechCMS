@@ -929,5 +929,45 @@
     "emailInvalid": "Please enter a valid email address.",
     "companyNameRequired": "Company name is required.",
     "companyWebsiteRequired": "Please enter a valid URL for the website."
+  },
+  "layoutBuilder": {
+    "editLayout": "Edit Layout",
+    "title": "Edit Quick Entry Layout — {{seed}}",
+    "showPreview": "Show Preview",
+    "reset": "Reset",
+    "resetConfirmTitle": "Reset to default?",
+    "resetConfirmDesc": "This removes the custom layout. The default will be used.",
+    "resetDone": "Layout reset to default.",
+    "save": "Save",
+    "saved": "Layout saved.",
+    "saveError": "Could not save the layout.",
+    "discardTitle": "Discard changes?",
+    "discardDesc": "Unsaved layout edits will be lost.",
+    "addSection": "Add Section",
+    "addField": "Add Field",
+    "addTab": "Add Tab",
+    "newTab": "New Tab",
+    "searchFields": "Search fields…",
+    "noFields": "No fields available.",
+    "noLabel": "No Label",
+    "fieldCount_one": "{{count}} field",
+    "fieldCount_other": "{{count}} fields",
+    "fieldCount": "{{count}} fields",
+    "sectionMenu": {
+      "rename": "Rename",
+      "hideLabel": "Hide Label",
+      "hideBorder": "Hide Border",
+      "collapsible": "Collapsible",
+      "columns": "Columns",
+      "remove": "Remove"
+    },
+    "tabMenu": {
+      "rename": "Rename tab",
+      "delete": "Delete tab"
+    },
+    "warnFullWidth": "{{label}} requires a dedicated full-width section.",
+    "warnNoEmptyColumn": "Target tab has no empty column. Add one first.",
+    "warnNoCrossTabSection": "Move sections within their tab.",
+    "defaultTabBadge": "Default"
   }
 }

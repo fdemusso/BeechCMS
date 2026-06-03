@@ -65,20 +65,6 @@ function makeSection(columnCount = 1): LayoutSection {
   }
 }
 
-function wouldViolateFullWidth(section: LayoutSection, incomingBranch: Branch): boolean {
-  if (isFullWidthBranch(incomingBranch)) {
-    const hasOtherFields = section.columns.some((c) => c.field != null)
-    if (hasOtherFields) return true
-  } else {
-    const hasFullWidthField = section.columns.some((c) => {
-      // We can't look up the branch here without a map, so we rely on caller passing correct data
-      return false
-    })
-    if (hasFullWidthField) return true
-  }
-  return false
-}
-
 function wouldViolateFullWidthWithMap(
   section: LayoutSection,
   incomingBranch: Branch,
