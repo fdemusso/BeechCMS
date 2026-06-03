@@ -5,14 +5,15 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSortable, SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, MoreHorizontal } from 'lucide-react'
+import { Check, GripVertical, MoreHorizontal } from 'lucide-react'
+import { toast } from 'sonner'
 import type { LayoutSection, Branch } from '@beechcms/core'
+import { isFullWidthBranch } from '@beechcms/core'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -56,7 +57,14 @@ export function SectionCard({
     opacity: isDragging ? 0.5 : 1,
   }
 
-  const fieldCount = section.columns.filter((c) => c.field != null).length
+  const fieldCount = section.columns.reduce((sum, c) => sum + c.fields.length, 0)
+
+  const hasFullWidthField = section.columns.some((c) =>
+    c.fields.some((f) => {
+      const b = branchById[f.branchId]
+      return b != null && isFullWidthBranch(b)
+    })
+  )
 
   function commitRename() {
     ops.renameSection(tabId, section.id, renameValue.trim() || undefined)
@@ -69,7 +77,7 @@ export function SectionCard({
   )
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded-lg border bg-card">
+    <div ref={setNodeRef} style={style} className="rounded-lg border">
       {/* Section header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b">
         <button
@@ -95,7 +103,8 @@ export function SectionCard({
           />
         ) : (
           <span
-            className={`flex-1 text-sm font-medium ${!section.label ? 'text-muted-foreground italic' : ''}`}
+            className={`flex-1 text-sm font-medium cursor-text ${!section.label ? 'text-muted-foreground italic' : ''}`}
+            onDoubleClick={() => { setRenameValue(section.label ?? ''); setIsRenaming(true) }}
           >
             {section.label ?? t('layoutBuilder.noLabel')}
           </span>
@@ -121,25 +130,27 @@ export function SectionCard({
               {t('layoutBuilder.sectionMenu.rename')}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuCheckboxItem
-              checked={!!section.hideLabel}
-              onCheckedChange={() => ops.toggleSectionFlag(tabId, section.id, 'hideLabel')}
-            >
+            <DropdownMenuItem onSelect={() => ops.toggleSectionFlag(tabId, section.id, 'hideLabel')}>
+              <Check className={section.hideLabel ? 'opacity-100' : 'opacity-0'} />
               {t('layoutBuilder.sectionMenu.hideLabel')}
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={!!section.hideBorder}
-              onCheckedChange={() => ops.toggleSectionFlag(tabId, section.id, 'hideBorder')}
-            >
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => ops.toggleSectionFlag(tabId, section.id, 'hideBorder')}>
+              <Check className={section.hideBorder ? 'opacity-100' : 'opacity-0'} />
               {t('layoutBuilder.sectionMenu.hideBorder')}
-            </DropdownMenuCheckboxItem>
-            <DropdownMenuCheckboxItem
-              checked={!!section.collapsible}
-              onCheckedChange={() => ops.toggleSectionFlag(tabId, section.id, 'collapsible')}
-            >
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => ops.toggleSectionFlag(tabId, section.id, 'collapsible')}>
+              <Check className={section.collapsible ? 'opacity-100' : 'opacity-0'} />
               {t('layoutBuilder.sectionMenu.collapsible')}
-            </DropdownMenuCheckboxItem>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
+            {hasFullWidthField ? (
+              <DropdownMenuItem
+                className="text-muted-foreground"
+                onSelect={() => toast.warning(t('layoutBuilder.warnFullWidthColumns'))}
+              >
+                {t('layoutBuilder.sectionMenu.columns')}
+              </DropdownMenuItem>
+            ) : (
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>{t('layoutBuilder.sectionMenu.columns')}</DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
@@ -154,6 +165,7 @@ export function SectionCard({
                 ))}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="text-destructive"
@@ -176,7 +188,7 @@ export function SectionCard({
                 tabId={tabId}
                 sectionId={section.id}
                 columnId={col.id}
-                field={col.field}
+                fields={col.fields}
                 branchById={branchById}
                 availableBranches={availableBranches}
                 ops={ops}

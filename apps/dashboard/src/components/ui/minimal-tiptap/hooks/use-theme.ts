@@ -5,15 +5,15 @@
 import * as React from "react"
 
 export const useTheme = () => {
-  const [isDarkMode, setIsDarkMode] = React.useState(false)
+  const [isDarkMode, setIsDarkMode] = React.useState(
+    () => window.matchMedia("(prefers-color-scheme: dark)").matches
+  )
 
   React.useEffect(() => {
     const darkModeMediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
-    setIsDarkMode(darkModeMediaQuery.matches)
 
     const handleChange = (e: MediaQueryListEvent) => {
-      const newDarkMode = e.matches
-      setIsDarkMode(newDarkMode)
+      setIsDarkMode(e.matches)
     }
 
     darkModeMediaQuery.addEventListener("change", handleChange)

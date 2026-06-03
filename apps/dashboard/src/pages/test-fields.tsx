@@ -9,6 +9,7 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar, SiteHeader } from "@/features/navigation"
 
 const RICHTEXT_BRANCH: Branch = {
+  id: "br_01",
   alias: "body",
   label: "Corpo del testo",
   type: "richtext",

@@ -8,12 +8,6 @@ export interface RequiredService {
   containerName: string
 }
 
-export const REQUIRED_SERVICES: RequiredService[] = [
-  { name: 'MinIO',          url: 'http://localhost:9000/minio/health/live', containerName: 'beech-minio' },
-  { name: 'Mailpit',        url: 'http://localhost:8025/livez',             containerName: 'beech-mailpit' },
-  { name: 'webhook-tester', url: 'http://localhost:8084/api/version',       containerName: 'beech-webhook-tester' },
-]
-
 interface CheckResult { service: RequiredService; ok: boolean; reason?: string }
 
 async function checkOne(svc: RequiredService, timeoutMs = 2000): Promise<CheckResult> {
@@ -30,6 +24,12 @@ async function checkOne(svc: RequiredService, timeoutMs = 2000): Promise<CheckRe
 }
 
 export async function assertDockerStackReady(): Promise<void> {
+  const minioBase = (process.env.R2_ENDPOINT ?? 'http://localhost:9000').replace(/\/$/, '')
+  const REQUIRED_SERVICES: RequiredService[] = [
+    { name: 'MinIO',          url: `${minioBase}/minio/health/live`,    containerName: 'beech-minio' },
+    { name: 'Mailpit',        url: 'http://localhost:8025/livez',        containerName: 'beech-mailpit' },
+    { name: 'webhook-tester', url: 'http://localhost:8084/api/version',  containerName: 'beech-webhook-tester' },
+  ]
   const results = await Promise.all(REQUIRED_SERVICES.map(s => checkOne(s)))
   const failed = results.filter(r => !r.ok)
   if (failed.length === 0) return

@@ -222,6 +222,7 @@ export function DraftsListPage() {
     labelPlural: t("drafts.title"),
     branches: [
       {
+        id: "br_01",
         alias: "seedLabel",
         label: t("drafts.columns.seed"),
         type: "text",
@@ -229,12 +230,14 @@ export function DraftsListPage() {
         policies: { sort: true, filter: true },
       },
       {
+        id: "br_02",
         alias: "title",
         label: t("drafts.columns.name"),
         type: "text",
         policies: { sort: true, filter: true },
       },
       {
+        id: "br_03",
         alias: "updatedAt",
         label: t("drafts.columns.updatedAt"),
         type: "date",
@@ -242,6 +245,7 @@ export function DraftsListPage() {
         policies: { sort: true, filter: true },
       },
       {
+        id: "br_04",
         alias: "lastModifiedBy",
         label: t("drafts.columns.user"),
         type: "text",

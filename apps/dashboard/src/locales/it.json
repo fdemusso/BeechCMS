@@ -968,6 +968,7 @@
     "warnFullWidth": "{{label}} richiede una sezione full-width dedicata.",
     "warnNoEmptyColumn": "La tab di destinazione non ha colonne vuote. Aggiungine una prima.",
     "warnNoCrossTabSection": "Sposta le sezioni all'interno della loro tab.",
+    "warnFullWidthColumns": "Questa sezione contiene un campo a larghezza piena. Il numero di colonne non può essere modificato.",
     "defaultTabBadge": "Predefinita"
   }
 }

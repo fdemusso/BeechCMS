@@ -18,7 +18,7 @@ export interface LayoutField {
 
 export interface LayoutColumn {
   id: string
-  field: LayoutField | null
+  fields: LayoutField[]
 }
 
 export interface LayoutSection {
@@ -89,7 +89,7 @@ export function isSeoBranch(branch: Branch): boolean {
 export const layoutFieldSchema = z.object({ branchId: z.string().regex(/^br_[A-Za-z0-9]+$/) })
 export const layoutColumnSchema = z.object({
   id: z.string().min(1),
-  field: layoutFieldSchema.nullable(),
+  fields: z.array(layoutFieldSchema),
 })
 export const layoutSectionSchema = z.object({
   id: z.string().min(1),
@@ -137,10 +137,10 @@ function buildSectionsForBranches(
         id: newId(),
         label: branch.label,
         hideLabel: true,
-        columns: [{ id: newId(), field: { branchId: branch.id } }],
+        columns: [{ id: newId(), fields: [{ branchId: branch.id }] }],
       })
     } else {
-      currentColumns.push({ id: newId(), field: { branchId: branch.id } })
+      currentColumns.push({ id: newId(), fields: [{ branchId: branch.id }] })
       if (currentColumns.length >= DEFAULT_COLUMNS_PER_SECTION) {
         flushCompact()
       }
@@ -150,7 +150,7 @@ function buildSectionsForBranches(
   flushCompact()
 
   if (sections.length === 0) {
-    sections.push({ id: newId(), columns: [{ id: newId(), field: null }] })
+    sections.push({ id: newId(), columns: [{ id: newId(), fields: [] }] })
   }
 
   return sections
@@ -199,15 +199,15 @@ export function validateLayoutAgainstSeed(
     ...tab,
     sections: tab.sections.map((section) => ({
       ...section,
-      columns: section.columns.map((col) => {
-        if (!col.field) return col
-        const branch = findBranchById(seed, col.field.branchId)
-        if (!branch) return { ...col, field: null }
-        if (UNSUPPORTED_BRANCH_TYPES.has(branch.type) || SYSTEM_ALIASES.has(branch.alias)) {
-          return { ...col, field: null }
-        }
-        return col
-      }),
+      columns: section.columns.map((col) => ({
+        ...col,
+        fields: (col.fields ?? []).filter((f) => {
+          const branch = findBranchById(seed, f.branchId)
+          if (!branch) return false
+          if (UNSUPPORTED_BRANCH_TYPES.has(branch.type) || SYSTEM_ALIASES.has(branch.alias)) return false
+          return true
+        }),
+      })),
     })),
   }))
 
@@ -217,15 +217,16 @@ export function validateLayoutAgainstSeed(
       const fieldsInSection: Branch[] = []
 
       for (const col of section.columns) {
-        if (!col.field) continue
-        const branch = findBranchById(seed, col.field.branchId)
-        if (!branch) continue
+        for (const f of col.fields) {
+          const branch = findBranchById(seed, f.branchId)
+          if (!branch) continue
 
-        if (seenBranchIds.has(col.field.branchId)) {
-          errors.push(`Branch '${branch.alias}' (id=${col.field.branchId}) appears more than once in the layout.`)
-        } else {
-          seenBranchIds.add(col.field.branchId)
-          fieldsInSection.push(branch)
+          if (seenBranchIds.has(f.branchId)) {
+            errors.push(`Branch '${branch.alias}' (id=${f.branchId}) appears more than once in the layout.`)
+          } else {
+            seenBranchIds.add(f.branchId)
+            fieldsInSection.push(branch)
+          }
         }
       }
 

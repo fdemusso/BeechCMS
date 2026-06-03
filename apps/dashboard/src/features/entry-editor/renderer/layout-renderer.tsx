@@ -45,7 +45,7 @@ function ColumnRenderer({
 }) {
   const { t } = useTranslation()
 
-  if (column.field == null) {
+  if (column.fields.length === 0) {
     return (
       <div className="text-sm text-muted-foreground italic py-2">
         {t("content.editor.emptyColumn")}
@@ -53,26 +53,30 @@ function ColumnRenderer({
     )
   }
 
-  const branch = branchById[column.field.branchId]
-  if (branch == null) return null
-
   return (
-    <div className="space-y-2">
-      <Label htmlFor={branch.alias} className="flex items-center">
-        {branch.label}
-        {branch.requiredOnCreate && (
-          <Asterisk className="inline size-3 text-destructive ml-1" />
-        )}
-      </Label>
-      {/* TODO: Verify tags behavior; if they are predefined, it might need to render as a list instead of a textbox. */}
-      <FieldEdit
-        branch={branch as any}
-        value={formData[branch.alias]}
-        onChange={(v) => onChange(branch.alias, v)}
-      />
-      {fieldErrors[branch.alias] && (
-        <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
-      )}
+    <div className="space-y-4">
+      {column.fields.map((f) => {
+        const branch = branchById[f.branchId]
+        if (branch == null) return null
+        return (
+          <div key={f.branchId} className="space-y-2">
+            <Label htmlFor={branch.alias} className="flex items-center">
+              {branch.label}
+              {branch.requiredOnCreate && (
+                <Asterisk className="inline size-3 text-destructive ml-1" />
+              )}
+            </Label>
+            <FieldEdit
+              branch={branch as any}
+              value={formData[branch.alias]}
+              onChange={(v) => onChange(branch.alias, v)}
+            />
+            {fieldErrors[branch.alias] && (
+              <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

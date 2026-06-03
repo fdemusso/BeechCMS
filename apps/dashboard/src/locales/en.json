@@ -968,6 +968,7 @@
     "warnFullWidth": "{{label}} requires a dedicated full-width section.",
     "warnNoEmptyColumn": "Target tab has no empty column. Add one first.",
     "warnNoCrossTabSection": "Move sections within their tab.",
+    "warnFullWidthColumns": "This section contains a full-width field. Column count cannot be changed.",
     "defaultTabBadge": "Default"
   }
 }

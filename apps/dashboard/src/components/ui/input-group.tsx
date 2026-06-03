@@ -4,63 +4,15 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import { InputGroupInput } from "./input-group-input"
+import { InputGroupAddon } from "./input-group-addon"
+import { InputGroupButton } from "./input-group-button"
 
 function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="input-group"
       className={cn("relative flex w-full items-center", className)}
-      {...props}
-    />
-  )
-}
-
-function InputGroupInput({ className, ...props }: React.ComponentProps<"input">) {
-  return (
-    <input
-      data-slot="input-group-input"
-      className={cn(
-        "h-7 w-full min-w-0 rounded-md border border-input bg-transparent px-2.5 py-0 text-xs shadow-xs transition-[color,box-shadow] outline-none selection:bg-primary selection:text-primary-foreground file:inline-flex file:h-5 file:border-0 file:bg-transparent file:text-xs file:font-medium file:text-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-xs dark:bg-input/30",
-        "focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
-        "aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40",
-        "pr-8", // Space for the addon button
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-function InputGroupAddon({
-  className,
-  align = "inline-end",
-  ...props
-}: React.ComponentProps<"div"> & { align?: "inline-start" | "inline-end" }) {
-  return (
-    <div
-      data-slot="input-group-addon"
-      data-align={align}
-      className={cn(
-        "absolute top-0 bottom-0 flex items-center justify-center",
-        align === "inline-start" ? "left-0 pl-3" : "right-0 pr-1",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-function InputGroupButton({
-  className,
-  size = "icon-xs",
-  ...props
-}: React.ComponentProps<typeof Button>) {
-  return (
-    <Button
-      data-slot="input-group-button"
-      size={size}
-      className={cn(className)}
       {...props}
     />
   )

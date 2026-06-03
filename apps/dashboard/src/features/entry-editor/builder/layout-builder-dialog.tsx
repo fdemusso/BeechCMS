@@ -182,12 +182,18 @@ export function LayoutBuilderDialog({ seed, open, onClose, onSaved }: LayoutBuil
       const toTabData = draft.tabs.find((t) => t.id === toTabId)
       if (!toTabData) return
 
+      const fromTab = draft.tabs.find((t) => t.id === fromTabId)
+      const fromSection = fromTab?.sections.find((s) => s.id === fromSectionId)
+      const fromCol = fromSection?.columns.find((c) => c.id === fromColId)
+      const fromBranchId = fromCol?.fields?.[0]?.branchId
+      if (!fromBranchId) return
+
       let foundEmpty = false
       for (const section of toTabData.sections) {
         for (const col of section.columns) {
-          if (col.field == null) {
+          if (col.fields.length === 0) {
             const ok = ops.moveField({
-              from: { tabId: fromTabId, sectionId: fromSectionId, columnId: fromColId },
+              from: { tabId: fromTabId, sectionId: fromSectionId, columnId: fromColId, branchId: fromBranchId },
               to: { tabId: toTabId, sectionId: section.id, columnId: col.id },
             })
             if (!ok) {
@@ -224,15 +230,21 @@ export function LayoutBuilderDialog({ seed, open, onClose, onSaved }: LayoutBuil
       }
 
       // Field move across sections or tabs
+      const aTab = draft.tabs.find((t) => t.id === aTabId)
+      const aSection = aTab?.sections.find((s) => s.id === aSectionId)
+      const aCol = aSection?.columns.find((c) => c.id === aColId)
+      const aBranchId = aCol?.fields?.[0]?.branchId
+      if (!aBranchId) return
+
       const ok = ops.moveField({
-        from: { tabId: aTabId, sectionId: aSectionId, columnId: aColId },
+        from: { tabId: aTabId, sectionId: aSectionId, columnId: aColId, branchId: aBranchId },
         to: { tabId: oTabId, sectionId: oSectionId, columnId: oColId },
       })
       if (!ok) {
         const sourceTab = draft.tabs.find((t) => t.id === aTabId)
         const sourceSection = sourceTab?.sections.find((s) => s.id === aSectionId)
         const sourceCol = sourceSection?.columns.find((c) => c.id === aColId)
-        const branchId = sourceCol?.field?.branchId
+        const branchId = sourceCol?.fields?.[0]?.branchId
         const branch = branchId ? branchById[branchId] : undefined
         if (branch && isFullWidthBranch(branch)) {
           toast.warning(t('layoutBuilder.warnFullWidth', { label: branch.label }))
@@ -377,7 +389,7 @@ interface BuilderBodyProps {
 }
 
 function BuilderBody({
-  seed,
+  seed: _seed,
   draft,
   activeTabId,
   branchById,

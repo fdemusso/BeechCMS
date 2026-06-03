@@ -13,7 +13,7 @@ vi.mock("@/features/content-management", () => ({
 }))
 
 vi.mock("@/components/ui/dialog", () => ({
-  Dialog: ({ children, open }: any) => (open ? <div role="dialog">{children}</div> : null),
+  Dialog: ({ children, open }: any) => (open ? <dialog open>{children}</dialog> : null),
   DialogContent: ({ children }: any) => <div>{children}</div>,
   DialogHeader: ({ children }: any) => <div>{children}</div>,
   DialogTitle: ({ children }: any) => <h2>{children}</h2>,
@@ -62,7 +62,7 @@ vi.mock("@/components/ui/button", () => ({
 }))
 
 vi.mock("@/components/ui/progress", () => ({
-  Progress: () => <div role="progressbar" />,
+  Progress: () => <progress />,
 }))
 
 vi.mock("@/features/fields", () => ({

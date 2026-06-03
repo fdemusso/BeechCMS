@@ -20,7 +20,7 @@ export interface UseLayoutBuilderArgs {
 }
 
 export interface MoveFieldArgs {
-  from: { tabId: string; sectionId: string; columnId: string }
+  from: { tabId: string; sectionId: string; columnId: string; branchId: string }
   to: { tabId: string; sectionId: string; columnId: string }
 }
 
@@ -41,7 +41,8 @@ export interface UseLayoutBuilderResult {
   setSectionColumnCount(tabId: string, sectionId: string, n: 1 | 2 | 3 | 4): void
   reorderColumns(tabId: string, sectionId: string, fromIndex: number, toIndex: number): void
   assignField(tabId: string, sectionId: string, columnId: string, branchId: string): boolean
-  clearField(tabId: string, sectionId: string, columnId: string): void
+  clearField(tabId: string, sectionId: string, columnId: string, branchId: string): void
+  reorderFieldsInColumn(tabId: string, sectionId: string, columnId: string, fromIndex: number, toIndex: number): void
   moveField(args: MoveFieldArgs): boolean
   reset(): void
   replace(layout: FormLayout): void
@@ -50,7 +51,7 @@ export interface UseLayoutBuilderResult {
 }
 
 function makeColumn(id?: string): LayoutColumn {
-  return { id: id ?? crypto.randomUUID(), field: null }
+  return { id: id ?? crypto.randomUUID(), fields: [] }
 }
 
 function makeSection(columnCount = 1): LayoutSection {
@@ -69,20 +70,24 @@ function wouldViolateFullWidthWithMap(
   section: LayoutSection,
   incomingBranch: Branch,
   branchMap: Map<string, Branch>,
-  excludeColumnId?: string
+  excludeColId?: string,
+  excludeBranchId?: string,
 ): boolean {
   if (isFullWidthBranch(incomingBranch)) {
-    const hasOtherFields = section.columns.some(
-      (c) => c.field != null && c.id !== excludeColumnId
-    )
-    return hasOtherFields
-  } else {
-    const hasFullWidthField = section.columns.some((c) => {
-      if (c.id === excludeColumnId || c.field == null) return false
-      const b = branchMap.get(c.field.branchId)
-      return b != null && isFullWidthBranch(b)
+    return section.columns.some((c) => {
+      const fieldsToCheck = (c.id === excludeColId && excludeBranchId)
+        ? c.fields.filter((f) => f.branchId !== excludeBranchId)
+        : c.fields
+      return fieldsToCheck.length > 0
     })
-    return hasFullWidthField
+  } else {
+    return section.columns.some((c) =>
+      c.fields.some((f) => {
+        if (c.id === excludeColId && f.branchId === excludeBranchId) return false
+        const b = branchMap.get(f.branchId)
+        return b != null && isFullWidthBranch(b)
+      })
+    )
   }
 }
 
@@ -105,33 +110,22 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
     setDraft((prev) => fn(structuredClone(prev)))
   }, [])
 
-  // ---- Tab ops ----
+  // ── Tab ops ──────────────────────────────────────────────────────────────
   const addTab = useCallback(() => {
-    mutate((d) => {
-      const newTab: LayoutTab = {
-        id: crypto.randomUUID(),
-        label: 'New Tab',
-        sections: [makeSection(2)],
-      }
-      return { ...d, tabs: [...d.tabs, newTab] }
-    })
+    mutate((d) => ({
+      ...d,
+      tabs: [...d.tabs, { id: crypto.randomUUID(), label: 'New Tab', sections: [makeSection(2)] } as LayoutTab],
+    }))
   }, [mutate])
 
   const renameTab = useCallback((tabId: string, label: string) => {
-    mutate((d) => ({
-      ...d,
-      tabs: d.tabs.map((t) => (t.id === tabId ? { ...t, label } : t)),
-    }))
+    mutate((d) => ({ ...d, tabs: d.tabs.map((t) => (t.id === tabId ? { ...t, label } : t)) }))
   }, [mutate])
 
   const removeTab = useCallback((tabId: string) => {
     mutate((d) => {
       const remaining = d.tabs.filter((t) => t.id !== tabId)
       return { ...d, tabs: remaining.length > 0 ? remaining : d.tabs }
-    })
-    setActiveTabId((prev) => {
-      // handled after mutate — adjust if needed
-      return prev
     })
   }, [mutate])
 
@@ -144,14 +138,12 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
     })
   }, [mutate])
 
-  // ---- Section ops ----
+  // ── Section ops ──────────────────────────────────────────────────────────
   const addSection = useCallback((tabId: string, columnCount = 2) => {
     mutate((d) => ({
       ...d,
       tabs: d.tabs.map((t) =>
-        t.id === tabId
-          ? { ...t, sections: [...t.sections, makeSection(columnCount)] }
-          : t
+        t.id === tabId ? { ...t, sections: [...t.sections, makeSection(columnCount)] } : t
       ),
     }))
   }, [mutate])
@@ -160,9 +152,7 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
     mutate((d) => ({
       ...d,
       tabs: d.tabs.map((t) =>
-        t.id === tabId
-          ? { ...t, sections: t.sections.filter((s) => s.id !== sectionId) }
-          : t
+        t.id === tabId ? { ...t, sections: t.sections.filter((s) => s.id !== sectionId) } : t
       ),
     }))
   }, [mutate])
@@ -186,86 +176,65 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
         ...d,
         tabs: d.tabs.map((t) =>
           t.id === tabId
-            ? {
-                ...t,
-                sections: t.sections.map((s) =>
-                  s.id === sectionId ? { ...s, [flag]: !s[flag] } : s
-                ),
-              }
+            ? { ...t, sections: t.sections.map((s) => s.id === sectionId ? { ...s, [flag]: !s[flag] } : s) }
             : t
         ),
       }))
-    },
-    [mutate]
-  )
+    }, [mutate])
 
   const renameSection = useCallback((tabId: string, sectionId: string, label: string | undefined) => {
     mutate((d) => ({
       ...d,
       tabs: d.tabs.map((t) =>
         t.id === tabId
-          ? {
-              ...t,
-              sections: t.sections.map((s) =>
-                s.id === sectionId ? { ...s, label: label || undefined } : s
-              ),
-            }
+          ? { ...t, sections: t.sections.map((s) => s.id === sectionId ? { ...s, label: label || undefined } : s) }
           : t
       ),
     }))
   }, [mutate])
 
-  const setSectionColumnCount = useCallback(
-    (tabId: string, sectionId: string, n: 1 | 2 | 3 | 4) => {
-      mutate((d) => ({
-        ...d,
-        tabs: d.tabs.map((t) => {
-          if (t.id !== tabId) return t
-          return {
-            ...t,
-            sections: t.sections.map((s) => {
-              if (s.id !== sectionId) return s
-              const current = s.columns
-              if (n > current.length) {
-                const extra = Array.from({ length: n - current.length }, () => makeColumn())
-                return { ...s, columns: [...current, ...extra] }
-              }
-              if (n < current.length) {
-                return { ...s, columns: current.slice(0, n) }
-              }
-              return s
-            }),
-          }
-        }),
-      }))
-    },
-    [mutate]
-  )
+  const setSectionColumnCount = useCallback((tabId: string, sectionId: string, n: 1 | 2 | 3 | 4) => {
+    mutate((d) => ({
+      ...d,
+      tabs: d.tabs.map((t) => {
+        if (t.id !== tabId) return t
+        return {
+          ...t,
+          sections: t.sections.map((s) => {
+            if (s.id !== sectionId) return s
+            const current = s.columns
+            if (n > current.length) {
+              return { ...s, columns: [...current, ...Array.from({ length: n - current.length }, () => makeColumn())] }
+            }
+            if (n < current.length) return { ...s, columns: current.slice(0, n) }
+            return s
+          }),
+        }
+      }),
+    }))
+  }, [mutate])
 
-  // ---- Column ops ----
-  const reorderColumns = useCallback(
-    (tabId: string, sectionId: string, fromIndex: number, toIndex: number) => {
-      mutate((d) => ({
-        ...d,
-        tabs: d.tabs.map((t) => {
-          if (t.id !== tabId) return t
-          return {
-            ...t,
-            sections: t.sections.map((s) => {
-              if (s.id !== sectionId) return s
-              const cols = [...s.columns]
-              const [moved] = cols.splice(fromIndex, 1)
-              cols.splice(toIndex, 0, moved)
-              return { ...s, columns: cols }
-            }),
-          }
-        }),
-      }))
-    },
-    [mutate]
-  )
+  // ── Column ops ───────────────────────────────────────────────────────────
+  const reorderColumns = useCallback((tabId: string, sectionId: string, fromIndex: number, toIndex: number) => {
+    mutate((d) => ({
+      ...d,
+      tabs: d.tabs.map((t) => {
+        if (t.id !== tabId) return t
+        return {
+          ...t,
+          sections: t.sections.map((s) => {
+            if (s.id !== sectionId) return s
+            const cols = [...s.columns]
+            const [moved] = cols.splice(fromIndex, 1)
+            cols.splice(toIndex, 0, moved)
+            return { ...s, columns: cols }
+          }),
+        }
+      }),
+    }))
+  }, [mutate])
 
-  // ---- Field ops ----
+  // ── Field ops ────────────────────────────────────────────────────────────
   const assignField = useCallback(
     (tabId: string, sectionId: string, columnId: string, branchId: string): boolean => {
       const branch = branchMap.get(branchId)
@@ -277,29 +246,24 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
         const section = tab?.sections.find((s) => s.id === sectionId)
         if (!section) { rejected = true; return d }
 
-        if (wouldViolateFullWidthWithMap(section, branch, branchMap, columnId)) {
-          rejected = true
-          return d
+        if (wouldViolateFullWidthWithMap(section, branch, branchMap)) {
+          rejected = true; return d
         }
 
         return {
           ...d,
           tabs: d.tabs.map((t) =>
-            t.id === tabId
-              ? {
-                  ...t,
-                  sections: t.sections.map((s) =>
-                    s.id === sectionId
-                      ? {
-                          ...s,
-                          columns: s.columns.map((c) =>
-                            c.id === columnId ? { ...c, field: { branchId } } : c
-                          ),
-                        }
-                      : s
+            t.id === tabId ? {
+              ...t,
+              sections: t.sections.map((s) =>
+                s.id === sectionId ? {
+                  ...s,
+                  columns: s.columns.map((c) =>
+                    c.id === columnId ? { ...c, fields: [...c.fields, { branchId }] } : c
                   ),
-                }
-              : t
+                } : s
+              ),
+            } : t
           ),
         }
       })
@@ -308,64 +272,67 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
     [mutate, branchMap]
   )
 
-  const clearField = useCallback((tabId: string, sectionId: string, columnId: string) => {
+  const clearField = useCallback((tabId: string, sectionId: string, columnId: string, branchId: string) => {
     mutate((d) => ({
       ...d,
       tabs: d.tabs.map((t) =>
-        t.id === tabId
-          ? {
-              ...t,
-              sections: t.sections.map((s) =>
-                s.id === sectionId
-                  ? {
-                      ...s,
-                      columns: s.columns.map((c) =>
-                        c.id === columnId ? { ...c, field: null } : c
-                      ),
-                    }
-                  : s
+        t.id === tabId ? {
+          ...t,
+          sections: t.sections.map((s) =>
+            s.id === sectionId ? {
+              ...s,
+              columns: s.columns.map((c) =>
+                c.id === columnId ? { ...c, fields: c.fields.filter((f) => f.branchId !== branchId) } : c
               ),
-            }
-          : t
+            } : s
+          ),
+        } : t
       ),
     }))
   }, [mutate])
 
+  const reorderFieldsInColumn = useCallback(
+    (tabId: string, sectionId: string, columnId: string, fromIndex: number, toIndex: number) => {
+      mutate((d) => ({
+        ...d,
+        tabs: d.tabs.map((t) => {
+          if (t.id !== tabId) return t
+          return {
+            ...t,
+            sections: t.sections.map((s) => {
+              if (s.id !== sectionId) return s
+              return {
+                ...s,
+                columns: s.columns.map((c) => {
+                  if (c.id !== columnId) return c
+                  const fields = [...c.fields]
+                  const [moved] = fields.splice(fromIndex, 1)
+                  fields.splice(toIndex, 0, moved)
+                  return { ...c, fields }
+                }),
+              }
+            }),
+          }
+        }),
+      }))
+    },
+    [mutate]
+  )
+
   const moveField = useCallback(
     ({ from, to }: MoveFieldArgs): boolean => {
+      const branch = branchMap.get(from.branchId)
+      if (!branch) return false
+
       let rejected = false
       mutate((d) => {
-        const fromTab = d.tabs.find((t) => t.id === from.tabId)
-        const fromSection = fromTab?.sections.find((s) => s.id === from.sectionId)
-        const fromCol = fromSection?.columns.find((c) => c.id === from.columnId)
         const toTab = d.tabs.find((t) => t.id === to.tabId)
         const toSection = toTab?.sections.find((s) => s.id === to.sectionId)
-        const toCol = toSection?.columns.find((c) => c.id === to.columnId)
+        if (!toSection) { rejected = true; return d }
 
-        if (!fromCol || !toSection || !toCol) { rejected = true; return d }
-
-        const incomingBranchId = fromCol.field?.branchId
-        if (!incomingBranchId) return d // source is empty, nothing to move
-
-        const incomingBranch = branchMap.get(incomingBranchId)
-        if (!incomingBranch) { rejected = true; return d }
-
-        if (wouldViolateFullWidthWithMap(toSection, incomingBranch, branchMap, to.columnId)) {
-          rejected = true
-          return d
+        if (wouldViolateFullWidthWithMap(toSection, branch, branchMap)) {
+          rejected = true; return d
         }
-
-        // Also check reverse: if destination has a field moving to source section
-        if (toCol.field) {
-          const destBranch = branchMap.get(toCol.field.branchId)
-          if (destBranch && fromSection && wouldViolateFullWidthWithMap(fromSection, destBranch, branchMap, from.columnId)) {
-            rejected = true
-            return d
-          }
-        }
-
-        const fromField = fromCol.field
-        const toField = toCol.field
 
         return {
           ...d,
@@ -374,11 +341,13 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
             sections: t.sections.map((s) => ({
               ...s,
               columns: s.columns.map((c) => {
+                // Remove from source
                 if (t.id === from.tabId && s.id === from.sectionId && c.id === from.columnId) {
-                  return { ...c, field: toField }
+                  return { ...c, fields: c.fields.filter((f) => f.branchId !== from.branchId) }
                 }
+                // Append to destination
                 if (t.id === to.tabId && s.id === to.sectionId && c.id === to.columnId) {
-                  return { ...c, field: fromField }
+                  return { ...c, fields: [...c.fields, { branchId: from.branchId }] }
                 }
                 return c
               }),
@@ -409,7 +378,7 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
     for (const tab of draft.tabs) {
       for (const section of tab.sections) {
         for (const col of section.columns) {
-          if (col.field) ids.add(col.field.branchId)
+          for (const f of col.fields) ids.add(f.branchId)
         }
       }
     }
@@ -424,27 +393,11 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
   }, [seed, getUsedBranchIds])
 
   return {
-    draft,
-    activeTabId,
-    setActiveTabId,
-    isDirty,
-    addTab,
-    renameTab,
-    removeTab,
-    reorderTabs,
-    addSection,
-    removeSection,
-    reorderSections,
-    toggleSectionFlag,
-    renameSection,
-    setSectionColumnCount,
+    draft, activeTabId, setActiveTabId, isDirty,
+    addTab, renameTab, removeTab, reorderTabs,
+    addSection, removeSection, reorderSections, toggleSectionFlag, renameSection, setSectionColumnCount,
     reorderColumns,
-    assignField,
-    clearField,
-    moveField,
-    reset,
-    replace,
-    getUsedBranchIds,
-    getAvailableBranches,
+    assignField, clearField, reorderFieldsInColumn, moveField,
+    reset, replace, getUsedBranchIds, getAvailableBranches,
   }
 }

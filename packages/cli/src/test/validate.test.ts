@@ -5,12 +5,17 @@ import { describe, it, expect } from 'vitest'
 import { validateSeeds } from '../commands/validate.js'
 import type { Seed } from '@beechcms/core'
 
-function makeSeed(slug: string, branches: Seed['branches'] = []): Seed {
+type PartialBranch = Omit<Seed['branches'][number], 'id'>
+
+function makeSeed(slug: string, branches: PartialBranch[] = []): Seed {
+  let counter = 0
+  const withIds = (branches.length > 0 ? branches : [{ alias: 'title', label: 'Title', type: 'text' }])
+    .map(b => ({ id: `br_${String(++counter).padStart(2, '0')}`, ...b }))
   return {
     slug,
     label: slug,
-    displayNameAlias: branches[0]?.alias ?? 'title',
-    branches: branches.length > 0 ? branches : [{ alias: 'title', label: 'Title', type: 'text' }],
+    displayNameAlias: withIds[0]?.alias ?? 'title',
+    branches: withIds,
   } as Seed
 }
 
@@ -59,8 +64,8 @@ describe('validateSeeds — cyclic dependency', () => {
         label: 'A',
         displayNameAlias: 'title',
         branches: [
-          { alias: 'title', label: 'Title', type: 'text' },
-          { alias: 'b_id', label: 'B', type: 'relation', targetSeed: 'b' },
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'b_id', label: 'B', type: 'relation', targetSeed: 'b' },
         ],
       },
       b: {
@@ -68,8 +73,8 @@ describe('validateSeeds — cyclic dependency', () => {
         label: 'B',
         displayNameAlias: 'title',
         branches: [
-          { alias: 'title', label: 'Title', type: 'text' },
-          { alias: 'a_id', label: 'A', type: 'relation', targetSeed: 'a' },
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'a_id', label: 'A', type: 'relation', targetSeed: 'a' },
         ],
       },
     }
@@ -187,7 +192,7 @@ describe('validateSeeds — existing warning checks', () => {
         slug: 'items',
         label: 'Items',
         displayNameAlias: 'nonexistent',
-        branches: [{ alias: 'title', label: 'Title', type: 'text' }],
+        branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' }],
       },
     }
 

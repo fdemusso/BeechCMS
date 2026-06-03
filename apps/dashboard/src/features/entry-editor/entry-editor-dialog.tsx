@@ -26,15 +26,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   Dialog,
@@ -53,7 +44,7 @@ import {
 } from "@/features/content-management"
 import { useActiveSeed } from "@/features/schema"
 import { useAuth } from "@/lib/auth-context"
-import { LayoutBuilderDialog } from "./builder/layout-builder-dialog"
+import { BuilderPane } from "./builder/builder-pane"
 import { ReferencedByPanel } from "@/features/backrefs"
 import {
   Tooltip,
@@ -177,61 +168,6 @@ function validateEntryJsonFields(
 }
 
 // ============================================================================
-// UI SUB-COMPONENTS
-// ============================================================================
-
-type StatusAndSlugFieldsProps = {
-  status: string
-  onStatusChange: (val: string) => void
-  slug: string
-  onSlugChange: (val: string) => void
-  isGrid?: boolean
-}
-
-function StatusAndSlugFields({
-  status,
-  onStatusChange,
-  slug,
-  onSlugChange,
-  isGrid = false,
-}: StatusAndSlugFieldsProps) {
-  const { t } = useTranslation()
-
-  const content = (
-    <>
-      <div className="space-y-2">
-        <Label htmlFor="entry-status">{t("content.editor.status")}</Label>
-        <Select value={status} onValueChange={onStatusChange}>
-          <SelectTrigger id="entry-status" className="w-full">
-            <SelectValue placeholder={t("content.editor.status")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="draft">{t("content.editor.draft")}</SelectItem>
-            <SelectItem value="published">{t("content.editor.published")}</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="entry-slug">{t("content.editor.slug")}</Label>
-        <Input
-          id="entry-slug"
-          value={slug}
-          onChange={(e) => onSlugChange(e.target.value)}
-          maxLength={15}
-          placeholder={t("content.editor.slugPlaceholder")}
-          className="font-mono text-sm"
-        />
-      </div>
-    </>
-  )
-
-  if (isGrid) {
-    return <div className="grid gap-4 sm:grid-cols-2">{content}</div>
-  }
-  return <>{content}</>
-}
-
-// ============================================================================
 // MAIN DIALOG COMPONENT
 // ============================================================================
 
@@ -280,7 +216,7 @@ export function EntryEditorDialog({
   const [fieldErrors, setFieldErrors] = React.useState<Record<string, string>>({})
   const [hasRestrictedRefs, setHasRestrictedRefs] = React.useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
-  const [builderOpen, setBuilderOpen] = React.useState(false)
+  const [builderMode, setBuilderMode] = React.useState(false)
   const hasJustSavedRef = React.useRef(false)
 
   const { user } = useAuth()
@@ -307,17 +243,6 @@ export function EntryEditorDialog({
 
   const handleInputChange = React.useCallback((alias: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [alias]: value }))
-    setIsDirty(true)
-  }, [])
-
-  const handleStatusChange = React.useCallback((val: string) => {
-    setStatus(val)
-    setIsDirty(true)
-  }, [])
-
-  const handleSlugChange = React.useCallback((val: string) => {
-    setSlug(slugify(val))
-    setSlugTouched(true)
     setIsDirty(true)
   }, [])
 
@@ -498,7 +423,7 @@ export function EntryEditorDialog({
   }
 
   const isBusy = isSaving || isSavingDraft || isPublishing
-  const hasSaveDropdown = !isCreate && !!entryId && !!seed?.allowDrafts
+  const hasSaveDropdown = effectiveDraftContext && !isCreate && !!entryId && !!seed?.allowDrafts
 
   const pageTitle = seed
     ? isCreate
@@ -583,7 +508,7 @@ export function EntryEditorDialog({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  onClick={() => setBuilderOpen(true)}
+                  onClick={() => setBuilderMode(true)}
                   className="absolute top-4 right-10 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                 >
                   <Pencil className="size-4" />
@@ -596,8 +521,16 @@ export function EntryEditorDialog({
             </Tooltip>
           )}
 
+          {builderMode && seed ? (
+            <BuilderPane
+              seed={seed}
+              branchById={branchById}
+              onClose={() => setBuilderMode(false)}
+            />
+          ) : null}
+
           <form
-            className="flex-1 flex flex-col min-h-0"
+            className={`flex-1 flex flex-col min-h-0 ${builderMode ? 'hidden' : ''}`}
             onSubmit={handleSubmit}
           >
             {/* Scrollable body */}
@@ -706,6 +639,7 @@ export function EntryEditorDialog({
               <div className="flex items-center">
                 <Button
                   type="submit"
+                  size="sm"
                   disabled={isBusy}
                   className={hasSaveDropdown ? "rounded-r-none border-r border-r-primary-foreground/20 pr-3" : ""}
                 >
@@ -724,6 +658,7 @@ export function EntryEditorDialog({
                     <DropdownMenuTrigger asChild>
                       <Button
                         type="button"
+                        size="sm"
                         disabled={isBusy}
                         className="rounded-l-none px-2 border-l-0"
                       >
@@ -732,24 +667,16 @@ export function EntryEditorDialog({
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      {effectiveDraftContext ? (
-                        <>
-                          <DropdownMenuItem onClick={handlePublishDraft} disabled={isPublishing}>
-                            {isPublishing && <Loader2 className="mr-2 size-3 animate-spin" />}
-                            {t("content.editor.publishDraft")}
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => setShowDiscardConfirm(true)}
-                          >
-                            {t("content.editor.discardDraft")}
-                          </DropdownMenuItem>
-                        </>
-                      ) : (
-                        <DropdownMenuItem onClick={handleSaveDraftOnly}>
-                          {t("content.editor.saveAsDraft")}
-                        </DropdownMenuItem>
-                      )}
+                      <DropdownMenuItem onClick={handlePublishDraft} disabled={isPublishing}>
+                        {isPublishing && <Loader2 className="mr-2 size-3 animate-spin" />}
+                        {t("content.editor.publishDraft")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="text-destructive"
+                        onClick={() => setShowDiscardConfirm(true)}
+                      >
+                        {t("content.editor.discardDraft")}
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
                 )}
@@ -802,16 +729,6 @@ export function EntryEditorDialog({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Layout builder */}
-      {seed && (
-        <LayoutBuilderDialog
-          seed={seed}
-          open={builderOpen}
-          onClose={() => setBuilderOpen(false)}
-          onSaved={() => { /* schema query invalidation handled inside builder */ }}
-        />
-      )}
 
       {/* Delete entry confirmation */}
       <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>

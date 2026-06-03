@@ -8,6 +8,7 @@ import { FieldDisplay } from "@/features/fields/FieldDisplay"
 import type { Branch } from "@beechcms/core"
 
 const baseBranch: Branch = {
+  id: "br_01",
   alias: "title",
   label: "Title",
   type: "text",
