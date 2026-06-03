@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { ContentListPage } from "@/pages/content-list"
 import { EntryEditorPage } from "@/pages/entry-editor"
 import { TestFieldsPage } from "@/pages/test-fields"
+import { TestEditorPage } from "@/pages/test-editor"
 import { WidgetLabPage } from "@/pages/widget-lab"
 import { ErrorPage } from "@/pages/error-page"
 import { ForgotPasswordPage } from "@/pages/forgot-password/ForgotPasswordPage"
@@ -164,6 +165,15 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <TestFieldsPage />
+          </ProtectedRoute>
+        ),
+      },
+      // TODO: TEMPORARY - Remove this route before shipping to production
+      {
+        path: "/test-editor",
+        element: (
+          <ProtectedRoute>
+            <TestEditorPage />
           </ProtectedRoute>
         ),
       },

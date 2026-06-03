@@ -3,8 +3,8 @@ services:
     image: minio/minio:latest
     container_name: beech-minio
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${BEECH_MINIO_PORT:-9000}:9000"
+      - "${BEECH_MINIO_CONSOLE_PORT:-9001}:9001"
     environment:
       MINIO_ROOT_USER: beechdev
       MINIO_ROOT_PASSWORD: beechdevsecret
@@ -29,8 +29,8 @@ services:
     container_name: beech-mailpit
     restart: unless-stopped
     ports:
-      - "127.0.0.1:1025:1025"
-      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:${BEECH_MAILPIT_SMTP_PORT:-1025}:1025"
+      - "127.0.0.1:${BEECH_MAILPIT_UI_PORT:-8025}:8025"
     environment:
       MP_MAX_MESSAGES: 500
       MP_SMTP_AUTH_ACCEPT_ANY: 1
@@ -46,7 +46,7 @@ services:
     container_name: beech-sqlite-web
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:${BEECH_SQLITE_WEB_PORT:-8080}:8080"
     volumes:
       - ./apps/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject:/data
     working_dir: /data
@@ -69,7 +69,7 @@ services:
     container_name: beech-webhook-tester
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8084:8080"
+      - "127.0.0.1:${BEECH_WEBHOOK_TESTER_PORT:-8084}:8080"
     command: ["serve", "--port", "8080"]
     healthcheck:
       test: ["CMD", "/bin/app", "start", "healthcheck"]
