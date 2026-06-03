@@ -77,6 +77,7 @@ async function tryStartDockerStack(): Promise<void> {
 
 export async function setup() {
   loadDevVars()
+  syncDockerPortsFromDevVars()
   try {
     await assertDockerStackReady()
   } catch {

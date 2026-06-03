@@ -33,6 +33,8 @@ export default defineConfig({
         'src/rate-limit/rate-limiter.ts',
         'src/relations.ts',
         'src/webhook-validation.ts',
+        // Schema/type/layout definition — no runtime logic to unit-test
+        'src/seed-layout.ts',
       ],
       thresholds: {
         statements: 80,
