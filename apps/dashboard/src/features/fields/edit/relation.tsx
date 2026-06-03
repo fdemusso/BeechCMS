@@ -131,6 +131,7 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
   const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS)
+  const addPopoverId = React.useId()
 
   const targetSlug = branch.targetSeed
   const selectedIds = Array.isArray(value) ? value : []
@@ -220,6 +221,7 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            aria-controls={addPopoverId}
             aria-label={t("content.editor.relationMulti.add")}
             disabled={disabled || !targetSlug}
             className={cn(
@@ -235,7 +237,7 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
             <ChevronsUpDown className="size-4 opacity-50 ml-2 shrink-0" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <PopoverContent id={addPopoverId} className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput
               placeholder={t("content.editor.relation.search")}
@@ -300,6 +302,7 @@ function SingleRelationEdit({
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
   const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS)
+  const singlePopoverId = React.useId()
 
   const targetSlug = branch.targetSeed
   const selectedId = typeof value === "string" && value.length > 0 ? value : null
@@ -372,6 +375,7 @@ function SingleRelationEdit({
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            aria-controls={singlePopoverId}
             aria-label={t("content.editor.relation.placeholder")}
             disabled={disabled || !targetSlug}
             className={cn(
@@ -397,7 +401,7 @@ function SingleRelationEdit({
           </button>
         )}
       </div>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent id={singlePopoverId} className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder={t("content.editor.relation.search")}

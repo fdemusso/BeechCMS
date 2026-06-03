@@ -33,18 +33,18 @@ vi.mock("@/components/ui/select", () => {
     )
   }
   function SelectTrigger({ children }: any) {
-    return <div role="combobox">{children}</div>
+    return <div role="combobox" aria-expanded={false} aria-controls="select-listbox">{children}</div>
   }
   function SelectValue({ placeholder }: any) {
     return <span>{placeholder}</span>
   }
   function SelectContent({ children }: any) {
-    return <div role="listbox">{children}</div>
+    return <div id="select-listbox" role="listbox">{children}</div>
   }
   function SelectItem({ children, value }: any) {
     const ctx = React.useContext(SelectContext)
     return (
-      <button role="option" data-value={value} onClick={() => ctx?.onValueChange(value)}>
+      <button role="option" aria-selected={false} data-value={value} onClick={() => ctx?.onValueChange(value)}>
         {children}
       </button>
     )

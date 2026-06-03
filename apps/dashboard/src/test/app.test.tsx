@@ -29,7 +29,6 @@ vi.mock("@/components/ui/sidebar", () => ({
   SidebarInset: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }))
 vi.mock("@/pages/content-list", () => ({ ContentListPage: () => <div>CONTENT_LIST</div> }))
-vi.mock("@/pages/entry-editor", () => ({ EntryEditorPage: () => <div>ENTRY_EDITOR</div> }))
 vi.mock("@/pages/test-fields", () => ({ TestFieldsPage: () => <div>TEST_FIELDS</div> }))
 vi.mock("@/pages/error-page", () => ({ ErrorPage: () => <div>ERROR_PAGE</div> }))
 vi.mock("@/features/dashboard", () => ({ DashboardPage: () => <div>DASHBOARD_PAGE</div> }))

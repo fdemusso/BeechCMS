@@ -253,7 +253,7 @@ h1 {
 /*
   Layout content-area: limita il contenuto principale a una larghezza
   leggibile anche su monitor ultrawide 21:9 (≥ 2560px).
-  Usato in DashboardPage, ContentListPage, EntryEditorPage.
+  Usato in DashboardPage, ContentListPage.
 */
 .content-area-inner {
   width: 100%;

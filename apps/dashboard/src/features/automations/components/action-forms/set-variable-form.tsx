@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useId } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFormContext, useFieldArray } from 'react-hook-form'
 import { Plus, Trash2, ChevronDown } from 'lucide-react'
@@ -36,6 +36,7 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
   const [sourceOpen, setSourceOpen] = useState(false)
   const [sourceInput, setSourceInput] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const sourcePopoverId = useId()
 
   const seedSlug = watch(`actions.${index}.seed_slug` as any) as string
   const fixedId = watch(`actions.${index}.fixed_id` as any) as string
@@ -112,6 +113,8 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
               type="button"
               variant="outline"
               role="combobox"
+              aria-expanded={sourceOpen}
+              aria-controls={sourcePopoverId}
               className="h-8 w-full justify-between text-sm font-normal"
             >
               <span className="truncate">
@@ -125,7 +128,7 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
               <ChevronDown className="ml-2 h-3 w-3 shrink-0 opacity-50" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-64 p-0" align="start">
+          <PopoverContent id={sourcePopoverId} className="w-64 p-0" align="start">
             <Command shouldFilter={false}>
               <CommandInput
                 ref={inputRef}
