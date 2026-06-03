@@ -46,13 +46,13 @@ export const TEST_SEEDS = [
     allowPublicEdit: true,
     allowDrafts: true,
     branches: [
-      { alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true, policies: { public: true } },
-      { alias: 'body', label: 'Body', type: 'richtext', policies: { public: true } }, // Changed to richtext for validation tests
-      { alias: 'internal_note', label: 'Internal Note', type: 'text', policies: { public: false } },
-      { alias: 'contact_email', label: 'Contact Email', type: 'text' },
-      { alias: 'view_count', label: 'View Count', type: 'number' },
-      { alias: 'image', label: 'Featured Image', type: 'file', fileOptions: { accept: 'image' } },
-      { alias: 'tags', label: 'Tags', type: 'tags' },
+      { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true, policies: { public: true } },
+      { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext', policies: { public: true } }, // Changed to richtext for validation tests
+      { id: 'br_03', alias: 'internal_note', label: 'Internal Note', type: 'text', policies: { public: false } },
+      { id: 'br_04', alias: 'contact_email', label: 'Contact Email', type: 'text' },
+      { id: 'br_05', alias: 'view_count', label: 'View Count', type: 'number' },
+      { id: 'br_06', alias: 'image', label: 'Featured Image', type: 'file', fileOptions: { accept: 'image' } },
+      { id: 'br_07', alias: 'tags', label: 'Tags', type: 'tags' },
     ],
   }),
   defineSeed({
@@ -63,7 +63,7 @@ export const TEST_SEEDS = [
     allowPublicRead: false,
     allowPublicPost: false,
     branches: [
-      { alias: 'title', label: 'Title', type: 'text' },
+      { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
     ],
   }),
   defineSeed({
@@ -72,9 +72,10 @@ export const TEST_SEEDS = [
     labelPlural: 'Numericals',
     displayNameAlias: 'id',
     branches: [
-      { 
-        alias: 'score', 
-        label: 'Score', 
+      {
+        id: 'br_01',
+        alias: 'score',
+        label: 'Score',
         type: 'number',
         numberOptions: {
           min: 0,
@@ -83,6 +84,7 @@ export const TEST_SEEDS = [
         }
       },
       {
+        id: 'br_02',
         alias: 'rating',
         label: 'Rating',
         type: 'number',
@@ -92,6 +94,7 @@ export const TEST_SEEDS = [
         }
       },
       {
+        id: 'br_03',
         alias: 'unbounded',
         label: 'Unbounded',
         type: 'number'
@@ -106,11 +109,11 @@ export const TEST_SEEDS = [
  * Default password for all test users: 'password123'
  */
 export const TEST_USERS = [
-  { 
-    id: 'user_admin_01', 
-    email: 'flavio@beechcms.io', 
-    password_hash: bcrypt.hashSync('password123', 10), 
-    name: 'Flavio De Musso' 
+  {
+    id: 'user_admin_01',
+    email: 'flavio@beechcms.io',
+    password_hash: bcrypt.hashSync('password123', 10),
+    name: 'Flavio De Musso'
   },
   {
     id: 'user_editor_01',

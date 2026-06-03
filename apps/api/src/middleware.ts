@@ -7,12 +7,6 @@ import type { Context, Next } from 'hono'
 import { HTTPException } from 'hono/http-exception'
 import type { Env, Variables } from './types'
 
-export type JwtPayload = {
-  sub: string
-  email?: string
-  name?: string
-}
-
 const UNAUTHORIZED_JSON = JSON.stringify({ error: 'Unauthorized' })
 
 function unauthorizedResponse() {
@@ -45,7 +39,7 @@ export function authMiddleware() {
       throw new HTTPException(401, { res: unauthorizedResponse() })
     }
 
-    c.set('jwtPayload', claims as JwtPayload)
+    c.set('jwtPayload', claims)
     await next()
   }
 }

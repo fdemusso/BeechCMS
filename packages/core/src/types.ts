@@ -55,6 +55,16 @@ export interface FileFieldOptions {
 
 /** Branch: definizione di una proprietà. alias = nome colonna SQL. */
 export interface Branch {
+  /**
+   * Stable logical id of this branch, e.g. 'br_01', 'br_title'.
+   * Format: ^br_[A-Za-z0-9]+$ — enforced by SeedRegistry at boot (sprint 04-pre).
+   *
+   * Used by every persistence layer that needs a reference that survives alias renames
+   * (FTS triggers, draft indexing, layout JSON, automations). NEVER use alias for that purpose.
+   *
+   * The Botanical Engine still emits alias as the SQL column name; id is a logical handle.
+   */
+  id: string
   /** Alias human-readable, usato nel payload API e come nome colonna SQL nella tabella dedicata */
   alias: string
   /** Etichetta per la UI */

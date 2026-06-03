@@ -17,7 +17,7 @@ const teamSeed = {
   labelPlural: 'Team Members',
   displayNameAlias: 'name',
   branches: [
-    { alias: 'name', label: 'Name', type: 'text' as const },
+    { id: 'br_01', alias: 'name', label: 'Name', type: 'text' as const },
   ],
   allowPublicRead: false,
 }
@@ -28,8 +28,8 @@ const articlesSeed = {
   labelPlural: 'Articles',
   displayNameAlias: 'title',
   branches: [
-    { alias: 'title', label: 'Title', type: 'text' as const },
-    { alias: 'author_id', label: 'Author', type: 'relation' as const, targetSeed: 'team' },
+    { id: 'br_01', alias: 'title', label: 'Title', type: 'text' as const },
+    { id: 'br_02', alias: 'author_id', label: 'Author', type: 'relation' as const, targetSeed: 'team' },
   ],
   allowPublicRead: false,
 }
@@ -40,7 +40,7 @@ const tagsSeed = {
   labelPlural: 'Tags',
   displayNameAlias: 'name',
   branches: [
-    { alias: 'name', label: 'Name', type: 'text' as const },
+    { id: 'br_01', alias: 'name', label: 'Name', type: 'text' as const },
   ],
   allowPublicRead: false,
 }
@@ -51,8 +51,8 @@ const articleTagsSeed = {
   labelPlural: 'Articles',
   displayNameAlias: 'title',
   branches: [
-    { alias: 'title', label: 'Title', type: 'text' as const },
-    { alias: 'tags', label: 'Tags', type: 'relation' as const, targetSeed: 'tags', multiple: true },
+    { id: 'br_01', alias: 'title', label: 'Title', type: 'text' as const },
+    { id: 'br_02', alias: 'tags', label: 'Tags', type: 'relation' as const, targetSeed: 'tags', multiple: true },
   ],
   allowPublicRead: false,
 }

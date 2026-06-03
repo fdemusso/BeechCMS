@@ -29,7 +29,7 @@ describe('D1ContentScanRepository', () => {
       label: 'Post',
       displayNameAlias: 'title',
       branches: [
-        { alias: 'title', type: 'text', label: 'Title' },
+        { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
       ],
     }
     const result = await repo.getReferencedMediaKeys([seedWithoutFile])
@@ -49,9 +49,9 @@ describe('D1ContentScanRepository', () => {
       label: 'Article',
       displayNameAlias: 'title',
       branches: [
-        { alias: 'title', type: 'text', label: 'Title' },
-        { alias: 'cover', type: 'file', label: 'Cover' },
-        { alias: 'gallery', type: 'file', label: 'Gallery' },
+        { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
+        { id: 'br_02', alias: 'cover', type: 'file', label: 'Cover' },
+        { id: 'br_03', alias: 'gallery', type: 'file', label: 'Gallery' },
       ],
     }
 
@@ -70,7 +70,7 @@ describe('D1ContentScanRepository', () => {
       label: 'Article',
       displayNameAlias: 'title',
       branches: [
-        { alias: 'cover', type: 'file', label: 'Cover' },
+        { id: 'br_01', alias: 'cover', type: 'file', label: 'Cover' },
       ],
     }
 

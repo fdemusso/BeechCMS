@@ -15,7 +15,7 @@ function makeSeed(aliases: string[] = []): Seed {
     slug: 'orders',
     label: 'Orders',
     displayNameAlias: aliases[0] ?? 'id',
-    branches: aliases.map((alias) => ({ alias, label: alias, type: 'text' as const })),
+    branches: aliases.map((alias, i) => ({ id: `br_0${i + 1}`, alias, label: alias, type: 'text' as const })),
   }
 }
 

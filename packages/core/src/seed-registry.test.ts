@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { SeedRegistry, InMemorySeedRegistry, sortSeedsByDependencies } from './seed-registry'
+import { SeedRegistry, InMemorySeedRegistry, sortSeedsByDependencies, findBranchById } from './seed-registry'
 import type { Seed, Branch } from './types'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -138,7 +138,7 @@ describe('SeedRegistry reserved alias guard', () => {
   function makeSeeds(alias: string): Seed[] {
     return [makeSeed({
       slug: 'test',
-      branches: [{ alias, label: alias, type: 'text', id: 'br_01' } as Branch],
+      branches: [{ id: 'br_01', alias, label: alias, type: 'text' } as Branch],
     })]
   }
 
@@ -176,6 +176,69 @@ describe('SeedRegistry reserved alias guard', () => {
   })
 })
 
+// ─── Branch id validation ─────────────────────────────────────────────────────
+
+describe('SeedRegistry branch id validation', () => {
+  function makeBranchSeed(branches: Partial<Branch>[]): Seed[] {
+    return [makeSeed({
+      slug: 'test',
+      branches: branches.map((b, i) => ({
+        id: `br_0${i + 1}`,
+        alias: `field_${i + 1}`,
+        label: `Field ${i + 1}`,
+        type: 'text' as const,
+        ...b,
+      })),
+    })]
+  }
+
+  it('throws when two branches in the same seed share an id', () => {
+    expect(() => new SeedRegistry(makeBranchSeed([
+      { id: 'br_01' },
+      { id: 'br_01' },
+    ]))).toThrow('Seed "test" has duplicate branch id "br_01"')
+  })
+
+  it('throws when a branch id is missing the br_ prefix', () => {
+    expect(() => new SeedRegistry(makeBranchSeed([
+      { id: 'invalid' },
+    ]))).toThrow(/has invalid id "invalid"/)
+  })
+
+  it('throws when branch id is an empty string', () => {
+    expect(() => new SeedRegistry(makeBranchSeed([
+      { id: '' },
+    ]))).toThrow(/has invalid id ""/)
+  })
+
+  it('throws when branch id is undefined', () => {
+    expect(() => new SeedRegistry(makeBranchSeed([
+      { id: undefined as unknown as string },
+    ]))).toThrow(/has invalid id/)
+  })
+
+  it('accepts valid sequential ids across multiple branches', () => {
+    expect(() => new SeedRegistry(makeBranchSeed([
+      { id: 'br_01' },
+      { id: 'br_02' },
+      { id: 'br_03' },
+    ]))).not.toThrow()
+  })
+
+  it('accepts alphanumeric ids like br_title or br_abc123', () => {
+    expect(() => new SeedRegistry(makeBranchSeed([
+      { id: 'br_title' },
+      { id: 'br_abc123' },
+    ]))).not.toThrow()
+  })
+
+  it('allows the same id across different seeds', () => {
+    const seed1 = makeSeed({ slug: 'seed1', branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' } as Branch] })
+    const seed2 = makeSeed({ slug: 'seed2', branches: [{ id: 'br_01', alias: 'name', label: 'Name', type: 'text' } as Branch] })
+    expect(() => new SeedRegistry([seed1, seed2])).not.toThrow()
+  })
+})
+
 // ─── sortSeedsByDependencies ──────────────────────────────────────────────────
 
 describe('sortSeedsByDependencies', () => {
@@ -189,6 +252,7 @@ describe('sortSeedsByDependencies', () => {
       label: slug,
       displayNameAlias: 'title',
       branches: targets.map((t, i) => ({
+        id: `br_0${i + 1}`,
         alias: `${t}_id`,
         label: `${t} ref`,
         type: 'relation' as const,
@@ -256,5 +320,31 @@ describe('InMemorySeedRegistry', () => {
     expect(registry.visibleInDashboard()).toEqual([seedArticles])
     expect(registry.publicReadable()).toEqual([seedArticles])
     expect(registry.draftEnabled()).toEqual([])
+  })
+})
+
+// ─── findBranchById ───────────────────────────────────────────────────────────
+
+describe('findBranchById', () => {
+  const branchA: Branch = { id: 'br_01', alias: 'title', label: 'Title', type: 'text' }
+  const branchB: Branch = { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext' }
+  const seed = makeSeed({ slug: 'test', branches: [branchA, branchB] })
+
+  it('returns the branch with the matching id', () => {
+    expect(findBranchById(seed, 'br_01')).toBe(branchA)
+    expect(findBranchById(seed, 'br_02')).toBe(branchB)
+  })
+
+  it('returns null for a non-existent id', () => {
+    expect(findBranchById(seed, 'br_does_not_exist')).toBeNull()
+  })
+
+  it('returns null for an empty string id', () => {
+    expect(findBranchById(seed, '')).toBeNull()
+  })
+
+  it('returns null when the seed has no branches', () => {
+    const empty = makeSeed({ slug: 'empty' })
+    expect(findBranchById(empty, 'br_01')).toBeNull()
   })
 })

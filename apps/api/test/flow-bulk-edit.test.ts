@@ -18,11 +18,11 @@ const BULK_TEST_SEEDS = [
     labelPlural: 'Bulk Items',
     displayNameAlias: 'title',
     branches: [
-      { alias: 'title', label: 'Title', type: 'text', policies: { public: true } },
-      { alias: 'category', label: 'Category', type: 'text' },
-      { alias: 'hidden_field', label: 'Hidden', type: 'text', policies: { visibility: 'hidden' } },
-      { alias: 'encrypted_field', label: 'Encrypted', type: 'text', policies: { privacy: 'encrypt' } },
-      { alias: 'related_ids', label: 'Related', type: 'relation', multiple: true, target: 'bulk_items' }
+      { id: 'br_01', alias: 'title', label: 'Title', type: 'text', policies: { public: true } },
+      { id: 'br_02', alias: 'category', label: 'Category', type: 'text' },
+      { id: 'br_03', alias: 'hidden_field', label: 'Hidden', type: 'text', policies: { visibility: 'hidden' } },
+      { id: 'br_04', alias: 'encrypted_field', label: 'Encrypted', type: 'text', policies: { privacy: 'encrypt' } },
+      { id: 'br_05', alias: 'related_ids', label: 'Related', type: 'relation', multiple: true, target: 'bulk_items' }
     ],
   }),
 ]

@@ -30,8 +30,8 @@ const M2M_SEED = {
   displayNameAlias: 'title',
   allowDrafts: true,
   branches: [
-    { alias: 'title', type: 'text' },
-    { alias: 'tags', type: 'relation', multiple: true, targetSeed: 'tag' },
+    { id: 'br_01', alias: 'title', type: 'text' },
+    { id: 'br_02', alias: 'tags', type: 'relation', multiple: true, targetSeed: 'tag' },
   ],
 } as unknown as Seed
 
