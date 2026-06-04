@@ -10,9 +10,9 @@ import { Client } from '@upstash/qstash'
 vi.mock('@upstash/qstash', () => {
   const publishJSON = vi.fn().mockResolvedValue({ messageId: 'msg_123' })
   return {
-    Client: vi.fn().mockImplementation(() => ({
-      publishJSON,
-    })),
+    Client: vi.fn().mockImplementation(function () {
+      return { publishJSON }
+    }),
   }
 })
 
@@ -53,9 +53,9 @@ describe('QStashNotificationService', () => {
   it('never throws to the caller when the publish write fails', async () => {
     // Override the mock for this specific test
     const mockPublish = vi.fn().mockRejectedValue(new Error('network error'))
-    vi.mocked(Client).mockImplementationOnce(() => ({
-      publishJSON: mockPublish,
-    }) as any)
+    vi.mocked(Client).mockImplementationOnce(function () {
+      return { publishJSON: mockPublish }
+    } as any)
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     const service = new QStashNotificationService('fake_token', 'https://beechcms.test')
