@@ -59,14 +59,18 @@
     "release": "node scripts/release.mjs",
     "release:preview": "node scripts/release.mjs --preview",
     "postinstall": "node scripts/check-docker.mjs",
-    "prepare": "husky"
+    "prepare": "husky",
+    "doctor": "npx react-doctor@latest"
   },
   "type": "module",
   "devDependencies": {
+    "@vitest/coverage-v8": "^4.1.0",
     "husky": "^9.1.7",
+    "react-doctor": "^0.2.16",
     "shadcn": "^4.4.0",
     "turbo": "^2.9.14",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
   },
   "overrides": {
     "qs": "^6.15.2",

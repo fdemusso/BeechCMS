@@ -5,6 +5,7 @@
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
 function Empty({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -98,6 +99,50 @@ function EmptyContent({ className, ...props }: React.ComponentProps<"div">) {
   )
 }
 
+interface SmallCtaProps {
+  readonly svgPath: string
+  readonly title?: string
+  readonly buttonText?: string
+  readonly onButtonClick?: () => void
+  readonly className?: string
+}
+
+function SmallCta({
+  svgPath,
+  title,
+  buttonText,
+  onButtonClick,
+  className,
+}: SmallCtaProps) {
+  const hasText = Boolean(title)
+
+  return (
+    <Empty className={cn("border-none flex flex-col items-center justify-center h-[350px] md:h-[450px] p-6 gap-4", className)}>
+      <EmptyMedia className="mb-0">
+        <img
+          src={svgPath}
+          alt=""
+          className="w-64 h-auto opacity-80 transition-transform duration-300 ease-in-out hover:scale-105 cursor-pointer"
+        />
+      </EmptyMedia>
+      {hasText && (
+        <EmptyHeader>
+          <EmptyTitle className="text-3xl font-semibold">
+            {title}
+          </EmptyTitle>
+        </EmptyHeader>
+      )}
+      {hasText && buttonText && (
+        <EmptyContent className="flex justify-center w-full">
+          <Button size="lg" onClick={onButtonClick}>
+            {buttonText}
+          </Button>
+        </EmptyContent>
+      )}
+    </Empty>
+  )
+}
+
 export {
   Empty,
   EmptyHeader,
@@ -105,4 +150,5 @@ export {
   EmptyDescription,
   EmptyContent,
   EmptyMedia,
+  SmallCta,
 }

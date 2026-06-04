@@ -5,6 +5,7 @@
 "use client"
 
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { CalendarIcon } from "lucide-react"
 import { format, parse, isValid } from "date-fns"
 
@@ -66,6 +67,7 @@ export function DatePickerInput({
   /** Config-style date format string (e.g. "DD-MM-YYYY"). Caller should read this from useGeneralSettings. Defaults to DEFAULT_DATE_FORMAT when omitted. */
   dateFormat?: string
 }) {
+  const { t } = useTranslation()
   const displayFormat = getDisplayFormat(dateFormat ?? DEFAULT_DATE_FORMAT)
   
   const [open, setOpen] = React.useState(false)
@@ -164,10 +166,10 @@ export function DatePickerInput({
                 id={`${id}-picker`}
                 variant="ghost"
                 size="icon-xs"
-                aria-label="Select date"
+                aria-label={t("content.editor.selectDate", "Select date")}
               >
                 <CalendarIcon />
-                <span className="sr-only">Select date</span>
+                <span className="sr-only">{t("content.editor.selectDate", "Select date")}</span>
               </InputGroupButton>
             </PopoverTrigger>
             <PopoverContent

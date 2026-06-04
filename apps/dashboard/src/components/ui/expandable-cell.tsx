@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
+import { cn } from "@/lib/utils"
 
 interface ExpandableCellProps {
   content: string
@@ -39,7 +40,6 @@ export function ExpandableCell({
   }
 
   const isExpanded = isPinned || isHovered
-  const displayText = isExpanded ? content : content.slice(0, maxLength) + "..."
 
   const handleMouseEnter = () => {
     if (collapseTimerRef.current) {
@@ -66,13 +66,19 @@ export function ExpandableCell({
   return (
     <div
       data-expandable
-      className={`cursor-pointer select-none transition-colors ${className}`}
+      className={cn(
+        "cursor-pointer select-none overflow-hidden text-ellipsis whitespace-nowrap block transition-[max-width] duration-300 ease-in-out",
+        className
+      )}
+      style={{
+        maxWidth: isExpanded ? `${Math.ceil(content.length * 1.1) + 2}ch` : `${maxLength}ch`
+      }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={() => setIsPinned((prevPinned) => !prevPinned)}
       title={isPinned ? "Clicca per comprimere" : "Passa il mouse o clicca per espandere"}
     >
-      {displayText}
+      {content}
     </div>
   )
 }

@@ -13,6 +13,7 @@ import type { Seed } from "@beechcms/core"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { DataTable } from "@/components/ui/data-table"
+import { SmallCta } from "@/components/ui/small-cta"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -221,6 +222,7 @@ export function DraftsListPage() {
     labelPlural: t("drafts.title"),
     branches: [
       {
+        id: "br_01",
         alias: "seedLabel",
         label: t("drafts.columns.seed"),
         type: "text",
@@ -228,12 +230,14 @@ export function DraftsListPage() {
         policies: { sort: true, filter: true },
       },
       {
+        id: "br_02",
         alias: "title",
         label: t("drafts.columns.name"),
         type: "text",
         policies: { sort: true, filter: true },
       },
       {
+        id: "br_03",
         alias: "updatedAt",
         label: t("drafts.columns.updatedAt"),
         type: "date",
@@ -241,6 +245,7 @@ export function DraftsListPage() {
         policies: { sort: true, filter: true },
       },
       {
+        id: "br_04",
         alias: "lastModifiedBy",
         label: t("drafts.columns.user"),
         type: "text",
@@ -303,6 +308,9 @@ export function DraftsListPage() {
 
     return rows
   }, [data, tableSearch, toolbarFilters, sorting])
+
+  const hasActiveFilters = Boolean(tableSearch.trim()) || Object.keys(toolbarFilters).length > 0
+  const isEmptyDrafts = !isLoading && !hasActiveFilters && (data ?? []).length === 0
 
   const columns = React.useMemo<ColumnDef<DraftSummary>[]>(() => [
     {
@@ -397,6 +405,21 @@ export function DraftsListPage() {
                       onColumnVisibilityChange={setColumnVisibility}
                       globalFilter={tableSearch}
                       onGlobalFilterChange={setTableSearch}
+                      emptyState={
+                        isEmptyDrafts ? (
+                          <SmallCta
+                            svgPath={`${import.meta.env.BASE_URL}working.svg`}
+                            title={t("drafts.empty")}
+                            buttonText={t("drafts.actions.create")}
+                            onButtonClick={handleCreate}
+                          />
+                        ) : (
+                          <SmallCta
+                            svgPath={`${import.meta.env.BASE_URL}noResult.svg`}
+                            title={t("common.noResults")}
+                          />
+                        )
+                      }
                     />
                   )}
 

@@ -10,7 +10,7 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
-} from "@/components/ui/empty"
+} from "@/components/ui/small-cta"
 import { GalleryCard } from "./gallery-components/gallery-card"
 import { GalleryPeekPanel } from "./gallery-components/gallery-peek-panel"
 import { GallerySkeletonGrid } from "./gallery-components/gallery-skeleton-grid"

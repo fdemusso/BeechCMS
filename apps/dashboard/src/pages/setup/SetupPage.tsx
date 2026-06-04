@@ -2,9 +2,10 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import i18n from '@/lib/i18n'
 import axios from 'axios'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,9 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { Check, ChevronsUpDown } from 'lucide-react'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
+import { Eye, EyeOff } from 'lucide-react'
 import { TimezoneSelect, TIMEZONES } from '@/components/ui/timezone-select'
 import { CurrencySelect } from '@/components/ui/currency-select'
 
@@ -33,17 +32,154 @@ interface SetupEnvironment {
 
 
 
-function passwordStrength(pw: string): number {
+// Leet-speak substitution table for normalized matching
+const LEET_MAP: Record<string, string> = {
+  '@': 'a', '4': 'a', '3': 'e', '1': 'i', '!': 'i',
+  '0': 'o', '$': 's', '5': 's', '7': 't', '9': 'g', '8': 'b',
+}
+
+// Common keyboard row sequences (QWERTY + QWERTZ)
+const KB_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm', 'qwertzuiop']
+
+function normLeet(s: string): string {
+  return s.toLowerCase().split('').map(c => LEET_MAP[c] ?? c).join('')
+}
+
+// Returns the length of the longest consecutive keyboard-row walk (forward or backward)
+function longestKbWalk(pw: string): number {
+  const s = pw.toLowerCase()
+  let max = 1
+  for (const row of KB_ROWS) {
+    for (let i = 0; i < s.length - 1; i++) {
+      let run = 1, dir = 0
+      for (let j = i + 1; j < s.length; j++) {
+        const a = row.indexOf(s[j - 1]), b = row.indexOf(s[j])
+        if (a < 0 || b < 0) break
+        const step = b - a
+        if (step === 0) break
+        if (dir === 0) dir = Math.sign(step)
+        if (Math.sign(step) !== dir || Math.abs(step) !== 1) break
+        run++
+      }
+      if (run > max) max = run
+    }
+  }
+  return max
+}
+
+// Returns the longest run of the same character repeated consecutively
+function maxRepeatRun(pw: string): number {
+  let max = 1, run = 1
+  for (let i = 1; i < pw.length; i++) {
+    run = pw[i].toLowerCase() === pw[i - 1].toLowerCase() ? run + 1 : 1
+    if (run > max) max = run
+  }
+  return max
+}
+
+// Returns the longest ascending/descending sequence within the same character class
+function maxSeqRun(pw: string): number {
+  let max = 1, run = 1
+  for (let i = 1; i < pw.length; i++) {
+    const diff = pw.charCodeAt(i) - pw.charCodeAt(i - 1)
+    const sameClass =
+      (/[a-zA-Z]/.test(pw[i]) && /[a-zA-Z]/.test(pw[i - 1])) ||
+      (/[0-9]/.test(pw[i]) && /[0-9]/.test(pw[i - 1]))
+    run = sameClass && (diff === 1 || diff === -1) ? run + 1 : 1
+    if (run > max) max = run
+  }
+  return max
+}
+
+// Computes penalty for personal info, with tiered severity:
+//   direct/reversed match → -30, leet-normalized match → -20, partial substring (≥4 chars) → -10
+function personalInfoPenalty(pw: string, tokens: string[]): number {
+  const lower = pw.toLowerCase()
+  const normed = normLeet(pw)
+  let penalty = 0
+  const seen = new Set<string>()
+
+  for (const raw of tokens) {
+    const t = raw.trim().toLowerCase()
+    if (t.length < 3 || seen.has(t)) continue
+    seen.add(t)
+
+    const rev = t.split('').reverse().join('')
+    const tNorm = normLeet(t)
+
+    if (lower.includes(t) || lower.includes(rev)) {
+      penalty += 30
+    } else if (normed.includes(tNorm)) {
+      penalty += 20
+    } else if (t.length >= 5) {
+      // Check if any substring of length ≥ 4 is present (catch partial name leaks)
+      outer: for (let len = t.length - 1; len >= 4; len--) {
+        for (let start = 0; start <= t.length - len; start++) {
+          if (lower.includes(t.slice(start, start + len))) {
+            penalty += 10
+            break outer
+          }
+        }
+      }
+    }
+  }
+
+  return penalty
+}
+
+function passwordStrength(pw: string, name?: string, surname?: string, email?: string): number {
   if (!pw) return 0
+
   let score = 0
-  if (pw.length >= 8) score += 20
+
+  // Length bonuses — max 40 pts
+  if (pw.length >= 8)  score += 10
+  if (pw.length >= 10) score += 10
   if (pw.length >= 12) score += 10
   if (pw.length >= 16) score += 10
-  if (/[a-z]/.test(pw)) score += 15
-  if (/[A-Z]/.test(pw)) score += 15
-  if (/[0-9]/.test(pw)) score += 15
-  if (/[^a-zA-Z0-9]/.test(pw)) score += 15
-  return Math.min(score, 100)
+
+  // Character variety — max 50 pts
+  const hasLc  = /[a-z]/.test(pw)
+  const hasUc  = /[A-Z]/.test(pw)
+  const hasNum = /[0-9]/.test(pw)
+  const hasSym = /[^a-zA-Z0-9]/.test(pw)
+  const classes = [hasLc, hasUc, hasNum, hasSym].filter(Boolean).length
+
+  if (hasLc)        score += 10
+  if (hasUc)        score += 10
+  if (hasNum)       score += 10
+  if (hasSym)       score += 15
+  if (classes >= 3) score += 5 // bonus for genuine variety
+
+  // Character entropy — max 10 pts (penalizes low unique-char density)
+  const uniqueRatio = new Set(pw.toLowerCase()).size / pw.length
+  if (uniqueRatio >= 0.8)      score += 10
+  else if (uniqueRatio >= 0.6) score += 5
+
+  // --- Penalties ---
+  let penalty = 0
+
+  // Personal info (direct, reversed, leet-normalized, partial)
+  const emailLocal = email ? email.trim().split('@')[0] : undefined
+  const tokens = [name, surname, email, emailLocal].filter(Boolean) as string[]
+  penalty += personalInfoPenalty(pw, tokens)
+
+  // Keyboard walk patterns (qwerty, 12345, asdf…)
+  const walk = longestKbWalk(pw)
+  if (walk >= 5)      penalty += 25
+  else if (walk >= 4) penalty += 15
+
+  // Repeated characters (aaaa, 1111…)
+  const repeat = maxRepeatRun(pw)
+  if (repeat >= 4)      penalty += 20
+  else if (repeat >= 3) penalty += 10
+
+  // Sequential characters (abcd, 1234, zyxw…)
+  const seq = maxSeqRun(pw)
+  if (seq >= 5)      penalty += 20
+  else if (seq >= 4) penalty += 10
+
+  return Math.max(0, Math.min(score - penalty, 100))
 }
 
 function StepIndicator({ current, total }: { current: number; total: number }) {
@@ -56,11 +192,11 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 
         let base = ''
         if (active) {
-          base = 'bg-slate-950 text-white font-semibold ring-2 ring-slate-950 ring-offset-2'
+          base = 'bg-primary text-primary-foreground font-semibold ring-2 ring-primary ring-offset-2'
         } else if (done) {
-          base = 'bg-slate-800 text-white'
+          base = 'bg-primary/80 text-primary-foreground'
         } else {
-          base = 'bg-slate-200 text-slate-500'
+          base = 'bg-muted text-muted-foreground'
         }
 
         return (
@@ -71,7 +207,7 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
               {step}
             </div>
             {step < total && (
-              <div className={`h-px w-8 transition-all duration-300 ${done ? 'bg-slate-800' : 'bg-slate-200'}`} />
+              <div className={`h-px w-8 transition-all duration-300 ${done ? 'bg-primary/80' : 'bg-muted'}`} />
             )}
           </div>
         )
@@ -109,6 +245,8 @@ export function SetupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirm, setShowConfirm] = useState(false)
 
   // Step 3
   const [loadDemoData, setLoadDemoData] = useState(false)
@@ -128,6 +266,10 @@ export function SetupPage() {
   }, [])
 
   useEffect(() => {
+    i18n.changeLanguage('en')
+  }, [])
+
+  useEffect(() => {
     axios.get('/auth/setup').then((res) => {
       const env: SetupEnvironment = res.data.environment
       setEnvironment(env)
@@ -135,7 +277,7 @@ export function SetupPage() {
     })
   }, [])
 
-  const strength = passwordStrength(password)
+  const strength = passwordStrength(password, name, surname, email)
   const strengthColor =
     strength < 40 ? 'bg-destructive' : strength < 70 ? 'bg-amber-500' : 'bg-green-500'
   const strengthLabel =
@@ -267,7 +409,7 @@ export function SetupPage() {
 
                <div className="space-y-2">
                 <Label>{t('setup.languageLabel')}</Label>
-                <Select value={language} onValueChange={setLanguage}>
+                <Select value={language} onValueChange={(lng) => { setLanguage(lng); i18n.changeLanguage(lng) }}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder={t('setup.languagePlaceholder')} />
                   </SelectTrigger>
@@ -335,37 +477,59 @@ export function SetupPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="password">{t('setup.passwordLabel')}</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder={t('setup.passwordPlaceholder')}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="new-password"
-                />
-                {password && (
-                  <div className="space-y-1">
-                    <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-300 ${strengthColor}`}
-                        style={{ width: `${strength}%` }}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">{strengthLabel}</p>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={t('setup.passwordPlaceholder')}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="new-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                    aria-label={showPassword ? t('setup.hidePassword') : t('setup.showPassword')}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className={cn("space-y-1", !password && "invisible")}>
+                  <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-300 ${strengthColor}`}
+                      style={{ width: `${strength}%` }}
+                    />
                   </div>
-                )}
+                  <p className="text-xs text-muted-foreground">{strengthLabel}</p>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="confirm">{t('setup.confirmLabel')}</Label>
-                <Input
-                  id="confirm"
-                  type="password"
-                  placeholder={t('setup.confirmPlaceholder')}
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  autoComplete="new-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="confirm"
+                    type={showConfirm ? 'text' : 'password'}
+                    placeholder={t('setup.confirmPlaceholder')}
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    autoComplete="new-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirm((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                    tabIndex={-1}
+                    aria-label={showConfirm ? t('setup.hidePassword') : t('setup.showPassword')}
+                  >
+                    {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
               </div>
 
               {error && <p className="text-sm text-destructive">{error}</p>}

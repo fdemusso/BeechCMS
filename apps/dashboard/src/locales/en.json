@@ -24,7 +24,11 @@
     "copyFailed": "Copy failed",
     "openMenu": "Open menu",
     "selectAll": "Select all",
-    "selectRow": "Select row"
+    "selectRow": "Select row",
+    "yes": "Yes",
+    "no": "No",
+    "previous": "Previous",
+    "next": "Next"
   },
   "dashboard": {
     "greeting": {
@@ -308,7 +312,9 @@
     "list": {
       "table": "Table",
       "gallery": "Gallery",
-      "deletionPartial": "Partial deletion: {{failures}} of {{total}} failed"
+      "deletionPartial": "Partial deletion: {{failures}} of {{total}} failed",
+      "emptyTitle": "There isn't anything here",
+      "emptyCreateFirst": "Create your first {{label}}"
     },
     "editor": {
       "newEntry": "New {{label}}",
@@ -319,6 +325,9 @@
       "status": "Status",
       "slug": "Slug (URL)",
       "slugPlaceholder": "e.g. my-article",
+      "placeholder": "Write your content here...",
+      "writeField": "Write {{field}}...",
+      "selectDate": "Select a date",
       "content": "Content",
       "metadataSeo": "Metadata / SEO",
       "publication": "Publication",
@@ -351,6 +360,8 @@
       "validationError_one": "{{count}} field has a validation error — check the highlighted fields",
       "validationError_other": "{{count}} fields have validation errors — check the highlighted fields",
       "jsonError": "Field \"{{field}}\" must contain valid JSON",
+      "emptyTab": "No fields in this tab yet.",
+      "emptyColumn": "Empty",
       "relation": {
         "placeholder": "Select a related entry…",
         "search": "Search…",
@@ -553,9 +564,13 @@
     "edit": "Edit"
   },
   "sidebar": {
-    "navigation": "Navigation",
+    "navigation": "Main",
     "contents": "Contents",
-    "drafts": "Drafts"
+    "drafts": "Drafts",
+    "contentGroup": "Content",
+    "createNew": "Create New",
+    "scheduled": "Scheduled",
+    "analytics": "Analytics"
   },
   "drafts": {
     "title": "Drafts",
@@ -886,6 +901,8 @@
     "passwordPlaceholder": "Minimum 8 characters",
     "confirmLabel": "Confirm password",
     "confirmPlaceholder": "Repeat password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "strengthWeak": "Weak",
     "strengthFair": "Fair",
     "strengthStrong": "Strong",
@@ -912,5 +929,46 @@
     "emailInvalid": "Please enter a valid email address.",
     "companyNameRequired": "Company name is required.",
     "companyWebsiteRequired": "Please enter a valid URL for the website."
+  },
+  "layoutBuilder": {
+    "editLayout": "Edit Layout",
+    "title": "Edit Quick Entry Layout — {{seed}}",
+    "showPreview": "Show Preview",
+    "reset": "Reset",
+    "resetConfirmTitle": "Reset to default?",
+    "resetConfirmDesc": "This removes the custom layout. The default will be used.",
+    "resetDone": "Layout reset to default.",
+    "save": "Save",
+    "saved": "Layout saved.",
+    "saveError": "Could not save the layout.",
+    "discardTitle": "Discard changes?",
+    "discardDesc": "Unsaved layout edits will be lost.",
+    "addSection": "Add Section",
+    "addField": "Add Field",
+    "addTab": "Add Tab",
+    "newTab": "New Tab",
+    "searchFields": "Search fields…",
+    "noFields": "No fields available.",
+    "noLabel": "No Label",
+    "fieldCount_one": "{{count}} field",
+    "fieldCount_other": "{{count}} fields",
+    "fieldCount": "{{count}} fields",
+    "sectionMenu": {
+      "rename": "Rename",
+      "hideLabel": "Hide Label",
+      "hideBorder": "Hide Border",
+      "collapsible": "Collapsible",
+      "columns": "Columns",
+      "remove": "Remove"
+    },
+    "tabMenu": {
+      "rename": "Rename tab",
+      "delete": "Delete tab"
+    },
+    "warnFullWidth": "{{label}} requires a dedicated full-width section.",
+    "warnNoEmptyColumn": "Target tab has no empty column. Add one first.",
+    "warnNoCrossTabSection": "Move sections within their tab.",
+    "warnFullWidthColumns": "This section contains a full-width field. Column count cannot be changed.",
+    "defaultTabBadge": "Default"
   }
 }

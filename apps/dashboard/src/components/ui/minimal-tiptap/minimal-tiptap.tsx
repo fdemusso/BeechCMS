@@ -31,7 +31,7 @@ export interface MinimalTiptapProps extends Omit<
 }
 
 const Toolbar = ({ editor }: { editor: Editor }) => (
-  <div className="border-border flex h-12 shrink-0 overflow-x-auto border-b p-2">
+  <div className="border-border flex h-12 shrink-0 overflow-x-auto overflow-y-hidden border-b p-2">
     <div className="flex w-max items-center gap-px">
       <SectionZero editor={editor} />
 
@@ -133,7 +133,7 @@ export const MainMinimalTiptapEditor = ({
       <Toolbar editor={editor} />
       <EditorContent
         editor={editor}
-        className={cn("minimal-tiptap-editor", editorContentClassName)}
+        className={cn("minimal-tiptap-editor flex-1 flex flex-col", editorContentClassName)}
       />
       <LinkBubbleMenu editor={editor} />
     </MeasuredContainer>

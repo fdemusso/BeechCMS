@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, waitFor, fireEvent } from "@testing-library/react"
+import { render, screen, waitFor, fireEvent, within } from "@testing-library/react"
 import type { ReactNode } from "react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 
@@ -52,7 +52,7 @@ vi.mock("react-router-dom", async () => {
     useParams: () => mockUseParams(),
     useBlocker: () => mockBlockerState,
     useLocation: () => {
-      const [state, setState] = useState(getMockLocationState())
+      const [, setState] = useState(getMockLocationState())
       useEffect(() => {
         const handler = () => setState(getMockLocationState())
         mockLocationListeners.add(handler)
@@ -60,10 +60,22 @@ vi.mock("react-router-dom", async () => {
           mockLocationListeners.delete(handler)
         }
       }, [])
-      return { state }
     },
   }
 })
+
+vi.mock("@/lib/auth-context", () => ({
+  useAuth: () => ({
+    user: { id: "u1", role: "admin" },
+    status: "authenticated",
+  }),
+}))
+
+vi.mock("@/components/ui/tooltip", () => ({
+  Tooltip: ({ children }: any) => <div>{children}</div>,
+  TooltipTrigger: ({ children }: any) => <div>{children}</div>,
+  TooltipContent: ({ children }: any) => <div>{children}</div>,
+}))
 
 const seedPosts = {
   slug: "posts",
@@ -74,18 +86,46 @@ const seedPosts = {
     { id: "r1", alias: "content", label: "Content", type: "richtext" },
     { id: "j1", alias: "metaData", label: "Metadata", type: "json" },
   ],
+  layout: {
+    tabs: [
+      {
+        id: "tab-data",
+        label: "Data",
+        sections: [
+          {
+            id: "sec-general",
+            label: "General",
+            columns: [
+              {
+                id: "col-general",
+                fields: [
+                  { branchId: "t1" },
+                  { branchId: "r1" },
+                  { branchId: "j1" },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  },
 }
 
-vi.mock("@beechcms/core", () => ({
-  getSeed: () => seedPosts,
-  slugify: (text: string) =>
-    text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/[\s_-]+/g, "-")
-      .replace(/^-+|-+$/g, ""),
-}))
+vi.mock("@beechcms/core", async () => {
+  const actual = await vi.importActual<typeof import("@beechcms/core")>("@beechcms/core")
+  return {
+    ...actual,
+    getSeed: () => seedPosts,
+    slugify: (text: string) =>
+      text
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/[\s_-]+/g, "-")
+        .replace(/^-+|-+$/g, ""),
+  }
+})
 
 vi.mock("@/features/schema", () => ({
   useActiveSeed: (slug: string) => ({
@@ -195,6 +235,8 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({
     t: (key: string, params?: any) => {
       const translations: Record<string, string> = {
+        "common.create": "Create",
+        "common.delete": "Delete",
         "content.editor.save": "Save",
         "content.editor.saving": "Saving...",
         "content.editor.back": "Back",
@@ -226,7 +268,37 @@ vi.mock("react-i18next", () => ({
   }),
 }))
 
-import { EntryEditorPage } from "@/pages/entry-editor"
+import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
+import { EntryEditorDialog } from "@/features/entry-editor"
+
+function TestEntryEditorDialogWrapper({ schemaSlug, entryId, open = true, onClose }: any) {
+  const [mockState, setMockState] = useState(getMockLocationState())
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const handler = () => setMockState(getMockLocationState())
+    mockLocationListeners.add(handler)
+    return () => {
+      mockLocationListeners.delete(handler)
+    }
+  }, [])
+
+  const defaultOnClose = () => {
+    navigate(`/content/${schemaSlug}`)
+  }
+
+  const isDraftContext = !!mockState?.isDraftContext
+  return (
+    <EntryEditorDialog
+      schemaSlug={schemaSlug}
+      entryId={entryId}
+      isDraftContext={isDraftContext}
+      open={open}
+      onClose={onClose || defaultOnClose}
+    />
+  )
+}
 
 describe("EntryEditorPage", () => {
   const queryClient = new QueryClient({
@@ -253,27 +325,27 @@ describe("EntryEditorPage", () => {
 
   it("in create mode auto-genera slug dal primo campo testo e salva", async () => {
     mockCreateContent.mockResolvedValueOnce({ id: "new-id" })
-    renderWithProvider(<EntryEditorPage />)
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId={undefined} />)
 
     const titleInput = await screen.findByLabelText("field-title")
     fireEvent.change(titleInput, { target: { value: "Ciao Mondo!" } })
 
-    const slugInput = screen.getByLabelText(/slug/i)
-    await waitFor(() => expect((slugInput as HTMLInputElement).value).toBe("ciao-mondo"))
+    fireEvent.click(screen.getByRole("button", { name: "Create" }))
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }))
-
-    await waitFor(() => expect(mockCreateContent).toHaveBeenCalled())
+    await waitFor(() => expect(mockCreateContent).toHaveBeenCalledWith(
+      "posts",
+      expect.objectContaining({ slug: "ciao-mondo" })
+    ))
     expect(mockToastSuccess).toHaveBeenCalledWith("Entry created")
     expect(mockNavigate).toHaveBeenCalledWith("/content/posts")
   })
 
   it("blocca submit e mostra errore se json non valido", async () => {
-    renderWithProvider(<EntryEditorPage />)
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId={undefined} />)
     const metaInput = await screen.findByLabelText("field-metaData")
     fireEvent.change(metaInput, { target: { value: "{bad json}" } })
 
-    fireEvent.click(screen.getByRole("button", { name: "Save" }))
+    fireEvent.click(screen.getByRole("button", { name: "Create" }))
 
     await waitFor(() => {
       expect(mockToastError).toHaveBeenCalled()
@@ -295,7 +367,7 @@ describe("EntryEditorPage", () => {
     })
     mockUpdateContent.mockResolvedValueOnce({ success: true })
 
-    renderWithProvider(<EntryEditorPage />)
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="42" />)
     await waitFor(() => expect(mockFetchContentById).toHaveBeenCalledWith("posts", "42"))
     
     const saveButton = await screen.findByRole("button", { name: "Save" })
@@ -320,7 +392,7 @@ describe("EntryEditorPage", () => {
       },
     })
 
-    renderWithProvider(<EntryEditorPage />)
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="42" />)
 
     expect(await screen.findByText("This entry has a pending draft.")).toBeInTheDocument()
   })
@@ -350,7 +422,7 @@ describe("DraftActionBanner", () => {
     mockFetchContentById.mockReturnValue(entryWithDraft)
     mockFetchDraft.mockReturnValue({ title: "Draft title" })
 
-    renderWithProvider(<EntryEditorPage />)
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="entry-1" />)
 
     await waitFor(() => {
       expect(screen.getByText(/resume draft/i)).toBeInTheDocument()
@@ -363,7 +435,7 @@ describe("DraftActionBanner", () => {
     mockFetchContentById.mockReturnValue(entryWithDraft)
     mockFetchDraft.mockReturnValue({ title: "Draft title" })
 
-    renderWithProvider(<EntryEditorPage />)
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="entry-1" />)
 
     await waitFor(() => screen.getByText(/resume draft/i))
     fireEvent.click(screen.getByRole("button", { name: /resume draft/i }))
@@ -380,7 +452,7 @@ describe("DraftActionBanner", () => {
     mockFetchDraft.mockReturnValue({ title: "Draft title" })
     mockPublishDraft.mockResolvedValue({ success: true })
 
-    renderWithProvider(<EntryEditorPage />)
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="entry-1" />)
 
     await waitFor(() => screen.getByText(/resume draft/i))
     fireEvent.click(screen.getByRole("button", { name: /resume draft/i }))
@@ -398,7 +470,7 @@ describe("DraftActionBanner", () => {
     mockFetchContentById.mockReturnValue(entryWithDraft)
     mockFetchDraft.mockReturnValue({ title: "Draft title" })
 
-    renderWithProvider(<EntryEditorPage />)
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="entry-1" />)
 
     await waitFor(() => screen.getByRole("button", { name: /discard draft/i }))
     fireEvent.click(screen.getByRole("button", { name: /discard draft/i }))
@@ -414,15 +486,15 @@ describe("DraftActionBanner", () => {
     mockFetchDraft.mockReturnValue({ title: "Draft title" })
     mockDiscardDraft.mockResolvedValue({ success: true })
 
-    renderWithProvider(<EntryEditorPage />)
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="entry-1" />)
 
     await waitFor(() => screen.getByRole("button", { name: /discard draft/i }))
     fireEvent.click(screen.getByRole("button", { name: /discard draft/i }))
     await waitFor(() => screen.getByText(/discard pending draft/i))
 
-    const confirmBtn = screen.getAllByRole("button", { name: /discard draft/i })
-      .find(btn => btn.closest('[role="alertdialog"]'))
-    fireEvent.click(confirmBtn!)
+    const alertdialog = screen.getByRole("alertdialog", { hidden: true })
+    const confirmBtn = within(alertdialog).getByRole("button", { name: /discard draft/i, hidden: true })
+    fireEvent.click(confirmBtn)
 
     await waitFor(() => {
       expect(mockDiscardDraft).toHaveBeenCalledWith({ slug: "posts", id: "entry-1" })

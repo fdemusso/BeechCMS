@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { Seed } from './types.js'
+import type { Seed, Branch } from './types.js'
 import { AUTOMATION_RESERVED_WORDS } from './automations-grammar-words.js'
 
 export interface ISeedRegistry {
@@ -40,12 +40,15 @@ export interface ISeedRegistry {
   draftEnabled(): Seed[]
 }
 
+const BRANCH_ID_RE = /^br_[A-Za-z0-9]+$/
+
 export class SeedRegistry implements ISeedRegistry {
   private readonly seedMap: Map<string, Seed>
   private readonly orderedSeeds: Seed[]
 
   constructor(seeds: Seed[]) {
     for (const seed of seeds) {
+      const idsInSeed = new Set<string>()
       for (const branch of seed.branches) {
         if (AUTOMATION_RESERVED_WORDS.has(branch.alias)) {
           throw new Error(
@@ -53,6 +56,18 @@ export class SeedRegistry implements ISeedRegistry {
               + `Pick a different alias — this word is used by the automation template grammar.`,
           )
         }
+        if (!branch.id || !BRANCH_ID_RE.test(branch.id)) {
+          throw new Error(
+            `Seed "${seed.slug}" branch "${branch.alias}" has invalid id "${branch.id}". `
+              + `Expected format ^br_[A-Za-z0-9]+$.`,
+          )
+        }
+        if (idsInSeed.has(branch.id)) {
+          throw new Error(
+            `Seed "${seed.slug}" has duplicate branch id "${branch.id}".`,
+          )
+        }
+        idsInSeed.add(branch.id)
       }
     }
     this.orderedSeeds = seeds
@@ -85,6 +100,11 @@ export class SeedRegistry implements ISeedRegistry {
  * Gives tests a semantic name without requiring any dependency on factory.ts.
  */
 export class InMemorySeedRegistry extends SeedRegistry {}
+
+/** Finds a branch by its stable id within a Seed. Returns null if not found. */
+export function findBranchById(seed: Seed, id: string): Branch | null {
+  return seed.branches.find(b => b.id === id) ?? null
+}
 
 /**
  * Returns the input seeds reordered so that every seed appears AFTER all the

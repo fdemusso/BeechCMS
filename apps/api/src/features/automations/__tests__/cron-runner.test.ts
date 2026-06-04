@@ -22,13 +22,13 @@ const SEED: Seed = {
   label: 'Post',
   displayNameAlias: 'title',
   branches: [
-    { alias: 'title', type: 'text', label: 'Title' },
-    { alias: 'count', type: 'number', label: 'Count' },
-    { alias: 'published', type: 'boolean', label: 'Published' },
-    { alias: 'publish_date', type: 'date', label: 'Publish Date' },
-    { alias: 'tags_list', type: 'tags', label: 'Tags' },
-    { alias: 'meta_json', type: 'json', label: 'Meta JSON' },
-    { alias: 'body_rich', type: 'richtext', label: 'Body' },
+    { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
+    { id: 'br_02', alias: 'count', type: 'number', label: 'Count' },
+    { id: 'br_03', alias: 'published', type: 'boolean', label: 'Published' },
+    { id: 'br_04', alias: 'publish_date', type: 'date', label: 'Publish Date' },
+    { id: 'br_05', alias: 'tags_list', type: 'tags', label: 'Tags' },
+    { id: 'br_06', alias: 'meta_json', type: 'json', label: 'Meta JSON' },
+    { id: 'br_07', alias: 'body_rich', type: 'richtext', label: 'Body' },
   ],
 }
 

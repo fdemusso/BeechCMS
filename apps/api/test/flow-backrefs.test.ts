@@ -15,7 +15,7 @@ const CATEGORY_SEED = defineSeed({
   labelPlural: 'Categories',
   displayNameAlias: 'name',
   branches: [
-    { alias: 'name', label: 'Name', type: 'text' },
+    { id: 'br_01', alias: 'name', label: 'Name', type: 'text' },
   ]
 })
 
@@ -25,8 +25,8 @@ const PRODUCT_SEED = defineSeed({
   labelPlural: 'Products',
   displayNameAlias: 'title',
   branches: [
-    { alias: 'title', label: 'Title', type: 'text' },
-    { alias: 'category_id', label: 'Category', type: 'relation', targetSeed: 'test_categories' }
+    { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+    { id: 'br_02', alias: 'category_id', label: 'Category', type: 'relation', targetSeed: 'test_categories' }
   ]
 })
 
@@ -36,8 +36,8 @@ const REVIEW_SEED = defineSeed({
   labelPlural: 'Reviews',
   displayNameAlias: 'author',
   branches: [
-    { alias: 'author', label: 'Author', type: 'text', policies: { visibility: 'masked' } },
-    { alias: 'product_id', label: 'Product', type: 'relation', targetSeed: 'test_products' }
+    { id: 'br_01', alias: 'author', label: 'Author', type: 'text', policies: { visibility: 'masked' } },
+    { id: 'br_02', alias: 'product_id', label: 'Product', type: 'relation', targetSeed: 'test_products' }
   ]
 })
 
@@ -47,8 +47,8 @@ const HIDDEN_DOC_SEED = defineSeed({
   labelPlural: 'Hidden Docs',
   displayNameAlias: 'internal_name',
   branches: [
-    { alias: 'internal_name', label: 'Name', type: 'text', policies: { visibility: 'hidden' } },
-    { alias: 'product_id', label: 'Product', type: 'relation', targetSeed: 'test_products' }
+    { id: 'br_01', alias: 'internal_name', label: 'Name', type: 'text', policies: { visibility: 'hidden' } },
+    { id: 'br_02', alias: 'product_id', label: 'Product', type: 'relation', targetSeed: 'test_products' }
   ]
 })
 

@@ -27,8 +27,8 @@ const TEAM_SEED = defineSeed({
   labelPlural: 'Team Members',
   displayNameAlias: 'name',
   branches: [
-    { alias: 'name', label: 'Name', type: 'text', requiredOnCreate: true },
-    { alias: 'email', label: 'Email', type: 'text' },
+    { id: 'br_01', alias: 'name', label: 'Name', type: 'text', requiredOnCreate: true },
+    { id: 'br_02', alias: 'email', label: 'Email', type: 'text' },
   ],
 })
 
@@ -38,8 +38,9 @@ const ARTICLES_SEED_SET_NULL = defineSeed({
   labelPlural: 'Articoli',
   displayNameAlias: 'title',
   branches: [
-    { alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+    { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
     {
+      id: 'br_02',
       alias: 'author_id',
       label: 'Author',
       type: 'relation',
@@ -56,8 +57,9 @@ const ARTICLES_SEED_RESTRICT = defineSeed({
   labelPlural: 'Articoli',
   displayNameAlias: 'title',
   branches: [
-    { alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+    { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
     {
+      id: 'br_02',
       alias: 'author_id',
       label: 'Author',
       type: 'relation',

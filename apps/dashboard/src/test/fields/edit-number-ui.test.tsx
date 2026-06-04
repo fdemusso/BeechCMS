@@ -9,6 +9,7 @@ import type { Branch } from "@beechcms/core"
 
 describe("NumberEdit Componenti (VSA)", () => {
   const baseBranch: Branch = {
+    id: "br_01",
     alias: "score",
     label: "Score",
     type: "number",

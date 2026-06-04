@@ -57,6 +57,7 @@ export function TimezoneSelect({ value, onValueChange }: TimezoneSelectProps) {
   const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
   const listRef = React.useRef<HTMLDivElement>(null)
+  const popoverId = React.useId()
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -65,6 +66,7 @@ export function TimezoneSelect({ value, onValueChange }: TimezoneSelectProps) {
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          aria-controls={popoverId}
           className="w-full justify-between font-normal h-9 border-input bg-transparent text-sm"
         >
           <span className="truncate">
@@ -73,7 +75,7 @@ export function TimezoneSelect({ value, onValueChange }: TimezoneSelectProps) {
           <ChevronsUpDown className="opacity-50 size-4 shrink-0" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      <PopoverContent id={popoverId} className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
           <CommandInput
             placeholder={t('setup.searchTimezonePlaceholder')}

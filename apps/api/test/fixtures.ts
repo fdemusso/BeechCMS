@@ -19,16 +19,22 @@ export const TEST_ENV = {
   JWT_SECRET: TEST_JWT_SECRET,
   PUBLIC_READ_API_KEY: TEST_PUBLIC_READ_KEY,
   PUBLIC_WRITE_API_KEY: TEST_PUBLIC_WRITE_KEY,
-  R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID ?? 'beechdev',
-  R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY ?? 'beechdevsecret',
+  // Always use MinIO root credentials — matches docker-compose.yml MINIO_ROOT_USER/PASSWORD.
+  // Do NOT read from process.env: .dev.vars may carry a stale or production access key.
+  R2_ACCESS_KEY_ID: 'beechdev',
+  R2_SECRET_ACCESS_KEY: 'beechdevsecret',
+  // Endpoint is dynamic: port is assigned by BEECH_MINIO_PORT in docker-compose.
   R2_ENDPOINT: process.env.R2_ENDPOINT ?? 'http://localhost:9000',
-  R2_BUCKET_NAME: process.env.R2_BUCKET_NAME ?? 'beech-media-test',
+  // Dedicated test bucket — never use the production 'beech-media' bucket.
+  R2_BUCKET_NAME: 'beech-media-test',
   ENV: 'development',
   EMAIL_PROVIDER: 'smtp',
   SMTP_HOST: 'localhost',
-  SMTP_PORT: '8025',
+  // Dynamic: BEECH_MAILPIT_SMTP_PORT controls host port in docker-compose.
+  SMTP_PORT: process.env.BEECH_MAILPIT_SMTP_PORT ?? '1025',
   EMAIL_FROM: 'Test <test@beech.local>',
-  WEBHOOK_TESTER_URL: 'http://localhost:8084',
+  // Dynamic: BEECH_WEBHOOK_TESTER_PORT controls host port in docker-compose.
+  WEBHOOK_TESTER_URL: process.env.WEBHOOK_TESTER_URL ?? `http://localhost:${process.env.BEECH_WEBHOOK_TESTER_PORT ?? '8084'}`,
 }
 
 /**
@@ -46,13 +52,13 @@ export const TEST_SEEDS = [
     allowPublicEdit: true,
     allowDrafts: true,
     branches: [
-      { alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true, policies: { public: true } },
-      { alias: 'body', label: 'Body', type: 'richtext', policies: { public: true } }, // Changed to richtext for validation tests
-      { alias: 'internal_note', label: 'Internal Note', type: 'text', policies: { public: false } },
-      { alias: 'contact_email', label: 'Contact Email', type: 'text' },
-      { alias: 'view_count', label: 'View Count', type: 'number' },
-      { alias: 'image', label: 'Featured Image', type: 'file', fileOptions: { accept: 'image' } },
-      { alias: 'tags', label: 'Tags', type: 'tags' },
+      { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true, policies: { public: true } },
+      { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext', policies: { public: true } }, // Changed to richtext for validation tests
+      { id: 'br_03', alias: 'internal_note', label: 'Internal Note', type: 'text', policies: { public: false } },
+      { id: 'br_04', alias: 'contact_email', label: 'Contact Email', type: 'text' },
+      { id: 'br_05', alias: 'view_count', label: 'View Count', type: 'number' },
+      { id: 'br_06', alias: 'image', label: 'Featured Image', type: 'file', fileOptions: { accept: 'image' } },
+      { id: 'br_07', alias: 'tags', label: 'Tags', type: 'tags' },
     ],
   }),
   defineSeed({
@@ -63,7 +69,7 @@ export const TEST_SEEDS = [
     allowPublicRead: false,
     allowPublicPost: false,
     branches: [
-      { alias: 'title', label: 'Title', type: 'text' },
+      { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
     ],
   }),
   defineSeed({
@@ -72,9 +78,10 @@ export const TEST_SEEDS = [
     labelPlural: 'Numericals',
     displayNameAlias: 'id',
     branches: [
-      { 
-        alias: 'score', 
-        label: 'Score', 
+      {
+        id: 'br_01',
+        alias: 'score',
+        label: 'Score',
         type: 'number',
         numberOptions: {
           min: 0,
@@ -83,6 +90,7 @@ export const TEST_SEEDS = [
         }
       },
       {
+        id: 'br_02',
         alias: 'rating',
         label: 'Rating',
         type: 'number',
@@ -92,6 +100,7 @@ export const TEST_SEEDS = [
         }
       },
       {
+        id: 'br_03',
         alias: 'unbounded',
         label: 'Unbounded',
         type: 'number'
@@ -106,11 +115,11 @@ export const TEST_SEEDS = [
  * Default password for all test users: 'password123'
  */
 export const TEST_USERS = [
-  { 
-    id: 'user_admin_01', 
-    email: 'flavio@beechcms.io', 
-    password_hash: bcrypt.hashSync('password123', 10), 
-    name: 'Flavio De Musso' 
+  {
+    id: 'user_admin_01',
+    email: 'flavio@beechcms.io',
+    password_hash: bcrypt.hashSync('password123', 10),
+    name: 'Flavio De Musso'
   },
   {
     id: 'user_editor_01',

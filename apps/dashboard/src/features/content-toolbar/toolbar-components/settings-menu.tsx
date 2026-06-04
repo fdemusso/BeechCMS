@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Settings,
   Filter,
@@ -221,7 +222,7 @@ export function SettingsMenu({
                   className="h-8 text-sm"
                 />
                 <DropdownMenuSeparator className="my-2" />
-                <div className="max-h-56 overflow-y-auto">
+                <ScrollArea className="max-h-56 pr-2">
                   {visibleFilterColumns.length === 0 ? (
                     <div className="py-2 text-center text-xs text-muted-foreground">
                       {t("toolbar.filter.noColumns")}
@@ -252,7 +253,7 @@ export function SettingsMenu({
                       ))}
                     </div>
                   )}
-                </div>
+                </ScrollArea>
               </DropdownMenuSubContent>
             </DropdownMenuPortal>
           </DropdownMenuSub>
@@ -286,7 +287,7 @@ export function SettingsMenu({
                   </Button>
                 </div>
                 <DropdownMenuSeparator className="my-2" />
-                <div className="max-h-56 overflow-y-auto">
+                <ScrollArea className="max-h-56 pr-2">
                   {filteredSortableColumns.length === 0 ? (
                     <div className="py-2 text-center text-xs text-muted-foreground">
                       {t("toolbar.sort.noColumns")}
@@ -315,7 +316,7 @@ export function SettingsMenu({
                       })}
                     </div>
                   )}
-                </div>
+                </ScrollArea>
               </DropdownMenuSubContent>
             </DropdownMenuPortal>
           </DropdownMenuSub>
@@ -509,7 +510,7 @@ export function SettingsMenu({
                     className="h-8 text-sm"
                   />
                   <DropdownMenuSeparator className="my-2" />
-                  <div className="max-h-56 overflow-y-auto">
+                  <ScrollArea className="max-h-56 pr-2">
                     {filteredTableColumns.length === 0 ? (
                       <div className="py-2 text-center text-xs text-muted-foreground">
                         {t("toolbar.settings.noColumns")}
@@ -522,7 +523,7 @@ export function SettingsMenu({
                             <Button
                               key={col.id}
                               type="button"
-                              variant={isVisible ? "secondary" : "ghost"}
+                              variant="ghost"
                               size="sm"
                               className="h-8 justify-between px-2 text-xs"
                               onClick={() => {
@@ -544,7 +545,7 @@ export function SettingsMenu({
                         })}
                       </div>
                     )}
-                  </div>
+                  </ScrollArea>
                 </DropdownMenuSubContent>
               </DropdownMenuPortal>
             </DropdownMenuSub>

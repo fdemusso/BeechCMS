@@ -8,7 +8,6 @@ import axios from "axios"
 import { LoginForm } from "@/features/auth/components/login-form"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { ContentListPage } from "@/pages/content-list"
-import { EntryEditorPage } from "@/pages/entry-editor"
 import { TestFieldsPage } from "@/pages/test-fields"
 import { WidgetLabPage } from "@/pages/widget-lab"
 import { ErrorPage } from "@/pages/error-page"
@@ -19,6 +18,9 @@ import { DashboardPage } from "@/features/dashboard"
 import { DraftsListPage } from "@/pages/drafts-list"
 import { SettingsPage } from "@/features/settings"
 import { CommandPalette } from "@/features/command-palette"
+import { AnalyticsPage } from "@/pages/analytics"
+import { CreateNewPage } from "@/pages/create-new"
+import { ScheduledPage } from "@/pages/scheduled"
 import "./App.css"
 
 function SplashScreen() {
@@ -93,6 +95,14 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "/analytics",
+        element: (
+          <ProtectedRoute>
+            <AnalyticsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "/drafts",
         element: (
           <ProtectedRoute>
@@ -101,10 +111,26 @@ const router = createBrowserRouter([
         ),
       },
       {
+        path: "/content/create-new",
+        element: (
+          <ProtectedRoute>
+            <CreateNewPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/scheduled",
+        element: (
+          <ProtectedRoute>
+            <ScheduledPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: "/content/:slug/create",
         element: (
           <ProtectedRoute>
-            <EntryEditorPage />
+            <ContentListPage />
           </ProtectedRoute>
         ),
       },
@@ -112,7 +138,7 @@ const router = createBrowserRouter([
         path: "/content/:slug/:id",
         element: (
           <ProtectedRoute>
-            <EntryEditorPage />
+            <ContentListPage />
           </ProtectedRoute>
         ),
       },

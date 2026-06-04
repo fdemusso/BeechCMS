@@ -10,17 +10,9 @@
  */
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { ArrowDown, ArrowUp, Loader2, Link as LinkIcon, Upload, X } from "lucide-react"
+import { ArrowDown, ArrowUp, Loader2, Upload, X } from "lucide-react"
 import { uploadFile } from "@/lib/upload"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { cn } from "@/lib/utils"
 import type { FieldEditProps } from "../types"
@@ -123,22 +115,15 @@ function moveItem(list: string[], from: number, to: number): string[] {
   return copy
 }
 
-function getCtaLabel(params: { isMultiple: boolean; hasAssets: boolean; hasImage: boolean }, t: (k: string) => string): string {
-  if (params.isMultiple) {
-    return params.hasAssets ? t("media.manageGallery") : t("media.addImages")
-  }
-  return params.hasImage ? t("media.replace") : t("media.addImage")
-}
-
 export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
   const { t } = useTranslation()
   const inputRef = React.useRef<HTMLInputElement>(null)
-  const [isModalOpen, setIsModalOpen] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)
   const [isUploading, setIsUploading] = React.useState(false)
   const [isValidatingUrl, setIsValidatingUrl] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
   const [urlInput, setUrlInput] = React.useState("")
+
   const isMultiple = isAssetListBranch(branch)
   const assets = React.useMemo(
     () => (isMultiple ? parseAssetListValue(value) : []),
@@ -147,16 +132,17 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
 
   const url = typeof value === "string" ? value : ""
   const hasImage = url.length > 0
-  const hasAssets = assets.length > 0
-  const ctaLabel = getCtaLabel({ isMultiple, hasAssets, hasImage }, t)
   const isBusy = isUploading || isValidatingUrl
 
   React.useEffect(() => {
-    if (!isModalOpen) return
-    setUrlInput(isMultiple ? "" : url)
+    if (!isMultiple) {
+      setUrlInput(url)
+    } else {
+      setUrlInput("")
+    }
     setError(null)
     setIsDragging(false)
-  }, [isModalOpen, isMultiple, url])
+  }, [isMultiple, url])
 
   const handleFileUpload = React.useCallback(
     async (file: File) => {
@@ -167,13 +153,13 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
       setError(null)
       setIsUploading(true)
       try {
-        const url = await uploadFile(file)
+        const uploadedUrl = await uploadFile(file)
         if (isMultiple) {
           const current = parseAssetListValue(value)
-          onChange(appendUniqueUrl(current, url))
+          onChange(appendUniqueUrl(current, uploadedUrl))
+          setUrlInput("")
         } else {
-          onChange(url)
-          setIsModalOpen(false)
+          onChange(uploadedUrl)
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error during upload')
@@ -181,15 +167,26 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
         setIsUploading(false)
       }
     },
-    [isMultiple, onChange, value]
+    [isMultiple, onChange, value, t]
   )
 
   const handleApplyUrl = React.useCallback(async () => {
     const candidate = urlInput.trim()
-    if (!candidate) {
-      setError(t("media.errorUrl"))
+
+    if (!isMultiple && !candidate) {
+      setError(null)
+      onChange("")
       return
     }
+
+    if (!isMultiple && candidate === url) {
+      return
+    }
+
+    if (isMultiple && !candidate) {
+      return
+    }
+
     if (!isHttpsUrl(candidate)) {
       setError(t("media.errorHttps"))
       return
@@ -209,12 +206,13 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
         setUrlInput("")
       } else {
         onChange(candidate)
-        setIsModalOpen(false)
       }
+    } catch (err) {
+      setError(t("media.errorNotRenderable"))
     } finally {
       setIsValidatingUrl(false)
     }
-  }, [isMultiple, onChange, urlInput, value])
+  }, [isMultiple, onChange, urlInput, value, url, t])
 
   const handleDrop = React.useCallback(
     (event: React.DragEvent<HTMLElement>) => {
@@ -269,339 +267,135 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
     [onChange, value]
   )
 
-  const handleClearAll = React.useCallback(() => {
-    onChange([])
-    setIsModalOpen(false)
-  }, [onChange])
+  const handleKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key === "Enter") {
+        event.preventDefault()
+        void handleApplyUrl()
+      }
+    },
+    [handleApplyUrl]
+  )
 
-  if (isMultiple) {
-    return (
-      <div className="space-y-3">
-        <div className="flex items-start gap-3">
-          {hasAssets ? (
-            <div className="grid grid-cols-2 gap-1">
-              {assets.slice(0, 4).map((assetUrl) => (
-                <div
-                  key={assetUrl}
-                  className="relative size-16 overflow-hidden rounded-md border border-input bg-muted"
-                >
-                  <img src={assetUrl} alt="" className="size-full object-cover" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="flex size-16 shrink-0 items-center justify-center rounded-md border border-dashed border-input bg-muted/40">
-              <Upload className="size-5 text-muted-foreground" />
-            </div>
-          )}
-
-          <div className="flex flex-col items-start gap-2">
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="w-fit"
-                onClick={() => setIsModalOpen(true)}
-              >
-                <Upload className="size-4" />
-                {ctaLabel}
-              </Button>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{ctaLabel}</DialogTitle>
-                  <DialogDescription>
-                  {t("media.dialogDesc")}
-                </DialogDescription>
-                </DialogHeader>
-
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <label htmlFor={`${branch.alias}-url`} className="text-sm font-medium">
-                      {t("media.imageLink")}
-                    </label>
-                    <div className="flex gap-2">
-                      <Input
-                        id={`${branch.alias}-url`}
-                        type="url"
-                        value={urlInput}
-                        onChange={(event) => setUrlInput(event.target.value)}
-                        placeholder="https://example.com/image.jpg"
-                        disabled={isBusy}
-                      />
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={() => void handleApplyUrl()}
-                        disabled={isBusy}
-                      >
-                        {isValidatingUrl ? (
-                          <>
-                            <Loader2 className="size-4 animate-spin" />
-                            {t("media.verifying")}
-                          </>
-                        ) : (
-                          <>
-                            <LinkIcon className="size-4" />
-                            {t("media.add")}
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleOpenPicker}
-                    onDrop={handleDrop}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    className={cn(
-                      "w-full rounded-lg border-2 border-dashed p-5 text-center transition-colors",
-                      "hover:border-primary/50 hover:bg-muted/50",
-                      isDragging && "border-primary bg-muted/50",
-                      isBusy && "pointer-events-none opacity-70"
-                    )}
-                  >
-                    <input
-                      ref={inputRef}
-                      id={`${branch.alias}-file`}
-                      type="file"
-                      accept={IMAGE_ACCEPT}
-                      className="hidden"
-                      onChange={handleInputChange}
-                    />
-
-                    {isUploading ? (
-                      <div className="flex flex-col items-center gap-2">
-                        <Loader2 className="size-8 animate-spin text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">{t("media.uploading")}</span>
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">
-                        {t("media.dropOrSelect")}
-                      </p>
-                    )}
-                  </button>
-
-                  {assets.length > 0 ? (
-                    <div className="max-h-52 space-y-2 overflow-y-auto rounded-md border border-input p-2">
-                      {assets.map((assetUrl, index) => (
-                        <div
-                          key={`${assetUrl}-${index}`}
-                          className="flex items-center gap-2 rounded-md border border-input bg-background p-2"
-                        >
-                          <img
-                            src={assetUrl}
-                            alt=""
-                            className="size-10 shrink-0 rounded object-cover"
-                          />
-                          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                            {assetUrl}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleReorder(index, "up")}
-                              disabled={index === 0 || isBusy}
-                              aria-label={t("media.moveUp")}
-                            >
-                              <ArrowUp className="size-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleReorder(index, "down")}
-                              disabled={index === assets.length - 1 || isBusy}
-                              aria-label={t("media.moveDown")}
-                            >
-                              <ArrowDown className="size-4" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleRemoveAt(index)}
-                              disabled={isBusy}
-                              aria-label={t("media.removeImage")}
-                            >
-                              <X className="size-4" />
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-
-                  {error ? <p className="text-sm text-destructive">{error}</p> : null}
-                </div>
-
-                <DialogFooter>
-                  {assets.length > 0 ? (
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      onClick={handleClearAll}
-                      disabled={isBusy}
-                    >
-                      <X className="size-4" />
-                      {t("media.removeAll")}
-                    </Button>
-                  ) : null}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsModalOpen(false)}
-                    disabled={isBusy}
-                  >
-                    {t("common.close")}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-      </div>
-    )
-  }
+  const handleBlur = React.useCallback(() => {
+    void handleApplyUrl()
+  }, [handleApplyUrl])
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-3">
-        {hasImage ? (
-          <div className="relative size-16 shrink-0 overflow-hidden rounded-md border border-input bg-muted">
-            <img src={url} alt="" className="size-full object-cover" />
-          </div>
-        ) : (
-          <div className="flex size-16 shrink-0 items-center justify-center rounded-md border border-dashed border-input bg-muted/40">
-            <Upload className="size-5 text-muted-foreground" />
-          </div>
-        )}
+      {/* Hidden file input */}
+      <input
+        ref={inputRef}
+        id={`${branch.alias}-file`}
+        type="file"
+        accept={IMAGE_ACCEPT}
+        className="hidden"
+        onChange={handleInputChange}
+      />
 
-        <div className="flex flex-col items-start gap-2">
-          <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+      {/* Single image preview */}
+      {!isMultiple && hasImage && (
+        <div className="group relative h-48 w-full overflow-hidden rounded-lg border bg-muted transition-all">
+          <img src={url} alt="Preview" className="size-full object-cover" />
+          <div className="absolute top-2 right-2">
             <Button
               type="button"
-              variant="outline"
-              size="sm"
-              className="w-fit"
-              onClick={() => setIsModalOpen(true)}
+              variant="destructive"
+              size="icon"
+              className="size-8 shadow-md"
+              onClick={handleRemove}
+              disabled={isBusy}
+              aria-label={t("media.removeImage")}
             >
-              <Upload className="size-4" />
-              {ctaLabel}
+              <X className="size-4" />
             </Button>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{ctaLabel} image</DialogTitle>
-                <DialogDescription>
-                  {t("media.dialogDesc")}
-                </DialogDescription>
-              </DialogHeader>
+          </div>
+        </div>
+      )}
 
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <label htmlFor={`${branch.alias}-url`} className="text-sm font-medium">
-                    {t("media.imageLink")}
-                  </label>
-                  <div className="flex gap-2">
-                    <Input
-                      id={`${branch.alias}-url`}
-                      type="url"
-                      value={urlInput}
-                      onChange={(event) => setUrlInput(event.target.value)}
-                      placeholder="https://example.com/image.jpg"
-                      disabled={isBusy}
-                    />
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => void handleApplyUrl()}
-                      disabled={isBusy}
-                    >
-                      {isValidatingUrl ? (
-                        <>
-                          <Loader2 className="size-4 animate-spin" />
-                          {t("media.verifying")}
-                        </>
-                      ) : (
-                        <>
-                          <LinkIcon className="size-4" />
-                          {t("media.useLink")}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleOpenPicker}
-                  onDrop={handleDrop}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  className={cn(
-                    "w-full rounded-lg border-2 border-dashed p-5 text-center transition-colors",
-                    "hover:border-primary/50 hover:bg-muted/50",
-                    isDragging && "border-primary bg-muted/50",
-                    isBusy && "pointer-events-none opacity-70"
-                  )}
-                >
-                  <input
-                    ref={inputRef}
-                    id={`${branch.alias}-file`}
-                    type="file"
-                    accept={IMAGE_ACCEPT}
-                    className="hidden"
-                    onChange={handleInputChange}
-                  />
-
-                  {isUploading ? (
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="size-8 animate-spin text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">{t("media.uploading")}</span>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      {t("media.dropOrSelect")}
-                    </p>
-                  )}
-                </button>
-
-                {error ? <p className="text-sm text-destructive">{error}</p> : null}
+      {/* Input box + upload button */}
+      <div className="space-y-2">
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Input
+              id={`${branch.alias}-url`}
+              type="text"
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={handleBlur}
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              placeholder={t("media.imageLink")}
+              disabled={isBusy}
+              className={cn(
+                "pr-8 transition-all duration-200",
+                isDragging && "border-primary ring-2 ring-primary/20 bg-primary/5"
+              )}
+            />
+            {isBusy && (
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+                <Loader2 className="size-4 animate-spin text-muted-foreground" />
               </div>
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleOpenPicker}
+            disabled={isBusy}
+            aria-label={t("media.upload", "Upload file")}
+            className="shrink-0"
+          >
+            <Upload className="size-4" />
+          </Button>
+        </div>
+        {error && <p className="text-sm text-destructive">{error}</p>}
+      </div>
 
-              <DialogFooter>
-                {hasImage ? (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => {
-                      handleRemove()
-                      setIsModalOpen(false)
-                    }}
-                    disabled={isBusy}
-                  >
-                    <X className="size-4" />
-                    {t("media.removeImage")}
-                  </Button>
-                ) : null}
+      {/* Multiple images gallery */}
+      {isMultiple && assets.length > 0 && (
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+          {assets.map((assetUrl, index) => (
+            <div key={`${assetUrl}-${index}`} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
+              <img src={assetUrl} alt="Preview" className="size-full object-cover" />
+              <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
                 <Button
                   type="button"
-                  variant="outline"
-                  onClick={() => setIsModalOpen(false)}
+                  variant="secondary"
+                  size="icon"
+                  className="size-8"
+                  onClick={() => handleReorder(index, "up")}
+                  disabled={index === 0 || isBusy}
+                >
+                  <ArrowUp className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="size-8"
+                  onClick={() => handleReorder(index, "down")}
+                  disabled={index === assets.length - 1 || isBusy}
+                >
+                  <ArrowDown className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="size-8"
+                  onClick={() => handleRemoveAt(index)}
                   disabled={isBusy}
                 >
-                  {t("common.close")}
+                  <X className="size-4" />
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
+              </div>
+            </div>
+          ))}
         </div>
-      </div>
+      )}
     </div>
   )
 }

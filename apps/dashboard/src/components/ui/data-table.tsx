@@ -25,6 +25,7 @@ import {
 } from "@tanstack/react-table"
 import { useVirtualizer } from "@tanstack/react-virtual"
 import { ChevronRight, ChevronDown } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import {
   Pagination,
@@ -48,6 +49,7 @@ import {
   ContextMenuContent,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 
 const MAX_VISIBLE_PAGE_BUTTONS = 7
 const DEFAULT_PAGE_SIZE = 10
@@ -139,6 +141,8 @@ interface DataTableProps<TData, TValue> {
   manualSorting?: boolean
   /** Modalità filtro server-side. */
   manualFiltering?: boolean
+  /** Contenuto custom quando la tabella non ha righe (sostituisce "Nessun risultato."). */
+  emptyState?: React.ReactNode
   /**
    * Stato di raggruppamento controllato dall'esterno.
    * Quando non vuoto, la tabella passa in modalità virtual scroll
@@ -182,10 +186,12 @@ export function DataTable<TData, TValue>(
     manualPagination = false,
     manualSorting = false,
     manualFiltering = false,
+    emptyState,
     grouping: groupingProp,
     onGroupingChange,
     onRowDoubleClick,
   } = props
+  const { t } = useTranslation()
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
   const [internalColumnFilters, setInternalColumnFilters] =
     React.useState<ColumnFiltersState>([])
@@ -541,10 +547,10 @@ export function DataTable<TData, TValue>(
       <div className="rounded-md border">
         {isGroupingActive ? (
           /* ── Modalità virtual scroll (grouping attivo) ── */
-          <div
+          <ScrollArea
             ref={scrollContainerRef}
-            className="relative w-full overflow-auto"
-            style={{ height: VIRTUAL_CONTAINER_HEIGHT }}
+            className="w-full"
+            style={{ maxHeight: VIRTUAL_CONTAINER_HEIGHT }}
           >
             <Table>
               <TableHeader>
@@ -584,19 +590,20 @@ export function DataTable<TData, TValue>(
                   <TableRow>
                     <TableCell
                       colSpan={columns.length}
-                      className="h-24 text-center"
+                      className={emptyState ? "text-center" : "h-24 text-center"}
                     >
-                      Nessun risultato.
+                      {emptyState ?? "Nessun risultato."}
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-          </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         ) : (
           /* ── Modalità paginata (grouping inattivo) ── */
-          <div
-            className="relative w-full overflow-x-auto"
+          <ScrollArea
+            className="w-full"
             style={{
               minHeight: (() => {
                 const totalRows = manualPagination
@@ -656,15 +663,16 @@ export function DataTable<TData, TValue>(
                   <TableRow>
                     <TableCell
                       colSpan={columns.length}
-                      className="h-24 text-center"
+                      className={emptyState ? "text-center" : "h-24 text-center"}
                     >
-                      Nessun risultato.
+                      {emptyState ?? "Nessun risultato."}
                     </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-          </div>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
         )}
       </div>
 
@@ -681,6 +689,8 @@ export function DataTable<TData, TValue>(
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
+                  text={t("common.previous")}
+                  siblingText={t("common.next")}
                   href="#"
                   onClick={(e) => {
                     e.preventDefault()
@@ -733,6 +743,8 @@ export function DataTable<TData, TValue>(
               })()}
               <PaginationItem>
                 <PaginationNext
+                  text={t("common.next")}
+                  siblingText={t("common.previous")}
                   href="#"
                   onClick={(e) => {
                     e.preventDefault()

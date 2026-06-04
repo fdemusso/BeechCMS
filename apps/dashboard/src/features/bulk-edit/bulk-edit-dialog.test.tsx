@@ -13,33 +13,16 @@ vi.mock("@/features/content-management", () => ({
 }))
 
 vi.mock("@/components/ui/dialog", () => ({
-  Dialog: ({ children, open }: any) => (open ? <div role="dialog">{children}</div> : null),
+  Dialog: ({ children, open }: any) => (open ? <dialog open>{children}</dialog> : null),
   DialogContent: ({ children }: any) => <div>{children}</div>,
   DialogHeader: ({ children }: any) => <div>{children}</div>,
   DialogTitle: ({ children }: any) => <h2>{children}</h2>,
   DialogFooter: ({ children }: any) => <div>{children}</div>,
 }))
 
-vi.mock("@/components/ui/select", () => ({
-  Select: ({ children, value, onValueChange }: any) => (
-    <div data-testid="select" data-value={value} onClick={() => {}}>
-      {/* Inject a hidden button per child SelectItem so we can click them */}
-      {children}
-    </div>
-  ),
-  SelectTrigger: ({ children }: any) => <div role="combobox">{children}</div>,
-  SelectValue: ({ placeholder }: any) => <span>{placeholder}</span>,
-  SelectContent: ({ children }: any) => <div role="listbox">{children}</div>,
-  SelectItem: ({ children, value, onClick }: any) => (
-    <button role="option" data-value={value} onClick={onClick}>
-      {children}
-    </button>
-  ),
-}))
-
 // Make Select forward onValueChange when a SelectItem is clicked
 vi.mock("@/components/ui/select", () => {
-  const React = require("react")
+  const React = require("react") as typeof import("react")
   const SelectContext = React.createContext<any>(null)
 
   function Select({ children, value, onValueChange }: any) {
@@ -50,18 +33,18 @@ vi.mock("@/components/ui/select", () => {
     )
   }
   function SelectTrigger({ children }: any) {
-    return <div role="combobox">{children}</div>
+    return <div role="combobox" aria-expanded={false} aria-controls="select-listbox">{children}</div>
   }
   function SelectValue({ placeholder }: any) {
     return <span>{placeholder}</span>
   }
   function SelectContent({ children }: any) {
-    return <div role="listbox">{children}</div>
+    return <div id="select-listbox" role="listbox">{children}</div>
   }
   function SelectItem({ children, value }: any) {
     const ctx = React.useContext(SelectContext)
     return (
-      <button role="option" data-value={value} onClick={() => ctx?.onValueChange(value)}>
+      <button role="option" aria-selected={false} data-value={value} onClick={() => ctx?.onValueChange(value)}>
         {children}
       </button>
     )
@@ -79,7 +62,7 @@ vi.mock("@/components/ui/button", () => ({
 }))
 
 vi.mock("@/components/ui/progress", () => ({
-  Progress: () => <div role="progressbar" />,
+  Progress: () => <progress />,
 }))
 
 vi.mock("@/features/fields", () => ({
@@ -146,13 +129,6 @@ function renderDialog(open = true, selectedIds = ["id1", "id2"]) {
       sampleLabels={["Item 1", "Item 2"]}
     />
   )
-}
-
-async function pickFieldAndConfirm(alias: string) {
-  // Click the option in the listbox
-  fireEvent.click(screen.getByRole("option", { name: mockSeed.branches.find(b => b.alias === alias)?.label ?? alias }))
-  // Click Confirm (step 1 → step 2)
-  fireEvent.click(screen.getAllByRole("button", { name: "Confirm" })[0])
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────

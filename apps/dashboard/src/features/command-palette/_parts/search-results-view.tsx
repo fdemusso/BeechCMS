@@ -16,11 +16,11 @@ function renderExcerpt(raw: string): React.ReactNode[] {
   const parts = cleaned.split(/(<mark>|<\/mark>)/gi)
   const nodes: React.ReactNode[] = []
   let inMark = false
-  let key = 0
-  for (const part of parts) {
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i]
     if (part.toLowerCase() === '<mark>') { inMark = true; continue }
     if (part.toLowerCase() === '</mark>') { inMark = false; continue }
-    if (part) nodes.push(inMark ? <mark key={key++}>{part}</mark> : part)
+    if (part) nodes.push(inMark ? <mark key={i}>{part}</mark> : part)
   }
   return nodes
 }

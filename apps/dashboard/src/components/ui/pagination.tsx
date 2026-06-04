@@ -80,12 +80,14 @@ function PaginationLink({
 /**
  * Pulsante "Precedente" per la paginazione.
  * @param text - Testo del pulsante (default: "Precedente")
+ * @param siblingText - Testo dell'altro pulsante (default: "Successivo")
  */
 function PaginationPrevious({
   className,
   text = "Precedente",
+  siblingText = "Successivo",
   ...props
-}: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
+}: React.ComponentProps<typeof PaginationLink> & { text?: string; siblingText?: string }) {
   return (
     <PaginationLink
       aria-label="Vai alla pagina precedente"
@@ -94,7 +96,10 @@ function PaginationPrevious({
       {...props}
     >
       <ChevronLeftIcon />
-      <span className="hidden sm:block">{text}</span>
+      <span className="hidden sm:inline-grid grid-cols-1 grid-rows-1 text-center">
+        <span className="col-start-1 row-start-1">{text}</span>
+        <span className="col-start-1 row-start-1 invisible pointer-events-none">{siblingText}</span>
+      </span>
     </PaginationLink>
   )
 }
@@ -102,12 +107,14 @@ function PaginationPrevious({
 /**
  * Pulsante "Successivo" per la paginazione.
  * @param text - Testo del pulsante (default: "Successivo")
+ * @param siblingText - Testo dell'altro pulsante (default: "Precedente")
  */
 function PaginationNext({
   className,
   text = "Successivo",
+  siblingText = "Precedente",
   ...props
-}: React.ComponentProps<typeof PaginationLink> & { text?: string }) {
+}: React.ComponentProps<typeof PaginationLink> & { text?: string; siblingText?: string }) {
   return (
     <PaginationLink
       aria-label="Vai alla pagina successiva"
@@ -115,7 +122,10 @@ function PaginationNext({
       className={cn("gap-1 px-2.5 sm:pr-2.5", className)}
       {...props}
     >
-      <span className="hidden sm:block">{text}</span>
+      <span className="hidden sm:inline-grid grid-cols-1 grid-rows-1 text-center">
+        <span className="col-start-1 row-start-1">{text}</span>
+        <span className="col-start-1 row-start-1 invisible pointer-events-none">{siblingText}</span>
+      </span>
       <ChevronRightIcon />
     </PaginationLink>
   )

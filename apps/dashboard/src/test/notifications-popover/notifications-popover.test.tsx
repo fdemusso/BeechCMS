@@ -58,7 +58,7 @@ vi.mock("@/components/ui/toggle-group", () => ({
   ToggleGroup: ({ children }: { children: ReactNode }) => <div>{children}</div>,
   ToggleGroupItem: ({ children, value }: any) => <button data-value={value}>{children}</button>,
 }))
-vi.mock("@/components/ui/empty", () => ({
+vi.mock("@/components/ui/small-cta", () => ({
   Empty: ({ children }: any) => <div>{children}</div>,
   EmptyHeader: ({ children }: any) => <div>{children}</div>,
   EmptyMedia: ({ children }: any) => <div>{children}</div>,

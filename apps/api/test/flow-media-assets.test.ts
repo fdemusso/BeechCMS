@@ -15,8 +15,8 @@ const s3 = new S3Client({
   region: 'auto',
   endpoint: process.env.R2_ENDPOINT ?? 'http://localhost:9000',
   credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID ?? 'beechdev',
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? 'beechdevsecret',
+    accessKeyId: 'beechdev',
+    secretAccessKey: 'beechdevsecret',
   },
   forcePathStyle: true,
 })

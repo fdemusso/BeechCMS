@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { LucideIcon } from "lucide-react"
-import { LayoutDashboard, Settings, PenLine } from "lucide-react"
+import { LayoutDashboard, Settings, PenLine, Plus, Calendar, BarChart2 } from "lucide-react"
 import type { Seed } from "@beechcms/core"
 import { resolveIcon } from "@/lib/icon-registry"
 
@@ -38,16 +38,42 @@ export function getStaticMenu(t: (key: string) => string): NavItem[] {
       isActive: true,
     },
     {
+      title: t("sidebar.analytics"),
+      url: "/analytics",
+      icon: BarChart2,
+    },
+  ]
+}
+
+export function getContentCategoryMenu(t: (key: string) => string): NavItem[] {
+  return [
+    {
+      title: t("sidebar.createNew"),
+      url: "/content/create-new",
+      icon: Plus,
+    },
+    {
       title: t("sidebar.drafts"),
       url: "/drafts",
       icon: PenLine,
     },
+    {
+      title: t("sidebar.scheduled"),
+      url: "/scheduled",
+      icon: Calendar,
+    },
+  ]
+}
+
+export function getSettingsMenu(t: (key: string) => string): NavItem[] {
+  return [
     {
       title: t("settings.title"),
       url: "/settings",
       icon: Settings,
       items: [
         { title: t("settings.tabs.profile"), url: "/settings?tab=profile" },
+        { title: t("settings.tabs.general"), url: "/settings?tab=general" },
         { title: t("settings.tabs.interface"), url: "/settings?tab=interface" },
         { title: t("settings.tabs.security"), url: "/settings?tab=security" },
         { title: t("settings.tabs.storage"), url: "/settings?tab=storage" },
@@ -56,6 +82,7 @@ export function getStaticMenu(t: (key: string) => string): NavItem[] {
     },
   ]
 }
+
 
 /**
  * Builds grouped content menu from seeds.

@@ -24,7 +24,11 @@
     "copyFailed": "Copia fallita",
     "openMenu": "Apri menu",
     "selectAll": "Seleziona tutto",
-    "selectRow": "Seleziona riga"
+    "selectRow": "Seleziona riga",
+    "yes": "Sì",
+    "no": "No",
+    "previous": "Precedente",
+    "next": "Successivo"
   },
   "dashboard": {
     "greeting": {
@@ -308,7 +312,9 @@
     "list": {
       "table": "Tabella",
       "gallery": "Galleria",
-      "deletionPartial": "Eliminazione parziale: {{failures}} su {{total}} fallite"
+      "deletionPartial": "Eliminazione parziale: {{failures}} su {{total}} fallite",
+      "emptyTitle": "Qui non c'è nulla",
+      "emptyCreateFirst": "Crea il tuo primo {{label}}"
     },
     "editor": {
       "newEntry": "Nuovo {{label}}",
@@ -319,6 +325,9 @@
       "status": "Stato",
       "slug": "Slug (URL)",
       "slugPlaceholder": "es. mio-articolo",
+      "placeholder": "Scrivi qui il tuo contenuto...",
+      "writeField": "Scrivi {{field}}...",
+      "selectDate": "Seleziona una data",
       "content": "Contenuto",
       "metadataSeo": "Metadati / SEO",
       "publication": "Pubblicazione",
@@ -351,6 +360,8 @@
       "validationError_one": "{{count}} campo ha un errore di validazione — controlla i campi evidenziati",
       "validationError_other": "{{count}} campi hanno errori di validazione — controlla i campi evidenziati",
       "jsonError": "Il campo \"{{field}}\" deve contenere JSON valido",
+      "emptyTab": "Nessun campo in questa tab.",
+      "emptyColumn": "Vuoto",
       "relation": {
         "placeholder": "Seleziona una voce correlata…",
         "search": "Cerca…",
@@ -553,9 +564,13 @@
     "edit": "Modifica"
   },
   "sidebar": {
-    "navigation": "Navigazione",
+    "navigation": "Main",
     "contents": "Contenuti",
-    "drafts": "Bozze"
+    "drafts": "Bozze",
+    "contentGroup": "Content",
+    "createNew": "Crea Nuovo",
+    "scheduled": "Programmati",
+    "analytics": "Analitiche"
   },
   "drafts": {
     "title": "Bozze",
@@ -886,6 +901,8 @@
     "passwordPlaceholder": "Minimo 8 caratteri",
     "confirmLabel": "Conferma password",
     "confirmPlaceholder": "Ripeti la password",
+    "showPassword": "Mostra password",
+    "hidePassword": "Nascondi password",
     "strengthWeak": "Debole",
     "strengthFair": "Discreta",
     "strengthStrong": "Forte",
@@ -912,5 +929,46 @@
     "emailInvalid": "Inserisci un indirizzo email valido.",
     "companyNameRequired": "Il nome azienda è obbligatorio.",
     "companyWebsiteRequired": "Inserisci un URL valido per il sito web."
+  },
+  "layoutBuilder": {
+    "editLayout": "Modifica layout",
+    "title": "Modifica layout — {{seed}}",
+    "showPreview": "Mostra anteprima",
+    "reset": "Ripristina",
+    "resetConfirmTitle": "Ripristinare il default?",
+    "resetConfirmDesc": "Rimuove il layout personalizzato. Verrà usato il default.",
+    "resetDone": "Layout ripristinato al default.",
+    "save": "Salva",
+    "saved": "Layout salvato.",
+    "saveError": "Impossibile salvare il layout.",
+    "discardTitle": "Annullare le modifiche?",
+    "discardDesc": "Le modifiche non salvate andranno perse.",
+    "addSection": "Aggiungi sezione",
+    "addField": "Aggiungi campo",
+    "addTab": "Aggiungi tab",
+    "newTab": "Nuova tab",
+    "searchFields": "Cerca campi…",
+    "noFields": "Nessun campo disponibile.",
+    "noLabel": "Senza etichetta",
+    "fieldCount_one": "{{count}} campo",
+    "fieldCount_other": "{{count}} campi",
+    "fieldCount": "{{count}} campi",
+    "sectionMenu": {
+      "rename": "Rinomina",
+      "hideLabel": "Nascondi etichetta",
+      "hideBorder": "Nascondi bordo",
+      "collapsible": "Collassabile",
+      "columns": "Colonne",
+      "remove": "Rimuovi"
+    },
+    "tabMenu": {
+      "rename": "Rinomina tab",
+      "delete": "Elimina tab"
+    },
+    "warnFullWidth": "{{label}} richiede una sezione full-width dedicata.",
+    "warnNoEmptyColumn": "La tab di destinazione non ha colonne vuote. Aggiungine una prima.",
+    "warnNoCrossTabSection": "Sposta le sezioni all'interno della loro tab.",
+    "warnFullWidthColumns": "Questa sezione contiene un campo a larghezza piena. Il numero di colonne non può essere modificato.",
+    "defaultTabBadge": "Predefinita"
   }
 }

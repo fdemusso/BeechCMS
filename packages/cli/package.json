@@ -19,7 +19,7 @@
   "devDependencies": {
     "esbuild": "^0.27.3",
     "typescript": "^5.9.3",
-    "vitest": "^3.0.0"
+    "vitest": "^4.1.0"
   },
   "license": "MIT"
 }

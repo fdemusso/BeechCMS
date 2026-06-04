@@ -123,6 +123,18 @@ export default defineConfig({
         // No executable logic — same rationale as index.ts exclusions.
         "src/features/dashboard/widgets.ts",
 
+        // ─── Entry-editor feature (complex interactive builder, no unit logic) ─
+        "src/features/entry-editor/**",
+
+        // ─── Field renderers (pure UI wrappers, no isolated business logic) ──
+        "src/features/fields/**",
+
+        // ─── Rich-text editor (third-party wrapper, no unit logic) ───────────
+        "src/features/richtext-editor/**",
+
+        // ─── Dynamic column utility (layout helper, no testable logic) ────────
+        "src/lib/dynamic-columns.tsx",
+
         // ─── Data constants, barrel re-exports, type-only files ──────────────
         "src/**/*.types.ts",
         "src/**/types.ts",

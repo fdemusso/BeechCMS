@@ -2,9 +2,11 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useTranslation } from "react-i18next"
 import type { FieldDisplayProps } from "../types"
 
 export function BooleanDisplay({ value }: FieldDisplayProps) {
+  const { t } = useTranslation()
   const isTrue = value === true || value === "true"
   return (
     <div className="flex items-center">
@@ -15,7 +17,7 @@ export function BooleanDisplay({ value }: FieldDisplayProps) {
             : "bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400"
         }`}
       >
-        {isTrue ? "Sì" : "No"}
+        {isTrue ? t("common.yes") : t("common.no")}
       </span>
     </div>
   )

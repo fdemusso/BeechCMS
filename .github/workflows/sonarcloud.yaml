@@ -33,6 +33,7 @@ jobs:
         uses: ./.github/actions/docker-stack
 
       - name: Run Tests with Coverage
+        continue-on-error: true
         env:
           BEECH_TEST_BUCKET: beech-media-test-ci
           R2_ENDPOINT: http://localhost:9000

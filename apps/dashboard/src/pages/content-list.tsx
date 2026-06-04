@@ -4,7 +4,8 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { useParams, useNavigate, useSearchParams } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom"
+import { EntryEditorDialog } from "@/features/entry-editor"
 import type {
   SortingState,
   ColumnFiltersState,
@@ -35,6 +36,7 @@ import {
   ContextMenuSeparator,
 } from "@/components/ui/context-menu"
 import { toast } from "sonner"
+import { SmallCta } from "@/components/ui/small-cta"
 import {
   useContentList,
   useContentFacets,
@@ -62,9 +64,19 @@ import {
 import { extractTagNames } from "@/lib/tags-utils"
 
 export function ContentListPage() {
-  const { slug } = useParams<{ slug: string }>()
+  const { slug, id: entryId } = useParams<{ slug: string; id?: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
+
+  const location = useLocation()
+  const isCreatePath = location.pathname.endsWith("/create")
+  const isEditPath = !!entryId && !isCreatePath
+  const dialogOpen = isCreatePath || isEditPath
+
+  const handleDialogClose = React.useCallback(
+    () => navigate(`/content/${slug}`),
+    [navigate, slug]
+  )
 
   // --- STATE ---
   const [pageIndex, setPageIndex] = React.useState(0)
@@ -564,6 +576,9 @@ export function ContentListPage() {
     return next
   }, [toolbarFilters])
 
+  const hasActiveFilters = columnFilters.length > 0 || debouncedSearch.trim().length > 0
+  const isEmptySeed = !isLoading && !hasActiveFilters && totalRows === 0
+
   const handleTableSortingChange = React.useCallback(
     (next: SortingState) => {
       if (!next.length) {
@@ -793,6 +808,21 @@ export function ContentListPage() {
                       sorting={sorting}
                       onSortingChange={handleTableSortingChange}
                       columnFilters={columnFilters}
+                      emptyState={
+                        isEmptySeed ? (
+                          <SmallCta
+                            svgPath={`${import.meta.env.BASE_URL}working.svg`}
+                            title={t("content.list.emptyTitle")}
+                            buttonText={t("content.list.emptyCreateFirst", { label: seed.label })}
+                            onButtonClick={handleCreate}
+                          />
+                        ) : (
+                          <SmallCta
+                            svgPath={`${import.meta.env.BASE_URL}noResult.svg`}
+                            title={t("common.noResults")}
+                          />
+                        )
+                      }
                     />
                   )}
                   {!error && activeViewId === "gallery" && (
@@ -837,6 +867,16 @@ export function ContentListPage() {
         seedDisplayName={seed.label}
         seedBranches={seed.branches}
       />
+
+      {slug && dialogOpen && (
+        <EntryEditorDialog
+          schemaSlug={slug}
+          entryId={isCreatePath ? undefined : entryId}
+          isDraftContext={!!(location.state as { isDraftContext?: boolean } | null)?.isDraftContext}
+          open={dialogOpen}
+          onClose={handleDialogClose}
+        />
+      )}
     </div>
   )
 }

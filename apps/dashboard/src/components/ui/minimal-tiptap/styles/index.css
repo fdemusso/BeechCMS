@@ -99,7 +99,7 @@
 }
 
 .minimal-tiptap-editor .ProseMirror {
-  @apply flex max-w-full min-w-0 cursor-text flex-col;
+  @apply flex flex-1 max-w-full min-w-0 cursor-text flex-col;
   @apply z-0 outline-0 overflow-x-hidden;
 }
 

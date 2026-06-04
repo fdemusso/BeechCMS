@@ -131,6 +131,7 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
   const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS)
+  const addPopoverId = React.useId()
 
   const targetSlug = branch.targetSeed
   const selectedIds = Array.isArray(value) ? value : []
@@ -220,6 +221,7 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            aria-controls={addPopoverId}
             aria-label={t("content.editor.relationMulti.add")}
             disabled={disabled || !targetSlug}
             className={cn(
@@ -235,7 +237,7 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
             <ChevronsUpDown className="size-4 opacity-50 ml-2 shrink-0" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <PopoverContent id={addPopoverId} className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput
               placeholder={t("content.editor.relation.search")}
@@ -300,6 +302,7 @@ function SingleRelationEdit({
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
   const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS)
+  const singlePopoverId = React.useId()
 
   const targetSlug = branch.targetSeed
   const selectedId = typeof value === "string" && value.length > 0 ? value : null
@@ -365,42 +368,40 @@ function SingleRelationEdit({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          aria-label={t("content.editor.relation.placeholder")}
-          disabled={disabled || !targetSlug}
-          className={cn(
-            "w-full justify-between font-normal",
-            !selectedId && "text-muted-foreground"
-          )}
-        >
-          <span className="truncate">
-            {selectedId ? selectedLabel : t("content.editor.relation.placeholder")}
-          </span>
-          <div className="flex items-center gap-1 ml-2 shrink-0">
-            {showClear && (
-              <span
-                role="button"
-                tabIndex={0}
-                aria-label={t("content.editor.relation.clear")}
-                onClick={handleClear}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") handleClear(e as unknown as React.MouseEvent)
-                }}
-                className="rounded-sm opacity-60 hover:opacity-100 hover:bg-muted p-0.5"
-              >
-                <X className="size-3.5" />
-              </span>
+      <div className="relative w-full">
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            aria-controls={singlePopoverId}
+            aria-label={t("content.editor.relation.placeholder")}
+            disabled={disabled || !targetSlug}
+            className={cn(
+              "w-full justify-between font-normal",
+              !selectedId && "text-muted-foreground",
+              showClear && "pr-14"
             )}
-            <ChevronsUpDown className="size-4 opacity-50" />
-          </div>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+          >
+            <span className="truncate">
+              {selectedId ? selectedLabel : t("content.editor.relation.placeholder")}
+            </span>
+            <ChevronsUpDown className="size-4 opacity-50 shrink-0" />
+          </Button>
+        </PopoverTrigger>
+        {showClear && (
+          <button
+            type="button"
+            aria-label={t("content.editor.relation.clear")}
+            onClick={handleClear}
+            className="absolute inset-y-0 right-8 flex items-center rounded-sm opacity-60 hover:opacity-100 hover:bg-muted px-0.5"
+          >
+            <X className="size-3.5" />
+          </button>
+        )}
+      </div>
+      <PopoverContent id={singlePopoverId} className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
             placeholder={t("content.editor.relation.search")}
