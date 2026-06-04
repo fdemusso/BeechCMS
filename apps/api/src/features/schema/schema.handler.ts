@@ -6,7 +6,41 @@
 import { Hono } from 'hono'
 import { canEditLayout, formLayoutSchema, validateLayoutAgainstSeed } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
+import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
+
+type AppContext = Context<{ Bindings: Env; Variables: Variables }>
+
+/** Returns a 403 response if the caller lacks layout-edit permission, otherwise undefined. */
+function requireLayoutEditPermission(context: AppContext) {
+  const role = context.get('jwtPayload')?.role
+  if (!canEditLayout(role)) {
+    return publicProblem(context, {
+      type: 'forbidden',
+      title: 'Forbidden',
+      status: 403,
+      detail: 'Layout edit requires admin role.',
+    })
+  }
+  return undefined
+}
+
+/** Resolves the seed by slug. Returns a 404 response if not found, otherwise the seed. */
+function requireSeedBySlug(context: AppContext, slug: string) {
+  const seed = context.get('seedRegistry').get(slug)
+  if (!seed) {
+    return {
+      seed: null,
+      error: publicProblem(context, {
+        type: 'seed-not-found',
+        title: 'Seed not found',
+        status: 404,
+        detail: `No seed with slug '${slug}'.`,
+      }),
+    }
+  }
+  return { seed, error: null }
+}
 
 const schemaApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -33,26 +67,12 @@ schemaApp.get('/', async (context) => {
  * Admin-only. Validates shape (Zod) then semantic constraints against the Seed.
  */
 schemaApp.put('/:slug/layout', async (context) => {
-  const role = context.get('jwtPayload')?.role
-  if (!canEditLayout(role)) {
-    return publicProblem(context, {
-      type: 'forbidden',
-      title: 'Forbidden',
-      status: 403,
-      detail: 'Layout edit requires admin role.',
-    })
-  }
+  const forbidden = requireLayoutEditPermission(context)
+  if (forbidden) return forbidden
 
   const slug = context.req.param('slug')
-  const seed = context.get('seedRegistry').get(slug)
-  if (!seed) {
-    return publicProblem(context, {
-      type: 'seed-not-found',
-      title: 'Seed not found',
-      status: 404,
-      detail: `No seed with slug '${slug}'.`,
-    })
-  }
+  const { seed, error: seedError } = requireSeedBySlug(context, slug)
+  if (seedError) return seedError
 
   let body: unknown
   try {
@@ -76,7 +96,7 @@ schemaApp.put('/:slug/layout', async (context) => {
     })
   }
 
-  const semantic = validateLayoutAgainstSeed(parsed.data, seed)
+  const semantic = validateLayoutAgainstSeed(parsed.data, seed!)
   if (!semantic.ok) {
     return publicProblem(context, {
       type: 'invalid-layout',
@@ -97,26 +117,12 @@ schemaApp.put('/:slug/layout', async (context) => {
  * Admin-only. The "Reset" action in the Layout Builder calls this endpoint.
  */
 schemaApp.delete('/:slug/layout', async (context) => {
-  const role = context.get('jwtPayload')?.role
-  if (!canEditLayout(role)) {
-    return publicProblem(context, {
-      type: 'forbidden',
-      title: 'Forbidden',
-      status: 403,
-      detail: 'Layout edit requires admin role.',
-    })
-  }
+  const forbidden = requireLayoutEditPermission(context)
+  if (forbidden) return forbidden
 
   const slug = context.req.param('slug')
-  const seed = context.get('seedRegistry').get(slug)
-  if (!seed) {
-    return publicProblem(context, {
-      type: 'seed-not-found',
-      title: 'Seed not found',
-      status: 404,
-      detail: `No seed with slug '${slug}'.`,
-    })
-  }
+  const { error: seedError } = requireSeedBySlug(context, slug)
+  if (seedError) return seedError
 
   await context.get('seedLayoutRepository').remove(slug)
   return context.json({ ok: true })
