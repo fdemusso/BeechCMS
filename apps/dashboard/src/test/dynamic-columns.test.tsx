@@ -348,5 +348,63 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       fireEvent.click(screen.getByText("Delete"))
       expect(onBulkDelete).toHaveBeenCalledWith(["id-1", "id-2"])
     })
+
+    it("selectedIds > 1: mostra Modifica di gruppo e chiama onBulkEdit", async () => {
+      const onBulkDelete = vi.fn()
+      const onBulkEdit = vi.fn()
+
+      const seed = makeSeed({ branches: [] })
+      const entry = makeEntry("id-1", "items", {})
+      const t = (k: string) => {
+        if (k === "common.openMenu") return "Open menu"
+        if (k === "bulkEdit.trigger") return "Bulk edit"
+        return k
+      }
+      const cols = generateColumns(seed, vi.fn(), vi.fn(), undefined, ["id-1", "id-2"], onBulkDelete, undefined, t, onBulkEdit)
+
+      render(<DataTable columns={cols} data={[entry]} />)
+      fireEvent.pointerDown(screen.getByRole("button", { name: /Open menu/i }))
+
+      expect(await screen.findByText("Bulk edit")).toBeInTheDocument()
+      fireEvent.click(screen.getByText("Bulk edit"))
+      expect(onBulkEdit).toHaveBeenCalledWith(["id-1", "id-2"])
+    })
+  })
+
+  describe("date and status edge cases", () => {
+    it("getDateGroupValue gestisce precisione day", () => {
+      const seed = makeSeed({
+        branches: [{ id: "d1", alias: "publishedAt", label: "Published At", type: "date" as const }] as any,
+      })
+      const cols = generateColumns(
+        seed,
+        vi.fn(),
+        vi.fn(),
+        undefined,
+        [],
+        undefined,
+        { year: false, month: false, day: true }
+      )
+      const dateCol = cols.find((c) => c.id === "publishedAt") as any
+      const groupingValue = dateCol.getGroupingValue({ data: { publishedAt: "2026-06-04" } })
+      // "04" o "4" a seconda del locale, ma conterrà "June" e "2026"
+      expect(groupingValue).toContain("June")
+      expect(groupingValue).toContain("2026")
+    })
+
+    it("getStatusBadgeVariant calcola varianti per status custom", async () => {
+      const seed = makeSeed({ branches: [] })
+      // "custom" non appartiene alle parole chiave speciali, quindi scatena l'hashing loop
+      const entry1 = { ...makeEntry("id-1", "items", {}), status: "customstatusa" } as ContentEntry
+      const entry2 = { ...makeEntry("id-2", "items", {}), status: "customstatusb" } as ContentEntry
+
+      const cols = generateColumns(seed, vi.fn(), vi.fn())
+      const { unmount } = render(<DataTable columns={cols} data={[entry1, entry2]} />)
+
+      expect(await screen.findByText("customstatusa")).toBeInTheDocument()
+      expect(await screen.findByText("customstatusb")).toBeInTheDocument()
+      unmount()
+    })
   })
 })
+
