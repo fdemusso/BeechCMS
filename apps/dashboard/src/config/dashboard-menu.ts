@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { LucideIcon } from "lucide-react"
-import { LayoutDashboard, Settings, PenLine, Plus, Calendar, BarChart2 } from "lucide-react"
+import { LayoutDashboard, Settings, PenLine, Plus, Calendar, BarChart2, Layers } from "lucide-react"
 import type { Seed } from "@beechcms/core"
 import { resolveIcon } from "@/lib/icon-registry"
 
@@ -67,6 +67,11 @@ export function getContentCategoryMenu(t: (key: string) => string): NavItem[] {
 
 export function getSettingsMenu(t: (key: string) => string): NavItem[] {
   return [
+    {
+      title: t("seedBuilder.page.navTitle"),
+      url: "/content-types",
+      icon: Layers,
+    },
     {
       title: t("settings.title"),
       url: "/settings",
