@@ -19,16 +19,22 @@ export const TEST_ENV = {
   JWT_SECRET: TEST_JWT_SECRET,
   PUBLIC_READ_API_KEY: TEST_PUBLIC_READ_KEY,
   PUBLIC_WRITE_API_KEY: TEST_PUBLIC_WRITE_KEY,
-  R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID ?? 'beechdev',
-  R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY ?? 'beechdevsecret',
+  // Always use MinIO root credentials — matches docker-compose.yml MINIO_ROOT_USER/PASSWORD.
+  // Do NOT read from process.env: .dev.vars may carry a stale or production access key.
+  R2_ACCESS_KEY_ID: 'beechdev',
+  R2_SECRET_ACCESS_KEY: 'beechdevsecret',
+  // Endpoint is dynamic: port is assigned by BEECH_MINIO_PORT in docker-compose.
   R2_ENDPOINT: process.env.R2_ENDPOINT ?? 'http://localhost:9000',
-  R2_BUCKET_NAME: process.env.R2_BUCKET_NAME ?? 'beech-media-test',
+  // Dedicated test bucket — never use the production 'beech-media' bucket.
+  R2_BUCKET_NAME: 'beech-media-test',
   ENV: 'development',
   EMAIL_PROVIDER: 'smtp',
   SMTP_HOST: 'localhost',
-  SMTP_PORT: '8025',
+  // Dynamic: BEECH_MAILPIT_SMTP_PORT controls host port in docker-compose.
+  SMTP_PORT: process.env.BEECH_MAILPIT_SMTP_PORT ?? '1025',
   EMAIL_FROM: 'Test <test@beech.local>',
-  WEBHOOK_TESTER_URL: 'http://localhost:8084',
+  // Dynamic: BEECH_WEBHOOK_TESTER_PORT controls host port in docker-compose.
+  WEBHOOK_TESTER_URL: process.env.WEBHOOK_TESTER_URL ?? `http://localhost:${process.env.BEECH_WEBHOOK_TESTER_PORT ?? '8084'}`,
 }
 
 /**

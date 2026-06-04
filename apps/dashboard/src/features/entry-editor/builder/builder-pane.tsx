@@ -26,16 +26,6 @@ import type { Seed, FormLayout, Branch } from '@beechcms/core'
 import { generateDefaultLayout, validateLayoutAgainstSeed } from '@beechcms/core'
 import type { AxiosError } from 'axios'
 
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -47,6 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 
+import { ConfirmDialog } from './confirm-dialog'
 import { SectionCard } from './section-card'
 import { useLayoutBuilder } from './use-layout-builder'
 import { saveLayout, resetLayout } from '../api/layout.api'
@@ -308,34 +299,23 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
       </div>
 
       {/* Reset confirm */}
-      <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('layoutBuilder.resetConfirmTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('layoutBuilder.resetConfirmDesc')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleResetConfirmed}>{t('common.confirm')}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={showResetConfirm}
+        onOpenChange={setShowResetConfirm}
+        title={t('layoutBuilder.resetConfirmTitle')}
+        description={t('layoutBuilder.resetConfirmDesc')}
+        onConfirm={handleResetConfirmed}
+      />
 
       {/* Discard confirm */}
-      <AlertDialog open={showDiscardConfirm} onOpenChange={setShowDiscardConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('layoutBuilder.discardTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('layoutBuilder.discardDesc')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setShowDiscardConfirm(false)}>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={() => { setShowDiscardConfirm(false); onClose() }}>
-              {t('common.confirm')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmDialog
+        open={showDiscardConfirm}
+        onOpenChange={setShowDiscardConfirm}
+        title={t('layoutBuilder.discardTitle')}
+        description={t('layoutBuilder.discardDesc')}
+        confirmVariant="destructive"
+        onConfirm={() => { setShowDiscardConfirm(false); onClose() }}
+      />
     </>
   )
 }
