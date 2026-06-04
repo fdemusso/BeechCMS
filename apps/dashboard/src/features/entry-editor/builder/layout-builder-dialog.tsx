@@ -17,7 +17,9 @@ import {
   verticalListSortingStrategy,
   horizontalListSortingStrategy,
   arrayMove,
+  useSortable,
 } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Plus, Loader2, MoreHorizontal, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
@@ -58,13 +60,13 @@ import { useLayoutBuilder } from './use-layout-builder'
 import { saveLayout, resetLayout } from '../api/layout.api'
 
 export interface LayoutBuilderDialogProps {
-  seed: Seed
-  open: boolean
-  onClose: () => void
-  onSaved: (layout: FormLayout) => void
+  readonly seed: Seed
+  readonly open: boolean
+  readonly onClose: () => void
+  readonly onSaved: (layout: FormLayout) => void
 }
 
-export function LayoutBuilderDialog({ seed, open, onClose, onSaved }: LayoutBuilderDialogProps) {
+export function LayoutBuilderDialog({ seed, open, onClose, onSaved }: Readonly<LayoutBuilderDialogProps>) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
@@ -133,6 +135,109 @@ export function LayoutBuilderDialog({ seed, open, onClose, onSaved }: LayoutBuil
     }
   }
 
+  function handleTabDrag(activeId: string, overId: string) {
+    const fromIndex = draft.tabs.findIndex((t) => `tab:${t.id}` === activeId)
+    const toIndex = draft.tabs.findIndex((t) => `tab:${t.id}` === overId)
+    if (fromIndex !== -1 && toIndex !== -1) {
+      ops.reorderTabs(fromIndex, toIndex)
+      // Keep active tab correct
+      const newTabs = arrayMove(draft.tabs, fromIndex, toIndex)
+      setActiveTabId(newTabs[0]?.id ?? '')
+    }
+  }
+
+  function handleSectionDrag(activeId: string, overId: string) {
+    const [, aTabId, aSectionId] = activeId.split(':')
+    const [, oTabId] = overId.split(':')
+    if (aTabId !== oTabId) {
+      toast.warning(t('layoutBuilder.warnNoCrossTabSection'))
+      return
+    }
+    const tab = draft.tabs.find((t) => t.id === aTabId)
+    if (!tab) return
+    const fromIndex = tab.sections.findIndex((s) => s.id === aSectionId)
+    const toIndex = tab.sections.findIndex((s) => `section:${aTabId}:${s.id}` === overId)
+    if (fromIndex !== -1 && toIndex !== -1) {
+      ops.reorderSections(aTabId, fromIndex, toIndex)
+    }
+  }
+
+  function handleColumnToTabDrag(activeId: string, overId: string) {
+    const [, fromTabId, fromSectionId, fromColId] = activeId.split(':')
+    const [, toTabId] = overId.split(':')
+    const toTabData = draft.tabs.find((t) => t.id === toTabId)
+    if (!toTabData) return
+
+    const fromTab = draft.tabs.find((t) => t.id === fromTabId)
+    const fromSection = fromTab?.sections.find((s) => s.id === fromSectionId)
+    const fromCol = fromSection?.columns.find((c) => c.id === fromColId)
+    const fromBranchId = fromCol?.fields?.[0]?.branchId
+    if (!fromBranchId) return
+
+    let foundEmpty = false
+    for (const section of toTabData.sections) {
+      for (const col of section.columns) {
+        if (col.fields.length === 0) {
+          const ok = ops.moveField({
+            from: { tabId: fromTabId, sectionId: fromSectionId, columnId: fromColId, branchId: fromBranchId },
+            to: { tabId: toTabId, sectionId: section.id, columnId: col.id },
+          })
+          if (!ok) {
+            toast.warning(t('layoutBuilder.warnFullWidth', { label: '' }))
+          }
+          foundEmpty = true
+          break
+        }
+      }
+      if (foundEmpty) break
+    }
+    if (!foundEmpty) {
+      toast.warning(t('layoutBuilder.warnNoEmptyColumn'))
+    }
+  }
+
+  function handleColumnDrag(activeId: string, overId: string) {
+    const [, aTabId, aSectionId, aColId] = activeId.split(':')
+    const [, oTabId, oSectionId, oColId] = overId.split(':')
+
+    // Column reorder within same section
+    if (aTabId === oTabId && aSectionId === oSectionId) {
+      const tab = draft.tabs.find((t) => t.id === aTabId)
+      const section = tab?.sections.find((s) => s.id === aSectionId)
+      if (!section) return
+      const fromIndex = section.columns.findIndex((c) => c.id === aColId)
+      const toIndex = section.columns.findIndex((c) => c.id === oColId)
+      if (fromIndex !== -1 && toIndex !== -1) {
+        ops.reorderColumns(aTabId, aSectionId, fromIndex, toIndex)
+      }
+      return
+    }
+
+    // Field move across sections or tabs
+    const aTab = draft.tabs.find((t) => t.id === aTabId)
+    const aSection = aTab?.sections.find((s) => s.id === aSectionId)
+    const aCol = aSection?.columns.find((c) => c.id === aColId)
+    const aBranchId = aCol?.fields?.[0]?.branchId
+    if (!aBranchId) return
+
+    const ok = ops.moveField({
+      from: { tabId: aTabId, sectionId: aSectionId, columnId: aColId, branchId: aBranchId },
+      to: { tabId: oTabId, sectionId: oSectionId, columnId: oColId },
+    })
+    if (!ok) {
+      const sourceTab = draft.tabs.find((t) => t.id === aTabId)
+      const sourceSection = sourceTab?.sections.find((s) => s.id === aSectionId)
+      const sourceCol = sourceSection?.columns.find((c) => c.id === aColId)
+      const branchId = sourceCol?.fields?.[0]?.branchId
+      const branch = branchId ? branchById[branchId] : undefined
+      if (branch && isFullWidthBranch(branch)) {
+        toast.warning(t('layoutBuilder.warnFullWidth', { label: branch.label }))
+      } else {
+        toast.warning(t('layoutBuilder.warnFullWidth', { label: '' }))
+      }
+    }
+  }
+
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -144,115 +249,14 @@ export function LayoutBuilderDialog({ seed, open, onClose, onSaved }: LayoutBuil
     const isSection = (id: string) => id.startsWith('section:')
     const isColumn = (id: string) => id.startsWith('column:')
 
-    // Tab reorder
     if (isTab(activeId) && isTab(overId)) {
-      const fromIndex = draft.tabs.findIndex((t) => `tab:${t.id}` === activeId)
-      const toIndex = draft.tabs.findIndex((t) => `tab:${t.id}` === overId)
-      if (fromIndex !== -1 && toIndex !== -1) {
-        ops.reorderTabs(fromIndex, toIndex)
-        // Keep active tab correct
-        const newTabs = arrayMove(draft.tabs, fromIndex, toIndex)
-        setActiveTabId(newTabs[0]?.id ?? '')
-      }
-      return
-    }
-
-    // Section reorder
-    if (isSection(activeId) && isSection(overId)) {
-      const [, aTabId, aSectionId] = activeId.split(':')
-      const [, oTabId] = overId.split(':')
-      if (aTabId !== oTabId) {
-        toast.warning(t('layoutBuilder.warnNoCrossTabSection'))
-        return
-      }
-      const tab = draft.tabs.find((t) => t.id === aTabId)
-      if (!tab) return
-      const fromIndex = tab.sections.findIndex((s) => s.id === aSectionId)
-      const toIndex = tab.sections.findIndex((s) => `section:${aTabId}:${s.id}` === overId)
-      if (fromIndex !== -1 && toIndex !== -1) {
-        ops.reorderSections(aTabId, fromIndex, toIndex)
-      }
-      return
-    }
-
-    // Column drag onto a tab pill → move field to that tab's first empty column
-    if (isColumn(activeId) && isTab(overId)) {
-      const [, fromTabId, fromSectionId, fromColId] = activeId.split(':')
-      const [, toTabId] = overId.split(':')
-      const toTabData = draft.tabs.find((t) => t.id === toTabId)
-      if (!toTabData) return
-
-      const fromTab = draft.tabs.find((t) => t.id === fromTabId)
-      const fromSection = fromTab?.sections.find((s) => s.id === fromSectionId)
-      const fromCol = fromSection?.columns.find((c) => c.id === fromColId)
-      const fromBranchId = fromCol?.fields?.[0]?.branchId
-      if (!fromBranchId) return
-
-      let foundEmpty = false
-      for (const section of toTabData.sections) {
-        for (const col of section.columns) {
-          if (col.fields.length === 0) {
-            const ok = ops.moveField({
-              from: { tabId: fromTabId, sectionId: fromSectionId, columnId: fromColId, branchId: fromBranchId },
-              to: { tabId: toTabId, sectionId: section.id, columnId: col.id },
-            })
-            if (!ok) {
-              toast.warning(t('layoutBuilder.warnFullWidth', { label: '' }))
-            }
-            foundEmpty = true
-            break
-          }
-        }
-        if (foundEmpty) break
-      }
-      if (!foundEmpty) {
-        toast.warning(t('layoutBuilder.warnNoEmptyColumn'))
-      }
-      return
-    }
-
-    // Column operations
-    if (isColumn(activeId) && isColumn(overId)) {
-      const [, aTabId, aSectionId, aColId] = activeId.split(':')
-      const [, oTabId, oSectionId, oColId] = overId.split(':')
-
-      // Column reorder within same section
-      if (aTabId === oTabId && aSectionId === oSectionId) {
-        const tab = draft.tabs.find((t) => t.id === aTabId)
-        const section = tab?.sections.find((s) => s.id === aSectionId)
-        if (!section) return
-        const fromIndex = section.columns.findIndex((c) => c.id === aColId)
-        const toIndex = section.columns.findIndex((c) => c.id === oColId)
-        if (fromIndex !== -1 && toIndex !== -1) {
-          ops.reorderColumns(aTabId, aSectionId, fromIndex, toIndex)
-        }
-        return
-      }
-
-      // Field move across sections or tabs
-      const aTab = draft.tabs.find((t) => t.id === aTabId)
-      const aSection = aTab?.sections.find((s) => s.id === aSectionId)
-      const aCol = aSection?.columns.find((c) => c.id === aColId)
-      const aBranchId = aCol?.fields?.[0]?.branchId
-      if (!aBranchId) return
-
-      const ok = ops.moveField({
-        from: { tabId: aTabId, sectionId: aSectionId, columnId: aColId, branchId: aBranchId },
-        to: { tabId: oTabId, sectionId: oSectionId, columnId: oColId },
-      })
-      if (!ok) {
-        const sourceTab = draft.tabs.find((t) => t.id === aTabId)
-        const sourceSection = sourceTab?.sections.find((s) => s.id === aSectionId)
-        const sourceCol = sourceSection?.columns.find((c) => c.id === aColId)
-        const branchId = sourceCol?.fields?.[0]?.branchId
-        const branch = branchId ? branchById[branchId] : undefined
-        if (branch && isFullWidthBranch(branch)) {
-          toast.warning(t('layoutBuilder.warnFullWidth', { label: branch.label }))
-        } else {
-          toast.warning(t('layoutBuilder.warnFullWidth', { label: '' }))
-        }
-      }
-      return
+      handleTabDrag(activeId, overId)
+    } else if (isSection(activeId) && isSection(overId)) {
+      handleSectionDrag(activeId, overId)
+    } else if (isColumn(activeId) && isTab(overId)) {
+      handleColumnToTabDrag(activeId, overId)
+    } else if (isColumn(activeId) && isColumn(overId)) {
+      handleColumnDrag(activeId, overId)
     }
   }
 
@@ -375,21 +379,20 @@ export function LayoutBuilderDialog({ seed, open, onClose, onSaved }: LayoutBuil
 // ============================================================================
 
 interface BuilderBodyProps {
-  seed: Seed
-  draft: FormLayout
-  activeTabId: string
-  branchById: Record<string, Branch>
-  ops: ReturnType<typeof useLayoutBuilder>
-  tabDragIds: string[]
-  sectionDragIds: string[]
-  renamingTabId: string | null
-  renameTabValue: string
-  setRenamingTabId: (id: string | null) => void
-  setRenameTabValue: (v: string) => void
+  readonly seed: Seed
+  readonly draft: FormLayout
+  readonly activeTabId: string
+  readonly branchById: Record<string, Branch>
+  readonly ops: ReturnType<typeof useLayoutBuilder>
+  readonly tabDragIds: string[]
+  readonly sectionDragIds: string[]
+  readonly renamingTabId: string | null
+  readonly renameTabValue: string
+  readonly setRenamingTabId: (id: string | null) => void
+  readonly setRenameTabValue: (v: string) => void
 }
 
 function BuilderBody({
-  seed: _seed,
   draft,
   activeTabId,
   branchById,
@@ -400,7 +403,7 @@ function BuilderBody({
   renameTabValue,
   setRenamingTabId,
   setRenameTabValue,
-}: BuilderBodyProps) {
+}: Readonly<BuilderBodyProps>) {
   const { t } = useTranslation()
 
   const activeTab = draft.tabs.find((t) => t.id === activeTabId) ?? draft.tabs[0]
@@ -503,25 +506,26 @@ function BuilderBody({
 // ============================================================================
 
 interface TabPillProps {
-  tab: { id: string; label: string }
-  isActive: boolean
-  isDefault: boolean
-  dragId: string
-  isRenaming: boolean
-  renameValue: string
-  onSetActive: () => void
-  onStartRename: () => void
-  onRenameChange: (v: string) => void
-  onRenameCommit: () => void
-  onRenameCancel: () => void
-  onDelete: () => void
-  canDelete: boolean
+  readonly tab: { readonly id: string; readonly label: string }
+  readonly isActive: boolean
+  readonly isDefault: boolean
+  readonly dragId: string
+  readonly isRenaming: boolean
+  readonly renameValue: string
+  readonly onSetActive: () => void
+  readonly onStartRename: () => void
+  readonly onRenameChange: (v: string) => void
+  readonly onRenameCommit: () => void
+  readonly onRenameCancel: () => void
+  readonly onDelete: () => void
+  readonly canDelete: boolean
 }
 
 function TabPill({
   tab,
   isActive,
   isDefault,
+  dragId,
   isRenaming,
   renameValue,
   onSetActive,
@@ -531,17 +535,39 @@ function TabPill({
   onRenameCancel,
   onDelete,
   canDelete,
-}: TabPillProps) {
+}: Readonly<TabPillProps>) {
   const { t } = useTranslation()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId })
+  const { role: _role, tabIndex: _tabIndex, ...restAttributes } = attributes
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSetActive()
+    }
+  }
 
   return (
     <div
-      className={`flex items-center gap-1 rounded px-3 py-1.5 text-sm cursor-pointer select-none border transition-colors ${
+      ref={setNodeRef}
+      style={style}
+      role="button"
+      tabIndex={0}
+      className={`flex items-center gap-1 rounded px-3 py-1.5 text-sm cursor-pointer select-none border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         isActive
           ? 'bg-primary text-primary-foreground border-primary'
           : 'bg-muted/50 hover:bg-muted border-transparent'
       }`}
       onClick={onSetActive}
+      onKeyDown={handleKeyDown}
+      {...restAttributes}
+      {...listeners}
     >
       {isRenaming ? (
         <Input

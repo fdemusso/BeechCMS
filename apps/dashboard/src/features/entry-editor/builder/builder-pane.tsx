@@ -17,11 +17,13 @@ import {
   verticalListSortingStrategy,
   horizontalListSortingStrategy,
   arrayMove,
+  useSortable,
 } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Plus, Loader2, MoreHorizontal, Pencil } from 'lucide-react'
 import { toast } from 'sonner'
 import type { Seed, FormLayout, Branch } from '@beechcms/core'
-import { generateDefaultLayout } from '@beechcms/core'
+import { generateDefaultLayout, validateLayoutAgainstSeed } from '@beechcms/core'
 import type { AxiosError } from 'axios'
 
 import {
@@ -55,12 +57,18 @@ export interface BuilderPaneProps {
   onClose: () => void
 }
 
-export function BuilderPane({ seed, branchById, onClose }: BuilderPaneProps) {
+export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneProps>) {
   const { t } = useTranslation()
   const queryClient = useQueryClient()
 
   const initialLayout = React.useMemo(
-    () => (seed.layout as FormLayout | undefined) ?? generateDefaultLayout(seed),
+    () => {
+      const stored = seed.layout as FormLayout | undefined
+      if (stored) {
+        return validateLayoutAgainstSeed(stored, seed).cleaned
+      }
+      return generateDefaultLayout(seed)
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [seed.slug]
   )
@@ -125,6 +133,75 @@ export function BuilderPane({ seed, branchById, onClose }: BuilderPaneProps) {
     setRenamingTabId(null)
   }
 
+  function handleFieldDrag(activeId: string, overId: string) {
+    // field:<tabId>:<sectionId>:<columnId>:<branchId>
+    const [, aTabId, aSectionId, aColId, aBranchId] = activeId.split(':')
+    const [, oTabId, oSectionId, oColId, oBranchId] = overId.split(':')
+
+    if (aColId === oColId && aSectionId === oSectionId && aTabId === oTabId) {
+      // Same column — reorder
+      const col = draft.tabs.find((t) => t.id === aTabId)
+        ?.sections.find((s) => s.id === aSectionId)
+        ?.columns.find((c) => c.id === aColId)
+      if (!col) return
+      const fromIndex = col.fields.findIndex((f) => f.branchId === aBranchId)
+      const toIndex   = col.fields.findIndex((f) => f.branchId === oBranchId)
+      if (fromIndex !== -1 && toIndex !== -1) {
+        ops.reorderFieldsInColumn(aTabId, aSectionId, aColId, fromIndex, toIndex)
+      }
+    } else {
+      // Different column — move
+      const ok = ops.moveField({
+        from: { tabId: aTabId, sectionId: aSectionId, columnId: aColId, branchId: aBranchId },
+        to:   { tabId: oTabId, sectionId: oSectionId, columnId: oColId },
+      })
+      if (!ok) {
+        const branch = branchById[aBranchId]
+        toast.warning(t('layoutBuilder.warnFullWidth', { label: branch?.label ?? '' }))
+      }
+    }
+  }
+
+  function handleTabDrag(activeId: string, overId: string) {
+    const fromIndex = draft.tabs.findIndex((t) => `tab:${t.id}` === activeId)
+    const toIndex   = draft.tabs.findIndex((t) => `tab:${t.id}` === overId)
+    if (fromIndex !== -1 && toIndex !== -1) {
+      ops.reorderTabs(fromIndex, toIndex)
+      const newTabs = arrayMove(draft.tabs, fromIndex, toIndex)
+      ops.setActiveTabId(newTabs[0]?.id ?? '')
+    }
+  }
+
+  function handleSectionDrag(activeId: string, overId: string) {
+    const [, aTabId, aSectionId] = activeId.split(':')
+    const [, oTabId] = overId.split(':')
+    if (aTabId !== oTabId) {
+      toast.warning(t('layoutBuilder.warnNoCrossTabSection'))
+      return
+    }
+    const tab = draft.tabs.find((t) => t.id === aTabId)
+    if (!tab) return
+    const fromIndex = tab.sections.findIndex((s) => s.id === aSectionId)
+    const toIndex   = tab.sections.findIndex((s) => `section:${aTabId}:${s.id}` === overId)
+    if (fromIndex !== -1 && toIndex !== -1) {
+      ops.reorderSections(aTabId, fromIndex, toIndex)
+    }
+  }
+
+  function handleColumnDrag(activeId: string, overId: string) {
+    const [, aTabId, aSectionId, aColId] = activeId.split(':')
+    const [, oTabId, oSectionId, oColId] = overId.split(':')
+    if (aTabId === oTabId && aSectionId === oSectionId) {
+      const section = draft.tabs.find((t) => t.id === aTabId)?.sections.find((s) => s.id === aSectionId)
+      if (!section) return
+      const fromIndex = section.columns.findIndex((c) => c.id === aColId)
+      const toIndex   = section.columns.findIndex((c) => c.id === oColId)
+      if (fromIndex !== -1 && toIndex !== -1) {
+        ops.reorderColumns(aTabId, aSectionId, fromIndex, toIndex)
+      }
+    }
+  }
+
   function onDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
@@ -137,72 +214,14 @@ export function BuilderPane({ seed, branchById, onClose }: BuilderPaneProps) {
     const isColumn  = (id: string) => id.startsWith('column:')
     const isField   = (id: string) => id.startsWith('field:')
 
-    // ── Field reorder / move ────────────────────────────────────────────────
     if (isField(activeId) && isField(overId)) {
-      // field:<tabId>:<sectionId>:<columnId>:<branchId>
-      const [, aTabId, aSectionId, aColId, aBranchId] = activeId.split(':')
-      const [, oTabId, oSectionId, oColId, oBranchId] = overId.split(':')
-
-      if (aColId === oColId && aSectionId === oSectionId && aTabId === oTabId) {
-        // Same column — reorder
-        const col = draft.tabs.find((t) => t.id === aTabId)
-          ?.sections.find((s) => s.id === aSectionId)
-          ?.columns.find((c) => c.id === aColId)
-        if (!col) return
-        const fromIndex = col.fields.findIndex((f) => f.branchId === aBranchId)
-        const toIndex   = col.fields.findIndex((f) => f.branchId === oBranchId)
-        if (fromIndex !== -1 && toIndex !== -1) ops.reorderFieldsInColumn(aTabId, aSectionId, aColId, fromIndex, toIndex)
-      } else {
-        // Different column — move
-        const ok = ops.moveField({
-          from: { tabId: aTabId, sectionId: aSectionId, columnId: aColId, branchId: aBranchId },
-          to:   { tabId: oTabId, sectionId: oSectionId, columnId: oColId },
-        })
-        if (!ok) {
-          const branch = branchById[aBranchId]
-          toast.warning(t('layoutBuilder.warnFullWidth', { label: branch?.label ?? '' }))
-        }
-      }
-      return
-    }
-
-    // ── Tab reorder ─────────────────────────────────────────────────────────
-    if (isTab(activeId) && isTab(overId)) {
-      const fromIndex = draft.tabs.findIndex((t) => `tab:${t.id}` === activeId)
-      const toIndex   = draft.tabs.findIndex((t) => `tab:${t.id}` === overId)
-      if (fromIndex !== -1 && toIndex !== -1) {
-        ops.reorderTabs(fromIndex, toIndex)
-        const newTabs = arrayMove(draft.tabs, fromIndex, toIndex)
-        ops.setActiveTabId(newTabs[0]?.id ?? '')
-      }
-      return
-    }
-
-    // ── Section reorder ─────────────────────────────────────────────────────
-    if (isSection(activeId) && isSection(overId)) {
-      const [, aTabId, aSectionId] = activeId.split(':')
-      const [, oTabId] = overId.split(':')
-      if (aTabId !== oTabId) { toast.warning(t('layoutBuilder.warnNoCrossTabSection')); return }
-      const tab = draft.tabs.find((t) => t.id === aTabId)
-      if (!tab) return
-      const fromIndex = tab.sections.findIndex((s) => s.id === aSectionId)
-      const toIndex   = tab.sections.findIndex((s) => `section:${aTabId}:${s.id}` === overId)
-      if (fromIndex !== -1 && toIndex !== -1) ops.reorderSections(aTabId, fromIndex, toIndex)
-      return
-    }
-
-    // ── Column reorder ──────────────────────────────────────────────────────
-    if (isColumn(activeId) && isColumn(overId)) {
-      const [, aTabId, aSectionId, aColId] = activeId.split(':')
-      const [, oTabId, oSectionId, oColId] = overId.split(':')
-      if (aTabId === oTabId && aSectionId === oSectionId) {
-        const section = draft.tabs.find((t) => t.id === aTabId)?.sections.find((s) => s.id === aSectionId)
-        if (!section) return
-        const fromIndex = section.columns.findIndex((c) => c.id === aColId)
-        const toIndex   = section.columns.findIndex((c) => c.id === oColId)
-        if (fromIndex !== -1 && toIndex !== -1) ops.reorderColumns(aTabId, aSectionId, fromIndex, toIndex)
-      }
-      return
+      handleFieldDrag(activeId, overId)
+    } else if (isTab(activeId) && isTab(overId)) {
+      handleTabDrag(activeId, overId)
+    } else if (isSection(activeId) && isSection(overId)) {
+      handleSectionDrag(activeId, overId)
+    } else if (isColumn(activeId) && isColumn(overId)) {
+      handleColumnDrag(activeId, overId)
     }
   }
 
@@ -339,20 +358,64 @@ interface TabPillProps {
   canDelete: boolean
 }
 
-function TabPill({ tab, isActive, isDefault, isRenaming, renameValue, onSetActive, onStartRename, onRenameChange, onRenameCommit, onRenameCancel, onDelete, canDelete }: TabPillProps) {
+function TabPill({
+  tab,
+  isActive,
+  isDefault,
+  dragId,
+  isRenaming,
+  renameValue,
+  onSetActive,
+  onStartRename,
+  onRenameChange,
+  onRenameCommit,
+  onRenameCancel,
+  onDelete,
+  canDelete,
+}: Readonly<TabPillProps>) {
   const { t } = useTranslation()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId })
+  const { role: _role, tabIndex: _tabIndex, ...restAttributes } = attributes
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      onSetActive()
+    }
+  }
 
   return (
     <div
-      className={`flex items-center gap-1 rounded px-3 py-1.5 text-sm cursor-pointer select-none border transition-colors ${isActive ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted/50 border-transparent'}`}
+      ref={setNodeRef}
+      style={style}
+      role="button"
+      tabIndex={0}
+      className={`flex items-center gap-1 rounded px-3 py-1.5 text-sm cursor-pointer select-none border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted/50 border-transparent'}`}
       onClick={onSetActive}
+      onKeyDown={handleKeyDown}
+      {...restAttributes}
+      {...listeners}
     >
       {isRenaming ? (
         <Input autoFocus className="h-6 text-sm w-24 px-1" value={renameValue}
           onChange={(e) => onRenameChange(e.target.value)}
           onBlur={onRenameCommit}
           onClick={(e) => e.stopPropagation()}
-          onKeyDown={(e) => { e.stopPropagation(); if (e.key === 'Enter') onRenameCommit(); if (e.key === 'Escape') onRenameCancel() }}
+          onKeyDown={(e) => {
+            e.stopPropagation()
+            if (e.key === 'Enter') {
+              onRenameCommit()
+            }
+            if (e.key === 'Escape') {
+              onRenameCancel()
+            }
+          }}
         />
       ) : (
         <span>{tab.label}</span>

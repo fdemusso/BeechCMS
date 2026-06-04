@@ -26,12 +26,12 @@ import { ColumnCard } from './column-card'
 import type { UseLayoutBuilderResult } from './use-layout-builder'
 
 interface SectionCardProps {
-  tabId: string
-  section: LayoutSection
-  branchById: Record<string, Branch>
-  availableBranches: Branch[]
-  ops: UseLayoutBuilderResult
-  dragId: string
+  readonly tabId: string
+  readonly section: LayoutSection
+  readonly branchById: Record<string, Branch>
+  readonly availableBranches: Branch[]
+  readonly ops: UseLayoutBuilderResult
+  readonly dragId: string
 }
 
 export function SectionCard({
@@ -41,7 +41,7 @@ export function SectionCard({
   availableBranches,
   ops,
   dragId,
-}: SectionCardProps) {
+}: Readonly<SectionCardProps>) {
   const { t } = useTranslation()
   const [isRenaming, setIsRenaming] = React.useState(false)
   const [renameValue, setRenameValue] = React.useState(section.label ?? '')
@@ -103,8 +103,22 @@ export function SectionCard({
           />
         ) : (
           <span
-            className={`flex-1 text-sm font-medium cursor-text ${!section.label ? 'text-muted-foreground italic' : ''}`}
-            onDoubleClick={() => { setRenameValue(section.label ?? ''); setIsRenaming(true) }}
+            role="button"
+            tabIndex={0}
+            className={`flex-1 text-sm font-medium cursor-text focus-visible:outline-none focus-visible:underline ${
+              section.label ? '' : 'text-muted-foreground italic'
+            }`}
+            onDoubleClick={() => {
+              setRenameValue(section.label ?? '')
+              setIsRenaming(true)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                setRenameValue(section.label ?? '')
+                setIsRenaming(true)
+              }
+            }}
           >
             {section.label ?? t('layoutBuilder.noLabel')}
           </span>
