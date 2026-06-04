@@ -22,8 +22,9 @@ import { D1DemoDataRepository } from '../shared/demo-data.repository.d1'
 import { D1SetupChecklistRepository } from '../shared/d1-setup-checklist.repository'
 import { D1SeedLayoutRepository } from '../shared/seed-layout.repository.d1'
 import { D1SeedRepository } from '../shared/seed.repository.d1'
+import { D1SchemaMutator } from '../shared/schema-mutator.d1'
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations'
 import { D1AutomationRepository } from '../shared/automations.repository.d1'
@@ -53,6 +54,7 @@ interface RepositoryOverrides {
   demoDataRepository?: IDemoDataRepository
   seedLayoutRepository?: ISeedLayoutRepository
   seedRepository?: ISeedRepository
+  schemaMutator?: ISchemaMutator
 }
 
 function buildScheduler(context: Context): IScheduler {
@@ -88,12 +90,14 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
       ?? new D1AutomationRepository(database)
 
     context.set('automationRepository', automationRepository)
+    // getSeed is set later by seedRegistryMiddleware — capture context by closure so the
+    // runner reads the live value at call time, not at middleware creation time.
     context.set(
       'automationRunner',
       overrides?.automationRunner ?? new AutomationRunner({
         automationRepository,
         contentRepository: context.get('repository'),
-        getSeed: context.get('getSeed'),
+        getSeed: (slug: string) => context.get('getSeed')?.(slug) ?? null,
         idGenerator: resolvedIdGenerator,
         env: context.env as unknown as Record<string, string | undefined>,
       }),
@@ -104,6 +108,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('setupChecklistRepository', new D1SetupChecklistRepository(database))
     context.set('seedLayoutRepository', overrides?.seedLayoutRepository ?? new D1SeedLayoutRepository(database))
     context.set('seedRepository', overrides?.seedRepository ?? new D1SeedRepository(database))
+    context.set('schemaMutator', overrides?.schemaMutator ?? new D1SchemaMutator(database))
     await next()
   })
 }

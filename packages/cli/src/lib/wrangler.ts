@@ -79,6 +79,11 @@ export function findWranglerConfig(): string | null {
   return null
 }
 
+/** Wraps a string value in single quotes, escaping internal single quotes for SQL literals. */
+export function sqlQuote(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`
+}
+
 /** Risolve il nome del database D1 da wrangler.jsonc (stripping JSONC comments). */
 export function resolveDbName(configPath: string | null): string {
   if (!configPath) return 'beech-db'
