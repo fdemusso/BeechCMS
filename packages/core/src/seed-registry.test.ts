@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { SeedRegistry, InMemorySeedRegistry, sortSeedsByDependencies, findBranchById } from './seed-registry'
+import { SeedRegistry, InMemorySeedRegistry, sortSeedsByDependencies, findBranchById, nextBranchId } from './seed-registry'
 import type { Seed, Branch } from './types'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
@@ -346,5 +346,44 @@ describe('findBranchById', () => {
   it('returns null when the seed has no branches', () => {
     const empty = makeSeed({ slug: 'empty' })
     expect(findBranchById(empty, 'br_01')).toBeNull()
+  })
+})
+
+// ─── nextBranchId ─────────────────────────────────────────────────────────────
+
+describe('nextBranchId', () => {
+  it('returns br_01 for an empty seed', () => {
+    expect(nextBranchId({ branches: [] })).toBe('br_01')
+  })
+
+  it('returns br_04 for a seed with br_01 and br_03', () => {
+    const seed = {
+      branches: [
+        { id: 'br_01', alias: 'a', label: 'A', type: 'text' as const },
+        { id: 'br_03', alias: 'b', label: 'B', type: 'text' as const },
+      ],
+    }
+    expect(nextBranchId(seed)).toBe('br_04')
+  })
+
+  it('returns br_01 for a seed with only a custom non-numeric id', () => {
+    const seed = {
+      branches: [{ id: 'br_title', alias: 'title', label: 'Title', type: 'text' as const }],
+    }
+    expect(nextBranchId(seed)).toBe('br_01')
+  })
+
+  it('zero-pads to at least 2 digits', () => {
+    expect(nextBranchId({ branches: [] })).toMatch(/^br_\d{2,}$/)
+  })
+
+  it('handles high numbers without padding issues', () => {
+    const branches = Array.from({ length: 100 }, (_, i) => ({
+      id: `br_${String(i + 1).padStart(2, '0')}`,
+      alias: `f${i}`,
+      label: `F${i}`,
+      type: 'text' as const,
+    }))
+    expect(nextBranchId({ branches })).toBe('br_101')
   })
 })

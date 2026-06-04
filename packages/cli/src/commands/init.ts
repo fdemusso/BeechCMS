@@ -22,6 +22,8 @@ const SYSTEM_TABLES = [
   'media_objects',
   'content_event_log',
   'automations',
+  'seeds',
+  'seed_meta',
 ]
 
 // Embedded copy of 0000_v040_base.sql — all DDL uses CREATE TABLE IF NOT EXISTS,
@@ -162,6 +164,26 @@ CREATE TABLE IF NOT EXISTS automations (
 
 CREATE INDEX IF NOT EXISTS idx_automations_seed_slug ON automations(seed_slug);
 CREATE INDEX IF NOT EXISTS idx_automations_enabled   ON automations(enabled);
+
+CREATE TABLE IF NOT EXISTS seeds (
+    slug        TEXT    NOT NULL PRIMARY KEY,
+    definition  TEXT    NOT NULL,
+    status      TEXT    NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'deleted')),
+    source      TEXT    NOT NULL DEFAULT 'runtime'
+                        CHECK (source IN ('code', 'runtime')),
+    created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_seeds_status ON seeds(status);
+
+CREATE TABLE IF NOT EXISTS seed_meta (
+    id      TEXT NOT NULL PRIMARY KEY,
+    value   TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO seed_meta (id, value) VALUES ('registry_version', '1');
 `.trim()
 
 const PLACEHOLDER_DB_IDS = [

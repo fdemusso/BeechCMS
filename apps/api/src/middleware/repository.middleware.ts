@@ -21,8 +21,9 @@ import { D1SiteSettingsRepository } from '../shared/site-settings.repository.d1'
 import { D1DemoDataRepository } from '../shared/demo-data.repository.d1'
 import { D1SetupChecklistRepository } from '../shared/d1-setup-checklist.repository'
 import { D1SeedLayoutRepository } from '../shared/seed-layout.repository.d1'
+import { D1SeedRepository } from '../shared/seed.repository.d1'
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations'
 import { D1AutomationRepository } from '../shared/automations.repository.d1'
@@ -51,6 +52,7 @@ interface RepositoryOverrides {
   siteSettingsRepository?: ISiteSettingsRepository
   demoDataRepository?: IDemoDataRepository
   seedLayoutRepository?: ISeedLayoutRepository
+  seedRepository?: ISeedRepository
 }
 
 function buildScheduler(context: Context): IScheduler {
@@ -101,6 +103,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('demoDataRepository', overrides?.demoDataRepository ?? new D1DemoDataRepository(database))
     context.set('setupChecklistRepository', new D1SetupChecklistRepository(database))
     context.set('seedLayoutRepository', overrides?.seedLayoutRepository ?? new D1SeedLayoutRepository(database))
+    context.set('seedRepository', overrides?.seedRepository ?? new D1SeedRepository(database))
     await next()
   })
 }
