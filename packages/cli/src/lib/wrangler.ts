@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import { spawnSync } from 'node:child_process'
+import { spawnSync, type SpawnSyncReturns } from 'node:child_process'
 import { writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -43,10 +43,25 @@ export function executeD1File(sql: string, options: WranglerOptions): boolean {
   }
 }
 
-/** Esegue una query SQL e ritorna i risultati come array di oggetti (--json). */
+/**
+ * Esegue una query SQL e ritorna i risultati come array di oggetti (--json).
+ *
+ * Passa il SQL via file temporaneo (`--file`) anziché `--command`: su Windows,
+ * `spawnSync` con `shell: true` non preserva le virgolette/spazi/virgole interni
+ * a un argomento inline, e wrangler riceve il comando spezzato in token sciolti
+ * ("Unknown arguments: name, FROM, sqlite_master, …"). Il file evita del tutto
+ * il riquoting della shell — stesso approccio di `executeD1File`.
+ */
 export function queryD1<T extends D1Row = D1Row>(sql: string, options: WranglerOptions): T[] {
-  const args = ['d1', 'execute', options.db, '--command', sql, '--json', ...buildArgs(options)]
-  const result = spawnSync('npx', ['wrangler', ...args], { encoding: 'utf-8', cwd: process.cwd(), shell: true })
+  const tmpFile = join(tmpdir(), `beech-query-${Date.now()}.sql`)
+  let result: SpawnSyncReturns<string>
+  try {
+    writeFileSync(tmpFile, sql, 'utf-8')
+    const args = ['d1', 'execute', options.db, '--file', tmpFile, '--json', ...buildArgs(options)]
+    result = spawnSync('npx', ['wrangler', ...args], { encoding: 'utf-8', cwd: process.cwd(), shell: true })
+  } finally {
+    try { rmSync(tmpFile) } catch {}
+  }
 
   if (result.status !== 0) {
     throw new Error(`wrangler d1 execute failed:\n${result.stderr}`)

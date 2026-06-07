@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect, vi } from "vitest"
+import { describe, it, expect } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 import { useLayoutBuilder } from "@/features/entry-editor/builder/use-layout-builder"
 import type { Seed, FormLayout } from "@beechcms/core"
@@ -22,6 +22,7 @@ const mockSeed: Seed = {
 } as any
 
 const mockInitialLayout: FormLayout = {
+  version: 1,
   tabs: [
     {
       id: "tab-main",
@@ -282,7 +283,7 @@ describe("useLayoutBuilder", () => {
       )
 
       // Replace layout
-      const customLayout: FormLayout = { tabs: [{ id: "tab-new", label: "New", sections: [] }] }
+      const customLayout: FormLayout = { version: 1, tabs: [{ id: "tab-new", label: "New", sections: [] }] }
       act(() => {
         result.current.replace(customLayout)
       })

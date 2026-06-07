@@ -11,7 +11,7 @@ import type { Seed } from "@beechcms/core"
 
 const mockAuthAdmin = { user: { email: "admin@test.com", role: "admin" as const } }
 const mockAuthEditor = { user: { email: "editor@test.com", role: "editor" as const } }
-const mockAuthRef = { current: mockAuthAdmin }
+const mockAuthRef = { current: mockAuthAdmin as { user: { email: string; role: "admin" | "editor" } } }
 
 vi.mock("@/lib/auth-context", () => ({
   useAuth: () => mockAuthRef.current,

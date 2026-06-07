@@ -338,7 +338,7 @@ seedsApp.delete('/:slug', async (context) => {
   const backrefMap = context.get('backrefMap')
   const inbound = backrefMap.get(slug)
   if (inbound && inbound.length > 0) {
-    const referencers = [...new Set(inbound.map((r: { seedSlug: string }) => r.seedSlug))]
+    const referencers = [...new Set(inbound.map((r) => r.sourceSlug))]
     return publicProblem(context, {
       type: 'seed-referenced',
       title: 'Seed referenced',
