@@ -9,6 +9,13 @@ import { SeedBuilderPage } from "@/features/seed-builder"
 import type { SeedRecordDTO } from "@/features/seed-builder"
 import type { Seed } from "@beechcms/core"
 
+const mockBlocker = { state: "unblocked" as const, reset: vi.fn(), proceed: vi.fn() }
+
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => vi.fn(),
+  useBlocker: () => mockBlocker,
+}))
+
 const mockAuthAdmin = { user: { email: "admin@test.com", role: "admin" as const } }
 const mockAuthEditor = { user: { email: "editor@test.com", role: "editor" as const } }
 const mockAuthRef = { current: mockAuthAdmin as { user: { email: string; role: "admin" | "editor" } } }
@@ -78,6 +85,36 @@ describe("SeedBuilderPage — admin", () => {
     const { unmount } = wrap(<SeedBuilderPage />)
     expect(screen.getAllByTestId("edit-seed-btn").length).toBeGreaterThan(0)
     expect(screen.getAllByTestId("delete-seed-btn").length).toBeGreaterThan(0)
+    unmount()
+  })
+
+  it("opens the shared SchemaFormShell (create title) when New content type is clicked", async () => {
+    mockAuthRef.current = mockAuthAdmin
+    const { unmount } = wrap(<SeedBuilderPage />)
+    const { default: userEvent } = await import("@testing-library/user-event")
+    const user = userEvent.setup()
+
+    await user.click(screen.getByText(/New content type/i))
+
+    // The dialog title duplicates the trigger button's label ("New content type"),
+    // and "Fields" duplicates the table's branches column header — query by role
+    // to land on the dialog's heading/tabs rather than the page chrome behind it.
+    expect(await screen.findByRole("heading", { name: "New content type" })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: "General" })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: "Fields" })).toBeInTheDocument()
+    expect(screen.getByRole("tab", { name: "Dashboard" })).toBeInTheDocument()
+    unmount()
+  })
+
+  it("opens the shared SchemaFormShell (edit title) when a row's edit button is clicked", async () => {
+    mockAuthRef.current = mockAuthAdmin
+    const { unmount } = wrap(<SeedBuilderPage />)
+    const { default: userEvent } = await import("@testing-library/user-event")
+    const user = userEvent.setup()
+
+    await user.click(screen.getAllByTestId("edit-seed-btn")[0])
+
+    expect(await screen.findByText('Edit — Article')).toBeInTheDocument()
     unmount()
   })
 })

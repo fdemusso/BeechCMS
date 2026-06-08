@@ -971,6 +971,14 @@
     "warnFullWidthColumns": "Questa sezione contiene un campo a larghezza piena. Il numero di colonne non può essere modificato.",
     "defaultTabBadge": "Predefinita"
   },
+  "fields": {
+    "repeater": {
+      "addItem": "Aggiungi elemento",
+      "removeItem": "Rimuovi elemento",
+      "dragHandle": "Trascina per riordinare",
+      "emptyState": "Nessun elemento. Usa \"Aggiungi elemento\" per iniziare."
+    }
+  },
   "seedBuilder": {
     "page": {
       "subtitle": "Gestisci i tipi di contenuto definiti a runtime.",

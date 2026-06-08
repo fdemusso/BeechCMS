@@ -971,6 +971,14 @@
     "warnFullWidthColumns": "This section contains a full-width field. Column count cannot be changed.",
     "defaultTabBadge": "Default"
   },
+  "fields": {
+    "repeater": {
+      "addItem": "Add item",
+      "removeItem": "Remove item",
+      "dragHandle": "Drag to reorder",
+      "emptyState": "No items yet. Use \"Add item\" to get started."
+    }
+  },
   "seedBuilder": {
     "page": {
       "subtitle": "Manage your runtime-defined content types.",

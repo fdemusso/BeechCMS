@@ -24,6 +24,8 @@ import { JsonEdit } from './edit/json'
 import { RichtextEdit } from './edit/richtext'
 import { MediaEdit } from './edit/media'
 import { RelationEdit } from './edit/relation'
+import { FieldEditRepeater } from './edit/repeater'
+import { SelectEdit } from './edit/select'
 
 const fieldRegistry: IFieldRegistry = new FieldRegistryImpl()
 
@@ -44,6 +46,14 @@ fieldRegistry.registerEdit('json', JsonEdit)
 fieldRegistry.registerEdit('richtext', RichtextEdit)
 fieldRegistry.registerEdit('file', MediaEdit)
 fieldRegistry.registerEdit('relation', RelationEdit)
+
+// 'repeater' is a dashboard-only field type until sprint 10 promotes it to a core
+// BranchType. Registering by string keeps @beechcms/core untouched for now.
+fieldRegistry.registerEdit('repeater' as BranchType, FieldEditRepeater)
+
+// 'select' is likewise dashboard-only — a minimal single-select over `branch.options`,
+// used by the meta-seed layout (sprint 09) for `displayNameAlias` and `dashIcon`.
+fieldRegistry.registerEdit('select' as BranchType, SelectEdit)
 
 export function getDisplayComponent(type: BranchType): ComponentType<FieldDisplayProps> {
   return fieldRegistry.getDisplay(type) ?? DefaultDisplay

@@ -4,7 +4,9 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Trash2, ChevronDown, ChevronUp, Info } from "lucide-react"
+import { useSortable } from "@dnd-kit/sortable"
+import { CSS } from "@dnd-kit/utilities"
+import { Trash2, ChevronDown, ChevronUp, GripVertical, Info } from "lucide-react"
 import type { Branch, BranchType, Seed } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,40 +22,55 @@ const BRANCH_TYPES: BranchType[] = [
   "text", "richtext", "number", "boolean", "date", "json", "tags", "file", "relation",
 ]
 
-const AUTOMATION_RESERVED = new Set([
+export const AUTOMATION_RESERVED = new Set([
   "id", "slug", "status", "created_at", "updated_at", "schema_slug",
 ])
 
-interface BranchEditorProps {
-  branches: Branch[]
-  existingBranches: Branch[]
-  activeSeedsForRelation: Seed[]
-  onChange: (branches: Branch[]) => void
-}
-
-interface BranchRowProps {
+export interface BranchItemRowProps {
   branch: Branch
-  isExisting: boolean
   activeSeedsForRelation: Seed[]
-  onUpdate: (updated: Branch) => void
+  onChange: (updated: Branch) => void
   onRemove: () => void
 }
 
-function BranchRow({ branch, isExisting, activeSeedsForRelation, onUpdate, onRemove }: BranchRowProps) {
+export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemove }: BranchItemRowProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  const isExisting = !branch.id.startsWith("br_new_")
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: branch.id })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
 
   function set<K extends keyof Branch>(key: K, value: Branch[K]) {
-    onUpdate({ ...branch, [key]: value })
+    onChange({ ...branch, [key]: value })
   }
 
   function setPolicy(key: keyof NonNullable<Branch["policies"]>, value: boolean | string) {
-    onUpdate({ ...branch, policies: { ...branch.policies, [key]: value } })
+    onChange({ ...branch, policies: { ...branch.policies, [key]: value } })
   }
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-md border bg-background">
+    <Collapsible
+      ref={setNodeRef}
+      style={style}
+      open={open}
+      onOpenChange={setOpen}
+      className="rounded-md border bg-background"
+    >
       <div className="flex items-center gap-2 p-3">
+        <button
+          type="button"
+          className="cursor-grab text-muted-foreground hover:text-foreground touch-none"
+          title={t("fields.repeater.dragHandle")}
+          aria-label={t("fields.repeater.dragHandle")}
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="font-mono text-sm font-medium truncate">{branch.alias || t("seedBuilder.branchEditor.newField")}</span>
@@ -66,7 +83,7 @@ function BranchRow({ branch, isExisting, activeSeedsForRelation, onUpdate, onRem
             {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </CollapsibleTrigger>
-        <Button variant="ghost" size="sm" onClick={onRemove} title={t("common.remove")}>
+        <Button variant="ghost" size="sm" onClick={onRemove} title={t("fields.repeater.removeItem")} aria-label={t("fields.repeater.removeItem")}>
           <Trash2 className="h-4 w-4 text-destructive" />
         </Button>
       </div>
@@ -193,7 +210,7 @@ function BranchRow({ branch, isExisting, activeSeedsForRelation, onUpdate, onRem
                   <Input
                     type="number"
                     value={branch.numberOptions?.min ?? ""}
-                    onChange={e => onUpdate({ ...branch, numberOptions: { ...branch.numberOptions, min: e.target.value ? +e.target.value : undefined } })}
+                    onChange={e => onChange({ ...branch, numberOptions: { ...branch.numberOptions, min: e.target.value ? +e.target.value : undefined } })}
                   />
                 </div>
                 <div className="space-y-1">
@@ -201,7 +218,7 @@ function BranchRow({ branch, isExisting, activeSeedsForRelation, onUpdate, onRem
                   <Input
                     type="number"
                     value={branch.numberOptions?.max ?? ""}
-                    onChange={e => onUpdate({ ...branch, numberOptions: { ...branch.numberOptions, max: e.target.value ? +e.target.value : undefined } })}
+                    onChange={e => onChange({ ...branch, numberOptions: { ...branch.numberOptions, max: e.target.value ? +e.target.value : undefined } })}
                   />
                 </div>
                 <div className="space-y-1">
@@ -209,7 +226,7 @@ function BranchRow({ branch, isExisting, activeSeedsForRelation, onUpdate, onRem
                   <Input
                     type="number"
                     value={branch.numberOptions?.step ?? ""}
-                    onChange={e => onUpdate({ ...branch, numberOptions: { ...branch.numberOptions, step: e.target.value ? +e.target.value : undefined } })}
+                    onChange={e => onChange({ ...branch, numberOptions: { ...branch.numberOptions, step: e.target.value ? +e.target.value : undefined } })}
                   />
                 </div>
               </div>
@@ -217,7 +234,7 @@ function BranchRow({ branch, isExisting, activeSeedsForRelation, onUpdate, onRem
                 <Label className="text-xs">{t("seedBuilder.branchEditor.control")}</Label>
                 <Select
                   value={branch.numberOptions?.control ?? "input"}
-                  onValueChange={v => onUpdate({ ...branch, numberOptions: { ...branch.numberOptions, control: v as "input" | "slider" | "rating" | "stepper" } })}
+                  onValueChange={v => onChange({ ...branch, numberOptions: { ...branch.numberOptions, control: v as "input" | "slider" | "rating" | "stepper" } })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -245,7 +262,7 @@ function BranchRow({ branch, isExisting, activeSeedsForRelation, onUpdate, onRem
                 <Label className="text-xs">{t("seedBuilder.branchEditor.fileAccept")}</Label>
                 <Select
                   value={branch.fileOptions?.accept ?? "any"}
-                  onValueChange={v => onUpdate({ ...branch, fileOptions: { ...branch.fileOptions, accept: v as "image" | "document" | "any" } })}
+                  onValueChange={v => onChange({ ...branch, fileOptions: { ...branch.fileOptions, accept: v as "image" | "document" | "any" } })}
                 >
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -303,61 +320,5 @@ function BranchRow({ branch, isExisting, activeSeedsForRelation, onUpdate, onRem
         </div>
       </CollapsibleContent>
     </Collapsible>
-  )
-}
-
-export function BranchEditor({ branches, existingBranches, activeSeedsForRelation, onChange }: BranchEditorProps) {
-  const { t } = useTranslation()
-
-  function addBranch() {
-    const newBranch: Branch = {
-      id: `br_new_${Date.now()}`,
-      alias: "",
-      label: "",
-      type: "text",
-    }
-    onChange([...branches, newBranch])
-  }
-
-  function updateBranch(idx: number, updated: Branch) {
-    const next = [...branches]
-    next[idx] = updated
-    onChange(next)
-  }
-
-  function removeBranch(idx: number) {
-    const isExisting = existingBranches.some(b => b.id === branches[idx].id)
-    if (isExisting) {
-      if (!confirm(t("seedBuilder.branchEditor.removeExistingWarning"))) return
-    }
-    onChange(branches.filter((_, i) => i !== idx))
-  }
-
-  const existingIds = new Set(existingBranches.map(b => b.id))
-
-  return (
-    <div className="space-y-2">
-      {branches.map((branch, idx) => (
-        <BranchRow
-          key={branch.id}
-          branch={branch}
-          isExisting={existingIds.has(branch.id)}
-          activeSeedsForRelation={activeSeedsForRelation}
-          onUpdate={updated => updateBranch(idx, updated)}
-          onRemove={() => removeBranch(idx)}
-        />
-      ))}
-      <Button type="button" variant="outline" size="sm" onClick={addBranch} className="w-full">
-        <Plus className="h-4 w-4 mr-1" />
-        {t("seedBuilder.branchEditor.addField")}
-      </Button>
-
-      {branches.some((b, idx) => existingIds.has(b.id) && !branches[idx]) === false &&
-        branches.some(b => b.alias && AUTOMATION_RESERVED.has(b.alias)) && (
-          <p className="text-xs text-destructive">
-            {t("seedBuilder.branchEditor.reservedAliasError")}
-          </p>
-        )}
-    </div>
   )
 }

@@ -16,10 +16,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 import { ROW_HEIGHT_PX } from "@/components/ui/data-table"
 import { useSeeds } from "../hooks/use-seeds"
-import { SeedEditorDialog } from "./SeedEditorDialog"
+import { useSeedEditorDialog } from "../hooks/use-seed-editor-dialog"
 import { DeleteSeedDialog } from "./DeleteSeedDialog"
+import { SchemaFormShell } from "@/features/entry-editor"
 import type { SeedRecordDTO } from "../api/seeds.api"
 import type { Seed } from "@beechcms/core"
+
+interface SeedFormDialogProps {
+  open: boolean
+  editRecord: SeedRecordDTO | null
+  activeSeedsForRelation: Seed[]
+  onClose: () => void
+}
+
+// Adapter: SchemaFormShell is a controlled dialog driven by a view-model.
+// The hook must always run (stable hook order) — `open` only gates the shell.
+function SeedFormDialog({ open, editRecord, activeSeedsForRelation, onClose }: SeedFormDialogProps) {
+  const vm = useSeedEditorDialog({ editRecord, activeSeedsForRelation, onClose })
+  return <SchemaFormShell vm={vm} open={open} />
+}
 
 export function SeedBuilderPage() {
   const { t } = useTranslation()
@@ -162,17 +177,18 @@ export function SeedBuilderPage() {
         </div>
       </div>
 
-      <SeedEditorDialog
+      <SeedFormDialog
         open={createOpen}
-        onOpenChange={setCreateOpen}
+        editRecord={null}
         activeSeedsForRelation={activeSeeds as Seed[]}
+        onClose={() => setCreateOpen(false)}
       />
 
-      <SeedEditorDialog
+      <SeedFormDialog
         open={!!editRecord}
-        onOpenChange={open => { if (!open) setEditRecord(null) }}
         editRecord={editRecord}
         activeSeedsForRelation={activeSeeds as Seed[]}
+        onClose={() => setEditRecord(null)}
       />
 
       <DeleteSeedDialog
