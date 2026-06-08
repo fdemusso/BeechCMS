@@ -21,7 +21,6 @@ import { CommandPalette } from "@/features/command-palette"
 import { AnalyticsPage } from "@/pages/analytics"
 import { CreateNewPage } from "@/pages/create-new"
 import { ScheduledPage } from "@/pages/scheduled"
-import { SeedBuilderPage } from "@/features/seed-builder"
 import "./App.css"
 
 function SplashScreen() {
@@ -156,14 +155,6 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <SettingsPage />
-          </ProtectedRoute>
-        ),
-      },
-      {
-        path: "/content-types",
-        element: (
-          <ProtectedRoute>
-            <SeedBuilderPage />
           </ProtectedRoute>
         ),
       },

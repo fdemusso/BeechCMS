@@ -973,7 +973,6 @@
   },
   "seedBuilder": {
     "page": {
-      "title": "Content Types",
       "subtitle": "Manage your runtime-defined content types.",
       "newButton": "New content type",
       "showDeleted": "Show deleted",

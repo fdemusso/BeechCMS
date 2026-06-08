@@ -973,7 +973,6 @@
   },
   "seedBuilder": {
     "page": {
-      "title": "Tipi di contenuto",
       "subtitle": "Gestisci i tipi di contenuto definiti a runtime.",
       "newButton": "Nuovo tipo di contenuto",
       "showDeleted": "Mostra eliminati",

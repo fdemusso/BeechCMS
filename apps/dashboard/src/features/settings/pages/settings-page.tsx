@@ -4,9 +4,10 @@
 
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { User, Palette, Shield, HardDrive, Bell, Settings } from 'lucide-react'
+import { User, Palette, Shield, HardDrive, Bell, Settings, Layers } from 'lucide-react'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar, SiteHeader } from "@/features/navigation"
+import { SeedBuilderPage } from '@/features/seed-builder'
 import { ProfileTab } from '../components/profile-tab'
 import { InterfaceTab } from '../components/interface-tab'
 import { SecurityTab } from '../components/security-tab'
@@ -23,6 +24,7 @@ function TabContent({ tab }: { tab: SettingsTab }) {
     case 'storage': return <StorageTab />
     case 'notifications': return <NotificationsTab />
     case 'general': return <GeneralTab />
+    case 'content-types': return <SeedBuilderPage />
   }
 }
 
@@ -38,6 +40,7 @@ export default function SettingsPage() {
     { id: 'security', label: t('settings.tabs.security'), icon: Shield },
     { id: 'storage', label: t('settings.tabs.storage'), icon: HardDrive },
     { id: 'notifications', label: t('settings.tabs.notifications'), icon: Bell },
+    { id: 'content-types', label: t('seedBuilder.page.navTitle'), icon: Layers },
   ]
 
   const currentTab = TABS.find(tab => tab.id === activeTab) ?? TABS[0]

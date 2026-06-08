@@ -6,12 +6,15 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Plus, Pencil, Trash2, RefreshCw } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
+import { cn } from "@/lib/utils"
 import { useSchema } from "@/features/schema"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
+import { ROW_HEIGHT_PX } from "@/components/ui/data-table"
 import { useSeeds } from "../hooks/use-seeds"
 import { SeedEditorDialog } from "./SeedEditorDialog"
 import { DeleteSeedDialog } from "./DeleteSeedDialog"
@@ -34,19 +37,16 @@ export function SeedBuilderPage() {
   const visible = showDeleted ? records : records.filter(r => r.status !== "deleted")
 
   return (
-    <div className="flex flex-col gap-6 p-6">
+    <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">{t("seedBuilder.page.title")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">{t("seedBuilder.page.subtitle")}</p>
-        </div>
+        <p className="text-sm text-muted-foreground">{t("seedBuilder.page.subtitle")}</p>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => refetch()} title={t("common.retry")}>
-            <RefreshCw className="h-4 w-4" />
+          <Button variant="ghost" size="icon-sm" onClick={() => refetch()} title={t("common.retry")}>
+            <RefreshCw className="size-4" />
           </Button>
           {isAdmin && (
-            <Button onClick={() => setCreateOpen(true)} size="sm">
-              <Plus className="h-4 w-4 mr-1" />
+            <Button onClick={() => setCreateOpen(true)} size="sm" className="gap-1.5">
+              <Plus className="size-4" />
               {t("seedBuilder.page.newButton")}
             </Button>
           )}
@@ -64,95 +64,102 @@ export function SeedBuilderPage() {
         </Label>
       </div>
 
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("seedBuilder.table.label")}</TableHead>
-              <TableHead>{t("seedBuilder.table.slug")}</TableHead>
-              <TableHead>{t("seedBuilder.table.branches")}</TableHead>
-              <TableHead>{t("seedBuilder.table.source")}</TableHead>
-              <TableHead>{t("seedBuilder.table.status")}</TableHead>
-              {isAdmin && <TableHead className="w-20">{t("seedBuilder.table.actions")}</TableHead>}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {isLoading ? (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-muted-foreground py-8">
-                  {t("common.loading")}
-                </TableCell>
-              </TableRow>
-            ) : visible.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-muted-foreground py-8">
-                  {t("common.noResults")}
-                </TableCell>
-              </TableRow>
-            ) : (
-              visible.map(record => (
-                <TableRow
-                  key={record.slug}
-                  className={record.status === "deleted" ? "opacity-50" : undefined}
-                >
-                  <TableCell className="font-medium">
-                    {record.definition.label}
-                    {record.status === "deleted" && (
-                      <Badge variant="destructive" className="ml-2 text-xs">{t("seedBuilder.table.deleted")}</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <code className="text-xs bg-muted px-1 py-0.5 rounded">{record.slug}</code>
-                  </TableCell>
-                  <TableCell>{record.definition.branches?.length ?? 0}</TableCell>
-                  <TableCell>
-                    <Badge variant={record.source === "code" ? "secondary" : "default"} className="text-xs">
-                      {record.source === "code"
-                        ? t("seedBuilder.table.sourceCode")
-                        : t("seedBuilder.table.sourceRuntime")}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={record.status === "active" ? "outline" : "destructive"}
-                      className="text-xs"
-                    >
-                      {record.status === "active"
-                        ? t("seedBuilder.table.statusActive")
-                        : t("seedBuilder.table.statusDeleted")}
-                    </Badge>
-                  </TableCell>
-                  {isAdmin && (
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setEditRecord(record)}
-                          disabled={record.status === "deleted"}
-                          aria-label={t("common.edit")}
-                          data-testid="edit-seed-btn"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeleteRecord(record)}
-                          disabled={record.status === "deleted"}
-                          aria-label={t("common.delete")}
-                          data-testid="delete-seed-btn"
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  )}
+      <div className="w-full">
+        <div className="rounded-md border">
+          <ScrollArea className="w-full">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t("seedBuilder.table.label")}</TableHead>
+                  <TableHead>{t("seedBuilder.table.slug")}</TableHead>
+                  <TableHead>{t("seedBuilder.table.branches")}</TableHead>
+                  <TableHead>{t("seedBuilder.table.source")}</TableHead>
+                  <TableHead>{t("seedBuilder.table.status")}</TableHead>
+                  {isAdmin && <TableHead className="w-20">{t("seedBuilder.table.actions")}</TableHead>}
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+              </TableHeader>
+              <TableBody>
+                {isLoading ? (
+                  <TableRow style={{ height: ROW_HEIGHT_PX }}>
+                    <TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-muted-foreground py-8">
+                      {t("common.loading")}
+                    </TableCell>
+                  </TableRow>
+                ) : visible.length === 0 ? (
+                  <TableRow style={{ height: ROW_HEIGHT_PX }}>
+                    <TableCell colSpan={isAdmin ? 6 : 5} className="text-center text-muted-foreground py-8">
+                      {t("common.noResults")}
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  visible.map(record => (
+                    <TableRow
+                      key={record.slug}
+                      className={cn("transition-colors", record.status === "deleted" && "opacity-50")}
+                      style={{ height: ROW_HEIGHT_PX }}
+                    >
+                      <TableCell className="font-medium">
+                        {record.definition.label}
+                        {record.status === "deleted" && (
+                          <Badge variant="destructive" className="ml-2 text-xs">{t("seedBuilder.table.deleted")}</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <code className="text-xs bg-muted px-1 py-0.5 rounded">{record.slug}</code>
+                      </TableCell>
+                      <TableCell>{record.definition.branches?.length ?? 0}</TableCell>
+                      <TableCell>
+                        <Badge variant={record.source === "code" ? "secondary" : "default"} className="text-xs">
+                          {record.source === "code"
+                            ? t("seedBuilder.table.sourceCode")
+                            : t("seedBuilder.table.sourceRuntime")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={record.status === "active" ? "outline" : "destructive"}
+                          className="text-xs"
+                        >
+                          {record.status === "active"
+                            ? t("seedBuilder.table.statusActive")
+                            : t("seedBuilder.table.statusDeleted")}
+                        </Badge>
+                      </TableCell>
+                      {isAdmin && (
+                        <TableCell>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => setEditRecord(record)}
+                              disabled={record.status === "deleted"}
+                              aria-label={t("common.edit")}
+                              data-testid="edit-seed-btn"
+                            >
+                              <Pencil className="size-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => setDeleteRecord(record)}
+                              disabled={record.status === "deleted"}
+                              aria-label={t("common.delete")}
+                              data-testid="delete-seed-btn"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="size-3.5" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+            <ScrollBar orientation="horizontal" />
+          </ScrollArea>
+        </div>
       </div>
 
       <SeedEditorDialog
