@@ -60,3 +60,64 @@ export function useDeleteSeed() {
     onError: (err) => toast.error(t("seedBuilder.errors.deleteFailed"), { description: extractDetail(err) }),
   })
 }
+
+export function useHardDeleteSeed() {
+  const inv = useInvalidate()
+  const { t } = useTranslation()
+  return useMutation({
+    mutationFn: ({ slug, confirm }: { slug: string; confirm: string }) => seedsApi.hardDelete(slug, confirm),
+    onSuccess: inv,
+    onError: (err) => toast.error(t("seedBuilder.dangerZone.errors.hardDeleteFailed"), { description: extractDetail(err) }),
+  })
+}
+
+export function useDropBranch() {
+  const inv = useInvalidate()
+  const { t } = useTranslation()
+  return useMutation({
+    mutationFn: ({ slug, branchId, confirm }: { slug: string; branchId: string; confirm: string }) =>
+      seedsApi.dropBranch(slug, branchId, confirm),
+    onSuccess: inv,
+    onError: (err) => toast.error(t("seedBuilder.dangerZone.errors.dropColumnFailed"), { description: extractDetail(err) }),
+  })
+}
+
+export function useRenameBranch() {
+  const inv = useInvalidate()
+  const { t } = useTranslation()
+  return useMutation({
+    mutationFn: ({ slug, branchId, newAlias, confirm }: { slug: string; branchId: string; newAlias: string; confirm: string }) =>
+      seedsApi.renameBranch(slug, branchId, newAlias, confirm),
+    onSuccess: inv,
+    onError: (err) => toast.error(t("seedBuilder.dangerZone.errors.renameFailed"), { description: extractDetail(err) }),
+  })
+}
+
+export function useRetypeBranch() {
+  const inv = useInvalidate()
+  const { t } = useTranslation()
+  return useMutation({
+    mutationFn: ({ slug, branchId, newType, confirm }: { slug: string; branchId: string; newType: string; confirm: string }) =>
+      seedsApi.retypeBranch(slug, branchId, newType, confirm),
+    onSuccess: inv,
+    onError: (err) => toast.error(t("seedBuilder.dangerZone.errors.retypeFailed"), { description: extractDetail(err) }),
+  })
+}
+
+export function useRebuildFts(slug: string) {
+  const inv = useInvalidate()
+  const { t } = useTranslation()
+  return useMutation({
+    mutationFn: () => seedsApi.rebuildFts(slug),
+    onSuccess: inv,
+    onError: (err) => toast.error(t("seedBuilder.dangerZone.errors.ftsRebuildFailed"), { description: extractDetail(err) }),
+  })
+}
+
+export function useOrphans(slug: string) {
+  return useQuery({
+    queryKey: ["seeds", slug, "orphans"],
+    queryFn: () => seedsApi.getOrphans(slug),
+    staleTime: 0,
+  })
+}

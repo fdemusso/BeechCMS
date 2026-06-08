@@ -12,6 +12,7 @@ import {
   generateJunctionTable,
   generateJunctionIndexes,
   generateJunctionDraftTable,
+  indexableSearchBranches,
 } from './engine.js'
 
 /**
@@ -72,4 +73,46 @@ export function planExtendSeed(seed: Seed, existingColumns: Set<string>): Extend
   // CREATE INDEX IF NOT EXISTS — idempotent, safe to re-run
   statements.push(...generateIndexes(seed))
   return { statements, ftsRebuildNeeded }
+}
+
+/**
+ * Destructive FTS rebuild (sprint 06). SQLite cannot ALTER an fts5 table's
+ * columns, so when a searchable branch is added, renamed, retyped, or dropped
+ * the only correct fix is to drop and recreate the `fts_{slug}` virtual table
+ * (and its insert/update/delete triggers), then backfill from `content_{slug}`.
+ *
+ * Returns an empty array when the seed has no searchable branches — in that
+ * case the caller should instead drop any leftover FTS table via
+ * generateDropTable's FTS statements. The returned statements are destructive
+ * and must run through ISchemaMutator.execDestructive, never execDdl.
+ *
+ * Order: drop triggers → drop fts table → recreate table → recreate triggers →
+ * backfill existing rows.
+ */
+export function planFtsRebuild(seed: Seed): string[] {
+  const branches = indexableSearchBranches(seed)
+  if (branches.length === 0) return []
+
+  const slug = seed.slug
+  const ftsTable = `fts_${slug}`
+  const contentTable = `content_${slug}`
+  const cols = branches.map(b => b.alias)
+
+  const ftsTableDdl = generateFtsTable(seed)
+  const triggers = generateFtsTriggers(seed)
+  // generateFtsTable/Triggers return non-null here (branches.length > 0 checked).
+  if (!ftsTableDdl) return []
+
+  const ftsColList = ['entry_id', ...cols].join(', ')
+  const selectList = ['id', ...cols].join(', ')
+
+  return [
+    `DROP TRIGGER IF EXISTS fts_${slug}_insert;`,
+    `DROP TRIGGER IF EXISTS fts_${slug}_update;`,
+    `DROP TRIGGER IF EXISTS fts_${slug}_delete;`,
+    `DROP TABLE IF EXISTS ${ftsTable};`,
+    ftsTableDdl,
+    ...triggers,
+    `INSERT INTO ${ftsTable}(${ftsColList}) SELECT ${selectList} FROM ${contentTable};`,
+  ]
 }

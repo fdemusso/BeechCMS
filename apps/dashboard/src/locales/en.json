@@ -1108,6 +1108,66 @@
       "createFailed": "Failed to create content type",
       "updateFailed": "Failed to update content type",
       "deleteFailed": "Failed to delete content type"
+    },
+    "dangerZone": {
+      "title": "Danger Zone",
+      "subtitle": "These operations are irreversible and may cause permanent data loss.",
+      "hardDelete": {
+        "title": "Permanently delete this content type",
+        "description": "Drops all tables (content, drafts, FTS, junctions) and removes the seed record. All stored data is permanently destroyed.",
+        "confirmPlaceholder": "Type the slug to confirm",
+        "confirmLabel": "Type \"{{slug}}\" to confirm",
+        "button": "Delete permanently",
+        "successToast": "Content type \"{{slug}}\" permanently deleted."
+      },
+      "dropColumn": {
+        "title": "Drop field",
+        "description": "Permanently removes the column and all its data from the database.",
+        "confirmPlaceholder": "Type slug.alias to confirm",
+        "button": "Drop field",
+        "successToast": "Field \"{{alias}}\" dropped."
+      },
+      "renameAlias": {
+        "title": "Rename field alias",
+        "description": "Renames the database column. FTS is rebuilt. Automations referencing the old alias will break.",
+        "newAliasLabel": "New alias",
+        "newAliasPlaceholder": "new_alias",
+        "confirmPlaceholder": "Type slug.alias to confirm",
+        "button": "Rename",
+        "successToast": "Field renamed to \"{{newAlias}}\".",
+        "automationWarning": "Warning: {{count}} automation(s) reference the old alias and may be broken: {{ids}}"
+      },
+      "retypeField": {
+        "title": "Change field type",
+        "description": "Rebuilds the column type via add/copy/drop/rename. Existing data is CAST — values incompatible with the new type will be lost.",
+        "newTypeLabel": "New type",
+        "confirmPlaceholder": "Type slug.alias to confirm",
+        "button": "Change type",
+        "successToast": "Field \"{{alias}}\" retyped to {{newType}}."
+      },
+      "orphans": {
+        "title": "Orphaned columns",
+        "description": "Columns present in the database but absent from the current definition.",
+        "empty": "No orphaned columns.",
+        "dropButton": "Drop",
+        "refreshButton": "Refresh"
+      },
+      "ftsRebuild": {
+        "title": "Rebuild full-text search index",
+        "description": "Drops and recreates the FTS virtual table and its triggers, then backfills from the content table.",
+        "button": "Rebuild FTS",
+        "successToast": "FTS index rebuilt."
+      },
+      "branchDangerToggle": "Advanced (destructive)",
+      "confirmMismatch": "Confirmation does not match — type the exact identifier shown.",
+      "errors": {
+        "hardDeleteFailed": "Hard delete failed",
+        "dropColumnFailed": "Drop column failed",
+        "renameFailed": "Rename failed",
+        "retypeFailed": "Retype failed",
+        "orphansFailed": "Failed to load orphans",
+        "ftsRebuildFailed": "FTS rebuild failed"
+      }
     }
   }
 }

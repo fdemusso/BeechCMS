@@ -39,6 +39,7 @@ export class InMemorySeedRepository implements ISeedRepository {
 
   async upsert(): Promise<void> {}
   async softDelete(): Promise<void> {}
+  async hardDelete(): Promise<void> {}
 
   async getRegistryVersion(): Promise<number> {
     return this.version

@@ -72,7 +72,7 @@ describe("useSeedEditorDialog", () => {
     expect(result.current.isCreate).toBe(true)
     expect(result.current.seed).toEqual({ label: expect.any(String), slug: "_seed" })
     expect(result.current.capabilities).toEqual({
-      drafts: false, backrefs: false, delete: false, layoutBuilder: false,
+      drafts: false, backrefs: false, delete: false, layoutBuilder: false, dangerZone: false,
     })
     expect(result.current.layout?.tabs.map((t) => t.id)).toEqual(["general", "fields", "dashboard"])
     expect(result.current.branchById[META.branches]?.type).toBe("repeater")

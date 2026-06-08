@@ -37,6 +37,7 @@ function makeRepo(overrides: Partial<ISeedRepository> = {}): ISeedRepository {
     get: vi.fn().mockResolvedValue(null),
     upsert: vi.fn().mockResolvedValue(undefined),
     softDelete: vi.fn().mockResolvedValue(undefined),
+    hardDelete: vi.fn().mockResolvedValue(undefined),
     getRegistryVersion: vi.fn().mockResolvedValue(1),
     bumpRegistryVersion: vi.fn().mockResolvedValue(2),
     ...overrides,
@@ -47,6 +48,10 @@ function makeMutator(overrides: Partial<ISchemaMutator> = {}): ISchemaMutator {
   return {
     getColumns: vi.fn().mockResolvedValue(null),
     execDdl: vi.fn().mockResolvedValue(undefined),
+    dropTable: vi.fn().mockResolvedValue(undefined),
+    dropColumn: vi.fn().mockResolvedValue(undefined),
+    renameColumn: vi.fn().mockResolvedValue(undefined),
+    execDestructive: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   }
 }
@@ -62,12 +67,17 @@ function buildApp(opts: {
   repo?: ISeedRepository
   mutator?: ISchemaMutator
   backrefMap?: Map<string, any[]>
+  automationRepository?: any
+  db?: any
 } = {}) {
   const app = new Hono()
   const repo = opts.repo ?? makeRepo()
   const mutator = opts.mutator ?? makeMutator()
   const backrefMap = opts.backrefMap ?? new Map()
   const activityLogger = makeActivityLogger()
+  // Default stub DB (used by hard-delete R2 cascade) — no results
+  const db = opts.db ?? { prepare: () => ({ all: async () => ({ results: [] }) }) }
+  const automationRepository = opts.automationRepository ?? { list: async () => [] }
 
   app.use('*', async (c, next) => {
     c.set('jwtPayload' as never, opts.role ? { sub: 'u1', email: 'a@b.com', role: opts.role } : null)
@@ -75,7 +85,8 @@ function buildApp(opts: {
     c.set('schemaMutator' as never, mutator)
     c.set('backrefMap' as never, backrefMap)
     c.set('activityLogger' as never, activityLogger)
-    c.set('env' as never, { ENV: 'test' })
+    c.set('automationRepository' as never, automationRepository)
+    c.set('env' as never, { ENV: 'test', DB: db })
     await next()
   })
   app.route('/', seedsApp)
@@ -405,5 +416,217 @@ describe('DELETE /:slug', () => {
     const { app } = buildApp({ role: 'admin' })
     const res = await app.request('/nope', { method: 'DELETE' })
     expect(res.status).toBe(404)
+  })
+})
+
+// ─── Sprint 06 Danger Zone routes ────────────────────────────────────────────
+
+describe('GET /:slug/orphans', () => {
+  it('returns orphan columns not in the definition', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    // DB has 'id', 'slug', 'status', 'created_at', 'updated_at', 'title', 'body', 'legacy'
+    const dbCols = new Set(['id', 'slug', 'status', 'created_at', 'updated_at', 'title', 'body', 'legacy'])
+    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(dbCols) })
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/orphans', { method: 'GET' })
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    expect(body.orphans).toContain('legacy')
+    expect(body.orphans).not.toContain('title')
+  })
+
+  it('returns empty when DB has no orphans', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const dbCols = new Set(['id', 'slug', 'status', 'created_at', 'updated_at', 'title', 'body'])
+    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(dbCols) })
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/orphans', { method: 'GET' })
+    expect(res.status).toBe(200)
+    const body = await res.json() as any
+    expect(body.orphans).toHaveLength(0)
+  })
+})
+
+describe('DELETE /:slug/hard', () => {
+  it('400 on confirm mismatch', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo })
+
+    const res = await app.request('/articles/hard', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'wrong' }),
+    })
+    expect(res.status).toBe(400)
+    const body = await res.json() as any
+    expect(body.type).toContain('confirmation-required')
+  })
+
+  it('409 when seed is referenced', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const backrefMap = new Map([['articles', [{ sourceSlug: 'comments' }]]])
+    const { app } = buildApp({ role: 'admin', repo, backrefMap })
+
+    const res = await app.request('/articles/hard', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'articles' }),
+    })
+    expect(res.status).toBe(409)
+  })
+
+  it('hard delete: execDestructive called, hardDelete called, version bumped, audit logged', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const { app, activityLogger } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/hard', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'articles' }),
+    })
+    expect(res.status).toBe(200)
+
+    expect((mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0)
+    // execDdl must NOT have been called for DROP
+    const ddlCalls: string[][] = (mutator.execDdl as ReturnType<typeof vi.fn>).mock.calls.flatMap((c: any) => c[0])
+    expect(ddlCalls.every((s: string) => !s.toUpperCase().includes('DROP'))).toBe(true)
+
+    expect((repo.hardDelete as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    expect((repo.bumpRegistryVersion as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    expect(activityLogger.log.mock.calls[0][0].action).toBe('delete')
+    expect(activityLogger.log.mock.calls[0][0].details.op).toBe('hard-delete')
+  })
+})
+
+describe('DELETE /:slug/branches/:branchId', () => {
+  it('400 on confirm mismatch', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo })
+
+    const res = await app.request('/articles/branches/br_01', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'wrong' }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('drops branch: execDestructive called, definition updated, version bumped', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/branches/br_02', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'articles.body' }),
+    })
+    expect(res.status).toBe(200)
+
+    expect((mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    const upsertArg = (repo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as any
+    expect(upsertArg.branches.find((b: any) => b.id === 'br_02')).toBeUndefined()
+    expect((repo.bumpRegistryVersion as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+  })
+
+  it('404 for unknown branchId', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo })
+
+    const res = await app.request('/articles/branches/br_99', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'articles.unknown' }),
+    })
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('PATCH /:slug/branches/:branchId/rename', () => {
+  it('400 on confirm mismatch', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo })
+
+    const res = await app.request('/articles/branches/br_01/rename', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newAlias: 'headline', confirm: 'wrong' }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('renames alias: execDestructive called with RENAME, definition updated, automation warnings returned', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const automationRepository = { list: vi.fn().mockResolvedValue([{ id: 'auto_1', conditions: 'title' }]) }
+    const { app } = buildApp({ role: 'admin', repo, mutator, automationRepository })
+
+    const res = await app.request('/articles/branches/br_01/rename', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newAlias: 'headline', confirm: 'articles.title' }),
+    })
+    expect(res.status).toBe(200)
+
+    const destructiveCalls: string[][] = (mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(destructiveCalls.some((s: string) => s.toUpperCase().includes('RENAME COLUMN') || s.toUpperCase().includes('RENAME TO'))).toBe(true)
+
+    const upsertArg = (repo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as any
+    const renamed = upsertArg.branches.find((b: any) => b.id === 'br_01')
+    expect(renamed?.alias).toBe('headline')
+
+    const body = await res.json() as any
+    expect(body.affectedAutomations).toContain('auto_1')
+  })
+})
+
+describe('PATCH /:slug/branches/:branchId/retype', () => {
+  it('400 on confirm mismatch', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo })
+
+    const res = await app.request('/articles/branches/br_01/retype', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newType: 'number', confirm: 'wrong' }),
+    })
+    expect(res.status).toBe(400)
+  })
+
+  it('retypes branch: execDestructive called, definition updated, version bumped', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/branches/br_01/retype', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newType: 'number', confirm: 'articles.title' }),
+    })
+    expect(res.status).toBe(200)
+
+    expect((mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    const upsertArg = (repo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as any
+    expect(upsertArg.branches.find((b: any) => b.id === 'br_01')?.type).toBe('number')
+    expect((repo.bumpRegistryVersion as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+  })
+})
+
+describe('POST /:slug/fts/rebuild', () => {
+  it('calls execDestructive with FTS statements and logs audit', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const { app, activityLogger } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/fts/rebuild', { method: 'POST' })
+    expect(res.status).toBe(200)
+
+    expect((mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+    const stmts: string[] = (mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls[0][0]
+    expect(stmts.some((s: string) => s.includes('fts_articles'))).toBe(true)
+    expect(activityLogger.log.mock.calls[0][0].details.op).toBe('fts-rebuild')
   })
 })

@@ -23,4 +23,42 @@ export class D1SchemaMutator implements ISchemaMutator {
     // D1 batch is atomic per call; if one statement fails, the rest roll back.
     await this.db.batch(statements.map(s => this.db.prepare(s)))
   }
+
+  // --- destructive (sprint 06 — Danger Zone) -------------------------------
+  // These emit IRREVERSIBLE SQL. Identifiers cannot be parameterized in DDL, so
+  // every table/column name is validated against the same `^[A-Za-z0-9_]+$`
+  // guard getColumns already applies before interpolation.
+
+  private static assertIdentifier(name: string): void {
+    if (!/^[A-Za-z0-9_]+$/.test(name)) throw new Error(`Unsafe identifier: ${name}`)
+  }
+
+  async dropTable(table: string): Promise<void> {
+    D1SchemaMutator.assertIdentifier(table)
+    await this.db.prepare(`DROP TABLE IF EXISTS ${table}`).run()
+  }
+
+  async dropColumn(table: string, column: string): Promise<void> {
+    D1SchemaMutator.assertIdentifier(table)
+    D1SchemaMutator.assertIdentifier(column)
+    await this.db.prepare(`ALTER TABLE ${table} DROP COLUMN ${column}`).run()
+  }
+
+  async renameColumn(table: string, from: string, to: string): Promise<void> {
+    D1SchemaMutator.assertIdentifier(table)
+    D1SchemaMutator.assertIdentifier(from)
+    D1SchemaMutator.assertIdentifier(to)
+    await this.db.prepare(`ALTER TABLE ${table} RENAME COLUMN ${from} TO ${to}`).run()
+  }
+
+  async execDestructive(statements: string[]): Promise<void> {
+    if (statements.length === 0) return
+    // The statements come from the core destructive generators
+    // (generateDropTable / generateRetypeColumn / planFtsRebuild), which only
+    // interpolate slugs/aliases already validated by the seed registry
+    // (`^[a-z0-9_]+$`). FTS trigger bodies legitimately contain internal
+    // semicolons (BEGIN … ; END), so we do not split or reject on `;`.
+    // D1 batch is atomic per call; if one statement fails, the rest roll back.
+    await this.db.batch(statements.map(s => this.db.prepare(s)))
+  }
 }

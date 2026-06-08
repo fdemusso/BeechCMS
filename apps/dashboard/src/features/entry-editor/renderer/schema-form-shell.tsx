@@ -173,6 +173,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
     saveLabel,
     hasSaveDropdown,
     capabilities,
+    dangerZoneSlot,
     schemaSlug,
     entryId,
   } = vm
@@ -292,6 +293,9 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                   onRestrictsChange={setHasRestrictedRefs}
                 />
               )}
+
+              {/* Danger Zone — Seeds only, edit mode, when the seed hook opts in */}
+              {capabilities.dangerZone && !isCreate && dangerZoneSlot}
             </div>
 
             {/* Fixed footer — always visible at the bottom of the dialog, actions aligned right */}

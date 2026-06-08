@@ -22,4 +22,18 @@ export const seedsApi = {
   addBranch: async (slug: string, branch: Omit<Branch, "id">) =>
     (await api.post<{ id: string }>(`/seeds/${slug}/branches`, branch)).data,
   remove: async (slug: string) => (await api.delete(`/seeds/${slug}`)).data,
+
+  // --- Sprint 06: Danger Zone ---
+  hardDelete: async (slug: string, confirm: string) =>
+    (await api.delete<{ success: boolean }>(`/seeds/${slug}/hard`, { data: { confirm } })).data,
+  dropBranch: async (slug: string, branchId: string, confirm: string) =>
+    (await api.delete<{ success: boolean }>(`/seeds/${slug}/branches/${branchId}`, { data: { confirm } })).data,
+  renameBranch: async (slug: string, branchId: string, newAlias: string, confirm: string) =>
+    (await api.patch<{ success: boolean; affectedAutomations: string[] }>(`/seeds/${slug}/branches/${branchId}/rename`, { newAlias, confirm })).data,
+  retypeBranch: async (slug: string, branchId: string, newType: string, confirm: string) =>
+    (await api.patch<{ success: boolean }>(`/seeds/${slug}/branches/${branchId}/retype`, { newType, confirm })).data,
+  rebuildFts: async (slug: string) =>
+    (await api.post<{ success: boolean }>(`/seeds/${slug}/fts/rebuild`)).data,
+  getOrphans: async (slug: string) =>
+    (await api.get<{ orphans: string[] }>(`/seeds/${slug}/orphans`)).data,
 }

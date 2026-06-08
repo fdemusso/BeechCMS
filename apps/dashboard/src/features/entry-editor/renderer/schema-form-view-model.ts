@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import type React from "react"
 import type { TFunction } from "i18next"
 import type { FormLayout } from "@beechcms/core"
 import type { Blocker, NavigateFunction } from "react-router-dom"
@@ -20,6 +21,7 @@ export interface SchemaFormCapabilities {
   readonly backrefs: boolean      // ReferencedByPanel in edit mode
   readonly delete: boolean        // destructive delete button + confirm
   readonly layoutBuilder: boolean // the "edit layout" pencil + BuilderPane
+  readonly dangerZone: boolean    // Sprint 06: Danger Zone section (Seeds only, edit mode)
 }
 
 /**
@@ -57,6 +59,9 @@ export interface SchemaFormViewModel {
 
   // capabilities + their handlers (only read when the matching flag is true)
   capabilities: SchemaFormCapabilities
+
+  // danger zone (read only when capabilities.dangerZone && !isCreate)
+  dangerZoneSlot?: React.ReactNode
 
   // drafts (read only when capabilities.drafts)
   effectiveDraftContext: boolean

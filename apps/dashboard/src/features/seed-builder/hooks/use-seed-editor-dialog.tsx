@@ -13,6 +13,7 @@ import { useCreateSeed, useUpdateSeed } from "./use-seeds"
 import type { SeedRecordDTO } from "../api/seeds.api"
 import { buildMetaBranches, buildMetaLayout } from "../lib/meta-seed-layout"
 import { seedToFormData, formDataToSeed } from "../lib/seed-form-mapping"
+import { SeedDangerZone } from "../components/SeedDangerZone"
 
 export interface UseSeedEditorDialogProps {
   editRecord: SeedRecordDTO | null
@@ -103,7 +104,14 @@ export function useSeedEditorDialog({
     backrefs: false,
     delete: false,
     layoutBuilder: false,
+    dangerZone: !isCreate,
   }
+
+  // The dangerZoneSlot is built here in the seed-builder slice and passed as
+  // a React node to the shell — the shell stays domain-agnostic.
+  const dangerZoneSlot = !isCreate && editRecord
+    ? React.createElement(SeedDangerZone, { record: editRecord, onClose })
+    : undefined
 
   return {
     t,
@@ -131,6 +139,7 @@ export function useSeedEditorDialog({
     blocker,
 
     capabilities,
+    dangerZoneSlot,
 
     // Inert defaults for capability-gated fields — the shell never reads these
     // while the matching `capabilities.*` flag is false (sprint 07 contract).

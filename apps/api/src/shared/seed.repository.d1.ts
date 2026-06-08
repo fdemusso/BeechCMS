@@ -78,6 +78,10 @@ export class D1SeedRepository implements ISeedRepository {
       .run()
   }
 
+  async hardDelete(slug: string): Promise<void> {
+    await this.db.prepare(`DELETE FROM seeds WHERE slug = ?`).bind(slug).run()
+  }
+
   async getRegistryVersion(): Promise<number> {
     const r = await this.db
       .prepare(`SELECT value FROM seed_meta WHERE id = 'registry_version' LIMIT 1`)

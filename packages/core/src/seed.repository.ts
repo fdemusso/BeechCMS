@@ -31,6 +31,9 @@ export interface ISeedRepository {
   upsert(slug: string, definition: Seed, source?: 'code' | 'runtime'): Promise<void>
   /** Soft-delete: set status='deleted'. Table is NOT dropped (additive-only). */
   softDelete(slug: string): Promise<void>
+  /** Hard-delete (sprint 06): permanently remove the `seeds` row. The caller is
+   *  responsible for dropping the backing tables first via ISchemaMutator. */
+  hardDelete(slug: string): Promise<void>
   /** Current cache token. */
   getRegistryVersion(): Promise<number>
   /** Atomically increment and return the new token. Call after any write. */

@@ -417,6 +417,7 @@ export function useEntryEditorDialog({
     backrefs: true,
     delete: true,
     layoutBuilder: true,
+    dangerZone: false,
   }
 
   return {

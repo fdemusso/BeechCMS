@@ -1108,6 +1108,66 @@
       "createFailed": "Errore nella creazione del tipo di contenuto",
       "updateFailed": "Errore nell'aggiornamento del tipo di contenuto",
       "deleteFailed": "Errore nell'eliminazione del tipo di contenuto"
+    },
+    "dangerZone": {
+      "title": "Zona pericolosa",
+      "subtitle": "Queste operazioni sono irreversibili e possono causare perdita permanente di dati.",
+      "hardDelete": {
+        "title": "Elimina definitivamente questo tipo di contenuto",
+        "description": "Rimuove tutte le tabelle (contenuto, bozze, FTS, junction) e il record seed. Tutti i dati vengono distrutti permanentemente.",
+        "confirmPlaceholder": "Scrivi lo slug per confermare",
+        "confirmLabel": "Scrivi \"{{slug}}\" per confermare",
+        "button": "Elimina definitivamente",
+        "successToast": "Tipo di contenuto \"{{slug}}\" eliminato definitivamente."
+      },
+      "dropColumn": {
+        "title": "Rimuovi campo",
+        "description": "Rimuove permanentemente la colonna e tutti i suoi dati dal database.",
+        "confirmPlaceholder": "Scrivi slug.alias per confermare",
+        "button": "Rimuovi campo",
+        "successToast": "Campo \"{{alias}}\" rimosso."
+      },
+      "renameAlias": {
+        "title": "Rinomina alias campo",
+        "description": "Rinomina la colonna nel database. L'FTS viene ricostruito. Le automazioni che referenziano il vecchio alias potrebbero smettere di funzionare.",
+        "newAliasLabel": "Nuovo alias",
+        "newAliasPlaceholder": "nuovo_alias",
+        "confirmPlaceholder": "Scrivi slug.alias per confermare",
+        "button": "Rinomina",
+        "successToast": "Campo rinominato in \"{{newAlias}}\".",
+        "automationWarning": "Attenzione: {{count}} automazione/i referenzia il vecchio alias e potrebbe non funzionare: {{ids}}"
+      },
+      "retypeField": {
+        "title": "Cambia tipo campo",
+        "description": "Ricostruisce il tipo di colonna via add/copy/drop/rename. I dati esistenti vengono convertiti — i valori incompatibili con il nuovo tipo andranno persi.",
+        "newTypeLabel": "Nuovo tipo",
+        "confirmPlaceholder": "Scrivi slug.alias per confermare",
+        "button": "Cambia tipo",
+        "successToast": "Campo \"{{alias}}\" convertito in {{newType}}."
+      },
+      "orphans": {
+        "title": "Colonne orfane",
+        "description": "Colonne presenti nel database ma assenti dalla definizione corrente.",
+        "empty": "Nessuna colonna orfana.",
+        "dropButton": "Rimuovi",
+        "refreshButton": "Aggiorna"
+      },
+      "ftsRebuild": {
+        "title": "Ricostruisci indice ricerca full-text",
+        "description": "Elimina e ricrea la tabella virtuale FTS e i suoi trigger, poi ripopola dalla tabella contenuto.",
+        "button": "Ricostruisci FTS",
+        "successToast": "Indice FTS ricostruito."
+      },
+      "branchDangerToggle": "Avanzato (distruttivo)",
+      "confirmMismatch": "La conferma non corrisponde — scrivi l'identificatore esatto mostrato.",
+      "errors": {
+        "hardDeleteFailed": "Eliminazione definitiva fallita",
+        "dropColumnFailed": "Rimozione colonna fallita",
+        "renameFailed": "Rinomina fallita",
+        "retypeFailed": "Conversione tipo fallita",
+        "orphansFailed": "Caricamento colonne orfane fallito",
+        "ftsRebuildFailed": "Ricostruzione FTS fallita"
+      }
     }
   }
 }

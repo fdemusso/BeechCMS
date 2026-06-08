@@ -3,5 +3,17 @@
 // See LICENSE in the repository root for license terms.
 
 export { SeedBuilderPage } from "./components/SeedBuilderPage"
-export { useSeeds, useCreateSeed, useUpdateSeed, useDeleteSeed } from "./hooks/use-seeds"
+export {
+  useSeeds,
+  useCreateSeed,
+  useUpdateSeed,
+  useDeleteSeed,
+  useHardDeleteSeed,
+  useDropBranch,
+  useRenameBranch,
+  useRetypeBranch,
+  useRebuildFts,
+  useOrphans,
+} from "./hooks/use-seeds"
+export { SeedDangerZone } from "./components/SeedDangerZone"
 export type { SeedRecordDTO } from "./api/seeds.api"

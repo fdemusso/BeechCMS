@@ -47,9 +47,15 @@ const mockUseSeeds = vi.fn().mockReturnValue({ data: [mockRecord], isLoading: fa
 
 vi.mock("@/features/seed-builder/hooks/use-seeds", () => ({
   useSeeds: (...args: unknown[]) => mockUseSeeds(...args),
-  useCreateSeed: () => ({ mutate: vi.fn(), isPending: false }),
-  useUpdateSeed: () => ({ mutate: vi.fn(), isPending: false }),
-  useDeleteSeed: () => ({ mutate: vi.fn(), isPending: false }),
+  useCreateSeed: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useUpdateSeed: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useDeleteSeed: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useHardDeleteSeed: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useDropBranch: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useRenameBranch: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useRetypeBranch: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useRebuildFts: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
+  useOrphans: () => ({ data: { orphans: [] }, refetch: vi.fn(), isFetching: false }),
 }))
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })

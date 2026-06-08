@@ -92,6 +92,7 @@ const allCapabilitiesTrue: SchemaFormCapabilities = {
   backrefs: true,
   delete: true,
   layoutBuilder: true,
+  dangerZone: false,
 }
 
 function buildViewModel(overrides: Partial<SchemaFormViewModel> = {}): SchemaFormViewModel {
@@ -190,5 +191,35 @@ describe("SchemaFormShell", () => {
 
     expect(screen.queryByText("layoutBuilder.editLayout")).not.toBeInTheDocument()
     expect(screen.queryByTestId("builder-pane")).not.toBeInTheDocument()
+  })
+
+  it("renders dangerZoneSlot when capabilities.dangerZone=true and isCreate=false", () => {
+    const vm = buildViewModel({
+      capabilities: { ...allCapabilitiesTrue, dangerZone: true },
+      isCreate: false,
+      dangerZoneSlot: <div data-testid="danger-zone-slot">Danger</div>,
+    })
+    render(<SchemaFormShell vm={vm} open />)
+    expect(screen.getByTestId("danger-zone-slot")).toBeInTheDocument()
+  })
+
+  it("hides dangerZoneSlot when capabilities.dangerZone=false", () => {
+    const vm = buildViewModel({
+      capabilities: { ...allCapabilitiesTrue, dangerZone: false },
+      isCreate: false,
+      dangerZoneSlot: <div data-testid="danger-zone-slot">Danger</div>,
+    })
+    render(<SchemaFormShell vm={vm} open />)
+    expect(screen.queryByTestId("danger-zone-slot")).not.toBeInTheDocument()
+  })
+
+  it("hides dangerZoneSlot in create mode even when dangerZone=true", () => {
+    const vm = buildViewModel({
+      capabilities: { ...allCapabilitiesTrue, dangerZone: true },
+      isCreate: true,
+      dangerZoneSlot: <div data-testid="danger-zone-slot">Danger</div>,
+    })
+    render(<SchemaFormShell vm={vm} open />)
+    expect(screen.queryByTestId("danger-zone-slot")).not.toBeInTheDocument()
   })
 })
