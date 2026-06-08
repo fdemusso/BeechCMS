@@ -36,7 +36,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@vitest/coverage-v8": "^4.1.0",
     "vitest": "^4.1.0",
-    "wrangler": "^4.4.0"
+    "wrangler": "^4.98.0"
   },
   "license": "BUSL-1.1",
   "licenseFile": "../../LICENSE"

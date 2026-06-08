@@ -18,7 +18,11 @@ export interface RendererProps {
   formData: Record<string, unknown>
   fieldErrors: Record<string, string>
   onChange: (alias: string, value: unknown) => void
+  dangerZoneSlot?: React.ReactNode
+  dangerZoneLabel?: string
 }
+
+const DANGER_ZONE_TAB_ID = "__danger_zone__"
 
 function gridClassFor(n: number): string {
   switch (n) {
@@ -158,15 +162,15 @@ function TabSections({
   )
 }
 
-export function LayoutRenderer({ layout, branchById, formData, fieldErrors, onChange }: RendererProps) {
+export function LayoutRenderer({ layout, branchById, formData, fieldErrors, onChange, dangerZoneSlot, dangerZoneLabel }: RendererProps) {
   const [activeTabId, setActiveTabId] = React.useState(() => layout.tabs[0]?.id ?? "")
 
   React.useEffect(() => {
-    const exists = layout.tabs.some((t) => t.id === activeTabId)
+    const exists = layout.tabs.some((t) => t.id === activeTabId) || (!!dangerZoneSlot && activeTabId === DANGER_ZONE_TAB_ID)
     if (!exists && layout.tabs.length > 0) {
       setActiveTabId(layout.tabs[0].id)
     }
-  }, [layout, activeTabId])
+  }, [layout, activeTabId, dangerZoneSlot])
 
   return (
     <Tabs value={activeTabId} onValueChange={setActiveTabId} className="rounded-lg border overflow-hidden flex flex-col">
@@ -181,6 +185,14 @@ export function LayoutRenderer({ layout, branchById, formData, fieldErrors, onCh
               {tab.label}
             </TabsTrigger>
           ))}
+          {dangerZoneSlot && (
+            <TabsTrigger
+              value={DANGER_ZONE_TAB_ID}
+              className="px-0 py-3 font-medium text-destructive data-[state=active]:text-destructive"
+            >
+              {dangerZoneLabel ?? "Danger Zone"}
+            </TabsTrigger>
+          )}
         </TabsList>
       </div>
       {layout.tabs.map((tab) => (
@@ -194,6 +206,11 @@ export function LayoutRenderer({ layout, branchById, formData, fieldErrors, onCh
           />
         </TabsContent>
       ))}
+      {dangerZoneSlot && (
+        <TabsContent value={DANGER_ZONE_TAB_ID} className="mt-0 outline-none p-6">
+          {dangerZoneSlot}
+        </TabsContent>
+      )}
     </Tabs>
   )
 }

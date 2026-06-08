@@ -282,6 +282,8 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                   formData={formData}
                   fieldErrors={fieldErrors}
                   onChange={handleInputChange}
+                  dangerZoneSlot={capabilities.dangerZone && !isCreate ? dangerZoneSlot : undefined}
+                  dangerZoneLabel={t("content.editor.tabs.dangerZone", "Danger Zone")}
                 />
               )}
 
@@ -293,9 +295,6 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                   onRestrictsChange={setHasRestrictedRefs}
                 />
               )}
-
-              {/* Danger Zone — Seeds only, edit mode, when the seed hook opts in */}
-              {capabilities.dangerZone && !isCreate && dangerZoneSlot}
             </div>
 
             {/* Fixed footer — always visible at the bottom of the dialog, actions aligned right */}
