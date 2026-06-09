@@ -69,6 +69,8 @@ export interface Branch {
   alias: string
   /** Etichetta per la UI */
   label: string
+  /** Testo di aiuto opzionale mostrato come tooltip accanto al label nella form. UI-only, ignorato dall'engine. */
+  hint?: string
   /** Tipo del valore */
   type: BranchType
   /**

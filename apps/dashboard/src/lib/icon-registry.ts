@@ -154,3 +154,5 @@ const ICON_MAP: Record<string, LucideIcon> = {
 export function resolveIcon(name?: string): LucideIcon {
   return (name && ICON_MAP[name]) || Folder
 }
+
+export const ICON_NAMES: string[] = Object.keys(ICON_MAP)

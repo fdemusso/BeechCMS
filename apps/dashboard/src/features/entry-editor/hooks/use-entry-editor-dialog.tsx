@@ -26,7 +26,9 @@ import {
 } from "@/features/content-management"
 import { useActiveSeed } from "@/features/schema"
 import { useAuth } from "@/lib/auth-context"
+import { Loader2 } from "lucide-react"
 import type { RendererBranchMap } from "../renderer/layout-renderer"
+import type { SchemaFormCapabilities, SchemaFormViewModel } from "../renderer/schema-form-view-model"
 
 export interface UseEntryEditorDialogProps {
   schemaSlug: string
@@ -137,7 +139,7 @@ export function useEntryEditorDialog({
   entryId,
   isDraftContext,
   onClose,
-}: UseEntryEditorDialogProps) {
+}: UseEntryEditorDialogProps): SchemaFormViewModel {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const isCreate = !entryId
@@ -386,13 +388,47 @@ export function useEntryEditorDialog({
   const isBusy = isSaving || isSavingDraft || isPublishing
   const hasSaveDropdown = effectiveDraftContext && !isCreate && !!entryId && !!seed?.allowDrafts
 
+  const title = seed
+    ? (isCreate
+      ? t("content.editor.newEntry", { label: seed.label })
+      : t("content.editor.editEntry", { label: seed.label }))
+    : ""
+
+  const notFoundLabel = t("content.editor.seedNotFound", { slug: schemaSlug })
+
+  let saveLabel: React.ReactNode
+  if (isBusy) {
+    saveLabel = (
+      <>
+        <Loader2 className="mr-2 size-4 animate-spin" />
+        {t("content.editor.saving")}
+      </>
+    )
+  } else if (effectiveDraftContext) {
+    saveLabel = t("content.editor.saveDraft")
+  } else if (isCreate) {
+    saveLabel = t("common.create")
+  } else {
+    saveLabel = t("content.editor.save")
+  }
+
+  const capabilities: SchemaFormCapabilities = {
+    drafts: true,
+    backrefs: true,
+    delete: true,
+    layoutBuilder: true,
+    dangerZone: false,
+  }
+
   return {
     t,
+    title,
     isCreate,
     seed,
     isSeedLoading,
     isLoadingEntry,
     errorEntry,
+    notFoundLabel,
     showDiscardConfirm,
     setShowDiscardConfirm,
     effectiveDraftContext,
@@ -401,8 +437,6 @@ export function useEntryEditorDialog({
     isDeleting,
     isPublishing,
     formData,
-    status,
-    slug,
     fieldErrors,
     hasRestrictedRefs,
     setHasRestrictedRefs,
@@ -422,6 +456,10 @@ export function useEntryEditorDialog({
     handleDelete,
     handleSubmit,
     isBusy,
+    saveLabel,
     hasSaveDropdown,
+    capabilities,
+    schemaSlug,
+    entryId,
   }
 }

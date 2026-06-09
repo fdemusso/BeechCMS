@@ -107,6 +107,22 @@ export function findBranchById(seed: Seed, id: string): Branch | null {
 }
 
 /**
+ * Returns the next free branch id for a seed in the form `br_NN` (zero-padded to 2,
+ * growing as needed). Scans existing ids, never reuses a number already present —
+ * even if a branch was removed, its id is not recycled (ids must be globally stable
+ * for the life of the seed so layouts/automations/FTS triggers never collide).
+ */
+export function nextBranchId(seed: Pick<Seed, 'branches'>): string {
+  let max = 0
+  for (const b of seed.branches) {
+    const m = /^br_0*([0-9]+)$/.exec(b.id)
+    if (m) max = Math.max(max, parseInt(m[1], 10))
+  }
+  const n = max + 1
+  return `br_${String(n).padStart(2, '0')}`
+}
+
+/**
  * Returns the input seeds reordered so that every seed appears AFTER all the
  * seeds it depends on (its `relation` branch targets). Pure function — does
  * not read from any global registry.

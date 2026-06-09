@@ -72,6 +72,7 @@ export function getSettingsMenu(t: (key: string) => string): NavItem[] {
       url: "/settings",
       icon: Settings,
       items: [
+        { title: t("seedBuilder.page.navTitle"), url: "/settings?tab=content-types" },
         { title: t("settings.tabs.profile"), url: "/settings?tab=profile" },
         { title: t("settings.tabs.general"), url: "/settings?tab=general" },
         { title: t("settings.tabs.interface"), url: "/settings?tab=interface" },

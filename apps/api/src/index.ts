@@ -7,26 +7,12 @@ import { SeedRegistry, SystemIdGenerator } from '@beechcms/core'
 import { runCronAutomations } from './features/automations'
 import { D1AutomationRepository } from './shared/automations.repository.d1'
 import { D1ContentRepository } from './shared/content.repository.d1'
+import { D1SeedRepository } from './shared/seed.repository.d1'
 import type { Env } from './types'
 
-let seeds: any[] = []
+const app = createBeechApp({ seeds: [] })
 
-try {
-  // @ts-ignore
-  const mod = await import('../seed.ts')
-  const registry = mod.default || mod.SEED_REGISTRY || mod
-  seeds = (typeof registry === 'object' && !Array.isArray(registry))
-    ? Object.values(registry)
-    : registry
-} catch (e) {
-  // Fallback se seed.ts non esiste
-}
-
-const app = createBeechApp({ seeds })
-
-app.get('/', (c) => c.text('Beech API is running (Local Dev Mode)'))
-
-const validSeeds = seeds.filter((s: any) => s && typeof s === 'object' && 'slug' in s)
+app.get('/', (c) => c.text('Beech API is running'))
 
 export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext) {
@@ -58,7 +44,9 @@ export default {
 
     const automationRepository = new D1AutomationRepository(env.DB)
     const contentRepository = new D1ContentRepository(env.DB)
-    const registry = new SeedRegistry(validSeeds)
+    const seedRepository = new D1SeedRepository(env.DB)
+    const seeds = await seedRepository.listActive()
+    const registry = new SeedRegistry(seeds)
     const getSeed = (slug: string) => registry.get(slug) ?? null
 
     ctx.waitUntil(

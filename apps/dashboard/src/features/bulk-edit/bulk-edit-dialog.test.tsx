@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import React from "react"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import type { Branch, Seed } from "@beechcms/core"
 
@@ -22,7 +23,6 @@ vi.mock("@/components/ui/dialog", () => ({
 
 // Make Select forward onValueChange when a SelectItem is clicked
 vi.mock("@/components/ui/select", () => {
-  const React = require("react") as typeof import("react")
   const SelectContext = React.createContext<any>(null)
 
   function Select({ children, value, onValueChange }: any) {

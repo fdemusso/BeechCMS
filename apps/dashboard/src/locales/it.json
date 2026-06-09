@@ -970,5 +970,215 @@
     "warnNoCrossTabSection": "Sposta le sezioni all'interno della loro tab.",
     "warnFullWidthColumns": "Questa sezione contiene un campo a larghezza piena. Il numero di colonne non può essere modificato.",
     "defaultTabBadge": "Predefinita"
+  },
+  "fields": {
+    "repeater": {
+      "addItem": "Aggiungi elemento",
+      "removeItem": "Rimuovi elemento",
+      "dragHandle": "Trascina per riordinare",
+      "emptyState": "Nessun elemento. Usa \"Aggiungi elemento\" per iniziare."
+    }
+  },
+  "seedBuilder": {
+    "page": {
+      "subtitle": "Gestisci i tipi di contenuto definiti a runtime.",
+      "newButton": "Nuovo tipo di contenuto",
+      "showDeleted": "Mostra eliminati",
+      "navTitle": "Tipi di contenuto"
+    },
+    "table": {
+      "label": "Etichetta",
+      "slug": "Slug",
+      "branches": "Campi",
+      "source": "Origine",
+      "status": "Stato",
+      "actions": "Azioni",
+      "sourceCode": "Definito nel codice",
+      "sourceRuntime": "Creato qui",
+      "statusActive": "Attivo",
+      "statusDeleted": "Eliminato",
+      "deleted": "Eliminato"
+    },
+    "editor": {
+      "createTitle": "Nuovo tipo di contenuto",
+      "editTitle": "Modifica — {{label}}",
+      "tabGeneral": "Generale",
+      "tabFields": "Campi",
+      "tabDashboard": "Dashboard",
+      "slug": "Slug",
+      "slugImmutable": "Immutabile dopo la creazione",
+      "label": "Etichetta",
+      "labelPlaceholder": "Articolo",
+      "labelPlural": "Etichetta (plurale)",
+      "labelPluralPlaceholder": "Articoli",
+      "displayNameAlias": "Campo nome visualizzato",
+      "displayNameAliasPlaceholder": "Seleziona o digita un alias",
+      "capabilities": "Funzionalità",
+      "allowPublicRead": "Abilita lettura pubblica",
+      "allowPublicPost": "Abilita creazione pubblica",
+      "allowPublicEdit": "Abilita modifica pubblica",
+      "allowDrafts": "Abilita bozze",
+      "dashIcon": "Icona",
+      "dashIconPlaceholder": "Seleziona un'icona",
+      "dashIconDefault": "Predefinita (Cartella)",
+      "dashGroup": "Gruppo sidebar",
+      "dashGroupPlaceholder": "Contenuti",
+      "dashOrder": "Ordinamento",
+      "dashHidden": "Nascondi dalla sidebar",
+      "dashDescription": "Descrizione",
+      "dashDescriptionPlaceholder": "Breve tooltip mostrato nella sidebar",
+      "features": "Funzionalità dashboard",
+      "featSearch": "Ricerca",
+      "featFilter": "Filtri",
+      "featExport": "Esporta",
+      "featBulkDelete": "Eliminazione in blocco",
+      "createSuccess": "\"{{label}}\" creato con successo.",
+      "updateSuccess": "\"{{label}}\" aggiornato con successo.",
+      "hints": {
+        "slug": "Identificatore univoco del tipo di contenuto. Diventa il nome della tabella nel database (content_slug) e viene usato negli URL. Non può essere modificato dopo la creazione.",
+        "displayNameAlias": "Il campo del contenuto usato come titolo rappresentativo nelle liste e nei riferimenti della dashboard. Scegli un campo di tipo testo che identifichi chiaramente ogni voce.",
+        "allowPublicRead": "Permette a chiunque di leggere i contenuti di questo tipo tramite la Public API, senza autenticazione. Utile per contenuti come articoli o prodotti da esporre al pubblico.",
+        "allowPublicPost": "Permette a chiunque di creare nuove voci tramite la Public API, senza autenticazione. Abilitare con cautela: espone la creazione di contenuti a utenti anonimi.",
+        "allowPublicEdit": "Permette a chiunque di modificare voci esistenti tramite la Public API, senza autenticazione. Abilitare solo in scenari controllati.",
+        "allowDrafts": "Abilita una tabella bozze parallela. Gli editor possono salvare versioni non pubblicate e promuoverle manualmente al contenuto pubblicato.",
+        "dashGroup": "Nome della sezione nella sidebar della dashboard sotto cui raggruppare questo tipo di contenuto. Tipi con lo stesso gruppo appaiono insieme. Se vuoto, finisce nella sezione predefinita.",
+        "dashOrder": "Posizione all'interno del gruppo nella sidebar. I valori più bassi appaiono per primi. Default: 99.",
+        "dashDescription": "Testo mostrato come tooltip quando si passa il cursore sul tipo di contenuto nella sidebar della dashboard."
+      }
+    },
+    "branchEditor": {
+      "newField": "Nuovo campo",
+      "addField": "Aggiungi campo",
+      "alias": "Alias",
+      "aliasReadOnlyHint": "Rinominare un campo richiede la Danger Zone — disponibile a breve.",
+      "type": "Tipo",
+      "typeReadOnlyHint": "Cambiare il tipo di un campo richiede la Danger Zone — disponibile a breve.",
+      "label": "Etichetta",
+      "labelPlaceholder": "Etichetta del campo",
+      "relationOptions": "Opzioni relazione",
+      "targetSeed": "Tipo di contenuto target",
+      "targetSeedPlaceholder": "Seleziona un tipo di contenuto",
+      "multiple": "Valori multipli",
+      "onDelete": "All'eliminazione",
+      "onDeleteCascade": "Cascade — elimina le voci collegate",
+      "onDeleteRestrict": "Restrict — blocca se ci sono voci collegate",
+      "onDeleteSetNull": "Set null — azzera il riferimento",
+      "numberOptions": "Opzioni numero",
+      "min": "Min",
+      "max": "Max",
+      "step": "Passo",
+      "control": "Controllo UI",
+      "control_input": "Input",
+      "control_slider": "Slider",
+      "control_rating": "Valutazione",
+      "control_stepper": "Stepper",
+      "fileOptions": "Opzioni file",
+      "fileAccept": "File accettati",
+      "fileAccept_any": "Qualsiasi file",
+      "fileAccept_image": "Solo immagini",
+      "fileAccept_document": "Solo documenti",
+      "options": "Opzioni (valori)",
+      "optionsPlaceholder": "valore1, valore2, valore3",
+      "optionsHint": "Lista separata da virgole dei valori consentiti.",
+      "policies": "Policy",
+      "removeExistingWarning": "Il campo smette di essere usato; i dati esistenti vengono conservati nel database e non eliminati. Continuare?",
+      "reservedAliasError": "Uno o più alias confliggono con nomi di campo di sistema riservati."
+    },
+    "policies": {
+      "search": "Ricerca full-text",
+      "filter": "Filtrabile",
+      "sort": "Ordinabile",
+      "public": "Esposto nell'API pubblica",
+      "visibility": "Visibilità",
+      "visibility_full": "Completa",
+      "visibility_masked": "Mascherata",
+      "visibility_hidden": "Nascosta"
+    },
+    "fieldTypes": {
+      "text": "Testo",
+      "richtext": "Testo ricco",
+      "number": "Numero",
+      "boolean": "Booleano",
+      "date": "Data",
+      "json": "JSON",
+      "tags": "Tag",
+      "file": "File / Media",
+      "relation": "Relazione"
+    },
+    "delete": {
+      "title": "Eliminare \"{{label}}\"?",
+      "description": "Questo nasconde il tipo di contenuto dalla dashboard e dall'API.",
+      "dataRetained": "I dati NON vengono eliminati — la tabella viene conservata e può essere ripristinata ricreando il tipo con lo stesso slug.",
+      "dangerZoneHint": "L'eliminazione permanente sarà disponibile nella Danger Zone.",
+      "confirm": "Elimina",
+      "successToast": "\"{{label}}\" eliminato.",
+      "referenceConflict": "Impossibile eliminare — altri tipi di contenuto fanno riferimento a questo.",
+      "referencedBy": "Referenziato da: {{seeds}}"
+    },
+    "errors": {
+      "createFailed": "Errore nella creazione del tipo di contenuto",
+      "updateFailed": "Errore nell'aggiornamento del tipo di contenuto",
+      "deleteFailed": "Errore nell'eliminazione del tipo di contenuto"
+    },
+    "dangerZone": {
+      "title": "Zona pericolosa",
+      "subtitle": "Queste operazioni sono irreversibili e possono causare perdita permanente di dati.",
+      "hardDelete": {
+        "title": "Elimina definitivamente questo tipo di contenuto",
+        "description": "Rimuove tutte le tabelle (contenuto, bozze, FTS, junction) e il record seed. Tutti i dati vengono distrutti permanentemente.",
+        "confirmPlaceholder": "Scrivi lo slug per confermare",
+        "confirmLabel": "Scrivi \"{{slug}}\" per confermare",
+        "button": "Elimina definitivamente",
+        "successToast": "Tipo di contenuto \"{{slug}}\" eliminato definitivamente."
+      },
+      "dropColumn": {
+        "title": "Rimuovi campo",
+        "description": "Rimuove permanentemente la colonna e tutti i suoi dati dal database.",
+        "confirmPlaceholder": "Scrivi slug.alias per confermare",
+        "button": "Rimuovi campo",
+        "successToast": "Campo \"{{alias}}\" rimosso."
+      },
+      "renameAlias": {
+        "title": "Rinomina alias campo",
+        "description": "Rinomina la colonna nel database. L'FTS viene ricostruito. Le automazioni che referenziano il vecchio alias potrebbero smettere di funzionare.",
+        "newAliasLabel": "Nuovo alias",
+        "newAliasPlaceholder": "nuovo_alias",
+        "confirmPlaceholder": "Scrivi slug.alias per confermare",
+        "button": "Rinomina",
+        "successToast": "Campo rinominato in \"{{newAlias}}\".",
+        "automationWarning": "Attenzione: {{count}} automazione/i referenzia il vecchio alias e potrebbe non funzionare: {{ids}}"
+      },
+      "retypeField": {
+        "title": "Cambia tipo campo",
+        "description": "Ricostruisce il tipo di colonna via add/copy/drop/rename. I dati esistenti vengono convertiti — i valori incompatibili con il nuovo tipo andranno persi.",
+        "newTypeLabel": "Nuovo tipo",
+        "confirmPlaceholder": "Scrivi slug.alias per confermare",
+        "button": "Cambia tipo",
+        "successToast": "Campo \"{{alias}}\" convertito in {{newType}}."
+      },
+      "orphans": {
+        "title": "Colonne orfane",
+        "description": "Colonne presenti nel database ma assenti dalla definizione corrente.",
+        "empty": "Nessuna colonna orfana.",
+        "dropButton": "Rimuovi",
+        "refreshButton": "Aggiorna"
+      },
+      "ftsRebuild": {
+        "title": "Ricostruisci indice ricerca full-text",
+        "description": "Elimina e ricrea la tabella virtuale FTS e i suoi trigger, poi ripopola dalla tabella contenuto.",
+        "button": "Ricostruisci FTS",
+        "successToast": "Indice FTS ricostruito."
+      },
+      "branchDangerToggle": "Avanzato (distruttivo)",
+      "confirmMismatch": "La conferma non corrisponde — scrivi l'identificatore esatto mostrato.",
+      "errors": {
+        "hardDeleteFailed": "Eliminazione definitiva fallita",
+        "dropColumnFailed": "Rimozione colonna fallita",
+        "renameFailed": "Rinomina fallita",
+        "retypeFailed": "Conversione tipo fallita",
+        "orphansFailed": "Caricamento colonne orfane fallito",
+        "ftsRebuildFailed": "Ricostruzione FTS fallita"
+      }
+    }
   }
 }

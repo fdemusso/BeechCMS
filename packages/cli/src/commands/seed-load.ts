@@ -15,7 +15,7 @@ import {
   sortSeedsByDependencies,
   type Seed,
 } from '@beechcms/core'
-import { executeD1File, findWranglerConfig, resolveDbName, type WranglerOptions } from '../lib/wrangler.js'
+import { executeD1File, findWranglerConfig, resolveDbName, queryD1, sqlQuote, type WranglerOptions } from '../lib/wrangler.js'
 import { diffSeed } from '../lib/schema-diff.js'
 import { validateSeeds } from './validate.js'
 
@@ -26,6 +26,18 @@ export interface SeedLoadOptions {
   db?: string
   registry?: Record<string, Seed> | null
 }
+
+export function buildSeedRegistrationSql(seed: Seed): string {
+  const json = sqlQuote(JSON.stringify(seed))
+  return [
+    `INSERT INTO seeds (slug, definition, status, source, created_at, updated_at)`,
+    `VALUES (${sqlQuote(seed.slug)}, ${json}, 'active', 'code', unixepoch(), unixepoch())`,
+    `ON CONFLICT(slug) DO UPDATE SET definition = excluded.definition, status = 'active', updated_at = excluded.updated_at;`,
+  ].join('\n')
+}
+
+const SEED_META_BUMP_SQL =
+  `UPDATE seed_meta SET value = CAST(CAST(value AS INTEGER) + 1 AS TEXT) WHERE id = 'registry_version';`
 
 function buildStatements(seed: Seed): string[] {
   const stmts: string[] = [generateCreateTable(seed), ...generateIndexes(seed)]
@@ -109,14 +121,18 @@ async function runLoad(options: WranglerOptions, dryRun: boolean, registry: Reco
       for (const stmt of stmts) {
         console.log(stmt + '\n')
       }
+      console.log(pc.dim(`  -- register ${seed.slug} in seeds table`))
+      console.log(buildSeedRegistrationSql(seed) + '\n')
     }
+    console.log(pc.dim('  -- bump registry_version'))
+    console.log(SEED_META_BUMP_SQL + '\n')
     return
   }
 
   console.log(pc.cyan(`\n  Loading seeds into ${options.local ? 'local' : 'remote'} D1 (${options.db})…\n`))
 
   for (const seed of seeds) {
-    const stmts = buildStatements(seed)
+    const stmts = [...buildStatements(seed), buildSeedRegistrationSql(seed)]
     const sql = stmts.join('\n\n') + '\n'
     process.stdout.write(`  ${pc.dim('→')} content_${seed.slug}… `)
     const ok = executeD1File(sql, options)
@@ -139,7 +155,12 @@ async function runLoad(options: WranglerOptions, dryRun: boolean, registry: Reco
     console.log(pc.green('done'))
   }
 
+  // Bump registry_version so live isolates re-hydrate
+  executeD1File(SEED_META_BUMP_SQL, options)
+
   console.log(pc.green('\n  All seeds loaded.\n'))
+  console.log(pc.dim('  Definitions registered in the database.'))
+  console.log(pc.dim('  seed.ts is no longer required at runtime — you may keep it for code-first edits or delete it.\n'))
 }
 
 export async function seedLoad(args: SeedLoadOptions): Promise<void> {
@@ -184,6 +205,26 @@ export async function seedLoad(args: SeedLoadOptions): Promise<void> {
     db,
     local: args.local,
     configPath,
+  }
+
+  if (!args.dryRun && !args.diff) {
+    try {
+      const rows = queryD1<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' AND name IN ('seeds','seed_meta')`,
+        options
+      )
+      if (rows.length < 2) {
+        console.log(pc.red('\n  ✗ System tables not found (seeds, seed_meta)\n'))
+        console.log(pc.dim('  Run `beech init --db` first to initialise the database.'))
+        const flag = args.local ? ' --local' : ''
+        console.log(pc.cyan(`\n  → Run: npx beech init --db${flag}\n`))
+        process.exit(1)
+      }
+    } catch {
+      console.log(pc.red('\n  ✗ Could not query the database\n'))
+      console.log(pc.dim('  Run `beech init --db` first to initialise the database.'))
+      process.exit(1)
+    }
   }
 
   if (args.diff) {

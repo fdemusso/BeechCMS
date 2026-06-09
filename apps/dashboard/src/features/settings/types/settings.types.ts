@@ -68,4 +68,4 @@ export interface GeneralSettings {
   }
 }
 
-export type SettingsTab = 'profile' | 'interface' | 'security' | 'storage' | 'notifications' | 'general'
+export type SettingsTab = 'profile' | 'interface' | 'security' | 'storage' | 'notifications' | 'general' | 'content-types'

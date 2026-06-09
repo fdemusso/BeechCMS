@@ -53,7 +53,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 
 const MAX_VISIBLE_PAGE_BUTTONS = 7
 const DEFAULT_PAGE_SIZE = 10
-const ROW_HEIGHT_PX = 48
+/** Altezza riga condivisa da tutte le tabelle dell'app — riusala per coerenza dimensionale. */
+export const ROW_HEIGHT_PX = 48
 /** Altezza container in modalità virtual scroll (gruppi espansi) */
 const VIRTUAL_CONTAINER_HEIGHT = "calc(100vh - 280px)"
 

@@ -186,6 +186,8 @@ schema is also embedded as a string in the CLI (`packages/cli/src/commands/init.
 | How do the CLI and `seed.ts` onboarding flow change (code → DB, AI-driven)? | 04 |
 | How does the dashboard expose a Seed Builder UI? | 05 |
 | How are destructive ops (DROP/RENAME, orphan cleanup) done safely? | 06 |
+| How is the Seed modal unified with the universal content modal (same UI)? | 07–09 |
+| Can any content type have inline "list of objects" fields (repeater)? | 10 *(optional)* |
 
 ### Multi-isolate cache coherence (design constant for sprints 02 & 03)
 
@@ -249,4 +251,33 @@ fresh.**
   Guarded `DROP TABLE` / `DROP COLUMN` / `RENAME COLUMN`, orphan-column cleanup,
   backref-aware delete guards, audit logging.
 
+### Unify the Seed modal with the content modal (sprints 07–10)
+
+Origin: [`seed-creation-modal-analysis.md`](./seed-creation-modal-analysis.md). The
+universal content modal (`EntryEditorDialog`) is already a pure presentational component
+driven by one hook. These sprints invert that dependency so the **same** UI can edit a
+`Seed` via a swapped hook — reaching the analysis' "full schema-driven" end-state in three
+verifiable steps, **without touching the Botanical Engine**. The engine work (making
+`repeater` a real content field type) is deferred to the optional sprint 10.
+
+- **[07 — Shared schema-form shell](./07-shared-schema-form-shell.md)**
+  Extract `EntryEditorDialog`'s presentational shell onto an explicit
+  `SchemaFormViewModel` interface + capability flags; `useEntryEditorDialog` implements it.
+  Pure refactor, zero behaviour change.
+
+- **[08 — Repeater field renderer](./08-repeater-field-renderer.md)**
+  Add a dashboard-only `repeater` field renderer (`FieldEditRepeater`, reusing the
+  `BranchEditor` row logic) so the modal can draw an "array of objects". No engine change.
+
+- **[09 — Seed editor via the shared shell](./09-seed-editor-via-shared-shell.md)**
+  `useSeedEditorDialog` implements the same view-model: a synthetic meta-seed +
+  `repeater` branch for `branches`, submitting to `/api/seeds`. The Seed editor becomes the
+  shared shell; `SeedEditorDialog` is deleted.
+
+- **[10 — Promote `repeater` to a core BranchType](./10-repeater-core-branchtype.md)** *(optional)*
+  Make `repeater` a real, persisted content field type (JSON column, validation,
+  serialization) so any content type can have inline object-list fields. Not required for
+  the unification goal; a product upgrade only.
+
 Implement in order. 02 depends on 01; 03 on 01+02; 05 on 03; 04 on 01+02; 06 on 03+05.
+07 depends on 05; 08 on 07; 09 on 07+08; 10 on 08+09 (and the core engine, sprint 01).

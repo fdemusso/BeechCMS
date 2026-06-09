@@ -4,6 +4,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { sortSeedsByDependencies } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
+import { sqlQuote } from '../lib/wrangler.js'
+import { buildSeedRegistrationSql } from '../commands/seed-load.js'
 
 // These seeds declare articles BEFORE team (arbitrary user order in seed.ts)
 const TEAM_SEED: Seed = {
@@ -67,6 +69,72 @@ describe('sortSeedsByDependencies — topological ordering', () => {
       ],
     } as Seed
     expect(() => sortSeedsByDependencies([a, b])).toThrow(/[Cc]ycl/)
+  })
+})
+
+// ── sqlQuote ─────────────────────────────────────────────────────────────
+
+describe('sqlQuote', () => {
+  it('wraps value in single quotes', () => {
+    expect(sqlQuote('hello')).toBe("'hello'")
+  })
+
+  it("escapes internal single quotes by doubling them", () => {
+    expect(sqlQuote("it's")).toBe("'it''s'")
+  })
+
+  it('handles multiple single quotes', () => {
+    expect(sqlQuote("a'b'c")).toBe("'a''b''c'")
+  })
+
+  it('handles empty string', () => {
+    expect(sqlQuote('')).toBe("''")
+  })
+})
+
+// ── buildSeedRegistrationSql ─────────────────────────────────────────────
+
+describe('buildSeedRegistrationSql', () => {
+  const SIMPLE_SEED: Seed = {
+    slug: 'posts',
+    label: 'Posts',
+    displayNameAlias: 'title',
+    branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' }],
+  } as Seed
+
+  it('produces INSERT … ON CONFLICT for the correct slug', () => {
+    const sql = buildSeedRegistrationSql(SIMPLE_SEED)
+    expect(sql).toContain("INSERT INTO seeds")
+    expect(sql).toContain("ON CONFLICT(slug) DO UPDATE SET")
+    expect(sql).toContain("'posts'")
+  })
+
+  it("sets source to 'code'", () => {
+    const sql = buildSeedRegistrationSql(SIMPLE_SEED)
+    expect(sql).toContain("'code'")
+  })
+
+  it('escapes single quotes in slug and JSON literal', () => {
+    const seedWithApostrophe: Seed = {
+      ...SIMPLE_SEED,
+      slug: "it's",
+      label: "It's",
+    }
+    const sql = buildSeedRegistrationSql(seedWithApostrophe)
+    // Slug value must have its single quote doubled
+    expect(sql).toContain("'it''s'")
+    // JSON label must also have its single quote doubled
+    expect(sql).toContain("It''s")
+  })
+
+  it('does not contain unescaped single quotes inside the JSON literal', () => {
+    const sql = buildSeedRegistrationSql(SIMPLE_SEED)
+    const jsonStart = sql.indexOf("VALUES (")
+    const jsonPart = sql.slice(jsonStart)
+    // Extract the JSON literal between the second pair of outer quotes
+    // Verify it round-trips back to the original seed
+    const inner = JSON.stringify(SIMPLE_SEED).replace(/'/g, "''")
+    expect(sql).toContain(inner)
   })
 })
 

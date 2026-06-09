@@ -185,7 +185,7 @@ async function run() {
 
   console.log('⚡ Starting Beech dev servers (API + Dashboard)...')
   // Start Turbo dev as a child process inheriting standard I/O
-  const devProcess = spawn('npx', ['turbo', 'run', 'dev', '--parallel'], {
+  const devProcess = spawn('npx', ['turbo', 'run', 'dev'], {
     stdio: 'inherit',
     shell: true,
   })
