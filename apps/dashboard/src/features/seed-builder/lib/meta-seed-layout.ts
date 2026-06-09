@@ -39,6 +39,7 @@ export function buildMetaBranches(t: TFunction, opts: BuildMetaBranchesOptions):
   return [
     {
       id: META.slug, alias: "slug", label: t("seedBuilder.editor.slug"),
+      hint: t("seedBuilder.editor.hints.slug"),
       type: "text", requiredOnCreate: true,
       // The slug is the table name — immutable once created (sprint 03 rejects changes).
       // TextEdit honours the `readOnly` option via a cast, mirroring the repeater's
@@ -52,17 +53,26 @@ export function buildMetaBranches(t: TFunction, opts: BuildMetaBranchesOptions):
     {
       id: META.displayNameAlias, alias: "display_name_alias",
       label: t("seedBuilder.editor.displayNameAlias"),
+      hint: t("seedBuilder.editor.hints.displayNameAlias"),
       type: "select" as Branch["type"], requiredOnCreate: true,
       options: opts.branchAliasOptions,
     } as Branch,
     { id: META.allowPublicRead, alias: "allow_public_read",
-      label: t("seedBuilder.editor.allowPublicRead"), type: "boolean" },
+      label: t("seedBuilder.editor.allowPublicRead"),
+      hint: t("seedBuilder.editor.hints.allowPublicRead"),
+      type: "boolean" },
     { id: META.allowPublicPost, alias: "allow_public_post",
-      label: t("seedBuilder.editor.allowPublicPost"), type: "boolean" },
+      label: t("seedBuilder.editor.allowPublicPost"),
+      hint: t("seedBuilder.editor.hints.allowPublicPost"),
+      type: "boolean" },
     { id: META.allowPublicEdit, alias: "allow_public_edit",
-      label: t("seedBuilder.editor.allowPublicEdit"), type: "boolean" },
+      label: t("seedBuilder.editor.allowPublicEdit"),
+      hint: t("seedBuilder.editor.hints.allowPublicEdit"),
+      type: "boolean" },
     { id: META.allowDrafts, alias: "allow_drafts",
-      label: t("seedBuilder.editor.allowDrafts"), type: "boolean" },
+      label: t("seedBuilder.editor.allowDrafts"),
+      hint: t("seedBuilder.editor.hints.allowDrafts"),
+      type: "boolean" },
     // THE repeater: the branches list. Item body = Branch (sprint 08 BranchItemRow).
     {
       id: META.branches, alias: "branches", label: t("seedBuilder.editor.tabFields"),
@@ -76,13 +86,17 @@ export function buildMetaBranches(t: TFunction, opts: BuildMetaBranchesOptions):
     { id: META.dashIcon, alias: "dash_icon", label: t("seedBuilder.editor.dashIcon"),
       type: "select" as Branch["type"], options: opts.iconNames },
     { id: META.dashGroup, alias: "dash_group", label: t("seedBuilder.editor.dashGroup"),
+      hint: t("seedBuilder.editor.hints.dashGroup"),
       type: "text" },
     { id: META.dashOrder, alias: "dash_order", label: t("seedBuilder.editor.dashOrder"),
+      hint: t("seedBuilder.editor.hints.dashOrder"),
       type: "number" },
     { id: META.dashHidden, alias: "dash_hidden", label: t("seedBuilder.editor.dashHidden"),
       type: "boolean" },
     { id: META.dashDescription, alias: "dash_description",
-      label: t("seedBuilder.editor.dashDescription"), type: "text" },
+      label: t("seedBuilder.editor.dashDescription"),
+      hint: t("seedBuilder.editor.hints.dashDescription"),
+      type: "text" },
   ]
 }
 

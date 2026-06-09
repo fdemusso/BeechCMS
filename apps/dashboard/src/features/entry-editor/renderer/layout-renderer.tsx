@@ -8,6 +8,7 @@ import type { FormLayout, LayoutSection, LayoutTab, LayoutColumn } from "@beechc
 import type { Branch } from "@beechcms/core"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FieldEdit } from "@/features/fields"
 
 export interface RendererBranchMap { [id: string]: Branch }
@@ -66,10 +67,23 @@ function ColumnRenderer({
         if (branch == null) return null
         return (
           <div key={f.branchId} className="space-y-2">
-            <Label htmlFor={branch.alias} className="flex items-center">
-              {branch.label}
+            <Label htmlFor={branch.alias} className="flex items-center gap-1">
+              {branch.hint ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help">
+                      {branch.label}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-64">
+                    {branch.hint}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                branch.label
+              )}
               {branch.requiredOnCreate && (
-                <Asterisk className="inline size-3 text-destructive ml-1" />
+                <Asterisk className="inline size-3 text-destructive" />
               )}
             </Label>
             <FieldEdit

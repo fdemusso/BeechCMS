@@ -1033,7 +1033,18 @@
       "featExport": "Esporta",
       "featBulkDelete": "Eliminazione in blocco",
       "createSuccess": "\"{{label}}\" creato con successo.",
-      "updateSuccess": "\"{{label}}\" aggiornato con successo."
+      "updateSuccess": "\"{{label}}\" aggiornato con successo.",
+      "hints": {
+        "slug": "Identificatore univoco del tipo di contenuto. Diventa il nome della tabella nel database (content_slug) e viene usato negli URL. Non può essere modificato dopo la creazione.",
+        "displayNameAlias": "Il campo del contenuto usato come titolo rappresentativo nelle liste e nei riferimenti della dashboard. Scegli un campo di tipo testo che identifichi chiaramente ogni voce.",
+        "allowPublicRead": "Permette a chiunque di leggere i contenuti di questo tipo tramite la Public API, senza autenticazione. Utile per contenuti come articoli o prodotti da esporre al pubblico.",
+        "allowPublicPost": "Permette a chiunque di creare nuove voci tramite la Public API, senza autenticazione. Abilitare con cautela: espone la creazione di contenuti a utenti anonimi.",
+        "allowPublicEdit": "Permette a chiunque di modificare voci esistenti tramite la Public API, senza autenticazione. Abilitare solo in scenari controllati.",
+        "allowDrafts": "Abilita una tabella bozze parallela. Gli editor possono salvare versioni non pubblicate e promuoverle manualmente al contenuto pubblicato.",
+        "dashGroup": "Nome della sezione nella sidebar della dashboard sotto cui raggruppare questo tipo di contenuto. Tipi con lo stesso gruppo appaiono insieme. Se vuoto, finisce nella sezione predefinita.",
+        "dashOrder": "Posizione all'interno del gruppo nella sidebar. I valori più bassi appaiono per primi. Default: 99.",
+        "dashDescription": "Testo mostrato come tooltip quando si passa il cursore sul tipo di contenuto nella sidebar della dashboard."
+      }
     },
     "branchEditor": {
       "newField": "Nuovo campo",

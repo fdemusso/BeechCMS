@@ -1033,7 +1033,18 @@
       "featExport": "Export",
       "featBulkDelete": "Bulk delete",
       "createSuccess": "\"{{label}}\" created successfully.",
-      "updateSuccess": "\"{{label}}\" updated successfully."
+      "updateSuccess": "\"{{label}}\" updated successfully.",
+      "hints": {
+        "slug": "Unique identifier for this content type. Becomes the database table name (content_slug) and is used in URLs. Cannot be changed after creation.",
+        "displayNameAlias": "The field used as the representative title of each entry in dashboard lists and references. Choose a text field that clearly identifies each record.",
+        "allowPublicRead": "Allows anyone to read this content via the Public API without authentication. Useful for content like articles or products meant to be publicly accessible.",
+        "allowPublicPost": "Allows anyone to create new entries via the Public API without authentication. Enable with caution: exposes content creation to anonymous users.",
+        "allowPublicEdit": "Allows anyone to update existing entries via the Public API without authentication. Enable only in controlled scenarios.",
+        "allowDrafts": "Enables a parallel drafts table. Editors can save unpublished versions and manually promote them to published content.",
+        "dashGroup": "Name of the sidebar section this content type is grouped under. Types sharing the same group appear together. Leave empty to use the default section.",
+        "dashOrder": "Position within the group in the sidebar. Lower values appear first. Default: 99.",
+        "dashDescription": "Text shown as a tooltip when hovering this content type in the dashboard sidebar."
+      }
     },
     "branchEditor": {
       "newField": "New field",
