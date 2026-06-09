@@ -155,6 +155,46 @@ describe('validateSeedDefinitions', () => {
     expect(fatal.some(i => i.messages.some(m => m.includes('reserved')))).toBe(true)
   })
 
+  // ── Fatal 5b: unsafe branch alias (SQL injection guard) ──────────────────────
+
+  it.each([
+    'title); DROP TABLE users;--',
+    'a b',          // space
+    'Title',        // uppercase
+    '1col',         // leading digit
+    '_hidden',      // leading underscore
+    'col"name',     // quote
+    '',             // empty
+  ])('fatal: rejects unsafe branch alias %j', (badAlias) => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        displayNameAlias: 'title',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: badAlias, label: 'Evil', type: 'text' },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes('invalid')))).toBe(true)
+  })
+
+  it.each(['title', 'body_text', 'author2', 'x'])(
+    'accepts safe branch alias %j',
+    (goodAlias) => {
+      const seeds = [
+        makeSeed({
+          slug: 'posts',
+          displayNameAlias: goodAlias,
+          branches: [{ id: 'br_01', alias: goodAlias, label: 'Field', type: 'text' }],
+        }),
+      ]
+      expect(isSeedSetValid(seeds)).toBe(true)
+    },
+  )
+
   // ── Warning 7: duplicate slug ────────────────────────────────────────────────
 
   it('warning: duplicate slug', () => {

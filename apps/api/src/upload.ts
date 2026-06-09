@@ -149,6 +149,22 @@ uploadRoutes.delete('/upload/:key', async (c) => {
   return c.json({ success: true }, 200)
 })
 
+// MIME types that browsers can render as active content — must be served as
+// attachments to prevent stored-XSS via same-origin script execution.
+const FORCE_DOWNLOAD_MIME_PREFIXES = [
+  'image/svg',       // image/svg+xml, image/svg
+  'text/',           // text/html, text/xml, text/javascript, …
+  'application/xml',
+  'application/xhtml',
+  'application/javascript',
+  'application/x-javascript',
+]
+
+function isActiveMimeType(mime: string): boolean {
+  const lower = mime.toLowerCase()
+  return FORCE_DOWNLOAD_MIME_PREFIXES.some((prefix) => lower.startsWith(prefix))
+}
+
 /** Serve un file dallo storage (usato dalla rotta pubblica /api/media/:key). */
 export async function serveMediaHandler(c: any): Promise<Response> {
   const key = c.req.param('key')
@@ -157,7 +173,22 @@ export async function serveMediaHandler(c: any): Promise<Response> {
     const object = await c.var.bucket.get(decodeURIComponent(key))
     if (!object) return new Response('Not found', { status: 404 })
     const headers = new Headers()
-    headers.set('Content-Type', object.contentType ?? 'application/octet-stream')
+    const originalMime = object.contentType ?? 'application/octet-stream'
+
+    // Defense-in-depth: force attachment + opaque MIME for SVG and other
+    // active content types so browsers cannot render them inline even if a
+    // legacy object pre-dates the upload-time block in file-types.ts.
+    if (isActiveMimeType(originalMime)) {
+      headers.set('Content-Type', 'application/octet-stream')
+      headers.set('Content-Disposition', 'attachment')
+    } else {
+      headers.set('Content-Type', originalMime)
+    }
+
+    // Restrictive CSP on all media responses — even raster images don't need
+    // scripts or frames, and this prevents future regressions.
+    headers.set('Content-Security-Policy', "default-src 'none'; sandbox")
+    headers.set('X-Content-Type-Options', 'nosniff')
     headers.set('Cache-Control', 'public, max-age=31536000, immutable')
     return new Response(object.body, { status: 200, headers })
   } catch (err) {

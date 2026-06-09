@@ -3,7 +3,12 @@
 # .dev.vars è in .gitignore - NON committare mai le chiavi reali.
 #
 # Per produzione: wrangler secret put R2_ACCESS_KEY_ID, ecc.
-#
+
+# =============================================================================
+# Auth — JWT_SECRET (>= 32 byte casuali). In prod: wrangler secret put JWT_SECRET
+# =============================================================================
+JWT_SECRET=sviluppo-secret-cambiami-almeno-32-byte-per-sicurezza-hono
+
 # Dev con MinIO (npm run dev:full):
 R2_ENDPOINT=http://localhost:9000
 R2_ACCESS_KEY_ID=beechdev

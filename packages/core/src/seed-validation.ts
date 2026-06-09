@@ -7,6 +7,15 @@ import { sortSeedsByDependencies } from './seed-registry.js'
 
 const BRANCH_ID_RE = /^br_[A-Za-z0-9]+$/
 
+/**
+ * Allowed charset for a branch alias. An alias becomes a raw SQL column name in
+ * CREATE TABLE / ADD COLUMN / CREATE INDEX and in SELECT/WHERE/ORDER BY clauses
+ * (see engine.ts), so it MUST be restricted to a safe identifier charset to
+ * prevent DDL/query injection. Exported so the seeds API rename route reuses the
+ * exact same guard — do not inline a divergent copy.
+ */
+export const BRANCH_ALIAS_RE = /^[a-z][a-z0-9_]*$/
+
 export interface SeedValidationIssue {
   slug: string
   messages: string[]
@@ -93,6 +102,15 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
         messages.push(`duplicate branch id '${branch.id}'`)
       }
       if (branch.id) idsInSeed.add(branch.id)
+
+      // Alias becomes a raw SQL column name — reject anything outside the safe
+      // identifier charset before it can reach DDL/query string interpolation.
+      if (typeof branch.alias !== 'string' || !BRANCH_ALIAS_RE.test(branch.alias)) {
+        messages.push(
+          `branch alias '${branch.alias}' is invalid. Expected format ${BRANCH_ALIAS_RE.source} ` +
+          `(lowercase letter followed by lowercase letters, digits or underscores).`,
+        )
+      }
     }
     if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
   }

@@ -15,6 +15,7 @@ import {
   generateDropColumn,
   generateRenameColumn,
   generateRetypeColumn,
+  BRANCH_ALIAS_RE,
 } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/problem-details'
 import { deleteR2Objects } from '../../upload'
@@ -576,8 +577,8 @@ seedsApp.patch('/:slug/branches/:branchId/rename', async (context) => {
   }
 
   const newAlias = (body as Record<string, unknown>)?.newAlias
-  if (typeof newAlias !== 'string' || !/^[a-z0-9_]+$/.test(newAlias)) {
-    return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: 'newAlias must be a lowercase alphanumeric/underscore string.' })
+  if (typeof newAlias !== 'string' || !BRANCH_ALIAS_RE.test(newAlias)) {
+    return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: `newAlias must match ${BRANCH_ALIAS_RE.source} (lowercase letter followed by lowercase letters, digits or underscores).` })
   }
 
   const repo = context.get('seedRepository')
