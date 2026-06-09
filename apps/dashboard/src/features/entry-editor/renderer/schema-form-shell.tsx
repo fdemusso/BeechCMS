@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
+import { useState, useEffect } from "react"
 import { ChevronDown, Loader2, Pencil, Trash2 } from "lucide-react"
 import type { Seed } from "@beechcms/core"
 
@@ -28,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { BuilderPane } from "../builder/builder-pane"
 import { ReferencedByPanel } from "@/features/backrefs"
 import {
@@ -79,11 +81,13 @@ function LoadingDialog({ open, goBack }: LoadingDialogProps) {
             <Skeleton className="h-6 w-48" />
           </DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-4 space-y-4">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="min-h-[30vh] w-full rounded-lg" />
-        </div>
+        <ScrollArea className="flex-1 max-h-[calc(100vh-12rem)]">
+          <div className="px-6 pt-4 pb-4 space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="min-h-[30vh] w-full rounded-lg" />
+          </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )
@@ -96,14 +100,16 @@ function SeedNotFoundDialog({ open, notFoundLabel, goBack, t }: SeedNotFoundDial
         <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
           <DialogTitle>{t("common.error")}</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-4">
-          <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-            <p className="text-destructive">{notFoundLabel}</p>
-            <Button variant="outline" className="mt-2" onClick={goBack}>
-              {t("common.close")}
-            </Button>
+        <ScrollArea className="flex-1 max-h-[calc(100vh-12rem)]">
+          <div className="px-6 pt-4 pb-4">
+            <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+              <p className="text-destructive">{notFoundLabel}</p>
+              <Button variant="outline" className="mt-2" onClick={goBack}>
+                {t("common.close")}
+              </Button>
+            </div>
           </div>
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )
@@ -116,14 +122,16 @@ function EntryErrorDialog({ open, errorEntry, goBack, t }: EntryErrorDialogProps
         <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
           <DialogTitle>{t("common.error")}</DialogTitle>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto px-6 pt-4 pb-4">
-          <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-            <p className="text-destructive">{errorEntry}</p>
-            <Button variant="outline" className="mt-2" onClick={goBack}>
-              {t("common.close")}
-            </Button>
+        <ScrollArea className="flex-1 max-h-[calc(100vh-12rem)]">
+          <div className="px-6 pt-4 pb-4">
+            <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+              <p className="text-destructive">{errorEntry}</p>
+              <Button variant="outline" className="mt-2" onClick={goBack}>
+                {t("common.close")}
+              </Button>
+            </div>
           </div>
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )
@@ -177,6 +185,16 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
     schemaSlug,
     entryId,
   } = vm
+
+  const [activeTabId, setActiveTabId] = useState(() => layout?.tabs[0]?.id ?? "")
+
+  useEffect(() => {
+    if (!layout) return
+    const exists = layout.tabs.some((t) => t.id === activeTabId) || (!!dangerZoneSlot && activeTabId === "__danger_zone__")
+    if (!exists && layout.tabs.length > 0) {
+      setActiveTabId(layout.tabs[0].id)
+    }
+  }, [layout, activeTabId, dangerZoneSlot])
 
   // ---- Loading state ----
   if (isSeedLoading || (entryId && isLoadingEntry)) {
@@ -234,7 +252,8 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
             onSubmit={handleSubmit}
           >
             {/* Scrollable body */}
-            <div className="flex-1 overflow-y-auto px-6 pt-4 pb-4 space-y-4">
+            <ScrollArea className="flex-1 max-h-[calc(100vh-12rem)]">
+              <div className="px-6 pt-4 pb-4 space-y-4">
 
               {/* Draft context notice */}
               {capabilities.drafts && effectiveDraftContext && (
@@ -284,6 +303,8 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                   onChange={handleInputChange}
                   dangerZoneSlot={capabilities.dangerZone && !isCreate ? dangerZoneSlot : undefined}
                   dangerZoneLabel={t("content.editor.tabs.dangerZone", "Danger Zone")}
+                  activeTabId={activeTabId}
+                  onActiveTabChange={setActiveTabId}
                 />
               )}
 
@@ -295,79 +316,82 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                   onRestrictsChange={setHasRestrictedRefs}
                 />
               )}
-            </div>
+              </div>
+            </ScrollArea>
 
             {/* Fixed footer — always visible at the bottom of the dialog, actions aligned right */}
-            <div className="flex-shrink-0 flex items-center justify-end gap-2 px-6 pt-4 pb-6">
-              {/* Delete button — edit mode, normal context only */}
-              {capabilities.delete && !isCreate && !effectiveDraftContext && (
-                hasRestrictedRefs ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex">
-                        <Button type="button" variant="destructive" size="sm" disabled>
-                          <Trash2 className="mr-1 size-4" />
-                          {t("common.delete", "Delete")}
-                        </Button>
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {t("backrefs.deleteBlocked", { count: "?" })}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    size="sm"
-                    disabled={isDeleting}
-                    onClick={() => setShowDeleteConfirm(true)}
-                  >
-                    <Trash2 className="mr-1 size-4" />
-                    {t("common.delete", "Delete")}
-                  </Button>
-                )
-              )}
-
-              {/* Split save button */}
-              <div className="flex items-center">
-                <Button
-                  type="submit"
-                  size="sm"
-                  disabled={isBusy}
-                  className={capabilities.drafts && hasSaveDropdown ? "rounded-r-none border-r border-r-primary-foreground/20 pr-3" : ""}
-                >
-                  {saveLabel}
-                </Button>
-                {capabilities.drafts && hasSaveDropdown && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={isBusy}
-                        className="rounded-l-none px-2 border-l-0"
-                      >
-                        <ChevronDown className="size-3" />
-                        <span className="sr-only">{t("common.openMenu")}</span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={handlePublishDraft} disabled={isPublishing}>
-                        {isPublishing && <Loader2 className="mr-2 size-3 animate-spin" />}
-                        {t("content.editor.publishDraft")}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="text-destructive"
-                        onClick={() => setShowDiscardConfirm(true)}
-                      >
-                        {t("content.editor.discardDraft")}
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+            {activeTabId !== "__danger_zone__" && (
+              <div className="flex-shrink-0 flex items-center justify-end gap-2 px-6 pt-4 pb-6">
+                {/* Delete button — edit mode, normal context only */}
+                {capabilities.delete && !isCreate && !effectiveDraftContext && (
+                  hasRestrictedRefs ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex">
+                          <Button type="button" variant="destructive" size="sm" disabled>
+                            <Trash2 className="mr-1 size-4" />
+                            {t("common.delete", "Delete")}
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {t("backrefs.deleteBlocked", { count: "?" })}
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="sm"
+                      disabled={isDeleting}
+                      onClick={() => setShowDeleteConfirm(true)}
+                    >
+                      <Trash2 className="mr-1 size-4" />
+                      {t("common.delete", "Delete")}
+                    </Button>
+                  )
                 )}
+
+                {/* Split save button */}
+                <div className="flex items-center">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={isBusy}
+                    className={capabilities.drafts && hasSaveDropdown ? "rounded-r-none border-r border-r-primary-foreground/20 pr-3" : ""}
+                  >
+                    {saveLabel}
+                  </Button>
+                  {capabilities.drafts && hasSaveDropdown && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={isBusy}
+                          className="rounded-l-none px-2 border-l-0"
+                        >
+                          <ChevronDown className="size-3" />
+                          <span className="sr-only">{t("common.openMenu")}</span>
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handlePublishDraft} disabled={isPublishing}>
+                          {isPublishing && <Loader2 className="mr-2 size-3 animate-spin" />}
+                          {t("content.editor.publishDraft")}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => setShowDiscardConfirm(true)}
+                        >
+                          {t("content.editor.discardDraft")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
           </form>
         </DialogContent>
       </Dialog>

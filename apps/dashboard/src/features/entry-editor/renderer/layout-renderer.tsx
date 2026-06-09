@@ -20,6 +20,8 @@ export interface RendererProps {
   onChange: (alias: string, value: unknown) => void
   dangerZoneSlot?: React.ReactNode
   dangerZoneLabel?: string
+  activeTabId?: string
+  onActiveTabChange?: (tabId: string) => void
 }
 
 const DANGER_ZONE_TAB_ID = "__danger_zone__"
@@ -162,8 +164,21 @@ function TabSections({
   )
 }
 
-export function LayoutRenderer({ layout, branchById, formData, fieldErrors, onChange, dangerZoneSlot, dangerZoneLabel }: RendererProps) {
-  const [activeTabId, setActiveTabId] = React.useState(() => layout.tabs[0]?.id ?? "")
+export function LayoutRenderer({
+  layout,
+  branchById,
+  formData,
+  fieldErrors,
+  onChange,
+  dangerZoneSlot,
+  dangerZoneLabel,
+  activeTabId: propActiveTabId,
+  onActiveTabChange,
+}: RendererProps) {
+  const [internalActiveTabId, setInternalActiveTabId] = React.useState(() => layout.tabs[0]?.id ?? "")
+
+  const activeTabId = propActiveTabId !== undefined ? propActiveTabId : internalActiveTabId
+  const setActiveTabId = onActiveTabChange !== undefined ? onActiveTabChange : setInternalActiveTabId
 
   React.useEffect(() => {
     const exists = layout.tabs.some((t) => t.id === activeTabId) || (!!dangerZoneSlot && activeTabId === DANGER_ZONE_TAB_ID)
