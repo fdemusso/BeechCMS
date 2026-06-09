@@ -46,6 +46,19 @@ This document is the authoritative reference for the Beech CMS REST API. It cove
    - [Leaderboard](#86-leaderboard-get-apiwidgetseedleaderboard)
    - [List](#87-list-get-apiwidgetseedlist)
    - [Timeseries](#88-timeseries-get-apiwidgetseedtimeseries)
+9. [Seed Builder & Schema Mutation API](#10-seed-builder--schema-mutation-api)
+   - [List Seed Definitions](#get-apiseeds)
+   - [Get Seed Definition](#get-apiseedsslug)
+   - [Create Seed Definition](#post-apiseeds)
+   - [Update Seed Definition](#put-apiseedsslug)
+   - [Soft Delete Content Type](#delete-apiseedsslug)
+   - [Hard Delete Content Type](#delete-apiseedsslughard)
+   - [Rename Branch Alias](#patch-apiseedsslugbranchesbranchidrename)
+   - [Change Branch Type](#patch-apiseedsslugbranchesbranchidretype)
+   - [Delete/Drop Branch](#delete-apiseedsslugbranchesbranchid)
+   - [Rebuild FTS Index](#post-apiseedsslugftsrebuild)
+   - [Get Orphan Columns](#get-apiseedsslugorphans)
+10. [Technical Architecture (v0.4.0 Refactor)](#11-technical-architecture-v040-refactor)
 
 ---
 
@@ -1530,7 +1543,216 @@ Atomic single-field flip. Does not require the full automation body.
 
 ---
 
-## 9. Technical Architecture (v0.4.0 Refactor)
+## 10. Seed Builder & Schema Mutation API
+
+All routes under `/api/seeds` require JWT authentication and user role verification (`requireAdmin`).
+
+These endpoints drive the **Seed Builder UI** in the dashboard and interact with the `D1SeedRepository` and `D1SchemaMutator` to execute schema changes.
+
+---
+
+### `GET /api/seeds`
+
+Lists all registered seed definitions from the database.
+
+**Request**
+```http
+GET /api/seeds
+Authorization: Bearer eyJ...
+```
+
+**Response `200`**
+```json
+[
+  {
+    "slug": "posts",
+    "label": "Post",
+    "labelPlural": "Posts",
+    "status": "active",
+    "source": "code",
+    "branches": [...]
+  }
+]
+```
+
+---
+
+### `GET /api/seeds/:slug`
+
+Retrieves a single seed definition by its slug.
+
+**Request**
+```http
+GET /api/seeds/posts
+Authorization: Bearer eyJ...
+```
+
+---
+
+### `POST /api/seeds`
+
+Creates a new content type (Seed). This dynamically persists the seed definition to the database, schedules the Botanical Engine to construct the new `content_{slug}` table (and draft/FTS virtual tables if needed) via additive DDL, and bumps the registry version token.
+
+**Request**
+```http
+POST /api/seeds
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "slug": "books",
+  "label": "Book",
+  "labelPlural": "Books",
+  "displayNameAlias": "title",
+  "allowDrafts": true,
+  "branches": [
+    { "alias": "title", "label": "Title", "type": "text", "requiredOnCreate": true },
+    { "alias": "author", "label": "Author", "type": "text" }
+  ]
+}
+```
+
+---
+
+### `PUT /api/seeds/:slug`
+
+Performs an additive update of a seed definition. You can add new fields (branches) or modify seed configuration metadata. This applies additive DDL (`ALTER TABLE ... ADD COLUMN`) and bumps the registry version token.
+
+> **Note:** Destructive field alterations like renaming aliases, changing field types, or dropping columns are blocked through the `PUT` endpoint (yielding validation errors like `alias-rename-not-supported` or `branch-type-change-not-supported`). They must go through the dedicated `Danger Zone` PATCH/DELETE routes below.
+
+**Request**
+```http
+PUT /api/seeds/books
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "label": "Book",
+  "labelPlural": "Books",
+  "displayNameAlias": "title",
+  "allowDrafts": true,
+  "branches": [
+    { "alias": "title", "label": "Title", "type": "text", "requiredOnCreate": true },
+    { "alias": "author", "label": "Author", "type": "text" },
+    { "alias": "isbn", "label": "ISBN", "type": "text" } -- New branch added
+  ]
+}
+```
+
+---
+
+### `DELETE /api/seeds/:slug`
+
+Soft-deletes a content type. This flips its database status to `deleted` (hiding it from the dashboard and normal API calls), but retains its D1 table and content. This is safe and reversible.
+
+**Request**
+```http
+DELETE /api/seeds/books
+Authorization: Bearer eyJ...
+```
+
+---
+
+### `DELETE /api/seeds/:slug/hard`
+
+Hard-deletes a content type. **This is destructive and irreversible.** It drops the main `content_{slug}` table, its `content_{slug}_drafts` mirror table, search tables, and related junction tables. It also deletes the definition row from the `seeds` table, triggers a cascade delete of all R2 uploaded files associated with its fields, and bumps the registry version token.
+
+**Guards:**
+1. **Back-reference Check**: Fails with `409 Conflict` if any other active seed references this content type via a `relation` field.
+2. **Typed Confirmation**: Requires a JSON payload matching the target slug to prevent accidental deletion.
+
+**Request**
+```http
+DELETE /api/seeds/books/hard
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{ "confirm": "books" }
+```
+
+---
+
+### `DELETE /api/seeds/:slug/branches/:branchId`
+
+Drops a field (column) from the content type definition and database table. **This is destructive and irreversible.** It runs `ALTER TABLE ... DROP COLUMN` and bumps the version token.
+
+**Request**
+```http
+DELETE /api/seeds/books/branches/br_isbn
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{ "confirm": "books.isbn" }
+```
+
+---
+
+### `PATCH /api/seeds/:slug/branches/:branchId/rename`
+
+Renames a field's alias (`ALTER TABLE ... RENAME COLUMN`). Because references inside `FormLayout` and other systems use the stable `branch.id`, layout configurations are preserved. This automatically updates and rebuilds FTS5 virtual tables/triggers. The response warns if any automations reference the old alias.
+
+**Request**
+```http
+PATCH /api/seeds/books/branches/br_author/rename
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "alias": "authorName",
+  "confirm": "books.author"
+}
+```
+
+---
+
+### `PATCH /api/seeds/:slug/branches/:branchId/retype`
+
+Changes the data type of a field. **This is high-risk.** It performs an atomic SQLite table rebuild (re-creates the table structure, casts existing values to the new column types using `CAST`, swaps the old table, and drops it).
+
+**Request**
+```http
+PATCH /api/seeds/books/branches/br_price/retype
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "type": "number",
+  "confirm": "books.price"
+}
+```
+
+---
+
+### `POST /api/seeds/:slug/fts/rebuild`
+
+Recreates the virtual full-text search virtual tables and triggers for a seed, and backfills the index from the live `content_{slug}` data.
+
+**Request**
+```http
+POST /api/seeds/books/fts/rebuild
+Authorization: Bearer eyJ...
+```
+
+---
+
+### `GET /api/seeds/:slug/orphans`
+
+Scans the D1 database schema and returns a list of database columns present in `content_{slug}` that are absent from the seed definition. These can be dropped via the orphan-cleanup tool.
+
+**Request**
+```http
+GET /api/seeds/books/orphans
+Authorization: Bearer eyJ...
+```
+
+**Response `200`**
+```json
+["old_isbn_field", "deprecated_field"]
+```
+
+---
+
+## 11. Technical Architecture (v0.4.0 Refactor)
 
 Starting from v0.4.0, the Beech CMS API has been refactored to follow a **Vertical Slice Architecture** and the **Repository Pattern**.
 

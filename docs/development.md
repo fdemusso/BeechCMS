@@ -124,6 +124,33 @@ npm run dev:full
 
 ---
 
+## Development with Runtime Seeds
+
+In BeechCMS, content types (Seeds) are database-resident. The D1 `seeds` table is the canonical source of truth at runtime.
+
+### Local Provisioning & Bootstrapping
+When developing locally, you can load definitions from `seeds.ts` into the local D1 instance.
+To reset your local database and onboard seed definitions from scratch, run:
+
+```bash
+npx beech onboard --local --yes
+```
+
+This runs the file checklist, initializes the system tables, applies migrations, and loads all seeds defined in `seeds.ts` into the `seeds` system table.
+
+### Dynamic Updates during Development
+If you modify content schemas in code (`seeds.ts`), run:
+
+```bash
+npx beech seed:load --local
+```
+
+This pushes the new definitions to D1, triggers the Botanical Engine to adjust local SQL columns, and invalidates the cached registry (`seed_meta.registry_version`) so the running API server updates instantly.
+
+If you edit content types directly inside the dashboard's **Settings → Content Types** (Seed Builder) tab, DDL changes are applied at runtime directly to D1.
+
+---
+
 ## Testing
 
 I test `apps/api` richiedono lo stack Docker attivo (stesso stack di `npm run dev:full`). Il setup Vitest (`test/global-setup.ts`) verifica MinIO, Mailpit e webhook-tester prima di partire e crea un bucket MinIO effimero per il run.

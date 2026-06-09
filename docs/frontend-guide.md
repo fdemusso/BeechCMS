@@ -441,57 +441,70 @@ CVA keeps variant logic out of component render functions. Adding a new variant 
 
 ---
 
-## 5. The EntryEditorPage — Putting It Together
+## 5. SchemaFormShell & EntryEditorDialog — Putting It Together
 
-The `EntryEditorPage` (`pages/entry-editor.tsx`) is the canonical consumer of the FieldRenderers system. It demonstrates how the registry, TanStack Query, and the schema-driven model converge:
+In BeechCMS, content editing has migrated from a standalone page to a dynamic modal-based system centered around **`SchemaFormShell`** (`apps/dashboard/src/features/entry-editor/renderer/schema-form-shell.tsx`) in the `entry-editor` slice.
 
-```tsx
-// Simplified structure of EntryEditorPage
+The `SchemaFormShell` is a presentation-only, domain-agnostic component driven by a **`SchemaFormViewModel`** interface. This enables the **same UI shell** to render and process two very different forms:
+1. **Content Entries** (via `useEntryEditorDialog` hook in `entry-editor` slice).
+2. **Seed Definitions** (via `useSeedEditorDialog` hook in `seed-builder` slice, utilizing the `repeater` field renderer for editing fields).
 
-const seed = getSeed(slug);  // From @beechcms/core — never hardcoded
-
-// TanStack Query: fetch existing entry in edit mode
-const { data: entry } = useQuery({
-   queryKey: CONTENT_QUERY_KEYS.detail(slug, id),
-   queryFn: () => contentApi.fetchById(slug, id),
-   enabled: !!id,  // Skip in create mode
-});
-
-// Local form state — uncontrolled from the Query cache perspective
-const [formData, setFormData] = useState<Record<string, unknown>>(
-        entry?.data ?? {}
-);
-
-const handleInputChange = (alias: string, value: unknown) => {
-   setFormData(prev => ({ ...prev, [alias]: value }));
-};
-
-// Adaptive layout: richtext field → 70/30 split; no richtext → single column
-const hasRichtext = seed.branches.some(b => b.type === 'richtext');
-
-return (
-        <form onSubmit={handleSave}>
-           <div className={hasRichtext ? 'grid grid-cols-[1fr_300px]' : 'max-w-2xl mx-auto'}>
-              {seed.branches.map(branch => (
-                      // The registry is invoked here — EntryEditorPage has zero knowledge
-                      // of what component will be rendered for each type.
-                      <FieldEdit
-                              key={branch.alias}
-                              branch={branch}
-                              value={formData[branch.alias]}
-                              onChange={val => handleInputChange(branch.alias, val)}
-                      />
-              ))}
-           </div>
-        </form>
-);
+```
+useEntryEditorDialog() ──┐
+                         ├── implements SchemaFormViewModel ──→ SchemaFormShell
+useSeedEditorDialog()  ──┘
 ```
 
-Key observations:
-- `seed.branches.map(...)` drives the form. There is no hardcoded list of fields anywhere in the page.
-- The page does not contain any `switch (branch.type)` logic — that is fully delegated to the registry.
-- `formData[branch.alias]` — field access always uses aliases. The Botanical Engine's translation happens at the database boundary, not in the UI.
-- JSON field validation (checking that the string is valid JSON before submitting) is the **only** field-type-specific logic that stays in the page. All other type-specific behaviour is encapsulated in the individual renderers.
+### 5.1 The SchemaFormViewModel Interface
+
+The view-model decouples the presentation shell from the features' logic (CRUD API calls, invalidation, layout builder routing):
+
+```typescript
+// features/entry-editor/renderer/schema-form-view-model.ts
+export interface SchemaFormViewModel {
+  title: string
+  isCreate: boolean
+  isLoading: boolean
+  isSaving: boolean
+  isDeleting: boolean
+  seed: Seed
+  formData: DbPayload
+  capabilities: SchemaFormCapabilities
+  dangerZoneSlot?: React.ReactNode
+  errors: Record<string, string>
+  onFieldChange: (alias: string, value: unknown) => void
+  onSave: () => Promise<void>
+  onDelete?: () => Promise<void>
+}
+```
+
+### 5.2 Form Layout Rendering
+
+Instead of looping directly over `seed.branches`, the shell delegates rendering to `<LayoutRenderer layout={layout} ... />`, which supports tabbed grids, section cards, and customizable multi-column form layouts designed via the drag-and-drop Layout Builder.
+
+```tsx
+// Inside apps/dashboard/src/features/entry-editor/renderer/schema-form-shell.tsx
+return (
+  <div className="flex flex-col gap-6">
+    <LayoutRenderer
+      layout={layout}
+      seed={vm.seed}
+      values={vm.formData}
+      errors={vm.errors}
+      onChange={vm.onFieldChange}
+      readOnly={vm.isSaving}
+    />
+    
+    {/* Destructive actions for Seeds (Danger Zone) */}
+    {vm.capabilities.dangerZone && !vm.isCreate && vm.dangerZoneSlot}
+  </div>
+)
+```
+
+Key features:
+- **No `switch (branch.type)` in the form**: Fully delegated to the `FieldEdit` registry.
+- **Unified styling**: Modals, titles, buttons, and state indicators share the exact same UI markup.
+- **Danger Zone Support**: The Seed Builder UI injects its destructive options slot (`dangerZoneSlot`) dynamically through the capability configuration.
 
 ---
 
@@ -644,7 +657,7 @@ describe('UrlDisplay', () => {
 | 6 | `packages/core/src/seeds.ts` | Optional — add a `Branch` to a seed for testing |
 | 7 | `display/url.test.tsx`, `edit/url.test.tsx` | New co-located test files |
 
-**Zero modifications** to `FieldDisplay.tsx`, `FieldEdit.tsx`, `EntryEditorPage`, the table view, the gallery view, or any other consumer. The registry dispatch handles it all.
+**Zero modifications** to `FieldDisplay.tsx`, `FieldEdit.tsx`, `SchemaFormShell`, the table view, the gallery view, or any other consumer. The registry dispatch handles it all.
 
 ---
 

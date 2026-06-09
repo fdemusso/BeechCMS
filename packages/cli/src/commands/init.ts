@@ -24,6 +24,7 @@ const SYSTEM_TABLES = [
   'automations',
   'seeds',
   'seed_meta',
+  'site_settings',
 ]
 
 // Embedded copy of 0000_v040_base.sql — all DDL uses CREATE TABLE IF NOT EXISTS,
@@ -184,6 +185,11 @@ CREATE TABLE IF NOT EXISTS seed_meta (
 );
 
 INSERT OR IGNORE INTO seed_meta (id, value) VALUES ('registry_version', '1');
+
+CREATE TABLE IF NOT EXISTS site_settings (
+    key   TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+);
 `.trim()
 
 const PLACEHOLDER_DB_IDS = [

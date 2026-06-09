@@ -17,8 +17,8 @@ Cloudflare's free tier covers D1, R2, and Workers for the vast majority of real-
 ### Native SQL Performance
 Unlike other "flexible" CMSs that store data in slow JSON blobs, Beech generates **dedicated SQL tables** for every content type. Enjoy native B-Tree indexing, `REAL` and `INTEGER` types for mathematical operations, and ultra-fast queries.
 
-### Schema-as-Code
-Define your content model once in TypeScript. The **Botanical Engine** compiles your definitions into deterministic SQL DDL. Run `beech seed:load` and your database schema is automatically synchronized. No manual migrations, no manual SQL, no schema drift.
+### Schema-as-Code & Runtime Definitions
+Define your content model dynamically via the dashboard UI or in code (TypeScript). The **Botanical Engine** compiles your definitions into deterministic SQL DDL at runtime. Bootstrap your schema from code using `beech onboard` or `beech seed:load`, then let the D1 database act as the single source of truth—with real-time updates and zero server downtime.
 
 ### Works as a dependency, not a boilerplate
 
@@ -44,7 +44,7 @@ Instead of generic document storage, the Engine analyzes your **Seeds** (content
 
 - **Native Performance**: Real B-Tree indices and FTS5 virtual tables for ultra-fast filtering and full-text search.
 - **Data Integrity**: Native SQL types (REAL, INTEGER, TEXT) with CHECK constraints for robust data handling.
-- **Zero-Manual SQL**: Deterministic DDL generation—I define the schema in code, and the Engine handles the database synchronization.
+- **Zero-Manual SQL**: Deterministic DDL generation—defined in code or via the UI, and the Engine handles the database synchronization at runtime.
 
 ---
 
