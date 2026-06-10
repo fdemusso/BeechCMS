@@ -14,6 +14,7 @@ export default defineConfig({
         'src/**/index.ts',
         'src/commands/deploy.ts',
         'src/commands/init.ts',
+        'src/commands/onboard.ts',
         'src/commands/seed-create.ts',
         'src/commands/seed-load.ts',
         'src/commands/update.ts',
