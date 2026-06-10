@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import React from "react"
+import React, { use } from "react"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 import type { Branch, Seed } from "@beechcms/core"
 
@@ -32,8 +32,8 @@ vi.mock("@/components/ui/select", () => {
       </SelectContext.Provider>
     )
   }
-  function SelectTrigger({ children }: any) {
-    return <div role="combobox" aria-expanded={false} aria-controls="select-listbox">{children}</div>
+  function SelectTrigger({}: any) {
+    return <input aria-expanded={false} aria-controls="select-listbox" readOnly />
   }
   function SelectValue({ placeholder }: any) {
     return <span>{placeholder}</span>
@@ -42,7 +42,7 @@ vi.mock("@/components/ui/select", () => {
     return <div id="select-listbox" role="listbox">{children}</div>
   }
   function SelectItem({ children, value }: any) {
-    const ctx = React.useContext(SelectContext)
+    const ctx = use(SelectContext)
     return (
       <button role="option" aria-selected={false} data-value={value} onClick={() => ctx?.onValueChange(value)}>
         {children}
