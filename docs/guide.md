@@ -14,7 +14,7 @@ A complete walkthrough: from zero to a live website powered by BeechCMS as a hea
    - [Cloudflare D1 (database)](#51-cloudflare-d1-database_id)
    - [Cloudflare R2 (media storage)](#52-cloudflare-r2-media-storage)
    - [Resend (email)](#53-resend-resend_api_key)
-   - [Upstash QStash (scheduled tasks)](#54-upstash-qstash-qstash_token)
+   - [Upstash QStash (async notifications)](#54-upstash-qstash-qstash_token)
 6. [Configuration](#6-configuration)
    - [wrangler.jsonc](#61-wranglerjsonc)
    - [.dev.vars](#62-devvars)
@@ -165,8 +165,6 @@ Copy the `database_id` (UUID format) printed in the terminal.
 3. Click **Create database**, enter a name, and click **Create**.
 4. Copy the **Database ID** from the details panel.
 
-![alt text](images/databaseid.png)
-
 ### 5.2 Cloudflare R2 (media storage)
 
 **Create a bucket:**
@@ -184,7 +182,6 @@ Copy the `database_id` (UUID format) printed in the terminal.
 1. Open your R2 bucket → **Settings** tab → **S3 API** section.
 2. Copy the URL (e.g. `https://<ACCOUNT_ID>.r2.cloudflarestorage.com`).
 
-> 📷 **Screenshot opportunity:** R2 API token creation dialog showing the permissions scope.
 
 ### 5.3 Resend (`RESEND_API_KEY`)
 
@@ -201,11 +198,14 @@ Required only if you want password-reset emails or automation email actions.
 
 ### 5.4 Upstash QStash (`QSTASH_TOKEN`)
 
-Required only if you use cron-based automations (scheduled triggers).
+Optional. When configured, BeechCMS uses QStash to deliver admin notifications asynchronously — instead of writing them directly to D1 inside the request handler, the Worker enqueues them via QStash, which calls back the `/webhooks/qstash` endpoint. This avoids continuous D1 polling and keeps request latency low. Without this token, BeechCMS falls back to an in-process background notification service.
+
+Cron automations do **not** require QStash — they run via the Cloudflare Workers native `scheduled()` handler.
 
 1. Log in to [console.upstash.com](https://console.upstash.com).
 2. Select **QStash** from the top navigation.
 3. Copy the `QSTASH_TOKEN` from the **REST API** section.
+4. Optionally copy `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY` for webhook signature verification.
 
 ---
 
@@ -221,11 +221,10 @@ The scaffold pre-fills the values you provided during setup. Edit before running
   "main": "worker.ts",
   "compatibility_date": "2025-01-01",
 
+  // Secret values (JWT_SECRET, PUBLIC_READ_API_KEY, PUBLIC_WRITE_API_KEY) are NOT
+  // placed here. In local dev they live in .dev.vars; in production use wrangler secrets.
   "vars": {
-    "JWT_SECRET": "...",               // Auto-generated — do not share
     "CORS_ORIGINS": "http://localhost:5173,https://my-site.com",
-    "PUBLIC_READ_API_KEY":  "...",     // Shared with your frontend (read operations)
-    "PUBLIC_WRITE_API_KEY": "...",     // Shared with your frontend (write operations)
     "APP_URL": "https://my-site.com",
     "MEDIA_BASE_URL": "https://api.my-site.com", // Base URL for the media proxy
     "MEDIA_CDN_URL":  "https://cdn.my-site.com"  // Optional: direct CDN/R2 domain
@@ -250,22 +249,31 @@ The scaffold pre-fills the values you provided during setup. Edit before running
 }
 ```
 
-> **Never commit `JWT_SECRET`, `PUBLIC_READ_API_KEY`, or `PUBLIC_WRITE_API_KEY` to a public repository.**  
-> In production, move secrets to [Wrangler secrets](#step-2--set-production-secrets) instead of plain `vars`.
+> [!IMPORTANT]
+> `JWT_SECRET`, `PUBLIC_READ_API_KEY`, and `PUBLIC_WRITE_API_KEY` are **mandatory secrets** — they must never appear in `wrangler.jsonc` or any committed file.
+> Set them in `.dev.vars` for local development and via `wrangler secret put` for production.
 
 ### 6.2 `.dev.vars`
 
-Optional for local development. Media uploads work automatically via Wrangler's local R2 emulation.
-
-Fill in `.dev.vars` only if you want to test production-like R2 behaviour locally:
+Mandatory for local development. This file is git-ignored and never deployed — it holds secrets that cannot go in `wrangler.jsonc`.
 
 ```bash
 # .dev.vars — git-ignored, never deployed
+
+# --- Mandatory secrets ---
+JWT_SECRET=at-least-32-random-bytes-change-me
+PUBLIC_READ_API_KEY=dev-public-read-key-changeme
+PUBLIC_WRITE_API_KEY=dev-public-write-key-changeme
+
+# --- R2 media storage (optional — omit to use Wrangler's local R2 emulation) ---
 R2_ACCESS_KEY_ID=your-access-key
 R2_SECRET_ACCESS_KEY=your-secret-key
 R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
 R2_BUCKET_NAME=my-project-media
 ```
+
+> [!TIP]
+> Omit the R2 variables if you just want media uploads to work locally — Wrangler emulates R2 automatically. Only add them when testing against a real R2 bucket.
 
 ---
 
@@ -279,7 +287,6 @@ npx wrangler dev                # start the Worker on http://localhost:8789
 
 Open `http://localhost:8789/admin` — the setup wizard appears on first launch to create your admin account.
 
-> 📷 **Screenshot opportunity:** The first-launch setup wizard asking for email and password.
 
 ### CORS in development
 
@@ -317,9 +324,6 @@ Navigate to **Settings → Content Types** in the dashboard. Click **Add content
 
 Changes are applied to the database instantly — no CLI command needed.
 
-> 📷 **Screenshot opportunity:** The Seed Builder UI showing a content type with several branches and field type selectors.
-
-> 📷 **Screenshot opportunity:** The field policy panel showing visibility, public, and search toggles.
 
 ### 8.2 Code-First with `seeds.ts`
 
@@ -485,11 +489,6 @@ After your first login, the dashboard has these main areas:
 | **Settings → Notifications** | Configure admin notification preferences |
 | **Bento dashboard** | Widget-based overview of content stats and recent activity |
 
-> 📷 **Screenshot opportunity:** The main dashboard sidebar with grouped Seeds and the bento stats grid.
-
-> 📷 **Screenshot opportunity:** The content list table with search, filter, and sort controls.
-
-> 📷 **Screenshot opportunity:** The entry editor with different field types (text, date, richtext, file).
 
 ---
 
@@ -525,7 +524,6 @@ X-API-Key: your-public-read-key
 
 The response lists every Seed with `allowPublicRead`, `allowPublicPost`, or `allowPublicEdit` enabled, along with each branch's alias, type, label, required flag, and public visibility policy.
 
-> 📷 **Screenshot opportunity:** The HTML schema view in a browser, showing two or three seeds with their fields.
 
 ### 10.3 Read a list of entries
 
@@ -793,7 +791,6 @@ Automations let you trigger actions based on content lifecycle events (`create`,
 
 Automations are configured entirely via the dashboard under **Settings → Automations**. No code is needed.
 
-> 📷 **Screenshot opportunity:** The Automation editor showing trigger, conditions, and action steps.
 
 The full template grammar (accessing `{{this.fieldAlias}}`, collection aggregates, inline filters) is covered in [docs/automations.md](automations.md).
 
@@ -819,7 +816,6 @@ The dashboard provides a guarded **Danger Zone** under each content type's setti
 
 All Danger Zone operations perform back-reference checks — they refuse to delete a Seed if another Seed references it via a `relation` field.
 
-> 📷 **Screenshot opportunity:** The Danger Zone panel with the delete confirmation input.
 
 ---
 
@@ -844,7 +840,9 @@ npx wrangler secret put R2_SECRET_ACCESS_KEY
 npx wrangler secret put R2_ENDPOINT
 npx wrangler secret put R2_BUCKET_NAME
 npx wrangler secret put RESEND_API_KEY    # if using email
-npx wrangler secret put QSTASH_TOKEN     # if using scheduled automations
+npx wrangler secret put QSTASH_TOKEN                  # if using QStash for async notifications
+npx wrangler secret put QSTASH_CURRENT_SIGNING_KEY    # if using QStash webhook verification
+npx wrangler secret put QSTASH_NEXT_SIGNING_KEY       # if using QStash webhook verification
 ```
 
 ### Step 3 — Deploy and synchronize
