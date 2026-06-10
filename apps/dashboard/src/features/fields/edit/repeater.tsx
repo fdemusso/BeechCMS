@@ -17,7 +17,7 @@ import type { Branch, Seed } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import type { FieldEditProps } from "../types"
 import { BranchItemRow } from "./repeater-branch-item"
-// import { GenericItemRow } from "./repeater-generic-item" // SPRINT 10
+import { GenericItemRow } from "./repeater-generic-item"
 
 interface RepeaterMeta {
   /** 'branch'  → each item is a Branch, edited by the BranchItemRow (ships now).
@@ -28,13 +28,14 @@ interface RepeaterMeta {
   /** Optional UI label for the add button / empty state.                         */
   itemLabel?: string
   /** Context the branch-item editor needs (active seeds for relation targets).    */
-  branchItemContext?: { activeSeedsForRelation: Seed[] }
+  branchItemContext?: { activeSeedsForRelation: Seed[]; subField?: boolean }
 }
 
 export function FieldEditRepeater({ branch, value, onChange }: FieldEditProps) {
   const { t } = useTranslation()
   const meta = ((branch as unknown as { repeater?: RepeaterMeta }).repeater) ?? {}
-  const itemKind = meta.itemKind ?? "branch"
+  const itemKind = meta.itemKind ?? (branch.type === "repeater" ? "fields" : "branch")
+  const subFields = meta.fields ?? branch.fields ?? []
   const items: unknown[] = Array.isArray(value) ? value : []
   const dragIds = items.map((item, idx) => itemKind === "branch" ? (item as Branch).id : `item-${idx}`)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
@@ -61,9 +62,9 @@ export function FieldEditRepeater({ branch, value, onChange }: FieldEditProps) {
       onChange([...items, blank])
       return
     }
-    // SPRINT 10: generic item — seed a record with empty values per sub-branch.
+    // Generic item — seed a record with empty values per sub-branch.
     const blank: Record<string, unknown> = {}
-    for (const f of meta.fields ?? []) blank[f.alias] = f.type === "boolean" ? false : ""
+    for (const f of subFields) blank[f.alias] = f.type === "boolean" ? false : ""
     onChange([...items, blank])
   }
 
@@ -80,12 +81,19 @@ export function FieldEditRepeater({ branch, value, onChange }: FieldEditProps) {
                 key={(item as Branch).id ?? idx}
                 branch={item as Branch}
                 activeSeedsForRelation={meta.branchItemContext?.activeSeedsForRelation ?? []}
+                subField={meta.branchItemContext?.subField}
                 onChange={(b) => update(idx, b)}
                 onRemove={() => remove(idx)}
               />
             ) : (
-              // SPRINT 10: <GenericItemRow subBranches={meta.fields ?? []} value={item …} />
-              null
+              <GenericItemRow
+                key={dragIds[idx]}
+                id={dragIds[idx]}
+                subBranches={subFields}
+                value={item as Record<string, unknown>}
+                onChange={(next) => update(idx, next)}
+                onRemove={() => remove(idx)}
+              />
             )
           ))}
         </SortableContext>

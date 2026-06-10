@@ -3,7 +3,7 @@
 
 import type { FileAccept } from './file-types.js'
 
-export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation'
+export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation' | 'repeater'
 
 /** Configurazioni specializzate per il tipo di branch 'number' */
 export interface NumberFieldOptions {
@@ -134,6 +134,15 @@ export interface Branch {
    * rule applies to the FK from the junction table to the target table.
    */
   onDelete?: 'CASCADE' | 'SET NULL' | 'RESTRICT'
+
+  /**
+   * Sub-schema for `type === 'repeater'`. Each item of the repeater's array
+   * value is a record keyed by sub-branch alias, validated against this list.
+   * Sub-branches are restricted to leaf/scalar types (no nested `repeater`,
+   * `relation`, or `file`) — enforced by validation.ts and seed-validation.ts.
+   * Ignored for any other branch type.
+   */
+  fields?: Branch[]
 }
 
 /** Dashboard-specific config embedded in a Seed. All fields optional — defaults applied by the dashboard. */

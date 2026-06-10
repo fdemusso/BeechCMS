@@ -640,6 +640,106 @@ describe('garbage keys and overall resilience (§10)', () => {
   })
 })
 
+// ─── 11. REPEATER FIELD (Sprint 10) ──────────────────────────────────────────
+
+describe('repeater field', () => {
+  const REPEATER_SEED: Seed = {
+    slug: 'faq',
+    label: 'FAQ',
+    displayNameAlias: 'title',
+    branches: [
+      { id: 'br_title', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+      {
+        id: 'br_items', alias: 'items', label: 'Items', type: 'repeater',
+        fields: [
+          { id: 'br_question', alias: 'question', label: 'Question', type: 'text', requiredOnCreate: true },
+          { id: 'br_answer', alias: 'answer', label: 'Answer', type: 'richtext' },
+          { id: 'br_order', alias: 'order', label: 'Order', type: 'number' },
+        ],
+      },
+    ],
+  }
+
+  function validateRepeater(
+    payload: Record<string, unknown>,
+    opts?: Parameters<typeof validateAndSanitizeSeedPayload>[2],
+  ) {
+    return validateAndSanitizeSeedPayload(REPEATER_SEED, payload, { operation: 'create', ...opts })
+  }
+
+  it('accepts a valid array of items', () => {
+    const r = validateRepeater({
+      title: 'My FAQ',
+      items: [
+        { question: 'Q1', answer: 'A1', order: 1 },
+        { question: 'Q2', answer: 'A2', order: 2 },
+      ],
+    })
+    expect(r.details).toEqual([])
+    expect(r.data.items).toEqual([
+      { question: 'Q1', answer: 'A1', order: 1 },
+      { question: 'Q2', answer: 'A2', order: 2 },
+    ])
+  })
+
+  it('accepts an empty array', () => {
+    const r = validateRepeater({ title: 'My FAQ', items: [] })
+    expect(r.details.some(d => d.field === 'items')).toBe(false)
+    expect(r.data.items).toEqual([])
+  })
+
+  it('rejects a non-array value', () => {
+    const r = validateRepeater({ title: 'My FAQ', items: { question: 'Q1' } })
+    expect(r.details.some(d => d.field === 'items')).toBe(true)
+    expect(r.data).not.toHaveProperty('items')
+  })
+
+  it('fails when a required sub-branch is missing in an item', () => {
+    const r = validateRepeater({
+      title: 'My FAQ',
+      items: [{ answer: 'A1' }],
+    })
+    expect(r.details.some(d => d.field === 'items')).toBe(true)
+    expect(r.data).not.toHaveProperty('items')
+  })
+
+  it('strips unknown keys from each item', () => {
+    const r = validateRepeater({
+      title: 'My FAQ',
+      items: [{ question: 'Q1', answer: 'A1', order: 1, legacyAlias: 'old-data' }],
+    })
+    expect(r.details).toEqual([])
+    expect(r.data.items).toEqual([{ question: 'Q1', answer: 'A1', order: 1 }])
+    expect(r.data.items as unknown[]).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ legacyAlias: expect.anything() })]),
+    )
+  })
+
+  it('rejects disallowed sub-types (relation/file/nested repeater) by ignoring them', () => {
+    const seedWithDisallowed: Seed = {
+      ...REPEATER_SEED,
+      branches: [
+        REPEATER_SEED.branches[0],
+        {
+          id: 'br_items', alias: 'items', label: 'Items', type: 'repeater',
+          fields: [
+            { id: 'br_question', alias: 'question', label: 'Question', type: 'text', requiredOnCreate: true },
+            { id: 'br_rel', alias: 'rel', label: 'Rel', type: 'relation', targetSeed: 'tags' },
+            { id: 'br_file', alias: 'file', label: 'File', type: 'file' },
+            { id: 'br_nested', alias: 'nested', label: 'Nested', type: 'repeater', fields: [] },
+          ],
+        },
+      ],
+    }
+    const r = validateAndSanitizeSeedPayload(seedWithDisallowed, {
+      title: 'My FAQ',
+      items: [{ question: 'Q1', rel: 'should-be-stripped', file: 'should-be-stripped', nested: [] }],
+    }, { operation: 'create' })
+    expect(r.details).toEqual([])
+    expect(r.data.items).toEqual([{ question: 'Q1' }])
+  })
+})
+
 
 
 

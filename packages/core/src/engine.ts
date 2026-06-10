@@ -35,6 +35,7 @@ const BRANCH_TYPE_SQL: Record<BranchType, BranchSqlDef> = {
   file:     { sqlType: 'TEXT'    },  // URL singolo o JSON array di URL
   tags:     { sqlType: 'TEXT'    },  // JSON array di stringhe
   relation: { sqlType: 'TEXT'    },  // FK reference stored as TEXT (id of the target row)
+  repeater: { sqlType: 'TEXT'    },  // JSON array di record (sub-branch alias -> value)
 }
 
 const SYSTEM_COLUMNS = new Set(['id', 'slug', 'status', 'created_at', 'updated_at'])
@@ -544,6 +545,11 @@ export function serializeForDb(branch: Branch, value: unknown): string | number 
       }
       return typeof value === 'string' ? value : null
 
+    case 'repeater':
+      // Non-array input is rejected by serializing as an empty list — validation.ts
+      // is responsible for ever letting a non-array repeater value reach here.
+      return JSON.stringify(Array.isArray(value) ? value : [])
+
     default:
       return typeof value === 'string' ? value : typeof value === 'number' ? value : null
   }
@@ -769,6 +775,14 @@ export function generateRetypeColumn(seed: Seed, branch: Branch): string[] {
  * 0/1 → boolean | Unix timestamp → ISO 8601 | JSON string → object
  */
 export function deserializeFromDb(branch: Branch, value: unknown): unknown {
+  // Repeater columns deserialize to [] (never null) — drafts and rows that
+  // predate the column being added carry NULL, which is an empty list of items.
+  if (branch.type === 'repeater') {
+    if (typeof value !== 'string' || value.length === 0) return []
+    const parsed = parseJsonSafe(value)
+    return Array.isArray(parsed) ? parsed : []
+  }
+
   if (value === null || value === undefined) return null
 
   switch (branch.type) {

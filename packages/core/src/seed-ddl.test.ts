@@ -123,6 +123,27 @@ describe('planExtendSeed', () => {
     expect(statements.some(s => s.includes('rel_posts_cats'))).toBe(true)
   })
 
+  it('returns one additive ADD COLUMN for a new repeater branch, no index/fts/junction', () => {
+    const seed: Seed = {
+      slug: 'posts',
+      label: 'Posts',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+        {
+          id: 'br_02', alias: 'items', label: 'Items', type: 'repeater',
+          fields: [{ id: 'br_03', alias: 'question', label: 'Question', type: 'text' }],
+        },
+      ],
+    }
+    const { statements, ftsRebuildNeeded } = planExtendSeed(seed, new Set(['title']))
+    const addCols = statements.filter(s => s.toUpperCase().includes('ADD COLUMN'))
+    expect(addCols).toEqual(['ALTER TABLE content_posts ADD COLUMN items TEXT;'])
+    expect(statements.some(s => s.includes('idx_posts_items'))).toBe(false)
+    expect(statements.some(s => s.includes('rel_posts_items'))).toBe(false)
+    expect(ftsRebuildNeeded).toBe(false)
+  })
+
   it('skips existing columns', () => {
     const seed: Seed = {
       slug: 'posts',

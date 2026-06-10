@@ -613,6 +613,44 @@ describe('PATCH /:slug/branches/:branchId/retype', () => {
     expect(upsertArg.branches.find((b: any) => b.id === 'br_01')?.type).toBe('number')
     expect((repo.bumpRegistryVersion as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
   })
+
+  it('422 retype-not-supported when retyping a repeater branch away', async () => {
+    const repeaterRecord: SeedRecord = {
+      ...baseRecord,
+      definition: {
+        ...baseSeed,
+        branches: [
+          baseSeed.branches[0],
+          { id: 'br_02', alias: 'items', label: 'Items', type: 'repeater', fields: [] },
+        ],
+      },
+    }
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(repeaterRecord) })
+    const { app } = buildApp({ role: 'admin', repo })
+
+    const res = await app.request('/articles/branches/br_02/retype', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newType: 'text', confirm: 'articles.items' }),
+    })
+    expect(res.status).toBe(422)
+    const problem = await res.json() as any
+    expect(problem.type).toContain('retype-not-supported')
+  })
+
+  it('422 retype-not-supported when retyping a branch to repeater', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo })
+
+    const res = await app.request('/articles/branches/br_01/retype', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newType: 'repeater', confirm: 'articles.title' }),
+    })
+    expect(res.status).toBe(422)
+    const problem = await res.json() as any
+    expect(problem.type).toContain('retype-not-supported')
+  })
 })
 
 describe('POST /:slug/fts/rebuild', () => {

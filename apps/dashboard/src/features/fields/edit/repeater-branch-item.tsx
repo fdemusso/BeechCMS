@@ -17,9 +17,16 @@ import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
+import { FieldEditRepeater } from "./repeater"
 
 const BRANCH_TYPES: BranchType[] = [
-  "text", "richtext", "number", "boolean", "date", "json", "tags", "file", "relation",
+  "text", "richtext", "number", "boolean", "date", "json", "tags", "file", "relation", "repeater",
+]
+
+// Repeater sub-fields are restricted to leaf/scalar types — no nested `repeater`,
+// `relation`, or `file` (mirrors packages/core/src/validation.ts, depth capped at 1).
+const LEAF_BRANCH_TYPES: BranchType[] = [
+  "text", "richtext", "number", "boolean", "date", "json", "tags",
 ]
 
 export const AUTOMATION_RESERVED = new Set([
@@ -31,12 +38,21 @@ export interface BranchItemRowProps {
   activeSeedsForRelation: Seed[]
   onChange: (updated: Branch) => void
   onRemove: () => void
+  /**
+   * Sprint 10: true when this row renders a repeater sub-field (`Branch.fields`
+   * item) rather than a top-level SQL-backed branch. Sub-fields are not SQL
+   * columns: alias/type stay freely editable regardless of `branch.id`, the
+   * sprint-06 destructive affordances never apply, and policies (which target
+   * SQL columns) are hidden.
+   */
+  subField?: boolean
 }
 
-export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemove }: BranchItemRowProps) {
+export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemove, subField = false }: BranchItemRowProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
-  const isExisting = !branch.id.startsWith("br_new_")
+  const isExisting = !subField && !branch.id.startsWith("br_new_")
+  const typeOptions = subField ? LEAF_BRANCH_TYPES : BRANCH_TYPES
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: branch.id })
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -138,7 +154,7 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {BRANCH_TYPES.map(bt => (
+                    {typeOptions.map(bt => (
                       <SelectItem key={bt} value={bt}>{t(`seedBuilder.fieldTypes.${bt}`)}</SelectItem>
                     ))}
                   </SelectContent>
@@ -275,6 +291,27 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
             </div>
           )}
 
+          {branch.type === "repeater" && !subField && (
+            <div className="space-y-2 rounded-md border p-2">
+              <p className="text-xs font-medium">{t("seedBuilder.branchEditor.repeaterFields")}</p>
+              <FieldEditRepeater
+                branch={{
+                  id: `${branch.id}_subfields`,
+                  alias: "fields",
+                  label: "",
+                  type: "repeater",
+                  repeater: {
+                    itemKind: "branch",
+                    itemLabel: t("seedBuilder.branchEditor.addSubField"),
+                    branchItemContext: { activeSeedsForRelation: [], subField: true },
+                  },
+                } as unknown as Branch}
+                value={branch.fields ?? []}
+                onChange={(fields) => set("fields", fields as Branch[])}
+              />
+            </div>
+          )}
+
           {(branch.type === "tags" || branch.type === "json") && (
             <div className="space-y-1">
               <Label className="text-xs">{t("seedBuilder.branchEditor.options")}</Label>
@@ -287,36 +324,38 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
             </div>
           )}
 
-          {/* Policies */}
-          <div className="space-y-2 rounded-md border p-2">
-            <p className="text-xs font-medium">{t("seedBuilder.branchEditor.policies")}</p>
-            <div className="grid grid-cols-2 gap-2">
-              {(["search", "filter", "sort", "public"] as const).map(pol => (
-                <div key={pol} className="flex items-center gap-2">
-                  <Checkbox
-                    id={`policy-${branch.id}-${pol}`}
-                    checked={branch.policies?.[pol] !== false}
-                    onCheckedChange={v => setPolicy(pol, !!v)}
-                  />
-                  <Label htmlFor={`policy-${branch.id}-${pol}`} className="text-xs">{t(`seedBuilder.policies.${pol}`)}</Label>
+          {/* Policies — sub-fields live inside a JSON blob, not a SQL column */}
+          {!subField && (
+            <div className="space-y-2 rounded-md border p-2">
+              <p className="text-xs font-medium">{t("seedBuilder.branchEditor.policies")}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(["search", "filter", "sort", "public"] as const).map(pol => (
+                  <div key={pol} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`policy-${branch.id}-${pol}`}
+                      checked={branch.policies?.[pol] !== false}
+                      onCheckedChange={v => setPolicy(pol, !!v)}
+                    />
+                    <Label htmlFor={`policy-${branch.id}-${pol}`} className="text-xs">{t(`seedBuilder.policies.${pol}`)}</Label>
+                  </div>
+                ))}
+                <div className="space-y-1 col-span-2">
+                  <Label className="text-xs">{t("seedBuilder.policies.visibility")}</Label>
+                  <Select
+                    value={branch.policies?.visibility ?? "full"}
+                    onValueChange={v => setPolicy("visibility", v)}
+                  >
+                    <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {["full", "masked", "hidden"].map(vis => (
+                        <SelectItem key={vis} value={vis} className="text-xs">{t(`seedBuilder.policies.visibility_${vis}`)}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              ))}
-              <div className="space-y-1 col-span-2">
-                <Label className="text-xs">{t("seedBuilder.policies.visibility")}</Label>
-                <Select
-                  value={branch.policies?.visibility ?? "full"}
-                  onValueChange={v => setPolicy("visibility", v)}
-                >
-                  <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["full", "masked", "hidden"].map(vis => (
-                      <SelectItem key={vis} value={vis} className="text-xs">{t(`seedBuilder.policies.visibility_${vis}`)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </CollapsibleContent>
     </Collapsible>

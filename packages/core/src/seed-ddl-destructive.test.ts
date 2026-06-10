@@ -155,3 +155,36 @@ describe('planFtsRebuild', () => {
     expect(planFtsRebuild(minimal)).toEqual([])
   })
 })
+
+describe('repeater branches (Sprint 10 — Sprint 06 interaction)', () => {
+  const repeaterSeed: Seed = {
+    slug: 'faq',
+    label: 'FAQ',
+    displayNameAlias: 'title',
+    allowDrafts: true,
+    branches: [
+      { id: 'br_title', alias: 'title', label: 'Title', type: 'text', policies: { search: true } },
+      {
+        id: 'br_items', alias: 'items', label: 'Items', type: 'repeater',
+        fields: [{ id: 'br_q', alias: 'question', label: 'Question', type: 'text' }],
+      },
+    ],
+  }
+
+  it('planFtsRebuild produces no FTS statements for the repeater branch', () => {
+    const stmts = planFtsRebuild(repeaterSeed)
+    for (const s of stmts) {
+      expect(s).not.toContain('items')
+    }
+    // still rebuilds FTS for the searchable `title` branch
+    expect(stmts.some(s => s.includes('CREATE VIRTUAL TABLE IF NOT EXISTS fts_faq'))).toBe(true)
+  })
+
+  it('generateDropColumn for a repeater branch emits only the column drop (+ drafts mirror)', () => {
+    const stmts = generateDropColumn(repeaterSeed, 'items')
+    expect(stmts).toEqual([
+      'ALTER TABLE content_faq DROP COLUMN items;',
+      'ALTER TABLE content_faq_drafts DROP COLUMN items;',
+    ])
+  })
+})

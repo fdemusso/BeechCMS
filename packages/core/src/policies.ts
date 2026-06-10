@@ -24,12 +24,15 @@ export function resolvePolicies(branch: Branch): Required<NonNullable<Branch['po
   // Non-plain privacy implies hidden by default: the CMS hashes/encrypts on write,
   // so returning the stored value would leak the digest to readers.
   const defaultVisibility = privacy !== 'plain' ? 'hidden' : 'full'
+  // Repeaters live in a single JSON column — never filterable, sortable, or
+  // searchable/facetable in v1, regardless of what's set on the branch.
+  const isRepeater = branch.type === 'repeater'
   return {
     privacy,
     visibility: branch.policies?.visibility ?? defaultVisibility,
-    search: branch.policies?.search ?? true,
-    filter: branch.policies?.filter ?? true,
-    sort: branch.policies?.sort ?? true,
+    search: isRepeater ? false : branch.policies?.search ?? true,
+    filter: isRepeater ? false : branch.policies?.filter ?? true,
+    sort: isRepeater ? false : branch.policies?.sort ?? true,
     public: branch.policies?.public ?? true,
   }
 }

@@ -16,6 +16,7 @@ import { JsonDisplay } from './display/json'
 import { RichtextDisplay } from './display/richtext'
 import { MediaDisplay } from './display/media'
 import { RelationDisplay } from './display/relation'
+import { RepeaterDisplay } from './display/repeater'
 import { TextEdit } from './edit/text'
 import { NumberEdit } from './edit/number'
 import { BooleanEdit } from './edit/boolean'
@@ -37,6 +38,7 @@ fieldRegistry.registerDisplay('json', JsonDisplay)
 fieldRegistry.registerDisplay('richtext', RichtextDisplay)
 fieldRegistry.registerDisplay('file', MediaDisplay)
 fieldRegistry.registerDisplay('relation', RelationDisplay)
+fieldRegistry.registerDisplay('repeater', RepeaterDisplay)
 
 fieldRegistry.registerEdit('text', TextEdit)
 fieldRegistry.registerEdit('number', NumberEdit)
@@ -47,9 +49,7 @@ fieldRegistry.registerEdit('richtext', RichtextEdit)
 fieldRegistry.registerEdit('file', MediaEdit)
 fieldRegistry.registerEdit('relation', RelationEdit)
 
-// 'repeater' is a dashboard-only field type until sprint 10 promotes it to a core
-// BranchType. Registering by string keeps @beechcms/core untouched for now.
-fieldRegistry.registerEdit('repeater' as BranchType, FieldEditRepeater)
+fieldRegistry.registerEdit('repeater', FieldEditRepeater)
 
 // 'select' is likewise dashboard-only — a minimal single-select over `branch.options`,
 // used by the meta-seed layout (sprint 09) for `displayNameAlias` and `dashIcon`.
