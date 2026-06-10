@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { z } from 'zod'
-import type { Branch, Seed } from './types.js'
+import type { Branch, BranchType, Seed } from './types.js'
 import { RICHTEXT_SCHEMA_VERSION, isRichtextEnvelopeV1 } from './richtext.js'
 import type { FileAccept } from './file-types.js'
 import { extensionFromUrl, isExtensionAccepted } from './file-types.js'
@@ -436,6 +436,26 @@ function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
   return withNullable(withEmptyPreprocessing(inner, allowNull), allowNull)
 }
 
+// Sub-branches of a `repeater` are restricted to leaf/scalar types — no nested
+// `repeater`, `relation`, or `file` (v1 restriction, see types.ts Branch.fields).
+const REPEATER_DISALLOWED_SUBTYPES = new Set<BranchType>(['repeater', 'relation', 'file'])
+
+function repeaterSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny {
+  const requiredFlag = options.operation === 'create' ? 'requiredOnCreate' : 'requiredOnUpdate'
+  const subBranches = (branch.fields ?? []).filter((sub) => !REPEATER_DISALLOWED_SUBTYPES.has(sub.type))
+
+  const shape: Record<string, z.ZodTypeAny> = {}
+  for (const sub of subBranches) {
+    const subSchema = schemaForBranch(sub, options)
+    shape[sub.alias] = sub[requiredFlag] ? subSchema : subSchema.optional()
+  }
+  // z.object() strips unknown keys by default — old item shapes from a renamed/
+  // removed sub-field are dropped rather than rejected (sprint 10 §5.1).
+  const itemSchema = z.object(shape)
+  const arraySchema = z.array(itemSchema)
+  return withNullable(withEmptyPreprocessing(arraySchema, options.allowNull), options.allowNull)
+}
+
 const BRANCH_SCHEMA_BUILDERS: Record<string, (branch: Branch, options: ResolvedOptions) => z.ZodTypeAny> = {
   text: (_branch, options) => textSchema(options, options.allowNull),
   richtext: (_branch, options) => richtextSchema(options, options.allowNull),
@@ -446,6 +466,7 @@ const BRANCH_SCHEMA_BUILDERS: Record<string, (branch: Branch, options: ResolvedO
   tags: (_branch, options) => jsonOrTagsSchema(options.allowNull),
   file: (branch, options) => fileSchema(branch, options.allowNull),
   relation: (branch, options) => relationSchema(branch, options),
+  repeater: (branch, options) => repeaterSchema(branch, options),
 }
 
 function schemaForBranch(branch: Branch, options: ResolvedOptions): z.ZodTypeAny {
@@ -472,6 +493,12 @@ function buildSeedFingerprint(seed: Seed): string {
     ru: branch.requiredOnUpdate === true,
     n: branch.numberOptions ?? null,
     fi: branch.fileOptions ?? null,
+    sub: branch.fields?.map((sub) => ({
+      a: sub.alias,
+      t: sub.type,
+      rc: sub.requiredOnCreate === true,
+      ru: sub.requiredOnUpdate === true,
+    })) ?? null,
   }))
   return JSON.stringify({ s: seed.slug, b: parts })
 }

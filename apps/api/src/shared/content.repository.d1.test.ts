@@ -455,4 +455,53 @@ describe('D1ContentRepository', () => {
       ).rejects.toBeInstanceOf(RelationTargetNotFoundError)
     })
   })
+
+  // ─── repeater branches (Sprint 10) ───────────────────────────────────────────
+
+  describe('repeater branches (Sprint 10)', () => {
+    const REPEATER_SEED = {
+      slug: 'faq',
+      displayNameAlias: 'title',
+      allowDrafts: true,
+      branches: [
+        { id: 'br_01', alias: 'title', type: 'text' },
+        {
+          id: 'br_02', alias: 'items', type: 'repeater',
+          fields: [{ id: 'br_03', alias: 'question', type: 'text' }],
+        },
+      ],
+    } as unknown as Seed
+
+    it('findById: deserializes the repeater TEXT column into an array', async () => {
+      const row = { id: 'e1', slug: 'p', status: 'published', title: 'T', items: '[{"question":"Why?"}]' }
+      const { db } = makeMockDb({ firstResult: row })
+      const result = await new D1ContentRepository(db).findById(REPEATER_SEED, 'e1')
+      expect(result.items).toEqual([{ question: 'Why?' }])
+    })
+
+    it('findById: deserializes a NULL repeater column into an empty array', async () => {
+      const row = { id: 'e1', slug: 'p', status: 'published', title: 'T', items: null }
+      const { db } = makeMockDb({ firstResult: row })
+      const result = await new D1ContentRepository(db).findById(REPEATER_SEED, 'e1')
+      expect(result.items).toEqual([])
+    })
+
+    it('create: serializes a repeater array to a JSON string for INSERT', async () => {
+      const { db, bindMock } = makeMockDb({ firstResult: null }) // existsSlug → null
+      await new D1ContentRepository(db).create(REPEATER_SEED, 'new-id', 'my-slug', 'draft', {
+        title: 'Hello',
+        items: [{ question: 'Why?' }],
+      })
+      const bound = bindMock.mock.calls.flat()
+      expect(bound).toContain(JSON.stringify([{ question: 'Why?' }]))
+    })
+
+    it('update: serializes a repeater array to a JSON string for UPDATE', async () => {
+      const { db, bindMock, runMock } = makeMockDb({ runChanges: 1 })
+      runMock.mockResolvedValue({ success: true, meta: { changes: 1 } })
+      await new D1ContentRepository(db).update(REPEATER_SEED, 'e1', { items: [{ question: 'Updated?' }] })
+      const bound = bindMock.mock.calls.flat()
+      expect(bound).toContain(JSON.stringify([{ question: 'Updated?' }]))
+    })
+  })
 })

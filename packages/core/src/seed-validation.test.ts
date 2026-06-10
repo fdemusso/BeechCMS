@@ -195,6 +195,129 @@ describe('validateSeedDefinitions', () => {
     },
   )
 
+  // ── Fatal 10: repeater sub-field constraints ─────────────────────────────────
+
+  it('fatal: repeater sub-field with disallowed type (relation/file/nested repeater)', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          {
+            id: 'br_02', alias: 'items', label: 'Items', type: 'repeater',
+            fields: [
+              { id: 'br_03', alias: 'thumb', label: 'Thumb', type: 'file' },
+              { id: 'br_04', alias: 'ref', label: 'Ref', type: 'relation', targetSeed: 'posts' },
+              { id: 'br_05', alias: 'nested', label: 'Nested', type: 'repeater', fields: [] },
+            ],
+          },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes("disallowed type 'file'")))).toBe(true)
+    expect(fatal.some(i => i.messages.some(m => m.includes("disallowed type 'relation'")))).toBe(true)
+    expect(fatal.some(i => i.messages.some(m => m.includes("disallowed type 'repeater'")))).toBe(true)
+  })
+
+  it('fatal: repeater sub-field with invalid id format', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          {
+            id: 'br_02', alias: 'items', label: 'Items', type: 'repeater',
+            fields: [{ id: 'invalid-id', alias: 'name', label: 'Name', type: 'text' }],
+          },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes("invalid id 'invalid-id'")))).toBe(true)
+  })
+
+  it('fatal: repeater sub-field with duplicate id', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          {
+            id: 'br_02', alias: 'items', label: 'Items', type: 'repeater',
+            fields: [
+              { id: 'br_03', alias: 'name', label: 'Name', type: 'text' },
+              { id: 'br_03', alias: 'desc', label: 'Description', type: 'text' },
+            ],
+          },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes("duplicate sub-field id 'br_03'")))).toBe(true)
+  })
+
+  it('fatal: repeater sub-field with invalid alias', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          {
+            id: 'br_02', alias: 'items', label: 'Items', type: 'repeater',
+            fields: [{ id: 'br_03', alias: 'Bad Alias', label: 'Name', type: 'text' }],
+          },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes("sub-field alias 'Bad Alias' is invalid")))).toBe(true)
+  })
+
+  it('fatal: repeater sub-field with duplicate alias', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          {
+            id: 'br_02', alias: 'items', label: 'Items', type: 'repeater',
+            fields: [
+              { id: 'br_03', alias: 'name', label: 'Name', type: 'text' },
+              { id: 'br_04', alias: 'name', label: 'Name2', type: 'number' },
+            ],
+          },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes("duplicate sub-field alias 'name'")))).toBe(true)
+  })
+
+  it('valid repeater with well-formed sub-fields produces no fatal issues', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          {
+            id: 'br_02', alias: 'items', label: 'Items', type: 'repeater',
+            fields: [
+              { id: 'br_03', alias: 'name', label: 'Name', type: 'text' },
+              { id: 'br_04', alias: 'qty', label: 'Quantity', type: 'number' },
+            ],
+          },
+        ],
+      }),
+    ]
+    expect(isSeedSetValid(seeds)).toBe(true)
+  })
+
   // ── Warning 7: duplicate slug ────────────────────────────────────────────────
 
   it('warning: duplicate slug', () => {

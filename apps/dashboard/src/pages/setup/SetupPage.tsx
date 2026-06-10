@@ -22,7 +22,8 @@ import {
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 import { Eye, EyeOff } from 'lucide-react'
-import { TimezoneSelect, TIMEZONES } from '@/components/ui/timezone-select'
+import { TimezoneSelect } from '@/components/ui/timezone-select'
+import { TIMEZONES } from '@/components/ui/timezone-utils'
 import { CurrencySelect } from '@/components/ui/currency-select'
 
 interface SetupEnvironment {

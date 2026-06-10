@@ -6,7 +6,9 @@ import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
 import { FieldEditRepeater } from "@/features/fields/edit/repeater"
 import { BranchItemRow } from "@/features/fields/edit/repeater-branch-item"
-import { getEditComponent } from "@/features/fields"
+import { GenericItemRow } from "@/features/fields/edit/repeater-generic-item"
+import { RepeaterDisplay } from "@/features/fields/display/repeater"
+import { getEditComponent, getDisplayComponent } from "@/features/fields"
 import type { Branch } from "@beechcms/core"
 
 const repeaterBranch = {
@@ -116,5 +118,234 @@ describe("BranchItemRow", () => {
 describe("registry", () => {
   it("getEditComponent('repeater') resolves to FieldEditRepeater", () => {
     expect(getEditComponent("repeater" as never)).toBe(FieldEditRepeater)
+  })
+
+  it("getDisplayComponent('repeater') resolves to RepeaterDisplay", () => {
+    expect(getDisplayComponent("repeater" as never)).toBe(RepeaterDisplay)
+  })
+})
+
+// ─── GenericItemRow (Sprint 10) ────────────────────────────────────────────────
+
+describe("GenericItemRow", () => {
+  const subBranches: Branch[] = [
+    { id: "br_q", alias: "question", label: "Question", type: "text" } as Branch,
+    { id: "br_done", alias: "done", label: "Done", type: "boolean" } as Branch,
+  ]
+
+  it("renders a field per sub-branch via the registry edit component", () => {
+    render(
+      <GenericItemRow
+        id="item-0"
+        subBranches={subBranches}
+        value={{ question: "Why?", done: false }}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    )
+    expect(screen.getByDisplayValue("Why?")).toBeInTheDocument()
+    expect(screen.getAllByText("Done").length).toBeGreaterThan(0)
+  })
+
+  it("calls onChange with the updated record when a sub-field changes", () => {
+    const onChange = vi.fn()
+    render(
+      <GenericItemRow
+        id="item-0"
+        subBranches={subBranches}
+        value={{ question: "Why?", done: false }}
+        onChange={onChange}
+        onRemove={vi.fn()}
+      />
+    )
+    fireEvent.change(screen.getByDisplayValue("Why?"), { target: { value: "Why not?" } })
+    expect(onChange).toHaveBeenCalledWith({ question: "Why not?", done: false })
+  })
+
+  it("calls onRemove when the remove button is clicked", () => {
+    const onRemove = vi.fn()
+    render(
+      <GenericItemRow
+        id="item-0"
+        subBranches={subBranches}
+        value={{ question: "Why?", done: false }}
+        onChange={vi.fn()}
+        onRemove={onRemove}
+      />
+    )
+    fireEvent.click(screen.getByRole("button", { name: /remove item/i }))
+    expect(onRemove).toHaveBeenCalled()
+  })
+
+  it("does not render disallowed sub-types (relation/file/nested repeater)", () => {
+    const disallowed: Branch[] = [
+      ...subBranches,
+      { id: "br_rel", alias: "related", label: "Related", type: "relation", targetSeed: "tags" } as Branch,
+      { id: "br_file", alias: "asset", label: "Asset", type: "file" } as Branch,
+      { id: "br_nested", alias: "nested", label: "Nested", type: "repeater", fields: [] } as Branch,
+    ]
+    render(
+      <GenericItemRow
+        id="item-0"
+        subBranches={disallowed}
+        value={{ question: "Why?", done: false }}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    )
+    expect(screen.queryByText("Related")).not.toBeInTheDocument()
+    expect(screen.queryByText("Asset")).not.toBeInTheDocument()
+    expect(screen.queryByText("Nested")).not.toBeInTheDocument()
+  })
+})
+
+// ─── RepeaterDisplay (Sprint 10) ────────────────────────────────────────────────
+
+describe("RepeaterDisplay", () => {
+  const branch = { id: "br_items", alias: "items", label: "Items", type: "repeater" } as unknown as Branch
+
+  it("shows a placeholder for an empty array", () => {
+    render(<RepeaterDisplay branch={branch} value={[]} />)
+    expect(screen.getByText("-")).toBeInTheDocument()
+  })
+
+  it("shows a placeholder for a non-array value", () => {
+    render(<RepeaterDisplay branch={branch} value={null} />)
+    expect(screen.getByText("-")).toBeInTheDocument()
+  })
+
+  it("shows the item count for a non-empty array", () => {
+    render(<RepeaterDisplay branch={branch} value={[{ question: "A" }, { question: "B" }]} />)
+    expect(screen.getByText("2 items")).toBeInTheDocument()
+  })
+
+  it("uses singular form for a single item", () => {
+    render(<RepeaterDisplay branch={branch} value={[{ question: "A" }]} />)
+    expect(screen.getByText("1 item")).toBeInTheDocument()
+  })
+})
+
+// ─── FieldEditRepeater: 'fields' item kind (Sprint 10) ──────────────────────────
+
+describe("FieldEditRepeater (itemKind: fields)", () => {
+  const repeaterBranch = {
+    id: "br_items",
+    alias: "items",
+    label: "Items",
+    type: "repeater",
+    fields: [
+      { id: "br_q", alias: "question", label: "Question", type: "text" },
+      { id: "br_a", alias: "answer", label: "Answer", type: "text" },
+    ],
+  } as unknown as Branch
+
+  it("renders a GenericItemRow per item", () => {
+    render(
+      <FieldEditRepeater
+        branch={repeaterBranch}
+        value={[{ question: "Q1", answer: "A1" }, { question: "Q2", answer: "A2" }]}
+        onChange={vi.fn()}
+      />
+    )
+    expect(screen.getByDisplayValue("Q1")).toBeInTheDocument()
+    expect(screen.getByDisplayValue("Q2")).toBeInTheDocument()
+  })
+
+  it("add seeds a blank record from branch.fields", () => {
+    const onChange = vi.fn()
+    render(<FieldEditRepeater branch={repeaterBranch} value={[]} onChange={onChange} />)
+    fireEvent.click(screen.getByRole("button", { name: /add item/i }))
+    expect(onChange).toHaveBeenCalledWith([{ question: "", answer: "" }])
+  })
+})
+
+// ─── BranchItemRow: repeater sub-fields (Sprint 10 — Sprint 06 interaction) ────
+
+describe("BranchItemRow as a repeater sub-field (subField=true)", () => {
+  const subFieldBranch = { id: "br_q", alias: "question", label: "Question", type: "text" } as Branch
+
+  it("alias and type inputs are editable even though the id is not br_new_*", () => {
+    render(
+      <BranchItemRow
+        branch={subFieldBranch}
+        activeSeedsForRelation={[]}
+        subField
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getAllByRole("button")[1])
+    const aliasInput = screen.getByDisplayValue("question") as HTMLInputElement
+    expect(aliasInput.readOnly).toBe(false)
+  })
+
+  it("does not offer relation/file/repeater as sub-field types", () => {
+    render(
+      <BranchItemRow
+        branch={{ ...subFieldBranch, id: "br_new_1" }}
+        activeSeedsForRelation={[]}
+        subField
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getAllByRole("button")[1])
+    fireEvent.click(screen.getAllByRole("combobox")[0])
+    expect(screen.queryByText("Relation")).not.toBeInTheDocument()
+    expect(screen.queryByText("File / Media")).not.toBeInTheDocument()
+    expect(screen.queryByText("Repeater")).not.toBeInTheDocument()
+  })
+
+  it("does not show the Policies section", () => {
+    render(
+      <BranchItemRow
+        branch={subFieldBranch}
+        activeSeedsForRelation={[]}
+        subField
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getAllByRole("button")[1])
+    expect(screen.queryByText("Policies")).not.toBeInTheDocument()
+  })
+})
+
+// ─── BranchItemRow: 'repeater' top-level branch type (Seed Builder, Sprint 10) ─
+
+describe("BranchItemRow with branch.type === 'repeater'", () => {
+  const repeaterBranch = {
+    id: "br_items", alias: "items", label: "Items", type: "repeater", fields: [],
+  } as unknown as Branch
+
+  it("renders a nested sub-field editor with an 'add field' button", () => {
+    render(
+      <BranchItemRow
+        branch={repeaterBranch}
+        activeSeedsForRelation={[]}
+        onChange={vi.fn()}
+        onRemove={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getAllByRole("button")[1])
+    expect(screen.getByRole("button", { name: /add field/i })).toBeInTheDocument()
+  })
+
+  it("adding a sub-field updates branch.fields via onChange", () => {
+    const onChange = vi.fn()
+    render(
+      <BranchItemRow
+        branch={repeaterBranch}
+        activeSeedsForRelation={[]}
+        onChange={onChange}
+        onRemove={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getAllByRole("button")[1])
+    fireEvent.click(screen.getByRole("button", { name: /add field/i }))
+    expect(onChange).toHaveBeenCalledTimes(1)
+    const updated = onChange.mock.calls[0][0] as Branch
+    expect(updated.fields).toHaveLength(1)
+    expect(updated.fields?.[0].id).toMatch(/^br_new_/)
   })
 })

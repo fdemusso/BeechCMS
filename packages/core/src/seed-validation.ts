@@ -129,6 +129,48 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
     if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
   }
 
+  // ── Fatal 10: repeater sub-field constraints ─────────────────────────────
+  {
+    const REPEATER_DISALLOWED_SUBTYPES = new Set(['repeater', 'relation', 'file'])
+    for (const seed of seeds) {
+      const messages: string[] = []
+      for (const branch of seed.branches) {
+        if (branch.type !== 'repeater') continue
+        const subIds = new Set<string>()
+        const subAliases = new Set<string>()
+        for (const sub of branch.fields ?? []) {
+          if (REPEATER_DISALLOWED_SUBTYPES.has(sub.type)) {
+            messages.push(
+              `branch '${branch.alias}': sub-field '${sub.alias}' has disallowed type '${sub.type}'. ` +
+              `Repeater sub-fields cannot be 'repeater', 'relation', or 'file' in v1.`,
+            )
+          }
+
+          if (!sub.id || !BRANCH_ID_RE.test(sub.id)) {
+            messages.push(
+              `branch '${branch.alias}': sub-field '${sub.alias}' has invalid id '${sub.id}'. ` +
+              `Expected format ^br_[A-Za-z0-9]+$.`,
+            )
+          } else if (subIds.has(sub.id)) {
+            messages.push(`branch '${branch.alias}': duplicate sub-field id '${sub.id}'`)
+          }
+          if (sub.id) subIds.add(sub.id)
+
+          if (typeof sub.alias !== 'string' || !BRANCH_ALIAS_RE.test(sub.alias)) {
+            messages.push(
+              `branch '${branch.alias}': sub-field alias '${sub.alias}' is invalid. ` +
+              `Expected format ${BRANCH_ALIAS_RE.source}.`,
+            )
+          } else if (subAliases.has(sub.alias)) {
+            messages.push(`branch '${branch.alias}': duplicate sub-field alias '${sub.alias}'`)
+          }
+          subAliases.add(sub.alias)
+        }
+      }
+      if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
+    }
+  }
+
   // ── Warning 7: duplicate slug ─────────────────────────────────────────────
   {
     const slugsSeen = new Set<string>()

@@ -976,7 +976,10 @@
       "addItem": "Aggiungi elemento",
       "removeItem": "Rimuovi elemento",
       "dragHandle": "Trascina per riordinare",
-      "emptyState": "Nessun elemento. Usa \"Aggiungi elemento\" per iniziare."
+      "emptyState": "Nessun elemento. Usa \"Aggiungi elemento\" per iniziare.",
+      "item": "Elemento",
+      "itemsCount": "{{count}} elemento",
+      "itemsCount_other": "{{count}} elementi"
     }
   },
   "seedBuilder": {
@@ -1055,6 +1058,8 @@
       "typeReadOnlyHint": "Cambiare il tipo di un campo richiede la Danger Zone — disponibile a breve.",
       "label": "Etichetta",
       "labelPlaceholder": "Etichetta del campo",
+      "repeaterFields": "Campi del ripetitore",
+      "addSubField": "Aggiungi campo",
       "relationOptions": "Opzioni relazione",
       "targetSeed": "Tipo di contenuto target",
       "targetSeedPlaceholder": "Seleziona un tipo di contenuto",
@@ -1103,7 +1108,8 @@
       "json": "JSON",
       "tags": "Tag",
       "file": "File / Media",
-      "relation": "Relazione"
+      "relation": "Relazione",
+      "repeater": "Ripetitore"
     },
     "delete": {
       "title": "Eliminare \"{{label}}\"?",
