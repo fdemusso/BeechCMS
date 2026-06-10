@@ -207,6 +207,11 @@ Cron automations do **not** require QStash — they run via the Cloudflare Worke
 3. Copy the `QSTASH_TOKEN` from the **REST API** section.
 4. Optionally copy `QSTASH_CURRENT_SIGNING_KEY` and `QSTASH_NEXT_SIGNING_KEY` for webhook signature verification.
 
+> [!IMPORTANT]
+> QStash needs a **publicly reachable URL** to call the Worker back at `/webhooks/qstash`. Set this URL in `QSTASH_CALLBACK_URL` — **not** `APP_URL`, which is the dashboard's base URL used to build email links (e.g. password reset). If `QSTASH_CALLBACK_URL` is not set, BeechCMS falls back to `APP_URL` for backward compatibility.
+>
+> Locally, `http://localhost:5173` is not reachable by QStash — use a tunnel (e.g. `cloudflared tunnel --url http://localhost:8789` or `ngrok http 8789`) and set its public URL as `QSTASH_CALLBACK_URL`.
+
 ---
 
 ## 6. Configuration
@@ -225,7 +230,7 @@ The scaffold pre-fills the values you provided during setup. Edit before running
   // placed here. In local dev they live in .dev.vars; in production use wrangler secrets.
   "vars": {
     "CORS_ORIGINS": "http://localhost:5173,https://my-site.com",
-    "APP_URL": "https://my-site.com",
+    "APP_URL": "https://my-site.com",            // Dashboard base URL — used to build links in emails (e.g. password reset)
     "MEDIA_BASE_URL": "https://api.my-site.com", // Base URL for the media proxy
     "MEDIA_CDN_URL":  "https://cdn.my-site.com"  // Optional: direct CDN/R2 domain
   },
@@ -270,6 +275,20 @@ R2_ACCESS_KEY_ID=your-access-key
 R2_SECRET_ACCESS_KEY=your-secret-key
 R2_ENDPOINT=https://<ACCOUNT_ID>.r2.cloudflarestorage.com
 R2_BUCKET_NAME=my-project-media
+
+# --- Email (optional — required for password-reset emails and email automations) ---
+RESEND_API_KEY=re_your_resend_api_key
+APP_URL=http://localhost:5173   # Dashboard base URL — used to build links in emails
+
+# --- Upstash QStash (optional — async admin notifications) ---
+QSTASH_TOKEN=your-qstash-token
+QSTASH_CURRENT_SIGNING_KEY=sig_xxx
+QSTASH_NEXT_SIGNING_KEY=sig_xxx
+# Public URL QStash uses to call back /webhooks/qstash. Falls back to APP_URL
+# if not set — but APP_URL is usually localhost in dev, which QStash cannot reach.
+# Use a tunnel (e.g. `cloudflared tunnel --url http://localhost:8789`) and set
+# its public URL here when testing QStash locally.
+QSTASH_CALLBACK_URL=https://<your-tunnel-url>
 ```
 
 > [!TIP]

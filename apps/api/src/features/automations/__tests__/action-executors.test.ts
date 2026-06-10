@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { executeAction } from '../action-executors'
 import type { ActionContext } from '../action-executors'
 import type { ContentRepository, Seed, IIdGenerator } from '@beechcms/core'
-import { deleteAllMessages, listMessages, waitForMessage, getMessageHtml } from '../../../../test/helpers/mailpit-client'
+import { deleteAllMessages, listMessages, waitForMessage, getMessageHtml, getMailpitPort } from '../../../../test/helpers/mailpit-client'
 import { newBucket, waitForRequest } from '../../../../test/helpers/webhook-tester-client'
 
 // ── Shared mock context factory ───────────────────────────────────────────────
@@ -94,7 +94,7 @@ describe('send_mail executor', () => {
   it('interpolates to/subject/body and delivers to Mailpit', async () => {
     const ctx = makeCtx({
       entry: { id: '1', email: 'user@example.com', title: 'Hello' },
-      env: { EMAIL_PROVIDER: 'smtp', SMTP_HOST: 'localhost', SMTP_PORT: '8025', EMAIL_FROM: 'Beech <test@beech.local>' },
+      env: { EMAIL_PROVIDER: 'smtp', SMTP_HOST: 'localhost', SMTP_PORT: getMailpitPort(), EMAIL_FROM: 'Beech <test@beech.local>' },
     })
 
     await executeAction(
@@ -118,7 +118,7 @@ describe('send_mail executor', () => {
     // email is present (needed for a valid To address) but title and desc are absent
     const ctx = makeCtx({
       entry: { id: '1', email: 'warn-test@example.com' },
-      env: { EMAIL_PROVIDER: 'smtp', SMTP_HOST: 'localhost', SMTP_PORT: '8025', EMAIL_FROM: 'Beech <test@beech.local>' },
+      env: { EMAIL_PROVIDER: 'smtp', SMTP_HOST: 'localhost', SMTP_PORT: getMailpitPort(), EMAIL_FROM: 'Beech <test@beech.local>' },
     })
 
     await executeAction(

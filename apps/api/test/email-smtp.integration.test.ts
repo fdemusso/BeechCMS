@@ -4,13 +4,13 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { SmtpEmailProvider } from '../src/features/email/providers/smtp'
-import { deleteAllMessages, waitForMessage, getMessageHtml } from './helpers/mailpit-client'
+import { deleteAllMessages, waitForMessage, getMessageHtml, getMailpitPort } from './helpers/mailpit-client'
 
 describe('SmtpEmailProvider (integration with Mailpit)', () => {
   beforeEach(() => deleteAllMessages())
 
   it('delivers an HTML email to Mailpit', async () => {
-    const provider = new SmtpEmailProvider({ baseUrl: 'http://localhost:8025' })
+    const provider = new SmtpEmailProvider({ baseUrl: `http://localhost:${getMailpitPort()}` })
     await provider.send({
       from: 'Test <noreply@beech.local>',
       to: ['alice@example.com'],
@@ -24,7 +24,7 @@ describe('SmtpEmailProvider (integration with Mailpit)', () => {
   })
 
   it('throws on Mailpit error', async () => {
-    const provider = new SmtpEmailProvider({ baseUrl: 'http://localhost:8025' })
+    const provider = new SmtpEmailProvider({ baseUrl: `http://localhost:${getMailpitPort()}` })
     await expect(provider.send({
       from: '', to: [], subject: '', html: '',
     })).rejects.toThrow(/SmtpEmailProvider/)

@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import type { ReactNode, MouseEventHandler } from "react"
 import type { Branch } from "@beechcms/core"
 import type { Blocker } from "react-router-dom"
@@ -193,14 +194,16 @@ describe("SchemaFormShell", () => {
     expect(screen.queryByTestId("builder-pane")).not.toBeInTheDocument()
   })
 
-  it("renders dangerZoneSlot when capabilities.dangerZone=true and isCreate=false", () => {
+  it("renders dangerZoneSlot when capabilities.dangerZone=true and isCreate=false", async () => {
     const vm = buildViewModel({
       capabilities: { ...allCapabilitiesTrue, dangerZone: true },
       isCreate: false,
       dangerZoneSlot: <div data-testid="danger-zone-slot">Danger</div>,
     })
     render(<SchemaFormShell vm={vm} open />)
-    expect(screen.getByTestId("danger-zone-slot")).toBeInTheDocument()
+    const user = userEvent.setup()
+    await user.click(screen.getByRole("tab", { name: /dangerZone/i }))
+    expect(await screen.findByTestId("danger-zone-slot")).toBeInTheDocument()
   })
 
   it("hides dangerZoneSlot when capabilities.dangerZone=false", () => {

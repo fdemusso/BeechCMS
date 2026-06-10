@@ -48,10 +48,10 @@ export const observabilityMiddleware = (overrides?: ObservabilityOverrides) => {
     let notificationService: INotificationService
     if (overrides?.notificationService) {
       notificationService = overrides.notificationService
-    } else if (context.env.QSTASH_TOKEN && context.env.APP_URL) {
+    } else if (context.env.QSTASH_TOKEN && (context.env.QSTASH_CALLBACK_URL || context.env.APP_URL)) {
       notificationService = new QStashNotificationService(
         context.env.QSTASH_TOKEN,
-        context.env.APP_URL,
+        (context.env.QSTASH_CALLBACK_URL ?? context.env.APP_URL) as string,
         scheduleBackgroundTask,
         context.env.QSTASH_URL
       )

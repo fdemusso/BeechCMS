@@ -16,6 +16,21 @@ Questo comando avvia **l'intero stack Docker** (MinIO, Mailpit, SQLite Web, webh
 
 > Docker è un prerequisito non negoziabile. Non esiste una modalità "senza Docker" né uno stack parziale. Chi non può usare Docker non può sviluppare su Beech.
 
+### Dev CLI (TUI)
+
+Quando l'output è un terminale interattivo (TTY), `npm run dev:full` apre una TUI a schermo intero (Ink) con:
+
+- **Status** (`1`) — stato di Docker/tunnel/bootstrap/core/api/dashboard, sotto-container Docker e URL dei servizi (MinIO Console, Mailpit, SQLite Web, webhook-tester, tunnel).
+- **API Logs** (`2`) e **Dashboard Logs** (`3`) — log filtrati per servizio, con indicatore `● live` / `⏸ scroll`.
+- **Endpoints** (`4`) — elenco delle rotte API esposte, raggruppate per feature.
+- **Versions** (`5`) — versione del monorepo e versioni rilevate di Wrangler/Vite, più eventuali notifiche di aggiornamento.
+
+Una barra errori compatta in alto mostra gli errori recenti (`[sorgente] codice`); selezionali con le frecce, `d` per espandere/comprimere lo stack trace, `x` per rimuoverli.
+
+**Tasti**: `1`-`5` per i tab, `Tab` / `Shift+Tab` o `←`/`→` per ciclare, `↑`/`↓`/`PgUp`/`PgDn` per scorrere i log o navigare gli errori, `q` o `Ctrl+C` per uscire (shutdown pulito di tutti i processi e container).
+
+Se l'output non è un TTY (es. CI, log rediretti su file) o è impostata `BEECH_DEV_PLAIN=1`, viene usato l'output flat tradizionale — equivalente a `npm run dev:plain`.
+
 ---
 
 ## Strumenti di Sviluppo Docker
@@ -36,8 +51,9 @@ Beech ha **un solo modo** di avviare l'ambiente di sviluppo: `npm run dev:full`.
 
 | Comando | Effetto |
 |---|---|
-| `npm run dev:full` | Avvia stack Docker completo + API + Dashboard (comando canonico) |
+| `npm run dev:full` | Avvia stack Docker completo + API + Dashboard, con TUI a schermo intero su TTY (comando canonico) |
 | `npm run dev` | Alias di `dev:full` |
+| `npm run dev:plain` | Come `dev:full` ma con output flat (no TUI) — equivalente a `BEECH_DEV_PLAIN=1 npm run dev:full` |
 | `npm run dev:tunnel-url` | Stampa la URL pubblica del tunnel Cloudflare |
 | `npm run dev:mailpit:reset` | Svuota la inbox Mailpit |
 | `npm run dev:logs:mailpit` | Stream log di Mailpit |
@@ -64,7 +80,13 @@ Crea sessioni UUID via `POST http://localhost:8084` o usa l'helper `newBucket()`
 
 ### Cloudflared Tunnel
 
-Il container `tunnel` espone l'API locale (porta 8787) su una URL pubblica `*.trycloudflare.com`. Necessario solo per testare webhook **entranti** da servizi di terze parti (Stripe, GitHub, ecc.). La URL cambia a ogni restart; usa `npm run dev:tunnel-url` per leggerla.
+Il container `tunnel` espone l'API locale (porta 8789) su una URL pubblica `*.trycloudflare.com`. Necessario per testare webhook **entranti** da servizi di terze parti (Stripe, GitHub, ecc.) e per le notifiche QStash (vedi sotto). La URL cambia a ogni restart; usa `npm run dev:tunnel-url` per leggerla.
+
+### QStash in locale
+
+`npm run dev:full` rileva automaticamente l'URL del tunnel Cloudflare e lo scrive in `apps/api/.dev.vars` come `QSTASH_CALLBACK_URL` — non serve installare ngrok né configurare nulla a mano. Per attivare le notifiche via QStash basta impostare `QSTASH_TOKEN` (e opzionalmente `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY`) in `.dev.vars`.
+
+> `QSTASH_CALLBACK_URL` è distinto da `APP_URL`: `APP_URL` è l'URL del dashboard (usato nei link delle email, es. reset password) e in dev resta `http://localhost:5173`. `QSTASH_CALLBACK_URL` è l'URL pubblico tramite cui QStash richiama il webhook `/api/webhooks/qstash` del Worker.
 
 ### Note sicurezza
 

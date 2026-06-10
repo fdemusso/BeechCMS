@@ -578,7 +578,7 @@ seedsApp.patch('/:slug/branches/:branchId/rename', async (context) => {
 
   const newAlias = (body as Record<string, unknown>)?.newAlias
   if (typeof newAlias !== 'string' || !BRANCH_ALIAS_RE.test(newAlias)) {
-    return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: `newAlias must match ${BRANCH_ALIAS_RE.source} (lowercase letter followed by lowercase letters, digits or underscores).` })
+    return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: `newAlias must match ${BRANCH_ALIAS_RE.source} (lowercase letter followed by alphanumeric characters or underscores).` })
   }
 
   const repo = context.get('seedRepository')

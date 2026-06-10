@@ -6,6 +6,7 @@ import { describe, it, expect, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { SeedBuilderPage } from "@/features/seed-builder"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import type { SeedRecordDTO } from "@/features/seed-builder"
 import type { Seed } from "@beechcms/core"
 
@@ -61,7 +62,13 @@ vi.mock("@/features/seed-builder/hooks/use-seeds", () => ({
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
 function wrap(ui: React.ReactElement) {
-  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>)
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        {ui}
+      </TooltipProvider>
+    </QueryClientProvider>
+  )
 }
 
 describe("SeedBuilderPage — admin", () => {

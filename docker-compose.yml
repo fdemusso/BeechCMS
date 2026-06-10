@@ -81,7 +81,7 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: beech-tunnel
     restart: unless-stopped
-    command: tunnel --no-autoupdate --url http://host.docker.internal:8787
+    command: tunnel --no-autoupdate --url http://host.docker.internal:8789
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

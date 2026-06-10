@@ -14,7 +14,7 @@ const BRANCH_ID_RE = /^br_[A-Za-z0-9]+$/
  * prevent DDL/query injection. Exported so the seeds API rename route reuses the
  * exact same guard — do not inline a divergent copy.
  */
-export const BRANCH_ALIAS_RE = /^[a-z][a-z0-9_]*$/
+export const BRANCH_ALIAS_RE = /^[a-z][a-zA-Z0-9_]*$/
 
 export interface SeedValidationIssue {
   slug: string
@@ -108,7 +108,7 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
       if (typeof branch.alias !== 'string' || !BRANCH_ALIAS_RE.test(branch.alias)) {
         messages.push(
           `branch alias '${branch.alias}' is invalid. Expected format ${BRANCH_ALIAS_RE.source} ` +
-          `(lowercase letter followed by lowercase letters, digits or underscores).`,
+          `(lowercase letter followed by alphanumeric characters or underscores).`,
         )
       }
     }

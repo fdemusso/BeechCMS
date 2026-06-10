@@ -2,7 +2,34 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-const BASE = 'http://localhost:8025'
+import fs from 'node:fs'
+import path from 'node:path'
+
+export function getMailpitPort(): string {
+  if (process.env.BEECH_MAILPIT_UI_PORT) return process.env.BEECH_MAILPIT_UI_PORT
+  if (process.env.SMTP_PORT) return process.env.SMTP_PORT
+
+  // Try loading from .dev.vars
+  const candidates = [
+    path.resolve('.dev.vars'),
+    path.resolve('apps/api/.dev.vars'),
+    path.resolve('../../.dev.vars'),
+  ]
+  for (const file of candidates) {
+    try {
+      if (fs.existsSync(file)) {
+        const content = fs.readFileSync(file, 'utf8')
+        const match = content.match(/^SMTP_PORT=(.*)$/m)
+        if (match) return match[1].trim()
+      }
+    } catch {
+      // Ignore
+    }
+  }
+  return '8025'
+}
+
+const BASE = `http://localhost:${getMailpitPort()}`
 
 export interface MailpitMessage {
   ID: string

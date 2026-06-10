@@ -181,7 +181,7 @@ describe('validateSeedDefinitions', () => {
     expect(fatal.some(i => i.messages.some(m => m.includes('invalid')))).toBe(true)
   })
 
-  it.each(['title', 'body_text', 'author2', 'x'])(
+  it.each(['title', 'body_text', 'author2', 'x', 'publishedAt', 'coverImage'])(
     'accepts safe branch alias %j',
     (goodAlias) => {
       const seeds = [

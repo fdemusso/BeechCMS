@@ -43,6 +43,8 @@ export interface Env {
   ASSETS?: Fetcher
   QSTASH_TOKEN?: string
   QSTASH_URL?: string
+  /** Public base URL the worker is reachable at, used by QStash to call back the webhook (e.g. an ngrok tunnel in dev). Falls back to APP_URL. */
+  QSTASH_CALLBACK_URL?: string
   QSTASH_CURRENT_SIGNING_KEY?: string
   QSTASH_NEXT_SIGNING_KEY?: string
 }
