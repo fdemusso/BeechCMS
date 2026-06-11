@@ -14,6 +14,7 @@ import type {
   WidgetListOptions,
   WidgetListResult,
   GrowthResult,
+  DistributionSlice,
 } from '@beechcms/core'
 
 const SYSTEM_COLUMNS: ReadonlySet<string> = new Set([
@@ -191,6 +192,35 @@ export class D1WidgetRepository implements IWidgetRepository {
     return (rows.results ?? []).map(row => ({
       label: row.bucket_label ?? '',
       value: row.bucket_value ?? 0,
+    }))
+  }
+
+  async distribution(
+    seed: Seed,
+    column: string,
+    window: TimeWindow,
+    limit: number,
+  ): Promise<DistributionSlice[]> {
+    const columnExpression = this.resolveColumnExpression(seed, column)
+    const timeWindowFilter = this.buildTimeWindowFilter(window)
+    const tableName = `content_${seed.slug}`
+
+    const sql =
+      `SELECT ${columnExpression} as label, COUNT(*) as value
+         FROM ${tableName}
+        WHERE ${timeWindowFilter}
+        GROUP BY ${columnExpression}
+        ORDER BY value DESC
+        LIMIT ?`
+
+    const rows = await this.database
+      .prepare(sql)
+      .bind(limit)
+      .all<{ label: string | number | null; value: number | null }>()
+
+    return (rows.results ?? []).map(row => ({
+      label: row.label === null ? '∅' : String(row.label),
+      value: row.value ?? 0,
     }))
   }
 

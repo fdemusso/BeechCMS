@@ -218,4 +218,50 @@ describe('D1WidgetRepository', () => {
       ).rejects.toThrow('UNSAFE_COLUMN')
     })
   })
+
+  describe('distribution', () => {
+    it('groups by column value, descending by count', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([
+        { label: 'published', value: 5 },
+        { label: 'draft', value: 2 },
+      ])
+      const slices = await new D1WidgetRepository(db).distribution(seed, 'title', 'all', 8)
+      expect(slices).toEqual([
+        { label: 'published', value: 5 },
+        { label: 'draft', value: 2 },
+      ])
+      const sql = prepareMock.mock.calls[0]![0] as string
+      expect(sql).toMatch(/SELECT title as label, COUNT\(\*\) as value/)
+      expect(sql).toMatch(/FROM content_posts/)
+      expect(sql).toMatch(/GROUP BY title/)
+      expect(sql).toMatch(/ORDER BY value DESC/)
+      expect(bindMock).toHaveBeenCalledWith(8)
+    })
+
+    it('labels NULL values as ∅', async () => {
+      const { db } = makeMockDb([{ label: null, value: 3 }])
+      const slices = await new D1WidgetRepository(db).distribution(seed, 'title', 'all', 8)
+      expect(slices).toEqual([{ label: '∅', value: 3 }])
+    })
+
+    it('returns [] on empty results', async () => {
+      const { db } = makeMockDb([])
+      const slices = await new D1WidgetRepository(db).distribution(seed, 'title', 'all', 8)
+      expect(slices).toEqual([])
+    })
+
+    it('applies the time window bracket', async () => {
+      const { db, prepareMock } = makeMockDb([])
+      await new D1WidgetRepository(db).distribution(seed, 'title', 'week', 8)
+      const sql = prepareMock.mock.calls[0]![0] as string
+      expect(sql).toMatch(/created_at > unixepoch\('now', '-7 days'\)/)
+    })
+
+    it('throws UNSAFE_COLUMN for invalid column', async () => {
+      const { db } = makeMockDb()
+      await expect(
+        new D1WidgetRepository(db).distribution(seed, 'evil', 'all', 8),
+      ).rejects.toThrow('UNSAFE_COLUMN')
+    })
+  })
 })

@@ -14,6 +14,8 @@ const DEFAULT_LEADERBOARD_LIMIT = 10
 const MAXIMUM_LEADERBOARD_LIMIT = 100
 const DEFAULT_LIST_LIMIT = 25
 const MAXIMUM_LIST_LIMIT = 100
+const DEFAULT_DISTRIBUTION_LIMIT = 8
+const MAXIMUM_DISTRIBUTION_LIMIT = 24
 
 function parseFormula(raw: string | undefined): AggregateFormula | null {
   if (!raw) return null
@@ -205,6 +207,29 @@ widgetApp.get('/timeseries/:seed', async (context) => {
   } catch (error) {
     if (isUnsafeColumnError(error)) return context.json(problem(400, 'Bad Request', 'Invalid column reference'), 400)
     console.error('[widget/timeseries] DB error:', error)
+    return context.json(problem(500, 'Internal Server Error', 'Database error'), 500)
+  }
+})
+
+widgetApp.get('/distribution/:seed', async (context) => {
+  const seedSlug = context.req.param('seed')
+  const seed = context.get('getSeed')(seedSlug)
+  if (!seed) return context.json(problem(404, 'Not Found', `Seed '${seedSlug}' not found`), 404)
+
+  const column = context.req.query('column')
+  if (!column) return context.json(problem(400, 'Bad Request', 'Missing column parameter'), 400)
+
+  const window = parseWindow(context.req.query('window'))
+  const limit = parseBoundedInt(context.req.query('limit'), DEFAULT_DISTRIBUTION_LIMIT, MAXIMUM_DISTRIBUTION_LIMIT)
+
+  try {
+    const slices = await context
+      .get('widgetRepository')
+      .distribution(seed, column, window, limit)
+    return context.json({ slices })
+  } catch (error) {
+    if (isUnsafeColumnError(error)) return context.json(problem(400, 'Bad Request', 'Invalid column reference'), 400)
+    console.error('[widget/distribution] DB error:', error)
     return context.json(problem(500, 'Internal Server Error', 'Database error'), 500)
   }
 })

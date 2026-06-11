@@ -10,7 +10,8 @@ import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { z } from "zod"
-import { FileText, Globe, Zap, Database } from "lucide-react"
+import { FileText, Globe, Zap, Database, LineChart, BarChart3, AreaChart } from "lucide-react"
+import type { LucideIcon } from "lucide-react"
 import type { Seed } from "@beechcms/core"
 import { useSchema } from "@/features/schema"
 import { registerWidget } from "./widget-registry"
@@ -18,6 +19,12 @@ import type { DashboardWidgetProps } from "./widget-definition"
 import { useDashboardStats, useCloudflareStats } from "../hooks/use-dashboard-stats"
 import type { DashboardStats, CloudflareStats } from "../types/dashboard.types"
 import { StatCard } from "../components/stat-card"
+import { StatWidget } from "../components/widgets/stat-widget"
+import { TimeseriesChartWidget } from "../components/widgets/timeseries-chart-widget"
+import type { TimeseriesChartKind } from "../components/widgets/timeseries-chart-widget"
+import { PieChartWidget } from "../components/widgets/pie-chart-widget"
+import { DataTableWidget } from "../components/widgets/data-table-widget"
+import { TextWidget } from "../components/widgets/text-widget"
 import { RecentActivity } from "../components/recent-activity"
 import { SystemHealth } from "../components/system-health"
 import { ContentPulse } from "../components/content-pulse"
@@ -50,9 +57,27 @@ type EmptyConfig = z.infer<typeof emptyConfigSchema>
 // core/stat
 // ---------------------------------------------------------------------------
 
+const aggregateFormulaSchema = z.union([
+  z.object({ op: z.literal("count") }),
+  z.object({ op: z.literal("sum"), column: z.string() }),
+  z.object({ op: z.literal("avg"), column: z.string() }),
+  z.object({ op: z.literal("min"), column: z.string() }),
+  z.object({ op: z.literal("max"), column: z.string() }),
+  z.object({ op: z.literal("countWhere"), column: z.string(), value: z.unknown() }),
+  z.object({ op: z.literal("percentageOf"), numeratorColumn: z.string(), denominatorColumn: z.string() }),
+])
+
+const timeWindowSchema = z.enum(["week", "month", "year", "all"])
+
 const statConfigSchema = z.object({
-  statKey: z.enum(["total", "visitors", "traffic", "storage"]).catch("total"),
-})
+  statKey: z.enum(["total", "visitors", "traffic", "storage"]).optional(),
+  seedSlug: z.string().optional(),
+  formula: aggregateFormulaSchema.optional(),
+  window: timeWindowSchema.optional(),
+  label: z.string().optional(),
+  icon: z.string().optional(),
+  showTrend: z.boolean().optional(),
+}).catch({ statKey: "total" })
 type StatConfig = z.infer<typeof statConfigSchema>
 
 interface StatDataBundle {
@@ -62,7 +87,9 @@ interface StatDataBundle {
   cfLoading: boolean
 }
 
-function getStatData(key: StatConfig["statKey"], data: StatDataBundle, t: TranslateFn) {
+type StatKey = "total" | "visitors" | "traffic" | "storage"
+
+function getStatData(key: StatKey, data: StatDataBundle, t: TranslateFn) {
   const { statsData, cfData, statsLoading, cfLoading } = data
 
   switch (key) {
@@ -116,7 +143,23 @@ function StatWidgetAdapter({ config }: DashboardWidgetProps<StatConfig>) {
   const { t } = useTranslation()
   const { data: statsData, isLoading: statsLoading } = useDashboardStats()
   const { data: cfData, isLoading: cfLoading } = useCloudflareStats()
-  const statData = getStatData(config.statKey, { statsData, cfData, statsLoading, cfLoading }, t)
+
+  if (config.seedSlug) {
+    return (
+      <StatWidget
+        config={{
+          seedSlug: config.seedSlug,
+          formula: config.formula,
+          window: config.window,
+          label: config.label,
+          icon: config.icon,
+          showTrend: config.showTrend,
+        }}
+      />
+    )
+  }
+
+  const statData = getStatData(config.statKey ?? "total", { statsData, cfData, statsLoading, cfLoading }, t)
   return <StatCard {...statData} />
 }
 
@@ -129,6 +172,141 @@ registerWidget<StatConfig>({
   defaultConfig: { statKey: "total" },
   component: StatWidgetAdapter,
   minColumnSpan: 3,
+})
+
+// ---------------------------------------------------------------------------
+// core/line-chart, core/bar-chart, core/area-chart
+// ---------------------------------------------------------------------------
+
+const timeseriesChartConfigSchema = z.object({
+  seedSlug: z.string(),
+  formula: aggregateFormulaSchema.optional(),
+  window: timeWindowSchema.optional(),
+  groupColumn: z.string().optional(),
+  color: z.string().optional(),
+})
+type TimeseriesChartWidgetConfig = z.infer<typeof timeseriesChartConfigSchema>
+
+function makeTimeseriesChartAdapter(kind: TimeseriesChartKind, labelKey: string, icon: LucideIcon) {
+  return function TimeseriesChartAdapter({ config }: DashboardWidgetProps<TimeseriesChartWidgetConfig>) {
+    const { t } = useTranslation()
+    return <TimeseriesChartWidget config={config} kind={kind} title={t(labelKey)} icon={icon} />
+  }
+}
+
+registerWidget<TimeseriesChartWidgetConfig>({
+  type: "core/line-chart",
+  labelKey: "dashboard.widgetRegistry.widgets.lineChart.label",
+  icon: "LineChart",
+  category: "charts",
+  configSchema: timeseriesChartConfigSchema,
+  defaultConfig: { seedSlug: "" },
+  component: makeTimeseriesChartAdapter("line", "dashboard.widgetRegistry.widgets.lineChart.label", LineChart),
+  minColumnSpan: 4,
+})
+
+registerWidget<TimeseriesChartWidgetConfig>({
+  type: "core/bar-chart",
+  labelKey: "dashboard.widgetRegistry.widgets.barChart.label",
+  icon: "BarChart3",
+  category: "charts",
+  configSchema: timeseriesChartConfigSchema,
+  defaultConfig: { seedSlug: "" },
+  component: makeTimeseriesChartAdapter("bar", "dashboard.widgetRegistry.widgets.barChart.label", BarChart3),
+  minColumnSpan: 4,
+})
+
+registerWidget<TimeseriesChartWidgetConfig>({
+  type: "core/area-chart",
+  labelKey: "dashboard.widgetRegistry.widgets.areaChart.label",
+  icon: "AreaChart",
+  category: "charts",
+  configSchema: timeseriesChartConfigSchema,
+  defaultConfig: { seedSlug: "" },
+  component: makeTimeseriesChartAdapter("area", "dashboard.widgetRegistry.widgets.areaChart.label", AreaChart),
+  minColumnSpan: 4,
+})
+
+// ---------------------------------------------------------------------------
+// core/pie-chart
+// ---------------------------------------------------------------------------
+
+const pieChartConfigSchema = z.object({
+  seedSlug: z.string(),
+  column: z.string(),
+  window: timeWindowSchema.optional(),
+  donut: z.boolean().optional(),
+  limit: z.number().optional(),
+})
+type PieChartWidgetConfig = z.infer<typeof pieChartConfigSchema>
+
+function PieChartAdapter({ config }: DashboardWidgetProps<PieChartWidgetConfig>) {
+  const { t } = useTranslation()
+  return <PieChartWidget config={config} title={t("dashboard.widgetRegistry.widgets.pieChart.label")} />
+}
+
+registerWidget<PieChartWidgetConfig>({
+  type: "core/pie-chart",
+  labelKey: "dashboard.widgetRegistry.widgets.pieChart.label",
+  icon: "PieChart",
+  category: "charts",
+  configSchema: pieChartConfigSchema,
+  defaultConfig: { seedSlug: "", column: "" },
+  component: PieChartAdapter,
+  minColumnSpan: 4,
+})
+
+// ---------------------------------------------------------------------------
+// core/data-table
+// ---------------------------------------------------------------------------
+
+const dataTableConfigSchema = z.object({
+  seedSlug: z.string(),
+  columns: z.array(z.string()).optional(),
+  pageSize: z.number().optional(),
+  orderByColumn: z.string().optional(),
+  orderDirection: z.enum(["ASC", "DESC"]).optional(),
+})
+type DataTableWidgetConfig = z.infer<typeof dataTableConfigSchema>
+
+function DataTableAdapter({ config }: DashboardWidgetProps<DataTableWidgetConfig>) {
+  return <DataTableWidget config={config} />
+}
+
+registerWidget<DataTableWidgetConfig>({
+  type: "core/data-table",
+  labelKey: "dashboard.widgetRegistry.widgets.dataTable.label",
+  icon: "Table",
+  category: "content",
+  configSchema: dataTableConfigSchema,
+  defaultConfig: { seedSlug: "" },
+  component: DataTableAdapter,
+  minColumnSpan: 4,
+})
+
+// ---------------------------------------------------------------------------
+// core/text
+// ---------------------------------------------------------------------------
+
+const textConfigSchema = z.object({
+  content: z.string().catch(""),
+  align: z.enum(["left", "center"]).optional(),
+})
+type TextWidgetConfig = z.infer<typeof textConfigSchema>
+
+function TextAdapter({ config }: DashboardWidgetProps<TextWidgetConfig>) {
+  return <TextWidget config={config} />
+}
+
+registerWidget<TextWidgetConfig>({
+  type: "core/text",
+  labelKey: "dashboard.widgetRegistry.widgets.text.label",
+  icon: "Type",
+  category: "system",
+  configSchema: textConfigSchema,
+  defaultConfig: { content: "" },
+  component: TextAdapter,
+  minColumnSpan: 2,
 })
 
 // ---------------------------------------------------------------------------

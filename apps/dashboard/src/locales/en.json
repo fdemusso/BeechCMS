@@ -118,6 +118,22 @@
         },
         "storage": {
           "description": "{{percentage}}% of {{total}} GB"
+        },
+        "formula": {
+          "defaultLabel": "Statistic"
+        }
+      },
+      "chart": {
+        "empty": {
+          "title": "No data yet",
+          "description": "There isn't enough data to plot this chart"
+        },
+        "more": "+{{count}} more"
+      },
+      "dataTable": {
+        "empty": {
+          "title": "No entries",
+          "description": "This collection has no entries yet"
         }
       },
       "mediaGallery": {
@@ -177,6 +193,24 @@
         },
         "setupChecklist": {
           "label": "Setup Checklist"
+        },
+        "lineChart": {
+          "label": "Line Chart"
+        },
+        "barChart": {
+          "label": "Bar Chart"
+        },
+        "areaChart": {
+          "label": "Area Chart"
+        },
+        "pieChart": {
+          "label": "Pie Chart"
+        },
+        "dataTable": {
+          "label": "Data Table"
+        },
+        "text": {
+          "label": "Text"
         }
       }
     },

@@ -118,6 +118,22 @@
         },
         "storage": {
           "description": "{{percentage}}% di {{total}} GB"
+        },
+        "formula": {
+          "defaultLabel": "Statistica"
+        }
+      },
+      "chart": {
+        "empty": {
+          "title": "Nessun dato disponibile",
+          "description": "Non ci sono abbastanza dati per visualizzare questo grafico"
+        },
+        "more": "+{{count}} altri"
+      },
+      "dataTable": {
+        "empty": {
+          "title": "Nessuna voce",
+          "description": "Questa collezione non ha ancora voci"
         }
       },
       "mediaGallery": {
@@ -177,6 +193,24 @@
         },
         "setupChecklist": {
           "label": "Checklist di Configurazione"
+        },
+        "lineChart": {
+          "label": "Grafico a Linee"
+        },
+        "barChart": {
+          "label": "Grafico a Barre"
+        },
+        "areaChart": {
+          "label": "Grafico ad Area"
+        },
+        "pieChart": {
+          "label": "Grafico a Torta"
+        },
+        "dataTable": {
+          "label": "Tabella Dati"
+        },
+        "text": {
+          "label": "Testo"
         }
       }
     },

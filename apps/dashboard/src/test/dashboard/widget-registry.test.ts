@@ -12,12 +12,17 @@ import {
   knownWidgetTypes,
 } from "@/features/dashboard/registry/widget-registry"
 
-/** Expected `listWidgetDefinitions()` order for the 15 built-ins:
+/** Expected `listWidgetDefinitions()` order for the 21 built-ins:
  *  category asc (charts < content < stats < system), then labelKey asc. */
 const CORE_WIDGET_TYPES_IN_ORDER = [
+  "core/area-chart",
+  "core/bar-chart",
   "core/content-pulse",
+  "core/line-chart",
+  "core/pie-chart",
   "core/activity-feed",
   "core/ai-insights",
+  "core/data-table",
   "core/media-gallery",
   "core/pending-drafts",
   "core/quick-actions",
@@ -30,6 +35,7 @@ const CORE_WIDGET_TYPES_IN_ORDER = [
   "core/site-status",
   "core/storage",
   "core/system-health",
+  "core/text",
 ]
 
 describe("widget registry", () => {

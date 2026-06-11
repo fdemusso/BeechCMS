@@ -46,6 +46,7 @@ This document is the authoritative reference for the Beech CMS REST API. It cove
    - [Leaderboard](#86-leaderboard-get-apiwidgetseedleaderboard)
    - [List](#87-list-get-apiwidgetseedlist)
    - [Timeseries](#88-timeseries-get-apiwidgetseedtimeseries)
+   - [Distribution](#89-distribution-get-apiwidgetdistributionseed)
 9. [Seed Builder & Schema Mutation API](#10-seed-builder--schema-mutation-api)
    - [List Seed Definitions](#get-apiseeds)
    - [Get Seed Definition](#get-apiseedsslug)
@@ -1411,6 +1412,35 @@ Date buckets are formatted as `YYYY-MM-DD` strings using D1's `strftime`.
 ```
 
 Points are ordered ascending by date. Days with no entries are omitted (no zero-fill).
+
+---
+
+### 8.9 Distribution — `GET /api/widget/distribution/:seed`
+
+Groups entries by a column and returns the count of entries per distinct value, ordered descending by count.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `column` | string (alias) | Yes | — | Field to group by |
+| `window` | `TimeWindow` | No | `'all'` | Time range filter on `created_at` |
+| `limit` | number | No | `8` | Maximum number of slices returned (max `24`) |
+
+**Response `200`:**
+
+```json
+{
+  "slices": [
+    { "label": "published", "value": 12 },
+    { "label": "draft", "value": 4 },
+    { "label": "∅", "value": 1 }
+  ]
+}
+```
+
+`NULL` values are returned under the label `"∅"`. Values beyond `limit` are **not** merged into an
+"other" bucket — the client decides how to present truncation (e.g. a "+N more" caption).
 
 ---
 

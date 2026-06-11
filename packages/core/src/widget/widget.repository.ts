@@ -69,6 +69,11 @@ export interface GrowthResult {
   previousValue: number
 }
 
+export interface DistributionSlice {
+  label: string
+  value: number
+}
+
 /**
  * Read-only data access contract for widget routes.
  *
@@ -116,4 +121,13 @@ export interface IWidgetRepository {
     window: TimeWindow,
     groupColumn: string
   ): Promise<TimeseriesPoint[]>
+
+  /**
+   * Counts entries grouped by the values of `column` within the window,
+   * descending by count, capped at `limit` slices. Implementations must
+   * validate `column` against the seed (UNSAFE_COLUMN on failure) and must
+   * return [] on empty results. Values beyond `limit` are NOT merged into
+   * an 'other' bucket — the client decides how to present truncation.
+   */
+  distribution(seed: Seed, column: string, window: TimeWindow, limit: number): Promise<DistributionSlice[]>
 }
