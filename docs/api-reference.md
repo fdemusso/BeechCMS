@@ -59,6 +59,10 @@ This document is the authoritative reference for the Beech CMS REST API. It cove
    - [Rebuild FTS Index](#post-apiseedsslugftsrebuild)
    - [Get Orphan Columns](#get-apiseedsslugorphans)
 10. [Technical Architecture (v0.4.0 Refactor)](#11-technical-architecture-v040-refactor)
+11. [Dashboard Layout API](#12-dashboard-layout-api)
+    - [Get Layout](#get-apidashboard-layout)
+    - [Save Layout](#put-apidashboard-layout)
+    - [Reset Layout](#delete-apidashboard-layout)
 
 ---
 
@@ -1771,6 +1775,111 @@ Each API feature (Content, Drafts, Auth) is a self-contained slice under `apps/a
 ### R2 Media Cleanup
 
 Media cleanup during entry deletion is now handled by the API handlers using data returned by the repository. This ensures that when a row is deleted from D1, its associated assets in R2 are also removed (best-effort).
+
+---
+
+## 12. Dashboard Layout API
+
+Persists the **Dashboard Composer** layout shown on the Cockpit dashboard, backed by the `dashboard_layouts` table (one row per `scope`). This sprint only ever reads/writes the literal `'default'` scope — see [Sprints/dashboard-composer/06-role-based-dashboards.md](Sprints/dashboard-composer/06-role-based-dashboards.md) for role-scoped layouts.
+
+On save, the server validates the Zod shape (`dashboardLayoutSchema`) and then semantic constraints: widgets whose `config.seedSlug` references a deleted seed are silently dropped (reported via `warnings`); unknown/custom widget types (e.g. `@acme/ghost`) pass through unchanged.
+
+### `GET /api/dashboard-layout`
+
+Returns the stored layout for the `'default'` scope, auto-cleaned of widgets bound to deleted seeds. Any authenticated user may call this.
+
+**Request**
+```http
+GET /api/dashboard-layout
+Authorization: Bearer eyJ...
+```
+
+**Response `200`** — no row stored yet
+```json
+{ "scope": "default", "layout": null }
+```
+
+**Response `200`** — stored layout
+```json
+{
+  "scope": "default",
+  "layout": {
+    "version": 1,
+    "pages": [
+      {
+        "id": "page-1",
+        "slug": "overview",
+        "label": "Overview",
+        "icon": "LayoutDashboard",
+        "sections": [
+          {
+            "id": "section-1",
+            "columns": [
+              { "id": "col-1", "widgets": [{ "id": "w1", "type": "core/stat", "config": {} }] }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+> Auto-cleanup is read-time only — the cleaned result is **not** written back. Persistence catches up on the next admin save.
+
+---
+
+### `PUT /api/dashboard-layout`
+
+Upserts the layout for the `'default'` scope. Requires the `admin` role (`canEditDashboard`).
+
+**Request**
+```http
+PUT /api/dashboard-layout
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "version": 1,
+  "pages": [ /* DashboardPageLayout[] */ ]
+}
+```
+
+**Response `200`**
+```json
+{
+  "ok": true,
+  "layout": { "version": 1, "pages": [ /* cleaned */ ] },
+  "warnings": []
+}
+```
+
+`warnings` surfaces non-blocking notices to the builder — e.g. a widget bound via `config.seedSlug` referenced a seed that no longer exists, so it was dropped from `layout` before storing.
+
+**Errors**
+
+| `type` slug | HTTP Status | Meaning |
+|---|---|---|
+| `forbidden` | `403` | Caller role is not `admin`. |
+| `invalid-json` | `400` | Request body is not valid JSON. |
+| `invalid-layout` | `422` | Body fails the `dashboardLayoutSchema` Zod shape, or fails semantic validation (duplicate widget/page ids, `columnSpans` not summing to 12, a widget `config` over 8 KB). |
+
+---
+
+### `DELETE /api/dashboard-layout`
+
+Removes the stored row for the `'default'` scope ("Reset"). Requires the `admin` role (`canEditDashboard`). The next `GET` returns `{ "scope": "default", "layout": null }` and the dashboard regenerates its default layout client-side.
+
+**Request**
+```http
+DELETE /api/dashboard-layout
+Authorization: Bearer eyJ...
+```
+
+**Response `200`**
+```json
+{ "ok": true }
+```
 
 ---
 

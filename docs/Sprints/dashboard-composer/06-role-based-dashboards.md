@@ -17,7 +17,10 @@ default. An editor logging in sees, in order of precedence:
 
 ## 0. ROLE & GROUND RULES
 
-Same as Sprint 02 (API) and Sprint 05 (frontend). Additionally:
+Same as Sprint 02 (API) and Sprint 05 (frontend) — i.e. **Vertical Slice
+Architecture** (API changes confined to `features/dashboard-layout/`, frontend
+changes confined to `apps/dashboard/src/features/dashboard/`) and **Shadcn/ui +
+Tailwind v4** for the scope-switcher UI, no new dependencies. Additionally:
 
 1. **Scopes are a closed set.** `'default' | 'role:admin' | 'role:editor'`.
    Roles come from a new core constant — do not scatter string literals.

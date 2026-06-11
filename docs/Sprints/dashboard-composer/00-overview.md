@@ -90,6 +90,15 @@ interface, RFC 7807 endpoints, an RBAC constant in core, and a dnd-kit builder.
   sandboxing requirement — custom widgets are trusted code.
 - **D10 — i18n.** Built-in widget names/descriptions are i18n keys resolved via
   `react-i18next`. Custom widgets may supply plain strings.
+- **D11 — Microanimations.** To make the dashboard feel more responsive and
+  intuitive (widget enter/exit, drag-and-drop reordering, section
+  collapse/expand, page switches), use a **lightweight** animation approach —
+  Tailwind CSS transitions/`@keyframes` utilities and Radix's built-in
+  open/close animation primitives (already exercised by Shadcn components)
+  are sufficient and add zero new dependencies. If a small utility library is
+  preferred (e.g. `tw-animate-css`, already common in Shadcn v4 setups), it
+  must stay optional and not become a hard dependency for layout/widget logic.
+  Keep animations subtle and respect `prefers-reduced-motion`.
 
 ## Reuse map (existing code each sprint builds on)
 

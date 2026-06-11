@@ -86,7 +86,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - System columns: `id`, `slug`, `status`, `created_at`, `updated_at`.
     - **Mirror Tables for Drafts:** if a Seed has `allowDrafts: true`, a mirror table `content_{slug}_drafts` handles pending changes.
     - Authentication tables: `users`, `refresh_tokens`.
-    - System tables: `seeds` (persisted content type definitions), `seed_meta` (version token caching), `analytics`, `system_stats`, `media_objects`, `content_event_log` (activity log).
+    - System tables: `seeds` (persisted content type definitions), `seed_meta` (version token caching), `analytics`, `system_stats`, `media_objects`, `content_event_log` (activity log), `dashboard_layouts` (per-scope Dashboard Composer layouts; `scope`, `layout` JSON, `updated_at`, `updated_by`).
     - Automation table: `automations` (id, seed_slug, name, enabled, trigger_event, trigger_cron, trigger_conditions JSON, actions JSON, created_at, updated_at). Indexed on `seed_slug` and `enabled`.
 
 - **Architecture & Tooling**

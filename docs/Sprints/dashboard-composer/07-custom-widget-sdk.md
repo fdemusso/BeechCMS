@@ -29,6 +29,13 @@ You are a senior TypeScript engineer working on the **Beech CMS monorepo**.
 3. **No API changes.** Custom widgets consume the same authenticated
    `/api/widget/*` and `/api/content/stats/*` endpoints as built-ins.
 4. **Docs are English.**
+5. **Vertical Slice Architecture.** Dashboard-side changes stay inside
+   `apps/dashboard/src/features/dashboard/` (registry re-exports, `main.tsx`
+   wiring, `widgets.custom.ts`); other features must keep importing only via
+   `features/dashboard`'s public API. Presentational primitives moved into the
+   SDK (`WidgetShell`, `WidgetEmpty`, `WidgetError`) and the example widget's
+   `ConfigPanel` are built on **Shadcn/ui + Tailwind v4**, matching the rest of
+   the dashboard — no new UI dependencies.
 
 ---
 
