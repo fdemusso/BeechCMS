@@ -1059,6 +1059,8 @@
       "label": "Etichetta",
       "labelPlaceholder": "Etichetta del campo",
       "repeaterFields": "Campi del ripetitore",
+      "minItems": "Numero minimo di elementi",
+      "maxItems": "Numero massimo di elementi",
       "addSubField": "Aggiungi campo",
       "relationOptions": "Opzioni relazione",
       "targetSeed": "Tipo di contenuto target",

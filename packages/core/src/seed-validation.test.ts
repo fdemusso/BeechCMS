@@ -353,6 +353,86 @@ describe('validateSeedDefinitions', () => {
     expect(warnings.some(i => i.messages.some(m => m.includes('displayNameAlias')))).toBe(true)
   })
 
+  // ── Fatal 11 / Warning 10: repeater cardinality bounds ───────────────────────
+
+  it('fatal: minItems is negative', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'items', label: 'Items', type: 'repeater', fields: [], minItems: -1 },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes('minItems must be a non-negative integer')))).toBe(true)
+  })
+
+  it('fatal: maxItems is not an integer', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'items', label: 'Items', type: 'repeater', fields: [], maxItems: 1.5 },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes('maxItems must be a non-negative integer')))).toBe(true)
+  })
+
+  it('fatal: minItems greater than maxItems', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'items', label: 'Items', type: 'repeater', fields: [], minItems: 2, maxItems: 1 },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes('must be <= maxItems')))).toBe(true)
+  })
+
+  it('warning: minItems on a non-repeater branch is non-fatal', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text', minItems: 1 },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    const warnings = issues.filter(i => !i.fatal && i.slug === 'posts')
+    expect(fatal).toEqual([])
+    expect(warnings.some(i => i.messages.some(m => m.includes('repeater-only')))).toBe(true)
+  })
+
+  it('valid minItems: 1, maxItems: 1 on a repeater produces no issues', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          {
+            id: 'br_02', alias: 'items', label: 'Items', type: 'repeater',
+            fields: [{ id: 'br_03', alias: 'name', label: 'Name', type: 'text' }],
+            minItems: 1, maxItems: 1,
+          },
+        ],
+      }),
+    ]
+    expect(validateSeedDefinitions(seeds)).toEqual([])
+  })
+
   // ── isSeedSetValid ────────────────────────────────────────────────────────────
 
   it('isSeedSetValid returns true for clean set', () => {

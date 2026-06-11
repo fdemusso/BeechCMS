@@ -230,7 +230,7 @@ describe('validate CLI command wrapper', () => {
     }
     await validate({ registry })
     expect(logSpy).toHaveBeenCalled()
-    expect(logSpy.mock.calls.some(c => c[0].includes('All seeds valid'))).toBe(true)
+    expect(logSpy.mock.calls.some((c: any[]) => c[0].includes('All seeds valid'))).toBe(true)
   })
 
   it('logs warnings when seeds have non-fatal issues', async () => {
@@ -244,7 +244,7 @@ describe('validate CLI command wrapper', () => {
     }
     await validate({ registry: registry as any })
     expect(logSpy).toHaveBeenCalled()
-    expect(logSpy.mock.calls.some(c => c[0].includes('Found 1 warning'))).toBe(true)
+    expect(logSpy.mock.calls.some((c: any[]) => c[0].includes('Found 1 warning'))).toBe(true)
   })
 
   it('exits with 1 when seeds have fatal errors', async () => {

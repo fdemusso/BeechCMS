@@ -740,6 +740,125 @@ describe('repeater field', () => {
   })
 })
 
+// ─── 12. REPEATER CARDINALITY BOUNDS (Sprint 11) ─────────────────────────────
+
+describe('repeater cardinality bounds', () => {
+  function seedWithBounds(bounds: { minItems?: number; maxItems?: number }): Seed {
+    return {
+      slug: 'faq',
+      label: 'FAQ',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_title', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+        {
+          id: 'br_items', alias: 'items', label: 'Items', type: 'repeater',
+          ...bounds,
+          fields: [
+            { id: 'br_question', alias: 'question', label: 'Question', type: 'text', requiredOnCreate: true },
+          ],
+        },
+      ],
+    }
+  }
+
+  function validate(seed: Seed, payload: Record<string, unknown>) {
+    return validateAndSanitizeSeedPayload(seed, payload, { operation: 'create' })
+  }
+
+  it('maxItems: a 3-item array fails, a 2-item array passes', () => {
+    const seed = seedWithBounds({ maxItems: 2 })
+    const tooMany = validate(seed, {
+      title: 'My FAQ',
+      items: [{ question: 'Q1' }, { question: 'Q2' }, { question: 'Q3' }],
+    })
+    expect(tooMany.details.some(d => d.field === 'items')).toBe(true)
+
+    const ok = validate(seed, {
+      title: 'My FAQ',
+      items: [{ question: 'Q1' }, { question: 'Q2' }],
+    })
+    expect(ok.details).toEqual([])
+    expect(ok.data.items).toHaveLength(2)
+  })
+
+  it('minItems: an explicit empty array fails, a 1-item array passes', () => {
+    const seed = seedWithBounds({ minItems: 1 })
+    const empty = validate(seed, { title: 'My FAQ', items: [] })
+    expect(empty.details.some(d => d.field === 'items')).toBe(true)
+
+    const ok = validate(seed, { title: 'My FAQ', items: [{ question: 'Q1' }] })
+    expect(ok.details).toEqual([])
+    expect(ok.data.items).toHaveLength(1)
+  })
+
+  it('minItems: an absent/null value still passes (bounds gate length, not presence)', () => {
+    const seed = seedWithBounds({ minItems: 1 })
+    const absent = validate(seed, { title: 'My FAQ' })
+    expect(absent.details.some(d => d.field === 'items')).toBe(false)
+
+    const nullValue = validate(seed, { title: 'My FAQ', items: null })
+    expect(nullValue.details.some(d => d.field === 'items')).toBe(false)
+  })
+
+  it('minItems with requiredOnCreate: an absent value fails', () => {
+    const seed = seedWithBounds({ minItems: 1 })
+    seed.branches[1].requiredOnCreate = true
+    const r = validate(seed, { title: 'My FAQ' })
+    expect(r.details.some(d => d.field === 'items')).toBe(true)
+  })
+
+  it('minItems: 1, maxItems: 1 round-trips exactly one item; rejects 0 and 2 when provided', () => {
+    const seed = seedWithBounds({ minItems: 1, maxItems: 1 })
+
+    const one = validate(seed, { title: 'My FAQ', items: [{ question: 'Q1' }] })
+    expect(one.details).toEqual([])
+    expect(one.data.items).toEqual([{ question: 'Q1' }])
+
+    const zero = validate(seed, { title: 'My FAQ', items: [] })
+    expect(zero.details.some(d => d.field === 'items')).toBe(true)
+
+    const two = validate(seed, {
+      title: 'My FAQ',
+      items: [{ question: 'Q1' }, { question: 'Q2' }],
+    })
+    expect(two.details.some(d => d.field === 'items')).toBe(true)
+  })
+
+  it('bounds on a non-repeater branch do not affect that branch validation', () => {
+    const seed: Seed = {
+      slug: 'faq',
+      label: 'FAQ',
+      displayNameAlias: 'title',
+      branches: [
+        {
+          id: 'br_title', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true,
+          minItems: 1, maxItems: 1,
+        } as Seed['branches'][number],
+      ],
+    }
+    const r = validateAndSanitizeSeedPayload(seed, { title: 'Hello' }, { operation: 'create' })
+    expect(r.details).toEqual([])
+    expect(r.data.title).toBe('Hello')
+  })
+
+  it('two seeds identical except for maxItems compile to different schemas (no cache collision)', () => {
+    const seedNoBound = seedWithBounds({})
+    const seedMax1 = seedWithBounds({ maxItems: 1 })
+
+    const payload = {
+      title: 'My FAQ',
+      items: [{ question: 'Q1' }, { question: 'Q2' }],
+    }
+
+    const noBoundResult = validate(seedNoBound, payload)
+    expect(noBoundResult.details).toEqual([])
+    expect(noBoundResult.data.items).toHaveLength(2)
+
+    const max1Result = validate(seedMax1, payload)
+    expect(max1Result.details.some(d => d.field === 'items')).toBe(true)
+  })
+})
+
 
 
 

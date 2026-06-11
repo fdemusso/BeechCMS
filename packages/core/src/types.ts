@@ -143,6 +143,26 @@ export interface Branch {
    * Ignored for any other branch type.
    */
   fields?: Branch[]
+
+  /**
+   * Minimum number of items a `repeater` value must contain when a value is
+   * provided. Repeater-only — ignored for every other branch type.
+   *
+   * NOTE: this constrains array *length when the field is present*. It does NOT by
+   * itself make the field mandatory — an absent/null payload is still allowed unless
+   * `requiredOnCreate` / `requiredOnUpdate` is also set. To model "exactly one
+   * required object", combine `minItems: 1, maxItems: 1, requiredOnCreate: true`.
+   * Must be a non-negative integer and `<= maxItems` when both are set
+   * (enforced at boot by seed-validation.ts).
+   */
+  minItems?: number
+
+  /**
+   * Maximum number of items a `repeater` value may contain. Repeater-only — ignored
+   * for every other branch type. `maxItems: 1` models a single "object" column.
+   * Must be a non-negative integer and `>= minItems` when both are set.
+   */
+  maxItems?: number
 }
 
 /** Dashboard-specific config embedded in a Seed. All fields optional — defaults applied by the dashboard. */

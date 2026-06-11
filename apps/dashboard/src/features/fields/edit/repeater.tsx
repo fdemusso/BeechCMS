@@ -40,6 +40,11 @@ export function FieldEditRepeater({ branch, value, onChange }: FieldEditProps) {
   const dragIds = items.map((item, idx) => itemKind === "branch" ? (item as Branch).id : `item-${idx}`)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
+  const maxItems = typeof branch.maxItems === "number" ? branch.maxItems : Infinity
+  const minItems = typeof branch.minItems === "number" ? branch.minItems : 0
+  const canAdd = items.length < maxItems
+  const canRemove = items.length > minItems
+
   function update(index: number, next: unknown) {
     const copy = items.slice()
     copy[index] = next
@@ -57,6 +62,7 @@ export function FieldEditRepeater({ branch, value, onChange }: FieldEditProps) {
     onChange(arrayMove(items, fromIndex, toIndex))
   }
   function add() {
+    if (!canAdd) return
     if (itemKind === "branch") {
       const blank: Branch = { id: `br_new_${Date.now()}`, alias: "", label: "", type: "text" }
       onChange([...items, blank])
@@ -84,6 +90,7 @@ export function FieldEditRepeater({ branch, value, onChange }: FieldEditProps) {
                 subField={meta.branchItemContext?.subField}
                 onChange={(b) => update(idx, b)}
                 onRemove={() => remove(idx)}
+                disableRemove={!canRemove}
               />
             ) : (
               <GenericItemRow
@@ -93,15 +100,18 @@ export function FieldEditRepeater({ branch, value, onChange }: FieldEditProps) {
                 value={item as Record<string, unknown>}
                 onChange={(next) => update(idx, next)}
                 onRemove={() => remove(idx)}
+                disableRemove={!canRemove}
               />
             )
           ))}
         </SortableContext>
       </DndContext>
-      <Button type="button" variant="outline" size="sm" onClick={add} className="w-full">
-        <Plus className="mr-1 size-4" />
-        {meta.itemLabel ?? t("fields.repeater.addItem")}
-      </Button>
+      {!(maxItems === 1 && items.length === 1) && (
+        <Button type="button" variant="outline" size="sm" onClick={add} disabled={!canAdd} className="w-full">
+          <Plus className="mr-1 size-4" />
+          {meta.itemLabel ?? t("fields.repeater.addItem")}
+        </Button>
+      )}
     </div>
   )
 }

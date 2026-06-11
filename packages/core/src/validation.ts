@@ -452,7 +452,17 @@ function repeaterSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny 
   // z.object() strips unknown keys by default — old item shapes from a renamed/
   // removed sub-field are dropped rather than rejected (sprint 10 §5.1).
   const itemSchema = z.object(shape)
-  const arraySchema = z.array(itemSchema)
+  let arraySchema = z.array(itemSchema)
+  if (Number.isInteger(branch.minItems) && (branch.minItems as number) >= 0) {
+    arraySchema = arraySchema.min(branch.minItems as number, {
+      message: `Expected array(min:${branch.minItems})`,
+    })
+  }
+  if (Number.isInteger(branch.maxItems) && (branch.maxItems as number) >= 0) {
+    arraySchema = arraySchema.max(branch.maxItems as number, {
+      message: `Expected array(max:${branch.maxItems})`,
+    })
+  }
   return withNullable(withEmptyPreprocessing(arraySchema, options.allowNull), options.allowNull)
 }
 
@@ -493,6 +503,8 @@ function buildSeedFingerprint(seed: Seed): string {
     ru: branch.requiredOnUpdate === true,
     n: branch.numberOptions ?? null,
     fi: branch.fileOptions ?? null,
+    mi: branch.minItems ?? null,
+    ma: branch.maxItems ?? null,
     sub: branch.fields?.map((sub) => ({
       a: sub.alias,
       t: sub.type,
