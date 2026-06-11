@@ -21,9 +21,10 @@ export interface GenericItemRowProps {
   value: Record<string, unknown>
   onChange: (next: Record<string, unknown>) => void
   onRemove: () => void
+  disableRemove?: boolean
 }
 
-export function GenericItemRow({ id, subBranches, value, onChange, onRemove }: GenericItemRowProps) {
+export function GenericItemRow({ id, subBranches, value, onChange, onRemove, disableRemove = false }: GenericItemRowProps) {
   const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   const style: React.CSSProperties = {
@@ -52,7 +53,7 @@ export function GenericItemRow({ id, subBranches, value, onChange, onRemove }: G
           <GripVertical className="h-4 w-4" />
         </button>
         <span className="flex-1 text-xs font-medium text-muted-foreground">{t("fields.repeater.item")}</span>
-        <Button variant="ghost" size="sm" onClick={onRemove} title={t("fields.repeater.removeItem")} aria-label={t("fields.repeater.removeItem")}>
+        <Button variant="ghost" size="sm" onClick={onRemove} disabled={disableRemove} title={t("fields.repeater.removeItem")} aria-label={t("fields.repeater.removeItem")}>
           <Trash2 className="h-4 w-4 text-destructive" />
         </Button>
       </div>

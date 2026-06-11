@@ -209,6 +209,41 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
     }
   }
 
+  // ── Fatal 11 / Warning 10: repeater cardinality bounds ───────────────────
+  {
+    for (const seed of seeds) {
+      const fatals: string[] = []
+      const warnings: string[] = []
+      for (const branch of seed.branches) {
+        const hasBounds = branch.minItems !== undefined || branch.maxItems !== undefined
+        if (!hasBounds) continue
+
+        if (branch.type !== 'repeater') {
+          warnings.push(
+            `branch '${branch.alias}': minItems/maxItems are ignored on type ` +
+            `'${branch.type}' (repeater-only).`,
+          )
+          continue
+        }
+        for (const [key, val] of [['minItems', branch.minItems], ['maxItems', branch.maxItems]] as const) {
+          if (val !== undefined && (!Number.isInteger(val) || val < 0)) {
+            fatals.push(`branch '${branch.alias}': ${key} must be a non-negative integer (got ${val}).`)
+          }
+        }
+        if (
+          Number.isInteger(branch.minItems) && Number.isInteger(branch.maxItems) &&
+          (branch.minItems as number) > (branch.maxItems as number)
+        ) {
+          fatals.push(
+            `branch '${branch.alias}': minItems (${branch.minItems}) must be <= maxItems (${branch.maxItems}).`,
+          )
+        }
+      }
+      if (fatals.length > 0) result.push({ slug: seed.slug, messages: fatals, fatal: true })
+      if (warnings.length > 0) result.push({ slug: seed.slug, messages: warnings, fatal: false })
+    }
+  }
+
   return result
 }
 

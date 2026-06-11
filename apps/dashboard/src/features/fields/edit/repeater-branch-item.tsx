@@ -46,9 +46,11 @@ export interface BranchItemRowProps {
    * SQL columns) are hidden.
    */
   subField?: boolean
+  /** Disable the remove control — e.g. when the parent repeater is at `minItems`. */
+  disableRemove?: boolean
 }
 
-export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemove, subField = false }: BranchItemRowProps) {
+export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemove, subField = false, disableRemove = false }: BranchItemRowProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const isExisting = !subField && !branch.id.startsWith("br_new_")
@@ -99,7 +101,7 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
             {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </CollapsibleTrigger>
-        <Button variant="ghost" size="sm" onClick={onRemove} title={t("fields.repeater.removeItem")} aria-label={t("fields.repeater.removeItem")}>
+        <Button variant="ghost" size="sm" onClick={onRemove} disabled={disableRemove} title={t("fields.repeater.removeItem")} aria-label={t("fields.repeater.removeItem")}>
           <Trash2 className="h-4 w-4 text-destructive" />
         </Button>
       </div>
@@ -294,6 +296,26 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
           {branch.type === "repeater" && !subField && (
             <div className="space-y-2 rounded-md border p-2">
               <p className="text-xs font-medium">{t("seedBuilder.branchEditor.repeaterFields")}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">{t("seedBuilder.branchEditor.minItems")}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={branch.minItems ?? ""}
+                    onChange={e => set("minItems", e.target.value ? +e.target.value : undefined)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">{t("seedBuilder.branchEditor.maxItems")}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={branch.maxItems ?? ""}
+                    onChange={e => set("maxItems", e.target.value ? +e.target.value : undefined)}
+                  />
+                </div>
+              </div>
               <FieldEditRepeater
                 branch={{
                   id: `${branch.id}_subfields`,
