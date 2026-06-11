@@ -13,8 +13,8 @@
  * implemented in the core engine (e.g. type: 'relation', ref: 'seed-slug').
  */
 import { describe, it, expect } from 'vitest'
-import { validateAndSanitizeSeedPayload } from './validation'
-import type { Seed } from './types'
+import { validateAndSanitizeSeedPayload, isValidContentStatus } from './validation'
+import type { Branch, Seed } from './types'
 
 // ─── Frankenstein Seed (covers every branch type) ────────────────────────────
 
@@ -424,6 +424,149 @@ describe('richtext field', () => {
     const r = safeValidate({ ...validBase(), body: maliciousDoc })
     expect(r.dangerousFields).toContain('body')
   })
+
+  it('detects a dangerous tag embedded in a text node string', () => {
+    const maliciousDoc = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: '<script>alert(1)</script>' }] }],
+    }
+    const r = safeValidate({ ...validBase(), body: maliciousDoc })
+    expect(r.dangerousFields).toContain('body')
+  })
+
+  it('detects an "on*" event handler attribute key inside richtext JSON', () => {
+    const maliciousDoc = {
+      type: 'doc',
+      content: [{ type: 'image', attrs: { src: 'https://x.com/a.png', onError: 'alert(1)' } }],
+    }
+    const r = safeValidate({ ...validBase(), body: maliciousDoc })
+    expect(r.dangerousFields).toContain('body')
+  })
+
+  it('rejects a richtext field given a non-object, non-string value', () => {
+    const r = safeValidate({ ...validBase(), body: 12345 as unknown as Record<string, unknown> })
+    expect(r.details.some(d => d.field === 'body')).toBe(true)
+  })
+
+  it('rejects richtext content exceeding maxTextLength', () => {
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x'.repeat(20) }] }] }
+    const r = safeValidate({ ...validBase(), body: doc }, { maxTextLength: 10 })
+    expect(r.details.some(d => d.field === 'body' && d.expected.includes('richtext(max:10)'))).toBe(true)
+  })
+})
+
+// ─── 7b. RICHTEXT EMPTINESS DETECTION (required field) ───────────────────────
+
+const RICHTEXT_REQUIRED_SEED: Seed = {
+  slug: 'pages',
+  label: 'Page',
+  displayNameAlias: 'title',
+  branches: [
+    { alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+    { alias: 'body', label: 'Body', type: 'richtext', requiredOnCreate: true },
+  ],
+}
+
+describe('required richtext field emptiness detection', () => {
+  it('treats a doc with no text content as empty and reports it as missing', () => {
+    const emptyDoc = { type: 'doc', content: [{ type: 'paragraph', content: [] }] }
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: emptyDoc }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).toContain('body')
+  })
+
+  it('treats a wrapped envelope with an empty doc as empty', () => {
+    const emptyEnvelope = { schemaVersion: 1, doc: { type: 'doc', content: [] } }
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: emptyEnvelope }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).toContain('body')
+  })
+
+  it('treats a doc with only whitespace text as empty', () => {
+    const whitespaceDoc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: '   ' }] }] }
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: whitespaceDoc }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).toContain('body')
+  })
+
+  it('treats a doc with only latex content in attrs as non-empty', () => {
+    const latexDoc = {
+      type: 'doc',
+      content: [{ type: 'mathBlock', attrs: { latex: 'x^2' }, content: [] }],
+    }
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: latexDoc }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).not.toContain('body')
+  })
+
+  it('treats a doc with actual text content as non-empty', () => {
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello' }] }] }
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: doc }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).not.toContain('body')
+  })
+})
+
+// ─── 7c. REQUIRED JSON FIELD EMPTINESS DETECTION ─────────────────────────────
+
+const JSON_REQUIRED_SEED: Seed = {
+  slug: 'configs',
+  label: 'Config',
+  displayNameAlias: 'name',
+  branches: [
+    { alias: 'name', label: 'Name', type: 'text', requiredOnCreate: true },
+    { alias: 'settings', label: 'Settings', type: 'json', requiredOnCreate: true },
+  ],
+}
+
+describe('required json field emptiness detection', () => {
+  it('treats an empty object as empty for a required json field', () => {
+    const r = validateAndSanitizeSeedPayload(JSON_REQUIRED_SEED, { name: 'X', settings: {} }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).toContain('settings')
+  })
+
+  it('treats a non-empty object as present for a required json field', () => {
+    const r = validateAndSanitizeSeedPayload(JSON_REQUIRED_SEED, { name: 'X', settings: { a: 1 } }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).not.toContain('settings')
+  })
+})
+
+// ─── 7d. NUMBER FIELD WITH numberOptions (min/max/step) ──────────────────────
+
+const NUMBER_OPTS_SEED: Seed = {
+  slug: 'inventory',
+  label: 'Inventory',
+  displayNameAlias: 'sku',
+  branches: [
+    { alias: 'sku', label: 'SKU', type: 'text', requiredOnCreate: true },
+    { alias: 'rating', label: 'Rating', type: 'number', numberOptions: { min: 0, max: 5, step: 0.5 } },
+  ],
+}
+
+describe('number field with numberOptions (min/max/step)', () => {
+  it('accepts a value within bounds and aligned to the step', () => {
+    const r = validateAndSanitizeSeedPayload(NUMBER_OPTS_SEED, { sku: 'A', rating: 2.5 }, { requireAtLeastOneValidField: true })
+    expect(r.data.rating).toBe(2.5)
+    expect(r.details.some(d => d.field === 'rating')).toBe(false)
+  })
+
+  it('accepts values exactly at the min and max boundaries', () => {
+    const rMin = validateAndSanitizeSeedPayload(NUMBER_OPTS_SEED, { sku: 'A', rating: 0 }, { requireAtLeastOneValidField: true })
+    expect(rMin.details.some(d => d.field === 'rating')).toBe(false)
+
+    const rMax = validateAndSanitizeSeedPayload(NUMBER_OPTS_SEED, { sku: 'A', rating: 5 }, { requireAtLeastOneValidField: true })
+    expect(rMax.details.some(d => d.field === 'rating')).toBe(false)
+  })
+
+  it('rejects a value below min', () => {
+    const r = validateAndSanitizeSeedPayload(NUMBER_OPTS_SEED, { sku: 'A', rating: -1 }, { requireAtLeastOneValidField: true })
+    expect(r.details.some(d => d.field === 'rating' && d.expected.includes('min:0'))).toBe(true)
+  })
+
+  it('rejects a value above max', () => {
+    const r = validateAndSanitizeSeedPayload(NUMBER_OPTS_SEED, { sku: 'A', rating: 10 }, { requireAtLeastOneValidField: true })
+    expect(r.details.some(d => d.field === 'rating' && d.expected.includes('max:5'))).toBe(true)
+  })
+
+  it('rejects a value not aligned to the step', () => {
+    const r = validateAndSanitizeSeedPayload(NUMBER_OPTS_SEED, { sku: 'A', rating: 2.3 }, { requireAtLeastOneValidField: true })
+    expect(r.details.some(d => d.field === 'rating' && d.expected.includes('step:0.5'))).toBe(true)
+  })
 })
 
 // ─── 8. FILE OPTIONS ─────────────────────────────────────────────────────────
@@ -503,6 +646,18 @@ describe('fileOptions', () => {
     expect(r.details.some(d => d.field === 'docs')).toBe(false)
   })
 
+  it('asset-list accepts a single non-JSON URL string and wraps it into an array', () => {
+    const r = safeValidate({ ...validBase(), gallery: 'https://x.com/photo1.jpg' })
+    expect(r.data.gallery).toEqual(['https://x.com/photo1.jpg'])
+    expect(r.details.some(d => d.field === 'gallery')).toBe(false)
+  })
+
+  it('asset-list skips null/undefined entries inside the array', () => {
+    const r = safeValidate({ ...validBase(), gallery: [null, 'https://x.com/a.jpg', undefined] })
+    expect(r.data.gallery).toEqual(['https://x.com/a.jpg'])
+    expect(r.details.some(d => d.field === 'gallery')).toBe(false)
+  })
+
   // cache check: stessa URL valida per 'any' ma non per 'image'
   it("cache: schemi con fileOptions diversi producono comportamenti distinti", () => {
     const seedImage: Seed = {
@@ -545,6 +700,7 @@ const RELATION_SEED: Seed = {
     { alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
     { alias: 'author_id', label: 'Author', type: 'relation', targetSeed: 'team' },
     { alias: 'editor_id', label: 'Editor', type: 'relation', targetSeed: 'team', requiredOnCreate: true },
+    { alias: 'coauthor_ids', label: 'Co-authors', type: 'relation', targetSeed: 'team', multiple: true },
   ],
 }
 
@@ -604,6 +760,67 @@ describe('relation field', () => {
         { operation: 'create' },
       )
     ).toThrow('IIdGenerator must be provided')
+  })
+
+  it('accepts an array of valid UUIDs with no duplicates for a multi-relation field', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', editor_id: UUID_V4, coauthor_ids: [UUID_V4] },
+      { operation: 'create', idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: true },
+    )
+    expect(r.data.coauthor_ids).toEqual([UUID_V4])
+    expect(r.details.some(d => d.field === 'coauthor_ids')).toBe(false)
+  })
+
+  it('rejects duplicate ids in a multi-relation array', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', editor_id: UUID_V4, coauthor_ids: [UUID_V4, UUID_V4] },
+      { operation: 'create', idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: true },
+    )
+    expect(r.details.some(d => d.field === 'coauthor_ids')).toBe(true)
+  })
+
+  it('accepts null for an optional multi-relation field when allowNull is true', () => {
+    const r = validateAndSanitizeSeedPayload(
+      RELATION_SEED,
+      { title: 'T', editor_id: UUID_V4, coauthor_ids: null },
+      { operation: 'update', allowNull: true, idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: false },
+    )
+    expect(r.data.coauthor_ids).toBeNull()
+    expect(r.details.some(d => d.field === 'coauthor_ids')).toBe(false)
+  })
+})
+
+// ─── 9b. UNHANDLED BRANCH TYPE ────────────────────────────────────────────────
+
+describe('unhandled branch type', () => {
+  it('throws a descriptive error for an unrecognized branch type', () => {
+    const badSeed: Seed = {
+      slug: 'broken',
+      label: 'Broken',
+      displayNameAlias: 'x',
+      branches: [
+        { alias: 'x', label: 'X', type: 'mystery' } as unknown as Branch,
+      ],
+    }
+    expect(() => validateAndSanitizeSeedPayload(badSeed, { x: 'value' })).toThrow('Unhandled branch type')
+  })
+})
+
+// ─── 9c. isValidContentStatus ────────────────────────────────────────────────
+
+describe('isValidContentStatus', () => {
+  it('returns true for each valid status value', () => {
+    expect(isValidContentStatus('draft')).toBe(true)
+    expect(isValidContentStatus('review')).toBe(true)
+    expect(isValidContentStatus('published')).toBe(true)
+  })
+
+  it('returns false for invalid or non-string values', () => {
+    expect(isValidContentStatus('archived')).toBe(false)
+    expect(isValidContentStatus(123)).toBe(false)
+    expect(isValidContentStatus(null)).toBe(false)
   })
 })
 

@@ -184,9 +184,26 @@ function parseVitestConfig(configPath) {
   const include = extractArray(coverageBlock, 'include')
   const exclude = extractArray(coverageBlock, 'exclude')
 
+  // Extract thresholds — look for "thresholds: { statements: N, ... }"
+  const thresholds = { statements: 80, branches: 80, functions: 80, lines: 80 }
+  const thresholdsMatch = /thresholds\s*:\s*\{([^}]+)\}/s.exec(coverageBlock)
+  if (thresholdsMatch) {
+    const block = thresholdsMatch[1]
+    for (const [key, alias] of [
+      ['statements', 'statements'],
+      ['branches',   'branches'],
+      ['functions',  'functions'],
+      ['lines',      'lines'],
+    ]) {
+      const m = new RegExp(`${key}\\s*:\\s*([0-9]+(?:\\.[0-9]+)?)`).exec(block)
+      if (m) thresholds[alias] = parseFloat(m[1])
+    }
+  }
+
   return {
     include: include || null,
     exclude: exclude || [],
+    thresholds,
   }
 }
 
@@ -316,10 +333,11 @@ function renderTable(rows) {
     const branch = formatPct(r.branch)
     const funcs  = formatPct(r.funcs)
     const lines  = formatPct(r.lines)
-    const status = r.status === 'OK Covered'       ? green(r.status)
+    const status = r.status === 'PASS'              ? green(r.status)
                  : r.status === '? No Tests Found'  ? yellow(r.status)
-                 : r.status === 'FAIL Tests Failed' ? red(r.status)
+                 : r.status.startsWith('LOW:')       ? red(r.status)
                  : r.status === '!! Untested'        ? red(r.status)
+                 : r.status === 'FAIL Tests Failed'  ? red(r.status)
                  : gray(r.status)
 
     const line = [
@@ -396,7 +414,7 @@ async function main() {
 
     const workspaceDir = path.join(ROOT, workspace.dir)
     const configPath   = path.join(workspaceDir, workspace.config)
-    const { include, exclude } = parseVitestConfig(configPath)
+    const { include, exclude, thresholds } = parseVitestConfig(configPath)
 
     console.log(bold(`[${workspace.name}]`))
     console.log(dim('  ' + '─'.repeat(60)))
@@ -471,22 +489,40 @@ async function main() {
       }
 
       const data = summary[summaryKey]
-      const row = {
-        file:   display,
+      const pct = {
         stmts:  data.statements?.pct,
         branch: data.branches?.pct,
         funcs:  data.functions?.pct,
         lines:  data.lines?.pct,
-        status: status === 0 ? 'OK Covered' : 'FAIL Tests Failed',
       }
 
       // Flag as untested if all zeros
       if (data.statements?.covered === 0 && data.functions?.covered === 0) {
-        row.status = '!! Untested'
+        tableRows.push({ file: display, ...pct, status: '!! Untested' })
         globalUntested++
+        globalTotal++
+        continue
       }
 
-      tableRows.push(row)
+      // Check each metric against workspace thresholds
+      const failing = []
+      if (pct.stmts  !== undefined && pct.stmts  < thresholds.statements) failing.push(`stmts ${pct.stmts.toFixed(1)}%<${thresholds.statements}%`)
+      if (pct.branch !== undefined && pct.branch < thresholds.branches)   failing.push(`branch ${pct.branch.toFixed(1)}%<${thresholds.branches}%`)
+      if (pct.funcs  !== undefined && pct.funcs  < thresholds.functions)  failing.push(`funcs ${pct.funcs.toFixed(1)}%<${thresholds.functions}%`)
+      if (pct.lines  !== undefined && pct.lines  < thresholds.lines)      failing.push(`lines ${pct.lines.toFixed(1)}%<${thresholds.lines}%`)
+
+      let rowStatus
+      if (status !== 0) {
+        rowStatus = 'FAIL Tests Failed'
+        globalUntested++
+      } else if (failing.length > 0) {
+        rowStatus = `LOW: ${failing.join(', ')}`
+        globalUntested++
+      } else {
+        rowStatus = 'PASS'
+      }
+
+      tableRows.push({ file: display, ...pct, status: rowStatus })
       globalTotal++
     }
 
@@ -503,11 +539,15 @@ async function main() {
 
   // ─── Summary Footer ──────────────────────────────────────────────────────
   console.log(bold('─'.repeat(70)))
-  if (globalUntested === 0 && globalTotal > 0) {
-    console.log(green(bold(`All ${globalTotal} changed file(s) have test coverage.`)))
-  } else if (globalUntested > 0) {
-    console.log(yellow(bold(`${globalUntested} / ${globalTotal} changed file(s) have missing or zero coverage.`)))
-    console.log(dim('  Review the table above for details. Consider adding or updating tests.'))
+  if (globalTotal === 0) {
+    // nothing to report
+  } else if (globalUntested === 0) {
+    console.log(green(bold(`PASS  All ${globalTotal} changed file(s) meet coverage thresholds.`)))
+  } else {
+    const passed = globalTotal - globalUntested
+    console.log(red(bold(`FAIL  ${globalUntested} / ${globalTotal} file(s) below threshold or untested.`)))
+    if (passed > 0) console.log(dim(`      ${passed} file(s) passed.`))
+    console.log(dim('      Review LOW: / !! Untested entries above and add tests.'))
   }
   console.log()
 }

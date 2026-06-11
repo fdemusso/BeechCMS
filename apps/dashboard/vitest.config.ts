@@ -127,7 +127,37 @@ export default defineConfig({
         "src/features/entry-editor/**",
 
         // ─── Field renderers (pure UI wrappers, no isolated business logic) ──
-        "src/features/fields/**",
+        // Repeater is excluded from this list — it has real cardinality/branch-type
+        // logic plus a dedicated test suite (src/test/fields/repeater.test.tsx).
+        "src/features/fields/default.tsx",
+        "src/features/fields/FieldDisplay.tsx",
+        "src/features/fields/FieldEdit.tsx",
+        "src/features/fields/field-registry.ts",
+        "src/features/fields/registry.ts",
+        "src/features/fields/display/boolean.tsx",
+        "src/features/fields/display/date.tsx",
+        "src/features/fields/display/json.tsx",
+        "src/features/fields/display/media.tsx",
+        "src/features/fields/display/number-format.ts",
+        "src/features/fields/display/number.tsx",
+        "src/features/fields/display/relation.tsx",
+        "src/features/fields/display/richtext.tsx",
+        "src/features/fields/display/text.tsx",
+        "src/features/fields/edit/boolean.tsx",
+        "src/features/fields/edit/date.tsx",
+        "src/features/fields/edit/json.tsx",
+        "src/features/fields/edit/media.tsx",
+        "src/features/fields/edit/number-input.tsx",
+        "src/features/fields/edit/number-rating.tsx",
+        "src/features/fields/edit/number-slider.tsx",
+        "src/features/fields/edit/number-stepper.tsx",
+        "src/features/fields/edit/number.tsx",
+        "src/features/fields/edit/relation.tsx",
+        "src/features/fields/edit/richtext.tsx",
+        "src/features/fields/edit/select.tsx",
+        "src/features/fields/edit/text.tsx",
+        "src/features/fields/edit/use-number-rating.ts",
+        "src/features/fields/edit/use-number-stepper.ts",
 
         // ─── Rich-text editor (third-party wrapper, no unit logic) ───────────
         "src/features/richtext-editor/**",

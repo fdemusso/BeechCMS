@@ -396,4 +396,55 @@ describe("BranchItemRow with branch.type === 'repeater'", () => {
     expect(updated.fields).toHaveLength(1)
     expect(updated.fields?.[0].id).toMatch(/^br_new_/)
   })
+
+  it("editing minItems updates the branch via onChange (Sprint 11)", () => {
+    const onChange = vi.fn()
+    render(
+      <BranchItemRow
+        branch={repeaterBranch}
+        activeSeedsForRelation={[]}
+        onChange={onChange}
+        onRemove={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getAllByRole("button")[1])
+
+    const [minItemsInput] = screen.getAllByRole("spinbutton") as HTMLInputElement[]
+    fireEvent.change(minItemsInput, { target: { value: "1" } })
+    expect(onChange).toHaveBeenLastCalledWith({ ...repeaterBranch, minItems: 1 })
+  })
+
+  it("editing maxItems updates the branch via onChange (Sprint 11)", () => {
+    const onChange = vi.fn()
+    render(
+      <BranchItemRow
+        branch={{ ...repeaterBranch, minItems: 1 }}
+        activeSeedsForRelation={[]}
+        onChange={onChange}
+        onRemove={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getAllByRole("button")[1])
+
+    const [, maxItemsInput] = screen.getAllByRole("spinbutton") as HTMLInputElement[]
+    fireEvent.change(maxItemsInput, { target: { value: "5" } })
+    expect(onChange).toHaveBeenLastCalledWith({ ...repeaterBranch, minItems: 1, maxItems: 5 })
+  })
+
+  it("clearing maxItems falls back to undefined (Sprint 11)", () => {
+    const onChange = vi.fn()
+    render(
+      <BranchItemRow
+        branch={{ ...repeaterBranch, maxItems: 5 }}
+        activeSeedsForRelation={[]}
+        onChange={onChange}
+        onRemove={vi.fn()}
+      />
+    )
+    fireEvent.click(screen.getAllByRole("button")[1])
+
+    const [, maxItemsInput] = screen.getAllByRole("spinbutton") as HTMLInputElement[]
+    fireEvent.change(maxItemsInput, { target: { value: "" } })
+    expect(onChange).toHaveBeenLastCalledWith({ ...repeaterBranch, maxItems: undefined })
+  })
 })
