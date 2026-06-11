@@ -35,6 +35,7 @@ This document describes the architecture of the React dashboard: how the FieldRe
    - [Client-Side Formula Evaluation](#85-client-side-formula-evaluation)
    - [Pilot Widgets](#86-pilot-widgets)
    - [How to Add a New Widget](#87-how-to-add-a-new-widget)
+   - [Dashboard Renderer & Widget Registry](#88-dashboard-renderer--widget-registry)
 9. [Dashboard Seed Config — Sidebar & UI Behaviour](#9-dashboard-seed-config--sidebar--ui-behaviour)
    - [How it works](#91-how-it-works)
    - [Icon Registry](#92-icon-registry)
@@ -967,11 +968,71 @@ export function MyWidget({ seed, formula, window = "all", title }: MyWidgetProps
 }
 ```
 
-3. **Register the widget type** in `apps/dashboard/src/features/dashboard/types/widget.types.ts` — add the new type string to the `WidgetType` union.
+3. **Register the widget type** with `registerWidget()` — see [8.8 Dashboard Renderer & Widget Registry](#88-dashboard-renderer--widget-registry). The `widget.types.ts`, `widget-registry.tsx` and `dashboard.config.ts` files this step used to reference have been removed.
 
-4. **Add a case** in `apps/dashboard/src/features/dashboard/components/widget-registry.tsx` that maps the new type to the sub-barrel imported component.
+### 8.8 Dashboard Renderer & Widget Registry
 
-5. **Add an instance** to `DEFAULT_DASHBOARD_CONFIG` in `apps/dashboard/src/features/dashboard/config/dashboard.config.ts` with the desired `span`, `x`, `y`, and `props`.
+The dashboard home page (`apps/dashboard/src/features/dashboard/pages/dashboard-page.tsx`) does not hardcode a bento grid. It renders a `DashboardLayout` (from `@beechcms/core`) through a generic **Pages → Sections → Columns → Widgets** renderer, driven by a typed widget registry.
+
+**Layout source — `useDashboardLayout()`:**
+
+```typescript
+import { useDashboardLayout } from "@/features/dashboard"
+
+const { layout, isStored, isLoading } = useDashboardLayout()
+```
+
+- Fetches `GET /dashboard-layout`. If the stored `layout` is `null` (never customized), falls back to `generateDefaultDashboardLayout(seeds)` from `@beechcms/core` — memoized on `seeds` so widget/section/page ids stay stable across re-renders.
+- `isStored` is `false` while showing the generated default — the Sprint 05 builder uses this to decide whether "Save" creates a new layout or updates the existing one.
+
+**Renderer — `<DashboardLayoutRenderer layout={layout} />`:**
+
+| Level | Component | Behaviour |
+|---|---|---|
+| Page | `DashboardLayoutRenderer` | `layout.pages` selected via `?page=<slug>` (Shadcn `Tabs`, `variant="line"`). A single page renders without a tab strip. An unknown or missing slug falls back to the first page. |
+| Section | `DashboardSection` | 12-unit grid (`grid-cols-1 md:grid-cols-6 lg:grid-cols-12`), reusing the `.bento-cell` utility. Column widths come from `section.columnSpans`, or an equal split with the remainder distributed left-to-right. `section.label` renders a header unless `hideLabel` is set; `section.collapsible` adds a collapse toggle. |
+| Column | `DashboardColumn` | Vertical stack (`flex flex-col gap-6`) of `DashboardWidgetInstance`s, in array order. |
+| Widget | `DashboardWidgetHost` | Looks up `instance.type` in the registry, validates `instance.config` against the definition's `configSchema`, and renders the widget inside `WidgetErrorBoundary`. |
+
+Unknown types and invalid configs never blank the dashboard:
+- `instance.type` not in the registry → a dashed placeholder showing `dashboard.widgetRegistry.unknown` plus the raw type string (e.g. a `@acme/weather` widget on a site that hasn't installed the matching plugin).
+- `configSchema.safeParse(instance.config)` fails → `console.warn` and the widget renders with `definition.defaultConfig` instead of crashing.
+
+**Registering a widget type:**
+
+All built-ins live in `apps/dashboard/src/features/dashboard/registry/builtin-widgets.tsx`, namespaced `core/<name>` (custom widget packs use `@scope/name`):
+
+```typescript
+import { z } from "zod"
+import { registerWidget } from "./widget-registry"
+import type { DashboardWidgetProps } from "./widget-definition"
+
+const myWidgetConfigSchema = z.object({
+  seedSlug: z.string().catch(""),
+  variant: z.enum(["list", "cards"]).optional().catch(undefined),
+})
+type MyWidgetConfig = z.infer<typeof myWidgetConfigSchema>
+
+function MyWidgetAdapter({ config }: DashboardWidgetProps<MyWidgetConfig>) {
+  return <MyWidget seedSlug={config.seedSlug} variant={config.variant} />
+}
+
+registerWidget<MyWidgetConfig>({
+  type: "core/my-widget",
+  labelKey: "dashboard.widgetRegistry.widgets.myWidget.label",
+  icon: "Sparkles",          // Lucide icon name, used by the Sprint 05 picker
+  category: "content",       // "stats" | "charts" | "content" | "system" | "custom"
+  configSchema: myWidgetConfigSchema,
+  defaultConfig: { seedSlug: "", variant: "list" },
+  component: MyWidgetAdapter,
+  minColumnSpan: 6,           // builder hint (Sprint 05)
+})
+```
+
+- **`configSchema` must be lenient** — every field needs `.catch()` or `.optional().catch(undefined)` so a partial or stale stored config always parses into *something* rather than failing outright.
+- Add a `dashboard.widgetRegistry.widgets.<key>.label` entry to `src/locales/en.json` and `it.json` — shown in the (Sprint 05) widget picker.
+- `registerWidget` throws if `type` is already registered — types share a flat global namespace, so pick a specific name.
+- `builtin-widgets.tsx` is imported only for its side effects, from `features/dashboard/index.ts`. Nothing else needs to import it directly.
 
 ---
 

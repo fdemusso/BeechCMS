@@ -131,7 +131,54 @@
       }
     },
     "widgetRegistry": {
-      "unknown": "Unknown widget:"
+      "unknown": "Unknown widget:",
+      "widgets": {
+        "stat": {
+          "label": "Statistic"
+        },
+        "recentActivity": {
+          "label": "Recent Activity"
+        },
+        "systemHealth": {
+          "label": "System Health"
+        },
+        "contentPulse": {
+          "label": "Content Pulse"
+        },
+        "aiInsights": {
+          "label": "AI Insights"
+        },
+        "quickActions": {
+          "label": "Quick Actions"
+        },
+        "recentContent": {
+          "label": "Recent Content"
+        },
+        "quickDraft": {
+          "label": "Quick Draft"
+        },
+        "pendingDrafts": {
+          "label": "Pending Drafts"
+        },
+        "publicationStats": {
+          "label": "Publication Stats"
+        },
+        "siteStatus": {
+          "label": "Site Status"
+        },
+        "storage": {
+          "label": "Storage"
+        },
+        "mediaGallery": {
+          "label": "Media Gallery"
+        },
+        "activityFeed": {
+          "label": "Activity Feed"
+        },
+        "setupChecklist": {
+          "label": "Setup Checklist"
+        }
+      }
     },
     "setupChecklist": {
       "title": "Setup Checklist",

@@ -21,4 +21,5 @@ export const DASHBOARD_QUERY_KEYS = {
   health: () => [...DASHBOARD_QUERY_KEYS.all, "health"] as const,
   breakdown: () => [...DASHBOARD_QUERY_KEYS.all, "breakdown"] as const,
   setupChecklist: () => [...DASHBOARD_QUERY_KEYS.all, "setup-checklist"] as const,
+  layout: () => [...DASHBOARD_QUERY_KEYS.all, "layout"] as const,
 } as const

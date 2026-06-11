@@ -131,7 +131,54 @@
       }
     },
     "widgetRegistry": {
-      "unknown": "Widget sconosciuto:"
+      "unknown": "Widget sconosciuto:",
+      "widgets": {
+        "stat": {
+          "label": "Statistica"
+        },
+        "recentActivity": {
+          "label": "Attività Recente"
+        },
+        "systemHealth": {
+          "label": "Stato del Sistema"
+        },
+        "contentPulse": {
+          "label": "Andamento Contenuti"
+        },
+        "aiInsights": {
+          "label": "Approfondimenti IA"
+        },
+        "quickActions": {
+          "label": "Azioni Rapide"
+        },
+        "recentContent": {
+          "label": "Contenuti Recenti"
+        },
+        "quickDraft": {
+          "label": "Bozza Rapida"
+        },
+        "pendingDrafts": {
+          "label": "Bozze in Attesa"
+        },
+        "publicationStats": {
+          "label": "Statistiche di Pubblicazione"
+        },
+        "siteStatus": {
+          "label": "Stato del Sito"
+        },
+        "storage": {
+          "label": "Storage"
+        },
+        "mediaGallery": {
+          "label": "Galleria Media"
+        },
+        "activityFeed": {
+          "label": "Feed Attività"
+        },
+        "setupChecklist": {
+          "label": "Checklist di Configurazione"
+        }
+      }
     },
     "setupChecklist": {
       "title": "Checklist di configurazione",

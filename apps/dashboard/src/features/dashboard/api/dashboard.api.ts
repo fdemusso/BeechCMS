@@ -3,9 +3,19 @@
 // See LICENSE in the repository root for license terms.
 
 import { api } from "@/lib/api"
+import type { DashboardLayout } from "@beechcms/core"
 import type { DashboardStats, CloudflareStats, RecentActivity, SystemHealth, ContentBreakdown, SetupChecklist } from "../types/dashboard.types"
 
+export interface DashboardLayoutResponse {
+  scope: string
+  layout: DashboardLayout | null
+}
+
 export const dashboardApi = {
+  getDashboardLayout: async (): Promise<DashboardLayoutResponse> => {
+    const { data } = await api.get<DashboardLayoutResponse>("/dashboard-layout")
+    return data
+  },
   getTotalStats: async (): Promise<DashboardStats> => {
     const { data } = await api.get<DashboardStats>("/content/stats/total")
     return data
