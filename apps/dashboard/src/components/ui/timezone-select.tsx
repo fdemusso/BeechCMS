@@ -5,48 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { cn } from '@/lib/utils'
-
-export const TIMEZONES = (() => {
-  try {
-    return Intl.supportedValuesOf('timeZone')
-  } catch {
-    return [
-      'Europe/Rome',
-      'Europe/London',
-      'Europe/Paris',
-      'Europe/Berlin',
-      'UTC',
-      'America/New_York',
-      'America/Chicago',
-      'America/Los_Angeles',
-      'Asia/Tokyo',
-      'Asia/Shanghai',
-      'Australia/Sydney',
-    ]
-  }
-})()
-
-export function getTimezoneLabel(tz: string): string {
-  try {
-    const parts = new Intl.DateTimeFormat('en-US', {
-      timeZone: tz,
-      timeZoneName: 'shortOffset',
-    }).formatToParts(new Date())
-    const tzPart = parts.find((part) => part.type === 'timeZoneName')
-    const offset = tzPart ? tzPart.value.replace('GMT', 'UTC') : ''
-    
-    const tzParts = tz.split('/')
-    const city = tzParts[tzParts.length - 1].replace('_', ' ')
-    const region = tzParts.slice(0, -1).join('/')
-    
-    if (region) {
-      return `${city} (${region}, ${offset})`
-    }
-    return offset ? `${city} (${offset})` : city
-  } catch {
-    return tz
-  }
-}
+import { TIMEZONES, getTimezoneLabel } from '@/components/ui/timezone-utils'
 
 interface TimezoneSelectProps {
   value: string

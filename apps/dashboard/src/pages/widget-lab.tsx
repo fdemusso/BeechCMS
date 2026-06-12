@@ -4,7 +4,6 @@
 
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar, SiteHeader } from "@/features/navigation"
-import { DashboardWidgetShell } from "@/features/dashboard"
 import {
   SiteStatusWidget,
   StorageWidget,
@@ -17,6 +16,12 @@ import {
 } from "@/features/dashboard/widgets"
 import { useSchema } from "@/features/schema"
 import { cn } from "@/lib/utils"
+import { LineChart, BarChart3, AreaChart } from "lucide-react"
+import { StatWidget } from "@/features/dashboard/components/widgets/stat-widget"
+import { TimeseriesChartWidget } from "@/features/dashboard/components/widgets/timeseries-chart-widget"
+import { PieChartWidget } from "@/features/dashboard/components/widgets/pie-chart-widget"
+import { DataTableWidget } from "@/features/dashboard/components/widgets/data-table-widget"
+import { TextWidget } from "@/features/dashboard/components/widgets/text-widget"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -64,18 +69,6 @@ function LabCell({ label, h = 120, children }: {
   )
 }
 
-// ─── Placeholder for in-progress widgets ────────────────────────────────────
-
-function LabPlaceholder({ name }: { name: string }) {
-  return (
-    <DashboardWidgetShell>
-      <div className="flex h-full items-center justify-center">
-        <p className="text-sm font-mono text-muted-foreground/50">{name}</p>
-      </div>
-    </DashboardWidgetShell>
-  )
-}
-
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export function WidgetLabPage() {
@@ -92,6 +85,7 @@ export function WidgetLabPage() {
   })
 
   const firstSeedSlug = allSeeds[0]?.slug ?? ""
+  const firstBranchAlias = seeds[0]?.branches[0]?.alias ?? ""
 
   return (
     <div className="[--header-height:calc(--spacing(14))]">
@@ -231,20 +225,54 @@ export function WidgetLabPage() {
                 </LabRow>
               </LabSection>
 
-              {/* ── IN SVILUPPO ───────────────────────────────────────────── */}
+              {/* ── Composer widgets (Sprint 04) ─────────────────────────── */}
               <LabSection
-                title="In sviluppo"
-                description="Nuovi widget in costruzione — aggiungi qui i tuoi componenti prima di registrarli."
+                title="Composer widgets"
+                description="Sprint 04 — widget formula-driven sopra le route /api/widget/*"
               >
                 <LabRow className="grid-cols-3">
-                  <LabCell label="nuovo-widget-1">
-                    <LabPlaceholder name="nuovo-widget-1" />
+                  <LabCell label={"core/stat (formula) · span w:3 h:1"}>
+                    <StatWidget config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month", label: "Total" }} />
                   </LabCell>
-                  <LabCell label="nuovo-widget-2">
-                    <LabPlaceholder name="nuovo-widget-2" />
+                  <LabCell label={"core/stat (statKey legacy) · span w:3 h:1"}>
+                    <StatWidget config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "all", label: "All time", icon: "Database", showTrend: false }} />
                   </LabCell>
-                  <LabCell label="nuovo-widget-3">
-                    <LabPlaceholder name="nuovo-widget-3" />
+                  <LabCell label={"core/text · span w:2 h:1"}>
+                    <TextWidget config={{ content: "Note testuale di esempio.\nSupporta più righe.", align: "left" }} />
+                  </LabCell>
+                </LabRow>
+                <LabRow className="grid-cols-3">
+                  <LabCell label={"core/line-chart · span w:4 h:2"} h={280}>
+                    <TimeseriesChartWidget
+                      config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month" }}
+                      kind="line"
+                      title="Line Chart"
+                      icon={LineChart}
+                    />
+                  </LabCell>
+                  <LabCell label={"core/bar-chart · span w:4 h:2"} h={280}>
+                    <TimeseriesChartWidget
+                      config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month" }}
+                      kind="bar"
+                      title="Bar Chart"
+                      icon={BarChart3}
+                    />
+                  </LabCell>
+                  <LabCell label={"core/area-chart · span w:4 h:2"} h={280}>
+                    <TimeseriesChartWidget
+                      config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "month" }}
+                      kind="area"
+                      title="Area Chart"
+                      icon={AreaChart}
+                    />
+                  </LabCell>
+                </LabRow>
+                <LabRow className="grid-cols-2">
+                  <LabCell label={"core/pie-chart · span w:4 h:2"} h={280}>
+                    <PieChartWidget config={{ seedSlug: firstSeedSlug, column: firstBranchAlias, donut: true, limit: 5 }} title="Pie Chart" />
+                  </LabCell>
+                  <LabCell label={"core/data-table · span w:4 h:2"} h={280}>
+                    <DataTableWidget config={{ seedSlug: firstSeedSlug, pageSize: 5 }} />
                   </LabCell>
                 </LabRow>
               </LabSection>

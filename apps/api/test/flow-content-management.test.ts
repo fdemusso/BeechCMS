@@ -10,6 +10,9 @@ import { D1TestDatabase } from './helpers/d1-test-database'
 import { seedTestUsers } from './helpers/seed-fixtures'
 import { S3Client } from '@aws-sdk/client-s3'
 import { TEST_SEEDS, TEST_USERS, TEST_ENV } from './fixtures'
+import { defineSeed } from '@beechcms/core'
+import { __resetSeedRegistryCache } from '../src/shared/seed-registry-cache'
+import * as applyPolicies from '../src/shared/apply-policies'
 
 /**
  * SPRINT: BeechCMS Test Redesign
@@ -28,6 +31,7 @@ describe('Flow: Content Management (Protected API)', () => {
   let s3SendSpy: ReturnType<typeof vi.spyOn>
 
   beforeEach(async () => {
+    __resetSeedRegistryCache()
     repo = new StaticContentRepository(TEST_SEEDS)
     idempotencyRepo = new StaticIdempotencyRepository()
     db = new D1TestDatabase()
@@ -229,6 +233,309 @@ describe('Flow: Content Management (Protected API)', () => {
 
       expect(res.status).toBe(200)
       expect(s3SendSpy).toHaveBeenCalled()
+    })
+
+    it('error: delete non-existent seed returns 404', async () => {
+      const res = await app.request('/api/content/nonexistent/p_del', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(404)
+    })
+
+    it('error: delete repository throws generic error returns 500', async () => {
+      repo.load('posts', [{ id: 'p_del', status: 'published' }])
+      vi.spyOn(repo, 'delete').mockRejectedValueOnce(new Error('Delete DB error'))
+      const res = await app.request('/api/content/posts/p_del', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(500)
+    })
+  })
+
+  describe('Additional coverage: Admin content handlers sad paths', () => {
+    // facets.ts
+    it('GET /api/content/:slug/facets errors', async () => {
+      // Seed not found
+      let res = await app.request('/api/content/nonexistent/facets', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(404)
+
+      // DB error
+      vi.spyOn(repo, 'getFacets').mockRejectedValueOnce(new Error('Facets DB error'))
+      res = await app.request('/api/content/posts/facets', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(500)
+    })
+
+    // get.ts
+    it('GET /api/content/:slug/:id errors', async () => {
+      // Seed not found
+      let res = await app.request('/api/content/nonexistent/p_001', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(404)
+
+      // allowDrafts = false (documentation seed has allowDrafts: false)
+      repo.load('documentation', [{ id: 'doc_001', slug: 'doc-1', status: 'published', title: 'Doc' }])
+      res = await app.request('/api/content/documentation/doc_001', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(200)
+      const body = await res.json<any>()
+      expect(body.has_pending_draft).toBe(false)
+
+      // DB error on findById
+      vi.spyOn(repo, 'findById').mockRejectedValueOnce(new Error('FindById DB error'))
+      res = await app.request('/api/content/posts/p_001', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(500)
+    })
+
+    it('GET /api/content/:schema_slug/by-slug/:entry_slug errors', async () => {
+      // Seed not found
+      let res = await app.request('/api/content/nonexistent/by-slug/some-slug', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(404)
+
+      // allowDrafts = false on by-slug
+      repo.load('documentation', [{ id: 'doc_002', slug: 'doc-2', status: 'published', title: 'Doc2' }])
+      res = await app.request('/api/content/documentation/by-slug/doc-2', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(200)
+
+      // Entry not found on by-slug
+      res = await app.request('/api/content/posts/by-slug/ghost-slug', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(404)
+
+      // DB error on findBySlug
+      vi.spyOn(repo, 'findBySlug').mockRejectedValueOnce(new Error('FindBySlug DB error'))
+      res = await app.request('/api/content/posts/by-slug/some-slug', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(500)
+    })
+
+    // create.ts
+    it('POST /api/content/:slug errors', async () => {
+      // Seed not found
+      let res = await app.request('/api/content/nonexistent', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'New' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(404)
+
+      // Status not valid
+      res = await app.request('/api/content/posts', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'New', status: 'invalid-status' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+
+      // Dangerous markup
+      res = await app.request('/api/content/posts', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'New', body: '<script>alert(1)</script>' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(422)
+
+      // Validation details > 0 (missing required field 'title')
+      res = await app.request('/api/content/posts', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: { type: 'doc', content: [] } }) // title is missing
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+
+      // PrivacyPolicyError (privacy encrypt)
+      const ENCRYPTED_SEED = defineSeed({
+        slug: 'encrypted',
+        label: 'Encrypted',
+        labelPlural: 'Encrypteds',
+        displayNameAlias: 'secret',
+        branches: [
+          { id: 'br_01', alias: 'secret', label: 'Secret', type: 'text', policies: { privacy: 'encrypt' } }
+        ]
+      })
+      const localRepo = new StaticContentRepository([ENCRYPTED_SEED])
+      const encryptedApp = createBeechApp({ seeds: [ENCRYPTED_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo })
+      __resetSeedRegistryCache()
+      res = await encryptedApp.request('/api/content/encrypted', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: 'secret-val' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(501)
+
+      // DB error
+      vi.spyOn(repo, 'create').mockRejectedValueOnce(new Error('Create DB error'))
+      __resetSeedRegistryCache()
+      res = await app.request('/api/content/posts', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Post title' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(500)
+    })
+
+    // update.ts
+    it('PUT /api/content/:slug/:id errors', async () => {
+      repo.load('posts', [{ id: 'p_upd_err', slug: 'upd-slug', status: 'published', title: 'Title' }])
+
+      // Seed not found
+      let res = await app.request('/api/content/nonexistent/p_upd_err', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'New' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(404)
+
+      // JSON body malformed
+      res = await app.request('/api/content/posts/p_upd_err', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: 'invalid-json'
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+
+      // Status not valid
+      res = await app.request('/api/content/posts/p_upd_err', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'invalid-status' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+
+      // Missing slug (when slug is set to empty string)
+      res = await app.request('/api/content/posts/p_upd_err', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: '' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+
+      // Sensitive field edit (secret has privacy policy other than plain or public: false)
+      const SENSITIVE_SEED = defineSeed({
+        slug: 'sensitive_test',
+        label: 'Sensitive',
+        labelPlural: 'Sensitives',
+        displayNameAlias: 'secret',
+        branches: [
+          { id: 'br_01', alias: 'secret', label: 'Secret', type: 'text', policies: { privacy: 'encrypt' } }
+        ]
+      })
+      const sensRepo = new StaticContentRepository([SENSITIVE_SEED])
+      const sensitiveApp = createBeechApp({ seeds: [SENSITIVE_SEED], repository: sensRepo, idempotencyRepository: idempotencyRepo })
+      sensRepo.load('sensitive_test', [{ id: 'sens_001', slug: 'sens-1', status: 'published', secret: 'old' }])
+      __resetSeedRegistryCache()
+      res = await sensitiveApp.request('/api/content/sensitive_test/sens_001', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: 'new-secret' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(422)
+
+      // Dangerous markup
+      __resetSeedRegistryCache()
+      res = await app.request('/api/content/posts/p_upd_err', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: '<script>alert(1)</script>' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(422)
+
+      // Validation details > 0 (invalid richtext body)
+      __resetSeedRegistryCache()
+      res = await app.request('/api/content/posts/p_upd_err', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ body: { invalid: 'object' } })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+
+      // PrivacyPolicyError (privacy encrypt)
+      vi.spyOn(applyPolicies, 'applyPrivacy').mockRejectedValueOnce(new applyPolicies.PrivacyPolicyError('Mocked PrivacyPolicyError'))
+      __resetSeedRegistryCache()
+      res = await app.request('/api/content/posts/p_upd_err', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'New Title' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(501)
+
+      // Slug conflict
+      repo.load('posts', [
+        { id: 'p1', slug: 'slug1', status: 'published', title: 'P1' },
+        { id: 'p2', slug: 'slug2', status: 'published', title: 'P2' }
+      ])
+      __resetSeedRegistryCache()
+      res = await app.request('/api/content/posts/p1', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: 'slug2' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(409)
+
+      // DB error on update
+      vi.spyOn(repo, 'update').mockRejectedValueOnce(new Error('Update DB error'))
+      res = await app.request('/api/content/posts/p1', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'New title' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(500)
+    })
+
+    // list.ts
+    it('GET /api/content/:slug list errors and relation mapping paths', async () => {
+      // Seed not found
+      let res = await app.request('/api/content/nonexistent', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(404)
+
+      // DB error
+      vi.spyOn(repo, 'findMany').mockRejectedValueOnce(new Error('List DB error'))
+      res = await app.request('/api/content/posts', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(500)
+
+      // buildRelationsMap when the relation table doesn't exist/throws (covered by catch in buildRelationsMap)
+      // Define a custom seed with a relation branch
+      const REL_SEED = defineSeed({
+        slug: 'reltest',
+        label: 'RelTest',
+        labelPlural: 'RelTests',
+        displayNameAlias: 'title',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'target_id', label: 'Target', type: 'relation', targetSeed: 'missing_target' }
+        ]
+      })
+      const localRepo = new StaticContentRepository([REL_SEED])
+      const relApp = createBeechApp({ seeds: [REL_SEED], repository: localRepo })
+      localRepo.load('reltest', [{ id: 'r1', slug: 'r-1', status: 'published', title: 'Rel 1', target_id: 't1' }])
+      __resetSeedRegistryCache()
+      
+      // Request with filters or page/limit to trigger buildRelationsMap (hasQueryParams = true)
+      res = await relApp.request('/api/content/reltest?limit=5', {
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(200)
+      const body = await res.json<any>()
+      expect(body.relations).toEqual({}) // target seed 'missing_target' registry lookup returns undefined
     })
   })
 })

@@ -35,6 +35,7 @@ This document describes the architecture of the React dashboard: how the FieldRe
    - [Client-Side Formula Evaluation](#85-client-side-formula-evaluation)
    - [Pilot Widgets](#86-pilot-widgets)
    - [How to Add a New Widget](#87-how-to-add-a-new-widget)
+   - [Dashboard Renderer & Widget Registry](#88-dashboard-renderer--widget-registry)
 9. [Dashboard Seed Config — Sidebar & UI Behaviour](#9-dashboard-seed-config--sidebar--ui-behaviour)
    - [How it works](#91-how-it-works)
    - [Icon Registry](#92-icon-registry)
@@ -441,57 +442,70 @@ CVA keeps variant logic out of component render functions. Adding a new variant 
 
 ---
 
-## 5. The EntryEditorPage — Putting It Together
+## 5. SchemaFormShell & EntryEditorDialog — Putting It Together
 
-The `EntryEditorPage` (`pages/entry-editor.tsx`) is the canonical consumer of the FieldRenderers system. It demonstrates how the registry, TanStack Query, and the schema-driven model converge:
+In BeechCMS, content editing has migrated from a standalone page to a dynamic modal-based system centered around **`SchemaFormShell`** (`apps/dashboard/src/features/entry-editor/renderer/schema-form-shell.tsx`) in the `entry-editor` slice.
 
-```tsx
-// Simplified structure of EntryEditorPage
+The `SchemaFormShell` is a presentation-only, domain-agnostic component driven by a **`SchemaFormViewModel`** interface. This enables the **same UI shell** to render and process two very different forms:
+1. **Content Entries** (via `useEntryEditorDialog` hook in `entry-editor` slice).
+2. **Seed Definitions** (via `useSeedEditorDialog` hook in `seed-builder` slice, utilizing the `repeater` field renderer for editing fields).
 
-const seed = getSeed(slug);  // From @beechcms/core — never hardcoded
-
-// TanStack Query: fetch existing entry in edit mode
-const { data: entry } = useQuery({
-   queryKey: CONTENT_QUERY_KEYS.detail(slug, id),
-   queryFn: () => contentApi.fetchById(slug, id),
-   enabled: !!id,  // Skip in create mode
-});
-
-// Local form state — uncontrolled from the Query cache perspective
-const [formData, setFormData] = useState<Record<string, unknown>>(
-        entry?.data ?? {}
-);
-
-const handleInputChange = (alias: string, value: unknown) => {
-   setFormData(prev => ({ ...prev, [alias]: value }));
-};
-
-// Adaptive layout: richtext field → 70/30 split; no richtext → single column
-const hasRichtext = seed.branches.some(b => b.type === 'richtext');
-
-return (
-        <form onSubmit={handleSave}>
-           <div className={hasRichtext ? 'grid grid-cols-[1fr_300px]' : 'max-w-2xl mx-auto'}>
-              {seed.branches.map(branch => (
-                      // The registry is invoked here — EntryEditorPage has zero knowledge
-                      // of what component will be rendered for each type.
-                      <FieldEdit
-                              key={branch.alias}
-                              branch={branch}
-                              value={formData[branch.alias]}
-                              onChange={val => handleInputChange(branch.alias, val)}
-                      />
-              ))}
-           </div>
-        </form>
-);
+```
+useEntryEditorDialog() ──┐
+                         ├── implements SchemaFormViewModel ──→ SchemaFormShell
+useSeedEditorDialog()  ──┘
 ```
 
-Key observations:
-- `seed.branches.map(...)` drives the form. There is no hardcoded list of fields anywhere in the page.
-- The page does not contain any `switch (branch.type)` logic — that is fully delegated to the registry.
-- `formData[branch.alias]` — field access always uses aliases. The Botanical Engine's translation happens at the database boundary, not in the UI.
-- JSON field validation (checking that the string is valid JSON before submitting) is the **only** field-type-specific logic that stays in the page. All other type-specific behaviour is encapsulated in the individual renderers.
+### 5.1 The SchemaFormViewModel Interface
+
+The view-model decouples the presentation shell from the features' logic (CRUD API calls, invalidation, layout builder routing):
+
+```typescript
+// features/entry-editor/renderer/schema-form-view-model.ts
+export interface SchemaFormViewModel {
+  title: string
+  isCreate: boolean
+  isLoading: boolean
+  isSaving: boolean
+  isDeleting: boolean
+  seed: Seed
+  formData: DbPayload
+  capabilities: SchemaFormCapabilities
+  dangerZoneSlot?: React.ReactNode
+  errors: Record<string, string>
+  onFieldChange: (alias: string, value: unknown) => void
+  onSave: () => Promise<void>
+  onDelete?: () => Promise<void>
+}
+```
+
+### 5.2 Form Layout Rendering
+
+Instead of looping directly over `seed.branches`, the shell delegates rendering to `<LayoutRenderer layout={layout} ... />`, which supports tabbed grids, section cards, and customizable multi-column form layouts designed via the drag-and-drop Layout Builder.
+
+```tsx
+// Inside apps/dashboard/src/features/entry-editor/renderer/schema-form-shell.tsx
+return (
+  <div className="flex flex-col gap-6">
+    <LayoutRenderer
+      layout={layout}
+      seed={vm.seed}
+      values={vm.formData}
+      errors={vm.errors}
+      onChange={vm.onFieldChange}
+      readOnly={vm.isSaving}
+    />
+    
+    {/* Destructive actions for Seeds (Danger Zone) */}
+    {vm.capabilities.dangerZone && !vm.isCreate && vm.dangerZoneSlot}
+  </div>
+)
+```
+
+Key features:
+- **No `switch (branch.type)` in the form**: Fully delegated to the `FieldEdit` registry.
+- **Unified styling**: Modals, titles, buttons, and state indicators share the exact same UI markup.
+- **Danger Zone Support**: The Seed Builder UI injects its destructive options slot (`dangerZoneSlot`) dynamically through the capability configuration.
 
 ---
 
@@ -644,7 +658,7 @@ describe('UrlDisplay', () => {
 | 6 | `packages/core/src/seeds.ts` | Optional — add a `Branch` to a seed for testing |
 | 7 | `display/url.test.tsx`, `edit/url.test.tsx` | New co-located test files |
 
-**Zero modifications** to `FieldDisplay.tsx`, `FieldEdit.tsx`, `EntryEditorPage`, the table view, the gallery view, or any other consumer. The registry dispatch handles it all.
+**Zero modifications** to `FieldDisplay.tsx`, `FieldEdit.tsx`, `SchemaFormShell`, the table view, the gallery view, or any other consumer. The registry dispatch handles it all.
 
 ---
 
@@ -954,11 +968,110 @@ export function MyWidget({ seed, formula, window = "all", title }: MyWidgetProps
 }
 ```
 
-3. **Register the widget type** in `apps/dashboard/src/features/dashboard/types/widget.types.ts` — add the new type string to the `WidgetType` union.
+3. **Register the widget type** with `registerWidget()` — see [8.8 Dashboard Renderer & Widget Registry](#88-dashboard-renderer--widget-registry). The `widget.types.ts`, `widget-registry.tsx` and `dashboard.config.ts` files this step used to reference have been removed.
 
-4. **Add a case** in `apps/dashboard/src/features/dashboard/components/widget-registry.tsx` that maps the new type to the sub-barrel imported component.
+### 8.8 Dashboard Renderer & Widget Registry
 
-5. **Add an instance** to `DEFAULT_DASHBOARD_CONFIG` in `apps/dashboard/src/features/dashboard/config/dashboard.config.ts` with the desired `span`, `x`, `y`, and `props`.
+The dashboard home page (`apps/dashboard/src/features/dashboard/pages/dashboard-page.tsx`) does not hardcode a bento grid. It renders a `DashboardLayout` (from `@beechcms/core`) through a generic **Pages → Sections → Columns → Widgets** renderer, driven by a typed widget registry.
+
+**Layout source — `useDashboardLayout()`:**
+
+```typescript
+import { useDashboardLayout } from "@/features/dashboard"
+
+const { layout, isStored, isLoading } = useDashboardLayout()
+```
+
+- Fetches `GET /dashboard-layout`. If the stored `layout` is `null` (never customized), falls back to `generateDefaultDashboardLayout(seeds)` from `@beechcms/core` — memoized on `seeds` so widget/section/page ids stay stable across re-renders.
+- `isStored` is `false` while showing the generated default — the Sprint 05 builder uses this to decide whether "Save" creates a new layout or updates the existing one.
+
+**Renderer — `<DashboardLayoutRenderer layout={layout} />`:**
+
+| Level | Component | Behaviour |
+|---|---|---|
+| Page | `DashboardLayoutRenderer` | `layout.pages` selected via `?page=<slug>` (Shadcn `Tabs`, `variant="line"`). A single page renders without a tab strip. An unknown or missing slug falls back to the first page. |
+| Section | `DashboardSection` | 12-unit grid (`grid-cols-1 md:grid-cols-6 lg:grid-cols-12`), reusing the `.bento-cell` utility. Column widths come from `section.columnSpans`, or an equal split with the remainder distributed left-to-right. `section.label` renders a header unless `hideLabel` is set; `section.collapsible` adds a collapse toggle. |
+| Column | `DashboardColumn` | Vertical stack (`flex flex-col gap-6`) of `DashboardWidgetInstance`s, in array order. |
+| Widget | `DashboardWidgetHost` | Looks up `instance.type` in the registry, validates `instance.config` against the definition's `configSchema`, and renders the widget inside `WidgetErrorBoundary`. |
+
+Unknown types and invalid configs never blank the dashboard:
+- `instance.type` not in the registry → a dashed placeholder showing `dashboard.widgetRegistry.unknown` plus the raw type string (e.g. a `@acme/weather` widget on a site that hasn't installed the matching plugin).
+- `configSchema.safeParse(instance.config)` fails → `console.warn` and the widget renders with `definition.defaultConfig` instead of crashing.
+
+**Registering a widget type:**
+
+All built-ins live in `apps/dashboard/src/features/dashboard/registry/builtin-widgets.tsx`, namespaced `core/<name>` (custom widget packs use `@scope/name`):
+
+```typescript
+import { z } from "zod"
+import { registerWidget } from "./widget-registry"
+import type { DashboardWidgetProps } from "./widget-definition"
+
+const myWidgetConfigSchema = z.object({
+  seedSlug: z.string().catch(""),
+  variant: z.enum(["list", "cards"]).optional().catch(undefined),
+})
+type MyWidgetConfig = z.infer<typeof myWidgetConfigSchema>
+
+function MyWidgetAdapter({ config }: DashboardWidgetProps<MyWidgetConfig>) {
+  return <MyWidget seedSlug={config.seedSlug} variant={config.variant} />
+}
+
+registerWidget<MyWidgetConfig>({
+  type: "core/my-widget",
+  labelKey: "dashboard.widgetRegistry.widgets.myWidget.label",
+  icon: "Sparkles",          // Lucide icon name, used by the Sprint 05 picker
+  category: "content",       // "stats" | "charts" | "content" | "system" | "custom"
+  configSchema: myWidgetConfigSchema,
+  defaultConfig: { seedSlug: "", variant: "list" },
+  component: MyWidgetAdapter,
+  minColumnSpan: 6,           // builder hint (Sprint 05)
+})
+```
+
+- **`configSchema` must be lenient** — every field needs `.catch()` or `.optional().catch(undefined)` so a partial or stale stored config always parses into *something* rather than failing outright.
+- Add a `dashboard.widgetRegistry.widgets.<key>.label` entry to `src/locales/en.json` and `it.json` — shown in the widget picker.
+- `registerWidget` throws if `type` is already registered — types share a flat global namespace, so pick a specific name.
+- `builtin-widgets.tsx` is imported only for its side effects, from `features/dashboard/index.ts`. Nothing else needs to import it directly.
+- An optional `ConfigPanel: ComponentType<{ config: TConfig; onChange: (next: TConfig) => void }>` on the registration is rendered inside the Sprint 05 widget config `Sheet` (see 8.9). Widgets without a `ConfigPanel` show a localized "no configurable options" message.
+
+### 8.9 Dashboard Builder (Sprint 05)
+
+Admin-only (`canEditDashboard(user?.role)` from `@beechcms/core`, `'admin'` only) drag-and-drop editor for the `DashboardLayout`. Lives in `apps/dashboard/src/features/dashboard/builder/`, exported via that folder's `index.ts` and re-exported from `features/dashboard/index.ts`.
+
+**Entry point** — `dashboard-page.tsx` shows a "Customize" button (`Settings2` icon) next to the welcome header when `canEdit` is true; clicking it opens `<DashboardBuilderDialog open={...} onOpenChange={...} initialLayout={layout} />` as a full-screen `Dialog`.
+
+**State — `useDashboardBuilder({ initialLayout })`:**
+
+- Holds a `draft: DashboardLayout` (deep-cloned from `initialLayout`) plus `storedInitial` for `isDirty` comparison (`JSON.stringify` diff).
+- All mutators (`addPage`, `renamePage`, `removePage`, `movePage`, `addSection`, `updateSection`, `removeSection`, `moveSection`, `duplicateSection`, `setColumnPreset`, `addWidget`, `updateWidgetConfig`, `updateWidgetTitle`, `moveWidget`, `moveWidgetToPage`, `removeWidget`, `replaceWidget`, `reset`) go through a `structuredClone`-based `mutate` helper — never mutate `draft` in place.
+- `COLUMN_PRESETS` (also exported) = `[[12],[6,6],[8,4],[4,8],[4,4,4],[3,3,3,3]]`. `setColumnPreset` applies the "shrink rule": when the new preset has fewer columns, surplus columns' widgets are appended (in order) to the last surviving column rather than discarded.
+- `removePage` refuses to remove the last page (`pages.length <= 1`).
+- `moveWidget({ from, to })` / `moveWidgetToPage(from, toPageId)` return `boolean` indicating whether the move was applied (used by `BuilderPane`'s `onDragEnd` to decide whether to show a warning toast).
+- Reducer behaviour is covered by `apps/dashboard/src/test/dashboard/builder/use-dashboard-builder.test.ts`.
+
+**UI tree** (all in `features/dashboard/builder/`):
+
+| File | Role |
+|---|---|
+| `dashboard-builder-dialog.tsx` | Full-screen `Dialog`; owns `useDashboardBuilder`, `handleSave` (validates via `validateDashboardLayout` then `PUT /dashboard-layout`), `handleReset` (`DELETE /dashboard-layout`). Invalidates `DASHBOARD_QUERY_KEYS.layout()` on success. |
+| `builder-pane.tsx` | Single `DndContext` (dnd-kit) for pages, sections and widgets; routes `onDragEnd` by id prefix (`page:`, `section:`, `widget:`); Preview toggle (renders `DashboardLayoutRenderer` for the active page); Save/Reset/Cancel footer; owns the reset-confirm and discard-confirm `ConfirmDialog`s. |
+| `page-tabs-manager.tsx` | Sortable page tabs, inline rename, add/remove (last page undeletable). |
+| `section-card.tsx` | Section header (rename, hide label, collapsible, column-preset submenu via `COLUMN_PRESETS`, duplicate, remove) + `grid grid-cols-12` of `ColumnStack`s. |
+| `column-stack.tsx` | Sortable list of `WidgetChip`s within one column, plus "Add Widget". |
+| `widget-chip.tsx` | One widget row — icon, title, "Move to page" submenu (other pages), Configure, Remove. Shows an `AlertTriangle` + "Unavailable" badge when `getWidgetDefinition(widget.type)` returns `undefined` (unknown widget type), but the widget instance is preserved. |
+| `widget-picker-dialog.tsx` | Dialog listing `listWidgetDefinitions()` grouped by `category` (`stats > charts > content > system > custom`). |
+| `widget-config-sheet.tsx` | `Sheet` with the widget's title field plus its `ConfigPanel` (or a "no options" message). |
+| `config-fields.tsx` | Shared config-panel primitives: `TextField`, `TextAreaField`, `NumberField`, `SwitchField`, `VariantSelect`, `SeedSelect`, `BranchAliasSelect`, `WindowSelect`, `FormulaEditor` (covers every `AggregateFormula` op). |
+| `use-dashboard-builder.ts` | Reducer hook + `COLUMN_PRESETS` (see above). |
+| `api/dashboard-layout.api.ts` | `dashboardBuilderApi.saveLayout(layout)` (`PUT /dashboard-layout`) and `resetLayout()` (`DELETE /dashboard-layout`). |
+
+**Save validation** — `handleSave` calls `validateDashboardLayout(draft, { seedSlugs, knownWidgetTypes: knownWidgetTypes() })` from `@beechcms/core` before saving:
+- Widgets whose `config.seedSlug` references a seed that no longer exists are silently stripped (with a warning) — `result.cleaned` is what gets sent to the API.
+- Unknown widget types only produce a warning and are **never** stripped — they round-trip through save/reload and render as "Unavailable" chips in the builder / placeholders in the renderer.
+- If `result.ok` is `false`, the first error is toasted and the save is aborted.
+
+**Cross-page rules** — sections can only be reordered within their own page (`builder-pane.tsx` toasts `dashboard.builder.warnNoCrossPageSection` and ignores the drop if a cross-page section move is attempted). Widgets can move across pages via the "Move to page" submenu or by dragging into a different page's column.
 
 ---
 

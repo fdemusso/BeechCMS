@@ -3,7 +3,12 @@
 # .dev.vars è in .gitignore - NON committare mai le chiavi reali.
 #
 # Per produzione: wrangler secret put R2_ACCESS_KEY_ID, ecc.
-#
+
+# =============================================================================
+# Auth — JWT_SECRET (>= 32 byte casuali). In prod: wrangler secret put JWT_SECRET
+# =============================================================================
+JWT_SECRET=sviluppo-secret-cambiami-almeno-32-byte-per-sicurezza-hono
+
 # Dev con MinIO (npm run dev:full):
 R2_ENDPOINT=http://localhost:9000
 R2_ACCESS_KEY_ID=beechdev
@@ -29,3 +34,16 @@ EMAIL_FROM=Beech CMS <dev@beech.local>
 
 # --- Webhook tester (Sprint 03, solo dev/test) ---
 WEBHOOK_TESTER_URL=http://localhost:8084
+
+# --- QStash notifications (opzionale) ---
+# APP_URL = URL del dashboard, usato nei link delle email (es. reset password).
+APP_URL=http://localhost:5173
+# QSTASH_CALLBACK_URL = URL pubblico del worker, usato da QStash per richiamare
+# il webhook /api/webhooks/qstash. `npm run dev:full` lo popola automaticamente
+# con l'URL del tunnel cloudflared (servizio "tunnel" in docker-compose.yml) —
+# non serve impostarlo a mano né installare ngrok.
+# Se assente, QStash non viene usato e le notifiche restano in modalità background locale.
+QSTASH_CALLBACK_URL=
+# QSTASH_TOKEN=<your-qstash-token>
+# QSTASH_CURRENT_SIGNING_KEY=<sig_...>
+# QSTASH_NEXT_SIGNING_KEY=<sig_...>

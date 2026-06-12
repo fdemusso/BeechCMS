@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-
-export const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'JPY', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK']
+import { CURRENCIES } from '@/components/ui/currency-utils'
 
 interface CurrencySelectProps {
   value: string

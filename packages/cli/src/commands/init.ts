@@ -22,6 +22,9 @@ const SYSTEM_TABLES = [
   'media_objects',
   'content_event_log',
   'automations',
+  'seeds',
+  'seed_meta',
+  'site_settings',
 ]
 
 // Embedded copy of 0000_v040_base.sql — all DDL uses CREATE TABLE IF NOT EXISTS,
@@ -162,6 +165,31 @@ CREATE TABLE IF NOT EXISTS automations (
 
 CREATE INDEX IF NOT EXISTS idx_automations_seed_slug ON automations(seed_slug);
 CREATE INDEX IF NOT EXISTS idx_automations_enabled   ON automations(enabled);
+
+CREATE TABLE IF NOT EXISTS seeds (
+    slug        TEXT    NOT NULL PRIMARY KEY,
+    definition  TEXT    NOT NULL,
+    status      TEXT    NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'deleted')),
+    source      TEXT    NOT NULL DEFAULT 'runtime'
+                        CHECK (source IN ('code', 'runtime')),
+    created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_seeds_status ON seeds(status);
+
+CREATE TABLE IF NOT EXISTS seed_meta (
+    id      TEXT NOT NULL PRIMARY KEY,
+    value   TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO seed_meta (id, value) VALUES ('registry_version', '1');
+
+CREATE TABLE IF NOT EXISTS site_settings (
+    key   TEXT NOT NULL PRIMARY KEY,
+    value TEXT NOT NULL
+);
 `.trim()
 
 const PLACEHOLDER_DB_IDS = [
@@ -174,6 +202,7 @@ export interface InitOptions {
   initDb: boolean
   local: boolean
   db?: string
+  nonInteractive?: boolean
 }
 
 function checkWranglerAuth(): boolean {
@@ -335,7 +364,7 @@ function checkFiles(cwd: string, checkDevVars: boolean): boolean {
     existsSync(resolve(cwd, 'seed.js'))
 
   if (!seedsExists) {
-    console.log(pc.yellow('  ⚠ seeds.ts         — missing (create it, then run beech seed:load)'))
+    console.log(pc.yellow('  ⚠ seeds.ts         — not found (optional: needed only for the one-time code → DB load; after `beech seed:load`, the DB is canonical)'))
   } else {
     console.log(pc.green('  ✓ seeds.ts'))
   }
@@ -355,7 +384,7 @@ function printNextSteps(local: boolean): void {
   const localFlag = local ? ' --local' : ''
   console.log(pc.dim('  Next steps:'))
   console.log(pc.cyan(`  1. npx beech seed:load${localFlag}`))
-  console.log(pc.dim('      → create content tables from seeds.ts'))
+  console.log(pc.dim('      → create content tables and register seed definitions in D1'))
   console.log(pc.cyan('  2. npx wrangler dev'))
   console.log(pc.dim('      → start API + dashboard'))
   console.log(pc.dim('  3. Open http://localhost:8789/admin\n'))
@@ -412,7 +441,7 @@ export async function init(args: InitOptions): Promise<void> {
         console.log(pc.yellow(`    - ${issue}`))
       }
 
-      if (process.stdin.isTTY) {
+      if (process.stdin.isTTY && !args.nonInteractive) {
         // Interactive: offer auto-creation of D1 + R2
         const rl = createInterface({ input: process.stdin, output: process.stdout })
         let autoCreate = false
@@ -474,7 +503,17 @@ export async function init(args: InitOptions): Promise<void> {
           printManualDbInstructions()
           process.exit(1)
         }
+      } else if (args.nonInteractive && args.local) {
+        // --yes + --local: local D1 needs no real database_id — just proceed
+        console.log(pc.dim('  --yes: proceeding with local mode (no remote resources needed)\n'))
+        // Fall through to DB initialization
       } else {
+        if (args.nonInteractive) {
+          // --yes + --remote + placeholder → cannot proceed non-interactively
+          console.log(pc.red('\n  ✗ Cannot proceed non-interactively: remote database has a placeholder database_id\n'))
+          console.log(pc.dim('  Set a real database_id in wrangler.jsonc, then retry.'))
+          process.exit(1)
+        }
         printManualDbInstructions()
         process.exit(1)
       }

@@ -71,8 +71,10 @@
 
   // CORS e variabili
   // MEDIA_BASE_URL: in dev punta al proxy Vite (5173) per evitare CORS e semplificare il debugging
+  // JWT_SECRET NON va in vars: è un segreto e finirebbe in chiaro nel deploy.
+  // In dev locale: impostalo in .dev.vars (vedi .dev.vars.example).
+  // In produzione: npx wrangler secret put JWT_SECRET (>= 32 byte casuali).
   "vars": {
-    "JWT_SECRET": "sviluppo-secret-cambiami-almeno-32-byte-per-sicurezza-hono",
     "CORS_ORIGINS": "http://localhost:5173,http://localhost:5174,https://dashboard.beech.local",
     "PUBLIC_READ_API_KEY": "dev-public-read-key-changeme",
     "PUBLIC_WRITE_API_KEY": "dev-public-write-key-changeme",

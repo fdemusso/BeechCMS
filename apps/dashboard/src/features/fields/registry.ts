@@ -16,6 +16,7 @@ import { JsonDisplay } from './display/json'
 import { RichtextDisplay } from './display/richtext'
 import { MediaDisplay } from './display/media'
 import { RelationDisplay } from './display/relation'
+import { RepeaterDisplay } from './display/repeater'
 import { TextEdit } from './edit/text'
 import { NumberEdit } from './edit/number'
 import { BooleanEdit } from './edit/boolean'
@@ -24,6 +25,8 @@ import { JsonEdit } from './edit/json'
 import { RichtextEdit } from './edit/richtext'
 import { MediaEdit } from './edit/media'
 import { RelationEdit } from './edit/relation'
+import { FieldEditRepeater } from './edit/repeater'
+import { SelectEdit } from './edit/select'
 
 const fieldRegistry: IFieldRegistry = new FieldRegistryImpl()
 
@@ -35,6 +38,7 @@ fieldRegistry.registerDisplay('json', JsonDisplay)
 fieldRegistry.registerDisplay('richtext', RichtextDisplay)
 fieldRegistry.registerDisplay('file', MediaDisplay)
 fieldRegistry.registerDisplay('relation', RelationDisplay)
+fieldRegistry.registerDisplay('repeater', RepeaterDisplay)
 
 fieldRegistry.registerEdit('text', TextEdit)
 fieldRegistry.registerEdit('number', NumberEdit)
@@ -44,6 +48,12 @@ fieldRegistry.registerEdit('json', JsonEdit)
 fieldRegistry.registerEdit('richtext', RichtextEdit)
 fieldRegistry.registerEdit('file', MediaEdit)
 fieldRegistry.registerEdit('relation', RelationEdit)
+
+fieldRegistry.registerEdit('repeater', FieldEditRepeater)
+
+// 'select' is likewise dashboard-only — a minimal single-select over `branch.options`,
+// used by the meta-seed layout (sprint 09) for `displayNameAlias` and `dashIcon`.
+fieldRegistry.registerEdit('select' as BranchType, SelectEdit)
 
 export function getDisplayComponent(type: BranchType): ComponentType<FieldDisplayProps> {
   return fieldRegistry.getDisplay(type) ?? DefaultDisplay

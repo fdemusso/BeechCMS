@@ -17,6 +17,7 @@ const COMMANDS = {
   'validate':     cmdValidate,
   'deploy':       cmdDeploy,
   'update':       cmdUpdate,
+  'onboard':      cmdOnboard,
 }
 
 function help() {
@@ -50,10 +51,18 @@ function help() {
     update          Update @beechcms/api and @beechcms/core to latest, then
                     apply any new system migrations to the local database
 
+    onboard         One-command local provisioning (init + seed:load). Designed
+                    for non-interactive use by agents and CI.
+      --remote        Target remote D1 instead of local (default: local)
+      --yes           Skip all interactive prompts (non-interactive mode)
+      --db <name>     Override D1 database name
+
   Scaffold a new project (interactive, or pass --yes for non-interactive defaults):
     npm create @beechcms/cms [project-name] [--yes] [--with-examples]
 
   Golden path (local):
+    npx beech onboard --local --yes   # fully automated
+    # or step by step:
     npx beech init --db --local
     npx beech seed:load --local
     npx wrangler dev
@@ -184,6 +193,16 @@ async function cmdDeploy(args) {
 async function cmdUpdate(_args) {
   const { update } = await import('@beechcms/cli')
   await update({})
+}
+
+async function cmdOnboard(args) {
+  const local    = !args.includes('--remote')
+  const yes      = args.includes('--yes')
+  const dbIdx    = args.indexOf('--db')
+  const db       = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const registry = await tryLoadLocalRegistry()
+  const { onboard } = await import('@beechcms/cli')
+  await onboard({ local, yes, db, registry })
 }
 
 const handler = COMMANDS[command]

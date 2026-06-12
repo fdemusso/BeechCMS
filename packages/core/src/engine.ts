@@ -35,6 +35,7 @@ const BRANCH_TYPE_SQL: Record<BranchType, BranchSqlDef> = {
   file:     { sqlType: 'TEXT'    },  // URL singolo o JSON array di URL
   tags:     { sqlType: 'TEXT'    },  // JSON array di stringhe
   relation: { sqlType: 'TEXT'    },  // FK reference stored as TEXT (id of the target row)
+  repeater: { sqlType: 'TEXT'    },  // JSON array di record (sub-branch alias -> value)
 }
 
 const SYSTEM_COLUMNS = new Set(['id', 'slug', 'status', 'created_at', 'updated_at'])
@@ -54,7 +55,7 @@ function isValidColumn(seed: Seed, col: string): boolean {
   return seed.branches.some(b => b.alias === col)
 }
 
-function indexableSearchBranches(seed: Seed): Branch[] {
+export function indexableSearchBranches(seed: Seed): Branch[] {
   return seed.branches.filter(b =>
     (b.type === 'text' || b.type === 'richtext') && b.policies?.search !== false
   )
@@ -544,6 +545,11 @@ export function serializeForDb(branch: Branch, value: unknown): string | number 
       }
       return typeof value === 'string' ? value : null
 
+    case 'repeater':
+      // Non-array input is rejected by serializing as an empty list — validation.ts
+      // is responsible for ever letting a non-array repeater value reach here.
+      return JSON.stringify(Array.isArray(value) ? value : [])
+
     default:
       return typeof value === 'string' ? value : typeof value === 'number' ? value : null
   }
@@ -621,11 +627,162 @@ export function generateJunctionDraftTable(seed: Seed, branch: Branch): string |
   ].join('\n')
 }
 
+// ---- Destructive DDL Generators (Sprint 06 — Danger Zone) ----
+//
+// Every generator below emits IRREVERSIBLE, data-destroying SQL. They are pure
+// string builders (no DB access); the actual execution goes through
+// ISchemaMutator's dedicated destructive methods (dropTable/dropColumn/
+// renameColumn/execDestructive), which re-validate every identifier before
+// interpolation. These statements MUST NEVER be passed to execDdl (additive-only).
+
+function draftTableName(seed: Seed): string {
+  return `content_${seed.slug}_drafts`
+}
+
+/**
+ * Returns every `DROP TABLE IF EXISTS` needed to fully remove a content type:
+ * the main `content_{slug}` table, its `fts_{slug}` virtual table, the
+ * `content_{slug}_drafts` mirror (when drafts are enabled), and each
+ * multi-relation junction table `rel_{slug}_{alias}` (+ its `_drafts` mirror).
+ *
+ * FTS triggers reference the main table; dropping the main table also drops
+ * its triggers in SQLite, but we drop the FTS table explicitly so no orphaned
+ * virtual table survives. Order: junction (children) → drafts → fts → main.
+ */
+export function generateDropTable(seed: Seed): string[] {
+  const stmts: string[] = []
+
+  // Junction tables first (they FK-reference the main/draft tables).
+  for (const branch of seed.branches) {
+    if (branch.type !== 'relation' || branch.multiple !== true) continue
+    const jt = junctionTableName(seed.slug, branch.alias)
+    stmts.push(`DROP TABLE IF EXISTS ${jt}_drafts;`)
+    stmts.push(`DROP TABLE IF EXISTS ${jt};`)
+  }
+
+  if (seed.allowDrafts) {
+    stmts.push(`DROP TABLE IF EXISTS ${draftTableName(seed)};`)
+  }
+
+  // FTS triggers + virtual table.
+  if (indexableSearchBranches(seed).length > 0) {
+    const slug = seed.slug
+    stmts.push(`DROP TRIGGER IF EXISTS fts_${slug}_insert;`)
+    stmts.push(`DROP TRIGGER IF EXISTS fts_${slug}_update;`)
+    stmts.push(`DROP TRIGGER IF EXISTS fts_${slug}_delete;`)
+    stmts.push(`DROP TABLE IF EXISTS ${ftsTableName(seed)};`)
+  }
+
+  stmts.push(`DROP TABLE IF EXISTS ${tableName(seed)};`)
+  return stmts
+}
+
+/**
+ * Returns the `DROP COLUMN` statements for removing a single field.
+ *
+ * - For a multi-relation branch (no column on the parent table) it drops the
+ *   junction table `rel_{slug}_{alias}` (+ `_drafts`) instead.
+ * - For a normal branch it drops the column from `content_{slug}` and, when
+ *   drafts are enabled, the mirror column from `content_{slug}_drafts`.
+ * - For an orphan column (no matching branch in the definition) it falls back
+ *   to a plain `ALTER TABLE … DROP COLUMN`, never touching drafts.
+ *
+ * Callers must rebuild FTS separately (planFtsRebuild) when the dropped column
+ * was searchable, since SQLite cannot ALTER an fts5 table's columns.
+ */
+export function generateDropColumn(seed: Seed, alias: string): string[] {
+  const branch = seed.branches.find(b => b.alias === alias)
+
+  if (branch && branch.type === 'relation' && branch.multiple === true) {
+    const jt = junctionTableName(seed.slug, alias)
+    return [
+      `DROP TABLE IF EXISTS ${jt}_drafts;`,
+      `DROP TABLE IF EXISTS ${jt};`,
+    ]
+  }
+
+  const stmts: string[] = [`ALTER TABLE ${tableName(seed)} DROP COLUMN ${alias};`]
+  // Drop the mirror column from the drafts table when the branch lives there.
+  if (branch && seed.allowDrafts) {
+    stmts.push(`ALTER TABLE ${draftTableName(seed)} DROP COLUMN ${alias};`)
+  }
+  return stmts
+}
+
+/**
+ * Returns the `RENAME COLUMN` statements for renaming a field's alias while
+ * keeping the stable `branch.id`. Renames the column on `content_{slug}` and,
+ * when drafts are enabled, the mirror column on `content_{slug}_drafts`.
+ *
+ * For a multi-relation branch the alias is part of the junction table name, so
+ * the junction table (+ `_drafts`) is renamed instead of a column.
+ *
+ * Callers must rebuild FTS separately (planFtsRebuild) when the renamed column
+ * was searchable.
+ */
+export function generateRenameColumn(seed: Seed, from: string, to: string): string[] {
+  const branch = seed.branches.find(b => b.alias === from)
+
+  if (branch && branch.type === 'relation' && branch.multiple === true) {
+    const oldJt = junctionTableName(seed.slug, from)
+    const newJt = junctionTableName(seed.slug, to)
+    const stmts = [`ALTER TABLE ${oldJt} RENAME TO ${newJt};`]
+    if (seed.allowDrafts) {
+      stmts.push(`ALTER TABLE ${oldJt}_drafts RENAME TO ${newJt}_drafts;`)
+    }
+    return stmts
+  }
+
+  const stmts: string[] = [`ALTER TABLE ${tableName(seed)} RENAME COLUMN ${from} TO ${to};`]
+  if (branch && seed.allowDrafts) {
+    stmts.push(`ALTER TABLE ${draftTableName(seed)} RENAME COLUMN ${from} TO ${to};`)
+  }
+  return stmts
+}
+
+/**
+ * Returns the add/copy/drop/rename statements that change a column's SQL type
+ * in place, preserving data via `CAST`. This is the documented simpler
+ * alternative to SQLite's full 12-step table rebuild.
+ *
+ * The `branch` passed in is the *target* definition (already carrying the new
+ * `type`); its SQL type is read from BRANCH_TYPE_SQL. Multi-relation branches
+ * have no column to retype and are rejected. Mirrors the change onto the drafts
+ * table when drafts are enabled. Callers rebuild FTS separately when needed.
+ */
+export function generateRetypeColumn(seed: Seed, branch: Branch): string[] {
+  if (branch.type === 'relation' && branch.multiple === true) {
+    throw new Error(`Branch "${branch.alias}" is a multi-relation and has no column to retype`)
+  }
+  const { sqlType } = BRANCH_TYPE_SQL[branch.type]
+  const alias = branch.alias
+  const tmp = `__retype_${alias}`
+
+  const rebuild = (table: string): string[] => [
+    `ALTER TABLE ${table} ADD COLUMN ${tmp} ${sqlType};`,
+    `UPDATE ${table} SET ${tmp} = CAST(${alias} AS ${sqlType});`,
+    `ALTER TABLE ${table} DROP COLUMN ${alias};`,
+    `ALTER TABLE ${table} RENAME COLUMN ${tmp} TO ${alias};`,
+  ]
+
+  const stmts = rebuild(tableName(seed))
+  if (seed.allowDrafts) stmts.push(...rebuild(draftTableName(seed)))
+  return stmts
+}
+
 /**
  * Deserializes a value read from the DB for the API response.
  * 0/1 → boolean | Unix timestamp → ISO 8601 | JSON string → object
  */
 export function deserializeFromDb(branch: Branch, value: unknown): unknown {
+  // Repeater columns deserialize to [] (never null) — drafts and rows that
+  // predate the column being added carry NULL, which is an empty list of items.
+  if (branch.type === 'repeater') {
+    if (typeof value !== 'string' || value.length === 0) return []
+    const parsed = parseJsonSafe(value)
+    return Array.isArray(parsed) ? parsed : []
+  }
+
   if (value === null || value === undefined) return null
 
   switch (branch.type) {

@@ -8,6 +8,7 @@ import type { FormLayout, LayoutSection, LayoutTab, LayoutColumn } from "@beechc
 import type { Branch } from "@beechcms/core"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FieldEdit } from "@/features/fields"
 
 export interface RendererBranchMap { [id: string]: Branch }
@@ -18,7 +19,13 @@ export interface RendererProps {
   formData: Record<string, unknown>
   fieldErrors: Record<string, string>
   onChange: (alias: string, value: unknown) => void
+  dangerZoneSlot?: React.ReactNode
+  dangerZoneLabel?: string
+  activeTabId?: string
+  onActiveTabChange?: (tabId: string) => void
 }
+
+const DANGER_ZONE_TAB_ID = "__danger_zone__"
 
 function gridClassFor(n: number): string {
   switch (n) {
@@ -60,10 +67,23 @@ function ColumnRenderer({
         if (branch == null) return null
         return (
           <div key={f.branchId} className="space-y-2">
-            <Label htmlFor={branch.alias} className="flex items-center">
-              {branch.label}
+            <Label htmlFor={branch.alias} className="flex items-center gap-1">
+              {branch.hint ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="cursor-help">
+                      {branch.label}
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-64">
+                    {branch.hint}
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                branch.label
+              )}
               {branch.requiredOnCreate && (
-                <Asterisk className="inline size-3 text-destructive ml-1" />
+                <Asterisk className="inline size-3 text-destructive" />
               )}
             </Label>
             <FieldEdit
@@ -158,15 +178,28 @@ function TabSections({
   )
 }
 
-export function LayoutRenderer({ layout, branchById, formData, fieldErrors, onChange }: RendererProps) {
-  const [activeTabId, setActiveTabId] = React.useState(() => layout.tabs[0]?.id ?? "")
+export function LayoutRenderer({
+  layout,
+  branchById,
+  formData,
+  fieldErrors,
+  onChange,
+  dangerZoneSlot,
+  dangerZoneLabel,
+  activeTabId: propActiveTabId,
+  onActiveTabChange,
+}: RendererProps) {
+  const [internalActiveTabId, setInternalActiveTabId] = React.useState(() => layout.tabs[0]?.id ?? "")
+
+  const activeTabId = propActiveTabId !== undefined ? propActiveTabId : internalActiveTabId
+  const setActiveTabId = onActiveTabChange !== undefined ? onActiveTabChange : setInternalActiveTabId
 
   React.useEffect(() => {
-    const exists = layout.tabs.some((t) => t.id === activeTabId)
+    const exists = layout.tabs.some((t) => t.id === activeTabId) || (!!dangerZoneSlot && activeTabId === DANGER_ZONE_TAB_ID)
     if (!exists && layout.tabs.length > 0) {
       setActiveTabId(layout.tabs[0].id)
     }
-  }, [layout, activeTabId])
+  }, [layout, activeTabId, dangerZoneSlot])
 
   return (
     <Tabs value={activeTabId} onValueChange={setActiveTabId} className="rounded-lg border overflow-hidden flex flex-col">
@@ -181,6 +214,14 @@ export function LayoutRenderer({ layout, branchById, formData, fieldErrors, onCh
               {tab.label}
             </TabsTrigger>
           ))}
+          {dangerZoneSlot && (
+            <TabsTrigger
+              value={DANGER_ZONE_TAB_ID}
+              className="px-0 py-3 font-medium text-destructive data-[state=active]:text-destructive"
+            >
+              {dangerZoneLabel ?? "Danger Zone"}
+            </TabsTrigger>
+          )}
         </TabsList>
       </div>
       {layout.tabs.map((tab) => (
@@ -194,6 +235,11 @@ export function LayoutRenderer({ layout, branchById, formData, fieldErrors, onCh
           />
         </TabsContent>
       ))}
+      {dangerZoneSlot && (
+        <TabsContent value={DANGER_ZONE_TAB_ID} className="mt-0 outline-none p-6">
+          {dangerZoneSlot}
+        </TabsContent>
+      )}
     </Tabs>
   )
 }

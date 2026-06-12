@@ -46,6 +46,26 @@ This document is the authoritative reference for the Beech CMS REST API. It cove
    - [Leaderboard](#86-leaderboard-get-apiwidgetseedleaderboard)
    - [List](#87-list-get-apiwidgetseedlist)
    - [Timeseries](#88-timeseries-get-apiwidgetseedtimeseries)
+   - [Distribution](#89-distribution-get-apiwidgetdistributionseed)
+9. [Seed Builder & Schema Mutation API](#10-seed-builder--schema-mutation-api)
+   - [List Seed Definitions](#get-apiseeds)
+   - [Get Seed Definition](#get-apiseedsslug)
+   - [Create Seed Definition](#post-apiseeds)
+   - [Update Seed Definition](#put-apiseedsslug)
+   - [Soft Delete Content Type](#delete-apiseedsslug)
+   - [Hard Delete Content Type](#delete-apiseedsslughard)
+   - [Rename Branch Alias](#patch-apiseedsslugbranchesbranchidrename)
+   - [Change Branch Type](#patch-apiseedsslugbranchesbranchidretype)
+   - [Delete/Drop Branch](#delete-apiseedsslugbranchesbranchid)
+   - [Rebuild FTS Index](#post-apiseedsslugftsrebuild)
+   - [Get Orphan Columns](#get-apiseedsslugorphans)
+10. [Technical Architecture (v0.4.0 Refactor)](#11-technical-architecture-v040-refactor)
+11. [Dashboard Layout API](#12-dashboard-layout-api)
+    - [Get Layout](#get-apidashboard-layout)
+    - [Save Layout](#put-apidashboard-layout)
+    - [Reset Layout](#delete-apidashboard-layout)
+    - [Scoped Layout Routes](#scoped-dashboard-layout-routes)
+    - [List Scopes](#get-apidashboard-layoutscopes)
 
 ---
 
@@ -1397,6 +1417,35 @@ Points are ordered ascending by date. Days with no entries are omitted (no zero-
 
 ---
 
+### 8.9 Distribution — `GET /api/widget/distribution/:seed`
+
+Groups entries by a column and returns the count of entries per distinct value, ordered descending by count.
+
+**Query parameters:**
+
+| Parameter | Type | Required | Default | Description |
+|---|---|---|---|---|
+| `column` | string (alias) | Yes | — | Field to group by |
+| `window` | `TimeWindow` | No | `'all'` | Time range filter on `created_at` |
+| `limit` | number | No | `8` | Maximum number of slices returned (max `24`) |
+
+**Response `200`:**
+
+```json
+{
+  "slices": [
+    { "label": "published", "value": 12 },
+    { "label": "draft", "value": 4 },
+    { "label": "∅", "value": 1 }
+  ]
+}
+```
+
+`NULL` values are returned under the label `"∅"`. Values beyond `limit` are **not** merged into an
+"other" bucket — the client decides how to present truncation (e.g. a "+N more" caption).
+
+---
+
 ## 10. Automations API
 
 All automation routes require JWT authentication (same `Authorization: Bearer` header as the content API).
@@ -1530,7 +1579,216 @@ Atomic single-field flip. Does not require the full automation body.
 
 ---
 
-## 9. Technical Architecture (v0.4.0 Refactor)
+## 10. Seed Builder & Schema Mutation API
+
+All routes under `/api/seeds` require JWT authentication and user role verification (`requireAdmin`).
+
+These endpoints drive the **Seed Builder UI** in the dashboard and interact with the `D1SeedRepository` and `D1SchemaMutator` to execute schema changes.
+
+---
+
+### `GET /api/seeds`
+
+Lists all registered seed definitions from the database.
+
+**Request**
+```http
+GET /api/seeds
+Authorization: Bearer eyJ...
+```
+
+**Response `200`**
+```json
+[
+  {
+    "slug": "posts",
+    "label": "Post",
+    "labelPlural": "Posts",
+    "status": "active",
+    "source": "code",
+    "branches": [...]
+  }
+]
+```
+
+---
+
+### `GET /api/seeds/:slug`
+
+Retrieves a single seed definition by its slug.
+
+**Request**
+```http
+GET /api/seeds/posts
+Authorization: Bearer eyJ...
+```
+
+---
+
+### `POST /api/seeds`
+
+Creates a new content type (Seed). This dynamically persists the seed definition to the database, schedules the Botanical Engine to construct the new `content_{slug}` table (and draft/FTS virtual tables if needed) via additive DDL, and bumps the registry version token.
+
+**Request**
+```http
+POST /api/seeds
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "slug": "books",
+  "label": "Book",
+  "labelPlural": "Books",
+  "displayNameAlias": "title",
+  "allowDrafts": true,
+  "branches": [
+    { "alias": "title", "label": "Title", "type": "text", "requiredOnCreate": true },
+    { "alias": "author", "label": "Author", "type": "text" }
+  ]
+}
+```
+
+---
+
+### `PUT /api/seeds/:slug`
+
+Performs an additive update of a seed definition. You can add new fields (branches) or modify seed configuration metadata. This applies additive DDL (`ALTER TABLE ... ADD COLUMN`) and bumps the registry version token.
+
+> **Note:** Destructive field alterations like renaming aliases, changing field types, or dropping columns are blocked through the `PUT` endpoint (yielding validation errors like `alias-rename-not-supported` or `branch-type-change-not-supported`). They must go through the dedicated `Danger Zone` PATCH/DELETE routes below.
+
+**Request**
+```http
+PUT /api/seeds/books
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "label": "Book",
+  "labelPlural": "Books",
+  "displayNameAlias": "title",
+  "allowDrafts": true,
+  "branches": [
+    { "alias": "title", "label": "Title", "type": "text", "requiredOnCreate": true },
+    { "alias": "author", "label": "Author", "type": "text" },
+    { "alias": "isbn", "label": "ISBN", "type": "text" } -- New branch added
+  ]
+}
+```
+
+---
+
+### `DELETE /api/seeds/:slug`
+
+Soft-deletes a content type. This flips its database status to `deleted` (hiding it from the dashboard and normal API calls), but retains its D1 table and content. This is safe and reversible.
+
+**Request**
+```http
+DELETE /api/seeds/books
+Authorization: Bearer eyJ...
+```
+
+---
+
+### `DELETE /api/seeds/:slug/hard`
+
+Hard-deletes a content type. **This is destructive and irreversible.** It drops the main `content_{slug}` table, its `content_{slug}_drafts` mirror table, search tables, and related junction tables. It also deletes the definition row from the `seeds` table, triggers a cascade delete of all R2 uploaded files associated with its fields, and bumps the registry version token.
+
+**Guards:**
+1. **Back-reference Check**: Fails with `409 Conflict` if any other active seed references this content type via a `relation` field.
+2. **Typed Confirmation**: Requires a JSON payload matching the target slug to prevent accidental deletion.
+
+**Request**
+```http
+DELETE /api/seeds/books/hard
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{ "confirm": "books" }
+```
+
+---
+
+### `DELETE /api/seeds/:slug/branches/:branchId`
+
+Drops a field (column) from the content type definition and database table. **This is destructive and irreversible.** It runs `ALTER TABLE ... DROP COLUMN` and bumps the version token.
+
+**Request**
+```http
+DELETE /api/seeds/books/branches/br_isbn
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{ "confirm": "books.isbn" }
+```
+
+---
+
+### `PATCH /api/seeds/:slug/branches/:branchId/rename`
+
+Renames a field's alias (`ALTER TABLE ... RENAME COLUMN`). Because references inside `FormLayout` and other systems use the stable `branch.id`, layout configurations are preserved. This automatically updates and rebuilds FTS5 virtual tables/triggers. The response warns if any automations reference the old alias.
+
+**Request**
+```http
+PATCH /api/seeds/books/branches/br_author/rename
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "alias": "authorName",
+  "confirm": "books.author"
+}
+```
+
+---
+
+### `PATCH /api/seeds/:slug/branches/:branchId/retype`
+
+Changes the data type of a field. **This is high-risk.** It performs an atomic SQLite table rebuild (re-creates the table structure, casts existing values to the new column types using `CAST`, swaps the old table, and drops it).
+
+**Request**
+```http
+PATCH /api/seeds/books/branches/br_price/retype
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "type": "number",
+  "confirm": "books.price"
+}
+```
+
+---
+
+### `POST /api/seeds/:slug/fts/rebuild`
+
+Recreates the virtual full-text search virtual tables and triggers for a seed, and backfills the index from the live `content_{slug}` data.
+
+**Request**
+```http
+POST /api/seeds/books/fts/rebuild
+Authorization: Bearer eyJ...
+```
+
+---
+
+### `GET /api/seeds/:slug/orphans`
+
+Scans the D1 database schema and returns a list of database columns present in `content_{slug}` that are absent from the seed definition. These can be dropped via the orphan-cleanup tool.
+
+**Request**
+```http
+GET /api/seeds/books/orphans
+Authorization: Bearer eyJ...
+```
+
+**Response `200`**
+```json
+["old_isbn_field", "deprecated_field"]
+```
+
+---
+
+## 11. Technical Architecture (v0.4.0 Refactor)
 
 Starting from v0.4.0, the Beech CMS API has been refactored to follow a **Vertical Slice Architecture** and the **Repository Pattern**.
 
@@ -1549,6 +1807,198 @@ Each API feature (Content, Drafts, Auth) is a self-contained slice under `apps/a
 ### R2 Media Cleanup
 
 Media cleanup during entry deletion is now handled by the API handlers using data returned by the repository. This ensures that when a row is deleted from D1, its associated assets in R2 are also removed (best-effort).
+
+---
+
+## 12. Dashboard Layout API
+
+Persists the **Dashboard Composer** layout shown on the Cockpit dashboard, backed by the `dashboard_layouts` table (one row per `scope`). Scopes form a closed set: `'default' | 'role:admin' | 'role:editor'` (see `KNOWN_DASHBOARD_ROLES` / `isValidDashboardScope` in `@beechcms/core`).
+
+On save, the server validates the Zod shape (`dashboardLayoutSchema`) and then semantic constraints: widgets whose `config.seedSlug` references a deleted seed are silently dropped (reported via `warnings`); unknown/custom widget types (e.g. `@acme/ghost`) pass through unchanged.
+
+### `GET /api/dashboard-layout`
+
+Returns the layout for the caller, resolved server-side by walking the
+caller's **scope chain** (from `resolveDashboardScopeChain(jwtPayload.role)`):
+
+| Caller role | Chain |
+|---|---|
+| `editor` | `role:editor` → `default` |
+| `admin` | `role:admin` → `default` |
+| other/missing | `default` |
+
+The first scope in the chain with a stored row wins; its (auto-cleaned)
+layout and the winning `scope` are returned. If nothing is stored anywhere,
+returns `{ "scope": "default", "layout": null }` and the dashboard
+regenerates its default layout client-side. Any authenticated user may call this.
+
+**Request**
+```http
+GET /api/dashboard-layout
+Authorization: Bearer eyJ...
+```
+
+**Response `200`** — no row stored anywhere
+```json
+{ "scope": "default", "layout": null }
+```
+
+**Response `200`** — stored layout (e.g. an editor with their own `role:editor` row)
+```json
+{
+  "scope": "default",
+  "layout": {
+    "version": 1,
+    "pages": [
+      {
+        "id": "page-1",
+        "slug": "overview",
+        "label": "Overview",
+        "icon": "LayoutDashboard",
+        "sections": [
+          {
+            "id": "section-1",
+            "columns": [
+              { "id": "col-1", "widgets": [{ "id": "w1", "type": "core/stat", "config": {} }] }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+> Auto-cleanup is read-time only — the cleaned result is **not** written back. Persistence catches up on the next admin save.
+
+---
+
+### `PUT /api/dashboard-layout`
+
+Upserts the layout for the `'default'` scope (bare route — backwards
+compatible with Sprint 05). Requires the `admin` role (`canEditDashboard`).
+
+**Request**
+```http
+PUT /api/dashboard-layout
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "version": 1,
+  "pages": [ /* DashboardPageLayout[] */ ]
+}
+```
+
+**Response `200`**
+```json
+{
+  "ok": true,
+  "layout": { "version": 1, "pages": [ /* cleaned */ ] },
+  "warnings": []
+}
+```
+
+`warnings` surfaces non-blocking notices to the builder — e.g. a widget bound via `config.seedSlug` referenced a seed that no longer exists, so it was dropped from `layout` before storing.
+
+**Errors**
+
+| `type` slug | HTTP Status | Meaning |
+|---|---|---|
+| `forbidden` | `403` | Caller role is not `admin`. |
+| `invalid-json` | `400` | Request body is not valid JSON. |
+| `invalid-layout` | `422` | Body fails the `dashboardLayoutSchema` Zod shape, or fails semantic validation (duplicate widget/page ids, `columnSpans` not summing to 12, a widget `config` over 8 KB). |
+
+---
+
+### `DELETE /api/dashboard-layout`
+
+Removes the stored row for the `'default'` scope ("Reset", bare route).
+Requires the `admin` role (`canEditDashboard`). The next `GET` returns
+`{ "scope": "default", "layout": null }` and the dashboard regenerates its
+default layout client-side.
+
+**Request**
+```http
+DELETE /api/dashboard-layout
+Authorization: Bearer eyJ...
+```
+
+**Response `200`**
+```json
+{ "ok": true }
+```
+
+---
+
+### Scoped Dashboard Layout Routes
+
+All admin-only. `:scope` must be one of the closed set `'default' | 'role:admin' | 'role:editor'`
+(`isValidDashboardScope`); an unknown scope returns a `400 invalid-scope` problem.
+
+#### `GET /api/dashboard-layout/:scope`
+
+Returns the **raw stored** layout for `:scope` (auto-cleaned), or
+`{ "scope": "<scope>", "layout": null }` if nothing is stored — used by the
+builder to load a scope's draft without applying the read-resolution chain.
+
+```http
+GET /api/dashboard-layout/role:editor
+Authorization: Bearer eyJ...
+```
+```json
+{ "scope": "role:editor", "layout": null }
+```
+
+#### `PUT /api/dashboard-layout/:scope`
+
+Upserts the layout for `:scope`. Same validation and response shape as
+`PUT /api/dashboard-layout` (the `'default'`-only bare route).
+
+```http
+PUT /api/dashboard-layout/role:editor
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{ "version": 1, "pages": [ /* DashboardPageLayout[] */ ] }
+```
+```json
+{ "ok": true, "layout": { "version": 1, "pages": [ /* cleaned */ ] }, "warnings": [] }
+```
+
+#### `DELETE /api/dashboard-layout/:scope`
+
+Removes the stored row for `:scope` ("Reset").
+
+```http
+DELETE /api/dashboard-layout/role:editor
+Authorization: Bearer eyJ...
+```
+```json
+{ "ok": true }
+```
+
+---
+
+### `GET /api/dashboard-layout/scopes`
+
+Admin-only. Lists the closed set of dashboard scopes annotated with whether
+each currently has a stored row — builder furniture for the scope switcher.
+
+**Request**
+```http
+GET /api/dashboard-layout/scopes
+Authorization: Bearer eyJ...
+```
+
+**Response `200`**
+```json
+[
+  { "scope": "default", "stored": true },
+  { "scope": "role:admin", "stored": false },
+  { "scope": "role:editor", "stored": true }
+]
+```
 
 ---
 

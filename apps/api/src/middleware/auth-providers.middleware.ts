@@ -15,8 +15,17 @@ export interface AuthProviderOverrides {
   clock?: IClock
 }
 
+// Valore di default presente in .dev.vars.example: mai accettabile in produzione.
+const DEV_JWT_SECRET = 'sviluppo-secret-cambiami-almeno-32-byte-per-sicurezza-hono'
+
 export const authProvidersMiddleware = (overrides?: AuthProviderOverrides) => {
   return createMiddleware<AppEnv>(async (context, next) => {
+    if (context.env.ENV === 'production' && context.env.JWT_SECRET === DEV_JWT_SECRET) {
+      throw new Error(
+        'JWT_SECRET non configurato: in produzione impostare un segreto univoco con `wrangler secret put JWT_SECRET`',
+      )
+    }
+
     const resolvedClock = overrides?.clock ?? SystemClock
     const hashProvider = overrides?.hashProvider ?? new BcryptHashProvider()
     const tokenService = overrides?.tokenService ?? new JoseTokenService(

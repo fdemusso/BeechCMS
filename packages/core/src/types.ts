@@ -3,7 +3,7 @@
 
 import type { FileAccept } from './file-types.js'
 
-export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation'
+export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation' | 'repeater'
 
 /** Configurazioni specializzate per il tipo di branch 'number' */
 export interface NumberFieldOptions {
@@ -69,6 +69,8 @@ export interface Branch {
   alias: string
   /** Etichetta per la UI */
   label: string
+  /** Testo di aiuto opzionale mostrato come tooltip accanto al label nella form. UI-only, ignorato dall'engine. */
+  hint?: string
   /** Tipo del valore */
   type: BranchType
   /**
@@ -132,6 +134,35 @@ export interface Branch {
    * rule applies to the FK from the junction table to the target table.
    */
   onDelete?: 'CASCADE' | 'SET NULL' | 'RESTRICT'
+
+  /**
+   * Sub-schema for `type === 'repeater'`. Each item of the repeater's array
+   * value is a record keyed by sub-branch alias, validated against this list.
+   * Sub-branches are restricted to leaf/scalar types (no nested `repeater`,
+   * `relation`, or `file`) — enforced by validation.ts and seed-validation.ts.
+   * Ignored for any other branch type.
+   */
+  fields?: Branch[]
+
+  /**
+   * Minimum number of items a `repeater` value must contain when a value is
+   * provided. Repeater-only — ignored for every other branch type.
+   *
+   * NOTE: this constrains array *length when the field is present*. It does NOT by
+   * itself make the field mandatory — an absent/null payload is still allowed unless
+   * `requiredOnCreate` / `requiredOnUpdate` is also set. To model "exactly one
+   * required object", combine `minItems: 1, maxItems: 1, requiredOnCreate: true`.
+   * Must be a non-negative integer and `<= maxItems` when both are set
+   * (enforced at boot by seed-validation.ts).
+   */
+  minItems?: number
+
+  /**
+   * Maximum number of items a `repeater` value may contain. Repeater-only — ignored
+   * for every other branch type. `maxItems: 1` models a single "object" column.
+   * Must be a non-negative integer and `>= minItems` when both are set.
+   */
+  maxItems?: number
 }
 
 /** Dashboard-specific config embedded in a Seed. All fields optional — defaults applied by the dashboard. */

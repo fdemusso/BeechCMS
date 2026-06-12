@@ -26,8 +26,10 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build packages (Core)
-        run: npm run build -w @beechcms/core
+      - name: Build packages (Core & Widget SDK)
+        run: |
+          npm run build -w @beechcms/core
+          npm run build -w @beechcms/widget-sdk
 
       - name: Start Docker Stack
         uses: ./.github/actions/docker-stack

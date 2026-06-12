@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { ISetupChecklistRepository } from './shared/d1-setup-checklist.repository'
 
@@ -43,6 +43,8 @@ export interface Env {
   ASSETS?: Fetcher
   QSTASH_TOKEN?: string
   QSTASH_URL?: string
+  /** Public base URL the worker is reachable at, used by QStash to call back the webhook (e.g. an ngrok tunnel in dev). Falls back to APP_URL. */
+  QSTASH_CALLBACK_URL?: string
   QSTASH_CURRENT_SIGNING_KEY?: string
   QSTASH_NEXT_SIGNING_KEY?: string
 }
@@ -80,6 +82,9 @@ export interface Variables {
   demoDataRepository: IDemoDataRepository
   setupChecklistRepository: ISetupChecklistRepository
   seedLayoutRepository: ISeedLayoutRepository
+  seedRepository: ISeedRepository
+  schemaMutator: ISchemaMutator
+  dashboardLayoutRepository: IDashboardLayoutRepository
 }
 
 export type AppEnv = { Bindings: Env; Variables: Variables }

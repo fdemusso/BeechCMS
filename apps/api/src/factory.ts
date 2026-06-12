@@ -7,7 +7,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository } from '@beechcms/core'
-import { sha256hex, SystemClock, SystemIdGenerator, SeedRegistry, buildBackrefMap } from '@beechcms/core'
+import { sha256hex, SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { Env, Variables } from './types'
 import { getClientIp } from './shared/request-utils'
 
@@ -29,6 +29,8 @@ import { setupApp } from './features/setup'
 import { draftApp } from './features/draft'
 import { settingsApp } from './features/settings/settings.handler'
 import { schemaApp } from './features/schema/schema.handler'
+import { dashboardLayoutApp } from './features/dashboard-layout'
+import { seedsApp } from './features/seeds'
 import { notificationsApp } from './features/notifications'
 import { automationsApp } from './features/automations'
 import { statsApp } from './features/stats'
@@ -37,8 +39,11 @@ import { webhooksApp } from './features/webhooks'
 import { uploadRoutes, serveMediaHandler } from './upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
 import { searchRouter } from "./search"
+import type { ISeedRepository } from '@beechcms/core'
 import { repositoryMiddleware } from './middleware/repository.middleware'
+import { seedRegistryMiddleware } from './middleware/seed-registry.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'
+import { InMemorySeedRepository } from './shared/in-memory-seed.repository'
 import { authProvidersMiddleware } from './middleware/auth-providers.middleware'
 import { rateLimiterMiddleware } from './middleware/rate-limit.middleware'
 import { observabilityMiddleware } from './middleware/observability.middleware'
@@ -50,6 +55,10 @@ export interface BeechConfig {
   bucket?: BeechBucket
   mediaRepository?: MediaRepository
   systemStatsRepository?: SystemStatsRepository
+  // Optional override: inject a custom ISeedRepository (e.g. InMemorySeedRepository for tests).
+  // When omitted and seeds is non-empty, an InMemorySeedRepository is created automatically
+  // for backward compatibility.
+  seedRepository?: ISeedRepository
 }
 
 // --- Costanti e helper ---
@@ -92,36 +101,34 @@ function extractPublicSeed(path: string): string {
 }
 
 /**
- * Builds a fully configured Hono app with the given seeds injected into context.
- * This is the main entry point for a BeechCMS project.
+ * Builds a fully configured Hono app. Seeds are hydrated from D1 at runtime via
+ * seedRegistryMiddleware; config.seeds is retained for back-compat but no longer
+ * drives request handling.
  */
 export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Variables: Variables }> {
+  // Back-compat shim: when callers (e.g. existing tests) pass seeds without a custom
+  // seedRepository, wrap them in an InMemorySeedRepository so the middleware can serve
+  // them without touching D1. Production index.ts passes seeds:[] so D1SeedRepository
+  // is used as the live path.
   const seedsArray = Array.isArray(config.seeds) ? config.seeds : Object.values(config.seeds)
-  // Filter out any invalid objects that might have leaked into the registry (e.g. module exports)
-  const validSeeds = seedsArray.filter(s => s && typeof s === 'object' && 'slug' in s)
-  const seedRegistry = new SeedRegistry(validSeeds)
-
-  // Build once at factory time — read-only, safe to share across requests
-  const backrefMap = buildBackrefMap(validSeeds)
+  const seedRepository = config.seedRepository
+    ?? (seedsArray.length > 0 ? new InMemorySeedRepository(seedsArray) : undefined)
 
   const app = new Hono<{ Bindings: Env; Variables: Variables }>()
 
-  // 1. Core Middleware (Seeds, CORS, Security)
-  app.use('*', async (context, next) => {
-    context.set('getSeed', (slug: string) => seedRegistry.get(slug))
-    context.set('seedRegistry', seedRegistry)
-    context.set('backrefMap', backrefMap)
-    await next()
-  })
-
-  // 1.1 Repository Injection
+  // 1. Repository Injection (must be first — seedRegistryMiddleware depends on seedRepository)
   app.use('*', repositoryMiddleware({
     repository: config.repository,
     idempotencyRepository: config.idempotencyRepository,
     mediaRepository: config.mediaRepository,
     systemStatsRepository: config.systemStatsRepository,
+    seedRepository,
   }))
 
+  // 2. Seed Registry Hydration (D1-backed, version-token-cached per isolate)
+  app.use('*', seedRegistryMiddleware())
+
+  // 3. Storage / Auth / Rate Limiting / Observability
   app.use('*', storageMiddleware({
     bucket: config.bucket,
   }))
@@ -307,6 +314,8 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
   apiProtected.route('/settings', settingsApp)
   apiProtected.route('/schema', schemaApp)
+  apiProtected.route('/dashboard-layout', dashboardLayoutApp)
+  apiProtected.route('/seeds', seedsApp)
   apiProtected.route('/content', notificationsApp)
   apiProtected.route('/content', statsApp)
   apiProtected.route('/content', rotateFieldApp)

@@ -24,6 +24,7 @@ This high-level system map is designed for onboarding new contributors and for A
 | `[vertical-slice.md](vertical-slice.md)` | Guide to Vertical Slice Architecture (VSA) implementation in Beech CMS |
 | `[release.md](release.md)` | Release script, versioning scheme, preview vs stable workflow |
 | `[automations.md](automations.md)` | Automation guide, setting variables, and template grammar |
+| `[custom-widgets.md](custom-widgets.md)` | `@beechcms/widget-sdk` contract for authoring custom dashboard widgets |
 
 ---
 
@@ -86,7 +87,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - System columns: `id`, `slug`, `status`, `created_at`, `updated_at`.
     - **Mirror Tables for Drafts:** if a Seed has `allowDrafts: true`, a mirror table `content_{slug}_drafts` handles pending changes.
     - Authentication tables: `users`, `refresh_tokens`.
-    - System tables: `analytics`, `system_stats`, `media_objects`, `content_event_log` (activity log).
+    - System tables: `seeds` (persisted content type definitions), `seed_meta` (version token caching), `analytics`, `system_stats`, `media_objects`, `content_event_log` (activity log), `dashboard_layouts` (per-scope Dashboard Composer layouts; `scope`, `layout` JSON, `updated_at`, `updated_by`).
     - Automation table: `automations` (id, seed_slug, name, enabled, trigger_event, trigger_cron, trigger_conditions JSON, actions JSON, created_at, updated_at). Indexed on `seed_slug` and `enabled`.
 
 - **Architecture & Tooling**
@@ -124,7 +125,7 @@ This high-level system map is designed for onboarding new contributors and for A
   - Automation CRUD routes (`/api/automations`, `/api/automations/:id`, `/api/automations/:id/toggle`) — see `api-reference.md` §10.
 - **Key integrations**
   - Imports types and functions from `@beechcms/core` (`getSeed`, Botanical Engine).
-  - Uses Cloudflare D1 for persistence (schema generated via `beech seed:load`).
+  - Uses Cloudflare D1 for persistence (schema hydrated dynamically at runtime from the `seeds` table; bootstrapped via `beech onboard` or `beech seed:load`).
   - Uses Cloudflare R2 for binary files.
 - **Important files**
   - `apps/api/src/index.ts` — app entry, CORS, auth routes, analytics middleware, `scheduled` handler for cron automations.
@@ -197,7 +198,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - `IIdGenerator` + `SystemIdGenerator` (`packages/core/src/id-generator.ts`) — wraps `crypto.randomUUID()`. Injected into `D1ActivityLogger`, `D1NotificationRepository`, `D1PasswordResetTokenRepository`. Test impl: `SequentialIdGenerator` (`apps/api/src/shared/sequential-id-generator.ts`) emitting `test-id-NNNN`.
     - Both are NOT placed in `c.var`. They are constructor params of the concrete classes. Override hooks live on `repositoryMiddleware`, `authProvidersMiddleware`, and `observabilityMiddleware` (`{ clock?, idGenerator? }`).
   - **Phase 5 — seed and field registries:**
-    - `ISeedRegistry` + `SeedRegistry` + `InMemorySeedRegistry` (`packages/core/src/seed-registry.ts`) — façade over the flat seed list. `c.var.seedRegistry` is now typed as `ISeedRegistry` (not `Record<string, Seed>`). Methods: `all()`, `get(slug)`, `visibleInDashboard()`, `publicReadable()`, `draftEnabled()`. `getSeed` in `c.var` continues to delegate to `seedRegistry.get()` for backwards compatibility. `SeedRegistry` is constructed in `createBeechApp` (both `apps/api` and `packages/api`).
+    - `ISeedRegistry` + `SeedRegistry` + `InMemorySeedRegistry` (`packages/core/src/seed-registry.ts`) — façade over the seed registry. In production, this registry is hydrated dynamically from D1 per request, caching it locally in the isolate based on `seed_meta.registry_version`. Methods: `all()`, `get(slug)`, `visibleInDashboard()`, `publicReadable()`, `draftEnabled()`. `getSeed` in `c.var` continues to delegate to `seedRegistry.get()` for backwards compatibility. `SeedRegistry` is constructed in `createBeechApp` (both `apps/api` and `packages/api`).
     - `IFieldRegistry` + `FieldRegistryImpl` (`apps/dashboard/src/features/fields/field-registry.ts`) — plugin-extensible registry for field renderers. Module-level singleton `fieldRegistry` in `registry.ts` registers all built-in types at startup. External plugins call `fieldRegistry.registerDisplay/registerEdit(...)` before the app mounts. The public API (`getDisplayComponent`, `getEditComponent`) is unchanged for existing callers.
   - **Phase 6 — Automation Engine:**
     - `AutomationTriggerEvent` — `'create' | 'update' | 'delete' | 'cron'`
@@ -224,7 +225,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - `IDemoDataRepository` (`packages/core/src/demo-data.repository.ts`) — contract for seeding and clearing demo content.
   - **Webhook validation:**
     - `webhook-validation.ts` — helpers for validating inbound webhook signatures (used by the `webhooks` feature in the API).
-- **Build**: `npm run build -w @beechcms/core` produces `dist/` with JS and `.d.ts`, consumed by both apps.
+- **Build**: `npm run build -w @beechcms/core` and `npm run build -w @beechcms/widget-sdk` produce `dist/` with JS and `.d.ts`, consumed by the apps.
 
 ---
 
@@ -304,6 +305,8 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Must** declare `displayNameAlias` on every `Seed`.
   - **Branch policies** must be enforced via `resolvePolicies`.
   - **Pending drafts** are opt-in: set `allowDrafts: true` on the Seed to enable the `/draft` endpoint family. Uses mirror tables `content_{slug}_drafts`.
+  - **Must** treat the D1 database (`seeds` table) as the single source of truth for content types. Running workers load definitions dynamically; `seed.ts` is only a bootstrapping tool.
+  - **Must** perform destructive operations only via the authorized admin API routes (`/api/seeds/...`) and after explicit confirmation checks.
 
 - **Monorepo & shared code**
   - **Must** place shared logic and types in `@beechcms/core` and consume them from both apps.

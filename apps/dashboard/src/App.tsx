@@ -57,6 +57,18 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function RootLayout() {
+  // react-router's basename joining drops the trailing slash for the root
+  // route ("/admin" instead of "/admin/"). Query-string updates (e.g. the
+  // dashboard's ?page= tabs) then append directly to "/admin", producing
+  // "/admin?page=..." which trips Vite's/Workers Assets' strict base-URL
+  // check on reload. Normalize once on mount via the raw browser URL —
+  // react-router's own navigate() would re-create the same href.
+  useEffect(() => {
+    if (window.location.pathname === "/admin") {
+      window.history.replaceState(null, "", `/admin/${window.location.search}${window.location.hash}`)
+    }
+  }, [])
+
   return (
     <>
       <CommandPalette />

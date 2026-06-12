@@ -610,27 +610,27 @@ new JoseTokenService(secret, {}, new FixedClock(1700000000_000))
 
 ---
 
-## Phase 5: Seed Registry (`ISeedRegistry`)
+## Phase 5: Seed Registry & Runtime Schema Management (`ISeedRegistry`, `D1SeedRepository`, `ISchemaMutator`)
 
-Phase 5 replaces the raw `Record<string, Seed>` map with a typed façade exposed through `c.var.seedRegistry`.
+In BeechCMS, content types (Seeds) are database-resident. Instead of reading a static array from code, the worker hydrates the registry dynamically from D1.
 
-```
-packages/core/src/seed-registry.ts  →  ISeedRegistry + SeedRegistry + InMemorySeedRegistry
-```
+### 1. Registry Hydration and Cache Coherence
+Isolates cache the built `SeedRegistry` instance to avoid querying D1 on every request. On each request:
+1. The middleware reads the current version token from the `seed_meta` table (key `registry_version`).
+2. If the version token matches the cached instance, it returns the cached registry.
+3. If the token changed (due to a seed modification), it queries the `seeds` table, hydrates definitions, rebuilds the `SeedRegistry` (and the `backrefMap`), and caches it.
 
-`ISeedRegistry` exposes five read-only methods:
+### 2. D1SeedRepository
+Located at `apps/api/src/shared/seed.repository.d1.ts`, the `D1SeedRepository` (implementing `ISeedRepository` from `@beechcms/core`) manages the persistence of Seed definitions in the `seeds` system table.
 
-| Method | Description |
-|--------|-------------|
-| `all()` | All registered seeds |
-| `get(slug)` | Single seed by slug, or `null` |
-| `visibleInDashboard()` | Seeds where `dashboard.hidden !== true` |
-| `publicReadable()` | Seeds where `allowPublicRead === true` |
-| `draftEnabled()` | Seeds where `allowDrafts === true` |
+### 3. ISchemaMutator & Destructive DDL Planning
+For dynamic database schema changes:
+- **`planSeedDdl(dbSeed, seed)`**: A pure function in core that diffs the current database schema columns against a target Seed definition and generates additive DDL (`CREATE TABLE`, B-tree/FTS indexes, and draft mirror tables).
+- **`ISchemaMutator`**: The repository layer interface representing schema modification actions. The concrete `D1SchemaMutator` applies schema statements:
+  - Additive statements are executed via `execDdl(statements)`.
+  - Destructive statements (renaming columns, dropping columns/tables, retyping fields) run via guarded methods like `dropTable`, `dropColumn`, `renameColumn`, and `execDestructive` (performing atomic table rebuilds in SQLite).
 
-`SeedRegistry` wraps the static `SEED_REGISTRY` array; `InMemorySeedRegistry` accepts an array at construction time and is used in tests.
-
-`c.var.getSeed` continues to delegate to `seedRegistry.get()` for backwards compatibility — existing callers need no changes.
+`c.var.seedRegistry` continues to expose `ISeedRegistry` methods synchronously, ensuring backwards compatibility for all 31 content-handling call sites.
 
 ---
 

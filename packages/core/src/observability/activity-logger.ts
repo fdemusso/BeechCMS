@@ -14,7 +14,7 @@
  */
 
 export type ActivityAction = 'create' | 'update' | 'delete' | 'upload' | 'bulk_update'
-export type EntityType = 'content' | 'media'
+export type EntityType = 'content' | 'media' | 'seed'
 
 /**
  * Identifies the human (or machine) actor that triggered the event.

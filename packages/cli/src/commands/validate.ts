@@ -3,7 +3,7 @@
 
 import pc from 'picocolors'
 import type { Seed } from '@beechcms/core'
-import { SEED_REGISTRY, sortSeedsByDependencies } from '@beechcms/core'
+import { SEED_REGISTRY, validateSeedDefinitions } from '@beechcms/core'
 
 export interface ValidateOptions {
   registry?: Record<string, Seed> | null
@@ -17,108 +17,7 @@ export interface SeedValidationError {
 }
 
 export function validateSeeds(registry: Record<string, Seed>): SeedValidationError[] {
-  const result: SeedValidationError[] = []
-
-  // ── Fatal check 1: unknown relation targets ──────────────────────────────
-  for (const seed of Object.values(registry)) {
-    const messages: string[] = []
-    for (const branch of seed.branches) {
-      if (branch.type === 'relation' && branch.targetSeed) {
-        if (!registry[branch.targetSeed]) {
-          messages.push(
-            `branch '${branch.alias}' targets unknown seed '${branch.targetSeed}'`,
-          )
-        }
-      }
-    }
-    if (messages.length > 0) {
-      result.push({ slug: seed.slug, messages, fatal: true })
-    }
-  }
-
-  // ── Fatal check 2: multi-relation with SET NULL ──────────────────────────
-  for (const seed of Object.values(registry)) {
-    const messages: string[] = []
-    for (const branch of seed.branches) {
-      if (branch.type === 'relation' && branch.multiple === true) {
-        if (branch.onDelete === 'SET NULL') {
-          messages.push(
-            `Branch '${branch.alias}': multi-relations cannot use ON DELETE SET NULL. ` +
-            `Use 'CASCADE' or 'RESTRICT'.`,
-          )
-        }
-      }
-    }
-    if (messages.length > 0) {
-      result.push({ slug: seed.slug, messages, fatal: true })
-    }
-  }
-
-  // ── Fatal check 3: junction table name collisions ────────────────────────
-  {
-    const junctionNames = new Set<string>()
-    for (const seed of Object.values(registry)) {
-      const messages: string[] = []
-      for (const branch of seed.branches) {
-        if (branch.type !== 'relation' || branch.multiple !== true) continue
-        const name = `rel_${seed.slug}_${branch.alias}`
-        if (name.length > 256) {
-          messages.push(`Junction table name '${name}' exceeds 256 characters (${name.length})`)
-        }
-        if (junctionNames.has(name)) {
-          messages.push(`Junction table name collision: '${name}' already used by another seed/branch`)
-        }
-        junctionNames.add(name)
-      }
-      if (messages.length > 0) {
-        result.push({ slug: seed.slug, messages, fatal: true })
-      }
-    }
-  }
-
-  // ── Fatal check 4: dependency cycles ────────────────────────────────────
-  // Skip if unknown targets were found — sortSeedsByDependencies would throw
-  // on the same unknown targets, producing duplicate fatal messages.
-  const hasUnknownTargets = result.some(e => e.fatal)
-  if (!hasUnknownTargets) {
-    try {
-      sortSeedsByDependencies(Object.values(registry))
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      result.push({ slug: '<graph>', messages: [msg], fatal: true })
-    }
-  }
-
-  // ── Warning checks (existing) ────────────────────────────────────────────
-  const slugsSeen = new Set<string>()
-
-  for (const seed of Object.values(registry)) {
-    const messages: string[] = []
-
-    if (slugsSeen.has(seed.slug)) {
-      messages.push(`duplicate slug "${seed.slug}" — each seed must have a unique slug`)
-    }
-    slugsSeen.add(seed.slug)
-
-    const aliasesSeen = new Set<string>()
-    for (const branch of seed.branches) {
-      if (aliasesSeen.has(branch.alias)) {
-        messages.push(`duplicate branch alias "${branch.alias}"`)
-      }
-      aliasesSeen.add(branch.alias)
-    }
-
-    const allAliases = new Set(seed.branches.map(b => b.alias))
-    if (!allAliases.has(seed.displayNameAlias)) {
-      messages.push(`displayNameAlias "${seed.displayNameAlias}" not found in branches`)
-    }
-
-    if (messages.length > 0) {
-      result.push({ slug: seed.slug, messages, fatal: false })
-    }
-  }
-
-  return result
+  return validateSeedDefinitions(Object.values(registry))
 }
 
 export async function validate(args: ValidateOptions): Promise<void> {

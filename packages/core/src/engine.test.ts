@@ -468,4 +468,80 @@ describe('Botanical Engine', () => {
       expect(generateJunctionDraftTable(seed, seed.branches[1])).toBeNull()
     })
   })
+
+  describe('repeater branches (Sprint 10)', () => {
+    const repeaterBranch: Branch = {
+      id: 'br_items', alias: 'items', label: 'Items', type: 'repeater',
+      fields: [
+        { id: 'br_q', alias: 'question', label: 'Question', type: 'text' },
+        { id: 'br_a', alias: 'answer', label: 'Answer', type: 'richtext' },
+      ],
+    }
+    const repeaterSeed: Seed = {
+      slug: 'faq',
+      label: 'FAQ',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_title', alias: 'title', label: 'Title', type: 'text', policies: { search: true } },
+        repeaterBranch,
+      ],
+    }
+
+    it('generateCreateTable emits a nullable TEXT column for a repeater branch', () => {
+      const sql = generateCreateTable(repeaterSeed)
+      expect(sql).toContain('items  TEXT')
+      expect(sql).not.toContain('items  TEXT NOT NULL')
+    })
+
+    it('generateAddColumn emits a TEXT column for a repeater branch', () => {
+      expect(generateAddColumn(repeaterSeed, repeaterBranch)).toBe('ALTER TABLE content_faq ADD COLUMN items TEXT;')
+    })
+
+    it('getExpectedColumns includes the repeater column as TEXT', () => {
+      const cols = getExpectedColumns(repeaterSeed)
+      expect(cols.find(c => c.name === 'items')).toEqual({ name: 'items', sqlType: 'TEXT', notNull: false, isPk: false })
+    })
+
+    it('generateIndexes does not index a repeater branch', () => {
+      const indexes = generateIndexes(repeaterSeed)
+      expect(indexes.some(i => i.includes('idx_faq_items'))).toBe(false)
+    })
+
+    it('generateFtsTable/Triggers ignore repeater branches', () => {
+      const ftsSql = generateFtsTable(repeaterSeed)
+      expect(ftsSql).not.toContain('items')
+      const triggers = generateFtsTriggers(repeaterSeed)
+      for (const trigger of triggers) {
+        expect(trigger).not.toContain('items')
+      }
+    })
+
+    it('serializeForDb stringifies an array of records', () => {
+      const value = [{ question: 'Q1', answer: 'A1' }]
+      expect(serializeForDb(repeaterBranch, value)).toBe(JSON.stringify(value))
+    })
+
+    it('serializeForDb rejects non-array values by storing an empty list', () => {
+      expect(serializeForDb(repeaterBranch, { question: 'Q1' })).toBe('[]')
+      expect(serializeForDb(repeaterBranch, 'not-an-array')).toBe('[]')
+    })
+
+    it('serializeForDb stores null/undefined as null', () => {
+      expect(serializeForDb(repeaterBranch, null)).toBeNull()
+      expect(serializeForDb(repeaterBranch, undefined)).toBeNull()
+    })
+
+    it('deserializeFromDb parses a JSON array back into records', () => {
+      const value = [{ question: 'Q1', answer: 'A1' }]
+      expect(deserializeFromDb(repeaterBranch, JSON.stringify(value))).toEqual(value)
+    })
+
+    it('deserializeFromDb coerces null/empty/invalid to []', () => {
+      expect(deserializeFromDb(repeaterBranch, null)).toEqual([])
+      expect(deserializeFromDb(repeaterBranch, undefined)).toEqual([])
+      expect(deserializeFromDb(repeaterBranch, '')).toEqual([])
+      expect(deserializeFromDb(repeaterBranch, 'not-json')).toEqual([])
+      expect(deserializeFromDb(repeaterBranch, '{"not":"an-array"}')).toEqual([])
+    })
+  })
 })

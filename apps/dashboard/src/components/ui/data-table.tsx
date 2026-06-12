@@ -53,7 +53,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 
 const MAX_VISIBLE_PAGE_BUTTONS = 7
 const DEFAULT_PAGE_SIZE = 10
-const ROW_HEIGHT_PX = 48
+/** Altezza riga condivisa da tutte le tabelle dell'app — riusala per coerenza dimensionale. */
+export const ROW_HEIGHT_PX = 48
 /** Altezza container in modalità virtual scroll (gruppi espansi) */
 const VIRTUAL_CONTAINER_HEIGHT = "calc(100vh - 280px)"
 
@@ -428,11 +429,13 @@ export function DataTable<TData, TValue>(
   })
 
   // Espandi tutti i gruppi quando il raggruppamento cambia
-  React.useEffect(() => {
+  const [prevGrouping, setPrevGrouping] = React.useState(grouping)
+  if (grouping !== prevGrouping) {
+    setPrevGrouping(grouping)
     if (isGroupingActive) {
       setExpanded(true)
     }
-  }, [isGroupingActive, grouping])
+  }
 
   const excludedContextMenuColumnIds = React.useMemo(() => {
     return new Set(rowContextMenuExcludedColumnIds ?? ["select", "actions"])
@@ -543,8 +546,8 @@ export function DataTable<TData, TValue>(
   }
 
   return (
-    <div className="w-full">
-      <div className="rounded-md border">
+    <div className="flex h-full w-full flex-col">
+      <div className="min-h-0 flex-1 rounded-md border">
         {isGroupingActive ? (
           /* ── Modalità virtual scroll (grouping attivo) ── */
           <ScrollArea
@@ -603,7 +606,7 @@ export function DataTable<TData, TValue>(
         ) : (
           /* ── Modalità paginata (grouping inattivo) ── */
           <ScrollArea
-            className="w-full"
+            className="h-full w-full"
             style={{
               minHeight: (() => {
                 const totalRows = manualPagination
@@ -678,7 +681,7 @@ export function DataTable<TData, TValue>(
 
       {/* Paginazione — nascosta in modalità grouping */}
       {!isGroupingActive && (
-        <div className="flex items-center justify-between gap-4 py-4">
+        <div className="flex shrink-0 items-center justify-between gap-4 py-4">
           {table.getFilteredSelectedRowModel().rows.length > 0 && (
             <div className="text-muted-foreground text-sm whitespace-nowrap">
               {table.getFilteredSelectedRowModel().rows.length} di{" "}

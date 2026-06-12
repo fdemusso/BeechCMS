@@ -3,11 +3,29 @@
 
 export type FileAccept = 'image' | 'document' | 'any'
 
-export const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'avif', 'bmp', 'ico'])
+// SVG is intentionally excluded: SVG can embed <script> tags and is rendered
+// inline by browsers when served as image/svg+xml on a same-origin route,
+// creating a stored XSS vector (see security audit finding #4).
+export const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'ico'])
+export const BLOCKED_IMAGE_EXTENSIONS = new Set(['svg', 'svgz'])
 export const DOCUMENT_EXTENSIONS = new Set(['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv', 'md'])
 export const ARCHIVE_EXTENSIONS = new Set(['zip', '7z', 'tar', 'gz', 'json'])
 
-export const IMAGE_MIME_PREFIXES = ['image/'] as const
+// Explicitly enumerate safe image MIME types instead of using the wildcard
+// `image/*` prefix, which would permit `image/svg+xml` and other XSS vectors.
+export const IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'image/avif',
+  'image/bmp',
+  'image/x-icon',
+  'image/vnd.microsoft.icon',
+] as const
+// Blocked image MIME types — listed explicitly so upload code can reject them
+// with a clear error rather than a generic "file type not allowed".
+export const BLOCKED_IMAGE_MIME_TYPES = ['image/svg+xml', 'image/svg'] as const
 export const DOCUMENT_MIME_TYPES = [
   'application/pdf',
   'application/msword',
@@ -49,12 +67,17 @@ export function isExtensionAccepted(ext: string | null, accept: FileAccept): boo
 }
 
 export function isMimeAccepted(mime: string, accept: FileAccept): boolean {
+  // Normalise: strip parameters (e.g. "image/jpeg; charset=utf-8" → "image/jpeg")
+  const normalised = mime.split(';')[0].trim().toLowerCase()
+  // Unconditionally reject SVG regardless of accept mode — SVG can carry
+  // embedded scripts and is rendered by browsers when served inline.
+  if ((BLOCKED_IMAGE_MIME_TYPES as readonly string[]).includes(normalised)) return false
   if (accept === 'any') {
-    return IMAGE_MIME_PREFIXES.some((p) => mime.startsWith(p))
-      || (DOCUMENT_MIME_TYPES as readonly string[]).includes(mime)
-      || (ARCHIVE_MIME_TYPES as readonly string[]).includes(mime)
+    return (IMAGE_MIME_TYPES as readonly string[]).includes(normalised)
+      || (DOCUMENT_MIME_TYPES as readonly string[]).includes(normalised)
+      || (ARCHIVE_MIME_TYPES as readonly string[]).includes(normalised)
   }
-  if (accept === 'image') return IMAGE_MIME_PREFIXES.some((p) => mime.startsWith(p))
-  if (accept === 'document') return (DOCUMENT_MIME_TYPES as readonly string[]).includes(mime)
+  if (accept === 'image') return (IMAGE_MIME_TYPES as readonly string[]).includes(normalised)
+  if (accept === 'document') return (DOCUMENT_MIME_TYPES as readonly string[]).includes(normalised)
   return false
 }

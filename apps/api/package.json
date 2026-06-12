@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/api",
-  "version": "0.5.0",
+  "version": "0.6.0-preview.2",
   "type": "module",
   "exports": {
     ".": "./src/factory.ts"
@@ -25,10 +25,10 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.995.0",
     "@aws-sdk/s3-request-presigner": "^3.995.0",
-    "@beechcms/core": "^0.5.0",
+    "@beechcms/core": "^0.6.0-preview.2",
     "@upstash/qstash": "^2.11.0",
     "bcryptjs": "^2.4.3",
-    "hono": "^4.11.9",
+    "hono": "^4.12.21",
     "jose": "^6.1.3"
   },
   "devDependencies": {
@@ -36,7 +36,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@vitest/coverage-v8": "^4.1.0",
     "vitest": "^4.1.0",
-    "wrangler": "^4.4.0"
+    "wrangler": "^4.98.0"
   },
   "license": "BUSL-1.1",
   "licenseFile": "../../LICENSE"

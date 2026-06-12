@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 
-import { ConfirmDialog } from './confirm-dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionCard } from './section-card'
 import { useLayoutBuilder } from './use-layout-builder'
 import { saveLayout, resetLayout } from '../api/layout.api'

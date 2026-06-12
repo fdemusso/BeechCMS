@@ -34,7 +34,7 @@ export interface RecentActivity {
   user_email: string
   user_name?: string | null
   action: 'create' | 'update' | 'delete' | 'upload'
-  entity_type: 'content' | 'media'
+  entity_type: 'content' | 'media' | 'seed'
   entity_id: string
   entity_slug?: string
   details?: Record<string, any>

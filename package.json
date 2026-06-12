@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/cms",
-  "version": "0.5.0",
+  "version": "0.6.0-preview.2",
   "packageManager": "npm@11.9.0",
   "description": "Edge-Native, Schema-Driven Headless CMS built on Cloudflare Workers, D1, and R2. Features the Botanical Engine for alias-stable field management, a modular widget layer, and a React + Vite admin dashboard.",
   "keywords": [
@@ -28,7 +28,8 @@
   },
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "examples/*"
   ],
   "files": [
     "bin/",
@@ -44,6 +45,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:full": "node scripts/dev.mjs",
+    "dev:plain": "cross-env BEECH_DEV_PLAIN=1 node scripts/dev.mjs",
     "dev:tunnel-url": "docker compose logs tunnel 2>&1 | grep -Eo 'https://[a-z0-9-]+\\.trycloudflare\\.com' | tail -n 1",
     "dev:logs:mailpit": "docker compose logs -f mailpit",
     "dev:logs:sqlite": "docker compose logs -f sqlite-web",
@@ -55,6 +57,8 @@
     "build": "turbo run build",
     "test": "turbo run test",
     "test:coverage": "turbo run test:coverage",
+    "test:diff": "node scripts/test-coverage-diff.mjs",
+    "test:dev-cli": "vitest run --config scripts/dev-cli/vitest.config.ts",
     "setup:graph": "node scripts/setup-graph.mjs",
     "release": "node scripts/release.mjs",
     "release:preview": "node scripts/release.mjs --preview",
@@ -65,14 +69,25 @@
   "type": "module",
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.0",
+    "cross-env": "^10.1.0",
+    "execa": "^9.6.1",
     "husky": "^9.1.7",
+    "ink": "^6.8.0",
+    "ink-spinner": "^5.0.0",
+    "ink-testing-library": "^4.0.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "react-doctor": "^0.2.16",
     "shadcn": "^4.4.0",
-    "turbo": "^2.9.14",
+    "strip-ansi": "^7.2.0",
+    "tsx": "^4.22.4",
+    "turbo": "^2.9.16",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   },
   "overrides": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
     "qs": "^6.15.2",
     "ws": "^8.21.0",
     "miniflare": {
@@ -83,13 +98,13 @@
     }
   },
   "dependencies": {
-    "@beechcms/cli": "^0.5.0",
+    "@beechcms/cli": "^0.6.0-preview.2",
     "@clack/prompts": "^0.9.1",
     "picocolors": "^1.1.1"
   },
   "peerDependencies": {
-    "@beechcms/api": "^0.5.0",
-    "@beechcms/core": "^0.5.0"
+    "@beechcms/api": "^0.6.0-preview.2",
+    "@beechcms/core": "^0.6.0-preview.2"
   },
   "peerDependenciesMeta": {
     "@beechcms/api": {
