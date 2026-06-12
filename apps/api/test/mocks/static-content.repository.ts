@@ -16,8 +16,8 @@ import {
 type Entry = Record<string, any>
 
 export class StaticContentRepository implements ContentRepository {
-  private tables = new Map<string, Entry[]>()
-  private drafts = new Map<string, Map<string, Entry>>()
+  private readonly tables = new Map<string, Entry[]>()
+  private readonly drafts = new Map<string, Map<string, Entry>>()
 
   constructor(seeds: Seed[]) {
     for (const seed of seeds) {

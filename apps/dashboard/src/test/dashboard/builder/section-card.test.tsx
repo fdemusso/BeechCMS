@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, afterEach } from "vitest"
 import type React from "react"
-import { render, screen, within, fireEvent, cleanup } from "@testing-library/react"
+import { render, screen, fireEvent, cleanup } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { DndContext } from "@dnd-kit/core"
 import type { DashboardPageLayout, DashboardSection } from "@beechcms/core"

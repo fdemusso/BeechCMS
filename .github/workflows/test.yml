@@ -107,8 +107,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build packages (Core)
-        run: npm run build -w @beechcms/core
+      - name: Build packages (Core & Widget SDK)
+        run: |
+          npm run build -w @beechcms/core
+          npm run build -w @beechcms/widget-sdk
 
       - name: Run Dashboard Tests
         run: npm test -w @beechcms/dashboard

@@ -225,7 +225,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - `IDemoDataRepository` (`packages/core/src/demo-data.repository.ts`) — contract for seeding and clearing demo content.
   - **Webhook validation:**
     - `webhook-validation.ts` — helpers for validating inbound webhook signatures (used by the `webhooks` feature in the API).
-- **Build**: `npm run build -w @beechcms/core` produces `dist/` with JS and `.d.ts`, consumed by both apps.
+- **Build**: `npm run build -w @beechcms/core` and `npm run build -w @beechcms/widget-sdk` produce `dist/` with JS and `.d.ts`, consumed by the apps.
 
 ---
 

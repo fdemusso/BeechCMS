@@ -429,11 +429,13 @@ export function DataTable<TData, TValue>(
   })
 
   // Espandi tutti i gruppi quando il raggruppamento cambia
-  React.useEffect(() => {
+  const [prevGrouping, setPrevGrouping] = React.useState(grouping)
+  if (grouping !== prevGrouping) {
+    setPrevGrouping(grouping)
     if (isGroupingActive) {
       setExpanded(true)
     }
-  }, [isGroupingActive, grouping])
+  }
 
   const excludedContextMenuColumnIds = React.useMemo(() => {
     return new Set(rowContextMenuExcludedColumnIds ?? ["select", "actions"])

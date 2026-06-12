@@ -108,9 +108,7 @@ function PageTabPill({
 }: Readonly<PageTabPillProps>) {
   const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: dragId })
-  const { role, tabIndex, ...restAttributes } = attributes
-  void role
-  void tabIndex
+  const { role: _role, tabIndex: _tabIndex, ...restAttributes } = attributes
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -122,6 +120,10 @@ function PageTabPill({
     <div
       ref={setNodeRef}
       style={style}
+      // DND-kit requires this element to be focusable (tabIndex={0}) and have a role for keyboard navigation.
+      // We cannot use a native <button> here because it contains a nested <DropdownMenu> trigger button,
+      // and nested interactive elements are invalid in HTML.
+      // NOSONAR
       role="button"
       tabIndex={0}
       className={`flex items-center gap-1 rounded px-3 py-1.5 text-sm cursor-pointer select-none border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted/50 border-transparent'}`}

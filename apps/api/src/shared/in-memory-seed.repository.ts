@@ -36,10 +36,17 @@ export class InMemorySeedRepository implements ISeedRepository {
     if (!s) return null
     return { slug: s.slug, definition: s, status: 'active', source: 'code', createdAt: 0, updatedAt: 0 }
   }
+  upsert(_slug: string, _definition: Seed, _source?: 'code' | 'runtime'): Promise<void> {
+    return Promise.resolve()
+  }
 
-  async upsert(): Promise<void> {}
-  async softDelete(): Promise<void> {}
-  async hardDelete(): Promise<void> {}
+  softDelete(_slug: string): Promise<void> {
+    return Promise.resolve()
+  }
+
+  hardDelete(_slug: string): Promise<void> {
+    return Promise.resolve()
+  }
 
   async getRegistryVersion(): Promise<number> {
     return this.version

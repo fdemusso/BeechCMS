@@ -12,6 +12,8 @@ import type {
 } from '@beechcms/core'
 import { getWidgetDefinition } from '../registry/widget-registry'
 
+export type DashboardColumnCount = 1 | 2 | 3 | 4
+
 export interface UseDashboardBuilderArgs {
   initialLayout: DashboardLayout
 }
@@ -32,7 +34,7 @@ export interface UseDashboardBuilderResult {
   removePage(pageId: string): void
   movePage(fromIndex: number, toIndex: number): void
 
-  addSection(pageId: string, columnCount?: 1 | 2 | 3 | 4): void
+  addSection(pageId: string, columnCount?: DashboardColumnCount): void
   updateSection(
     pageId: string,
     sectionId: string,
@@ -87,7 +89,7 @@ function makeColumn(): DashboardColumn {
   return { id: crypto.randomUUID(), widgets: [] }
 }
 
-function makeSection(columnCount: 1 | 2 | 3 | 4 = 1): DashboardSection {
+function makeSection(columnCount: DashboardColumnCount = 1): DashboardSection {
   const preset = COLUMN_PRESETS.find((p) => p.length === columnCount) ?? COLUMN_PRESETS[0]
   return {
     id: crypto.randomUUID(),
@@ -148,13 +150,14 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
   }, [mutate])
 
   // ── Section ops ──────────────────────────────────────────────────────────
-  const addSection = useCallback((pageId: string, columnCount: 1 | 2 | 3 | 4 = 1) => {
-    mutate((d) => ({
-      ...d,
-      pages: d.pages.map((p) =>
-        p.id === pageId ? { ...p, sections: [...p.sections, makeSection(columnCount)] } : p,
-      ),
-    }))
+  const addSection = useCallback((pageId: string, columnCount: DashboardColumnCount = 1) => {
+    mutate((d) => {
+      const page = d.pages.find((p) => p.id === pageId)
+      if (page) {
+        page.sections.push(makeSection(columnCount))
+      }
+      return d
+    })
   }, [mutate])
 
   const updateSection = useCallback(
@@ -163,87 +166,82 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
       sectionId: string,
       updates: Partial<Pick<DashboardSection, 'label' | 'hideLabel' | 'collapsible'>>,
     ) => {
-      mutate((d) => ({
-        ...d,
-        pages: d.pages.map((p) =>
-          p.id === pageId
-            ? { ...p, sections: p.sections.map((s) => (s.id === sectionId ? { ...s, ...updates } : s)) }
-            : p,
-        ),
-      }))
+      mutate((d) => {
+        const page = d.pages.find((p) => p.id === pageId)
+        const section = page?.sections.find((s) => s.id === sectionId)
+        if (section) {
+          Object.assign(section, updates)
+        }
+        return d
+      })
     },
     [mutate],
   )
 
   const removeSection = useCallback((pageId: string, sectionId: string) => {
-    mutate((d) => ({
-      ...d,
-      pages: d.pages.map((p) =>
-        p.id === pageId ? { ...p, sections: p.sections.filter((s) => s.id !== sectionId) } : p,
-      ),
-    }))
+    mutate((d) => {
+      const page = d.pages.find((p) => p.id === pageId)
+      if (page) {
+        page.sections = page.sections.filter((s) => s.id !== sectionId)
+      }
+      return d
+    })
   }, [mutate])
 
   const moveSection = useCallback((pageId: string, fromIndex: number, toIndex: number) => {
-    mutate((d) => ({
-      ...d,
-      pages: d.pages.map((p) => {
-        if (p.id !== pageId) return p
-        const sections = [...p.sections]
-        const [moved] = sections.splice(fromIndex, 1)
-        sections.splice(toIndex, 0, moved)
-        return { ...p, sections }
-      }),
-    }))
+    mutate((d) => {
+      const page = d.pages.find((p) => p.id === pageId)
+      if (page) {
+        const [moved] = page.sections.splice(fromIndex, 1)
+        page.sections.splice(toIndex, 0, moved)
+      }
+      return d
+    })
   }, [mutate])
 
   const duplicateSection = useCallback((pageId: string, sectionId: string) => {
-    mutate((d) => ({
-      ...d,
-      pages: d.pages.map((p) => {
-        if (p.id !== pageId) return p
-        const idx = p.sections.findIndex((s) => s.id === sectionId)
-        if (idx === -1) return p
-        const clone = structuredClone(p.sections[idx])
-        clone.id = crypto.randomUUID()
-        for (const col of clone.columns) {
-          col.id = crypto.randomUUID()
-          for (const w of col.widgets) w.id = crypto.randomUUID()
+    mutate((d) => {
+      const page = d.pages.find((p) => p.id === pageId)
+      if (page) {
+        const idx = page.sections.findIndex((s) => s.id === sectionId)
+        if (idx !== -1) {
+          const clone = structuredClone(page.sections[idx])
+          clone.id = crypto.randomUUID()
+          for (const col of clone.columns) {
+            col.id = crypto.randomUUID()
+            for (const w of col.widgets) w.id = crypto.randomUUID()
+          }
+          page.sections.splice(idx + 1, 0, clone)
         }
-        const sections = [...p.sections]
-        sections.splice(idx + 1, 0, clone)
-        return { ...p, sections }
-      }),
-    }))
+      }
+      return d
+    })
   }, [mutate])
 
   // ── Column preset (with shrink rule) ────────────────────────────────────
   const setColumnPreset = useCallback((pageId: string, sectionId: string, spans: number[]) => {
-    mutate((d) => ({
-      ...d,
-      pages: d.pages.map((p) => {
-        if (p.id !== pageId) return p
-        return {
-          ...p,
-          sections: p.sections.map((s) => {
-            if (s.id !== sectionId) return s
-            const targetCount = spans.length
-            const current = s.columns
-            let columns: DashboardColumn[]
-            if (targetCount >= current.length) {
-              columns = [...current, ...Array.from({ length: targetCount - current.length }, () => makeColumn())]
-            } else {
-              const kept = current.slice(0, targetCount)
-              const overflow = current.slice(targetCount).flatMap((c) => c.widgets)
-              const last = kept[kept.length - 1]
-              kept[kept.length - 1] = { ...last, widgets: [...last.widgets, ...overflow] }
-              columns = kept
-            }
-            return { ...s, columns, columnSpans: [...spans] }
-          }),
+    mutate((d) => {
+      const page = d.pages.find((p) => p.id === pageId)
+      const section = page?.sections.find((s) => s.id === sectionId)
+      if (section) {
+        const targetCount = spans.length
+        const current = section.columns
+        if (targetCount >= current.length) {
+          section.columns = [
+            ...current,
+            ...Array.from({ length: targetCount - current.length }, () => makeColumn()),
+          ]
+        } else {
+          const kept = current.slice(0, targetCount)
+          const overflow = current.slice(targetCount).flatMap((c) => c.widgets)
+          const last = kept[kept.length - 1]
+          kept[kept.length - 1] = { ...last, widgets: [...last.widgets, ...overflow] }
+          section.columns = kept
         }
-      }),
-    }))
+        section.columnSpans = [...spans]
+      }
+      return d
+    })
   }, [mutate])
 
   // ── Widget ops ───────────────────────────────────────────────────────────
@@ -254,88 +252,45 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
       type,
       config: structuredClone(def?.defaultConfig ?? {}) as Record<string, unknown>,
     }
-    mutate((d) => ({
-      ...d,
-      pages: d.pages.map((p) =>
-        p.id === pageId
-          ? {
-              ...p,
-              sections: p.sections.map((s) =>
-                s.id === sectionId
-                  ? {
-                      ...s,
-                      columns: s.columns.map((c) =>
-                        c.id === columnId ? { ...c, widgets: [...c.widgets, instance] } : c,
-                      ),
-                    }
-                  : s,
-              ),
-            }
-          : p,
-      ),
-    }))
+    mutate((d) => {
+      const page = d.pages.find((p) => p.id === pageId)
+      const section = page?.sections.find((s) => s.id === sectionId)
+      const column = section?.columns.find((c) => c.id === columnId)
+      if (column) {
+        column.widgets.push(instance)
+      }
+      return d
+    })
   }, [mutate])
 
   const updateWidgetConfig = useCallback(
     (pageId: string, sectionId: string, columnId: string, widgetId: string, config: Record<string, unknown>) => {
-      mutate((d) => ({
-        ...d,
-        pages: d.pages.map((p) =>
-          p.id === pageId
-            ? {
-                ...p,
-                sections: p.sections.map((s) =>
-                  s.id === sectionId
-                    ? {
-                        ...s,
-                        columns: s.columns.map((c) =>
-                          c.id === columnId
-                            ? {
-                                ...c,
-                                widgets: c.widgets.map((w) => (w.id === widgetId ? { ...w, config } : w)),
-                              }
-                            : c,
-                        ),
-                      }
-                    : s,
-                ),
-              }
-            : p,
-        ),
-      }))
+      mutate((d) => {
+        const page = d.pages.find((p) => p.id === pageId)
+        const section = page?.sections.find((s) => s.id === sectionId)
+        const column = section?.columns.find((c) => c.id === columnId)
+        const widget = column?.widgets.find((w) => w.id === widgetId)
+        if (widget) {
+          widget.config = config
+        }
+        return d
+      })
     },
     [mutate],
   )
 
   const updateWidgetTitle = useCallback(
     (pageId: string, sectionId: string, columnId: string, widgetId: string, title: string | undefined) => {
-      mutate((d) => ({
-        ...d,
-        pages: d.pages.map((p) =>
-          p.id === pageId
-            ? {
-                ...p,
-                sections: p.sections.map((s) =>
-                  s.id === sectionId
-                    ? {
-                        ...s,
-                        columns: s.columns.map((c) =>
-                          c.id === columnId
-                            ? {
-                                ...c,
-                                widgets: c.widgets.map((w) =>
-                                  w.id === widgetId ? { ...w, title: title || undefined } : w,
-                                ),
-                              }
-                            : c,
-                        ),
-                      }
-                    : s,
-                ),
-              }
-            : p,
-        ),
-      }))
+      mutate((d) => {
+        const page = d.pages.find((p) => p.id === pageId)
+        const section = page?.sections.find((s) => s.id === sectionId)
+        const column = section?.columns.find((c) => c.id === columnId)
+        const widget = column?.widgets.find((w) => w.id === widgetId)
+        if (widget) {
+          widget.title = title || undefined
+        }
+        return d
+      })
     },
     [mutate],
   )
@@ -351,38 +306,20 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
       const toPage = d.pages.find((p) => p.id === to.pageId)
       const toSection = toPage?.sections.find((s) => s.id === to.sectionId)
       const toColumn = toSection?.columns.find((c) => c.id === to.columnId)
-      if (!fromColumn || !toColumn) return d
+      if (fromColumn && toColumn) {
+        const widgetIdx = fromColumn.widgets.findIndex((w) => w.id === from.widgetId)
+        if (widgetIdx !== -1) {
+          moved = fromColumn.widgets[widgetIdx]
 
-      const widgetIdx = fromColumn.widgets.findIndex((w) => w.id === from.widgetId)
-      if (widgetIdx === -1) return d
-      moved = fromColumn.widgets[widgetIdx]
+          // Remove from old location
+          fromColumn.widgets.splice(widgetIdx, 1)
 
-      return {
-        ...d,
-        pages: d.pages.map((p) => ({
-          ...p,
-          sections: p.sections.map((s) => ({
-            ...s,
-            columns: s.columns.map((c) => {
-              let widgets = c.widgets
-              if (c.id === from.columnId && s.id === from.sectionId && p.id === from.pageId) {
-                widgets = widgets.filter((w) => w.id !== from.widgetId)
-              }
-              if (c.id === to.columnId && s.id === to.sectionId && p.id === to.pageId && moved) {
-                const sameColumn = from.columnId === to.columnId && from.sectionId === to.sectionId && from.pageId === to.pageId
-                const insertAt = to.index ?? widgets.length
-                const next = [...widgets]
-                if (sameColumn) {
-                  // widgets already had the item filtered out above when same column
-                }
-                next.splice(Math.min(insertAt, next.length), 0, moved)
-                widgets = next
-              }
-              return { ...c, widgets }
-            }),
-          })),
-        })),
+          // Insert into new location
+          const insertAt = to.index ?? toColumn.widgets.length
+          toColumn.widgets.splice(Math.min(insertAt, toColumn.widgets.length), 0, moved)
+        }
       }
+      return d
     })
 
     ok = moved !== undefined
@@ -393,55 +330,22 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
     (from: MoveWidgetArgs['from'], toPageId: string): boolean => {
       let ok = false
       mutate((d) => {
-        const toPage = d.pages.find((p) => p.id === toPageId)
-        const targetColumn = toPage?.sections[0]?.columns[0]
-        if (!targetColumn) return d
-
         const fromPage = d.pages.find((p) => p.id === from.pageId)
         const fromSection = fromPage?.sections.find((s) => s.id === from.sectionId)
         const fromColumn = fromSection?.columns.find((c) => c.id === from.columnId)
-        const widget = fromColumn?.widgets.find((w) => w.id === from.widgetId)
-        if (!widget) return d
-        ok = true
-
-        return {
-          ...d,
-          pages: d.pages.map((p) => {
-            if (p.id === from.pageId) {
-              return {
-                ...p,
-                sections: p.sections.map((s) =>
-                  s.id === from.sectionId
-                    ? {
-                        ...s,
-                        columns: s.columns.map((c) =>
-                          c.id === from.columnId
-                            ? { ...c, widgets: c.widgets.filter((w) => w.id !== from.widgetId) }
-                            : c,
-                        ),
-                      }
-                    : s,
-                ),
-              }
+        if (fromColumn) {
+          const widgetIdx = fromColumn.widgets.findIndex((w) => w.id === from.widgetId)
+          if (widgetIdx !== -1) {
+            const toPage = d.pages.find((p) => p.id === toPageId)
+            const targetColumn = toPage?.sections[0]?.columns[0]
+            if (targetColumn) {
+              const [widget] = fromColumn.widgets.splice(widgetIdx, 1)
+              targetColumn.widgets.push(widget)
+              ok = true
             }
-            if (p.id === toPageId) {
-              return {
-                ...p,
-                sections: p.sections.map((s, sIdx) =>
-                  sIdx === 0
-                    ? {
-                        ...s,
-                        columns: s.columns.map((c, cIdx) =>
-                          cIdx === 0 ? { ...c, widgets: [...c.widgets, widget] } : c,
-                        ),
-                      }
-                    : s,
-                ),
-              }
-            }
-            return p
-          }),
+          }
         }
+        return d
       })
       return ok
     },
@@ -449,64 +353,31 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
   )
 
   const removeWidget = useCallback((pageId: string, sectionId: string, columnId: string, widgetId: string) => {
-    mutate((d) => ({
-      ...d,
-      pages: d.pages.map((p) =>
-        p.id === pageId
-          ? {
-              ...p,
-              sections: p.sections.map((s) =>
-                s.id === sectionId
-                  ? {
-                      ...s,
-                      columns: s.columns.map((c) =>
-                        c.id === columnId ? { ...c, widgets: c.widgets.filter((w) => w.id !== widgetId) } : c,
-                      ),
-                    }
-                  : s,
-              ),
-            }
-          : p,
-      ),
-    }))
+    mutate((d) => {
+      const page = d.pages.find((p) => p.id === pageId)
+      const section = page?.sections.find((s) => s.id === sectionId)
+      const column = section?.columns.find((c) => c.id === columnId)
+      if (column) {
+        column.widgets = column.widgets.filter((w) => w.id !== widgetId)
+      }
+      return d
+    })
   }, [mutate])
 
   const replaceWidget = useCallback(
     (pageId: string, sectionId: string, columnId: string, widgetId: string, newType: string) => {
       const def = getWidgetDefinition(newType)
-      mutate((d) => ({
-        ...d,
-        pages: d.pages.map((p) =>
-          p.id === pageId
-            ? {
-                ...p,
-                sections: p.sections.map((s) =>
-                  s.id === sectionId
-                    ? {
-                        ...s,
-                        columns: s.columns.map((c) =>
-                          c.id === columnId
-                            ? {
-                                ...c,
-                                widgets: c.widgets.map((w) =>
-                                  w.id === widgetId
-                                    ? {
-                                        ...w,
-                                        type: newType,
-                                        config: structuredClone(def?.defaultConfig ?? {}) as Record<string, unknown>,
-                                      }
-                                    : w,
-                                ),
-                              }
-                            : c,
-                        ),
-                      }
-                    : s,
-                ),
-              }
-            : p,
-        ),
-      }))
+      mutate((d) => {
+        const page = d.pages.find((p) => p.id === pageId)
+        const section = page?.sections.find((s) => s.id === sectionId)
+        const column = section?.columns.find((c) => c.id === columnId)
+        const widget = column?.widgets.find((w) => w.id === widgetId)
+        if (widget) {
+          widget.type = newType
+          widget.config = structuredClone(def?.defaultConfig ?? {}) as Record<string, unknown>
+        }
+        return d
+      })
     },
     [mutate],
   )

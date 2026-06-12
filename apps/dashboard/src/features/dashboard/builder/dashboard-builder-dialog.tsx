@@ -49,36 +49,38 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
   const [pendingScope, setPendingScope] = React.useState<string | null>(null)
   const [isDirty, setIsDirty] = React.useState(false)
 
-  React.useEffect(() => {
+  const [prevOpen, setPrevOpen] = React.useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
     if (open) {
       setScope(DEFAULT_DASHBOARD_SCOPE)
       setIsDirty(false)
     }
-  }, [open])
+  }
 
   const generatedDefault = React.useMemo(() => generateDefaultDashboardLayout(seeds), [seeds])
 
-  const scopeLayoutQuery = useQuery({
+  const { data: scopeLayoutData, isLoading: isScopeLayoutLoading, refetch: refetchScopeLayout } = useQuery({
     queryKey: ['dashboard-builder-layout', scope],
     queryFn: () => dashboardBuilderApi.getLayout(scope),
     enabled: open,
   })
-  const defaultLayoutQuery = useQuery({
+  const { data: defaultLayoutData, isLoading: isDefaultLayoutLoading, refetch: refetchDefaultLayout } = useQuery({
     queryKey: ['dashboard-builder-layout', DEFAULT_DASHBOARD_SCOPE],
     queryFn: () => dashboardBuilderApi.getLayout(DEFAULT_DASHBOARD_SCOPE),
     enabled: open && scope !== DEFAULT_DASHBOARD_SCOPE,
   })
-  const scopesQuery = useQuery({
+  const { refetch: refetchScopes } = useQuery({
     queryKey: ['dashboard-builder-scopes'],
     queryFn: dashboardBuilderApi.getScopes,
     enabled: open,
   })
 
-  const isStored = scopeLayoutQuery.data?.layout != null
+  const isStored = scopeLayoutData?.layout != null
   const isLoadingDraft =
-    scopeLayoutQuery.isLoading || (scope !== DEFAULT_DASHBOARD_SCOPE && defaultLayoutQuery.isLoading)
+    isScopeLayoutLoading || (scope !== DEFAULT_DASHBOARD_SCOPE && isDefaultLayoutLoading)
   const draftSource: DashboardLayout =
-    scopeLayoutQuery.data?.layout ?? defaultLayoutQuery.data?.layout ?? generatedDefault ?? initialLayout
+    scopeLayoutData?.layout ?? defaultLayoutData?.layout ?? generatedDefault ?? initialLayout
 
   function applyScopeChange(next: string) {
     setScope(next)
@@ -133,9 +135,9 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
             onDirtyChange={setIsDirty}
             onClose={() => onOpenChange(false)}
             onScopeMutated={() => {
-              scopeLayoutQuery.refetch()
-              defaultLayoutQuery.refetch()
-              scopesQuery.refetch()
+              refetchScopeLayout()
+              refetchDefaultLayout()
+              refetchScopes()
             }}
           />
         )}

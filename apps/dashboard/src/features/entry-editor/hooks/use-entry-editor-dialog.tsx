@@ -251,34 +251,47 @@ export function useEntryEditorDialog({
   }
 
   // Sync live data from query to local state
-  React.useEffect(() => {
+  const [prevEntryData, setPrevEntryData] = React.useState(entryData)
+  if (entryData !== prevEntryData) {
+    setPrevEntryData(entryData)
     if (entryData) {
       setFormData(entryData.data ?? {})
       setStatus(entryData.status ?? "draft")
       setSlug(entryData.slug ?? "")
       setIsDirty(false)
     }
-  }, [entryData])
+  }
 
   // When entering from the Drafts list, override form with draft data once loaded.
-  React.useEffect(() => {
+  const [prevDraftData, setPrevDraftData] = React.useState(draftData)
+  const [prevEffectiveDraftContext, setPrevEffectiveDraftContext] = React.useState(effectiveDraftContext)
+  if (draftData !== prevDraftData || effectiveDraftContext !== prevEffectiveDraftContext) {
+    setPrevDraftData(draftData)
+    setPrevEffectiveDraftContext(effectiveDraftContext)
     if (effectiveDraftContext && draftData) {
       setFormData(draftData)
       setIsDirty(false)
     }
-  }, [effectiveDraftContext, draftData])
+  }
 
   const errorEntry =
     errorEntryQuery instanceof Error ? errorEntryQuery.message : null
 
   // Initialize form for create mode
-  React.useEffect(() => {
-    if (!seed || !isCreate) return
-    setFormData(createInitialFormData(branches))
-    setStatus("draft")
-    setSlug("")
-    setSlugTouched(false)
-  }, [seed, isCreate, branches])
+  const [prevSeed, setPrevSeed] = React.useState(seed)
+  const [prevIsCreate, setPrevIsCreate] = React.useState(isCreate)
+  const [prevBranches, setPrevBranches] = React.useState(branches)
+  if (seed !== prevSeed || isCreate !== prevIsCreate || branches !== prevBranches) {
+    setPrevSeed(seed)
+    setPrevIsCreate(isCreate)
+    setPrevBranches(branches)
+    if (seed && isCreate) {
+      setFormData(createInitialFormData(branches))
+      setStatus("draft")
+      setSlug("")
+      setSlugTouched(false)
+    }
+  }
 
   // Auto-slug from first text field
   const firstTextAlias = React.useMemo(
