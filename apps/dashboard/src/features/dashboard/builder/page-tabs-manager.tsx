@@ -125,12 +125,13 @@ function PageTabPill({
       role="button"
       tabIndex={0}
       className={`flex items-center gap-1 rounded px-3 py-1.5 text-sm cursor-pointer select-none border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${isActive ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted/50 border-transparent'}`}
-      onClick={onSetActive}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSetActive() }
-      }}
       {...restAttributes}
       {...listeners}
+      onClick={onSetActive}
+      onKeyDown={(e) => {
+        listeners?.onKeyDown?.(e)
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSetActive() }
+      }}
     >
       {isRenaming ? (
         <Input

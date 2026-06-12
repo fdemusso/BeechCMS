@@ -650,6 +650,26 @@ function splitUnknownAliases(
   return { filtered, unknown, details }
 }
 
+function flattenZodIssues(issues: z.ZodIssue[], parentPath: (string | number)[] = []): z.ZodIssue[] {
+  const result: z.ZodIssue[] = []
+  for (const issue of issues) {
+    const issuePath = issue.path as (string | number)[]
+    const currentPath = [...parentPath, ...issuePath]
+    if (issue.code === 'invalid_union' && 'errors' in issue) {
+      const unionErrors = (issue as any).errors as z.ZodIssue[][]
+      for (const subIssues of unionErrors) {
+        result.push(...flattenZodIssues(subIssues, currentPath))
+      }
+    } else {
+      result.push({
+        ...issue,
+        path: currentPath,
+      })
+    }
+  }
+  return result
+}
+
 function processZodIssues(
   seed: Seed,
   issues: z.ZodIssue[],
@@ -660,7 +680,9 @@ function processZodIssues(
   const unknown: string[] = []
   const dangerous: string[] = []
 
-  for (const issue of issues) {
+  const flatIssues = flattenZodIssues(issues)
+
+  for (const issue of flatIssues) {
     if (issue.code === 'unrecognized_keys') {
       for (const alias of issue.keys) {
         unknown.push(alias)

@@ -116,6 +116,183 @@ describe("useDashboardBuilder", () => {
     expect(sections[1].columns[0].widgets.map((w) => w.id)).toEqual(["widget-1"])
   })
 
+  it("moveWidgetToPage moves a widget to the first section/column of the target page", () => {
+    const layout = makeLayout()
+    layout.pages.push({
+      id: "page-2",
+      slug: "second",
+      label: "Second",
+      sections: [{ id: "section-2", columns: [{ id: "col-3", widgets: [] }], columnSpans: [12] }],
+    })
+
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    let ok = false
+    act(() => {
+      ok = result.current.moveWidgetToPage(
+        { pageId: "page-1", sectionId: "section-1", columnId: "col-1", widgetId: "widget-1" },
+        "page-2",
+      )
+    })
+
+    expect(ok).toBe(true)
+    expect(result.current.draft.pages[0].sections[0].columns[0].widgets).toHaveLength(0)
+    expect(result.current.draft.pages[1].sections[0].columns[0].widgets.map((w) => w.id)).toEqual(["widget-1"])
+  })
+
+  it("moveWidgetToPage returns false when the source widget cannot be found", () => {
+    const layout = makeLayout()
+    layout.pages.push({
+      id: "page-2",
+      slug: "second",
+      label: "Second",
+      sections: [{ id: "section-2", columns: [{ id: "col-3", widgets: [] }], columnSpans: [12] }],
+    })
+
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    let ok = true
+    act(() => {
+      ok = result.current.moveWidgetToPage(
+        { pageId: "page-1", sectionId: "section-1", columnId: "col-1", widgetId: "missing-widget" },
+        "page-2",
+      )
+    })
+
+    expect(ok).toBe(false)
+    expect(result.current.draft.pages[0].sections[0].columns[0].widgets).toHaveLength(1)
+  })
+
+  it("moveWidgetToPage returns false when the target page has no columns", () => {
+    const layout = makeLayout()
+    layout.pages.push({ id: "page-2", slug: "second", label: "Second", sections: [] })
+
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    let ok = true
+    act(() => {
+      ok = result.current.moveWidgetToPage(
+        { pageId: "page-1", sectionId: "section-1", columnId: "col-1", widgetId: "widget-1" },
+        "page-2",
+      )
+    })
+
+    expect(ok).toBe(false)
+    expect(result.current.draft.pages[0].sections[0].columns[0].widgets).toHaveLength(1)
+  })
+
+  it("removeWidget removes the widget from its column", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    act(() => result.current.removeWidget("page-1", "section-1", "col-1", "widget-1"))
+
+    expect(result.current.draft.pages[0].sections[0].columns[0].widgets).toHaveLength(0)
+  })
+
+  it("duplicateSection clones a section with new IDs after the original", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    act(() => result.current.duplicateSection("page-1", "section-1"))
+
+    const sections = result.current.draft.pages[0].sections
+    expect(sections).toHaveLength(2)
+    expect(sections[1].id).not.toBe("section-1")
+    expect(sections[1].columns[0].id).not.toBe("col-1")
+    expect(sections[1].columns[0].widgets[0]?.id).not.toBe("widget-1")
+    expect(sections[1].columns[0].widgets[0]?.type).toBe("core/stat")
+  })
+
+  it("addWidget appends a new widget with the type's default config", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    act(() => result.current.addWidget("page-1", "section-1", "col-1", "core/text"))
+
+    const widgets = result.current.draft.pages[0].sections[0].columns[0].widgets
+    expect(widgets).toHaveLength(2)
+    expect(widgets[1].type).toBe("core/text")
+  })
+
+  it("updateWidgetTitle sets and clears the widget title", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    act(() => result.current.updateWidgetTitle("page-1", "section-1", "col-1", "widget-1", "Custom"))
+    expect(result.current.draft.pages[0].sections[0].columns[0].widgets[0].title).toBe("Custom")
+
+    act(() => result.current.updateWidgetTitle("page-1", "section-1", "col-1", "widget-1", ""))
+    expect(result.current.draft.pages[0].sections[0].columns[0].widgets[0].title).toBeUndefined()
+  })
+
+  it("updateWidgetConfig replaces the widget's config", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    act(() => result.current.updateWidgetConfig("page-1", "section-1", "col-1", "widget-1", { statKey: "active" }))
+
+    expect(result.current.draft.pages[0].sections[0].columns[0].widgets[0].config).toEqual({ statKey: "active" })
+  })
+
+  it("addSection appends a section with the requested column count", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    act(() => result.current.addSection("page-1", 3))
+
+    const sections = result.current.draft.pages[0].sections
+    expect(sections).toHaveLength(2)
+    expect(sections[1].columns).toHaveLength(3)
+    expect(sections[1].columnSpans).toEqual([4, 4, 4])
+  })
+
+  it("updateSection merges partial updates into the section", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    act(() => result.current.updateSection("page-1", "section-1", { label: "Renamed", collapsible: true }))
+
+    const section = result.current.draft.pages[0].sections[0]
+    expect(section.label).toBe("Renamed")
+    expect(section.collapsible).toBe(true)
+  })
+
+  it("removeSection removes the section from the page", () => {
+    const layout = makeLayout()
+    layout.pages[0].sections.push({ id: "section-2", columns: [{ id: "col-3", widgets: [] }], columnSpans: [12] })
+
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    act(() => result.current.removeSection("page-1", "section-2"))
+
+    expect(result.current.draft.pages[0].sections.map((s) => s.id)).toEqual(["section-1"])
+  })
+
+  it("moveWidget returns false and is a no-op when the source widget doesn't exist", () => {
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
+
+    let ok = true
+    act(() => {
+      ok = result.current.moveWidget({
+        from: { pageId: "page-1", sectionId: "section-1", columnId: "col-1", widgetId: "missing" },
+        to: { pageId: "page-1", sectionId: "section-1", columnId: "col-2" },
+      })
+    })
+
+    expect(ok).toBe(false)
+  })
+
+  it("moveWidget reorders within the same column when an index is given", () => {
+    const layout = makeLayout()
+    layout.pages[0].sections[0].columns[0].widgets.push({ id: "widget-3", type: "core/stat", config: {} })
+
+    const { result } = renderHook(() => useDashboardBuilder({ initialLayout: layout }))
+
+    act(() => {
+      result.current.moveWidget({
+        from: { pageId: "page-1", sectionId: "section-1", columnId: "col-1", widgetId: "widget-3" },
+        to: { pageId: "page-1", sectionId: "section-1", columnId: "col-1", index: 0 },
+      })
+    })
+
+    const widgets = result.current.draft.pages[0].sections[0].columns[0].widgets
+    expect(widgets.map((w) => w.id)[0]).toBe("widget-3")
+  })
+
   it("replaceWidget resets config to the new type's default config", () => {
     const { result } = renderHook(() => useDashboardBuilder({ initialLayout: makeLayout() }))
 

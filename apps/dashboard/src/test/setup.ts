@@ -3,10 +3,24 @@
 // See LICENSE in the repository root for license terms.
 
 import "@testing-library/jest-dom/vitest"
+import { vi } from "vitest"
+import * as React from "react"
 import i18n from "i18next"
 import { initReactI18next } from "react-i18next"
 import itTranslations from "@/locales/it.json"
 import enTranslations from "@/locales/en.json"
+
+vi.mock("lucide-react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("lucide-react")>()
+  return new Proxy(actual, {
+    get: (target, prop) => {
+      if (typeof prop === "string" && /^[A-Z]/.test(prop)) {
+        return () => React.createElement("svg", { "data-testid": `icon-${prop}` })
+      }
+      return target[prop as keyof typeof target]
+    },
+  })
+})
 
 if (!i18n.isInitialized) {
   i18n.use(initReactI18next).init({
@@ -38,4 +52,15 @@ if (typeof globalThis.ResizeObserver === "undefined") {
 
 if (!window.HTMLElement.prototype.scrollIntoView) {
   window.HTMLElement.prototype.scrollIntoView = function() {};
+}
+
+// Radix UI Select uses pointer capture APIs not implemented in jsdom.
+if (!window.HTMLElement.prototype.hasPointerCapture) {
+  window.HTMLElement.prototype.hasPointerCapture = () => false;
+}
+if (!window.HTMLElement.prototype.setPointerCapture) {
+  window.HTMLElement.prototype.setPointerCapture = () => {};
+}
+if (!window.HTMLElement.prototype.releasePointerCapture) {
+  window.HTMLElement.prototype.releasePointerCapture = () => {};
 }

@@ -9,8 +9,6 @@ export default defineConfig({
     globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
     // Flow tests in test/ + unit tests colocated in src/
     include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
-    // Disable parallel execution of test files to prevent interference on the shared Mailpit/D1 services
-    fileParallelism: false,
     /** Show console/stderr only for failing tests */
     silent: 'passed-only',
     reporters: ['verbose'],
@@ -62,6 +60,12 @@ export default defineConfig({
         'src/middleware/repository.middleware.ts',
         // D1 repository for seed layouts — requires live D1
         'src/shared/seed-layout.repository.d1.ts',
+        // Pure database schema mutators and demo data — requires live D1
+        'src/shared/schema-mutator.d1.ts',
+        'src/shared/demo-data.repository.d1.ts',
+        // External orchestrators or empty wrappers
+        'src/shared/execution-context-scheduler.ts',
+        'src/public/slug-utils.ts',
         // Pure barrel export files
         'src/**/index.ts',
       ],

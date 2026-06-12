@@ -7,6 +7,7 @@ import { createBeechApp } from '../src/factory'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
 import { TEST_SEEDS, TEST_ENV } from './fixtures'
+import { validateAndSanitizeSeedPayload } from '@beechcms/core'
 
 /**
  * SPRINT: BeechCMS Test Redesign
@@ -267,6 +268,190 @@ describe('Flow: Guest Access (Public API)', () => {
         body: JSON.stringify({ data: { internal_note: 'Sneaky update' } }),
       }, TEST_ENV)
       expect(res.status).toBe(422)
+    })
+
+    // Ad-hoc tests to maximize coverage of public-edit.ts
+    it('error: returns 400 when slug is empty string', async () => {
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'X' }])
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ slug: '' }),
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+    })
+
+    it('error: returns 400 when data is not an object', async () => {
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'X' }])
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: 'not-an-object' }),
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+    })
+
+    it('error: returns 422 when data has dangerous content', async () => {
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'X' }])
+      const valResult = validateAndSanitizeSeedPayload(TEST_SEEDS[0], { body: '<script>alert(1)</script>' }, { operation: 'update', allowNull: true })
+      console.log("DIRECT VALIDATION RESULT:", valResult)
+
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { body: '<script>alert(1)</script>' } }),
+      }, TEST_ENV)
+      console.log("RESPONSE DATA:", await res.json())
+      expect(res.status).toBe(422)
+    })
+
+    it('error: returns 500 when repository update throws', async () => {
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'X' }])
+      vi.spyOn(repo, 'update').mockRejectedValueOnce(new Error('DB error'))
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'New Title' } }),
+      }, TEST_ENV)
+      expect(res.status).toBe(500)
+    })
+  })
+
+  // Ad-hoc tests to maximize coverage of public-read.ts, public-add.ts, query-builder.ts
+  describe('Additional coverage: public reads, adds and query builder', () => {
+    it('GET /api/v1/public/:seed with invalid filters returns 400', async () => {
+      // Invalid logic value type
+      let res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent('{"logic":123}')}`, {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+
+      // Malformed JSON
+      res = await app.request('/api/v1/public/posts?filter=malformed', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+
+      // Filter object not an object
+      res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent('123')}`, {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+
+      // Invalid logic name
+      res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent('{"logic":"INVALID"}')}`, {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+
+      // Where is not an array
+      res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent('{"where":"not-array"}')}`, {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+
+      // Invalid operator
+      res = await app.request(`/api/v1/public/posts?filter=${encodeURIComponent('{"where":[{"field":"title","op":"unknown"}]}')}`, {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+    })
+
+    it('GET /api/v1/public/:seed with latest counts checks limits', async () => {
+      repo.load('posts', [
+        { id: '1', status: 'published', title: 'A' }
+      ])
+      let res = await app.request('/api/v1/public/posts?latest=abc', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(200)
+
+      res = await app.request('/api/v1/public/posts?latest=0', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(200)
+
+      res = await app.request('/api/v1/public/posts?latest=150', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(200)
+    })
+
+    it('GET /api/v1/public/:seed by slug returns 404 if status is not published', async () => {
+      repo.load('posts', [{ id: 'p_draft', slug: 'draft-slug', status: 'draft', title: 'Draft' }])
+      const res = await app.request('/api/v1/public/posts?slug=draft-slug', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(404)
+    })
+
+    it('GET /api/v1/public/:seed by id/slug returns 404 if not found', async () => {
+      const res = await app.request('/api/v1/public/posts?id=ghost-id', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(404)
+    })
+
+    it('GET /api/v1/public/:seed returns 500 when repository throws generic error', async () => {
+      vi.spyOn(repo, 'findMany').mockRejectedValueOnce(new Error('Generic list error'))
+      const res = await app.request('/api/v1/public/posts', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(500)
+    })
+
+    it('GET /api/v1/public/:seed single entry returns 500 when repository throws generic error', async () => {
+      vi.spyOn(repo, 'findBySlug').mockRejectedValueOnce(new Error('Generic detail error'))
+      const res = await app.request('/api/v1/public/posts?slug=find-me', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(res.status).toBe(500)
+    })
+
+    it('POST /api/v1/public/:seed/add returns 422 for dangerous content', async () => {
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'Valid Title', body: '<script>alert(1)</script>' } }),
+      }, TEST_ENV)
+      expect(res.status).toBe(422)
+    })
+
+    it('POST /api/v1/public/:seed/add returns 400 when missing required fields', async () => {
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { body: 'Just body, no required title' } }),
+      }, TEST_ENV)
+      expect(res.status).toBe(400)
+    })
+
+    it('POST /api/v1/public/:seed/add returns 409 on idempotency key fingerprint conflict', async () => {
+      const key = 'test-conflict-key'
+      // First call
+      await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY, 'Idempotency-Key': key },
+        body: JSON.stringify({ data: { title: 'First call' } }),
+      }, TEST_ENV)
+
+      // Second call with different body but same key
+      const res2 = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY, 'Idempotency-Key': key },
+        body: JSON.stringify({ data: { title: 'Different call' } }),
+      }, TEST_ENV)
+      expect(res2.status).toBe(409)
+    })
+
+    it('POST /api/v1/public/:seed/add returns 500 when repository throws generic error', async () => {
+      vi.spyOn(repo, 'create').mockRejectedValueOnce(new Error('Generic create error'))
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'Testing 500 error' } }),
+      }, TEST_ENV)
+      expect(res.status).toBe(500)
     })
   })
 })
