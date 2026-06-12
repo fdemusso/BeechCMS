@@ -245,6 +245,13 @@
       "hidePreview": "Nascondi anteprima",
       "warnNoCrossPageSection": "Sposta le sezioni solo all'interno della stessa pagina.",
       "errorMoveWidget": "Impossibile spostare il widget in quella pagina.",
+      "scope": {
+        "default": "Predefinito (tutti i ruoli)",
+        "editor": "Editor",
+        "admin": "Amministratori",
+        "stored": "Salvata",
+        "inheritsDefault": "Eredita il predefinito"
+      },
       "page": {
         "add": "Aggiungi pagina",
         "rename": "Rinomina pagina",

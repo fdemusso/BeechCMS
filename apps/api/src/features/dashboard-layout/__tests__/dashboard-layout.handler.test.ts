@@ -27,6 +27,23 @@ function makeRepoStub(initial: DashboardLayoutRecord | null = null): IDashboardL
   }
 }
 
+/** Stateful in-memory stub supporting multiple scopes at once. */
+function makeMultiRepoStub(initial: Record<string, DashboardLayout> = {}): IDashboardLayoutRepository {
+  const state = new Map<string, DashboardLayoutRecord>(
+    Object.entries(initial).map(([scope, layout]) => [scope, { scope, layout, updatedAt: 0, updatedBy: 'seed' }]),
+  )
+  return {
+    get: vi.fn(async (scope: string) => state.get(scope) ?? null),
+    listScopes: vi.fn(async () => [...state.keys()]),
+    upsert: vi.fn(async (scope: string, layout: DashboardLayout, updatedBy: string) => {
+      state.set(scope, { scope, layout, updatedAt: 0, updatedBy })
+    }),
+    remove: vi.fn(async (scope: string) => {
+      state.delete(scope)
+    }),
+  }
+}
+
 function buildApp(opts: {
   repo?: IDashboardLayoutRepository
   role?: string
@@ -244,6 +261,128 @@ describe('Dashboard Layout Handler', () => {
 
       const getRes = await app.request('/')
       expect(await getRes.json()).toEqual({ scope: 'default', layout: null })
+    })
+  })
+
+  // ---------------------------------------------------------------------------
+  // Sprint 06: role-based dashboards
+  // ---------------------------------------------------------------------------
+
+  describe('GET / — scope resolution matrix', () => {
+    it('returns default + layout: null when nothing is stored (editor)', async () => {
+      const { app } = buildApp({ role: 'editor', repo: makeMultiRepoStub() })
+      const res = await app.request('/')
+      expect(await res.json()).toEqual({ scope: 'default', layout: null })
+    })
+
+    it('returns default when only default is stored (editor)', async () => {
+      const repo = makeMultiRepoStub({ default: validLayout })
+      const { app } = buildApp({ role: 'editor', repo })
+      const res = await app.request('/')
+      const body = await res.json() as { scope: string; layout: DashboardLayout }
+      expect(body.scope).toBe('default')
+      expect(body.layout).toEqual(validLayout)
+    })
+
+    it('returns role:editor when only role:editor is stored (editor)', async () => {
+      const repo = makeMultiRepoStub({ 'role:editor': validLayout })
+      const { app } = buildApp({ role: 'editor', repo })
+      const res = await app.request('/')
+      const body = await res.json() as { scope: string; layout: DashboardLayout }
+      expect(body.scope).toBe('role:editor')
+      expect(body.layout).toEqual(validLayout)
+    })
+
+    it('returns role:editor when both are stored (editor)', async () => {
+      const otherLayout: DashboardLayout = { version: 1, pages: [{ ...validLayout.pages[0], slug: 'other' }] }
+      const repo = makeMultiRepoStub({ default: otherLayout, 'role:editor': validLayout })
+      const { app } = buildApp({ role: 'editor', repo })
+      const res = await app.request('/')
+      const body = await res.json() as { scope: string; layout: DashboardLayout }
+      expect(body.scope).toBe('role:editor')
+      expect(body.layout).toEqual(validLayout)
+    })
+
+    it('ignores role:editor for an admin caller, falling back to default + null', async () => {
+      const repo = makeMultiRepoStub({ 'role:editor': validLayout })
+      const { app } = buildApp({ role: 'admin', repo })
+      const res = await app.request('/')
+      expect(await res.json()).toEqual({ scope: 'default', layout: null })
+    })
+  })
+
+  describe('PUT/DELETE /:scope', () => {
+    it('admin can write role:editor (200)', async () => {
+      const { app } = buildApp({ role: 'admin', repo: makeMultiRepoStub() })
+      const res = await app.request('/role:editor', putRequest(validLayout))
+      expect(res.status).toBe(200)
+      const body = await res.json() as { ok: boolean }
+      expect(body.ok).toBe(true)
+    })
+
+    it('editor cannot write role:editor (403)', async () => {
+      const { app } = buildApp({ role: 'editor', repo: makeMultiRepoStub() })
+      const res = await app.request('/role:editor', putRequest(validLayout))
+      expect(res.status).toBe(403)
+    })
+
+    it('rejects an unknown scope with a 400 invalid-scope problem', async () => {
+      const { app } = buildApp({ role: 'admin', repo: makeMultiRepoStub() })
+      const res = await app.request('/role:ghost', putRequest(validLayout))
+      expect(res.status).toBe(400)
+      const body = await res.json() as { type: string }
+      expect(body.type).toContain('invalid-scope')
+    })
+
+    it('removes the stored row for a scope', async () => {
+      const repo = makeMultiRepoStub({ 'role:editor': validLayout })
+      const { app } = buildApp({ role: 'admin', repo })
+      const res = await app.request('/role:editor', { method: 'DELETE' })
+      expect(res.status).toBe(200)
+      expect(await repo.get('role:editor')).toBeNull()
+    })
+  })
+
+  describe('GET /:scope', () => {
+    it('returns the raw stored layout for a scope', async () => {
+      const repo = makeMultiRepoStub({ 'role:editor': validLayout })
+      const { app } = buildApp({ role: 'admin', repo })
+      const res = await app.request('/role:editor')
+      const body = await res.json() as { scope: string; layout: DashboardLayout | null }
+      expect(body.scope).toBe('role:editor')
+      expect(body.layout).toEqual(validLayout)
+    })
+
+    it('returns layout: null for an unstored scope', async () => {
+      const { app } = buildApp({ role: 'admin', repo: makeMultiRepoStub() })
+      const res = await app.request('/role:editor')
+      expect(await res.json()).toEqual({ scope: 'role:editor', layout: null })
+    })
+
+    it('returns 403 for an editor', async () => {
+      const { app } = buildApp({ role: 'editor', repo: makeMultiRepoStub() })
+      const res = await app.request('/role:editor')
+      expect(res.status).toBe(403)
+    })
+  })
+
+  describe('GET /scopes', () => {
+    it('lists the closed set of scopes annotated with stored state', async () => {
+      const repo = makeMultiRepoStub({ default: validLayout, 'role:editor': validLayout })
+      const { app } = buildApp({ role: 'admin', repo })
+      const res = await app.request('/scopes')
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual([
+        { scope: 'default', stored: true },
+        { scope: 'role:admin', stored: false },
+        { scope: 'role:editor', stored: true },
+      ])
+    })
+
+    it('returns 403 for an editor', async () => {
+      const { app } = buildApp({ role: 'editor', repo: makeMultiRepoStub() })
+      const res = await app.request('/scopes')
+      expect(res.status).toBe(403)
     })
   })
 })

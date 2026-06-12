@@ -245,6 +245,13 @@
       "hidePreview": "Hide Preview",
       "warnNoCrossPageSection": "Move sections within their page.",
       "errorMoveWidget": "Could not move widget to that page.",
+      "scope": {
+        "default": "Default (all roles)",
+        "editor": "Editors",
+        "admin": "Admins",
+        "stored": "Stored",
+        "inheritsDefault": "Inherits default"
+      },
       "page": {
         "add": "Add Page",
         "rename": "Rename page",

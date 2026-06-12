@@ -11,12 +11,32 @@ export interface SaveDashboardLayoutResponse {
   warnings: string[]
 }
 
+export interface ScopedDashboardLayoutResponse {
+  scope: string
+  layout: DashboardLayout | null
+}
+
+export interface DashboardScopeInfo {
+  scope: string
+  stored: boolean
+}
+
 export const dashboardBuilderApi = {
-  saveLayout: async (layout: DashboardLayout): Promise<SaveDashboardLayoutResponse> => {
-    const { data } = await api.put<SaveDashboardLayoutResponse>('/dashboard-layout', layout)
+  /** Raw stored layout for `scope`, or `{ scope, layout: null }` if nothing is stored. Admin-only. */
+  getLayout: async (scope: string): Promise<ScopedDashboardLayoutResponse> => {
+    const { data } = await api.get<ScopedDashboardLayoutResponse>(`/dashboard-layout/${scope}`)
     return data
   },
-  resetLayout: async (): Promise<void> => {
-    await api.delete('/dashboard-layout')
+  /** Closed set of dashboard scopes annotated with whether each has a stored row. Admin-only. */
+  getScopes: async (): Promise<DashboardScopeInfo[]> => {
+    const { data } = await api.get<DashboardScopeInfo[]>('/dashboard-layout/scopes')
+    return data
+  },
+  saveLayout: async (scope: string, layout: DashboardLayout): Promise<SaveDashboardLayoutResponse> => {
+    const { data } = await api.put<SaveDashboardLayoutResponse>(`/dashboard-layout/${scope}`, layout)
+    return data
+  },
+  resetLayout: async (scope: string): Promise<void> => {
+    await api.delete(`/dashboard-layout/${scope}`)
   },
 }
