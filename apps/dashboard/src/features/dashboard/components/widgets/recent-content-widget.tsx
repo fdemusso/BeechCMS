@@ -24,6 +24,7 @@ export interface RecentContentWidgetProps {
   seedSlug: string
   variant?: "list" | "cards"
   onOpen?: (id: string) => void
+  title?: string
 }
 
 function statusVariant(status: string): string {
@@ -60,9 +61,10 @@ interface ContentListResponse {
   total: number
 }
 
-export function RecentContentWidget({ seedSlug, variant = "list" }: RecentContentWidgetProps) {
+export function RecentContentWidget({ seedSlug, variant = "list", title }: RecentContentWidgetProps) {
   const { t, i18n } = useTranslation()
   const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+  const widgetTitle = title || t("dashboard.widgets.recentContent.title")
 
   function relativeTime(ts: number | null): string {
     if (!ts) return "—"
@@ -91,7 +93,7 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
   )
 
   if (isLoading) return (
-    <DashboardWidgetShell title={t("dashboard.widgets.recentContent.title")} icon={Clock} action={viewAllAction}>
+    <DashboardWidgetShell title={widgetTitle} icon={Clock} action={viewAllAction}>
       <div className="space-y-3">
         {Array.from({ length: 4 }).map((_, i) => (
           <Skeleton key={i} className="h-9 w-full rounded-lg animate-pulse" />
@@ -101,20 +103,20 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
   )
 
   if (isError) return (
-    <DashboardWidgetShell title={t("dashboard.widgets.recentContent.title")} icon={Clock} action={viewAllAction}>
+    <DashboardWidgetShell title={widgetTitle} icon={Clock} action={viewAllAction}>
       <WidgetError onRetry={() => refetch()} />
     </DashboardWidgetShell>
   )
 
   if (!data?.length) return (
-    <DashboardWidgetShell title={t("dashboard.widgets.recentContent.title")} icon={Clock}>
+    <DashboardWidgetShell title={widgetTitle} icon={Clock}>
       <WidgetEmpty icon={FileImage} title={t("dashboard.widgets.recentContent.noContent")} description={t("dashboard.widgets.recentContent.noContentDesc")} />
     </DashboardWidgetShell>
   )
 
   if (variant === "cards") {
     return (
-      <DashboardWidgetShell title={t("dashboard.widgets.recentContent.title")} icon={Clock} action={viewAllAction}>
+      <DashboardWidgetShell title={widgetTitle} icon={Clock} action={viewAllAction}>
         <ScrollArea className="h-full">
           <div className="grid grid-cols-2 gap-3 pr-2">
             {data.map((entry) => {
@@ -149,7 +151,7 @@ export function RecentContentWidget({ seedSlug, variant = "list" }: RecentConten
   }
 
   return (
-    <DashboardWidgetShell title={t("dashboard.widgets.recentContent.title")} icon={Clock} action={viewAllAction}>
+    <DashboardWidgetShell title={widgetTitle} icon={Clock} action={viewAllAction}>
       <ul className="space-y-0.5">
         {data.map((entry) => (
           <li

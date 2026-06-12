@@ -28,6 +28,7 @@ vi.mock("sonner", () => ({
 
 import { api } from "@/lib/api"
 import { toast } from "sonner"
+import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import { DashboardBuilderDialog } from "@/features/dashboard/builder"
 
 function makeQueryClient() {
@@ -37,8 +38,13 @@ function makeQueryClient() {
 }
 
 function wrapper(client: QueryClient) {
-  return ({ children }: { children: React.ReactNode }) =>
-    React.createElement(QueryClientProvider, { client }, children)
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={client}>
+      <WidgetSdkProvider client={api}>
+        {children}
+      </WidgetSdkProvider>
+    </QueryClientProvider>
+  )
 }
 
 function makeLayout(): DashboardLayout {
@@ -85,7 +91,7 @@ describe("DashboardBuilderDialog", () => {
     await userEvent.click(saveButton)
 
     await waitFor(() => expect(api.put).toHaveBeenCalledTimes(1))
-    expect(api.put).toHaveBeenCalledWith("/dashboard-layout", expect.objectContaining({ version: 1 }))
+    expect(api.put).toHaveBeenCalledWith("/dashboard-layout/default", expect.objectContaining({ version: 1 }))
     await waitFor(() => expect(toast.success).toHaveBeenCalled())
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
@@ -128,7 +134,7 @@ describe("DashboardBuilderDialog", () => {
     const confirmButton = within(dialog).getByRole("button", { name: "Confirm" })
     await userEvent.click(confirmButton)
 
-    await waitFor(() => expect(api.delete).toHaveBeenCalledWith("/dashboard-layout"))
+    await waitFor(() => expect(api.delete).toHaveBeenCalledWith("/dashboard-layout/default"))
     await waitFor(() => expect(toast.success).toHaveBeenCalled())
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })

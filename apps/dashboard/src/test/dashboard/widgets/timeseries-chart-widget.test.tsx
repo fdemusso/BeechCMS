@@ -13,6 +13,7 @@ vi.mock("@/lib/api", () => ({
 }))
 
 import { api } from "@/lib/api"
+import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import { TimeseriesChartWidget } from "@/features/dashboard/components/widgets/timeseries-chart-widget"
 
 function makeQueryClient() {
@@ -21,7 +22,13 @@ function makeQueryClient() {
 
 function renderWithClient(ui: React.ReactElement) {
   const client = makeQueryClient()
-  return render(React.createElement(QueryClientProvider, { client }, ui))
+  return render(
+    <QueryClientProvider client={client}>
+      <WidgetSdkProvider client={api}>
+        {ui}
+      </WidgetSdkProvider>
+    </QueryClientProvider>,
+  )
 }
 
 describe("TimeseriesChartWidget", () => {

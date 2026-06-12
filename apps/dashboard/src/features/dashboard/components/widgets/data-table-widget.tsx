@@ -28,8 +28,9 @@ export interface DataTableWidgetConfig {
   orderDirection?: "ASC" | "DESC"
 }
 
-export function DataTableWidget({ config }: { config: DataTableWidgetConfig }) {
+export function DataTableWidget({ config, title }: { config: DataTableWidgetConfig; title?: string }) {
   const { t } = useTranslation()
+  const widgetTitle = title || t("dashboard.widgetRegistry.widgets.dataTable.label")
   const navigate = useNavigate()
   const { seed, isLoading: seedLoading } = useActiveSeed(config.seedSlug)
   const [pageIndex, setPageIndex] = useState(0)
@@ -81,7 +82,7 @@ export function DataTableWidget({ config }: { config: DataTableWidgetConfig }) {
 
   if (isLoading || seedLoading) {
     return (
-      <DashboardWidgetShell title={t("dashboard.widgetRegistry.widgets.dataTable.label")} icon={Table}>
+      <DashboardWidgetShell title={widgetTitle} icon={Table}>
         <Skeleton className="h-full w-full rounded-lg" />
       </DashboardWidgetShell>
     )
@@ -89,7 +90,7 @@ export function DataTableWidget({ config }: { config: DataTableWidgetConfig }) {
 
   if (isError) {
     return (
-      <DashboardWidgetShell title={t("dashboard.widgetRegistry.widgets.dataTable.label")} icon={Table}>
+      <DashboardWidgetShell title={widgetTitle} icon={Table}>
         <WidgetError onRetry={() => refetch()} />
       </DashboardWidgetShell>
     )
@@ -97,7 +98,7 @@ export function DataTableWidget({ config }: { config: DataTableWidgetConfig }) {
 
   if (entries.length === 0) {
     return (
-      <DashboardWidgetShell title={t("dashboard.widgetRegistry.widgets.dataTable.label")} icon={Table}>
+      <DashboardWidgetShell title={widgetTitle} icon={Table}>
         <WidgetEmpty icon={Table} title={t("dashboard.widgets.dataTable.empty.title")} description={t("dashboard.widgets.dataTable.empty.description")} />
       </DashboardWidgetShell>
     )
@@ -107,7 +108,7 @@ export function DataTableWidget({ config }: { config: DataTableWidgetConfig }) {
   const pageCount = Math.max(1, Math.ceil(total / pageSize))
 
   return (
-    <DashboardWidgetShell title={t("dashboard.widgetRegistry.widgets.dataTable.label")} icon={Table} contentClassName="overflow-auto">
+    <DashboardWidgetShell title={widgetTitle} icon={Table} contentClassName="overflow-hidden">
       <DataTable
         columns={columns}
         data={entries}

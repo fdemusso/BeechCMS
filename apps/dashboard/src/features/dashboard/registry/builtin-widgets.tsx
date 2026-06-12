@@ -150,7 +150,7 @@ function getStatData(key: StatKey, data: StatDataBundle, t: TranslateFn) {
   }
 }
 
-function StatWidgetAdapter({ config }: DashboardWidgetProps<StatConfig>) {
+function StatWidgetAdapter({ instance, config }: DashboardWidgetProps<StatConfig>) {
   const { t } = useTranslation()
   const { data: statsData, isLoading: statsLoading } = useDashboardStats()
   const { data: cfData, isLoading: cfLoading } = useCloudflareStats()
@@ -162,7 +162,7 @@ function StatWidgetAdapter({ config }: DashboardWidgetProps<StatConfig>) {
           seedSlug: config.seedSlug,
           formula: config.formula,
           window: config.window,
-          label: config.label,
+          label: instance.title || config.label,
           icon: config.icon,
           showTrend: config.showTrend,
         }}
@@ -171,7 +171,7 @@ function StatWidgetAdapter({ config }: DashboardWidgetProps<StatConfig>) {
   }
 
   const statData = getStatData(config.statKey ?? "total", { statsData, cfData, statsLoading, cfLoading }, t)
-  return <StatCard {...statData} />
+  return <StatCard {...statData} title={instance.title || statData.title} />
 }
 
 const STAT_KEY_OPTIONS = [
@@ -243,9 +243,9 @@ const timeseriesChartConfigSchema = z.object({
 type TimeseriesChartWidgetConfig = z.infer<typeof timeseriesChartConfigSchema>
 
 function makeTimeseriesChartAdapter(kind: TimeseriesChartKind, labelKey: string, icon: LucideIcon) {
-  return function TimeseriesChartAdapter({ config }: DashboardWidgetProps<TimeseriesChartWidgetConfig>) {
+  return function TimeseriesChartAdapter({ instance, config }: DashboardWidgetProps<TimeseriesChartWidgetConfig>) {
     const { t } = useTranslation()
-    return <TimeseriesChartWidget config={config} kind={kind} title={t(labelKey)} icon={icon} />
+    return <TimeseriesChartWidget config={config} kind={kind} title={instance.title || t(labelKey)} icon={icon} />
   }
 }
 
@@ -331,9 +331,9 @@ const pieChartConfigSchema = z.object({
 })
 type PieChartWidgetConfig = z.infer<typeof pieChartConfigSchema>
 
-function PieChartAdapter({ config }: DashboardWidgetProps<PieChartWidgetConfig>) {
+function PieChartAdapter({ instance, config }: DashboardWidgetProps<PieChartWidgetConfig>) {
   const { t } = useTranslation()
-  return <PieChartWidget config={config} title={t("dashboard.widgetRegistry.widgets.pieChart.label")} />
+  return <PieChartWidget config={config} title={instance.title || t("dashboard.widgetRegistry.widgets.pieChart.label")} />
 }
 
 function PieChartConfigPanel({
@@ -393,8 +393,8 @@ const dataTableConfigSchema = z.object({
 })
 type DataTableWidgetConfig = z.infer<typeof dataTableConfigSchema>
 
-function DataTableAdapter({ config }: DashboardWidgetProps<DataTableWidgetConfig>) {
-  return <DataTableWidget config={config} />
+function DataTableAdapter({ instance, config }: DashboardWidgetProps<DataTableWidgetConfig>) {
+  return <DataTableWidget config={config} title={instance.title} />
 }
 
 const ORDER_DIRECTION_OPTIONS = [
@@ -624,8 +624,8 @@ const recentContentConfigSchema = z.object({
 })
 type RecentContentConfig = z.infer<typeof recentContentConfigSchema>
 
-function RecentContentAdapter({ config }: DashboardWidgetProps<RecentContentConfig>) {
-  return <RecentContentWidget seedSlug={config.seedSlug} variant={config.variant} />
+function RecentContentAdapter({ instance, config }: DashboardWidgetProps<RecentContentConfig>) {
+  return <RecentContentWidget seedSlug={config.seedSlug} variant={config.variant} title={instance.title} />
 }
 
 const RECENT_CONTENT_VARIANT_OPTIONS = [
@@ -738,8 +738,8 @@ const pendingDraftsConfigSchema = z.object({
 })
 type PendingDraftsConfig = z.infer<typeof pendingDraftsConfigSchema>
 
-function PendingDraftsAdapter({ config }: DashboardWidgetProps<PendingDraftsConfig>) {
-  return <PendingDraftsWidget seedSlug={config.seedSlug} variant={config.variant} />
+function PendingDraftsAdapter({ instance, config }: DashboardWidgetProps<PendingDraftsConfig>) {
+  return <PendingDraftsWidget seedSlug={config.seedSlug} variant={config.variant} title={instance.title} />
 }
 
 const PENDING_DRAFTS_VARIANT_OPTIONS = [
@@ -996,8 +996,8 @@ const activityFeedConfigSchema = z.object({
 })
 type ActivityFeedConfig = z.infer<typeof activityFeedConfigSchema>
 
-function ActivityFeedAdapter({ config }: DashboardWidgetProps<ActivityFeedConfig>) {
-  return <ActivityFeedWidget seedSlug={config.seedSlug} variant={config.variant} limit={config.limit} />
+function ActivityFeedAdapter({ instance, config }: DashboardWidgetProps<ActivityFeedConfig>) {
+  return <ActivityFeedWidget seedSlug={config.seedSlug} variant={config.variant} limit={config.limit} title={instance.title} />
 }
 
 const ACTIVITY_FEED_VARIANT_OPTIONS = [

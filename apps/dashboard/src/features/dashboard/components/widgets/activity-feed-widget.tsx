@@ -18,6 +18,7 @@ export interface ActivityFeedWidgetProps {
   seedSlug?: string
   variant?: "feed" | "compact"
   limit?: number
+  title?: string
 }
 
 const DATE_FNS_LOCALE: Record<string, Locale> = { it: itLocale, en: enUS }
@@ -46,9 +47,10 @@ function initials(name?: string | null, email?: string): string {
   return source.slice(0, 2).toUpperCase()
 }
 
-export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedWidgetProps) {
+export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: ActivityFeedWidgetProps) {
   const { t, i18n } = useTranslation()
   const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+  const widgetTitle = title || t("dashboard.widgets.activityFeed.title")
 
   function relativeTime(ts: number | null): string {
     if (!ts) return "—"
@@ -58,7 +60,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
   const { data, isLoading, isError, refetch } = useRecentActivity(seedSlug)
 
   if (isLoading) return (
-    <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
+    <DashboardWidgetShell title={widgetTitle} icon={Activity}>
       <div className="space-y-3">
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex gap-3">
@@ -71,13 +73,13 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
   )
 
   if (isError) return (
-    <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
+    <DashboardWidgetShell title={widgetTitle} icon={Activity}>
       <WidgetError onRetry={() => refetch()} />
     </DashboardWidgetShell>
   )
 
   if (!data?.length) return (
-    <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
+    <DashboardWidgetShell title={widgetTitle} icon={Activity}>
       <WidgetEmpty icon={Activity} title={t("dashboard.widgets.activityFeed.empty")} />
     </DashboardWidgetShell>
   )
@@ -85,7 +87,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
   if (variant === "compact") {
     const items = data.slice(0, 10)
     return (
-      <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
+      <DashboardWidgetShell title={widgetTitle} icon={Activity}>
         <ScrollArea className="h-full" type="auto">
           <ul className="space-y-1 pr-3">
             {items.map((log) => (
@@ -107,7 +109,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed" }: ActivityFeedW
   }
 
   return (
-    <DashboardWidgetShell title={t("dashboard.widgets.activityFeed.title")} icon={Activity}>
+    <DashboardWidgetShell title={widgetTitle} icon={Activity}>
       <ScrollArea className="h-[180px]" type="auto">
         <ul className="space-y-3 pr-3">
           {data.map((log) => {

@@ -14,6 +14,7 @@ vi.mock("@/lib/api", () => ({
 }))
 
 import { api } from "@/lib/api"
+import { WidgetSdkProvider } from "@beechcms/widget-sdk"
 import { DataTableWidget } from "@/features/dashboard/components/widgets/data-table-widget"
 
 const seed: Seed = {
@@ -35,7 +36,9 @@ function renderWithProviders(ui: React.ReactElement) {
   const client = makeQueryClient()
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter>{ui}</MemoryRouter>
+      <WidgetSdkProvider client={api}>
+        <MemoryRouter>{ui}</MemoryRouter>
+      </WidgetSdkProvider>
     </QueryClientProvider>,
   )
 }

@@ -27,6 +27,28 @@ export type AggregateFormula =
  */
 export type TimeWindow = 'week' | 'month' | 'year' | 'all'
 
+/**
+ * Explicit time range applied as a WHERE filter, anchored on `created_at`.
+ *
+ * Both bounds are unix seconds (inclusive). Used when the dashboard sets a
+ * custom date reference instead of one of the relative {@link TimeWindow} presets.
+ */
+export interface DateRange {
+  from: number
+  to: number
+}
+
+/**
+ * Time filter accepted by widget queries: either a relative preset
+ * ({@link TimeWindow}) or an explicit {@link DateRange}.
+ */
+export type WidgetWindow = TimeWindow | DateRange
+
+/** Narrows a {@link WidgetWindow} to a {@link DateRange}. */
+export function isDateRange(window: WidgetWindow): window is DateRange {
+  return typeof window === 'object' && window !== null
+}
+
 export interface LeaderboardEntry {
   id: string
   label: string
@@ -87,7 +109,7 @@ export interface IWidgetRepository {
    * Returns the formula result for the given time window. Always returns a
    * number; implementations must return 0 when the query produces no rows.
    */
-  aggregate(seed: Seed, formula: AggregateFormula, window: TimeWindow): Promise<number>
+  aggregate(seed: Seed, formula: AggregateFormula, window: WidgetWindow): Promise<number>
 
   /**
    * Evaluates the formula twice — once for the current window period and once
@@ -95,7 +117,7 @@ export interface IWidgetRepository {
    * Implementations must return { currentValue: 0, previousValue: 0 } on
    * empty results.
    */
-  growth(seed: Seed, formula: AggregateFormula, window: TimeWindow): Promise<GrowthResult>
+  growth(seed: Seed, formula: AggregateFormula, window: WidgetWindow): Promise<GrowthResult>
 
   /**
    * Returns entries sorted by scoreColumn, excluding nulls. label resolves
@@ -118,7 +140,7 @@ export interface IWidgetRepository {
   timeseries(
     seed: Seed,
     formula: AggregateFormula,
-    window: TimeWindow,
+    window: WidgetWindow,
     groupColumn: string
   ): Promise<TimeseriesPoint[]>
 
@@ -129,5 +151,5 @@ export interface IWidgetRepository {
    * return [] on empty results. Values beyond `limit` are NOT merged into
    * an 'other' bucket — the client decides how to present truncation.
    */
-  distribution(seed: Seed, column: string, window: TimeWindow, limit: number): Promise<DistributionSlice[]>
+  distribution(seed: Seed, column: string, window: WidgetWindow, limit: number): Promise<DistributionSlice[]>
 }

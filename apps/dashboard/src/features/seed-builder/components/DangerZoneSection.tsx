@@ -108,7 +108,7 @@ export function DangerZoneSection({ record, onDeleted }: Props) {
 
 function RebuildFtsCard({ slug }: { slug: string }) {
   const { t } = useTranslation()
-  const mutation = useRebuildFts()
+  const mutation = useRebuildFts(slug)
 
   return (
     <section className="space-y-2 rounded-md border border-border bg-background p-3">
@@ -120,7 +120,7 @@ function RebuildFtsCard({ slug }: { slug: string }) {
         size="sm"
         disabled={mutation.isPending}
         onClick={() => {
-          mutation.mutate(slug, {
+          mutation.mutate(undefined, {
             onSuccess: () => toast.success(t("seedBuilder.dangerZone.rebuildFts.success")),
           })
         }}
@@ -242,10 +242,10 @@ function BranchDangerCard({ slug, branch }: { slug: string; branch: Branch }) {
               {
                 onSuccess: (data) => {
                   toast.success(t("seedBuilder.dangerZone.renameBranch.success", { newAlias }))
-                  if (data?.affectedAutomationIds?.length) {
+                  if (data?.affectedAutomations?.length) {
                     toast.warning(
                       t("seedBuilder.dangerZone.renameBranch.automationWarning", {
-                        ids: data.affectedAutomationIds.join(", "),
+                        ids: data.affectedAutomations.join(", "),
                       }),
                     )
                   }

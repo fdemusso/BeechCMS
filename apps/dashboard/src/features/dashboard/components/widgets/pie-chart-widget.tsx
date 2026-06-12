@@ -2,14 +2,15 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { PieChart as PieChartIcon } from "lucide-react"
-import type { TimeWindow } from "@beechcms/core"
+import type { TimeWindow, WidgetWindow } from "@beechcms/core"
 import type { ChartConfig } from "@/components/ui/chart"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "../dashboard-widget-shell"
 import { useWidgetDistribution } from "../../hooks/use-widget-data"
+import { WidgetDateFilter } from "./_parts/widget-date-filter"
 import { WidgetEmpty } from "./_parts/widget-empty"
 import { WidgetError } from "./_parts/widget-error"
 
@@ -33,15 +34,17 @@ const RechartsPieChart = lazy(() => import("./pie-chart-recharts"))
 
 export function PieChartWidget({ config, title }: { config: PieChartConfig; title: string }) {
   const { t } = useTranslation()
-  const window = config.window ?? "all"
+  const [window, setWindow] = useState<WidgetWindow>(config.window ?? "all")
   const donut = config.donut ?? true
   const limit = config.limit ?? 8
+
+  const dateFilter = <WidgetDateFilter value={window} onChange={setWindow} />
 
   const { data, isLoading, isError, refetch } = useWidgetDistribution(config.seedSlug, config.column, window, limit + 1)
 
   if (isLoading) {
     return (
-      <DashboardWidgetShell title={title} icon={PieChartIcon}>
+      <DashboardWidgetShell title={title} icon={PieChartIcon} action={dateFilter}>
         <Skeleton className="h-full w-full rounded-lg" />
       </DashboardWidgetShell>
     )
@@ -49,7 +52,7 @@ export function PieChartWidget({ config, title }: { config: PieChartConfig; titl
 
   if (isError) {
     return (
-      <DashboardWidgetShell title={title} icon={PieChartIcon}>
+      <DashboardWidgetShell title={title} icon={PieChartIcon} action={dateFilter}>
         <WidgetError onRetry={() => refetch()} />
       </DashboardWidgetShell>
     )
@@ -58,7 +61,7 @@ export function PieChartWidget({ config, title }: { config: PieChartConfig; titl
   const slices = data?.slices ?? []
   if (slices.length === 0) {
     return (
-      <DashboardWidgetShell title={title} icon={PieChartIcon}>
+      <DashboardWidgetShell title={title} icon={PieChartIcon} action={dateFilter}>
         <WidgetEmpty icon={PieChartIcon} title={t("dashboard.widgets.chart.empty.title")} description={t("dashboard.widgets.chart.empty.description")} />
       </DashboardWidgetShell>
     )
@@ -71,9 +74,9 @@ export function PieChartWidget({ config, title }: { config: PieChartConfig; titl
   )
 
   return (
-    <DashboardWidgetShell title={title} icon={PieChartIcon}>
-      <div className="flex h-full flex-col gap-2">
-        <div className="min-h-0 flex-1">
+    <DashboardWidgetShell title={title} icon={PieChartIcon} action={dateFilter}>
+      <div className="flex h-full flex-col justify-center gap-2">
+        <div className="aspect-square max-h-full w-full min-h-0">
           <Suspense fallback={<Skeleton className="h-full w-full rounded-lg" />}>
             <RechartsPieChart data={visible} donut={donut} chartConfig={chartConfig} />
           </Suspense>

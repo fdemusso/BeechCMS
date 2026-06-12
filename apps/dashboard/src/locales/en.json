@@ -130,6 +130,19 @@
         },
         "more": "+{{count}} more"
       },
+      "dateFilter": {
+        "label": "Date range",
+        "presets": {
+          "all": "All time",
+          "week": "This week",
+          "month": "Last 30 days",
+          "year": "Last 12 months",
+          "thisMonth": "This month",
+          "lastMonth": "Last month",
+          "thisYear": "This year",
+          "custom": "Custom range"
+        }
+      },
       "dataTable": {
         "empty": {
           "title": "No entries",

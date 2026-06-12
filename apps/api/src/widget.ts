@@ -5,7 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import { deserializeFromDb } from '@beechcms/core'
-import type { AggregateFormula, TimeWindow } from '@beechcms/core'
+import type { AggregateFormula, TimeWindow, WidgetWindow } from '@beechcms/core'
 import type { Env, Variables } from './types'
 
 const widgetApp = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -33,6 +33,20 @@ function parseWindow(raw: string | undefined): TimeWindow {
   return 'all'
 }
 
+/**
+ * Resolves the effective query window: an explicit `from`/`to` unix-second
+ * range takes priority over the `window` preset, allowing the dashboard to
+ * pin widgets to a custom date reference.
+ */
+function parseWidgetWindow(query: { window?: string; from?: string; to?: string }): WidgetWindow {
+  const from = Number.parseInt(query.from ?? '', 10)
+  const to = Number.parseInt(query.to ?? '', 10)
+  if (Number.isFinite(from) && Number.isFinite(to) && from <= to) {
+    return { from, to }
+  }
+  return parseWindow(query.window)
+}
+
 function parseBoundedInt(raw: string | undefined, fallback: number, maximum: number, minimum = 1): number {
   const parsed = Number.parseInt(raw ?? String(fallback), 10)
   if (!Number.isFinite(parsed) || parsed < minimum) return fallback
@@ -55,7 +69,7 @@ widgetApp.get('/aggregate/:seed', async (context) => {
   const formula = parseFormula(context.req.query('formula'))
   if (!formula) return context.json(problem(400, 'Bad Request', 'Invalid or missing formula parameter (must be JSON)'), 400)
 
-  const window = parseWindow(context.req.query('window'))
+  const window = parseWidgetWindow(context.req.query())
 
   try {
     const value = await context.get('widgetRepository').aggregate(seed, formula, window)
@@ -75,7 +89,7 @@ widgetApp.get('/growth/:seed', async (context) => {
   const formula = parseFormula(context.req.query('formula'))
   if (!formula) return context.json(problem(400, 'Bad Request', 'Invalid or missing formula parameter (must be JSON)'), 400)
 
-  const window = parseWindow(context.req.query('window'))
+  const window = parseWidgetWindow(context.req.query())
 
   try {
     const { currentValue, previousValue } = await context
@@ -187,7 +201,7 @@ widgetApp.get('/timeseries/:seed', async (context) => {
   const valueColumn = context.req.query('valueColumn')
   const groupColumn = context.req.query('groupColumn') ?? 'created_at'
   const formulaOp = context.req.query('formula') ?? 'count'
-  const window = parseWindow(context.req.query('window'))
+  const window = parseWidgetWindow(context.req.query())
 
   if (!valueColumn && formulaOp !== 'count') {
     return context.json(problem(400, 'Bad Request', 'valueColumn is required when formula is not count'), 400)
@@ -219,7 +233,7 @@ widgetApp.get('/distribution/:seed', async (context) => {
   const column = context.req.query('column')
   if (!column) return context.json(problem(400, 'Bad Request', 'Missing column parameter'), 400)
 
-  const window = parseWindow(context.req.query('window'))
+  const window = parseWidgetWindow(context.req.query())
   const limit = parseBoundedInt(context.req.query('limit'), DEFAULT_DISTRIBUTION_LIMIT, MAXIMUM_DISTRIBUTION_LIMIT)
 
   try {

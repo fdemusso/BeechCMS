@@ -3,18 +3,19 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type {
-  Seed,
-  IWidgetRepository,
-  AggregateFormula,
-  TimeWindow,
-  LeaderboardEntry,
-  LeaderboardOptions,
-  TimeseriesPoint,
-  WidgetListOptions,
-  WidgetListResult,
-  GrowthResult,
-  DistributionSlice,
+import {
+  isDateRange,
+  type Seed,
+  type IWidgetRepository,
+  type AggregateFormula,
+  type WidgetWindow,
+  type LeaderboardEntry,
+  type LeaderboardOptions,
+  type TimeseriesPoint,
+  type WidgetListOptions,
+  type WidgetListResult,
+  type GrowthResult,
+  type DistributionSlice,
 } from '@beechcms/core'
 
 const SYSTEM_COLUMNS: ReadonlySet<string> = new Set([
@@ -51,9 +52,9 @@ const UNSAFE_COLUMN_ERROR = 'UNSAFE_COLUMN'
 export class D1WidgetRepository implements IWidgetRepository {
   constructor(private readonly database: D1Database) {}
 
-  async aggregate(seed: Seed, formula: AggregateFormula, window: TimeWindow): Promise<number> {
+  async aggregate(seed: Seed, formula: AggregateFormula, window: WidgetWindow): Promise<number> {
     const aggregateExpression = this.buildAggregateExpression(seed, formula)
-    const timeWindowFilter = this.buildTimeWindowFilter(window)
+    const { sql: timeWindowFilter, bindings } = this.buildTimeWindowFilter(window)
     const tableName = `content_${seed.slug}`
 
     const sql =
@@ -61,14 +62,14 @@ export class D1WidgetRepository implements IWidgetRepository {
          FROM ${tableName}
         WHERE ${timeWindowFilter}`
 
-    const row = await this.database.prepare(sql).first<{ computed_value: number | null }>()
+    const row = await this.database.prepare(sql).bind(...bindings).first<{ computed_value: number | null }>()
     return row?.computed_value ?? 0
   }
 
   async growth(
     seed: Seed,
     formula: AggregateFormula,
-    window: TimeWindow,
+    window: WidgetWindow,
   ): Promise<GrowthResult> {
     const aggregateExpression = this.buildAggregateExpression(seed, formula)
     const { currentFilter, previousFilter } = this.buildPreviousWindowFilter(window)
@@ -76,10 +77,12 @@ export class D1WidgetRepository implements IWidgetRepository {
 
     const [currentRow, previousRow] = await Promise.all([
       this.database
-        .prepare(`SELECT ${aggregateExpression} as computed_value FROM ${tableName} WHERE ${currentFilter}`)
+        .prepare(`SELECT ${aggregateExpression} as computed_value FROM ${tableName} WHERE ${currentFilter.sql}`)
+        .bind(...currentFilter.bindings)
         .first<{ computed_value: number | null }>(),
       this.database
-        .prepare(`SELECT ${aggregateExpression} as computed_value FROM ${tableName} WHERE ${previousFilter}`)
+        .prepare(`SELECT ${aggregateExpression} as computed_value FROM ${tableName} WHERE ${previousFilter.sql}`)
+        .bind(...previousFilter.bindings)
         .first<{ computed_value: number | null }>(),
     ])
 
@@ -165,12 +168,12 @@ export class D1WidgetRepository implements IWidgetRepository {
   async timeseries(
     seed: Seed,
     formula: AggregateFormula,
-    window: TimeWindow,
+    window: WidgetWindow,
     groupColumn: string,
   ): Promise<TimeseriesPoint[]> {
     const groupColumnExpression = this.resolveColumnExpression(seed, groupColumn)
     const aggregateExpression = this.buildAggregateExpression(seed, formula)
-    const timeWindowFilter = this.buildTimeWindowFilter(window)
+    const { sql: timeWindowFilter, bindings } = this.buildTimeWindowFilter(window)
     const tableName = `content_${seed.slug}`
 
     const dateBucketExpression = groupColumnExpression === 'created_at'
@@ -187,6 +190,7 @@ export class D1WidgetRepository implements IWidgetRepository {
 
     const rows = await this.database
       .prepare(sql)
+      .bind(...bindings)
       .all<{ bucket_label: string | null; bucket_value: number | null }>()
 
     return (rows.results ?? []).map(row => ({
@@ -198,11 +202,11 @@ export class D1WidgetRepository implements IWidgetRepository {
   async distribution(
     seed: Seed,
     column: string,
-    window: TimeWindow,
+    window: WidgetWindow,
     limit: number,
   ): Promise<DistributionSlice[]> {
     const columnExpression = this.resolveColumnExpression(seed, column)
-    const timeWindowFilter = this.buildTimeWindowFilter(window)
+    const { sql: timeWindowFilter, bindings } = this.buildTimeWindowFilter(window)
     const tableName = `content_${seed.slug}`
 
     const sql =
@@ -215,7 +219,7 @@ export class D1WidgetRepository implements IWidgetRepository {
 
     const rows = await this.database
       .prepare(sql)
-      .bind(limit)
+      .bind(...bindings, limit)
       .all<{ label: string | number | null; value: number | null }>()
 
     return (rows.results ?? []).map(row => ({
@@ -279,36 +283,46 @@ export class D1WidgetRepository implements IWidgetRepository {
     return `COUNT(CASE WHEN ${column} = '${escaped}' THEN 1 END)`
   }
 
-  private buildTimeWindowFilter(window: TimeWindow): string {
+  private buildTimeWindowFilter(window: WidgetWindow): { sql: string; bindings: number[] } {
+    if (isDateRange(window)) {
+      return { sql: 'created_at BETWEEN ? AND ?', bindings: [window.from, window.to] }
+    }
     switch (window) {
-      case 'week':  return "created_at > unixepoch('now', '-7 days')"
-      case 'month': return "created_at > unixepoch('now', '-1 month')"
-      case 'year':  return "created_at > unixepoch('now', '-1 year')"
-      case 'all':   return '1=1'
+      case 'week':  return { sql: "created_at > unixepoch('now', '-7 days')", bindings: [] }
+      case 'month': return { sql: "created_at > unixepoch('now', '-1 month')", bindings: [] }
+      case 'year':  return { sql: "created_at > unixepoch('now', '-1 year')", bindings: [] }
+      case 'all':   return { sql: '1=1', bindings: [] }
     }
   }
 
   private buildPreviousWindowFilter(
-    window: TimeWindow,
-  ): { currentFilter: string; previousFilter: string } {
+    window: WidgetWindow,
+  ): { currentFilter: { sql: string; bindings: number[] }; previousFilter: { sql: string; bindings: number[] } } {
+    if (isDateRange(window)) {
+      const span = window.to - window.from
+      return {
+        currentFilter: { sql: 'created_at BETWEEN ? AND ?', bindings: [window.from, window.to] },
+        previousFilter: { sql: 'created_at BETWEEN ? AND ?', bindings: [window.from - span - 1, window.from - 1] },
+      }
+    }
     switch (window) {
       case 'week':
         return {
-          currentFilter:  "created_at > unixepoch('now', '-7 days')",
-          previousFilter: "created_at > unixepoch('now', '-14 days') AND created_at <= unixepoch('now', '-7 days')",
+          currentFilter:  { sql: "created_at > unixepoch('now', '-7 days')", bindings: [] },
+          previousFilter: { sql: "created_at > unixepoch('now', '-14 days') AND created_at <= unixepoch('now', '-7 days')", bindings: [] },
         }
       case 'month':
         return {
-          currentFilter:  "created_at > unixepoch('now', '-1 month')",
-          previousFilter: "created_at > unixepoch('now', '-2 months') AND created_at <= unixepoch('now', '-1 month')",
+          currentFilter:  { sql: "created_at > unixepoch('now', '-1 month')", bindings: [] },
+          previousFilter: { sql: "created_at > unixepoch('now', '-2 months') AND created_at <= unixepoch('now', '-1 month')", bindings: [] },
         }
       case 'year':
         return {
-          currentFilter:  "created_at > unixepoch('now', '-1 year')",
-          previousFilter: "created_at > unixepoch('now', '-2 years') AND created_at <= unixepoch('now', '-1 year')",
+          currentFilter:  { sql: "created_at > unixepoch('now', '-1 year')", bindings: [] },
+          previousFilter: { sql: "created_at > unixepoch('now', '-2 years') AND created_at <= unixepoch('now', '-1 year')", bindings: [] },
         }
       case 'all':
-        return { currentFilter: '1=1', previousFilter: '1=0' }
+        return { currentFilter: { sql: '1=1', bindings: [] }, previousFilter: { sql: '1=0', bindings: [] } }
     }
   }
 

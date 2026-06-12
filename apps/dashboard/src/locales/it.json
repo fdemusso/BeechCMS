@@ -130,6 +130,19 @@
         },
         "more": "+{{count}} altri"
       },
+      "dateFilter": {
+        "label": "Intervallo date",
+        "presets": {
+          "all": "Da sempre",
+          "week": "Questa settimana",
+          "month": "Ultimi 30 giorni",
+          "year": "Ultimi 12 mesi",
+          "thisMonth": "Questo mese",
+          "lastMonth": "Mese scorso",
+          "thisYear": "Quest'anno",
+          "custom": "Intervallo personalizzato"
+        }
+      },
       "dataTable": {
         "empty": {
           "title": "Nessuna voce",

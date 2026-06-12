@@ -24,6 +24,7 @@ export interface PendingDraftsWidgetProps {
   variant?: "counter" | "list"
   onPublish?: (id: string) => void
   onOpen?: (id?: string) => void
+  title?: string
 }
 
 interface ContentListResponse {
@@ -40,9 +41,10 @@ function entryTitle(entry: ContentEntry): string {
   return entry.id
 }
 
-export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish }: PendingDraftsWidgetProps) {
+export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, title }: PendingDraftsWidgetProps) {
   const { t, i18n } = useTranslation()
   const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+  const widgetTitle = title || t("dashboard.widgets.pendingDrafts.title")
   const queryClient = useQueryClient()
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["widget", "pending-drafts", seedSlug],
@@ -76,7 +78,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish }: P
   ) : null
 
   if (isLoading) return (
-    <DashboardWidgetShell title={t("dashboard.widgets.pendingDrafts.title")} icon={ClipboardList}>
+    <DashboardWidgetShell title={widgetTitle} icon={ClipboardList}>
       <div className="space-y-2">
         {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-10 w-full animate-pulse" />)}
       </div>
@@ -84,14 +86,14 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish }: P
   )
 
   if (isError) return (
-    <DashboardWidgetShell title={t("dashboard.widgets.pendingDrafts.title")} icon={ClipboardList}>
+    <DashboardWidgetShell title={widgetTitle} icon={ClipboardList}>
       <WidgetError onRetry={() => refetch()} />
     </DashboardWidgetShell>
   )
 
   if (variant === "counter") {
     return (
-      <DashboardWidgetShell title={t("dashboard.widgets.pendingDrafts.title")} icon={ClipboardList}>
+      <DashboardWidgetShell title={widgetTitle} icon={ClipboardList}>
         <div className="flex flex-col items-center justify-center gap-2 h-full text-center">
           <span className="text-5xl font-bold tabular-nums">{data?.length ?? 0}</span>
           <p className="text-sm text-muted-foreground">{t("dashboard.widgets.pendingDrafts.pendingCount")}</p>
@@ -104,14 +106,14 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish }: P
   }
 
   if (!data?.length) return (
-    <DashboardWidgetShell title={t("dashboard.widgets.pendingDrafts.title")} icon={ClipboardList}>
+    <DashboardWidgetShell title={widgetTitle} icon={ClipboardList}>
       <WidgetEmpty icon={ClipboardList} title={t("dashboard.widgets.pendingDrafts.noPending")} />
     </DashboardWidgetShell>
   )
 
   return (
     <DashboardWidgetShell
-      title={t("dashboard.widgets.pendingDrafts.title")}
+      title={widgetTitle}
       icon={ClipboardList}
       action={
         <div className="flex items-center gap-2">

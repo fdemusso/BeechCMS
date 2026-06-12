@@ -24,6 +24,7 @@ This high-level system map is designed for onboarding new contributors and for A
 | `[vertical-slice.md](vertical-slice.md)` | Guide to Vertical Slice Architecture (VSA) implementation in Beech CMS |
 | `[release.md](release.md)` | Release script, versioning scheme, preview vs stable workflow |
 | `[automations.md](automations.md)` | Automation guide, setting variables, and template grammar |
+| `[custom-widgets.md](custom-widgets.md)` | `@beechcms/widget-sdk` contract for authoring custom dashboard widgets |
 
 ---
 

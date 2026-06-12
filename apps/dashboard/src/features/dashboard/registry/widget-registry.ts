@@ -11,12 +11,21 @@ import type { WidgetDefinition } from "./widget-definition"
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const definitions = new Map<string, WidgetDefinition<any>>()
 
-/** Registers a widget type. Throws if `type` is already registered. */
+/**
+ * Registers a widget type. Throws if `type` is already registered.
+ *
+ * Types without the `core/` prefix (custom/third-party widgets) are
+ * forced into `category: "custom"` regardless of what the author
+ * declared, so the picker groups them predictably.
+ */
 export function registerWidget<TConfig>(definition: WidgetDefinition<TConfig>): void {
   if (definitions.has(definition.type)) {
     throw new Error(`Widget type "${definition.type}" is already registered.`)
   }
-  definitions.set(definition.type, definition)
+  const resolved = definition.type.startsWith("core/")
+    ? definition
+    : { ...definition, category: "custom" as const }
+  definitions.set(definition.type, resolved)
 }
 
 export function getWidgetDefinition(type: string): WidgetDefinition | undefined {
