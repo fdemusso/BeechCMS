@@ -228,6 +228,118 @@
       "adminAction": "Go to setup wizard",
       "firstContent": "First content entry",
       "firstContentAction": "Create first entry"
+    },
+    "builder": {
+      "customize": "Customize",
+      "title": "Dashboard Builder",
+      "save": "Save",
+      "saved": "Dashboard layout saved.",
+      "saveError": "Could not save the dashboard layout.",
+      "reset": "Reset",
+      "resetDone": "Dashboard reset to default.",
+      "resetConfirmTitle": "Reset to default?",
+      "resetConfirmDesc": "This removes the custom dashboard layout. The default will be used.",
+      "discardTitle": "Discard changes?",
+      "discardDesc": "Unsaved dashboard edits will be lost.",
+      "showPreview": "Show Preview",
+      "hidePreview": "Hide Preview",
+      "warnNoCrossPageSection": "Move sections within their page.",
+      "errorMoveWidget": "Could not move widget to that page.",
+      "page": {
+        "add": "Add Page",
+        "rename": "Rename page",
+        "delete": "Delete page"
+      },
+      "section": {
+        "add": "Add Section",
+        "noLabel": "No Label",
+        "rename": "Rename",
+        "hideLabel": "Hide Label",
+        "collapsible": "Collapsible",
+        "columns": "Columns",
+        "duplicate": "Duplicate",
+        "remove": "Remove"
+      },
+      "widget": {
+        "add": "Add Widget",
+        "configure": "Configure",
+        "moveToPage": "Move to page…",
+        "remove": "Remove",
+        "unavailable": "Unavailable"
+      },
+      "picker": {
+        "title": "Add Widget",
+        "categories": {
+          "stats": "Stats",
+          "charts": "Charts",
+          "content": "Content",
+          "system": "System",
+          "custom": "Custom"
+        }
+      },
+      "config": {
+        "title": "Title",
+        "noOptions": "This widget has no configurable options.",
+        "seed": "Content type",
+        "seedPlaceholder": "Select a content type…",
+        "column": "Column",
+        "columnPlaceholder": "Select a column…",
+        "window": "Time window",
+        "windowWeek": "Last week",
+        "windowMonth": "Last month",
+        "windowYear": "Last year",
+        "windowAll": "All time",
+        "formula": "Formula",
+        "formulaOps": {
+          "count": "Count",
+          "sum": "Sum",
+          "avg": "Average",
+          "min": "Minimum",
+          "max": "Maximum",
+          "countWhere": "Count where",
+          "percentageOf": "Percentage of"
+        },
+        "matchValue": "Match value",
+        "numerator": "Numerator column",
+        "denominator": "Denominator column",
+        "statKey": "Statistic",
+        "showTrend": "Show trend",
+        "groupColumn": "Group by column",
+        "color": "Color",
+        "donut": "Donut style",
+        "limit": "Limit",
+        "columns": "Columns",
+        "columnsPlaceholder": "Comma-separated column names (all if empty)",
+        "pageSize": "Page size",
+        "orderByColumn": "Order by",
+        "orderDirection": "Order direction",
+        "content": "Content",
+        "align": "Alignment",
+        "variant": "Variant",
+        "totalBytes": "Total capacity (bytes)",
+        "variants": {
+          "list": "List",
+          "cards": "Cards",
+          "minimal": "Minimal",
+          "expanded": "Expanded",
+          "counter": "Counter",
+          "trio": "Trio",
+          "single": "Single",
+          "badge": "Badge",
+          "pillRow": "Pill row",
+          "bar": "Bar",
+          "gauge": "Gauge",
+          "grid": "Grid",
+          "unused": "Unused only",
+          "feed": "Feed",
+          "compact": "Compact",
+          "full": "Full",
+          "left": "Left",
+          "center": "Center",
+          "asc": "Ascending",
+          "desc": "Descending"
+        }
+      }
     }
   },
   "editor": {
@@ -780,13 +892,13 @@
         "dayOfMonthLabel": "Day of the month",
         "expressionPreview": "Expression:",
         "days": {
+          "0": "Sunday",
           "1": "Monday",
           "2": "Tuesday",
           "3": "Wednesday",
           "4": "Thursday",
           "5": "Friday",
-          "6": "Saturday",
-          "0": "Sunday"
+          "6": "Saturday"
         }
       },
       "errors": {

@@ -1030,9 +1030,48 @@ registerWidget<MyWidgetConfig>({
 ```
 
 - **`configSchema` must be lenient** — every field needs `.catch()` or `.optional().catch(undefined)` so a partial or stale stored config always parses into *something* rather than failing outright.
-- Add a `dashboard.widgetRegistry.widgets.<key>.label` entry to `src/locales/en.json` and `it.json` — shown in the (Sprint 05) widget picker.
+- Add a `dashboard.widgetRegistry.widgets.<key>.label` entry to `src/locales/en.json` and `it.json` — shown in the widget picker.
 - `registerWidget` throws if `type` is already registered — types share a flat global namespace, so pick a specific name.
 - `builtin-widgets.tsx` is imported only for its side effects, from `features/dashboard/index.ts`. Nothing else needs to import it directly.
+- An optional `ConfigPanel: ComponentType<{ config: TConfig; onChange: (next: TConfig) => void }>` on the registration is rendered inside the Sprint 05 widget config `Sheet` (see 8.9). Widgets without a `ConfigPanel` show a localized "no configurable options" message.
+
+### 8.9 Dashboard Builder (Sprint 05)
+
+Admin-only (`canEditDashboard(user?.role)` from `@beechcms/core`, `'admin'` only) drag-and-drop editor for the `DashboardLayout`. Lives in `apps/dashboard/src/features/dashboard/builder/`, exported via that folder's `index.ts` and re-exported from `features/dashboard/index.ts`.
+
+**Entry point** — `dashboard-page.tsx` shows a "Customize" button (`Settings2` icon) next to the welcome header when `canEdit` is true; clicking it opens `<DashboardBuilderDialog open={...} onOpenChange={...} initialLayout={layout} />` as a full-screen `Dialog`.
+
+**State — `useDashboardBuilder({ initialLayout })`:**
+
+- Holds a `draft: DashboardLayout` (deep-cloned from `initialLayout`) plus `storedInitial` for `isDirty` comparison (`JSON.stringify` diff).
+- All mutators (`addPage`, `renamePage`, `removePage`, `movePage`, `addSection`, `updateSection`, `removeSection`, `moveSection`, `duplicateSection`, `setColumnPreset`, `addWidget`, `updateWidgetConfig`, `updateWidgetTitle`, `moveWidget`, `moveWidgetToPage`, `removeWidget`, `replaceWidget`, `reset`) go through a `structuredClone`-based `mutate` helper — never mutate `draft` in place.
+- `COLUMN_PRESETS` (also exported) = `[[12],[6,6],[8,4],[4,8],[4,4,4],[3,3,3,3]]`. `setColumnPreset` applies the "shrink rule": when the new preset has fewer columns, surplus columns' widgets are appended (in order) to the last surviving column rather than discarded.
+- `removePage` refuses to remove the last page (`pages.length <= 1`).
+- `moveWidget({ from, to })` / `moveWidgetToPage(from, toPageId)` return `boolean` indicating whether the move was applied (used by `BuilderPane`'s `onDragEnd` to decide whether to show a warning toast).
+- Reducer behaviour is covered by `apps/dashboard/src/test/dashboard/builder/use-dashboard-builder.test.ts`.
+
+**UI tree** (all in `features/dashboard/builder/`):
+
+| File | Role |
+|---|---|
+| `dashboard-builder-dialog.tsx` | Full-screen `Dialog`; owns `useDashboardBuilder`, `handleSave` (validates via `validateDashboardLayout` then `PUT /dashboard-layout`), `handleReset` (`DELETE /dashboard-layout`). Invalidates `DASHBOARD_QUERY_KEYS.layout()` on success. |
+| `builder-pane.tsx` | Single `DndContext` (dnd-kit) for pages, sections and widgets; routes `onDragEnd` by id prefix (`page:`, `section:`, `widget:`); Preview toggle (renders `DashboardLayoutRenderer` for the active page); Save/Reset/Cancel footer; owns the reset-confirm and discard-confirm `ConfirmDialog`s. |
+| `page-tabs-manager.tsx` | Sortable page tabs, inline rename, add/remove (last page undeletable). |
+| `section-card.tsx` | Section header (rename, hide label, collapsible, column-preset submenu via `COLUMN_PRESETS`, duplicate, remove) + `grid grid-cols-12` of `ColumnStack`s. |
+| `column-stack.tsx` | Sortable list of `WidgetChip`s within one column, plus "Add Widget". |
+| `widget-chip.tsx` | One widget row — icon, title, "Move to page" submenu (other pages), Configure, Remove. Shows an `AlertTriangle` + "Unavailable" badge when `getWidgetDefinition(widget.type)` returns `undefined` (unknown widget type), but the widget instance is preserved. |
+| `widget-picker-dialog.tsx` | Dialog listing `listWidgetDefinitions()` grouped by `category` (`stats > charts > content > system > custom`). |
+| `widget-config-sheet.tsx` | `Sheet` with the widget's title field plus its `ConfigPanel` (or a "no options" message). |
+| `config-fields.tsx` | Shared config-panel primitives: `TextField`, `TextAreaField`, `NumberField`, `SwitchField`, `VariantSelect`, `SeedSelect`, `BranchAliasSelect`, `WindowSelect`, `FormulaEditor` (covers every `AggregateFormula` op). |
+| `use-dashboard-builder.ts` | Reducer hook + `COLUMN_PRESETS` (see above). |
+| `api/dashboard-layout.api.ts` | `dashboardBuilderApi.saveLayout(layout)` (`PUT /dashboard-layout`) and `resetLayout()` (`DELETE /dashboard-layout`). |
+
+**Save validation** — `handleSave` calls `validateDashboardLayout(draft, { seedSlugs, knownWidgetTypes: knownWidgetTypes() })` from `@beechcms/core` before saving:
+- Widgets whose `config.seedSlug` references a seed that no longer exists are silently stripped (with a warning) — `result.cleaned` is what gets sent to the API.
+- Unknown widget types only produce a warning and are **never** stripped — they round-trip through save/reload and render as "Unavailable" chips in the builder / placeholders in the renderer.
+- If `result.ok` is `false`, the first error is toasted and the save is aborted.
+
+**Cross-page rules** — sections can only be reordered within their own page (`builder-pane.tsx` toasts `dashboard.builder.warnNoCrossPageSection` and ignores the drop if a cross-page section move is attempted). Widgets can move across pages via the "Move to page" submenu or by dragging into a different page's column.
 
 ---
 

@@ -2,17 +2,24 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
+import { Settings2 } from "lucide-react"
+import { canEditDashboard } from "@beechcms/core"
+import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useDashboardLayout } from "../hooks/use-dashboard-layout"
 import { DashboardLayoutRenderer } from "../renderer/dashboard-layout-renderer"
+import { DashboardBuilderDialog } from "../builder"
 
 export default function DashboardPage() {
   const { t } = useTranslation()
   const { user } = useAuth()
   const { layout } = useDashboardLayout()
+  const [builderOpen, setBuilderOpen] = useState(false)
+  const canEdit = canEditDashboard(user?.role)
   const hour = new Date().getHours()
   const greeting = hour >= 5 && hour < 12
     ? t("dashboard.greeting.morning")
@@ -41,13 +48,21 @@ export default function DashboardPage() {
                   per una lettura ottimale sia su 16:9 che su 21:9. */}
               <div className="content-area-inner flex flex-col gap-8">
                 {/* Welcome Header */}
-                <div className="flex flex-col gap-1.5">
-                  <h1 className="text-2xl font-bold tracking-tight md:text-3xl text-neutral-900 dark:text-neutral-100">
-                    {greeting}, <span className="text-primary">{userName}</span>
-                  </h1>
-                  <p className="text-neutral-500 dark:text-neutral-400">
-                    {t("dashboard.greeting.subtitle")}
-                  </p>
+                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
+                  <div className="flex flex-col gap-1.5">
+                    <h1 className="text-2xl font-bold tracking-tight md:text-3xl text-neutral-900 dark:text-neutral-100">
+                      {greeting}, <span className="text-primary">{userName}</span>
+                    </h1>
+                    <p className="text-neutral-500 dark:text-neutral-400">
+                      {t("dashboard.greeting.subtitle")}
+                    </p>
+                  </div>
+                  {canEdit && (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setBuilderOpen(true)}>
+                      <Settings2 className="size-4 mr-2" />
+                      {t("dashboard.builder.customize")}
+                    </Button>
+                  )}
                 </div>
 
                 <DashboardLayoutRenderer layout={layout} />
@@ -56,6 +71,9 @@ export default function DashboardPage() {
           </SidebarInset>
         </div>
       </SidebarProvider>
+      {canEdit && (
+        <DashboardBuilderDialog open={builderOpen} onOpenChange={setBuilderOpen} initialLayout={layout} />
+      )}
     </div>
   )
 }

@@ -228,6 +228,118 @@
       "adminAction": "Vai al wizard di setup",
       "firstContent": "Primo contenuto inserito",
       "firstContentAction": "Crea il primo elemento"
+    },
+    "builder": {
+      "customize": "Personalizza",
+      "title": "Editor Dashboard",
+      "save": "Salva",
+      "saved": "Layout della dashboard salvato.",
+      "saveError": "Impossibile salvare il layout della dashboard.",
+      "reset": "Ripristina",
+      "resetDone": "Dashboard ripristinata ai valori predefiniti.",
+      "resetConfirmTitle": "Ripristinare ai valori predefiniti?",
+      "resetConfirmDesc": "Questo rimuove il layout personalizzato. Verrà usato quello predefinito.",
+      "discardTitle": "Annullare le modifiche?",
+      "discardDesc": "Le modifiche non salvate alla dashboard andranno perse.",
+      "showPreview": "Mostra anteprima",
+      "hidePreview": "Nascondi anteprima",
+      "warnNoCrossPageSection": "Sposta le sezioni solo all'interno della stessa pagina.",
+      "errorMoveWidget": "Impossibile spostare il widget in quella pagina.",
+      "page": {
+        "add": "Aggiungi pagina",
+        "rename": "Rinomina pagina",
+        "delete": "Elimina pagina"
+      },
+      "section": {
+        "add": "Aggiungi sezione",
+        "noLabel": "Senza etichetta",
+        "rename": "Rinomina",
+        "hideLabel": "Nascondi etichetta",
+        "collapsible": "Comprimibile",
+        "columns": "Colonne",
+        "duplicate": "Duplica",
+        "remove": "Rimuovi"
+      },
+      "widget": {
+        "add": "Aggiungi widget",
+        "configure": "Configura",
+        "moveToPage": "Sposta in pagina…",
+        "remove": "Rimuovi",
+        "unavailable": "Non disponibile"
+      },
+      "picker": {
+        "title": "Aggiungi widget",
+        "categories": {
+          "stats": "Statistiche",
+          "charts": "Grafici",
+          "content": "Contenuti",
+          "system": "Sistema",
+          "custom": "Personalizzati"
+        }
+      },
+      "config": {
+        "title": "Titolo",
+        "noOptions": "Questo widget non ha opzioni configurabili.",
+        "seed": "Tipo di contenuto",
+        "seedPlaceholder": "Seleziona un tipo di contenuto…",
+        "column": "Colonna",
+        "columnPlaceholder": "Seleziona una colonna…",
+        "window": "Periodo",
+        "windowWeek": "Ultima settimana",
+        "windowMonth": "Ultimo mese",
+        "windowYear": "Ultimo anno",
+        "windowAll": "Da sempre",
+        "formula": "Formula",
+        "formulaOps": {
+          "count": "Conteggio",
+          "sum": "Somma",
+          "avg": "Media",
+          "min": "Minimo",
+          "max": "Massimo",
+          "countWhere": "Conta se",
+          "percentageOf": "Percentuale di"
+        },
+        "matchValue": "Valore da confrontare",
+        "numerator": "Colonna numeratore",
+        "denominator": "Colonna denominatore",
+        "statKey": "Statistica",
+        "showTrend": "Mostra andamento",
+        "groupColumn": "Raggruppa per colonna",
+        "color": "Colore",
+        "donut": "Stile donut",
+        "limit": "Limite",
+        "columns": "Colonne",
+        "columnsPlaceholder": "Nomi colonna separati da virgola (tutte se vuoto)",
+        "pageSize": "Elementi per pagina",
+        "orderByColumn": "Ordina per",
+        "orderDirection": "Direzione ordinamento",
+        "content": "Contenuto",
+        "align": "Allineamento",
+        "variant": "Variante",
+        "totalBytes": "Capacità totale (byte)",
+        "variants": {
+          "list": "Elenco",
+          "cards": "Schede",
+          "minimal": "Minimale",
+          "expanded": "Espanso",
+          "counter": "Contatore",
+          "trio": "Trio",
+          "single": "Singolo",
+          "badge": "Badge",
+          "pillRow": "Riga di pillole",
+          "bar": "Barra",
+          "gauge": "Indicatore",
+          "grid": "Griglia",
+          "unused": "Solo inutilizzati",
+          "feed": "Feed",
+          "compact": "Compatto",
+          "full": "Completo",
+          "left": "Sinistra",
+          "center": "Centro",
+          "asc": "Crescente",
+          "desc": "Decrescente"
+        }
+      }
     }
   },
   "editor": {
@@ -780,13 +892,13 @@
         "dayOfMonthLabel": "Giorno del mese",
         "expressionPreview": "Espressione:",
         "days": {
+          "0": "Domenica",
           "1": "Lunedì",
           "2": "Martedì",
           "3": "Mercoledì",
           "4": "Giovedì",
           "5": "Venerdì",
-          "6": "Sabato",
-          "0": "Domenica"
+          "6": "Sabato"
         }
       },
       "errors": {

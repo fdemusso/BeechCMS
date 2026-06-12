@@ -44,7 +44,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 
-import { ConfirmDialog } from './confirm-dialog'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { LayoutRenderer } from '../renderer/layout-renderer'
 import { SectionCard } from './section-card'
 import { useLayoutBuilder } from './use-layout-builder'

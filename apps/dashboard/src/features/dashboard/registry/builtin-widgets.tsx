@@ -41,6 +41,17 @@ import {
   ActivityFeedWidget,
   SetupChecklistWidget,
 } from "../components/widgets"
+import {
+  SeedSelect,
+  BranchAliasSelect,
+  WindowSelect,
+  FormulaEditor,
+  TextField,
+  TextAreaField,
+  NumberField,
+  SwitchField,
+  VariantSelect,
+} from "../builder/config-fields"
 
 const EMPTY_SEEDS: Seed[] = []
 
@@ -163,6 +174,49 @@ function StatWidgetAdapter({ config }: DashboardWidgetProps<StatConfig>) {
   return <StatCard {...statData} />
 }
 
+const STAT_KEY_OPTIONS = [
+  { value: "total", labelKey: "dashboard.widgets.stat.total.title" },
+  { value: "visitors", labelKey: "dashboard.widgets.stat.visitors.title" },
+  { value: "traffic", labelKey: "dashboard.widgets.stat.traffic.title" },
+  { value: "storage", labelKey: "dashboard.widgets.storage.title" },
+]
+
+function StatConfigPanel({ config, onChange }: { config: StatConfig; onChange: (next: StatConfig) => void }) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      <SeedSelect value={config.seedSlug} onChange={(seedSlug) => onChange({ ...config, seedSlug })} />
+      {config.seedSlug ? (
+        <>
+          <FormulaEditor
+            seedSlug={config.seedSlug}
+            value={config.formula}
+            onChange={(formula) => onChange({ ...config, formula })}
+          />
+          <WindowSelect value={config.window} onChange={(window) => onChange({ ...config, window })} />
+          <TextField
+            label={t("dashboard.builder.config.title")}
+            value={config.label}
+            onChange={(label) => onChange({ ...config, label })}
+          />
+        </>
+      ) : (
+        <VariantSelect
+          label={t("dashboard.builder.config.statKey")}
+          value={config.statKey ?? "total"}
+          options={STAT_KEY_OPTIONS}
+          onChange={(statKey) => onChange({ ...config, statKey: statKey as StatConfig["statKey"] })}
+        />
+      )}
+      <SwitchField
+        label={t("dashboard.builder.config.showTrend")}
+        checked={config.showTrend ?? false}
+        onChange={(showTrend) => onChange({ ...config, showTrend })}
+      />
+    </div>
+  )
+}
+
 registerWidget<StatConfig>({
   type: "core/stat",
   labelKey: "dashboard.widgetRegistry.widgets.stat.label",
@@ -172,6 +226,7 @@ registerWidget<StatConfig>({
   defaultConfig: { statKey: "total" },
   component: StatWidgetAdapter,
   minColumnSpan: 3,
+  ConfigPanel: StatConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -194,6 +249,39 @@ function makeTimeseriesChartAdapter(kind: TimeseriesChartKind, labelKey: string,
   }
 }
 
+function TimeseriesChartConfigPanel({
+  config,
+  onChange,
+}: {
+  config: TimeseriesChartWidgetConfig
+  onChange: (next: TimeseriesChartWidgetConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      <SeedSelect value={config.seedSlug} onChange={(seedSlug) => onChange({ ...config, seedSlug })} />
+      <FormulaEditor
+        seedSlug={config.seedSlug}
+        value={config.formula}
+        onChange={(formula) => onChange({ ...config, formula })}
+      />
+      <WindowSelect value={config.window} onChange={(window) => onChange({ ...config, window })} />
+      <BranchAliasSelect
+        seedSlug={config.seedSlug}
+        value={config.groupColumn}
+        onChange={(groupColumn) => onChange({ ...config, groupColumn })}
+        label={t("dashboard.builder.config.groupColumn")}
+      />
+      <TextField
+        label={t("dashboard.builder.config.color")}
+        value={config.color}
+        onChange={(color) => onChange({ ...config, color })}
+        placeholder="#3b82f6"
+      />
+    </div>
+  )
+}
+
 registerWidget<TimeseriesChartWidgetConfig>({
   type: "core/line-chart",
   labelKey: "dashboard.widgetRegistry.widgets.lineChart.label",
@@ -203,6 +291,7 @@ registerWidget<TimeseriesChartWidgetConfig>({
   defaultConfig: { seedSlug: "" },
   component: makeTimeseriesChartAdapter("line", "dashboard.widgetRegistry.widgets.lineChart.label", LineChart),
   minColumnSpan: 4,
+  ConfigPanel: TimeseriesChartConfigPanel,
 })
 
 registerWidget<TimeseriesChartWidgetConfig>({
@@ -214,6 +303,7 @@ registerWidget<TimeseriesChartWidgetConfig>({
   defaultConfig: { seedSlug: "" },
   component: makeTimeseriesChartAdapter("bar", "dashboard.widgetRegistry.widgets.barChart.label", BarChart3),
   minColumnSpan: 4,
+  ConfigPanel: TimeseriesChartConfigPanel,
 })
 
 registerWidget<TimeseriesChartWidgetConfig>({
@@ -225,6 +315,7 @@ registerWidget<TimeseriesChartWidgetConfig>({
   defaultConfig: { seedSlug: "" },
   component: makeTimeseriesChartAdapter("area", "dashboard.widgetRegistry.widgets.areaChart.label", AreaChart),
   minColumnSpan: 4,
+  ConfigPanel: TimeseriesChartConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -245,6 +336,38 @@ function PieChartAdapter({ config }: DashboardWidgetProps<PieChartWidgetConfig>)
   return <PieChartWidget config={config} title={t("dashboard.widgetRegistry.widgets.pieChart.label")} />
 }
 
+function PieChartConfigPanel({
+  config,
+  onChange,
+}: {
+  config: PieChartWidgetConfig
+  onChange: (next: PieChartWidgetConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      <SeedSelect value={config.seedSlug} onChange={(seedSlug) => onChange({ ...config, seedSlug })} />
+      <BranchAliasSelect
+        seedSlug={config.seedSlug}
+        value={config.column}
+        onChange={(column) => onChange({ ...config, column })}
+      />
+      <WindowSelect value={config.window} onChange={(window) => onChange({ ...config, window })} />
+      <SwitchField
+        label={t("dashboard.builder.config.donut")}
+        checked={config.donut ?? false}
+        onChange={(donut) => onChange({ ...config, donut })}
+      />
+      <NumberField
+        label={t("dashboard.builder.config.limit")}
+        value={config.limit}
+        onChange={(limit) => onChange({ ...config, limit })}
+        min={1}
+      />
+    </div>
+  )
+}
+
 registerWidget<PieChartWidgetConfig>({
   type: "core/pie-chart",
   labelKey: "dashboard.widgetRegistry.widgets.pieChart.label",
@@ -254,6 +377,7 @@ registerWidget<PieChartWidgetConfig>({
   defaultConfig: { seedSlug: "", column: "" },
   component: PieChartAdapter,
   minColumnSpan: 4,
+  ConfigPanel: PieChartConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -273,6 +397,52 @@ function DataTableAdapter({ config }: DashboardWidgetProps<DataTableWidgetConfig
   return <DataTableWidget config={config} />
 }
 
+const ORDER_DIRECTION_OPTIONS = [
+  { value: "ASC", labelKey: "dashboard.builder.config.variants.asc" },
+  { value: "DESC", labelKey: "dashboard.builder.config.variants.desc" },
+]
+
+function DataTableConfigPanel({
+  config,
+  onChange,
+}: {
+  config: DataTableWidgetConfig
+  onChange: (next: DataTableWidgetConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      <SeedSelect value={config.seedSlug} onChange={(seedSlug) => onChange({ ...config, seedSlug })} />
+      <TextField
+        label={t("dashboard.builder.config.columns")}
+        value={(config.columns ?? []).join(", ")}
+        onChange={(value) =>
+          onChange({ ...config, columns: value.split(",").map((c) => c.trim()).filter(Boolean) })
+        }
+        placeholder={t("dashboard.builder.config.columnsPlaceholder")}
+      />
+      <NumberField
+        label={t("dashboard.builder.config.pageSize")}
+        value={config.pageSize}
+        onChange={(pageSize) => onChange({ ...config, pageSize })}
+        min={1}
+      />
+      <BranchAliasSelect
+        seedSlug={config.seedSlug}
+        value={config.orderByColumn}
+        onChange={(orderByColumn) => onChange({ ...config, orderByColumn })}
+        label={t("dashboard.builder.config.orderByColumn")}
+      />
+      <VariantSelect
+        label={t("dashboard.builder.config.orderDirection")}
+        value={config.orderDirection ?? "ASC"}
+        options={ORDER_DIRECTION_OPTIONS}
+        onChange={(orderDirection) => onChange({ ...config, orderDirection: orderDirection as "ASC" | "DESC" })}
+      />
+    </div>
+  )
+}
+
 registerWidget<DataTableWidgetConfig>({
   type: "core/data-table",
   labelKey: "dashboard.widgetRegistry.widgets.dataTable.label",
@@ -282,6 +452,7 @@ registerWidget<DataTableWidgetConfig>({
   defaultConfig: { seedSlug: "" },
   component: DataTableAdapter,
   minColumnSpan: 4,
+  ConfigPanel: DataTableConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -298,6 +469,36 @@ function TextAdapter({ config }: DashboardWidgetProps<TextWidgetConfig>) {
   return <TextWidget config={config} />
 }
 
+const TEXT_ALIGN_OPTIONS = [
+  { value: "left", labelKey: "dashboard.builder.config.variants.left" },
+  { value: "center", labelKey: "dashboard.builder.config.variants.center" },
+]
+
+function TextConfigPanel({
+  config,
+  onChange,
+}: {
+  config: TextWidgetConfig
+  onChange: (next: TextWidgetConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      <TextAreaField
+        label={t("dashboard.builder.config.content")}
+        value={config.content}
+        onChange={(content) => onChange({ ...config, content })}
+      />
+      <VariantSelect
+        label={t("dashboard.builder.config.align")}
+        value={config.align ?? "left"}
+        options={TEXT_ALIGN_OPTIONS}
+        onChange={(align) => onChange({ ...config, align: align as "left" | "center" })}
+      />
+    </div>
+  )
+}
+
 registerWidget<TextWidgetConfig>({
   type: "core/text",
   labelKey: "dashboard.widgetRegistry.widgets.text.label",
@@ -307,6 +508,7 @@ registerWidget<TextWidgetConfig>({
   defaultConfig: { content: "" },
   component: TextAdapter,
   minColumnSpan: 2,
+  ConfigPanel: TextConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -426,6 +628,32 @@ function RecentContentAdapter({ config }: DashboardWidgetProps<RecentContentConf
   return <RecentContentWidget seedSlug={config.seedSlug} variant={config.variant} />
 }
 
+const RECENT_CONTENT_VARIANT_OPTIONS = [
+  { value: "list", labelKey: "dashboard.builder.config.variants.list" },
+  { value: "cards", labelKey: "dashboard.builder.config.variants.cards" },
+]
+
+function RecentContentConfigPanel({
+  config,
+  onChange,
+}: {
+  config: RecentContentConfig
+  onChange: (next: RecentContentConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      <SeedSelect value={config.seedSlug} onChange={(seedSlug) => onChange({ ...config, seedSlug })} />
+      <VariantSelect
+        label={t("dashboard.builder.config.variant")}
+        value={config.variant ?? "list"}
+        options={RECENT_CONTENT_VARIANT_OPTIONS}
+        onChange={(variant) => onChange({ ...config, variant: variant as "list" | "cards" })}
+      />
+    </div>
+  )
+}
+
 registerWidget<RecentContentConfig>({
   type: "core/recent-content",
   labelKey: "dashboard.widgetRegistry.widgets.recentContent.label",
@@ -435,6 +663,7 @@ registerWidget<RecentContentConfig>({
   defaultConfig: { seedSlug: "", variant: "list" },
   component: RecentContentAdapter,
   minColumnSpan: 6,
+  ConfigPanel: RecentContentConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -464,6 +693,29 @@ function QuickDraftAdapter({ config }: DashboardWidgetProps<QuickDraftConfig>) {
   return <QuickDraftWidget seeds={seedOptions} variant={config.variant} />
 }
 
+const QUICK_DRAFT_VARIANT_OPTIONS = [
+  { value: "minimal", labelKey: "dashboard.builder.config.variants.minimal" },
+  { value: "expanded", labelKey: "dashboard.builder.config.variants.expanded" },
+]
+
+function QuickDraftConfigPanel({
+  config,
+  onChange,
+}: {
+  config: QuickDraftConfig
+  onChange: (next: QuickDraftConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <VariantSelect
+      label={t("dashboard.builder.config.variant")}
+      value={config.variant ?? "minimal"}
+      options={QUICK_DRAFT_VARIANT_OPTIONS}
+      onChange={(variant) => onChange({ ...config, variant: variant as "minimal" | "expanded" })}
+    />
+  )
+}
+
 registerWidget<QuickDraftConfig>({
   type: "core/quick-draft",
   labelKey: "dashboard.widgetRegistry.widgets.quickDraft.label",
@@ -473,6 +725,7 @@ registerWidget<QuickDraftConfig>({
   defaultConfig: { variant: "minimal" },
   component: QuickDraftAdapter,
   minColumnSpan: 3,
+  ConfigPanel: QuickDraftConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -489,6 +742,32 @@ function PendingDraftsAdapter({ config }: DashboardWidgetProps<PendingDraftsConf
   return <PendingDraftsWidget seedSlug={config.seedSlug} variant={config.variant} />
 }
 
+const PENDING_DRAFTS_VARIANT_OPTIONS = [
+  { value: "counter", labelKey: "dashboard.builder.config.variants.counter" },
+  { value: "list", labelKey: "dashboard.builder.config.variants.list" },
+]
+
+function PendingDraftsConfigPanel({
+  config,
+  onChange,
+}: {
+  config: PendingDraftsConfig
+  onChange: (next: PendingDraftsConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      <SeedSelect value={config.seedSlug} onChange={(seedSlug) => onChange({ ...config, seedSlug })} />
+      <VariantSelect
+        label={t("dashboard.builder.config.variant")}
+        value={config.variant ?? "list"}
+        options={PENDING_DRAFTS_VARIANT_OPTIONS}
+        onChange={(variant) => onChange({ ...config, variant: variant as "counter" | "list" })}
+      />
+    </div>
+  )
+}
+
 registerWidget<PendingDraftsConfig>({
   type: "core/pending-drafts",
   labelKey: "dashboard.widgetRegistry.widgets.pendingDrafts.label",
@@ -498,6 +777,7 @@ registerWidget<PendingDraftsConfig>({
   defaultConfig: { seedSlug: "", variant: "list" },
   component: PendingDraftsAdapter,
   minColumnSpan: 4,
+  ConfigPanel: PendingDraftsConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -513,6 +793,29 @@ function PublicationStatsAdapter({ config }: DashboardWidgetProps<PublicationSta
   return <PublicationStatsWidget variant={config.variant} />
 }
 
+const PUBLICATION_STATS_VARIANT_OPTIONS = [
+  { value: "trio", labelKey: "dashboard.builder.config.variants.trio" },
+  { value: "single", labelKey: "dashboard.builder.config.variants.single" },
+]
+
+function PublicationStatsConfigPanel({
+  config,
+  onChange,
+}: {
+  config: PublicationStatsConfig
+  onChange: (next: PublicationStatsConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <VariantSelect
+      label={t("dashboard.builder.config.variant")}
+      value={config.variant ?? "trio"}
+      options={PUBLICATION_STATS_VARIANT_OPTIONS}
+      onChange={(variant) => onChange({ ...config, variant: variant as "trio" | "single" })}
+    />
+  )
+}
+
 registerWidget<PublicationStatsConfig>({
   type: "core/publication-stats",
   labelKey: "dashboard.widgetRegistry.widgets.publicationStats.label",
@@ -522,6 +825,7 @@ registerWidget<PublicationStatsConfig>({
   defaultConfig: { variant: "trio" },
   component: PublicationStatsAdapter,
   minColumnSpan: 3,
+  ConfigPanel: PublicationStatsConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -537,6 +841,29 @@ function SiteStatusAdapter({ config }: DashboardWidgetProps<SiteStatusConfig>) {
   return <SiteStatusWidget variant={config.variant} />
 }
 
+const SITE_STATUS_VARIANT_OPTIONS = [
+  { value: "badge", labelKey: "dashboard.builder.config.variants.badge" },
+  { value: "pill-row", labelKey: "dashboard.builder.config.variants.pillRow" },
+]
+
+function SiteStatusConfigPanel({
+  config,
+  onChange,
+}: {
+  config: SiteStatusConfig
+  onChange: (next: SiteStatusConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <VariantSelect
+      label={t("dashboard.builder.config.variant")}
+      value={config.variant ?? "badge"}
+      options={SITE_STATUS_VARIANT_OPTIONS}
+      onChange={(variant) => onChange({ ...config, variant: variant as "badge" | "pill-row" })}
+    />
+  )
+}
+
 registerWidget<SiteStatusConfig>({
   type: "core/site-status",
   labelKey: "dashboard.widgetRegistry.widgets.siteStatus.label",
@@ -546,6 +873,7 @@ registerWidget<SiteStatusConfig>({
   defaultConfig: { variant: "badge" },
   component: SiteStatusAdapter,
   minColumnSpan: 2,
+  ConfigPanel: SiteStatusConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -562,6 +890,37 @@ function StorageAdapter({ config }: DashboardWidgetProps<StorageConfig>) {
   return <StorageWidget variant={config.variant} totalBytes={config.totalBytes} />
 }
 
+const STORAGE_VARIANT_OPTIONS = [
+  { value: "bar", labelKey: "dashboard.builder.config.variants.bar" },
+  { value: "gauge", labelKey: "dashboard.builder.config.variants.gauge" },
+]
+
+function StorageConfigPanel({
+  config,
+  onChange,
+}: {
+  config: StorageConfig
+  onChange: (next: StorageConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      <VariantSelect
+        label={t("dashboard.builder.config.variant")}
+        value={config.variant ?? "gauge"}
+        options={STORAGE_VARIANT_OPTIONS}
+        onChange={(variant) => onChange({ ...config, variant: variant as "bar" | "gauge" })}
+      />
+      <NumberField
+        label={t("dashboard.builder.config.totalBytes")}
+        value={config.totalBytes}
+        onChange={(totalBytes) => onChange({ ...config, totalBytes })}
+        min={1}
+      />
+    </div>
+  )
+}
+
 registerWidget<StorageConfig>({
   type: "core/storage",
   labelKey: "dashboard.widgetRegistry.widgets.storage.label",
@@ -571,6 +930,7 @@ registerWidget<StorageConfig>({
   defaultConfig: { variant: "gauge" },
   component: StorageAdapter,
   minColumnSpan: 2,
+  ConfigPanel: StorageConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -587,6 +947,32 @@ function MediaGalleryAdapter({ config }: DashboardWidgetProps<MediaGalleryConfig
   return <MediaGalleryWidget seedSlug={config.seedSlug} variant={config.variant} />
 }
 
+const MEDIA_GALLERY_VARIANT_OPTIONS = [
+  { value: "grid", labelKey: "dashboard.builder.config.variants.grid" },
+  { value: "unused", labelKey: "dashboard.builder.config.variants.unused" },
+]
+
+function MediaGalleryConfigPanel({
+  config,
+  onChange,
+}: {
+  config: MediaGalleryConfig
+  onChange: (next: MediaGalleryConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      <SeedSelect value={config.seedSlug} onChange={(seedSlug) => onChange({ ...config, seedSlug })} />
+      <VariantSelect
+        label={t("dashboard.builder.config.variant")}
+        value={config.variant ?? "grid"}
+        options={MEDIA_GALLERY_VARIANT_OPTIONS}
+        onChange={(variant) => onChange({ ...config, variant: variant as "grid" | "unused" })}
+      />
+    </div>
+  )
+}
+
 registerWidget<MediaGalleryConfig>({
   type: "core/media-gallery",
   labelKey: "dashboard.widgetRegistry.widgets.mediaGallery.label",
@@ -596,6 +982,7 @@ registerWidget<MediaGalleryConfig>({
   defaultConfig: { seedSlug: "", variant: "grid" },
   component: MediaGalleryAdapter,
   minColumnSpan: 6,
+  ConfigPanel: MediaGalleryConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -613,6 +1000,38 @@ function ActivityFeedAdapter({ config }: DashboardWidgetProps<ActivityFeedConfig
   return <ActivityFeedWidget seedSlug={config.seedSlug} variant={config.variant} limit={config.limit} />
 }
 
+const ACTIVITY_FEED_VARIANT_OPTIONS = [
+  { value: "feed", labelKey: "dashboard.builder.config.variants.feed" },
+  { value: "compact", labelKey: "dashboard.builder.config.variants.compact" },
+]
+
+function ActivityFeedConfigPanel({
+  config,
+  onChange,
+}: {
+  config: ActivityFeedConfig
+  onChange: (next: ActivityFeedConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      <SeedSelect value={config.seedSlug} onChange={(seedSlug) => onChange({ ...config, seedSlug })} />
+      <VariantSelect
+        label={t("dashboard.builder.config.variant")}
+        value={config.variant ?? "feed"}
+        options={ACTIVITY_FEED_VARIANT_OPTIONS}
+        onChange={(variant) => onChange({ ...config, variant: variant as "feed" | "compact" })}
+      />
+      <NumberField
+        label={t("dashboard.builder.config.limit")}
+        value={config.limit}
+        onChange={(limit) => onChange({ ...config, limit })}
+        min={1}
+      />
+    </div>
+  )
+}
+
 registerWidget<ActivityFeedConfig>({
   type: "core/activity-feed",
   labelKey: "dashboard.widgetRegistry.widgets.activityFeed.label",
@@ -622,6 +1041,7 @@ registerWidget<ActivityFeedConfig>({
   defaultConfig: { seedSlug: "", variant: "feed" },
   component: ActivityFeedAdapter,
   minColumnSpan: 4,
+  ConfigPanel: ActivityFeedConfigPanel,
 })
 
 // ---------------------------------------------------------------------------
@@ -637,6 +1057,29 @@ function SetupChecklistAdapter({ config }: DashboardWidgetProps<SetupChecklistCo
   return <SetupChecklistWidget variant={config.variant} />
 }
 
+const SETUP_CHECKLIST_VARIANT_OPTIONS = [
+  { value: "full", labelKey: "dashboard.builder.config.variants.full" },
+  { value: "compact", labelKey: "dashboard.builder.config.variants.compact" },
+]
+
+function SetupChecklistConfigPanel({
+  config,
+  onChange,
+}: {
+  config: SetupChecklistConfig
+  onChange: (next: SetupChecklistConfig) => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <VariantSelect
+      label={t("dashboard.builder.config.variant")}
+      value={config.variant ?? "full"}
+      options={SETUP_CHECKLIST_VARIANT_OPTIONS}
+      onChange={(variant) => onChange({ ...config, variant: variant as "full" | "compact" })}
+    />
+  )
+}
+
 registerWidget<SetupChecklistConfig>({
   type: "core/setup-checklist",
   labelKey: "dashboard.widgetRegistry.widgets.setupChecklist.label",
@@ -646,4 +1089,5 @@ registerWidget<SetupChecklistConfig>({
   defaultConfig: { variant: "full" },
   component: SetupChecklistAdapter,
   minColumnSpan: 12,
+  ConfigPanel: SetupChecklistConfigPanel,
 })
