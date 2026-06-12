@@ -10,6 +10,7 @@ import {
   type BulkFieldUpdate,
   Seed,
   SelectOptions,
+  DraftSummary,
 } from '@beechcms/core'
 
 type Entry = Record<string, any>
@@ -231,5 +232,35 @@ export class StaticContentRepository implements ContentRepository {
     }
 
     return { updated, failed }
+  }
+
+  async findPendingDrafts(seeds: Seed[]): Promise<DraftSummary[]> {
+    const list: DraftSummary[] = []
+    for (const seed of seeds) {
+      const draftMap = this.drafts.get(seed.slug)
+      if (!draftMap) continue
+      
+      const seedLabel = seed.labelPlural ?? seed.label
+      const titleCol = seed.displayNameAlias
+      const liveEntries = this.tables.get(seed.slug) ?? []
+
+      for (const [entryId, draft] of draftMap.entries()) {
+        const liveEntry = liveEntries.find(e => e.id === entryId)
+        const title = draft[titleCol] ?? liveEntry?.[titleCol] ?? entryId
+        
+        list.push({
+          id: entryId,
+          seedSlug: seed.slug,
+          seedLabel,
+          title: title != null && String(title).trim() ? String(title) : entryId,
+          updatedAt: draft.updated_at ?? Math.floor(Date.now() / 1000),
+          lastModifiedBy: {
+            name: 'Mock Admin',
+            email: 'admin@example.com',
+          },
+        })
+      }
+    }
+    return list.sort((a, b) => b.updatedAt - a.updatedAt)
   }
 }
