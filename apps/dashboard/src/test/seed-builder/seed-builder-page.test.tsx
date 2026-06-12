@@ -130,6 +130,72 @@ describe("SeedBuilderPage — admin", () => {
     expect(await screen.findByText('Edit — Article')).toBeInTheDocument()
     unmount()
   })
+
+  it("renders loading state when isLoading is true", () => {
+    mockAuthRef.current = mockAuthAdmin
+    mockUseSeeds.mockReturnValueOnce({ data: [], isLoading: true, refetch: vi.fn() })
+    const { unmount } = wrap(<SeedBuilderPage />)
+    expect(screen.getByText("Loading...")).toBeInTheDocument()
+    unmount()
+  })
+
+  it("renders empty state when there are no results", () => {
+    mockAuthRef.current = mockAuthAdmin
+    mockUseSeeds.mockReturnValueOnce({ data: [], isLoading: false, refetch: vi.fn() })
+    const { unmount } = wrap(<SeedBuilderPage />)
+    expect(screen.getByText("No results")).toBeInTheDocument()
+    unmount()
+  })
+
+  it("toggles showDeleted switch to display deleted content types", async () => {
+    mockAuthRef.current = mockAuthAdmin
+    const deletedRecord: SeedRecordDTO = {
+      slug: "deleted-type",
+      definition: {
+        slug: "deleted-type",
+        label: "Deleted Type",
+        labelPlural: "Deleted Types",
+        displayNameAlias: "name",
+        branches: [],
+      } as Seed,
+      status: "deleted",
+      source: "runtime",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    }
+    mockUseSeeds.mockReturnValue({ data: [mockRecord, deletedRecord], isLoading: false, refetch: vi.fn() })
+    const { unmount } = wrap(<SeedBuilderPage />)
+
+    expect(screen.queryByText("Deleted Type")).toBeNull()
+
+    const { default: userEvent } = await import("@testing-library/user-event")
+    const user = userEvent.setup()
+
+    const showDeletedSwitch = screen.getByLabelText(/Show deleted/i)
+    await user.click(showDeletedSwitch)
+
+    expect(screen.getByText("Deleted Type")).toBeInTheDocument()
+    
+    // Restore default mock
+    mockUseSeeds.mockReturnValue({ data: [mockRecord], isLoading: false, refetch: vi.fn() })
+    unmount()
+  })
+
+  it("calls refetch when the refresh button is clicked", async () => {
+    mockAuthRef.current = mockAuthAdmin
+    const refetchSpy = vi.fn()
+    mockUseSeeds.mockReturnValueOnce({ data: [mockRecord], isLoading: false, refetch: refetchSpy })
+    const { unmount } = wrap(<SeedBuilderPage />)
+
+    const { default: userEvent } = await import("@testing-library/user-event")
+    const user = userEvent.setup()
+
+    const refreshBtn = screen.getByTitle("Retry")
+    await user.click(refreshBtn)
+
+    expect(refetchSpy).toHaveBeenCalled()
+    unmount()
+  })
 })
 
 describe("SeedBuilderPage — editor", () => {

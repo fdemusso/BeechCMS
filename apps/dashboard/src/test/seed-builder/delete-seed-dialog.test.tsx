@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { DeleteSeedDialog } from "@/features/seed-builder/components/DeleteSeedDialog"
 import type { SeedRecordDTO } from "@/features/seed-builder"
 import type { Seed } from "@beechcms/core"
+import { toast } from "sonner"
 
 const mockDelete = vi.fn()
 
@@ -52,5 +53,47 @@ describe("DeleteSeedDialog", () => {
     const deleteBtn = screen.getByText(/^Delete$/i)
     fireEvent.click(deleteBtn)
     expect(mockDelete).toHaveBeenCalledWith("article", expect.any(Object))
+  })
+
+  it("triggers onSuccess callback and displays success toast", () => {
+    const onOpenChange = vi.fn()
+    const toastSuccessSpy = vi.spyOn(toast, "success")
+    mockDelete.mockImplementationOnce((_slug, options) => {
+      options?.onSuccess()
+    })
+
+    wrap(<DeleteSeedDialog seed={mockRecord} open={true} onOpenChange={onOpenChange} />)
+    const deleteBtn = screen.getByText(/^Delete$/i)
+    fireEvent.click(deleteBtn)
+
+    expect(mockDelete).toHaveBeenCalledWith("article", expect.any(Object))
+    expect(toastSuccessSpy).toHaveBeenCalledWith('"Article" deleted.')
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it("triggers onError callback with 409 conflict and displays reference conflict toast", () => {
+    const toastErrorSpy = vi.spyOn(toast, "error")
+    mockDelete.mockImplementationOnce((_slug, options) => {
+      options?.onError({
+        response: {
+          status: 409,
+          data: {
+            referencedBy: ["post", "page"],
+          },
+        },
+      } as any)
+    })
+
+    wrap(<DeleteSeedDialog seed={mockRecord} open={true} onOpenChange={vi.fn()} />)
+    const deleteBtn = screen.getByText(/^Delete$/i)
+    fireEvent.click(deleteBtn)
+
+    expect(mockDelete).toHaveBeenCalledWith("article", expect.any(Object))
+    expect(toastErrorSpy).toHaveBeenCalledWith(
+      "Cannot delete — other content types reference this one.",
+      expect.objectContaining({
+        description: "Referenced by: post, page",
+      })
+    )
   })
 })

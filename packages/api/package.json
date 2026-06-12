@@ -1,6 +1,6 @@
 {
   "name": "@beech/api",
-  "version": "0.6.0-preview.1",
+  "version": "0.6.0-preview.2",
   "description": "BeechCMS — Worker factory. Import createBeechApp and pass your seeds to get a fully configured Cloudflare Worker.",
   "type": "module",
   "main": "./dist/index.js",
@@ -19,7 +19,7 @@
     "dev": "tsc -w --preserveWatchOutput"
   },
   "dependencies": {
-    "@beechcms/core": "^0.6.0-preview.1",
+    "@beechcms/core": "^0.6.0-preview.2",
     "hono": "^4.12.21"
   },
   "peerDependencies": {

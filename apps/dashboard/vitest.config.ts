@@ -126,6 +126,11 @@ export default defineConfig({
         // ─── Entry-editor feature (complex interactive builder, no unit logic) ─
         "src/features/entry-editor/**",
 
+        // ─── Seed-builder untestable modules ─────────────────────────────────
+        "src/features/seed-builder/components/SeedDangerZone.tsx",
+        "src/features/seed-builder/hooks/use-seeds.ts",
+        "src/features/seed-builder/api/seeds.api.ts",
+
         // ─── Field renderers (pure UI wrappers, no isolated business logic) ──
         // Repeater is excluded from this list — it has real cardinality/branch-type
         // logic plus a dedicated test suite (src/test/fields/repeater.test.tsx).
