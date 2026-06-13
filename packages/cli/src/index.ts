@@ -15,3 +15,6 @@ export { onboard } from './commands/onboard.js'
 export type { OnboardOptions } from './commands/onboard.js'
 export { update } from './commands/update.js'
 export type { UpdateOptions } from './commands/update.js'
+export { reset } from './commands/reset.js'
+export type { ResetOptions } from './commands/reset.js'
+

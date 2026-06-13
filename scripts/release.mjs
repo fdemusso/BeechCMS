@@ -123,6 +123,7 @@ function computeNextVersion(current, bump, preview) {
 
 const PACKAGES = [
   { path: resolve(ROOT, 'packages/core/package.json'), name: '@beechcms/core', publish: true },
+  { path: resolve(ROOT, 'packages/widget-sdk/package.json'), name: '@beechcms/widget-sdk', publish: true },
   { path: resolve(ROOT, 'packages/cli/package.json'),  name: '@beechcms/cli',  publish: true },
   { path: resolve(ROOT, 'packages/api/package.json'),  name: '@beech/api',     publish: false }, // Internal/Legacy
   { path: resolve(ROOT, 'apps/api/package.json'),      name: '@beechcms/api',  publish: true },
