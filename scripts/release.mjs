@@ -125,7 +125,6 @@ const PACKAGES = [
   { path: resolve(ROOT, 'packages/core/package.json'), name: '@beechcms/core', publish: true },
   { path: resolve(ROOT, 'packages/widget-sdk/package.json'), name: '@beechcms/widget-sdk', publish: true },
   { path: resolve(ROOT, 'packages/cli/package.json'),  name: '@beechcms/cli',  publish: true },
-  { path: resolve(ROOT, 'packages/api/package.json'),  name: '@beech/api',     publish: false }, // Internal/Legacy
   { path: resolve(ROOT, 'apps/api/package.json'),      name: '@beechcms/api',  publish: true },
   { path: resolve(ROOT, 'apps/dashboard/package.json'),name: '@beechcms/dashboard', publish: false }, // Built into API assets
   { path: resolve(ROOT, 'package.json'),               name: '@beechcms/cms',  publish: true },
@@ -214,6 +213,12 @@ writeRaw(licensePath, licenseContent)
 
 log('')
 log('2/4  Building packages...')
+
+try {
+  run('npm run type-check')
+} catch {
+  rollback('Type-check failed.')
+}
 
 try {
   run('npm run build')

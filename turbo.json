@@ -1,8 +1,21 @@
 {
-  "$schema": "https://v2-9-16.turborepo.dev/schema.json",
+  "$schema": "https://v2-9-18.turborepo.dev/schema.json",
   "tasks": {
     "dev": { "cache": false, "persistent": true, "dependsOn": ["^build"] },
-    "build": { "dependsOn": ["^build"], "outputs": ["dist/**", ".next/**"] },
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.test.ts",
+        "!**/*.test.tsx",
+        "!**/test/**",
+        "!**/*.md"
+      ],
+      "outputs": ["dist/**"]
+    },
+    "type-check": {
+      "dependsOn": ["^build"]
+    },
     "deploy": { "dependsOn": ["build"] },
     "@beechcms/api#deploy": { "dependsOn": ["@beechcms/dashboard#build", "build"] },
     "test": {
