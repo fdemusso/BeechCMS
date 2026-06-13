@@ -1808,6 +1808,59 @@ Each API feature (Content, Drafts, Auth) is a self-contained slice under `apps/a
 
 Media cleanup during entry deletion is now handled by the API handlers using data returned by the repository. This ensures that when a row is deleted from D1, its associated assets in R2 are also removed (best-effort).
 
+### Programmatic Lifecycle Hooks
+
+`BeechConfig.hooks` (`apps/api/src/factory.ts`) accepts a `BeechHooks` object (defined in `@beechcms/core`, `packages/core/src/hooks.ts`) with optional `beforeCreate`, `beforeUpdate`, `beforeDelete`, `afterCreate`, `afterUpdate`, `afterDelete` callbacks. They are wired into `D1ContentRepository` via `repositoryMiddleware` and therefore also run for writes issued by the `AutomationRunner` (`edit_field`, `create_entry`) — be careful of hook → automation → hook loops.
+
+Each hook receives a `HookContext`: `{ seed, repository, actor?, db }`. `repository` (the `ContentRepository` itself) is the only sanctioned channel for side-effect reads/writes from a hook — it respects serialization, junction tables, and validation (the Botanical Engine invariant). `db` is an escape hatch typed `unknown` (a `D1Database` in production, `better-sqlite3` in tests); writing through it bypasses the Botanical Engine and should be used with extreme care. `actor` is the JWT-derived `{ id, role, email? }`, propagated via the new optional `options?: RepositoryOptions` parameter on `create`/`update`/`delete` — absent for system/cron operations.
+
+`beforeCreate`/`beforeUpdate` may return a modified (alias-keyed) payload; returning nothing leaves the payload unchanged. Throw a `HookValidationError` (from `@beechcms/core`) for business-validation failures — `handleContentDatabaseError` maps it to `422 Unprocessable Entity` with a field-level `errors[]` array, instead of the default `500`.
+
+#### Registration
+
+Hooks are configured once, at app-construction time, by passing `hooks` to `createBeechApp` (`apps/api/src/index.ts`):
+
+```typescript
+import { createBeechApp } from './factory'
+import { HookValidationError } from '@beechcms/core'
+
+const app = createBeechApp({
+  seeds: [],
+  hooks: {
+    beforeCreate: async (data, ctx) => {
+      if (ctx.seed.slug !== 'events') return // only validate this seed
+
+      // 1. Business validation — prevents the write entirely
+      if (data.endDate && data.startDate && data.endDate < data.startDate) {
+        throw new HookValidationError('endDate must be after startDate', [
+          { field: 'endDate', message: 'must be on or after startDate' },
+        ])
+      }
+
+      // 2. Server-side derived field
+      return { ...data, fullName: `${data.firstName} ${data.lastName}` }
+    },
+
+    afterCreate: async (entry, ctx) => {
+      // 3. Non-blocking side effect (e.g. notify, sync to an external system).
+      // Errors here do NOT roll back the write — see constraints below.
+      await ctx.repository.update(ctx.seed, entry.id, { syncedAt: Math.floor(Date.now() / 1000) })
+    },
+  },
+})
+```
+
+- `beforeCreate`/`beforeUpdate` can run **synchronously or async**, and may return either `void` (no change) or a modified alias-keyed payload (merged into the data that gets persisted).
+- `beforeDelete`/`afterDelete` receive the entry `id` (and, for delete, the row data is available via `ctx.repository.findById` if needed before the row is removed).
+- Use `ctx.seed.slug` to scope a hook to specific content types — `BeechHooks` is global across all seeds, there is no per-seed registry.
+- For atomic counters (stock, balances, etc.), prefer `repository.mutateField(seed, id, fieldName, { type: 'decrement', value: 1 }, { min: 0 })` over a `beforeUpdate` hook — see constraint 2 below.
+
+**Hard constraints (Cloudflare D1 has no interactive transactions — only `db.batch`):**
+
+1. **No rollback for `after*` hooks.** They run after the write batch has already been committed. An error thrown from `afterCreate`/`afterUpdate`/`afterDelete` propagates to the client as an error, but the data **remains persisted**. Use a `before*` hook (which runs before the batch is sent) for anything that must be able to fail the whole operation.
+2. **`mutateField(seed, id, fieldName, operation, options?)` bypasses document-level hooks.** It's a single atomic `UPDATE ... SET field = field ± ?` with optional `min`/`max` guards, used to avoid race conditions on counters (stock, balances). `fieldName` is validated against `seed.branches` (must be a `number` branch) before SQL composition.
+3. **`runBatch(operations: BatchWrite[])` does not execute document-level hooks either.** It's a low-level API that composes `create`/`update`/`mutateField` operations from one or more seeds into a single `db.batch` call for coordinated multi-write atomicity — there is no callback-based interactive transaction on D1.
+
 ---
 
 ## 12. Dashboard Layout API
