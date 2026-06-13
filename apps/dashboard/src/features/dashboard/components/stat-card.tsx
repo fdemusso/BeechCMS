@@ -11,9 +11,10 @@ interface StatCardProps {
   value: string | number
   icon: LucideIcon
   description?: string
+  timeLabel?: string
   trend?: {
     value: number
-    isPositive: boolean
+    direction: 'up' | 'down' | 'flat'
   }
   accent?: "emerald" | "blue" | "violet" | "amber" | "rose"
 }
@@ -26,43 +27,74 @@ const ACCENT_STYLES: Record<NonNullable<StatCardProps["accent"]>, { icon: string
   rose:    { icon: "from-rose-500/20 to-rose-400/10 text-rose-600 dark:text-rose-400", badge: "" },
 }
 
-export function StatCard({ title, value, icon: Icon, description, trend, accent = "emerald" }: StatCardProps) {
+export function StatCard({ title, value, icon: Icon, description, timeLabel, trend, accent = "emerald" }: StatCardProps) {
   const accentStyle = ACCENT_STYLES[accent]
 
   return (
     <div className={cn(
-      "h-full w-full flex flex-col",
+      "h-full w-full flex flex-col justify-between",
       "rounded-2xl border border-neutral-200/80 bg-white/75 backdrop-blur-md p-5",
       "shadow-[0_1px_3px_0_rgb(0,0,0,0.05),0_1px_2px_-1px_rgb(0,0,0,0.04)]",
       "transition-all duration-200 hover:shadow-[0_4px_12px_0_rgb(0,0,0,0.08)]",
       "hover:border-neutral-300/80",
       "dark:border-neutral-700/50 dark:bg-card/65 dark:hover:border-neutral-600/60",
     )}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
+      <div className="flex items-start justify-between">
+        <div className="flex-col min-w-0">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{title}</p>
-          <p className="text-2xl font-bold tracking-tight text-foreground tabular-nums">{value}</p>
-          {description && (
-            <p className="mt-1.5 text-xs text-muted-foreground leading-snug">{description}</p>
-          )}
-          {trend && (
-            <div className={cn(
-              "mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold",
-              trend.isPositive
-                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400"
-                : "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400"
-            )}>
-              {trend.isPositive
-                ? <TrendingUp className="size-3" />
-                : <TrendingDown className="size-3" />
-              }
-              {trend.isPositive ? "+" : "-"}{trend.value}%
-            </div>
-          )}
+          <p className="text-3xl font-bold tracking-tight text-foreground tabular-nums leading-none">{value}</p>
         </div>
         <div className={cn("shrink-0 rounded-xl bg-gradient-to-br p-2.5", accentStyle.icon)}>
           <Icon size={20} />
         </div>
+      </div>
+      
+      <div className="flex items-end justify-between mt-6">
+        <div className="flex flex-col gap-1">
+          {description && (
+            <p className="text-xs text-muted-foreground leading-snug">{description}</p>
+          )}
+          {trend && (
+            <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+              {timeLabel && <span>{timeLabel}</span>}
+              <span className={cn(
+                "inline-flex items-center gap-0.5", 
+                trend.direction === 'up' ? "text-emerald-500" : 
+                trend.direction === 'down' ? "text-rose-500" : 
+                "text-neutral-500 dark:text-neutral-400"
+              )}>
+                {trend.direction === 'up' && <TrendingUp className="size-3" />}
+                {trend.direction === 'down' && <TrendingDown className="size-3" />}
+                {trend.direction === 'up' ? "+" : trend.direction === 'down' ? "-" : ""}{trend.value}%
+              </span>
+            </div>
+          )}
+        </div>
+        
+        {trend && (
+          <div className="w-20 h-6 ml-4 shrink-0">
+            <svg viewBox="0 0 100 30" className="w-full h-full overflow-visible" preserveAspectRatio="none">
+              {trend.direction === 'up' && (
+                <>
+                  <path d="M0 25 C 20 20, 30 25, 50 15 C 70 5, 80 15, 100 5" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-500" strokeLinecap="round" />
+                  <path d="M0 25 C 20 20, 30 25, 50 15 C 70 5, 80 15, 100 5 L 100 30 L 0 30 Z" fill="currentColor" className="text-emerald-500/10" />
+                </>
+              )}
+              {trend.direction === 'down' && (
+                <>
+                  <path d="M0 5 C 20 10, 30 5, 50 15 C 70 25, 80 15, 100 25" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-rose-500" strokeLinecap="round" />
+                  <path d="M0 5 C 20 10, 30 5, 50 15 C 70 25, 80 15, 100 25 L 100 30 L 0 30 Z" fill="currentColor" className="text-rose-500/10" />
+                </>
+              )}
+              {trend.direction === 'flat' && (
+                <>
+                  <path d="M0 15 L 100 15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-neutral-500 dark:text-neutral-400" strokeLinecap="round" />
+                  <path d="M0 15 L 100 15 L 100 30 L 0 30 Z" fill="currentColor" className="text-neutral-500/10 dark:text-neutral-400/10" />
+                </>
+              )}
+            </svg>
+          </div>
+        )}
       </div>
     </div>
   )
