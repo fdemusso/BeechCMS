@@ -251,6 +251,7 @@ export class Orchestrator extends TypedEmitter<OrchestratorEvents> {
   private subprocesses = new Map<ServiceId, ResultPromise>()
   private dockerPsTimer: ReturnType<typeof setInterval> | null = null
   private cleaningUp = false
+  private restartingDevServers = false
 
   getRevision(): number {
     return this.revision
@@ -295,6 +296,42 @@ export class Orchestrator extends TypedEmitter<OrchestratorEvents> {
     void this.startTunnel()
     await this.startBootstrap()
     this.startDevServers()
+  }
+
+  async restartDevServers(): Promise<void> {
+    if (this.restartingDevServers || this.cleaningUp) return
+    this.restartingDevServers = true
+
+    this.logLine('system', 'Restarting dev servers (core, api, dashboard)...')
+
+    const devServerSubprocesses: { id: ServiceId; subprocess: ResultPromise }[] = []
+    for (const spec of DEV_SERVERS) {
+      const subprocess = this.subprocesses.get(spec.id)
+      this.updateService(spec.id, { status: 'stopped', detail: 'Restarting…' })
+      if (subprocess) {
+        devServerSubprocesses.push({ id: spec.id, subprocess })
+        this.killTree(subprocess.pid)
+      }
+    }
+
+    if (devServerSubprocesses.length > 0) {
+      const promises = devServerSubprocesses.map((item) => item.subprocess)
+      const timeout = new Promise((resolve) => setTimeout(resolve, 3000))
+      
+      // Wait for processes to exit or a 3-second timeout
+      await Promise.race([Promise.allSettled(promises), timeout])
+
+      // Force-kill anything still running and remove them from subprocesses map
+      for (const item of devServerSubprocesses) {
+        if (this.subprocesses.get(item.id) === item.subprocess) {
+          this.killTree(item.subprocess.pid, true)
+          this.subprocesses.delete(item.id)
+        }
+      }
+    }
+
+    this.startDevServers()
+    this.restartingDevServers = false
   }
 
   private async allocatePorts(): Promise<void> {
@@ -468,6 +505,9 @@ export class Orchestrator extends TypedEmitter<OrchestratorEvents> {
     })
 
     void subprocess.then((result) => {
+      if (this.subprocesses.get(spec.id) !== subprocess) {
+        return
+      }
       this.subprocesses.delete(spec.id)
       clearTimeout(readyTimer)
       const flushResult = this.logStore.flush(spec.id)

@@ -51,7 +51,9 @@
     },
     "contentPulse": {
       "noContent": "No content found.",
-      "totalDistribution": "Total Distribution"
+      "totalDistribution": "Total Distribution",
+      "entries": "{{count}} entries",
+      "items": "{{count}} items"
     },
     "widgets": {
       "activityFeed": {

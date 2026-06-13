@@ -18,7 +18,7 @@ export function ContentPulse() {
     return (
       <Card className="overflow-hidden border-none bg-white/50 backdrop-blur-xl dark:bg-card/50">
         <CardHeader>
-          <CardTitle className="text-sm font-medium">Content Pulse</CardTitle>
+          <CardTitle className="text-sm font-medium">{t("dashboard.widgetRegistry.widgets.contentPulse.label")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -40,7 +40,7 @@ export function ContentPulse() {
       <CardHeader className="flex flex-row items-center justify-between pb-4 space-y-0">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <Activity className="size-4 text-emerald-500" />
-          Content Pulse
+          {t("dashboard.widgetRegistry.widgets.contentPulse.label")}
         </CardTitle>
         <LayoutGrid className="size-4 text-neutral-400" />
       </CardHeader>
@@ -61,7 +61,7 @@ export function ContentPulse() {
                       >
                         {item.label}
                       </Link>
-                      <span className="text-neutral-500 tabular-nums">{item.count} entries</span>
+                      <span className="text-neutral-500 tabular-nums">{t("dashboard.contentPulse.entries", { count: item.count })}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <Progress 
@@ -82,7 +82,7 @@ export function ContentPulse() {
         
         <div className="mt-6 pt-4 border-t border-neutral-100 dark:border-neutral-800 flex justify-between items-center">
           <span className="text-[10px] text-neutral-400 uppercase tracking-tighter font-bold">{t("dashboard.contentPulse.totalDistribution")}</span>
-          <span className="text-[10px] font-mono font-bold text-neutral-500">{totalCount} items</span>
+          <span className="text-[10px] font-mono font-bold text-neutral-500">{t("dashboard.contentPulse.items", { count: totalCount })}</span>
         </div>
       </CardContent>
     </Card>

@@ -20,7 +20,7 @@ const DEV_JWT_SECRET = 'sviluppo-secret-cambiami-almeno-32-byte-per-sicurezza-ho
 
 export const authProvidersMiddleware = (overrides?: AuthProviderOverrides) => {
   return createMiddleware<AppEnv>(async (context, next) => {
-    if (context.env.ENV === 'production' && context.env.JWT_SECRET === DEV_JWT_SECRET) {
+    if (context.env?.ENV === 'production' && context.env?.JWT_SECRET === DEV_JWT_SECRET) {
       throw new Error(
         'JWT_SECRET non configurato: in produzione impostare un segreto univoco con `wrangler secret put JWT_SECRET`',
       )

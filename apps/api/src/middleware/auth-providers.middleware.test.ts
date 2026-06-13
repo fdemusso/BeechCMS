@@ -21,9 +21,9 @@ describe('authProvidersMiddleware', () => {
     // let's run app.request and inspect if the error is thrown. Hono's default errorHandler
     // catches it, or we can add a custom error handler to catch it.
     let thrownError: Error | null = null
-    app.onError((err) => {
+    app.onError((err, c) => {
       thrownError = err
-      return Hono.prototype.json({ error: err.message }, 500)
+      return c.json({ error: err.message }, 500)
     })
 
     const res = await app.request('/test', undefined, env)
