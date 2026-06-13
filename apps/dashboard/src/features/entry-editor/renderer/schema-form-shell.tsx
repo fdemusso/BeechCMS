@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
 import { useState, useEffect } from "react"
-import { ChevronDown, Loader2, Pencil, Trash2 } from "lucide-react"
+import { ChevronDown, Loader2, Pencil, Trash2, LayoutTemplate } from "lucide-react"
 import type { Seed } from "@beechcms/core"
 
 import {
@@ -214,28 +214,51 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
   return (
     <>
       <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) goBack() }}>
-        <DialogContent className="flex flex-col max-h-[calc(100vh-2rem)] p-0 sm:max-w-2xl md:max-w-4xl">
+        <DialogContent 
+          className="flex flex-col max-h-[calc(100vh-2rem)] p-0 sm:max-w-2xl md:max-w-4xl"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <DialogHeader className="px-6 pt-6 pb-2 flex-shrink-0">
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
 
-          {capabilities.layoutBuilder && canEditLayoutFlag && seed && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  onClick={() => setBuilderMode(true)}
-                  className="absolute top-4 right-10 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&_svg]:pointer-events-none [&_svg]:shrink-0"
-                >
-                  <Pencil className="size-4" />
-                  <span className="sr-only">{t("layoutBuilder.editLayout")}</span>
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                {t("layoutBuilder.editLayout")}
-              </TooltipContent>
-            </Tooltip>
-          )}
+          <div className="absolute top-4 right-10 flex items-center gap-2">
+            {vm.isReadOnly && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => vm.setIsReadOnly?.(false)}
+                    className="rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+                  >
+                    <Pencil className="size-4" />
+                    <span className="sr-only">Passa alla modalità modifica</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Passa alla modalità modifica
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {capabilities.layoutBuilder && canEditLayoutFlag && seed && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    onClick={() => setBuilderMode(true)}
+                    className="rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&_svg]:pointer-events-none [&_svg]:shrink-0"
+                  >
+                    <LayoutTemplate className="size-4" />
+                    <span className="sr-only">{t("layoutBuilder.editLayout")}</span>
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  {t("layoutBuilder.editLayout")}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
 
           {/* Only the content hook (capabilities.layoutBuilder=true) ever supplies a
               full Seed here — the narrowed view-model type only guarantees label/slug. */}
@@ -305,6 +328,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                   dangerZoneLabel={t("content.editor.tabs.dangerZone", "Danger Zone")}
                   activeTabId={activeTabId}
                   onActiveTabChange={setActiveTabId}
+                  isReadOnly={vm.isReadOnly}
                 />
               )}
 
@@ -320,7 +344,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
             </ScrollArea>
 
             {/* Fixed footer — always visible at the bottom of the dialog, actions aligned right */}
-            {activeTabId !== "__danger_zone__" && (
+            {activeTabId !== "__danger_zone__" && !vm.isReadOnly && (
               <div className="flex-shrink-0 flex items-center justify-end gap-2 px-6 pt-4 pb-6">
                 {/* Delete button — edit mode, normal context only */}
                 {capabilities.delete && !isCreate && !effectiveDraftContext && (

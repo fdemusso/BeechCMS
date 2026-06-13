@@ -23,6 +23,7 @@ export interface RendererProps {
   dangerZoneLabel?: string
   activeTabId?: string
   onActiveTabChange?: (tabId: string) => void
+  isReadOnly?: boolean
 }
 
 const DANGER_ZONE_TAB_ID = "__danger_zone__"
@@ -188,6 +189,7 @@ export function LayoutRenderer({
   dangerZoneLabel,
   activeTabId: propActiveTabId,
   onActiveTabChange,
+  isReadOnly,
 }: RendererProps) {
   const [internalActiveTabId, setInternalActiveTabId] = React.useState(() => layout.tabs[0]?.id ?? "")
 
@@ -226,13 +228,15 @@ export function LayoutRenderer({
       </div>
       {layout.tabs.map((tab) => (
         <TabsContent key={tab.id} value={tab.id} className="mt-0 outline-none">
-          <TabSections
-            tab={tab}
-            branchById={branchById}
-            formData={formData}
-            fieldErrors={fieldErrors}
-            onChange={onChange}
-          />
+          <fieldset disabled={isReadOnly} className="contents">
+            <TabSections
+              tab={tab}
+              branchById={branchById}
+              formData={formData}
+              fieldErrors={fieldErrors}
+              onChange={onChange}
+            />
+          </fieldset>
         </TabsContent>
       ))}
       {dangerZoneSlot && (

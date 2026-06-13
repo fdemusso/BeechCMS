@@ -2,13 +2,14 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Link } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import { useSchema } from "@/features/schema"
 import { contentApi } from "@/features/content-management/api/content.api"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
 import { Badge } from "@/components/ui/badge"
+import { EntryEditorDialog } from "@/features/entry-editor"
 import type { FieldDisplayProps } from "../types"
 
 const RELATION_STALE_MS = 5 * 60 * 1000
@@ -19,9 +20,10 @@ interface RelationChipProps {
   readonly targetSlug: string
   readonly targetId: string
   readonly labelAlias: string
+  readonly onClick: (id: string) => void
 }
 
-function RelationChip({ targetSlug, targetId, labelAlias }: RelationChipProps) {
+function RelationChip({ targetSlug, targetId, labelAlias, onClick }: RelationChipProps) {
   const { data: entry, isLoading } = useQuery({
     queryKey: CONTENT_QUERY_KEYS.detail(targetSlug, targetId),
     queryFn: () => contentApi.fetchById(targetSlug, targetId),
@@ -43,8 +45,12 @@ function RelationChip({ targetSlug, targetId, labelAlias }: RelationChipProps) {
   }
 
   return (
-    <Badge variant="secondary" asChild className="hover:bg-secondary/80 cursor-pointer">
-      <Link to={`/content/${targetSlug}/${targetId}`}>{label}</Link>
+    <Badge 
+      variant="secondary" 
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(targetId) }} 
+      className="hover:bg-secondary/80 cursor-pointer"
+    >
+      {label}
     </Badge>
   )
 }
@@ -55,9 +61,10 @@ interface SingleRelationProps {
   readonly targetSlug: string
   readonly id: string | null
   readonly labelAlias: string
+  readonly onClick: (id: string) => void
 }
 
-function SingleRelation({ targetSlug, id, labelAlias }: SingleRelationProps) {
+function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationProps) {
   const { t } = useTranslation()
   const { data: entry, isLoading } = useQuery({
     queryKey: CONTENT_QUERY_KEYS.detail(targetSlug, id ?? ""),
@@ -81,12 +88,12 @@ function SingleRelation({ targetSlug, id, labelAlias }: SingleRelationProps) {
   }
 
   return (
-    <Link
-      to={`/content/${targetSlug}/${id}`}
-      className="text-primary hover:underline truncate"
+    <span
+      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(id) }}
+      className="text-primary hover:underline truncate cursor-pointer"
     >
       {label}
-    </Link>
+    </span>
   )
 }
 
@@ -100,27 +107,47 @@ export function RelationDisplay({ branch, value }: FieldDisplayProps) {
   const targetSeed = seeds?.find((s) => s.slug === targetSlug)
   const labelAlias = targetSeed?.displayNameAlias ?? "title"
 
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  let content
   // ── Many-to-many: chip row ────────────────────────────────────────────────
   if (isMultiple) {
     const ids = Array.isArray(value) ? (value as string[]).filter(Boolean) : []
-    if (ids.length === 0) return <span className="text-muted-foreground">—</span>
-
-    return (
-      <div className="flex flex-wrap gap-1">
-        {ids.map((id) => (
-          <RelationChip
-            key={id}
-            targetSlug={targetSlug ?? ""}
-            targetId={id}
-            labelAlias={labelAlias}
-          />
-        ))}
-      </div>
-    )
+    if (ids.length === 0) content = <span className="text-muted-foreground">—</span>
+    else {
+      content = (
+        <div className="flex flex-wrap gap-1">
+          {ids.map((id) => (
+            <RelationChip
+              key={id}
+              targetSlug={targetSlug ?? ""}
+              targetId={id}
+              labelAlias={labelAlias}
+              onClick={setSelectedId}
+            />
+          ))}
+        </div>
+      )
+    }
+  } else {
+    // ── Single value ──────────────────────────────────────────────────────────
+    const id = typeof value === "string" && value.length > 0 ? value : null
+    content = <SingleRelation targetSlug={targetSlug ?? ""} id={id} labelAlias={labelAlias} onClick={setSelectedId} />
   }
 
-  // ── Single value ──────────────────────────────────────────────────────────
-  const id = typeof value === "string" && value.length > 0 ? value : null
-
-  return <SingleRelation targetSlug={targetSlug ?? ""} id={id} labelAlias={labelAlias} />
+  return (
+    <>
+      {content}
+      {selectedId && targetSlug && (
+        <EntryEditorDialog
+          schemaSlug={targetSlug}
+          entryId={selectedId}
+          isDraftContext={false}
+          open={true}
+          onClose={() => setSelectedId(null)}
+          readonly={true}
+        />
+      )}
+    </>
+  )
 }
