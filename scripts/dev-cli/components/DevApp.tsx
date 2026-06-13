@@ -109,6 +109,11 @@ export function DevApp({ orchestrator, version, onQuit }: DevAppProps) {
       return
     }
 
+    if (input === 'r') {
+      void orchestrator.restartDevServers()
+      return
+    }
+
     const logSource: LogSource | 'combinedSystem' | null =
       activeTab === 1
         ? 'api'

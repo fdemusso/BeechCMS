@@ -126,4 +126,29 @@ describe('Orchestrator dev server lifecycle', () => {
       vi.useRealTimers()
     }
   })
+
+  it('restarts dev servers when restartDevServers is called', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(orchestrator as any).startDevServers()
+
+    expect(orchestrator.getService('core').status).toBe('starting')
+
+    const restartPromise = orchestrator.restartDevServers()
+
+    // Status is immediately set to stopped while restarting
+    expect(orchestrator.getService('core').status).toBe('stopped')
+    expect(orchestrator.getService('core').detail).toBe('Restarting…')
+
+    // Simulate processes exiting
+    subprocesses.core.resolveExit(0)
+    subprocesses.api.resolveExit(0)
+    subprocesses.dashboard.resolveExit(0)
+
+    await restartPromise
+
+    // Status transitions back to starting (new dev servers start)
+    expect(orchestrator.getService('core').status).toBe('starting')
+    expect(orchestrator.getService('api').status).toBe('starting')
+    expect(orchestrator.getService('dashboard').status).toBe('starting')
+  })
 })
