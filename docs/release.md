@@ -103,9 +103,10 @@ The script runs four steps in sequence:
 
 ### 1. Bump versions
 
-Updates `"version"` in all four package manifests to the computed next version, and also updates any internal `@beechcms/*` cross-references in `dependencies`:
+Updates `"version"` in the package manifests to the computed next version, and also updates any internal `@beechcms/*` cross-references in `dependencies`:
 
 - `packages/core/package.json` — `@beechcms/core`
+- `packages/widget-sdk/package.json` — `@beechcms/widget-sdk`
 - `packages/cli/package.json` — `@beechcms/cli`
 - `apps/api/package.json` — `@beechcms/api`
 - `package.json` (root) — `@beechcms/cms`
@@ -123,9 +124,10 @@ Copies the compiled React admin dashboard from `apps/dashboard/dist/admin` into 
 Publishes each package to npm in dependency order with `--access public --tag <next|latest>`. Packages are published in this order:
 
 1. `@beechcms/core`
-2. `@beechcms/cli`
-3. `@beechcms/api`
-4. `@beechcms/cms` (root scaffolder)
+2. `@beechcms/widget-sdk`
+3. `@beechcms/cli`
+4. `@beechcms/api`
+5. `@beechcms/cms` (root scaffolder)
 
 ### 4. Git tag
 
@@ -176,6 +178,7 @@ git push && git push --tags
 | Package | Purpose | Installed by |
 |---|---|---|
 | `@beechcms/core` | Botanical Engine, types, validation | Internal dependency |
+| `@beechcms/widget-sdk` | Custom dashboard widgets SDK | Widget packages `dependencies` |
 | `@beechcms/cli` | `npx beech` CLI (seed:load, etc.) | Project `devDependencies` |
 | `@beechcms/api` | Worker factory, migrations, dashboard bundle | Project `dependencies` |
 | `@beechcms/cms` | `npx @beechcms/cms` scaffolder | End users (one-time) |
