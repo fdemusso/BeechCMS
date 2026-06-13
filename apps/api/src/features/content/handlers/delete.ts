@@ -38,8 +38,10 @@ export async function deleteHandler(context: Context<AppEnv>) {
 
   try {
     const repository = context.get('repository')
+    const jwtPayload = context.get('jwtPayload')
+    const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
     // Repository.delete returns the row data for cleanup
-    const { row } = await repository.delete(seed, entryId)
+    const { row } = await repository.delete(seed, entryId, { actor })
 
     const title = row.title || row.name || entryId
 

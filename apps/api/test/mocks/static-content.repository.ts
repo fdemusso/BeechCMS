@@ -8,6 +8,8 @@ import {
   RepositoryError,
   SlugConflictError,
   type BulkFieldUpdate,
+  type BatchWrite,
+  type RepositoryOptions,
   Seed,
   SelectOptions,
   DraftSummary,
@@ -141,7 +143,7 @@ export class StaticContentRepository implements ContentRepository {
     return this.getTable(seed.slug).some((e) => e.slug === slug && e.id !== excludeId)
   }
 
-  async create(seed: Seed, id: string, slug: string, status: string, data: Record<string, any>): Promise<void> {
+  async create(seed: Seed, id: string, slug: string, status: string, data: Record<string, any>, _options?: RepositoryOptions): Promise<void> {
     if (await this.existsSlug(seed, slug)) {
       throw new SlugConflictError(`Slug "${slug}" already exists for ${seed.slug}`)
     }
@@ -149,7 +151,7 @@ export class StaticContentRepository implements ContentRepository {
     this.getTable(seed.slug).push({ id, slug, status, created_at: now, updated_at: now, ...data })
   }
 
-  async update(seed: Seed, id: string, data: Record<string, any>, status?: string): Promise<void> {
+  async update(seed: Seed, id: string, data: Record<string, any>, status?: string, _options?: RepositoryOptions): Promise<void> {
     const table = this.getTable(seed.slug)
     const idx = table.findIndex((e) => e.id === id)
     if (idx === -1) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
@@ -161,12 +163,55 @@ export class StaticContentRepository implements ContentRepository {
     }
   }
 
-  async delete(seed: Seed, id: string): Promise<{ row: Entry }> {
+  async delete(seed: Seed, id: string, _options?: RepositoryOptions): Promise<{ row: Entry }> {
     const table = this.getTable(seed.slug)
     const idx = table.findIndex((e) => e.id === id)
     if (idx === -1) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
     const [row] = table.splice(idx, 1)
     return { row }
+  }
+
+  async mutateField(
+    seed: Seed,
+    id: string,
+    fieldName: string,
+    operation: { type: 'increment' | 'decrement'; value: number },
+    options?: { min?: number; max?: number }
+  ): Promise<{ newValue: number }> {
+    const branch = seed.branches.find((b) => b.alias === fieldName)
+    if (!branch || branch.type !== 'number') {
+      throw new RepositoryError(`mutateField: '${fieldName}' non e un campo numerico di ${seed.slug}`)
+    }
+
+    const table = this.getTable(seed.slug)
+    const idx = table.findIndex((e) => e.id === id)
+    if (idx === -1) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
+
+    const delta = operation.type === 'increment' ? operation.value : -operation.value
+    const current = Number(table[idx][fieldName] ?? 0)
+    const newValue = current + delta
+
+    if (options?.min !== undefined && newValue < options.min) {
+      throw new RepositoryError(`Operazione atomica fallita: record non trovato o limite superato per ${fieldName}`)
+    }
+    if (options?.max !== undefined && newValue > options.max) {
+      throw new RepositoryError(`Operazione atomica fallita: record non trovato o limite superato per ${fieldName}`)
+    }
+
+    table[idx] = { ...table[idx], [fieldName]: newValue, updated_at: Math.floor(Date.now() / 1000) }
+    return { newValue }
+  }
+
+  async runBatch(operations: BatchWrite[]): Promise<void> {
+    for (const op of operations) {
+      if (op.kind === 'create') {
+        await this.create(op.seed, op.id, op.slug, op.status, op.data)
+      } else if (op.kind === 'update') {
+        await this.update(op.seed, op.id, op.data, op.status)
+      } else if (op.kind === 'mutateField') {
+        await this.mutateField(op.seed, op.id, op.fieldName, op.operation, op.options)
+      }
+    }
   }
 
   async saveDraft(seed: Seed, entryId: string, data: Record<string, any>): Promise<void> {

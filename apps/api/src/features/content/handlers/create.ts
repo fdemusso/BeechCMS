@@ -114,9 +114,10 @@ export async function createHandler(context: Context<AppEnv>) {
 
   try {
     const repository = context.get('repository')
-    await repository.create(seed, id, finalSlug, status, privacyData)
-
     const jwtPayload = context.get('jwtPayload')
+    const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
+    await repository.create(seed, id, finalSlug, status, privacyData, { actor })
+
     const title = privacyData.title || privacyData.name || finalSlug
 
     logContentActivity(context, 'create', id, slug, String(title))
