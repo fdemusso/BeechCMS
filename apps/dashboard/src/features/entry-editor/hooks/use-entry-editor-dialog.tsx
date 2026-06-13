@@ -35,6 +35,7 @@ export interface UseEntryEditorDialogProps {
   entryId: string | undefined
   isDraftContext: boolean
   onClose: () => void
+  readonly?: boolean
 }
 
 export interface EditorBranch {
@@ -139,6 +140,7 @@ export function useEntryEditorDialog({
   entryId,
   isDraftContext,
   onClose,
+  readonly,
 }: UseEntryEditorDialogProps): SchemaFormViewModel {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -179,7 +181,12 @@ export function useEntryEditorDialog({
   const [hasRestrictedRefs, setHasRestrictedRefs] = React.useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false)
   const [builderMode, setBuilderMode] = React.useState(false)
+  const [isReadOnly, setIsReadOnly] = React.useState(readonly ?? false)
   const hasJustSavedRef = React.useRef(false)
+
+  React.useEffect(() => {
+    setIsReadOnly(readonly ?? false)
+  }, [readonly])
 
   const { user } = useAuth()
   const canEditLayoutFlag = canEditLayout(user?.role)
@@ -251,7 +258,7 @@ export function useEntryEditorDialog({
   }
 
   // Sync live data from query to local state
-  const [prevEntryData, setPrevEntryData] = React.useState(entryData)
+  const [prevEntryData, setPrevEntryData] = React.useState<unknown>(undefined)
   if (entryData !== prevEntryData) {
     setPrevEntryData(entryData)
     if (entryData) {
@@ -263,8 +270,8 @@ export function useEntryEditorDialog({
   }
 
   // When entering from the Drafts list, override form with draft data once loaded.
-  const [prevDraftData, setPrevDraftData] = React.useState(draftData)
-  const [prevEffectiveDraftContext, setPrevEffectiveDraftContext] = React.useState(effectiveDraftContext)
+  const [prevDraftData, setPrevDraftData] = React.useState<unknown>(undefined)
+  const [prevEffectiveDraftContext, setPrevEffectiveDraftContext] = React.useState<boolean | undefined>(undefined)
   if (draftData !== prevDraftData || effectiveDraftContext !== prevEffectiveDraftContext) {
     setPrevDraftData(draftData)
     setPrevEffectiveDraftContext(effectiveDraftContext)
@@ -278,9 +285,9 @@ export function useEntryEditorDialog({
     errorEntryQuery instanceof Error ? errorEntryQuery.message : null
 
   // Initialize form for create mode
-  const [prevSeed, setPrevSeed] = React.useState(seed)
-  const [prevIsCreate, setPrevIsCreate] = React.useState(isCreate)
-  const [prevBranches, setPrevBranches] = React.useState(branches)
+  const [prevSeed, setPrevSeed] = React.useState<unknown>(undefined)
+  const [prevIsCreate, setPrevIsCreate] = React.useState<boolean | undefined>(undefined)
+  const [prevBranches, setPrevBranches] = React.useState<EditorBranch[] | undefined>(undefined)
   if (seed !== prevSeed || isCreate !== prevIsCreate || branches !== prevBranches) {
     setPrevSeed(seed)
     setPrevIsCreate(isCreate)
@@ -474,5 +481,7 @@ export function useEntryEditorDialog({
     capabilities,
     schemaSlug,
     entryId,
+    isReadOnly,
+    setIsReadOnly,
   }
 }

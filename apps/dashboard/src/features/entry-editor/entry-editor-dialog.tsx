@@ -10,10 +10,11 @@ export interface EntryEditorDialogProps {
   isDraftContext: boolean
   open: boolean
   onClose: () => void
+  readonly?: boolean
 }
 
 export function EntryEditorDialog(props: Readonly<EntryEditorDialogProps>) {
-  const { schemaSlug, entryId, isDraftContext, open, onClose } = props
-  const vm = useEntryEditorDialog({ schemaSlug, entryId, isDraftContext, onClose })
+  const { schemaSlug, entryId, isDraftContext, open, onClose, readonly } = props
+  const vm = useEntryEditorDialog({ schemaSlug, entryId, isDraftContext, onClose, readonly })
   return <SchemaFormShell vm={vm} open={open} />
 }
