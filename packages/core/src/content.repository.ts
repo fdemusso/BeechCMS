@@ -95,7 +95,7 @@ export type BulkFieldUpdate =
  * (extracted from the JWT) so lifecycle hooks can attribute changes.
  */
 export interface RepositoryOptions {
-  actor?: { id: string; role: string; email?: string }
+  actor?: { id: string; role?: string; email?: string }
 }
 
 /**

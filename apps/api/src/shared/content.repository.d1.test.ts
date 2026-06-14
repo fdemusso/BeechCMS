@@ -24,6 +24,39 @@ const NO_DRAFT_SEED = {
   branches: [{ id: 'br_01', alias: 'name', type: 'text' }],
 } as unknown as Seed
 
+// Seed with a numeric branch (mutateField / runBatch mutateField)
+const NUMBER_SEED = {
+  slug: 'products',
+  displayNameAlias: 'name',
+  allowDrafts: false,
+  branches: [
+    { id: 'br_01', alias: 'name', type: 'text' },
+    { id: 'br_02', alias: 'stock', type: 'number' },
+  ],
+} as unknown as Seed
+
+// Seed with a tags branch
+const TAGS_SEED = {
+  slug: 'posts',
+  displayNameAlias: 'title',
+  allowDrafts: false,
+  branches: [
+    { id: 'br_01', alias: 'title', type: 'text' },
+    { id: 'br_02', alias: 'labels', type: 'tags' },
+  ],
+} as unknown as Seed
+
+// Seed with a single relation branch (publishDraft validation)
+const SREL_SEED = {
+  slug: 'articles',
+  displayNameAlias: 'title',
+  allowDrafts: true,
+  branches: [
+    { id: 'br_01', alias: 'title', type: 'text' },
+    { id: 'br_02', alias: 'author', type: 'relation', multiple: false, targetSeed: 'authors' },
+  ],
+} as unknown as Seed
+
 // Seed with a multi-relation branch
 const M2M_SEED = {
   slug: 'articles',
@@ -502,6 +535,414 @@ describe('D1ContentRepository', () => {
       await new D1ContentRepository(db).update(REPEATER_SEED, 'e1', { items: [{ question: 'Updated?' }] })
       const bound = bindMock.mock.calls.flat()
       expect(bound).toContain(JSON.stringify([{ question: 'Updated?' }]))
+    })
+  })
+
+  // ─── lifecycle hooks ──────────────────────────────────────────────────────────
+
+  describe('lifecycle hooks', () => {
+    it('create: beforeCreate can transform the payload and afterCreate receives the final entry', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+      const beforeCreate = vi.fn().mockResolvedValue({ title: 'Transformed' })
+      const afterCreate = vi.fn().mockResolvedValue(undefined)
+
+      await new D1ContentRepository(db, { beforeCreate, afterCreate }).create(
+        SEED, 'id-1', 'slug-1', 'draft', { title: 'Original' }, { actor: { id: 'u1' } },
+      )
+
+      expect(beforeCreate).toHaveBeenCalledWith({ title: 'Original' }, expect.objectContaining({ seed: SEED, actor: { id: 'u1' } }))
+      expect(afterCreate).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'id-1', slug: 'slug-1', status: 'draft', title: 'Transformed' }),
+        expect.objectContaining({ seed: SEED }),
+      )
+    })
+
+    it('create: beforeCreate returning void keeps the original payload', async () => {
+      const { db, bindMock } = makeMockDb({ firstResult: null })
+      const beforeCreate = vi.fn().mockResolvedValue(undefined)
+
+      await new D1ContentRepository(db, { beforeCreate }).create(SEED, 'id-1', 'slug-1', 'draft', { title: 'Original' })
+
+      const bound = bindMock.mock.calls.flat()
+      expect(bound).toContain('Original')
+    })
+
+    it('update: beforeUpdate can transform the payload and afterUpdate receives the merged entry', async () => {
+      const { db, runMock } = makeMockDb({ runChanges: 1 })
+      runMock.mockResolvedValue({ success: true, meta: { changes: 1 } })
+      const beforeUpdate = vi.fn().mockResolvedValue({ title: 'Transformed' })
+      const afterUpdate = vi.fn().mockResolvedValue(undefined)
+
+      await new D1ContentRepository(db, { beforeUpdate, afterUpdate }).update(
+        SEED, 'id-1', { title: 'Original' }, 'published', { actor: { id: 'u1' } },
+      )
+
+      expect(beforeUpdate).toHaveBeenCalledWith('id-1', { title: 'Original' }, expect.objectContaining({ seed: SEED, actor: { id: 'u1' } }))
+      expect(afterUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'id-1', title: 'Transformed', status: 'published' }),
+        expect.objectContaining({ seed: SEED }),
+      )
+    })
+
+    it('delete: beforeDelete and afterDelete are called around the deletion', async () => {
+      const row = { id: 'e1', slug: 'p', status: 'published', title: 'T', body: null }
+      const { db } = makeMockDb({ firstResult: row })
+      const beforeDelete = vi.fn().mockResolvedValue(undefined)
+      const afterDelete = vi.fn().mockResolvedValue(undefined)
+
+      const result = await new D1ContentRepository(db, { beforeDelete, afterDelete }).delete(SEED, 'e1', { actor: { id: 'u1' } })
+
+      expect(beforeDelete).toHaveBeenCalledWith('e1', expect.objectContaining({ seed: SEED, actor: { id: 'u1' } }))
+      expect(afterDelete).toHaveBeenCalledWith('e1', expect.objectContaining({ seed: SEED }))
+      expect(result.row.id).toBe('e1')
+    })
+  })
+
+  // ─── getFacets with tags branches ────────────────────────────────────────────
+
+  describe('getFacets with tags branches', () => {
+    it('returns distinct tag values for each tags branch', async () => {
+      const { db, allMock } = makeMockDb()
+      allMock
+        .mockResolvedValueOnce({ results: [{ status: 'published', count: 2 }] })
+        .mockResolvedValueOnce({ results: [{ value: 'news' }, { value: 'tech' }] })
+
+      const result = await new D1ContentRepository(db).getFacets(TAGS_SEED)
+
+      expect(result.statuses).toEqual({ published: 2 })
+      expect(result.tagsByColumn).toEqual({ labels: ['news', 'tech'] })
+    })
+
+    it('wraps errors in RepositoryError', async () => {
+      const { db, allMock } = makeMockDb()
+      allMock.mockRejectedValueOnce(new Error('boom'))
+      await expect(new D1ContentRepository(db).getFacets(SEED)).rejects.toThrow('getFacets')
+    })
+  })
+
+  // ─── mutateField ──────────────────────────────────────────────────────────────
+
+  describe('mutateField', () => {
+    it('increments a numeric field and returns the new value', async () => {
+      const { db, runMock, firstMock } = makeMockDb({ runChanges: 1 })
+      runMock.mockResolvedValue({ success: true, meta: { changes: 1 } })
+      firstMock.mockResolvedValue({ v: 5 })
+
+      const result = await new D1ContentRepository(db).mutateField(
+        NUMBER_SEED, 'p1', 'stock', { type: 'increment', value: 1 },
+      )
+
+      expect(result.newValue).toBe(5)
+    })
+
+    it('throws RepositoryError when fieldName is not a numeric branch', async () => {
+      const { db } = makeMockDb()
+      await expect(
+        new D1ContentRepository(db).mutateField(NUMBER_SEED, 'p1', 'name', { type: 'increment', value: 1 }),
+      ).rejects.toThrow('non e un campo numerico')
+    })
+
+    it('throws RepositoryError when the guard condition fails (no rows changed)', async () => {
+      const { db, runMock } = makeMockDb({ runChanges: 0 })
+      runMock.mockResolvedValue({ success: true, meta: { changes: 0 } })
+
+      await expect(
+        new D1ContentRepository(db).mutateField(NUMBER_SEED, 'p1', 'stock', { type: 'decrement', value: 100 }, { min: 0 }),
+      ).rejects.toThrow('Operazione atomica fallita')
+    })
+
+    it('wraps unexpected D1 errors in RepositoryError', async () => {
+      const { db, runMock } = makeMockDb()
+      runMock.mockRejectedValue(new Error('D1 down'))
+      await expect(
+        new D1ContentRepository(db).mutateField(NUMBER_SEED, 'p1', 'stock', { type: 'increment', value: 1 }),
+      ).rejects.toThrow('mutateField')
+    })
+  })
+
+  // ─── runBatch ─────────────────────────────────────────────────────────────────
+
+  describe('runBatch', () => {
+    it('returns early when there are no operations', async () => {
+      const { db, prepareMock, batchMock } = makeMockDb()
+      await new D1ContentRepository(db).runBatch([])
+      expect(prepareMock).not.toHaveBeenCalled()
+      expect(batchMock).not.toHaveBeenCalled()
+    })
+
+    it('runs a single create operation with .run()', async () => {
+      const { db, runMock, batchMock } = makeMockDb({ firstResult: null })
+      await new D1ContentRepository(db).runBatch([
+        { kind: 'create', seed: SEED, id: 'id-1', slug: 'slug-1', status: 'draft', data: { title: 'Hello' } },
+      ])
+      expect(runMock).toHaveBeenCalled()
+      expect(batchMock).not.toHaveBeenCalled()
+    })
+
+    it('batches a create and an update operation together', async () => {
+      const { db, batchMock, runMock } = makeMockDb({ runChanges: 1 })
+      runMock.mockResolvedValue({ success: true, meta: { changes: 1 } })
+      batchMock.mockResolvedValue([{}, {}])
+
+      await new D1ContentRepository(db).runBatch([
+        { kind: 'create', seed: SEED, id: 'id-1', slug: 'slug-1', status: 'draft', data: { title: 'Hello' } },
+        { kind: 'update', seed: SEED, id: 'id-2', data: { title: 'Updated' } },
+      ])
+
+      expect(batchMock).toHaveBeenCalled()
+    })
+
+    it('runs a mutateField operation', async () => {
+      const { db, runMock } = makeMockDb({ runChanges: 1 })
+      runMock.mockResolvedValue({ success: true, meta: { changes: 1 } })
+
+      await new D1ContentRepository(db).runBatch([
+        { kind: 'mutateField', seed: NUMBER_SEED, id: 'p1', fieldName: 'stock', operation: { type: 'increment', value: 1 } },
+      ])
+
+      expect(runMock).toHaveBeenCalled()
+    })
+
+    it('throws RepositoryError when mutateField targets a non-numeric field', async () => {
+      const { db } = makeMockDb()
+      await expect(
+        new D1ContentRepository(db).runBatch([
+          { kind: 'mutateField', seed: NUMBER_SEED, id: 'p1', fieldName: 'name', operation: { type: 'increment', value: 1 } },
+        ]),
+      ).rejects.toThrow('non e un campo numerico')
+    })
+
+    it('wraps unexpected D1 errors in RepositoryError', async () => {
+      const { db, runMock } = makeMockDb({ firstResult: null })
+      runMock.mockRejectedValue(new Error('D1 down'))
+      await expect(
+        new D1ContentRepository(db).runBatch([
+          { kind: 'create', seed: SEED, id: 'id-1', slug: 'slug-1', status: 'draft', data: { title: 'Hello' } },
+        ]),
+      ).rejects.toThrow('runBatch')
+    })
+  })
+
+  // ─── bulkUpdate ───────────────────────────────────────────────────────────────
+
+  describe('bulkUpdate', () => {
+    it('applies a "set" field update and reports updated count', async () => {
+      const { db, batchMock } = makeMockDb()
+      batchMock.mockResolvedValue([{ meta: { changes: 1 } }])
+
+      const result = await new D1ContentRepository(db).bulkUpdate('posts', ['e1'], { title: { kind: 'set', value: 'New title' } })
+
+      expect(result.updated).toBe(1)
+      expect(result.failed).toEqual([])
+    })
+
+    it('applies array_replace, array_add and array_remove junction updates', async () => {
+      const { db, batchMock } = makeMockDb()
+      batchMock.mockResolvedValue([{ meta: { changes: 1 } }])
+
+      const result = await new D1ContentRepository(db).bulkUpdate('articles', ['e1'], {
+        tags: { kind: 'array_replace', value: ['t1', 't2'] },
+      })
+      expect(result.updated).toBe(1)
+
+      const addResult = await new D1ContentRepository(db).bulkUpdate('articles', ['e1'], {
+        tags: { kind: 'array_add', value: ['t3'] },
+      })
+      expect(addResult.updated).toBe(1)
+
+      const removeResult = await new D1ContentRepository(db).bulkUpdate('articles', ['e1'], {
+        tags: { kind: 'array_remove', value: ['t1'] },
+      })
+      expect(removeResult.updated).toBe(1)
+    })
+
+    it('reports not-found when an id matches no rows', async () => {
+      const { db, batchMock } = makeMockDb()
+      batchMock.mockResolvedValue([{ meta: { changes: 0 } }])
+
+      const result = await new D1ContentRepository(db).bulkUpdate('posts', ['missing'], { title: { kind: 'set', value: 'X' } })
+
+      expect(result.updated).toBe(0)
+      expect(result.failed).toEqual([{ id: 'missing', reason: 'not-found' }])
+    })
+
+    it('reports relation-target-not-found on FK constraint failures', async () => {
+      const { db, batchMock } = makeMockDb()
+      batchMock.mockRejectedValue(new Error('FOREIGN KEY constraint failed'))
+
+      const result = await new D1ContentRepository(db).bulkUpdate('posts', ['e1'], { title: { kind: 'set', value: 'X' } })
+
+      expect(result.updated).toBe(0)
+      expect(result.failed).toEqual([{ id: 'e1', reason: 'relation-target-not-found:e1' }])
+    })
+
+    it('reports a generic error reason for unexpected failures', async () => {
+      const { db, batchMock } = makeMockDb()
+      batchMock.mockRejectedValue(new Error('something else'))
+
+      const result = await new D1ContentRepository(db).bulkUpdate('posts', ['e1'], { title: { kind: 'set', value: 'X' } })
+
+      expect(result.updated).toBe(0)
+      expect(result.failed).toEqual([{ id: 'e1', reason: 'error:something else' }])
+    })
+
+    it('processes ids in chunks of 50', async () => {
+      const { db, batchMock } = makeMockDb()
+      batchMock.mockResolvedValue([{ meta: { changes: 1 } }])
+
+      const ids = Array.from({ length: 75 }, (_, i) => `e${i}`)
+      const result = await new D1ContentRepository(db).bulkUpdate('posts', ids, { title: { kind: 'set', value: 'X' } })
+
+      expect(result.updated).toBe(75)
+      expect(batchMock).toHaveBeenCalledTimes(75)
+    })
+  })
+
+  // ─── findPendingDrafts ────────────────────────────────────────────────────────
+
+  describe('findPendingDrafts', () => {
+    it('returns an empty array when no seeds are provided', async () => {
+      const { db, prepareMock } = makeMockDb()
+      const result = await new D1ContentRepository(db).findPendingDrafts([])
+      expect(result).toEqual([])
+      expect(prepareMock).not.toHaveBeenCalled()
+    })
+
+    it('maps rows into DraftSummary objects', async () => {
+      const { db, allMock } = makeMockDb()
+      allMock.mockResolvedValue({
+        results: [
+          { seedSlug: 'posts', seedLabel: 'Posts', id: 'e1', updatedAt: 1000, title: 'Hello', lastName: 'Jane', lastEmail: 'jane@test.com' },
+          { seedSlug: 'posts', seedLabel: 'Posts', id: 'e2', updatedAt: 900, title: null, lastName: null, lastEmail: null },
+        ],
+      })
+
+      const result = await new D1ContentRepository(db).findPendingDrafts([SEED])
+
+      expect(result).toHaveLength(2)
+      expect(result[0]).toEqual({
+        id: 'e1', seedSlug: 'posts', seedLabel: 'Posts', title: 'Hello', updatedAt: 1000,
+        lastModifiedBy: { name: 'Jane', email: 'jane@test.com' },
+      })
+      // Falls back to id when title is missing/blank
+      expect(result[1].title).toBe('e2')
+      expect(result[1].lastModifiedBy).toEqual({ name: null, email: '' })
+    })
+
+    it('wraps errors in RepositoryError', async () => {
+      const { db, allMock } = makeMockDb()
+      allMock.mockRejectedValue(new Error('boom'))
+      await expect(new D1ContentRepository(db).findPendingDrafts([SEED])).rejects.toThrow('findPendingDrafts')
+    })
+  })
+
+  // ─── publishDraft with single relation validation ────────────────────────────
+
+  describe('publishDraft with single relation validation', () => {
+    it('publishes when the single-relation target exists', async () => {
+      const draftRow = { entry_id: 'e1', title: 'Draft', author: 'author-1' }
+      const { db, firstMock, batchMock } = makeMockDb()
+      firstMock
+        .mockResolvedValueOnce(draftRow) // draft row
+        .mockResolvedValueOnce({ 1: 1 }) // author exists
+      batchMock.mockResolvedValueOnce([{}, {}])
+
+      await new D1ContentRepository(db).publishDraft(SREL_SEED, 'e1')
+
+      expect(batchMock).toHaveBeenCalledTimes(1)
+    })
+
+    it('throws RelationTargetNotFoundError when the single-relation target is missing', async () => {
+      const draftRow = { entry_id: 'e1', title: 'Draft', author: 'missing-author' }
+      const { db, firstMock } = makeMockDb()
+      firstMock
+        .mockResolvedValueOnce(draftRow) // draft row
+        .mockResolvedValueOnce(null) // author missing
+
+      await expect(
+        new D1ContentRepository(db).publishDraft(SREL_SEED, 'e1'),
+      ).rejects.toBeInstanceOf(RelationTargetNotFoundError)
+    })
+
+    it('skips validation for null single-relation values', async () => {
+      const draftRow = { entry_id: 'e1', title: 'Draft', author: null }
+      const { db, firstMock, batchMock } = makeMockDb()
+      firstMock.mockResolvedValueOnce(draftRow)
+      batchMock.mockResolvedValueOnce([{}, {}])
+
+      await new D1ContentRepository(db).publishDraft(SREL_SEED, 'e1')
+
+      expect(batchMock).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  // ─── generic error mapping ────────────────────────────────────────────────────
+
+  describe('generic error mapping', () => {
+    it('findById wraps unexpected errors in RepositoryError', async () => {
+      const { db, firstMock } = makeMockDb()
+      firstMock.mockRejectedValue(new Error('D1 down'))
+      await expect(new D1ContentRepository(db).findById(SEED, 'e1')).rejects.toThrow('findById')
+    })
+
+    it('findBySlug wraps unexpected errors in RepositoryError', async () => {
+      const { db, firstMock } = makeMockDb()
+      firstMock.mockRejectedValue(new Error('D1 down'))
+      await expect(new D1ContentRepository(db).findBySlug(SEED, 'slug')).rejects.toThrow('findBySlug')
+    })
+
+    it('existsSlug wraps unexpected errors in RepositoryError', async () => {
+      const { db, firstMock } = makeMockDb()
+      firstMock.mockRejectedValue(new Error('D1 down'))
+      await expect(new D1ContentRepository(db).existsSlug(SEED, 'slug')).rejects.toThrow('existsSlug')
+    })
+
+    it('create wraps unexpected errors in RepositoryError', async () => {
+      const { db, firstMock, runMock } = makeMockDb({ firstResult: null })
+      runMock.mockRejectedValue(new Error('D1 down'))
+      await expect(new D1ContentRepository(db).create(SEED, 'id', 'slug', 'draft', { title: 'X' })).rejects.toThrow('create')
+    })
+
+    it('update wraps unexpected errors in RepositoryError', async () => {
+      const { db, runMock } = makeMockDb()
+      runMock.mockRejectedValue(new Error('D1 down'))
+      await expect(new D1ContentRepository(db).update(SEED, 'e1', { title: 'X' })).rejects.toThrow('update')
+    })
+
+    it('delete wraps unexpected errors in RepositoryError', async () => {
+      const { db, firstMock } = makeMockDb()
+      firstMock.mockRejectedValue(new Error('D1 down'))
+      await expect(new D1ContentRepository(db).delete(SEED, 'e1')).rejects.toThrow('delete')
+    })
+
+    it('saveDraft wraps unexpected errors in RepositoryError', async () => {
+      const { db, runMock } = makeMockDb()
+      runMock.mockRejectedValue(new Error('D1 down'))
+      await expect(new D1ContentRepository(db).saveDraft(SEED, 'e1', { title: 'X' })).rejects.toThrow('saveDraft')
+    })
+
+    it('getDraft wraps unexpected errors in RepositoryError', async () => {
+      const { db, firstMock } = makeMockDb()
+      firstMock.mockRejectedValue(new Error('D1 down'))
+      await expect(new D1ContentRepository(db).getDraft(SEED, 'e1')).rejects.toThrow('getDraft')
+    })
+
+    it('hasDraft wraps unexpected errors in RepositoryError', async () => {
+      const { db, firstMock } = makeMockDb()
+      firstMock.mockRejectedValue(new Error('D1 down'))
+      await expect(new D1ContentRepository(db).hasDraft(SEED, 'e1')).rejects.toThrow('hasDraft')
+    })
+
+    it('deleteDraft wraps unexpected errors in RepositoryError', async () => {
+      const { db, runMock } = makeMockDb()
+      runMock.mockRejectedValue(new Error('D1 down'))
+      await expect(new D1ContentRepository(db).deleteDraft(SEED, 'e1')).rejects.toThrow('deleteDraft')
+    })
+
+    it('publishDraft wraps unexpected errors in RepositoryError', async () => {
+      const { db, firstMock } = makeMockDb()
+      firstMock.mockRejectedValue(new Error('D1 down'))
+      await expect(new D1ContentRepository(db).publishDraft(SEED, 'e1')).rejects.toThrow('publishDraft')
     })
   })
 })
