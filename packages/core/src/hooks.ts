@@ -6,7 +6,7 @@ import type { Seed } from './types.js'
 
 export interface HookActor {
   id: string
-  role: string
+  role?: string
   email?: string
 }
 
