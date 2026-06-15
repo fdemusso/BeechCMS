@@ -25,7 +25,7 @@ import { D1DashboardLayoutRepository } from '../shared/dashboard-layout.reposito
 import { D1SeedRepository } from '../shared/seed.repository.d1'
 import { D1SchemaMutator } from '../shared/schema-mutator.d1'
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations'
 import { D1AutomationRepository } from '../shared/automations.repository.d1'
@@ -57,6 +57,7 @@ interface RepositoryOverrides {
   seedRepository?: ISeedRepository
   schemaMutator?: ISchemaMutator
   dashboardLayoutRepository?: IDashboardLayoutRepository
+  hooks?: BeechHooks
 }
 
 function buildScheduler(context: Context): IScheduler {
@@ -73,7 +74,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     const resolvedIdGenerator = overrides?.idGenerator ?? SystemIdGenerator
     const database = context.env.DB
 
-    context.set('repository', overrides?.repository ?? new D1ContentRepository(database))
+    context.set('repository', overrides?.repository ?? new D1ContentRepository(database, overrides?.hooks))
     context.set('idempotencyRepository', overrides?.idempotencyRepository ?? new D1IdempotencyRepository(database))
     context.set('mediaRepository', overrides?.mediaRepository ?? new D1MediaRepository(database))
     context.set('systemStatsRepository', overrides?.systemStatsRepository ?? new D1SystemStatsRepository(database))

@@ -129,9 +129,9 @@ describe("RelationDisplay", () => {
 
     // No loading state — resolves from cache
     expect(screen.queryByText(/Loading/)).not.toBeInTheDocument()
-    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
-    const link = screen.getByRole("link")
-    expect(link).toHaveAttribute("href", "/content/team/author-1")
+    const label = screen.getByText("Ada Lovelace")
+    expect(label).toBeInTheDocument()
+    expect(label).toHaveClass("cursor-pointer")
   })
 
   it("falls back to id when cache is empty and fetch yields no label", async () => {
@@ -366,9 +366,9 @@ describe("RelationDisplay (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    const links = screen.getAllByRole("link")
-    expect(links).toHaveLength(1)
-    expect(links[0]).toHaveAttribute("href", "/content/team/author-1")
+    const chips = screen.getAllByText("Ada Lovelace")
+    expect(chips).toHaveLength(1)
+    expect(chips[0]).toHaveAttribute("data-slot", "badge")
   })
 })
 

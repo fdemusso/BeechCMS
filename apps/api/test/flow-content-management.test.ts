@@ -13,6 +13,7 @@ import { TEST_SEEDS, TEST_USERS, TEST_ENV } from './fixtures'
 import { defineSeed } from '@beechcms/core'
 import { __resetSeedRegistryCache } from '../src/shared/seed-registry-cache'
 import * as applyPolicies from '../src/shared/apply-policies'
+import * as uploadModule from '../src/upload'
 
 /**
  * SPRINT: BeechCMS Test Redesign
@@ -252,6 +253,20 @@ describe('Flow: Content Management (Protected API)', () => {
       }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(500)
     })
+
+    it('success: R2 cleanup failure on delete is logged but does not fail the request', async () => {
+      repo.load('posts', [{ id: 'p_del_r2', status: 'published', image: 'https://ex.com/api/media/f.png' }])
+      vi.spyOn(uploadModule, 'deleteR2Objects').mockRejectedValueOnce(new Error('R2 unreachable'))
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+      const res = await app.request('/api/content/posts/p_del_r2', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` }
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(200)
+      expect(warnSpy).toHaveBeenCalledWith('R2 cleanup on delete failed (orphaned files):', expect.any(Error))
+    })
   })
 
   describe('Additional coverage: Admin content handlers sad paths', () => {
@@ -387,6 +402,29 @@ describe('Flow: Content Management (Protected API)', () => {
         body: JSON.stringify({ title: 'Post title' })
       }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(500)
+
+      // Unexpected (non-PrivacyPolicyError) error from applyPrivacy is rethrown -> 500
+      vi.spyOn(applyPolicies, 'applyPrivacy').mockRejectedValueOnce(new Error('Unexpected privacy error'))
+      __resetSeedRegistryCache()
+      res = await app.request('/api/content/posts', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Post title' })
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(500)
+    })
+
+    it('POST /api/content/:slug success: uses provided slug instead of generating one', async () => {
+      const res = await app.request('/api/content/posts', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'New Post', slug: 'custom-slug' })
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ id: string }>()
+      const created = await repo.findById(TEST_SEEDS[0], body.id)
+      expect(created.slug).toBe('custom-slug')
     })
 
     // update.ts
