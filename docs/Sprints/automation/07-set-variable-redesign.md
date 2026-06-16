@@ -728,9 +728,9 @@ Append:
 
 ### Task 10 — Manual smoke
 
-1. `npm run build` in `packages/core` — green.
+1. `pnpm run build` in `packages/core` — green.
 2. `npx tsc --noEmit` in `apps/api` and `apps/dashboard` — green.
-3. `npm run test` at the repo root — all suites green.
+3. `pnpm run test` at the repo root — all suites green.
 4. UI smoke:
    - Create a `set_variable` block named `count` → inline error visible.
    - Pick a seed → collection mode UI; filters + column visible.
@@ -747,9 +747,9 @@ Append:
 
 ## 6. Validation
 
-- `npm run build` (core), `npx tsc --noEmit` (api, dashboard) — no
+- `pnpm run build` (core), `npx tsc --noEmit` (api, dashboard) — no
   TypeScript errors.
-- `npm run test` in `apps/api/` — new suites green; existing suites for
+- `pnpm run test` in `apps/api/` — new suites green; existing suites for
   `set-variable.executor`, `template-grammar`, `automation-runner`,
   `context-resolver`, `seed-registry`, `automations.schema`,
   `automations.handler` all still green.

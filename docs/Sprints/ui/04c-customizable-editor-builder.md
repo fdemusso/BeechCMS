@@ -25,7 +25,7 @@ Hard rules:
    `apps/dashboard/src/locales/it.json` and `en.json`.
 2. **Reuse Shadcn UI components.** Drag-and-drop uses `@dnd-kit/core` (and
    `@dnd-kit/sortable`). Verify with `cat apps/dashboard/package.json`. If
-   missing, add: `npm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities -w apps/dashboard`.
+   missing, add: `pnpm install @dnd-kit/core @dnd-kit/sortable @dnd-kit/utilities -w apps/dashboard`.
 3. **RBAC** is enforced **both** server-side (already done in 04a — the
    `PUT/DELETE` endpoints return 403 to non-admins) and client-side (hide the
    button). Use `canEditLayout(user.role)` from `@beechcms/core` for the
@@ -576,7 +576,7 @@ Modified:
 
 ## 10. ACCEPTANCE
 
-1. **Types & build:** `npm run build` at root passes. `npm run dev` runs the
+1. **Types & build:** `pnpm run build` at root passes. `pnpm run dev` runs the
    stack.
 2. **Visibility:** the "Edit Layout" button appears for an admin user, is
    absent for a non-admin (create an editor user via the seed and try).

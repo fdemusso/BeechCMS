@@ -143,7 +143,7 @@ export interface DashboardWidgetProps<TConfig = unknown> {
 }
 
 export interface WidgetDefinition<TConfig = unknown> {
-  /** Namespaced type: 'core/<name>' for built-ins, npm name for custom. */
+  /** Namespaced type: 'core/<name>' for built-ins, pnpm name for custom. */
   type: string
   /** i18n key for the picker (built-ins); plain string allowed (custom). */
   labelKey: string
@@ -274,8 +274,8 @@ Deleted:
 
 ## 9. ACCEPTANCE
 
-1. `npm run build` (tsc -b + vite) and `npm run test` pass in `apps/dashboard`;
-   `npm run lint` clean.
+1. `pnpm run build` (tsc -b + vite) and `pnpm run test` pass in `apps/dashboard`;
+   `pnpm run lint` clean.
 2. **Visual equivalence:** with no stored layout and seeds present, `/` shows
    the same widgets in the same order/grouping as before this sprint
    (setup-checklist row, status row of four, content pair, media/activity pair).

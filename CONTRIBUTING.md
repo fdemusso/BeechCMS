@@ -27,7 +27,7 @@ This document outlines every rule and convention that **must be followed** befor
 | Tool | Version | Notes |
 |------|---------|-------|
 | Node.js | 20+ | Required |
-| npm | 11+ | Required |
+| pnpm | 11+ | Required |
 | **Docker Desktop** or **Docker Engine** | any recent | **Required** — media uploads use presigned URLs and need a local S3-compatible endpoint (MinIO) |
 
 Docker is a hard prerequisite. Without it, the API and dashboard start normally but any file upload will fail at runtime.
@@ -36,27 +36,27 @@ Docker is a hard prerequisite. Without it, the API and dashboard start normally 
 
 ```bash
 # 1. Clone and install dependencies
-npm install
+pnpm install
 
 # 2. Configure local environment variables
 cp apps/api/.dev.vars.example apps/api/.dev.vars
 # The example file is pre-filled with MinIO credentials — no edits needed for local dev.
 
 # 3. Start the full development environment
-npm run dev:full
+ppnpm run dev:full
 ```
 
-`npm run dev:full` starts MinIO (local S3-compatible storage), the Cloudflare Workers API, and the React dashboard in parallel. It is the **canonical development command**.
+`ppnpm run dev:full` starts MinIO (local S3-compatible storage), the Cloudflare Workers API, and the React dashboard in parallel. It is the **canonical development command**.
 
 ### Storage commands
 
 | Command | Description |
 |---------|-------------|
-| `npm run dev:full` | **Canonical**: starts MinIO + API + Dashboard |
-| `npm run dev:storage` | Starts only MinIO (useful when restarting API/Dashboard independently) |
-| `npm run dev:storage:stop` | Stops MinIO containers |
-| `npm run dev:storage:reset` | Destroys MinIO containers and volumes (full reset) |
-| `npm run dev` | API + Dashboard only — requires MinIO already running |
+| `ppnpm run dev:full` | **Canonical**: starts MinIO + API + Dashboard |
+| `ppnpm run dev:storage` | Starts only MinIO (useful when restarting API/Dashboard independently) |
+| `ppnpm run dev:storage:stop` | Stops MinIO containers |
+| `ppnpm run dev:storage:reset` | Destroys MinIO containers and volumes (full reset) |
+| `ppnpm run dev` | API + Dashboard only — requires MinIO already running |
 
 > **MinIO console**: [http://localhost:9001](http://localhost:9001) — username `beechdev`, password `beechdevsecret`.
 
@@ -71,12 +71,12 @@ BeechCMS uses a **two-tier branching model**.
 | Branch | Purpose | Who can push |
 |--------|---------|-------------|
 | `devs` | Active development — all contributions land here | Any contributor |
-| `master` | Stable, production-ready state — always corresponds to a published npm release | Project owner only |
+| `master` | Stable, production-ready state — always corresponds to a published pnpm release | Project owner only |
 
 ### Rules
 
 - **All pull requests must target `devs`**, never `master`.
-- `master` is bumped exclusively by the project owner and always coincides with an npm package release.
+- `master` is bumped exclusively by the project owner and always coincides with an pnpm package release.
 - Never force-push to either branch.
 - Create a short-lived feature or fix branch off `devs`, for example:
 
@@ -164,7 +164,7 @@ const result = a ? b ? c : d : e ? f : g;
 ### Testing
 
 - New features and bug fixes must be accompanied by tests co-located with the file they test (e.g., `product.utils.test.ts` lives next to `product.utils.ts`).
-- Run `npm run test` at the repo root before opening a PR. All suites must be green.
+- Run `ppnpm run test` at the repo root before opening a PR. All suites must be green.
 
 ### Code duplication
 
@@ -293,11 +293,11 @@ By submitting a pull request to BeechCMS, you agree to the following terms:
 
 - [ ] The branch targets `devs`, not `master`.
 - [ ] All commits follow the Conventional Commits format.
-- [ ] `npm run build` in `packages/core` exits with code 0.
-- [ ] `npm run build` in `apps/api` exits with code 0 (`tsc --noEmit`).
-- [ ] `npm run build` in `apps/dashboard` exits with code 0 (`tsc -b`).
-- [ ] `npm run test` at the repo root — all suites are green.
-- [ ] If the change touches media upload, `npm run dev:full` was used and an end-to-end upload (presign → PUT → confirm) was verified manually.
+- [ ] `pnpm run build` in `packages/core` exits with code 0.
+- [ ] `pnpm run build` in `apps/api` exits with code 0 (`tsc --noEmit`).
+- [ ] `pnpm run build` in `apps/dashboard` exits with code 0 (`tsc -b`).
+- [ ] `ppnpm run test` at the repo root — all suites are green.
+- [ ] If the change touches media upload, `ppnpm run dev:full` was used and an end-to-end upload (presign → PUT → confirm) was verified manually.
 - [ ] No cross-slice imports — each feature only imports from `shared/` or the routing layer.
 - [ ] No unexplained acronyms, dangling ternaries, or half-resolved logic.
 - [ ] No use of `any` without a documented reason in a comment.

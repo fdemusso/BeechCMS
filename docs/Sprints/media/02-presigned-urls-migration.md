@@ -26,8 +26,8 @@ Il Worker NON deve più ricevere bytes di file. La rotta `POST /upload` proxied 
 | MIME accettati | `ALLOWED_MIME_PREFIXES` (`image/*`, `application/pdf`) | Invariato; validati al presign. |
 | Idempotenza confirm | `mediaRepository.getByKey(key)` prima del track | Doppio confirm sullo stesso key non duplica righe né stats. |
 | Formato URL pubblico | `bucket.getUrl(key)` (CDN o proxy `/api/media/:key`) | Nessuna breaking change su consumatori downstream. |
-| Dev locale | `npm run dev:full` (avvia MinIO + API + Dashboard) | Docker è prerequisito di sviluppo. Documentato in `docs/development.md` e con warning in README e CLAUDE.md. |
-| `npm run dev` | Mantenuto ma con **warning prominente**: upload non funzionano senza MinIO attivo | Onboarding chiaro: o usi `dev:full`, o avvii `docker compose up -d minio` a parte. |
+| Dev locale | `pnpm run dev:full` (avvia MinIO + API + Dashboard) | Docker è prerequisito di sviluppo. Documentato in `docs/development.md` e con warning in README e CLAUDE.md. |
+| `pnpm run dev` | Mantenuto ma con **warning prominente**: upload non funzionano senza MinIO attivo | Onboarding chiaro: o usi `dev:full`, o avvii `docker compose up -d minio` a parte. |
 
 ---
 
@@ -162,7 +162,7 @@ export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
 
 - Grep `MEDIA_BUCKET` su tutto il repo: zero match nel codice sorgente (i match nel docs vanno aggiornati al Task 8).
 - Grep `R2BindingBucket`: zero match.
-- `npm run build` in `apps/api` compila pulito.
+- `pnpm run build` in `apps/api` compila pulito.
 
 ---
 
@@ -195,7 +195,7 @@ export interface BeechBucket {
 
 ### 3.2 Accettazione
 
-- `npm run build` in `packages/core` passa.
+- `pnpm run build` in `packages/core` passa.
 - TypeScript segnala errori in qualsiasi punto del repo che istanzia `BeechBucket` senza implementare i nuovi metodi (utile a verificare il Task 1).
 
 ---
@@ -206,7 +206,7 @@ export interface BeechBucket {
 
 Verificare `apps/api/package.json`. Se mancante:
 ```bash
-npm i @aws-sdk/s3-request-presigner --workspace apps/api
+pnpm i @aws-sdk/s3-request-presigner --workspace apps/api
 ```
 
 ### 4.2 `apps/api/src/shared/storage/s3-bucket.ts`
@@ -489,9 +489,9 @@ Sostituire la chiamata `api.post('/upload', ...)` con `await uploadFile(file)` d
 
 ---
 
-## 7. Task 6 — Dev infra: MinIO + `npm run dev:full`
+## 7. Task 6 — Dev infra: MinIO + `pnpm run dev:full`
 
-> **Decisione:** Docker diventa prerequisito ufficiale di sviluppo. Beech ha superato la soglia di complessità in cui "basta Node" è realistico. Il comando di sviluppo canonico diventa `npm run dev:full`, che orchestra tutto.
+> **Decisione:** Docker diventa prerequisito ufficiale di sviluppo. Beech ha superato la soglia di complessità in cui "basta Node" è realistico. Il comando di sviluppo canonico diventa `pnpm run dev:full`, che orchestra tutto.
 
 ### 7.1 Nuovo file `docker-compose.yml` (root repo)
 
@@ -533,7 +533,7 @@ Aggiungere/modificare gli script nel `package.json` di root:
 {
   "scripts": {
     "dev": "turbo dev",
-    "dev:full": "npm run dev:storage && turbo dev",
+    "dev:full": "pnpm run dev:storage && turbo dev",
     "dev:storage": "docker compose up -d minio minio-init",
     "dev:storage:stop": "docker compose stop minio minio-init",
     "dev:storage:reset": "docker compose down -v minio"
@@ -557,9 +557,9 @@ MAX_UPLOAD_BYTES=52428800
 
 L'utente copia `.dev.vars.example` in `apps/api/.dev.vars` (già git-ignored).
 
-### 7.4 Warning su `npm run dev` "puro"
+### 7.4 Warning su `pnpm run dev` "puro"
 
-Lo script `npm run dev` resta funzionante perché alcuni dev potrebbero non lavorare sull'upload e voler evitare Docker. Va però accompagnato da segnali chiari ovunque:
+Lo script `pnpm run dev` resta funzionante perché alcuni dev potrebbero non lavorare sull'upload e voler evitare Docker. Va però accompagnato da segnali chiari ovunque:
 
 **a) Banner nel terminale all'avvio dell'API.** In `apps/api/src/index.ts` (o nel modulo bootstrap del factory), aggiungere un check non bloccante che logga:
 
@@ -570,7 +570,7 @@ if (env.ENV === 'development') {
     console.warn(
       '\n⚠️  STORAGE NON RAGGIUNGIBILE su ' + env.R2_ENDPOINT + '\n' +
       '   Gli upload media falliranno. Avvia MinIO con:\n' +
-      '     npm run dev:storage    (oppure usa "npm run dev:full" la prossima volta)\n'
+      '     pnpm run dev:storage    (oppure usa "pnpm run dev:full" la prossima volta)\n'
     )
   })
 }
@@ -578,26 +578,26 @@ if (env.ENV === 'development') {
 
 > Il check è opzionale (best-effort): non blocca il boot, ma è impossibile da ignorare nel terminale.
 
-**b) README root.** Sezione "Quick start" deve avere come *primo* comando `npm run dev:full` con una callout box che spiega perché. `npm run dev` documentato sotto come "advanced — assume storage già attivo".
+**b) README root.** Sezione "Quick start" deve avere come *primo* comando `pnpm run dev:full` con una callout box che spiega perché. `pnpm run dev` documentato sotto come "advanced — assume storage già attivo".
 
 **c) `CLAUDE.md` root.** Aggiornare la sezione **Commands → Root**:
 
 ```diff
-- npm run dev        # Start API + Dashboard in parallel
-+ npm run dev:full   # Comando canonico: avvia MinIO + API + Dashboard
-+ npm run dev        # Solo API + Dashboard (richiede MinIO già attivo via `npm run dev:storage`)
+- pnpm run dev        # Start API + Dashboard in parallel
++ pnpm run dev:full   # Comando canonico: avvia MinIO + API + Dashboard
++ pnpm run dev        # Solo API + Dashboard (richiede MinIO già attivo via `pnpm run dev:storage`)
 ```
 
 **d) `docs/development.md`.** Sezione dedicata "Storage in development" che spiega:
 - Perché serve MinIO (presigned URL richiedono S3 compatibile vero).
-- Come avviarlo (`npm run dev:full` o `npm run dev:storage` separato).
+- Come avviarlo (`pnpm run dev:full` o `pnpm run dev:storage` separato).
 - Come accedere alla console MinIO (`http://localhost:9001`, credenziali da `.dev.vars`).
-- Come resettare lo stato (`npm run dev:storage:reset`).
+- Come resettare lo stato (`pnpm run dev:storage:reset`).
 
 ### 7.5 Accettazione
 
-- `npm run dev:full` da root: container MinIO up, bucket `beech-media` creato, API e Dashboard partono, upload end-to-end funziona (presign → PUT MinIO → confirm).
-- `npm run dev` da root (senza MinIO): API e Dashboard partono lo stesso, ma compare il warning nel log API.
+- `pnpm run dev:full` da root: container MinIO up, bucket `beech-media` creato, API e Dashboard partono, upload end-to-end funziona (presign → PUT MinIO → confirm).
+- `pnpm run dev` da root (senza MinIO): API e Dashboard partono lo stesso, ma compare il warning nel log API.
 - `docker compose down -v` ripulisce completamente lo stato MinIO.
 - README, CLAUDE.md e `docs/development.md` allineati come da §7.4.
 
@@ -623,9 +623,9 @@ Sezione **Media Engine** riscritta:
 ### 8.3 `docs/development.md`
 
 - Prerequisiti aggiornati: Node 20+, **Docker Desktop o Docker Engine** (nuovo).
-- Quick start canonico: `npm run dev:full`.
+- Quick start canonico: `pnpm run dev:full`.
 - Sezione "Storage in development" come da §7.4d.
-- Tabella comandi `npm run dev*` con casi d'uso.
+- Tabella comandi `pnpm run dev*` con casi d'uso.
 
 ### 8.4 `docs/guide.md`
 
@@ -656,7 +656,7 @@ Casi minimi:
 
 ### 9.2 Accettazione
 
-- `npm run test -w apps/api` passa.
+- `pnpm run test -w apps/api` passa.
 - Rimuovere test obsoleti che colpivano `POST /upload` proxied: non devono restare scheletri commentati.
 
 ---
@@ -670,8 +670,8 @@ Casi minimi:
 - [ ] `GET /api/upload/download-url/:key` ritorna URL firmata di lettura.
 - [ ] Limite dimensione enforced al presign, configurabile via `MAX_UPLOAD_BYTES` (default 50 MB, hard cap 500 MB).
 - [ ] Dashboard e RichtextEditor usano la stessa utility `uploadFile()` — niente codice duplicato.
-- [ ] `npm run dev:full` da root è sufficiente per avere l'ambiente di sviluppo completo (MinIO + API + Dashboard) con upload funzionante end-to-end.
-- [ ] `npm run dev` puro mostra warning prominente se MinIO non è attivo.
+- [ ] `pnpm run dev:full` da root è sufficiente per avere l'ambiente di sviluppo completo (MinIO + API + Dashboard) con upload funzionante end-to-end.
+- [ ] `pnpm run dev` puro mostra warning prominente se MinIO non è attivo.
 - [ ] README, `CLAUDE.md` e `docs/development.md` documentano Docker come prerequisito ufficiale.
 - [ ] Suite Vitest dell'API copre presign/confirm/download-url; nessun test residuo sul vecchio `/upload`.
 - [ ] Documentazione (`api-reference`, `architecture`, `development`, `guide`) allineata.

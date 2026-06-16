@@ -12,7 +12,7 @@
 > - `apps/dashboard/src/features/automations/schema/automation.schema.ts`
 > - `apps/dashboard/src/features/automations/components/action-forms/webhook-form.tsx`
 > - `apps/api/wrangler.jsonc`
-> - `apps/api/worker-configuration.d.ts` (rigenerato via `npm run cf-typegen`)
+> - `apps/api/worker-configuration.d.ts` (rigenerato via `pnpm run cf-typegen`)
 > - `docs/automations.md`
 > - `apps/api/src/features/automations/__tests__/automations.schema.test.ts`
 > - nuovo: `apps/api/src/features/automations/__tests__/webhook.executor.test.ts`
@@ -121,7 +121,7 @@ seed; nessun marker di "required".
 
 `vars` contiene già `JWT_SECRET`, `WEBHOOK_TESTER_URL`, etc. `WEBHOOK_SECRET`
 va aggiunto come `vars` per dev (placeholder) e come secret per produzione.
-La rigenerazione dei tipi via `npm run cf-typegen` riflette automaticamente
+La rigenerazione dei tipi via `pnpm run cf-typegen` riflette automaticamente
 la nuova chiave dentro `Env` (consumata da `ActionContext.env`).
 
 ### 2.7 Test esistente schema — `apps/api/src/features/automations/__tests__/automations.schema.test.ts:8`
@@ -254,7 +254,7 @@ In produzione il valore va impostato come secret:
 npx wrangler secret put WEBHOOK_SECRET
 ```
 
-Eseguire `npm run cf-typegen` per rigenerare `Env` con la nuova chiave.
+Eseguire `pnpm run cf-typegen` per rigenerare `Env` con la nuova chiave.
 
 ---
 
@@ -457,7 +457,7 @@ Poi:
 
 ```bash
 cd apps/api
-npm run cf-typegen
+pnpm run cf-typegen
 ```
 
 `worker-configuration.d.ts` ora include `WEBHOOK_SECRET: string`.
@@ -548,11 +548,11 @@ Aggiungere sezione "Webhook signature verification" con:
 
 ### Task 11 — Manual smoke
 
-1. `npm run build` in `packages/core` → green.
-2. `cd apps/api && npm run cf-typegen` → file types rigenerato senza errori.
-3. `npm run test` in root → tutte le suite verdi (vecchi test
+1. `pnpm run build` in `packages/core` → green.
+2. `cd apps/api && pnpm run cf-typegen` → file types rigenerato senza errori.
+3. `pnpm run test` in root → tutte le suite verdi (vecchi test
    `automations.schema.test.ts` aggiornati per body required).
-4. `npm run dev` → apri dashboard → crea automazione webhook:
+4. `pnpm run dev` → apri dashboard → crea automazione webhook:
    - URL `http://example.com` → form mostra errore HTTPS.
    - URL `https://localhost/x` → form mostra errore private host.
    - URL `https://example.com/hook` → accettato; textarea body
@@ -571,8 +571,8 @@ Aggiungere sezione "Webhook signature verification" con:
 
 ## 6. Validation
 
-- `npm run build` (core), `npx tsc --noEmit` (api, dashboard) — zero errori.
-- `npm run test` in `apps/api/` — `webhook.executor.test.ts` e
+- `pnpm run build` (core), `npx tsc --noEmit` (api, dashboard) — zero errori.
+- `pnpm run test` in `apps/api/` — `webhook.executor.test.ts` e
   `automations.schema.test.ts` aggiornati passano; tutte le altre suite
   invariate (`automations.handler`, `automations.repository`,
   `automation-runner`, etc.) restano verdi.

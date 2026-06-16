@@ -7,7 +7,7 @@
 
 Depends on [Sprint 05](./05-dashboard-builder-ui.md) (builder + config-sheet
 plumbing the SDK plugs into). This sprint makes the widget catalog a **public
-extension point**: third-party widgets shipped as npm packages, registered at
+extension point**: third-party widgets shipped as pnpm packages, registered at
 build time, configured in the builder like built-ins.
 
 Per decision **D9**: build-time registration only. The dashboard is a static
@@ -74,7 +74,7 @@ You are a senior TypeScript engineer working on the **Beech CMS monorepo**.
    and one SDK data hook call — serving as living documentation and a
    compile-time test of the SDK surface.
 4. **Author documentation** `docs/custom-widgets.md`: contract, lifecycle,
-   naming rules (`type` = npm package name, optionally `pkg/sub-name` for
+   naming rules (`type` = pnpm package name, optionally `pkg/sub-name` for
    multi-widget packs), config conventions (**`seedSlug` key ⇒ auto-cleanup**,
    8 KB config cap, no secrets in config — it's stored server-side in
    `dashboard_layouts` readable by any authenticated dashboard user), i18n
@@ -146,7 +146,7 @@ Example + docs:
 
 ## 5. ACCEPTANCE
 
-1. Monorepo builds end-to-end (`npm run build` at root); dashboard imports the
+1. Monorepo builds end-to-end (`pnpm run build` at root); dashboard imports the
    contract solely via the SDK.
 2. `defineWidget` rejects `core/foo` and malformed types (tests); accepts
    `@acme/thing` and `acme-widgets/clock`.
@@ -156,7 +156,7 @@ Example + docs:
    unavailable-placeholder without breaking the stored layout.
 4. SDK hooks hit the mocked client through `WidgetSdkProvider` (no hardcoded
    axios import inside the SDK — test asserts injection).
-5. `docs/custom-widgets.md` walks an author from `npm init` to a rendered
+5. `docs/custom-widgets.md` walks an author from `pnpm init` to a rendered
    widget, including the security paragraph (trusted code, no secrets in
    config, config visible to all authenticated users).
 
@@ -169,7 +169,7 @@ Example + docs:
   dependency direction (SDK must not depend on the app). *Default: move the
   shell component into the SDK and have the dashboard consume it from there —
   same maneuver as the hooks.*
-- **Publish `@beechcms/widget-sdk` to npm in this sprint?** *Default: build it
+- **Publish `@beechcms/widget-sdk` to pnpm in this sprint?** *Default: build it
   publish-ready (files/exports map), but actual publishing follows the repo's
   existing release process — out of scope.*
 - **CLI scaffold (`beech create-widget`)?** Natural follow-up for the dev-cli

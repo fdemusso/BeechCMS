@@ -267,7 +267,7 @@ sidebar shows no content types, content routes for any slug return the existing
 
 ## 9. Acceptance criteria
 
-- [ ] `npm run build` + `npm run test` pass.
+- [ ] `pnpm run build` + `pnpm run test` pass.
 - [ ] `index.ts` no longer imports `seed.ts`; grep for `seed.ts` in `apps/api/src` is clean.
 - [ ] No handler signature changed; `ISeedRegistry` is still synchronous.
 - [ ] Inserting a row into `seeds` (active) makes it appear in `GET /api/schema` on the

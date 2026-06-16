@@ -35,7 +35,7 @@ interface, RFC 7807 endpoints, an RBAC constant in core, and a dnd-kit builder.
 | [04 — Built-in Widgets](./04-builtin-widgets.md) | New configurable widgets: KPI stat card, line/bar/area chart, pie/donut chart, data table, text/notes. Adds the missing `distribution` query to `IWidgetRepository` + `GET /api/widget/distribution/:seed`. |
 | [05 — Dashboard Builder UI](./05-dashboard-builder-ui.md) | Admin-only drag-and-drop builder dialog (`@dnd-kit`): page manager, section/column editing, widget picker, per-widget config panel, Save / Reset / Preview. |
 | [06 — Role-based Dashboards](./06-role-based-dashboards.md) | Optional. Scope resolution `role:{role}` → `default` → generated default; scope switcher in the builder. |
-| [07 — Custom Widget SDK](./07-custom-widget-sdk.md) | Optional. `@beechcms/widget-sdk` package: `defineWidget()`, data hooks over `/api/widget/*`, build-time registration entry point for npm-installable widget packages, author documentation. |
+| [07 — Custom Widget SDK](./07-custom-widget-sdk.md) | Optional. `@beechcms/widget-sdk` package: `defineWidget()`, data hooks over `/api/widget/*`, build-time registration entry point for pnpm-installable widget packages, author documentation. |
 
 ## Execution order
 
@@ -60,7 +60,7 @@ interface, RFC 7807 endpoints, an RBAC constant in core, and a dnd-kit builder.
   12-unit span grid (`columnSpans`, e.g. `[8, 4]`); columns stack widgets
   vertically in order. This is what makes drag-and-drop tractable.
 - **D3 — Namespaced widget types.** Built-ins are `core/<name>` (e.g.
-  `core/stat`, `core/line-chart`). Custom widgets use their npm package name
+  `core/stat`, `core/line-chart`). Custom widgets use their pnpm package name
   (e.g. `@acme/weather`). The renderer shows an "unavailable widget" placeholder
   for unknown types — it never silently destroys them on read. Stripping only
   happens when an admin explicitly deletes the widget in the builder.
@@ -85,7 +85,7 @@ interface, RFC 7807 endpoints, an RBAC constant in core, and a dnd-kit builder.
   Drag-and-drop: `@dnd-kit/*` (already installed, already used by the
   entry-editor layout builder). Forms: existing Shadcn inputs.
 - **D9 — Custom widgets are build-time, not runtime-loaded.** The dashboard is a
-  static SPA; widget packages are npm dependencies registered in a single
+  static SPA; widget packages are pnpm dependencies registered in a single
   `widgets.custom.ts` entry point at build time. No remote code loading, no
   sandboxing requirement — custom widgets are trusted code.
 - **D10 — i18n.** Built-in widget names/descriptions are i18n keys resolved via

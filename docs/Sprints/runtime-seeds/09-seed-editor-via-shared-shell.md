@@ -353,7 +353,7 @@ is false in the shell because Seed deletion has its own reference-guard flow fro
 - [ ] Capability flags hide all entry-specific chrome for Seeds.
 - [ ] `SeedEditorDialog` and `BranchEditor` are deleted; no dangling imports.
 - [ ] Mutations still invalidate `["schema"]` so the sidebar/content views update live.
-- [ ] `npm run lint`, `npm run build`, `npm run test` pass in `apps/dashboard`.
+- [ ] `pnpm run lint`, `pnpm run build`, `pnpm run test` pass in `apps/dashboard`.
 
 ## 10. Do NOT
 

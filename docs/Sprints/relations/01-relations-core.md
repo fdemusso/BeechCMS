@@ -15,7 +15,7 @@ dashboard work, no migration tooling — those are delivered in Sprints 2–4.
 - API: Hono on Cloudflare Workers, D1 (SQLite, FTS5)
 - Dashboard: React 19 + Vite + TanStack Query v5
 - Shared: `@beechcms/core` (pure TypeScript, no HTTP / cloud deps)
-- Monorepo: Turborepo / npm workspaces
+- Monorepo: Turborepo / pnpm workspaces
 
 ==========================================================================
 SECTION 1 — RELEVANT FILES (current state)
@@ -369,7 +369,7 @@ SECTION 7 — COMPLETION CHECKLIST
 [ ] `generateIndexes` always emits a B-tree index for relation branches.
 [ ] Draft mirror tables contain no `REFERENCES` for relation columns.
 [ ] `sortSeedsByDependencies` is exported from `seed-registry.ts` and from the barrel.
-[ ] All new tests pass (`npm run test` in `packages/core`).
+[ ] All new tests pass (`pnpm run test` in `packages/core`).
 [ ] Existing tests still pass — no regression on `text`, `number`, `boolean`,
     `date`, `json`, `richtext`, `file`, `tags`.
 [ ] No file outside `packages/core/src/` was touched.

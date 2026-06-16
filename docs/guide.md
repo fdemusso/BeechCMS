@@ -82,10 +82,10 @@ BeechCMS does **not** include frontend rendering — it is a backend-only headle
 |---|---|
 | **Node.js 18+** | For running the CLI and Wrangler |
 | **Cloudflare account** | Free tier is sufficient for development and small production sites |
-| **`npx` / `npm`** | Comes with Node.js |
+| **`npx` / `pnpm`** | Comes with Node.js |
 | **Wrangler** | Installed automatically by the scaffold (`devDependencies`) |
 
-You do **not** need Docker to use BeechCMS from the npm package. Docker is only needed if you are developing BeechCMS itself from the monorepo source.
+You do **not** need Docker to use BeechCMS from the pnpm package. Docker is only needed if you are developing BeechCMS itself from the monorepo source.
 
 ---
 
@@ -140,7 +140,7 @@ import { SEED_REGISTRY } from './seeds'
 export default createBeechApp({ seeds: Object.values(SEED_REGISTRY) })
 ```
 
-The entire CMS engine, dashboard, and API live inside `node_modules/@beechcms/api` — updatable with `npm update @beechcms/api`.
+The entire CMS engine, dashboard, and API live inside `node_modules/@beechcms/api` — updatable with `pnpm update @beechcms/api`.
 
 ---
 
@@ -299,7 +299,7 @@ QSTASH_CALLBACK_URL=https://<your-tunnel-url>
 ## 7. Running Locally
 
 ```bash
-npm install                     # first time only
+pnpm install                     # first time only
 npx beech onboard --local --yes # initialise D1 tables and load seeds.ts
 npx wrangler dev                # start the Worker on http://localhost:8789
 ```
@@ -868,7 +868,7 @@ npx wrangler secret put QSTASH_NEXT_SIGNING_KEY       # if using QStash webhook 
 
 ```bash
 # Deploy the Worker code and apply system migrations
-npm run deploy
+pnpm run deploy
 
 # Synchronize your seeds.ts schema to production D1 (if using code-first)
 npx beech seed:load
@@ -887,7 +887,7 @@ npx beech init --db --remote
 
 ## 15. Updating BeechCMS
 
-Use `beech update` instead of `npm install` to ensure system migrations are applied alongside the package update:
+Use `beech update` instead of `pnpm install` to ensure system migrations are applied alongside the package update:
 
 ```bash
 npx beech update
@@ -898,7 +898,7 @@ This single command:
 2. Applies any new system migrations to your local D1 database.
 3. Prints next steps to sync local and remote schema.
 
-Follow the printed instructions (usually `npx beech seed:load --local`, then `npm run deploy`, then `npx beech seed:load`).
+Follow the printed instructions (usually `npx beech seed:load --local`, then `pnpm run deploy`, then `npx beech seed:load`).
 
 ---
 
@@ -943,4 +943,4 @@ Follow the printed instructions (usually `npx beech seed:load --local`, then `np
 | Command | Description |
 |---|---|
 | `npx wrangler dev` | Start the Worker locally on port 8789 |
-| `npm run deploy` | Deploy the Worker to Cloudflare |
+| `pnpm run deploy` | Deploy the Worker to Cloudflare |

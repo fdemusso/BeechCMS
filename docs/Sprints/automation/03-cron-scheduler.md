@@ -582,16 +582,16 @@ SECTION 5 — VALIDATION
 
 Run from repo root after all tasks:
 
-  1. `npm run build` in `packages/core/` — no changes; must still emit
+  1. `pnpm run build` in `packages/core/` — no changes; must still emit
      cleanly.
   2. `npx tsc --noEmit` in `apps/api/` — zero errors. The
      `satisfies ExportedHandler<Env>` clause is the critical type gate.
-  3. `npm run test` in `apps/api/` — new tests pass; existing tests
+  3. `pnpm run test` in `apps/api/` — new tests pass; existing tests
      unaffected (the `scheduled` export is invisible to `app.fetch`-
      based test runners).
-  4. `npm run db:reset:local` in `apps/api/` — no migration changes,
+  4. `pnpm run db:reset:local` in `apps/api/` — no migration changes,
      should be a no-op rerun.
-  5. `npm run dev` at root — API boots (:8789), Dashboard boots (:5173).
+  5. `pnpm run dev` at root — API boots (:8789), Dashboard boots (:5173).
   6. Smoke test (manual cron trigger):
 
      a. `wrangler d1 execute beech-db --local --command "INSERT INTO automations (id, seed_slug, name, enabled, trigger_event, trigger_cron, trigger_conditions, actions, created_at, updated_at) VALUES ('cron_test_01', 'posts', 'every-minute', 1, 'cron', '* * * * *', NULL, '[{\"type\":\"webhook\",\"url\":\"https://webhook.site/<id>\"}]', unixepoch(), unixepoch())"`

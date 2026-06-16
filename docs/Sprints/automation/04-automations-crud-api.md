@@ -799,16 +799,16 @@ SECTION 5 — VALIDATION
 
 Run from repo root after all tasks:
 
-  1. `npm run build` in `packages/core/` — no changes; emits cleanly.
+  1. `pnpm run build` in `packages/core/` — no changes; emits cleanly.
   2. `npx tsc --noEmit` in `apps/api/` — zero errors. The
      `IAutomationRepository` implementation completeness is the
      critical type gate.
-  3. `npm run test` in `apps/api/` — new tests pass; existing tests
+  3. `pnpm run test` in `apps/api/` — new tests pass; existing tests
      unaffected. The added `automationRepository` context key is
      additive.
-  4. `npm run db:reset:local` in `apps/api/` — no migration changes,
+  4. `pnpm run db:reset:local` in `apps/api/` — no migration changes,
      no-op rerun.
-  5. `npm run dev` at root — API boots (:8789), Dashboard boots (:5173).
+  5. `pnpm run dev` at root — API boots (:8789), Dashboard boots (:5173).
   6. Smoke test (cURL, after logging in to get a JWT):
 
      a. Create:

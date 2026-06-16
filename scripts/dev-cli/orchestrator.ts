@@ -427,7 +427,7 @@ export class Orchestrator extends TypedEmitter<OrchestratorEvents> {
       updateDevVars({ QSTASH_CALLBACK_URL: tunnelUrl }, ['QSTASH_CALLBACK_URL'])
       this.updateService('tunnel', { status: 'ready', detail: tunnelUrl })
     } else {
-      this.updateService('tunnel', { status: 'error', detail: 'Tunnel URL not detected (run `npm run dev:tunnel-url`).' })
+      this.updateService('tunnel', { status: 'error', detail: 'Tunnel URL not detected (run `pnpm dev:tunnel-url`).' })
     }
   }
 
@@ -473,9 +473,9 @@ export class Orchestrator extends TypedEmitter<OrchestratorEvents> {
 
   private startDevServer(spec: DevServerSpec): void {
     this.updateService(spec.id, { status: 'starting', detail: 'Starting…' })
-    this.logLine(spec.id, `Starting dev server: npm run dev -w ${spec.workspace}...`)
+    this.logLine(spec.id, `Starting dev server: pnpm --filter ${spec.workspace} run dev...`)
 
-    const subprocess = execa('npm', ['run', 'dev', '-w', spec.workspace], {
+    const subprocess = execa('pnpm', ['--filter', spec.workspace, 'run', 'dev'], {
       reject: false,
       all: true,
       shell: true,

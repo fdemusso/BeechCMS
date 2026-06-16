@@ -16,7 +16,7 @@
     "@tanstack/react-query": "^5.0.0"
   },
   "dependencies": {
-    "@beechcms/widget-sdk": "^0.6.0-preview.2",
+    "@beechcms/widget-sdk": "workspace:^0.6.0-preview.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {

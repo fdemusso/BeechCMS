@@ -263,7 +263,7 @@ Modified:
 
 ## 6. ACCEPTANCE
 
-1. `npx tsc --noEmit` green in core, api, dashboard; all `npm run test` suites pass.
+1. `npx tsc --noEmit` green in core, api, dashboard; all `pnpm run test` suites pass.
 2. **distribution:** repository test over D1TestDatabase — seeded rows grouped
    correctly, NULL bucket labeled, limit respected, window bracket applied,
    unsafe column rejected. Handler test: 200 happy path, 400 missing/unsafe

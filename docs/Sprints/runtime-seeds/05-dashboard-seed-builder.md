@@ -210,7 +210,7 @@ Testing Library + vitest (match existing dashboard tests, e.g. those under
       change (UI), warns on field removal.
 - [ ] Soft-delete works with confirmation + reference guard.
 - [ ] All text via `t()`; keys in both locales.
-- [ ] `npm run lint`, `npm run build`, `npm run test` pass in `apps/dashboard`.
+- [ ] `pnpm run lint`, `pnpm run build`, `pnpm run test` pass in `apps/dashboard`.
 
 ## 10. Do NOT
 

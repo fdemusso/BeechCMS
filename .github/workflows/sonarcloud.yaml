@@ -17,19 +17,22 @@ jobs:
           # Disabilita i cloni superficiali: SonarCloud deve leggere tutta la storia per funzionare bene
           fetch-depth: 0 
 
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Install Dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build packages (Core & Widget SDK)
         run: |
-          npm run build -w @beechcms/core
-          npm run build -w @beechcms/widget-sdk
+          pnpm --filter @beechcms/core build
+          pnpm --filter @beechcms/widget-sdk build
 
       - name: Start Docker Stack
         uses: ./.github/actions/docker-stack
@@ -46,7 +49,7 @@ jobs:
           SMTP_HOST: localhost
           SMTP_PORT: '8025'
           WEBHOOK_TESTER_URL: http://localhost:8084
-        run: npm run test:coverage
+        run: pnpm run test:coverage
 
       - name: Esegui SonarCloud Scan Ufficiale
         uses: SonarSource/sonarqube-scan-action@v6.0.0

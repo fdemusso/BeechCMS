@@ -457,8 +457,8 @@ Deleted (after verifying no external import):
 
 ## 9. ACCEPTANCE
 
-1. **Types & build:** `npm run build` at root passes (core builds first).
-   `npm run dev` starts API and dashboard cleanly.
+1. **Types & build:** `pnpm run build` at root passes (core builds first).
+   `pnpm run dev` starts API and dashboard cleanly.
 2. **Direct link works:** open `/content/articoli/<id>` in the browser → list
    page loads, dialog is open with the entry. Closing it → URL becomes
    `/content/articoli`, list still shows.
