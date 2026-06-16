@@ -1,6 +1,6 @@
 # Sprint: Dev CLI interattiva con Ink
 
-> Sostituzione dell'output disordinato di `npm run dev:full` con un pannello TUI (Terminal UI) a tutto schermo, interattivo e navigabile, costruito con **Ink** (React per CLI).
+> Sostituzione dell'output disordinato di `pnpm run dev:full` con un pannello TUI (Terminal UI) a tutto schermo, interattivo e navigabile, costruito con **Ink** (React per CLI).
 
 **Stato**: 📋 Pianificato
 **File coinvolti**: `scripts/dev.mjs`, `package.json`, nuova cartella `scripts/dev-cli/`
@@ -129,9 +129,9 @@ Oggi `turbo run dev` interlaccia tre stream con prefissi (`@beechcms/core:dev:`,
 
 - **(A) Mantenere Turbo** e demultiplexare via parsing dei prefissi di riga.
 - **(B) Spawnare i tre processi direttamente** dall'orchestrator:
-  - `npm run dev -w packages/core` (tsc -w)
-  - `npm run dev -w apps/api` (wrangler dev --port 8789)
-  - `npm run dev -w apps/dashboard` (vite)
+  - `pnpm run dev -w packages/core` (tsc -w)
+  - `pnpm run dev -w apps/api` (wrangler dev --port 8789)
+  - `pnpm run dev -w apps/dashboard` (vite)
 
 **Scelta: (B)**. Motivi: stream nativamente separati per scheda (niente parsing fragile dei prefissi Turbo, che cambiano formato tra versioni); elimina alla radice il banner e gli avvisi di update di Turborepo; controllo individuale del ciclo di vita (es. riavviare solo l'API in futuro). L'ordine di avvio rispetta la dipendenza: `core` (tsc -w) parte per primo; API e Dashboard partono subito dopo (come fa già Turbo, che non attende il watch mode).
 
@@ -158,7 +158,7 @@ interface LogLine {
 
 `log-filters.ts` esporta una lista ordinata di regole pure (`(line: string) => 'drop' | 'error' | 'pass'`). Regole iniziali di **drop** (rumore):
 
-- Avvisi update Wrangler: `/wrangler \d+\.\d+\.\d+ is now available/`, `/Run npm install.*wrangler/`, banner `▲ [WARNING]` relativi alla versione.
+- Avvisi update Wrangler: `/wrangler \d+\.\d+\.\d+ is now available/`, `/Run pnpm install.*wrangler/`, banner `▲ [WARNING]` relativi alla versione.
 - Banner/update Turbo (difensivo, anche se con l'opzione B non dovrebbero più apparire).
 - Righe di access-log dell'API a basso valore: `/^\[wrangler:info\] (GET|POST|PUT|PATCH|DELETE) .* 2\d\d/` (le 4xx/5xx invece **passano** e vengono classificate `warn`/`error`).
 - Heartbeat/righe vuote ripetute di Vite (`hmr update` può restare, è utile).
@@ -206,7 +206,7 @@ In una iterazione successiva si può valutare un endpoint di debug `GET /api/__r
 
 Requisito: chiusura pulita di **tutti** i processi e container in ogni scenario (q, Ctrl+C, SIGINT, SIGTERM, crash della TUI).
 
-1. **Spawn con `execa`** e senza `shell: true` dove possibile (`npm run dev -w ...` su Windows richiede `npm.cmd` o `execa` con `preferLocal`; execa gestisce il caso). Ogni processo riceve un `AbortSignal` da un `AbortController` centrale.
+1. **Spawn con `execa`** e senza `shell: true` dove possibile (`pnpm run dev -w ...` su Windows richiede `pnpm.cmd` o `execa` con `preferLocal`; execa gestisce il caso). Ogni processo riceve un `AbortSignal` da un `AbortController` centrale.
 2. **Sequenza di shutdown** (funzione `shutdown()` idempotente, guard `cleaningUp` come oggi):
    1. La UI passa allo stato "Shutting down..." (la TUI resta visibile durante lo shutdown).
    2. `controller.abort()` → execa termina i figli; su Windows execa usa `taskkill /T` per uccidere l'intero albero (cruciale: `wrangler dev` e `vite` spawnano sotto-processi che con il vecchio `spawn(..., {shell: true})` potevano sopravvivere).
@@ -271,7 +271,7 @@ if (process.stdout.isTTY && !process.env.BEECH_DEV_PLAIN) {
 
 | Fase | Contenuto | Output verificabile |
 |---|---|---|
-| **1. Estrazione orchestrator** | Spostare porte/.dev.vars/docker/tunnel/bootstrap in `orchestrator.ts` con modello `ManagedService` + eventi; creare `legacy-runner.mjs` che lo consuma con output identico a oggi | `npm run dev:full` funziona come prima (zero regressioni), ma su architettura nuova |
+| **1. Estrazione orchestrator** | Spostare porte/.dev.vars/docker/tunnel/bootstrap in `orchestrator.ts` con modello `ManagedService` + eventi; creare `legacy-runner.mjs` che lo consuma con output identico a oggi | `pnpm run dev:full` funziona come prima (zero regressioni), ma su architettura nuova |
 | **2. Log store + filtri** | `log-store.ts`, `log-filters.ts`, switch dei dev server da Turbo a spawn diretti con `stdio: 'pipe'` | Unit test dei filtri verdi; legacy-runner stampa i log già filtrati |
 | **3. TUI base** | `index.tsx`, `DevApp`, `StatusPanel`, `TabBar`; schede 2–3 con `LogView` scrollabile | Avvio TUI completo: stato servizi live, log navigabili |
 | **4. Errori + schede 4–5** | `ErrorBar` con tasto `d`, `EndpointsView` (parsing statico), `VersionsView` | Demo: errore D1 indotto → visibile compatto → `d` espande lo stack |
@@ -302,10 +302,10 @@ Le fasi 1–2 sono pura ristrutturazione senza UI e possono essere mergiate indi
 
 ### 8.3 Smoke test manuali (checklist di fase 5–6)
 
-1. `npm run dev:full` su Windows Terminal: tutte le spunte verdi, tunnel URL visibile.
+1. `pnpm run dev:full` su Windows Terminal: tutte le spunte verdi, tunnel URL visibile.
 2. Indurre un errore (es. fermare manualmente il container minio) → riga Docker passa a ✖, errore compatto in scheda 1.
 3. `q` e `Ctrl+C`: verificare `docker compose ps` vuoto e assenza di processi `workerd`/`node` orfani in Task Manager.
-4. `BEECH_DEV_PLAIN=1 npm run dev:full` e `npm run dev:full | Tee-Object log.txt` (non-TTY) → fallback a log piatti.
+4. `BEECH_DEV_PLAIN=1 pnpm run dev:full` e `pnpm run dev:full | Tee-Object log.txt` (non-TTY) → fallback a log piatti.
 5. Resize del terminale durante l'esecuzione → layout si riadatta senza artefatti.
 
 ---
@@ -319,7 +319,7 @@ Le fasi 1–2 sono pura ristrutturazione senza UI e possono essere mergiate indi
 | Pattern "ready" che cambiano con gli update di Wrangler/Vite | Pattern in costanti centralizzate con timeout: se il pattern non matcha entro 60s ma il processo è vivo e la porta risponde, lo stato passa comunque a `ready` (probe TCP sulla porta come fonte di verità secondaria) |
 | Filtri troppo aggressivi che nascondono errori reali | I filtri droppano solo pattern espliciti allow-listed; tutto il resto passa. Le righe droppate restano comunque consultabili (scheda 5 per gli update notice) |
 | Parsing endpoint fragile | Best-effort con fallback statico; non blocca mai l'avvio |
-| Conflitto versioni React (root vs dashboard) | npm workspaces isola le dipendenze; `react` root usato solo da `tsx`/Ink, mai importato dai workspace |
+| Conflitto versioni React (root vs dashboard) | pnpm workspaces isola le dipendenze; `react` root usato solo da `tsx`/Ink, mai importato dai workspace |
 
 ---
 

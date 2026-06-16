@@ -5,7 +5,7 @@
 
 ## Supported Versions
 
-Security fixes are applied only to the latest published version of the `beechcms` npm package. Older versions do not receive backported patches.
+Security fixes are applied only to the latest published version of the `beechcms` pnpm package. Older versions do not receive backported patches.
 
 | Version | Supported |
 |---|---|
@@ -38,7 +38,7 @@ The more detail you provide, the faster the issue can be assessed and resolved.
 
 1. **Acknowledgement within 48 hours** — you will receive a reply confirming the report was received and is under review.
 2. **Assessment within 7 days** — the report will be evaluated for severity and reproducibility. You will be informed whether it is accepted as a valid vulnerability.
-3. **Fix and coordinated disclosure** — once a fix is ready, it will be released as a new npm version. You will be notified before public disclosure so you can verify the fix. Credit will be given in the release notes unless you prefer to remain anonymous.
+3. **Fix and coordinated disclosure** — once a fix is ready, it will be released as a new pnpm version. You will be notified before public disclosure so you can verify the fix. Credit will be given in the release notes unless you prefer to remain anonymous.
 
 ---
 

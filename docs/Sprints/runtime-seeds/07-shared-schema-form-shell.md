@@ -299,7 +299,7 @@ The whole point of this sprint is **invisibility**. Add/keep:
       wrapper.
 - [ ] Entry-specific chrome (drafts, backrefs, delete, layout-builder) is capability-gated.
 - [ ] All existing dashboard tests pass; new shell capability tests added.
-- [ ] `npm run lint`, `npm run build`, `npm run test` pass in `apps/dashboard`.
+- [ ] `pnpm run lint`, `pnpm run build`, `pnpm run test` pass in `apps/dashboard`.
 
 ## 10. Do NOT
 

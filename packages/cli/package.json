@@ -13,7 +13,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "^0.6.0-preview.2",
+    "@beechcms/core": "workspace:^0.6.0-preview.2",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {

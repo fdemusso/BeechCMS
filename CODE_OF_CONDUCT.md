@@ -40,7 +40,7 @@ Beyond general conduct, contributors are expected to engage with the codebase re
 - **Ask before refactoring.** Large architectural changes should be discussed in an issue before implementation begins.
 - **Do not submit incomplete work as finished.** A pull request that leaves half-resolved logic, open `TODO` comments without issue references, or broken tests wastes everyone's time.
 - **Review seriously.** If you approve a pull request, you share responsibility for what it introduces. A rubber-stamp approval is not a review.
-- **Respect the branching strategy.** All work goes to `devs`. The `master` branch is managed exclusively by the project owner and reflects published npm releases. Direct pushes to `master` are not acceptable.
+- **Respect the branching strategy.** All work goes to `devs`. The `master` branch is managed exclusively by the project owner and reflects published pnpm releases. Direct pushes to `master` are not acceptable.
 
 ---
 

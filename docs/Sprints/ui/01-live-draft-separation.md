@@ -502,9 +502,9 @@ SECTION 5 — VALIDATION
 ==========================================================================
 
 1. **Typecheck**: `npx tsc --noEmit` in `packages/core`, `apps/api`, and `apps/dashboard`
-   (build core first: `npm run build` in `packages/core`, since api/dashboard depend on its types).
-2. **Tests**: `npm run test` in `apps/api` (repository/handler cases) and `apps/dashboard`.
-3. **Manual** (`npm run dev` at root; dashboard on http://localhost:5173/admin):
+   (build core first: `pnpm run build` in `packages/core`, since api/dashboard depend on its types).
+2. **Tests**: `pnpm run test` in `apps/api` (repository/handler cases) and `apps/dashboard`.
+3. **Manual** (`pnpm run dev` at root; dashboard on http://localhost:5173/admin):
    - Save a draft on a draft-enabled seed (e.g. an article).
    - Open "Drafts" / "Bozze" in the sidebar.
    - Verify the row shows: Type = seed label, Name = your title (links to the editor),

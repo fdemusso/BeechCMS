@@ -91,7 +91,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - Automation table: `automations` (id, seed_slug, name, enabled, trigger_event, trigger_cron, trigger_conditions JSON, actions JSON, created_at, updated_at). Indexed on `seed_slug` and `enabled`.
 
 - **Architecture & Tooling**
-  - Monorepo **Turborepo** (`turbo` `^2.8.7`) with **npm workspaces**
+  - Monorepo **Turborepo** (`turbo` `^2.8.7`) with **pnpm workspaces**
   - Shared package `@beechcms/core` (version `0.5.0`) for types, seeds, and the Botanical Engine
 
 ---
@@ -225,7 +225,7 @@ This high-level system map is designed for onboarding new contributors and for A
     - `IDemoDataRepository` (`packages/core/src/demo-data.repository.ts`) — contract for seeding and clearing demo content.
   - **Webhook validation:**
     - `webhook-validation.ts` — helpers for validating inbound webhook signatures (used by the `webhooks` feature in the API).
-- **Build**: `npm run build -w @beechcms/core` and `npm run build -w @beechcms/widget-sdk` produce `dist/` with JS and `.d.ts`, consumed by the apps.
+- **Build**: `pnpm --filter @beechcms/core` and `pnpm --filter @beechcms/widget-sdk` produce `dist/` with JS and `.d.ts`, consumed by the apps.
 
 ---
 

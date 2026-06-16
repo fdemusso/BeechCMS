@@ -1,7 +1,7 @@
 ## ── Sprint 4: Scaffolding, CLI DX & Logging Custom ──
 
 ### Problema
-Quando uno sviluppatore crea un nuovo progetto Beech usando `npm create beechcms@latest`, ottiene una configurazione vuota. Non ci sono esempi pratici di rotte custom, middleware o hook sincroni. Inoltre, i log delle rotte custom create dagli sviluppatori non compaiono nel sistema di monitoraggio locale di Beech (`dev-cli` TUI).
+Quando uno sviluppatore crea un nuovo progetto Beech usando `pnpm create beechcms@latest`, ottiene una configurazione vuota. Non ci sono esempi pratici di rotte custom, middleware o hook sincroni. Inoltre, i log delle rotte custom create dagli sviluppatori non compaiono nel sistema di monitoraggio locale di Beech (`dev-cli` TUI).
 
 ### Soluzione proposta
 Migliorare lo scaffolding e l'integrazione del logging.

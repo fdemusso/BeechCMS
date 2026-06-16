@@ -25,13 +25,13 @@ const ROOT = resolve(__dirname, '..')
 
 const args = process.argv.slice(2)
 
-// Support both --preview flag and npm config (npm run release --preview)
+// Support both --preview flag and npm config (pnpm release --preview)
 const isPreview = args.includes('--preview') || process.env.npm_config_preview === 'true'
 
-// Support both --dry-run flag and npm config (npm run release --dry-run)
+// Support both --dry-run flag and npm config (pnpm release --dry-run)
 const isDryRun = args.includes('--dry-run') || process.env.npm_config_dry_run === 'true'
 
-// Support --bump patch, npm config, or positional argument (npm run release patch)
+// Support --bump patch, npm config, or positional argument (pnpm release patch)
 const validBumps = ['patch', 'minor', 'major']
 const bumpIdx = args.indexOf('--bump')
 let bump = bumpIdx !== -1 ? args[bumpIdx + 1] : null
@@ -104,7 +104,7 @@ function computeNextVersion(current, bump, preview) {
   if (!bump) {
     if (!v.isPreview) {
       log(`  ⚠️  Current version ${current} is already stable.`)
-      log(`     To release a new version, use: npm run release patch|minor|major`)
+      log(`     To release a new version, use: pnpm release patch|minor|major`)
       log('')
       return current // We'll handle the 'no change' case in main
     }
@@ -215,13 +215,13 @@ log('')
 log('2/4  Building packages...')
 
 try {
-  run('npm run type-check')
+  run('pnpm run type-check')
 } catch {
   rollback('Type-check failed.')
 }
 
 try {
-  run('npm run build')
+  run('pnpm run build')
 } catch {
   rollback('Build failed.')
 }
@@ -257,7 +257,7 @@ for (const pkg of PACKAGES) {
   
   log(`     publishing ${pkg.name}...`)
   try {
-    run(`npm publish --access public --tag ${npmTag}`, { cwd: resolve(pkg.path, '..') })
+    run(`pnpm publish --access public --no-git-checks --tag ${npmTag}`, { cwd: resolve(pkg.path, '..') })
   } catch {
     rollback(`Publish failed for ${pkg.name}.\n  Note: previously published packages in this run are NOT rolled back on npm — bump manually if needed.`)
   }

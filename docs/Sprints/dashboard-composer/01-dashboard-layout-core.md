@@ -18,7 +18,7 @@ D1–D10 are binding and are not repeated in full here.
 
 You are a senior TypeScript engineer working on the **Beech CMS monorepo** (Turborepo).
 
-1. **This sprint touches only `packages/core`.** Build with `npm run build` in
+1. **This sprint touches only `packages/core`.** Build with `pnpm run build` in
    `packages/core`; tests with `vitest` (the package already has `*.test.ts` files
    colocated with sources).
 2. **Mirror the entry-editor layout module.** `packages/core/src/seed-layout.ts`
@@ -53,7 +53,7 @@ You are a senior TypeScript engineer working on the **Beech CMS monorepo** (Turb
   array parallel to `columns`; when absent, columns split equally. 1–4 columns
   per section.
 - **(D3)** `DashboardWidgetInstance.type` is a namespaced string. Validation
-  regex: `^[a-z0-9@][a-z0-9@/_-]*$` (lowercase npm-name-compatible). Built-ins
+  regex: `^[a-z0-9@][a-z0-9@/_-]*$` (lowercase pnpm-name-compatible). Built-ins
   use the `core/` prefix; this module does **not** know the list of valid
   types — that knowledge lives in the frontend registry (Sprint 03) and,
   optionally, in the validator context.
@@ -322,7 +322,7 @@ export function canEditDashboard(role: string | undefined | null): boolean {
 
 ## 9. ACCEPTANCE
 
-1. `npm run build` passes in `packages/core`; `npm run test` (vitest) passes.
+1. `pnpm run build` passes in `packages/core`; `pnpm run test` (vitest) passes.
 2. **Generator tests** (deterministic via injected `newId`):
    - 0 seeds → 1 page, 2 sections (setup + status with 3 columns), no
      content/media sections, every widget id unique.

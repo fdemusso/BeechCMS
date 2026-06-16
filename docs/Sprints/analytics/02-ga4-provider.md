@@ -267,7 +267,7 @@ SECTION 7 — COMPLETION CHECKLIST
 - [ ] `types.ts` updated with the three optional bindings and the new
       `Variables` entry.
 - [ ] All tests in §5 pass.
-- [ ] `npm run test -w @beechcms/api` green.
+- [ ] `pnpm run test -w @beechcms/api` green.
 - [ ] `wrangler dev` boots without errors when GA4 secrets are absent
       (NoOp path).
 - [ ] `SYSTEM_MAP.md` updated: middleware list + `Variables` table.

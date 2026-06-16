@@ -283,7 +283,7 @@ Empty input → `undefined` (clears the bound). If you skip this, bounds are aut
       (author → validate → write → read).
 - [ ] No new `BranchType`; engine DDL, serialization, FTS/index/junction, and retype
       paths are **untouched**.
-- [ ] `npm run build` / `npm run test` green in `packages/core` and `apps/dashboard`.
+- [ ] `pnpm run build` / `pnpm run test` green in `packages/core` and `apps/dashboard`.
 
 ---
 

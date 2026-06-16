@@ -45,7 +45,7 @@ building blocks the later sprints assemble:
    handler — that is sprint 02/03).
 
 Nothing in this sprint changes how seeds are loaded or how requests behave. After it,
-`npm run build` and all tests pass, and the new repository is reachable via
+`pnpm run build` and all tests pass, and the new repository is reachable via
 `c.get('seedRepository')` but unused.
 
 ## 2. The `seeds` and `seed_meta` tables
@@ -461,8 +461,8 @@ Do **not** consume it anywhere yet.
 
 ## 10. Acceptance criteria
 
-- [ ] `npm run build` passes across all packages.
-- [ ] `npm run test` passes (new + existing).
+- [ ] `pnpm run build` passes across all packages.
+- [ ] `pnpm run test` passes (new + existing).
 - [ ] `0032_seeds.sql` exists; `seeds` + `seed_meta` are also in `BASE_SCHEMA_SQL` and
       `SYSTEM_TABLES` in `init.ts`.
 - [ ] `ISeedRepository`, `SeedRecord`, `validateSeedDefinitions`, `isSeedSetValid`,

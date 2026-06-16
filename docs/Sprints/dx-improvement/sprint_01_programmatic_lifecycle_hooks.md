@@ -394,7 +394,7 @@ eccezione non gestita continua a mappare su `500` (comportamento corretto).
 - [x] **test:** `mutateField` e `runBatch` su **`StaticContentRepository`** (non `InMemorySeedRepository`).
 - [x] **test:** `apps/api/test/hooks-lifecycle.test.ts` — (a) mutazione payload via `beforeCreate`; (b) `before*` che lancia `HookValidationError` → nessuna scrittura su DB + 422; (c) `afterCreate` che lancia → dato comunque persistito (documenta il limite no-rollback); (d) anti-race di `mutateField` con guardia `min`.
 - [x] **docs:** documentare in `docs/` (api-reference o nuovo file) i tre vincoli: `after*` non fa rollback, `mutateField` bypassa gli hook documento, `runBatch` non esegue hook.
-- [x] **Verifica:** `npm run build` (tsc) verde su core + api; `npm run test` su api.
+- [x] **Verifica:** `pnpm run build` (tsc) verde su core + api; `pnpm run test` su api.
 
 ### Vincoli che restano (non aggirabili)
 1. **Nessun rollback per `after*`** su D1 — limite di piattaforma, non del design.

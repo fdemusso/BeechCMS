@@ -115,7 +115,7 @@ async function checkDocker() {
             '  1. Start Docker Desktop (on Windows/macOS) or ensure the Docker daemon service is running (on Linux).',
             '  2. Restart your terminal (or log out and back in) for environment variables / group changes to take effect.',
             '  3. Start the local development stack with:',
-            `     ${pc.cyan('npm run dev:full')}`
+            `     ${pc.cyan('pnpm dev:full')}`
           ].join('\n'),
           'Post-Installation Steps'
         );
@@ -125,7 +125,7 @@ async function checkDocker() {
           'Docker has been installed. Please:\n' +
           '  1. Start Docker / Docker Desktop.\n' +
           '  2. Restart your terminal/system.\n' +
-          '  3. Run: npm run dev:full\n'
+          '  3. Run: pnpm dev:full\n'
         );
       }
       return;
@@ -136,8 +136,8 @@ async function checkDocker() {
         [
           'Docker is required to run the local MinIO storage container.',
           'Without Docker, you will not be able to use the following commands:',
-          `  - ${pc.bold('npm run dev:full')} (starts MinIO + API + Dashboard)`,
-          `  - ${pc.bold('npm run dev:storage')} (starts MinIO only)`,
+          `  - ${pc.bold('pnpm dev:full')} (starts MinIO + API + Dashboard)`,
+          `  - ${pc.bold('pnpm dev:storage')} (starts MinIO only)`,
           '',
           'To install Docker manually, please visit: https://www.docker.com/get-started/',
           'Once installed and running, local development and testing will be fully enabled.'
@@ -149,8 +149,8 @@ async function checkDocker() {
       console.log(
         'Docker is required to run the local MinIO storage container.\n' +
         'Without Docker, you will not be able to run:\n' +
-        '  - npm run dev:full\n' +
-        '  - npm run dev:storage\n\n' +
+        '  - pnpm dev:full\n' +
+        '  - pnpm dev:storage\n\n' +
         'Please install Docker: https://www.docker.com/get-started/\n'
       );
     }
@@ -172,8 +172,8 @@ async function checkDocker() {
         [
           'The Docker service must be running to spin up local dev services.',
           'Please start Docker Desktop (or run your system\'s docker daemon) before running:',
-          `  - ${pc.bold('npm run dev:full')}`,
-          `  - ${pc.bold('npm run dev:storage')}`,
+          `  - ${pc.bold('pnpm dev:full')}`,
+          `  - ${pc.bold('pnpm dev:storage')}`,
           '',
           'This is necessary for running BeechCMS locally and running the test suite.'
         ].join('\n'),
@@ -184,8 +184,8 @@ async function checkDocker() {
       console.log(
         'The Docker service must be running to spin up local dev services.\n' +
         'Please start Docker Desktop (or your docker service) before running:\n' +
-        '  - npm run dev:full\n' +
-        '  - npm run dev:storage\n\n' +
+        '  - pnpm dev:full\n' +
+        '  - pnpm dev:storage\n\n' +
         'This is necessary for running BeechCMS locally and running the test suite.\n'
       );
     }
@@ -198,7 +198,7 @@ async function checkDocker() {
       [
         'Your environment is fully prepared for local development and testing.',
         'You can start the local development stack with:',
-        `  ${pc.cyan('npm run dev:full')}`
+        `  ${pc.cyan('pnpm dev:full')}`
       ].join('\n'),
       'Ready to Develop'
     );
@@ -207,7 +207,7 @@ async function checkDocker() {
     console.log(
       'Your environment is fully prepared for local development and testing.\n' +
       'You can start the local development stack with:\n' +
-      '  npm run dev:full\n'
+      '  pnpm dev:full\n'
     );
   }
 }
