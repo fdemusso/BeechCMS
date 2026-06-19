@@ -66,15 +66,10 @@ export default defineConfig({
         // by E2E tests; unit testing them provides low value and fragile tests.
         "src/pages/**",
 
-        // ─── Dashboard widgets — data-visualisation components ────────────────
-        // Widgets depend on live Cloudflare/R2/D1 APIs and are not unit-testable
-        // without an integration harness. They are visual output only.
-        "src/features/dashboard/components/widgets/**",
-        "src/features/dashboard/components/**",
-        "src/features/dashboard/api/**",
-        "src/features/dashboard/config/**",
-        "src/features/dashboard/hooks/**",
-        "src/features/dashboard/pages/**",
+        // ─── Dashboard feature — widgets, page panels, config & data-viz ──────
+        // Dashboard views and widgets depend on live Cloudflare/R2/D1 APIs and
+        // are presentational or require an integration test environment.
+        "src/features/dashboard/**",
         "src/features/widget-data/**",
 
         // ─── Settings feature — UI form tabs only, no isolated business logic ─
@@ -93,12 +88,11 @@ export default defineConfig({
         "src/lib/utils/dom.ts",
         "src/lib/utils/format.ts",
 
-        // ─── Content-management API & hooks (require live D1/Cloudflare) ─────
-        // These modules make direct HTTP calls to the Cloudflare Worker API.
+        // ─── Content-management feature (require live D1/Cloudflare Workers) ──
+        // These modules interact with the live Cloudflare Worker API.
         // They cannot be meaningfully unit-tested without a live environment;
         // coverage is validated through integration/E2E tests instead.
-        "src/features/content-management/api/**",
-        "src/features/content-management/hooks/**",
+        "src/features/content-management/**",
 
         // ─── Command-palette (complex interactive search widget) ──────────────
         // The command-palette is a stateful fuzzy-search UI. Its integration
@@ -117,11 +111,6 @@ export default defineConfig({
         // V8 reports them as 0% statements but there is no executable logic
         // to cover. Actual implementations are tested in their source modules.
         "src/features/**/shared.ts",
-
-        // ─── Dashboard sub-barrel (widgets.ts) ───────────────────────────────
-        // Pure re-export barrel for the widget catalog (Sprint 01 A3).
-        // No executable logic — same rationale as index.ts exclusions.
-        "src/features/dashboard/widgets.ts",
 
         // ─── Entry-editor feature (complex interactive builder, no unit logic) ─
         "src/features/entry-editor/**",
