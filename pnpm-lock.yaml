@@ -417,11 +417,11 @@ importers:
         specifier: ^4.1.0
         version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(@vitest/coverage-v8@4.1.8)(happy-dom@20.10.3)(jsdom@25.0.1)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
 
-  examples/widget-hello-world:
+  docs/examples/widget-hello-world:
     dependencies:
       '@beechcms/widget-sdk':
         specifier: workspace:^0.6.0-preview.2
-        version: link:../../packages/widget-sdk
+        version: link:../../../packages/widget-sdk
       '@tanstack/react-query':
         specifier: ^5.0.0
         version: 5.101.0(react@19.2.7)
