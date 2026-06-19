@@ -88,12 +88,13 @@ function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationP
   }
 
   return (
-    <span
+    <button
+      type="button"
       onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(id) }}
-      className="text-foreground hover:underline truncate cursor-pointer"
+      className="text-foreground hover:underline truncate cursor-pointer text-left bg-transparent border-0 p-0"
     >
       {label}
-    </span>
+    </button>
   )
 }
 

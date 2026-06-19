@@ -201,7 +201,7 @@ export function LayoutRenderer({
     if (!exists && layout.tabs.length > 0) {
       setActiveTabId(layout.tabs[0].id)
     }
-  }, [layout, activeTabId, dangerZoneSlot])
+  }, [layout, activeTabId, dangerZoneSlot, setActiveTabId])
 
   return (
     <Tabs value={activeTabId} onValueChange={setActiveTabId} className="rounded-lg border overflow-hidden flex flex-col">

@@ -38,6 +38,7 @@ import type { FieldEditProps } from "../types"
 const RELATION_STALE_MS = 5 * 60 * 1000
 const SEARCH_DEBOUNCE_MS = 250
 const LIST_LIMIT = 20
+const EMPTY_IDS: string[] = []
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -134,7 +135,7 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
   const addPopoverId = React.useId()
 
   const targetSlug = branch.targetSeed
-  const selectedIds = Array.isArray(value) ? value : []
+  const selectedIds = Array.isArray(value) ? value : EMPTY_IDS
 
   const { data: seeds } = useSchema()
   const targetSeed = seeds?.find((s) => s.slug === targetSlug)
