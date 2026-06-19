@@ -4,6 +4,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+.pnpm-store
 
 # Build output
 dist/
@@ -21,6 +22,8 @@ out/
 .agents/
 .claude/
 CLAUDE.md
+.gemini/
+GEMINI.md
 
 # Turbo
 .turbo/

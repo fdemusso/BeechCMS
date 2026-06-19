@@ -27,10 +27,11 @@ export interface FieldRowProps {
 }
 
 export function FieldRow({ label, children }: FieldRowProps) {
+  const id = React.useId()
   return (
     <div className="space-y-1.5">
-      <Label className="text-xs text-muted-foreground">{label}</Label>
-      {children}
+      <Label htmlFor={id} className="text-xs text-muted-foreground">{label}</Label>
+      {React.isValidElement(children) ? React.cloneElement(children, { id } as Partial<unknown>) : children}
     </div>
   )
 }

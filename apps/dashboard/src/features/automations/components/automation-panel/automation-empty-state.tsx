@@ -17,7 +17,7 @@ export function AutomationEmptyState({ onNew }: AutomationEmptyStateProps) {
       <div className="flex size-12 items-center justify-center rounded-full bg-muted mb-4">
         <Zap className="size-6 text-muted-foreground" />
       </div>
-      <h3 className="text-sm font-medium mb-1">{t('automations.panel.emptyTitle')}</h3>
+      <h3 className="font-heading text-sm font-medium mb-1">{t('automations.panel.emptyTitle')}</h3>
       <p className="text-xs text-muted-foreground mb-4 max-w-48">
         {t('automations.panel.emptyDescription')}
       </p>

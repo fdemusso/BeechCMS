@@ -266,7 +266,7 @@ Testing Library + vitest:
       `BranchItemRow`; `seed-builder` consumes it via the barrel, no internal import.
 - [ ] No change to `@beechcms/core` (no DDL/validation/serialization).
 - [ ] Generic-item path is scaffolded behind `// SPRINT 10` guards and is inert.
-- [ ] `npm run lint`, `npm run build`, `npm run test` pass in `apps/dashboard`.
+- [ ] `pnpm run lint`, `pnpm run build`, `pnpm run test` pass in `apps/dashboard`.
 
 ## 11. Do NOT
 

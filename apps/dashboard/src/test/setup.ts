@@ -54,6 +54,12 @@ if (!window.HTMLElement.prototype.scrollIntoView) {
   window.HTMLElement.prototype.scrollIntoView = function() {};
 }
 
+// TipTap's placeholder viewport tracking calls document.elementFromPoint,
+// not implemented in jsdom.
+if (!document.elementFromPoint) {
+  document.elementFromPoint = () => null
+}
+
 // Radix UI Select uses pointer capture APIs not implemented in jsdom.
 if (!window.HTMLElement.prototype.hasPointerCapture) {
   window.HTMLElement.prototype.hasPointerCapture = () => false;

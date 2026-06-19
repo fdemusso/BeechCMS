@@ -27,7 +27,7 @@ Every design decision documented here is grounded in the source code and explici
 
 ## 1. Monorepo Topology
 
-The monorepo uses **npm workspaces** at the root. `apps/api` and `apps/dashboard` both declare `"@beechcms/core": "*"` (workspace protocol) in their `package.json` dependencies.
+The monorepo uses **pnpm workspaces** at the root. `apps/api` and `apps/dashboard` both declare `"@beechcms/core": "*"` (workspace protocol) in their `package.json` dependencies.
 
 ```text
 @beechcms/cms/
@@ -38,7 +38,7 @@ The monorepo uses **npm workspaces** at the root. `apps/api` and `apps/dashboard
 │   └── core/         # @beechcms/core — shared engine, types, validation
 ├── docs/
 ├── turbo.json
-└── package.json      # Root: npm workspaces ["apps/*", "packages/*"]
+└── package.json      # Root: pnpm workspaces ["apps/*", "packages/*"]
 
 ```
 
@@ -46,9 +46,9 @@ The monorepo uses **npm workspaces** at the root. `apps/api` and `apps/dashboard
 
 | Layer | Package | Allowed Imports |
 |---|---|---|
-| **Apps** | `apps/api`, `apps/dashboard` | `@beechcms/core`, npm, local src |
-| **Core** | `packages/core` | npm only (no app imports) |
-| **Shared** | `src/components/ui`, `src/lib` | npm, `@beechcms/core` — _never_ `features/*` |
+| **Apps** | `apps/api`, `apps/dashboard` | `@beechcms/core`, pnpm, local src |
+| **Core** | `packages/core` | pnpm only (no app imports) |
+| **Shared** | `src/components/ui`, `src/lib` | pnpm, `@beechcms/core` — _never_ `features/*` |
 
 ---
 
@@ -65,7 +65,7 @@ This means `packages/core` is **always compiled first**. The apps consume the co
 
 ```bash
 # Development Mode
-npm run dev
+ppnpm run dev
 
 # 1. packages/core: tsc -w (rebuilds dist/ on change)
 # 2. apps/api: wrangler dev (reads dist/ via @beechcms/core)
@@ -804,4 +804,4 @@ Il `D1TestDatabase` non usa un container perché SQLite è un binding in-process
 
 ### Precheck fail-fast
 
-Il `globalSetup` Vitest (`test/docker-precheck.runner.ts` → `test/global-setup.ts`) pinga MinIO, Mailpit e webhook-tester in parallelo prima che parta qualsiasi test. Se anche solo uno non risponde, la suite si interrompe con un banner che indica il fix (`npm run dev:full`) invece di accumulare errori opachi nei singoli test.
+Il `globalSetup` Vitest (`test/docker-precheck.runner.ts` → `test/global-setup.ts`) pinga MinIO, Mailpit e webhook-tester in parallelo prima che parta qualsiasi test. Se anche solo uno non risponde, la suite si interrompe con un banner che indica il fix (`ppnpm run dev:full`) invece di accumulare errori opachi nei singoli test.

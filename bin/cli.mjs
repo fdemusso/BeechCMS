@@ -18,6 +18,7 @@ const COMMANDS = {
   'deploy':       cmdDeploy,
   'update':       cmdUpdate,
   'onboard':      cmdOnboard,
+  'reset':        cmdReset,
 }
 
 function help() {
@@ -56,6 +57,11 @@ function help() {
       --remote        Target remote D1 instead of local (default: local)
       --yes           Skip all interactive prompts (non-interactive mode)
       --db <name>     Override D1 database name
+
+    reset           Reset database and/or Docker containers/volumes
+      --db            Wipe local Wrangler state & bootstrap D1 DB
+      --docker        Down Docker containers and wipe volumes
+      --all           Reset both (database & docker)
 
   Scaffold a new project (interactive, or pass --yes for non-interactive defaults):
     npm create @beechcms/cms [project-name] [--yes] [--with-examples]
@@ -203,6 +209,15 @@ async function cmdOnboard(args) {
   const registry = await tryLoadLocalRegistry()
   const { onboard } = await import('@beechcms/cli')
   await onboard({ local, yes, db, registry })
+}
+
+async function cmdReset(args) {
+  const db     = args.includes('--db')
+  const docker = args.includes('--docker')
+  const all    = args.includes('--all')
+  
+  const { reset } = await import('@beechcms/cli')
+  await reset({ db, docker, all })
 }
 
 const handler = COMMANDS[command]

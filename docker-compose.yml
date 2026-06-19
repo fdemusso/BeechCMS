@@ -55,7 +55,7 @@ services:
       - >
         DB_FILE=$$(ls /data/*.sqlite 2>/dev/null | grep -v metadata | head -n 1);
         if [ -z "$$DB_FILE" ]; then
-          echo "[sqlite-web] No D1 database found. Run 'npm run db:migrate:local' first." >&2;
+          echo "[sqlite-web] No D1 database found. Run 'pnpm --filter @beechcms/api db:migrate:local' first." >&2;
           sleep infinity;
         fi;
         echo "[sqlite-web] Serving $$DB_FILE";

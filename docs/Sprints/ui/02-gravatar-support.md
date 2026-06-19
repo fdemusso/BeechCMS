@@ -85,7 +85,7 @@ SECTION 5 — VALIDATION
 
 1. Run backend tests to verify that auth and settings routes compile and pass:
    ```bash
-   npm run test
+   pnpm run test
    ```
 2. Manually test in the browser:
    - Clear any custom avatar for your admin user in profile settings.

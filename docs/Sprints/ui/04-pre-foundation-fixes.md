@@ -326,17 +326,17 @@ Tests:
 
 ## 5. ACCEPTANCE
 
-1. **Types & build:** `npm run build` at root passes. Core builds first;
+1. **Types & build:** `pnpm run build` at root passes. Core builds first;
    any seed missing `id` causes a TypeScript error (`id` is required).
 2. **Boot validation:** locally, temporarily duplicate a branch id in
-   `seeds.ts` → `npm run dev` (in `apps/api/`) fails at startup with the
+   `seeds.ts` → `pnpm run dev` (in `apps/api/`) fails at startup with the
    uniqueness error. Revert.
 3. **Lookup helper:** `findBranchById(seed, 'br_01')` returns the
    expected branch; `findBranchById(seed, 'br_does_not_exist')` returns
    `null`.
 4. **Claims pass-through:** the test from §B5 returns both `role` and
    `surname` from `context.get('jwtPayload')`.
-5. **No regressions:** existing test suites pass — `npm run test` at root.
+5. **No regressions:** existing test suites pass — `pnpm run test` at root.
 6. **CLAUDE.md** updated; `STABLE_ID_AUDIT.md` lists every persistence
    point still using `branch.alias` (FTS triggers, draft mirroring, any
    other findings).

@@ -10,10 +10,15 @@ import {
   SlugConflictError,
   RelationTargetNotFoundError,
   type BulkFieldUpdate,
+  type BatchWrite,
   type DraftSummary,
   type Seed,
   type Branch,
   type SelectOptions,
+  type RepositoryOptions,
+  type BeechHooks,
+  type HookActor,
+  type HookContext,
   buildSelectQuery,
   deserializeFromDb,
   serializeForDb,
@@ -39,6 +44,14 @@ function jDraftTable(seedSlug: string, branchAlias: string): string {
 }
 
 export class D1ContentRepository extends BaseD1Repository implements ContentRepository {
+  constructor(database: D1Database, private readonly hooks?: BeechHooks) {
+    super(database)
+  }
+
+  private hookCtx(seed: Seed, actor?: HookActor): HookContext {
+    return { seed, repository: this, actor, db: this.database }
+  }
+
   /**
    * Deserializes a DB row using the Seed's branch definitions.
    * Skips multi-relation branches — their values come from junction tables.
@@ -477,19 +490,27 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     id: string,
     slug: string,
     status: string,
-    data: Record<string, any>
+    data: Record<string, any>,
+    options?: RepositoryOptions
   ): Promise<void> {
+    let payload = data
+
+    if (this.hooks?.beforeCreate) {
+      const result = await this.hooks.beforeCreate(payload, this.hookCtx(seed, options?.actor))
+      if (result) payload = result
+    }
+
     try {
       if (await this.existsSlug(seed, slug)) {
         throw new SlugConflictError(`Slug "${slug}" already exists for ${seed.slug}`)
       }
 
       const batchStmts: D1PreparedStatement[] = [
-        this.buildCreateMainStmt(seed, id, slug, status, data),
+        this.buildCreateMainStmt(seed, id, slug, status, payload),
       ]
 
       for (const branch of multiRelBranches(seed)) {
-        const value = data[branch.alias]
+        const value = payload[branch.alias]
         if (!Array.isArray(value) || value.length === 0) continue
         batchStmts.push(...this.buildJunctionInserts(seed.slug, id, branch.alias, value))
       }
@@ -503,17 +524,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       if (error instanceof SlugConflictError) throw error
       throw this.mapError(error, `create(${seed.slug})`)
     }
+
+    // afterCreate gira DOPO il commit del batch: NON puo fare rollback.
+    if (this.hooks?.afterCreate) {
+      const entry = { id, slug, status, ...payload }
+      await this.hooks.afterCreate(entry, this.hookCtx(seed, options?.actor))
+    }
   }
 
   async update(
     seed: Seed,
     id: string,
     data: Record<string, any>,
-    status?: string
+    status?: string,
+    options?: RepositoryOptions
   ): Promise<void> {
+    let payload = data
+
+    if (this.hooks?.beforeUpdate) {
+      const result = await this.hooks.beforeUpdate(id, payload, this.hookCtx(seed, options?.actor))
+      if (result) payload = result
+    }
+
     try {
-      const { stmt, junctionUpdates } = this.buildUpdateMainStmt(seed, id, data, status)
-      
+      const { stmt, junctionUpdates } = this.buildUpdateMainStmt(seed, id, payload, status)
+
       if (!stmt && junctionUpdates.length === 0) return
 
       const batchStmts: D1PreparedStatement[] = []
@@ -521,7 +556,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       for (const branch of junctionUpdates) {
         const jt = jTable(seed.slug, branch.alias)
-        const value = (data[branch.alias] ?? []) as string[]
+        const value = (payload[branch.alias] ?? []) as string[]
         const deleteStmt = this.database.prepare(`DELETE FROM ${jt} WHERE parent_id = ?`).bind(id)
         batchStmts.push(deleteStmt, ...this.buildJunctionInserts(seed.slug, id, branch.alias, value))
       }
@@ -541,9 +576,20 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       if (error instanceof EntryNotFoundError) throw error
       throw this.mapError(error, `update(${seed.slug}, ${id})`)
     }
+
+    // afterUpdate gira DOPO il commit del batch: NON puo fare rollback.
+    if (this.hooks?.afterUpdate) {
+      const entry = { id, ...payload, ...(status ? { status } : {}) }
+      await this.hooks.afterUpdate(entry, this.hookCtx(seed, options?.actor))
+    }
   }
 
-  async delete(seed: Seed, id: string): Promise<{ row: Record<string, any> }> {
+  async delete(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }> {
+    if (this.hooks?.beforeDelete) {
+      await this.hooks.beforeDelete(id, this.hookCtx(seed, options?.actor))
+    }
+
+    let row: Record<string, any>
     try {
       const tableName = this.getTableName(seed.slug)
 
@@ -558,10 +604,97 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       await this.database.prepare(`DELETE FROM ${tableName} WHERE id = ?`).bind(id).run()
 
-      return { row: this.rowToData(seed, entryRow) }
+      row = this.rowToData(seed, entryRow)
     } catch (error) {
       if (error instanceof EntryNotFoundError) throw error
       throw this.mapError(error, `delete(${seed.slug}, ${id})`)
+    }
+
+    // afterDelete gira DOPO il commit: NON puo fare rollback.
+    if (this.hooks?.afterDelete) {
+      await this.hooks.afterDelete(id, this.hookCtx(seed, options?.actor))
+    }
+
+    return { row }
+  }
+
+  async mutateField(
+    seed: Seed,
+    id: string,
+    fieldName: string,
+    operation: { type: 'increment' | 'decrement'; value: number },
+    options?: { min?: number; max?: number }
+  ): Promise<{ newValue: number }> {
+    try {
+      const branch = seed.branches.find(b => b.alias === fieldName)
+      if (!branch || branch.type !== 'number') {
+        throw new RepositoryError(`mutateField: '${fieldName}' non e un campo numerico di ${seed.slug}`)
+      }
+
+      const delta = operation.type === 'increment' ? operation.value : -operation.value
+      const table = this.getTableName(seed.slug)
+
+      let sql = `UPDATE ${table} SET ${fieldName} = ${fieldName} + ?, updated_at = (unixepoch()) WHERE id = ?`
+      const params: any[] = [delta, id]
+      if (options?.min !== undefined) { sql += ` AND ${fieldName} + ? >= ?`; params.push(delta, options.min) }
+      if (options?.max !== undefined) { sql += ` AND ${fieldName} + ? <= ?`; params.push(delta, options.max) }
+
+      const result = await this.database.prepare(sql).bind(...params).run()
+      if (result.meta.changes === 0) {
+        throw new RepositoryError(`Operazione atomica fallita: record non trovato o limite superato per ${fieldName}`)
+      }
+
+      const updated = await this.database.prepare(`SELECT ${fieldName} AS v FROM ${table} WHERE id = ?`).bind(id).first<{ v: number }>()
+      return { newValue: updated!.v }
+    } catch (error) {
+      if (error instanceof RepositoryError) throw error
+      throw this.mapError(error, `mutateField(${seed.slug}, ${id}, ${fieldName})`)
+    }
+  }
+
+  async runBatch(operations: BatchWrite[]): Promise<void> {
+    if (operations.length === 0) return
+
+    try {
+      const stmts: D1PreparedStatement[] = []
+
+      for (const op of operations) {
+        if (op.kind === 'create') {
+          stmts.push(this.buildCreateMainStmt(op.seed, op.id, op.slug, op.status, op.data))
+          for (const branch of multiRelBranches(op.seed)) {
+            const value = op.data[branch.alias]
+            if (!Array.isArray(value) || value.length === 0) continue
+            stmts.push(...this.buildJunctionInserts(op.seed.slug, op.id, branch.alias, value))
+          }
+        } else if (op.kind === 'update') {
+          const { stmt, junctionUpdates } = this.buildUpdateMainStmt(op.seed, op.id, op.data, op.status)
+          if (stmt) stmts.push(stmt)
+          for (const branch of junctionUpdates) {
+            const jt = jTable(op.seed.slug, branch.alias)
+            const value = (op.data[branch.alias] ?? []) as string[]
+            stmts.push(this.database.prepare(`DELETE FROM ${jt} WHERE parent_id = ?`).bind(op.id))
+            stmts.push(...this.buildJunctionInserts(op.seed.slug, op.id, branch.alias, value))
+          }
+        } else if (op.kind === 'mutateField') {
+          const branch = op.seed.branches.find(b => b.alias === op.fieldName)
+          if (!branch || branch.type !== 'number') {
+            throw new RepositoryError(`runBatch: '${op.fieldName}' non e un campo numerico di ${op.seed.slug}`)
+          }
+          const delta = op.operation.type === 'increment' ? op.operation.value : -op.operation.value
+          const table = this.getTableName(op.seed.slug)
+          let sql = `UPDATE ${table} SET ${op.fieldName} = ${op.fieldName} + ?, updated_at = (unixepoch()) WHERE id = ?`
+          const params: any[] = [delta, op.id]
+          if (op.options?.min !== undefined) { sql += ` AND ${op.fieldName} + ? >= ?`; params.push(delta, op.options.min) }
+          if (op.options?.max !== undefined) { sql += ` AND ${op.fieldName} + ? <= ?`; params.push(delta, op.options.max) }
+          stmts.push(this.database.prepare(sql).bind(...params))
+        }
+      }
+
+      if (stmts.length === 1) await stmts[0].run()
+      else if (stmts.length > 1) await this.database.batch(stmts)
+    } catch (error) {
+      if (error instanceof RepositoryError) throw error
+      throw this.mapError(error, 'runBatch')
     }
   }
 

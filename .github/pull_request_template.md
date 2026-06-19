@@ -52,7 +52,7 @@ Closes #<!-- issue number -->
 - [ ] Tests are co-located next to the files they cover (`<filename>.test.ts`)
 - [ ] New handlers have at least one happy-path and one error-path test
 - [ ] `pnpm build` passes with no TypeScript errors
-- [ ] `pnpm test` passes
+- [ ] `ppnpm test` passes
 
 ---
 

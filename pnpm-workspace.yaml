@@ -1,0 +1,19 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+  - "examples/*"
+
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: true
+  sharp: true
+  workerd: true
+
+overrides:
+  esbuild: 0.28.1
+  react: ^19.2.7
+  react-dom: ^19.2.7
+  qs: ^6.15.2
+  ws: ^8.21.0
+  miniflare>ws: ^8.21.0
+  jsdom>ws: ^8.21.0

@@ -142,7 +142,7 @@ export function ProfileTab() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-primary mt-1 hover:underline"
+                  className="text-xs text-foreground mt-1 hover:underline"
                 >
                   {t('settings.profile.changePhoto')}
                 </button>

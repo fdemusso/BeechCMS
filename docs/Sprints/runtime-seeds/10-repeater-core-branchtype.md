@@ -229,7 +229,7 @@ to `[]`.
 - [ ] Sub-field editing does not propagate the sprint-06 `dangerZone` context;
       sub-field alias/type are freely editable; no SQL-level destructive buttons shown.
 - [ ] Existing field types and all prior sprints unaffected; full test suites green.
-- [ ] `npm run build` / `npm run test` pass in `packages/core`, `apps/api`,
+- [ ] `pnpm run build` / `pnpm run test` pass in `packages/core`, `apps/api`,
       `apps/dashboard`.
 
 ## 9. Do NOT

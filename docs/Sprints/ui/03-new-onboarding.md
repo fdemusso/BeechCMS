@@ -30,7 +30,7 @@ Hard rules that override any default behavior:
    No raw `<input>`/`<select>`. The components you need already exist (see §6).
 5. **Docs are English.** This file stays in English.
 6. **Beta DB.** The local D1 database can be wiped and recreated freely
-   (`npm run db:reset:local` in `apps/api/`). You may add new migrations and edit the
+   (`pnpm run db:reset:local` in `apps/api/`). You may add new migrations and edit the
    base migration. Prefer adding a new numbered migration; editing `0000_v040_base.sql`
    is acceptable for the schema changes in this sprint since the DB is disposable.
 
@@ -565,10 +565,10 @@ Frontend:
 ## 11. VALIDATION / ACCEPTANCE
 
 1. **Types:** `npx tsc --noEmit` passes in `packages/core`, `apps/api`, and
-   `apps/dashboard`. (Core must build first — `npm run build` at root respects order.)
-2. **DB reset:** in `apps/api/`, `npm run db:reset:local` succeeds with the new schema
+   `apps/dashboard`. (Core must build first — `pnpm run build` at root respects order.)
+2. **DB reset:** in `apps/api/`, `pnpm run db:reset:local` succeeds with the new schema
    (`surname`, `site_settings`).
-3. **Run:** `npm run dev` at root (API :8789, Dashboard :5173). Visit the setup screen.
+3. **Run:** `pnpm run dev` at root (API :8789, Dashboard :5173). Visit the setup screen.
 4. **Developer flow:** with `ENV=development`, the dev alert appears; toggle works;
    complete with "Load demo data" checked → after submit, query the DB and confirm
    sample rows exist in `content_*` tables; service checklist reflects `mail`/`qstash`.

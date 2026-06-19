@@ -222,11 +222,11 @@
 
 /* Mentions */
 .minimal-tiptap-editor .ProseMirror .mention {
-  @apply inline-block rounded-md bg-primary/10 px-1.5 py-0.5 font-medium text-primary;
+  @apply inline-block rounded-md bg-muted px-1.5 py-0.5 font-medium text-foreground;
 }
 
 .minimal-tiptap-editor .ProseMirror .mention:hover {
-  @apply bg-primary/20;
+  @apply bg-muted/80;
 }
 
 /* Highlight */

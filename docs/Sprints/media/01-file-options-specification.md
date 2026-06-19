@@ -225,7 +225,7 @@ export function isMimeAccepted(mime: string, accept: FileAccept): boolean {
 }
 ```
 
-**Accettazione:** `npm --workspace packages/core run build` compila; nuove costanti esportate da `index.ts`.
+**Accettazione:** `pnpm --workspace packages/core run build` compila; nuove costanti esportate da `index.ts`.
 
 ---
 
@@ -398,7 +398,7 @@ function buildFileSchema(branch: Branch, allowNull: boolean, nullable: z.ZodNull
    - Asset-list con `accept: 'document'` rifiuta l'intero array se anche solo un item è `.png`.
    - Cache check: stesso seed con `fileOptions` diversi produce schemi compilati distinti (chiamare `validateAndSanitizeSeedPayload` due volte con `accept` `'image'` poi `'any'` e verificare comportamento differente).
 
-**Accettazione:** `npm --workspace packages/core test` verde. Coverage ≥ regress baseline.
+**Accettazione:** `pnpm --workspace packages/core test` verde. Coverage ≥ regress baseline.
 
 ---
 
@@ -481,7 +481,7 @@ export function MediaDisplay({ branch, value }: FieldDisplayProps) {
 
 **Motivo:** retrocompatibilità comportamentale dei test. Il nuovo default `any` cambia semantica solo per chi non ha aggiornato il seed; questi file devono esplicitare l'intento storico.
 
-**Accettazione:** `npm test` (root) verde.
+**Accettazione:** `pnpm test` (root) verde.
 
 ---
 
@@ -527,8 +527,8 @@ Esplicitamente **non** in questo sprint:
 
 ## 6. Definition of Done dello sprint
 
-- [ ] `npm run build` (root) verde.
-- [ ] `npm test` (root) verde, incluso il nuovo `fileOptions` describe.
+- [ ] `pnpm run build` (root) verde.
+- [ ] `pnpm test` (root) verde, incluso il nuovo `fileOptions` describe.
 - [ ] `apps/dashboard` build OK, nessun warning i18n.
 - [ ] Dashboard avviata localmente: un campo `file` senza `fileOptions` mostra icona, nessuna 404 in console di rete per URL non-immagine.
 - [ ] Documentazione aggiornata e link interni validi.

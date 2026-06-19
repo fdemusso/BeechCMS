@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { EntryNotFoundError, SlugConflictError } from '@beechcms/core'
+import { EntryNotFoundError, SlugConflictError, HookValidationError } from '@beechcms/core'
 import { publicProblem, fkProblemOrNull } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
@@ -79,7 +79,18 @@ export function handleContentDatabaseError(context: Context<AppEnv>, error: unkn
       detail: CONTENT_ERRORS.SLUG_CONFLICT,
     })
   }
-  
+
+  if (error instanceof HookValidationError) {
+    return publicProblem(context, {
+      type: 'content-hook-validation-failed',
+      title: 'Unprocessable Entity',
+      status: 422,
+      detail: error.message,
+      errors: (error.fields ?? []).map(f => ({ field: f.field, expected: '', received: '', message: f.message })),
+    })
+  }
+
+
   const fkResponse = fkProblemOrNull(context, error, context.req.method)
   if (fkResponse) return fkResponse
 

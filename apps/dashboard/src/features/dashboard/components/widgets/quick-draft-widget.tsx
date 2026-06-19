@@ -104,9 +104,9 @@ export function QuickDraftWidget({
     <DashboardWidgetShell icon={FilePlus} title={variant === "minimal" ? (customTitle || t("dashboard.widgets.quickDraft.title")) : undefined}>
       <form onSubmit={handleSubmit} className="space-y-3">
         {variant === "expanded" && (
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+          <h3 className="font-heading text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             {customTitle || t("dashboard.widgets.quickDraft.createDraft")}
-          </p>
+          </h3>
         )}
         {/* Minimal variant: on mobile stack input+select on first row, button full-width below.
             On sm+: single row as designed.

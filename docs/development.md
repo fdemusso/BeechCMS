@@ -3,13 +3,13 @@
 ## Prerequisites
 
 - **Node.js 20+**
-- **npm 11+**
+- **pnpm 9+**
 - **Docker Desktop** or **Docker Engine** — richiesto per l'intero stack di sviluppo locale
 
 ## Quick Start
 
 ```bash
-npm run dev:full
+ppnpm run dev:full
 ```
 
 Questo comando avvia **l'intero stack Docker** (MinIO, Mailpit, SQLite Web, webhook-tester, cloudflared tunnel), esegue il bootstrap del database D1 locale se necessario, e poi avvia l'API Cloudflare Workers e la Dashboard React in parallelo. È il **comando canonico e unico** per lo sviluppo.
@@ -18,7 +18,7 @@ Questo comando avvia **l'intero stack Docker** (MinIO, Mailpit, SQLite Web, webh
 
 ### Dev CLI (TUI)
 
-Quando l'output è un terminale interattivo (TTY), `npm run dev:full` apre una TUI a schermo intero (Ink) con:
+Quando l'output è un terminale interattivo (TTY), `ppnpm run dev:full` apre una TUI a schermo intero (Ink) con:
 
 - **Status** (`1`) — stato di Docker/tunnel/bootstrap/core/api/dashboard, sotto-container Docker e URL dei servizi (MinIO Console, Mailpit, SQLite Web, webhook-tester, tunnel).
 - **API Logs** (`2`) e **Dashboard Logs** (`3`) — log filtrati per servizio, con indicatore `● live` / `⏸ scroll`.
@@ -29,13 +29,13 @@ Una barra errori compatta in alto mostra gli errori recenti (`[sorgente] codice`
 
 **Tasti**: `1`-`5` per i tab, `Tab` / `Shift+Tab` o `←`/`→` per ciclare, `↑`/`↓`/`PgUp`/`PgDn` per scorrere i log o navigare gli errori, `q` o `Ctrl+C` per uscire (shutdown pulito di tutti i processi e container).
 
-Se l'output non è un TTY (es. CI, log rediretti su file) o è impostata `BEECH_DEV_PLAIN=1`, viene usato l'output flat tradizionale — equivalente a `npm run dev:plain`.
+Se l'output non è un TTY (es. CI, log rediretti su file) o è impostata `BEECH_DEV_PLAIN=1`, viene usato l'output flat tradizionale — equivalente a `ppnpm run dev:plain`.
 
 ---
 
 ## Strumenti di Sviluppo Docker
 
-`npm run dev:full` orchestra l'intero stack locale:
+`ppnpm run dev:full` orchestra l'intero stack locale:
 
 | Servizio | Porta host | URL / Console | Scopo |
 |---|---|---|---|
@@ -43,25 +43,25 @@ Se l'output non è un TTY (es. CI, log rediretti su file) o è impostata `BEECH_
 | Mailpit | 1025 (SMTP) / 8025 (HTTP) | http://localhost:8025 | Inbox locale per email transazionali (reset password, automation `send_mail`) |
 | SQLite Web | 8080 | http://localhost:8080 | Ispezione read-only del database D1 locale |
 | webhook-tester | 8084 | http://localhost:8084 | Endpoint locale per testare automation `webhook` |
-| Cloudflared Tunnel | n/a | URL `*.trycloudflare.com` da `npm run dev:tunnel-url` | Esporre l'API locale a internet per webhook in ingresso da terzi |
+| Cloudflared Tunnel | n/a | URL `*.trycloudflare.com` da `ppnpm run dev:tunnel-url` | Esporre l'API locale a internet per webhook in ingresso da terzi |
 
 ### Comandi
 
-Beech ha **un solo modo** di avviare l'ambiente di sviluppo: `npm run dev:full`. Non esiste una modalità "senza Docker" né uno stack parziale. Docker è prerequisito non negoziabile.
+Beech ha **un solo modo** di avviare l'ambiente di sviluppo: `ppnpm run dev:full`. Non esiste una modalità "senza Docker" né uno stack parziale. Docker è prerequisito non negoziabile.
 
 | Comando | Effetto |
 |---|---|
-| `npm run dev:full` | Avvia stack Docker completo + API + Dashboard, con TUI a schermo intero su TTY (comando canonico) |
-| `npm run dev` | Alias di `dev:full` |
-| `npm run dev:plain` | Come `dev:full` ma con output flat (no TUI) — equivalente a `BEECH_DEV_PLAIN=1 npm run dev:full` |
-| `npm run dev:tunnel-url` | Stampa la URL pubblica del tunnel Cloudflare |
-| `npm run dev:mailpit:reset` | Svuota la inbox Mailpit |
-| `npm run dev:logs:mailpit` | Stream log di Mailpit |
-| `npm run dev:logs:sqlite` | Stream log di SQLite Web |
-| `npm run dev:logs:tunnel` | Stream log del tunnel Cloudflared |
-| `npm run dev:logs:minio` | Stream log di MinIO |
-| `npm run dev:stop` | Stop di tutti i container (mantiene i volumi) |
-| `npm run dev:reset` | Stop + rimuove tutti i volumi (reset completo) |
+| `ppnpm run dev:full` | Avvia stack Docker completo + API + Dashboard, con TUI a schermo intero su TTY (comando canonico) |
+| `ppnpm run dev` | Alias di `dev:full` |
+| `ppnpm run dev:plain` | Come `dev:full` ma con output flat (no TUI) — equivalente a `BEECH_DEV_PLAIN=1 ppnpm run dev:full` |
+| `ppnpm run dev:tunnel-url` | Stampa la URL pubblica del tunnel Cloudflare |
+| `ppnpm run dev:mailpit:reset` | Svuota la inbox Mailpit |
+| `ppnpm run dev:logs:mailpit` | Stream log di Mailpit |
+| `ppnpm run dev:logs:sqlite` | Stream log di SQLite Web |
+| `ppnpm run dev:logs:tunnel` | Stream log del tunnel Cloudflared |
+| `ppnpm run dev:logs:minio` | Stream log di MinIO |
+| `ppnpm run dev:stop` | Stop di tutti i container (mantiene i volumi) |
+| `ppnpm run dev:reset` | Stop + rimuove tutti i volumi (reset completo) |
 
 ### Switching provider email
 
@@ -72,7 +72,7 @@ Per testare il path Resend in locale: imposta `EMAIL_PROVIDER=resend` e `RESEND_
 
 Con lo stack attivo, http://localhost:8080 espone il database D1 locale in sola lettura. Utile per ispezionare tabelle, verificare seed e controllare lo stato dopo le migrazioni. Per modificare il DB usa `wrangler d1 execute --local`.
 
-> Se non hai ancora applicato le migrazioni (`npm run db:migrate:local`), il container logga un avviso e rimane in attesa — non crasha.
+> Se non hai ancora applicato le migrazioni (`ppnpm run db:migrate:local`), il container logga un avviso e rimane in attesa — non crasha.
 
 ### Webhook tester
 
@@ -80,11 +80,11 @@ Crea sessioni UUID via `POST http://localhost:8084` o usa l'helper `newBucket()`
 
 ### Cloudflared Tunnel
 
-Il container `tunnel` espone l'API locale (porta 8789) su una URL pubblica `*.trycloudflare.com`. Necessario per testare webhook **entranti** da servizi di terze parti (Stripe, GitHub, ecc.) e per le notifiche QStash (vedi sotto). La URL cambia a ogni restart; usa `npm run dev:tunnel-url` per leggerla.
+Il container `tunnel` espone l'API locale (porta 8789) su una URL pubblica `*.trycloudflare.com`. Necessario per testare webhook **entranti** da servizi di terze parti (Stripe, GitHub, ecc.) e per le notifiche QStash (vedi sotto). La URL cambia a ogni restart; usa `ppnpm run dev:tunnel-url` per leggerla.
 
 ### QStash in locale
 
-`npm run dev:full` rileva automaticamente l'URL del tunnel Cloudflare e lo scrive in `apps/api/.dev.vars` come `QSTASH_CALLBACK_URL` — non serve installare ngrok né configurare nulla a mano. Per attivare le notifiche via QStash basta impostare `QSTASH_TOKEN` (e opzionalmente `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY`) in `.dev.vars`.
+`ppnpm run dev:full` rileva automaticamente l'URL del tunnel Cloudflare e lo scrive in `apps/api/.dev.vars` come `QSTASH_CALLBACK_URL` — non serve installare ngrok né configurare nulla a mano. Per attivare le notifiche via QStash basta impostare `QSTASH_TOKEN` (e opzionalmente `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY`) in `.dev.vars`.
 
 > `QSTASH_CALLBACK_URL` è distinto da `APP_URL`: `APP_URL` è l'URL del dashboard (usato nei link delle email, es. reset password) e in dev resta `http://localhost:5173`. `QSTASH_CALLBACK_URL` è l'URL pubblico tramite cui QStash richiama il webhook `/api/webhooks/qstash` del Worker.
 
@@ -134,14 +134,14 @@ wrangler secret put R2_BUCKET_NAME
 
 ## Bootstrap database D1 locale
 
-`npm run dev:full` esegue automaticamente `apps/api/scripts/bootstrap-d1.mjs`, che applica tutte le migrazioni `0000 → ultima` se il database locale non esiste ancora. È idempotente: se il DB è già inizializzato, il log mostra `bootstrap-d1: DB already initialized — skipping`.
+`ppnpm run dev:full` esegue automaticamente `apps/api/scripts/bootstrap-d1.mjs`, che applica tutte le migrazioni `0000 → ultima` se il database locale non esiste ancora. È idempotente: se il DB è già inizializzato, il log mostra `bootstrap-d1: DB already initialized — skipping`.
 
 Per repartire da zero solo sul DB:
 
 ```bash
-cd apps/api && npm run db:reset:local
+cd apps/api && ppnpm run db:reset:local
 cd ../..
-npm run dev:full
+ppnpm run dev:full
 ```
 
 ---
@@ -175,11 +175,11 @@ If you edit content types directly inside the dashboard's **Settings → Content
 
 ## Testing
 
-I test `apps/api` richiedono lo stack Docker attivo (stesso stack di `npm run dev:full`). Il setup Vitest (`test/global-setup.ts`) verifica MinIO, Mailpit e webhook-tester prima di partire e crea un bucket MinIO effimero per il run.
+I test `apps/api` richiedono lo stack Docker attivo (stesso stack di `ppnpm run dev:full`). Il setup Vitest (`test/global-setup.ts`) verifica MinIO, Mailpit e webhook-tester prima di partire e crea un bucket MinIO effimero per il run.
 
 ```bash
-npm run dev:full           # avvia lo stack completo (tienilo aperto in un terminale)
-cd apps/api && npm test    # esegue la suite contro i container reali
+ppnpm run dev:full           # avvia lo stack completo (tienilo aperto in un terminale)
+cd apps/api && pnpm test    # esegue la suite contro i container reali
 ```
 
 Se i container non sono attivi, i test falliscono immediatamente con un messaggio che indica quali servizi mancano e come avviarli. **Non esistono fallback su `vi.mock`** per email, R2 o webhook — i test usano gli stessi servizi che girano in dev.

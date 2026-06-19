@@ -30,7 +30,6 @@ import { cn } from "@/lib/utils"
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
   PaginationLink,
   PaginationNext,
@@ -51,36 +50,12 @@ import {
 } from "@/components/ui/context-menu"
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 
-const MAX_VISIBLE_PAGE_BUTTONS = 7
 const DEFAULT_PAGE_SIZE = 10
 /** Altezza riga condivisa da tutte le tabelle dell'app — riusala per coerenza dimensionale. */
 export const ROW_HEIGHT_PX = 48
 /** Altezza container in modalità virtual scroll (gruppi espansi) */
 const VIRTUAL_CONTAINER_HEIGHT = "calc(100vh - 280px)"
 
-/**
- * Calcola l'array di pagine da mostrare (numeri o "ellipsis").
- * Se pageCount <= MAX_VISIBLE_PAGE_BUTTONS mostra tutte, altrimenti
- * prima, ellipsis, pagine centrali, ellipsis, ultima.
- */
-function getPaginationPages(
-  pageCount: number,
-  pageIndex: number
-): (number | "ellipsis")[] {
-  const pages: (number | "ellipsis")[] = []
-  if (pageCount <= MAX_VISIBLE_PAGE_BUTTONS) {
-    for (let i = 0; i < pageCount; i++) pages.push(i)
-  } else {
-    pages.push(0)
-    if (pageIndex > 2) pages.push("ellipsis")
-    const start = Math.max(1, pageIndex - 1)
-    const end = Math.min(pageCount - 2, pageIndex + 1)
-    for (let i = start; i <= end; i++) pages.push(i)
-    if (pageIndex < pageCount - 3) pages.push("ellipsis")
-    if (pageCount > 1) pages.push(pageCount - 1)
-  }
-  return pages
-}
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -693,61 +668,31 @@ export function DataTable<TData, TValue>(
               <PaginationItem>
                 <PaginationPrevious
                   text={t("common.previous")}
-                  siblingText={t("common.next")}
                   href="#"
                   onClick={(e) => {
                     e.preventDefault()
                     if (table.getCanPreviousPage()) table.previousPage()
                   }}
                   className={
-                      table.getCanPreviousPage()
-                        ? undefined
-                        : "pointer-events-none opacity-50"
+                    table.getCanPreviousPage()
+                      ? undefined
+                      : "pointer-events-none opacity-50"
                   }
                 />
               </PaginationItem>
-              {(() => {
-                const pageIndex = table.getState().pagination.pageIndex
-                return getPaginationPages(
-                  table.getPageCount(),
-                  pageIndex
-                ).map((pageItem, i, pages) => {
-                  if (pageItem === "ellipsis") {
-                    const prevPage = pages.slice(0, i)
-                      .reverse()
-                      .find((p): p is number => typeof p === "number")
-                    const nextPage = pages
-                      .slice(i + 1)
-                      .find((p): p is number => typeof p === "number")
-                    return (
-                      <PaginationItem
-                        key={`ellipsis-${prevPage ?? "?"}-${nextPage ?? "?"}`}
-                      >
-                        <PaginationEllipsis />
-                      </PaginationItem>
-                    )
-                  }
-
-                  return (
-                    <PaginationItem key={pageItem}>
-                      <PaginationLink
-                        href="#"
-                        isActive={pageIndex === pageItem}
-                        onClick={(e) => {
-                          e.preventDefault()
-                          table.setPageIndex(pageItem)
-                        }}
-                      >
-                        {pageItem + 1}
-                      </PaginationLink>
-                    </PaginationItem>
-                  )
-                })
-              })()}
+              <PaginationItem>
+                <PaginationLink
+                  href="#"
+                  isActive
+                  onClick={(e) => e.preventDefault()}
+                  className="pointer-events-none select-none tabular-nums"
+                >
+                  {table.getState().pagination.pageIndex + 1}
+                </PaginationLink>
+              </PaginationItem>
               <PaginationItem>
                 <PaginationNext
                   text={t("common.next")}
-                  siblingText={t("common.previous")}
                   href="#"
                   onClick={(e) => {
                     e.preventDefault()

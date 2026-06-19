@@ -517,7 +517,7 @@ New file `apps/api/migrations/00XX_seed_layouts.sql` — pick the next sequentia
 number after the highest existing one in `apps/api/migrations/`. List the file in
 `apps/api/wrangler.jsonc` if migrations are registered explicitly (Sprint 03 confirms
 auto-discovery via `migrations_dir`, so just dropping the file is enough; double-check
-by running `npm run db:reset:local` in `apps/api/`).
+by running `pnpm run db:reset:local` in `apps/api/`).
 
 ```sql
 CREATE TABLE IF NOT EXISTS seed_layouts (
@@ -653,7 +653,7 @@ Dashboard:
 
 1. **Types:** `npx tsc --noEmit` passes in `packages/core`, `apps/api`,
    `apps/dashboard`. Core builds first.
-2. **DB:** `npm run db:reset:local` in `apps/api/` succeeds with the new table.
+2. **DB:** `pnpm run db:reset:local` in `apps/api/` succeeds with the new table.
 3. **API smoke (manual, with the dashboard running and an admin logged in):**
    - `GET /api/schema` returns seeds; for seeds without stored layouts, no `layout`
      key is present.

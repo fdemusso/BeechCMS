@@ -98,7 +98,7 @@ export function DashboardBuilderDialog({ open, onOpenChange, initialLayout }: Da
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex flex-col p-0 gap-0 sm:max-w-[95vw] w-[95vw] h-[90vh] max-h-[90vh]" showCloseButton={false}>
+      <DialogContent className="flex flex-col p-0 gap-0 sm:max-w-[80vw] w-[80vw] h-[90vh] max-h-[90vh]" showCloseButton={false}>
         <DialogHeader className="px-6 pt-6 pb-2">
           <div className="flex items-center justify-between gap-4">
             <DialogTitle>{t('dashboard.builder.title')}</DialogTitle>

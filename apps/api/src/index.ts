@@ -26,7 +26,7 @@ export default {
           console.warn(
             `\n⚠️  ${c.name} non raggiungibile su ${c.url}\n` +
             `   Beech in dev richiede lo stack Docker completo.\n` +
-            `   Avvialo con: npm run dev:full\n`
+            `   Avvialo con: pnpm dev:full\n`
           )
         })
       }

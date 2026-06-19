@@ -3,7 +3,7 @@
 Questo documento è una **specifica eseguibile**: ogni task contiene path assoluti, snippet del codice attuale, contratti precisi e criteri di accettazione. Un agente IA deve poterla completare senza ulteriore navigazione del codice (a parte i file elencati).
 
 > Versione: 1.0 — branch `seed-bugfix`, dopo lo Sprint 02 (presigned URLs, MinIO).
-> Prerequisito: lo Sprint 02 è stato applicato (esiste `docker-compose.yml` con `minio` + `minio-init`, `npm run dev:full` è il comando canonico, `apps/api/.dev.vars.example` contiene `R2_*`).
+> Prerequisito: lo Sprint 02 è stato applicato (esiste `docker-compose.yml` con `minio` + `minio-init`, `pnpm run dev:full` è il comando canonico, `apps/api/.dev.vars.example` contiene `R2_*`).
 
 ---
 
@@ -25,13 +25,13 @@ Lo sviluppo locale di Beech deve poter girare **offline** e i test devono usare 
 | Provider email in dev/test | `SmtpEmailProvider` via Mailpit HTTP send API (`POST http://localhost:8025/api/v1/send`) | Cloudflare Workers non supportano nativamente socket SMTP raw; la HTTP API di Mailpit è equivalente e compatibile con `fetch` del Worker runtime |
 | Provider email in prod | `ResendEmailProvider` (invariato) | Switch via env, **non** via build flag |
 | Selettore | `EMAIL_PROVIDER` env var (`smtp` \| `resend`); default `resend` se assente | Esplicito e leggibile nei log |
-| Trigger SMTP | `EMAIL_PROVIDER=smtp` + presenza di `SMTP_HOST` | Mailpit gira sempre quando si esegue `npm run dev:full` |
+| Trigger SMTP | `EMAIL_PROVIDER=smtp` + presenza di `SMTP_HOST` | Mailpit gira sempre quando si esegue `pnpm run dev:full` |
 | Test integrazione | Vitest usa **realmente** Mailpit + MinIO + webhook-tester via container in attesa | Allinea test e prod path; elimina divergenza mock/reale già accumulata in passato |
 | Test unitari puri (funzioni pure, validatori) | Restano senza Docker | Velocità |
 | Webhook receiver locale | `tarampampam/webhook-tester` su porta `8084` | Equivalente self-hosted di webhook.site con HTTP API per leggere i payload ricevuti |
 | Tunnel pubblico | `cloudflare/cloudflared:latest` quick tunnel su `8787` | Necessario solo per webhook **uscenti verso terzi** (es. testare callback da Stripe verso Beech); per webhook **entranti** generati da Beech basta `webhook-tester` |
 | Docker prerequisito | Confermato (già stabilito nello Sprint 02) | Coerenza |
-| Avvio dello stack | **Unico** comando `npm run dev:full`: avvia tutti i container + API + Dashboard | Niente percorsi alternativi, niente "modalità minimale". Docker è prerequisito non negoziabile per sviluppare su Beech. |
+| Avvio dello stack | **Unico** comando `pnpm run dev:full`: avvia tutti i container + API + Dashboard | Niente percorsi alternativi, niente "modalità minimale". Docker è prerequisito non negoziabile per sviluppare su Beech. |
 | Sqlite Web sicurezza | Solo bind `127.0.0.1:8080`, mai esposto esternamente | Il DB contiene hash password e token; nessuna auth nel viewer |
 
 ---
@@ -58,7 +58,7 @@ Lo sviluppo locale di Beech deve poter girare **offline** e i test devono usare 
 | Mock D1 | `apps/api/test/mocks/mock-d1-database.ts` | **Eliminare** — sostituito da `D1TestDatabase` reale |
 | Static repos | `apps/api/test/mocks/static-content.repository.ts`, `static-idempotency.repository.ts` | **Valutare eliminazione** — con D1 reale i repository di prod (`D1ContentRepository`, `D1IdempotencyRepository`) funzionano direttamente nei test |
 | Package API | `apps/api/package.json` | **Modificare** — aggiungere devDeps `better-sqlite3`, `@types/better-sqlite3` |
-| CI workflow | `.github/workflows/test.yml` | **Modificare** — job `test-api` avvia gli stessi container del dev stack (MinIO, Mailpit, webhook-tester) prima di `npm test` |
+| CI workflow | `.github/workflows/test.yml` | **Modificare** — job `test-api` avvia gli stessi container del dev stack (MinIO, Mailpit, webhook-tester) prima di `pnpm test` |
 | CI composite action | `.github/actions/docker-stack/action.yml` | **Creare** — passi riusabili per startup MinIO/Mailpit/webhook-tester, parità esatta con `docker-compose.yml` |
 | Test action-executors | `apps/api/src/features/automations/__tests__/action-executors.test.ts` | **Riscrivere** — sostituire `vi.mock('../../email')` con assert reali contro Mailpit; sostituire `vi.stubGlobal('fetch')` per webhook con assert reali contro webhook-tester |
 | Vitest config | `apps/api/vitest.config.ts` | **Modificare** — registrare due `globalSetup` in ordine: `docker-precheck.runner.ts` (precondizioni), poi `global-setup.ts` (fixture) |
@@ -324,10 +324,10 @@ Aggiornare il commento prod (L83–84):
 
 ### 2.7 Accettazione
 
-- Avviando `npm run dev:full`, una richiesta `POST /auth/forgot-password` deposita una email **visibile** in `http://localhost:8025` con i link reali funzionanti.
+- Avviando `pnpm run dev:full`, una richiesta `POST /auth/forgot-password` deposita una email **visibile** in `http://localhost:8025` con i link reali funzionanti.
 - Grep `RESEND_API_KEY` in `apps/api/src/features/password-reset/`: ogni uso è gated da `EMAIL_PROVIDER !== 'smtp'`.
 - Test `email-smtp.integration.test.ts` (Task 4.2) verde con Mailpit attivo.
-- `npm run build -w apps/api` compila pulito.
+- `pnpm run build -w apps/api` compila pulito.
 
 ---
 
@@ -352,7 +352,7 @@ Aggiornare il commento prod (L83–84):
       - >
         DB_FILE=$$(ls /data/*.sqlite 2>/dev/null | grep -v metadata | head -n 1);
         if [ -z "$$DB_FILE" ]; then
-          echo "[sqlite-web] No D1 database found. Run 'npm run db:migrate:local' first." >&2;
+          echo "[sqlite-web] No D1 database found. Run 'pnpm run db:migrate:local' first." >&2;
           sleep infinity;
         fi;
         echo "[sqlite-web] Serving $$DB_FILE";
@@ -405,12 +405,12 @@ Aggiornare il commento prod (L83–84):
 ### 4.2 Uso
 
 - **Dentro Beech (test e dev quotidiano)**: gli action webhook puntano a `${WEBHOOK_TESTER_URL}/<uuid>` invece di a `webhook.site/<uuid>`. Lo sviluppatore crea il "session UUID" via `POST http://localhost:8084/api/session` (o passando un UUID arbitrario; webhook-tester accetta path arbitrari come bucket).
-- **Per webhook entranti da terzi (Stripe, GitHub, ...)**: lo sviluppatore recupera la URL trycloudflare dai log del container `tunnel` e la registra come endpoint pubblico nel servizio di terze parti. Lo script `npm run dev:tunnel-url` la estrae.
+- **Per webhook entranti da terzi (Stripe, GitHub, ...)**: lo sviluppatore recupera la URL trycloudflare dai log del container `tunnel` e la registra come endpoint pubblico nel servizio di terze parti. Lo script `pnpm run dev:tunnel-url` la estrae.
 
 ### 4.3 Accettazione
 
 - `docker compose logs tunnel` mostra una URL `https://<random>.trycloudflare.com`.
-- `npm run dev:tunnel-url` stampa solo la URL.
+- `pnpm run dev:tunnel-url` stampa solo la URL.
 - Test `action-executors.test.ts` (Task 4.4) verde con assertion reali contro `webhook-tester`.
 
 ---
@@ -419,7 +419,7 @@ Aggiornare il commento prod (L83–84):
 
 ### 5.1 Precheck Docker — fail-fast prima di qualsiasi test
 
-**Principio:** appena parte `npm test` (su qualsiasi workspace che integra con servizi esterni), la **primissima cosa** che deve succedere è verificare che lo stack Docker sia attivo e raggiungibile. Se uno solo dei servizi richiesti non risponde, l'intera suite si ferma con un messaggio actionable in cima al log — niente test eseguiti, niente errori opachi tipo "ECONNREFUSED 127.0.0.1:9000" sparsi nei singoli test.
+**Principio:** appena parte `pnpm test` (su qualsiasi workspace che integra con servizi esterni), la **primissima cosa** che deve succedere è verificare che lo stack Docker sia attivo e raggiungibile. Se uno solo dei servizi richiesti non risponde, l'intera suite si ferma con un messaggio actionable in cima al log — niente test eseguiti, niente errori opachi tipo "ECONNREFUSED 127.0.0.1:9000" sparsi nei singoli test.
 
 Questa logica vive in **un solo posto** (`test/docker-precheck.ts`), riusabile da:
 - `apps/api/test/global-setup.ts` (vitest globalSetup → blocca tutta la suite API).
@@ -481,10 +481,10 @@ export async function assertDockerStackReady(): Promise<void> {
     ...failed.map(f => `    • ${f.service.name.padEnd(16)} ${f.service.url}   → ${f.reason}`),
     '',
     '  Beech requires the full Docker stack for integration tests.',
-    '  No mocks, no fallbacks: the same containers used in `npm run dev:full`.',
+    '  No mocks, no fallbacks: the same containers used in `pnpm run dev:full`.',
     '',
     '  Fix:',
-    '    1) npm run dev:full           # from repo root — starts the whole stack',
+    '    1) pnpm run dev:full           # from repo root — starts the whole stack',
     '       (or, if the stack is already up, check `docker ps` for the container names',
     `        ${REQUIRED_SERVICES.map(s => s.containerName).join(', ')})`,
     '    2) Re-run the tests.',
@@ -568,10 +568,10 @@ export async function setup() { await assertDockerStackReady() }
     • webhook-tester   http://localhost:8084/api/ready   → fetch failed
 
   Beech requires the full Docker stack for integration tests.
-  No mocks, no fallbacks: the same containers used in `npm run dev:full`.
+  No mocks, no fallbacks: the same containers used in `pnpm run dev:full`.
 
   Fix:
-    1) npm run dev:full           # from repo root — starts the whole stack
+    1) pnpm run dev:full           # from repo root — starts the whole stack
        (or, if the stack is already up, check `docker ps` for the container names
         beech-minio, beech-mailpit, beech-webhook-tester)
     2) Re-run the tests.
@@ -739,7 +739,7 @@ Aggiungere a `apps/api/package.json` (dev):
 }
 ```
 
-> **Nota build:** `better-sqlite3` è un binding nativo (richiede compilazione). Su Windows serve `windows-build-tools` o Visual Studio Build Tools (la macchina dev attuale è Windows 11; verificare durante l'implementazione). In CI Linux è una `npm install` standard.
+> **Nota build:** `better-sqlite3` è un binding nativo (richiede compilazione). Su Windows serve `windows-build-tools` o Visual Studio Build Tools (la macchina dev attuale è Windows 11; verificare durante l'implementazione). In CI Linux è una `pnpm install` standard.
 
 #### 5.1.bis.e Compatibilità con migrazioni
 
@@ -749,7 +749,7 @@ Le migrazioni Beech usano FTS5 (`fts_{slug}`) e trigger. `better-sqlite3` v11 su
 
 - Grep `MockD1Database` su `apps/api`: zero match.
 - File `apps/api/test/mocks/mock-d1-database.ts` non esiste.
-- `npm test -w apps/api` verde, suite più veloce o uguale (better-sqlite3 sync è più rapido degli `await` finti del mock).
+- `pnpm test -w apps/api` verde, suite più veloce o uguale (better-sqlite3 sync è più rapido degli `await` finti del mock).
 - Un test deliberatamente patologico per il vecchio mock (es. `JOIN` complesso fra `content_posts` e `media_objects` con FTS5 MATCH) ora passa contro `D1TestDatabase`.
 - Coverage `apps/api/test/helpers/d1-test-database.ts` non incluso nei threshold (è codice di test, non di prod).
 
@@ -919,12 +919,12 @@ describe('SmtpEmailProvider (integration with Mailpit)', () => {
 
 ### 5.10 Accettazione test
 
-- `cd apps/api && npm test` esegue tutti i test con Docker attivo, **zero `vi.mock` su `@aws-sdk/*` o `'../../email'`**.
+- `cd apps/api && pnpm test` esegue tutti i test con Docker attivo, **zero `vi.mock` su `@aws-sdk/*` o `'../../email'`**.
 - Grep `vi\.mock\(['"]\@aws-sdk` in `apps/api`: zero match.
 - Grep `vi\.mock\(['"]\.\./\.\./email` in `apps/api`: zero match.
 - Grep `webhook.site` in tutto il repo: zero match (solo in `CHANGELOG.md` se necessario).
 - File `test/mocks/mock-r2-client.ts` non esiste più.
-- Se Docker è spento, `npm test` fallisce con il messaggio actionable di `global-setup.ts`.
+- Se Docker è spento, `pnpm test` fallisce con il messaggio actionable di `global-setup.ts`.
 
 ---
 
@@ -957,7 +957,7 @@ Aggiungere agli `scripts`:
 
 ## 6.bis Task 5.bis — Bootstrap automatico del database D1 locale
 
-**Principio:** la prima volta che uno sviluppatore esegue `npm run dev:full` su un clone fresco, deve trovarsi un database funzionante senza dover ricordare comandi `db:migrate`. Beech rileva l'assenza del DB e applica migrazioni + seed di base in modo idempotente.
+**Principio:** la prima volta che uno sviluppatore esegue `pnpm run dev:full` su un clone fresco, deve trovarsi un database funzionante senza dover ricordare comandi `db:migrate`. Beech rileva l'assenza del DB e applica migrazioni + seed di base in modo idempotente.
 
 ### 6.bis.1 Path canonico del DB locale
 
@@ -975,7 +975,7 @@ Il nome è un hash deterministico generato da Wrangler la prima volta che il bin
 /**
  * Idempotent D1 bootstrap for local dev.
  *
- * Runs every time `npm run dev:full` starts. Detects whether the local
+ * Runs every time `pnpm run dev:full` starts. Detects whether the local
  * D1 database exists and contains the base schema; if not, applies migrations
  * 0000 → latest in order and loads the base seed data.
  *
@@ -1060,10 +1060,10 @@ Il `test/global-setup.ts` (Task 5.1) deve anche eseguire il bootstrap prima dei 
 
 ### 6.bis.5 Accettazione
 
-- Su un clone fresco: `git clone … && cd … && npm install && npm run dev:full` produce un ambiente funzionante senza ulteriori comandi (DB popolato, MinIO + Mailpit + sqlite-web + webhook-tester + tunnel attivi, API + Dashboard partono).
-- Il secondo `npm run dev:full` non riapplica le migrazioni (`bootstrap-d1` esce con "DB already initialized — skipping").
-- Dopo `npm run dev:reset` (che fa `docker compose down -v` ma **non** tocca `.wrangler/state`), un successivo `npm run dev:full` riprende lo stesso DB.
-- Per ripartire da zero anche sul DB: `cd apps/api && npm run db:reset:local && cd ../.. && npm run dev:full`.
+- Su un clone fresco: `git clone … && cd … && pnpm install && pnpm run dev:full` produce un ambiente funzionante senza ulteriori comandi (DB popolato, MinIO + Mailpit + sqlite-web + webhook-tester + tunnel attivi, API + Dashboard partono).
+- Il secondo `pnpm run dev:full` non riapplica le migrazioni (`bootstrap-d1` esce con "DB already initialized — skipping").
+- Dopo `pnpm run dev:reset` (che fa `docker compose down -v` ma **non** tocca `.wrangler/state`), un successivo `pnpm run dev:full` riprende lo stesso DB.
+- Per ripartire da zero anche sul DB: `cd apps/api && pnpm run db:reset:local && cd ../.. && pnpm run dev:full`.
 - Nessuno script lancia `wrangler d1 execute --file=...` direttamente da `package.json` (root o api): la sequenza esatta delle migrazioni vive **solo** in `bootstrap-d1.mjs`.
 
 ---
@@ -1083,7 +1083,7 @@ if (env.ENV === 'development') {
       console.warn(
         `\n⚠️  ${c.name} non raggiungibile su ${c.url}\n` +
         `   Beech in dev richiede lo stack Docker completo.\n` +
-        `   Avvialo con: npm run dev:full\n`
+        `   Avvialo con: pnpm run dev:full\n`
       )
     })
   }
@@ -1101,7 +1101,7 @@ Aggiungere/sostituire la sezione "Storage in Development" con una sezione più a
 ```markdown
 ## Strumenti di Sviluppo Docker
 
-`npm run dev:full` orchestra l'intero stack locale:
+`pnpm run dev:full` orchestra l'intero stack locale:
 
 | Servizio | Porta host | URL / Console | Scopo |
 |---|---|---|---|
@@ -1109,21 +1109,21 @@ Aggiungere/sostituire la sezione "Storage in Development" con una sezione più a
 | Mailpit | 1025 (SMTP) / 8025 (HTTP) | http://localhost:8025 | Inbox locale per email transazionali (reset password, automation `send_mail`) |
 | SQLite Web | 8080 | http://localhost:8080 | Ispezione read-only del database D1 locale |
 | webhook-tester | 8084 | http://localhost:8084 | Endpoint locale per testare automation `webhook` |
-| Cloudflared Tunnel | n/a | URL `*.trycloudflare.com` da `npm run dev:tunnel-url` | Esporre l'API locale a internet per webhook in ingresso da terzi |
+| Cloudflared Tunnel | n/a | URL `*.trycloudflare.com` da `pnpm run dev:tunnel-url` | Esporre l'API locale a internet per webhook in ingresso da terzi |
 
 ### Comandi
 
-Beech ha **un solo modo** di avviare l'ambiente di sviluppo: `npm run dev:full`. Non esiste una modalità "senza Docker" né uno stack parziale. Docker è prerequisito non negoziabile.
+Beech ha **un solo modo** di avviare l'ambiente di sviluppo: `pnpm run dev:full`. Non esiste una modalità "senza Docker" né uno stack parziale. Docker è prerequisito non negoziabile.
 
 | Comando | Effetto |
 |---|---|
-| `npm run dev:full` | Avvia stack Docker completo + API + Dashboard (comando canonico) |
-| `npm run dev` | Alias di `dev:full` |
-| `npm run dev:tunnel-url` | Stampa la URL pubblica del tunnel Cloudflare |
-| `npm run dev:mailpit:reset` | Svuota la inbox Mailpit |
-| `npm run dev:logs:<servizio>` | Stream dei log (mailpit \| sqlite \| tunnel \| minio) |
-| `npm run dev:stop` | Stop di tutti i container (mantiene i volumi) |
-| `npm run dev:reset` | Stop + rimuove tutti i volumi (reset completo) |
+| `pnpm run dev:full` | Avvia stack Docker completo + API + Dashboard (comando canonico) |
+| `pnpm run dev` | Alias di `dev:full` |
+| `pnpm run dev:tunnel-url` | Stampa la URL pubblica del tunnel Cloudflare |
+| `pnpm run dev:mailpit:reset` | Svuota la inbox Mailpit |
+| `pnpm run dev:logs:<servizio>` | Stream dei log (mailpit \| sqlite \| tunnel \| minio) |
+| `pnpm run dev:stop` | Stop di tutti i container (mantiene i volumi) |
+| `pnpm run dev:reset` | Stop + rimuove tutti i volumi (reset completo) |
 
 ### Switching provider email
 
@@ -1142,11 +1142,11 @@ Per testare il path Resend in locale: imposta `EMAIL_PROVIDER=resend` e `RESEND_
 ```markdown
 ## Testing
 
-I test `apps/api` richiedono lo stack Docker attivo (stesso stack di `npm run dev:full`). Il setup vitest (`test/global-setup.ts`) verifica MinIO, Mailpit e webhook-tester prima di partire e crea un bucket MinIO effimero per il run.
+I test `apps/api` richiedono lo stack Docker attivo (stesso stack di `pnpm run dev:full`). Il setup vitest (`test/global-setup.ts`) verifica MinIO, Mailpit e webhook-tester prima di partire e crea un bucket MinIO effimero per il run.
 
 ```bash
-npm run dev:full           # avvia lo stack completo (puoi tenerlo aperto in un terminale)
-cd apps/api && npm test    # esegue la suite contro i container reali
+pnpm run dev:full           # avvia lo stack completo (puoi tenerlo aperto in un terminale)
+cd apps/api && pnpm test    # esegue la suite contro i container reali
 ```
 
 Se i container non sono attivi, i test falliscono con istruzioni precise. **Non esistono fallback su `vi.mock`** per email, R2 o webhook — il principio è "test contro gli stessi servizi che girano in dev".
@@ -1172,18 +1172,18 @@ Aggiungere sezione "Local Dev & Testing Infrastructure" che descrive:
 Sostituire/estendere la sezione **Commands → Root**:
 
 ```diff
-- npm run dev:full        # avvia MinIO + API + Dashboard (richiede Docker)
-- npm run dev             # Solo API + Dashboard (richiede MinIO già attivo)
-- npm run dev:storage     # Avvia solo MinIO in background
-- npm run dev:storage:stop
-- npm run dev:storage:reset
-+ npm run dev:full        # UNICO comando di sviluppo: stack Docker completo + API + Dashboard
-+ npm run dev             # Alias di dev:full
-+ npm run dev:tunnel-url  # Stampa la URL Cloudflare Quick Tunnel
-+ npm run dev:mailpit:reset  # Svuota la inbox Mailpit
-+ npm run dev:logs:<svc>  # Log streaming (mailpit | sqlite | tunnel | minio)
-+ npm run dev:stop        # Stop dei container
-+ npm run dev:reset       # Stop + rimozione volumi
+- pnpm run dev:full        # avvia MinIO + API + Dashboard (richiede Docker)
+- pnpm run dev             # Solo API + Dashboard (richiede MinIO già attivo)
+- pnpm run dev:storage     # Avvia solo MinIO in background
+- pnpm run dev:storage:stop
+- pnpm run dev:storage:reset
++ pnpm run dev:full        # UNICO comando di sviluppo: stack Docker completo + API + Dashboard
++ pnpm run dev             # Alias di dev:full
++ pnpm run dev:tunnel-url  # Stampa la URL Cloudflare Quick Tunnel
++ pnpm run dev:mailpit:reset  # Svuota la inbox Mailpit
++ pnpm run dev:logs:<svc>  # Log streaming (mailpit | sqlite | tunnel | minio)
++ pnpm run dev:stop        # Stop dei container
++ pnpm run dev:reset       # Stop + rimozione volumi
 ```
 
 > Beech richiede Docker. Non esiste una modalità "lightweight"; chi non può/non vuole avere Docker non può sviluppare su Beech.
@@ -1195,7 +1195,7 @@ Nella **Tech Stack Summary** aggiungere riga:
 
 ### 8.6 `README.md`
 
-Quick start: aggiornare il blocco con la nuova lista porte/servizi avviata da `npm run dev:full`. Aggiungere una nota:
+Quick start: aggiornare il blocco con la nuova lista porte/servizi avviata da `pnpm run dev:full`. Aggiungere una nota:
 > Lo stack richiede Docker. La prima esecuzione scarica ~250 MB di immagini.
 
 ---
@@ -1203,10 +1203,10 @@ Quick start: aggiornare il blocco con la nuova lista porte/servizi avviata da `n
 ## 9. Acceptance Criteria finali (riepilogo Issue)
 
 - [x] `docker-compose.yml` contiene `minio`, `minio-init`, `mailpit`, `sqlite-web`, `webhook-tester`, `tunnel`, tutti con bind `127.0.0.1` e healthcheck dove previsto.
-- [x] `npm run dev:full` avvia tutto lo stack, esegue `bootstrap-d1.mjs` e poi `turbo dev`; gli sviluppatori non hanno bisogno di altri comandi.
-- [x] Su un clone fresco senza `.wrangler/state`, `npm run dev:full` produce un DB locale popolato con migrazioni 0000→ultima (sentinella: tabella `users` presente).
-- [x] Riesecuzione di `npm run dev:full` è no-op sul DB (log `bootstrap-d1: DB already initialized — skipping`).
-- [x] `npm run dev` è alias esatto di `npm run dev:full`; non esistono script che avviano l'API senza lo stack Docker.
+- [x] `pnpm run dev:full` avvia tutto lo stack, esegue `bootstrap-d1.mjs` e poi `turbo dev`; gli sviluppatori non hanno bisogno di altri comandi.
+- [x] Su un clone fresco senza `.wrangler/state`, `pnpm run dev:full` produce un DB locale popolato con migrazioni 0000→ultima (sentinella: tabella `users` presente).
+- [x] Riesecuzione di `pnpm run dev:full` è no-op sul DB (log `bootstrap-d1: DB already initialized — skipping`).
+- [x] `pnpm run dev` è alias esatto di `pnpm run dev:full`; non esistono script che avviano l'API senza lo stack Docker.
 - [x] Rimossi da `package.json` root: `dev:storage`, `dev:storage:stop`, `dev:storage:reset`.
 - [x] `apps/api/src/features/email/providers/smtp.ts` esiste e implementa `EmailProvider` via Mailpit HTTP send API.
 - [x] `createProvider` in `email.service.ts` seleziona SMTP/Resend in base a `env.EMAIL_PROVIDER`.
@@ -1216,13 +1216,13 @@ Quick start: aggiornare il blocco con la nuova lista porte/servizi avviata da `n
 - [x] `apps/api/src/index.ts` warning copre MinIO e Mailpit quando in `ENV=development`.
 - [x] `apps/api/test/docker-precheck.ts` esiste, esporta `assertDockerStackReady()` che pinga MinIO/Mailpit/webhook-tester in parallelo e produce un errore aggregato con la lista di tutti i servizi mancanti.
 - [x] `apps/api/test/docker-precheck.runner.ts` è registrato come **primo** `globalSetup` in `vitest.config.ts`, prima di `global-setup.ts`.
-- [x] Se anche solo uno dei container è giù, `npm test -w apps/api` termina **subito** (zero test eseguiti) con il banner formattato che indica `npm run dev:full` come fix.
-- [x] Eseguendo `npm test -w apps/api` con stack down, il messaggio di errore compare in cima al log, non sepolto fra errori dei singoli test.
+- [x] Se anche solo uno dei container è giù, `pnpm test -w apps/api` termina **subito** (zero test eseguiti) con il banner formattato che indica `pnpm run dev:full` come fix.
+- [x] Eseguendo `pnpm test -w apps/api` con stack down, il messaggio di errore compare in cima al log, non sepolto fra errori dei singoli test.
 - [x] `apps/api/test/helpers/d1-test-database.ts` esiste e implementa l'interfaccia `D1Database` su `better-sqlite3` in-memory, applicando in costruttore tutte le migrazioni `migrations/*.sql` in ordine.
 - [x] FTS5 funzionante: un test che esegue `MATCH` contro una tabella `fts_*` passa contro `D1TestDatabase`.
 - [x] Grep `MockD1Database` su `apps/api`: zero match. File `mock-d1-database.ts` eliminato.
 - [x] I 6 flow test (`flow-admin-auth`, `flow-content-management`, `flow-draft-management`, `flow-media-assets`, `flow-stats`, `flow-system-schema`) usano `D1TestDatabase` e passano verdi.
-- [x] `better-sqlite3` aggiunto a `apps/api/package.json` devDependencies; `npm ci` funziona in CI Linux senza step extra.
+- [x] `better-sqlite3` aggiunto a `apps/api/package.json` devDependencies; `pnpm ci` funziona in CI Linux senza step extra.
 - [ ] `.github/workflows/test.yml` job `test-api` avvia MinIO, Mailpit, webhook-tester con le **stesse immagini, credenziali, porte** di `docker-compose.yml`.
 - [ ] `.github/actions/docker-stack/action.yml` esiste come composite action riusabile.
 - [ ] Step "Verify Docker stack reachable" in CI fallisce esplicitamente prima di lanciare vitest se uno dei servizi non risponde.
@@ -1232,7 +1232,7 @@ Quick start: aggiornare il blocco con la nuova lista porte/servizi avviata da `n
 - [x] `apps/api/src/features/automations/__tests__/action-executors.test.ts` **non contiene** `vi.mock('../../email', ...)` né `vi.stubGlobal('fetch')` per webhook; usa Mailpit e webhook-tester reali.
 - [x] Helpers `test/helpers/mailpit-client.ts`, `test/helpers/webhook-tester-client.ts`, `test/helpers/minio-test-bucket.ts` esistono e sono usati dai test.
 - [x] Test `email-smtp.integration.test.ts` (nuovo) verde.
-- [x] `npm test -w apps/api` verde con stack Docker attivo.
+- [x] `pnpm test -w apps/api` verde con stack Docker attivo.
 - [ ] `docs/development.md` documenta lo stack completo, le porte, i comandi e la sezione Testing.
 - [ ] `docs/api-reference.md` e `docs/architecture.md` aggiornati con i riferimenti a Mailpit e alla strategia "no-mock per i layer di integrazione".
 - [ ] `CLAUDE.md` (root) e `README.md` aggiornano Quick start e Tech Stack.
@@ -1311,7 +1311,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
 
       # MinIO via `docker run` perché `services:` non gestisce il comando custom
       # (`server /data --console-address ":9001"`). Lo stesso entrypoint dello dev stack.
@@ -1337,10 +1337,10 @@ jobs:
           "
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm ci
 
       - name: Build packages (Core)
-        run: npm run build -w @beechcms/core
+        run: pnpm run build -w @beechcms/core
 
       - name: Verify Docker stack reachable (sanity)
         run: |
@@ -1360,7 +1360,7 @@ jobs:
           SMTP_HOST: localhost
           SMTP_PORT: '8025'
           WEBHOOK_TESTER_URL: http://localhost:8084
-        run: npm test -w @beechcms/api
+        run: pnpm test -w @beechcms/api
 ```
 
 > **Nota MinIO + `services:`**: GitHub Actions non permette di passare il `command` ai container in `services:`. Per immagini che richiedono un comando custom (come `minio server /data --console-address ":9001"`) bisogna usare `docker run` esplicito in uno step. Manteniamo invece `mailpit` e `webhook-tester` in `services:` perché i loro entrypoint default sono già corretti.
@@ -1415,7 +1415,7 @@ runs:
 `test.yml` diventa allora:
 ```yaml
       - uses: ./.github/actions/docker-stack
-      - run: npm test -w @beechcms/api
+      - run: pnpm test -w @beechcms/api
         env: { /* env vars uguali */ }
 ```
 
@@ -1444,7 +1444,7 @@ runs:
 
 ### 9.bis.6 Accettazione CI
 
-- Su PR verso `master`/`devs`, il workflow `Test` avvia MinIO/Mailpit/webhook-tester e li health-check prima di lanciare `npm test -w @beechcms/api`.
+- Su PR verso `master`/`devs`, il workflow `Test` avvia MinIO/Mailpit/webhook-tester e li health-check prima di lanciare `pnpm test -w @beechcms/api`.
 - Se uno dei servizi non si avvia, lo step "Verify Docker stack reachable (sanity)" fallisce con messaggio chiaro **prima** che vitest parta.
 - I test stessi falliscono comunque tramite `docker-precheck.ts` se la sanity passa ma il container si spegne (defense-in-depth).
 - Il tempo totale del job non aumenta di più di ~30s (pull immagini + health wait).
@@ -1461,9 +1461,9 @@ runs:
 | API webhook-tester instabile o cambiata | Helper `webhook-tester-client.ts` è isolato in un solo file. Se il container scelto non espone una HTTP read API stabile, sostituire con `mendhak/http-https-echo` + `docker logs` polling. |
 | Mailpit accetta auth qualsiasi → false positive di sicurezza | Documentare esplicitamente in `docs/development.md` che è dev-only; il `wrangler.jsonc` prod NON ha `EMAIL_PROVIDER=smtp`. |
 | Path `.wrangler/state/.../d1/*.sqlite` cambia con upgrade Wrangler | Lo script `entrypoint` di `sqlite-web` fa glob auto-discover, non è hard-coded sul filename. |
-| Cloudflared Quick Tunnel URL effimera e variabile a ogni restart | Documentato come accettabile; lo script `npm run dev:tunnel-url` la rilegge ogni volta. Per uso prolungato, lo sviluppatore può configurare un tunnel nominato (fuori scope). |
+| Cloudflared Quick Tunnel URL effimera e variabile a ogni restart | Documentato come accettabile; lo script `pnpm run dev:tunnel-url` la rilegge ogni volta. Per uso prolungato, lo sviluppatore può configurare un tunnel nominato (fuori scope). |
 | Test che dipendono dall'ordine (es. condivisione bucket) | Ogni test genera key univoche con prefisso `test-${nanoid}-`; il bucket effimero è per intero run (PID), non per test. |
-| `better-sqlite3` non compila su Windows senza Visual Studio Build Tools | Documentare in `docs/development.md` il prerequisito Windows (`npm install --global windows-build-tools` o VS Build Tools 2022). Su CI Linux è zero-config. Alternativa di emergenza: `node:sqlite` (Node 22+) o `wa-sqlite` (WASM, niente build nativa) — valutare se compatibilità FTS5 è OK. |
+| `better-sqlite3` non compila su Windows senza Visual Studio Build Tools | Documentare in `docs/development.md` il prerequisito Windows (`pnpm install --global windows-build-tools` o VS Build Tools 2022). Su CI Linux è zero-config. Alternativa di emergenza: `node:sqlite` (Node 22+) o `wa-sqlite` (WASM, niente build nativa) — valutare se compatibilità FTS5 è OK. |
 | Divergenza semantica fra `better-sqlite3` (SQLite 3.4x) e D1 (SQLite 3.45+) | D1 sta su SQLite recente; pinnare `better-sqlite3` v11+ che bundle SQLite 3.45+. Aggiungere un test che verifica `SELECT sqlite_version()` in entrambi gli ambienti e logga differenze. |
 | Migrazioni eseguite ad ogni `beforeEach` rallentano i test | better-sqlite3 in-memory è velocissimo (~10ms per applicare tutte le migrazioni Beech). Se diventasse un problema, cachare uno snapshot binario via `db.backup()` e ricaricarlo per ogni test. Misurare prima di ottimizzare. |
 | GitHub Actions `services:` non supporta `command` custom (es. MinIO) | Documentato in §9.bis.1: MinIO viene avviato via `docker run` esplicito in uno step. Mailpit e webhook-tester restano in `services:` perché usano entrypoint default. |

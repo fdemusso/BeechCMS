@@ -148,7 +148,7 @@ The unit tests live alongside the implementations in `apps/api/src/shared/`:
 - `background-notification-service.test.ts` — repository delegation,
   default type, scheduler delegation, error swallowing.
 
-Run them with `npm test` from `apps/api/`.
+Run them with `pnpm test` from `apps/api/`.
 
 ## Migration notes
 

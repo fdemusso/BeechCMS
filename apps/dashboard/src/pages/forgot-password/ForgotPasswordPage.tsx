@@ -50,7 +50,7 @@ export function ForgotPasswordPage() {
           <CardContent className="p-6 md:p-8">
             {submitted ? (
               <div className="flex flex-col items-center gap-4 text-center">
-                <h1 className="text-2xl font-semibold">{t("forgotPassword.successTitle")}</h1>
+                <h1 className="font-heading text-2xl font-semibold">{t("forgotPassword.successTitle")}</h1>
                 <p className="text-muted-foreground text-balance text-sm">
                   {t("forgotPassword.successDesc")}
                 </p>
@@ -65,7 +65,7 @@ export function ForgotPasswordPage() {
               <form onSubmit={handleSubmit} noValidate>
                 <FieldGroup>
                   <div className="flex flex-col items-center gap-2 text-center">
-                    <h1 className="text-2xl font-semibold">{t("forgotPassword.title")}</h1>
+                    <h1 className="font-heading text-2xl font-semibold">{t("forgotPassword.title")}</h1>
                     <p className="text-muted-foreground text-balance text-sm">
                       {t("forgotPassword.desc")}
                     </p>

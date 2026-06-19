@@ -14,7 +14,7 @@ entirely from within the entry editor.
 - API: Hono on Cloudflare Workers, D1 (SQLite)
 - Dashboard: React 19 + TanStack Query v5 + Axios (`src/lib/api.ts`, base `/api`)
 - Shared: `@beechcms/core` (pure TS, no HTTP)
-- Monorepo: Turborepo / npm workspaces
+- Monorepo: Turborepo / pnpm workspaces
 
 ==========================================================================
 SECTION 1 — WHAT IS ALREADY IN PRODUCTION (do not rewrite)
@@ -670,7 +670,7 @@ SECTION 4 — ACCEPTANCE CRITERIA
 - [ ] No regression when `has_pending_draft: false` — banner is hidden, Save behaves as before
 - [ ] "Resume draft" button is disabled when draft data has not yet loaded (network latency)
 - [ ] All new i18n keys are present in both `en.json` and `it.json`
-- [ ] All new tests pass (`npm run test` in `apps/dashboard`)
+- [ ] All new tests pass (`pnpm run test` in `apps/dashboard`)
 
 ==========================================================================
 SECTION 5 — CONSTRAINTS

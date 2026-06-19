@@ -89,4 +89,8 @@ export interface SchemaFormViewModel {
   canEditLayoutFlag: boolean
   builderMode: boolean
   setBuilderMode: (v: boolean) => void
+
+  // readonly mode
+  isReadOnly?: boolean
+  setIsReadOnly?: (v: boolean) => void
 }

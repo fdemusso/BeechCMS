@@ -45,13 +45,16 @@ export function StatWidget({ config }: { config: StatWidgetFormulaConfig }) {
     ? "..."
     : (aggregateQuery.data?.value ?? 0).toLocaleString()
 
-  let trend: { value: number; isPositive: boolean } | undefined
+  let trend: { value: number; direction: 'up' | 'down' | 'flat' } | undefined
   if (showTrend && growthQuery.data) {
     trend = {
       value: Math.abs(growthQuery.data.percentageChange),
-      isPositive: growthQuery.data.trend !== "down",
+      direction: growthQuery.data.trend,
     }
   }
 
-  return <StatCard title={label} value={value} icon={Icon} trend={trend} />
+  const windowKey = window.charAt(0).toUpperCase() + window.slice(1)
+  const timeLabel = window !== "all" ? `vs ${t(`dashboard.builder.config.window${windowKey}`).toLowerCase()}` : undefined
+
+  return <StatCard title={label} value={value} icon={Icon} trend={trend} timeLabel={timeLabel} />
 }

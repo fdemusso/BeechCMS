@@ -10,6 +10,7 @@ import { ChevronRight } from "lucide-react"
 import { useCommandState } from "cmdk" // only useCommandState is imported directly from cmdk
 
 import {
+  Command,
   CommandDialog,
   CommandInput,
   CommandList,
@@ -99,45 +100,48 @@ export function CommandPalette() {
         open={open}
         onOpenChange={setOpen}
         aria-label={t("commandPalette.ariaLabel")}
+        className="sm:max-w-2xl"
       >
-        <div className="flex flex-col">
-          <BreadcrumbChips pages={pages} popPage={popPage} />
-          <CommandInput
-            placeholder={PLACEHOLDER[currentPage]}
-            value={search}
-            onValueChange={setSearch}
-          />
-        </div>
-
-        <CommandList className="max-h-[400px]">
-          <EmptyMessage />
-
-          {currentPage === "root" && (
-            <RootView
-              seeds={seeds}
-              pushPage={pushPage}
-              navigate={navigate}
-              setOpen={setOpen}
-              theme={resolvedTheme}
-              toggleTheme={toggleTheme}
+        <Command className="border-none bg-transparent shadow-none">
+          <div className="flex flex-col">
+            <BreadcrumbChips pages={pages} popPage={popPage} />
+            <CommandInput
+              placeholder={PLACEHOLDER[currentPage]}
+              value={search}
+              onValueChange={setSearch}
             />
-          )}
-          {currentPage === "seeds" && (
-            <SeedsView seeds={seeds} navigate={navigate} setOpen={setOpen} mode="navigate" />
-          )}
-          {currentPage === "create" && (
-            <SeedsView seeds={seeds} navigate={navigate} setOpen={setOpen} mode="create" />
-          )}
-          {currentPage === "search-results" && (
-            <SearchResultsView search={search} seeds={seeds} navigate={navigate} setOpen={setOpen} />
-          )}
-        </CommandList>
-
-        {currentPage !== "root" && (
-          <div className="p-3 border-t text-[10px] text-muted-foreground bg-muted/20">
-            {t("commandPalette.backHint")}
           </div>
-        )}
+
+          <CommandList className="max-h-[550px]">
+            <EmptyMessage />
+
+            {currentPage === "root" && (
+              <RootView
+                seeds={seeds}
+                pushPage={pushPage}
+                navigate={navigate}
+                setOpen={setOpen}
+                theme={resolvedTheme}
+                toggleTheme={toggleTheme}
+              />
+            )}
+            {currentPage === "seeds" && (
+              <SeedsView seeds={seeds} navigate={navigate} setOpen={setOpen} mode="navigate" />
+            )}
+            {currentPage === "create" && (
+              <SeedsView seeds={seeds} navigate={navigate} setOpen={setOpen} mode="create" />
+            )}
+            {currentPage === "search-results" && (
+              <SearchResultsView search={search} seeds={seeds} navigate={navigate} setOpen={setOpen} />
+            )}
+          </CommandList>
+
+          {currentPage !== "root" && (
+            <div className="p-3 border-t text-[10px] text-muted-foreground bg-muted/20">
+              {t("commandPalette.backHint")}
+            </div>
+          )}
+        </Command>
       </CommandDialog>
     </>
   )

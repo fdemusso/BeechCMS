@@ -7,7 +7,7 @@ import { Sparkles, ArrowRight } from "lucide-react"
 
 export function AIInsights() {
   return (
-    <Card className="relative overflow-hidden border-none bg-primary/5 text-primary-foreground">
+    <Card className="relative overflow-hidden border border-border bg-card">
       {/* Decorative background element */}
       <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/20 blur-3xl" />
       
@@ -28,7 +28,7 @@ export function AIInsights() {
           <p className="text-muted-foreground">Posso generare automaticamente delle descrizioni SEO per i tuoi ultimi 5 articoli.</p>
         </div>
         
-        <button className="group flex items-center gap-1 text-sm font-semibold text-primary transition-all hover:gap-2">
+        <button className="group flex items-center gap-1 text-sm font-semibold text-foreground hover:underline transition-all hover:gap-2">
           Ottimizza ora
           <ArrowRight className="h-4 w-4" />
         </button>

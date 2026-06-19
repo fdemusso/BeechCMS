@@ -572,13 +572,13 @@ SECTION 5 — TASK DETAILS
 SECTION 6 — VALIDATION
 ==========================================================================
 
-  1. `npm run build` in `packages/core/` — types compile clean.
+  1. `pnpm run build` in `packages/core/` — types compile clean.
   2. `npx tsc --noEmit` in `apps/api/` — zero errors.
   3. `npx tsc --noEmit` in `apps/dashboard/` — zero errors.
-  4. `npm run test` in `apps/api/` — all new tests pass; pre-existing
+  4. `pnpm run test` in `apps/api/` — all new tests pass; pre-existing
      automation tests pass without modification (the legacy interpolate
      overload guarantees this).
-  5. `npm run db:reset:local` — migrazioni applicate (0030 RIMOSSA).
+  5. `pnpm run db:reset:local` — migrazioni applicate (0030 RIMOSSA).
   6. End-to-end smoke (cron, real Worker):
 
      a. Seed: `orders` (alias `total: number`, `customer_id: text`,

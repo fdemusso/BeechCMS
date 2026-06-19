@@ -1,7 +1,7 @@
 # Custom Dashboard Widgets
 
 The Beech CMS dashboard widget catalog is a **public extension point**.
-Third-party widgets are npm packages, registered **at build time**, and
+Third-party widgets are pnpm packages, registered **at build time**, and
 configured in the dashboard builder exactly like built-in widgets.
 
 ## Security model (read this first)
@@ -9,7 +9,7 @@ configured in the dashboard builder exactly like built-in widgets.
 Per decision **D9**, the dashboard is a static SPA deployed to the edge.
 There is **no runtime plugin loader, no remote code execution, and no
 sandbox**. A custom widget is **trusted code compiled into the operator's
-own dashboard build** — the same trust level as any other npm dependency.
+own dashboard build** — the same trust level as any other pnpm dependency.
 
 Consequences:
 
@@ -30,9 +30,9 @@ Consequences:
 
 ```bash
 mkdir my-widget && cd my-widget
-npm init -y
-npm install @beechcms/widget-sdk
-npm install --save-dev typescript @types/react
+pnpm init -y
+pnpm install @beechcms/widget-sdk
+pnpm install --save-dev typescript @types/react
 ```
 
 Declare `react` and `@tanstack/react-query` as **peer dependencies** —
@@ -147,7 +147,7 @@ Identity helper — returns `definition` unchanged, but:
 
 | Field | Type | Notes |
 |---|---|---|
-| `type` | `string` | Namespaced: your npm package name, optionally `pkg/sub-name` for multi-widget packs (e.g. `@acme/beech-widgets/clock`). |
+| `type` | `string` | Namespaced: your pnpm package name, optionally `pkg/sub-name` for multi-widget packs (e.g. `@acme/beech-widgets/clock`). |
 | `labelKey` | `string` | Picker label. Built-ins use i18n keys; custom widgets may use a plain string. |
 | `descriptionKey` | `string?` | Picker description. |
 | `icon` | `string?` | Lucide icon name for the picker. |

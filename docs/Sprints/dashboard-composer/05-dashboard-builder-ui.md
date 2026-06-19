@@ -196,7 +196,7 @@ Modified:
 1. Build, lint, tests green in `apps/dashboard`.
 2. Editor-role user: no Customize button; direct `PUT` still impossible (403,
    already covered by API tests).
-3. Full manual loop on `npm run dev:full`: open builder → add page → add
+3. Full manual loop on `pnpm run dev:full`: open builder → add page → add
    section `[8,4]` → add `core/line-chart` + configure seed → drag it to the
    other column → preview shows live chart → save → reload page → layout
    persists → reset → default returns.

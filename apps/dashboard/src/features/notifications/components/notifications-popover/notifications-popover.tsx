@@ -223,7 +223,7 @@ export function NotificationsPopover() {
       >
         <div className="border-b px-4 py-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-semibold">{t("notifications.title")}</h3>
+            <h3 className="font-heading font-semibold">{t("notifications.title")}</h3>
             {hasUnreadNotifications && (
               <Button
                 variant="link"

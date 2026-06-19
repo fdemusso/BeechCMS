@@ -70,11 +70,46 @@ export class RelationTargetNotFoundError extends RepositoryError {
   }
 }
 
+/**
+ * Thrown by lifecycle `before*` hooks to signal a business validation failure.
+ * Mapped to 422 Unprocessable Entity by the API problem-mapper.
+ */
+export class HookValidationError extends RepositoryError {
+  readonly fields?: Array<{ field: string; message: string }>
+
+  constructor(message: string, fields?: Array<{ field: string; message: string }>) {
+    super(message)
+    this.name = 'HookValidationError'
+    this.fields = fields
+  }
+}
+
 export type BulkFieldUpdate =
   | { kind: 'set'; value: unknown }
   | { kind: 'array_replace'; value: string[] }
   | { kind: 'array_add'; value: string[] }
   | { kind: 'array_remove'; value: string[] }
+
+/**
+ * Options passed to write operations. Currently carries the acting user
+ * (extracted from the JWT) so lifecycle hooks can attribute changes.
+ */
+export interface RepositoryOptions {
+  actor?: { id: string; role?: string; email?: string }
+}
+
+/**
+ * Declarative multi-write operation translated into a single `db.batch` call.
+ * Used for coordinated writes across one or more seeds when D1's lack of
+ * interactive transactions makes a callback-based API impossible.
+ *
+ * NOTE: document-level lifecycle hooks do NOT run for operations inside a
+ * `runBatch` call — they would be non-atomic side-effects.
+ */
+export type BatchWrite =
+  | { kind: 'create'; seed: Seed; id: string; slug: string; status: string; data: Record<string, any> }
+  | { kind: 'update'; seed: Seed; id: string; data: Record<string, any>; status?: string }
+  | { kind: 'mutateField'; seed: Seed; id: string; fieldName: string; operation: { type: 'increment' | 'decrement'; value: number }; options?: { min?: number; max?: number } }
 
 /**
  * Interface defining the standard operations for content persistence.
@@ -110,20 +145,41 @@ export interface ContentRepository {
    * Creates a new content entry in the live table.
    * Throws SlugConflictError if the slug is already taken.
    */
-  create(seed: Seed, id: string, slug: string, status: string, data: Record<string, any>): Promise<void>
+  create(seed: Seed, id: string, slug: string, status: string, data: Record<string, any>, options?: RepositoryOptions): Promise<void>
 
   /**
    * Partially updates an existing entry in the live table.
    * Throws EntryNotFoundError if the ID does not exist.
    */
-  update(seed: Seed, id: string, data: Record<string, any>, status?: string): Promise<void>
+  update(seed: Seed, id: string, data: Record<string, any>, status?: string, options?: RepositoryOptions): Promise<void>
 
   /**
    * Deletes an entry from the live table.
    * Returns the deleted row data (useful for media cleanup).
    * Throws EntryNotFoundError if the ID does not exist.
    */
-  delete(seed: Seed, id: string): Promise<{ row: Record<string, any> }>
+  delete(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }>
+
+  /**
+   * Atomically increments/decrements a numeric field with optional min/max guards.
+   * Bypasses document-level lifecycle hooks — it's a single UPDATE statement,
+   * used to prevent race conditions on counters (stock, balances).
+   * Throws RepositoryError if `fieldName` is not a numeric branch of `seed`, or
+   * if the guard conditions fail / the row does not exist.
+   */
+  mutateField(
+    seed: Seed,
+    id: string,
+    fieldName: string,
+    operation: { type: 'increment' | 'decrement'; value: number },
+    options?: { min?: number; max?: number },
+  ): Promise<{ newValue: number }>
+
+  /**
+   * Executes a list of write operations atomically via a single `db.batch`.
+   * Document-level lifecycle hooks do NOT run for operations inside this call.
+   */
+  runBatch(operations: BatchWrite[]): Promise<void>
 
   /**
    * Saves or updates a pending draft in the mirror table.

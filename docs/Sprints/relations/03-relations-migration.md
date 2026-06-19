@@ -50,7 +50,7 @@ VERIFIED via direct read of `packages/cli/src/commands/seed-load.ts`:
 VERIFIED policy: **BeechCMS is in BETA.** No backwards-compatibility burden.
 Schema changes go into `apps/api/migrations/0000_v040_base.sql` (system tables
 only — users, sessions, media, etc.) and the developer runs
-`npm run dev:reset` to wipe and re-init. Content tables are NEVER added via
+`pnpm run dev:reset` to wipe and re-init. Content tables are NEVER added via
 numbered migrations; they are always emitted by `seed:load` from the project's
 `seed.ts`. Sprint 3 honours this: no new migration file is created.
 
@@ -123,7 +123,7 @@ statements in BeechCMS.
 After editing, rebuild the package:
 
 ```bash
-cd packages/cli && npm run build
+cd packages/cli && pnpm run build
 ```
 
 This refreshes `packages/cli/dist/index.js`, which `bin/cli.mjs` resolves.
@@ -191,7 +191,7 @@ Add matching pretty-print branches in `runDiff()` (`seed-load.ts:42-67`):
 ```
 
 Resolution path for `fk_*` drift on a BETA project: edit `seed.ts` if the
-declaration is wrong, then `npm run dev:reset && npx beech seed:load --local`.
+declaration is wrong, then `pnpm run dev:reset && npx beech seed:load --local`.
 SQLite cannot ALTER an existing column to add an FK without a full table
 rewrite, and BETA explicitly accepts wipes. Do NOT attempt a recreate-table
 migration path in this sprint.
@@ -307,7 +307,7 @@ SECTION 4 — OUT OF SCOPE
 - Dashboard FieldRenderers and `displayNameAlias` resolution — Sprint 4.
 - Embedding target labels in list endpoint responses to mitigate N+1 — Sprint 4.
 - An ALTER-based path to add FKs to columns created by older `seed:load` runs
-  — not needed in BETA; `npm run dev:reset` is the documented escape hatch.
+  — not needed in BETA; `pnpm run dev:reset` is the documented escape hatch.
 - Many-to-many / polymorphic relations.
 
 ==========================================================================

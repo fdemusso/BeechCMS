@@ -24,13 +24,18 @@ export interface IRateLimiterRegistry {
 const NO_OP = new NoOpRateLimiter()
 
 function buildDefaultRegistry(env: Env): IRateLimiterRegistry {
+  // WORKAROUND: Cloudflare's local wrangler/workerd simulator crashes on Windows
+  // when executing RateLimit bindings (.limit()). We bypass rate limiting in local
+  // development (env.ENV === 'development') but keep it enabled in Vitest tests.
+  const isDev = env.ENV === 'development' && !(typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.env?.VITEST)
+
   const limiters: Record<RateLimiterName, IRateLimiter> = {
-    login: env.LOGIN_RATE_LIMITER ? new CloudflareRateLimiter(env.LOGIN_RATE_LIMITER) : NO_OP,
-    tokenRefresh: env.REFRESH_RATE_LIMITER ? new CloudflareRateLimiter(env.REFRESH_RATE_LIMITER) : NO_OP,
-    forgotPassword: env.FORGOT_PASSWORD_RATE_LIMITER ? new CloudflareRateLimiter(env.FORGOT_PASSWORD_RATE_LIMITER) : NO_OP,
-    resetPassword: env.RESET_PASSWORD_RATE_LIMITER ? new CloudflareRateLimiter(env.RESET_PASSWORD_RATE_LIMITER) : NO_OP,
-    publicApiRead: env.PUBLIC_READ_RATE_LIMITER ? new CloudflareRateLimiter(env.PUBLIC_READ_RATE_LIMITER) : NO_OP,
-    publicApiWrite: env.PUBLIC_WRITE_RATE_LIMITER ? new CloudflareRateLimiter(env.PUBLIC_WRITE_RATE_LIMITER) : NO_OP,
+    login: !isDev && env.LOGIN_RATE_LIMITER ? new CloudflareRateLimiter(env.LOGIN_RATE_LIMITER) : NO_OP,
+    tokenRefresh: !isDev && env.REFRESH_RATE_LIMITER ? new CloudflareRateLimiter(env.REFRESH_RATE_LIMITER) : NO_OP,
+    forgotPassword: !isDev && env.FORGOT_PASSWORD_RATE_LIMITER ? new CloudflareRateLimiter(env.FORGOT_PASSWORD_RATE_LIMITER) : NO_OP,
+    resetPassword: !isDev && env.RESET_PASSWORD_RATE_LIMITER ? new CloudflareRateLimiter(env.RESET_PASSWORD_RATE_LIMITER) : NO_OP,
+    publicApiRead: !isDev && env.PUBLIC_READ_RATE_LIMITER ? new CloudflareRateLimiter(env.PUBLIC_READ_RATE_LIMITER) : NO_OP,
+    publicApiWrite: !isDev && env.PUBLIC_WRITE_RATE_LIMITER ? new CloudflareRateLimiter(env.PUBLIC_WRITE_RATE_LIMITER) : NO_OP,
   }
 
   return { getLimiter: (name) => limiters[name] }

@@ -159,7 +159,7 @@ SECTION 4 — TASK DETAILS
   CREATE INDEX IF NOT EXISTS idx_automations_enabled   ON automations(enabled);
   ```
 
-  After write: run `npm run db:reset:local` in `apps/api/` to verify clean
+  After write: run `pnpm run db:reset:local` in `apps/api/` to verify clean
   apply on a fresh local D1.
 
 4.2 TASK 2 — Types
@@ -327,14 +327,14 @@ SECTION 5 — VALIDATION
 
 Run from repo root after all tasks:
 
-  1. `npm run build` in `packages/core/` — emits dist/ with no errors
+  1. `pnpm run build` in `packages/core/` — emits dist/ with no errors
   2. `npx tsc --noEmit` in `apps/api/` — zero errors, Variables type ok
   3. `npx tsc --noEmit` in `apps/dashboard/` — zero errors (no functional
      change but core types changed)
-  4. `npm run test` in `apps/api/` — existing flow tests pass; the
+  4. `pnpm run test` in `apps/api/` — existing flow tests pass; the
      NoOpAutomationRunner registration must not break any test
-  5. `npm run db:reset:local` in `apps/api/` — fresh migration applies
-  6. Boot dev: `npm run dev` at root — both API (:8789) and Dashboard
+  5. `pnpm run db:reset:local` in `apps/api/` — fresh migration applies
+  6. Boot dev: `pnpm run dev` at root — both API (:8789) and Dashboard
      (:5173) start without errors
 
 ==========================================================================

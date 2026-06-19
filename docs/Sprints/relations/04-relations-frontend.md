@@ -394,6 +394,6 @@ SECTION 6 — COMPLETION CHECKLIST
 [ ] Relation columns appear in the list table when the policy allows it,
     with the existing sort / filter rules respected.
 [ ] All new strings exist in both `en.json` and `it.json`.
-[ ] All new tests pass (`npm run test` in `apps/dashboard` and `apps/api`).
+[ ] All new tests pass (`pnpm run test` in `apps/dashboard` and `apps/api`).
 [ ] No regression on existing field types in the editor or list views.
 [ ] No file outside the dashboard and the list handler in the API was touched.

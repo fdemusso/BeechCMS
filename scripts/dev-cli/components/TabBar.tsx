@@ -58,6 +58,8 @@ export function TabBar({ tabs, activeIndex }: TabBarProps) {
           <Text dimColor> expand error · </Text>
           <Text bold color="red">x</Text>
           <Text dimColor> dismiss · </Text>
+          <Text bold color="red">r</Text>
+          <Text dimColor> restart · </Text>
           <Text bold color="red">q</Text>
           <Text dimColor> quit</Text>
         </Box>

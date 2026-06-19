@@ -259,7 +259,7 @@ SECTION 6 — COMPLETION CHECKLIST
       search params (`?preset=…&compare=1&series=visitors`).
 - [ ] i18n keys added to both `en.json` and `it.json`.
 - [ ] All widget smoke tests in §5 pass.
-- [ ] `npm run lint -w apps/dashboard` and `npm run test -w apps/dashboard`
+- [ ] `pnpm run lint -w apps/dashboard` and `pnpm run test -w apps/dashboard`
       green.
 - [ ] `docs/frontend-guide.md` extended with `§9 Analytics widgets`
       mirroring the Dashboard section's structure.

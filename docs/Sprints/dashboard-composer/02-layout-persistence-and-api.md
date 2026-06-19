@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS dashboard_layouts (
 ```
 
 Wrangler auto-discovers via `migrations_dir`. Verify with
-`npm run db:reset:local` in `apps/api/`.
+`pnpm run db:reset:local` in `apps/api/`.
 
 ---
 
@@ -230,7 +230,7 @@ Docs:
 ## 8. ACCEPTANCE
 
 1. `npx tsc --noEmit` passes in `packages/core` and `apps/api`.
-2. `npm run db:reset:local` succeeds with the new table.
+2. `pnpm run db:reset:local` succeeds with the new table.
 3. Handler tests (vitest, repository override pattern used by other slices):
    - `GET` with no row → `{ scope: 'default', layout: null }`.
    - `PUT` valid layout as admin → `200 { ok: true }`; subsequent `GET` returns it.

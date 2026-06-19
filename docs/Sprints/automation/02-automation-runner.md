@@ -741,17 +741,17 @@ SECTION 5 — VALIDATION
 
 Run from repo root after all tasks:
 
-  1. `npm run build` in `packages/core/` — no changes expected, must still
+  1. `pnpm run build` in `packages/core/` — no changes expected, must still
      emit cleanly (catches accidental edits to core barrel).
   2. `npx tsc --noEmit` in `apps/api/` — zero errors. Particular focus:
      `AutomationAction` discriminated union exhaustiveness in
      `executeAction`.
-  3. `npm run test` in `apps/api/` — all new tests pass; existing tests
+  3. `pnpm run test` in `apps/api/` — all new tests pass; existing tests
      unaffected (NoOpAutomationRunner is no longer registered, but
      content handlers only call `.run()` via context; no test should
      break unless it asserted on absence of a side effect).
-  4. `npm run db:reset:local` in `apps/api/` — migrations apply.
-  5. `npm run dev` at root — API boots (:8789), Dashboard boots (:5173).
+  4. `pnpm run db:reset:local` in `apps/api/` — migrations apply.
+  5. `pnpm run dev` at root — API boots (:8789), Dashboard boots (:5173).
   6. Smoke test:
        a. Insert via `wrangler d1 execute` a test row into `automations`
           with `seed_slug='posts'`, `trigger_event='create'`,

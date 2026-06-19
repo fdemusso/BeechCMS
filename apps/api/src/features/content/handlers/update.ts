@@ -159,9 +159,10 @@ export async function updateHandler(context: Context<AppEnv>) {
       mergedData.slug = newSlug
     }
 
-    await repository.update(seed, id, mergedData, newStatus)
-
     const jwtPayload = context.get('jwtPayload')
+    const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
+    await repository.update(seed, id, mergedData, newStatus, { actor })
+
     const title = mergedData.title || mergedData.name || newSlug
 
     logContentActivity(context, 'update', id, slug, String(title))

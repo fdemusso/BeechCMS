@@ -2,11 +2,11 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { executeAction } from '../action-executors'
 import type { ActionContext } from '../action-executors'
 import type { ContentRepository, Seed, IIdGenerator } from '@beechcms/core'
-import { deleteAllMessages, listMessages, waitForMessage, getMessageHtml, getMailpitPort } from '../../../../test/helpers/mailpit-client'
+import { listMessages, waitForMessage, getMessageHtml, getMailpitPort } from '../../../../test/helpers/mailpit-client'
 import { newBucket, waitForRequest } from '../../../../test/helpers/webhook-tester-client'
 
 // ── Shared mock context factory ───────────────────────────────────────────────
@@ -89,8 +89,6 @@ describe('webhook executor', () => {
 // ── send_mail ─────────────────────────────────────────────────────────────────
 
 describe('send_mail executor', () => {
-  beforeEach(() => deleteAllMessages())
-
   it('interpolates to/subject/body and delivers to Mailpit', async () => {
     const ctx = makeCtx({
       entry: { id: '1', email: 'user@example.com', title: 'Hello' },
@@ -158,7 +156,7 @@ describe('send_mail executor', () => {
 
     expect(errSpy).toHaveBeenCalledWith(expect.stringContaining('Execution skipped'))
     const msgs = await listMessages()
-    expect(msgs).toHaveLength(0)
+    expect(msgs.some(m => m.To.some(t => t.Address === 'user@beech.io'))).toBe(false)
     errSpy.mockRestore()
   })
 

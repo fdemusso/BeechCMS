@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { Context } from 'hono'
-import { EntryNotFoundError, SlugConflictError } from '@beechcms/core'
+import { EntryNotFoundError, SlugConflictError, HookValidationError } from '@beechcms/core'
 import { normalizeBody, contentValidationProblem, logContentActivity, dispatchContentAutomation, handleContentDatabaseError } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 
@@ -149,6 +149,36 @@ describe('content handlers helpers', () => {
         title: 'Conflict',
         status: 409,
         detail: CONTENT_ERRORS.SLUG_CONFLICT,
+      })
+    })
+
+    it('handles HookValidationError with field details', () => {
+      const ctx = {} as Context<any>
+      const error = new HookValidationError('Hook failed', [{ field: 'title', message: 'Too short' }])
+      const result = handleContentDatabaseError(ctx, error)
+
+      expect(result).toEqual({
+        mockProblem: true,
+        type: 'content-hook-validation-failed',
+        title: 'Unprocessable Entity',
+        status: 422,
+        detail: 'Hook failed',
+        errors: [{ field: 'title', expected: '', received: '', message: 'Too short' }],
+      })
+    })
+
+    it('handles HookValidationError without field details', () => {
+      const ctx = {} as Context<any>
+      const error = new HookValidationError('Hook failed')
+      const result = handleContentDatabaseError(ctx, error)
+
+      expect(result).toEqual({
+        mockProblem: true,
+        type: 'content-hook-validation-failed',
+        title: 'Unprocessable Entity',
+        status: 422,
+        detail: 'Hook failed',
+        errors: [],
       })
     })
 

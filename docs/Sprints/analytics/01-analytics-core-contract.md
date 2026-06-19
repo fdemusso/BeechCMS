@@ -270,7 +270,7 @@ SECTION 6 — COMPLETION CHECKLIST
 - [ ] All interface methods have JSDoc covering purpose, units, edges.
 - [ ] No HTTP / cloud / Google imports anywhere in the new folder.
 - [ ] Tests in §5 pass.
-- [ ] `npm run build -w @beechcms/core` succeeds.
+- [ ] `pnpm run build -w @beechcms/core` succeeds.
 - [ ] `apps/api` and `apps/dashboard` still build (the new exports do
       not break the existing barrel).
 - [ ] `SYSTEM_MAP.md` updated with a one-liner under "Phase 8 — External
