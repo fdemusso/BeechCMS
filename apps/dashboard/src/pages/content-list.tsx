@@ -639,7 +639,7 @@ export function ContentListPage() {
               <div className="flex flex-1 flex-col gap-4 p-4">
                 <div className="content-area-inner">
                   <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-                    <h2 className="text-lg font-semibold text-destructive">
+                    <h2 className="font-heading text-lg font-semibold text-destructive">
                       Error
                     </h2>
                     <p className="text-sm text-destructive/90">
@@ -686,7 +686,7 @@ export function ContentListPage() {
                 {/* Header with title */}
                 <div className="mb-6">
                   {/* TODO: Extract this header to a dedicated slice component */}
-                  <h1 className="text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
+                  <h1 className="font-heading text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
                   <p className="text-muted-foreground text-sm">
                     Manage "{seed.slug}" content
                   </p>

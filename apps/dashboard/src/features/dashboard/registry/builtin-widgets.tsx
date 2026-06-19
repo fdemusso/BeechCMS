@@ -171,7 +171,11 @@ function StatWidgetAdapter({ instance, config }: DashboardWidgetProps<StatConfig
   }
 
   const statData = getStatData(config.statKey ?? "total", { statsData, cfData, statsLoading, cfLoading }, t)
-  return <StatCard {...statData} title={instance.title || statData.title} />
+  const mappedTrend = statData.trend ? {
+    value: statData.trend.value,
+    direction: statData.trend.isPositive ? ("up" as const) : ("down" as const)
+  } : undefined
+  return <StatCard {...statData} trend={mappedTrend} title={instance.title || statData.title} />
 }
 
 const STAT_KEY_OPTIONS = [

@@ -668,7 +668,6 @@ export function DataTable<TData, TValue>(
               <PaginationItem>
                 <PaginationPrevious
                   text={t("common.previous")}
-                  siblingText={t("common.next")}
                   href="#"
                   onClick={(e) => {
                     e.preventDefault()
@@ -694,7 +693,6 @@ export function DataTable<TData, TValue>(
               <PaginationItem>
                 <PaginationNext
                   text={t("common.next")}
-                  siblingText={t("common.previous")}
                   href="#"
                   onClick={(e) => {
                     e.preventDefault()

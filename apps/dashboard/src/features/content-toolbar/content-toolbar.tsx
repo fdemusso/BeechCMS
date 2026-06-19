@@ -130,8 +130,8 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
   return (
     <div data-seed-slug={seed.slug}>
       {/* Sticky toolbar strip — si posiziona appena sotto il SiteHeader (--header-height). */}
-      <div className="sticky top-(--header-height) z-10 bg-background/95 backdrop-blur-sm border-b">
-        <Card className="py-3 border-0 bg-transparent shadow-none rounded-none">
+      <div className="sticky top-(--header-height) z-10 bg-background/95 backdrop-blur-sm">
+        <Card className="py-3 border-0 ring-0 bg-transparent shadow-none rounded-none">
           <CardContent className="px-4 py-0">
             <div className="flex items-center justify-between gap-2 min-w-0">
               {/* Lato sinistro: viste utente + icona + */}

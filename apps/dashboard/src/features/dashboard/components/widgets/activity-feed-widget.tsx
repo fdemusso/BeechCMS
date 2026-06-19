@@ -119,7 +119,7 @@ export function ActivityFeedWidget({ seedSlug, variant = "feed", title }: Activi
               <li key={log.id} className="flex items-start gap-3 group">
                 <div className="relative shrink-0">
                   <Avatar className="size-8 border border-border/60">
-                    <AvatarFallback className="text-[10px] bg-primary/5 text-primary font-semibold">
+                    <AvatarFallback className="text-[10px] bg-muted text-foreground font-semibold">
                       {initials(log.user_name, log.user_email)}
                     </AvatarFallback>
                   </Avatar>

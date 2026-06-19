@@ -2,36 +2,33 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useTranslation } from "react-i18next"
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { useTranslation } from "react-i18next";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { Button } from "@/components/ui/button"
-import type { UserViewInstance, ViewType } from "../shared"
-import {
-  Table,
-  Plus,
-  LayoutGrid,
-  LayoutList,
-  PieChart,
-} from "lucide-react"
+} from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import type { UserViewInstance, ViewType } from "../shared";
+import { Table, Plus, LayoutGrid, LayoutList, PieChart } from "lucide-react";
 
-const VIEW_TYPE_ICONS: Record<ViewType, React.ComponentType<{ className?: string }>> = {
+const VIEW_TYPE_ICONS: Record<
+  ViewType,
+  React.ComponentType<{ className?: string }>
+> = {
   table: Table,
   gallery: LayoutGrid,
   grid: LayoutGrid,
   kanban: LayoutList,
   chart: PieChart,
-}
+};
 
 interface ViewSwitcherProps {
-  readonly views: UserViewInstance[]
-  readonly activeViewId: string
-  readonly onChangeView: (viewId: string) => void
-  readonly onCreateView?: () => void
+  readonly views: UserViewInstance[];
+  readonly activeViewId: string;
+  readonly onChangeView: (viewId: string) => void;
+  readonly onCreateView?: () => void;
 }
 
 export function ViewSwitcher({
@@ -40,7 +37,7 @@ export function ViewSwitcher({
   onChangeView,
   onCreateView,
 }: ViewSwitcherProps) {
-  const { t } = useTranslation()
+  const { t } = useTranslation();
   return (
     <div className="flex min-w-0 items-center gap-1 overflow-hidden">
       <ToggleGroup
@@ -49,10 +46,10 @@ export function ViewSwitcher({
         onValueChange={(v) => v && onChangeView(v)}
         variant="outline"
         size="sm"
-        className="gap-0"
+        spacing={0}
       >
         {views.map((view) => {
-          const Icon = VIEW_TYPE_ICONS[view.type]
+          const Icon = VIEW_TYPE_ICONS[view.type];
           return (
             <ToggleGroupItem
               key={view.id}
@@ -63,7 +60,7 @@ export function ViewSwitcher({
               {Icon && <Icon className="size-4 shrink-0" />}
               <span className="truncate max-w-24">{view.label}</span>
             </ToggleGroupItem>
-          )
+          );
         })}
       </ToggleGroup>
       <Tooltip>
@@ -78,8 +75,10 @@ export function ViewSwitcher({
             <Plus className="size-4" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="top">{t("toolbar.viewSwitcher.addView")}</TooltipContent>
+        <TooltipContent side="top">
+          {t("toolbar.viewSwitcher.addView")}
+        </TooltipContent>
       </Tooltip>
     </div>
-  )
+  );
 }

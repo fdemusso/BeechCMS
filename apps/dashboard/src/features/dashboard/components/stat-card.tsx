@@ -33,15 +33,15 @@ export function StatCard({ title, value, icon: Icon, description, timeLabel, tre
   return (
     <div className={cn(
       "h-full w-full flex flex-col justify-between",
-      "rounded-2xl border border-neutral-200/80 bg-white/75 backdrop-blur-md p-5",
+      "rounded-2xl border border-border bg-card/85 backdrop-blur-sm p-5",
       "shadow-[0_1px_3px_0_rgb(0,0,0,0.05),0_1px_2px_-1px_rgb(0,0,0,0.04)]",
       "transition-all duration-200 hover:shadow-[0_4px_12px_0_rgb(0,0,0,0.08)]",
-      "hover:border-neutral-300/80",
-      "dark:border-neutral-700/50 dark:bg-card/65 dark:hover:border-neutral-600/60",
+      "hover:border-border/80",
+      "dark:bg-card/65 dark:hover:border-border/60",
     )}>
       <div className="flex items-start justify-between">
         <div className="flex-col min-w-0">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{title}</p>
+          <p className="font-heading text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">{title}</p>
           <p className="text-3xl font-bold tracking-tight text-foreground tabular-nums leading-none">{value}</p>
         </div>
         <div className={cn("shrink-0 rounded-xl bg-gradient-to-br p-2.5", accentStyle.icon)}>
@@ -61,7 +61,7 @@ export function StatCard({ title, value, icon: Icon, description, timeLabel, tre
                 "inline-flex items-center gap-0.5", 
                 trend.direction === 'up' ? "text-emerald-500" : 
                 trend.direction === 'down' ? "text-rose-500" : 
-                "text-neutral-500 dark:text-neutral-400"
+                "text-muted-foreground"
               )}>
                 {trend.direction === 'up' && <TrendingUp className="size-3" />}
                 {trend.direction === 'down' && <TrendingDown className="size-3" />}
@@ -88,8 +88,8 @@ export function StatCard({ title, value, icon: Icon, description, timeLabel, tre
               )}
               {trend.direction === 'flat' && (
                 <>
-                  <path d="M0 15 L 100 15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-neutral-500 dark:text-neutral-400" strokeLinecap="round" />
-                  <path d="M0 15 L 100 15 L 100 30 L 0 30 Z" fill="currentColor" className="text-neutral-500/10 dark:text-neutral-400/10" />
+                  <path d="M0 15 L 100 15" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-muted-foreground" strokeLinecap="round" />
+                  <path d="M0 15 L 100 15 L 100 30 L 0 30 Z" fill="currentColor" className="text-muted-foreground/10" />
                 </>
               )}
             </svg>
