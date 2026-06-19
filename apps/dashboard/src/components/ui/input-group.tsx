@@ -52,7 +52,7 @@ function InputGroupAddon({
       data-slot="input-group-addon"
       data-align={align}
       className={cn(inputGroupAddonVariants({ align }), className)}
-      {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
+      // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions
       onClick={(e) => { // nosonar
         if ((e.target as HTMLElement).closest("button")) {
           return

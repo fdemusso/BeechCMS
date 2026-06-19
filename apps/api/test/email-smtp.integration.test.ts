@@ -2,13 +2,11 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { SmtpEmailProvider } from '../src/features/email/providers/smtp'
-import { deleteAllMessages, waitForMessage, getMessageHtml, getMailpitPort } from './helpers/mailpit-client'
+import { waitForMessage, getMessageHtml, getMailpitPort } from './helpers/mailpit-client'
 
 describe('SmtpEmailProvider (integration with Mailpit)', () => {
-  beforeEach(() => deleteAllMessages())
-
   it('delivers an HTML email to Mailpit', async () => {
     const provider = new SmtpEmailProvider({ baseUrl: `http://localhost:${getMailpitPort()}` })
     await provider.send({
