@@ -65,3 +65,7 @@ scratch/
 # Intellectual Property / Provenance
 docs/IP_PROVENANCE.md
 
+# React doctor cache
+.react-doctor/cache/
+
+
