@@ -30,7 +30,7 @@ export interface RecentContentWidgetProps {
 function statusVariant(status: string): string {
   if (status === "published") return "bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-800/60"
   if (status === "draft") return "bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800/60"
-  return "bg-neutral-100 text-neutral-600 border-neutral-200/80 dark:bg-neutral-800 dark:text-neutral-400"
+  return "bg-muted text-muted-foreground border-border"
 }
 
 function entryTitle(entry: ContentEntry): string {

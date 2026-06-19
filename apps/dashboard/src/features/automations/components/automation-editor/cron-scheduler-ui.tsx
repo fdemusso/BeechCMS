@@ -141,7 +141,7 @@ export function CronSchedulerUi({ triggerIndex }: CronSchedulerUiProps) {
               className={cn(
                 'flex flex-col items-center justify-center p-2.5 rounded-lg border text-xs font-medium transition-all relative overflow-hidden select-none cursor-pointer',
                 isActive
-                  ? 'bg-primary/10 border-primary text-primary dark:bg-primary/20 shadow-xs'
+                  ? 'bg-primary border-primary text-primary-foreground shadow-xs'
                   : 'bg-background hover:bg-muted/50 border-border text-muted-foreground hover:text-foreground',
               )}
             >

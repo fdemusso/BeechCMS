@@ -49,7 +49,7 @@ export function WidgetShell({
         <div className="flex items-center justify-between mb-4 shrink-0">
           <div className="flex items-center gap-2 min-w-0">
             {Icon && <Icon className="size-4 text-muted-foreground" />}
-            {title && <span className="text-sm font-semibold text-foreground truncate">{title}</span>}
+            {title && <h3 className="font-heading text-sm font-semibold text-foreground truncate">{title}</h3>}
           </div>
           {action && <div className="flex items-center">{action}</div>}
         </div>

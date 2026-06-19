@@ -22,6 +22,8 @@ out/
 .agents/
 .claude/
 CLAUDE.md
+.gemini/
+GEMINI.md
 
 # Turbo
 .turbo/

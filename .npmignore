@@ -21,6 +21,8 @@ sonar-project.properties
 # --- IDE / Editor config -----------------------------------------------------
 .cursor/
 .claude/
+.gemini/
+GEMINI.md
 .idea/
 .cursorrules
 .mcp.json
@@ -60,6 +62,8 @@ scratch/
 # AI / Agents (local)
 .agents/
 .claude/
+.gemini/
+GEMINI.md
 .cursor/
 .cursorrules
 .mcp.json

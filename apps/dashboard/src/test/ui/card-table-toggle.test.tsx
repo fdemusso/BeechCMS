@@ -88,6 +88,6 @@ describe("ui primitives coverage", () => {
     fireEvent.click(toggle)
     const classes = toggleVariants({ variant: "outline", size: "sm" })
     expect(classes).toContain("border")
-    expect(classes).toContain("h-8")
+    expect(classes).toContain("h-7")
   })
 })

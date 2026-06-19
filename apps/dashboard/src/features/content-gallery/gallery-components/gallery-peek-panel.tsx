@@ -49,7 +49,7 @@ function statusBadgeClass(status: string): string {
   if (s === "published") return "bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-800/60"
   if (s === "draft") return "bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800/60"
   if (["error", "failed", "rejected", "archived"].includes(s)) return "bg-red-50 text-red-700 border-red-200/80 dark:bg-red-500/10 dark:text-red-400 dark:border-red-800/60"
-  return "bg-neutral-100 text-neutral-600 border-neutral-200/80 dark:bg-neutral-800 dark:text-neutral-400"
+  return "bg-muted text-muted-foreground border-border"
 }
 
 function FieldBlock({
@@ -123,8 +123,8 @@ export function GalleryPeekPanel({
     <ScrollArea className="h-full px-6 py-4">
       <div className="space-y-5 pr-3">
         {richtextBranch && (
-          <div className="overflow-hidden rounded-xl border border-neutral-200/80 dark:border-neutral-700/50">
-            <div className="border-b border-neutral-200/80 bg-neutral-50/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground dark:border-neutral-700/50 dark:bg-neutral-800/40">
+          <div className="overflow-hidden rounded-xl border border-border">
+            <div className="border-b border-border bg-muted px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Contenuto principale
             </div>
             <div className="px-4 py-4">
@@ -163,8 +163,8 @@ export function GalleryPeekPanel({
   const seoScroll = (
     <ScrollArea className="h-full px-6 py-4">
       <div className="space-y-4 pr-3">
-        <div className="overflow-hidden rounded-xl border border-neutral-200/80 dark:border-neutral-700/50">
-          <div className="border-b border-neutral-200/80 bg-neutral-50/80 px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground dark:border-neutral-700/50 dark:bg-neutral-800/40">
+        <div className="overflow-hidden rounded-xl border border-border">
+          <div className="border-b border-border bg-muted px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
             Metadati / SEO
           </div>
           <div className="space-y-5 px-4 py-4">
@@ -261,7 +261,7 @@ export function GalleryPeekPanel({
 
         {hasSeoTab ? (
           <Tabs defaultValue={defaultTab} className="flex min-h-0 flex-1 flex-col gap-0">
-            <div className="shrink-0 border-b bg-neutral-50/80 px-6 dark:bg-neutral-800/30">
+            <div className="shrink-0 border-b border-border bg-muted/30 px-6">
               <TabsList variant="line" className="h-10 w-full justify-start gap-1 bg-transparent p-0">
                 <TabsTrigger value="content" className="text-sm">
                   Contenuto

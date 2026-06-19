@@ -287,12 +287,12 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
   }
 
   return (
-    <div className="h-full w-full flex flex-col rounded-xl border border-neutral-200/60 bg-background/50 backdrop-blur-sm shadow-sm dark:border-neutral-800/60 dark:bg-card/40 overflow-hidden">
+    <div className="h-full w-full flex flex-col rounded-xl border border-border bg-background/50 backdrop-blur-sm shadow-sm dark:bg-card/40 overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 shrink-0">
-        <span className="text-sm font-semibold text-foreground flex items-center gap-2">
+        <h3 className="font-heading text-sm font-semibold text-foreground flex items-center gap-2">
           <Images className="size-4 text-muted-foreground" />
           {t("dashboard.widgets.mediaGallery.title")}
-        </span>
+        </h3>
         <div className="flex items-center gap-0.5 bg-muted/50 p-0.5 rounded-md border border-border/50">
           <Button
             variant={variant === "grid" ? "secondary" : "ghost"}

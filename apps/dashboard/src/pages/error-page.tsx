@@ -27,7 +27,7 @@ export function ErrorPage() {
             {status}
           </span>
         )}
-        <h1 className="text-xl font-semibold">{t("errorPage.title")}</h1>
+        <h1 className="font-heading text-xl font-semibold">{t("errorPage.title")}</h1>
         <p className="text-sm text-muted-foreground">{message}</p>
         <Link
           to="/"
