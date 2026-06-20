@@ -275,9 +275,14 @@ log('4/4  Creating git commit and tag...')
 const tagName = `v${nextVersion}`
 
 try {
+  // Refresh lockfile so workspace specifiers (bumped above) stay in sync —
+  // otherwise CI's `pnpm install --frozen-lockfile` fails on the next run.
+  run(`pnpm install --no-frozen-lockfile`)
+
   // Add all package.jsons
   for (const pkg of PACKAGES) run(`git add ${pkg.path}`)
   run(`git add .github/LICENSE`)
+  run(`git add pnpm-lock.yaml`)
   
   if (currentVersion !== nextVersion) {
     run(`git commit -m "chore: release ${nextVersion}"`)

@@ -22,7 +22,7 @@ importers:
         specifier: ^0.6.0-preview.2
         version: 0.6.0-preview.2(@tiptap/pm@3.26.1)(happy-dom@20.10.3)
       '@beechcms/cli':
-        specifier: workspace:^0.6.0-preview.2
+        specifier: workspace:^0.6.0-preview.3
         version: link:packages/cli
       '@beechcms/core':
         specifier: ^0.6.0-preview.2
@@ -92,7 +92,7 @@ importers:
         specifier: ^3.995.0
         version: 3.1068.0
       '@beechcms/core':
-        specifier: workspace:^0.6.0-preview.2
+        specifier: workspace:^0.6.0-preview.3
         version: link:../../packages/core
       '@upstash/qstash':
         specifier: ^2.11.0
@@ -135,10 +135,10 @@ importers:
   apps/dashboard:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.6.0-preview.2
+        specifier: workspace:^0.6.0-preview.3
         version: link:../../packages/core
       '@beechcms/widget-sdk':
-        specifier: workspace:^0.6.0-preview.2
+        specifier: workspace:^0.6.0-preview.3
         version: link:../../packages/widget-sdk
       '@blocknote/code-block':
         specifier: ^0.49.0
@@ -443,7 +443,7 @@ importers:
   packages/cli:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.6.0-preview.2
+        specifier: workspace:^0.6.0-preview.3
         version: link:../core
       picocolors:
         specifier: ^1.1.1
@@ -511,7 +511,7 @@ importers:
   packages/widget-sdk:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.6.0-preview.2
+        specifier: workspace:^0.6.0-preview.3
         version: link:../core
       clsx:
         specifier: ^2.1.1

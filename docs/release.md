@@ -140,7 +140,7 @@ Publishes each package to pnpm in dependency order with `--access public --no-gi
 
 ### 4. Git tag
 
-Stages all six modified `package.json` files (`core`, `widget-sdk`, `cli`, `api`, `dashboard`, root), the `apps/api/assets/dashboard` bundle, and `LICENSE`, creates a commit (`chore: release <version>`), and tags it `v<version>`.
+Runs `pnpm install --no-frozen-lockfile` to refresh `pnpm-lock.yaml` against the bumped workspace specifiers, then stages all six modified `package.json` files (`core`, `widget-sdk`, `cli`, `api`, `dashboard`, root), the `apps/api/assets/dashboard` bundle, `pnpm-lock.yaml`, and `LICENSE`, creates a commit (`chore: release <version>`), and tags it `v<version>`.
 
 > **Note:** the script does **not** push to remote. After the script completes, push manually:
 > ```bash
