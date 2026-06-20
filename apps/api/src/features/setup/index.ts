@@ -15,6 +15,15 @@ const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
  */
 setupApp.get('/auth/setup', async (context) => {
   const userCount = await context.get('userRepository').countAll()
+  const needsSetup = userCount === 0
+
+  // Environment details (dev flag, mail/qstash configuration) are only useful
+  // to the wizard itself — once an admin exists, this endpoint stays public
+  // (the dashboard polls it pre-login) but must not leak them any further.
+  if (!needsSetup) {
+    return context.json({ needsSetup })
+  }
+
   const isDeveloper = context.env.ENV === 'development'
   const mail =
     context.env.EMAIL_PROVIDER === 'smtp' ||
@@ -22,7 +31,7 @@ setupApp.get('/auth/setup', async (context) => {
   const qstash = !!context.env.QSTASH_TOKEN
 
   return context.json({
-    needsSetup: userCount === 0,
+    needsSetup,
     environment: { isDeveloper, services: { mail, qstash } },
   })
 })

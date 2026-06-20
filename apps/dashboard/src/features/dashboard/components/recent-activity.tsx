@@ -38,7 +38,7 @@ export function RecentActivity() {
             activities.map((activity) => (
               <div key={activity.id} className="flex items-center gap-4">
                 <Avatar className="h-9 w-9 border border-primary/10">
-                  <AvatarFallback className="bg-primary/5 text-primary text-xs">
+                  <AvatarFallback className="bg-muted text-foreground text-xs">
                     {(activity.user_name || activity.user_email).slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
@@ -50,7 +50,7 @@ export function RecentActivity() {
                     {t(`dashboard.recentActivity.actions.${activity.action}`, {
                       defaultValue: activity.action,
                     })}{" "}
-                    <span className="font-semibold text-primary">
+                    <span className="font-semibold text-foreground">
                       {activity.details?.title || activity.details?.name || activity.entity_slug || activity.entity_id}
                     </span>
                   </p>

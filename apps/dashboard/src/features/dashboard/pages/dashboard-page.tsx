@@ -50,10 +50,10 @@ export default function DashboardPage() {
                 {/* Welcome Header */}
                 <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
                   <div className="flex flex-col gap-1.5">
-                    <h1 className="text-2xl font-bold tracking-tight md:text-3xl text-neutral-900 dark:text-neutral-100">
-                      {greeting}, <span className="text-primary">{userName}</span>
+                    <h1 className="font-heading text-2xl font-bold tracking-tight md:text-3xl text-foreground">
+                      {greeting}, <span className="font-semibold">{userName}</span>
                     </h1>
-                    <p className="text-neutral-500 dark:text-neutral-400">
+                    <p className="text-muted-foreground">
                       {t("dashboard.greeting.subtitle")}
                     </p>
                   </div>

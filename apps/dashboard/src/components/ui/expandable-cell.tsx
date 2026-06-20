@@ -66,6 +66,8 @@ export function ExpandableCell({
   return (
     <div
       data-expandable
+      role="button"
+      tabIndex={0}
       className={cn(
         "cursor-pointer select-none overflow-hidden text-ellipsis whitespace-nowrap block transition-[max-width] duration-300 ease-in-out",
         className
@@ -76,6 +78,12 @@ export function ExpandableCell({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={() => setIsPinned((prevPinned) => !prevPinned)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          setIsPinned((prevPinned) => !prevPinned)
+        }
+      }}
       title={isPinned ? "Clicca per comprimere" : "Passa il mouse o clicca per espandere"}
     >
       {content}

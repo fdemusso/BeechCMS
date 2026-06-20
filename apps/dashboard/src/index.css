@@ -1,11 +1,13 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/lora";
 
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  font-family: "Poppins", "Inter", system-ui, sans-serif;
+  font-family: "Geist Variable", "Inter", system-ui, sans-serif;
   font-size: 15px;
   font-weight: 400;
   line-height: 1.5;
@@ -35,62 +37,62 @@
   --font-size-2xl: 2.963125rem;  /* 47.41px */
   --font-size-3xl: 3.95rem;      /* 63.2px */
 
-  --radius: 0.375rem;       /* base = 6px — scala: sm 4px · md 6px · lg 8px · xl 10px */
+  --radius: 0.875rem;       /* base = 6px — scala: sm 4px · md 6px · lg 8px · xl 10px */
 
   /* ── Light mode tokens — palette neutro/nero, nessuna tinta di colore ── */
-  --background:            oklch(0.98 0 0);
-  --foreground:            oklch(0.13 0 0);
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.141 0.005 285.823);
 
-  --card:                  oklch(1.00 0 0);
-  --card-foreground:       oklch(0.13 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.141 0.005 285.823);
 
-  --popover:               oklch(1.00 0 0);       /* sfondo palette cmdk */
-  --popover-foreground:    oklch(0.13 0 0);       /* testo dentro la palette — nero su bianco */
+  --popover: oklch(1 0 0);       /* sfondo palette cmdk */
+  --popover-foreground: oklch(0.141 0.005 285.823);       /* testo dentro la palette — nero su bianco */
 
-  --primary:               oklch(0.13 0 0);       /* bottoni CTA: nero */
-  --primary-foreground:    oklch(0.98 0 0);       /* testo sul nero: bianco */
+  --primary: oklch(0.488 0.243 264.376);       /* bottoni CTA: nero */
+  --primary-foreground: oklch(0.97 0.014 254.604);       /* testo sul nero: bianco */
 
-  --secondary:             oklch(0.94 0 0);
-  --secondary-foreground:  oklch(0.20 0 0);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
 
-  --muted:                 oklch(0.94 0 0);
-  --muted-foreground:      oklch(0.44 0 0);       /* grigio medio — ≥ 4.5:1 su --muted */
+  --muted: oklch(0.967 0.001 286.375);
+  --muted-foreground: oklch(0.552 0.016 285.938);       /* grigio medio — ≥ 4.5:1 su --muted */
 
-  --accent:                oklch(0.92 0 0);       /* hover item: grigio chiarissimo su bianco */
-  --accent-foreground:     oklch(0.13 0 0);       /* testo sull'hover: nero – sempre leggibile */
+  --accent: oklch(0.967 0.001 286.375);       /* hover item: grigio chiarissimo su bianco */
+  --accent-foreground: oklch(0.21 0.006 285.885);       /* testo sull'hover: nero – sempre leggibile */
 
-  --destructive:           oklch(0.577 0.245 27.325);
-  --border:                oklch(0.95 0 0);
-  --input:                 oklch(0.95 0 0);
-  --ring:                  oklch(0.13 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.92 0.004 286.32);
+  --input: oklch(0.92 0.004 286.32);
+  --ring: oklch(0.705 0.015 286.067);
 
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --chart-1: oklch(0.809 0.105 251.813);
+  --chart-2: oklch(0.623 0.214 259.815);
+  --chart-3: oklch(0.546 0.245 262.881);
+  --chart-4: oklch(0.488 0.243 264.376);
+  --chart-5: oklch(0.424 0.199 265.638);
 
-  --sidebar:                    oklch(0.985 0 0);       /* sfondo sidebar light */
-  --sidebar-foreground:         oklch(0.145 0 0);       /* testo sidebar: quasi nero */
-  --sidebar-primary:            oklch(0.145 0 0);       /* icona logo: nero */
-  --sidebar-primary-foreground: oklch(0.985 0 0);       /* testo su icona logo: bianco */
-  --sidebar-accent:             oklch(0.91 0 0);        /* hover: grigio visibile (ΔL 0.075 vs sfondo) */
-  --sidebar-accent-foreground:  oklch(0.145 0 0);       /* testo hover: stesso del testo normale */
-  --sidebar-border:             oklch(0.95 0 0);
-  --sidebar-ring:               oklch(0.50 0 0);
+  --sidebar: oklch(0.985 0 0);       /* sfondo sidebar light */
+  --sidebar-foreground: oklch(0.141 0.005 285.823);       /* testo sidebar: quasi nero */
+  --sidebar-primary: oklch(0.546 0.245 262.881);       /* icona logo: nero */
+  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);       /* testo su icona logo: bianco */
+  --sidebar-accent: oklch(0.967 0.001 286.375);        /* hover: grigio visibile (ΔL 0.075 vs sfondo) */
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);       /* testo hover: stesso del testo normale */
+  --sidebar-border: oklch(0.92 0.004 286.32);
+  --sidebar-ring: oklch(0.705 0.015 286.067);
 
   --table-header:               oklch(0.95 0 0);
 }
 
 a {
   font-weight: 500;
-  color: var(--primary);
-  text-decoration: inherit;
+  color: var(--foreground);
+  text-decoration: none;
 }
 a:hover {
-  /* --accent è un colore di superficie (sfondo hover), NON un colore testo.
-     Usiamo --foreground come hover dei link standalone per garantire leggibilità. */
-  color: var(--foreground);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  opacity: 0.8;
 }
 
 /* Link di navigazione (sidebar, navbar): il colore testo NON deve cambiare
@@ -120,7 +122,7 @@ h1 {
 }
 
 @theme inline {
-  --font-sans: "Poppins", "Inter", system-ui, sans-serif;
+  --font-sans: 'Geist Variable', sans-serif;
   --font-size-xs: 0.703125rem;
   --font-size-sm: 0.9375rem;
   --font-size-base: 1.25rem;
@@ -167,61 +169,55 @@ h1 {
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-table-header: var(--table-header);
+  --font-heading: 'Lora Variable', serif;
 }
 
 .dark, html.dark {
   color-scheme: dark;
-  /* ── Dark mode tokens — palette neutro/nero, nessuna tinta di colore ── */
+  /* ── Dark mode tokens — palette cool grey/blue ── */
 
-  /*
-    REGOLA HOVER: --accent deve essere abbastanza DISTANTE da --background
-    in termini di L (lightness) perché l'hover sia visibile.
-    background = 0.11 → accent = 0.32 → delta L ≈ 0.21 (ben distinguibile)
-    accent-foreground = 0.985 (bianco) su accent 0.32 → contrasto ≈ 7.5:1 ✓
-  */
+  --background: oklch(0.141 0.005 285.823);
+  --foreground: oklch(0.985 0 0);
 
-  --background:            oklch(0.213 0 0);            /* superficie scura — #191919 */
-  --foreground:            oklch(0.985 0 0);           /* testo primario: quasi bianco */
+  --card: oklch(0.21 0.006 285.885);
+  --card-foreground: oklch(0.985 0 0);
 
-  --card:                  oklch(0.297 0 0);           /* sfondo card — #2D2D2D */
-  --card-foreground:       oklch(0.985 0 0);
+  --popover: oklch(0.21 0.006 285.885);
+  --popover-foreground: oklch(0.985 0 0);
 
-  --popover:               oklch(0.297 0 0);           /* sfondo palette cmdk — #2D2D2D */
-  --popover-foreground:    oklch(0.985 0 0);           /* testo palette: quasi bianco */
+  --primary: oklch(0.424 0.199 265.638);
+  --primary-foreground: oklch(0.97 0.014 254.604);
 
-  --primary:               oklch(0.985 0 0);           /* bottoni CTA in dark: bianco */
-  --primary-foreground:    oklch(0.145 0 0);           /* testo sul bottone bianco: nero */
+  --secondary: oklch(0.274 0.006 286.033);
+  --secondary-foreground: oklch(0.985 0 0);
 
-  --secondary:             oklch(0.269 0 0);
-  --secondary-foreground:  oklch(0.985 0 0);
+  --muted: oklch(0.274 0.006 286.033);
+  --muted-foreground: oklch(0.705 0.015 286.067);
 
-  --muted:                 oklch(0.269 0 0);
-  --muted-foreground:      oklch(0.72 0 0);            /* grigio chiaro — ≥ 4.5:1 su --muted e su --background */
+  --accent: oklch(0.274 0.006 286.033);
+  --accent-foreground: oklch(0.985 0 0);
 
-  --accent:                oklch(0.35 0 0);            /* hover: grigio scuro MA distinguibile — #3A3A3A */
-  --accent-foreground:     oklch(0.985 0 0);           /* testo hover: bianco — sempre leggibile */
+  --destructive: oklch(0.704 0.191 22.216);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 15%);
+  --ring: oklch(0.552 0.016 285.938);
 
-  --destructive:           oklch(0.704 0.191 22.216);
-  --border:                oklch(1 0 0 / 8%);         /* bordi più visibili in dark mode */
-  --input:                 oklch(1 0 0 / 8%);
-  --ring:                  oklch(0.556 0 0);
+  --chart-1: oklch(0.809 0.105 251.813);
+  --chart-2: oklch(0.623 0.214 259.815);
+  --chart-3: oklch(0.546 0.245 262.881);
+  --chart-4: oklch(0.488 0.243 264.376);
+  --chart-5: oklch(0.424 0.199 265.638);
 
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --sidebar: oklch(0.21 0.006 285.885);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.623 0.214 259.815);
+  --sidebar-primary-foreground: oklch(0.97 0.014 254.604);
+  --sidebar-accent: oklch(0.274 0.006 286.033);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.552 0.016 285.938);
 
-  --sidebar:                    oklch(0.244 0 0);       /* sfondo sidebar dark — #202020 */
-  --sidebar-foreground:         oklch(0.985 0 0);       /* testo sidebar: quasi bianco */
-  --sidebar-primary:            oklch(0.985 0 0);       /* icona logo in dark: bianco */
-  --sidebar-primary-foreground: oklch(0.145 0 0);       /* testo su icona logo: nero */
-  --sidebar-accent:             oklch(0.293 0 0);        /* hover: grigio distinguibile — #2C2C2C */
-  --sidebar-accent-foreground:  oklch(0.985 0 0);       /* testo hover: bianco — sempre leggibile */
-  --sidebar-border:             oklch(1 0 0 / 8%);
-  --sidebar-ring:               oklch(0.556 0 0);
-
-  --table-header:               oklch(0.17 0 0);
+  --table-header: oklch(0.17 0.006 285.885);
 }
 
 @keyframes icon-swap {
@@ -239,8 +235,11 @@ h1 {
   * {
     @apply border-border outline-ring/50;
   }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading;
+  }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply font-sans bg-background text-foreground;
     font-size: var(--font-size-sm);
     font-weight: 400;
   }
@@ -257,6 +256,9 @@ h1 {
     -webkit-text-fill-color: var(--foreground) !important;
     -webkit-box-shadow: 0 0 0px 1000px var(--background) inset !important;
     transition: background-color 5000s ease-in-out 0s;
+  }
+  html {
+    @apply font-sans;
   }
 }
 
@@ -491,4 +493,4 @@ input[type="search"]::-webkit-search-results-decoration {
   -webkit-appearance: none;
   appearance: none;
   display: none;
-}
+}

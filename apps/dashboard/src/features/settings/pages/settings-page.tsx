@@ -58,7 +58,7 @@ export default function SettingsPage() {
                 <div className="mb-6 flex items-center gap-3">
                   <Icon className="size-5 text-muted-foreground shrink-0" />
                   <div>
-                    <h1 className="text-2xl font-bold tracking-tight">
+                    <h1 className="font-heading text-2xl font-bold tracking-tight">
                       {currentTab.label}
                     </h1>
                   </div>

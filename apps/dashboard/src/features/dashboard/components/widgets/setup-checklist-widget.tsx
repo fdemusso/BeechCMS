@@ -101,7 +101,7 @@ export function SetupChecklistWidget({ variant = "full" }: SetupChecklistWidgetP
     <div className="rounded-xl border bg-card px-4 py-3">
       <div className="mb-3 flex items-center gap-2">
         <AlertCircle className="size-4 text-amber-500" />
-        <p className="text-sm font-semibold">{t("dashboard.setupChecklist.title")}</p>
+        <h3 className="font-heading text-sm font-semibold text-foreground">{t("dashboard.setupChecklist.title")}</h3>
         <span className="ml-auto text-xs text-muted-foreground">{doneCount}/{items.length}</span>
       </div>
 
@@ -163,7 +163,7 @@ function ChecklistItemFull({ done, label, hint, action }: {
               href={action.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-0.5 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              className="mt-0.5 inline-flex items-center gap-1 text-xs text-foreground hover:underline"
             >
               {action.label}
               <ChevronRight className="size-3" />
@@ -171,7 +171,7 @@ function ChecklistItemFull({ done, label, hint, action }: {
           ) : (
             <Link
               to={action.href!}
-              className="mt-0.5 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+              className="mt-0.5 inline-flex items-center gap-1 text-xs text-foreground hover:underline"
             >
               {action.label}
               <ChevronRight className="size-3" />

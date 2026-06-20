@@ -32,7 +32,7 @@ export function GalleryRichtextReadonly({ value, className }: GalleryRichtextRea
         "richtext-content rounded-md bg-transparent text-sm leading-relaxed",
         "[&_table]:w-full [&_table]:border-collapse [&_table]:text-sm",
         "[&_th]:border [&_td]:border [&_th]:border-border [&_td]:border-border [&_th]:bg-muted/40 [&_th]:px-2 [&_th]:py-1 [&_td]:px-2 [&_td]:py-1",
-        "[&_p]:mb-2 [&_a]:text-primary [&_a]:underline",
+        "[&_p]:mb-2 [&_a]:text-foreground hover:[&_a]:underline",
         className
       )}
       // Contenuto già validato da `@beechcms/core` in scrittura; solo anteprima admin.

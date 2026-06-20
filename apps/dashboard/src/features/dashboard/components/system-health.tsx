@@ -13,12 +13,12 @@ export function SystemHealth() {
 
   if (isLoading || !health) {
     return (
-      <Card className="overflow-hidden border-none bg-white/50 backdrop-blur-xl dark:bg-card/50">
+      <Card className="overflow-hidden border-none bg-card/50 backdrop-blur-sm">
         <CardHeader>
           <CardTitle className="text-sm font-medium">System Health</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-[120px] w-full animate-pulse rounded-lg bg-neutral-200 dark:bg-neutral-800" />
+          <div className="h-[120px] w-full animate-pulse rounded-lg bg-muted" />
         </CardContent>
       </Card>
     )
@@ -27,7 +27,7 @@ export function SystemHealth() {
   const isWarning = health.status === "warning"
 
   return (
-    <Card className="overflow-hidden border-none bg-white/50 backdrop-blur-xl dark:bg-card/50 shadow-sm transition-all hover:shadow-md">
+    <Card className="overflow-hidden border-none bg-card/50 backdrop-blur-sm shadow-sm transition-all hover:shadow-md">
       <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           {isWarning ? (
@@ -48,11 +48,11 @@ export function SystemHealth() {
         {/* D1 Quota */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <Database className="size-3" />
               <span>D1 Monthly Requests</span>
             </div>
-            <span className="font-medium text-neutral-900 dark:text-neutral-100">
+            <span className="font-medium text-foreground">
               {health.database.requests30d.toLocaleString()} / {(health.database.limit / 1000000).toFixed(0)}M
             </span>
           </div>
@@ -68,11 +68,11 @@ export function SystemHealth() {
         {/* R2 Quota */}
         <div className="space-y-2">
           <div className="flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400">
+            <div className="flex items-center gap-2 text-muted-foreground">
               <Cloud className="size-3" />
               <span>R2 Storage Used</span>
             </div>
-            <span className="font-medium text-neutral-900 dark:text-neutral-100">
+            <span className="font-medium text-foreground">
               {(health.storage.used / (1024 * 1024)).toFixed(1)} MB / {(health.storage.limit / (1024 * 1024 * 1024)).toFixed(0)} GB
             </span>
           </div>
@@ -85,7 +85,7 @@ export function SystemHealth() {
           />
         </div>
 
-        <p className="text-[10px] text-neutral-400 dark:text-neutral-500 pt-2 border-t border-neutral-100 dark:border-neutral-800">
+        <p className="text-[10px] text-muted-foreground pt-2 border-t border-border">
           Last check: {new Date(health.lastUpdate * 1000).toLocaleTimeString()}
         </p>
       </CardContent>

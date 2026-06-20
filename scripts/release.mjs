@@ -130,13 +130,16 @@ const PACKAGES = [
   { path: resolve(ROOT, 'package.json'),               name: '@beechcms/cms',  publish: true },
 ]
 
-const DEP_KEYS = ['dependencies', 'devDependencies', 'peerDependencies']
+// peerDependencies excluded: they point external consumers at published npm
+// versions. Bumping them pre-publish breaks local install (version doesn't
+// exist on the registry yet).
+const DEP_KEYS = ['dependencies', 'devDependencies']
 
 // ── Snapshot (rollback) ───────────────────────────────────────────────────────
 
 const snapshots = [
   ...PACKAGES.map(pkg => ({ path: pkg.path, content: readRaw(pkg.path) })),
-  { path: resolve(ROOT, 'LICENSE'), content: readRaw(resolve(ROOT, 'LICENSE')) }
+  { path: resolve(ROOT, '.github/LICENSE'), content: readRaw(resolve(ROOT, '.github/LICENSE')) }
 ]
 
 function rollback(reason) {
@@ -185,7 +188,8 @@ for (const pkg of PACKAGES) {
     if (!json[key]) continue
     for (const dep of Object.keys(json[key])) {
       if (dep.startsWith('@beechcms/') || dep.startsWith('@beech/')) {
-        json[key][dep] = `^${nextVersion}`
+        const prefix = json[key][dep].startsWith('workspace:') ? 'workspace:' : ''
+        json[key][dep] = `${prefix}^${nextVersion}`
       }
     }
   }
@@ -201,7 +205,7 @@ for (const pkg of PACKAGES) {
 log('')
 log('1b/4  Updating LICENSE change date...')
 
-const licensePath = resolve(ROOT, 'LICENSE')
+const licensePath = resolve(ROOT, '.github/LICENSE')
 let licenseContent = readRaw(licensePath)
 const changeDate = new Date()
 changeDate.setFullYear(changeDate.getFullYear() + 4)
@@ -271,11 +275,14 @@ log('4/4  Creating git commit and tag...')
 const tagName = `v${nextVersion}`
 
 try {
+  // Refresh lockfile so workspace specifiers (bumped above) stay in sync —
+  // otherwise CI's `pnpm install --frozen-lockfile` fails on the next run.
+  run(`pnpm install --no-frozen-lockfile`)
+
   // Add all package.jsons
   for (const pkg of PACKAGES) run(`git add ${pkg.path}`)
-  // Also add dashboard assets if they changed
-  run(`git add apps/api/assets/dashboard`)
-  run(`git add LICENSE`)
+  run(`git add .github/LICENSE`)
+  run(`git add pnpm-lock.yaml`)
   
   if (currentVersion !== nextVersion) {
     run(`git commit -m "chore: release ${nextVersion}"`)

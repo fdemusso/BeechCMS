@@ -41,7 +41,7 @@ export function WebhookForm({ index, triggerSeedSlug }: WebhookFormProps) {
     const obj: Record<string, string> = { id: '{{id}}' }
     for (const b of publicBranches) obj[b.alias] = `{{${b.alias}}}`
     setValue(`actions.${index}.body_template` as any, JSON.stringify(obj, null, 2))
-  }, [index, triggerSeedSlug, seeds])
+  }, [index, triggerSeedSlug, seeds, getValues, setValue])
 
   return (
     <div className="flex flex-col gap-3">

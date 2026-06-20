@@ -22,6 +22,9 @@ out/
 .agents/
 .claude/
 CLAUDE.md
+.gemini/
+GEMINI.md
+.antigravity/
 
 # Turbo
 .turbo/
@@ -62,4 +65,8 @@ scratch/
 
 # Intellectual Property / Provenance
 docs/IP_PROVENANCE.md
+
+# React doctor cache
+.react-doctor/cache/
+
 

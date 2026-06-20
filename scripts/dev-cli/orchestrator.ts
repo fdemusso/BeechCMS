@@ -175,7 +175,7 @@ export function updateDevVars(updates: Record<string, string | undefined>, appen
 export async function getTunnelUrl(retries = 15, delayMs = 1000): Promise<string | null> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const logs = execSync('docker compose logs tunnel', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      const logs = execSync('docker compose -f docker/docker-compose.yml logs tunnel', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
       const matches = logs.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/g)
       if (matches && matches.length > 0) {
         return matches[matches.length - 1]
@@ -368,7 +368,7 @@ export class Orchestrator extends TypedEmitter<OrchestratorEvents> {
     this.updateService('docker', { status: 'starting', detail: 'docker compose up -d' })
     this.logLine('docker', 'Starting Docker containers via docker compose up -d...')
 
-    const subprocess = execa('docker', ['compose', 'up', '-d'], { reject: false, all: true })
+    const subprocess = execa('docker', ['compose', '-f', 'docker/docker-compose.yml', 'up', '-d'], { reject: false, all: true })
     this.subprocesses.set('docker', subprocess)
     subprocess.all?.on('data', (chunk: Buffer) => this.logLine('docker', chunk.toString()))
 
@@ -389,7 +389,7 @@ export class Orchestrator extends TypedEmitter<OrchestratorEvents> {
   private startDockerPsPolling(): void {
     const poll = async () => {
       try {
-        const { stdout } = await execa('docker', ['compose', 'ps', '--format', 'json'], { reject: false })
+        const { stdout } = await execa('docker', ['compose', '-f', 'docker/docker-compose.yml', 'ps', '--format', 'json'], { reject: false })
         const containers: DockerContainerStatus[] = stdout
           .split(/\r?\n/)
           .filter((line) => line.trim().length > 0)
@@ -562,7 +562,7 @@ export class Orchestrator extends TypedEmitter<OrchestratorEvents> {
     this.emit('shutdown:progress', 'Stopping Docker containers…')
     this.logLine('docker', 'Stopping Docker containers via docker compose stop...')
     try {
-      const subprocess = execa('docker', ['compose', 'stop'], { reject: false, all: true })
+      const subprocess = execa('docker', ['compose', '-f', 'docker/docker-compose.yml', 'stop'], { reject: false, all: true })
       subprocess.all?.on('data', (chunk: Buffer) => this.logLine('docker', chunk.toString()))
       await subprocess
       const flushResult = this.logStore.flush('docker')

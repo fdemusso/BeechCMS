@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/core",
-  "version": "0.6.0-preview.2",
+  "version": "0.6.0-preview.3",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

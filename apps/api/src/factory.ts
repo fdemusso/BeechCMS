@@ -8,7 +8,9 @@ import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, BeechHooks } from '@beechcms/core'
 import { sha256hex, SystemClock, SystemIdGenerator } from '@beechcms/core'
-import type { Env, Variables } from './types'
+import type { Env, Variables, AppEnv } from './types'
+
+export type { Env, Variables, AppEnv } from './types'
 import { getClientIp } from './shared/request-utils'
 
 // Imports delle rotte e middleware
@@ -66,6 +68,12 @@ export interface BeechConfig {
    * be mindful of hook -> automation -> hook loops.
    */
   hooks?: BeechHooks
+  /**
+   * Registers developer-defined custom routes via pre-configured router instances,
+   * without exposing Beech's internal middleware (authMiddleware, repositoryMiddleware, etc.).
+   * `protectedRouter` has authMiddleware() applied automatically; `publicRouter` has none.
+   */
+  customRoutes?: (routers: { publicRouter: Hono<AppEnv>; protectedRouter: Hono<AppEnv> }) => void
 }
 
 // --- Costanti e helper ---
@@ -345,6 +353,20 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.route('/api/webhooks', webhooksApp)
 
   app.get('/api/media/:key', (context) => serveMediaHandler(context))
+
+  // Developer custom routes (must be mounted before apiProtected to avoid /api shadowing)
+  if (config.customRoutes) {
+    const publicRouter = new Hono<AppEnv>()
+    const protectedRouter = new Hono<AppEnv>()
+
+    protectedRouter.use('*', authMiddleware())
+
+    config.customRoutes({ publicRouter, protectedRouter })
+
+    app.route('/api/custom/public', publicRouter)
+    app.route('/api/custom', protectedRouter)
+  }
+
   app.route('/api', apiProtected)
   app.route('/api/search', searchRouter)
 
