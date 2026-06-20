@@ -3,8 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useEffect } from "react"
-import { createBrowserRouter, RouterProvider, Navigate, Outlet, useNavigate } from "react-router-dom"
-import axios from "axios"
+import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom"
 import { LoginForm } from "@/features/auth/components/login-form"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { ContentListPage } from "@/pages/content-list"
@@ -32,14 +31,9 @@ function SplashScreen() {
 }
 
 function LoginPage() {
-  const navigate = useNavigate()
-
-  useEffect(() => {
-    axios.get<{ needsSetup: boolean }>('/auth/setup')
-      .then(({ data }) => { if (data.needsSetup) navigate('/setup', { replace: true }) })
-      .catch(() => { /* ignore — assume setup already done */ })
-  }, [navigate])
-
+  // Setup detection now lives in AuthProvider (RootLayout below redirects
+  // globally, regardless of route) so it also catches a reset/restore that
+  // happens while the user is sitting on a different page than /login.
   return (
     <div className="flex min-h-svh w-full flex-col items-center justify-center bg-background p-4 sm:p-6 md:p-8 lg:p-10 xl:p-12">
       <div className="w-full max-w-sm sm:max-w-md md:max-w-2xl lg:max-w-4xl xl:max-w-6xl 2xl:max-w-7xl">
@@ -68,6 +62,21 @@ function RootLayout() {
       window.history.replaceState(null, "", `/admin/${window.location.search}${window.location.hash}`)
     }
   }, [])
+
+  const { needsSetup } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  // Global integrity gate: if a DB reset/restore wipes the admin user while
+  // this tab is open (db:reset:local, session revoke, etc.), force everyone
+  // to /setup regardless of which route or auth state they were sitting on.
+  useEffect(() => {
+    if (needsSetup && location.pathname !== '/setup') {
+      navigate('/setup', { replace: true })
+    }
+  }, [needsSetup, location.pathname, navigate])
+
+  if (needsSetup && location.pathname !== '/setup') return <SplashScreen />
 
   return (
     <>
