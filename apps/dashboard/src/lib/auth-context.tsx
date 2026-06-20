@@ -16,7 +16,9 @@ const SETUP_POLL_INTERVAL_MS = 30_000
 interface AuthState {
   status: AuthStatus
   user: { email: string; name?: string; surname?: string; role?: 'admin' | 'editor' } | null
-  needsSetup: boolean
+  /** null = not checked yet. Distinguishing "unknown" from "confirmed false" stops
+   *  SetupPage from bouncing a fresh install away before the first check resolves. */
+  needsSetup: boolean | null
   setToken: (token: string) => void
   clearToken: () => void
   /** Force an immediate re-check of /auth/setup — call right after the setup
@@ -39,7 +41,7 @@ function decodeUser(token: string): { email: string; name?: string; surname?: st
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<AuthStatus>('loading')
   const [user, setUser] = useState<{ email: string; name?: string; surname?: string; role?: 'admin' | 'editor' } | null>(null)
-  const [needsSetup, setNeedsSetup] = useState(false)
+  const [needsSetup, setNeedsSetup] = useState<boolean | null>(null)
 
   function setToken(token: string) {
     setAccessToken(token)

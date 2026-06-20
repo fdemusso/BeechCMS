@@ -50,6 +50,16 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+// /setup must be unreachable once an admin already exists — leaving it open
+// lets anyone unauthenticated see the wizard (and the env flags GET /auth/setup
+// returns) after install. needsSetup === null means "not checked yet" (fresh
+// load), so only block once the check has confirmed false.
+function SetupRoute({ children }: { children: React.ReactNode }) {
+  const { needsSetup } = useAuth()
+  if (needsSetup === false) return <Navigate to="/login" replace />
+  return <>{children}</>
+}
+
 function RootLayout() {
   // react-router's basename joining drops the trailing slash for the root
   // route ("/admin" instead of "/admin/"). Query-string updates (e.g. the
@@ -65,18 +75,18 @@ function RootLayout() {
 
   const { needsSetup } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
+  const { pathname } = useLocation()
 
   // Global integrity gate: if a DB reset/restore wipes the admin user while
   // this tab is open (db:reset:local, session revoke, etc.), force everyone
   // to /setup regardless of which route or auth state they were sitting on.
   useEffect(() => {
-    if (needsSetup && location.pathname !== '/setup') {
+    if (needsSetup && pathname !== '/setup') {
       navigate('/setup', { replace: true })
     }
-  }, [needsSetup, location.pathname, navigate])
+  }, [needsSetup, pathname, navigate])
 
-  if (needsSetup && location.pathname !== '/setup') return <SplashScreen />
+  if (needsSetup && pathname !== '/setup') return <SplashScreen />
 
   return (
     <>
@@ -97,7 +107,11 @@ const router = createBrowserRouter([
       },
       {
         path: "/setup",
-        element: <SetupPage />,
+        element: (
+          <SetupRoute>
+            <SetupPage />
+          </SetupRoute>
+        ),
       },
       {
         path: "/forgot-password",
