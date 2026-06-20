@@ -1,3 +1,5 @@
+name: beech-development-suite
+
 services:
   minio:
     image: minio/minio:latest

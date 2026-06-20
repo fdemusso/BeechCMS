@@ -10,6 +10,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  type DialogProps,
 } from "@/components/ui/dialog"
 import {
   InputGroup,
@@ -33,19 +34,23 @@ function Command({
   )
 }
 
+export interface CommandDialogProps extends DialogProps {
+  title?: string
+  description?: string
+  className?: string
+  showCloseButton?: boolean
+  "aria-label"?: string
+}
+
 function CommandDialog({
   title = "Command Palette",
   description = "Search for a command to run...",
   children,
   className,
   showCloseButton = false,
+  "aria-label": ariaLabel,
   ...props
-}: React.ComponentProps<typeof Dialog> & {
-  title?: string
-  description?: string
-  className?: string
-  showCloseButton?: boolean
-}) {
+}: CommandDialogProps) {
   return (
     <Dialog {...props}>
       <DialogHeader className="sr-only">
@@ -58,6 +63,7 @@ function CommandDialog({
           className
         )}
         showCloseButton={showCloseButton}
+        aria-label={ariaLabel}
       >
         {children}
       </DialogContent>
