@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/cli",
-  "version": "0.6.0-preview.2",
+  "version": "0.6.0-preview.3",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -13,7 +13,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.6.0-preview.2",
+    "@beechcms/core": "workspace:^0.6.0-preview.3",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
