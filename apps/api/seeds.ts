@@ -12,24 +12,26 @@ export const clienti = defineSeed({
   allowPublicRead: false,
   allowDrafts: false,
   branches: [
-    { id: 'br_c1', alias: 'name', label: 'Nome Azienda / Contatto', type: 'text', requiredOnCreate: true },
-    { id: 'br_c2', alias: 'email', label: 'Email Contatto', type: 'text', requiredOnCreate: true },
+    { id: 'br_c1', alias: 'name', label: 'Nome Azienda / Contatto', type: 'text', requiredOnCreate: true, requiredOnUpdate: true },
+    { id: 'br_c2', alias: 'email', label: 'Email Contatto', type: 'text', requiredOnCreate: true, requiredOnUpdate: true },
     { id: 'br_c3', alias: 'company', label: 'Azienda', type: 'text' },
-    { 
-      id: 'br_c4', 
-      alias: 'tier', 
-      label: 'Piano', 
-      type: 'text', 
+    {
+      id: 'br_c4',
+      alias: 'tier',
+      label: 'Piano',
+      type: 'text',
       options: ['free', 'pro', 'enterprise'],
-      requiredOnCreate: true 
+      requiredOnCreate: true,
+      requiredOnUpdate: true
     },
-    { 
-      id: 'br_c5', 
-      alias: 'account_status', 
-      label: 'Stato Account', 
-      type: 'text', 
+    {
+      id: 'br_c5',
+      alias: 'account_status',
+      label: 'Stato Account',
+      type: 'text',
       options: ['active', 'churned'],
-      requiredOnCreate: true 
+      requiredOnCreate: true,
+      requiredOnUpdate: true
     },
     { id: 'br_c6', alias: 'mrr', label: 'MRR (€)', type: 'number', numberOptions: { format: 'currency', currency: 'EUR' } }
   ]
@@ -43,31 +45,34 @@ export const abbonamenti = defineSeed({
   dashboard: { icon: 'CreditCard', group: 'SaaS Platform', order: 2 },
   allowDrafts: false,
   branches: [
-    { 
-      id: 'br_a1', 
-      alias: 'customer_id', 
-      label: 'Cliente', 
-      type: 'relation', 
-      targetSeed: 'clienti', 
+    {
+      id: 'br_a1',
+      alias: 'customer_id',
+      label: 'Cliente',
+      type: 'relation',
+      targetSeed: 'clienti',
       onDelete: 'SET NULL',
-      requiredOnCreate: true 
+      requiredOnCreate: true,
+      requiredOnUpdate: true
     },
-    { id: 'br_a2', alias: 'amount', label: 'Importo', type: 'number', numberOptions: { format: 'currency', currency: 'EUR' }, requiredOnCreate: true },
-    { 
-      id: 'br_a3', 
-      alias: 'billing_cycle', 
-      label: 'Ciclo di Fatturazione', 
-      type: 'text', 
+    { id: 'br_a2', alias: 'amount', label: 'Importo', type: 'number', numberOptions: { format: 'currency', currency: 'EUR' }, requiredOnCreate: true, requiredOnUpdate: true },
+    {
+      id: 'br_a3',
+      alias: 'billing_cycle',
+      label: 'Ciclo di Fatturazione',
+      type: 'text',
       options: ['monthly', 'annual'],
-      requiredOnCreate: true
+      requiredOnCreate: true,
+      requiredOnUpdate: true
     },
-    { 
-      id: 'br_a4', 
-      alias: 'payment_status', 
-      label: 'Stato Pagamento', 
-      type: 'text', 
+    {
+      id: 'br_a4',
+      alias: 'payment_status',
+      label: 'Stato Pagamento',
+      type: 'text',
       options: ['active', 'past_due', 'canceled'],
-      requiredOnCreate: true
+      requiredOnCreate: true,
+      requiredOnUpdate: true
     }
   ]
 })
@@ -80,39 +85,43 @@ export const ticket = defineSeed({
   dashboard: { icon: 'LifeBuoy', group: 'Support', order: 3 },
   allowDrafts: false,
   branches: [
-    { id: 'br_t1', alias: 'title', label: 'Oggetto', type: 'text', requiredOnCreate: true },
-    { 
-      id: 'br_t2', 
-      alias: 'customer_id', 
-      label: 'Cliente', 
-      type: 'relation', 
-      targetSeed: 'clienti', 
+    { id: 'br_t1', alias: 'title', label: 'Oggetto', type: 'text', requiredOnCreate: true, requiredOnUpdate: true },
+    {
+      id: 'br_t2',
+      alias: 'customer_id',
+      label: 'Cliente',
+      type: 'relation',
+      targetSeed: 'clienti',
       onDelete: 'SET NULL',
-      requiredOnCreate: true 
+      requiredOnCreate: true,
+      requiredOnUpdate: true
     },
-    { 
-      id: 'br_t3', 
-      alias: 'priority', 
-      label: 'Priorità', 
-      type: 'text', 
+    {
+      id: 'br_t3',
+      alias: 'priority',
+      label: 'Priorità',
+      type: 'text',
       options: ['low', 'medium', 'high'],
-      requiredOnCreate: true
+      requiredOnCreate: true,
+      requiredOnUpdate: true
     },
-    { 
-      id: 'br_t4', 
-      alias: 'category', 
-      label: 'Categoria', 
-      type: 'text', 
+    {
+      id: 'br_t4',
+      alias: 'category',
+      label: 'Categoria',
+      type: 'text',
       options: ['billing', 'technical', 'sales'],
-      requiredOnCreate: true
+      requiredOnCreate: true,
+      requiredOnUpdate: true
     },
-    { 
-      id: 'br_t5', 
-      alias: 'ticket_status', 
-      label: 'Stato', 
-      type: 'text', 
+    {
+      id: 'br_t5',
+      alias: 'ticket_status',
+      label: 'Stato',
+      type: 'text',
       options: ['open', 'in_progress', 'closed'],
-      requiredOnCreate: true
+      requiredOnCreate: true,
+      requiredOnUpdate: true
     }
   ]
 })
@@ -125,8 +134,8 @@ export const changelog = defineSeed({
   dashboard: { icon: 'Rocket', group: 'Content', order: 4 },
   allowDrafts: true,
   branches: [
-    { id: 'br_ch1', alias: 'version', label: 'Versione', type: 'text', requiredOnCreate: true },
-    { id: 'br_ch2', alias: 'release_date', label: 'Data Rilascio', type: 'date', requiredOnCreate: true },
+    { id: 'br_ch1', alias: 'version', label: 'Versione', type: 'text', requiredOnCreate: true, requiredOnUpdate: true },
+    { id: 'br_ch2', alias: 'release_date', label: 'Data Rilascio', type: 'date', requiredOnCreate: true, requiredOnUpdate: true },
     { id: 'br_ch3', alias: 'features', label: 'Novità', type: 'richtext' }
   ]
 })
@@ -140,7 +149,7 @@ export const articoli = defineSeed({
   allowDrafts: true,
   allowPublicRead: true,
   branches: [
-    { id: 'br_ar1', alias: 'title', label: 'Titolo', type: 'text', requiredOnCreate: true },
+    { id: 'br_ar1', alias: 'title', label: 'Titolo', type: 'text', requiredOnCreate: true, requiredOnUpdate: true },
     { id: 'br_ar2', alias: 'author', label: 'Autore', type: 'text' },
     { id: 'br_ar3', alias: 'cover_image', label: 'Immagine Copertina', type: 'text' },
     { id: 'br_ar4', alias: 'body', label: 'Contenuto', type: 'richtext' }
@@ -148,4 +157,3 @@ export const articoli = defineSeed({
 })
 
 export const seeds = [clienti, abbonamenti, ticket, changelog, articoli]
-

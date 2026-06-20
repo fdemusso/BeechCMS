@@ -369,39 +369,38 @@ function SingleRelationEdit({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <div className="relative w-full">
-        <PopoverTrigger asChild>
-          <Button
-            type="button"
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            aria-controls={singlePopoverId}
-            aria-label={t("content.editor.relation.placeholder")}
-            disabled={disabled || !targetSlug}
-            className={cn(
-              "w-full justify-between font-normal",
-              !selectedId && "text-muted-foreground",
-              showClear && "pr-14"
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={singlePopoverId}
+          aria-label={t("content.editor.relation.placeholder")}
+          disabled={disabled || !targetSlug}
+          className={cn(
+            "w-full justify-between font-normal",
+            !selectedId && "text-muted-foreground",
+          )}
+        >
+          <span className="truncate">
+            {selectedId ? selectedLabel : t("content.editor.relation.placeholder")}
+          </span>
+          <span className="flex items-center gap-1 shrink-0 ml-1">
+            {showClear && (
+              <span
+                role="button"
+                aria-label={t("content.editor.relation.clear")}
+                onClick={handleClear}
+                className="flex items-center rounded-sm opacity-60 hover:opacity-100 hover:bg-muted px-0.5"
+              >
+                <X className="size-3.5" />
+              </span>
             )}
-          >
-            <span className="truncate">
-              {selectedId ? selectedLabel : t("content.editor.relation.placeholder")}
-            </span>
-            <ChevronsUpDown className="size-4 opacity-50 shrink-0" />
-          </Button>
-        </PopoverTrigger>
-        {showClear && (
-          <button
-            type="button"
-            aria-label={t("content.editor.relation.clear")}
-            onClick={handleClear}
-            className="absolute inset-y-0 right-8 flex items-center rounded-sm opacity-60 hover:opacity-100 hover:bg-muted px-0.5"
-          >
-            <X className="size-3.5" />
-          </button>
-        )}
-      </div>
+            <ChevronsUpDown className="size-4 opacity-50" />
+          </span>
+        </Button>
+      </PopoverTrigger>
       <PopoverContent id={singlePopoverId} className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput

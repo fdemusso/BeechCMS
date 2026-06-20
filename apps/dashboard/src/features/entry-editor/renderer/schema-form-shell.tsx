@@ -222,18 +222,19 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
             <DialogTitle>{title}</DialogTitle>
           </DialogHeader>
 
-          <div className="absolute top-4 right-10 flex items-center gap-2">
+          <div className="absolute top-2 right-10 flex items-center gap-1">
             {vm.isReadOnly && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={() => vm.setIsReadOnly?.(false)}
-                    className="rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                   >
                     <Pencil className="size-4" />
                     <span className="sr-only">Passa alla modalità modifica</span>
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                   Passa alla modalità modifica
@@ -244,14 +245,15 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
             {capabilities.layoutBuilder && canEditLayoutFlag && seed && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-sm"
                     onClick={() => setBuilderMode(true)}
-                    className="rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 [&_svg]:pointer-events-none [&_svg]:shrink-0"
                   >
                     <LayoutTemplate className="size-4" />
                     <span className="sr-only">{t("layoutBuilder.editLayout")}</span>
-                  </button>
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
                   {t("layoutBuilder.editLayout")}
