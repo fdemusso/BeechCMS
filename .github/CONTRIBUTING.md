@@ -60,7 +60,7 @@ ppnpm run dev:full
 
 > **MinIO console**: [http://localhost:9001](http://localhost:9001) — username `beechdev`, password `beechdevsecret`.
 
-For a full explanation of the storage setup and environment variables, see [`docs/development.md`](./docs/development.md).
+For a full explanation of the storage setup and environment variables, see [`docs/development.md`](../docs/development.md).
 
 ---
 
@@ -178,7 +178,7 @@ const result = a ? b ? c : d : e ? f : g;
 
 BeechCMS is built on **Vertical Slice Architecture**. Every contribution must respect its rules without exception.
 
-A full reference is available in [`docs/vertical-slice.md`](./docs/vertical-slice.md).
+A full reference is available in [`docs/vertical-slice.md`](../docs/vertical-slice.md).
 
 ### Core principles
 

@@ -18,3 +18,5 @@ overrides:
   ws: ^8.21.0
   miniflare>ws: ^8.21.0
   jsdom>ws: ^8.21.0
+  undici: 7.28.0
+

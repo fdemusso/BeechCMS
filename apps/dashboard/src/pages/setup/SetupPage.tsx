@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import i18n from '@/lib/i18n'
 import axios from 'axios'
+import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -220,6 +221,7 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 export function SetupPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { recheckSetup } = useAuth()
 
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [environment, setEnvironment] = useState<SetupEnvironment | null>(null)
@@ -354,6 +356,9 @@ export function SetupPage() {
       }
 
       await axios.post('/auth/setup', payload)
+      // Stale needsSetup=true from the last poll would otherwise bounce us
+      // straight back here via the RootLayout gate — refresh it first.
+      await recheckSetup()
       navigate('/login', { replace: true })
     } catch (err: unknown) {
       setSubmitting(false)

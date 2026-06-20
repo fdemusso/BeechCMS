@@ -13,6 +13,8 @@ function Dialog({
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
+export type DialogProps = React.ComponentProps<typeof DialogPrimitive.Root>
+
 function DialogTrigger({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Trigger>) {

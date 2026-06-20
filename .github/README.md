@@ -1,4 +1,4 @@
-![beechLogoDark.png](docs/images/beechLogoDark.png)
+![beechLogoDark.png](../docs/images/beechLogoDark.png)
 
 **BeechCMS** is a precision-engineered, solo-developer headless CMS built for developers who deliver high-performance websites for clients with **zero infrastructure overhead**.
 
@@ -32,7 +32,7 @@ Your project is four files. The BeechCMS engine, dashboard, and API live inside 
 npx @beechcms/cms
 ```
 
-The interactive wizard scaffolds a ready-to-use project in seconds. For everything from configuration to deployment, see the **[Developer Guide](./docs/guide.md)**.
+The interactive wizard scaffolds a ready-to-use project in seconds. For everything from configuration to deployment, see the **[Developer Guide](../docs/guide.md)**.
 
 ---
 
@@ -72,11 +72,11 @@ Instead of generic document storage, the Engine analyzes your **Seeds** (content
 
 | Document | Description |
 |---|---|
-| [Developer Guide](./docs/guide.md) | End-to-end guide: scaffolding, seeds, API consumption, deployment |
-| [Architecture](./docs/nuovidocs/architecture.md) | Monorepo topology, Botanical Engine data flow, D1 model |
-| [API Reference](./docs/nuovidocs/api-reference.md) | Auth, Content CRUD, Media Engine, Public API, rate limiting |
-| [Frontend Guide](./docs/nuovidocs/frontend-guide.md) | FieldRenderer registry, TanStack Query patterns, adding field types |
-| [System Map](./docs/SYSTEM_MAP.md) | Folder structure, conventions, and architectural constraints |
+| [Developer Guide](../docs/guide.md) | End-to-end guide: scaffolding, seeds, API consumption, deployment |
+| [Architecture](../docs/nuovidocs/architecture.md) | Monorepo topology, Botanical Engine data flow, D1 model |
+| [API Reference](../docs/nuovidocs/api-reference.md) | Auth, Content CRUD, Media Engine, Public API, rate limiting |
+| [Frontend Guide](../docs/nuovidocs/frontend-guide.md) | FieldRenderer registry, TanStack Query patterns, adding field types |
+| [System Map](../docs/SYSTEM_MAP.md) | Folder structure, conventions, and architectural constraints |
 
 ---
 # Faq about BeechCMS
@@ -122,4 +122,4 @@ After 2030-05-26, these components convert automatically to GPL v2+.
 
 For commercial licensing inquiries: demusso1617@gmail.com
 
-For more detailed information, see our [Licensing Guide](./docs/LICENSING.md).
+For more detailed information, see our [Licensing Guide](../docs/LICENSING.md).
