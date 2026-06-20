@@ -45,9 +45,9 @@ function findComposeRoot(): string {
   // vitest cwd is apps/api when running via npm test -w @beechcms/api
   const candidates = [path.resolve('../../'), path.resolve('.')]
   for (const dir of candidates) {
-    if (fs.existsSync(path.join(dir, 'docker-compose.yml'))) return dir
+    if (fs.existsSync(path.join(dir, 'docker/docker-compose.yml'))) return path.join(dir, 'docker')
   }
-  return path.resolve('../../')
+  return path.resolve('../../docker')
 }
 
 async function tryStartDockerStack(): Promise<void> {

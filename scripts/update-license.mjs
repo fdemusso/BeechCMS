@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(__dirname, '..')
 
-const licensePath = resolve(ROOT, 'LICENSE')
+const licensePath = resolve(ROOT, '.github/LICENSE')
 let licenseContent = readFileSync(licensePath, 'utf8')
 
 const changeDate = new Date()

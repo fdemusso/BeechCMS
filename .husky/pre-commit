@@ -1,4 +1,4 @@
 #!/bin/sh
 
 node scripts/update-license.mjs
-git add LICENSE
+git add .github/LICENSE
