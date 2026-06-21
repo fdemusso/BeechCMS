@@ -388,14 +388,14 @@ function SingleRelationEdit({
           </span>
           <span className="flex items-center gap-1 shrink-0 ml-1">
             {showClear && (
-              <span
-                role="button"
+              <button
+                type="button"
                 aria-label={t("content.editor.relation.clear")}
                 onClick={handleClear}
                 className="flex items-center rounded-sm opacity-60 hover:opacity-100 hover:bg-muted px-0.5"
               >
                 <X className="size-3.5" />
-              </span>
+              </button>
             )}
             <ChevronsUpDown className="size-4 opacity-50" />
           </span>

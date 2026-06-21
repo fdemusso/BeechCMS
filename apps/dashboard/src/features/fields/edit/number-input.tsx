@@ -13,8 +13,8 @@ export function NumberInput({ branch, value, onChange }: FieldEditProps) {
   const step = typeof opts?.step === "number" ? opts.step : 1
 
   const current = typeof raw === "number" ? raw : 0
-  const min = opts?.min !== undefined ? Number(opts.min) : -Infinity
-  const max = opts?.max !== undefined ? Number(opts.max) : Infinity
+  const min = opts?.min === undefined ? -Infinity : Number(opts.min)
+  const max = opts?.max === undefined ? Infinity : Number(opts.max)
 
   const increment = () => {
     const next = current + step
