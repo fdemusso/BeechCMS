@@ -10,15 +10,16 @@ import { pathToFileURL } from 'node:url'
 const [,, command, ...args] = process.argv
 
 const COMMANDS = {
-  build:          cmdBuild,
-  'seed:load':    cmdSeedLoad,
-  'seed:create':  cmdSeedCreate,
-  'init':         cmdInit,
-  'validate':     cmdValidate,
-  'deploy':       cmdDeploy,
-  'update':       cmdUpdate,
-  'onboard':      cmdOnboard,
-  'reset':        cmdReset,
+  build:            cmdBuild,
+  'seed:load':      cmdSeedLoad,
+  'seed:create':    cmdSeedCreate,
+  'init':           cmdInit,
+  'validate':       cmdValidate,
+  'deploy':         cmdDeploy,
+  'update':         cmdUpdate,
+  'onboard':        cmdOnboard,
+  'reset':          cmdReset,
+  'generate:types': cmdGenerateTypes,
 }
 
 function help() {
@@ -62,6 +63,11 @@ function help() {
       --db            Wipe local Wrangler state & bootstrap D1 DB
       --docker        Down Docker containers and wipe volumes
       --all           Reset both (database & docker)
+
+    generate:types  Generate TypeScript interfaces from the Seed registry
+      --out <path>    Output file (default: src/types/beech.ts)
+      --local         Read from seeds.ts instead of querying remote D1
+      --db <name>     Override D1 database name (remote mode)
 
   Scaffold a new project (interactive, or pass --yes for non-interactive defaults):
     npm create @beechcms/cms [project-name] [--yes] [--with-examples]
@@ -215,9 +221,22 @@ async function cmdReset(args) {
   const db     = args.includes('--db')
   const docker = args.includes('--docker')
   const all    = args.includes('--all')
-  
+
   const { reset } = await import('@beechcms/cli')
   await reset({ db, docker, all })
+}
+
+async function cmdGenerateTypes(args) {
+  const outIdx = args.indexOf('--out')
+  const out    = outIdx !== -1 ? args[outIdx + 1] : 'src/types/beech.ts'
+  const local  = args.includes('--local')
+  const dbIdx  = args.indexOf('--db')
+  const db     = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+
+  const registry = local ? await tryLoadLocalRegistry() : null
+
+  const { generateTypes } = await import('@beechcms/cli')
+  await generateTypes({ out, local, db, registry })
 }
 
 const handler = COMMANDS[command]
