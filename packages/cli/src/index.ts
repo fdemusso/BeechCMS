@@ -17,4 +17,6 @@ export { update } from './commands/update.js'
 export type { UpdateOptions } from './commands/update.js'
 export { reset } from './commands/reset.js'
 export type { ResetOptions } from './commands/reset.js'
+export { generateTypes } from './commands/generate-types.js'
+export type { GenerateTypesOptions } from './commands/generate-types.js'
 
