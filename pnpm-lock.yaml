@@ -34,15 +34,24 @@ importers:
         specifier: ^1.1.1
         version: 1.1.1
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.1
+        version: 9.39.4
       '@vitest/coverage-v8':
         specifier: ^4.1.0
         version: 4.1.8(vitest@4.1.8)
       cross-env:
         specifier: ^10.1.0
         version: 10.1.0
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.4(jiti@2.7.0)
       execa:
         specifier: ^9.6.1
         version: 9.6.1
+      globals:
+        specifier: ^16.5.0
+        version: 16.5.0
       husky:
         specifier: ^9.1.7
         version: 9.1.7
@@ -79,6 +88,9 @@ importers:
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.48.0
+        version: 8.61.0(eslint@9.39.4(jiti@2.7.0))(typescript@5.9.3)
       vitest:
         specifier: ^4.1.0
         version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(@vitest/coverage-v8@4.1.8)(happy-dom@20.10.3)(jsdom@25.0.1)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
@@ -452,6 +464,22 @@ importers:
       esbuild:
         specifier: 0.28.1
         version: 0.28.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+      vitest:
+        specifier: ^4.1.0
+        version: 4.1.8(@opentelemetry/api@1.9.1)(@types/node@24.13.2)(@vitest/coverage-v8@4.1.8)(happy-dom@20.10.3)(jsdom@25.0.1)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
+
+  packages/client:
+    dependencies:
+      '@beechcms/core':
+        specifier: workspace:^0.6.0-preview.3
+        version: link:../core
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^4.1.0
+        version: 4.1.8(vitest@4.1.8)
       typescript:
         specifier: ^5.9.3
         version: 5.9.3

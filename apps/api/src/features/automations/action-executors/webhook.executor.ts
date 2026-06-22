@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { AutomationAction } from '@beechcms/core'
+import { signWebhookBody } from '@beechcms/core/webhook-crypto'
 import type { ResolvedContext } from '../context-resolver'
 import { interpolate } from '../automation-runner.utils'
 
@@ -11,21 +12,6 @@ type WebhookAction = Extract<AutomationAction, { type: 'webhook' }>
 const WEBHOOK_TIMEOUT_MS = 8_000
 
 let warnedNoSecret = false
-
-async function signBody(body: string, secret: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign'],
-  )
-  const sig = await crypto.subtle.sign('HMAC', key, encoder.encode(body))
-  return 'sha256=' + Array.from(new Uint8Array(sig))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
 
 export async function executeWebhook(
   action: WebhookAction,
@@ -37,7 +23,7 @@ export async function executeWebhook(
   const secret = env.WEBHOOK_SECRET
   let signatureHeader: Record<string, string> = {}
   if (secret) {
-    signatureHeader = { 'X-BeechCMS-Signature': await signBody(body, secret) }
+    signatureHeader = { 'X-BeechCMS-Signature': await signWebhookBody(body, secret) }
   } else if (!warnedNoSecret) {
     warnedNoSecret = true
     console.warn('[webhook] WEBHOOK_SECRET not set — outgoing webhooks are unsigned')

@@ -154,14 +154,11 @@ function parseVitestConfig(configPath) {
       else if (text[i] === ']') depth--
       i++
     }
-<<<<<<< HEAD
-    const block = text.slice(start, i - 1)
-=======
+    
     let block = text.slice(start, i - 1)
 
     // Strip single-line and trailing comments
     block = block.replace(/\/\/.*/g, '')
->>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 
     // Extract string literals from the array block
     const strings = []
