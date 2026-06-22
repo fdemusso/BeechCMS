@@ -3,22 +3,17 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
-import { resolvePolicies } from "@beechcms/core"
 import type { Seed } from "@beechcms/core"
 import type {
-  FilterGroupType,
   FilterOperator,
   ToolbarFilterCondition,
   ToolbarFiltersState,
 } from "@/features/content-toolbar/shared"
-import { generateConditionId } from "@/features/content-toolbar/shared"
-
-interface FilterableColumn {
-  columnId: string
-  label: string
-  type: FilterGroupType
-  selectOptions?: string[]
-}
+import {
+  generateConditionId,
+  buildFilterableColumns,
+  type FilterableColumn,
+} from "@/features/content-toolbar/shared"
 
 type FormattableType = "select" | "number" | "date" | "boolean" | "tags"
 
@@ -42,35 +37,10 @@ export function useToolbarFilters({
   onFiltersChange,
   availableStatusOptions = [],
 }: UseToolbarFiltersOptions) {
-  const filterableColumns = React.useMemo<FilterableColumn[]>(() => {
-    const columns: FilterableColumn[] = [
-      { columnId: "slug", label: "Slug", type: "system" },
-      {
-        columnId: "status",
-        label: "Stato",
-        type: "select",
-        selectOptions: availableStatusOptions,
-      },
-    ]
-
-    for (const branch of seed.branches) {
-      if (!resolvePolicies(branch).filter) continue
-      const alias = branch.alias
-      if (branch.type === "number") {
-        columns.push({ columnId: alias, label: branch.label, type: "number" })
-      } else if (branch.type === "date") {
-        columns.push({ columnId: alias, label: branch.label, type: "date" })
-      } else if (branch.type === "boolean") {
-        columns.push({ columnId: alias, label: branch.label, type: "boolean" })
-      } else if (branch.type === "json" && alias.toLowerCase().includes("tag")) {
-        columns.push({ columnId: alias, label: branch.label, type: "tags" })
-      } else {
-        columns.push({ columnId: alias, label: branch.label, type: "text" })
-      }
-    }
-
-    return columns
-  }, [availableStatusOptions, seed.branches])
+  const filterableColumns = React.useMemo<FilterableColumn[]>(
+    () => buildFilterableColumns(seed, availableStatusOptions),
+    [seed, availableStatusOptions]
+  )
 
   const formattableColumns = React.useMemo<FormattableColumn[]>(() => {
     const allowed = new Set<FormattableType>(["select", "number", "date", "boolean", "tags"])

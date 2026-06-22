@@ -58,6 +58,7 @@ import {
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 
 const DEFAULT_PAGE_SIZE = 10
+const CELL_CLICK_DELAY_MS = 200
 /** Altezza riga condivisa da tutte le tabelle dell'app — riusala per coerenza dimensionale. */
 export const ROW_HEIGHT_PX = 48
 /** Altezza container in modalità virtual scroll (gruppi espansi) */
@@ -144,6 +145,10 @@ interface DataTableProps<TData, TValue> {
   onColumnSizingChange?: (sizing: ColumnSizingState) => void
   /** Densità righe (default: "normal"). */
   density?: TableDensity
+  /** Single-click activation of a cell value (e.g. click-to-filter). Feature-agnostic. */
+  onCellActivate?: (columnId: string, row: TData) => void
+  /** Column ids that must NOT trigger onCellActivate (interactive columns). */
+  cellActivateExcludedColumnIds?: string[]
 }
 
 export function DataTable<TData, TValue>(
@@ -185,6 +190,8 @@ export function DataTable<TData, TValue>(
     columnSizing: columnSizingProp,
     onColumnSizingChange,
     density,
+    onCellActivate,
+    cellActivateExcludedColumnIds,
   } = props
   const { t } = useTranslation()
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
@@ -243,6 +250,12 @@ export function DataTable<TData, TValue>(
   const setGlobalFilter = isControlledFilter
     ? (onGlobalFilterChange ?? (() => {}))
     : setInternalGlobalFilter
+
+  const cellClickTimerRef = React.useRef<number | null>(null)
+  const cellActivateExcludedColumnIdSet = React.useMemo(
+    () => new Set(cellActivateExcludedColumnIds ?? []),
+    [cellActivateExcludedColumnIds]
+  )
 
   // Grouping state
   const isControlledGrouping = groupingProp !== undefined
@@ -530,21 +543,37 @@ export function DataTable<TData, TValue>(
           rowStyles?.rowClassName ?? getRowClassName?.(row.original)
         )}
         style={{ height: rowHeight }}
-        onDoubleClick={() => onRowDoubleClick?.(row.original)}
+        onDoubleClick={() => {
+          if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
+          onRowDoubleClick?.(row.original)
+        }}
       >
         {row.getVisibleCells().map((cell) => {
           const cellInner = flexRender(
             cell.column.columnDef.cell,
             cell.getContext()
           )
+          const canActivateCell =
+            !!onCellActivate && !cellActivateExcludedColumnIdSet.has(cell.column.id)
           const cellClassName = cn(
             cellPadding,
             rowStyles?.cellClassNameByColumnId?.[cell.column.id] ??
-              getCellClassName?.(row.original, cell.column.id)
+              getCellClassName?.(row.original, cell.column.id),
+            canActivateCell && "cursor-pointer"
           )
           const cellStyle = enableColumnResizing
             ? { width: cell.column.getSize() }
             : undefined
+
+          const handleCellClick = (e: React.MouseEvent<HTMLTableCellElement>) => {
+            if (!canActivateCell) return
+            if ((e.target as HTMLElement).closest("button, a, input, [role='button'], [data-no-cell-filter]"))
+              return
+            if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
+            cellClickTimerRef.current = window.setTimeout(() => {
+              onCellActivate?.(cell.column.id, row.original)
+            }, CELL_CLICK_DELAY_MS)
+          }
 
           const shouldWrapWithContextMenu =
             !!renderRowContextMenuContent &&
@@ -552,7 +581,7 @@ export function DataTable<TData, TValue>(
 
           if (!shouldWrapWithContextMenu) {
             return (
-              <TableCell key={cell.id} className={cellClassName} style={cellStyle}>
+              <TableCell key={cell.id} className={cellClassName} style={cellStyle} onClick={handleCellClick}>
                 {cellInner}
               </TableCell>
             )
@@ -561,7 +590,7 @@ export function DataTable<TData, TValue>(
           return (
             <ContextMenu key={cell.id}>
               <ContextMenuTrigger asChild>
-                <TableCell className={cellClassName} style={cellStyle}>{cellInner}</TableCell>
+                <TableCell className={cellClassName} style={cellStyle} onClick={handleCellClick}>{cellInner}</TableCell>
               </ContextMenuTrigger>
               <ContextMenuContent>
                 {renderRowContextMenuContent(row.original)}

@@ -98,32 +98,36 @@ vi.mock("@/lib/dynamic-columns", () => ({
   generateColumns: () => [],
 }))
 
-vi.mock("@/features/content-toolbar", () => ({
-  ContentToolbar: (props: any) => (
-    <div>
-      <button onClick={props.onCreate}>create-entry</button>
-      <button onClick={() => props.onSearchChange?.("ciao")}>search</button>
-      <button onClick={() => props.onSortChange?.({ columnId: "title", desc: false })}>
-        sort
-      </button>
-      <button
-        onClick={() =>
-          props.onFiltersChange?.({
-            title: {
-              columnId: "title",
-              label: "Titolo",
-              type: "text",
-              conditions: [{ id: "c1", op: "contains", value: "hello" }],
-            },
-          })
-        }
-      >
-        filter
-      </button>
-      {props.children}
-    </div>
-  ),
-}))
+vi.mock("@/features/content-toolbar", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/content-toolbar")>()
+  return {
+    ...actual,
+    ContentToolbar: (props: any) => (
+      <div>
+        <button onClick={props.onCreate}>create-entry</button>
+        <button onClick={() => props.onSearchChange?.("ciao")}>search</button>
+        <button onClick={() => props.onSortChange?.({ columnId: "title", desc: false })}>
+          sort
+        </button>
+        <button
+          onClick={() =>
+            props.onFiltersChange?.({
+              title: {
+                columnId: "title",
+                label: "Titolo",
+                type: "text",
+                conditions: [{ id: "c1", op: "contains", value: "hello" }],
+              },
+            })
+          }
+        >
+          filter
+        </button>
+        {props.children}
+      </div>
+    ),
+  }
+})
 
 vi.mock("@/features/content-delete-dialog", () => ({
   ContentDeleteDialog: (props: any) =>

@@ -30,6 +30,9 @@ import {
   type ToolbarFiltersState,
   type ToolbarFilterGroup,
   type ToolbarFilterCondition,
+  buildFilterableColumns,
+  defaultOperatorForType,
+  generateConditionId,
 } from "@/features/content-toolbar"
 import {
   ContextMenuItem,
@@ -61,9 +64,35 @@ import {
 } from "@/lib/conditional-format"
 import {
   matchesFilterGroupStrict,
+  normalizeDateToYmd,
   type FilterGroupType,
 } from "@/lib/filter-dsl"
 import { extractTagNames } from "@/lib/tags-utils"
+
+function normalizeCellFilterValue(
+  type: FilterGroupType,
+  raw: unknown
+): string | number | boolean | null {
+  switch (type) {
+    case "number":
+      return typeof raw === "number" ? raw : (raw != null && raw !== "" && !Number.isNaN(Number(raw)) ? Number(raw) : null)
+    case "boolean":
+      return typeof raw === "boolean" ? raw : null
+    case "tags": {
+      const names = extractTagNames(raw)
+      return names.length > 0 ? names[0] : null
+    }
+    case "date":
+      return normalizeDateToYmd(raw)
+    case "select":
+    case "text":
+    case "system":
+    default: {
+      const s = raw == null ? "" : String(raw).trim()
+      return s.length > 0 ? s : null
+    }
+  }
+}
 
 export function ContentListPage() {
   const { slug, id: entryId } = useParams<{ slug: string; id?: string }>()
@@ -503,6 +532,34 @@ export function ContentListPage() {
     return availableStatusOptionsFromData
   }, [facetsData?.statuses, availableStatusOptionsFromData])
 
+  const filterableColumns = React.useMemo(
+    () => (seed ? buildFilterableColumns(seed, effectiveStatusOptions) : []),
+    [seed, effectiveStatusOptions]
+  )
+
+  const applyCellFilter = React.useCallback(
+    (columnId: string, entry: ContentEntry) => {
+      const col = filterableColumns.find((c) => c.columnId === columnId)
+      if (!col) return
+      const rawValue = getEntryValueForColumn(entry, columnId)
+      const value = normalizeCellFilterValue(col.type, rawValue)
+      if (value === null && col.type !== "boolean") return
+      const op = defaultOperatorForType(col.type)
+      const nextCondition: ToolbarFilterCondition = { id: generateConditionId(), op, value }
+      setToolbarFilters((prev) => {
+        const existing = prev[columnId]
+        if (existing?.conditions.some((c) => c.op === op && c.value === value)) return prev
+        return {
+          ...prev,
+          [columnId]: existing
+            ? { ...existing, conditions: [...existing.conditions, nextCondition] }
+            : { columnId, label: col.label, type: col.type, selectOptions: col.selectOptions, conditions: [nextCondition] },
+        }
+      })
+    },
+    [filterableColumns, getEntryValueForColumn]
+  )
+
   const grouping = React.useMemo<GroupingState>(
     () => (groupBy ? [groupBy] : []),
     [groupBy]
@@ -782,6 +839,8 @@ export function ContentListPage() {
                       rowSelection={rowSelection}
                       onRowSelectionChange={setRowSelection}
                       onRowDoubleClick={(entry) => handleEdit(entry.id)}
+                      onCellActivate={(columnId, entry) => applyCellFilter(columnId, entry)}
+                      cellActivateExcludedColumnIds={["select", "actions"]}
                       grouping={grouping}
                       onGroupingChange={(g) => setGroupBy(g[0] ?? null)}
                       renderRowContextMenuContent={(entry) => (

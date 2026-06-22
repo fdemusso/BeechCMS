@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { resolvePolicies } from "@beechcms/core"
 import type { Seed } from "@beechcms/core"
 import type {
   ConditionalFormatRule,
@@ -112,6 +113,38 @@ export function getConditionalToneStripClass(tone: ConditionalFormatTone): strin
 
 export function generateConditionId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+}
+
+export interface FilterableColumn {
+  columnId: string
+  label: string
+  type: FilterGroupType
+  selectOptions?: string[]
+}
+
+export function buildFilterableColumns(
+  seed: Seed,
+  availableStatusOptions: string[] = []
+): FilterableColumn[] {
+  const columns: FilterableColumn[] = [
+    { columnId: "slug", label: "Slug", type: "system" },
+    { columnId: "status", label: "Stato", type: "select", selectOptions: availableStatusOptions },
+  ]
+  for (const branch of seed.branches) {
+    if (!resolvePolicies(branch).filter) continue
+    const alias = branch.alias
+    if (branch.type === "number") columns.push({ columnId: alias, label: branch.label, type: "number" })
+    else if (branch.type === "date") columns.push({ columnId: alias, label: branch.label, type: "date" })
+    else if (branch.type === "boolean") columns.push({ columnId: alias, label: branch.label, type: "boolean" })
+    else if (branch.type === "json" && alias.toLowerCase().includes("tag"))
+      columns.push({ columnId: alias, label: branch.label, type: "tags" })
+    else columns.push({ columnId: alias, label: branch.label, type: "text" })
+  }
+  return columns
+}
+
+export function defaultOperatorForType(type: FilterGroupType): FilterOperator {
+  return type === "tags" ? "contains" : "eq"
 }
 
 export function operatorRequiresValue(op: FilterOperator): boolean {
