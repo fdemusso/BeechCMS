@@ -16,7 +16,7 @@ import {
   type Seed,
 } from '@beechcms/core'
 import { executeD1File, findWranglerConfig, resolveDbName, queryD1, sqlQuote, type WranglerOptions } from '../lib/wrangler.js'
-import { diffSeed } from '../lib/schema-diff.js'
+import { diffSeed, renderSeedDiff, isSeedClean } from '../lib/schema-diff.js'
 import { validateSeeds } from './validate.js'
 
 export interface SeedLoadOptions {
@@ -69,37 +69,8 @@ async function runDiff(options: WranglerOptions, registry: Record<string, Seed>)
   let allOk = true
   for (const seed of seeds) {
     const result = await diffSeed(seed, options)
-    const tableName = `content_${seed.slug}`
-
-    if (!result.tableExists) {
-      console.log(pc.red(`  ✗ ${tableName} — table missing`))
-      allOk = false
-      continue
-    }
-
-    const problems = result.columns.filter(c => c.status !== 'ok')
-    if (problems.length === 0) {
-      console.log(pc.green(`  ✓ ${tableName}`))
-      continue
-    }
-
-    allOk = false
-    console.log(pc.yellow(`  ⚠ ${tableName}`))
-    for (const col of problems) {
-      if (col.status === 'missing') {
-        console.log(pc.red(`    + missing column: ${col.name} ${col.expectedType}`))
-      } else if (col.status === 'extra') {
-        console.log(pc.dim(`    ~ orphaned column: "${col.name}" (${col.actualType}) — exists in DB but not in seeds.ts`))
-      } else if (col.status === 'type_mismatch') {
-        console.log(pc.red(`    ≠ type mismatch:  ${col.name} (expected ${col.expectedType}, got ${col.actualType})`))
-      } else if (col.status === 'fk_missing') {
-        console.log(pc.red(`    ⤬ missing FK: ${col.name} → content_${col.expectedTarget}(id)`))
-      } else if (col.status === 'fk_mismatch') {
-        console.log(pc.yellow(`    ⤬ FK mismatch: ${col.name} expected ${col.expected}, got ${col.actual}`))
-      } else if (col.status === 'index_missing') {
-        console.log(pc.yellow(`    ⊘ missing index on ${col.name}`))
-      }
-    }
+    renderSeedDiff(result)
+    if (!isSeedClean(result)) allOk = false
   }
 
   console.log('')
