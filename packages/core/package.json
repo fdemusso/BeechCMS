@@ -12,6 +12,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./webhook-crypto": {
+      "import": "./dist/webhook-crypto.js",
+      "types": "./dist/webhook-crypto.d.ts"
     }
   },
   "scripts": {

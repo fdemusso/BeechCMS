@@ -15,6 +15,8 @@ Beech requires Docker. There's no "lightweight" mode; those who can't or don't w
 - `pnpm run dev:reset` : Stop + rimozione volumi (reset completo)
 - `pnpm run build` : Build all packages
 - `pnpm run test` : Run all tests
+- `pnpm run test:diff` : Run Vitest coverage ONLY for source files that changed on the current branch
+
 
 ## API (`apps/api`)
 - `pnpm run dev` : wrangler dev --port 8789
