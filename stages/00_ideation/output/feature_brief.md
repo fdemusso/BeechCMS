@@ -1,65 +1,42 @@
-## ── Sprint 5: Type-Safe Client SDK & Webhook Verifier ──
+## ── Sprint 7: Background Queues & Job Handlers ──
 
 ### Problema
-Anche dopo aver autogenerato i tipi TypeScript (Sprint 3), gli sviluppatori che creano frontend (es. un sito in Next.js, un'app mobile) devono comunque effettuare chiamate HTTP grezze (`fetch` o `axios`) verso l'API di Beech. Questo significa:
-1. Scrivere manualmente l'URL degli endpoint (es. `/api/v1/public/articoli`).
-2. Configurare gli header di autorizzazione (`X-API-Key` o `Authorization`) in ogni richiesta.
-3. Gestire manualmente il parsing e l'associazione dei tipi TypeScript.
-4. Non avere un'interfaccia flessibile e unificata per filtri, ordinamento e paginazione.
+Le piattaforme edge-native (come Cloudflare Workers) impongono rigidi limiti di tempo di CPU per singola richiesta. Se uno sviluppatore ha bisogno di svolgere operazioni pesanti o di lunga durata (es. esportare 10.000 record, convertire video, inviare 50 email, sincronizzare periodicamente un CRM), non può farlo all'interno di una rotta HTTP senza rischiare timeout.
 
-Inoltre, per i webhook in uscita, altri microservizi che ricevono eventi da Beech hanno bisogno di validare la firma crittografica del payload per evitare attacchi di spoofing.
+### Soluzione proposta: IQueueService & Background Job Registry
+Fornire un'astrazione unificata sopra **Cloudflare Queues** o **Upstash QStash** per accodare ed eseguire compiti asincroni.
 
-### Soluzione proposta: `@beechcms/client` (Isomorphic JS/TS SDK)
-Creare un nuovo pacchetto leggero e agnostico rispetto al runtime (funziona su Node.js, browser, edge workers) che funga da client ufficiale.
-
-#### 1. Utilizzo del Client Tipizzato nel Frontend
-Il client consuma i tipi generati nello Sprint 3 per offrire l'autocompletamento totale dei seed e dei campi:
+#### 1. Dichiarazione ed Enqueue all'interno delle rotte custom
+Gli sviluppatori possono accodare un lavoro direttamente tramite Hono context:
 
 ```typescript
-import { createBeechClient } from '@beechcms/client'
-import type { SeedRegistryTypes } from './beech-types' // Generati da CLI Codegen
+protectedRouter.post('/import-data', async (c) => {
+  const { fileKey } = await c.req.json();
+  
+  // Accoda il lavoro in background. Non blocca l'edge worker.
+  await c.get('queue').enqueue('process-csv-job', { fileKey });
 
-const beech = createBeechClient<SeedRegistryTypes>({
-  baseUrl: 'https://api.miobeech.com',
-  apiKey: 'public-read-key-xyz',
-})
-
-// Autocompleta 'articoli' e sa che restituisce un array di Articolo!
-const { data, error } = await beech.content('articoli').list({
-  filter: {
-    status: 'published',
-    price: { gt: 10 }
-  },
-  sort: { created_at: 'desc' },
-  limit: 10
-})
+  return c.json({ status: 'queued' });
+});
 ```
 
-#### 2. Integrazione Webhook Verifier per Servizi Esterni
-Fornire una utility integrata per validare le richieste in entrata da Beech in altri server Node/Next.js:
+#### 2. Definizione del Consumer dei Job nel Worker
+Abilitare la registrazione dei worker asincroni:
 
 ```typescript
-import { verifyBeechSignature } from '@beechcms/client'
-
-export async function POST(req: Request) {
-  const body = await req.text();
-  const signature = req.headers.get('X-Beech-Signature');
-  const secret = process.env.BEECH_WEBHOOK_SECRET;
-
-  const isValid = await verifyBeechSignature(body, signature, secret);
-  if (!isValid) {
-    return new Response('Unauthorized Signature', { status: 401 });
+export default createBeechApp({
+  seeds,
+  jobs: {
+    'process-csv-job': async (payload, { db, bucket }) => {
+      // Codice pesante eseguito asincronamente dall'edge queue worker...
+      console.log('Elaborazione del file:', payload.fileKey);
+    }
   }
-
-  // Esegui la logica di business...
-}
+});
 ```
 
-### Checklist di Implementazione (Sprint 5)
-- [ ] Creare un nuovo pacchetto `packages/client/` nel monorepo.
-- [ ] Implementare `createBeechClient` con supporto a:
-  - Richieste autenticate via API Key.
-  - Query builder per filtri complessi (mappando l'oggetto filter di TypeScript nei parametri FTS/D1 di Beech).
-  - Paginazione trasparente e gestione degli errori standard.
-- [ ] Integrare e testare l'algoritmo di validazione HMAC-SHA256 (`verifyBeechSignature`) riutilizzando le logiche crittografiche sicure di `@beechcms/core`.
-- [ ] Scrivere unit test per il client mockando le risposte delle API.
+### Checklist di Implementazione (Sprint 7)
+- [ ] Definire l'interfaccia `IQueueService` in `packages/core/src/queue.interface.ts`.
+- [ ] Creare l'implementazione basata sul binding `Queue` di Cloudflare ed il fallback in-memory per lo sviluppo locale offline.
+- [ ] Aggiornare il file principale di esportazione di Cloudflare Workers (`apps/api/src/index.ts`) per esporre l'handler `queue(batch, env, ctx)` che intercetta i messaggi in arrivo e li dispensa ai job registrati in `createBeechApp`.
+- [ ] Aggiungere test integrati simulando il consumo di batch di messaggi di coda.

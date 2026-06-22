@@ -6,7 +6,7 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, BeechHooks } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, BeechHooks, JobRegistry } from '@beechcms/core'
 import { sha256hex, SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { Env, Variables, AppEnv } from './types'
 
@@ -49,6 +49,7 @@ import { InMemorySeedRepository } from './shared/in-memory-seed.repository'
 import { authProvidersMiddleware } from './middleware/auth-providers.middleware'
 import { rateLimiterMiddleware } from './middleware/rate-limit.middleware'
 import { observabilityMiddleware } from './middleware/observability.middleware'
+import { queueMiddleware } from './middleware/queue.middleware'
 
 export interface BeechConfig {
   seeds: Seed[] | Record<string, Seed>
@@ -74,6 +75,12 @@ export interface BeechConfig {
    * `protectedRouter` has authMiddleware() applied automatically; `publicRouter` has none.
    */
   customRoutes?: (routers: { publicRouter: Hono<AppEnv>; protectedRouter: Hono<AppEnv> }) => void
+  /**
+   * Background job handlers, keyed by job name. Enqueue from custom routes via
+   * `c.get('queue').enqueue(name, payload)`; consumed by the worker `queue()`
+   * export. Handlers receive an engine-mediated JobContext — never raw D1.
+   */
+  jobs?: JobRegistry
 }
 
 // --- Costanti e helper ---
@@ -148,6 +155,8 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.use('*', storageMiddleware({
     bucket: config.bucket,
   }))
+
+  app.use('*', queueMiddleware(config.jobs ?? {}))
 
   app.use('*', authProvidersMiddleware())
   app.use('*', rateLimiterMiddleware())

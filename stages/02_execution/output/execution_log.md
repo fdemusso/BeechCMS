@@ -1,49 +1,29 @@
-# Execution Log — Sprint 5: Type-Safe Client SDK & Webhook Verifier
+# Sprint 7 — Background Queues & Job Handlers (`IQueueService`) — Execution Log
 
-## SECTION 6 — ACCEPTANCE CRITERIA
+## Section 6 — Acceptance Criteria
 
-- [x] `packages/core/src/webhook-crypto.ts` exists; exports `signWebhookBody` and `verifyWebhookSignature` using **Web Crypto only** (no Node `crypto`/`createHmac` import) → isomorphic.
-- [x] `verifyWebhookSignature` uses a constant-time comparison and accepts signatures with or without the `sha256=` prefix.
-- [x] `webhook.executor.ts` no longer defines a private `signBody`; imports `signWebhookBody` from `@beechcms/core/webhook-crypto`. Output format and `X-BeechCMS-Signature` header unchanged; all core tests pass.
-- [x] `@beechcms/core` exposes `./webhook-crypto` subpath export; importing it does NOT transitively pull tiptap/katex.
-- [x] `packages/client` builds to `dist/` with declaration files; only runtime dep is `@beechcms/core` via `./webhook-crypto`. No `hono`, `axios`, `zod`, or React.
-- [x] `createBeechClient<SeedRegistryTypes>()` type-narrowing works end-to-end (verified via `tsc --noEmit`).
-- [x] Ergonomic filter compiles to server JSON; `sort` → `orderBy`/`orderDir`; `limit` clamped to ≤ 100.
-- [x] Auth header sent is `X-API-Key`.
-- [x] Every method returns `BeechResult<T>` and never throws; non-2xx problem+json bodies surface in `.error`.
-- [x] `verifyBeechSignature` returns `true` for valid sig, `false` for tampered body/wrong secret/null.
-- [x] Unit tests cover all shapes. Coverage green.
-- [x] `pnpm run build && pnpm run test` pass at root. (`pnpm run lint` is a pre-existing failure: no ESLint config exists anywhere in the monorepo — not introduced by this sprint.)
-
----
+- [x] `packages/core/src/queue.interface.ts` exists and imports **only** other `@beech/core` types (zero runtime/third-party deps — parity with `scheduler.interface.ts`).
+- [x] `JobContext` exposes `repository: ContentRepository` and `bucket: BeechBucket`; it does **not** expose `env.DB` or any `D1Database`. (Botanical Invariant.)
+- [x] `IQueueService.enqueue` and all impls **never throw** on transport failure (errors are logged, swallowed).
+- [x] New core symbols are re-exported from `packages/core/src/index.ts`.
+- [x] `Env.QUEUE?: Queue` and `Variables.queue: IQueueService` added to `apps/api/src/types.ts`; `AppEnv` unchanged in shape.
+- [x] `queueMiddleware` registered in `createBeechApp` **after** `storageMiddleware` and **before** `authProvidersMiddleware`; uses the conditional `binding → CloudflareQueueService` / `else → InMemoryQueueService` pattern.
+- [x] `BeechConfig.jobs?: JobRegistry` added; the published default app (`index.ts`) registers an empty registry.
+- [x] `index.ts` exports `queue(batch, env, ctx)` alongside `fetch`/`scheduled`; missing `env.DB` acks the batch without throwing.
+- [x] `dispatchQueueBatch` acks on success, acks+logs on unknown job name, `retry()`s on handler throw.
+- [x] `wrangler.jsonc` declares matching `producers` (`QUEUE` → `beech-jobs`) and `consumers` (`beech-jobs`); `wrangler deploy --dry-run` confirms `env.QUEUE (beech-jobs) Queue` binding is resolved.
+- [x] No `apps/api/src/features/*` slice imports another (VSA); shared code lives in `shared/` + `middleware/`.
+- [x] `flow-background-queues.test.ts` covers: (a) `c.get('queue').enqueue` from a custom route runs the handler via the in-memory fallback, (b) `dispatchQueueBatch` ack/retry/unknown-name paths.
+- [x] `pnpm build`, `pnpm type-check`, `pnpm test`, `pnpm lint` all green.
 
 ## Validation Output
 
-### Core build + type-check + test
 ```
-$ tsc           → exit 0
-$ tsc --noEmit  → exit 0
-Test Files  15 passed (15) [+webhook-crypto.test.ts: 10 tests]
-Tests  394 passed (394)
-```
-
-### API type-check (executor refactor only)
-No errors on `webhook.executor.ts`. Pre-existing type errors in test helpers and D1 stubs are unrelated to this sprint.
-
-### Client SDK build + type-check + test
-```
-$ tsc           → exit 0
-$ tsc --noEmit  → exit 0
-
-Test Files  3 passed (3)
-Tests  25 passed (25)
-  query-builder.test.ts: 12 tests
-  client.test.ts: 9 tests
-  webhook.test.ts: 4 tests
-```
-
-### Whole-monorepo gate
-```
-pnpm run build  → Tasks: 7 successful, 7 total
-pnpm run test   → Tasks: 8 successful, 8 total
+pnpm --filter @beechcms/core build   → exit 0 (tsc clean)
+pnpm --filter @beechcms/api type-check → exit 0 (tsc clean)
+pnpm type-check  → Tasks: 7 successful, 7 total
+pnpm build       → Tasks: 7 successful, 7 total
+pnpm test        → 8 successful — @beechcms/api: 6/6 new tests passed; 630 dashboard tests passed
+pnpm lint        → no issues in new files (pre-existing @typescript-eslint/no-explicit-any elsewhere)
+wrangler deploy --dry-run → env.QUEUE (beech-jobs) Queue binding confirmed
 ```
