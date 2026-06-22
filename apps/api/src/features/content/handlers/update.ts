@@ -89,7 +89,7 @@ export async function updateHandler(context: Context<AppEnv>) {
       })
     }
 
-    let mergedData: Record<string, unknown> = {}
+    const mergedData: Record<string, unknown> = {}
 
     if (Object.keys(bodyForData).length > 0) {
       const sensitiveAliases = Object.keys(bodyForData).filter((alias) => {

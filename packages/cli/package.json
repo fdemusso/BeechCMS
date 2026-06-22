@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsc --noEmit && esbuild src/index.ts --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js",
     "dev": "esbuild src/index.ts --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js --watch",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },

@@ -16,6 +16,9 @@
     "type-check": {
       "dependsOn": ["^build"]
     },
+    "lint": {
+      "dependsOn": ["^build"]
+    },
     "deploy": { "dependsOn": ["build"] },
     "@beechcms/api#deploy": { "dependsOn": ["@beechcms/dashboard#build", "build"] },
     "test": {

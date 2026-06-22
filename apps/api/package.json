@@ -20,6 +20,7 @@
   "scripts": {
     "dev": "wrangler dev --port 8789",
     "build": "esbuild src/factory.ts --bundle --packages=external --platform=neutral --format=esm --outfile=dist/index.js && tsc -p tsconfig.build.json",
+    "lint": "eslint .",
     "type-check": "tsc -p tsconfig.build.json --noEmit",
     "db:migrate:local": "node ./scripts/bootstrap-d1.mjs",
     "db:reset:local": "node -e \"require('fs').rmSync('.wrangler/state', {recursive:true,force:true})\" && node ./scripts/bootstrap-d1.mjs",
