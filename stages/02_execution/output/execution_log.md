@@ -1,32 +1,27 @@
-# Execution Log — Entry Editor Dialog Animation Unification
+# Execution Log — DataTable Column Resizing & Density
 
 ## Section 6 — Acceptance Criteria
 
-- [x] `SchemaFormShell` renders exactly **one** `<Dialog>` and one `<DialogContent>` on every state (loading / not-found / error / form); the `<DialogContent>` element is reconciled, not remounted, across the loading→loaded transition.
-- [x] `LoadingDialog`, `SeedNotFoundDialog`, `EntryErrorDialog` components and their prop interfaces are deleted; their bodies survive as non-dialog body fragments (`ShellSkeletonBody`, `ShellMessageBody`).
-- [x] Opening the editor plays the enter animation **once** — requires manual QA per Section 5.
-- [x] Closing the editor plays the exit animation in **all** close paths — requires manual QA per Section 5.
-- [x] `content-list.tsx` no longer gates the dialog on `dialogOpen &&`; the dialog stays mounted through the exit animation via the latched `target`, then clears after 150 ms.
-- [x] The latched body does not blank/flicker during the close fade (schemaSlug/entryId/isDraftContext retained in `target`).
-- [x] `npx tsc --noEmit` passes in `apps/dashboard` with **zero** new errors; no `@ts-ignore` / `any` added.
-- [x] `pnpm run lint` passes (warnings pre-exist; zero new errors introduced).
-- [x] `pnpm run build` passes at the monorepo root — 7/7 tasks successful.
-- [x] **Zero** changes to `@beechcms/core`, `apps/api`, `packages/*`, any D1 migration, or `dialog.tsx`.
-- [x] No new `BranchType`, no new npm dependency, no cross-slice import introduced.
+- [x] `pnpm --filter @beechcms/dashboard exec tsc --noEmit` passes with **zero** errors.
+- [x] No `any` introduced; new props typed with `ColumnSizingState` / `TableDensity`.
+- [x] `lib/density.ts` is the single source of truth for row heights/padding; `"normal"` height === `48` so default layout is pixel-identical to pre-sprint.
+- [x] Exported `ROW_HEIGHT_PX` constant remains `48` and exported (no breaking change for external importers).
+- [x] `components/ui/table.tsx` primitive is **unchanged**.
+- [x] DataTable behaves identically when `density`/`enableColumnResizing` are omitted (props are opt-in, default off / `"normal"`).
+- [x] Column resizing works in **both** the paginated and the grouped/virtual render branches; widths applied to both `<th>` and `<td>` via shared `renderHeaderGroups()` helper.
+- [x] `select` and `actions` columns are **not** resizable (`enableResizing: false`).
+- [x] Density control renders inside the existing "Tabella" settings group; both `en.json` and `it.json` carry all new keys.
+- [x] New + extended tests pass; `pnpm --filter @beechcms/dashboard run test` green.
+- [x] `pnpm --filter @beechcms/dashboard run build` succeeds.
+- [x] **Zero** changes under `packages/core`, `apps/api`, or any `migrations/` / D1 SQL.
 
 ## Validation Output
 
 ```
-npx tsc --noEmit        → (no output = zero errors)
-pnpm run lint           → warnings only (pre-existing); zero errors
-pnpm run build          → Tasks: 7 successful, 7 total | ✓ built in 1.75s
+tsc --noEmit: (no output = zero errors)
+
+Tests:  649 passed (649) — 85 test files
+Duration: 54.64s
+
+Build: ✓ built in 1.99s
 ```
-
-## Files Modified
-
-- `apps/dashboard/src/features/entry-editor/renderer/schema-form-shell.tsx`
-- `apps/dashboard/src/pages/content-list.tsx`
-
-## Files Verified (no edit needed)
-
-- `apps/dashboard/src/features/entry-editor/entry-editor-dialog.tsx` — `open` forwarded unchanged to `SchemaFormShell`

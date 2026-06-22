@@ -290,6 +290,8 @@ export function generateColumns(
     // Colonna Select (checkbox)
     {
     id: "select",
+    enableResizing: false,
+    size: 40,
     header: ({ table }) => (
       <Checkbox
         checked={
@@ -314,6 +316,9 @@ export function generateColumns(
     // Colonna di sistema: ID
     {
     id: "id",
+    size: 160,
+    minSize: 80,
+    maxSize: 400,
     accessorFn: (row) => row.id,
     header: "ID",
     cell: ({ row }) => (
@@ -327,6 +332,9 @@ export function generateColumns(
     // Colonna di sistema: Slug
     {
     id: "slug",
+    size: 160,
+    minSize: 80,
+    maxSize: 400,
     accessorFn: (row) => row.slug,
     header: "Slug",
     filterFn: (row, columnId, filterValue) =>
@@ -345,6 +353,9 @@ export function generateColumns(
     // Colonna di sistema: Status (indicator dot + label)
     {
     id: "status",
+    size: 160,
+    minSize: 80,
+    maxSize: 400,
     accessorFn: (row) => row.status,
     header: t("content.table.status"),
     filterFn: (row, columnId, filterValue) =>
@@ -373,6 +384,9 @@ export function generateColumns(
     // System columns: timestamps
     {
       id: "updated_at",
+      size: 160,
+      minSize: 80,
+      maxSize: 400,
       accessorFn: (row) => row.updated_at,
       header: t("content.table.updated"),
       cell: ({ row }) => <RelativeTime value={row.original.updated_at} className="text-sm text-muted-foreground" />,
@@ -380,6 +394,9 @@ export function generateColumns(
     },
     {
       id: "created_at",
+      size: 160,
+      minSize: 80,
+      maxSize: 400,
       accessorFn: (row) => row.created_at,
       header: t("content.table.created"),
       cell: ({ row }) => <RelativeTime value={row.original.created_at} className="text-sm text-muted-foreground" />,
@@ -393,6 +410,9 @@ export function generateColumns(
     const baseColumn: ColumnDef<ContentEntry> & GroupingColumnDef<ContentEntry, unknown> = {
       accessorFn: (row) => row.data[branch.alias],
       id: branch.alias,
+      size: 200,
+      minSize: 80,
+      maxSize: 600,
       header: () => (
         <div className="flex items-center gap-[0.5em] font-medium">
           <IconComponent className="h-[1em] w-[1em] shrink-0 text-muted-foreground" />
@@ -466,6 +486,8 @@ export function generateColumns(
   const actionsColumn: ColumnDef<ContentEntry> = {
     id: "actions",
     enableHiding: false,
+    enableResizing: false,
+    size: 56,
     cell: ({ row }) => {
       const entry = row.original
       const hasBulkSelection = selectedIds.length > 1

@@ -43,6 +43,8 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
     onPageSizeChange,
     groupBy,
     onGroupByChange,
+    density,
+    onDensityChange,
   } = props
 
   const {
@@ -254,6 +256,8 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                     filteredTableColumns={filteredTableColumns}
                     pageSize={pageSize}
                     onPageSizeChange={onPageSizeChange}
+                    density={density}
+                    onDensityChange={onDensityChange}
                   />
                 )}
 

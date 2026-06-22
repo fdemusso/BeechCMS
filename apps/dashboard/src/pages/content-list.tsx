@@ -9,6 +9,7 @@ import { EntryEditorDialog } from "@/features/entry-editor"
 import type {
   SortingState,
   ColumnFiltersState,
+  ColumnSizingState,
   RowSelectionState,
   VisibilityState,
   GroupingState,
@@ -52,6 +53,7 @@ import {
   DEFAULT_DATE_GROUP_PRECISION,
 } from "@/lib/dynamic-columns"
 import { useDebounce } from "@/hooks/use-debounce"
+import { type TableDensity, DEFAULT_DENSITY } from "@/lib/density"
 import {
   type ConditionalFormatRule,
   getConditionalFormatCellClass,
@@ -414,6 +416,9 @@ export function ContentListPage() {
     }
   )
 
+  const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({})
+  const [density, setDensity] = React.useState<TableDensity>(DEFAULT_DENSITY)
+
   // Lunghezza max per colonna (dalla prima pagina) per troncamento consistente
   const maxLengths = React.useMemo(() => {
     if (!seed || data.length === 0) return undefined
@@ -748,6 +753,8 @@ export function ContentListPage() {
                   onDateGroupPrecisionChange={setDateGroupPrecision}
                   onOpenAutomation={() => setAutomationPanelOpen(true)}
                   isAutomationActive={automationPanelOpen}
+                  density={density}
+                  onDensityChange={setDensity}
                 >
                   {error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
@@ -767,6 +774,10 @@ export function ContentListPage() {
                       columns={columns}
                       data={data}
                       initialHiddenColumns={initialHiddenColumns}
+                      enableColumnResizing
+                      columnSizing={columnSizing}
+                      onColumnSizingChange={setColumnSizing}
+                      density={density}
                       getRowStyles={getRowStyles}
                       rowSelection={rowSelection}
                       onRowSelectionChange={setRowSelection}

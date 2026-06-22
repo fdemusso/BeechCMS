@@ -31,12 +31,14 @@ import {
   Eye,
   EyeOff,
   Rows2,
+  AlignJustify,
   Minus,
   Plus,
   Check,
 } from "lucide-react"
 
 import type { VisibilityState } from "@tanstack/react-table"
+import type { TableDensity } from "@/lib/density"
 import type { ConditionalFormatRule } from "@/lib/conditional-format"
 import { ConditionalFormatsEditor } from "./conditional-formats-editor"
 import type { DatePrecisionMode } from "../toolbar-hooks/use-toolbar-groupby"
@@ -91,6 +93,8 @@ interface SettingsMenuProps {
   readonly filteredTableColumns: any[]
   readonly pageSize?: number
   readonly onPageSizeChange?: (size: number) => void
+  readonly density?: TableDensity
+  readonly onDensityChange?: (density: TableDensity) => void
 }
 
 export function SettingsMenu({
@@ -143,6 +147,8 @@ export function SettingsMenu({
   filteredTableColumns,
   pageSize,
   onPageSizeChange,
+  density,
+  onDensityChange,
 }: SettingsMenuProps) {
   const { t } = useTranslation()
   return (
@@ -590,6 +596,32 @@ export function SettingsMenu({
                 </Button>
               </div>
             </DropdownMenuItem>
+          )}
+          {density != null && onDensityChange && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <AlignJustify className="size-4" />
+                {t("toolbar.settings.density")}
+              </DropdownMenuSubTrigger>
+              <DropdownMenuPortal>
+                <DropdownMenuSubContent className="w-48 p-2">
+                  <DropdownMenuRadioGroup
+                    value={density}
+                    onValueChange={(v) => onDensityChange(v as TableDensity)}
+                  >
+                    <DropdownMenuRadioItem value="compact">
+                      {t("toolbar.settings.densityCompact")}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="normal">
+                      {t("toolbar.settings.densityNormal")}
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="comfortable">
+                      {t("toolbar.settings.densityComfortable")}
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                </DropdownMenuSubContent>
+              </DropdownMenuPortal>
+            </DropdownMenuSub>
           )}
         </DropdownMenuGroup>
       </DropdownMenuContent>

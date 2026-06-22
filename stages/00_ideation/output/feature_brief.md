@@ -1,7 +1,5 @@
-queste sono le cose che lo sprint precedente ha escluso
+queste sono le cose che lo sprint precedente ha escluso e che vanno pianificate per l implementazione 
 
-- **DataTable internals / resizable columns** — deferred to *" Column Resizing &
-  Density"*. Do not touch `data-table.tsx`.
 - **Click-to-filter (`applyFilter`) on cell values** — deferred to a later sprint. The filter
   DSL exists; wiring cell clicks is a separate concern.
 - **Single-click row routing / Load-More pagination** — YAGNI. Keep double-click routing and
@@ -9,7 +7,9 @@ queste sono le cose che lo sprint precedente ha escluso
 - **Avatar *images* for relations** — initials only; image-branch convention is out.
 - **Already implemented — do not reimplement:** rating stars & percentage bars, checkbox,
   tag/status badges, text truncation+reveal, column add/hide/reorder, page-length, sort,
-  group-by, advanced filters, bulk actions, search.
+  group-by, advanced filters, bulk actions, search, **column resizing & density** (TableDensity
+  union, DENSITY_ROW_HEIGHT/DENSITY_CELL_PADDING maps, controlled columnSizing state,
+  resize handles on th/td, density radio in settings menu).
 - **Any `@beechcms/core` / `apps/api` / D1 change** — including server-side timestamp sorting.
   This sprint is dashboard-only by construction; if such a change appears necessary, STOP and
   escalate — it does not belong here.
