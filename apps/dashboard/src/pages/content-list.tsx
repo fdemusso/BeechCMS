@@ -73,10 +73,31 @@ export function ContentListPage() {
   const isEditPath = !!entryId && !isCreatePath
   const dialogOpen = isCreatePath || isEditPath
 
+  const isDraftContext = !!(location.state as { isDraftContext?: boolean } | null)?.isDraftContext
+
   const handleDialogClose = React.useCallback(
     () => navigate(`/content/${slug}`),
     [navigate, slug]
   )
+
+  const [target, setTarget] = React.useState<{
+    schemaSlug: string
+    entryId: string | undefined
+    isDraftContext: boolean
+  } | null>(null)
+
+  React.useEffect(() => {
+    if (dialogOpen && slug) {
+      setTarget({ schemaSlug: slug, entryId: isCreatePath ? undefined : entryId, isDraftContext })
+    }
+  }, [dialogOpen, slug, entryId, isCreatePath, isDraftContext])
+
+  React.useEffect(() => {
+    if (!dialogOpen && target) {
+      const id = window.setTimeout(() => setTarget(null), 150)
+      return () => window.clearTimeout(id)
+    }
+  }, [dialogOpen, target])
 
   // --- STATE ---
   const [pageIndex, setPageIndex] = React.useState(0)
@@ -869,11 +890,11 @@ export function ContentListPage() {
         seedBranches={seed.branches}
       />
 
-      {slug && dialogOpen && (
+      {target && (
         <EntryEditorDialog
-          schemaSlug={slug}
-          entryId={isCreatePath ? undefined : entryId}
-          isDraftContext={!!(location.state as { isDraftContext?: boolean } | null)?.isDraftContext}
+          schemaSlug={target.schemaSlug}
+          entryId={target.entryId}
+          isDraftContext={target.isDraftContext}
           open={dialogOpen}
           onClose={handleDialogClose}
         />
