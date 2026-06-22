@@ -94,7 +94,7 @@ async function main() {
     if (existsSync(executionOutputDir)) {
       const files = readdirSync(executionOutputDir);
       for (const file of files) {
-        if (file === 'execution_log.md' || file.endsWith('.log')) {
+        if (file === 'execution_log.md' || file.endsWith('_log.md') || file.endsWith('.log')) {
           const filePath = join(executionOutputDir, file);
           unlinkSync(filePath);
           p.log.step(`Deleted log file: ${pc.red(file)}`);
