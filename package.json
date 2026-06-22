@@ -55,6 +55,7 @@
     "test:coverage": "turbo run test:coverage",
     "test:diff": "node scripts/test-coverage-diff.mjs",
     "test:dev-cli": "vitest run --config scripts/dev-cli/vitest.config.ts",
+    "pipeline": "node scripts/pipeline.mjs",
     "setup:graph": "node scripts/setup-graph.mjs",
     "release": "node scripts/release.mjs",
     "release:preview": "node scripts/release.mjs --preview",
