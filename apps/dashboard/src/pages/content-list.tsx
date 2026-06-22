@@ -376,6 +376,7 @@ export function ContentListPage() {
       const visibility: VisibilityState = {}
       visibility["id"] = false
       visibility["slug"] = false
+      visibility["created_at"] = false
       if (!seed) return visibility
       const metaAliases = seed.branches
         .filter(
@@ -614,7 +615,7 @@ export function ContentListPage() {
 
   // Hidden columns by default: system columns (id, slug) + json metadata/metadati
   const initialHiddenColumns = React.useMemo(() => {
-    const hidden: string[] = ["id", "slug"]
+    const hidden: string[] = ["id", "slug", "created_at"]
     if (!seed) return hidden
     const metaAliases = seed.branches
       .filter(

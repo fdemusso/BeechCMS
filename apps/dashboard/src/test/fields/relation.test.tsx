@@ -354,8 +354,9 @@ describe("RelationDisplay (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    expect(screen.getByText("Ada Lovelace")).toBeInTheDocument()
-    expect(screen.getByText("Grace Hopper")).toBeInTheDocument()
+    // avatars display initials in AvatarFallback
+    expect(screen.getByText("AL")).toBeInTheDocument()
+    expect(screen.getByText("GH")).toBeInTheDocument()
   })
 
   it("renders correct chip count", () => {
@@ -366,9 +367,9 @@ describe("RelationDisplay (multiple: true)", () => {
       { wrapper: wrapper(queryClient) }
     )
 
-    const chips = screen.getAllByText("Ada Lovelace")
-    expect(chips).toHaveLength(1)
-    expect(chips[0]).toHaveAttribute("data-slot", "badge")
+    const fallbacks = screen.getAllByText("AL")
+    expect(fallbacks).toHaveLength(1)
+    expect(fallbacks[0]).toHaveAttribute("data-slot", "avatar-fallback")
   })
 })
 

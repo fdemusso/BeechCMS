@@ -18,6 +18,9 @@ import {
 import { toast } from "sonner"
 
 import { FieldDisplay } from "@/features/fields"
+import { IndicatorIcon } from "@/components/ui/indicator-icon"
+import { RelativeTime } from "@/components/ui/relative-time"
+import { getStatusTone, STATUS_TONE_DOT_CLASS } from "@/lib/status-tone"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -175,29 +178,6 @@ function formatSum(value: unknown, count: number, t: (k: string, o?: any) => str
     return `Σ ${value.toLocaleString("en-US")} · ${count} ${count === 1 ? t("content.table.item") : t("content.table.items")}`
   }
   return `${count} ${count === 1 ? t("content.table.item") : t("content.table.items")}`
-}
-
-function getStatusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
-  const normalized = status.trim().toLowerCase()
-  if (!normalized) return "secondary"
-
-  if (["error", "failed", "rejected", "archived"].includes(normalized)) {
-    return "destructive"
-  }
-
-  if (["published", "active", "approved", "online"].includes(normalized)) {
-    return "default"
-  }
-
-  let hash = 0
-  for (let i = 0; i < normalized.length; i++) {
-    const codePoint = normalized.codePointAt(i)
-    if (codePoint == null) continue
-    hash = (hash * 31 + codePoint) >>> 0
-    // Se è una coppia surrogate, salta il carattere successivo.
-    if (codePoint > 0xffff) i++
-  }
-  return hash % 2 === 0 ? "secondary" : "outline"
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -362,7 +342,7 @@ export function generateColumns(
     enableSorting: false,
     },
 
-    // Colonna di sistema: Status (Badge)
+    // Colonna di sistema: Status (indicator dot + label)
     {
     id: "status",
     accessorFn: (row) => row.status,
@@ -371,21 +351,16 @@ export function generateColumns(
       matchesFilterGroup(row.getValue(columnId), filterValue),
     cell: ({ row }) => {
       const status = (row.original.status ?? "").trim() || "—"
-      const variant = getStatusBadgeVariant(status)
-      const hasPendingDraft = shouldShowPendingDraftBadge(
-        row.original.status,
-        row.original.has_pending_draft
-      )
+      const tone = getStatusTone(status)
+      const hasPendingDraft = shouldShowPendingDraftBadge(row.original.status, row.original.has_pending_draft)
       return (
         <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant={variant}>
-            {status}
-          </Badge>
+          <span className="inline-flex items-center gap-1.5">
+            <IndicatorIcon colorClassName={STATUS_TONE_DOT_CLASS[tone]} aria-label={status} />
+            <span className="text-sm">{status}</span>
+          </span>
           {hasPendingDraft && (
-            <Badge
-              variant="outline"
-              className={`text-xs ${pendingDraftBadgeClass}`}
-            >
+            <Badge variant="outline" className={`text-xs ${pendingDraftBadgeClass}`}>
               {t("content.table.pendingDraft")}
             </Badge>
           )}
@@ -393,6 +368,22 @@ export function generateColumns(
       )
     },
     enableSorting: false,
+    },
+
+    // System columns: timestamps
+    {
+      id: "updated_at",
+      accessorFn: (row) => row.updated_at,
+      header: t("content.table.updated"),
+      cell: ({ row }) => <RelativeTime value={row.original.updated_at} className="text-sm text-muted-foreground" />,
+      enableSorting: false,
+    },
+    {
+      id: "created_at",
+      accessorFn: (row) => row.created_at,
+      header: t("content.table.created"),
+      cell: ({ row }) => <RelativeTime value={row.original.created_at} className="text-sm text-muted-foreground" />,
+      enableSorting: false,
     },
   ]
 

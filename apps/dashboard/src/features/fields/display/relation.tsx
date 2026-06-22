@@ -9,10 +9,19 @@ import { useSchema } from "@/features/schema"
 import { contentApi } from "@/features/content-management/api/content.api"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
 import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { EntryEditorDialog } from "@/features/entry-editor"
 import type { FieldDisplayProps } from "../types"
 
 const RELATION_STALE_MS = 5 * 60 * 1000
+
+function initialsOf(label: string): string {
+  const parts = label.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return "?"
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase()
+  return (parts[0]![0]! + parts.at(-1)![0]!).toUpperCase()
+}
 
 // ── Single chip resolved from cache or fetch ─────────────────────────────────
 
@@ -34,7 +43,7 @@ function RelationChip({ targetSlug, targetId, labelAlias, onClick }: RelationChi
   if (isLoading) return <Badge variant="secondary" className="opacity-50">…</Badge>
 
   const rawLabel = (entry?.data as Record<string, unknown> | undefined)?.[labelAlias]
-  
+
   let label = targetId
   if (typeof rawLabel === "string") {
     label = rawLabel
@@ -45,13 +54,21 @@ function RelationChip({ targetSlug, targetId, labelAlias, onClick }: RelationChi
   }
 
   return (
-    <Badge 
-      variant="secondary" 
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(targetId) }} 
-      className="hover:bg-secondary/80 cursor-pointer"
-    >
-      {label}
-    </Badge>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Avatar
+            size="sm"
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(targetId) }}
+            className="cursor-pointer"
+            aria-label={label}
+          >
+            <AvatarFallback>{initialsOf(label)}</AvatarFallback>
+          </Avatar>
+        </TooltipTrigger>
+        <TooltipContent side="top">{label}</TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   )
 }
 
@@ -88,13 +105,30 @@ function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationP
   }
 
   return (
-    <button
-      type="button"
-      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(id) }}
-      className="text-foreground hover:underline truncate cursor-pointer text-left bg-transparent border-0 p-0"
-    >
-      {label}
-    </button>
+    <div className="flex items-center gap-1.5">
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Avatar
+              size="sm"
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(id) }}
+              className="cursor-pointer"
+              aria-label={label}
+            >
+              <AvatarFallback>{initialsOf(label)}</AvatarFallback>
+            </Avatar>
+          </TooltipTrigger>
+          <TooltipContent side="top">{label}</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      <button
+        type="button"
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onClick(id) }}
+        className="text-foreground hover:underline truncate cursor-pointer text-left bg-transparent border-0 p-0 text-sm"
+      >
+        {label}
+      </button>
+    </div>
   )
 }
 
@@ -116,9 +150,11 @@ export function RelationDisplay({ branch, value }: FieldDisplayProps) {
     const ids = Array.isArray(value) ? (value as string[]).filter(Boolean) : []
     if (ids.length === 0) content = <span className="text-muted-foreground">—</span>
     else {
+      const visible = ids.slice(0, 3)
+      const overflow = ids.length - visible.length
       content = (
-        <div className="flex flex-wrap gap-1">
-          {ids.map((id) => (
+        <AvatarGroup>
+          {visible.map((id) => (
             <RelationChip
               key={id}
               targetSlug={targetSlug ?? ""}
@@ -127,7 +163,8 @@ export function RelationDisplay({ branch, value }: FieldDisplayProps) {
               onClick={setSelectedId}
             />
           ))}
-        </div>
+          {overflow > 0 && <AvatarGroupCount className="text-xs">+{overflow}</AvatarGroupCount>}
+        </AvatarGroup>
       )
     }
   } else {

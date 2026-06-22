@@ -607,7 +607,9 @@
       "status": "Stato",
       "pendingDraft": "Bozza in sospeso",
       "item": "voce",
-      "items": "voci"
+      "items": "voci",
+      "created": "Creato",
+      "updated": "Ultima modifica"
     }
   },
   "toolbar": {

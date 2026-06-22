@@ -607,7 +607,9 @@
       "status": "Status",
       "pendingDraft": "Pending draft",
       "item": "item",
-      "items": "items"
+      "items": "items",
+      "created": "Created",
+      "updated": "Last modified"
     }
   },
   "toolbar": {
