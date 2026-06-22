@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
+import pc from 'picocolors'
 import type { Seed } from '@beechcms/core'
-import { getExpectedColumns, type SchemaColumn } from '@beechcms/core'
+import { getExpectedColumns } from '@beechcms/core'
 import type { WranglerOptions, D1Row } from './wrangler.js'
 import { queryD1 } from './wrangler.js'
 
@@ -46,6 +47,30 @@ export interface SeedDiff {
   slug: string
   tableExists: boolean
   columns: ColumnDiff[]
+}
+
+/** Returns true if the seed's table fully matches its Seed (no drift). */
+export function isSeedClean(diff: SeedDiff): boolean {
+  return diff.tableExists && diff.columns.every(c => c.status === 'ok')
+}
+
+/** Human-readable drift report for one seed. Pure formatting — no I/O decisions. */
+export function renderSeedDiff(diff: SeedDiff): void {
+  const table = `content_${diff.slug}`
+  if (!diff.tableExists) { console.log(pc.red(`  ✗ ${table} — table missing`)); return }
+  const problems = diff.columns.filter(c => c.status !== 'ok')
+  if (problems.length === 0) { console.log(pc.green(`  ✓ ${table}`)); return }
+  console.log(pc.yellow(`  ⚠ ${table}`))
+  for (const col of problems) {
+    switch (col.status) {
+      case 'missing':       console.log(pc.red(`    + missing column: ${col.name} ${col.expectedType}`)); break
+      case 'extra':         console.log(pc.dim(`    ~ orphaned column: "${col.name}" (${col.actualType}) — in DB, not in seeds.ts`)); break
+      case 'type_mismatch': console.log(pc.red(`    ≠ type mismatch:  ${col.name} (expected ${col.expectedType}, got ${col.actualType})`)); break
+      case 'fk_missing':    console.log(pc.red(`    ⤬ missing FK: ${col.name} → content_${col.expectedTarget}(id)`)); break
+      case 'fk_mismatch':   console.log(pc.yellow(`    ⤬ FK mismatch: ${col.name} expected ${col.expected}, got ${col.actual}`)); break
+      case 'index_missing': console.log(pc.yellow(`    ⊘ missing index on ${col.name}`)); break
+    }
+  }
 }
 
 export async function diffSeed(seed: Seed, options: WranglerOptions): Promise<SeedDiff> {

@@ -13,6 +13,7 @@ const COMMANDS = {
   build:            cmdBuild,
   'seed:load':      cmdSeedLoad,
   'seed:create':    cmdSeedCreate,
+  'schema:diff':    cmdSchemaDiff,
   'init':           cmdInit,
   'validate':       cmdValidate,
   'deploy':         cmdDeploy,
@@ -45,6 +46,13 @@ function help() {
 
     seed:create     Interactive wizard — generate a new Seed definition and append
                     it to seeds.ts, including SEED_REGISTRY entry
+
+    schema:diff     Diff SEED_REGISTRY vs the live D1 schema and generate an
+                    additive SQL migration in apps/api/migrations/
+      --write         Write the migration file (default: preview only)
+      --name <name>   Migration name used in the filename
+      --remote        Diff against remote D1 (default: local)
+      --db <name>     Override D1 database name
 
     deploy          Deploy Worker, sync remote schema, and verify /admin
       --skip-seed     Skip remote seed:load step
@@ -224,6 +232,18 @@ async function cmdReset(args) {
 
   const { reset } = await import('@beechcms/cli')
   await reset({ db, docker, all })
+}
+
+async function cmdSchemaDiff(args) {
+  const remote  = args.includes('--remote')
+  const write   = args.includes('--write')
+  const nameIdx = args.indexOf('--name')
+  const name    = nameIdx !== -1 ? args[nameIdx + 1] : undefined
+  const dbIdx   = args.indexOf('--db')
+  const db      = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const registry = await tryLoadLocalRegistry()
+  const { schemaDiff } = await import('@beechcms/cli')
+  await schemaDiff({ local: !remote, write, name, db, registry })
 }
 
 async function cmdGenerateTypes(args) {
