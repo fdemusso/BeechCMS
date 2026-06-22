@@ -17,4 +17,8 @@ export { update } from './commands/update.js'
 export type { UpdateOptions } from './commands/update.js'
 export { reset } from './commands/reset.js'
 export type { ResetOptions } from './commands/reset.js'
+export { generateTypes } from './commands/generate-types.js'
+export type { GenerateTypesOptions } from './commands/generate-types.js'
+export { schemaDiff } from './commands/schema-diff.js'
+export type { SchemaDiffOptions } from './commands/schema-diff.js'
 

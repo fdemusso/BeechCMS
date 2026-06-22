@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/cli",
-  "version": "0.6.0-preview.3",
+  "version": "0.6.0-preview.4",
   "type": "module",
   "main": "dist/index.js",
   "exports": {
@@ -9,11 +9,12 @@
   "scripts": {
     "build": "tsc --noEmit && esbuild src/index.ts --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js",
     "dev": "esbuild src/index.ts --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js --watch",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.6.0-preview.3",
+    "@beechcms/core": "workspace:^0.6.0-preview.4",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {

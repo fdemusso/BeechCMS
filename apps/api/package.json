@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/api",
-  "version": "0.6.0-preview.3",
+  "version": "0.6.0-preview.4",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/factory.d.ts",
@@ -20,6 +20,7 @@
   "scripts": {
     "dev": "wrangler dev --port 8789",
     "build": "esbuild src/factory.ts --bundle --packages=external --platform=neutral --format=esm --outfile=dist/index.js && tsc -p tsconfig.build.json",
+    "lint": "eslint .",
     "type-check": "tsc -p tsconfig.build.json --noEmit",
     "db:migrate:local": "node ./scripts/bootstrap-d1.mjs",
     "db:reset:local": "node -e \"require('fs').rmSync('.wrangler/state', {recursive:true,force:true})\" && node ./scripts/bootstrap-d1.mjs",
@@ -31,7 +32,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.995.0",
     "@aws-sdk/s3-request-presigner": "^3.995.0",
-    "@beechcms/core": "workspace:^0.6.0-preview.3",
+    "@beechcms/core": "workspace:^0.6.0-preview.4",
     "@upstash/qstash": "^2.11.0",
     "bcryptjs": "^2.4.3",
     "hono": "^4.12.21",

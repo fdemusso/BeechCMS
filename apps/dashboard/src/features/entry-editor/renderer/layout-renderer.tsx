@@ -3,7 +3,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { Asterisk } from "lucide-react"
+import { Asterisk, ChevronDown } from "lucide-react"
 import type { FormLayout, LayoutSection, LayoutTab, LayoutColumn } from "@beechcms/core"
 import type { Branch } from "@beechcms/core"
 import { Label } from "@/components/ui/label"
@@ -104,38 +104,58 @@ function ColumnRenderer({
 
 function SectionRenderer({
   section,
+  isLast,
   branchById,
   formData,
   fieldErrors,
   onChange,
 }: {
   section: LayoutSection
+  isLast: boolean
   branchById: RendererBranchMap
   formData: Record<string, unknown>
   fieldErrors: Record<string, string>
   onChange: (alias: string, value: unknown) => void
 }) {
-  const containerClass = section.hideBorder ? "" : "p-6"
+  const [isCollapsed, setIsCollapsed] = React.useState(false)
+  const showBorder = !section.hideBorder && !isLast
+  const showHeader = section.collapsible || (!section.hideLabel && !!section.label)
 
   return (
-    <section className={`${containerClass} space-y-4`}>
-      {!section.hideLabel && section.label && (
-        <header className="text-sm font-medium text-muted-foreground">
-          {section.label}
+    <section className={`px-6 py-4 space-y-4 ${showBorder ? "border-b" : ""}`}>
+      {showHeader && (
+        <header className="flex items-center gap-2">
+          {!section.hideLabel && section.label && (
+            <span className="text-sm font-medium text-muted-foreground">{section.label}</span>
+          )}
+          {section.collapsible && (
+            <button
+              type="button"
+              onClick={() => setIsCollapsed((v) => !v)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              aria-expanded={!isCollapsed}
+            >
+              <ChevronDown
+                className={`size-4 transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`}
+              />
+            </button>
+          )}
         </header>
       )}
-      <div className={`grid gap-4 ${gridClassFor(section.columns.length)}`}>
-        {section.columns.map((col) => (
-          <ColumnRenderer
-            key={col.id}
-            column={col}
-            branchById={branchById}
-            formData={formData}
-            fieldErrors={fieldErrors}
-            onChange={onChange}
-          />
-        ))}
-      </div>
+      {!isCollapsed && (
+        <div className={`grid gap-4 ${gridClassFor(section.columns.length)}`}>
+          {section.columns.map((col) => (
+            <ColumnRenderer
+              key={col.id}
+              column={col}
+              branchById={branchById}
+              formData={formData}
+              fieldErrors={fieldErrors}
+              onChange={onChange}
+            />
+          ))}
+        </div>
+      )}
     </section>
   )
 }
@@ -164,11 +184,12 @@ function TabSections({
   }
 
   return (
-    <div className="divide-y">
-      {tab.sections.map((section) => (
+    <div>
+      {tab.sections.map((section, i) => (
         <SectionRenderer
           key={section.id}
           section={section}
+          isLast={i === tab.sections.length - 1}
           branchById={branchById}
           formData={formData}
           fieldErrors={fieldErrors}

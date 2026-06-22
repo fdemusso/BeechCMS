@@ -4,13 +4,17 @@
 
 import { createBeechApp } from './factory'
 import { SeedRegistry, SystemIdGenerator } from '@beechcms/core'
+import type { QueueMessage } from '@beechcms/core'
 import { runCronAutomations } from './features/automations'
 import { D1AutomationRepository } from './shared/automations.repository.d1'
 import { D1ContentRepository } from './shared/content.repository.d1'
 import { D1SeedRepository } from './shared/seed.repository.d1'
+import { dispatchQueueBatch } from './shared/queue-consumer'
 import type { Env } from './types'
 
-const app = createBeechApp({ seeds: [] })
+const jobs = {} satisfies Record<string, never>
+
+const app = createBeechApp({ seeds: [], jobs })
 
 app.get('/', (c) => c.text('Beech API is running'))
 
@@ -32,6 +36,15 @@ export default {
       }
     }
     return app.fetch(request, env, ctx)
+  },
+
+  async queue(batch: MessageBatch<unknown>, env: Env, ctx: ExecutionContext) {
+    if (!env.DB) {
+      console.warn('[queue] D1 binding missing. Acking batch without processing.')
+      for (const m of batch.messages) m.ack()
+      return
+    }
+    await dispatchQueueBatch(batch as MessageBatch<QueueMessage>, env, ctx, jobs)
   },
 
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {

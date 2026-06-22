@@ -24,6 +24,7 @@ out/
 CLAUDE.md
 .gemini/
 GEMINI.md
+.antigravity/
 
 # Turbo
 .turbo/

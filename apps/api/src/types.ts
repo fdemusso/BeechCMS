@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { ISetupChecklistRepository } from './shared/d1-setup-checklist.repository'
 
@@ -41,6 +41,7 @@ export interface Env {
   ENV?: string
   DATE_FORMAT?: string
   ASSETS?: Fetcher
+  QUEUE?: Queue
   QSTASH_TOKEN?: string
   QSTASH_URL?: string
   /** Public base URL the worker is reachable at, used by QStash to call back the webhook (e.g. an ngrok tunnel in dev). Falls back to APP_URL. */
@@ -77,6 +78,7 @@ export interface Variables {
   automationRepository: IAutomationRepository
   automationRunner: IAutomationRunner
   scheduler: IScheduler
+  queue: IQueueService
   backrefMap: BackrefMap
   siteSettingsRepository: ISiteSettingsRepository
   demoDataRepository: IDemoDataRepository

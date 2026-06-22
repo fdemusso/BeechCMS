@@ -23,6 +23,7 @@ sonar-project.properties
 .claude/
 .gemini/
 GEMINI.md
+.antigravity/
 .idea/
 .cursorrules
 .mcp.json
@@ -64,6 +65,7 @@ scratch/
 .claude/
 .gemini/
 GEMINI.md
+.antigravity/
 .cursor/
 .cursorrules
 .mcp.json

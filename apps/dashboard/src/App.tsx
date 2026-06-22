@@ -87,7 +87,6 @@ function RootLayout() {
   }, [needsSetup, pathname, navigate])
 
   if (needsSetup && pathname !== '/setup') return <SplashScreen />
-
   return (
     <>
       <CommandPalette />

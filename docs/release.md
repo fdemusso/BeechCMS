@@ -38,8 +38,13 @@ node scripts/release.mjs [--bump patch|minor|major] [--preview] [--dry-run]
 Or via pnpm shortcuts:
 
 ```bash
+<<<<<<< HEAD
+ppnpm run release           # stable release (strip preview suffix)
+ppnpm run release:preview   # preview release (same base, increment N)
+=======
 pnpm run release           # stable release (strip preview suffix)
 pnpm run release:preview   # preview release (same base, increment N)
+>>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 ```
 
 ### Options
@@ -52,11 +57,19 @@ pnpm run release:preview   # preview release (same base, increment N)
 | `--dry-run` | Print every step without writing files or publishing |
 
 > **Note on `pnpm run` syntax:** 
+<<<<<<< HEAD
+> When using `ppnpm run release`, pnpm might consume some flags. To be safe, either use positional arguments or use the `--` separator:
+> ```bash
+> ppnpm run release patch --dry-run      # ✅ Works (positional)
+> ppnpm run release -- --bump patch      # ✅ Works (with --)
+> ppnpm run release --preview            # ✅ Works
+=======
 > When using `pnpm run release`, pnpm might consume some flags. To be safe, either use positional arguments or use the `--` separator:
 > ```bash
 > pnpm run release patch --dry-run      # ✅ Works (positional)
 > pnpm run release -- --bump patch      # ✅ Works (with --)
 > pnpm run release --preview            # ✅ Works
+>>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 > ```
 
 ### Examples
@@ -88,7 +101,11 @@ node scripts/release.mjs --bump minor --dry-run
 
 The script is designed to be atomic on the filesystem: before touching any file it snapshots all six `package.json` files and `LICENSE`. If **type-check**, **build**, or **publish** fails, the snapshot is restored and the script exits with a non-zero code — leaving the working tree exactly as it was before the run.
 
+<<<<<<< HEAD
+The one exception is pnpm itself: if the second or third package fails to publish, the packages already pushed to the registry in that run are **not** rolled back (pnpm does not support unpublish on scoped packages after a short window). In that case, manually bump and re-publish the missing packages.
+=======
 The one exception is pnpm itself: if a later package fails to publish, the packages already pushed to the registry in that run are **not** rolled back (pnpm does not support unpublish on scoped packages after a short window). In that case, manually bump and re-publish the missing packages.
+>>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 
 If the **git step** fails after a successful publish, file changes are intentionally kept (they reflect what is on pnpm) and the script prints the exact commands to recover:
 ```
@@ -103,7 +120,11 @@ The script runs the following steps in sequence:
 
 ### 1. Bump versions
 
+<<<<<<< HEAD
+Updates `"version"` in the package manifests to the computed next version, and also updates any internal `@beechcms/*` cross-references in `dependencies`:
+=======
 Updates `"version"` in the package manifests to the computed next version, and also updates any internal `@beechcms/*` (or `@beech/*`) cross-references in `dependencies`, `devDependencies`, and `peerDependencies`:
+>>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 
 - `packages/core/package.json` — `@beechcms/core`
 - `packages/widget-sdk/package.json` — `@beechcms/widget-sdk`
@@ -114,6 +135,8 @@ Updates `"version"` in the package manifests to the computed next version, and a
 
 ### 1b. Update LICENSE change date
 
+<<<<<<< HEAD
+=======
 Bumps the `Change Date:` line in `LICENSE` to four years from the release date.
 
 ### 2. Type-check
@@ -122,6 +145,7 @@ Runs `pnpm run type-check` at the monorepo root. Failure triggers rollback befor
 
 ### 2 (cont.). Build
 
+>>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 Runs `pnpm run build` at the monorepo root, which delegates to Turborepo. Build order is enforced by `turbo.json` (`@beechcms/core` before consumers).
 
 ### 2b. Copy dashboard assets
@@ -130,7 +154,11 @@ Copies the compiled React admin dashboard from `apps/dashboard/dist/admin` into 
 
 ### 3. Publish
 
+<<<<<<< HEAD
+Publishes each package to pnpm in dependency order with `--access public --tag <next|latest>`. Packages are published in this order:
+=======
 Publishes each package to pnpm in dependency order with `--access public --no-git-checks --tag <next|latest>`. Packages are published in this order:
+>>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 
 1. `@beechcms/core`
 2. `@beechcms/widget-sdk`

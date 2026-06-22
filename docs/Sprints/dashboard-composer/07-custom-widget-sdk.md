@@ -69,7 +69,11 @@ You are a senior TypeScript engineer working on the **Beech CMS monorepo**.
    imported once in `main.tsx` after built-in registration. Operators edit this
    file (and `package.json`) to install widgets — documented as THE supported
    mechanism.
+<<<<<<< HEAD
+3. **Example widget package** `examples/widget-hello-world/` (workspace,
+=======
 3. **Example widget package** `docs/examples/widget-hello-world/` (workspace,
+>>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
    private): a minimal `defineWidget` with a config schema, a `ConfigPanel`,
    and one SDK data hook call — serving as living documentation and a
    compile-time test of the SDK surface.
@@ -138,7 +142,11 @@ Modified:
 - `apps/dashboard/src/widgets.custom.ts` (new)
 
 Example + docs:
+<<<<<<< HEAD
+- `examples/widget-hello-world/**`
+=======
 - `docs/examples/widget-hello-world/**`
+>>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 - `docs/custom-widgets.md` (new), linked from `docs/SYSTEM_MAP.md` and the
   Documentation Map in `CLAUDE.md`
 

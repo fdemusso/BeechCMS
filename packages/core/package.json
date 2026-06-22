@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/core",
-  "version": "0.6.0-preview.3",
+  "version": "0.6.0-preview.4",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -12,6 +12,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./webhook-crypto": {
+      "import": "./dist/webhook-crypto.js",
+      "types": "./dist/webhook-crypto.d.ts"
     }
   },
   "scripts": {

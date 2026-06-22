@@ -154,6 +154,7 @@ function parseVitestConfig(configPath) {
       else if (text[i] === ']') depth--
       i++
     }
+    
     let block = text.slice(start, i - 1)
 
     // Strip single-line and trailing comments

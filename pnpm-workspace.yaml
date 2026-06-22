@@ -3,7 +3,6 @@ packages:
   - "packages/*"
   - "docs/examples/*"
 
-
 allowBuilds:
   esbuild: true
   msgpackr-extract: true
@@ -19,4 +18,3 @@ overrides:
   miniflare>ws: ^8.21.0
   jsdom>ws: ^8.21.0
   undici: 7.28.0
-
