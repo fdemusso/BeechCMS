@@ -1,6 +1,6 @@
 export const KANBAN_MAX_COLUMNS = 20;
 export const KANBAN_COLUMN_PAGE_SIZE = 20;
 export const KANBAN_CARD_HEIGHT_PX = 96;
-export const KANBAN_COLUMN_WIDTH_PX = 280;
+export const KANBAN_COLUMN_WIDTH_PX = 320;
 export const KANBAN_SETTLE_MS = 30;
 export const KANBAN_POSITION_REBALANCE_THRESHOLD = 50;

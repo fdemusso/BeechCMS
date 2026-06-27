@@ -90,7 +90,7 @@ export function KanbanColumnVirtualizer({ cards, colValue, canEdit, sortActive, 
   return (
     <ScrollArea
       ref={scrollRef}
-      style={{ height: '100%', contain: 'layout paint' }}
+      style={{ flexGrow: 1, minHeight: 0, contain: 'layout paint' }}
     >
       <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
         {virtualizer.getVirtualItems().map(vItem => (

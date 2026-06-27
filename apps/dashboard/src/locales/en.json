@@ -645,6 +645,7 @@
       "groupedBy": "Grouped by: {{label}}"
     },
     "settings": {
+      "selectAxisField": "Please select a field to group the cards by from the settings menu (gear icon) in the top right.",
       "tooltip": "View settings",
       "title": "View settings",
       "viewName": "View name",

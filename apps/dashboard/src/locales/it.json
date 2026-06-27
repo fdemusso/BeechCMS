@@ -645,6 +645,7 @@
       "groupedBy": "Raggruppato per: {{label}}"
     },
     "settings": {
+      "selectAxisField": "Per favore seleziona un campo per raggruppare le schede dalle impostazioni (icona ingranaggio) in alto a destra.",
       "tooltip": "Impostazioni vista",
       "title": "Impostazioni vista",
       "viewName": "Nome vista",

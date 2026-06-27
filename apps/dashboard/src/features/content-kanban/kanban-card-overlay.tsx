@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { KANBAN_CARD_HEIGHT_PX } from './constants'
+import { KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_WIDTH_PX } from './constants'
 import type { KanbanCardDisplayModel } from './types'
 
 interface KanbanCardOverlayProps {
@@ -11,7 +11,7 @@ export function KanbanCardOverlay({ model }: KanbanCardOverlayProps) {
   return (
     <div
       className="flex items-start gap-2 rounded-md border bg-card p-3 shadow-lg ring-2 ring-primary/30 select-none opacity-95 rotate-1"
-      style={{ height: KANBAN_CARD_HEIGHT_PX, width: 264, boxSizing: 'border-box' }}
+      style={{ height: KANBAN_CARD_HEIGHT_PX, width: KANBAN_COLUMN_WIDTH_PX - 8, boxSizing: 'border-box' }}
     >
       <div className="flex min-w-0 flex-1 flex-col gap-1">
         <p className="truncate text-sm font-medium leading-tight">{model.title || model.entryId}</p>

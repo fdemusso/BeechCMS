@@ -3,6 +3,7 @@ import { DndContext, DragOverlay } from '@dnd-kit/core'
 import { resolveKanbanConfig } from '@beechcms/core'
 import type { Branch, KanbanColumnDescriptor, FilterGroup } from '@beechcms/core'
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
+import { useTranslation } from 'react-i18next'
 import { useKanbanColumns } from './hooks/use-kanban-columns'
 import { useKanbanColumnQuery } from './hooks/use-kanban-column-query'
 import { KanbanColumn } from './kanban-column'
@@ -140,6 +141,7 @@ export function ContentKanban({
   setKanbanConfig,
   isSaving,
 }: ContentKanbanProps) {
+  const { t } = useTranslation()
   const compat = React.useMemo(() => resolveKanbanConfig(seed), [seed])
 
   const axisBranch = React.useMemo(
@@ -202,7 +204,7 @@ export function ContentKanban({
     return (
       <div className="flex flex-col items-center justify-center gap-4 py-16">
         <p className="text-sm text-muted-foreground">
-          Per favore seleziona un campo per raggruppare le schede dalle impostazioni (icona ingranaggio) in alto a destra.
+          {t('toolbar.settings.selectAxisField')}
         </p>
       </div>
     )
@@ -249,7 +251,7 @@ export function ContentKanban({
         }}
       >
         <div
-          className="flex gap-3 overflow-x-auto pb-4"
+          className="flex gap-6 overflow-x-auto pb-4"
           style={{
             display: 'grid',
             gridAutoFlow: 'column',
