@@ -254,6 +254,7 @@ export function ContentKanban({
             display: 'grid',
             gridAutoFlow: 'column',
             gridAutoColumns: `${KANBAN_COLUMN_WIDTH_PX}px`,
+            justifyContent: 'center',
             touchAction: touchDragActive ? 'none' : 'pan-y',
           }}
         >

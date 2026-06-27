@@ -91,13 +91,13 @@ export const KanbanColumn = React.memo(function KanbanColumn({
           className={`flex-1 transition-colors ${isOver ? 'bg-primary/5 ring-1 ring-primary/30 ring-inset rounded-b-lg' : ''}`}
         >
           {!collapsed && (
-            <div className="flex flex-1 flex-col overflow-hidden" style={{ minHeight: 0 }}>
+            <div className="flex flex-1 flex-col overflow-hidden" style={{ height: 'calc(100vh - 14rem)', minHeight: 0 }}>
               {isLoading ? (
-                <div className="flex flex-col gap-0 pt-1">
+                <div className="flex flex-col gap-0 pt-1 flex-grow h-full">
                   {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
                 </div>
               ) : cards.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 py-8">
+                <div className="flex flex-col items-center justify-center gap-2 flex-grow h-full">
                   <p className="text-xs text-muted-foreground">Nessuna voce</p>
                   {onCreateEntry && (
                     <button type="button" onClick={onCreateEntry} className="text-xs text-primary hover:underline">
