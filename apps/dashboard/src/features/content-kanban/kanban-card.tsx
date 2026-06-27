@@ -22,7 +22,7 @@ export const KanbanCard = React.memo(function KanbanCard({
       role="article"
       aria-label={model.title || model.entryId}
       aria-disabled={(!canEdit || model.isPending) || undefined}
-      className="flex h-full items-start gap-2 rounded-md border bg-card p-3 shadow-sm transition-shadow select-none hover:shadow-md"
+      className={`flex h-full items-start gap-2 rounded-md border bg-card p-3 shadow-sm transition-all select-none hover:shadow-md ${model.isPending ? 'opacity-60' : ''}`}
       style={{ boxSizing: 'border-box', minHeight: KANBAN_CARD_HEIGHT_PX }}
       onClick={() => !isDragging && onEdit(model.entryId)}
     >

@@ -53,7 +53,6 @@ function SortableCardItem({ card, colValue, canEdit, sortActive, onEdit, baseSty
         ...baseStyle,
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: card.isPending ? 0.6 : 1,
         cursor: disabled ? (card.isPending ? 'not-allowed' : 'default') : 'grab',
         zIndex: isDragging ? 1 : undefined,
         boxSizing: 'border-box',

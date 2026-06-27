@@ -91,12 +91,27 @@ function KanbanColumnConnected({
       }
     }), ...incoming]
 
-    return merged.sort((a, b) => {
+    const sorted = merged.sort((a, b) => {
       if (a.position === null && b.position === null) return 0
       if (a.position === null) return 1
       if (b.position === null) return -1
       return a.position < b.position ? -1 : a.position > b.position ? 1 : 0
     })
+
+    // TODO: remove debug log
+    fetch('/auth/kanban-debug-log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message: `[KANBAN DEBUG] Column cards for ${col.value}`,
+        data: {
+          cards: sorted.map(c => ({ id: c.entryId, pos: c.position, isPending: c.isPending })),
+          pendingKeys: Array.from(pendingCards.keys())
+        }
+      })
+    }).catch(() => {})
+
+    return sorted
   }, [fetchState.cards, pendingCards, col.value])
 
   return (
