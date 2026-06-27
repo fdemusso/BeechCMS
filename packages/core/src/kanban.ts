@@ -98,7 +98,10 @@ export function resolveKanbanColumns(
       : [...distinctTagValues].sort((a, b) => a.localeCompare(b))               // alphabetical
     for (const o of ordered) cols.push({ value: o, label: o })
   }
-  cols.push({ value: null, label: `Senza ${branch.label}` })                    // always last
+  const isRequired = Boolean(branch.requiredOnCreate || branch.requiredOnUpdate)
+  if (!isRequired) {
+    cols.push({ value: null, label: `Senza ${branch.label}` })                  // always last if not required
+  }
   return cols
 }
 

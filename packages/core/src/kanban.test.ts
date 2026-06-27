@@ -137,6 +137,16 @@ describe('resolveKanbanColumns', () => {
     const cols = resolveKanbanColumns(branch, [])
     expect(cols[cols.length - 1].label).toBe('Senza Categoria')
   })
+
+  it('omits null column if branch is required on create or update', () => {
+    const branchReqCreate: Branch = { id: 'br_01', alias: 'state', type: 'text', label: 'State', options: ['x'], requiredOnCreate: true }
+    const colsReqCreate = resolveKanbanColumns(branchReqCreate)
+    expect(colsReqCreate.find(c => c.value === null)).toBeUndefined()
+
+    const branchReqUpdate: Branch = { id: 'br_02', alias: 'state', type: 'text', label: 'State', options: ['x'], requiredOnUpdate: true }
+    const colsReqUpdate = resolveKanbanColumns(branchReqUpdate)
+    expect(colsReqUpdate.find(c => c.value === null)).toBeUndefined()
+  })
 })
 
 describe('kanbanColumnFilter', () => {
