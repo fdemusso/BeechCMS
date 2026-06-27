@@ -36,6 +36,9 @@ export interface UseEntryEditorDialogProps {
   isDraftContext: boolean
   onClose: () => void
   readonly?: boolean
+  onSaved?: (info: { entryId?: string; data: Record<string, unknown>; isCreate: boolean }) => void
+  /** Pre-seed values for CREATE mode (e.g. kanban column axis value). Ignored in edit mode. */
+  defaultValues?: Record<string, unknown>
 }
 
 export interface EditorBranch {
@@ -141,6 +144,8 @@ export function useEntryEditorDialog({
   isDraftContext,
   onClose,
   readonly,
+  onSaved,
+  defaultValues,
 }: UseEntryEditorDialogProps): SchemaFormViewModel {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -293,7 +298,7 @@ export function useEntryEditorDialog({
     setPrevIsCreate(isCreate)
     setPrevBranches(branches)
     if (seed && isCreate) {
-      setFormData(createInitialFormData(branches))
+      setFormData({ ...createInitialFormData(branches), ...(defaultValues ?? {}) })
       setStatus("draft")
       setSlug("")
       setSlugTouched(false)
@@ -340,10 +345,15 @@ export function useEntryEditorDialog({
     setFieldErrors({})
     try {
       const payload = prepareSubmissionPayload({ branches, formData, slug, status })
-      await saveContent({ slug: schemaSlug, id: isCreate ? undefined : entryId, data: payload })
+      const result = await saveContent({ slug: schemaSlug, id: isCreate ? undefined : entryId, data: payload })
       toast.success(isCreate ? t("content.editor.createdSuccess") : t("content.editor.savedSuccess"))
       setIsDirty(false)
       hasJustSavedRef.current = true
+      onSaved?.({
+        entryId: isCreate ? (result as { id?: string } | undefined)?.id : entryId,
+        data: payload,
+        isCreate,
+      })
       onClose()
     } catch (err) {
       type ApiValidationError = { field: string; message: string }

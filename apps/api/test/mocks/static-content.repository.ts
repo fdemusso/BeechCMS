@@ -202,6 +202,18 @@ export class StaticContentRepository implements ContentRepository {
     return { newValue }
   }
 
+  async updateWithKanbanPosition(
+    seed: Seed,
+    id: string,
+    patch: Record<string, unknown> | null,
+    _position: string,
+    _axisBranchId: string,
+    _ctx: { actor: string },
+  ): Promise<{ success: boolean }> {
+    if (patch) await this.update(seed, id, patch as Record<string, any>)
+    return { success: true }
+  }
+
   async runBatch(operations: BatchWrite[]): Promise<void> {
     for (const op of operations) {
       if (op.kind === 'create') {

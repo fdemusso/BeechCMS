@@ -540,7 +540,8 @@ function compileSeedSchema(seed: Seed, options: ResolvedOptions): z.ZodObject<Re
   const shape: Record<string, z.ZodTypeAny> = {}
   for (const branch of seed.branches) {
     const branchSchema = schemaForBranch(branch, options)
-    shape[branch.alias] = branch[requiredFlag] ? branchSchema : branchSchema.optional()
+    const isRequired = branch[requiredFlag] && options.enforceRequiredFields
+    shape[branch.alias] = isRequired ? branchSchema : branchSchema.optional()
   }
   const compiled = z.object(shape).strict()
 

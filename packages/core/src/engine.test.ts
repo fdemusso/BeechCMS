@@ -224,6 +224,37 @@ describe('Botanical Engine', () => {
       expect(query.sql).toContain("price != ?")
       expect(query.bindings).toEqual(['test', 10])
     })
+
+    it('emits LEFT JOIN kanban_positions with parameterized bindings and nulls-last ORDER BY', () => {
+      const query = buildSelectQuery(mockSeed, {
+        kanbanOrder: { seedSlug: 'articles', axisBranchId: 'br_01' },
+      })
+      expect(query.sql).toContain('LEFT JOIN kanban_positions kp')
+      expect(query.sql).toContain('kp.seed_slug = ?')
+      expect(query.sql).toContain('kp.axis_branch_id = ?')
+      expect(query.sql).toContain('ORDER BY (kp.position IS NULL) ASC, kp.position ASC')
+      expect(query.sql).toContain('kp.position')
+      // kp.position must appear in the SELECT projection so the dashboard can read it
+      expect(query.sql).toMatch(/SELECT\s+.*kp\.position.*FROM/s)
+      expect(query.bindings).toContain('articles')
+      expect(query.bindings).toContain('br_01')
+    })
+
+    it('kanbanOrder wins over orderBy', () => {
+      const query = buildSelectQuery(mockSeed, {
+        kanbanOrder: { seedSlug: 'articles', axisBranchId: 'br_01' },
+        orderBy: { column: 'title', dir: 'ASC' },
+      })
+      expect(query.sql).toContain('ORDER BY (kp.position IS NULL) ASC, kp.position ASC')
+      expect(query.sql).not.toContain('ORDER BY title')
+    })
+
+    it('existing callers without kanbanOrder produce byte-identical SQL (no kp join)', () => {
+      const withoutKanban = buildSelectQuery(mockSeed)
+      const withoutKanban2 = buildSelectQuery(mockSeed, {})
+      expect(withoutKanban.sql).toBe(withoutKanban2.sql)
+      expect(withoutKanban.sql).not.toContain('kanban_positions')
+    })
   })
 
   describe('Serialization / Deserialization', () => {

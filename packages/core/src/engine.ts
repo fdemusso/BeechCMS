@@ -302,11 +302,23 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
   const whereClauses: string[] = []
   let joinClause = ''
 
+  // Kanban ordering: LEFT JOIN must be built first so its bindings precede
+  // the filter bindings in the array — binding order must match SQL text order
+  // (JOIN clause appears before WHERE clause in the final SQL string).
+  let kanbanOrderClause = ''
+  if (options.kanbanOrder) {
+    joinClause = `LEFT JOIN kanban_positions kp` +
+      ` ON kp.seed_slug = ? AND kp.entry_id = ${table}.id AND kp.axis_branch_id = ?`
+    bindings.push(options.kanbanOrder.seedSlug, options.kanbanOrder.axisBranchId)
+    // SQLite sorts NULLs first by default; `kp.position IS NULL` forces them last.
+    kanbanOrderClause = ` ORDER BY (kp.position IS NULL) ASC, kp.position ASC`
+  }
+
   // FTS JOIN — solo se il seed ha branch indicizzabili
   const rtBranches = indexableSearchBranches(seed)
   if (search && rtBranches.length > 0) {
     const ftsTable = ftsTableName(seed)
-    joinClause = `INNER JOIN ${ftsTable} ON ${ftsTable}.entry_id = ${table}.id`
+    joinClause += (joinClause ? ' ' : '') + `INNER JOIN ${ftsTable} ON ${ftsTable}.entry_id = ${table}.id`
     whereClauses.push(`${ftsTable} MATCH ?`)
     // FTS5: prefix match con quote per caratteri speciali
     bindings.push(`"${search.replace(/"/g, '""')}"*`)
@@ -341,13 +353,18 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
         .join(', ')
     }
   }
+  // Expose the kanban fractional-index position in the row so the dashboard can
+  // read it without a second query. kp is only joined when kanbanOrder is set.
+  if (options.kanbanOrder) selectCols += ', kp.position'
 
   let sql = `SELECT ${selectCols} FROM ${table}`
   if (joinClause) sql += ` ${joinClause}`
   if (whereClauses.length > 0) sql += ` WHERE ${whereClauses.join(' AND ')}`
 
-  // ORDER BY
-  if (orderBy && isValidColumn(seed, orderBy.column)) {
+  // ORDER BY — kanbanOrder wins over orderBy
+  if (kanbanOrderClause) {
+    sql += kanbanOrderClause
+  } else if (orderBy && isValidColumn(seed, orderBy.column)) {
     const dir = orderBy.dir === 'DESC' ? 'DESC' : 'ASC'
     const col = SYSTEM_COLUMNS.has(orderBy.column)
       ? `${table}.${orderBy.column}`

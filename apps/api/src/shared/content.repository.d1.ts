@@ -73,6 +73,9 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       }
     }
 
+    // Present only when the query joins kanban_positions (kanbanOrder mode)
+    if (row.position !== undefined) data.position = row.position
+
     return data
   }
 
@@ -979,6 +982,44 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       }))
     } catch (error) {
       throw this.mapError(error, 'findPendingDrafts')
+    }
+  }
+
+  async updateWithKanbanPosition(
+    seed: Seed,
+    id: string,
+    patch: Record<string, unknown> | null,
+    position: string,
+    axisBranchId: string,
+    _ctx: { actor: string },
+  ): Promise<{ success: boolean }> {
+    try {
+      const stmts: D1PreparedStatement[] = []
+
+      if (patch) {
+        const { stmt, junctionUpdates } = this.buildUpdateMainStmt(seed, id, patch as Record<string, any>)
+        if (stmt) stmts.push(stmt)
+        for (const branch of junctionUpdates) {
+          const jt = jTable(seed.slug, branch.alias)
+          const value = ((patch as Record<string, any>)[branch.alias] ?? []) as string[]
+          stmts.push(this.database.prepare(`DELETE FROM ${jt} WHERE parent_id = ?`).bind(id))
+          stmts.push(...this.buildJunctionInserts(seed.slug, id, branch.alias, value))
+        }
+      }
+
+      stmts.push(
+        this.database.prepare(`
+          INSERT INTO kanban_positions (seed_slug, entry_id, axis_branch_id, position, updated_at)
+          VALUES (?, ?, ?, ?, unixepoch())
+          ON CONFLICT(seed_slug, entry_id, axis_branch_id)
+            DO UPDATE SET position = excluded.position, updated_at = excluded.updated_at
+        `).bind(seed.slug, id, axisBranchId, position),
+      )
+
+      await this.database.batch(stmts)
+      return { success: true }
+    } catch (error) {
+      throw this.mapError(error, `updateWithKanbanPosition(${seed.slug}, ${id})`)
     }
   }
 }

@@ -24,6 +24,8 @@ import { DataTable } from "@/components/ui/data-table"
 import { ContentDeleteDialog } from "@/features/content-delete-dialog"
 import { BulkEditDialog } from "@/features/bulk-edit"
 import { ContentGallery } from "@/features/content-gallery"
+import { ContentKanban, useKanbanEntrySync } from "@/features/content-kanban"
+import { resolveKanbanConfig } from "@beechcms/core"
 import {
   ContentToolbar,
   type UserViewInstance,
@@ -105,6 +107,7 @@ export function ContentListPage() {
   const dialogOpen = isCreatePath || isEditPath
 
   const isDraftContext = !!(location.state as { isDraftContext?: boolean } | null)?.isDraftContext
+  const createDefaults = (location.state as { defaultValues?: Record<string, unknown> } | null)?.defaultValues
 
   const handleDialogClose = React.useCallback(
     () => navigate(`/content/${slug}`),
@@ -167,6 +170,8 @@ export function ContentListPage() {
   // Fetch the seed reactively
   const { seed, isLoading: isSeedLoading } = useActiveSeed(slug)
 
+  const kanbanSync = useKanbanEntrySync(seed, slug ?? '')
+
   // Table grouping: single column or null
   const [groupBy, setGroupBy] = React.useState<string | null>(null)
 
@@ -218,6 +223,8 @@ export function ContentListPage() {
     }
   }, [groupBy, seed])
 
+  const kanbanCompat = React.useMemo(() => seed ? resolveKanbanConfig(seed) : null, [seed])
+
   // Views available for the current seed.
   // TODO: load and save view configuration at the user level (when a user preferences system exists).
   const [views, setViews] = React.useState<UserViewInstance[]>(() => [
@@ -244,9 +251,31 @@ export function ContentListPage() {
     },
   ])
 
+  // Add kanban view when seed becomes compatible (KB-S26)
+  React.useEffect(() => {
+    if (!kanbanCompat) return
+    setViews((prev) => {
+      const hasKanban = prev.some((v) => v.id === "kanban")
+      if (kanbanCompat.compatible && !hasKanban) {
+        return [...prev, {
+          id: "kanban",
+          label: "kanban",
+          type: "kanban",
+          enabledTools: ["filter", "sort", "search", "create"],
+          conditionalFormats: [],
+        }]
+      }
+      if (!kanbanCompat.compatible && hasKanban) {
+        return prev.filter((v) => v.id !== "kanban")
+      }
+      return prev
+    })
+  }, [kanbanCompat])
+
   const VIEW_LABELS: Record<string, string> = {
     table: t("content.list.table"),
     gallery: t("content.list.gallery"),
+    kanban: t("content.list.kanban", { defaultValue: "Kanban" }),
   }
   const translatedViews = React.useMemo(
     () => views.map((v) => ({ ...v, label: VIEW_LABELS[v.type] ?? v.label })),
@@ -391,9 +420,26 @@ export function ContentListPage() {
     setDeleteDialogOpen(true)
   }, [])
 
-  const handleCreate = React.useCallback(() => {
-    if (slug) navigate(`/content/${slug}/create`)
-  }, [slug, navigate])
+  const handleCreate = React.useCallback(
+    (defaultValues?: Record<string, unknown> | React.SyntheticEvent | Event) => {
+      if (!slug) return
+
+      const isEvent =
+        defaultValues &&
+        (defaultValues instanceof Event ||
+          (typeof defaultValues === "object" &&
+            ("nativeEvent" in defaultValues || "preventDefault" in defaultValues)))
+
+      if (defaultValues && !isEvent) {
+        navigate(`/content/${slug}/create`, {
+          state: { defaultValues: defaultValues as Record<string, unknown> },
+        })
+      } else {
+        navigate(`/content/${slug}/create`)
+      }
+    },
+    [slug, navigate],
+  )
 
   const handleConfirmDelete = React.useCallback(async () => {
     if (!slug || !entryIdsToDelete || entryIdsToDelete.length === 0) return
@@ -925,6 +971,16 @@ export function ContentListPage() {
                       onEdit={handleEdit}
                     />
                   )}
+                  {!error && activeViewId === "kanban" && slug && seed && (
+                    <ContentKanban
+                      seed={seed}
+                      seedSlug={slug}
+                      isLoading={isLoading}
+                      onEdit={handleEdit}
+                      onCreateEntry={handleCreate}
+                      search={debouncedSearch.trim() || undefined}
+                    />
+                  )}
                 </ContentToolbar>
               </div>
             </div>
@@ -967,6 +1023,8 @@ export function ContentListPage() {
           isDraftContext={target.isDraftContext}
           open={dialogOpen}
           onClose={handleDialogClose}
+          defaultValues={createDefaults}
+          onSaved={(info) => { if (activeViewId === 'kanban') kanbanSync(info) }}
         />
       )}
     </div>

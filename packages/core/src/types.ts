@@ -266,6 +266,9 @@ export interface SelectOptions {
   search?: string
   /** Proiezione colonne. Vuoto = SELECT * */
   fields?: string[]
+  /** When set, LEFT JOIN kanban_positions and order by fractional index (KB-S04c/S05).
+   *  Mutually exclusive with `orderBy`; if both present, `kanbanOrder` wins. */
+  kanbanOrder?: { seedSlug: string; axisBranchId: string }
 }
 
 export interface ParameterizedQuery {

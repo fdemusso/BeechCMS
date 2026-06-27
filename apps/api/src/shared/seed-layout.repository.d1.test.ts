@@ -111,4 +111,41 @@ describe('D1SeedLayoutRepository', () => {
       expect(bindMock).toHaveBeenCalledWith('products')
     })
   })
+
+  describe('getViewConfig', () => {
+    it('returns null when no row exists', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+      const repo = new D1SeedLayoutRepository(db)
+      expect(await repo.getViewConfig('articles')).toBeNull()
+    })
+
+    it('returns null when view_config column is null', async () => {
+      const { db } = makeMockDb({ firstResult: { view_config: null } })
+      const repo = new D1SeedLayoutRepository(db)
+      expect(await repo.getViewConfig('articles')).toBeNull()
+    })
+
+    it('parses and returns a valid view config', async () => {
+      const config = { kanban: { axisBranchId: 'br_01', sort: null } }
+      const { db, prepareMock, bindMock } = makeMockDb({ firstResult: { view_config: JSON.stringify(config) } })
+      const repo = new D1SeedLayoutRepository(db)
+
+      const result = await repo.getViewConfig('articles')
+      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('SELECT view_config FROM seed_layouts'))
+      expect(bindMock).toHaveBeenCalledWith('articles')
+      expect(result).toEqual(config)
+    })
+  })
+
+  describe('setViewConfig', () => {
+    it('upserts the view_config column', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb()
+      const repo = new D1SeedLayoutRepository(db)
+      const config = { kanban: { axisBranchId: 'br_02', sort: null } }
+
+      await repo.setViewConfig('posts', config, 'user-1')
+      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO seed_layouts'))
+      expect(bindMock).toHaveBeenCalledWith('posts', JSON.stringify(config), 'user-1')
+    })
+  })
 })

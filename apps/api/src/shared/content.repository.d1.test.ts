@@ -117,6 +117,30 @@ describe('D1ContentRepository', () => {
       db.batch = vi.fn().mockRejectedValue(new Error('D1 error'))
       await expect(new D1ContentRepository(db).findMany(SEED, {})).rejects.toThrow('findMany')
     })
+
+    it('preserves position field when row includes kanban join column', async () => {
+      const row = { id: 'e1', slug: 'post-1', status: 'published', title: 'Hello', body: null, created_at: 1000, updated_at: 1000, position: 'a0' }
+      const { db } = makeMockDb({
+        batchResults: [
+          { results: [row] },
+          { results: [{ total: 1 }] },
+        ],
+      })
+      const result = await new D1ContentRepository(db).findMany(SEED, { pagination: { limit: 10, offset: 0 } })
+      expect(result.items[0].position).toBe('a0')
+    })
+
+    it('does not include position when row has no kanban join', async () => {
+      const row = { id: 'e1', slug: 'post-1', status: 'published', title: 'Hello', body: null, created_at: 1000, updated_at: 1000 }
+      const { db } = makeMockDb({
+        batchResults: [
+          { results: [row] },
+          { results: [{ total: 1 }] },
+        ],
+      })
+      const result = await new D1ContentRepository(db).findMany(SEED, { pagination: { limit: 10, offset: 0 } })
+      expect(result.items[0].position).toBeUndefined()
+    })
   })
 
   // ─── findById ───────────────────────────────────────────────────────────────

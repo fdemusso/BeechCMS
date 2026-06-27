@@ -6,6 +6,23 @@ import type { Seed, Branch } from './types.js'
 import { findBranchById } from './seed-registry.js'
 
 // ---------------------------------------------------------------------------
+// View config — per-seed, per-view dashboard preferences (KB-S02)
+// ---------------------------------------------------------------------------
+
+export const kanbanViewConfigSchema = z.object({
+  axisBranchId: z.string().nullable(),
+  sort: z.object({ branchId: z.string(), dir: z.enum(['ASC', 'DESC']) }).nullable(),
+  hiddenColumnValues: z.array(z.string()).optional(),
+  collapsedColumnValues: z.array(z.string()).optional(),
+})
+export type KanbanViewConfig = z.infer<typeof kanbanViewConfigSchema>
+
+export const seedViewConfigSchema = z.object({
+  kanban: kanbanViewConfigSchema.optional(),
+}).passthrough()
+export type SeedViewConfig = z.infer<typeof seedViewConfigSchema>
+
+// ---------------------------------------------------------------------------
 // Layout interfaces
 // ---------------------------------------------------------------------------
 
@@ -192,16 +209,27 @@ export function validateLayoutAgainstSeed(
   layout: FormLayout,
   seed: Seed,
 ): ValidateLayoutResult {
+  // Gracefully handle undefined/null layout, or missing tabs (e.g. from {} placeholder)
+  if (!layout || !Array.isArray(layout.tabs)) {
+    const defaultLayout = generateDefaultLayout(seed)
+    return {
+      ok: false,
+      errors: ['Invalid layout structure: missing tabs'],
+      cleaned: defaultLayout,
+    }
+  }
+
   const errors: string[] = []
   const seenBranchIds = new Set<string>()
 
-  const cleanedTabs: LayoutTab[] = layout.tabs.map((tab) => ({
+  const cleanedTabs: LayoutTab[] = (layout.tabs ?? []).map((tab) => ({
     ...tab,
-    sections: tab.sections.map((section) => ({
+    sections: (tab?.sections ?? []).map((section) => ({
       ...section,
-      columns: section.columns.map((col) => ({
+      columns: (section?.columns ?? []).map((col) => ({
         ...col,
-        fields: (col.fields ?? []).filter((f) => {
+        fields: (col?.fields ?? []).filter((f) => {
+          if (!f || typeof f !== 'object' || !('branchId' in f)) return false
           const branch = findBranchById(seed, f.branchId)
           if (!branch) return false
           if (UNSUPPORTED_BRANCH_TYPES.has(branch.type) || SYSTEM_ALIASES.has(branch.alias)) return false
@@ -213,11 +241,11 @@ export function validateLayoutAgainstSeed(
 
   // Duplicate and full-width constraint checks on cleaned layout
   for (const tab of cleanedTabs) {
-    for (const section of tab.sections) {
+    for (const section of tab.sections ?? []) {
       const fieldsInSection: Branch[] = []
 
-      for (const col of section.columns) {
-        for (const f of col.fields) {
+      for (const col of section.columns ?? []) {
+        for (const f of col.fields ?? []) {
           const branch = findBranchById(seed, f.branchId)
           if (!branch) continue
 
@@ -246,3 +274,4 @@ export function validateLayoutAgainstSeed(
   if (errors.length > 0) return { ok: false, errors, cleaned }
   return { ok: true, cleaned }
 }
+

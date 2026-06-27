@@ -15,7 +15,6 @@ import { WidgetSdkProvider } from '@beechcms/widget-sdk'
 import { api } from '@/lib/api'
 import '@/lib/i18n'
 import App from './App.tsx'
-import { Agentation } from 'agentation'
 import './widgets.custom'
 
 createRoot(document.getElementById('root')!).render(
@@ -26,7 +25,6 @@ createRoot(document.getElementById('root')!).render(
           <TooltipProvider>
             <App />
             <Toaster />
-            {import.meta.env.DEV && <Agentation endpoint="http://localhost:4747" />}
           </TooltipProvider>
         </ThemeProvider>
       </WidgetSdkProvider>

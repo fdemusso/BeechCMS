@@ -176,6 +176,19 @@ export interface ContentRepository {
   ): Promise<{ newValue: number }>
 
   /**
+   * Atomically applies an axis-value patch AND a kanban_positions upsert in one DB batch (KB-S04e).
+   * `patch` is null for same-column reorders (position only).
+   */
+  updateWithKanbanPosition(
+    seed: Seed,
+    id: string,
+    patch: Record<string, unknown> | null,
+    position: string,
+    axisBranchId: string,
+    ctx: { actor: string },
+  ): Promise<{ success: boolean }>
+
+  /**
    * Executes a list of write operations atomically via a single `db.batch`.
    * Document-level lifecycle hooks do NOT run for operations inside this call.
    */

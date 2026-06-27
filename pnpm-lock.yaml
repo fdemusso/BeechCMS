@@ -278,9 +278,6 @@ importers:
       '@tiptap/suggestion':
         specifier: ^3.22.3
         version: 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))(@tiptap/pm@3.26.1)
-      agentation:
-        specifier: ^3.0.2
-        version: 3.0.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       axios:
         specifier: ^1.13.5
         version: 1.18.0
@@ -296,6 +293,9 @@ importers:
       date-fns:
         specifier: ^4.4.0
         version: 4.4.0
+      fractional-indexing:
+        specifier: ^1.3.0
+        version: 1.3.0
       i18next:
         specifier: ^26.0.6
         version: 26.3.1(typescript@5.9.3)
@@ -3578,17 +3578,6 @@ packages:
     resolution: {integrity: sha512-nHlms9BkP8ZiY79HrwCGiA2DcNaXrAaJrCM/BEqQ7MEsSKyCk+2A76xPGylIfASZSZE0SaU3T0bNSg4rBPIJAQ==}
     hasBin: true
 
-  agentation@3.0.2:
-    resolution: {integrity: sha512-iGzBxFVTuZEIKzLY6AExSLAQH6i6SwxV4pAu7v7m3X6bInZ7qlZXAwrEqyc4+EfP4gM7z2RXBF6SF4DeH0f2lA==}
-    peerDependencies:
-      react: ^19.2.7
-      react-dom: ^19.2.7
-    peerDependenciesMeta:
-      react:
-        optional: true
-      react-dom:
-        optional: true
-
   ajv-formats@3.0.1:
     resolution: {integrity: sha512-8iUql50EUR+uUcdRQ3HDqa6EVyo3docL8g5WJ3FNcWmu62IbkGUue/pEyLBW8VGKKucTPgqeks4fIU1DA4yowQ==}
     peerDependencies:
@@ -4387,6 +4376,10 @@ packages:
 
   fraction.js@5.3.4:
     resolution: {integrity: sha512-1X1NTtiJphryn/uLQz3whtY6jK3fTqoE3ohKs0tT+Ujr1W59oopxmoEh7Lu5p6vBaPbgoM0bzveAW4Qi5RyWDQ==}
+
+  fractional-indexing@1.3.0:
+    resolution: {integrity: sha512-BnrLXTjD8KJ5KUFBvwws6/uX4DBArpHcmkBj8Zy5i1RwyoODIINn1G2UGepwF+JF0p3pE1hHAXtGfyyWnmoN8w==}
+    engines: {node: '>=13'}
 
   fresh@2.0.0:
     resolution: {integrity: sha512-Rx/WycZ60HOaqLKAi6cHRKKI7zxWbJ31MhntmtwMoaTeF7XFH9hhBp8vITaMidfljRQ6eYWCKkaTK+ykVJHP2A==}
@@ -9597,11 +9590,6 @@ snapshots:
       prompts: 2.4.2
       yaml: 2.9.0
 
-  agentation@3.0.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
-    optionalDependencies:
-      react: 19.2.7
-      react-dom: 19.2.7(react@19.2.7)
-
   ajv-formats@3.0.1(ajv@8.20.0):
     optionalDependencies:
       ajv: 8.20.0
@@ -10424,6 +10412,8 @@ snapshots:
   forwarded@0.2.0: {}
 
   fraction.js@5.3.4: {}
+
+  fractional-indexing@1.3.0: {}
 
   fresh@2.0.0: {}
 

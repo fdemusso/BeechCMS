@@ -16,6 +16,32 @@ const jobs = {} satisfies Record<string, never>
 
 const app = createBeechApp({ seeds: [], jobs })
 
+// TODO: remove debug log endpoints
+const globalLogs: any[] = []
+app.post('/auth/kanban-debug-log', async (c) => {
+  try {
+    const body = await c.req.json()
+    globalLogs.push({
+      timestamp: new Date().toISOString(),
+      message: body.message,
+      data: body.data
+    })
+    if (globalLogs.length > 200) globalLogs.shift()
+    return c.json({ success: true })
+  } catch (err) {
+    return c.json({ error: String(err) }, 500)
+  }
+})
+
+app.get('/auth/kanban-debug-log', (c) => {
+  return c.json(globalLogs)
+})
+
+app.delete('/auth/kanban-debug-log', (c) => {
+  globalLogs.length = 0
+  return c.json({ success: true })
+})
+
 app.get('/', (c) => c.text('Beech API is running'))
 
 export default {
