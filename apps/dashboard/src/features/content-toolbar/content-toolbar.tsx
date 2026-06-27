@@ -45,6 +45,10 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
     onGroupByChange,
     density,
     onDensityChange,
+    kanbanCandidates,
+    kanbanConfig,
+    onKanbanConfigChange,
+    kanbanAxisBranch,
   } = props
 
   const {
@@ -258,6 +262,11 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                     onPageSizeChange={onPageSizeChange}
                     density={density}
                     onDensityChange={onDensityChange}
+                    activeViewId={activeViewId}
+                    kanbanCandidates={kanbanCandidates}
+                    kanbanConfig={kanbanConfig}
+                    onKanbanConfigChange={onKanbanConfigChange}
+                    kanbanAxisBranch={kanbanAxisBranch}
                   />
                 )}
 

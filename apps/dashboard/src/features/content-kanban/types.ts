@@ -45,6 +45,9 @@ export interface ContentKanbanProps {
   onCreateEntry?: (defaultValues?: Record<string, unknown>) => void
   activeFilters?: import('@beechcms/core').FilterGroup[]
   search?: string
+  kanbanConfig: KanbanBoardConfig
+  setKanbanConfig: (next: import('@beechcms/core').KanbanConfig) => void
+  isSaving?: boolean
 }
 
 /** Emitted by the entry editor after a successful LIVE save (create or edit). */

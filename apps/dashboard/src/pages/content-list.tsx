@@ -25,6 +25,7 @@ import { ContentDeleteDialog } from "@/features/content-delete-dialog"
 import { BulkEditDialog } from "@/features/bulk-edit"
 import { ContentGallery } from "@/features/content-gallery"
 import { ContentKanban, useKanbanEntrySync } from "@/features/content-kanban"
+import { useKanbanViewConfig } from "@/features/content-kanban/hooks/use-kanban-view-config"
 import { resolveKanbanConfig } from "@beechcms/core"
 import {
   ContentToolbar,
@@ -224,6 +225,12 @@ export function ContentListPage() {
   }, [groupBy, seed])
 
   const kanbanCompat = React.useMemo(() => seed ? resolveKanbanConfig(seed) : null, [seed])
+  const { kanbanConfig, setKanbanConfig, isSaving: isKanbanConfigSaving } = useKanbanViewConfig(slug ?? '')
+  const kanbanCandidates = kanbanCompat?.compatible ? kanbanCompat.candidates : []
+  const kanbanAxisBranch = React.useMemo(
+    () => seed?.branches.find(b => b.id === kanbanConfig?.axisBranchId),
+    [seed, kanbanConfig?.axisBranchId],
+  )
 
   // Views available for the current seed.
   // TODO: load and save view configuration at the user level (when a user preferences system exists).
@@ -261,7 +268,7 @@ export function ContentListPage() {
           id: "kanban",
           label: "kanban",
           type: "kanban",
-          enabledTools: ["filter", "sort", "search", "create"],
+          enabledTools: ["filter", "search", "settings", "create"],
           conditionalFormats: [],
         }]
       }
@@ -858,6 +865,10 @@ export function ContentListPage() {
                   isAutomationActive={automationPanelOpen}
                   density={density}
                   onDensityChange={setDensity}
+                  kanbanCandidates={kanbanCandidates}
+                  kanbanConfig={kanbanConfig}
+                  onKanbanConfigChange={setKanbanConfig}
+                  kanbanAxisBranch={kanbanAxisBranch}
                 >
                   {error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
@@ -979,6 +990,9 @@ export function ContentListPage() {
                       onEdit={handleEdit}
                       onCreateEntry={handleCreate}
                       search={debouncedSearch.trim() || undefined}
+                      kanbanConfig={kanbanConfig}
+                      setKanbanConfig={setKanbanConfig}
+                      isSaving={isKanbanConfigSaving}
                     />
                   )}
                 </ContentToolbar>

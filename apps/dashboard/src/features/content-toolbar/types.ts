@@ -51,5 +51,9 @@ export interface ContentToolbarProps {
   onDateGroupPrecisionChange?: (precision: DateGroupPrecision) => void
   density?: TableDensity
   onDensityChange?: (density: TableDensity) => void
+  kanbanCandidates?: Array<{ branchId: string; label: string; alias: string }>
+  kanbanConfig?: any
+  onKanbanConfigChange?: (next: any) => void
+  kanbanAxisBranch?: any
   children?: React.ReactNode
 }

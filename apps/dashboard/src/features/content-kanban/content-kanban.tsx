@@ -3,10 +3,8 @@ import { DndContext, DragOverlay } from '@dnd-kit/core'
 import { resolveKanbanConfig } from '@beechcms/core'
 import type { Branch, KanbanColumnDescriptor, FilterGroup } from '@beechcms/core'
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
-import { useKanbanViewConfig } from './hooks/use-kanban-view-config'
 import { useKanbanColumns } from './hooks/use-kanban-columns'
 import { useKanbanColumnQuery } from './hooks/use-kanban-column-query'
-import { KanbanAxisConfig } from './kanban-axis-config'
 import { KanbanColumn } from './kanban-column'
 import { KanbanCardOverlay } from './kanban-card-overlay'
 import { useKanbanBoard } from './drag/use-kanban-board'
@@ -130,9 +128,19 @@ function KanbanColumnConnected({
   )
 }
 
-export function ContentKanban({ seed, seedSlug, isLoading, onEdit, onCreateEntry, activeFilters = [], search = '' }: ContentKanbanProps) {
+export function ContentKanban({
+  seed,
+  seedSlug,
+  isLoading,
+  onEdit,
+  onCreateEntry,
+  activeFilters = [],
+  search = '',
+  kanbanConfig,
+  setKanbanConfig,
+  isSaving,
+}: ContentKanbanProps) {
   const compat = React.useMemo(() => resolveKanbanConfig(seed), [seed])
-  const { kanbanConfig, isLoading: configLoading, setKanbanConfig, isSaving } = useKanbanViewConfig(seedSlug)
 
   const axisBranch = React.useMemo(
     () => seed.branches.find(b => b.id === kanbanConfig.axisBranchId),
@@ -170,7 +178,7 @@ export function ContentKanban({ seed, seedSlug, isLoading, onEdit, onCreateEntry
     dispatch,
   })
 
-  if (isLoading || configLoading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-muted-foreground text-sm">Caricamento…</div>
@@ -192,28 +200,16 @@ export function ContentKanban({ seed, seedSlug, isLoading, onEdit, onCreateEntry
 
   if (!kanbanConfig.axisBranchId) {
     return (
-      <div className="flex flex-col items-center justify-center gap-6 py-16">
-        <p className="text-sm text-muted-foreground">Seleziona un campo per raggruppare le schede.</p>
-        <KanbanAxisConfig
-          compat={compat}
-          config={kanbanConfig}
-          branches={seed.branches}
-          onChange={setKanbanConfig}
-          isSaving={isSaving}
-        />
+      <div className="flex flex-col items-center justify-center gap-4 py-16">
+        <p className="text-sm text-muted-foreground">
+          Per favore seleziona un campo per raggruppare le schede dalle impostazioni (icona ingranaggio) in alto a destra.
+        </p>
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-3 h-full">
-      <KanbanAxisConfig
-        compat={compat}
-        config={kanbanConfig}
-        branches={seed.branches}
-        onChange={setKanbanConfig}
-        isSaving={isSaving}
-      />
 
       <DndContext
         sensors={drag.sensors}
