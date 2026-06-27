@@ -22,14 +22,14 @@ import type { KanbanBoardAction, DragSnapshot } from './use-kanban-board'
 import { KANBAN_SETTLE_MS, KANBAN_POSITION_REBALANCE_THRESHOLD } from '../constants'
 import type { KanbanCardDisplayModel } from '../types'
 import { buildKanbanCardDisplayModel } from '../kanban-card-display'
-// TODO: remove debug log helper
-function writeDebugLog(message: string, data: any) {
-  fetch('/auth/kanban-debug-log', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message, data })
-  }).catch(() => {})
-}
+// // TODO: remove debug log helper
+// function writeDebugLog(message: string, data: any) {
+//   fetch('/auth/kanban-debug-log', {
+//     method: 'POST',
+//     headers: { 'Content-Type': 'application/json' },
+//     body: JSON.stringify({ message, data })
+//   }).catch(() => {})
+// }
 
 interface UseKanbanDragOptions {
   seedSlug: string
@@ -169,14 +169,14 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
     const cards = getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, srcColValue)
     const card = cards.find(c => c.entryId === entryId)
 
-    // TODO: remove debug log
-    writeDebugLog('[KANBAN DEBUG] --- DRAG START ---', {
-      entryId,
-      srcColValue,
-      cardPosition: card?.position,
-      totalCardsInSourceCol: cards.length,
-      cards: cards.map(c => ({ id: c.entryId, pos: c.position }))
-    })
+    // // TODO: remove debug log
+    // writeDebugLog('[KANBAN DEBUG] --- DRAG START ---', {
+    //   entryId,
+    //   srcColValue,
+    //   cardPosition: card?.position,
+    //   totalCardsInSourceCol: cards.length,
+    //   cards: cards.map(c => ({ id: c.entryId, pos: c.position }))
+    // })
 
     const snapshot: DragSnapshot = {
       entryId,
@@ -253,18 +253,18 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
       const card = srcCards.find(c => c.entryId === entryId)
       const newAxisValue = isSameColumn ? (card?.axisValue ?? null) : overColValue
 
-      // TODO: remove debug log
-      writeDebugLog('[KANBAN DEBUG] --- SETTLE TIMER FIRED (DRAG MOVE) ---', {
-        activeCard: entryId,
-        hoveredOverId: over.id,
-        hoveredColValue: overColValue,
-        isSameColumn,
-        beforeCardPos: before,
-        afterCardPos: after,
-        calculatedTempPosition: tempPosition,
-        destCardsCount: destCards.length,
-        destCards: destCards.map(c => ({ id: c.entryId, pos: c.position }))
-      })
+      // // TODO: remove debug log
+      // writeDebugLog('[KANBAN DEBUG] --- SETTLE TIMER FIRED (DRAG MOVE) ---', {
+      //   activeCard: entryId,
+      //   hoveredOverId: over.id,
+      //   hoveredColValue: overColValue,
+      //   isSameColumn,
+      //   beforeCardPos: before,
+      //   afterCardPos: after,
+      //   calculatedTempPosition: tempPosition,
+      //   destCardsCount: destCards.length,
+      //   destCards: destCards.map(c => ({ id: c.entryId, pos: c.position }))
+      // })
 
       dispatch({
         type: 'DRAG_OPTIMISTIC',
@@ -287,14 +287,14 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
     // real card the ghost appeared next to.
     const savedCommittedOverId = committedOverIdRef.current
 
-    // TODO: remove debug log
-    writeDebugLog('[KANBAN DEBUG] --- ON DRAG END ENTERED ---', {
-      entryId,
-      hasOver: !!event.over,
-      overId: event.over ? String(event.over.id) : null,
-      hasSnapshot: !!snapshot,
-      savedCommittedOverId,
-    })
+    // // TODO: remove debug log
+    // writeDebugLog('[KANBAN DEBUG] --- ON DRAG END ENTERED ---', {
+    //   entryId,
+    //   hasOver: !!event.over,
+    //   overId: event.over ? String(event.over.id) : null,
+    //   hasSnapshot: !!snapshot,
+    //   savedCommittedOverId,
+    // })
 
     clearTimerAndRefs()
     activeIdRef.current = null
@@ -377,19 +377,19 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
     const card = srcCards.find(c => c.entryId === entryId)
     const newAxisValue = isSameColumn ? (card?.axisValue ?? null) : destColValue
 
-    // TODO: remove debug log
-    writeDebugLog('[KANBAN DEBUG] --- DRAG END ---', {
-      activeCard: entryId,
-      rawOverId,
-      savedCommittedOverId,
-      calculatedDestColValue: destColValue,
-      isSameColumn,
-      beforePosition: before,
-      afterPosition: after,
-      generatedNewPosition: newPosition,
-      destCardsCount: destCards.length,
-      destCards: destCards.map(c => ({ id: c.entryId, pos: c.position }))
-    })
+    // // TODO: remove debug log
+    // writeDebugLog('[KANBAN DEBUG] --- DRAG END ---', {
+    //   activeCard: entryId,
+    //   rawOverId,
+    //   savedCommittedOverId,
+    //   calculatedDestColValue: destColValue,
+    //   isSameColumn,
+    //   beforePosition: before,
+    //   afterPosition: after,
+    //   generatedNewPosition: newPosition,
+    //   destCardsCount: destCards.length,
+    //   destCards: destCards.map(c => ({ id: c.entryId, pos: c.position }))
+    // })
 
     dispatch({ type: 'DRAG_OPTIMISTIC', entryId, destColValue, position: newPosition, axisValue: newAxisValue })
 
@@ -403,11 +403,11 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
       body = { axisBranchId, position: newPosition, axis }
     }
 
-    // TODO: remove debug log
-    writeDebugLog('[KANBAN DEBUG] API moveKanbanCard payload:', {
-      entryId,
-      body
-    })
+    // // TODO: remove debug log
+    // writeDebugLog('[KANBAN DEBUG] API moveKanbanCard payload:', {
+    //   entryId,
+    //   body
+    // })
 
     // Find entry in cache before patching so we can insert it in dest
     let cachedEntry: unknown

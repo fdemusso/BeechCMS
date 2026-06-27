@@ -18,15 +18,7 @@ export function KanbanAxisConfig({ compat, config, branches, onChange, isSaving 
   const needsVisibilitySelector = allCols.length > KANBAN_MAX_COLUMNS
 
   function setAxis(branchId: string) {
-    onChange({ axisBranchId: branchId, sort: config.sort ?? null, hiddenColumnValues: config.hiddenColumnValues })
-  }
-
-  function setSort(branchId: string, dir: 'ASC' | 'DESC') {
-    onChange({ axisBranchId: config.axisBranchId, sort: { branchId, dir }, hiddenColumnValues: config.hiddenColumnValues })
-  }
-
-  function clearSort() {
-    onChange({ axisBranchId: config.axisBranchId, sort: null, hiddenColumnValues: config.hiddenColumnValues })
+    onChange({ axisBranchId: branchId, sort: null, hiddenColumnValues: config.hiddenColumnValues })
   }
 
   function toggleHidden(value: string) {
@@ -36,7 +28,7 @@ export function KanbanAxisConfig({ compat, config, branches, onChange, isSaving 
     } else {
       hidden.add(value)
     }
-    onChange({ axisBranchId: config.axisBranchId, sort: config.sort ?? null, hiddenColumnValues: [...hidden] })
+    onChange({ axisBranchId: config.axisBranchId, sort: null, hiddenColumnValues: [...hidden] })
   }
 
   return (
@@ -55,36 +47,6 @@ export function KanbanAxisConfig({ compat, config, branches, onChange, isSaving 
           ))}
         </select>
       </div>
-
-      {axisBranch && (
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium">Ordinamento schede</label>
-          <div className="flex items-center gap-2">
-            <select
-              className="rounded border bg-background px-2 py-1.5 text-sm flex-1"
-              value={config.sort?.branchId ?? ''}
-              onChange={e => e.target.value ? setSort(e.target.value, config.sort?.dir ?? 'ASC') : clearSort()}
-              disabled={isSaving}
-            >
-              <option value="">Manuale (posizione kanban)</option>
-              {branches.filter(b => b.type === 'text' || b.type === 'number' || b.type === 'date').map(b => (
-                <option key={b.id} value={b.id}>{b.label}</option>
-              ))}
-            </select>
-            {config.sort && (
-              <select
-                className="rounded border bg-background px-2 py-1.5 text-sm"
-                value={config.sort.dir}
-                onChange={e => setSort(config.sort!.branchId, e.target.value as 'ASC' | 'DESC')}
-                disabled={isSaving}
-              >
-                <option value="ASC">↑ A→Z</option>
-                <option value="DESC">↓ Z→A</option>
-              </select>
-            )}
-          </div>
-        </div>
-      )}
 
       {needsVisibilitySelector && axisBranch && (
         <div className="flex flex-col gap-2">

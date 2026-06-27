@@ -98,18 +98,18 @@ function KanbanColumnConnected({
       return a.position < b.position ? -1 : a.position > b.position ? 1 : 0
     })
 
-    // TODO: remove debug log
-    fetch('/auth/kanban-debug-log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        message: `[KANBAN DEBUG] Column cards for ${col.value}`,
-        data: {
-          cards: sorted.map(c => ({ id: c.entryId, pos: c.position, isPending: c.isPending })),
-          pendingKeys: Array.from(pendingCards.keys())
-        }
-      })
-    }).catch(() => {})
+    // // TODO: remove debug log
+    // fetch('/auth/kanban-debug-log', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({
+    //     message: `[KANBAN DEBUG] Column cards for ${col.value}`,
+    //     data: {
+    //       cards: sorted.map(c => ({ id: c.entryId, pos: c.position, isPending: c.isPending })),
+    //       pendingKeys: Array.from(pendingCards.keys())
+    //     }
+    //   })
+    // }).catch(() => {})
 
     return sorted
   }, [fetchState.cards, pendingCards, col.value])
@@ -159,7 +159,7 @@ export function ContentKanban({ seed, seedSlug, isLoading, onEdit, onCreateEntry
   const [touchDragActive, setTouchDragActive] = React.useState(false)
   const [activeCard, setActiveCard] = React.useState<KanbanCardDisplayModel | null>(null)
 
-  const activeSort = Boolean(kanbanConfig.sort)
+  const activeSort = false
 
   const drag = useKanbanDrag({
     seedSlug,
