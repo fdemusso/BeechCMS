@@ -7,7 +7,7 @@ import { Hono } from 'hono'
 import { SystemClock } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/problem-details'
-import { cleanStr } from '../../shared/query-utils'
+import { cleanStr } from '../../shared/utils/query-utils'
 
 const DATABASE_ERROR = 'Database error'
 const INTERNAL_SERVER_ERROR = 'Internal Server Error'

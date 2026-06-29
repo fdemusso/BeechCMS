@@ -4,8 +4,8 @@
 
 import { describe, it, expect } from "vitest"
 
-import * as LoginFormIndex from "@/features/auth/components/login-form"
-import * as NotificationsIndex from "@/features/notifications/components/notifications-popover"
+import * as LoginFormIndex from "@/features/auth"
+import * as NotificationsIndex from "@/features/notifications"
 import * as ContentDeleteDialogIndex from "@/features/content-delete-dialog"
 import * as ContentToolbarIndex from "@/features/content-toolbar"
 

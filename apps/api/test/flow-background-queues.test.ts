@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createBeechApp } from '../src/factory'
-import { dispatchQueueBatch } from '../src/shared/queue-consumer'
+import { dispatchQueueBatch } from '../src/shared/jobs/queue-consumer'
 import { NoOpQueueService } from '@beechcms/core'
 import type { JobHandler, JobRegistry, QueueMessage } from '@beechcms/core'
 import { StaticContentRepository } from './mocks/static-content.repository'

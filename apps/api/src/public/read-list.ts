@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { Seed, ContentRepository } from '@beechcms/core'
-import { cleanStr } from '../shared/query-utils'
+import { cleanStr } from '../shared/utils/query-utils'
 import { toFlatPublicEntry } from './entry-projection'
 import { buildPublicListMeta } from './response-builder'
 import { parsePublicFilter, parsePublicPagination, parseLatestCount, toEngineFilters } from './query-builder'

@@ -7,8 +7,8 @@ import { createMiddleware } from 'hono/factory'
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { IQueueService, JobRegistry, JobContext, QueueMessage } from '@beechcms/core'
 import type { AppEnv } from '../types'
-import { CloudflareQueueService } from '../shared/cloudflare-queue-service'
-import { InMemoryQueueService } from '../shared/in-memory-queue-service'
+import { CloudflareQueueService } from '../shared/services/queue/cloudflare-queue-service'
+import { InMemoryQueueService } from '../shared/services/queue/in-memory-queue-service'
 
 export interface QueueOverrides {
   queue?: IQueueService

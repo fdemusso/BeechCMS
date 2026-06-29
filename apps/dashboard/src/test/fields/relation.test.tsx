@@ -10,7 +10,7 @@ import React from "react"
 import type { Branch } from "@beechcms/core"
 
 // ─── Mock @/features/schema ──────────────────────────────────────────────────
-vi.mock("@/features/schema", () => ({
+vi.mock("@/features/shared", () => ({
   useSchema: vi.fn(),
   useActiveSeed: vi.fn(),
 }))
@@ -25,7 +25,7 @@ vi.mock("@/lib/api", () => ({
   },
 }))
 
-import { useSchema } from "@/features/schema"
+import { useSchema } from "@/features/shared"
 import { api } from "@/lib/api"
 import { RelationDisplay } from "@/features/fields/display/relation"
 import { RelationEdit } from "@/features/fields/edit/relation"

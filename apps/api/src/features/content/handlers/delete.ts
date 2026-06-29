@@ -3,8 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { deleteR2Objects } from '../../../shared/upload'
-import { extractMediaKeysFromData } from '../../../shared/media-utils'
+import { deleteR2Objects } from '../../../shared/storage/upload'
+import { extractMediaKeysFromData } from '../../../shared/utils/media-utils'
 import { publicProblem } from '../../../public/problem-details'
 import {
   logContentActivity,

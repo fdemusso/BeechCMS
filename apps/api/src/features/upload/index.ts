@@ -9,7 +9,7 @@
 import { Hono } from 'hono'
 import { isMimeAccepted } from '@beechcms/core'
 import { AppEnv } from '../../types'
-import { deleteR2Objects } from '../../shared/upload'
+import { deleteR2Objects } from '../../shared/storage/upload'
 
 const DEFAULT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 const ABSOLUTE_MAX_UPLOAD_BYTES = 500 * 1024 * 1024

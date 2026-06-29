@@ -7,7 +7,7 @@ import { createBeechApp } from '../src/factory'
 import { TEST_ENV, TEST_USERS, TEST_SEEDS } from './fixtures'
 import { D1TestDatabase } from './helpers/d1-test-database'
 import { seedTestUsers } from './helpers/seed-fixtures'
-import { JoseTokenService } from '../src/auth/jose-token-service'
+import { JoseTokenService } from '../src/auth/providers/jwt-token.service'
 import { SystemClock } from '@beechcms/core'
 import { S3Client, HeadObjectCommand } from '@aws-sdk/client-s3'
 

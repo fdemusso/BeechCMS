@@ -6,8 +6,8 @@ import { createMiddleware } from 'hono/factory'
 import type { IHashProvider, ITokenService, IClock } from '@beechcms/core'
 import { SystemClock } from '@beechcms/core'
 import type { AppEnv } from '../types'
-import { BcryptHashProvider } from '../auth/bcrypt-hash-provider'
-import { JoseTokenService } from '../auth/jose-token-service'
+import { BcryptHashProvider } from '../auth/providers/hash.provider'
+import { JoseTokenService } from '../auth/providers/jwt-token.service'
 
 export interface AuthProviderOverrides {
   hashProvider?: IHashProvider

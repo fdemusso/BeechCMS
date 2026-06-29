@@ -90,7 +90,7 @@ function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationP
     staleTime: RELATION_STALE_MS,
   })
 
-  if (!id) return <span className="text-muted-foreground">â€”</span>
+  if (!id) return <span className="text-muted-foreground">—</span>
   if (isLoading) return <span className="text-muted-foreground">{t("common.loading")}</span>
 
   const rawLabel = (entry?.data as Record<string, unknown> | undefined)?.[labelAlias]
@@ -148,7 +148,7 @@ export function RelationDisplay({ branch, value }: FieldDisplayProps) {
   // â”€â”€ Many-to-many: chip row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (isMultiple) {
     const ids = Array.isArray(value) ? (value as string[]).filter(Boolean) : []
-    if (ids.length === 0) content = <span className="text-muted-foreground">â€”</span>
+    if (ids.length === 0) content = <span className="text-muted-foreground">—</span>
     else {
       const visible = ids.slice(0, 3)
       const overflow = ids.length - visible.length

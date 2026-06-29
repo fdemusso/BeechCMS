@@ -6,9 +6,9 @@ import { createMiddleware } from 'hono/factory'
 import type { IActivityLogger, INotificationService, IClock, IIdGenerator } from '@beechcms/core'
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { AppEnv } from '../types'
-import { D1ActivityLogger } from '../shared/d1-activity-logger'
-import { BackgroundNotificationService } from '../shared/background-notification-service'
-import { QStashNotificationService } from '../shared/qstash-notification-service'
+import { D1ActivityLogger } from '../shared/services/activity-log/d1-activity-logger'
+import { BackgroundNotificationService } from '../shared/services/notification/background-notification-service'
+import { QStashNotificationService } from '../shared/services/notification/qstash-notification-service'
 
 export interface ObservabilityOverrides {
   activityLogger?: IActivityLogger

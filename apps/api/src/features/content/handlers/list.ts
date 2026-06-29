@@ -3,8 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { parsePositiveInt, parseQueryFilters, cleanStr, toEngineFilters } from '../../../shared/query-utils'
-import { applyVisibility } from '../../../shared/apply-policies'
+import { parsePositiveInt, parseQueryFilters, cleanStr, toEngineFilters } from '../../../shared/utils/query-utils'
+import { applyVisibility } from '../../../shared/policies/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'

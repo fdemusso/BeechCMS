@@ -8,7 +8,7 @@ import {
   parsePositiveInt,
   parseQueryFilters,
   safeParseJson,
-} from '../src/shared/query-utils'
+} from '../src/shared/utils/query-utils'
 
 describe('shared/query-utils', () => {
   it('cleanStr e parsePositiveInt gestiscono fallback correttamente', () => {

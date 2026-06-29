@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from 'vitest'
-import { D1ContentRepository } from '../src/shared/content.repository.d1'
+import { D1ContentRepository } from '../src/shared/db/repositories/content.repository.d1'
 import { RelationTargetNotFoundError, RepositoryError } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 

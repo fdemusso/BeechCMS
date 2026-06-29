@@ -18,8 +18,8 @@ import {
   BRANCH_ALIAS_RE,
 } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/problem-details'
-import { deleteR2Objects } from '../../shared/upload'
-import { extractMediaKeysFromData } from '../../shared/media-utils'
+import { deleteR2Objects } from '../../shared/storage/upload'
+import { extractMediaKeysFromData } from '../../shared/utils/media-utils'
 import type { Env, Variables } from '../../types'
 
 const SLUG_RE = /^[a-z0-9_]+$/
@@ -177,7 +177,8 @@ async function deleteSeedMediaObjects(context: any, slug: string, seed: Seed, sc
     const validCols = fileBranches.map((b: Branch) => b.alias).filter((a: string) => dbCols.has(a))
     if (validCols.length === 0) return
 
-    const rows = await schemaMutator.fetchRows(`content_${slug}`, validCols)
+    const sql = `SELECT ${validCols.join(', ')} FROM content_${slug}`
+    const { results: rows } = await context.env.DB.prepare(sql).all()
     const r2Keys: string[] = []
     
     for (const row of rows) {

@@ -19,6 +19,11 @@ export default defineConfig({
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./src/test/setup.ts"],
+    server: {
+      deps: {
+        inline: ["fractional-indexing"],
+      },
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov", "html"],

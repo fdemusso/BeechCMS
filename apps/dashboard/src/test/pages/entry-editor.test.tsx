@@ -127,7 +127,7 @@ vi.mock("@beechcms/core", async () => {
   }
 })
 
-vi.mock("@/features/schema", () => ({
+vi.mock("@/features/shared", () => ({
   useActiveSeed: (slug: string) => ({
     seed: slug === "posts" ? seedPosts : null,
     isLoading: false,

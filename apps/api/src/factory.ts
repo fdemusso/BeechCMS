@@ -11,7 +11,7 @@ import { sha256hex, SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { Env, Variables, AppEnv } from './types'
 
 export type { Env, Variables, AppEnv } from './types'
-import { getClientIp } from './shared/request-utils'
+import { getClientIp } from './shared/utils/request-utils'
 
 // Imports delle rotte e middleware
 import { AUTH_ERRORS } from './auth/constants'
@@ -20,11 +20,11 @@ import {
   validateLoginInput,
   verifyPassword,
   DUMMY_PASSWORD_HASH,
-} from './auth/login'
-import { generateRefreshToken } from './auth/refresh'
-import { authMiddleware } from './middleware'
+} from './auth/utils/login-helpers'
+import { generateRefreshToken } from './auth/utils/refresh-token'
+import { authMiddleware } from './middleware/auth.middleware'
 import contentFeature from './features/content'
-import { widgetApp } from './widget'
+import { widgetApp } from './features/widget/widget'
 import { rotateFieldApp } from './features/rotate-field'
 import { passwordResetApp } from './features/password-reset'
 import { setupApp } from './features/setup'
@@ -40,12 +40,12 @@ import { backrefsApp } from './features/backrefs'
 import { webhooksApp } from './features/webhooks'
 import { uploadRoutes, serveMediaHandler } from './features/upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
-import { searchRouter } from "./search"
+import { searchRouter } from "./features/search/search"
 import type { ISeedRepository } from '@beechcms/core'
 import { repositoryMiddleware } from './middleware/repository.middleware'
 import { seedRegistryMiddleware } from './middleware/seed-registry.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'
-import { InMemorySeedRepository } from './shared/in-memory-seed.repository'
+import { InMemorySeedRepository } from './shared/db/repositories/in-memory-seed.repository'
 import { authProvidersMiddleware } from './middleware/auth-providers.middleware'
 import { rateLimiterMiddleware } from './middleware/rate-limit.middleware'
 import { observabilityMiddleware } from './middleware/observability.middleware'

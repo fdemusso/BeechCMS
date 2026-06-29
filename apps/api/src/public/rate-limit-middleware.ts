@@ -5,7 +5,7 @@
 import type { Context, Next } from 'hono'
 import type { AppEnv } from '../types'
 import { publicProblem } from './problem-details'
-import { getClientIp } from '../shared/request-utils'
+import { getClientIp } from '../shared/utils/request-utils'
 
 function isReadMethod(method: string): boolean {
   return method === 'GET' || method === 'HEAD' || method === 'OPTIONS'

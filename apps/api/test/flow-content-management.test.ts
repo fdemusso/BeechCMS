@@ -11,9 +11,9 @@ import { seedTestUsers } from './helpers/seed-fixtures'
 import { S3Client } from '@aws-sdk/client-s3'
 import { TEST_SEEDS, TEST_USERS, TEST_ENV } from './fixtures'
 import { defineSeed } from '@beechcms/core'
-import { __resetSeedRegistryCache } from '../src/shared/seed-registry-cache'
-import * as applyPolicies from '../src/shared/apply-policies'
-import * as uploadModule from '../src/shared/upload'
+import { __resetSeedRegistryCache } from '../src/shared/services/cache/seed-registry-cache'
+import * as applyPolicies from '../src/shared/policies/apply-policies'
+import * as uploadModule from '../src/shared/storage/upload'
 
 /**
  * SPRINT: BeechCMS Test Redesign

@@ -4,7 +4,7 @@
 
 import { useEffect } from "react"
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom"
-import { LoginForm } from "@/features/auth/components/login-form"
+import { LoginForm } from "@/features/auth"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { ContentListPage } from "@/pages/content-list"
 import { TestFieldsPage } from "@/pages/test-fields"

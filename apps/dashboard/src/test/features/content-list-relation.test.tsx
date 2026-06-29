@@ -22,13 +22,13 @@ vi.mock("@/lib/api", () => ({
   },
 }))
 
-vi.mock("@/features/schema", () => ({
+vi.mock("@/features/shared", () => ({
   useSchema: vi.fn(),
   useActiveSeed: vi.fn(),
 }))
 
 import { api } from "@/lib/api"
-import { useSchema } from "@/features/schema"
+import { useSchema } from "@/features/shared"
 import { useContentList } from "@/features/content-management/hooks/use-content-list"
 import { RelationDisplay } from "@/features/fields/display/relation"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
