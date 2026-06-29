@@ -3,8 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { EmailProvider } from '../email.provider'
-import type { OutboundEmail } from '../email.types'
+import type { EmailProvider, OutboundEmail } from '@beechcms/core'
 
 export interface SmtpProviderConfig {
   /** Base URL of the Mailpit HTTP API, e.g. http://localhost:8025 */

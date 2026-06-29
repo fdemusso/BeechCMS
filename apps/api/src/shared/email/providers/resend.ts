@@ -3,8 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { EmailProvider } from '../email.provider'
-import type { OutboundEmail } from '../email.types'
+import type { EmailProvider, OutboundEmail } from '@beechcms/core'
 
 /** Resend REST endpoint for sending emails. */
 const RESEND_API_URL = 'https://api.resend.com/emails'

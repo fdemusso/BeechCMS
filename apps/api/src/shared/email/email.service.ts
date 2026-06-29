@@ -7,7 +7,7 @@ import { SmtpEmailProvider } from './providers/smtp'
 import { buildPasswordResetEmail } from './templates/password-reset'
 import { buildPasswordChangedEmail } from './templates/password-changed'
 import { buildAutomationEmail } from './templates/automation-mail'
-import type { EmailProvider } from './email.provider'
+import type { EmailProvider } from '@beechcms/core'
 import type {
   PasswordResetEmailParams,
   PasswordChangedEmailParams,
@@ -26,17 +26,6 @@ export interface EmailProviderEnv {
   isDev?: boolean
 }
 
-// TODO: il sistema di selezione provider è attualmente hardcoded su "smtp" | "resend".
-// Sarebbe meglio aprirlo a provider di terze parti (Postmark, SendGrid, Brevo, SES, ...)
-// senza che l'utente debba toccare il codice. Opzioni da valutare:
-//   1. Strategia plugin: EMAIL_PROVIDER accetta un path a modulo ES (`./my-provider.ts`)
-//      che esporta default class implementing EmailProvider — zero lock-in.
-//   2. Provider SMTP generico: rimuovere il coupling con Mailpit dalla denominazione
-//      e accettare qualsiasi server SMTP via SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASS
-//      (il SmtpEmailProvider attuale usa già l'HTTP API di Mailpit, non SMTP raw —
-//      andrebbe riscritto con nodemailer o un client SMTP standard per coprire qualsiasi server).
-//   3. Webhook email: EMAIL_PROVIDER=webhook + EMAIL_WEBHOOK_URL per integrazioni custom.
-// Riferimento: email.provider.ts definisce l'interfaccia — è già sufficientemente astratta.
 function createProvider(env: EmailProviderEnv): EmailProvider {
   if (env.provider === 'smtp') {
     if (!env.smtpBaseUrl) throw new Error('SMTP provider selected but SMTP_HOST is missing')
@@ -84,7 +73,7 @@ export async function sendPasswordChangedEmail(
 export async function sendAutomationMail(params: AutomationMailParams): Promise<void> {
   const provider = createProvider({
     provider: params.provider,
-    apiKey: params.apiKey ?? params.resendApiKey,
+    apiKey: params.apiKey ?? '',
     smtpBaseUrl: params.smtpBaseUrl,
     isDev: false,
   })

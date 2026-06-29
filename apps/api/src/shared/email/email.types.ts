@@ -40,23 +40,6 @@ export function resolveEmailLocale(raw: unknown): EmailLocale {
   return 'en'
 }
 
-// ── Outbound message ──────────────────────────────────────────────────────────
-
-/**
- * The resolved email message that the provider receives and sends.
- * It is constructed by the service by combining the call parameters
- * with the template builder output.
- */
-export interface OutboundEmail {
-  /** Sender address in RFC 5321 format (e.g., "Beech CMS <noreply@beechcms.dev>"). */
-  from: string
-  /** List of recipient addresses. Must contain at least one element. */
-  to: string[]
-  subject: string
-  /** Complete HTML body. Must be a valid HTML document (see `templates/shell.ts`). */
-  html: string
-}
-
 // ── Service function parameters ───────────────────────────────────────────────
 
 /**
@@ -112,7 +95,6 @@ export interface AutomationMailParams {
   /** Plain text or HTML — passed verbatim to provider. */
   body: string
   apiKey?: string
-  resendApiKey?: string
   from?: string
   provider?: 'smtp' | 'resend'
   smtpBaseUrl?: string
