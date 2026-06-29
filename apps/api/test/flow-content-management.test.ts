@@ -13,7 +13,7 @@ import { TEST_SEEDS, TEST_USERS, TEST_ENV } from './fixtures'
 import { defineSeed } from '@beechcms/core'
 import { __resetSeedRegistryCache } from '../src/shared/seed-registry-cache'
 import * as applyPolicies from '../src/shared/apply-policies'
-import * as uploadModule from '../src/upload'
+import * as uploadModule from '../src/shared/upload'
 
 /**
  * SPRINT: BeechCMS Test Redesign

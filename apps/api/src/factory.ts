@@ -38,7 +38,7 @@ import { automationsApp } from './features/automations'
 import { statsApp } from './features/stats'
 import { backrefsApp } from './features/backrefs'
 import { webhooksApp } from './features/webhooks'
-import { uploadRoutes, serveMediaHandler } from './upload'
+import { uploadRoutes, serveMediaHandler } from './shared/upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
 import { searchRouter } from "./search"
 import type { ISeedRepository } from '@beechcms/core'

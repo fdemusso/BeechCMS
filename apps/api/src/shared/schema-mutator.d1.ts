@@ -61,4 +61,12 @@ export class D1SchemaMutator implements ISchemaMutator {
     // D1 batch is atomic per call; if one statement fails, the rest roll back.
     await this.db.batch(statements.map(s => this.db.prepare(s)))
   }
+
+  async fetchRows(table: string, columns: string[]): Promise<Record<string, unknown>[]> {
+    D1SchemaMutator.assertIdentifier(table)
+    for (const col of columns) D1SchemaMutator.assertIdentifier(col)
+    const colList = columns.join(', ')
+    const rs = await this.db.prepare(`SELECT ${colList} FROM ${table}`).all<Record<string, unknown>>()
+    return rs.results ?? []
+  }
 }

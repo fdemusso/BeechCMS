@@ -29,4 +29,9 @@ export interface ISchemaMutator {
    *  type-change column rebuild, full type drop). The caller assembles the
    *  statements; the impl validates identifiers and runs them as one D1 batch. */
   execDestructive(statements: string[]): Promise<void>
+
+  /** Reads all rows from a table for the specified columns only.
+   *  Used before DROP TABLE to collect R2 keys for media cleanup.
+   *  All identifiers are validated against `^[A-Za-z0-9_]+$`. */
+  fetchRows(table: string, columns: string[]): Promise<Record<string, unknown>[]>
 }

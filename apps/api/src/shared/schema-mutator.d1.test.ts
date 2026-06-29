@@ -139,4 +139,35 @@ describe('D1SchemaMutator', () => {
       expect(batchMock).toHaveBeenCalled()
     })
   })
+
+  describe('fetchRows', () => {
+    it('returns rows for the given table and columns', async () => {
+      const { db, allMock, prepareMock } = makeMockDb()
+      allMock.mockResolvedValueOnce({ results: [{ art_01: '/api/media/img.png' }] })
+      const mutator = new D1SchemaMutator(db)
+      const rows = await mutator.fetchRows('content_articles', ['art_01'])
+      expect(prepareMock).toHaveBeenCalledWith('SELECT art_01 FROM content_articles')
+      expect(rows).toEqual([{ art_01: '/api/media/img.png' }])
+    })
+
+    it('returns empty array when table has no rows', async () => {
+      const { db, allMock } = makeMockDb()
+      allMock.mockResolvedValueOnce({ results: [] })
+      const mutator = new D1SchemaMutator(db)
+      const rows = await mutator.fetchRows('content_articles', ['art_01'])
+      expect(rows).toEqual([])
+    })
+
+    it('throws on unsafe table name', async () => {
+      const { db } = makeMockDb()
+      const mutator = new D1SchemaMutator(db)
+      await expect(mutator.fetchRows('content_articles; DROP TABLE users', ['col'])).rejects.toThrow('Unsafe identifier')
+    })
+
+    it('throws on unsafe column name', async () => {
+      const { db } = makeMockDb()
+      const mutator = new D1SchemaMutator(db)
+      await expect(mutator.fetchRows('content_articles', ['col; --'])).rejects.toThrow('Unsafe identifier')
+    })
+  })
 })

@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, expect, it } from 'vitest'
-import { extractMediaKeysFromData } from '../src/media-utils'
+import { extractMediaKeysFromData } from '../src/shared/media-utils'
 import { TEST_SEEDS } from './fixtures'
 
 const seed = TEST_SEEDS[0] // posts in fixtures
