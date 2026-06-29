@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+﻿// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 /**
@@ -7,14 +7,14 @@
  *
  * - Single-value (default): combobox ricercabile con debounce.
  * - Multi-value (multiple: true): multi-select combobox + sortable chip row
- *   with up/down buttons and per-chip remove (×).
+ *   with up/down buttons and per-chip remove (Ã—).
  */
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { Check, ChevronsUpDown, X, ChevronUp, ChevronDown } from "lucide-react"
 
-import { useSchema } from "@/features/schema"
+import { useSchema } from "@/features/shared"
 import { contentApi } from "@/features/content-management/api/content.api"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
 import { useDebounce } from "@/hooks/use-debounce"
@@ -40,7 +40,7 @@ const SEARCH_DEBOUNCE_MS = 250
 const LIST_LIMIT = 20
 const EMPTY_IDS: string[] = []
 
-// ── Shared helpers ────────────────────────────────────────────────────────────
+// â”€â”€ Shared helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type BranchLike = {
   targetSeed?: string
@@ -49,7 +49,7 @@ type BranchLike = {
   requiredOnUpdate?: boolean
 }
 
-// ── Multi-chip: resolved label for a single id ────────────────────────────────
+// â”€â”€ Multi-chip: resolved label for a single id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface ChipLabelProps {
   targetSlug: string
@@ -117,7 +117,7 @@ function SortableChip({ id, index, total, targetSlug, labelAlias, onMoveUp, onMo
   )
 }
 
-// ── Multi-value RelationEdit ───────────────────────────────────────────────────
+// â”€â”€ Multi-value RelationEdit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface MultiRelationEditProps {
   branch: BranchLike & { alias?: string; label?: string }
@@ -280,7 +280,7 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
   )
 }
 
-// ── Single-value RelationEdit (unchanged) ─────────────────────────────────────
+// â”€â”€ Single-value RelationEdit (unchanged) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SingleRelationEditProps {
   branch: BranchLike & { alias?: string; label?: string }
@@ -448,7 +448,7 @@ function SingleRelationEdit({
   )
 }
 
-// ── Public export: dispatches on branch.multiple ──────────────────────────────
+// â”€â”€ Public export: dispatches on branch.multiple â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function RelationEdit({
   branch,

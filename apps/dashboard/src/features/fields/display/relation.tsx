@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+﻿// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { useSchema } from "@/features/schema"
+import { useSchema } from "@/features/shared"
 import { contentApi } from "@/features/content-management/api/content.api"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
 import { Badge } from "@/components/ui/badge"
@@ -23,7 +23,7 @@ function initialsOf(label: string): string {
   return (parts[0]![0]! + parts.at(-1)![0]!).toUpperCase()
 }
 
-// ── Single chip resolved from cache or fetch ─────────────────────────────────
+// â”€â”€ Single chip resolved from cache or fetch â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface RelationChipProps {
   readonly targetSlug: string
@@ -40,7 +40,7 @@ function RelationChip({ targetSlug, targetId, labelAlias, onClick }: RelationChi
     staleTime: RELATION_STALE_MS,
   })
 
-  if (isLoading) return <Badge variant="secondary" className="opacity-50">…</Badge>
+  if (isLoading) return <Badge variant="secondary" className="opacity-50">â€¦</Badge>
 
   const rawLabel = (entry?.data as Record<string, unknown> | undefined)?.[labelAlias]
 
@@ -72,7 +72,7 @@ function RelationChip({ targetSlug, targetId, labelAlias, onClick }: RelationChi
   )
 }
 
-// ── Single value component ───────────────────────────────────────────────────
+// â”€â”€ Single value component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 interface SingleRelationProps {
   readonly targetSlug: string
@@ -90,7 +90,7 @@ function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationP
     staleTime: RELATION_STALE_MS,
   })
 
-  if (!id) return <span className="text-muted-foreground">—</span>
+  if (!id) return <span className="text-muted-foreground">â€”</span>
   if (isLoading) return <span className="text-muted-foreground">{t("common.loading")}</span>
 
   const rawLabel = (entry?.data as Record<string, unknown> | undefined)?.[labelAlias]
@@ -132,7 +132,7 @@ function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationP
   )
 }
 
-// ── Main component ─────────────────────────────────────────────────────────────
+// â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function RelationDisplay({ branch, value }: FieldDisplayProps) {
   const targetSlug = (branch as { targetSeed?: string; multiple?: boolean }).targetSeed
@@ -145,10 +145,10 @@ export function RelationDisplay({ branch, value }: FieldDisplayProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   let content
-  // ── Many-to-many: chip row ────────────────────────────────────────────────
+  // â”€â”€ Many-to-many: chip row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   if (isMultiple) {
     const ids = Array.isArray(value) ? (value as string[]).filter(Boolean) : []
-    if (ids.length === 0) content = <span className="text-muted-foreground">—</span>
+    if (ids.length === 0) content = <span className="text-muted-foreground">â€”</span>
     else {
       const visible = ids.slice(0, 3)
       const overflow = ids.length - visible.length
@@ -168,7 +168,7 @@ export function RelationDisplay({ branch, value }: FieldDisplayProps) {
       )
     }
   } else {
-    // ── Single value ──────────────────────────────────────────────────────────
+    // â”€â”€ Single value â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     const id = typeof value === "string" && value.length > 0 ? value : null
     content = <SingleRelation targetSlug={targetSlug ?? ""} id={id} labelAlias={labelAlias} onClick={setSelectedId} />
   }

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+﻿// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
@@ -13,7 +13,7 @@ import { getStaticMenu, getContentCategoryMenu, getSettingsMenu, buildContentMen
 import { logout } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { useProfile } from "@/features/settings"
-import { useSchema } from "@/features/schema"
+import { useSchema } from "@/features/shared"
 import {
   Sidebar,
   SidebarContent,

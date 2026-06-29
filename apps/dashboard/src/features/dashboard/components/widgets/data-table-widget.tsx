@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+﻿// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 import { useMemo, useState } from "react"
@@ -9,7 +9,7 @@ import { Table } from "lucide-react"
 import { resolvePolicies } from "@beechcms/core"
 import { DashboardWidgetShell } from "../dashboard-widget-shell"
 import { useWidgetList } from "../../hooks/use-widget-data"
-import { useActiveSeed } from "@/features/schema"
+import { useActiveSeed } from "@/features/shared"
 import { generateColumns, type ContentEntry } from "@/lib/dynamic-columns"
 import { DataTable } from "@/components/ui/data-table"
 import { Skeleton } from "@/components/ui/skeleton"

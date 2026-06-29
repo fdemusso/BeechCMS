@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+﻿// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -24,7 +24,7 @@ import {
   useDiscardDraft,
   useDeleteContent,
 } from "@/features/content-management"
-import { useActiveSeed } from "@/features/schema"
+import { useActiveSeed } from "@/features/shared"
 import { useAuth } from "@/lib/auth-context"
 import { Loader2 } from "lucide-react"
 import type { RendererBranchMap } from "../renderer/layout-renderer"

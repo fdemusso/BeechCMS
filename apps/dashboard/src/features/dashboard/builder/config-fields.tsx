@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+﻿// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -15,11 +15,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { useSchema } from '@/features/schema'
+import { useSchema } from '@/features/shared'
 
 type TimeWindow = 'week' | 'month' | 'year' | 'all'
 
-// ── Generic field wrappers ────────────────────────────────────────────────
+// â”€â”€ Generic field wrappers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface FieldRowProps {
   readonly label: string
@@ -147,7 +147,7 @@ export function VariantSelect({ label, value, options, onChange }: VariantSelect
   )
 }
 
-// ── SeedSelect ───────────────────────────────────────────────────────────
+// â”€â”€ SeedSelect â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface SeedSelectProps {
   readonly value: string | undefined
@@ -177,7 +177,7 @@ export function SeedSelect({ value, onChange, label }: SeedSelectProps) {
   )
 }
 
-// ── BranchAliasSelect ────────────────────────────────────────────────────
+// â”€â”€ BranchAliasSelect â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface BranchAliasSelectProps {
   readonly seedSlug: string | undefined
@@ -226,7 +226,7 @@ export function BranchAliasSelect({
 const NUMERIC_BRANCH_TYPES = new Set(['number'])
 const isNumericBranch = (branch: Branch) => NUMERIC_BRANCH_TYPES.has(branch.type)
 
-// ── WindowSelect ─────────────────────────────────────────────────────────
+// â”€â”€ WindowSelect â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export interface WindowSelectProps {
   readonly value: TimeWindow | undefined
@@ -253,7 +253,7 @@ export function WindowSelect({ value, onChange, label }: WindowSelectProps) {
   )
 }
 
-// ── FormulaEditor ────────────────────────────────────────────────────────
+// â”€â”€ FormulaEditor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 type FormulaOp = AggregateFormula['op']
 
