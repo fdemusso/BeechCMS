@@ -92,6 +92,7 @@ This high-level system map is designed for onboarding new contributors and for A
 - **Architecture & Tooling**
   - Monorepo **Turborepo** (`turbo` `^2.8.7`) with **pnpm workspaces**
   - Shared package `@beechcms/core` (version `0.5.0`) for types, seeds, and the Botanical Engine
+  - Tooling package `@beechcms/cli` providing the unified CLI wrapper (`pnpm beech`)
 
 ---
 
@@ -103,6 +104,7 @@ This high-level system map is designed for onboarding new contributors and for A
 │   ├── api/           # REST API (Hono + Cloudflare Workers/D1/R2) — Vertical Slice Architecture
 │   └── dashboard/     # React frontend (Vite + Tailwind + Field Renderers) — Vertical Slice Architecture
 ├── packages/
+│   ├── cli/           # @beechcms/cli – Unified Developer Tooling and command handlers
 │   └── core/          # @beechcms/core – Botanical Engine and shared types
 ├── docs/
 │   ├── Sprints/       # Technical debt and sprint tracking

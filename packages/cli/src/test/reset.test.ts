@@ -36,7 +36,7 @@ describe('reset command', () => {
     await reset({ docker: true })
     expect(spawnSync).toHaveBeenCalledWith(
       'docker',
-      ['compose', 'down', '-v'],
+      ['compose', '-f', 'docker/docker-compose.yml', 'down', '-v'],
       expect.any(Object)
     )
   })
@@ -55,7 +55,7 @@ describe('reset command', () => {
       await reset({ docker: true })
       expect(spawnSync).not.toHaveBeenCalledWith(
         'docker',
-        ['compose', 'down', '-v'],
+        ['compose', '-f', 'docker/docker-compose.yml', 'down', '-v'],
         expect.any(Object)
       )
       expect(mockExit).toHaveBeenCalledWith(1)
@@ -78,7 +78,7 @@ describe('reset command', () => {
       await reset({ docker: true })
       expect(spawnSync).not.toHaveBeenCalledWith(
         'docker',
-        ['compose', 'down', '-v'],
+        ['compose', '-f', 'docker/docker-compose.yml', 'down', '-v'],
         expect.any(Object)
       )
       expect(mockExit).toHaveBeenCalledWith(1)
@@ -116,7 +116,7 @@ describe('reset command', () => {
     await reset({ all: true })
     expect(spawnSync).toHaveBeenCalledWith(
       'docker',
-      ['compose', 'down', '-v'],
+      ['compose', '-f', 'docker/docker-compose.yml', 'down', '-v'],
       expect.any(Object)
     )
     expect(spawnSync).toHaveBeenCalledWith(

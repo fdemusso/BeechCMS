@@ -2,38 +2,25 @@
 
 Beech requires Docker. There's no "lightweight" mode; those who can't or don't want to have Docker can't develop on Beech.
 
-## Root (runs all packages via Turborepo)
-- `pnpm run dev:full` : SINGLE development command: Full Docker stack + API + Dashboard
-- `pnpm run dev` : Alias di dev:full
-- `pnpm run dev:tunnel-url` : Stampa la URL Cloudflare Quick Tunnel
-- `pnpm run dev:mailpit:reset` : Svuota la inbox Mailpit
-- `pnpm run dev:logs:mailpit` : Stream log Mailpit
-- `pnpm run dev:logs:sqlite` : Stream log SQLite Web
-- `pnpm run dev:logs:tunnel` : Stream log Cloudflared Tunnel
-- `pnpm run dev:logs:minio` : Stream log MinIO
-- `pnpm run dev:stop` : Stop dei container (mantiene i volumi)
-- `pnpm run dev:reset` : Stop + rimozione volumi (reset completo)
-- `pnpm run build` : Build all packages
-- `pnpm run test` : Run all tests
-- `pnpm run test:diff` : Run Vitest coverage ONLY for source files that changed on the current branch
+All commands are unified under the `pnpm beech` CLI.
 
-
-## API (`apps/api`)
-- `pnpm run dev` : wrangler dev --port 8789
-- `pnpm run test` : vitest run
-- `pnpm run test -- --reporter=verbose` : verbose output; single file: vitest run src/test/foo.test.ts
-- `pnpm run db:migrate:local` : apply ALL D1 migrations locally
-- `pnpm run db:reset:local` : wipe .wrangler state + re-migrate from scratch
-- `pnpm run deploy` : wrangler deploy --minify (production)
-- `pnpm run cf-typegen` : regenerate Cloudflare binding types
-
-## Dashboard (`apps/dashboard`)
-- `pnpm run dev` : vite (port 5173, proxies /api and /auth to port 8789)
-- `pnpm run build` : tsc -b && vite build
-- `pnpm run lint` : eslint .
-- `pnpm run test` : vitest run
-
-## Core package (`packages/core`)
-- `pnpm run build` : tsc (compiles to dist/)
-- `pnpm run dev` : tsc -w (watch mode — required before API/Dashboard can import @beech/core)
-- `pnpm run lint` : eslint .
+## Unified CLI Commands (`pnpm beech`)
+- `pnpm beech dev`             : Starts development environment (Docker stack + API + Dashboard)
+- `pnpm beech dev:stop`        : Stops Docker containers (retains data)
+- `pnpm beech dev:reset`       : Stops Docker containers and removes all persistent volumes
+- `pnpm beech dev:tunnel`      : Prints Cloudflare Quick Tunnel URL
+- `pnpm beech mailpit:clear`   : Clears Mailpit inbox
+- `pnpm beech logs <service>`   : Streams logs for docker services: `mailpit`, `db`, `tunnel`, `storage`
+- `pnpm beech onboard --yes`    : Fully automated local provisioning (init --db + seed:load)
+- `pnpm beech init --db`        : Initialises database locally
+- `pnpm beech db:migrate`      : Applies D1 schema migrations locally
+- `pnpm beech db:reset`        : Removes Wrangler local state and boots DB from scratch
+- `pnpm beech seed:create`     : Interactive wizard to generate new Seed schemas
+- `pnpm beech seed:load`       : Synchronises seed definitions to the database
+- `pnpm beech schema:diff`     : Compares SEED_REGISTRY and D1 to generate additive migrations
+- `pnpm beech validate`        : Validates seeds.ts for errors
+- `pnpm beech generate:types`  : Generates TypeScript interfaces from seeds
+- `pnpm beech test`            : Runs workspace tests (accepts `--diff` or `--coverage`)
+- `pnpm beech lint`            : Runs lint checks across the monorepo
+- `pnpm beech deploy`          : Compiles, tests, and deploys to Cloudflare production
+- `pnpm beech doctor`          : Executes dashboard diagnostics checks
