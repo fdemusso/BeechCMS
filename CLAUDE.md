@@ -14,3 +14,17 @@ Le istruzioni dettagliate, le regole architetturali, i comandi e le guide NON so
 - `docs/SYSTEM_MAP.md`: Mappa dettagliata del sistema e dei vincoli architetturali.
 
 Non tentare mai di indovinare le regole di migrazione o i comandi di build; leggi sempre i file in `_config/` specificati nel contratto del tuo stage corrente.
+
+## Unified CLI Workflow
+
+BeechCMS uses a unified CLI entry point via `pnpm beech`. All local provisioning, database bootstrap/resets, Docker stack management, seed synchronization, logging, linting, testing, and deployment are orchestrated by this command.
+
+Key commands:
+- `pnpm beech onboard --yes` : Automated local onboarding (bootstraps DB and seeds)
+- `pnpm beech dev`             : Starts development environment (Docker stack + API + Dashboard)
+- `pnpm beech db:migrate`      : Applies D1 schema migrations locally
+- `pnpm beech db:reset`        : Removes Wrangler local state and boots DB from scratch
+- `pnpm beech logs <service>`   : Streams docker logs for mailpit, db, tunnel, storage
+- `pnpm beech reset`            : Stops dev stack and wipes DB/volumes based on flags
+- `pnpm beech test [--diff]`   : Runs workspace tests
+

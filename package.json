@@ -38,6 +38,7 @@
     "beech": "bin/cli.mjs"
   },
   "scripts": {
+    "beech": "node bin/cli.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:full": "node scripts/dev.mjs",
     "dev:plain": "cross-env BEECH_DEV_PLAIN=1 node scripts/dev.mjs",

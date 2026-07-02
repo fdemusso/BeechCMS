@@ -5,7 +5,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-
+import pc from 'picocolors'
 
 const [,, command, ...args] = process.argv
 
@@ -21,75 +21,78 @@ const COMMANDS = {
   'onboard':        cmdOnboard,
   'reset':          cmdReset,
   'generate:types': cmdGenerateTypes,
+  // New unified command mappings:
+  'db:migrate':     cmdDbMigrate,
+  'db:reset':       cmdDbReset,
+  'dev':            cmdDev,
+  'start':          cmdDev,
+  'dev:stop':       cmdDevStop,
+  'dev:reset':      cmdDevReset,
+  'dev:tunnel':     cmdDevTunnel,
+  'mailpit:clear':  cmdMailpitClear,
+  'logs':           cmdLogs,
+  'test':           cmdTest,
+  'lint':           cmdLint,
+  'doctor':         cmdDoctor,
 }
 
 function help() {
   console.log(`
-  beech <command> [options]
+  ${pc.cyan('beech')} <command> [options]
 
-  Commands:
-    init            Check project files and optionally initialise the database
+  ${pc.bold('1. Local Management & Onboarding')}
+    ${pc.cyan('init')}            Check project files and optionally initialise the database
       --db            Also initialise the D1 database (system tables)
       --remote        Target remote D1 instead of local (default: local)
       --db-name <n>   Override D1 database name
+      --yes, -y       Run in non-interactive mode
+    ${pc.cyan('onboard')}         One-command local provisioning (init --db + seed:load)
+      --remote        Target remote D1 instead of local (default: local)
+      --yes, -y       Skip all interactive prompts (non-interactive mode)
+      --db <name>     Override D1 database name
+    ${pc.cyan('update')}          Update internals to latest, then apply system D1 migrations
 
-    build           Rebuild @beechcms/core after editing seeds.ts
+  ${pc.bold('2. Database & Migrations')}
+    ${pc.cyan('db:migrate')}      Apply all pending local migrations
+    ${pc.cyan('db:reset')}        Remove local Wrangler state and re-bootstrap database
 
-    validate        Validate SEED_REGISTRY for common errors (duplicate aliases,
-                    missing displayNameAlias, duplicate slugs). Exit code 1 on errors.
-
-    seed:load       Create/update content tables from SEED_REGISTRY
+  ${pc.bold('3. Seed & Schema Management')}
+    ${pc.cyan('seed:create')}     Interactive wizard — generate a new Seed schema in seeds.ts
+    ${pc.cyan('seed:load')}       Create/update content tables from SEED_REGISTRY
       --dry-run       Print SQL without executing
       --diff          Show schema differences vs current DB
       --remote        Execute against remote D1 (default: local)
       --db <name>     Override D1 database name
-
-    seed:create     Interactive wizard — generate a new Seed definition and append
-                    it to seeds.ts, including SEED_REGISTRY entry
-
-    schema:diff     Diff SEED_REGISTRY vs the live D1 schema and generate an
-                    additive SQL migration in apps/api/migrations/
+    ${pc.cyan('schema:diff')}     Diff SEED_REGISTRY vs D1 and generate additive SQL migration
       --write         Write the migration file (default: preview only)
       --name <name>   Migration name used in the filename
       --remote        Diff against remote D1 (default: local)
       --db <name>     Override D1 database name
+    ${pc.cyan('validate')}        Validate seeds registry for errors
+    ${pc.cyan('generate:types')}  Generate TypeScript interfaces from seed definitions
+      --out <path>    Output file (default: src/types/beech.ts)
+      --local         Read from seeds.ts instead of querying live D1
 
-    deploy          Deploy Worker, sync remote schema, and verify /admin
+  ${pc.bold('4. Local Stack & Docker')}
+    ${pc.cyan('dev / start')}     Start the local dev environment (Docker + API + Dashboard)
+      --plain         Avoid Ink visual TUI and run clean log streaming
+    ${pc.cyan('dev:stop')}        Stop Docker containers without wiping data
+    ${pc.cyan('dev:reset')}       Stop Docker containers and remove all persistent volumes
+    ${pc.cyan('dev:tunnel')}      Display Cloudflare tunnel public testing URL
+    ${pc.cyan('mailpit:clear')}   Clear local test inbox in Mailpit
+
+  ${pc.bold('5. Logs Streaming')}
+    ${pc.cyan('logs <service>')}   Show streaming logs for docker service: mailpit, db, tunnel, storage
+
+  ${pc.bold('6. Quality & Deployment')}
+    ${pc.cyan('test')}            Run the test suite via Turborepo / Vitest
+      --coverage      Generate coverage reports
+      --diff          Run test coverage only for files modified on the branch
+    ${pc.cyan('lint')}            Run ESLint quality checks
+    ${pc.cyan('deploy')}          Compile, test, deploy to Cloudflare environment
       --skip-seed     Skip remote seed:load step
       --skip-check    Skip /admin reachability check
-
-    update          Update @beechcms/api and @beechcms/core to latest, then
-                    apply any new system migrations to the local database
-
-    onboard         One-command local provisioning (init + seed:load). Designed
-                    for non-interactive use by agents and CI.
-      --remote        Target remote D1 instead of local (default: local)
-      --yes           Skip all interactive prompts (non-interactive mode)
-      --db <name>     Override D1 database name
-
-    reset           Reset database and/or Docker containers/volumes
-      --db            Wipe local Wrangler state & bootstrap D1 DB
-      --docker        Down Docker containers and wipe volumes
-      --all           Reset both (database & docker)
-
-    generate:types  Generate TypeScript interfaces from the Seed registry
-      --out <path>    Output file (default: src/types/beech.ts)
-      --local         Read from seeds.ts instead of querying remote D1
-      --db <name>     Override D1 database name (remote mode)
-
-  Scaffold a new project (interactive, or pass --yes for non-interactive defaults):
-    npm create @beechcms/cms [project-name] [--yes] [--with-examples]
-
-  Golden path (local):
-    npx beech onboard --local --yes   # fully automated
-    # or step by step:
-    npx beech init --db --local
-    npx beech seed:load --local
-    npx wrangler dev
-
-  Golden path (deploy):
-    npx beech deploy
-    npx beech init --db --remote   # verify remote DB post-deploy
+    ${pc.cyan('doctor')}          Execute React diagnostics check on Dashboard
 `)
 }
 
@@ -173,9 +176,10 @@ async function cmdInit(args) {
   const remote  = args.includes('--remote')
   const dbIdx   = args.indexOf('--db-name')
   const db      = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const yes     = args.includes('--yes') || args.includes('-y')
 
   const { init } = await import('@beechcms/cli')
-  await init({ initDb, local: !remote, db })
+  await init({ initDb, local: !remote, db, yes })
 }
 
 async function cmdSeedLoad(args) {
@@ -217,7 +221,7 @@ async function cmdUpdate(_args) {
 
 async function cmdOnboard(args) {
   const local    = !args.includes('--remote')
-  const yes      = args.includes('--yes')
+  const yes      = args.includes('--yes') || args.includes('-y')
   const dbIdx    = args.indexOf('--db')
   const db       = dbIdx !== -1 ? args[dbIdx + 1] : undefined
   const registry = await tryLoadLocalRegistry()
@@ -229,9 +233,10 @@ async function cmdReset(args) {
   const db     = args.includes('--db')
   const docker = args.includes('--docker')
   const all    = args.includes('--all')
+  const yes    = args.includes('--yes') || args.includes('-y')
 
   const { reset } = await import('@beechcms/cli')
-  await reset({ db, docker, all })
+  await reset({ db, docker, all, yes })
 }
 
 async function cmdSchemaDiff(args) {
@@ -257,6 +262,66 @@ async function cmdGenerateTypes(args) {
 
   const { generateTypes } = await import('@beechcms/cli')
   await generateTypes({ out, local, db, registry })
+}
+
+// New unified command wrappers:
+async function cmdDbMigrate(args) {
+  const { dbMigrate } = await import('@beechcms/cli')
+  await dbMigrate({})
+}
+
+async function cmdDbReset(args) {
+  const { dbReset } = await import('@beechcms/cli')
+  await dbReset({})
+}
+
+async function cmdDev(args) {
+  const plain = args.includes('--plain')
+  const { dev } = await import('@beechcms/cli')
+  await dev({ plain })
+}
+
+async function cmdDevStop(args) {
+  const { devStop } = await import('@beechcms/cli')
+  await devStop()
+}
+
+async function cmdDevReset(args) {
+  const { devReset } = await import('@beechcms/cli')
+  await devReset()
+}
+
+async function cmdDevTunnel(args) {
+  const { devTunnel } = await import('@beechcms/cli')
+  await devTunnel()
+}
+
+async function cmdMailpitClear(args) {
+  const { mailpitClear } = await import('@beechcms/cli')
+  await mailpitClear()
+}
+
+async function cmdLogs(args) {
+  const service = args[0]
+  const { logs } = await import('@beechcms/cli')
+  await logs({ service })
+}
+
+async function cmdTest(args) {
+  const coverage = args.includes('--coverage')
+  const diff     = args.includes('--diff')
+  const { test } = await import('@beechcms/cli')
+  await test({ coverage, diff })
+}
+
+async function cmdLint(args) {
+  const { lint } = await import('@beechcms/cli')
+  await lint()
+}
+
+async function cmdDoctor(args) {
+  const { doctor } = await import('@beechcms/cli')
+  await doctor()
 }
 
 const handler = COMMANDS[command]
