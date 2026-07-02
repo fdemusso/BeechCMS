@@ -6,9 +6,22 @@ import { BeechBucket, PutBucketOptions, GetBucketResult } from '@beechcms/core'
 import { Env } from '../../types'
 import { S3Bucket } from './s3-bucket'
 
+import { HTTPException } from 'hono/http-exception'
+
 class NullBucket implements BeechBucket {
   private fail(): never {
-    throw new Error('Storage not configured. Set R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME.')
+    throw new HTTPException(503, {
+      res: new Response(
+        JSON.stringify({ 
+          error: 'storage_not_configured',
+          message: 'Storage is not configured. Please set R2 credentials or run MinIO.'
+        }),
+        { 
+          status: 503, 
+          headers: { 'Content-Type': 'application/json' } 
+        }
+      )
+    })
   }
   put(): Promise<void> { return this.fail() }
   get(): Promise<GetBucketResult | null> { return this.fail() }

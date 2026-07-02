@@ -25,6 +25,7 @@ import { ContentDeleteDialog } from "@/features/content-delete-dialog"
 import { BulkEditDialog } from "@/features/bulk-edit"
 import { ContentGallery } from "@/features/content-gallery"
 import { ContentKanban, useKanbanEntrySync } from "@/features/content-kanban"
+import { CardConfigDialog } from "@/features/content-kanban/card-config/card-config-dialog"
 import { useKanbanViewConfig } from "@/features/content-kanban/hooks/use-kanban-view-config"
 import { resolveKanbanConfig } from "@beechcms/core"
 import {
@@ -225,7 +226,8 @@ export function ContentListPage() {
   }, [groupBy, seed])
 
   const kanbanCompat = React.useMemo(() => seed ? resolveKanbanConfig(seed) : null, [seed])
-  const { kanbanConfig, setKanbanConfig, isSaving: isKanbanConfigSaving } = useKanbanViewConfig(slug ?? '')
+  const { kanbanConfig, setKanbanConfig, cardConfig, setCardConfig, isSaving: isKanbanConfigSaving } = useKanbanViewConfig(slug ?? '')
+  const [cardConfigOpen, setCardConfigOpen] = React.useState(false)
   const kanbanCandidates = kanbanCompat?.compatible ? kanbanCompat.candidates : []
   const kanbanAxisBranch = React.useMemo(
     () => seed?.branches.find(b => b.id === kanbanConfig?.axisBranchId),
@@ -869,6 +871,7 @@ export function ContentListPage() {
                   kanbanConfig={kanbanConfig}
                   onKanbanConfigChange={setKanbanConfig}
                   kanbanAxisBranch={kanbanAxisBranch}
+                  onOpenCardConfig={() => setCardConfigOpen(true)}
                 >
                   {error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
@@ -992,6 +995,8 @@ export function ContentListPage() {
                       search={debouncedSearch.trim() || undefined}
                       kanbanConfig={kanbanConfig}
                       setKanbanConfig={setKanbanConfig}
+                      cardConfig={cardConfig}
+                      setCardConfig={setCardConfig}
                       isSaving={isKanbanConfigSaving}
                     />
                   )}
@@ -1001,6 +1006,16 @@ export function ContentListPage() {
           </SidebarInset>
         </div>
       </SidebarProvider>
+
+      {seed && slug && activeViewId === 'kanban' && (
+        <CardConfigDialog
+          open={cardConfigOpen}
+          onClose={() => setCardConfigOpen(false)}
+          seed={seed}
+          config={cardConfig}
+          onSave={setCardConfig}
+        />
+      )}
 
       {/* Modal Delete */}
       <ContentDeleteDialog

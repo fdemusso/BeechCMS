@@ -11,6 +11,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { ArrowDown, ArrowUp, Loader2, Upload, X } from "lucide-react"
+import { toast } from "sonner"
 import { uploadFile } from "@/lib/upload"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -162,7 +163,9 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
           onChange(uploadedUrl)
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error during upload')
+        const msg = err instanceof Error ? err.message : 'Error during upload'
+        setError(msg)
+        toast.error(msg)
       } finally {
         setIsUploading(false)
       }

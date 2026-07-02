@@ -20,6 +20,7 @@ const DEFAULT_CAN_EDIT = true
 
 interface ColumnProps {
   seedSlug: string
+  seed: import('@beechcms/core').Seed
   axisBranch: Branch
   col: KanbanColumnDescriptor
   config: KanbanBoardConfig
@@ -29,17 +30,18 @@ interface ColumnProps {
   canEdit: boolean
   sortActive: boolean
   pendingCards: Map<string, { destColValue: string | null; position: string; axisValue: string | null }>
+  cardConfig?: import('@beechcms/core').KanbanCardConfig
   onToggleCollapse: () => void
   onEdit: (id: string) => void
   onCreateEntry?: () => void
 }
 
 function KanbanColumnConnected({
-  seedSlug, axisBranch, col, config, activeFilters, search, collapsed,
-  canEdit, sortActive, pendingCards,
+  seedSlug, seed, axisBranch, col, config, activeFilters, search, collapsed,
+  canEdit, sortActive, pendingCards, cardConfig,
   onToggleCollapse, onEdit, onCreateEntry,
 }: ColumnProps) {
-  const fetchState = useKanbanColumnQuery(seedSlug, axisBranch, col, config, activeFilters, search)
+  const fetchState = useKanbanColumnQuery(seedSlug, axisBranch, col, config, activeFilters, search, seed, cardConfig)
   const queryClient = useQueryClient()
 
   // Apply optimistic overlay: swap out/in cards based on pending moves
@@ -139,6 +141,8 @@ export function ContentKanban({
   search = '',
   kanbanConfig,
   setKanbanConfig,
+  cardConfig,
+  setCardConfig,
   isSaving,
 }: ContentKanbanProps) {
   const { t } = useTranslation()
@@ -212,7 +216,6 @@ export function ContentKanban({
 
   return (
     <div className="flex flex-col gap-3 h-full">
-
       <DndContext
         sensors={drag.sensors}
         collisionDetection={drag.collisionDetection}
@@ -266,7 +269,9 @@ export function ContentKanban({
               <KanbanColumnConnected
                 key={colKey}
                 seedSlug={seedSlug}
+                seed={seed}
                 axisBranch={axisBranch}
+                cardConfig={cardConfig}
                 col={col}
                 config={kanbanConfig}
                 activeFilters={activeFilters}

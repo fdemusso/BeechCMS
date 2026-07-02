@@ -399,7 +399,7 @@ function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
     if (accept === 'any') return true
     const ext = extensionFromUrl(url)
     if (isExtensionAccepted(ext, accept)) return true
-    ctx.addIssue({ code: 'custom', message: `Expected file(accept:${accept})` })
+    ctx.addIssue({ code: 'custom', message: `Expected valid-${accept}-url-with-extension` })
     return false
   }
 
@@ -409,7 +409,7 @@ function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
       .transform((raw, ctx) => {
         const urls = collectAssetListUrls(raw)
         if (urls === null) {
-          ctx.addIssue({ code: 'custom', message: 'Expected url-string[]' })
+          ctx.addIssue({ code: 'custom', message: 'Expected valid-url-string[]' })
           return z.NEVER
         }
         for (const url of urls) {
@@ -426,7 +426,7 @@ function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
     .transform((raw, ctx) => {
       const url = parseHttpUrl(raw)
       if (!url) {
-        ctx.addIssue({ code: 'custom', message: 'Expected url-string' })
+        ctx.addIssue({ code: 'custom', message: 'Expected valid-url-string' })
         return z.NEVER
       }
       if (!verifyExtension(url, ctx)) return z.NEVER
@@ -706,11 +706,22 @@ function processZodIssues(
     if (params?.dangerous === true) {
       dangerous.push(field)
     }
+
+    const expected = expectedFromMessage(issue.message)
+    const received = describeReceivedType(filtered[field])
+    
+    let message = `Field '${field}' expects type '${expected}' but received '${received}'`
+    if (received === 'string' && typeof issue.message === 'string' && issue.message.startsWith('Expected ')) {
+      if (expected.includes('url') || expected.includes('string') || expected.includes('date') || expected.includes('file')) {
+        message = `Field '${field}' has invalid format. Expected '${expected}' but received a non-matching string.`
+      }
+    }
+
     details.push({
       field,
-      expected: expectedFromMessage(issue.message),
-      received: describeReceivedType(filtered[field]),
-      message: `Field '${field}' expects type '${expectedFromMessage(issue.message)}' but received '${describeReceivedType(filtered[field])}'`,
+      expected,
+      received,
+      message,
     })
   }
 

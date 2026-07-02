@@ -11,6 +11,7 @@ export interface FieldDisplayProps {
   /** Opzioni di visualizzazione (es. troncamento in tabella) */
   readonly options?: {
     readonly maxLength?: number
+    readonly compact?: boolean
   }
 }
 

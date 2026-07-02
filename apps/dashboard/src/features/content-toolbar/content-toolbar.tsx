@@ -49,6 +49,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
     kanbanConfig,
     onKanbanConfigChange,
     kanbanAxisBranch,
+    onOpenCardConfig,
   } = props
 
   const {
@@ -267,6 +268,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                     kanbanConfig={kanbanConfig}
                     onKanbanConfigChange={onKanbanConfigChange}
                     kanbanAxisBranch={kanbanAxisBranch}
+                    onOpenCardConfig={onOpenCardConfig}
                   />
                 )}
 

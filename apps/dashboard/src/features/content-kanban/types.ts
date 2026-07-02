@@ -1,4 +1,14 @@
-import type { Seed, KanbanConfig } from '@beechcms/core'
+import type { Seed, KanbanConfig, KanbanCardConfig } from '@beechcms/core'
+import type { Branch } from '@beechcms/core'
+
+export interface ResolvedSlotField { branch: Branch; value: unknown }
+
+export interface KanbanCardSlots {
+  media?: ResolvedSlotField
+  header?: ResolvedSlotField
+  subtitle?: ResolvedSlotField
+  metadata: ResolvedSlotField[]
+}
 
 /** Pure render model for a card — computed once at fetch (KB-S18). */
 export interface KanbanCardDisplayModel {
@@ -12,6 +22,8 @@ export interface KanbanCardDisplayModel {
   isPending?: boolean
   /** True when this is the ghost at the drag source (KB-U10). */
   isGhost?: boolean
+  /** Slot-resolved fields when card config is present. Undefined = legacy heuristic path. */
+  slots?: KanbanCardSlots
 }
 
 export interface KanbanColumnModel {
@@ -36,6 +48,11 @@ export interface KanbanBoardConfig extends KanbanConfig {
   collapsedColumnValues?: string[]
 }
 
+/** Card-level config surfaced alongside axis/sort prefs. */
+export interface KanbanCardBoardConfig {
+  cardConfig?: KanbanCardConfig
+}
+
 export interface ContentKanbanProps {
   seed: Seed
   seedSlug: string
@@ -47,6 +64,8 @@ export interface ContentKanbanProps {
   search?: string
   kanbanConfig: KanbanBoardConfig
   setKanbanConfig: (next: import('@beechcms/core').KanbanConfig) => void
+  cardConfig?: KanbanCardConfig
+  setCardConfig?: (next: KanbanCardConfig) => void
   isSaving?: boolean
 }
 

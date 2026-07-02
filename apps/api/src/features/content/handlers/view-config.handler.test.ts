@@ -78,4 +78,26 @@ describe('putViewConfigHandler', () => {
     const result = await putViewConfigHandler(ctx as never)
     expect((result as unknown as Record<string, unknown>).status).toBe(404)
   })
+
+  it('200 and strips nonexistent branchId from card config', async () => {
+    const body = { card: { version: 1, header: { branchId: 'br_DOESNOTEXIST' }, metadata: [] } }
+    const { ctx, setViewConfigMock, jsonMock } = makeContext({ body })
+    await putViewConfigHandler(ctx as never)
+    expect(jsonMock).toHaveBeenCalledWith({ ok: true })
+    const [, persistedConfig] = setViewConfigMock.mock.calls[0]
+    expect(persistedConfig.card.header).toBeNull()
+  })
+
+  it('200 and preserves valid card config intact', async () => {
+    const seed = {
+      slug: 'articles',
+      branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text', policies: {} }],
+    }
+    const body = { card: { version: 1, header: { branchId: 'br_01' }, metadata: [] } }
+    const { ctx, setViewConfigMock, jsonMock } = makeContext({ seed, body })
+    await putViewConfigHandler(ctx as never)
+    expect(jsonMock).toHaveBeenCalledWith({ ok: true })
+    const [, persistedConfig] = setViewConfigMock.mock.calls[0]
+    expect(persistedConfig.card.header).toEqual({ branchId: 'br_01' })
+  })
 })

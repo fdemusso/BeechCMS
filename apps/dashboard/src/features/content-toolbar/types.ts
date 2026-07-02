@@ -55,5 +55,6 @@ export interface ContentToolbarProps {
   kanbanConfig?: any
   onKanbanConfigChange?: (next: any) => void
   kanbanAxisBranch?: any
+  onOpenCardConfig?: () => void
   children?: React.ReactNode
 }

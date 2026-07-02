@@ -1411,5 +1411,16 @@
         "ftsRebuildFailed": "FTS rebuild failed"
       }
     }
+  },
+  "kanban": {
+    "cardConfig": {
+      "title": "Card layout",
+      "mediaSlot": "Media",
+      "headerSlot": "Header",
+      "subtitleSlot": "Subtitle",
+      "metadataSlot": "Metadata",
+      "noField": "No field",
+      "openConfig": "Configure card layout"
+    }
   }
 }

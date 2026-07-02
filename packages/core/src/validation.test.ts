@@ -587,7 +587,7 @@ describe('fileOptions', () => {
 
   it("accept:'image' rifiuta URL con estensione .pdf", () => {
     const r = safeValidate({ ...validBase(), avatar: 'https://x.com/a.pdf' })
-    expect(r.details.some(d => d.field === 'avatar' && d.expected.includes('accept:image'))).toBe(true)
+    expect(r.details.some(d => d.field === 'avatar' && d.expected.includes('image-url'))).toBe(true)
   })
 
   // accept: 'document'
@@ -611,7 +611,7 @@ describe('fileOptions', () => {
 
   it("accept:'document' rifiuta .png", () => {
     const r = safeValidate({ ...validBase(), manual: 'https://x.com/photo.png' })
-    expect(r.details.some(d => d.field === 'manual' && d.expected.includes('accept:document'))).toBe(true)
+    expect(r.details.some(d => d.field === 'manual' && d.expected.includes('document-url'))).toBe(true)
   })
 
   // accept: 'any'

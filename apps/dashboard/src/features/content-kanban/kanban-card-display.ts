@@ -1,6 +1,7 @@
-import type { Branch } from '@beechcms/core'
+import type { Seed, Branch, KanbanCardConfig } from '@beechcms/core'
+import { findBranchById } from '@beechcms/core'
 import type { ContentEntry } from '@/lib/dynamic-columns'
-import type { KanbanCardDisplayModel } from './types'
+import type { KanbanCardDisplayModel, KanbanCardSlots, ResolvedSlotField } from './types'
 
 function resolveImageUrl(value: unknown): string | undefined {
   if (typeof value === 'string' && value.trim()) {
@@ -25,13 +26,21 @@ function toPlainText(value: unknown): string {
 
 const SYSTEM_KEYS = new Set(['id', 'slug', 'status', 'created_at', 'updated_at'])
 
-/** Build a KanbanCardDisplayModel from an entry (KB-S18). Computed once at fetch time. */
+/** Build a KanbanCardDisplayModel from an entry. When card config is present, resolves slots;
+ *  otherwise falls back to the legacy heuristic (title/image). */
 export function buildKanbanCardDisplayModel(
   entry: ContentEntry,
   axisBranch: Branch,
   columnValue: string | null,
+  seed?: Seed,
+  card?: KanbanCardConfig,
 ): KanbanCardDisplayModel {
   const data = entry.data as Record<string, unknown>
+
+  const pos = (entry as unknown as Record<string, unknown>).position
+  const position = typeof pos === 'string' ? pos : null
+
+  // Legacy heuristic (backwards compat when no card config)
   const titleBranch = Object.keys(data).find(k => !SYSTEM_KEYS.has(k) && typeof data[k] === 'string' && data[k] !== '')
   const title = titleBranch ? toPlainText(data[titleBranch]) : entry.id
 
@@ -40,8 +49,21 @@ export function buildKanbanCardDisplayModel(
   })
   const imageUrl = fileBranch ? resolveImageUrl(data[fileBranch]) : undefined
 
-  const pos = (entry as unknown as Record<string, unknown>).position
-  const position = typeof pos === 'string' ? pos : null
+  let slots: KanbanCardSlots | undefined
+  if (card && seed) {
+    const resolve = (f?: { branchId: string } | null): ResolvedSlotField | undefined => {
+      if (!f) return undefined
+      const branch = findBranchById(seed, f.branchId)
+      if (!branch) return undefined
+      return { branch, value: data[branch.alias] }
+    }
+    slots = {
+      media: resolve(card.media),
+      header: resolve(card.header),
+      subtitle: resolve(card.subtitle),
+      metadata: (card.metadata ?? []).map(resolve).filter((x): x is ResolvedSlotField => x !== undefined),
+    }
+  }
 
   return {
     entryId: entry.id,
@@ -50,5 +72,6 @@ export function buildKanbanCardDisplayModel(
     imageUrl,
     axisValue: columnValue,
     position,
+    slots,
   }
 }

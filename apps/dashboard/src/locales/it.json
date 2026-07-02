@@ -1411,5 +1411,16 @@
         "ftsRebuildFailed": "Ricostruzione FTS fallita"
       }
     }
+  },
+  "kanban": {
+    "cardConfig": {
+      "title": "Layout scheda",
+      "mediaSlot": "Media",
+      "headerSlot": "Intestazione",
+      "subtitleSlot": "Sottotitolo",
+      "metadataSlot": "Metadati",
+      "noField": "Nessun campo",
+      "openConfig": "Configura layout scheda"
+    }
   }
 }

@@ -1,7 +1,7 @@
 import * as React from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { fetchSeedViewConfig, updateSeedViewConfig } from '@/lib/content-api'
-import type { KanbanConfig, SeedViewConfig } from '@beechcms/core'
+import type { KanbanConfig, KanbanCardConfig, SeedViewConfig } from '@beechcms/core'
 import type { KanbanBoardConfig } from '../types'
 
 export function useKanbanViewConfig(seedSlug: string) {
@@ -21,18 +21,22 @@ export function useKanbanViewConfig(seedSlug: string) {
     collapsedColumnValues: data?.kanban?.collapsedColumnValues,
   }), [data])
 
+  const cardConfig: KanbanCardConfig | undefined = data?.card
+
   const mutation = useMutation({
-    mutationFn: (next: KanbanConfig) => {
-      const merged: SeedViewConfig = { ...data, kanban: next }
-      return updateSeedViewConfig(seedSlug, merged)
-    },
+    mutationFn: (next: SeedViewConfig) => updateSeedViewConfig(seedSlug, next),
     onSuccess: () => queryClient.invalidateQueries({ queryKey }),
   })
 
   const setKanbanConfig = React.useCallback(
-    (next: KanbanConfig) => mutation.mutate(next),
-    [mutation],
+    (next: KanbanConfig) => mutation.mutate({ ...data, kanban: next }),
+    [mutation, data],
   )
 
-  return { kanbanConfig, isLoading, setKanbanConfig, isSaving: mutation.isPending }
+  const setCardConfig = React.useCallback(
+    (next: KanbanCardConfig) => mutation.mutate({ ...data, card: next }),
+    [mutation, data],
+  )
+
+  return { kanbanConfig, cardConfig, isLoading, setKanbanConfig, setCardConfig, isSaving: mutation.isPending }
 }

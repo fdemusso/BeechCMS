@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { Context } from 'hono'
-import { seedViewConfigSchema } from '@beechcms/core'
+import { seedViewConfigSchema, validateCardConfigAgainstSeed } from '@beechcms/core'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import type { AppEnv } from '../../../types'
@@ -44,6 +44,11 @@ export async function putViewConfigHandler(context: Context<AppEnv>) {
   const parsed = seedViewConfigSchema.safeParse(body)
   if (!parsed.success) {
     return publicProblem(context, { type: 'content-invalid-view-config', title: 'Unprocessable Entity', status: 422, detail: parsed.error.issues[0]?.message ?? 'Invalid view config' })
+  }
+
+  if (parsed.data.card) {
+    const { cleaned } = validateCardConfigAgainstSeed(parsed.data.card, seed)
+    parsed.data = { ...parsed.data, card: cleaned }
   }
 
   const jwtPayload = context.get('jwtPayload')

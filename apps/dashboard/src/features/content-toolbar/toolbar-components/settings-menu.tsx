@@ -35,6 +35,7 @@ import {
   Minus,
   Plus,
   Check,
+  LayoutGrid,
 } from "lucide-react"
 import { resolveKanbanColumns } from "@beechcms/core"
 
@@ -101,6 +102,7 @@ interface SettingsMenuProps {
   readonly kanbanConfig?: any
   readonly onKanbanConfigChange?: (next: any) => void
   readonly kanbanAxisBranch?: any
+  readonly onOpenCardConfig?: () => void
 }
 
 export function SettingsMenu({
@@ -160,6 +162,7 @@ export function SettingsMenu({
   kanbanConfig,
   onKanbanConfigChange,
   kanbanAxisBranch,
+  onOpenCardConfig,
 }: SettingsMenuProps) {
   const { t } = useTranslation()
   const kanbanCols = kanbanAxisBranch ? resolveKanbanColumns(kanbanAxisBranch) : []
@@ -440,6 +443,14 @@ export function SettingsMenu({
                   </DropdownMenuSubContent>
                 </DropdownMenuPortal>
               </DropdownMenuSub>
+            )}
+            {onOpenCardConfig && (
+              <DropdownMenuItem
+                onSelect={() => { onOpenCardConfig(); closeSettingsMenu() }}
+              >
+                <LayoutGrid className="size-4" />
+                {t('kanban.cardConfig.openConfig', 'Configure card layout')}
+              </DropdownMenuItem>
             )}
           </DropdownMenuGroup>
         )}

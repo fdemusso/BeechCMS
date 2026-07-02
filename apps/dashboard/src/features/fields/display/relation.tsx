@@ -134,7 +134,7 @@ function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationP
 
 // â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-export function RelationDisplay({ branch, value }: FieldDisplayProps) {
+export function RelationDisplay({ branch, value, options }: FieldDisplayProps) {
   const targetSlug = (branch as { targetSeed?: string; multiple?: boolean }).targetSeed
   const isMultiple = (branch as { multiple?: boolean }).multiple === true
 
@@ -150,7 +150,7 @@ export function RelationDisplay({ branch, value }: FieldDisplayProps) {
     const ids = Array.isArray(value) ? (value as string[]).filter(Boolean) : []
     if (ids.length === 0) content = <span className="text-muted-foreground">—</span>
     else {
-      const visible = ids.slice(0, 3)
+      const visible = options?.compact ? ids.slice(0, 3) : ids
       const overflow = ids.length - visible.length
       content = (
         <AvatarGroup>

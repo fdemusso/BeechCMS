@@ -17,8 +17,31 @@ export const kanbanViewConfigSchema = z.object({
 })
 export type KanbanViewConfig = z.infer<typeof kanbanViewConfigSchema>
 
+// ---------------------------------------------------------------------------
+// Kanban card layout (view_config.card)
+// ---------------------------------------------------------------------------
+
+export const cardSlotFieldSchema = z.object({
+  branchId: z.string().regex(/^br_[A-Za-z0-9]+$/),
+})
+export type CardSlotField = z.infer<typeof cardSlotFieldSchema>
+
+export const kanbanCardConfigSchema = z.object({
+  version: z.literal(1),
+  /** Optional media/avatar slot. Full width. Max 1. */
+  media: cardSlotFieldSchema.nullable().optional(),
+  /** Full-width primary line. Max 1. */
+  header: cardSlotFieldSchema.nullable().optional(),
+  /** Full-width secondary line. Max 1. */
+  subtitle: cardSlotFieldSchema.nullable().optional(),
+  /** 2-column grid. Hard cap enforced by validator (see METADATA_SLOT_CAP). */
+  metadata: z.array(cardSlotFieldSchema).max(6).default([]),
+})
+export type KanbanCardConfig = z.infer<typeof kanbanCardConfigSchema>
+
 export const seedViewConfigSchema = z.object({
   kanban: kanbanViewConfigSchema.optional(),
+  card: kanbanCardConfigSchema.optional(),
 }).passthrough()
 export type SeedViewConfig = z.infer<typeof seedViewConfigSchema>
 
@@ -97,6 +120,59 @@ export function isFullWidthBranch(branch: Branch): boolean {
 /** Branches considered SEO fields. Matches the existing rule in entry-editor.tsx. */
 export function isSeoBranch(branch: Branch): boolean {
   return branch.alias.startsWith('meta')
+}
+
+// ---------------------------------------------------------------------------
+// Kanban card eligibility + pure validator
+// ---------------------------------------------------------------------------
+
+export const METADATA_SLOT_CAP = 6
+
+const CARD_FORBIDDEN_TYPES = new Set<Branch['type']>(['richtext', 'json', 'repeater'])
+
+export function isCardEligibleBranch(branch: Branch): boolean {
+  if (SYSTEM_ALIASES.has(branch.alias)) return false
+  if (branch.policies?.visibility === 'hidden') return false
+  if (CARD_FORBIDDEN_TYPES.has(branch.type)) return false
+  return true
+}
+
+export type ValidateCardConfigResult =
+  | { ok: true; cleaned: KanbanCardConfig }
+  | { ok: false; errors: string[]; cleaned: KanbanCardConfig }
+
+export function validateCardConfigAgainstSeed(
+  config: KanbanCardConfig,
+  seed: Seed,
+): ValidateCardConfigResult {
+  const errors: string[] = []
+  const seen = new Set<string>()
+
+  const keepSingle = (f: CardSlotField | null | undefined): CardSlotField | null => {
+    if (!f) return null
+    const b = findBranchById(seed, f.branchId)
+    if (!b || !isCardEligibleBranch(b)) return null
+    if (seen.has(f.branchId)) { errors.push(`Branch ${f.branchId} placed more than once.`); return null }
+    seen.add(f.branchId)
+    return { branchId: f.branchId }
+  }
+
+  const media    = keepSingle(config.media)
+  const header   = keepSingle(config.header)
+  const subtitle = keepSingle(config.subtitle)
+
+  const metadata: CardSlotField[] = []
+  for (const f of config.metadata ?? []) {
+    const b = findBranchById(seed, f.branchId)
+    if (!b || !isCardEligibleBranch(b)) continue
+    if (seen.has(f.branchId)) { errors.push(`Branch ${f.branchId} placed more than once.`); continue }
+    seen.add(f.branchId)
+    if (metadata.length >= METADATA_SLOT_CAP) { errors.push(`Metadata slot exceeds cap ${METADATA_SLOT_CAP}.`); continue }
+    metadata.push({ branchId: f.branchId })
+  }
+
+  const cleaned: KanbanCardConfig = { version: 1, media, header, subtitle, metadata }
+  return errors.length ? { ok: false, errors, cleaned } : { ok: true, cleaned }
 }
 
 // ---------------------------------------------------------------------------
