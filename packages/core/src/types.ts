@@ -276,6 +276,12 @@ export interface SelectOptions {
   /** When set, LEFT JOIN kanban_positions and order by fractional index (KB-S04c/S05).
    *  Mutually exclusive with `orderBy`; if both present, `kanbanOrder` wins. */
   kanbanOrder?: { seedSlug: string; axisBranchId: string }
+  /**
+   * When true, generates a COUNT(*) query instead of fetching rows.
+   * This omits projections, sorting/ordering clauses, and pagination limits/offsets,
+   * while keeping the join/where clauses intact for accurate counts.
+   */
+  isCount?: boolean
 }
 
 export interface ParameterizedQuery {
