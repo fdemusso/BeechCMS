@@ -4,8 +4,8 @@
 
 import { describe, it, expect, vi } from "vitest"
 import { renderHook, act } from "@testing-library/react"
-import { useNumberStepper } from "@/features/fields/edit/use-number-stepper"
-import { useNumberRating } from "@/features/fields/edit/use-number-rating"
+import { useNumberStepper } from "@/components/fields/edit/use-number-stepper"
+import { useNumberRating } from "@/components/fields/edit/use-number-rating"
 
 describe("useNumberStepper", () => {
   it("rispetta il bound max nell'incremento", () => {

@@ -9,7 +9,7 @@ import type { Branch } from "@beechcms/core"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { FieldEdit } from "@/features/fields"
+import { FieldEdit } from "@/components/fields"
 
 export interface RendererBranchMap { [id: string]: Branch }
 

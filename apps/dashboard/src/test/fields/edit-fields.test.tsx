@@ -4,11 +4,11 @@
 
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
-import { BooleanEdit } from "@/features/fields/edit/boolean"
-import { NumberEdit } from "@/features/fields/edit/number"
-import { TextEdit } from "@/features/fields/edit/text"
-import { DefaultDisplay, DefaultEdit } from "@/features/fields/default"
-import { FieldEdit } from "@/features/fields/FieldEdit"
+import { BooleanEdit } from "@/components/fields/edit/boolean"
+import { NumberEdit } from "@/components/fields/edit/number"
+import { TextEdit } from "@/components/fields/edit/text"
+import { DefaultDisplay, DefaultEdit } from "@/components/fields/default"
+import { FieldEdit } from "@/components/fields/FieldEdit"
 import type { Branch } from "@beechcms/core"
 
 const branch = {

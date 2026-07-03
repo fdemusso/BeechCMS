@@ -5,13 +5,10 @@
 import { useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { useSchema } from "@/features/shared"
-import { contentApi } from "@/features/content-management/api/content.api"
-import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
+import { useFieldsConfig } from "../context"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarGroup, AvatarGroupCount } from "@/components/ui/avatar"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { EntryEditorDialog } from "@/features/entry-editor"
 import type { FieldDisplayProps } from "../types"
 
 const RELATION_STALE_MS = 5 * 60 * 1000
@@ -33,9 +30,10 @@ interface RelationChipProps {
 }
 
 function RelationChip({ targetSlug, targetId, labelAlias, onClick }: RelationChipProps) {
+  const { fetchById, queryKeys } = useFieldsConfig()
   const { data: entry, isLoading } = useQuery({
-    queryKey: CONTENT_QUERY_KEYS.detail(targetSlug, targetId),
-    queryFn: () => contentApi.fetchById(targetSlug, targetId),
+    queryKey: queryKeys.detail(targetSlug, targetId),
+    queryFn: () => fetchById(targetSlug, targetId),
     enabled: Boolean(targetSlug && targetId),
     staleTime: RELATION_STALE_MS,
   })
@@ -83,9 +81,10 @@ interface SingleRelationProps {
 
 function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationProps) {
   const { t } = useTranslation()
+  const { fetchById, queryKeys } = useFieldsConfig()
   const { data: entry, isLoading } = useQuery({
-    queryKey: CONTENT_QUERY_KEYS.detail(targetSlug, id ?? ""),
-    queryFn: () => contentApi.fetchById(targetSlug, id!),
+    queryKey: queryKeys.detail(targetSlug, id ?? ""),
+    queryFn: () => fetchById(targetSlug, id!),
     enabled: Boolean(targetSlug && id),
     staleTime: RELATION_STALE_MS,
   })
@@ -135,6 +134,7 @@ function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationP
 // â”€â”€ Main component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export function RelationDisplay({ branch, value, options }: FieldDisplayProps) {
+  const { useSchema, components } = useFieldsConfig()
   const targetSlug = (branch as { targetSeed?: string; multiple?: boolean }).targetSeed
   const isMultiple = (branch as { multiple?: boolean }).multiple === true
 
@@ -177,7 +177,7 @@ export function RelationDisplay({ branch, value, options }: FieldDisplayProps) {
     <>
       {content}
       {selectedId && targetSlug && (
-        <EntryEditorDialog
+        <components.EntryEditorDialog
           schemaSlug={targetSlug}
           entryId={selectedId}
           isDraftContext={false}

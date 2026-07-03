@@ -14,9 +14,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { Check, ChevronsUpDown, X, ChevronUp, ChevronDown } from "lucide-react"
 
-import { useSchema } from "@/features/shared"
-import { contentApi } from "@/features/content-management/api/content.api"
-import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
+import { useFieldsConfig } from "../context"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Button } from "@/components/ui/button"
 import {
@@ -58,9 +56,10 @@ interface ChipLabelProps {
 }
 
 function useChipLabel({ targetSlug, targetId, labelAlias }: ChipLabelProps): string {
+  const { fetchById, queryKeys } = useFieldsConfig()
   const { data: entry } = useQuery({
-    queryKey: CONTENT_QUERY_KEYS.detail(targetSlug, targetId),
-    queryFn: () => contentApi.fetchById(targetSlug, targetId),
+    queryKey: queryKeys.detail(targetSlug, targetId),
+    queryFn: () => fetchById(targetSlug, targetId),
     enabled: Boolean(targetSlug && targetId),
     staleTime: RELATION_STALE_MS,
   })
@@ -129,6 +128,7 @@ interface MultiRelationEditProps {
 
 function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: MultiRelationEditProps) {
   const { t } = useTranslation()
+  const { useSchema, searchRelations, queryKeys } = useFieldsConfig()
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
   const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS)
@@ -141,20 +141,19 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
   const targetSeed = seeds?.find((s) => s.slug === targetSlug)
   const labelAlias = targetSeed?.displayNameAlias ?? "title"
 
-  const { data: listData, isFetching } = useQuery({
-    queryKey: [...CONTENT_QUERY_KEYS.lists(), targetSlug, "relation-multi-search", debouncedSearch],
+  const { data: entriesData, isFetching } = useQuery({
+    queryKey: [...queryKeys.lists(), targetSlug, "relation-multi-search", debouncedSearch],
     queryFn: () =>
-      contentApi.fetchList(targetSlug!, {
+      searchRelations(targetSlug!, {
         search: debouncedSearch || undefined,
         limit: LIST_LIMIT,
-        page: 1,
       }),
     enabled: Boolean(targetSlug && open),
     staleTime: 10 * 1000,
     placeholderData: (prev) => prev,
   })
 
-  const entries = (listData?.items ?? []).filter(item => !selectedIds.includes(item.id))
+  const entries = (entriesData ?? []).filter(item => !selectedIds.includes(item.id))
 
   const resolveLabel = (item: (typeof entries)[0]): string => {
     const raw = (item.data as Record<string, unknown>)?.[labelAlias]
@@ -300,6 +299,7 @@ function SingleRelationEdit({
   onInlineCreate,
 }: SingleRelationEditProps) {
   const { t } = useTranslation()
+  const { useSchema, fetchById, searchRelations, queryKeys } = useFieldsConfig()
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
   const debouncedSearch = useDebounce(search, SEARCH_DEBOUNCE_MS)
@@ -318,30 +318,29 @@ function SingleRelationEdit({
   const showClear = !isRequired && selectedId !== null
 
   const { data: selectedEntry } = useQuery({
-    queryKey: CONTENT_QUERY_KEYS.detail(targetSlug ?? "", selectedId ?? ""),
-    queryFn: () => contentApi.fetchById(targetSlug!, selectedId!),
+    queryKey: queryKeys.detail(targetSlug ?? "", selectedId ?? ""),
+    queryFn: () => fetchById(targetSlug!, selectedId!),
     enabled: Boolean(targetSlug && selectedId),
     staleTime: RELATION_STALE_MS,
   })
 
   const selectedLabel = selectedEntry
-    ? String((selectedEntry.data as Record<string, unknown>)?.[labelAlias] ?? selectedId)
+    ? String((selectedEntry?.data as Record<string, unknown>)?.[labelAlias] ?? selectedId)
     : selectedId ?? ""
 
-  const { data: listData, isFetching: isListFetching } = useQuery({
-    queryKey: [...CONTENT_QUERY_KEYS.lists(), targetSlug, "relation-search", debouncedSearch],
+  const { data: entriesData, isFetching: isListFetching } = useQuery({
+    queryKey: [...queryKeys.lists(), targetSlug, "relation-search", debouncedSearch],
     queryFn: () =>
-      contentApi.fetchList(targetSlug!, {
+      searchRelations(targetSlug!, {
         search: debouncedSearch || undefined,
         limit: LIST_LIMIT,
-        page: 1,
       }),
     enabled: Boolean(targetSlug && open),
     staleTime: 10 * 1000,
     placeholderData: (prev) => prev,
   })
 
-  const entries = listData?.items ?? []
+  const entries = entriesData ?? []
 
   const resolveLabel = (item: (typeof entries)[0]): string => {
     const raw = (item.data as Record<string, unknown>)?.[labelAlias]

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import { FieldEdit } from "@/features/fields"
+import { FieldEdit } from "@/components/fields"
 import { useBulkUpdate } from "@/features/content-management"
 import type { BulkMultiRelMode, BulkFieldValue } from "@/features/content-management"
 

@@ -1,21 +1,101 @@
-# 1. Feature Definition and Core Value
-The system currently relies on hardcoded heuristics (e.g., `isGalleryBranch`) to determine which views (Table, Gallery, Kanban) are available for a Seed. This causes poor UX (e.g., empty galleries are forced upon users) and prevents explicit control over UI presentation. This feature introduces an explicit, dynamic View Configuration system, giving admins absolute control over which views are authorized for a given seed directly from the interface, while removing implicit assumptions.
+# Feature Brief: Promozione del Modulo Fields da Vertical Slice a Shared Component Library
 
-# 2. Domain Boundaries and Business Rules
-- **Configuration Boundary:** Following the `SYSTEM_MAP.md` directives, the authorized views belong to the "dashboard-specific UI config" and MUST be stored within the `dashboard` field of the `Seed` schema definition (e.g., `DashboardSeedConfig`), not in external layout tables.
-- **Architectural Boundary (VSA):** The frontend must adopt a `ViewRegistry` (similar to the existing `FieldRegistry`). Vertical slices like `features/content-gallery` or `features/content-kanban` must register themselves to this registry. Cross-feature imports to resolve views are strictly prohibited.
-- **Fallback Rule:** The "table" view is the universal fallback because seeds are backed by relational D1 tables. If a user unchecks all views or accesses an unauthorized view URL, the system must fallback to the table view.
+| Stato | Proposto |
+|---|---|
+| **Ambito** | Dashboard Client (`apps/dashboard`) |
+| **Componenti Chiave** | [FieldDisplay.tsx](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/apps/dashboard/src/features/fields/FieldDisplay.tsx), [FieldEdit.tsx](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/apps/dashboard/src/features/fields/FieldEdit.tsx), [relation.tsx](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/apps/dashboard/src/features/fields/edit/relation.tsx) |
+| **Riferimenti Architetturali** | [vertical-slice.md](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/docs/vertical-slice.md), [ponytail_arch.md](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/_config/ponytail_arch.md) |
 
-# 3. Primary Requirements (User Stories)
-* AS A System Admin I WANT to explicitly select the authorized views (Table, Gallery, Kanban) during Seed creation/editing SO THAT I can prevent irrelevant views from cluttering the content manager's interface.
-* AS A Content Manager I WANT to see only the views configured for the specific seed I am navigating SO THAT I have an optimized and context-appropriate workspace.
+---
 
-# 4. Secondary Requirements and Logical Constraints
-- **Heuristics Removal:** All existing implicit logic to determine view availability (like checking for multiple asset-list files to enable Gallery) must be entirely removed.
-- **Strict Fallback / URL Protection:** If an unauthorized view is accessed directly via URL (e.g., `?view=kanban` when only `table` is enabled), the system must intercept the request and securely fallback to rendering the `table` view without breaking.
-- **Registry Initialization:** The frontend ViewRegistry must be populated at startup by the respective feature slices before the dashboard routes mount, complying with VSA.
-- **Backward Compatibility:** Existing seeds without explicit `dashboard.views` configured should gracefully default to `['table']` (or a migration must automatically set it to maintain their current state).
+## 1. Contesto e Problema
 
-# 5. Out of Scope (Discarded during sparring)
-- **Database Schema View Abstraction:** We will not abstract views into the core `Seed` backend validation logic; they remain strictly a dashboard UI configuration (`DashboardSeedConfig`) to prevent coupling the public headless API with dashboard-specific rendering concerns.
-- **Complex View-Specific Layouts in Seed:** The configuration of the views themselves (e.g., which fields go where in a Kanban card) remains in separate layout tables (`SeedViewConfig`), keeping the main `Seed` schema lightweight. Only the *authorization* of the view moves to the Seed schema.
+Nel design attuale di BeechCMS, il modulo `fields` (incluso [FieldDisplay.tsx](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/apps/dashboard/src/features/fields/FieldDisplay.tsx)) si trova all'interno della directory delle vertical slice (`apps/dashboard/src/features/fields`).
+
+Questo posizionamento genera diverse criticità architetturali:
+1. **Violazione VSA dei Cross-Feature Imports**: Slices verticali isolate (come `content-kanban` ed `entry-editor`) devono necessariamente importare [FieldDisplay](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/apps/dashboard/src/features/fields/FieldDisplay.tsx) e [FieldEdit](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/apps/dashboard/src/features/fields/FieldEdit.tsx) per renderizzare i dati dei singoli campi. Questo viola la regola: *"Never import from apps/dashboard/src/features/<other-feature>/"*.
+2. **Accoppiamento Bidirezionale e Circolare**: Il renderer [relation.tsx](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/apps/dashboard/src/features/fields/edit/relation.tsx) (figlio di `fields`) deve effettuare query e risolvere schemi, importando direttamente API e costanti da `content-management` e `shared`. Questo crea un ciclo di dipendenze:
+   `content-list.tsx` (Page) $\rightarrow$ `content-kanban` (Feature) $\rightarrow$ `fields` (Feature) $\rightarrow$ `content-management` (Feature) $\rightarrow$ `content-list.tsx`.
+3. **Mancanza di Astrazione**: `fields` si comporta come una infrastruttura trasversale (Design System/Component Library), ma eredita i vincoli e la forma di una slice di business, senza averne la reale natura.
+
+---
+
+## 2. Obiettivi
+
+* **Isolamento delle Slice**: Rimuovere qualsiasi dipendenza diretta tra fette verticali di business e il modulo dei campi.
+* **Astrazione del Component Rendering**: Promuovere `fields` a componente condiviso globale (`Shared/Common Component`).
+* **Disaccoppiamento delle API**: Eliminare gli import concreti di client API o chiavi di query esterne da parte dei componenti di visualizzazione dei campi.
+
+---
+
+## 3. Soluzione Proposta (Technical Blueprint)
+
+### A. Riposizionamento nel Monorepo
+Il modulo `fields` viene estratto da `features/` e promosso a componente condiviso dell'applicazione:
+* **Nuovo Percorso**: `apps/dashboard/src/components/fields/` (accessibile tramite l'alias `@/components/fields`).
+
+### B. Inversione delle Dipendenze tramite React Context
+Per evitare che il componente [relation.tsx](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/apps/dashboard/src/features/fields/edit/relation.tsx) importi client API di business o hooks da altre slice, viene introdotto un meccanismo di dependency injection a runtime.
+
+1. **Creazione del Contesto (`apps/dashboard/src/components/fields/context.tsx`)**:
+```typescript
+import * as React from 'react'
+
+export interface FieldsContextType {
+  /** Hook per risolvere lo schema/seed attivo */
+  useSchemaHook: (slug: string) => { seed: any; isLoading: boolean }
+  /** Funzione di ricerca delle relazioni nel database */
+  searchRelations: (slug: string, query: string) => Promise<any[]>
+}
+
+export const FieldsContext = React.createContext<FieldsContextType | null>(null)
+
+export function useFieldsConfig() {
+  const ctx = React.useContext(FieldsContext)
+  if (!ctx) {
+    throw new Error("useFieldsConfig must be used within a FieldsProvider")
+  }
+  return ctx
+}
+```
+
+2. **Consumo del Contesto in [relation.tsx](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/apps/dashboard/src/features/fields/edit/relation.tsx)**:
+Rimuovere gli import da `@/features/content-management` e consumare i metodi del contesto:
+```typescript
+import { useFieldsConfig } from "../context"
+
+export function RelationEdit({ branch, value, onChange }: FieldEditProps) {
+  const { useSchemaHook, searchRelations } = useFieldsConfig()
+  // ... utilizzo delle funzioni iniettate anziché del client API diretto
+}
+```
+
+3. **Iniezione a Livello Root/Bootstrap**:
+Il provider viene configurato nel composition root (`App.tsx` o `main.tsx`) iniettando le API reali definite da `content-management`:
+```typescript
+import { FieldsContext } from "@/components/fields/context"
+import { useActiveSeed } from "@/features/schema"
+import { contentApi } from "@/features/content-management"
+
+export function App() {
+  return (
+    <FieldsContext.Provider value={{
+      useSchemaHook: useActiveSeed,
+      searchRelations: async (slug, query) => {
+        const res = await contentApi.fetchList(slug, { search: query })
+        return res.items
+      }
+    }}>
+      <RouterProvider router={router} />
+    </FieldsContext.Provider>
+  )
+}
+```
+
+---
+
+## 4. Impatto sul Codice Esistente
+
+* **Import Aggiornati**: Tutti i file che importavano `FieldDisplay` o `FieldEdit` da `@/features/fields` verranno aggiornati per puntare a `@/components/fields`.
+* **Architettura Pulita**: Risoluzione immediata del veto architetturale di Ponytail in merito alle dipendenze cross-slice per la visualizzazione dei campi.
+* **Testing**: I test unitari dei componenti di rendering (es. `field-display-policy.test.tsx`) potranno girare in modo isolato mockingando semplicemente il `FieldsContext`, senza caricare dipendenze del client API o dello store.

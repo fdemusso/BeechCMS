@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { KANBAN_CARD_HEIGHT_PX } from './constants'
-import { FieldDisplay } from '@/features/fields/FieldDisplay'
+import { FieldDisplay } from '@/components/fields/FieldDisplay'
 import type { KanbanCardDisplayModel, ResolvedSlotField } from './types'
 
 interface KanbanCardProps {

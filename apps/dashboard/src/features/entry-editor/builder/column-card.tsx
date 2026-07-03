@@ -25,7 +25,7 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
-import { FieldEdit } from '@/features/fields'
+import { FieldEdit } from '@/components/fields'
 import type { UseLayoutBuilderResult } from './use-layout-builder'
 
 // ── FieldItem ────────────────────────────────────────────────────────────────

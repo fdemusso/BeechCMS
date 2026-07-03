@@ -4,10 +4,10 @@
 
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
-import { BooleanDisplay } from "@/features/fields/display/boolean"
-import { DateDisplay } from "@/features/fields/display/date"
-import { NumberDisplay } from "@/features/fields/display/number"
-import { RichtextDisplay } from "@/features/fields/display/richtext"
+import { BooleanDisplay } from "@/components/fields/display/boolean"
+import { DateDisplay } from "@/components/fields/display/date"
+import { NumberDisplay } from "@/components/fields/display/number"
+import { RichtextDisplay } from "@/components/fields/display/richtext"
 import type { Branch } from "@beechcms/core"
 
 const branch = { id: "br_01", alias: "field", label: "Field", type: "text" } as unknown as Branch

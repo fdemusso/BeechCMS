@@ -27,8 +27,10 @@ vi.mock("@/lib/api", () => ({
 
 import { useSchema } from "@/features/shared"
 import { api } from "@/lib/api"
-import { RelationDisplay } from "@/features/fields/display/relation"
-import { RelationEdit } from "@/features/fields/edit/relation"
+import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
+import { RelationDisplay } from "@/components/fields/display/relation"
+import { RelationEdit } from "@/components/fields/edit/relation"
+import { FieldsProvider, type FieldsContextType } from "@/components/fields/context"
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -41,12 +43,23 @@ function makeQueryClient() {
   })
 }
 
+const mockFieldsConfig: FieldsContextType = {
+  useSchema,
+  fetchById: async (slug, id) => (await api.get(`/content/${slug}/${id}`)).data,
+  searchRelations: async (slug, params) =>
+    (await api.get(`/content/${slug}`, { params: { ...params, page: 1 } })).data.items,
+  queryKeys: { detail: CONTENT_QUERY_KEYS.detail, lists: CONTENT_QUERY_KEYS.lists },
+  components: { EntryEditorDialog: () => null, RichtextEditor: () => null },
+}
+
 function wrapper(client: QueryClient, primeCache?: () => void) {
   return ({ children }: { children: React.ReactNode }) => {
     primeCache?.()
     return (
       <QueryClientProvider client={client}>
-        <MemoryRouter>{children}</MemoryRouter>
+        <MemoryRouter>
+          <FieldsProvider value={mockFieldsConfig}>{children}</FieldsProvider>
+        </MemoryRouter>
       </QueryClientProvider>
     )
   }

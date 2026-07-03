@@ -17,7 +17,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { FieldDisplay } from "@/features/fields"
+import { FieldDisplay } from "@/components/fields"
 import { IndicatorIcon } from "@/components/ui/indicator-icon"
 import { RelativeTime } from "@/components/ui/relative-time"
 import { getStatusTone, STATUS_TONE_DOT_CLASS } from "@/lib/status-tone"
