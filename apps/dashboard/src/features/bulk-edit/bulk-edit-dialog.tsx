@@ -12,20 +12,17 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { FieldEdit } from "@/components/fields"
 import { useBulkUpdate } from "@/features/content-management"
 import type { BulkMultiRelMode, BulkFieldValue } from "@/features/content-management"
+
+import {
+  BulkEditPickStep,
+  BulkEditValueStep,
+  BulkEditConfirmStep,
+  BulkEditExecutingStep,
+  BulkEditResultStep,
+} from "./bulk-edit-steps"
 
 /** Step identifiers representing the states of the bulk edit wizard. */
 type Step = "pick" | "edit" | "confirm" | "executing" | "result"
@@ -65,32 +62,6 @@ function isBulkEditable(branch: Branch): boolean {
   if (visibility === "hidden") return false
   if (privacy === "encrypt") return false
   return true
-}
-
-/**
- * Generates and triggers a browser download for a CSV report containing the bulk-edit failure details.
- *
- * @param failed - Array of failed update items.
- * @param slug - The schema slug of the seed being edited.
- */
-function downloadCsv(
-  failed: Array<{ id: string; problem: { type: string; detail: string } }>,
-  slug: string
-) {
-  const rows = [
-    ["id", "type", "detail"],
-    ...failed.map((failure) => [failure.id, failure.problem.type, failure.problem.detail]),
-  ]
-  const csvContent = rows
-    .map((row) => row.map((cellValue) => `"${String(cellValue).replace(/"/g, '""')}"`).join(","))
-    .join("\n")
-  const blob = new Blob([csvContent], { type: "text/csv" })
-  const url = URL.createObjectURL(blob)
-  const downloadAnchor = document.createElement("a")
-  downloadAnchor.href = url
-  downloadAnchor.download = `bulk-edit-failures-${slug}.csv`
-  downloadAnchor.click()
-  URL.revokeObjectURL(url)
 }
 
 /**
@@ -192,131 +163,51 @@ export function BulkEditDialog({
 
         {/* Step 1 — Field picker */}
         {step === "pick" && (
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">{translate("bulkEdit.pickField")}</p>
-            <Select value={selectedAlias} onValueChange={setSelectedAlias}>
-              <SelectTrigger>
-                <SelectValue placeholder={translate("bulkEdit.pickField")} />
-              </SelectTrigger>
-              <SelectContent>
-                {editableBranches.map((branch) => (
-                  <SelectItem key={branch.alias} value={branch.alias}>
-                    {branch.label ?? branch.alias}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                {translate("common.cancel")}
-              </Button>
-              <Button onClick={handlePickNext} disabled={!selectedAlias}>
-                {translate("common.confirm")}
-              </Button>
-            </DialogFooter>
-          </div>
+          <BulkEditPickStep
+            selectedAlias={selectedAlias}
+            onSelectedAliasChange={setSelectedAlias}
+            editableBranches={editableBranches}
+            onCancel={() => onOpenChange(false)}
+            onNext={handlePickNext}
+          />
         )}
 
         {/* Step 2 — Value editor */}
         {step === "edit" && selectedBranch && (
-          <div className="space-y-4 py-2">
-            {isMulti && (
-              <div className="flex gap-2">
-                {(["replace", "add", "remove"] as BulkMultiRelMode[]).map((mode) => (
-                  <Button
-                    key={mode}
-                    size="sm"
-                    variant={multiMode === mode ? "default" : "outline"}
-                    onClick={() => setMultiMode(mode)}
-                  >
-                    {translate(`bulkEdit.mode.${mode}`)}
-                  </Button>
-                ))}
-              </div>
-            )}
-            <FieldEdit
-              branch={selectedBranch}
-              value={fieldValue}
-              onChange={setFieldValue}
-            />
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setStep("pick")}>
-                {translate("common.back")}
-              </Button>
-              <Button onClick={handleEditNext}>{translate("common.confirm")}</Button>
-            </DialogFooter>
-          </div>
+          <BulkEditValueStep
+            selectedBranch={selectedBranch}
+            isMulti={isMulti}
+            multiMode={multiMode}
+            onMultiModeChange={setMultiMode}
+            fieldValue={fieldValue}
+            onFieldValueChange={setFieldValue}
+            onBack={() => setStep("pick")}
+            onNext={handleEditNext}
+          />
         )}
 
         {/* Step 3 — Confirmation */}
         {step === "confirm" && (
-          <div className="space-y-4 py-2">
-            <p className="text-sm">
-              {translate("bulkEdit.confirm", { count: selectedIds.length })}
-            </p>
-            <ul className="text-sm text-muted-foreground list-disc list-inside space-y-0.5">
-              {sampleList.map((label) => (
-                <li key={label} className="truncate">{label}</li>
-              ))}
-              {selectedIds.length > 5 && (
-                <li className="text-xs">…and {selectedIds.length - 5} more</li>
-              )}
-            </ul>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setStep("edit")}>
-                {translate("common.back")}
-              </Button>
-              <Button onClick={handleConfirm} disabled={isPending}>
-                {translate("common.confirm")}
-              </Button>
-            </DialogFooter>
-          </div>
+          <BulkEditConfirmStep
+            selectedIds={selectedIds}
+            sampleList={sampleList}
+            onBack={() => setStep("edit")}
+            onConfirm={handleConfirm}
+            isPending={isPending}
+          />
         )}
 
         {/* Step 4 — Executing */}
-        {step === "executing" && (
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">{translate("bulkEdit.executing")}</p>
-            <Progress value={undefined} className="animate-pulse" />
-          </div>
-        )}
+        {step === "executing" && <BulkEditExecutingStep />}
 
         {/* Step 5 — Result */}
         {step === "result" && result && (
-          <div className="space-y-4 py-2">
-            {result.failed.length === 0 ? (
-              <p className="text-sm text-green-600 dark:text-green-400">
-                {translate("bulkEdit.successAll", { count: result.updated })}
-              </p>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-sm">
-                  {translate("bulkEdit.successPartial", {
-                    updated: result.updated,
-                    total: selectedIds.length,
-                    failed: result.failed.length,
-                  })}
-                </p>
-                <div className="rounded-md border p-3 space-y-1 max-h-40 overflow-y-auto">
-                  {result.failed.map((failure) => (
-                    <p key={failure.id} className="text-xs text-destructive font-mono truncate">
-                      {failure.id}: {failure.problem.detail}
-                    </p>
-                  ))}
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => downloadCsv(result.failed, seed.slug)}
-                >
-                  {translate("bulkEdit.downloadReport")}
-                </Button>
-              </div>
-            )}
-            <DialogFooter>
-              <Button onClick={() => onOpenChange(false)}>{translate("common.close")}</Button>
-            </DialogFooter>
-          </div>
+          <BulkEditResultStep
+            result={result}
+            selectedIds={selectedIds}
+            seedSlug={seed.slug}
+            onClose={() => onOpenChange(false)}
+          />
         )}
       </DialogContent>
     </Dialog>
