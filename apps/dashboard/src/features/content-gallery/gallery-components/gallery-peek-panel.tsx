@@ -3,10 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
-import type { Branch, Seed } from "@beechcms/core"
+import type { Seed } from "@beechcms/core"
 import { Pencil } from "lucide-react"
 
-import { FieldDisplay } from "@/components/fields"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -15,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -34,7 +32,10 @@ import { resolveImageUrl } from "../gallery-card-display"
 import { resolveCardFields } from "../resolve-card-fields"
 import { getPeekEntryTitle } from "../gallery-peek-title"
 import { GalleryDetailTags } from "./gallery-detail-tags"
-import { GalleryRichtextReadonly } from "./gallery-richtext-readonly"
+import {
+  GalleryPeekContentSection,
+  GalleryPeekSeoSection,
+} from "./gallery-peek-sections"
 
 /** Properties for the {@link GalleryPeekPanel} component. */
 interface GalleryPeekPanelProps {
@@ -68,42 +69,6 @@ function statusBadgeClass(status: string): string {
     return "bg-red-50 text-red-700 border-red-200/80 dark:bg-red-500/10 dark:text-red-400 dark:border-red-800/60"
   }
   return "bg-muted text-muted-foreground border-border"
-}
-
-/**
- * Helper component rendering a single schema field block inside the details view.
- * Handles displaying media fields differently (as preview images) and falls back
- * to the default {@link FieldDisplay} for all other fields.
- */
-function FieldBlock({
-  branch,
-  entry,
-}: Readonly<{
-  /** Schema branch definition. */
-  branch: Branch
-  /** The target content entry. */
-  entry: ContentEntry
-}>) {
-  const mediaUrl = branch.type === "file" ? resolveImageUrl(entry.data[branch.alias]) : null
-
-  return (
-    <div className="space-y-1.5">
-      <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        {branch.label}
-      </h4>
-      {mediaUrl ? (
-        <div className="overflow-hidden rounded-xl border bg-muted/20">
-          <img
-            src={mediaUrl}
-            alt={branch.label}
-            className="h-auto max-h-[60vh] w-full object-contain"
-          />
-        </div>
-      ) : (
-        <FieldDisplay branch={branch} value={entry.data[branch.alias]} />
-      )}
-    </div>
-  )
 }
 
 /**
@@ -150,67 +115,6 @@ export function GalleryPeekPanel({
   const fixedDetailViewportClass = hasCoverImage
     ? "h-[min(52vh,520px)] min-h-0"
     : "h-[min(62vh,620px)] min-h-0"
-
-  const contentScroll = (
-    <ScrollArea className="h-full px-6 py-4">
-      <div className="space-y-5 pr-3">
-        {richtextBranch && (
-          <div className="overflow-hidden rounded-xl border border-border">
-            <div className="border-b border-border bg-muted px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Contenuto principale
-            </div>
-            <div className="px-4 py-4">
-              <GalleryRichtextReadonly
-                key={entry.id}
-                value={entry.data[richtextBranch.alias]}
-                className="border-0 shadow-none"
-              />
-            </div>
-          </div>
-        )}
-
-        {otherMainBranches.length > 0 && (
-          <div className="space-y-5 px-1">
-            {!richtextBranch && (
-              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                Contenuto
-              </p>
-            )}
-            {otherMainBranches.map((branch, index) => (
-              <React.Fragment key={branch.alias}>
-                <FieldBlock branch={branch} entry={entry} />
-                {index < otherMainBranches.length - 1 && <Separator />}
-              </React.Fragment>
-            ))}
-          </div>
-        )}
-
-        {!richtextBranch && otherMainBranches.length === 0 && (
-          <p className="text-sm text-muted-foreground">Nessun campo contenuto.</p>
-        )}
-      </div>
-    </ScrollArea>
-  )
-
-  const seoScroll = (
-    <ScrollArea className="h-full px-6 py-4">
-      <div className="space-y-4 pr-3">
-        <div className="overflow-hidden rounded-xl border border-border">
-          <div className="border-b border-border bg-muted px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Metadati / SEO
-          </div>
-          <div className="space-y-5 px-4 py-4">
-            {seoBranches.map((branch, index) => (
-              <React.Fragment key={branch.alias}>
-                <FieldBlock branch={branch} entry={entry} />
-                {index < seoBranches.length - 1 && <Separator />}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      </div>
-    </ScrollArea>
-  )
 
   return (
     <Dialog
@@ -307,18 +211,26 @@ export function GalleryPeekPanel({
               value="content"
               className={cn("mt-0 overflow-hidden", fixedDetailViewportClass)}
             >
-              {contentScroll}
+              <GalleryPeekContentSection
+                entry={entry}
+                richtextBranch={richtextBranch}
+                otherMainBranches={otherMainBranches}
+              />
             </TabsContent>
             <TabsContent
               value="seo"
               className={cn("mt-0 overflow-hidden", fixedDetailViewportClass)}
             >
-              {seoScroll}
+              <GalleryPeekSeoSection entry={entry} seoBranches={seoBranches} />
             </TabsContent>
           </Tabs>
         ) : (
           <div className={cn("overflow-hidden", fixedDetailViewportClass)}>
-            {contentScroll}
+            <GalleryPeekContentSection
+              entry={entry}
+              richtextBranch={richtextBranch}
+              otherMainBranches={otherMainBranches}
+            />
           </div>
         )}
       </DialogContent>
