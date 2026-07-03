@@ -24,6 +24,7 @@ import type {
  * SQL type mapping definition for branch types.
  */
 interface BranchSqlDef {
+  /** SQLite column type used to store this branch type. */
   sqlType: 'TEXT' | 'REAL' | 'INTEGER'
 }
 
@@ -360,9 +361,22 @@ export function generateFtsTriggers(seed: Seed): string[] {
 /**
  * Builds a parameterized SQL SELECT query and bindings for a given Seed based on search, filtering, status, and ordering options.
  * 
+ * If `options.isCount` is set to `true`, it generates a counting query (`COUNT(*) as total`) rather than returning database rows.
+ * In count mode, column projections (`fields`), ordering (`orderBy` / `kanbanOrder`), and pagination (`LIMIT` / `OFFSET`) clauses and
+ * bindings are omitted, while join and filtering clauses are preserved.
+ *
  * @param seed The seed definition.
  * @param options Query configuration options.
  * @returns The SQL query string and bindings.
+ * @example
+ * ```ts
+ * const { sql, bindings } = buildSelectQuery(postSeed, {
+ *   status: 'published',
+ *   filters: [{ column: 'title', type: 'text', conditions: [{ op: 'contains', value: 'cms' }] }],
+ *   orderBy: { column: 'created_at', dir: 'DESC' },
+ *   pagination: { limit: 20, offset: 0 },
+ * })
+ * ```
  */
 export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): ParameterizedQuery {
   const table = tableName(seed)
@@ -404,8 +418,8 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
     }
   }
 
-  let selectCols = `${table}.*`
-  if (fields && fields.length > 0) {
+  let selectCols = options.isCount ? 'COUNT(*) as total' : `${table}.*`
+  if (!options.isCount && fields && fields.length > 0) {
     const valid = fields.filter(f => isValidColumn(seed, f))
     if (valid.length > 0) {
       selectCols = valid
@@ -413,27 +427,29 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
         .join(', ')
     }
   }
-  if (options.kanbanOrder) selectCols += ', kp.position'
+  if (!options.isCount && options.kanbanOrder) selectCols += ', kp.position'
 
   let sql = `SELECT ${selectCols} FROM ${table}`
   if (joinClause) sql += ` ${joinClause}`
   if (whereClauses.length > 0) sql += ` WHERE ${whereClauses.join(' AND ')}`
 
-  if (kanbanOrderClause) {
-    sql += kanbanOrderClause
-  } else if (orderBy && isValidColumn(seed, orderBy.column)) {
-    const dir = orderBy.dir === 'DESC' ? 'DESC' : 'ASC'
-    const col = SYSTEM_COLUMNS.has(orderBy.column)
-      ? `${table}.${orderBy.column}`
-      : orderBy.column
-    sql += ` ORDER BY ${col} ${dir}`
-  } else {
-    sql += ` ORDER BY ${table}.created_at DESC`
-  }
+  if (!options.isCount) {
+    if (kanbanOrderClause) {
+      sql += kanbanOrderClause
+    } else if (orderBy && isValidColumn(seed, orderBy.column)) {
+      const dir = orderBy.dir === 'DESC' ? 'DESC' : 'ASC'
+      const col = SYSTEM_COLUMNS.has(orderBy.column)
+        ? `${table}.${orderBy.column}`
+        : orderBy.column
+      sql += ` ORDER BY ${col} ${dir}`
+    } else {
+      sql += ` ORDER BY ${table}.created_at DESC`
+    }
 
-  if (pagination) {
-    sql += ` LIMIT ? OFFSET ?`
-    bindings.push(pagination.limit, pagination.offset)
+    if (pagination) {
+      sql += ` LIMIT ? OFFSET ?`
+      bindings.push(pagination.limit, pagination.offset)
+    }
   }
 
   return { sql, bindings }
@@ -575,9 +591,13 @@ function buildFilterCondition(
  * Expected database schema column interface.
  */
 export interface SchemaColumn {
+  /** Column name. */
   name: string
+  /** SQLite storage type. */
   sqlType: 'TEXT' | 'REAL' | 'INTEGER'
+  /** Whether the column is NOT NULL. */
   notNull: boolean
+  /** Whether the column is the PRIMARY KEY. */
   isPk: boolean
 }
 
