@@ -1,60 +1,68 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
+/**
+ * @module Types
+ * Core schema types for the Botanical Engine: `Seed` (content type definition),
+ * `Branch` (field definition), and the query types consumed by `buildSelectQuery`.
+ * Pure data shapes — no runtime logic lives here.
+ */
+
 import type { FileAccept } from './file-types.js'
 import type { DashboardView } from './view-authorization.js'
 
+/** All supported field value types for a Branch. */
 export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation' | 'repeater'
 
-/** Configurazioni specializzate per il tipo di branch 'number' */
+/** Specialized configuration for a branch of type 'number'. */
 export interface NumberFieldOptions {
-  // ---- Presentazione & Formattazione ----
-  /** Stile di presentazione visiva. Default: 'decimal' */
+  // ---- Presentation & formatting ----
+  /** Visual display style. Default: 'decimal'. */
   format?: 'decimal' | 'currency' | 'percentage' | 'compact'
-  /** Codice valuta ISO 4217 (obbligatorio se format === 'currency'). Es. 'EUR', 'USD' */
+  /** ISO 4217 currency code (required when format === 'currency'). E.g. 'EUR', 'USD'. */
   currency?: string
-  /** Testo personalizzato da anteporre al valore formattato */
+  /** Custom text prepended to the formatted value. */
   prefix?: string
-  /** Unità di misura personalizzata da appendere al valore formattato (es. 'kg', 'm²') */
+  /** Custom unit appended to the formatted value (e.g. 'kg', 'm²'). */
   suffix?: string
-  /** Numero esplicito di cifre decimali da visualizzare e imporre */
+  /** Explicit number of decimal digits to display and enforce. */
   decimals?: number
-  /** Abilita/disabilita il separatore delle migliaia. Default: true */
+  /** Enable/disable thousands separator grouping. Default: true. */
   grouping?: boolean
 
-  // ---- Controlli UI dell'Editor ----
-  /** Meccanismo di input alternativo per l'editor delle entità. Default: 'input' */
+  // ---- Editor UI controls ----
+  /** Alternative input mechanism for the entry editor. Default: 'input'. */
   control?: 'input' | 'slider' | 'rating' | 'stepper'
 
-  // ---- Vincoli & Validazione ----
-  /** Valore minimo consentito */
+  // ---- Constraints & validation ----
+  /** Minimum allowed value. */
   min?: number
-  /** Valore massimo consentito */
+  /** Maximum allowed value. */
   max?: number
-  /** Incremento del valore (es. 1 per interi stretti, 0.5 per mezzi passi) */
+  /** Value increment (e.g. 1 for strict integers, 0.5 for half-steps). */
   step?: number
 }
 
-/** Configurazioni specializzate per il tipo di branch 'file' */
+/** Specialized configuration for a branch of type 'file'. */
 export interface FileFieldOptions {
   /**
-   * Tipo semantico di file accettato.
-   * - 'image': immagini renderizzabili come anteprima
+   * Semantic type of file accepted.
+   * - 'image': renderable images with preview
    * - 'document': PDF/Office/text
-   * - 'any': qualsiasi file (default — UI mostra icona generica, nessun tentativo di render immagine)
+   * - 'any': any file (default — UI shows a generic icon, no image render attempt)
    * Default: 'any'.
    */
   accept?: FileAccept
   /**
-   * Dimensione massima del singolo file in byte.
-   * NOTA: il backend /upload applica MAX_FILE_SIZE_BYTES (5MB) globale —
-   * questo campo è informativo per la UI; non viene enforced in upload.
+   * Maximum size of a single file, in bytes.
+   * NOTE: the backend /upload endpoint enforces the global MAX_FILE_SIZE_BYTES (5MB) —
+   * this field is informational for the UI only; it is not enforced on upload.
    * Default: 5_242_880.
    */
   maxSize?: number
 }
 
-/** Branch: definizione di una proprietà. alias = nome colonna SQL. */
+/** Branch: definition of a single field. `alias` is the SQL column name. */
 export interface Branch {
   /**
    * Stable logical id of this branch, e.g. 'br_01', 'br_title'.
@@ -66,55 +74,55 @@ export interface Branch {
    * The Botanical Engine still emits alias as the SQL column name; id is a logical handle.
    */
   id: string
-  /** Alias human-readable, usato nel payload API e come nome colonna SQL nella tabella dedicata */
+  /** Human-readable alias, used in the API payload and as the SQL column name in the dedicated table. */
   alias: string
-  /** Etichetta per la UI */
+  /** UI display label. */
   label: string
-  /** Testo di aiuto opzionale mostrato come tooltip accanto al label nella form. UI-only, ignorato dall'engine. */
+  /** Optional help text shown as a tooltip next to the label in the form. UI-only, ignored by the engine. */
   hint?: string
-  /** Tipo del valore */
+  /** Value type. */
   type: BranchType
   /**
-   * Variante semantica opzionale del campo per UI/validazione.
-   * `asset-list` su `file` multiplo abilita la gestione galleria.
+   * Optional semantic variant of the field for UI/validation purposes.
+   * `asset-list` on a multiple `file` branch enables gallery management.
    */
   format?: 'plain' | 'markdown' | 'html' | 'date' | 'datetime' | 'asset-list'
   /**
-   * Cardinalità opzionale per campi media:
-   * - false/undefined: singolo asset (string URL)
-   * - true: lista asset (string[] URL)
+   * Optional cardinality for media fields:
+   * - false/undefined: single asset (string URL)
+   * - true: asset list (string[] URL)
    */
   multiple?: boolean
   /**
-   * Vocabolario predefinito per campi tag/select/multiselect.
-   * Lista statica definita nel Seed (non salvata nel DB).
+   * Predefined vocabulary for tag/select/multiselect fields.
+   * Static list defined in the Seed (not persisted to the DB).
    */
   options?: string[]
-  /** Campo obbligatorio in creazione — genera NOT NULL in generateCreateTable */
+  /** Required on create — generates NOT NULL in generateCreateTable. */
   requiredOnCreate?: boolean
-  /** Campo obbligatorio in update */
+  /** Required on update. */
   requiredOnUpdate?: boolean
   /**
-   * Policy di accesso e trattamento del campo.
-   * Tutti i valori sono opzionali — `resolvePolicies(branch)` fornisce i default.
+   * Access and handling policy for the field.
+   * All values are optional — `resolvePolicies(branch)` supplies the defaults.
    */
   policies?: {
-    /** Come il valore viene memorizzato. Default: 'plain' */
+    /** How the value is stored. Default: 'plain'. */
     privacy?: 'plain' | 'hash' | 'encrypt'
-    /** Come il valore viene restituito nelle risposte API. Default: 'full' */
+    /** How the value is returned in API responses. Default: 'full'. */
     visibility?: 'full' | 'masked' | 'hidden'
-    /** Il campo è incluso nelle query di ricerca full-text. Default: true */
+    /** Whether the field is included in full-text search queries. Default: true. */
     search?: boolean
-    /** Il campo è disponibile come colonna di filtro nella dashboard. Default: true */
+    /** Whether the field is available as a filter column in the dashboard. Default: true. */
     filter?: boolean
-    /** Il campo è disponibile come colonna di ordinamento nella dashboard. Default: true */
+    /** Whether the field is available as a sort column in the dashboard. Default: true. */
     sort?: boolean
-    /** Il campo è incluso nelle risposte della Public API. Default: true */
+    /** Whether the field is included in Public API responses. Default: true. */
     public?: boolean
   }
-  /** Opzioni avanzate per i campi numerici. Ignorato se type !== 'number' */
+  /** Advanced options for number fields. Ignored if type !== 'number'. */
   numberOptions?: NumberFieldOptions
-  /** Opzioni avanzate per i campi file. Ignorato se type !== 'file' */
+  /** Advanced options for file fields. Ignored if type !== 'file'. */
   fileOptions?: FileFieldOptions
 
   /**
@@ -168,13 +176,13 @@ export interface Branch {
 
 /** Dashboard-specific config embedded in a Seed. All fields optional — defaults applied by the dashboard. */
 export interface DashboardSeedConfig {
-  /** Lucide icon name (string, resolved to component client-side). Default: 'Folder' */
+  /** Lucide icon name (string, resolved to component client-side). Default: 'Folder'. */
   icon?: string
   /** Sidebar group label. Ungrouped seeds share a single 'Contents' section. */
   group?: string
-  /** Sort order within the group. Lower = higher. Default: 99 */
+  /** Sort order within the group. Lower = higher. Default: 99. */
   order?: number
-  /** Hide from sidebar navigation. Default: false */
+  /** Hide from sidebar navigation. Default: false. */
   hidden?: boolean
   /** Tooltip description shown in the sidebar. */
   description?: string
@@ -193,32 +201,32 @@ export interface DashboardSeedConfig {
   views?: DashboardView[]
 }
 
-/** Seed: definizione dello schema di un tipo di contenuto */
+/** Seed: schema definition of a content type. */
 export interface Seed {
-  /** Slug identificativo — anche nome tabella: `content_{slug}` */
+  /** Identifying slug — also the table name: `content_{slug}`. */
   slug: string
-  /** Etichetta singolare per la UI */
+  /** Singular UI label. */
   label: string
-  /** Etichetta plurale per la UI. Se assente si usa `label`. */
+  /** Plural UI label. Falls back to `label` when absent. */
   labelPlural?: string
-  /** Abilita lettura dalla Public API (`GET /api/v1/public/:seed`). Default: false */
+  /** Enable reads from the Public API (`GET /api/v1/public/:seed`). Default: false. */
   allowPublicRead?: boolean
-  /** Abilita creazione dalla Public API (`POST /api/v1/public/:seed/add`). Default: false */
+  /** Enable creation from the Public API (`POST /api/v1/public/:seed/add`). Default: false. */
   allowPublicPost?: boolean
-  /** Abilita modifica dalla Public API (`PUT /api/v1/public/:seed/edit/:id`). Default: false */
+  /** Enable edits from the Public API (`PUT /api/v1/public/:seed/edit/:id`). Default: false. */
   allowPublicEdit?: boolean
   /**
-   * Abilita la feature "bozza in attesa" per questo seed.
-   * Quando true, genera tabella `content_{slug}_drafts` e abilita gli endpoint `/draft`.
-   * Default: false
+   * Enables the "pending draft" feature for this seed.
+   * When true, generates the `content_{slug}_drafts` table and enables the `/draft` endpoints.
+   * Default: false.
    */
   allowDrafts?: boolean
   /**
-   * Alias del branch usato come nome leggibile dell'entry (es. "title", "name", "author").
-   * Obbligatorio — le UI lo usano per display senza euristica.
+   * Alias of the branch used as the entry's human-readable name (e.g. "title", "name", "author").
+   * Required — UIs use it for display without heuristics.
    */
   displayNameAlias: string
-  /** Lista dei campi (Branch) */
+  /** List of fields (Branch). */
   branches: Branch[]
   /** Optional dashboard-specific UI config. Ignored by the Botanical Engine. */
   dashboard?: DashboardSeedConfig
@@ -228,8 +236,9 @@ export interface Seed {
   layout?: unknown
 }
 
-// ---- Query types (usati da buildSelectQuery nel Botanical Engine) ----
+// ---- Query types (consumed by buildSelectQuery in the Botanical Engine) ----
 
+/** Comparison/matching operator applied by a filter condition. */
 export type FilterOperator =
   | 'eq'
   | 'neq'
@@ -249,29 +258,38 @@ export type FilterOperator =
   | 'has_any_tag'
   | 'has_all_tags'
 
+/** Declared value type of a filtered column, used to normalize/coerce filter values before binding. */
 export type FilterType = 'text' | 'number' | 'date' | 'boolean' | 'tags' | 'select' | 'system' | 'json'
 
+/** A single operator + value pair applied to a FilterGroup's column. */
 export interface FilterCondition {
+  /** Operator to apply. */
   op: FilterOperator
+  /** Comparison value(s). Arrays are only meaningful for `in`/`not_in`/`has_any_tag`/`has_all_tags`. */
   value: string | number | boolean | null | string[] | number[]
 }
 
 export interface FilterGroup {
-  /** Nome colonna: system column (id/slug/status/created_at/updated_at) o branch alias */
+  /** Column name: system column (id/slug/status/created_at/updated_at) or branch alias. */
   column: string
+  /** Declared type of the column, used to normalize condition values. */
   type: FilterType
+  /** Conditions applied to this column, ANDed together. */
   conditions: FilterCondition[]
 }
 
 export interface SelectOptions {
+  /** Filter groups, ANDed together. */
   filters?: FilterGroup[]
+  /** Sort column and direction. Ignored when `kanbanOrder` is set. */
   orderBy?: { column: string; dir: 'ASC' | 'DESC' }
+  /** LIMIT/OFFSET pagination. */
   pagination?: { limit: number; offset: number }
-  /** Filtra per status. null = nessun filtro status. */
+  /** Filters by status. null = no status filter. */
   status?: string | null
-  /** Full-text search — usa FTS5 se il seed ha branch richtext indicizzabili */
+  /** Full-text search — uses FTS5 if the seed has indexable richtext/text branches. */
   search?: string
-  /** Proiezione colonne. Vuoto = SELECT * */
+  /** Column projection. Empty = SELECT *. */
   fields?: string[]
   /** When set, LEFT JOIN kanban_positions and order by fractional index (KB-S04c/S05).
    *  Mutually exclusive with `orderBy`; if both present, `kanbanOrder` wins. */
@@ -284,7 +302,10 @@ export interface SelectOptions {
   isCount?: boolean
 }
 
+/** SQL string paired with its ordered parameter bindings, ready for a D1 `.bind(...)` call. */
 export interface ParameterizedQuery {
+  /** Parameterized SQL statement, using `?` placeholders. */
   sql: string
+  /** Values bound to the `?` placeholders, in order. */
   bindings: (string | number | boolean | null)[]
 }
