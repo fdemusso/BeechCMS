@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { FileAccept } from './file-types.js'
+import type { DashboardView } from './view-authorization.js'
 
 export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation' | 'repeater'
 
@@ -184,6 +185,12 @@ export interface DashboardSeedConfig {
     export?: boolean
     bulkDelete?: boolean
   }
+  /**
+   * Views authorized for this seed in the content manager. When omitted,
+   * the dashboard falls back to DEFAULT_AUTHORIZED_VIEWS. 'table' is always
+   * guaranteed at read time by resolveAuthorizedViews (universal fallback).
+   */
+  views?: DashboardView[]
 }
 
 /** Seed: definizione dello schema di un tipo di contenuto */

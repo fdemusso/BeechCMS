@@ -208,8 +208,8 @@ describe('Botanical Engine', () => {
           { column: 'tags', type: 'tags', conditions: [{ op: 'has_all_tags', value: ['a', 'b'] }] }
         ]
       })
-      expect(query.sql).toContain("EXISTS (SELECT 1 FROM json_each(tags) WHERE value IN (?))")
-      expect(query.sql).toContain("(EXISTS (SELECT 1 FROM json_each(tags) WHERE value = ?) AND EXISTS (SELECT 1 FROM json_each(tags) WHERE value = ?))")
+      expect(query.sql).toContain("EXISTS (SELECT 1 FROM json_each(tags) WHERE CASE json_type(tags) WHEN 'array' THEN value ELSE key END IN (?))")
+      expect(query.sql).toContain("(EXISTS (SELECT 1 FROM json_each(tags) WHERE CASE json_type(tags) WHEN 'array' THEN value ELSE key END = ?) AND EXISTS (SELECT 1 FROM json_each(tags) WHERE CASE json_type(tags) WHEN 'array' THEN value ELSE key END = ?))")
       expect(query.bindings).toEqual(['tech', 'a', 'b'])
     })
 

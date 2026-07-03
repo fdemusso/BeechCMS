@@ -23,8 +23,7 @@ export function JsonDisplay({ branch, value, options }: FieldDisplayProps) {
     }
   }
 
-  /** Euristica: alias contenente "tag" → render con Badge colorati collassabili */
-  const isTagsField = branch.alias.toLowerCase().includes("tag")
+  const isTagsField = branch.type === "tags" || branch.alias.toLowerCase().includes("tag")
 
   try {
     if (isTagsField && typeof parsed === "object" && !Array.isArray(parsed)) {

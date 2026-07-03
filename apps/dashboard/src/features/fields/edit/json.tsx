@@ -41,7 +41,7 @@ function stringifyJsonValue(value: unknown): string {
 }
 
 export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
-  const isTagsField = branch.alias.toLowerCase().includes("tag")
+  const isTagsField = branch.type === "tags" || branch.alias.toLowerCase().includes("tag")
   const hasOptions = isTagsField && (branch.options?.length ?? 0) > 0
   const [isAddOpen, setIsAddOpen] = React.useState(false)
 

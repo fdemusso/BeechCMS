@@ -14,6 +14,7 @@ import { queryClient } from '@/lib/query-client'
 import { WidgetSdkProvider } from '@beechcms/widget-sdk'
 import { api } from '@/lib/api'
 import '@/lib/i18n'
+import '@/features/content-toolbar/view-registry.bootstrap'
 import App from './App.tsx'
 import './widgets.custom'
 

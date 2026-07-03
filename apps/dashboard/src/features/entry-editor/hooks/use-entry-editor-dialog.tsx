@@ -115,7 +115,7 @@ export function prepareSubmissionPayload({
 
   return {
     slug: slug.trim() || null,
-    status: status.trim() || "draft",
+    status: status.trim() || "published",
     ...processed,
   }
 }
@@ -178,7 +178,7 @@ export function useEntryEditorDialog({
   const { mutateAsync: discardDraft, isPending: isDiscarding } = useDiscardDraft()
 
   const [formData, setFormData] = React.useState<Record<string, unknown>>({})
-  const [status, setStatus] = React.useState<string>("draft")
+  const [status, setStatus] = React.useState<string>("published")
   const [slug, setSlug] = React.useState<string>("")
   const [slugTouched, setSlugTouched] = React.useState(false)
   const [isDirty, setIsDirty] = React.useState(false)
@@ -299,7 +299,7 @@ export function useEntryEditorDialog({
     setPrevBranches(branches)
     if (seed && isCreate) {
       setFormData({ ...createInitialFormData(branches), ...(defaultValues ?? {}) })
-      setStatus("draft")
+      setStatus("published")
       setSlug("")
       setSlugTouched(false)
     }

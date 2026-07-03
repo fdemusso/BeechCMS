@@ -27,7 +27,9 @@ import { ContentGallery } from "@/features/content-gallery"
 import { ContentKanban, useKanbanEntrySync } from "@/features/content-kanban"
 import { CardConfigDialog } from "@/features/content-kanban/card-config/card-config-dialog"
 import { useKanbanViewConfig } from "@/features/content-kanban/hooks/use-kanban-view-config"
-import { resolveKanbanConfig } from "@beechcms/core"
+import { resolveKanbanConfig, resolveAuthorizedViews, isViewAuthorized } from "@beechcms/core"
+import type { DashboardView } from "@beechcms/core"
+import { viewRegistry } from "@/features/content-toolbar/view-registry"
 import {
   ContentToolbar,
   type UserViewInstance,
@@ -144,6 +146,7 @@ export function ContentListPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [searchParams] = useSearchParams()
   const prefilterStatus = searchParams.get("status")
+  const requestedView = searchParams.get("view")
 
   const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>(() => {
     if (!prefilterStatus) return {} as ToolbarFiltersState
@@ -234,52 +237,37 @@ export function ContentListPage() {
     [seed, kanbanConfig?.axisBranchId],
   )
 
-  // Views available for the current seed.
   // TODO: load and save view configuration at the user level (when a user preferences system exists).
-  const [views, setViews] = React.useState<UserViewInstance[]>(() => [
-    {
-      id: "table",
-      label: "table",
-      type: "table",
-      enabledTools: [
-        "filter",
-        "sort",
-        "automation",
-        "search",
-        "settings",
-        "create",
-      ],
-      conditionalFormats: [],
-    },
-    {
-      id: "gallery",
-      label: "gallery",
-      type: "gallery",
-      enabledTools: ["filter", "sort", "automation", "search", "create"],
-      conditionalFormats: [],
-    },
-  ])
+  const authorizedViews = React.useMemo<DashboardView[]>(
+    () => (seed ? resolveAuthorizedViews(seed) : ['table']),
+    [seed]
+  )
 
-  // Add kanban view when seed becomes compatible (KB-S26)
+  // Per-view mutable overlays (conditional formats, label overrides) — in-memory only.
+  const [viewOverlays, setViewOverlays] = React.useState<
+    Record<string, { conditionalFormats?: ConditionalFormatRule[]; label?: string }>
+  >({})
+
+  const views = React.useMemo<UserViewInstance[]>(
+    () => authorizedViews.map((type) => {
+      const def = viewRegistry.get(type)
+      const overlay = viewOverlays[type] ?? {}
+      return {
+        id: type,
+        label: overlay.label ?? type,
+        type,
+        enabledTools: def?.enabledTools ?? ['filter', 'search', 'create'],
+        conditionalFormats: overlay.conditionalFormats ?? [],
+      }
+    }),
+    [authorizedViews, viewOverlays]
+  )
+
   React.useEffect(() => {
-    if (!kanbanCompat) return
-    setViews((prev) => {
-      const hasKanban = prev.some((v) => v.id === "kanban")
-      if (kanbanCompat.compatible && !hasKanban) {
-        return [...prev, {
-          id: "kanban",
-          label: "kanban",
-          type: "kanban",
-          enabledTools: ["filter", "search", "settings", "create"],
-          conditionalFormats: [],
-        }]
-      }
-      if (!kanbanCompat.compatible && hasKanban) {
-        return prev.filter((v) => v.id !== "kanban")
-      }
-      return prev
-    })
-  }, [kanbanCompat])
+    if (!seed) return
+    const target = requestedView && isViewAuthorized(seed, requestedView) ? requestedView : 'table'
+    setActiveViewId((cur) => (authorizedViews.includes(cur as DashboardView) ? cur : target))
+  }, [seed, requestedView, authorizedViews])
 
   const VIEW_LABELS: Record<string, string> = {
     table: t("content.list.table"),
@@ -298,9 +286,7 @@ export function ContentListPage() {
 
   const handleConditionalFormatsChange = React.useCallback(
     (viewId: string, next: ConditionalFormatRule[]) => {
-      setViews((prev) =>
-        prev.map((v) => (v.id === viewId ? { ...v, conditionalFormats: next } : v))
-      )
+      setViewOverlays((prev) => ({ ...prev, [viewId]: { ...prev[viewId], conditionalFormats: next } }))
     },
     []
   )
@@ -742,11 +728,7 @@ export function ContentListPage() {
   )
   const handleRenameView = React.useCallback(
     (viewId: string, label: string) => {
-      setViews((prev) =>
-        prev.map((view) =>
-          view.id === viewId ? { ...view, label } : view
-        )
-      )
+      setViewOverlays((prev) => ({ ...prev, [viewId]: { ...prev[viewId], label } }))
     },
     []
   )

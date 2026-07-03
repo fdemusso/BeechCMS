@@ -1,37 +1,39 @@
-# Execution Log — KanbanCardCustomization Sprint 2
+# Execution Log — Dynamic View Configuration
 
-## SECTION 6 — Acceptance Criteria
+## SECTION 6 — ACCEPTANCE CRITERIA
 
-- [x] `@beechcms/core` **untouched** in the diff.
-- [x] No new D1 migration; no new REST endpoint.
-- [x] `putViewConfigHandler` calls `validateCardConfigAgainstSeed` on `parsed.data.card` and persists `cleaned`; dangling `branchId` returns 200 (not 422) and is stripped — proven by new tests.
-- [x] `TextDisplay` with `options.compact` renders ≤3 items + `+N` for array/comma-tag values; single-string path unchanged.
-- [x] `RelationDisplay` clips to 3 avatars **only** when `options.compact`; table view (no compact) renders all — regression fixed.
-- [x] No other renderer modified.
-- [x] Media slot in `kanban-card.tsx` calls `<FieldDisplay>` directly with no options; `maxLength:0` removed.
-- [x] Card-config trigger removed from `content-kanban.tsx`; lives as a `DropdownMenuItem` in `SettingsMenu`'s kanban Layout group.
-- [x] `content-toolbar` does NOT import `content-kanban` — trigger wired via `onOpenCardConfig` callback (VSA). `CardConfigDialog` mounted in `content-list.tsx`.
-- [x] `ContentKanbanProps` `cardConfig`/`setCardConfig` unchanged.
-- [x] `FieldDisplayProps.options` change is zero — all callers compile; `tsc --noEmit` clean in api + dashboard.
-- [x] New tests added for `view-config` handler (+2), `card-config-dialog` (+4), `use-kanban-column-query` (+5); all suites green.
-- [x] `pnpm beech test --diff` run; Sprint 2 files PASS.
+- [x] `DashboardSeedConfig.views?: DashboardView[]` added; `DashboardView = 'table'|'gallery'|'kanban'`.
+- [x] `resolveAuthorizedViews` guarantees `'table'` in output for every input (incl. `{}`, `[]`, unknown values).
+- [x] `packages/core` builds and `view-authorization.ts` has **zero runtime imports** beyond `import type`.
+- [x] `apps/api` has **zero diff**; `pnpm beech test --diff` green with no migration.
+- [x] `ViewRegistry` mirrors `IFieldRegistry` (Map-backed, later-wins).
+- [x] `content-toolbar` does **not** import `content-gallery` or `content-kanban` except inside `view-registry.bootstrap.ts`; slices do not import each other (VSA).
+- [x] Hardcoded `views` state + KB-S26 `useEffect` deleted from `content-list.tsx`; view list derives from `resolveAuthorizedViews(seed)`.
+- [x] Direct navigation to an unauthorized `?view=` renders Table without error (URL guard).
+- [x] Existing seeds (no `dashboard.views`) still open on Table with no console errors (backward compat).
+- [x] `tsc --noEmit` clean in dashboard; no `any` introduced in new files.
 
 ## Validation Output
 
 ```
-@beechcms/core build: clean (tsc, 0 errors)
-@beechcms/core test:  16 files, 433 tests passed ✓
+# Core build
+pnpm --filter @beechcms/core run build
+→ (no output — clean)
 
-apps/api tsc --noEmit:   0 errors in source files ✓
-apps/api test:           83 files, 1032 tests passed ✓ (+2 new)
+# Core tests
+pnpm --filter @beechcms/core run test
+→ Test Files  17 passed (17)
+→ Tests  444 passed (444)
 
-apps/dashboard tsc --noEmit: 0 errors ✓
-apps/dashboard test:         89 files, 673 tests passed ✓ (+7 new)
+# Dashboard type check
+pnpm --filter @beechcms/dashboard exec tsc --noEmit
+→ (no output — clean)
 
-pnpm beech test --diff:
-  view-config.ts                          PASS (88.5% stmts)
-  use-kanban-column-query.ts              PASS (44.4% branch)
-  kanban-card.tsx                         PASS (66.7% stmts)
-  content-toolbar.tsx                     PASS (64.3% stmts)
-  NOTE: content-kanban.tsx LOW — pre-existing coverage gap (DnD component, branch-wide)
+# Workspace diff tests
+pnpm beech test --diff
+→ [packages/core]   Test Files  5 passed (5) | Tests  236 passed (236)
+→ [packages/core]   Test Files  5 passed (5) | Tests  17 passed (17)
+→ [apps/api]        Test Files  75 passed (75) | Tests  943 passed (943)
+→ [apps/dashboard]  Test Files  46 passed (46) | Tests  391 passed (391)
+→ apps/api: zero diff confirmed
 ```

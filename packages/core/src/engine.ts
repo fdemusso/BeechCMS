@@ -450,14 +450,18 @@ function buildFilterCondition(
     
     if (tags.length === 0) return null
 
+    // json_each on array → value is the element; on object → key is the property name.
+    // Tags stored as ["photo"] (array) or {"photo":"#3b82f6"} (object) must both match.
+    const tagRef = `CASE json_type(${col}) WHEN 'array' THEN value ELSE key END`
+
     if (op === 'has_tag' || op === 'has_any_tag') {
       const placeholders = tags.map(() => '?').join(', ')
       bindings.push(...tags)
-      return `EXISTS (SELECT 1 FROM json_each(${col}) WHERE value IN (${placeholders}))`
+      return `EXISTS (SELECT 1 FROM json_each(${col}) WHERE ${tagRef} IN (${placeholders}))`
     }
-    
+
     // has_all_tags: each tag must exist
-    const clauses = tags.map(() => `EXISTS (SELECT 1 FROM json_each(${col}) WHERE value = ?)`)
+    const clauses = tags.map(() => `EXISTS (SELECT 1 FROM json_each(${col}) WHERE ${tagRef} = ?)`)
     bindings.push(...tags)
     return `(${clauses.join(' AND ')})`
   }

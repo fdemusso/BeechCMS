@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { Branch, Seed } from "@beechcms/core"
+import type { Branch, Seed, DashboardView } from "@beechcms/core"
 import type { SeedRecordDTO } from "../api/seeds.api"
 
 export function seedToFormData(record: SeedRecordDTO | null): Record<string, unknown> {
@@ -22,6 +22,8 @@ export function seedToFormData(record: SeedRecordDTO | null): Record<string, unk
     dash_order: d?.dashboard?.order ?? undefined,
     dash_hidden: d?.dashboard?.hidden ?? false,
     dash_description: d?.dashboard?.description ?? "",
+    dash_view_gallery: (d?.dashboard?.views ?? ['table']).includes('gallery'),
+    dash_view_kanban: (d?.dashboard?.views ?? ['table']).includes('kanban'),
   }
 }
 
@@ -51,6 +53,10 @@ export function formDataToSeed(f: Record<string, unknown>): Seed {
       order: typeof f.dash_order === "number" ? f.dash_order : undefined,
       hidden: !!f.dash_hidden,
       description: (f.dash_description as string) || undefined,
+      views: (['table',
+        ...(f.dash_view_gallery ? ['gallery'] : []),
+        ...(f.dash_view_kanban ? ['kanban'] : []),
+      ] as DashboardView[]),
     },
   }
 }
