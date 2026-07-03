@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { canEditLayout, ROLES_ALLOWED_TO_EDIT_LAYOUT } from './layout-permissions'
+import { canEditLayout, ROLES_ALLOWED_TO_EDIT_LAYOUT } from './layout-permissions.js'
 
 describe('canEditLayout', () => {
   it('returns true for admin', () => {

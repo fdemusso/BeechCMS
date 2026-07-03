@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { Seed, Branch } from './types.js'
-import { AUTOMATION_RESERVED_WORDS } from './automations-grammar-words.js'
+import { AUTOMATION_RESERVED_WORDS } from '../automations/automations-grammar-words.js'
 
 export interface ISeedRegistry {
   /**

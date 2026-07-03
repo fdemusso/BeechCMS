@@ -3,10 +3,10 @@
 
 import { z } from 'zod'
 import type { Branch, BranchType, Seed } from './types.js'
-import { RICHTEXT_SCHEMA_VERSION, isRichtextEnvelopeV1 } from './richtext.js'
-import type { FileAccept } from './file-types.js'
-import { extensionFromUrl, isExtensionAccepted } from './file-types.js'
-import type { IIdGenerator } from './id-generator.js'
+import { RICHTEXT_SCHEMA_VERSION, isRichtextEnvelopeV1 } from '../content/richtext/richtext.js'
+import type { FileAccept } from '../media/file-types.js'
+import { extensionFromUrl, isExtensionAccepted } from '../media/file-types.js'
+import type { IIdGenerator } from '../common/id-generator.js'
 
 export interface ValidationDetail {
   field: string

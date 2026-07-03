@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { Seed, Branch, FilterGroup } from './types.js'
+import type { Seed, Branch, FilterGroup } from '../../engine/types.js'
 
 /** Branch types that can form a discrete, finite set of columns (KB §2). */
 export type KanbanAxisBranchType = 'text' | 'tags' | 'boolean'

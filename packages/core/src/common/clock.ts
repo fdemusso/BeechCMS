@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-/**
+/** 
  * Time abstraction. Hides direct calls to {@link Date.now} so callers can
  * swap in deterministic clocks during tests without resorting to global
  * timer mocks (e.g. vi.useFakeTimers, sinon, monkey-patching Date).

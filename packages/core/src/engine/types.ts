@@ -8,8 +8,8 @@
  * Pure data shapes — no runtime logic lives here.
  */
 
-import type { FileAccept } from './file-types.js'
-import type { DashboardView } from './view-authorization.js'
+import type { FileAccept } from '../media/file-types.js'
+import type { DashboardView } from '../dashboard-layout/view-authorization.js'
 
 /** All supported field value types for a Branch. */
 export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation' | 'repeater'

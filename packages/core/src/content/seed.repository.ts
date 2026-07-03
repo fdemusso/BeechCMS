@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { Seed } from './types.js'
+import type { Seed } from '../engine/types.js'
 
 export interface SeedRecord {
   slug: string

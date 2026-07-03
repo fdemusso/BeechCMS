@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { z } from 'zod'
-import type { Seed } from './types.js'
+import type { Seed } from '../engine/types.js'
 
 // ---------------------------------------------------------------------------
 // Dashboard layout interfaces

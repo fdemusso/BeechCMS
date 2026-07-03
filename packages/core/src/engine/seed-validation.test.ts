@@ -2,8 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { validateSeedDefinitions, isSeedSetValid } from './seed-validation'
-import type { Seed } from './types'
+import { validateSeedDefinitions, isSeedSetValid } from './seed-validation.js'
+import type { Seed } from './types.js'
 
 function makeSeed(overrides: Partial<Seed> & { slug: string }): Seed {
   return {

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { ContentRepository } from './content.repository.js'
-import type { Seed } from './types.js'
+import type { ContentRepository } from '../content/content.repository.js'
+import type { Seed } from '../engine/types.js'
 
 export interface HookActor {
   id: string

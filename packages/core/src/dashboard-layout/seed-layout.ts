@@ -2,8 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { z } from 'zod'
-import type { Seed, Branch } from './types.js'
-import { findBranchById } from './seed-registry.js'
+import type { Seed, Branch } from '../engine/types.js'
+import { findBranchById } from '../engine/seed-registry.js'
 
 // ---------------------------------------------------------------------------
 // View config — per-seed, per-view dashboard preferences (KB-S02)

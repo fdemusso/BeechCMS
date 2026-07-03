@@ -7,9 +7,9 @@ import {
   generateDropColumn,
   generateRenameColumn,
   generateRetypeColumn,
-} from './engine'
-import { planFtsRebuild } from './seed-ddl'
-import type { Seed } from './types'
+} from './engine.js'
+import { planFtsRebuild } from './seed-ddl.js'
+import type { Seed } from './types.js'
 
 const fullSeed: Seed = {
   slug: 'posts',

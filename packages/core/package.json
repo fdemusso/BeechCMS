@@ -14,8 +14,8 @@
       "types": "./dist/index.d.ts"
     },
     "./webhook-crypto": {
-      "import": "./dist/webhook-crypto.js",
-      "types": "./dist/webhook-crypto.d.ts"
+      "import": "./dist/webhooks/webhook-crypto.js",
+      "types": "./dist/webhooks/webhook-crypto.d.ts"
     }
   },
   "scripts": {

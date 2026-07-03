@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import { Seed, SelectOptions } from './types.js'
+import { Seed, SelectOptions } from '../engine/types.js'
 
 /**
  * One row of the cross-seed pending-drafts overview. Aggregates the minimum a

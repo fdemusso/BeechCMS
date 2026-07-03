@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { resolveAuthorizedViews, isViewAuthorized, DEFAULT_AUTHORIZED_VIEWS } from './view-authorization.js'
-import type { Seed } from './types.js'
+import type { Seed } from '../engine/types.js'
 
 const baseSeed: Pick<Seed, 'dashboard'> = { dashboard: undefined }
 

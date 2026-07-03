@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { resolveKanbanConfig, resolveKanbanColumns, kanbanColumnFilter } from './kanban.js'
-import type { Seed, Branch } from './types.js'
+import type { Seed, Branch } from '../../engine/types.js'
 
 const baseSeed: Seed = {
   slug: 'tasks',

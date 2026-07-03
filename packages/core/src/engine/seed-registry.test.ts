@@ -2,8 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { SeedRegistry, InMemorySeedRegistry, sortSeedsByDependencies, findBranchById, nextBranchId } from './seed-registry'
-import type { Seed, Branch } from './types'
+import { SeedRegistry, InMemorySeedRegistry, sortSeedsByDependencies, findBranchById, nextBranchId } from './seed-registry.js'
+import type { Seed, Branch } from './types.js'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 

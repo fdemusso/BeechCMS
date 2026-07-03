@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, expect, it } from 'vitest'
-import type { Seed } from './types.js'
+import type { Seed } from '../engine/types.js'
 import {
   MAX_WIDGET_CONFIG_BYTES,
   dashboardLayoutSchema,
