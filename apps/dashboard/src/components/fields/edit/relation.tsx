@@ -1,13 +1,13 @@
-﻿// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 /**
- * Field Renderer Edit per tipo `relation`.
+ * Field Renderer Edit component for type `relation`.
  *
- * - Single-value (default): combobox ricercabile con debounce.
+ * - Single-value (default): searchable combobox with debounced server-side query.
  * - Multi-value (multiple: true): multi-select combobox + sortable chip row
- *   with up/down buttons and per-chip remove (Ã—).
+ *   with up/down sorting controls and per-chip removal (×).
  */
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
@@ -33,28 +33,51 @@ import {
 import { cn } from "@/lib/utils"
 import type { FieldEditProps } from "../types"
 
+/** Stale time for relation details query (5 minutes). */
 const RELATION_STALE_MS = 5 * 60 * 1000
+/** Debounce time for server-side autocomplete search (250ms). */
 const SEARCH_DEBOUNCE_MS = 250
+/** Maximum number of search results to fetch in one search query. */
 const LIST_LIMIT = 20
+/** Static reference for empty array to prevent unnecessary re-renders. */
 const EMPTY_IDS: string[] = []
 
-// â”€â”€ Shared helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ============================================================================
+// Shared helpers
+// ============================================================================
 
+/** Shape representing schema branch definitions relevant to relations. */
 type BranchLike = {
+  /** The target schema slug for the relation. */
   targetSeed?: string
+  /** Whether the field permits multiple values. */
   multiple?: boolean
+  /** Validation flag requiring a value on entry creation. */
   requiredOnCreate?: boolean
+  /** Validation flag requiring a value on entry update. */
   requiredOnUpdate?: boolean
 }
 
-// â”€â”€ Multi-chip: resolved label for a single id â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ============================================================================
+// Multi-chip: resolved label for a single id
+// ============================================================================
 
+/** Properties for the {@link useChipLabel} hook. */
 interface ChipLabelProps {
+  /** Target schema slug. */
   targetSlug: string
+  /** Entry ID whose label needs to be resolved. */
   targetId: string
+  /** Field name used as display alias (e.g. "title"). */
   labelAlias: string
 }
 
+/**
+ * React hook to fetch and resolve a human-readable display label for a specific relation entry ID.
+ *
+ * @param props - Hook parameters.
+ * @returns The resolved label string or the targetId if loading/failed.
+ */
 function useChipLabel({ targetSlug, targetId, labelAlias }: ChipLabelProps): string {
   const { fetchById, queryKeys } = useFieldsConfig()
   const { data: entry } = useQuery({
@@ -63,22 +86,37 @@ function useChipLabel({ targetSlug, targetId, labelAlias }: ChipLabelProps): str
     enabled: Boolean(targetSlug && targetId),
     staleTime: RELATION_STALE_MS,
   })
-  return String((entry?.data as Record<string, unknown> | undefined)?.[labelAlias] ?? targetId)
+  return String(entry?.data?.[labelAlias] ?? targetId)
 }
 
+/** Properties for the {@link SortableChip} component. */
 interface SortableChipProps {
+  /** The unique ID of the relation entry. */
   id: string
+  /** The index position of this chip in the list. */
   index: number
+  /** The total number of items in the list. */
   total: number
+  /** Target schema slug. */
   targetSlug: string
+  /** Field name used as display alias. */
   labelAlias: string
+  /** Callback to move the chip one slot up. */
   onMoveUp: () => void
+  /** Callback to move the chip one slot down. */
   onMoveDown: () => void
+  /** Callback to remove this chip from the selection. */
   onRemove: () => void
 }
 
+/**
+ * SortableChip component displaying a single selected relationship ID as a styled chip
+ * with sorting arrows and a removal button.
+ *
+ * @param props - Component properties conforming to {@link SortableChipProps}.
+ */
 function SortableChip({ id, index, total, targetSlug, labelAlias, onMoveUp, onMoveDown, onRemove }: SortableChipProps) {
-  const { t } = useTranslation()
+  const { t: translate } = useTranslation()
   const label = useChipLabel({ targetSlug, targetId: id, labelAlias })
 
   return (
@@ -87,7 +125,7 @@ function SortableChip({ id, index, total, targetSlug, labelAlias, onMoveUp, onMo
       <div className="flex items-center ml-1 gap-0.5 shrink-0">
         <button
           type="button"
-          aria-label={t("content.editor.relationMulti.moveUp")}
+          aria-label={translate("content.editor.relationMulti.moveUp")}
           disabled={index === 0}
           onClick={onMoveUp}
           className="rounded p-0.5 hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
@@ -96,7 +134,7 @@ function SortableChip({ id, index, total, targetSlug, labelAlias, onMoveUp, onMo
         </button>
         <button
           type="button"
-          aria-label={t("content.editor.relationMulti.moveDown")}
+          aria-label={translate("content.editor.relationMulti.moveDown")}
           disabled={index === total - 1}
           onClick={onMoveDown}
           className="rounded p-0.5 hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed"
@@ -105,7 +143,7 @@ function SortableChip({ id, index, total, targetSlug, labelAlias, onMoveUp, onMo
         </button>
         <button
           type="button"
-          aria-label={t("content.editor.relationMulti.remove")}
+          aria-label={translate("content.editor.relationMulti.remove")}
           onClick={onRemove}
           className="rounded p-0.5 hover:bg-destructive/20 hover:text-destructive"
         >
@@ -116,18 +154,33 @@ function SortableChip({ id, index, total, targetSlug, labelAlias, onMoveUp, onMo
   )
 }
 
-// â”€â”€ Multi-value RelationEdit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ============================================================================
+// Multi-value RelationEdit
+// ============================================================================
 
+/** Properties for the {@link MultiRelationEdit} component. */
 interface MultiRelationEditProps {
+  /** The branch metadata definition. */
   branch: BranchLike & { alias?: string; label?: string }
+  /** Currently selected entry IDs. */
   value: string[]
+  /** Callback fired when the selection changes. */
   onChange: (ids: string[]) => void
+  /** Controls disabled state. */
   disabled?: boolean
+  /** True if the record is currently being created. */
   isCreate?: boolean
 }
 
+/**
+ * MultiRelationEdit component renders a multi-select relationship field editor.
+ * Displays selected relations as sortable chips and provides a combobox popover
+ * to query and add new relations.
+ *
+ * @param props - Component properties conforming to {@link MultiRelationEditProps}.
+ */
 function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: MultiRelationEditProps) {
-  const { t } = useTranslation()
+  const { t: translate } = useTranslation()
   const { useSchema, searchRelations, queryKeys } = useFieldsConfig()
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
@@ -138,7 +191,7 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
   const selectedIds = Array.isArray(value) ? value : EMPTY_IDS
 
   const { data: seeds } = useSchema()
-  const targetSeed = seeds?.find((s) => s.slug === targetSlug)
+  const targetSeed = seeds?.find((schemaSeed) => schemaSeed.slug === targetSlug)
   const labelAlias = targetSeed?.displayNameAlias ?? "title"
 
   const { data: entriesData, isFetching } = useQuery({
@@ -153,38 +206,39 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
     placeholderData: (prev) => prev,
   })
 
-  const entries = (entriesData ?? []).filter(item => !selectedIds.includes(item.id))
+  const entries = (entriesData ?? []).filter((item) => !selectedIds.includes(item.id))
 
   const resolveLabel = (item: (typeof entries)[0]): string => {
-    const raw = (item.data as Record<string, unknown>)?.[labelAlias]
+    const raw = item.data?.[labelAlias]
     if (raw != null && raw !== "") return String(raw)
-    return item.slug ?? item.id
+    const slug = (item as { slug?: unknown }).slug
+    return typeof slug === "string" ? slug : item.id
   }
 
-  const handleAdd = React.useCallback((id: string) => {
-    if (!selectedIds.includes(id)) {
-      onChange([...selectedIds, id])
+  const handleAdd = React.useCallback((entryId: string) => {
+    if (!selectedIds.includes(entryId)) {
+      onChange([...selectedIds, entryId])
     }
     setOpen(false)
     setSearch("")
   }, [selectedIds, onChange])
 
-  const handleRemove = React.useCallback((idx: number) => {
-    onChange(selectedIds.filter((_, i) => i !== idx))
+  const handleRemove = React.useCallback((indexToRemove: number) => {
+    onChange(selectedIds.filter((_, currentIndex) => currentIndex !== indexToRemove))
   }, [selectedIds, onChange])
 
-  const handleMoveUp = React.useCallback((idx: number) => {
-    if (idx === 0) return
-    const next = [...selectedIds]
-    ;[next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]
-    onChange(next)
+  const handleMoveUp = React.useCallback((index: number) => {
+    if (index === 0) return
+    const nextSelectedIds = [...selectedIds]
+    ;[nextSelectedIds[index - 1], nextSelectedIds[index]] = [nextSelectedIds[index], nextSelectedIds[index - 1]]
+    onChange(nextSelectedIds)
   }, [selectedIds, onChange])
 
-  const handleMoveDown = React.useCallback((idx: number) => {
-    if (idx === selectedIds.length - 1) return
-    const next = [...selectedIds]
-    ;[next[idx], next[idx + 1]] = [next[idx + 1], next[idx]]
-    onChange(next)
+  const handleMoveDown = React.useCallback((index: number) => {
+    if (index === selectedIds.length - 1) return
+    const nextSelectedIds = [...selectedIds]
+    ;[nextSelectedIds[index], nextSelectedIds[index + 1]] = [nextSelectedIds[index + 1], nextSelectedIds[index]]
+    onChange(nextSelectedIds)
   }, [selectedIds, onChange])
 
   const isRequired = isCreate ? branch.requiredOnCreate === true : branch.requiredOnUpdate === true
@@ -195,19 +249,19 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
       {selectedIds.length > 0 && (
         <div
           className="flex flex-wrap gap-1.5"
-          aria-label={t("content.editor.relationMulti.selectedItems")}
+          aria-label={translate("content.editor.relationMulti.selectedItems")}
         >
-          {selectedIds.map((id, idx) => (
+          {selectedIds.map((id, index) => (
             <SortableChip
               key={id}
               id={id}
-              index={idx}
+              index={index}
               total={selectedIds.length}
               targetSlug={targetSlug ?? ""}
               labelAlias={labelAlias}
-              onMoveUp={() => handleMoveUp(idx)}
-              onMoveDown={() => handleMoveDown(idx)}
-              onRemove={() => handleRemove(idx)}
+              onMoveUp={() => handleMoveUp(index)}
+              onMoveDown={() => handleMoveDown(index)}
+              onRemove={() => handleRemove(index)}
             />
           ))}
         </div>
@@ -222,7 +276,7 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
             role="combobox"
             aria-expanded={open}
             aria-controls={addPopoverId}
-            aria-label={t("content.editor.relationMulti.add")}
+            aria-label={translate("content.editor.relationMulti.add")}
             disabled={disabled || !targetSlug}
             className={cn(
               "w-full justify-between font-normal",
@@ -231,8 +285,8 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
           >
             <span className="truncate">
               {isRequired && selectedIds.length === 0
-                ? t("content.editor.relation.placeholder")
-                : t("content.editor.relationMulti.add")}
+                ? translate("content.editor.relation.placeholder")
+                : translate("content.editor.relationMulti.add")}
             </span>
             <ChevronsUpDown className="size-4 opacity-50 ml-2 shrink-0" />
           </Button>
@@ -240,16 +294,16 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
         <PopoverContent id={addPopoverId} className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput
-              placeholder={t("content.editor.relation.search")}
+              placeholder={translate("content.editor.relation.search")}
               value={search}
               onValueChange={setSearch}
-              aria-label={t("content.editor.relation.search")}
+              aria-label={translate("content.editor.relation.search")}
             />
             <CommandList>
               {isFetching && entries.length === 0 ? (
-                <CommandEmpty>{t("content.editor.relation.loading")}</CommandEmpty>
+                <CommandEmpty>{translate("content.editor.relation.loading")}</CommandEmpty>
               ) : entries.length === 0 ? (
-                <CommandEmpty>{t("content.editor.relation.empty")}</CommandEmpty>
+                <CommandEmpty>{translate("content.editor.relation.empty")}</CommandEmpty>
               ) : (
                 <CommandGroup>
                   {entries.map((item) => {
@@ -279,17 +333,32 @@ function MultiRelationEdit({ branch, value, onChange, disabled, isCreate }: Mult
   )
 }
 
-// â”€â”€ Single-value RelationEdit (unchanged) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ============================================================================
+// Single-value RelationEdit
+// ============================================================================
 
+/** Properties for the {@link SingleRelationEdit} component. */
 interface SingleRelationEditProps {
+  /** The branch metadata definition. */
   branch: BranchLike & { alias?: string; label?: string }
+  /** The currently selected ID, or null if unassigned. */
   value: string | null
-  onChange: (v: string | null) => void
+  /** Callback fired when the selection changes. */
+  onChange: (selectedValue: string | null) => void
+  /** Controls disabled state. */
   disabled?: boolean
+  /** True if the record is currently being created. */
   isCreate?: boolean
+  /** Callback to trigger inline item creation dialog. */
   onInlineCreate?: () => void
 }
 
+/**
+ * SingleRelationEdit component renders a searchable dropdown autocomplete list
+ * for single-select relationship fields.
+ *
+ * @param props - Component properties conforming to {@link SingleRelationEditProps}.
+ */
 function SingleRelationEdit({
   branch,
   value,
@@ -298,7 +367,7 @@ function SingleRelationEdit({
   isCreate,
   onInlineCreate,
 }: SingleRelationEditProps) {
-  const { t } = useTranslation()
+  const { t: translate } = useTranslation()
   const { useSchema, fetchById, searchRelations, queryKeys } = useFieldsConfig()
   const [open, setOpen] = React.useState(false)
   const [search, setSearch] = React.useState("")
@@ -309,7 +378,7 @@ function SingleRelationEdit({
   const selectedId = typeof value === "string" && value.length > 0 ? value : null
 
   const { data: seeds } = useSchema()
-  const targetSeed = seeds?.find((s) => s.slug === targetSlug)
+  const targetSeed = seeds?.find((schemaSeed) => schemaSeed.slug === targetSlug)
   const labelAlias = targetSeed?.displayNameAlias ?? "title"
 
   const isRequired = isCreate
@@ -325,7 +394,7 @@ function SingleRelationEdit({
   })
 
   const selectedLabel = selectedEntry
-    ? String((selectedEntry?.data as Record<string, unknown>)?.[labelAlias] ?? selectedId)
+    ? String(selectedEntry?.data?.[labelAlias] ?? selectedId)
     : selectedId ?? ""
 
   const { data: entriesData, isFetching: isListFetching } = useQuery({
@@ -343,22 +412,23 @@ function SingleRelationEdit({
   const entries = entriesData ?? []
 
   const resolveLabel = (item: (typeof entries)[0]): string => {
-    const raw = (item.data as Record<string, unknown>)?.[labelAlias]
+    const raw = item.data?.[labelAlias]
     if (raw != null && raw !== "") return String(raw)
-    return item.slug ?? item.id
+    const slug = (item as { slug?: unknown }).slug
+    return typeof slug === "string" ? slug : item.id
   }
 
   const handleSelect = React.useCallback(
-    (id: string) => {
-      onChange(id)
+    (entryId: string) => {
+      onChange(entryId)
       setOpen(false)
     },
     [onChange]
   )
 
   const handleClear = React.useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation()
+    (event: React.MouseEvent) => {
+      event.stopPropagation()
       onChange(null)
     },
     [onChange]
@@ -375,7 +445,7 @@ function SingleRelationEdit({
           role="combobox"
           aria-expanded={open}
           aria-controls={singlePopoverId}
-          aria-label={t("content.editor.relation.placeholder")}
+          aria-label={translate("content.editor.relation.placeholder")}
           disabled={disabled || !targetSlug}
           className={cn(
             "w-full justify-between font-normal",
@@ -383,13 +453,13 @@ function SingleRelationEdit({
           )}
         >
           <span className="truncate">
-            {selectedId ? selectedLabel : t("content.editor.relation.placeholder")}
+            {selectedId ? selectedLabel : translate("content.editor.relation.placeholder")}
           </span>
           <span className="flex items-center gap-1 shrink-0 ml-1">
             {showClear && (
               <button
                 type="button"
-                aria-label={t("content.editor.relation.clear")}
+                aria-label={translate("content.editor.relation.clear")}
                 onClick={handleClear}
                 className="flex items-center rounded-sm opacity-60 hover:opacity-100 hover:bg-muted px-0.5"
               >
@@ -403,16 +473,16 @@ function SingleRelationEdit({
       <PopoverContent id={singlePopoverId} className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder={t("content.editor.relation.search")}
+            placeholder={translate("content.editor.relation.search")}
             value={search}
             onValueChange={setSearch}
-            aria-label={t("content.editor.relation.search")}
+            aria-label={translate("content.editor.relation.search")}
           />
           <CommandList>
             {isListFetching && entries.length === 0 ? (
-              <CommandEmpty>{t("content.editor.relation.loading")}</CommandEmpty>
+              <CommandEmpty>{translate("content.editor.relation.loading")}</CommandEmpty>
             ) : entries.length === 0 ? (
-              <CommandEmpty>{t("content.editor.relation.empty")}</CommandEmpty>
+              <CommandEmpty>{translate("content.editor.relation.empty")}</CommandEmpty>
             ) : (
               <CommandGroup>
                 {entries.map((item) => {
@@ -447,8 +517,17 @@ function SingleRelationEdit({
   )
 }
 
-// â”€â”€ Public export: dispatches on branch.multiple â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ============================================================================
+// Public export: dispatches on branch.multiple
+// ============================================================================
 
+/**
+ * Field Renderer: Relation Edit Component.
+ * Dispatches to either {@link MultiRelationEdit} or {@link SingleRelationEdit}
+ * based on whether the schema branch configures this relation as multi-value.
+ *
+ * @param props - Component properties conforming to {@link FieldEditProps}.
+ */
 export function RelationEdit({
   branch,
   value,
@@ -464,12 +543,12 @@ export function RelationEdit({
   const isMultiple = (branch as BranchLike).multiple === true
 
   if (isMultiple) {
-    const ids = Array.isArray(value) ? (value as string[]) : []
+    const selectedIds = Array.isArray(value) ? (value as string[]) : []
     return (
       <MultiRelationEdit
         branch={branch as BranchLike}
-        value={ids}
-        onChange={(next) => onChange(next)}
+        value={selectedIds}
+        onChange={(nextSelectedIds) => onChange(nextSelectedIds)}
         disabled={disabled}
         isCreate={isCreate}
       />
@@ -480,7 +559,7 @@ export function RelationEdit({
     <SingleRelationEdit
       branch={branch as BranchLike}
       value={typeof value === "string" ? value : null}
-      onChange={onChange as (v: string | null) => void}
+      onChange={onChange as (selectedValue: string | null) => void}
       disabled={disabled}
       isCreate={isCreate}
       onInlineCreate={onInlineCreate}

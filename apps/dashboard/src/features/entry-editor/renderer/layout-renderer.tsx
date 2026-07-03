@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
@@ -11,25 +12,46 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FieldEdit } from "@/components/fields"
 
-export interface RendererBranchMap { [id: string]: Branch }
-
-export interface RendererProps {
-  layout: FormLayout
-  branchById: RendererBranchMap
-  formData: Record<string, unknown>
-  fieldErrors: Record<string, string>
-  onChange: (alias: string, value: unknown) => void
-  dangerZoneSlot?: React.ReactNode
-  dangerZoneLabel?: string
-  activeTabId?: string
-  onActiveTabChange?: (tabId: string) => void
-  isReadOnly?: boolean
+/** Dictionary mapping schema branch IDs to their corresponding Branch configuration. */
+export interface RendererBranchMap {
+  [id: string]: Branch
 }
 
+/** Properties for the {@link LayoutRenderer} component. */
+export interface RendererProps {
+  /** The full grid/tab layout schema configured for the entry form. */
+  readonly layout: FormLayout
+  /** The lookup map to retrieve branch definitions by ID. */
+  readonly branchById: RendererBranchMap
+  /** The reactive key-value map representing the current form input state. */
+  readonly formData: Record<string, unknown>
+  /** Dictionary containing validation error messages indexed by branch/field alias. */
+  readonly fieldErrors: Record<string, string>
+  /** Callback fired when any field value changes. */
+  readonly onChange: (alias: string, value: unknown) => void
+  /** Optional React element to render inside a separate "Danger Zone" layout tab. */
+  readonly dangerZoneSlot?: React.ReactNode
+  /** Custom label for the Danger Zone tab trigger. Defaults to "Danger Zone". */
+  readonly dangerZoneLabel?: string
+  /** Controls active tab ID from a parent state (controlled tab). */
+  readonly activeTabId?: string
+  /** Callback triggered when the active tab selection changes. */
+  readonly onActiveTabChange?: (tabId: string) => void
+  /** Disables editing inputs when set to true. */
+  readonly isReadOnly?: boolean
+}
+
+/** Static ID representing the injected Danger Zone tab structure. */
 const DANGER_ZONE_TAB_ID = "__danger_zone__"
 
-function gridClassFor(n: number): string {
-  switch (n) {
+/**
+ * Returns Tailwind grid column classes based on the number of requested layout columns.
+ *
+ * @param columnCount - The number of columns in the grid section.
+ * @returns Tailwind CSS grid column class string.
+ */
+function gridClassFor(columnCount: number): string {
+  switch (columnCount) {
     case 1: return "grid-cols-1"
     case 2: return "grid-cols-1 sm:grid-cols-2"
     case 3: return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
@@ -38,36 +60,48 @@ function gridClassFor(n: number): string {
   }
 }
 
+/** Properties for the {@link ColumnRenderer} helper component. */
+interface ColumnRendererProps {
+  /** The column schema layout containing field lists. */
+  column: LayoutColumn
+  /** Map of schema branches. */
+  branchById: RendererBranchMap
+  /** The current form input values. */
+  formData: Record<string, unknown>
+  /** Active validation error messages. */
+  fieldErrors: Record<string, string>
+  /** Callback fired when any field changes. */
+  onChange: (alias: string, value: unknown) => void
+}
+
+/**
+ * ColumnRenderer component.
+ * Renders all assigned fields in vertical order inside a layout column.
+ */
 function ColumnRenderer({
   column,
   branchById,
   formData,
   fieldErrors,
   onChange,
-}: {
-  column: LayoutColumn
-  branchById: RendererBranchMap
-  formData: Record<string, unknown>
-  fieldErrors: Record<string, string>
-  onChange: (alias: string, value: unknown) => void
-}) {
-  const { t } = useTranslation()
+}: ColumnRendererProps) {
+  const { t: translate } = useTranslation()
 
   if (column.fields.length === 0) {
     return (
       <div className="text-sm text-muted-foreground italic py-2">
-        {t("content.editor.emptyColumn")}
+        {translate("content.editor.emptyColumn")}
       </div>
     )
   }
 
   return (
     <div className="space-y-4">
-      {column.fields.map((f) => {
-        const branch = branchById[f.branchId]
+      {column.fields.map((field) => {
+        const branch = branchById[field.branchId]
         if (branch == null) return null
         return (
-          <div key={f.branchId} className="space-y-2">
+          <div key={field.branchId} className="space-y-2">
             <Label htmlFor={branch.alias} className="flex items-center gap-1">
               {branch.hint ? (
                 <Tooltip>
@@ -90,7 +124,7 @@ function ColumnRenderer({
             <FieldEdit
               branch={branch as any}
               value={formData[branch.alias]}
-              onChange={(v) => onChange(branch.alias, v)}
+              onChange={(value) => onChange(branch.alias, value)}
             />
             {fieldErrors[branch.alias] && (
               <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
@@ -102,6 +136,26 @@ function ColumnRenderer({
   )
 }
 
+/** Properties for the {@link SectionRenderer} helper component. */
+interface SectionRendererProps {
+  /** The section layout schema. */
+  section: LayoutSection
+  /** True if this is the final section inside its parent tab. */
+  isLast: boolean
+  /** Map of schema branches. */
+  branchById: RendererBranchMap
+  /** The current form input values. */
+  formData: Record<string, unknown>
+  /** Active validation error messages. */
+  fieldErrors: Record<string, string>
+  /** Callback fired when any field changes. */
+  onChange: (alias: string, value: unknown) => void
+}
+
+/**
+ * SectionRenderer component.
+ * Renders a collapsible section with a custom header, borders, and a grid container of columns.
+ */
 function SectionRenderer({
   section,
   isLast,
@@ -109,14 +163,7 @@ function SectionRenderer({
   formData,
   fieldErrors,
   onChange,
-}: {
-  section: LayoutSection
-  isLast: boolean
-  branchById: RendererBranchMap
-  formData: Record<string, unknown>
-  fieldErrors: Record<string, string>
-  onChange: (alias: string, value: unknown) => void
-}) {
+}: SectionRendererProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false)
   const showBorder = !section.hideBorder && !isLast
   const showHeader = section.collapsible || (!section.hideLabel && !!section.label)
@@ -131,7 +178,7 @@ function SectionRenderer({
           {section.collapsible && (
             <button
               type="button"
-              onClick={() => setIsCollapsed((v) => !v)}
+              onClick={() => setIsCollapsed((prevCollapsed) => !prevCollapsed)}
               className="text-muted-foreground hover:text-foreground transition-colors"
               aria-expanded={!isCollapsed}
             >
@@ -144,10 +191,10 @@ function SectionRenderer({
       )}
       {!isCollapsed && (
         <div className={`grid gap-4 ${gridClassFor(section.columns.length)}`}>
-          {section.columns.map((col) => (
+          {section.columns.map((column) => (
             <ColumnRenderer
-              key={col.id}
-              column={col}
+              key={column.id}
+              column={column}
               branchById={branchById}
               formData={formData}
               fieldErrors={fieldErrors}
@@ -160,36 +207,48 @@ function SectionRenderer({
   )
 }
 
+/** Properties for the {@link TabSections} helper component. */
+interface TabSectionsProps {
+  /** The tab layout schema containing sections. */
+  tab: LayoutTab
+  /** Map of schema branches. */
+  branchById: RendererBranchMap
+  /** The current form input values. */
+  formData: Record<string, unknown>
+  /** Active validation error messages. */
+  fieldErrors: Record<string, string>
+  /** Callback fired when any field changes. */
+  onChange: (alias: string, value: unknown) => void
+}
+
+/**
+ * TabSections component.
+ * Renders all sections in sequence for a specific active layout tab.
+ */
 function TabSections({
   tab,
   branchById,
   formData,
   fieldErrors,
   onChange,
-}: {
-  tab: LayoutTab
-  branchById: RendererBranchMap
-  formData: Record<string, unknown>
-  fieldErrors: Record<string, string>
-  onChange: (alias: string, value: unknown) => void
-}) {
-  const { t } = useTranslation()
+}: TabSectionsProps) {
+  const { t: translate } = useTranslation()
 
   if (tab.sections.length === 0) {
     return (
       <p className="text-sm text-muted-foreground py-4">
-        {t("content.editor.emptyTab")}
+        {translate("content.editor.emptyTab")}
       </p>
     )
   }
 
   return (
     <div>
-      {tab.sections.map((section, i) => (
+      {tab.sections.map((section, index) => (
         <SectionRenderer
           key={section.id}
           section={section}
-          isLast={i === tab.sections.length - 1}
+          isLast={index === tab.sections.length - 1}
           branchById={branchById}
           formData={formData}
           fieldErrors={fieldErrors}
@@ -200,6 +259,13 @@ function TabSections({
   )
 }
 
+/**
+ * LayoutRenderer component.
+ * Core rendering component that takes a form layout, maps database entry values to fields,
+ * and renders tabs, collapsible sections, and responsive grids of editor inputs.
+ *
+ * @param props - Component properties conforming to {@link RendererProps}.
+ */
 export function LayoutRenderer({
   layout,
   branchById,
@@ -218,7 +284,7 @@ export function LayoutRenderer({
   const setActiveTabId = onActiveTabChange !== undefined ? onActiveTabChange : setInternalActiveTabId
 
   React.useEffect(() => {
-    const exists = layout.tabs.some((t) => t.id === activeTabId) || (!!dangerZoneSlot && activeTabId === DANGER_ZONE_TAB_ID)
+    const exists = layout.tabs.some((tab) => tab.id === activeTabId) || (!!dangerZoneSlot && activeTabId === DANGER_ZONE_TAB_ID)
     if (!exists && layout.tabs.length > 0) {
       setActiveTabId(layout.tabs[0].id)
     }

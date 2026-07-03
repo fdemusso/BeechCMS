@@ -36,27 +36,52 @@ import { getPeekEntryTitle } from "../gallery-peek-title"
 import { GalleryDetailTags } from "./gallery-detail-tags"
 import { GalleryRichtextReadonly } from "./gallery-richtext-readonly"
 
+/** Properties for the {@link GalleryPeekPanel} component. */
 interface GalleryPeekPanelProps {
+  /** The schema seed definition. */
   readonly seed: Seed
+  /** The target content entry detail to view, or null if closed. */
   readonly entry: ContentEntry | null
+  /** Controls dialog open visibility. */
   readonly open: boolean
+  /** Callback fired when closing the peek panel dialog. */
   readonly onClose: () => void
+  /** Callback fired to switch to editing mode for this entry. */
   readonly onEdit: (entryId: string) => void
 }
 
+/**
+ * Returns Tailwind CSS class strings corresponding to entry status colors.
+ *
+ * @param status - The raw entry status string.
+ * @returns CSS class string for styling the status badge.
+ */
 function statusBadgeClass(status: string): string {
-  const s = status.toLowerCase().trim()
-  if (s === "published") return "bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-800/60"
-  if (s === "draft") return "bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800/60"
-  if (["error", "failed", "rejected", "archived"].includes(s)) return "bg-red-50 text-red-700 border-red-200/80 dark:bg-red-500/10 dark:text-red-400 dark:border-red-800/60"
+  const normalizedStatus = status.toLowerCase().trim()
+  if (normalizedStatus === "published") {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-800/60"
+  }
+  if (normalizedStatus === "draft") {
+    return "bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-800/60"
+  }
+  if (["error", "failed", "rejected", "archived"].includes(normalizedStatus)) {
+    return "bg-red-50 text-red-700 border-red-200/80 dark:bg-red-500/10 dark:text-red-400 dark:border-red-800/60"
+  }
   return "bg-muted text-muted-foreground border-border"
 }
 
+/**
+ * Helper component rendering a single schema field block inside the details view.
+ * Handles displaying media fields differently (as preview images) and falls back
+ * to the default {@link FieldDisplay} for all other fields.
+ */
 function FieldBlock({
   branch,
   entry,
 }: Readonly<{
+  /** Schema branch definition. */
   branch: Branch
+  /** The target content entry. */
   entry: ContentEntry
 }>) {
   const mediaUrl = branch.type === "file" ? resolveImageUrl(entry.data[branch.alias]) : null
@@ -81,6 +106,13 @@ function FieldBlock({
   )
 }
 
+/**
+ * GalleryPeekPanel component.
+ * Displays a quick-view modal of a specific entry, partitioning content fields
+ * into main/richtext sections and SEO/meta metadata sections using tabs.
+ *
+ * @param props - Component properties conforming to {@link GalleryPeekPanelProps}.
+ */
 export function GalleryPeekPanel({
   seed,
   entry,

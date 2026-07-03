@@ -28,11 +28,15 @@ import { EntryEditorDialog } from "@/features/entry-editor"
 import { RichtextEditor } from "@/features/richtext-editor"
 import "./App.css"
 
+/**
+ * Concrete implementation of {@link FieldsContextType} serving as the dependency
+ * injection composition root for all custom fields in the dashboard application.
+ */
 const fieldsConfig = {
   useSchema,
   fetchById: (slug: string, id: string) => contentApi.fetchById(slug, id),
   searchRelations: (slug: string, params: { search?: string; limit?: number }) =>
-    contentApi.fetchList(slug, { ...params, page: 1 }).then((r) => r.items),
+    contentApi.fetchList(slug, { ...params, page: 1 }).then((response) => response.items),
   queryKeys: {
     detail: CONTENT_QUERY_KEYS.detail,
     lists: CONTENT_QUERY_KEYS.lists,
@@ -230,6 +234,13 @@ const router = createBrowserRouter([
   },
 ], { basename: '/admin' })
 
+/**
+ * The root Application component.
+ * Configures the Authentication Context Provider, the Fields Context Provider
+ * (passing the injected composition root), and renders the React Router Provider.
+ *
+ * @returns The bootstrap React element for the application.
+ */
 function App() {
   return (
     <AuthProvider>

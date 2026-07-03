@@ -1,17 +1,41 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
+
 import * as React from 'react'
 import { KANBAN_CARD_HEIGHT_PX } from './constants'
-import { FieldDisplay } from '@/components/fields/FieldDisplay'
+import { FieldDisplay } from '@/components/fields'
 import type { KanbanCardDisplayModel, ResolvedSlotField } from './types'
 
+/** Properties for the {@link KanbanCard} component. */
 interface KanbanCardProps {
+  /** Display data model containing mapped slot fields and metadata. */
   model: KanbanCardDisplayModel
+  /** Determines if the card details can be edited. */
   canEdit: boolean
+  /** Active status indicating if drag-and-drop sorting is currently occurring. */
   sortActive: boolean
+  /** Callback fired when the card is clicked to edit. */
   onEdit: (id: string) => void
+  /** True if the card is currently being dragged. */
   isDragging?: boolean
 }
 
-function SlotCell({ slot, maxLength, compact }: { slot: ResolvedSlotField; maxLength: number; compact?: boolean }) {
+/** Properties for the {@link SlotCell} helper component. */
+interface SlotCellProps {
+  /** The slot configuration and value. */
+  slot: ResolvedSlotField
+  /** The maximum string length allowed before truncation. */
+  maxLength: number
+  /** Set true to apply a compact display styling. */
+  compact?: boolean
+}
+
+/**
+ * SlotCell component.
+ * Helper component that delegates display rendering to {@link FieldDisplay}.
+ */
+function SlotCell({ slot, maxLength, compact }: SlotCellProps) {
   return (
     <FieldDisplay
       branch={slot.branch}
@@ -21,10 +45,17 @@ function SlotCell({ slot, maxLength, compact }: { slot: ResolvedSlotField; maxLe
   )
 }
 
+/**
+ * KanbanCard component.
+ * Renders an interactive card on a Kanban board, supporting customized layout slots
+ * (media, header, subtitle, metadata grid) or fallback defaults (image, title).
+ *
+ * @param props - Component properties conforming to {@link KanbanCardProps}.
+ */
 export const KanbanCard = React.memo(function KanbanCard({
   model,
   canEdit,
-  sortActive,
+  sortActive: _sortActive,
   onEdit,
   isDragging = false,
 }: KanbanCardProps) {
@@ -58,7 +89,7 @@ export const KanbanCard = React.memo(function KanbanCard({
           )}
           {slots.metadata.length > 0 && (
             <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-1">
-              {slots.metadata.map((slot, i) => (
+              {slots.metadata.map((slot) => (
                 <div key={slot.branch.id} className="flex flex-col gap-0.5 min-w-0">
                   <span className="text-[10px] text-muted-foreground truncate">{slot.branch.label}</span>
                   <span className="text-xs truncate">
