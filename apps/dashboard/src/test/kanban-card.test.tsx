@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { KanbanCard } from '@/features/content-kanban/kanban-card'
+import { KanbanCard } from '@/features/content-kanban/components/kanban-card'
 import type { KanbanCardDisplayModel } from '@/features/content-kanban/types'
 
 const baseModel: KanbanCardDisplayModel = {

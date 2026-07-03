@@ -4,3 +4,4 @@
 
 export * from "./query-keys"
 export * from "./hooks/use-schema"
+export * from "./view-registry"

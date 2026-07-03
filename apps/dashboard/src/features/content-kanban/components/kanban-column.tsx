@@ -2,8 +2,8 @@ import * as React from 'react'
 import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_WIDTH_PX } from './constants'
-import type { KanbanCardDisplayModel, KanbanColumnFetchState } from './types'
+import { KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_WIDTH_PX } from '../constants'
+import type { KanbanCardDisplayModel, KanbanColumnFetchState } from '../types'
 import { KanbanColumnVirtualizer } from './kanban-column-virtualizer'
 
 interface KanbanColumnProps {

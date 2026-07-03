@@ -2,19 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
 import type { DashboardView } from '@beechcms/core'
-import type { ToolbarTool } from './shared'
-
-export interface ViewDefinition {
-  type: DashboardView
-  labelKey: string
-  enabledTools: ToolbarTool[]
-}
-
-export interface IViewRegistry {
-  register(def: ViewDefinition): void
-  get(type: DashboardView): ViewDefinition | undefined
-  list(): ViewDefinition[]
-}
+import type { IViewRegistry, ViewDefinition } from '@/features/shared'
 
 export class ViewRegistryImpl implements IViewRegistry {
   private readonly map = new Map<DashboardView, ViewDefinition>()

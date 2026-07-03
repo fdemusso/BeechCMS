@@ -12,13 +12,8 @@ import type {
 } from "@/lib/conditional-format"
 
 export type ViewType = "table" | "gallery" | "grid" | "kanban" | "chart"
-export type ToolbarTool =
-  | "filter"
-  | "sort"
-  | "automation"
-  | "search"
-  | "settings"
-  | "create"
+import type { ToolbarTool } from "@/features/shared"
+export type { ToolbarTool }
 
 export interface UserViewInstance {
   id: string

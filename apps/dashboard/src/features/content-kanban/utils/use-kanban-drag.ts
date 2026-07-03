@@ -21,7 +21,7 @@ import { positionBetween } from './fractional'
 import type { KanbanBoardAction, DragSnapshot } from './use-kanban-board'
 import { KANBAN_SETTLE_MS, KANBAN_POSITION_REBALANCE_THRESHOLD } from '../constants'
 import type { KanbanCardDisplayModel } from '../types'
-import { buildKanbanCardDisplayModel } from '../kanban-card-display'
+import { buildKanbanCardDisplayModel } from './kanban-card-display'
 // // TODO: remove debug log helper
 // function writeDebugLog(message: string, data: any) {
 //   fetch('/auth/kanban-debug-log', {

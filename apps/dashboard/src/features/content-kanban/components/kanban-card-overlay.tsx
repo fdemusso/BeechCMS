@@ -1,6 +1,6 @@
 import * as React from 'react'
-import { KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_WIDTH_PX } from './constants'
-import type { KanbanCardDisplayModel } from './types'
+import { KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_WIDTH_PX } from '../constants'
+import type { KanbanCardDisplayModel } from '../types'
 
 interface KanbanCardOverlayProps {
   model: KanbanCardDisplayModel

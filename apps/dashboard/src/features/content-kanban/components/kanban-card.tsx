@@ -3,9 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from 'react'
-import { KANBAN_CARD_HEIGHT_PX } from './constants'
+import { KANBAN_CARD_HEIGHT_PX } from '../constants'
 import { FieldDisplay } from '@/components/fields'
-import type { KanbanCardDisplayModel, ResolvedSlotField } from './types'
+import type { KanbanCardDisplayModel, ResolvedSlotField } from '../types'
 
 /** Properties for the {@link KanbanCard} component. */
 interface KanbanCardProps {

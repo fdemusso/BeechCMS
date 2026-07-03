@@ -2,7 +2,7 @@ import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import { kanbanColumnFilter } from '@beechcms/core'
 import type { Branch, KanbanColumnDescriptor, FilterGroup, Seed, KanbanCardConfig } from '@beechcms/core'
 import { fetchKanbanColumn } from '@/lib/content-api'
-import { buildKanbanCardDisplayModel } from '../kanban-card-display'
+import { buildKanbanCardDisplayModel } from '../utils/kanban-card-display'
 import type { KanbanBoardConfig, KanbanColumnFetchState } from '../types'
 import { KANBAN_COLUMN_PAGE_SIZE } from '../constants'
 

@@ -27,7 +27,7 @@ const buildModelMock = vi.fn((item: any, _axis: any, _col: any, _seed?: any, _cf
   position: null,
 }))
 
-vi.mock('@/features/content-kanban/kanban-card-display', () => ({
+vi.mock('@/features/content-kanban/utils/kanban-card-display', () => ({
   buildKanbanCardDisplayModel: (...args: any[]) => buildModelMock(...args),
 }))
 

@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import { CardConfigDialog } from '@/features/content-kanban/card-config/card-config-dialog'
+import { CardConfigDialog } from '@/features/content-kanban/components/card-config-dialog'
 import { METADATA_SLOT_CAP } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 

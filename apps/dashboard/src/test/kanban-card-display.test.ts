@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect } from 'vitest'
-import { buildKanbanCardDisplayModel } from '@/features/content-kanban/kanban-card-display'
+import { buildKanbanCardDisplayModel } from '@/features/content-kanban/utils/kanban-card-display'
 import type { Branch } from '@beechcms/core'
 
 const axisBranch = { id: 'br_01', alias: 'status', type: 'text', label: 'Status' } as Branch

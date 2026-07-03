@@ -1,7 +1,7 @@
 import type { Seed, Branch, KanbanCardConfig } from '@beechcms/core'
 import { findBranchById } from '@beechcms/core'
 import type { ContentEntry } from '@/lib/dynamic-columns'
-import type { KanbanCardDisplayModel, KanbanCardSlots, ResolvedSlotField } from './types'
+import type { KanbanCardDisplayModel, KanbanCardSlots, ResolvedSlotField } from '../types'
 
 function resolveImageUrl(value: unknown): string | undefined {
   if (typeof value === 'string' && value.trim()) {
