@@ -12,50 +12,95 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Separator } from "@/components/ui/separator"
-import { FieldEditRepeater } from "./repeater"
+import {
+  RelationOptionsForm,
+  NumberOptionsForm,
+  FileOptionsForm,
+  RepeaterOptionsForm,
+  TagsOptionsForm,
+  PoliciesOptionsForm,
+} from "./repeater-branch-options"
 
+/** Full list of all registered BranchTypes. */
 const BRANCH_TYPES: BranchType[] = [
-  "text", "richtext", "number", "boolean", "date", "json", "tags", "file", "relation", "repeater",
+  "text",
+  "richtext",
+  "number",
+  "boolean",
+  "date",
+  "json",
+  "tags",
+  "file",
+  "relation",
+  "repeater",
 ]
 
-// Repeater sub-fields are restricted to leaf/scalar types — no nested `repeater`,
-// `relation`, or `file` (mirrors packages/core/src/validation.ts, depth capped at 1).
+/** Repeater sub-fields are restricted to leaf/scalar types (depth capped at 1). */
 const LEAF_BRANCH_TYPES: BranchType[] = [
-  "text", "richtext", "number", "boolean", "date", "json", "tags",
+  "text",
+  "richtext",
+  "number",
+  "boolean",
+  "date",
+  "json",
+  "tags",
 ]
 
+/** List of fields reserved for automation and internal purposes. */
 export const AUTOMATION_RESERVED = new Set([
-  "id", "slug", "status", "created_at", "updated_at", "schema_slug",
+  "id",
+  "slug",
+  "status",
+  "created_at",
+  "updated_at",
+  "schema_slug",
 ])
 
+/**
+ * Properties for the {@link BranchItemRow} component.
+ */
 export interface BranchItemRowProps {
+  /** The branch schema metadata being edited. */
   branch: Branch
+  /** Active seeds that can be chosen for relation targets. */
   activeSeedsForRelation: Seed[]
+  /** Callback fired when any branch details change. */
   onChange: (updated: Branch) => void
+  /** Callback to request removal of this branch. */
   onRemove: () => void
   /**
-   * Sprint 10: true when this row renders a repeater sub-field (`Branch.fields`
-   * item) rather than a top-level SQL-backed branch. Sub-fields are not SQL
-   * columns: alias/type stay freely editable regardless of `branch.id`, the
-   * sprint-06 destructive affordances never apply, and policies (which target
-   * SQL columns) are hidden.
+   * If true, this row represents a repeater sub-field.
+   * Subfields are not SQL columns: alias/type remain editable and policies are hidden.
    */
   subField?: boolean
-  /** Disable the remove control — e.g. when the parent repeater is at `minItems`. */
+  /** Disable the remove button (e.g. minItems constraints). */
   disableRemove?: boolean
 }
 
-export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemove, subField = false, disableRemove = false }: BranchItemRowProps) {
+/**
+ * A draggable, collapsible row component representing a single schema branch (field)
+ * within the Seed Builder or Repeater Builder.
+ */
+export function BranchItemRow({
+  branch,
+  activeSeedsForRelation,
+  onChange,
+  onRemove,
+  subField = false,
+  disableRemove = false,
+}: BranchItemRowProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const isExisting = !subField && !branch.id.startsWith("br_new_")
   const typeOptions = subField ? LEAF_BRANCH_TYPES : BRANCH_TYPES
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: branch.id })
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: branch.id,
+  })
+
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
     transition,
@@ -64,10 +109,6 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
 
   function set<K extends keyof Branch>(key: K, value: Branch[K]) {
     onChange({ ...branch, [key]: value })
-  }
-
-  function setPolicy(key: keyof NonNullable<Branch["policies"]>, value: boolean | string) {
-    onChange({ ...branch, policies: { ...branch.policies, [key]: value } })
   }
 
   return (
@@ -91,8 +132,12 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
         </button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="font-mono text-sm font-medium truncate">{branch.alias || t("seedBuilder.branchEditor.newField")}</span>
-            <Badge variant="secondary" className="text-xs">{branch.type}</Badge>
+            <span className="font-mono text-sm font-medium truncate">
+              {branch.alias || t("seedBuilder.branchEditor.newField")}
+            </span>
+            <Badge variant="secondary" className="text-xs">
+              {branch.type}
+            </Badge>
           </div>
           {branch.label && <p className="text-xs text-muted-foreground truncate">{branch.label}</p>}
         </div>
@@ -101,7 +146,14 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
             {open ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </Button>
         </CollapsibleTrigger>
-        <Button variant="ghost" size="sm" onClick={onRemove} disabled={disableRemove} title={t("fields.repeater.removeItem")} aria-label={t("fields.repeater.removeItem")}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={onRemove}
+          disabled={disableRemove}
+          title={t("fields.repeater.removeItem")}
+          aria-label={t("fields.repeater.removeItem")}
+        >
           <Trash2 className="h-4 w-4 text-destructive" />
         </Button>
       </div>
@@ -118,7 +170,11 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="flex items-center gap-1">
-                        <Input value={branch.alias} readOnly className="bg-muted text-muted-foreground cursor-not-allowed" />
+                        <Input
+                          value={branch.alias}
+                          readOnly
+                          className="bg-muted text-muted-foreground cursor-not-allowed"
+                        />
                         <Info className="h-3 w-3 text-muted-foreground shrink-0" />
                       </div>
                     </TooltipTrigger>
@@ -128,7 +184,9 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
               ) : (
                 <Input
                   value={branch.alias}
-                  onChange={e => set("alias", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                  onChange={(e) =>
+                    set("alias", e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))
+                  }
                   placeholder="field_name"
                   pattern="^[a-z0-9_]+$"
                 />
@@ -143,7 +201,11 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <div className="flex items-center gap-1">
-                        <Input value={branch.type} readOnly className="bg-muted text-muted-foreground cursor-not-allowed" />
+                        <Input
+                          value={branch.type}
+                          readOnly
+                          className="bg-muted text-muted-foreground cursor-not-allowed"
+                        />
                         <Info className="h-3 w-3 text-muted-foreground shrink-0" />
                       </div>
                     </TooltipTrigger>
@@ -151,13 +213,15 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
                   </Tooltip>
                 </TooltipProvider>
               ) : (
-                <Select value={branch.type} onValueChange={v => set("type", v as BranchType)}>
+                <Select value={branch.type} onValueChange={(v) => set("type", v as BranchType)}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {typeOptions.map(bt => (
-                      <SelectItem key={bt} value={bt}>{t(`seedBuilder.fieldTypes.${bt}`)}</SelectItem>
+                    {typeOptions.map((bt) => (
+                      <SelectItem key={bt} value={bt}>
+                        {t(`seedBuilder.fieldTypes.${bt}`)}
+                      </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -170,214 +234,34 @@ export function BranchItemRow({ branch, activeSeedsForRelation, onChange, onRemo
             <Label className="text-xs">{t("seedBuilder.branchEditor.label")}</Label>
             <Input
               value={branch.label}
-              onChange={e => set("label", e.target.value)}
+              onChange={(e) => set("label", e.target.value)}
               placeholder={t("seedBuilder.branchEditor.labelPlaceholder")}
             />
           </div>
 
           {/* Type-specific sub-forms */}
           {branch.type === "relation" && (
-            <div className="space-y-2 rounded-md border p-2">
-              <p className="text-xs font-medium">{t("seedBuilder.branchEditor.relationOptions")}</p>
-              <div className="space-y-1">
-                <Label className="text-xs">{t("seedBuilder.branchEditor.targetSeed")}</Label>
-                <Select value={branch.targetSeed ?? ""} onValueChange={v => set("targetSeed", v)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={t("seedBuilder.branchEditor.targetSeedPlaceholder")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {activeSeedsForRelation.map(s => (
-                      <SelectItem key={s.slug} value={s.slug}>{s.labelPlural ?? s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id={`multiple-${branch.id}`}
-                  checked={!!branch.multiple}
-                  onCheckedChange={v => set("multiple", !!v)}
-                />
-                <Label htmlFor={`multiple-${branch.id}`} className="text-xs">{t("seedBuilder.branchEditor.multiple")}</Label>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{t("seedBuilder.branchEditor.onDelete")}</Label>
-                <Select
-                  value={branch.onDelete ?? "SET NULL"}
-                  onValueChange={v => set("onDelete", v as Branch["onDelete"])}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CASCADE">{t("seedBuilder.branchEditor.onDeleteCascade")}</SelectItem>
-                    <SelectItem value="RESTRICT">{t("seedBuilder.branchEditor.onDeleteRestrict")}</SelectItem>
-                    <SelectItem value="SET NULL" disabled={!!branch.multiple}>{t("seedBuilder.branchEditor.onDeleteSetNull")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <RelationOptionsForm
+              branch={branch}
+              activeSeedsForRelation={activeSeedsForRelation}
+              onChange={onChange}
+            />
           )}
 
-          {branch.type === "number" && (
-            <div className="space-y-2 rounded-md border p-2">
-              <p className="text-xs font-medium">{t("seedBuilder.branchEditor.numberOptions")}</p>
-              <div className="grid grid-cols-3 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">{t("seedBuilder.branchEditor.min")}</Label>
-                  <Input
-                    type="number"
-                    value={branch.numberOptions?.min ?? ""}
-                    onChange={e => onChange({ ...branch, numberOptions: { ...branch.numberOptions, min: e.target.value ? +e.target.value : undefined } })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">{t("seedBuilder.branchEditor.max")}</Label>
-                  <Input
-                    type="number"
-                    value={branch.numberOptions?.max ?? ""}
-                    onChange={e => onChange({ ...branch, numberOptions: { ...branch.numberOptions, max: e.target.value ? +e.target.value : undefined } })}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">{t("seedBuilder.branchEditor.step")}</Label>
-                  <Input
-                    type="number"
-                    value={branch.numberOptions?.step ?? ""}
-                    onChange={e => onChange({ ...branch, numberOptions: { ...branch.numberOptions, step: e.target.value ? +e.target.value : undefined } })}
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{t("seedBuilder.branchEditor.control")}</Label>
-                <Select
-                  value={branch.numberOptions?.control ?? "input"}
-                  onValueChange={v => onChange({ ...branch, numberOptions: { ...branch.numberOptions, control: v as "input" | "slider" | "rating" | "stepper" } })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["input", "slider", "rating", "stepper"].map(c => (
-                      <SelectItem key={c} value={c}>{t(`seedBuilder.branchEditor.control_${c}`)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
+          {branch.type === "number" && <NumberOptionsForm branch={branch} onChange={onChange} />}
 
-          {branch.type === "file" && (
-            <div className="space-y-2 rounded-md border p-2">
-              <p className="text-xs font-medium">{t("seedBuilder.branchEditor.fileOptions")}</p>
-              <div className="flex items-center gap-2">
-                <Checkbox
-                  id={`file-multiple-${branch.id}`}
-                  checked={!!branch.multiple}
-                  onCheckedChange={v => set("multiple", !!v)}
-                />
-                <Label htmlFor={`file-multiple-${branch.id}`} className="text-xs">{t("seedBuilder.branchEditor.multiple")}</Label>
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">{t("seedBuilder.branchEditor.fileAccept")}</Label>
-                <Select
-                  value={branch.fileOptions?.accept ?? "any"}
-                  onValueChange={v => onChange({ ...branch, fileOptions: { ...branch.fileOptions, accept: v as "image" | "document" | "any" } })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {["any", "image", "document"].map(a => (
-                      <SelectItem key={a} value={a}>{t(`seedBuilder.branchEditor.fileAccept_${a}`)}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
+          {branch.type === "file" && <FileOptionsForm branch={branch} onChange={onChange} />}
 
-          {branch.type === "repeater" && !subField && (
-            <div className="space-y-2 rounded-md border p-2">
-              <p className="text-xs font-medium">{t("seedBuilder.branchEditor.repeaterFields")}</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">{t("seedBuilder.branchEditor.minItems")}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={branch.minItems ?? ""}
-                    onChange={e => set("minItems", e.target.value ? +e.target.value : undefined)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">{t("seedBuilder.branchEditor.maxItems")}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={branch.maxItems ?? ""}
-                    onChange={e => set("maxItems", e.target.value ? +e.target.value : undefined)}
-                  />
-                </div>
-              </div>
-              <FieldEditRepeater
-                branch={{
-                  id: `${branch.id}_subfields`,
-                  alias: "fields",
-                  label: "",
-                  type: "repeater",
-                  repeater: {
-                    itemKind: "branch",
-                    itemLabel: t("seedBuilder.branchEditor.addSubField"),
-                    branchItemContext: { activeSeedsForRelation: [], subField: true },
-                  },
-                } as unknown as Branch}
-                value={branch.fields ?? []}
-                onChange={(fields) => set("fields", fields as Branch[])}
-              />
-            </div>
+          {branch.type === "repeater" && (
+            <RepeaterOptionsForm branch={branch} onChange={onChange} subField={subField} />
           )}
 
           {(branch.type === "tags" || branch.type === "json") && (
-            <div className="space-y-1">
-              <Label className="text-xs">{t("seedBuilder.branchEditor.options")}</Label>
-              <Input
-                value={(branch.options ?? []).join(",")}
-                onChange={e => set("options", e.target.value ? e.target.value.split(",").map(s => s.trim()) : [])}
-                placeholder={t("seedBuilder.branchEditor.optionsPlaceholder")}
-              />
-              <p className="text-xs text-muted-foreground">{t("seedBuilder.branchEditor.optionsHint")}</p>
-            </div>
+            <TagsOptionsForm branch={branch} onChange={onChange} />
           )}
 
           {/* Policies — sub-fields live inside a JSON blob, not a SQL column */}
-          {!subField && (
-            <div className="space-y-2 rounded-md border p-2">
-              <p className="text-xs font-medium">{t("seedBuilder.branchEditor.policies")}</p>
-              <div className="grid grid-cols-2 gap-2">
-                {(["search", "filter", "sort", "public"] as const).map(pol => (
-                  <div key={pol} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`policy-${branch.id}-${pol}`}
-                      checked={branch.policies?.[pol] !== false}
-                      onCheckedChange={v => setPolicy(pol, !!v)}
-                    />
-                    <Label htmlFor={`policy-${branch.id}-${pol}`} className="text-xs">{t(`seedBuilder.policies.${pol}`)}</Label>
-                  </div>
-                ))}
-                <div className="space-y-1 col-span-2">
-                  <Label className="text-xs">{t("seedBuilder.policies.visibility")}</Label>
-                  <Select
-                    value={branch.policies?.visibility ?? "full"}
-                    onValueChange={v => setPolicy("visibility", v)}
-                  >
-                    <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {["full", "masked", "hidden"].map(vis => (
-                        <SelectItem key={vis} value={vis} className="text-xs">{t(`seedBuilder.policies.visibility_${vis}`)}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          )}
+          <PoliciesOptionsForm branch={branch} onChange={onChange} subField={subField} />
         </div>
       </CollapsibleContent>
     </Collapsible>
