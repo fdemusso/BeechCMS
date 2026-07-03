@@ -141,6 +141,36 @@ describe('D1ContentRepository', () => {
       const result = await new D1ContentRepository(db).findMany(SEED, { pagination: { limit: 10, offset: 0 } })
       expect(result.items[0].position).toBeUndefined()
     })
+
+    it('correctly constructs query and total query with has_tag filter', async () => {
+      const row = { id: 'e1', slug: 'post-1', status: 'published', title: 'Hello', labels: '["tag1"]', created_at: 1000, updated_at: 1000 }
+      const { db, prepareMock } = makeMockDb({
+        batchResults: [
+          { results: [row] },
+          { results: [{ total: 1 }] },
+        ],
+      })
+      const result = await new D1ContentRepository(db).findMany(TAGS_SEED, {
+        filters: [
+          {
+            column: 'labels',
+            type: 'tags',
+            conditions: [{ op: 'has_tag', value: 'tag1' }]
+          }
+        ],
+        pagination: { limit: 10, offset: 0 }
+      })
+      expect(result.items).toHaveLength(1)
+      expect(result.total).toBe(1)
+      
+      expect(prepareMock).toHaveBeenCalledTimes(2)
+      const countSql = prepareMock.mock.calls[1][0]
+      
+      expect(countSql).toContain('SELECT COUNT(*) as total FROM')
+      expect(countSql).toContain('EXISTS (SELECT 1 FROM json_each(labels)')
+      expect(countSql).not.toContain('ORDER BY')
+      expect(countSql).not.toContain('LIMIT')
+    })
   })
 
   // ─── findById ───────────────────────────────────────────────────────────────

@@ -152,6 +152,27 @@ describe('Botanical Engine', () => {
       expect(query.bindings).toContain(20)
     })
 
+    it('handles isCount', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { 
+            column: 'title', 
+            type: 'text', 
+            conditions: [{ op: 'contains', value: 'Hello' }] 
+          }
+        ],
+        pagination: { limit: 10, offset: 20 },
+        isCount: true
+      })
+      expect(query.sql).toContain('SELECT COUNT(*) as total FROM content_articles')
+      expect(query.sql).toContain('title LIKE ?')
+      expect(query.sql).not.toContain('ORDER BY')
+      expect(query.sql).not.toContain('LIMIT ? OFFSET ?')
+      expect(query.bindings).toContain('%Hello%')
+      expect(query.bindings).not.toContain(10)
+      expect(query.bindings).not.toContain(20)
+    })
+
     it('handles status filter', () => {
       const query = buildSelectQuery(mockSeed, { status: 'published' })
       expect(query.sql).toContain('content_articles.status = ?')
