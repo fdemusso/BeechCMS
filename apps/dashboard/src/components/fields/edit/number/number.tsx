@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { FieldEditProps } from "../types"
+import type { FieldEditProps } from "../../types"
 import { NumberInput } from "./number-input"
 import { NumberSlider } from "./number-slider"
 import { NumberRating } from "./number-rating"

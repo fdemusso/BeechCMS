@@ -15,7 +15,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-ki
 import { Plus } from "lucide-react"
 import type { Branch, Seed } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
-import type { FieldEditProps } from "../types"
+import type { FieldEditProps } from "../../types"
 import { BranchItemRow } from "./repeater-branch-item"
 import { GenericItemRow } from "./repeater-generic-item"
 

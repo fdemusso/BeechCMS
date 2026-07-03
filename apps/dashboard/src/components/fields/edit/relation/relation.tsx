@@ -8,7 +8,7 @@
  * - Single-value (default): delegates to {@link SingleRelationEdit}
  * - Multi-value (multiple: true): delegates to {@link MultiRelationEdit}
  */
-import type { FieldEditProps } from "../types"
+import type { FieldEditProps } from "../../types"
 import { SingleRelationEdit } from "./relation-single"
 import { MultiRelationEdit } from "./relation-multi"
 

@@ -9,7 +9,7 @@ import { GripVertical, Trash2 } from "lucide-react"
 import type { Branch, BranchType } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { getEditComponent } from "../registry"
+import { getEditComponent } from "../../registry"
 
 // Repeater sub-fields are restricted to leaf/scalar types — no nested `repeater`,
 // `relation`, or `file` (mirrors packages/core/src/validation.ts).

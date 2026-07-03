@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { Check, ChevronsUpDown, X, ChevronUp, ChevronDown } from "lucide-react"
 
-import { useFieldsConfig } from "../context"
+import { useFieldsConfig } from "../../context"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Button } from "@/components/ui/button"
 import {

@@ -25,7 +25,7 @@ import { JsonEdit } from './edit/json'
 import { RichtextEdit } from './edit/richtext'
 import { MediaEdit } from './edit/media'
 import { RelationEdit } from './edit/relation'
-import { FieldEditRepeater } from './edit/repeater'
+import { FieldEditRepeater } from './edit/repeater/repeater'
 import { SelectEdit } from './edit/select'
 
 const fieldRegistry: IFieldRegistry = new FieldRegistryImpl()

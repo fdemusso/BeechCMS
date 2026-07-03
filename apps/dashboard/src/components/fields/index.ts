@@ -9,5 +9,5 @@ export {
   getDisplayComponent,
   getEditComponent,
 } from "./registry"
-export { BranchItemRow, AUTOMATION_RESERVED } from "./edit/repeater-branch-item"
-export type { BranchItemRowProps } from "./edit/repeater-branch-item"
+export { BranchItemRow, AUTOMATION_RESERVED } from "./edit/repeater/repeater-branch-item"
+export type { BranchItemRowProps } from "./edit/repeater/repeater-branch-item"
