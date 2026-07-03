@@ -6,6 +6,10 @@ import { useTranslation } from "react-i18next"
 import { DatePickerInput } from "@/components/ui/date-picker-input"
 import type { FieldEditProps } from "../types"
 
+/**
+ * Editor for `date` typed fields: thin wrapper around {@link DatePickerInput}
+ * binding the field's string value (or `null`) directly to the picker.
+ */
 export function DateEdit({ branch, value, onChange }: FieldEditProps) {
   const { t } = useTranslation()
   // dateFormat: uses DEFAULT_DATE_FORMAT until this component moves to features/fields in Phase B1

@@ -6,6 +6,14 @@ import { ChevronDown, ChevronUp } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import type { FieldEditProps } from "../types"
 
+/**
+ * Default `number` field control: a native numeric `Input` with custom
+ * increment/decrement chevrons (the browser's own spinner is hidden via
+ * CSS) and optional `prefix`/`suffix` decoration from `branch.numberOptions`.
+ * Increment/decrement are clamped to `min`/`max`; the input itself only
+ * enforces `min`/`max` via native attributes, so out-of-range typed values
+ * are not corrected until the user blurs or uses the chevrons.
+ */
 export function NumberInput({ branch, value, onChange }: FieldEditProps) {
   const raw = value as number | undefined
   const displayValue = raw !== undefined && raw !== null ? raw : ""

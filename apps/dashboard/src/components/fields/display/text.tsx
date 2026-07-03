@@ -6,8 +6,15 @@ import { ExpandableCell } from "@/components/ui/expandable-cell"
 import type { FieldDisplayProps } from "../types"
 
 const DEFAULT_MAX_LENGTH = 50
+/** Max number of chip items shown before collapsing the rest into a "+N" overflow badge in compact mode. */
 const CARD_TAG_CAP = 3
 
+/**
+ * Renders a text value, truncated via {@link ExpandableCell}.
+ * In `options.compact` mode, arrays and comma-separated strings are instead rendered as a
+ * capped row of chip pills (used e.g. for kanban/card views), falling back to the plain
+ * truncated string when the value isn't list-like.
+ */
 export function TextDisplay({ value, options }: FieldDisplayProps) {
   if (value == null) {
     return <div className="text-muted-foreground">-</div>

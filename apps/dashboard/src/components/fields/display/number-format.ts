@@ -4,6 +4,14 @@
 
 import type { NumberFieldOptions } from "@beechcms/core"
 
+/**
+ * Formats a number for display using the `it-IT` locale, honoring the field's
+ * currency/percentage/compact format, decimals, grouping, and optional prefix/suffix.
+ *
+ * For `percentage` format, values greater than 1 are assumed to already be in "whole
+ * percent" form (e.g. 42 meaning 42%) and are divided by 100 before formatting, since
+ * `Intl.NumberFormat`'s percent style expects a 0-1 fraction.
+ */
 export function formatNumber(num: number, options?: NumberFieldOptions): string {
   const intlOpts: Intl.NumberFormatOptions = {}
   

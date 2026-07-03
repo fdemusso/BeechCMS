@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import type { FieldDisplayProps } from "../types"
 import { formatNumber } from "./number-format"
 
+/** Renders a `value`-out-of-`max` star rating; when `allowHalf` is true, fractional values render a half-filled star. */
 function StarRatingDisplay({ value, max, allowHalf }: { value: number; max: number; allowHalf: boolean }) {
   return (
     <div className="flex items-center gap-0.5">
@@ -31,6 +32,11 @@ function StarRatingDisplay({ value, max, allowHalf }: { value: number; max: numb
   )
 }
 
+/**
+ * Renders a percentage as a color-coded progress bar (red &lt;34%, yellow &lt;67%, green above)
+ * with the formatted value shown in a tooltip. `value` may be a 0-1 fraction or an
+ * already-scaled 0-100 number; both are normalized to a 0-100 percentage for the bar.
+ */
 function PercentageDisplay({ value, formatted }: { value: number; formatted: string }) {
   const pct = Math.min(100, Math.max(0, value > 1 ? value : value * 100))
 
@@ -59,6 +65,10 @@ function PercentageDisplay({ value, formatted }: { value: number; formatted: str
   )
 }
 
+/**
+ * Renders a `number` field. The branch's `numberOptions.control`/`format` determine the
+ * presentation: a star rating widget, a percentage progress bar, or a plain formatted number.
+ */
 export function NumberDisplay({ branch, value }: FieldDisplayProps) {
   if (value == null) {
     return <div className="text-muted-foreground">-</div>

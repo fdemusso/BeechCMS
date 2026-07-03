@@ -50,7 +50,11 @@ const LEAF_BRANCH_TYPES: BranchType[] = [
   "tags",
 ]
 
-/** List of fields reserved for automation and internal purposes. */
+/**
+ * Column names owned by the CMS itself (primary key, status, timestamps, etc.).
+ * Exported so alias inputs elsewhere can be validated against picking one of
+ * these as a custom field alias, since they'd collide with a real SQL column.
+ */
 export const AUTOMATION_RESERVED = new Set([
   "id",
   "slug",
@@ -95,6 +99,10 @@ export function BranchItemRow({
 }: BranchItemRowProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
+  // Once a top-level branch is persisted (id no longer has the "br_new_" prefix
+  // assigned on creation), alias/type are locked: renaming/retyping would orphan
+  // the underlying SQL column. Sub-fields (subField) never get this lock since
+  // they live in a JSON blob and can be freely redefined.
   const isExisting = !subField && !branch.id.startsWith("br_new_")
   const typeOptions = subField ? LEAF_BRANCH_TYPES : BRANCH_TYPES
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({

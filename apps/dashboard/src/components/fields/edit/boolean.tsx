@@ -5,6 +5,11 @@
 import { Checkbox } from "@/components/ui/checkbox"
 import type { FieldEditProps } from "../types"
 
+/**
+ * Editor for `boolean` typed fields: a single checkbox bound to a real
+ * boolean. Accepts both a boolean `true` and the legacy stringified
+ * `"true"` as truthy stored values; `onChange` always emits a boolean.
+ */
 export function BooleanEdit({ branch, value, onChange }: FieldEditProps) {
   const checked =
     value === true || value === "true"

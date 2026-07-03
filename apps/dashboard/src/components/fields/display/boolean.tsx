@@ -5,6 +5,10 @@
 import { useTranslation } from "react-i18next"
 import type { FieldDisplayProps } from "../types"
 
+/**
+ * Renders a boolean value as a yes/no pill. Accepts both the boolean `true`
+ * and the string `"true"` as truthy, since values can arrive as raw stored strings.
+ */
 export function BooleanDisplay({ value }: FieldDisplayProps) {
   const { t } = useTranslation()
   const isTrue = value === true || value === "true"

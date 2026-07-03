@@ -21,6 +21,7 @@ import type { FieldEditProps } from "../types"
 const IMAGE_ACCEPT = "image/*"
 const URL_VALIDATION_TIMEOUT_MS = 8000
 
+/** True when the branch represents a multi-image asset list rather than a single URL. */
 function isAssetListBranch(maybeBranch: { type: string; multiple?: boolean; format?: string }): boolean {
   return (
     maybeBranch.type === "file" &&
@@ -28,6 +29,7 @@ function isAssetListBranch(maybeBranch: { type: string; multiple?: boolean; form
   )
 }
 
+/** Rejects non-HTTPS and malformed URLs; only HTTPS image links are accepted. */
 function isHttpsUrl(value: string): boolean {
   try {
     const parsed = new URL(value)
@@ -37,6 +39,12 @@ function isHttpsUrl(value: string): boolean {
   }
 }
 
+/**
+ * Probes whether `url` actually loads as an image by attaching it to an
+ * offscreen `Image` and waiting for `load`/`error`. Resolves `false` if
+ * neither fires within {@link URL_VALIDATION_TIMEOUT_MS}, so a slow or dead
+ * host doesn't hang the UI indefinitely.
+ */
 async function canRenderImageUrl(url: string): Promise<boolean> {
   return new Promise((resolve) => {
     const image = new Image()
@@ -69,6 +77,7 @@ async function canRenderImageUrl(url: string): Promise<boolean> {
   })
 }
 
+/** Best-effort JSON.parse; returns the original string unchanged if it isn't valid JSON. */
 function parseJsonString(value: string): unknown {
   try {
     return JSON.parse(value)
@@ -77,12 +86,19 @@ function parseJsonString(value: string): unknown {
   }
 }
 
+/** Returns `value` trimmed if it's an HTTPS URL string, otherwise `null`. */
 function normalizeUrl(value: unknown): string | null {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
   return isHttpsUrl(trimmed) ? trimmed : null
 }
 
+/**
+ * Normalizes a stored asset-list value into a deduplicated array of HTTPS
+ * URLs. Tolerates the value being a JSON string, a single item instead of
+ * an array, or a list of `{ url }` objects instead of plain strings;
+ * anything that doesn't resolve to a valid HTTPS URL is silently dropped.
+ */
 function parseAssetListValue(value: unknown): string[] {
   const input = typeof value === "string" ? parseJsonString(value) : value
   const values = Array.isArray(input) ? input : [input]
@@ -104,10 +120,12 @@ function parseAssetListValue(value: unknown): string[] {
   return [...new Set(urls)]
 }
 
+/** Appends `nextUrl` to `current` unless it's already present (no duplicate assets). */
 function appendUniqueUrl(current: string[], nextUrl: string): string[] {
   return current.includes(nextUrl) ? current : [...current, nextUrl]
 }
 
+/** Moves the item at `from` to index `to`, returning a new array; no-op if `to` is out of range or equal to `from`. */
 function moveItem(list: string[], from: number, to: number): string[] {
   if (to < 0 || to >= list.length || from === to) return list
   const copy = [...list]
@@ -116,6 +134,16 @@ function moveItem(list: string[], from: number, to: number): string[] {
   return copy
 }
 
+/**
+ * Editor for `file` typed fields (see module doc above for the URL/upload/
+ * asset-list behaviors). Single mode edits a plain string URL; asset-list
+ * mode (`branch.multiple` or `format: "asset-list"`) edits an ordered
+ * array of URLs, with drag/reorder controls per item.
+ *
+ * Both a manual URL input and drag-and-drop / file-picker upload share the
+ * same validation path: HTTPS-only, and the image must actually load before
+ * being accepted (see {@link canRenderImageUrl}).
+ */
 export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
   const { t } = useTranslation()
   const inputRef = React.useRef<HTMLInputElement>(null)

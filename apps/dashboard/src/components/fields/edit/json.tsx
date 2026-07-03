@@ -18,6 +18,10 @@ const textareaClassName = cn(
   "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-mono ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 )
 
+/**
+ * Normalizes a stored "tags" field value into a `{ tag: colorHex }` map.
+ * Accepts an already-parsed object, a JSON-encoded string, or garbage (returns `{}`).
+ */
 function parseTagsValue(value: unknown): Record<string, string> {
   if (!value) return {}
   if (typeof value === "object" && !Array.isArray(value))
@@ -34,12 +38,28 @@ function parseTagsValue(value: unknown): Record<string, string> {
   return {}
 }
 
+/**
+ * Renders a value for display in the raw-JSON textarea: strings pass through
+ * unchanged (so the user can edit non-JSON text too), other values are
+ * pretty-printed, and `null`/`undefined` become an empty string.
+ */
 function stringifyJsonValue(value: unknown): string {
   if (typeof value === "string") return value
   if (value == null) return ""
   return JSON.stringify(value, null, 2)
 }
 
+/**
+ * Editor for `json`/`tags` typed fields.
+ *
+ * Two distinct UIs share this component:
+ * - Tags field with predefined `branch.options`: renders removable colored
+ *   badges plus a popover to toggle available options; value is a
+ *   `{ tag: colorHex }` map, colors auto-assigned round-robin from a fixed palette.
+ * - Any other JSON field (or a tags field without options): falls back to a
+ *   raw textarea where the user edits the JSON text directly; `onChange` is
+ *   called with the raw string on every keystroke (no parse/validate step).
+ */
 export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
   const isTagsField = branch.type === "tags" || branch.alias.toLowerCase().includes("tag")
   const hasOptions = isTagsField && (branch.options?.length ?? 0) > 0

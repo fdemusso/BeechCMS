@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { resolveFileOptions } from "@beechcms/core"
 import type { FieldDisplayProps } from "../types"
 
+/** True when the branch stores a list of assets (either `multiple: true` or the legacy `asset-list` format flag). */
 function isAssetListBranch(maybeBranch: { type: string; multiple?: boolean; format?: string }): boolean {
   return (
     maybeBranch.type === "file" &&
@@ -19,6 +20,11 @@ function isAssetListBranch(maybeBranch: { type: string; multiple?: boolean; form
   )
 }
 
+/**
+ * Normalizes an asset-list value into a de-duplicated array of URL strings.
+ * Accepts a single value or an array, and each item may be a plain URL string
+ * or an object with a `url` property; anything else is dropped silently.
+ */
 function parseAssetListValue(value: unknown): string[] {
   const values = Array.isArray(value) ? value : [value]
   const urls = values
@@ -34,12 +40,19 @@ function parseAssetListValue(value: unknown): string[] {
   return [...new Set(urls)]
 }
 
+/** Returns a trimmed URL string for single-asset values, or null if empty/not a string. */
 function parseSingleUrl(value: unknown): string | null {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
   return trimmed.length > 0 ? trimmed : null
 }
 
+/**
+ * Renders `file`-type fields. Shows up to 3 thumbnails (plus a "+N" overflow badge) for
+ * asset-list branches, or a single thumbnail otherwise. Images are only rendered via
+ * `<AvatarImage>` when `fileOptions.accept === 'image'`; other file kinds show a generic
+ * icon to avoid firing HTTP requests against non-image URLs.
+ */
 export function MediaDisplay({ branch, value }: FieldDisplayProps) {
   if (value == null || value === "") {
     return <div className="text-muted-foreground">-</div>

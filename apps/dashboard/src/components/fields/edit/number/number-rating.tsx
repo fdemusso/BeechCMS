@@ -7,6 +7,12 @@ import { cn } from "@/lib/utils"
 import type { FieldEditProps } from "../types"
 import { useNumberRating } from "./use-number-rating"
 
+/**
+ * Star-rating control for `number` fields with `control: "rating"`.
+ * Renders `max` stars (from `useNumberRating`); when half-steps are allowed
+ * each star is split into two click zones (left = `.5`, right = whole).
+ * Hover previews the value locally before `onChange` commits a click.
+ */
 export function NumberRating({ branch, value, onChange }: FieldEditProps) {
   const { max, allowHalf, setHoverValue, getStarState } = useNumberRating(branch.numberOptions, value)
 

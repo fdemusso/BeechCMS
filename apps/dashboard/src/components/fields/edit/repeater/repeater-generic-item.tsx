@@ -11,19 +11,39 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { getEditComponent } from "../../registry"
 
-// Repeater sub-fields are restricted to leaf/scalar types — no nested `repeater`,
-// `relation`, or `file` (mirrors packages/core/src/validation.ts).
+/**
+ * Repeater sub-fields are restricted to leaf/scalar types — no nested `repeater`,
+ * `relation`, or `file` (mirrors packages/core/src/validation.ts). Filtered out
+ * here defensively in case a schema was authored before this constraint existed,
+ * or edited directly outside the Seed Builder.
+ */
 const REPEATER_DISALLOWED_SUBTYPES = new Set<BranchType>(["repeater", "relation", "file"])
 
+/**
+ * Properties for the {@link GenericItemRow} component.
+ */
 export interface GenericItemRowProps {
+  /** Stable id used by dnd-kit's sortable context; the record itself has no identity. */
   id: string
+  /** Sub-schema (leaf-type Branches) describing which fields render inside this item and how. */
   subBranches: Branch[]
+  /** Current record for this item, keyed by sub-branch alias. */
   value: Record<string, unknown>
+  /** Callback fired with the full updated record whenever any sub-field changes. */
   onChange: (next: Record<string, unknown>) => void
+  /** Callback to request removal of this item. */
   onRemove: () => void
+  /** Disable the remove button (e.g. minItems constraint reached). */
   disableRemove?: boolean
 }
 
+/**
+ * A single draggable item row for a `repeater` field being edited as content data
+ * (as opposed to `BranchItemRow`, which edits a repeater's *schema*). Each item is
+ * a plain record; sub-fields are resolved from `subBranches` via the shared field
+ * registry (`getEditComponent`) so the row supports whatever leaf types the schema
+ * allows, without needing to special-case them here.
+ */
 export function GenericItemRow({ id, subBranches, value, onChange, onRemove, disableRemove = false }: GenericItemRowProps) {
   const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
@@ -35,6 +55,7 @@ export function GenericItemRow({ id, subBranches, value, onChange, onRemove, dis
 
   const fields = subBranches.filter(sub => !REPEATER_DISALLOWED_SUBTYPES.has(sub.type))
 
+  // Patch a single sub-field alias, preserving the rest of the record.
   function setField(alias: string, fieldValue: unknown) {
     onChange({ ...value, [alias]: fieldValue })
   }

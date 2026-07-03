@@ -4,6 +4,10 @@
 
 import type { FieldDisplayProps } from "../types"
 
+/**
+ * Formats a date value (string or timestamp) using the `it-IT` locale (e.g. "3 lug 2026").
+ * Falls back to the raw stringified value if the date can't be parsed.
+ */
 export function DateDisplay({ value }: FieldDisplayProps) {
   if (value == null || value === "") {
     return <div className="text-muted-foreground">-</div>

@@ -2,4 +2,5 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+/** Re-exports the `relation` field editor dispatcher; see `./relation.tsx`. */
 export { RelationEdit } from "./relation"

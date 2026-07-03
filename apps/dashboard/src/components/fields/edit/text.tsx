@@ -5,6 +5,11 @@
 import { Input } from "@/components/ui/input"
 import type { FieldEditProps } from "../types"
 
+/**
+ * Editor for `text` typed fields: a controlled single-line `Input` bound to
+ * a string value (`null`/`undefined` coerced to `""`). Honors a
+ * non-schema `readOnly` flag (see cast below) to lock the field visually.
+ */
 export function TextEdit({ branch, value, onChange }: FieldEditProps) {
   const str = (value as string) ?? ""
   // `readOnly` is not part of the persisted Branch shape — read via cast, the

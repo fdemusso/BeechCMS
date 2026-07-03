@@ -5,6 +5,7 @@
 import { useTranslation } from "react-i18next"
 import type { FieldDisplayProps } from "../types"
 
+/** Renders a repeater field as a localized "N items" summary rather than expanding its contents. */
 export function RepeaterDisplay({ value }: FieldDisplayProps) {
   const { t } = useTranslation()
   const items = Array.isArray(value) ? value : []

@@ -6,6 +6,12 @@ import { resolvePolicies } from "@beechcms/core"
 import { getEditComponent } from "./registry"
 import type { FieldEditProps } from "./types"
 
+/**
+ * Entry point for editable fields.
+ * Renders a locked placeholder for fields with `hash`/`encrypt` privacy policies
+ * (their raw value is never sent to the client, so there is nothing to edit),
+ * otherwise delegates to the registered edit renderer for the branch type.
+ */
 export function FieldEdit(props: FieldEditProps) {
   const { branch } = props
   const { privacy } = resolvePolicies(branch)

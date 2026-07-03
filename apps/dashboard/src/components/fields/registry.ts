@@ -28,6 +28,12 @@ import { RelationEdit } from './edit/relation'
 import { FieldEditRepeater } from './edit/repeater/repeater'
 import { SelectEdit } from './edit/select'
 
+/**
+ * Static, module-scoped {@link IFieldRegistry} instance pre-populated with the built-in
+ * renderers for every core {@link BranchType}. Registration order matters only in that later
+ * calls overwrite earlier ones for the same type — the explicit `registerEdit('repeater', ...)`
+ * call below is kept separate from the main block simply for readability, not precedence.
+ */
 const fieldRegistry: IFieldRegistry = new FieldRegistryImpl()
 
 fieldRegistry.registerDisplay('text', TextDisplay)
@@ -57,10 +63,18 @@ fieldRegistry.registerEdit('repeater', FieldEditRepeater)
 // used by the meta-seed layout (sprint 09) for `displayNameAlias` and `dashIcon`.
 fieldRegistry.registerEdit('select' as BranchType, SelectEdit)
 
+/**
+ * Resolves the display renderer for a branch type, falling back to {@link DefaultDisplay}
+ * (plain stringified value) when no renderer is registered for that type.
+ */
 export function getDisplayComponent(type: BranchType): ComponentType<FieldDisplayProps> {
   return fieldRegistry.getDisplay(type) ?? DefaultDisplay
 }
 
+/**
+ * Resolves the edit renderer for a branch type, falling back to {@link DefaultEdit}
+ * (generic text input) when no renderer is registered for that type.
+ */
 export function getEditComponent(type: BranchType): ComponentType<FieldEditProps> {
   return fieldRegistry.getEdit(type) ?? DefaultEdit
 }

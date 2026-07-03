@@ -13,6 +13,12 @@ import type { FieldEditProps } from "../types"
 // option is only offered for non-required fields, backed by a sentinel.
 const NONE = "__none__"
 
+/**
+ * Editor for the dashboard-only `select` field type: a single-value
+ * dropdown over `branch.options`. Uses a `NONE` sentinel internally because
+ * Radix `SelectItem` rejects an empty string; `onChange` still receives
+ * `""` when cleared. The clear option is hidden when the field is required.
+ */
 export function SelectEdit({ branch, value, onChange }: FieldEditProps) {
   const options = branch.options ?? []
   const selected = (value as string) || NONE

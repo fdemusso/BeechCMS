@@ -19,11 +19,20 @@ import type { FieldEditProps } from "../../types"
 import { BranchItemRow } from "./repeater-branch-item"
 import { GenericItemRow } from "./repeater-generic-item"
 
+/**
+ * Repeater-specific configuration read off `branch.repeater` (not part of the
+ * generic {@link FieldEditProps}). Two shapes share this component:
+ * - Seed Builder's "field list" editor (schema authoring: each item *is* a Branch).
+ * - Content editing of a `repeater`-type field (each item is a data record whose
+ *   shape is described by `fields`/`branch.fields`).
+ */
 interface RepeaterMeta {
-  /** 'branch'  → each item is a Branch, edited by the BranchItemRow (ships now).
-   *  'fields'  → each item is a record edited by sub-branches (SPRINT 10).        */
+  /** 'branch' → each item is itself a Branch definition, edited via BranchItemRow
+   *  (used by the Seed Builder to let authors add/reorder sub-fields).
+   *  'fields' → each item is a plain record edited via GenericItemRow, using
+   *  `fields` as the sub-schema (used when editing content of a repeater field). */
   itemKind?: "branch" | "fields"
-  /** Only for itemKind:'fields' — the sub-schema of each item. SPRINT 10.         */
+  /** Only for itemKind:'fields' — the sub-schema (leaf-type Branches) each item's record must satisfy. */
   fields?: Branch[]
   /** Optional UI label for the add button / empty state.                         */
   itemLabel?: string
@@ -31,6 +40,17 @@ interface RepeaterMeta {
   branchItemContext?: { activeSeedsForRelation: Seed[]; subField?: boolean }
 }
 
+/**
+ * Editor for `repeater`-type fields: a reorderable, min/max-bounded list of items.
+ *
+ * `itemKind` (from `branch.repeater`, defaulting to "fields" for actual repeater
+ * branches and "branch" otherwise — e.g. when reused by the Seed Builder to edit a
+ * repeater's own sub-fields) decides whether each item is a nested Branch
+ * definition (BranchItemRow) or a data record keyed by sub-field alias
+ * (GenericItemRow). Drag-and-drop reordering uses dnd-kit; branch items are keyed
+ * by their stable `branch.id` while generic items use a positional `item-{idx}`
+ * id since plain records have no identity of their own.
+ */
 export function FieldEditRepeater({ branch, value, onChange }: FieldEditProps) {
   const { t } = useTranslation()
   const meta = ((branch as unknown as { repeater?: RepeaterMeta }).repeater) ?? {}

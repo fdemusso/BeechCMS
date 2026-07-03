@@ -8,6 +8,11 @@ import { NumberSlider } from "./number-slider"
 import { NumberRating } from "./number-rating"
 import { NumberStepper } from "./number-stepper"
 
+/**
+ * Editor for `number` typed fields: dispatches to a specific control widget
+ * based on `branch.numberOptions.control` (defaults to a plain numeric
+ * `NumberInput` when unset or unrecognized).
+ */
 export function NumberEdit({ branch, value, onChange }: FieldEditProps) {
   const control = branch.numberOptions?.control ?? "input"
 

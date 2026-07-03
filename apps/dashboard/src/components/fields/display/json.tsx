@@ -7,8 +7,15 @@ import { TagChips } from "@/components/ui/tag-chips"
 import { extractTagChips } from "@/lib/tags-utils"
 import type { FieldDisplayProps } from "../types"
 
+/** Fallback truncation length for the pretty-printed JSON string when `options.maxLength` is not set. */
 const DEFAULT_JSON_MAX_LENGTH = 40
 
+/**
+ * Renders a JSON value. String values are parsed first (invalid JSON shows an error message).
+ * When the branch is a `tags` field (or its alias contains "tag"), renders as chip pills instead
+ * of raw JSON — supporting both an object map and an array shape. Everything else is pretty-printed
+ * and truncated via {@link ExpandableCell}.
+ */
 export function JsonDisplay({ branch, value, options }: FieldDisplayProps) {
   if (value == null || value === "") {
     return <div className="text-muted-foreground">-</div>

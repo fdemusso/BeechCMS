@@ -6,6 +6,12 @@ import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import type { FieldEditProps } from "../types"
 
+/**
+ * `number` field control rendered as a draggable slider with a live value
+ * badge (`control: "slider"`). Unlike the other number controls, `min`/`max`
+ * default to `0`/`100` when unset since a slider needs finite bounds; an
+ * unset value falls back to displaying `min`, not an empty state.
+ */
 export function NumberSlider({ branch, value, onChange }: FieldEditProps) {
   const raw = value as number | undefined
   const opts = branch.numberOptions

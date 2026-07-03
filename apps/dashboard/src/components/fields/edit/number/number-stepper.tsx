@@ -8,6 +8,11 @@ import { Minus, Plus } from "lucide-react"
 import type { FieldEditProps } from "../types"
 import { useNumberStepper } from "./use-number-stepper"
 
+/**
+ * `number` field control with explicit +/- buttons flanking the input
+ * (`control: "stepper"`). Buttons are disabled once `min`/`max` would be
+ * exceeded (via `useNumberStepper`); the input still accepts free typing.
+ */
 export function NumberStepper({ branch, value, onChange }: FieldEditProps) {
   const { 
     displayValue, 
