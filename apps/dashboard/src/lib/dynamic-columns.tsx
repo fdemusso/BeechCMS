@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { ColumnDef, AggregationFn, GroupingColumnDef } from "@tanstack/react-table"
+import type { ColumnDef, GroupingColumnDef } from "@tanstack/react-table"
 import type { Seed } from "@beechcms/core"
 import {
   MoreHorizontal,
@@ -13,7 +13,7 @@ import {
   Code,
   FileText,
   File,
-  Link as LinkIcon
+  Link as LinkIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -32,19 +32,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  matchesFilterGroup,
-  normalizeDateToYmd,
-} from "@/lib/filter-dsl"
-import {
-  pendingDraftBadgeClass,
-  shouldShowPendingDraftBadge,
-} from "@/lib/pending-draft"
+import { matchesFilterGroup } from "@/lib/filter-dsl"
+import { pendingDraftBadgeClass, shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 
-/** Minimum character length threshold for dynamic cell truncation. */
-const MIN_TRUNCATE_LENGTH = 20
-/** Maximum character length threshold for dynamic cell truncation to prevent overflow. */
-const MAX_TRUNCATE_LENGTH = 60
+import {
+  DateGroupPrecision,
+  DEFAULT_DATE_GROUP_PRECISION,
+  getDateGroupValue,
+  booleanAggFn,
+  formatBooleanAggregated,
+  formatSum,
+} from "./dynamic-columns-aggregation"
+
+// Re-export utility functions and types for full compatibility with consumers
+export { computeMaxLengths } from "./dynamic-columns-lengths"
+export {
+  DEFAULT_DATE_GROUP_PRECISION,
+  getDateGroupValue,
+  booleanAggFn,
+  formatBooleanAggregated,
+  formatSum,
+} from "./dynamic-columns-aggregation"
+export type { DateGroupPrecision } from "./dynamic-columns-aggregation"
 
 /**
  * Interface representing a CMS content entry.
@@ -67,31 +76,6 @@ export interface ContentEntry {
   created_at: number | null
   /** Epoch timestamp of when this entry was last updated. */
   updated_at: number | null
-}
-
-// ============================================================================
-// Types and constants for date grouping
-// ============================================================================
-
-/**
- * Granularity precision levels for grouping table rows by dates.
- * - `year` and `month` can be combined (e.g. "January 2024").
- * - `day` is exclusive: if day is true, month/year are ignored.
- */
-export interface DateGroupPrecision {
-  /** Groups by calendar year. */
-  year: boolean
-  /** Groups by calendar month. */
-  month: boolean
-  /** Exclusive: Groups by exact calendar day. */
-  day: boolean
-}
-
-/** Default date grouping configuration precision. */
-export const DEFAULT_DATE_GROUP_PRECISION: DateGroupPrecision = {
-  year: true,
-  month: true,
-  day: false,
 }
 
 /**
@@ -123,202 +107,6 @@ function getIconForType(type: string) {
   }
 }
 
-// ============================================================================
-// Helpers for grouping and aggregation
-// ============================================================================
-
-/**
- * Converts a raw date value into a formatted grouping key based on precision.
- *
- * @param value - The raw date value (ISO string or epoch).
- * @param precision - Precision grouping rules.
- * @returns A string suitable for grouping headers.
- */
-function getDateGroupValue(
-  value: unknown,
-  precision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION
-): string {
-  const normalizedYmd = normalizeDateToYmd(value)
-  if (!normalizedYmd) return "—"
-  // Force UTC midnight to avoid timezone drift
-  const date = new Date(normalizedYmd + "T00:00:00")
-
-  if (precision.day) {
-    return date.toLocaleDateString("en-US", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    })
-  }
-
-  const parts: string[] = []
-  if (precision.month) {
-    parts.push(date.toLocaleDateString("en-US", { month: "long" }))
-  }
-  if (precision.year) {
-    parts.push(String(date.getFullYear()))
-  }
-  return parts.length ? parts.join(" ") : String(date.getFullYear())
-}
-
-/**
- * Custom aggregation function for boolean columns.
- * Tallies total true and false results within grouped subrows.
- */
-const booleanAggFn: AggregationFn<ContentEntry> = (columnId, leafRows) => {
-  let trueCount = 0
-  let falseCount = 0
-  for (const row of leafRows) {
-    const cellValue = row.getValue(columnId)
-    if (cellValue === true) {
-      trueCount++
-    } else if (cellValue === false) {
-      falseCount++
-    }
-  }
-  return { trueCount, falseCount }
-}
-
-/**
- * Formats aggregated boolean values count as Check/Cross indicator strings.
- *
- * @param value - The aggregated value object containing counts.
- * @returns A formatted string or empty.
- */
-function formatBooleanAggregated(value: unknown): string {
-  if (
-    value != null &&
-    typeof value === "object" &&
-    "trueCount" in value &&
-    "falseCount" in value
-  ) {
-    const { trueCount, falseCount } = value as { trueCount: number; falseCount: number }
-    return `✓ ${trueCount} / ✗ ${falseCount}`
-  }
-  return ""
-}
-
-/**
- * Formats numeric sums for aggregated column groups.
- *
- * @param value - The aggregated numerical value sum.
- * @param count - The total count of leaf rows in the group.
- * @param translate - Localization translate callback function.
- * @returns A localized string summarizing the aggregation.
- */
-function formatSum(value: unknown, count: number, translate: (key: string, options?: any) => string): string {
-  if (typeof value === "number" && !Number.isNaN(value)) {
-    return `Σ ${value.toLocaleString("en-US")} · ${count} ${count === 1 ? translate("content.table.item") : translate("content.table.items")}`
-  }
-  return `${count} ${count === 1 ? translate("content.table.item") : translate("content.table.items")}`
-}
-
-// ============================================================================
-// Width / truncation computation
-// ============================================================================
-
-/**
- * Computes the maximum string content length across a preview page of rows to set truncation thresholds.
- *
- * @param firstPage - List of entries in the first page layout.
- * @param alias - The field alias to check.
- * @returns An integer representing the target truncation length.
- */
-function computeMaxStringLength(firstPage: ContentEntry[], alias: string): number {
-  let max = 0
-  for (const row of firstPage) {
-    const cellValue = row.data[alias]
-    if (cellValue == null) continue
-    const textLength = String(cellValue).length
-    if (textLength > max) max = textLength
-  }
-  return Math.min(
-    Math.max(max, MIN_TRUNCATE_LENGTH),
-    MAX_TRUNCATE_LENGTH
-  )
-}
-
-/**
- * Computes maximum string content length for serializable JSON column values.
- *
- * @param firstPage - List of entries in the first page layout.
- * @param alias - The field alias to check.
- * @returns An integer representing the target truncation length, or null if tags.
- */
-function computeMaxJsonLength(
-  firstPage: ContentEntry[],
-  alias: string,
-): number | null {
-  const isTagsField = alias.toLowerCase().includes("tag")
-  if (isTagsField) return null
-
-  let max = 0
-  for (const row of firstPage) {
-    const cellValue = row.data[alias]
-    if (cellValue == null) continue
-
-    let serializedString: string
-    if (typeof cellValue === "string") {
-      try {
-        serializedString = JSON.stringify(JSON.parse(cellValue))
-      } catch {
-        serializedString = cellValue
-      }
-    } else {
-      serializedString = JSON.stringify(cellValue)
-    }
-
-    if (serializedString.length > max) max = serializedString.length
-  }
-
-  return Math.min(
-    Math.max(max, MIN_TRUNCATE_LENGTH),
-    MAX_TRUNCATE_LENGTH
-  )
-}
-
-/**
- * Dispatches to the appropriate length computation helper based on the branch type.
- *
- * @param branch - The branch seed configuration.
- * @param firstPage - List of entries in the first page layout.
- * @returns Truncation length limit or null.
- */
-function computeMaxLengthForBranch(
-  branch: Seed["branches"][number],
-  firstPage: ContentEntry[],
-): number | null {
-  if (branch.type === "json") return computeMaxJsonLength(firstPage, branch.alias)
-  if (branch.type === "text") return computeMaxStringLength(firstPage, branch.alias)
-  return computeMaxStringLength(firstPage, branch.alias)
-}
-
-/**
- * Loops over all branches in a schema seed and computes consistent truncation lengths
- * based on values found in the first page of content.
- *
- * @param data - The full list of entries available.
- * @param seed - The schema seed structure.
- * @param rowsPerPage - Pagination limits representing the first page bounds.
- * @returns Dictionary mapping field alias keys to character length thresholds.
- */
-export function computeMaxLengths(
-  data: ContentEntry[],
-  seed: Seed,
-  rowsPerPage: number
-): Record<string, number> {
-  const result: Record<string, number> = {}
-  const firstPage = data.slice(0, rowsPerPage)
-
-  for (const branch of seed.branches) {
-    const maxLength = computeMaxLengthForBranch(branch, firstPage)
-    if (maxLength == null) continue
-    result[branch.alias] = maxLength
-  }
-
-  return result
-}
-
 /**
  * Generates the unified React Table column definitions mapping.
  * Combines system columns (selection checkbox, ID, slug, status, timestamps, actions dropdown)
@@ -344,7 +132,7 @@ export function generateColumns(
   onBulkDelete?: (ids: string[]) => void,
   datePrecision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION,
   translate: (key: string, options?: any) => string = (key) => key,
-  onBulkEdit?: (ids: string[]) => void,
+  onBulkEdit?: (ids: string[]) => void
 ): ColumnDef<ContentEntry>[] {
   const fixedColumns: ColumnDef<ContentEntry>[] = [
     // Colonna Select (checkbox)
@@ -401,11 +189,7 @@ export function generateColumns(
         matchesFilterGroup(row.getValue(columnId), filterValue),
       cell: ({ row }) => {
         const slug = row.original.slug
-        return (
-          <span className="text-muted-foreground text-sm">
-            {slug ?? "—"}
-          </span>
-        )
+        return <span className="text-muted-foreground text-sm">{slug ?? "—"}</span>
       },
       enableSorting: false,
     },
@@ -423,7 +207,10 @@ export function generateColumns(
       cell: ({ row }) => {
         const status = (row.original.status ?? "").trim() || "—"
         const tone = getStatusTone(status)
-        const hasPendingDraft = shouldShowPendingDraftBadge(row.original.status, row.original.has_pending_draft)
+        const hasPendingDraft = shouldShowPendingDraftBadge(
+          row.original.status,
+          row.original.has_pending_draft
+        )
         return (
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="inline-flex items-center gap-1.5">
@@ -449,7 +236,9 @@ export function generateColumns(
       maxSize: 400,
       accessorFn: (row) => row.updated_at,
       header: translate("content.table.updated"),
-      cell: ({ row }) => <RelativeTime value={row.original.updated_at} className="text-sm text-muted-foreground" />,
+      cell: ({ row }) => (
+        <RelativeTime value={row.original.updated_at} className="text-sm text-muted-foreground" />
+      ),
       enableSorting: false,
     },
     {
@@ -459,7 +248,9 @@ export function generateColumns(
       maxSize: 400,
       accessorFn: (row) => row.created_at,
       header: translate("content.table.created"),
-      cell: ({ row }) => <RelativeTime value={row.original.created_at} className="text-sm text-muted-foreground" />,
+      cell: ({ row }) => (
+        <RelativeTime value={row.original.created_at} className="text-sm text-muted-foreground" />
+      ),
       enableSorting: false,
     },
   ]
@@ -494,7 +285,8 @@ export function generateColumns(
         if (!label) return null
         return (
           <span className="text-xs text-muted-foreground">
-            {label} · {count} {count === 1 ? translate("content.table.item") : translate("content.table.items")}
+            {label} · {count}{" "}
+            {count === 1 ? translate("content.table.item") : translate("content.table.items")}
           </span>
         )
       }
@@ -523,7 +315,8 @@ export function generateColumns(
         const count = row.subRows?.length ?? 0
         return (
           <span className="text-xs text-muted-foreground">
-            {count} {count === 1 ? translate("content.table.item") : translate("content.table.items")}
+            {count}{" "}
+            {count === 1 ? translate("content.table.item") : translate("content.table.items")}
           </span>
         )
       }
