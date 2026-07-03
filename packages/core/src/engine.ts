@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 /**
+ * @module BotanicalEngine
  * Botanical Engine: Schema Compiler + Query Builder.
  *
  * In v0.4.0 each Seed has a dedicated SQL table (`content_{slug}`) with
@@ -12,59 +13,111 @@ import type {
   Seed,
   Branch,
   BranchType,
-  FilterGroup,  //TODO: verificare perchè non  è usato
+  FilterGroup,
   FilterType,
   FilterCondition,
   SelectOptions,
   ParameterizedQuery,
 } from './types.js'
 
-// ---- SQL type mapping ----
-
+/**
+ * SQL type mapping definition for branch types.
+ */
 interface BranchSqlDef {
   sqlType: 'TEXT' | 'REAL' | 'INTEGER'
 }
 
+/**
+ * Mapping of core branch types to SQLite column types.
+ */
 const BRANCH_TYPE_SQL: Record<BranchType, BranchSqlDef> = {
   text:     { sqlType: 'TEXT'    },
   number:   { sqlType: 'REAL'    },
   boolean:  { sqlType: 'INTEGER' },
   date:     { sqlType: 'INTEGER' },  // Unix timestamp (seconds)
-  json:     { sqlType: 'TEXT'    },  // JSON serializzato
+  json:     { sqlType: 'TEXT'    },  // Serialized JSON string
   richtext: { sqlType: 'TEXT'    },
-  file:     { sqlType: 'TEXT'    },  // URL singolo o JSON array di URL
-  tags:     { sqlType: 'TEXT'    },  // JSON array di stringhe
-  relation: { sqlType: 'TEXT'    },  // FK reference stored as TEXT (id of the target row)
-  repeater: { sqlType: 'TEXT'    },  // JSON array di record (sub-branch alias -> value)
+  file:     { sqlType: 'TEXT'    },  // Single URL or serialized JSON array of URLs
+  tags:     { sqlType: 'TEXT'    },  // Serialized JSON array or object
+  relation: { sqlType: 'TEXT'    },  // Foreign Key reference stored as TEXT (id of the target row)
+  repeater: { sqlType: 'TEXT'    },  // Serialized JSON array of records
 }
 
+/**
+ * System-defined columns that exist on all content tables.
+ */
 const SYSTEM_COLUMNS = new Set(['id', 'slug', 'status', 'created_at', 'updated_at'])
 
-// ---- Private helpers ----
-
+/**
+ * Returns the SQL table name for a given Seed.
+ * 
+ * @param seed The seed definition.
+ * @returns The table name.
+ */
 function tableName(seed: Seed): string {
   return `content_${seed.slug}`
 }
 
+/**
+ * Returns the draft SQL table name for a given Seed.
+ * 
+ * @param seed The seed definition.
+ * @returns The draft table name.
+ */
+function draftTableName(seed: Seed): string {
+  return `content_${seed.slug}_drafts`
+}
+
+/**
+ * Returns the FTS (Full-Text Search) virtual table name for a given Seed.
+ * 
+ * @param seed The seed definition.
+ * @returns The FTS table name.
+ */
 function ftsTableName(seed: Seed): string {
   return `fts_${seed.slug}`
 }
 
+/**
+ * Determines whether a column is valid for a given Seed (either system column or branch alias).
+ * 
+ * @param seed The seed definition.
+ * @param col The column name to check.
+ * @returns True if the column is valid, false otherwise.
+ */
 function isValidColumn(seed: Seed, col: string): boolean {
   if (SYSTEM_COLUMNS.has(col)) return true
   return seed.branches.some(b => b.alias === col)
 }
 
+/**
+ * Filters the branches of a Seed to return only the ones that are indexable for full-text search.
+ * 
+ * @param seed The seed definition.
+ * @returns An array of indexable branches.
+ */
 export function indexableSearchBranches(seed: Seed): Branch[] {
   return seed.branches.filter(b =>
     (b.type === 'text' || b.type === 'richtext') && b.policies?.search !== false
   )
 }
 
+/**
+ * Checks if a branch represents a multiple asset list field.
+ * 
+ * @param branch The branch definition.
+ * @returns True if it's an asset list, false otherwise.
+ */
 function isAssetListBranch(branch: Branch): boolean {
   return branch.type === 'file' && (branch.multiple === true || branch.format === 'asset-list')
 }
 
+/**
+ * Normalizes an unknown value to a valid HTTP URL string, or null.
+ * 
+ * @param value The value to normalize.
+ * @returns The normalized URL string, or null if invalid.
+ */
 function normalizeHttpUrl(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const cleaned = value.trim()
@@ -77,10 +130,22 @@ function normalizeHttpUrl(value: unknown): string | null {
   }
 }
 
+/**
+ * Safely parses a JSON string, falling back to the raw string on error.
+ * 
+ * @param value The string to parse.
+ * @returns The parsed object, or the original string.
+ */
 function parseJsonSafe(value: string): unknown {
   try { return JSON.parse(value) } catch { return value }
 }
 
+/**
+ * Normalizes raw asset list values to a flat list of valid URL strings.
+ * 
+ * @param rawValue The raw value (string, array, or object) to normalize.
+ * @returns An array of unique normalized URL strings.
+ */
 function normalizeAssetListValue(rawValue: unknown): string[] {
   const input = typeof rawValue === 'string' ? parseJsonSafe(rawValue) : rawValue
   const values = Array.isArray(input) ? input : [input]
@@ -97,22 +162,23 @@ function normalizeAssetListValue(rawValue: unknown): string[] {
   return [...new Set(normalized)]
 }
 
-// ---- FK helpers ----
-
+/**
+ * The default ON DELETE referential integrity rule for single-value relations.
+ */
 const DEFAULT_ON_DELETE_RULE: NonNullable<Branch['onDelete']> = 'SET NULL'
 
 /**
- * Returns the trailing FK fragment for a single-value relation branch, or ''
- * if the branch is not a relation. Throws when a single-value relation branch
- * is missing `targetSeed` — that is a programmer error that must surface at
- * DDL time rather than producing silently invalid SQL.
+ * Builds the SQL foreign key clause for a single-value relation branch.
+ * 
+ * Multi-relation branches (multiple: true) produce NO column on the parent table;
+ * they live in a dedicated junction table. Returns an empty string for them.
  *
- * Multi-relation branches (multiple: true) produce NO column on the parent
- * table; they live in a dedicated junction table. Returns '' for them.
+ * @param branch The branch definition.
+ * @throws {Error} If the relation branch is missing the `targetSeed` parameter.
+ * @returns The foreign key SQL clause, or an empty string.
  */
 function buildForeignKeyClause(branch: Branch): string {
   if (branch.type !== 'relation') return ''
-  // Many-to-many branches: no column on parent table — see generateJunctionTable()
   if (branch.multiple === true) return ''
   if (!branch.targetSeed) {
     throw new Error(
@@ -123,11 +189,12 @@ function buildForeignKeyClause(branch: Branch): string {
   return ` REFERENCES content_${branch.targetSeed}(id) ON DELETE ${onDeleteRule}`
 }
 
-// ---- DDL Generators ----
-
 /**
- * Generates `CREATE TABLE IF NOT EXISTS content_{slug}` with system columns
- * + one column per Branch. Pure function: same Seed → same SQL.
+ * Generates the SQL `CREATE TABLE IF NOT EXISTS content_{slug}` statement
+ * with system columns and one column per branch.
+ * 
+ * @param seed The seed definition.
+ * @returns The CREATE TABLE SQL statement.
  */
 export function generateCreateTable(seed: Seed): string {
   const table = tableName(seed)
@@ -139,8 +206,6 @@ export function generateCreateTable(seed: Seed): string {
   ]
 
   for (const branch of seed.branches) {
-    // Many-to-many relation branches produce no column on the parent table;
-    // they are represented by a dedicated junction table. See generateJunctionTable().
     if (branch.type === 'relation' && branch.multiple === true) continue
     const { sqlType } = BRANCH_TYPE_SQL[branch.type]
     let col = `  ${branch.alias}  ${sqlType}`
@@ -158,9 +223,11 @@ export function generateCreateTable(seed: Seed): string {
 }
 
 /**
- * Generates the drafts table `content_{slug}_drafts` for Seeds with `allowDrafts: true`.
- * All branch columns are nullable (drafts are partial).
- * Returns null if the Seed does not have `allowDrafts: true`.
+ * Generates the SQL `CREATE TABLE IF NOT EXISTS content_{slug}_drafts` statement
+ * for seeds that allow drafts.
+ * 
+ * @param seed The seed definition.
+ * @returns The draft table CREATE TABLE SQL statement, or null if drafts are disabled.
  */
 export function generateDraftTable(seed: Seed): string | null {
   if (!seed.allowDrafts) return null
@@ -174,11 +241,9 @@ export function generateDraftTable(seed: Seed): string | null {
   ]
 
   for (const branch of seed.branches) {
-    // Many-to-many relation branches mirror in their own junction drafts table.
     if (branch.type === 'relation' && branch.multiple === true) continue
     const { sqlType } = BRANCH_TYPE_SQL[branch.type]
     let col = `  ${branch.alias}  ${sqlType}`
-    // boolean CHECK: in SQLite, NULL IN (0,1) → NULL, which passes the CHECK (only FALSE fails it)
     if (branch.type === 'boolean') col += ` CHECK (${branch.alias} IN (0, 1))`
     lines.push(col + ',')
   }
@@ -190,8 +255,11 @@ export function generateDraftTable(seed: Seed): string | null {
 }
 
 /**
- * Generates `ALTER TABLE content_{slug} ADD COLUMN {alias} {type}`.
- * New columns are always nullable (SQLite limit on ALTER TABLE).
+ * Generates the SQL `ALTER TABLE content_{slug} ADD COLUMN {alias} {type}` statement.
+ * 
+ * @param seed The seed definition.
+ * @param branch The branch definition for the new column.
+ * @returns The ALTER TABLE SQL statement.
  */
 export function generateAddColumn(seed: Seed, branch: Branch): string {
   const { sqlType } = BRANCH_TYPE_SQL[branch.type]
@@ -199,8 +267,11 @@ export function generateAddColumn(seed: Seed, branch: Branch): string {
 }
 
 /**
- * Generates B-tree indexes for status, created_at and every filterable Branch
- * with an indexable type (text, number, date, boolean).
+ * Generates SQL index statements for system fields (status, created_at)
+ * and indexable branch columns.
+ * 
+ * @param seed The seed definition.
+ * @returns An array of CREATE INDEX SQL statements.
  */
 export function generateIndexes(seed: Seed): string[] {
   const table = tableName(seed)
@@ -211,11 +282,8 @@ export function generateIndexes(seed: Seed): string[] {
   ]
 
   for (const branch of seed.branches) {
-    // Multi-relation branches have no column on the parent table; their indexes
-    // live on the junction table. See generateJunctionIndexes().
     if (branch.type === 'relation' && branch.multiple === true) continue
     const isRelation = branch.type === 'relation'
-    // Relation indexes are a system concern (JOIN performance) — bypass editorial filter policy
     if (!isRelation && branch.policies?.filter === false) continue
     if (['text', 'number', 'date', 'boolean', 'relation'].includes(branch.type)) {
       indexes.push(
@@ -228,8 +296,10 @@ export function generateIndexes(seed: Seed): string[] {
 }
 
 /**
- * Generates the FTS5 virtual table for indexable text/richtext Branches.
- * Returns null if the Seed has no branches with search enabled.
+ * Generates the FTS5 virtual table definition for indexable text/richtext branches.
+ * 
+ * @param seed The seed definition.
+ * @returns The CREATE VIRTUAL TABLE SQL statement, or null if no branches are indexable.
  */
 export function generateFtsTable(seed: Seed): string | null {
   const rtBranches = indexableSearchBranches(seed)
@@ -248,9 +318,10 @@ export function generateFtsTable(seed: Seed): string | null {
 }
 
 /**
- * Generates the 3 SQLite triggers (insert/update/delete) that keep the FTS
- * automatically synchronized — eliminates the need for manual syncFts.
- * Returns an empty array if the Seed has no indexable branches.
+ * Generates FTS5 triggers (insert, update, delete) to keep the FTS virtual table synchronized.
+ * 
+ * @param seed The seed definition.
+ * @returns An array of CREATE TRIGGER SQL statements.
  */
 export function generateFtsTriggers(seed: Seed): string[] {
   const rtBranches = indexableSearchBranches(seed)
@@ -286,15 +357,13 @@ export function generateFtsTriggers(seed: Seed): string[] {
   ]
 }
 
-// ---- Query Builder ----
-
 /**
- * Builds a parameterized SELECT on `content_{slug}`.
- * Never uses json_extract — every column is a real column.
- * Unknown columns in filters/orderBy are ignored (fail-closed).
+ * Builds a parameterized SQL SELECT query and bindings for a given Seed based on search, filtering, status, and ordering options.
+ * 
+ * @param seed The seed definition.
+ * @param options Query configuration options.
+ * @returns The SQL query string and bindings.
  */
-
-//TODO: buildSelectQuery ha troppe responsabilità, va suddiviso in più funzioni
 export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): ParameterizedQuery {
   const table = tableName(seed)
   const { filters = [], orderBy, pagination, status, search, fields } = options
@@ -302,35 +371,27 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
   const whereClauses: string[] = []
   let joinClause = ''
 
-  // Kanban ordering: LEFT JOIN must be built first so its bindings precede
-  // the filter bindings in the array — binding order must match SQL text order
-  // (JOIN clause appears before WHERE clause in the final SQL string).
   let kanbanOrderClause = ''
   if (options.kanbanOrder) {
     joinClause = `LEFT JOIN kanban_positions kp` +
       ` ON kp.seed_slug = ? AND kp.entry_id = ${table}.id AND kp.axis_branch_id = ?`
     bindings.push(options.kanbanOrder.seedSlug, options.kanbanOrder.axisBranchId)
-    // SQLite sorts NULLs first by default; `kp.position IS NULL` forces them last.
     kanbanOrderClause = ` ORDER BY (kp.position IS NULL) ASC, kp.position ASC`
   }
 
-  // FTS JOIN — solo se il seed ha branch indicizzabili
   const rtBranches = indexableSearchBranches(seed)
   if (search && rtBranches.length > 0) {
     const ftsTable = ftsTableName(seed)
     joinClause += (joinClause ? ' ' : '') + `INNER JOIN ${ftsTable} ON ${ftsTable}.entry_id = ${table}.id`
     whereClauses.push(`${ftsTable} MATCH ?`)
-    // FTS5: prefix match con quote per caratteri speciali
     bindings.push(`"${search.replace(/"/g, '""')}"*`)
   }
 
-  // Filtro status
   if (status !== undefined && status !== null) {
     whereClauses.push(`${table}.status = ?`)
     bindings.push(status)
   }
 
-  // Filtri utente
   for (const group of filters) {
     if (!isValidColumn(seed, group.column)) continue
     const col = SYSTEM_COLUMNS.has(group.column)
@@ -343,7 +404,6 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
     }
   }
 
-  // Proiezione colonne
   let selectCols = `${table}.*`
   if (fields && fields.length > 0) {
     const valid = fields.filter(f => isValidColumn(seed, f))
@@ -353,15 +413,12 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
         .join(', ')
     }
   }
-  // Expose the kanban fractional-index position in the row so the dashboard can
-  // read it without a second query. kp is only joined when kanbanOrder is set.
   if (options.kanbanOrder) selectCols += ', kp.position'
 
   let sql = `SELECT ${selectCols} FROM ${table}`
   if (joinClause) sql += ` ${joinClause}`
   if (whereClauses.length > 0) sql += ` WHERE ${whereClauses.join(' AND ')}`
 
-  // ORDER BY — kanbanOrder wins over orderBy
   if (kanbanOrderClause) {
     sql += kanbanOrderClause
   } else if (orderBy && isValidColumn(seed, orderBy.column)) {
@@ -374,7 +431,6 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
     sql += ` ORDER BY ${table}.created_at DESC`
   }
 
-  // Paginazione
   if (pagination) {
     sql += ` LIMIT ? OFFSET ?`
     bindings.push(pagination.limit, pagination.offset)
@@ -383,7 +439,13 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
   return { sql, bindings }
 }
 
-//TODO: normalizeFilterValue ha troppe responsabilità, va suddiviso in più funzioni
+/**
+ * Normalizes user-provided filter values to a format appropriate for SQL execution.
+ * 
+ * @param type The type of the filter.
+ * @param value The value to normalize.
+ * @returns The normalized value, or null.
+ */
 function normalizeFilterValue(
   type: FilterType,
   value: unknown
@@ -414,7 +476,16 @@ function normalizeFilterValue(
 
   return value as string | number | boolean | null
 }
-//TODO: buildFilterCondition ha troppe responsabilità, va suddiviso in più funzioni
+
+/**
+ * Translates a filter condition into its SQL clause and adds parameters to the bindings list.
+ * 
+ * @param col The column name in the table.
+ * @param type The type of the filter.
+ * @param cond The condition containing the operator and value.
+ * @param bindings The array of bindings where parameterized values are appended.
+ * @returns The SQL condition fragment, or null if invalid.
+ */
 function buildFilterCondition(
   col: string,
   type: FilterType,
@@ -423,11 +494,17 @@ function buildFilterCondition(
 ): string | null {
   const { op, value } = cond
 
-  if (op === 'is_empty') {
-    return type === 'text' ? `(${col} IS NULL OR ${col} = '')` : `${col} IS NULL`
-  }
-  if (op === 'is_not_empty') {
-    return type === 'text' ? `(${col} IS NOT NULL AND ${col} != '')` : `${col} IS NOT NULL`
+  if (op === 'is_empty' || op === 'is_not_empty') {
+    const isEmpty = op === 'is_empty'
+    if (type === 'text') {
+      return isEmpty ? `(${col} IS NULL OR ${col} = '')` : `(${col} IS NOT NULL AND ${col} != '')`
+    }
+    if (type === 'tags' || type === 'json') {
+      return isEmpty
+        ? `(${col} IS NULL OR ${col} = '[]' OR ${col} = '{}')`
+        : `(${col} IS NOT NULL AND ${col} != '[]' AND ${col} != '{}')`
+    }
+    return isEmpty ? `${col} IS NULL` : `${col} IS NOT NULL`
   }
   
   if (op === 'in' || op === 'not_in') {
@@ -460,7 +537,6 @@ function buildFilterCondition(
       return `EXISTS (SELECT 1 FROM json_each(${col}) WHERE ${tagRef} IN (${placeholders}))`
     }
 
-    // has_all_tags: each tag must exist
     const clauses = tags.map(() => `EXISTS (SELECT 1 FROM json_each(${col}) WHERE ${tagRef} = ?)`)
     bindings.push(...tags)
     return `(${clauses.join(' AND ')})`
@@ -495,8 +571,9 @@ function buildFilterCondition(
   return null
 }
 
-// ---- Schema introspection ----
-
+/**
+ * Expected database schema column interface.
+ */
 export interface SchemaColumn {
   name: string
   sqlType: 'TEXT' | 'REAL' | 'INTEGER'
@@ -506,14 +583,16 @@ export interface SchemaColumn {
 
 /**
  * Returns the list of expected columns for a Seed's table.
- * Used by `beech seed:load --diff` to compare current vs expected schema.
+ * Used to compare current vs expected schema (diffing).
+ * 
+ * @param seed The seed definition.
+ * @returns The array of expected schema columns.
  */
 export function getExpectedColumns(seed: Seed): SchemaColumn[] {
   return [
     { name: 'id',         sqlType: 'TEXT',    notNull: true,  isPk: true  },
     { name: 'slug',       sqlType: 'TEXT',    notNull: true,  isPk: false },
     { name: 'status',     sqlType: 'TEXT',    notNull: true,  isPk: false },
-    // Multi-relation branches produce no column on the parent table.
     ...seed.branches
       .filter(b => !(b.type === 'relation' && b.multiple === true))
       .map(b => ({
@@ -527,13 +606,14 @@ export function getExpectedColumns(seed: Seed): SchemaColumn[] {
   ]
 }
 
-// ---- Serialization / Deserialization ----
-
 /**
  * Serializes a value for writing to the DB.
- * boolean → 0/1 | date → Unix timestamp | json/asset-list → JSON string
+ * boolean → 0/1 | date → Unix timestamp | json/tags/richtext/repeater → JSON string
+ * 
+ * @param branch The branch definition.
+ * @param value The value to serialize.
+ * @returns The serialized DB value (string, number, or null).
  */
-//TODO: serializeForDb ha troppe responsabilità, va suddiviso in più funzioni
 export function serializeForDb(branch: Branch, value: unknown): string | number | null {
   if (value === null || value === undefined) return null
 
@@ -567,8 +647,6 @@ export function serializeForDb(branch: Branch, value: unknown): string | number 
       return typeof value === 'string' ? value : null
 
     case 'repeater':
-      // Non-array input is rejected by serializing as an empty list — validation.ts
-      // is responsible for ever letting a non-array repeater value reach here.
       return JSON.stringify(Array.isArray(value) ? value : [])
 
     default:
@@ -576,23 +654,25 @@ export function serializeForDb(branch: Branch, value: unknown): string | number 
   }
 }
 
-// ---- Junction table DDL (many-to-many relations, Sprint 5) ----
-
 /**
  * Returns the junction table name for a many-to-many relation branch.
  * Format: `rel_<seedSlug>_<branchAlias>`.
+ * 
+ * @param seedSlug The slug of the parent Seed.
+ * @param branchAlias The alias of the relation branch.
+ * @returns The junction table name.
  */
 export function junctionTableName(seedSlug: string, branchAlias: string): string {
   return `rel_${seedSlug}_${branchAlias}`
 }
 
 /**
- * Generates `CREATE TABLE IF NOT EXISTS rel_<seed>_<alias>` for a multi-relation
- * branch. The parent FK always cascades (parent lifecycle owns the edge);
- * the target FK uses `branch.onDelete` (default CASCADE).
- *
- * @throws {Error} when called on a non-multi-relation branch
- * @throws {Error} when `branch.targetSeed` is missing
+ * Generates `CREATE TABLE IF NOT EXISTS rel_<seed>_<alias>` statement for a multi-relation branch.
+ * 
+ * @param seed The parent seed definition.
+ * @param branch The multi-relation branch definition.
+ * @throws {Error} If called on a non-multi-relation branch or if `targetSeed` is missing.
+ * @returns The CREATE TABLE SQL statement.
  */
 export function generateJunctionTable(seed: Seed, branch: Branch): string {
   if (branch.type !== 'relation' || branch.multiple !== true) {
@@ -616,8 +696,11 @@ export function generateJunctionTable(seed: Seed, branch: Branch): string {
 
 /**
  * Generates the two B-tree indexes for a junction table:
- * one on `parent_id` (list entries by parent) and one on `target_id`
- * (cascade checks from target side).
+ * one on `parent_id` (listing entries by parent) and one on `target_id` (handling cascade checks from target side).
+ * 
+ * @param seed The parent seed definition.
+ * @param branch The multi-relation branch definition.
+ * @returns An array of CREATE INDEX SQL statements.
  */
 export function generateJunctionIndexes(seed: Seed, branch: Branch): string[] {
   const table = junctionTableName(seed.slug, branch.alias)
@@ -628,10 +711,11 @@ export function generateJunctionIndexes(seed: Seed, branch: Branch): string[] {
 }
 
 /**
- * Generates the drafts junction table `rel_<seed>_<alias>_drafts` for a
- * many-to-many relation branch. Note: no FK on `target_id` — targets may be
- * deleted between draft save and publish; the FK would be wrong here.
- * Returns null when `seed.allowDrafts` is falsy.
+ * Generates the drafts junction table `rel_<seed>_<alias>_drafts` for a many-to-many relation branch.
+ * 
+ * @param seed The parent seed definition.
+ * @param branch The multi-relation branch definition.
+ * @returns The CREATE TABLE SQL statement, or null if drafts are disabled.
  */
 export function generateJunctionDraftTable(seed: Seed, branch: Branch): string | null {
   if (!seed.allowDrafts) return null
@@ -648,32 +732,16 @@ export function generateJunctionDraftTable(seed: Seed, branch: Branch): string |
   ].join('\n')
 }
 
-// ---- Destructive DDL Generators (Sprint 06 — Danger Zone) ----
-//
-// Every generator below emits IRREVERSIBLE, data-destroying SQL. They are pure
-// string builders (no DB access); the actual execution goes through
-// ISchemaMutator's dedicated destructive methods (dropTable/dropColumn/
-// renameColumn/execDestructive), which re-validate every identifier before
-// interpolation. These statements MUST NEVER be passed to execDdl (additive-only).
-
-function draftTableName(seed: Seed): string {
-  return `content_${seed.slug}_drafts`
-}
-
 /**
  * Returns every `DROP TABLE IF EXISTS` needed to fully remove a content type:
- * the main `content_{slug}` table, its `fts_{slug}` virtual table, the
- * `content_{slug}_drafts` mirror (when drafts are enabled), and each
- * multi-relation junction table `rel_{slug}_{alias}` (+ its `_drafts` mirror).
- *
- * FTS triggers reference the main table; dropping the main table also drops
- * its triggers in SQLite, but we drop the FTS table explicitly so no orphaned
- * virtual table survives. Order: junction (children) → drafts → fts → main.
+ * the main table, the drafts table (if drafts enabled), full-text search table/triggers, and junction tables.
+ * 
+ * @param seed The seed definition.
+ * @returns An array of DROP TABLE / DROP TRIGGER SQL statements.
  */
 export function generateDropTable(seed: Seed): string[] {
   const stmts: string[] = []
 
-  // Junction tables first (they FK-reference the main/draft tables).
   for (const branch of seed.branches) {
     if (branch.type !== 'relation' || branch.multiple !== true) continue
     const jt = junctionTableName(seed.slug, branch.alias)
@@ -685,7 +753,6 @@ export function generateDropTable(seed: Seed): string[] {
     stmts.push(`DROP TABLE IF EXISTS ${draftTableName(seed)};`)
   }
 
-  // FTS triggers + virtual table.
   if (indexableSearchBranches(seed).length > 0) {
     const slug = seed.slug
     stmts.push(`DROP TRIGGER IF EXISTS fts_${slug}_insert;`)
@@ -699,17 +766,12 @@ export function generateDropTable(seed: Seed): string[] {
 }
 
 /**
- * Returns the `DROP COLUMN` statements for removing a single field.
- *
- * - For a multi-relation branch (no column on the parent table) it drops the
- *   junction table `rel_{slug}_{alias}` (+ `_drafts`) instead.
- * - For a normal branch it drops the column from `content_{slug}` and, when
- *   drafts are enabled, the mirror column from `content_{slug}_drafts`.
- * - For an orphan column (no matching branch in the definition) it falls back
- *   to a plain `ALTER TABLE … DROP COLUMN`, never touching drafts.
- *
- * Callers must rebuild FTS separately (planFtsRebuild) when the dropped column
- * was searchable, since SQLite cannot ALTER an fts5 table's columns.
+ * Returns the `DROP COLUMN` SQL statements for removing a single field.
+ * Drops the junction table for multi-relations, or alters the tables to drop the column.
+ * 
+ * @param seed The seed definition.
+ * @param alias The alias of the branch to drop.
+ * @returns An array of SQL statements.
  */
 export function generateDropColumn(seed: Seed, alias: string): string[] {
   const branch = seed.branches.find(b => b.alias === alias)
@@ -723,7 +785,6 @@ export function generateDropColumn(seed: Seed, alias: string): string[] {
   }
 
   const stmts: string[] = [`ALTER TABLE ${tableName(seed)} DROP COLUMN ${alias};`]
-  // Drop the mirror column from the drafts table when the branch lives there.
   if (branch && seed.allowDrafts) {
     stmts.push(`ALTER TABLE ${draftTableName(seed)} DROP COLUMN ${alias};`)
   }
@@ -731,15 +792,13 @@ export function generateDropColumn(seed: Seed, alias: string): string[] {
 }
 
 /**
- * Returns the `RENAME COLUMN` statements for renaming a field's alias while
- * keeping the stable `branch.id`. Renames the column on `content_{slug}` and,
- * when drafts are enabled, the mirror column on `content_{slug}_drafts`.
- *
- * For a multi-relation branch the alias is part of the junction table name, so
- * the junction table (+ `_drafts`) is renamed instead of a column.
- *
- * Callers must rebuild FTS separately (planFtsRebuild) when the renamed column
- * was searchable.
+ * Returns the `RENAME COLUMN` SQL statements for renaming a field's alias.
+ * For a multi-relation branch, renames the junction table (+ drafts junction table) instead.
+ * 
+ * @param seed The seed definition.
+ * @param from The old alias.
+ * @param to The new alias.
+ * @returns An array of SQL statements.
  */
 export function generateRenameColumn(seed: Seed, from: string, to: string): string[] {
   const branch = seed.branches.find(b => b.alias === from)
@@ -762,14 +821,12 @@ export function generateRenameColumn(seed: Seed, from: string, to: string): stri
 }
 
 /**
- * Returns the add/copy/drop/rename statements that change a column's SQL type
- * in place, preserving data via `CAST`. This is the documented simpler
- * alternative to SQLite's full 12-step table rebuild.
- *
- * The `branch` passed in is the *target* definition (already carrying the new
- * `type`); its SQL type is read from BRANCH_TYPE_SQL. Multi-relation branches
- * have no column to retype and are rejected. Mirrors the change onto the drafts
- * table when drafts are enabled. Callers rebuild FTS separately when needed.
+ * Returns the statements that change a column's SQL type in place using CAST, bypassing SQLite rebuild limitations.
+ * 
+ * @param seed The seed definition.
+ * @param branch The target branch definition (carrying the new type).
+ * @throws {Error} If called on a multi-relation branch.
+ * @returns An array of SQL statements.
  */
 export function generateRetypeColumn(seed: Seed, branch: Branch): string[] {
   if (branch.type === 'relation' && branch.multiple === true) {
@@ -792,12 +849,14 @@ export function generateRetypeColumn(seed: Seed, branch: Branch): string[] {
 }
 
 /**
- * Deserializes a value read from the DB for the API response.
- * 0/1 → boolean | Unix timestamp → ISO 8601 | JSON string → object
+ * Deserializes a value read from the DB to its API/JS representation.
+ * 0/1 → boolean | Unix timestamp → ISO 8601 | JSON string → object/array
+ * 
+ * @param branch The branch definition.
+ * @param value The raw database value.
+ * @returns The deserialized value.
  */
 export function deserializeFromDb(branch: Branch, value: unknown): unknown {
-  // Repeater columns deserialize to [] (never null) — drafts and rows that
-  // predate the column being added carry NULL, which is an empty list of items.
   if (branch.type === 'repeater') {
     if (typeof value !== 'string' || value.length === 0) return []
     const parsed = parseJsonSafe(value)

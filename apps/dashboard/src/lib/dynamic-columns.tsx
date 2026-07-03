@@ -36,7 +36,7 @@ import { matchesFilterGroup } from "@/lib/filter-dsl"
 import { pendingDraftBadgeClass, shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 
 import {
-  DateGroupPrecision,
+  type DateGroupPrecision,
   DEFAULT_DATE_GROUP_PRECISION,
   getDateGroupValue,
   booleanAggFn,

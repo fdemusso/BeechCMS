@@ -189,6 +189,17 @@ describe('Botanical Engine', () => {
       expect(query.sql).toContain("price IS NOT NULL")
     })
 
+    it('handles is_empty and is_not_empty conditions for tags/json', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'tags', type: 'tags', conditions: [{ op: 'is_empty', value: null }] },
+          { column: 'tags', type: 'json', conditions: [{ op: 'is_not_empty', value: null }] }
+        ]
+      })
+      expect(query.sql).toContain("(tags IS NULL OR tags = '[]' OR tags = '{}')")
+      expect(query.sql).toContain("(tags IS NOT NULL AND tags != '[]' AND tags != '{}')")
+    })
+
     it('handles in and not_in conditions', () => {
       const query = buildSelectQuery(mockSeed, {
         filters: [
