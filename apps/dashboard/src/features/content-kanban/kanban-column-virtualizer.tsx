@@ -29,7 +29,7 @@ function SortableCardItem({ card, colValue, canEdit, sortActive, onEdit, baseSty
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: card.entryId,
     disabled,
-    data: { colValue },
+    data: { colValue, model: card },
   })
 
   if (isDragging) {

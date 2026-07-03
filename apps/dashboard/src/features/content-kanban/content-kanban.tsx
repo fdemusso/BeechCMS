@@ -7,11 +7,11 @@ import { useTranslation } from 'react-i18next'
 import { useKanbanColumns } from './hooks/use-kanban-columns'
 import { useKanbanColumnQuery } from './hooks/use-kanban-column-query'
 import { KanbanColumn } from './kanban-column'
-import { KanbanCardOverlay } from './kanban-card-overlay'
+import { KanbanCard } from './kanban-card'
 import { useKanbanBoard } from './drag/use-kanban-board'
 import { useKanbanDrag } from './drag/use-kanban-drag'
 import { buildKanbanCardDisplayModel } from './kanban-card-display'
-import { KANBAN_COLUMN_WIDTH_PX } from './constants'
+import { KANBAN_COLUMN_WIDTH_PX, KANBAN_CARD_HEIGHT_PX } from './constants'
 import type { ContentKanbanProps, KanbanBoardConfig, KanbanCardDisplayModel } from './types'
 import type { ContentListWithMeta } from '@/lib/content-api'
 
@@ -222,23 +222,9 @@ export function ContentKanban({
         onDragStart={(e) => {
           setTouchDragActive(true)
           drag.onDragStart(e)
-          // Look up the dragged card's display model for DragOverlay
-          const entryId = String(e.active.id)
-          const colValue = (e.active.data.current?.colValue as string | null | undefined) ?? null
-          const axisBranchId = kanbanConfig.axisBranchId
-          if (axisBranch && axisBranchId) {
-            const cached = queryClient.getQueriesData<InfiniteData<ContentListWithMeta>>({
-              queryKey: ['kanban', seedSlug, axisBranchId, colValue],
-            })
-            let found: KanbanCardDisplayModel | null = null
-            outer: for (const [, data] of cached) {
-              if (!data) continue
-              for (const page of data.pages) {
-                const item = page.items.find(i => i.id === entryId)
-                if (item) { found = buildKanbanCardDisplayModel(item, axisBranch, colValue); break outer }
-              }
-            }
-            setActiveCard(found)
+          const model = e.active.data.current?.model as KanbanCardDisplayModel | undefined
+          if (model) {
+            setActiveCard(model)
           }
         }}
         onDragMove={drag.onDragMove}
@@ -291,7 +277,20 @@ export function ContentKanban({
         </div>
 
         <DragOverlay>
-          {activeCard ? <KanbanCardOverlay model={activeCard} /> : null}
+          {activeCard ? (
+            <div 
+              className="rotate-1 opacity-95" 
+              style={{ width: KANBAN_COLUMN_WIDTH_PX - 8, height: KANBAN_CARD_HEIGHT_PX, boxSizing: 'border-box' }}
+            >
+              <KanbanCard 
+                model={activeCard} 
+                canEdit={false} 
+                sortActive={false} 
+                onEdit={() => {}} 
+                isDragging={false} 
+              />
+            </div>
+          ) : null}
         </DragOverlay>
       </DndContext>
     </div>
