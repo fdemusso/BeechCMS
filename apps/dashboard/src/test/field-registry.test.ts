@@ -69,7 +69,7 @@ describe('FieldRegistryImpl', () => {
 
 describe('fieldRegistry singleton (registry.ts)', () => {
   const BUILT_IN_TYPES: BranchType[] = [
-    'text', 'number', 'boolean', 'date', 'json', 'richtext', 'file',
+    'text', 'number', 'boolean', 'date', 'json', 'tags', 'richtext', 'file', 'relation', 'repeater',
   ]
 
   it('exports fieldRegistry as an object with registerDisplay/registerEdit', () => {
@@ -96,7 +96,7 @@ describe('getDisplayComponent', () => {
   })
 
   it('falls back to DefaultDisplay for an unregistered type', () => {
-    expect(getDisplayComponent('tags' as BranchType)).toBe(DefaultDisplay)
+    expect(getDisplayComponent('non_existent_mock' as BranchType)).toBe(DefaultDisplay)
   })
 })
 
@@ -108,6 +108,6 @@ describe('getEditComponent', () => {
   })
 
   it('falls back to DefaultEdit for an unregistered type', () => {
-    expect(getEditComponent('tags' as BranchType)).toBe(DefaultEdit)
+    expect(getEditComponent('non_existent_mock' as BranchType)).toBe(DefaultEdit)
   })
 })
