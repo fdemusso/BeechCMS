@@ -27,27 +27,44 @@ import { BaseD1Repository } from './base.repository.d1'
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
+/** Returns the seed's `relation` branches configured for multiple targets (array-valued, stored in junction tables). */
 function multiRelBranches(seed: Seed): Branch[] {
   return seed.branches.filter(b => b.type === 'relation' && b.multiple === true)
 }
 
+/** Returns the seed's `relation` branches configured for a single target (stored inline as a column). */
 function singleRelBranches(seed: Seed): Branch[] {
   return seed.branches.filter(b => b.type === 'relation' && !b.multiple)
 }
 
+/** Builds the junction table name for a live (published) multi-relation branch, e.g. `rel_posts_tags`. */
 function jTable(seedSlug: string, branchAlias: string): string {
   return `rel_${seedSlug}_${branchAlias}`
 }
 
+/** Builds the junction table name for a draft multi-relation branch, e.g. `rel_posts_tags_drafts`. */
 function jDraftTable(seedSlug: string, branchAlias: string): string {
   return `rel_${seedSlug}_${branchAlias}_drafts`
 }
 
+/**
+ * D1 (Cloudflare SQLite) implementation of {@link ContentRepository}.
+ *
+ * Persists each seed's entries in a dedicated `content_{slug}` table, with multi-relation
+ * branches stored in separate junction tables (`rel_{slug}_{alias}`) rather than as columns,
+ * since D1/SQLite has no native array column type. Draft data mirrors this shape in
+ * `content_{slug}_drafts` and `rel_{slug}_{alias}_drafts` tables.
+ *
+ * Lifecycle hooks ({@link BeechHooks}) fire around create/update/delete: `before*` hooks run
+ * inside the try block and may transform the payload or abort by throwing; `after*` hooks run
+ * once the write has already committed and therefore cannot roll back the mutation.
+ */
 export class D1ContentRepository extends BaseD1Repository implements ContentRepository {
   constructor(database: D1Database, private readonly hooks?: BeechHooks) {
     super(database)
   }
 
+  /** Assembles the {@link HookContext} passed to every lifecycle hook invocation. */
   private hookCtx(seed: Seed, actor?: HookActor): HookContext {
     return { seed, repository: this, actor, db: this.database }
   }
@@ -81,6 +98,10 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
   /**
    * Fetches multi-relation arrays for a single entry and attaches them to `data`.
+   *
+   * @param seed The seed schema definition.
+   * @param entryId Id of the entry to fetch relation targets for.
+   * @param data Mutated in place: one array property per multi-relation branch alias.
    */
   private async attachMultiRelations(
     seed: Seed,
@@ -104,7 +125,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
   /**
    * Fetches multi-relation arrays for a list of entries and attaches them.
-   * One query per multi-relation branch (O(R) queries, R = branch count).
+   * One query per multi-relation branch (O(R) queries, R = branch count), each query
+   * spanning all entries via `parent_id IN (...)`.
+   *
+   * @param seed The seed schema definition.
+   * @param entries Mutated in place: one array property per multi-relation branch alias, per entry.
    */
   private async attachMultiRelationsMany(
     seed: Seed,
@@ -141,19 +166,27 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Finds multiple entries for a given seed table based on the provided query options.
+   * Generates and executes two separate parameterized queries in a batch request:
+   * 1. A selection query to retrieve the items for the current page (with columns, limits, offsets, and ordering).
+   * 2. A count query (using `isCount: true`) to retrieve the total number of matched items matching the same filters.
+   * 
+   * @param seed The seed schema definition.
+   * @param options Filtering, search, ordering, and pagination options.
+   * @returns An object containing the list of serialized entries and the total count of matched items.
+   * @throws RepositoryError if the database batch execution fails.
+   */
   async findMany(
     seed: Seed,
     options: SelectOptions
   ): Promise<{ items: Record<string, any>[]; total: number }> {
     try {
       const { sql, bindings } = buildSelectQuery(seed, options)
-
-      const countSql = sql
-        .replace(/SELECT .* FROM/, 'SELECT COUNT(*) as total FROM')
-        .replace(/ ORDER BY .*$/, '')
-        .replace(/ LIMIT \? OFFSET \?$/, '')
-
-      const countBindings = bindings.slice(0, bindings.length - (options.pagination ? 2 : 0))
+      const { sql: countSql, bindings: countBindings } = buildSelectQuery(seed, {
+        ...options,
+        isCount: true,
+      })
 
       const [batchResults, totalCountResult] = await this.database.batch([
         this.database.prepare(sql).bind(...bindings),
@@ -171,6 +204,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Fetches a single entry by id, including its multi-relation arrays.
+   * @throws EntryNotFoundError if no row with `id` exists in the seed's table.
+   * @throws RepositoryError on any other database failure.
+   */
   async findById(seed: Seed, id: string): Promise<Record<string, any>> {
     try {
       const tableName = this.getTableName(seed.slug)
@@ -192,6 +230,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Fetches a single entry by its unique `slug`, including its multi-relation arrays.
+   * @throws EntryNotFoundError if no row with `slug` exists in the seed's table.
+   * @throws RepositoryError on any other database failure.
+   */
   async findBySlug(seed: Seed, slug: string): Promise<Record<string, any>> {
     try {
       const tableName = this.getTableName(seed.slug)
@@ -213,6 +256,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Computes aggregate facets for a seed: entry counts per `status`, and the distinct set
+   * of tag values present across all entries for each `tags`-typed branch (via `json_each`
+   * over the JSON-serialized tag column).
+   */
   async getFacets(seed: Seed): Promise<{
     statuses: Record<string, number>
     tagsByColumn: Record<string, string[]>
@@ -245,6 +293,10 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Checks whether `slug` is already taken in the seed's table.
+   * @param excludeId When provided (e.g. during an update), excludes that entry's own row from the check.
+   */
   async existsSlug(seed: Seed, slug: string, excludeId?: string): Promise<boolean> {
     try {
       const tableName = this.getTableName(seed.slug)
@@ -264,6 +316,10 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
 
+  /**
+   * Builds the `INSERT` statement for an entry's main table row. Multi-relation branch
+   * values are skipped (they're written as separate junction-table inserts by the caller).
+   */
   private buildCreateMainStmt(
     seed: Seed,
     id: string,
@@ -291,6 +347,15 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     return this.database.prepare(mainSql).bind(...queryBindings)
   }
 
+  /**
+   * Builds the `UPDATE` statement for an entry's main table row from whichever branch
+   * aliases are present in `data` (partial update — absent keys are left untouched).
+   * Multi-relation branches present in `data` are returned as `junctionUpdates` instead
+   * of being included in the SQL, since they require separate delete+insert statements.
+   *
+   * @returns `stmt: null` when there is nothing to update on the main row (no scalar
+   *   fields and no `status` change) even if junction updates are still needed.
+   */
   private buildUpdateMainStmt(
     seed: Seed,
     id: string,
@@ -334,6 +399,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /** Builds one `INSERT` per target id into a live multi-relation junction table, preserving array order via `position`. */
   private buildJunctionInserts(seedSlug: string, parentId: string, branchAlias: string, targetIds: string[]): D1PreparedStatement[] {
     const jt = jTable(seedSlug, branchAlias)
     return targetIds.map((targetId, i) =>
@@ -343,6 +409,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     )
   }
 
+  /** Builds one `INSERT` per target id into a draft multi-relation junction table, preserving array order via `position`. */
   private buildDraftJunctionInserts(seedSlug: string, entryId: string, branchAlias: string, targetIds: string[]): D1PreparedStatement[] {
     const jdt = jDraftTable(seedSlug, branchAlias)
     return targetIds.map((targetId, i) =>
@@ -352,6 +419,14 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     )
   }
 
+  /**
+   * Validates that every relation target referenced by a draft still exists before publish,
+   * for both single-relation columns and multi-relation draft junction rows.
+   *
+   * @throws RelationTargetNotFoundError if any referenced target id is missing from its target seed's table.
+   * @returns The multi-relation branches and their resolved (validated) draft target ids,
+   *   so the caller can reuse them without re-querying the draft junction tables.
+   */
   private async validatePublishDraftRelations(seed: Seed, draftRow: Record<string, unknown>, entryId: string) {
     for (const branch of singleRelBranches(seed)) {
       const value = draftRow[branch.alias]
@@ -399,6 +474,12 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     return { mRelBranches, mRelDraftIds }
   }
 
+  /**
+   * Builds the junction-table statements for one array-typed {@link BulkFieldUpdate}:
+   * `array_replace` (delete-all + reinsert), `array_add` (append via `INSERT OR IGNORE`
+   * with position computed from current max), or `array_remove` (targeted delete).
+   * Returns an empty array for a no-op (e.g. `array_remove` with an empty value list).
+   */
   private getBulkArrayUpdateStmts(seedSlug: string, id: string, alias: string, update: BulkFieldUpdate): D1PreparedStatement[] {
     const jt = jTable(seedSlug, alias)
     const stmts: D1PreparedStatement[] = []
@@ -430,6 +511,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     return stmts
   }
 
+  /**
+   * Applies a bulk field update to a single entry as one batch: a main-table `UPDATE` for
+   * `set`-kind fields plus any junction statements for array-kind fields.
+   * @throws Error('not-found') if the main `UPDATE` affects zero rows (id doesn't exist).
+   */
   private async processBulkUpdateSingle(
     seedSlug: string,
     id: string,
@@ -462,6 +548,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Sequentially applies a bulk field update to each id in `chunk`, isolating per-id
+   * failures (not-found, FK violation, or other error) into the `failed` list rather than
+   * aborting the whole chunk.
+   */
   private async processBulkUpdateChunk(
     seedSlug: string,
     chunk: string[],
@@ -488,6 +579,14 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     return { updated, failed }
   }
 
+  /**
+   * Creates a new entry: runs `beforeCreate` (which may transform the payload), inserts the
+   * main row plus any multi-relation junction rows as a single batch, then runs `afterCreate`.
+   *
+   * @throws SlugConflictError if `slug` already exists for this seed.
+   * @throws RepositoryError on any other database failure.
+   * @remarks `afterCreate` runs after the batch has committed, so it cannot roll back the write.
+   */
   async create(
     seed: Seed,
     id: string,
@@ -535,6 +634,15 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Partially updates an existing entry: runs `beforeUpdate`, applies main-row and
+   * junction-table changes as a batch, then runs `afterUpdate`. A no-op payload (no scalar
+   * fields, no multi-relation fields, no status change) returns without touching the database.
+   *
+   * @throws EntryNotFoundError if the main-row `UPDATE` affects zero rows.
+   * @throws RepositoryError on any other database failure.
+   * @remarks `afterUpdate` runs after the batch has committed, so it cannot roll back the write.
+   */
   async update(
     seed: Seed,
     id: string,
@@ -587,6 +695,14 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Deletes an entry: runs `beforeDelete`, reads the row (for the return value), deletes it,
+   * then runs `afterDelete`. Relies on database-level `ON DELETE CASCADE` for junction rows.
+   *
+   * @returns The deserialized row as it existed immediately before deletion.
+   * @throws EntryNotFoundError if no row with `id` exists.
+   * @remarks `afterDelete` runs after the delete has committed, so it cannot roll back the write.
+   */
   async delete(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }> {
     if (this.hooks?.beforeDelete) {
       await this.hooks.beforeDelete(id, this.hookCtx(seed, options?.actor))
@@ -621,6 +737,14 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     return { row }
   }
 
+  /**
+   * Atomically increments/decrements a numeric field in a single conditional `UPDATE`
+   * (guarded by optional `min`/`max` bounds evaluated against the new value), avoiding
+   * read-modify-write races.
+   *
+   * @throws RepositoryError if `fieldName` isn't a `number`-typed branch on `seed`, or if
+   *   the conditional `UPDATE` affects zero rows (entry not found, or bound exceeded).
+   */
   async mutateField(
     seed: Seed,
     id: string,
@@ -655,6 +779,14 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Executes a heterogeneous list of {@link BatchWrite} operations (create/update/mutateField)
+   * as a single atomic `database.batch` call. Does not invoke lifecycle hooks — callers needing
+   * hook side effects should use {@link create}/{@link update}/{@link mutateField} instead.
+   *
+   * @throws RepositoryError if any operation references a non-numeric field for `mutateField`,
+   *   or on any other database failure.
+   */
   async runBatch(operations: BatchWrite[]): Promise<void> {
     if (operations.length === 0) return
 
@@ -701,6 +833,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Upserts a draft row for `entryId` (`INSERT ... ON CONFLICT DO UPDATE` keyed on `entry_id`)
+   * plus a full delete+reinsert of each multi-relation branch's draft junction rows.
+   * @throws RepositoryError if `seed.allowDrafts` is false, or on any database failure.
+   */
   async saveDraft(seed: Seed, entryId: string, data: Record<string, any>): Promise<void> {
     try {
       if (!seed.allowDrafts) {
@@ -767,6 +904,10 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Fetches the draft row for `entryId`, if any, merged with its multi-relation draft arrays.
+   * @returns `null` if `seed.allowDrafts` is false or no draft row exists.
+   */
   async getDraft(seed: Seed, entryId: string): Promise<Record<string, any> | null> {
     try {
       if (!seed.allowDrafts) return null
@@ -812,6 +953,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /** Checks whether a draft row exists for `entryId`. Always `false` if `seed.allowDrafts` is false. */
   async hasDraft(seed: Seed, entryId: string): Promise<boolean> {
     try {
       if (!seed.allowDrafts) return false
@@ -826,6 +968,15 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Promotes a draft to the live entry: validates all relation targets referenced by the
+   * draft still exist, copies the draft's scalar fields into the live row, replaces the
+   * live junction rows with the draft's, and deletes the draft — all as one batch.
+   * A no-op if `seed.allowDrafts` is false.
+   *
+   * @throws EntryNotFoundError if no draft row exists for `entryId`.
+   * @throws RelationTargetNotFoundError if any relation the draft references no longer exists.
+   */
   async publishDraft(seed: Seed, entryId: string): Promise<void> {
     try {
       if (!seed.allowDrafts) return
@@ -885,6 +1036,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Applies the same set of field updates across many entries, chunked at 50 ids per batch
+   * to bound per-call payload size. Per-id failures are collected rather than aborting the
+   * whole operation — see {@link processBulkUpdateSingle} for failure classification.
+   */
   async bulkUpdate(
     seedSlug: string,
     ids: string[],
@@ -905,6 +1061,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     return { updated, failed }
   }
 
+  /** Deletes the draft row for `entryId`, if any. A no-op if `seed.allowDrafts` is false. */
   async deleteDraft(seed: Seed, entryId: string): Promise<void> {
     try {
       if (!seed.allowDrafts) return
@@ -915,6 +1072,15 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Finds every pending draft across the given seeds, `UNION ALL`-ing one query per seed
+   * so results span heterogeneous `content_{slug}_drafts` tables, then left-joins each
+   * against `activity_logs` to attribute the most recent "draft saved" action.
+   *
+   * @param seeds Seeds to search; drafts are looked up per-seed since draft tables aren't unified.
+   * @returns Draft summaries ordered by most-recently-updated first. `title` falls back to the
+   *   draft's own `id` if the display-name column is blank on both the draft and its live counterpart.
+   */
   async findPendingDrafts(seeds: Seed[]): Promise<DraftSummary[]> {
     try {
       if (seeds.length === 0) return []
@@ -985,6 +1151,18 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
   }
 
+  /**
+   * Updates an entry's field values (optional) and its kanban board position atomically in one
+   * batch: an optional main-row/junction update via {@link buildUpdateMainStmt}, plus an upsert
+   * into `kanban_positions` keyed on `(seed_slug, entry_id, axis_branch_id)`.
+   *
+   * @param patch Field changes to apply alongside the drag/drop, or `null` if only position changed.
+   * @param position Opaque fractional-index (or similar) position value used for ordering within the axis bucket.
+   * @param axisBranchId Identifies which branch/column axis this position is relative to (e.g. status column).
+   * @remarks Unlike {@link create}/{@link update}, this method does not invoke `beforeUpdate`/`afterUpdate`
+   *   lifecycle hooks — the `_ctx.actor` parameter is currently unused. Kanban drag-and-drop writes
+   *   therefore bypass hook-based side effects (e.g. audit logging) that `update()` would trigger.
+   */
   async updateWithKanbanPosition(
     seed: Seed,
     id: string,
