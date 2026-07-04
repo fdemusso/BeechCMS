@@ -1,4 +1,5 @@
 import { useRef, useCallback } from 'react'
+import { scrollDelta } from './kanban-autoscroll-math'
 
 const EDGE_PX = 60
 const SCROLL_SPEED = 8
@@ -27,11 +28,8 @@ export function useKanbanAutoscroll() {
       if (!el) return
       const rect = el.getBoundingClientRect()
       const y = pointerYRef.current
-      if (y - rect.top < EDGE_PX) {
-        el.scrollTop -= SCROLL_SPEED
-      } else if (rect.bottom - y < EDGE_PX) {
-        el.scrollTop += SCROLL_SPEED
-      }
+      const delta = scrollDelta(y, rect, EDGE_PX, SCROLL_SPEED)
+      if (delta !== 0) el.scrollTop += delta
       rafRef.current = requestAnimationFrame(tick)
     }
 

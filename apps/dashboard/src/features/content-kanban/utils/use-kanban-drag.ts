@@ -11,25 +11,18 @@ import {
   type DragMoveEvent,
   type DragCancelEvent,
 } from '@dnd-kit/core'
-import { sortableKeyboardCoordinates, arrayMove } from '@dnd-kit/sortable'
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import type { Branch, KanbanMoveBody } from '@beechcms/core'
 import { moveKanbanCard } from '@/lib/content-api'
 import type { ContentListWithMeta } from '@/lib/content-api'
 import { positionBetween } from './fractional'
+import { colValueFromDroppableId, resequenceCards, computeReorderBounds } from './kanban-reorder'
 import type { KanbanBoardAction, DragSnapshot } from './use-kanban-board'
 import { KANBAN_SETTLE_MS, KANBAN_POSITION_REBALANCE_THRESHOLD } from '../constants'
 import type { KanbanCardDisplayModel } from '../types'
 import { buildKanbanCardDisplayModel } from './kanban-card-display'
-// // TODO: remove debug log helper
-// function writeDebugLog(message: string, data: any) {
-//   fetch('/auth/kanban-debug-log', {
-//     method: 'POST',
-//     headers: { 'Content-Type': 'application/json' },
-//     body: JSON.stringify({ message, data })
-//   }).catch(() => {})
-// }
 
 interface UseKanbanDragOptions {
   seedSlug: string
@@ -60,42 +53,8 @@ function getCardsFromCache(
     }
   }
 
-  // 1. Detect duplicates BEFORE sorting so demoted cards (null) sink to the end
-  // of the array during the sort below — not left in the middle where
-  // positionBetween could generate a key that collides with an existing one.
-  const seen = new Set<string>()
-  for (const card of cards) {
-    if (card.position !== null) {
-      if (seen.has(card.position)) {
-        card.position = null
-      } else {
-        seen.add(card.position)
-      }
-    }
-  }
-
-  // 2. Sort: real positions ascending, null values sink to the end.
-  const sorted = cards.sort((a, b) => {
-    if (a.position === null && b.position === null) return 0
-    if (a.position === null) return 1
-    if (b.position === null) return -1
-    return a.position < b.position ? -1 : a.position > b.position ? 1 : 0
-  })
-
-  // 3. Assign unique synthetic positions to nulls (all at the end now) and
-  // write them back to the React Query cache for stable ordering on future drags.
-  let lastPos: string | null = null
-  let cacheUpdated = false
-  const updatedItemsMap = new Map<string, string>()
-
-  for (const card of sorted) {
-    if (card.position === null) {
-      card.position = positionBetween(lastPos, null)
-      updatedItemsMap.set(card.entryId, card.position)
-      cacheUpdated = true
-    }
-    lastPos = card.position
-  }
+  const { cards: sorted, updatedPositions: updatedItemsMap } = resequenceCards(cards)
+  const cacheUpdated = updatedItemsMap.size > 0
 
   if (cacheUpdated) {
     queryClient.setQueriesData<InfiniteData<ContentListWithMeta>>(
@@ -119,14 +78,6 @@ function getCardsFromCache(
   }
 
   return sorted
-}
-
-function colValueFromDroppableId(id: string): string | null {
-  if (id.startsWith('col:')) {
-    const val = id.slice(4)
-    return val === '__null__' ? null : val
-  }
-  return null
 }
 
 export function useKanbanDrag(opts: UseKanbanDragOptions) {
@@ -168,15 +119,6 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
 
     const cards = getCardsFromCache(queryClient, seedSlug, axisBranchId, axisBranch, srcColValue)
     const card = cards.find(c => c.entryId === entryId)
-
-    // // TODO: remove debug log
-    // writeDebugLog('[KANBAN DEBUG] --- DRAG START ---', {
-    //   entryId,
-    //   srcColValue,
-    //   cardPosition: card?.position,
-    //   totalCardsInSourceCol: cards.length,
-    //   cards: cards.map(c => ({ id: c.entryId, pos: c.position }))
-    // })
 
     const snapshot: DragSnapshot = {
       entryId,
@@ -222,18 +164,7 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
       let after: string | null = null
 
       if (isSameColumn) {
-        const allIds = srcCards.map(c => c.entryId)
-        const fromIdx = allIds.indexOf(entryId)
-        const toIdx = allIds.indexOf(String(over.id))
-        if (fromIdx >= 0 && toIdx >= 0) {
-          const reordered = arrayMove(srcCards, fromIdx, toIdx)
-          const newIdx = reordered.findIndex(c => c.entryId === entryId)
-          before = reordered[newIdx - 1]?.position ?? null
-          after = reordered[newIdx + 1]?.position ?? null
-        } else {
-          before = srcCards[srcCards.length - 1]?.position ?? null
-          after = null
-        }
+        ({ before, after } = computeReorderBounds(srcCards, entryId, String(over.id)))
       } else {
         const overCardIdx = destCards.findIndex(c => c.entryId === String(over.id))
         if (overCardIdx >= 0) {
@@ -243,28 +174,14 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
           before = destCards[destCards.length - 1]?.position ?? null
           after = null
         }
+        // Guard: if cache still has a collision after deduplication, clamp after to null
+        // rather than letting positionBetween crash with "a0 >= a0".
+        if (before !== null && after !== null && before >= after) after = null
       }
-
-      // Guard: if cache still has a collision after deduplication, clamp after to null
-      // rather than letting positionBetween crash with "a0 >= a0".
-      if (before !== null && after !== null && before >= after) after = null
 
       const tempPosition = positionBetween(before, after)
       const card = srcCards.find(c => c.entryId === entryId)
       const newAxisValue = isSameColumn ? (card?.axisValue ?? null) : overColValue
-
-      // // TODO: remove debug log
-      // writeDebugLog('[KANBAN DEBUG] --- SETTLE TIMER FIRED (DRAG MOVE) ---', {
-      //   activeCard: entryId,
-      //   hoveredOverId: over.id,
-      //   hoveredColValue: overColValue,
-      //   isSameColumn,
-      //   beforeCardPos: before,
-      //   afterCardPos: after,
-      //   calculatedTempPosition: tempPosition,
-      //   destCardsCount: destCards.length,
-      //   destCards: destCards.map(c => ({ id: c.entryId, pos: c.position }))
-      // })
 
       dispatch({
         type: 'DRAG_OPTIMISTIC',
@@ -286,15 +203,6 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
     // the dragged card's id but isn't in destCards cache yet; committedOverId is the
     // real card the ghost appeared next to.
     const savedCommittedOverId = committedOverIdRef.current
-
-    // // TODO: remove debug log
-    // writeDebugLog('[KANBAN DEBUG] --- ON DRAG END ENTERED ---', {
-    //   entryId,
-    //   hasOver: !!event.over,
-    //   overId: event.over ? String(event.over.id) : null,
-    //   hasSnapshot: !!snapshot,
-    //   savedCommittedOverId,
-    // })
 
     clearTimerAndRefs()
     activeIdRef.current = null
@@ -341,21 +249,7 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
     let after: string | null = null
 
     if (isSameColumn) {
-      // Use arrayMove to get the correct insertion order — fixes the asymmetric
-      // down-drag bug where (before=dragged, after=over) placed the card in the
-      // wrong position relative to the over card.
-      const allIds = srcCards.map(c => c.entryId)
-      const fromIdx = allIds.indexOf(entryId)
-      const toIdx = allIds.indexOf(effectiveOverId)
-      if (fromIdx >= 0 && toIdx >= 0) {
-        const reordered = arrayMove(srcCards, fromIdx, toIdx)
-        const newIdx = reordered.findIndex(c => c.entryId === entryId)
-        before = reordered[newIdx - 1]?.position ?? null
-        after = reordered[newIdx + 1]?.position ?? null
-      } else {
-        before = srcCards[srcCards.length - 1]?.position ?? null
-        after = null
-      }
+      ({ before, after } = computeReorderBounds(srcCards, entryId, effectiveOverId))
     } else {
       // Cross-column: insert before the over card, or append at end if
       // the user dropped on the column background (over.id = droppable id).
@@ -367,29 +261,14 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
         before = destCards[destCards.length - 1]?.position ?? null
         after = null
       }
+      // Guard: if cache still has a collision after deduplication, clamp after to null
+      // rather than letting positionBetween crash with "a0 >= a0".
+      if (before !== null && after !== null && before >= after) after = null
     }
-
-    // Guard: if cache still has a collision after deduplication, clamp after to null
-    // rather than letting positionBetween crash with "a0 >= a0".
-    if (before !== null && after !== null && before >= after) after = null
 
     const newPosition = positionBetween(before, after)
     const card = srcCards.find(c => c.entryId === entryId)
     const newAxisValue = isSameColumn ? (card?.axisValue ?? null) : destColValue
-
-    // // TODO: remove debug log
-    // writeDebugLog('[KANBAN DEBUG] --- DRAG END ---', {
-    //   activeCard: entryId,
-    //   rawOverId,
-    //   savedCommittedOverId,
-    //   calculatedDestColValue: destColValue,
-    //   isSameColumn,
-    //   beforePosition: before,
-    //   afterPosition: after,
-    //   generatedNewPosition: newPosition,
-    //   destCardsCount: destCards.length,
-    //   destCards: destCards.map(c => ({ id: c.entryId, pos: c.position }))
-    // })
 
     dispatch({ type: 'DRAG_OPTIMISTIC', entryId, destColValue, position: newPosition, axisValue: newAxisValue })
 
@@ -402,12 +281,6 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
         : { kind: 'scalar' as const, value: destColValue }
       body = { axisBranchId, position: newPosition, axis }
     }
-
-    // // TODO: remove debug log
-    // writeDebugLog('[KANBAN DEBUG] API moveKanbanCard payload:', {
-    //   entryId,
-    //   body
-    // })
 
     // Find entry in cache before patching so we can insert it in dest
     let cachedEntry: unknown
