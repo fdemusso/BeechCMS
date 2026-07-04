@@ -4,12 +4,10 @@ BeechCMS uses a knowledge graph (`graphify-out/`) for architectural discovery (~
 Your sole purpose with this tool is structural and relational mapping across the Vertical Slice Architecture.
 
 ## Environment
-Always use the virtual environment before executing: `.\venv\Scripts\activate` (Windows)
+The `graphify` CLI is installed globally and available on PATH (macOS). No virtual environment activation is required.
 
 ## Maintenance & Regeneration
 - **Update Graph**: `graphify update . --force` (AST-only). Use `--force` when files are deleted/ignored.
-- **Full Clean Rebuild**: Run `.\venv\Scripts\python.exe scratch\build_beech_graph.py`. Wipes output, honors `.graphifyignore`, regenerates report and Obsidian vault.
-- **Obsidian Export**: `.\venv\Scripts\python.exe -m graphify export obsidian --dir graphify-obsidian`
 
 ## When to use Graphify vs Direct Tools
 - **USE GRAPHIFY FOR:** Architectural connections, identifying "God Nodes", cross-slice dependency checks, and conceptual domain logic discovery.
