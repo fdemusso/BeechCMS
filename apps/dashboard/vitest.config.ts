@@ -164,6 +164,17 @@ export default defineConfig({
         // ─── Dynamic column utility (layout helper, no testable logic) ────────
         "src/lib/dynamic-columns.tsx",
 
+        // ─── Content-Kanban new-code glue (branch: kanban-drag-stabilization) ─
+        // Presentational .tsx (rule 1) and React hooks mixing DOM/query/state
+        // (rule 3). Pure sub-logic is extracted + tested in Sprint 2; the
+        // extracted helpers live elsewhere in utils/ and stay measured.
+        "src/features/content-kanban/components/**",
+        "src/features/content-kanban/hooks/**",
+        "src/features/content-kanban/utils/use-kanban-drag.ts",
+        "src/features/content-kanban/utils/use-kanban-board.ts",
+        "src/features/content-kanban/utils/use-kanban-autoscroll.ts",
+        "src/features/content-kanban/constants.ts",
+
         // ─── Data constants, barrel re-exports, type-only files ──────────────
         "src/**/*.types.ts",
         "src/**/types.ts",
