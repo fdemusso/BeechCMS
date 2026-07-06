@@ -15,6 +15,7 @@ import {
   type Seed,
   type Branch,
   type SelectOptions,
+  type ParameterizedQuery,
   type RepositoryOptions,
   type BeechHooks,
   type HookActor,
@@ -124,41 +125,53 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /**
-   * Fetches multi-relation arrays for a list of entries and attaches them.
-   * One query per multi-relation branch (O(R) queries, R = branch count), each query
-   * spanning all entries via `parent_id IN (...)`.
+   * Builds one junction-table statement per multi-relation branch, selecting the rows whose
+   * `parent_id` falls within the page defined by `idQuery` (the page selection re-projected to
+   * ids only). Using a subquery instead of a bound `IN (?, ...)` id list keeps the statements
+   * eligible for the same batch as the page query and avoids D1's bound-parameter limit.
    *
-   * @param seed The seed schema definition.
-   * @param entries Mutated in place: one array property per multi-relation branch alias, per entry.
+   * The subquery is wrapped in `SELECT id FROM (...)` because `kanbanOrder` projections carry an
+   * extra `kp.position` column, and `IN` requires a single-column subselect.
    */
-  private async attachMultiRelationsMany(
+  private multiRelStatements(
     seed: Seed,
-    entries: Record<string, any>[],
-  ): Promise<void> {
-    const branches = multiRelBranches(seed)
-    if (branches.length === 0 || entries.length === 0) return
-
-    const ids = entries.map(e => e.id)
-    const placeholders = ids.map(() => '?').join(', ')
-
-    const stmts = branches.map(b =>
+    branches: Branch[],
+    idQuery: ParameterizedQuery,
+  ): D1PreparedStatement[] {
+    return branches.map(b =>
       this.database
         .prepare(
           `SELECT parent_id, target_id FROM ${jTable(seed.slug, b.alias)}` +
-          ` WHERE parent_id IN (${placeholders}) ORDER BY parent_id, position ASC`,
+          ` WHERE parent_id IN (SELECT id FROM (${idQuery.sql}))` +
+          ` ORDER BY position ASC`,
         )
-        .bind(...ids),
+        .bind(...idQuery.bindings),
     )
+  }
 
-    const results = await this.database.batch(stmts)
+  /**
+   * Groups junction rows by parent and attaches them to the entries: one array property per
+   * multi-relation branch alias, per entry. `relResults[i]` must correspond to `branches[i]`.
+   *
+   * @param entries Mutated in place.
+   */
+  private attachMultiRelationRows(
+    branches: Branch[],
+    relResults: D1Result[],
+    entries: Record<string, any>[],
+  ): void {
     for (let i = 0; i < branches.length; i++) {
       const branch = branches[i]
       const byParent = new Map<string, string[]>()
-      for (const row of results[i].results ?? []) {
+      for (const row of relResults[i].results ?? []) {
         const r = row as Record<string, unknown>
         const pid = r.parent_id as string
-        if (!byParent.has(pid)) byParent.set(pid, [])
-        byParent.get(pid)!.push(r.target_id as string)
+        let targets = byParent.get(pid)
+        if (!targets) {
+          targets = []
+          byParent.set(pid, targets)
+        }
+        targets.push(r.target_id as string)
       }
       for (const entry of entries) {
         entry[branch.alias] = byParent.get(entry.id) ?? []
@@ -168,10 +181,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
   /**
    * Finds multiple entries for a given seed table based on the provided query options.
-   * Generates and executes two separate parameterized queries in a batch request:
+   * Executes a single batch (one D1 round-trip) containing:
    * 1. A selection query to retrieve the items for the current page (with columns, limits, offsets, and ordering).
    * 2. A count query (using `isCount: true`) to retrieve the total number of matched items matching the same filters.
-   * 
+   * 3. One junction-table query per multi-relation branch, scoped to the page via an id subquery.
+   *
    * @param seed The seed schema definition.
    * @param options Filtering, search, ordering, and pagination options.
    * @returns An object containing the list of serialized entries and the total count of matched items.
@@ -188,15 +202,21 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         isCount: true,
       })
 
-      const [batchResults, totalCountResult] = await this.database.batch([
+      const branches = multiRelBranches(seed)
+      const relStmts = branches.length > 0
+        ? this.multiRelStatements(seed, branches, buildSelectQuery(seed, { ...options, fields: ['id'] }))
+        : []
+
+      const [batchResults, totalCountResult, ...relResults] = await this.database.batch([
         this.database.prepare(sql).bind(...bindings),
         this.database.prepare(countSql).bind(...countBindings),
+        ...relStmts,
       ])
 
       const contentEntries = (batchResults.results || []).map(row => this.rowToData(seed, row))
       const totalEntriesCount = (totalCountResult.results?.[0] as any)?.total || 0
 
-      await this.attachMultiRelationsMany(seed, contentEntries)
+      this.attachMultiRelationRows(branches, relResults, contentEntries)
 
       return { items: contentEntries, total: totalEntriesCount }
     } catch (error) {
@@ -522,7 +542,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * @throws Error('not-found') if the main `UPDATE` affects zero rows (id doesn't exist).
    */
   private async processBulkUpdateSingle(
-    seedSlug: string,
+    seed: Seed,
     id: string,
     fields: Record<string, BulkFieldUpdate>,
     tableName: string
@@ -534,10 +554,12 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
     for (const [alias, update] of Object.entries(fields)) {
       if (update.kind === 'set') {
+        const branch = seed.branches.find(b => b.alias === alias)
+        const serializedValue = branch ? serializeForDb(branch, update.value) : update.value
         setClauses.push(`${alias} = ?`)
-        setBindings.push(update.value)
+        setBindings.push(serializedValue)
       } else {
-        stmts.push(...this.getBulkArrayUpdateStmts(seedSlug, id, alias, update))
+        stmts.push(...this.getBulkArrayUpdateStmts(seed.slug, id, alias, update))
       }
     }
 
@@ -559,7 +581,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * aborting the whole chunk.
    */
   private async processBulkUpdateChunk(
-    seedSlug: string,
+    seed: Seed,
     chunk: string[],
     fields: Record<string, BulkFieldUpdate>,
     tableName: string
@@ -569,7 +591,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     
     for (const id of chunk) {
       try {
-        await this.processBulkUpdateSingle(seedSlug, id, fields, tableName)
+        await this.processBulkUpdateSingle(seed, id, fields, tableName)
         updated++
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
@@ -1047,18 +1069,18 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * whole operation — see {@link processBulkUpdateSingle} for failure classification.
    */
   async bulkUpdate(
-    seedSlug: string,
+    seed: Seed,
     ids: string[],
     fields: Record<string, BulkFieldUpdate>,
   ): Promise<{ updated: number; failed: Array<{ id: string; reason: string }> }> {
     const CHUNK = 50
-    const tableName = this.getTableName(seedSlug)
+    const tableName = this.getTableName(seed.slug)
     let updated = 0
     const failed: Array<{ id: string; reason: string }> = []
 
     for (let offset = 0; offset < ids.length; offset += CHUNK) {
       const chunk = ids.slice(offset, offset + CHUNK)
-      const res = await this.processBulkUpdateChunk(seedSlug, chunk, fields, tableName)
+      const res = await this.processBulkUpdateChunk(seed, chunk, fields, tableName)
       updated += res.updated
       failed.push(...res.failed)
     }

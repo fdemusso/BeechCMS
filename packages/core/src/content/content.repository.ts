@@ -240,8 +240,9 @@ export interface ContentRepository {
    * already shape-checked against the seed.
    */
   bulkUpdate(
-    seedSlug: string,
+    seed: Seed,
     ids: string[],
     fields: Record<string, BulkFieldUpdate>,
   ): Promise<{ updated: number; failed: Array<{ id: string; reason: string }> }>
 }
+

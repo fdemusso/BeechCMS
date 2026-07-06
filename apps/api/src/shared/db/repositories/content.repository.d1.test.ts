@@ -501,16 +501,18 @@ describe('D1ContentRepository', () => {
         { id: 'e2', slug: 'art-2', status: 'published', title: 'B', created_at: 0, updated_at: 0 },
       ]
       const { db, batchMock } = makeMockDb()
-      // First batch: main select + count; second batch: junction query
-      batchMock
-        .mockResolvedValueOnce([{ results: rows }, { results: [{ total: 2 }] }])
-        .mockResolvedValueOnce([{
+      // Single batch: main select + count + one junction query per multi-relation branch
+      batchMock.mockResolvedValueOnce([
+        { results: rows },
+        { results: [{ total: 2 }] },
+        {
           results: [
             { parent_id: 'e1', target_id: 'tag-1' },
             { parent_id: 'e1', target_id: 'tag-2' },
             { parent_id: 'e2', target_id: 'tag-3' },
           ],
-        }])
+        },
+      ])
 
       const result = await new D1ContentRepository(db).findMany(M2M_SEED, {})
       expect(result.items[0].tags).toEqual(['tag-1', 'tag-2'])
@@ -784,7 +786,7 @@ describe('D1ContentRepository', () => {
       const { db, batchMock } = makeMockDb()
       batchMock.mockResolvedValue([{ meta: { changes: 1 } }])
 
-      const result = await new D1ContentRepository(db).bulkUpdate('posts', ['e1'], { title: { kind: 'set', value: 'New title' } })
+      const result = await new D1ContentRepository(db).bulkUpdate(SEED, ['e1'], { title: { kind: 'set', value: 'New title' } })
 
       expect(result.updated).toBe(1)
       expect(result.failed).toEqual([])
@@ -794,7 +796,7 @@ describe('D1ContentRepository', () => {
       const { db, batchMock, prepareMock, bindMock } = makeMockDb()
       batchMock.mockResolvedValue([{ meta: { changes: 1 } }])
 
-      const result = await new D1ContentRepository(db).bulkUpdate('posts', ['e1'], {
+      const result = await new D1ContentRepository(db).bulkUpdate(SEED, ['e1'], {
         title: { kind: 'set', value: 'New title' },
         body: { kind: 'set', value: 'New body' },
       })
@@ -809,17 +811,17 @@ describe('D1ContentRepository', () => {
       const { db, batchMock } = makeMockDb()
       batchMock.mockResolvedValue([{ meta: { changes: 1 } }])
 
-      const result = await new D1ContentRepository(db).bulkUpdate('articles', ['e1'], {
+      const result = await new D1ContentRepository(db).bulkUpdate(M2M_SEED, ['e1'], {
         tags: { kind: 'array_replace', value: ['t1', 't2'] },
       })
       expect(result.updated).toBe(1)
 
-      const addResult = await new D1ContentRepository(db).bulkUpdate('articles', ['e1'], {
+      const addResult = await new D1ContentRepository(db).bulkUpdate(M2M_SEED, ['e1'], {
         tags: { kind: 'array_add', value: ['t3'] },
       })
       expect(addResult.updated).toBe(1)
 
-      const removeResult = await new D1ContentRepository(db).bulkUpdate('articles', ['e1'], {
+      const removeResult = await new D1ContentRepository(db).bulkUpdate(M2M_SEED, ['e1'], {
         tags: { kind: 'array_remove', value: ['t1'] },
       })
       expect(removeResult.updated).toBe(1)
@@ -829,7 +831,7 @@ describe('D1ContentRepository', () => {
       const { db, batchMock } = makeMockDb()
       batchMock.mockResolvedValue([{ meta: { changes: 0 } }])
 
-      const result = await new D1ContentRepository(db).bulkUpdate('posts', ['missing'], { title: { kind: 'set', value: 'X' } })
+      const result = await new D1ContentRepository(db).bulkUpdate(SEED, ['missing'], { title: { kind: 'set', value: 'X' } })
 
       expect(result.updated).toBe(0)
       expect(result.failed).toEqual([{ id: 'missing', reason: 'not-found' }])
@@ -839,7 +841,7 @@ describe('D1ContentRepository', () => {
       const { db, batchMock } = makeMockDb()
       batchMock.mockRejectedValue(new Error('FOREIGN KEY constraint failed'))
 
-      const result = await new D1ContentRepository(db).bulkUpdate('posts', ['e1'], { title: { kind: 'set', value: 'X' } })
+      const result = await new D1ContentRepository(db).bulkUpdate(SEED, ['e1'], { title: { kind: 'set', value: 'X' } })
 
       expect(result.updated).toBe(0)
       expect(result.failed).toEqual([{ id: 'e1', reason: 'relation-target-not-found:e1' }])
@@ -849,7 +851,7 @@ describe('D1ContentRepository', () => {
       const { db, batchMock } = makeMockDb()
       batchMock.mockRejectedValue(new Error('something else'))
 
-      const result = await new D1ContentRepository(db).bulkUpdate('posts', ['e1'], { title: { kind: 'set', value: 'X' } })
+      const result = await new D1ContentRepository(db).bulkUpdate(SEED, ['e1'], { title: { kind: 'set', value: 'X' } })
 
       expect(result.updated).toBe(0)
       expect(result.failed).toEqual([{ id: 'e1', reason: 'error:something else' }])
@@ -860,7 +862,7 @@ describe('D1ContentRepository', () => {
       batchMock.mockResolvedValue([{ meta: { changes: 1 } }])
 
       const ids = Array.from({ length: 75 }, (_, i) => `e${i}`)
-      const result = await new D1ContentRepository(db).bulkUpdate('posts', ids, { title: { kind: 'set', value: 'X' } })
+      const result = await new D1ContentRepository(db).bulkUpdate(SEED, ids, { title: { kind: 'set', value: 'X' } })
 
       expect(result.updated).toBe(75)
       expect(batchMock).toHaveBeenCalledTimes(75)
