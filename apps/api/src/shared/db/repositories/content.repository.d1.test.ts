@@ -790,6 +790,21 @@ describe('D1ContentRepository', () => {
       expect(result.failed).toEqual([])
     })
 
+    it('applies multiple "set" field updates in correct order to avoid silent data corruption', async () => {
+      const { db, batchMock, prepareMock, bindMock } = makeMockDb()
+      batchMock.mockResolvedValue([{ meta: { changes: 1 } }])
+
+      const result = await new D1ContentRepository(db).bulkUpdate('posts', ['e1'], {
+        title: { kind: 'set', value: 'New title' },
+        body: { kind: 'set', value: 'New body' },
+      })
+
+      expect(result.updated).toBe(1)
+      expect(result.failed).toEqual([])
+      expect(prepareMock).toHaveBeenCalledWith('UPDATE content_posts SET updated_at = (unixepoch()), title = ?, body = ? WHERE id = ?')
+      expect(bindMock).toHaveBeenCalledWith('New title', 'New body', 'e1')
+    })
+
     it('applies array_replace, array_add and array_remove junction updates', async () => {
       const { db, batchMock } = makeMockDb()
       batchMock.mockResolvedValue([{ meta: { changes: 1 } }])

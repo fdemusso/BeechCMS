@@ -529,7 +529,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
     for (const [alias, update] of Object.entries(fields)) {
       if (update.kind === 'set') {
-        setClauses.unshift(`${alias} = ?`)
+        setClauses.push(`${alias} = ?`)
         setBindings.push(update.value)
       } else {
         stmts.push(...this.getBulkArrayUpdateStmts(seedSlug, id, alias, update))
