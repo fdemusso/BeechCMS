@@ -17,6 +17,7 @@ A complete walkthrough: from zero to a live website powered by BeechCMS as a hea
    - [Upstash QStash (async notifications)](#54-upstash-qstash-qstash_token)
 6. [Configuration](#6-configuration)
    - [wrangler.jsonc](#61-wranglerjsonc)
+     - [env.production — ambiente di produzione](#env-production--ambiente-di-produzione)
    - [.dev.vars](#62-devvars)
 7. [Running Locally](#7-running-locally)
 8. [Defining Content Types (Seeds)](#8-defining-content-types-seeds)
@@ -220,19 +221,28 @@ Cron automations do **not** require QStash — they run via the Cloudflare Worke
 
 The scaffold pre-fills the values you provided during setup. Edit before running if you skipped credentials.
 
+The file has **two levels of `vars`**:
+
+- **Top-level `vars`** — loaded by `wrangler dev` for local development. Contains dev-friendly defaults (localhost URLs, SMTP mock, placeholder API keys).
+- **`env.production.vars`** — loaded by `wrangler deploy --env production`. Overrides every key that differs in production and omits dev-only variables.
+
 ```jsonc
 {
   "name": "my-project-api",
   "main": "worker.ts",
   "compatibility_date": "2025-01-01",
 
+  // ─── Dev defaults — used by `wrangler dev` ──────────────────────────
   // Secret values (JWT_SECRET, PUBLIC_READ_API_KEY, PUBLIC_WRITE_API_KEY) are NOT
   // placed here. In local dev they live in .dev.vars; in production use wrangler secrets.
   "vars": {
-    "CORS_ORIGINS": "http://localhost:5173,https://my-site.com",
-    "APP_URL": "https://my-site.com",            // Dashboard base URL — used to build links in emails (e.g. password reset)
-    "MEDIA_BASE_URL": "https://api.my-site.com", // Base URL for the media proxy
-    "MEDIA_CDN_URL":  "https://cdn.my-site.com"  // Optional: direct CDN/R2 domain
+    "ENV": "development",
+    "CORS_ORIGINS": "http://localhost:5173",
+    "APP_URL": "http://localhost:5173",
+    "MEDIA_BASE_URL": "http://localhost:5173",
+    "EMAIL_PROVIDER": "smtp",
+    "SMTP_HOST": "localhost",
+    "SMTP_PORT": "8025"
   },
 
   "assets": {
@@ -247,16 +257,47 @@ The scaffold pre-fills the values you provided during setup. Edit before running
     "migrations_dir": "node_modules/@beechcms/api/migrations"
   }],
 
-  "r2_buckets": [{
-    "binding": "MEDIA_BUCKET",
-    "bucket_name": "my-project-media"
-  }]
+  // ─── Production environment — used by `wrangler deploy --env production` ─
+  // Bindings (d1_databases, ratelimits, queues) are inherited from top-level.
+  // Only vars that differ from the dev defaults need to be listed here.
+  "env": {
+    "production": {
+      "vars": {
+        "ENV": "production",
+
+        // Replace with your real domain:
+        "CORS_ORIGINS": "https://my-site.com",
+        "APP_URL": "https://my-site.com",
+        "MEDIA_BASE_URL": "https://my-site.com",
+        "MEDIA_CDN_URL": "https://cdn.my-site.com",   // optional
+
+        "EMAIL_PROVIDER": "resend",
+        "EMAIL_FROM": "My Site <noreply@my-site.com>"
+
+        // The following are wrangler secrets — never put them here:
+        // JWT_SECRET, RESEND_API_KEY, PUBLIC_READ_API_KEY, PUBLIC_WRITE_API_KEY,
+        // WEBHOOK_SECRET, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME
+      }
+    }
+  }
 }
 ```
 
 > [!IMPORTANT]
-> `JWT_SECRET`, `PUBLIC_READ_API_KEY`, and `PUBLIC_WRITE_API_KEY` are **mandatory secrets** — they must never appear in `wrangler.jsonc` or any committed file.
-> Set them in `.dev.vars` for local development and via `wrangler secret put` for production.
+> **`ENV` must be `"production"` in the `env.production` block.** BeechCMS uses `ENV` to decide whether Cloudflare rate limiters are active. If `ENV` stays `"development"` at deploy time, every rate limiter — brute-force on login, password-reset flooding, public API quotas — is silently replaced with a no-op. See [§14 — Deploying to Production](#14-deploying-to-production) for the complete secrets checklist.
+
+> [!NOTE]
+> `JWT_SECRET`, `PUBLIC_READ_API_KEY`, and `PUBLIC_WRITE_API_KEY` are **mandatory secrets** — they must never appear in `wrangler.jsonc` or any committed file. Set them in `.dev.vars` for local development and via `wrangler secret put --env production` for production.
+
+#### `env.production` — ambiente di produzione
+
+Wrangler supports named environments inside `wrangler.jsonc` under the `env` key. When you run `wrangler deploy --env production`, Wrangler:
+
+1. Takes all top-level bindings (`d1_databases`, `ratelimits`, `queues`, `triggers`) as inherited defaults.
+2. **Replaces** the top-level `vars` with the `env.production.vars` block.
+3. Deploys the merged configuration.
+
+This means dev-only variables (`SMTP_HOST`, `SMTP_PORT`, `WEBHOOK_TESTER_URL`) are not present in the production Worker, and production-specific values (`ENV=production`, real `CORS_ORIGINS`, `EMAIL_PROVIDER=resend`) take effect automatically — no dashboard intervention needed.
 
 ### 6.2 `.dev.vars`
 
@@ -849,32 +890,67 @@ npx wrangler r2 bucket create my-project-media
 
 Copy the `database_id` from the D1 output into `wrangler.jsonc`.
 
-### Step 2 — Set production secrets
+### Step 2 — Configure `wrangler.jsonc` for production
 
-R2 credentials and other secrets must be set as Wrangler secrets so they are never visible in the Cloudflare dashboard:
+Open `wrangler.jsonc` and fill in your real domain in the `env.production.vars` block:
 
-```bash
-npx wrangler secret put R2_ACCESS_KEY_ID
-npx wrangler secret put R2_SECRET_ACCESS_KEY
-npx wrangler secret put R2_ENDPOINT
-npx wrangler secret put R2_BUCKET_NAME
-npx wrangler secret put RESEND_API_KEY    # if using email
-npx wrangler secret put QSTASH_TOKEN                  # if using QStash for async notifications
-npx wrangler secret put QSTASH_CURRENT_SIGNING_KEY    # if using QStash webhook verification
-npx wrangler secret put QSTASH_NEXT_SIGNING_KEY       # if using QStash webhook verification
+```jsonc
+"env": {
+  "production": {
+    "vars": {
+      "ENV": "production",                           // must not be changed
+      "CORS_ORIGINS": "https://YOUR-DOMAIN.com",    // ← replace
+      "APP_URL":      "https://YOUR-DOMAIN.com",    // ← replace
+      "MEDIA_BASE_URL": "https://YOUR-DOMAIN.com",  // ← replace
+      "EMAIL_FROM": "My Site <noreply@YOUR-DOMAIN.com>" // ← replace
+    }
+  }
+}
 ```
 
-### Step 3 — Deploy and synchronize
+> [!WARNING]
+> **Do not change `"ENV": "production"`**. This value activates all Cloudflare rate limiters (login brute-force, password-reset flooding, public API quotas). Leaving it as `"development"` silently disables all protection in production.
+
+### Step 3 — Set production secrets
+
+Secrets must be set via Wrangler — they are never stored in `wrangler.jsonc` or any committed file. Always pass `--env production` so they are scoped to the right environment:
 
 ```bash
-# Deploy the Worker code and apply system migrations
-pnpm run deploy
+# Mandatory
+npx wrangler secret put JWT_SECRET --env production
+npx wrangler secret put PUBLIC_READ_API_KEY --env production
+npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
+npx wrangler secret put WEBHOOK_SECRET --env production
+
+# R2 media storage
+npx wrangler secret put R2_ACCESS_KEY_ID --env production
+npx wrangler secret put R2_SECRET_ACCESS_KEY --env production
+npx wrangler secret put R2_ENDPOINT --env production
+npx wrangler secret put R2_BUCKET_NAME --env production
+
+# Email (required for password-reset emails and email automations)
+npx wrangler secret put RESEND_API_KEY --env production
+
+# Upstash QStash (optional — async admin notifications)
+npx wrangler secret put QSTASH_TOKEN --env production
+npx wrangler secret put QSTASH_CURRENT_SIGNING_KEY --env production   # for webhook verification
+npx wrangler secret put QSTASH_NEXT_SIGNING_KEY --env production      # for webhook verification
+```
+
+> [!NOTE]
+> `wrangler deploy --env production` (the `pnpm run deploy` script) **overwrites** any `vars` set via the Cloudflare dashboard for the production environment. Secrets set with `wrangler secret put` are **not** overwritten — they are stored separately and survive redeploys.
+
+### Step 4 — Deploy and synchronize
+
+```bash
+# Deploy the Worker to the production environment
+pnpm run deploy                # equivalent to: wrangler deploy --minify --env production
 
 # Synchronize your seeds.ts schema to production D1 (if using code-first)
 npx beech seed:load
 ```
 
-### Step 4 — Verify
+### Step 5 — Verify
 
 Open your production Worker URL + `/admin` to reach the dashboard. The setup wizard creates your production admin account on first visit.
 
