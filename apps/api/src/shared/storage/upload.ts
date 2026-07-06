@@ -7,19 +7,25 @@ export async function deleteR2Objects(
   objectKeys: string[]
 ): Promise<void> {
   const { bucket, mediaRepository, systemStatsRepository } = c.var
-  for (const key of objectKeys) {
-    const media = await mediaRepository.getByKey(key).catch(() => null)
-    const size = media?.size_bytes ?? 0
-    try {
+  await Promise.all(
+    objectKeys.map(async (key) => {
+      const media = await mediaRepository.getByKey(key).catch(() => null)
+      if (!media) {
+        throw new Error(`Media object not found: ${key}`)
+      }
+      const size = media.size_bytes ?? 0
+      
+      // Let the bucket delete failure throw/bubble up so we do not untrack or decrement stats.
       await bucket.delete(key)
-    } catch (err) {
-      console.warn(`Failed to delete storage object: ${key}`, err)
-    }
-    try {
-      await mediaRepository.untrack(key)
-      if (size > 0) await systemStatsRepository.decrementStorage(size)
-    } catch (err) {
-      console.warn(`Failed to untrack media object: ${key}`, err)
-    }
-  }
+
+      try {
+        await mediaRepository.untrack(key)
+        if (size > 0) {
+          await systemStatsRepository.decrementStorage(size)
+        }
+      } catch (err) {
+        console.warn(`Failed to untrack media object: ${key}`, err)
+      }
+    })
+  )
 }

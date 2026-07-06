@@ -256,11 +256,11 @@ export class StaticContentRepository implements ContentRepository {
   }
 
   async bulkUpdate(
-    seedSlug: string,
+    seed: Seed,
     ids: string[],
     fields: Record<string, BulkFieldUpdate>,
   ): Promise<{ updated: number; failed: Array<{ id: string; reason: string }> }> {
-    const table = this.tables.get(seedSlug)
+    const table = this.tables.get(seed.slug)
     if (!table) return { updated: 0, failed: ids.map((id) => ({ id, reason: 'seed-not-found' })) }
 
     let updated = 0

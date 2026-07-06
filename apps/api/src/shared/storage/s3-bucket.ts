@@ -49,30 +49,11 @@ export class S3Bucket implements BeechBucket {
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
-      Body: body instanceof ReadableStream ? await this.streamToUint8Array(body) : new Uint8Array(body as ArrayBuffer),
+      Body: body instanceof ReadableStream ? body : new Uint8Array(body as ArrayBuffer),
       ContentType: options?.contentType,
       Metadata: options?.metadata
     })
     await this.client.send(command)
-  }
-
-  private async streamToUint8Array(stream: ReadableStream): Promise<Uint8Array> {
-    const reader = stream.getReader()
-    const chunks: Uint8Array[] = []
-    let totalLength = 0
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      chunks.push(value)
-      totalLength += value.length
-    }
-    const result = new Uint8Array(totalLength)
-    let offset = 0
-    for (const chunk of chunks) {
-      result.set(chunk, offset)
-      offset += chunk.length
-    }
-    return result
   }
 
   async get(key: string): Promise<GetBucketResult | null> {
@@ -132,10 +113,11 @@ export class S3Bucket implements BeechBucket {
   }
 
   getUrl(key: string): string {
+    const encodedKey = key.split('/').map(encodeURIComponent).join('/')
     if (this.cdnUrl) {
-      return `${this.cdnUrl}/${encodeURIComponent(key)}`
+      return `${this.cdnUrl}/${encodedKey}`
     }
-    return `${this.baseUrl}/api/media/${encodeURIComponent(key)}`
+    return `${this.baseUrl}/api/media/${encodedKey}`
   }
 
   async getTotalSize(): Promise<number> {
@@ -156,14 +138,13 @@ export class S3Bucket implements BeechBucket {
   }
 
   async presignPut(key: string, options: PresignOptions): Promise<string> {
-    // ContentLength intentionally excluded: including it adds content-length to
-    // X-Amz-SignedHeaders, requiring the uploading client to send an exact
-    // Content-Length header. Some fetch implementations omit it, causing MinIO/R2
-    // to reject the PUT with 400. Size validation already happened server-side.
+    // ContentLength is included to enforce expected size constraints via signature/policy
+    // headers on direct PUT uploads, ensuring the client cannot upload a different size.
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
       ContentType: options.contentType,
+      ContentLength: options.contentLength,
     })
     return getSignedUrl(this.client, command, { expiresIn: options.expiresIn })
   }

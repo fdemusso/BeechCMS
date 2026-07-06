@@ -86,20 +86,31 @@ uploadRoutes.post('/upload/confirm', async (c) => {
   const { key } = body
   if (typeof key !== 'string' || !key.trim()) return c.json({ error: 'key is required' }, 400)
 
-  const existing = await mediaRepo.getByKey(key)
-  if (existing) return c.json({ url: bucket.getUrl(key) }, 200)
+  // Sanitize and validate key format to prevent arbitrary file adoption/traversal
+  const sanitizedKey = decodeURIComponent(key).replace(/\.\.[/\\]/g, '').replace(/[^a-zA-Z0-9._\-/]/g, '')
+  if (!sanitizedKey || !/^\d+-[a-zA-Z0-9._-]+$/.test(sanitizedKey)) {
+    return c.json({ error: 'Invalid key format' }, 400)
+  }
 
-  const head = await bucket.head(key)
+  const existing = await mediaRepo.getByKey(sanitizedKey)
+  if (existing) return c.json({ url: bucket.getUrl(sanitizedKey) }, 200)
+
+  const head = await bucket.head(sanitizedKey)
   if (!head) return c.json({ error: 'Object not found in storage' }, 404)
 
-  const uploadedBy = c.var.jwtPayload?.sub ?? ''
   const size = head.size ?? 0
+  const maxBytes = resolveMaxUploadBytes(c.env)
+  if (size > maxBytes) {
+    return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
+  }
+
+  const uploadedBy = c.var.jwtPayload?.sub ?? ''
   const mime = head.contentType ?? 'application/octet-stream'
-  const filename = key.replace(/^\d+-/, '') || key
+  const filename = sanitizedKey.replace(/^\d+-/, '') || sanitizedKey
 
   await statsRepo.incrementStorage(size)
   await mediaRepo.trackUpload({
-    key,
+    key: sanitizedKey,
     filename,
     mime_type: mime,
     size_bytes: size,
@@ -111,7 +122,7 @@ uploadRoutes.post('/upload/confirm', async (c) => {
     c.get('activityLogger').log({
       action: 'upload',
       entityType: 'media',
-      entityId: key,
+      entityId: sanitizedKey,
       details: { name: filename, size, type: mime },
       actor: {
         id: jwtPayload.sub,
@@ -121,13 +132,34 @@ uploadRoutes.post('/upload/confirm', async (c) => {
     })
   }
 
-  return c.json({ url: bucket.getUrl(key) }, 200)
+  return c.json({ url: bucket.getUrl(sanitizedKey) }, 200)
 })
 
 /** GET /upload/download-url/:key — Presigned read URL for private assets. */
 uploadRoutes.get('/upload/download-url/:key', async (c) => {
-  const key = decodeURIComponent(c.req.param('key') ?? '')
+  let key = c.req.param('key')
   if (!key) return c.json({ error: 'Missing key' }, 400)
+
+  // Sanitize path parameter to prevent path traversal and restrict to standard storage characters
+  key = decodeURIComponent(key)
+  key = key.replace(/\.\.[/\\]/g, '')
+  key = key.replace(/[^a-zA-Z0-9._\-/]/g, '')
+  if (!key) return c.json({ error: 'Invalid key' }, 400)
+
+  // Retrieve the file metadata to check existence and ownership
+  const media = await c.var.mediaRepository.getByKey(key).catch(() => null)
+  if (!media) {
+    return c.json({ error: 'Media not found' }, 404)
+  }
+
+  // Access Control: check owner (uploaded_by) or administrative role
+  const jwtPayload = c.var.jwtPayload
+  const userId = jwtPayload?.sub
+  const isAdmin = jwtPayload?.role === 'admin'
+
+  if (!isAdmin && userId !== media.uploaded_by) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
 
   const head = await c.var.bucket.head(key)
   if (!head) return c.json({ error: 'Object not found' }, 404)
@@ -138,9 +170,30 @@ uploadRoutes.get('/upload/download-url/:key', async (c) => {
 
 /** DELETE /upload/:key */
 uploadRoutes.delete('/upload/:key', async (c) => {
-  const key = c.req.param('key')
+  let key = c.req.param('key')
   if (!key) return c.json({ error: 'Missing key' }, 400)
-  await deleteR2Objects(c, [decodeURIComponent(key)])
+
+  // Sanitize path parameter to prevent path traversal and restrict to standard storage characters
+  key = key.replace(/\.\.[/\\]/g, '')
+  key = key.replace(/[^a-zA-Z0-9._\-/]/g, '')
+  if (!key) return c.json({ error: 'Invalid key' }, 400)
+
+  // Retrieve the file metadata to check existence
+  const media = await c.var.mediaRepository.getByKey(key).catch(() => null)
+  if (!media) {
+    return c.json({ error: 'Media not found' }, 404)
+  }
+
+  // Access Control: check owner (uploaded_by) or administrative role
+  const jwtPayload = c.var.jwtPayload
+  const userId = jwtPayload?.sub
+  const isAdmin = jwtPayload?.role === 'admin'
+
+  if (!isAdmin && userId !== media.uploaded_by) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+
+  await deleteR2Objects(c, [key])
   return c.json({ success: true }, 200)
 })
 
@@ -149,7 +202,7 @@ export async function serveMediaHandler(c: any): Promise<Response> {
   const key = c.req.param('key')
   if (!key) return new Response('Missing key', { status: 400 })
   try {
-    const object = await c.var.bucket.get(decodeURIComponent(key))
+    const object = await c.var.bucket.get(key)
     if (!object) return new Response('Not found', { status: 404 })
     const headers = new Headers()
     const originalMime = object.contentType ?? 'application/octet-stream'

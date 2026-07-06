@@ -249,6 +249,7 @@ export function generateDraftTable(seed: Seed): string | null {
     lines.push(col + ',')
   }
 
+  lines.push(`  _touched_fields  TEXT,`)
   lines.push(`  updated_at  INTEGER NOT NULL DEFAULT (unixepoch())`)
   lines.push(`);`)
 
