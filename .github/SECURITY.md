@@ -3,6 +3,15 @@
 
 # Security Policy
 
+> [!WARNING]
+>
+> **BeechCMS is currently in Beta**, and a formal Coordinated Vulnerability Disclosure (CVD) process will **only be available from version 1.0.0 onwards**. This is because production use is strictly discouraged during these early stages.
+>
+> * **How to Report:** If you discover a security flaw or bug, please report it via the **GitHub Issues** section.
+> * **Requirement:** You **MUST** apply the appropriate tags/labels (e.g., `bug`, `security`) to your issue so it can be triaged immediately.
+> 
+> **CRITICAL NOTE:** Do not use this software to handle sensitive production data if you expect private, coordinated security patching. Treat all current findings as public knowledge.
+
 ## Supported Versions
 
 Security fixes are applied only to the latest published version of the `beechcms` pnpm package. Older versions do not receive backported patches.
