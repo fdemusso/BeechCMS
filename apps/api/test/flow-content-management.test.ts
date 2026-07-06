@@ -189,6 +189,20 @@ describe('Flow: Content Management (Protected API)', () => {
       expect(updated.title).toBe('Updated Title')
     })
 
+    it('success: updates slug and persists changes', async () => {
+      repo.load('posts', [{ id: 'p_slug_upd', slug: 'original-slug', status: 'published', title: 'Title' }])
+
+      const res = await app.request('/api/content/posts/p_slug_upd', {
+        method: 'PUT',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: 'new-valid-slug' }),
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(200)
+      const updated = await repo.findById(TEST_SEEDS[0], 'p_slug_upd')
+      expect(updated.slug).toBe('new-valid-slug')
+    })
+
     it('error: update non-existent entry returns 404', async () => {
       const res = await app.request('/api/content/posts/ghost-id', {
         method: 'PUT',

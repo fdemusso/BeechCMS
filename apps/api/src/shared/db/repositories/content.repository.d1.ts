@@ -374,6 +374,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       queryBindings.push(status)
     }
 
+    if (data.slug) {
+      updateClauses.push('slug = ?')
+      queryBindings.push(data.slug)
+    }
+
     for (const branch of seed.branches) {
       if (mRelAliases.has(branch.alias)) continue
       if (Object.hasOwn(data, branch.alias)) {
