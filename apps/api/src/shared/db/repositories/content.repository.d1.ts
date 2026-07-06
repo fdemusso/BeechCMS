@@ -875,6 +875,26 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       const mRelBranches = multiRelBranches(seed)
       const mRelAliases = new Set(mRelBranches.map(b => b.alias))
 
+      // Get existing touched fields
+      let existingTouched: string[] = []
+      try {
+        const existing = await this.database
+          .prepare(`SELECT _touched_fields FROM ${draftTableName} WHERE entry_id = ?`)
+          .bind(entryId)
+          .first<{ _touched_fields: string | null }>()
+        if (existing && existing._touched_fields) {
+          existingTouched = JSON.parse(existing._touched_fields)
+        }
+      } catch {}
+
+      const currentTouched = new Set(existingTouched)
+      for (const branch of seed.branches) {
+        if (Object.hasOwn(data, branch.alias)) {
+          currentTouched.add(branch.alias)
+        }
+      }
+      const updatedTouchedFields = Array.from(currentTouched)
+
       const columnNames = ['entry_id']
       const placeholders = ['?']
       const queryBindings: any[] = [entryId]
@@ -890,6 +910,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
           updateClauses.push(`${branch.alias} = EXCLUDED.${branch.alias}`)
         }
       }
+
+      columnNames.push('_touched_fields')
+      placeholders.push('?')
+      queryBindings.push(JSON.stringify(updatedTouchedFields))
+      updateClauses.push(`_touched_fields = EXCLUDED._touched_fields`)
 
       updateClauses.push('updated_at = (unixepoch())')
 
@@ -943,17 +968,29 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       const draftRow = await this.database
         .prepare(`SELECT * FROM ${draftTableName} WHERE entry_id = ?`)
         .bind(entryId)
-        .first()
+        .first<Record<string, any>>()
 
       if (!draftRow) return null
 
       const mRelBranches = multiRelBranches(seed)
       const mRelAliases = new Set(mRelBranches.map(b => b.alias))
 
+      let touchedFields: string[] = []
+      if (draftRow && typeof draftRow['_touched_fields'] === 'string') {
+        try {
+          touchedFields = JSON.parse(draftRow['_touched_fields'])
+        } catch {}
+      }
+      const touchedSet = new Set(touchedFields)
+
       const draftData: Record<string, any> = {}
       for (const branch of seed.branches) {
         if (mRelAliases.has(branch.alias)) continue
-        if (draftRow[branch.alias] !== null) {
+        if (touchedSet.has(branch.alias)) {
+          draftData[branch.alias] = draftRow[branch.alias] !== null
+            ? deserializeFromDb(branch, draftRow[branch.alias])
+            : null
+        } else if (draftRow[branch.alias] !== null) {
           draftData[branch.alias] = deserializeFromDb(branch, draftRow[branch.alias])
         }
       }
@@ -967,9 +1004,12 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         )
         const results = await this.database.batch(stmts)
         for (let i = 0; i < mRelBranches.length; i++) {
+          const alias = mRelBranches[i].alias
           const ids = (results[i].results ?? []).map((r: any) => r.target_id as string)
-          if (ids.length > 0) {
-            draftData[mRelBranches[i].alias] = ids
+          if (touchedSet.has(alias)) {
+            draftData[alias] = ids
+          } else if (ids.length > 0) {
+            draftData[alias] = ids
           }
         }
       }
@@ -1014,11 +1054,19 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       const draftRow = await this.database
         .prepare(`SELECT * FROM ${draftTableName} WHERE entry_id = ?`)
         .bind(entryId)
-        .first<Record<string, unknown>>()
+        .first<Record<string, any>>()
 
       if (!draftRow) {
         throw new EntryNotFoundError(`No draft found for ${entryId} in ${seed.slug}`)
       }
+
+      let touchedFields: string[] = []
+      if (draftRow && typeof draftRow['_touched_fields'] === 'string') {
+        try {
+          touchedFields = JSON.parse(draftRow['_touched_fields'])
+        } catch {}
+      }
+      const touchedSet = new Set(touchedFields)
 
       const { mRelBranches, mRelDraftIds } = await this.validatePublishDraftRelations(seed, draftRow, entryId)
 
@@ -1028,15 +1076,24 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       for (const branch of seed.branches) {
         if (mRelAliases.has(branch.alias)) continue
-        if (draftRow[branch.alias] !== null) {
+        if (touchedSet.has(branch.alias)) {
+          updateClauses.push(`${branch.alias} = ?`)
+          queryBindings.push(draftRow[branch.alias])
+        } else if (draftRow[branch.alias] !== null) {
           updateClauses.push(`${branch.alias} = ?`)
           queryBindings.push(draftRow[branch.alias])
         }
       }
 
-      updateClauses.push('updated_at = (unixepoch())')
-      const updateSql = `UPDATE ${liveTableName} SET ${updateClauses.join(', ')} WHERE id = ?`
-      queryBindings.push(entryId)
+      let updateSql = ''
+      if (updateClauses.length > 0) {
+        updateClauses.push('updated_at = (unixepoch())')
+        updateSql = `UPDATE ${liveTableName} SET ${updateClauses.join(', ')} WHERE id = ?`
+        queryBindings.push(entryId)
+      } else {
+        updateSql = `UPDATE ${liveTableName} SET updated_at = (unixepoch()) WHERE id = ?`
+        queryBindings.push(entryId)
+      }
 
       const batchStmts: D1PreparedStatement[] = [
         this.database.prepare(updateSql).bind(...queryBindings),
@@ -1044,15 +1101,21 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       ]
 
       for (const branch of mRelBranches) {
-        const lt = jTable(seed.slug, branch.alias)
         const jdt = jDraftTable(seed.slug, branch.alias)
-        const targetIds = mRelDraftIds.get(branch.alias) ?? []
+        if (touchedSet.has(branch.alias)) {
+          const lt = jTable(seed.slug, branch.alias)
+          const targetIds = mRelDraftIds.get(branch.alias) ?? []
 
-        batchStmts.push(
-          this.database.prepare(`DELETE FROM ${lt} WHERE parent_id = ?`).bind(entryId),
-          this.database.prepare(`DELETE FROM ${jdt} WHERE entry_id = ?`).bind(entryId),
-          ...this.buildJunctionInserts(seed.slug, entryId, branch.alias, targetIds)
-        )
+          batchStmts.push(
+            this.database.prepare(`DELETE FROM ${lt} WHERE parent_id = ?`).bind(entryId),
+            this.database.prepare(`DELETE FROM ${jdt} WHERE entry_id = ?`).bind(entryId),
+            ...this.buildJunctionInserts(seed.slug, entryId, branch.alias, targetIds)
+          )
+        } else {
+          batchStmts.push(
+            this.database.prepare(`DELETE FROM ${jdt} WHERE entry_id = ?`).bind(entryId)
+          )
+        }
       }
 
       await this.database.batch(batchStmts)
