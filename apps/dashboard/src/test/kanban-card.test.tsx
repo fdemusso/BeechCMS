@@ -27,7 +27,7 @@ describe('KanbanCard — legacy render (no slots)', () => {
     render(
       <KanbanCard model={baseModel} canEdit sortActive={false} onEdit={onEdit} />,
     )
-    fireEvent.click(screen.getByRole('article'))
+    fireEvent.click(screen.getByRole('button', { name: 'Test card' }))
     expect(onEdit).toHaveBeenCalledWith('e-1')
   })
 
@@ -36,7 +36,7 @@ describe('KanbanCard — legacy render (no slots)', () => {
     render(
       <KanbanCard model={baseModel} canEdit sortActive={false} onEdit={onEdit} isDragging />,
     )
-    fireEvent.click(screen.getByRole('article'))
+    fireEvent.click(screen.getByRole('button', { name: 'Test card' }))
     expect(onEdit).not.toHaveBeenCalled()
   })
 
@@ -53,6 +53,6 @@ describe('KanbanCard — legacy render (no slots)', () => {
     const { container } = render(
       <KanbanCard model={model} canEdit sortActive={false} onEdit={vi.fn()} />,
     )
-    expect(container.querySelector('article')?.className).toContain('opacity-60')
+    expect(container.querySelector('button')?.className).toContain('opacity-60')
   })
 })
