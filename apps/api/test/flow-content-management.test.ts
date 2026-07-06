@@ -239,6 +239,9 @@ describe('Flow: Content Management (Protected API)', () => {
   describe('DELETE /api/content/:slug/:id', () => {
     it('success: removes entry and triggers R2 cleanup', async () => {
       s3SendSpy.mockResolvedValue({ ContentLength: 100 } as any)
+      // Insert mock media record in database to pass the existence constraint check
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind('f.png', 'f.png', 'image/png', 100, TEST_USERS[0].id).run()
+
       repo.load('posts', [{ id: 'p_del', status: 'published', image: 'https://ex.com/api/media/f.png' }])
 
       const res = await app.request('/api/content/posts/p_del', {
