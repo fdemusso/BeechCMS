@@ -28,14 +28,22 @@ function buildDefaultRegistry(env: Env): IRateLimiterRegistry {
   // when executing RateLimit bindings (.limit()). We bypass rate limiting in local
   // development (env.ENV === 'development') but keep it enabled in Vitest tests.
   const isDev = env.ENV === 'development' && !(typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.env?.VITEST)
+  const isProd = env.ENV === 'production'
+
+  const getLimiter = (bindingName: string, binding?: RateLimit): IRateLimiter => {
+    if (isProd && !binding) {
+      throw new Error(`Missing rate limiter binding: ${bindingName} is required in production environment.`)
+    }
+    return !isDev && binding ? new CloudflareRateLimiter(binding) : NO_OP
+  }
 
   const limiters: Record<RateLimiterName, IRateLimiter> = {
-    login: !isDev && env.LOGIN_RATE_LIMITER ? new CloudflareRateLimiter(env.LOGIN_RATE_LIMITER) : NO_OP,
-    tokenRefresh: !isDev && env.REFRESH_RATE_LIMITER ? new CloudflareRateLimiter(env.REFRESH_RATE_LIMITER) : NO_OP,
-    forgotPassword: !isDev && env.FORGOT_PASSWORD_RATE_LIMITER ? new CloudflareRateLimiter(env.FORGOT_PASSWORD_RATE_LIMITER) : NO_OP,
-    resetPassword: !isDev && env.RESET_PASSWORD_RATE_LIMITER ? new CloudflareRateLimiter(env.RESET_PASSWORD_RATE_LIMITER) : NO_OP,
-    publicApiRead: !isDev && env.PUBLIC_READ_RATE_LIMITER ? new CloudflareRateLimiter(env.PUBLIC_READ_RATE_LIMITER) : NO_OP,
-    publicApiWrite: !isDev && env.PUBLIC_WRITE_RATE_LIMITER ? new CloudflareRateLimiter(env.PUBLIC_WRITE_RATE_LIMITER) : NO_OP,
+    login: getLimiter('LOGIN_RATE_LIMITER', env.LOGIN_RATE_LIMITER),
+    tokenRefresh: getLimiter('REFRESH_RATE_LIMITER', env.REFRESH_RATE_LIMITER),
+    forgotPassword: getLimiter('FORGOT_PASSWORD_RATE_LIMITER', env.FORGOT_PASSWORD_RATE_LIMITER),
+    resetPassword: getLimiter('RESET_PASSWORD_RATE_LIMITER', env.RESET_PASSWORD_RATE_LIMITER),
+    publicApiRead: getLimiter('PUBLIC_READ_RATE_LIMITER', env.PUBLIC_READ_RATE_LIMITER),
+    publicApiWrite: getLimiter('PUBLIC_WRITE_RATE_LIMITER', env.PUBLIC_WRITE_RATE_LIMITER),
   }
 
   return { getLimiter: (name) => limiters[name] }
