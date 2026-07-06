@@ -277,9 +277,6 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${editorToken}` },
       }, { ...TEST_ENV, DB: db })
-      if (res.status !== 200) {
-        console.log("FAILING RESPONSE:", res.status, await res.json())
-      }
       expect(res.status).toBe(200)
       const body = await res.json<{ downloadUrl: string }>()
       expect(body.downloadUrl).toBeDefined()

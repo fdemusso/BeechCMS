@@ -361,7 +361,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   // Webhooks API (public, verified via signature)
   app.route('/api/webhooks', webhooksApp)
 
-  app.get('/api/media/:key', (context) => serveMediaHandler(context))
+  app.get('/api/media/:key{.+}', (context) => serveMediaHandler(context))
 
   // Developer custom routes (must be mounted before apiProtected to avoid /api shadowing)
   if (config.customRoutes) {

@@ -48,7 +48,8 @@ export async function deleteHandler(context: Context<AppEnv>) {
     logContentActivity(context, 'delete', entryId, schemaSlug, String(title))
     dispatchContentAutomation(context, schemaSlug, 'delete', { ...row, id: entryId })
 
-    const r2ObjectKeys = extractMediaKeysFromData(seed, row)
+    const cdnUrl = context.env.MEDIA_CDN_URL
+    const r2ObjectKeys = extractMediaKeysFromData(seed, row, cdnUrl)
     if (r2ObjectKeys.length > 0) {
       await deleteR2Objects(context, r2ObjectKeys).catch((error) => {
         if (context.env.ENV !== 'production') {

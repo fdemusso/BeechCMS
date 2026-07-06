@@ -179,13 +179,14 @@ async function deleteSeedMediaObjects(context: any, slug: string, seed: Seed, sc
 
     const sql = `SELECT ${validCols.join(', ')} FROM content_${slug}`
     const { results: rows } = await context.env.DB.prepare(sql).all()
+    const cdnUrl = context.env.MEDIA_CDN_URL
     const r2Keys: string[] = []
     
     for (const row of rows) {
       for (const b of fileBranches) {
         const val = row[b.alias]
         if (!val) continue
-        const keys = extractMediaKeysFromData(seed, { [b.alias]: val })
+        const keys = extractMediaKeysFromData(seed, { [b.alias]: val }, cdnUrl)
         r2Keys.push(...keys)
       }
     }
