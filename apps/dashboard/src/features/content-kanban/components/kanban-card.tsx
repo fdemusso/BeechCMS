@@ -62,11 +62,12 @@ export const KanbanCard = React.memo(function KanbanCard({
   const { slots } = model
 
   return (
-    <article
-      role="article"
+    <button
+      type="button"
       aria-label={model.title || model.entryId}
       aria-disabled={(!canEdit || model.isPending) || undefined}
-      className={`flex h-full flex-col gap-1.5 rounded-md border bg-card p-3 shadow-sm transition-all select-none hover:shadow-md ${model.isPending ? 'opacity-60' : ''}`}
+      disabled={!canEdit || model.isPending}
+      className={`flex h-full w-full flex-col gap-1.5 rounded-md border bg-card p-3 shadow-sm transition-all select-none text-left hover:shadow-md ${model.isPending ? 'opacity-60' : ''}`}
       style={{ boxSizing: 'border-box', minHeight: KANBAN_CARD_HEIGHT_PX }}
       onClick={() => !isDragging && onEdit(model.entryId)}
     >
@@ -129,6 +130,6 @@ export const KanbanCard = React.memo(function KanbanCard({
           </div>
         </>
       )}
-    </article>
+    </button>
   )
 })
