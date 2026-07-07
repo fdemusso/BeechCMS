@@ -50,10 +50,10 @@ export default defineConfig({
         {
           text: 'API Reference',
           items: [
-            { text: 'Core API', link: '/api/packages/core/' },
-            { text: 'Client API', link: '/api/packages/client/' },
-            { text: 'Widget SDK', link: '/api/packages/widget-sdk/' },
-            { text: 'CLI', link: '/api/packages/cli/' }
+            { text: 'Core API', link: '/api/@beechcms/core/' },
+            { text: 'Client API', link: '/api/@beechcms/client/' },
+            { text: 'Widget SDK', link: '/api/@beechcms/widget-sdk/' },
+            { text: 'CLI', link: '/api/@beechcms/cli/' }
           ]
         }
       ]
