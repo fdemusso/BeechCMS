@@ -361,7 +361,7 @@ describe('Flow: Content Management (Protected API)', () => {
       res = await app.request('/api/content/posts', {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: 'New', body: '<script>alert(1)</script>' })
+        body: JSON.stringify({ title: 'New', body: { type: 'doc', content: [{ type: 'script', attrs: { src: 'http://evil.com' } }] } })
       }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(422)
 
@@ -489,7 +489,7 @@ describe('Flow: Content Management (Protected API)', () => {
       res = await app.request('/api/content/posts/p_upd_err', {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ body: '<script>alert(1)</script>' })
+        body: JSON.stringify({ body: { type: 'doc', content: [{ type: 'script', attrs: { src: 'http://evil.com' } }] } })
       }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(422)
 

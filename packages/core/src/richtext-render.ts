@@ -58,33 +58,25 @@ function createRichTextHtmlExtensions() {
 }
 
 /**
- * Accetta JSON TipTap (`{ type: 'doc', ... }`), envelope v1, o stringa HTML legacy.
+ * Accetta JSON TipTap (`{ type: 'doc', ... }`) o envelope v1.
+ * Le stringhe HTML legacy NON sono più supportate: ritornano null (drop-to-empty al render).
  */
-export function normalizeRichtextForRender(value: unknown): JSONContent | string | null {
+export function normalizeRichtextForRender(value: unknown): JSONContent | null {
   if (value == null || value === '') return null
-  if (typeof value === 'string') return value
-  if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+  if (typeof value === 'object' && !Array.isArray(value)) {
     const o = value as Record<string, unknown>
-    if (isRichtextEnvelopeV1(value)) {
-      return o.doc as JSONContent
-    }
-    if (o.type === 'doc') {
-      return value as JSONContent
-    }
+    if (isRichtextEnvelopeV1(value)) return o.doc as JSONContent
+    if (o.type === 'doc') return value as JSONContent
   }
   return null
 }
 
 /**
  * Render deterministico JSON → HTML (per display, anteprime, API pubblica).
- * Per stringhe HTML legacy restituisce la stringa sanificata come pass-through (nessun parse TipTap).
+ * Input non-JSON o stringa legacy → '' (drop-to-empty; nessun pass-through).
  */
 export function renderRichText(value: unknown): string {
   const normalized = normalizeRichtextForRender(value)
   if (normalized == null) return ''
-  if (typeof normalized === 'string') {
-    return normalized
-  }
-  const extensions = createRichTextHtmlExtensions()
-  return generateHTML(normalized, extensions)
+  return generateHTML(normalized, createRichTextHtmlExtensions())
 }

@@ -52,13 +52,26 @@ const DEFAULT_MAX_TEXT_LENGTH = 50_000
 const DEFAULT_FILE_MAX_SIZE = 5 * 1024 * 1024
 
 const CONTROL_CHARS_REGEX = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g
-const DANGEROUS_TAG_REGEX = /<(script|iframe|object|embed)\b/i
-const DANGEROUS_TAG_STRIP_REGEX = /<\/?(script|iframe|object|embed)[^>]*>/gi
-const DANGEROUS_ATTR_REGEX = /\son[a-z]+\s*=/i
-const DANGEROUS_HANDLER_STRIP_REGEX = /\son[a-z]+\s*=\s*(['"]).*?\1/gi
-const DANGEROUS_PROTOCOL_REGEX = /^\s*javascript:/i
-const FORBIDDEN_RICHTEXT_NODE_TYPES = new Set(['script', 'iframe', 'object', 'embed'])
+
+/** Allowlisted TipTap node `type` values. Keep in sync with
+ *  richtext-render.ts::createRichTextHtmlExtensions. */
+const ALLOWED_RICHTEXT_NODE_TYPES = new Set([
+  'doc', 'paragraph', 'text', 'heading', 'blockquote', 'bulletList', 'orderedList',
+  'listItem', 'codeBlock', 'horizontalRule', 'hardBreak', 'image',
+  'table', 'tableRow', 'tableHeader', 'tableCell',
+  'inlineMath', 'blockMath', // Mathematics extension
+])
+/** Allowlisted TipTap mark `type` values. */
+const ALLOWED_RICHTEXT_MARK_TYPES = new Set([
+  'bold', 'italic', 'strike', 'code', 'link', 'highlight',
+  'superscript', 'subscript', 'textStyle',
+])
+/** Keys that may carry URLs inside a node/mark attrs. */
 const URL_LIKE_RICHTEXT_KEYS = new Set(['href', 'src'])
+/** Link protocols accepted AFTER normalization. Allowlist, not blocklist. */
+const ALLOWED_URL_PROTOCOLS = new Set(['http', 'https', 'mailto', 'tel'])
+/** DoS guards, evaluated before the sanitizing walk. */
+const RICHTEXT_MAX_DEPTH = 50
 
 const STATUS_VALUES = ['draft', 'review', 'published'] as const
 const statusSchema = z.enum(STATUS_VALUES)
@@ -158,55 +171,72 @@ interface RichtextSanitizeResult {
   dangerous: boolean
   valid: boolean
   size: number
+  oversize?: boolean
 }
 
 interface SanitizeState {
   dangerous: boolean
+  depth: number
 }
 
+/** RichText string input is no longer accepted (JSON-only). Reject as invalid. */
 function sanitizeRichtextString(raw: string): RichtextSanitizeResult {
-  const noControls = stripControlChars(raw)
-  const dangerous = DANGEROUS_TAG_REGEX.test(noControls) || DANGEROUS_ATTR_REGEX.test(noControls)
-  const noTags = noControls.replaceAll(DANGEROUS_TAG_STRIP_REGEX, '')
-  const noHandlers = noTags.replaceAll(DANGEROUS_HANDLER_STRIP_REGEX, '')
-  const finalValue = noHandlers.trim()
-  return { value: finalValue, dangerous, valid: true, size: finalValue.length }
+  return { value: raw, dangerous: false, valid: false, size: raw.length }
+}
+
+/** Normalizes a URL value and confirms its protocol is allowlisted.
+ *  Strips ALL whitespace + control chars first, defeating java\tscript: obfuscation. */
+function isProtocolAllowed(raw: string): boolean {
+  const normalized = stripControlChars(raw).replace(/\s+/g, '').toLowerCase()
+  const schemeMatch = /^([a-z][a-z0-9+.-]*):/.exec(normalized)
+  if (!schemeMatch) return true // relative URL / anchor / fragment — no protocol
+  return ALLOWED_URL_PROTOCOLS.has(schemeMatch[1])
 }
 
 function walkRichtextNode(node: unknown, state: SanitizeState): unknown {
-  if (typeof node === 'string') {
-    const cleaned = stripControlChars(node)
-    if (DANGEROUS_TAG_REGEX.test(cleaned) || DANGEROUS_ATTR_REGEX.test(cleaned)) {
-      state.dangerous = true
-    }
-    return cleaned
+  if (state.depth > RICHTEXT_MAX_DEPTH) {
+    state.dangerous = true
+    return null
   }
+  if (typeof node === 'string') return stripControlChars(node)
   if (Array.isArray(node)) {
-    return node.map((child) => walkRichtextNode(child, state))
+    state.depth++
+    const mapped = node.map((child) => walkRichtextNode(child, state))
+    state.depth--
+    return mapped
   }
   if (!isPlainObject(node)) return node
 
+  // Node/mark type allowlist: any `type` not on either allowlist flags dangerous.
+  const nodeType = typeof node.type === 'string' ? node.type : undefined
+  if (
+    nodeType !== undefined &&
+    !ALLOWED_RICHTEXT_NODE_TYPES.has(nodeType) &&
+    !ALLOWED_RICHTEXT_MARK_TYPES.has(nodeType)
+  ) {
+    state.dangerous = true
+  }
+
   const result: Record<string, unknown> = {}
+  state.depth++
   for (const [key, entry] of Object.entries(node)) {
     const lower = key.toLowerCase()
-    if (lower.startsWith('on')) {
-      state.dangerous = true
-    }
-    if (lower === 'type' && typeof entry === 'string') {
-      if (FORBIDDEN_RICHTEXT_NODE_TYPES.has(entry.toLowerCase())) {
-        state.dangerous = true
-      }
-    }
-    if (URL_LIKE_RICHTEXT_KEYS.has(lower) && typeof entry === 'string' && DANGEROUS_PROTOCOL_REGEX.test(entry)) {
+    if (lower.startsWith('on')) state.dangerous = true // event-handler attr
+    if (
+      URL_LIKE_RICHTEXT_KEYS.has(lower) &&
+      typeof entry === 'string' &&
+      !isProtocolAllowed(entry)
+    ) {
       state.dangerous = true
     }
     result[key] = walkRichtextNode(entry, state)
   }
+  state.depth--
   return result
 }
 
 function sanitizeRichtextJson(raw: Record<string, unknown>): RichtextSanitizeResult {
-  const state: SanitizeState = { dangerous: false }
+  const state: SanitizeState = { dangerous: false, depth: 0 }
   const cleaned = walkRichtextNode(raw, state)
   const asObject = isPlainObject(cleaned) ? cleaned : {}
   const valid = asObject.type === 'doc'
@@ -214,29 +244,36 @@ function sanitizeRichtextJson(raw: Record<string, unknown>): RichtextSanitizeRes
   return { value: asObject, dangerous: state.dangerous, valid, size: serialized.length }
 }
 
-function sanitizeRichtext(raw: unknown): RichtextSanitizeResult {
+function sanitizeRichtext(raw: unknown, maxBytes: number): RichtextSanitizeResult {
   const envelopeMode = isRichtextEnvelopeV1(raw)
   const payload = envelopeMode ? (raw as { doc: unknown }).doc : raw
 
   if (typeof payload === 'string') {
     return sanitizeRichtextString(payload)
   }
-  if (isPlainObject(payload)) {
-    const jsonResult = sanitizeRichtextJson(payload)
-    if (!jsonResult.valid) {
-      return { value: raw, dangerous: jsonResult.dangerous, valid: false, size: jsonResult.size }
-    }
-    const finalValue = envelopeMode
-      ? { schemaVersion: RICHTEXT_SCHEMA_VERSION, doc: jsonResult.value }
-      : jsonResult.value
-    return {
-      value: finalValue,
-      dangerous: jsonResult.dangerous,
-      valid: true,
-      size: JSON.stringify(finalValue).length,
-    }
+  if (!isPlainObject(payload)) {
+    return { value: raw, dangerous: false, valid: false, size: 0 }
   }
-  return { value: raw, dangerous: false, valid: false, size: 0 }
+
+  // Fail-fast DoS pre-check: size BEFORE the sanitizing walk.
+  const rawSize = JSON.stringify(payload).length
+  if (rawSize > maxBytes) {
+    return { value: raw, dangerous: false, valid: false, size: rawSize, oversize: true }
+  }
+
+  const jsonResult = sanitizeRichtextJson(payload)
+  if (!jsonResult.valid) {
+    return { value: raw, dangerous: jsonResult.dangerous, valid: false, size: jsonResult.size }
+  }
+  const finalValue = envelopeMode
+    ? { schemaVersion: RICHTEXT_SCHEMA_VERSION, doc: jsonResult.value }
+    : jsonResult.value
+  return {
+    value: finalValue,
+    dangerous: jsonResult.dangerous,
+    valid: true,
+    size: JSON.stringify(finalValue).length,
+  }
 }
 
 function gatherRichtextText(node: unknown, sink: string[]): void {
@@ -295,7 +332,7 @@ function textSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
 
 function richtextSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny {
   const inner = z.any().transform((value, ctx) => {
-    const sanitized = sanitizeRichtext(value)
+    const sanitized = sanitizeRichtext(value, options.maxTextLength)
     if (!sanitized.valid) {
       ctx.addIssue({
         code: 'custom',
@@ -303,7 +340,7 @@ function richtextSchema(options: ResolvedOptions, allowNull: boolean): z.ZodType
         params: { expected: 'richtext-json|string' },
       })
     }
-    if (sanitized.size > options.maxTextLength) {
+    if (sanitized.oversize || sanitized.size > options.maxTextLength) {
       ctx.addIssue({
         code: 'custom',
         message: `Expected richtext(max:${options.maxTextLength})`,
@@ -320,6 +357,19 @@ function richtextSchema(options: ResolvedOptions, allowNull: boolean): z.ZodType
     return sanitized.value
   })
   return withNullable(inner, allowNull)
+}
+
+/** Decimal places of a number, correct for scientific notation (1e-7 → 7). */
+function decimalPlaces(n: number): number {
+  if (!Number.isFinite(n)) return 0
+  const s = n.toString()
+  if (s.includes('e') || s.includes('E')) {
+    const [mantissa, expPart] = s.toLowerCase().split('e')
+    const exp = parseInt(expPart, 10)
+    const mantDecimals = (mantissa.split('.')[1] ?? '').length
+    return Math.max(0, mantDecimals - exp) // exp is negative for small numbers
+  }
+  return (s.split('.')[1] ?? '').length
 }
 
 function numberSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
@@ -340,8 +390,8 @@ function numberSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
     if (opts?.step !== undefined) {
       const step = opts.step
       const origin = opts.min ?? 0
-      const valDecimals = (val.toString().split('.')[1] ?? '').length
-      const stepDecimals = (step.toString().split('.')[1] ?? '').length
+      const valDecimals = decimalPlaces(val)
+      const stepDecimals = decimalPlaces(step)
       const scale = 10 ** Math.max(valDecimals, stepDecimals)
       const offset = Math.round((val - origin) * scale)
       const stepScaled = Math.round(step * scale)

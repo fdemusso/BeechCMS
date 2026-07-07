@@ -11,8 +11,8 @@ describe('Richtext Render', () => {
       expect(normalizeRichtextForRender('')).toBeNull()
     })
 
-    it('returns string as-is (legacy compatibility)', () => {
-      expect(normalizeRichtextForRender('<p>Hello</p>')).toBe('<p>Hello</p>')
+    it('drops legacy HTML strings to null (JSON-only)', () => {
+      expect(normalizeRichtextForRender('<p>Hello</p>')).toBeNull()
     })
 
     it('handles Tiptap JSON directly', () => {
@@ -36,8 +36,8 @@ describe('Richtext Render', () => {
       expect(renderRichText(null)).toBe('')
     })
 
-    it('returns legacy HTML strings as-is', () => {
-      expect(renderRichText('<div>Legacy</div>')).toBe('<div>Legacy</div>')
+    it('drops legacy HTML strings to empty', () => {
+      expect(renderRichText('<div>Legacy</div>')).toBe('')
     })
 
     it('renders Tiptap JSON to HTML', () => {

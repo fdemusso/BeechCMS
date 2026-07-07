@@ -394,9 +394,9 @@ describe('richtext field', () => {
     expect(r.details.some(d => d.field === 'body')).toBe(true)
   })
 
-  it('detects and reports basic XSS tag in plain string richtext', () => {
+  it('rejects string-form richtext input as invalid (JSON-only)', () => {
     const r = safeValidate({ ...validBase(), body: '<script>alert(1)</script>' })
-    expect(r.dangerousFields).toContain('body')
+    expect(r.details.some(d => d.field === 'body')).toBe(true)
   })
 
   it('detects and reports script node type inside richtext JSON', () => {
@@ -425,13 +425,13 @@ describe('richtext field', () => {
     expect(r.dangerousFields).toContain('body')
   })
 
-  it('detects a dangerous tag embedded in a text node string', () => {
-    const maliciousDoc = {
+  it('allows tag-like text content in a text node (render sink HTML-escapes it, not executable)', () => {
+    const doc = {
       type: 'doc',
       content: [{ type: 'paragraph', content: [{ type: 'text', text: '<script>alert(1)</script>' }] }],
     }
-    const r = safeValidate({ ...validBase(), body: maliciousDoc })
-    expect(r.dangerousFields).toContain('body')
+    const r = safeValidate({ ...validBase(), body: doc })
+    expect(r.dangerousFields).not.toContain('body')
   })
 
   it('detects an "on*" event handler attribute key inside richtext JSON', () => {
@@ -452,6 +452,60 @@ describe('richtext field', () => {
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x'.repeat(20) }] }] }
     const r = safeValidate({ ...validBase(), body: doc }, { maxTextLength: 10 })
     expect(r.details.some(d => d.field === 'body' && d.expected.includes('richtext(max:10)'))).toBe(true)
+  })
+
+  // Regression: #147 — blocklist bypass via non-allowlisted node type carrying an event handler
+  it('#147: flags a non-allowlisted node type used as an XSS vector (img onerror bypass style)', () => {
+    const maliciousDoc = {
+      type: 'doc',
+      content: [{ type: 'svg', attrs: { onload: 'alert(1)' } }],
+    }
+    const r = safeValidate({ ...validBase(), body: maliciousDoc })
+    expect(r.dangerousFields).toContain('body')
+  })
+
+  // Regression: #148 — protocol blocklist bypass via data:/vbscript:/obfuscated javascript:
+  it('#148: rejects data:text/html, vbscript:, and control-char obfuscated javascript: protocols', () => {
+    const makeDoc = (href: string) => ({
+      type: 'doc',
+      content: [{
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'click', marks: [{ type: 'link', attrs: { href } }] }],
+      }],
+    })
+    expect(safeValidate({ ...validBase(), body: makeDoc('data:text/html;base64,x') }).dangerousFields).toContain('body')
+    expect(safeValidate({ ...validBase(), body: makeDoc('vbscript:alert(1)') }).dangerousFields).toContain('body')
+    expect(safeValidate({ ...validBase(), body: makeDoc('java\tscript:alert(1)') }).dangerousFields).toContain('body')
+  })
+
+  it('allows relative and fragment links with no protocol', () => {
+    const doc = {
+      type: 'doc',
+      content: [{
+        type: 'paragraph',
+        content: [{ type: 'text', text: 'click', marks: [{ type: 'link', attrs: { href: '/local/path#section' } }] }],
+      }],
+    }
+    const r = safeValidate({ ...validBase(), body: doc })
+    expect(r.dangerousFields).not.toContain('body')
+  })
+
+  // Regression: #149 — unbounded recursion DoS via deeply nested richtext content
+  it('#149: flags deeply nested content past the depth cap without stack overflow', () => {
+    let node: Record<string, unknown> = { type: 'paragraph', content: [{ type: 'text', text: 'leaf' }] }
+    for (let i = 0; i < 60; i++) {
+      node = { type: 'paragraph', content: [node] }
+    }
+    const doc = { type: 'doc', content: [node] }
+    expect(() => safeValidate({ ...validBase(), body: doc })).not.toThrow()
+    const r = safeValidate({ ...validBase(), body: doc })
+    expect(r.dangerousFields).toContain('body')
+  })
+
+  it('fails fast on oversize payload before the sanitizing walk', () => {
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x'.repeat(50) }] }] }
+    const r = safeValidate({ ...validBase(), body: doc }, { maxTextLength: 5 })
+    expect(r.details.some(d => d.field === 'body' && d.expected.includes('richtext(max:5)'))).toBe(true)
   })
 })
 
@@ -566,6 +620,27 @@ describe('number field with numberOptions (min/max/step)', () => {
   it('rejects a value not aligned to the step', () => {
     const r = validateAndSanitizeSeedPayload(NUMBER_OPTS_SEED, { sku: 'A', rating: 2.3 }, { requireAtLeastOneValidField: true })
     expect(r.details.some(d => d.field === 'rating' && d.expected.includes('step:0.5'))).toBe(true)
+  })
+})
+
+const SCI_STEP_SEED: Seed = {
+  slug: 'sci-step',
+  label: 'Sci Step',
+  branches: [
+    { alias: 'sku', label: 'SKU', type: 'text', requiredOnCreate: true },
+    { alias: 'micro', label: 'Micro', type: 'number', numberOptions: { step: 1e-7 } },
+  ],
+}
+
+describe('number field step with scientific notation (#150)', () => {
+  it('accepts a value aligned to a scientific-notation step', () => {
+    const r = validateAndSanitizeSeedPayload(SCI_STEP_SEED, { sku: 'A', micro: 3e-7 }, { requireAtLeastOneValidField: true })
+    expect(r.details.some(d => d.field === 'micro')).toBe(false)
+  })
+
+  it('rejects a value misaligned to a scientific-notation step', () => {
+    const r = validateAndSanitizeSeedPayload(SCI_STEP_SEED, { sku: 'A', micro: 2.5e-7 }, { requireAtLeastOneValidField: true })
+    expect(r.details.some(d => d.field === 'micro' && d.expected.includes('step:1e-7'))).toBe(true)
   })
 })
 
@@ -884,18 +959,23 @@ describe('repeater field', () => {
     return validateAndSanitizeSeedPayload(REPEATER_SEED, payload, { operation: 'create', ...opts })
   }
 
+  const richtextDoc = (text: string) => ({
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
+  })
+
   it('accepts a valid array of items', () => {
     const r = validateRepeater({
       title: 'My FAQ',
       items: [
-        { question: 'Q1', answer: 'A1', order: 1 },
-        { question: 'Q2', answer: 'A2', order: 2 },
+        { question: 'Q1', answer: richtextDoc('A1'), order: 1 },
+        { question: 'Q2', answer: richtextDoc('A2'), order: 2 },
       ],
     })
     expect(r.details).toEqual([])
     expect(r.data.items).toEqual([
-      { question: 'Q1', answer: 'A1', order: 1 },
-      { question: 'Q2', answer: 'A2', order: 2 },
+      { question: 'Q1', answer: richtextDoc('A1'), order: 1 },
+      { question: 'Q2', answer: richtextDoc('A2'), order: 2 },
     ])
   })
 
@@ -923,10 +1003,10 @@ describe('repeater field', () => {
   it('strips unknown keys from each item', () => {
     const r = validateRepeater({
       title: 'My FAQ',
-      items: [{ question: 'Q1', answer: 'A1', order: 1, legacyAlias: 'old-data' }],
+      items: [{ question: 'Q1', answer: richtextDoc('A1'), order: 1, legacyAlias: 'old-data' }],
     })
     expect(r.details).toEqual([])
-    expect(r.data.items).toEqual([{ question: 'Q1', answer: 'A1', order: 1 }])
+    expect(r.data.items).toEqual([{ question: 'Q1', answer: richtextDoc('A1'), order: 1 }])
     expect(r.data.items as unknown[]).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ legacyAlias: expect.anything() })]),
     )
