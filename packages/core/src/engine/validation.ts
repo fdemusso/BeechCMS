@@ -821,6 +821,7 @@ function buildCacheKey(seed: Seed, options: ResolvedOptions): string {
     buildSeedFingerprint(seed),
     options.operation,
     options.allowNull ? '1' : '0',
+    options.enforceRequiredFields ? '1' : '0',
     String(options.maxTextLength),
   ].join('|')
 }

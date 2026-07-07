@@ -1107,6 +1107,26 @@ describe('repeater cardinality bounds', () => {
     expect(resultB.details).toEqual([])
     expect(resultB.data.items).toEqual([{ question: 'Q1', rating: 15 }])
   })
+
+  it('does not cache-collide when enforceRequiredFields option differs', () => {
+    const seed: Seed = {
+      slug: 'cache-test-required-fields',
+      label: 'Cache Test Required Fields',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_title', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+      ],
+    }
+
+    // Call A: enforceRequiredFields = true (default) -> field is required.
+    // If it's missing, it fails because it's required.
+    const rA = validateAndSanitizeSeedPayload(seed, {}, { operation: 'create', enforceRequiredFields: true, requireAtLeastOneValidField: false })
+    expect(rA.details.some(d => d.field === 'title')).toBe(true)
+
+    // Call B: enforceRequiredFields = false -> field is optional, should pass without issues.
+    const rB = validateAndSanitizeSeedPayload(seed, {}, { operation: 'create', enforceRequiredFields: false, requireAtLeastOneValidField: false })
+    expect(rB.details).toEqual([])
+  })
 })
 
 
