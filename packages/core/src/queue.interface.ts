@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { ContentRepository } from './content.repository.js'
-import type { BeechBucket } from './storage.js'
-import type { IClock } from './clock.js'
-import type { IIdGenerator } from './id-generator.js'
+import type { ContentRepository } from './content/content.repository.js'
+import type { BeechBucket } from './common/storage.js'
+import type { IClock } from './common/clock.js'
+import type { IIdGenerator } from './common/id-generator.js'
 
 /**
  * The envelope put on the wire / queue. `name` selects the handler from the

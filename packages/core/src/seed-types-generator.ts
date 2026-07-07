@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { Seed, Branch } from './types.js'
+import type { Seed, Branch } from './engine/types.js'
 
 const HEADER =
   '// Questo file è generato automaticamente da BeechCMS CLI. Non modificarlo direttamente.\n'
