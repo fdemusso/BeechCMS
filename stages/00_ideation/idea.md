@@ -47,6 +47,7 @@ Il runtime di Cloudflare Workers (isolates stateless con warm reuse) e il ciclo 
 4. **WeakMap + Map Cache**: Implementare il modello a due livelli descritto sopra.
 5. **Caching Granulare per Relazioni (Punto 6)**: Valutare se compilare separatamente la parte statica dello schema (cacheabile) e i campi di tipo `relation` (che catturano l'istanza dinamica di `idGenerator`), evitando di invalidare l'intera cache del seed per una sola relazione.
 6. **Validazione URL File (Punto 7)**: Eliminare la doppia validazione ridondante degli URL per gli asset-list in `fileSchema`.
+7. **Ottimizzazione del Refresh D1 (a livello di Registro)**: In `seed-registry-cache.ts`, se il `version` token (ottenuto da D1) è identico a `cache.version`, evitare di ricaricare i seed con `listActive()` e ricostruire la `SeedRegistry` ogni 5 secondi, limitandosi ad aggiornare `cache.builtAt = now`. Questo elimina totalmente la rotazione dei riferimenti degli oggetti `Seed` (e quindi i Miss in L1 della cache di validazione) finché lo schema non cambia realmente.
 
 ### Leggibilità & Manutenibilità
 7. **Split del Monolito (Punto 8)**: Suddividere il file in moduli dedicati all'interno di una cartella `packages/core/src/engine/validation/`:
