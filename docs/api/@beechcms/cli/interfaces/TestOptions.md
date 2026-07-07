@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/cli](../README.md) / TestOptions
+[BeechCMS](../../../index.md) / [@beechcms/cli](../index.md) / TestOptions
 
 # Interface: TestOptions
 

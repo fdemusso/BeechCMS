@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/client](../README.md) / BeechResult
+[BeechCMS](../../../index.md) / [@beechcms/client](../index.md) / BeechResult
 
 # Type Alias: BeechResult&lt;T&gt;
 

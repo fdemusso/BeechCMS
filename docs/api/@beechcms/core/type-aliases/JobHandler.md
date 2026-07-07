@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / JobHandler
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / JobHandler
 
 # Type Alias: JobHandler&lt;T&gt;
 

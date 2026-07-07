@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / FULL\_WIDTH\_BRANCH\_TYPES
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / FULL\_WIDTH\_BRANCH\_TYPES
 
 # Variable: FULL\_WIDTH\_BRANCH\_TYPES
 

@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/cli](../README.md) / dbReset
+[BeechCMS](../../../index.md) / [@beechcms/cli](../index.md) / dbReset
 
 # Function: dbReset()
 

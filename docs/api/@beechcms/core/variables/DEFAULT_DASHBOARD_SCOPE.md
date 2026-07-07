@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / DEFAULT\_DASHBOARD\_SCOPE
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / DEFAULT\_DASHBOARD\_SCOPE
 
 # Variable: DEFAULT\_DASHBOARD\_SCOPE
 

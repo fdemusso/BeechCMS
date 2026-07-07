@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/cli](../README.md) / validateSeeds
+[BeechCMS](../../../index.md) / [@beechcms/cli](../index.md) / validateSeeds
 
 # Function: validateSeeds()
 

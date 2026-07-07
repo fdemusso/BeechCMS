@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / RichtextEnvelopeV1
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / RichtextEnvelopeV1
 
 # Type Alias: RichtextEnvelopeV1
 

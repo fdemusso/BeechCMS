@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / planFtsRebuild
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / planFtsRebuild
 
 # Function: planFtsRebuild()
 

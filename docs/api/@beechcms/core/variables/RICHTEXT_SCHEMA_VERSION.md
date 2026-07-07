@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / RICHTEXT\_SCHEMA\_VERSION
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / RICHTEXT\_SCHEMA\_VERSION
 
 # Variable: RICHTEXT\_SCHEMA\_VERSION
 

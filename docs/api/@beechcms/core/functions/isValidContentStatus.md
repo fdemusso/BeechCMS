@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / isValidContentStatus
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / isValidContentStatus
 
 # Function: isValidContentStatus()
 

@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / ROLES\_ALLOWED\_TO\_EDIT\_LAYOUT
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / ROLES\_ALLOWED\_TO\_EDIT\_LAYOUT
 
 # Variable: ROLES\_ALLOWED\_TO\_EDIT\_LAYOUT
 

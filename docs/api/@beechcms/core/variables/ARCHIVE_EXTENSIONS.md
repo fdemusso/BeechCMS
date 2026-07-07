@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / ARCHIVE\_EXTENSIONS
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / ARCHIVE\_EXTENSIONS
 
 # Variable: ARCHIVE\_EXTENSIONS
 

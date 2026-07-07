@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/widget-sdk](../README.md) / DateRange
+[BeechCMS](../../../index.md) / [@beechcms/widget-sdk](../index.md) / DateRange
 
 # Interface: DateRange
 

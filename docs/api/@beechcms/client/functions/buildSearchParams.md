@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/client](../README.md) / buildSearchParams
+[BeechCMS](../../../index.md) / [@beechcms/client](../index.md) / buildSearchParams
 
 # Function: buildSearchParams()
 

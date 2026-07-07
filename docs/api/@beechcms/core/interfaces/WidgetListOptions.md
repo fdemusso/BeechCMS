@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / WidgetListOptions
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / WidgetListOptions
 
 # Interface: WidgetListOptions
 

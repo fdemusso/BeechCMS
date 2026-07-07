@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / AUTOMATION\_RESERVED\_WORDS
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / AUTOMATION\_RESERVED\_WORDS
 
 # Variable: AUTOMATION\_RESERVED\_WORDS
 

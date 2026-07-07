@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / QueueMessage
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / QueueMessage
 
 # Interface: QueueMessage&lt;T&gt;
 

@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / IHashProvider
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / IHashProvider
 
 # Interface: IHashProvider
 

@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / KanbanAxisBranchType
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / KanbanAxisBranchType
 
 # Type Alias: KanbanAxisBranchType
 

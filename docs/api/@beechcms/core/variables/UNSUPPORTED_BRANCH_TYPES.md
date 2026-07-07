@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / UNSUPPORTED\_BRANCH\_TYPES
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / UNSUPPORTED\_BRANCH\_TYPES
 
 # Variable: UNSUPPORTED\_BRANCH\_TYPES
 

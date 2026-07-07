@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / SYSTEM\_ALIASES
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / SYSTEM\_ALIASES
 
 # Variable: SYSTEM\_ALIASES
 

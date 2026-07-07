@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / IPasswordResetTokenRepository
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / IPasswordResetTokenRepository
 
 # Interface: IPasswordResetTokenRepository
 

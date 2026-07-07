@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / SEED\_REGISTRY
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / SEED\_REGISTRY
 
 # Variable: SEED\_REGISTRY
 

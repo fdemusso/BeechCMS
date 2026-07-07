@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / isRichtextEnvelopeV1
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / isRichtextEnvelopeV1
 
 # Function: isRichtextEnvelopeV1()
 

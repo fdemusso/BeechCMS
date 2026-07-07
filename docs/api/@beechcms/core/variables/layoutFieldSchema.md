@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / layoutFieldSchema
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / layoutFieldSchema
 
 # Variable: layoutFieldSchema
 

@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / sha256hex
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / sha256hex
 
 # Function: sha256hex()
 

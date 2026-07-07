@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / WIDGET\_TYPE\_REGEX
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / WIDGET\_TYPE\_REGEX
 
 # Variable: WIDGET\_TYPE\_REGEX
 

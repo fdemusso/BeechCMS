@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / BRANCH\_ALIAS\_RE
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / BRANCH\_ALIAS\_RE
 
 # Variable: BRANCH\_ALIAS\_RE
 

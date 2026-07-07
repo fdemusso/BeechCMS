@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / BLOCKED\_IMAGE\_EXTENSIONS
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / BLOCKED\_IMAGE\_EXTENSIONS
 
 # Variable: BLOCKED\_IMAGE\_EXTENSIONS
 

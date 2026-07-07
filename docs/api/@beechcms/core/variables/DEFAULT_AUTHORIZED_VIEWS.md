@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / DEFAULT\_AUTHORIZED\_VIEWS
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / DEFAULT\_AUTHORIZED\_VIEWS
 
 # Variable: DEFAULT\_AUTHORIZED\_VIEWS
 

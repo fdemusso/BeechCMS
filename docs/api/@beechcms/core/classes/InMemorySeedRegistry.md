@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / InMemorySeedRegistry
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / InMemorySeedRegistry
 
 # Class: InMemorySeedRegistry
 

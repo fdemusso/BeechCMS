@@ -18,6 +18,7 @@
   "cleanOutputDir": true,
   "useHTMLEncodedBrackets": true,
   "sanitizeComments": true,
+  "entryFileName": "index.md",
   "packageOptions": {
     "entryPoints": ["src/index.ts"]
   }

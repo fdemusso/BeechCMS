@@ -1,8 +1,8 @@
-[**BeechCMS**](../../README.md)
+[**BeechCMS**](../../index.md)
 
 ***
 
-[BeechCMS](../../README.md) / @beechcms/cli
+[BeechCMS](../../index.md) / @beechcms/cli
 
 # @beechcms/cli
 

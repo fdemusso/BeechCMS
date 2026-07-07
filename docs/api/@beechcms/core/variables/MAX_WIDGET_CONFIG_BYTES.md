@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / MAX\_WIDGET\_CONFIG\_BYTES
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / MAX\_WIDGET\_CONFIG\_BYTES
 
 # Variable: MAX\_WIDGET\_CONFIG\_BYTES
 

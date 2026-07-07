@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / METADATA\_SLOT\_CAP
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / METADATA\_SLOT\_CAP
 
 # Variable: METADATA\_SLOT\_CAP
 

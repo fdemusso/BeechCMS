@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/cli](../README.md) / SeedCreateOptions
+[BeechCMS](../../../index.md) / [@beechcms/cli](../index.md) / SeedCreateOptions
 
 # Type Alias: SeedCreateOptions
 

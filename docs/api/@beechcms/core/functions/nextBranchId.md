@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / nextBranchId
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / nextBranchId
 
 # Function: nextBranchId()
 

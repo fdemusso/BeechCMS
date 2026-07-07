@@ -1,8 +1,8 @@
-[**BeechCMS**](../../../README.md)
+[**BeechCMS**](../../../index.md)
 
 ***
 
-[BeechCMS](../../../README.md) / [@beechcms/client](../README.md) / BeechClient
+[BeechCMS](../../../index.md) / [@beechcms/client](../index.md) / BeechClient
 
 # Interface: BeechClient&lt;TRegistry&gt;
 
