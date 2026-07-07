@@ -47,5 +47,7 @@
   ],
   "includeVersion": true,
   "searchInComments": true,
-  "cleanOutputDir": true
+  "cleanOutputDir": true,
+  "plugin": ["typedoc-material-theme"],
+  "themeColor": "#10b981"
 }
