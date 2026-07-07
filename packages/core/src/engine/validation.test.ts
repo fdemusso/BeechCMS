@@ -1074,6 +1074,39 @@ describe('repeater cardinality bounds', () => {
     const max1Result = validate(seedMax1, payload)
     expect(max1Result.details.some(d => d.field === 'items')).toBe(true)
   })
+
+  it('two seeds identical except for sub-branch numberOptions compile to different schemas (no cache collision)', () => {
+    const seedWithSubBounds = (numberOptions: { min?: number; max?: number; step?: number }): Seed => ({
+      slug: 'faq',
+      label: 'FAQ',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_title', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+        {
+          id: 'br_items', alias: 'items', label: 'Items', type: 'repeater',
+          fields: [
+            { id: 'br_question', alias: 'question', label: 'Question', type: 'text', requiredOnCreate: true },
+            { id: 'br_rating', alias: 'rating', label: 'Rating', type: 'number', numberOptions },
+          ],
+        },
+      ],
+    })
+
+    const seedA = seedWithSubBounds({ min: 1, max: 10, step: 1 })
+    const seedB = seedWithSubBounds({ min: 5, max: 20, step: 2 })
+
+    const payload = {
+      title: 'My FAQ',
+      items: [{ question: 'Q1', rating: 15 }],
+    }
+
+    const resultA = validateAndSanitizeSeedPayload(seedA, payload, { operation: 'create' })
+    expect(resultA.details.some(d => d.field === 'items')).toBe(true)
+
+    const resultB = validateAndSanitizeSeedPayload(seedB, payload, { operation: 'create' })
+    expect(resultB.details).toEqual([])
+    expect(resultB.data.items).toEqual([{ question: 'Q1', rating: 15 }])
+  })
 })
 
 
