@@ -46,5 +46,15 @@
     "**/dist/**"
   ],
   "cleanOutputDir": true,
-  "customCss": "docs/custom-theme.css"
+  "customCss": "docs/custom-theme.css",
+  "readme": "docs/INDEX.md",
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "groupOrder": [
+    "User & Builder Guide",
+    "Developer Guide (Internals)",
+    "Modules",
+    "*"
+  ]
 }
