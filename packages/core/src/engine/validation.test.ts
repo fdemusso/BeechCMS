@@ -13,7 +13,7 @@
  * implemented in the core engine (e.g. type: 'relation', ref: 'seed-slug').
  */
 import { describe, it, expect } from 'vitest'
-import { validateAndSanitizeSeedPayload, isValidContentStatus } from './validation.js'
+import { validateAndSanitizeSeedPayload, isValidContentStatus } from './validation/index.js'
 import type { Branch, Seed } from './types.js'
 
 // ─── Frankenstein Seed (covers every branch type) ────────────────────────────
