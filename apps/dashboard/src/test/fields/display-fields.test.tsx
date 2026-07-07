@@ -141,13 +141,36 @@ describe("RichtextDisplay", () => {
     expect(screen.getByText("-")).toBeInTheDocument()
   })
 
-  it("HTML con testo mostra il testo estratto", () => {
-    render(<RichtextDisplay branch={branch} value="<p>Hello world</p>" />)
+  it("JSON con testo mostra il testo estratto", () => {
+    const value = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Hello world" }],
+        },
+      ],
+    }
+    render(<RichtextDisplay branch={branch} value={value} />)
     expect(screen.getByText(/Hello world/)).toBeInTheDocument()
   })
 
-  it("HTML senza testo mostra '-'", () => {
-    render(<RichtextDisplay branch={branch} value="<br/><hr/>" />)
+  it("JSON senza testo mostra '-'", () => {
+    const value = {
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [],
+        },
+      ],
+    }
+    render(<RichtextDisplay branch={branch} value={value} />)
+    expect(screen.getByText("-")).toBeInTheDocument()
+  })
+
+  it("stringa HTML legacy viene scartata e mostra '-'", () => {
+    render(<RichtextDisplay branch={branch} value="<p>Hello world</p>" />)
     expect(screen.getByText("-")).toBeInTheDocument()
   })
 })
