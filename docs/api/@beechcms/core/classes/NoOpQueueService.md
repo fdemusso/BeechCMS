@@ -1,0 +1,53 @@
+[**BeechCMS**](../../../README.md)
+
+***
+
+[BeechCMS](../../../README.md) / [@beechcms/core](../README.md) / NoOpQueueService
+
+# Class: NoOpQueueService
+
+Safe no-op producer (e.g. unit tests that don't assert on enqueue).
+
+## Implements
+
+- [`IQueueService`](../interfaces/IQueueService.md)
+
+## Constructors
+
+### Constructor
+
+> **new NoOpQueueService**(): `NoOpQueueService`
+
+#### Returns
+
+`NoOpQueueService`
+
+## Methods
+
+### enqueue()
+
+> **enqueue**&lt;`T`&gt;(`_name`, `_payload`): `Promise`&lt;`void`&gt;
+
+#### Type Parameters
+
+##### T
+
+`T`
+
+#### Parameters
+
+##### \_name
+
+`string`
+
+##### \_payload
+
+`T`
+
+#### Returns
+
+`Promise`&lt;`void`&gt;
+
+#### Implementation of
+
+[`IQueueService`](../interfaces/IQueueService.md).[`enqueue`](../interfaces/IQueueService.md#enqueue)

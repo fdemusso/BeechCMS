@@ -657,8 +657,8 @@ packages/core/src/automations.runner.stub.ts        →  NoOpAutomationRunner
 
 | Action type | What it does |
 |-------------|-------------|
-| `webhook` | HTTP request to `url`; body is `body_template` with `{{field}}` interpolation, falls back to `JSON.stringify(entry)` |
-| `send_mail` | Email via Resend; `subject_template` and `body_template` support `{{field}}` interpolation; requires `EMAIL_API_KEY` / `RESEND_API_KEY` |
+| `webhook` | HTTP request to `url`; body is `body_template` with `\{\{field\}\}` interpolation, falls back to `JSON.stringify(entry)` |
+| `send_mail` | Email via Resend; `subject_template` and `body_template` support `\{\{field\}\}` interpolation; requires `EMAIL_API_KEY` / `RESEND_API_KEY` |
 | `edit_field` | Updates a single field on the triggering entry via `ContentRepository` |
 | `create_entry` | Creates a new entry in `seed_slug` mapping source fields via `field_map` |
 

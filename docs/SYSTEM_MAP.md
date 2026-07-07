@@ -296,7 +296,7 @@ This high-level system map is designed for onboarding new contributors and for A
   - CRUD: `GET /api/automations?seed=<slug>`, `POST /api/automations`, `GET /api/automations/:id`, `PUT /api/automations/:id`, `PATCH /api/automations/:id/toggle`, `DELETE /api/automations/:id`. All JWT-protected. Validation via Zod (`automations.schema.ts`).
   - **Runtime execution:** content handlers (`create`, `update`, `delete`) call `c.get('scheduler').waitUntil(c.get('automationRunner').run({ seedSlug, event, entry }))` after a successful write. `AutomationRunner` queries `IAutomationRepository.findActive(seedSlug, event)`, evaluates `TriggerCondition[]` via `evaluateConditions`, then dispatches each `AutomationAction` to the matching executor.
   - **Action executors** (`apps/api/src/features/automations/action-executors/`):
-    - `webhook` — HTTP call to `action.url` with optional template interpolation of `{{field}}` placeholders from the entry payload.
+    - `webhook` — HTTP call to `action.url` with optional template interpolation of `\{\{field\}\}` placeholders from the entry payload.
     - `send_mail` — calls the shared `sendAutomationMail` helper (Resend REST API); requires `EMAIL_API_KEY` or `RESEND_API_KEY` in env.
     - `edit_field` — updates a single field on the triggering entry via `ContentRepository`.
     - `create_entry` — creates a new entry in a (potentially different) seed, mapping fields via `action.field_map`.

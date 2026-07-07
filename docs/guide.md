@@ -858,7 +858,7 @@ Automations let you trigger actions based on content lifecycle events (`create`,
 Automations are configured entirely via the dashboard under **Settings → Automations**. No code is needed.
 
 
-The full template grammar (accessing `{{this.fieldAlias}}`, collection aggregates, inline filters) is covered in [docs/automations.md](automations.md).
+The full template grammar (accessing `\{\{this.fieldAlias\}\}`, collection aggregates, inline filters) is covered in [docs/automations.md](automations.md).
 
 ---
 

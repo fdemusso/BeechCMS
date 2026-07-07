@@ -39,6 +39,9 @@
   },
   "scripts": {
     "docs:generate": "typedoc",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "typedoc && vitepress build docs",
+    "docs:preview": "vitepress preview docs",
     "beech": "node bin/cli.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:full": "node scripts/dev.mjs",
@@ -86,9 +89,12 @@
     "tsx": "^4.22.4",
     "turbo": "^2.9.18",
     "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.12.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.0",
-    "vitest": "^4.1.0"
+    "vitepress": "^1.6.4",
+    "vitest": "^4.1.0",
+    "vue": "^3.5.39"
   },
   "dependencies": {
     "@beechcms/cli": "workspace:^0.6.0-preview.4",

@@ -7,54 +7,18 @@
     "packages/widget-sdk",
     "packages/cli"
   ],
-  "name": "BeechCMS Documentation",
-  "out": "docs-dist",
-  "projectDocuments": [
-    "docs/guide.md",
-    "docs/frontend-guide.md",
-    "docs/api-reference.md",
-    "docs/custom-widgets.md",
-    "docs/automations.md",
-    "docs/email-module.md",
-    "docs/development.md",
-    "docs/architecture.md",
-    "docs/SYSTEM_MAP.md",
-    "docs/vertical-slice.md",
-    "docs/background-queues.md",
-    "docs/observability-and-notifications.md",
-    "docs/release.md"
-  ],
-  "packageOptions": {
-    "entryPoints": ["src/index.ts"]
-  },
-  "categorizeByGroup": true,
-  "categoryOrder": [
-    "Getting Started",
-    "Frontend & APIs",
-    "Extending",
-    "Features",
-    "Setup",
-    "Core Concepts",
-    "Development Guides",
-    "Internals",
-    "Operations",
-    "*"
-  ],
-  "exclude": [
-    "**/*.test.ts",
-    "**/node_modules/**",
-    "**/dist/**"
-  ],
-  "cleanOutputDir": true,
-  "customCss": "docs/custom-theme.css",
-  "readme": "docs/INDEX.md",
+  "name": "BeechCMS",
+  "out": "docs/api",
+  "plugin": ["typedoc-plugin-markdown"],
   "excludeInternal": true,
   "excludePrivate": true,
   "excludeProtected": true,
-  "groupOrder": [
-    "User & Builder Guide",
-    "Developer Guide (Internals)",
-    "Modules",
-    "*"
-  ]
+  "readme": "none",
+  "disableSources": true,
+  "cleanOutputDir": true,
+  "useHTMLEncodedBrackets": true,
+  "sanitizeComments": true,
+  "packageOptions": {
+    "entryPoints": ["src/index.ts"]
+  }
 }
