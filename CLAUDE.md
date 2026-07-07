@@ -27,4 +27,3 @@ Key commands:
 - `pnpm beech logs <service>`   : Streams docker logs for mailpit, db, tunnel, storage
 - `pnpm beech reset`            : Stops dev stack and wipes DB/volumes based on flags
 - `pnpm beech test [--diff]`   : Runs workspace tests
-

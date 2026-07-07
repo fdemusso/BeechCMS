@@ -8,6 +8,16 @@ This is possible because BeechCMS runs entirely on **Cloudflare's free tier** â€
 
 ---
 
+> [!WARNING]
+>
+> **BeechCMS is currently in Beta** and is undergoing its initial phases of review and case-study testing. 
+> 
+> * **Known Risks:** The software contains known security vulnerabilities, risks of data loss, and is completely **untested in production environments**.
+> * **Liability:** We accept absolutely no responsibility or liability for any damages or data loss. The software has not yet reached the security and stability standards required for production use.
+> * **Intended Use:** Use is strictly recommended for **evaluation and MVP (Minimum Viable Product) testing purposes only**.
+> 
+> **CRITICAL REQUIREMENT:** If you still choose to deploy or use BeechCMS, you **MUST** keep the software constantly updated to the latest commit/release to mitigate emerging risks.
+
 ## Why Beech?
 
 ### Zero running costs for your clients
