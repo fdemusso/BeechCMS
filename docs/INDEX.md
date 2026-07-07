@@ -1,10 +1,10 @@
-# 🌳 BeechCMS Documentation
+# BeechCMS Documentation
 
 Welcome to the official documentation for **BeechCMS** — the edge-native, schema-driven headless CMS built on Cloudflare Workers, D1, and R2.
 
 ---
 
-## 🧭 What are you looking for?
+## What are you looking for?
 
 ### 1. [User & Builder Guide](guide.md)
 *For developers using BeechCMS to build a website or front-end application.*
