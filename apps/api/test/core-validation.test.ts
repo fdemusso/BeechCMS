@@ -84,7 +84,7 @@ describe('core validation foundation', () => {
 
   it('segnala richtext pericoloso', () => {
     const result = validateAndSanitizeSeedPayload(articoliSeed, {
-      body: '<p>safe</p><script>alert(1)</script>',
+      body: { type: 'doc', content: [{ type: 'script', attrs: { src: 'http://evil.com' } }] },
     })
 
     expect(result.dangerousFields).toEqual(['body'])
@@ -94,7 +94,7 @@ describe('core validation foundation', () => {
 describe('public sanitize adapter', () => {
   it('mappa dangerous richtext a 422', () => {
     const result = sanitizePublicPayload(articoliSeed, {
-      body: '<p>ciao</p><iframe src="x"></iframe>',
+      body: { type: 'doc', content: [{ type: 'iframe', attrs: { src: 'x' } }] },
     })
 
     expect(result.ok).toBe(false)

@@ -7,7 +7,6 @@ import { createBeechApp } from '../src/factory'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
 import { TEST_SEEDS, TEST_ENV } from './fixtures'
-import { validateAndSanitizeSeedPayload } from '@beechcms/core'
 
 /**
  * SPRINT: BeechCMS Test Redesign
@@ -293,15 +292,13 @@ describe('Flow: Guest Access (Public API)', () => {
 
     it('error: returns 422 when data has dangerous content', async () => {
       repo.load('posts', [{ id: validUuid, status: 'published', title: 'X' }])
-      const valResult = validateAndSanitizeSeedPayload(TEST_SEEDS[0], { body: '<script>alert(1)</script>' }, { operation: 'update', allowNull: true })
-      console.log("DIRECT VALIDATION RESULT:", valResult)
+      const dangerousBody = { type: 'doc', content: [{ type: 'script', attrs: { src: 'http://evil.com' } }] }
 
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { body: '<script>alert(1)</script>' } }),
+        body: JSON.stringify({ data: { body: dangerousBody } }),
       }, TEST_ENV)
-      console.log("RESPONSE DATA:", await res.json())
       expect(res.status).toBe(422)
     })
 
@@ -409,10 +406,11 @@ describe('Flow: Guest Access (Public API)', () => {
     })
 
     it('POST /api/v1/public/:seed/add returns 422 for dangerous content', async () => {
+      const dangerousBody = { type: 'doc', content: [{ type: 'script', attrs: { src: 'http://evil.com' } }] }
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { title: 'Valid Title', body: '<script>alert(1)</script>' } }),
+        body: JSON.stringify({ data: { title: 'Valid Title', body: dangerousBody } }),
       }, TEST_ENV)
       expect(res.status).toBe(422)
     })
