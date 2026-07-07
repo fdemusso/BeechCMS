@@ -1,19 +1,19 @@
 # 🌳 BeechCMS Documentation
 
-Benvenuto nella documentazione ufficiale di **BeechCMS** — l'headless CMS edge-native e schema-driven basato su Cloudflare Workers, D1 e R2.
+Welcome to the official documentation for **BeechCMS** — the edge-native, schema-driven headless CMS built on Cloudflare Workers, D1, and R2.
 
 ---
 
-## 🧭 Cosa stai cercando?
+## 🧭 What are you looking for?
 
 ### 1. [User & Builder Guide](guide.md)
-*Per chi utilizza BeechCMS per costruire un sito o un'applicazione front-end.*
-Esplora questa sezione se hai bisogno di capire come impostare il progetto, creare schemi (Seeds), interrogare le API lato client, configurare le automazioni, le email, o estendere il CMS creando widget personalizzati con il Widget SDK.
+*For developers using BeechCMS to build a website or front-end application.*
+Explore this section if you need to understand how to set up your project, create schemas (Seeds), query the APIs from the client side, configure automations and emails, or extend the CMS by building custom widgets with the Widget SDK.
 
 ### 2. [Developer Guide (Internals)](development.md)
-*Per chi vuole contribuire o modificare il core di BeechCMS.*
-Questa sezione è dedicata agli sviluppatori della piattaforma. Contiene dettagli sull'architettura interna, la mappa del sistema, la gestione delle code in background, i flussi di deploy e setup per l'ambiente di sviluppo locale.
+*For contributors or developers modifying the BeechCMS core.*
+This section is dedicated to the core developers of the platform. It contains in-depth details about the internal architecture, the system map, background queue management, release processes, and the local development setup.
 
-### 3. API Reference (Moduli)
-*Per consultare le firme e i tipi esportati.*
-Scorri la barra laterale verso il basso per esplorare la documentazione TypeScript autogenerata per i package pubblici (`@beechcms/core`, `@beechcms/client`, `@beechcms/widget-sdk`, ecc.).
+### 3. API Reference (Modules)
+*For consulting exported types and function signatures.*
+Scroll down the sidebar to explore the auto-generated TypeScript documentation for the public packages (`@beechcms/core`, `@beechcms/client`, `@beechcms/widget-sdk`, etc.).
