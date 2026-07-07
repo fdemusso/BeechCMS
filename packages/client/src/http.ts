@@ -11,7 +11,7 @@ export async function request<T>(
 ): Promise<BeechResult<T>> {
   const doFetch = cfg.fetch ?? fetch
   const base = cfg.baseUrl.replace(/\/+$/, '')
-  const qs = opts.params && [...opts.params].length ? `?${opts.params}` : ''
+  const qs = opts.params && opts.params.size ? `?${opts.params}` : ''
   const url = `${base}/api/v1/public${path}${qs}`
 
   let res: Response
