@@ -3,3 +3,5 @@
 // See LICENSE in the repository root for license terms.
 
 export * from "./query-keys"
+export * from "./hooks/use-schema"
+export * from "./view-registry"

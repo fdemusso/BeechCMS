@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, expect, it } from 'vitest'
-import { resolveEmailLocale, SUPPORTED_EMAIL_LOCALES } from '../src/features/email/email.types'
+import { resolveEmailLocale, SUPPORTED_EMAIL_LOCALES } from '../src/shared/email/email.types'
 
 describe('email/email.types', () => {
   describe('resolveEmailLocale', () => {

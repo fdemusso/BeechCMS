@@ -75,7 +75,7 @@ describe('Flow: Stats', () => {
     // No users seeded — adminExists must be false
 
     // Use a pre-issued token since we cannot login without users
-    const { JoseTokenService } = await import('../src/auth/jose-token-service')
+    const { JoseTokenService } = await import('../src/auth/providers/jwt-token.service')
     const { SystemClock } = await import('@beechcms/core')
     const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
     const token = await tokenService.issue({ sub: 'u_fake', email: 'ghost@test.io' })

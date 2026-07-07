@@ -7,6 +7,7 @@ import type { VisibilityState } from "@tanstack/react-table"
 import type { DateGroupPrecision } from "@/lib/dynamic-columns"
 import type { ConditionalFormatRule } from "@/lib/conditional-format"
 import type { UserViewInstance, ToolbarFiltersState } from "./shared"
+import type { TableDensity } from "@/lib/density"
 
 export interface ContentToolbarProps {
   seed: Seed
@@ -48,5 +49,12 @@ export interface ContentToolbarProps {
   onGroupByChange?: (columnId: string | null) => void
   dateGroupPrecision?: DateGroupPrecision
   onDateGroupPrecisionChange?: (precision: DateGroupPrecision) => void
+  density?: TableDensity
+  onDensityChange?: (density: TableDensity) => void
+  kanbanCandidates?: Array<{ branchId: string; label: string; alias: string }>
+  kanbanConfig?: any
+  onKanbanConfigChange?: (next: any) => void
+  kanbanAxisBranch?: any
+  onOpenCardConfig?: () => void
   children?: React.ReactNode
 }

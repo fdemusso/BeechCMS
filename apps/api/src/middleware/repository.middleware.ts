@@ -4,32 +4,33 @@
 
 import { createMiddleware } from 'hono/factory'
 import type { Context } from 'hono'
-import { D1ContentRepository } from '../shared/content.repository.d1'
-import { D1IdempotencyRepository } from '../shared/idempotency.repository.d1'
-import { D1MediaRepository } from '../shared/media.repository.d1'
-import { D1SystemStatsRepository } from '../shared/system-stats.repository.d1'
-import { D1UserRepository } from '../shared/d1-user.repository'
-import { D1SessionRepository } from '../shared/d1-session.repository'
-import { D1PasswordResetTokenRepository } from '../shared/d1-password-reset-token.repository'
-import { D1ActivityLogRepository } from '../shared/d1-activity-log.repository'
-import { D1NotificationRepository } from '../shared/d1-notification.repository'
-import { D1WidgetRepository } from '../shared/d1-widget.repository'
-import { D1SearchRepository } from '../shared/d1-search.repository'
-import { D1AnalyticsRepository } from '../shared/d1-analytics.repository'
-import { D1ContentScanRepository } from '../shared/d1-content-scan.repository'
-import { D1SiteSettingsRepository } from '../shared/site-settings.repository.d1'
-import { D1DemoDataRepository } from '../shared/demo-data.repository.d1'
-import { D1SetupChecklistRepository } from '../shared/d1-setup-checklist.repository'
-import { D1SeedLayoutRepository } from '../shared/seed-layout.repository.d1'
-import { D1DashboardLayoutRepository } from '../shared/dashboard-layout.repository.d1'
-import { D1SeedRepository } from '../shared/seed.repository.d1'
-import { D1SchemaMutator } from '../shared/schema-mutator.d1'
+import { D1ContentRepository } from '../shared/db/repositories/content.repository.d1'
+import { D1IdempotencyRepository } from '../shared/db/repositories/idempotency.repository.d1'
+import { D1MediaRepository } from '../shared/db/repositories/media.repository.d1'
+import { D1SystemStatsRepository } from '../shared/db/repositories/system-stats.repository.d1'
+import { D1UserRepository } from '../shared/db/repositories/d1-user.repository'
+import { D1SessionRepository } from '../shared/db/repositories/d1-session.repository'
+import { D1PasswordResetTokenRepository } from '../shared/db/repositories/d1-password-reset-token.repository'
+import { D1ActivityLogRepository } from '../shared/db/repositories/d1-activity-log.repository'
+import { D1NotificationRepository } from '../shared/db/repositories/d1-notification.repository'
+import { D1WidgetRepository } from '../shared/db/repositories/d1-widget.repository'
+import { D1SearchRepository } from '../shared/db/repositories/d1-search.repository'
+import { D1AnalyticsRepository } from '../shared/db/repositories/d1-analytics.repository'
+import { D1ContentScanRepository } from '../shared/db/repositories/d1-content-scan.repository'
+import { D1SiteSettingsRepository } from '../shared/db/repositories/site-settings.repository.d1'
+import { D1DemoDataRepository } from '../shared/db/repositories/demo-data.repository.d1'
+import { D1SetupChecklistRepository } from '../shared/db/repositories/d1-setup-checklist.repository'
+import { D1SeedLayoutRepository } from '../shared/db/repositories/seed-layout.repository.d1'
+import { D1DashboardLayoutRepository } from '../shared/db/repositories/dashboard-layout.repository.d1'
+import { D1SeedRepository } from '../shared/db/repositories/seed.repository.d1'
+import { D1SchemaMutator } from '../shared/db/migrations/schema-mutator.d1'
+import { D1KanbanPositionRepository } from '../shared/db/repositories/kanban-position.repository.d1'
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations'
-import { D1AutomationRepository } from '../shared/automations.repository.d1'
-import { ExecutionContextScheduler } from '../shared/execution-context-scheduler'
+import { D1AutomationRepository } from '../shared/db/repositories/automations.repository.d1'
+import { ExecutionContextScheduler } from '../shared/services/scheduler/execution-context-scheduler'
 import type { Env, Variables } from '../types'
 
 interface RepositoryOverrides {
@@ -57,6 +58,7 @@ interface RepositoryOverrides {
   seedRepository?: ISeedRepository
   schemaMutator?: ISchemaMutator
   dashboardLayoutRepository?: IDashboardLayoutRepository
+  kanbanPositionRepository?: IKanbanPositionRepository
   hooks?: BeechHooks
 }
 
@@ -113,6 +115,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('seedRepository', overrides?.seedRepository ?? new D1SeedRepository(database))
     context.set('schemaMutator', overrides?.schemaMutator ?? new D1SchemaMutator(database))
     context.set('dashboardLayoutRepository', overrides?.dashboardLayoutRepository ?? new D1DashboardLayoutRepository(database))
+    context.set('kanbanPositionRepository', overrides?.kanbanPositionRepository ?? new D1KanbanPositionRepository(database))
     await next()
   })
 }

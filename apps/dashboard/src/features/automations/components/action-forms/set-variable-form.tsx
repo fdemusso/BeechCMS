@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+﻿// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 import { useState, useRef, useEffect, useId } from 'react'
@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/select'
 import { Command, CommandInput, CommandList, CommandEmpty, CommandItem } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { useSchema } from '@/features/schema'
+import { useSchema } from '@/features/shared'
 import { TRIGGER_OPS } from '../../schema/automation.schema'
 import type { AutomationFormValues } from '../../schema/automation.schema'
 
@@ -199,13 +199,13 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
                 setSourceInput('')
               }}
             >
-              ✕
+              âœ•
             </button>
           </div>
         )}
       </div>
 
-      {/* Column select — collection mode only */}
+      {/* Column select â€” collection mode only */}
       {isCollectionMode && targetSeed && targetSeed.branches.length > 0 && (
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">
@@ -228,7 +228,7 @@ export function SetVariableForm({ index, triggerSeedSlug }: SetVariableFormProps
         </div>
       )}
 
-      {/* Filters — collection mode only */}
+      {/* Filters â€” collection mode only */}
       {isCollectionMode && (
         <div>
           <div className="flex items-center justify-between mb-1">

@@ -7,9 +7,9 @@ import { createBeechApp } from '../src/factory'
 import { TEST_ENV, TEST_USERS, TEST_SEEDS } from './fixtures'
 import { D1TestDatabase } from './helpers/d1-test-database'
 import { seedTestUsers } from './helpers/seed-fixtures'
-import { JoseTokenService } from '../src/auth/jose-token-service'
+import { JoseTokenService } from '../src/auth/providers/jwt-token.service'
 import { SystemClock } from '@beechcms/core'
-import { S3Client, HeadObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 
 const s3 = new S3Client({
   region: 'auto',
@@ -191,15 +191,95 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       const count = await db.prepare('SELECT COUNT(*) as n FROM media_objects WHERE key = ?').bind(key).first<{ n: number }>()
       expect(count?.n).toBe(1)
     })
+
+    it('returns 400 when file size exceeds maxBytes limit', async () => {
+      const filename = `${Date.now()}-large-photo.png`
+
+      const presignRes = await app.request('/api/upload/presign', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename, mimeType: 'image/png', sizeBytes: 3 }),
+      }, { ...TEST_ENV, DB: db })
+      expect(presignRes.status).toBe(200)
+      const { uploadUrl, key } = await presignRes.json<{ uploadUrl: string; key: string }>()
+
+      const putRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: new Uint8Array([1, 2, 3]),
+        headers: { 'Content-Type': 'image/png' },
+      })
+      expect(putRes.ok).toBe(true)
+
+      const confirmRes = await app.request('/api/upload/confirm', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key }),
+      }, { ...TEST_ENV, MAX_UPLOAD_BYTES: '2', DB: db })
+      expect(confirmRes.status).toBe(400)
+
+      const body = await confirmRes.json<{ error: string }>()
+      expect(body.error).toContain('File too large')
+
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).toBeNull()
+    })
+
+    it('returns 400 when key format is invalid', async () => {
+      const res = await app.request('/api/upload/confirm', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'system/config.json' }),
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+      const body = await res.json<{ error: string }>()
+      expect(body.error).toBe('Invalid key format')
+    })
   })
 
   describe('GET /api/upload/download-url/:key', () => {
-    it('returns 404 when key does not exist', async () => {
+    it('returns 404 when key is not in database', async () => {
       const res = await app.request(`/api/upload/download-url/${Date.now()}-ghost.png`, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${adminToken}` },
       }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(404)
+    })
+
+    it('returns 403 when user is not owner and not admin', async () => {
+      const key = `${Date.now()}-download-test.png`
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'download-test.png', 'image/png', 100, TEST_USERS[0].id).run()
+
+      const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
+      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'editor' })
+
+      const res = await app.request(`/api/upload/download-url/${key}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${editorToken}` },
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(403)
+    })
+
+    it('allows download when user is owner', async () => {
+      const key = `${Date.now()}-download-owner.png`
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'download-owner.png', 'image/png', 100, TEST_USERS[1].id).run()
+
+      const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
+      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'editor' })
+
+      await s3.send(new PutObjectCommand({
+        Bucket: TEST_ENV.R2_BUCKET_NAME,
+        Key: key,
+        Body: new Uint8Array([1, 2, 3]),
+        ContentType: 'image/png'
+      }))
+
+      const res = await app.request(`/api/upload/download-url/${key}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${editorToken}` },
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(200)
+      const body = await res.json<{ downloadUrl: string }>()
+      expect(body.downloadUrl).toBeDefined()
     })
   })
 
@@ -211,16 +291,78 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'delete-me.png', 'image/png', fileSize, TEST_USERS[0].id).run()
       await db.prepare("UPDATE system_stats SET value = ? WHERE id = 'total_storage_bytes'").bind(String(fileSize)).run()
 
-      // Pre-upload the file to MinIO so HeadObjectCommand succeeds
-      const presignRes = await app.request('/api/upload/presign', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename: key, mimeType: 'image/png', sizeBytes: 3 }),
-      }, { ...TEST_ENV, DB: db })
-      const { uploadUrl } = await presignRes.json<{ uploadUrl: string }>()
-      await fetch(uploadUrl, { method: 'PUT', body: new Uint8Array([1, 2, 3]), headers: { 'Content-Type': 'image/png' } })
+      await s3.send(new PutObjectCommand({
+        Bucket: TEST_ENV.R2_BUCKET_NAME,
+        Key: key,
+        Body: new Uint8Array([1, 2, 3]),
+        ContentType: 'image/png'
+      }))
 
       const res = await app.request(`/api/upload/${key}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(200)
+
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).toBeNull()
+    })
+
+    it('returns 404 when file is not found in database', async () => {
+      const res = await app.request(`/api/upload/nonexistent-key.png`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(404)
+    })
+
+    it('returns 403 when user is not owner and not admin', async () => {
+      const key = `${Date.now()}-owner-test.png`
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'owner-test.png', 'image/png', 100, TEST_USERS[0].id).run()
+
+      const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
+      const editorToken = await tokenService.issue({ sub: TEST_USERS[1].id, email: TEST_USERS[1].email, role: 'editor' })
+
+      const res = await app.request(`/api/upload/${key}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${editorToken}` },
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(403)
+    })
+
+    it('allows delete if user is admin even if not owner', async () => {
+      const key = `${Date.now()}-admin-delete-test.png`
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'admin-delete-test.png', 'image/png', 100, TEST_USERS[1].id).run()
+
+      const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)
+      const adminRoleToken = await tokenService.issue({ sub: TEST_USERS[0].id, email: TEST_USERS[0].email, role: 'admin' })
+
+      await s3.send(new PutObjectCommand({
+        Bucket: TEST_ENV.R2_BUCKET_NAME,
+        Key: key,
+        Body: new Uint8Array([1, 2, 3]),
+        ContentType: 'image/png'
+      }))
+
+      const res = await app.request(`/api/upload/${key}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminRoleToken}` },
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(200)
+    })
+
+    it('sanitizes relative paths and non-standard characters from key before deletion', async () => {
+      const key = `${Date.now()}-traversal.png`
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'traversal.png', 'image/png', 100, TEST_USERS[0].id).run()
+
+      await s3.send(new PutObjectCommand({
+        Bucket: TEST_ENV.R2_BUCKET_NAME,
+        Key: key,
+        Body: new Uint8Array([1, 2, 3]),
+        ContentType: 'image/png'
+      }))
+
+      const res = await app.request(`/api/upload/..%2F..%2F${key}!@%23`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${adminToken}` },
       }, { ...TEST_ENV, DB: db })

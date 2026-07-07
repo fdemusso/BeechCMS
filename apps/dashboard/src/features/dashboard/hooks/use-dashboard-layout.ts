@@ -1,11 +1,11 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+﻿// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { generateDefaultDashboardLayout, type DashboardLayout, type Seed } from "@beechcms/core"
-import { useSchema } from "@/features/schema"
+import { useSchema } from "@/features/shared"
 import { DASHBOARD_QUERY_KEYS } from "@/features/shared"
 import { dashboardApi } from "../api/dashboard.api"
 

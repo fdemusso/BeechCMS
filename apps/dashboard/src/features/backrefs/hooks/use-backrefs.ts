@@ -4,8 +4,9 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { backrefsApi } from '../api'
+import { BACKREF_QUERY_KEY } from '@/features/shared'
 
-export const BACKREF_QUERY_KEY = 'backrefs' as const
+export { BACKREF_QUERY_KEY }
 
 export function useBackrefs(targetSlug: string, targetId: string) {
   return useQuery({

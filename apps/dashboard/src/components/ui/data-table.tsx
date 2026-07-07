@@ -16,6 +16,7 @@ import {
   useReactTable,
   type ColumnDef,
   type ColumnFiltersState,
+  type ColumnSizingState,
   type GroupingState,
   type ExpandedState,
   type PaginationState,
@@ -27,6 +28,12 @@ import { useVirtualizer } from "@tanstack/react-virtual"
 import { ChevronRight, ChevronDown } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
+import {
+  type TableDensity,
+  DEFAULT_DENSITY,
+  DENSITY_ROW_HEIGHT,
+  DENSITY_CELL_PADDING,
+} from "@/lib/density"
 import {
   Pagination,
   PaginationContent,
@@ -51,6 +58,7 @@ import {
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area"
 
 const DEFAULT_PAGE_SIZE = 10
+const CELL_CLICK_DELAY_MS = 200
 /** Altezza riga condivisa da tutte le tabelle dell'app — riusala per coerenza dimensionale. */
 export const ROW_HEIGHT_PX = 48
 /** Altezza container in modalità virtual scroll (gruppi espansi) */
@@ -129,6 +137,18 @@ interface DataTableProps<TData, TValue> {
   onGroupingChange?: (grouping: GroupingState) => void
   /** Callback opzionale al doppio click su una riga. */
   onRowDoubleClick?: (row: TData) => void
+  /** Abilita il ridimensionamento colonne (default: false). */
+  enableColumnResizing?: boolean
+  /** Larghezze colonne controllate dall'esterno (opzionale). */
+  columnSizing?: ColumnSizingState
+  /** Callback al cambio larghezze colonne (modalità controllata). */
+  onColumnSizingChange?: (sizing: ColumnSizingState) => void
+  /** Densità righe (default: "normal"). */
+  density?: TableDensity
+  /** Single-click activation of a cell value (e.g. click-to-filter). Feature-agnostic. */
+  onCellActivate?: (columnId: string, row: TData) => void
+  /** Column ids that must NOT trigger onCellActivate (interactive columns). */
+  cellActivateExcludedColumnIds?: string[]
 }
 
 export function DataTable<TData, TValue>(
@@ -166,6 +186,12 @@ export function DataTable<TData, TValue>(
     grouping: groupingProp,
     onGroupingChange,
     onRowDoubleClick,
+    enableColumnResizing,
+    columnSizing: columnSizingProp,
+    onColumnSizingChange,
+    density,
+    onCellActivate,
+    cellActivateExcludedColumnIds,
   } = props
   const { t } = useTranslation()
   const [internalSorting, setInternalSorting] = React.useState<SortingState>([])
@@ -189,6 +215,11 @@ export function DataTable<TData, TValue>(
     React.useState<VisibilityState>(initialVisibility)
   const isControlledColumnVisibility = columnVisibilityProp !== undefined
   const columnVisibility = columnVisibilityProp ?? internalColumnVisibility
+
+  const [internalColumnSizing, setInternalColumnSizing] =
+    React.useState<ColumnSizingState>({})
+  const isControlledColumnSizing = columnSizingProp !== undefined
+  const columnSizing = columnSizingProp ?? internalColumnSizing
   const [internalRowSelection, setInternalRowSelection] =
     React.useState<RowSelectionState>({})
   const isControlledRowSelection = rowSelectionProp !== undefined
@@ -220,6 +251,12 @@ export function DataTable<TData, TValue>(
     ? (onGlobalFilterChange ?? (() => {}))
     : setInternalGlobalFilter
 
+  const cellClickTimerRef = React.useRef<number | null>(null)
+  const cellActivateExcludedColumnIdSet = React.useMemo(
+    () => new Set(cellActivateExcludedColumnIds ?? []),
+    [cellActivateExcludedColumnIds]
+  )
+
   // Grouping state
   const isControlledGrouping = groupingProp !== undefined
   const [internalGrouping, setInternalGrouping] = React.useState<GroupingState>([])
@@ -231,6 +268,10 @@ export function DataTable<TData, TValue>(
 
   // Ref per il container scroll virtuale
   const scrollContainerRef = React.useRef<HTMLDivElement>(null)
+
+  const activeDensity = density ?? DEFAULT_DENSITY
+  const rowHeight = DENSITY_ROW_HEIGHT[activeDensity]
+  const cellPadding = DENSITY_CELL_PADDING[activeDensity]
 
   const handleSortingChange = React.useCallback(
     (
@@ -290,6 +331,22 @@ export function DataTable<TData, TValue>(
       onColumnVisibilityChange?.(next)
     },
     [columnVisibility, isControlledColumnVisibility, onColumnVisibilityChange]
+  )
+
+  const handleColumnSizingChange = React.useCallback(
+    (
+      updaterOrValue:
+        | ColumnSizingState
+        | ((old: ColumnSizingState) => ColumnSizingState)
+    ) => {
+      const next =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(columnSizing)
+          : updaterOrValue
+      if (!isControlledColumnSizing) setInternalColumnSizing(next)
+      onColumnSizingChange?.(next)
+    },
+    [columnSizing, isControlledColumnSizing, onColumnSizingChange]
   )
 
   const handlePaginationChange = React.useCallback(
@@ -388,6 +445,9 @@ export function DataTable<TData, TValue>(
     manualSorting,
     manualFiltering,
     pageCount: manualPagination ? pageCountProp : undefined,
+    enableColumnResizing,
+    columnResizeMode: "onChange",
+    onColumnSizingChange: handleColumnSizingChange,
     state: {
       sorting,
       columnFilters,
@@ -399,6 +459,7 @@ export function DataTable<TData, TValue>(
         : pagination,
       grouping,
       expanded,
+      columnSizing,
     },
     onPaginationChange: handlePaginationChange,
   })
@@ -423,7 +484,7 @@ export function DataTable<TData, TValue>(
   const virtualizer = useVirtualizer({
     count: isGroupingActive ? flatRows.length : 0,
     getScrollElement: () => (isGroupingActive ? scrollContainerRef.current : null),
-    estimateSize: () => ROW_HEIGHT_PX,
+    estimateSize: () => rowHeight,
     overscan: 5,
   })
 
@@ -446,7 +507,7 @@ export function DataTable<TData, TValue>(
         <TableRow
           key={row.id}
           className="cursor-pointer bg-muted/40 hover:bg-muted/60"
-          style={{ height: ROW_HEIGHT_PX }}
+          style={{ height: rowHeight }}
           onClick={() => row.toggleExpanded()}
         >
           <TableCell
@@ -481,17 +542,38 @@ export function DataTable<TData, TValue>(
           onRowDoubleClick && "cursor-pointer select-none",
           rowStyles?.rowClassName ?? getRowClassName?.(row.original)
         )}
-        style={{ height: ROW_HEIGHT_PX }}
-        onDoubleClick={() => onRowDoubleClick?.(row.original)}
+        style={{ height: rowHeight }}
+        onDoubleClick={() => {
+          if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
+          onRowDoubleClick?.(row.original)
+        }}
       >
         {row.getVisibleCells().map((cell) => {
           const cellInner = flexRender(
             cell.column.columnDef.cell,
             cell.getContext()
           )
-          const cellClassName =
+          const canActivateCell =
+            !!onCellActivate && !cellActivateExcludedColumnIdSet.has(cell.column.id)
+          const cellClassName = cn(
+            cellPadding,
             rowStyles?.cellClassNameByColumnId?.[cell.column.id] ??
-            getCellClassName?.(row.original, cell.column.id)
+              getCellClassName?.(row.original, cell.column.id),
+            canActivateCell && "cursor-pointer"
+          )
+          const cellStyle = enableColumnResizing
+            ? { width: cell.column.getSize() }
+            : undefined
+
+          const handleCellClick = (e: React.MouseEvent<HTMLTableCellElement>) => {
+            if (!canActivateCell) return
+            if ((e.target as HTMLElement).closest("button, a, input, [role='button'], [data-no-cell-filter]"))
+              return
+            if (cellClickTimerRef.current) window.clearTimeout(cellClickTimerRef.current)
+            cellClickTimerRef.current = window.setTimeout(() => {
+              onCellActivate?.(cell.column.id, row.original)
+            }, CELL_CLICK_DELAY_MS)
+          }
 
           const shouldWrapWithContextMenu =
             !!renderRowContextMenuContent &&
@@ -499,7 +581,7 @@ export function DataTable<TData, TValue>(
 
           if (!shouldWrapWithContextMenu) {
             return (
-              <TableCell key={cell.id} className={cellClassName}>
+              <TableCell key={cell.id} className={cellClassName} style={cellStyle} onClick={handleCellClick}>
                 {cellInner}
               </TableCell>
             )
@@ -508,7 +590,7 @@ export function DataTable<TData, TValue>(
           return (
             <ContextMenu key={cell.id}>
               <ContextMenuTrigger asChild>
-                <TableCell className={cellClassName}>{cellInner}</TableCell>
+                <TableCell className={cellClassName} style={cellStyle} onClick={handleCellClick}>{cellInner}</TableCell>
               </ContextMenuTrigger>
               <ContextMenuContent>
                 {renderRowContextMenuContent(row.original)}
@@ -519,6 +601,35 @@ export function DataTable<TData, TValue>(
       </TableRow>
     )
   }
+
+  const renderHeaderGroups = () =>
+    table.getHeaderGroups().map((headerGroup) => (
+      <TableRow key={headerGroup.id}>
+        {headerGroup.headers.map((header) => (
+          <TableHead
+            key={header.id}
+            style={enableColumnResizing ? { position: "relative", width: header.getSize() } : undefined}
+          >
+            {header.isPlaceholder
+              ? null
+              : flexRender(header.column.columnDef.header, header.getContext())}
+            {enableColumnResizing && header.column.getCanResize() && (
+              <button
+                type="button"
+                aria-label={t("toolbar.settings.resizeColumn")}
+                onMouseDown={header.getResizeHandler()}
+                onTouchStart={header.getResizeHandler()}
+                className={cn(
+                  "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none",
+                  "bg-transparent hover:bg-border",
+                  header.column.getIsResizing() && "bg-primary"
+                )}
+              />
+            )}
+          </TableHead>
+        ))}
+      </TableRow>
+    ))
 
   return (
     <div className="flex h-full w-full flex-col">
@@ -532,20 +643,7 @@ export function DataTable<TData, TValue>(
           >
             <Table>
               <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
+                {renderHeaderGroups()}
               </TableHeader>
               <TableBody>
                 {flatRows.length > 0 ? (
@@ -588,26 +686,13 @@ export function DataTable<TData, TValue>(
                   ? data.length
                   : table.getFilteredRowModel().rows.length
                 const rowCount = Math.min(totalRows, pagination.pageSize)
-                return rowCount * ROW_HEIGHT_PX
+                return rowCount * rowHeight
               })(),
             }}
           >
             <Table>
               <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead key={header.id}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
+                {renderHeaderGroups()}
               </TableHeader>
               <TableBody>
                 {table.getRowModel().rows?.length ? (
@@ -628,7 +713,7 @@ export function DataTable<TData, TValue>(
                         <TableRow
                           key={`placeholder-${i}`}
                           className="border-b border-dashed"
-                          style={{ height: ROW_HEIGHT_PX }}
+                          style={{ height: rowHeight }}
                         >
                           {Array.from({ length: colCount }, (_, colIndex) => (
                             <TableCell key={colIndex} className="align-middle" />

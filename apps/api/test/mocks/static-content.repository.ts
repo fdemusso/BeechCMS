@@ -202,6 +202,18 @@ export class StaticContentRepository implements ContentRepository {
     return { newValue }
   }
 
+  async updateWithKanbanPosition(
+    seed: Seed,
+    id: string,
+    patch: Record<string, unknown> | null,
+    _position: string,
+    _axisBranchId: string,
+    _ctx: { actor: string },
+  ): Promise<{ success: boolean }> {
+    if (patch) await this.update(seed, id, patch as Record<string, any>)
+    return { success: true }
+  }
+
   async runBatch(operations: BatchWrite[]): Promise<void> {
     for (const op of operations) {
       if (op.kind === 'create') {
@@ -244,11 +256,11 @@ export class StaticContentRepository implements ContentRepository {
   }
 
   async bulkUpdate(
-    seedSlug: string,
+    seed: Seed,
     ids: string[],
     fields: Record<string, BulkFieldUpdate>,
   ): Promise<{ updated: number; failed: Array<{ id: string; reason: string }> }> {
-    const table = this.tables.get(seedSlug)
+    const table = this.tables.get(seed.slug)
     if (!table) return { updated: 0, failed: ids.map((id) => ({ id, reason: 'seed-not-found' })) }
 
     let updated = 0

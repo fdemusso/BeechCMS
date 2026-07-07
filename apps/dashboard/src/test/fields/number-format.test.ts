@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect } from "vitest"
-import { formatNumber } from "@/features/fields/display/number-format"
+import { formatNumber } from "@/components/fields/display/number-format"
 
 describe("formatNumber", () => {
   it("formatta correttamente in currency", () => {

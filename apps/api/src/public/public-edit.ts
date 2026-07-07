@@ -5,7 +5,7 @@
 import { isValidContentStatus, resolvePolicies, EntryNotFoundError } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 import type { Context } from 'hono'
-import { cleanStr } from '../shared/query-utils'
+import { cleanStr } from '../shared/utils/query-utils'
 import { checkPublicOperation } from './access-policy'
 import { publicProblem } from './problem-details'
 import { slugify } from './slug-utils'

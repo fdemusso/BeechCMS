@@ -990,7 +990,11 @@ describe('DELETE /:slug/hard — media cascade (deleteSeedMediaObjects)', () => 
         },
       }),
     }
-    const { app, bucket, mediaRepository } = buildApp({ role: 'admin', repo, mutator, db })
+    const mediaRepository = {
+      getByKey: vi.fn().mockResolvedValue({ key: 'abc123.png', size_bytes: 100 }),
+      untrack: vi.fn().mockResolvedValue(undefined),
+    }
+    const { app, bucket } = buildApp({ role: 'admin', repo, mutator, db, mediaRepository })
 
     const res = await app.request(
       '/articles/hard',

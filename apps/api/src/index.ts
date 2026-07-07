@@ -6,15 +6,41 @@ import { createBeechApp } from './factory'
 import { SeedRegistry, SystemIdGenerator } from '@beechcms/core'
 import type { QueueMessage } from '@beechcms/core'
 import { runCronAutomations } from './features/automations'
-import { D1AutomationRepository } from './shared/automations.repository.d1'
-import { D1ContentRepository } from './shared/content.repository.d1'
-import { D1SeedRepository } from './shared/seed.repository.d1'
-import { dispatchQueueBatch } from './shared/queue-consumer'
+import { D1AutomationRepository } from './shared/db/repositories/automations.repository.d1'
+import { D1ContentRepository } from './shared/db/repositories/content.repository.d1'
+import { D1SeedRepository } from './shared/db/repositories/seed.repository.d1'
+import { dispatchQueueBatch } from './shared/jobs/queue-consumer'
 import type { Env } from './types'
 
 const jobs = {} satisfies Record<string, never>
 
 const app = createBeechApp({ seeds: [], jobs })
+
+// // TODO: remove debug log endpoints
+// const globalLogs: any[] = []
+// app.post('/auth/kanban-debug-log', async (c) => {
+//   try {
+//     const body = await c.req.json()
+//     globalLogs.push({
+//       timestamp: new Date().toISOString(),
+//       message: body.message,
+//       data: body.data
+//     })
+//     if (globalLogs.length > 200) globalLogs.shift()
+//     return c.json({ success: true })
+//   } catch (err) {
+//     return c.json({ error: String(err) }, 500)
+//   }
+// })
+// 
+// app.get('/auth/kanban-debug-log', (c) => {
+//   return c.json(globalLogs)
+// })
+// 
+// app.delete('/auth/kanban-debug-log', (c) => {
+//   globalLogs.length = 0
+//   return c.json({ success: true })
+// })
 
 app.get('/', (c) => c.text('Beech API is running'))
 

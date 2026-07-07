@@ -4,7 +4,7 @@
 
 import { createMiddleware } from 'hono/factory'
 import type { Env, Variables } from '../types'
-import { getHydratedRegistry } from '../shared/seed-registry-cache'
+import { getHydratedRegistry } from '../shared/services/cache/seed-registry-cache'
 
 /**
  * Hydrates the seed registry from D1 and injects seedRegistry, getSeed, and backrefMap

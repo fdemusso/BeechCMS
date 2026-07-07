@@ -10,8 +10,8 @@ import {
   RelationTargetNotFoundError,
 } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
-import { cleanStr } from '../../shared/query-utils'
-import { applyVisibility } from '../../shared/apply-policies'
+import { cleanStr } from '../../shared/utils/query-utils'
+import { applyVisibility } from '../../shared/policies/apply-policies'
 import { AppEnv } from '../../types'
 import { CONTENT_ERRORS } from '../content/constants'
 import { draftGuard } from './draft.middleware'

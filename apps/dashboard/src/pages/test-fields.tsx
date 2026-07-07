@@ -4,10 +4,11 @@
 
 import * as React from "react"
 import type { Branch } from "@beechcms/core"
-import { FieldEdit } from "@/features/fields/FieldEdit"
+import { FieldEdit } from "@/components/fields"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar, SiteHeader } from "@/features/navigation"
 
+/** Hardcoded schema branch definition for testing the RichText field editor. */
 const RICHTEXT_BRANCH: Branch = {
   id: "br_01",
   alias: "body",
@@ -15,6 +16,13 @@ const RICHTEXT_BRANCH: Branch = {
   type: "richtext",
 }
 
+/**
+ * TestFieldsPage component.
+ * Playground page providing a test sandbox environment for checking field editor inputs
+ * (specifically rich text) alongside real-time raw HTML outputs and compiled visual previews.
+ *
+ * @returns The rendered test page React element.
+ */
 export function TestFieldsPage() {
   const [html, setHtml] = React.useState<string>(
     "<h2>Titolo di esempio</h2><p>Scrivi qui il tuo contenuto <strong>ricco</strong>.</p><ul><li>Primo punto</li><li>Secondo punto</li></ul>"

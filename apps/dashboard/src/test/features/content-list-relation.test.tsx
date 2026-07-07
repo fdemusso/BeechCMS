@@ -22,16 +22,26 @@ vi.mock("@/lib/api", () => ({
   },
 }))
 
-vi.mock("@/features/schema", () => ({
+vi.mock("@/features/shared", () => ({
   useSchema: vi.fn(),
   useActiveSeed: vi.fn(),
 }))
 
 import { api } from "@/lib/api"
-import { useSchema } from "@/features/schema"
+import { useSchema } from "@/features/shared"
 import { useContentList } from "@/features/content-management/hooks/use-content-list"
-import { RelationDisplay } from "@/features/fields/display/relation"
+import { RelationDisplay } from "@/components/fields/display/relation"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
+import { FieldsProvider, type FieldsContextType } from "@/components/fields/context"
+
+const mockFieldsConfig: FieldsContextType = {
+  useSchema,
+  fetchById: async (slug, id) => (await api.get(`/content/${slug}/${id}`)).data,
+  searchRelations: async (slug, params) =>
+    (await api.get(`/content/${slug}`, { params: { ...params, page: 1 } })).data.items,
+  queryKeys: { detail: CONTENT_QUERY_KEYS.detail, lists: CONTENT_QUERY_KEYS.lists },
+  components: { EntryEditorDialog: () => null, RichtextEditor: () => null },
+}
 
 function makeQueryClient() {
   return new QueryClient({
@@ -168,7 +178,9 @@ describe("RelationDisplay — resolves from primed cache synchronously", () => {
     render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter>
-          <RelationDisplay branch={branch as any} value="team-1" />
+          <FieldsProvider value={mockFieldsConfig}>
+            <RelationDisplay branch={branch as any} value="team-1" />
+          </FieldsProvider>
         </MemoryRouter>
       </QueryClientProvider>
     )

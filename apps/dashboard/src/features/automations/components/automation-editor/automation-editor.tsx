@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+import { ScrollArea } from '@/components/ui/scroll-area'
 import type { Automation, Branch } from '@beechcms/core'
 import { TriggerSection } from './trigger-section'
 import { ActionsSection } from './actions-section'
@@ -49,7 +50,7 @@ export function AutomationEditor({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent showCloseButton={false} className="max-w-2xl p-0 gap-0">
+      <DialogContent showCloseButton={false} className="sm:max-w-xl p-0 gap-0 overflow-hidden">
         <FormProvider {...form}>
           <form onSubmit={onSubmit}>
             {/* Header */}
@@ -70,16 +71,16 @@ export function AutomationEditor({
             </DialogHeader>
 
             {/* Body — scrollable */}
-            <div className="max-h-[60vh] overflow-y-auto">
+            <ScrollArea className="max-h-[60vh]">
               <div className="px-6 py-4 flex flex-col gap-0">
                 <TriggerSection seedBranches={seedBranches} />
                 <VisualConnector />
                 <ActionsSection seedBranches={seedBranches} seedSlug={seedSlug} />
               </div>
-            </div>
+            </ScrollArea>
 
             {/* Footer */}
-            <DialogFooter className="px-6 py-4 border-t">
+            <DialogFooter className="mx-0 mb-0 px-6 py-4 border-t">
               <Button
                 type="button"
                 variant={isEdit ? 'outline' : 'destructive'}

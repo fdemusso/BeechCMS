@@ -8,7 +8,7 @@
 
 :root {
   font-family: "Geist Variable", "Inter", system-ui, sans-serif;
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 400;
   line-height: 1.5;
 
@@ -28,14 +28,15 @@
     --muted-foreground  → placeholder, descrizioni, hint → SEMPRE leggibile su --muted
   */
 
-  /* Type scale: base 15px, Perfect Fourth 1.333 */
-  --font-size-xs: 0.703125rem;   /* 11.25px */
-  --font-size-sm: 0.9375rem;     /* 15px body */
-  --font-size-base: 1.25rem;     /* 20px */
-  --font-size-lg: 1.666875rem;   /* 26.67px */
-  --font-size-xl: 2.2225rem;     /* 35.56px */
-  --font-size-2xl: 2.963125rem;  /* 47.41px */
-  --font-size-3xl: 3.95rem;      /* 63.2px */
+  /* Type scale: Tailwind standard (16px base) */
+  --font-size-xs: 0.75rem;       /* 12px */
+  --font-size-sm: 0.875rem;      /* 14px */
+  --font-size-base: 1rem;        /* 16px */
+  --font-size-lg: 1.125rem;      /* 18px */
+  --font-size-xl: 1.25rem;       /* 20px */
+  --font-size-2xl: 1.5rem;       /* 24px */
+  --font-size-3xl: 1.875rem;     /* 30px */
+  --font-size-4xl: 2.25rem;      /* 36px */
 
   --radius: 0.875rem;       /* base = 6px — scala: sm 4px · md 6px · lg 8px · xl 10px */
 
@@ -123,13 +124,14 @@ h1 {
 
 @theme inline {
   --font-sans: 'Geist Variable', sans-serif;
-  --font-size-xs: 0.703125rem;
-  --font-size-sm: 0.9375rem;
-  --font-size-base: 1.25rem;
-  --font-size-lg: 1.666875rem;
-  --font-size-xl: 2.2225rem;
-  --font-size-2xl: 2.963125rem;
-  --font-size-3xl: 3.95rem;
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-base: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+  --font-size-4xl: 2.25rem;
   --radius-sm: calc(var(--radius) - 2px);   /* 4px */
   --radius-md: var(--radius);                /* 6px — bottoni, input, badge, chip */
   --radius-lg: calc(var(--radius) + 2px);   /* 8px — card, dialog, popover */
@@ -240,7 +242,7 @@ h1 {
   }
   body {
     @apply font-sans bg-background text-foreground;
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-base);
     font-weight: 400;
   }
   #root {

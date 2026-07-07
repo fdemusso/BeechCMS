@@ -5,9 +5,9 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
-import { sendPasswordResetEmail, resolveEmailLocale } from '../email'
+import { sendPasswordResetEmail, resolveEmailLocale } from '../../shared/email'
 import { sha256hex } from '@beechcms/core'
-import { getClientIp } from '../../shared/request-utils'
+import { getClientIp } from '../../shared/utils/request-utils'
 
 const PASSWORD_RESET_TOKEN_EXPIRY_SECONDS = 30 * 60
 

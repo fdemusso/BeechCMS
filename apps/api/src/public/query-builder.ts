@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { Seed, FilterGroup, FilterOperator, FilterType, BranchType } from '@beechcms/core'
-import { parsePositiveInt } from '../shared/query-utils'
+import { parsePositiveInt } from '../shared/utils/query-utils'
 
 export type PublicQueryInput = {
   page?: string

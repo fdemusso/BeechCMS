@@ -65,7 +65,7 @@ vi.mock("@/components/ui/progress", () => ({
   Progress: () => <progress />,
 }))
 
-vi.mock("@/features/fields", () => ({
+vi.mock("@/components/fields", () => ({
   FieldEdit: ({ branch, value, onChange }: any) => (
     <input
       aria-label={`field-${branch.alias}`}

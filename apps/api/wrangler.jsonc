@@ -83,12 +83,20 @@
     "crons": ["* * * * *"]
   },
 
-  // CORS e variabili
-  // MEDIA_BASE_URL: in dev punta al proxy Vite (5173) per evitare CORS e semplificare il debugging
-  // JWT_SECRET NON va in vars: è un segreto e finirebbe in chiaro nel deploy.
-  // In dev locale: impostalo in .dev.vars (vedi .dev.vars.example).
-  // In produzione: npx wrangler secret put JWT_SECRET (>= 32 byte casuali).
+  // ─── Variabili di default (sviluppo locale) ──────────────────────────────────
+  // Queste vars sono usate da `wrangler dev`. NON vengono usate in produzione:
+  // il deploy usa `wrangler deploy --env production` che eredita la sezione
+  // `env.production` qui sotto, sovrascrivendo ENV e rimuovendo le var dev-only.
+  //
+  // Secrets che NON devono mai stare in vars (né qui né in env.production):
+  //   JWT_SECRET          → npx wrangler secret put JWT_SECRET --env production
+  //   RESEND_API_KEY      → npx wrangler secret put RESEND_API_KEY --env production
+  //   PUBLIC_READ_API_KEY → npx wrangler secret put PUBLIC_READ_API_KEY --env production
+  //   PUBLIC_WRITE_API_KEY→ npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
+  //   WEBHOOK_SECRET      → npx wrangler secret put WEBHOOK_SECRET --env production
+  //   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME
   "vars": {
+    "ENV": "development",
     "CORS_ORIGINS": "http://localhost:5173,http://localhost:5174,https://dashboard.beech.local",
     "PUBLIC_READ_API_KEY": "dev-public-read-key-changeme",
     "PUBLIC_WRITE_API_KEY": "dev-public-write-key-changeme",
@@ -96,17 +104,55 @@
     "PUBLIC_IDEMPOTENCY_TTL_SECONDS": "86400",
     "MEDIA_BASE_URL": "http://localhost:5173",
     "DATE_FORMAT": "DD-MM-YYYY",
-    // URL del dashboard (usato per costruire i link nelle email di reset password)
-    // In prod: wrangler secret put EMAIL_PROVIDER (resend), RESEND_API_KEY, APP_URL, EMAIL_FROM.
-    // In dev locale: EMAIL_PROVIDER=smtp punta Mailpit su localhost:8025.
     "APP_URL": "http://localhost:5173",
-    "ENV": "development",
+    // In dev locale: EMAIL_PROVIDER=smtp punta Mailpit su localhost:8025.
     "EMAIL_PROVIDER": "smtp",
     "SMTP_HOST": "localhost",
     "SMTP_PORT": "8025",
     "EMAIL_FROM": "Beech CMS <dev@beech.local>",
     "WEBHOOK_TESTER_URL": "http://localhost:8084",
-    // In produzione impostare come secret: npx wrangler secret put WEBHOOK_SECRET
     "WEBHOOK_SECRET": "dev-webhook-secret-changeme"
+  },
+
+  // ─── Ambiente di produzione ───────────────────────────────────────────────────
+  // Usato da: `wrangler deploy --env production` (vedi script "deploy" in package.json).
+  // Sovrascrive le vars top-level; i binding (d1, ratelimits, queues) vengono ereditati.
+  //
+  // Prima del primo deploy, configura i secrets con:
+  //   npx wrangler secret put JWT_SECRET --env production
+  //   npx wrangler secret put RESEND_API_KEY --env production
+  //   npx wrangler secret put PUBLIC_READ_API_KEY --env production
+  //   npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
+  //   npx wrangler secret put WEBHOOK_SECRET --env production
+  //   npx wrangler secret put R2_ACCESS_KEY_ID --env production
+  //   npx wrangler secret put R2_SECRET_ACCESS_KEY --env production
+  //   npx wrangler secret put R2_ENDPOINT --env production
+  //   npx wrangler secret put R2_BUCKET_NAME --env production
+  "env": {
+    "production": {
+      "vars": {
+        // ✅ FIX: ENV=production attiva i rate limiter Cloudflare (login, refresh,
+        // forgotPassword, resetPassword, publicApiRead, publicApiWrite).
+        "ENV": "production",
+
+        // Sostituisci con il dominio reale del tuo progetto:
+        "CORS_ORIGINS": "https://SOSTITUISCI_CON_IL_TUO_DOMINIO",
+        "APP_URL": "https://SOSTITUISCI_CON_IL_TUO_DOMINIO",
+        "MEDIA_BASE_URL": "https://SOSTITUISCI_CON_IL_TUO_DOMINIO",
+
+        "PUBLIC_PUBLISHED_ONLY": "true",
+        "PUBLIC_IDEMPOTENCY_TTL_SECONDS": "86400",
+        "DATE_FORMAT": "DD-MM-YYYY",
+
+        // In produzione usa Resend (o altro provider SMTP reale).
+        // Imposta RESEND_API_KEY come wrangler secret (non qui).
+        "EMAIL_PROVIDER": "resend",
+        "EMAIL_FROM": "Beech CMS <noreply@SOSTITUISCI_CON_IL_TUO_DOMINIO>"
+
+        // Le seguenti vars NON compaiono qui: sono wrangler secrets.
+        // PUBLIC_READ_API_KEY, PUBLIC_WRITE_API_KEY, JWT_SECRET,
+        // RESEND_API_KEY, WEBHOOK_SECRET, R2_*, SMTP_*
+      }
+    }
   }
 }

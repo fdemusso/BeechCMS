@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect } from 'vitest'
-import { SmtpEmailProvider } from '../src/features/email/providers/smtp'
+import { SmtpEmailProvider } from '../src/shared/email/providers/smtp'
 import { waitForMessage, getMessageHtml, getMailpitPort } from './helpers/mailpit-client'
 
 describe('SmtpEmailProvider (integration with Mailpit)', () => {

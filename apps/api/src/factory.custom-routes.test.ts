@@ -13,8 +13,8 @@
 
 import { describe, it, expect } from 'vitest'
 import { createBeechApp } from './factory'
-import { InMemorySeedRepository } from './shared/in-memory-seed.repository'
-import { JoseTokenService } from './auth/jose-token-service'
+import { InMemorySeedRepository } from './shared/db/repositories/in-memory-seed.repository'
+import { JoseTokenService } from './auth/providers/jwt-token.service'
 import { SystemClock } from '@beechcms/core'
 import type { Env } from './types'
 

@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+﻿// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 // This module's only purpose is the `registerWidget()` side effects below;
@@ -13,7 +13,7 @@ import { z } from "zod"
 import { FileText, Globe, Zap, Database, LineChart, BarChart3, AreaChart } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 import type { Seed } from "@beechcms/core"
-import { useSchema } from "@/features/schema"
+import { useSchema } from "@/features/shared"
 import { registerWidget } from "./widget-registry"
 import type { DashboardWidgetProps } from "./widget-definition"
 import { useDashboardStats, useCloudflareStats } from "../hooks/use-dashboard-stats"

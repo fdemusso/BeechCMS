@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, expect, it } from 'vitest'
-import { extractMediaKeysFromData } from '../src/media-utils'
+import { extractMediaKeysFromData } from '../src/shared/utils/media-utils'
 import { TEST_SEEDS } from './fixtures'
 
 const seed = TEST_SEEDS[0] // posts in fixtures
@@ -27,5 +27,23 @@ describe('media-utils - extractMediaKeysFromData', () => {
       image: 'https://other-cdn.com/img.png'
     }
     expect(extractMediaKeysFromData(seed, data)).toEqual([])
+  })
+
+  it('estrae chiave da URL con CDN configurato', () => {
+    const data = {
+      title: 'Post',
+      image: 'https://cdn.my-site.com/avatars/123-img.png'
+    }
+    const keys = extractMediaKeysFromData(seed, data, 'https://cdn.my-site.com')
+    expect(keys).toEqual(['avatars/123-img.png'])
+  })
+
+  it('estrae chiave con slasi/gerarchia da URL standard', () => {
+    const data = {
+      title: 'Post',
+      image: 'https://example.com/api/media/avatars/user-1.png'
+    }
+    const keys = extractMediaKeysFromData(seed, data)
+    expect(keys).toEqual(['avatars/user-1.png'])
   })
 })

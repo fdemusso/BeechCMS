@@ -26,6 +26,8 @@ export const META = {
   dashOrder: "br_meta_dash_order",
   dashHidden: "br_meta_dash_hidden",
   dashDescription: "br_meta_dash_desc",
+  dashViewGallery: "br_meta_dash_view_gallery",
+  dashViewKanban: "br_meta_dash_view_kanban",
 } as const
 
 export interface BuildMetaBranchesOptions {
@@ -97,6 +99,12 @@ export function buildMetaBranches(t: TFunction, opts: BuildMetaBranchesOptions):
       label: t("seedBuilder.editor.dashDescription"),
       hint: t("seedBuilder.editor.hints.dashDescription"),
       type: "text" },
+    { id: META.dashViewGallery, alias: "dash_view_gallery",
+      label: t("seedBuilder.editor.dashViewGallery", { defaultValue: "Enable Gallery view" }),
+      type: "boolean" },
+    { id: META.dashViewKanban, alias: "dash_view_kanban",
+      label: t("seedBuilder.editor.dashViewKanban", { defaultValue: "Enable Kanban view" }),
+      type: "boolean" },
   ]
 }
 
@@ -160,6 +168,14 @@ export function buildMetaLayout(t: TFunction): FormLayout {
             columns: [
               { id: "dashboard-extra-c1", fields: [{ branchId: META.dashHidden }] },
               { id: "dashboard-extra-c2", fields: [{ branchId: META.dashDescription }] },
+            ],
+          },
+          {
+            id: "dashboard-views",
+            label: t("seedBuilder.editor.dashViewsSection", { defaultValue: "Authorized views" }),
+            columns: [
+              { id: "dashboard-views-c1", fields: [{ branchId: META.dashViewGallery }] },
+              { id: "dashboard-views-c2", fields: [{ branchId: META.dashViewKanban }] },
             ],
           },
         ],

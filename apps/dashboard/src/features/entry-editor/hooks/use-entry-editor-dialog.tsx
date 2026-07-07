@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -24,7 +24,7 @@ import {
   useDiscardDraft,
   useDeleteContent,
 } from "@/features/content-management"
-import { useActiveSeed } from "@/features/schema"
+import { useActiveSeed } from "@/features/shared"
 import { useAuth } from "@/lib/auth-context"
 import { Loader2 } from "lucide-react"
 import type { RendererBranchMap } from "../renderer/layout-renderer"
@@ -36,6 +36,9 @@ export interface UseEntryEditorDialogProps {
   isDraftContext: boolean
   onClose: () => void
   readonly?: boolean
+  onSaved?: (info: { entryId?: string; data: Record<string, unknown>; isCreate: boolean }) => void
+  /** Pre-seed values for CREATE mode (e.g. kanban column axis value). Ignored in edit mode. */
+  defaultValues?: Record<string, unknown>
 }
 
 export interface EditorBranch {
@@ -112,7 +115,7 @@ export function prepareSubmissionPayload({
 
   return {
     slug: slug.trim() || null,
-    status: status.trim() || "draft",
+    status: status.trim() || "published",
     ...processed,
   }
 }
@@ -141,6 +144,8 @@ export function useEntryEditorDialog({
   isDraftContext,
   onClose,
   readonly,
+  onSaved,
+  defaultValues,
 }: UseEntryEditorDialogProps): SchemaFormViewModel {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -173,7 +178,7 @@ export function useEntryEditorDialog({
   const { mutateAsync: discardDraft, isPending: isDiscarding } = useDiscardDraft()
 
   const [formData, setFormData] = React.useState<Record<string, unknown>>({})
-  const [status, setStatus] = React.useState<string>("draft")
+  const [status, setStatus] = React.useState<string>("published")
   const [slug, setSlug] = React.useState<string>("")
   const [slugTouched, setSlugTouched] = React.useState(false)
   const [isDirty, setIsDirty] = React.useState(false)
@@ -257,26 +262,33 @@ export function useEntryEditorDialog({
     }
   }
 
-  // Sync live data from query to local state
+  // Sync live data and draft data from queries to local state
   const [prevEntryData, setPrevEntryData] = React.useState<unknown>(undefined)
-  if (entryData !== prevEntryData) {
-    setPrevEntryData(entryData)
-    if (entryData) {
-      setFormData(entryData.data ?? {})
-      setStatus(entryData.status ?? "draft")
-      setSlug(entryData.slug ?? "")
-      setIsDirty(false)
-    }
-  }
-
-  // When entering from the Drafts list, override form with draft data once loaded.
   const [prevDraftData, setPrevDraftData] = React.useState<unknown>(undefined)
   const [prevEffectiveDraftContext, setPrevEffectiveDraftContext] = React.useState<boolean | undefined>(undefined)
-  if (draftData !== prevDraftData || effectiveDraftContext !== prevEffectiveDraftContext) {
-    setPrevDraftData(draftData)
-    setPrevEffectiveDraftContext(effectiveDraftContext)
-    if (effectiveDraftContext && draftData) {
-      setFormData(draftData)
+
+  const hasNewEntryData = entryData !== prevEntryData
+  const hasNewDraftData = draftData !== prevDraftData
+  const hasNewContext = effectiveDraftContext !== prevEffectiveDraftContext
+
+  if (hasNewEntryData || hasNewDraftData || hasNewContext) {
+    if (hasNewEntryData) setPrevEntryData(entryData)
+    if (hasNewDraftData) setPrevDraftData(draftData)
+    if (hasNewContext) setPrevEffectiveDraftContext(effectiveDraftContext)
+
+    if (entryData) {
+      const liveData = entryData.data ?? {}
+      if (effectiveDraftContext) {
+        const activeDraft = (draftData as Record<string, unknown> | undefined) || {}
+        setFormData({
+          ...liveData,
+          ...activeDraft,
+        })
+      } else {
+        setFormData(liveData)
+      }
+      setStatus(entryData.status ?? "draft")
+      setSlug(entryData.slug ?? "")
       setIsDirty(false)
     }
   }
@@ -293,8 +305,8 @@ export function useEntryEditorDialog({
     setPrevIsCreate(isCreate)
     setPrevBranches(branches)
     if (seed && isCreate) {
-      setFormData(createInitialFormData(branches))
-      setStatus("draft")
+      setFormData({ ...createInitialFormData(branches), ...(defaultValues ?? {}) })
+      setStatus("published")
       setSlug("")
       setSlugTouched(false)
     }
@@ -340,10 +352,15 @@ export function useEntryEditorDialog({
     setFieldErrors({})
     try {
       const payload = prepareSubmissionPayload({ branches, formData, slug, status })
-      await saveContent({ slug: schemaSlug, id: isCreate ? undefined : entryId, data: payload })
+      const result = await saveContent({ slug: schemaSlug, id: isCreate ? undefined : entryId, data: payload })
       toast.success(isCreate ? t("content.editor.createdSuccess") : t("content.editor.savedSuccess"))
       setIsDirty(false)
       hasJustSavedRef.current = true
+      onSaved?.({
+        entryId: isCreate ? (result as { id?: string } | undefined)?.id : entryId,
+        data: payload,
+        isCreate,
+      })
       onClose()
     } catch (err) {
       type ApiValidationError = { field: string; message: string }

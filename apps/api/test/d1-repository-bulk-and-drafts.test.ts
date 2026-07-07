@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from 'vitest'
-import { D1ContentRepository } from '../src/shared/content.repository.d1'
+import { D1ContentRepository } from '../src/shared/db/repositories/content.repository.d1'
 import { RelationTargetNotFoundError, RepositoryError } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 
@@ -229,7 +229,7 @@ describe('D1ContentRepository — bulkUpdate', () => {
       .mockResolvedValueOnce(Promise.reject(new Error('boom'))) // err-id
 
     const repo = new D1ContentRepository(db)
-    const result = await repo.bulkUpdate('articles', ['ok-id', 'missing-id', 'fk-id', 'err-id'], FIELDS as any)
+    const result = await repo.bulkUpdate(ARTICLE_SEED, ['ok-id', 'missing-id', 'fk-id', 'err-id'], FIELDS as any)
 
     expect(result.updated).toBe(1)
     expect(result.failed).toEqual([
@@ -242,7 +242,7 @@ describe('D1ContentRepository — bulkUpdate', () => {
   it('returns immediately with zero updates for an empty id list', async () => {
     const { db, batchMock } = makeMockDb()
     const repo = new D1ContentRepository(db)
-    const result = await repo.bulkUpdate('articles', [], FIELDS as any)
+    const result = await repo.bulkUpdate(ARTICLE_SEED, [], FIELDS as any)
     expect(result).toEqual({ updated: 0, failed: [] })
     expect(batchMock).not.toHaveBeenCalled()
   })

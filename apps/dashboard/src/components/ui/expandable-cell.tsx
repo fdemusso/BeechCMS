@@ -69,7 +69,7 @@ export function ExpandableCell({
       role="button"
       tabIndex={0}
       className={cn(
-        "cursor-pointer select-none overflow-hidden text-ellipsis whitespace-nowrap block transition-[max-width] duration-300 ease-in-out",
+        "cursor-pointer select-none overflow-hidden text-ellipsis whitespace-nowrap block max-w-full transition-[max-width] duration-300 ease-in-out",
         className
       )}
       style={{

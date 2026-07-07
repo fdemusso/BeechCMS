@@ -38,38 +38,25 @@ node scripts/release.mjs [--bump patch|minor|major] [--preview] [--dry-run]
 Or via pnpm shortcuts:
 
 ```bash
-<<<<<<< HEAD
-ppnpm run release           # stable release (strip preview suffix)
-ppnpm run release:preview   # preview release (same base, increment N)
-=======
 pnpm run release           # stable release (strip preview suffix)
 pnpm run release:preview   # preview release (same base, increment N)
->>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 ```
 
 ### Options
 
 | Flag | Description |
 |---|---|
-| `patch`, `minor`, `major` | Positional argument to bump version (e.g. `ppnpm run release patch`) |
+| `patch`, `minor`, `major` | Positional argument to bump version (e.g. `pnpm run release patch`) |
 | `--bump <type>` | Alternative syntax for bumping (requires `--` if using `pnpm run`) |
 | `--preview` | Publish to `next` tag with `-preview.N` suffix |
 | `--dry-run` | Print every step without writing files or publishing |
 
 > **Note on `pnpm run` syntax:** 
-<<<<<<< HEAD
-> When using `ppnpm run release`, pnpm might consume some flags. To be safe, either use positional arguments or use the `--` separator:
-> ```bash
-> ppnpm run release patch --dry-run      # ✅ Works (positional)
-> ppnpm run release -- --bump patch      # ✅ Works (with --)
-> ppnpm run release --preview            # ✅ Works
-=======
 > When using `pnpm run release`, pnpm might consume some flags. To be safe, either use positional arguments or use the `--` separator:
 > ```bash
 > pnpm run release patch --dry-run      # ✅ Works (positional)
 > pnpm run release -- --bump patch      # ✅ Works (with --)
 > pnpm run release --preview            # ✅ Works
->>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 > ```
 
 ### Examples
@@ -99,13 +86,9 @@ node scripts/release.mjs --bump minor --dry-run
 
 ## Atomicity and Rollback
 
-The script is designed to be atomic on the filesystem: before touching any file it snapshots all six `package.json` files and `LICENSE`. If **type-check**, **build**, or **publish** fails, the snapshot is restored and the script exits with a non-zero code — leaving the working tree exactly as it was before the run.
+The script is designed to be atomic on the filesystem: before touching any file it snapshots all four `package.json` files. If **build** or **publish** fails, the snapshot is restored and the script exits with a non-zero code — leaving the working tree exactly as it was before the run.
 
-<<<<<<< HEAD
 The one exception is pnpm itself: if the second or third package fails to publish, the packages already pushed to the registry in that run are **not** rolled back (pnpm does not support unpublish on scoped packages after a short window). In that case, manually bump and re-publish the missing packages.
-=======
-The one exception is pnpm itself: if a later package fails to publish, the packages already pushed to the registry in that run are **not** rolled back (pnpm does not support unpublish on scoped packages after a short window). In that case, manually bump and re-publish the missing packages.
->>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 
 If the **git step** fails after a successful publish, file changes are intentionally kept (they reflect what is on pnpm) and the script prints the exact commands to recover:
 ```
@@ -116,36 +99,20 @@ git add -A && git commit -m "chore: release <version>" && git tag v<version>
 
 ## What the Script Does
 
-The script runs the following steps in sequence:
+The script runs four steps in sequence:
 
 ### 1. Bump versions
 
-<<<<<<< HEAD
 Updates `"version"` in the package manifests to the computed next version, and also updates any internal `@beechcms/*` cross-references in `dependencies`:
-=======
-Updates `"version"` in the package manifests to the computed next version, and also updates any internal `@beechcms/*` (or `@beech/*`) cross-references in `dependencies`, `devDependencies`, and `peerDependencies`:
->>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 
 - `packages/core/package.json` — `@beechcms/core`
 - `packages/widget-sdk/package.json` — `@beechcms/widget-sdk`
 - `packages/cli/package.json` — `@beechcms/cli`
 - `apps/api/package.json` — `@beechcms/api`
-- `apps/dashboard/package.json` — `@beechcms/dashboard` (version bumped, but **not published** — built into the API assets, see step 2b)
 - `package.json` (root) — `@beechcms/cms`
 
-### 1b. Update LICENSE change date
+### 2. Build
 
-<<<<<<< HEAD
-=======
-Bumps the `Change Date:` line in `LICENSE` to four years from the release date.
-
-### 2. Type-check
-
-Runs `pnpm run type-check` at the monorepo root. Failure triggers rollback before anything is built or published.
-
-### 2 (cont.). Build
-
->>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 Runs `pnpm run build` at the monorepo root, which delegates to Turborepo. Build order is enforced by `turbo.json` (`@beechcms/core` before consumers).
 
 ### 2b. Copy dashboard assets
@@ -154,11 +121,7 @@ Copies the compiled React admin dashboard from `apps/dashboard/dist/admin` into 
 
 ### 3. Publish
 
-<<<<<<< HEAD
 Publishes each package to pnpm in dependency order with `--access public --tag <next|latest>`. Packages are published in this order:
-=======
-Publishes each package to pnpm in dependency order with `--access public --no-git-checks --tag <next|latest>`. Packages are published in this order:
->>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 
 1. `@beechcms/core`
 2. `@beechcms/widget-sdk`
@@ -168,7 +131,7 @@ Publishes each package to pnpm in dependency order with `--access public --no-gi
 
 ### 4. Git tag
 
-Runs `pnpm install --no-frozen-lockfile` to refresh `pnpm-lock.yaml` against the bumped workspace specifiers, then stages all six modified `package.json` files (`core`, `widget-sdk`, `cli`, `api`, `dashboard`, root), the `apps/api/assets/dashboard` bundle, `pnpm-lock.yaml`, and `LICENSE`, creates a commit (`chore: release <version>`), and tags it `v<version>`.
+Stages the four modified `package.json` files, creates a commit (`chore: release <version>`), and tags it `v<version>`.
 
 > **Note:** the script does **not** push to remote. After the script completes, push manually:
 > ```bash

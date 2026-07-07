@@ -4,7 +4,7 @@
 
 import { useEffect } from "react"
 import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom"
-import { LoginForm } from "@/features/auth/components/login-form"
+import { LoginForm } from "@/features/auth"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { ContentListPage } from "@/pages/content-list"
 import { TestFieldsPage } from "@/pages/test-fields"
@@ -20,7 +20,29 @@ import { CommandPalette } from "@/features/command-palette"
 import { AnalyticsPage } from "@/pages/analytics"
 import { CreateNewPage } from "@/pages/create-new"
 import { ScheduledPage } from "@/pages/scheduled"
+import { FieldsProvider } from "@/components/fields/context"
+import { useSchema } from "@/features/shared"
+import { contentApi } from "@/features/content-management/api/content.api"
+import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
+import { EntryEditorDialog } from "@/features/entry-editor"
+import { RichtextEditor } from "@/features/richtext-editor"
 import "./App.css"
+
+/**
+ * Concrete implementation of {@link FieldsContextType} serving as the dependency
+ * injection composition root for all custom fields in the dashboard application.
+ */
+const fieldsConfig = {
+  useSchema,
+  fetchById: (slug: string, id: string) => contentApi.fetchById(slug, id),
+  searchRelations: (slug: string, params: { search?: string; limit?: number }) =>
+    contentApi.fetchList(slug, { ...params, page: 1 }).then((response) => response.items),
+  queryKeys: {
+    detail: CONTENT_QUERY_KEYS.detail,
+    lists: CONTENT_QUERY_KEYS.lists,
+  },
+  components: { EntryEditorDialog, RichtextEditor },
+}
 
 function SplashScreen() {
   return (
@@ -212,10 +234,19 @@ const router = createBrowserRouter([
   },
 ], { basename: '/admin' })
 
+/**
+ * The root Application component.
+ * Configures the Authentication Context Provider, the Fields Context Provider
+ * (passing the injected composition root), and renders the React Router Provider.
+ *
+ * @returns The bootstrap React element for the application.
+ */
 function App() {
   return (
     <AuthProvider>
-      <RouterProvider router={router} />
+      <FieldsProvider value={fieldsConfig}>
+        <RouterProvider router={router} />
+      </FieldsProvider>
     </AuthProvider>
   )
 }

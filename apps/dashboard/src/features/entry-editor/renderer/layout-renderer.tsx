@@ -1,205 +1,51 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+// See LICENSE in the repository root for license terms.
 
 import * as React from "react"
-import { useTranslation } from "react-i18next"
-import { Asterisk, ChevronDown } from "lucide-react"
-import type { FormLayout, LayoutSection, LayoutTab, LayoutColumn } from "@beechcms/core"
-import type { Branch } from "@beechcms/core"
-import { Label } from "@/components/ui/label"
+import type { FormLayout, Branch } from "@beechcms/core"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { FieldEdit } from "@/features/fields"
+import { TabSections } from "./layout-elements"
 
-export interface RendererBranchMap { [id: string]: Branch }
-
-export interface RendererProps {
-  layout: FormLayout
-  branchById: RendererBranchMap
-  formData: Record<string, unknown>
-  fieldErrors: Record<string, string>
-  onChange: (alias: string, value: unknown) => void
-  dangerZoneSlot?: React.ReactNode
-  dangerZoneLabel?: string
-  activeTabId?: string
-  onActiveTabChange?: (tabId: string) => void
-  isReadOnly?: boolean
+/** Dictionary mapping schema branch IDs to their corresponding Branch configuration. */
+export interface RendererBranchMap {
+  [id: string]: Branch
 }
 
+/** Properties for the {@link LayoutRenderer} component. */
+export interface RendererProps {
+  /** The full grid/tab layout schema configured for the entry form. */
+  readonly layout: FormLayout
+  /** The lookup map to retrieve branch definitions by ID. */
+  readonly branchById: RendererBranchMap
+  /** The reactive key-value map representing the current form input state. */
+  readonly formData: Record<string, unknown>
+  /** Dictionary containing validation error messages indexed by branch/field alias. */
+  readonly fieldErrors: Record<string, string>
+  /** Callback fired when any field value changes. */
+  readonly onChange: (alias: string, value: unknown) => void
+  /** Optional React element to render inside a separate "Danger Zone" layout tab. */
+  readonly dangerZoneSlot?: React.ReactNode
+  /** Custom label for the Danger Zone tab trigger. Defaults to "Danger Zone". */
+  readonly dangerZoneLabel?: string
+  /** Controls active tab ID from a parent state (controlled tab). */
+  readonly activeTabId?: string
+  /** Callback triggered when the active tab selection changes. */
+  readonly onActiveTabChange?: (tabId: string) => void
+  /** Disables editing inputs when set to true. */
+  readonly isReadOnly?: boolean
+}
+
+/** Static ID representing the injected Danger Zone tab structure. */
 const DANGER_ZONE_TAB_ID = "__danger_zone__"
 
-function gridClassFor(n: number): string {
-  switch (n) {
-    case 1: return "grid-cols-1"
-    case 2: return "grid-cols-1 sm:grid-cols-2"
-    case 3: return "grid-cols-1 sm:grid-cols-2 md:grid-cols-3"
-    case 4: return "grid-cols-1 sm:grid-cols-2 md:grid-cols-4"
-    default: return "grid-cols-1"
-  }
-}
-
-function ColumnRenderer({
-  column,
-  branchById,
-  formData,
-  fieldErrors,
-  onChange,
-}: {
-  column: LayoutColumn
-  branchById: RendererBranchMap
-  formData: Record<string, unknown>
-  fieldErrors: Record<string, string>
-  onChange: (alias: string, value: unknown) => void
-}) {
-  const { t } = useTranslation()
-
-  if (column.fields.length === 0) {
-    return (
-      <div className="text-sm text-muted-foreground italic py-2">
-        {t("content.editor.emptyColumn")}
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      {column.fields.map((f) => {
-        const branch = branchById[f.branchId]
-        if (branch == null) return null
-        return (
-          <div key={f.branchId} className="space-y-2">
-            <Label htmlFor={branch.alias} className="flex items-center gap-1">
-              {branch.hint ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span className="cursor-help">
-                      {branch.label}
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-64">
-                    {branch.hint}
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                branch.label
-              )}
-              {branch.requiredOnCreate && (
-                <Asterisk className="inline size-3 text-destructive" />
-              )}
-            </Label>
-            <FieldEdit
-              branch={branch as any}
-              value={formData[branch.alias]}
-              onChange={(v) => onChange(branch.alias, v)}
-            />
-            {fieldErrors[branch.alias] && (
-              <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
-            )}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function SectionRenderer({
-  section,
-  isLast,
-  branchById,
-  formData,
-  fieldErrors,
-  onChange,
-}: {
-  section: LayoutSection
-  isLast: boolean
-  branchById: RendererBranchMap
-  formData: Record<string, unknown>
-  fieldErrors: Record<string, string>
-  onChange: (alias: string, value: unknown) => void
-}) {
-  const [isCollapsed, setIsCollapsed] = React.useState(false)
-  const showBorder = !section.hideBorder && !isLast
-  const showHeader = section.collapsible || (!section.hideLabel && !!section.label)
-
-  return (
-    <section className={`px-6 py-4 space-y-4 ${showBorder ? "border-b" : ""}`}>
-      {showHeader && (
-        <header className="flex items-center gap-2">
-          {!section.hideLabel && section.label && (
-            <span className="text-sm font-medium text-muted-foreground">{section.label}</span>
-          )}
-          {section.collapsible && (
-            <button
-              type="button"
-              onClick={() => setIsCollapsed((v) => !v)}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              aria-expanded={!isCollapsed}
-            >
-              <ChevronDown
-                className={`size-4 transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`}
-              />
-            </button>
-          )}
-        </header>
-      )}
-      {!isCollapsed && (
-        <div className={`grid gap-4 ${gridClassFor(section.columns.length)}`}>
-          {section.columns.map((col) => (
-            <ColumnRenderer
-              key={col.id}
-              column={col}
-              branchById={branchById}
-              formData={formData}
-              fieldErrors={fieldErrors}
-              onChange={onChange}
-            />
-          ))}
-        </div>
-      )}
-    </section>
-  )
-}
-
-function TabSections({
-  tab,
-  branchById,
-  formData,
-  fieldErrors,
-  onChange,
-}: {
-  tab: LayoutTab
-  branchById: RendererBranchMap
-  formData: Record<string, unknown>
-  fieldErrors: Record<string, string>
-  onChange: (alias: string, value: unknown) => void
-}) {
-  const { t } = useTranslation()
-
-  if (tab.sections.length === 0) {
-    return (
-      <p className="text-sm text-muted-foreground py-4">
-        {t("content.editor.emptyTab")}
-      </p>
-    )
-  }
-
-  return (
-    <div>
-      {tab.sections.map((section, i) => (
-        <SectionRenderer
-          key={section.id}
-          section={section}
-          isLast={i === tab.sections.length - 1}
-          branchById={branchById}
-          formData={formData}
-          fieldErrors={fieldErrors}
-          onChange={onChange}
-        />
-      ))}
-    </div>
-  )
-}
-
+/**
+ * LayoutRenderer component.
+ * Core rendering component that takes a form layout, maps database entry values to fields,
+ * and renders tabs, collapsible sections, and responsive grids of editor inputs.
+ *
+ * @param props - Component properties conforming to {@link RendererProps}.
+ */
 export function LayoutRenderer({
   layout,
   branchById,
@@ -212,28 +58,33 @@ export function LayoutRenderer({
   onActiveTabChange,
   isReadOnly,
 }: RendererProps) {
-  const [internalActiveTabId, setInternalActiveTabId] = React.useState(() => layout.tabs[0]?.id ?? "")
+  const [internalActiveTabId, setInternalActiveTabId] = React.useState(
+    () => layout.tabs[0]?.id ?? ""
+  )
 
   const activeTabId = propActiveTabId !== undefined ? propActiveTabId : internalActiveTabId
-  const setActiveTabId = onActiveTabChange !== undefined ? onActiveTabChange : setInternalActiveTabId
+  const setActiveTabId =
+    onActiveTabChange !== undefined ? onActiveTabChange : setInternalActiveTabId
 
   React.useEffect(() => {
-    const exists = layout.tabs.some((t) => t.id === activeTabId) || (!!dangerZoneSlot && activeTabId === DANGER_ZONE_TAB_ID)
+    const exists =
+      layout.tabs.some((tab) => tab.id === activeTabId) ||
+      (!!dangerZoneSlot && activeTabId === DANGER_ZONE_TAB_ID)
     if (!exists && layout.tabs.length > 0) {
       setActiveTabId(layout.tabs[0].id)
     }
   }, [layout, activeTabId, dangerZoneSlot, setActiveTabId])
 
   return (
-    <Tabs value={activeTabId} onValueChange={setActiveTabId} className="rounded-lg border overflow-hidden flex flex-col">
+    <Tabs
+      value={activeTabId}
+      onValueChange={setActiveTabId}
+      className="rounded-lg border overflow-hidden flex flex-col"
+    >
       <div className="px-6 bg-transparent">
         <TabsList variant="line" className="flex w-fit justify-start gap-6 p-0 h-auto">
           {layout.tabs.map((tab) => (
-            <TabsTrigger
-              key={tab.id}
-              value={tab.id}
-              className="px-0 py-3 font-medium"
-            >
+            <TabsTrigger key={tab.id} value={tab.id} className="px-0 py-3 font-medium">
               {tab.label}
             </TabsTrigger>
           ))}

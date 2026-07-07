@@ -55,7 +55,6 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Utilities**
     - `date-fns`: `^4.1.0` (date formatting)
     - `lowlight`: `^3.3.0` (syntax highlighting in TipTap code blocks)
-    - `agentation`: `^3.0.2` (visual feedback toolbar — development tool)
   - **Internationalisation (i18n)**
     - `i18next` `^26.0.6`, `react-i18next` `^17.0.4`, `i18next-browser-languagedetector` `^8.2.1`
     - Setup: `apps/dashboard/src/lib/i18n.ts` — initialized before render via `import '@/lib/i18n'` in `main.tsx`.
@@ -93,6 +92,7 @@ This high-level system map is designed for onboarding new contributors and for A
 - **Architecture & Tooling**
   - Monorepo **Turborepo** (`turbo` `^2.8.7`) with **pnpm workspaces**
   - Shared package `@beechcms/core` (version `0.5.0`) for types, seeds, and the Botanical Engine
+  - Tooling package `@beechcms/cli` providing the unified CLI wrapper (`pnpm beech`)
 
 ---
 
@@ -104,6 +104,7 @@ This high-level system map is designed for onboarding new contributors and for A
 │   ├── api/           # REST API (Hono + Cloudflare Workers/D1/R2) — Vertical Slice Architecture
 │   └── dashboard/     # React frontend (Vite + Tailwind + Field Renderers) — Vertical Slice Architecture
 ├── packages/
+│   ├── cli/           # @beechcms/cli – Unified Developer Tooling and command handlers
 │   └── core/          # @beechcms/core – Botanical Engine and shared types
 ├── docs/
 │   ├── Sprints/       # Technical debt and sprint tracking
