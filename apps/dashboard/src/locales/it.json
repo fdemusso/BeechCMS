@@ -607,7 +607,9 @@
       "status": "Stato",
       "pendingDraft": "Bozza in sospeso",
       "item": "voce",
-      "items": "voci"
+      "items": "voci",
+      "created": "Creato",
+      "updated": "Ultima modifica"
     }
   },
   "toolbar": {
@@ -643,6 +645,7 @@
       "groupedBy": "Raggruppato per: {{label}}"
     },
     "settings": {
+      "selectAxisField": "Per favore seleziona un campo per raggruppare le schede dalle impostazioni (icona ingranaggio) in alto a destra.",
       "tooltip": "Impostazioni vista",
       "title": "Impostazioni vista",
       "viewName": "Nome vista",
@@ -662,6 +665,11 @@
       "decreaseRows": "Diminuisci righe",
       "increaseRows": "Aumenta righe",
       "rows": "Righe",
+      "density": "Densità",
+      "densityCompact": "Compatta",
+      "densityNormal": "Normale",
+      "densityComfortable": "Comoda",
+      "resizeColumn": "Ridimensiona colonna",
       "conditionalColors": "Colori condizionali",
       "visibleColumns": "Colonne visibili",
       "columnVisibility": "Visibilità colonne",
@@ -1402,6 +1410,17 @@
         "orphansFailed": "Caricamento colonne orfane fallito",
         "ftsRebuildFailed": "Ricostruzione FTS fallita"
       }
+    }
+  },
+  "kanban": {
+    "cardConfig": {
+      "title": "Layout scheda",
+      "mediaSlot": "Media",
+      "headerSlot": "Intestazione",
+      "subtitleSlot": "Sottotitolo",
+      "metadataSlot": "Metadati",
+      "noField": "Nessun campo",
+      "openConfig": "Configura layout scheda"
     }
   }
 }

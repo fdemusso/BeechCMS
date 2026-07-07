@@ -1,3 +1,9 @@
+---
+title: System Map
+group: Developer Guide (Internals)
+category: Core Concepts
+---
+
 # Beech CMS – System Map
 
 ## Overview
@@ -55,7 +61,6 @@ This high-level system map is designed for onboarding new contributors and for A
   - **Utilities**
     - `date-fns`: `^4.1.0` (date formatting)
     - `lowlight`: `^3.3.0` (syntax highlighting in TipTap code blocks)
-    - `agentation`: `^3.0.2` (visual feedback toolbar — development tool)
   - **Internationalisation (i18n)**
     - `i18next` `^26.0.6`, `react-i18next` `^17.0.4`, `i18next-browser-languagedetector` `^8.2.1`
     - Setup: `apps/dashboard/src/lib/i18n.ts` — initialized before render via `import '@/lib/i18n'` in `main.tsx`.
@@ -93,6 +98,7 @@ This high-level system map is designed for onboarding new contributors and for A
 - **Architecture & Tooling**
   - Monorepo **Turborepo** (`turbo` `^2.8.7`) with **pnpm workspaces**
   - Shared package `@beechcms/core` (version `0.5.0`) for types, seeds, and the Botanical Engine
+  - Tooling package `@beechcms/cli` providing the unified CLI wrapper (`pnpm beech`)
 
 ---
 
@@ -104,6 +110,7 @@ This high-level system map is designed for onboarding new contributors and for A
 │   ├── api/           # REST API (Hono + Cloudflare Workers/D1/R2) — Vertical Slice Architecture
 │   └── dashboard/     # React frontend (Vite + Tailwind + Field Renderers) — Vertical Slice Architecture
 ├── packages/
+│   ├── cli/           # @beechcms/cli – Unified Developer Tooling and command handlers
 │   └── core/          # @beechcms/core – Botanical Engine and shared types
 ├── docs/
 │   ├── Sprints/       # Technical debt and sprint tracking
@@ -289,7 +296,7 @@ This high-level system map is designed for onboarding new contributors and for A
   - CRUD: `GET /api/automations?seed=<slug>`, `POST /api/automations`, `GET /api/automations/:id`, `PUT /api/automations/:id`, `PATCH /api/automations/:id/toggle`, `DELETE /api/automations/:id`. All JWT-protected. Validation via Zod (`automations.schema.ts`).
   - **Runtime execution:** content handlers (`create`, `update`, `delete`) call `c.get('scheduler').waitUntil(c.get('automationRunner').run({ seedSlug, event, entry }))` after a successful write. `AutomationRunner` queries `IAutomationRepository.findActive(seedSlug, event)`, evaluates `TriggerCondition[]` via `evaluateConditions`, then dispatches each `AutomationAction` to the matching executor.
   - **Action executors** (`apps/api/src/features/automations/action-executors/`):
-    - `webhook` — HTTP call to `action.url` with optional template interpolation of `{{field}}` placeholders from the entry payload.
+    - `webhook` — HTTP call to `action.url` with optional template interpolation of `\{\{field\}\}` placeholders from the entry payload.
     - `send_mail` — calls the shared `sendAutomationMail` helper (Resend REST API); requires `EMAIL_API_KEY` or `RESEND_API_KEY` in env.
     - `edit_field` — updates a single field on the triggering entry via `ContentRepository`.
     - `create_entry` — creates a new entry in a (potentially different) seed, mapping fields via `action.field_map`.

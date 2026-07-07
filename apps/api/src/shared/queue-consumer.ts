@@ -5,7 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { JobRegistry, JobContext, QueueMessage } from '@beechcms/core'
-import { D1ContentRepository } from './content.repository.d1'
+import { D1ContentRepository } from './db/repositories/content.repository.d1'
 import { createBucketProvider } from './storage/factory'
 import type { Env } from '../types'
 

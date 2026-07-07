@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { ColumnDef, AggregationFn, GroupingColumnDef } from "@tanstack/react-table"
+import type { ColumnDef, GroupingColumnDef } from "@tanstack/react-table"
 import type { Seed } from "@beechcms/core"
 import {
   MoreHorizontal,
@@ -13,11 +13,14 @@ import {
   Code,
   FileText,
   File,
-  Link as LinkIcon
+  Link as LinkIcon,
 } from "lucide-react"
 import { toast } from "sonner"
 
-import { FieldDisplay } from "@/features/fields"
+import { FieldDisplay } from "@/components/fields"
+import { IndicatorIcon } from "@/components/ui/indicator-icon"
+import { RelativeTime } from "@/components/ui/relative-time"
+import { getStatusTone, STATUS_TONE_DOT_CLASS } from "@/lib/status-tone"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -29,59 +32,58 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  matchesFilterGroup,
-  normalizeDateToYmd,
-} from "@/lib/filter-dsl"
-import {
-  pendingDraftBadgeClass,
-  shouldShowPendingDraftBadge,
-} from "@/lib/pending-draft"
+import { matchesFilterGroup } from "@/lib/filter-dsl"
+import { pendingDraftBadgeClass, shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 
-/** Lunghezza minima per troncamento celle (evita celle troppo corte) */
-const MIN_TRUNCATE_LENGTH = 20
-/** Tetto massimo per troncamento celle (evita colonne ingestibili con testi lunghi). */
-const MAX_TRUNCATE_LENGTH = 60
+import {
+  type DateGroupPrecision,
+  DEFAULT_DATE_GROUP_PRECISION,
+  getDateGroupValue,
+  booleanAggFn,
+  formatBooleanAggregated,
+  formatSum,
+} from "./dynamic-columns-aggregation"
+
+// Re-export utility functions and types for full compatibility with consumers
+export { computeMaxLengths } from "./dynamic-columns-lengths"
+export {
+  DEFAULT_DATE_GROUP_PRECISION,
+  getDateGroupValue,
+  booleanAggFn,
+  formatBooleanAggregated,
+  formatSum,
+} from "./dynamic-columns-aggregation"
+export type { DateGroupPrecision } from "./dynamic-columns-aggregation"
 
 /**
- * Interfaccia ContentEntry per tipizzazione.
- * Corrisponde alla struttura restituita dall'API GET /api/content/:slug.
+ * Interface representing a CMS content entry.
+ * Corresponds to the entry structure returned by the content management APIs.
  */
 export interface ContentEntry {
+  /** The unique identifier of the entry. */
   id: string
+  /** The schema slug of the seed this entry belongs to. */
   schema_slug: string
-  /** Slug dell'entry (URL-friendly), null se non impostato */
+  /** URL-friendly slug representing this entry, or null if unassigned. */
   slug: string | null
-  /** Stato di pubblicazione (es. draft, published) */
+  /** The publication status (e.g. "draft", "published"). */
   status: string
-  /** True quando esiste una bozza non ancora pubblicata per l'entry. */
+  /** Flag showing if a newer draft exists that has not been published yet. */
   has_pending_draft?: boolean
+  /** Key-value dictionary containing the actual content fields values. */
   data: Record<string, unknown>
+  /** Epoch timestamp of when this entry was created. */
   created_at: number | null
+  /** Epoch timestamp of when this entry was last updated. */
   updated_at: number | null
 }
 
-// ─── Tipi e costanti per raggruppamento date ──────────────────────────────────
-
 /**
- * Granularità per il raggruppamento di branch di tipo `date`.
- * - `year` e `month` sono combinabili (es. "Gennaio 2024")
- * - `day` è esclusivo: se true, year e month devono essere false
- * Default: year + month → "Gennaio 2024"
+ * Maps a schema branch type string to its corresponding Lucide icon component.
+ *
+ * @param type - The branch type string.
+ * @returns The LucideIcon React component.
  */
-export interface DateGroupPrecision {
-  year: boolean
-  month: boolean
-  /** Esclusivo: se true, year e month vengono ignorati */
-  day: boolean
-}
-
-export const DEFAULT_DATE_GROUP_PRECISION: DateGroupPrecision = {
-  year: true,
-  month: true,
-  day: false,
-}
-
 function getIconForType(type: string) {
   switch (type) {
     case "text":
@@ -105,195 +107,21 @@ function getIconForType(type: string) {
   }
 }
 
-// ─── Helpers per raggruppamento e aggregazione ────────────────────────────────
-
 /**
- * Converte un valore di tipo date nella chiave di gruppo secondo la precisione scelta.
- * - day (esclusivo): "15 gennaio 2024"
- * - year + month (default): "gennaio 2024"
- * - year only: "2024"
- * - month only: "gennaio"
- */
-function getDateGroupValue(
-  value: unknown,
-  precision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION
-): string {
-  const d = normalizeDateToYmd(value)
-  if (!d) return "—"
-  // Force UTC midnight to avoid timezone drift
-  const date = new Date(d + "T00:00:00")
-
-  if (precision.day) {
-    return date.toLocaleDateString("en-US", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    })
-  }
-
-  const parts: string[] = []
-  if (precision.month) {
-    parts.push(date.toLocaleDateString("en-US", { month: "long" }))
-  }
-  if (precision.year) {
-    parts.push(String(date.getFullYear()))
-  }
-  return parts.length ? parts.join(" ") : String(date.getFullYear())
-}
-
-/**
- * AggregationFn custom per branch boolean:
- * restituisce { trueCount, falseCount } contando i valori true/false
- * tra le leaf rows del gruppo.
- */
-const booleanAggFn: AggregationFn<ContentEntry> = (_columnId, leafRows) => {
-  let trueCount = 0
-  let falseCount = 0
-  for (const row of leafRows) {
-    const v = row.getValue(_columnId)
-    if (v === true) trueCount++
-    else if (v === false) falseCount++
-  }
-  return { trueCount, falseCount }
-}
-
-function formatBooleanAggregated(value: unknown): string {
-  if (
-    value != null &&
-    typeof value === "object" &&
-    "trueCount" in value &&
-    "falseCount" in value
-  ) {
-    const { trueCount, falseCount } = value as { trueCount: number; falseCount: number }
-    return `✓ ${trueCount} / ✗ ${falseCount}`
-  }
-  return ""
-}
-
-function formatSum(value: unknown, count: number, t: (k: string, o?: any) => string): string {
-  if (typeof value === "number" && !Number.isNaN(value)) {
-    return `Σ ${value.toLocaleString("en-US")} · ${count} ${count === 1 ? t("content.table.item") : t("content.table.items")}`
-  }
-  return `${count} ${count === 1 ? t("content.table.item") : t("content.table.items")}`
-}
-
-function getStatusBadgeVariant(status: string): "default" | "secondary" | "outline" | "destructive" {
-  const normalized = status.trim().toLowerCase()
-  if (!normalized) return "secondary"
-
-  if (["error", "failed", "rejected", "archived"].includes(normalized)) {
-    return "destructive"
-  }
-
-  if (["published", "active", "approved", "online"].includes(normalized)) {
-    return "default"
-  }
-
-  let hash = 0
-  for (let i = 0; i < normalized.length; i++) {
-    const codePoint = normalized.codePointAt(i)
-    if (codePoint == null) continue
-    hash = (hash * 31 + codePoint) >>> 0
-    // Se è una coppia surrogate, salta il carattere successivo.
-    if (codePoint > 0xffff) i++
-  }
-  return hash % 2 === 0 ? "secondary" : "outline"
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Calcola la lunghezza massima di stringa (con troncamento consistente) per un branch di tipo "text"/default.
- */
-function computeMaxStringLength(firstPage: ContentEntry[], alias: string): number {
-  let max = 0
-  for (const row of firstPage) {
-    const val = row.data[alias]
-    if (val == null) continue
-    const len = String(val).length
-    if (len > max) max = len
-  }
-  return Math.min(
-    Math.max(max, MIN_TRUNCATE_LENGTH),
-    MAX_TRUNCATE_LENGTH
-  )
-}
-
-/**
- * Calcola la lunghezza massima di stringa "renderizzata" per un branch JSON.
- * Se il campo sembra essere "tag", viene escluso (nessun troncamento).
- */
-function computeMaxJsonLength(
-  firstPage: ContentEntry[],
-  alias: string,
-): number | null {
-  const isTagsField = alias.toLowerCase().includes("tag")
-  if (isTagsField) return null // I tag (Badge colorati) non usano troncamento
-
-  let max = 0
-  for (const row of firstPage) {
-    const val = row.data[alias]
-    if (val == null) continue
-
-    let str: string
-    if (typeof val === "string") {
-      try {
-        str = JSON.stringify(JSON.parse(val))
-      } catch {
-        str = val
-      }
-    } else {
-      str = JSON.stringify(val)
-    }
-
-    if (str.length > max) max = str.length
-  }
-
-  return Math.min(
-    Math.max(max, MIN_TRUNCATE_LENGTH),
-    MAX_TRUNCATE_LENGTH
-  )
-}
-
-function computeMaxLengthForBranch(
-  branch: Seed["branches"][number],
-  firstPage: ContentEntry[],
-): number | null {
-  if (branch.type === "json") return computeMaxJsonLength(firstPage, branch.alias)
-  if (branch.type === "text") return computeMaxStringLength(firstPage, branch.alias)
-  // Tipi non riconosciuti: tratta come stringa.
-  return computeMaxStringLength(firstPage, branch.alias)
-}
-
-/**
- * Calcola la lunghezza massima per ogni colonna stringa dalla prima pagina di dati.
- * Usata per troncamento consistente: tutte le stringhe più lunghe vengono tagliate con "..."
- * @param data - Tutti i dati (si usano solo i primi rowsPerPage)
- * @param seed - Seed con definizione dei branch
- * @param rowsPerPage - Numero righe della prima pagina (default 10)
- */
-export function computeMaxLengths(
-  data: ContentEntry[],
-  seed: Seed,
-  rowsPerPage: number
-): Record<string, number> {
-  const result: Record<string, number> = {}
-  const firstPage = data.slice(0, rowsPerPage)
-
-  for (const branch of seed.branches) {
-    const maxLength = computeMaxLengthForBranch(branch, firstPage)
-    if (maxLength == null) continue
-    result[branch.alias] = maxLength
-  }
-
-  return result
-}
-
-/**
- * Genera le definizioni delle colonne per TanStack Table basandosi su un Seed.
- * Colonne fisse di sistema: Select, ID, Slug, Stato (Badge), Azioni.
- * Colonne dinamiche: una per ogni seed.branch, con cella renderizzata solo da FieldDisplay.
- * @param maxLengths - Mappa alias -> lunghezza max (da computeMaxLengths); passata a FieldDisplay come options.maxLength.
+ * Generates the unified React Table column definitions mapping.
+ * Combines system columns (selection checkbox, ID, slug, status, timestamps, actions dropdown)
+ * with dynamic data columns representing custom schema fields rendered via {@link FieldDisplay}.
+ *
+ * @param seed - Schema seed definition.
+ * @param onEdit - Callback to edit a selected entry.
+ * @param onDelete - Callback to delete a selected entry.
+ * @param maxLengths - Map containing truncation options.
+ * @param selectedIds - List of currently selected row IDs (for bulk actions).
+ * @param onBulkDelete - Callback to trigger bulk delete.
+ * @param datePrecision - The active grouping precision rules for dates.
+ * @param translate - Localization translation function.
+ * @param onBulkEdit - Callback to trigger bulk edit dialog.
+ * @returns Column definitions list for TanStack Table.
  */
 export function generateColumns(
   seed: Seed,
@@ -303,96 +131,127 @@ export function generateColumns(
   selectedIds: string[] = [],
   onBulkDelete?: (ids: string[]) => void,
   datePrecision: DateGroupPrecision = DEFAULT_DATE_GROUP_PRECISION,
-  t: (key: string, options?: any) => string = (k) => k,
-  onBulkEdit?: (ids: string[]) => void,
+  translate: (key: string, options?: any) => string = (key) => key,
+  onBulkEdit?: (ids: string[]) => void
 ): ColumnDef<ContentEntry>[] {
   const fixedColumns: ColumnDef<ContentEntry>[] = [
     // Colonna Select (checkbox)
     {
-    id: "select",
-    header: ({ table }) => (
-      <Checkbox
-        checked={
-          table.getIsAllPageRowsSelected() ||
-          (table.getIsSomePageRowsSelected() && "indeterminate")
-        }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label={t("common.selectAll")}
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label={t("common.selectRow")}
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
+      id: "select",
+      enableResizing: false,
+      size: 40,
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label={translate("common.selectAll")}
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label={translate("common.selectRow")}
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
     },
 
     // Colonna di sistema: ID
     {
-    id: "id",
-    accessorFn: (row) => row.id,
-    header: "ID",
-    cell: ({ row }) => (
-      <span className="font-mono text-xs truncate max-w-[8rem] block" title={row.original.id}>
-        {row.original.id}
-      </span>
-    ),
-    enableSorting: false,
+      id: "id",
+      size: 160,
+      minSize: 80,
+      maxSize: 400,
+      accessorFn: (row) => row.id,
+      header: "ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-xs truncate max-w-[8rem] block" title={row.original.id}>
+          {row.original.id}
+        </span>
+      ),
+      enableSorting: false,
     },
 
     // Colonna di sistema: Slug
     {
-    id: "slug",
-    accessorFn: (row) => row.slug,
-    header: "Slug",
-    filterFn: (row, columnId, filterValue) =>
-      matchesFilterGroup(row.getValue(columnId), filterValue),
-    cell: ({ row }) => {
-      const slug = row.original.slug
-      return (
-        <span className="text-muted-foreground text-sm">
-          {slug ?? "—"}
-        </span>
-      )
-    },
-    enableSorting: false,
+      id: "slug",
+      size: 160,
+      minSize: 80,
+      maxSize: 400,
+      accessorFn: (row) => row.slug,
+      header: "Slug",
+      filterFn: (row, columnId, filterValue) =>
+        matchesFilterGroup(row.getValue(columnId), filterValue),
+      cell: ({ row }) => {
+        const slug = row.original.slug
+        return <span className="text-muted-foreground text-sm">{slug ?? "—"}</span>
+      },
+      enableSorting: false,
     },
 
-    // Colonna di sistema: Status (Badge)
+    // Colonna di sistema: Status (indicator dot + label)
     {
-    id: "status",
-    accessorFn: (row) => row.status,
-    header: t("content.table.status"),
-    filterFn: (row, columnId, filterValue) =>
-      matchesFilterGroup(row.getValue(columnId), filterValue),
-    cell: ({ row }) => {
-      const status = (row.original.status ?? "").trim() || "—"
-      const variant = getStatusBadgeVariant(status)
-      const hasPendingDraft = shouldShowPendingDraftBadge(
-        row.original.status,
-        row.original.has_pending_draft
-      )
-      return (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <Badge variant={variant}>
-            {status}
-          </Badge>
-          {hasPendingDraft && (
-            <Badge
-              variant="outline"
-              className={`text-xs ${pendingDraftBadgeClass}`}
-            >
-              {t("content.table.pendingDraft")}
-            </Badge>
-          )}
-        </div>
-      )
+      id: "status",
+      size: 160,
+      minSize: 80,
+      maxSize: 400,
+      accessorFn: (row) => row.status,
+      header: translate("content.table.status"),
+      filterFn: (row, columnId, filterValue) =>
+        matchesFilterGroup(row.getValue(columnId), filterValue),
+      cell: ({ row }) => {
+        const status = (row.original.status ?? "").trim() || "—"
+        const tone = getStatusTone(status)
+        const hasPendingDraft = shouldShowPendingDraftBadge(
+          row.original.status,
+          row.original.has_pending_draft
+        )
+        return (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex items-center gap-1.5">
+              <IndicatorIcon colorClassName={STATUS_TONE_DOT_CLASS[tone]} aria-label={status} />
+              <span className="text-sm">{status}</span>
+            </span>
+            {hasPendingDraft && (
+              <Badge variant="outline" className={`text-xs ${pendingDraftBadgeClass}`}>
+                {translate("content.table.pendingDraft")}
+              </Badge>
+            )}
+          </div>
+        )
+      },
+      enableSorting: false,
     },
-    enableSorting: false,
+
+    // System columns: timestamps
+    {
+      id: "updated_at",
+      size: 160,
+      minSize: 80,
+      maxSize: 400,
+      accessorFn: (row) => row.updated_at,
+      header: translate("content.table.updated"),
+      cell: ({ row }) => (
+        <RelativeTime value={row.original.updated_at} className="text-sm text-muted-foreground" />
+      ),
+      enableSorting: false,
+    },
+    {
+      id: "created_at",
+      size: 160,
+      minSize: 80,
+      maxSize: 400,
+      accessorFn: (row) => row.created_at,
+      header: translate("content.table.created"),
+      cell: ({ row }) => (
+        <RelativeTime value={row.original.created_at} className="text-sm text-muted-foreground" />
+      ),
+      enableSorting: false,
     },
   ]
 
@@ -402,6 +261,9 @@ export function generateColumns(
     const baseColumn: ColumnDef<ContentEntry> & GroupingColumnDef<ContentEntry, unknown> = {
       accessorFn: (row) => row.data[branch.alias],
       id: branch.alias,
+      size: 200,
+      minSize: 80,
+      maxSize: 600,
       header: () => (
         <div className="flex items-center gap-[0.5em] font-medium">
           <IconComponent className="h-[1em] w-[1em] shrink-0 text-muted-foreground" />
@@ -423,7 +285,8 @@ export function generateColumns(
         if (!label) return null
         return (
           <span className="text-xs text-muted-foreground">
-            {label} · {count} {count === 1 ? t("content.table.item") : t("content.table.items")}
+            {label} · {count}{" "}
+            {count === 1 ? translate("content.table.item") : translate("content.table.items")}
           </span>
         )
       }
@@ -441,7 +304,7 @@ export function generateColumns(
         const count = row.subRows?.length ?? 0
         return (
           <span className="text-xs text-muted-foreground">
-            {formatSum(getValue(), count, t)}
+            {formatSum(getValue(), count, translate)}
           </span>
         )
       }
@@ -452,7 +315,8 @@ export function generateColumns(
         const count = row.subRows?.length ?? 0
         return (
           <span className="text-xs text-muted-foreground">
-            {count} {count === 1 ? t("content.table.item") : t("content.table.items")}
+            {count}{" "}
+            {count === 1 ? translate("content.table.item") : translate("content.table.items")}
           </span>
         )
       }
@@ -475,6 +339,8 @@ export function generateColumns(
   const actionsColumn: ColumnDef<ContentEntry> = {
     id: "actions",
     enableHiding: false,
+    enableResizing: false,
+    size: 56,
     cell: ({ row }) => {
       const entry = row.original
       const hasBulkSelection = selectedIds.length > 1
@@ -484,23 +350,23 @@ export function generateColumns(
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon-xs">
-                <span className="sr-only">{t("common.openMenu")}</span>
+                <span className="sr-only">{translate("common.openMenu")}</span>
                 <MoreHorizontal />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuLabel>{t("content.actions.label")}</DropdownMenuLabel>
+              <DropdownMenuLabel>{translate("content.actions.label")}</DropdownMenuLabel>
               {hasBulkSelection ? (
                 <>
                   <DropdownMenuItem onClick={() => onBulkEdit?.(selectedIds)}>
-                    {t("bulkEdit.trigger")}
+                    {translate("bulkEdit.trigger")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => onBulkDelete?.(selectedIds)}
                     className="text-destructive focus:text-destructive"
                   >
-                    {t("common.delete")}
+                    {translate("common.delete")}
                   </DropdownMenuItem>
                 </>
               ) : (
@@ -508,12 +374,12 @@ export function generateColumns(
                   <DropdownMenuItem
                     onClick={() => {
                       navigator.clipboard.writeText(entry.id).then(
-                        () => toast.success(t("common.copied")),
-                        () => toast.error(t("common.copyFailed"))
+                        () => toast.success(translate("common.copied")),
+                        () => toast.error(translate("common.copyFailed"))
                       )
                     }}
                   >
-                    {t("content.actions.copyId")}
+                    {translate("content.actions.copyId")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -521,13 +387,13 @@ export function generateColumns(
                       onEdit(entry.id)
                     }}
                   >
-                    {t("common.edit")}
+                    {translate("common.edit")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onDelete(entry.id)}
                     className="text-destructive focus:text-destructive"
                   >
-                    {t("common.delete")}
+                    {translate("common.delete")}
                   </DropdownMenuItem>
                 </>
               )}

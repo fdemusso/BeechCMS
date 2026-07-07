@@ -55,6 +55,8 @@ describe("seedToFormData", () => {
       dash_order: 5,
       dash_hidden: false,
       dash_description: "Articles",
+      dash_view_gallery: false,
+      dash_view_kanban: false,
     })
   })
 
@@ -70,7 +72,8 @@ describe("seedToFormData", () => {
 describe("formDataToSeed", () => {
   it("round-trips a flattened Seed back into the API shape", () => {
     const seed = formDataToSeed(seedToFormData(record))
-    expect(seed).toEqual(record.definition)
+    // views is always emitted by formDataToSeed (defaults to ['table'])
+    expect(seed).toEqual({ ...record.definition, dashboard: { ...record.definition.dashboard, views: ['table'] } })
   })
 
   it("strips client-only ids from new branches (br_new_*)", () => {

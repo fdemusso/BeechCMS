@@ -8,3 +8,9 @@
  */
 export { ContentGallery } from "./content-gallery"
 export type { ContentGalleryProps } from "./types"
+
+import type { IViewRegistry } from '@/features/shared'
+export function registerContentGalleryView(registry: IViewRegistry): void {
+  registry.register({ type: 'gallery', labelKey: 'content.list.gallery',
+    enabledTools: ['filter', 'sort', 'automation', 'search', 'create'] })
+}

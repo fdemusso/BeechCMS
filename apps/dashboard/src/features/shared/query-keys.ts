@@ -5,12 +5,12 @@
 /**
  * Cross-slice TanStack Query keys.
  *
- * Lives in `features/shared` so neither `features/dashboard` nor
- * `features/content-management` has to import from the other. The
- * actual invalidation logic still lives in the slice that owns the
- * data; this file only owns the key names so both producers and
- * consumers agree on them.
+ * Lives in `features/shared` so no slice has to import from another.
+ * The actual invalidation logic stays in the owning slice; this file
+ * only owns the key names so producers and consumers agree on them.
  */
+export const BACKREF_QUERY_KEY = 'backrefs' as const
+
 export const GLOBAL_DRAFTS_QUERY_KEY = ["global-drafts"] as const
 
 export const DASHBOARD_QUERY_KEYS = {

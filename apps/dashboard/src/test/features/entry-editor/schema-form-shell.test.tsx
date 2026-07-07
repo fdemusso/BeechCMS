@@ -61,7 +61,7 @@ vi.mock("@/features/entry-editor/builder/builder-pane", () => ({
   BuilderPane: () => <div data-testid="builder-pane" />,
 }))
 
-vi.mock("@/features/fields", () => ({
+vi.mock("@/components/fields", () => ({
   FieldEdit: ({ branch }: { branch: { alias: string } }) => <input aria-label={`field-${branch.alias}`} />,
 }))
 

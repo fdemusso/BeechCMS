@@ -1,3 +1,9 @@
+---
+title: Observability & Notifications
+group: Developer Guide (Internals)
+category: Internals
+---
+
 # Observability & Notifications module
 
 This document covers the abstractions delivered by Phase 2 of the abstraction

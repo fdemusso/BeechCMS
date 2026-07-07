@@ -213,13 +213,24 @@ const changeDateStr = changeDate.toISOString().split('T')[0]
 licenseContent = licenseContent.replace(/Change Date:\s+\d{4}-\d{2}-\d{2}/, `Change Date:          ${changeDateStr}`)
 writeRaw(licensePath, licenseContent)
 
+// ── Step 1c: sync lockfile after version bump ─────────────────────────────────
+
+log('')
+log('1c/4  Syncing lockfile after version bump...')
+
+try {
+  run('pnpm install --no-frozen-lockfile')
+} catch {
+  rollback('pnpm install failed after version bump.')
+}
+
 // ── Step 2: build ─────────────────────────────────────────────────────────────
 
 log('')
 log('2/4  Building packages...')
 
 try {
-  run('pnpm run type-check')
+  run('pnpm turbo run type-check --force')
 } catch {
   rollback('Type-check failed.')
 }

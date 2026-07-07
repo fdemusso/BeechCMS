@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS content_dr_articles_drafts (
              REFERENCES content_dr_articles(id) ON DELETE CASCADE,
   title      TEXT,
   author_id  TEXT,
+  _touched_fields TEXT,
   updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 `
@@ -191,6 +192,75 @@ describe('Draft promotion — relation target validation', () => {
     const row = await db.prepare(
       `SELECT author_id FROM content_dr_articles WHERE id = ?`
     ).bind(ARTICLE_ID).first<{ author_id: string }>()
+    expect(row?.author_id).toBe(TEAM_ID)
+  })
+
+  it('4. draft with explicit null field publishes null to live row', async () => {
+    // 1. Setup a live team member and set it on the live article
+    await db.prepare(
+      `INSERT INTO content_dr_team (id, slug, status, name) VALUES (?, ?, 'published', ?)`
+    ).bind(TEAM_ID, 'member-alice', 'Alice').run()
+    await db.prepare(
+      `UPDATE content_dr_articles SET author_id = ? WHERE id = ?`
+    ).bind(TEAM_ID, ARTICLE_ID).run()
+
+    // Verify it is set in live row
+    const initialRow = await db.prepare(
+      `SELECT author_id FROM content_dr_articles WHERE id = ?`
+    ).bind(ARTICLE_ID).first<{ author_id: string }>()
+    expect(initialRow?.author_id).toBe(TEAM_ID)
+
+    // 2. Save draft setting author_id to null
+    const saveDraft = await app.request(`/api/content/dr_articles/${ARTICLE_ID}/draft`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ title: 'Null Author Title', author_id: null }),
+    }, { ...TEST_ENV, DB: db })
+    expect(saveDraft.status).toBe(200)
+
+    // 3. Publish draft
+    const publish = await app.request(`/api/content/dr_articles/${ARTICLE_ID}/draft/publish`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    }, { ...TEST_ENV, DB: db })
+    expect(publish.status).toBe(200)
+
+    // 4. Verify live row has author_id = null
+    const row = await db.prepare(
+      `SELECT author_id FROM content_dr_articles WHERE id = ?`
+    ).bind(ARTICLE_ID).first<{ author_id: string | null }>()
+    expect(row?.author_id).toBeNull()
+  })
+
+  it('5. draft without untouched fields preserves live values on publish', async () => {
+    // 1. Setup a live team member and set it on the live article
+    await db.prepare(
+      `INSERT INTO content_dr_team (id, slug, status, name) VALUES (?, ?, 'published', ?)`
+    ).bind(TEAM_ID, 'member-alice', 'Alice').run()
+    await db.prepare(
+      `UPDATE content_dr_articles SET author_id = ? WHERE id = ?`
+    ).bind(TEAM_ID, ARTICLE_ID).run()
+
+    // 2. Save draft modifying ONLY the title (author_id is untouched / not in payload)
+    const saveDraft = await app.request(`/api/content/dr_articles/${ARTICLE_ID}/draft`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ title: 'Untouched Author Test' }), // author_id is omitted
+    }, { ...TEST_ENV, DB: db })
+    expect(saveDraft.status).toBe(200)
+
+    // 3. Publish draft
+    const publish = await app.request(`/api/content/dr_articles/${ARTICLE_ID}/draft/publish`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` },
+    }, { ...TEST_ENV, DB: db })
+    expect(publish.status).toBe(200)
+
+    // 4. Verify title updated but author_id remains TEAM_ID
+    const row = await db.prepare(
+      `SELECT title, author_id FROM content_dr_articles WHERE id = ?`
+    ).bind(ARTICLE_ID).first<{ title: string; author_id: string }>()
+    expect(row?.title).toBe('Untouched Author Test')
     expect(row?.author_id).toBe(TEAM_ID)
   })
 })

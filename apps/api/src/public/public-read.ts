@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { Context } from 'hono'
-import { cleanStr } from '../shared/query-utils'
+import { cleanStr } from '../shared/utils/query-utils'
 import { checkPublicOperation } from './access-policy'
 import { publicProblem, internalErrorDetail } from './problem-details'
 import { resolveEdgeCache, withCachedResponse } from './cache-utils'

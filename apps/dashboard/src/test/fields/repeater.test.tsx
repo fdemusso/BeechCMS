@@ -4,11 +4,11 @@
 
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
-import { FieldEditRepeater } from "@/features/fields/edit/repeater"
-import { BranchItemRow } from "@/features/fields/edit/repeater-branch-item"
-import { GenericItemRow } from "@/features/fields/edit/repeater-generic-item"
-import { RepeaterDisplay } from "@/features/fields/display/repeater"
-import { getEditComponent, getDisplayComponent } from "@/features/fields"
+import { FieldEditRepeater } from "@/components/fields/edit/repeater"
+import { BranchItemRow } from "@/components/fields/edit/repeater/repeater-branch-item"
+import { GenericItemRow } from "@/components/fields/edit/repeater/repeater-generic-item"
+import { RepeaterDisplay } from "@/components/fields/display/repeater"
+import { getEditComponent, getDisplayComponent } from "@/components/fields"
 import type { Branch } from "@beechcms/core"
 
 const repeaterBranch = {

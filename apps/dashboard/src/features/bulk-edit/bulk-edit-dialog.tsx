@@ -12,36 +12,51 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { FieldEdit } from "@/features/fields"
 import { useBulkUpdate } from "@/features/content-management"
 import type { BulkMultiRelMode, BulkFieldValue } from "@/features/content-management"
 
+import {
+  BulkEditPickStep,
+  BulkEditValueStep,
+  BulkEditConfirmStep,
+  BulkEditExecutingStep,
+  BulkEditResultStep,
+} from "./bulk-edit-steps"
+
+/** Step identifiers representing the states of the bulk edit wizard. */
 type Step = "pick" | "edit" | "confirm" | "executing" | "result"
 
+/** Properties for the {@link BulkEditDialog} component. */
 interface BulkEditDialogProps {
+  /** Controls open/close visibility of the dialog. */
   open: boolean
+  /** Callback fired when the open state changes. */
   onOpenChange: (open: boolean) => void
+  /** The schema seed definition. */
   seed: Seed
+  /** List of entry IDs selected for bulk editing. */
   selectedIds: string[]
-  /** Optional display names for the first few selected entries (for sanity-check step) */
+  /** Optional display names for selected entries to show in the confirmation step. */
   sampleLabels?: string[]
 }
 
+/**
+ * Checks if a given schema branch is a multi-value relation field.
+ *
+ * @param branch - The schema branch definition to inspect.
+ * @returns True if the branch is a relation type and configured with `multiple: true`.
+ */
 function isMultiRelBranch(branch: Branch): boolean {
   return branch.type === "relation" && (branch as { multiple?: boolean }).multiple === true
 }
 
+/**
+ * Checks if a schema branch can be bulk edited based on its visibility and privacy policies.
+ *
+ * @param branch - The schema branch definition to inspect.
+ * @returns True if the branch is visible and not encrypted.
+ */
 function isBulkEditable(branch: Branch): boolean {
   const { visibility, privacy } = resolvePolicies(branch)
   if (visibility === "hidden") return false
@@ -49,24 +64,13 @@ function isBulkEditable(branch: Branch): boolean {
   return true
 }
 
-function downloadCsv(
-  failed: Array<{ id: string; problem: { type: string; detail: string } }>,
-  slug: string
-) {
-  const rows = [
-    ["id", "type", "detail"],
-    ...failed.map((f) => [f.id, f.problem.type, f.problem.detail]),
-  ]
-  const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n")
-  const blob = new Blob([csv], { type: "text/csv" })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement("a")
-  a.href = url
-  a.download = `bulk-edit-failures-${slug}.csv`
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
+/**
+ * BulkEditDialog component.
+ * Provides a wizard to select a field, configure the new value (or relation changes),
+ * confirm the selected entry IDs, and execute bulk update operations with progress monitoring.
+ *
+ * @param props - Component properties conforming to {@link BulkEditDialogProps}.
+ */
 export function BulkEditDialog({
   open,
   onOpenChange,
@@ -74,7 +78,7 @@ export function BulkEditDialog({
   selectedIds,
   sampleLabels,
 }: BulkEditDialogProps) {
-  const { t } = useTranslation()
+  const { t: translate } = useTranslation()
   const [step, setStep] = React.useState<Step>("pick")
   const [selectedAlias, setSelectedAlias] = React.useState<string>("")
   const [multiMode, setMultiMode] = React.useState<BulkMultiRelMode>("replace")
@@ -86,7 +90,7 @@ export function BulkEditDialog({
 
   const { mutateAsync: bulkUpdate, isPending } = useBulkUpdate(seed.slug)
 
-  // Reset on open/close
+  // Reset states on open/close
   React.useEffect(() => {
     if (!open) {
       setStep("pick")
@@ -103,7 +107,7 @@ export function BulkEditDialog({
   )
 
   const selectedBranch = React.useMemo(
-    () => seed.branches.find((b) => b.alias === selectedAlias) ?? null,
+    () => seed.branches.find((branch) => branch.alias === selectedAlias) ?? null,
     [seed.branches, selectedAlias]
   )
 
@@ -129,13 +133,19 @@ export function BulkEditDialog({
     }
 
     try {
-      const res = await bulkUpdate({
+      const response = await bulkUpdate({
         ids: selectedIds,
         fields: { [selectedAlias]: fieldPayload },
       })
-      setResult(res)
+      setResult(response)
     } catch {
-      setResult({ updated: 0, failed: selectedIds.map((id) => ({ id, problem: { status: 500, type: "error", detail: "Request failed" } })) })
+      setResult({
+        updated: 0,
+        failed: selectedIds.map((id) => ({
+          id,
+          problem: { status: 500, type: "error", detail: "Request failed" },
+        })),
+      })
     }
     setStep("result")
   }
@@ -147,137 +157,57 @@ export function BulkEditDialog({
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {t("bulkEdit.title", { count: selectedIds.length })}
+            {translate("bulkEdit.title", { count: selectedIds.length })}
           </DialogTitle>
         </DialogHeader>
 
         {/* Step 1 — Field picker */}
         {step === "pick" && (
-          <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">{t("bulkEdit.pickField")}</p>
-            <Select value={selectedAlias} onValueChange={setSelectedAlias}>
-              <SelectTrigger>
-                <SelectValue placeholder={t("bulkEdit.pickField")} />
-              </SelectTrigger>
-              <SelectContent>
-                {editableBranches.map((b) => (
-                  <SelectItem key={b.alias} value={b.alias}>
-                    {b.label ?? b.alias}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>
-                {t("common.cancel")}
-              </Button>
-              <Button onClick={handlePickNext} disabled={!selectedAlias}>
-                {t("common.confirm")}
-              </Button>
-            </DialogFooter>
-          </div>
+          <BulkEditPickStep
+            selectedAlias={selectedAlias}
+            onSelectedAliasChange={setSelectedAlias}
+            editableBranches={editableBranches}
+            onCancel={() => onOpenChange(false)}
+            onNext={handlePickNext}
+          />
         )}
 
         {/* Step 2 — Value editor */}
         {step === "edit" && selectedBranch && (
-          <div className="space-y-4 py-2">
-            {isMulti && (
-              <div className="flex gap-2">
-                {(["replace", "add", "remove"] as BulkMultiRelMode[]).map((m) => (
-                  <Button
-                    key={m}
-                    size="sm"
-                    variant={multiMode === m ? "default" : "outline"}
-                    onClick={() => setMultiMode(m)}
-                  >
-                    {t(`bulkEdit.mode.${m}`)}
-                  </Button>
-                ))}
-              </div>
-            )}
-            <FieldEdit
-              branch={selectedBranch}
-              value={fieldValue}
-              onChange={setFieldValue}
-            />
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setStep("pick")}>
-                {t("common.back")}
-              </Button>
-              <Button onClick={handleEditNext}>{t("common.confirm")}</Button>
-            </DialogFooter>
-          </div>
+          <BulkEditValueStep
+            selectedBranch={selectedBranch}
+            isMulti={isMulti}
+            multiMode={multiMode}
+            onMultiModeChange={setMultiMode}
+            fieldValue={fieldValue}
+            onFieldValueChange={setFieldValue}
+            onBack={() => setStep("pick")}
+            onNext={handleEditNext}
+          />
         )}
 
         {/* Step 3 — Confirmation */}
         {step === "confirm" && (
-          <div className="space-y-4 py-2">
-            <p className="text-sm">
-              {t("bulkEdit.confirm", { count: selectedIds.length })}
-            </p>
-            <ul className="text-sm text-muted-foreground list-disc list-inside space-y-0.5">
-              {sampleList.map((label) => (
-                <li key={label} className="truncate">{label}</li>
-              ))}
-              {selectedIds.length > 5 && (
-                <li className="text-xs">…and {selectedIds.length - 5} more</li>
-              )}
-            </ul>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setStep("edit")}>
-                {t("common.back")}
-              </Button>
-              <Button onClick={handleConfirm} disabled={isPending}>
-                {t("common.confirm")}
-              </Button>
-            </DialogFooter>
-          </div>
+          <BulkEditConfirmStep
+            selectedIds={selectedIds}
+            sampleList={sampleList}
+            onBack={() => setStep("edit")}
+            onConfirm={handleConfirm}
+            isPending={isPending}
+          />
         )}
 
         {/* Step 4 — Executing */}
-        {step === "executing" && (
-          <div className="space-y-4 py-4">
-            <p className="text-sm text-muted-foreground">{t("bulkEdit.executing")}</p>
-            <Progress value={undefined} className="animate-pulse" />
-          </div>
-        )}
+        {step === "executing" && <BulkEditExecutingStep />}
 
         {/* Step 5 — Result */}
         {step === "result" && result && (
-          <div className="space-y-4 py-2">
-            {result.failed.length === 0 ? (
-              <p className="text-sm text-green-600 dark:text-green-400">
-                {t("bulkEdit.successAll", { count: result.updated })}
-              </p>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-sm">
-                  {t("bulkEdit.successPartial", {
-                    updated: result.updated,
-                    total: selectedIds.length,
-                    failed: result.failed.length,
-                  })}
-                </p>
-                <div className="rounded-md border p-3 space-y-1 max-h-40 overflow-y-auto">
-                  {result.failed.map((f) => (
-                    <p key={f.id} className="text-xs text-destructive font-mono truncate">
-                      {f.id}: {f.problem.detail}
-                    </p>
-                  ))}
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => downloadCsv(result.failed, seed.slug)}
-                >
-                  {t("bulkEdit.downloadReport")}
-                </Button>
-              </div>
-            )}
-            <DialogFooter>
-              <Button onClick={() => onOpenChange(false)}>{t("common.close")}</Button>
-            </DialogFooter>
-          </div>
+          <BulkEditResultStep
+            result={result}
+            selectedIds={selectedIds}
+            seedSlug={seed.slug}
+            onClose={() => onOpenChange(false)}
+          />
         )}
       </DialogContent>
     </Dialog>

@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { Hono } from 'hono'
 import { seedRegistryMiddleware } from './seed-registry.middleware'
-import { __resetSeedRegistryCache } from '../shared/seed-registry-cache'
+import { __resetSeedRegistryCache } from '../shared/services/cache/seed-registry-cache'
 import type { ISeedRepository, Seed } from '@beechcms/core'
 
 const mockSeed: Seed = {

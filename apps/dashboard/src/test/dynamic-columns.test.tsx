@@ -371,6 +371,28 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
     })
   })
 
+  describe("column size metadata", () => {
+    it("dynamic columns carry size/minSize/maxSize", () => {
+      const seed = makeSeed({
+        branches: [{ id: "t1", alias: "title", label: "Title", type: "text" as const }] as any,
+      })
+      const cols = generateColumns(seed, vi.fn(), vi.fn())
+      const titleCol = cols.find((c) => c.id === "title") as any
+      expect(titleCol.size).toBe(200)
+      expect(titleCol.minSize).toBe(80)
+      expect(titleCol.maxSize).toBe(600)
+    })
+
+    it("select and actions have enableResizing === false", () => {
+      const seed = makeSeed({ branches: [] })
+      const cols = generateColumns(seed, vi.fn(), vi.fn())
+      const selectCol = cols.find((c) => c.id === "select") as any
+      const actionsCol = cols.find((c) => c.id === "actions") as any
+      expect(selectCol.enableResizing).toBe(false)
+      expect(actionsCol.enableResizing).toBe(false)
+    })
+  })
+
   describe("date and status edge cases", () => {
     it("getDateGroupValue gestisce precisione day", () => {
       const seed = makeSeed({

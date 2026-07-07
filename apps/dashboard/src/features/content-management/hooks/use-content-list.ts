@@ -4,7 +4,7 @@
 
 import { useEffect } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useSchema } from "@/features/schema"
+import { useSchema } from "@/features/shared"
 import { contentApi, type ContentListQueryParams } from "../api/content.api"
 import { CONTENT_QUERY_KEYS } from "../consts/content.keys"
 import type { ContentEntry } from "@/lib/dynamic-columns"

@@ -23,4 +23,5 @@ export type {
   FilterGroupType,
   FilterOperator,
 } from "./shared"
-export { DEFAULT_ENABLED_TOOLS } from "./shared"
+export { DEFAULT_ENABLED_TOOLS, buildFilterableColumns, defaultOperatorForType, generateConditionId } from "./shared"
+export type { FilterableColumn } from "./shared"

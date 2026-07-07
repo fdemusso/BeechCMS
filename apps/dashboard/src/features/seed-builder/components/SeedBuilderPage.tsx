@@ -1,5 +1,5 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
+﻿// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 import { useState } from "react"
@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next"
 import { Plus, Pencil, Trash2, RefreshCw } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
-import { useSchema } from "@/features/schema"
+import { useSchema } from "@/features/shared"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
@@ -30,7 +30,7 @@ interface SeedFormDialogProps {
 }
 
 // Adapter: SchemaFormShell is a controlled dialog driven by a view-model.
-// The hook must always run (stable hook order) — `open` only gates the shell.
+// The hook must always run (stable hook order) â€” `open` only gates the shell.
 function SeedFormDialog({ open, editRecord, activeSeedsForRelation, onClose }: SeedFormDialogProps) {
   const vm = useSeedEditorDialog({ editRecord, activeSeedsForRelation, onClose })
   return <SchemaFormShell vm={vm} open={open} />

@@ -1,3 +1,9 @@
+---
+title: Background Queues
+group: Developer Guide (Internals)
+category: Internals
+---
+
 # Background Queues & Job Handlers
 
 This document covers the deferred-execution port delivered by Sprint 7.

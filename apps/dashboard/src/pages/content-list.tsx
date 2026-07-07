@@ -9,6 +9,7 @@ import { EntryEditorDialog } from "@/features/entry-editor"
 import type {
   SortingState,
   ColumnFiltersState,
+  ColumnSizingState,
   RowSelectionState,
   VisibilityState,
   GroupingState,
@@ -23,12 +24,19 @@ import { DataTable } from "@/components/ui/data-table"
 import { ContentDeleteDialog } from "@/features/content-delete-dialog"
 import { BulkEditDialog } from "@/features/bulk-edit"
 import { ContentGallery } from "@/features/content-gallery"
+import { ContentKanban, useKanbanEntrySync, CardConfigDialog, useKanbanViewConfig } from "@/features/content-kanban"
+import { resolveKanbanConfig, resolveAuthorizedViews, isViewAuthorized } from "@beechcms/core"
+import type { DashboardView } from "@beechcms/core"
+import { viewRegistry } from "@/features/content-toolbar/view-registry"
 import {
   ContentToolbar,
   type UserViewInstance,
   type ToolbarFiltersState,
   type ToolbarFilterGroup,
   type ToolbarFilterCondition,
+  buildFilterableColumns,
+  defaultOperatorForType,
+  generateConditionId,
 } from "@/features/content-toolbar"
 import {
   ContextMenuItem,
@@ -52,6 +60,7 @@ import {
   DEFAULT_DATE_GROUP_PRECISION,
 } from "@/lib/dynamic-columns"
 import { useDebounce } from "@/hooks/use-debounce"
+import { type TableDensity, DEFAULT_DENSITY } from "@/lib/density"
 import {
   type ConditionalFormatRule,
   getConditionalFormatCellClass,
@@ -59,9 +68,35 @@ import {
 } from "@/lib/conditional-format"
 import {
   matchesFilterGroupStrict,
+  normalizeDateToYmd,
   type FilterGroupType,
 } from "@/lib/filter-dsl"
 import { extractTagNames } from "@/lib/tags-utils"
+
+function normalizeCellFilterValue(
+  type: FilterGroupType,
+  raw: unknown
+): string | number | boolean | null {
+  switch (type) {
+    case "number":
+      return typeof raw === "number" ? raw : (raw != null && raw !== "" && !Number.isNaN(Number(raw)) ? Number(raw) : null)
+    case "boolean":
+      return typeof raw === "boolean" ? raw : null
+    case "tags": {
+      const names = extractTagNames(raw)
+      return names.length > 0 ? names[0] : null
+    }
+    case "date":
+      return normalizeDateToYmd(raw)
+    case "select":
+    case "text":
+    case "system":
+    default: {
+      const s = raw == null ? "" : String(raw).trim()
+      return s.length > 0 ? s : null
+    }
+  }
+}
 
 export function ContentListPage() {
   const { slug, id: entryId } = useParams<{ slug: string; id?: string }>()
@@ -73,10 +108,32 @@ export function ContentListPage() {
   const isEditPath = !!entryId && !isCreatePath
   const dialogOpen = isCreatePath || isEditPath
 
+  const isDraftContext = !!(location.state as { isDraftContext?: boolean } | null)?.isDraftContext
+  const createDefaults = (location.state as { defaultValues?: Record<string, unknown> } | null)?.defaultValues
+
   const handleDialogClose = React.useCallback(
     () => navigate(`/content/${slug}`),
     [navigate, slug]
   )
+
+  const [target, setTarget] = React.useState<{
+    schemaSlug: string
+    entryId: string | undefined
+    isDraftContext: boolean
+  } | null>(null)
+
+  React.useEffect(() => {
+    if (dialogOpen && slug) {
+      setTarget({ schemaSlug: slug, entryId: isCreatePath ? undefined : entryId, isDraftContext })
+    }
+  }, [dialogOpen, slug, entryId, isCreatePath, isDraftContext])
+
+  React.useEffect(() => {
+    if (!dialogOpen && target) {
+      const id = window.setTimeout(() => setTarget(null), 150)
+      return () => window.clearTimeout(id)
+    }
+  }, [dialogOpen, target])
 
   // --- STATE ---
   const [pageIndex, setPageIndex] = React.useState(0)
@@ -87,6 +144,7 @@ export function ContentListPage() {
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [searchParams] = useSearchParams()
   const prefilterStatus = searchParams.get("status")
+  const requestedView = searchParams.get("view")
 
   const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>(() => {
     if (!prefilterStatus) return {} as ToolbarFiltersState
@@ -114,6 +172,8 @@ export function ContentListPage() {
 
   // Fetch the seed reactively
   const { seed, isLoading: isSeedLoading } = useActiveSeed(slug)
+
+  const kanbanSync = useKanbanEntrySync(seed, slug ?? '')
 
   // Table grouping: single column or null
   const [groupBy, setGroupBy] = React.useState<string | null>(null)
@@ -166,35 +226,51 @@ export function ContentListPage() {
     }
   }, [groupBy, seed])
 
-  // Views available for the current seed.
+  const kanbanCompat = React.useMemo(() => seed ? resolveKanbanConfig(seed) : null, [seed])
+  const { kanbanConfig, setKanbanConfig, cardConfig, setCardConfig, isSaving: isKanbanConfigSaving } = useKanbanViewConfig(slug ?? '')
+  const [cardConfigOpen, setCardConfigOpen] = React.useState(false)
+  const kanbanCandidates = kanbanCompat?.compatible ? kanbanCompat.candidates : []
+  const kanbanAxisBranch = React.useMemo(
+    () => seed?.branches.find(b => b.id === kanbanConfig?.axisBranchId),
+    [seed, kanbanConfig?.axisBranchId],
+  )
+
   // TODO: load and save view configuration at the user level (when a user preferences system exists).
-  const [views, setViews] = React.useState<UserViewInstance[]>(() => [
-    {
-      id: "table",
-      label: "table",
-      type: "table",
-      enabledTools: [
-        "filter",
-        "sort",
-        "automation",
-        "search",
-        "settings",
-        "create",
-      ],
-      conditionalFormats: [],
-    },
-    {
-      id: "gallery",
-      label: "gallery",
-      type: "gallery",
-      enabledTools: ["filter", "sort", "automation", "search", "create"],
-      conditionalFormats: [],
-    },
-  ])
+  const authorizedViews = React.useMemo<DashboardView[]>(
+    () => (seed ? resolveAuthorizedViews(seed) : ['table']),
+    [seed]
+  )
+
+  // Per-view mutable overlays (conditional formats, label overrides) — in-memory only.
+  const [viewOverlays, setViewOverlays] = React.useState<
+    Record<string, { conditionalFormats?: ConditionalFormatRule[]; label?: string }>
+  >({})
+
+  const views = React.useMemo<UserViewInstance[]>(
+    () => authorizedViews.map((type) => {
+      const def = viewRegistry.get(type)
+      const overlay = viewOverlays[type] ?? {}
+      return {
+        id: type,
+        label: overlay.label ?? type,
+        type,
+        enabledTools: def?.enabledTools ?? ['filter', 'search', 'create'],
+        conditionalFormats: overlay.conditionalFormats ?? [],
+      }
+    }),
+    [authorizedViews, viewOverlays]
+  )
+
+  React.useEffect(() => {
+    if (!seed) return
+    const target = requestedView && isViewAuthorized(seed, requestedView) ? requestedView : 'table'
+    setActiveViewId((cur) => (authorizedViews.includes(cur as DashboardView) ? cur : target))
+  }, [seed, requestedView, authorizedViews])
 
   const VIEW_LABELS: Record<string, string> = {
     table: t("content.list.table"),
     gallery: t("content.list.gallery"),
+    kanban: t("content.list.kanban", { defaultValue: "Kanban" }),
   }
   const translatedViews = React.useMemo(
     () => views.map((v) => ({ ...v, label: VIEW_LABELS[v.type] ?? v.label })),
@@ -208,9 +284,7 @@ export function ContentListPage() {
 
   const handleConditionalFormatsChange = React.useCallback(
     (viewId: string, next: ConditionalFormatRule[]) => {
-      setViews((prev) =>
-        prev.map((v) => (v.id === viewId ? { ...v, conditionalFormats: next } : v))
-      )
+      setViewOverlays((prev) => ({ ...prev, [viewId]: { ...prev[viewId], conditionalFormats: next } }))
     },
     []
   )
@@ -339,9 +413,26 @@ export function ContentListPage() {
     setDeleteDialogOpen(true)
   }, [])
 
-  const handleCreate = React.useCallback(() => {
-    if (slug) navigate(`/content/${slug}/create`)
-  }, [slug, navigate])
+  const handleCreate = React.useCallback(
+    (defaultValues?: Record<string, unknown> | React.SyntheticEvent | Event) => {
+      if (!slug) return
+
+      const isEvent =
+        defaultValues &&
+        (defaultValues instanceof Event ||
+          (typeof defaultValues === "object" &&
+            ("nativeEvent" in defaultValues || "preventDefault" in defaultValues)))
+
+      if (defaultValues && !isEvent) {
+        navigate(`/content/${slug}/create`, {
+          state: { defaultValues: defaultValues as Record<string, unknown> },
+        })
+      } else {
+        navigate(`/content/${slug}/create`)
+      }
+    },
+    [slug, navigate],
+  )
 
   const handleConfirmDelete = React.useCallback(async () => {
     if (!slug || !entryIdsToDelete || entryIdsToDelete.length === 0) return
@@ -376,6 +467,7 @@ export function ContentListPage() {
       const visibility: VisibilityState = {}
       visibility["id"] = false
       visibility["slug"] = false
+      visibility["created_at"] = false
       if (!seed) return visibility
       const metaAliases = seed.branches
         .filter(
@@ -391,6 +483,9 @@ export function ContentListPage() {
       return visibility
     }
   )
+
+  const [columnSizing, setColumnSizing] = React.useState<ColumnSizingState>({})
+  const [density, setDensity] = React.useState<TableDensity>(DEFAULT_DENSITY)
 
   // Lunghezza max per colonna (dalla prima pagina) per troncamento consistente
   const maxLengths = React.useMemo(() => {
@@ -475,6 +570,34 @@ export function ContentListPage() {
     if (facetsData?.statuses && facetsData.statuses.length > 0) return facetsData.statuses
     return availableStatusOptionsFromData
   }, [facetsData?.statuses, availableStatusOptionsFromData])
+
+  const filterableColumns = React.useMemo(
+    () => (seed ? buildFilterableColumns(seed, effectiveStatusOptions) : []),
+    [seed, effectiveStatusOptions]
+  )
+
+  const applyCellFilter = React.useCallback(
+    (columnId: string, entry: ContentEntry) => {
+      const col = filterableColumns.find((c) => c.columnId === columnId)
+      if (!col) return
+      const rawValue = getEntryValueForColumn(entry, columnId)
+      const value = normalizeCellFilterValue(col.type, rawValue)
+      if (value === null && col.type !== "boolean") return
+      const op = defaultOperatorForType(col.type)
+      const nextCondition: ToolbarFilterCondition = { id: generateConditionId(), op, value }
+      setToolbarFilters((prev) => {
+        const existing = prev[columnId]
+        if (existing?.conditions.some((c) => c.op === op && c.value === value)) return prev
+        return {
+          ...prev,
+          [columnId]: existing
+            ? { ...existing, conditions: [...existing.conditions, nextCondition] }
+            : { columnId, label: col.label, type: col.type, selectOptions: col.selectOptions, conditions: [nextCondition] },
+        }
+      })
+    },
+    [filterableColumns, getEntryValueForColumn]
+  )
 
   const grouping = React.useMemo<GroupingState>(
     () => (groupBy ? [groupBy] : []),
@@ -603,18 +726,14 @@ export function ContentListPage() {
   )
   const handleRenameView = React.useCallback(
     (viewId: string, label: string) => {
-      setViews((prev) =>
-        prev.map((view) =>
-          view.id === viewId ? { ...view, label } : view
-        )
-      )
+      setViewOverlays((prev) => ({ ...prev, [viewId]: { ...prev[viewId], label } }))
     },
     []
   )
 
   // Hidden columns by default: system columns (id, slug) + json metadata/metadati
   const initialHiddenColumns = React.useMemo(() => {
-    const hidden: string[] = ["id", "slug"]
+    const hidden: string[] = ["id", "slug", "created_at"]
     if (!seed) return hidden
     const metaAliases = seed.branches
       .filter(
@@ -726,6 +845,13 @@ export function ContentListPage() {
                   onDateGroupPrecisionChange={setDateGroupPrecision}
                   onOpenAutomation={() => setAutomationPanelOpen(true)}
                   isAutomationActive={automationPanelOpen}
+                  density={density}
+                  onDensityChange={setDensity}
+                  kanbanCandidates={kanbanCandidates}
+                  kanbanConfig={kanbanConfig}
+                  onKanbanConfigChange={setKanbanConfig}
+                  kanbanAxisBranch={kanbanAxisBranch}
+                  onOpenCardConfig={() => setCardConfigOpen(true)}
                 >
                   {error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
@@ -745,10 +871,16 @@ export function ContentListPage() {
                       columns={columns}
                       data={data}
                       initialHiddenColumns={initialHiddenColumns}
+                      enableColumnResizing
+                      columnSizing={columnSizing}
+                      onColumnSizingChange={setColumnSizing}
+                      density={density}
                       getRowStyles={getRowStyles}
                       rowSelection={rowSelection}
                       onRowSelectionChange={setRowSelection}
                       onRowDoubleClick={(entry) => handleEdit(entry.id)}
+                      onCellActivate={(columnId, entry) => applyCellFilter(columnId, entry)}
+                      cellActivateExcludedColumnIds={["select", "actions"]}
                       grouping={grouping}
                       onGroupingChange={(g) => setGroupBy(g[0] ?? null)}
                       renderRowContextMenuContent={(entry) => (
@@ -833,12 +965,37 @@ export function ContentListPage() {
                       onEdit={handleEdit}
                     />
                   )}
+                  {!error && activeViewId === "kanban" && slug && seed && (
+                    <ContentKanban
+                      seed={seed}
+                      seedSlug={slug}
+                      isLoading={isLoading}
+                      onEdit={handleEdit}
+                      onCreateEntry={handleCreate}
+                      search={debouncedSearch.trim() || undefined}
+                      kanbanConfig={kanbanConfig}
+                      setKanbanConfig={setKanbanConfig}
+                      cardConfig={cardConfig}
+                      setCardConfig={setCardConfig}
+                      isSaving={isKanbanConfigSaving}
+                    />
+                  )}
                 </ContentToolbar>
               </div>
             </div>
           </SidebarInset>
         </div>
       </SidebarProvider>
+
+      {seed && slug && activeViewId === 'kanban' && (
+        <CardConfigDialog
+          open={cardConfigOpen}
+          onClose={() => setCardConfigOpen(false)}
+          seed={seed}
+          config={cardConfig}
+          onSave={setCardConfig}
+        />
+      )}
 
       {/* Modal Delete */}
       <ContentDeleteDialog
@@ -868,13 +1025,15 @@ export function ContentListPage() {
         seedBranches={seed.branches}
       />
 
-      {slug && dialogOpen && (
+      {target && (
         <EntryEditorDialog
-          schemaSlug={slug}
-          entryId={isCreatePath ? undefined : entryId}
-          isDraftContext={!!(location.state as { isDraftContext?: boolean } | null)?.isDraftContext}
+          schemaSlug={target.schemaSlug}
+          entryId={target.entryId}
+          isDraftContext={target.isDraftContext}
           open={dialogOpen}
           onClose={handleDialogClose}
+          defaultValues={createDefaults}
+          onSaved={(info) => { if (activeViewId === 'kanban') kanbanSync(info) }}
         />
       )}
     </div>

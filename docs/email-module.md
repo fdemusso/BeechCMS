@@ -1,3 +1,9 @@
+---
+title: Email Module
+group: User & Builder Guide
+category: Features
+---
+
 # Email Module — Beech CMS
 
 Complete documentation for the Beech CMS email module: architecture, configuration, and extension guide.

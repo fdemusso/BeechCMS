@@ -1,3 +1,9 @@
+---
+title: Creating Custom Widgets
+group: User & Builder Guide
+category: Extending
+---
+
 # Custom Dashboard Widgets
 
 The Beech CMS dashboard widget catalog is a **public extension point**.
@@ -220,11 +226,7 @@ at runtime.
 
 ## Worked example
 
-<<<<<<< HEAD
-`examples/widget-hello-world/` in this repo is a minimal, fully working
-=======
 `docs/examples/widget-hello-world/` in this repo is a minimal, fully working
->>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb
 widget package exercising the whole SDK surface (`defineWidget`, a config
 schema, `ConfigPanel`, and a `useWidgetAggregate` call) — use it as a
 template.
@@ -233,9 +235,4 @@ template.
 
 There is currently no `beech create-widget` scaffold command. This is a
 natural follow-up for the `docs/Sprints/dev-cli/` series; for now, copy
-<<<<<<< HEAD
-`examples/widget-hello-world/`.
-=======
 `docs/examples/widget-hello-world/`.
-
->>>>>>> 1480e97ab0eee6ca9af04e09106e51f8796a48bb

@@ -9,7 +9,7 @@ import {
   validateAndSanitizeSeedPayload,
   resolvePolicies
 } from '@beechcms/core'
-import { applyPrivacy, PrivacyPolicyError } from '../../../shared/apply-policies'
+import { applyPrivacy, PrivacyPolicyError } from '../../../shared/policies/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
 import {
   normalizeBody,
@@ -19,7 +19,7 @@ import {
   handleContentDatabaseError
 } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
-import { cleanStr } from '../../../shared/query-utils'
+import { cleanStr } from '../../../shared/utils/query-utils'
 import { AppEnv } from '../../../types'
 
 

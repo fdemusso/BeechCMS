@@ -5,7 +5,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query"
 import { contentApi, type BulkUpdateBody } from "../api/content.api"
 import { CONTENT_QUERY_KEYS } from "../consts/content.keys"
-import { BACKREF_QUERY_KEY } from "@/features/backrefs"
+import { BACKREF_QUERY_KEY } from "@/features/shared"
 
 export function useBulkUpdate(slug: string) {
   const queryClient = useQueryClient()

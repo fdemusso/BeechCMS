@@ -1,0 +1,25 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPointStrategy": "packages",
+  "entryPoints": [
+    "packages/core",
+    "packages/client",
+    "packages/widget-sdk",
+    "packages/cli"
+  ],
+  "name": "BeechCMS",
+  "out": "docs/api",
+  "plugin": ["typedoc-plugin-markdown"],
+  "excludeInternal": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "readme": "none",
+  "disableSources": true,
+  "cleanOutputDir": true,
+  "useHTMLEncodedBrackets": true,
+  "sanitizeComments": true,
+  "entryFileName": "index.md",
+  "packageOptions": {
+    "entryPoints": ["src/index.ts"]
+  }
+}

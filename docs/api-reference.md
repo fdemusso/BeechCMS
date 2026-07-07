@@ -1,3 +1,9 @@
+---
+title: Core API Reference
+group: User & Builder Guide
+category: Frontend & APIs
+---
+
 # API Reference — Beech CMS
 
 This document is the authoritative reference for the Beech CMS REST API. It covers two distinct surfaces: the **Internal API** (JWT-authenticated, used by the dashboard) and the **Public API** (API-key-gated, designed for external consumers). All error responses conform to [RFC 7807 Problem Details](https://www.rfc-editor.org/rfc/rfc7807).
@@ -1511,8 +1517,8 @@ Returns all automations declared for a seed, ordered by `created_at DESC`.
   "actions": [
     {
       "type": "send_mail",
-      "to": "{{email}}",
-      "subject_template": "Welcome, {{name}}!",
+      "to": "\{\{email\}\}",
+      "subject_template": "Welcome, \{\{name\}\}!",
       "body_template": "Your entry has been created."
     }
   ]
@@ -1533,7 +1539,7 @@ When `trigger_event` is `cron`, `trigger_cron` must be a valid cron expression (
 | `create_entry` | `seed_slug`, `field_map` | — |
 | `set_variable` | `name` | `seed_slug`, `fixed_id`, `column`, `filters`, `order_by`, `order` |
 
-`body_template`, `subject_template`, `to`, and `field_map` values support template interpolation. You can access the triggering entry via `{{this.fieldAlias}}` or `{{this:fieldAlias}}`, and access variables declared by `set_variable`. See the [Automations Guide](automations.md) for full syntax and variable resolution semantics.
+`body_template`, `subject_template`, `to`, and `field_map` values support template interpolation. You can access the triggering entry via <span v-pre>`\{\{this.fieldAlias\}\}`</span> or <span v-pre>`\{\{this:fieldAlias\}\}`</span>, and access variables declared by `set_variable`. See the [Automations Guide](automations.md) for full syntax and variable resolution semantics.
 
 **Response `201 Created`:**
 

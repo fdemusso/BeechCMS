@@ -127,7 +127,7 @@ vi.mock("@beechcms/core", async () => {
   }
 })
 
-vi.mock("@/features/schema", () => ({
+vi.mock("@/features/shared", () => ({
   useActiveSeed: (slug: string) => ({
     seed: slug === "posts" ? seedPosts : null,
     isLoading: false,
@@ -194,7 +194,7 @@ vi.mock("@/features/navigation", () => ({
   SiteHeader: () => <div>SITE_HEADER</div>,
 }))
 
-vi.mock("@/features/fields", () => ({
+vi.mock("@/components/fields", () => ({
   FieldEdit: ({ branch, value, onChange }: any) => (
     <input
       aria-label={`field-${branch.alias}`}

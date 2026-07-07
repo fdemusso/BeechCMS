@@ -607,7 +607,9 @@
       "status": "Status",
       "pendingDraft": "Pending draft",
       "item": "item",
-      "items": "items"
+      "items": "items",
+      "created": "Created",
+      "updated": "Last modified"
     }
   },
   "toolbar": {
@@ -643,6 +645,7 @@
       "groupedBy": "Grouped by: {{label}}"
     },
     "settings": {
+      "selectAxisField": "Please select a field to group the cards by from the settings menu (gear icon) in the top right.",
       "tooltip": "View settings",
       "title": "View settings",
       "viewName": "View name",
@@ -662,6 +665,11 @@
       "decreaseRows": "Decrease rows",
       "increaseRows": "Increase rows",
       "rows": "Rows",
+      "density": "Density",
+      "densityCompact": "Compact",
+      "densityNormal": "Normal",
+      "densityComfortable": "Comfortable",
+      "resizeColumn": "Resize column",
       "conditionalColors": "Conditional colors",
       "visibleColumns": "Visible columns",
       "columnVisibility": "Column visibility",
@@ -1402,6 +1410,17 @@
         "orphansFailed": "Failed to load orphans",
         "ftsRebuildFailed": "FTS rebuild failed"
       }
+    }
+  },
+  "kanban": {
+    "cardConfig": {
+      "title": "Card layout",
+      "mediaSlot": "Media",
+      "headerSlot": "Header",
+      "subtitleSlot": "Subtitle",
+      "metadataSlot": "Metadata",
+      "noField": "No field",
+      "openConfig": "Configure card layout"
     }
   }
 }

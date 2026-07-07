@@ -3,11 +3,12 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { parsePositiveInt, parseQueryFilters, cleanStr, toEngineFilters } from '../../../shared/query-utils'
-import { applyVisibility } from '../../../shared/apply-policies'
+import { parsePositiveInt, parseQueryFilters, cleanStr, toEngineFilters } from '../../../shared/utils/query-utils'
+import { applyVisibility } from '../../../shared/policies/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
+import { resolveKanbanConfig, type FilterGroup } from '@beechcms/core'
 
 /**
  * Builds a compact `relations` map for the list response.
@@ -130,12 +131,50 @@ export async function listHandler(context: Context<AppEnv>) {
       ? { column: sortBy, dir: (sortDirRaw === 'desc' ? 'DESC' : 'ASC') as 'ASC' | 'DESC' }
       : undefined
 
+    const kanbanAxis = cleanStr(query.kanbanAxis)
+    let kanbanOrder: { seedSlug: string; axisBranchId: string } | undefined
+    if (kanbanAxis) {
+      const compat = resolveKanbanConfig(seed)
+      if (!compat.compatible || !compat.candidates.some(c => c.branchId === kanbanAxis)) {
+        return publicProblem(context, {
+          type: 'content-invalid-kanban-axis',
+          title: 'Bad Request',
+          status: 400,
+          detail: 'kanbanAxis is not a valid candidate for this seed',
+        })
+      }
+      kanbanOrder = { seedSlug: slug, axisBranchId: kanbanAxis }
+    }
+
+    // When fetching for kanban columns, filters arrive in engine FilterGroup[] format
+    // (from kanbanColumnFilter), not the dashboard QueryFilterGroup format.
+    let allFilters: FilterGroup[] = engineFilters
+    if (kanbanOrder) {
+      const rawFilters = cleanStr(query.filters)
+      if (rawFilters) {
+        try {
+          const parsed: unknown = JSON.parse(rawFilters)
+          if (Array.isArray(parsed)) {
+            allFilters = parsed.filter(
+              (g): g is FilterGroup =>
+                g !== null && typeof g === 'object' &&
+                typeof (g as Record<string, unknown>).column === 'string' &&
+                Array.isArray((g as Record<string, unknown>).conditions),
+            )
+          }
+        } catch { /* invalid json — use empty */ }
+      } else {
+        allFilters = []
+      }
+    }
+
     const repository = context.get('repository')
     const { items, total } = await repository.findMany(seed, {
-      filters: engineFilters,
-      orderBy,
+      filters: allFilters,
+      orderBy: kanbanOrder ? undefined : orderBy,
       search: search || undefined,
       pagination: { limit, offset },
+      kanbanOrder,
     })
 
     const entries = await Promise.all(items.map(async (item) => {
@@ -153,7 +192,7 @@ export async function listHandler(context: Context<AppEnv>) {
     }))
 
     // If no query params (except slug), return array directly (legacy compatibility)
-    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || query.page !== undefined || query.limit !== undefined
+    const hasQueryParams = Boolean(search) || Boolean(sortBy) || Boolean(query.filters) || Boolean(kanbanAxis) || query.page !== undefined || query.limit !== undefined
     if (!hasQueryParams) {
       return context.json(entries)
     }

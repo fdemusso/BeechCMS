@@ -150,7 +150,7 @@ export async function bulkHandler(context: Context<AppEnv>) {
 
   // ── Execute ───────────────────────────────────────────────────────────────────
   const repository = context.get('repository')
-  const { updated, failed } = await repository.bulkUpdate(slug, ids as string[], resolvedFields)
+  const { updated, failed } = await repository.bulkUpdate(seed, ids as string[], resolvedFields)
 
   // ── Activity log (single entry for the whole operation) ───────────────────────
   const jwtPayload = context.get('jwtPayload')

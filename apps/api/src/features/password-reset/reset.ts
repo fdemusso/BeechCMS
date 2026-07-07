@@ -5,9 +5,9 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
-import { sendPasswordChangedEmail, resolveEmailLocale } from '../email'
+import { sendPasswordChangedEmail, resolveEmailLocale } from '../../shared/email'
 import { sha256hex } from '@beechcms/core'
-import { getClientIp } from '../../shared/request-utils'
+import { getClientIp } from '../../shared/utils/request-utils'
 
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 128

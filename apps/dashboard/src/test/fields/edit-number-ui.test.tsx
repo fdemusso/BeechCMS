@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
-import { NumberEdit } from "@/features/fields/edit/number"
+import { NumberEdit } from "@/components/fields/edit/number"
 import type { Branch } from "@beechcms/core"
 
 describe("NumberEdit Componenti (VSA)", () => {

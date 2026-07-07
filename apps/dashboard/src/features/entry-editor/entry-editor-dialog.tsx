@@ -11,10 +11,13 @@ export interface EntryEditorDialogProps {
   open: boolean
   onClose: () => void
   readonly?: boolean
+  onSaved?: (info: { entryId?: string; data: Record<string, unknown>; isCreate: boolean }) => void
+  /** Pre-seed values for CREATE mode (e.g. kanban column axis value). Ignored in edit mode. */
+  defaultValues?: Record<string, unknown>
 }
 
 export function EntryEditorDialog(props: Readonly<EntryEditorDialogProps>) {
-  const { schemaSlug, entryId, isDraftContext, open, onClose, readonly } = props
-  const vm = useEntryEditorDialog({ schemaSlug, entryId, isDraftContext, onClose, readonly })
+  const { schemaSlug, entryId, isDraftContext, open, onClose, readonly, onSaved, defaultValues } = props
+  const vm = useEntryEditorDialog({ schemaSlug, entryId, isDraftContext, onClose, readonly, onSaved, defaultValues })
   return <SchemaFormShell vm={vm} open={open} />
 }

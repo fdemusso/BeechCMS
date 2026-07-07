@@ -1,0 +1,337 @@
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2024–2026 Flavio De Musso
+
+import { z } from 'zod'
+import type { Branch, BranchType } from '../types.js'
+import type { IIdGenerator } from '../../common/id-generator.js'
+import type { ResolvedOptions } from './index.js'
+import { extensionFromUrl, isExtensionAccepted } from '../../media/file-types.js'
+import { cleanString } from './primitives.js'
+import { sanitizeRichtext } from './richtext-sanitizer.js'
+import { resolveFileOptions, isAssetListBranch, collectAssetListUrls, parseHttpUrl } from './file-branch.js'
+
+/**
+ * Validates if a string is a valid ISO 8601 date.
+ *
+ * @param value - The date string to validate.
+ * @returns True if the string is a valid ISO date, false otherwise.
+ */
+function isValidIsoDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}/.test(value)) return false
+  const ts = Date.parse(value)
+  if (Number.isNaN(ts)) return false
+  return new Date(ts).toISOString().startsWith(value.slice(0, 10))
+}
+
+/**
+ * Wraps a Zod schema to allow null values if `allowNull` is enabled.
+ *
+ * @param schema - The base schema to wrap.
+ * @param allowNull - Whether to allow null values.
+ * @returns The wrapped union schema or the base schema.
+ */
+function withNullable<T extends z.ZodTypeAny>(schema: T, allowNull: boolean): z.ZodTypeAny {
+  return allowNull ? z.union([schema, z.null()]) : schema
+}
+
+/**
+ * Preprocesses input to convert empty strings or nulls to appropriate fallbacks.
+ *
+ * @param schema - The Zod schema to apply post-preprocessing.
+ * @param allowNull - Whether null/empty should fall back to null (true) or undefined (false).
+ * @returns The preprocessed Zod schema.
+ */
+function withEmptyPreprocessing<T extends z.ZodTypeAny>(schema: T, allowNull: boolean): z.ZodTypeAny {
+  const fallback = allowNull ? null : undefined
+  return z.preprocess(
+    (val) => (val === '' || val === null ? fallback : val),
+    schema.optional(),
+  )
+}
+
+/**
+ * Compiles a Zod validation schema for a text branch.
+ *
+ * @param options - The resolved validation options.
+ * @param allowNull - Whether null values are allowed.
+ * @returns The compiled text schema.
+ */
+function textSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny {
+  const inner = z
+    .string()
+    .transform((value) => cleanString(value))
+    .refine((value) => value.length <= options.maxTextLength, {
+      message: `Expected string(max:${options.maxTextLength})`,
+    })
+  return withNullable(inner, allowNull)
+}
+
+/**
+ * Compiles a Zod validation schema for a rich text branch, including sanitization.
+ *
+ * @param options - The resolved validation options.
+ * @param allowNull - Whether null values are allowed.
+ * @returns The compiled rich text schema.
+ */
+function richtextSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny {
+  const inner = z.any().transform((value, ctx) => {
+    const sanitized = sanitizeRichtext(value, options.maxTextLength)
+    if (!sanitized.valid) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Expected richtext-json|string',
+        params: { expected: 'richtext-json|string' },
+      })
+    }
+    if (sanitized.oversize || sanitized.size > options.maxTextLength) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `Expected richtext(max:${options.maxTextLength})`,
+        params: { expected: `richtext(max:${options.maxTextLength})` },
+      })
+    }
+    if (sanitized.dangerous) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Dangerous richtext content',
+        params: { dangerous: true },
+      })
+    }
+    return sanitized.value
+  })
+  return withNullable(inner, allowNull)
+}
+
+/** Decimal places of a number, correct for scientific notation (1e-7 → 7). */
+function decimalPlaces(n: number): number {
+  if (!Number.isFinite(n)) return 0
+  const s = n.toString()
+  if (s.includes('e') || s.includes('E')) {
+    const [mantissa, expPart] = s.toLowerCase().split('e')
+    const exp = parseInt(expPart, 10)
+    const mantDecimals = (mantissa.split('.')[1] ?? '').length
+    return Math.max(0, mantDecimals - exp) // exp is negative for small numbers
+  }
+  return (s.split('.')[1] ?? '').length
+}
+
+/**
+ * Compiles a Zod validation schema for a number branch with min/max/step checks.
+ *
+ * @param branch - The number branch definition.
+ * @param allowNull - Whether null values are allowed.
+ * @returns The compiled number schema.
+ */
+function numberSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
+  const opts = branch.numberOptions
+  const base = z.number().superRefine((val, ctx) => {
+    if (!Number.isFinite(val)) {
+      ctx.addIssue({ code: 'custom', message: 'Expected finite number' })
+      return
+    }
+    if (opts?.min !== undefined && val < opts.min) {
+      ctx.addIssue({ code: 'custom', message: `Expected number(min:${opts.min})` })
+      return
+    }
+    if (opts?.max !== undefined && val > opts.max) {
+      ctx.addIssue({ code: 'custom', message: `Expected number(max:${opts.max})` })
+      return
+    }
+    if (opts?.step !== undefined) {
+      const step = opts.step
+      const origin = opts.min ?? 0
+      const valDecimals = decimalPlaces(val)
+      const stepDecimals = decimalPlaces(step)
+      const scale = 10 ** Math.max(valDecimals, stepDecimals)
+      const offset = Math.round((val - origin) * scale)
+      const stepScaled = Math.round(step * scale)
+      if (stepScaled !== 0 && offset % stepScaled !== 0) {
+        ctx.addIssue({ code: 'custom', message: `Expected number(step:${step})` })
+      }
+    }
+  })
+  return withNullable(withEmptyPreprocessing(base, allowNull), allowNull)
+}
+
+/**
+ * Compiles a Zod validation schema for a boolean branch.
+ *
+ * @param allowNull - Whether null values are allowed.
+ * @returns The compiled boolean schema.
+ */
+function booleanSchema(allowNull: boolean): z.ZodTypeAny {
+  return withNullable(withEmptyPreprocessing(z.boolean(), allowNull), allowNull)
+}
+
+/**
+ * Compiles a Zod validation schema for a date branch checking for valid ISO date format.
+ *
+ * @param allowNull - Whether null values are allowed.
+ * @returns The compiled date schema.
+ */
+function dateSchema(allowNull: boolean): z.ZodTypeAny {
+  const base = z
+    .string()
+    .transform((value) => cleanString(value as string))
+    .refine((value) => isValidIsoDate(value), { message: 'Expected date(ISO)' })
+  return withNullable(withEmptyPreprocessing(base, allowNull), allowNull)
+}
+
+/**
+ * Compiles a Zod validation schema for JSON or tags branches.
+ *
+ * @param allowNull - Whether null values are allowed.
+ * @returns The compiled JSON/tags schema.
+ */
+function jsonOrTagsSchema(allowNull: boolean): z.ZodTypeAny {
+  const base = z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())])
+  return withNullable(withEmptyPreprocessing(base, allowNull), allowNull)
+}
+
+/**
+ * Compiles a Zod validation schema for a relation branch, validating ID formats using an ID generator.
+ *
+ * @param branch - The relation branch definition.
+ * @param options - The resolved validation options.
+ * @returns The compiled relation schema.
+ */
+function relationSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny {
+  const gen = options.idGenerator
+  if (!gen) {
+    throw new Error(
+      'IIdGenerator must be provided in ValidateSeedPayloadOptions when validating seeds with relation branches. ' +
+      'Pass `idGenerator` (e.g. SystemIdGenerator) in the options object.',
+    )
+  }
+  const idSchema = z.string().refine(
+    (value) => gen.isValid(value),
+    { message: 'Invalid relation id format' },
+  )
+  // Many-to-many: expect string[] with no duplicates
+  if (branch.multiple === true) {
+    const arraySchema = z.array(idSchema).refine(
+      (arr) => new Set(arr).size === arr.length,
+      { message: 'Duplicate ids in multi-relation array' },
+    )
+    return options.allowNull ? z.union([arraySchema, z.null()]) : arraySchema
+  }
+  return withNullable(idSchema, options.allowNull)
+}
+
+/**
+ * Compiles a Zod validation schema for file or asset list branches.
+ *
+ * @param branch - The file branch definition.
+ * @param allowNull - Whether null values are allowed.
+ * @returns The compiled file schema.
+ */
+function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
+  const { accept } = resolveFileOptions(branch)
+  const verifyExtension = (url: string, ctx: z.RefinementCtx): boolean => {
+    if (accept === 'any') return true
+    const ext = extensionFromUrl(url)
+    if (isExtensionAccepted(ext, accept)) return true
+    ctx.addIssue({ code: 'custom', message: `Expected valid-${accept}-url-with-extension` })
+    return false
+  }
+
+  if (isAssetListBranch(branch)) {
+    const inner = z
+      .any()
+      .transform((raw, ctx) => {
+        const urls = collectAssetListUrls(raw)
+        if (urls === null) {
+          ctx.addIssue({ code: 'custom', message: 'Expected valid-url-string[]' })
+          return z.NEVER
+        }
+        for (const url of urls) {
+          if (!verifyExtension(url, ctx)) return z.NEVER
+        }
+        return urls
+      })
+      .pipe(z.array(z.string().url()))
+    return withNullable(withEmptyPreprocessing(inner, allowNull), allowNull)
+  }
+
+  const inner = z
+    .any()
+    .transform((raw, ctx) => {
+      const url = parseHttpUrl(raw)
+      if (!url) {
+        ctx.addIssue({ code: 'custom', message: 'Expected valid-url-string' })
+        return z.NEVER
+      }
+      if (!verifyExtension(url, ctx)) return z.NEVER
+      return url
+    })
+    .pipe(z.string().url())
+  return withNullable(withEmptyPreprocessing(inner, allowNull), allowNull)
+}
+
+/**
+ * Sub-branches of a `repeater` are restricted to leaf/scalar types — no nested
+ * `repeater`, `relation`, or `file` (v1 restriction, see types.ts Branch.fields).
+ */
+const REPEATER_DISALLOWED_SUBTYPES = new Set<BranchType>(['repeater', 'relation', 'file'])
+
+/**
+ * Compiles a Zod validation schema for repeater branches, validating arrays of items matching sub-fields.
+ *
+ * @param branch - The repeater branch definition.
+ * @param options - The resolved validation options.
+ * @returns The compiled repeater schema.
+ */
+function repeaterSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny {
+  const requiredFlag = options.operation === 'create' ? 'requiredOnCreate' : 'requiredOnUpdate'
+  const subBranches = (branch.fields ?? []).filter((sub) => !REPEATER_DISALLOWED_SUBTYPES.has(sub.type))
+
+  const shape: Record<string, z.ZodTypeAny> = {}
+  for (const sub of subBranches) {
+    const subSchema = schemaForBranch(sub, options)
+    shape[sub.alias] = sub[requiredFlag] ? subSchema : subSchema.optional()
+  }
+  // z.object() strips unknown keys by default — old item shapes from a renamed/
+  // removed sub-field are dropped rather than rejected (sprint 10 §5.1).
+  const itemSchema = z.object(shape)
+  let arraySchema = z.array(itemSchema)
+  if (Number.isInteger(branch.minItems) && (branch.minItems as number) >= 0) {
+    arraySchema = arraySchema.min(branch.minItems as number, {
+      message: `Expected array(min:${branch.minItems})`,
+    })
+  }
+  if (Number.isInteger(branch.maxItems) && (branch.maxItems as number) >= 0) {
+    arraySchema = arraySchema.max(branch.maxItems as number, {
+      message: `Expected array(max:${branch.maxItems})`,
+    })
+  }
+  return withNullable(withEmptyPreprocessing(arraySchema, options.allowNull), options.allowNull)
+}
+
+/** Mapping of branch types to their respective schema compilation functions. */
+const BRANCH_SCHEMA_BUILDERS: Record<string, (branch: Branch, options: ResolvedOptions) => z.ZodTypeAny> = {
+  text: (_branch, options) => textSchema(options, options.allowNull),
+  richtext: (_branch, options) => richtextSchema(options, options.allowNull),
+  number: (branch, options) => numberSchema(branch, options.allowNull),
+  boolean: (_branch, options) => booleanSchema(options.allowNull),
+  date: (_branch, options) => dateSchema(options.allowNull),
+  json: (_branch, options) => jsonOrTagsSchema(options.allowNull),
+  tags: (_branch, options) => jsonOrTagsSchema(options.allowNull),
+  file: (branch, options) => fileSchema(branch, options.allowNull),
+  relation: (branch, options) => relationSchema(branch, options),
+  repeater: (branch, options) => repeaterSchema(branch, options),
+}
+
+/**
+ * Returns the appropriate Zod schema builder for a given branch based on its type.
+ *
+ * @param branch - The branch definition.
+ * @param options - The resolved validation options.
+ * @returns The compiled schema.
+ */
+export function schemaForBranch(branch: Branch, options: ResolvedOptions): z.ZodTypeAny {
+  const builder = BRANCH_SCHEMA_BUILDERS[branch.type]
+  if (!builder) {
+    throw new Error(`Unhandled branch type: ${(branch as { type: string }).type}`)
+  }
+  return builder(branch, options)
+}

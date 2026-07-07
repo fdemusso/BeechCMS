@@ -24,7 +24,7 @@
     "type-check": "tsc -p tsconfig.build.json --noEmit",
     "db:migrate:local": "node ./scripts/bootstrap-d1.mjs",
     "db:reset:local": "node -e \"require('fs').rmSync('.wrangler/state', {recursive:true,force:true})\" && node ./scripts/bootstrap-d1.mjs",
-    "deploy": "wrangler deploy --minify",
+    "deploy": "wrangler deploy --minify --env production",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
