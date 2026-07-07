@@ -88,9 +88,6 @@ importers:
       typedoc:
         specifier: ^0.28.20
         version: 0.28.20(typescript@5.9.3)
-      typedoc-material-theme:
-        specifier: ^1.4.1
-        version: 1.4.1(typedoc@0.28.20(typescript@5.9.3))
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -1481,9 +1478,6 @@ packages:
     resolution: {integrity: sha512-RSKlNZvxhMCkOFZ6slbYvZYbWjHUM+PxDQnupIOxIdsTZQQjx/BFfrfJ7kQFOP+g7MtpOds8weAetEs5obwMOQ==}
     peerDependencies:
       react: ^19.2.7
-
-  '@material/material-color-utilities@0.3.0':
-    resolution: {integrity: sha512-ztmtTd6xwnuh2/xu+Vb01btgV8SQWYCaK56CkRK8gEkWe5TuDyBcYJ0wgkMRn+2VcE9KUmhvkz+N9GHrqw/C0g==}
 
   '@modelcontextprotocol/sdk@1.29.0':
     resolution: {integrity: sha512-zo37mZA9hJWpULgkRpowewez1y6ML5GsXJPY8FI0tBBCd77HEvza4jDqRKOXgHNn867PVGCyTdzqpz0izu5ZjQ==}
@@ -6168,12 +6162,6 @@ packages:
     resolution: {integrity: sha512-faYHw0anBbc/kWF3zFTEnxSFOAGUX9GFbOBthvDdLsIlEoWOFOtS0zgCiQYwIskL9iGXZL3kAXD8OoZ4GmMATA==}
     engines: {node: '>= 18'}
 
-  typedoc-material-theme@1.4.1:
-    resolution: {integrity: sha512-/inKZw8SqZPt+pmawpMhDmXCJQyIm+fHFuGChioyJQICZcX2FyzpwZnyPWcZHmJ09upttWFhti4ZI3hESJNkSA==}
-    engines: {node: '>=18.0.0', npm: '>=8.6.0'}
-    peerDependencies:
-      typedoc: ^0.25.13 || ^0.26.x || ^0.27.x || ^0.28.x
-
   typedoc@0.28.20:
     resolution: {integrity: sha512-uSKqkh8Cr48vllnEy+jdaAgOeR6Y+QCBW7usgUsKj7gJEfR7stw9U/fE49LBnj2tPRKPY0c0EBJSWe9Appmplg==}
     engines: {node: '>= 18', pnpm: '>= 10'}
@@ -7680,8 +7668,6 @@ snapshots:
   '@mantine/utils@6.0.22(react@19.2.7)':
     dependencies:
       react: 19.2.7
-
-  '@material/material-color-utilities@0.3.0': {}
 
   '@modelcontextprotocol/sdk@1.29.0(zod@3.25.76)':
     dependencies:
@@ -12643,11 +12629,6 @@ snapshots:
       content-type: 2.0.0
       media-typer: 1.1.0
       mime-types: 3.0.2
-
-  typedoc-material-theme@1.4.1(typedoc@0.28.20(typescript@5.9.3)):
-    dependencies:
-      '@material/material-color-utilities': 0.3.0
-      typedoc: 0.28.20(typescript@5.9.3)
 
   typedoc@0.28.20(typescript@5.9.3):
     dependencies:

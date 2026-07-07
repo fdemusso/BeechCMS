@@ -45,9 +45,6 @@
     "**/node_modules/**",
     "**/dist/**"
   ],
-  "includeVersion": true,
-  "searchInComments": true,
   "cleanOutputDir": true,
-  "plugin": ["typedoc-material-theme"],
-  "themeColor": "#10b981"
+  "customCss": "docs/custom-theme.css"
 }
