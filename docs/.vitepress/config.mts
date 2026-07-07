@@ -2,6 +2,7 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: "BeechCMS",
+  base: '/BeechCMS/',
   description: "Edge-native headless CMS",
   srcExclude: ['Sprints/**'],
   ignoreDeadLinks: true,
