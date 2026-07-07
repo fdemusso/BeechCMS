@@ -1,3 +1,9 @@
+---
+title: Creating Custom Widgets
+group: User & Builder Guide
+category: Extending
+---
+
 # Custom Dashboard Widgets
 
 The Beech CMS dashboard widget catalog is a **public extension point**.

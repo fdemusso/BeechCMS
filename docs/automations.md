@@ -1,3 +1,9 @@
+---
+title: Automations Engine
+group: User & Builder Guide
+category: Features
+---
+
 # Automations Guide
 
 Automations in BeechCMS allow you to trigger actions—such as sending an email, firing a webhook, updating a field, or creating a new entry—based on content lifecycle events (`create`, `update`, `delete`) or a recurring schedule (`cron`).

@@ -1,3 +1,9 @@
+---
+title: Building a Website
+group: User & Builder Guide
+category: Getting Started
+---
+
 # BeechCMS — Building a Website
 
 A complete walkthrough: from zero to a live website powered by BeechCMS as a headless CMS backend.

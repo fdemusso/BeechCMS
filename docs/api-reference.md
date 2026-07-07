@@ -1,3 +1,9 @@
+---
+title: Core API Reference
+group: User & Builder Guide
+category: Frontend & APIs
+---
+
 # API Reference — Beech CMS
 
 This document is the authoritative reference for the Beech CMS REST API. It covers two distinct surfaces: the **Internal API** (JWT-authenticated, used by the dashboard) and the **Public API** (API-key-gated, designed for external consumers). All error responses conform to [RFC 7807 Problem Details](https://www.rfc-editor.org/rfc/rfc7807).

@@ -1,3 +1,9 @@
+---
+title: Architecture Overview
+group: Developer Guide (Internals)
+category: Core Concepts
+---
+
 # Architecture — Beech CMS
 
 This document describes the structural reasoning behind the Beech CMS monorepo: how packages relate, why specific storage and compute choices were made, and how the system is actively migrating from a layered architecture toward **Vertical Slice Architecture (VSA)**.

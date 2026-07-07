@@ -1,0 +1,51 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPointStrategy": "packages",
+  "entryPoints": [
+    "packages/core",
+    "packages/client",
+    "packages/widget-sdk",
+    "packages/cli"
+  ],
+  "name": "BeechCMS Documentation",
+  "out": "docs-dist",
+  "projectDocuments": [
+    "docs/guide.md",
+    "docs/frontend-guide.md",
+    "docs/api-reference.md",
+    "docs/custom-widgets.md",
+    "docs/automations.md",
+    "docs/email-module.md",
+    "docs/development.md",
+    "docs/architecture.md",
+    "docs/SYSTEM_MAP.md",
+    "docs/vertical-slice.md",
+    "docs/background-queues.md",
+    "docs/observability-and-notifications.md",
+    "docs/release.md"
+  ],
+  "packageOptions": {
+    "entryPoints": ["src/index.ts"]
+  },
+  "categorizeByGroup": true,
+  "categoryOrder": [
+    "Getting Started",
+    "Frontend & APIs",
+    "Extending",
+    "Features",
+    "Setup",
+    "Core Concepts",
+    "Development Guides",
+    "Internals",
+    "Operations",
+    "*"
+  ],
+  "exclude": [
+    "**/*.test.ts",
+    "**/node_modules/**",
+    "**/dist/**"
+  ],
+  "includeVersion": true,
+  "searchInComments": true,
+  "cleanOutputDir": true
+}

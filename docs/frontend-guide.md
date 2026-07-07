@@ -1,3 +1,9 @@
+---
+title: Frontend Integration Guide
+group: User & Builder Guide
+category: Frontend & APIs
+---
+
 # Frontend Guide — Beech CMS Dashboard
 
 This document describes the architecture of the React dashboard: how the FieldRenderers registry decouples UI from schema, how TanStack Query manages server state, how the Tailwind 4 + Shadcn component system is composed, and the precise steps required to add a new field type without touching any existing view code.

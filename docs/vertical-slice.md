@@ -1,3 +1,9 @@
+---
+title: Creating a Vertical Slice
+group: Developer Guide (Internals)
+category: Development Guides
+---
+
 # Vertical Slice Architecture in Beech CMS
 
 A practical guide to structuring features, enforcing isolation, and avoiding common pitfalls — grounded in how Beech CMS is actually built.

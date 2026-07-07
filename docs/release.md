@@ -1,3 +1,9 @@
+---
+title: Release Process
+group: Developer Guide (Internals)
+category: Operations
+---
+
 # BeechCMS — Release Guide
 
 This document covers the versioning scheme and how to cut a release using the automated release script.

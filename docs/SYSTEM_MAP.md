@@ -1,3 +1,9 @@
+---
+title: System Map
+group: Developer Guide (Internals)
+category: Core Concepts
+---
+
 # Beech CMS – System Map
 
 ## Overview

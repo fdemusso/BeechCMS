@@ -1,3 +1,9 @@
+---
+title: Development Setup
+group: Developer Guide (Internals)
+category: Setup
+---
+
 # Development Setup
 
 ## Prerequisites

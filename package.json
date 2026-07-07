@@ -38,6 +38,7 @@
     "beech": "bin/cli.mjs"
   },
   "scripts": {
+    "docs:generate": "typedoc",
     "beech": "node bin/cli.mjs",
     "dev": "node scripts/dev.mjs",
     "dev:full": "node scripts/dev.mjs",
@@ -84,6 +85,7 @@
     "strip-ansi": "^7.2.0",
     "tsx": "^4.22.4",
     "turbo": "^2.9.18",
+    "typedoc": "^0.28.20",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.48.0",
     "vitest": "^4.1.0"
