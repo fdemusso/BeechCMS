@@ -55,6 +55,9 @@ export class JoseTokenService implements ITokenService {
         audience: this.config.audience,
         currentDate: new Date(this.clock.nowSeconds() * 1000),
       })
+      if (typeof payload.sub !== 'string' || payload.sub === '') {
+        return null
+      }
       return payload as JwtClaims
     } catch {
       return null

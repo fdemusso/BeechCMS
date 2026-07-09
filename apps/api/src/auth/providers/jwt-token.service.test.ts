@@ -28,6 +28,17 @@ describe('JoseTokenService', () => {
     expect(await service.verify('not.a.valid.jwt')).toBeNull()
   })
 
+  it('verify returns null if sub is missing, empty, or not a string', async () => {
+    const tokenNoSub = await service.issue({ email: 'a@b.com' } as any)
+    expect(await service.verify(tokenNoSub)).toBeNull()
+
+    const tokenEmptySub = await service.issue({ sub: '', email: 'a@b.com' })
+    expect(await service.verify(tokenEmptySub)).toBeNull()
+
+    const tokenInvalidSub = await service.issue({ sub: 123 as any, email: 'a@b.com' })
+    expect(await service.verify(tokenInvalidSub)).toBeNull()
+  })
+
   it('verify returns null for a token signed with a different secret', async () => {
     const otherService = new JoseTokenService('completely-different-secret-key-xyz', {}, SystemClock)
     const token = await otherService.issue({ sub: 'user-1' })
