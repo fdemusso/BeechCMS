@@ -6,8 +6,40 @@ import type { Branch, BranchType, Seed, NumberFieldOptions, FileFieldOptions } f
 import type { ResolvedOptions } from './index.js'
 import { schemaForBranch } from './schema-builders.js'
 
+/** Max entries kept in {@link seedSchemaCache} before evicting the least recently used. */
+const SEED_SCHEMA_CACHE_MAX_SIZE = 150
+
 /** Cache storing compiled Zod schemas for seeds to optimize validation runs. */
 const seedSchemaCache = new Map<string, z.ZodObject<Record<string, z.ZodTypeAny>>>()
+
+/**
+ * Retrieves a cache entry and marks it as most recently used.
+ *
+ * @param key - The cache key.
+ * @returns The cached schema, or undefined if absent.
+ */
+function getCachedSchema(key: string): z.ZodObject<Record<string, z.ZodTypeAny>> | undefined {
+  const cached = seedSchemaCache.get(key)
+  if (cached) {
+    seedSchemaCache.delete(key)
+    seedSchemaCache.set(key, cached)
+  }
+  return cached
+}
+
+/**
+ * Stores a cache entry, evicting the least recently used one if over capacity.
+ *
+ * @param key - The cache key.
+ * @param value - The compiled schema to cache.
+ */
+function setCachedSchema(key: string, value: z.ZodObject<Record<string, z.ZodTypeAny>>): void {
+  if (seedSchemaCache.size >= SEED_SCHEMA_CACHE_MAX_SIZE) {
+    const oldestKey = seedSchemaCache.keys().next().value
+    if (oldestKey !== undefined) seedSchemaCache.delete(oldestKey)
+  }
+  seedSchemaCache.set(key, value)
+}
 
 /**
  * Represents the typesafe structure of a fingerprinted branch for cache key generation.
@@ -102,7 +134,7 @@ export function compileSeedSchema(seed: Seed, options: ResolvedOptions): z.ZodOb
 
   if (!hasRelation) {
     const key = buildCacheKey(seed, options)
-    const cached = seedSchemaCache.get(key)
+    const cached = getCachedSchema(key)
     if (cached) return cached
   }
 
@@ -117,7 +149,7 @@ export function compileSeedSchema(seed: Seed, options: ResolvedOptions): z.ZodOb
 
   if (!hasRelation) {
     const key = buildCacheKey(seed, options)
-    seedSchemaCache.set(key, compiled)
+    setCachedSchema(key, compiled)
   }
 
   return compiled
