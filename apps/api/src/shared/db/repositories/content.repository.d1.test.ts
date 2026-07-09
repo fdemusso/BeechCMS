@@ -905,6 +905,28 @@ describe('D1ContentRepository', () => {
       allMock.mockRejectedValue(new Error('boom'))
       await expect(new D1ContentRepository(db).findPendingDrafts([SEED])).rejects.toThrow('findPendingDrafts')
     })
+
+    it('falls back to COALESCE(l.slug, d.entry_id) when displayNameAlias is not a scalar branch', async () => {
+      const { db, prepareMock, allMock } = makeMockDb()
+      allMock.mockResolvedValue({ results: [] })
+
+      const BAD_SEED = {
+        slug: 'pages',
+        displayNameAlias: 'nonexistent',
+        allowDrafts: true,
+        branches: [
+          { id: 'br_01', alias: 'content', type: 'text' },
+          { id: 'br_02', alias: 'tags', type: 'relation', multiple: true, targetSeed: 'tags' }
+        ],
+      } as unknown as Seed
+
+      await new D1ContentRepository(db).findPendingDrafts([BAD_SEED])
+
+      expect(prepareMock).toHaveBeenCalled()
+      const sql = prepareMock.mock.calls[0][0]
+      expect(sql).toContain('COALESCE(l.slug, d.entry_id) AS title')
+      expect(sql).not.toContain('nonexistent')
+    })
   })
 
   // ─── publishDraft with single relation validation ────────────────────────────

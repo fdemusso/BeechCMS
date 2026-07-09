@@ -244,6 +244,20 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
     }
   }
 
+  // ── Fatal 12: displayNameAlias format validation ───────────────────────────
+  for (const seed of seeds) {
+    if (typeof seed.displayNameAlias !== 'string' || !BRANCH_ALIAS_RE.test(seed.displayNameAlias)) {
+      result.push({
+        slug: seed.slug,
+        messages: [
+          `displayNameAlias '${seed.displayNameAlias}' is invalid. Expected format ${BRANCH_ALIAS_RE.source} ` +
+          `(lowercase letter followed by alphanumeric characters or underscores).`,
+        ],
+        fatal: true,
+      })
+    }
+  }
+
   return result
 }
 
