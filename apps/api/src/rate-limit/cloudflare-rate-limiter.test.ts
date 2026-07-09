@@ -27,4 +27,24 @@ describe('CloudflareRateLimiter', () => {
     await limiter.checkLimit(key)
     expect(mockBinding.limit).toHaveBeenCalledWith({ key })
   })
+
+  it('fails open (returns isAllowed: true) and warns when the Cloudflare binding rejects by default', async () => {
+    const mockBinding = { limit: vi.fn().mockRejectedValue(new Error('Cloudflare connection error')) }
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const limiter = new CloudflareRateLimiter(mockBinding as any)
+    const result = await limiter.checkLimit('192.168.1.1:login')
+    expect(result.isAllowed).toBe(true)
+    expect(warnSpy).toHaveBeenCalled()
+    warnSpy.mockRestore()
+  })
+
+  it('fails closed (returns isAllowed: false) and warns when the Cloudflare binding rejects with failClosed enabled', async () => {
+    const mockBinding = { limit: vi.fn().mockRejectedValue(new Error('Cloudflare connection error')) }
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const limiter = new CloudflareRateLimiter(mockBinding as any, { failClosed: true })
+    const result = await limiter.checkLimit('192.168.1.1:login')
+    expect(result.isAllowed).toBe(false)
+    expect(warnSpy).toHaveBeenCalled()
+    warnSpy.mockRestore()
+  })
 })
