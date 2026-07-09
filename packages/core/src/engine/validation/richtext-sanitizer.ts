@@ -59,34 +59,42 @@ function isProtocolAllowed(raw: string): boolean {
 }
 
 /**
- * Recursively walks a rich text node structure to detect and flag XSS threats and remove control characters.
+ * Recursively walks a rich text node structure, removing (not just flagging) XSS threats
+ * and control characters. Returns `undefined` for nodes/attrs that must be dropped entirely.
  *
  * @param node - The node to walk.
  * @param state - The shared sanitization state tracking danger flags.
- * @returns The cleaned rich text node.
+ * @returns The cleaned rich text node, or `undefined` if it must be removed.
  */
 function walkRichtextNode(node: unknown, state: SanitizeState): unknown {
   if (state.depth > RICHTEXT_MAX_DEPTH) {
     state.dangerous = true
-    return null
+    return undefined
   }
   if (typeof node === 'string') return stripControlChars(node)
   if (Array.isArray(node)) {
     state.depth++
-    const mapped = node.map((child) => walkRichtextNode(child, state))
+    const mapped: unknown[] = []
+    for (const child of node) {
+      const walked = walkRichtextNode(child, state)
+      if (walked !== undefined) mapped.push(walked)
+    }
     state.depth--
     return mapped
   }
   if (!isPlainObject(node)) return node
 
-  // Node/mark type allowlist: any `type` not on either allowlist flags dangerous.
-  const nodeType = typeof node.type === 'string' ? node.type : undefined
-  if (
-    nodeType !== undefined &&
-    !ALLOWED_RICHTEXT_NODE_TYPES.has(nodeType) &&
-    !ALLOWED_RICHTEXT_MARK_TYPES.has(nodeType)
-  ) {
-    state.dangerous = true
+  // Node/mark type allowlist: any present `type` that isn't an allowlisted string is dropped.
+  // Objects with no `type` key (e.g. attrs bags) are not nodes and skip this check.
+  if ('type' in node) {
+    const rawType = node.type
+    const isAllowed =
+      typeof rawType === 'string' &&
+      (ALLOWED_RICHTEXT_NODE_TYPES.has(rawType) || ALLOWED_RICHTEXT_MARK_TYPES.has(rawType))
+    if (!isAllowed) {
+      state.dangerous = true
+      return undefined
+    }
   }
 
   const result: Record<string, unknown> = Object.create(null)
@@ -96,15 +104,20 @@ function walkRichtextNode(node: unknown, state: SanitizeState): unknown {
       continue
     }
     const lower = key.toLowerCase()
-    if (lower.startsWith('on')) state.dangerous = true // event-handler attr
+    if (lower.startsWith('on')) {
+      state.dangerous = true
+      continue // drop event-handler attr
+    }
     if (
       URL_LIKE_RICHTEXT_KEYS.has(lower) &&
       typeof entry === 'string' &&
       !isProtocolAllowed(entry)
     ) {
       state.dangerous = true
+      continue // drop disallowed URL
     }
-    result[key] = walkRichtextNode(entry, state)
+    const walked = walkRichtextNode(entry, state)
+    if (walked !== undefined) result[key] = walked
   }
   state.depth--
   return result

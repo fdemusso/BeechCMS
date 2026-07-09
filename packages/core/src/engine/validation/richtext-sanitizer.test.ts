@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { validateAndSanitizeSeedPayload, isValidContentStatus } from './index.js'
+import { sanitizeRichtext } from './richtext-sanitizer.js'
 import type { Branch, Seed } from '../types.js'
 
 const CHAOS_SEED: Seed = {
@@ -252,6 +253,74 @@ describe('richtext field', () => {
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x'.repeat(50) }] }] }
     const r = safeValidate({ ...validBase(), body: doc }, { maxTextLength: 5 })
     expect(r.details.some(d => d.field === 'body' && d.expected.includes('richtext(max:5)'))).toBe(true)
+  })
+
+  // Regression: #179 — sanitizeRichtext() must remove dangerous content from `.value`,
+  // not just flag it via `.dangerous` — a caller trusting `.value` alone must still be safe.
+  it('#179: strips a non-allowlisted node type out of the sanitized `.value`, not just flags it', () => {
+    const maliciousDoc = {
+      type: 'doc',
+      content: [
+        { type: 'script', attrs: { src: 'http://evil.com' } },
+        { type: 'paragraph', content: [{ type: 'text', text: 'safe' }] },
+      ],
+    }
+    const r = sanitizeRichtext(maliciousDoc, 10000)
+    expect(r.dangerous).toBe(true)
+    expect(JSON.stringify(r.value)).not.toContain('script')
+    const value = r.value as any
+    expect(value.content).toHaveLength(1)
+    expect(value.content[0].type).toBe('paragraph')
+  })
+
+  it('#179: strips the "on*" event-handler attribute out of the sanitized `.value`', () => {
+    const maliciousDoc = {
+      type: 'doc',
+      content: [{ type: 'image', attrs: { src: 'https://x.com/a.png', onError: 'alert(1)' } }],
+    }
+    const r = sanitizeRichtext(maliciousDoc, 10000)
+    expect(r.dangerous).toBe(true)
+    const attrs = (r.value as any).content[0].attrs
+    expect(attrs.onError).toBeUndefined()
+    expect(attrs.src).toBe('https://x.com/a.png')
+  })
+
+  it('#179: strips a disallowed-protocol href out of the sanitized `.value`', () => {
+    const maliciousDoc = {
+      type: 'doc',
+      content: [{
+        type: 'paragraph',
+        content: [{
+          type: 'text',
+          text: 'click me',
+          marks: [{ type: 'link', attrs: { href: 'javascript:alert(document.cookie)' } }],
+        }],
+      }],
+    }
+    const r = sanitizeRichtext(maliciousDoc, 10000)
+    expect(r.dangerous).toBe(true)
+    const markAttrs = (r.value as any).content[0].content[0].marks[0].attrs
+    expect(markAttrs.href).toBeUndefined()
+  })
+
+  it('#179: flags and strips a node whose `type` is a non-string (array bypass of the allowlist)', () => {
+    const maliciousDoc = {
+      type: 'doc',
+      content: [{ type: ['iframe'], attrs: { src: 'https://evil.com' } }],
+    }
+    const r = sanitizeRichtext(maliciousDoc, 10000)
+    expect(r.dangerous).toBe(true)
+    expect((r.value as any).content).toHaveLength(0)
+  })
+
+  it('#179: flags a node whose `type` is a number (allowlist bypass)', () => {
+    const maliciousDoc = {
+      type: 'doc',
+      content: [{ type: 42, attrs: { src: 'https://evil.com' } }],
+    }
+    const r = sanitizeRichtext(maliciousDoc, 10000)
+    expect(r.dangerous).toBe(true)
+    expect((r.value as any).content).toHaveLength(0)
   })
 
   it('prevents prototype pollution via __proto__, constructor, and prototype keys', () => {
