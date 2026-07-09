@@ -6,7 +6,7 @@ import type { Branch, BranchType } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
 import { extensionFromUrl, isExtensionAccepted } from '../../media/file-types.js'
-import { cleanString } from './primitives.js'
+import { cleanString, byteLength } from './primitives.js'
 import { sanitizeRichtext } from './richtext-sanitizer.js'
 import { resolveFileOptions, isAssetListBranch, collectAssetListItems, extractFileCandidate } from './file-branch.js'
 
@@ -61,7 +61,7 @@ function textSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
   const inner = z
     .string()
     .transform((value) => cleanString(value))
-    .refine((value) => value.length <= options.maxTextLength, {
+    .refine((value) => byteLength(value) <= options.maxTextLength, {
       message: `Expected string(max:${options.maxTextLength})`,
     })
   return withNullable(inner, allowNull)

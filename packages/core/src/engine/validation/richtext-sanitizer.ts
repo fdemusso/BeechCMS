@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { RICHTEXT_SCHEMA_VERSION, isRichtextEnvelopeV1 } from '../../content/richtext/richtext.js'
-import { stripControlChars, cleanString, isPlainObject } from './primitives.js'
+import { stripControlChars, cleanString, isPlainObject, byteLength } from './primitives.js'
 
 /** Allowlisted TipTap node `type` values. Keep in sync with
  *  richtext-render.ts::createRichTextHtmlExtensions. */
@@ -46,7 +46,7 @@ interface SanitizeState {
 
 /** RichText string input is no longer accepted (JSON-only). Reject as invalid. */
 function sanitizeRichtextString(raw: string): RichtextSanitizeResult {
-  return { value: raw, dangerous: false, valid: false, size: raw.length }
+  return { value: raw, dangerous: false, valid: false, size: byteLength(raw) }
 }
 
 /** Normalizes a URL value and confirms its protocol is allowlisted.
@@ -134,8 +134,7 @@ function sanitizeRichtextJson(raw: Record<string, unknown>): RichtextSanitizeRes
   const cleaned = walkRichtextNode(raw, state)
   const asObject = isPlainObject(cleaned) ? cleaned : {}
   const valid = asObject.type === 'doc'
-  const serialized = JSON.stringify(asObject)
-  return { value: asObject, dangerous: state.dangerous, valid, size: serialized.length }
+  return { value: asObject, dangerous: state.dangerous, valid, size: byteLength(JSON.stringify(asObject)) }
 }
 
 /**
@@ -158,7 +157,7 @@ export function sanitizeRichtext(raw: unknown, maxBytes: number): RichtextSaniti
   }
 
   // Fail-fast DoS pre-check: size BEFORE the sanitizing walk.
-  const rawSize = JSON.stringify(payload).length
+  const rawSize = byteLength(JSON.stringify(payload))
   if (rawSize > maxBytes) {
     return { value: raw, dangerous: false, valid: false, size: rawSize, oversize: true }
   }
@@ -170,11 +169,13 @@ export function sanitizeRichtext(raw: unknown, maxBytes: number): RichtextSaniti
   const finalValue = envelopeMode
     ? { schemaVersion: RICHTEXT_SCHEMA_VERSION, doc: jsonResult.value }
     : jsonResult.value
+  // Envelope wrapping changes the serialized bytes; reuse jsonResult.size otherwise.
+  const finalSize = envelopeMode ? byteLength(JSON.stringify(finalValue)) : jsonResult.size
   return {
     value: finalValue,
     dangerous: jsonResult.dangerous,
     valid: true,
-    size: JSON.stringify(finalValue).length,
+    size: finalSize,
   }
 }
 

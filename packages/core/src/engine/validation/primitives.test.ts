@@ -182,6 +182,13 @@ describe('text field', () => {
     expect(r.details.some(d => d.field === 'subtitle')).toBe(false)
   })
 
+  // Regression: #181 — text length guard must count UTF-8 bytes, not UTF-16 code units.
+  it('#181: rejects multi-byte (CJK) text whose byte size exceeds maxTextLength even though .length does not', () => {
+    const cjkText = '中'.repeat(20) // 20 code units, 60 UTF-8 bytes
+    const r = safeValidate({ ...validBase(), subtitle: cjkText }, { maxTextLength: 20 })
+    expect(r.details.some(d => d.field === 'subtitle')).toBe(true)
+  })
+
   it('required text field: rejects empty string', () => {
     const r = safeValidate({ ...validBase(), title: '' })
     expect(r.requiredFieldsMissing).toContain('title')

@@ -255,6 +255,17 @@ describe('richtext field', () => {
     expect(r.details.some(d => d.field === 'body' && d.expected.includes('richtext(max:5)'))).toBe(true)
   })
 
+  // Regression: #181 — size guard must count UTF-8 bytes, not UTF-16 code units.
+  // CJK chars serialize to 3 bytes each in JSON but count as 1 in `.length`.
+  it('#181: rejects multi-byte (CJK) content whose byte size exceeds maxBytes even though .length does not', () => {
+    const cjkText = '中'.repeat(20) // 20 code units, but 60 bytes once JSON-serialized
+    const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: cjkText }] }] }
+    const serializedLength = JSON.stringify(doc).length
+    const result = sanitizeRichtext(doc, serializedLength) // maxBytes == UTF-16 length, but real bytes are ~3x
+    expect(result.oversize).toBe(true)
+    expect(result.valid).toBe(false)
+  })
+
   // Regression: #179 — sanitizeRichtext() must remove dangerous content from `.value`,
   // not just flag it via `.dangerous` — a caller trusting `.value` alone must still be safe.
   it('#179: strips a non-allowlisted node type out of the sanitized `.value`, not just flags it', () => {
