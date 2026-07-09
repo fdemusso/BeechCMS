@@ -218,6 +218,30 @@ describe('Flow: Admin Authentication', () => {
 
       expect(secondRes.status).toBe(401)
     })
+
+    it('concurrent refresh requests do not leave orphaned sessions', async () => {
+      const { refreshToken } = await login()
+
+      // Send two concurrent refresh requests
+      const [res1, res2] = await Promise.all([
+        app.request('/auth/refresh', {
+          method: 'POST',
+          headers: { Cookie: `refresh_token=${refreshToken}` },
+        }, { ...TEST_ENV, DB: db }),
+        app.request('/auth/refresh', {
+          method: 'POST',
+          headers: { Cookie: `refresh_token=${refreshToken}` },
+        }, { ...TEST_ENV, DB: db }),
+      ])
+
+      // One should succeed (200), the other should fail (401)
+      const statuses = [res1.status, res2.status].sort()
+      expect(statuses).toEqual([200, 401])
+
+      // Only ONE new token should be active in the database
+      const activeSessions = await db.prepare('SELECT * FROM refresh_tokens WHERE revoked_at IS NULL').all<{ token_hash: string }>()
+      expect(activeSessions.results.length).toBe(1)
+    })
   })
 
   // ---------------------------------------------------------------------------

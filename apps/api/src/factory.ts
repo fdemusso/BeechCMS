@@ -316,11 +316,19 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
         expiresAt: nowSeconds + REFRESH_TOKEN_EXPIRY_DAYS * SECONDS_PER_DAY,
       })
 
-      const revoked = await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
-      if (!revoked) return context.json({ error: 'Invalid refresh token' }, 401)
+      try {
+        const revoked = await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
+        if (!revoked) {
+          await context.get('sessionRepository').revokeByHash(newRefreshTokenHash, nowSeconds)
+          return context.json({ error: 'Invalid refresh token' }, 401)
+        }
 
-      setCookie(context, 'refresh_token', newRefreshToken, getRefreshTokenCookieOptions(isRequestSecure(context.req.url)))
-      return context.json({ token: newAccessToken, expiresIn: '15m' }, 200)
+        setCookie(context, 'refresh_token', newRefreshToken, getRefreshTokenCookieOptions(isRequestSecure(context.req.url)))
+        return context.json({ token: newAccessToken, expiresIn: '15m' }, 200)
+      } catch (error) {
+        await context.get('sessionRepository').revokeByHash(newRefreshTokenHash, nowSeconds).catch(() => {})
+        throw error
+      }
     } catch (error) {
       return handleAuthError(context, error, 'Refresh')
     }
