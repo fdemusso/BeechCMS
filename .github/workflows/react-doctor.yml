@@ -18,19 +18,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-
-      - name: Install dependencies (Workaround TS 7.0 compatibility for React Doctor)
-        run: |
-          node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); pkg.devDependencies.typescript = '5.9.3'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
-          pnpm install
-
       - uses: millionco/react-doctor@v2.1.0
