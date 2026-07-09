@@ -271,8 +271,19 @@ describe('repeater field', () => {
       title: 'My FAQ',
       items: [{ answer: 'A1' }],
     })
-    expect(r.details.some(d => d.field === 'items')).toBe(true)
+    expect(r.details.some(d => d.field === 'items[0].question')).toBe(true)
     expect(r.data).not.toHaveProperty('items')
+  })
+
+  it('labels a nested repeater sub-field error with its full path, not the top-level container (issue #153)', () => {
+    const r = validateRepeater({
+      title: 'My FAQ',
+      items: [{ question: 123, answer: richtextDoc('A1'), order: 1 }],
+    })
+    const detail = r.details.find(d => d.field === 'items[0].question')
+    expect(detail).toBeDefined()
+    expect(detail?.received).toBe('number')
+    expect(r.details.some(d => d.field === 'items')).toBe(false)
   })
 
   it('strips unknown keys from each item', () => {
@@ -454,7 +465,7 @@ describe('repeater cardinality bounds', () => {
     }
 
     const resultA = validateAndSanitizeSeedPayload(seedA, payload, { operation: 'create' })
-    expect(resultA.details.some(d => d.field === 'items')).toBe(true)
+    expect(resultA.details.some(d => d.field === 'items[0].rating')).toBe(true)
 
     const resultB = validateAndSanitizeSeedPayload(seedB, payload, { operation: 'create' })
     expect(resultB.details).toEqual([])

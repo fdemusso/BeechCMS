@@ -197,6 +197,42 @@ function describeReceivedType(value: unknown): string {
 }
 
 /**
+ * Builds a dotted/bracketed field path from a Zod issue path (e.g. 'items[0].name').
+ *
+ * @param path - Zod issue path segments.
+ * @returns The full field path as a string, or 'payload' if the path is empty.
+ */
+function buildFieldPath(path: (string | number)[]): string {
+  if (path.length === 0) return 'payload'
+  return path.reduce<string>((result, segment, index) => {
+    if (index === 0) return String(segment)
+    return typeof segment === 'number' ? `${result}[${segment}]` : `${result}.${String(segment)}`
+  }, '')
+}
+
+/**
+ * Navigates a payload object by a Zod issue path to find the actual value that failed validation.
+ *
+ * @param filtered - Payload with unknown aliases stripped.
+ * @param path - Zod issue path segments.
+ * @returns The value found at the path, or undefined if unreachable.
+ */
+function resolveByPath(filtered: Record<string, unknown>, path: (string | number)[]): unknown {
+  let current: unknown = filtered
+  for (const segment of path) {
+    if (current === null || current === undefined) return current
+    if (typeof segment === 'number') {
+      if (!Array.isArray(current)) return undefined
+      current = current[segment]
+    } else {
+      if (typeof current !== 'object') return undefined
+      current = (current as Record<string, unknown>)[segment]
+    }
+  }
+  return current
+}
+
+/**
  * Formats expected error messages based on validation failure details.
  *
  * @param message - The raw issue message or string.
@@ -306,14 +342,15 @@ function processZodIssues(
       continue
     }
 
-    const field = String(issue.path[0] ?? 'payload')
+    const issuePath = issue.path as (string | number)[]
+    const field = buildFieldPath(issuePath)
     const params = (issue as { params?: Record<string, unknown> }).params
     if (params?.dangerous === true) {
       dangerous.push(field)
     }
 
     const expected = expectedFromMessage(issue.message)
-    const received = describeReceivedType(filtered[field])
+    const received = describeReceivedType(resolveByPath(filtered, issuePath))
 
     let message = `Field '${field}' expects type '${expected}' but received '${received}'`
     if (received === 'string' && typeof issue.message === 'string' && issue.message.startsWith('Expected ')) {
