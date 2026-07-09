@@ -32,6 +32,6 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Workaround TS 7.0 compatibility for React Doctor
-        run: pnpm add -D typescript@5.9.3 --no-save
+        run: npm install typescript@5.9.3 --no-save
 
       - uses: millionco/react-doctor@v2.1.0

@@ -52,7 +52,7 @@ jobs:
         run: pnpm run test:coverage
 
       - name: Workaround SonarCloud TS 7.0 compatibility
-        run: pnpm add -D typescript@5.9.3 --no-save
+        run: npm install typescript@5.9.3 --no-save
 
       - name: Esegui SonarCloud Scan Ufficiale
         uses: SonarSource/sonarqube-scan-action@v6.0.0
