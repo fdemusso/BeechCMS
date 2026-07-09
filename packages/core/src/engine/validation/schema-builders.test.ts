@@ -481,3 +481,76 @@ describe('repeater cardinality bounds', () => {
     expect(rB.details).toEqual([])
   })
 })
+
+// Regression: https://github.com/ (issue #152) — empty string on a nullable field
+// must resolve to `null`, not be rejected by the `withNullable` union.
+describe('empty string on nullable fields (issue #152)', () => {
+  function validate(payload: Record<string, unknown>) {
+    return validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { title: 'Valid Title', qty: 1, ...payload },
+      { operation: 'update', allowNull: true, requireAtLeastOneValidField: false },
+    )
+  }
+
+  it('number: "" resolves to null', () => {
+    const r = validate({ price: '' })
+    expect(r.details.some(d => d.field === 'price')).toBe(false)
+    expect(r.data.price).toBeNull()
+  })
+
+  it('boolean: "" resolves to null', () => {
+    const r = validate({ active: '' })
+    expect(r.details.some(d => d.field === 'active')).toBe(false)
+    expect(r.data.active).toBeNull()
+  })
+
+  it('date: "" resolves to null', () => {
+    const r = validate({ publishedAt: '' })
+    expect(r.details.some(d => d.field === 'publishedAt')).toBe(false)
+    expect(r.data.publishedAt).toBeNull()
+  })
+
+  it('json: "" resolves to null', () => {
+    const r = validate({ meta: '' })
+    expect(r.details.some(d => d.field === 'meta')).toBe(false)
+    expect(r.data.meta).toBeNull()
+  })
+
+  it('file: "" resolves to null', () => {
+    const r = validate({ cover: '' })
+    expect(r.details.some(d => d.field === 'cover')).toBe(false)
+    expect(r.data.cover).toBeNull()
+  })
+
+  it('file (asset-list): "" resolves to null', () => {
+    const r = validate({ gallery: '' })
+    expect(r.details.some(d => d.field === 'gallery')).toBe(false)
+    expect(r.data.gallery).toBeNull()
+  })
+
+  it('repeater: "" resolves to null', () => {
+    const r = validateAndSanitizeSeedPayload(
+      REPEATER_SEED,
+      { title: 'My FAQ', items: '' },
+      { operation: 'update', allowNull: true, requireAtLeastOneValidField: false },
+    )
+    expect(r.details.some(d => d.field === 'items')).toBe(false)
+    expect(r.data.items).toBeNull()
+  })
+
+  it('number: null still resolves to null (no regression)', () => {
+    const r = validate({ price: null })
+    expect(r.details.some(d => d.field === 'price')).toBe(false)
+    expect(r.data.price).toBeNull()
+  })
+
+  it('number: "" is rejected when allowNull is false', () => {
+    const r = validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { title: 'Valid Title', qty: 1, price: '' },
+      { operation: 'update', allowNull: false, requireAtLeastOneValidField: false },
+    )
+    expect(r.data.price).toBeUndefined()
+  })
+})
