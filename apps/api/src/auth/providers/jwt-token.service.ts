@@ -53,6 +53,7 @@ export class JoseTokenService implements ITokenService {
         algorithms: [algorithm],
         issuer: this.config.issuer,
         audience: this.config.audience,
+        currentDate: new Date(this.clock.nowSeconds() * 1000),
       })
       return payload as JwtClaims
     } catch {

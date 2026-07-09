@@ -52,6 +52,20 @@ describe('JoseTokenService', () => {
     expect(claims?.sub).toBe('user-1')
   })
 
+  it('verify respects the injected clock for expiration checks', async () => {
+    let mockTimeSeconds = 1700000000
+    const mockClock = {
+      now: () => mockTimeSeconds * 1000,
+      nowSeconds: () => mockTimeSeconds,
+    }
+    const clockService = new JoseTokenService(TEST_SECRET, {}, mockClock)
+    const token = await clockService.issue({ sub: 'user-1' }, { ttlSeconds: 900 })
+    expect(await clockService.verify(token)).not.toBeNull()
+
+    mockTimeSeconds += 901
+    expect(await clockService.verify(token)).toBeNull()
+  })
+
   it('throws if the secret is shorter than 32 bytes', () => {
     expect(() => new JoseTokenService('short-secret', {}, SystemClock)).toThrow('JWT secret must be at least 32 bytes')
   })
