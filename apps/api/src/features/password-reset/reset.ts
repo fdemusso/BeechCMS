@@ -30,7 +30,11 @@ export async function resetPassword(
   const clientIpAddress = getClientIp(req)
   const resetPasswordRateLimit = await context.get('rateLimiters').getLimiter('resetPassword').checkLimit(clientIpAddress)
   if (!resetPasswordRateLimit.isAllowed) {
-    return context.json({ error: 'Too many requests' }, 429)
+    const headers: Record<string, string> = {}
+    if (resetPasswordRateLimit.retryAfterSeconds !== undefined) {
+      headers['Retry-After'] = String(resetPasswordRateLimit.retryAfterSeconds)
+    }
+    return context.json({ error: 'Too many requests' }, 429, headers)
   }
 
   let payload: Record<string, unknown>

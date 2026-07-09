@@ -13,8 +13,11 @@ export class CloudflareRateLimiter implements IRateLimiter {
 
   async checkLimit(key: string): Promise<RateLimitResult> {
     try {
-      const { success } = await this.binding.limit({ key })
-      return { isAllowed: success }
+      const res = await this.binding.limit({ key })
+      return {
+        isAllowed: res.success,
+        retryAfterSeconds: (res as any).retryAfterSeconds ?? (res as any).retryAfter,
+      }
     } catch (error) {
       console.warn(`Rate limiter binding error for key "${key}":`, error)
       return { isAllowed: !this.options.failClosed }

@@ -245,7 +245,13 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
       const clientIp = getClientIp(context.req)
       const loginRateLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(clientIp)
-      if (!loginRateLimit.isAllowed) return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429)
+      if (!loginRateLimit.isAllowed) {
+        const headers: Record<string, string> = {}
+        if (loginRateLimit.retryAfterSeconds !== undefined) {
+          headers['Retry-After'] = String(loginRateLimit.retryAfterSeconds)
+        }
+        return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429, headers)
+      }
 
       const user = await context.get('userRepository').findByEmail(email)
       const hashToCompare = user?.passwordHash ?? DUMMY_PASSWORD_HASH
@@ -275,7 +281,13 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     try {
       const refreshClientIp = getClientIp(context.req)
       const refreshRateLimit = await context.get('rateLimiters').getLimiter('tokenRefresh').checkLimit(refreshClientIp)
-      if (!refreshRateLimit.isAllowed) return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429)
+      if (!refreshRateLimit.isAllowed) {
+        const headers: Record<string, string> = {}
+        if (refreshRateLimit.retryAfterSeconds !== undefined) {
+          headers['Retry-After'] = String(refreshRateLimit.retryAfterSeconds)
+        }
+        return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429, headers)
+      }
 
       const refreshToken = getCookie(context, 'refresh_token')
       if (!refreshToken) return context.json({ error: 'Refresh token missing' }, 401)

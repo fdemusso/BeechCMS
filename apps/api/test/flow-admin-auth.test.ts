@@ -99,6 +99,17 @@ describe('Flow: Admin Authentication', () => {
       }, { ...TEST_ENV, DB: db as any, LOGIN_RATE_LIMITER: blockedLimiter as any })
       expect(res.status).toBe(429)
     })
+
+    it('rate limit returns 429 with Retry-After header when LOGIN_RATE_LIMITER blocks with retryAfterSeconds', async () => {
+      const blockedLimiter = { limit: () => Promise.resolve({ success: false, retryAfterSeconds: 30 }) }
+      const res = await app.request('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: VALID_EMAIL, password: VALID_PASSWORD }),
+      }, { ...TEST_ENV, DB: db as any, LOGIN_RATE_LIMITER: blockedLimiter as any })
+      expect(res.status).toBe(429)
+      expect(res.headers.get('Retry-After')).toBe('30')
+    })
   })
 
   // ---------------------------------------------------------------------------
