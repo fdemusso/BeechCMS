@@ -89,9 +89,12 @@ function walkRichtextNode(node: unknown, state: SanitizeState): unknown {
     state.dangerous = true
   }
 
-  const result: Record<string, unknown> = {}
+  const result: Record<string, unknown> = Object.create(null)
   state.depth++
   for (const [key, entry] of Object.entries(node)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      continue
+    }
     const lower = key.toLowerCase()
     if (lower.startsWith('on')) state.dangerous = true // event-handler attr
     if (

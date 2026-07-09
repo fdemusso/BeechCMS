@@ -140,6 +140,12 @@ describe('file field', () => {
 
     const r2 = safeValidate({ ...validBase(), cover: 'ftp://server/file.zip' })
     expect(r2.details.some(d => d.field === 'cover')).toBe(true)
+
+    const r3 = safeValidate({ ...validBase(), cover: 'httpx://server/file.zip' })
+    expect(r3.details.some(d => d.field === 'cover')).toBe(true)
+
+    const r4 = safeValidate({ ...validBase(), cover: 'http-foo://server/file.zip' })
+    expect(r4.details.some(d => d.field === 'cover')).toBe(true)
   })
 
   it('single: treats empty string as absent for optional file', () => {

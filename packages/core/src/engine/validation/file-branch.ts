@@ -38,7 +38,7 @@ export function parseHttpUrl(input: unknown): string | null {
   } catch {
     return null
   }
-  return parsed.protocol.startsWith('http') ? cleaned : null
+  return (parsed.protocol === 'http:' || parsed.protocol === 'https:') ? cleaned : null
 }
 
 /**

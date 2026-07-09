@@ -253,6 +253,20 @@ describe('richtext field', () => {
     const r = safeValidate({ ...validBase(), body: doc }, { maxTextLength: 5 })
     expect(r.details.some(d => d.field === 'body' && d.expected.includes('richtext(max:5)'))).toBe(true)
   })
+
+  it('prevents prototype pollution via __proto__, constructor, and prototype keys', () => {
+    const maliciousDoc = JSON.parse(
+      '{"type": "doc", "__proto__": {"polluted": "yes"}, "constructor": {"prototype": {"polluted": "yes"}}, "prototype": {"polluted": "yes"}, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "hello"}]}]}'
+    )
+    const r = safeValidate({ ...validBase(), body: maliciousDoc })
+    
+    expect((Object.prototype as any).polluted).toBeUndefined()
+    
+    const bodyVal = r.data.body as any
+    expect(bodyVal.__proto__).toBeUndefined()
+    expect(bodyVal.constructor).toBeUndefined()
+    expect(bodyVal.prototype).toBeUndefined()
+  })
 })
 
 describe('required richtext field emptiness detection', () => {
