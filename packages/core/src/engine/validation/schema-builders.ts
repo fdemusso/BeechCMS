@@ -43,9 +43,10 @@ function withNullable<T extends z.ZodTypeAny>(schema: T, allowNull: boolean): z.
  */
 function withEmptyPreprocessing<T extends z.ZodTypeAny>(schema: T, allowNull: boolean): z.ZodTypeAny {
   const fallback = allowNull ? null : undefined
+  const wrapped: z.ZodTypeAny = allowNull ? schema.optional().nullable() : schema.optional()
   return z.preprocess(
     (val) => (val === '' || val === null ? fallback : val),
-    schema.optional(),
+    wrapped,
   )
 }
 
@@ -150,7 +151,7 @@ function numberSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
       }
     }
   })
-  return withNullable(withEmptyPreprocessing(base, allowNull), allowNull)
+  return withEmptyPreprocessing(base, allowNull)
 }
 
 /**
@@ -160,7 +161,7 @@ function numberSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
  * @returns The compiled boolean schema.
  */
 function booleanSchema(allowNull: boolean): z.ZodTypeAny {
-  return withNullable(withEmptyPreprocessing(z.boolean(), allowNull), allowNull)
+  return withEmptyPreprocessing(z.boolean(), allowNull)
 }
 
 /**
@@ -174,7 +175,7 @@ function dateSchema(allowNull: boolean): z.ZodTypeAny {
     .string()
     .transform((value) => cleanString(value as string))
     .refine((value) => isValidIsoDate(value), { message: 'Expected date(ISO)' })
-  return withNullable(withEmptyPreprocessing(base, allowNull), allowNull)
+  return withEmptyPreprocessing(base, allowNull)
 }
 
 /**
@@ -185,7 +186,7 @@ function dateSchema(allowNull: boolean): z.ZodTypeAny {
  */
 function jsonOrTagsSchema(allowNull: boolean): z.ZodTypeAny {
   const base = z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())])
-  return withNullable(withEmptyPreprocessing(base, allowNull), allowNull)
+  return withEmptyPreprocessing(base, allowNull)
 }
 
 /**
@@ -250,7 +251,7 @@ function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
         return urls
       })
       .pipe(z.array(z.string().url()))
-    return withNullable(withEmptyPreprocessing(inner, allowNull), allowNull)
+    return withEmptyPreprocessing(inner, allowNull)
   }
 
   const inner = z
@@ -265,7 +266,7 @@ function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
       return url
     })
     .pipe(z.string().url())
-  return withNullable(withEmptyPreprocessing(inner, allowNull), allowNull)
+  return withEmptyPreprocessing(inner, allowNull)
 }
 
 /**
@@ -304,7 +305,7 @@ function repeaterSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny 
       message: `Expected array(max:${branch.maxItems})`,
     })
   }
-  return withNullable(withEmptyPreprocessing(arraySchema, options.allowNull), options.allowNull)
+  return withEmptyPreprocessing(arraySchema, options.allowNull)
 }
 
 /** Mapping of branch types to their respective schema compilation functions. */
