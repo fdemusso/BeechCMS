@@ -271,8 +271,19 @@ describe('repeater field', () => {
       title: 'My FAQ',
       items: [{ answer: 'A1' }],
     })
-    expect(r.details.some(d => d.field === 'items')).toBe(true)
+    expect(r.details.some(d => d.field === 'items[0].question')).toBe(true)
     expect(r.data).not.toHaveProperty('items')
+  })
+
+  it('labels a nested repeater sub-field error with its full path, not the top-level container (issue #153)', () => {
+    const r = validateRepeater({
+      title: 'My FAQ',
+      items: [{ question: 123, answer: richtextDoc('A1'), order: 1 }],
+    })
+    const detail = r.details.find(d => d.field === 'items[0].question')
+    expect(detail).toBeDefined()
+    expect(detail?.received).toBe('number')
+    expect(r.details.some(d => d.field === 'items')).toBe(false)
   })
 
   it('strips unknown keys from each item', () => {
@@ -454,7 +465,7 @@ describe('repeater cardinality bounds', () => {
     }
 
     const resultA = validateAndSanitizeSeedPayload(seedA, payload, { operation: 'create' })
-    expect(resultA.details.some(d => d.field === 'items')).toBe(true)
+    expect(resultA.details.some(d => d.field === 'items[0].rating')).toBe(true)
 
     const resultB = validateAndSanitizeSeedPayload(seedB, payload, { operation: 'create' })
     expect(resultB.details).toEqual([])
@@ -479,5 +490,78 @@ describe('repeater cardinality bounds', () => {
     // Call B: enforceRequiredFields = false -> field is optional, should pass without issues.
     const rB = validateAndSanitizeSeedPayload(seed, {}, { operation: 'create', enforceRequiredFields: false, requireAtLeastOneValidField: false })
     expect(rB.details).toEqual([])
+  })
+})
+
+// Regression: https://github.com/ (issue #152) — empty string on a nullable field
+// must resolve to `null`, not be rejected by the `withNullable` union.
+describe('empty string on nullable fields (issue #152)', () => {
+  function validate(payload: Record<string, unknown>) {
+    return validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { title: 'Valid Title', qty: 1, ...payload },
+      { operation: 'update', allowNull: true, requireAtLeastOneValidField: false },
+    )
+  }
+
+  it('number: "" resolves to null', () => {
+    const r = validate({ price: '' })
+    expect(r.details.some(d => d.field === 'price')).toBe(false)
+    expect(r.data.price).toBeNull()
+  })
+
+  it('boolean: "" resolves to null', () => {
+    const r = validate({ active: '' })
+    expect(r.details.some(d => d.field === 'active')).toBe(false)
+    expect(r.data.active).toBeNull()
+  })
+
+  it('date: "" resolves to null', () => {
+    const r = validate({ publishedAt: '' })
+    expect(r.details.some(d => d.field === 'publishedAt')).toBe(false)
+    expect(r.data.publishedAt).toBeNull()
+  })
+
+  it('json: "" resolves to null', () => {
+    const r = validate({ meta: '' })
+    expect(r.details.some(d => d.field === 'meta')).toBe(false)
+    expect(r.data.meta).toBeNull()
+  })
+
+  it('file: "" resolves to null', () => {
+    const r = validate({ cover: '' })
+    expect(r.details.some(d => d.field === 'cover')).toBe(false)
+    expect(r.data.cover).toBeNull()
+  })
+
+  it('file (asset-list): "" resolves to null', () => {
+    const r = validate({ gallery: '' })
+    expect(r.details.some(d => d.field === 'gallery')).toBe(false)
+    expect(r.data.gallery).toBeNull()
+  })
+
+  it('repeater: "" resolves to null', () => {
+    const r = validateAndSanitizeSeedPayload(
+      REPEATER_SEED,
+      { title: 'My FAQ', items: '' },
+      { operation: 'update', allowNull: true, requireAtLeastOneValidField: false },
+    )
+    expect(r.details.some(d => d.field === 'items')).toBe(false)
+    expect(r.data.items).toBeNull()
+  })
+
+  it('number: null still resolves to null (no regression)', () => {
+    const r = validate({ price: null })
+    expect(r.details.some(d => d.field === 'price')).toBe(false)
+    expect(r.data.price).toBeNull()
+  })
+
+  it('number: "" is rejected when allowNull is false', () => {
+    const r = validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { title: 'Valid Title', qty: 1, price: '' },
+      { operation: 'update', allowNull: false, requireAtLeastOneValidField: false },
+    )
+    expect(r.data.price).toBeUndefined()
   })
 })

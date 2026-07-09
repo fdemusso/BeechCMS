@@ -28,6 +28,17 @@ describe('JoseTokenService', () => {
     expect(await service.verify('not.a.valid.jwt')).toBeNull()
   })
 
+  it('verify returns null if sub is missing, empty, or not a string', async () => {
+    const tokenNoSub = await service.issue({ email: 'a@b.com' } as any)
+    expect(await service.verify(tokenNoSub)).toBeNull()
+
+    const tokenEmptySub = await service.issue({ sub: '', email: 'a@b.com' })
+    expect(await service.verify(tokenEmptySub)).toBeNull()
+
+    const tokenInvalidSub = await service.issue({ sub: 123 as any, email: 'a@b.com' })
+    expect(await service.verify(tokenInvalidSub)).toBeNull()
+  })
+
   it('verify returns null for a token signed with a different secret', async () => {
     const otherService = new JoseTokenService('completely-different-secret-key-xyz', {}, SystemClock)
     const token = await otherService.issue({ sub: 'user-1' })
@@ -50,6 +61,20 @@ describe('JoseTokenService', () => {
     const token = await service.issue({ sub: 'user-1' }, { ttlSeconds: 3600 })
     const claims = await service.verify(token)
     expect(claims?.sub).toBe('user-1')
+  })
+
+  it('verify respects the injected clock for expiration checks', async () => {
+    let mockTimeSeconds = 1700000000
+    const mockClock = {
+      now: () => mockTimeSeconds * 1000,
+      nowSeconds: () => mockTimeSeconds,
+    }
+    const clockService = new JoseTokenService(TEST_SECRET, {}, mockClock)
+    const token = await clockService.issue({ sub: 'user-1' }, { ttlSeconds: 900 })
+    expect(await clockService.verify(token)).not.toBeNull()
+
+    mockTimeSeconds += 901
+    expect(await clockService.verify(token)).toBeNull()
   })
 
   it('throws if the secret is shorter than 32 bytes', () => {

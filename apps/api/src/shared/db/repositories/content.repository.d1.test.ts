@@ -284,6 +284,15 @@ describe('D1ContentRepository', () => {
       await expect(new D1ContentRepository(db).update(SEED, 'ghost', { title: 'X' })).rejects.toBeInstanceOf(EntryNotFoundError)
     })
 
+    it('throws SlugConflictError when D1 throws a UNIQUE constraint error on slug', async () => {
+      const { db, runMock } = makeMockDb({})
+      const d1Error = new Error('D1_ERROR: UNIQUE constraint failed: content_posts.slug')
+      runMock.mockRejectedValue(d1Error)
+      await expect(
+        new D1ContentRepository(db).update(SEED, 'e1', { slug: 'conflict-slug' }),
+      ).rejects.toBeInstanceOf(SlugConflictError)
+    })
+
     it('returns early without a DB call when there is nothing to update', async () => {
       const { db, prepareMock } = makeMockDb()
       await new D1ContentRepository(db).update(SEED, 'e1', {}) // no data, no status
@@ -904,6 +913,28 @@ describe('D1ContentRepository', () => {
       const { db, allMock } = makeMockDb()
       allMock.mockRejectedValue(new Error('boom'))
       await expect(new D1ContentRepository(db).findPendingDrafts([SEED])).rejects.toThrow('findPendingDrafts')
+    })
+
+    it('falls back to COALESCE(l.slug, d.entry_id) when displayNameAlias is not a scalar branch', async () => {
+      const { db, prepareMock, allMock } = makeMockDb()
+      allMock.mockResolvedValue({ results: [] })
+
+      const BAD_SEED = {
+        slug: 'pages',
+        displayNameAlias: 'nonexistent',
+        allowDrafts: true,
+        branches: [
+          { id: 'br_01', alias: 'content', type: 'text' },
+          { id: 'br_02', alias: 'tags', type: 'relation', multiple: true, targetSeed: 'tags' }
+        ],
+      } as unknown as Seed
+
+      await new D1ContentRepository(db).findPendingDrafts([BAD_SEED])
+
+      expect(prepareMock).toHaveBeenCalled()
+      const sql = prepareMock.mock.calls[0][0]
+      expect(sql).toContain('COALESCE(l.slug, d.entry_id) AS title')
+      expect(sql).not.toContain('nonexistent')
     })
   })
 

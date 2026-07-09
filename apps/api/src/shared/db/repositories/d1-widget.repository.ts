@@ -126,9 +126,13 @@ export class D1WidgetRepository implements IWidgetRepository {
 
     const trimmedSearch = options.search?.trim() ?? ''
     if (trimmedSearch.length > 0) {
+      const escapedSearch = trimmedSearch
+        .replace(/\\/g, '\\\\')
+        .replace(/%/g, '\\%')
+        .replace(/_/g, '\\_')
       const displayColumn = this.resolveColumnExpression(seed, seed.displayNameAlias)
-      conditions.push(`${displayColumn} LIKE ?`)
-      bindings.push(`%${trimmedSearch}%`)
+      conditions.push(`${displayColumn} LIKE ? ESCAPE '\\'`)
+      bindings.push(`%${escapedSearch}%`)
     }
 
     for (const filter of options.filters ?? []) {

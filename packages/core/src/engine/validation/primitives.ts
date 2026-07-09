@@ -33,3 +33,17 @@ export function cleanString(input: string): string {
 export function isPlainObject(input: unknown): input is Record<string, unknown> {
   return typeof input === 'object' && input !== null && !Array.isArray(input)
 }
+
+const byteLengthEncoder = new TextEncoder()
+
+/**
+ * Measures the real UTF-8 byte length of a string, not UTF-16 code units.
+ * `.length` undercounts multi-byte chars (CJK, emoji) by up to 4x, which matters
+ * for size limits meant to bound storage (D1/SQLite is byte-addressed).
+ *
+ * @param input - The string to measure.
+ * @returns The UTF-8 byte length.
+ */
+export function byteLength(input: string): number {
+  return byteLengthEncoder.encode(input).length
+}

@@ -43,7 +43,11 @@ export async function requestPasswordReset(
   const clientIpAddress = getClientIp(req)
   const forgotPasswordRateLimit = await context.get('rateLimiters').getLimiter('forgotPassword').checkLimit(clientIpAddress)
   if (!forgotPasswordRateLimit.isAllowed) {
-    return context.json({ error: 'Too many requests' }, 429)
+    const headers: Record<string, string> = {}
+    if (forgotPasswordRateLimit.retryAfterSeconds !== undefined) {
+      headers['Retry-After'] = String(forgotPasswordRateLimit.retryAfterSeconds)
+    }
+    return context.json({ error: 'Too many requests' }, 429, headers)
   }
 
   // Always return 200 even when the user is not found to prevent user enumeration.

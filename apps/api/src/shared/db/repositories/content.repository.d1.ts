@@ -1182,6 +1182,10 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         const draftTable = `content_${seed.slug}_drafts`
         const liveTable = `content_${seed.slug}`
         const titleCol = seed.displayNameAlias
+        const isScalar = seed.branches.some(b => b.alias === titleCol && !(b.type === 'relation' && b.multiple === true))
+        const titleExpr = isScalar
+          ? `COALESCE(d.${titleCol}, l.${titleCol})`
+          : `COALESCE(l.slug, d.entry_id)`
         const seedLabel = seed.labelPlural ?? seed.label
 
         unionSelects.push(`
@@ -1190,7 +1194,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
             ? AS seed_label,
             d.entry_id AS id,
             d.updated_at AS updated_at,
-            COALESCE(d.${titleCol}, l.${titleCol}) AS title
+            ${titleExpr} AS title
           FROM ${draftTable} d
           LEFT JOIN ${liveTable} l ON l.id = d.entry_id
         `)

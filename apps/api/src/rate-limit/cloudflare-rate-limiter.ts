@@ -6,10 +6,22 @@
 import type { IRateLimiter, RateLimitResult } from '@beechcms/core'
 
 export class CloudflareRateLimiter implements IRateLimiter {
-  constructor(private readonly binding: RateLimit) {}
+  constructor(
+    private readonly binding: RateLimit,
+    private readonly options: { failClosed?: boolean } = {}
+  ) {}
 
   async checkLimit(key: string): Promise<RateLimitResult> {
-    const { success } = await this.binding.limit({ key })
-    return { isAllowed: success }
+    try {
+      const res = await this.binding.limit({ key })
+      return {
+        isAllowed: res.success,
+        retryAfterSeconds: (res as any).retryAfterSeconds ?? (res as any).retryAfter,
+      }
+    } catch (error) {
+      console.warn(`Rate limiter binding error for key "${key}":`, error)
+      return { isAllowed: !this.options.failClosed }
+    }
   }
 }
+

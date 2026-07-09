@@ -94,6 +94,15 @@ setupApp.post('/auth/setup', async (context) => {
     })
   }
 
+  if (new TextEncoder().encode(password).length > 72) {
+    return publicProblem(context, {
+      type: 'validation-error',
+      title: 'Invalid password',
+      status: 422,
+      detail: 'Password must not exceed 72 bytes when UTF-8 encoded.',
+    })
+  }
+
   if (!settings || typeof settings !== 'object') {
     return publicProblem(context, {
       type: 'validation-error',

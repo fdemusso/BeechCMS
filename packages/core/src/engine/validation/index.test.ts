@@ -179,6 +179,22 @@ describe('garbage keys and overall resilience (§10)', () => {
   })
 })
 
+describe('missing required field dedup with Zod v4 (#175)', () => {
+  it('reports exactly one detail for a missing required field, not a duplicate generic one', () => {
+    const r = safeValidate({})
+    const titleDetails = r.details.filter(d => d.field === 'title')
+    expect(titleDetails).toHaveLength(1)
+    expect(titleDetails[0]).toMatchObject({ expected: 'required-field', received: 'missing' })
+  })
+
+  it('still reports a real type-mismatch detail for a present-but-wrong-typed field', () => {
+    const r = safeValidate({ ...validBase(), qty: 'not-a-number' })
+    const qtyDetails = r.details.filter(d => d.field === 'qty')
+    expect(qtyDetails.length).toBeGreaterThan(0)
+    expect(qtyDetails.some(d => d.expected === 'number')).toBe(true)
+  })
+})
+
 describe('required json field emptiness detection', () => {
   it('treats an empty object as empty for a required json field', () => {
     const r = validateAndSanitizeSeedPayload(JSON_REQUIRED_SEED, { name: 'X', settings: {} }, { operation: 'create' })

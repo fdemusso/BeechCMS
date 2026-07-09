@@ -27,3 +27,7 @@ Key commands:
 - `pnpm beech logs <service>`   : Streams docker logs for mailpit, db, tunnel, storage
 - `pnpm beech reset`            : Stops dev stack and wipes DB/volumes based on flags
 - `pnpm beech test [--diff]`   : Runs workspace tests
+
+## TypeScript 7.0 & ESLint Workaround
+- **TypeScript 7.0.2**: The project uses TypeScript 7.0.2 (Go-based compiler).
+- **ESLint/TS-ESLint**: Since TS 7.0 lacks a public JS compiler API, `typescript-eslint` is temporarily bypassed using a custom `noopParser` for `.ts`/`.tsx` files inside `eslint.config.js` and `apps/dashboard/eslint.config.js` to prevent crashes during `pnpm lint`.

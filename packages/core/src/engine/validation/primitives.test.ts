@@ -98,6 +98,16 @@ const SCI_STEP_SEED: Seed = {
   ],
 }
 
+const DECIMAL_MIN_STEP_SEED: Seed = {
+  slug: 'gauge',
+  label: 'Gauge',
+  displayNameAlias: 'sku',
+  branches: [
+    { id: 'br_sku', alias: 'sku', label: 'SKU', type: 'text', requiredOnCreate: true },
+    { id: 'br_reading', alias: 'reading', label: 'Reading', type: 'number', numberOptions: { min: 0.5, step: 1 } },
+  ],
+}
+
 const UUID_V4 = '550e8400-e29b-41d4-a716-446655440000'
 
 const testIdGen = {
@@ -170,6 +180,13 @@ describe('text field', () => {
   it('accepts a string exactly at the limit', () => {
     const r = safeValidate({ ...validBase(), subtitle: 'x'.repeat(50000) })
     expect(r.details.some(d => d.field === 'subtitle')).toBe(false)
+  })
+
+  // Regression: #181 — text length guard must count UTF-8 bytes, not UTF-16 code units.
+  it('#181: rejects multi-byte (CJK) text whose byte size exceeds maxTextLength even though .length does not', () => {
+    const cjkText = '中'.repeat(20) // 20 code units, 60 UTF-8 bytes
+    const r = safeValidate({ ...validBase(), subtitle: cjkText }, { maxTextLength: 20 })
+    expect(r.details.some(d => d.field === 'subtitle')).toBe(true)
   })
 
   it('required text field: rejects empty string', () => {
@@ -375,6 +392,18 @@ describe('number field with numberOptions (min/max/step)', () => {
   it('rejects a value not aligned to the step', () => {
     const r = validateAndSanitizeSeedPayload(NUMBER_OPTS_SEED, { sku: 'A', rating: 2.3 }, { requireAtLeastOneValidField: true })
     expect(r.details.some(d => d.field === 'rating' && d.expected.includes('step:0.5'))).toBe(true)
+  })
+})
+
+describe('number field step ignoring min decimals (#176)', () => {
+  it('accepts a value aligned to the min-offset grid', () => {
+    const r = validateAndSanitizeSeedPayload(DECIMAL_MIN_STEP_SEED, { sku: 'A', reading: 1.5 }, { requireAtLeastOneValidField: true })
+    expect(r.details.some(d => d.field === 'reading')).toBe(false)
+  })
+
+  it('rejects a value off the min-offset grid even when integer-valued', () => {
+    const r = validateAndSanitizeSeedPayload(DECIMAL_MIN_STEP_SEED, { sku: 'A', reading: 1 }, { requireAtLeastOneValidField: true })
+    expect(r.details.some(d => d.field === 'reading' && d.expected.includes('step:1'))).toBe(true)
   })
 })
 

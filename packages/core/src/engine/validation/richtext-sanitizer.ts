@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { RICHTEXT_SCHEMA_VERSION, isRichtextEnvelopeV1 } from '../../content/richtext/richtext.js'
-import { stripControlChars, cleanString, isPlainObject } from './primitives.js'
+import { stripControlChars, cleanString, isPlainObject, byteLength } from './primitives.js'
 
 /** Allowlisted TipTap node `type` values. Keep in sync with
  *  richtext-render.ts::createRichTextHtmlExtensions. */
@@ -46,7 +46,7 @@ interface SanitizeState {
 
 /** RichText string input is no longer accepted (JSON-only). Reject as invalid. */
 function sanitizeRichtextString(raw: string): RichtextSanitizeResult {
-  return { value: raw, dangerous: false, valid: false, size: raw.length }
+  return { value: raw, dangerous: false, valid: false, size: byteLength(raw) }
 }
 
 /** Normalizes a URL value and confirms its protocol is allowlisted.
@@ -59,49 +59,65 @@ function isProtocolAllowed(raw: string): boolean {
 }
 
 /**
- * Recursively walks a rich text node structure to detect and flag XSS threats and remove control characters.
+ * Recursively walks a rich text node structure, removing (not just flagging) XSS threats
+ * and control characters. Returns `undefined` for nodes/attrs that must be dropped entirely.
  *
  * @param node - The node to walk.
  * @param state - The shared sanitization state tracking danger flags.
- * @returns The cleaned rich text node.
+ * @returns The cleaned rich text node, or `undefined` if it must be removed.
  */
 function walkRichtextNode(node: unknown, state: SanitizeState): unknown {
   if (state.depth > RICHTEXT_MAX_DEPTH) {
     state.dangerous = true
-    return null
+    return undefined
   }
   if (typeof node === 'string') return stripControlChars(node)
   if (Array.isArray(node)) {
     state.depth++
-    const mapped = node.map((child) => walkRichtextNode(child, state))
+    const mapped: unknown[] = []
+    for (const child of node) {
+      const walked = walkRichtextNode(child, state)
+      if (walked !== undefined) mapped.push(walked)
+    }
     state.depth--
     return mapped
   }
   if (!isPlainObject(node)) return node
 
-  // Node/mark type allowlist: any `type` not on either allowlist flags dangerous.
-  const nodeType = typeof node.type === 'string' ? node.type : undefined
-  if (
-    nodeType !== undefined &&
-    !ALLOWED_RICHTEXT_NODE_TYPES.has(nodeType) &&
-    !ALLOWED_RICHTEXT_MARK_TYPES.has(nodeType)
-  ) {
-    state.dangerous = true
+  // Node/mark type allowlist: any present `type` that isn't an allowlisted string is dropped.
+  // Objects with no `type` key (e.g. attrs bags) are not nodes and skip this check.
+  if ('type' in node) {
+    const rawType = node.type
+    const isAllowed =
+      typeof rawType === 'string' &&
+      (ALLOWED_RICHTEXT_NODE_TYPES.has(rawType) || ALLOWED_RICHTEXT_MARK_TYPES.has(rawType))
+    if (!isAllowed) {
+      state.dangerous = true
+      return undefined
+    }
   }
 
-  const result: Record<string, unknown> = {}
+  const result: Record<string, unknown> = Object.create(null)
   state.depth++
   for (const [key, entry] of Object.entries(node)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+      continue
+    }
     const lower = key.toLowerCase()
-    if (lower.startsWith('on')) state.dangerous = true // event-handler attr
+    if (lower.startsWith('on')) {
+      state.dangerous = true
+      continue // drop event-handler attr
+    }
     if (
       URL_LIKE_RICHTEXT_KEYS.has(lower) &&
       typeof entry === 'string' &&
       !isProtocolAllowed(entry)
     ) {
       state.dangerous = true
+      continue // drop disallowed URL
     }
-    result[key] = walkRichtextNode(entry, state)
+    const walked = walkRichtextNode(entry, state)
+    if (walked !== undefined) result[key] = walked
   }
   state.depth--
   return result
@@ -118,8 +134,7 @@ function sanitizeRichtextJson(raw: Record<string, unknown>): RichtextSanitizeRes
   const cleaned = walkRichtextNode(raw, state)
   const asObject = isPlainObject(cleaned) ? cleaned : {}
   const valid = asObject.type === 'doc'
-  const serialized = JSON.stringify(asObject)
-  return { value: asObject, dangerous: state.dangerous, valid, size: serialized.length }
+  return { value: asObject, dangerous: state.dangerous, valid, size: byteLength(JSON.stringify(asObject)) }
 }
 
 /**
@@ -142,7 +157,7 @@ export function sanitizeRichtext(raw: unknown, maxBytes: number): RichtextSaniti
   }
 
   // Fail-fast DoS pre-check: size BEFORE the sanitizing walk.
-  const rawSize = JSON.stringify(payload).length
+  const rawSize = byteLength(JSON.stringify(payload))
   if (rawSize > maxBytes) {
     return { value: raw, dangerous: false, valid: false, size: rawSize, oversize: true }
   }
@@ -154,11 +169,13 @@ export function sanitizeRichtext(raw: unknown, maxBytes: number): RichtextSaniti
   const finalValue = envelopeMode
     ? { schemaVersion: RICHTEXT_SCHEMA_VERSION, doc: jsonResult.value }
     : jsonResult.value
+  // Envelope wrapping changes the serialized bytes; reuse jsonResult.size otherwise.
+  const finalSize = envelopeMode ? byteLength(JSON.stringify(finalValue)) : jsonResult.size
   return {
     value: finalValue,
     dangerous: jsonResult.dangerous,
     valid: true,
-    size: JSON.stringify(finalValue).length,
+    size: finalSize,
   }
 }
 

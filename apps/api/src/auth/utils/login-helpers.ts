@@ -24,6 +24,9 @@ const MIN_PASSWORD_LENGTH = 8
 /** Lunghezza massima password (caratteri) - limite ragionevole per evitare DoS */
 const MAX_PASSWORD_LENGTH = 128
 
+/** bcrypt hasha solo i primi 72 byte UTF-8; oltre viene ignorato silenziosamente */
+const MAX_PASSWORD_BYTES = 72
+
 /**
  * Hash bcrypt dummy valido.
  * Usato quando l'utente non esiste per evitare timing attack
@@ -58,7 +61,8 @@ export function validateLoginInput(email: string, password: string): boolean {
     email.length <= MAX_EMAIL_LENGTH &&
     EMAIL_REGEX.test(email) &&
     password.trim().length >= MIN_PASSWORD_LENGTH &&
-    password.length <= MAX_PASSWORD_LENGTH
+    password.length <= MAX_PASSWORD_LENGTH &&
+    new TextEncoder().encode(password).length <= MAX_PASSWORD_BYTES
   )
 }
 

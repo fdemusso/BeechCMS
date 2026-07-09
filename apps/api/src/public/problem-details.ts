@@ -84,6 +84,7 @@ type PublicProblemInput = {
   status: 400 | 401 | 403 | 404 | 405 | 409 | 422 | 429 | 500 | 501
   detail: string
   errors?: PublicProblemDetailItem[]
+  headers?: Record<string, string>
 }
 
 /**
@@ -120,5 +121,6 @@ export function publicProblem(c: Context, input: PublicProblemInput): Response {
   }
   return c.json(body, input.status, {
     'Content-Type': 'application/problem+json',
+    ...input.headers,
   })
 }

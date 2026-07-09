@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import { RepositoryError } from '@beechcms/core'
+import { RepositoryError, SlugConflictError } from '@beechcms/core'
 
 /**
  * Base class for D1-backed repositories.
@@ -25,6 +25,9 @@ export abstract class BaseD1Repository {
    */
   protected mapError(error: any, context: string): RepositoryError {
     const message = error?.message || 'Unknown database error'
+    if (message.includes('UNIQUE constraint failed:') && message.includes('.slug')) {
+      return new SlugConflictError(`${context}: ${message}`)
+    }
     // In the future, we can add more specific SQLite error code checks here
     // (e.g., checking for UNIQUE constraint via string matching or codes if available)
     return new RepositoryError(`${context}: ${message}`, error)
