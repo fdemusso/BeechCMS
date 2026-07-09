@@ -284,6 +284,15 @@ describe('D1ContentRepository', () => {
       await expect(new D1ContentRepository(db).update(SEED, 'ghost', { title: 'X' })).rejects.toBeInstanceOf(EntryNotFoundError)
     })
 
+    it('throws SlugConflictError when D1 throws a UNIQUE constraint error on slug', async () => {
+      const { db, runMock } = makeMockDb({})
+      const d1Error = new Error('D1_ERROR: UNIQUE constraint failed: content_posts.slug')
+      runMock.mockRejectedValue(d1Error)
+      await expect(
+        new D1ContentRepository(db).update(SEED, 'e1', { slug: 'conflict-slug' }),
+      ).rejects.toBeInstanceOf(SlugConflictError)
+    })
+
     it('returns early without a DB call when there is nothing to update', async () => {
       const { db, prepareMock } = makeMockDb()
       await new D1ContentRepository(db).update(SEED, 'e1', {}) // no data, no status

@@ -143,7 +143,8 @@ function numberSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
       const origin = opts.min ?? 0
       const valDecimals = decimalPlaces(val)
       const stepDecimals = decimalPlaces(step)
-      const scale = 10 ** Math.max(valDecimals, stepDecimals)
+      const originDecimals = decimalPlaces(origin)
+      const scale = 10 ** Math.max(valDecimals, stepDecimals, originDecimals)
       const offset = Math.round((val - origin) * scale)
       const stepScaled = Math.round(step * scale)
       if (stepScaled !== 0 && offset % stepScaled !== 0) {
