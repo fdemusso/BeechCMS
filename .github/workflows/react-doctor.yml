@@ -28,10 +28,9 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Workaround TS 7.0 compatibility for React Doctor
-        run: npm install typescript@5.9.3 --no-save
+      - name: Install dependencies (Workaround TS 7.0 compatibility for React Doctor)
+        run: |
+          node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); pkg.devDependencies.typescript = '5.9.3'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
+          pnpm install
 
       - uses: millionco/react-doctor@v2.1.0
