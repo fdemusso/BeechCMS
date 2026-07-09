@@ -11,6 +11,8 @@ import { getClientIp } from '../../shared/utils/request-utils'
 
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 128
+/** bcrypt hasha solo i primi 72 byte UTF-8; oltre viene ignorato silenziosamente */
+const MAX_PASSWORD_BYTES = 72
 
 /**
  * Handles the actual password reset process using a valid token.
@@ -52,6 +54,12 @@ export async function resetPassword(
   if (isPasswordInvalid) {
     return context.json({
       error: `Password must be between ${MIN_PASSWORD_LENGTH} and ${MAX_PASSWORD_LENGTH} characters`,
+    }, 400)
+  }
+
+  if (new TextEncoder().encode(newPassword as string).length > MAX_PASSWORD_BYTES) {
+    return context.json({
+      error: `Password must not exceed ${MAX_PASSWORD_BYTES} bytes when UTF-8 encoded`,
     }, 400)
   }
 
