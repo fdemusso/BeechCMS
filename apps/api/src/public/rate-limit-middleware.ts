@@ -21,11 +21,16 @@ export function publicRateLimitMiddleware() {
     const result = await c.get('rateLimiters').getLimiter(limiterName).checkLimit(key)
 
     if (!result.isAllowed) {
+      const headers: Record<string, string> = {}
+      if (result.retryAfterSeconds !== undefined) {
+        headers['Retry-After'] = String(result.retryAfterSeconds)
+      }
       return publicProblem(c, {
         type: 'rate-limit-exceeded',
         title: 'Too Many Requests',
         status: 429,
         detail: 'Too many requests',
+        headers,
       })
     }
 

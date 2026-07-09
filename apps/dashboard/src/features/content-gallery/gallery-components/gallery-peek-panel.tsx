@@ -213,7 +213,7 @@ export function GalleryPeekPanel({
             >
               <GalleryPeekContentSection
                 entry={entry}
-                richtextBranch={richtextBranch}
+                richtextBranch={richtextBranch ?? undefined}
                 otherMainBranches={otherMainBranches}
               />
             </TabsContent>
@@ -228,7 +228,7 @@ export function GalleryPeekPanel({
           <div className={cn("overflow-hidden", fixedDetailViewportClass)}>
             <GalleryPeekContentSection
               entry={entry}
-              richtextBranch={richtextBranch}
+              richtextBranch={richtextBranch ?? undefined}
               otherMainBranches={otherMainBranches}
             />
           </div>

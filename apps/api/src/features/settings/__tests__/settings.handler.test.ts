@@ -375,6 +375,27 @@ describe('Settings Handler', () => {
       expect(res.status).toBe(400)
     })
 
+    it('returns 400 if newPassword exceeds 72 bytes even though under 128 characters', async () => {
+      const app = buildApp()
+      const res = await app.request('/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: 'pwd', newPassword: 'A'.repeat(73) }),
+      })
+      expect(res.status).toBe(400)
+    })
+
+    it('returns 400 if newPassword exceeds 72 bytes due to multi-byte UTF-8 characters', async () => {
+      const app = buildApp()
+      const res = await app.request('/password', {
+        method: 'PUT',
+        // '€' is 3 bytes in UTF-8, so 25 chars = 75 bytes > 72
+        body: JSON.stringify({ currentPassword: 'pwd', newPassword: '€'.repeat(25) }),
+        headers: { 'Content-Type': 'application/json' },
+      })
+      expect(res.status).toBe(400)
+    })
+
     it('returns 404 if user is not found', async () => {
       const app = buildApp({
         userRepository: {

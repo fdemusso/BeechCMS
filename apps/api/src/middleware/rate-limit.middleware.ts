@@ -30,20 +30,24 @@ function buildDefaultRegistry(env: Env): IRateLimiterRegistry {
   const isDev = env.ENV === 'development' && !(typeof (globalThis as any).process !== 'undefined' && (globalThis as any).process.env?.VITEST)
   const isProd = env.ENV === 'production'
 
-  const getLimiter = (bindingName: string, binding?: RateLimit): IRateLimiter => {
+  const getLimiter = (
+    bindingName: string,
+    binding?: RateLimit,
+    options?: { failClosed?: boolean }
+  ): IRateLimiter => {
     if (isProd && !binding) {
       throw new Error(`Missing rate limiter binding: ${bindingName} is required in production environment.`)
     }
-    return !isDev && binding ? new CloudflareRateLimiter(binding) : NO_OP
+    return !isDev && binding ? new CloudflareRateLimiter(binding, options) : NO_OP
   }
 
   const limiters: Record<RateLimiterName, IRateLimiter> = {
-    login: getLimiter('LOGIN_RATE_LIMITER', env.LOGIN_RATE_LIMITER),
-    tokenRefresh: getLimiter('REFRESH_RATE_LIMITER', env.REFRESH_RATE_LIMITER),
-    forgotPassword: getLimiter('FORGOT_PASSWORD_RATE_LIMITER', env.FORGOT_PASSWORD_RATE_LIMITER),
-    resetPassword: getLimiter('RESET_PASSWORD_RATE_LIMITER', env.RESET_PASSWORD_RATE_LIMITER),
-    publicApiRead: getLimiter('PUBLIC_READ_RATE_LIMITER', env.PUBLIC_READ_RATE_LIMITER),
-    publicApiWrite: getLimiter('PUBLIC_WRITE_RATE_LIMITER', env.PUBLIC_WRITE_RATE_LIMITER),
+    login: getLimiter('LOGIN_RATE_LIMITER', env.LOGIN_RATE_LIMITER, { failClosed: true }),
+    tokenRefresh: getLimiter('REFRESH_RATE_LIMITER', env.REFRESH_RATE_LIMITER, { failClosed: true }),
+    forgotPassword: getLimiter('FORGOT_PASSWORD_RATE_LIMITER', env.FORGOT_PASSWORD_RATE_LIMITER, { failClosed: true }),
+    resetPassword: getLimiter('RESET_PASSWORD_RATE_LIMITER', env.RESET_PASSWORD_RATE_LIMITER, { failClosed: true }),
+    publicApiRead: getLimiter('PUBLIC_READ_RATE_LIMITER', env.PUBLIC_READ_RATE_LIMITER, { failClosed: false }),
+    publicApiWrite: getLimiter('PUBLIC_WRITE_RATE_LIMITER', env.PUBLIC_WRITE_RATE_LIMITER, { failClosed: false }),
   }
 
   return { getLimiter: (name) => limiters[name] }

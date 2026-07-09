@@ -3,6 +3,11 @@
 
 export interface RateLimitResult {
   isAllowed: boolean
+  /**
+   * The number of seconds after which the client may retry the request.
+   * Note: This field is optional and may not be supported by all implementations
+   * (e.g. Cloudflare Rate Limit binding does not return retry-after information).
+   */
   retryAfterSeconds?: number
 }
 

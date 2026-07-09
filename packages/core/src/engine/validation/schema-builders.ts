@@ -6,9 +6,9 @@ import type { Branch, BranchType } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
 import { extensionFromUrl, isExtensionAccepted } from '../../media/file-types.js'
-import { cleanString } from './primitives.js'
+import { cleanString, byteLength } from './primitives.js'
 import { sanitizeRichtext } from './richtext-sanitizer.js'
-import { resolveFileOptions, isAssetListBranch, collectAssetListUrls, parseHttpUrl } from './file-branch.js'
+import { resolveFileOptions, isAssetListBranch, collectAssetListItems, extractFileCandidate } from './file-branch.js'
 
 /**
  * Validates if a string is a valid ISO 8601 date.
@@ -43,9 +43,10 @@ function withNullable<T extends z.ZodTypeAny>(schema: T, allowNull: boolean): z.
  */
 function withEmptyPreprocessing<T extends z.ZodTypeAny>(schema: T, allowNull: boolean): z.ZodTypeAny {
   const fallback = allowNull ? null : undefined
+  const wrapped: z.ZodTypeAny = allowNull ? schema.optional().nullable() : schema.optional()
   return z.preprocess(
     (val) => (val === '' || val === null ? fallback : val),
-    schema.optional(),
+    wrapped,
   )
 }
 
@@ -60,7 +61,7 @@ function textSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
   const inner = z
     .string()
     .transform((value) => cleanString(value))
-    .refine((value) => value.length <= options.maxTextLength, {
+    .refine((value) => byteLength(value) <= options.maxTextLength, {
       message: `Expected string(max:${options.maxTextLength})`,
     })
   return withNullable(inner, allowNull)
@@ -142,7 +143,8 @@ function numberSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
       const origin = opts.min ?? 0
       const valDecimals = decimalPlaces(val)
       const stepDecimals = decimalPlaces(step)
-      const scale = 10 ** Math.max(valDecimals, stepDecimals)
+      const originDecimals = decimalPlaces(origin)
+      const scale = 10 ** Math.max(valDecimals, stepDecimals, originDecimals)
       const offset = Math.round((val - origin) * scale)
       const stepScaled = Math.round(step * scale)
       if (stepScaled !== 0 && offset % stepScaled !== 0) {
@@ -150,7 +152,7 @@ function numberSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
       }
     }
   })
-  return withNullable(withEmptyPreprocessing(base, allowNull), allowNull)
+  return withEmptyPreprocessing(base, allowNull)
 }
 
 /**
@@ -160,7 +162,7 @@ function numberSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
  * @returns The compiled boolean schema.
  */
 function booleanSchema(allowNull: boolean): z.ZodTypeAny {
-  return withNullable(withEmptyPreprocessing(z.boolean(), allowNull), allowNull)
+  return withEmptyPreprocessing(z.boolean(), allowNull)
 }
 
 /**
@@ -174,7 +176,7 @@ function dateSchema(allowNull: boolean): z.ZodTypeAny {
     .string()
     .transform((value) => cleanString(value as string))
     .refine((value) => isValidIsoDate(value), { message: 'Expected date(ISO)' })
-  return withNullable(withEmptyPreprocessing(base, allowNull), allowNull)
+  return withEmptyPreprocessing(base, allowNull)
 }
 
 /**
@@ -185,7 +187,7 @@ function dateSchema(allowNull: boolean): z.ZodTypeAny {
  */
 function jsonOrTagsSchema(allowNull: boolean): z.ZodTypeAny {
   const base = z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())])
-  return withNullable(withEmptyPreprocessing(base, allowNull), allowNull)
+  return withEmptyPreprocessing(base, allowNull)
 }
 
 /**
@@ -226,7 +228,7 @@ function relationSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny 
  * @returns The compiled file schema.
  */
 function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
-  const { accept } = resolveFileOptions(branch)
+  const { accept, maxSize } = resolveFileOptions(branch)
   const verifyExtension = (url: string, ctx: z.RefinementCtx): boolean => {
     if (accept === 'any') return true
     const ext = extensionFromUrl(url)
@@ -234,38 +236,45 @@ function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
     ctx.addIssue({ code: 'custom', message: `Expected valid-${accept}-url-with-extension` })
     return false
   }
+  const verifySize = (size: number | null, ctx: z.RefinementCtx): boolean => {
+    if (size === null || size <= maxSize) return true
+    ctx.addIssue({ code: 'custom', message: `Expected file(maxSize:${maxSize})` })
+    return false
+  }
 
   if (isAssetListBranch(branch)) {
     const inner = z
       .any()
       .transform((raw, ctx) => {
-        const urls = collectAssetListUrls(raw)
-        if (urls === null) {
+        const items = collectAssetListItems(raw)
+        if (items === null) {
           ctx.addIssue({ code: 'custom', message: 'Expected valid-url-string[]' })
           return z.NEVER
         }
-        for (const url of urls) {
-          if (!verifyExtension(url, ctx)) return z.NEVER
+        for (const item of items) {
+          if (!verifyExtension(item.url, ctx)) return z.NEVER
+          if (!verifySize(item.size, ctx)) return z.NEVER
         }
-        return urls
+        return items.map((item) => item.url)
       })
       .pipe(z.array(z.string().url()))
-    return withNullable(withEmptyPreprocessing(inner, allowNull), allowNull)
+    return withEmptyPreprocessing(inner, allowNull)
   }
 
   const inner = z
     .any()
     .transform((raw, ctx) => {
-      const url = parseHttpUrl(raw)
-      if (!url) {
+      const candidate = extractFileCandidate(raw)
+      if (!candidate) {
         ctx.addIssue({ code: 'custom', message: 'Expected valid-url-string' })
         return z.NEVER
       }
-      if (!verifyExtension(url, ctx)) return z.NEVER
-      return url
+      if (!verifyExtension(candidate.url, ctx)) return z.NEVER
+      if (!verifySize(candidate.size, ctx)) return z.NEVER
+      return candidate.url
     })
     .pipe(z.string().url())
-  return withNullable(withEmptyPreprocessing(inner, allowNull), allowNull)
+  return withEmptyPreprocessing(inner, allowNull)
 }
 
 /**
@@ -304,7 +313,7 @@ function repeaterSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny 
       message: `Expected array(max:${branch.maxItems})`,
     })
   }
-  return withNullable(withEmptyPreprocessing(arraySchema, options.allowNull), options.allowNull)
+  return withEmptyPreprocessing(arraySchema, options.allowNull)
 }
 
 /** Mapping of branch types to their respective schema compilation functions. */

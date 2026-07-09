@@ -4,7 +4,7 @@
 
 import { ChevronDown, ChevronUp } from "lucide-react"
 import { Input } from "@/components/ui/input"
-import type { FieldEditProps } from "../types"
+import type { FieldEditProps } from "../../types"
 
 /**
  * Default `number` field control: a native numeric `Input` with custom

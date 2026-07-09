@@ -197,12 +197,54 @@ function describeReceivedType(value: unknown): string {
 }
 
 /**
+ * Builds a dotted/bracketed field path from a Zod issue path (e.g. 'items[0].name').
+ *
+ * @param path - Zod issue path segments.
+ * @returns The full field path as a string, or 'payload' if the path is empty.
+ */
+function buildFieldPath(path: (string | number)[]): string {
+  if (path.length === 0) return 'payload'
+  return path.reduce<string>((result, segment, index) => {
+    if (index === 0) return String(segment)
+    return typeof segment === 'number' ? `${result}[${segment}]` : `${result}.${String(segment)}`
+  }, '')
+}
+
+/**
+ * Navigates a payload object by a Zod issue path to find the actual value that failed validation.
+ *
+ * @param filtered - Payload with unknown aliases stripped.
+ * @param path - Zod issue path segments.
+ * @returns The value found at the path, or undefined if unreachable.
+ */
+function resolveByPath(filtered: Record<string, unknown>, path: (string | number)[]): unknown {
+  let current: unknown = filtered
+  for (const segment of path) {
+    if (current === null || current === undefined) return current
+    if (typeof segment === 'number') {
+      if (!Array.isArray(current)) return undefined
+      current = current[segment]
+    } else {
+      if (typeof current !== 'object') return undefined
+      current = (current as Record<string, unknown>)[segment]
+    }
+  }
+  return current
+}
+
+/**
  * Formats expected error messages based on validation failure details.
  *
- * @param message - The raw issue message or string.
+ * Zod v4 native `invalid_type` issues carry the expected type on `issue.expected`
+ * directly. Custom `.refine`/`ctx.addIssue` checks in this codebase still encode
+ * it as an `"Expected <type>"` message prefix, so that convention is kept as a fallback.
+ *
+ * @param issue - The Zod issue to derive the expected type from.
  * @returns The expected type format string.
  */
-function expectedFromMessage(message: unknown): string {
+function expectedFromIssue(issue: z.ZodIssue): string {
+  if (issue.code === 'invalid_type') return issue.expected
+  const message = issue.message
   if (typeof message !== 'string') return 'valid-field-value'
   return message.startsWith('Expected ') ? message.slice('Expected '.length) : 'valid-field-value'
 }
@@ -302,18 +344,27 @@ function processZodIssues(
       continue
     }
 
-    if (issue.message === 'Required' && options.enforceRequiredFields) {
+    const issuePath = issue.path as (string | number)[]
+
+    // detectMissingRequired() already reports top-level required-and-missing branches;
+    // skip the redundant native invalid_type/undefined issue Zod v4 raises for the same field.
+    if (
+      issue.code === 'invalid_type' &&
+      options.enforceRequiredFields &&
+      issuePath.length === 1 &&
+      resolveByPath(filtered, issuePath) === undefined
+    ) {
       continue
     }
 
-    const field = String(issue.path[0] ?? 'payload')
+    const field = buildFieldPath(issuePath)
     const params = (issue as { params?: Record<string, unknown> }).params
     if (params?.dangerous === true) {
       dangerous.push(field)
     }
 
-    const expected = expectedFromMessage(issue.message)
-    const received = describeReceivedType(filtered[field])
+    const expected = expectedFromIssue(issue)
+    const received = describeReceivedType(resolveByPath(filtered, issuePath))
 
     let message = `Field '${field}' expects type '${expected}' but received '${received}'`
     if (received === 'string' && typeof issue.message === 'string' && issue.message.startsWith('Expected ')) {

@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/core",
-  "version": "0.6.0-preview.4",
+  "version": "0.6.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -27,6 +27,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^4.1.0",
     "vitest": "^4.1.0"
   },

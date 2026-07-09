@@ -353,6 +353,13 @@ describe('validateSeedDefinitions', () => {
     expect(warnings.some(i => i.messages.some(m => m.includes('displayNameAlias')))).toBe(true)
   })
 
+  it('fatal: displayNameAlias has invalid format (SQL Injection or illegal characters)', () => {
+    const seeds = [makeSeed({ slug: 'posts', displayNameAlias: 'invalid-name; DROP TABLE posts;' })]
+    const issues = validateSeedDefinitions(seeds)
+    const fatals = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatals.some(i => i.messages.some(m => m.includes('displayNameAlias') && m.includes('invalid')))).toBe(true)
+  })
+
   // ── Fatal 11 / Warning 10: repeater cardinality bounds ───────────────────────
 
   it('fatal: minItems is negative', () => {

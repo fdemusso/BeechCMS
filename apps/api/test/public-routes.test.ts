@@ -56,4 +56,26 @@ describe('Public API Routes', () => {
     expect(html).toContain('BeechCMS — Public API Schema')
     expect(html).toContain('posts')
   })
+
+  describe('CORS same-origin fallback', () => {
+    it('allows same-origin requests with matching protocol, hostname, and port', async () => {
+      const res = await app.request('https://cms.example.com/api/v1/public/health', {
+        headers: {
+          'X-API-Key': TEST_PUBLIC_READ_KEY,
+          'Origin': 'https://cms.example.com',
+        }
+      }, { ...TEST_ENV, CORS_ORIGINS: '' })
+      expect(res.headers.get('Access-Control-Allow-Origin')).toBe('https://cms.example.com')
+    })
+
+    it('rejects same-origin requests with different protocols (HTTP origin on HTTPS deployment)', async () => {
+      const res = await app.request('https://cms.example.com/api/v1/public/health', {
+        headers: {
+          'X-API-Key': TEST_PUBLIC_READ_KEY,
+          'Origin': 'http://cms.example.com',
+        }
+      }, { ...TEST_ENV, CORS_ORIGINS: '' })
+      expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull()
+    })
+  })
 })

@@ -1,7 +1,10 @@
 {
   "name": "@beechcms/cli",
-  "version": "0.6.0-preview.4",
+  "version": "0.6.0",
   "type": "module",
+  "files": [
+    "dist"
+  ],
   "main": "dist/index.js",
   "exports": {
     ".": "./dist/index.js"
@@ -14,13 +17,13 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.6.0-preview.4",
+    "@beechcms/core": "workspace:^0.6.0",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",
     "esbuild": "^0.28.1",
-    "typescript": "^5.9.3",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.0"
   },
   "license": "MIT"

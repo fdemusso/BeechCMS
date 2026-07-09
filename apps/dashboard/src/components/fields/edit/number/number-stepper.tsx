@@ -5,7 +5,7 @@
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Minus, Plus } from "lucide-react"
-import type { FieldEditProps } from "../types"
+import type { FieldEditProps } from "../../types"
 import { useNumberStepper } from "./use-number-stepper"
 
 /**

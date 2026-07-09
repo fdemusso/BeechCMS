@@ -51,6 +51,11 @@ jobs:
           WEBHOOK_TESTER_URL: http://localhost:8084
         run: pnpm run test:coverage
 
+      - name: Workaround SonarCloud TS 7.0 compatibility
+        run: |
+          node -e "const fs = require('fs'); const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8')); pkg.devDependencies.typescript = '5.9.3'; fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2));"
+          pnpm install
+
       - name: Esegui SonarCloud Scan Ufficiale
         uses: SonarSource/sonarqube-scan-action@v6.0.0
         with:

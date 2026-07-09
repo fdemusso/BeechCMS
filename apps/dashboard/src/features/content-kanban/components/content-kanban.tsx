@@ -140,10 +140,7 @@ export function ContentKanban({
   activeFilters = [],
   search = '',
   kanbanConfig,
-  setKanbanConfig,
   cardConfig,
-  setCardConfig,
-  isSaving,
 }: ContentKanbanProps) {
   const { t } = useTranslation()
   const compat = React.useMemo(() => resolveKanbanConfig(seed), [seed])
@@ -168,7 +165,7 @@ export function ContentKanban({
     })
   }, [])
 
-  const queryClient = useQueryClient()
+
   const { state: boardState, dispatch } = useKanbanBoard()
   const [touchDragActive, setTouchDragActive] = React.useState(false)
   const [activeCard, setActiveCard] = React.useState<KanbanCardDisplayModel | null>(null)

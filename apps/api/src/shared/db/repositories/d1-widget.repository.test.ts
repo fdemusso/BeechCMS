@@ -137,8 +137,16 @@ describe('D1WidgetRepository', () => {
       const { db, prepareMock, bindMock } = makeMockDb([], { total: 0 })
       await new D1WidgetRepository(db).list(seed, { limit: 5, offset: 0, search: 'hello' })
       const sql = (prepareMock.mock.calls[1]?.[0] ?? prepareMock.mock.calls[0]![0]) as string
-      expect(sql).toMatch(/title LIKE \?/)
+      expect(sql).toMatch(/title LIKE \? ESCAPE '\\'/)
       expect(bindMock).toHaveBeenCalledWith('%hello%', 5, 0)
+    })
+
+    it('escapes %, _ and \\ in search LIKE filter', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([], { total: 0 })
+      await new D1WidgetRepository(db).list(seed, { limit: 5, offset: 0, search: 'a%b_c\\d' })
+      const sql = (prepareMock.mock.calls[1]?.[0] ?? prepareMock.mock.calls[0]![0]) as string
+      expect(sql).toMatch(/title LIKE \? ESCAPE '\\'/)
+      expect(bindMock).toHaveBeenCalledWith('%a\\%b\\_c\\\\d%', 5, 0)
     })
 
     it('skips filters with unknown operator', async () => {

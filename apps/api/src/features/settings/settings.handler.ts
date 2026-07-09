@@ -12,6 +12,8 @@ const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 const EMAIL_VALIDATION_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const MIN_PASSWORD_LENGTH = 8
 const MAX_PASSWORD_LENGTH = 128
+/** bcrypt hasha solo i primi 72 byte UTF-8; oltre viene ignorato silenziosamente */
+const MAX_PASSWORD_BYTES = 72
 const SESSION_LIST_LIMIT = 20
 const ACTIVITY_LOG_LIMIT = 30
 
@@ -223,6 +225,9 @@ settingsApp.put('/password', async (context) => {
   }
   if (newPassword.length > MAX_PASSWORD_LENGTH) {
     return context.json({ error: 'Password is too long' }, 400)
+  }
+  if (new TextEncoder().encode(newPassword).length > MAX_PASSWORD_BYTES) {
+    return context.json({ error: `Password must not exceed ${MAX_PASSWORD_BYTES} bytes when UTF-8 encoded` }, 400)
   }
 
   const userRecord = await context.get('userRepository').findById(userId)

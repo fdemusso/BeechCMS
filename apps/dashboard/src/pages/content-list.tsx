@@ -173,7 +173,7 @@ export function ContentListPage() {
   // Fetch the seed reactively
   const { seed, isLoading: isSeedLoading } = useActiveSeed(slug)
 
-  const kanbanSync = useKanbanEntrySync(seed, slug ?? '')
+  const kanbanSync = useKanbanEntrySync(seed ?? undefined, slug ?? '')
 
   // Table grouping: single column or null
   const [groupBy, setGroupBy] = React.useState<string | null>(null)

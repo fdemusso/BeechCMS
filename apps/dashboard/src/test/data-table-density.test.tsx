@@ -23,7 +23,7 @@ describe("DataTable — density", () => {
     const { getAllByRole } = render(
       <DataTable columns={cols} data={[entry]} density="compact" />
     )
-    const rows = getAllByRole("row").filter((r) => r.getAttribute("data-state") !== null || r.style.height !== "")
+    getAllByRole("row").filter((r) => r.getAttribute("data-state") !== null || r.style.height !== "")
     // Find the data row — it must have height 36
     const dataRows = getAllByRole("row").filter((r) => r.style.height === "36px")
     expect(dataRows.length).toBeGreaterThan(0)

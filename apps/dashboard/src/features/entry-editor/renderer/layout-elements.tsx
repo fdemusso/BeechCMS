@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { Asterisk, ChevronDown } from "lucide-react"
-import type { LayoutSection, LayoutTab, LayoutColumn, Branch } from "@beechcms/core"
+import type { LayoutSection, LayoutTab, LayoutColumn } from "@beechcms/core"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FieldEdit } from "@/components/fields"
