@@ -30,7 +30,7 @@ const SYSTEM_KEYS = new Set(['id', 'slug', 'status', 'created_at', 'updated_at']
  *  otherwise falls back to the legacy heuristic (title/image). */
 export function buildKanbanCardDisplayModel(
   entry: ContentEntry,
-  axisBranch: Branch,
+  _axisBranch: Branch,
   columnValue: string | null,
   seed?: Seed,
   card?: KanbanCardConfig,

@@ -4,7 +4,7 @@
 
 import { Star } from "lucide-react"
 import { cn } from "@/lib/utils"
-import type { FieldEditProps } from "../types"
+import type { FieldEditProps } from "../../types"
 import { useNumberRating } from "./use-number-rating"
 
 /**

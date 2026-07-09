@@ -4,7 +4,7 @@
 
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
-import type { FieldEditProps } from "../types"
+import type { FieldEditProps } from "../../types"
 
 /**
  * `number` field control rendered as a draggable slider with a live value

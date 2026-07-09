@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import * as React from "react"
+
 import { useTranslation } from "react-i18next"
 import type { Branch } from "@beechcms/core"
 

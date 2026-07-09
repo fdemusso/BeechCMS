@@ -342,11 +342,11 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
         }
         queryClient.setQueriesData<InfiniteData<ContentListWithMeta>>(
           { queryKey: ['kanban', seedSlug, axisBranchId, destColValue] },
-          (old) => {
+          (old: any) => {
             if (!old) return old
             return {
               ...old,
-              pages: old.pages.map((page, i) =>
+              pages: old.pages.map((page: any, i: number) =>
                 i === 0
                   ? { ...page, total: page.total + 1, items: [updatedEntry, ...page.items] }
                   : page,

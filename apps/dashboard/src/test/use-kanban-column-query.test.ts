@@ -28,7 +28,7 @@ const buildModelMock = vi.fn((item: any, _axis: any, _col: any, _seed?: any, _cf
 }))
 
 vi.mock('@/features/content-kanban/utils/kanban-card-display', () => ({
-  buildKanbanCardDisplayModel: (...args: any[]) => buildModelMock(...args),
+  buildKanbanCardDisplayModel: (...args: any) => (buildModelMock as any)(...args),
 }))
 
 import { useInfiniteQuery } from '@tanstack/react-query'
