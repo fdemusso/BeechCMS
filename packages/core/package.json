@@ -27,6 +27,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "@types/node": "^24.10.1",
     "@vitest/coverage-v8": "^4.1.0",
     "vitest": "^4.1.0"
   },
