@@ -188,7 +188,9 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
         try {
           const originUrl = new URL(origin)
           const requestUrl = new URL(context.req.url)
-          if (originUrl.hostname === requestUrl.hostname && originUrl.port === requestUrl.port) {
+          if (originUrl.protocol === requestUrl.protocol &&
+              originUrl.hostname === requestUrl.hostname &&
+              originUrl.port === requestUrl.port) {
             return origin
           }
         } catch {}
