@@ -28,6 +28,9 @@ const CHAOS_SEED: Seed = {
     { id: 'br_manual', alias: 'manual',      label: 'Manual',      type: 'file', fileOptions: { accept: 'document' } },
     { id: 'br_archive', alias: 'archive',     label: 'Archive',     type: 'file', fileOptions: { accept: 'any' } },
     { id: 'br_docs', alias: 'docs',        label: 'Docs',        type: 'file', multiple: true, format: 'asset-list', fileOptions: { accept: 'document' } },
+    // file with maxSize
+    { id: 'br_thumb', alias: 'thumb',       label: 'Thumb',       type: 'file', fileOptions: { maxSize: 1024 } },
+    { id: 'br_photos', alias: 'photos',      label: 'Photos',      type: 'file', multiple: true, format: 'asset-list', fileOptions: { maxSize: 1024 } },
     // json
     { id: 'br_meta', alias: 'meta',        label: 'Meta',        type: 'json' },
     // tags
@@ -174,6 +177,48 @@ describe('file field', () => {
   it('asset-list: treats empty string as absent for optional list', () => {
     const r = safeValidate({ ...validBase(), gallery: '' })
     expect(r.details.filter(d => d.field === 'gallery')).toHaveLength(0)
+  })
+})
+
+describe('fileOptions.maxSize', () => {
+  it('single: accepts a rich media object within the configured maxSize', () => {
+    const r = safeValidate({ ...validBase(), thumb: { url: 'https://a.com/t.png', size: 1024 } })
+    expect(r.data.thumb).toBe('https://a.com/t.png')
+    expect(r.details.some(d => d.field === 'thumb')).toBe(false)
+  })
+
+  it('single: rejects a rich media object exceeding the configured maxSize', () => {
+    const r = safeValidate({ ...validBase(), thumb: { url: 'https://a.com/t.png', size: 2048 } })
+    expect(r.details.some(d => d.field === 'thumb' && d.expected.includes('maxSize'))).toBe(true)
+  })
+
+  it('single: falls back to the 5MB default when maxSize is not configured', () => {
+    const withinDefault = safeValidate({ ...validBase(), cover: { url: 'https://a.com/c.png', size: 5 * 1024 * 1024 } })
+    expect(withinDefault.details.some(d => d.field === 'cover')).toBe(false)
+
+    const overDefault = safeValidate({ ...validBase(), cover: { url: 'https://a.com/c.png', size: 5 * 1024 * 1024 + 1 } })
+    expect(overDefault.details.some(d => d.field === 'cover' && d.expected.includes('maxSize'))).toBe(true)
+  })
+
+  it('single: plain url string with no size metadata is not blocked by maxSize', () => {
+    const r = safeValidate({ ...validBase(), thumb: 'https://a.com/t.png' })
+    expect(r.details.some(d => d.field === 'thumb')).toBe(false)
+  })
+
+  it('asset-list: rejects an item exceeding the configured maxSize', () => {
+    const r = safeValidate({
+      ...validBase(),
+      photos: [{ url: 'https://a.com/1.jpg', size: 512 }, { url: 'https://a.com/2.jpg', size: 4096 }],
+    })
+    expect(r.details.some(d => d.field === 'photos' && d.expected.includes('maxSize'))).toBe(true)
+  })
+
+  it('asset-list: accepts every item within the configured maxSize', () => {
+    const r = safeValidate({
+      ...validBase(),
+      photos: [{ url: 'https://a.com/1.jpg', size: 512 }, { url: 'https://a.com/2.jpg', size: 1024 }],
+    })
+    expect(r.data.photos).toEqual(['https://a.com/1.jpg', 'https://a.com/2.jpg'])
   })
 })
 

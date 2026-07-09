@@ -81,23 +81,55 @@ function extractUrlFromCandidate(candidate: unknown): string | null {
 }
 
 /**
- * Collects and deduplicates valid URLs from a raw input representing an asset list.
+ * Extracts a byte size from a candidate value's `size` field, if present and valid.
+ *
+ * @param candidate - The candidate value.
+ * @returns The size in bytes, or null if not available.
+ */
+function extractSizeFromCandidate(candidate: unknown): number | null {
+  if (!isPlainObject(candidate)) return null
+  const raw = candidate.size
+  return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : null
+}
+
+/** A file URL paired with its byte size, when known from payload metadata. */
+export interface FileCandidate {
+  url: string
+  size: number | null
+}
+
+/**
+ * Extracts a URL and, when available, a byte size from a candidate value
+ * (a string URL, or an object with `url`/`size` fields, e.g. uploader output).
+ *
+ * @param candidate - The candidate value.
+ * @returns The extracted file candidate, or null if no valid URL was found.
+ */
+export function extractFileCandidate(candidate: unknown): FileCandidate | null {
+  const url = extractUrlFromCandidate(candidate)
+  if (!url) return null
+  return { url, size: extractSizeFromCandidate(candidate) }
+}
+
+/**
+ * Collects and deduplicates valid file candidates (url + optional size) from a raw
+ * input representing an asset list.
  *
  * @param raw - The raw input data (can be array, JSON string, or single item).
- * @returns The list of unique URL strings, or null if any item is invalid.
+ * @returns The list of unique file candidates, or null if any item is invalid.
  */
-export function collectAssetListUrls(raw: unknown): string[] | null {
+export function collectAssetListItems(raw: unknown): FileCandidate[] | null {
   const source = typeof raw === 'string' ? tryParseJson(raw) : raw
   const items = Array.isArray(source) ? source : [source]
   const seen = new Set<string>()
-  const out: string[] = []
+  const out: FileCandidate[] = []
   for (const item of items) {
     if (item === null || item === undefined) continue
-    const url = extractUrlFromCandidate(item)
-    if (!url) return null
-    if (!seen.has(url)) {
-      seen.add(url)
-      out.push(url)
+    const candidate = extractFileCandidate(item)
+    if (!candidate) return null
+    if (!seen.has(candidate.url)) {
+      seen.add(candidate.url)
+      out.push(candidate)
     }
   }
   return out
