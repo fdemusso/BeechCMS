@@ -6,7 +6,7 @@ import type { Branch, BranchType } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
 import { extensionFromUrl, isExtensionAccepted } from '../../media/file-types.js'
-import { cleanString, byteLength } from './primitives.js'
+import { cleanString, stripControlChars, byteLength, isPlainObject } from './primitives.js'
 import { sanitizeRichtext } from './richtext-sanitizer.js'
 import { resolveFileOptions, isAssetListBranch, collectAssetListItems, extractFileCandidate } from './file-branch.js'
 
@@ -195,14 +195,90 @@ function dateSchema(allowNull: boolean): z.ZodTypeAny {
   return withEmptyPreprocessing(base, allowNull)
 }
 
+/** Max nesting depth accepted when walking a `json` branch value. */
+const JSON_MAX_DEPTH = 50
+/** Max number of items accepted in a `tags` branch array. */
+const MAX_TAGS_COUNT = 100
+
 /**
- * Compiles a Zod validation schema for JSON or tags branches.
+ * Recursively strips control characters from string leaves while enforcing a
+ * depth cap, mirroring the richtext sanitizer's DoS guards for arbitrary JSON.
  *
- * @param allowNull - Whether null values are allowed.
- * @returns The compiled JSON/tags schema.
+ * @param value - The value (or sub-value) being walked.
+ * @param depth - Current recursion depth.
+ * @returns The sanitized value, or `undefined` with `tooDeep: true` if the cap was exceeded.
  */
-function jsonOrTagsSchema(allowNull: boolean): z.ZodTypeAny {
-  const base = z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())])
+function sanitizeJsonValue(value: unknown, depth: number): { value: unknown; tooDeep: boolean } {
+  if (depth > JSON_MAX_DEPTH) return { value: undefined, tooDeep: true }
+  if (typeof value === 'string') return { value: stripControlChars(value), tooDeep: false }
+  if (Array.isArray(value)) {
+    const out: unknown[] = []
+    for (const item of value) {
+      const res = sanitizeJsonValue(item, depth + 1)
+      if (res.tooDeep) return res
+      out.push(res.value)
+    }
+    return { value: out, tooDeep: false }
+  }
+  if (isPlainObject(value)) {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(value)) {
+      const res = sanitizeJsonValue(v, depth + 1)
+      if (res.tooDeep) return res
+      out[k] = res.value
+    }
+    return { value: out, tooDeep: false }
+  }
+  return { value, tooDeep: false }
+}
+
+/**
+ * Compiles a Zod validation schema for a `json` branch, bounding size and nesting
+ * depth like richtext, and stripping control characters from string leaves.
+ *
+ * @param options - The resolved validation options.
+ * @param allowNull - Whether null values are allowed.
+ * @returns The compiled JSON schema.
+ */
+function jsonSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny {
+  const base = z
+    .union([z.record(z.string(), z.unknown()), z.array(z.unknown())])
+    .transform((val, ctx) => {
+      // Fail-fast size check before the sanitizing walk, same order as richtext.
+      const rawSize = byteLength(JSON.stringify(val))
+      if (rawSize > options.maxTextLength) {
+        ctx.addIssue({ code: 'custom', message: `Expected json(max:${options.maxTextLength})` })
+        return z.NEVER
+      }
+      const { value, tooDeep } = sanitizeJsonValue(val, 0)
+      if (tooDeep) {
+        ctx.addIssue({ code: 'custom', message: `Expected json(maxDepth:${JSON_MAX_DEPTH})` })
+        return z.NEVER
+      }
+      return value
+    })
+  return withEmptyPreprocessing(base, allowNull)
+}
+
+/**
+ * Compiles a Zod validation schema for a `tags` branch, constraining it to a
+ * bounded array of cleaned strings (fixes #183: previously any array/object
+ * shape passed, breaking callers like the kanban swap that cast to `string[]`).
+ *
+ * @param options - The resolved validation options.
+ * @param allowNull - Whether null values are allowed.
+ * @returns The compiled tags schema.
+ */
+function tagsSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny {
+  const tagSchema = z
+    .string()
+    .transform((value) => cleanString(value))
+    .refine((value) => byteLength(value) <= options.maxTextLength, {
+      message: `Expected string(max:${options.maxTextLength})`,
+    })
+  const base = z.array(tagSchema).max(MAX_TAGS_COUNT, {
+    message: `Expected tags(max:${MAX_TAGS_COUNT})`,
+  })
   return withEmptyPreprocessing(base, allowNull)
 }
 
@@ -340,8 +416,8 @@ const BRANCH_SCHEMA_BUILDERS: Record<string, (branch: Branch, options: ResolvedO
   number: (branch, options) => numberSchema(branch, options.allowNull),
   boolean: (_branch, options) => booleanSchema(options.allowNull),
   date: (_branch, options) => dateSchema(options.allowNull),
-  json: (_branch, options) => jsonOrTagsSchema(options.allowNull),
-  tags: (_branch, options) => jsonOrTagsSchema(options.allowNull),
+  json: (_branch, options) => jsonSchema(options, options.allowNull),
+  tags: (_branch, options) => tagsSchema(options, options.allowNull),
   file: (branch, options) => fileSchema(branch, options.allowNull),
   relation: (branch, options) => relationSchema(branch, options),
   repeater: (branch, options) => repeaterSchema(branch, options),
