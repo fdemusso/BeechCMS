@@ -266,6 +266,15 @@ describe('D1ContentRepository', () => {
         new D1ContentRepository(db).create(SEED, 'id', 'taken-slug', 'draft', {}),
       ).rejects.toBeInstanceOf(SlugConflictError)
     })
+
+    it('throws SlugConflictError when existsSlug passes but INSERT throws UNIQUE constraint error on slug', async () => {
+      const { db, runMock } = makeMockDb({ firstResult: null }) // existsSlug → null (passes pre-check)
+      const d1Error = new Error('D1_ERROR: UNIQUE constraint failed: content_posts.slug')
+      runMock.mockRejectedValue(d1Error)
+      await expect(
+        new D1ContentRepository(db).create(SEED, 'new-id', 'my-slug', 'draft', { title: 'Hello' }),
+      ).rejects.toBeInstanceOf(SlugConflictError)
+    })
   })
 
   // ─── update ─────────────────────────────────────────────────────────────────
