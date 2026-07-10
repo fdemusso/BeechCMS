@@ -118,15 +118,18 @@ const statusSchema = z.enum(STATUS_VALUES)
  * Checks if a value is effectively empty (e.g. null, undefined, empty string, empty array, or empty rich text).
  *
  * @param value - The value to check.
+ * @param branchType - The type of the branch being checked.
  * @returns True if effectively empty, false otherwise.
  */
-function isEffectivelyEmpty(value: unknown): boolean {
+function isEffectivelyEmpty(value: unknown, branchType?: string): boolean {
   if (value === null || value === undefined) return true
   if (typeof value === 'string') return cleanString(value).length === 0
   if (Array.isArray(value)) return value.length === 0
   if (isPlainObject(value)) {
+    // Richtext envelope: delegate to the richtext emptiness check.
     if (isRichtextEnvelopeV1(value)) return isRichtextDocEmpty(value.doc)
-    if (isRichtextDocEmpty(value)) return true
+    // Raw TipTap doc root: only delegate for richtext branches to avoid misclassifying generic json fields.
+    if (branchType === 'richtext' && value.type === 'doc') return isRichtextDocEmpty(value)
     return Object.keys(value).length === 0
   }
   return false
@@ -171,7 +174,7 @@ function detectMissingRequired(
     }
 
     const candidate = parseSucceeded ? parsedData[branch.alias] : filtered[branch.alias]
-    if (isEffectivelyEmpty(candidate)) {
+    if (isEffectivelyEmpty(candidate, branch.type)) {
       missing.push(branch.alias)
       details.push({
         field: branch.alias,
@@ -441,7 +444,7 @@ export function validateAndSanitizeSeedPayload(
       field: 'data',
       expected: 'at-least-one-valid-field',
       received: 'empty',
-      message: 'Payload does not contain any valid fields for this operation',
+      message: 'Payload contains no valid fields after validation; check field types and values',
     })
   }
 

@@ -418,3 +418,33 @@ describe('number field step with scientific notation (#150)', () => {
     expect(r.details.some(d => d.field === 'micro' && d.expected.includes('step:1e-7'))).toBe(true)
   })
 })
+
+describe('#184 — isEffectivelyEmpty: json field with {type:"doc",...} shape is not required-missing (#3)', () => {
+  const JSON_DOC_SHAPE_SEED: Seed = {
+    slug: 'widgets',
+    label: 'Widget',
+    displayNameAlias: 'name',
+    branches: [
+      { id: 'br_name', alias: 'name', label: 'Name', type: 'text', requiredOnCreate: true },
+      { id: 'br_config', alias: 'config', label: 'Config', type: 'json', requiredOnCreate: true },
+    ],
+  }
+
+  it('does not misclassify a required json field shaped like {type:"doc",...} as empty richtext', () => {
+    const r = validateAndSanitizeSeedPayload(
+      JSON_DOC_SHAPE_SEED,
+      { name: 'W', config: { type: 'doc', nodes: [1, 2, 3] } },
+      { operation: 'create' },
+    )
+    expect(r.requiredFieldsMissing).not.toContain('config')
+  })
+
+  it('still marks a truly-empty json object as missing for a required field', () => {
+    const r = validateAndSanitizeSeedPayload(
+      JSON_DOC_SHAPE_SEED,
+      { name: 'W', config: {} },
+      { operation: 'create' },
+    )
+    expect(r.requiredFieldsMissing).toContain('config')
+  })
+})

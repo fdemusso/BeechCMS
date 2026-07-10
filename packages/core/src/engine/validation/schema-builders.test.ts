@@ -493,6 +493,43 @@ describe('repeater cardinality bounds', () => {
   })
 })
 
+describe('#184 — repeater sub-fields respect enforceRequiredFields (#5)', () => {
+  const REPEATER_REQUIRED_SEED: Seed = {
+    slug: 'slides',
+    label: 'Slides',
+    displayNameAlias: 'title',
+    branches: [
+      { id: 'br_title', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+      {
+        id: 'br_slides', alias: 'slides', label: 'Slides', type: 'repeater',
+        fields: [
+          { id: 'br_heading', alias: 'heading', label: 'Heading', type: 'text', requiredOnCreate: true },
+          { id: 'br_caption', alias: 'caption', label: 'Caption', type: 'text' },
+        ],
+      },
+    ],
+  }
+
+  it('enforces required sub-field when enforceRequiredFields=true', () => {
+    const r = validateAndSanitizeSeedPayload(
+      REPEATER_REQUIRED_SEED,
+      { title: 'T', slides: [{ caption: 'no heading here' }] },
+      { operation: 'create', enforceRequiredFields: true },
+    )
+    expect(r.data).not.toHaveProperty('slides')
+  })
+
+  it('treats required sub-field as optional when enforceRequiredFields=false', () => {
+    const r = validateAndSanitizeSeedPayload(
+      REPEATER_REQUIRED_SEED,
+      { title: 'T', slides: [{ caption: 'no heading here' }] },
+      { operation: 'create', enforceRequiredFields: false },
+    )
+    expect(r.details.some(d => d.field.startsWith('slides'))).toBe(false)
+    expect(r.data.slides).toEqual([{ caption: 'no heading here' }])
+  })
+})
+
 // Regression: https://github.com/ (issue #152) — empty string on a nullable field
 // must resolve to `null`, not be rejected by the `withNullable` union.
 describe('empty string on nullable fields (issue #152)', () => {

@@ -134,7 +134,13 @@ function sanitizeRichtextJson(raw: Record<string, unknown>): RichtextSanitizeRes
   const cleaned = walkRichtextNode(raw, state)
   const asObject = isPlainObject(cleaned) ? cleaned : {}
   const valid = asObject.type === 'doc'
-  return { value: asObject, dangerous: state.dangerous, valid, size: byteLength(JSON.stringify(asObject)) }
+  let serialized: string
+  try {
+    serialized = JSON.stringify(asObject)
+  } catch {
+    return { value: asObject, dangerous: state.dangerous, valid: false, size: 0 }
+  }
+  return { value: asObject, dangerous: state.dangerous, valid, size: byteLength(serialized) }
 }
 
 /**
@@ -184,10 +190,12 @@ export function sanitizeRichtext(raw: unknown, maxBytes: number): RichtextSaniti
  *
  * @param node - The rich text node to inspect.
  * @param sink - Accumulated text chunks.
+ * @param depth - Current recursion depth (guard against pathological structures).
  */
-function gatherRichtextText(node: unknown, sink: string[]): void {
+function gatherRichtextText(node: unknown, sink: string[], depth = 0): void {
+  if (depth > RICHTEXT_MAX_DEPTH) return
   if (Array.isArray(node)) {
-    for (const child of node) gatherRichtextText(child, sink)
+    for (const child of node) gatherRichtextText(child, sink, depth + 1)
     return
   }
   if (!isPlainObject(node)) return
@@ -198,7 +206,7 @@ function gatherRichtextText(node: unknown, sink: string[]): void {
     sink.push(cleanString(node.attrs.latex))
   }
   if (Array.isArray(node.content)) {
-    for (const child of node.content) gatherRichtextText(child, sink)
+    for (const child of node.content) gatherRichtextText(child, sink, depth + 1)
   }
 }
 

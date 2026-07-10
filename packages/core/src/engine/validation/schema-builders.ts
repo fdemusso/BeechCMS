@@ -297,7 +297,8 @@ function repeaterSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny 
   const shape: Record<string, z.ZodTypeAny> = {}
   for (const sub of subBranches) {
     const subSchema = schemaForBranch(sub, options)
-    shape[sub.alias] = sub[requiredFlag] ? subSchema : subSchema.optional()
+    const isRequired = options.enforceRequiredFields && sub[requiredFlag]
+    shape[sub.alias] = isRequired ? subSchema : subSchema.optional()
   }
   // z.object() strips unknown keys by default — old item shapes from a renamed/
   // removed sub-field are dropped rather than rejected (sprint 10 §5.1).

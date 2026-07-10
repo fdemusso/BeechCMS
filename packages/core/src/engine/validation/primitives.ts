@@ -25,13 +25,16 @@ export function cleanString(input: string): string {
 }
 
 /**
- * Type-guard checking if a value is a plain object (excluding arrays and null).
+ * Type-guard checking if a value is a plain object (excluding arrays, null, and class instances).
+ * Accepts only objects whose prototype is `Object.prototype` or `null` (created via `Object.create(null)`).
  *
  * @param input - The value to check.
  * @returns True if the value is a plain object, false otherwise.
  */
 export function isPlainObject(input: unknown): input is Record<string, unknown> {
-  return typeof input === 'object' && input !== null && !Array.isArray(input)
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) return false
+  const proto = Object.getPrototypeOf(input) as unknown
+  return proto === Object.prototype || proto === null
 }
 
 const byteLengthEncoder = new TextEncoder()

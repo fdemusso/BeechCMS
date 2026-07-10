@@ -111,16 +111,20 @@ export function extractFileCandidate(candidate: unknown): FileCandidate | null {
   return { url, size: extractSizeFromCandidate(candidate) }
 }
 
+/** Maximum number of items accepted in an asset list to prevent unbounded processing. */
+const MAX_ASSET_LIST_ITEMS = 100
+
 /**
  * Collects and deduplicates valid file candidates (url + optional size) from a raw
  * input representing an asset list.
  *
  * @param raw - The raw input data (can be array, JSON string, or single item).
- * @returns The list of unique file candidates, or null if any item is invalid.
+ * @returns The list of unique file candidates, or null if any item is invalid or the list exceeds the cap.
  */
 export function collectAssetListItems(raw: unknown): FileCandidate[] | null {
   const source = typeof raw === 'string' ? tryParseJson(raw) : raw
   const items = Array.isArray(source) ? source : [source]
+  if (items.length > MAX_ASSET_LIST_ITEMS) return null
   const seen = new Set<string>()
   const out: FileCandidate[] = []
   for (const item of items) {
