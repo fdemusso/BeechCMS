@@ -16,7 +16,15 @@ export function publicRateLimitMiddleware() {
     const readMethod = isReadMethod(c.req.method)
     const limiterName = readMethod ? ('publicApiRead' as const) : ('publicApiWrite' as const)
 
-    const seed = c.req.param('seed') ?? 'no-seed'
+    const path = c.req.path
+    let seed = 'no-seed'
+    if (path.startsWith('/api/v1/public/')) {
+      const remaining = path.slice('/api/v1/public/'.length)
+      const firstSegment = remaining.split('/')[0]
+      if (firstSegment && firstSegment !== 'health' && firstSegment !== 'schema' && firstSegment !== 'schema.html') {
+        seed = firstSegment
+      }
+    }
     const key = `${getClientIp(c.req)}:${seed}:${limiterName}`
     const result = await c.get('rateLimiters').getLimiter(limiterName).checkLimit(key)
 
