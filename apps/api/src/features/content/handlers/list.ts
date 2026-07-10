@@ -74,9 +74,9 @@ async function buildRelationsMap(
 
       const map: Record<string, string> = {}
       for (const item of items) {
-        const id = (item as Record<string, unknown>).id as string
-        const data = (item as Record<string, unknown>).data as Record<string, unknown>
-        const label = data[labelAlias]
+        const row = item as Record<string, unknown>
+        const id = row.id as string
+        const label = row[labelAlias]
         map[id] = label != null && label !== '' ? String(label) : id
       }
 
