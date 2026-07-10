@@ -57,7 +57,11 @@ function withEmptyPreprocessing<T extends z.ZodTypeAny>(schema: T, allowNull: bo
   const fallback = allowNull ? null : undefined
   const wrapped: z.ZodTypeAny = allowNull ? schema.optional().nullable() : schema.optional()
   return z.preprocess(
-    (val) => (val === '' || val === null ? fallback : val),
+    (val) => {
+      if (val === '') return fallback
+      if (val === null) return allowNull ? null : val
+      return val
+    },
     wrapped,
   )
 }

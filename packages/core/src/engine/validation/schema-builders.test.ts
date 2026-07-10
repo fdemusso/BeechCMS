@@ -377,7 +377,7 @@ describe('repeater cardinality bounds', () => {
     const absent = validate(seed, { title: 'My FAQ' })
     expect(absent.details.some(d => d.field === 'items')).toBe(false)
 
-    const nullValue = validate(seed, { title: 'My FAQ', items: null })
+    const nullValue = validateAndSanitizeSeedPayload(seed, { title: 'My FAQ', items: null }, { operation: 'create', allowNull: true })
     expect(nullValue.details.some(d => d.field === 'items')).toBe(false)
   })
 
@@ -600,5 +600,63 @@ describe('empty string on nullable fields (issue #152)', () => {
       { operation: 'update', allowNull: false, requireAtLeastOneValidField: false },
     )
     expect(r.data.price).toBeUndefined()
+  })
+})
+
+// Regression: issue #182 — explicit null when allowNull is false
+// must produce a ValidationDetail and NOT be coerced to undefined.
+describe('explicit null when allowNull is false (issue #182)', () => {
+  function validateWithAllowNullFalse(payload: Record<string, unknown>) {
+    return validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { title: 'Valid Title', qty: 1, ...payload },
+      { operation: 'update', allowNull: false, requireAtLeastOneValidField: false },
+    )
+  }
+
+  it('number: null is rejected when allowNull is false', () => {
+    const r = validateWithAllowNullFalse({ price: null })
+    expect(r.details.some(d => d.field === 'price')).toBe(true)
+    expect(r.data.price).toBeUndefined()
+  })
+
+  it('boolean: null is rejected when allowNull is false', () => {
+    const r = validateWithAllowNullFalse({ active: null })
+    expect(r.details.some(d => d.field === 'active')).toBe(true)
+    expect(r.data.active).toBeUndefined()
+  })
+
+  it('date: null is rejected when allowNull is false', () => {
+    const r = validateWithAllowNullFalse({ publishedAt: null })
+    expect(r.details.some(d => d.field === 'publishedAt')).toBe(true)
+    expect(r.data.publishedAt).toBeUndefined()
+  })
+
+  it('json: null is rejected when allowNull is false', () => {
+    const r = validateWithAllowNullFalse({ meta: null })
+    expect(r.details.some(d => d.field === 'meta')).toBe(true)
+    expect(r.data.meta).toBeUndefined()
+  })
+
+  it('file: null is rejected when allowNull is false', () => {
+    const r = validateWithAllowNullFalse({ cover: null })
+    expect(r.details.some(d => d.field === 'cover')).toBe(true)
+    expect(r.data.cover).toBeUndefined()
+  })
+
+  it('file (asset-list): null is rejected when allowNull is false', () => {
+    const r = validateWithAllowNullFalse({ gallery: null })
+    expect(r.details.some(d => d.field === 'gallery')).toBe(true)
+    expect(r.data.gallery).toBeUndefined()
+  })
+
+  it('repeater: null is rejected when allowNull is false', () => {
+    const r = validateAndSanitizeSeedPayload(
+      REPEATER_SEED,
+      { title: 'My FAQ', items: null },
+      { operation: 'update', allowNull: false, requireAtLeastOneValidField: false },
+    )
+    expect(r.details.some(d => d.field === 'items')).toBe(true)
+    expect(r.data.items).toBeUndefined()
   })
 })

@@ -261,9 +261,9 @@ describe('number field', () => {
     expect(r.details.some(d => d.field === 'price')).toBe(true)
   })
 
-  it('treats null as absent for optional number when allowNull is false', () => {
+  it('rejects null for optional number when allowNull is false', () => {
     const r = safeValidate({ ...validBase(), price: null as unknown as number }, { allowNull: false })
-    expect(r.details.some(d => d.field === 'price')).toBe(false)
+    expect(r.details.some(d => d.field === 'price')).toBe(true)
   })
 
   it('treats empty string as absent for optional number', () => {

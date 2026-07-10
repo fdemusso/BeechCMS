@@ -122,6 +122,7 @@ const MAX_ASSET_LIST_ITEMS = 100
  * @returns The list of unique file candidates, or null if any item is invalid or the list exceeds the cap.
  */
 export function collectAssetListItems(raw: unknown): FileCandidate[] | null {
+  if (raw === null) return null
   const source = typeof raw === 'string' ? tryParseJson(raw) : raw
   const items = Array.isArray(source) ? source : [source]
   if (items.length > MAX_ASSET_LIST_ITEMS) return null
