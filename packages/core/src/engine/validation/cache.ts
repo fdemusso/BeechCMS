@@ -55,6 +55,35 @@ function setCachedSchema(cache: Map<string, CompiledSchema>, key: string, value:
 }
 
 /**
+ * Retrieves a cache entry and marks it as most recently used.
+ *
+ * @param key - The cache key.
+ * @returns The cached schema, or undefined if absent.
+ */
+function getCachedSchema(key: string): z.ZodObject<Record<string, z.ZodTypeAny>> | undefined {
+  const cached = seedSchemaCache.get(key)
+  if (cached) {
+    seedSchemaCache.delete(key)
+    seedSchemaCache.set(key, cached)
+  }
+  return cached
+}
+
+/**
+ * Stores a cache entry, evicting the least recently used one if over capacity.
+ *
+ * @param key - The cache key.
+ * @param value - The compiled schema to cache.
+ */
+function setCachedSchema(key: string, value: z.ZodObject<Record<string, z.ZodTypeAny>>): void {
+  if (seedSchemaCache.size >= SEED_SCHEMA_CACHE_MAX_SIZE) {
+    const oldestKey = seedSchemaCache.keys().next().value
+    if (oldestKey !== undefined) seedSchemaCache.delete(oldestKey)
+  }
+  seedSchemaCache.set(key, value)
+}
+
+/**
  * Represents the typesafe structure of a fingerprinted branch for cache key generation.
  */
 interface BranchFingerprint {
