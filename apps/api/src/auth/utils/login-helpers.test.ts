@@ -75,8 +75,8 @@ describe('validateLoginInput', () => {
     expect(validateLoginInput('user@test.com', 'a'.repeat(8))).toBe(true)
   })
 
-  it('rejects a password made only of whitespace', () => {
-    expect(validateLoginInput('user@test.com', ' '.repeat(8))).toBe(false)
+  it('accepts a password with trailing whitespace, matching setup/reset validation', () => {
+    expect(validateLoginInput('user@test.com', 'passwor ')).toBe(true)
   })
 
   it('accepts a password at the bcrypt byte boundary (exactly 72 bytes)', () => {
