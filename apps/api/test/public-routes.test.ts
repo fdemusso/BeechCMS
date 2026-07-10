@@ -77,5 +77,18 @@ describe('Public API Routes', () => {
       }, { ...TEST_ENV, CORS_ORIGINS: '' })
       expect(res.headers.get('Access-Control-Allow-Origin')).toBeNull()
     })
+
+    it('preflight allows PATCH method and Idempotency-Key header', async () => {
+      const res = await app.request('/api/v1/public/health', {
+        method: 'OPTIONS',
+        headers: {
+          'Origin': 'http://localhost:5173',
+          'Access-Control-Request-Method': 'PATCH',
+          'Access-Control-Request-Headers': 'Idempotency-Key',
+        }
+      }, TEST_ENV)
+      expect(res.headers.get('Access-Control-Allow-Methods')).toContain('PATCH')
+      expect(res.headers.get('Access-Control-Allow-Headers')).toContain('Idempotency-Key')
+    })
   })
 })
