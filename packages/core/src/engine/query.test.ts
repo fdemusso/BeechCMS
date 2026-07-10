@@ -47,6 +47,51 @@ describe('Query', () => {
       expect(query.bindings).toContain(10)
     })
 
+    it('defaults to ANDing multiple filter groups', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'title', type: 'text', conditions: [{ op: 'contains', value: 'Hello' }] },
+          { column: 'price', type: 'number', conditions: [{ op: 'gt', value: 10 }] },
+        ],
+      })
+      expect(query.sql).toContain('WHERE (title LIKE ? AND price > ?)')
+    })
+
+    it('ORs top-level filter groups when filterLogic is OR', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'title', type: 'text', conditions: [{ op: 'contains', value: 'Hello' }] },
+          { column: 'price', type: 'number', conditions: [{ op: 'gt', value: 10 }] },
+        ],
+        filterLogic: 'OR',
+      })
+      expect(query.sql).toContain('WHERE (title LIKE ? OR price > ?)')
+      expect(query.bindings).toContain('%Hello%')
+      expect(query.bindings).toContain(10)
+    })
+
+    it('ANDs status and search with an OR-joined filter group', () => {
+      const query = buildSelectQuery(mockSeed, {
+        status: 'published',
+        filters: [
+          { column: 'title', type: 'text', conditions: [{ op: 'contains', value: 'Hello' }] },
+          { column: 'price', type: 'number', conditions: [{ op: 'gt', value: 10 }] },
+        ],
+        filterLogic: 'OR',
+      })
+      expect(query.sql).toContain('WHERE content_articles.status = ? AND (title LIKE ? OR price > ?)')
+    })
+
+    it('keeps conditions within one filter group ANDed even under filterLogic OR', () => {
+      const query = buildSelectQuery(mockSeed, {
+        filters: [
+          { column: 'title', type: 'text', conditions: [{ op: 'contains', value: 'Hello' }, { op: 'contains', value: 'World' }] },
+        ],
+        filterLogic: 'OR',
+      })
+      expect(query.sql).toContain('WHERE (title LIKE ? AND title LIKE ?)')
+    })
+
     it('handles search with FTS JOIN', () => {
       const query = buildSelectQuery(mockSeed, { search: 'test' })
       expect(query.sql).toContain('INNER JOIN fts_articles ON fts_articles.entry_id = content_articles.id')

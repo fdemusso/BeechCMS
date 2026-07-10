@@ -32,6 +32,7 @@ export async function readListEntries(input: ReadListInput) {
 
   const { items, total } = await repository.findMany(seed, {
     filters: engineFilters,
+    filterLogic: parsedFilter?.logic,
     search: search || undefined,
     status: publishedOnly ? 'published' : null,
     pagination: {
