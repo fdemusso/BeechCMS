@@ -17,10 +17,22 @@ import { resolveFileOptions, isAssetListBranch, collectAssetListItems, extractFi
  * @returns True if the string is a valid ISO date, false otherwise.
  */
 function isValidIsoDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}/.test(value)) return false
+  if (!/^\d{4}-\d{2}-\d{2}(?:T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}(?::?\d{2})?)?)?$/.test(value)) {
+    return false
+  }
   const ts = Date.parse(value)
   if (Number.isNaN(ts)) return false
-  return new Date(ts).toISOString().startsWith(value.slice(0, 10))
+
+  const y = parseInt(value.slice(0, 4), 10)
+  const m = parseInt(value.slice(5, 7), 10)
+  const d = parseInt(value.slice(8, 10), 10)
+
+  const date = new Date(Date.UTC(y, m - 1, d))
+  return (
+    date.getUTCFullYear() === y &&
+    date.getUTCMonth() === m - 1 &&
+    date.getUTCDate() === d
+  )
 }
 
 /**

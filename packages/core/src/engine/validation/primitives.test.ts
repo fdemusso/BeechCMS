@@ -321,6 +321,16 @@ describe('date field', () => {
     expect(r.data.publishedAt).toBe('2026-05-14T12:00:00Z')
   })
 
+  it('accepts a valid ISO datetime string with negative timezone offset (issue #177)', () => {
+    const r = safeValidate({ ...validBase(), publishedAt: '2023-06-15T23:00:00-05:00' })
+    expect(r.data.publishedAt).toBe('2023-06-15T23:00:00-05:00')
+  })
+
+  it('accepts a valid ISO datetime string with positive timezone offset (issue #177)', () => {
+    const r = safeValidate({ ...validBase(), publishedAt: '2023-06-15T01:00:00+05:00' })
+    expect(r.data.publishedAt).toBe('2023-06-15T01:00:00+05:00')
+  })
+
   it('rejects malformed date string', () => {
     const r = safeValidate({ ...validBase(), publishedAt: '2026/05/14' })
     expect(r.details.some(d => d.field === 'publishedAt')).toBe(true)
