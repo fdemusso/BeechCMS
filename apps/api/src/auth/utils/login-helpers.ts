@@ -47,7 +47,7 @@ export function parseLoginBody(body: unknown): LoginCredentials | null {
   const password = obj.password
   if (typeof email !== 'string' || typeof password !== 'string') return null
   if (!email.trim() || !password) return null
-  return { email: email.trim(), password }
+  return { email: email.trim().toLowerCase(), password }
 }
 
 /**

@@ -39,6 +39,11 @@ describe('parseLoginBody', () => {
   it('returns null when email is not a string', () => {
     expect(parseLoginBody({ email: 42, password: 'pass' })).toBeNull()
   })
+
+  it('lowercases email so lookup matches signup normalization', () => {
+    expect(parseLoginBody({ email: 'Demo@Test.com', password: 'pass1234' }))
+      .toEqual({ email: 'demo@test.com', password: 'pass1234' })
+  })
 })
 
 describe('validateLoginInput', () => {
