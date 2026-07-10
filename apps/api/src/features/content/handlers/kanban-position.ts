@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { Context } from 'hono'
-import { resolveKanbanConfig } from '@beechcms/core'
+import { resolveKanbanConfig, EntryNotFoundError } from '@beechcms/core'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import type { AppEnv } from '../../../types'
@@ -37,9 +37,13 @@ export async function kanbanPositionHandler(context: Context<AppEnv>) {
     return publicProblem(context, { type: 'content-invalid-kanban-axis', title: 'Bad Request', status: 400, detail: 'axisBranchId is not a valid kanban candidate for this seed' })
   }
 
-  const entry = await context.get('repository').findById(seed, id)
-  if (!entry) {
-    return publicProblem(context, { type: 'content-not-found', title: 'Not Found', status: 404, detail: CONTENT_ERRORS.NOT_FOUND })
+  try {
+    await context.get('repository').findById(seed, id)
+  } catch (error) {
+    if (error instanceof EntryNotFoundError) {
+      return publicProblem(context, { type: 'content-not-found', title: 'Not Found', status: 404, detail: CONTENT_ERRORS.NOT_FOUND })
+    }
+    throw error
   }
 
   await context.get('kanbanPositionRepository').setPosition(slug, id, axisBranchId, position)

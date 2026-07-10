@@ -104,6 +104,34 @@ describe('Flow: Guest Access (Public API)', () => {
 
       expect(res.status).toBe(429)
     })
+
+    it('security: rate limiter key contains the seed slug to ensure distinct buckets per seed', async () => {
+      const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: true }) }
+      
+      await app.request('/api/v1/public/posts', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+      
+      expect(mockLimiter.limit).toHaveBeenCalledWith({
+        key: 'unknown:posts:publicApiRead'
+      })
+
+      await app.request('/api/v1/public/categories', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+      
+      expect(mockLimiter.limit).toHaveBeenLastCalledWith({
+        key: 'unknown:categories:publicApiRead'
+      })
+
+      await app.request('/api/v1/public/health', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+
+      expect(mockLimiter.limit).toHaveBeenLastCalledWith({
+        key: 'unknown:no-seed:publicApiRead'
+      })
+    })
   })
 
   describe('GET /api/v1/public/:seed?slug=...', () => {

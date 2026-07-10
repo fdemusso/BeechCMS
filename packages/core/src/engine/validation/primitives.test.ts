@@ -261,9 +261,9 @@ describe('number field', () => {
     expect(r.details.some(d => d.field === 'price')).toBe(true)
   })
 
-  it('treats null as absent for optional number when allowNull is false', () => {
+  it('rejects null for optional number when allowNull is false', () => {
     const r = safeValidate({ ...validBase(), price: null as unknown as number }, { allowNull: false })
-    expect(r.details.some(d => d.field === 'price')).toBe(false)
+    expect(r.details.some(d => d.field === 'price')).toBe(true)
   })
 
   it('treats empty string as absent for optional number', () => {
@@ -321,6 +321,16 @@ describe('date field', () => {
     expect(r.data.publishedAt).toBe('2026-05-14T12:00:00Z')
   })
 
+  it('accepts a valid ISO datetime string with negative timezone offset (issue #177)', () => {
+    const r = safeValidate({ ...validBase(), publishedAt: '2023-06-15T23:00:00-05:00' })
+    expect(r.data.publishedAt).toBe('2023-06-15T23:00:00-05:00')
+  })
+
+  it('accepts a valid ISO datetime string with positive timezone offset (issue #177)', () => {
+    const r = safeValidate({ ...validBase(), publishedAt: '2023-06-15T01:00:00+05:00' })
+    expect(r.data.publishedAt).toBe('2023-06-15T01:00:00+05:00')
+  })
+
   it('rejects malformed date string', () => {
     const r = safeValidate({ ...validBase(), publishedAt: '2026/05/14' })
     expect(r.details.some(d => d.field === 'publishedAt')).toBe(true)
@@ -361,6 +371,47 @@ describe('json and tags fields', () => {
   it('treats empty string as absent for optional json', () => {
     const r = safeValidate({ ...validBase(), meta: '' })
     expect(r.details.filter(d => d.field === 'meta')).toHaveLength(0)
+  })
+
+  // Regression: #183 — json/tags had no depth/size bound, and tags accepted any array shape.
+  it('rejects a json payload exceeding maxTextLength (size guard)', () => {
+    const r = safeValidate(
+      { ...validBase(), meta: { big: 'x'.repeat(100) } },
+      { maxTextLength: 10 },
+    )
+    expect(r.details.some(d => d.field === 'meta')).toBe(true)
+  })
+
+  it('rejects a json payload nested past the depth cap', () => {
+    let nested: unknown = 'leaf'
+    for (let i = 0; i < 60; i++) nested = { child: nested }
+    const r = safeValidate({ ...validBase(), meta: nested as Record<string, unknown> })
+    expect(r.details.some(d => d.field === 'meta')).toBe(true)
+  })
+
+  it('strips control characters from json string leaves', () => {
+    const r = safeValidate({ ...validBase(), meta: { note: 'a b' } })
+    expect(r.data.meta).toEqual({ note: 'ab' })
+  })
+
+  it('rejects a tags array containing non-string items', () => {
+    const r = safeValidate({ ...validBase(), tags: [{ label: 'news' }] })
+    expect(r.details.some(d => d.field.startsWith('tags'))).toBe(true)
+  })
+
+  it('rejects a tags array exceeding the max item count', () => {
+    const r = safeValidate({ ...validBase(), tags: Array.from({ length: 101 }, (_, i) => `t${i}`) })
+    expect(r.details.some(d => d.field === 'tags')).toBe(true)
+  })
+
+  it('accepts exactly 100 tags', () => {
+    const r = safeValidate({ ...validBase(), tags: Array.from({ length: 100 }, (_, i) => `t${i}`) })
+    expect(r.details.filter(d => d.field === 'tags')).toHaveLength(0)
+  })
+
+  it('trims and strips control characters from each tag', () => {
+    const r = safeValidate({ ...validBase(), tags: [' news ', 'tech '] })
+    expect(r.data.tags).toEqual(['news', 'tech'])
   })
 })
 
@@ -416,5 +467,35 @@ describe('number field step with scientific notation (#150)', () => {
   it('rejects a value misaligned to a scientific-notation step', () => {
     const r = validateAndSanitizeSeedPayload(SCI_STEP_SEED, { sku: 'A', micro: 2.5e-7 }, { requireAtLeastOneValidField: true })
     expect(r.details.some(d => d.field === 'micro' && d.expected.includes('step:1e-7'))).toBe(true)
+  })
+})
+
+describe('#184 — isEffectivelyEmpty: json field with {type:"doc",...} shape is not required-missing (#3)', () => {
+  const JSON_DOC_SHAPE_SEED: Seed = {
+    slug: 'widgets',
+    label: 'Widget',
+    displayNameAlias: 'name',
+    branches: [
+      { id: 'br_name', alias: 'name', label: 'Name', type: 'text', requiredOnCreate: true },
+      { id: 'br_config', alias: 'config', label: 'Config', type: 'json', requiredOnCreate: true },
+    ],
+  }
+
+  it('does not misclassify a required json field shaped like {type:"doc",...} as empty richtext', () => {
+    const r = validateAndSanitizeSeedPayload(
+      JSON_DOC_SHAPE_SEED,
+      { name: 'W', config: { type: 'doc', nodes: [1, 2, 3] } },
+      { operation: 'create' },
+    )
+    expect(r.requiredFieldsMissing).not.toContain('config')
+  })
+
+  it('still marks a truly-empty json object as missing for a required field', () => {
+    const r = validateAndSanitizeSeedPayload(
+      JSON_DOC_SHAPE_SEED,
+      { name: 'W', config: {} },
+      { operation: 'create' },
+    )
+    expect(r.requiredFieldsMissing).toContain('config')
   })
 })

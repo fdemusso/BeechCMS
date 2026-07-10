@@ -60,16 +60,25 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
     bindings.push(status)
   }
 
+  const groupClauses: string[] = []
   for (const group of filters) {
     if (!isValidColumn(seed, group.column)) continue
     const col = SYSTEM_COLUMNS.has(group.column)
       ? `${table}.${group.column}`
       : group.column
 
+    const condClauses: string[] = []
     for (const cond of group.conditions) {
       const clause = buildFilterCondition(col, group.type, cond, bindings)
-      if (clause) whereClauses.push(clause)
+      if (clause) condClauses.push(clause)
     }
+    if (condClauses.length > 0) {
+      groupClauses.push(condClauses.length > 1 ? `(${condClauses.join(' AND ')})` : condClauses[0])
+    }
+  }
+  if (groupClauses.length > 0) {
+    const joiner = options.filterLogic === 'OR' ? ' OR ' : ' AND '
+    whereClauses.push(groupClauses.length > 1 ? `(${groupClauses.join(joiner)})` : groupClauses[0])
   }
 
   let selectCols = options.isCount ? 'COUNT(*) as total' : `${table}.*`

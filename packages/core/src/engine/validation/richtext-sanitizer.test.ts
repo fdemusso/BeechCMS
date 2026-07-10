@@ -383,3 +383,17 @@ describe('required richtext field emptiness detection', () => {
     expect(r.requiredFieldsMissing).not.toContain('body')
   })
 })
+
+describe('#184 — gatherRichtextText depth guard (#8)', () => {
+  it('does not throw RangeError on a deeply nested doc passed to isRichtextDocEmpty', () => {
+    // Build a doc with 60 levels of nesting (beyond RICHTEXT_MAX_DEPTH=50)
+    let node: Record<string, unknown> = { type: 'text', text: 'leaf' }
+    for (let i = 0; i < 60; i++) {
+      node = { type: 'paragraph', content: [node] }
+    }
+    const doc = { type: 'doc', content: [node] }
+    expect(() => {
+      validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: doc }, { operation: 'create' })
+    }).not.toThrow()
+  })
+})

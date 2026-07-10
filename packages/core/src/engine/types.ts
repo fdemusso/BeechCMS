@@ -279,8 +279,10 @@ export interface FilterGroup {
 }
 
 export interface SelectOptions {
-  /** Filter groups, ANDed together. */
+  /** Filter groups. Joined by `filterLogic` (default AND); conditions within a group are always ANDed. */
   filters?: FilterGroup[]
+  /** How top-level `filters` groups are combined. Defaults to 'AND'. */
+  filterLogic?: 'AND' | 'OR'
   /** Sort column and direction. Ignored when `kanbanOrder` is set. */
   orderBy?: { column: string; dir: 'ASC' | 'DESC' }
   /** LIMIT/OFFSET pagination. */

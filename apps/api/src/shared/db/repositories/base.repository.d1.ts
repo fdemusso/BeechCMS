@@ -25,7 +25,7 @@ export abstract class BaseD1Repository {
    */
   protected mapError(error: any, context: string): RepositoryError {
     const message = error?.message || 'Unknown database error'
-    if (message.includes('UNIQUE constraint failed:') && message.includes('.slug')) {
+    if (message.includes('UNIQUE constraint failed') && message.includes('slug')) {
       return new SlugConflictError(`${context}: ${message}`)
     }
     // In the future, we can add more specific SQLite error code checks here
