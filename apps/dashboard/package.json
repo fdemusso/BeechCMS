@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/dashboard",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "files": [
     "dist/admin"
@@ -15,8 +15,8 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.6.0",
-    "@beechcms/widget-sdk": "workspace:^0.6.0",
+    "@beechcms/core": "workspace:^0.6.1",
+    "@beechcms/widget-sdk": "workspace:^0.6.1",
     "@blocknote/code-block": "^0.49.0",
     "@blocknote/core": "^0.49.0",
     "@blocknote/mantine": "^0.49.0",

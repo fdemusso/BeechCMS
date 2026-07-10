@@ -3,14 +3,56 @@
 
 import { z } from 'zod'
 import type { Branch, BranchType, Seed, NumberFieldOptions, FileFieldOptions } from '../types.js'
+import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
 import { schemaForBranch } from './schema-builders.js'
 
-/** Max entries kept in {@link seedSchemaCache} before evicting the least recently used. */
+type CompiledSchema = z.ZodObject<Record<string, z.ZodTypeAny>>
+
+/** Max entries kept per cache map before evicting the least recently used. */
 const SEED_SCHEMA_CACHE_MAX_SIZE = 150
 
-/** Cache storing compiled Zod schemas for seeds to optimize validation runs. */
-const seedSchemaCache = new Map<string, z.ZodObject<Record<string, z.ZodTypeAny>>>()
+/** Cache storing compiled Zod schemas for relation-free seeds. */
+const seedSchemaCache = new Map<string, CompiledSchema>()
+
+/**
+ * Per-`idGenerator`-instance caches for seeds with relation branches.
+ * Partitioning by instance identity keeps schemas compiled with different
+ * generators (and thus different `isValid()` semantics) from colliding,
+ * without needing a stable identifier on {@link IIdGenerator}.
+ */
+const relationSchemaCacheByGenerator = new WeakMap<IIdGenerator, Map<string, CompiledSchema>>()
+
+/**
+ * Retrieves a cache entry and marks it as most recently used.
+ *
+ * @param cache - The cache map to read from.
+ * @param key - The cache key.
+ * @returns The cached schema, or undefined if absent.
+ */
+function getCachedSchema(cache: Map<string, CompiledSchema>, key: string): CompiledSchema | undefined {
+  const cached = cache.get(key)
+  if (cached) {
+    cache.delete(key)
+    cache.set(key, cached)
+  }
+  return cached
+}
+
+/**
+ * Stores a cache entry, evicting the least recently used one if over capacity.
+ *
+ * @param cache - The cache map to write to.
+ * @param key - The cache key.
+ * @param value - The compiled schema to cache.
+ */
+function setCachedSchema(cache: Map<string, CompiledSchema>, key: string, value: CompiledSchema): void {
+  if (cache.size >= SEED_SCHEMA_CACHE_MAX_SIZE) {
+    const oldestKey = cache.keys().next().value
+    if (oldestKey !== undefined) cache.delete(oldestKey)
+  }
+  cache.set(key, value)
+}
 
 /**
  * Retrieves a cache entry and marks it as most recently used.
@@ -127,14 +169,28 @@ function buildCacheKey(seed: Seed, options: ResolvedOptions): string {
  * @returns The compiled strict Zod object schema.
  */
 export function compileSeedSchema(seed: Seed, options: ResolvedOptions): z.ZodObject<Record<string, z.ZodTypeAny>> {
-  // Seeds with relation branches cannot be safely cached because the schema
-  // captures the idGenerator by closure, and different generators (e.g.
-  // SystemIdGenerator vs SequentialIdGenerator) have different isValid() semantics.
+  // Seeds with relation branches capture the idGenerator by closure, so their
+  // schemas are cached per generator instance instead of in the shared cache
+  // (different generators, e.g. SystemIdGenerator vs a test double, have
+  // different isValid() semantics).
   const hasRelation = seed.branches.some((b) => b.type === 'relation')
+  const key = buildCacheKey(seed, options)
 
-  if (!hasRelation) {
-    const key = buildCacheKey(seed, options)
-    const cached = getCachedSchema(key)
+  let cache: Map<string, CompiledSchema> | undefined
+  if (hasRelation) {
+    if (options.idGenerator) {
+      cache = relationSchemaCacheByGenerator.get(options.idGenerator)
+      if (!cache) {
+        cache = new Map()
+        relationSchemaCacheByGenerator.set(options.idGenerator, cache)
+      }
+    }
+  } else {
+    cache = seedSchemaCache
+  }
+
+  if (cache) {
+    const cached = getCachedSchema(cache, key)
     if (cached) return cached
   }
 
@@ -147,10 +203,7 @@ export function compileSeedSchema(seed: Seed, options: ResolvedOptions): z.ZodOb
   }
   const compiled = z.object(shape).strict()
 
-  if (!hasRelation) {
-    const key = buildCacheKey(seed, options)
-    setCachedSchema(key, compiled)
-  }
+  if (cache) setCachedSchema(cache, key, compiled)
 
   return compiled
 }

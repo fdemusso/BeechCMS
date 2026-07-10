@@ -119,10 +119,7 @@ function mapBranchToFilterType(type: BranchType): FilterType {
  */
 export function toEngineFilters(seed: Seed, parsedFilter: ParsedPublicFilter | null): FilterGroup[] {
   if (!parsedFilter || parsedFilter.where.length === 0) return []
-  
-  // Note: Repository currently joins groups with AND. 
-  // Public API supports logic: OR but the core engine currently defaults to AND for top-level groups.
-  // We map each condition to a group for maximum compatibility with the engine's buildFilterCondition.
+
   return parsedFilter.where.map((cond) => {
     const branch = seed.branches.find(b => b.alias === cond.field)
     const type: FilterType = branch 

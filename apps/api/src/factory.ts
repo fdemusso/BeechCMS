@@ -197,8 +197,8 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
         return null
       },
-      allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key'],
+      allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'Idempotency-Key'],
       credentials: true,
     })(context, next)
   })

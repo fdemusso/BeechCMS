@@ -336,3 +336,19 @@ describe('fileOptions', () => {
     expect(rAny.data.file).toBe(zipUrl)
   })
 })
+
+describe('#184 — collectAssetListItems cap (#10)', () => {
+  it('rejects an asset-list array with more than 100 items', () => {
+    const urls = Array.from({ length: 101 }, (_, i) => `https://cdn.example.com/img-${i}.jpg`)
+    const r = safeValidate({ ...validBase(), gallery: urls })
+    expect(r.details.some(d => d.field === 'gallery')).toBe(true)
+    expect(r.data).not.toHaveProperty('gallery')
+  })
+
+  it('accepts an asset-list array with exactly 100 items', () => {
+    const urls = Array.from({ length: 100 }, (_, i) => `https://cdn.example.com/img-${i}.jpg`)
+    const r = safeValidate({ ...validBase(), gallery: urls })
+    expect(r.details.some(d => d.field === 'gallery')).toBe(false)
+    expect((r.data.gallery as string[]).length).toBe(100)
+  })
+})

@@ -39,6 +39,11 @@ describe('parseLoginBody', () => {
   it('returns null when email is not a string', () => {
     expect(parseLoginBody({ email: 42, password: 'pass' })).toBeNull()
   })
+
+  it('lowercases email so lookup matches signup normalization', () => {
+    expect(parseLoginBody({ email: 'Demo@Test.com', password: 'pass1234' }))
+      .toEqual({ email: 'demo@test.com', password: 'pass1234' })
+  })
 })
 
 describe('validateLoginInput', () => {
@@ -70,8 +75,26 @@ describe('validateLoginInput', () => {
     expect(validateLoginInput('user@test.com', 'a'.repeat(8))).toBe(true)
   })
 
-  it('rejects a password made only of whitespace', () => {
-    expect(validateLoginInput('user@test.com', ' '.repeat(8))).toBe(false)
+  it('accepts a password with trailing whitespace, matching setup/reset validation', () => {
+    expect(validateLoginInput('user@test.com', 'passwor ')).toBe(true)
+  })
+
+  it('accepts a password at the bcrypt byte boundary (exactly 72 bytes)', () => {
+    expect(validateLoginInput('user@test.com', 'a'.repeat(72))).toBe(true)
+  })
+
+  it('rejects a password exceeding 72 bytes even though under 128 characters', () => {
+    expect(validateLoginInput('user@test.com', 'a'.repeat(73))).toBe(false)
+  })
+
+  it('rejects a password exceeding 72 bytes due to multi-byte UTF-8 characters', () => {
+    // '€' is 3 bytes in UTF-8, so 25 chars = 75 bytes > 72
+    expect(validateLoginInput('user@test.com', '€'.repeat(25))).toBe(false)
+  })
+
+  it('accepts a multi-byte UTF-8 password that stays within 72 bytes', () => {
+    // '€' is 3 bytes in UTF-8, so 24 chars = 72 bytes, exactly at the limit
+    expect(validateLoginInput('user@test.com', '€'.repeat(24))).toBe(true)
   })
 
   it('accepts a password at the bcrypt byte boundary (exactly 72 bytes)', () => {

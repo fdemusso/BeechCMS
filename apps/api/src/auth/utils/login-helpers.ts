@@ -47,7 +47,7 @@ export function parseLoginBody(body: unknown): LoginCredentials | null {
   const password = obj.password
   if (typeof email !== 'string' || typeof password !== 'string') return null
   if (!email.trim() || !password) return null
-  return { email: email.trim(), password }
+  return { email: email.trim().toLowerCase(), password }
 }
 
 /**
@@ -60,7 +60,7 @@ export function validateLoginInput(email: string, password: string): boolean {
   return (
     email.length <= MAX_EMAIL_LENGTH &&
     EMAIL_REGEX.test(email) &&
-    password.trim().length >= MIN_PASSWORD_LENGTH &&
+    password.length >= MIN_PASSWORD_LENGTH &&
     password.length <= MAX_PASSWORD_LENGTH &&
     new TextEncoder().encode(password).length <= MAX_PASSWORD_BYTES
   )

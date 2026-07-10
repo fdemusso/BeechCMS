@@ -65,7 +65,7 @@ export async function kanbanMoveHandler(context: Context<AppEnv>) {
       const currentTags = (current[axisBranch.alias] as string[] | null) ?? []
       const { oldValue, newValue } = body.axis
       const withoutOld = oldValue !== null ? currentTags.filter(t => t !== oldValue) : currentTags
-      const nextTags = newValue !== null ? [...withoutOld, newValue] : withoutOld
+      const nextTags = newValue !== null && !withoutOld.includes(newValue) ? [...withoutOld, newValue] : withoutOld
       patch = { [axisBranch.alias]: nextTags }
     }
 
