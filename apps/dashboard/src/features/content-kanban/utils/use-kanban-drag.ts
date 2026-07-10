@@ -364,6 +364,20 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
     } catch (err: unknown) {
       const status = (err as any)?.response?.status
       if (status === 404) {
+        queryClient.setQueriesData<InfiniteData<ContentListWithMeta>>(
+          { queryKey: ['kanban', seedSlug, axisBranchId, srcColValue] },
+          (old) => {
+            if (!old) return old
+            return {
+              ...old,
+              pages: old.pages.map((page) => ({
+                ...page,
+                total: Math.max(0, page.total - 1),
+                items: page.items.filter((item: any) => item.id !== entryId),
+              })),
+            }
+          },
+        )
         dispatch({ type: 'DRAG_REMOVE', entryId })
         toast.error('Questa entry non è più disponibile.')
       } else {
