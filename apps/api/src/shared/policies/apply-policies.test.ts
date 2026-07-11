@@ -28,6 +28,13 @@ describe('applyPrivacy', () => {
     expect(result.email).not.toBe('user@test.com')
   })
 
+  it('produces distinct hashes for distinct json objects (no [object Object] collision)', async () => {
+    const seed = makeSeed([{ id: 'br_01', alias: 'answers', type: 'json', policies: { privacy: 'hash' } }])
+    const result1 = await applyPrivacy({ answers: { userId: 1 } }, seed)
+    const result2 = await applyPrivacy({ answers: { userId: 2 } }, seed)
+    expect(result1.answers).not.toBe(result2.answers)
+  })
+
   it('leaves null/undefined values unhashed even when privacy is "hash"', async () => {
     const seed = makeSeed([{ id: 'br_01', alias: 'email', type: 'text', policies: { privacy: 'hash' } }])
     const result = await applyPrivacy({ email: null }, seed)
