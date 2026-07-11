@@ -128,6 +128,23 @@ describe('Flow: Background Queues — dispatchQueueBatch', () => {
     consoleSpy.mockRestore()
   })
 
+  it('acks and logs (does not retry) for prototype-polluting job names like "constructor" or "toString"', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const msgConstructor = makeMessage({ name: 'constructor', payload: {} })
+    const msgToString = makeMessage({ name: 'toString', payload: {} })
+
+    await dispatchQueueBatch(makeBatch([msgConstructor]), baseEnv as any, ctx, {})
+    await dispatchQueueBatch(makeBatch([msgToString]), baseEnv as any, ctx, {})
+
+    expect(msgConstructor.ack).toHaveBeenCalledOnce()
+    expect(msgConstructor.retry).not.toHaveBeenCalled()
+    expect(msgToString.ack).toHaveBeenCalledOnce()
+    expect(msgToString.retry).not.toHaveBeenCalled()
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('constructor'))
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('toString'))
+    consoleSpy.mockRestore()
+  })
+
   it('retries message when handler throws', async () => {
     const handler = vi.fn<[unknown, unknown], Promise<void>>().mockRejectedValue(new Error('boom'))
     const jobs: JobRegistry = { 'failing-job': handler as JobHandler }
