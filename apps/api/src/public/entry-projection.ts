@@ -20,9 +20,11 @@ function applyPublicPolicies(data: Record<string, unknown>, seed: Seed): Record<
     const { public: isPublic, visibility } = resolvePolicies(branch)
     if (!isPublic) continue
     if (visibility === 'hidden') continue
-    result[branch.alias] = visibility === 'masked' && typeof value === 'string' && value.length > 0
-      ? '••••••••'
-      : value
+    if (visibility === 'masked') {
+      result[branch.alias] = typeof value === 'string' && value.length > 0 ? '••••••••' : null
+    } else {
+      result[branch.alias] = value
+    }
   }
   return result
 }
