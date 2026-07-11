@@ -875,25 +875,12 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       const mRelBranches = multiRelBranches(seed)
       const mRelAliases = new Set(mRelBranches.map(b => b.alias))
 
-      // Get existing touched fields
-      let existingTouched: string[] = []
-      try {
-        const existing = await this.database
-          .prepare(`SELECT _touched_fields FROM ${draftTableName} WHERE entry_id = ?`)
-          .bind(entryId)
-          .first<{ _touched_fields: string | null }>()
-        if (existing && existing._touched_fields) {
-          existingTouched = JSON.parse(existing._touched_fields)
-        }
-      } catch {}
-
-      const currentTouched = new Set(existingTouched)
+      const thisCallTouched: string[] = []
       for (const branch of seed.branches) {
         if (Object.hasOwn(data, branch.alias)) {
-          currentTouched.add(branch.alias)
+          thisCallTouched.push(branch.alias)
         }
       }
-      const updatedTouchedFields = Array.from(currentTouched)
 
       const columnNames = ['entry_id']
       const placeholders = ['?']
@@ -913,8 +900,14 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       columnNames.push('_touched_fields')
       placeholders.push('?')
-      queryBindings.push(JSON.stringify(updatedTouchedFields))
-      updateClauses.push(`_touched_fields = EXCLUDED._touched_fields`)
+      queryBindings.push(JSON.stringify(thisCallTouched))
+      updateClauses.push(`_touched_fields = (
+        SELECT json_group_array(value) FROM (
+          SELECT value FROM json_each(COALESCE(_touched_fields, '[]'))
+          UNION
+          SELECT value FROM json_each(excluded._touched_fields)
+        )
+      )`)
 
       updateClauses.push('updated_at = (unixepoch())')
 
