@@ -23,6 +23,8 @@ const SEED = {
     { id: 'br_06', alias: 'body', type: 'richtext' },
     { id: 'br_07', alias: 'attachment', type: 'file' },
     { id: 'br_08', alias: 'meta', type: 'json' },
+    { id: 'br_09', alias: 'ssn', type: 'text', policies: { public: false } },
+    { id: 'br_10', alias: 'internal_note', type: 'text', policies: { filter: false } },
   ],
 } as unknown as Seed
 
@@ -156,6 +158,16 @@ describe('toEngineFilters', () => {
   it('maps unknown fields to FilterType "text"', () => {
     const result = toEngineFilters(SEED, { where: [{ field: 'ghost_field', op: 'eq', value: 'x' }], logic: 'AND' })
     expect(result[0].type).toBe('text')
+  })
+
+  it('rejects filtering on a branch with policies.public false', () => {
+    const filter = { where: [{ field: 'ssn', op: 'eq' as const, value: '123-45-6789' }], logic: 'AND' as const }
+    expect(() => toEngineFilters(SEED, filter)).toThrow("field 'ssn' is not filterable")
+  })
+
+  it('rejects filtering on a branch with policies.filter false', () => {
+    const filter = { where: [{ field: 'internal_note', op: 'eq' as const, value: 'x' }], logic: 'AND' as const }
+    expect(() => toEngineFilters(SEED, filter)).toThrow("field 'internal_note' is not filterable")
   })
 
   it('produces one FilterGroup per condition', () => {

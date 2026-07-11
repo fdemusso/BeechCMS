@@ -25,11 +25,15 @@ export function extractMediaKey(mediaUrl: string, cdnUrl?: string): string | nul
   const urlStr = String(mediaUrl)
 
   if (cdnUrl) {
-    const normalizedCdn = cdnUrl.replace(/\/$/, '')
-    if (urlStr.startsWith(normalizedCdn)) {
-      const keyPart = urlStr.slice(normalizedCdn.length).replace(/^\//, '')
-      const keyWithoutQuery = keyPart.split(/[?#]/)[0]
-      return keyWithoutQuery ? decodeURIComponent(keyWithoutQuery) : null
+    try {
+      const cdnOrigin = new URL(cdnUrl).origin
+      const mediaUrlParsed = new URL(urlStr)
+      if (mediaUrlParsed.origin === cdnOrigin) {
+        const keyPart = mediaUrlParsed.pathname.replace(/^\//, '')
+        return keyPart ? decodeURIComponent(keyPart) : null
+      }
+    } catch {
+      // mediaUrl not absolute or cdnUrl invalid, fall through to pattern match
     }
   }
 
