@@ -343,6 +343,22 @@ describe('D1ContentRepository', () => {
       const { db } = makeMockDb()
       await expect(new D1ContentRepository(db).saveDraft(NO_DRAFT_SEED, 'e1', {})).rejects.toThrow('Drafts not allowed')
     })
+
+    it('merges _touched_fields atomically in SQL instead of a separate read-modify-write', async () => {
+      // Regression test for #210: saveDraft used to SELECT _touched_fields, merge in
+      // JS, then write it back — two overlapping calls for the same entryId could
+      // race and clobber each other's touched-fields entry. The merge must happen
+      // inside the same INSERT ... ON CONFLICT DO UPDATE statement.
+      const { db, prepareMock } = makeMockDb()
+      await new D1ContentRepository(db).saveDraft(SEED, 'e1', { title: 'Draft title' })
+
+      const sqls = prepareMock.mock.calls.map(c => c[0] as string)
+      expect(sqls.some(s => s.includes('SELECT _touched_fields'))).toBe(false)
+
+      const upsertSql = sqls.find(s => s.includes('ON CONFLICT(entry_id)'))!
+      expect(upsertSql).toContain('json_each(COALESCE(_touched_fields')
+      expect(upsertSql).toContain("json_each(excluded._touched_fields)")
+    })
   })
 
   // ─── getDraft ────────────────────────────────────────────────────────────────

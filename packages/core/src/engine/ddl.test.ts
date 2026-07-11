@@ -13,6 +13,7 @@ import {
   generateJunctionTable,
   generateJunctionIndexes,
   generateJunctionDraftTable,
+  indexableSearchBranches,
 } from './ddl.js'
 import { serializeForDb, deserializeFromDb } from './serialize.js'
 
@@ -94,6 +95,31 @@ describe('DDL', () => {
         branches: [{ id: 'br_price', alias: 'price', type: 'number', label: 'Price' }]
       }
       expect(generateFtsTriggers(noSearchSeed)).toEqual([])
+    })
+
+    it('excludes non-public branches from indexable search branches (#234)', () => {
+      const seed: Seed = {
+        ...mockSeed,
+        branches: [
+          { id: 'br_name', alias: 'name', type: 'text', label: 'Name' },
+          { id: 'br_ssn', alias: 'ssn', type: 'text', label: 'SSN', policies: { public: false } },
+        ]
+      }
+      const aliases = indexableSearchBranches(seed).map(b => b.alias)
+      expect(aliases).toEqual(['name'])
+    })
+
+    it('excludes non-public branches from the FTS table (#234)', () => {
+      const seed: Seed = {
+        ...mockSeed,
+        branches: [
+          { id: 'br_name', alias: 'name', type: 'text', label: 'Name' },
+          { id: 'br_ssn', alias: 'ssn', type: 'text', label: 'SSN', policies: { public: false } },
+        ]
+      }
+      const sql = generateFtsTable(seed)
+      expect(sql).toContain('  name')
+      expect(sql).not.toContain('ssn')
     })
 
     it('returns expected columns for the seed', () => {

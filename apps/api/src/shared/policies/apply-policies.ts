@@ -35,7 +35,8 @@ export async function applyPrivacy(
       )
     }
     if (privacy === 'hash' && value != null) {
-      result[alias] = await sha256hex(String(value))
+      const serialized = typeof value === 'string' ? value : JSON.stringify(value)
+      result[alias] = await sha256hex(serialized)
     } else {
       result[alias] = value
     }

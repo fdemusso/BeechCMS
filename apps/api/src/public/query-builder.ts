@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { Seed, FilterGroup, FilterOperator, FilterType, BranchType } from '@beechcms/core'
+import { resolvePolicies } from '@beechcms/core'
 import { parsePositiveInt } from '../shared/utils/query-utils'
 
 export type PublicQueryInput = {
@@ -122,10 +123,16 @@ export function toEngineFilters(seed: Seed, parsedFilter: ParsedPublicFilter | n
 
   return parsedFilter.where.map((cond) => {
     const branch = seed.branches.find(b => b.alias === cond.field)
-    const type: FilterType = branch 
-      ? mapBranchToFilterType(branch.type) 
+    if (branch) {
+      const { public: isPublic, filter: filterable } = resolvePolicies(branch)
+      if (!isPublic || !filterable) {
+        throw new TypeError(`Invalid filter: field '${cond.field}' is not filterable`)
+      }
+    }
+    const type: FilterType = branch
+      ? mapBranchToFilterType(branch.type)
       : (SYSTEM_COLUMNS.has(cond.field) ? 'system' : 'text')
-    
+
     return {
       column: cond.field,
       type,

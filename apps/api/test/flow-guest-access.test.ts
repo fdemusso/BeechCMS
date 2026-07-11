@@ -3,9 +3,11 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { defineSeed, sha256hex } from '@beechcms/core'
 import { createBeechApp } from '../src/factory'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
+import { __resetSeedRegistryCache } from '../src/shared/services/cache/seed-registry-cache'
 import { TEST_SEEDS, TEST_ENV } from './fixtures'
 
 /**
@@ -478,6 +480,68 @@ describe('Flow: Guest Access (Public API)', () => {
         body: JSON.stringify({ data: { title: 'Testing 500 error' } }),
       }, TEST_ENV)
       expect(res.status).toBe(500)
+    })
+
+    // Regression: GH #201 - public-add never applied privacy policy
+    it('error: returns 422 when writing an internal-only (public: false) field', async () => {
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'X', internal_note: 'sneaky seed' } }),
+      }, TEST_ENV)
+      expect(res.status).toBe(422)
+    })
+
+    it('success: hashes a privacy:"hash" field instead of storing it raw', async () => {
+      const HASH_SEED = defineSeed({
+        slug: 'hash_test',
+        label: 'HashTest',
+        labelPlural: 'HashTests',
+        displayNameAlias: 'title',
+        allowPublicPost: true,
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true, policies: { public: true } },
+          { id: 'br_02', alias: 'pin', label: 'Pin', type: 'text', policies: { privacy: 'hash' } },
+        ],
+      })
+      const localRepo = new StaticContentRepository([HASH_SEED])
+      const localApp = createBeechApp({ seeds: [HASH_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo })
+      __resetSeedRegistryCache()
+
+      const res = await localApp.request('/api/v1/public/hash_test/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'X', pin: '1234' } }),
+      }, TEST_ENV)
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ id: string }>()
+      const created = await localRepo.findById(HASH_SEED, body.id)
+      expect(created.pin).toBe(await sha256hex('1234'))
+      expect(created.pin).not.toBe('1234')
+    })
+
+    it('error: returns 501 for a privacy:"encrypt" field (not yet implemented)', async () => {
+      const ENCRYPT_SEED = defineSeed({
+        slug: 'encrypt_test',
+        label: 'EncryptTest',
+        labelPlural: 'EncryptTests',
+        displayNameAlias: 'secret',
+        allowPublicPost: true,
+        branches: [
+          { id: 'br_01', alias: 'secret', label: 'Secret', type: 'text', policies: { privacy: 'encrypt' } },
+        ],
+      })
+      const localRepo = new StaticContentRepository([ENCRYPT_SEED])
+      const localApp = createBeechApp({ seeds: [ENCRYPT_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo })
+      __resetSeedRegistryCache()
+
+      const res = await localApp.request('/api/v1/public/encrypt_test/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { secret: 'secret-val' } }),
+      }, TEST_ENV)
+      expect(res.status).toBe(501)
     })
   })
 })

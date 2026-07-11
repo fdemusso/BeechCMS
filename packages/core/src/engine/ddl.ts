@@ -9,6 +9,7 @@ import type {
   SelectOptions,
   ParameterizedQuery,
 } from './types.js';
+import { resolvePolicies } from './policies.js'
 
 
 /**
@@ -96,9 +97,11 @@ export function isValidColumn(seed: Seed, col: string): boolean {
  * @returns An array of indexable branches.
  */
 export function indexableSearchBranches(seed: Seed): Branch[] {
-  return seed.branches.filter(b =>
-    (b.type === 'text' || b.type === 'richtext') && b.policies?.search !== false
-  )
+  return seed.branches.filter(b => {
+    if (b.type !== 'text' && b.type !== 'richtext') return false
+    const { search, public: isPublic } = resolvePolicies(b)
+    return search && isPublic
+  })
 }
 
 

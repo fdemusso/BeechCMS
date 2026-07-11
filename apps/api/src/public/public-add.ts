@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { isValidContentStatus, SlugConflictError } from '@beechcms/core'
+import { isValidContentStatus, resolvePolicies, SlugConflictError } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../shared/utils/query-utils'
 import { checkPublicOperation } from './access-policy'
@@ -10,6 +10,7 @@ import { publicProblem, internalErrorDetail } from './problem-details'
 import { generateEntrySlug, slugify } from './slug-utils'
 import { sanitizePublicPayload } from './sanitize'
 import { parseIdempotencyKey, buildRequestFingerprint } from './idempotency'
+import { applyPrivacy, PrivacyPolicyError } from '../shared/policies/apply-policies'
 import { AppEnv } from '../types'
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -54,6 +55,14 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     return publicProblem(context, { type: 'invalid-status', title: 'Bad Request', status: 400, detail: 'Invalid status. Allowed values are: draft, review, published' })
   }
 
+  const sensitiveAliases = Object.keys(rawData).filter((alias) => {
+    const branch = seed.branches.find((b) => b.alias === alias)
+    return branch != null && resolvePolicies(branch).public === false
+  })
+  if (sensitiveAliases.length > 0) {
+    return publicProblem(context, { type: 'sensitive-field-edit', title: 'Unprocessable Entity', status: 422, detail: `Cannot write internal fields: ${sensitiveAliases.join(', ')}` })
+  }
+
   const sanitized = sanitizePublicPayload(seed, rawData, { operation: 'create', allowNull: false, requireAtLeastOneValidField: true, enforceRequiredFields: true })
   if (!sanitized.ok) {
     if (sanitized.status === 422) {
@@ -62,8 +71,18 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     return publicProblem(context, { type: sanitized.code, title: 'Bad Request', status: 400, detail: sanitized.message, errors: sanitized.details })
   }
 
+  let privacyData: Record<string, unknown>
+  try {
+    privacyData = await applyPrivacy(sanitized.data, seed)
+  } catch (error) {
+    if (error instanceof PrivacyPolicyError) {
+      return publicProblem(context, { type: 'policy-not-implemented', title: 'Not Implemented', status: 501, detail: error.message })
+    }
+    throw error
+  }
+
   const idempotencyKey = parseIdempotencyKey(context.req.header('Idempotency-Key'))
-  const finalSlug = pickSlug(body, sanitized.data) || context.get('idGenerator').uuid().slice(0, 8)
+  const finalSlug = pickSlug(body, privacyData) || context.get('idGenerator').uuid().slice(0, 8)
   const repository = context.get('repository')
   const idempotencyRepository = context.get('idempotencyRepository')
 
@@ -87,7 +106,7 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     const id = context.get('idGenerator').uuid()
 
     try {
-      await repository.create(seed, id, finalSlug, statusValue as any, sanitized.data)
+      await repository.create(seed, id, finalSlug, statusValue as any, privacyData)
     } catch (error) {
       if (error instanceof SlugConflictError) {
         return publicProblem(context, { type: 'slug-conflict', title: 'Conflict', status: 409, detail: `An entry with slug '${finalSlug}' already exists for content type '${seedSlug}'.` })
@@ -102,7 +121,7 @@ export async function publicAddHandler(context: Context<AppEnv>) {
 
     context.get('notificationService').notify({
       title: `${seed.label}: New entry`,
-      message: `A new entry ("${sanitized.data.title || sanitized.data.name || finalSlug}") has been added via the public API.`,
+      message: `A new entry ("${privacyData.title || privacyData.name || finalSlug}") has been added via the public API.`,
       type: 'success',
     })
 
