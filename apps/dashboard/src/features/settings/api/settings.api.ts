@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { api } from '@/lib/api'
+import { uploadFile } from '@/lib/upload'
 import type { UserProfile, NotificationPrefs, Session, ActivityEntry, StorageStats, GeneralSettings } from '../types/settings.types'
 
 export const settingsApi = {
@@ -24,10 +25,7 @@ export const settingsApi = {
   },
 
   uploadAvatar: async (file: File): Promise<string> => {
-    const formData = new FormData()
-    formData.append('file', file)
-    const { data } = await api.post<{ url: string }>('/upload', formData)
-    return data.url
+    return uploadFile(file)
   },
 
   getSessions: async (): Promise<Session[]> => {
