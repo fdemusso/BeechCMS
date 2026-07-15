@@ -22,7 +22,7 @@ export function publicRateLimitMiddleware() {
       const remaining = path.slice('/api/v1/public/'.length)
       const firstSegment = remaining.split('/')[0]
       if (firstSegment && firstSegment !== 'health' && firstSegment !== 'schema' && firstSegment !== 'schema.html') {
-        seed = firstSegment
+        seed = c.get('seedRegistry').get(firstSegment) ? firstSegment : 'invalid-seed'
       }
     }
     const key = `${getClientIp(c.req)}:${seed}:${limiterName}`

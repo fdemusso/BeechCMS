@@ -107,23 +107,23 @@ describe('Flow: Guest Access (Public API)', () => {
       expect(res.status).toBe(429)
     })
 
-    it('security: rate limiter key contains the seed slug to ensure distinct buckets per seed', async () => {
+    it('security: rate limiter key contains the seed slug to ensure distinct buckets per registered seed', async () => {
       const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: true }) }
-      
+
       await app.request('/api/v1/public/posts', {
         headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
       }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
-      
+
       expect(mockLimiter.limit).toHaveBeenCalledWith({
         key: 'unknown:posts:publicApiRead'
       })
 
-      await app.request('/api/v1/public/categories', {
+      await app.request('/api/v1/public/documentation', {
         headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
       }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
-      
+
       expect(mockLimiter.limit).toHaveBeenLastCalledWith({
-        key: 'unknown:categories:publicApiRead'
+        key: 'unknown:documentation:publicApiRead'
       })
 
       await app.request('/api/v1/public/health', {
@@ -133,6 +133,20 @@ describe('Flow: Guest Access (Public API)', () => {
       expect(mockLimiter.limit).toHaveBeenLastCalledWith({
         key: 'unknown:no-seed:publicApiRead'
       })
+    })
+
+    it('security: unregistered seed segments collapse into a single shared bucket, not one per segment', async () => {
+      const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: true }) }
+
+      for (const segment of ['aaaa1', 'aaaa2', 'aaaa3', 'constructor', '__proto__']) {
+        await app.request(`/api/v1/public/${segment}`, {
+          headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+        }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+
+        expect(mockLimiter.limit).toHaveBeenLastCalledWith({
+          key: 'unknown:invalid-seed:publicApiRead'
+        })
+      }
     })
   })
 
