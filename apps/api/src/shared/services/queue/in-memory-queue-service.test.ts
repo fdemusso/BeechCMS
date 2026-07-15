@@ -17,38 +17,44 @@ function makeContext(): JobContext {
 }
 
 describe('InMemoryQueueService', () => {
-  it('runs the handler inline when no scheduleBackgroundTask is provided', async () => {
+  it('runs the handler inline when no scheduleBackgroundTask is provided and reports success', async () => {
     const handler = vi.fn().mockResolvedValue(undefined)
     const ctx = makeContext()
-    await new InMemoryQueueService({ 'send-email': handler }, ctx).enqueue('send-email', { to: 'a@b.com' })
+    const result = await new InMemoryQueueService({ 'send-email': handler }, ctx).enqueue('send-email', {
+      to: 'a@b.com',
+    })
     expect(handler).toHaveBeenCalledWith({ to: 'a@b.com' }, ctx)
+    expect(result).toBe(true)
   })
 
-  it('delegates the task to scheduleBackgroundTask when provided', async () => {
+  it('delegates the task to scheduleBackgroundTask when provided and reports success', async () => {
     const handler = vi.fn().mockResolvedValue(undefined)
     const schedule = vi.fn()
-    await new InMemoryQueueService({ 'send-email': handler }, makeContext(), schedule).enqueue(
-      'send-email',
-      {},
-    )
+    const result = await new InMemoryQueueService(
+      { 'send-email': handler },
+      makeContext(),
+      schedule,
+    ).enqueue('send-email', {})
     expect(schedule).toHaveBeenCalledTimes(1)
     expect(schedule.mock.calls[0][0]).toBeInstanceOf(Promise)
+    expect(result).toBe(true)
   })
 
-  it('logs an error and returns when no handler is registered for the job name', async () => {
+  it('logs an error and reports failure when no handler is registered for the job name', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    await new InMemoryQueueService({}, makeContext()).enqueue('unknown-job', {})
+    const result = await new InMemoryQueueService({}, makeContext()).enqueue('unknown-job', {})
     expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('unknown-job'))
+    expect(result).toBe(false)
     consoleSpy.mockRestore()
   })
 
-  it('catches handler errors and logs them without throwing to the caller', async () => {
+  it('catches handler errors and logs them without throwing to the caller, but still reports enqueue success', async () => {
     const handler = vi.fn().mockRejectedValue(new Error('job failed'))
     const jobs: JobRegistry = { 'bad-job': handler }
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     await expect(
       new InMemoryQueueService(jobs, makeContext()).enqueue('bad-job', {}),
-    ).resolves.toBeUndefined()
+    ).resolves.toBe(true)
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('bad-job'),
       expect.any(Error),

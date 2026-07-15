@@ -42,8 +42,12 @@ export type JobRegistry = Record<string, JobHandler<any>>
  * Producer port. `enqueue` schedules deferred work and returns once the message
  * is accepted by the transport. Like INotificationService, implementations MUST
  * decide their own fire-and-forget vs inline semantics and MUST NOT let a
- * transport failure crash the request that called enqueue.
+ * transport failure crash the request that called enqueue. Resolves `true`
+ * when the message was handed off successfully, `false` when it was dropped
+ * (e.g. transport rejection, oversized payload, no handler) — callers that
+ * need at-least-once delivery guarantees MUST check this instead of assuming
+ * a resolved promise means success.
  */
 export interface IQueueService {
-  enqueue<T>(name: string, payload: T): Promise<void>
+  enqueue<T>(name: string, payload: T): Promise<boolean>
 }
