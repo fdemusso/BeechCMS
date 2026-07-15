@@ -24,10 +24,20 @@ export function interpolate(
     if (val == null || val === '') {
       return defaultValue
     }
-    return String(val)
+    return escapeHtml(String(val))
   }
 
   return template.replace(/\{\{\s*([^{}]+?)\s*\}\}/g, replacer)
+}
+
+/** Escapes only substituted field values; the admin-authored template markup around them stays intact. */
+function escapeHtml(input: string): string {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 export function resolvePath(obj: Record<string, unknown>, path: string): unknown {
