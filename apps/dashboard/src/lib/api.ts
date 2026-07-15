@@ -12,6 +12,18 @@ import axios, { type AxiosError } from 'axios';
 
 export const LOGIN_PATH = '/admin/login';
 
+/** Decodifica il payload JWT: il backend (jose) emette base64url (-/_, no padding),
+ *  atob() capisce solo base64 standard (+//) e lancia InvalidCharacterError altrimenti.
+ *  Il risultato di atob() è una stringa di byte grezzi: va reinterpretata come UTF-8
+ *  per non corrompere nomi/cognomi con caratteri multi-byte (es. emoji, accenti). */
+export function decodeJwtPayload(token: string): unknown {
+  const base64url = token.split('.')[1]
+  const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
+  const padded = base64.padEnd(base64.length + (4 - (base64.length % 4 || 4)) % 4, '=')
+  const bytes = Uint8Array.from(atob(padded), (c) => c.charCodeAt(0))
+  return JSON.parse(new TextDecoder().decode(bytes))
+}
+
 /** Risposta POST /auth/login */
 export interface LoginResponse {
   token: string
@@ -108,7 +120,7 @@ api.interceptors.response.use(
 export function isTokenValid(token: string | null): boolean {
   if (!token) return false
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
+    const payload = decodeJwtPayload(token) as { exp?: unknown }
     return typeof payload.exp === 'number' && payload.exp > Date.now() / 1000
   } catch {
     return false
