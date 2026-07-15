@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from "vitest"
 
-import { parseTagsValue, extractTagNames } from "@/lib/tags-utils"
+import { parseTagsValue, extractTagNames, extractTagChips } from "@/lib/tags-utils"
 
 describe("tags-utils", () => {
   it("parseTagsValue fa parse JSON string quando valido", () => {
@@ -19,5 +19,18 @@ describe("tags-utils", () => {
     expect(extractTagNames('[" react ", "cms"]')).toEqual(["react", "cms"])
     expect(extractTagNames({ react: "#fff", cms: "#000" })).toEqual(["react", "cms"])
     expect(extractTagNames(null)).toEqual([])
+  })
+
+  it("extractTagChips preserva array di oggetti {label,color} senza perdite (#230)", () => {
+    const value = '[{"label":"Urgent","color":"#ff0000"},{"label":"VIP","color":"#00ff00"}]'
+    expect(extractTagChips(value)).toEqual([
+      { label: "Urgent", color: "#ff0000" },
+      { label: "VIP", color: "#00ff00" },
+    ])
+  })
+
+  it("extractTagChips scarta solo entry array non normalizzabili", () => {
+    const value = '[{"label":"Urgent"}, {"foo":"bar"}, "cms", 42]'
+    expect(extractTagChips(value)).toEqual([{ label: "Urgent", color: undefined }, { label: "cms" }])
   })
 })
