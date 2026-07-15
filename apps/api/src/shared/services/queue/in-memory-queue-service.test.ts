@@ -70,7 +70,7 @@ describe('InMemoryQueueService', () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
     await expect(
       new InMemoryQueueService(jobs, makeContext()).enqueue('sync-throw', {}),
-    ).resolves.toBeUndefined()
+    ).resolves.toBe(false)
     expect(consoleSpy).toHaveBeenCalledWith(
       expect.stringContaining('sync-throw'),
       expect.any(Error),
@@ -83,7 +83,7 @@ describe('InMemoryQueueService', () => {
     const jobs: JobRegistry = { 'sync-void': handler as unknown as JobRegistry['sync-void'] }
     await expect(
       new InMemoryQueueService(jobs, makeContext()).enqueue('sync-void', {}),
-    ).resolves.toBeUndefined()
+    ).resolves.toBe(true)
     expect(handler).toHaveBeenCalledTimes(1)
   })
 
