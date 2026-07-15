@@ -17,6 +17,10 @@ export interface TagChipData {
   readonly color?: string
 }
 
+function ownProp(obj: Record<string, unknown>, key: string): unknown {
+  return Object.hasOwn(obj, key) ? obj[key] : undefined
+}
+
 function extractColor(value: unknown): string | undefined {
   if (typeof value === "string") {
     const color = value.trim()
@@ -25,7 +29,7 @@ function extractColor(value: unknown): string | undefined {
 
   if (value && typeof value === "object") {
     const obj = value as Record<string, unknown>
-    const candidate = [obj.color, obj.hex, obj.value].find(
+    const candidate = [ownProp(obj, "color"), ownProp(obj, "hex"), ownProp(obj, "value")].find(
       (item): item is string => typeof item === "string" && item.trim().length > 0,
     )
     return candidate?.trim()
@@ -34,14 +38,38 @@ function extractColor(value: unknown): string | undefined {
   return undefined
 }
 
+function extractArrayItemChip(item: unknown): TagChipData | undefined {
+  if (typeof item === "string") {
+    const label = item.trim()
+    return label.length > 0 ? { label } : undefined
+  }
+
+  if (item && typeof item === "object") {
+    const obj = item as Record<string, unknown>
+    const labelCandidate = [ownProp(obj, "label"), ownProp(obj, "name"), ownProp(obj, "value")].find(
+      (candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0,
+    )
+    if (labelCandidate === undefined) {
+      console.warn("extractTagChips: dropping unrecognized tag entry", item)
+      return undefined
+    }
+    const colorCandidate = [ownProp(obj, "color"), ownProp(obj, "hex")].find(
+      (candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0,
+    )
+    return { label: labelCandidate.trim(), color: colorCandidate?.trim() }
+  }
+
+  console.warn("extractTagChips: dropping unrecognized tag entry", item)
+  return undefined
+}
+
 export function extractTagChips(value: unknown): TagChipData[] {
   const parsed = parseTagsValue(value)
 
   if (Array.isArray(parsed)) {
     return parsed
-      .map((item) => (typeof item === "string" ? item.trim() : ""))
-      .filter(Boolean)
-      .map((label) => ({ label }))
+      .map((item) => extractArrayItemChip(item))
+      .filter((tag): tag is TagChipData => tag !== undefined)
   }
 
   if (parsed && typeof parsed === "object") {
