@@ -192,7 +192,9 @@ async function deleteSeedMediaObjects(context: any, slug: string, seed: Seed, sc
     }
     
     if (r2Keys.length > 0) {
-      await deleteR2Objects(context, r2Keys).catch(() => { /* non-fatal */ })
+      await deleteR2Objects(context, r2Keys).catch((error: unknown) => {
+        console.warn(`Seed drop for '${slug}' left media rows out of sync:`, error)
+      })
     }
   } catch { /* non-fatal: drop proceeds */ }
 }
