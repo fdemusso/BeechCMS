@@ -34,6 +34,7 @@ webhooksApp.post('/qstash', async (context) => {
     const isValid = await receiver.verify({
       signature,
       body,
+      url: context.req.url,
     })
 
     if (!isValid) {
