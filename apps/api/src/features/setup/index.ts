@@ -182,6 +182,29 @@ setupApp.post('/auth/setup', async (context) => {
     }
   }
 
+  const passwordHash = await context.get('hashProvider').hash(password)
+  const normalizedEmail = email.trim().toLowerCase()
+  const normalizedName = typeof name === 'string' ? name.trim() : null
+  const normalizedSurname = typeof surname === 'string' ? surname.trim() : null
+
+  const created = await context.get('userRepository').createInitialAdmin({
+    id: context.get('idGenerator').uuid(),
+    email: normalizedEmail,
+    passwordHash,
+    role: 'admin',
+    name: normalizedName,
+    surname: normalizedSurname,
+  })
+
+  if (!created) {
+    return publicProblem(context, {
+      type: 'setup-already-done',
+      title: 'Setup already completed',
+      status: 403,
+      detail: 'An administrator account already exists. Initial setup can only be performed once.',
+    })
+  }
+
   if (track === 'developer' && loadDemoData === true) {
     await context.get('demoDataRepository').loadDemoData()
 
@@ -269,20 +292,6 @@ setupApp.post('/auth/setup', async (context) => {
     }
     await context.get('dashboardLayoutRepository').upsert('default', layout as any, 'system')
   }
-
-  const passwordHash = await context.get('hashProvider').hash(password)
-  const normalizedEmail = email.trim().toLowerCase()
-  const normalizedName = typeof name === 'string' ? name.trim() : null
-  const normalizedSurname = typeof surname === 'string' ? surname.trim() : null
-
-  await context.get('userRepository').create({
-    id: context.get('idGenerator').uuid(),
-    email: normalizedEmail,
-    passwordHash,
-    role: 'admin',
-    name: normalizedName,
-    surname: normalizedSurname,
-  })
 
   if (track === 'normal' && company && typeof company === 'object') {
     const c = company as Record<string, unknown>

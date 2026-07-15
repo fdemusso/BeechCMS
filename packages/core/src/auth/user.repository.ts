@@ -37,6 +37,13 @@ export interface IUserRepository {
   /** Inserts a new user record. */
   create(user: NewUserInput): Promise<void>
 
+  /**
+   * Atomically creates the first administrator account, guarded by a
+   * setup-completed marker row inserted in the same transaction. Returns
+   * false instead of throwing when setup was already completed concurrently.
+   */
+  createInitialAdmin(user: NewUserInput): Promise<boolean>
+
   /** Updates the user's display name, surname, and/or email address. */
   updateProfile(userId: string, fields: { name?: string; surname?: string; email?: string }): Promise<void>
 

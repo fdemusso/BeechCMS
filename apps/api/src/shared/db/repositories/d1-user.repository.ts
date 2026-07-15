@@ -62,6 +62,21 @@ export class D1UserRepository implements IUserRepository {
       .run()
   }
 
+  async createInitialAdmin(user: NewUserInput): Promise<boolean> {
+    try {
+      await this.db.batch([
+        this.db.prepare('INSERT INTO setup_completed (id) VALUES (1)'),
+        this.db
+          .prepare('INSERT INTO users (id, email, password_hash, role, name, surname) VALUES (?, ?, ?, ?, ?, ?)')
+          .bind(user.id, user.email, user.passwordHash, user.role, user.name, user.surname),
+      ])
+      return true
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('UNIQUE constraint failed')) return false
+      throw err
+    }
+  }
+
   async updateProfile(userId: string, fields: { name?: string; surname?: string; email?: string }): Promise<void> {
     const columnAssignments: string[] = []
     const boundValues: unknown[] = []

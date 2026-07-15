@@ -97,6 +97,42 @@ describe('D1UserRepository', () => {
     })
   })
 
+  describe('createInitialAdmin', () => {
+    it('returns true and batches the setup_completed + users inserts', async () => {
+      const batchMock = vi.fn().mockResolvedValue([])
+      const { db, prepareMock, bindMock } = makeMockDb()
+      ;(db as any).batch = batchMock
+      const created = await new D1UserRepository(db).createInitialAdmin({
+        id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
+      })
+      expect(created).toBe(true)
+      expect(batchMock).toHaveBeenCalledTimes(1)
+      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO setup_completed'))
+      expect(bindMock).toHaveBeenCalledWith('u1', 'a@b.com', 'hash', 'admin', 'Test', null)
+    })
+
+    it('returns false when the setup_completed insert violates its unique constraint', async () => {
+      const batchMock = vi.fn().mockRejectedValue(new Error('D1_ERROR: UNIQUE constraint failed: setup_completed.id'))
+      const { db } = makeMockDb()
+      ;(db as any).batch = batchMock
+      const created = await new D1UserRepository(db).createInitialAdmin({
+        id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
+      })
+      expect(created).toBe(false)
+    })
+
+    it('rethrows unrelated errors instead of masking them as setup-already-done', async () => {
+      const batchMock = vi.fn().mockRejectedValue(new Error('D1_ERROR: database is locked'))
+      const { db } = makeMockDb()
+      ;(db as any).batch = batchMock
+      await expect(
+        new D1UserRepository(db).createInitialAdmin({
+          id: 'u1', email: 'a@b.com', passwordHash: 'hash', role: 'admin', name: 'Test', surname: null,
+        }),
+      ).rejects.toThrow('database is locked')
+    })
+  })
+
   describe('updateProfile', () => {
     it('does nothing when no fields are provided', async () => {
       const { db, prepareMock } = makeMockDb()
