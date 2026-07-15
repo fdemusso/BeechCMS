@@ -55,4 +55,36 @@ describe('InMemoryQueueService', () => {
     )
     consoleSpy.mockRestore()
   })
+
+  it('catches a synchronously thrown handler error and logs it without throwing to the caller', async () => {
+    const handler = vi.fn(() => {
+      throw new Error('sync failure')
+    })
+    const jobs: JobRegistry = { 'sync-throw': handler }
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await expect(
+      new InMemoryQueueService(jobs, makeContext()).enqueue('sync-throw', {}),
+    ).resolves.toBeUndefined()
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('sync-throw'),
+      expect.any(Error),
+    )
+    consoleSpy.mockRestore()
+  })
+
+  it('handles a synchronous handler that returns void/undefined without throwing to the caller', async () => {
+    const handler = vi.fn(() => undefined)
+    const jobs: JobRegistry = { 'sync-void': handler as unknown as JobRegistry['sync-void'] }
+    await expect(
+      new InMemoryQueueService(jobs, makeContext()).enqueue('sync-void', {}),
+    ).resolves.toBeUndefined()
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it('rejects job names inherited from the prototype chain instead of invoking them', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    await new InMemoryQueueService({}, makeContext()).enqueue('constructor', {})
+    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('constructor'))
+    consoleSpy.mockRestore()
+  })
 })
