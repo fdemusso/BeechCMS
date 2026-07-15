@@ -4,7 +4,6 @@
 
 import type { AutomationMailParams } from '../email.types'
 
-/** Identity builder: automation payloads are already user-authored. */
 export function buildAutomationEmail(params: AutomationMailParams) {
   return {
     to: params.to,

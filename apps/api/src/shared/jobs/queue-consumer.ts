@@ -31,7 +31,7 @@ export async function dispatchQueueBatch(
 
   for (const message of batch.messages) {
     const { name, payload } = message.body
-    const handler = jobs[name]
+    const handler = Object.hasOwn(jobs, name) ? jobs[name] : undefined
     if (!handler) {
       console.error(`[queue] no handler for "${name}" — dropping message`)
       message.ack()
