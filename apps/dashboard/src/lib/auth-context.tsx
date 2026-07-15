@@ -4,7 +4,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import axios from 'axios'
-import { setAccessToken, clearAccessToken, refreshToken } from './api'
+import { setAccessToken, clearAccessToken, refreshToken, decodeJwtPayload } from './api'
 
 type AuthStatus = 'loading' | 'authenticated' | 'unauthenticated'
 
@@ -31,7 +31,7 @@ const AuthContext = createContext<AuthState | null>(null)
 
 function decodeUser(token: string): { email: string; name?: string; surname?: string; role?: 'admin' | 'editor' } | null {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
+    const payload = decodeJwtPayload(token) as { email?: string; name?: string; surname?: string; role?: 'admin' | 'editor' }
     return { email: payload.email ?? '', name: payload.name ?? 'Admin', surname: payload.surname, role: payload.role }
   } catch {
     return null
