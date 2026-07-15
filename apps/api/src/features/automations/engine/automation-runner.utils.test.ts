@@ -57,4 +57,20 @@ describe('interpolate', () => {
   it('resolves {{this:field}} colon notation against the trigger entry', async () => {
     expect(interpolate('{{this:customer_id}}', await makeCtx({ customer_id: 'cust-42' }))).toBe('cust-42')
   })
+
+  it('HTML-escapes a substituted field value so it cannot inject markup into the email body', async () => {
+    const malicious = '<a href="https://evil.example/login">click</a><img src=x onerror=alert(1)>'
+    const res = interpolate('New submission: {{this.message}}', await makeCtx({ message: malicious }))
+    expect(res).toBe(
+      'New submission: &lt;a href=&quot;https://evil.example/login&quot;&gt;click&lt;/a&gt;&lt;img src=x onerror=alert(1)&gt;',
+    )
+    expect(res).not.toContain('<a ')
+    expect(res).not.toContain('<img')
+  })
+
+  it('leaves the surrounding admin-authored template markup untouched', async () => {
+    expect(interpolate('<b>{{name}}</b>', await makeCtx({ name: '<script>x</script>' }))).toBe(
+      '<b>&lt;script&gt;x&lt;/script&gt;</b>',
+    )
+  })
 })
