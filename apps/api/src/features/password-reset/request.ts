@@ -18,7 +18,7 @@ const PASSWORD_RESET_TOKEN_EXPIRY_SECONDS = 30 * 60
 export async function requestPasswordReset(
   context: Context<{ Bindings: Env; Variables: Variables }>
 ): Promise<Response> {
-  const { env, req } = context
+  const { env, req, executionCtx } = context
 
   const useSmtp = env.EMAIL_PROVIDER === 'smtp'
   if (!useSmtp && !env.RESEND_API_KEY) {
@@ -75,21 +75,30 @@ export async function requestPasswordReset(
   const smtpBaseUrl = env.SMTP_HOST
     ? `http://${env.SMTP_HOST}:${env.SMTP_PORT ?? '8025'}`
     : undefined
-  try {
-    await sendPasswordResetEmail({
-      to: normalizedEmail,
-      resetUrl,
-      locale: emailLocale,
-      apiKey: env.RESEND_API_KEY ?? '',
-      from: env.EMAIL_FROM,
-      isDev: env.ENV !== 'production',
-      provider: env.EMAIL_PROVIDER as 'smtp' | 'resend' | undefined,
-      smtpBaseUrl,
-    })
-  } catch (error) {
-    if (env.ENV !== 'production') {
-      console.error('[password-reset] Failed to send email:', error)
+  const sendNotification = async () => {
+    try {
+      await sendPasswordResetEmail({
+        to: normalizedEmail,
+        resetUrl,
+        locale: emailLocale,
+        apiKey: env.RESEND_API_KEY ?? '',
+        from: env.EMAIL_FROM,
+        isDev: env.ENV !== 'production',
+        provider: env.EMAIL_PROVIDER as 'smtp' | 'resend' | undefined,
+        smtpBaseUrl,
+      })
+    } catch (error) {
+      if (env.ENV !== 'production') {
+        console.error('[password-reset] Failed to send email:', error)
+      }
     }
+  }
+
+  try {
+    executionCtx.waitUntil(sendNotification())
+  } catch {
+    // executionCtx might not be available in some testing environments
+    void sendNotification()
   }
 
   return context.json({ success: true })
