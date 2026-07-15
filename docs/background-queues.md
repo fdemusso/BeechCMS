@@ -20,8 +20,8 @@ lifecycle via a Cloudflare Queue binding.
 
 | Layer | File | Role |
 |---|---|---|
-| Contract | `packages/core/src/queue.interface.ts` | `IQueueService`, `QueueMessage`, `JobContext`, `JobHandler`, `JobRegistry` |
-| Stub | `packages/core/src/queue.stub.ts` | `NoOpQueueService` — safe no-op for tests that don't assert on enqueue |
+| Contract | `packages/core/src/queue/queue.interface.ts` | `IQueueService`, `QueueMessage`, `JobContext`, `JobHandler`, `JobRegistry` |
+| Stub | `packages/core/src/queue/queue.stub.ts` | `NoOpQueueService` — safe no-op for tests that don't assert on enqueue |
 | Production impl | `apps/api/src/shared/services/queue/cloudflare-queue-service.ts` | Wraps `env.QUEUE.send`; swallows transport errors |
 | Dev/test fallback | `apps/api/src/shared/in-memory-queue-service.ts` | Runs handler inline when `QUEUE` binding is absent |
 | Consumer | `apps/api/src/shared/jobs/queue-consumer.ts` | `dispatchQueueBatch` — routes messages to handlers, acks/retries per-message |
