@@ -90,9 +90,9 @@ describe('Flow: Background Queues — enqueue from custom route', () => {
     expect(executed.mock.calls[0][0]).toEqual({ userId: 'u_42' })
   })
 
-  it('NoOpQueueService does not throw and ignores enqueue', async () => {
+  it('NoOpQueueService does not throw, ignores enqueue, and reports success', async () => {
     const noop = new NoOpQueueService()
-    await expect(noop.enqueue('anything', { x: 1 })).resolves.toBeUndefined()
+    await expect(noop.enqueue('anything', { x: 1 })).resolves.toBe(true)
   })
 })
 
