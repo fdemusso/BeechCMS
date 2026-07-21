@@ -66,6 +66,28 @@ describe('getHydratedRegistry', () => {
     expect(typeof backrefMap).toBe('object')
   })
 
+  it('deduplicates concurrent requests while rebuilding', async () => {
+    let resolveList: (seeds: Seed[]) => void = () => {}
+    const listPromise = new Promise<Seed[]>((resolve) => {
+      resolveList = resolve
+    })
+    
+    const repo = makeRepo(1)
+    repo.listActive = vi.fn().mockReturnValue(listPromise)
+
+    const req1 = getHydratedRegistry(repo)
+    const req2 = getHydratedRegistry(repo)
+    const req3 = getHydratedRegistry(repo)
+    
+    resolveList([mockSeed])
+    
+    const [res1, res2, res3] = await Promise.all([req1, req2, req3])
+    
+    expect(repo.listActive).toHaveBeenCalledTimes(1)
+    expect(res1.registry).toBe(res2.registry)
+    expect(res2.registry).toBe(res3.registry)
+  })
+
   it('reuses valid cache when getRegistryVersion throws', async () => {
     const repo = makeRepo(1)
     await getHydratedRegistry(repo)
@@ -82,9 +104,13 @@ describe('getHydratedRegistry', () => {
     await expect(getHydratedRegistry(repo)).rejects.toThrow('Network error')
   })
 
-  it('rejects reserved/builtin prototype keys in registry lookups safely', async () => {
+  it('rejects prototype keys as valid properties (security check)', async () => {
     const repo = makeRepo(1)
-    const { registry } = await getHydratedRegistry(repo)
+    const { registry, backrefMap } = await getHydratedRegistry(repo)
+    
+    // Ensure prototype keys do not cause false successes
+    expect(Object.hasOwn(backrefMap, 'constructor')).toBe(false)
+    expect(Object.hasOwn(backrefMap, 'toString')).toBe(false)
     expect(registry.get('constructor')).toBeNull()
     expect(registry.get('toString')).toBeNull()
     expect(registry.get('__proto__')).toBeNull()
