@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { defineSeed, sha256hex } from '@beechcms/core'
 import { createBeechApp } from '../src/factory'
+import { StaticAutomationRepository } from './mocks/static-automation.repository'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
 import { __resetSeedRegistryCache } from '../src/shared/services/cache/seed-registry-cache'
@@ -22,7 +23,7 @@ describe('Flow: Guest Access (Public API)', () => {
   beforeEach(() => {
     repo = new StaticContentRepository(TEST_SEEDS)
     idempotencyRepo = new StaticIdempotencyRepository()
-    app = createBeechApp({ seeds: TEST_SEEDS, repository: repo, idempotencyRepository: idempotencyRepo })
+    app = createBeechApp({ seeds: TEST_SEEDS, repository: repo, idempotencyRepository: idempotencyRepo, automationRepository: new StaticAutomationRepository() })
   })
 
   describe('Configuration & Authentication', () => {
@@ -255,13 +256,9 @@ describe('Flow: Guest Access (Public API)', () => {
         body: JSON.stringify({ data: { title: 'Prototype Test', constructor: 'evil', toString: 'bad' }, slug: 'constructor' }),
       }, TEST_ENV)
       
-      expect(res2.status).toBe(201)
-      const body = await res2.json<{ id: string, slug: string }>()
-      expect(body.slug).toBe('constructor') // "constructor" as a string is a valid slug
-      
-      const created = await repo.findById(TEST_SEEDS.find(s => s.slug === 'posts')!, body.id)
-      expect(created.title).toBe('Prototype Test')
-      expect(created.constructor).not.toBe('evil') // The object prototype should be preserved, not overwritten
+      // Since 'constructor' and 'toString' are not defined in the seed branches,
+      // they are considered unknown aliases and should be rejected with a 400 error.
+      expect(res2.status).toBe(400)
     })
   })
 
@@ -283,17 +280,17 @@ describe('Flow: Guest Access (Public API)', () => {
     })
 
     it('feature: properly clears fields on explicit null', async () => {
-      repo.load('posts', [{ id: validUuid, status: 'published', title: 'Old Title', excerpt: 'Some excerpt' }])
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'Old Title', contact_email: 'test@example.com' }])
 
       const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { excerpt: null } }),
+        body: JSON.stringify({ data: { contact_email: null } }),
       }, TEST_ENV)
 
       expect(res.status).toBe(200)
       const updated = await repo.findById(TEST_SEEDS[0], validUuid)
-      expect(updated.excerpt).toBeNull()
+      expect(updated.contact_email).toBeNull()
     })
 
     it('security: ignores or rejects prototype pollution attempts', async () => {
@@ -416,11 +413,7 @@ describe('Flow: Guest Access (Public API)', () => {
         body: JSON.stringify({ data: { title: 'Prototype Test Edit', constructor: 'evil', toString: 'bad' }, slug: 'constructor' }),
       }, TEST_ENV)
       
-      expect(res.status).toBe(200)
-      const updated = await repo.findById(TEST_SEEDS.find(s => s.slug === 'posts')!, validUuid)
-      expect(updated.title).toBe('Prototype Test Edit')
-      expect(updated.slug).toBe('constructor')
-      expect(updated.constructor).not.toBe('evil')
+      expect(res.status).toBe(400)
     })
   })
 
@@ -585,7 +578,7 @@ describe('Flow: Guest Access (Public API)', () => {
         ],
       })
       const localRepo = new StaticContentRepository([HASH_SEED])
-      const localApp = createBeechApp({ seeds: [HASH_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo })
+      const localApp = createBeechApp({ seeds: [HASH_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo, automationRepository: new StaticAutomationRepository() })
       __resetSeedRegistryCache()
 
       const res = await localApp.request('/api/v1/public/hash_test/add', {
@@ -613,7 +606,7 @@ describe('Flow: Guest Access (Public API)', () => {
         ],
       })
       const localRepo = new StaticContentRepository([ENCRYPT_SEED])
-      const localApp = createBeechApp({ seeds: [ENCRYPT_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo })
+      const localApp = createBeechApp({ seeds: [ENCRYPT_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo, automationRepository: new StaticAutomationRepository() })
       __resetSeedRegistryCache()
 
       const res = await localApp.request('/api/v1/public/encrypt_test/add', {
