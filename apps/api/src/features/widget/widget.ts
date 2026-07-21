@@ -156,7 +156,11 @@ widgetApp.get('/list/:seed', async (context) => {
   let filters: Array<{ column: string; op: string; value: unknown }> | undefined
   if (query.filters) {
     try {
-      filters = JSON.parse(query.filters) as Array<{ column: string; op: string; value: unknown }>
+      const parsed = JSON.parse(query.filters)
+      if (!Array.isArray(parsed)) {
+        return context.json(problem(400, 'Bad Request', 'Invalid filters JSON: must be an array'), 400)
+      }
+      filters = parsed as Array<{ column: string; op: string; value: unknown }>
     } catch {
       return context.json(problem(400, 'Bad Request', 'Invalid filters JSON'), 400)
     }
@@ -175,7 +179,8 @@ widgetApp.get('/list/:seed', async (context) => {
     const deserializedEntries = entries.map(row => {
       const data: Record<string, unknown> = Object.create(null)
       for (const branch of seed.branches) {
-        data[branch.alias] = deserializeFromDb(branch, row[branch.alias] ?? null)
+        const rawValue = Object.hasOwn(row, branch.alias) ? row[branch.alias] : null
+        data[branch.alias] = deserializeFromDb(branch, rawValue ?? null)
       }
       return {
         id: row.id as string,

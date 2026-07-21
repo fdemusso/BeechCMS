@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { defineSeed, sha256hex } from '@beechcms/core'
 import { createBeechApp } from '../src/factory'
+import { StaticAutomationRepository } from './mocks/static-automation.repository'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
 import { __resetSeedRegistryCache } from '../src/shared/services/cache/seed-registry-cache'
@@ -22,7 +23,7 @@ describe('Flow: Guest Access (Public API)', () => {
   beforeEach(() => {
     repo = new StaticContentRepository(TEST_SEEDS)
     idempotencyRepo = new StaticIdempotencyRepository()
-    app = createBeechApp({ seeds: TEST_SEEDS, repository: repo, idempotencyRepository: idempotencyRepo })
+    app = createBeechApp({ seeds: TEST_SEEDS, repository: repo, idempotencyRepository: idempotencyRepo, automationRepository: new StaticAutomationRepository() })
   })
 
   describe('Configuration & Authentication', () => {
@@ -241,6 +242,24 @@ describe('Flow: Guest Access (Public API)', () => {
       const body2 = await res2.json<{ id: string }>()
       expect(body1.id).toBe(body2.id)
     })
+    it('security: ignores reserved prototype keys in data payload and resolves safely', async () => {
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'Prototype Test', constructor: 'evil', toString: 'bad' }, slug: 'constructor', status: 'constructor' }),
+      }, TEST_ENV)
+      expect(res.status).toBe(400) // status='constructor' is invalid
+      
+      const res2 = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'Prototype Test', constructor: 'evil', toString: 'bad' }, slug: 'constructor' }),
+      }, TEST_ENV)
+      
+      // Since 'constructor' and 'toString' are not defined in the seed branches,
+      // they are considered unknown aliases and should be rejected with a 400 error.
+      expect(res2.status).toBe(400)
+    })
   })
 
   describe('PUT /api/v1/public/:seed/edit/:id (Public Edit)', () => {
@@ -258,6 +277,35 @@ describe('Flow: Guest Access (Public API)', () => {
       expect(res.status).toBe(200)
       const updated = await repo.findById(TEST_SEEDS[0], validUuid)
       expect(updated.title).toBe('New Public Title')
+    })
+
+    it('feature: properly clears fields on explicit null', async () => {
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'Old Title', contact_email: 'test@example.com' }])
+
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { contact_email: null } }),
+      }, TEST_ENV)
+
+      expect(res.status).toBe(200)
+      const updated = await repo.findById(TEST_SEEDS[0], validUuid)
+      expect(updated.contact_email).toBeNull()
+    })
+
+    it('security: ignores or rejects prototype pollution attempts', async () => {
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'Old Title', excerpt: 'Some excerpt' }])
+
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { constructor: { name: 'Evil' }, toString: 'exploit' } }),
+      }, TEST_ENV)
+
+      expect(res.status).not.toBe(200) // Should be rejected (400 or 422)
+      const updated = await repo.findById(TEST_SEEDS[0], validUuid)
+      expect(updated.constructor).not.toEqual({ name: 'Evil' })
+      expect(updated.toString).not.toEqual('exploit')
     })
 
     it('error: returns 403 if seed does not allow public edit', async () => {
@@ -355,6 +403,17 @@ describe('Flow: Guest Access (Public API)', () => {
         body: JSON.stringify({ data: { title: 'New Title' } }),
       }, TEST_ENV)
       expect(res.status).toBe(500)
+    })
+
+    it('security: ignores reserved prototype keys in data payload and resolves safely', async () => {
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'Old Title', slug: 'proto-test-edit' }])
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'Prototype Test Edit', constructor: 'evil', toString: 'bad' }, slug: 'constructor' }),
+      }, TEST_ENV)
+      
+      expect(res.status).toBe(400)
     })
   })
 
@@ -519,7 +578,7 @@ describe('Flow: Guest Access (Public API)', () => {
         ],
       })
       const localRepo = new StaticContentRepository([HASH_SEED])
-      const localApp = createBeechApp({ seeds: [HASH_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo })
+      const localApp = createBeechApp({ seeds: [HASH_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo, automationRepository: new StaticAutomationRepository() })
       __resetSeedRegistryCache()
 
       const res = await localApp.request('/api/v1/public/hash_test/add', {
@@ -547,7 +606,7 @@ describe('Flow: Guest Access (Public API)', () => {
         ],
       })
       const localRepo = new StaticContentRepository([ENCRYPT_SEED])
-      const localApp = createBeechApp({ seeds: [ENCRYPT_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo })
+      const localApp = createBeechApp({ seeds: [ENCRYPT_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo, automationRepository: new StaticAutomationRepository() })
       __resetSeedRegistryCache()
 
       const res = await localApp.request('/api/v1/public/encrypt_test/add', {

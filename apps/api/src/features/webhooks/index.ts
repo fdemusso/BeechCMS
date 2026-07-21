@@ -5,7 +5,7 @@
 import { Hono } from 'hono'
 import { Receiver } from '@upstash/qstash'
 import type { AppEnv } from '../../types'
-import type { CreateNotificationInput } from '@beechcms/core'
+import { createNotificationSchema, type CreateNotificationInput } from '@beechcms/core'
 
 export const webhooksApp = new Hono<AppEnv>()
 
@@ -46,7 +46,15 @@ webhooksApp.post('/qstash', async (context) => {
   }
 
   try {
-    const input = JSON.parse(body) as CreateNotificationInput
+    const rawInput = JSON.parse(body)
+    const result = createNotificationSchema.safeParse(rawInput)
+
+    if (!result.success) {
+      console.error('Invalid QStash webhook payload', result.error)
+      return context.text('Bad request: invalid payload', 400)
+    }
+
+    const input = result.data
     
     const notificationRepository = context.get('notificationRepository')
     
@@ -58,6 +66,10 @@ webhooksApp.post('/qstash', async (context) => {
 
     return context.text('OK', 200)
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      console.error('Failed to parse QStash webhook payload as JSON', error)
+      return context.text('Bad request: invalid JSON', 400)
+    }
     console.error('Failed to process QStash webhook payload', error)
     return context.text('Internal server error', 500)
   }

@@ -225,17 +225,6 @@ function matchesTextOrSystemConditionLenient(
   return true
 }
 
-export function matchesFilterGroup(cellValue: unknown, filterValue: unknown) {
-  if (!isToolbarFilterGroup(filterValue)) return true
-  // AND tra condizioni della stessa colonna
-  for (const cond of filterValue.conditions) {
-    if (!matchesCondition(cellValue, filterValue, cond.op, cond.value)) {
-      return false
-    }
-  }
-  return true
-}
-
 function matchesTagsConditionStrict(
   cellValue: unknown,
   op: FilterOperator,
@@ -355,10 +344,9 @@ function matchesTextOrSystemConditionStrict(
 /**
  * Variante "strict" del matching: pensata per usi di tipo UI feedback (es. colori condizionali).
  *
- * Differenze rispetto a `matchesCondition`/`matchesFilterGroup`:
+ * Differenze rispetto a `matchesCondition`:
  * - quando i dati non sono comparabili (valori null/invalidi o filtro vuoto) ⇒ **false** (non matcha),
  *   evitando evidenziazioni spurie.
- * - i filtri toolbar restano "lenient" e continuano a usare `matchesFilterGroup`.
  */
 export function matchesConditionStrict(
   cellValue: unknown,
