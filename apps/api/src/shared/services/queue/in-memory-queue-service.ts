@@ -19,19 +19,29 @@ export class InMemoryQueueService implements IQueueService {
     private readonly scheduleBackgroundTask?: ScheduleBackgroundTask,
   ) {}
 
-  async enqueue<T>(name: string, payload: T): Promise<void> {
-    const handler = this.jobs[name]
+  async enqueue<T>(name: string, payload: T): Promise<boolean> {
+    const handler = Object.hasOwn(this.jobs, name) ? this.jobs[name] : undefined
     if (!handler) {
       console.error(`InMemoryQueueService: no handler registered for "${name}"`)
-      return
+      return false
     }
-    const run = handler(payload, this.context).catch((error) => {
-      console.error(`InMemoryQueueService: job "${name}" failed`, error)
-    })
+
+    let run: Promise<void>
+    try {
+      const result = handler(payload, this.context)
+      run = Promise.resolve(result).catch((error) => {
+        console.error(`InMemoryQueueService: job "${name}" failed`, error)
+      })
+    } catch (error) {
+      console.error(`InMemoryQueueService: job "${name}" failed synchronously`, error)
+      return false
+    }
+
     if (this.scheduleBackgroundTask) {
       this.scheduleBackgroundTask(run)
-      return
+      return true
     }
     await run
+    return true
   }
 }

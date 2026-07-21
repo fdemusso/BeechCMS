@@ -11,7 +11,16 @@ export async function deleteR2Objects(
 
   await Promise.all(
     objectKeys.map(async (key) => {
-      const media = await mediaRepository.getByKey(key).catch(() => null)
+      // Do not collapse a getByKey rejection (transient DB error) into the same
+      // "not tracked" branch as a resolved null — the caller must be able to tell
+      // a genuine orphan apart from a lookup failure, otherwise the R2 object is
+      // silently skipped and leaked on every retry.
+      let media
+      try {
+        media = await mediaRepository.getByKey(key)
+      } catch (err) {
+        throw new Error(`Media lookup failed for key, not deleted: ${key}`, { cause: err })
+      }
       if (!media) {
         throw new Error(`Media object not found: ${key}`)
       }

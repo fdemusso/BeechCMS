@@ -44,6 +44,26 @@ describe('deleteR2Objects', () => {
     expect(systemStatsRepository.decrementStorage).not.toHaveBeenCalled()
   })
 
+  it('does not treat a getByKey rejection as "not tracked" (avoids leaking the R2 object)', async () => {
+    const bucket = { delete: vi.fn().mockResolvedValue(undefined) }
+    const mediaRepository = {
+      getByKey: vi.fn().mockRejectedValue(new Error('D1_ERROR: database is locked')),
+      untrack: vi.fn().mockResolvedValue(undefined),
+    }
+    const systemStatsRepository = {
+      decrementStorage: vi.fn().mockResolvedValue(undefined),
+    }
+    const c = { var: { bucket, mediaRepository, systemStatsRepository } } as any
+
+    await expect(deleteR2Objects(c, ['flaky-lookup.png'])).rejects.not.toThrow('Media object not found')
+    await expect(deleteR2Objects(c, ['flaky-lookup.png'])).rejects.toThrow('flaky-lookup.png')
+
+    expect(mediaRepository.getByKey).toHaveBeenCalledWith('flaky-lookup.png')
+    expect(bucket.delete).not.toHaveBeenCalled()
+    expect(mediaRepository.untrack).not.toHaveBeenCalled()
+    expect(systemStatsRepository.decrementStorage).not.toHaveBeenCalled()
+  })
+
   it('does not untrack or decrement stats if R2 deletion fails', async () => {
     const bucket = { delete: vi.fn().mockRejectedValue(new Error('S3 Connection Failed')) }
     const mediaRepository = {
