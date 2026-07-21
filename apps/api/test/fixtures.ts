@@ -101,7 +101,7 @@ export const TEST_SEEDS = [
       },
       {
         id: 'br_03',
-        alias: 'unbounded',
+        alias: 'unconstrained',
         label: 'Unbounded',
         type: 'number'
       }

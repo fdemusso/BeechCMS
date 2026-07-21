@@ -7,8 +7,10 @@ import { defineConfig } from "vitest/config"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 
+const isTest = process.env.NODE_ENV === "test" || !!process.env.VITEST
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), !isTest && tailwindcss()].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
@@ -16,7 +18,7 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    environment: "jsdom",
+    environment: "happy-dom",
     include: ["src/**/*.test.{ts,tsx}"],
     setupFiles: ["./src/test/setup.ts"],
     server: {

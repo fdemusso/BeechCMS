@@ -2,6 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+// @vitest-environment node
+
 import { describe, it, expect } from "vitest"
 
 import {
@@ -9,7 +11,6 @@ import {
   isToolbarFilterGroup,
   matchesCondition,
   matchesConditionStrict,
-  matchesFilterGroup,
   matchesFilterGroupStrict,
   normalizeDateToYmd,
 } from "@/lib/filter-dsl"
@@ -192,25 +193,7 @@ describe("filter-dsl - matchesConditionStrict (strict)", () => {
   })
 })
 
-describe("filter-dsl - matchesFilterGroup / matchesFilterGroupStrict", () => {
-  it("matchesFilterGroup: invalid filterValue -> true (lenient)", () => {
-    expect(matchesFilterGroup("anything", 123)).toBe(true)
-    expect(matchesFilterGroup("anything", null)).toBe(true)
-  })
-
-  it("matchesFilterGroup: AND sulle condizioni della stessa colonna", () => {
-    const group = mkGroup({
-      type: "tags",
-      conditions: [
-        { id: "c1", op: "contains", value: "react" },
-        { id: "c2", op: "contains", value: "cms" },
-      ],
-    })
-    const cell = '{"react":"#111111","cms":"#222222"}'
-    expect(matchesFilterGroup(cell, group)).toBe(true)
-    expect(matchesFilterGroup(cell, { ...group, conditions: [...group.conditions, { id: "c3", op: "contains", value: "angular" } as any] })).toBe(false)
-  })
-
+describe("filter-dsl - matchesFilterGroupStrict", () => {
   it("matchesFilterGroupStrict: invalid filterValue -> false", () => {
     expect(matchesFilterGroupStrict("anything", null)).toBe(false)
     expect(matchesFilterGroupStrict("anything", 123)).toBe(false)

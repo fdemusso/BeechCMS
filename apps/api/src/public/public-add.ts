@@ -20,9 +20,12 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function pickSlug(body: Record<string, unknown>, sanitizedData: Record<string, unknown>): string {
-  const explicit = cleanStr(body.slug)
+  const explicit = Object.hasOwn(body, 'slug') ? cleanStr(body.slug) : ''
   if (explicit) return slugify(explicit)
-  return generateEntrySlug({ title: sanitizedData.title, name: sanitizedData.name })
+  return generateEntrySlug({
+    title: Object.hasOwn(sanitizedData, 'title') ? sanitizedData.title : undefined,
+    name: Object.hasOwn(sanitizedData, 'name') ? sanitizedData.name : undefined
+  })
 }
 
 export async function publicAddHandler(context: Context<AppEnv>) {
@@ -50,8 +53,8 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     return publicProblem(context, { type: 'invalid-data-object', title: 'Bad Request', status: 400, detail: "Field 'data' is required and must be a non-empty object" })
   }
 
-  const statusValue = body.status ?? 'draft'
-  if (!isValidContentStatus(statusValue)) {
+  const statusValue = Object.hasOwn(body, 'status') ? body.status : 'draft'
+  if (!isValidContentStatus(statusValue as string)) {
     return publicProblem(context, { type: 'invalid-status', title: 'Bad Request', status: 400, detail: 'Invalid status. Allowed values are: draft, review, published' })
   }
 
@@ -88,7 +91,12 @@ export async function publicAddHandler(context: Context<AppEnv>) {
 
   try {
     const now = Math.floor(Date.now() / 1000)
-    const fingerprint = await buildRequestFingerprint({ seedSlug, statusValue, slug: cleanStr(body.slug) ?? null, data: sanitized.data })
+    const fingerprint = await buildRequestFingerprint({
+      seedSlug,
+      statusValue,
+      slug: Object.hasOwn(body, 'slug') ? cleanStr(body.slug) : null,
+      data: sanitized.data
+    })
     const idempotencyTtl = Math.max(60, Number.parseInt(context.env.PUBLIC_IDEMPOTENCY_TTL_SECONDS ?? '86400', 10) || 86400)
 
     if (idempotencyKey) {
@@ -119,11 +127,32 @@ export async function publicAddHandler(context: Context<AppEnv>) {
       await idempotencyRepository.store({ key: idempotencyKey, fingerprint, responseStatus: 201, responseBody: JSON.stringify(responseBody), expiresAt: now + idempotencyTtl })
     }
 
+    const safeTitle = Object.hasOwn(privacyData, 'title') ? privacyData.title : undefined
+    const safeName = Object.hasOwn(privacyData, 'name') ? privacyData.name : undefined
     context.get('notificationService').notify({
       title: `${seed.label}: New entry`,
-      message: `A new entry ("${privacyData.title || privacyData.name || finalSlug}") has been added via the public API.`,
+      message: `A new entry ("${safeTitle || safeName || finalSlug}") has been added via the public API.`,
       type: 'success',
     })
+
+    const title = String(safeTitle || safeName || finalSlug)
+
+    context.get('activityLogger').log({
+      action: 'create',
+      entityType: 'content',
+      entityId: id,
+      entitySlug: finalSlug,
+      details: { title },
+      actor: { id: 'public', email: 'public-api@beechcms.local', name: 'Public API' },
+    })
+
+    context.get('scheduler').waitUntil(
+      context.get('automationRunner').run({
+        seedSlug,
+        event: 'create',
+        entry: { id, slug: finalSlug, status: statusValue, ...privacyData },
+      })
+    )
 
     return context.json(responseBody, 201)
   } catch (error) {

@@ -171,4 +171,37 @@ describe('Flow: Background Queues — dispatchQueueBatch', () => {
     expect(msgBad.retry).toHaveBeenCalledOnce()
     expect(msgBad.ack).not.toHaveBeenCalled()
   })
+
+  it('drops malformed messages without crashing the batch', async () => {
+    const handler = vi.fn<[unknown, unknown], Promise<void>>().mockResolvedValue(undefined)
+    const jobs: JobRegistry = { good: handler as JobHandler }
+    
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    // Malformed body: null
+    const msgNull = makeMessage(null as any)
+    // Malformed body: undefined
+    const msgUndefined = makeMessage(undefined as any)
+    // Malformed body: primitive
+    const msgString = makeMessage("not-an-object" as any)
+    // Malformed body: valid object but name is not a string
+    const msgNumberName = makeMessage({ name: 123, payload: {} } as any)
+    // Good message
+    const msgGood = makeMessage({ name: 'good', payload: 'ok' })
+
+    const batch = makeBatch([msgNull, msgUndefined, msgString, msgNumberName, msgGood])
+    
+    await dispatchQueueBatch(batch, baseEnv as any, ctx, jobs)
+    
+    expect(msgNull.ack).toHaveBeenCalledOnce()
+    expect(msgUndefined.ack).toHaveBeenCalledOnce()
+    expect(msgString.ack).toHaveBeenCalledOnce()
+    expect(msgNumberName.ack).toHaveBeenCalledOnce()
+    
+    // Good message processed successfully
+    expect(handler).toHaveBeenCalledOnce()
+    expect(msgGood.ack).toHaveBeenCalledOnce()
+    
+    consoleSpy.mockRestore()
+  })
 })

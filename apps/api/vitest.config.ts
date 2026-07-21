@@ -6,6 +6,7 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
+    pool: 'forks',
     globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
     // Flow tests in test/ + unit tests colocated in src/
     include: ['test/**/*.test.ts', 'src/**/*.test.ts'],

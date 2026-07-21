@@ -19,6 +19,8 @@ let cache: CachedRegistry | null = null
 // Even if the token read fails, never serve a build older than this.
 const TTL_MS = 5_000
 
+let inFlightPromise: Promise<{ registry: ISeedRegistry; backrefMap: BackrefMap }> | null = null
+
 /**
  * Returns a fresh-enough { registry, backrefMap }. Reads the version token once per
  * request (cheap indexed D1 read); rebuilds from listActive() only when the token
@@ -27,13 +29,37 @@ const TTL_MS = 5_000
 export async function getHydratedRegistry(
   repo: ISeedRepository,
 ): Promise<{ registry: ISeedRegistry; backrefMap: BackrefMap }> {
-  const version = await repo.getRegistryVersion()
-  const now = Date.now()
-  if (cache && cache.version === version && now - cache.builtAt < TTL_MS) {
-    return { registry: cache.registry, backrefMap: cache.backrefMap }
+  let version = -1
+  let tokenError: unknown = null
+  try {
+    version = await repo.getRegistryVersion()
+  } catch (err) {
+    tokenError = err
   }
-  const seeds = await repo.listActive()
-  return rebuild(seeds, version, now)
+  const now = Date.now()
+  if (cache) {
+    const isVersionMatch = version !== -1 && cache.version === version
+    const isFresh = now - cache.builtAt < TTL_MS
+    if ((isVersionMatch && isFresh) || (tokenError && isFresh)) {
+      return { registry: cache.registry, backrefMap: cache.backrefMap }
+    }
+  }
+  
+  if (tokenError) {
+    throw tokenError
+  }
+
+  if (inFlightPromise) {
+    return inFlightPromise
+  }
+
+  inFlightPromise = repo.listActive().then((seeds) => {
+    return rebuild(seeds, version, now)
+  }).finally(() => {
+    inFlightPromise = null
+  })
+  
+  return inFlightPromise
 }
 
 function rebuild(seeds: Seed[], version: number, now: number) {

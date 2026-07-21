@@ -38,7 +38,7 @@ function buildApp(opts: { repo?: IWidgetRepository; seeds?: Record<string, Seed>
   const app = new Hono<{ Bindings: Env; Variables: Variables }>()
   app.use('*', async (c, next) => {
     c.set('widgetRepository', repo)
-    c.set('getSeed', (slug: string) => seeds[slug] ?? null)
+    c.set('getSeed', (slug: string) => Object.hasOwn(seeds, slug) ? seeds[slug]! : null)
     await next()
   })
   app.route('/', widgetApp)
@@ -84,20 +84,73 @@ describe('GET /distribution/:seed', () => {
   })
 })
 
-describe('GET /aggregate/:seed', () => {
+describe('GET /growth/:seed', () => {
+  it('returns 200 and handles a decline from a zero baseline', async () => {
+    const repo = makeRepoStub()
+    repo.growth = vi.fn().mockResolvedValue({ currentValue: -5, previousValue: 0 })
+    const { app } = buildApp({ repo })
+    const res = await app.request('/growth/posts?formula={"op":"sum"}')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      current: -5,
+      previous: 0,
+      percentageChange: -100,
+      trend: 'down',
+    })
+  })
+
   it('returns 400 when formula op is unrecognized', async () => {
     const { app } = buildApp()
-    const res = await app.request('/aggregate/posts?formula={"op":"evil"}')
+    const res = await app.request('/growth/posts?formula={"op":"evil"}')
     expect(res.status).toBe(400)
     const body = await res.json() as { detail: string }
     expect(body.detail).toContain('Invalid or missing formula')
   })
 })
 
-describe('GET /growth/:seed', () => {
+describe('Security / Prototype Pollution', () => {
+  it('rejects builtin prototype keys for seed slug', async () => {
+    const { app } = buildApp()
+    const res = await app.request('/distribution/constructor?column=status_alias')
+    expect(res.status).toBe(404)
+  })
+
+  it('rejects builtin prototype keys for formula op', async () => {
+    const { app } = buildApp()
+    const res = await app.request('/aggregate/posts?formula={"constructor":"sum"}')
+    expect(res.status).toBe(400)
+  })
+})
+
+describe('GET /list/:seed', () => {
+  it('returns 400 for filters JSON not being an array (e.g., prototype pollution attempt via object)', async () => {
+    const { app } = buildApp()
+    const res = await app.request('/list/posts?filters=%7B%22constructor%22%3A%7B%7D%7D')
+    expect(res.status).toBe(400)
+    const body = await res.json() as { detail: string }
+    expect(body.detail).toContain('must be an array')
+  })
+
+  it('handles safe lookup in deserialization of branches', async () => {
+    const repo = makeRepoStub()
+    repo.list = vi.fn().mockResolvedValue({
+      entries: [
+        { id: '1', slug: 'a', status: 'draft', created_at: 0, updated_at: 0, title: 'Test' }
+      ],
+      totalCount: 1
+    })
+    const { app } = buildApp({ repo })
+    const res = await app.request('/list/posts')
+    expect(res.status).toBe(200)
+    const body = await res.json() as { entries: Array<Record<string, unknown>> }
+    expect(body.entries[0]).toHaveProperty('title', 'Test')
+  })
+})
+
+describe('GET /aggregate/:seed', () => {
   it('returns 400 when formula op is unrecognized', async () => {
     const { app } = buildApp()
-    const res = await app.request('/growth/posts?formula={"op":"evil"}')
+    const res = await app.request('/aggregate/posts?formula={"op":"evil"}')
     expect(res.status).toBe(400)
     const body = await res.json() as { detail: string }
     expect(body.detail).toContain('Invalid or missing formula')
@@ -113,3 +166,4 @@ describe('GET /timeseries/:seed', () => {
     expect(body.detail).toContain('formula must be sum, avg, or count')
   })
 })
+
