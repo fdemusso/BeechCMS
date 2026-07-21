@@ -83,3 +83,28 @@ describe('GET /distribution/:seed', () => {
     expect(repo.distribution).toHaveBeenCalledWith(seed, 'status_alias', 'week', 24)
   })
 })
+
+describe('GET /list/:seed', () => {
+  it('returns 400 for filters JSON not being an array (e.g., prototype pollution attempt via object)', async () => {
+    const { app } = buildApp()
+    const res = await app.request('/list/posts?filters=%7B%22constructor%22%3A%7B%7D%7D')
+    expect(res.status).toBe(400)
+    const body = await res.json() as { detail: string }
+    expect(body.detail).toContain('must be an array')
+  })
+
+  it('handles safe lookup in deserialization of branches', async () => {
+    const repo = makeRepoStub()
+    repo.list = vi.fn().mockResolvedValue({
+      entries: [
+        { id: '1', slug: 'a', status: 'draft', created_at: 0, updated_at: 0, title: 'Test' }
+      ],
+      totalCount: 1
+    })
+    const { app } = buildApp({ repo })
+    const res = await app.request('/list/posts')
+    expect(res.status).toBe(200)
+    const body = await res.json() as { entries: Array<Record<string, unknown>> }
+    expect(body.entries[0]).toHaveProperty('title', 'Test')
+  })
+})
