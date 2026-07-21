@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, it, expect } from 'vitest'
 import { colValueFromDroppableId, resequenceCards, computeReorderBounds } from './kanban-reorder'
 import type { KanbanCardDisplayModel } from '../types'

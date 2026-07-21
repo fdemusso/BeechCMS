@@ -41,7 +41,7 @@ import { webhooksApp } from './features/webhooks'
 import { uploadRoutes, serveMediaHandler } from './features/upload'
 import { publicRoutes, apiKeyMiddleware, publicRateLimitMiddleware } from './public'
 import { searchRouter } from "./features/search/search"
-import type { ISeedRepository } from '@beechcms/core'
+import type { ISeedRepository, IAutomationRepository, IAutomationRunner } from '@beechcms/core'
 import { repositoryMiddleware } from './middleware/repository.middleware'
 import { seedRegistryMiddleware } from './middleware/seed-registry.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'

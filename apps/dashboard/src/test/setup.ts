@@ -2,13 +2,14 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import "@testing-library/jest-dom/vitest"
 import { vi } from "vitest"
 import * as React from "react"
 import i18n from "i18next"
 import { initReactI18next } from "react-i18next"
-import itTranslations from "@/locales/it.json"
-import enTranslations from "@/locales/en.json"
+
+if (typeof window !== "undefined") {
+  await import("@testing-library/jest-dom/vitest")
+}
 
 vi.mock("lucide-react", async (importOriginal) => {
   const actual = await importOriginal<typeof import("lucide-react")>()
@@ -23,11 +24,13 @@ vi.mock("lucide-react", async (importOriginal) => {
 })
 
 if (!i18n.isInitialized) {
+  const itTranslations = await import("@/locales/it.json")
+  const enTranslations = await import("@/locales/en.json")
   i18n.use(initReactI18next).init({
     lng: "en",
     resources: {
-      it: { translation: itTranslations },
-      en: { translation: enTranslations },
+      it: { translation: itTranslations.default },
+      en: { translation: enTranslations.default },
     },
     fallbackLng: "en",
     interpolation: { escapeValue: false },
@@ -50,23 +53,25 @@ if (typeof globalThis.ResizeObserver === "undefined") {
   }
 }
 
-if (!window.HTMLElement.prototype.scrollIntoView) {
-  window.HTMLElement.prototype.scrollIntoView = function() {};
-}
+if (typeof window !== "undefined") {
+  if (!window.HTMLElement.prototype.scrollIntoView) {
+    window.HTMLElement.prototype.scrollIntoView = function() {};
+  }
 
-// TipTap's placeholder viewport tracking calls document.elementFromPoint,
-// not implemented in jsdom.
-if (!document.elementFromPoint) {
-  document.elementFromPoint = () => null
-}
+  // TipTap's placeholder viewport tracking calls document.elementFromPoint,
+  // not implemented in jsdom.
+  if (!document.elementFromPoint) {
+    document.elementFromPoint = () => null
+  }
 
-// Radix UI Select uses pointer capture APIs not implemented in jsdom.
-if (!window.HTMLElement.prototype.hasPointerCapture) {
-  window.HTMLElement.prototype.hasPointerCapture = () => false;
-}
-if (!window.HTMLElement.prototype.setPointerCapture) {
-  window.HTMLElement.prototype.setPointerCapture = () => {};
-}
-if (!window.HTMLElement.prototype.releasePointerCapture) {
-  window.HTMLElement.prototype.releasePointerCapture = () => {};
+  // Radix UI Select uses pointer capture APIs not implemented in jsdom.
+  if (!window.HTMLElement.prototype.hasPointerCapture) {
+    window.HTMLElement.prototype.hasPointerCapture = () => false;
+  }
+  if (!window.HTMLElement.prototype.setPointerCapture) {
+    window.HTMLElement.prototype.setPointerCapture = () => {};
+  }
+  if (!window.HTMLElement.prototype.releasePointerCapture) {
+    window.HTMLElement.prototype.releasePointerCapture = () => {};
+  }
 }

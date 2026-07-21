@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { describe, it, expect } from 'vitest'
 import { buildKanbanCardDisplayModel } from './kanban-card-display'
 import type { ContentEntry } from '@/lib/dynamic-columns'

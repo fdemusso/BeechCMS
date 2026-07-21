@@ -251,10 +251,12 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       ;(toast.success as any).mockClear?.()
       ;(toast.error as any).mockClear?.()
 
-      Object.assign(navigator, {
-        clipboard: {
+      Object.defineProperty(navigator, "clipboard", {
+        value: {
           writeText: vi.fn().mockResolvedValue(undefined),
         },
+        configurable: true,
+        writable: true,
       })
     })
 
@@ -300,10 +302,12 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
     })
 
     it("clipboard error: Copia ID chiama toast.error", async () => {
-      Object.assign(navigator, {
-        clipboard: {
+      Object.defineProperty(navigator, "clipboard", {
+        value: {
           writeText: vi.fn().mockRejectedValue(new Error("fail")),
         },
+        configurable: true,
+        writable: true,
       })
 
       const onEdit = vi.fn()
