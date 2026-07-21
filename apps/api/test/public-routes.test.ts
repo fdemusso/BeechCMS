@@ -4,6 +4,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createBeechApp } from '../src/factory'
+import { StaticAutomationRepository } from './mocks/static-automation.repository'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
 import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_READ_KEY } from './fixtures'
@@ -14,7 +15,8 @@ describe('Public API Routes', () => {
   beforeEach(() => {
     const repo = new StaticContentRepository(TEST_SEEDS)
     const idempotencyRepo = new StaticIdempotencyRepository()
-    app = createBeechApp({ seeds: TEST_SEEDS, repository: repo, idempotencyRepository: idempotencyRepo })
+    const automationRepo = new StaticAutomationRepository()
+    app = createBeechApp({ seeds: TEST_SEEDS, repository: repo, idempotencyRepository: idempotencyRepo, automationRepository: automationRepo })
   })
 
   it('GET /api/v1/public/health returns 200 ok', async () => {

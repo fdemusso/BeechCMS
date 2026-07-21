@@ -89,7 +89,7 @@ export async function updateHandler(context: Context<AppEnv>) {
       })
     }
 
-    const mergedData: Record<string, unknown> = {}
+    const mergedData: Record<string, unknown> = Object.create(null)
 
     if (Object.keys(bodyForData).length > 0) {
       const sensitiveAliases = Object.keys(bodyForData).filter((alias) => {
@@ -140,9 +140,9 @@ export async function updateHandler(context: Context<AppEnv>) {
         throw error
       }
 
-      // Remove null values from patch (patch semantics: null = leave unchanged)
+      // Pass null values to patch (patch semantics: null = clear field)
       for (const [k, v] of Object.entries(privacyPatch)) {
-        if (v !== null) mergedData[k] = v
+        if (v !== undefined) mergedData[k] = v
       }
     }
 

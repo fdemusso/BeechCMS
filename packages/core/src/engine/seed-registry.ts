@@ -3,6 +3,7 @@
 
 import type { Seed, Branch } from './types.js'
 import { AUTOMATION_RESERVED_WORDS } from '../automations/automations-grammar-words.js'
+import { SQL_RESERVED_WORDS } from './sql-reserved-words.js'
 
 export interface ISeedRegistry {
   /**
@@ -54,6 +55,12 @@ export class SeedRegistry implements ISeedRegistry {
           throw new Error(
             `Seed "${seed.slug}" uses reserved alias "${branch.alias}". `
               + `Pick a different alias — this word is used by the automation template grammar.`,
+          )
+        }
+        if (SQL_RESERVED_WORDS.has(branch.alias.toLowerCase())) {
+          throw new Error(
+            `Seed "${seed.slug}" uses SQL reserved keyword "${branch.alias}". `
+              + `Please pick a different alias to prevent database errors.`,
           )
         }
         if (!branch.id || !BRANCH_ID_RE.test(branch.id)) {

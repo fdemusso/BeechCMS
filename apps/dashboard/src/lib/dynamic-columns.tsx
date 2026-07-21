@@ -32,7 +32,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { matchesFilterGroup } from "@/lib/filter-dsl"
 import { pendingDraftBadgeClass, shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 
 import {
@@ -185,8 +184,6 @@ export function generateColumns(
       maxSize: 400,
       accessorFn: (row) => row.slug,
       header: "Slug",
-      filterFn: (row, columnId, filterValue) =>
-        matchesFilterGroup(row.getValue(columnId), filterValue),
       cell: ({ row }) => {
         const slug = row.original.slug
         return <span className="text-muted-foreground text-sm">{slug ?? "—"}</span>
@@ -202,8 +199,6 @@ export function generateColumns(
       maxSize: 400,
       accessorFn: (row) => row.status,
       header: translate("content.table.status"),
-      filterFn: (row, columnId, filterValue) =>
-        matchesFilterGroup(row.getValue(columnId), filterValue),
       cell: ({ row }) => {
         const status = (row.original.status ?? "").trim() || "—"
         const tone = getStatusTone(status)
@@ -270,8 +265,6 @@ export function generateColumns(
           <span>{branch.label}</span>
         </div>
       ),
-      filterFn: (row, columnId, filterValue) =>
-        matchesFilterGroup(row.getValue(columnId), filterValue),
     }
 
     // Configurazione grouping/aggregation per tipo

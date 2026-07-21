@@ -11,13 +11,16 @@
  *
  * @module @beechcms/core/notifications/notification-service
  */
+import { z } from 'zod'
 import type { NotificationType } from './notification.repository.js'
 
-export interface CreateNotificationInput {
-  title: string
-  message: string
-  type?: NotificationType
-}
+export const createNotificationSchema = z.object({
+  title: z.string().min(1),
+  message: z.string().min(1),
+  type: z.enum(['info', 'success', 'warning', 'error']).optional(),
+})
+
+export type CreateNotificationInput = z.infer<typeof createNotificationSchema>
 
 export interface INotificationService {
   /**

@@ -162,6 +162,12 @@ describe('SeedRegistry reserved alias guard', () => {
     }
   })
 
+  it('throws when a branch alias is a SQL reserved word', () => {
+    expect(() => new SeedRegistry(makeSeeds('order'))).toThrow(
+      'Seed "test" uses SQL reserved keyword "order"',
+    )
+  })
+
   it('does not throw for non-reserved aliases', () => {
     expect(() => new SeedRegistry(makeSeeds('nome'))).not.toThrow()
     expect(() => new SeedRegistry(makeSeeds('total_amount'))).not.toThrow()

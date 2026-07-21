@@ -88,6 +88,22 @@ describe('getHydratedRegistry', () => {
     expect(res2.registry).toBe(res3.registry)
   })
 
+  it('reuses valid cache when getRegistryVersion throws', async () => {
+    const repo = makeRepo(1)
+    await getHydratedRegistry(repo)
+    expect(repo.listActive).toHaveBeenCalledTimes(1)
+
+    repo.getRegistryVersion = vi.fn().mockRejectedValue(new Error('Network error'))
+    await getHydratedRegistry(repo)
+    expect(repo.listActive).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws when getRegistryVersion throws and cache is expired (or missing)', async () => {
+    const repo = makeRepo(1)
+    repo.getRegistryVersion = vi.fn().mockRejectedValue(new Error('Network error'))
+    await expect(getHydratedRegistry(repo)).rejects.toThrow('Network error')
+  })
+
   it('rejects prototype keys as valid properties (security check)', async () => {
     const repo = makeRepo(1)
     const { registry, backrefMap } = await getHydratedRegistry(repo)
@@ -97,5 +113,6 @@ describe('getHydratedRegistry', () => {
     expect(Object.hasOwn(backrefMap, 'toString')).toBe(false)
     expect(registry.get('constructor')).toBeNull()
     expect(registry.get('toString')).toBeNull()
+    expect(registry.get('__proto__')).toBeNull()
   })
 })

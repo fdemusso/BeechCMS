@@ -63,9 +63,9 @@ describe('number field validation with numberOptions', () => {
   })
 
   it('accetta campi numerici senza opzioni', () => {
-    const result = validateAndSanitizeSeedPayload(numericalSeed, { unbounded: 42.42 })
+    const result = validateAndSanitizeSeedPayload(numericalSeed, { unconstrained: 42.42 })
     expect(result.details).toHaveLength(0)
-    expect(result.data.unbounded).toBe(42.42)
+    expect(result.data.unconstrained).toBe(42.42)
   })
 })
 
