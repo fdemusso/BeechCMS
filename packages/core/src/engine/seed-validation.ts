@@ -4,6 +4,7 @@
 import type { Seed } from './types.js'
 import { AUTOMATION_RESERVED_WORDS } from '../automations/automations-grammar-words.js'
 import { sortSeedsByDependencies } from './seed-registry.js'
+import { SQL_RESERVED_WORDS } from './sql-reserved-words.js'
 
 const BRANCH_ID_RE = /^br_[A-Za-z0-9]+$/
 
@@ -123,6 +124,11 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
         messages.push(
           `branch '${branch.alias}' uses reserved alias. ` +
           `This word is used by the automation template grammar.`,
+        )
+      } else if (SQL_RESERVED_WORDS.has(branch.alias.toLowerCase())) {
+        messages.push(
+          `branch '${branch.alias}' uses SQL reserved keyword. ` +
+          `Please pick a different alias to prevent database errors.`,
         )
       }
     }
@@ -252,6 +258,15 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
         messages: [
           `displayNameAlias '${seed.displayNameAlias}' is invalid. Expected format ${BRANCH_ALIAS_RE.source} ` +
           `(lowercase letter followed by alphanumeric characters or underscores).`,
+        ],
+        fatal: true,
+      })
+    } else if (SQL_RESERVED_WORDS.has(seed.displayNameAlias.toLowerCase())) {
+      result.push({
+        slug: seed.slug,
+        messages: [
+          `displayNameAlias '${seed.displayNameAlias}' uses SQL reserved keyword. ` +
+          `Please pick a different alias to prevent database errors.`,
         ],
         fatal: true,
       })
