@@ -103,7 +103,9 @@ describe('validateSeedDefinitions', () => {
     ]
     const issues = validateSeedDefinitions(seeds)
     const fatal = issues.filter(i => i.fatal)
-    expect(fatal.some(i => i.messages.some(m => m.toLowerCase().includes('cyclic')))).toBe(true)
+    expect(fatal.length).toBe(2)
+    expect(fatal.some(i => i.slug === 'a' && i.messages.some(m => m.toLowerCase().includes('cyclic')))).toBe(true)
+    expect(fatal.some(i => i.slug === 'b' && i.messages.some(m => m.toLowerCase().includes('cyclic')))).toBe(true)
   })
 
   // ── Fatal 5: invalid branch id ───────────────────────────────────────────────
