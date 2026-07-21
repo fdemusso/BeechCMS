@@ -260,6 +260,35 @@ describe('Flow: Guest Access (Public API)', () => {
       expect(updated.title).toBe('New Public Title')
     })
 
+    it('feature: properly clears fields on explicit null', async () => {
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'Old Title', excerpt: 'Some excerpt' }])
+
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { excerpt: null } }),
+      }, TEST_ENV)
+
+      expect(res.status).toBe(200)
+      const updated = await repo.findById(TEST_SEEDS[0], validUuid)
+      expect(updated.excerpt).toBeNull()
+    })
+
+    it('security: ignores or rejects prototype pollution attempts', async () => {
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'Old Title', excerpt: 'Some excerpt' }])
+
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { constructor: { name: 'Evil' }, toString: 'exploit' } }),
+      }, TEST_ENV)
+
+      expect(res.status).not.toBe(200) // Should be rejected (400 or 422)
+      const updated = await repo.findById(TEST_SEEDS[0], validUuid)
+      expect(updated.constructor).not.toEqual({ name: 'Evil' })
+      expect(updated.toString).not.toEqual('exploit')
+    })
+
     it('error: returns 403 if seed does not allow public edit', async () => {
       const res = await app.request(`/api/v1/public/documentation/edit/${validUuid}`, {
         method: 'PUT',
