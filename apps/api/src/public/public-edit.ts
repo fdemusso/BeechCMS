@@ -28,9 +28,9 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 function removeNullishFields(data: Record<string, unknown>): Record<string, unknown> {
-  const next: Record<string, unknown> = {}
+  const next: Record<string, unknown> = Object.create(null)
   for (const [key, value] of Object.entries(data)) {
-    if (value !== null) next[key] = value
+    if (value !== undefined) next[key] = value
   }
   return next
 }
