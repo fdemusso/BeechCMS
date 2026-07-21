@@ -21,7 +21,7 @@ function parseFormula(raw: string | undefined): AggregateFormula | null {
   if (!raw) return null
   try {
     const parsed = JSON.parse(raw) as unknown
-    if (typeof parsed !== 'object' || parsed === null || !('op' in parsed)) return null
+    if (typeof parsed !== 'object' || parsed === null || !Object.hasOwn(parsed, 'op')) return null
     return parsed as AggregateFormula
   } catch {
     return null
@@ -101,6 +101,8 @@ widgetApp.get('/growth/:seed', async (context) => {
       percentageChange = Math.round(((currentValue - previousValue) / Math.abs(previousValue)) * 1000) / 10
     } else if (currentValue > 0) {
       percentageChange = 100
+    } else if (currentValue < 0) {
+      percentageChange = -100
     }
 
     let trend: 'up' | 'down' | 'flat' = 'flat'
@@ -171,7 +173,7 @@ widgetApp.get('/list/:seed', async (context) => {
     })
 
     const deserializedEntries = entries.map(row => {
-      const data: Record<string, unknown> = {}
+      const data: Record<string, unknown> = Object.create(null)
       for (const branch of seed.branches) {
         data[branch.alias] = deserializeFromDb(branch, row[branch.alias] ?? null)
       }
