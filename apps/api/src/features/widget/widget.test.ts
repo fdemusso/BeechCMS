@@ -98,6 +98,14 @@ describe('GET /growth/:seed', () => {
       trend: 'down',
     })
   })
+
+  it('returns 400 when formula op is unrecognized', async () => {
+    const { app } = buildApp()
+    const res = await app.request('/growth/posts?formula={"op":"evil"}')
+    expect(res.status).toBe(400)
+    const body = await res.json() as { detail: string }
+    expect(body.detail).toContain('Invalid or missing formula')
+  })
 })
 
 describe('Security / Prototype Pollution', () => {
@@ -138,3 +146,24 @@ describe('GET /list/:seed', () => {
     expect(body.entries[0]).toHaveProperty('title', 'Test')
   })
 })
+
+describe('GET /aggregate/:seed', () => {
+  it('returns 400 when formula op is unrecognized', async () => {
+    const { app } = buildApp()
+    const res = await app.request('/aggregate/posts?formula={"op":"evil"}')
+    expect(res.status).toBe(400)
+    const body = await res.json() as { detail: string }
+    expect(body.detail).toContain('Invalid or missing formula')
+  })
+})
+
+describe('GET /timeseries/:seed', () => {
+  it('returns 400 when formula op is not count, sum, or avg', async () => {
+    const { app } = buildApp()
+    const res = await app.request('/timeseries/posts?formula=evil&valueColumn=id')
+    expect(res.status).toBe(400)
+    const body = await res.json() as { detail: string }
+    expect(body.detail).toContain('formula must be sum, avg, or count')
+  })
+})
+

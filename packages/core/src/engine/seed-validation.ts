@@ -86,7 +86,15 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
       sortSeedsByDependencies(seeds)
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
-      result.push({ slug: '<graph>', messages: [msg], fatal: true })
+      const cycleMatch = msg.match(/Cyclic dependency detected among seeds: (.*)/)
+      if (cycleMatch) {
+        const cycleSlugs = cycleMatch[1].split(', ')
+        for (const slug of cycleSlugs) {
+          result.push({ slug, messages: [msg], fatal: true })
+        }
+      } else {
+        result.push({ slug: '<graph>', messages: [msg], fatal: true })
+      }
     }
   }
 

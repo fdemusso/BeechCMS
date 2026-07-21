@@ -22,6 +22,10 @@ function parseFormula(raw: string | undefined): AggregateFormula | null {
   try {
     const parsed = JSON.parse(raw) as unknown
     if (typeof parsed !== 'object' || parsed === null || !Object.hasOwn(parsed, 'op')) return null
+    
+    const allowedOps = ['count', 'sum', 'avg', 'min', 'max', 'countWhere', 'percentageOf']
+    if (!allowedOps.includes((parsed as any).op)) return null
+
     return parsed as AggregateFormula
   } catch {
     return null
