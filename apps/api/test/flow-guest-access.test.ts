@@ -241,6 +241,28 @@ describe('Flow: Guest Access (Public API)', () => {
       const body2 = await res2.json<{ id: string }>()
       expect(body1.id).toBe(body2.id)
     })
+    it('security: ignores reserved prototype keys in data payload and resolves safely', async () => {
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'Prototype Test', constructor: 'evil', toString: 'bad' }, slug: 'constructor', status: 'constructor' }),
+      }, TEST_ENV)
+      expect(res.status).toBe(400) // status='constructor' is invalid
+      
+      const res2 = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'Prototype Test', constructor: 'evil', toString: 'bad' }, slug: 'constructor' }),
+      }, TEST_ENV)
+      
+      expect(res2.status).toBe(201)
+      const body = await res2.json<{ id: string, slug: string }>()
+      expect(body.slug).toBe('constructor') // "constructor" as a string is a valid slug
+      
+      const created = await repo.findById(TEST_SEEDS.find(s => s.slug === 'posts')!, body.id)
+      expect(created.title).toBe('Prototype Test')
+      expect(created.constructor).not.toBe('evil') // The object prototype should be preserved, not overwritten
+    })
   })
 
   describe('PUT /api/v1/public/:seed/edit/:id (Public Edit)', () => {
@@ -355,6 +377,21 @@ describe('Flow: Guest Access (Public API)', () => {
         body: JSON.stringify({ data: { title: 'New Title' } }),
       }, TEST_ENV)
       expect(res.status).toBe(500)
+    })
+
+    it('security: ignores reserved prototype keys in data payload and resolves safely', async () => {
+      repo.load('posts', [{ id: validUuid, status: 'published', title: 'Old Title', slug: 'proto-test-edit' }])
+      const res = await app.request(`/api/v1/public/posts/edit/${validUuid}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        body: JSON.stringify({ data: { title: 'Prototype Test Edit', constructor: 'evil', toString: 'bad' }, slug: 'constructor' }),
+      }, TEST_ENV)
+      
+      expect(res.status).toBe(200)
+      const updated = await repo.findById(TEST_SEEDS.find(s => s.slug === 'posts')!, validUuid)
+      expect(updated.title).toBe('Prototype Test Edit')
+      expect(updated.slug).toBe('constructor')
+      expect(updated.constructor).not.toBe('evil')
     })
   })
 

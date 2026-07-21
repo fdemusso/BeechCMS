@@ -152,6 +152,28 @@ export async function publicEditHandler(context: PublicCtx) {
       type: 'info',
     })
 
+    const updatedEntry = { ...entry, ...updateData }
+    const safeTitle = Object.hasOwn(updatedEntry, 'title') ? updatedEntry.title : undefined
+    const safeName = Object.hasOwn(updatedEntry, 'name') ? updatedEntry.name : undefined
+    const title = String(safeTitle || safeName || slugResult.value.nextSlug)
+
+    context.get('activityLogger').log({
+      action: 'update',
+      entityType: 'content',
+      entityId: id,
+      entitySlug: slugResult.value.nextSlug,
+      details: { title },
+      actor: { id: 'public', email: 'public-api@beechcms.local', name: 'Public API' },
+    })
+
+    context.get('scheduler').waitUntil(
+      context.get('automationRunner').run({
+        seedSlug,
+        event: 'update',
+        entry: { ...updatedEntry, status: statusResult.value },
+      })
+    )
+
     return context.json({ success: true, id, slug: slugResult.value.nextSlug }, 200)
   } catch (error) {
     if (error instanceof EntryNotFoundError) {
