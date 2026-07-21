@@ -30,18 +30,36 @@ export async function dispatchQueueBatch(
   }
 
   for (const message of batch.messages) {
-    const { name, payload } = message.body
-    const handler = Object.hasOwn(jobs, name) ? jobs[name] : undefined
-    if (!handler) {
-      console.error(`[queue] no handler for "${name}" — dropping message`)
-      message.ack()
-      continue
-    }
     try {
+      if (!message.body || typeof message.body !== 'object') {
+        // Drop malformed bodies instead of indefinitely retrying them.
+        console.error(`[queue] malformed message.body — dropping message`)
+        message.ack()
+        continue
+      }
+
+      const { name, payload } = message.body as QueueMessage
+
+      if (typeof name !== 'string') {
+        console.error(`[queue] invalid job name type — dropping message`)
+        message.ack()
+        continue
+      }
+
+      const handler = Object.hasOwn(jobs, name) ? jobs[name] : undefined
+      if (!handler) {
+        console.error(`[queue] no handler for "${name}" — dropping message`)
+        message.ack()
+        continue
+      }
+
       await handler(payload, context)
       message.ack()
     } catch (error) {
-      console.error(`[queue] job "${name}" failed — will retry`, error)
+      const jobName = message.body && typeof message.body === 'object' && 'name' in message.body
+        ? String((message.body as any).name)
+        : 'unknown'
+      console.error(`[queue] job "${jobName}" failed — will retry`, error)
       message.retry()
     }
   }
