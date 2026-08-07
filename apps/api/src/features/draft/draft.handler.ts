@@ -8,6 +8,7 @@ import {
   validateAndSanitizeSeedPayload,
   resolvePolicies,
   RelationTargetNotFoundError,
+  ActorContext,
 } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
 import { cleanStr } from '../../shared/utils/query-utils'
@@ -138,7 +139,14 @@ draftApp.get('/:slug/:id/draft', draftGuard, async (context) => {
     })
   }
 
-  return context.json({ data: applyVisibility(draft, seed) })
+  const jwtPayload = context.get('jwtPayload')
+  const actor: ActorContext = context.get('actor') ?? {
+    type: 'authenticated',
+    userId: jwtPayload?.sub,
+    role: jwtPayload?.role,
+  }
+
+  return context.json({ data: applyVisibility(draft, seed, actor) })
 })
 
 // POST /:slug/:id/draft/publish — Atomically promotes draft to live

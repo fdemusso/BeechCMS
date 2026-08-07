@@ -9,7 +9,17 @@ import type {
   SelectOptions,
   ParameterizedQuery,
 } from './types.js';
-import { resolvePolicies } from './policies.js'
+import { resolvePolicies, resolveClassification } from './policies.js'
+
+
+/**
+ * Helper function to determine if a branch requires a blind index column.
+ * Returns true if storage classification is 'encrypt' and filtering is not explicitly disabled.
+ */
+export function hasBlindIndex(branch: Branch): boolean {
+  const resolved = resolveClassification(branch)
+  return resolved.storage === 'encrypt' && branch.policies?.filter !== false
+}
 
 
 /**
@@ -158,6 +168,9 @@ export function generateCreateTable(seed: Seed): string {
     if (branch.type === 'boolean') col += ` CHECK (${branch.alias} IN (0, 1))`
     col += buildForeignKeyClause(branch)
     lines.push(col + ',')
+    if (hasBlindIndex(branch)) {
+      lines.push(`  ${branch.alias}_bidx  TEXT,`)
+    }
   }
 
   lines.push(`  created_at INTEGER NOT NULL DEFAULT (unixepoch()),`)
@@ -192,6 +205,9 @@ export function generateDraftTable(seed: Seed): string | null {
     let col = `  ${branch.alias}  ${sqlType}`
     if (branch.type === 'boolean') col += ` CHECK (${branch.alias} IN (0, 1))`
     lines.push(col + ',')
+    if (hasBlindIndex(branch)) {
+      lines.push(`  ${branch.alias}_bidx  TEXT,`)
+    }
   }
 
   lines.push(`  _touched_fields  TEXT,`)
@@ -237,6 +253,11 @@ export function generateIndexes(seed: Seed): string[] {
     if (['text', 'number', 'date', 'boolean', 'relation'].includes(branch.type)) {
       indexes.push(
         `CREATE INDEX IF NOT EXISTS idx_${slug}_${branch.alias} ON ${table}(${branch.alias});`
+      )
+    }
+    if (hasBlindIndex(branch)) {
+      indexes.push(
+        `CREATE INDEX IF NOT EXISTS idx_${slug}_${branch.alias}_bidx ON ${table}(${branch.alias}_bidx);`
       )
     }
   }
@@ -332,18 +353,30 @@ export interface SchemaColumn {
  * @returns The array of expected schema columns.
  */
 export function getExpectedColumns(seed: Seed): SchemaColumn[] {
+  const branchCols: SchemaColumn[] = []
+  for (const b of seed.branches) {
+    if (b.type === 'relation' && b.multiple === true) continue
+    branchCols.push({
+      name:    b.alias,
+      sqlType: BRANCH_TYPE_SQL[b.type].sqlType,
+      notNull: b.requiredOnCreate ?? false,
+      isPk:    false,
+    })
+    if (hasBlindIndex(b)) {
+      branchCols.push({
+        name:    `${b.alias}_bidx`,
+        sqlType: 'TEXT',
+        notNull: false,
+        isPk:    false,
+      })
+    }
+  }
+
   return [
     { name: 'id',         sqlType: 'TEXT',    notNull: true,  isPk: true  },
     { name: 'slug',       sqlType: 'TEXT',    notNull: true,  isPk: false },
     { name: 'status',     sqlType: 'TEXT',    notNull: true,  isPk: false },
-    ...seed.branches
-      .filter(b => !(b.type === 'relation' && b.multiple === true))
-      .map(b => ({
-        name:    b.alias,
-        sqlType: BRANCH_TYPE_SQL[b.type].sqlType,
-        notNull: b.requiredOnCreate ?? false,
-        isPk:    false,
-      })),
+    ...branchCols,
     { name: 'created_at', sqlType: 'INTEGER', notNull: true,  isPk: false },
     { name: 'updated_at', sqlType: 'INTEGER', notNull: true,  isPk: false },
   ]

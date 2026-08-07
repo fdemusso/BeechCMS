@@ -2,31 +2,13 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { resolvePolicies } from '@beechcms/core'
+import { filterEntryForActor } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 
-const SYSTEM_FIELDS = ['id', 'slug', 'status', 'created_at', 'updated_at']
 const IDENTITY_FIELDS = ['id', 'slug']
 
 function applyPublicPolicies(data: Record<string, unknown>, seed: Seed): Record<string, unknown> {
-  const result: Record<string, unknown> = {}
-
-  for (const key of SYSTEM_FIELDS) {
-    if (key in data) result[key] = data[key]
-  }
-
-  for (const branch of seed.branches) {
-    const value = data[branch.alias]
-    const { public: isPublic, visibility } = resolvePolicies(branch)
-    if (!isPublic) continue
-    if (visibility === 'hidden') continue
-    if (visibility === 'masked') {
-      result[branch.alias] = typeof value === 'string' && value.length > 0 ? '••••••••' : null
-    } else {
-      result[branch.alias] = value
-    }
-  }
-  return result
+  return filterEntryForActor(data, seed, { type: 'public' })
 }
 
 export function toFlatPublicEntry(data: Record<string, unknown>, seed: Seed, fieldsParam?: string): Record<string, unknown> {

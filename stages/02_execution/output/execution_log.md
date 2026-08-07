@@ -1,38 +1,48 @@
-# Execution Log — Sprint 8: Schema Sync & GitOps Migrations
+# Execution Log — Sprint 3: Context-Aware API Filtering
 
-## Section 6 — Acceptance Criteria
+## SECTION 6 — ACCEPTANCE CRITERIA
 
-- [x] `beech schema:diff` (no flags) prints per-seed drift and an additive SQL **preview**; exits without writing files.
-- [x] `beech schema:diff --write` writes `apps/api/migrations/NNNN_<name>.sql` where `NNNN` is the existing max prefix + 1 (verified: next is `0034`), zero-padded to 4 digits.
-- [x] Every emitted `ALTER TABLE … ADD COLUMN` / `CREATE INDEX` / `CREATE TABLE` statement is produced by a `@beechcms/core` generator (`generateAddColumn`, `generateIndexes`, `planCreateSeed`). **No `ALTER`/`CREATE` string is authored in the CLI.** (Botanical Invariant — zero literal `ALTER TABLE`/`CREATE TABLE` outside core imports in new files.)
-- [x] Destructive drift (`extra`, `type_mismatch`, `fk_mismatch`) is **never** emitted as executable SQL — only as a commented `-- ⚠` block — and the slug is reported to the user.
-- [x] When only destructive drift exists, `--write` writes nothing and instructs the user to author the migration by hand.
-- [x] `schemaDiff` reuses `diffSeed` and `getExpectedColumns`; no second diff implementation is introduced. `renderSeedDiff` is shared by `seed:load --diff` and `schema:diff` (no duplicated rendering).
-- [x] Seeds are processed in `sortSeedsByDependencies` order so FK targets precede referrers in the generated file.
-- [x] New code lives only in `@beechcms/cli`; it imports core via the public barrel and `apps/api`/`apps/dashboard` are untouched (VSA).
-- [x] `SchemaDiffOptions` is fully typed and exported; `tsc --noEmit` passes with no `any`/`@ts-ignore`.
-- [x] `bin/cli.mjs` registers `schema:diff` and documents it in `help()`.
-- [x] `pnpm run build`, CLI tests, and lint are all green.
-- [x] CI template `docs/ci/github-actions-migrations.yml` and the expanded sprint doc are committed.
+- [x] `ActorContext` interface defined in `@beechcms/core` with `'public' | 'authenticated' | 'system'` types.
+- [x] `filterEntryForActor` correctly omits `Internal` and `Confidential` fields when `actor.type === 'public'`.
+- [x] `filterEntryForActor` correctly includes `Internal` and `Confidential` fields when `actor.type === 'authenticated'`.
+- [x] `filterEntryForActor` ALWAYS omits `Restricted` fields for both `public` and `authenticated` actors (`Restricted` fields are scrubbed from all API endpoints).
+- [x] System actor (`actor.type === 'system'`) retains full access to all fields for internal orchestration.
+- [x] `applyPublicPolicies` in `apps/api/src/public/entry-projection.ts` delegates to `filterEntryForActor(data, seed, { type: 'public' })`.
+- [x] `applyVisibility` in `apps/api/src/shared/policies/apply-policies.ts` accepts an optional `ActorContext`.
+- [x] All unit and integration tests across `@beechcms/core` and `apps/api` pass with 0 typecheck or build errors.
 
-## Section 5 — Validation Output
+## Validation Output
 
+### `@beechcms/core` Build (`pnpm --filter @beechcms/core run build`)
 ```
-pnpm --filter @beechcms/core build
-→ $ tsc  (exit 0, no errors)
+> tsc
+Exit status: 0 (Clean build)
+```
 
-pnpm --filter @beechcms/cli exec tsc --noEmit
-→ (exit 0, no output)
+### `@beechcms/core` Test (`pnpm --filter @beechcms/core test`)
+```
+Test Files  28 passed (28)
+     Tests  572 passed (572)
+  Duration  1.05s
+Exit status: 0
+```
 
-pnpm --filter @beechcms/cli test
-→  Test Files  5 passed (5)
-       Tests  47 passed (47)
-    Duration  2.00s
+### `apps/api` Typecheck (`npx tsc --noEmit` in `apps/api/`)
+```
+Exit status: 0 (0 errors)
+```
 
-pnpm --filter @beechcms/cli lint
-→ ✖ 27 problems (0 errors, 27 warnings)  [all pre-existing warnings, 0 new errors]
+### `apps/api` Test (`pnpm --filter api test`)
+```
+Test Files  100 passed (100)
+     Tests  1188 passed (1188)
+  Duration  10.33s
+Exit status: 0
+```
 
-pnpm run build
-→  Tasks:    7 successful, 7 total
-      Time:  7.43s
+### Graph Sync (`graphify update .`)
+```
+Rebuilt: 11386 nodes, 16979 edges, 2823 communities
+Code graph updated.
+Exit status: 0
 ```
