@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { GlobeIcon } from "lucide-react"
+import { Globe as GlobeIcon } from 'reicon-react'
 import {
   DropdownMenu,
   DropdownMenuContent,

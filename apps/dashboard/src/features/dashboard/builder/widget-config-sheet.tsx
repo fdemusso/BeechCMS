@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
 import { useTranslation } from 'react-i18next'
-import { Trash2 } from 'lucide-react'
+import { Trash2 } from 'reicon-react'
 import type { DashboardWidgetInstance } from '@beechcms/core'
 
 import { Button } from '@/components/ui/button'

@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next"
 import type { Editor } from "@tiptap/react"
 import type { toggleVariants } from "@/components/ui/toggle"
 import type { VariantProps } from "class-variance-authority"
-import { Undo2, Redo2 } from "lucide-react"
+import { Undo as Undo2, Redo as Redo2 } from 'reicon-react'
 import { ToolbarButton } from "../toolbar-button"
 
 interface SectionZeroProps extends VariantProps<typeof toggleVariants> {

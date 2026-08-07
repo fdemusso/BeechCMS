@@ -12,7 +12,7 @@ import { Controlled as ControlledZoom } from "react-medium-image-zoom"
 import { ActionButton, ActionWrapper, ImageActions } from "./image-actions"
 import { useImageActions } from "../hooks/use-image-actions"
 import { blobUrlToBase64, randomId } from "../../../utils"
-import { InfoCircledIcon, TrashIcon } from "@radix-ui/react-icons"
+import { InfoCircle as InfoCircledIcon, Trash as TrashIcon } from 'reicon-react'
 import { ImageOverlay } from "./image-overlay"
 import { Spinner } from "../../../components/spinner"
 import type { UploadReturnType } from "../shared"

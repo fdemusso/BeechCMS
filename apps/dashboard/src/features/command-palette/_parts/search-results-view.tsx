@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { FileText } from "lucide-react"
+import { FileText } from 'reicon-react'
 import { useQuery } from "@tanstack/react-query"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
 import type { Seed } from "@beechcms/core"

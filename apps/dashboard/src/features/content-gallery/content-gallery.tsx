@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { ImageIcon } from "lucide-react"
+import { Image as ImageIcon } from 'reicon-react'
 
 import {
   Empty,

@@ -60,7 +60,7 @@ function isMultiRelBranch(branch: Branch): boolean {
 function isBulkEditable(branch: Branch): boolean {
   const { visibility, privacy } = resolvePolicies(branch)
   if (visibility === "hidden") return false
-  if (privacy === "encrypt") return false
+  if (privacy !== "plain") return false
   return true
 }
 

@@ -47,6 +47,7 @@ function makeRepo(overrides: Partial<ISeedRepository> = {}): ISeedRepository {
 function makeMutator(overrides: Partial<ISchemaMutator> = {}): ISchemaMutator {
   return {
     getColumns: vi.fn().mockResolvedValue(null),
+    fetchRows: vi.fn().mockResolvedValue([]),
     execDdl: vi.fn().mockResolvedValue(undefined),
     dropTable: vi.fn().mockResolvedValue(undefined),
     dropColumn: vi.fn().mockResolvedValue(undefined),

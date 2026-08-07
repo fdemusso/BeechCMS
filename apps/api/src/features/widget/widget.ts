@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { deserializeFromDb } from '@beechcms/core'
+import { deserializeFromDb, resolveClassification } from '@beechcms/core'
 import type { AggregateFormula, TimeWindow, WidgetWindow } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 
@@ -136,7 +136,31 @@ widgetApp.get('/leaderboard/:seed', async (context) => {
     const entries = await context
       .get('widgetRepository')
       .leaderboard(seed, { scoreColumn, limit, orderDirection })
-    return context.json(entries)
+
+    const privacyService = context.get('privacyService')
+    const displayBranch = seed.branches.find(b => b.alias === seed.displayNameAlias)
+    const displayResolved = displayBranch ? resolveClassification(displayBranch) : null
+
+    const processedEntries = await Promise.all(
+      entries.map(async (entry) => {
+        let label = entry.label
+        if (
+          displayResolved?.storage === 'encrypt' &&
+          privacyService &&
+          typeof label === 'string' &&
+          label !== ''
+        ) {
+          try {
+            label = await privacyService.decrypt(label)
+          } catch {
+            // retain raw label if decryption fails
+          }
+        }
+        return { ...entry, label }
+      })
+    )
+
+    return context.json(processedEntries)
   } catch (error) {
     if (isUnsafeColumnError(error)) return context.json(problem(400, 'Bad Request', 'Invalid column reference'), 400)
     console.error('[widget/leaderboard] DB error:', error)
@@ -180,21 +204,37 @@ widgetApp.get('/list/:seed', async (context) => {
       orderDirection,
     })
 
-    const deserializedEntries = entries.map(row => {
-      const data: Record<string, unknown> = Object.create(null)
-      for (const branch of seed.branches) {
-        const rawValue = Object.hasOwn(row, branch.alias) ? row[branch.alias] : null
-        data[branch.alias] = deserializeFromDb(branch, rawValue ?? null)
-      }
-      return {
-        id: row.id as string,
-        slug: (row.slug as string | null) ?? '',
-        status: row.status as string,
-        createdAt: (row.created_at as number) ?? 0,
-        updatedAt: (row.updated_at as number) ?? 0,
-        ...data,
-      }
-    })
+    const privacyService = context.get('privacyService')
+    const deserializedEntries = await Promise.all(
+      entries.map(async row => {
+        const data: Record<string, unknown> = Object.create(null)
+        for (const branch of seed.branches) {
+          let rawValue = Object.hasOwn(row, branch.alias) ? row[branch.alias] : null
+          const resolved = resolveClassification(branch)
+          if (
+            resolved.storage === 'encrypt' &&
+            privacyService &&
+            typeof rawValue === 'string' &&
+            rawValue !== ''
+          ) {
+            try {
+              rawValue = await privacyService.decrypt(rawValue)
+            } catch {
+              // retain raw value if decryption fails
+            }
+          }
+          data[branch.alias] = deserializeFromDb(branch, rawValue ?? null)
+        }
+        return {
+          id: row.id as string,
+          slug: (row.slug as string | null) ?? '',
+          status: row.status as string,
+          createdAt: (row.created_at as number) ?? 0,
+          updatedAt: (row.updated_at as number) ?? 0,
+          ...data,
+        }
+      })
+    )
 
     return context.json({ entries: deserializedEntries, total: totalCount })
   } catch (error) {

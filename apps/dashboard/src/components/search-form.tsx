@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { Search } from "lucide-react"
+import { Search } from 'reicon-react'
 
 import { Label } from "@/components/ui/label"
 import { SidebarInput } from "@/components/ui/sidebar"

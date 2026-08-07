@@ -15,7 +15,7 @@ vi.mock('@upstash/qstash', () => ({
 }))
 
 function buildApp(create = vi.fn().mockResolvedValue(undefined)) {
-  const app = new Hono()
+  const app = new Hono<any>()
   app.use('*', async (context, next) => {
     context.set('notificationRepository', { create })
     await next()

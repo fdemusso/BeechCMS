@@ -1,12 +1,10 @@
+import type { IconComponent } from '@/lib/icon-registry'
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import * as LucideIcons from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { Box } from 'lucide-react'
-
+import { Box } from 'reicon-react'
 import {
   Dialog,
   DialogContent,
@@ -15,11 +13,11 @@ import {
 } from '@/components/ui/dialog'
 import { listWidgetDefinitions } from '../registry/widget-registry'
 import type { WidgetDefinition } from '../registry/widget-definition'
+import { resolveIcon as resolveRegistryIcon } from '@/lib/icon-registry'
 
-function resolveIcon(name: string | undefined): LucideIcon {
+function resolveIcon(name: string | undefined): IconComponent {
   if (!name) return Box
-  const icon = (LucideIcons as unknown as Record<string, LucideIcon>)[name]
-  return icon ?? Box
+  return resolveRegistryIcon(name) ?? Box
 }
 
 export interface WidgetPickerDialogProps {

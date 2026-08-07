@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import React from "react"
-import { LineChart } from "lucide-react"
+import { ChartLine as LineChart } from 'reicon-react'
 
 vi.mock("@/lib/api", () => ({
   api: { get: vi.fn(), put: vi.fn(), post: vi.fn(), delete: vi.fn() },

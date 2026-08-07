@@ -3,13 +3,13 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from 'react-i18next'
-import { Loader2 } from 'lucide-react'
+import { Loader as Loader2 } from 'reicon-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { LanguageSelect } from '@/components/ui/language-select'
 import { TimezoneSelect } from '@/components/ui/timezone-select'
 import { CurrencySelect } from '@/components/ui/currency-select'
 import { useGeneralTabLogic } from '../hooks/use-general-tab'
@@ -42,20 +42,17 @@ export function GeneralTab() {
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="defaultLanguage">{t('settings.general.languageLabel')}</Label>
-                  <Select value={state.defaultLanguage} onValueChange={actions.setDefaultLanguage}>
-                    <SelectTrigger id="defaultLanguage" className="w-full">
-                      <SelectValue placeholder={t('settings.general.languagePlaceholder')} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="it">Italiano</SelectItem>
-                      <SelectItem value="en">English</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <LanguageSelect
+                    id="defaultLanguage"
+                    value={state.defaultLanguage}
+                    onValueChange={actions.setDefaultLanguage}
+                  />
                 </div>
 
-                <div className="space-y-2 flex flex-col justify-end">
-                  <Label className="mb-1.5">{t('settings.general.timezoneLabel')}</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="timezone">{t('settings.general.timezoneLabel')}</Label>
                   <TimezoneSelect 
+                    id="timezone"
                     value={state.timezone} 
                     onValueChange={actions.setTimezone} 
                   />
@@ -64,6 +61,7 @@ export function GeneralTab() {
                 <div className="space-y-2">
                   <Label htmlFor="currency">{t('settings.general.currencyLabel')}</Label>
                   <CurrencySelect 
+                    id="currency"
                     value={state.currency} 
                     onValueChange={actions.setCurrency} 
                   />

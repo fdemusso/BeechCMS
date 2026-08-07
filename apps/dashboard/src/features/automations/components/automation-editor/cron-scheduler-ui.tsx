@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useFormContext } from 'react-hook-form'
-import { Clock, Sun, Calendar, CalendarDays, Terminal } from 'lucide-react'
+import { Clock, Sun, Calendar, CalendarDays, Code as Terminal } from 'reicon-react'
 import { Input } from '@/components/ui/input'
 import {
   Select,

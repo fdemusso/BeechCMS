@@ -6,7 +6,7 @@
 
 import { useCallback } from "react"
 import { useTranslation } from "react-i18next"
-import { Bell, EyeOff, Trash2 } from "lucide-react"
+import { Bell, EyeOff, Trash2 } from 'reicon-react'
 
 import { Button } from "@/components/ui/button"
 import {

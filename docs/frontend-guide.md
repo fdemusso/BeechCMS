@@ -1045,7 +1045,7 @@ registerWidget<MyWidgetConfig>({
 
 Admin-only (`canEditDashboard(user?.role)` from `@beechcms/core`, `'admin'` only) drag-and-drop editor for the `DashboardLayout`. Lives in `apps/dashboard/src/features/dashboard/builder/`, exported via that folder's `index.ts` and re-exported from `features/dashboard/index.ts`.
 
-**Entry point** — `dashboard-page.tsx` shows a "Customize" button (`Settings2` icon) next to the welcome header when `canEdit` is true; clicking it opens `<DashboardBuilderDialog open={...} onOpenChange={...} initialLayout={layout} />` as a full-screen `Dialog`.
+**Entry point** — `dashboard-page.tsx` shows a "Customize" button (`Settings` icon) next to the welcome header when `canEdit` is true; clicking it opens `<DashboardBuilderDialog open={...} onOpenChange={...} initialLayout={layout} />` as a full-screen `Dialog`.
 
 **State — `useDashboardBuilder({ initialLayout })`:**
 

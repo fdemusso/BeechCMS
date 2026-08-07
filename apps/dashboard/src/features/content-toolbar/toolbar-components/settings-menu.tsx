@@ -22,21 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import {
-  Settings,
-  Filter,
-  ArrowUpDown,
-  Rows3,
-  Palette,
-  Eye,
-  EyeOff,
-  Rows2,
-  AlignJustify,
-  Minus,
-  Plus,
-  Check,
-  LayoutGrid,
-} from "lucide-react"
+import { Settings, Filter, SortV as ArrowUpDown, RowVertical as Rows3, Palette, Eye, EyeOff, RowVertical as Rows2, AlignLeft as AlignJustify, Minus, Plus, Check, Grid as LayoutGrid } from 'reicon-react'
 import { resolveKanbanColumns } from "@beechcms/core"
 
 import type { VisibilityState } from "@tanstack/react-table"

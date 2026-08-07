@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from 'react-i18next'
-import { Zap } from 'lucide-react'
+import { Flash as Zap } from 'reicon-react'
 import { Button } from '@/components/ui/button'
 
 interface AutomationEmptyStateProps {

@@ -1,3 +1,4 @@
+import type { IconComponent } from '@/lib/icon-registry'
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
@@ -5,7 +6,7 @@
 "use client"
 
 import { useRef } from "react"
-import { ChevronRight, type LucideIcon } from "lucide-react"
+import { ChevronRight } from 'reicon-react'
 import { Link, useLocation } from "react-router-dom"
 
 import { cn } from "@/lib/utils"
@@ -34,7 +35,7 @@ type NavMainSubItem = {
 type NavMainItem = {
   readonly title: string
   readonly url: string
-  readonly icon: LucideIcon
+  readonly icon: IconComponent
   readonly isActive?: boolean
   readonly items?: ReadonlyArray<NavMainSubItem>
 }

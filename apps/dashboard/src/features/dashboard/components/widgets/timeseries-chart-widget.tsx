@@ -1,10 +1,11 @@
+import type { IconComponent } from '@/lib/icon-registry'
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 import { lazy, Suspense, useState } from "react"
 import { useTranslation } from "react-i18next"
-import type { LucideIcon } from "lucide-react"
+
 import type { AggregateFormula, TimeWindow, WidgetWindow, TimeseriesPoint } from "@beechcms/core"
 import type { ChartConfig } from "@/components/ui/chart"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -28,7 +29,7 @@ export interface TimeseriesChartWidgetProps {
   config: TimeseriesChartConfig
   kind: TimeseriesChartKind
   title: string
-  icon: LucideIcon
+  icon: IconComponent
 }
 
 const RechartsTimeseriesChart = lazy(() => import("./timeseries-chart-recharts"))

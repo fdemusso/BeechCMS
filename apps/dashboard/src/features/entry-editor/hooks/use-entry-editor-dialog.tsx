@@ -26,7 +26,7 @@ import {
 } from "@/features/content-management"
 import { useActiveSeed } from "@/features/shared"
 import { useAuth } from "@/lib/auth-context"
-import { Loader2 } from "lucide-react"
+import { Loader as Loader2 } from 'reicon-react'
 import type { RendererBranchMap } from "../renderer/layout-renderer"
 import type { SchemaFormCapabilities, SchemaFormViewModel } from "../renderer/schema-form-view-model"
 

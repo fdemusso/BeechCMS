@@ -16,7 +16,7 @@ export interface CommandAction {
   id: string
   label: string
   description?: string
-  icon: React.ComponentType<{ className?: string }> // LucideIcon compatible
+  icon: React.ComponentType<{ className?: string }> // IconComponent compatible
   keywords?: string[]
   shortcut?: string       // lettera singola: "N", "F"
   onSelect: () => void

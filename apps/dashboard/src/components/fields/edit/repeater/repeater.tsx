@@ -12,7 +12,7 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core"
 import { SortableContext, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable"
-import { Plus } from "lucide-react"
+import { Plus } from 'reicon-react'
 import type { Branch, Seed } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import type { FieldEditProps } from "../../types"

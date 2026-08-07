@@ -1,8 +1,7 @@
+import type { IconComponent } from '@/lib/icon-registry'
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
-
-import type { LucideIcon } from "lucide-react"
 
 /**
  * Tipo di filtro per le notifiche.
@@ -25,7 +24,7 @@ export interface Notification {
   id: string
   title: string
   description: string
-  icon: LucideIcon
+  icon: IconComponent
   isNew: boolean
   createdAt: Date
 }

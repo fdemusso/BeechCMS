@@ -4,7 +4,7 @@
 
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Minus, Plus } from "lucide-react"
+import { Minus, Plus } from 'reicon-react'
 import type { FieldEditProps } from "../../types"
 import { useNumberStepper } from "./use-number-stepper"
 

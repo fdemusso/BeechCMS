@@ -9,8 +9,8 @@ function makeMockDb(opts: { firstResult?: unknown } = {}) {
   const { firstResult = null } = opts
   const runMock = vi.fn().mockResolvedValue({ success: true })
   const firstMock = vi.fn().mockResolvedValue(firstResult)
-  const bindMock = vi.fn(() => ({ run: runMock, first: firstMock }))
-  const prepareMock = vi.fn(() => ({ bind: bindMock }))
+  const bindMock = vi.fn<(...args: any[]) => any>(() => ({ run: runMock, first: firstMock }))
+  const prepareMock = vi.fn<(...args: any[]) => any>(() => ({ bind: bindMock }))
   return { db: { prepare: prepareMock } as any, prepareMock, bindMock, runMock }
 }
 
@@ -53,7 +53,7 @@ describe('D1IdempotencyRepository', () => {
       await new D1IdempotencyRepository(db).store({
         key: 'idem-1', fingerprint: 'fp', responseStatus: 201, responseBody: '{}', expiresAt: 9999,
       })
-      const sql = prepareMock.mock.calls[0][0] as string
+      const sql = (prepareMock.mock.calls[0] as any[])[0] as string
       expect(sql).toContain('INSERT INTO public_idempotency_keys')
       expect(sql).toContain('ON CONFLICT')
     })

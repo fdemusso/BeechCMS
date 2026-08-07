@@ -4,7 +4,7 @@
 
 import { useTranslation } from 'react-i18next'
 import { useFormContext } from 'react-hook-form'
-import { X, ChevronUp, ChevronDown } from 'lucide-react'
+import { X, ChevronUp, ChevronDown } from 'reicon-react'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import type { Branch } from '@beechcms/core'

@@ -7,7 +7,7 @@ import { useNavigate, Link } from "react-router-dom"
 import { formatDistanceToNow } from "date-fns"
 import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import type { ColumnDef, SortingState, VisibilityState } from "@tanstack/react-table"
-import { MoreHorizontal } from "lucide-react"
+import { More as MoreHorizontal } from 'reicon-react'
 import { toast } from "sonner"
 import type { Seed } from "@beechcms/core"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -104,7 +104,7 @@ function TitleCell({ row }: Readonly<{ row: { original: DraftSummary } }>) {
     <Link
       to={`/content/${row.original.seedSlug}/${row.original.id}`}
       state={{ isDraftContext: true }}
-      className="font-medium hover:underline text-foreground decoration-primary/30"
+      className="font-medium hover:opacity-80 transition-opacity text-foreground"
     >
       {row.original.title}
     </Link>

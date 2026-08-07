@@ -4,7 +4,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { PlusCircle, ImageIcon, Settings, LayoutGrid } from "lucide-react"
+import { PlusCircle, Image as ImageIcon, Settings, Grid as LayoutGrid } from 'reicon-react'
 
 interface QuickActionsProps {
   onAction: (action: string) => void

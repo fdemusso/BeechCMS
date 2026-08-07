@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
-import { Check, ChevronsUpDown, X } from "lucide-react"
+import { Check, SortV as ChevronsUpDown, X } from 'reicon-react'
 
 import { useFieldsConfig } from "../../context"
 import { useDebounce } from "@/hooks/use-debounce"

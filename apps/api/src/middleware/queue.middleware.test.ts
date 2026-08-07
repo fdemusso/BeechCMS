@@ -51,14 +51,14 @@ describe('queueMiddleware', () => {
   it('creates CloudflareQueueService when QUEUE binding is present', async () => {
     const app = makeApp()
     const env = { QUEUE: { send: vi.fn().mockResolvedValue(undefined) } }
-    const res = await app.request('/test', undefined, env, executionCtx)
+    const res = await app.request('/test', undefined, env, executionCtx as unknown as ExecutionContext)
     const body = (await res.json()) as any
     expect(body.type).toBe('CloudflareQueueService')
   })
 
   it('falls back to InMemoryQueueService when QUEUE binding is absent', async () => {
     const app = makeApp()
-    const res = await app.request('/test', undefined, {}, executionCtx)
+    const res = await app.request('/test', undefined, {}, executionCtx as unknown as ExecutionContext)
     const body = (await res.json()) as any
     expect(body.type).toBe('InMemoryQueueService')
   })

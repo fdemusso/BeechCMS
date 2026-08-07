@@ -1,6 +1,6 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Check, ChevronsUpDown } from 'lucide-react'
+import { Check, SortV as ChevronsUpDown } from 'reicon-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
@@ -10,9 +10,10 @@ import { TIMEZONES, getTimezoneLabel } from '@/components/ui/timezone-utils'
 interface TimezoneSelectProps {
   value: string
   onValueChange: (value: string) => void
+  id?: string
 }
 
-export function TimezoneSelect({ value, onValueChange }: TimezoneSelectProps) {
+export function TimezoneSelect({ value, onValueChange, id }: TimezoneSelectProps) {
   const { t } = useTranslation()
   const [open, setOpen] = React.useState(false)
   const listRef = React.useRef<HTMLDivElement>(null)
@@ -22,16 +23,17 @@ export function TimezoneSelect({ value, onValueChange }: TimezoneSelectProps) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           role="combobox"
           aria-expanded={open}
           aria-controls={popoverId}
-          className="w-full justify-between font-normal h-9 border-input bg-transparent text-sm"
+          className="w-full justify-between font-normal h-8 border-input bg-transparent text-sm dark:bg-input/30"
         >
           <span className="truncate">
             {value ? getTimezoneLabel(value) : t('setup.timezonePlaceholder')}
           </span>
-          <ChevronsUpDown className="opacity-50 size-4 shrink-0" />
+          <ChevronsUpDown className="pointer-events-none size-4 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
       <PopoverContent id={popoverId} className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
