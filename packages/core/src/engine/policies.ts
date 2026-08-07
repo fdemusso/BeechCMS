@@ -102,17 +102,22 @@ export function resolveClassification(branch: Branch): ResolvedClassification {
 export function resolvePolicies(branch: Branch): Required<NonNullable<Branch['policies']>> {
   const resolved = resolveClassification(branch)
   const isRepeater = branch.type === 'repeater'
+  const isEncryptedOrHashed = resolved.storage !== 'plain'
 
   const defaultVisibility = resolved.publicVisibility === 'hidden' ? 'hidden' : 'full'
   const isPublicAllowed = branch.policies?.public ?? (resolved.publicVisibility === 'full')
+
+  const defaultFilter = isRepeater || resolved.storage === 'hash' ? false : branch.policies?.filter ?? true
+  const defaultSort = isRepeater || isEncryptedOrHashed ? false : branch.policies?.sort ?? true
+  const defaultSearch = isRepeater || isEncryptedOrHashed ? false : branch.policies?.search ?? true
 
   return {
     classification: resolved.classification,
     privacy: resolved.storage,
     visibility: branch.policies?.visibility ?? defaultVisibility,
-    search: isRepeater ? false : branch.policies?.search ?? true,
-    filter: isRepeater ? false : branch.policies?.filter ?? true,
-    sort: isRepeater ? false : branch.policies?.sort ?? true,
+    search: defaultSearch,
+    filter: defaultFilter,
+    sort: defaultSort,
     public: isPublicAllowed,
   }
 }

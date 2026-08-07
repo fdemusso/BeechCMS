@@ -74,14 +74,14 @@ describe('resolvePolicies', () => {
     })
   })
 
-  it('privacy: hash defaults visibility to hidden and public to false', () => {
+  it('privacy: hash defaults visibility to hidden, public to false, sort to false, and search to false', () => {
     const result = resolvePolicies({ ...baseBranch, policies: { privacy: 'hash' } })
     expect(result.classification).toBe('restricted')
     expect(result.privacy).toBe('hash')
     expect(result.visibility).toBe('hidden')
-    expect(result.search).toBe(true)
-    expect(result.filter).toBe(true)
-    expect(result.sort).toBe(true)
+    expect(result.search).toBe(false)
+    expect(result.filter).toBe(false)
+    expect(result.sort).toBe(false)
     expect(result.public).toBe(false)
   })
 
@@ -134,8 +134,8 @@ describe('resolvePolicies', () => {
     expect(result.privacy).toBe('hash')
     expect(result.visibility).toBe('hidden')
     expect(result.search).toBe(false)
-    expect(result.filter).toBe(true)
-    expect(result.sort).toBe(true)
+    expect(result.filter).toBe(false)
+    expect(result.sort).toBe(false)
     expect(result.public).toBe(false)
   })
 
@@ -144,10 +144,13 @@ describe('resolvePolicies', () => {
     expect(result.visibility).toBe('hidden')
   })
 
-  it('privacy: encrypt defaults visibility to hidden', () => {
+  it('privacy: encrypt / confidential defaults visibility to hidden, sort to false, and search to false', () => {
     const result = resolvePolicies({ ...baseBranch, policies: { privacy: 'encrypt' } })
     expect(result.privacy).toBe('encrypt')
     expect(result.visibility).toBe('hidden')
+    expect(result.sort).toBe(false)
+    expect(result.search).toBe(false)
+    expect(result.filter).toBe(true)
   })
 })
 
