@@ -16,7 +16,12 @@ class PrivacyPolicyError extends Error {
 
 export { PrivacyPolicyError }
 
-/** Applica la privacy policy ai campi del payload prima della scrittura su DB. */
+/**
+ * Applies privacy transformation rules to payload fields before database insertion/update.
+ * @param data - Raw record fields object.
+ * @param seed - Seed definition containing field policy definitions.
+ * @returns A Promise resolving to the transformed data payload.
+ */
 export async function applyPrivacy(
   data: Record<string, unknown>,
   seed: Seed,
@@ -44,7 +49,15 @@ export async function applyPrivacy(
   return result
 }
 
-/** Applica la visibility policy ai campi del payload in uscita verso il client. */
+/**
+ * Applies visibility policy and context-aware field filtering to outgoing API payloads.
+ * Delegates to {@link filterEntryForActor} using the supplied {@link ActorContext}.
+ *
+ * @param data - Raw record data object from repository.
+ * @param seed - Content type seed definition.
+ * @param actor - Context of the caller (defaults to authenticated).
+ * @returns Filtered data record containing only authorized fields for the actor.
+ */
 export function applyVisibility(
   data: Record<string, unknown>,
   seed: Seed,
@@ -53,4 +66,5 @@ export function applyVisibility(
   const resolvedActor = actor ?? { type: 'authenticated' }
   return filterEntryForActor(data, seed, resolvedActor)
 }
+
 
