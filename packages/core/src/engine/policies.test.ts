@@ -144,10 +144,10 @@ describe('resolvePolicies', () => {
     expect(result.visibility).toBe('hidden')
   })
 
-  it('privacy: encrypt / confidential defaults visibility to hidden, sort to false, and search to false', () => {
+  it('privacy: encrypt / confidential defaults visibility to full for authenticated context, sort to false, and search to false', () => {
     const result = resolvePolicies({ ...baseBranch, policies: { privacy: 'encrypt' } })
     expect(result.privacy).toBe('encrypt')
-    expect(result.visibility).toBe('hidden')
+    expect(result.visibility).toBe('full')
     expect(result.sort).toBe(false)
     expect(result.search).toBe(false)
     expect(result.filter).toBe(true)

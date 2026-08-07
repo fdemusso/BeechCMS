@@ -104,7 +104,7 @@ export function resolvePolicies(branch: Branch): Required<NonNullable<Branch['po
   const isRepeater = branch.type === 'repeater'
   const isEncryptedOrHashed = resolved.storage !== 'plain'
 
-  const defaultVisibility = resolved.publicVisibility === 'hidden' ? 'hidden' : 'full'
+  const defaultVisibility = resolved.authVisibility
   const isPublicAllowed = branch.policies?.public ?? (resolved.publicVisibility === 'full')
 
   const defaultFilter = isRepeater || resolved.storage === 'hash' ? false : branch.policies?.filter ?? true
