@@ -138,10 +138,14 @@ export class PrivacyService implements IPrivacyService {
 
   /**
    * Decrypts a `v1:<iv_base64>:<ciphertext_base64>` string back to its plaintext value.
+   * If the input string is not prefixed with `v1:`, returns the raw string as unencrypted legacy data.
    */
   async decrypt(ciphertext: string): Promise<string> {
+    if (!ciphertext || !ciphertext.startsWith('v1:')) {
+      return ciphertext
+    }
     const parts = ciphertext.split(':')
-    if (parts.length !== 3 || parts[0] !== 'v1') {
+    if (parts.length !== 3) {
       throw new Error('Invalid ciphertext format')
     }
     const [, ivBase64, cipherBase64] = parts
