@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import type { Seed } from "@beechcms/core"
-import { Pencil } from "lucide-react"
+import { Edit as Pencil } from 'reicon-react'
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"

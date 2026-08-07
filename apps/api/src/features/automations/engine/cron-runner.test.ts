@@ -34,6 +34,7 @@ const SEED: Seed = {
 
 const STUB_ID_GENERATOR: IIdGenerator = {
   uuid: () => 'test-uuid',
+  isValid: (v: unknown): v is string => typeof v === 'string',
 }
 
 function makeAutomation(overrides: Partial<Automation> = {}): Automation {

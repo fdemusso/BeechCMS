@@ -5,7 +5,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { MoreHorizontal, Pencil, Plus } from 'lucide-react'
+import { More as MoreHorizontal, Edit as Pencil, Plus } from 'reicon-react'
 import type { DashboardPageLayout } from '@beechcms/core'
 
 import { Button } from '@/components/ui/button'

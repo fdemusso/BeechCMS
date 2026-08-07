@@ -167,7 +167,7 @@ function SingleRelation({ targetSlug, id, labelAlias, onClick }: SingleRelationP
           event.stopPropagation()
           onClick(id)
         }}
-        className="text-foreground hover:underline truncate cursor-pointer text-left bg-transparent border-0 p-0 text-sm"
+        className="text-foreground hover:opacity-80 transition-opacity truncate cursor-pointer text-left bg-transparent border-0 p-0 text-sm"
       >
         {label}
       </button>

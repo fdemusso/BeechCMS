@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
-import { Check, Plus, X } from "lucide-react"
+import { Check, Plus, X } from 'reicon-react'
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {

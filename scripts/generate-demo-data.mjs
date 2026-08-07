@@ -45,7 +45,7 @@ const companyDomains = [
 
 const now = new Date()
 const DAY_MS = 24 * 60 * 60 * 1000
-const DAYS_BACK = 180
+const DAYS_BACK = 30
 const rangeStart = new Date(now.getTime() - DAYS_BACK * DAY_MS)
 
 function escapeSql(str) {
@@ -67,7 +67,8 @@ function growthCount(d, base, growth, jitter = 0.6) {
 
 function timestampOnDay(d) {
   const dayStart = rangeStart.getTime() + d * DAY_MS
-  return Math.floor((dayStart + Math.random() * DAY_MS) / 1000)
+  const ts = Math.floor((dayStart + Math.random() * DAY_MS) / 1000)
+  return Math.min(ts, Math.floor(now.getTime() / 1000) - 1)
 }
 
 // ── CUSTOMERS ────────────────────────────────────────────────────────────────
@@ -78,7 +79,7 @@ const customers = []
 const usedSlugs = new Set()
 
 for (let d = 0; d < DAYS_BACK; d++) {
-  const signups = growthCount(d, 0.4, 2.6)
+  const signups = growthCount(d, 1, 5)
   for (let n = 0; n < signups; n++) {
     const id = uuid()
     const first = randomItem(firstNames)
@@ -133,10 +134,9 @@ for (const customer of customers) {
     const payment_status = customer.account_status === 'churned'
       ? 'canceled'
       : (Math.random() > 0.06 ? 'active' : 'past_due')
-    const created_at = Math.min(
-      customer.created_at + offsetDays * 86400 + randomInt(0, 86399),
-      Math.floor(now.getTime() / 1000) - 1,
-    )
+    const nowSec = Math.floor(now.getTime() / 1000)
+    const baseTs = customer.created_at + offsetDays * 86400 + randomInt(0, 3600 * 4)
+    const created_at = Math.min(Math.max(baseTs, customer.created_at), nowSec - 1)
     subscriptions.push({
       id, slug: `sub-${subCounter}`, status: 'published',
       customer_id: customer.id, amount, billing_cycle: cycle, payment_status, created_at,
@@ -144,12 +144,12 @@ for (const customer of customers) {
     subCounter += 1
   }
 
-  // Initial subscription, within the first couple of weeks after signup.
-  makeSub(randomInt(0, 13))
+  // Initial subscription, within the first couple of days after signup.
+  makeSub(randomInt(0, 2))
 
-  // ~45% of customers add a second subscription (upsell/renewal) later on.
+  // ~45% of customers add a second subscription (upsell/renewal) 3 to 8 days later.
   if (Math.random() < 0.45) {
-    makeSub(randomInt(30, 120))
+    makeSub(randomInt(3, 8))
   }
 }
 
@@ -190,14 +190,18 @@ const ticketTitlesByCategory = {
 // — so "Ticket Aperti" / "Ticket Chiusi" stats reflect a realistic backlog.
 let ticketCounter = 1
 for (let d = 0; d < DAYS_BACK; d++) {
-  const opened = growthCount(d, 0.3, 1.3)
+  const opened = growthCount(d, 0.4, 2)
   for (let n = 0; n < opened; n++) {
-    const customer = randomItem(customers)
+    const rawTicketTs = timestampOnDay(d)
+    const eligibleCustomers = customers.filter(c => c.created_at <= rawTicketTs)
+    const customer = eligibleCustomers.length > 0 ? randomItem(eligibleCustomers) : randomItem(customers)
+    const nowSec = Math.floor(now.getTime() / 1000)
+    const created_at = Math.min(Math.max(rawTicketTs, customer.created_at + randomInt(60, 1800)), nowSec - 1)
+
     const id = uuid()
     const cat = randomItem(ticketCategories)
     const title = randomItem(ticketTitlesByCategory[cat])
     const priority = randomItem(['low', 'low', 'medium', 'medium', 'medium', 'high'])
-    const created_at = timestampOnDay(d)
 
     const recency = d / (DAYS_BACK - 1) // 0 = oldest, 1 = newest
     const closedChance = 0.85 - recency * 0.55 // ~85% closed when old, ~30% when recent
@@ -216,17 +220,17 @@ for (let d = 0; d < DAYS_BACK; d++) {
 // ── CHANGELOG ────────────────────────────────────────────────────────────────
 
 const changelogEntries = [
-  { version: 'v1.0.0', daysAgo: 360, features: '<p>Lancio ufficiale della piattaforma con gestione clienti base.</p>' },
-  { version: 'v1.1.0', daysAgo: 330, features: '<p>Aggiunti report avanzati e export in CSV.</p>' },
-  { version: 'v1.2.0', daysAgo: 300, features: '<p>Integrazione con Slack per notifiche ticket.</p>' },
-  { version: 'v1.3.0', daysAgo: 260, features: '<p>Nuovo sistema di tagging per i ticket e filtri avanzati nella dashboard.</p>' },
-  { version: 'v1.4.0', daysAgo: 220, features: '<h2>Performance</h2><p>Tempi di risposta delle API ridotti del 40% grazie alla cache edge.</p>' },
-  { version: 'v1.5.0', daysAgo: 180, features: '<p>Aggiunto supporto per fatturazione annuale e sconti automatici.</p>' },
-  { version: 'v1.6.0', daysAgo: 140, features: '<h2>Novità</h2><p>Dashboard widget personalizzabili e drag-and-drop per i layout.</p>' },
-  { version: 'v1.7.0', daysAgo: 100, features: '<p>Nuove notifiche email per ticket ad alta priorità e SLA configurabili.</p>' },
-  { version: 'v2.0.0', daysAgo: 60, features: '<h2>Major Update</h2><p>Nuova dashboard amministrativa e API pubbliche.</p>' },
-  { version: 'v2.1.0', daysAgo: 25, features: '<p>Miglioramenti alla ricerca full-text e correzione di vari bug minori di sincronizzazione.</p>' },
-  { version: 'v2.2.0', daysAgo: 5, features: '<h2>Sicurezza</h2><p>Rotazione automatica delle API key e audit log per le modifiche di sistema.</p>' },
+  { version: 'v1.0.0', daysAgo: 29, features: '<p>Lancio ufficiale della piattaforma con gestione clienti base.</p>' },
+  { version: 'v1.1.0', daysAgo: 26, features: '<p>Aggiunti report avanzati e export in CSV.</p>' },
+  { version: 'v1.2.0', daysAgo: 23, features: '<p>Integrazione con Slack per notifiche ticket.</p>' },
+  { version: 'v1.3.0', daysAgo: 20, features: '<p>Nuovo sistema di tagging per i ticket e filtri avanzati nella dashboard.</p>' },
+  { version: 'v1.4.0', daysAgo: 17, features: '<h2>Performance</h2><p>Tempi di risposta delle API ridotti del 40% grazie alla cache edge.</p>' },
+  { version: 'v1.5.0', daysAgo: 14, features: '<p>Aggiunto supporto per fatturazione annuale e sconti automatici.</p>' },
+  { version: 'v1.6.0', daysAgo: 11, features: '<h2>Novità</h2><p>Dashboard widget personalizzabili e drag-and-drop per i layout.</p>' },
+  { version: 'v1.7.0', daysAgo: 8, features: '<p>Nuove notifiche email per ticket ad alta priorità e SLA configurabili.</p>' },
+  { version: 'v2.0.0', daysAgo: 5, features: '<h2>Major Update</h2><p>Nuova dashboard amministrativa e API pubbliche.</p>' },
+  { version: 'v2.1.0', daysAgo: 3, features: '<p>Miglioramenti alla ricerca full-text e correzione di vari bug minori di sincronizzazione.</p>' },
+  { version: 'v2.2.0', daysAgo: 1, features: '<h2>Sicurezza</h2><p>Rotazione automatica delle API key e audit log per le modifiche di sistema.</p>' },
 ]
 
 const changelog = changelogEntries.map((c, idx) => {
@@ -251,7 +255,7 @@ const articoliEntries = [
     author: 'Luca Rossi',
     cover_image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
     body: '<p>Analisi delle migliori strategie per mantenere i clienti SaaS nel 2026: onboarding guidato, check-in proattivi e piani di successo personalizzati.</p>',
-    daysAgo: 200,
+    daysAgo: 28,
   },
   {
     slug: 'pricing-saas-freemium-vs-trial',
@@ -259,7 +263,7 @@ const articoliEntries = [
     author: 'Anna Bianchi',
     cover_image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80',
     body: '<p>Cosa scegliere per massimizzare la conversion rate e il Customer Lifetime Value: confronto pratico tra modello freemium e trial a tempo.</p>',
-    daysAgo: 180,
+    daysAgo: 26,
   },
   {
     slug: 'onboarding-clienti-enterprise',
@@ -267,7 +271,7 @@ const articoliEntries = [
     author: 'Marco Verdi',
     cover_image: 'https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=800&q=80',
     body: '<p>I passaggi chiave per accompagnare un nuovo cliente enterprise dal contratto al primo valore percepito, riducendo il time-to-value.</p>',
-    daysAgo: 160,
+    daysAgo: 23,
   },
   {
     slug: 'metriche-saas-da-monitorare',
@@ -275,7 +279,7 @@ const articoliEntries = [
     author: 'Giulia Ferrari',
     cover_image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
     body: '<p>MRR, churn, NRR, CAC, LTV e altro: una guida pratica alle metriche che contano davvero per un business in abbonamento.</p>',
-    daysAgo: 140,
+    daysAgo: 20,
   },
   {
     slug: 'automatizzare-il-supporto-clienti',
@@ -283,7 +287,7 @@ const articoliEntries = [
     author: 'Davide Conti',
     cover_image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&q=80',
     body: '<p>Come usare automazioni e categorizzazione automatica dei ticket per ridurre i tempi di risposta mantenendo un\'esperienza cliente eccellente.</p>',
-    daysAgo: 120,
+    daysAgo: 18,
   },
   {
     slug: 'guida-rinnovi-abbonamento',
@@ -291,7 +295,7 @@ const articoliEntries = [
     author: 'Elena Mariani',
     cover_image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80',
     body: '<p>Strategie di dunning, promemoria automatici e retry intelligenti delle carte per ridurre il tasso di payment_status "past_due".</p>',
-    daysAgo: 100,
+    daysAgo: 15,
   },
   {
     slug: 'segmentazione-clienti-per-piano',
@@ -299,7 +303,7 @@ const articoliEntries = [
     author: 'Luca Rossi',
     cover_image: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&q=80',
     body: '<p>Analizzando i clienti per tier (free, pro, enterprise) emergono pattern utili per le strategie di upsell e prevenzione del churn.</p>',
-    daysAgo: 80,
+    daysAgo: 12,
   },
   {
     slug: 'casi-studio-clienti-enterprise',
@@ -307,7 +311,7 @@ const articoliEntries = [
     author: 'Anna Bianchi',
     cover_image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80',
     body: '<p>Tre storie reali di aziende che hanno aumentato il proprio MRR del 30% in sei mesi grazie a un percorso di adozione guidato.</p>',
-    daysAgo: 60,
+    daysAgo: 9,
   },
   {
     slug: 'priorita-ticket-best-practice',
@@ -315,7 +319,7 @@ const articoliEntries = [
     author: 'Marco Verdi',
     cover_image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800&q=80',
     body: '<p>Una matrice semplice per assegnare priorità low, medium e high ai ticket in base a impatto e urgenza, con esempi pratici.</p>',
-    daysAgo: 40,
+    daysAgo: 6,
   },
   {
     slug: 'roadmap-prodotto-2026',
@@ -323,7 +327,7 @@ const articoliEntries = [
     author: 'Giulia Ferrari',
     cover_image: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80',
     body: '<p>Le novità in arrivo: dashboard personalizzabili, nuove integrazioni e miglioramenti alla ricerca full-text.</p>',
-    daysAgo: 20,
+    daysAgo: 4,
   },
   {
     slug: 'security-audit-log-novita',
@@ -331,7 +335,7 @@ const articoliEntries = [
     author: 'Davide Conti',
     cover_image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80',
     body: '<p>Con la versione 2.2 introduciamo audit log completi e rotazione automatica delle API key per i clienti enterprise.</p>',
-    daysAgo: 5,
+    daysAgo: 2,
   },
   {
     slug: 'analisi-mrr-trend-annuale',
@@ -339,7 +343,7 @@ const articoliEntries = [
     author: 'Elena Mariani',
     cover_image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
     body: '<p>Un anno di crescita del Monthly Recurring Revenue raccontato attraverso i dati: stagionalità, upgrade e impatto del churn.</p>',
-    daysAgo: 1,
+    daysAgo: 0,
   },
 ]
 

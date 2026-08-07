@@ -4,7 +4,7 @@
 
 import type { SyntheticEvent } from "react"
 import { useTranslation } from "react-i18next"
-import { Search, X } from "lucide-react"
+import { Search, X } from 'reicon-react'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"

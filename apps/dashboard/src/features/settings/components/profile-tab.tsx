@@ -5,7 +5,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Camera, Loader2 } from 'lucide-react'
+import { Camera, Loader as Loader2 } from 'reicon-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -142,7 +142,7 @@ export function ProfileTab() {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-xs text-foreground mt-1 hover:underline"
+                  className="text-xs text-foreground mt-1 hover:opacity-80 transition-opacity"
                 >
                   {t('settings.profile.changePhoto')}
                 </button>

@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from 'react-i18next'
-import { Plus } from 'lucide-react'
+import { Plus } from 'reicon-react'
 import {
   Sheet,
   SheetContent,

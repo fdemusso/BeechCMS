@@ -4,7 +4,7 @@
 
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { User, Palette, Shield, HardDrive, Bell, Settings, Layers } from 'lucide-react'
+import { User, Palette, Shield, HardDrive, Bell, Settings, Layers } from 'reicon-react'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { SeedBuilderPage } from '@/features/seed-builder'

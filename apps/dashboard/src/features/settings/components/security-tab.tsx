@@ -5,7 +5,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
-import { Loader2, MonitorSmartphone, Trash2 } from 'lucide-react'
+import { Loader as Loader2, Monitor as MonitorSmartphone, Trash2 } from 'reicon-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'

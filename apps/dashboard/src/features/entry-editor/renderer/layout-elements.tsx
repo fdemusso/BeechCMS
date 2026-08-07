@@ -4,12 +4,29 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { Asterisk, ChevronDown } from "lucide-react"
+import { ChevronDown } from 'reicon-react'
 import type { LayoutSection, LayoutTab, LayoutColumn } from "@beechcms/core"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { FieldEdit } from "@/components/fields"
 import type { RendererBranchMap } from "./layout-renderer"
+
+function Asterisk({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M12 6v12M7.5 9.5l9 5M7.5 14.5l9-5" />
+    </svg>
+  )
+}
 
 /**
  * Returns Tailwind grid column classes based on the number of requested layout columns.

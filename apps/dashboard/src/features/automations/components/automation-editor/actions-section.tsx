@@ -4,7 +4,7 @@
 
 import { useTranslation } from 'react-i18next'
 import { useFormContext, useFieldArray } from 'react-hook-form'
-import { Play } from 'lucide-react'
+import { Play } from 'reicon-react'
 import type { Branch } from '@beechcms/core'
 import { ActionCard } from './action-card'
 import { ActionSelector } from './action-selector'

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import type { UserViewInstance, ViewType } from "../shared";
-import { Table, Plus, LayoutGrid, LayoutList, PieChart } from "lucide-react";
+import { Grid as Table, Plus, Grid as LayoutGrid, List as LayoutList, ChartPie as PieChart } from 'reicon-react';
 
 const VIEW_TYPE_ICONS: Record<
   ViewType,

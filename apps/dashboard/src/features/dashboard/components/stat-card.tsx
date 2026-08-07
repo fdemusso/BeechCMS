@@ -1,15 +1,16 @@
+import type { IconComponent } from '@/lib/icon-registry'
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
 import { cn } from "@/lib/utils"
-import type { LucideIcon } from "lucide-react"
-import { TrendingDown, TrendingUp } from "lucide-react"
+
+import { Chart as TrendingDown, ChartBarTrendUp as TrendingUp } from 'reicon-react'
 
 interface StatCardProps {
   title: string
   value: string | number
-  icon: LucideIcon
+  icon: IconComponent
   description?: string
   timeLabel?: string
   trend?: {

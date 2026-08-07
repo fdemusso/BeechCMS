@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { formatDistanceToNow } from "date-fns"
 import { it as itLocale, enUS, type Locale } from "date-fns/locale"
-import { ClipboardList, Send } from "lucide-react"
+import { ClipboardList, Send } from 'reicon-react'
 import { api } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -136,7 +136,7 @@ export function PendingDraftsWidget({ seedSlug, variant = "list", onPublish, tit
               <div className="flex items-center gap-2 min-w-0">
                 <Link
                   to={`/content/${seedSlug}/${entry.id}`}
-                  className="flex-1 text-sm font-medium truncate hover:underline text-foreground decoration-primary/30 min-w-0"
+                  className="flex-1 text-sm font-medium truncate hover:opacity-80 transition-opacity text-foreground min-w-0"
                 >
                   {entryTitle(entry)}
                 </Link>

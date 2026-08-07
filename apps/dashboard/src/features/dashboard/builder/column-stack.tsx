@@ -3,7 +3,7 @@
 
 import { useTranslation } from 'react-i18next'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { Plus } from 'lucide-react'
+import { Plus } from 'reicon-react'
 import type { DashboardColumn, DashboardPageLayout } from '@beechcms/core'
 
 import { Button } from '@/components/ui/button'

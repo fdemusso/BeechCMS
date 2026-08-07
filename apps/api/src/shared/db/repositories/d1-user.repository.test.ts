@@ -24,9 +24,9 @@ function makeMockDb(opts: {
   const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: runChanges } })
   const firstMock = vi.fn().mockResolvedValue(firstResult)
   const allMock = vi.fn().mockResolvedValue({ results: allResults })
-  const bindMock = vi.fn(() => ({ first: firstMock, all: allMock, run: runMock }))
+  const bindMock = vi.fn<(...args: any[]) => any>(() => ({ first: firstMock, all: allMock, run: runMock }))
   // prepare() may be called without bind() for countAll (which calls .first() directly)
-  const prepareMock = vi.fn(() => ({ bind: bindMock, first: firstMock, run: runMock }))
+  const prepareMock = vi.fn<(...args: any[]) => any>(() => ({ bind: bindMock, first: firstMock, run: runMock }))
   return { db: { prepare: prepareMock } as any, prepareMock, bindMock, runMock, firstMock }
 }
 

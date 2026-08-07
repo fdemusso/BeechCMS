@@ -20,7 +20,7 @@ import {
   useSortable,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Loader2, MoreHorizontal, Pencil } from 'lucide-react'
+import { Plus, Loader as Loader2, More as MoreHorizontal, Edit as Pencil } from 'reicon-react'
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 import type { Seed, FormLayout, Branch } from '@beechcms/core'

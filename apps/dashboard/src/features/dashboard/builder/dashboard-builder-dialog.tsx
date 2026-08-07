@@ -13,7 +13,7 @@ import {
   type DashboardLayout,
 } from '@beechcms/core'
 import { toast } from 'sonner'
-import { Loader2 } from 'lucide-react'
+import { Loader as Loader2 } from 'reicon-react'
 import type { AxiosError } from 'axios'
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'

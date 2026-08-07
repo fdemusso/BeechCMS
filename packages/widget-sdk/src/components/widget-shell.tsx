@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { ReactNode } from 'react'
-import type { LucideIcon } from 'lucide-react'
+import type { ComponentType, ReactNode } from 'react'
 import { cn } from '../lib/cn.js'
 
 export interface WidgetShellProps {
@@ -10,7 +9,7 @@ export interface WidgetShellProps {
   className?: string
   bare?: boolean
   title?: string
-  icon?: LucideIcon
+  icon?: ComponentType<{ className?: string }>
   action?: ReactNode
   contentClassName?: string
 }

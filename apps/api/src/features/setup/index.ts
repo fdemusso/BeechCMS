@@ -206,7 +206,10 @@ setupApp.post('/auth/setup', async (context) => {
   }
 
   if (track === 'developer' && loadDemoData === true) {
-    await context.get('demoDataRepository').loadDemoData()
+    await context.get('demoDataRepository').loadDemoData(
+      context.get('repository'),
+      context.get('getSeed')
+    )
 
     // Inject custom SaaS dashboard layout
     const layout = {

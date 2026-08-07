@@ -1,3 +1,4 @@
+import type { IconComponent } from '@/lib/icon-registry'
 ﻿// SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
@@ -10,8 +11,8 @@ import { useMemo } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
 import { z } from "zod"
-import { FileText, Globe, Zap, Database, LineChart, BarChart3, AreaChart } from "lucide-react"
-import type { LucideIcon } from "lucide-react"
+import { FileText, Globe, Flash as Zap, Database, ChartLine as LineChart, ChartBar as BarChart3, Chart as AreaChart } from 'reicon-react'
+
 import type { Seed } from "@beechcms/core"
 import { useSchema } from "@/features/shared"
 import { registerWidget } from "./widget-registry"
@@ -246,7 +247,7 @@ const timeseriesChartConfigSchema = z.object({
 })
 type TimeseriesChartWidgetConfig = z.infer<typeof timeseriesChartConfigSchema>
 
-function makeTimeseriesChartAdapter(kind: TimeseriesChartKind, labelKey: string, icon: LucideIcon) {
+function makeTimeseriesChartAdapter(kind: TimeseriesChartKind, labelKey: string, icon: IconComponent) {
   return function TimeseriesChartAdapter({ instance, config }: DashboardWidgetProps<TimeseriesChartWidgetConfig>) {
     const { t } = useTranslation()
     return <TimeseriesChartWidget config={config} kind={kind} title={instance.title || t(labelKey)} icon={icon} />

@@ -47,4 +47,34 @@ describe('toFlatPublicEntry', () => {
     const result = toFlatPublicEntry(data, SEED)
     expect(result.name).toBe('Jane')
   })
+
+  it('scrubs internal, confidential, and restricted fields from public entries', () => {
+    const classifiedSeed = {
+      slug: 'users',
+      displayNameAlias: 'username',
+      branches: [
+        { id: 'br_01', alias: 'username', type: 'text', policies: { classification: 'public' } },
+        { id: 'br_02', alias: 'email', type: 'text', policies: { classification: 'internal' } },
+        { id: 'br_03', alias: 'tax_id', type: 'text', policies: { classification: 'confidential' } },
+        { id: 'br_04', alias: 'password_hash', type: 'text', policies: { classification: 'restricted' } },
+      ],
+    } as unknown as Seed
+
+    const data = {
+      id: 'usr_1',
+      slug: 'user-1',
+      username: 'alice',
+      email: 'alice@internal.com',
+      tax_id: 'CONF-TAX-999',
+      password_hash: '$2b$12$restrictedhash',
+    }
+
+    const result = toFlatPublicEntry(data, classifiedSeed)
+    expect(result).toEqual({
+      id: 'usr_1',
+      slug: 'user-1',
+      username: 'alice',
+    })
+  })
 })
+

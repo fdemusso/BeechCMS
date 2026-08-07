@@ -8,8 +8,8 @@ import { D1ActivityLogRepository } from './d1-activity-log.repository'
 function makeMockDb(allResults: unknown[], firstResult: unknown = null) {
   const allMock = vi.fn().mockResolvedValue({ results: allResults })
   const firstMock = vi.fn().mockResolvedValue(firstResult)
-  const bindMock = vi.fn(() => ({ all: allMock, first: firstMock }))
-  const prepareMock = vi.fn(() => ({ bind: bindMock }))
+  const bindMock = vi.fn<(...args: any[]) => any>(() => ({ all: allMock, first: firstMock }))
+  const prepareMock = vi.fn<(...args: any[]) => any>(() => ({ bind: bindMock }))
   return { db: { prepare: prepareMock } as any, prepareMock, bindMock, allMock, firstMock }
 }
 

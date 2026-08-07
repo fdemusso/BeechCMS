@@ -7,7 +7,7 @@ import { useContentBreakdown } from "../hooks/use-dashboard-stats"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Activity, LayoutGrid } from "lucide-react"
+import { Activity, Grid as LayoutGrid } from 'reicon-react'
 import { Link } from "react-router-dom"
 
 export function ContentPulse() {
@@ -57,7 +57,7 @@ export function ContentPulse() {
                     <div className="flex items-center justify-between text-xs">
                       <Link 
                         to={`/content/${item.slug}`} 
-                        className="font-medium text-foreground hover:underline transition-colors"
+                        className="font-medium text-foreground hover:opacity-80 transition-colors"
                       >
                         {item.label}
                       </Link>

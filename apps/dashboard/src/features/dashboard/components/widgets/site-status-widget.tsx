@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { Wifi, WifiOff } from "lucide-react"
+import { Wifi, WifiOff } from 'reicon-react'
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "@/features/dashboard"

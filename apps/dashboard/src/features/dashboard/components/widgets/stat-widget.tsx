@@ -1,14 +1,15 @@
+import type { IconComponent } from '@/lib/icon-registry'
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import * as Icons from "lucide-react"
-import { BarChart3, type LucideIcon } from "lucide-react"
+import { ChartBar as BarChart3 } from 'reicon-react'
 import { useTranslation } from "react-i18next"
 import type { AggregateFormula, TimeWindow } from "@beechcms/core"
 import { useWidgetAggregate, useWidgetGrowth } from "../../hooks/use-widget-data"
 import { StatCard } from "../stat-card"
 import { WidgetError } from "./_parts/widget-error"
+import { resolveIcon as resolveRegistryIcon } from '@/lib/icon-registry'
 
 export interface StatWidgetFormulaConfig {
   seedSlug: string
@@ -19,9 +20,9 @@ export interface StatWidgetFormulaConfig {
   showTrend?: boolean
 }
 
-function resolveIcon(name?: string): LucideIcon {
+function resolveIcon(name?: string): IconComponent {
   if (!name) return BarChart3
-  const icon = (Icons as unknown as Record<string, LucideIcon>)[name]
+  const icon = resolveRegistryIcon(name)
   return typeof icon === "function" || typeof icon === "object" ? icon : BarChart3
 }
 

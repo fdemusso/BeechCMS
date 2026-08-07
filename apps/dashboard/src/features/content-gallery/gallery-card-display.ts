@@ -85,7 +85,9 @@ function toExcerpt(value: unknown, maxChars = 50): string {
 
 function formatDate(value: unknown): string {
   if (value == null || value === "") return ""
-  const date = new Date(value as string | number)
+  const rawNum = typeof value === "number" ? value : (typeof value === "string" && !isNaN(Number(value)) ? Number(value) : NaN)
+  const finalVal = !isNaN(rawNum) && rawNum < 1e11 ? rawNum * 1000 : value
+  const date = new Date(finalVal as string | number)
   if (Number.isNaN(date.getTime())) return String(value)
   return date.toLocaleDateString("it-IT", {
     year: "numeric",

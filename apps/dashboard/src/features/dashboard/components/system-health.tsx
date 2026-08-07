@@ -5,7 +5,7 @@
 import { useSystemHealth } from "../hooks/use-dashboard-stats"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { ShieldCheck, ShieldAlert, Database, Cloud } from "lucide-react"
+import { ShieldCheck, ShieldAlert, Database, Cloud } from 'reicon-react'
 import { cn } from "@/lib/utils"
 
 export function SystemHealth() {

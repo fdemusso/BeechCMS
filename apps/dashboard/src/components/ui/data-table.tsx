@@ -25,7 +25,7 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table"
 import { useVirtualizer } from "@tanstack/react-virtual"
-import { ChevronRight, ChevronDown } from "lucide-react"
+import { ChevronRight, ChevronDown } from 'reicon-react'
 import { useTranslation } from "react-i18next"
 import { cn } from "@/lib/utils"
 import {
@@ -63,7 +63,6 @@ const CELL_CLICK_DELAY_MS = 200
 export const ROW_HEIGHT_PX = 48
 /** Altezza container in modalità virtual scroll (gruppi espansi) */
 const VIRTUAL_CONTAINER_HEIGHT = "calc(100vh - 280px)"
-
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]

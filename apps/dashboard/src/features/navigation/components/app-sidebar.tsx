@@ -24,7 +24,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 
-
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { t } = useTranslation()
   const { resolvedTheme } = useTheme()

@@ -5,11 +5,7 @@
 import * as React from "react"
 import { Separator } from "@/components/ui/separator"
 import { ToolbarButton } from "../toolbar-button"
-import {
-  CopyIcon,
-  ExternalLinkIcon,
-  LinkBreak2Icon,
-} from "@radix-ui/react-icons"
+import { Copy as CopyIcon, Export as ExternalLinkIcon, LinkBroken as LinkBreak2Icon } from 'reicon-react'
 
 interface LinkPopoverBlockProps {
   url: string

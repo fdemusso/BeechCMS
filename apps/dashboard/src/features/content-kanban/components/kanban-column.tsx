@@ -1,5 +1,5 @@
 import * as React from 'react'
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus } from 'reicon-react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_WIDTH_PX } from '../constants'
@@ -22,8 +22,8 @@ interface KanbanColumnProps {
 function SkeletonCard() {
   return (
     <div
-      className="rounded-md border bg-muted/40 animate-pulse"
-      style={{ height: KANBAN_CARD_HEIGHT_PX, margin: '0 4px 4px' }}
+      className="rounded-md border bg-muted/40 animate-pulse shrink-0"
+      style={{ height: KANBAN_CARD_HEIGHT_PX }}
     />
   )
 }
@@ -58,7 +58,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
       style={{ width: KANBAN_COLUMN_WIDTH_PX, minWidth: KANBAN_COLUMN_WIDTH_PX, flexShrink: 0 }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-3 py-2 border-b">
+      <div className="flex items-center justify-between px-3.5 py-2.5 border-b">
         <button
           type="button"
           className="flex items-center gap-1.5 text-sm font-medium hover:text-foreground/80"
@@ -93,14 +93,14 @@ export const KanbanColumn = React.memo(function KanbanColumn({
           {!collapsed && (
             <div className="flex flex-1 flex-col overflow-hidden" style={{ height: 'calc(100vh - 14rem)', minHeight: 0 }}>
               {isLoading ? (
-                <div className="flex flex-col gap-0 pt-1 flex-grow h-full">
+                <div className="flex flex-col gap-3 p-3 flex-grow h-full">
                   {Array.from({ length: 3 }).map((_, i) => <SkeletonCard key={i} />)}
                 </div>
               ) : cards.length === 0 ? (
-                <div className="flex flex-col items-center justify-center gap-2 flex-grow h-full">
+                <div className="flex flex-col items-center justify-center gap-2 flex-grow h-full p-4 text-center">
                   <p className="text-xs text-muted-foreground">Nessuna voce</p>
                   {onCreateEntry && (
-                    <button type="button" onClick={onCreateEntry} className="text-xs text-primary hover:underline">
+                    <button type="button" onClick={onCreateEntry} className="text-xs text-primary hover:opacity-80 transition-opacity">
                       + Nuova entry
                     </button>
                   )}
@@ -132,3 +132,4 @@ export const KanbanColumn = React.memo(function KanbanColumn({
     </section>
   )
 })
+
