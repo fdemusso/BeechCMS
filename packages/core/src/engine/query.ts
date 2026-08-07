@@ -10,6 +10,7 @@ import type {
   ParameterizedQuery,
 } from './types.js';
 import { tableName, ftsTableName, isValidColumn, indexableSearchBranches, SYSTEM_COLUMNS } from './ddl.js';
+import { resolveClassification } from './policies.js';
 
 
 /**
@@ -63,14 +64,30 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
   const groupClauses: string[] = []
   for (const group of filters) {
     if (!isValidColumn(seed, group.column)) continue
+
+    const branch = seed.branches.find(b => b.alias === group.column)
+    const isEncrypted = branch ? resolveClassification(branch).storage === 'encrypt' : false
+
     const col = SYSTEM_COLUMNS.has(group.column)
       ? `${table}.${group.column}`
       : group.column
 
     const condClauses: string[] = []
     for (const cond of group.conditions) {
-      const clause = buildFilterCondition(col, group.type, cond, bindings)
-      if (clause) condClauses.push(clause)
+      if (isEncrypted) {
+        const { op } = cond
+        if (op === 'eq' || op === 'neq' || op === 'in' || op === 'not_in') {
+          const targetCol = `${table}.${group.column}_bidx`
+          const clause = buildFilterCondition(targetCol, group.type, cond, bindings)
+          if (clause) condClauses.push(clause)
+        } else if (op === 'is_empty' || op === 'is_not_empty') {
+          const clause = buildFilterCondition(col, group.type, cond, bindings)
+          if (clause) condClauses.push(clause)
+        }
+      } else {
+        const clause = buildFilterCondition(col, group.type, cond, bindings)
+        if (clause) condClauses.push(clause)
+      }
     }
     if (condClauses.length > 0) {
       groupClauses.push(condClauses.length > 1 ? `(${condClauses.join(' AND ')})` : condClauses[0])
