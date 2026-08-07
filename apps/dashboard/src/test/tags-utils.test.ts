@@ -38,7 +38,7 @@ describe("tags-utils", () => {
 
   it("extractTagChips non è vulnerabile a lookup su prototipi", () => {
     // Simuliamo un input da parsing JSON che ha chiavi built-in come "constructor" e "toString" se passate come array (anche se JSON non porta prototype, ma i tool interni non devono prelevare function reference o rompere)
-    const malformed = [{ label: "Safe" }, { constructor: "Exploit" }, { toString: "Hacked" }]
+    const malformed = [{ label: "Safe" }, { constructor: "Exploit" }, { toString: "Hacked" }] as unknown[]
     expect(extractTagChips(malformed)).toEqual([{ label: "Safe", color: undefined }])
   })
 })
