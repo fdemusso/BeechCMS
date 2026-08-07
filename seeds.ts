@@ -13,7 +13,7 @@ export const clienti = defineSeed({
   allowDrafts: false,
   branches: [
     { id: 'br_c1', alias: 'name', label: 'Nome Azienda / Contatto', type: 'text', requiredOnCreate: true, requiredOnUpdate: true },
-    { id: 'br_c2', alias: 'email', label: 'Email Contatto', type: 'text', requiredOnCreate: true, requiredOnUpdate: true },
+    { id: 'br_c2', alias: 'email', label: 'Email Contatto', type: 'text', requiredOnCreate: true, requiredOnUpdate: true, policies: { classification: 'confidential' } },
     { id: 'br_c3', alias: 'company', label: 'Azienda', type: 'text' },
     {
       id: 'br_c4',
@@ -33,7 +33,7 @@ export const clienti = defineSeed({
       requiredOnCreate: true,
       requiredOnUpdate: true
     },
-    { id: 'br_c6', alias: 'mrr', label: 'MRR (€)', type: 'number', numberOptions: { format: 'currency', currency: 'EUR' } }
+    { id: 'br_c6', alias: 'mrr', label: 'MRR (€)', type: 'number', numberOptions: { format: 'currency', currency: 'EUR' }, policies: { classification: 'internal' } }
   ]
 })
 
