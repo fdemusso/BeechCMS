@@ -5,19 +5,11 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import type { FieldEditProps } from "../types"
 
-// 'select' is a dashboard-only field type (like 'repeater') — a minimal
-// single-select-over-`branch.options` renderer. Registered by string cast in
-// registry.ts because @beechcms/core has no 'select' BranchType.
-//
-// Radix's SelectItem rejects an empty-string value, so an explicit "clear"
-// option is only offered for non-required fields, backed by a sentinel.
 const NONE = "__none__"
 
 /**
- * Editor for the dashboard-only `select` field type: a single-value
- * dropdown over `branch.options`. Uses a `NONE` sentinel internally because
- * Radix `SelectItem` rejects an empty string; `onChange` still receives
- * `""` when cleared. The clear option is hidden when the field is required.
+ * Editor for single-value `options` dropdown fields:
+ * Expands to full container width (`w-full`) to match input fields, with text truncation.
  */
 export function SelectEdit({ branch, value, onChange }: FieldEditProps) {
   const options = branch.options ?? []
@@ -25,13 +17,13 @@ export function SelectEdit({ branch, value, onChange }: FieldEditProps) {
 
   return (
     <Select value={selected} onValueChange={(v) => onChange(v === NONE ? "" : v)}>
-      <SelectTrigger>
-        <SelectValue placeholder={branch.label} />
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder={branch.label} className="truncate" />
       </SelectTrigger>
       <SelectContent>
         {!branch.requiredOnCreate && <SelectItem value={NONE}>—</SelectItem>}
         {options.map((opt) => (
-          <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+          <SelectItem key={opt} value={opt} className="truncate">{opt}</SelectItem>
         ))}
       </SelectContent>
     </Select>
