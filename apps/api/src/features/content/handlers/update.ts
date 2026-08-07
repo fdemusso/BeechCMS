@@ -94,7 +94,7 @@ export async function updateHandler(context: Context<AppEnv>) {
     if (Object.keys(bodyForData).length > 0) {
       const sensitiveAliases = Object.keys(bodyForData).filter((alias) => {
         const branch = seed.branches.find((b) => b.alias === alias)
-        return branch != null && resolvePolicies(branch).privacy !== 'plain'
+        return branch != null && resolvePolicies(branch).privacy === 'hash'
       })
       
       if (sensitiveAliases.length > 0) {

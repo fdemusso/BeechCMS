@@ -3,14 +3,14 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { resolvePolicies } from "@beechcms/core"
+import { resolvePolicies, type BranchType } from "@beechcms/core"
 import { getEditComponent } from "./registry"
 import type { FieldEditProps } from "./types"
 
 /**
  * Entry point for editable fields.
  * Renders a compact badge for fields with `hash` privacy policies (restricted),
- * otherwise delegates to the registered edit renderer for the branch type (including confidential fields).
+ * delegates to SelectEdit when options array is defined, or uses the registered renderer.
  */
 export function FieldEdit(props: FieldEditProps) {
   const { branch } = props
@@ -25,6 +25,11 @@ export function FieldEdit(props: FieldEditProps) {
         </span>
       </div>
     )
+  }
+
+  if (branch.options && branch.options.length > 0) {
+    const SelectComponent = getEditComponent('select' as BranchType)
+    return <SelectComponent {...props} />
   }
 
   const Component = getEditComponent(branch.type)

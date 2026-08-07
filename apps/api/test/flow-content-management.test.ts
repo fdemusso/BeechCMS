@@ -487,7 +487,7 @@ describe('Flow: Content Management (Protected API)', () => {
         labelPlural: 'Sensitives',
         displayNameAlias: 'secret',
         branches: [
-          { id: 'br_01', alias: 'secret', label: 'Secret', type: 'text', policies: { privacy: 'encrypt' } }
+          { id: 'br_01', alias: 'secret', label: 'Secret', type: 'text', policies: { privacy: 'hash' } }
         ]
       })
       const sensRepo = new StaticContentRepository([SENSITIVE_SEED])
