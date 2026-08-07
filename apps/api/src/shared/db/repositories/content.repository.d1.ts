@@ -20,13 +20,62 @@ import {
   type BeechHooks,
   type HookActor,
   type HookContext,
+  type IPrivacyService,
   buildSelectQuery,
   deserializeFromDb,
   serializeForDb,
+  resolveClassification,
+  hasBlindIndex,
 } from '@beechcms/core'
 import { BaseD1Repository } from './base.repository.d1'
 
 // ── Private helpers ───────────────────────────────────────────────────────────
+
+function isCiphertext(value: unknown): boolean {
+  return typeof value === 'string' && /^v1:[A-Za-z0-9+/=]+:[A-Za-z0-9+/=]+$/.test(value)
+}
+
+export async function prepareBlindIndexOptions(
+  seed: Seed,
+  options: SelectOptions,
+  privacyService: IPrivacyService
+): Promise<SelectOptions> {
+  if (!options.filters || options.filters.length === 0) return options
+
+  const newFilters = await Promise.all(
+    options.filters.map(async (group) => {
+      const branch = seed.branches.find((b) => b.alias === group.column)
+      if (!branch) return group
+
+      const resolved = resolveClassification(branch)
+      if (resolved.storage !== 'encrypt') return group
+
+      const newConditions = await Promise.all(
+        group.conditions.map(async (cond) => {
+          const { op, value } = cond
+          if (op === 'eq' || op === 'neq') {
+            if (value === null || value === undefined) return cond
+            const hashed = await privacyService.hash(String(value))
+            return { ...cond, value: hashed }
+          }
+          if (op === 'in' || op === 'not_in') {
+            if (!Array.isArray(value)) return cond
+            const hashedArr = await Promise.all(
+              value.map(async (v) => (v === null || v === undefined ? null : await privacyService.hash(String(v))))
+            )
+            return { ...cond, value: hashedArr as string[] }
+          }
+          return cond
+        })
+      )
+
+      return { ...group, conditions: newConditions }
+    })
+  )
+
+  return { ...options, filters: newFilters }
+}
+
 
 /** Returns the seed's `relation` branches configured for multiple targets (array-valued, stored in junction tables). */
 function multiRelBranches(seed: Seed): Branch[] {
@@ -61,7 +110,11 @@ function jDraftTable(seedSlug: string, branchAlias: string): string {
  * once the write has already committed and therefore cannot roll back the mutation.
  */
 export class D1ContentRepository extends BaseD1Repository implements ContentRepository {
-  constructor(database: D1Database, private readonly hooks?: BeechHooks) {
+  constructor(
+    database: D1Database,
+    private readonly hooks?: BeechHooks,
+    private readonly privacyService?: IPrivacyService,
+  ) {
     super(database)
   }
 
@@ -101,7 +154,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * Deserializes a DB row using the Seed's branch definitions.
    * Skips multi-relation branches — their values come from junction tables.
    */
-  private rowToData(seed: Seed, row: any): Record<string, any> {
+  private async rowToData(seed: Seed, row: any): Promise<Record<string, any>> {
     const data: Record<string, any> = {
       id: row.id,
       slug: row.slug,
@@ -110,15 +163,35 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       updated_at: row.updated_at,
     }
 
-    for (const branch of seed.branches) {
-      // Multi-relation values live in junction tables, not as columns on this table
-      if (branch.type === 'relation' && branch.multiple === true) continue
-      if (Object.hasOwn(row, branch.alias)) {
-        data[branch.alias] = deserializeFromDb(branch, row[branch.alias])
+    const branchEntries = await Promise.all(
+      seed.branches.map(async (branch) => {
+        if (branch.type === 'relation' && branch.multiple === true) return null
+        if (!Object.hasOwn(row, branch.alias)) return null
+
+        let rawVal = row[branch.alias]
+        const resolved = resolveClassification(branch)
+        if (
+          resolved.storage === 'encrypt' &&
+          this.privacyService &&
+          typeof rawVal === 'string' &&
+          rawVal !== ''
+        ) {
+          rawVal = await this.privacyService.decrypt(rawVal)
+        }
+
+        return {
+          alias: branch.alias,
+          val: deserializeFromDb(branch, rawVal),
+        }
+      })
+    )
+
+    for (const entry of branchEntries) {
+      if (entry) {
+        data[entry.alias] = entry.val
       }
     }
 
-    // Present only when the query joins kanban_positions (kanbanOrder mode)
     if (row.position !== undefined) data.position = row.position
 
     return data
@@ -223,15 +296,18 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     options: SelectOptions
   ): Promise<{ items: Record<string, any>[]; total: number }> {
     try {
-      const { sql, bindings } = buildSelectQuery(seed, options)
+      const processedOptions = this.privacyService
+        ? await prepareBlindIndexOptions(seed, options, this.privacyService)
+        : options
+      const { sql, bindings } = buildSelectQuery(seed, processedOptions)
       const { sql: countSql, bindings: countBindings } = buildSelectQuery(seed, {
-        ...options,
+        ...processedOptions,
         isCount: true,
       })
 
       const branches = multiRelBranches(seed)
       const relStmts = branches.length > 0
-        ? this.multiRelStatements(seed, branches, buildSelectQuery(seed, { ...options, fields: ['id'] }))
+        ? this.multiRelStatements(seed, branches, buildSelectQuery(seed, { ...processedOptions, fields: ['id'] }))
         : []
 
       const [batchResults, totalCountResult, ...relResults] = await this.database.batch([
@@ -240,7 +316,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         ...relStmts,
       ])
 
-      const contentEntries = (batchResults.results || []).map(row => this.rowToData(seed, row))
+      const contentEntries = await Promise.all((batchResults.results || []).map(row => this.rowToData(seed, row)))
       const totalEntriesCount = (totalCountResult.results?.[0] as any)?.total || 0
 
       this.attachMultiRelationRows(branches, relResults, contentEntries)
@@ -268,7 +344,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
       }
 
-      const data = this.rowToData(seed, entryRow)
+      const data = await this.rowToData(seed, entryRow)
       await this.attachMultiRelations(seed, id, data)
       return data
     } catch (error) {
@@ -294,7 +370,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         throw new EntryNotFoundError(`Entry with slug "${slug}" not found in ${seed.slug}`)
       }
 
-      const data = this.rowToData(seed, entryRow)
+      const data = await this.rowToData(seed, entryRow)
       await this.attachMultiRelations(seed, entryRow.id as string, data)
       return data
     } catch (error) {
@@ -367,13 +443,13 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * Builds the `INSERT` statement for an entry's main table row. Multi-relation branch
    * values are skipped (they're written as separate junction-table inserts by the caller).
    */
-  private buildCreateMainStmt(
+  private async buildCreateMainStmt(
     seed: Seed,
     id: string,
     slug: string,
     status: string,
     data: Record<string, any>
-  ): D1PreparedStatement {
+  ): Promise<D1PreparedStatement> {
     const tableName = this.getTableName(seed.slug)
     const columnNames = ['id', 'slug', 'status']
     const placeholders = ['?', '?', '?']
@@ -381,14 +457,43 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
     const mRelAliases = new Set(multiRelBranches(seed).map(b => b.alias))
 
-    for (const branch of seed.branches) {
-      if (mRelAliases.has(branch.alias)) continue
-      if (Object.hasOwn(data, branch.alias)) {
+    const branchEntries = await Promise.all(
+      seed.branches.map(async (branch) => {
+        if (mRelAliases.has(branch.alias)) return null 
+        if (Object.hasOwn(data, branch.alias)) {
+          const protectedResult = await this.serializeAndProtect(branch, data[branch.alias])
+          return { branch, protectedResult }
+        }
+        return null
+      })
+    )
+
+    for (const entry of branchEntries) {
+      if (entry) {
+        const { branch, protectedResult } = entry
         columnNames.push(branch.alias)
         placeholders.push('?')
-        queryBindings.push(serializeForDb(branch, data[branch.alias]))
+        queryBindings.push(protectedResult.value)
+
+        if (hasBlindIndex(branch)) {
+          columnNames.push(`${branch.alias}_bidx`)
+          placeholders.push('?')
+          queryBindings.push(protectedResult.bidx ?? null)
+        }
       }
     }
+
+    const nowEpoch = Math.floor(Date.now() / 1000)
+    const createdAtVal = Object.hasOwn(data, 'created_at') && data.created_at !== undefined && data.created_at !== null
+      ? (typeof data.created_at === 'number' ? data.created_at : Math.floor(new Date(data.created_at as string).getTime() / 1000))
+      : nowEpoch
+    const updatedAtVal = Object.hasOwn(data, 'updated_at') && data.updated_at !== undefined && data.updated_at !== null
+      ? (typeof data.updated_at === 'number' ? data.updated_at : Math.floor(new Date(data.updated_at as string).getTime() / 1000))
+      : nowEpoch
+
+    columnNames.push('created_at', 'updated_at')
+    placeholders.push('?', '?')
+    queryBindings.push(createdAtVal, updatedAtVal)
 
     const mainSql = `INSERT INTO ${tableName} (${columnNames.join(', ')}) VALUES (${placeholders.join(', ')})`
     return this.database.prepare(mainSql).bind(...queryBindings)
@@ -403,12 +508,12 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * @returns `stmt: null` when there is nothing to update on the main row (no scalar
    *   fields and no `status` change) even if junction updates are still needed.
    */
-  private buildUpdateMainStmt(
+  private async buildUpdateMainStmt(
     seed: Seed,
     id: string,
     data: Record<string, any>,
     status?: string
-  ): { stmt: D1PreparedStatement | null; junctionUpdates: any[] } {
+  ): Promise<{ stmt: D1PreparedStatement | null; junctionUpdates: any[] }> {
     const tableName = this.getTableName(seed.slug)
     const updateClauses: string[] = []
     const queryBindings: any[] = []
@@ -426,11 +531,27 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       queryBindings.push(data.slug)
     }
 
-    for (const branch of seed.branches) {
-      if (mRelAliases.has(branch.alias)) continue
-      if (Object.hasOwn(data, branch.alias)) {
+    const branchEntries = await Promise.all(
+      seed.branches.map(async (branch) => {
+        if (mRelAliases.has(branch.alias)) return null
+        if (Object.hasOwn(data, branch.alias)) {
+          const protectedResult = await this.serializeAndProtect(branch, data[branch.alias])
+          return { branch, protectedResult }
+        }
+        return null
+      })
+    )
+
+    for (const entry of branchEntries) {
+      if (entry) {
+        const { branch, protectedResult } = entry
         updateClauses.push(`${branch.alias} = ?`)
-        queryBindings.push(serializeForDb(branch, data[branch.alias]))
+        queryBindings.push(protectedResult.value)
+
+        if (hasBlindIndex(branch) && protectedResult.bidx !== undefined) {
+          updateClauses.push(`${branch.alias}_bidx = ?`)
+          queryBindings.push(protectedResult.bidx)
+        }
       }
     }
 
@@ -582,9 +703,13 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     for (const [alias, update] of Object.entries(fields)) {
       if (update.kind === 'set') {
         const branch = seed.branches.find(b => b.alias === alias)
-        const serializedValue = branch ? serializeForDb(branch, update.value) : update.value
+        const protectedResult = branch ? await this.serializeAndProtect(branch, update.value) : { value: update.value as string }
         setClauses.push(`${alias} = ?`)
-        setBindings.push(serializedValue)
+        setBindings.push(protectedResult.value)
+        if (branch && hasBlindIndex(branch) && protectedResult.bidx !== undefined) {
+          setClauses.push(`${alias}_bidx = ?`)
+          setBindings.push(protectedResult.bidx)
+        }
       } else {
         stmts.push(...this.getBulkArrayUpdateStmts(seed.slug, id, alias, update))
       }
@@ -662,7 +787,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       }
 
       const batchStmts: D1PreparedStatement[] = [
-        this.buildCreateMainStmt(seed, id, slug, status, payload),
+        await this.buildCreateMainStmt(seed, id, slug, status, payload),
       ]
 
       for (const branch of multiRelBranches(seed)) {
@@ -712,7 +837,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
 
     try {
-      const { stmt, junctionUpdates } = this.buildUpdateMainStmt(seed, id, payload, status)
+      let existing: Record<string, any> | null = null
+      try {
+        existing = await this.findById(seed, id)
+      } catch {
+        existing = null
+      }
+
+      let payloadToUpdate = payload
+      if (existing) {
+        payloadToUpdate = {}
+        for (const [key, val] of Object.entries(payload)) {
+          if (Object.hasOwn(existing, key)) {
+            const existingVal = existing[key]
+            if (isCiphertext(val) && val === existingVal) {
+              continue
+            }
+            if (JSON.stringify(val) === JSON.stringify(existingVal)) {
+              continue
+            }
+          }
+          payloadToUpdate[key] = val
+        }
+      }
+
+      const { stmt, junctionUpdates } = await this.buildUpdateMainStmt(seed, id, payloadToUpdate, status)
 
       if (!stmt && junctionUpdates.length === 0) return
 
@@ -777,7 +926,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       await this.database.prepare(`DELETE FROM ${tableName} WHERE id = ?`).bind(id).run()
 
-      row = this.rowToData(seed, entryRow)
+      row = await this.rowToData(seed, entryRow)
     } catch (error) {
       if (error instanceof EntryNotFoundError) throw error
       throw this.mapError(error, `delete(${seed.slug}, ${id})`)
@@ -849,14 +998,14 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       for (const op of operations) {
         if (op.kind === 'create') {
-          stmts.push(this.buildCreateMainStmt(op.seed, op.id, op.slug, op.status, op.data))
+          stmts.push(await this.buildCreateMainStmt(op.seed, op.id, op.slug, op.status, op.data))
           for (const branch of multiRelBranches(op.seed)) {
             const value = op.data[branch.alias]
             if (!Array.isArray(value) || value.length === 0) continue
             stmts.push(...this.buildJunctionInserts(op.seed.slug, op.id, branch.alias, value))
           }
         } else if (op.kind === 'update') {
-          const { stmt, junctionUpdates } = this.buildUpdateMainStmt(op.seed, op.id, op.data, op.status)
+          const { stmt, junctionUpdates } = await this.buildUpdateMainStmt(op.seed, op.id, op.data, op.status)
           if (stmt) stmts.push(stmt)
           for (const branch of junctionUpdates) {
             const jt = jTable(op.seed.slug, branch.alias)
@@ -914,14 +1063,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       const queryBindings: any[] = [entryId]
       const updateClauses: string[] = []
 
-      for (const branch of seed.branches) {
-        if (mRelAliases.has(branch.alias)) continue
-        if (Object.hasOwn(data, branch.alias)) {
-          const serializedValue = serializeForDb(branch, data[branch.alias])
+      const branchEntries = await Promise.all(
+        seed.branches.map(async (branch) => {
+          if (mRelAliases.has(branch.alias)) return null
+          if (Object.hasOwn(data, branch.alias)) {
+            const protectedResult = await this.serializeAndProtect(branch, data[branch.alias])
+            return { branch, protectedResult }
+          }
+          return null
+        })
+      )
+
+      for (const entry of branchEntries) {
+        if (entry) {
+          const { branch, protectedResult } = entry
           columnNames.push(branch.alias)
           placeholders.push('?')
-          queryBindings.push(serializedValue)
+          queryBindings.push(protectedResult.value)
           updateClauses.push(`${branch.alias} = EXCLUDED.${branch.alias}`)
+
+          if (hasBlindIndex(branch)) {
+            columnNames.push(`${branch.alias}_bidx`)
+            placeholders.push('?')
+            queryBindings.push(protectedResult.bidx ?? null)
+            updateClauses.push(`${branch.alias}_bidx = EXCLUDED.${branch.alias}_bidx`)
+          }
         }
       }
 
@@ -1004,14 +1170,35 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       const touchedSet = new Set(touchedFields)
 
       const draftData: Record<string, any> = {}
-      for (const branch of seed.branches) {
-        if (mRelAliases.has(branch.alias)) continue
-        if (touchedSet.has(branch.alias)) {
-          draftData[branch.alias] = draftRow[branch.alias] !== null
-            ? deserializeFromDb(branch, draftRow[branch.alias])
-            : null
-        } else if (draftRow[branch.alias] !== null) {
-          draftData[branch.alias] = deserializeFromDb(branch, draftRow[branch.alias])
+
+      const draftEntries = await Promise.all(
+        seed.branches.map(async (branch) => {
+          if (mRelAliases.has(branch.alias)) return null
+
+          const isTouched = touchedSet.has(branch.alias)
+          const rawRowVal = draftRow[branch.alias]
+
+          if (!isTouched && rawRowVal === null) return null
+
+          let rawVal = rawRowVal
+          const resolved = resolveClassification(branch)
+          if (
+            resolved.storage === 'encrypt' &&
+            this.privacyService &&
+            typeof rawVal === 'string' &&
+            rawVal !== ''
+          ) {
+            rawVal = await this.privacyService.decrypt(rawVal)
+          }
+
+          const val = rawVal !== null ? deserializeFromDb(branch, rawVal) : null
+          return { alias: branch.alias, val }
+        })
+      )
+
+      for (const entry of draftEntries) {
+        if (entry) {
+          draftData[entry.alias] = entry.val
         }
       }
 
@@ -1289,7 +1476,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       const stmts: D1PreparedStatement[] = []
 
       if (patch) {
-        const { stmt, junctionUpdates } = this.buildUpdateMainStmt(seed, id, patch as Record<string, any>)
+        const { stmt, junctionUpdates } = await this.buildUpdateMainStmt(seed, id, patch as Record<string, any>)
         if (stmt) stmts.push(stmt)
         for (const branch of junctionUpdates) {
           const jt = jTable(seed.slug, branch.alias)
