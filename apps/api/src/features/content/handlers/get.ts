@@ -7,7 +7,7 @@ import { applyVisibility } from '../../../shared/policies/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
-import { EntryNotFoundError } from '@beechcms/core'
+import { EntryNotFoundError, ActorContext } from '@beechcms/core'
 
 export async function getByIdHandler(context: Context<AppEnv>) {
   const slug = context.req.param('slug')
@@ -40,10 +40,17 @@ export async function getByIdHandler(context: Context<AppEnv>) {
       hasPendingDraft = await repository.hasDraft(seed, id)
     }
 
+    const jwtPayload = context.get('jwtPayload')
+    const actor: ActorContext = context.get('actor') ?? {
+      type: 'authenticated',
+      userId: jwtPayload?.sub,
+      role: jwtPayload?.role,
+    }
+
     return context.json({
       ...item,
       has_pending_draft: hasPendingDraft,
-      data: applyVisibility(item, seed)
+      data: applyVisibility(item, seed, actor)
     })
   } catch (error) {
     if (error instanceof EntryNotFoundError) {
@@ -95,10 +102,17 @@ export async function getBySlugHandler(context: Context<AppEnv>) {
       hasPendingDraft = await repository.hasDraft(seed, item.id)
     }
 
+    const jwtPayload = context.get('jwtPayload')
+    const actor: ActorContext = context.get('actor') ?? {
+      type: 'authenticated',
+      userId: jwtPayload?.sub,
+      role: jwtPayload?.role,
+    }
+
     return context.json({
       ...item,
       has_pending_draft: hasPendingDraft,
-      data: applyVisibility(item, seed)
+      data: applyVisibility(item, seed, actor)
     })
   } catch (error) {
     if (error instanceof EntryNotFoundError) {

@@ -3,8 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import { resolvePolicies, sha256hex } from '@beechcms/core'
-import type { Seed } from '@beechcms/core'
+import { resolvePolicies, sha256hex, filterEntryForActor } from '@beechcms/core'
+import type { Seed, ActorContext } from '@beechcms/core'
 
 class PrivacyPolicyError extends Error {
   readonly status = 501 as const
@@ -48,21 +48,9 @@ export async function applyPrivacy(
 export function applyVisibility(
   data: Record<string, unknown>,
   seed: Seed,
+  actor?: ActorContext,
 ): Record<string, unknown> {
-  const result: Record<string, unknown> = {}
-  for (const [alias, value] of Object.entries(data)) {
-    const branch = seed.branches.find((b) => b.alias === alias)
-    if (!branch) {
-      result[alias] = value
-      continue
-    }
-    const { visibility } = resolvePolicies(branch)
-    if (visibility === 'hidden') continue
-    if (visibility === 'masked') {
-      result[alias] = typeof value === 'string' && value.length > 0 ? '••••••••' : null
-    } else {
-      result[alias] = value
-    }
-  }
-  return result
+  const resolvedActor = actor ?? { type: 'authenticated' }
+  return filterEntryForActor(data, seed, resolvedActor)
 }
+
