@@ -70,6 +70,33 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     return { seed, repository: this, actor, db: this.database }
   }
 
+  private async serializeAndProtect(
+    branch: Branch,
+    value: unknown
+  ): Promise<{ value: string | number | null; bidx?: string }> {
+    const serialized = serializeForDb(branch, value)
+    if (serialized === null || serialized === undefined || !this.privacyService) {
+      return { value: serialized }
+    }
+
+    const resolved = resolveClassification(branch)
+    if (resolved.storage === 'encrypt') {
+      if (isCiphertext(value) || isCiphertext(serialized)) {
+        return { value: String(serialized ?? value), bidx: undefined }
+      }
+      const ciphertext = await this.privacyService.encrypt(String(serialized))
+      const bidx = await this.privacyService.hash(String(serialized))
+      return { value: ciphertext, bidx }
+    }
+    if (resolved.storage === 'hash') {
+      if (typeof value === 'string' && (/^[a-f0-9]{64}$/i.test(value) || value.startsWith('$2'))) {
+        return { value }
+      }
+      const hashed = await this.privacyService.hash(String(serialized))
+      return { value: hashed }
+    }
+    return { value: serialized }
+  }
   /**
    * Deserializes a DB row using the Seed's branch definitions.
    * Skips multi-relation branches — their values come from junction tables.
