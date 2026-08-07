@@ -30,8 +30,8 @@ export default defineConfig({
         'src/features/search/search.ts',
         // Empty compatibility shim — no runtime statements
         'src/shared/jobs/fts-sync.ts',
-        // Demo data SQL script definition
-        'src/shared/db/migrations/demo-data-sql.ts',
+        // Demo data TS fixtures definition
+        'src/shared/db/fixtures/demo-data.fixtures.ts',
         // Test doubles and helpers used in test suites but not in production
         'src/shared/services/clock/fixed-clock.ts',
         'src/shared/services/id-generator/sequential-id-generator.ts',
