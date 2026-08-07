@@ -30,9 +30,9 @@ describe('PrivacyService', () => {
     expect(await service.decrypt(cipher2)).toBe(plaintext)
   })
 
-  it('throws on invalid ciphertext format', async () => {
-    await expect(service.decrypt('invalid-ciphertext')).rejects.toThrow('Invalid ciphertext format')
-    await expect(service.decrypt('v2:iv:data')).rejects.toThrow('Invalid ciphertext format')
+  it('returns raw text for unencrypted legacy content and throws on invalid v1 payload', async () => {
+    expect(await service.decrypt('legacy-unencrypted-text')).toBe('legacy-unencrypted-text')
+    await expect(service.decrypt('v1:malformed')).rejects.toThrow('Invalid ciphertext format')
   })
 
   it('generates deterministic HMAC SHA-256 hash', async () => {
