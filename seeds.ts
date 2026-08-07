@@ -8,7 +8,7 @@ export const clienti = defineSeed({
   label: 'Cliente',
   labelPlural: 'Clienti',
   displayNameAlias: 'name',
-  dashboard: { icon: 'Users', group: 'SaaS Platform', order: 1 },
+  dashboard: { icon: 'Users', group: 'SaaS Platform', order: 1, views: ['table', 'kanban', 'gallery'] },
   allowPublicRead: false,
   allowDrafts: false,
   branches: [
@@ -42,7 +42,7 @@ export const abbonamenti = defineSeed({
   label: 'Abbonamento',
   labelPlural: 'Abbonamenti',
   displayNameAlias: 'customer_id',
-  dashboard: { icon: 'CreditCard', group: 'SaaS Platform', order: 2 },
+  dashboard: { icon: 'CreditCard', group: 'SaaS Platform', order: 2, views: ['table', 'kanban', 'gallery'] },
   allowDrafts: false,
   branches: [
     {
@@ -82,7 +82,7 @@ export const ticket = defineSeed({
   label: 'Ticket Supporto',
   labelPlural: 'Ticket Supporto',
   displayNameAlias: 'title',
-  dashboard: { icon: 'LifeBuoy', group: 'Support', order: 3 },
+  dashboard: { icon: 'LifeBuoy', group: 'Support', order: 3, views: ['table', 'kanban', 'gallery'] },
   allowDrafts: false,
   branches: [
     { id: 'br_t1', alias: 'title', label: 'Oggetto', type: 'text', requiredOnCreate: true, requiredOnUpdate: true },
@@ -131,7 +131,7 @@ export const changelog = defineSeed({
   label: 'Release Note',
   labelPlural: 'Release Notes',
   displayNameAlias: 'version',
-  dashboard: { icon: 'Rocket', group: 'Content', order: 4 },
+  dashboard: { icon: 'Rocket', group: 'Content', order: 4, views: ['table', 'gallery'] },
   allowDrafts: true,
   branches: [
     { id: 'br_ch1', alias: 'version', label: 'Versione', type: 'text', requiredOnCreate: true, requiredOnUpdate: true },
@@ -145,7 +145,7 @@ export const articoli = defineSeed({
   label: 'Articolo',
   labelPlural: 'Articoli',
   displayNameAlias: 'title',
-  dashboard: { icon: 'FileText', group: 'Content', order: 5 },
+  dashboard: { icon: 'FileText', group: 'Content', order: 5, views: ['table', 'gallery'] },
   allowDrafts: true,
   allowPublicRead: true,
   branches: [
