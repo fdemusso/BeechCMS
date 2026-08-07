@@ -4,17 +4,7 @@
 
 import type { ColumnDef, GroupingColumnDef } from "@tanstack/react-table"
 import type { Seed } from "@beechcms/core"
-import {
-  MoreHorizontal,
-  Type,
-  Hash,
-  ToggleLeft,
-  Calendar,
-  Code,
-  FileText,
-  File,
-  Link as LinkIcon,
-} from "lucide-react"
+import { More as MoreHorizontal, Text as Type, Hashtag as Hash, ToggleOff as ToggleLeft, Calendar, Code, FileText, File, Link as LinkIcon } from 'reicon-react'
 import { toast } from "sonner"
 
 import { FieldDisplay } from "@/components/fields"
@@ -81,7 +71,7 @@ export interface ContentEntry {
  * Maps a schema branch type string to its corresponding Lucide icon component.
  *
  * @param type - The branch type string.
- * @returns The LucideIcon React component.
+ * @returns The IconComponent React component.
  */
 function getIconForType(type: string) {
   switch (type) {

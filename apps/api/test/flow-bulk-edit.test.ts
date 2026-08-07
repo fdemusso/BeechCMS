@@ -22,7 +22,7 @@ const BULK_TEST_SEEDS = [
       { id: 'br_02', alias: 'category', label: 'Category', type: 'text' },
       { id: 'br_03', alias: 'hidden_field', label: 'Hidden', type: 'text', policies: { visibility: 'hidden' } },
       { id: 'br_04', alias: 'encrypted_field', label: 'Encrypted', type: 'text', policies: { privacy: 'encrypt' } },
-      { id: 'br_05', alias: 'related_ids', label: 'Related', type: 'relation', multiple: true, target: 'bulk_items' }
+      { id: 'br_05', alias: 'related_ids', label: 'Related', type: 'relation', multiple: true, targetSeed: 'bulk_items' }
     ],
   }),
 ]

@@ -5,7 +5,7 @@
 import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronUp, ExternalLink, Loader2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, Export as ExternalLink, Loader as Loader2 } from 'reicon-react'
 import { formatDistanceToNow } from 'date-fns'
 import { it as itLocale, enUS, type Locale } from 'date-fns/locale'
 import {
@@ -145,7 +145,7 @@ function ItemRow({ item, sourceSlug, locale }: { item: BackrefItem; sourceSlug: 
       <td className="py-2 pl-3">
         <Link
           to={`/content/${sourceSlug}/${item.id}`}
-          className="flex items-center gap-1 hover:underline font-medium"
+          className="flex items-center gap-1 hover:opacity-80 transition-opacity font-medium"
         >
           {item.displayName ?? item.id}
           <ExternalLink className="size-3 text-muted-foreground" />
@@ -247,7 +247,7 @@ export function ReferencedByPanel({ targetSlug, targetId, onRestrictsChange }: R
     : t('backrefs.summary_other', { count: totalRefs })
 
   return (
-    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border bg-card">
+    <Collapsible open={open} onOpenChange={setOpen} className="rounded-lg border bg-card overflow-hidden">
       <CollapsibleTrigger className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold hover:bg-muted/50 transition-colors">
         <div className="flex items-center gap-2">
           <span>{t('backrefs.title')}</span>

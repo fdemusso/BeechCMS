@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next"
 import type { Editor } from "@tiptap/react"
 import type { toggleVariants } from "@/components/ui/toggle"
 import type { VariantProps } from "class-variance-authority"
-import { CaretDownIcon, CheckIcon } from "@radix-ui/react-icons"
+import { ArrowDown as CaretDownIcon, Check as CheckIcon } from 'reicon-react'
 import { ToolbarButton } from "../toolbar-button"
 import {
   Popover,

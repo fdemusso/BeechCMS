@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import type { D1Database, D1PreparedStatement, D1Result, D1ExecResult } from '@cloudflare/workers-types'
+import type { D1Database, D1PreparedStatement, D1Result, D1ExecResult, D1DatabaseSession } from '@cloudflare/workers-types'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const MIGRATIONS_DIR = join(__dirname, '../../migrations')
@@ -62,7 +62,13 @@ export class D1TestDatabase implements D1Database {
   }
 
   dump(): Promise<ArrayBuffer> { throw new Error('dump() not implemented in tests') }
-  withSession(): D1Database { return this }
+  withSession(): D1DatabaseSession {
+    return {
+      prepare: (query: string) => this.prepare(query),
+      batch: <T = unknown>(statements: D1PreparedStatement[]) => this.batch<T>(statements),
+      getBookmark: () => null,
+    }
+  }
 
   close(): void { this.db.close() }
 }
@@ -94,7 +100,7 @@ class D1TestStatement implements D1PreparedStatement {
     return {
       results,
       success: true,
-      meta: { duration: performance.now() - start, served_by: 'd1-test', changes: 0, last_row_id: 0, rows_read: results.length, rows_written: 0, size_after: 0 },
+      meta: { duration: performance.now() - start, served_by: 'd1-test', changes: 0, last_row_id: 0, rows_read: results.length, rows_written: 0, size_after: 0, changed_db: false },
     }
   }
 
@@ -104,14 +110,20 @@ class D1TestStatement implements D1PreparedStatement {
     return {
       results: [] as T[],
       success: true,
-      meta: { duration: performance.now() - start, served_by: 'd1-test', changes: info.changes, last_row_id: Number(info.lastInsertRowid), rows_read: 0, rows_written: info.changes, size_after: 0 },
+      meta: { duration: performance.now() - start, served_by: 'd1-test', changes: info.changes, last_row_id: Number(info.lastInsertRowid), rows_read: 0, rows_written: info.changes, size_after: 0, changed_db: false },
     }
   }
 
-  async raw<T = unknown>(): Promise<T[]> {
+  raw<T = unknown[]>(options: { columnNames: true }): Promise<[string[], ...T[]]>
+  raw<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>
+  async raw<T = unknown[]>(options?: { columnNames?: boolean }): Promise<[string[], ...T[]] | T[]> {
     const rows = this.db.prepare(this.sql).all(...(this.params as Parameters<typeof this.db.prepare>)) as Record<string, unknown>[]
-    if (rows.length === 0) return []
+    if (rows.length === 0) return options?.columnNames ? [[]] as unknown as [string[], ...T[]] : []
     const cols = Object.keys(rows[0])
-    return rows.map(r => cols.map(c => r[c])) as T[]
+    const data = rows.map(r => cols.map(c => r[c])) as unknown as T[]
+    if (options?.columnNames) {
+      return [cols, ...data] as [string[], ...T[]]
+    }
+    return data
   }
 }

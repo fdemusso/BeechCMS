@@ -574,7 +574,7 @@ describe('Flow: Guest Access (Public API)', () => {
         allowPublicPost: true,
         branches: [
           { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true, policies: { public: true } },
-          { id: 'br_02', alias: 'pin', label: 'Pin', type: 'text', policies: { privacy: 'hash' } },
+          { id: 'br_02', alias: 'pin', label: 'Pin', type: 'text', policies: { privacy: 'hash', public: true } },
         ],
       })
       const localRepo = new StaticContentRepository([HASH_SEED])
@@ -602,7 +602,7 @@ describe('Flow: Guest Access (Public API)', () => {
         displayNameAlias: 'secret',
         allowPublicPost: true,
         branches: [
-          { id: 'br_01', alias: 'secret', label: 'Secret', type: 'text', policies: { privacy: 'encrypt' } },
+          { id: 'br_01', alias: 'secret', label: 'Secret', type: 'text', policies: { privacy: 'encrypt', public: true } },
         ],
       })
       const localRepo = new StaticContentRepository([ENCRYPT_SEED])

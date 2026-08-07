@@ -5,15 +5,17 @@
 import { describe, it, expect, vi } from 'vitest'
 import { D1PasswordResetTokenRepository } from './d1-password-reset-token.repository'
 
+import type { IIdGenerator } from '@beechcms/core'
+
 const NOW = Math.floor(Date.now() / 1000)
-const fixedIdGen = { uuid: () => 'prt-1' }
+const fixedIdGen: IIdGenerator = { uuid: () => 'prt-1', isValid: (v: unknown): v is string => true }
 
 function makeMockDb(opts: { firstResult?: unknown; runChanges?: number } = {}) {
   const { firstResult = null, runChanges = 1 } = opts
   const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: runChanges } })
   const firstMock = vi.fn().mockResolvedValue(firstResult)
-  const bindMock = vi.fn(() => ({ first: firstMock, run: runMock }))
-  const prepareMock = vi.fn(() => ({ bind: bindMock }))
+  const bindMock = vi.fn<(...args: any[]) => any>(() => ({ first: firstMock, run: runMock }))
+  const prepareMock = vi.fn<(...args: any[]) => any>(() => ({ bind: bindMock }))
   return { db: { prepare: prepareMock } as any, prepareMock, bindMock, runMock }
 }
 

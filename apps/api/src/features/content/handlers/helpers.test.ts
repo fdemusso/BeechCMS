@@ -140,7 +140,7 @@ describe('content handlers helpers', () => {
 
     it('handles SlugConflictError', () => {
       const ctx = {} as Context<any>
-      const error = new SlugConflictError('Conflict', 'slug')
+      const error = new SlugConflictError('Conflict')
       const result = handleContentDatabaseError(ctx, error)
 
       expect(result).toEqual({

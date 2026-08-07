@@ -51,10 +51,10 @@ describe('Flow: Background Queues — enqueue from custom route', () => {
   })
 
   it('runs the registered job handler when enqueue is called from a protected custom route', async () => {
-    const executed = vi.fn<[unknown], Promise<void>>().mockResolvedValue(undefined)
+    const executed = vi.fn().mockResolvedValue(undefined)
 
     const jobs: JobRegistry = {
-      'send-welcome': executed as JobHandler,
+      'send-welcome': executed as unknown as JobHandler,
     }
 
     const app = createBeechApp({
@@ -105,8 +105,8 @@ describe('Flow: Background Queues — dispatchQueueBatch', () => {
   const ctx = makeExecutionContext()
 
   it('acks message and calls handler on success', async () => {
-    const handler = vi.fn<[unknown, unknown], Promise<void>>().mockResolvedValue(undefined)
-    const jobs: JobRegistry = { 'my-job': handler as JobHandler }
+    const handler = vi.fn().mockResolvedValue(undefined)
+    const jobs: JobRegistry = { 'my-job': handler as unknown as JobHandler }
     const msg = makeMessage({ name: 'my-job', payload: { data: 1 } })
 
     await dispatchQueueBatch(makeBatch([msg]), baseEnv as any, ctx, jobs)
@@ -146,8 +146,8 @@ describe('Flow: Background Queues — dispatchQueueBatch', () => {
   })
 
   it('retries message when handler throws', async () => {
-    const handler = vi.fn<[unknown, unknown], Promise<void>>().mockRejectedValue(new Error('boom'))
-    const jobs: JobRegistry = { 'failing-job': handler as JobHandler }
+    const handler = vi.fn().mockRejectedValue(new Error('boom'))
+    const jobs: JobRegistry = { 'failing-job': handler as unknown as JobHandler }
     const msg = makeMessage({ name: 'failing-job', payload: {} })
 
     await dispatchQueueBatch(makeBatch([msg]), baseEnv as any, ctx, jobs)
@@ -157,9 +157,9 @@ describe('Flow: Background Queues — dispatchQueueBatch', () => {
   })
 
   it('processes multiple messages independently (ack/retry per message)', async () => {
-    const goodHandler = vi.fn<[unknown, unknown], Promise<void>>().mockResolvedValue(undefined)
-    const badHandler = vi.fn<[unknown, unknown], Promise<void>>().mockRejectedValue(new Error('fail'))
-    const jobs: JobRegistry = { good: goodHandler as JobHandler, bad: badHandler as JobHandler }
+    const goodHandler = vi.fn().mockResolvedValue(undefined)
+    const badHandler = vi.fn().mockRejectedValue(new Error('fail'))
+    const jobs: JobRegistry = { good: goodHandler as unknown as JobHandler, bad: badHandler as unknown as JobHandler }
 
     const msgGood = makeMessage({ name: 'good', payload: 'a' })
     const msgBad = makeMessage({ name: 'bad', payload: 'b' })
@@ -173,8 +173,8 @@ describe('Flow: Background Queues — dispatchQueueBatch', () => {
   })
 
   it('drops malformed messages without crashing the batch', async () => {
-    const handler = vi.fn<[unknown, unknown], Promise<void>>().mockResolvedValue(undefined)
-    const jobs: JobRegistry = { good: handler as JobHandler }
+    const handler = vi.fn().mockResolvedValue(undefined)
+    const jobs: JobRegistry = { good: handler as unknown as JobHandler }
     
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 

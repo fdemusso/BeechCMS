@@ -6,7 +6,7 @@ import React, { useState } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useTranslation } from "react-i18next"
 import axios from "axios"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff } from 'reicon-react'
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -39,7 +39,7 @@ export function ResetPasswordPage() {
               <div className="flex flex-col items-center gap-4 text-center">
                 <h1 className="font-heading text-2xl font-semibold">{t("resetPassword.invalidLinkTitle")}</h1>
                 <p className="text-muted-foreground text-sm">{t("resetPassword.invalidLink")}</p>
-                <Link to="/forgot-password" className="text-sm underline-offset-2 hover:underline">
+                <Link to="/forgot-password" className="text-sm hover:opacity-80 transition-opacity">
                   {t("resetPassword.requestNew")}
                 </Link>
               </div>
@@ -166,7 +166,7 @@ export function ResetPasswordPage() {
                   </Button>
                 </Field>
                 <div className="text-center">
-                  <Link to="/login" className="text-sm underline-offset-2 hover:underline">
+                  <Link to="/login" className="text-sm hover:opacity-80 transition-opacity">
                     {t("forgotPassword.backToLogin")}
                   </Link>
                 </div>

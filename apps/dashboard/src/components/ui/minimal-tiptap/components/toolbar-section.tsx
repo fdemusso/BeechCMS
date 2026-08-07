@@ -8,7 +8,7 @@ import type { FormatAction } from "../types"
 import type { VariantProps } from "class-variance-authority"
 import type { toggleVariants } from "@/components/ui/toggle"
 import { cn } from "@/lib/utils"
-import { CaretDownIcon } from "@radix-ui/react-icons"
+import { ArrowDown as CaretDownIcon } from 'reicon-react'
 import {
   DropdownMenu,
   DropdownMenuContent,

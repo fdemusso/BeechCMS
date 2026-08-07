@@ -56,7 +56,7 @@ export function ForgotPasswordPage() {
                 </p>
                 <Link
                   to="/login"
-                  className="text-sm underline-offset-2 hover:underline"
+                  className="text-sm hover:opacity-80 transition-opacity"
                 >
                   {t("forgotPassword.backToLogin")}
                 </Link>
@@ -97,7 +97,7 @@ export function ForgotPasswordPage() {
                   <div className="text-center">
                     <Link
                       to="/login"
-                      className="text-sm underline-offset-2 hover:underline"
+                      className="text-sm hover:opacity-80 transition-opacity"
                     >
                       {t("forgotPassword.backToLogin")}
                     </Link>

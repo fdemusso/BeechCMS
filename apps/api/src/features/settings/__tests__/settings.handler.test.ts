@@ -11,7 +11,7 @@ import { settingsApp } from '../settings.handler'
 // ---------------------------------------------------------------------------
 
 function buildApp(mocks: any = {}) {
-  const app = new Hono()
+  const app = new Hono<any>()
   app.use('*', async (c, next) => {
     c.set('siteSettingsRepository', mocks.siteSettingsRepository ?? {
       getAll: vi.fn().mockResolvedValue({

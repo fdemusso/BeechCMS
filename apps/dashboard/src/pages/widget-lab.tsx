@@ -16,7 +16,7 @@ import {
 } from "@/features/dashboard/widgets"
 import { useSchema } from "@/features/schema"
 import { cn } from "@/lib/utils"
-import { LineChart, BarChart3, AreaChart } from "lucide-react"
+import { ChartLine as LineChart, ChartBar as BarChart3, Chart as AreaChart } from 'reicon-react'
 import { StatWidget } from "@/features/dashboard/components/widgets/stat-widget"
 import { TimeseriesChartWidget } from "@/features/dashboard/components/widgets/timeseries-chart-widget"
 import { PieChartWidget } from "@/features/dashboard/components/widgets/pie-chart-widget"
@@ -24,7 +24,6 @@ import { DataTableWidget } from "@/features/dashboard/components/widgets/data-ta
 import { TextWidget } from "@/features/dashboard/components/widgets/text-widget"
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
 
 // ─── Layout primitives ──────────────────────────────────────────────────────
 

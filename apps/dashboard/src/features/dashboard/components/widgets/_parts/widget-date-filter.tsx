@@ -4,7 +4,7 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { CalendarRange } from "lucide-react"
+import { Calendar as CalendarRange } from 'reicon-react'
 import type { DateRange as DayPickerRange } from "react-day-picker"
 import { isDateRange, type WidgetWindow, type DateRange } from "@beechcms/widget-sdk"
 import { Button } from "@/components/ui/button"

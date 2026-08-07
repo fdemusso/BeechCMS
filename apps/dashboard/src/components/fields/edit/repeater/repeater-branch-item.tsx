@@ -6,7 +6,7 @@ import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
-import { Trash2, ChevronDown, ChevronUp, GripVertical, Info } from "lucide-react"
+import { Trash2, ChevronDown, ChevronUp, SortV as GripVertical, InfoCircle as Info } from 'reicon-react'
 import type { Branch, BranchType, Seed } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

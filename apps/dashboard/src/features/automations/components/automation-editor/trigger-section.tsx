@@ -4,7 +4,7 @@
 
 import { useTranslation } from 'react-i18next'
 import { useFormContext, useFieldArray } from 'react-hook-form'
-import { Zap, Plus, X } from 'lucide-react'
+import { Flash as Zap, Plus, X } from 'reicon-react'
 import { Button } from '@/components/ui/button'
 import type { Branch } from '@beechcms/core'
 import { TriggerSelector } from './trigger-selector'

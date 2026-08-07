@@ -4,14 +4,14 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { InMemoryQueueService } from './in-memory-queue-service'
-import type { JobContext, JobRegistry } from '@beechcms/core'
+import type { JobContext, JobRegistry, IIdGenerator } from '@beechcms/core'
 
 function makeContext(): JobContext {
   return {
     repository: {} as any,
     bucket: {} as any,
-    clock: { now: () => 0 },
-    idGenerator: { nextId: () => 'id' },
+    clock: { now: () => 0, nowSeconds: () => 0 },
+    idGenerator: { uuid: () => 'id' } as unknown as IIdGenerator,
     env: {},
   }
 }

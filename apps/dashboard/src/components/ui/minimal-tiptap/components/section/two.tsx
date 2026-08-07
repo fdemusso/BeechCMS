@@ -7,15 +7,7 @@ import type { Editor } from "@tiptap/react"
 import type { FormatAction } from "../../types"
 import type { toggleVariants } from "@/components/ui/toggle"
 import type { VariantProps } from "class-variance-authority"
-import {
-  CodeIcon,
-  DotsHorizontalIcon,
-  FontBoldIcon,
-  FontItalicIcon,
-  StrikethroughIcon,
-  TextNoneIcon,
-  UnderlineIcon,
-} from "@radix-ui/react-icons"
+import { Code as CodeIcon, More as DotsHorizontalIcon, TextBold as FontBoldIcon, TextItalic as FontItalicIcon, TextX as StrikethroughIcon, Text as TextNoneIcon, TextUnderline as UnderlineIcon } from 'reicon-react'
 import { useTranslation } from "react-i18next"
 import { ToolbarSection } from "../toolbar-section"
 

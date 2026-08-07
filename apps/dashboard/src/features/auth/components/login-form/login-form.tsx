@@ -5,7 +5,7 @@
 import * as React from "react"
 import { Link } from "react-router-dom"
 import { useTranslation } from "react-i18next"
-import { Eye, EyeOff } from "lucide-react"
+import { Eye, EyeOff } from 'reicon-react'
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -101,7 +101,7 @@ export function LoginForm(props: Readonly<LoginFormProps>) {
                     {passwordReset && (
                       <Link
                         to="/forgot-password"
-                        className="ml-auto text-sm underline-offset-2 hover:underline"
+                        className="ml-auto text-sm hover:opacity-80 transition-opacity"
                       >
                         {t("login.forgotPassword")}
                       </Link>

@@ -4,7 +4,7 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Plus, Pencil, Trash2, RefreshCw } from "lucide-react"
+import { Plus, Edit as Pencil, Trash2, Refresh as RefreshCw } from 'reicon-react'
 import { useAuth } from "@/lib/auth-context"
 import { cn } from "@/lib/utils"
 import { useSchema } from "@/features/shared"

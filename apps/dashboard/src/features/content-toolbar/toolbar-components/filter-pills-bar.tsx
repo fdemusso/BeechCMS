@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { ListTree, Plus, Trash2, X } from "lucide-react"
+import { List as ListTree, Plus, Trash2, X } from 'reicon-react'
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,

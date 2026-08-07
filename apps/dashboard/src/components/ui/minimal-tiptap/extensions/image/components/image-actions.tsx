@@ -9,13 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  ClipboardCopyIcon,
-  DotsHorizontalIcon,
-  DownloadIcon,
-  Link2Icon,
-  SizeIcon,
-} from "@radix-ui/react-icons"
+import { Copy as ClipboardCopyIcon, More as DotsHorizontalIcon, Download as DownloadIcon, Link2 as Link2Icon, Size as SizeIcon } from 'reicon-react'
 import { ActionWrapper } from "./action-wrapper"
 import { ActionButton } from "./action-button"
 import { cn } from "@/lib/utils"

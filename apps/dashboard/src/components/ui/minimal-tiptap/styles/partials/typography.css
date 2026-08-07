@@ -31,9 +31,9 @@
 }
 
 .minimal-tiptap-editor .ProseMirror a.link {
-  @apply text-foreground no-underline hover:underline;
+  @apply text-foreground no-underline hover:opacity-80;
 }
 
 .minimal-tiptap-editor .ProseMirror a.link:hover {
-  @apply underline;
+  @apply no-underline;
 }
