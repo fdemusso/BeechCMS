@@ -248,8 +248,8 @@ function resolveByPath(filtered: Record<string, unknown>, path: (string | number
 function expectedFromIssue(issue: z.ZodIssue): string {
   if (issue.code === 'invalid_type') return issue.expected
   const message = issue.message
-  if (typeof message !== 'string') return 'valid-field-value'
-  return message.startsWith('Expected ') ? message.slice('Expected '.length) : 'valid-field-value'
+  if (typeof message !== 'string' || message.trim() === '') return 'valid-field-value'
+  return message.startsWith('Expected ') ? message.slice('Expected '.length) : message
 }
 
 /**

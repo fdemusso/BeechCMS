@@ -43,7 +43,7 @@ describe('D1DemoDataRepository (Repository-Driven Ingestion)', () => {
     expect(loadedSeeds).toContain('articoli')
 
     // Verify first clienti entry payload
-    const elisa = createdEntries.find((e) => e.id === 'c_01')
+    const elisa = createdEntries.find((e) => e.id === 'c0100000-0000-4000-8000-000000000001')
     expect(elisa).toBeDefined()
     expect(elisa?.data.email).toBe('elisa.colombo@vertexdigital.com')
   })

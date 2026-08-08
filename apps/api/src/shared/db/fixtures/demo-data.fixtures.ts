@@ -19,7 +19,7 @@ const t_c05 = nowSec - 3 * DAY
 
 export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
   {
-    id: 'c_01',
+    id: 'c0100000-0000-4000-8000-000000000001',
     slug: 'elisa-colombo',
     status: 'published',
     data: {
@@ -34,7 +34,7 @@ export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
     },
   },
   {
-    id: 'c_02',
+    id: 'c0200000-0000-4000-8000-000000000002',
     slug: 'davide-ferrari',
     status: 'published',
     data: {
@@ -49,7 +49,7 @@ export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
     },
   },
   {
-    id: 'c_03',
+    id: 'c0300000-0000-4000-8000-000000000003',
     slug: 'filippo-lombardi',
     status: 'published',
     data: {
@@ -64,7 +64,7 @@ export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
     },
   },
   {
-    id: 'c_04',
+    id: 'c0400000-0000-4000-8000-000000000004',
     slug: 'elisa-gallo',
     status: 'published',
     data: {
@@ -79,7 +79,7 @@ export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
     },
   },
   {
-    id: 'c_05',
+    id: 'c0500000-0000-4000-8000-000000000005',
     slug: 'matteo-conti',
     status: 'published',
     data: {
@@ -97,11 +97,11 @@ export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
 
 export const DEMO_ABBONAMENTI_FIXTURES: DemoEntryFixture[] = [
   {
-    id: 'abb_01',
+    id: 'a0100000-0000-4000-8000-000000000001',
     slug: 'abbonamento-vertex-digital',
     status: 'published',
     data: {
-      customer_id: 'c_01',
+      customer_id: 'c0100000-0000-4000-8000-000000000001',
       amount: 160,
       billing_cycle: 'monthly',
       payment_status: 'active',
@@ -110,11 +110,11 @@ export const DEMO_ABBONAMENTI_FIXTURES: DemoEntryFixture[] = [
     },
   },
   {
-    id: 'abb_02',
+    id: 'a0200000-0000-4000-8000-000000000002',
     slug: 'abbonamento-innova-solutions',
     status: 'published',
     data: {
-      customer_id: 'c_02',
+      customer_id: 'c0200000-0000-4000-8000-000000000002',
       amount: 144,
       billing_cycle: 'monthly',
       payment_status: 'active',
@@ -123,11 +123,11 @@ export const DEMO_ABBONAMENTI_FIXTURES: DemoEntryFixture[] = [
     },
   },
   {
-    id: 'abb_03',
+    id: 'a0300000-0000-4000-8000-000000000003',
     slug: 'abbonamento-alpha-dynamics',
     status: 'published',
     data: {
-      customer_id: 'c_04',
+      customer_id: 'c0400000-0000-4000-8000-000000000004',
       amount: 1250,
       billing_cycle: 'annual',
       payment_status: 'active',
@@ -139,12 +139,12 @@ export const DEMO_ABBONAMENTI_FIXTURES: DemoEntryFixture[] = [
 
 export const DEMO_TICKET_FIXTURES: DemoEntryFixture[] = [
   {
-    id: 'tkt_01',
+    id: 't0100000-0000-4000-8000-000000000001',
     slug: 'integrazione-webhook-fallita',
     status: 'published',
     data: {
       title: 'Integrazione webhook fallita su eventi invoice.paid',
-      customer_id: 'c_01',
+      customer_id: 'c0100000-0000-4000-8000-000000000001',
       priority: 'high',
       category: 'technical',
       ticket_status: 'open',
@@ -153,12 +153,12 @@ export const DEMO_TICKET_FIXTURES: DemoEntryFixture[] = [
     },
   },
   {
-    id: 'tkt_02',
+    id: 't0200000-0000-4000-8000-000000000002',
     slug: 'richiesta-fattura-elettronica',
     status: 'published',
     data: {
       title: 'Richiesta variazione codice SDI per fatturazione annuale',
-      customer_id: 'c_04',
+      customer_id: 'c0400000-0000-4000-8000-000000000004',
       priority: 'medium',
       category: 'billing',
       ticket_status: 'in_progress',
@@ -170,7 +170,7 @@ export const DEMO_TICKET_FIXTURES: DemoEntryFixture[] = [
 
 export const DEMO_CHANGELOG_FIXTURES: DemoEntryFixture[] = [
   {
-    id: 'ch_01',
+    id: 'ch100000-0000-4000-8000-000000000001',
     slug: 'v2-4-0-context-aware-privacy',
     status: 'published',
     data: {
@@ -182,7 +182,7 @@ export const DEMO_CHANGELOG_FIXTURES: DemoEntryFixture[] = [
     },
   },
   {
-    id: 'ch_02',
+    id: 'ch200000-0000-4000-8000-000000000002',
     slug: 'v2-3-0-kanban-automation-engine',
     status: 'published',
     data: {
@@ -197,7 +197,7 @@ export const DEMO_CHANGELOG_FIXTURES: DemoEntryFixture[] = [
 
 export const DEMO_ARTICOLI_FIXTURES: DemoEntryFixture[] = [
   {
-    id: 'art_01',
+    id: 'ar100000-0000-4000-8000-000000000001',
     slug: 'guida-alla-privacy-application-level-encryption',
     status: 'published',
     data: {
@@ -210,7 +210,7 @@ export const DEMO_ARTICOLI_FIXTURES: DemoEntryFixture[] = [
     },
   },
   {
-    id: 'art_02',
+    id: 'ar200000-0000-4000-8000-000000000002',
     slug: 'architettura-botanical-engine-e-d1',
     status: 'published',
     data: {
@@ -231,4 +231,3 @@ export const DEMO_FIXTURES_BY_SEED_SLUG: Record<string, DemoEntryFixture[]> = {
   changelog: DEMO_CHANGELOG_FIXTURES,
   articoli: DEMO_ARTICOLI_FIXTURES,
 }
-
