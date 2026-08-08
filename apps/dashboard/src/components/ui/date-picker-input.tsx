@@ -51,6 +51,14 @@ function parseInputDate(text: string, displayFormat: string): Date | undefined {
   return isValid(parsed) ? parsed : undefined
 }
 
+function parseExternalDate(externalValue: string | number | null | undefined): Date | undefined {
+  if (!externalValue) return undefined
+  const rawNum = typeof externalValue === "number" ? externalValue : (typeof externalValue === "string" && !isNaN(Number(externalValue)) && externalValue.trim() !== "" ? Number(externalValue) : NaN)
+  const finalVal = !isNaN(rawNum) && rawNum < 1e11 ? rawNum * 1000 : externalValue
+  const d = new Date(finalVal)
+  return isValid(d) ? d : undefined
+}
+
 export function DatePickerInput({
   value: externalValue,
   onChange: externalOnChange,
@@ -59,7 +67,7 @@ export function DatePickerInput({
   label,
   dateFormat,
 }: {
-  value?: string | null
+  value?: string | number | null
   onChange?: (value: string | null) => void
   placeholder?: string
   id?: string
@@ -73,11 +81,7 @@ export function DatePickerInput({
   const [open, setOpen] = React.useState(false)
   
   // Initial state logic (internal state uses Date objects)
-  const [date, setDate] = React.useState<Date | undefined>(() => {
-    if (!externalValue) return undefined
-    const d = new Date(externalValue)
-    return isValid(d) ? d : undefined
-  })
+  const [date, setDate] = React.useState<Date | undefined>(() => parseExternalDate(externalValue))
   const [month, setMonth] = React.useState<Date | undefined>(date)
   
   // Text value used in the input field
@@ -89,17 +93,15 @@ export function DatePickerInput({
   React.useEffect(() => {
     if (isFocused) return
 
-    if (!externalValue) {
+    const d = parseExternalDate(externalValue)
+    if (!d) {
       setDate(undefined)
       setTextValue("")
       return
     }
-    const d = new Date(externalValue)
-    if (isValid(d)) {
-      setDate(d)
-      setMonth(d)
-      setTextValue(formatDate(d, displayFormat))
-    }
+    setDate(d)
+    setMonth(d)
+    setTextValue(formatDate(d, displayFormat))
   }, [externalValue, isFocused, displayFormat])
 
   const notifyChange = (newDate: Date | undefined) => {
