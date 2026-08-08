@@ -104,7 +104,7 @@ export function FieldEditRepeater({ branch, value, onChange }: FieldEditProps) {
           {items.map((item, idx) => (
             itemKind === "branch" ? (
               <BranchItemRow
-                key={(item as Branch).id ?? idx}
+                key={dragIds[idx]}
                 branch={item as Branch}
                 activeSeedsForRelation={meta.branchItemContext?.activeSeedsForRelation ?? []}
                 subField={meta.branchItemContext?.subField}

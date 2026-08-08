@@ -4,7 +4,7 @@
 
 import type { AutomationAction } from '@beechcms/core'
 import type { ResolvedContext } from '../evaluator/context-resolver'
-import { sendAutomationMail } from '../../../shared/email/index'
+import { sendAutomationMail } from '../../../shared/email/email.service'
 import { interpolate } from '../engine/automation-runner.utils'
 
 type SendMailAction = Extract<AutomationAction, { type: 'send_mail' }>

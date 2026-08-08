@@ -49,10 +49,17 @@ export const ARCHIVE_MIME_TYPES = [
 
 export function extensionFromUrl(url: string): string | null {
   try {
-    const path = new URL(url).pathname
+    const parsed = new URL(url)
+    const path = parsed.pathname
     const dot = path.lastIndexOf('.')
-    if (dot < 0 || dot === path.length - 1) return null
-    return path.slice(dot + 1).toLowerCase()
+    if (dot >= 0 && dot < path.length - 1) {
+      return path.slice(dot + 1).toLowerCase()
+    }
+    const fm = parsed.searchParams.get('fm') || parsed.searchParams.get('format') || parsed.searchParams.get('ext')
+    if (fm && /^[a-z0-9]+$/i.test(fm)) {
+      return fm.toLowerCase()
+    }
+    return null
   } catch {
     return null
   }
@@ -60,7 +67,8 @@ export function extensionFromUrl(url: string): string | null {
 
 export function isExtensionAccepted(ext: string | null, accept: FileAccept): boolean {
   if (accept === 'any') return true
-  if (ext == null) return false
+  if (ext != null && BLOCKED_IMAGE_EXTENSIONS.has(ext)) return false
+  if (ext == null) return true
   if (accept === 'image') return IMAGE_EXTENSIONS.has(ext)
   if (accept === 'document') return DOCUMENT_EXTENSIONS.has(ext)
   return false

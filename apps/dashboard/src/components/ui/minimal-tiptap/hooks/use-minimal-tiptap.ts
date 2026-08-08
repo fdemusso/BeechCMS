@@ -13,16 +13,14 @@ import { Placeholder, Selection } from "@tiptap/extensions"
 import { Markdown } from "@tiptap/markdown"
 import { TaskItem, TaskList } from "@tiptap/extension-list"
 import { TableKit } from "@tiptap/extension-table"
-import {
-  Image,
-  HorizontalRule,
-  CodeBlockLowlight,
-  Color,
-  UnsetAllMarks,
-  ResetMarksOnEnter,
-  FileHandler,
-  MarkdownPaste,
-} from "../extensions"
+import { Image } from "../extensions/image/image"
+import { HorizontalRule } from "../extensions/horizontal-rule/horizontal-rule"
+import { CodeBlockLowlight } from "../extensions/code-block-lowlight/code-block-lowlight"
+import { Color } from "../extensions/color/color"
+import { UnsetAllMarks } from "../extensions/unset-all-marks/unset-all-marks"
+import { ResetMarksOnEnter } from "../extensions/reset-marks-on-enter/reset-marks-on-enter"
+import { FileHandler } from "../extensions/file-handler"
+import { MarkdownPaste } from "../extensions/markdown-paste/markdown-paste"
 import { cn } from "@/lib/utils"
 import { fileToBase64, getOutput, randomId } from "../shared"
 import { useThrottle } from "../hooks/use-throttle"

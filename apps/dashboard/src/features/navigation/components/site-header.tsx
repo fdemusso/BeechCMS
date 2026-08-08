@@ -91,7 +91,7 @@ export function SiteHeader() {
             {breadcrumbs.map((crumb, i) => {
               const isLast = i === breadcrumbs.length - 1
               return (
-                <React.Fragment key={i}>
+                <React.Fragment key={`${crumb.label}-${crumb.href ?? ""}`}>
                   <BreadcrumbItem>
                     {!isLast && crumb.href ? (
                       <BreadcrumbLink asChild>

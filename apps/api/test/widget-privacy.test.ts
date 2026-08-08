@@ -29,7 +29,7 @@ describe('widgetApp — Privacy & ALE Decryption', () => {
       list: vi.fn().mockResolvedValue({
         entries: [
           {
-            id: 'c_01',
+            id: 'c0100000-0000-4000-8000-000000000001',
             slug: 'elisa-colombo',
             status: 'published',
             created_at: 1700000000,

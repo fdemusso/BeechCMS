@@ -390,7 +390,7 @@ describe('Flow: Content Management (Protected API)', () => {
       }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(400)
 
-      // PrivacyPolicyError (privacy encrypt)
+      // Encrypted field creates successfully
       const ENCRYPTED_SEED = defineSeed({
         slug: 'encrypted',
         label: 'Encrypted',
@@ -408,7 +408,7 @@ describe('Flow: Content Management (Protected API)', () => {
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ secret: 'secret-val' })
       }, { ...TEST_ENV, DB: db })
-      expect(res.status).toBe(501)
+      expect(res.status).toBe(201)
 
       // DB error
       vi.spyOn(repo, 'create').mockRejectedValueOnce(new Error('Create DB error'))

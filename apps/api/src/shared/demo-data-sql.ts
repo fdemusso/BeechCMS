@@ -314,17 +314,17 @@ VALUES
 
 INSERT OR IGNORE INTO content_changelog (id, slug, status, version, release_date, features, created_at, updated_at)
 VALUES
-('341d7409-75b9-4a74-8c47-8d638bb91ca6', 'v1-0-0', 'published', 'v1.0.0', 1783633627, '<p>Lancio ufficiale della piattaforma con gestione clienti base.</p>', 1783633627, 1783633627),
-('10a5c6c2-87f2-492f-9bdb-05ee024cd075', 'v1-1-0', 'published', 'v1.1.0', 1783892827, '<p>Aggiunti report avanzati e export in CSV.</p>', 1783892827, 1783892827),
-('2f65e645-2bad-47a3-b6c6-27fd224b42b3', 'v1-2-0', 'published', 'v1.2.0', 1784152027, '<p>Integrazione con Slack per notifiche ticket.</p>', 1784152027, 1784152027),
-('229e0f41-21b8-4e9e-8d2d-3a6e51a1916d', 'v1-3-0', 'published', 'v1.3.0', 1784411227, '<p>Nuovo sistema di tagging per i ticket e filtri avanzati nella dashboard.</p>', 1784411227, 1784411227),
-('c954dad0-579f-4272-816a-5fde5752c3c1', 'v1-4-0', 'published', 'v1.4.0', 1784670427, '<h2>Performance</h2><p>Tempi di risposta delle API ridotti del 40% grazie alla cache edge.</p>', 1784670427, 1784670427),
-('c4f9aff2-43c9-49f4-b0dd-ba90c8643ca1', 'v1-5-0', 'published', 'v1.5.0', 1784929627, '<p>Aggiunto supporto per fatturazione annuale e sconti automatici.</p>', 1784929627, 1784929627),
-('b63a95ca-8ea7-4fb3-a4ac-72fa258a8f3c', 'v1-6-0', 'published', 'v1.6.0', 1785188827, '<h2>Novità</h2><p>Dashboard widget personalizzabili e drag-and-drop per i layout.</p>', 1785188827, 1785188827),
-('288136b1-43cb-403d-aa07-ff0375110c04', 'v1-7-0', 'published', 'v1.7.0', 1785448027, '<p>Nuove notifiche email per ticket ad alta priorità e SLA configurabili.</p>', 1785448027, 1785448027),
-('7b6b674a-92d2-42d1-b30b-591ca18e40b5', 'v2-0-0', 'published', 'v2.0.0', 1785707227, '<h2>Major Update</h2><p>Nuova dashboard amministrativa e API pubbliche.</p>', 1785707227, 1785707227),
-('38d21442-dba3-4aff-abab-859b50d05100', 'v2-1-0', 'published', 'v2.1.0', 1785880027, '<p>Miglioramenti alla ricerca full-text e correzione di vari bug minori di sincronizzazione.</p>', 1785880027, 1785880027),
-('607cf9ef-897e-4b46-ab6b-8c6a37cd0cd1', 'v2-2-0', 'published', 'v2.2.0', 1786052827, '<h2>Sicurezza</h2><p>Rotazione automatica delle API key e audit log per le modifiche di sistema.</p>', 1786052827, 1786052827);
+('341d7409-75b9-4a74-8c47-8d638bb91ca6', 'v1-0-0', 'published', 'v1.0.0', '2026-07-09', '<p>Lancio ufficiale della piattaforma con gestione clienti base.</p>', 1783633627, 1783633627),
+('10a5c6c2-87f2-492f-9bdb-05ee024cd075', 'v1-1-0', 'published', 'v1.1.0', '2026-07-12', '<p>Aggiunti report avanzati e export in CSV.</p>', 1783892827, 1783892827),
+('2f65e645-2bad-47a3-b6c6-27fd224b42b3', 'v1-2-0', 'published', 'v1.2.0', '2026-07-15', '<p>Integrazione con Slack per notifiche ticket.</p>', 1784152027, 1784152027),
+('229e0f41-21b8-4e9e-8d2d-3a6e51a1916d', 'v1-3-0', 'published', 'v1.3.0', '2026-07-18', '<p>Nuovo sistema di tagging per i ticket e filtri avanzati nella dashboard.</p>', 1784411227, 1784411227),
+('c954dad0-579f-4272-816a-5fde5752c3c1', 'v1-4-0', 'published', 'v1.4.0', '2026-07-21', '<h2>Performance</h2><p>Tempi di risposta delle API ridotti del 40% grazie alla cache edge.</p>', 1784670427, 1784670427),
+('c4f9aff2-43c9-49f4-b0dd-ba90c8643ca1', 'v1-5-0', 'published', 'v1.5.0', '2026-07-24', '<p>Aggiunto supporto per fatturazione annuale e sconti automatici.</p>', 1784929627, 1784929627),
+('b63a95ca-8ea7-4fb3-a4ac-72fa258a8f3c', 'v1-6-0', 'published', 'v1.6.0', '2026-07-27', '<h2>Novità</h2><p>Dashboard widget personalizzabili e drag-and-drop per i layout.</p>', 1785188827, 1785188827),
+('288136b1-43cb-403d-aa07-ff0375110c04', 'v1-7-0', 'published', 'v1.7.0', '2026-07-30', '<p>Nuove notifiche email per ticket ad alta priorità e SLA configurabili.</p>', 1785448027, 1785448027),
+('7b6b674a-92d2-42d1-b30b-591ca18e40b5', 'v2-0-0', 'published', 'v2.0.0', '2026-08-02', '<h2>Major Update</h2><p>Nuova dashboard amministrativa e API pubbliche.</p>', 1785707227, 1785707227),
+('38d21442-dba3-4aff-abab-859b50d05100', 'v2-1-0', 'published', 'v2.1.0', '2026-08-04', '<p>Miglioramenti alla ricerca full-text e correzione di vari bug minori di sincronizzazione.</p>', 1785880027, 1785880027),
+('607cf9ef-897e-4b46-ab6b-8c6a37cd0cd1', 'v2-2-0', 'published', 'v2.2.0', '2026-08-06', '<h2>Sicurezza</h2><p>Rotazione automatica delle API key e audit log per le modifiche di sistema.</p>', 1786052827, 1786052827);
 
 INSERT OR IGNORE INTO content_articoli (id, slug, status, title, author, cover_image, body, created_at, updated_at)
 VALUES

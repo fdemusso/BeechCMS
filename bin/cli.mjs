@@ -7,7 +7,11 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import pc from 'picocolors'
 
-const [,, command, ...args] = process.argv
+let [,, command, ...args] = process.argv
+
+if (command && args[0] && ['db', 'seed', 'schema', 'dev', 'generate', 'mailpit'].includes(command)) {
+  command = `${command}:${args.shift()}`
+}
 
 const COMMANDS = {
   build:            cmdBuild,

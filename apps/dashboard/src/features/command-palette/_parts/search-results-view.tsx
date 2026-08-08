@@ -20,7 +20,7 @@ function renderExcerpt(raw: string): React.ReactNode[] {
     const part = parts[i]
     if (part.toLowerCase() === '<mark>') { inMark = true; continue }
     if (part.toLowerCase() === '</mark>') { inMark = false; continue }
-    if (part) nodes.push(inMark ? <mark key={i}>{part}</mark> : part)
+    if (part) nodes.push(inMark ? <mark key={`mark-${nodes.length}-${part}`}>{part}</mark> : part)
   }
   return nodes
 }

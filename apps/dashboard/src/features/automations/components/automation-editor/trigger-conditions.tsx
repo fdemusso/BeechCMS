@@ -277,8 +277,12 @@ function WhenGroupEditor({ group, onChange, onRemove, onWrap, seedBranches, dept
       )}
 
       {/* Children */}
-      {group.children.map((child, idx) => (
-        <div key={idx}>
+      {group.children.map((child, idx) => {
+        const nodeKey = child.kind === 'predicate'
+          ? `${child.kind}-${child.left_ref}-${child.op}-${child.right_literal}-${child.right_ref}`
+          : `${child.kind}-${child.op}-${child.negate}-${child.children.length}`
+        return (
+          <div key={nodeKey}>
           {child.kind === 'predicate' ? (
             <WhenPredicateEditor
               pred={child}
@@ -298,7 +302,8 @@ function WhenGroupEditor({ group, onChange, onRemove, onWrap, seedBranches, dept
             />
           )}
         </div>
-      ))}
+        )
+      })}
 
       {/* Add condition */}
       <Button

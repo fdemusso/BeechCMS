@@ -26,7 +26,7 @@ export interface GalleryPeekFieldBlockProps {
  * Handles displaying media fields differently (as preview images) and falls back
  * to the default FieldDisplay for all other fields.
  */
-export function GalleryPeekFieldBlock({ branch, entry }: GalleryPeekFieldBlockProps) {
+function GalleryPeekFieldBlock({ branch, entry }: GalleryPeekFieldBlockProps) {
   const mediaUrl = branch.type === "file" ? resolveImageUrl(entry.data[branch.alias]) : null
 
   return (

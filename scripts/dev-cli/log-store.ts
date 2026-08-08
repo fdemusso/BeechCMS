@@ -3,7 +3,7 @@ import { classifyLine, isStackTraceLine, isVersionNotice, levelForLine, type Log
 
 export type LogSource = 'api' | 'dashboard' | 'core' | 'docker' | 'bootstrap' | 'system'
 
-export const LOG_SOURCES: LogSource[] = ['api', 'dashboard', 'core', 'docker', 'bootstrap', 'system']
+const LOG_SOURCES: LogSource[] = ['api', 'dashboard', 'core', 'docker', 'bootstrap', 'system']
 
 export interface LogLine {
   source: LogSource

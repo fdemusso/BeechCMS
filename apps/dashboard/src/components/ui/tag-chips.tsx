@@ -93,9 +93,9 @@ export function TagChips({
 
   return (
     <div className={cn("flex min-w-0 flex-wrap items-center gap-1", className)}>
-      {visibleTags.map((tag, index) => (
+      {visibleTags.map((tag) => (
         <Badge
-          key={`${tag.label}-${index}`}
+          key={`${tag.label}-${tag.color ?? ""}`}
           variant={chipVariant}
           className={cn("min-w-0 max-w-full", chipClassName)}
           style={

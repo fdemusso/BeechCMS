@@ -66,6 +66,8 @@ export function createInitialFormData(branches: EditorBranch[]): Record<string, 
       initial[branch.alias] = false
     } else if (branch.type === "richtext") {
       initial[branch.alias] = createEmptyRichtextDoc()
+    } else if (branch.type === "relation") {
+      initial[branch.alias] = branch.multiple ? [] : null
     } else {
       initial[branch.alias] = ""
     }
@@ -98,7 +100,9 @@ export function prepareSubmissionPayload({
 
   for (const branch of branches) {
     const value = formData[branch.alias]
-    if (branch.type === "json" && value) {
+    if (branch.type === "relation" && value === "") {
+      processed[branch.alias] = branch.multiple ? [] : null
+    } else if (branch.type === "json" && value) {
       if (typeof value === "string") {
         try {
           processed[branch.alias] = JSON.parse(value)

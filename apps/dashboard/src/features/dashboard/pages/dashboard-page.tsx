@@ -12,7 +12,7 @@ import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useDashboardLayout } from "../hooks/use-dashboard-layout"
 import { DashboardLayoutRenderer } from "../renderer/dashboard-layout-renderer"
-import { DashboardBuilderDialog } from "../builder"
+import { DashboardBuilderDialog } from "../builder/dashboard-builder-dialog"
 
 export default function DashboardPage() {
   const { t } = useTranslation()

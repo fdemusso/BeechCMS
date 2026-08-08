@@ -160,13 +160,13 @@ describe('relation field', () => {
     expect(r.details.some(d => d.field === 'author_id')).toBe(false)
   })
 
-  it('rejects empty string', () => {
+  it('rejects empty string for required relation', () => {
     const r = validateAndSanitizeSeedPayload(
       RELATION_SEED,
-      { title: 'T', author_id: '', editor_id: UUID_V4 },
+      { title: 'T', editor_id: '' },
       { operation: 'create', idGenerator: testIdGen, requireAtLeastOneValidField: true, enforceRequiredFields: true },
     )
-    expect(r.details.some(d => d.field === 'author_id')).toBe(true)
+    expect(r.details.some(d => d.field === 'editor_id')).toBe(true)
   })
 
   it('rejects a non-id-shaped string', () => {
