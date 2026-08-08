@@ -348,6 +348,16 @@ function processZodIssues(
     }
 
     const issuePath = issue.path as (string | number)[]
+    const valByPath = resolveByPath(filtered, issuePath)
+
+    // Skip dummy invalid_type (expected: null) issues produced by Zod union when input is not null
+    if (
+      issue.code === 'invalid_type' &&
+      (issue as { expected?: string }).expected === 'null' &&
+      valByPath !== null
+    ) {
+      continue
+    }
 
     // detectMissingRequired() already reports top-level required-and-missing branches;
     // skip the redundant native invalid_type/undefined issue Zod v4 raises for the same field.
@@ -355,7 +365,7 @@ function processZodIssues(
       issue.code === 'invalid_type' &&
       options.enforceRequiredFields &&
       issuePath.length === 1 &&
-      resolveByPath(filtered, issuePath) === undefined
+      valByPath === undefined
     ) {
       continue
     }
