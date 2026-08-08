@@ -5,13 +5,7 @@
 import { useState } from "react"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api"
-import {
-  Bell,
-  Info,
-  CheckCircle,
-  AlertTriangle,
-  XCircle
-} from "lucide-react"
+import { Bell, InfoCircle as Info, CheckCircle, AlertTriangle, XCircle } from 'reicon-react'
 import type { Notification, NotificationFilter } from "./types"
 
 const NOTIFICATION_ICONS: Record<string, any> = {

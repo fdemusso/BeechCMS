@@ -5,7 +5,7 @@
 import { createBeechApp } from './factory'
 import { SeedRegistry, SystemIdGenerator } from '@beechcms/core'
 import type { QueueMessage } from '@beechcms/core'
-import { runCronAutomations } from './features/automations'
+import { runCronAutomations } from './features/automations/engine/cron-runner'
 import { D1AutomationRepository } from './shared/db/repositories/automations.repository.d1'
 import { D1ContentRepository } from './shared/db/repositories/content.repository.d1'
 import { D1SeedRepository } from './shared/db/repositories/seed.repository.d1'

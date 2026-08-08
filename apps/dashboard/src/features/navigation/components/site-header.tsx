@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { SidebarIcon } from "lucide-react"
+import { SidebarLeft as SidebarIcon } from 'reicon-react'
 import { useLocation, useSearchParams, Link } from "react-router-dom"
 import { SEED_REGISTRY } from "@beechcms/core"
 
@@ -91,7 +91,7 @@ export function SiteHeader() {
             {breadcrumbs.map((crumb, i) => {
               const isLast = i === breadcrumbs.length - 1
               return (
-                <React.Fragment key={i}>
+                <React.Fragment key={`${crumb.label}-${crumb.href ?? ""}`}>
                   <BreadcrumbItem>
                     {!isLast && crumb.href ? (
                       <BreadcrumbLink asChild>

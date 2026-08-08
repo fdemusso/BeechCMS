@@ -1,14 +1,9 @@
+import type { IconComponent } from '@/lib/icon-registry'
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import {
-  Folder,
-  MoreHorizontal,
-  Share,
-  Trash2,
-  type LucideIcon,
-} from "lucide-react"
+import { Folder, More as MoreHorizontal, Share, Trash2 } from 'reicon-react'
 
 import {
   DropdownMenu,
@@ -30,7 +25,7 @@ import {
 type NavProject = {
   readonly name: string
   readonly url: string
-  readonly icon: LucideIcon
+  readonly icon: IconComponent
 }
 
 type NavProjectsProps = {

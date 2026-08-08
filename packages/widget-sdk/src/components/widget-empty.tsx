@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { LucideIcon } from 'lucide-react'
+import type { ComponentType } from 'react'
 
 export interface WidgetEmptyProps {
-  icon: LucideIcon
+  icon: ComponentType<{ className?: string }>
   title: string
   description?: string
 }

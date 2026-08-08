@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from 'react-i18next'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Edit as Pencil, Trash2 } from 'reicon-react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import type { Automation } from '@beechcms/core'

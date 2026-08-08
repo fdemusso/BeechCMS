@@ -14,25 +14,17 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Progress } from '@/components/ui/progress'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff } from 'reicon-react'
 import { TimezoneSelect } from '@/components/ui/timezone-select'
 import { TIMEZONES } from '@/components/ui/timezone-utils'
 import { CurrencySelect } from '@/components/ui/currency-select'
+import { LanguageSelect } from '@/components/ui/language-select'
 
 interface SetupEnvironment {
   isDeveloper: boolean
   services: { mail: boolean; qstash: boolean }
 }
-
-
 
 // Leet-speak substitution table for normalized matching
 const LEET_MAP: Record<string, string> = {
@@ -414,26 +406,22 @@ export function SetupPage() {
               )}
 
                <div className="space-y-2">
-                <Label>{t('setup.languageLabel')}</Label>
-                <Select value={language} onValueChange={(lng) => { setLanguage(lng); i18n.changeLanguage(lng) }}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder={t('setup.languagePlaceholder')} />
-                  </SelectTrigger>
-                  <SelectContent position="popper">
-                    <SelectItem value="it">Italiano</SelectItem>
-                    <SelectItem value="en">English</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2 flex flex-col">
-                <Label className="mb-1">{t('setup.timezoneLabel')}</Label>
-                <TimezoneSelect value={timezone} onValueChange={setTimezone} />
+                <Label htmlFor="setupLanguage">{t('setup.languageLabel')}</Label>
+                <LanguageSelect
+                  id="setupLanguage"
+                  value={language}
+                  onValueChange={(lng) => { setLanguage(lng); i18n.changeLanguage(lng) }}
+                />
               </div>
 
               <div className="space-y-2">
-                <Label>{t('setup.currencyLabel')}</Label>
-                <CurrencySelect value={currency} onValueChange={setCurrency} />
+                <Label htmlFor="setupTimezone">{t('setup.timezoneLabel')}</Label>
+                <TimezoneSelect id="setupTimezone" value={timezone} onValueChange={setTimezone} />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="setupCurrency">{t('setup.currencyLabel')}</Label>
+                <CurrencySelect id="setupCurrency" value={currency} onValueChange={setCurrency} />
               </div>
 
               <Button className="w-full" onClick={goNext}>

@@ -4,7 +4,7 @@
 
 import { useTranslation } from 'react-i18next'
 import { useFormContext, useFieldArray } from 'react-hook-form'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'reicon-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,

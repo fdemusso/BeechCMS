@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { FileText } from "lucide-react"
+import { FileText } from 'reicon-react'
 import { useQuery } from "@tanstack/react-query"
 import { CommandGroup, CommandItem } from "@/components/ui/command"
 import type { Seed } from "@beechcms/core"
@@ -20,7 +20,7 @@ function renderExcerpt(raw: string): React.ReactNode[] {
     const part = parts[i]
     if (part.toLowerCase() === '<mark>') { inMark = true; continue }
     if (part.toLowerCase() === '</mark>') { inMark = false; continue }
-    if (part) nodes.push(inMark ? <mark key={i}>{part}</mark> : part)
+    if (part) nodes.push(inMark ? <mark key={`mark-${nodes.length}-${part}`}>{part}</mark> : part)
   }
   return nodes
 }

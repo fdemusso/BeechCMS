@@ -45,13 +45,17 @@ export class D1SeedRepository implements ISeedRepository {
       .bind(slug)
       .first<{ slug: string; definition: string; status: string; source: string; created_at: number; updated_at: number }>()
     if (!r) return null
-    return {
-      slug: r.slug,
-      definition: JSON.parse(r.definition) as Seed,
-      status: r.status as 'active' | 'deleted',
-      source: r.source as 'code' | 'runtime',
-      createdAt: r.created_at,
-      updatedAt: r.updated_at,
+    try {
+      return {
+        slug: r.slug,
+        definition: JSON.parse(r.definition) as Seed,
+        status: r.status as 'active' | 'deleted',
+        source: r.source as 'code' | 'runtime',
+        createdAt: r.created_at,
+        updatedAt: r.updated_at,
+      }
+    } catch {
+      return null
     }
   }
 

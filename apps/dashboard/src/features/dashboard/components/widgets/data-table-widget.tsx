@@ -5,7 +5,7 @@
 import { useMemo, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate } from "react-router-dom"
-import { Table } from "lucide-react"
+import { Grid as Table } from 'reicon-react'
 import { resolvePolicies } from "@beechcms/core"
 import { DashboardWidgetShell } from "../dashboard-widget-shell"
 import { useWidgetList } from "../../hooks/use-widget-data"

@@ -27,8 +27,8 @@ export function EndpointsView({ endpoints }: EndpointsViewProps) {
       {Array.from(groups.entries()).map(([group, items]) => (
         <Box key={group} flexDirection="column" marginBottom={1}>
           <Text bold underline>{group}</Text>
-          {items.map((item, index) => (
-            <Box key={index}>
+          {items.map((item) => (
+            <Box key={`${item.method}-${item.path}`}>
               <Box width={8}>
                 <Text color={METHOD_COLORS[item.method] ?? 'white'} bold>
                   {item.method}

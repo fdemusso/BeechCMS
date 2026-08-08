@@ -295,61 +295,79 @@ export function useDashboardBuilder({ initialLayout }: UseDashboardBuilderArgs):
     [mutate],
   )
 
-  const moveWidget = useCallback(({ from, to }: MoveWidgetArgs): boolean => {
-    let moved: DashboardWidgetInstance | undefined
-    let ok = false
-
-    mutate((d) => {
-      const fromPage = d.pages.find((p) => p.id === from.pageId)
+  const moveWidget = useCallback(
+    ({ from, to }: MoveWidgetArgs): boolean => {
+      const fromPage = draft.pages.find((p) => p.id === from.pageId)
       const fromSection = fromPage?.sections.find((s) => s.id === from.sectionId)
       const fromColumn = fromSection?.columns.find((c) => c.id === from.columnId)
-      const toPage = d.pages.find((p) => p.id === to.pageId)
+      const toPage = draft.pages.find((p) => p.id === to.pageId)
       const toSection = toPage?.sections.find((s) => s.id === to.sectionId)
       const toColumn = toSection?.columns.find((c) => c.id === to.columnId)
-      if (fromColumn && toColumn) {
-        const widgetIdx = fromColumn.widgets.findIndex((w) => w.id === from.widgetId)
-        if (widgetIdx !== -1) {
-          moved = fromColumn.widgets[widgetIdx]
+      if (!fromColumn || !toColumn) return false
+      const widgetIdx = fromColumn.widgets.findIndex((w) => w.id === from.widgetId)
+      if (widgetIdx === -1) return false
 
-          // Remove from old location
-          fromColumn.widgets.splice(widgetIdx, 1)
+      mutate((d) => {
+        const fPage = d.pages.find((p) => p.id === from.pageId)
+        const fSection = fPage?.sections.find((s) => s.id === from.sectionId)
+        const fColumn = fSection?.columns.find((c) => c.id === from.columnId)
+        const tPage = d.pages.find((p) => p.id === to.pageId)
+        const tSection = tPage?.sections.find((s) => s.id === to.sectionId)
+        const tColumn = tSection?.columns.find((c) => c.id === to.columnId)
+        if (fColumn && tColumn) {
+          const idx = fColumn.widgets.findIndex((w) => w.id === from.widgetId)
+          if (idx !== -1) {
+            const moved = fColumn.widgets[idx]
 
-          // Insert into new location
-          const insertAt = to.index ?? toColumn.widgets.length
-          toColumn.widgets.splice(Math.min(insertAt, toColumn.widgets.length), 0, moved)
+            // Remove from old location
+            fColumn.widgets.splice(idx, 1)
+
+            // Insert into new location
+            const insertAt = to.index ?? tColumn.widgets.length
+            tColumn.widgets.splice(Math.min(insertAt, tColumn.widgets.length), 0, moved)
+          }
         }
-      }
-      return d
-    })
+        return d
+      })
 
-    ok = moved !== undefined
-    return ok
-  }, [mutate])
+      return true
+    },
+    [draft, mutate],
+  )
 
   const moveWidgetToPage = useCallback(
     (from: MoveWidgetArgs['from'], toPageId: string): boolean => {
-      let ok = false
+      const fromPage = draft.pages.find((p) => p.id === from.pageId)
+      const fromSection = fromPage?.sections.find((s) => s.id === from.sectionId)
+      const fromColumn = fromSection?.columns.find((c) => c.id === from.columnId)
+      if (!fromColumn) return false
+      const widgetIdx = fromColumn.widgets.findIndex((w) => w.id === from.widgetId)
+      if (widgetIdx === -1) return false
+      const toPage = draft.pages.find((p) => p.id === toPageId)
+      const targetColumn = toPage?.sections[0]?.columns[0]
+      if (!targetColumn) return false
+
       mutate((d) => {
-        const fromPage = d.pages.find((p) => p.id === from.pageId)
-        const fromSection = fromPage?.sections.find((s) => s.id === from.sectionId)
-        const fromColumn = fromSection?.columns.find((c) => c.id === from.columnId)
-        if (fromColumn) {
-          const widgetIdx = fromColumn.widgets.findIndex((w) => w.id === from.widgetId)
-          if (widgetIdx !== -1) {
-            const toPage = d.pages.find((p) => p.id === toPageId)
-            const targetColumn = toPage?.sections[0]?.columns[0]
-            if (targetColumn) {
-              const [widget] = fromColumn.widgets.splice(widgetIdx, 1)
-              targetColumn.widgets.push(widget)
-              ok = true
+        const fPage = d.pages.find((p) => p.id === from.pageId)
+        const fSection = fPage?.sections.find((s) => s.id === from.sectionId)
+        const fColumn = fSection?.columns.find((c) => c.id === from.columnId)
+        if (fColumn) {
+          const idx = fColumn.widgets.findIndex((w) => w.id === from.widgetId)
+          if (idx !== -1) {
+            const tPage = d.pages.find((p) => p.id === toPageId)
+            const tCol = tPage?.sections[0]?.columns[0]
+            if (tCol) {
+              const [widget] = fColumn.widgets.splice(idx, 1)
+              tCol.widgets.push(widget)
             }
           }
         }
         return d
       })
-      return ok
+
+      return true
     },
-    [mutate],
+    [draft, mutate],
   )
 
   const removeWidget = useCallback((pageId: string, sectionId: string, columnId: string, widgetId: string) => {

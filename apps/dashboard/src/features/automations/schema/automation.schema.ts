@@ -13,7 +13,7 @@ export { AUTOMATION_RESERVED_WORDS }
 export const TRIGGER_OPS = ['eq', 'neq', 'contains', 'gt', 'lt', 'isempty', 'isnotempty'] as const
 export type TriggerOp = typeof TRIGGER_OPS[number]
 
-export const WHEN_OPS = [
+const WHEN_OPS = [
   'eq', 'neq',
   'gt', 'gte', 'lt', 'lte',
   'contains', 'startswith', 'endswith',
@@ -126,7 +126,7 @@ const actionFormItemSchema = z
     if (data.type === 'webhook') {
       if (!data.url) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.urlRequired', path: ['url'] })
-      } else if (!z.string().url().safeParse(data.url).success) {
+      } else if (!z.url().safeParse(data.url).success) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.urlInvalid', path: ['url'] })
       } else {
         try {
@@ -145,7 +145,7 @@ const actionFormItemSchema = z
     if (data.type === 'send_mail') {
       if (!data.to) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.emailRequired', path: ['to'] })
-      } else if (!z.string().email().safeParse(data.to).success) {
+      } else if (!z.email().safeParse(data.to).success) {
         ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'automations.editor.errors.emailInvalid', path: ['to'] })
       }
       if (!data.subject_template) {

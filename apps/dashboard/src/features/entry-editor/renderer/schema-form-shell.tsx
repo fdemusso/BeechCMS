@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from "react"
 import type { ReactNode } from "react"
-import { ChevronDown, Loader2, Pencil, Trash2, LayoutTemplate } from "lucide-react"
+import { ChevronDown, Loader as Loader2, Edit as Pencil, Trash2, Layout as LayoutTemplate } from 'reicon-react'
 import type { Seed } from "@beechcms/core"
 
 import {

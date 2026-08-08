@@ -12,7 +12,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
-import { Plus, Eye, EyeOff, Loader2 } from 'lucide-react'
+import { Plus, Eye, EyeOff, Loader as Loader2 } from 'reicon-react'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'

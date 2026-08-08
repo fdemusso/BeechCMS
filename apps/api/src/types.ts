@@ -10,7 +10,7 @@
  */
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { ISetupChecklistRepository } from './shared/db/repositories/d1-setup-checklist.repository'
 
@@ -97,6 +97,8 @@ export interface Env {
   QSTASH_CURRENT_SIGNING_KEY?: string
   /** Next QStash signing key, accepted during key rotation. */
   QSTASH_NEXT_SIGNING_KEY?: string
+  /** Master key used for Application-Level Encryption (ALE). */
+  PRIVACY_MASTER_KEY?: string
 }
 
 /**
@@ -104,8 +106,12 @@ export interface Env {
  * before route handlers run. Every entry here must be set by some middleware on the request path.
  */
 export interface Variables {
+  /** Caller/actor context (public vs authenticated user vs system). */
+  actor?: ActorContext
   /** Decoded JWT claims of the authenticated user. */
   jwtPayload: JwtClaims
+  /** Application-level privacy and encryption service. */
+  privacyService: IPrivacyService
   /** Looks up a Seed definition by slug from the loaded schema. */
   getSeed: (slug: string) => Seed | null
   /** Registry of all loaded Seed definitions. */

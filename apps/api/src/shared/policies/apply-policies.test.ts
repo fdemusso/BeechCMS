@@ -41,9 +41,10 @@ describe('applyPrivacy', () => {
     expect(result.email).toBeNull()
   })
 
-  it('throws PrivacyPolicyError for "encrypt" privacy (not yet implemented)', async () => {
+  it('passes through "encrypt" privacy fields so repository can encrypt them', async () => {
     const seed = makeSeed([{ id: 'br_01', alias: 'secret', type: 'text', policies: { privacy: 'encrypt' } }])
-    await expect(applyPrivacy({ secret: 'value' }, seed)).rejects.toBeInstanceOf(PrivacyPolicyError)
+    const result = await applyPrivacy({ secret: 'value' }, seed)
+    expect(result.secret).toBe('value')
   })
 
   it('passes through fields not present in the seed branches unchanged', async () => {
@@ -85,4 +86,24 @@ describe('applyVisibility', () => {
     const result = applyVisibility({ title: 'Hi', extraField: 'pass' }, seed)
     expect(result.extraField).toBe('pass')
   })
+
+  it('respects ActorContext classification rules for public vs authenticated vs system actors', () => {
+    const seed = makeSeed([
+      { id: 'br_01', alias: 'pub', type: 'text', policies: { classification: 'public' } },
+      { id: 'br_02', alias: 'internal', type: 'text', policies: { classification: 'internal' } },
+      { id: 'br_03', alias: 'confidential', type: 'text', policies: { classification: 'confidential' } },
+      { id: 'br_04', alias: 'restricted', type: 'text', policies: { classification: 'restricted' } },
+    ])
+    const payload = { pub: 'v1', internal: 'v2', confidential: 'v3', restricted: 'v4' }
+
+    const pubRes = applyVisibility(payload, seed, { type: 'public' })
+    expect(pubRes).toEqual({ pub: 'v1' })
+
+    const authRes = applyVisibility(payload, seed, { type: 'authenticated' })
+    expect(authRes).toEqual({ pub: 'v1', internal: 'v2', confidential: 'v3' })
+
+    const sysRes = applyVisibility(payload, seed, { type: 'system' })
+    expect(sysRes).toEqual({ pub: 'v1', internal: 'v2', confidential: 'v3', restricted: 'v4' })
+  })
 })
+

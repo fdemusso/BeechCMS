@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useState } from "react"
-import { CheckCircle2, Circle, AlertCircle, X, ChevronRight } from "lucide-react"
+import { CheckCircle as CheckCircle2, FormatCircle as Circle, AlertCircle, X, ChevronRight } from 'reicon-react'
 import { useTranslation } from "react-i18next"
 import { Link } from "react-router-dom"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -107,14 +107,14 @@ export function SetupChecklistWidget({ variant = "full" }: SetupChecklistWidgetP
 
       {variant === "compact" ? (
         <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-          {items.map((item, i) => (
-            <ChecklistItemCompact key={i} done={item.done} label={item.label} />
+          {items.map((item) => (
+            <ChecklistItemCompact key={item.label} done={item.done} label={item.label} />
           ))}
         </div>
       ) : (
         <ul className="space-y-2">
-          {items.map((item, i) => (
-            <ChecklistItemFull key={i} {...item} />
+          {items.map((item) => (
+            <ChecklistItemFull key={item.label} {...item} />
           ))}
         </ul>
       )}
@@ -163,7 +163,7 @@ function ChecklistItemFull({ done, label, hint, action }: {
               href={action.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-0.5 inline-flex items-center gap-1 text-xs text-foreground hover:underline"
+              className="mt-0.5 inline-flex items-center gap-1 text-xs text-foreground hover:opacity-80 transition-opacity"
             >
               {action.label}
               <ChevronRight className="size-3" />
@@ -171,7 +171,7 @@ function ChecklistItemFull({ done, label, hint, action }: {
           ) : (
             <Link
               to={action.href!}
-              className="mt-0.5 inline-flex items-center gap-1 text-xs text-foreground hover:underline"
+              className="mt-0.5 inline-flex items-center gap-1 text-xs text-foreground hover:opacity-80 transition-opacity"
             >
               {action.label}
               <ChevronRight className="size-3" />

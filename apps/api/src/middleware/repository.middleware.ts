@@ -28,7 +28,7 @@ import { D1KanbanPositionRepository } from '../shared/db/repositories/kanban-pos
 import { SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
-import { AutomationRunner } from '../features/automations'
+import { AutomationRunner } from '../features/automations/engine/automation-runner'
 import { D1AutomationRepository } from '../shared/db/repositories/automations.repository.d1'
 import { ExecutionContextScheduler } from '../shared/services/scheduler/execution-context-scheduler'
 import type { Env, Variables } from '../types'

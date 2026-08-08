@@ -8,7 +8,7 @@ import { applyVisibility } from '../../../shared/policies/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
-import { resolveKanbanConfig, type FilterGroup } from '@beechcms/core'
+import { resolveKanbanConfig, type FilterGroup, type ActorContext } from '@beechcms/core'
 
 /**
  * Builds a compact `relations` map for the list response.
@@ -177,6 +177,13 @@ export async function listHandler(context: Context<AppEnv>) {
       kanbanOrder,
     })
 
+    const jwtPayload = context.get('jwtPayload')
+    const actor: ActorContext = context.get('actor') ?? {
+      type: 'authenticated',
+      userId: jwtPayload?.sub,
+      role: jwtPayload?.role,
+    }
+
     const entries = await Promise.all(items.map(async (item) => {
       // Check for pending draft if allowed
       let hasPendingDraft = false
@@ -187,7 +194,7 @@ export async function listHandler(context: Context<AppEnv>) {
       return {
         ...item,
         has_pending_draft: hasPendingDraft,
-        data: applyVisibility(item, seed) // Repository returns "pure" data including system fields
+        data: applyVisibility(item, seed, actor) // Repository returns "pure" data including system fields
       }
     }))
 

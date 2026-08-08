@@ -4,7 +4,7 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { Settings2 } from "lucide-react"
+import { Settings } from 'reicon-react'
 import { canEditDashboard } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
@@ -12,7 +12,7 @@ import { AppSidebar, SiteHeader } from "@/features/navigation"
 import { useAuth } from "@/lib/auth-context"
 import { useDashboardLayout } from "../hooks/use-dashboard-layout"
 import { DashboardLayoutRenderer } from "../renderer/dashboard-layout-renderer"
-import { DashboardBuilderDialog } from "../builder"
+import { DashboardBuilderDialog } from "../builder/dashboard-builder-dialog"
 
 export default function DashboardPage() {
   const { t } = useTranslation()
@@ -59,7 +59,7 @@ export default function DashboardPage() {
                   </div>
                   {canEdit && (
                     <Button type="button" variant="outline" size="sm" onClick={() => setBuilderOpen(true)}>
-                      <Settings2 className="size-4 mr-2" />
+                      <Settings className="size-4 mr-2" />
                       {t("dashboard.builder.customize")}
                     </Button>
                   )}

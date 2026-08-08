@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useEffect } from 'react'
 import {
   useSensors,
   useSensor,
@@ -85,7 +85,9 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
 
   // Stable refs — never trigger re-renders, safe to read inside async callbacks
   const optsRef = useRef(opts)
-  optsRef.current = opts
+  useEffect(() => {
+    optsRef.current = opts
+  })
 
   const activeIdRef = useRef<string | null>(null)
   const snapshotRef = useRef<DragSnapshot | null>(null)
@@ -335,10 +337,15 @@ export function useKanbanDrag(opts: UseKanbanDragOptions) {
           },
         )
 
+        const cachedData = ((cachedEntry as any)?.data as Record<string, unknown> | undefined) ?? {}
         const updatedEntry = {
           ...(cachedEntry as object ?? { id: entryId }),
           position: newPosition,
           [axisBranch.alias]: newAxisValue,
+          data: {
+            ...cachedData,
+            [axisBranch.alias]: newAxisValue,
+          },
         }
         queryClient.setQueriesData<InfiniteData<ContentListWithMeta>>(
           { queryKey: ['kanban', seedSlug, axisBranchId, destColValue] },

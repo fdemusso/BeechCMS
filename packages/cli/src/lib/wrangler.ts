@@ -2,9 +2,10 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process'
-import { writeFileSync, rmSync, existsSync, readFileSync } from 'node:fs'
+import { writeFileSync, rmSync, existsSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 
 export interface WranglerOptions {
   db: string
@@ -30,13 +31,54 @@ function buildArgs(options: WranglerOptions): string[] {
   return args
 }
 
-/** Esegue SQL da file temporaneo via `wrangler d1 execute --file`. Returns true on success. */
+export function getLocalD1SqlitePath(startDir: string = process.cwd()): string | null {
+  let curr = resolve(startDir)
+  while (true) {
+    const candidates = [
+      resolve(curr, '.wrangler', 'state', 'v3', 'd1', 'miniflare-D1DatabaseObject'),
+      resolve(curr, 'apps', 'api', '.wrangler', 'state', 'v3', 'd1', 'miniflare-D1DatabaseObject'),
+    ]
+    for (const dir of candidates) {
+      if (existsSync(dir)) {
+        try {
+          const files = readdirSync(dir)
+          const sqliteFile = files.find((f) => f.endsWith('.sqlite') && !f.startsWith('metadata'))
+          if (sqliteFile) return join(dir, sqliteFile)
+        } catch {}
+      }
+    }
+    const parent = resolve(curr, '..')
+    if (parent === curr) break
+    curr = parent
+  }
+  return null
+}
+
+/** Esegue SQL da file temporaneo via `wrangler d1 execute --file` o direct SQLite in local mode. Returns true on success. */
 export function executeD1File(sql: string, options: WranglerOptions): boolean {
+  if (options.local) {
+    const sqlitePath = getLocalD1SqlitePath()
+    if (sqlitePath) {
+      try {
+        const db = new DatabaseSync(sqlitePath)
+        db.exec(sql)
+        return true
+      } catch {
+        // fallback to wrangler CLI below if DatabaseSync fails
+      }
+    }
+  }
+
   const tmpFile = join(tmpdir(), `beech-seed-${Date.now()}.sql`)
   try {
     writeFileSync(tmpFile, sql, 'utf-8')
     const args = ['d1', 'execute', options.db, '--file', tmpFile, ...buildArgs(options)]
-    const result = spawnSync('npx', ['wrangler', ...args], { stdio: 'inherit', cwd: process.cwd(), shell: true })
+    const result = spawnSync('npx', ['wrangler', ...args], {
+      stdio: 'inherit',
+      cwd: process.cwd(),
+      shell: true,
+      env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },
+    })
     return result.status === 0
   } finally {
     try { rmSync(tmpFile) } catch {}
@@ -45,20 +87,31 @@ export function executeD1File(sql: string, options: WranglerOptions): boolean {
 
 /**
  * Esegue una query SQL e ritorna i risultati come array di oggetti (--json).
- *
- * Passa il SQL via file temporaneo (`--file`) anziché `--command`: su Windows,
- * `spawnSync` con `shell: true` non preserva le virgolette/spazi/virgole interni
- * a un argomento inline, e wrangler riceve il comando spezzato in token sciolti
- * ("Unknown arguments: name, FROM, sqlite_master, …"). Il file evita del tutto
- * il riquoting della shell — stesso approccio di `executeD1File`.
  */
 export function queryD1<T extends D1Row = D1Row>(sql: string, options: WranglerOptions): T[] {
+  if (options.local) {
+    const sqlitePath = getLocalD1SqlitePath()
+    if (sqlitePath) {
+      try {
+        const db = new DatabaseSync(sqlitePath)
+        return db.prepare(sql).all() as T[]
+      } catch {
+        // fallback to wrangler CLI below if DatabaseSync fails
+      }
+    }
+  }
+
   const tmpFile = join(tmpdir(), `beech-query-${Date.now()}.sql`)
   let result: SpawnSyncReturns<string>
   try {
     writeFileSync(tmpFile, sql, 'utf-8')
     const args = ['d1', 'execute', options.db, '--file', tmpFile, '--json', ...buildArgs(options)]
-    result = spawnSync('npx', ['wrangler', ...args], { encoding: 'utf-8', cwd: process.cwd(), shell: true })
+    result = spawnSync('npx', ['wrangler', ...args], {
+      encoding: 'utf-8',
+      cwd: process.cwd(),
+      shell: true,
+      env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },
+    })
   } finally {
     try { rmSync(tmpFile) } catch {}
   }

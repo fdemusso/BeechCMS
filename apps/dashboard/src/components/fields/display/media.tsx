@@ -7,7 +7,7 @@
  * `fileOptions.accept === 'image'`; altrimenti mostra icona generica senza
  * effettuare richieste HTTP verso l'URL.
  */
-import { FileIcon } from "lucide-react"
+import { File as FileIcon } from 'reicon-react'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { resolveFileOptions } from "@beechcms/core"
 import type { FieldDisplayProps } from "../types"
@@ -68,10 +68,10 @@ export function MediaDisplay({ branch, value }: FieldDisplayProps) {
     }
     return (
       <div className="flex items-center gap-1">
-        {urls.slice(0, 3).map((url, index) =>
+        {urls.slice(0, 3).map((url) =>
           renderAsImage ? (
             <Avatar
-              key={`${url}-${index}`}
+              key={url}
               className="size-10 shrink-0 rounded-md border border-input bg-muted"
             >
               <AvatarImage src={url} alt="" className="object-cover" />
@@ -81,7 +81,7 @@ export function MediaDisplay({ branch, value }: FieldDisplayProps) {
             </Avatar>
           ) : (
             <div
-              key={`${url}-${index}`}
+              key={url}
               className="flex size-10 items-center justify-center rounded-md border border-input bg-muted"
             >
               <FileIcon className="size-5 text-muted-foreground" />

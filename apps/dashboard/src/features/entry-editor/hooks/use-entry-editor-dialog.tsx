@@ -26,7 +26,7 @@ import {
 } from "@/features/content-management"
 import { useActiveSeed } from "@/features/shared"
 import { useAuth } from "@/lib/auth-context"
-import { Loader2 } from "lucide-react"
+import { Loader as Loader2 } from 'reicon-react'
 import type { RendererBranchMap } from "../renderer/layout-renderer"
 import type { SchemaFormCapabilities, SchemaFormViewModel } from "../renderer/schema-form-view-model"
 
@@ -66,6 +66,8 @@ export function createInitialFormData(branches: EditorBranch[]): Record<string, 
       initial[branch.alias] = false
     } else if (branch.type === "richtext") {
       initial[branch.alias] = createEmptyRichtextDoc()
+    } else if (branch.type === "relation") {
+      initial[branch.alias] = branch.multiple ? [] : null
     } else {
       initial[branch.alias] = ""
     }
@@ -98,7 +100,9 @@ export function prepareSubmissionPayload({
 
   for (const branch of branches) {
     const value = formData[branch.alias]
-    if (branch.type === "json" && value) {
+    if (branch.type === "relation" && value === "") {
+      processed[branch.alias] = branch.multiple ? [] : null
+    } else if (branch.type === "json" && value) {
       if (typeof value === "string") {
         try {
           processed[branch.alias] = JSON.parse(value)

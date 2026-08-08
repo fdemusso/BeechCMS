@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useState } from "react"
-import { Calendar, ImageIcon, ImageOff } from "lucide-react"
+import { Calendar, Image as ImageIcon, Image as ImageOff } from 'reicon-react'
 
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"

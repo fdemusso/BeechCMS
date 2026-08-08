@@ -3,18 +3,32 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { IDemoDataRepository } from '@beechcms/core'
-import { DEMO_DATA_SQL } from '../migrations/demo-data-sql'
+import type { IDemoDataRepository, ContentRepository, Seed } from '@beechcms/core'
+import { DEMO_FIXTURES_BY_SEED_SLUG } from '../fixtures/demo-data.fixtures'
 
 export class D1DemoDataRepository implements IDemoDataRepository {
-  constructor(private readonly db: D1Database) {}
+  constructor(private readonly _db?: unknown) {}
 
-  async loadDemoData(): Promise<void> {
-    const statements = DEMO_DATA_SQL
-      .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0)
-      .map(s => this.db.prepare(s))
-    await this.db.batch(statements)
+  /**
+   * Loads structured demo datasets using ContentRepository domain methods.
+   * This guarantees full compliance with field validation, privacy encryption (AES-256-GCM),
+   * blind index generation (*_bidx), FTS search indexing, and relation integrity.
+   */
+  async loadDemoData(
+    repository: ContentRepository,
+    getSeed: (slug: string) => Seed | null
+  ): Promise<void> {
+    for (const [slug, fixtures] of Object.entries(DEMO_FIXTURES_BY_SEED_SLUG)) {
+      const seed = getSeed(slug)
+      if (!seed) continue
+
+      for (const entry of fixtures) {
+        try {
+          await repository.create(seed, entry.id, entry.slug, entry.status, entry.data)
+        } catch {
+          // Idempotent: ignore if entry with this ID/slug already exists
+        }
+      }
+    }
   }
 }

@@ -16,7 +16,7 @@ export function ErrorBar({ errors, selectedIndex }: ErrorBarProps) {
       {errors.map((error, index) => {
         const selected = index === selectedIndex
         return (
-          <Box key={`${error.source}-${error.timestamp}-${index}`} flexDirection="column">
+          <Box key={`${error.source}-${error.timestamp}`} flexDirection="column">
             <Text color={selected ? 'black' : 'red'} backgroundColor={selected ? 'red' : undefined}>
               {selected ? '▸ ' : '  '}[{error.source}] {error.code}
             </Text>

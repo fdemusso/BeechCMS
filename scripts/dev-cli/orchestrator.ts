@@ -175,7 +175,11 @@ export function updateDevVars(updates: Record<string, string | undefined>, appen
 export async function getTunnelUrl(retries = 15, delayMs = 1000): Promise<string | null> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const logs = execSync('docker compose -f docker/docker-compose.yml logs tunnel', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+      const logs = execSync('docker compose -f docker/docker-compose.yml logs tunnel', {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        maxBuffer: 10 * 1024 * 1024,
+      })
       const matches = logs.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/g)
       if (matches && matches.length > 0) {
         return matches[matches.length - 1]

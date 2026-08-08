@@ -41,8 +41,8 @@ export function VersionsView({ monorepoVersion, logStore }: VersionsViewProps) {
         {notices.length === 0 ? (
           <Text dimColor>(none)</Text>
         ) : (
-          notices.map((notice, index) => (
-            <Text key={index} dimColor>
+          notices.map((notice) => (
+            <Text key={notice} dimColor>
               {notice}
             </Text>
           ))

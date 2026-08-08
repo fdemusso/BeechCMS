@@ -82,7 +82,6 @@ const setVariableActionSchema = z.object({
 const webhookActionSchema = z.object({
   type: z.literal('webhook'),
   url: z
-    .string()
     .url()
     .refine((u) => {
       try { return new URL(u).protocol === 'https:' } catch { return false }
@@ -100,7 +99,7 @@ const webhookActionSchema = z.object({
 
 const sendMailActionSchema = z.object({
   type: z.literal('send_mail'),
-  to: z.string().email(),
+  to: z.email(),
   subject_template: z.string().min(1),
   body_template: z.string().min(1),
 })

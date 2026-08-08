@@ -65,7 +65,7 @@ describe('kanbanPositionHandler', () => {
       findById: vi.fn().mockRejectedValue(new EntryNotFoundError('not found')),
     })
     const result = await kanbanPositionHandler(ctx as never)
-    expect((result as Record<string, unknown>).status).toBe(404)
+    expect((result as Response).status).toBe(404)
   })
 
   it('rethrows unexpected errors from findById', async () => {
@@ -80,24 +80,24 @@ describe('kanbanPositionHandler', () => {
   it('400s when slug is missing', async () => {
     const { ctx } = makeContext({ slug: null })
     const result = await kanbanPositionHandler(ctx as never)
-    expect((result as Record<string, unknown>).status).toBe(400)
+    expect((result as Response).status).toBe(400)
   })
 
   it('404s when seed is not found', async () => {
     const { ctx } = makeContext({ seed: null })
     const result = await kanbanPositionHandler(ctx as never)
-    expect((result as Record<string, unknown>).status).toBe(404)
+    expect((result as Response).status).toBe(404)
   })
 
   it('400s on invalid body', async () => {
     const { ctx } = makeContext({ body: { position: 123, axisBranchId: 'br_01' } })
     const result = await kanbanPositionHandler(ctx as never)
-    expect((result as Record<string, unknown>).status).toBe(400)
+    expect((result as Response).status).toBe(400)
   })
 
   it('400s when axisBranchId is not a valid kanban candidate', async () => {
     const { ctx } = makeContext({ body: { position: 'col-a', axisBranchId: 'br_NOTEXIST' } })
     const result = await kanbanPositionHandler(ctx as never)
-    expect((result as Record<string, unknown>).status).toBe(400)
+    expect((result as Response).status).toBe(400)
   })
 })

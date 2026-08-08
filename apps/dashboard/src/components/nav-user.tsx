@@ -4,7 +4,7 @@
 
 "use client"
 
-import { BadgeCheck, ChevronsUpDown, LogOut } from "lucide-react"
+import { CheckCircle as BadgeCheck, More, Logout as LogOut } from 'reicon-react'
 import { useNavigate } from "react-router-dom"
 
 import {
@@ -74,7 +74,7 @@ export function NavUser({
                 <span className="truncate font-medium">{user.name}</span>
                 <span className="truncate text-xs">{user.email}</span>
               </div>
-              <ChevronsUpDown className="ml-auto size-4" />
+              <More className="ml-auto size-4 rotate-90 text-muted-foreground" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

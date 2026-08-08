@@ -135,14 +135,25 @@ describe("DefaultEdit", () => {
 })
 
 describe("FieldEdit", () => {
-  it("campo sensibile (hash) mostra placeholder oscurato", () => {
+  it("campo sensibile (hash / restricted) mostra badge Restricted", () => {
     const hashBranch = {
       ...branch,
       type: "text",
       policies: { privacy: "hash" },
     } as unknown as Branch
     render(<FieldEdit branch={hashBranch} value="" onChange={vi.fn()} />)
-    expect(screen.getByText("••••••••")).toBeInTheDocument()
+    expect(screen.getByText("Restricted")).toBeInTheDocument()
+  })
+
+  it("campo confidential (encrypt) renderizza il componente edit per consentire la modifica", () => {
+    const confidentialBranch = {
+      ...branch,
+      type: "text",
+      policies: { privacy: "encrypt" },
+    } as unknown as Branch
+    render(<FieldEdit branch={confidentialBranch} value="test@example.com" onChange={vi.fn()} />)
+    expect(screen.getByRole("textbox")).toBeInTheDocument()
+    expect(screen.getByRole("textbox")).toHaveValue("test@example.com")
   })
 
   it("campo normale renderizza il componente edit", () => {

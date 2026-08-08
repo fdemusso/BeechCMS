@@ -114,12 +114,12 @@ export async function bulkHandler(context: Context<AppEnv>) {
     }
 
     const policies = resolvePolicies(branch)
-    if (policies.visibility === 'hidden' || policies.privacy === 'encrypt') {
+    if (policies.visibility === 'hidden' || policies.privacy !== 'plain') {
       return publicProblem(context, {
         type: 'field-not-bulk-editable',
         title: 'Bad Request',
         status: 400,
-        detail: `Field '${alias}' cannot be bulk-edited (hidden or encrypted)`,
+        detail: `Field '${alias}' cannot be bulk-edited (hidden or non-plain privacy)`,
       })
     }
 

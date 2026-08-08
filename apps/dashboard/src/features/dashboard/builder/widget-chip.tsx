@@ -1,3 +1,4 @@
+import type { IconComponent } from '@/lib/icon-registry'
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
@@ -5,9 +6,7 @@ import * as React from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import * as LucideIcons from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
-import { GripVertical, MoreHorizontal, Settings2, Trash2, AlertTriangle, ArrowRightLeft, Box } from 'lucide-react'
+import { SortV as GripVertical, More as MoreHorizontal, Settings2, Trash2, AlertTriangle, ArrowSwapHorizontal as ArrowRightLeft, Box } from 'reicon-react'
 import type { DashboardWidgetInstance, DashboardPageLayout } from '@beechcms/core'
 
 import { Badge } from '@/components/ui/badge'
@@ -23,11 +22,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { getWidgetDefinition } from '../registry/widget-registry'
+import { resolveIcon as resolveRegistryIcon } from '@/lib/icon-registry'
 
-function resolveIcon(name: string | undefined): LucideIcon {
+function resolveIcon(name: string | undefined): IconComponent {
   if (!name) return Box
-  const icon = (LucideIcons as unknown as Record<string, LucideIcon>)[name]
-  return icon ?? Box
+  return resolveRegistryIcon(name) ?? Box
 }
 
 function WidgetIcon({ name, className }: { readonly name: string | undefined; readonly className?: string }) {

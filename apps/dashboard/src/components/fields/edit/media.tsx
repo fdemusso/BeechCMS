@@ -10,7 +10,7 @@
  */
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { ArrowDown, ArrowUp, Loader2, Upload, X } from "lucide-react"
+import { ArrowDown, ArrowUp, Loader as Loader2, Upload, X } from 'reicon-react'
 import { toast } from "sonner"
 import { uploadFile } from "@/lib/upload"
 import { Button } from "@/components/ui/button"
@@ -389,7 +389,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
       {isMultiple && assets.length > 0 && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {assets.map((assetUrl, index) => (
-            <div key={`${assetUrl}-${index}`} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
+            <div key={assetUrl} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
               <img src={assetUrl} alt="Preview" className="size-full object-cover" />
               <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
                 <Button

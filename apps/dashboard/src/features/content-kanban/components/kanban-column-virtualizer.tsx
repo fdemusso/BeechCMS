@@ -2,7 +2,7 @@ import * as React from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { KANBAN_CARD_HEIGHT_PX } from '../constants'
+import { KANBAN_CARD_HEIGHT_PX, KANBAN_CARD_GAP_PX, KANBAN_COLUMN_PADDING_PX } from '../constants'
 import type { KanbanCardDisplayModel } from '../types'
 import { KanbanCard } from './kanban-card'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -79,10 +79,12 @@ function SortableCardItem({ card, colValue, canEdit, sortActive, onEdit, baseSty
 export function KanbanColumnVirtualizer({ cards, colValue, canEdit, sortActive, onEdit }: KanbanColumnVirtualizerProps) {
   const scrollRef = React.useRef<HTMLDivElement>(null)
 
+  const itemTotalHeight = KANBAN_CARD_HEIGHT_PX + KANBAN_CARD_GAP_PX
+
   const virtualizer = useVirtualizer({
     count: cards.length,
     getScrollElement: () => scrollRef.current?.querySelector('[data-slot="scroll-area-viewport"]') as HTMLDivElement | null,
-    estimateSize: () => KANBAN_CARD_HEIGHT_PX + 12,
+    estimateSize: () => itemTotalHeight,
     getItemKey: React.useCallback((index: number) => cards[index].entryId, [cards]),
     overscan: 3,
   })
@@ -92,7 +94,7 @@ export function KanbanColumnVirtualizer({ cards, colValue, canEdit, sortActive, 
       ref={scrollRef}
       style={{ flexGrow: 1, minHeight: 0, contain: 'layout paint' }}
     >
-      <div style={{ height: virtualizer.getTotalSize(), position: 'relative', width: '100%' }}>
+      <div style={{ height: virtualizer.getTotalSize() + (KANBAN_COLUMN_PADDING_PX * 2), position: 'relative', width: '100%' }}>
         {virtualizer.getVirtualItems().map(vItem => (
           <SortableCardItem
             key={vItem.key}
@@ -103,11 +105,12 @@ export function KanbanColumnVirtualizer({ cards, colValue, canEdit, sortActive, 
             onEdit={onEdit}
             baseStyle={{
               position: 'absolute',
-              top: vItem.start,
-              left: 0,
-              right: 0,
-              height: KANBAN_CARD_HEIGHT_PX + 12,
-              padding: '0 4px 12px',
+              top: vItem.start + KANBAN_COLUMN_PADDING_PX,
+              left: KANBAN_COLUMN_PADDING_PX,
+              right: KANBAN_COLUMN_PADDING_PX,
+              height: itemTotalHeight,
+              paddingBottom: KANBAN_CARD_GAP_PX,
+              boxSizing: 'border-box',
             }}
           />
         ))}
@@ -115,3 +118,4 @@ export function KanbanColumnVirtualizer({ cards, colValue, canEdit, sortActive, 
     </ScrollArea>
   )
 }
+

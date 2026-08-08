@@ -1,9 +1,9 @@
+import type { IconComponent } from '@/lib/icon-registry'
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { LucideIcon } from "lucide-react"
-import { LayoutDashboard, Settings, PenLine, Plus, Calendar, BarChart2 } from "lucide-react"
+import { Category as LayoutDashboard, Settings, PenLine, Plus, Calendar, ChartBar as BarChart2 } from 'reicon-react'
 import type { Seed } from "@beechcms/core"
 import { resolveIcon } from "@/lib/icon-registry"
 
@@ -11,7 +11,7 @@ import { resolveIcon } from "@/lib/icon-registry"
 export interface NavItem {
   title: string
   url: string
-  icon: LucideIcon
+  icon: IconComponent
   isActive?: boolean
   items?: { title: string; url: string }[]
 }
@@ -20,7 +20,7 @@ export interface NavItem {
 export interface NavSecondaryItem {
   title: string
   url: string
-  icon: LucideIcon
+  icon: IconComponent
 }
 
 /** Grouped block of nav items — maps to one NavMain section in the sidebar */
@@ -83,7 +83,6 @@ export function getSettingsMenu(t: (key: string) => string): NavItem[] {
     },
   ]
 }
-
 
 /**
  * Builds grouped content menu from seeds.

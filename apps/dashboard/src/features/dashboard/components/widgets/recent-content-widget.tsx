@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useTranslation } from "react-i18next"
 import { formatDistanceToNow } from "date-fns"
 import { it as itLocale, enUS, type Locale } from "date-fns/locale"
-import { Clock, FileImage } from "lucide-react"
+import { Clock, Image as FileImage } from 'reicon-react'
 import { api } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
@@ -162,14 +162,14 @@ export function RecentContentWidget({ seedSlug, variant = "list", title }: Recen
                 sm+: single row with all three items. */}
             <Link
               to={`/content/${seedSlug}/${entry.id}`}
-              className="text-sm font-medium truncate block hover:underline decoration-primary/30 mb-1 sm:hidden"
+              className="text-sm font-medium truncate block hover:opacity-80 transition-opacity mb-1 sm:hidden"
             >
               {entryTitle(entry)}
             </Link>
             <div className="flex items-center gap-2">
               <Link
                 to={`/content/${seedSlug}/${entry.id}`}
-                className="text-sm font-medium truncate flex-1 hover:underline decoration-primary/30 hidden sm:block"
+                className="text-sm font-medium truncate flex-1 hover:opacity-80 transition-opacity hidden sm:block"
               >
                 {entryTitle(entry)}
               </Link>

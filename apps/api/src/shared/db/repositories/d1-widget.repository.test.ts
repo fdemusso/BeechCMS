@@ -9,8 +9,8 @@ import { D1WidgetRepository } from './d1-widget.repository'
 function makeMockDb(allResults: unknown[] = [], firstResult: unknown = null) {
   const allMock = vi.fn().mockResolvedValue({ results: allResults })
   const firstMock = vi.fn().mockResolvedValue(firstResult)
-  const bindMock = vi.fn(() => ({ all: allMock, first: firstMock }))
-  const prepareMock = vi.fn(() => ({ all: allMock, first: firstMock, bind: bindMock }))
+  const bindMock = vi.fn<(...args: any[]) => any>(() => ({ all: allMock, first: firstMock }))
+  const prepareMock = vi.fn<(...args: any[]) => any>(() => ({ all: allMock, first: firstMock, bind: bindMock }))
   return { db: { prepare: prepareMock } as any, prepareMock, bindMock, allMock, firstMock }
 }
 
@@ -70,8 +70,8 @@ describe('D1WidgetRepository', () => {
       const result = await new D1WidgetRepository(db).growth(seed, { op: 'count' }, 'month')
       expect(result).toEqual({ currentValue: 10, previousValue: 5 })
       expect(prepareMock).toHaveBeenCalledTimes(2)
-      const sql0 = prepareMock.mock.calls[0]![0] as string
-      const sql1 = prepareMock.mock.calls[1]![0] as string
+      const sql0 = (prepareMock.mock.calls[0] as any[])[0] as string
+      const sql1 = (prepareMock.mock.calls[1] as any[])[0] as string
       expect(sql0).toMatch(/-1 month/)
       expect(sql1).toMatch(/-2 months/)
     })

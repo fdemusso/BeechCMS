@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { BarChart3, TrendingUp } from "lucide-react"
+import { ChartBarTrendUp as TrendingUp } from 'reicon-react'
 import { Skeleton } from "@/components/ui/skeleton"
 import { DashboardWidgetShell } from "@/features/dashboard"
 import { useDashboardStats } from "@/features/dashboard"
@@ -103,7 +103,4 @@ export function PublicationStatsWidget({ variant = "single" }: PublicationStatsW
     </DashboardWidgetShell>
   )
 }
-
 PublicationStatsWidget.displayName = "PublicationStatsWidget"
-
-export { BarChart3 as PublicationStatsIcon }

@@ -11,7 +11,7 @@ import { KanbanCard } from './kanban-card'
 import { useKanbanBoard } from '../utils/use-kanban-board'
 import { useKanbanDrag } from '../utils/use-kanban-drag'
 import { buildKanbanCardDisplayModel } from '../utils/kanban-card-display'
-import { KANBAN_COLUMN_WIDTH_PX, KANBAN_CARD_HEIGHT_PX } from '../constants'
+import { KANBAN_COLUMN_WIDTH_PX, KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_PADDING_PX } from '../constants'
 import type { ContentKanbanProps, KanbanBoardConfig, KanbanCardDisplayModel } from '../types'
 import type { ContentListWithMeta } from '@/lib/content-api'
 
@@ -59,7 +59,7 @@ function KanbanColumnConnected({
       if (p.destColValue !== colValue) continue
       // Only add if not already in base (cross-column moves)
       if (!base.some(c => c.entryId === entryId)) {
-        let realTitle = entryId
+        let displayModel: KanbanCardDisplayModel | null = null
         const allCached = queryClient.getQueriesData<InfiniteData<ContentListWithMeta>>({
           queryKey: ['kanban', seedSlug, config.axisBranchId],
         })
@@ -68,27 +68,53 @@ function KanbanColumnConnected({
           for (const page of data.pages) {
             const item = page.items.find(i => i.id === entryId)
             if (item) {
-              realTitle = buildKanbanCardDisplayModel(item, axisBranch, p.axisValue).title
+              const patchedItem = {
+                ...item,
+                data: {
+                  ...(item.data ?? {}),
+                  [axisBranch.alias]: p.axisValue,
+                },
+              }
+              displayModel = buildKanbanCardDisplayModel(patchedItem, axisBranch, p.axisValue, seed, cardConfig)
               break outer
             }
           }
         }
-        incoming.push({
-          entryId,
-          title: realTitle,
-          axisValue: p.axisValue,
-          position: p.position,
-          isPending: true,
-        })
+        if (displayModel) {
+          incoming.push({
+            ...displayModel,
+            axisValue: p.axisValue,
+            position: p.position,
+            isPending: true,
+          })
+        } else {
+          incoming.push({
+            entryId,
+            title: entryId,
+            axisValue: p.axisValue,
+            position: p.position,
+            isPending: true,
+          })
+        }
       }
     }
 
     const merged = [...base.map(c => {
       const p = pendingCards.get(c.entryId)
+      if (!p) return c
+      let slots = c.slots
+      if (slots) {
+        const updatedHeader = slots.header?.branch.id === axisBranch.id ? { ...slots.header, value: p.axisValue } : slots.header
+        const updatedSubtitle = slots.subtitle?.branch.id === axisBranch.id ? { ...slots.subtitle, value: p.axisValue } : slots.subtitle
+        const updatedMetadata = slots.metadata.map(m => m.branch.id === axisBranch.id ? { ...m, value: p.axisValue } : m)
+        slots = { ...slots, header: updatedHeader, subtitle: updatedSubtitle, metadata: updatedMetadata }
+      }
       return {
         ...c,
-        isPending: !!p,
-        position: p ? p.position : c.position,
+        isPending: true,
+        position: p.position,
+        axisValue: p.axisValue,
+        slots,
       }
     }), ...incoming]
 
@@ -164,7 +190,6 @@ export function ContentKanban({
       return next
     })
   }, [])
-
 
   const { state: boardState, dispatch } = useKanbanBoard()
   const [touchDragActive, setTouchDragActive] = React.useState(false)
@@ -277,7 +302,7 @@ export function ContentKanban({
           {activeCard ? (
             <div 
               className="rotate-1 opacity-95" 
-              style={{ width: KANBAN_COLUMN_WIDTH_PX - 8, height: KANBAN_CARD_HEIGHT_PX, boxSizing: 'border-box' }}
+              style={{ width: KANBAN_COLUMN_WIDTH_PX - (2 * KANBAN_COLUMN_PADDING_PX), height: KANBAN_CARD_HEIGHT_PX, boxSizing: 'border-box' }}
             >
               <KanbanCard 
                 model={activeCard} 

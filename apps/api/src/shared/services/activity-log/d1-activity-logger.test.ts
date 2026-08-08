@@ -15,8 +15,8 @@ function makeMockDb(opts: { runShouldThrow?: boolean } = {}) {
   const runMock = opts.runShouldThrow
     ? vi.fn().mockRejectedValue(new Error('db down'))
     : vi.fn().mockResolvedValue({ success: true })
-  const bindMock = vi.fn(() => ({ run: runMock }))
-  const prepareMock = vi.fn(() => ({ bind: bindMock }))
+  const bindMock = vi.fn<(...args: any[]) => any>(() => ({ run: runMock }))
+  const prepareMock = vi.fn<(...args: any[]) => any>(() => ({ bind: bindMock }))
   return { db: { prepare: prepareMock } as any, prepareMock, bindMock, runMock }
 }
 
@@ -37,7 +37,7 @@ describe('D1ActivityLogger', () => {
     await logger.log(SAMPLE_ENTRY)
 
     expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO activity_logs'))
-    const boundArguments = bindMock.mock.calls[0]
+    const boundArguments = bindMock.mock.calls[0] as any[]
     expect(boundArguments[1]).toBe('user-1')
     expect(boundArguments[2]).toBe('admin@example.com')
     expect(boundArguments[3]).toBe('Admin')
@@ -51,7 +51,7 @@ describe('D1ActivityLogger', () => {
   it('serialises details as null when absent', async () => {
     const { db, bindMock } = makeMockDb()
     await new D1ActivityLogger(db, clock, makeIdGen()).log({ ...SAMPLE_ENTRY, details: undefined })
-    expect(bindMock.mock.calls[0][8]).toBeNull()
+    expect((bindMock.mock.calls[0] as any[])[8]).toBeNull()
   })
 
   it('falls back to "unknown" when actor email is empty', async () => {
@@ -60,7 +60,7 @@ describe('D1ActivityLogger', () => {
       ...SAMPLE_ENTRY,
       actor: { id: 'u', email: '', name: null },
     })
-    expect(bindMock.mock.calls[0][2]).toBe('unknown')
+    expect((bindMock.mock.calls[0] as any[])[2]).toBe('unknown')
   })
 
   it('schedules the insert via the background hook when provided', async () => {

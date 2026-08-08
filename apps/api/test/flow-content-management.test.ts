@@ -390,7 +390,7 @@ describe('Flow: Content Management (Protected API)', () => {
       }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(400)
 
-      // PrivacyPolicyError (privacy encrypt)
+      // Encrypted field creates successfully
       const ENCRYPTED_SEED = defineSeed({
         slug: 'encrypted',
         label: 'Encrypted',
@@ -408,7 +408,7 @@ describe('Flow: Content Management (Protected API)', () => {
         headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ secret: 'secret-val' })
       }, { ...TEST_ENV, DB: db })
-      expect(res.status).toBe(501)
+      expect(res.status).toBe(201)
 
       // DB error
       vi.spyOn(repo, 'create').mockRejectedValueOnce(new Error('Create DB error'))
@@ -487,7 +487,7 @@ describe('Flow: Content Management (Protected API)', () => {
         labelPlural: 'Sensitives',
         displayNameAlias: 'secret',
         branches: [
-          { id: 'br_01', alias: 'secret', label: 'Secret', type: 'text', policies: { privacy: 'encrypt' } }
+          { id: 'br_01', alias: 'secret', label: 'Secret', type: 'text', policies: { privacy: 'hash' } }
         ]
       })
       const sensRepo = new StaticContentRepository([SENSITIVE_SEED])

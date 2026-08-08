@@ -44,9 +44,33 @@ interface SanitizeState {
   depth: number
 }
 
-/** RichText string input is no longer accepted (JSON-only). Reject as invalid. */
+/** Coerces string input (JSON string or plain text) into a valid TipTap doc structure. */
 function sanitizeRichtextString(raw: string): RichtextSanitizeResult {
-  return { value: raw, dangerous: false, valid: false, size: byteLength(raw) }
+  const trimmed = raw.trim()
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (isPlainObject(parsed)) {
+        return sanitizeRichtextJson(parsed as Record<string, unknown>)
+      }
+    } catch {
+      // Fall through to plain text conversion
+    }
+  }
+
+  const isDangerous = /<script\b|javascript:|onerror=/i.test(raw)
+  const doc = {
+    type: 'doc',
+    content: raw.length > 0 ? [{
+      type: 'paragraph',
+      content: [{ type: 'text', text: raw }]
+    }] : []
+  }
+  const result = sanitizeRichtextJson(doc)
+  if (isDangerous) {
+    result.dangerous = true
+  }
+  return result
 }
 
 /** Normalizes a URL value and confirms its protocol is allowlisted.

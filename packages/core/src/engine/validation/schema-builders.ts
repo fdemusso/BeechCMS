@@ -299,17 +299,17 @@ function relationSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny 
   }
   const idSchema = z.string().refine(
     (value) => gen.isValid(value),
-    { message: 'Invalid relation id format' },
+    { message: 'Expected valid-relation-id' },
   )
   // Many-to-many: expect string[] with no duplicates
   if (branch.multiple === true) {
     const arraySchema = z.array(idSchema).refine(
       (arr) => new Set(arr).size === arr.length,
-      { message: 'Duplicate ids in multi-relation array' },
+      { message: 'Expected unique-relation-ids' },
     )
-    return options.allowNull ? z.union([arraySchema, z.null()]) : arraySchema
+    return withEmptyPreprocessing(arraySchema, options.allowNull)
   }
-  return withNullable(idSchema, options.allowNull)
+  return withEmptyPreprocessing(idSchema, options.allowNull)
 }
 
 /**
@@ -349,7 +349,7 @@ function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
         }
         return items.map((item) => item.url)
       })
-      .pipe(z.array(z.string().url()))
+      .pipe(z.array(z.url()))
     return withEmptyPreprocessing(inner, allowNull)
   }
 
@@ -365,7 +365,7 @@ function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
       if (!verifySize(candidate.size, ctx)) return z.NEVER
       return candidate.url
     })
-    .pipe(z.string().url())
+    .pipe(z.url())
   return withEmptyPreprocessing(inner, allowNull)
 }
 

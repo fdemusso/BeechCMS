@@ -97,44 +97,44 @@ export * from './richtext-render'; // TipTap → HTML
 export * from './slug-utils';      // slugify logic
 ```
 
-### Branch Policies — `resolvePolicies`
+### Branch Policies & Data Classification Matrix — `resolvePolicies` & `PrivacyService`
 
-Every `Branch` in a seed can declare an optional `policies` object that controls how the field is stored, exposed, and surfaced in the UI:
+Every `Branch` in a seed can declare a `policies` object configuring its 4-tier **Data Classification** level (`public`, `internal`, `confidential`, `restricted`), which controls how the field is encrypted at rest, queried, and filtered across public and authenticated API boundaries:
 
-| Policy | Type | Default | Effect |
-|---|---|---|---|
-| `privacy` | `'plain' \| 'hash' \| 'encrypt'` | `'plain'` | `hash` → value is SHA-256 hex-digested server-side before writing; `encrypt` → 501 placeholder |
-| `visibility` | `'full' \| 'masked' \| 'hidden'` | `'full'` (or `'hidden'` when `privacy !== 'plain'`) | `masked` → returns `'••••••••'` on read; `hidden` → field is stripped from responses |
-| `search` | `boolean` | `true` | When `false`, the column is excluded from full-text search queries |
-| `filter` | `boolean` | `true` | When `false`, the column is not offered in the dashboard filter UI |
-| `sort` | `boolean` | `true` | When `false`, the column is not offered in the dashboard sort UI |
-| `public` | `boolean` | `true` | When `false`, the field is stripped from Public API responses |
+| Data Classification | Storage at Rest | Public API Visibility | Authenticated API Visibility | System Actor Visibility |
+|---|---|---|---|---|
+| `public` | `plain` (cleartext) | `full` | `full` | `full` |
+| `internal` | `plain` (cleartext) | `hidden` (omitted) | `full` | `full` |
+| `confidential` | `encrypt` (AES-256-GCM + Blind Index HMAC-SHA256) | `hidden` (omitted) | `full` (decrypted cleartext) | `full` |
+| `restricted` | `hash` (HMAC-SHA256 digest) | `hidden` (omitted) | `hidden` (omitted) | `full` |
 
-**`privacy` and `visibility` are coupled by design.** When `privacy` is `hash` or `encrypt`, `resolvePolicies` automatically defaults `visibility` to `'hidden'`, so the stored digest is never returned to callers. This default can be explicitly overridden in the seed definition if needed.
+#### Architectural Key Components:
 
-**`privacy: 'hash'` write flow:**
-```
-client sends plaintext  →  API validates (Zod)  →  sha256hex()  →  Botanic Engine serializes  →  DB stores hash in real column
-```
-The plaintext never persists. Sensitive fields cannot be updated via PUT — the handler returns `422` if any non-plain field appears in the patch.
+1. **`PrivacyService` & Application-Level Encryption (ALE):**
+   - **`confidential` fields:** Encrypted using AES-256-GCM (`v1:<iv_base64>:<ciphertext_base64>`) with random 96-bit IVs derived from `PRIVACY_MASTER_KEY`. On read, decrypted transparently at the repository layer for authenticated actors.
+   - **`restricted` fields:** Hashed using deterministic HMAC-SHA256 digests. Never stored in cleartext and ALWAYS scrubbed from outgoing Public and Authenticated API responses.
+   - **Blind Index Search (`*_bidx`):** For `confidential` fields configured with `filter: true`, DDL generates a blind index column (`<alias>_bidx`) containing a deterministic HMAC-SHA256 hash. Query builders (`buildSelectQuery`) automatically map exact match filters (`eq`, `neq`, `in`, `not_in`) to the corresponding `*_bidx` column, enabling exact search over encrypted data without decrypting the table.
 
-**Comparing a hashed field** (e.g. password verification): use `verifyHashField` from `@beechcms/core` inside a dedicated server-side handler. Never expose the hash to the client.
+2. **Payload Diffing on Update:**
+   - In `ContentRepository.update`, existing `confidential` fields are diffed against incoming payloads. Unmodified values or existing `v1:...` ciphertexts are preserved without re-encrypting, preventing double-encryption bugs.
 
-```typescript
-import { verifyHashField } from '@beechcms/core'
-
-const match = await verifyHashField(storedHash, candidatePlaintext)
-```
-
-All policy resolution **must** go through `resolvePolicies(branch)` from `@beechcms/core`. Never inline-check `branch.policies?.x ?? default`.
+3. **Context-Aware API Filtering (`ActorContext` & `filterEntryForActor`):**
+   - API endpoints pass an `ActorContext` (`'public' | 'authenticated' | 'system'`) to `applyVisibility` / `filterEntryForActor`.
+   - **Public requests:** Receive only `public` fields. `internal`, `confidential`, and `restricted` fields are omitted.
+   - **Authenticated requests:** Receive `public`, `internal`, and `confidential` (decrypted) fields. `restricted` fields (e.g. password hashes) are strictly omitted.
+   - **System actors:** Receive full access for internal orchestration and automations.
 
 ```typescript
-import { resolvePolicies } from '@beechcms/core'
+import { resolvePolicies, filterEntryForActor, type ActorContext } from '@beechcms/core'
 
-const { privacy, visibility, search, filter, sort, public: isPublic } = resolvePolicies(branch)
+// Resolve 4-tier classification & storage policies
+const policies = resolvePolicies(branch)
+
+// Filter outgoing JSON responses according to caller context
+const filteredPayload = filterEntryForActor(rawEntry, seed, { type: 'authenticated' })
 ```
 
-Existing branches without a `policies` field behave exactly as before — all defaults are permissive.
+Existing branches without an explicit `classification` or `privacy` field default to `public` classification and `plain` storage.
 
 ---
 

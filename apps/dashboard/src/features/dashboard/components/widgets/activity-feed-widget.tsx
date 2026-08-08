@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import { Activity, Plus, Pencil, Trash2, Upload } from "lucide-react"
+import { Activity, Plus, Edit as Pencil, Trash2, Upload } from 'reicon-react'
 import { formatDistanceToNow } from "date-fns"
 import { it as itLocale, enUS, type Locale } from "date-fns/locale"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"

@@ -33,7 +33,7 @@ describe('observabilityMiddleware', () => {
     }
 
     // Mock env with DB
-    const res = await app.request('/test', undefined, { DB: {} }, executionCtx)
+    const res = await app.request('/test', undefined, { DB: {} }, executionCtx as unknown as ExecutionContext)
     const body = await res.json() as any
     expect(body.hasLogger).toBe(true)
     expect(body.hasNotifications).toBe(true)
@@ -44,8 +44,8 @@ describe('observabilityMiddleware', () => {
     
     const mockLogger = { log: vi.fn() }
     const mockNotifications = { send: vi.fn() }
-    const mockClock: IClock = { now: () => 12345 }
-    const mockIdGen: IIdGenerator = { nextId: () => 'custom-id' }
+    const mockClock: IClock = { now: () => 12345, nowSeconds: () => 12 }
+    const mockIdGen: IIdGenerator = { uuid: () => 'custom-id' } as unknown as IIdGenerator
 
     app.use('*', observabilityMiddleware({
       activityLogger: mockLogger as any,

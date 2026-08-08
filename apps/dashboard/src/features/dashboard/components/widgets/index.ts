@@ -28,15 +28,3 @@ export type { ActivityFeedWidgetProps } from "./activity-feed-widget"
 
 export { SetupChecklistWidget } from "./setup-checklist-widget"
 export type { SetupChecklistWidgetProps } from "./setup-checklist-widget"
-
-export const WIDGET_META = {
-  "recent-content":    { defaultSpan: { w: 4, h: 2 } },
-  "quick-draft":       { defaultSpan: { w: 2, h: 1 } },
-  "pending-drafts":    { defaultSpan: { w: 3, h: 2 } },
-  "publication-stats": { defaultSpan: { w: 2, h: 1 } },
-  "site-status":       { defaultSpan: { w: 2, h: 1 } },
-  "storage":           { defaultSpan: { w: 2, h: 1 } },
-  "media-gallery":     { defaultSpan: { w: 4, h: 2 } },
-  "activity-feed":      { defaultSpan: { w: 4, h: 2 } },
-  "setup-checklist":   { defaultSpan: { w: 8, h: 1 } },
-} as const

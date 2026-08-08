@@ -55,7 +55,11 @@ export function buildKanbanCardDisplayModel(
       if (!f) return undefined
       const branch = findBranchById(seed, f.branchId)
       if (!branch) return undefined
-      return { branch, value: data[branch.alias] }
+      let val = data[branch.alias]
+      if (branch.id === _axisBranch.id && columnValue !== undefined && columnValue !== null) {
+        val = columnValue
+      }
+      return { branch, value: val }
     }
     slots = {
       media: resolve(card.media),

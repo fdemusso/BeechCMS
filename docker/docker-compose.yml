@@ -50,7 +50,7 @@ services:
     ports:
       - "127.0.0.1:${BEECH_SQLITE_WEB_PORT:-8080}:8080"
     volumes:
-      - ./apps/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject:/data
+      - ../apps/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject:/data
     working_dir: /data
     entrypoint: ["sh", "-c"]
     command:

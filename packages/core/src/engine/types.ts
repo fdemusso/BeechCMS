@@ -62,6 +62,16 @@ export interface FileFieldOptions {
   maxSize?: number
 }
 
+/** 4-tier Data Classification matrix (Public, Internal, Confidential, Restricted). */
+export type DataClassification = 'public' | 'internal' | 'confidential' | 'restricted'
+
+/** Context representing the caller/actor executing an operation or reading API data. */
+export interface ActorContext {
+  type: 'public' | 'authenticated' | 'system'
+  userId?: string
+  role?: string
+}
+
 /** Branch: definition of a single field. `alias` is the SQL column name. */
 export interface Branch {
   /**
@@ -107,8 +117,10 @@ export interface Branch {
    * All values are optional — `resolvePolicies(branch)` supplies the defaults.
    */
   policies?: {
+    /** 4-tier data classification level. Default: 'public'. */
+    classification?: DataClassification | 'Public' | 'Internal' | 'Confidential' | 'Restricted'
     /** How the value is stored. Default: 'plain'. */
-    privacy?: 'plain' | 'hash' | 'encrypt'
+    privacy?: 'plain' | 'hash' | 'encrypt' | DataClassification | 'Public' | 'Internal' | 'Confidential' | 'Restricted'
     /** How the value is returned in API responses. Default: 'full'. */
     visibility?: 'full' | 'masked' | 'hidden'
     /** Whether the field is included in full-text search queries. Default: true. */
