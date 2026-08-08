@@ -195,7 +195,7 @@ export const DEMO_ARTICOLI_FIXTURES: DemoEntryFixture[] = [
     data: {
       title: 'Guida all Application-Level Encryption in BeechCMS',
       author: 'Flavio De Musso',
-      cover_image: '/media/demo/privacy-banner.jpg',
+      cover_image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71.jpg?w=800&q=80',
       body: toRichtextDoc('Scopri come proteggere i dati riservati dei tuoi clienti direttamente nell engine senza sacrificare le performance edge di Cloudflare Workers.'),
     },
   },
@@ -206,7 +206,7 @@ export const DEMO_ARTICOLI_FIXTURES: DemoEntryFixture[] = [
     data: {
       title: 'Architettura Botanical Engine & Cloudflare D1',
       author: 'Beech Core Team',
-      cover_image: '/media/demo/architecture-banner.jpg',
+      cover_image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f.jpg?w=800&q=80',
       body: toRichtextDoc('Una panoramica approfondita sulla separazione tra i contratti di dominio di @beechcms/core e la persistenza SQLite edge.'),
     },
   },

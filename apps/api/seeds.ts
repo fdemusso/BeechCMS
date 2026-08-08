@@ -151,7 +151,7 @@ export const articoli = defineSeed({
   branches: [
     { id: 'br_ar1', alias: 'title', label: 'Titolo', type: 'text', requiredOnCreate: true, requiredOnUpdate: true },
     { id: 'br_ar2', alias: 'author', label: 'Autore', type: 'text' },
-    { id: 'br_ar3', alias: 'cover_image', label: 'Immagine Copertina', type: 'text' },
+    { id: 'br_ar3', alias: 'cover_image', label: 'Immagine Copertina', type: 'file', fileOptions: { accept: 'image' } },
     { id: 'br_ar4', alias: 'body', label: 'Contenuto', type: 'richtext' }
   ]
 })
