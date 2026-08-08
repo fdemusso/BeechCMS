@@ -35,7 +35,7 @@ importers:
         specifier: ^0.6.0-preview.2
         version: 0.6.0-preview.2(@tiptap/pm@3.26.1)(happy-dom@20.11.0)
       '@beechcms/cli':
-        specifier: workspace:^0.6.4
+        specifier: workspace:^0.6.5
         version: link:packages/cli
       '@beechcms/core':
         specifier: ^0.6.0-preview.2
@@ -132,7 +132,7 @@ importers:
         specifier: ^3.995.0
         version: 3.1068.0
       '@beechcms/core':
-        specifier: workspace:^0.6.4
+        specifier: workspace:^0.6.5
         version: link:../../packages/core
       '@upstash/qstash':
         specifier: ^2.11.0
@@ -178,10 +178,10 @@ importers:
   apps/dashboard:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.6.4
+        specifier: workspace:^0.6.5
         version: link:../../packages/core
       '@beechcms/widget-sdk':
-        specifier: workspace:^0.6.4
+        specifier: workspace:^0.6.5
         version: link:../../packages/widget-sdk
       '@blocknote/code-block':
         specifier: ^0.49.0
@@ -486,7 +486,7 @@ importers:
   packages/cli:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.6.4
+        specifier: workspace:^0.6.5
         version: link:../core
       picocolors:
         specifier: ^1.1.1
@@ -579,7 +579,7 @@ importers:
   packages/widget-sdk:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.6.4
+        specifier: workspace:^0.6.5
         version: link:../core
       clsx:
         specifier: ^2.1.1
@@ -4472,6 +4472,7 @@ packages:
 
   crypto-js@4.2.0:
     resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
+    deprecated: Active development of CryptoJS has been discontinued. This library is no longer maintained.
 
   css.escape@1.5.1:
     resolution: {integrity: sha512-YUifsXXuknHlUsmlgyY0PKzgPOr7/FjCePfHNt0jxm83wHZi44VDMQ7/fGNkjY3/jV1MC+1CmZbaHzugyeRtpg==}
