@@ -594,7 +594,7 @@ describe('Flow: Guest Access (Public API)', () => {
       expect(created.pin).not.toBe('1234')
     })
 
-    it('error: returns 501 for a privacy:"encrypt" field (not yet implemented)', async () => {
+    it('creates entry with a privacy:"encrypt" field successfully', async () => {
       const ENCRYPT_SEED = defineSeed({
         slug: 'encrypt_test',
         label: 'EncryptTest',
@@ -614,7 +614,7 @@ describe('Flow: Guest Access (Public API)', () => {
         headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
         body: JSON.stringify({ data: { secret: 'secret-val' } }),
       }, TEST_ENV)
-      expect(res.status).toBe(501)
+      expect(res.status).toBe(201)
     })
   })
 })

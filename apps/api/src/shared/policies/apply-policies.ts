@@ -35,11 +35,8 @@ export async function applyPrivacy(
     }
     const { privacy } = resolvePolicies(branch)
     if (privacy === 'encrypt') {
-      throw new PrivacyPolicyError(
-        `Field '${alias}' uses 'encrypt' privacy which is not yet implemented.`,
-      )
-    }
-    if (privacy === 'hash' && value != null) {
+      result[alias] = value
+    } else if (privacy === 'hash' && value != null) {
       const serialized = typeof value === 'string' ? value : JSON.stringify(value)
       result[alias] = await sha256hex(serialized)
     } else {

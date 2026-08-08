@@ -41,9 +41,10 @@ describe('applyPrivacy', () => {
     expect(result.email).toBeNull()
   })
 
-  it('throws PrivacyPolicyError for "encrypt" privacy (not yet implemented)', async () => {
+  it('passes through "encrypt" privacy fields so repository can encrypt them', async () => {
     const seed = makeSeed([{ id: 'br_01', alias: 'secret', type: 'text', policies: { privacy: 'encrypt' } }])
-    await expect(applyPrivacy({ secret: 'value' }, seed)).rejects.toBeInstanceOf(PrivacyPolicyError)
+    const result = await applyPrivacy({ secret: 'value' }, seed)
+    expect(result.secret).toBe('value')
   })
 
   it('passes through fields not present in the seed branches unchanged', async () => {
