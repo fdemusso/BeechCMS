@@ -156,4 +156,4 @@ export const articoli = defineSeed({
   ]
 })
 
-export const seeds = [clienti, abbonamenti, ticket, changelog, articoli]
+const seeds = [clienti, abbonamenti, ticket, changelog, articoli]

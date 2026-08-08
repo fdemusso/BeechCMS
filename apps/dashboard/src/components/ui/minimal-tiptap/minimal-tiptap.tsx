@@ -109,7 +109,7 @@ MinimalTiptapEditor.displayName = "MinimalTiptapEditor"
 
 export default MinimalTiptapEditor
 
-export const MainMinimalTiptapEditor = ({
+const MainMinimalTiptapEditor = ({
   editor: providedEditor,
   className,
   editorContentClassName,

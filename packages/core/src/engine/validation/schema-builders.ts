@@ -349,7 +349,7 @@ function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
         }
         return items.map((item) => item.url)
       })
-      .pipe(z.array(z.string().url()))
+      .pipe(z.array(z.url()))
     return withEmptyPreprocessing(inner, allowNull)
   }
 
@@ -365,7 +365,7 @@ function fileSchema(branch: Branch, allowNull: boolean): z.ZodTypeAny {
       if (!verifySize(candidate.size, ctx)) return z.NEVER
       return candidate.url
     })
-    .pipe(z.string().url())
+    .pipe(z.url())
   return withEmptyPreprocessing(inner, allowNull)
 }
 

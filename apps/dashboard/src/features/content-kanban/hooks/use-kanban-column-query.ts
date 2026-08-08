@@ -1,4 +1,4 @@
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery } from '@tanstack/react-query'
 import { kanbanColumnFilter } from '@beechcms/core'
 import type { Branch, KanbanColumnDescriptor, FilterGroup, Seed, KanbanCardConfig } from '@beechcms/core'
 import { fetchKanbanColumn } from '@/lib/content-api'
@@ -48,16 +48,4 @@ export function useKanbanColumnQuery(
   )
 
   return { cards, total, hasNextPage: Boolean(hasNextPage), isFetching, isLoading, fetchNextPage }
-}
-
-export function useInvalidateKanbanColumn(
-  seedSlug: string,
-  axisBranchId: string | null,
-  colValue: string | null,
-) {
-  const queryClient = useQueryClient()
-  return () =>
-    queryClient.invalidateQueries({
-      queryKey: ['kanban', seedSlug, axisBranchId, colValue],
-    })
 }

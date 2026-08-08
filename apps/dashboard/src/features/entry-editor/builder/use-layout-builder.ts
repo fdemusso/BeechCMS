@@ -240,36 +240,31 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
       const branch = branchMap.get(branchId)
       if (!branch) return false
 
-      let rejected = false
-      mutate((d) => {
-        const tab = d.tabs.find((t) => t.id === tabId)
-        const section = tab?.sections.find((s) => s.id === sectionId)
-        if (!section) { rejected = true; return d }
+      const tab = draft.tabs.find((t) => t.id === tabId)
+      const section = tab?.sections.find((s) => s.id === sectionId)
+      if (!section || wouldViolateFullWidthWithMap(section, branch, branchMap)) {
+        return false
+      }
 
-        if (wouldViolateFullWidthWithMap(section, branch, branchMap)) {
-          rejected = true; return d
-        }
-
-        return {
-          ...d,
-          tabs: d.tabs.map((t) =>
-            t.id === tabId ? {
-              ...t,
-              sections: t.sections.map((s) =>
-                s.id === sectionId ? {
-                  ...s,
-                  columns: s.columns.map((c) =>
-                    c.id === columnId ? { ...c, fields: [...c.fields, { branchId }] } : c
-                  ),
-                } : s
-              ),
-            } : t
-          ),
-        }
-      })
-      return !rejected
+      mutate((d) => ({
+        ...d,
+        tabs: d.tabs.map((t) =>
+          t.id === tabId ? {
+            ...t,
+            sections: t.sections.map((s) =>
+              s.id === sectionId ? {
+                ...s,
+                columns: s.columns.map((c) =>
+                  c.id === columnId ? { ...c, fields: [...c.fields, { branchId }] } : c
+                ),
+              } : s
+            ),
+          } : t
+        ),
+      }))
+      return true
     },
-    [mutate, branchMap]
+    [draft, mutate, branchMap]
   )
 
   const clearField = useCallback((tabId: string, sectionId: string, columnId: string, branchId: string) => {
@@ -324,40 +319,35 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
       const branch = branchMap.get(from.branchId)
       if (!branch) return false
 
-      let rejected = false
-      mutate((d) => {
-        const toTab = d.tabs.find((t) => t.id === to.tabId)
-        const toSection = toTab?.sections.find((s) => s.id === to.sectionId)
-        if (!toSection) { rejected = true; return d }
+      const toTab = draft.tabs.find((t) => t.id === to.tabId)
+      const toSection = toTab?.sections.find((s) => s.id === to.sectionId)
+      if (!toSection || wouldViolateFullWidthWithMap(toSection, branch, branchMap)) {
+        return false
+      }
 
-        if (wouldViolateFullWidthWithMap(toSection, branch, branchMap)) {
-          rejected = true; return d
-        }
-
-        return {
-          ...d,
-          tabs: d.tabs.map((t) => ({
-            ...t,
-            sections: t.sections.map((s) => ({
-              ...s,
-              columns: s.columns.map((c) => {
-                // Remove from source
-                if (t.id === from.tabId && s.id === from.sectionId && c.id === from.columnId) {
-                  return { ...c, fields: c.fields.filter((f) => f.branchId !== from.branchId) }
-                }
-                // Append to destination
-                if (t.id === to.tabId && s.id === to.sectionId && c.id === to.columnId) {
-                  return { ...c, fields: [...c.fields, { branchId: from.branchId }] }
-                }
-                return c
-              }),
-            })),
+      mutate((d) => ({
+        ...d,
+        tabs: d.tabs.map((t) => ({
+          ...t,
+          sections: t.sections.map((s) => ({
+            ...s,
+            columns: s.columns.map((c) => {
+              // Remove from source
+              if (t.id === from.tabId && s.id === from.sectionId && c.id === from.columnId) {
+                return { ...c, fields: c.fields.filter((f) => f.branchId !== from.branchId) }
+              }
+              // Append to destination
+              if (t.id === to.tabId && s.id === to.sectionId && c.id === to.columnId) {
+                return { ...c, fields: [...c.fields, { branchId: from.branchId }] }
+              }
+              return c
+            }),
           })),
-        }
-      })
-      return !rejected
+        })),
+      }))
+      return true
     },
-    [mutate, branchMap]
+    [draft, mutate, branchMap]
   )
 
   const reset = useCallback(() => {

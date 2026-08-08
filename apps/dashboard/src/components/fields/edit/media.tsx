@@ -389,7 +389,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
       {isMultiple && assets.length > 0 && (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {assets.map((assetUrl, index) => (
-            <div key={`${assetUrl}-${index}`} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
+            <div key={assetUrl} className="group relative aspect-square overflow-hidden rounded-lg border bg-muted">
               <img src={assetUrl} alt="Preview" className="size-full object-cover" />
               <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/60 opacity-0 transition-opacity group-hover:opacity-100">
                 <Button

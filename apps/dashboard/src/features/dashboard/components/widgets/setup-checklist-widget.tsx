@@ -107,14 +107,14 @@ export function SetupChecklistWidget({ variant = "full" }: SetupChecklistWidgetP
 
       {variant === "compact" ? (
         <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-          {items.map((item, i) => (
-            <ChecklistItemCompact key={i} done={item.done} label={item.label} />
+          {items.map((item) => (
+            <ChecklistItemCompact key={item.label} done={item.done} label={item.label} />
           ))}
         </div>
       ) : (
         <ul className="space-y-2">
-          {items.map((item, i) => (
-            <ChecklistItemFull key={i} {...item} />
+          {items.map((item) => (
+            <ChecklistItemFull key={item.label} {...item} />
           ))}
         </ul>
       )}

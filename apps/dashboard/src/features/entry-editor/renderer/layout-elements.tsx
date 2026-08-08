@@ -67,7 +67,7 @@ export interface ColumnRendererProps {
  * ColumnRenderer component.
  * Renders all assigned fields in vertical order inside a layout column.
  */
-export function ColumnRenderer({
+function ColumnRenderer({
   column,
   branchById,
   formData,
@@ -141,7 +141,7 @@ export interface SectionRendererProps {
  * SectionRenderer component.
  * Renders a collapsible section with a custom header, borders, and a grid container of columns.
  */
-export function SectionRenderer({
+function SectionRenderer({
   section,
   isLast,
   branchById,

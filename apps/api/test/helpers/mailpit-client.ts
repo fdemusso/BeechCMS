@@ -39,7 +39,7 @@ export interface MailpitMessage {
   Snippet: string
 }
 
-export async function deleteAllMessages(): Promise<void> {
+async function deleteAllMessages(): Promise<void> {
   await fetch(`${BASE}/api/v1/messages`, { method: 'DELETE' })
 }
 

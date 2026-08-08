@@ -31,8 +31,8 @@ export function TextDisplay({ value, options }: FieldDisplayProps) {
       const overflow = items.length - visible.length
       return (
         <div className="flex flex-wrap items-center gap-1">
-          {visible.map((it, i) => (
-            <span key={i} className="rounded bg-muted px-1.5 py-0.5 text-xs truncate max-w-[8rem]">{it}</span>
+          {visible.map((it) => (
+            <span key={it} className="rounded bg-muted px-1.5 py-0.5 text-xs truncate max-w-[8rem]">{it}</span>
           ))}
           {overflow > 0 && <span className="text-muted-foreground text-xs">+{overflow}</span>}
         </div>
