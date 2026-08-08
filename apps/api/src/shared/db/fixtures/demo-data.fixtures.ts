@@ -17,6 +17,22 @@ const t_c03 = nowSec - 15 * DAY
 const t_c04 = nowSec - 10 * DAY
 const t_c05 = nowSec - 3 * DAY
 
+function toIsoDate(sec: number): string {
+  return new Date(sec * 1000).toISOString().split('T')[0]
+}
+
+function toRichtextDoc(text: string) {
+  return {
+    type: 'doc',
+    content: [
+      {
+        type: 'paragraph',
+        content: [{ type: 'text', text }],
+      },
+    ],
+  }
+}
+
 export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
   {
     id: 'c0100000-0000-4000-8000-000000000001',
@@ -29,8 +45,6 @@ export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
       tier: 'pro',
       account_status: 'active',
       mrr: 160,
-      created_at: t_c01,
-      updated_at: t_c01,
     },
   },
   {
@@ -44,8 +58,6 @@ export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
       tier: 'pro',
       account_status: 'active',
       mrr: 144,
-      created_at: t_c02,
-      updated_at: t_c02,
     },
   },
   {
@@ -59,8 +71,6 @@ export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
       tier: 'free',
       account_status: 'churned',
       mrr: 0,
-      created_at: t_c03,
-      updated_at: t_c03,
     },
   },
   {
@@ -74,8 +84,6 @@ export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
       tier: 'enterprise',
       account_status: 'active',
       mrr: 1250,
-      created_at: t_c04,
-      updated_at: t_c04,
     },
   },
   {
@@ -89,8 +97,6 @@ export const DEMO_CLIENTI_FIXTURES: DemoEntryFixture[] = [
       tier: 'free',
       account_status: 'active',
       mrr: 0,
-      created_at: t_c05,
-      updated_at: t_c05,
     },
   },
 ]
@@ -105,8 +111,6 @@ export const DEMO_ABBONAMENTI_FIXTURES: DemoEntryFixture[] = [
       amount: 160,
       billing_cycle: 'monthly',
       payment_status: 'active',
-      created_at: t_c01 + 3600,
-      updated_at: t_c01 + 3600,
     },
   },
   {
@@ -118,8 +122,6 @@ export const DEMO_ABBONAMENTI_FIXTURES: DemoEntryFixture[] = [
       amount: 144,
       billing_cycle: 'monthly',
       payment_status: 'active',
-      created_at: t_c02 + 7200,
-      updated_at: t_c02 + 7200,
     },
   },
   {
@@ -131,8 +133,6 @@ export const DEMO_ABBONAMENTI_FIXTURES: DemoEntryFixture[] = [
       amount: 1250,
       billing_cycle: 'annual',
       payment_status: 'active',
-      created_at: t_c04 + 1800,
-      updated_at: t_c04 + 1800,
     },
   },
 ]
@@ -148,8 +148,6 @@ export const DEMO_TICKET_FIXTURES: DemoEntryFixture[] = [
       priority: 'high',
       category: 'technical',
       ticket_status: 'open',
-      created_at: t_c01 + 2 * DAY,
-      updated_at: t_c01 + 2 * DAY,
     },
   },
   {
@@ -162,8 +160,6 @@ export const DEMO_TICKET_FIXTURES: DemoEntryFixture[] = [
       priority: 'medium',
       category: 'billing',
       ticket_status: 'in_progress',
-      created_at: t_c04 + 1 * DAY,
-      updated_at: t_c04 + 1 * DAY,
     },
   },
 ]
@@ -175,10 +171,8 @@ export const DEMO_CHANGELOG_FIXTURES: DemoEntryFixture[] = [
     status: 'published',
     data: {
       version: 'v2.4.0',
-      release_date: nowSec - 22 * DAY,
-      features: '<p>Introdotto il supporto per la privacy nativa a 4 livelli, cifratura AES-256-GCM e Blind Indexing per la ricerca sicura.</p>',
-      created_at: nowSec - 22 * DAY,
-      updated_at: nowSec - 22 * DAY,
+      release_date: toIsoDate(nowSec - 22 * DAY),
+      features: toRichtextDoc('Introdotto il supporto per la privacy nativa a 4 livelli, cifratura AES-256-GCM e Blind Indexing per la ricerca sicura.'),
     },
   },
   {
@@ -187,10 +181,8 @@ export const DEMO_CHANGELOG_FIXTURES: DemoEntryFixture[] = [
     status: 'published',
     data: {
       version: 'v2.3.0',
-      release_date: nowSec - 8 * DAY,
-      features: '<p>Aggiunto l engine di automazioni avanzate e il posizionamento dinamico delle schede Kanban.</p>',
-      created_at: nowSec - 8 * DAY,
-      updated_at: nowSec - 8 * DAY,
+      release_date: toIsoDate(nowSec - 8 * DAY),
+      features: toRichtextDoc('Aggiunto l engine di automazioni avanzate e il posizionamento dinamico delle schede Kanban.'),
     },
   },
 ]
@@ -204,9 +196,7 @@ export const DEMO_ARTICOLI_FIXTURES: DemoEntryFixture[] = [
       title: 'Guida all Application-Level Encryption in BeechCMS',
       author: 'Flavio De Musso',
       cover_image: '/media/demo/privacy-banner.jpg',
-      body: '<p>Scopri come proteggere i dati riservati dei tuoi clienti direttamente nell engine senza sacrificare le performance edge di Cloudflare Workers.</p>',
-      created_at: nowSec - 24 * DAY,
-      updated_at: nowSec - 24 * DAY,
+      body: toRichtextDoc('Scopri come proteggere i dati riservati dei tuoi clienti direttamente nell engine senza sacrificare le performance edge di Cloudflare Workers.'),
     },
   },
   {
@@ -217,9 +207,7 @@ export const DEMO_ARTICOLI_FIXTURES: DemoEntryFixture[] = [
       title: 'Architettura Botanical Engine & Cloudflare D1',
       author: 'Beech Core Team',
       cover_image: '/media/demo/architecture-banner.jpg',
-      body: '<p>Una panoramica approfondita sulla separazione tra i contratti di dominio di @beechcms/core e la persistenza SQLite edge.</p>',
-      created_at: nowSec - 10 * DAY,
-      updated_at: nowSec - 10 * DAY,
+      body: toRichtextDoc('Una panoramica approfondita sulla separazione tra i contratti di dominio di @beechcms/core e la persistenza SQLite edge.'),
     },
   },
 ]
