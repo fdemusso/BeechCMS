@@ -163,15 +163,16 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
   const hasImage = url.length > 0
   const isBusy = isUploading || isValidatingUrl
 
-  React.useEffect(() => {
-    if (!isMultiple) {
-      setUrlInput(url)
-    } else {
-      setUrlInput("")
-    }
+  const [prevUrl, setPrevUrl] = React.useState(url)
+  const [prevIsMultiple, setPrevIsMultiple] = React.useState(isMultiple)
+
+  if (url !== prevUrl || isMultiple !== prevIsMultiple) {
+    setPrevUrl(url)
+    setPrevIsMultiple(isMultiple)
+    setUrlInput(!isMultiple ? url : "")
     setError(null)
     setIsDragging(false)
-  }, [isMultiple, url])
+  }
 
   const handleFileUpload = React.useCallback(
     async (file: File) => {
