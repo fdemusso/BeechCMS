@@ -148,8 +148,8 @@ export function SettingsDialog({
             </div>
 
             {/* Category Groups and Tab Buttons */}
-            <ScrollArea className="flex-1 px-3 py-3">
-              <nav className="space-y-5" aria-label="Settings categories">
+            <ScrollArea className="flex-1 min-h-0">
+              <nav className="space-y-5 px-3 py-3" aria-label="Settings categories">
                 {groups.map((group) => (
                   <div key={group.id} className="space-y-1">
                     <h3 className="px-2 text-[11px] font-medium tracking-wider uppercase text-muted-foreground/80">
@@ -207,8 +207,8 @@ export function SettingsDialog({
             </header>
 
             {/* Scrollable Active Tab Form Body */}
-            <ScrollArea className="flex-1 p-6 md:p-8">
-              <div className="max-w-4xl mx-auto">
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="max-w-4xl mx-auto p-6 md:p-8">
                 <TabContent tab={activeTab} />
               </div>
             </ScrollArea>
