@@ -142,11 +142,9 @@ export function SettingsDialog({
               <div className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Settings className="size-4" />
               </div>
-              <div className="flex flex-col">
-                <span className="font-heading text-sm font-semibold tracking-tight text-foreground">
-                  {t("settings.title", "Settings")}
-                </span>
-              </div>
+              <span className="font-heading text-sm font-semibold tracking-tight text-foreground">
+                {t("settings.title", "Settings")}
+              </span>
             </div>
 
             {/* Category Groups and Tab Buttons */}
