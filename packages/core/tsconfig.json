@@ -6,6 +6,7 @@
     "declarationMap": true,
     "outDir": "dist",
     "rootDir": "src",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
     "module": "NodeNext",
     "moduleResolution": "NodeNext"
   },
