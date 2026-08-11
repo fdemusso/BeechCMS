@@ -2,18 +2,108 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import fs from "node:fs"
+import path from "node:path"
+import os from "node:os"
+import { fileURLToPath } from "node:url"
 import { execa } from "execa"
 
-console.log("Running BeechCMS tests via Turbo...")
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const LOCK_DIR = path.resolve(__dirname, "../node_modules/.cache")
+const LOCK_FILE = path.join(LOCK_DIR, "beech-test-runner.lock")
+
+function acquireLock() {
+  if (process.env.BEECH_FORCE_TEST === "1") {
+    return () => {}
+  }
+
+  if (!fs.existsSync(LOCK_DIR)) {
+    fs.mkdirSync(LOCK_DIR, { recursive: true })
+  }
+
+  if (fs.existsSync(LOCK_FILE)) {
+    try {
+      const lockData = JSON.parse(fs.readFileSync(LOCK_FILE, "utf8"))
+      const existingPid = lockData.pid
+      const startTime = lockData.startTime ? new Date(lockData.startTime).toLocaleTimeString() : "earlier"
+
+      let isAlive = false
+      try {
+        process.kill(existingPid, 0)
+        isAlive = true
+      } catch {
+        isAlive = false
+      }
+
+      if (isAlive) {
+        console.log(`\n\x1b[33m⚠️  [Thermal Protection] Test suite is already running in another process (PID: ${existingPid}, started at ${startTime}).\x1b[0m`)
+        console.log(`\x1b[33m    Skipping duplicate test execution to protect PC CPU from thermal throttling.\x1b[0m\n`)
+        process.exit(0)
+      } else {
+        // Remove stale lock
+        fs.unlinkSync(LOCK_FILE)
+      }
+    } catch {
+      try { fs.unlinkSync(LOCK_FILE) } catch {}
+    }
+  }
+
+  const lockData = {
+    pid: process.pid,
+    startTime: new Date().toISOString()
+  }
+  fs.writeFileSync(LOCK_FILE, JSON.stringify(lockData), "utf8")
+
+  const cleanup = () => {
+    try {
+      if (fs.existsSync(LOCK_FILE)) {
+        const data = JSON.parse(fs.readFileSync(LOCK_FILE, "utf8"))
+        if (data.pid === process.pid) {
+          fs.unlinkSync(LOCK_FILE)
+        }
+      }
+    } catch {}
+  }
+
+  process.on("exit", cleanup)
+  process.on("SIGINT", () => { cleanup(); process.exit(130) })
+  process.on("SIGTERM", () => { cleanup(); process.exit(143) })
+  process.on("uncaughtException", (err) => { cleanup(); console.error(err); process.exit(1) })
+
+  return cleanup
+}
+
+const releaseLock = acquireLock()
+
+const isCoverage = process.argv.includes("--coverage")
+const taskName = isCoverage ? "test:coverage" : "test"
+
+// Auto hardware profiling for Thermal & Memory Protection
+const totalCores = os.cpus().length || 4
+const totalMemGb = Math.round(os.totalmem() / (1024 * 1024 * 1024)) || 8
+
+// For MacBook Air (8 Cores: 4P+4E, 8GB RAM, Fanless):
+// Limit Turbo concurrency to 2 packages & Vitest worker threads to 2 per package.
+// Total active workers = 4 threads (perfect fit for the 4 Performance cores without memory swap thrashing).
+const defaultTurboConcurrency = totalMemGb <= 8 ? "2" : Math.min(4, Math.max(2, Math.floor(totalCores / 2))).toString()
+const defaultVitestThreads = totalMemGb <= 8 ? "2" : Math.min(4, Math.max(2, Math.floor(totalCores / 2))).toString()
+
+const concurrency = process.env.TURBO_CONCURRENCY || process.env.BEECH_MAX_CONCURRENCY || defaultTurboConcurrency
+const maxThreads = process.env.VITEST_MAX_THREADS || defaultVitestThreads
+
+console.log(`\x1b[36mRunning BeechCMS tests via Turbo [Hardware Profile: ${totalCores} CPUs, ${totalMemGb}GB RAM | Concurrency=${concurrency}, VitestThreads=${maxThreads}]...\x1b[0m`)
 
 try {
-  // Avvia turbo test catturando l'output ma lasciandolo stampare a schermo
-  const child = execa("pnpm", ["turbo", "run", "test", "--log-order=grouped"], {
+  const child = execa("pnpm", ["turbo", "run", taskName, `--concurrency=${concurrency}`, "--log-order=grouped"], {
     all: true,
-    env: { FORCE_COLOR: "1" }
+    env: {
+      FORCE_COLOR: "1",
+      VITEST_MAX_THREADS: maxThreads,
+      VITEST_MIN_THREADS: "1",
+      UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || "4"
+    }
   })
 
-  // Stream output to terminal live
   child.stdout.pipe(process.stdout)
   child.stderr.pipe(process.stderr)
 
@@ -25,21 +115,22 @@ try {
     printConsolidatedSummary(err.all)
   }
   process.exit(err.exitCode || 1)
+} finally {
+  releaseLock()
 }
 
 function printConsolidatedSummary(output) {
+  if (!output) return
   const lines = output.split("\n")
   const summaries = {}
 
   for (const line of lines) {
-    // Rimuove caratteri ANSI di escape per fare il match regex pulito
     const cleanLine = line.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, "")
     
-    // Rileva righe come "@beechcms/dashboard:test:  Test Files  96 passed (96)"
-    const match = cleanLine.match(/^(\S+):test:\s+(Test Files|Tests|Duration|Start at)\s+(.+)$/i)
+    const match = cleanLine.match(/^(\S+):test(?::coverage)?:\s+(Test Files|Tests|Duration|Start at)\s+(.+)$/i)
     if (match) {
       const [_, pkg, type, value] = match
-      const cleanPkg = pkg.replace(/:test$/, "")
+      const cleanPkg = pkg.replace(/:test(:coverage)?$/, "")
       if (!summaries[cleanPkg]) {
         summaries[cleanPkg] = {}
       }

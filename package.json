@@ -58,7 +58,7 @@
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "test": "node scripts/test-runner.mjs",
-    "test:coverage": "turbo run test:coverage --log-order=grouped",
+    "test:coverage": "node scripts/test-runner.mjs --coverage",
     "test:diff": "node scripts/test-coverage-diff.mjs",
     "test:dev-cli": "vitest run --config scripts/dev-cli/vitest.config.ts",
     "pipeline": "node scripts/pipeline.mjs",
