@@ -151,27 +151,28 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
   const [isUploading, setIsUploading] = React.useState(false)
   const [isValidatingUrl, setIsValidatingUrl] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
-  const [urlInput, setUrlInput] = React.useState("")
-
   const isMultiple = isAssetListBranch(branch)
+  const url = typeof value === "string" ? value : ""
+  const [urlInput, setUrlInput] = React.useState(() => (!isMultiple ? url : ""))
+
   const assets = React.useMemo(
     () => (isMultiple ? parseAssetListValue(value) : []),
     [isMultiple, value]
   )
 
-  const url = typeof value === "string" ? value : ""
   const hasImage = url.length > 0
   const isBusy = isUploading || isValidatingUrl
 
-  React.useEffect(() => {
-    if (!isMultiple) {
-      setUrlInput(url)
-    } else {
-      setUrlInput("")
-    }
+  const [prevUrl, setPrevUrl] = React.useState(url)
+  const [prevIsMultiple, setPrevIsMultiple] = React.useState(isMultiple)
+
+  if (url !== prevUrl || isMultiple !== prevIsMultiple) {
+    setPrevUrl(url)
+    setPrevIsMultiple(isMultiple)
+    setUrlInput(!isMultiple ? url : "")
     setError(null)
     setIsDragging(false)
-  }, [isMultiple, url])
+  }
 
   const handleFileUpload = React.useCallback(
     async (file: File) => {

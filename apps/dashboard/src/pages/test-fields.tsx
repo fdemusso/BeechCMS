@@ -7,6 +7,8 @@ import type { Branch } from "@beechcms/core"
 import { FieldEdit } from "@/components/fields"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { AppSidebar, SiteHeader } from "@/features/navigation"
+import { sanitizeHtml } from "@/lib/sanitize-html"
+
 
 /** Hardcoded schema branch definition for testing the RichText field editor. */
 const RICHTEXT_BRANCH: Branch = {
@@ -60,7 +62,7 @@ export function TestFieldsPage() {
                 <h2 className="font-heading text-base font-medium">Preview — <span className="text-muted-foreground font-normal">HTML compilato con stili applicati</span></h2>
                 <div
                   className="richtext-content rounded-md border border-input bg-background px-4 py-3 max-w-2xl"
-                  dangerouslySetInnerHTML={{ __html: html }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
                 />
               </section>
 

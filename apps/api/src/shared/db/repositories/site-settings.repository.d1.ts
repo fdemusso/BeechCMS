@@ -26,13 +26,13 @@ export class D1SiteSettingsRepository implements ISiteSettingsRepository {
     const map = new Map(results.map((r) => [r.key, r.value]))
 
     return {
-      siteTitle: map.get('siteTitle') ?? DEFAULTS.siteTitle,
-      defaultLanguage: map.get('defaultLanguage') ?? DEFAULTS.defaultLanguage,
-      timezone: map.get('timezone') ?? DEFAULTS.timezone,
-      currency: map.get('currency') ?? DEFAULTS.currency,
-      companyName: map.get('companyName') ?? null,
-      companyWebsite: map.get('companyWebsite') ?? null,
-      companyAbbreviation: map.get('companyAbbreviation') ?? null,
+      siteTitle: map.get('siteTitle') || DEFAULTS.siteTitle,
+      defaultLanguage: map.get('defaultLanguage') || DEFAULTS.defaultLanguage,
+      timezone: map.get('timezone') || DEFAULTS.timezone,
+      currency: map.get('currency') || DEFAULTS.currency,
+      companyName: map.get('companyName') || null,
+      companyWebsite: map.get('companyWebsite') || null,
+      companyAbbreviation: map.get('companyAbbreviation') || null,
     }
   }
 
@@ -45,7 +45,7 @@ export class D1SiteSettingsRepository implements ISiteSettingsRepository {
         .prepare(
           'INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
         )
-        .bind(key, value),
+        .bind(key, value ?? ''),
     )
 
     await this.db.batch(stmts)

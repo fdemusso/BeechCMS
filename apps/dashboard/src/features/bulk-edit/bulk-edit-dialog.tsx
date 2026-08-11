@@ -90,8 +90,10 @@ export function BulkEditDialog({
 
   const { mutateAsync: bulkUpdate, isPending } = useBulkUpdate(seed.slug)
 
-  // Reset states on open/close
-  React.useEffect(() => {
+  // Reset states when dialog closes
+  const [prevOpen, setPrevOpen] = React.useState(open)
+  if (prevOpen !== open) {
+    setPrevOpen(open)
     if (!open) {
       setStep("pick")
       setSelectedAlias("")
@@ -99,7 +101,7 @@ export function BulkEditDialog({
       setResult(null)
       setMultiMode("replace")
     }
-  }, [open])
+  }
 
   const editableBranches = React.useMemo(
     () => seed.branches.filter(isBulkEditable),
