@@ -67,7 +67,7 @@
     "release:preview": "node scripts/release.mjs --preview",
     "postinstall": "node scripts/check-docker.mjs",
     "prepare": "husky",
-    "doctor": "pnpm dlx react-doctor@latest"
+    "doctor": "react-doctor -y --no-dead-code"
   },
   "type": "module",
   "devDependencies": {
