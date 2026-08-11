@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
@@ -86,7 +86,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {STATIC_NAV_SECONDARY.length > 0 && (
           <NavSecondary items={STATIC_NAV_SECONDARY} />
         )}
-        <NavMain items={getSettingsMenu(t)} className="mt-auto pt-0" openUpwards />
+        <NavMain items={getSettingsMenu(t)} className="mt-auto pt-0" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={user} onLogout={logout} />
