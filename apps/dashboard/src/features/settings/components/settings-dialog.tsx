@@ -33,13 +33,33 @@ import { GeneralTab } from "./general-tab"
 import { SeedBuilderPage } from "@/features/seed-builder"
 import type { SettingsTab } from "../types/settings.types"
 
+/** Props for the modal settings dialog component */
 export interface SettingsDialogProps {
+  /** Controls whether the settings dialog is open */
   readonly open: boolean
+  /** Callback fired when the user requests closing the dialog */
   readonly onClose: () => void
+  /** Currently active tab identifier */
   readonly activeTab: SettingsTab
+  /** Callback fired when a tab selection changes */
   readonly onTabChange: (tab: SettingsTab) => void
 }
 
+/** Group of related settings navigation items */
+interface SettingsGroup {
+  readonly id: string
+  readonly title: string
+  readonly items: ReadonlyArray<{
+    readonly id: SettingsTab
+    readonly label: string
+    readonly icon: typeof User
+  }>
+}
+
+/**
+ * Renders the active settings tab content.
+ * Delegates to specialized feature components per settings category.
+ */
 function TabContent({ tab }: { readonly tab: SettingsTab }) {
   switch (tab) {
     case "profile":
@@ -61,6 +81,10 @@ function TabContent({ tab }: { readonly tab: SettingsTab }) {
   }
 }
 
+/**
+ * Modal dialog for overall application settings.
+ * Displays a categorised sidebar on the left and tabbed configuration forms on the right.
+ */
 export function SettingsDialog({
   open,
   onClose,
@@ -69,34 +93,30 @@ export function SettingsDialog({
 }: Readonly<SettingsDialogProps>) {
   const { t } = useTranslation()
 
-  const groups: {
-    id: string
-    title: string
-    items: { id: SettingsTab; label: string; icon: typeof User }[]
-  }[] = [
+  const groups: ReadonlyArray<SettingsGroup> = [
     {
       id: "account",
       title: t("settings.groups.account", "Account"),
       items: [
-        { id: "profile", label: t("settings.tabs.profile", "Profilo"), icon: User },
-        { id: "security", label: t("settings.tabs.security", "Sicurezza"), icon: Shield },
-        { id: "notifications", label: t("settings.tabs.notifications", "Notifiche"), icon: Bell },
+        { id: "profile", label: t("settings.tabs.profile", "Profile"), icon: User },
+        { id: "security", label: t("settings.tabs.security", "Security"), icon: Shield },
+        { id: "notifications", label: t("settings.tabs.notifications", "Notifications"), icon: Bell },
       ],
     },
     {
       id: "system",
-      title: t("settings.groups.system", "Sistema & UI"),
+      title: t("settings.groups.system", "System & UI"),
       items: [
-        { id: "general", label: t("settings.tabs.general", "Sito"), icon: Settings },
-        { id: "interface", label: t("settings.tabs.interface", "Interfaccia"), icon: Palette },
+        { id: "general", label: t("settings.tabs.general", "Site"), icon: Settings },
+        { id: "interface", label: t("settings.tabs.interface", "Interface"), icon: Palette },
         { id: "storage", label: t("settings.tabs.storage", "Storage"), icon: HardDrive },
       ],
     },
     {
       id: "models",
-      title: t("settings.groups.models", "Modelli Dati"),
+      title: t("settings.groups.models", "Data Models"),
       items: [
-        { id: "content-types", label: t("seedBuilder.page.navTitle", "Tipi di Contenuto"), icon: Layers },
+        { id: "content-types", label: t("seedBuilder.page.navTitle", "Content Types"), icon: Layers },
       ],
     },
   ]
@@ -111,11 +131,11 @@ export function SettingsDialog({
         className="flex flex-col sm:max-w-3xl md:max-w-5xl lg:max-w-6xl h-[85vh] max-h-[calc(100vh-3rem)] p-0 gap-0 overflow-hidden border-border/80 bg-background shadow-2xl"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <DialogTitle className="sr-only">{t("settings.title", "Impostazioni")}</DialogTitle>
-        <DialogDescription className="sr-only">{t("settings.title", "Impostazioni")}</DialogDescription>
+        <DialogTitle className="sr-only">{t("settings.title", "Settings")}</DialogTitle>
+        <DialogDescription className="sr-only">{t("settings.title", "Settings")}</DialogDescription>
 
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          {/* Internal Left Sidebar */}
+          {/* Categorised Left Navigation Sidebar */}
           <aside className="w-56 sm:w-64 border-r border-border/60 bg-muted/30 dark:bg-muted/15 flex flex-col shrink-0 select-none">
             {/* Sidebar Header */}
             <div className="p-4 sm:p-5 flex items-center gap-2.5 border-b border-border/40">
@@ -124,12 +144,12 @@ export function SettingsDialog({
               </div>
               <div className="flex flex-col">
                 <span className="font-heading text-sm font-semibold tracking-tight text-foreground">
-                  {t("settings.title", "Impostazioni")}
+                  {t("settings.title", "Settings")}
                 </span>
               </div>
             </div>
 
-            {/* Sidebar Nav Items Grouped */}
+            {/* Category Groups and Tab Buttons */}
             <ScrollArea className="flex-1 px-3 py-3">
               <nav className="space-y-5" aria-label="Settings categories">
                 {groups.map((group) => (
@@ -165,9 +185,9 @@ export function SettingsDialog({
             </ScrollArea>
           </aside>
 
-          {/* Right Panel Main Content */}
+          {/* Right Panel Main Active Tab Container */}
           <main className="flex-1 flex flex-col min-w-0 bg-background overflow-hidden">
-            {/* Content Header */}
+            {/* Active Tab Header */}
             <header className="px-6 py-4 border-b border-border/50 flex items-center justify-between shrink-0 bg-background/50">
               <div className="flex items-center gap-2.5">
                 <ActiveIcon className="size-4 text-muted-foreground shrink-0" />
@@ -182,13 +202,13 @@ export function SettingsDialog({
                 size="icon-sm"
                 onClick={onClose}
                 className="rounded-full"
-                aria-label={t("common.close", "Chiudi")}
+                aria-label={t("common.close", "Close")}
               >
                 <XIcon className="size-4" />
               </Button>
             </header>
 
-            {/* Content Body */}
+            {/* Scrollable Active Tab Form Body */}
             <ScrollArea className="flex-1 p-6 md:p-8">
               <div className="max-w-4xl mx-auto">
                 <TabContent tab={activeTab} />
