@@ -4,6 +4,7 @@
 
 import { renderRichText } from "@beechcms/core"
 
+import { sanitizeHtml } from "@/lib/sanitize-html"
 import { cn } from "@/lib/utils"
 
 function isRenderedEmpty(html: string): boolean {
@@ -35,8 +36,9 @@ export function GalleryRichtextReadonly({ value, className }: GalleryRichtextRea
         "[&_p]:mb-2 [&_a]:text-foreground hover:[&_a]:opacity-80",
         className
       )}
-      // Contenuto già validato da `@beechcms/core` in scrittura; solo anteprima admin.
-      dangerouslySetInnerHTML={{ __html: html }}
+      // Contenuto validato e sanitizzato prima dell'iniezione HTML.
+      dangerouslySetInnerHTML={{ __html: sanitizeHtml(html) }}
     />
   )
 }
+
