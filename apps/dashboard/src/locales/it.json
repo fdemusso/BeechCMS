@@ -859,6 +859,7 @@
   "forgotPassword": {
     "title": "Password dimenticata",
     "desc": "Inserisci il tuo indirizzo email e ti invieremo un link per reimpostare la password.",
+    "email": "Email",
     "emailRequired": "Inserisci l'email",
     "emailInvalid": "Indirizzo email non valido",
     "send": "Invia link di reset",
