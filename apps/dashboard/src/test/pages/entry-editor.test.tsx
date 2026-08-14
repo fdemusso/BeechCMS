@@ -271,8 +271,13 @@ vi.mock("react-i18next", () => ({
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { EntryEditorDialog } from "@/features/entry-editor"
+import {
+  prepareSubmissionPayload,
+  validateEntryJsonFields,
+  getInitialStatus,
+} from "@/features/entry-editor/hooks/use-entry-editor-dialog"
 
-function TestEntryEditorDialogWrapper({ schemaSlug, entryId, open = true, onClose }: any) {
+function TestEntryEditorDialogWrapper({ schemaSlug, entryId, open = true, onClose, defaultValues }: any) {
   const [mockState, setMockState] = useState(getMockLocationState())
   const navigate = useNavigate()
 
@@ -289,6 +294,7 @@ function TestEntryEditorDialogWrapper({ schemaSlug, entryId, open = true, onClos
   }
 
   const isDraftContext = !!mockState?.isDraftContext
+  const effectiveDefaults = defaultValues ?? mockState?.defaultValues
   return (
     <EntryEditorDialog
       schemaSlug={schemaSlug}
@@ -296,6 +302,7 @@ function TestEntryEditorDialogWrapper({ schemaSlug, entryId, open = true, onClos
       isDraftContext={isDraftContext}
       open={open}
       onClose={onClose || defaultOnClose}
+      defaultValues={effectiveDefaults}
     />
   )
 }
@@ -395,6 +402,79 @@ describe("EntryEditorPage", () => {
     renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="42" />)
 
     expect(await screen.findByText("This entry has a pending draft.")).toBeInTheDocument()
+  })
+
+  it("in create mode with isDraftContext and defaultValues saves with status draft, displays draft notice and redirects to /drafts", async () => {
+    setMockLocationState({
+      isDraftContext: true,
+      defaultValues: { status: "draft" },
+    })
+    mockCreateContent.mockResolvedValueOnce({ id: "new-draft-id" })
+
+    renderWithProvider(
+      <TestEntryEditorDialogWrapper
+        schemaSlug="posts"
+        entryId={undefined}
+      />
+    )
+
+    expect(await screen.findByText("Editing pending draft — changes will not go live until published.")).toBeInTheDocument()
+
+    const saveDraftBtn = screen.getByRole("button", { name: "Save draft" })
+    expect(saveDraftBtn).toBeInTheDocument()
+
+    const titleInput = await screen.findByLabelText("field-title")
+    fireEvent.change(titleInput, { target: { value: "Bozza Articolo" } })
+
+    fireEvent.click(saveDraftBtn)
+
+    await waitFor(() => {
+      expect(mockCreateContent).toHaveBeenCalledWith(
+        "posts",
+        expect.objectContaining({
+          slug: "bozza-articolo",
+          status: "draft",
+        })
+      )
+      expect(mockToastSuccess).toHaveBeenCalledWith("Entry created")
+      expect(mockNavigate).toHaveBeenCalledWith("/drafts")
+    })
+  })
+
+  it("handles reserved/builtin prototype keys like constructor and toString safely without prototype pollution or false ACKs", () => {
+    const branches = [
+      { id: "b1", alias: "title", label: "Title", type: "text" },
+      { id: "b2", alias: "metaData", label: "Metadata", type: "json" },
+    ]
+
+    // Form data with prototype keys
+    const maliciousFormData = Object.create({
+      title: "Inherited Title",
+      metaData: "{\"inherited\": true}",
+    }) as Record<string, unknown>
+    maliciousFormData.constructor = () => {}
+    maliciousFormData.toString = "malicious string"
+
+    // validateEntryJsonFields should check Object.hasOwn and not crash/false-ACK
+    const validationResult = validateEntryJsonFields(branches, maliciousFormData)
+    expect(validationResult.isValid).toBe(true)
+
+    // prepareSubmissionPayload should not use inherited properties
+    const payload = prepareSubmissionPayload({
+      branches,
+      formData: maliciousFormData,
+      slug: "proto-test",
+      status: "draft",
+    })
+    expect(payload.title).toBeUndefined()
+    expect(payload.metaData).toBeUndefined()
+    expect(payload.slug).toBe("proto-test")
+    expect(payload.status).toBe("draft")
+
+    // getInitialStatus should safely check Object.hasOwn on defaultValues
+    const protoDefaults = Object.create({ status: "published" })
+    expect(getInitialStatus(protoDefaults, true)).toBe("draft")
+    expect(getInitialStatus(protoDefaults, false)).toBe("published")
   })
 })
 
