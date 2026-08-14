@@ -1,178 +1,155 @@
 ---
 title: Observability & Notifications
-group: Developer Guide (Internals)
-category: Internals
+group: User & Builder Guide
+category: Features
 ---
 
-# Observability & Notifications module
+# Observability & Notifications
 
-This document covers the abstractions delivered by Phase 2 of the abstraction
-plan (`docs/Sprints/02-abstraction.md`). It replaces the two free functions
-`logActivity(c, ...)` and `createNotification(c, ...)` with interface-driven
-modules that mirror the email module pattern.
+BeechCMS includes built-in systems for **real-time admin notifications** and **zero-overhead activity logging**. Both subsystems execute asynchronously at the Cloudflare edge, ensuring that database writes, user logins, and automations never introduce latency to HTTP responses.
 
-## Why this exists
+## Architecture Pipeline
 
-Before Phase 2 the audit trail and the notification inbox were written
-through free functions that received the entire Hono `Context`, read
-`c.env.DB` and `c.executionCtx` directly, and ran inline `INSERT` statements.
-That coupling made handlers untestable in isolation and forced any new sink
-(remote logger, message queue, mock for tests) to crawl through the Hono
-runtime.
+All audit logs and notifications are dispatched via the `IScheduler` abstraction (`c.get('scheduler').waitUntil(...)`). This offloads database inserts and webhook triggers to Cloudflare Workers background execution while returning immediate responses to clients.
 
-Phase 2 introduces three contracts in `@beechcms/core` and three
-implementations in `apps/api`:
+<p align="center">
+  <img src="./images/notifications-observability-pipeline.svg" alt="BeechCMS Observability & Notifications Pipeline" style="width: 100%; max-width: 840px; margin: 16px 0;" />
+</p>
 
-| Contract                 | Location (core)                                          | Production impl (api)                                                   | Test impl                                          |
-| ------------------------ | -------------------------------------------------------- | ----------------------------------------------------------------------- | -------------------------------------------------- |
-| `IActivityLogger`        | `observability/activity-logger.ts`                       | `D1ActivityLogger` (`shared/d1-activity-logger.ts`)                     | `InMemoryActivityLogger`                           |
-| `IActivityLogRepository` | `observability/activity-log.repository.ts`               | `D1ActivityLogRepository` (`shared/d1-activity-log.repository.ts`)      | mock via `vi.fn`                                   |
-| `INotificationRepository`| `notifications/notification.repository.ts`               | `D1NotificationRepository` (`shared/d1-notification.repository.ts`)     | mock via `vi.fn`                                   |
-| `INotificationService`   | `notifications/notification-service.ts`                  | `BackgroundNotificationService` (`shared/background-notification-service.ts`) | `InMemoryNotificationService`                |
+## Upstash QStash Queue
 
-## Wiring
+BeechCMS integrates with [Upstash QStash](https://upstash.com/docs/qstash/overall/getstarted) as its primary background message queue and webhook delivery engine for serverless edge environments.
 
-Two middlewares cooperate:
+### Why QStash at the Edge
 
-1. `repositoryMiddleware` (already existed) — instantiates
-   `D1ActivityLogRepository` and `D1NotificationRepository` and injects them
-   as `c.get('activityLogRepository')` / `c.get('notificationRepository')`.
-2. `observabilityMiddleware` (new, `apps/api/src/middleware/observability.middleware.ts`) —
-   instantiates `D1ActivityLogger` and `BackgroundNotificationService` and
-   injects them as `c.get('activityLogger')` / `c.get('notificationService')`.
-   The notification service depends on the repository, so this middleware
-   MUST run after the repository middleware. Both wrap
-   `c.executionCtx.waitUntil` so the persistence work runs as a Cloudflare
-   background task and never blocks the HTTP response.
+Edge runtimes like Cloudflare Workers are stateless and cannot maintain long-lived TCP connections or run persistent background broker listeners (like RabbitMQ or Celery). 
 
-Registration order in `factory.ts`:
+QStash solves this by acting as an **HTTP-native serverless message queue**:
+- **Zero Connection Overhead**: Messages are published via standard HTTPS REST calls.
+- **At-Least-Once Delivery**: Guarantees message persistence until the receiving webhook or worker acknowledges it.
+- **Automated Retries & Backoff**: Failed webhook endpoints or temporary downtime trigger exponential backoff without tying up Worker CPU time.
+- **Cryptographic Signatures**: Inbound callbacks are verified using HMAC SHA-256 signing keys to prevent spoofing.
 
-```
-repositoryMiddleware → storageMiddleware → authProvidersMiddleware
-  → rateLimiterMiddleware → observabilityMiddleware
+### Environment Configuration
+
+To enable QStash delivery for notifications and external webhooks, configure these environment variables in your Cloudflare Worker:
+
+```ini
+QSTASH_URL="https://qstash.upstash.io/v2/publish"
+QSTASH_TOKEN="ey..."
+QSTASH_CURRENT_SIGNING_KEY="sig_..."
+QSTASH_NEXT_SIGNING_KEY="sig_..."
 ```
 
-### Phase 4 update — `IClock` and `IIdGenerator`
+When these variables are detected, `observabilityMiddleware` automatically instantiates `QStashNotificationService` instead of local memory queuing.
 
-`D1ActivityLogger` and `D1NotificationRepository` no longer call `crypto.randomUUID()` or `Date.now()` directly. Both accept the new cross-cutting utilities as constructor arguments:
+## Activity Logging
 
-```ts
-new D1ActivityLogger(db, clock, idGenerator, scheduleBackgroundTask?)
-new D1NotificationRepository(db, clock, idGenerator)
+The activity logging subsystem tracks changes made across the CMS, creating an immutable audit trail for compliance and dashboard activity feeds.
+
+### Tracked Events
+
+| Event Type | Trigger | Recorded Details |
+| :--- | :--- | :--- |
+| `create` | Content entry created | Seed slug, entry ID, author, initial fields |
+| `update` | Content entry modified | Seed slug, entry ID, updated fields, author |
+| `delete` | Content entry removed | Seed slug, deleted entry ID, author |
+| `publish` | Draft promoted to live | Seed slug, entry ID, version metadata |
+| `login` | User session initiated | User ID, IP address, user agent |
+
+### Programmatic Logging
+
+Within any API route or custom handler, record audit events using `c.get('activityLogger')`:
+
+```typescript
+import type { Context } from 'hono'
+import type { Env, Variables } from '../types'
+
+export async function customActionHandler(c: Context<{ Bindings: Env; Variables: Variables }>) {
+  const jwt = c.get('jwtPayload')
+  const entryId = c.req.param('id')
+
+  // Perform domain operation
+  // ...
+
+  // Asynchronously record the activity log
+  c.get('scheduler').waitUntil(
+    c.get('activityLogger').log({
+      action: 'update',
+      entityType: 'content',
+      entityId: entryId,
+      entitySlug: 'articles',
+      actor: {
+        id: jwt.sub,
+        email: jwt.email ?? 'system',
+        name: jwt.name ?? null,
+      },
+      details: {
+        reason: 'Bulk tag update',
+      },
+    })
+  )
+
+  return c.json({ ok: true })
+}
 ```
 
-In production, `repositoryMiddleware` and `observabilityMiddleware` resolve them to `SystemClock` / `SystemIdGenerator` (from `@beechcms/core`). Tests pass `FixedClock` / `SequentialIdGenerator` from `apps/api/src/shared/` for deterministic IDs and timestamps without `vi.useFakeTimers()` or global `Date` patching.
+### Dashboard History
 
-Both middlewares accept matching overrides:
+Administrators can inspect activity logs in two places:
+1. **Dashboard Cockpit**: The *Recent Activity* widget displays the latest content modifications with relative timestamps.
+2. **Settings → Activity**: A searchable, paginated history of all administrative actions, filtered by user, date range, or Seed.
 
-```ts
-observabilityMiddleware({ clock?, idGenerator?, activityLogger?, notificationService? })
-repositoryMiddleware({ clock?, idGenerator?, … })
+## In-App Notifications
+
+BeechCMS provides an in-app notification inbox accessible via the bell icon in the dashboard navigation header.
+
+### Severity Levels
+
+| Severity | UI Indicator | Recommended Use Case |
+| :--- | :--- | :--- |
+| `info` | Blue badge | General updates, scheduled jobs completed |
+| `success` | Emerald badge | Form submissions, successful content publishes |
+| `warning` | Amber badge | Impending quota limits, unverified draft changes |
+| `error` | Rose badge | Webhook delivery failure, payment gateway alert |
+
+### Dispatching Alerts
+
+You can trigger notifications from custom endpoints, scheduled cron jobs, or background tasks:
+
+```typescript
+const notificationService = c.get('notificationService')
+
+c.get('scheduler').waitUntil(
+  notificationService.notify({
+    title: 'New Contact Form Submission',
+    message: 'A new lead submitted the contact form on your website.',
+    type: 'success',
+    link: '/content/leads',
+  })
+)
 ```
 
-## Calling the activity logger from a handler
+## Testing & Clocks
 
-```ts
-const jwtPayload = context.get('jwtPayload')
-context.get('activityLogger').log({
+To ensure tests run fast without monkey-patching `Date.now()` or `crypto.randomUUID()`, both `D1ActivityLogger` and `D1NotificationRepository` accept injected `IClock` and `IIdGenerator` instances.
+
+In test suites (`vitest`), pass `FixedClock` and `SequentialIdGenerator`:
+
+```typescript
+import { FixedClock } from '../shared/fixed-clock'
+import { SequentialIdGenerator } from '../shared/sequential-id-generator'
+import { D1ActivityLogger } from '../shared/d1-activity-logger'
+
+const clock = new FixedClock(1700000000000)
+const idGen = new SequentialIdGenerator('test-log')
+const logger = new D1ActivityLogger(d1Database, clock, idGen)
+
+await logger.log({
   action: 'create',
   entityType: 'content',
-  entityId: id,
-  entitySlug: slug,
-  details: { title },
-  actor: {
-    id: jwtPayload.sub,
-    email: jwtPayload.email ?? 'unknown',
-    name: jwtPayload.name ?? null,
-  },
+  entityId: 'entry-123',
+  entitySlug: 'posts',
+  actor: { id: 'usr_1', email: 'editor@example.com', name: 'Editor' },
 })
 ```
-
-Rules:
-
-- The handler — never the logger — assembles the `actor` object from the JWT
-  payload. The logger has no Hono knowledge.
-- `log()` returns `void | Promise<void>` and is fire-and-forget in
-  production. Errors are swallowed and reported via `console.error`; they
-  never propagate to the user-facing response.
-
-## Calling the notification service
-
-```ts
-context.get('notificationService').notify({
-  title: `${seed.label}: New entry`,
-  message: `A new entry has been added via the public API.`,
-  type: 'success',
-})
-```
-
-Same fire-and-forget contract as the logger. The default `type` is `info`.
-
-## Reading activity logs
-
-The settings activity tab (`GET /api/settings/activity`) and the recent
-activity widget (`GET /api/content/stats/recent-activity`) both go through
-`IActivityLogRepository`:
-
-```ts
-const entries = await context.get('activityLogRepository').list({
-  userId,                 // optional
-  entitySlug,             // optional
-  limit: 30,
-})
-```
-
-A `countSince({ action, entityType, sinceTimestamp })` method on the same
-repository powers the `/stats/total` widget (today/week/month create-event
-counts). It runs a single parameterised `SELECT COUNT(*)` and is invoked
-three times in parallel from the handler — keeping the SQL inside the
-repository while preserving the existing wire contract.
-
-The repository builds the optional `WHERE` clauses using guard clauses, so
-the SQL is deterministic and parameterised (no string interpolation). Snake
-case columns are mapped to camelCase fields on the way out; `details` is
-parsed back from JSON or returned as `null` when absent or malformed.
-
-## Notification ETag
-
-`GET /notifications` builds a strong ETag from the repository's `stats()`
-aggregate so a client polling the inbox returns `304 Not Modified` whenever
-nothing has changed since the previous request. The format is
-`W/"<totalCount>-<latestCreatedAt>-<readCount>"` and is unchanged from the
-pre-Phase-2 implementation — the move from inline SQL to the repository
-preserves the wire contract exactly.
-
-## Tests
-
-The unit tests live alongside the implementations in `apps/api/src/shared/`:
-
-- `d1-activity-logger.test.ts` — INSERT shape, actor fallback, background
-  scheduling, error swallowing.
-- `d1-activity-log.repository.test.ts` — column mapping, JSON parsing,
-  optional WHERE clauses, ORDER BY / LIMIT.
-- `d1-notification.repository.test.ts` — list / stats / create / mark*/delete.
-- `background-notification-service.test.ts` — repository delegation,
-  default type, scheduler delegation, error swallowing.
-
-Run them with `pnpm test` from `apps/api/`.
-
-## Migration notes
-
-The two old free functions and their imports have been deleted:
-
-- `apps/api/src/shared/activity-logger.ts` — gone
-- `apps/api/src/shared/notification-service.ts` — gone
-
-Callers updated:
-
-- `features/content/handlers/{create,update,delete}.ts`
-- `features/draft/draft.handler.ts` (saveDraft + publishDraft)
-- `upload.ts`
-- `public/public-add.ts` and `public/public-edit.ts`
-- `features/notifications/notifications.handler.ts` — full rewrite, no SQL
-- `features/settings/settings.handler.ts` — activity tab now uses repo
-- `features/stats/stats.handler.ts` — recent-activity now uses repo
-
-The `jwtPayload` shape in `apps/api/src/types.ts` was widened to expose
-`name?: string | null`, matching what the JWT actually carries, so handlers
-can assemble the `actor` object without casting.

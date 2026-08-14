@@ -18,14 +18,14 @@ function uuid() {
 }
 
 const firstNames = [
-  'Luca', 'Marco', 'Giulia', 'Anna', 'Francesca', 'Matteo', 'Alessandro', 'Sofia', 'Martina', 'Lorenzo',
-  'Davide', 'Chiara', 'Federico', 'Elena', 'Simone', 'Valentina', 'Riccardo', 'Paola', 'Andrea', 'Silvia',
-  'Stefano', 'Elisa', 'Nicola', 'Camilla', 'Tommaso', 'Beatrice', 'Gabriele', 'Laura', 'Filippo', 'Irene',
+  'James', 'Olivia', 'Liam', 'Emma', 'Noah', 'Ava', 'William', 'Sophia', 'Benjamin', 'Isabella',
+  'Lucas', 'Mia', 'Henry', 'Charlotte', 'Alexander', 'Amelia', 'Michael', 'Harper', 'Daniel', 'Evelyn',
+  'Matthew', 'Abigail', 'David', 'Emily', 'Joseph', 'Elizabeth', 'Samuel', 'Sofia', 'John', 'Avery',
 ]
 const lastNames = [
-  'Rossi', 'Bianchi', 'Esposito', 'Romano', 'Colombo', 'Ricci', 'Marino', 'Greco', 'Bruno', 'Gallo',
-  'Conti', 'De Luca', 'Mancini', 'Costa', 'Giordano', 'Rizzo', 'Lombardi', 'Moretti', 'Barbieri', 'Fontana',
-  'Santoro', 'Mariani', 'Ferrari', 'Pellegrini', 'Caruso',
+  'Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez',
+  'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin',
+  'Lee', 'Perez', 'Thompson', 'White', 'Harris',
 ]
 const companies = [
   'Acme Corp', 'TechFlow', 'DataSync', 'GlobalNet', 'Innova Solutions', 'NextGen IT', 'CloudBase',
@@ -35,9 +35,9 @@ const companies = [
   'Cobalt Works',
 ]
 const companyDomains = [
-  'acmecorp.io', 'techflow.dev', 'datasync.com', 'globalnet.io', 'innovasolutions.it', 'nextgenit.com',
+  'acmecorp.io', 'techflow.dev', 'datasync.com', 'globalnet.io', 'innovasolutions.io', 'nextgenit.com',
   'cloudbase.app', 'alphadynamics.io', 'betasystems.com', 'novalabs.dev', 'quantumreach.io',
-  'vertexdigital.com', 'brightlinemedia.it', 'sunriseanalytics.com', 'northwindsoftware.io',
+  'vertexdigital.com', 'brightlinemedia.com', 'sunriseanalytics.com', 'northwindsoftware.io',
   'pixelforge.studio', 'orbitcommerce.com', 'silverlinegroup.io', 'meridianlabs.dev',
   'evergreentech.com', 'bluepeaksystems.io', 'skylineventures.com', 'forgeandco.io', 'lumendigital.com',
   'cobaltworks.dev',
@@ -73,7 +73,7 @@ function timestampOnDay(d) {
 
 // ── CUSTOMERS ────────────────────────────────────────────────────────────────
 // Signups follow a growth curve (more recent days bring in more customers) so
-// "Andamento Iscrizioni" shows a meaningful upward trend rather than noise.
+// "Signups Trend" shows a meaningful upward trend rather than noise.
 
 const customers = []
 const usedSlugs = new Set()
@@ -116,7 +116,7 @@ for (let d = 0; d < DAYS_BACK; d++) {
 
 // ── SUBSCRIPTIONS ────────────────────────────────────────────────────────────
 // Each customer subscribes shortly after signing up; many also pick up a
-// second subscription (upsell/renewal) later on — so "Nuovi Abbonamenti"
+// second subscription (upsell/renewal) later on — so "New Subscriptions"
 // tracks the same growth curve as signups, shifted slightly into the future.
 
 const subscriptions = []
@@ -159,35 +159,36 @@ const tickets = []
 const ticketCategories = ['billing', 'technical', 'sales']
 const ticketTitlesByCategory = {
   billing: [
-    'Fattura non ricevuta per questo mese',
-    'Richiesta di cambio metodo di pagamento',
-    'Importo addebitato non corrisponde al piano',
-    'Domanda su upgrade del piano e pro-rata',
-    'Richiesta rimborso per doppio addebito',
-    'Aggiornamento dati di fatturazione aziendali',
-    'Conferma scadenza rinnovo abbonamento',
+    'Invoice not received for this month',
+    'Request to change payment method',
+    'Billed amount does not match plan tier',
+    'Question about pro-rata upgrades and add-ons',
+    'Refund request for accidental duplicate charge',
+    'Update company VAT and billing information',
+    'Subscription renewal date confirmation',
   ],
   technical: [
-    'Errore 500 durante il salvataggio dei contenuti',
-    'Problema di sincronizzazione con webhook',
-    'Le immagini caricate non vengono visualizzate',
-    'API key non funziona dopo la rotazione',
-    'Timeout durante l\'import massivo dei dati',
-    'Richiesta supporto per integrazione SSO',
-    'Bug nella ricerca full-text dei contenuti',
+    '500 Internal Server Error when publishing entries',
+    'Webhook delivery synchronization timeout',
+    'Uploaded images failing to render on CDN edge',
+    'API authentication failure after key rotation',
+    'Timeout during bulk CSV content import',
+    'SAML SSO configuration assistance request',
+    'Full-text search query syntax error on special characters',
   ],
   sales: [
-    'Richiesta demo per piano Enterprise',
-    'Informazioni su sconti per rinnovo annuale',
-    'Domanda su limiti utenti del piano Pro',
-    'Richiesta preventivo per multi-tenant',
-    'Interesse per migrazione da altro CMS',
-    'Richiesta contratto e fattura proforma',
+    'Enterprise plan customized demo request',
+    'Annual contract renewal volume discount inquiry',
+    'Question about Pro tier seat limits and permissions',
+    'Custom multi-tenant deployment pricing quote',
+    'Migration assistance from legacy headless CMS',
+    'Contract review and pro-forma invoice request',
   ],
 }
-// Ticket volume grows alongside the customer base ("Ticket nel tempo"), and
+
+// Ticket volume grows alongside the customer base ("Tickets Over Time"), and
 // recent tickets are more likely to still be open/in_progress than old ones
-// — so "Ticket Aperti" / "Ticket Chiusi" stats reflect a realistic backlog.
+// — so "Open Tickets" / "Closed Tickets" stats reflect a realistic backlog.
 let ticketCounter = 1
 for (let d = 0; d < DAYS_BACK; d++) {
   const opened = growthCount(d, 0.4, 2)
@@ -220,20 +221,20 @@ for (let d = 0; d < DAYS_BACK; d++) {
 // ── CHANGELOG ────────────────────────────────────────────────────────────────
 
 const changelogEntries = [
-  { version: 'v1.0.0', daysAgo: 29, features: '<p>Lancio ufficiale della piattaforma con gestione clienti base.</p>' },
-  { version: 'v1.1.0', daysAgo: 26, features: '<p>Aggiunti report avanzati e export in CSV.</p>' },
-  { version: 'v1.2.0', daysAgo: 23, features: '<p>Integrazione con Slack per notifiche ticket.</p>' },
-  { version: 'v1.3.0', daysAgo: 20, features: '<p>Nuovo sistema di tagging per i ticket e filtri avanzati nella dashboard.</p>' },
-  { version: 'v1.4.0', daysAgo: 17, features: '<h2>Performance</h2><p>Tempi di risposta delle API ridotti del 40% grazie alla cache edge.</p>' },
-  { version: 'v1.5.0', daysAgo: 14, features: '<p>Aggiunto supporto per fatturazione annuale e sconti automatici.</p>' },
-  { version: 'v1.6.0', daysAgo: 11, features: '<h2>Novità</h2><p>Dashboard widget personalizzabili e drag-and-drop per i layout.</p>' },
-  { version: 'v1.7.0', daysAgo: 8, features: '<p>Nuove notifiche email per ticket ad alta priorità e SLA configurabili.</p>' },
-  { version: 'v2.0.0', daysAgo: 5, features: '<h2>Major Update</h2><p>Nuova dashboard amministrativa e API pubbliche.</p>' },
-  { version: 'v2.1.0', daysAgo: 3, features: '<p>Miglioramenti alla ricerca full-text e correzione di vari bug minori di sincronizzazione.</p>' },
-  { version: 'v2.2.0', daysAgo: 1, features: '<h2>Sicurezza</h2><p>Rotazione automatica delle API key e audit log per le modifiche di sistema.</p>' },
+  { version: 'v1.0.0', daysAgo: 29, features: '<p>Official platform launch with core customer management and role-based access.</p>' },
+  { version: 'v1.1.0', daysAgo: 26, features: '<p>Added advanced analytics reporting and CSV content export.</p>' },
+  { version: 'v1.2.0', daysAgo: 23, features: '<p>Slack integration for real-time ticket alerts and notifications.</p>' },
+  { version: 'v1.3.0', daysAgo: 20, features: '<p>New ticket tagging system and advanced dashboard query filters.</p>' },
+  { version: 'v1.4.0', daysAgo: 17, features: '<h2>Performance</h2><p>Reduced API latency by 40% using Cloudflare Workers edge caching.</p>' },
+  { version: 'v1.5.0', daysAgo: 14, features: '<p>Added annual billing support with automated loyalty discounts.</p>' },
+  { version: 'v1.6.0', daysAgo: 11, features: '<h2>New Features</h2><p>Modular dashboard widgets with responsive drag-and-drop layouts.</p>' },
+  { version: 'v1.7.0', daysAgo: 8, features: '<p>Configurable SLAs and instant email alerts for high-priority tickets.</p>' },
+  { version: 'v2.0.0', daysAgo: 5, features: '<h2>Major Update</h2><p>Redesigned administrative dashboard and public REST/GraphQL APIs.</p>' },
+  { version: 'v2.1.0', daysAgo: 3, features: '<p>Full-text search indexing enhancements and minor sync bug fixes.</p>' },
+  { version: 'v2.2.0', daysAgo: 1, features: '<h2>Security</h2><p>Automated API key rotation and tamper-proof audit trails for all system events.</p>' },
 ]
 
-const changelog = changelogEntries.map((c, idx) => {
+const changelog = changelogEntries.map((c) => {
   const ts = Math.floor((now.getTime() - c.daysAgo * 86400 * 1000) / 1000)
   return {
     id: uuid(),
@@ -250,99 +251,99 @@ const changelog = changelogEntries.map((c, idx) => {
 
 const articoliEntries = [
   {
-    slug: 'come-ridurre-il-churn-rate',
-    title: 'Come ridurre il Churn Rate',
-    author: 'Luca Rossi',
+    slug: 'how-to-reduce-saas-churn-rate',
+    title: 'How to Reduce SaaS Churn Rate',
+    author: 'Alex Rivera',
     cover_image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
-    body: '<p>Analisi delle migliori strategie per mantenere i clienti SaaS nel 2026: onboarding guidato, check-in proattivi e piani di successo personalizzati.</p>',
+    body: '<p>Best practices for retaining SaaS customers in 2026: guided onboarding, proactive check-ins, and tailored customer success plans.</p>',
     daysAgo: 28,
   },
   {
-    slug: 'pricing-saas-freemium-vs-trial',
-    title: 'Pricing SaaS: Freemium vs Trial',
-    author: 'Anna Bianchi',
+    slug: 'saas-pricing-freemium-vs-trial',
+    title: 'SaaS Pricing: Freemium vs Free Trial',
+    author: 'Sarah Jenkins',
     cover_image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&q=80',
-    body: '<p>Cosa scegliere per massimizzare la conversion rate e il Customer Lifetime Value: confronto pratico tra modello freemium e trial a tempo.</p>',
+    body: '<p>How to maximize conversion rate and Customer Lifetime Value: a practical comparison between freemium and time-limited trial models.</p>',
     daysAgo: 26,
   },
   {
-    slug: 'onboarding-clienti-enterprise',
-    title: 'Onboarding clienti enterprise: la nostra checklist',
-    author: 'Marco Verdi',
+    slug: 'enterprise-customer-onboarding-checklist',
+    title: 'Enterprise Customer Onboarding Checklist',
+    author: 'Michael Chang',
     cover_image: 'https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=800&q=80',
-    body: '<p>I passaggi chiave per accompagnare un nuovo cliente enterprise dal contratto al primo valore percepito, riducendo il time-to-value.</p>',
+    body: '<p>Key milestones to guide new enterprise clients from contract signature to first realized value, reducing time-to-value.</p>',
     daysAgo: 23,
   },
   {
-    slug: 'metriche-saas-da-monitorare',
-    title: '7 metriche SaaS da monitorare ogni settimana',
-    author: 'Giulia Ferrari',
+    slug: '7-saas-metrics-to-track-weekly',
+    title: '7 SaaS Metrics Every Team Should Track Weekly',
+    author: 'Emily Watson',
     cover_image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
-    body: '<p>MRR, churn, NRR, CAC, LTV e altro: una guida pratica alle metriche che contano davvero per un business in abbonamento.</p>',
+    body: '<p>MRR, Churn, NRR, CAC, and LTV: a practical guide to the core metrics that drive sustainable subscription growth.</p>',
     daysAgo: 20,
   },
   {
-    slug: 'automatizzare-il-supporto-clienti',
-    title: 'Automatizzare il supporto clienti senza perdere la qualità',
-    author: 'Davide Conti',
+    slug: 'automating-customer-support-quality',
+    title: 'Automating Customer Support Without Sacrificing Quality',
+    author: 'David Miller',
     cover_image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=800&q=80',
-    body: '<p>Come usare automazioni e categorizzazione automatica dei ticket per ridurre i tempi di risposta mantenendo un\'esperienza cliente eccellente.</p>',
+    body: '<p>Using smart automation rules and ticket routing to slash resolution times while keeping customer satisfaction high.</p>',
     daysAgo: 18,
   },
   {
-    slug: 'guida-rinnovi-abbonamento',
-    title: 'Guida ai rinnovi: come ridurre i pagamenti falliti',
-    author: 'Elena Mariani',
+    slug: 'subscription-renewal-preventing-failed-payments',
+    title: 'Subscription Renewal Guide: Preventing Failed Payments',
+    author: 'Jessica Taylor',
     cover_image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&q=80',
-    body: '<p>Strategie di dunning, promemoria automatici e retry intelligenti delle carte per ridurre il tasso di payment_status "past_due".</p>',
+    body: '<p>Dunning strategies, smart retry logic, and automated payment reminders to minimize involuntary churn from expired cards.</p>',
     daysAgo: 15,
   },
   {
-    slug: 'segmentazione-clienti-per-piano',
-    title: 'Segmentare i clienti per piano: cosa rivelano i dati',
-    author: 'Luca Rossi',
+    slug: 'customer-segmentation-by-tier-insights',
+    title: 'Customer Segmentation by Tier: What the Data Shows',
+    author: 'Alex Rivera',
     cover_image: 'https://images.unsplash.com/photo-1551434678-e076c223a692?w=800&q=80',
-    body: '<p>Analizzando i clienti per tier (free, pro, enterprise) emergono pattern utili per le strategie di upsell e prevenzione del churn.</p>',
+    body: '<p>Analyzing customer cohorts across free, pro, and enterprise tiers reveals clear patterns for upsell opportunities.</p>',
     daysAgo: 12,
   },
   {
-    slug: 'casi-studio-clienti-enterprise',
-    title: 'Casi studio: come i nostri clienti enterprise scalano',
-    author: 'Anna Bianchi',
+    slug: 'case-study-enterprise-customers-scaling',
+    title: 'Case Study: How Enterprise Customers Scale with BeechCMS',
+    author: 'Sarah Jenkins',
     cover_image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?w=800&q=80',
-    body: '<p>Tre storie reali di aziende che hanno aumentato il proprio MRR del 30% in sei mesi grazie a un percorso di adozione guidato.</p>',
+    body: '<p>Real stories of three high-growth companies that boosted their MRR by 30% within six months of adopting BeechCMS.</p>',
     daysAgo: 9,
   },
   {
-    slug: 'priorita-ticket-best-practice',
-    title: 'Come impostare le priorità dei ticket: best practice',
-    author: 'Marco Verdi',
+    slug: 'ticket-priority-best-practices',
+    title: 'Ticket Priority Best Practices: Impact vs Urgency',
+    author: 'Michael Chang',
     cover_image: 'https://images.unsplash.com/photo-1556761175-5973dc0f32e7?w=800&q=80',
-    body: '<p>Una matrice semplice per assegnare priorità low, medium e high ai ticket in base a impatto e urgenza, con esempi pratici.</p>',
+    body: '<p>A simple 3x3 matrix for assigning low, medium, and high priorities based on business impact and urgency.</p>',
     daysAgo: 6,
   },
   {
-    slug: 'roadmap-prodotto-2026',
-    title: 'Roadmap prodotto 2026',
-    author: 'Giulia Ferrari',
+    slug: 'product-roadmap-2026',
+    title: 'Product Roadmap 2026',
+    author: 'Emily Watson',
     cover_image: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?w=800&q=80',
-    body: '<p>Le novità in arrivo: dashboard personalizzabili, nuove integrazioni e miglioramenti alla ricerca full-text.</p>',
+    body: '<p>Upcoming features: modular dashboard builder, third-party webhook integrations, and distributed search indexing.</p>',
     daysAgo: 4,
   },
   {
-    slug: 'security-audit-log-novita',
-    title: 'Audit log e sicurezza: le novità della v2.2',
-    author: 'Davide Conti',
+    slug: 'security-audit-logs-v2-2-updates',
+    title: "Security & Audit Logs: What's New in v2.2",
+    author: 'David Miller',
     cover_image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&q=80',
-    body: '<p>Con la versione 2.2 introduciamo audit log completi e rotazione automatica delle API key per i clienti enterprise.</p>',
+    body: '<p>Version 2.2 introduces tamper-proof audit trails, automated API key rotation, and role-based granular access control.</p>',
     daysAgo: 2,
   },
   {
-    slug: 'analisi-mrr-trend-annuale',
-    title: 'Analisi del trend MRR: cosa abbiamo imparato in un anno',
-    author: 'Elena Mariani',
+    slug: 'annual-mrr-growth-analysis-learnings',
+    title: 'Annual MRR Growth Analysis: Key Learnings',
+    author: 'Jessica Taylor',
     cover_image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&q=80',
-    body: '<p>Un anno di crescita del Monthly Recurring Revenue raccontato attraverso i dati: stagionalità, upgrade e impatto del churn.</p>',
+    body: '<p>A comprehensive retrospective on Monthly Recurring Revenue growth: seasonality, expansion revenue, and churn prevention.</p>',
     daysAgo: 0,
   },
 ]

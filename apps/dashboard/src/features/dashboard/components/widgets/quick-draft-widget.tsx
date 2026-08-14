@@ -12,7 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select"
 import { DashboardWidgetShell } from "@/features/dashboard"
-import { DASHBOARD_QUERY_KEYS } from "../../hooks/use-dashboard-stats"
+import { DASHBOARD_QUERY_KEYS, GLOBAL_DRAFTS_QUERY_KEY } from "@/features/shared"
 import { cn } from "@/lib/utils"
 
 export interface QuickDraftSeedOption {
@@ -66,11 +66,11 @@ export function QuickDraftWidget({
       return { id: res.data.id, seedSlug: selectedSeed }
     },
     onSuccess: ({ id, seedSlug }) => {
-      queryClient.invalidateQueries({ queryKey: ["content", seedSlug] })
+      queryClient.invalidateQueries({ queryKey: ["content"] })
       queryClient.invalidateQueries({ queryKey: ["widget", "recent-content", seedSlug] })
       queryClient.invalidateQueries({ queryKey: ["widget", "pending-drafts", seedSlug] })
-      // Invalidate recent-activity so the dashboard feed reflects the new draft immediately
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.activity() })
+      queryClient.invalidateQueries({ queryKey: GLOBAL_DRAFTS_QUERY_KEY })
       onCreated?.(id, seedSlug)
       setSuccess(true)
       setTimeout(() => {

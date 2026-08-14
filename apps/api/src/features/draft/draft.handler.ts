@@ -156,20 +156,18 @@ draftApp.post('/:slug/:id/draft/publish', draftGuard, async (context) => {
   const seed = context.get('getSeed')(slug)!
 
   const repository = context.get('repository')
-  const draft = await repository.getDraft(seed, id)
-
-  if (!draft) {
-    return publicProblem(context, { 
-      type: 'draft-not-found', 
-      title: 'Not Found', 
-      status: 404, 
-      detail: 'No pending draft to publish' 
-    })
-  }
 
   try {
     await repository.publishDraft(seed, id)
   } catch (err) {
+    if (err instanceof EntryNotFoundError) {
+      return publicProblem(context, {
+        type: 'draft-not-found',
+        title: 'Not Found',
+        status: 404,
+        detail: 'No pending draft to publish'
+      })
+    }
     if (err instanceof RelationTargetNotFoundError) {
       return publicProblem(context, {
         type: 'relation-target-not-found',
@@ -181,9 +179,7 @@ draftApp.post('/:slug/:id/draft/publish', draftGuard, async (context) => {
     throw err
   }
 
-  const displayValue = draft[seed.displayNameAlias]
-  const displayStr = typeof displayValue === 'string' ? displayValue : id
-  logDraftActivity(context, id, slug, displayStr, 'draft published')
+  logDraftActivity(context, id, slug, id, 'draft published')
 
   return context.json({ success: true })
 })

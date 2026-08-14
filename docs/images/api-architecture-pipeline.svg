@@ -1,0 +1,104 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 280" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="apiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="d1Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+    <linearGradient id="r2Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+    <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="#059669" stop-opacity="0.03"/>
+    </linearGradient>
+
+    <!-- Markers / Arrowheads -->
+    <marker id="arrow-client" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-d1" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#0284c7"/>
+    </marker>
+    <marker id="arrow-r2" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#8b5cf6"/>
+    </marker>
+  </defs>
+
+  <style>
+    .diagram-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; fill: #3b82f6; text-transform: uppercase; }
+    .card-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; fill: #ffffff; }
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; font-weight: 700; fill: #ffffff; }
+    .card-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: rgba(255, 255, 255, 0.85); }
+    .req-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 600; fill: #475569; }
+    .code-pill { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 9.5px; font-weight: 600; fill: #1e293b; }
+  </style>
+
+  <!-- Outer Container Box -->
+  <rect x="15" y="15" width="830" height="250" rx="16" fill="url(#bgBoxGrad)" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <text x="36" y="42" class="diagram-title">BeechCMS Public API &amp; SDK Architecture</text>
+
+  <!-- Node 1: Frontend App (Left) -->
+  <g transform="translate(38, 70)">
+    <rect width="210" height="155" rx="12" fill="url(#clientGrad)" filter="drop-shadow(0 6px 16px rgba(59, 130, 246, 0.3))"/>
+    <rect x="16" y="16" width="105" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="68" y="30" text-anchor="middle" class="card-badge">Consumer App</text>
+    <text x="16" y="60" class="card-title">Frontend &amp; Clients</text>
+    <text x="16" y="82" class="card-desc">• Next.js / Astro / Nuxt</text>
+    <text x="16" y="102" class="card-desc">• SvelteKit / Mobile App</text>
+    <text x="16" y="122" class="card-desc">• @beechcms/client SDK</text>
+    <text x="16" y="142" class="card-desc">• Standard HTTP fetch</text>
+  </g>
+
+  <!-- Connector Path: Frontend -> Public REST API -->
+  <path d="M 250 145 L 305 145" fill="none" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-client)"/>
+  
+  <!-- Request Label Badge -->
+  <g transform="translate(250, 115)">
+    <rect x="2" y="-12" width="50" height="15" rx="3" fill="#e2e8f0"/>
+    <text x="27" y="-1" text-anchor="middle" class="code-pill">X-API-Key</text>
+  </g>
+
+  <!-- Node 2: Public REST API / Workers Engine (Center) -->
+  <g transform="translate(315, 70)">
+    <rect width="230" height="155" rx="12" fill="url(#apiGrad)" filter="drop-shadow(0 6px 16px rgba(5, 150, 105, 0.3))"/>
+    <rect x="16" y="16" width="95" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="63" y="30" text-anchor="middle" class="card-badge">Edge Engine</text>
+    <text x="16" y="60" class="card-title">Public REST API</text>
+    <text x="16" y="82" class="card-desc">• /api/v1/public/:seed</text>
+    <text x="16" y="102" class="card-desc">• Sub-ms Edge Cold Starts</text>
+    <text x="16" y="122" class="card-desc">• JSON Query &amp; Filter DSL</text>
+    <text x="16" y="142" class="card-desc">• Schema Validation</text>
+  </g>
+
+  <!-- Split Connector Paths to D1 and R2 -->
+  <path d="M 545 125 C 575 125, 575 105, 605 105" fill="none" stroke="#0284c7" stroke-width="2" marker-end="url(#arrow-d1)"/>
+  <path d="M 545 165 C 575 165, 575 185, 605 185" fill="none" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow-r2)"/>
+
+  <!-- Node 3A: Cloudflare D1 (Right Top) -->
+  <g transform="translate(615, 68)">
+    <rect width="210" height="72" rx="10" fill="url(#d1Grad)" filter="drop-shadow(0 4px 12px rgba(2, 132, 199, 0.25))"/>
+    <rect x="14" y="12" width="70" height="17" rx="4" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="49" y="24" text-anchor="middle" class="card-badge">Database</text>
+    <text x="14" y="46" class="card-title">Cloudflare D1</text>
+    <text x="14" y="62" class="card-desc">SQL Records &amp; Frutti Data</text>
+  </g>
+
+  <!-- Node 3B: Cloudflare R2 (Right Bottom) -->
+  <g transform="translate(615, 152)">
+    <rect width="210" height="72" rx="10" fill="url(#r2Grad)" filter="drop-shadow(0 4px 12px rgba(139, 92, 246, 0.25))"/>
+    <rect x="14" y="12" width="60" height="17" rx="4" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="44" y="24" text-anchor="middle" class="card-badge">Storage</text>
+    <text x="14" y="46" class="card-title">Cloudflare R2</text>
+    <text x="14" y="62" class="card-desc">Zero-Egress Media &amp; Images</text>
+  </g>
+</svg>

@@ -1232,9 +1232,10 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     try {
       if (!seed.allowDrafts) return false
       const draftTableName = this.getTableName(seed.slug, true)
+      const liveTableName = this.getTableName(seed.slug)
       const draftExistsResult = await this.database
-        .prepare(`SELECT 1 FROM ${draftTableName} WHERE entry_id = ? LIMIT 1`)
-        .bind(entryId)
+        .prepare(`SELECT 1 FROM ${draftTableName} WHERE entry_id = ? UNION SELECT 1 FROM ${liveTableName} WHERE id = ? AND status = 'draft' LIMIT 1`)
+        .bind(entryId, entryId)
         .first()
       return draftExistsResult !== null
     } catch (error) {
@@ -1245,7 +1246,8 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   /**
    * Promotes a draft to the live entry: validates all relation targets referenced by the
    * draft still exist, copies the draft's scalar fields into the live row, replaces the
-   * live junction rows with the draft's, and deletes the draft — all as one batch.
+   * live junction rows with the draft's, sets status to 'published', and deletes the draft — all as one batch.
+   * If no mirror draft row exists but the live entry has status = 'draft', updates status to 'published'.
    * A no-op if `seed.allowDrafts` is false.
    *
    * @throws EntryNotFoundError if no draft row exists for `entryId`.
@@ -1264,7 +1266,20 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         .first<Record<string, any>>()
 
       if (!draftRow) {
-        throw new EntryNotFoundError(`No draft found for ${entryId} in ${seed.slug}`)
+        const liveRow = await this.database
+          .prepare(`SELECT 1 FROM ${liveTableName} WHERE id = ? AND status = 'draft'`)
+          .bind(entryId)
+          .first()
+
+        if (!liveRow) {
+          throw new EntryNotFoundError(`No draft found for ${entryId} in ${seed.slug}`)
+        }
+
+        await this.database
+          .prepare(`UPDATE ${liveTableName} SET status = 'published', updated_at = (unixepoch()) WHERE id = ?`)
+          .bind(entryId)
+          .run()
+        return
       }
 
       let touchedFields: string[] = []
@@ -1292,15 +1307,9 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         }
       }
 
-      let updateSql = ''
-      if (updateClauses.length > 0) {
-        updateClauses.push('updated_at = (unixepoch())')
-        updateSql = `UPDATE ${liveTableName} SET ${updateClauses.join(', ')} WHERE id = ?`
-        queryBindings.push(entryId)
-      } else {
-        updateSql = `UPDATE ${liveTableName} SET updated_at = (unixepoch()) WHERE id = ?`
-        queryBindings.push(entryId)
-      }
+      updateClauses.push("status = 'published'", 'updated_at = (unixepoch())')
+      const updateSql = `UPDATE ${liveTableName} SET ${updateClauses.join(', ')} WHERE id = ?`
+      queryBindings.push(entryId)
 
       const batchStmts: D1PreparedStatement[] = [
         this.database.prepare(updateSql).bind(...queryBindings),
@@ -1363,7 +1372,25 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     try {
       if (!seed.allowDrafts) return
       const draftTableName = this.getTableName(seed.slug, true)
-      await this.database.prepare(`DELETE FROM ${draftTableName} WHERE entry_id = ?`).bind(entryId).run()
+      const liveTableName = this.getTableName(seed.slug)
+
+      const hasMirror = await this.database
+        .prepare(`SELECT 1 FROM ${draftTableName} WHERE entry_id = ? LIMIT 1`)
+        .bind(entryId)
+        .first()
+
+      if (hasMirror) {
+        const batchStmts: D1PreparedStatement[] = [
+          this.database.prepare(`DELETE FROM ${draftTableName} WHERE entry_id = ?`).bind(entryId),
+        ]
+        for (const branch of multiRelBranches(seed)) {
+          const jdt = jDraftTable(seed.slug, branch.alias)
+          batchStmts.push(this.database.prepare(`DELETE FROM ${jdt} WHERE entry_id = ?`).bind(entryId))
+        }
+        await this.database.batch(batchStmts)
+      } else {
+        await this.database.prepare(`DELETE FROM ${liveTableName} WHERE id = ? AND status = 'draft'`).bind(entryId).run()
+      }
     } catch (error) {
       throw this.mapError(error, `deleteDraft(${seed.slug}, ${entryId})`)
     }
@@ -1371,8 +1398,8 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
   /**
    * Finds every pending draft across the given seeds, `UNION ALL`-ing one query per seed
-   * so results span heterogeneous `content_{slug}_drafts` tables, then left-joins each
-   * against `activity_logs` to attribute the most recent "draft saved" action.
+   * so results span heterogeneous `content_{slug}_drafts` tables and live draft entries,
+   * then left-joins each against `activity_logs` to attribute the most recent action.
    *
    * @param seeds Seeds to search; drafts are looked up per-seed since draft tables aren't unified.
    * @returns Draft summaries ordered by most-recently-updated first. `title` falls back to the
@@ -1391,19 +1418,20 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         const titleCol = seed.displayNameAlias
         const isScalar = seed.branches.some(b => b.alias === titleCol && !(b.type === 'relation' && b.multiple === true))
         const titleExpr = isScalar
-          ? `COALESCE(d.${titleCol}, l.${titleCol})`
-          : `COALESCE(l.slug, d.entry_id)`
+          ? `COALESCE(d.${titleCol}, l.${titleCol}, l.slug, d.entry_id, l.id)`
+          : `COALESCE(l.slug, d.entry_id, l.id)`
         const seedLabel = seed.labelPlural ?? seed.label
 
         unionSelects.push(`
           SELECT
             ? AS seed_slug,
             ? AS seed_label,
-            d.entry_id AS id,
-            d.updated_at AS updated_at,
+            COALESCE(d.entry_id, l.id) AS id,
+            COALESCE(d.updated_at, l.updated_at) AS updated_at,
             ${titleExpr} AS title
-          FROM ${draftTable} d
-          LEFT JOIN ${liveTable} l ON l.id = d.entry_id
+          FROM ${liveTable} l
+          LEFT JOIN ${draftTable} d ON d.entry_id = l.id
+          WHERE l.status = 'draft' OR d.entry_id IS NOT NULL
         `)
         bindings.push(seed.slug, seedLabel)
       }
@@ -1426,8 +1454,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
             SELECT id FROM activity_logs
             WHERE entity_id = ad.id
               AND entity_slug = ad.seed_slug
-              AND action = 'update'
-              AND json_extract(details, '$.note') = 'draft saved'
+              AND action IN ('create', 'update')
             ORDER BY created_at DESC
             LIMIT 1
           )

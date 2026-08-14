@@ -46,6 +46,7 @@ export function useSaveDraft() {
       queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.draft(slug, id) })
       queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.detail(slug, id) })
       queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.all })
+      queryClient.invalidateQueries({ queryKey: GLOBAL_DRAFTS_QUERY_KEY })
     },
   })
 }
@@ -126,6 +127,9 @@ export function useSaveContent() {
 
       // Invalidate back-refs — saved entry may point to new/different targets
       queryClient.invalidateQueries({ queryKey: [BACKREF_QUERY_KEY] })
+
+      // Invalidate global drafts list
+      queryClient.invalidateQueries({ queryKey: GLOBAL_DRAFTS_QUERY_KEY })
     },
   })
 }

@@ -225,25 +225,25 @@ setupApp.post('/auth/setup', async (context) => {
               id: 'sec-0',
               hideLabel: true,
               columns: [
-                { id: 'c0', widgets: [{ id: 'w0', type: 'core/text', config: { content: '# Acme SaaS Analytics\nBenvenuto nella dashboard di produzione. Qui puoi monitorare le metriche in tempo reale.' } }] }
+                { id: 'c0', widgets: [{ id: 'w0', type: 'core/text', config: { content: '# Acme SaaS Analytics\nWelcome to your production dashboard. Monitor real-time metrics and KPIs here.' } }] }
               ]
             },
             {
               id: 'sec-1',
               hideLabel: true,
               columns: [
-                { id: 'c1', widgets: [{ id: 'w1', type: 'core/stat', config: { seedSlug: 'clienti', formula: { op: 'sum', column: 'mrr' }, window: 'all' }, title: 'Totale MRR' }] },
-                { id: 'c2', widgets: [{ id: 'w2', type: 'core/stat', config: { seedSlug: 'clienti', formula: { op: 'count' }, window: 'all' }, title: 'Clienti Attivi' }] },
-                { id: 'c3', widgets: [{ id: 'w3', type: 'core/stat', config: { seedSlug: 'abbonamenti', formula: { op: 'count' }, window: 'all' }, title: 'Abbonamenti' }] },
-                { id: 'c4', widgets: [{ id: 'w4', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'ticket_status', value: 'open' }, window: 'all' }, title: 'Ticket Aperti' }] }
+                { id: 'c1', widgets: [{ id: 'w1', type: 'core/stat', config: { seedSlug: 'clienti', formula: { op: 'sum', column: 'mrr' }, window: 'all' }, title: 'Total MRR' }] },
+                { id: 'c2', widgets: [{ id: 'w2', type: 'core/stat', config: { seedSlug: 'clienti', formula: { op: 'count' }, window: 'all' }, title: 'Active Customers' }] },
+                { id: 'c3', widgets: [{ id: 'w3', type: 'core/stat', config: { seedSlug: 'abbonamenti', formula: { op: 'count' }, window: 'all' }, title: 'Subscriptions' }] },
+                { id: 'c4', widgets: [{ id: 'w4', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'ticket_status', value: 'open' }, window: 'all' }, title: 'Open Tickets' }] }
               ]
             },
             {
               id: 'sec-2',
               hideLabel: true,
               columns: [
-                { id: 'c5', widgets: [{ id: 'w5', type: 'core/area-chart', config: { seedSlug: 'clienti', groupColumn: 'created_at', window: 'all' }, title: 'Andamento Iscrizioni' }] },
-                { id: 'c6', widgets: [{ id: 'w6', type: 'core/pie-chart', config: { seedSlug: 'clienti', column: 'tier', window: 'all' }, title: 'Distribuzione Piani' }] }
+                { id: 'c5', widgets: [{ id: 'w5', type: 'core/area-chart', config: { seedSlug: 'clienti', groupColumn: 'created_at', window: 'all' }, title: 'Signups Trend' }] },
+                { id: 'c6', widgets: [{ id: 'w6', type: 'core/pie-chart', config: { seedSlug: 'clienti', column: 'tier', window: 'all' }, title: 'Plan Distribution' }] }
               ],
               columnSpans: [8, 4]
             },
@@ -251,8 +251,8 @@ setupApp.post('/auth/setup', async (context) => {
               id: 'sec-3',
               hideLabel: true,
               columns: [
-                { id: 'c7', widgets: [{ id: 'w7', type: 'core/data-table', config: { seedSlug: 'clienti', pageSize: 5 }, title: 'Ultimi Iscritti' }] },
-                { id: 'c8', widgets: [{ id: 'w8', type: 'core/data-table', config: { seedSlug: 'changelog', pageSize: 5 }, title: 'Ultime Release' }] }
+                { id: 'c7', widgets: [{ id: 'w7', type: 'core/data-table', config: { seedSlug: 'clienti', pageSize: 5 }, title: 'Recent Signups' }] },
+                { id: 'c8', widgets: [{ id: 'w8', type: 'core/data-table', config: { seedSlug: 'changelog', pageSize: 5 }, title: 'Latest Releases' }] }
               ],
               columnSpans: [6, 6]
             }
@@ -268,17 +268,17 @@ setupApp.post('/auth/setup', async (context) => {
               id: 'sec-4',
               hideLabel: true,
               columns: [
-                { id: 'c9', widgets: [{ id: 'w9', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'priority', value: 'high' }, window: 'all' }, title: 'Ticket Alta Priorità' }] },
-                { id: 'c10', widgets: [{ id: 'w10', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'ticket_status', value: 'closed' }, window: 'all' }, title: 'Ticket Chiusi' }] },
-                { id: 'c11', widgets: [{ id: 'w11', type: 'core/stat', config: { seedSlug: 'changelog', formula: { op: 'count' }, window: 'all' }, title: 'Update Rilasciati' }] }
+                { id: 'c9', widgets: [{ id: 'w9', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'priority', value: 'high' }, window: 'all' }, title: 'High Priority Tickets' }] },
+                { id: 'c10', widgets: [{ id: 'w10', type: 'core/stat', config: { seedSlug: 'ticket', formula: { op: 'countWhere', column: 'ticket_status', value: 'closed' }, window: 'all' }, title: 'Closed Tickets' }] },
+                { id: 'c11', widgets: [{ id: 'w11', type: 'core/stat', config: { seedSlug: 'changelog', formula: { op: 'count' }, window: 'all' }, title: 'Released Updates' }] }
               ]
             },
             {
               id: 'sec-5',
               hideLabel: true,
               columns: [
-                { id: 'c12', widgets: [{ id: 'w12', type: 'core/bar-chart', config: { seedSlug: 'ticket', groupColumn: 'created_at', window: 'all' }, title: 'Ticket nel tempo' }] },
-                { id: 'c13', widgets: [{ id: 'w13', type: 'core/line-chart', config: { seedSlug: 'abbonamenti', groupColumn: 'created_at', window: 'all' }, title: 'Nuovi Abbonamenti' }] }
+                { id: 'c12', widgets: [{ id: 'w12', type: 'core/bar-chart', config: { seedSlug: 'ticket', groupColumn: 'created_at', window: 'all' }, title: 'Tickets Over Time' }] },
+                { id: 'c13', widgets: [{ id: 'w13', type: 'core/line-chart', config: { seedSlug: 'abbonamenti', groupColumn: 'created_at', window: 'all' }, title: 'New Subscriptions' }] }
               ],
               columnSpans: [6, 6]
             },
@@ -286,7 +286,7 @@ setupApp.post('/auth/setup', async (context) => {
               id: 'sec-6',
               hideLabel: true,
               columns: [
-                { id: 'c14', widgets: [{ id: 'w14', type: 'core/data-table', config: { seedSlug: 'ticket', pageSize: 10 }, title: 'Ticket in lavorazione' }] }
+                { id: 'c14', widgets: [{ id: 'w14', type: 'core/data-table', config: { seedSlug: 'ticket', pageSize: 10 }, title: 'Active Tickets' }] }
               ]
             }
           ]

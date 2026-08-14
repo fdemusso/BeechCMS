@@ -71,7 +71,7 @@ export function ForgotPasswordPage() {
                     </p>
                   </div>
                   <Field>
-                    <FieldLabel htmlFor="fp-email">Email</FieldLabel>
+                    <FieldLabel htmlFor="fp-email">{t("forgotPassword.email")}</FieldLabel>
                     <Input
                       id="fp-email"
                       type="email"

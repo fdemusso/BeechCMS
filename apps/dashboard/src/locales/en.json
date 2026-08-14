@@ -859,6 +859,7 @@
   "forgotPassword": {
     "title": "Forgot password",
     "desc": "Enter your email address and we'll send you a reset link.",
+    "email": "Email",
     "emailRequired": "Enter your email",
     "emailInvalid": "Invalid email address",
     "send": "Send reset link",

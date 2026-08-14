@@ -7,7 +7,10 @@ hero:
   tagline: "Schema-driven, powered by Cloudflare Workers, D1, and R2."
   actions:
     - theme: brand
-      text: Get Started
+      text: First Project
+      link: /first-project
+    - theme: alt
+      text: Full Guide
       link: /guide
     - theme: alt
       text: API Reference
