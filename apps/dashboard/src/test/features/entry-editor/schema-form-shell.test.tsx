@@ -225,14 +225,4 @@ describe("SchemaFormShell", () => {
     render(<SchemaFormShell vm={vm} open />)
     expect(screen.queryByTestId("danger-zone-slot")).not.toBeInTheDocument()
   })
-
-  it("renders draftModeNotice banner in create mode when isDraftContext is true", () => {
-    const vm = buildViewModel({
-      capabilities: { ...allCapabilitiesTrue, drafts: true },
-      isCreate: true,
-      isDraftContext: true,
-    })
-    render(<SchemaFormShell vm={vm} open />)
-    expect(screen.getByText("content.editor.draftModeNotice")).toBeInTheDocument()
-  })
 })

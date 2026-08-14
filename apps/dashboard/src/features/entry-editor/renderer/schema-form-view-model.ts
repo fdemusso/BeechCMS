@@ -33,7 +33,6 @@ export interface SchemaFormViewModel {
   t: TFunction
   title: string                   // precomputed by the hook (was inlined as pageTitle)
   isCreate: boolean
-  isDraftContext?: boolean
 
   // schema + form state
   seed: { label: string; slug: string } | null

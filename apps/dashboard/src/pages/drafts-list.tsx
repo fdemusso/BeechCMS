@@ -265,9 +265,7 @@ export function DraftsListPage() {
 
   const handleCreate = React.useCallback(() => {
     if (draftSeeds.length === 1) {
-      navigate(`/content/${draftSeeds[0].slug}/create`, {
-        state: { isDraftContext: true, defaultValues: { status: "draft" } },
-      })
+      navigate(`/content/${draftSeeds[0].slug}/create`)
     } else {
       setSeedPickerOpen(true)
     }
@@ -450,9 +448,7 @@ export function DraftsListPage() {
                 className="justify-start"
                 onClick={() => {
                   setSeedPickerOpen(false)
-                  navigate(`/content/${seed.slug}/create`, {
-                    state: { isDraftContext: true, defaultValues: { status: "draft" } },
-                  })
+                  navigate(`/content/${seed.slug}/create`)
                 }}
               >
                 {seed.labelPlural ?? seed.label}
