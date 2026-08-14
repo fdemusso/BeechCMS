@@ -1,537 +1,300 @@
 ---
-title: Creating a Vertical Slice
+title: Vertical Slice Architecture
 group: Developer Guide (Internals)
 category: Development Guides
 ---
 
-# Vertical Slice Architecture in Beech CMS
+# Vertical Slice Architecture
 
-A practical guide to structuring features, enforcing isolation, and avoiding common pitfalls — grounded in how Beech CMS is actually built.
+This is a practical guide for engineers contributing to **BeechCMS**. It explains how to build, isolate, and maintain features using **Vertical Slice Architecture (VSA)** across both the Cloudflare Workers API backend and the React admin dashboard.
 
-> For a deeper academic treatment of VSA, see the curated resource list at [mehdihadeli/awesome-software-architecture — Vertical Slice Architecture](https://github.com/mehdihadeli/awesome-software-architecture/blob/main/docs/vertical-slice-architecture.md).
+## Why Vertical Slice Architecture
 
----
+Traditional layered architectures organize code by technical role: all controllers in one folder, all services in another, and all repositories in a third. Making a single change requires jumping across multiple directories, increasing cognitive load and merge conflicts.
 
-## 1. What Is Vertical Slice Architecture
+Vertical Slice Architecture cuts across technical layers and groups code by **business feature**. Each slice owns its routing entry point, domain logic, data access, types, and constants in a single cohesive directory.
 
-Traditional layered architecture organises code by technical role: all controllers in one folder, all services in another, all repositories in a third. This means that understanding or modifying a single feature requires jumping across many unrelated directories.
+<p align="center">
+  <img src="./images/vertical-slice-comparison.svg" alt="Layered vs Vertical Slice Architecture Comparison" style="width: 100%; max-width: 840px; margin: 16px 0;" />
+</p>
 
-Vertical Slice Architecture (VSA) cuts through those horizontal layers and groups code by **business feature** instead. Each "slice" owns everything it needs — routing entry point, business logic, data access, types, and constants — in a single cohesive directory.
+> **The Golden Rule**: *High cohesion inside a slice, zero direct coupling between slices.*
 
-| Concern | Layer-Based | Vertical Slice |
-|---|---|---|
-| Code organisation | By technical type | By business domain |
-| Navigating a feature | Jump across N folders | Read 1 folder |
-| Modifying a feature | Touch files in many places | Touch files in 1 place |
-| Deleting a feature | Treasure hunt | Delete 1 folder |
-| Team ownership | Unclear, merge conflicts | One team per slice |
-| Onboarding | Must understand whole system | Understand one slice |
+## Monorepo Layout & Feature Placement
 
-### The core principle
+BeechCMS organizes features symmetrically across the API and Dashboard:
 
-> *"Vertical coupling inside a slice, zero coupling between slices."*
+| Goal | Target Directory | Responsibilities |
+| :--- | :--- | :--- |
+| **API Feature Slice** | `apps/api/src/features/<feature>/` | Hono sub-app, thin handlers, local types & constants |
+| **Dashboard Feature Slice** | `apps/dashboard/src/features/<feature>/` | React components, TanStack Query hooks, local UI state |
+| **Shared Contracts & Engine** | `packages/core/src/` | Interfaces (`IContentRepository`), Botanical Engine, Zod schemas |
+| **Infrastructure Implementations** | `apps/api/src/shared/` | Concrete D1/R2 repository classes injected by middleware |
 
-Each slice behaves like a self-contained mini-application. It has its own handlers, logic, types, and constants. Cross-slice communication happens only through well-defined public interfaces — never through direct internal imports.
+## Anatomy of an API Slice
 
----
+Every feature slice under `apps/api/src/features/` follows a strict structure:
 
-## 2. Beech CMS Monorepo Layout
-
-Beech CMS is a Turborepo monorepo. The relevant packages and applications are:
-
-```
-beechcms/
-├── apps/
-│   ├── api/                   # Hono on Cloudflare Workers (D1, R2, RateLimit bindings)
-│   │   └── src/
-│   │       ├── features/      # ← VERTICAL SLICES live here
-│   │       ├── middleware/    # Cross-cutting Hono middleware (auth, repo, storage…)
-│   │       ├── shared/        # Concrete implementations injected by middleware
-│   │       ├── public/        # Public (unauthenticated) API routes
-│   │       ├── factory.ts     # App composition root — assembles all slices
-│   │       └── types.ts       # AppEnv: Bindings + Variables (Hono context shape)
-│   │
-│   └── dashboard/             # React + Vite + TanStack Query (in-memory token store)
-│       └── src/
-│           └── features/      # ← VERTICAL SLICES live here too
-│
-└── packages/
-    └── core/                  # @beechcms/core — pure TypeScript, zero HTTP/cloud deps
-        └── src/               # Interfaces: IContentRepository, IMediaRepository…
+```text
+apps/api/src/features/content/
+├── index.ts                # Public API barrel: mounts Hono sub-app
+├── constants.ts            # Error messages and string literals
+├── types.ts                # Feature-scoped request/response types
+└── handlers/               # Thin async route handlers
+    ├── list.ts
+    ├── get.ts
+    ├── create.ts
+    ├── update.ts
+    └── delete.ts
 ```
 
-### Where to put a new feature
+### The `index.ts` Entry Point
 
-| Layer | Location |
-|---|---|
-| API feature | `apps/api/src/features/<feature-name>/` |
-| Dashboard feature | `apps/dashboard/src/features/<feature-name>/` |
-| Shared interface / contract | `packages/core/src/<domain>/` |
-| Concrete D1/R2 implementation | `apps/api/src/shared/` |
-
----
-
-## 3. Internal Structure of an API Slice
-
-Every feature folder under `apps/api/src/features/` follows this consistent shape:
-
-```
-features/
-└── content/
-    ├── index.ts                # Barrel export — the ONLY file imported from outside
-    ├── constants.ts            # Feature-scoped error messages and string literals
-    ├── types.ts                # Local TypeScript types (no framework imports)
-    └── handlers/               # One thin Hono handler per operation
-        ├── list.ts
-        ├── get.ts
-        ├── create.ts
-        ├── update.ts
-        └── delete.ts
-```
-
-`index.ts` assembles a `new Hono()` sub-application and mounts the handlers:
+`index.ts` instantiates a scoped `new Hono()` sub-app, registers its handlers, and exports the feature:
 
 ```typescript
 // apps/api/src/features/content/index.ts
-import { Hono } from 'hono';
-import type { Env, Variables } from '../../types';
-import { listHandler }   from './handlers/list';
-import { getHandler }    from './handlers/get';
-import { createHandler } from './handlers/create';
-import { updateHandler } from './handlers/update';
-import { deleteHandler } from './handlers/delete';
+import { Hono } from 'hono'
+import type { Env, Variables } from '../../types'
+import { listHandler } from './handlers/list'
+import { getHandler } from './handlers/get'
+import { createHandler } from './handlers/create'
 
-export const contentFeature = new Hono<{ Bindings: Env; Variables: Variables }>();
+export const contentFeature = new Hono<{ Bindings: Env; Variables: Variables }>()
 
-contentFeature.get('/:schema',        listHandler);
-contentFeature.get('/:schema/:id',    getHandler);
-contentFeature.post('/:schema',       createHandler);
-contentFeature.put('/:schema/:id',    updateHandler);
-contentFeature.delete('/:schema/:id', deleteHandler);
+contentFeature.get('/:schema', listHandler)
+contentFeature.get('/:schema/:id', getHandler)
+contentFeature.post('/:schema', createHandler)
 ```
 
-`factory.ts` then mounts the whole feature at a single route:
+The composition root (`apps/api/src/factory.ts`) mounts the entire feature at a single path:
 
 ```typescript
-// apps/api/src/factory.ts (excerpt)
-import { contentFeature } from './features/content';
+import { contentFeature } from './features/content'
 
-apiProtected.route('/content', contentFeature);
+apiProtected.route('/content', contentFeature)
 ```
 
-The feature is invisible to the rest of the application except through the `contentFeature` export from its `index.ts`.
+## The Thin Handler Pattern
 
----
-
-## 4. The Thin Handler Pattern
-
-A handler in Beech CMS has exactly one job: **translate an HTTP request into a domain operation and return an HTTP response**. It must not contain inline SQL, direct cloud bindings, or business logic beyond orchestration.
+A handler has exactly one responsibility: **translate an incoming HTTP request into a domain operation and return an HTTP response**.
 
 ```typescript
 // apps/api/src/features/content/handlers/create.ts
-import type { Context } from 'hono';
-import type { Env, Variables } from '../../../types';
-import { CONTENT_ERRORS } from '../constants';
-import { parseCreateBody } from '../types';
+import type { Context } from 'hono'
+import type { Env, Variables } from '../../../types'
+import { CONTENT_ERRORS } from '../constants'
+import { parseCreateBody } from '../types'
 
-export async function createHandler(context: Context<{ Bindings: Env; Variables: Variables }>) {
-  const schemaSlug = context.req.param('schema');
-  const seed = context.getSeed(schemaSlug);
+export async function createHandler(c: Context<{ Bindings: Env; Variables: Variables }>) {
+  const schemaSlug = c.req.param('schema')
+  const seed = c.getSeed(schemaSlug)
 
   if (!seed) {
-    return context.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404);
+    return c.json({ error: CONTENT_ERRORS.SEED_NOT_FOUND }, 404)
   }
 
-  const body = await context.req.json();
-  const parsed = parseCreateBody(body);
+  const rawBody = await c.req.json()
+  const parsed = parseCreateBody(rawBody)
 
   if (!parsed.success) {
-    return context.json({ error: CONTENT_ERRORS.INVALID_INPUT, details: parsed.error }, 400);
+    return c.json({ error: CONTENT_ERRORS.INVALID_INPUT, details: parsed.error }, 400)
   }
 
-  const repository = context.get('repository');
-  const newEntry = await repository.create(schemaSlug, parsed.data);
+  // Retrieve injected repository from context
+  const repository = c.get('repository')
+  const newEntry = await repository.create(schemaSlug, parsed.data)
 
-  const jwtPayload = context.get('jwtPayload');
-  await context.get('activityLogger').log({
-    action: 'create',
-    entityType: 'content',
-    entityId: newEntry.id,
-    entitySlug: schemaSlug,
-    actor: {
-      id: jwtPayload.sub,
-      email: jwtPayload.email ?? 'unknown',
-      name: jwtPayload.name ?? null,
-    },
-  });
+  // Asynchronous side-effects (non-blocking)
+  const jwt = c.get('jwtPayload')
+  c.get('scheduler').waitUntil(
+    c.get('activityLogger').log({
+      action: 'create',
+      entityType: 'content',
+      entityId: newEntry.id,
+      entitySlug: schemaSlug,
+      actor: { id: jwt.sub, email: jwt.email ?? 'unknown', name: jwt.name ?? null },
+    })
+  )
 
-  return context.json({ data: newEntry }, 201);
+  return c.json({ data: newEntry }, 201)
 }
 ```
 
-**What a handler must do:**
-- Parse and validate the request input
-- Retrieve injected services from the Hono context (`context.get(...)`)
-- Call the relevant repository or service method
-- Build and return the HTTP response
+### Handler Rules
 
-**What a handler must never do:**
-- Import `D1Database` or access `context.env.DB` directly
-- Execute SQL or cloud SDK calls inline
-- Extract actor identity inside a service or logger (always done in the handler)
-- Import from another feature's internal files
+- **Do**: Parse inputs, validate Zod schemas, retrieve injected repositories (`c.get(...)`), and return JSON responses.
+- **Do Not**: Access `c.env.DB` directly or execute inline SQL (`c.env.DB.prepare`).
+- **Do Not**: Perform synchronous side-effects (wrap in `c.get('scheduler').waitUntil(...)`).
+- **Do Not**: Import from another feature's internal directories.
 
----
+## Middleware & Interface Injection
 
-## 5. Interface Injection via Middleware
+To keep slices decoupled from Cloudflare bindings and SQLite details, external dependencies are defined as interfaces in `packages/core` and injected into the Hono context via middleware.
 
-The key to keeping slices decoupled from infrastructure is **middleware injection**. Every infrastructure dependency (database, storage, rate limiter, token service) is abstracted behind an interface defined in `packages/core` and injected into the Hono request context by a dedicated middleware.
-
-### Middleware registration order in `factory.ts`
-
-```
-repositoryMiddleware      → IContentRepository, IMediaRepository, IActivityLogRepository…
-storageMiddleware         → IBeechBucket (R2 / S3)
-authProvidersMiddleware   → IHashProvider, ITokenService
-rateLimiterMiddleware     → IRateLimiterRegistry
-observabilityMiddleware   → IActivityLogger, INotificationService (depends on repositoryMiddleware)
-```
-
-Order matters: `observabilityMiddleware` must run after `repositoryMiddleware` because it depends on `notificationRepository` already being available in the context.
-
-### Defining a contract in `packages/core`
+### 1. Define Contract (`packages/core`)
 
 ```typescript
 // packages/core/src/content.repository.ts
 export interface IContentRepository {
-  /** Finds a single entry by its unique ID within a given schema. */
-  findById(schemaSlug: string, id: string): Promise<ContentRecord | null>;
-
-  /** Creates a new entry and returns the persisted record. */
-  create(schemaSlug: string, data: Record<string, unknown>): Promise<ContentRecord>;
-
-  // … other methods
+  findById(seedSlug: string, id: string): Promise<ContentRecord | null>
+  create(seedSlug: string, data: Record<string, unknown>): Promise<ContentRecord>
 }
 ```
 
-Rules for interfaces in `packages/core`:
-- Zero imports from Hono, Cloudflare Workers, or any HTTP framework
-- Every exported method has a JSDoc comment explaining **why** it exists, not just what it does
-- Types use full descriptive English words — no abbreviations (`ContentRecord`, not `ContRec`)
-
-### Concrete implementation in `apps/api/src/shared/`
+### 2. Implement with D1 (`apps/api/src/shared/`)
 
 ```typescript
 // apps/api/src/shared/d1-content.repository.ts
-import type { D1Database } from '@cloudflare/workers-types';
-import type { IContentRepository, ContentRecord } from '@beechcms/core';
+import type { D1Database } from '@cloudflare/workers-types'
+import type { IContentRepository, ContentRecord } from '@beechcms/core'
 
 export class D1ContentRepository implements IContentRepository {
-  constructor(private readonly database: D1Database) {}
+  constructor(private readonly db: D1Database) {}
 
-  async findById(schemaSlug: string, id: string): Promise<ContentRecord | null> {
-    const row = await this.database
-      .prepare(`SELECT * FROM content_${schemaSlug} WHERE id = ?`)
+  async findById(seedSlug: string, id: string): Promise<ContentRecord | null> {
+    return this.db
+      .prepare(`SELECT * FROM content_${seedSlug} WHERE id = ?`)
       .bind(id)
-      .first<RawContentRow>();
+      .first<ContentRecord>()
+  }
 
-    if (!row) return null;
-    return mapRowToRecord(row);
+  async create(seedSlug: string, data: Record<string, unknown>): Promise<ContentRecord> {
+    // Botanical Engine compilation & parameterized insert
+    // ...
   }
 }
 ```
 
-Rules for D1 repositories:
-- `D1Database` is accessed **only** inside files in `apps/api/src/shared/` — never in handlers
-- All SQL uses `?` placeholders with `.bind(...)` — no string interpolation
-- All `snake_case` column names are mapped to `camelCase` TypeScript properties on every result
-
-### Injecting in the middleware
+### 3. Inject in Context (`apps/api/src/middleware/`)
 
 ```typescript
 // apps/api/src/middleware/repository.middleware.ts
-import { D1ContentRepository } from '../shared/d1-content.repository';
+import { D1ContentRepository } from '../shared/d1-content.repository'
 
 export function repositoryMiddleware() {
-  return async (context: Context, next: Next) => {
-    context.set('repository', new D1ContentRepository(context.env.DB));
-    await next();
-  };
+  return async (c: Context, next: Next) => {
+    c.set('repository', new D1ContentRepository(c.env.DB))
+    await next()
+  }
 }
 ```
 
-### Consuming in a handler
+## Anatomy of a Dashboard Slice
+
+In the React SPA (`apps/dashboard/src/features/`), each feature is organized as a self-contained slice:
+
+```text
+apps/dashboard/src/features/drafts/
+├── index.ts                # Public API barrel: exported components & hooks
+├── api/                    # Axios API calls to apps/api
+│   └── drafts.api.ts
+├── components/             # React UI components
+│   ├── drafts-table.tsx
+│   └── draft-publish-button.tsx
+├── hooks/                  # TanStack Query hooks
+│   ├── use-global-drafts.ts
+│   └── use-publish-draft.ts
+└── types/                  # Local TypeScript types
+    └── draft.types.ts
+```
+
+### Public Barrel Rule
+
+External pages (e.g. `src/pages/drafts-list.tsx`) **only import from the slice barrel**:
 
 ```typescript
-const repository = context.get('repository'); // typed as IContentRepository
-const entry = await repository.findById(schemaSlug, id);
+// [Compliant] Import from the slice's public API
+import { DraftsTable, useGlobalDrafts } from '@/features/drafts'
+
+// [Non-compliant] Deep internal import
+import { DraftsTable } from '@/features/drafts/components/drafts-table'
 ```
 
-The handler never knows whether the data comes from D1, an in-memory store, or a mock — it only depends on the interface.
+## Dependency Rules & Boundaries
 
----
+These isolation rules maintain system velocity and prevent spaghetti architecture:
 
-## 6. The Email Module — The Gold Standard Pattern
+<p align="center">
+  <img src="./images/vsa-dependency-boundaries.svg" alt="BeechCMS Dependency & Isolation Boundaries" style="width: 100%; max-width: 840px; margin: 16px 0;" />
+</p>
 
-The email module defines the canonical pattern that every new abstraction in Beech must replicate:
+| Import Direction | Allowed | Rationale |
+| :--- | :---: | :--- |
+| `factory.ts` → `features/<slice>/index.ts` | Yes | Composition root mounts slices |
+| `features/<slice>` → `packages/core` | Yes | Features consume pure contracts and schemas |
+| `features/<slice>` → `apps/api/src/shared/` | Yes | Features consume shared utility functions |
+| `features/auth` → `features/content` | No | **Forbidden**: Violates slice isolation |
+| `packages/core` → `apps/api` | No | **Forbidden**: Core must remain framework-agnostic |
+| Handler → `c.env.DB.prepare(...)` | No | **Forbidden**: Direct SQL bypasses repository layer |
 
-```
-apps/api/src/features/email/
-├── index.ts           # Barrel export — public API only
-├── email.provider.ts  # Interface: IEmailProvider
-├── email.service.ts   # Orchestrator (factory function)
-├── email.types.ts     # Shared types (no framework imports)
-└── providers/
-    └── resend-email.provider.ts   # Concrete implementation — knows Resend SDK
-```
+## Step-by-Step Feature Walkthrough
 
-Rules extracted from this pattern:
+Follow this step-by-step workflow when building a new capability:
 
-1. **One interface per contract.** No abstract base classes.
-2. **Concrete implementations in dedicated subfolders.** One class per file.
-3. **One factory function at the module boundary** (`email.service.ts`).
-4. **`index.ts` exports only the public API.** Never export internals.
-5. **Shared pure types in `.types.ts`.** Zero framework coupling.
-6. **Zero Hono coupling inside concrete implementations.** The class constructor receives its dependencies directly — never a `Context` object.
+### 1. Creating the API Slice
 
-When you add a new domain module (e.g., `notifications`, `observability`), mirror this structure exactly.
+1. Create `apps/api/src/features/<feature-name>/`.
+2. Add `constants.ts` with error codes and string literals.
+3. Add `types.ts` with local request/response schemas.
+4. Add `handlers/` with thin async operations.
+5. If persistent data is needed:
+   - Define `I<Domain>Repository` in `packages/core`.
+   - Implement `D1<Domain>Repository` in `apps/api/src/shared/`.
+   - Inject the repository in `apps/api/src/middleware/repository.middleware.ts`.
+   - Declare the typing in `apps/api/src/types.ts` under `Variables`.
+6. Add `index.ts` exporting `<featureName>Feature` (a Hono sub-app).
+7. Mount the feature in `apps/api/src/factory.ts`.
 
----
+### 2. Creating the Dashboard Slice
 
-## 7. Dependency Rules
+1. Create `apps/dashboard/src/features/<feature-name>/`.
+2. Implement typed Axios calls in `api/<name>.api.ts`.
+3. Wrap API calls in TanStack Query hooks (`hooks/use-<name>.ts`).
+4. Build UI components in `components/`.
+5. Export public components and hooks in `index.ts`.
+6. Connect the feature to your target page or sidebar route.
 
-These rules are enforced by convention and must be respected in every pull request.
+## Anti-Patterns to Avoid
 
-```
-┌──────────────────────────────────────────────────┐
-│         ROUTING LAYER (factory.ts, index.ts)     │
-│  May import from: features/ (index.ts only)      │
-├──────────────────────────────────────────────────┤
-│               FEATURES LAYER                     │
-│  May import from: shared/, packages/core         │
-│  ┌──────────┐  ┌──────────┐  ┌────────────────┐ │
-│  │ content/ │  │  auth/   │  │ notifications/ │ │
-│  └──────────┘  └──────────┘  └────────────────┘ │
-│  MUST NOT import from: another feature!          │
-├──────────────────────────────────────────────────┤
-│               SHARED LAYER                       │
-│  apps/api/src/shared/ — concrete implementations │
-│  packages/core/src/   — interfaces and types     │
-│  MUST NOT import from: features/                 │
-└──────────────────────────────────────────────────┘
-```
-
-| Direction | Allowed | Reason |
-|---|---|---|
-| `factory.ts` → `features/<name>/index.ts` | ✅ | Composition root assembles slices |
-| `features/<name>` → `shared/` | ✅ | Features depend on abstractions |
-| `features/<name>` → `packages/core` | ✅ | Interfaces are the contract |
-| `features/auth` → `features/content` | ❌ | Breaks slice isolation |
-| `packages/core` → `apps/api` | ❌ | Core must stay framework-free |
-| Handler → `context.env.DB` directly | ❌ | Bypasses interface injection |
-
-### When two slices need to share behaviour
-
-If two features need the same logic, there are three valid approaches in order of preference:
-
-1. **Promote to `packages/core`** — define an interface and add a D1 implementation in `apps/api/src/shared/`. Inject it via middleware.
-2. **Promote to `apps/api/src/shared/`** — for utilities that are infrastructure-aware but not feature-specific (e.g., `request-utils.ts`).
-3. **Accept temporary duplication** — a small helper copied to two features is better than a cross-feature import. Promote to shared only when used a third time.
-
----
-
-## 8. Naming Conventions
-
-All names use full descriptive English words. Abbreviations are forbidden.
-
-| Category | Pattern | Good example | Bad example |
-|---|---|---|---|
-| Hono sub-app export | `camelCase + Feature` | `contentFeature` | `contentApp`, `cF` |
-| Handler file | `<operation>.ts` | `create.ts`, `delete.ts` | `createHandler.ts` |
-| Repository interface | `I<Entity>Repository` | `IContentRepository` | `IContRepo`, `ContentRepo` |
-| Repository class | `D1<Entity>Repository` | `D1ContentRepository` | `ContentDb` |
-| Service interface | `I<Domain>Service` | `INotificationService` | `INotifSvc` |
-| Middleware file | `<concern>.middleware.ts` | `repository.middleware.ts` | `repoMw.ts` |
-| Constants file | `constants.ts` inside feature | `constants.ts` | `consts.ts` |
-| Types file | `types.ts` inside feature | `types.ts` | `t.ts` |
-| Test file | `<filename>.test.ts` | `d1-content.repository.test.ts` | `content.spec.ts` |
-| Constants values | `SCREAMING_SNAKE_CASE` | `MAXIMUM_LIST_LIMIT` | `MAX_LIM`, `maxLimit` |
-
----
-
-## 9. What `shared/` Contains (and What It Does Not)
-
-`apps/api/src/shared/` holds **concrete implementations** of interfaces defined in `packages/core`. It is the only layer allowed to import `D1Database`, `R2Bucket`, or other Cloudflare binding types.
-
-It does **not** contain business logic. It does not contain route handlers. It does not contain feature-specific code.
-
-```
-apps/api/src/shared/
-├── d1-content.repository.ts
-├── d1-media.repository.ts
-├── d1-session.repository.ts
-├── d1-activity-logger.ts
-├── d1-notification.repository.ts
-├── background-notification-service.ts
-├── in-memory-activity-logger.ts       # Test double
-├── in-memory-notification-service.ts  # Test double
-└── request-utils.ts                   # Pure HTTP utilities (getClientIp etc.)
-```
-
-The rule for promotion is simple: a piece of code moves to `shared/` when it is needed by **two or more** features. Before that point, it lives inside the feature that needs it.
-
----
-
-## 10. Adding a New Feature — Step by Step
-
-### API feature
-
-1. Create `apps/api/src/features/<feature-name>/`
-2. Add `index.ts` — declare a `new Hono()` instance, mount handlers, export as `<featureName>Feature`
-3. Add `constants.ts` — error messages and string literals specific to this feature
-4. Add `types.ts` — local TypeScript types; no Hono or Cloudflare imports
-5. Add `handlers/` — one file per operation, each a thin async function
-6. If the feature needs a new repository: define the interface in `packages/core/src/<domain>.repository.ts`, implement it in `apps/api/src/shared/d1-<domain>.repository.ts`, inject it via `repository.middleware.ts`, and declare it in `apps/api/src/types.ts` under `Variables`
-7. Mount the feature in `apps/api/src/factory.ts` via `apiProtected.route('<path>', <featureName>Feature)`
-8. Update `docs/system-map.md` to reflect the new slice and any new interface
-
-### Dashboard feature
-
-1. Create `apps/dashboard/src/features/<feature-name>/`
-2. Follow the internal structure:
-   - `index.ts` — public API barrel (components, hooks, types only)
-   - `components/` — React components for this feature
-   - `hooks/` — TanStack Query hooks wrapping the API client
-   - `api/` — `<name>.api.ts` with axios calls to `apps/api`
-   - `types/` — TypeScript types local to this feature
-3. Consume the feature from a page only via its `index.ts`
-4. Never import from `apps/dashboard/src/features/<other-feature>/`
-
----
-
-## 11. Anti-Patterns to Avoid
-
-These patterns have been observed in early Beech code and were explicitly refactored out in the abstraction phases. Do not reintroduce them.
-
-### Free functions that accept `Context`
-
+### Direct Database Queries in Handlers
 ```typescript
-// ❌ WRONG — couples logging to Hono internals
-export async function logActivity(context: Context, params: LogParams) {
-  const userId = context.get('jwtPayload').sub; // Hono coupling inside the logger
-  await context.env.DB.prepare('INSERT INTO activity_logs …').bind(userId).run();
-}
+// [Non-compliant] Handler directly compiles SQL and queries D1
+const row = await c.env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first()
+
+// [Compliant] Handler delegates to injected repository
+const userRepo = c.get('userRepository')
+const user = await userRepo.findById(id)
 ```
 
+### Synchronous Side-Effects
 ```typescript
-// ✅ CORRECT — IActivityLogger injected, caller extracts actor from context
-const jwtPayload = context.get('jwtPayload');
-await context.get('activityLogger').log({
-  action: 'create',
-  entityType: 'content',
-  entityId: newEntry.id,
-  actor: { id: jwtPayload.sub, email: jwtPayload.email ?? 'unknown', name: jwtPayload.name ?? null },
-});
+// [Non-compliant] Blocks HTTP response waiting for external webhook
+await fetch('https://webhook.site/xxx', { method: 'POST', body })
+
+// [Compliant] Dispatched asynchronously via scheduler
+c.get('scheduler').waitUntil(
+  c.get('automationRunner').run({ seedSlug, event: 'create', entry })
+)
 ```
 
-### Inline SQL in handlers
-
+### Cross-Feature Internal Imports
 ```typescript
-// ❌ WRONG — handler knows about D1 and SQL
-const result = await context.env.DB
-  .prepare('SELECT * FROM content WHERE id = ?')
-  .bind(id)
-  .first();
+// [Non-compliant] Content slice reaches into Auth internal utils
+import { hashPassword } from '../auth/utils/password'
+
+// [Compliant] Shared utility imported from core
+import { sha256hex } from '@beechcms/core'
 ```
 
-```typescript
-// ✅ CORRECT — handler uses the injected repository
-const repository = context.get('repository');
-const entry = await repository.findById(schemaSlug, id);
-```
+## Feature Checklist
 
-### Cross-feature imports
+Before opening a pull request for a new vertical slice:
 
-```typescript
-// ❌ WRONG — content feature reaches into auth internals
-import { verifyPassword } from '../auth/utils/password';
-```
-
-```typescript
-// ✅ CORRECT — shared behaviour lives in packages/core or apps/api/src/shared/
-import { sha256hex } from '@beechcms/core';
-```
-
-### Unexplained ternary chains
-
-```typescript
-// ❌ WRONG — intent is completely opaque
-const result = a ? b ? c : d : e ? f : g;
-```
-
-```typescript
-// ✅ CORRECT — extract to named boolean and guard clauses
-if (!isAuthenticated) return context.json({ error: AUTH_ERRORS.UNAUTHORIZED }, 401);
-if (!hasWritePermission) return context.json({ error: AUTH_ERRORS.FORBIDDEN }, 403);
-const result = performOperation();
-```
-
-### Unresolved partial work
-
-```typescript
-// ❌ WRONG — silently incomplete
-// TODO: handle error case
-const data = await repository.findById(id);
-return context.json({ data }); // crashes if data is null
-```
-
-```typescript
-// ✅ CORRECT — every code path is handled; TODOs reference a GitHub issue
-const entry = await repository.findById(schemaSlug, id);
-if (!entry) {
-  return context.json({ error: CONTENT_ERRORS.NOT_FOUND }, 404); // TODO: #42 add ETag support
-}
-return context.json({ data: entry });
-```
-
----
-
-## 12. Quality Checklist for Every New Slice
-
-### Structure
-- [ ] Feature folder exists under `apps/api/src/features/<name>/` or `apps/dashboard/src/features/<name>/`
-- [ ] `index.ts` is the only file imported from outside the feature
-- [ ] `constants.ts` holds all string literals; no magic strings inside handlers
-- [ ] `types.ts` contains local types with zero framework imports
-
-### Isolation
-- [ ] No direct imports from other feature folders
-- [ ] No `context.env.DB` or Cloudflare binding access inside handlers
-- [ ] No free functions that accept a Hono `Context` as their primary dependency source
-
-### Interfaces
-- [ ] Any new data dependency has an interface in `packages/core`
-- [ ] The concrete D1 implementation is in `apps/api/src/shared/`
-- [ ] The interface is injected via a middleware and declared in `apps/api/src/types.ts`
-
-### Code quality
-- [ ] No chained ternary expressions
-- [ ] No `if` nesting beyond 2 levels — use guard clauses
-- [ ] No unexplained `TODO` comments — each one includes a GitHub issue reference
-- [ ] All magic numbers are named constants at the top of the file
-- [ ] Every exported interface method has a JSDoc explaining **why**, not just what
-
-### Documentation
-- [ ] `docs/system-map.md` updated if new interfaces or middleware were added
-- [ ] Relevant API routes documented in `docs/api-reference.md`
-- [ ] Tests co-located next to the source files they cover
-
----
-
-## 13. Related Documents
-
-- [architecture.md](architecture.md) — full system architecture and middleware injection model
-- [system-map.md](system-map.md) — living map of all interfaces, repositories, and middleware
-- [api-reference.md](api-reference.md) — HTTP routes and payload shapes
-- [CONTRIBUTING.md](../CONTRIBUTING.md) — commit conventions, branch strategy, AI-assisted development
-- [Sprints/02-abstraction.md](Sprints/02-abstraction.md) — Phase 1 and Phase 2 abstraction history
+- [ ] **Folder Structure**: Slice lives in `apps/api/src/features/<name>/` or `apps/dashboard/src/features/<name>/`.
+- [ ] **Barrel Export**: `index.ts` is the only file imported from outside the slice.
+- [ ] **No Direct SQL**: Handlers use injected repositories; zero `c.env.DB` usage.
+- [ ] **No Cross-Feature Imports**: Slice has zero imports from sibling feature folders.
+- [ ] **Typed Contracts**: Any new repository interface is declared in `packages/core` with JSDoc explanations.
+- [ ] **Async Side-Effects**: All outbound emails, webhooks, and loggers are wrapped in `c.get('scheduler').waitUntil(...)`.
+- [ ] **Testing**: Integration tests run against real local Docker containers (`pnpm test`).

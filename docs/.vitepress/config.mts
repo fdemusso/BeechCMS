@@ -32,10 +32,11 @@ export default defineConfig({
               { text: 'Getting Started', link: '/guide' },
               { text: 'First Project', link: '/first-project' },
               { text: 'Content Editor Guide', link: '/content-editor-guide' },
-              { text: 'Frontend & APIs', link: '/frontend-guide' },
+              { text: 'Content API & SDK', link: '/frontend-guide' },
               { text: 'Custom Widgets', link: '/custom-widgets' },
               { text: 'Automations', link: '/automations' },
-              { text: 'Email Module', link: '/email-module' }
+              { text: 'Email Module', link: '/email-module' },
+              { text: 'Observability & Notifications', link: '/observability-and-notifications' }
             ]
           },
           {
@@ -43,11 +44,7 @@ export default defineConfig({
             items: [
               { text: 'Development', link: '/development' },
               { text: 'Architecture', link: '/architecture' },
-              { text: 'System Map', link: '/SYSTEM_MAP' },
-              { text: 'Vertical Slice', link: '/vertical-slice' },
-              { text: 'Background Queues', link: '/background-queues' },
-              { text: 'Observability', link: '/observability-and-notifications' },
-              { text: 'Release', link: '/release' }
+              { text: 'Vertical Slice', link: '/vertical-slice' }
             ]
           },
           {

@@ -16,9 +16,7 @@ By the end of this tutorial, you will:
 5. Fetch and render content from frontend frameworks (Astro and Next.js).
 6. Deploy the backend and admin SPA to Cloudflare's global edge network.
 
----
-
-## 1. Prerequisites & Architecture Overview
+## Architecture & Prerequisites
 
 Before starting, ensure you have:
 
@@ -27,7 +25,7 @@ Before starting, ensure you have:
 - **Cloudflare Account**: A free account is sufficient. [Sign up here](https://dash.cloudflare.com/sign-up) if you don't have one.
 - **Wrangler CLI**: Cloudflare's official CLI (installed automatically as a dev dependency, but having `npx wrangler` available is useful).
 
-### Cloudflare Services at a Glance
+### Cloudflare Services
 
 <p align="center">
   <img src="./images/architecture-cloudflare.svg" alt="Cloudflare Services at a Glance" style="width: 100%; max-width: 820px; margin: 16px 0;" />
@@ -37,9 +35,7 @@ Before starting, ensure you have:
 - **Cloudflare D1**: Serverless SQLite at the edge. BeechCMS generates physical SQL tables (`content_posts`, `content_authors`, etc.) with composite indexes and full-text search (FTS5).
 - **Cloudflare R2**: S3-compatible object storage with zero egress fees, storing uploaded assets (images, documents).
 
----
-
-## 2. Project Scaffolding
+## Project Scaffolding
 
 Create a new BeechCMS project using the CLI wizard:
 
@@ -47,7 +43,7 @@ Create a new BeechCMS project using the CLI wizard:
 npx @beechcms/cms
 ```
 
-### The Interactive Wizard
+### Interactive Wizard
 
 The setup assistant prompts you for:
 
@@ -72,7 +68,7 @@ The setup assistant prompts you for:
 > pnpm install # or npm install
 > ```
 
-### Generated Folder Structure
+### Project Structure
 
 ```
 my-blog/
@@ -86,11 +82,9 @@ my-blog/
 
 The entire CMS engine, admin dashboard, and REST API live inside `node_modules/@beechcms/api`. Your project only contains configuration and schema definitions.
 
----
+## Configuration
 
-## 3. Initial Configuration
-
-### 3.1 Understanding `wrangler.jsonc`
+### Wrangler Config
 
 `wrangler.jsonc` manages your worker configuration and resource bindings:
 
@@ -135,7 +129,7 @@ The entire CMS engine, admin dashboard, and REST API live inside `node_modules/@
 }
 ```
 
-### 3.2 Environment Variables Explained
+### Environment Variables
 
 | Variable | Scope | Purpose |
 |---|---|---|
@@ -144,9 +138,7 @@ The entire CMS engine, admin dashboard, and REST API live inside `node_modules/@
 | `PUBLIC_WRITE_API_KEY` | Public API | Passed via `X-API-Key` to submit entries like contact forms (`POST /api/v1/public/*`). |
 | `CORS_ORIGINS` | Network | Comma-separated list of allowed frontend origins (e.g. `https://myblog.com`). |
 
----
-
-## 4. Defining Content Types (Seeds)
+## Defining Seeds
 
 In BeechCMS, content types are called **Seeds**, and individual fields are called **Branches**.
 
@@ -293,7 +285,7 @@ export const posts: Seed = defineSeed({
 export const seeds: Seed[] = [authors, posts]
 ```
 
-### Key Seed Policies & The Botanical Invariant
+### Policies & Invariants
 
 - **The Botanical Invariant (`id: 'br_...'`)**: Every branch ID must strictly match `^br_[A-Za-z0-9]+$` (e.g. `br_pst1`, `br_aut1`, `br_01`). This logical handle is permanent: if an editor renames an alias (e.g. `title` → `headline`), all SQLite triggers, FTS5 virtual tables, and automations stay connected without schema breakage.
 - **`alias` (e.g. `title`, `cover_image`)**: The human-readable property name used in SQL table columns and returned in JSON API responses.
@@ -304,9 +296,7 @@ export const seeds: Seed[] = [authors, posts]
   - `visibility`: `'full'` | `'masked'` | `'hidden'`
   - `public`: `false` (strips this field from public read responses, e.g. internal notes).
 
----
-
-## 5. Database Setup & Schema Sync
+## Database & Schema Sync
 
 Before running the dashboard, initialize your local SQLite database and compile your Seeds into D1 tables.
 
@@ -316,7 +306,7 @@ Run the onboarding command:
 npx beech onboard --local
 ```
 
-### What Happens Behind the Scenes?
+### Engine Pipeline
 
 <p align="center">
   <img src="./images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
@@ -326,9 +316,7 @@ Alternatively, you can run the individual steps manually:
 1. `npx beech init --db --local`: Verifies files and creates base system tables.
 2. `npx beech seed:load --local`: Reads `seeds.ts` and syncs schema changes into the local D1 database.
 
----
-
-## 6. Dashboard & First Content
+## Dashboard & Content
 
 Start the local development server:
 
@@ -338,7 +326,7 @@ npx wrangler dev --port 8789
 
 Open your browser at [http://localhost:8789/admin](http://localhost:8789/admin).
 
-### 6.1 Initial Administrator Onboarding
+### Admin Onboarding
 
 When you open the dashboard for the first time, BeechCMS detects a fresh database and automatically routes you to the **Setup Wizard**:
 
@@ -346,7 +334,7 @@ When you open the dashboard for the first time, BeechCMS detects a fresh databas
 2. **Site Preferences**: Select your default Language, Timezone, and Base Currency.
 3. Click **Complete Setup & Launch Dashboard** to create your administrator profile and enter the content manager.
 
-### 6.2 Creating Your First Post
+### Creating First Post
 
 1. **Create an Author**:
    - In the left sidebar, select **Authors**.
@@ -363,13 +351,11 @@ When you open the dashboard for the first time, BeechCMS detects a fresh databas
      - **Article Content**: Add headings, formatted text, and code blocks.
    - Click **Publish** (or **Save Draft** to test draft workflows).
 
----
-
-## 7. Public API & Frontend Integration
+## Frontend Integration
 
 BeechCMS exposes a public REST API under `/api/v1/public/:seed`.
 
-### 7.1 The REST API Format
+### REST API
 
 To fetch published posts, send a `GET` request with the `X-API-Key` header:
 
@@ -412,13 +398,11 @@ curl -X GET "http://localhost:8789/api/v1/public/posts?orderBy=created_at&orderD
 > [!NOTE]
 > Responses are **flat**. Content fields (`title`, `slug`, `author_id`, `tags`, `cover_image`) sit directly alongside system attributes (`id`, `status`, `created_at`).
 
----
-
-### 7.2 Fetching Content in Frontend Applications
+### Fetching Content
 
 You can use standard `fetch` or the lightweight `@beechcms/client` SDK (`npm install @beechcms/client`).
 
-#### Option A: Vanilla Fetch (React / Node / Vanilla JS)
+#### Vanilla Fetch
 
 ```typescript
 // lib/beech.ts
@@ -476,9 +460,7 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
 }
 ```
 
----
-
-#### Option B: Astro SSG / SSR Example
+#### Astro
 
 Astro provides an ideal companion for BeechCMS with fast static builds and on-demand edge rendering.
 
@@ -566,9 +548,7 @@ if (!post) {
 </html>
 ```
 
----
-
-#### Option C: Next.js (App Router) Dynamic Route & SEO
+#### Next.js
 
 ```tsx
 // app/blog/[slug]/page.tsx
@@ -628,13 +608,11 @@ export default async function BlogPostPage({ params }: Props) {
 }
 ```
 
----
-
-## 8. Deploying to Cloudflare
+## Deployment
 
 Deploying your BeechCMS project to Cloudflare's edge takes three straightforward steps:
 
-### Step 1: Authenticate with Cloudflare
+### Cloudflare Auth
 
 Ensure your CLI is authenticated:
 
@@ -642,7 +620,7 @@ Ensure your CLI is authenticated:
 npx wrangler login
 ```
 
-### Step 2: Provision Production D1 & R2 Resources
+### Provision Resources
 
 If you did not provision resources during initial scaffolding, create them now:
 
@@ -673,7 +651,7 @@ Copy the `database_id` from the output and update `wrangler.jsonc`:
 ]
 ```
 
-### Step 3: Run the Deploy Command
+### Deploy Command
 
 BeechCMS includes a unified deploy command that builds the worker, deploys assets, and syncs your remote D1 schema:
 
@@ -689,9 +667,7 @@ What `beech deploy` performs:
 
 Once complete, visit your production URL (e.g. `https://my-blog-api.<your-subdomain>.workers.dev/admin`) and perform your initial production onboarding.
 
----
-
-## 9. Local vs. Production Comparison
+## Environments Comparison
 
 | Feature | Local Development | Cloudflare Production |
 |---|---|---|
@@ -704,9 +680,7 @@ Once complete, visit your production URL (e.g. `https://my-blog-api.<your-subdom
 > [!WARNING]
 > **Beta Status**: BeechCMS is actively evolving. While core schema operations and data models are tested and stable, always maintain regular D1 database backups (`npx wrangler d1 export`) before applying major schema refactors in production.
 
----
-
-## 10. Next Steps & Advanced Features
+## Next Steps
 
 Now that your first BeechCMS project is live, explore these deeper capabilities:
 

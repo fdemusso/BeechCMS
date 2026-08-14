@@ -82,11 +82,12 @@ Instead of generic document storage, the Engine analyzes your **Seeds** (content
 
 | Document | Description |
 |---|---|
-| [Developer Guide](../docs/guide.md) | End-to-end guide: scaffolding, seeds, API consumption, deployment |
-| [Architecture](../docs/nuovidocs/architecture.md) | Monorepo topology, Botanical Engine data flow, D1 model |
-| [API Reference](../docs/nuovidocs/api-reference.md) | Auth, Content CRUD, Media Engine, Public API, rate limiting |
-| [Frontend Guide](../docs/nuovidocs/frontend-guide.md) | FieldRenderer registry, TanStack Query patterns, adding field types |
-| [System Map](../docs/SYSTEM_MAP.md) | Folder structure, conventions, and architectural constraints |
+| [Getting Started](../docs/guide.md) | End-to-end guide: scaffolding, seeds, API consumption, deployment |
+| [Architecture](../docs/architecture.md) | Monorepo topology, Botanical Engine data flow, D1 per-type SQL model |
+| [Content API & SDK](../docs/frontend-guide.md) | Public REST API, query filtering DSL, and TypeScript SDK |
+| [Custom Widgets](../docs/custom-widgets.md) | Authoring and registering custom dashboard widgets |
+| [Automations](../docs/automations.md) | Triggers, webhooks, Resend email workflows, and template grammar |
+| [System Map](../_config/SYSTEM_MAP.md) | Internal folder structure, dependency stack, and non-negotiable constraints |
 
 ---
 # Faq about BeechCMS

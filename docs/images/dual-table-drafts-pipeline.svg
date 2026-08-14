@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 310" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="editorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="draftGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="liveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="promoteGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#059669" stop-opacity="0.04"/>
+    </linearGradient>
+
+    <!-- Markers / Arrowheads -->
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-indigo" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#6366f1"/>
+    </marker>
+    <marker id="arrow-emerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#059669"/>
+    </marker>
+  </defs>
+
+  <style>
+    .diagram-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; fill: #d97706; text-transform: uppercase; }
+    .card-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; fill: #ffffff; }
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; font-weight: 700; fill: #ffffff; }
+    .card-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: rgba(255, 255, 255, 0.88); }
+    .action-pill { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 9.5px; font-weight: 600; fill: #1e293b; }
+  </style>
+
+  <!-- Container Box -->
+  <rect x="15" y="15" width="830" height="280" rx="16" fill="url(#bgBoxGrad)" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <text x="36" y="42" class="diagram-title">BeechCMS Dual-Table Mirror Staging Architecture</text>
+
+  <!-- Node 1: Editorial Client (Left) -->
+  <g transform="translate(38, 70)">
+    <rect width="200" height="180" rx="12" fill="url(#editorGrad)" filter="drop-shadow(0 6px 16px rgba(59, 130, 246, 0.3))"/>
+    <rect x="16" y="16" width="115" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="73" y="30" text-anchor="middle" class="card-badge">Editorial Client</text>
+    <text x="16" y="60" class="card-title">Dashboard Editor</text>
+    <text x="16" y="82" class="card-desc">• Work-in-progress edits</text>
+    <text x="16" y="102" class="card-desc">• Unsaved draft reviews</text>
+    <text x="16" y="122" class="card-desc">• /drafts Global Hub</text>
+    <text x="16" y="142" class="card-desc">• Staging authorization</text>
+    <text x="16" y="162" class="card-desc">• Zero live pollution</text>
+  </g>
+
+  <!-- Connector Path 1: Save Draft Action -> Draft Mirror Table -->
+  <path d="M 238 120 L 308 120" fill="none" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  
+  <!-- Save Draft Badge -->
+  <g transform="translate(236, 95)">
+    <rect x="0" y="0" width="76" height="18" rx="4" fill="#fffbeb" stroke="#d97706" stroke-width="1"/>
+    <text x="38" y="12" text-anchor="middle" class="action-pill" fill="#b45309">Save Draft</text>
+  </g>
+
+  <!-- Node 2: Draft Mirror Table (Center Top) -->
+  <g transform="translate(315, 65)">
+    <rect width="230" height="95" rx="12" fill="url(#draftGrad)" filter="drop-shadow(0 6px 16px rgba(217, 119, 6, 0.3))"/>
+    <rect x="14" y="12" width="105" height="19" rx="4" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="66" y="25" text-anchor="middle" class="card-badge">Staging Table</text>
+    <text x="14" y="48" class="card-title">content_{seed}_drafts</text>
+    <text x="14" y="66" class="card-desc">• Foreign key: entry_id</text>
+    <text x="14" y="82" class="card-desc">• Relaxed validation schema</text>
+  </g>
+
+  <!-- Connector Path 2: Promote Action (Draft -> Atomic Promotion) -->
+  <path d="M 430 160 L 430 190" fill="none" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)"/>
+
+  <!-- Publish Action Badge -->
+  <g transform="translate(440, 168)">
+    <rect x="0" y="0" width="80" height="18" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1"/>
+    <text x="40" y="12" text-anchor="middle" class="action-pill" fill="#4338ca">Publish API</text>
+  </g>
+
+  <!-- Node 3: Atomic Promotion (Center Bottom) -->
+  <g transform="translate(315, 195)">
+    <rect width="230" height="70" rx="10" fill="url(#promoteGrad)" filter="drop-shadow(0 4px 12px rgba(99, 102, 241, 0.25))"/>
+    <rect x="14" y="10" width="125" height="17" rx="4" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="76" y="22" text-anchor="middle" class="card-badge">Atomic Promotion</text>
+    <text x="14" y="44" class="card-title">INSERT ... SELECT</text>
+    <text x="14" y="58" class="card-desc">Zero-downtime SQL commit</text>
+  </g>
+
+  <!-- Connector Path 3: Promotion -> Live Table -->
+  <path d="M 545 230 C 575 230, 575 160, 605 160" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+
+  <!-- Node 4: Live Production Table (Right) -->
+  <g transform="translate(615, 70)">
+    <rect width="210" height="180" rx="12" fill="url(#liveGrad)" filter="drop-shadow(0 6px 16px rgba(5, 150, 105, 0.3))"/>
+    <rect x="16" y="16" width="120" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="76" y="30" text-anchor="middle" class="card-badge">Production D1</text>
+    <text x="16" y="60" class="card-title">content_{seed}</text>
+    <text x="16" y="82" class="card-desc">• Pure published records</text>
+    <text x="16" y="102" class="card-desc">• B-Tree indexes &amp; FTS5</text>
+    <text x="16" y="122" class="card-desc">• Public REST API queries</text>
+    <text x="16" y="142" class="card-desc">• Edge cached via Workers</text>
+    <text x="16" y="162" class="card-desc">• Sub-ms reader response</text>
+  </g>
+</svg>

@@ -1,38 +1,27 @@
 ---
-title: Creating Custom Widgets
+title: Custom Dashboard Widgets
 group: User & Builder Guide
 category: Extending
 ---
 
 # Custom Dashboard Widgets
 
-The Beech CMS dashboard widget catalog is a **public extension point**.
-Third-party widgets are pnpm packages, registered **at build time**, and
-configured in the dashboard builder exactly like built-in widgets.
+The BeechCMS dashboard widget catalog is a **public extension point**. Developers can build, share, and register custom widgets as modular packages to display interactive analytics, external metrics, and custom visualizations inside the React admin dashboard.
 
-## Security model (read this first)
+## Security Model
 
-Per decision **D9**, the dashboard is a static SPA deployed to the edge.
-There is **no runtime plugin loader, no remote code execution, and no
-sandbox**. A custom widget is **trusted code compiled into the operator's
-own dashboard build** — the same trust level as any other pnpm dependency.
+> [!CAUTION]
+> ### Critical Security Rules for Custom Widgets
+> 
+> 1. **Trusted Build-Time Code**: The BeechCMS dashboard is an edge-native static SPA. There is **no runtime sandbox or remote code execution**. A custom widget is trusted code compiled directly into your dashboard build. Only install packages you trust.
+> 2. **Never Put Secrets in Widget Config**: Widget configuration is stored in the database (`dashboard_layouts`) and is readable by **any authenticated dashboard user**. Never store API secrets, private tokens, or database credentials inside widget config.
+> 3. **Permission Boundaries**: Widgets use the authenticated session of the active user. They cannot access endpoints or data that the logged-in user lacks permissions to view.
 
-Consequences:
+## Quickstart
 
-- Only install widget packages you trust, the same way you'd vet any
-  dependency.
-- **Never put secrets in widget config.** Widget config is stored
-  server-side in the `dashboard_layouts` table and is readable by **any
-  authenticated dashboard user** via the layout API — it is not a secure
-  store.
-- Widgets consume the same authenticated `/api/widget/*` and
-  `/api/content/stats/*` endpoints as built-ins, via the injected HTTP
-  client — they cannot reach endpoints the logged-in user couldn't already
-  reach.
+### Scaffold Package
 
-## Quick start
-
-### 1. Scaffold a package
+Create a new widget package workspace:
 
 ```bash
 mkdir my-widget && cd my-widget
@@ -41,13 +30,13 @@ pnpm install @beechcms/widget-sdk
 pnpm install --save-dev typescript @types/react
 ```
 
-Declare `react` and `@tanstack/react-query` as **peer dependencies** —
-the dashboard provides both:
+Declare `react` and `@tanstack/react-query` as **peer dependencies**:
 
 ```jsonc
 // package.json
 {
   "name": "@acme/beech-widget-weather",
+  "version": "1.0.0",
   "peerDependencies": {
     "react": "^19.0.0",
     "@tanstack/react-query": "^5.0.0"
@@ -58,7 +47,9 @@ the dashboard provides both:
 }
 ```
 
-### 2. Define the widget
+### Define Widget
+
+Create your widget component and schema definition:
 
 ```tsx
 import { z } from 'zod'
@@ -72,14 +63,20 @@ import {
 } from '@beechcms/widget-sdk'
 import { Cloud } from 'lucide-react'
 
+// 1. Zod schema for widget settings
 const configSchema = z.object({
   seedSlug: z.string().catch(''),
   window: z.enum(['week', 'month', 'year', 'all']).catch('month'),
 })
 type WeatherConfig = z.infer<typeof configSchema>
 
+// 2. Main widget presentation component
 function WeatherWidget({ config }: DashboardWidgetProps<WeatherConfig>) {
-  const { data, isLoading, isError, refetch } = useWidgetAggregate(config.seedSlug, { op: 'count' }, config.window)
+  const { data, isLoading, isError, refetch } = useWidgetAggregate(
+    config.seedSlug,
+    { op: 'count' },
+    config.window
+  )
 
   if (isError) {
     return (
@@ -88,151 +85,111 @@ function WeatherWidget({ config }: DashboardWidgetProps<WeatherConfig>) {
       </WidgetShell>
     )
   }
+
   if (!isLoading && !data?.value) {
     return (
       <WidgetShell title="Weather" icon={Cloud}>
-        <WidgetEmpty icon={Cloud} title="No data" />
+        <WidgetEmpty icon={Cloud} title="No data available" />
       </WidgetShell>
     )
   }
+
   return (
     <WidgetShell title="Weather" icon={Cloud}>
-      <div>{data?.value}</div>
+      <div className="text-2xl font-bold">{data?.value}</div>
     </WidgetShell>
   )
 }
 
+// 3. Widget definition export
 export const weatherWidget = defineWidget({
   type: '@acme/beech-widget-weather',
   labelKey: 'Weather',
-  descriptionKey: 'Shows entry counts for a content type.',
+  descriptionKey: 'Displays metrics and counts for selected Seeds.',
   icon: 'Cloud',
   category: 'custom',
   configSchema,
   defaultConfig: { seedSlug: '', window: 'month' },
   component: WeatherWidget,
   minColumnSpan: 3,
-  // ConfigPanel?: ComponentType<{ config: WeatherConfig; onChange: (next: WeatherConfig) => void }>
 })
 ```
 
-### 3. Install it in the dashboard
+### Register in Dashboard
 
-The **only supported installation mechanism** is
-`apps/dashboard/src/widgets.custom.ts`:
+Register your widget in `apps/dashboard/src/widgets.custom.ts`:
 
-```ts
+```typescript
 import { registerWidget } from '@/features/dashboard'
 import { weatherWidget } from '@acme/beech-widget-weather'
 
 registerWidget(weatherWidget)
 ```
 
-Add the package as a dependency of `apps/dashboard/package.json`, then
-rebuild the dashboard. The widget appears in the builder picker under
-**Custom**, can be configured, saved, and rendered.
+Add your package to `apps/dashboard/package.json` and build the dashboard. Your widget will immediately appear in the visual **Dashboard Builder** under the **Custom** category.
 
-If the package is later uninstalled (or its registration commented out),
-any stored layout referencing the widget degrades to an
-"unavailable widget" placeholder on render and is passed through unchanged
-on the next save — the layout is never corrupted.
+> [!NOTE]
+> If a widget package is uninstalled later, stored layouts degrade gracefully to an "Unavailable Widget" placeholder without corrupting the layout or breaking the dashboard.
 
-## Contract reference
+## SDK Reference
 
-### `defineWidget<TConfig>(definition)`
+### `defineWidget` Helper
 
-Identity helper — returns `definition` unchanged, but:
+The `defineWidget<TConfig>()` helper provides full TypeScript type inference across configs, props, and panels:
 
-- Gives full type inference for `TConfig` across `configSchema`,
-  `defaultConfig`, `component`, and `ConfigPanel`.
-- Throws if `definition.type` starts with `core/` (reserved for built-ins).
-- Throws if `definition.type` doesn't match `WIDGET_TYPE_REGEX`
-  (`/^[a-z0-9@][a-z0-9@/_-]*$/`).
+- Validates that `type` follows namespacing conventions (`WIDGET_TYPE_REGEX`).
+- Prevents reserved prefix collisions (the `core/` prefix is reserved for built-in widgets).
 
-### `WidgetDefinition<TConfig>`
+### Widget Definition Schema
 
-| Field | Type | Notes |
-|---|---|---|
-| `type` | `string` | Namespaced: your pnpm package name, optionally `pkg/sub-name` for multi-widget packs (e.g. `@acme/beech-widgets/clock`). |
-| `labelKey` | `string` | Picker label. Built-ins use i18n keys; custom widgets may use a plain string. |
-| `descriptionKey` | `string?` | Picker description. |
-| `icon` | `string?` | Lucide icon name for the picker. |
-| `category` | `'stats' \| 'charts' \| 'content' \| 'system' \| 'custom'` | `registerWidget` **forces `'custom'`** for any `type` without the `core/` prefix, regardless of what you declare. |
-| `configSchema` | `z.ZodType<TConfig>` | Must parse successfully on a partial/empty object — use `.catch()`/`.optional()` everywhere so a stored layout never fails to load. |
-| `defaultConfig` | `TConfig` | Used when placing a new instance. |
-| `component` | `ComponentType<DashboardWidgetProps<TConfig>>` | Receives `{ instance, config }`. |
-| `minColumnSpan` | `number?` | Builder hint: minimum column span out of 12. |
-| `ConfigPanel` | `ComponentType<{ config: TConfig; onChange: (next: TConfig) => void }>?` | Rendered in the builder's config sheet. Absent ⇒ "no options" notice. |
+| Property | Type | Description |
+| :--- | :--- | :--- |
+| `type` | `string` | Unique namespaced package identifier (e.g. `@acme/beech-widget-analytics`). |
+| `labelKey` | `string` | Display name shown in the widget picker. |
+| `descriptionKey` | `string?` | Short description explaining the widget's function. |
+| `icon` | `string?` | Lucide icon name displayed on the widget card. |
+| `category` | `'custom'` | Category in the builder picker (forced to `'custom'` for third-party widgets). |
+| `configSchema` | `z.ZodType<TConfig>` | Zod validation schema. Always use `.catch()` or `.optional()` for backward compatibility. |
+| `defaultConfig` | `TConfig` | Initial values populated when an editor adds the widget. |
+| `component` | `ComponentType` | React component rendering the widget. Receives `{ instance, config }`. |
+| `minColumnSpan` | `number?` | Minimum grid width out of 12 columns (default: 3). |
+| `ConfigPanel` | `ComponentType?` | Optional custom settings panel rendered in the builder sheet. |
 
-### Data hooks
+### Data Hooks
 
-All hooks share the dashboard's `['widget', ...]` query-key scheme, so
-built-in and custom widgets fetching the same data share the TanStack Query
-cache:
+The SDK provides typed hooks that automatically share the TanStack Query cache with the rest of the dashboard:
 
-- `useWidgetAggregate(seedSlug, formula, window)`
-- `useWidgetGrowth(seedSlug, formula, window)`
-- `useWidgetTimeseries(seedSlug, formula, window, groupColumn)`
-- `useWidgetDistribution(seedSlug, column, window, limit)`
-- `useWidgetList(seedSlug, params)`
+- **`useWidgetAggregate(seedSlug, formula, window)`**: Computes counts, sums, or averages over a time window (`week`, `month`, `year`, `all`).
+- **`useWidgetGrowth(seedSlug, formula, window)`**: Calculates percentage growth compared to the previous period.
+- **`useWidgetTimeseries(seedSlug, formula, window, groupColumn)`**: Generates interval-bucketed time-series data for line/bar charts.
+- **`useWidgetDistribution(seedSlug, column, window, limit)`**: Computes categorical distributions for pie and donut charts.
+- **`useWidgetList(seedSlug, params)`**: Fetches recent Fruits with sorting and filtering.
 
-`formula: AggregateFormula`, `window: TimeWindow` ('week' | 'month' | 'year'
-| 'all'), and `DistributionSlice` are re-exported from the SDK.
+```typescript
+// Example: Computing monthly publication totals
+const { data, isLoading } = useWidgetAggregate('posts', { op: 'count' }, 'month')
+```
 
-These hooks call `useWidgetSdkClient()` internally — they only work inside
-a `<WidgetSdkProvider>`, which the dashboard mounts once in `main.tsx` with
-its authenticated Axios instance. **Never import or hardcode an HTTP client
-in a widget** — always go through these hooks.
+### Presentational Primitives
 
-### Presentational primitives
+The SDK includes standard UI primitives to ensure visual consistency:
 
-- `WidgetShell` — card chrome (border, padding, optional header with
-  `title`/`icon`/`action`, or `bare` for full-bleed content).
-- `WidgetEmpty` — "nothing to show" placeholder (`icon`, `title`,
-  `description?`).
-- `WidgetError` — error state with optional retry button
-  (`message?`, `onRetry?`, `retryLabel?`). Has no i18n dependency — pass
-  localized strings yourself if needed.
+- **`WidgetShell`**: Standard card container with borders, padding, and optional header action buttons.
+- **`WidgetEmpty`**: Clean empty-state placeholder with customizable icon and message.
+- **`WidgetError`**: Error boundary card with an automatic retry button.
 
-## Config conventions
+## Best Practices
 
-- **`seedSlug` key ⇒ auto-cleanup.** If `config.seedSlug` is set and that
-  seed is later deleted from the schema, the widget instance is
-  automatically dropped from the layout — you don't need to handle a
-  "seed no longer exists" state.
-- **8 KB cap.** The serialized `config` object for a single widget instance
-  must stay under 8 KB.
-- **No secrets.** See the security section above.
+### Config Guidelines
+- **Automatic Seed Cleanup**: If your widget uses `config.seedSlug` and that Seed is later deleted by an admin, the dashboard automatically cleans up orphan widget instances.
+- **Payload Limit**: Keep the serialized JSON configuration object under 8 KB.
 
-## i18n
+### Localization & i18n
+Custom widgets can use plain text strings for `labelKey` and `descriptionKey`. If your widget requires multilingual UI strings, you can bundle your own translation dictionaries within your component.
 
-`labelKey`/`descriptionKey` accept plain strings for custom widgets — the
-picker does not require them to resolve through `i18next`. If your widget
-needs localized UI copy, bring your own translation strings/library inside
-your component; the SDK does not impose one.
+### Dependency Versioning
+Always declare `@beechcms/widget-sdk`, `react`, and `@tanstack/react-query` as **peer dependencies** so that your widget stays compatible across dashboard updates.
 
-## Versioning
+## Example Package
 
-Declare `@beechcms/widget-sdk`, `react`, and `@tanstack/react-query` as
-**peer dependency ranges**, not exact pins, so your widget stays compatible
-across dashboard upgrades that bump patch/minor versions of these packages.
-
-## Type collisions
-
-`registerWidget` throws if `type` is already registered. Namespace your
-`type` with your package name (e.g. `@acme/beech-widget-weather`) — a
-collision is a packaging bug to fix, not something the dashboard resolves
-at runtime.
-
-## Worked example
-
-`docs/examples/widget-hello-world/` in this repo is a minimal, fully working
-widget package exercising the whole SDK surface (`defineWidget`, a config
-schema, `ConfigPanel`, and a `useWidgetAggregate` call) — use it as a
-template.
-
-## CLI scaffolding
-
-There is currently no `beech create-widget` scaffold command. This is a
-natural follow-up for the `docs/Sprints/dev-cli/` series; for now, copy
-`docs/examples/widget-hello-world/`.
+You can find a complete, working reference package in the repository under [`docs/examples/widget-hello-world/`](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/docs/examples/widget-hello-world/), demonstrating schema validation, custom configuration panels, and data aggregation hooks.

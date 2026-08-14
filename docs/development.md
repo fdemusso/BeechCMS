@@ -6,202 +6,154 @@ category: Setup
 
 # Development Setup
 
+This guide is for **core engine contributors and developers** working directly on the BeechCMS monorepo source code (`apps/api`, `apps/dashboard`, `packages/core`, and `packages/widget-sdk`).
+
+If you are building a website or using BeechCMS as a consumer, refer to the **[Getting Started Guide](./guide.md)** or **[First Project Tutorial](./first-project.md)** instead.
+
 ## Prerequisites
 
-- **Node.js 20+**
-- **pnpm 9+**
-- **Docker Desktop** or **Docker Engine** — richiesto per l'intero stack di sviluppo locale
+- **Node.js**: `v20.0.0` or higher (Node 22 LTS recommended)
+- **pnpm**: `v9.0.0` or higher
+- **Docker Desktop** or **Docker Engine**: Required for the local development services (MinIO, Mailpit, SQLite Web, webhook-tester, and cloudflared tunnel).
 
-## Quick Start
+> [!IMPORTANT]
+> **Docker is Required for Core Development**: Developing directly on the monorepo requires the local Docker infrastructure to simulate Cloudflare R2, transactional SMTP, and webhook testing.
+
+## Local Monorepo Stack
+
+Start the entire local development environment with a single command:
 
 ```bash
-ppnpm run dev:full
+pnpm run dev:full
 ```
 
-Questo comando avvia **l'intero stack Docker** (MinIO, Mailpit, SQLite Web, webhook-tester, cloudflared tunnel), esegue il bootstrap del database D1 locale se necessario, e poi avvia l'API Cloudflare Workers e la Dashboard React in parallelo. È il **comando canonico e unico** per lo sviluppo.
+This single command:
+1. Spawns the Docker infrastructure stack (MinIO, Mailpit, SQLite Web, webhook-tester, tunnel).
+2. Bootstraps the local D1 SQLite database and applies system migrations automatically.
+3. Launches the Cloudflare Workers API server and React Dashboard SPA concurrently with live reload.
+4. Opens an interactive full-screen Terminal UI (TUI).
 
-> Docker è un prerequisito non negoziabile. Non esiste una modalità "senza Docker" né uno stack parziale. Chi non può usare Docker non può sviluppare su Beech.
+### Interactive TUI
 
-### Dev CLI (TUI)
+When running in an interactive terminal (TTY), `pnpm run dev:full` displays an Ink-powered dashboard:
 
-Quando l'output è un terminale interattivo (TTY), `ppnpm run dev:full` apre una TUI a schermo intero (Ink) con:
+- **Status (`1`)**: Live status of all Docker containers, tunnel URLs, and microservices.
+- **API Logs (`2`) & Dashboard Logs (`3`)**: Filtered live logs with auto-scroll and pause (`⏸`).
+- **Endpoints (`4`)**: Real-time list of exposed API routes grouped by feature slice.
+- **Versions (`5`)**: Monorepo package versions and runtime diagnostics.
+- **Error Bar**: Interactive top bar highlighting recent errors. Press `d` to expand stack traces or `x` to dismiss.
+- **Keybindings**: `1`–`5` switch tabs, `Tab` cycles views, `↑`/`↓` scrolls logs, `q` or `Ctrl+C` performs a clean shutdown.
 
-- **Status** (`1`) — stato di Docker/tunnel/bootstrap/core/api/dashboard, sotto-container Docker e URL dei servizi (MinIO Console, Mailpit, SQLite Web, webhook-tester, tunnel).
-- **API Logs** (`2`) e **Dashboard Logs** (`3`) — log filtrati per servizio, con indicatore `● live` / `⏸ scroll`.
-- **Endpoints** (`4`) — elenco delle rotte API esposte, raggruppate per feature.
-- **Versions** (`5`) — versione del monorepo e versioni rilevate di Wrangler/Vite, più eventuali notifiche di aggiornamento.
+> [!TIP]
+> For CI environments or headless scripts, run `pnpm run dev:plain` (or set `BEECH_DEV_PLAIN=1`) for standard linear console output.
 
-Una barra errori compatta in alto mostra gli errori recenti (`[sorgente] codice`); selezionali con le frecce, `d` per espandere/comprimere lo stack trace, `x` per rimuoverli.
+### Docker Infrastructure Services
 
-**Tasti**: `1`-`5` per i tab, `Tab` / `Shift+Tab` o `←`/`→` per ciclare, `↑`/`↓`/`PgUp`/`PgDn` per scorrere i log o navigare gli errori, `q` o `Ctrl+C` per uscire (shutdown pulito di tutti i processi e container).
+| Service | Host Port | Web Console / URL | Purpose |
+| :--- | :--- | :--- | :--- |
+| **MinIO (S3)** | `9000` / `9001` | [http://localhost:9001](http://localhost:9001) (`beechdev` / `beechdevsecret`) | Simulates Cloudflare R2 storage with presigned URLs |
+| **Mailpit** | `1025` (SMTP) / `8025` (HTTP) | [http://localhost:8025](http://localhost:8025) | Local inbox for password resets and automation emails |
+| **SQLite Web** | `8080` | [http://localhost:8080](http://localhost:8080) | Read-only web inspector for the local D1 database |
+| **Webhook Tester** | `8084` | [http://localhost:8084](http://localhost:8084) | Local sink for testing outbound automation webhooks |
+| **Cloudflared Tunnel** | — | Dynamic `*.trycloudflare.com` URL | Exposes the local API to receive incoming webhooks (e.g. QStash) |
 
-Se l'output non è un TTY (es. CI, log rediretti su file) o è impostata `BEECH_DEV_PLAIN=1`, viene usato l'output flat tradizionale — equivalente a `ppnpm run dev:plain`.
+## Developer CLI Commands
 
----
+| Command | Action |
+| :--- | :--- |
+| `pnpm run dev:full` | Starts the full Docker stack + API + Dashboard with TUI (canonical command) |
+| `pnpm run dev:plain` | Starts the stack with plain non-interactive logging |
+| `pnpm run dev:tunnel-url` | Prints the active public Cloudflare tunnel URL |
+| `pnpm run dev:mailpit:reset` | Flushes all messages from the local Mailpit inbox |
+| `pnpm run dev:logs:minio` | Streams live logs from the MinIO container |
+| `pnpm run dev:logs:sqlite` | Streams live logs from SQLite Web |
+| `pnpm run dev:stop` | Stops all containers while preserving data volumes |
+| `pnpm run dev:reset` | Tears down all containers and resets all volumes |
+| `pnpm run build` | Builds all packages across the Turborepo monorepo |
+| `pnpm run lint` | Runs ESLint and formatting checks across all packages |
+| `pnpm run type-check` | Runs TypeScript compiler checks across all workspaces |
+| `pnpm test` | Runs the test runner suite against local integration containers |
 
-## Strumenti di Sviluppo Docker
+## Environment Configuration
 
-`ppnpm run dev:full` orchestra l'intero stack locale:
-
-| Servizio | Porta host | URL / Console | Scopo |
-|---|---|---|---|
-| MinIO (S3) | 9000 / 9001 | http://localhost:9001 (`beechdev` / `beechdevsecret`) | Storage R2-compatibile per upload presigned |
-| Mailpit | 1025 (SMTP) / 8025 (HTTP) | http://localhost:8025 | Inbox locale per email transazionali (reset password, automation `send_mail`) |
-| SQLite Web | 8080 | http://localhost:8080 | Ispezione read-only del database D1 locale |
-| webhook-tester | 8084 | http://localhost:8084 | Endpoint locale per testare automation `webhook` |
-| Cloudflared Tunnel | n/a | URL `*.trycloudflare.com` da `ppnpm run dev:tunnel-url` | Esporre l'API locale a internet per webhook in ingresso da terzi |
-
-### Comandi
-
-Beech ha **un solo modo** di avviare l'ambiente di sviluppo: `ppnpm run dev:full`. Non esiste una modalità "senza Docker" né uno stack parziale. Docker è prerequisito non negoziabile.
-
-| Comando | Effetto |
-|---|---|
-| `ppnpm run dev:full` | Avvia stack Docker completo + API + Dashboard, con TUI a schermo intero su TTY (comando canonico) |
-| `ppnpm run dev` | Alias di `dev:full` |
-| `ppnpm run dev:plain` | Come `dev:full` ma con output flat (no TUI) — equivalente a `BEECH_DEV_PLAIN=1 ppnpm run dev:full` |
-| `ppnpm run dev:tunnel-url` | Stampa la URL pubblica del tunnel Cloudflare |
-| `ppnpm run dev:mailpit:reset` | Svuota la inbox Mailpit |
-| `ppnpm run dev:logs:mailpit` | Stream log di Mailpit |
-| `ppnpm run dev:logs:sqlite` | Stream log di SQLite Web |
-| `ppnpm run dev:logs:tunnel` | Stream log del tunnel Cloudflared |
-| `ppnpm run dev:logs:minio` | Stream log di MinIO |
-| `ppnpm run dev:stop` | Stop di tutti i container (mantiene i volumi) |
-| `ppnpm run dev:reset` | Stop + rimuove tutti i volumi (reset completo) |
-
-### Switching provider email
-
-In dev, `apps/api/.dev.vars` ha `EMAIL_PROVIDER=smtp` → tutte le email finiscono in Mailpit su http://localhost:8025.
-Per testare il path Resend in locale: imposta `EMAIL_PROVIDER=resend` e `RESEND_API_KEY=<your-key>`.
-
-### SQLite Web
-
-Con lo stack attivo, http://localhost:8080 espone il database D1 locale in sola lettura. Utile per ispezionare tabelle, verificare seed e controllare lo stato dopo le migrazioni. Per modificare il DB usa `wrangler d1 execute --local`.
-
-> Se non hai ancora applicato le migrazioni (`ppnpm run db:migrate:local`), il container logga un avviso e rimane in attesa — non crasha.
-
-### Webhook tester
-
-Crea sessioni UUID via `POST http://localhost:8084` o usa l'helper `newBucket()` da `test/helpers/webhook-tester-client.ts`. Le automation `webhook` configurate con `WEBHOOK_TESTER_URL` invieranno i payload a questo container invece che a servizi esterni.
-
-### Cloudflared Tunnel
-
-Il container `tunnel` espone l'API locale (porta 8789) su una URL pubblica `*.trycloudflare.com`. Necessario per testare webhook **entranti** da servizi di terze parti (Stripe, GitHub, ecc.) e per le notifiche QStash (vedi sotto). La URL cambia a ogni restart; usa `ppnpm run dev:tunnel-url` per leggerla.
-
-### QStash in locale
-
-`ppnpm run dev:full` rileva automaticamente l'URL del tunnel Cloudflare e lo scrive in `apps/api/.dev.vars` come `QSTASH_CALLBACK_URL` — non serve installare ngrok né configurare nulla a mano. Per attivare le notifiche via QStash basta impostare `QSTASH_TOKEN` (e opzionalmente `QSTASH_CURRENT_SIGNING_KEY` / `QSTASH_NEXT_SIGNING_KEY`) in `.dev.vars`.
-
-> `QSTASH_CALLBACK_URL` è distinto da `APP_URL`: `APP_URL` è l'URL del dashboard (usato nei link delle email, es. reset password) e in dev resta `http://localhost:5173`. `QSTASH_CALLBACK_URL` è l'URL pubblico tramite cui QStash richiama il webhook `/api/webhooks/qstash` del Worker.
-
-### Note sicurezza
-
-- Tutti i container hanno bind su `127.0.0.1` — nessuna porta è esposta sulla LAN.
-- `sqlite-web` è in **sola lettura**: per modificare il DB usa `wrangler d1 execute --local`.
-- Mailpit accetta qualsiasi credenziale SMTP — è pensato esclusivamente per dev/test, mai per traffico reale.
-
----
-
-## Configurazione .dev.vars
-
-Copia il file di esempio e usalo così com'è per lo sviluppo locale:
+Initialize your local environment variables:
 
 ```bash
 cp apps/api/.dev.vars.example apps/api/.dev.vars
 ```
 
-Le credenziali di default per MinIO e Mailpit sono già precompilate nell'esempio. Variabili principali:
+Default values for local services are pre-configured:
 
-| Variabile | Default (dev locale) | Descrizione |
-|---|---|---|
-| `R2_ENDPOINT` | `http://localhost:9000` | Endpoint S3-compatibile (MinIO) |
-| `R2_ACCESS_KEY_ID` | `beechdev` | Access key MinIO |
-| `R2_SECRET_ACCESS_KEY` | `beechdevsecret` | Secret key MinIO |
-| `R2_BUCKET_NAME` | `beech-media` | Nome del bucket |
-| `EMAIL_PROVIDER` | `smtp` | Provider email (`smtp` per Mailpit, `resend` per produzione) |
-| `SMTP_HOST` | `localhost` | Host Mailpit |
-| `SMTP_PORT` | `8025` | Porta HTTP API Mailpit |
-| `EMAIL_FROM` | `Beech CMS <dev@beech.local>` | Mittente email |
-| `WEBHOOK_TESTER_URL` | `http://localhost:8084` | URL webhook-tester locale |
-| `MAX_UPLOAD_BYTES` | `52428800` (50 MB) | Limite dimensione upload |
+| Variable | Default (Local Dev) | Description |
+| :--- | :--- | :--- |
+| `R2_ENDPOINT` | `http://localhost:9000` | S3 endpoint for local MinIO |
+| `R2_ACCESS_KEY_ID` | `beechdev` | MinIO access key |
+| `R2_SECRET_ACCESS_KEY` | `beechdevsecret` | MinIO secret key |
+| `R2_BUCKET_NAME` | `beech-media` | Media storage bucket name |
+| `EMAIL_PROVIDER` | `smtp` | Set to `smtp` for Mailpit, `resend` for production |
+| `SMTP_HOST` | `localhost` | Mailpit host |
+| `SMTP_PORT` | `8025` | Mailpit HTTP API port |
+| `EMAIL_FROM` | `Beech CMS <dev@beech.local>` | Default email sender |
+| `WEBHOOK_TESTER_URL` | `http://localhost:8084` | Local webhook sink |
 
-In produzione configura le variabili sensibili come wrangler secret:
+## Database Bootstrap & Migrations
 
-```bash
-wrangler secret put EMAIL_PROVIDER   # "resend"
-wrangler secret put RESEND_API_KEY
-wrangler secret put R2_ENDPOINT
-wrangler secret put R2_ACCESS_KEY_ID
-wrangler secret put R2_SECRET_ACCESS_KEY
-wrangler secret put R2_BUCKET_NAME
-```
+When running `pnpm run dev:full`, the bootstrap script (`apps/api/scripts/bootstrap-d1.mjs`) automatically executes all D1 SQL migrations if the local database is uninitialized.
 
----
-
-## Bootstrap database D1 locale
-
-`ppnpm run dev:full` esegue automaticamente `apps/api/scripts/bootstrap-d1.mjs`, che applica tutte le migrazioni `0000 → ultima` se il database locale non esiste ancora. È idempotente: se il DB è già inizializzato, il log mostra `bootstrap-d1: DB already initialized — skipping`.
-
-Per repartire da zero solo sul DB:
+To manually reset and re-apply local database migrations:
 
 ```bash
-cd apps/api && ppnpm run db:reset:local
+cd apps/api && pnpm run db:reset:local
 cd ../..
-ppnpm run dev:full
+pnpm run dev:full
 ```
 
----
+To execute arbitrary SQL against your local D1 SQLite database:
 
-## Development with Runtime Seeds
+```bash
+npx wrangler d1 execute DB --local --command "SELECT * FROM seeds;"
+```
 
-In BeechCMS, content types (Seeds) are database-resident. The D1 `seeds` table is the canonical source of truth at runtime.
+## Working with Runtime Seeds
 
-### Local Provisioning & Bootstrapping
-When developing locally, you can load definitions from `seeds.ts` into the local D1 instance.
-To reset your local database and onboard seed definitions from scratch, run:
+In BeechCMS, content models (Seeds) are database-resident. The D1 `seeds` table serves as the runtime source of truth.
+
+### Local Provisioning & Onboarding
+
+To seed your local database with default schemas from `seeds.ts`:
 
 ```bash
 npx beech onboard --local --yes
 ```
 
-This runs the file checklist, initializes the system tables, applies migrations, and loads all seeds defined in `seeds.ts` into the `seeds` system table.
+### Schema Syncing during Development
 
-### Dynamic Updates during Development
-If you modify content schemas in code (`seeds.ts`), run:
+When editing `seeds.ts` in the codebase:
 
 ```bash
 npx beech seed:load --local
 ```
 
-This pushes the new definitions to D1, triggers the Botanical Engine to adjust local SQL columns, and invalidates the cached registry (`seed_meta.registry_version`) so the running API server updates instantly.
+This compiles changes, updates SQLite table structures via the Botanical Engine, and invalidates the cached registry version (`seed_meta.registry_version`) so running API instances update immediately without restarts.
 
-If you edit content types directly inside the dashboard's **Settings → Content Types** (Seed Builder) tab, DDL changes are applied at runtime directly to D1.
+## Testing Strategy
 
----
-
-## Testing
-
-I test `apps/api` richiedono lo stack Docker attivo (stesso stack di `ppnpm run dev:full`). Il setup Vitest (`test/global-setup.ts`) verifica MinIO, Mailpit e webhook-tester prima di partire e crea un bucket MinIO effimero per il run.
+BeechCMS integration tests run against **real local containers** (MinIO, Mailpit, webhook-tester) rather than mocked network calls.
 
 ```bash
-ppnpm run dev:full           # avvia lo stack completo (tienilo aperto in un terminale)
-cd apps/api && pnpm test    # esegue la suite contro i container reali
+# 1. Start the stack in one terminal
+pnpm run dev:full
+
+# 2. Run the Vitest test suite in another terminal
+pnpm test
 ```
 
-Se i container non sono attivi, i test falliscono immediatamente con un messaggio che indica quali servizi mancano e come avviarli. **Non esistono fallback su `vi.mock`** per email, R2 o webhook — i test usano gli stessi servizi che girano in dev.
+### Test Architecture
 
-### Strategia test
-
-| Layer | Approccio |
-|---|---|
-| Funzioni pure, validatori | Unit test senza Docker — veloci, nessuna dipendenza esterna |
-| Email transazionali | Integration test contro Mailpit reale |
-| Upload R2 | Test contro MinIO reale con bucket effimero `beech-media-test-<pid>` |
-| Webhook automation | Test contro webhook-tester reale |
-| Database D1 | `D1TestDatabase` (better-sqlite3 in-memory) — stessa semantica SQLite/FTS5 di D1, isolamento per test |
-
-> Il DB resta in-memory per i test (via `D1TestDatabase`) perché ogni test deve partire da uno stato pulito. I layer di integrazione esterna (R2, email, webhook) usano invece container reali — la distinzione è intenzionale.
-
-### Windows — prerequisito per better-sqlite3
-
-`better-sqlite3` è un binding nativo. Su Windows è necessario avere installato **Visual Studio Build Tools 2022** (o Visual Studio con il workload "Desktop development with C++"). In CI Linux non è richiesto nulla di extra.
+| Layer | Testing Approach |
+| :--- | :--- |
+| **Pure Logic & Validators** | Isolated Vitest unit tests (fast, zero external dependencies) |
+| **Database Operations** | `D1TestDatabase` (`better-sqlite3` in-memory with FTS5 support) |
+| **Transactional Email** | Integration tests against Mailpit SMTP container |
+| **Media & File Storage** | Integration tests against MinIO with ephemeral test buckets (`beech-media-test-<pid>`) |
+| **Webhooks & Automations** | Integration tests against the local webhook-tester sink |

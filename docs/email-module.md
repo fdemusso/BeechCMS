@@ -4,409 +4,237 @@ group: User & Builder Guide
 category: Features
 ---
 
-# Email Module — Beech CMS
+# Email Module
 
-Complete documentation for the Beech CMS email module: architecture, configuration, and extension guide.
+The BeechCMS email module is an edge-native, self-contained system responsible for transactional notifications, password recovery workflows, and automated email actions.
 
----
+Built as an extensible vertical slice, it decouples template rendering, branding, and multilingual copy from the underlying delivery provider—allowing you to use [Resend](https://resend.com/) out of the box or swap in any custom provider (SendGrid, Postmark, AWS SES, or SMTP).
 
-## Table of Contents
+## Architecture & Principles
 
-1. [Goals and principles](#1-goals-and-principles)
-2. [Slice structure](#2-slice-structure)
-3. [Send flow](#3-send-flow)
-4. [Public API](#4-public-api)
-5. [EmailProvider interface](#5-emailprovider-interface)
-6. [Template system](#6-template-system)
-   - [Shell (base layout)](#61-shell-base-layout)
-   - [Specific templates](#62-specific-templates)
-7. [Localisation](#7-localisation)
-8. [Environment variables](#8-environment-variables)
-9. [Developer recipes](#9-developer-recipes)
-   - [Swap the provider](#91-swap-the-provider)
-   - [Add a new email type](#92-add-a-new-email-type)
-   - [Add a language](#93-add-a-language)
-   - [Restyle all emails at once](#94-restyle-all-emails-at-once)
+The email slice enforces a clean separation of concerns:
+- **Zero Provider Coupling**: The rest of BeechCMS interacts only with `features/email/index.ts` and knows nothing about HTML rendering or third-party APIs.
+- **Unified Branding**: A shared `shell.ts` layout acts as the single source of truth for email styling, logos, and button design.
+- **Multilingual by Design**: Email copy is strongly typed and automatically matches the user's dashboard language preference (`en`, `it`, etc.).
 
----
+| Goal | Relevant File |
+| :--- | :--- |
+| **Change visual styles / branding for all emails** | `templates/shell.ts` |
+| **Modify copy for a specific email** | Corresponding `templates/*.ts` |
+| **Add a new language** | `email.types.ts` + `templates/*.ts` |
+| **Swap provider (e.g. Resend → SendGrid / SMTP)** | Create `providers/<new>.ts` + register in `email.service.ts` |
+| **Add a new email notification type** | `templates/<type>.ts` + export in `index.ts` |
 
-## 1. Goals and principles
-
-The email module is a **fully self-contained vertical slice** of the Beech CMS backend. The rest of the project has no knowledge of Resend, HTML templates, or localisation logic. It communicates with the outside world through a single public API (`index.ts`) and a single formal interface (`EmailProvider`).
-
-**Practical consequences:**
-
-| What you want to do | Files to touch |
-|---|---|
-| Change the visual layout of all emails | Only `templates/shell.ts` |
-| Change the copy of one specific email | Only the corresponding template file |
-| Add a new language | `email.types.ts` + every `templates/*.ts` file |
-| Replace Resend with another provider | `providers/<new>.ts` + one line in `email.service.ts` |
-| Add a new email type | New `templates/<type>.ts` + new function in `email.service.ts` + export in `index.ts` |
-
-None of these operations require touching the code that *calls* the module (e.g. `password-reset/`).
-
----
-
-## 2. Slice structure
+## Module Structure
 
 ```
 apps/api/src/features/email/
-│
-├── index.ts                   ← Public API: the only allowed import path from outside
-│
-├── email.provider.ts          ← Formal EmailProvider interface (the contract)
-├── email.types.ts             ← Shared types + resolveEmailLocale
-├── email.service.ts           ← Orchestrator; contains createProvider()
-│
+├── index.ts               # Public API entry point
+├── email.provider.ts      # Formal EmailProvider contract
+├── email.types.ts         # Shared types & locale resolver
+├── email.service.ts       # Orchestrator & provider factory
 ├── templates/
-│   ├── shell.ts               ← Base HTML layout (single source of truth for branding)
-│   ├── password-reset.ts      ← "Reset password link" email
-│   └── password-changed.ts    ← "Password changed" security notification email
-│
+│   ├── shell.ts           # Master HTML shell (branding & typography)
+│   ├── password-reset.ts  # One-time password reset link email
+│   └── password-changed.ts# Security confirmation notification
 └── providers/
-    └── resend.ts              ← Resend implementation of EmailProvider
+    ├── resend.ts          # Default Resend API implementation
+    └── smtp.ts            # Local development SMTP provider (Mailpit)
 ```
 
-**VSA dependency rule:** no file outside the slice ever imports from an internal path (e.g. `features/email/templates/shell`). Always import from `features/email` only, which resolves to `index.ts`.
+## Delivery Pipeline
 
----
+<p align="center">
+  <img src="./images/email-delivery-pipeline.svg" alt="BeechCMS Email Delivery Pipeline" style="width: 100%; max-width: 840px; margin: 16px 0;" />
+</p>
 
-## 3. Send flow
+## Public API
 
-```
-Caller (e.g. password-reset/request.ts)
-    │
-    │  import { sendPasswordResetEmail } from '../email'
-    │  await sendPasswordResetEmail({ to, resetUrl, locale, apiKey, ... })
-    ▼
-email.service.ts  →  createProvider(apiKey, isDev)
-    │                     └─ new ResendEmailProvider(apiKey, isDev)
-    │
-    ├─ buildPasswordResetEmail(resetUrl, locale)
-    │       └─ COPY[locale]  +  buildEmailShell(locale, slots)
-    │                                └─ complete HTML document
-    │
-    └─ provider.send({ from, to, subject, html })
-            └─ POST https://api.resend.com/emails
-```
-
-The caller passes only what is strictly necessary (recipient, URL, locale, API key). Message composition, template selection, and transport protocol are all internal responsibilities of the module.
-
----
-
-## 4. Public API
-
-Always import from `'../email'` (or the relative path to `features/email`).
+Import email utilities directly from the module entry point:
 
 ```typescript
 import {
-  sendPasswordResetEmail,   // sends the reset link email
-  sendPasswordChangedEmail, // sends the "password changed" notification
-  resolveEmailLocale,       // safely converts untrusted input to EmailLocale
-  SUPPORTED_EMAIL_LOCALES,  // ['en', 'it'] — array of supported languages
-} from '../email'
-
-import type {
-  EmailLocale,                  // 'en' | 'it'
-  PasswordResetEmailParams,     // params shape for sendPasswordResetEmail
-  PasswordChangedEmailParams,   // params shape for sendPasswordChangedEmail
+  sendPasswordResetEmail,
+  sendPasswordChangedEmail,
+  resolveEmailLocale,
+  SUPPORTED_EMAIL_LOCALES,
 } from '../email'
 ```
 
-### `sendPasswordResetEmail(params)`
+### `sendPasswordResetEmail`
 
-Sends the email containing the reset link. Behaves as a blocking call — throws if the provider rejects the request. The caller decides whether to propagate or swallow the error.
+Sends a secure one-time password reset link:
 
 ```typescript
 await sendPasswordResetEmail({
   to: 'user@example.com',
-  resetUrl: 'https://dashboard.example.com/reset-password?token=<uuid>',
-  locale: 'it',                    // EmailLocale — use resolveEmailLocale() on external input
-  apiKey: env.RESEND_API_KEY,      // string, already validated non-empty by the caller
-  from: env.EMAIL_FROM,            // optional — default: 'Beech CMS <onboarding@resend.dev>'
-  isDev: env.ENV !== 'production', // optional — enables provider error logging
+  resetUrl: 'https://dashboard.example.com/admin/reset-password?token=xxxx',
+  locale: 'it',                    // Auto-falls back to 'en' if unsupported
+  apiKey: env.RESEND_API_KEY,      // Provided by Worker environment
+  from: env.EMAIL_FROM,            // Optional custom sender address
+  isDev: env.ENV !== 'production',
 })
 ```
 
-### `sendPasswordChangedEmail(params)`
+### `sendPasswordChangedEmail`
 
-Sends the security notification. Same signature as `sendPasswordResetEmail` without `resetUrl`. Typically used as fire-and-forget via `waitUntil`.
-
-### `resolveEmailLocale(raw)`
-
-Converts any value (e.g. from a request body) to a valid `EmailLocale`, falling back to `'en'`.
+Sends an immediate security alert when a password is changed:
 
 ```typescript
-const locale = resolveEmailLocale(body.locale) // → 'en' | 'it'
+await sendPasswordChangedEmail({
+  to: 'user@example.com',
+  locale: 'en',
+  apiKey: env.RESEND_API_KEY,
+  from: env.EMAIL_FROM,
+})
 ```
 
----
+### `resolveEmailLocale`
 
-## 5. EmailProvider interface
-
-Defined in `email.provider.ts`. This is the formal contract that every provider implementation must fulfill.
+Safely converts untrusted request input into a valid `EmailLocale`:
 
 ```typescript
-interface EmailProvider {
+const locale = resolveEmailLocale(requestBody.locale) // Returns 'en' | 'it'
+```
+
+## EmailProvider Contract
+
+Every email transport implements the lightweight `EmailProvider` interface:
+
+```typescript
+export interface EmailProvider {
   send(email: OutboundEmail): Promise<void>
 }
 
-interface OutboundEmail {
-  from: string     // RFC 5321 sender (e.g. "Beech CMS <noreply@beechcms.dev>")
-  to: string[]     // recipient addresses
-  subject: string
-  html: string     // complete HTML document
+export interface OutboundEmail {
+  from: string     // Sender address (e.g. "BeechCMS <noreply@example.com>")
+  to: string[]     // Recipient email addresses
+  subject: string  // Subject line
+  html: string     // Complete HTML document
 }
 ```
 
-**`send()` must:**
-- Resolve when the provider has **accepted** the message for delivery (not when it is delivered to the inbox — that depends on the recipient's mail server).
-- Throw an error for any provider rejection (authentication failure, network error, invalid payload).
-- Never silently swallow errors — that responsibility belongs to the caller.
+The `send()` method resolves once the message is accepted for delivery by the provider and throws on authentication or transmission errors.
 
----
+## HTML Templates & Branding
 
-## 6. Template system
+### Shell Base Layout
 
-### 6.1 Shell (base layout)
-
-`templates/shell.ts` exports `buildEmailShell(locale, slots)` — the shared HTML layout used by every email.
+All emails inherit their visual container from `buildEmailShell(locale, slots)` in `templates/shell.ts`:
 
 ```typescript
-interface EmailShellSlots {
-  title: string       // H2 at the top of the card
-  body: string        // main paragraph (safe inline HTML allowed)
-  cta?: { label: string; href: string }  // optional CTA button
-  warning?: string    // optional red warning paragraph (security alerts)
-  footer: string      // small grey text at the bottom
-}
-```
-
-Changing this function changes the visual appearance of **all** outgoing emails at once.
-
-### 6.2 Specific templates
-
-Each template is a file under `templates/` that:
-
-1. Defines a `COPY: Record<EmailLocale, { ... }>` object with localised strings.
-2. Exports a `build<EmailName>(params, locale)` function that combines `COPY[locale]` with `buildEmailShell()`.
-3. Returns `{ subject: string; html: string }`.
-
-```typescript
-// Typical template structure
-const COPY: Record<EmailLocale, {
-  subject: string
+export interface EmailShellSlots {
   title: string
   body: string
-  // ... other slots as needed
-}> = {
-  en: { ... },
-  it: { ... },
-}
-
-export function buildMyEmail(locale: EmailLocale): { subject: string; html: string } {
-  const c = COPY[locale]
-  return {
-    subject: c.subject,
-    html: buildEmailShell(locale, { title: c.title, body: c.body, footer: c.footer }),
-  }
+  cta?: { label: string; href: string }
+  warning?: string
+  footer: string
 }
 ```
 
----
+Updating `shell.ts` changes colors, container widths, button border-radius, and footers across every email sent by the platform.
 
-## 7. Localisation
+### Specific Email Templates
 
-The localisation system works at two levels:
+Individual templates pair localized text dictionaries (`COPY`) with the master shell:
 
-**1. Dashboard side (frontend):** `ForgotPasswordPage` and `ResetPasswordPage` send `i18n.language` in the `locale` field of the request body. The user sees the UI already in their language; the email arrives in the same language.
+```typescript
+const COPY: Record<EmailLocale, { subject: string; title: string; body: string; footer: string }> = {
+  en: {
+    subject: 'Reset your BeechCMS password',
+    title: 'Password Reset Request',
+    body: 'Click the button below to set a new password for your account.',
+    footer: 'If you did not request this, you can safely ignore this email.',
+  },
+  it: {
+    subject: 'Reimposta la tua password su BeechCMS',
+    title: 'Richiesta di reimpostazione password',
+    body: 'Clicca sul pulsante sottostante per impostare una nuova password.',
+    footer: 'Se non hai effettuato tu questa richiesta, puoi ignorare questo messaggio.',
+  },
+}
+```
 
-**2. API side (email module):** `resolveEmailLocale()` converts the received value to a safe `EmailLocale` with fallback to `'en'`. The service passes the locale to the templates, which select the corresponding copy from the `COPY` object.
+## Multilingual Support
 
-The locale is never persisted in the database — it is transported in the HTTP request that triggers the send.
+- **Frontend Sync**: The React dashboard automatically passes the active user's language (`i18n.language`) when triggering password recovery.
+- **Fallback Handling**: `resolveEmailLocale()` ensures unsupported locales fall back cleanly to English (`'en'`).
+- **Zero Database Storage**: Locale preferences are passed ephemerally in request headers or body payloads.
 
----
-
-## 8. Environment variables
+## Environment Variables
 
 | Variable | Required | Description |
-|---|---|---|
-| `RESEND_API_KEY` | Yes (for email flow) | Resend API key. If absent, password reset endpoints return `503`. |
-| `EMAIL_FROM` | No | Sender address in RFC 5321 format. Default: `Beech CMS <onboarding@resend.dev>` (Resend test sender, no verified domain required). Set a verified address in production. |
-| `APP_URL` | No (but recommended) | Base URL of the dashboard. Used to build the reset link. Defaults to the API request origin — almost always wrong in production. |
-| `FORGOT_PASSWORD_RATE_LIMITER` | No (dev) | Cloudflare rate limiter — 3 req/min per IP on the forgot-password endpoint. |
-| `RESET_PASSWORD_RATE_LIMITER` | No (dev) | Cloudflare rate limiter — 5 req/min per IP on the reset-password endpoint. |
+| :--- | :---: | :--- |
+| `RESEND_API_KEY` | In Production | [Resend](https://resend.com/) API Key for transactional email delivery. |
+| `EMAIL_FROM` | Optional | Sender address (default: `Beech CMS <onboarding@resend.dev>`). Set a verified domain in production. |
+| `APP_URL` | Recommended | Base URL of your dashboard (e.g. `https://my-site.com/admin`), used to build action links. |
 
-**Local development** — add to `apps/api/.dev.vars` (never commit this file):
-
-```
-RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
-APP_URL=http://localhost:5173
-EMAIL_FROM=Beech CMS <onboarding@resend.dev>
-```
-
-**Production** — set via Wrangler secrets:
+Set secrets for local and production:
 
 ```bash
-npx wrangler secret put RESEND_API_KEY
-npx wrangler secret put APP_URL
-npx wrangler secret put EMAIL_FROM
+# Local development (.dev.vars)
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
+APP_URL=http://localhost:8789
+
+# Cloudflare Production
+npx wrangler secret put RESEND_API_KEY --env production
 ```
 
----
+## Customization Recipes
 
-## 9. Developer recipes
+### Swapping Providers (e.g. SendGrid / SMTP)
 
-### 9.1 Swap the provider
+To use SendGrid instead of Resend:
 
-**Example: replace Resend with SendGrid.**
-
-**Step 1** — Create `providers/sendgrid.ts`:
+**1. Create `providers/sendgrid.ts`**:
 
 ```typescript
 import type { EmailProvider } from '../email.provider'
 import type { OutboundEmail } from '../email.types'
 
 export class SendGridEmailProvider implements EmailProvider {
-  private readonly apiKey: string
-
-  constructor(apiKey: string) {
-    this.apiKey = apiKey
-  }
+  constructor(private readonly apiKey: string) {}
 
   async send(email: OutboundEmail): Promise<void> {
-    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+    const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        personalizations: [{ to: email.to.map(e => ({ email: e })) }],
+        personalizations: [{ to: email.to.map((to) => ({ email: to })) }],
         from: { email: email.from },
         subject: email.subject,
         content: [{ type: 'text/html', value: email.html }],
       }),
     })
-    if (!response.ok) {
-      throw new Error(`[SendGridEmailProvider] HTTP ${response.status}`)
-    }
+    if (!res.ok) throw new Error(`[SendGrid] Delivery failed: HTTP ${res.status}`)
   }
 }
 ```
 
-**Step 2** — In `email.service.ts`, update `createProvider()`:
+**2. Update `email.service.ts`**:
 
 ```typescript
-// Before:
-import { ResendEmailProvider } from './providers/resend'
-function createProvider(apiKey: string, isDev: boolean): EmailProvider {
-  return new ResendEmailProvider(apiKey, isDev)
-}
-
-// After:
 import { SendGridEmailProvider } from './providers/sendgrid'
-function createProvider(apiKey: string, _isDev: boolean): EmailProvider {
+
+function createProvider(apiKey: string): EmailProvider {
   return new SendGridEmailProvider(apiKey)
 }
 ```
 
-**Step 3** — Rename `RESEND_API_KEY` → `SENDGRID_API_KEY` in `types.ts` and `wrangler.jsonc`.
+### Adding New Email Types
 
-No other file in the project needs to change.
+1. Create `templates/welcome.ts` defining your localized copy and returning `{ subject, html }`.
+2. Add a `sendWelcomeEmail(params)` function in `email.service.ts`.
+3. Export it in `index.ts`.
 
----
+### Adding Languages
 
-### 9.2 Add a new email type
+1. Add the new locale code in `email.types.ts` (`export const SUPPORTED_EMAIL_LOCALES = ['en', 'it', 'es'] as const`).
+2. TypeScript will automatically highlight every `templates/*.ts` file that requires the new language key in its `COPY` dictionary.
 
-**Example: welcome email on first login.**
+### Customizing Visual Styles
 
-**Step 1** — Create `templates/welcome.ts`:
-
-```typescript
-import type { EmailLocale } from '../email.types'
-import { buildEmailShell } from './shell'
-
-const COPY: Record<EmailLocale, {
-  subject: string; title: string; body: string; footer: string
-}> = {
-  en: {
-    subject: 'Welcome to Beech CMS',
-    title: 'Welcome!',
-    body: 'Your account is ready. Start creating content from the dashboard.',
-    footer: 'You are receiving this because you just created a Beech CMS account.',
-  },
-  it: {
-    subject: 'Benvenuto in Beech CMS',
-    title: 'Benvenuto!',
-    body: 'Il tuo account è pronto. Inizia a creare contenuti dalla dashboard.',
-    footer: 'Stai ricevendo questa email perché hai appena creato un account Beech CMS.',
-  },
-}
-
-export function buildWelcomeEmail(locale: EmailLocale): { subject: string; html: string } {
-  const c = COPY[locale]
-  return {
-    subject: c.subject,
-    html: buildEmailShell(locale, { title: c.title, body: c.body, footer: c.footer }),
-  }
-}
-```
-
-**Step 2** — Add the function in `email.service.ts`:
-
-```typescript
-import { buildWelcomeEmail } from './templates/welcome'
-import type { BaseEmailParams } from './email.types'
-
-export async function sendWelcomeEmail(params: BaseEmailParams): Promise<void> {
-  const provider = createProvider(params.apiKey, params.isDev ?? false)
-  const { subject, html } = buildWelcomeEmail(params.locale)
-  await provider.send({ from: params.from ?? DEFAULT_FROM, to: [params.to], subject, html })
-}
-```
-
-**Step 3** — Export from `index.ts`:
-
-```typescript
-export { sendPasswordResetEmail, sendPasswordChangedEmail, sendWelcomeEmail } from './email.service'
-```
-
----
-
-### 9.3 Add a language
-
-**Example: add French.**
-
-**Step 1** — In `email.types.ts`:
-
-```typescript
-export const SUPPORTED_EMAIL_LOCALES = ['en', 'it', 'fr'] as const
-```
-
-**Step 2** — TypeScript will immediately flag every `templates/*.ts` file where the `'fr'` key is missing from the `COPY` object. Add it to each one.
-
-**Step 3** — In the dashboard, add `'fr'` as a supported language in `i18n.ts` and provide translations in `locales/fr.json`.
-
----
-
-### 9.4 Restyle all emails at once
-
-Open `templates/shell.ts` and edit `buildEmailShell`. Any change propagates automatically to every outgoing email.
-
-**Common examples:**
-
-```typescript
-// Change the CTA button colour (black → brand blue)
-// Before:  background:#111
-// After:   background:#2563eb
-
-// Add a logo at the top of the card
-// Insert before the <h2> tag:
-// <img src="https://..." alt="Beech CMS" style="height:32px;margin-bottom:24px">
-
-// Change the background colour
-// Before:  background:#f9f9f9
-// After:   background:#f0f4ff
-```
+Open `templates/shell.ts` and modify colors, font-family, logo URLs, or button gradients. Changes apply immediately to all outgoing emails.
