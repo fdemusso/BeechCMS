@@ -85,6 +85,21 @@ export function deriveAutoSlugText(rawValue: unknown): string {
   return ""
 }
 
+export function getInitialStatus(
+  defaultValues?: Record<string, unknown>,
+  isDraftContext?: boolean
+): string {
+  if (
+    defaultValues &&
+    Object.hasOwn(defaultValues, "status") &&
+    typeof defaultValues.status === "string" &&
+    defaultValues.status
+  ) {
+    return defaultValues.status
+  }
+  return isDraftContext ? "draft" : "published"
+}
+
 export function prepareSubmissionPayload({
   branches,
   formData,
@@ -99,7 +114,7 @@ export function prepareSubmissionPayload({
   const processed: Record<string, unknown> = {}
 
   for (const branch of branches) {
-    const value = formData[branch.alias]
+    const value = Object.hasOwn(formData, branch.alias) ? formData[branch.alias] : undefined
     if (branch.type === "relation" && value === "") {
       processed[branch.alias] = branch.multiple ? [] : null
     } else if (branch.type === "json" && value) {
@@ -112,7 +127,7 @@ export function prepareSubmissionPayload({
       } else {
         processed[branch.alias] = value
       }
-    } else {
+    } else if (value !== undefined) {
       processed[branch.alias] = value
     }
   }
@@ -130,7 +145,7 @@ export function validateEntryJsonFields(
 ): { isValid: true } | { isValid: false; errorFieldLabel: string } {
   for (const branch of branches) {
     if (branch.type !== "json") continue
-    const value = formData[branch.alias]
+    const value = Object.hasOwn(formData, branch.alias) ? formData[branch.alias] : undefined
     if (!value || typeof value !== "string") continue
 
     try {
@@ -182,7 +197,9 @@ export function useEntryEditorDialog({
   const { mutateAsync: discardDraft, isPending: isDiscarding } = useDiscardDraft()
 
   const [formData, setFormData] = React.useState<Record<string, unknown>>({})
-  const [status, setStatus] = React.useState<string>("published")
+  const [status, setStatus] = React.useState<string>(() =>
+    getInitialStatus(defaultValues, isDraftContext)
+  )
   const [slug, setSlug] = React.useState<string>("")
   const [slugTouched, setSlugTouched] = React.useState(false)
   const [isDirty, setIsDirty] = React.useState(false)
@@ -209,8 +226,12 @@ export function useEntryEditorDialog({
 
   // Build branchById map keyed by branch.id
   const branchById = React.useMemo<RendererBranchMap>(() => {
-    if (!seed) return {}
-    return Object.fromEntries(seed.branches.map((b) => [b.id, b]))
+    if (!seed) return Object.create(null)
+    const map = Object.create(null)
+    for (const b of seed.branches) {
+      map[b.id] = b
+    }
+    return map
   }, [seed])
 
   // Resolve the layout: use seed.layout if present, otherwise generate default
@@ -225,12 +246,12 @@ export function useEntryEditorDialog({
   }, [])
 
   const goBack = React.useCallback(() => {
-    if (effectiveDraftContext) {
+    if (effectiveDraftContext || (isDraftContext && isCreate)) {
       navigate("/drafts")
     } else {
       onClose()
     }
-  }, [effectiveDraftContext, navigate, onClose])
+  }, [effectiveDraftContext, isDraftContext, isCreate, navigate, onClose])
 
   const handlePublishDraft = async () => {
     if (!schemaSlug || !entryId) return
@@ -304,13 +325,23 @@ export function useEntryEditorDialog({
   const [prevSeed, setPrevSeed] = React.useState<unknown>(undefined)
   const [prevIsCreate, setPrevIsCreate] = React.useState<boolean | undefined>(undefined)
   const [prevBranches, setPrevBranches] = React.useState<EditorBranch[] | undefined>(undefined)
-  if (seed !== prevSeed || isCreate !== prevIsCreate || branches !== prevBranches) {
+  const [prevDefaultValues, setPrevDefaultValues] = React.useState<Record<string, unknown> | undefined>(undefined)
+  const [prevIsDraftContext, setPrevIsDraftContext] = React.useState<boolean | undefined>(undefined)
+  if (
+    seed !== prevSeed ||
+    isCreate !== prevIsCreate ||
+    branches !== prevBranches ||
+    defaultValues !== prevDefaultValues ||
+    isDraftContext !== prevIsDraftContext
+  ) {
     setPrevSeed(seed)
     setPrevIsCreate(isCreate)
     setPrevBranches(branches)
+    setPrevDefaultValues(defaultValues)
+    setPrevIsDraftContext(isDraftContext)
     if (seed && isCreate) {
       setFormData({ ...createInitialFormData(branches), ...(defaultValues ?? {}) })
-      setStatus("published")
+      setStatus(getInitialStatus(defaultValues, isDraftContext))
       setSlug("")
       setSlugTouched(false)
     }
@@ -321,7 +352,10 @@ export function useEntryEditorDialog({
     () => branches.find((b) => b.type === "text")?.alias,
     [branches]
   )
-  const firstTextValue = firstTextAlias ? formData[firstTextAlias] : undefined
+  const firstTextValue =
+    firstTextAlias && Object.hasOwn(formData, firstTextAlias)
+      ? formData[firstTextAlias]
+      : undefined
 
   React.useEffect(() => {
     if (!isCreate || slugTouched || firstTextAlias == null) return
@@ -365,7 +399,11 @@ export function useEntryEditorDialog({
         data: payload,
         isCreate,
       })
-      onClose()
+      if (isDraftContext && isCreate) {
+        navigate("/drafts")
+      } else {
+        onClose()
+      }
     } catch (err) {
       type ApiValidationError = { field: string; message: string }
       type ApiErrorBody = { error?: string; status?: number; errors?: ApiValidationError[] }
@@ -445,7 +483,7 @@ export function useEntryEditorDialog({
         {t("content.editor.saving")}
       </>
     )
-  } else if (effectiveDraftContext) {
+  } else if (effectiveDraftContext || (isDraftContext && isCreate)) {
     saveLabel = t("content.editor.saveDraft")
   } else if (isCreate) {
     saveLabel = t("common.create")
@@ -465,6 +503,7 @@ export function useEntryEditorDialog({
     t,
     title,
     isCreate,
+    isDraftContext,
     seed,
     isSeedLoading,
     isLoadingEntry,
