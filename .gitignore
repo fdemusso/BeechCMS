@@ -13,6 +13,10 @@ apps/api/assets/
 .next/
 out/
 *.tsbuildinfo
+.vitepress/dist/
+.vitepress/cache/
+docs/.vitepress/dist/
+docs/.vitepress/cache/
 
 #cursor'
 .cursor/
