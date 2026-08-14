@@ -418,6 +418,15 @@ describe('D1ContentRepository', () => {
       await expect(new D1ContentRepository(db).publishDraft(SEED, 'e1')).rejects.toBeInstanceOf(EntryNotFoundError)
     })
 
+    it('publishes live draft entry directly when no mirror draft row exists', async () => {
+      const { db, firstMock, runMock } = makeMockDb()
+      firstMock
+        .mockResolvedValueOnce(null) // no mirror draft
+        .mockResolvedValueOnce({ 1: 1 }) // live row with status = 'draft'
+      await new D1ContentRepository(db).publishDraft(SEED, 'e1')
+      expect(runMock).toHaveBeenCalled()
+    })
+
     it('calls batch with UPDATE and DELETE statements when draft exists', async () => {
       const draftRow = { entry_id: 'e1', title: 'Draft', body: null }
       const { db, batchMock, firstMock } = makeMockDb()
@@ -439,10 +448,19 @@ describe('D1ContentRepository', () => {
       expect(prepareMock).not.toHaveBeenCalled()
     })
 
-    it('calls DELETE on the draft table when drafts are allowed', async () => {
-      const { db, prepareMock } = makeMockDb()
+    it('calls DELETE on the draft table when mirror draft exists', async () => {
+      const { db, prepareMock, batchMock, firstMock } = makeMockDb()
+      firstMock.mockResolvedValueOnce({ 1: 1 })
       await new D1ContentRepository(db).deleteDraft(SEED, 'e1')
-      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('content_posts_drafts'))
+      expect(batchMock).toHaveBeenCalled()
+    })
+
+    it('calls DELETE on the live table when no mirror draft exists and status is draft', async () => {
+      const { db, prepareMock, firstMock, runMock } = makeMockDb()
+      firstMock.mockResolvedValueOnce(null)
+      await new D1ContentRepository(db).deleteDraft(SEED, 'e1')
+      expect(runMock).toHaveBeenCalled()
+      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining("status = 'draft'"))
     })
   })
 
@@ -958,7 +976,7 @@ describe('D1ContentRepository', () => {
 
       expect(prepareMock).toHaveBeenCalled()
       const sql = prepareMock.mock.calls[0][0]
-      expect(sql).toContain('COALESCE(l.slug, d.entry_id) AS title')
+      expect(sql).toContain('COALESCE(l.slug, d.entry_id, l.id) AS title')
       expect(sql).not.toContain('nonexistent')
     })
   })
