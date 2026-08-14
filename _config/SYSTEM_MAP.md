@@ -18,11 +18,11 @@ This high-level system map is designed for onboarding new contributors and for A
 | `README.md` | Project overview, Botanical Engine primer, tech stack, getting started |
 | `docs/architecture.md` | Monorepo topology, Turborepo pipeline, `@beechcms/core` engine, Botanical Engine, Per-type SQL model, VSA architecture, subsystem abstractions |
 | `docs/api-reference.md` | Auth, Internal Content API, Media Engine, Public API, Widget API, Automations CRUD API |
-| `docs/frontend-guide.md` | Public Content API & TypeScript SDK reference |
+| `docs/content-api.md` | Public Content API & TypeScript SDK reference |
 | `docs/email-module.md` | Email module architecture, localization, templates, custom providers |
 | `docs/observability-and-notifications.md` | Abstractions for logging, notifications, and cross-cutting utilities (Clock/IdGenerator) |
 | `docs/vertical-slice.md` | Guide to Vertical Slice Architecture (VSA) implementation in Beech CMS |
-| `docs/release.md` | Release script, versioning scheme, preview vs stable workflow |
+| `_config/release.md` | Release script, versioning scheme, preview vs stable workflow |
 | `docs/automations.md` | Automation guide, setting variables, and template grammar |
 | `docs/custom-widgets.md` | `@beechcms/widget-sdk` contract for authoring custom dashboard widgets |
 | `_config/architecture.md` | Strict AI architectural prompt and invariants |

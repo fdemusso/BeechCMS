@@ -8,74 +8,7 @@ category: Frontend & APIs
 
 This document is the authoritative reference for the Beech CMS REST API. It covers two distinct surfaces: the **Internal API** (JWT-authenticated, used by the dashboard) and the **Public API** (API-key-gated, designed for external consumers). All error responses conform to [RFC 7807 Problem Details](https://www.rfc-editor.org/rfc/rfc7807).
 
----
-
-## Table of Contents
-
-1. [Base URLs & Environments](#1-base-urls--environments)
-2. [Security Stack](#2-security-stack)
-   - [JWT Authentication](#21-jwt-authentication)
-   - [Refresh Token Rotation](#22-refresh-token-rotation)
-   - [Security Hardening Summary](#23-security-hardening-summary)
-3. [Auth Endpoints](#3-auth-endpoints)
-   - [Login](#post-authlogin)
-   - [Refresh](#post-authrefresh)
-   - [Logout](#post-authlogout)
-   - [Feature Flags](#get-authfeatures)
-   - [Forgot Password](#post-authforgot-password)
-   - [Reset Password](#post-authreset-password)
-4. [Internal Content API](#4-internal-content-api)
-   - [List Entries](#41-list-entries-get-apicontentseed)
-   - [Create Entry](#42-create-entry-post-apicontentseed)
-   - [Update Entry](#43-update-entry-put-apicontentseedid)
-   - [Delete Entry](#44-delete-entry-delete-apicontentseedid)
-   - [Rotate Hashed Field](#45-rotate-hashed-field-post-apicontentseedidrotate-field)
-   - [Pending Draft API](#46-pending-draft-api)
-5. [Media Engine](#5-media-engine)
-   - [Upload](#51-upload-post-apiupload)
-   - [Serve](#52-serve-get-apimediakey)
-   - [Storage Abstraction](#53-storage-abstraction)
-6. [Public API](#6-public-api)
-   - [Permission Model](#61-permission-model)
-   - [Rate Limiting](#62-rate-limiting)
-   - [Schema](#63-schema-get-apiv1publicschema)
-   - [Read](#64-read-get-apiv1publicseed)
-   - [Create](#65-create-post-apiv1publicseedadd)
-   - [Update](#66-update-put-apiv1publicseededitid)
-7. [Error Model](#7-error-model)
-8. [Widget API](#8-widget-api)
-   - [Overview](#81-overview)
-   - [AggregateFormula](#82-aggregateformula-type)
-   - [TimeWindow](#83-timewindow-type)
-   - [Aggregate](#84-aggregate-get-apiwidgetseedaggregate)
-   - [Growth](#85-growth-get-apiwidgetseedgrowth)
-   - [Leaderboard](#86-leaderboard-get-apiwidgetseedleaderboard)
-   - [List](#87-list-get-apiwidgetseedlist)
-   - [Timeseries](#88-timeseries-get-apiwidgetseedtimeseries)
-   - [Distribution](#89-distribution-get-apiwidgetdistributionseed)
-9. [Seed Builder & Schema Mutation API](#10-seed-builder--schema-mutation-api)
-   - [List Seed Definitions](#get-apiseeds)
-   - [Get Seed Definition](#get-apiseedsslug)
-   - [Create Seed Definition](#post-apiseeds)
-   - [Update Seed Definition](#put-apiseedsslug)
-   - [Soft Delete Content Type](#delete-apiseedsslug)
-   - [Hard Delete Content Type](#delete-apiseedsslughard)
-   - [Rename Branch Alias](#patch-apiseedsslugbranchesbranchidrename)
-   - [Change Branch Type](#patch-apiseedsslugbranchesbranchidretype)
-   - [Delete/Drop Branch](#delete-apiseedsslugbranchesbranchid)
-   - [Rebuild FTS Index](#post-apiseedsslugftsrebuild)
-   - [Get Orphan Columns](#get-apiseedsslugorphans)
-10. [Technical Architecture (v0.4.0 Refactor)](#11-technical-architecture-v040-refactor)
-11. [Dashboard Layout API](#12-dashboard-layout-api)
-    - [Get Layout](#get-apidashboard-layout)
-    - [Save Layout](#put-apidashboard-layout)
-    - [Reset Layout](#delete-apidashboard-layout)
-    - [Scoped Layout Routes](#scoped-dashboard-layout-routes)
-    - [List Scopes](#get-apidashboard-layoutscopes)
-
----
-
-## 1. Base URLs & Environments
+## Base URLs & Environments
 
 | Environment | Base URL |
 |---|---|

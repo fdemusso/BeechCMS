@@ -180,6 +180,6 @@ Explore the specialized guides depending on your role and project goals:
 
 - **[First Project Tutorial](./first-project.md)**: Build a complete blog with BeechCMS and connect it to Astro or Next.js.
 - **[Content Editor Guide](./content-editor-guide.md)**: Visual guide for content editors, marketers, and non-technical team members.
-- **[Frontend & APIs](./frontend-guide.md)**: Advanced filtering, relational joins, full-text search, and SDK usage.
+- **[Content API & SDK](./content-api.md)**: Advanced filtering, relational joins, full-text search, and SDK usage.
 - **[Automations](./automations.md)**: Configure email triggers, field updates, and webhooks.
 - **[Custom Widgets](./custom-widgets.md)**: Create custom dashboard charts and cards for your editors.

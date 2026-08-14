@@ -32,7 +32,7 @@ export default defineConfig({
               { text: 'Getting Started', link: '/guide' },
               { text: 'First Project', link: '/first-project' },
               { text: 'Content Editor Guide', link: '/content-editor-guide' },
-              { text: 'Content API & SDK', link: '/frontend-guide' },
+              { text: 'Content API & SDK', link: '/content-api' },
               { text: 'Custom Widgets', link: '/custom-widgets' },
               { text: 'Automations', link: '/automations' },
               { text: 'Email Module', link: '/email-module' },
@@ -50,10 +50,11 @@ export default defineConfig({
           {
             text: 'API Reference',
             items: [
-              { text: 'Core API', link: '/api/@beechcms/core/' },
-              { text: 'Client API', link: '/api/@beechcms/client/' },
-              { text: 'Widget SDK', link: '/api/@beechcms/widget-sdk/' },
-              { text: 'CLI', link: '/api/@beechcms/cli/' }
+              { text: 'REST API', link: '/api-reference' },
+              { text: 'Core API (@beechcms/core)', link: '/api/@beechcms/core/' },
+              { text: 'Client SDK (@beechcms/client)', link: '/api/@beechcms/client/' },
+              { text: 'Widget SDK (@beechcms/widget-sdk)', link: '/api/@beechcms/widget-sdk/' },
+              { text: 'CLI Tools (@beechcms/cli)', link: '/api/@beechcms/cli/' }
             ]
           }
         ]

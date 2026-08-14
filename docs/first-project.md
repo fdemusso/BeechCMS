@@ -685,7 +685,7 @@ Once complete, visit your production URL (e.g. `https://my-blog-api.<your-subdom
 Now that your first BeechCMS project is live, explore these deeper capabilities:
 
 - **[Automations Guide](./automations.md)**: Set up automated email triggers with Resend or dispatch outbound webhooks whenever a post is published.
-- **[Frontend Integration Guide](./frontend-guide.md)**: Discover advanced querying, tag filtering, relational field joins, and full-text search operators.
+- **[Content API & SDK Guide](./content-api.md)**: Discover advanced querying, tag filtering, relational field joins, and full-text search operators.
 - **[API Reference](./api-reference.md)**: Complete specification of all administrative and public REST endpoints.
 - **[Custom Widgets SDK](./custom-widgets.md)**: Build custom dashboard metrics, charts, and interactive controls for your editorial team.
 - **[Architecture Deep-Dive](./architecture.md)**: Learn about the Botanical Engine, alias mapping, and Vertical Slice architecture.
