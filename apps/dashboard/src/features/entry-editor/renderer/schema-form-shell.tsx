@@ -96,7 +96,6 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
     t,
     title,
     isCreate,
-    isDraftContext,
     seed,
     isSeedLoading,
     isLoadingEntry,
@@ -216,7 +215,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
           <ScrollArea className="flex-1 max-h-[calc(100vh-12rem)]">
             <div className="px-6 pt-4 pb-4 space-y-4">
 
-            {capabilities.drafts && (effectiveDraftContext || (isCreate && isDraftContext)) && (
+            {capabilities.drafts && effectiveDraftContext && (
               <div className="flex items-center gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-200">
                 <span>{t("content.editor.draftModeNotice")}</span>
               </div>
