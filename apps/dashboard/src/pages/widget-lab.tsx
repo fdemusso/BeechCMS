@@ -99,21 +99,21 @@ export function WidgetLabPage() {
               <div>
                 <h1 className="font-heading text-2xl font-bold tracking-tight">Widget Lab</h1>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Sandbox per sviluppare e ispezionare i widget prima di portarli in dashboard.
-                  Ogni sezione mostra un widget in tutte le sue varianti di dimensione.
+                  Sandbox for developing and inspecting widgets before adding them to the dashboard.
+                  Each section displays a widget in all its size variants.
                 </p>
               </div>
 
               {/* ── SiteStatus ────────────────────────────────────────────── */}
               <LabSection
                 title="SiteStatusWidget"
-                description={"type=\"site-status\" — mostra lo stato online/offline dell'API"}
+                description={'type="site-status" — displays API online/offline status'}
               >
                 <LabRow className="grid-cols-2">
-                  <LabCell label={"variant=\"badge\" · span w:2 h:1"}>
+                  <LabCell label={'variant="badge" · span w:2 h:1'}>
                     <SiteStatusWidget variant="badge" />
                   </LabCell>
-                  <LabCell label={"variant=\"pill-row\" · span w:3 h:1"}>
+                  <LabCell label={'variant="pill-row" · span w:3 h:1'}>
                     <SiteStatusWidget variant="pill-row" />
                   </LabCell>
                 </LabRow>
@@ -122,13 +122,13 @@ export function WidgetLabPage() {
               {/* ── Storage ───────────────────────────────────────────────── */}
               <LabSection
                 title="StorageWidget"
-                description={"type=\"storage\" — utilizzo storage R2"}
+                description={'type="storage" — R2 storage usage'}
               >
                 <LabRow className="grid-cols-2">
-                  <LabCell label={"variant=\"gauge\" · span w:2 h:1"}>
+                  <LabCell label={'variant="gauge" · span w:2 h:1'}>
                     <StorageWidget variant="gauge" />
                   </LabCell>
-                  <LabCell label={"variant=\"bar\" · span w:3 h:1"}>
+                  <LabCell label={'variant="bar" · span w:3 h:1'}>
                     <StorageWidget variant="bar" />
                   </LabCell>
                 </LabRow>
@@ -137,13 +137,13 @@ export function WidgetLabPage() {
               {/* ── PublicationStats ──────────────────────────────────────── */}
               <LabSection
                 title="PublicationStatsWidget"
-                description={"type=\"publication-stats\" — contenuti pubblicati oggi / settimana / mese"}
+                description={'type="publication-stats" — content published today / week / month'}
               >
                 <LabRow className="grid-cols-2">
-                  <LabCell label={"variant=\"trio\" · span w:2 h:1"}>
+                  <LabCell label={'variant="trio" · span w:2 h:1'}>
                     <PublicationStatsWidget variant="trio" />
                   </LabCell>
-                  <LabCell label={"variant=\"single\" · span w:2 h:1"}>
+                  <LabCell label={'variant="single" · span w:2 h:1'}>
                     <PublicationStatsWidget variant="single" />
                   </LabCell>
                 </LabRow>
@@ -152,13 +152,13 @@ export function WidgetLabPage() {
               {/* ── QuickDraft ────────────────────────────────────────────── */}
               <LabSection
                 title="QuickDraftWidget"
-                description={"type=\"quick-draft\" — crea velocemente una bozza senza navigare"}
+                description={'type="quick-draft" — quickly create a draft without navigating away'}
               >
                 <LabRow className="grid-cols-2">
-                  <LabCell label={"variant=\"minimal\" · span w:2 h:1"}>
+                  <LabCell label={'variant="minimal" · span w:2 h:1'}>
                     <QuickDraftWidget variant="minimal" seeds={allSeeds} />
                   </LabCell>
-                  <LabCell label={"variant=\"expanded\" · span w:4 h:2"} h={200}>
+                  <LabCell label={'variant="expanded" · span w:4 h:2'} h={200}>
                     <QuickDraftWidget variant="expanded" seeds={allSeeds} />
                   </LabCell>
                 </LabRow>
@@ -167,13 +167,13 @@ export function WidgetLabPage() {
               {/* ── RecentContent ─────────────────────────────────────────── */}
               <LabSection
                 title="RecentContentWidget"
-                description={"type=\"recent-content\" — lista degli ultimi contenuti modificati"}
+                description={'type="recent-content" — list of recently updated content'}
               >
                 <LabRow className="grid-cols-2">
-                  <LabCell label={"variant=\"list\" · span w:4 h:2"} h={280}>
+                  <LabCell label={'variant="list" · span w:4 h:2'} h={280}>
                     <RecentContentWidget seedSlug={firstSeedSlug} variant="list" />
                   </LabCell>
-                  <LabCell label={"variant=\"cards\" · span w:4 h:2"} h={280}>
+                  <LabCell label={'variant="cards" · span w:4 h:2'} h={280}>
                     <RecentContentWidget seedSlug={firstSeedSlug} variant="cards" />
                   </LabCell>
                 </LabRow>
@@ -182,13 +182,13 @@ export function WidgetLabPage() {
               {/* ── PendingDrafts ─────────────────────────────────────────── */}
               <LabSection
                 title="PendingDraftsWidget"
-                description={"type=\"pending-drafts\" — bozze in attesa di revisione / pubblicazione"}
+                description={'type="pending-drafts" — drafts awaiting review / publication'}
               >
                 <LabRow className="grid-cols-2">
-                  <LabCell label={"variant=\"counter\" · span w:2 h:1"}>
+                  <LabCell label={'variant="counter" · span w:2 h:1'}>
                     <PendingDraftsWidget seedSlug={firstSeedSlug} variant="counter" />
                   </LabCell>
-                  <LabCell label={"variant=\"list\" · span w:4 h:2"} h={280}>
+                  <LabCell label={'variant="list" · span w:4 h:2'} h={280}>
                     <PendingDraftsWidget seedSlug={firstSeedSlug} variant="list" />
                   </LabCell>
                 </LabRow>
@@ -197,13 +197,13 @@ export function WidgetLabPage() {
               {/* ── MediaGallery ──────────────────────────────────────────── */}
               <LabSection
                 title="MediaGalleryWidget"
-                description={"type=\"media-gallery\" — anteprima griglia dei media caricati"}
+                description={'type="media-gallery" — grid preview of uploaded media'}
               >
                 <LabRow className="grid-cols-2">
-                  <LabCell label={"variant=\"grid\" · span w:4 h:2"} h={280}>
+                  <LabCell label={'variant="grid" · span w:4 h:2'} h={280}>
                     <MediaGalleryWidget seedSlug={firstSeedSlug} variant="grid" />
                   </LabCell>
-                  <LabCell label={"variant=\"unused\" · span w:4 h:2"} h={280}>
+                  <LabCell label={'variant="unused" · span w:4 h:2'} h={280}>
                     <MediaGalleryWidget seedSlug={firstSeedSlug} variant="unused" />
                   </LabCell>
                 </LabRow>
@@ -212,13 +212,13 @@ export function WidgetLabPage() {
               {/* ── ActivityFeed ──────────────────────────────────────────── */}
               <LabSection
                 title="ActivityFeedWidget"
-                description={"type=\"activity-feed\" — log delle ultime azioni nel CMS"}
+                description={'type="activity-feed" — log of recent actions across the CMS'}
               >
                 <LabRow className="grid-cols-2">
-                  <LabCell label={"variant=\"compact\" · span w:2 h:1"}>
+                  <LabCell label={'variant="compact" · span w:2 h:1'}>
                     <ActivityFeedWidget variant="compact" />
                   </LabCell>
-                  <LabCell label={"variant=\"feed\" · span w:4 h:2"} h={280}>
+                  <LabCell label={'variant="feed" · span w:4 h:2'} h={280}>
                     <ActivityFeedWidget variant="feed" />
                   </LabCell>
                 </LabRow>
@@ -227,7 +227,7 @@ export function WidgetLabPage() {
               {/* ── Composer widgets (Sprint 04) ─────────────────────────── */}
               <LabSection
                 title="Composer widgets"
-                description="Sprint 04 — widget formula-driven sopra le route /api/widget/*"
+                description="Sprint 04 — formula-driven widgets powered by /api/widget/* routes"
               >
                 <LabRow className="grid-cols-3">
                   <LabCell label={"core/stat (formula) · span w:3 h:1"}>
@@ -237,7 +237,7 @@ export function WidgetLabPage() {
                     <StatWidget config={{ seedSlug: firstSeedSlug, formula: { op: "count" }, window: "all", label: "All time", icon: "Database", showTrend: false }} />
                   </LabCell>
                   <LabCell label={"core/text · span w:2 h:1"}>
-                    <TextWidget config={{ content: "Note testuale di esempio.\nSupporta più righe.", align: "left" }} />
+                    <TextWidget config={{ content: "Sample text note.\nSupports multiple lines.", align: "left" }} />
                   </LabCell>
                 </LabRow>
                 <LabRow className="grid-cols-3">

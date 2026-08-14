@@ -31,6 +31,7 @@ export default defineConfig({
             items: [
               { text: 'Getting Started', link: '/guide' },
               { text: 'First Project', link: '/first-project' },
+              { text: 'Content Editor Guide', link: '/content-editor-guide' },
               { text: 'Frontend & APIs', link: '/frontend-guide' },
               { text: 'Custom Widgets', link: '/custom-widgets' },
               { text: 'Automations', link: '/automations' },
