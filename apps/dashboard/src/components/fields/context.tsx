@@ -121,7 +121,7 @@ export function FieldsProvider({ value, children }: FieldsProviderProps) {
  * @returns The active {@link FieldsContextType} configuration.
  */
 export function useFieldsConfig(): FieldsContextType {
-  const fieldsContext = React.useContext(FieldsContext)
+  const fieldsContext = React.use(FieldsContext)
   if (!fieldsContext) {
     throw new Error("useFieldsConfig must be used within a FieldsProvider")
   }

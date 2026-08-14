@@ -393,6 +393,11 @@
   },
   "settings": {
     "title": "Settings",
+    "groups": {
+      "account": "Account",
+      "system": "System & UI",
+      "models": "Data Models"
+    },
     "tabs": {
       "profile": "Profile",
       "interface": "Interface",

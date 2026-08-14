@@ -3,5 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 export { default as SettingsPage } from './pages/settings-page'
+export { SettingsDialog } from './components/settings-dialog'
 export { useProfile, useGeneralSettings, useUpdateGeneralSettings } from './hooks/use-settings'
 export { SETTINGS_QUERY_KEYS } from './hooks/use-settings'
+

@@ -45,21 +45,18 @@ type NavMainProps = {
   readonly groupLabel?: string
   readonly className?: string
   readonly hasLine?: boolean
-  readonly openUpwards?: boolean
 }
 
 type NavMainMenuItemProps = {
   readonly item: NavMainItem
   readonly currentPath: string
   readonly currentSearch: string
-  readonly openUpwards: boolean
 }
 
 function NavMainMenuItem({
   item,
   currentPath,
   currentSearch,
-  openUpwards,
 }: NavMainMenuItemProps) {
   const itemRef = useRef<HTMLLIElement>(null)
 
@@ -70,7 +67,7 @@ function NavMainMenuItem({
       : currentPath === item.url
 
   const subItemsContent = item.items?.length ? (
-    <SidebarMenuSub className={cn(openUpwards ? "settings-sub-menu mb-1 mt-0" : "")}>
+    <SidebarMenuSub>
       {item.items.map((subItem) => {
         // Match sub-item: compare full path + search string
         const [subPath, subQuery] = subItem.url.split("?")
@@ -80,7 +77,7 @@ function NavMainMenuItem({
           (subSearch === "" || currentSearch === subSearch)
 
         return (
-          <SidebarMenuSubItem key={subItem.title} className={cn(openUpwards ? "settings-item" : "")}>
+          <SidebarMenuSubItem key={subItem.title}>
             <SidebarMenuSubButton asChild isActive={isSubActive}>
               <Link to={subItem.url}>
                 <span>{subItem.title}</span>
@@ -97,17 +94,7 @@ function NavMainMenuItem({
       const scroll = () => {
         const element = itemRef.current
         if (element) {
-          const container = element.closest('[data-sidebar="content"]')
-          if (container) {
-            if (openUpwards) {
-              container.scrollTo({
-                top: container.scrollHeight,
-                behavior: "smooth",
-              })
-            } else {
-              element.scrollIntoView({ behavior: "smooth", block: "nearest" })
-            }
-          }
+          element.scrollIntoView({ behavior: "smooth", block: "nearest" })
         }
       }
 
@@ -115,7 +102,6 @@ function NavMainMenuItem({
       requestAnimationFrame(scroll)
       setTimeout(scroll, 50)
       setTimeout(scroll, 100)
-      setTimeout(scroll, 200)
     }
   }
 
@@ -127,12 +113,6 @@ function NavMainMenuItem({
       onOpenChange={handleOpenChange}
     >
       <SidebarMenuItem ref={itemRef}>
-        {openUpwards && item.items?.length ? (
-          <CollapsibleContent>
-            {subItemsContent}
-          </CollapsibleContent>
-        ) : null}
-
         <SidebarMenuButton asChild tooltip={item.title} isActive={isParentActive && !item.items?.length}>
           <Link to={item.url}>
             <item.icon />
@@ -142,16 +122,14 @@ function NavMainMenuItem({
         {item.items?.length ? (
           <>
             <CollapsibleTrigger asChild>
-              <SidebarMenuAction className={cn(openUpwards ? "top-auto! bottom-1.5! data-[state=open]:-rotate-90" : "data-[state=open]:rotate-90")}>
+              <SidebarMenuAction className="data-[state=open]:rotate-90">
                 <ChevronRight />
                 <span className="sr-only">Toggle</span>
               </SidebarMenuAction>
             </CollapsibleTrigger>
-            {!openUpwards && (
-              <CollapsibleContent>
-                {subItemsContent}
-              </CollapsibleContent>
-            )}
+            <CollapsibleContent>
+              {subItemsContent}
+            </CollapsibleContent>
           </>
         ) : null}
       </SidebarMenuItem>
@@ -164,7 +142,6 @@ export function NavMain({
   groupLabel,
   className,
   hasLine = false,
-  openUpwards = false,
 }: NavMainProps) {
   const location = useLocation()
   const currentPath = location.pathname
@@ -181,7 +158,6 @@ export function NavMain({
               item={item}
               currentPath={currentPath}
               currentSearch={currentSearch}
-              openUpwards={openUpwards}
             />
           ))}
         </SidebarMenu>
