@@ -1,0 +1,69 @@
+:root {
+  --vp-c-brand-1: #059669;
+  --vp-c-brand-2: #10b981;
+  --vp-c-brand-3: #34d399;
+  --vp-c-brand-soft: rgba(16, 185, 129, 0.12);
+
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(135deg, #059669 0%, #10b981 50%, #2563eb 100%);
+
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: #ffffff;
+  --vp-button-brand-bg: #059669;
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: #ffffff;
+  --vp-button-brand-hover-bg: #047857;
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: #ffffff;
+  --vp-button-brand-active-bg: #065f46;
+
+  --vp-button-alt-border: var(--vp-c-divider);
+  --vp-button-alt-text: var(--vp-c-text-1);
+  --vp-button-alt-bg: var(--vp-c-bg-mute);
+  --vp-button-alt-hover-border: var(--vp-c-brand-1);
+  --vp-button-alt-hover-text: var(--vp-c-brand-1);
+  --vp-button-alt-hover-bg: var(--vp-c-brand-soft);
+}
+
+.dark {
+  --vp-c-brand-1: #10b981;
+  --vp-c-brand-2: #34d399;
+  --vp-c-brand-3: #6ee7b7;
+  --vp-c-brand-soft: rgba(16, 185, 129, 0.16);
+
+  --vp-home-hero-name-background: linear-gradient(135deg, #34d399 0%, #10b981 50%, #60a5fa 100%);
+
+  --vp-button-brand-bg: #10b981;
+  --vp-button-brand-hover-bg: #059669;
+  --vp-button-brand-active-bg: #047857;
+}
+
+/* Hero section polish */
+.VPHomeHero .image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.VPHomeHero .image-src {
+  border-radius: 12px;
+  box-shadow: 0 20px 45px -15px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  max-height: 380px;
+  object-fit: cover;
+}
+
+.dark .VPHomeHero .image-src {
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.12);
+}
+
+/* Feature cards polish */
+.VPFeature {
+  border-radius: 12px !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+
+.VPFeature:hover {
+  transform: translateY(-2px);
+  border-color: var(--vp-c-brand-1) !important;
+  box-shadow: 0 12px 30px -10px var(--vp-c-brand-soft);
+}
