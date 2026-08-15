@@ -5,9 +5,6 @@ hero:
   name: "BeechCMS"
   text: "Edge-Native Headless CMS"
   tagline: "Ultra-fast, schema-driven content engine engineered for Cloudflare Workers, D1, and R2."
-  image:
-    src: /images/dashboard-overview.png
-    alt: BeechCMS Cockpit Dashboard
   actions:
     - theme: brand
       text: Get Started
