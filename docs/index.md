@@ -7,7 +7,10 @@ hero:
   tagline: "Ultra-fast, schema-driven content engine engineered for Cloudflare Workers, D1, and R2."
   actions:
     - theme: brand
-      text: Get Started
+      text: First Project
+      link: /first-project
+    - theme: alt
+      text: Full Guide
       link: /guide
     - theme: alt
       text: First Project Tutorial
