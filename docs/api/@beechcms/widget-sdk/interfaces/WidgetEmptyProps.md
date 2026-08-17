@@ -16,7 +16,7 @@
 
 ### icon
 
-> **icon**: `LucideIcon`
+> **icon**: `ComponentType`&lt;\{ `className?`: `string`; \}&gt;
 
 ***
 

@@ -452,8 +452,8 @@ describe("EntryEditorPage", () => {
       title: "Inherited Title",
       metaData: "{\"inherited\": true}",
     }) as Record<string, unknown>
-    maliciousFormData.constructor = () => {}
-    maliciousFormData.toString = "malicious string"
+    maliciousFormData["constructor"] = () => {}
+    maliciousFormData["toString"] = "malicious string"
 
     // validateEntryJsonFields should check Object.hasOwn and not crash/false-ACK
     const validationResult = validateEntryJsonFields(branches, maliciousFormData)

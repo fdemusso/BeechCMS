@@ -10,7 +10,7 @@
 
 ### body
 
-> **body**: `ReadableStream`&lt;`any`&gt; \| `ArrayBuffer`
+> **body**: `ArrayBuffer` \| `ReadableStream`&lt;`any`&gt;
 
 ***
 

@@ -39,6 +39,26 @@ Inserts a new user record.
 
 ***
 
+### createInitialAdmin()
+
+> **createInitialAdmin**(`user`): `Promise`&lt;`boolean`&gt;
+
+Atomically creates the first administrator account, guarded by a
+setup-completed marker row inserted in the same transaction. Returns
+false instead of throwing when setup was already completed concurrently.
+
+#### Parameters
+
+##### user
+
+[`NewUserInput`](NewUserInput.md)
+
+#### Returns
+
+`Promise`&lt;`boolean`&gt;
+
+***
+
 ### emailBelongsToAnotherUser()
 
 > **emailBelongsToAnotherUser**(`email`, `currentUserId`): `Promise`&lt;`boolean`&gt;

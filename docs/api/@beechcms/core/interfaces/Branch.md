@@ -152,6 +152,12 @@ Static list defined in the Seed (not persisted to the DB).
 Access and handling policy for the field.
 All values are optional — `resolvePolicies(branch)` supplies the defaults.
 
+#### classification?
+
+> `optional` **classification?**: [`DataClassification`](../type-aliases/DataClassification.md) \| `"Public"` \| `"Internal"` \| `"Confidential"` \| `"Restricted"`
+
+4-tier data classification level. Default: 'public'.
+
 #### filter?
 
 > `optional` **filter?**: `boolean`
@@ -160,7 +166,7 @@ Whether the field is available as a filter column in the dashboard. Default: tru
 
 #### privacy?
 
-> `optional` **privacy?**: `"plain"` \| `"hash"` \| `"encrypt"`
+> `optional` **privacy?**: [`DataClassification`](../type-aliases/DataClassification.md) \| `"plain"` \| `"Public"` \| `"Internal"` \| `"Confidential"` \| `"Restricted"` \| `"hash"` \| `"encrypt"`
 
 How the value is stored. Default: 'plain'.
 

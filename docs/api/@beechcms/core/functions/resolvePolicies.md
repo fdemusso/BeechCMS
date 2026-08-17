@@ -8,9 +8,7 @@
 
 > **resolvePolicies**(`branch`): `Required`&lt;`NonNullable`&lt;[`Branch`](../interfaces/Branch.md)\[`"policies"`\]&gt;&gt;
 
-Risolve le policy di un branch applicando i valori di default.
-Tutta la logica di accesso ai campi deve passare per questa funzione,
-mai con inline `branch.policies?.x ?? default`.
+Resolves branch policies applying all defaults and classification rules.
 
 ## Parameters
 
@@ -18,6 +16,10 @@ mai con inline `branch.policies?.x ?? default`.
 
 [`Branch`](../interfaces/Branch.md)
 
+The seed branch definition to inspect.
+
 ## Returns
 
 `Required`&lt;`NonNullable`&lt;[`Branch`](../interfaces/Branch.md)\[`"policies"`\]&gt;&gt;
+
+Complete required policies object for the branch.
