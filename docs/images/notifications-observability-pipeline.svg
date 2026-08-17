@@ -10,8 +10,8 @@
       <stop offset="100%" stop-color="#1e293b"/>
     </linearGradient>
     <linearGradient id="auditGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#059669"/>
-      <stop offset="100%" stop-color="#047857"/>
+      <stop offset="0%" stop-color="#FF6584"/>
+      <stop offset="100%" stop-color="#3F3D56"/>
     </linearGradient>
     <linearGradient id="notifGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#8b5cf6"/>
@@ -27,7 +27,7 @@
       <path d="M 0 1 L 8 5 L 0 9 z" fill="#3b82f6"/>
     </marker>
     <marker id="arrow-emerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M 0 1 L 8 5 L 0 9 z" fill="#059669"/>
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#FF6584"/>
     </marker>
     <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
       <path d="M 0 1 L 8 5 L 0 9 z" fill="#8b5cf6"/>
@@ -79,7 +79,7 @@
   </g>
 
   <!-- Connector Path: Scheduler -> Activity Logger (Top Right) -->
-  <path d="M 525 140 C 560 140, 560 105, 595 105" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+  <path d="M 525 140 C 560 140, 560 105, 595 105" fill="none" stroke="#FF6584" stroke-width="2" marker-end="url(#arrow-emerald)"/>
 
   <!-- Connector Path: Scheduler -> Notification Service (Bottom Right) -->
   <path d="M 525 200 C 560 200, 560 235, 595 235" fill="none" stroke="#8b5cf6" stroke-width="2" marker-end="url(#arrow-purple)"/>
