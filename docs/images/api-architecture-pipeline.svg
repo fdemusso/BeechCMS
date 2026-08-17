@@ -6,8 +6,8 @@
       <stop offset="100%" stop-color="#1d4ed8"/>
     </linearGradient>
     <linearGradient id="apiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#059669"/>
-      <stop offset="100%" stop-color="#047857"/>
+      <stop offset="0%" stop-color="#FF6584"/>
+      <stop offset="100%" stop-color="#3F3D56"/>
     </linearGradient>
     <linearGradient id="d1Grad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#0284c7"/>
@@ -19,7 +19,7 @@
     </linearGradient>
     <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.08"/>
-      <stop offset="100%" stop-color="#059669" stop-opacity="0.03"/>
+      <stop offset="100%" stop-color="#FF6584" stop-opacity="0.03"/>
     </linearGradient>
 
     <!-- Markers / Arrowheads -->

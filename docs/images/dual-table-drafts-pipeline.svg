@@ -10,8 +10,8 @@
       <stop offset="100%" stop-color="#d97706"/>
     </linearGradient>
     <linearGradient id="liveGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#059669"/>
-      <stop offset="100%" stop-color="#047857"/>
+      <stop offset="0%" stop-color="#FF6584"/>
+      <stop offset="100%" stop-color="#3F3D56"/>
     </linearGradient>
     <linearGradient id="promoteGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#6366f1"/>
@@ -19,7 +19,7 @@
     </linearGradient>
     <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.06"/>
-      <stop offset="100%" stop-color="#059669" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#FF6584" stop-opacity="0.04"/>
     </linearGradient>
 
     <!-- Markers / Arrowheads -->
@@ -30,7 +30,7 @@
       <path d="M 0 1 L 8 5 L 0 9 z" fill="#6366f1"/>
     </marker>
     <marker id="arrow-emerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M 0 1 L 8 5 L 0 9 z" fill="#059669"/>
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#FF6584"/>
     </marker>
   </defs>
 
@@ -97,7 +97,7 @@
   </g>
 
   <!-- Connector Path 3: Promotion -> Live Table -->
-  <path d="M 545 230 C 575 230, 575 160, 605 160" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+  <path d="M 545 230 C 575 230, 575 160, 605 160" fill="none" stroke="#FF6584" stroke-width="2" marker-end="url(#arrow-emerald)"/>
 
   <!-- Node 4: Live Production Table (Right) -->
   <g transform="translate(615, 70)">

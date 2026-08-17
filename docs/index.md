@@ -2,9 +2,13 @@
 layout: home
 
 hero:
-  name: "BeechCMS"
+  name: 'Beech<span class="hero-cms-accent">CMS</span>'
   text: "Edge-Native Headless CMS"
   tagline: "Ultra-fast, schema-driven content engine engineered for Cloudflare Workers, D1, and R2."
+  image:
+    light: /images/LightBeech.svg
+    dark: /images/DarkBeech.svg
+    alt: BeechCMS
   actions:
     - theme: brand
       text: First Project
@@ -12,9 +16,6 @@ hero:
     - theme: alt
       text: Full Guide
       link: /guide
-    - theme: alt
-      text: First Project Tutorial
-      link: /first-project
 
 features:
   - icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>'

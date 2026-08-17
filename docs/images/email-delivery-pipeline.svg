@@ -6,8 +6,8 @@
       <stop offset="100%" stop-color="#1d4ed8"/>
     </linearGradient>
     <linearGradient id="serviceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#059669"/>
-      <stop offset="100%" stop-color="#047857"/>
+      <stop offset="0%" stop-color="#FF6584"/>
+      <stop offset="100%" stop-color="#3F3D56"/>
     </linearGradient>
     <linearGradient id="resendGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#0f172a"/>
@@ -18,7 +18,7 @@
       <stop offset="100%" stop-color="#4f46e5"/>
     </linearGradient>
     <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#059669" stop-opacity="0.08"/>
+      <stop offset="0%" stop-color="#FF6584" stop-opacity="0.08"/>
       <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.03"/>
     </linearGradient>
 
@@ -27,7 +27,7 @@
       <path d="M 0 1 L 8 5 L 0 9 z" fill="#3b82f6"/>
     </marker>
     <marker id="arrow-emerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
-      <path d="M 0 1 L 8 5 L 0 9 z" fill="#059669"/>
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#FF6584"/>
     </marker>
     <marker id="arrow-indigo" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
       <path d="M 0 1 L 8 5 L 0 9 z" fill="#6366f1"/>
@@ -35,7 +35,7 @@
   </defs>
 
   <style>
-    .diagram-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; fill: #059669; text-transform: uppercase; }
+    .diagram-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; fill: #FF6584; text-transform: uppercase; }
     .card-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; fill: #ffffff; }
     .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; font-weight: 700; fill: #ffffff; }
     .card-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: rgba(255, 255, 255, 0.85); }
@@ -43,7 +43,7 @@
   </style>
 
   <!-- Container Box -->
-  <rect x="15" y="15" width="830" height="260" rx="16" fill="url(#bgBoxGrad)" stroke="#059669" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <rect x="15" y="15" width="830" height="260" rx="16" fill="url(#bgBoxGrad)" stroke="#FF6584" stroke-width="1.2" stroke-dasharray="4 4"/>
   <text x="36" y="42" class="diagram-title">BeechCMS Email Delivery Pipeline</text>
 
   <!-- Node 1: Caller / Trigger (Left) -->
@@ -80,7 +80,7 @@
   </g>
 
   <!-- Split Connector Paths to Providers -->
-  <path d="M 565 130 C 595 130, 595 110, 620 110" fill="none" stroke="#059669" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+  <path d="M 565 130 C 595 130, 595 110, 620 110" fill="none" stroke="#FF6584" stroke-width="2" marker-end="url(#arrow-emerald)"/>
   <path d="M 565 175 C 595 175, 595 195, 620 195" fill="none" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)"/>
 
   <!-- Node 3A: Resend Provider (Right Top) -->
