@@ -5,8 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
-import { sendPasswordResetEmail } from '../../shared/email/email.service'
-import { resolveEmailLocale } from '../../shared/email/email.types'
+import { sendPasswordResetEmail, resolveEmailLocale } from '../../shared/email'
 import { sha256hex } from '@beechcms/core'
 import { getClientIp } from '../../shared/utils/request-utils'
 

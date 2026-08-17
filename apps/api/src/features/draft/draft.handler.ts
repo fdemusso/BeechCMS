@@ -7,6 +7,7 @@ import { Context, Hono } from 'hono'
 import {
   validateAndSanitizeSeedPayload,
   resolvePolicies,
+  EntryNotFoundError,
   RelationTargetNotFoundError,
   ActorContext,
 } from '@beechcms/core'
