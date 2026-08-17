@@ -20,6 +20,8 @@
 - [BeechFilterOperator](type-aliases/BeechFilterOperator.md)
 - [BeechResult](type-aliases/BeechResult.md)
 - [FieldFilter](type-aliases/FieldFilter.md)
+- [Listable](type-aliases/Listable.md)
+- [Single](type-aliases/Single.md)
 
 ## Functions
 

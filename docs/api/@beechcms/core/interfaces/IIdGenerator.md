@@ -6,7 +6,7 @@
 
 # Interface: IIdGenerator
 
-Identifier abstraction. Hides direct calls to crypto.randomUUID
+Identifier abstraction. Hides direct calls to [crypto.randomUUID](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/randomUUID)
 so callers can swap in deterministic generators during tests for stable
 snapshot assertions and predictable insert ordering.
 
