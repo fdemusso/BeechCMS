@@ -15,7 +15,7 @@ Traditional layered architectures organize code by technical role: all controlle
 Vertical Slice Architecture cuts across technical layers and groups code by **business feature**. Each slice owns its routing entry point, domain logic, data access, types, and constants in a single cohesive directory.
 
 <p align="center">
-  <img src="./images/vertical-slice-comparison.svg" alt="Layered vs Vertical Slice Architecture Comparison" style="width: 100%; max-width: 840px; margin: 16px 0;" />
+  <img src="/images/vertical-slice-comparison.svg" alt="Layered vs Vertical Slice Architecture Comparison" style="width: 100%; max-width: 840px; margin: 16px 0;" />
 </p>
 
 > **The Golden Rule**: *High cohesion inside a slice, zero direct coupling between slices.*
@@ -216,7 +216,7 @@ import { DraftsTable } from '@/features/drafts/components/drafts-table'
 These isolation rules maintain system velocity and prevent spaghetti architecture:
 
 <p align="center">
-  <img src="./images/vsa-dependency-boundaries.svg" alt="BeechCMS Dependency & Isolation Boundaries" style="width: 100%; max-width: 840px; margin: 16px 0;" />
+  <img src="/images/vsa-dependency-boundaries.svg" alt="BeechCMS Dependency & Isolation Boundaries" style="width: 100%; max-width: 840px; margin: 16px 0;" />
 </p>
 
 | Import Direction | Allowed | Rationale |

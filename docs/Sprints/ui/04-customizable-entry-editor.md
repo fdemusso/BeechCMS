@@ -6,8 +6,8 @@
 ## Goal
 Transform `entry-editor.tsx` into a layout-driven editor where admins can
 visually customize the form (Tabs → Sections → Columns → Fields) via a
-drag-and-drop builder. End-state matches `docs/images/EditorCustom.png`
-(viewer) and `docs/images/editorPersonalizzazione.png` (builder).
+drag-and-drop builder. End-state matches `docs/public/images/EditorCustom.png`
+(viewer) and `docs/public/images/editorPersonalizzazione.png` (builder).
 
 ## Sub-sprints
 
@@ -43,9 +43,9 @@ drag-and-drop builder. End-state matches `docs/images/EditorCustom.png`
   of where the Seed definition lives, so it will keep working unchanged.
 
 ## Mockups
-- `docs/images/EditorCustom.png` — final viewer (what end users see when filling
+- `docs/public/images/EditorCustom.png` — final viewer (what end users see when filling
   in an entry).
-- `docs/images/editorPersonalizzazione.png` — the Layout Builder UI (admin only).
+- `docs/public/images/editorPersonalizzazione.png` — the Layout Builder UI (admin only).
 
 Both mockups use the dark theme. Beech's existing dark theme styling applies —
 no special overlay needed.

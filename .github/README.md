@@ -1,4 +1,4 @@
-![beechLogoDark.png](../docs/images/beechLogoDark.png)
+![beechLogoDark.png](../docs/public/images/beechLogoDark.png)
 
 **BeechCMS** is a precision-engineered, solo-developer headless CMS built for developers who deliver high-performance websites for clients with **zero infrastructure overhead**.
 

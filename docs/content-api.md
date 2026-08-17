@@ -16,7 +16,7 @@ When you build a website or application powered by BeechCMS:
 - Cold starts are sub-millisecond, and responses are delivered globally from the nearest Cloudflare edge location.
 
 <p align="center">
-  <img src="./images/api-architecture-pipeline.svg" alt="BeechCMS Content API & SDK Architecture" style="width: 100%; max-width: 840px; margin: 16px 0;" />
+  <img src="/images/api-architecture-pipeline.svg" alt="BeechCMS Content API & SDK Architecture" style="width: 100%; max-width: 840px; margin: 16px 0;" />
 </p>
 
 ## Authentication

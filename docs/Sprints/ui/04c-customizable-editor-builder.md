@@ -5,7 +5,7 @@
 This is the **third and final** sprint. Sprint **04a** built the persistence
 and API. Sprint **04b** rewrote the editor as a Dialog driven by a
 `FormLayout` JSON. This sprint adds the drag-and-drop Layout Builder UI
-matching the mockup in `docs/images/editorPersonalizzazione.png`.
+matching the mockup in `docs/public/images/editorPersonalizzazione.png`.
 
 End user-visible result: admins (and only admins) see an "Edit Layout" button
 that opens a second dialog showing the current Seed's layout in builder mode —

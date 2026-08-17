@@ -20,7 +20,7 @@ contract, and repository foundation.
   JSON; convert the editor surface from a full page into a Shadcn `<Dialog>` opened
   over the content list; URL-driven open state preserves deep-linking.
 - **04c — Layout Builder UI:** the drag-and-drop layout editor (the mockup in
-  `docs/images/editorPersonalizzazione.png`).
+  `docs/public/images/editorPersonalizzazione.png`).
 
 ---
 

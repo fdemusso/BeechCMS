@@ -42,7 +42,7 @@ Turborepo enforces a topological build graph: `@beechcms/core` is always compile
 At the heart of BeechCMS is the **Botanical Engine** (`packages/core/src/engine`). Rather than functioning as a runtime query translator, it acts as a **deterministic schema compiler**.
 
 <p align="center">
-  <img src="./images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
+  <img src="/images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
 </p>
 
 ### Key Responsibilities
@@ -107,7 +107,7 @@ For Seeds with `allowDrafts: true`, BeechCMS employs a **Dual-Table Mirror Archi
 - **Draft Table (`content_<seed>_drafts`)**: Stores staged revisions referencing the main record (`entry_id`).
 
 <p align="center">
-  <img src="./images/dual-table-drafts-pipeline.svg" alt="BeechCMS Dual-Table Staging & Drafts Architecture" style="width: 100%; max-width: 840px; margin: 16px 0;" />
+  <img src="/images/dual-table-drafts-pipeline.svg" alt="BeechCMS Dual-Table Staging & Drafts Architecture" style="width: 100%; max-width: 840px; margin: 16px 0;" />
 </p>
 
 This guarantees that public readers never query draft rows or suffer performance degradation from intermediate staging data.
