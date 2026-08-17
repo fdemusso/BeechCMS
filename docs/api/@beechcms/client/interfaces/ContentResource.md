@@ -16,7 +16,7 @@
 
 ### create()
 
-> **create**(`input`): `Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;`Single`&lt;`TRow`&gt;&gt;&gt;
+> **create**(`input`): `Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;[`Single`](../type-aliases/Single.md)&lt;`TRow`&gt;&gt;&gt;
 
 #### Parameters
 
@@ -26,13 +26,13 @@
 
 #### Returns
 
-`Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;`Single`&lt;`TRow`&gt;&gt;&gt;
+`Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;[`Single`](../type-aliases/Single.md)&lt;`TRow`&gt;&gt;&gt;
 
 ***
 
 ### get()
 
-> **get**(`selector`): `Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;`Single`&lt;`TRow`&gt;&gt;&gt;
+> **get**(`selector`): `Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;[`Single`](../type-aliases/Single.md)&lt;`TRow`&gt;&gt;&gt;
 
 #### Parameters
 
@@ -42,13 +42,13 @@
 
 #### Returns
 
-`Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;`Single`&lt;`TRow`&gt;&gt;&gt;
+`Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;[`Single`](../type-aliases/Single.md)&lt;`TRow`&gt;&gt;&gt;
 
 ***
 
 ### list()
 
-> **list**(`query?`): `Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;`Listable`&lt;`TRow`&gt;&gt;&gt;
+> **list**(`query?`): `Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;[`Listable`](../type-aliases/Listable.md)&lt;`TRow`&gt;&gt;&gt;
 
 #### Parameters
 
@@ -58,13 +58,13 @@
 
 #### Returns
 
-`Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;`Listable`&lt;`TRow`&gt;&gt;&gt;
+`Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;[`Listable`](../type-aliases/Listable.md)&lt;`TRow`&gt;&gt;&gt;
 
 ***
 
 ### update()
 
-> **update**(`id`, `input`): `Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;`Single`&lt;`TRow`&gt;&gt;&gt;
+> **update**(`id`, `input`): `Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;[`Single`](../type-aliases/Single.md)&lt;`TRow`&gt;&gt;&gt;
 
 #### Parameters
 
@@ -78,4 +78,4 @@
 
 #### Returns
 
-`Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;`Single`&lt;`TRow`&gt;&gt;&gt;
+`Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;[`Single`](../type-aliases/Single.md)&lt;`TRow`&gt;&gt;&gt;

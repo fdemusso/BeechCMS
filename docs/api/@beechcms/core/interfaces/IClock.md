@@ -6,7 +6,7 @@
 
 # Interface: IClock
 
-Time abstraction. Hides direct calls to Date.now so callers can
+Time abstraction. Hides direct calls to [Date.now](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Date/now) so callers can
 swap in deterministic clocks during tests without resorting to global
 timer mocks (e.g. vi.useFakeTimers, sinon, monkey-patching Date).
 

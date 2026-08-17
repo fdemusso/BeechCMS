@@ -5,8 +5,8 @@ import type { BeechClientConfig, BeechResult, ListQuery, ListMeta } from './type
 import { buildSearchParams } from './query-builder.js'
 import { request } from './http.js'
 
-type Listable<TRow> = { data: TRow[]; meta: ListMeta }
-type Single<TRow>   = { data: TRow;   meta: { seed: string } }
+export type Listable<TRow> = { data: TRow[]; meta: ListMeta }
+export type Single<TRow>   = { data: TRow;   meta: { seed: string } }
 
 export interface ContentResource<TRow> {
   list(query?: ListQuery<TRow>): Promise<BeechResult<Listable<TRow>>>
