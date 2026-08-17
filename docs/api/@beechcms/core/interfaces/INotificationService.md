@@ -24,7 +24,17 @@ request that triggered it.
 
 ##### input
 
-[`CreateNotificationInput`](CreateNotificationInput.md)
+###### message
+
+`string` = `...`
+
+###### title
+
+`string` = `...`
+
+###### type?
+
+`"success"` \| `"error"` \| `"info"` \| `"warning"` = `...`
 
 #### Returns
 

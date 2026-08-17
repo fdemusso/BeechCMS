@@ -40,7 +40,7 @@
 
 ### icon?
 
-> `optional` **icon?**: `LucideIcon`
+> `optional` **icon?**: `ComponentType`&lt;\{ `className?`: `string`; \}&gt;
 
 ***
 

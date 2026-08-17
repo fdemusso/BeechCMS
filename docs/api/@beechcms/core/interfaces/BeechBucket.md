@@ -164,7 +164,7 @@ Generates a signed URL for direct upload (PUT).
 
 ##### body
 
-`ReadableStream`&lt;`any`&gt; \| `ArrayBuffer` \| `Uint8Array`&lt;`ArrayBufferLike`&gt;
+`ArrayBuffer` \| `ReadableStream`&lt;`any`&gt; \| `Uint8Array`&lt;`ArrayBufferLike`&gt;
 
 ##### options?
 

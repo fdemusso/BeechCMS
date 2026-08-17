@@ -9,13 +9,17 @@
 Producer port. `enqueue` schedules deferred work and returns once the message
 is accepted by the transport. Like INotificationService, implementations MUST
 decide their own fire-and-forget vs inline semantics and MUST NOT let a
-transport failure crash the request that called enqueue.
+transport failure crash the request that called enqueue. Resolves `true`
+when the message was handed off successfully, `false` when it was dropped
+(e.g. transport rejection, oversized payload, no handler) — callers that
+need at-least-once delivery guarantees MUST check this instead of assuming
+a resolved promise means success.
 
 ## Methods
 
 ### enqueue()
 
-> **enqueue**&lt;`T`&gt;(`name`, `payload`): `Promise`&lt;`void`&gt;
+> **enqueue**&lt;`T`&gt;(`name`, `payload`): `Promise`&lt;`boolean`&gt;
 
 #### Type Parameters
 
@@ -35,4 +39,4 @@ transport failure crash the request that called enqueue.
 
 #### Returns
 
-`Promise`&lt;`void`&gt;
+`Promise`&lt;`boolean`&gt;

@@ -10,9 +10,19 @@
 
 ### loadDemoData()
 
-> **loadDemoData**(): `Promise`&lt;`void`&gt;
+> **loadDemoData**(`repository`, `getSeed`): `Promise`&lt;`void`&gt;
 
-Executes the compiled demo dataset SQL against the database.
+Ingests structured demo datasets into the database via ContentRepository domain layer.
+
+#### Parameters
+
+##### repository
+
+[`ContentRepository`](ContentRepository.md)
+
+##### getSeed
+
+(`slug`) => [`Seed`](Seed.md) \| `null`
 
 #### Returns
 

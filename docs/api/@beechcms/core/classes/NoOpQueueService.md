@@ -26,7 +26,7 @@ Safe no-op producer (e.g. unit tests that don't assert on enqueue).
 
 ### enqueue()
 
-> **enqueue**&lt;`T`&gt;(`_name`, `_payload`): `Promise`&lt;`void`&gt;
+> **enqueue**&lt;`T`&gt;(`_name`, `_payload`): `Promise`&lt;`boolean`&gt;
 
 #### Type Parameters
 
@@ -46,7 +46,7 @@ Safe no-op producer (e.g. unit tests that don't assert on enqueue).
 
 #### Returns
 
-`Promise`&lt;`void`&gt;
+`Promise`&lt;`boolean`&gt;
 
 #### Implementation of
 

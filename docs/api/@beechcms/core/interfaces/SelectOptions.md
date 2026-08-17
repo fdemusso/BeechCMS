@@ -16,11 +16,19 @@ Column projection. Empty = SELECT *.
 
 ***
 
+### filterLogic?
+
+> `optional` **filterLogic?**: `"AND"` \| `"OR"`
+
+How top-level `filters` groups are combined. Defaults to 'AND'.
+
+***
+
 ### filters?
 
 > `optional` **filters?**: [`FilterGroup`](FilterGroup.md)[]
 
-Filter groups, ANDed together.
+Filter groups. Joined by `filterLogic` (default AND); conditions within a group are always ANDed.
 
 ***
 
