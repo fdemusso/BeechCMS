@@ -19,7 +19,7 @@ BeechCMS replaces traditional server-hosted CMS stacks with serverless edge prim
 - **Cloudflare R2**: S3-compatible object storage with zero egress fees for uploaded media, photos, and files.
 
 <p align="center">
-  <img src="./images/architecture-cloudflare.svg" alt="Cloudflare Edge Architecture" style="width: 100%; max-width: 820px; margin: 16px 0;" />
+  <img src="/images/architecture-cloudflare.svg" alt="Cloudflare Edge Architecture" style="width: 100%; max-width: 820px; margin: 16px 0;" />
 </p>
 
 ## Core Concepts
@@ -141,7 +141,7 @@ branches: [
 The **Botanical Engine** guarantees safe schema migrations without locking or breaking your database.
 
 <p align="center">
-  <img src="./images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
+  <img src="/images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
 </p>
 
 ### Safe Non-Destructive Changes

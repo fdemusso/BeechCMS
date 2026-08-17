@@ -13,7 +13,7 @@ BeechCMS includes built-in systems for **real-time admin notifications** and **z
 All audit logs and notifications are dispatched via the `IScheduler` abstraction (`c.get('scheduler').waitUntil(...)`). This offloads database inserts and webhook triggers to Cloudflare Workers background execution while returning immediate responses to clients.
 
 <p align="center">
-  <img src="./images/notifications-observability-pipeline.svg" alt="BeechCMS Observability & Notifications Pipeline" style="width: 100%; max-width: 840px; margin: 16px 0;" />
+  <img src="/images/notifications-observability-pipeline.svg" alt="BeechCMS Observability & Notifications Pipeline" style="width: 100%; max-width: 840px; margin: 16px 0;" />
 </p>
 
 ## Upstash QStash Queue

@@ -28,7 +28,7 @@ Before starting, ensure you have:
 ### Cloudflare Services
 
 <p align="center">
-  <img src="./images/architecture-cloudflare.svg" alt="Cloudflare Services at a Glance" style="width: 100%; max-width: 820px; margin: 16px 0;" />
+  <img src="/images/architecture-cloudflare.svg" alt="Cloudflare Services at a Glance" style="width: 100%; max-width: 820px; margin: 16px 0;" />
 </p>
 
 - **Cloudflare Workers**: Runs the fast Hono API engine and serves the bundled React admin SPA directly from `/admin` using Workers Static Assets.
@@ -309,7 +309,7 @@ npx beech onboard --local
 ### Engine Pipeline
 
 <p align="center">
-  <img src="./images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
+  <img src="/images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
 </p>
 
 Alternatively, you can run the individual steps manually:

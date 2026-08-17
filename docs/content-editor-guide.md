@@ -19,7 +19,7 @@ BeechCMS is built around a natural, botanical metaphor:
 - **Fruits (Content Records / Frutti)**: A *Fruit* (frutto) is a single, concrete piece of content born from a Seed. For example, the article *"Announcing Our Spring Product Release"* is a Fruit generated within the **Articoli** Seed.
 
 <p align="center">
-  <img src="./images/content-structure-seed-entries.svg" alt="BeechCMS Botanical Hierarchy: Seeds, Fruits, and Branches" style="width: 100%; max-width: 840px; margin: 16px 0;" />
+  <img src="/images/content-structure-seed-entries.svg" alt="BeechCMS Botanical Hierarchy: Seeds, Fruits, and Branches" style="width: 100%; max-width: 840px; margin: 16px 0;" />
 </p>
 
 > [!NOTE]
@@ -33,7 +33,7 @@ BeechCMS is built around a natural, botanical metaphor:
 3. Click **Sign in**.
 
 <p align="center">
-  <img src="./images/login-page.png" alt="BeechCMS Login Page" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/login-page.png" alt="BeechCMS Login Page" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Forgot Password
@@ -44,7 +44,7 @@ If you forget your password:
 4. Follow the link to enter and confirm your new password.
 
 <p align="center">
-  <img src="./images/forgot-password.png" alt="Forgot Password Page" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/forgot-password.png" alt="Forgot Password Page" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Log Out
@@ -53,7 +53,7 @@ When using a shared workstation or finishing your work session:
 2. Select **Log out**.
 
 <p align="center">
-  <img src="./images/user-menu-logout.png" alt="User Profile and Logout Menu" style="width: 100%; max-width: 480px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/user-menu-logout.png" alt="User Profile and Logout Menu" style="width: 100%; max-width: 480px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 > [!TIP]
@@ -64,7 +64,7 @@ When using a shared workstation or finishing your work session:
 The BeechCMS workspace is divided into three primary zones: the **Sidebar**, the **Top Bar**, and the **Main Workspace**.
 
 <p align="center">
-  <img src="./images/dashboard-overview.png" alt="BeechCMS Dashboard Overview" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/dashboard-overview.png" alt="BeechCMS Dashboard Overview" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Sidebar
@@ -84,7 +84,7 @@ The sidebar organizes everything you need into clear, functional sections:
 - **Settings & User Profile**: Located at the bottom of the sidebar to manage personal profile details, notification preferences, and interface theme (Light / Dark mode).
 
 <p align="center">
-  <img src="./images/sidebar-seeds.png" alt="Sidebar Navigation and Content Groups" style="width: 100%; max-width: 480px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/sidebar-seeds.png" alt="Sidebar Navigation and Content Groups" style="width: 100%; max-width: 480px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Top Bar
@@ -94,7 +94,7 @@ The sidebar organizes everything you need into clear, functional sections:
 - **Command Palette (`Cmd + K` or `Ctrl + K`)**: Instant search to jump to any Seed, Fruit, or setting from anywhere in the app.
 
 <p align="center">
-  <img src="./images/command-palette.png" alt="Command Palette (Cmd+K)" style="width: 100%; max-width: 720px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/command-palette.png" alt="Command Palette (Cmd+K)" style="width: 100%; max-width: 720px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ## Content Listings
@@ -102,7 +102,7 @@ The sidebar organizes everything you need into clear, functional sections:
 When you select a Seed from the sidebar (e.g., **Articoli**), you enter the **Listing View** showing all the Fruits created for that Seed.
 
 <p align="center">
-  <img src="./images/list-view-posts.png" alt="Content List View in Table Layout" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/list-view-posts.png" alt="Content List View in Table Layout" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Views (Table, Kanban, Gallery)
@@ -114,7 +114,7 @@ Depending on your Seed configuration, you can view your content in different vis
 3. **Gallery View**: Card-based grid featuring cover images and key summary text. Perfect for visual media, blog articles, and team profiles.
 
 <p align="center">
-  <img src="./images/view-switcher.png" alt="View Switcher: Table, Kanban, Gallery" style="width: 100%; max-width: 400px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/view-switcher.png" alt="View Switcher: Table, Kanban, Gallery" style="width: 100%; max-width: 400px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Search & Filters
@@ -125,7 +125,7 @@ Depending on your Seed configuration, you can view your content in different vis
 - **Sorting**: Click any column header to sort ascending or descending.
 
 <p align="center">
-  <img src="./images/filter-toolbar-open.png" alt="Filter Builder Toolbar" style="width: 100%; max-width: 600px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/filter-toolbar-open.png" alt="Filter Builder Toolbar" style="width: 100%; max-width: 600px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Density & Columns
@@ -137,7 +137,7 @@ Depending on your Seed configuration, you can view your content in different vis
 - **Bulk Selection**: Check the boxes on multiple rows to execute bulk actions (such as bulk status updates or deleting multiple items at once).
 
 <p align="center">
-  <img src="./images/context-menu-row.png" alt="Row Context Menu" style="width: 100%; max-width: 480px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/context-menu-row.png" alt="Row Context Menu" style="width: 100%; max-width: 480px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ## Creating Content
@@ -149,7 +149,7 @@ Imagine you want to publish a new blog post or create a release note. Here is th
 - Alternatively, go to **Create New** in the sidebar and pick your desired Seed.
 
 <p align="center">
-  <img src="./images/create-new-button.png" alt="Create New Entry Button" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/create-new-button.png" alt="Create New Entry Button" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Fill Fields
@@ -162,7 +162,7 @@ BeechCMS dynamically builds the form based on the Seed:
 - **Relations**: If a Fruit links to another Seed (for example, linking a Support Ticket or Subscription to a specific *Cliente*), search and select the related record from the autocomplete dropdown.
 
 <p align="center">
-  <img src="./images/editor-form-fields.png" alt="Content Entry Editor Form" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/editor-form-fields.png" alt="Content Entry Editor Form" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Validation
@@ -183,7 +183,7 @@ BeechCMS streamlines the drafting and publication lifecycle through a dedicated 
 | <span style="background:#e0e7ff;color:#3730a3;padding:2px 8px;border-radius:4px;font-weight:600;font-size:12px;">Scheduled</span> | Set to go live automatically at a future date/time. | **Hidden** until the scheduled timestamp arrives. |
 
 <p align="center">
-  <img src="./images/status-badges.png" alt="Content Status Badges: Draft, Published, Scheduled" style="width: 100%; max-width: 600px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/status-badges.png" alt="Content Status Badges: Draft, Published, Scheduled" style="width: 100%; max-width: 600px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Drafts Hub
@@ -197,14 +197,14 @@ From the **Drafts Hub**, you can:
 4. **Discard**: Discard the draft to revert back to the last published version (or delete it if it was never published).
 
 <p align="center">
-  <img src="./images/global-drafts-hub.png" alt="Dedicated Global Drafts Hub" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/global-drafts-hub.png" alt="Dedicated Global Drafts Hub" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 > [!IMPORTANT]
 > **Unsaved Changes Protection**: If you edit a form and accidentally attempt to close the window or navigate away, BeechCMS prompts you with a confirmation dialog so you never lose your work.
 
 <p align="center">
-  <img src="./images/unsaved-changes-dialog.png" alt="Unsaved Changes Protection Dialog" style="width: 100%; max-width: 600px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/unsaved-changes-dialog.png" alt="Unsaved Changes Protection Dialog" style="width: 100%; max-width: 600px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Scheduled Content
@@ -215,7 +215,7 @@ When you set content to go live at a specific future date and time, it appears i
 Adding media in BeechCMS is straightforward and fast. Images are stored securely on edge object storage (Cloudflare R2) and delivered with zero latency.
 
 <p align="center">
-  <img src="./images/media-field.png" alt="Media and Image Upload Field" style="width: 100%; max-width: 600px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/media-field.png" alt="Media and Image Upload Field" style="width: 100%; max-width: 600px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 ### Uploading Images
@@ -239,7 +239,7 @@ The media field offers two simple options:
 For long-form content (like blog articles or release notes), BeechCMS includes a modern, visual rich text editor:
 
 <p align="center">
-  <img src="./images/richtext-editor-toolbar.png" alt="Rich Text TipTap Editor Toolbar" style="width: 100%; max-width: 720px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/richtext-editor-toolbar.png" alt="Rich Text TipTap Editor Toolbar" style="width: 100%; max-width: 720px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 - **Headings**: Use `H2` for main sections and `H3` for subsections. (Avoid multiple `H1` tags inside body text, as the page title serves as the main `H1`).
@@ -275,7 +275,7 @@ BeechCMS provides distinct permissions to ensure content creators have total fre
 | **API Keys, Webhooks & System Integrations** | Protected | Full Access |
 
 <p align="center">
-  <img src="./images/settings-profile.png" alt="Settings Page with Profile Tab" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
+  <img src="/images/settings-profile.png" alt="Settings Page with Profile Tab" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>
 
 > [!NOTE]

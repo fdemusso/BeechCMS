@@ -45,7 +45,7 @@ apps/api/src/features/email/
 ## Delivery Pipeline
 
 <p align="center">
-  <img src="./images/email-delivery-pipeline.svg" alt="BeechCMS Email Delivery Pipeline" style="width: 100%; max-width: 840px; margin: 16px 0;" />
+  <img src="/images/email-delivery-pipeline.svg" alt="BeechCMS Email Delivery Pipeline" style="width: 100%; max-width: 840px; margin: 16px 0;" />
 </p>
 
 ## Public API
