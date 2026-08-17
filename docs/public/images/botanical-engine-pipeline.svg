@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 340" width="100%" height="100%">
+  <defs>
+    <linearGradient id="sourceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="engineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6584"/>
+      <stop offset="100%" stop-color="#3F3D56"/>
+    </linearGradient>
+    <linearGradient id="targetGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#475569"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#FF6584"/>
+    </marker>
+    <marker id="arrow-sub" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <style>
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; font-weight: 700; fill: #ffffff; }
+    .card-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: rgba(255, 255, 255, 0.85); }
+    .table-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-weight: 600; fill: #ffffff; }
+    .table-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: #94a3b8; }
+  </style>
+
+  <!-- Left: seeds.ts -->
+  <g transform="translate(30, 115)">
+    <rect width="180" height="90" rx="10" fill="url(#sourceGrad)" filter="drop-shadow(0 4px 12px rgba(59, 130, 246, 0.25))"/>
+    <text x="18" y="38" class="card-title">seeds.ts</text>
+    <text x="18" y="58" class="card-sub">TypeScript Content Model</text>
+    <text x="18" y="74" class="card-sub">(Single Source of Truth)</text>
+  </g>
+
+  <!-- Arrow: seeds.ts -> Botanical Engine -->
+  <path d="M 215 160 L 290 160" stroke="#FF6584" stroke-width="2.5" marker-end="url(#arrow)"/>
+
+  <!-- Center: Botanical Engine -->
+  <g transform="translate(295, 95)">
+    <rect width="210" height="130" rx="12" fill="url(#engineGrad)" filter="drop-shadow(0 6px 16px rgba(5, 150, 105, 0.3))"/>
+    <text x="18" y="36" class="card-title">Botanical Engine</text>
+    <text x="18" y="60" class="card-sub">• Compiles TypeScript to DDL</text>
+    <text x="18" y="80" class="card-sub">• Generates SQLite Tables</text>
+    <text x="18" y="100" class="card-sub">• Creates FTS5 Triggers &amp; FKs</text>
+  </g>
+
+  <!-- Split arrows from Engine to Tables -->
+  <path d="M 510 130 C 540 130, 540 55, 570 55" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow-sub)"/>
+  <path d="M 510 145 C 540 145, 540 125, 570 125" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow-sub)"/>
+  <path d="M 510 175 C 540 175, 540 195, 570 195" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow-sub)"/>
+  <path d="M 510 190 C 540 190, 540 265, 570 265" fill="none" stroke="#64748b" stroke-width="1.8" marker-end="url(#arrow-sub)"/>
+
+  <!-- Right: Generated D1 Tables -->
+  <g transform="translate(580, 25)">
+    <rect width="250" height="58" rx="8" fill="url(#targetGrad)"/>
+    <text x="16" y="26" class="table-title">Base System Tables</text>
+    <text x="16" y="44" class="table-sub">users, refresh_tokens, activity_logs</text>
+  </g>
+
+  <g transform="translate(580, 95)">
+    <rect width="250" height="58" rx="8" fill="url(#targetGrad)"/>
+    <text x="16" y="26" class="table-title">Content Tables (DDL)</text>
+    <text x="16" y="44" class="table-sub">content_posts, content_authors</text>
+  </g>
+
+  <g transform="translate(580, 165)">
+    <rect width="250" height="58" rx="8" fill="url(#targetGrad)"/>
+    <text x="16" y="26" class="table-title">Indexes &amp; Foreign Keys</text>
+    <text x="16" y="44" class="table-sub">idx_posts_slug, relations on delete</text>
+  </g>
+
+  <g transform="translate(580, 235)">
+    <rect width="250" height="58" rx="8" fill="url(#targetGrad)"/>
+    <text x="16" y="26" class="table-title">FTS5 Full-Text Search</text>
+    <text x="16" y="44" class="table-sub">content_posts_fts virtual tables &amp; sync</text>
+  </g>
+</svg>
