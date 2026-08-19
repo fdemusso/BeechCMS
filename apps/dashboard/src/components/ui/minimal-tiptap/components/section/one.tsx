@@ -53,13 +53,12 @@ export const SectionOne: React.FC<SectionOneProps> = ({
     { label: t("editor.heading6"), element: "h6", level: 6, className: "m-0 grow text-sm font-normal", shortcuts: ["mod", "alt", "6"] },
   ], [t])
 
-  const filteredActions = React.useMemo(
-    () =>
-      formatActions.filter(
-        (action) => !action.level || activeLevels.includes(action.level)
-      ),
-    [activeLevels, formatActions]
-  )
+  const filteredActions = React.useMemo(() => {
+    const activeLevelSet = new Set(activeLevels)
+    return formatActions.filter(
+      (action) => !action.level || activeLevelSet.has(action.level)
+    )
+  }, [activeLevels, formatActions])
 
   const handleStyleChange = React.useCallback(
     (level?: Level) => {

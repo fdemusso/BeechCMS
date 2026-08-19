@@ -39,7 +39,8 @@ export function RichtextEditor({ value, onChange, placeholder }: RichtextEditorP
         : JSON.stringify(lastValue.current || "")
 
       // Images that were uploaded in this session but are NO LONGER in the content
-      const orphaned = sessionImages.current.filter(url => !finalContent.includes(url))
+      const finalUrls = new Set<string>(finalContent.match(/https?:\/\/[^\s"'\\]+/g) || [])
+      const orphaned = sessionImages.current.filter((url) => !finalUrls.has(url))
 
       Promise.allSettled(
         orphaned.map(async (url) => {
