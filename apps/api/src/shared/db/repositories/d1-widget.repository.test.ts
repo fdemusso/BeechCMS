@@ -54,6 +54,38 @@ describe('D1WidgetRepository', () => {
       await new D1WidgetRepository(db).aggregate(seed, { op: 'sum', column: 'price' }, 'all')
       expect(prepareMock.mock.calls[0]![0] as string).toMatch(/SUM\(CAST\(price AS REAL\)\)/)
     })
+
+    it('builds countWhere using bound parameters for boolean, number, string, and null', async () => {
+      const { db: dbBool, prepareMock: prepareBool, bindMock: bindBool } = makeMockDb([], { computed_value: 3 })
+      await new D1WidgetRepository(dbBool).aggregate(seed, { op: 'countWhere', column: 'title', value: true }, 'all')
+      expect(prepareBool.mock.calls[0]![0] as string).toMatch(/COUNT\(CASE WHEN title = \? THEN 1 END\)/)
+      expect(bindBool).toHaveBeenCalledWith(1)
+
+      const { db: dbNum, prepareMock: prepareNum, bindMock: bindNum } = makeMockDb([], { computed_value: 5 })
+      await new D1WidgetRepository(dbNum).aggregate(seed, { op: 'countWhere', column: 'price', value: 99.9 }, 'all')
+      expect(prepareNum.mock.calls[0]![0] as string).toMatch(/COUNT\(CASE WHEN CAST\(price AS REAL\) = \? THEN 1 END\)/)
+      expect(bindNum).toHaveBeenCalledWith(99.9)
+
+      const { db: dbStr, prepareMock: prepareStr, bindMock: bindStr } = makeMockDb([], { computed_value: 2 })
+      await new D1WidgetRepository(dbStr).aggregate(seed, { op: 'countWhere', column: 'title', value: "O'Reilly" }, 'all')
+      expect(prepareStr.mock.calls[0]![0] as string).toMatch(/COUNT\(CASE WHEN title = \? THEN 1 END\)/)
+      expect(bindStr).toHaveBeenCalledWith("O'Reilly")
+
+      const { db: dbNull, prepareMock: prepareNull, bindMock: bindNull } = makeMockDb([], { computed_value: 0 })
+      await new D1WidgetRepository(dbNull).aggregate(seed, { op: 'countWhere', column: 'title', value: null }, 'all')
+      expect(prepareNull.mock.calls[0]![0] as string).toMatch(/COUNT\(CASE WHEN title IS NULL THEN 1 END\)/)
+      expect(bindNull).toHaveBeenCalledWith()
+    })
+
+    it('rejects prototype property keys (constructor, toString, __proto__) in aggregate column', async () => {
+      const { db } = makeMockDb()
+      await expect(
+        new D1WidgetRepository(db).aggregate(seed, { op: 'countWhere', column: 'constructor', value: 'test' }, 'all'),
+      ).rejects.toThrow('UNSAFE_COLUMN')
+      await expect(
+        new D1WidgetRepository(db).aggregate(seed, { op: 'countWhere', column: 'toString', value: 'test' }, 'all'),
+      ).rejects.toThrow('UNSAFE_COLUMN')
+    })
   })
 
   describe('growth', () => {

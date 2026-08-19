@@ -155,6 +155,28 @@ describe('GET /aggregate/:seed', () => {
     const body = await res.json() as { detail: string }
     expect(body.detail).toContain('Invalid or missing formula')
   })
+
+  it('handles countWhere formula correctly', async () => {
+    const repo = makeRepoStub()
+    repo.aggregate = vi.fn().mockResolvedValue(12)
+    const { app } = buildApp({ repo })
+    const formulaJson = JSON.stringify({ op: 'countWhere', column: 'title', value: 'hello' })
+    const res = await app.request(`/aggregate/posts?formula=${encodeURIComponent(formulaJson)}`)
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ value: 12, window: 'all' })
+    expect(repo.aggregate).toHaveBeenCalledWith(seed, { op: 'countWhere', column: 'title', value: 'hello' }, 'all')
+  })
+
+  it('returns 400 problem+json when countWhere column is an unsafe or builtin prototype key', async () => {
+    const repo = makeRepoStub()
+    repo.aggregate = vi.fn().mockRejectedValue(new Error('UNSAFE_COLUMN'))
+    const { app } = buildApp({ repo })
+    const formulaJson = JSON.stringify({ op: 'countWhere', column: 'constructor', value: 'hello' })
+    const res = await app.request(`/aggregate/posts?formula=${encodeURIComponent(formulaJson)}`)
+    expect(res.status).toBe(400)
+    const body = await res.json() as { detail: string }
+    expect(body.detail).toContain('Invalid column reference')
+  })
 })
 
 describe('GET /timeseries/:seed', () => {

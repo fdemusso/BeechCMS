@@ -54,15 +54,18 @@ export class D1WidgetRepository implements IWidgetRepository {
 
   async aggregate(seed: Seed, formula: AggregateFormula, window: WidgetWindow): Promise<number> {
     const aggregateExpression = this.buildAggregateExpression(seed, formula)
-    const { sql: timeWindowFilter, bindings } = this.buildTimeWindowFilter(window)
+    const { sql: timeWindowFilter, bindings: timeBindings } = this.buildTimeWindowFilter(window)
     const tableName = `content_${seed.slug}`
 
     const sql =
-      `SELECT ${aggregateExpression} as computed_value
+      `SELECT ${aggregateExpression.sql} as computed_value
          FROM ${tableName}
         WHERE ${timeWindowFilter}`
 
-    const row = await this.database.prepare(sql).bind(...bindings).first<{ computed_value: number | null }>()
+    const row = await this.database
+      .prepare(sql)
+      .bind(...aggregateExpression.bindings, ...timeBindings)
+      .first<{ computed_value: number | null }>()
     return row?.computed_value ?? 0
   }
 
@@ -77,12 +80,12 @@ export class D1WidgetRepository implements IWidgetRepository {
 
     const [currentRow, previousRow] = await Promise.all([
       this.database
-        .prepare(`SELECT ${aggregateExpression} as computed_value FROM ${tableName} WHERE ${currentFilter.sql}`)
-        .bind(...currentFilter.bindings)
+        .prepare(`SELECT ${aggregateExpression.sql} as computed_value FROM ${tableName} WHERE ${currentFilter.sql}`)
+        .bind(...aggregateExpression.bindings, ...currentFilter.bindings)
         .first<{ computed_value: number | null }>(),
       this.database
-        .prepare(`SELECT ${aggregateExpression} as computed_value FROM ${tableName} WHERE ${previousFilter.sql}`)
-        .bind(...previousFilter.bindings)
+        .prepare(`SELECT ${aggregateExpression.sql} as computed_value FROM ${tableName} WHERE ${previousFilter.sql}`)
+        .bind(...aggregateExpression.bindings, ...previousFilter.bindings)
         .first<{ computed_value: number | null }>(),
     ])
 
@@ -177,7 +180,7 @@ export class D1WidgetRepository implements IWidgetRepository {
   ): Promise<TimeseriesPoint[]> {
     const groupColumnExpression = this.resolveColumnExpression(seed, groupColumn)
     const aggregateExpression = this.buildAggregateExpression(seed, formula)
-    const { sql: timeWindowFilter, bindings } = this.buildTimeWindowFilter(window)
+    const { sql: timeWindowFilter, bindings: timeBindings } = this.buildTimeWindowFilter(window)
     const tableName = `content_${seed.slug}`
 
     const dateBucketExpression = groupColumnExpression === 'created_at'
@@ -186,7 +189,7 @@ export class D1WidgetRepository implements IWidgetRepository {
 
     const sql =
       `SELECT ${dateBucketExpression} as bucket_label,
-              ${aggregateExpression} as bucket_value
+              ${aggregateExpression.sql} as bucket_value
          FROM ${tableName}
         WHERE ${timeWindowFilter}
         GROUP BY bucket_label
@@ -194,7 +197,7 @@ export class D1WidgetRepository implements IWidgetRepository {
 
     const rows = await this.database
       .prepare(sql)
-      .bind(...bindings)
+      .bind(...aggregateExpression.bindings, ...timeBindings)
       .all<{ bucket_label: string | null; bucket_value: number | null }>()
 
     return (rows.results ?? []).map(row => ({
@@ -243,48 +246,50 @@ export class D1WidgetRepository implements IWidgetRepository {
     return branch.alias
   }
 
-  private buildAggregateExpression(seed: Seed, formula: AggregateFormula): string {
+  private buildAggregateExpression(seed: Seed, formula: AggregateFormula): { sql: string; bindings: unknown[] } {
     switch (formula.op) {
       case 'count':
-        return 'COUNT(*)'
+        return { sql: 'COUNT(*)', bindings: [] }
       case 'sum': {
         const column = this.resolveColumnExpression(seed, formula.column)
-        return `SUM(CAST(${column} AS REAL))`
+        return { sql: `SUM(CAST(${column} AS REAL))`, bindings: [] }
       }
       case 'avg': {
         const column = this.resolveColumnExpression(seed, formula.column)
-        return `AVG(CAST(${column} AS REAL))`
+        return { sql: `AVG(CAST(${column} AS REAL))`, bindings: [] }
       }
       case 'min': {
         const column = this.resolveColumnExpression(seed, formula.column)
-        return `MIN(CAST(${column} AS REAL))`
+        return { sql: `MIN(CAST(${column} AS REAL))`, bindings: [] }
       }
       case 'max': {
         const column = this.resolveColumnExpression(seed, formula.column)
-        return `MAX(CAST(${column} AS REAL))`
+        return { sql: `MAX(CAST(${column} AS REAL))`, bindings: [] }
       }
       case 'countWhere':
         return this.buildCountWhereExpression(seed, formula.column, formula.value)
       case 'percentageOf': {
         const numerator = this.resolveColumnExpression(seed, formula.numeratorColumn)
         const denominator = this.resolveColumnExpression(seed, formula.denominatorColumn)
-        return `CASE WHEN SUM(CAST(${denominator} AS REAL)) = 0 THEN 0 ELSE (SUM(CAST(${numerator} AS REAL)) * 100.0 / SUM(CAST(${denominator} AS REAL))) END`
+        return {
+          sql: `CASE WHEN SUM(CAST(${denominator} AS REAL)) = 0 THEN 0 ELSE (SUM(CAST(${numerator} AS REAL)) * 100.0 / SUM(CAST(${denominator} AS REAL))) END`,
+          bindings: [],
+        }
       }
     }
   }
 
-  private buildCountWhereExpression(seed: Seed, alias: string, value: unknown): string {
+  private buildCountWhereExpression(seed: Seed, alias: string, value: unknown): { sql: string; bindings: unknown[] } {
     const column = this.resolveColumnExpression(seed, alias)
-    if (value === null) return `COUNT(CASE WHEN ${column} IS NULL THEN 1 END)`
+    if (value === null) return { sql: `COUNT(CASE WHEN ${column} IS NULL THEN 1 END)`, bindings: [] }
     if (typeof value === 'boolean') {
       const numericValue = value ? 1 : 0
-      return `COUNT(CASE WHEN ${column} = ${numericValue} THEN 1 END)`
+      return { sql: `COUNT(CASE WHEN ${column} = ? THEN 1 END)`, bindings: [numericValue] }
     }
     if (typeof value === 'number' && Number.isFinite(value)) {
-      return `COUNT(CASE WHEN CAST(${column} AS REAL) = ${value} THEN 1 END)`
+      return { sql: `COUNT(CASE WHEN CAST(${column} AS REAL) = ? THEN 1 END)`, bindings: [value] }
     }
-    const escaped = String(value).replace(/'/g, "''")
-    return `COUNT(CASE WHEN ${column} = '${escaped}' THEN 1 END)`
+    return { sql: `COUNT(CASE WHEN ${column} = ? THEN 1 END)`, bindings: [value] }
   }
 
   private buildTimeWindowFilter(window: WidgetWindow): { sql: string; bindings: number[] } {
