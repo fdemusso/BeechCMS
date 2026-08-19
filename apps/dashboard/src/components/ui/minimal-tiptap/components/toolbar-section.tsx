@@ -41,11 +41,15 @@ export const ToolbarSection: React.FC<ToolbarSectionProps> = ({
   variant,
 }) => {
   const { mainActions, dropdownActions } = React.useMemo(() => {
+    const activeActionIndexMap = new Map(
+      activeActions.map((value, index) => [value, index])
+    )
     const sortedActions = actions
-      .filter((action) => activeActions.includes(action.value))
+      .filter((action) => activeActionIndexMap.has(action.value))
       .sort(
         (a, b) =>
-          activeActions.indexOf(a.value) - activeActions.indexOf(b.value)
+          (activeActionIndexMap.get(a.value) ?? 0) -
+          (activeActionIndexMap.get(b.value) ?? 0)
       )
 
     return {
