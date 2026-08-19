@@ -13,9 +13,39 @@ import {
   Seed,
   SelectOptions,
   DraftSummary,
+  FilterGroup,
+  FilterCondition,
 } from '@beechcms/core'
 
 type Entry = Record<string, any>
+
+function matchesCondition(val: any, cond: FilterCondition): boolean {
+  switch (cond.op) {
+    case 'eq': return val === cond.value
+    case 'neq': return val !== cond.value
+    case 'gt': return val > (cond.value as number)
+    case 'gte': return val >= (cond.value as number)
+    case 'lt': return val < (cond.value as number)
+    case 'lte': return val <= (cond.value as number)
+    case 'contains': return typeof val === 'string' && val.includes(String(cond.value))
+    case 'not_contains': return typeof val === 'string' && !val.includes(String(cond.value))
+    case 'starts_with': return typeof val === 'string' && val.startsWith(String(cond.value))
+    case 'ends_with': return typeof val === 'string' && val.endsWith(String(cond.value))
+    case 'is_empty': return val === null || val === undefined || val === ''
+    case 'is_not_empty': return val !== null && val !== undefined && val !== ''
+    case 'in': return Array.isArray(cond.value) && (cond.value as any[]).includes(val)
+    case 'not_in': return Array.isArray(cond.value) && !(cond.value as any[]).includes(val)
+    case 'has_tag': return Array.isArray(val) && val.includes(cond.value)
+    case 'has_any_tag': return Array.isArray(val) && Array.isArray(cond.value) && (cond.value as any[]).some((t) => val.includes(t))
+    case 'has_all_tags': return Array.isArray(val) && Array.isArray(cond.value) && (cond.value as any[]).every((t) => val.includes(t))
+    default: return true
+  }
+}
+
+function matchesFilterGroup(entry: Entry, filter: FilterGroup): boolean {
+  const val = Object.hasOwn(entry, filter.column) ? entry[filter.column] : undefined
+  return filter.conditions.every((cond) => matchesCondition(val, cond))
+}
 
 export class StaticContentRepository implements ContentRepository {
   private readonly tables = new Map<string, Entry[]>()
@@ -48,48 +78,31 @@ export class StaticContentRepository implements ContentRepository {
       items = items.filter((e) => e.status === options.status)
     }
 
-    if (options.filters) {
-      for (const filter of options.filters) {
-        for (const cond of filter.conditions) {
-          items = items.filter((e) => {
-            const val = e[filter.column]
-            switch (cond.op) {
-              case 'eq': return val === cond.value
-              case 'neq': return val !== cond.value
-              case 'gt': return val > (cond.value as number)
-              case 'gte': return val >= (cond.value as number)
-              case 'lt': return val < (cond.value as number)
-              case 'lte': return val <= (cond.value as number)
-              case 'contains': return typeof val === 'string' && val.includes(String(cond.value))
-              case 'not_contains': return typeof val === 'string' && !val.includes(String(cond.value))
-              case 'starts_with': return typeof val === 'string' && val.startsWith(String(cond.value))
-              case 'ends_with': return typeof val === 'string' && val.endsWith(String(cond.value))
-              case 'is_empty': return val === null || val === undefined || val === ''
-              case 'is_not_empty': return val !== null && val !== undefined && val !== ''
-              case 'in': return Array.isArray(cond.value) && (cond.value as any[]).includes(val)
-              case 'not_in': return Array.isArray(cond.value) && !(cond.value as any[]).includes(val)
-              case 'has_tag': return Array.isArray(val) && val.includes(cond.value)
-              case 'has_any_tag': return Array.isArray(val) && Array.isArray(cond.value) && (cond.value as any[]).some((t) => val.includes(t))
-              case 'has_all_tags': return Array.isArray(val) && Array.isArray(cond.value) && (cond.value as any[]).every((t) => val.includes(t))
-              default: return true
-            }
-          })
+    if (options.filters && options.filters.length > 0) {
+      const isOr = options.filterLogic === 'OR'
+      items = items.filter((e) => {
+        if (isOr) {
+          return options.filters!.some((filter) => matchesFilterGroup(e, filter))
         }
-      }
+        return options.filters!.every((filter) => matchesFilterGroup(e, filter))
+      })
     }
 
     if (options.search) {
       const q = options.search.toLowerCase()
       items = items.filter((e) =>
-        seed.branches.some((b) => typeof e[b.alias] === 'string' && e[b.alias].toLowerCase().includes(q))
+        seed.branches.some((b) => {
+          const val = Object.hasOwn(e, b.alias) ? e[b.alias] : undefined
+          return typeof val === 'string' && val.toLowerCase().includes(q)
+        })
       )
     }
 
     if (options.orderBy) {
       const { column, dir } = options.orderBy
       items.sort((a, b) => {
-        const av = a[column]
-        const bv = b[column]
+        const av = Object.hasOwn(a, column) ? a[column] : undefined
+        const bv = Object.hasOwn(b, column) ? b[column] : undefined
         if (av === bv) return 0
         const cmp = av < bv ? -1 : 1
         return dir === 'ASC' ? cmp : -cmp
