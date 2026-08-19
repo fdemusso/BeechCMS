@@ -236,7 +236,7 @@ try {
 }
 
 try {
-  run('pnpm run build')
+  run('pnpm turbo run build --force')
 } catch {
   rollback('Build failed.')
 }

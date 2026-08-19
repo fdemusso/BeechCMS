@@ -107,7 +107,17 @@ function buildSeedsTs(selectedKeys) {
   return buildSeedsFile(selectedKeys)
 }
 
+function getCurrentVersion() {
+  try {
+    const pkg = JSON.parse(readFileSync(join(__dirname, '..', 'package.json'), 'utf8'))
+    return `^${pkg.version}`
+  } catch {
+    return '^0.6.6'
+  }
+}
+
 function buildPackageJson(name) {
+  const version = getCurrentVersion()
   return JSON.stringify({
     name,
     version: '0.1.0',
@@ -122,8 +132,8 @@ function buildPackageJson(name) {
       'db:reset:local': 'node -e "require(\'fs\').rmSync(\'.wrangler/state\',{recursive:true,force:true})" && npm run db:migrate:local',
     },
     dependencies: {
-      '@beechcms/api': '^0.5.0',
-      '@beechcms/core': '^0.5.0',
+      '@beechcms/api': version,
+      '@beechcms/core': version,
     },
     devDependencies: {
       '@cloudflare/workers-types': '^4.0.0',
