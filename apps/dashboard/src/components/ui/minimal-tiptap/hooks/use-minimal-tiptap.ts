@@ -22,7 +22,7 @@ import { ResetMarksOnEnter } from "../extensions/reset-marks-on-enter/reset-mark
 import { FileHandler } from "../extensions/file-handler"
 import { MarkdownPaste } from "../extensions/markdown-paste/markdown-paste"
 import { cn } from "@/lib/utils"
-import { fileToBase64, getOutput, randomId } from "../shared"
+import { fileToBase64, getOutput, normalizeContent, randomId } from "../shared"
 import { useThrottle } from "../hooks/use-throttle"
 import { toast } from "sonner"
 
@@ -52,7 +52,7 @@ async function fakeuploader(file: File): Promise<string> {
 const createExtensions = ({
   placeholder,
   uploader,
-  output = "html",
+  output = "json",
 }: {
   placeholder: string
   uploader?: (file: File) => Promise<string>
@@ -128,23 +128,25 @@ const createExtensions = ({
       })
     },
     onActionSuccess({ action }) {
-      const mapping = {
+      const mapping: Record<string, string> = Object.assign(Object.create(null), {
         copyImage: "Copy Image",
         copyLink: "Copy Link",
         download: "Download",
-      }
-      toast.success(mapping[action], {
+      })
+      const actionName = Object.hasOwn(mapping, action) ? mapping[action] : action
+      toast.success(actionName, {
         position: "bottom-right",
         description: "Image action success",
       })
     },
     onActionError(error, { action }) {
-      const mapping = {
+      const mapping: Record<string, string> = Object.assign(Object.create(null), {
         copyImage: "Copy Image",
         copyLink: "Copy Link",
         download: "Download",
-      }
-      toast.error(`Failed to ${mapping[action]}`, {
+      })
+      const actionName = Object.hasOwn(mapping, action) ? mapping[action] : action
+      toast.error(`Failed to ${actionName}`, {
         position: "bottom-right",
         description: error.message,
       })
@@ -218,7 +220,7 @@ const createExtensions = ({
 
 export const useMinimalTiptapEditor = ({
   value,
-  output = "html",
+  output = "json",
   placeholder = "",
   editorClassName,
   throttleDelay = 0,
@@ -239,8 +241,9 @@ export const useMinimalTiptapEditor = ({
 
   const handleCreate = React.useCallback(
     (editor: Editor) => {
-      if (value && editor.isEmpty) {
-        editor.commands.setContent(value, {
+      const normalized = normalizeContent(value)
+      if (normalized && editor.isEmpty) {
+        editor.commands.setContent(normalized, {
           contentType: output === "markdown" ? "markdown" : undefined,
         })
       }
@@ -269,6 +272,29 @@ export const useMinimalTiptapEditor = ({
     onBlur: ({ editor }) => handleBlur(editor),
     ...props,
   })
+
+  React.useEffect(() => {
+    if (!editor || editor.isDestroyed) return
+    if (value === undefined || value === null) return
+
+    const normalized = normalizeContent(value)
+    if (!normalized) return
+
+    const currentOutput = getOutput(editor, output)
+    if (output === "json") {
+      const currentJson = JSON.stringify(currentOutput)
+      const newJson = JSON.stringify(normalized)
+      if (currentJson !== newJson) {
+        editor.commands.setContent(normalized)
+      }
+    } else {
+      if (currentOutput !== normalized) {
+        editor.commands.setContent(normalized, {
+          contentType: output === "markdown" ? "markdown" : undefined,
+        })
+      }
+    }
+  }, [editor, value, output])
 
   return editor
 }

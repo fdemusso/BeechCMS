@@ -8,7 +8,7 @@
  * This file imports nothing from sibling modules so it can be used by any
  * layer (utils.ts, hooks, extensions) without introducing import cycles.
  */
-import type { Editor } from "@tiptap/react"
+import type { Content, Editor } from "@tiptap/react"
 
 /** Output format produced by the editor. Matches the `output` option in UseMinimalTiptapEditorProps. */
 export type OutputFormat = "html" | "json" | "text" | "markdown"
@@ -36,21 +36,46 @@ export const isServer = (): boolean => !isClient()
 export const isMacOS = (): boolean =>
   isClient() && window.navigator.platform === "MacIntel"
 
-const shortcutKeyMap: Record<string, ShortcutKeyResult> = {
-  mod: isMacOS()
-    ? { symbol: "⌘", readable: "Command" }
-    : { symbol: "Ctrl", readable: "Control" },
-  alt: isMacOS()
-    ? { symbol: "⌥", readable: "Option" }
-    : { symbol: "Alt", readable: "Alt" },
-  shift: { symbol: "⇧", readable: "Shift" },
-}
+const shortcutKeyMap: Record<string, ShortcutKeyResult> = Object.assign(
+  Object.create(null),
+  {
+    mod: isMacOS()
+      ? { symbol: "⌘", readable: "Command" }
+      : { symbol: "Ctrl", readable: "Control" },
+    alt: isMacOS()
+      ? { symbol: "⌥", readable: "Option" }
+      : { symbol: "Alt", readable: "Alt" },
+    shift: { symbol: "⇧", readable: "Shift" },
+  }
+)
 
-export const getShortcutKey = (key: string): ShortcutKeyResult =>
-  shortcutKeyMap[key.toLowerCase()] || { symbol: key, readable: key }
+export const getShortcutKey = (key: string): ShortcutKeyResult => {
+  const lower = key.toLowerCase()
+  return Object.hasOwn(shortcutKeyMap, lower)
+    ? shortcutKeyMap[lower]
+    : { symbol: key, readable: key }
+}
 
 export const getShortcutKeys = (keys: string[]): ShortcutKeyResult[] =>
   keys.map(getShortcutKey)
+
+export const normalizeContent = (content: unknown): Content | undefined => {
+  if (content === undefined || content === null || content === "") {
+    return undefined
+  }
+  if (typeof content === "string") {
+    const trimmed = content.trim()
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        return JSON.parse(trimmed) as Content
+      } catch {
+        return content as Content
+      }
+    }
+    return content as Content
+  }
+  return content as Content
+}
 
 export const getOutput = (
   editor: Editor,
