@@ -29,11 +29,15 @@ function isAssetListBranch(maybeBranch: { type: string; multiple?: boolean; form
   )
 }
 
-/** Rejects non-HTTPS and malformed URLs; only HTTPS image links are accepted. */
-function isHttpsUrl(value: string): boolean {
+/** Accepts valid HTTP, HTTPS, and relative media URLs; rejects non-HTTP(S) protocols like ftp:, javascript:, data:. */
+function isValidMediaUrl(value: string): boolean {
+  if (typeof value !== "string") return false
+  const trimmed = value.trim()
+  if (!trimmed) return false
   try {
-    const parsed = new URL(value)
-    return parsed.protocol === "https:"
+    const baseUrl = typeof window !== "undefined" ? window.location.origin : "http://localhost"
+    const parsed = new URL(trimmed, baseUrl)
+    return parsed.protocol === "https:" || parsed.protocol === "http:"
   } catch {
     return false
   }
@@ -86,18 +90,18 @@ function parseJsonString(value: string): unknown {
   }
 }
 
-/** Returns `value` trimmed if it's an HTTPS URL string, otherwise `null`. */
+/** Returns `value` trimmed if it's a valid media URL string, otherwise `null`. */
 function normalizeUrl(value: unknown): string | null {
   if (typeof value !== "string") return null
   const trimmed = value.trim()
-  return isHttpsUrl(trimmed) ? trimmed : null
+  return isValidMediaUrl(trimmed) ? trimmed : null
 }
 
 /**
- * Normalizes a stored asset-list value into a deduplicated array of HTTPS
- * URLs. Tolerates the value being a JSON string, a single item instead of
+ * Normalizes a stored asset-list value into a deduplicated array of valid
+ * media URLs. Tolerates the value being a JSON string, a single item instead of
  * an array, or a list of `{ url }` objects instead of plain strings;
- * anything that doesn't resolve to a valid HTTPS URL is silently dropped.
+ * anything that doesn't resolve to a valid media URL is silently dropped.
  */
 function parseAssetListValue(value: unknown): string[] {
   const input = typeof value === "string" ? parseJsonString(value) : value
@@ -111,8 +115,10 @@ function parseAssetListValue(value: unknown): string[] {
       urls.push(direct)
       continue
     }
-    if (typeof item === "object" && !Array.isArray(item)) {
-      const nested = normalizeUrl((item as Record<string, unknown>).url)
+    if (typeof item === "object" && item !== null && !Array.isArray(item)) {
+      const itemObj = item as Record<string, unknown>
+      const rawUrl = Object.hasOwn(itemObj, "url") ? itemObj.url : undefined
+      const nested = normalizeUrl(rawUrl)
       if (nested) urls.push(nested)
     }
   }
@@ -219,7 +225,7 @@ export function MediaEdit({ branch, value, onChange }: FieldEditProps) {
       return
     }
 
-    if (!isHttpsUrl(candidate)) {
+    if (!isValidMediaUrl(candidate)) {
       setError(t("media.errorHttps"))
       return
     }
