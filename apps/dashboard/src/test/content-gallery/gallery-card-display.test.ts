@@ -157,6 +157,15 @@ describe("buildGalleryCardDisplayModel", () => {
     expect(model.hasPendingDraft).toBe(false)
   })
 
+  it("non segnala hasPendingDraft per entry draft", () => {
+    const model = buildGalleryCardDisplayModel(
+      makeEntry({ status: "draft", has_pending_draft: true } as Partial<ContentEntry>),
+      emptyBranches
+    )
+
+    expect(model.hasPendingDraft).toBe(false)
+  })
+
   it("popola title e ariaLabel dal branch corretto", () => {
     const branches: ResolvedCardFields = {
       ...emptyBranches,
