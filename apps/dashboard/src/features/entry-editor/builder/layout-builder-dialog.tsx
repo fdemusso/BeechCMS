@@ -47,7 +47,7 @@ import { Switch } from '@/components/ui/switch'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { LayoutRenderer } from '../renderer/layout-renderer'
 import { SectionCard } from './section-card'
-import { useLayoutBuilder } from './use-layout-builder'
+import { useLayoutBuilder, getFullWidthWarningLabel } from './use-layout-builder'
 import { saveLayout, resetLayout } from '../api/layout.api'
 
 export interface LayoutBuilderDialogProps {
@@ -174,7 +174,11 @@ export function LayoutBuilderDialog({ seed, open, onClose, onSaved }: Readonly<L
             to: { tabId: toTabId, sectionId: section.id, columnId: col.id },
           })
           if (!ok) {
-            toast.warning(t('layoutBuilder.warnFullWidth', { label: '' }))
+            const movingBranch = Object.hasOwn(branchById, fromBranchId) ? branchById[fromBranchId] : undefined
+            if (movingBranch) {
+              const label = getFullWidthWarningLabel(movingBranch, section, branchById)
+              toast.warning(t('layoutBuilder.warnFullWidth', { label }))
+            }
           }
           foundEmpty = true
           break
@@ -216,15 +220,13 @@ export function LayoutBuilderDialog({ seed, open, onClose, onSaved }: Readonly<L
       to: { tabId: oTabId, sectionId: oSectionId, columnId: oColId },
     })
     if (!ok) {
-      const sourceTab = draft.tabs.find((t) => t.id === aTabId)
-      const sourceSection = sourceTab?.sections.find((s) => s.id === aSectionId)
-      const sourceCol = sourceSection?.columns.find((c) => c.id === aColId)
-      const branchId = sourceCol?.fields?.[0]?.branchId
-      const branch = branchId ? branchById[branchId] : undefined
-      if (branch && isFullWidthBranch(branch)) {
-        toast.warning(t('layoutBuilder.warnFullWidth', { label: branch.label }))
-      } else {
-        toast.warning(t('layoutBuilder.warnFullWidth', { label: '' }))
+      const movingBranch = Object.hasOwn(branchById, aBranchId) ? branchById[aBranchId] : undefined
+      if (movingBranch) {
+        const targetSection = draft.tabs
+          .find((t) => t.id === oTabId)
+          ?.sections.find((s) => s.id === oSectionId)
+        const label = getFullWidthWarningLabel(movingBranch, targetSection, branchById)
+        toast.warning(t('layoutBuilder.warnFullWidth', { label }))
       }
     }
   }

@@ -26,8 +26,9 @@ import {
   CommandItem,
   CommandList,
 } from '@/components/ui/command'
+import { toast } from 'sonner'
 import { FieldEdit } from '@/components/fields'
-import type { UseLayoutBuilderResult } from './use-layout-builder'
+import { getFullWidthWarningLabel, type UseLayoutBuilderResult } from './use-layout-builder'
 
 // ============================================================================
 // FieldItem
@@ -228,7 +229,14 @@ export function ColumnCard({
                     value={branch.label}
                     onSelect={() => {
                       const isAssigned = ops.assignField(tabId, sectionId, columnId, branch.id)
-                      if (isAssigned) setOpen(false)
+                      setOpen(false)
+                      if (!isAssigned) {
+                        const targetSection = ops.draft.tabs
+                          .find((t) => t.id === tabId)
+                          ?.sections.find((s) => s.id === sectionId)
+                        const label = getFullWidthWarningLabel(branch, targetSection, branchById)
+                        toast.warning(translate('layoutBuilder.warnFullWidth', { label }))
+                      }
                     }}
                   >
                     <span>{branch.label}</span>
