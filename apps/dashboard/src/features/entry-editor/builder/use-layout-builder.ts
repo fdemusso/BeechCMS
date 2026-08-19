@@ -91,6 +91,35 @@ function wouldViolateFullWidthWithMap(
   }
 }
 
+/**
+ * Resolves the label of the full-width branch causing a layout constraint violation.
+ * If the branch being moved/assigned is itself full-width, returns its label.
+ * Otherwise, scans the target section's columns for an existing full-width branch.
+ * Falls back to the incoming branch label if none is found.
+ */
+export function getFullWidthWarningLabel(
+  branch: Branch,
+  section?: LayoutSection,
+  branchById?: Record<string, Branch>
+): string {
+  if (isFullWidthBranch(branch)) {
+    return branch.label
+  }
+  if (section && branchById) {
+    for (const col of section.columns) {
+      for (const f of col.fields) {
+        if (f.branchId && Object.hasOwn(branchById, f.branchId)) {
+          const b = branchById[f.branchId]
+          if (b && isFullWidthBranch(b)) {
+            return b.label
+          }
+        }
+      }
+    }
+  }
+  return branch.label
+}
+
 export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs): UseLayoutBuilderResult {
   const [draft, setDraft] = useState<FormLayout>(() => structuredClone(initialLayout))
   const [storedInitial, setStoredInitial] = useState<FormLayout>(() => structuredClone(initialLayout))
