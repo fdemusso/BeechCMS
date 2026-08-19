@@ -157,22 +157,26 @@ const createExtensions = ({
     allowedMimeTypes: ["image/*"],
     maxFileSize: 5 * 1024 * 1024,
     onDrop: (editor, files, pos) => {
-      files.forEach(async (file) => {
-        const src = await fileToBase64(file)
-        editor.commands.insertContentAt(pos, {
-          type: "image",
-          attrs: { src },
+      Promise.all(
+        files.map(async (file) => {
+          const src = await fileToBase64(file)
+          editor.commands.insertContentAt(pos, {
+            type: "image",
+            attrs: { src },
+          })
         })
-      })
+      )
     },
     onPaste: (editor, files) => {
-      files.forEach(async (file) => {
-        const src = await fileToBase64(file)
-        editor.commands.insertContent({
-          type: "image",
-          attrs: { src },
+      Promise.all(
+        files.map(async (file) => {
+          const src = await fileToBase64(file)
+          editor.commands.insertContent({
+            type: "image",
+            attrs: { src },
+          })
         })
-      })
+      )
     },
     onValidationError: (errors) => {
       errors.forEach((error) => {

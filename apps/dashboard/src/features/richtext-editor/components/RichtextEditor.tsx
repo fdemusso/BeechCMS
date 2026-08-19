@@ -41,17 +41,19 @@ export function RichtextEditor({ value, onChange, placeholder }: RichtextEditorP
       // Images that were uploaded in this session but are NO LONGER in the content
       const orphaned = sessionImages.current.filter(url => !finalContent.includes(url))
 
-      orphaned.forEach(async (url) => {
-        try {
-          // Extract the filename/key from the URL (e.g. /api/media/123-img.jpg -> 123-img.jpg)
-          const key = url.split('/').pop()
-          if (key) {
-            await api.delete(`/upload/${decodeURIComponent(key)}`)
+      Promise.allSettled(
+        orphaned.map(async (url) => {
+          try {
+            // Extract the filename/key from the URL (e.g. /api/media/123-img.jpg -> 123-img.jpg)
+            const key = url.split('/').pop()
+            if (key) {
+              await api.delete(`/upload/${decodeURIComponent(key)}`)
+            }
+          } catch (e) {
+            console.error("Session image cleanup failed for:", url, e)
           }
-        } catch (e) {
-          console.error("Session image cleanup failed for:", url, e)
-        }
-      })
+        })
+      )
     }
   }, [])
 
