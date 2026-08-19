@@ -25,6 +25,7 @@ const SYSTEM_TABLES = [
   'seeds',
   'seed_meta',
   'site_settings',
+  'setup_completed',
 ]
 
 // Embedded copy of 0000_v040_base.sql — all DDL uses CREATE TABLE IF NOT EXISTS,
@@ -189,6 +190,10 @@ INSERT OR IGNORE INTO seed_meta (id, value) VALUES ('registry_version', '1');
 CREATE TABLE IF NOT EXISTS site_settings (
     key   TEXT NOT NULL PRIMARY KEY,
     value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS setup_completed (
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1)
 );
 `.trim()
 
