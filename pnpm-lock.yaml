@@ -30,14 +30,14 @@ importers:
   .:
     dependencies:
       '@beechcms/api':
-        specifier: ^0.6.0-preview.2
-        version: 0.6.0-preview.2(@tiptap/pm@3.26.1)(happy-dom@20.11.0)
+        specifier: ^0.6.6
+        version: 0.6.6(@tiptap/pm@3.26.1)(happy-dom@20.11.0)
       '@beechcms/cli':
-        specifier: workspace:^0.6.6
+        specifier: workspace:^0.6.7
         version: link:packages/cli
       '@beechcms/core':
-        specifier: ^0.6.0-preview.2
-        version: 0.6.0-preview.2(@tiptap/pm@3.26.1)(happy-dom@20.11.0)
+        specifier: ^0.6.6
+        version: 0.6.6(@tiptap/pm@3.26.1)(happy-dom@20.11.0)
       '@clack/prompts':
         specifier: ^0.9.1
         version: 0.9.1
@@ -112,7 +112,7 @@ importers:
         specifier: ^3.995.0
         version: 3.1068.0
       '@beechcms/core':
-        specifier: workspace:^0.6.6
+        specifier: workspace:^0.6.7
         version: link:../../packages/core
       '@upstash/qstash':
         specifier: ^2.11.0
@@ -158,10 +158,10 @@ importers:
   apps/dashboard:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.6.6
+        specifier: workspace:^0.6.7
         version: link:../../packages/core
       '@beechcms/widget-sdk':
-        specifier: workspace:^0.6.6
+        specifier: workspace:^0.6.7
         version: link:../../packages/widget-sdk
       '@blocknote/code-block':
         specifier: ^0.49.0
@@ -466,7 +466,7 @@ importers:
   packages/cli:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.6.6
+        specifier: workspace:^0.6.7
         version: link:../core
       picocolors:
         specifier: ^1.1.1
@@ -559,7 +559,7 @@ importers:
   packages/widget-sdk:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.6.6
+        specifier: workspace:^0.6.7
         version: link:../core
       clsx:
         specifier: ^2.1.1
@@ -949,11 +949,11 @@ packages:
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
     engines: {node: '>=18'}
 
-  '@beechcms/api@0.6.0-preview.2':
-    resolution: {integrity: sha512-NYUrmBi7Lnn4F5Sos4BwexjNZZCAdMSEQ17K7fXU1N/P8YrhvwvMRjf//PfZ8kChOhsSHSPiqlFtuOKdqH1Vvg==}
+  '@beechcms/api@0.6.6':
+    resolution: {integrity: sha512-ONPe55rVSNjtBEtQgqCxOiGDo+z4OjyV03Ft7UZgYeLhx8DqpbesBWmTxr/RGJci2OPswTFrVZv6Rr3kqY6MoQ==}
 
-  '@beechcms/core@0.6.0-preview.2':
-    resolution: {integrity: sha512-TQvJuKSBPxsu6t3/rdc68v4BtWrZmGXAZ8cHQY0u4mCGwu6pcwkwyhxz4lZn9EDK+kbSFF612LZjpbZEXYgNZA==}
+  '@beechcms/core@0.6.6':
+    resolution: {integrity: sha512-rvqJWH/K7MQy7fqp/DqLQ0wCFI8PZRtP3NVDUjCJuI6BgKHreweaIWuySLoCLHKJK9ctk1sj9WJ/aCR1lW5kkg==}
 
   '@blocknote/code-block@0.49.0':
     resolution: {integrity: sha512-GwDjtmaVp4aPosXpVRAo+pKLfUX8hXQiP6XM+MH3Mks5tHXkI0Fb3ik92Yscd6ZJz3HX3OH0x+vz5Xchd8Ji5g==}
@@ -7717,20 +7717,21 @@ snapshots:
 
   '@bcoe/v8-coverage@1.0.2': {}
 
-  '@beechcms/api@0.6.0-preview.2(@tiptap/pm@3.26.1)(happy-dom@20.11.0)':
+  '@beechcms/api@0.6.6(@tiptap/pm@3.26.1)(happy-dom@20.11.0)':
     dependencies:
       '@aws-sdk/client-s3': 3.1068.0
       '@aws-sdk/s3-request-presigner': 3.1068.0
-      '@beechcms/core': 0.6.0-preview.2(@tiptap/pm@3.26.1)(happy-dom@20.11.0)
+      '@beechcms/core': 0.6.6(@tiptap/pm@3.26.1)(happy-dom@20.11.0)
       '@upstash/qstash': 2.11.0
       bcryptjs: 2.4.3
       hono: 4.13.0
       jose: 6.2.3
+      zod: 4.4.3
     transitivePeerDependencies:
       - '@tiptap/pm'
       - happy-dom
 
-  '@beechcms/core@0.6.0-preview.2(@tiptap/pm@3.26.1)(happy-dom@20.11.0)':
+  '@beechcms/core@0.6.6(@tiptap/pm@3.26.1)(happy-dom@20.11.0)':
     dependencies:
       '@tiptap/core': 3.26.1(@tiptap/pm@3.26.1)
       '@tiptap/extension-highlight': 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))

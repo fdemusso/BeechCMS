@@ -42,7 +42,21 @@ Your project is four files. The BeechCMS engine, dashboard, and API live inside 
 npx @beechcms/cms
 ```
 
-The interactive wizard scaffolds a ready-to-use project in seconds. For everything from configuration to deployment, see the **[Developer Guide](../docs/guide.md)**.
+The interactive wizard scaffolds a ready-to-use project in seconds. For everything from configuration to deployment, see the **[Developer Guide](https://fdemusso.github.io/BeechCMS/guide)**.
+
+---
+
+## Live Showcase
+
+Want to see BeechCMS in action?
+
+We are currently working on granular account permissions (read-only / guest access) so you'll soon be able to log directly into the BeechCMS dashboard as a guest and explore the backoffice safely without making changes. 
+
+In the meantime, you can explore the live frontend site whose content, blog, and media are completely managed through BeechCMS:
+
+👉 **[Live Showcase: Construction Company Website](https://impresa-edile-web.demusso1617.workers.dev)**
+
+*(Running 100% on Cloudflare's free tier — Workers + D1 + R2 — with zero monthly infrastructure costs)*
 
 ---
 
@@ -80,13 +94,17 @@ Instead of generic document storage, the Engine analyzes your **Seeds** (content
 ---
 ## Documentation
 
-| Document | Description |
+**Full Documentation & Guides**: **[https://fdemusso.github.io/BeechCMS/](https://fdemusso.github.io/BeechCMS/)**
+
+| Guide | Description |
 |---|---|
-| [Getting Started](../docs/guide.md) | End-to-end guide: scaffolding, seeds, API consumption, deployment |
-| [Architecture](../docs/architecture.md) | Monorepo topology, Botanical Engine data flow, D1 per-type SQL model |
-| [Content API & SDK](../docs/content-api.md) | Public REST API, query filtering DSL, and TypeScript SDK |
-| [Custom Widgets](../docs/custom-widgets.md) | Authoring and registering custom dashboard widgets |
-| [Automations](../docs/automations.md) | Triggers, webhooks, Resend email workflows, and template grammar |
+| [Getting Started](https://fdemusso.github.io/BeechCMS/guide) | End-to-end guide: installation, setup, seeds, and deployment |
+| [First Project](https://fdemusso.github.io/BeechCMS/first-project) | Step-by-step tutorial to create and deploy your first project |
+| [Architecture](https://fdemusso.github.io/BeechCMS/architecture) | Monorepo topology, Botanical Engine data flow, and D1 SQL model |
+| [Content API & SDK](https://fdemusso.github.io/BeechCMS/content-api) | Public REST API, query filtering DSL, and TypeScript SDK |
+| [Custom Widgets](https://fdemusso.github.io/BeechCMS/custom-widgets) | Authoring and registering custom dashboard widgets |
+| [Automations](https://fdemusso.github.io/BeechCMS/automations) | Triggers, webhooks, Resend email workflows, and template grammar |
+| [REST API Reference](https://fdemusso.github.io/BeechCMS/api-reference) | Complete REST API endpoint reference |
 | [System Map](../_config/SYSTEM_MAP.md) | Internal folder structure, dependency stack, and non-negotiable constraints |
 
 ---
