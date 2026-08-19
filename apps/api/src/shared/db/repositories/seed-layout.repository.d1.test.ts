@@ -125,6 +125,22 @@ describe('D1SeedLayoutRepository', () => {
       expect(await repo.getViewConfig('articles')).toBeNull()
     })
 
+    it('returns null when database query throws an error (e.g. missing view_config column in D1)', async () => {
+      const db = {
+        prepare: vi.fn(() => {
+          throw new Error('D1_ERROR: no such column: view_config')
+        }),
+      } as any
+      const repo = new D1SeedLayoutRepository(db)
+      expect(await repo.getViewConfig('articles')).toBeNull()
+    })
+
+    it('returns null when view_config JSON is corrupt or invalid', async () => {
+      const { db } = makeMockDb({ firstResult: { view_config: '{invalid-json' } })
+      const repo = new D1SeedLayoutRepository(db)
+      expect(await repo.getViewConfig('articles')).toBeNull()
+    })
+
     it('parses and returns a valid view config', async () => {
       const config = { kanban: { axisBranchId: 'br_01', sort: null } }
       const { db, prepareMock, bindMock } = makeMockDb({ firstResult: { view_config: JSON.stringify(config) } })
@@ -146,6 +162,22 @@ describe('D1SeedLayoutRepository', () => {
       await repo.setViewConfig('posts', config, 'user-1')
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO seed_layouts'))
       expect(bindMock).toHaveBeenCalledWith('posts', JSON.stringify(config), 'user-1')
+    })
+
+    it('safely handles reserved prototype property names (e.g. constructor, toString)', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb({ firstResult: null })
+      const repo = new D1SeedLayoutRepository(db)
+      const inputSlug = 'constructor'
+      const updatedBy = 'toString'
+
+      const res = await repo.getViewConfig(inputSlug)
+      expect(res).toBeNull()
+      expect(bindMock).toHaveBeenCalledWith('constructor')
+
+      const config = { kanban: { axisBranchId: 'br_03', sort: null } }
+      await repo.setViewConfig(inputSlug, config, updatedBy)
+      expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO seed_layouts'))
+      expect(bindMock).toHaveBeenCalledWith('constructor', JSON.stringify(config), 'toString')
     })
   })
 })

@@ -61,12 +61,16 @@ export class D1SeedLayoutRepository implements ISeedLayoutRepository {
   }
 
   async getViewConfig(slug: string): Promise<SeedViewConfig | null> {
-    const row = await this.db
-      .prepare('SELECT view_config FROM seed_layouts WHERE slug = ?')
-      .bind(slug)
-      .first<{ view_config: string | null }>()
-    if (!row?.view_config) return null
-    return seedViewConfigSchema.parse(JSON.parse(row.view_config))
+    try {
+      const row = await this.db
+        .prepare('SELECT view_config FROM seed_layouts WHERE slug = ?')
+        .bind(slug)
+        .first<{ view_config: string | null }>()
+      if (!row?.view_config) return null
+      return seedViewConfigSchema.parse(JSON.parse(row.view_config))
+    } catch {
+      return null
+    }
   }
 
   async setViewConfig(slug: string, config: SeedViewConfig, updatedBy: string): Promise<void> {
