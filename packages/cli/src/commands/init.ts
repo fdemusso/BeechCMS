@@ -24,6 +24,7 @@ const SYSTEM_TABLES = [
   'automations',
   'seeds',
   'seed_meta',
+  'seed_layouts',
   'site_settings',
   'setup_completed',
 ]
@@ -190,6 +191,14 @@ INSERT OR IGNORE INTO seed_meta (id, value) VALUES ('registry_version', '1');
 CREATE TABLE IF NOT EXISTS site_settings (
     key   TEXT NOT NULL PRIMARY KEY,
     value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS seed_layouts (
+    slug        TEXT    NOT NULL PRIMARY KEY,
+    layout      TEXT    NOT NULL,
+    view_config TEXT,
+    updated_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_by  TEXT    NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS setup_completed (
