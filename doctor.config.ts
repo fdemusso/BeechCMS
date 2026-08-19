@@ -1,6 +1,7 @@
 import type { ReactDoctorConfig } from "react-doctor";
 
 const config: ReactDoctorConfig = {
+  projects: ["apps/dashboard"],
   ignore: {
     files: [
       "docs/**",
