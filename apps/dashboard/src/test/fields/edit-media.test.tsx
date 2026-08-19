@@ -97,11 +97,11 @@ describe("MediaEdit", () => {
     expect(screen.getByPlaceholderText(/Image link/i)).toBeInTheDocument()
   })
 
-  it("URL non HTTPS -> mostra errore e non salva", async () => {
+  it("URL con schema non HTTP/HTTPS (es. ftp:, javascript:) -> mostra errore e non salva", async () => {
     render(<MediaEdit branch={mockBranch} value="" onChange={onChange} />)
     const input = screen.getByRole("textbox")
     fireEvent.change(input, {
-      target: { value: "http://example.com/image.jpg" },
+      target: { value: "ftp://example.com/image.jpg" },
     })
     fireEvent.blur(input)
 
@@ -109,6 +109,20 @@ describe("MediaEdit", () => {
       expect(screen.getByText(/must start with https/i)).toBeInTheDocument()
     })
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it("URL HTTP / localhost in sviluppo locale -> accetta e salva URL renderizzabile", async () => {
+    render(<MediaEdit branch={mockBranch} value="" onChange={onChange} />)
+    const input = screen.getByRole("textbox")
+    const localUrl = "http://localhost:8789/api/media/valid-image.jpg"
+    fireEvent.change(input, {
+      target: { value: localUrl },
+    })
+    fireEvent.blur(input)
+
+    await waitFor(() => {
+      expect(onChange).toHaveBeenCalledWith(localUrl)
+    })
   })
 
   it("URL renderizzabile -> chiama onChange con link esterno", async () => {
@@ -181,5 +195,22 @@ describe("MediaEdit", () => {
         validUrl,
       ])
     })
+  })
+
+  it("Asset-list: ignora chiavi prototype riservate (constructor, toString) e non causa inquinamento", () => {
+    const invalidPrototypeObject = Object.create(null)
+    invalidPrototypeObject.constructor = "https://cdn.example.com/valid-image.jpg"
+    invalidPrototypeObject.toString = "http://localhost:8789/valid-image.jpg"
+
+    render(
+      <MediaEdit
+        branch={mockAssetListBranch}
+        value={[invalidPrototypeObject, { url: "http://localhost:8789/valid-image.jpg" }]}
+        onChange={onChange}
+      />
+    )
+
+    // Solo l'oggetto con proprietà propria 'url' deve essere parsato
+    expect(screen.getByRole("img")).toHaveAttribute("src", "http://localhost:8789/valid-image.jpg")
   })
 })
