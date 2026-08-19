@@ -17,12 +17,14 @@ concurrency:
 jobs:
   react-doctor:
     runs-on: ubuntu-latest
-    env:
-      NODE_OPTIONS: --no-deprecation
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
       - uses: millionco/react-doctor@v2.1.0
         with:
           project: apps/dashboard
           blocking: none
+
 
