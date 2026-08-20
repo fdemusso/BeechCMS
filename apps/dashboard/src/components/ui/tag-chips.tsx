@@ -92,12 +92,13 @@ export function TagChips({
   const hiddenCount = normalizedTags.length - safeMaxVisible
 
   return (
-    <div className={cn("flex min-w-0 flex-wrap items-center gap-1", className)}>
+    <div className={cn("flex min-w-0 max-w-full flex-wrap items-center gap-1.5", className)}>
       {visibleTags.map((tag) => (
         <Badge
           key={`${tag.label}-${tag.color ?? ""}`}
           variant={chipVariant}
           className={cn("min-w-0 max-w-full", chipClassName)}
+          title={tag.label}
           style={
             tag.color
               ? {
@@ -108,7 +109,7 @@ export function TagChips({
               : undefined
           }
         >
-          <span className="block min-w-0 max-w-full truncate">{tag.label}</span>
+          <span className="block min-w-0 max-w-[260px] truncate" title={tag.label}>{tag.label}</span>
         </Badge>
       ))}
 
