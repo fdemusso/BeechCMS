@@ -20,6 +20,7 @@ import {
   isUrl,
   sanitizeUrl,
   randomId,
+  normalizeContent,
 } from "@/components/ui/minimal-tiptap/shared"
 
 // ---------------------------------------------------------------------------
@@ -56,6 +57,15 @@ describe("getShortcutKey", () => {
   it("è case-insensitive", () => {
     expect(getShortcutKey("SHIFT").symbol).toBe("⇧")
     expect(getShortcutKey("Shift").symbol).toBe("⇧")
+  })
+
+  it("non è vulnerabile a lookup su prototipi (constructor, toString)", () => {
+    const ctorResult = getShortcutKey("constructor")
+    expect(ctorResult).toEqual({ symbol: "constructor", readable: "constructor" })
+    const toStringResult = getShortcutKey("toString")
+    expect(toStringResult).toEqual({ symbol: "toString", readable: "toString" })
+    const valueOfResult = getShortcutKey("valueOf")
+    expect(valueOfResult).toEqual({ symbol: "valueOf", readable: "valueOf" })
   })
 })
 
@@ -152,3 +162,41 @@ describe("randomId", () => {
     expect(ids.size).toBe(50)
   })
 })
+
+// ---------------------------------------------------------------------------
+// normalizeContent
+// ---------------------------------------------------------------------------
+
+describe("normalizeContent", () => {
+  it("restituisce undefined per input vuoti o nullish", () => {
+    expect(normalizeContent(undefined)).toBeUndefined()
+    expect(normalizeContent(null)).toBeUndefined()
+    expect(normalizeContent("")).toBeUndefined()
+  })
+
+  it("fa il parse di stringhe JSON valide", () => {
+    const jsonStr = JSON.stringify({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Hello" }] }],
+    })
+    const result = normalizeContent(jsonStr)
+    expect(result).toEqual({
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Hello" }] }],
+    })
+  })
+
+  it("mantiene stringhe HTML come tali", () => {
+    const html = "<p class=\"text-node\">Hello world</p>"
+    expect(normalizeContent(html)).toBe(html)
+  })
+
+  it("preserva oggetti JSON doc invariati", () => {
+    const docObj = {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text: "Test" }] }],
+    }
+    expect(normalizeContent(docObj)).toBe(docObj)
+  })
+})
+

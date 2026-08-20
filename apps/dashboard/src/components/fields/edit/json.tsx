@@ -76,7 +76,7 @@ export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
 
     const toggleTag = (tag: string) => {
       const next = { ...currentTags }
-      if (next[tag] === undefined) {
+      if (!Object.hasOwn(next, tag) || next[tag] === undefined) {
         const idx = Object.keys(next).length % DEFAULT_COLORS.length
         next[tag] = DEFAULT_COLORS[idx]
       } else {
@@ -85,33 +85,36 @@ export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
       onChange(next)
     }
 
-    const activeEntries = Object.entries(currentTags)
+    const activeEntries = Object.entries(currentTags).filter(([key]) =>
+      Object.hasOwn(currentTags, key)
+    )
     const availableOptions = predefinedOptions.filter(
-      (opt: string) => currentTags[opt] === undefined
+      (opt: string) => !Object.hasOwn(currentTags, opt) || currentTags[opt] === undefined
     )
 
     return (
       <div>
-        <div className="flex flex-wrap items-center gap-1.5">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-1.5">
           {activeEntries.length > 0 ? (
             activeEntries.map(([tag, color]) => (
               <button
                 key={tag}
                 type="button"
                 onClick={() => toggleTag(tag)}
-                className="group relative"
+                className="group relative min-w-0 max-w-full"
                 aria-label={`Remove tag ${tag}`}
+                title={tag}
               >
                 <Badge
                   variant="secondary"
-                  className="cursor-pointer select-none border-transparent pr-2 transition"
+                  className="cursor-pointer select-none border-transparent pr-2 transition min-w-0 max-w-full"
                   style={{
                     backgroundColor: color,
                     color: "#fff",
                     borderColor: color,
                   }}
                 >
-                  {tag}
+                  <span className="block min-w-0 max-w-[260px] truncate">{tag}</span>
                 </Badge>
                 <span className="absolute inset-0 flex items-center justify-center rounded-full bg-destructive/90 text-white opacity-0 transition-opacity group-hover:opacity-100">
                   <X className="size-3.5" />
@@ -134,17 +137,18 @@ export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
                 <Plus className="size-3.5" />
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="start" className="w-56 p-2">
+            <PopoverContent align="start" className="w-56 max-w-full p-2">
               <div className="mb-2 text-xs text-muted-foreground">
                 Select a tag from the seed
               </div>
               <div className="max-h-56 space-y-1 overflow-y-auto">
                 {predefinedOptions.map((opt: string) => {
-                  const isActive = currentTags[opt] !== undefined
+                  const isActive = Object.hasOwn(currentTags, opt) && currentTags[opt] !== undefined
                   return (
                     <button
                       key={opt}
                       type="button"
+                      title={opt}
                       onClick={() => {
                         toggleTag(opt)
                         if (isActive) return
@@ -157,8 +161,8 @@ export function JsonEdit({ branch, value, onChange }: FieldEditProps) {
                           : "hover:bg-accent hover:text-accent-foreground"
                       )}
                     >
-                      <span>{opt}</span>
-                      {isActive ? <Check className="size-4" /> : null}
+                      <span className="min-w-0 max-w-[200px] truncate">{opt}</span>
+                      {isActive ? <Check className="size-4 shrink-0" /> : null}
                     </button>
                   )
                 })}

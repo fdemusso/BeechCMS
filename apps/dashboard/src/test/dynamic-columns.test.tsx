@@ -246,6 +246,27 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
     })
   })
 
+  it("status: non mostra il badge bozza in sospeso per entry draft", async () => {
+    const seed = makeSeed({ branches: [] })
+    const entry = {
+      ...makeEntry("id-1", "items", {}),
+      status: "draft",
+      has_pending_draft: true,
+    } as ContentEntry
+    const t = (k: string) => {
+      if (k === "content.table.pendingDraft") return "Pending draft"
+      return k
+    }
+    const cols = generateColumns(seed, vi.fn(), vi.fn(), undefined, [], undefined, undefined, t)
+
+    render(<DataTable columns={cols} data={[entry]} />)
+
+    expect(await screen.findByText("draft")).toBeInTheDocument()
+    await waitFor(() => {
+      expect(screen.queryByText("Pending draft")).not.toBeInTheDocument()
+    })
+  })
+
   describe("azioni column", () => {
     beforeEach(() => {
       ;(toast.success as any).mockClear?.()

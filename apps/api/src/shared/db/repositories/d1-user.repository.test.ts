@@ -131,6 +131,24 @@ describe('D1UserRepository', () => {
         }),
       ).rejects.toThrow('database is locked')
     })
+
+    it('safely handles user input with reserved prototype property names (e.g. constructor, toString)', async () => {
+      const batchMock = vi.fn().mockResolvedValue([])
+      const { db } = makeMockDb()
+      ;(db as any).batch = batchMock
+      const userInput = Object.create(null)
+      userInput.id = 'u1'
+      userInput.email = 'a@b.com'
+      userInput.passwordHash = 'hash'
+      userInput.role = 'admin'
+      userInput.name = 'Test'
+      userInput.surname = null
+      userInput.constructor = 'proto-bypass-attempt'
+
+      const created = await new D1UserRepository(db).createInitialAdmin(userInput)
+      expect(created).toBe(true)
+      expect(Object.hasOwn(userInput, 'constructor')).toBe(true)
+    })
   })
 
   describe('updateProfile', () => {

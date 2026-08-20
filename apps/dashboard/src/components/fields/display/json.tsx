@@ -41,13 +41,13 @@ export function JsonDisplay({ branch, value, options }: FieldDisplayProps) {
           tags={tags}
           maxVisible={1}
           enableToggle
-          className="min-w-[10rem]"
+          className="min-w-0 max-w-full gap-1.5"
         />
       )
     }
 
     if (isTagsField && Array.isArray(parsed)) {
-      return <TagChips tags={extractTagChips(parsed)} />
+      return <TagChips tags={extractTagChips(parsed)} className="min-w-0 max-w-full gap-1.5" />
     }
 
     const str = JSON.stringify(parsed, null, 2)

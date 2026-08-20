@@ -129,7 +129,7 @@ That was the moment I understood the real gap. Small agencies and freelancers do
 
 **Why the Botanical Engine?** I built the Botanical Engine as a high-performance **Schema Compiler**. It bridges the gap between the flexibility of a CMS and the power of a relational database. Instead of storing data in generic blobs, it compiles TypeScript definitions into native SQL tables and columns. This ensures rigid data integrity (crucial for things like financial records) and unlocks massive performance gains by leveraging native D1 indexing. This true relational model maintains the simplicity of "Schema-as-Code" while allowing for advanced features like cross-seed relations and complex aggregations.
 
-**What I learned building it.** BeechCMS is my first serious serverless project. I had no prior experience with Cloudflare Workers, edge computing, or D1. Everything I know about this stack I learned by building this — reading documentation, hitting limits, understanding why they exist, and finding the right abstractions. The project is currently in active development toward a public 1.0 release and is already available on pnpm.
+**What I learned building it.** BeechCMS is my first serious serverless project. I had no prior experience with Cloudflare Workers, edge computing, or D1. Everything I know about this stack I learned by building this — reading documentation, hitting limits, understanding why they exist, and finding the right abstractions. The project is currently in active development toward a public 1.0 release and is already available on [Npm](https://www.npmjs.com/org/beechcms).
 
 ---
 

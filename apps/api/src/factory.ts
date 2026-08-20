@@ -384,6 +384,9 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   apiPublic.use('*', publicRateLimitMiddleware())
   apiPublic.use('*', apiKeyMiddleware())
   apiPublic.route('/', publicRoutes)
+  apiPublic.all('*', (c) => {
+    return c.json({ error: 'Not Found', message: `Public endpoint ${c.req.method} ${c.req.path} does not exist.` }, 404)
+  })
   app.route('/api/v1/public', apiPublic)
 
   // Webhooks API (public, verified via signature)
@@ -425,7 +428,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     // ASSETS returns an immutable Response — wrap it to inject security headers
     const headers = new Headers(assetResponse.headers)
     headers.set('Content-Security-Policy',
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none'"
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; connect-src 'self' http: https:; frame-ancestors 'none'"
     )
     headers.set('X-Frame-Options', 'DENY')
     headers.set('X-Content-Type-Options', 'nosniff')

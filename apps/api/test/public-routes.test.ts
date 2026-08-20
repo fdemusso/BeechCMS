@@ -7,7 +7,7 @@ import { createBeechApp } from '../src/factory'
 import { StaticAutomationRepository } from './mocks/static-automation.repository'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
-import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_READ_KEY } from './fixtures'
+import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_READ_KEY, TEST_PUBLIC_WRITE_KEY } from './fixtures'
 
 describe('Public API Routes', () => {
   let app: ReturnType<typeof createBeechApp>
@@ -93,4 +93,29 @@ describe('Public API Routes', () => {
       expect(res.headers.get('Access-Control-Allow-Headers')).toContain('Idempotency-Key')
     })
   })
+
+  describe('Unmapped public routes 404 fallthrough', () => {
+    it('returns 404 Not Found instead of 401 Unauthorized for unmapped public endpoint', async () => {
+      const res = await app.request('/api/v1/public/leads', {
+        method: 'POST',
+        headers: { 'X-API-Key': TEST_PUBLIC_WRITE_KEY }
+      }, TEST_ENV)
+      expect(res.status).toBe(404)
+      const body = await res.json<{ error: string; message: string }>()
+      expect(body.error).toBe('Not Found')
+      expect(body.message).toContain('Public endpoint POST /api/v1/public/leads does not exist.')
+    })
+
+    it('returns 404 Not Found for reserved prototype property names as unmapped path', async () => {
+      const res = await app.request('/api/v1/public/constructor', {
+        method: 'POST',
+        headers: { 'X-API-Key': TEST_PUBLIC_WRITE_KEY }
+      }, TEST_ENV)
+      expect(res.status).toBe(404)
+      const body = await res.json<{ error: string; message: string }>()
+      expect(body.error).toBe('Not Found')
+      expect(body.message).toContain('Public endpoint POST /api/v1/public/constructor does not exist.')
+    })
+  })
 })
+

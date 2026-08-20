@@ -4,6 +4,7 @@
 
 import "./styles/index.css"
 
+import * as React from "react"
 import type { Content, Editor } from "@tiptap/react"
 import type { UseMinimalTiptapEditorProps } from "./hooks/use-minimal-tiptap"
 import { EditorContent, EditorContext } from "@tiptap/react"
@@ -90,12 +91,14 @@ export const MinimalTiptapEditor = ({
     ...props,
   })
 
-  if (!editor) {
+  const contextValue = React.useMemo(() => (editor ? { editor } : null), [editor])
+
+  if (!editor || !contextValue) {
     return null
   }
 
   return (
-    <EditorContext.Provider value={{ editor }}>
+    <EditorContext.Provider value={contextValue}>
       <MainMinimalTiptapEditor
         editor={editor}
         className={className}

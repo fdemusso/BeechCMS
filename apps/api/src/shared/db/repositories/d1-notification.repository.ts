@@ -70,12 +70,15 @@ export class D1NotificationRepository implements INotificationRepository {
 
   async create(record: Omit<NotificationRecord, 'id' | 'createdAt' | 'isRead'>): Promise<string> {
     const generatedId = this.idGenerator.uuid()
+    const safeType = Object.hasOwn(record, 'type') && record.type ? record.type : 'info'
+    const safeTitle = Object.hasOwn(record, 'title') && typeof record.title === 'string' ? record.title : ''
+    const safeMessage = Object.hasOwn(record, 'message') && typeof record.message === 'string' ? record.message : ''
     await this.database
       .prepare(
         `INSERT INTO notifications (id, title, message, type)
          VALUES (?, ?, ?, ?)`
       )
-      .bind(generatedId, record.title, record.message, record.type)
+      .bind(generatedId, safeTitle, safeMessage, safeType)
       .run()
     return generatedId
   }
@@ -107,12 +110,13 @@ export class D1NotificationRepository implements INotificationRepository {
 }
 
 function mapRowToRecord(row: NotificationRow): NotificationRecord {
+  const safeType = Object.hasOwn(row, 'type') && row.type ? row.type : 'info'
   return {
-    id: row.id,
-    title: row.title,
-    message: row.message,
-    type: row.type as NotificationType,
-    isRead: row.is_read === 1,
-    createdAt: row.created_at,
+    id: Object.hasOwn(row, 'id') ? row.id : '',
+    title: Object.hasOwn(row, 'title') ? row.title : '',
+    message: Object.hasOwn(row, 'message') ? row.message : '',
+    type: safeType as NotificationType,
+    isRead: Object.hasOwn(row, 'is_read') ? row.is_read === 1 : false,
+    createdAt: Object.hasOwn(row, 'created_at') ? row.created_at : 0,
   }
 }

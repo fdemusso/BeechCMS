@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     id         TEXT    NOT NULL PRIMARY KEY,
     title      TEXT    NOT NULL,
     message    TEXT    NOT NULL,
-    type       TEXT    NOT NULL DEFAULT 'info' CHECK (type IN ('info', 'warning', 'error')),
+    type       TEXT    NOT NULL DEFAULT 'info' CHECK (type IN ('info', 'success', 'warning', 'error')),
     is_read    INTEGER NOT NULL DEFAULT 0 CHECK (is_read IN (0, 1)),
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
@@ -263,3 +263,16 @@ CREATE TABLE IF NOT EXISTS seed_layouts (
     updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
     updated_by TEXT    NOT NULL            -- users.id of the writer
 );
+
+
+-- =============================================================================
+-- 14. SETUP LOCK
+--     Single-row marker enforcing that /auth/setup can only complete once, even
+--     under concurrent requests. Insert into this table in the same transaction
+--     as the initial admin user; the PRIMARY KEY conflict rejects the loser.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS setup_completed (
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1)
+);
+

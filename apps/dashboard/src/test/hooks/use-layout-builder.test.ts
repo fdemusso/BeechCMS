@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from "vitest"
 import { renderHook, act } from "@testing-library/react"
-import { useLayoutBuilder } from "@/features/entry-editor/builder/use-layout-builder"
+import { useLayoutBuilder, getFullWidthWarningLabel } from "@/features/entry-editor/builder/use-layout-builder"
 import type { Seed, FormLayout } from "@beechcms/core"
 
 const mockSeed: Seed = {
@@ -296,6 +296,46 @@ describe("useLayoutBuilder", () => {
       })
       expect(result.current.draft.tabs).toHaveLength(2)
       expect(result.current.activeTabId).not.toBe("tab-new")
+    })
+  })
+
+  describe("getFullWidthWarningLabel", () => {
+    it("returns incoming branch label if incoming branch is full-width", () => {
+      const galleryBranch = mockSeed.branches.find((b) => b.id === "b-gallery")!
+      const sec = mockInitialLayout.tabs[0].sections[0]
+      const branchById = Object.fromEntries(mockSeed.branches.map((b) => [b.id, b]))
+
+      const label = getFullWidthWarningLabel(galleryBranch, sec, branchById)
+      expect(label).toBe("Gallery")
+    })
+
+    it("scans target section and returns existing full-width field label if incoming branch is normal", () => {
+      const normalBranch = mockSeed.branches.find((b) => b.id === "b-published")!
+      const branchById = Object.fromEntries(mockSeed.branches.map((b) => [b.id, b]))
+      const sectionWithGallery: FormLayout["tabs"][0]["sections"][0] = {
+        id: "sec-with-gallery",
+        columns: [
+          { id: "c1", fields: [{ branchId: "b-gallery" }] },
+        ],
+      }
+
+      const label = getFullWidthWarningLabel(normalBranch, sectionWithGallery, branchById)
+      expect(label).toBe("Gallery")
+    })
+
+    it("safely handles prototype pollution and reserved keys like constructor or toString", () => {
+      const normalBranch = mockSeed.branches.find((b) => b.id === "b-published")!
+      const pollutionSection: FormLayout["tabs"][0]["sections"][0] = {
+        id: "sec-proto",
+        columns: [
+          { id: "c1", fields: [{ branchId: "constructor" }, { branchId: "toString" }] },
+        ],
+      }
+      const branchById = Object.fromEntries(mockSeed.branches.map((b) => [b.id, b]))
+
+      // Should not throw or crash on prototype properties
+      const label = getFullWidthWarningLabel(normalBranch, pollutionSection, branchById)
+      expect(label).toBe("Published")
     })
   })
 })

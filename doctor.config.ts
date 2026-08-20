@@ -1,10 +1,9 @@
 import type { ReactDoctorConfig } from "react-doctor";
 
 const config: ReactDoctorConfig = {
+  projects: ["apps/dashboard"],
   ignore: {
     files: [
-      "apps/**",
-      "packages/**",
       "docs/**",
       "docs/.vitepress/**",
       "**/node_modules/**",

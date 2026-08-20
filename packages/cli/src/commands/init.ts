@@ -24,7 +24,9 @@ const SYSTEM_TABLES = [
   'automations',
   'seeds',
   'seed_meta',
+  'seed_layouts',
   'site_settings',
+  'setup_completed',
 ]
 
 // Embedded copy of 0000_v040_base.sql — all DDL uses CREATE TABLE IF NOT EXISTS,
@@ -116,7 +118,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     id         TEXT    NOT NULL PRIMARY KEY,
     title      TEXT    NOT NULL,
     message    TEXT    NOT NULL,
-    type       TEXT    NOT NULL DEFAULT 'info' CHECK (type IN ('info', 'warning', 'error')),
+    type       TEXT    NOT NULL DEFAULT 'info' CHECK (type IN ('info', 'success', 'warning', 'error')),
     is_read    INTEGER NOT NULL DEFAULT 0 CHECK (is_read IN (0, 1)),
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
@@ -189,6 +191,18 @@ INSERT OR IGNORE INTO seed_meta (id, value) VALUES ('registry_version', '1');
 CREATE TABLE IF NOT EXISTS site_settings (
     key   TEXT NOT NULL PRIMARY KEY,
     value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS seed_layouts (
+    slug        TEXT    NOT NULL PRIMARY KEY,
+    layout      TEXT    NOT NULL,
+    view_config TEXT,
+    updated_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_by  TEXT    NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS setup_completed (
+    id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1)
 );
 `.trim()
 
