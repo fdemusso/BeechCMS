@@ -94,6 +94,56 @@ describe('D1NotificationRepository', () => {
       expect(prepareMock.mock.calls[0][0]).toMatch(/INSERT INTO notifications/)
       expect(bindMock).toHaveBeenCalledWith(id, 'Hello', 'World', 'info')
     })
+
+    it('inserts a new notification with type success into D1TestDatabase with migrations applied', async () => {
+      const { D1TestDatabase } = await import('../../../../test/helpers/d1-test-database')
+      const testDb = new D1TestDatabase({ applyMigrations: true })
+      const repo = new D1NotificationRepository(testDb, clock, makeIdGen())
+      
+      const id = await repo.create({
+        title: 'Form Submission',
+        message: 'A new entry has been added',
+        type: 'success',
+      })
+
+      expect(typeof id).toBe('string')
+      const list = await repo.list(10)
+      expect(list).toHaveLength(1)
+      expect(list[0]).toMatchObject({
+        id,
+        title: 'Form Submission',
+        message: 'A new entry has been added',
+        type: 'success',
+      })
+    })
+
+    it('handles prototype/builtin property names safely without throwing or leaking prototype', async () => {
+      const { db } = makeMockDb({
+        allResults: [
+          Object.assign(Object.create({ type: 'error', id: 'proto-id' }), {
+            id: 'n-proto',
+            title: 'Title',
+            message: 'Message',
+            type: 'success',
+            is_read: 0,
+            created_at: 200,
+          }),
+        ],
+      })
+      const repo = new D1NotificationRepository(db, clock, makeIdGen())
+      const list = await repo.list(10)
+      expect(list[0].id).toBe('n-proto')
+      expect(list[0].type).toBe('success')
+
+      // Record input with inherited/prototype properties
+      const recordInput = Object.assign(Object.create({ title: 'inherited', type: 'error' }), {
+        title: 'Direct Title',
+        message: 'Direct Message',
+        type: 'success',
+      })
+      const id = await repo.create(recordInput)
+      expect(id).toBeDefined()
+    })
   })
 
   describe('markRead / markUnread / delete / markAllRead', () => {

@@ -118,7 +118,7 @@ CREATE TABLE IF NOT EXISTS notifications (
     id         TEXT    NOT NULL PRIMARY KEY,
     title      TEXT    NOT NULL,
     message    TEXT    NOT NULL,
-    type       TEXT    NOT NULL DEFAULT 'info' CHECK (type IN ('info', 'warning', 'error')),
+    type       TEXT    NOT NULL DEFAULT 'info' CHECK (type IN ('info', 'success', 'warning', 'error')),
     is_read    INTEGER NOT NULL DEFAULT 0 CHECK (is_read IN (0, 1)),
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
