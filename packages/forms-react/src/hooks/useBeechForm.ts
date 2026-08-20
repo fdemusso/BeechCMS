@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import type { FormSeedSchema, UseBeechFormOptions, UseBeechFormReturn } from '../types.js'
+import type { FormBranchSchema, FormSeedSchema, UseBeechFormOptions, UseBeechFormReturn } from '../types.js'
 import { DEFAULT_HONEYPOT_NAME } from '../core/honeypot.js'
 import { fetchTimeTrapToken } from '../core/time-trap.js'
 import { clearFormDraft, loadFormDraft, saveFormDraft } from '../core/draft-storage.js'
@@ -28,8 +28,81 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
   } = options
 
   const seedSlug = typeof seed === 'string' ? seed : seed.slug
-  const schema: FormSeedSchema | null = typeof seed === 'object' ? seed : null
+  const [schema, setSchema] = useState<FormSeedSchema | null>(typeof seed === 'object' ? seed : null)
+  const [isLoadingSchema, setIsLoadingSchema] = useState<boolean>(typeof seed === 'string' && !!baseUrl)
   const translations = useMemo(() => getTranslations(locale, customTranslations), [locale, customTranslations])
+
+  // Fetch schema dynamically if seed is a string slug and baseUrl is provided
+  useEffect(() => {
+    if (typeof seed === 'object') {
+      setSchema(seed)
+      setIsLoadingSchema(false)
+      return
+    }
+
+    if (typeof seed === 'string' && baseUrl) {
+      setIsLoadingSchema(true)
+      const cleanBase = baseUrl.replace(/\/+$/, '')
+      const headers: Record<string, string> = {}
+      if (apiKey) headers['X-API-Key'] = apiKey
+
+      fetch(`${cleanBase}/api/v1/public/schema`, { headers })
+        .then((res) => res.json() as Promise<{ seeds?: Array<{ slug: string; label?: string; branches?: Array<Record<string, unknown>> }> }>)
+        .then((data) => {
+          if (Array.isArray(data.seeds)) {
+            const found = data.seeds.find((s) => s.slug === seedSlug)
+            if (found) {
+              const adaptedBranches: FormBranchSchema[] = (found.branches ?? []).map((b) => {
+                const alias = String(b.alias || '')
+                const typeStr = String(b.type || '')
+                const label = typeof b.label === 'string' ? b.label : alias
+                const options = Array.isArray(b.options)
+                  ? (b.options as Array<{ label: string; value: string | number } | string>).map((opt) =>
+                      typeof opt === 'string' ? { label: opt, value: opt } : opt
+                    )
+                  : undefined
+                const formType =
+                  typeStr === 'email'
+                    ? 'email'
+                    : typeStr === 'file'
+                    ? 'file'
+                    : typeStr === 'number'
+                    ? 'number'
+                    : typeStr === 'boolean'
+                    ? 'boolean'
+                    : options && options.length > 0
+                    ? 'select'
+                    : typeStr === 'text' && (alias === 'message' || alias === 'description')
+                    ? 'text'
+                    : 'string'
+
+                return {
+                  alias,
+                  type: formType,
+                  label,
+                  required: Boolean(b.requiredOnCreate ?? b.required),
+                  placeholder: typeof b.placeholder === 'string' ? b.placeholder : undefined,
+                  options,
+                  helpText: typeof b.helpText === 'string' ? b.helpText : undefined,
+                  accept: typeof b.accept === 'string' ? b.accept : undefined,
+                }
+              })
+              setSchema({
+                slug: found.slug,
+                label: found.label,
+                branches: adaptedBranches,
+              })
+            }
+          }
+        })
+        .catch((err) => {
+          console.error(`Failed to load schema for seed '${seedSlug}':`, err)
+        })
+        .finally(() => {
+          setIsLoadingSchema(false)
+        })
+    }
+  }, [seed, seedSlug, baseUrl, apiKey])
 
   const [values, setValues] = useState<TValues>(() => {
     const base = { ...initialValues } as TValues
@@ -330,6 +403,8 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
 
   return {
     seedSlug,
+    schema,
+    isLoadingSchema,
     values,
     errors,
     touched,

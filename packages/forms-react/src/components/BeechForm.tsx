@@ -10,7 +10,7 @@ import { FormField } from './FormField.js'
 export const BeechForm: FC<BeechFormProps> = (props) => {
   const { className = 'beech-form', children, ...options } = props
   const form = useBeechForm(options)
-  const schema = typeof options.seed === 'object' ? options.seed : null
+  const schema = form.schema
 
   return (
     <form className={className} onSubmit={form.handleSubmit} noValidate>
@@ -40,8 +40,12 @@ export const BeechForm: FC<BeechFormProps> = (props) => {
         </div>
       )}
 
-      {/* Success View */}
-      {form.isSuccess ? (
+      {/* Schema Loading State */}
+      {form.isLoadingSchema ? (
+        <div className="beech-loading-schema" style={{ padding: '24px 0', textAlign: 'center', color: '#6b7280' }}>
+          <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span> Caricamento schema form in corso...
+        </div>
+      ) : form.isSuccess ? (
         <div className="beech-alert beech-alert-success" role="status">
           <h3>{form.translations.successTitle}</h3>
           <p>{form.translations.successMessage}</p>

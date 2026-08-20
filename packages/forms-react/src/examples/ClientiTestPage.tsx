@@ -3,65 +3,10 @@
 
 import React, { useState } from 'react'
 import { BeechForm } from '../components/BeechForm.js'
-import type { FormSeedSchema } from '../types.js'
-
-/**
- * Seed definition for 'clienti' (Customer / Lead Acquisition Form)
- * Extracted directly from the local BeechCMS D1 database.
- */
-export const CLIENTI_SEED_SCHEMA: FormSeedSchema = {
-  slug: 'clienti',
-  label: 'Customer Registration',
-  branches: [
-    {
-      alias: 'name',
-      label: 'Ragione Sociale / Nome Contatto',
-      type: 'string',
-      required: true,
-      placeholder: 'es. Acme Corporation o Mario Rossi',
-      helpText: 'Inserisci il nome della tua azienda o il tuo nominativo',
-    },
-    {
-      alias: 'email',
-      label: 'Email Aziendale (Confidential PII)',
-      type: 'email',
-      required: true,
-      placeholder: 'nome@azienda.it',
-      helpText: 'Questo dato viene cifrato a riposo (AES-256-GCM) e protetto da policy',
-    },
-    {
-      alias: 'company',
-      label: 'Azienda',
-      type: 'string',
-      placeholder: 'es. Acme SpA',
-    },
-    {
-      alias: 'tier',
-      label: 'Piano Richiesto',
-      type: 'select',
-      required: true,
-      placeholder: '-- Seleziona un Piano --',
-      options: [
-        { label: 'Piano Free', value: 'free' },
-        { label: 'Piano Pro (€150/mese)', value: 'pro' },
-        { label: 'Piano Enterprise (€1200/mese)', value: 'enterprise' },
-      ],
-    },
-    {
-      alias: 'account_status',
-      label: 'Stato Iniziale',
-      type: 'select',
-      required: true,
-      options: [
-        { label: 'Attivo / Pronto all\'onboarding', value: 'active' },
-        { label: 'In valutazione', value: 'churned' },
-      ],
-    },
-  ],
-}
 
 /**
  * Test Page Component wiring the 'clienti' BeechForm
+ * Note: ZERO local schema declared! It dynamically fetches the schema from GET /api/v1/public/schema.
  */
 export function ClientiTestPage() {
   const [submittedData, setSubmittedData] = useState<Record<string, unknown> | null>(null)
@@ -71,17 +16,17 @@ export function ClientiTestPage() {
     <div className="clienti-test-page" style={{ maxWidth: 640, margin: '40px auto', padding: 24, fontFamily: 'system-ui, sans-serif' }}>
       <header style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111827' }}>
-          BeechCMS Form Test — Seed: <code>clienti</code>
+          BeechCMS Form Playground — Seed: <code>clienti</code>
         </h1>
         <p style={{ color: '#4b5563', fontSize: 14 }}>
-          Form generato automaticamente dal package <code>@beechcms/forms-react</code> a partire dalla definizione dello schema nel database D1.
+          Form generato <strong>automaticamente in tempo reale via API</strong> da <code>GET /api/v1/public/schema</code>. Nessuno schema dichiarato manualmente nel client!
         </p>
       </header>
 
-      {/* Embedded BeechForm */}
+      {/* Embedded BeechForm with dynamic schema fetch */}
       <div style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <BeechForm
-          seed={CLIENTI_SEED_SCHEMA}
+          seed="clienti"
           baseUrl="http://localhost:8787"
           apiKey="dev-public-write-key-changeme"
           locale="it"

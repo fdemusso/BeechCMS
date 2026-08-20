@@ -4,7 +4,56 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { BeechForm } from '../components/BeechForm.js'
-import { CLIENTI_SEED_SCHEMA } from '../examples/ClientiTestPage.js'
+import type { FormSeedSchema } from '../types.js'
+
+const CLIENTI_SEED_SCHEMA: FormSeedSchema = {
+  slug: 'clienti',
+  label: 'Customer Registration',
+  branches: [
+    {
+      alias: 'name',
+      label: 'Ragione Sociale / Nome Contatto',
+      type: 'string',
+      required: true,
+      placeholder: 'es. Acme Corporation o Mario Rossi',
+    },
+    {
+      alias: 'email',
+      label: 'Email Aziendale',
+      type: 'email',
+      required: true,
+      placeholder: 'nome@azienda.it',
+    },
+    {
+      alias: 'company',
+      label: 'Azienda',
+      type: 'string',
+      placeholder: 'es. Acme SpA',
+    },
+    {
+      alias: 'tier',
+      label: 'Piano Richiesto',
+      type: 'select',
+      required: true,
+      placeholder: '-- Seleziona un Piano --',
+      options: [
+        { label: 'Piano Free', value: 'free' },
+        { label: 'Piano Pro', value: 'pro' },
+        { label: 'Piano Enterprise', value: 'enterprise' },
+      ],
+    },
+    {
+      alias: 'account_status',
+      label: 'Stato Iniziale',
+      type: 'select',
+      required: true,
+      options: [
+        { label: 'Attivo', value: 'active' },
+        { label: 'In valutazione', value: 'churned' },
+      ],
+    },
+  ],
+}
 
 describe('Clienti Seed Form Integration E2E Test', () => {
   beforeEach(() => {
@@ -15,7 +64,7 @@ describe('Clienti Seed Form Integration E2E Test', () => {
   it('renders all schema-driven fields for the clienti Seed', () => {
     render(<BeechForm seed={CLIENTI_SEED_SCHEMA} />)
 
-    // Verify fields derived from 'clienti' seed schema in D1
+    // Verify fields derived from 'clienti' seed schema
     expect(screen.getByLabelText(/Ragione Sociale \/ Nome Contatto/i)).toBeDefined()
     expect(screen.getByLabelText(/^Email Aziendale/i)).toBeDefined()
     expect(screen.getByLabelText(/^Azienda$/i)).toBeDefined()
@@ -28,6 +77,46 @@ describe('Clienti Seed Form Integration E2E Test', () => {
 
     const emailInput = screen.getByLabelText(/^Email Aziendale/i)
     expect(emailInput.getAttribute('aria-required')).toBe('true')
+  })
+
+  it('fetches schema dynamically when seed is passed as a string', async () => {
+    const mockFetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/v1/public/schema')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({
+            seeds: [
+              {
+                slug: 'clienti',
+                label: 'Customer',
+                branches: [
+                  { alias: 'name', type: 'text', label: 'Company / Contact Name', requiredOnCreate: true },
+                  { alias: 'email', type: 'text', label: 'Contact Email', requiredOnCreate: true },
+                  { alias: 'tier', type: 'text', label: 'Plan', requiredOnCreate: true, options: ['free', 'pro', 'enterprise'] },
+                ],
+              },
+            ],
+          }),
+        })
+      }
+      return Promise.resolve({ ok: true, json: async () => ({}) })
+    })
+
+    globalThis.fetch = mockFetch
+
+    render(
+      <BeechForm
+        seed="clienti"
+        baseUrl="http://localhost:8787"
+      />
+    )
+
+    // Dynamic schema fetch should render the fetched fields
+    await waitFor(() => {
+      expect(screen.getByLabelText(/Company \/ Contact Name/i)).toBeDefined()
+      expect(screen.getByLabelText(/Contact Email/i)).toBeDefined()
+      expect(screen.getByLabelText(/Plan/i)).toBeDefined()
+    })
   })
 
   it('populates select options dynamically from Seed definition', () => {
@@ -67,7 +156,6 @@ describe('Clienti Seed Form Integration E2E Test', () => {
 
       if (url.includes('/api/v1/public/clienti/add')) {
         const body = JSON.parse(init?.body as string)
-        // Verify that submitted data matches expected payload
         expect(body.data.name).toBe('Acme Software S.r.l.')
         expect(body.data.email).toBe('contact@acmesoftware.it')
         expect(body.data.company).toBe('Acme SpA')
@@ -84,7 +172,7 @@ describe('Clienti Seed Form Integration E2E Test', () => {
               slug: 'acme-software-s-r-l',
               status: 'published',
               name: 'Acme Software S.r.l.',
-              email: 'c***@acmesoftware.it', // Masked confidential output
+              email: 'c***@acmesoftware.it',
               company: 'Acme SpA',
               tier: 'pro',
               account_status: 'active',

@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { Hono } from 'hono'
+import { generateTimeTrapToken, resolveClassification } from '@beechcms/core'
 import type { AppEnv } from '../types'
 import { publicReadHandler } from './public-read'
 import { publicAddHandler } from './public-add'
@@ -12,6 +13,13 @@ const publicApp = new Hono<AppEnv>()
 
 publicApp.get('/health', (c) => {
   return c.json({ ok: true, service: 'public-api' }, 200)
+})
+
+/** Returns a signed time-trap token for public form submissions. */
+publicApp.get('/timetrap/token', async (c) => {
+  const secret = c.env.PUBLIC_TIME_TRAP_SECRET || 'beech-public-timetrap-default-secret'
+  const token = await generateTimeTrapToken(secret)
+  return c.json({ token, minDeltaSeconds: 1.5 }, 200)
 })
 
 /** Returns the public-facing schema: only seeds with public read or post enabled. */
@@ -26,16 +34,33 @@ publicApp.get('/schema', (c) => {
       allowPublicRead: seed.allowPublicRead ?? false,
       allowPublicPost: seed.allowPublicPost ?? false,
       allowPublicEdit: seed.allowPublicEdit ?? false,
-      branches: (seed.branches ?? []).map(branch => ({
-        alias: branch.alias,
-        type: branch.type,
-        label: branch.label,
-        requiredOnCreate: branch.requiredOnCreate ?? false,
-        policies: {
-          public: branch.policies?.public ?? true,
-          visibility: branch.policies?.visibility ?? 'full',
-        },
-      })),
+      branches: (seed.branches ?? [])
+        .filter(branch => {
+          const classification = resolveClassification(branch).classification
+          if (branch.policies?.public === false) return false
+          if (branch.policies?.public === true) return true
+          return classification !== 'internal' && classification !== 'restricted'
+        })
+        .map(branch => {
+          const rawBranch = branch as Record<string, unknown>
+          const rawOptions = Array.isArray(rawBranch.options)
+            ? rawBranch.options.map((opt) => (typeof opt === 'string' ? { label: opt, value: opt } : opt))
+            : undefined
+          return {
+            alias: branch.alias,
+            type: branch.type,
+            label: branch.label,
+            placeholder: typeof rawBranch.placeholder === 'string' ? rawBranch.placeholder : undefined,
+            options: rawOptions,
+            helpText: typeof rawBranch.helpText === 'string' ? rawBranch.helpText : undefined,
+            requiredOnCreate: branch.requiredOnCreate ?? false,
+            policies: {
+              classification: resolveClassification(branch).classification,
+              public: branch.policies?.public ?? true,
+              visibility: branch.policies?.visibility ?? 'full',
+            },
+          }
+        }),
     }))
   return c.json({ seeds: publicSeeds })
 })

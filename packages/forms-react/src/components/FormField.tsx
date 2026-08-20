@@ -43,11 +43,15 @@ export const FormField: FC<FormFieldProps> = ({ branch, form, className = 'beech
           {...reg}
         >
           <option value="">{placeholder || '-- Seleziona --'}</option>
-          {options?.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
+          {options?.map((opt, idx) => {
+            const optVal = typeof opt === 'string' ? opt : opt.value
+            const optLabel = typeof opt === 'string' ? opt : opt.label
+            return (
+              <option key={`${optVal}-${idx}`} value={optVal}>
+                {optLabel}
+              </option>
+            )
+          })}
         </select>
       ) : type === 'boolean' ? (
         <div className="beech-checkbox-wrapper">

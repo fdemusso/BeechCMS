@@ -100,6 +100,8 @@ export interface FormFieldState {
 
 export interface UseBeechFormReturn<TValues extends Record<string, unknown> = Record<string, unknown>> {
   seedSlug: string
+  schema: FormSeedSchema | null
+  isLoadingSchema: boolean
   values: TValues
   errors: Record<string, string | undefined>
   touched: Record<string, boolean | undefined>
