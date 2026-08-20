@@ -79,22 +79,19 @@ describe('Clienti Seed Form Integration E2E Test', () => {
     expect(emailInput.getAttribute('aria-required')).toBe('true')
   })
 
-  it('fetches schema dynamically when seed is passed as a string', async () => {
+  it('fetches scoped schema dynamically when seed is passed as a string with field filtering', async () => {
     const mockFetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes('/api/v1/public/schema')) {
+      if (url.includes('/api/v1/public/clienti/schema') || url.includes('/api/v1/public/schema')) {
         return Promise.resolve({
           ok: true,
           json: async () => ({
-            seeds: [
-              {
-                slug: 'clienti',
-                label: 'Customer',
-                branches: [
-                  { alias: 'name', type: 'text', label: 'Company / Contact Name', requiredOnCreate: true },
-                  { alias: 'email', type: 'text', label: 'Contact Email', requiredOnCreate: true },
-                  { alias: 'tier', type: 'text', label: 'Plan', requiredOnCreate: true, options: ['free', 'pro', 'enterprise'] },
-                ],
-              },
+            slug: 'clienti',
+            label: 'Customer',
+            branches: [
+              { alias: 'name', type: 'text', label: 'Company / Contact Name', requiredOnCreate: true },
+              { alias: 'email', type: 'text', label: 'Contact Email', requiredOnCreate: true },
+              { alias: 'tier', type: 'text', label: 'Plan', requiredOnCreate: true, options: ['free', 'pro', 'enterprise'] },
+              { alias: 'internal_audit', type: 'text', label: 'Internal Audit', requiredOnCreate: false },
             ],
           }),
         })
@@ -108,14 +105,16 @@ describe('Clienti Seed Form Integration E2E Test', () => {
       <BeechForm
         seed="clienti"
         baseUrl="http://localhost:8787"
+        includeFields={['name', 'email']}
       />
     )
 
-    // Dynamic schema fetch should render the fetched fields
+    // Dynamic schema fetch should render the filtered fields only
     await waitFor(() => {
       expect(screen.getByLabelText(/Company \/ Contact Name/i)).toBeDefined()
       expect(screen.getByLabelText(/Contact Email/i)).toBeDefined()
-      expect(screen.getByLabelText(/Plan/i)).toBeDefined()
+      expect(screen.queryByLabelText(/Plan/i)).toBeNull()
+      expect(screen.queryByLabelText(/Internal Audit/i)).toBeNull()
     })
   })
 

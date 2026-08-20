@@ -87,6 +87,8 @@ export interface UseBeechFormOptions<TValues extends Record<string, unknown> = R
   disableDraft?: boolean
   disableAntiBot?: boolean
   honeypotField?: string
+  includeFields?: string[]
+  excludeFields?: string[]
   onSuccess?: (result: { id?: string; data: TValues }) => void
   onError?: (error: { status: number; message: string; details?: unknown }) => void
 }

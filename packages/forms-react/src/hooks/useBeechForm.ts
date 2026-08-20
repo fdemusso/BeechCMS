@@ -23,16 +23,39 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
     disableDraft = false,
     disableAntiBot = false,
     honeypotField = DEFAULT_HONEYPOT_NAME,
+    includeFields,
+    excludeFields,
     onSuccess,
     onError,
   } = options
 
   const seedSlug = typeof seed === 'string' ? seed : seed.slug
-  const [schema, setSchema] = useState<FormSeedSchema | null>(typeof seed === 'object' ? seed : null)
-  const [isLoadingSchema, setIsLoadingSchema] = useState<boolean>(typeof seed === 'string' && !!baseUrl)
+
+  const [schema, setSchema] = useState<FormSeedSchema | null>(() => {
+    if (typeof seed === 'object') return seed
+    try {
+      if (typeof window !== 'undefined') {
+        const raw = window.sessionStorage?.getItem(`beech_schema_${seedSlug}`) || window.localStorage?.getItem(`beech_schema_${seedSlug}`)
+        if (raw) return JSON.parse(raw)
+      }
+    } catch {}
+    return null
+  })
+
+  const [isLoadingSchema, setIsLoadingSchema] = useState<boolean>(() => {
+    if (typeof seed === 'object') return false
+    try {
+      if (typeof window !== 'undefined') {
+        const cached = window.sessionStorage?.getItem(`beech_schema_${seedSlug}`) || window.localStorage?.getItem(`beech_schema_${seedSlug}`)
+        if (cached) return false
+      }
+    } catch {}
+    return typeof seed === 'string' && !!baseUrl
+  })
+
   const translations = useMemo(() => getTranslations(locale, customTranslations), [locale, customTranslations])
 
-  // Fetch schema dynamically if seed is a string slug and baseUrl is provided
+  // Fetch scoped schema dynamically with SWR background revalidation
   useEffect(() => {
     if (typeof seed === 'object') {
       setSchema(seed)
@@ -41,58 +64,72 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
     }
 
     if (typeof seed === 'string' && baseUrl) {
-      setIsLoadingSchema(true)
       const cleanBase = baseUrl.replace(/\/+$/, '')
       const headers: Record<string, string> = {}
       if (apiKey) headers['X-API-Key'] = apiKey
 
-      fetch(`${cleanBase}/api/v1/public/schema`, { headers })
-        .then((res) => res.json() as Promise<{ seeds?: Array<{ slug: string; label?: string; branches?: Array<Record<string, unknown>> }> }>)
-        .then((data) => {
-          if (Array.isArray(data.seeds)) {
-            const found = data.seeds.find((s) => s.slug === seedSlug)
-            if (found) {
-              const adaptedBranches: FormBranchSchema[] = (found.branches ?? []).map((b) => {
-                const alias = String(b.alias || '')
-                const typeStr = String(b.type || '')
-                const label = typeof b.label === 'string' ? b.label : alias
-                const options = Array.isArray(b.options)
-                  ? (b.options as Array<{ label: string; value: string | number } | string>).map((opt) =>
-                      typeof opt === 'string' ? { label: opt, value: opt } : opt
-                    )
-                  : undefined
-                const formType =
-                  typeStr === 'email'
-                    ? 'email'
-                    : typeStr === 'file'
-                    ? 'file'
-                    : typeStr === 'number'
-                    ? 'number'
-                    : typeStr === 'boolean'
-                    ? 'boolean'
-                    : options && options.length > 0
-                    ? 'select'
-                    : typeStr === 'text' && (alias === 'message' || alias === 'description')
-                    ? 'text'
-                    : 'string'
+      fetch(`${cleanBase}/api/v1/public/${encodeURIComponent(seedSlug)}/schema`, { headers })
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          return res.json() as Promise<{ slug: string; label?: string; branches?: Array<Record<string, unknown>> }>
+        })
+        .then((found) => {
+          if (found && Array.isArray(found.branches)) {
+            const rawBranches = found.branches.filter((b) => {
+              const alias = String(b.alias || '')
+              if (includeFields && includeFields.length > 0 && !includeFields.includes(alias)) return false
+              if (excludeFields && excludeFields.includes(alias)) return false
+              return true
+            })
 
-                return {
-                  alias,
-                  type: formType,
-                  label,
-                  required: Boolean(b.requiredOnCreate ?? b.required),
-                  placeholder: typeof b.placeholder === 'string' ? b.placeholder : undefined,
-                  options,
-                  helpText: typeof b.helpText === 'string' ? b.helpText : undefined,
-                  accept: typeof b.accept === 'string' ? b.accept : undefined,
-                }
-              })
-              setSchema({
-                slug: found.slug,
-                label: found.label,
-                branches: adaptedBranches,
-              })
+            const adaptedBranches: FormBranchSchema[] = rawBranches.map((b) => {
+              const alias = String(b.alias || '')
+              const typeStr = String(b.type || '')
+              const label = typeof b.label === 'string' ? b.label : alias
+              const optionsList = Array.isArray(b.options)
+                ? (b.options as Array<{ label: string; value: string | number } | string>).map((opt) =>
+                    typeof opt === 'string' ? { label: opt, value: opt } : opt
+                  )
+                : undefined
+              const formType =
+                typeStr === 'email'
+                  ? 'email'
+                  : typeStr === 'file'
+                  ? 'file'
+                  : typeStr === 'number'
+                  ? 'number'
+                  : typeStr === 'boolean'
+                  ? 'boolean'
+                  : optionsList && optionsList.length > 0
+                  ? 'select'
+                  : typeStr === 'text' && (alias === 'message' || alias === 'description')
+                  ? 'text'
+                  : 'string'
+
+              return {
+                alias,
+                type: formType,
+                label,
+                required: Boolean(b.requiredOnCreate ?? b.required),
+                placeholder: typeof b.placeholder === 'string' ? b.placeholder : undefined,
+                options: optionsList,
+                helpText: typeof b.helpText === 'string' ? b.helpText : undefined,
+                accept: typeof b.accept === 'string' ? b.accept : undefined,
+              }
+            })
+
+            const resolved: FormSeedSchema = {
+              slug: found.slug,
+              label: found.label,
+              branches: adaptedBranches,
             }
+
+            setSchema(resolved)
+            try {
+              if (typeof window !== 'undefined') {
+                window.sessionStorage?.setItem(`beech_schema_${seedSlug}`, JSON.stringify(resolved))
+              }
+            } catch {}
           }
         })
         .catch((err) => {
@@ -102,7 +139,7 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
           setIsLoadingSchema(false)
         })
     }
-  }, [seed, seedSlug, baseUrl, apiKey])
+  }, [seed, seedSlug, baseUrl, apiKey, includeFields, excludeFields])
 
   const [values, setValues] = useState<TValues>(() => {
     const base = { ...initialValues } as TValues
