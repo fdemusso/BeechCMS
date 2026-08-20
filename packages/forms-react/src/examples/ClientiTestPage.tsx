@@ -3,14 +3,71 @@
 
 import React, { useState } from 'react'
 import { BeechForm } from '../components/BeechForm.js'
-import type { Locale } from '../types.js'
+import type { FormSeedSchema, Locale } from '../types.js'
+
+/**
+ * Production-Ready Seed Schema for Customer Registration & Lead Generation.
+ *
+ * 🏆 Architectural Best Practice:
+ * Defining the form schema statically (or importing from your CMS seed definitions) provides:
+ * 1. Zero Network Waterfall: The form renders immediately (SSR/SSG friendly, 0ms latency, zero CLS).
+ * 2. Security & Privacy: No metadata leak of all CMS content types via client-side schema inspection.
+ * 3. Editorial Precision: Expose exactly the required marketing fields (e.g. name, email, company, tier).
+ * 4. Full Type-Safety: Static types for validation, IDE autocomplete, and submit payloads.
+ */
+export const CLIENTI_FORM_SCHEMA: FormSeedSchema = {
+  slug: 'clienti',
+  label: 'Richiesta di Contatto & Onboarding',
+  branches: [
+    {
+      alias: 'name',
+      label: 'Ragione Sociale / Nome Contatto',
+      type: 'string',
+      required: true,
+      placeholder: 'es. Acme Corporation o Mario Rossi',
+      helpText: 'Inserisci il nome della tua azienda o il tuo nominativo',
+    },
+    {
+      alias: 'email',
+      label: 'Email Aziendale',
+      type: 'email',
+      required: true,
+      placeholder: 'nome@azienda.it',
+      helpText: 'Dato riservato (Confidential PII): viene cifrato a riposo con AES-256-GCM',
+    },
+    {
+      alias: 'company',
+      label: 'Azienda',
+      type: 'string',
+      placeholder: 'es. Acme SpA',
+    },
+    {
+      alias: 'tier',
+      label: 'Piano di Interesse',
+      type: 'select',
+      required: true,
+      placeholder: '-- Seleziona un Piano --',
+      options: [
+        { label: 'Piano Free (Fino a 3 utenti)', value: 'free' },
+        { label: 'Piano Pro (€150/mese)', value: 'pro' },
+        { label: 'Piano Enterprise (Personalizzato)', value: 'enterprise' },
+      ],
+    },
+    {
+      alias: 'account_status',
+      label: 'Stato Iniziale Richiesta',
+      type: 'select',
+      required: true,
+      options: [
+        { label: 'Attivo / Pronto all\'onboarding', value: 'active' },
+        { label: 'In valutazione / Richiesta informazioni', value: 'churned' },
+      ],
+    },
+  ],
+}
 
 /**
  * Environment configuration resolver supporting Vite, Next.js, and browser runtimes.
- *
- * In production, configure these variables in your .env file:
- * - Vite:     VITE_BEECH_API_URL and VITE_BEECH_PUBLIC_API_KEY
- * - Next.js:  NEXT_PUBLIC_BEECH_API_URL and NEXT_PUBLIC_BEECH_PUBLIC_API_KEY
  */
 const DEFAULT_API_URL =
   (typeof import.meta !== 'undefined' && (import.meta as unknown as { env?: Record<string, string> }).env?.VITE_BEECH_API_URL) ||
@@ -26,51 +83,24 @@ const DEFAULT_API_KEY =
  * Properties for the {@link ClientiTestPage} component.
  */
 export interface ClientiTestPageProps {
-  /**
-   * The base URL of the BeechCMS API (e.g. "https://api.yourdomain.com").
-   * Defaults to VITE_BEECH_API_URL / NEXT_PUBLIC_BEECH_API_URL or local dev worker.
-   */
+  /** Base URL of the BeechCMS API (e.g. "https://api.yourdomain.com"). */
   apiUrl?: string
 
-  /**
-   * The public write API key for authentication.
-   * Defaults to VITE_BEECH_PUBLIC_API_KEY / NEXT_PUBLIC_BEECH_PUBLIC_API_KEY.
-   */
+  /** Public write API key. */
   apiKey?: string
 
-  /**
-   * UI and validation language ('it' | 'en').
-   * @default 'it'
-   */
+  /** UI and validation language ('it' | 'en'). @default 'it' */
   locale?: Locale
 
-  /**
-   * Optional callback fired when a lead submission is successfully persisted in D1.
-   * @param lead - The created lead record returned by BeechCMS.
-   */
+  /** Optional callback fired when a lead submission is persisted in D1. */
   onSuccess?: (lead: Record<string, unknown>) => void
 
-  /**
-   * Optional callback fired when submission or schema fetch fails.
-   * @param error - The structured error object.
-   */
+  /** Optional callback fired on submission error. */
   onError?: (error: { status: number; message: string; details?: unknown }) => void
 }
 
 /**
  * Production-ready Lead Acquisition & Contact Form for the `clienti` Seed.
- *
- * Key Architecture Highlights:
- * 1. **Zero Schema Duplication**: Fetches the live field definitions, options, and rules directly
- *    from `GET /api/v1/public/schema` at runtime.
- * 2. **Multi-layer Anti-Bot Defense**:
- *    - Camouflage Honeypot decoy field (`fax_number`) rendered off-screen.
- *    - Cryptographic Time-Trap HMAC token automatically requested from `GET /api/v1/public/timetrap/token`
- *      to reject automated submissions with elapsed delta < 1.5 seconds.
- * 3. **Confidential PII Encryption**: Sensitive fields (such as Contact Email) are automatically encrypted
- *    at rest (AES-256-GCM) by the BeechCMS Botanical Engine.
- * 4. **Draft Recovery**: Inputs are persisted in real time to `localStorage` under `beech_form_draft_clienti`
- *    and cleared upon successful submission.
  */
 export function ClientiTestPage({
   apiUrl = DEFAULT_API_URL,
@@ -105,15 +135,14 @@ export function ClientiTestPage({
     >
       <header style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111827', margin: '0 0 8px 0' }}>
-          BeechCMS Form Playground — Seed: <code>clienti</code>
+          BeechCMS Form Production Pattern — Seed: <code>clienti</code>
         </h1>
         <p style={{ color: '#4b5563', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
-          Form generato <strong>automaticamente in tempo reale via API</strong> da{' '}
-          <code>GET /api/v1/public/schema</code>. Nessuno schema dichiarato manualmente nel client!
+          Form tipizzato e renderizzato <strong>immediatamente a zero-latenza</strong> (SSR/SSG ready) con difese anti-bot invisibili (Time-Trap HMAC + Honeypot mimetizzato).
         </p>
       </header>
 
-      {/* Embedded BeechForm with zero-boilerplate dynamic schema fetch */}
+      {/* Embedded BeechForm with statically typed schema */}
       <div
         style={{
           background: '#ffffff',
@@ -124,7 +153,7 @@ export function ClientiTestPage({
         }}
       >
         <BeechForm
-          seed="clienti"
+          seed={CLIENTI_FORM_SCHEMA}
           baseUrl={apiUrl}
           apiKey={apiKey}
           locale={locale}
