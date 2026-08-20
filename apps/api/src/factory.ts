@@ -384,6 +384,9 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   apiPublic.use('*', publicRateLimitMiddleware())
   apiPublic.use('*', apiKeyMiddleware())
   apiPublic.route('/', publicRoutes)
+  apiPublic.all('*', (c) => {
+    return c.json({ error: 'Not Found', message: `Public endpoint ${c.req.method} ${c.req.path} does not exist.` }, 404)
+  })
   app.route('/api/v1/public', apiPublic)
 
   // Webhooks API (public, verified via signature)
