@@ -428,7 +428,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     // ASSETS returns an immutable Response — wrap it to inject security headers
     const headers = new Headers(assetResponse.headers)
     headers.set('Content-Security-Policy',
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self'; frame-ancestors 'none'"
+      "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http: https:; connect-src 'self' http: https:; frame-ancestors 'none'"
     )
     headers.set('X-Frame-Options', 'DENY')
     headers.set('X-Content-Type-Options', 'nosniff')
