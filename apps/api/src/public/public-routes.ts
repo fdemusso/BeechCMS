@@ -44,7 +44,7 @@ publicApp.get('/:seed/schema', (c) => {
       return classification !== 'internal' && classification !== 'restricted'
     })
     .map(branch => {
-      const rawBranch = branch as Record<string, unknown>
+      const rawBranch = branch as unknown as Record<string, unknown>
       const rawOptions = Array.isArray(rawBranch.options)
         ? rawBranch.options.map((opt) => (typeof opt === 'string' ? { label: opt, value: opt } : opt))
         : undefined
