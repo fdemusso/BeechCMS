@@ -122,12 +122,14 @@ function computeNextVersion(current, bump, preview) {
 // ── Package manifest paths ────────────────────────────────────────────────────
 
 const PACKAGES = [
-  { path: resolve(ROOT, 'packages/core/package.json'), name: '@beechcms/core', publish: true },
-  { path: resolve(ROOT, 'packages/widget-sdk/package.json'), name: '@beechcms/widget-sdk', publish: true },
-  { path: resolve(ROOT, 'packages/cli/package.json'),  name: '@beechcms/cli',  publish: true },
-  { path: resolve(ROOT, 'apps/api/package.json'),      name: '@beechcms/api',  publish: true },
-  { path: resolve(ROOT, 'apps/dashboard/package.json'),name: '@beechcms/dashboard', publish: false }, // Built into API assets
-  { path: resolve(ROOT, 'package.json'),               name: '@beechcms/cms',  publish: true },
+  { path: resolve(ROOT, 'packages/core/package.json'),        name: '@beechcms/core',        publish: true },
+  { path: resolve(ROOT, 'packages/client/package.json'),      name: '@beechcms/client',      publish: true },
+  { path: resolve(ROOT, 'packages/forms-react/package.json'), name: '@beechcms/forms-react', publish: true },
+  { path: resolve(ROOT, 'packages/widget-sdk/package.json'),  name: '@beechcms/widget-sdk',  publish: true },
+  { path: resolve(ROOT, 'packages/cli/package.json'),         name: '@beechcms/cli',         publish: true },
+  { path: resolve(ROOT, 'apps/api/package.json'),             name: '@beechcms/api',         publish: true },
+  { path: resolve(ROOT, 'apps/dashboard/package.json'),       name: '@beechcms/dashboard',   publish: false }, // Built into API assets
+  { path: resolve(ROOT, 'package.json'),                      name: '@beechcms/cms',         publish: true },
 ]
 
 // peerDependencies excluded: they point external consumers at published npm

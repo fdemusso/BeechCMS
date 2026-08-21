@@ -459,6 +459,25 @@ describe('validateSeedDefinitions', () => {
     expect(validateSeedDefinitions(seeds)).toEqual([])
   })
 
+  // ── Fatal 13: retentionDays validation ─────────────────────────────────────
+
+  it('fatal: rejects non-integer or non-positive retentionDays', () => {
+    const invalidValues = [0, -5, 1.5, NaN, -Infinity]
+    for (const val of invalidValues) {
+      const seeds = [makeSeed({ slug: 'leads', retentionDays: val })]
+      const issues = validateSeedDefinitions(seeds)
+      const fatal = issues.filter(i => i.fatal && i.slug === 'leads')
+      expect(fatal.length).toBeGreaterThan(0)
+      expect(fatal[0].messages.some(m => m.includes('retentionDays must be a positive integer'))).toBe(true)
+    }
+  })
+
+  it('accepts valid positive integer retentionDays', () => {
+    const seeds = [makeSeed({ slug: 'leads', retentionDays: 30 })]
+    const issues = validateSeedDefinitions(seeds)
+    expect(issues.filter(i => i.fatal)).toEqual([])
+  })
+
   // ── isSeedSetValid ────────────────────────────────────────────────────────────
 
   it('isSeedSetValid returns true for clean set', () => {

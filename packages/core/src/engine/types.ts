@@ -238,6 +238,11 @@ export interface Seed {
    * Required — UIs use it for display without heuristics.
    */
   displayNameAlias: string
+  /**
+   * Number of days to retain entries before automatic cleanup or anonymization (GDPR compliance).
+   * Must be a positive integer (>= 1) when specified.
+   */
+  retentionDays?: number
   /** List of fields (Branch). */
   branches: Branch[]
   /** Optional dashboard-specific UI config. Ignored by the Botanical Engine. */

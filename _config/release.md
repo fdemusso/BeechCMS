@@ -70,7 +70,9 @@ The script runs four steps in sequence:
 | Package | Purpose | Installed by |
 |---|---|---|
 | `@beechcms/core` | Botanical Engine, types, validation | Internal dependency |
+| `@beechcms/client` | Universal TypeScript HTTP SDK | End users / frontend apps |
+| `@beechcms/forms-react` | Secure React form toolkit & anti-bot | React applications |
 | `@beechcms/widget-sdk` | Custom dashboard widgets SDK | Widget packages `dependencies` |
-| `@beechcms/cli` | `npx beech` CLI (seed:load, etc.) | Project `devDependencies` |
+| `@beechcms/cli` | `npx beech` CLI (seed:load, forms, etc.) | Project `devDependencies` |
 | `@beechcms/api` | Worker factory, migrations, dashboard bundle | Project `dependencies` |
 | `@beechcms/cms` | `npx @beechcms/cms` scaffolder | End users (one-time) |

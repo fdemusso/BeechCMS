@@ -35,7 +35,7 @@ describe('D1SeedLayoutRepository', () => {
     })
 
     it('returns mapped record when layout is found and layout JSON is parsed', async () => {
-      const mockLayout: FormLayout = { tabs: [] }
+      const mockLayout: FormLayout = { version: 1, tabs: [] }
       const row = {
         slug: 'pages',
         layout: JSON.stringify(mockLayout),
@@ -93,7 +93,7 @@ describe('D1SeedLayoutRepository', () => {
       const { db, prepareMock, bindMock } = makeMockDb()
       const repo = new D1SeedLayoutRepository(db)
 
-      const layout: FormLayout = { tabs: [{ id: 'tab-1', label: 'Tab 1', sections: [] }] }
+      const layout: FormLayout = { version: 1, tabs: [{ id: 'tab-1', label: 'Tab 1', sections: [] }] }
       await repo.upsert('articles', layout, 'editor-1')
 
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO seed_layouts'))

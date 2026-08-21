@@ -281,6 +281,19 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
     }
   }
 
+  // ── Fatal 13: retentionDays validation ─────────────────────────────────────
+  for (const seed of seeds) {
+    if (seed.retentionDays !== undefined && (!Number.isInteger(seed.retentionDays) || seed.retentionDays <= 0)) {
+      result.push({
+        slug: seed.slug,
+        messages: [
+          `retentionDays must be a positive integer >= 1 (got ${seed.retentionDays}).`,
+        ],
+        fatal: true,
+      })
+    }
+  }
+
   return result
 }
 

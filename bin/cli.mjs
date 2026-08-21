@@ -24,7 +24,9 @@ const COMMANDS = {
   'update':         cmdUpdate,
   'onboard':        cmdOnboard,
   'reset':          cmdReset,
-  'generate:types': cmdGenerateTypes,
+  'forms':          cmdForms,
+  'form':           cmdForms,
+  'forms:add':      cmdForms,
   // New unified command mappings:
   'db:migrate':     cmdDbMigrate,
   'db:reset':       cmdDbReset,
@@ -77,7 +79,14 @@ function help() {
       --out <path>    Output file (default: src/types/beech.ts)
       --local         Read from seeds.ts instead of querying live D1
 
-  ${pc.bold('4. Local Stack & Docker')}
+  ${pc.bold('4. Forms & Frontend Generation')}
+    ${pc.cyan('forms / form')}    Interactive wizard to generate React, Vue, Svelte, or Web Component forms
+      --framework <f> Framework: react, vue, svelte, vanilla
+      --seed <slug>   Seed slug to bind to (e.g. clienti)
+      --mode <mode>   styled (Tailwind) or headless
+      --yes, -y       Skip interactive prompts
+
+  ${pc.bold('5. Local Stack & Docker')}
     ${pc.cyan('dev / start')}     Start the local dev environment (Docker + API + Dashboard)
       --plain         Avoid Ink visual TUI and run clean log streaming
     ${pc.cyan('dev:stop')}        Stop Docker containers without wiping data
@@ -85,10 +94,10 @@ function help() {
     ${pc.cyan('dev:tunnel')}      Display Cloudflare tunnel public testing URL
     ${pc.cyan('mailpit:clear')}   Clear local test inbox in Mailpit
 
-  ${pc.bold('5. Logs Streaming')}
+  ${pc.bold('6. Logs Streaming')}
     ${pc.cyan('logs <service>')}   Show streaming logs for docker service: mailpit, db, tunnel, storage
 
-  ${pc.bold('6. Quality & Deployment')}
+  ${pc.bold('7. Quality & Deployment')}
     ${pc.cyan('test')}            Run the test suite via Turborepo / Vitest
       --coverage      Generate coverage reports
       --diff          Run test coverage only for files modified on the branch
@@ -266,6 +275,22 @@ async function cmdGenerateTypes(args) {
 
   const { generateTypes } = await import('@beechcms/cli')
   await generateTypes({ out, local, db, registry })
+}
+
+async function cmdForms(args) {
+  const yes = args.includes('--yes') || args.includes('-y')
+  const json = args.includes('--json')
+  const frameworkIdx = args.indexOf('--framework')
+  const framework = frameworkIdx !== -1 ? args[frameworkIdx + 1] : undefined
+  const seedIdx = args.indexOf('--seed')
+  const seed = seedIdx !== -1 ? args[seedIdx + 1] : undefined
+  const modeIdx = args.indexOf('--mode')
+  const mode = modeIdx !== -1 ? args[modeIdx + 1] : undefined
+  const outIdx = args.indexOf('--out')
+  const out = outIdx !== -1 ? args[outIdx + 1] : undefined
+
+  const { forms } = await import('@beechcms/cli')
+  await forms({ framework, seed, mode, out, yes, json })
 }
 
 // New unified command wrappers:

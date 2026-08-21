@@ -68,11 +68,11 @@ describe('publicRateLimitMiddleware', () => {
     }
   })
 
-  it('still special-cases health/schema segments as no-seed', async () => {
+  it('still special-cases health/timetrap segments as no-seed', async () => {
     const { app, checkedKeys } = buildApp(['articles'])
 
     await app.request('/api/v1/public/health')
-    await app.request('/api/v1/public/schema')
+    await app.request('/api/v1/public/timetrap/token')
 
     for (const key of checkedKeys) {
       expect(key.split(':')[1]).toBe('no-seed')

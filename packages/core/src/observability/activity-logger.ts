@@ -13,7 +13,7 @@
  * @module @beechcms/core/observability/activity-logger
  */
 
-export type ActivityAction = 'create' | 'update' | 'delete' | 'upload' | 'bulk_update'
+export type ActivityAction = 'create' | 'update' | 'delete' | 'upload' | 'bulk_update' | 'security_alert'
 export type EntityType = 'content' | 'media' | 'seed'
 
 /**

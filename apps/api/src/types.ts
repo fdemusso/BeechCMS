@@ -10,7 +10,7 @@
  */
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { ISetupChecklistRepository } from './shared/db/repositories/d1-setup-checklist.repository'
 
@@ -99,6 +99,12 @@ export interface Env {
   QSTASH_NEXT_SIGNING_KEY?: string
   /** Master key used for Application-Level Encryption (ALE). */
   PRIVACY_MASTER_KEY?: string
+  /** API key for VirusTotal file/hash scanning. */
+  VIRUSTOTAL_API_KEY?: string
+  /** Secret used to sign and verify public form time-trap tokens. */
+  PUBLIC_TIME_TRAP_SECRET?: string
+  /** Comma-separated list of allowed origins for public submissions. */
+  ALLOWED_ORIGINS?: string
 }
 
 /**
@@ -184,6 +190,8 @@ export interface Variables {
   dashboardLayoutRepository: IDashboardLayoutRepository
   /** Repository for Kanban card position/ordering state. */
   kanbanPositionRepository: IKanbanPositionRepository
+  /** Antivirus scanning provider. */
+  antivirusProvider: IAntivirusProvider
 }
 
 /** Combined Hono generic type (`Bindings` + `Variables`) used to type every app/router in the API. */
