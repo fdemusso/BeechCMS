@@ -124,63 +124,185 @@ Essendo l'applicazione basata su `createBeechApp()` via **Hono** (in `apps/api/s
 
 ---
 
-## 7. Prevenzione IDOR e Sicurezza delle Risorse (RBAC) - [DEFERRED TO NEXT SPRINT]
+# Form SDK (`@beechcms/forms-react`) & Smart Anti-Bot Architecture (Issue #325)
 
-*Nota: Questa implementazione è formalmente **fuori dallo sprint attuale**. Tuttavia, prepareremo le basi nel layer Privacy (attraverso l'uso del `context.actor`) lasciando dei `TODO: RBAC Sprint` nel codice per facilitarne l'introduzione futura.*
-
-Attualmente il sistema passa l'informazione sul ruolo (estratta dal JWT) fino ai repository, ma **non ne fa enforcing**. Questo apre a vulnerabilità IDOR (Insecure Direct Object Reference), dove un utente a basso privilegio potrebbe eliminare o alterare record di altri semplicemente indovinando l'ID (es. `DELETE /api/users/superadmin-id`).
-
-Per bloccare by-design questo vettore d'attacco, nel prossimo sprint si formalizzerà il sistema di ruoli (Role-Based Access Control):
-
-### A. Formalizzazione dei Ruoli (Core)
-Tipizzazione stretta dei ruoli invece del generico `string`:
-```typescript
-export type SystemRole = 'admin' | 'editor' | 'author' | 'viewer';
-```
-
-### B. Estensione dello Schema Seed
-Ogni `Seed` (tabella) dichiarerà esplicitamente a livello di configurazione chi può compiere le operazioni CRUD:
-```typescript
-export interface Seed {
-  slug: string;
-  // ...
-  permissions?: {
-    read?: SystemRole[];   // Es: ['admin', 'editor', 'author']
-    create?: SystemRole[]; // Es: ['admin', 'editor']
-    update?: SystemRole[]; // Es: ['admin', 'editor']
-    delete?: SystemRole[]; // Es: ['admin']
-  }
-}
-```
-
-### C. Enforcement via Middleware (`rbacMiddleware.ts`)
-Per mantenere i controller "thin", le policy verranno fatte rispettare da un middleware Hono (posizionato subito dopo l'`authMiddleware`). 
-Il middleware controllerà dinamicamente:
-1. Quale operazione si sta tentando (`GET` -> `read`, `DELETE` -> `delete`).
-2. Lo `slug` richiesto (es. `users`).
-3. Il ruolo dell'utente (`c.get('jwtPayload').role`).
-
-Se il ruolo non è incluso nell'array `permissions.<azione>` di quel Seed, la richiesta verrà immediatamente terminata con un **`403 Forbidden`**, rendendo il database inattaccabile via IDOR o BOLA.
+## 1. Obiettivo & Visione
+Fornire un pacchetto React zero-boilerplate (`@beechcms/forms-react`) che permetta a qualsiasi sviluppatore di montare un form di contatto, richiesta preventivo o lead generation sicuro, responsive e privo di spam nel proprio sito web in 2 minuti.
 
 ---
 
-## 8. Considerazioni Architetturali Finali (Edge Cases & Encryption)
+## 2. Il Problema dei Trappole Naive e la "Smart Anti-Bot Strategy"
 
-### A. L'Email di Login (Classificazione `Internal`)
-In un CMS pensato per PMI (team ristretti da 1 a 3 persone), l'email di accesso degli admin è considerata **dato operativo di servizio**, non PII critico (come lo sarebbero i dati sanitari o bancari dei *clienti* finali).
-Per questo motivo, l'email di login in `users` sarà classificata come **`Internal`** (salvata in chiaro).
-**Vantaggi:**
-- Il login resta nativo, veloce e non richiede indici speciali (Blind Indexes).
-- Mantiene l'email protetta dalle API pubbliche senza introdurre overhead di decrittazione per le normali operazioni di amministrazione.
+### ⚠️ Perché i nomi tipo `_gotcha` o `honeypot` falliscono contro i Bot moderni:
+1. **Name Inspection**: I bot di ultima generazione scansionano i nomi dei campi HTML. Nomi come `_gotcha`, `honeypot`, `bot_check`, `captcha` vengono identificati dagli algoritmi di spam ed ignorati.
+2. **CSS / Visibility Detection**: I bot headless (basati su Puppeteer/Playwright o parser HTML) controllano `display: none` o `visibility: hidden`. Se un campo è nascosto con `display: none`, il bot evita di compilarlo.
 
-La classificazione **`Confidential`** (AES-GCM) verrà riservata strettamente ai dati sensibili inseriti *dall'esterno* (es. raccolte dati, anagrafiche, leads) tramite il CMS.
+---
 
-### B. Key Versioning per AES-GCM (Necessario per questo Sprint)
-Per i dati che *saranno* crittografati in `Confidential`, è vitale implementare subito il **Key Versioning**.
-Le chiavi crittografiche (Master Key) non sono eterne e vanno ruotate in caso di leak. Se non implementiamo il versionamento oggi, la rotazione di domani romperà tutto.
-Il `PrivacyService` formatterà il dato cifrato secondo questo pattern:
-`v1:<base64-iv>:<base64-ciphertext>`
-Così facendo, in futuro il sistema potrà leggere la versione `v1` e usare la chiave corrispondente per decifrarla, mentre scriverà con una nuova chiave `v2`.
+## 3. L'Architettura Anti-Bot a 5 Livelli di `@beechcms/forms-react`
 
-### C. Log di Accesso ai Dati (Audit Trail) - [DEFERRED TO FUTURE]
-Quando un utente decripta e legge un dato `Confidential` (es. aprendo una vista di dettaglio), la normativa di sicurezza richiede che l'accesso venga tracciato. In uno sprint futuro, le letture dei campi `Confidential` dovranno richiamare il sistema `logContentActivity` (già presente) per registrare l'accesso.
+Per superare qualsiasi bot sofisticato senza infastidire l'utente umano (senza fastidiosi Captcha/reCAPTCHA), l'SDK implementa una difesa multilivello:
+
+```
+[ Form Render ] ──► 1. Camouflage Field (es. fax_number / website_url)
+                ──► 2. Off-Screen CSS Positioning (pos:absolute, left:-9999px)
+                ──► 3. Time Trap (Timestamp token & Min Submission Delta)
+                ──► 4. Behavioral Event Proof (Human interaction token)
+                ──► 5. Edge Rate Limiter (Max N invii per IP su Cloudflare)
+```
+
+### 🛡️ Livello 1: Camouflage Honeypot (Nomi Realistici)
+Invece di usare `_gotcha`, l'SDK usa un nome di campo "esca" realistico e camuffato che i bot di spam adorano auto-compilare:
+* Esempi di nomi esca: `fax_number`, `website_url`, `middle_name`, `secondary_phone`.
+* Il campo viene iniettato con `tabIndex={-1}`, `aria-hidden="true"` ed `autoComplete="off"`.
+
+### 🛡️ Livello 2: Off-Screen CSS Positioning
+Invece di `display: none`, il campo esca viene posizionato fuori dallo schermo visibile dell'utente:
+```tsx
+<div className="absolute -left-[9999px] top-0 opacity-0 pointer-events-none size-0 overflow-hidden" aria-hidden="true">
+  <input type="text" name="website_url" tabIndex={-1} autoComplete="off" value={honeypotVal} onChange={e => setHoneypotVal(e.target.value)} />
+</div>
+```
+* **Perché funziona**: Gli screen-reader e gli utenti umani ignorano il campo. I bot di compilazione automatica vedono un normale campo input nel DOM e lo riempiono.
+
+### 🛡️ Livello 3: Time Trap (Min Submission Delta)
+Gli esseri umani impiegano almeno 3-5 secondi per leggere e inviare un form. I bot inviano richieste HTTP quasi istantanee (< 1.0 secondi dal render).
+* Quando il componente React si monta, calcola o riceve un token crittografico con timestamp iniziale (`t0`).
+* Quando la richiesta arriva all'API di BeechCMS (`POST /api/v1/public/:seed/add`), il backend calcola il tempo trascorso:
+  * Se $\Delta t < 1.5\text{ secondi}$ $\rightarrow$ **Attacco Bot Rilevato**.
+
+### 🛡️ Livello 4: Silent Rejection (Fake 200 OK)
+Quando un bot viene catturato (perché ha compilato il campo esca o ha inviato il form in < 1.5s):
+* **L'API restituisce `HTTP 200 OK` con `{ success: true }`**.
+* **Perché?** Se rispondi con `400 Bad Request` o `403 Forbidden`, lo sviluppatore del bot capisce che il suo bot è stato bloccato e aggiorna lo script per aggirare la protezione. Con il `200 OK` falso, il bot crede di aver avuto successo e abbandona la pagina!
+
+### 🛡️ Livello 5: Edge Rate Limiting (Cloudflare IP Protection) & Strict Origin Checks
+* L'endpoint `/api/v1/public/:seed/add` applica il middleware di Rate Limiting per IP (`cf-connecting-ip`): Max 5 invii ogni 5 minuti per singolo IP.
+* **Strict Allowed Origins**: L'API controlla l'header `Origin` / `Referer` bloccando richieste provenienti da domini terzi non autorizzati (`403 Forbidden`).
+* **Stored XSS Prevention**: Tutti gli input testo vengono sanificati lato API ed eseguiti in safe rendering su React.
+* **Presigned Policy Limits**: Caricamento allegati limitato a Max 10MB per file via S3/R2 policy e max 3 allegati per form.
+
+---
+
+## 4. Pipeline Allegati: Synchronous Magic Bytes & Optimistic VirusTotal Background Scanning
+
+Per gli allegati caricati nei form (es. CV o immagini cantiere):
+
+```
+[ Presign Upload ] ──► Magic Bytes Check ──( Fallimento )──► Rifiuto Istantaneo HTTP 400
+                               │
+                          ( Successo )
+                               │
+                               ▼
+[ Direct PUT R2 ] ──► r2://bucket/quarantine/<fileKey>
+                               │
+                               ▼
+[ Submit Lead ] ──► Salvataggio D1 + Risposta Istantanea HTTP 200 OK (< 300ms)
+                               │
+                               ▼
+[ Background Process ] ──► c.executionCtx.waitUntil( VirusTotal Hash & Scan API )
+                               ├──► IF CLEAN ──► Move to /media/ + Status "clean"
+                               └──► IF INFECTED ──► Delete from R2 + Status "infected" + Admin Alert
+```
+
+### A. Rifiuto Istantaneo (Magic Bytes Check - Sincrono `< 5ms`)
+* Al momento del presign o caricamento dell'intestazione, l'API verifica i primi 16 byte del file (Magic Bytes).
+* Se il file ha un'intestazione non valida (es. si spaccia per `.jpg` o `.pdf` ma ha l'intestazione binaria di un eseguibile `.exe`), viene **RIFIUTATO ISTANTANEAMENTE con `HTTP 400 Bad Request: Invalid file signature`**.
+
+### B. Optimistic Form Submission (Zero UX Wait `< 300ms`)
+* Se i Magic Bytes sono validi, il file viene caricato tramite presigned URL nella cartella temporanea `r2://bucket/quarantine/`.
+* Il form viene inviato e l'API risponde **immediatamente con `HTTP 200 OK`** all'utente.
+
+### C. Background Virus Scanning con VirusTotal (`c.executionCtx.waitUntil`)
+* **Provider Ufficiale Confermato**: **VirusTotal API** (con fallback su SHA-256 Hash Lookup in 100ms).
+* In background (senza far attendere il client), l'API esegue la scansione dell'allegato in quarantena tramite VirusTotal.
+* **Se pulito**: Il file viene spostato in `r2://bucket/media/` e contrassegnato come `clean`.
+* **Se infetto**: Il file viene **cancellato da R2**, il record viene segnato come `infected` e viene inviata una notifica d'errore all'Admin Dashboard (`notifications.type = "error"`).
+
+---
+
+## 5. Definition Schema: Retention Policy (`retentionDays`)
+
+Il tipo `Seed` in `@beechcms/core` supporterà l'opzione di dichiarare la **Data Retention** per conformità GDPR:
+
+```typescript
+export interface Seed {
+  slug: string;
+  label: string;
+  // ...
+  retentionDays?: number; // Es: 90 giorni per le lead ricevute
+}
+```
+
+* **Attuazione in v0.8.0**: Il campo `retentionDays` viene formalizzato nel tipo `Seed` e registrato nel DB.
+* **Esecuzione in v0.9.0 (Scheduling & Automations)**: Il Task Runner programmato eseguirà una cron job giornaliera che elimina o anonimizza automaticamente i record di quel Seed più vecchi di `retentionDays` giorni.
+
+---
+
+## 6. Micro-DX & Frontend Polish Features
+
+### 💾 A. LocalDraft Recovery (Salvataggio Bozze in LocalStorage)
+* L'SDK salva in tempo reale i valori digitati nei campi in `localStorage` legati all'ID del form (`beech_form_draft_<seed>`).
+* Se l'utente ricarica la pagina o chiude la scheda per sbaglio, l'SDK ripristina i campi salvati chiedendo: *"Abbiamo ritrovato una bozza non inviata. Vuoi ripristinarla?"*.
+* Dopo l'invio con successo, la bozza viene pulita automaticamente da `localStorage`.
+
+### 🔀 B. Conditional Logic (Show/Hide Campi Condizionali)
+* I rami del Seed o la configurazione del form possono definire regole di visibilità dinamica:
+```typescript
+{
+  id: "br_restauro_type",
+  alias: "restauroType",
+  label: "Tipo di Immobile",
+  type: "text",
+  options: ["trullo", "masseria", "palazzo"],
+  dependsOn: { branch: "service", equals: "restauro" }
+}
+```
+* L'SDK mostra o nasconde automaticamente il controllo senza che lo sviluppatore debba scriversi gestori `useState` manuali.
+
+### 🌐 C. Localizzazione i18n & Messaggi di Errore Nativi
+* L'SDK include messaggi di errore predefiniti localizzati in **Italiano (default)** ed **Inglese**:
+  * `"Campo obbligatorio"` / `"This field is required"`
+  * `"Inserisci un indirizzo email valido"` / `"Please enter a valid email address"`
+* Tutti i messaggi possono essere sovrascritti puntualmente tramite le prop `labels` ed `errorMessages`.
+
+---
+
+## 7. API del Componente React (`<BeechForm />`)
+
+```tsx
+import { BeechForm } from '@beechcms/forms-react';
+
+export default function ContactSection() {
+  return (
+    <BeechForm
+      seed="leads"
+      lang="it"
+      autoSaveDraft={true}
+      antiBot={{
+        honeypotField: 'website_url', // Campo esca mimetizzato
+        minTimeSeconds: 2.0,           // Tempo minimo di compilazione
+      }}
+      className="space-y-4 max-w-lg mx-auto"
+      labels={{
+        submitButton: "Invia Richiesta",
+        successMessage: "Grazie! Il tuo messaggio è stato inviato.",
+      }}
+      onSuccess={(response) => {
+        console.log("Lead salvata:", response.id);
+      }}
+      onError={(error) => {
+        console.error("Errore invio:", error.message);
+      }}
+    />
+  );
+}
+```
+
+---
+
+## 8. Governance, Feature Brief & Sprint Planning Rules
+
+### 📋 Transizione Ideazione $\rightarrow$ Feature Brief $\rightarrow$ Sprint Execution
+1. **Inclusione Totale nel Feature Brief**: Tutti i punti concordati e formalizzati in questo documento (`idea.md`) vengono inclusi integralmente nel file `stages/00_ideation/output/feature_brief.md`.
+2. **Roadmap Multi-Sprint**: Nella fase successiva di **Sprint Planning (`stages/01_sprint_planning`)**, la realizzazione del pilastro verrà suddivisa in **più sprint strutturati e sequenziali** per garantire uno sviluppo ordinato, pulito e coperto da unit/integration test.

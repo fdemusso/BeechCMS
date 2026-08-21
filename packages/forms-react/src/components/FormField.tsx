@@ -2,13 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { FC } from 'react'
-import type { FormBranchSchema, UseBeechFormReturn } from '../types.js'
-
-export interface FormFieldProps {
-  branch: FormBranchSchema
-  form: UseBeechFormReturn
-  className?: string
-}
+import type { FormFieldProps } from '../types.js'
 
 export const FormField: FC<FormFieldProps> = ({ branch, form, className = 'beech-form-field' }) => {
   if (!form.isFieldVisible(branch.alias)) {

@@ -92,7 +92,7 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
                   )
                 : undefined
               const formType =
-                typeStr === 'email'
+                typeStr === 'email' || alias === 'email'
                   ? 'email'
                   : typeStr === 'file'
                   ? 'file'
@@ -100,9 +100,11 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
                   ? 'number'
                   : typeStr === 'boolean'
                   ? 'boolean'
+                  : typeStr === 'date'
+                  ? 'date'
                   : optionsList && optionsList.length > 0
                   ? 'select'
-                  : typeStr === 'text' && (alias === 'message' || alias === 'description')
+                  : typeStr === 'richtext' || (typeStr === 'text' && (alias === 'message' || alias === 'description'))
                   ? 'text'
                   : 'string'
 
@@ -256,6 +258,17 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
     },
     [errors, touched, schema, values, setFieldValue, setFieldTouched]
   )
+
+  const registerHoneypot = useCallback(() => {
+    return {
+      name: honeypotField,
+      value: honeypotValue,
+      onChange: (e: React.ChangeEvent<HTMLInputElement>) => setHoneypotValue(e.target.value),
+      tabIndex: -1,
+      autoComplete: 'off',
+      'aria-hidden': true,
+    }
+  }, [honeypotField, honeypotValue])
 
   const handleFileChange = useCallback(
     async (field: string, file: File | null) => {
@@ -459,6 +472,7 @@ export function useBeechForm<TValues extends Record<string, unknown> = Record<st
     setHoneypotValue,
     isFieldVisible,
     register,
+    registerHoneypot,
     handleFileChange,
     handleSubmit,
     reset,

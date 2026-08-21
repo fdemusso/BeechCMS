@@ -2,33 +2,38 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { FC } from 'react'
-import { HONEYPOT_CONTAINER_STYLE } from '../core/honeypot.js'
+import { DEFAULT_HONEYPOT_NAME, HONEYPOT_CONTAINER_STYLE } from '../core/honeypot.js'
+import type { HoneypotFieldProps } from '../types.js'
 
-export interface HoneypotFieldProps {
-  name: string
-  value: string
-  onChange: (value: string) => void
-  label?: string
-}
+export type { HoneypotFieldProps } from '../types.js'
 
 export const HoneypotField: FC<HoneypotFieldProps> = ({
   name,
   value,
   onChange,
-  label = 'Do not fill this field',
+  form,
+  label,
 }) => {
+  const resolvedName = form ? form.honeypotName : (name || DEFAULT_HONEYPOT_NAME)
+  const resolvedValue = form ? form.honeypotValue : (value || '')
+  const resolvedOnChange = form ? form.setHoneypotValue : (onChange || (() => {}))
+  const resolvedLabel = label || (form ? form.translations.honeypotLabel : 'Do not fill this field')
+
   return (
     <div style={HONEYPOT_CONTAINER_STYLE} aria-hidden="true" tabIndex={-1}>
-      <label htmlFor={`beech-hp-${name}`}>{label}</label>
+      <label htmlFor={`beech-hp-${resolvedName}`}>{resolvedLabel}</label>
       <input
-        id={`beech-hp-${name}`}
+        id={`beech-hp-${resolvedName}`}
         type="text"
-        name={name}
-        value={value}
+        name={resolvedName}
+        value={resolvedValue}
         tabIndex={-1}
         autoComplete="off"
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => resolvedOnChange(e.target.value)}
       />
     </div>
   )
 }
+
+export const Honeypot = HoneypotField
+

@@ -129,6 +129,14 @@ export interface UseBeechFormReturn<TValues extends Record<string, unknown> = Re
     'aria-required'?: boolean
     'aria-describedby'?: string
   }
+  registerHoneypot: () => {
+    name: string
+    value: string
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+    tabIndex: number
+    autoComplete: string
+    'aria-hidden': boolean
+  }
   handleFileChange: (field: string, file: File | null) => Promise<void>
   handleSubmit: (e?: React.FormEvent<HTMLFormElement>) => Promise<boolean>
   reset: () => void
@@ -148,8 +156,9 @@ export interface FormFieldProps {
 }
 
 export interface HoneypotFieldProps {
-  name: string
-  value: string
-  onChange: (value: string) => void
+  name?: string
+  value?: string
+  onChange?: (value: string) => void
+  form?: UseBeechFormReturn<any>
   label?: string
 }

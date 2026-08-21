@@ -1,4 +1,4 @@
-# Feature Brief — RichText Validation & Render Hardening
+ok # Feature Brief — RichText Validation & Render Hardening
 
 > Origin: `stages/00_ideation/idea.md` (hardening/refactor of `packages/core/src/engine/validation.ts`), re-scoped through adversarial sparring. Backed by GitHub issues #147 (stored XSS), #148 (protocol filter bypass), #149 (DoS), plus a resolved data-loss class (cache-collision from incomplete fingerprint, fixed in commits `9ea1a3d` / `105da92`).
 

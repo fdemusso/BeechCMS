@@ -4,7 +4,7 @@
 import type { FC } from 'react'
 import type { BeechFormProps } from '../types.js'
 import { useBeechForm } from '../hooks/useBeechForm.js'
-import { HoneypotField } from './HoneypotField.js'
+import { Honeypot } from './HoneypotField.js'
 import { FormField } from './FormField.js'
 
 export const BeechForm: FC<BeechFormProps> = (props) => {
@@ -15,12 +15,7 @@ export const BeechForm: FC<BeechFormProps> = (props) => {
   return (
     <form className={className} onSubmit={form.handleSubmit} noValidate>
       {/* Camouflage Honeypot Decoy */}
-      <HoneypotField
-        name={form.honeypotName}
-        value={form.honeypotValue}
-        onChange={form.setHoneypotValue}
-        label={form.translations.honeypotLabel}
-      />
+      <Honeypot form={form} />
 
       {/* Draft Restored Banner */}
       {form.isDraftRestored && !form.isSuccess && (

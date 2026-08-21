@@ -2,69 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import React, { useState } from 'react'
-import { BeechForm } from '../components/BeechForm.js'
-import type { FormSeedSchema, Locale } from '../types.js'
-
-/**
- * Production-Ready Seed Schema for Customer Registration & Lead Generation.
- *
- * 🏆 Architectural Best Practice:
- * Defining the form schema statically (or importing from your CMS seed definitions) provides:
- * 1. Zero Network Waterfall: The form renders immediately (SSR/SSG friendly, 0ms latency, zero CLS).
- * 2. Security & Privacy: No metadata leak of all CMS content types via client-side schema inspection.
- * 3. Editorial Precision: Expose exactly the required marketing fields (e.g. name, email, company, tier).
- * 4. Full Type-Safety: Static types for validation, IDE autocomplete, and submit payloads.
- */
-export const CLIENTI_FORM_SCHEMA: FormSeedSchema = {
-  slug: 'clienti',
-  label: 'Richiesta di Contatto & Onboarding',
-  branches: [
-    {
-      alias: 'name',
-      label: 'Ragione Sociale / Nome Contatto',
-      type: 'string',
-      required: true,
-      placeholder: 'es. Acme Corporation o Mario Rossi',
-      helpText: 'Inserisci il nome della tua azienda o il tuo nominativo',
-    },
-    {
-      alias: 'email',
-      label: 'Email Aziendale',
-      type: 'email',
-      required: true,
-      placeholder: 'nome@azienda.it',
-      helpText: 'Dato riservato (Confidential PII): viene cifrato a riposo con AES-256-GCM',
-    },
-    {
-      alias: 'company',
-      label: 'Azienda',
-      type: 'string',
-      placeholder: 'es. Acme SpA',
-    },
-    {
-      alias: 'tier',
-      label: 'Piano di Interesse',
-      type: 'select',
-      required: true,
-      placeholder: '-- Seleziona un Piano --',
-      options: [
-        { label: 'Piano Free (Fino a 3 utenti)', value: 'free' },
-        { label: 'Piano Pro (€150/mese)', value: 'pro' },
-        { label: 'Piano Enterprise (Personalizzato)', value: 'enterprise' },
-      ],
-    },
-    {
-      alias: 'account_status',
-      label: 'Stato Iniziale Richiesta',
-      type: 'select',
-      required: true,
-      options: [
-        { label: 'Attivo / Pronto all\'onboarding', value: 'active' },
-        { label: 'In valutazione / Richiesta informazioni', value: 'churned' },
-      ],
-    },
-  ],
-}
+import { BeechForm, Honeypot, useBeechForm } from '../index.js'
+import type { Locale } from '../types.js'
 
 /**
  * Environment configuration resolver supporting Vite, Next.js, and browser runtimes.
@@ -100,7 +39,92 @@ export interface ClientiTestPageProps {
 }
 
 /**
+ * Headless example component demonstrating 1-line anti-bot with custom layout.
+ */
+function HeadlessCustomClientiForm({
+  apiUrl,
+  apiKey,
+  locale,
+  onSuccess,
+  onError,
+}: {
+  apiUrl: string
+  apiKey: string
+  locale: Locale
+  onSuccess?: (lead: Record<string, unknown>) => void
+  onError?: (error: { status: number; message: string; details?: unknown }) => void
+}) {
+  const form = useBeechForm({
+    seed: 'clienti',
+    baseUrl: apiUrl,
+    apiKey,
+    locale,
+    onSuccess: (res) => onSuccess?.(res.data),
+    onError,
+  })
+
+  if (form.isSuccess) {
+    return (
+      <div style={{ padding: 16, background: '#f0fdf4', color: '#166534', borderRadius: 6 }}>
+        Grazie! La richiesta è stata inviata con successo.
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={form.handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* 1-line invisible anti-bot honeypot */}
+      <Honeypot form={form} />
+
+      {form.isLoadingSchema ? (
+        <p style={{ color: '#6b7280', fontSize: 14 }}>Caricamento campi form dal CMS...</p>
+      ) : (
+        <>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Nome Azienda / Ragione Sociale *</label>
+            <input
+              {...form.register('name')}
+              placeholder="es. Acme Corporation"
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}
+            />
+            {form.errors.name && <span style={{ color: '#dc2626', fontSize: 12 }}>{form.errors.name}</span>}
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 4 }}>Email Aziendale *</label>
+            <input
+              {...form.register('email')}
+              type="email"
+              placeholder="contatto@acme.com"
+              style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db' }}
+            />
+            {form.errors.email && <span style={{ color: '#dc2626', fontSize: 12 }}>{form.errors.email}</span>}
+          </div>
+
+          <button
+            type="submit"
+            disabled={form.isSubmitting}
+            style={{
+              padding: '10px 16px',
+              background: '#2563eb',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: 6,
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            {form.isSubmitting ? 'Invio in corso...' : 'Invia con Headless Hook'}
+          </button>
+        </>
+      )}
+    </form>
+  )
+}
+
+/**
  * Production-ready Lead Acquisition & Contact Form for the `clienti` Seed.
+ * Showcases the zero-config Dynamic Schema Pattern and the Headless Hook pattern.
  */
 export function ClientiTestPage({
   apiUrl = DEFAULT_API_URL,
@@ -109,13 +133,16 @@ export function ClientiTestPage({
   onSuccess,
   onError,
 }: ClientiTestPageProps) {
+  const [activeTab, setActiveTab] = useState<'auto' | 'headless'>('auto')
   const [submittedData, setSubmittedData] = useState<Record<string, unknown> | null>(null)
   const [submissionStatus, setSubmissionStatus] = useState<string>('')
 
-  const handleSuccess = (response: { id?: string; data: Record<string, unknown> }) => {
-    setSubmittedData(response.data)
+  const handleSuccess = (response: { id?: string; data: Record<string, unknown> } | Record<string, unknown>) => {
+    const data: Record<string, unknown> =
+      'data' in response && response.data ? (response.data as Record<string, unknown>) : (response as Record<string, unknown>)
+    setSubmittedData(data)
     setSubmissionStatus('SUCCESS: Lead registrata correttamente nel database D1!')
-    onSuccess?.(response.data)
+    onSuccess?.(data)
   }
 
   const handleError = (error: { status: number; message: string; details?: unknown }) => {
@@ -135,14 +162,51 @@ export function ClientiTestPage({
     >
       <header style={{ marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111827', margin: '0 0 8px 0' }}>
-          BeechCMS Form Production Pattern — Seed: <code>clienti</code>
+          BeechCMS Form SDK — Zero-Config Dynamic Pattern
         </h1>
         <p style={{ color: '#4b5563', fontSize: 14, margin: 0, lineHeight: 1.5 }}>
-          Form tipizzato e renderizzato <strong>immediatamente a zero-latenza</strong> (SSR/SSG ready) con difese anti-bot invisibili (Time-Trap HMAC + Honeypot mimetizzato).
+          Schema caricato dinamicamente via <code>GET /api/v1/public/clienti/schema</code> con <strong>SWR Cache</strong>,
+          difese anti-bot (Honeypot + Time-Trap HMAC) attive di default e crittografia AES-256 a riposo per i dati PII.
         </p>
       </header>
 
-      {/* Embedded BeechForm with statically typed schema */}
+      {/* Pattern Selector Tabs */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button
+          type="button"
+          onClick={() => setActiveTab('auto')}
+          style={{
+            padding: '6px 14px',
+            borderRadius: 6,
+            border: '1px solid #d1d5db',
+            background: activeTab === 'auto' ? '#111827' : '#f3f4f6',
+            color: activeTab === 'auto' ? '#ffffff' : '#374151',
+            fontWeight: 600,
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          Zero-Boilerplate (&lt;BeechForm seed=&quot;clienti&quot; /&gt;)
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('headless')}
+          style={{
+            padding: '6px 14px',
+            borderRadius: 6,
+            border: '1px solid #d1d5db',
+            background: activeTab === 'headless' ? '#111827' : '#f3f4f6',
+            color: activeTab === 'headless' ? '#ffffff' : '#374151',
+            fontWeight: 600,
+            fontSize: 13,
+            cursor: 'pointer',
+          }}
+        >
+          Headless Hook (&lt;Honeypot form=&#123;form&#125; /&gt;)
+        </button>
+      </div>
+
+      {/* Form Container */}
       <div
         style={{
           background: '#ffffff',
@@ -152,15 +216,24 @@ export function ClientiTestPage({
           boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
         }}
       >
-        <BeechForm
-          seed={CLIENTI_FORM_SCHEMA}
-          baseUrl={apiUrl}
-          apiKey={apiKey}
-          locale={locale}
-          honeypotField="fax_number"
-          onSuccess={handleSuccess}
-          onError={handleError}
-        />
+        {activeTab === 'auto' ? (
+          <BeechForm
+            seed="clienti"
+            baseUrl={apiUrl}
+            apiKey={apiKey}
+            locale={locale}
+            onSuccess={handleSuccess}
+            onError={handleError}
+          />
+        ) : (
+          <HeadlessCustomClientiForm
+            apiUrl={apiUrl}
+            apiKey={apiKey}
+            locale={locale}
+            onSuccess={handleSuccess}
+            onError={handleError}
+          />
+        )}
       </div>
 
       {/* Real-Time Feedback Panel */}

@@ -93,16 +93,16 @@ describe('D1SeedRepository', () => {
       const { db, prepareMock, bindMock } = makeMockDb()
       await new D1SeedRepository(db).upsert('posts', mockSeed)
       expect(prepareMock).toHaveBeenCalledWith(expect.stringContaining('ON CONFLICT'))
-      const [slug, definition, source] = bindMock.mock.calls[0]
+      const [slug, definition, source] = (bindMock.mock.calls[0] ?? []) as string[]
       expect(slug).toBe('posts')
-      expect(JSON.parse(definition as string).slug).toBe('posts')
+      expect(JSON.parse(definition).slug).toBe('posts')
       expect(source).toBe('runtime')
     })
 
     it('passes source=code when specified', async () => {
       const { db, bindMock } = makeMockDb()
       await new D1SeedRepository(db).upsert('posts', mockSeed, 'code')
-      expect(bindMock.mock.calls[0][2]).toBe('code')
+      expect(((bindMock.mock.calls[0] ?? []) as string[])[2]).toBe('code')
     })
   })
 
