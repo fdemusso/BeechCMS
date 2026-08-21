@@ -24,7 +24,21 @@ Building forms manually requires repetitive boilerplate: state management, valid
 
 ---
 
-## Installation
+## Interactive CLI Generator
+
+Generate a customized form component for **React**, **Vue 3**, **Svelte 5**, or **Vanilla JS / Web Components** in seconds:
+
+```bash
+npx @beechcms/cli forms
+# or using local beech CLI:
+pnpm beech forms
+```
+
+The interactive wizard asks which framework you are using and scaffolds the component directly into `src/components/BeechForm.[tsx|vue|svelte|js]` with anti-bot defenses built-in.
+
+---
+
+## Installation (React SDK)
 
 ```bash
 pnpm add @beechcms/forms-react

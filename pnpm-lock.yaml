@@ -468,6 +468,9 @@ importers:
       '@beechcms/core':
         specifier: workspace:^0.7.0
         version: link:../core
+      '@clack/prompts':
+        specifier: ^0.9.1
+        version: 0.9.1
       picocolors:
         specifier: ^1.1.1
         version: 1.1.1
