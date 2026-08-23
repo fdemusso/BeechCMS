@@ -1,46 +1,86 @@
+# Feature Brief — TipTap RichText Rendering Utilities
+
+> Origin: `stages/00_ideation/idea.md` (Feature 2: TipTap RichText Rendering Utilities), refined through adversarial sparring.
+> Stacked PR Target: Branch `feature/tiptap-richtext-rendering` based on `feature/strict-client-sdk-segregation`.
+
+---
+
 # 1. Feature Definition and Core Value
 
-L'attuale architettura del Client SDK (`@beechcms/client`) presenta un entrypoint unico e universale che include metodi di scrittura e lettura all'interno dello stesso modulo. Questa configurazione introduce un grave rischio di sicurezza: l'esposizione accidentale di chiavi API di scrittura, secret server-side o logiche di mutazione all'interno dei bundle JavaScript distribuiti ai browser.
+Consuming applications (Next.js, Remix, Astro, Vite, browser SPAs) and server-side components need to render BeechCMS RichText content (TipTap structured JSON AST) into semantic HTML or plain-text snippets for SEO, OpenGraph tags, and preview cards.
 
-La presente feature risolve alla radice questa vulnerabilità attraverso un'architettura **Strict-by-Design**. Separa fisicamente a livello di package gli entrypoint per ambienti browser e ambienti server, eliminando qualsiasi metodo di mutazione dal bundle client e garantendo che il codice frontend possa eseguire unicamente operazioni di lettura autorizzate. Il valore fondamentale è l'azzeramento strutturale del rischio di leak di credenziali e una Developer Experience deterministica basata su standard Web API universali.
+Currently, rendering RichText documents outside the core engine either requires dragging heavy server-only packages or importing the full TipTap/ProseMirror ecosystem (`@tiptap/html`, `@tiptap/core`, `prosemirror-*`), adding hundreds of kilobytes of bundle bloat, requiring synthetic DOM polyfills on serverless/edge runtimes, and exposing consumers to cross-runtime incompatibility.
+
+The core value of this feature is delivering an ultra-lightweight, zero-dependency, isomorphic RichText processing module inside `@beechcms/client/richtext`. It provides two deterministic pure functions (`renderRichText` and `richTextToPlainText`) that operate universally across any JavaScript runtime (Node.js, Browser, Cloudflare Workers, Edge, Bun) with zero bundle overhead for consumers of the standard HTTP client.
+
+---
 
 # 2. Domain Boundaries and Business Rules
 
-### Confine di Dominio
-Il perimetro della feature è circoscritto rigorosamente al package `packages/client`. Non sono ammesse modifiche o dipendenze incrociate verso la logica interna del backend (`apps/api`), verso la dashboard (`apps/dashboard`), o verso il toolkit dei form (`packages/forms-react`).
+**Logical Entities**
 
-### Entità Logiche e Ruoli
-* **Browser Client (`@beechcms/client/browser`):** Client HTTP specializzato e confinato all'ambiente browser/client-side.
-* **Server Client (`@beechcms/client/server`):** Client HTTP completo specializzato per ambienti protetti (Node.js, Edge Workers, Server Components, API routes).
-* **Root Module (`@beechcms/client`):** Esportatore puro di contratti e definizioni di tipo TypeScript, con utility deterministiche di serializzazione query.
-* **Webhooks Module (`@beechcms/client/webhooks`):** Modulo isolato per la verifica crittografica delle firme dei webhook in ingresso.
+- **RichText Document AST**: Standard TipTap / ProseMirror structured document tree containing block nodes, inline elements, text nodes, and mark attributes.
+- **BeechCMS Schema Envelope**: Content container structure (`schemaVersion: 1`, `doc: { ... }`) used in BeechCMS database storage and API payloads.
+- **HTML AST Walker**: Pure, deterministic traversal engine that serializes supported AST nodes and marks into secure, semantic HTML tags.
+- **Plain Text Extractor**: Pure recursive text harvester that extracts raw textual content across the AST with deterministic block whitespace separation.
+- **Subpath Package Entrypoint**: Isolated export `./richtext` within `@beechcms/client`, guaranteeing strict separation from the core HTTP client.
 
-### Regole di Business Non Negoziabili
-1. **Segregazione Rigorosa dei Metodi:** Il Browser Client deve esporre esclusivamente operazioni di lettura (`list`, `get`). I metodi di mutazione (`create`, `update`) non devono esistere nella sua interfaccia né nel codice compilato.
-2. **CRUD Completo nel Server Client:** Il Server Client deve supportare l'intero spettro di operazioni (`list`, `get`, `create`, `update`).
-3. **Root Entrypoint Types-Only:** L'import radice `@beechcms/client` non deve esportare alcuna istanza o factory di client a runtime.
-4. **Autenticazione Obbligatoria:** Sia il Browser Client che il Server Client richiedono tassativamente una chiave API in fase di inizializzazione per conformità con le policy di accesso dell'API.
-5. **Agnosticismo di Rete:** L'integrazione con runtime specifici (Cloudflare Service Bindings, ambienti di test, sistemi di caching Next.js) deve avvenire esclusivamente tramite standard Web API (`fetch` custom opzionale e pass-through dei parametri di richiesta), senza dipendenze proprietarie da framework esterni.
-6. **Result Pattern Deterministico:** Il client non deve mai lanciare eccezioni non gestite a seguito di errori HTTP o risposte di validazione fallite; deve restituire un oggetto discriminato contenente alternativamente il dato tipizzato o il dettaglio standardizzato del problema.
+**Ironclad Rules**
+
+1. **Zero External Runtime Dependencies**: The module must not import `@tiptap/html`, `prosemirror-*`, DOM shims (`jsdom`, `happy-dom`), or third-party sanitizers. The AST walker must be 100% self-contained and universally isomorphic.
+2. **Strict Subpath Isolation**: Richtext rendering code must reside exclusively under the subpath `@beechcms/client/richtext`. Importing `@beechcms/client`, `@beechcms/client/browser`, or `@beechcms/client/server` must never pull in or execute richtext parsing logic.
+3. **Fail-Safe Normalization (No Runtime Exceptions)**: Functions must never throw exceptions on invalid, unexpected, empty, non-object, or malformed inputs. Any invalid input must safely resolve to an empty string (`""`).
+4. **Transparent Envelope Unwrapping**: Functions must natively accept and unwrap both raw TipTap doc objects (`{ type: 'doc', content: [...] }`) and BeechCMS schema envelopes (`{ schemaVersion: 1, doc: ... }`).
+5. **Strict HTML Character Escaping**: All textual content within text nodes must be escaped for special HTML characters (`&`, `<`, `>`, `"`, `'`) before output generation.
+6. **Strict Attribute Protocol Allowlist**: URL attributes (such as link `href` and image `src`) must be validated against a strict allowlist of safe protocols (`http:`, `https:`, `mailto:`, `tel:`). Dangerous protocols (`javascript:`, `data:`, `vbscript:`) must be stripped or neutralized.
+7. **Safe Handling of Unknown Nodes & Developer Warning**: Any node type not defined in the supported BeechCMS schema must be skipped without injecting unescaped markup, emitting a descriptive English warning to `console.warn` to inform the developer.
+8. **Stacked PR Integrity**: Branch `feature/tiptap-richtext-rendering` must branch directly from `feature/strict-client-sdk-segregation` and maintain clean target branch alignment for downstream planning.
+
+---
 
 # 3. Primary Requirements (User Stories)
 
-* AS A Frontend Developer I WANT un entrypoint dedicato `@beechcms/client/browser` privo di metodi di mutazione SO THAT sia impossibile includere accidentalmente logiche di scrittura o secret server-side nel bundle inviato agli utenti.
-* AS A Fullstack Developer I WANT un entrypoint dedicato `@beechcms/client/server` con supporto a custom fetch e opzioni di richiesta native SO THAT possa eseguire operazioni CRUD complete e sfruttare le ottimizzazioni di rete del mio runtime senza vendor lock-in.
-* AS A TypeScript Developer I WANT importare tipi condivisi e costruttori di query dall'entrypoint radice `@beechcms/client` SO THAT possa tipizzare le risposte e comporre filtri senza caricare codice runtime non necessario.
-* AS A Backend Developer I WANT un entrypoint isolato `@beechcms/client/webhooks` SO THAT possa validare l'integrità e l'autenticità dei payload webhook HMAC-SHA256 ricevuti dal CMS.
+* AS A frontend developer consuming BeechCMS APIs I WANT to render TipTap RichText AST into semantic HTML via `@beechcms/client/richtext` SO THAT I can display rich content on web pages without installing ProseMirror or DOM polyfill packages.
+* AS A developer building SEO and social sharing tags I WANT to extract clean plain text from RichText structures via `richTextToPlainText` SO THAT I can generate accurate meta descriptions, OpenGraph text, and snippet previews without HTML tags.
+* AS A performance-focused web developer I WANT richtext utilities to be strictly isolated under a subpath export SO THAT my application bundle size remains lightweight when I only use the HTTP client SDK.
+* AS A frontend developer deploying to Edge and Serverless runtimes I WANT rendering utilities to run isomorphically across Node.js, Cloudflare Workers, Bun, and browsers SO THAT I do not encounter missing DOM or window errors during server-side rendering.
+* AS A website visitor I WANT rendered HTML to be strictly sanitized against script execution and malicious link protocols SO THAT viewing content created in the CMS cannot expose me to Cross-Site Scripting (XSS) attacks.
+* AS A frontend developer debugging content schemas I WANT unknown or unmapped AST nodes to log a clear warning in the console SO THAT I am immediately alerted to unhandled content types without breaking the page render.
+
+---
 
 # 4. Secondary Requirements and Logical Constraints
 
-* **Gestione degli Errori RFC 9457:** Tutte le risposte non andate a buon fine (4xx, 5xx) devono essere normalizzate nella struttura problem details standard definita dal backend, popolando i dettagli specifici dei campi non validi in caso di errore 422.
-* **Resilienza alle Eccezioni di Rete:** Errori a basso livello (mancanza di connettività, DNS unreachable, timeout o interruzioni di fetch) devono essere intercettati e incapsulati in un problema standardizzato con codice di stato zero, impedendo crash non gestiti nell'applicazione host.
-* **Validazione dei Parametri di Configurazione:** L'assenza dell'URL base o della chiave API deve generare un errore immediato e descrittivo in fase di inizializzazione del client.
-* **Normalizzazione degli URL:** Il client deve gestire in modo trasparente e tollerante la presenza o assenza di slash finali nell'URL di base fornito in configurazione.
-* **Trasparenza dei Parametri di Query:** La serializzazione di filtri complessi, logiche di ordinamento, paginazione e ricerca full-text deve mappare fedelmente i parametri attesi dalla Public API.
+**Normalization & Fallback Edge Cases**
+
+- `null`, `undefined`, boolean, numeric, array, or empty string inputs return `""`.
+- Non-doc object inputs (missing `type: 'doc'` and missing valid envelope) return `""`.
+- Legacy string inputs (raw HTML strings) return `""` (drop-to-empty, adhering to BeechCMS stored-XSS defense invariants).
+- Envelope v1 payloads with missing or non-object `doc` properties return `""`.
+
+**Supported Node and Mark Matrix**
+
+- **Block Nodes**: Document (`doc`), Paragraph (`paragraph`), Heading (`heading` with levels 1 to 6), Blockquote (`blockquote`), Code Block (`codeBlock`), Horizontal Rule (`horizontalRule`), Bullet List (`bulletList`), Ordered List (`orderedList`), List Item (`listItem`), Table family (`table`, `tableRow`, `tableHeader`, `tableCell`).
+- **Inline & Media Nodes**: Text (`text`), Image (`image` with `src`, `alt`, `title`), Mathematics (`mathematics` rendered with text fallback).
+- **Marks**: Bold (`bold` / `strong`), Italic (`italic` / `em`), Strike (`strike` / `s`), Underline (`underline` / `u`), Code (`code`), Highlight (`highlight`), Superscript (`superscript`), Subscript (`subscript`), Link (`link` with validated `href`, `target`, `rel`).
+
+**Plain Text Extraction Logic**
+
+- Traverses all child nodes recursively and collects text node strings.
+- Inserts single-space or newline separators between adjacent block-level elements to prevent words from running together across paragraphs or list items.
+- Strips excessive whitespace and trims leading/trailing spaces from the final result.
+
+**Developer Diagnostics Contract**
+
+- When an unrecognized node type is encountered during HTML rendering or plain text extraction, emit `console.warn` with format: `[BeechCMS RichText] Unrecognized node type "${node.type}". Skipping node.`
+
+---
 
 # 5. Out of Scope (Discarded during sparring)
 
-* **Auto-Parsing HTML TipTap nel Client HTTP:** Escluso per preservare la purezza dei tipi TypeScript ed evitare overhead di calcolo a runtime e bundle bloat nell'SDK di rete. La trasformazione dell'AST TipTap sarà gestita in una feature separata tramite utility pure dedicate.
-* **Pipeline Dati Riservati e Cifratura Backend:** Escluse tutte le modifiche alle logiche di cifratura AES-GCM, campi confidenziali e gestione in-memory per automazioni email in `apps/api`, trattandosi di un dominio backend autonomo.
-* **Protezione Anti-Bot per Form Pubblici:** Esclusa l'implementazione di Time-Trap token, Honeypot e validazione Origin in `packages/forms-react`, che costituirà un'iniziativa separata per l'ingestione pubblica.
-* **Retrocompatibilità della Root:** Esclusa qualsiasi factory legacy o alias deprecato nella root `@beechcms/client`; la rottura con il vecchio client universale è intenzionale e non negoziabile per garantire la sicurezza by-design.
+- **External TipTap / ProseMirror Dependencies (`@tiptap/html`, `prosemirror-*`)**: Discarded to maintain a zero-dependency client SDK, avoid DOM polyfills in serverless environments, and minimize bundle footprint.
+- **Dynamic Plugin / Extension Registry**: Discarded under YAGNI principles; the BeechCMS content schema is fixed and deterministic. No runtime extension manager is provided.
+- **UI Framework Components (React / Vue / Svelte / Solid renderers)**: Discarded; the client package provides pure string-based HTML and plain text utilities, delegating component wrappers to consumer UI libraries.
+- **Text Truncation, Word-Boundary Clipping, and Ellipsis Helpers**: Discarded; length constraints and snippet clipping remain the responsibility of consuming application logic.
+- **External Sanitization Libraries (DOMPurify, sanitize-html)**: Discarded; security is achieved natively through structural AST parsing, text node character escaping, and strict protocol allowlists.
+- **Automatic Client-Side Response Mutation / Middleware**: Discarded; HTTP client methods return raw API response data without automatically parsing or rendering RichText fields at fetch time.
