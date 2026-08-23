@@ -43,7 +43,7 @@ import { publicRoutes } from './public/public-routes'
 import { apiKeyMiddleware } from './public/api-key-middleware'
 import { publicRateLimitMiddleware } from './public/rate-limit-middleware'
 import { searchRouter } from "./features/search/search"
-import type { ISeedRepository, IAutomationRepository, IAutomationRunner } from '@beechcms/core'
+import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository } from '@beechcms/core'
 import { repositoryMiddleware } from './middleware/repository.middleware'
 import { seedRegistryMiddleware } from './middleware/seed-registry.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'
@@ -57,6 +57,7 @@ export interface BeechConfig {
   seeds: Seed[] | Record<string, Seed>
   repository?: ContentRepository
   idempotencyRepository?: IdempotencyRepository
+  timeTrapTokenRepository?: ITimeTrapTokenRepository
   bucket?: BeechBucket
   mediaRepository?: MediaRepository
   systemStatsRepository?: SystemStatsRepository
@@ -146,6 +147,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.use('*', repositoryMiddleware({
     repository: config.repository,
     idempotencyRepository: config.idempotencyRepository,
+    timeTrapTokenRepository: config.timeTrapTokenRepository,
     mediaRepository: config.mediaRepository,
     systemStatsRepository: config.systemStatsRepository,
     seedRepository,

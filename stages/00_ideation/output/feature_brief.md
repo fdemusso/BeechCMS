@@ -1,52 +1,72 @@
 # 1. Feature Definition and Core Value
 
-La protezione dei dati personali sensibili (GDPR / privacy compliance) richiede che le informazioni fornite dagli utenti esterni (come indirizzi email, numeri di telefono o dati personali) siano cifrate a riposo nel database e mai esposte tramite endpoint pubblici di lettura. Tuttavia, la cifratura a riposo non deve compromettere l'esecuzione immediata delle automazioni transazionali (es. invio di email di conferma a `{{this.email}}` o webhook operativi) né impedire agli operatori autorizzati di visualizzare i dati gestionali tramite dashboard protetta.
+L'ingestione di dati da form pubblici (es. lead generation, richieste di preventivo, contatti) espone tipicamente i sistemi a due rischi critici: la fuga di credenziali privilegiate se vengono incorporate API Key di scrittura nel bundle frontend, oppure lo spam incontrollato da parte di bot e crawler automatizzati se gli endpoint vengono aperti pubblicamente.
 
-La feature risolve questo problema introducendo la gestione end-to-end della classificazione `confidential` con cifratura trasparente a riposo, regole granulari di scrittura e modifica pubblica definite a livello di schema (Seed/Branch), ed esecuzione delle pipeline di automazione in memoria prima della persistenza crittografica.
+Questa feature risolve alla radice entrambi i problemi fornendo un'architettura di ingestione **Zero-Secret** abbinata a un livello di difesa anti-bot multilivello e trasparente per l'utente umano (senza CAPTCHA o puzzle invasivi). Attraverso token temporali crittografici, campi esca di camouflage, validazione dell'origine, rate limiting adattivo e integrazione fluida con un toolkit React, BeechCMS consente a qualsiasi frontend pubblico di inviare contenuti in sicurezza, garantendo integrità dei dati e zero attrito nell'esperienza utente.
+
+---
 
 # 2. Domain Boundaries and Business Rules
 
-### Entità Logiche Coinvolte
-* **Seed & Branch Policy Engine (`@beechcms/core`):** Definisce lo schema dei contenuti e le policy di classificazione dei dati (`public`, `internal`, `confidential`, `restricted`), con regole granulari per permessi di lettura, scrittura in creazione (`add`) e modifica (`edit`).
-* **Content Repository (`apps/api` / `@beechcms/core`):** Si occupa della persistenza crittografica trasparente su Cloudflare D1 (AES-256-GCM) per i campi `confidential` e della decifratura automatica in fase di lettura per contesti autorizzati.
-* **Public Ingestion Handlers (`apps/api` - `public-add`, `public-edit`):** Gestiscono la validazione, sanitizzazione e controllo accessi per le richieste provenienti da client non autenticati.
-* **Automation Runner (`apps/api`):** Motore di esecuzione delle automazioni operante in contesto di sistema (`system`), responsabile della valutazione delle condizioni e dell'esecuzione delle azioni.
+### Entità Logiche di Dominio
+1. **Public Ingestion Endpoint (`/api/v1/public/:seed/add`):** Gateway di ingresso per le sottomissioni anonime provenienti dal web.
+2. **Time-Trap Token Authority (`/api/v1/public/timetrap/token`):** Servizio crittografico che rilascia token firmati attestanti il momento esatto di rendering del form.
+3. **Anti-Bot Defense Engine:** Modulo di analisi e filtraggio delle richieste (Time-Trap, Honeypot, Origin Whitelist, Magic Bytes).
+4. **Token Bucket Rate Limiter:** Gestore del budget di traffico per singolo indirizzo IP client.
+5. **React Form SDK (`@beechcms/forms-react`):** Strato client-side composto da hook e componenti per l'interazione con l'API pubblica.
 
-### Regole di Business (Business Rules)
-1. **Isolamento della Classificazione `confidential`:**
-   * I campi classificati come `confidential` sono cifrati automaticamente prima della persistenza a DB e memorizzati nel formato crittografico standard.
-   * I campi `confidential` sono rigorosamente omessi in qualsiasi risposta API pubblica di lettura (`actor: 'public'`).
-   * I campi `confidential` sono decifrati e resi visibili nelle risposte API autenticate (`actor: 'authenticated'`) per gli operatori della Dashboard.
-2. **Politiche di Scrittura e Modifica Pubblica dei Campi `confidential`:**
-   * **Creazione Pubblica (`add`):** Consentita di default per i campi `confidential` (a meno che non sia specificato esplicitamente `public: false` nella dichiarazione del branch).
-   * **Modifica Pubblica (`edit`):** Bloccata di default per i campi `confidential`. La modifica pubblica è permessa SOLO se esplicitamente autorizzata nella configurazione delle policy del branch all'interno del Seed.
-3. **Protezione dei Campi `internal` e `restricted`:**
-   * I campi classificati come `internal` e `restricted` sono ad uso esclusivo del backend e non possono mai essere scritti o modificati tramite endpoint pubblici (né in `add` né in `edit`).
-4. **Pipeline delle Automazioni in Memoria (`In-Memory Pipeline`):**
-   * L'Automation Runner opera con contesto privilegiato `system` e riceve l'entry con i valori in chiaro direttamente in memoria al momento del dispatch dell'evento (`create`/`update`).
-   * Nessuna maschera o filtro restrittivo viene applicato ai template o ai payload delle azioni configurate (email, notifiche, webhook).
+### Regole di Business e Confini Inviolabili
+* **Zero Secret nel Browser:** I client pubblici non devono necessitare di alcuna chiave API segreta o di scrittura per sottomettere form.
+* **Time-Trap Token Obbligatorio e Monouso:**
+  * Ogni richiesta di sottomissione pubblica deve obbligatoriamente includere un token Time-Trap firmato con algoritmo HMAC.
+  * La sottomissione è valida solo se il tempo trascorso tra il rilascio del token e la ricezione della richiesta è pari o superiore a 1.5 secondi e non eccede la scadenza di 1 ora.
+  * Il token è strettamente monouso: una volta utilizzato con successo per creare un record, non può essere riutilizzato per invii successivi.
+* **Tolleranza Zero per i Campi Honeypot:** La presenza di qualsiasi valore non vuoto nei campi esca prestabiliti provoca il rifiuto immediato della richiesta e l'iscrizione dell'evento nei log di sicurezza.
+* **Stato dei Contenuti 100% Backend-Driven:**
+  * Il client pubblico non ha autorità sullo stato del record. Qualsiasi campo di stato inviato nel payload viene tassativamente ignorato o respinto.
+  * Lo stato iniziale del record viene determinato dal backend in base alla configurazione del Seed (defaulting a `published` per garantire l'immediata visibilità operativa dei lead/richieste ricevute).
+* **Isolamento Rigido dei Campi Riservati:** I campi classificati come `internal` o `restricted` nella definizione del Seed non possono essere scritti tramite endpoint pubblici.
+* **Budget di Richieste per IP (Token Bucket):** Ogni IP dispone di un bucket con capacità massima di 17 richieste, ricaricato in modo continuo e progressivo nel tempo. Esaurito il bucket, le richieste vengono respinte.
+* **Isolamento da Dipendenze Circolari:** Il pacchetto React opera esclusivamente tramite contratti HTTP standard e non possiede dipendenze dal runtime del server o da chiavi private.
+
+---
 
 # 3. Primary Requirements (User Stories)
 
-* AS A sviluppatore frontend / utente anonimo I WANT inviare dati personali sensibili tramite endpoint pubblici di creazione SO THAT la mia richiesta di contatto o registrazione venga registrata in sicurezza senza esporre i miei dati ad altri utenti pubblici
-* AS A amministratore di sistema I WANT che i dati sensibili marcati come confidenziali siano cifrati a riposo nel database SO THAT la piattaforma sia pienamente conforme agli standard di sicurezza e conformità GDPR
-* AS A amministratore di sistema I WANT configurare automazioni email o webhook che utilizzino i campi confidenziali in chiaro SO THAT i messaggi transazionali e le notifiche vengano inviati immediatamente senza errori di templating
-* AS A operatore di dashboard autenticato I WANT visualizzare e consultare i campi confidenziali delle voci di contenuto SO THAT io possa svolgere le consuete attività operative e di supporto senza barriere manuali di decifratura
-* AS A progettista di schemi (Seed Designer) I WANT definire a livello di singolo campo se un dato confidenziale possa essere modificato pubblicamente oltre che creato SO THAT io possa proteggere i dati sensibili da sovrascritture non autorizzate dopo la sottomissione iniziale
+* AS A sviluppatore frontend I WANT integrare form pubblici React verso BeechCMS senza includere API Key di scrittura nel codice client SO THAT non rischio la compromissione delle credenziali di backend del progetto.
+
+* AS A utente finale I WANT inviare richieste e messaggi tramite form senza dover risolvere CAPTCHA visivi o puzzle complessi SO THAT la mia esperienza di navigazione e conversione sia fluida e priva di ostacoli.
+
+* AS A amministratore del CMS I WANT che tutte le sottomissioni provenienti da form pubblici siano protette da spam e bot istantanei SO THAT il database non venga inquinato da dati fittizi o malevoli.
+
+* AS A sviluppatore frontend I WANT disporre di hook e componenti React che gestiscano automaticamente il ciclo di vita del token Time-Trap, i campi Honeypot, la validazione client e il salvataggio bozza locale SO THAT posso costruire form accessibili e resilienti con il minimo boilerplate.
+
+* AS A responsabile della sicurezza I WANT che le richieste pubbliche verso l'API siano limitate da un rate limiter per IP e protette da attacchi cross-site tramite verifica dell'origine SO THAT gli endpoint pubblici non possano essere abusati per attacchi di saturazione o Denial of Service.
+
+---
 
 # 4. Secondary Requirements and Logical Constraints
 
-### Gestione Errori e Validazioni
-* **Rifiuto Modifica Campo Confidenziale non Autorizzato:** Se una richiesta pubblica di `edit` include un campo `confidential` la cui configurazione di seed non autorizza esplicitamente la modifica pubblica, l'API deve rispondere con status HTTP `422 Unprocessable Entity` e un messaggio dettagliato conforme allo standard Problem Details: `"Cannot edit sensitive field '<alias>': edit permission not granted by seed declaration"`.
-* **Rifiuto Scrittura Campi Interni/Ristretti:** Qualsiasi tentativo di scrittura o modifica pubblica di campi `internal` o `restricted` deve fallire con status HTTP `422 Unprocessable Entity` (`Cannot write internal/restricted fields: <aliases>`).
-* **Integrità Payload Automazioni:** L'in-memory entry passata all'Automation Runner deve contenere tutti i campi generati dal sistema (`id`, `slug`, `status`, timestamp) unitamente ai dati del payload in chiaro prima della cifratura su DB.
+### Gestione Errori e Codici HTTP
+* **Token Assente o Non Valido:** Se la richiesta pubblica è priva di token Time-Trap, o se la firma HMAC non corrisponde, il backend risponde con HTTP 422 Unprocessable Entity.
+* **Violazione Temporale (Bot Istantaneo o Scaduto):** Se la sottomissione avviene con un delta temporale inferiore a 1.5 secondi o superiore a 3600 secondi, il backend risponde con HTTP 422 Unprocessable Entity.
+* **Attivazione Honeypot:** Se uno dei campi decoy contiene un valore, il backend risponde con HTTP 422 Unprocessable Entity e registra un alert di sicurezza.
+* **Origine Non Consentita:** Se l'header Origin o Referer non appartiene alla whitelist configurata, il backend risponde con HTTP 403 Forbidden.
+* **Superamento Rate Limit:** Se il bucket di token per l'IP chiamante è esaurito, il backend risponde con HTTP 429 Too Many Requests.
+* **Scrittura Campi Riservati:** Se il payload tenta di impostare campi interni o ristretti, il backend risponde con HTTP 422 Unprocessable Entity.
+* **Allegati Non Conformi:** Se la firma binaria (Magic Bytes) di un file allegato non coincide con il tipo MIME dichiarato, il backend risponde con HTTP 400 Bad Request.
 
-### Vincoli Temporali e di Stato
-* **Esecuzione Asincrona:** Il dispatch delle automazioni avviene in background senza bloccare la risposta HTTP al client, preservando le metriche di latenza dell'endpoint di ingestione.
-* **Idempotenza e Coerenza Dati:** In caso di retry o gestione di sottomissioni idempotenti, la cifratura a riposo deve produrre identificatori coerenti (blind indexing / HMAC hash) per le colonne indicizzabili senza esporre il vettore di inizializzazione o la chiave.
+### Vincoli Temporali e Stato Intermedio
+* **Ricarica Continua del Rate Limiting:** Il ripristino del budget di 17 richieste per IP deve avvenire in modo fluido tramite algoritmo a secchio con finestra temporale continua (~1 token ogni 3.53 secondi), evitando reset a scatto su finestre fisse d'orologio.
+* **Persistenza Bozza Locale nel Client:** Il form React deve memorizzare le bozze dell'utente nel browser per evitare la perdita di dati in caso di refresh, ripulendo la memoria solo al completamento con successo della sottomissione.
+* **Supporto Idempotenza:** L'endpoint pubblico deve supportare l'header di idempotenza per prevenire sottomissioni duplicate in caso di instabilità di rete.
+
+---
 
 # 5. Out of Scope (Discarded during sparring)
 
-* **Decifratura Dinamica Manuale nell'Engine Automazioni:** Esclusa l'aggiunta di logica di decifratura dedicata all'interno di `AutomationRunner`, poiché il payload dell'evento è già in memoria in chiaro e le eventuali letture di relazioni esterne vengono già gestite trasparentemente da `D1ContentRepository`.
-* **Filtraggio o Mascheramento Arbitrario dei Webhook:** Escluso qualsiasi filtro preventivo sui campi confidenziali inviati tramite azioni webhook delle automazioni, in quanto le automazioni operano in contesto di sistema (`system`) esplicitamente configurato dall'amministratore.
-* **Key Rotation Dinamica a Runtime:** Escluso il supporto alla migrazione massiva o rotazione a caldo delle chiavi di cifratura su Cloudflare D1 per questo sprint.
+* **Integrazione di CAPTCHA di Terze Parti:** Esclusa l'integrazione con servizi esterni come Google reCAPTCHA, Cloudflare Turnstile o hCaptcha per preservare l'autonomia architetturale e la totale assenza di attrito per l'utente.
+* **Override dello Stato da Client Pubblico:** Esclusa la possibilità per il client pubblico di scegliere o forzare lo stato del record (`published`, `draft`, `review`).
+* **Modifica Pubblica Anonima di Record Esistenti:** Le operazioni di modifica o aggiornamento (`PUT`/`PATCH`) tramite form pubblici senza autenticazione non fanno parte del perimetro di questa feature.
+* **Fingerprinting Biometrico o di Dispositivo:** Esclusa qualsiasi raccolta invasiva di canvas fingerprinting, tracciamento del mouse ad alta frequenza o telemetria del dispositivo per rispetto della privacy e conformità normativa.
+* **Dashboard di Gestione Regole Anti-Bot a Runtime:** I parametri di protezione (delta temporale minimo, lista decoy, capacità bucket) sono gestiti tramite configurazione applicativa e non tramite interfaccia visuale di amministrazione.

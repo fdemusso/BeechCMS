@@ -180,6 +180,66 @@ describe('useBeechForm', () => {
     )
   })
 
+  it('performs Zero-Secret public submission with automatic time-trap token lifecycle', async () => {
+    const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+      if (url.endsWith('/timetrap/token')) {
+        return {
+          ok: true,
+          json: async () => ({ token: 't0_1000.abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234', minDeltaSeconds: 1.5 }),
+        }
+      }
+      if (url.endsWith('/contact-us/add')) {
+        return {
+          ok: true,
+          json: async () => ({ data: { id: 'zero_sec_rec_1' } }),
+        }
+      }
+      return { ok: false }
+    })
+    globalThis.fetch = mockFetch
+
+    const onSuccess = vi.fn()
+    const { result } = renderHook(() =>
+      useBeechForm({
+        seed: mockSchema,
+        baseUrl: 'https://api.example.com',
+        onSuccess,
+      })
+    )
+
+    // Wait for time-trap token to be loaded asynchronously
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    })
+
+    expect(result.current.timeTrapReady).toBe(true)
+
+    act(() => {
+      result.current.setFieldValue('fullName', 'Zero Secret User')
+      result.current.setFieldValue('email', 'zero@example.com')
+    })
+
+    // Simulate elapsed human time (> 1.5s)
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 2000)
+
+    let success = false
+    await act(async () => {
+      success = await result.current.handleSubmit()
+    })
+
+    expect(success).toBe(true)
+    expect(result.current.isSuccess).toBe(true)
+    expect(onSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'zero_sec_rec_1' })
+    )
+
+    // Verify fetch was called without X-API-Key and with time-trap token
+    const addCall = mockFetch.mock.calls.find((c) => c[0].endsWith('/contact-us/add'))
+    expect(addCall).toBeDefined()
+    expect(addCall[1]?.headers?.['X-API-Key']).toBeUndefined()
+    expect(addCall[1]?.headers?.['x-time-trap']).toBe('t0_1000.abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234abcd1234')
+  })
+
   it('resets form state back to initial', () => {
     const { result } = renderHook(() =>
       useBeechForm({

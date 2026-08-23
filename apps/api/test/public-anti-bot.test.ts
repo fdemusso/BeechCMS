@@ -8,11 +8,13 @@ import { createBeechApp } from '../src/factory'
 import { StaticAutomationRepository } from './mocks/static-automation.repository'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
-import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_READ_KEY, TEST_PUBLIC_WRITE_KEY } from './fixtures'
+import { StaticTimeTrapTokenRepository } from './mocks/static-time-trap-token.repository'
+import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_WRITE_KEY } from './fixtures'
 
 describe('Public Form Security & Anti-Bot Defense', () => {
   let app: ReturnType<typeof createBeechApp>
   let repo: StaticContentRepository
+  let timeTrapRepo: StaticTimeTrapTokenRepository
   let mockAntivirus: IAntivirusProvider
   let mockNotificationService: INotificationService
   const SECRET = 'test-time-trap-secret-key-1234567890'
@@ -21,6 +23,7 @@ describe('Public Form Security & Anti-Bot Defense', () => {
     repo = new StaticContentRepository(TEST_SEEDS)
     const idempotencyRepo = new StaticIdempotencyRepository()
     const automationRepo = new StaticAutomationRepository()
+    timeTrapRepo = new StaticTimeTrapTokenRepository()
 
     mockAntivirus = {
       name: 'mock-av',
@@ -32,35 +35,133 @@ describe('Public Form Security & Anti-Bot Defense', () => {
       repository: repo,
       idempotencyRepository: idempotencyRepo,
       automationRepository: automationRepo,
+      timeTrapTokenRepository: timeTrapRepo,
     })
   })
 
-  describe('GET /api/v1/public/timetrap/token', () => {
-    it('returns a valid signed time-trap token', async () => {
-      const res = await app.request('/api/v1/public/timetrap/token', {
-        headers: { 'X-API-Key': TEST_PUBLIC_READ_KEY },
-      }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
+  describe('Zero-Secret Endpoints', () => {
+    it('GET /api/v1/public/timetrap/token issues token without X-API-Key', async () => {
+      const res = await app.request('/api/v1/public/timetrap/token', {}, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
 
       expect(res.status).toBe(200)
       const body = await res.json<{ token: string; minDeltaSeconds: number }>()
       expect(body.token).toMatch(/^t0_\d+\.[0-9a-f]{64}$/)
       expect(body.minDeltaSeconds).toBe(1.5)
     })
+
+    it('POST /api/v1/public/:seed/add executes in Zero-Secret mode without X-API-Key', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken(SECRET, t0)
+
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: { title: 'Zero Secret Post', body: 'No API key needed' },
+          _timeTrapToken: token,
+        }),
+      }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ success: boolean; id: string; slug: string }>()
+      expect(body.success).toBe(true)
+      expect(body.id).toBeDefined()
+    })
+  })
+
+  describe('Single-Use Token Replay Prevention', () => {
+    it('rejects submissions missing a Time-Trap token with HTTP 422', async () => {
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: { title: 'No Token Post', body: 'Missing token' },
+        }),
+      }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
+
+      expect(res.status).toBe(422)
+      const body = await res.json<{ type: string; detail: string }>()
+      expect(body.type).toContain('time-trap-missing')
+    })
+
+    it('rejects replayed Time-Trap tokens on second submission with HTTP 422', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken(SECRET, t0)
+
+      const firstRes = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: { title: 'First Submission', body: 'Original' },
+          _timeTrapToken: token,
+        }),
+      }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
+
+      expect(firstRes.status).toBe(201)
+
+      const secondRes = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: { title: 'Replay Submission', body: 'Replayed' },
+          _timeTrapToken: token,
+        }),
+      }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
+
+      expect(secondRes.status).toBe(422)
+      const body = await secondRes.json<{ type: string; detail: string }>()
+      expect(body.type).toContain('time-trap-replayed')
+    })
+  })
+
+  describe('Backend-Driven Status Enforcement', () => {
+    it('disregards client-supplied status and defaults to published', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken(SECRET, t0)
+
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: { title: 'Status Test Post' },
+          status: 'draft',
+          _timeTrapToken: token,
+        }),
+      }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ id: string }>()
+      const entry = await repo.findById(TEST_SEEDS[0], body.id)
+      expect(entry?.status).toBe('published')
+    })
   })
 
   describe('Origin Whitelist Validation', () => {
     it('rejects submissions from unauthorized origins when ALLOWED_ORIGINS is configured', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken(SECRET, t0)
+
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
           'Content-Type': 'application/json',
           'Origin': 'https://malicious-site.com',
         },
         body: JSON.stringify({
           data: { title: 'Test Post', body: 'Content' },
+          _timeTrapToken: token,
         }),
-      }, { ...TEST_ENV, ALLOWED_ORIGINS: 'https://mysite.com,https://app.mysite.com' })
+      }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET, ALLOWED_ORIGINS: 'https://mysite.com,https://app.mysite.com' })
 
       expect(res.status).toBe(403)
       const body = await res.json<{ type: string; title: string }>()
@@ -69,17 +170,20 @@ describe('Public Form Security & Anti-Bot Defense', () => {
     })
 
     it('accepts submissions from authorized origins', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken(SECRET, t0)
+
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
           'Content-Type': 'application/json',
           'Origin': 'https://mysite.com',
         },
         body: JSON.stringify({
           data: { title: 'Allowed Post', body: 'Content' },
+          _timeTrapToken: token,
         }),
-      }, { ...TEST_ENV, ALLOWED_ORIGINS: 'https://mysite.com,https://app.mysite.com' })
+      }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET, ALLOWED_ORIGINS: 'https://mysite.com,https://app.mysite.com' })
 
       expect(res.status).toBe(201)
     })
@@ -90,17 +194,20 @@ describe('Public Form Security & Anti-Bot Defense', () => {
 
     for (const field of decoyFields) {
       it(`rejects bot submission when honeypot field '${field}' in body is filled`, async () => {
+        const t0 = Math.floor(Date.now() / 1000) - 2
+        const token = await generateTimeTrapToken(SECRET, t0)
+
         const res = await app.request('/api/v1/public/posts/add', {
           method: 'POST',
           headers: {
-            'X-API-Key': TEST_PUBLIC_WRITE_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             data: { title: 'Spam Post', body: 'Spam' },
             [field]: 'I am a bot',
+            _timeTrapToken: token,
           }),
-        }, TEST_ENV)
+        }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
 
         expect(res.status).toBe(422)
         const body = await res.json<{ type: string }>()
@@ -108,16 +215,19 @@ describe('Public Form Security & Anti-Bot Defense', () => {
       })
 
       it(`rejects bot submission when honeypot field '${field}' inside data is filled`, async () => {
+        const t0 = Math.floor(Date.now() / 1000) - 2
+        const token = await generateTimeTrapToken(SECRET, t0)
+
         const res = await app.request('/api/v1/public/posts/add', {
           method: 'POST',
           headers: {
-            'X-API-Key': TEST_PUBLIC_WRITE_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             data: { title: 'Spam Post', body: 'Spam', [field]: 'bot-payload' },
+            _timeTrapToken: token,
           }),
-        }, TEST_ENV)
+        }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
 
         expect(res.status).toBe(422)
         const body = await res.json<{ type: string }>()
@@ -134,7 +244,6 @@ describe('Public Form Security & Anti-Bot Defense', () => {
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -153,7 +262,6 @@ describe('Public Form Security & Anti-Bot Defense', () => {
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
           'Content-Type': 'application/json',
           'x-time-trap': token,
         },
@@ -172,7 +280,6 @@ describe('Public Form Security & Anti-Bot Defense', () => {
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -190,7 +297,6 @@ describe('Public Form Security & Anti-Bot Defense', () => {
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -207,17 +313,20 @@ describe('Public Form Security & Anti-Bot Defense', () => {
 
   describe('Magic Bytes Attachment Verification', () => {
     it('rejects attachment whose binary signature does not match declared MIME', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken(SECRET, t0)
+
       // PDF header (%PDF-) declared as image/png
       const fakePngBase64 = btoa('%PDF-1.5 fake content')
 
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           data: { title: 'Spoofed File Post' },
+          _timeTrapToken: token,
           attachments: [
             {
               filename: 'evil.png',
@@ -226,7 +335,7 @@ describe('Public Form Security & Anti-Bot Defense', () => {
             },
           ],
         }),
-      }, TEST_ENV)
+      }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
 
       expect(res.status).toBe(400)
       const body = await res.json<{ type: string; detail: string }>()
@@ -235,6 +344,9 @@ describe('Public Form Security & Anti-Bot Defense', () => {
     })
 
     it('accepts attachment with authentic PNG magic bytes', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken(SECRET, t0)
+
       // Real PNG magic bytes: 0x89 0x50 0x4E 0x47 0x0D 0x0A 0x1A 0x0A
       const pngBytes = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D])
       let binaryStr = ''
@@ -244,11 +356,11 @@ describe('Public Form Security & Anti-Bot Defense', () => {
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: {
-          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           data: { title: 'Valid Image Post' },
+          _timeTrapToken: token,
           attachments: [
             {
               filename: 'valid.png',
@@ -257,7 +369,7 @@ describe('Public Form Security & Anti-Bot Defense', () => {
             },
           ],
         }),
-      }, TEST_ENV)
+      }, { ...TEST_ENV, PUBLIC_TIME_TRAP_SECRET: SECRET })
 
       expect(res.status).toBe(201)
     })

@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import type { IAntivirusProvider, INotificationService, BeechBucket } from '@beechcms/core'
+import { generateTimeTrapToken, type IAntivirusProvider, type INotificationService, type BeechBucket } from '@beechcms/core'
 import { createBeechApp } from '../factory'
 import { __resetSeedRegistryCache } from '../shared/services/cache/seed-registry-cache'
 import { StaticContentRepository } from '../../test/mocks/static-content.repository'
@@ -58,6 +58,9 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       automationRepository: new StaticAutomationRepository(),
     })
 
+    const t0 = Math.floor(Date.now() / 1000) - 2
+    const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+
     // Override middleware values during request by mounting mock in middleware or testing handler directly
     const res = await customApp.request('/api/v1/public/posts/add', {
       method: 'POST',
@@ -67,6 +70,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       },
       body: JSON.stringify({
         data: { title: 'Infected Post' },
+        _timeTrapToken: token,
         attachments: [
           {
             filename: 'malware.png',
@@ -87,6 +91,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       label: 'Lead',
       displayNameAlias: 'name',
       allowPublicPost: true,
+      defaultPublicStatus: 'draft',
       branches: [
         { id: 'br_01', alias: 'name', label: 'Name', type: 'text', policies: { classification: 'public' } },
         { id: 'br_02', alias: 'email', label: 'Email', type: 'text', policies: { classification: 'confidential' } },
@@ -108,6 +113,9 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
         automationRunner: mockAutomationRunner as any,
       })
 
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
         headers: {
@@ -119,6 +127,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
             name: 'Jane Doe',
             email: 'jane@example.com',
           },
+          _timeTrapToken: token,
         }),
       }, TEST_ENV)
 
@@ -148,6 +157,9 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
         automationRepository: new StaticAutomationRepository(),
       })
 
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
         headers: {
@@ -160,6 +172,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
             internal_score: 99,
             pin_hash: 'secret-hash',
           },
+          _timeTrapToken: token,
         }),
       }, TEST_ENV)
 
@@ -178,6 +191,9 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
         automationRepository: new StaticAutomationRepository(),
       })
 
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+
       const res = await testApp.request('/api/v1/public/leads/add', {
         method: 'POST',
         headers: {
@@ -189,6 +205,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
             name: 'Jane Doe',
             private_flag: 'forbidden',
           },
+          _timeTrapToken: token,
         }),
       }, TEST_ENV)
 

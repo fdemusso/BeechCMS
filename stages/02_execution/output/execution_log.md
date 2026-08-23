@@ -1,55 +1,24 @@
-# Execution Log: Confidential Data Classification & Ingestion Lifecycle
+# Execution Log: Zero-Secret Public Form Ingestion & Anti-Bot Defense Layer
 
 ## SECTION 6 — ACCEPTANCE CRITERIA
+- [x] `TokenBucketRateLimiter` is implemented in `@beechcms/core` with capacity 17 and continuous refill (~1 token / 3.53s), fully tested with deterministic `IClock`.
+- [x] `ITimeTrapTokenRepository` contract is defined in `@beechcms/core` and implemented via `D1TimeTrapTokenRepository` in `apps/api`.
+- [x] D1 migration `0037_time_trap_tokens.sql` creates `public_time_trap_tokens` table with TTL index.
+- [x] `GET /api/v1/public/timetrap/token` issues HMAC tokens without requiring `X-API-Key`.
+- [x] `POST /api/v1/public/:seed/add` executes in Zero-Secret mode (no API key required when public submissions are enabled on the seed).
+- [x] Missing Time-Trap token is rejected with HTTP `422 Unprocessable Entity`.
+- [x] Replayed Time-Trap token is rejected with HTTP `422 Unprocessable Entity`.
+- [x] Submissions faster than 1.5s or older than 3600s are rejected with HTTP `422 Unprocessable Entity`.
+- [x] Non-empty honeypot decoy fields trigger HTTP `422 Unprocessable Entity` and emit a `security_alert` in `activity_logs`.
+- [x] Mismatched client origins trigger HTTP `403 Forbidden` when `ALLOWED_ORIGINS` is configured.
+- [x] Client-supplied record `status` is ignored; initial status is strictly backend-driven (defaulting to `published`).
+- [x] File attachments with spoofed extensions/MIME signatures are rejected with HTTP `400 Bad Request`.
+- [x] `@beechcms/forms-react` (`useBeechForm` & `<BeechForm />`) seamlessly supports zero-secret submissions, automatic token fetching, honeypot injection, and draft recovery in `localStorage`.
+- [x] All tests across `@beechcms/core`, `apps/api`, and `@beechcms/forms-react` pass with zero regressions.
 
-- [x] `BranchPolicies` interface in `packages/core/src/engine/types.ts` includes `publicEdit?: boolean`.
-- [x] `resolvePolicies()` in `packages/core/src/engine/policies.ts` defaults `publicEdit` to `false` for `confidential`, `internal`, and `restricted` fields, and `true` for `public` fields (unless `public: false`).
-- [x] `filterEntryForActor()` in `packages/core/src/engine/policies.ts` removes `confidential` fields for unauthenticated public callers while preserving them for authenticated operators and system automations.
-- [x] Public `add` endpoint accepts `confidential` fields on submission, encrypts them at rest in Cloudflare D1 via `D1ContentRepository`, and passes cleartext values to `AutomationRunner`.
-- [x] Public `add` endpoint rejects `internal` and `restricted` fields with HTTP 422 Problem Details (`Cannot write internal/restricted fields: <aliases>`).
-- [x] Public `edit` endpoint rejects `confidential` fields with HTTP 422 (`Cannot edit sensitive field '<alias>': edit permission not granted by seed declaration`) unless `publicEdit: true` is configured.
-- [x] Public `edit` endpoint permits modifying `confidential` fields when `publicEdit: true` is set in the seed definition.
-- [x] Public `edit` endpoint rejects `internal` and `restricted` fields with HTTP 422 (`Cannot write internal/restricted fields: <aliases>`).
-- [x] Public `read` endpoints (`/api/v1/public/:seed` and `/api/v1/public/:seed?id=...`) never return `confidential`, `internal`, or `restricted` field values.
-- [x] Authenticated content endpoints (`/api/content/:slug/:id`) return decrypted `confidential` fields to authorized dashboard operators.
-- [x] Automation action executors (e.g. `send_mail`, `webhook`) receive unmasked cleartext fields from in-memory event triggers without manual decryption steps.
-- [x] All unit and integration tests across `@beechcms/core` and `apps/api` pass cleanly with zero regressions.
-
-## Validation Output
-
-### 1. Core Package Tests
-```bash
-pnpm --filter @beechcms/core test
-```
-```
- Test Files  31 passed (31)
-      Tests  597 passed (597)
-```
-
-### 2. API Package Tests
-```bash
-pnpm --filter @beechcms/api test
-```
-```
- Test Files  107 passed (107)
-      Tests  1225 passed (1225)
-```
-
-### 3. Workspace Full Test Suite
-```bash
-pnpm beech test
-```
-```
- Tasks:    10 successful, 10 total
- Cached:    3 cached, 10 total
- Time:      1m9.631s
-```
-
-### 4. Graph Synchronization
-```bash
-graphify update .
-```
-```
-[graphify watch] Rebuilt: 10242 nodes, 18378 edges, 897 communities
-Code graph updated.
-```
+## SECTION 5 — VALIDATION OUTPUT
+- `pnpm --filter @beechcms/core build && pnpm --filter @beechcms/core test`: PASS (32 test files, 597 passed)
+- `pnpm --filter @beechcms/api type-check && pnpm --filter @beechcms/api test`: PASS (107 test files, 1228 passed)
+- `pnpm --filter @beechcms/forms-react build && pnpm --filter @beechcms/forms-react test`: PASS (7 test files, 41 passed)
+- `pnpm beech test`: PASS (10/10 tasks successful)
+- `graphify update .`: PASS (AST synchronized: 10273 nodes, 18414 edges)
