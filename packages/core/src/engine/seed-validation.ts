@@ -294,6 +294,17 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
     }
   }
 
+  // ── Fatal 14: publicEdit validation ─────────────────────────────────────────
+  for (const seed of seeds) {
+    const messages: string[] = []
+    for (const branch of seed.branches) {
+      if (branch.policies?.publicEdit !== undefined && typeof branch.policies.publicEdit !== 'boolean') {
+        messages.push(`branch '${branch.alias}': policies.publicEdit must be a boolean`)
+      }
+    }
+    if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
+  }
+
   return result
 }
 

@@ -58,6 +58,7 @@ describe('resolvePolicies', () => {
       filter: true,
       sort: true,
       public: true,
+      publicEdit: true,
     })
   })
 
@@ -71,6 +72,7 @@ describe('resolvePolicies', () => {
       filter: true,
       sort: true,
       public: true,
+      publicEdit: true,
     })
   })
 
@@ -83,6 +85,7 @@ describe('resolvePolicies', () => {
     expect(result.filter).toBe(false)
     expect(result.sort).toBe(false)
     expect(result.public).toBe(false)
+    expect(result.publicEdit).toBe(false)
   })
 
   it('privacy: hash with explicit visibility overrides the default', () => {
@@ -104,6 +107,7 @@ describe('resolvePolicies', () => {
     expect(result.filter).toBe(true)
     expect(result.sort).toBe(true)
     expect(result.public).toBe(true)
+    expect(result.publicEdit).toBe(true)
   })
 
   it('overrides filter: false independently', () => {
@@ -123,6 +127,7 @@ describe('resolvePolicies', () => {
   it('overrides public: false independently', () => {
     const result = resolvePolicies({ ...baseBranch, policies: { public: false } })
     expect(result.public).toBe(false)
+    expect(result.publicEdit).toBe(false)
     expect(result.visibility).toBe('full')
   })
 
@@ -137,6 +142,7 @@ describe('resolvePolicies', () => {
     expect(result.filter).toBe(false)
     expect(result.sort).toBe(false)
     expect(result.public).toBe(false)
+    expect(result.publicEdit).toBe(false)
   })
 
   it('handles visibility: hidden correctly', () => {
@@ -151,6 +157,29 @@ describe('resolvePolicies', () => {
     expect(result.sort).toBe(false)
     expect(result.search).toBe(false)
     expect(result.filter).toBe(true)
+    expect(result.publicEdit).toBe(false)
+  })
+
+  it('resolves publicEdit for confidential with explicit publicEdit: true', () => {
+    const result = resolvePolicies({
+      ...baseBranch,
+      policies: { classification: 'confidential', publicEdit: true },
+    })
+    expect(result.classification).toBe('confidential')
+    expect(result.publicEdit).toBe(true)
+  })
+
+  it('resolves publicEdit for internal and restricted classifications', () => {
+    const internalRes = resolvePolicies({ ...baseBranch, policies: { classification: 'internal' } })
+    expect(internalRes.publicEdit).toBe(false)
+    const restrictedRes = resolvePolicies({ ...baseBranch, policies: { classification: 'restricted' } })
+    expect(restrictedRes.publicEdit).toBe(false)
+  })
+
+  it('allows overriding publicEdit: true on public with public: false', () => {
+    const result = resolvePolicies({ ...baseBranch, policies: { public: false, publicEdit: true } })
+    expect(result.public).toBe(false)
+    expect(result.publicEdit).toBe(true)
   })
 })
 

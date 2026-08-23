@@ -217,19 +217,25 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     return publicProblem(context, { type: 'invalid-status', title: 'Bad Request', status: 400, detail: 'Invalid status. Allowed values are: draft, review, published' })
   }
 
-  const sensitiveAliases = Object.keys(rawData).filter((alias) => {
+  // Reject internal and restricted fields on public add
+  const disallowedAliases = Object.keys(rawData).filter((alias) => {
     const branch = seed.branches.find((b) => b.alias === alias)
     if (!branch) return false
-    // Explicit public: false rule takes absolute precedence
+    // Explicit public: false takes absolute precedence
     if (branch.policies?.public === false) return true
-    // If explicitly marked public: true, allow write (e.g. public registration hash/encrypt fields)
+    // If explicitly marked public: true, allow write
     if (branch.policies?.public === true) return false
-    // Otherwise fallback to classification tier: internal and restricted cannot be written publicly
+    // internal and restricted fields can never be written publicly
     const classification = resolveClassification(branch).classification
     return classification === 'internal' || classification === 'restricted'
   })
-  if (sensitiveAliases.length > 0) {
-    return publicProblem(context, { type: 'sensitive-field-edit', title: 'Unprocessable Entity', status: 422, detail: `Cannot write internal fields: ${sensitiveAliases.join(', ')}` })
+  if (disallowedAliases.length > 0) {
+    return publicProblem(context, {
+      type: 'sensitive-field-write',
+      title: 'Unprocessable Entity',
+      status: 422,
+      detail: `Cannot write internal/restricted fields: ${disallowedAliases.join(', ')}`,
+    })
   }
 
   // Magic Bytes file attachment verification
@@ -356,7 +362,7 @@ export async function publicAddHandler(context: Context<AppEnv>) {
       context.get('automationRunner').run({
         seedSlug,
         event: 'create',
-        entry: { id, slug: finalSlug, status: statusValue, ...privacyData },
+        entry: { id, slug: finalSlug, status: statusValue, ...sanitized.data },
       })
     )
 

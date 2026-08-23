@@ -131,6 +131,8 @@ export interface Branch {
     sort?: boolean
     /** Whether the field is included in Public API responses. Default: true. */
     public?: boolean
+    /** Whether the field can be updated via public edit endpoints. Default: false for confidential/internal/restricted, true for public. */
+    publicEdit?: boolean
   }
   /** Advanced options for number fields. Ignored if type !== 'number'. */
   numberOptions?: NumberFieldOptions

@@ -1,58 +1,55 @@
-# Execution Log: TipTap RichText Rendering Utilities (`@beechcms/client/richtext`)
+# Execution Log: Confidential Data Classification & Ingestion Lifecycle
 
 ## SECTION 6 — ACCEPTANCE CRITERIA
 
-- [x] `packages/client/package.json` contains `"./richtext"` in `exports` with `import` and `types` fields.
-- [x] `@beechcms/client/richtext` exposes `renderRichText`, `richTextToPlainText`, `normalizeRichtextDocument`, `escapeHtml`, `stripControlChars`, `isSafeUrl`, `RICHTEXT_SCHEMA_VERSION`, and all TypeScript types.
-- [x] Zero runtime dependencies added to `packages/client/package.json` (`dependencies: {}` preserved).
-- [x] `renderRichText` and `richTextToPlainText` safely return `""` on `null`, `undefined`, empty string, legacy HTML strings, primitives, and malformed envelopes.
-- [x] Transparently unwraps both raw TipTap doc objects (`{ type: 'doc' }`) and BeechCMS Envelope V1 (`{ schemaVersion: 1, doc }`).
-- [x] Strict HTML character escaping (`&`, `<`, `>`, `"`, `'`) is applied to all text nodes.
-- [x] Link `href` and image `src` are sanitized against dangerous protocols (`javascript:`, `data:`, `vbscript:`).
-- [x] Unrecognized node types are skipped gracefully while logging a descriptive `console.warn`.
-- [x] `richTextToPlainText` cleanly separates block-level elements with whitespace/newlines and trims output.
-- [x] All unit tests in `packages/client/src/richtext/richtext.test.ts` pass with 100% coverage on new code.
-- [x] Monorepo build and lint checks pass without errors.
+- [x] `BranchPolicies` interface in `packages/core/src/engine/types.ts` includes `publicEdit?: boolean`.
+- [x] `resolvePolicies()` in `packages/core/src/engine/policies.ts` defaults `publicEdit` to `false` for `confidential`, `internal`, and `restricted` fields, and `true` for `public` fields (unless `public: false`).
+- [x] `filterEntryForActor()` in `packages/core/src/engine/policies.ts` removes `confidential` fields for unauthenticated public callers while preserving them for authenticated operators and system automations.
+- [x] Public `add` endpoint accepts `confidential` fields on submission, encrypts them at rest in Cloudflare D1 via `D1ContentRepository`, and passes cleartext values to `AutomationRunner`.
+- [x] Public `add` endpoint rejects `internal` and `restricted` fields with HTTP 422 Problem Details (`Cannot write internal/restricted fields: <aliases>`).
+- [x] Public `edit` endpoint rejects `confidential` fields with HTTP 422 (`Cannot edit sensitive field '<alias>': edit permission not granted by seed declaration`) unless `publicEdit: true` is configured.
+- [x] Public `edit` endpoint permits modifying `confidential` fields when `publicEdit: true` is set in the seed definition.
+- [x] Public `edit` endpoint rejects `internal` and `restricted` fields with HTTP 422 (`Cannot write internal/restricted fields: <aliases>`).
+- [x] Public `read` endpoints (`/api/v1/public/:seed` and `/api/v1/public/:seed?id=...`) never return `confidential`, `internal`, or `restricted` field values.
+- [x] Authenticated content endpoints (`/api/content/:slug/:id`) return decrypted `confidential` fields to authorized dashboard operators.
+- [x] Automation action executors (e.g. `send_mail`, `webhook`) receive unmasked cleartext fields from in-memory event triggers without manual decryption steps.
+- [x] All unit and integration tests across `@beechcms/core` and `apps/api` pass cleanly with zero regressions.
 
 ## Validation Output
 
-### 1. Build `@beechcms/client`
+### 1. Core Package Tests
+```bash
+pnpm --filter @beechcms/core test
 ```
-$ pnpm --filter @beechcms/client build
-$ tsc
-Exit status: 0
 ```
-
-### 2. Unit Tests `@beechcms/client`
-```
-$ pnpm --filter @beechcms/client test
-Test Files  5 passed (5)
-     Tests  68 passed (68)
-Exit status: 0
+ Test Files  31 passed (31)
+      Tests  597 passed (597)
 ```
 
-### 3. Monorepo Tests (`pnpm beech test`)
+### 2. API Package Tests
+```bash
+pnpm --filter @beechcms/api test
 ```
-$ node bin/cli.mjs test
-Tasks:    10 successful, 10 total
-Cached:    2 cached, 10 total
-Time:    53.958s
-Exit status: 0
 ```
-
-### 4. Monorepo Linting (`pnpm beech lint`)
-```
-$ node bin/cli.mjs lint
-Tasks:    10 successful, 10 total
-Cached:    8 cached, 10 total
-Time:    1.264s
-Exit status: 0
+ Test Files  107 passed (107)
+      Tests  1225 passed (1225)
 ```
 
-### 5. AST Knowledge Graph Sync (`graphify update .`)
+### 3. Workspace Full Test Suite
+```bash
+pnpm beech test
 ```
-$ graphify update .
-Rebuilt: 10287 nodes, 18477 edges, 893 communities
-graph.json, graph.html and GRAPH_REPORT.md updated in graphify-out
-Exit status: 0
+```
+ Tasks:    10 successful, 10 total
+ Cached:    3 cached, 10 total
+ Time:      1m9.631s
+```
+
+### 4. Graph Synchronization
+```bash
+graphify update .
+```
+```
+[graphify watch] Rebuilt: 10242 nodes, 18378 edges, 897 communities
+Code graph updated.
 ```
