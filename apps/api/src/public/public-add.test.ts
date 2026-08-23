@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { IAntivirusProvider, INotificationService, BeechBucket } from '@beechcms/core'
 import { createBeechApp } from '../factory'
+import { __resetSeedRegistryCache } from '../shared/services/cache/seed-registry-cache'
 import { StaticContentRepository } from '../../test/mocks/static-content.repository'
 import { StaticIdempotencyRepository } from '../../test/mocks/static-idempotency.repository'
 import { StaticAutomationRepository } from '../../test/mocks/static-automation.repository'
@@ -17,6 +18,7 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
   let mockBucket: Partial<BeechBucket>
 
   beforeEach(() => {
+    __resetSeedRegistryCache()
     const repo = new StaticContentRepository(TEST_SEEDS)
     const idempotencyRepo = new StaticIdempotencyRepository()
     const automationRepo = new StaticAutomationRepository()
@@ -48,14 +50,6 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
     for (let i = 0; i < pngBytes.length; i++) binaryStr += String.fromCharCode(pngBytes[i])
     const validPngBase64 = btoa(binaryStr)
 
-    const scanSpy = vi.fn().mockResolvedValue({
-      status: 'infected',
-      provider: 'mock-av',
-      details: 'Trojan.Generic',
-    })
-    const notifySpy = vi.fn()
-    const deleteSpy = vi.fn().mockResolvedValue(undefined)
-
     // Build app with mocked antivirus, notification service, and bucket
     const customApp = createBeechApp({
       seeds: TEST_SEEDS,
@@ -85,5 +79,123 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
     }, TEST_ENV)
 
     expect(res.status).toBe(201)
+  })
+
+  describe('Confidential Data & Access Policies on Public Add', () => {
+    const leadsSeed = {
+      slug: 'leads',
+      label: 'Lead',
+      displayNameAlias: 'name',
+      allowPublicPost: true,
+      branches: [
+        { id: 'br_01', alias: 'name', label: 'Name', type: 'text', policies: { classification: 'public' } },
+        { id: 'br_02', alias: 'email', label: 'Email', type: 'text', policies: { classification: 'confidential' } },
+        { id: 'br_03', alias: 'internal_score', label: 'Internal Score', type: 'number', policies: { classification: 'internal' } },
+        { id: 'br_04', alias: 'pin_hash', label: 'PIN Hash', type: 'text', policies: { classification: 'restricted' } },
+        { id: 'br_05', alias: 'private_flag', label: 'Private Flag', type: 'text', policies: { public: false } },
+      ],
+    } as any
+
+    it('accepts confidential fields on submission and passes cleartext values to AutomationRunner', async () => {
+      const mockAutomationRunner = {
+        run: vi.fn().mockResolvedValue({ success: true }),
+      }
+      const testApp = createBeechApp({
+        seeds: [leadsSeed],
+        repository: new StaticContentRepository([leadsSeed]),
+        idempotencyRepository: new StaticIdempotencyRepository(),
+        automationRepository: new StaticAutomationRepository(),
+        automationRunner: mockAutomationRunner as any,
+      })
+
+      const res = await testApp.request('/api/v1/public/leads/add', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: {
+            name: 'Jane Doe',
+            email: 'jane@example.com',
+          },
+        }),
+      }, TEST_ENV)
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ success: boolean; id: string; slug: string }>()
+      expect(body.success).toBe(true)
+      expect(body.id).toBeDefined()
+
+      expect(mockAutomationRunner.run).toHaveBeenCalledWith({
+        seedSlug: 'leads',
+        event: 'create',
+        entry: expect.objectContaining({
+          id: body.id,
+          slug: body.slug,
+          status: 'draft',
+          name: 'Jane Doe',
+          email: 'jane@example.com',
+        }),
+      })
+    })
+
+    it('rejects internal and restricted fields with HTTP 422 Problem Details', async () => {
+      const testApp = createBeechApp({
+        seeds: [leadsSeed],
+        repository: new StaticContentRepository([leadsSeed]),
+        idempotencyRepository: new StaticIdempotencyRepository(),
+        automationRepository: new StaticAutomationRepository(),
+      })
+
+      const res = await testApp.request('/api/v1/public/leads/add', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: {
+            name: 'Jane Doe',
+            internal_score: 99,
+            pin_hash: 'secret-hash',
+          },
+        }),
+      }, TEST_ENV)
+
+      expect(res.status).toBe(422)
+      const body = await res.json<{ type: string; title: string; detail: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/sensitive-field-write')
+      expect(body.title).toBe('Unprocessable Entity')
+      expect(body.detail).toBe('Cannot write internal/restricted fields: internal_score, pin_hash')
+    })
+
+    it('rejects explicit public: false fields with HTTP 422 Problem Details', async () => {
+      const testApp = createBeechApp({
+        seeds: [leadsSeed],
+        repository: new StaticContentRepository([leadsSeed]),
+        idempotencyRepository: new StaticIdempotencyRepository(),
+        automationRepository: new StaticAutomationRepository(),
+      })
+
+      const res = await testApp.request('/api/v1/public/leads/add', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          data: {
+            name: 'Jane Doe',
+            private_flag: 'forbidden',
+          },
+        }),
+      }, TEST_ENV)
+
+      expect(res.status).toBe(422)
+      const body = await res.json<{ type: string; title: string; detail: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/sensitive-field-write')
+      expect(body.detail).toBe('Cannot write internal/restricted fields: private_flag')
+    })
   })
 })

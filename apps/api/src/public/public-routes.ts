@@ -78,6 +78,7 @@ publicApp.get('/:seed/schema', (c) => {
 publicApp.get('/:seed', publicReadHandler)
 publicApp.post('/:seed/add', publicAddHandler)
 publicApp.put('/:seed/edit/:id', publicEditHandler)
+publicApp.patch('/:seed/edit/:id', publicEditHandler)
 
 export const publicRoutes = publicApp
 
