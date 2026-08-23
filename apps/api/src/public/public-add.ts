@@ -2,17 +2,17 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { isValidContentStatus, resolveClassification, resolvePolicies, SlugConflictError, verifyMagicBytes, verifyTimeTrapToken } from '@beechcms/core'
+import { resolveClassification, SlugConflictError, verifyMagicBytes, verifyTimeTrapToken, sha256hex, SystemClock } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 import type { Context } from 'hono'
-import { cleanStr } from '../shared/utils/query-utils'
-import { checkPublicOperation } from './access-policy'
-import { publicProblem, internalErrorDetail } from './problem-details'
-import { generateEntrySlug, slugify } from './slug-utils'
-import { sanitizePublicPayload } from './sanitize'
-import { parseIdempotencyKey, buildRequestFingerprint } from './idempotency'
-import { applyPrivacy, PrivacyPolicyError } from '../shared/policies/apply-policies'
-import type { AppEnv } from '../types'
+import { cleanStr } from '../shared/utils/query-utils.js'
+import { checkPublicOperation } from './access-policy.js'
+import { publicProblem, internalErrorDetail } from './problem-details.js'
+import { generateEntrySlug, slugify } from './slug-utils.js'
+import { sanitizePublicPayload } from './sanitize.js'
+import { parseIdempotencyKey, buildRequestFingerprint } from './idempotency.js'
+import { applyPrivacy, PrivacyPolicyError } from '../shared/policies/apply-policies.js'
+import type { AppEnv } from '../types.js'
 
 interface ParsedAttachment {
   filename: string
@@ -193,29 +193,48 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     }
   }
 
-  // Time Trap verification
+  // Time Trap verification (Mandatory for public submissions)
   const timeTrapToken = (typeof body._timeTrapToken === 'string' ? body._timeTrapToken : null) || context.req.header('x-time-trap')
-  if (timeTrapToken) {
-    const secret = context.env.PUBLIC_TIME_TRAP_SECRET || 'beech-public-timetrap-default-secret'
-    const verification = await verifyTimeTrapToken(timeTrapToken, secret, 1.5)
-    if (!verification.valid) {
+  if (!timeTrapToken) {
+    return publicProblem(context, {
+      type: 'time-trap-missing',
+      title: 'Unprocessable Entity',
+      status: 422,
+      detail: 'Time-Trap token is required for public form submissions',
+    })
+  }
+
+  const tokenHash = await sha256hex(timeTrapToken)
+  const timeTrapTokenRepo = context.get('timeTrapTokenRepository')
+  if (timeTrapTokenRepo) {
+    const isUsed = await timeTrapTokenRepo.isTokenUsed(tokenHash)
+    if (isUsed) {
       return publicProblem(context, {
-        type: 'time-trap-violation',
+        type: 'time-trap-replayed',
         title: 'Unprocessable Entity',
         status: 422,
-        detail: verification.reason || 'Invalid submission timing.',
+        detail: 'Time-Trap token has already been used',
       })
     }
+  }
+
+  const secret = context.env.PUBLIC_TIME_TRAP_SECRET || 'beech-public-timetrap-default-secret'
+  const verification = await verifyTimeTrapToken(timeTrapToken, secret, 1.5, 3600)
+  if (!verification.valid) {
+    return publicProblem(context, {
+      type: 'time-trap-violation',
+      title: 'Unprocessable Entity',
+      status: 422,
+      detail: verification.reason || 'Invalid submission timing.',
+    })
   }
 
   if (!rawData || Object.keys(rawData).length === 0) {
     return publicProblem(context, { type: 'invalid-data-object', title: 'Bad Request', status: 400, detail: "Field 'data' is required and must be a non-empty object" })
   }
 
-  const statusValue = Object.hasOwn(body, 'status') ? body.status : 'draft'
-  if (!isValidContentStatus(statusValue as string)) {
-    return publicProblem(context, { type: 'invalid-status', title: 'Bad Request', status: 400, detail: 'Invalid status. Allowed values are: draft, review, published' })
-  }
+  // Backend-Driven Status Management (disregard client status, enforce backend default)
+  const statusValue = ((seed as any).defaultPublicStatus as string) || 'published'
 
   // Reject internal and restricted fields on public add
   const disallowedAliases = Object.keys(rawData).filter((alias) => {
@@ -276,7 +295,8 @@ export async function publicAddHandler(context: Context<AppEnv>) {
   const idempotencyRepository = context.get('idempotencyRepository')
 
   try {
-    const now = Math.floor(Date.now() / 1000)
+    const clock = context.get('clock') ?? SystemClock
+    const now = clock.nowSeconds()
     const fingerprint = await buildRequestFingerprint({
       seedSlug,
       statusValue,
@@ -306,6 +326,19 @@ export async function publicAddHandler(context: Context<AppEnv>) {
         return publicProblem(context, { type: 'slug-conflict', title: 'Conflict', status: 409, detail: `An entry with slug '${finalSlug}' already exists for content type '${seedSlug}'.` })
       }
       throw error
+    }
+
+    // Mark single-use Time-Trap token as consumed
+    if (timeTrapTokenRepo) {
+      let t0 = now
+      const parts = timeTrapToken.split('.')
+      if (parts[0]?.startsWith('t0_')) {
+        const parsedT0 = Number.parseInt(parts[0].slice(3), 10)
+        if (Number.isFinite(parsedT0)) {
+          t0 = parsedT0
+        }
+      }
+      await timeTrapTokenRepo.markTokenUsed(tokenHash, now, t0 + 3600)
     }
 
     const responseBody = { success: true, id, slug: finalSlug }

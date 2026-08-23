@@ -5,6 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { createMiddleware } from 'hono/factory'
 import type { IRateLimiter } from '@beechcms/core'
+import { TokenBucketRateLimiter } from '@beechcms/core'
 import type { AppEnv, Env } from '../types'
 import { CloudflareRateLimiter } from '../rate-limit/cloudflare-rate-limiter'
 import { NoOpRateLimiter } from '../rate-limit/no-op-rate-limiter'
