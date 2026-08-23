@@ -2,47 +2,67 @@
 PASS
 
 # Findings
-None. All acceptance criteria met and monorepo invariants preserved.
+None. All acceptance criteria and monorepo architectural invariants are satisfied.
 
 # Verification Evidence
-1. `pnpm --filter @beechcms/client run type-check`
-   - Command: `tsc --noEmit`
-   - Result: Passed with 0 errors.
 
-2. `pnpm --filter @beechcms/client run build`
-   - Command: `tsc`
-   - Result: Compiled successfully to `dist/`, generating `dist/browser/index.js`, `dist/browser/index.d.ts`, `dist/server/index.js`, `dist/server/index.d.ts`, `dist/index.js`, `dist/index.d.ts`, `dist/webhooks/index.js`, and `dist/webhooks/index.d.ts`.
+1. **Build `@beechcms/client`:**
+   - Command: `pnpm --filter @beechcms/client build`
+   - Observed Output:
+     ```
+     $ tsc
+     Exit status: 0
+     ```
+   - Dist artifacts verified in `packages/client/dist/richtext/`: `index.js`, `index.d.ts`, `render.js`, `render.d.ts`, `plain-text.js`, `plain-text.d.ts`, `escape.js`, `escape.d.ts`, `types.js`, `types.d.ts`.
 
-3. `pnpm --filter @beechcms/client run test`
-   - Command: `vitest run`
-   - Result: 4 test files passed, 41/41 tests passed:
-     - `src/query-builder.test.ts`: 12/12 passed
-     - `src/webhooks/webhooks.test.ts`: 13/13 passed
-     - `src/browser/browser-client.test.ts`: 9/9 passed
-     - `src/server/server-client.test.ts`: 7/7 passed
+2. **Unit Tests `@beechcms/client`:**
+   - Command: `pnpm --filter @beechcms/client test`
+   - Observed Output:
+     ```
+     Test Files  5 passed (5)
+          Tests  68 passed (68)
+     Exit status: 0
+     ```
+   - 27 unit tests specifically targeting `@beechcms/client/richtext` passed covering HTML escaping, protocol allowlists, envelope unwrapping, malformed AST handling, safe link sanitization, XSS neutralization, unknown node diagnostic logging, and plain text extraction.
 
-4. `pnpm --filter @beechcms/client run test:coverage`
-   - Command: `vitest run --coverage`
-   - Result: 95.77% line coverage across the package.
+3. **Coverage `@beechcms/client`:**
+   - Command: `pnpm --filter @beechcms/client test:coverage`
+   - Observed Output:
+     ```
+     src/richtext/escape.ts     | 100% Stmts | 91.66% Branch | 100% Funcs | 100% Lines
+     src/richtext/plain-text.ts | 97.36% Stmts | 75.67% Branch | 100% Funcs | 100% Lines
+     src/richtext/render.ts     | 95.28% Stmts | 77.98% Branch | 100% Funcs | 98% Lines
+     src/richtext/types.ts      | 100% Stmts | 100% Branch | 100% Funcs | 100% Lines
+     ```
 
-5. `pnpm --filter @beechcms/client run lint`
-   - Command: `eslint .`
-   - Result: Passed with 0 lint errors.
+4. **Monorepo Test Suite (`pnpm beech test`):**
+   - Command: `pnpm beech test`
+   - Observed Output:
+     ```
+     Tasks:    10 successful, 10 total
+     Cached:    3 cached, 10 total
+     Time:    49.423s
+     Exit status: 0
+     ```
+   - 103 test files passed across `@beechcms/core`, `@beechcms/client`, `@beechcms/api`, `@beechcms/dashboard`, `@beechcms/cli`, `@beechcms/forms-react`, `@beechcms/widget-sdk`.
 
-6. Downstream Workspace Validation:
-   - `pnpm --filter @beechcms/core run type-check`: Passed with 0 errors.
-   - `pnpm --filter @beechcms/forms-react run type-check`: Passed with 0 errors.
-   - `pnpm run build`: All 8 workspace packages built cleanly (`8 successful, 8 total`).
-   - `pnpm run test`: All 10 workspace test suites passed (`10 successful, 10 total`, 2,746 tests across core, cli, widget-sdk, client, forms-react, api, dashboard).
-   - `pnpm run lint`: All workspace packages passed ESLint checks (`10 successful, 10 total`).
+5. **Monorepo Linting (`pnpm beech lint`):**
+   - Command: `pnpm beech lint`
+   - Observed Output:
+     ```
+     Tasks:    10 successful, 10 total
+     Cached:    10 cached, 10 total
+     Time:    54ms >>> FULL TURBO
+     Exit status: 0
+     ```
 
-7. Invariant Audit:
-   - Segregation: `@beechcms/client/browser` exports only read operations (`list`, `get`) with no mutation methods in interface or runtime code.
-   - Segregation: `@beechcms/client/server` exports full CRUD (`list`, `get`, `create`, `update`) with `RequestOptions` pass-through.
-   - Segregation: `@beechcms/client` root export is types-only + `buildSearchParams` + webhooks (zero runtime client factory).
-   - Validation & Normalization: Immediate config validation on `baseUrl` and `apiKey`; automatic trimming of trailing slashes.
-   - Error Handling: Low-level fetch network errors return `status: 0` without throwing; HTTP 4xx/5xx responses are normalized to RFC 9457 `BeechProblem`.
-   - Workspace isolation: Zero direct D1 access, zero cross-slice dependencies, zero modifications to `@beechcms/core`, `apps/api`, or `apps/dashboard`.
+6. **Invariant & Security Audit:**
+   - **Zero Dependencies:** `packages/client/package.json` retains `dependencies: {}`.
+   - **Subpath Segregation:** Added `"./richtext"` subpath export pointing to `./dist/richtext/index.js` and `./dist/richtext/index.d.ts` without modifying existing browser/server subpaths or root entrypoints.
+   - **XSS & Protocol Validation:** Link `href` and image `src` enforce protocol allowlist (`http:`, `https:`, `mailto:`, `tel:` or relative paths), stripping dangerous schemes (`javascript:`, `data:`, `vbscript:`). Text nodes are escaped via `escapeHtml`. CSS color values are checked against injection patterns.
+   - **Safe Normalization:** Falsy values, non-object types, arrays, legacy HTML strings, and malformed envelopes safely resolve to `""`.
+   - **Cloudflare & Edge Purity:** Pure AST walker without DOM polyfills (`jsdom`/`happy-dom`) or Node-specific dependencies, running isomorphically on Cloudflare Workers, Bun, browsers, and Node.js.
+   - **Botanical / VSA Invariants:** Zero direct D1 access, zero cross-slice dependencies, zero modifications to `@beechcms/core`, `apps/api`, or `apps/dashboard`.
 
 # Sprint Documentation
-Shipped physical subpath segregation for `@beechcms/client` with dedicated entrypoints: `@beechcms/client/browser` for strictly read-only browser/SPA environments (preventing credential leakage and stripping mutation methods from bundles) and `@beechcms/client/server` for full CRUD operations with `RequestOptions` pass-through (custom headers, `AbortSignal`, cache settings, Next.js revalidation tags) and custom `fetch` injection. Converted root entrypoint `@beechcms/client` to export only types, contracts, query serialization utilities, and webhook tools. Removed deprecated universal client files.
+Delivered zero-dependency TipTap RichText AST rendering and plain-text extraction utilities under subpath `@beechcms/client/richtext`. Exposes `renderRichText` (secure, semantic HTML serializer), `richTextToPlainText` (plain-text extractor with block whitespace boundary preservation), `normalizeRichtextDocument` (envelope v1 & raw doc normalizer), `escapeHtml`, and `isSafeUrl`. Built as an isomorphic, DOM-independent walker designed for serverless, Edge, SSR (Next.js, Astro, Remix), and browser runtimes without bundle bloat.
