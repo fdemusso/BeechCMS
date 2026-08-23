@@ -2,10 +2,10 @@
 
 > Feature Brief: `stages/00_ideation/output/feature_brief.md` (Kanban View v1.0)
 > Predecessors (all **already implemented** on branch `kanban-drag-stabilization`):
-> - Sprint 01 (`docs/Sprints/kanban-view.md`) — Foundation & Contracts.
-> - Sprint 02 (`docs/Sprints/kanban-view 02.md`) — Static Board (`view_config`, per-column `useInfiniteQuery`,
+> - Sprint 01 (`docs/Sprints/kanban/01-kanban-view.md`) — Foundation & Contracts.
+> - Sprint 02 (`docs/Sprints/kanban/02-kanban-view.md`) — Static Board (`view_config`, per-column `useInfiniteQuery`,
 >   virtualizer, axis-config bar, collapse, skeleton/empty, click-to-edit).
-> - Sprint 03 (`docs/Sprints/kanban-view 03.md`) — Interactive Drag & Optimistic Persistence
+> - Sprint 03 (`docs/Sprints/kanban/03-kanban-view.md`) — Interactive Drag & Optimistic Persistence
 >   (`PATCH /:slug/:id/kanban-move`, `updateWithKanbanPosition`, the `useReducer` overlay, fractional indexing).
 >
 > Scope of THIS sprint: close the **three remaining v1 behavioural gaps** the brief still requires after the

@@ -1,7 +1,7 @@
 # Sprint Plan — Kanban View (Sprint 02 / Static Board: Axis Config, Per-Column Fetch & Virtualized Render)
 
 > Feature Brief: `stages/00_ideation/output/feature_brief.md` (Kanban View v1.0)
-> Predecessor: Sprint 01 (`docs/Sprints/kanban-view.md`) — **Foundation & Contracts, already implemented**
+> Predecessor: Sprint 01 (`docs/Sprints/kanban/01-kanban-view.md`) — **Foundation & Contracts, already implemented**
 > (core `resolveKanbanConfig`/`resolveKanbanColumns`/`IKanbanPositionRepository`, engine `kanbanOrder`
 > join, `0034_kanban_foundation.sql`, `PATCH /:slug/:id/kanban-position`, `D1KanbanPositionRepository`,
 > and the `content-kanban` no-op stub slice + view registration).

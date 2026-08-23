@@ -1,7 +1,7 @@
 # Sprint Plan — Kanban Card Customization: Sprint 2 (Hardening & Polish)
 
 > Feature source: `stages/00_ideation/output/feature_brief.md`
-> Prior art (DO NOT re-implement): `docs/Sprints/KanbanCardCustomization.md` (Sprint 1)
+> Prior art (DO NOT re-implement): `docs/Sprints/kanban/05-kanban-card-customization.md` (Sprint 1)
 > Entity binding: **View** (per-seed `view_config` blob). No new entity, no migration, no new endpoint.
 
 ---

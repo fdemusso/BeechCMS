@@ -2,10 +2,10 @@
 
 > Feature Brief: `stages/00_ideation/output/feature_brief.md` (Kanban View v1.0)
 > Predecessors (both **already implemented** on branch `kanban-drag-stabilization`):
-> - Sprint 01 (`docs/Sprints/kanban-view.md`) — Foundation & Contracts: core `resolveKanbanConfig`/
+> - Sprint 01 (`docs/Sprints/kanban/01-kanban-view.md`) — Foundation & Contracts: core `resolveKanbanConfig`/
 >   `resolveKanbanColumns`/`kanbanColumnFilter`/`IKanbanPositionRepository`, engine `kanbanOrder` LEFT JOIN,
 >   `0034_kanban_foundation.sql`, `PATCH /:slug/:id/kanban-position`, `D1KanbanPositionRepository`.
-> - Sprint 02 (`docs/Sprints/kanban-view 02.md`) — Static Board: `view_config` contract +
+> - Sprint 02 (`docs/Sprints/kanban/02-kanban-view.md`) — Static Board: `view_config` contract +
 >   `GET|PUT /:slug/view-config`, `listHandler` `kanbanAxis` wiring, per-column `useInfiniteQuery`,
 >   `@tanstack/react-virtual` per-column scrollers, axis-config bar, collapse, skeleton/empty, click-to-edit.
 >
