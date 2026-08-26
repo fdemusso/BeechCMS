@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import { render, screen, waitFor } from "@testing-library/react"
 import { RichtextEdit } from "@/components/fields/edit/richtext"
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -78,16 +78,13 @@ describe("RichtextEdit", () => {
   })
 
   it("render con HTML legacy -> converte ed evita double-encoding ricorsivo", async () => {
-    let emittedValue: unknown
     render(
       <FieldsProvider value={mockFieldsConfig}>
         <TooltipProvider>
           <RichtextEdit
             branch={mockBranch}
             value="<p class='text-node'>Legacy content</p>"
-            onChange={(val) => {
-              emittedValue = val
-            }}
+            onChange={vi.fn()}
           />
         </TooltipProvider>
       </FieldsProvider>

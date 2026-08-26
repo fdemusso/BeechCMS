@@ -24,7 +24,7 @@ import { Plus, Loader as Loader2, More as MoreHorizontal, Edit as Pencil } from 
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 import type { Seed, FormLayout, Branch } from '@beechcms/core'
-import { generateDefaultLayout, isFullWidthBranch } from '@beechcms/core'
+import { generateDefaultLayout } from '@beechcms/core'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'

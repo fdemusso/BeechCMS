@@ -21,7 +21,7 @@ describe("Tags max-width and truncation (#301)", () => {
   } as unknown as Branch
 
   it("TagChips applica max-w-[260px], truncate e title con il testo completo", () => {
-    const { container } = render(<TagChips tags={[longTagText]} />)
+    render(<TagChips tags={[longTagText]} />)
 
     const span = screen.getByText(longTagText)
     expect(span).toHaveClass("truncate")
@@ -56,7 +56,7 @@ describe("Tags max-width and truncation (#301)", () => {
       "Legitimate Tag": "#10b981",
     })
 
-    const { container } = render(
+    render(
       <JsonEdit branch={tagsBranch} value={mockValue} onChange={onChange} />
     )
 
