@@ -438,6 +438,9 @@ async function main() {
       // Skip non-TS/JS files (markdown, sql, json, etc.)
       if (!/\.(ts|tsx|js|jsx|mjs|cjs)$/.test(relToWs)) continue
 
+      // Skip deleted files
+      if (!fs.existsSync(absFile)) continue
+
       if (isExcluded(relToWs, { include, exclude })) continue
 
       sourceFiles.push(absFile)

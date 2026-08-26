@@ -13,6 +13,14 @@ if (command && args[0] && ['db', 'seed', 'schema', 'dev', 'generate', 'mailpit']
   command = `${command}:${args.shift()}`
 }
 
+if (command === 'gen' && args[0] === 'types') {
+  command = 'gen-types'
+  args.shift()
+  if (args[0] === 'typescript') {
+    args.shift()
+  }
+}
+
 const COMMANDS = {
   build:            cmdBuild,
   'seed:load':      cmdSeedLoad,
@@ -27,6 +35,9 @@ const COMMANDS = {
   'forms':          cmdForms,
   'form':           cmdForms,
   'forms:add':      cmdForms,
+  'gen-types':       cmdGenerateTypes,
+  'gen:types':       cmdGenerateTypes,
+  'generate:types':  cmdGenerateTypes,
   // New unified command mappings:
   'db:migrate':     cmdDbMigrate,
   'db:reset':       cmdDbReset,
@@ -75,9 +86,12 @@ function help() {
       --remote        Diff against remote D1 (default: local)
       --db <name>     Override D1 database name
     ${pc.cyan('validate')}        Validate seeds registry for errors
-    ${pc.cyan('generate:types')}  Generate TypeScript interfaces from seed definitions
-      --out <path>    Output file (default: src/types/beech.ts)
-      --local         Read from seeds.ts instead of querying live D1
+    ${pc.cyan('gen types typescript')} (alias: ${pc.cyan('gen-types')})
+      Generate TypeScript interfaces from active D1 database
+      --local         Target local D1 SQLite state (default)
+      --remote        Target remote Cloudflare D1
+      --db <name>     Override D1 database name
+      -o, --output    Output file path (default: standard output)
 
   ${pc.bold('4. Forms & Frontend Generation')}
     ${pc.cyan('forms / form')}    Interactive wizard to generate React, Vue, Svelte, or Web Component forms
@@ -265,16 +279,23 @@ async function cmdSchemaDiff(args) {
 }
 
 async function cmdGenerateTypes(args) {
-  const outIdx = args.indexOf('--out')
-  const out    = outIdx !== -1 ? args[outIdx + 1] : 'src/types/beech.ts'
-  const local  = args.includes('--local')
-  const dbIdx  = args.indexOf('--db')
-  const db     = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const remote = args.includes('--remote')
+  const local = !remote
 
-  const registry = local ? await tryLoadLocalRegistry() : null
+  let out = null
+  const outIdx = args.indexOf('--out')
+  const outputIdx = args.indexOf('--output')
+  const oIdx = args.indexOf('-o')
+  
+  if (outIdx !== -1 && args[outIdx + 1]) out = args[outIdx + 1]
+  else if (outputIdx !== -1 && args[outputIdx + 1]) out = args[outputIdx + 1]
+  else if (oIdx !== -1 && args[oIdx + 1]) out = args[oIdx + 1]
+
+  const dbIdx = args.indexOf('--db')
+  const db = dbIdx !== -1 ? args[dbIdx + 1] : undefined
 
   const { generateTypes } = await import('@beechcms/cli')
-  await generateTypes({ out, local, db, registry })
+  await generateTypes({ out, local, db })
 }
 
 async function cmdForms(args) {
