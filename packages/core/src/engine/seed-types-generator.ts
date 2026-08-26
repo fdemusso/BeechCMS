@@ -96,10 +96,16 @@ export function interfaceForSeed(seed: Seed): string {
 export function generateSeedTypes(seeds: Seed[]): string {
   const sorted = [...seeds].sort((a, b) => a.slug.localeCompare(b.slug))
   const interfaces = sorted.map(interfaceForSeed).join('\n')
-  const registry =
-    `export interface SeedRegistryTypes {\n` +
-    sorted.map(s => `  ${propName({ alias: s.slug } as Branch)}: ${pascalCase(s.slug)}`).join('\n') +
-    (sorted.length ? '\n' : '') +
-    `}\n`
-  return `${HEADER}\n${interfaces}\n${registry}`
+  const registryProps = sorted
+    .map(s => `  ${propName({ alias: s.slug } as Branch)}: ${pascalCase(s.slug)}`)
+    .join('\n')
+
+  const databaseRegistry =
+    `export interface BeechDatabase {\n` +
+    (registryProps ? registryProps + '\n' : '') +
+    `}\n\n` +
+    `export type SeedRegistryTypes = BeechDatabase\n`
+
+  return `${HEADER}\n${interfaces}\n${databaseRegistry}`
 }
+

@@ -88,14 +88,16 @@ describe('generateSeedTypes', () => {
     expect(generateSeedTypes(seeds)).toContain('generato automaticamente')
   })
 
-  it('emits SeedRegistryTypes', () => {
+  it('emits BeechDatabase and SeedRegistryTypes alias', () => {
     const out = generateSeedTypes(seeds)
-    expect(out).toContain('export interface SeedRegistryTypes {')
-    expect(out).toContain('animals: Animals')
-    expect(out).toContain('zoo: Zoo')
+    expect(out).toContain('export interface BeechDatabase {')
+    expect(out).toContain('  animals: Animals')
+    expect(out).toContain('  zoo: Zoo')
+    expect(out).toContain('export type SeedRegistryTypes = BeechDatabase')
   })
 
   it('is deterministic — same input same output', () => {
     expect(generateSeedTypes(seeds)).toBe(generateSeedTypes([...seeds].reverse()))
   })
 })
+
