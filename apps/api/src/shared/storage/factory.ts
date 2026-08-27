@@ -8,7 +8,7 @@ import { S3Bucket } from './s3-bucket'
 
 import { HTTPException } from 'hono/http-exception'
 
-class NullBucket implements BeechBucket {
+export class NullBucket implements BeechBucket {
   private fail(): never {
     throw new HTTPException(503, {
       res: new Response(
@@ -34,21 +34,42 @@ class NullBucket implements BeechBucket {
   presignGet(): Promise<string> { return this.fail() }
 }
 
+let hasWarnedNullBucket = false
+
+/** Reset the warning state (useful for test isolation) */
+export function resetNullBucketWarning(): void {
+  hasWarnedNullBucket = false
+}
+
 /**
  * Single storage path: S3-compatible HTTP API.
  * Prod → Cloudflare R2 with S3 API token.
  * Dev  → MinIO container (or R2 staging bucket).
  */
 export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
-  if (env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_ENDPOINT && env.R2_BUCKET_NAME) {
+  const hasR2Id = Object.hasOwn(env, 'R2_ACCESS_KEY_ID') && typeof env.R2_ACCESS_KEY_ID === 'string' && env.R2_ACCESS_KEY_ID.length > 0
+  const hasR2Secret = Object.hasOwn(env, 'R2_SECRET_ACCESS_KEY') && typeof env.R2_SECRET_ACCESS_KEY === 'string' && env.R2_SECRET_ACCESS_KEY.length > 0
+  const hasR2Endpoint = Object.hasOwn(env, 'R2_ENDPOINT') && typeof env.R2_ENDPOINT === 'string' && env.R2_ENDPOINT.length > 0
+  const hasR2Bucket = Object.hasOwn(env, 'R2_BUCKET_NAME') && typeof env.R2_BUCKET_NAME === 'string' && env.R2_BUCKET_NAME.length > 0
+
+  if (hasR2Id && hasR2Secret && hasR2Endpoint && hasR2Bucket) {
     return new S3Bucket({
-      endpoint: env.R2_ENDPOINT,
-      accessKeyId: env.R2_ACCESS_KEY_ID,
-      secretAccessKey: env.R2_SECRET_ACCESS_KEY,
-      bucketName: env.R2_BUCKET_NAME,
+      endpoint: env.R2_ENDPOINT!,
+      accessKeyId: env.R2_ACCESS_KEY_ID!,
+      secretAccessKey: env.R2_SECRET_ACCESS_KEY!,
+      bucketName: env.R2_BUCKET_NAME!,
       baseUrl,
       cdnUrl: env.MEDIA_CDN_URL?.trim().replace(/\/$/, '') || undefined,
     })
   }
+
+  if (env.ENV === 'development' && !hasWarnedNullBucket) {
+    hasWarnedNullBucket = true
+    console.warn(
+      '⚠️ [BeechCMS] Storage is not configured. Falling back to NullBucket. Uploads will return 503.\n' +
+      '   To configure local storage, set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME in .dev.vars or run MinIO.'
+    )
+  }
+
   return new NullBucket()
 }
