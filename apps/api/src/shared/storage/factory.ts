@@ -17,7 +17,7 @@ export class NullBucket implements BeechBucket {
       res: new Response(
         JSON.stringify({ 
           error: 'storage_not_configured',
-          message: 'Storage is not configured. Please set R2 credentials or run MinIO.'
+          message: 'Storage is not configured. Direct uploads require Cloudflare R2 S3 credentials (R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME) in .dev.vars (dev) or wrangler secrets (production). For local testing, run MinIO (pnpm dev:full). Guide: https://developers.cloudflare.com/r2/api/s3/tokens/'
         }),
         { 
           status: 503, 
@@ -38,10 +38,12 @@ export class NullBucket implements BeechBucket {
 }
 
 let hasWarnedNullBucket = false
+let hasWarnedMediaBucketOnly = false
 
 /** Reset the warning state (useful for test isolation) */
 export function resetNullBucketWarning(): void {
   hasWarnedNullBucket = false
+  hasWarnedMediaBucketOnly = false
 }
 
 /**
@@ -68,6 +70,14 @@ export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
   }
 
   if (hasMediaBucket) {
+    if (!hasWarnedMediaBucketOnly) {
+      hasWarnedMediaBucketOnly = true
+      console.info(
+        'ℹ️ [BeechCMS] Native MEDIA_BUCKET binding detected. Media serving is active.\n' +
+        '   Note: Direct uploads via Presigned URLs require R2 S3 credentials (R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME).\n' +
+        '   Configure them in .dev.vars (dev) or via `wrangler secret put` (production). Guide: https://developers.cloudflare.com/r2/api/s3/tokens/'
+      )
+    }
     return new R2BucketAdapter(
       env.MEDIA_BUCKET!,
       baseUrl,
@@ -79,7 +89,7 @@ export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
     hasWarnedNullBucket = true
     console.warn(
       '⚠️ [BeechCMS] Storage is not configured. Falling back to NullBucket. Uploads will return 503.\n' +
-      '   To configure local storage, set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME in .dev.vars or run MinIO.'
+      '   To configure local storage for Presigned uploads, set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME in .dev.vars or run MinIO (pnpm dev:full).'
     )
   }
 

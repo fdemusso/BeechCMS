@@ -25,7 +25,9 @@ describe('Storage Factory & NullBucket', () => {
     expect(provider).toBeInstanceOf(S3Bucket)
   })
 
-  it('creates R2BucketAdapter when MEDIA_BUCKET binding is provided without S3 credentials', () => {
+  it('creates R2BucketAdapter and logs informative note when MEDIA_BUCKET binding is provided without S3 credentials', () => {
+    const consoleInfoSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
+
     const mockR2Bucket: any = {
       get: vi.fn(),
       head: vi.fn(),
@@ -40,6 +42,13 @@ describe('Storage Factory & NullBucket', () => {
 
     const provider = createBucketProvider(env as Env, 'http://localhost:8787')
     expect(provider).toBeInstanceOf(R2BucketAdapter)
+    expect(consoleInfoSpy).toHaveBeenCalledTimes(1)
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('ℹ️ [BeechCMS] Native MEDIA_BUCKET binding detected. Media serving is active.')
+    )
+    expect(consoleInfoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('Note: Direct uploads via Presigned URLs require R2 S3 credentials')
+    )
   })
 
   it('prefers S3Bucket when both S3 credentials and MEDIA_BUCKET are provided', () => {
@@ -73,7 +82,7 @@ describe('Storage Factory & NullBucket', () => {
       expect.stringContaining('⚠️ [BeechCMS] Storage is not configured. Falling back to NullBucket. Uploads will return 503.')
     )
     expect(consoleWarnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('To configure local storage, set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME in .dev.vars or run MinIO.')
+      expect.stringContaining('To configure local storage for Presigned uploads, set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, and R2_BUCKET_NAME in .dev.vars or run MinIO (pnpm dev:full).')
     )
   })
 
@@ -143,7 +152,7 @@ describe('Storage Factory & NullBucket', () => {
       expect(err.status).toBe(503)
       const responseBody = await err.res.json()
       expect(responseBody.error).toBe('storage_not_configured')
-      expect(responseBody.message).toBe('Storage is not configured. Please set R2 credentials or run MinIO.')
+      expect(responseBody.message).toContain('Direct uploads require Cloudflare R2 S3 credentials')
     }
   })
 })
@@ -300,8 +309,8 @@ describe('R2BucketAdapter', () => {
     } catch (err: any) {
       expect(err.status).toBe(501)
       const res = await err.res.json()
-      expect(res.error).toBe('not_implemented')
-      expect(res.message).toContain('Presigned URLs are not supported with native R2Bucket binding')
+      expect(res.error).toBe('presigned_urls_require_s3_credentials')
+      expect(res.message).toContain('Direct client upload via Presigned URLs requires Cloudflare R2 S3 API credentials')
     }
   })
 })

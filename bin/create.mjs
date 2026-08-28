@@ -184,6 +184,8 @@ function buildWranglerJsonc(cfg) {
 function buildDevVars(cloudflare) {
   if (cloudflare) {
     return [
+      `# Cloudflare R2 S3 credentials (required for direct client upload via Presigned URLs)`,
+      `# Guide: https://developers.cloudflare.com/r2/api/s3/tokens/`,
       `R2_ACCESS_KEY_ID=${cloudflare.r2AccessKey}`,
       `R2_SECRET_ACCESS_KEY=${cloudflare.r2SecretKey}`,
       `R2_ENDPOINT=${cloudflare.r2Endpoint}`,
@@ -191,9 +193,8 @@ function buildDevVars(cloudflare) {
     ].join('\n') + '\n'
   }
   return [
-    '# R2 credentials — only needed if you want production-like S3 media uploads locally.',
-    '# For local development, media uploads work automatically via the Miniflare R2 binding.',
-    '# Fill these in only when testing production media behaviour:',
+    '# Cloudflare R2 S3 credentials (required for direct client upload via Presigned URLs)',
+    '# Create an R2 API Token: Cloudflare Dashboard → R2 → "Manage R2 API Tokens" (Object Read & Write)',
     '# Guide: https://developers.cloudflare.com/r2/api/s3/tokens/',
     'R2_ACCESS_KEY_ID=',
     'R2_SECRET_ACCESS_KEY=',
@@ -262,11 +263,13 @@ async function askCloudflareConfig(name) {
 
   p.note(
     [
+      'Direct client uploads use Presigned URLs (SigV4) to stream files directly to R2.',
       'Create an R2 API token:',
       '  Cloudflare Dashboard → R2 → "Manage R2 API Tokens"',
       `  → Create Token → Object Read & Write → bucket: ${r2Bucket}`,
+      'Guide: https://developers.cloudflare.com/r2/api/s3/tokens/',
     ].join('\n'),
-    'R2 credentials'
+    'R2 S3 Credentials (for Presigned URLs)'
   )
 
   const r2AccessKey = await p.text({
@@ -429,10 +432,17 @@ async function main() {
       ...(pendingConfig ? [
         `${pc.bold('3. Complete Cloudflare configuration')}  ${pc.yellow('← pending')}`,
         `   Edit ${pc.underline('wrangler.jsonc')}  →  fill in ${pc.yellow('database_id')} (D1) and ${pc.yellow('bucket_name')} (R2)`,
-        `   Guide: https://developers.cloudflare.com/d1/`,
-        `   ${pc.dim('Note: media uploads work locally without R2 credentials (.dev.vars optional)')}`,
+        `   Set R2 S3 secrets for Presigned uploads in ${pc.underline('.dev.vars')} (dev) and via ${pc.cyan('npx wrangler secret put')} (prod)`,
+        `   Guide: https://developers.cloudflare.com/r2/api/s3/tokens/`,
         '',
-      ] : []),
+      ] : [
+        `${pc.bold('3. Production R2 secrets')} (when deploying to Cloudflare)`,
+        `   ${pc.cyan('npx wrangler secret put R2_ACCESS_KEY_ID')}`,
+        `   ${pc.cyan('npx wrangler secret put R2_SECRET_ACCESS_KEY')}`,
+        `   ${pc.cyan('npx wrangler secret put R2_ENDPOINT')}  →  ${cloudflare.r2Endpoint}`,
+        `   ${pc.cyan('npx wrangler secret put R2_BUCKET_NAME')}  →  ${cloudflare.r2Bucket}`,
+        '',
+      ]),
       `${step(3)}. Run local migrations`,
       `   ${pc.cyan('npm run db:migrate:local')}`,
       '',
