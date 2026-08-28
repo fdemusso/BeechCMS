@@ -112,6 +112,34 @@ describe('Storage Factory & NullBucket', () => {
     expect(consoleWarnSpy).not.toHaveBeenCalled()
   })
 
+  it('falls back to NullBucket when credentials contain only whitespace', () => {
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const env: Partial<Env> = {
+      ENV: 'development',
+      R2_ACCESS_KEY_ID: '   ',
+      R2_SECRET_ACCESS_KEY: '  ',
+      R2_ENDPOINT: '   ',
+      R2_BUCKET_NAME: ' ',
+    }
+
+    const provider = createBucketProvider(env as Env, 'http://localhost:8787')
+    expect(provider).toBeInstanceOf(NullBucket)
+    expect(consoleWarnSpy).toHaveBeenCalledTimes(1)
+  })
+
+  it('trims whitespace from S3 credentials and endpoint when instantiating S3Bucket', () => {
+    const env: Partial<Env> = {
+      R2_ACCESS_KEY_ID: '  test-key  ',
+      R2_SECRET_ACCESS_KEY: '  test-secret  ',
+      R2_ENDPOINT: '  http://localhost:9000  ',
+      R2_BUCKET_NAME: '  test-bucket  ',
+    }
+
+    const provider = createBucketProvider(env as Env, 'http://localhost:8787')
+    expect(provider).toBeInstanceOf(S3Bucket)
+  })
+
   it('securely handles objects with prototype pollution keys without false config match', () => {
     const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
 
@@ -133,27 +161,29 @@ describe('Storage Factory & NullBucket', () => {
     expect(consoleWarnSpy).toHaveBeenCalledTimes(1)
   })
 
-  it('throws 503 HTTPException on NullBucket operations', async () => {
+  it('throws 503 HTTPException on NullBucket operations as rejected promises', async () => {
     const nullBucket = new NullBucket()
 
-    expect(() => nullBucket.put()).toThrow()
-    expect(() => nullBucket.get()).toThrow()
-    expect(() => nullBucket.delete()).toThrow()
-    expect(() => nullBucket.head()).toThrow()
+    await expect(nullBucket.put()).rejects.toThrow()
+    await expect(nullBucket.get()).rejects.toThrow()
+    await expect(nullBucket.delete()).rejects.toThrow()
+    await expect(nullBucket.head()).rejects.toThrow()
     expect(() => nullBucket.getUrl()).toThrow()
-    expect(() => nullBucket.getTotalSize()).toThrow()
-    expect(() => nullBucket.list()).toThrow()
-    expect(() => nullBucket.presignPut()).toThrow()
-    expect(() => nullBucket.presignGet()).toThrow()
+    await expect(nullBucket.getTotalSize()).rejects.toThrow()
+    await expect(nullBucket.list()).rejects.toThrow()
+    await expect(nullBucket.presignPut()).rejects.toThrow()
+    await expect(nullBucket.presignGet()).rejects.toThrow()
 
-    try {
-      nullBucket.put()
-    } catch (err: any) {
-      expect(err.status).toBe(503)
-      const responseBody = await err.res.json()
-      expect(responseBody.error).toBe('storage_not_configured')
-      expect(responseBody.message).toContain('Direct uploads require Cloudflare R2 S3 credentials')
-    }
+    // Verify .catch() handler works without synchronous exception crash
+    let caughtError: any = null
+    await nullBucket.put().catch((err) => {
+      caughtError = err
+    })
+    expect(caughtError).toBeDefined()
+    expect(caughtError.status).toBe(503)
+    const responseBody = await caughtError.res.json()
+    expect(responseBody.error).toBe('storage_not_configured')
+    expect(responseBody.message).toContain('Direct uploads require Cloudflare R2 S3 credentials')
   })
 })
 
@@ -238,13 +268,16 @@ describe('R2BucketAdapter', () => {
     expect(mockR2Bucket.delete).toHaveBeenCalledWith('test.jpg')
   })
 
-  it('generates getUrl with base URL and optional cdnUrl', () => {
+  it('generates getUrl with base URL and optional cdnUrl and strips leading slashes', () => {
     const mockR2Bucket: any = {}
     const adapterWithoutCdn = new R2BucketAdapter(mockR2Bucket, 'https://api.example.com')
     expect(adapterWithoutCdn.getUrl('folder/image 1.png')).toBe('https://api.example.com/api/media/folder/image%201.png')
+    expect(adapterWithoutCdn.getUrl('/folder/image 1.png')).toBe('https://api.example.com/api/media/folder/image%201.png')
+    expect(adapterWithoutCdn.getUrl('///folder/image 1.png')).toBe('https://api.example.com/api/media/folder/image%201.png')
 
     const adapterWithCdn = new R2BucketAdapter(mockR2Bucket, 'https://api.example.com', 'https://cdn.example.com')
     expect(adapterWithCdn.getUrl('folder/image 1.png')).toBe('https://cdn.example.com/folder/image%201.png')
+    expect(adapterWithCdn.getUrl('/folder/image 1.png')).toBe('https://cdn.example.com/folder/image%201.png')
   })
 
   it('calculates getTotalSize by iterating paginated list', async () => {
@@ -312,5 +345,76 @@ describe('R2BucketAdapter', () => {
       expect(res.error).toBe('presigned_urls_require_s3_credentials')
       expect(res.message).toContain('Direct client upload via Presigned URLs requires Cloudflare R2 S3 API credentials')
     }
+  })
+})
+
+describe('S3Bucket', () => {
+  it('generates getUrl with base URL and optional cdnUrl and strips leading slashes', () => {
+    const bucket = new S3Bucket({
+      endpoint: 'http://localhost:9000',
+      accessKeyId: 'key',
+      secretAccessKey: 'secret',
+      bucketName: 'bucket',
+      baseUrl: 'https://api.example.com',
+    })
+    expect(bucket.getUrl('folder/image 1.png')).toBe('https://api.example.com/api/media/folder/image%201.png')
+    expect(bucket.getUrl('/folder/image 1.png')).toBe('https://api.example.com/api/media/folder/image%201.png')
+    expect(bucket.getUrl('///folder/image 1.png')).toBe('https://api.example.com/api/media/folder/image%201.png')
+
+    const bucketWithCdn = new S3Bucket({
+      endpoint: 'http://localhost:9000',
+      accessKeyId: 'key',
+      secretAccessKey: 'secret',
+      bucketName: 'bucket',
+      baseUrl: 'https://api.example.com',
+      cdnUrl: 'https://cdn.example.com',
+    })
+    expect(bucketWithCdn.getUrl('folder/image 1.png')).toBe('https://cdn.example.com/folder/image%201.png')
+    expect(bucketWithCdn.getUrl('/folder/image 1.png')).toBe('https://cdn.example.com/folder/image%201.png')
+  })
+
+  it('handles NoSuchKey, NotFound, message NoSuchKey, and HTTP 404 status codes in get and head without throwing', async () => {
+    const bucket = new S3Bucket({
+      endpoint: 'http://localhost:9000',
+      accessKeyId: 'key',
+      secretAccessKey: 'secret',
+      bucketName: 'bucket',
+      baseUrl: 'https://api.example.com',
+    })
+
+    const mock404Error = Object.assign(new Error('Not Found'), {
+      $metadata: { httpStatusCode: 404 },
+    })
+
+    // Mock client.send
+    const clientSendSpy = vi.spyOn((bucket as any).client, 'send')
+
+    // 1. get() with 404 httpStatusCode
+    clientSendSpy.mockRejectedValueOnce(mock404Error)
+    const getResult = await bucket.get('missing.png')
+    expect(getResult).toBeNull()
+
+    // 2. head() with 404 httpStatusCode
+    clientSendSpy.mockRejectedValueOnce(mock404Error)
+    const headResult = await bucket.head('missing.png')
+    expect(headResult).toBeNull()
+
+    // 3. get() with errorMessage 'NoSuchKey'
+    clientSendSpy.mockRejectedValueOnce(new Error('NoSuchKey'))
+    const getResultNoSuchKey = await bucket.get('missing.png')
+    expect(getResultNoSuchKey).toBeNull()
+
+    // 4. head() with errorName 'NotFound'
+    const notFoundError = new Error('Object not found')
+    notFoundError.name = 'NotFound'
+    clientSendSpy.mockRejectedValueOnce(notFoundError)
+    const headResultNotFound = await bucket.head('missing.png')
+    expect(headResultNotFound).toBeNull()
+
+    // 5. Non-404 error should be rethrown
+    const accessDeniedError = new Error('Access Denied')
+    accessDeniedError.name = 'AccessDenied'
+    clientSendSpy.mockRejectedValueOnce(accessDeniedError)
+    await expect(bucket.get('private.png')).rejects.toThrow('Access Denied')
   })
 })
