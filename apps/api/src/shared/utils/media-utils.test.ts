@@ -43,6 +43,20 @@ describe('extractMediaKey', () => {
     expect(extractMediaKey('https://cdn.example.com///folder/sub/1739-avatar.png', 'https://cdn.example.com///')).toBe('folder/sub/1739-avatar.png')
   })
 
+  it('extracts key correctly when CDN URL contains a pathname prefix', () => {
+    expect(extractMediaKey('https://cdn.example.com/assets/1739-avatar.png', 'https://cdn.example.com/assets')).toBe('1739-avatar.png')
+    expect(extractMediaKey('https://cdn.example.com/assets/1739-avatar.png', 'https://cdn.example.com/assets/')).toBe('1739-avatar.png')
+    expect(extractMediaKey('https://cdn.example.com/assets/nested/1739-avatar.png', 'https://cdn.example.com/assets')).toBe('nested/1739-avatar.png')
+    expect(extractMediaKey('https://cdn.example.com/assets/nested/1739-avatar.png', 'https://cdn.example.com/assets/')).toBe('nested/1739-avatar.png')
+    expect(extractMediaKey('https://cdn.example.com/v1/media/1739-avatar.png', 'https://cdn.example.com/v1/media')).toBe('1739-avatar.png')
+  })
+
+  it('does not match CDN prefix if pathname does not match prefix boundary', () => {
+    expect(extractMediaKey('https://cdn.example.com/assets-other/1739-avatar.png', 'https://cdn.example.com/assets')).toBeNull()
+    expect(extractMediaKey('https://cdn.example.com/other/1739-avatar.png', 'https://cdn.example.com/assets')).toBeNull()
+    expect(extractMediaKey('https://cdn.example.com/assets', 'https://cdn.example.com/assets')).toBeNull()
+  })
+
   it('returns null for unrelated strings', () => {
     expect(extractMediaKey('not a url', CDN_URL)).toBeNull()
   })
@@ -72,6 +86,22 @@ describe('extractMediaKeysFromData', () => {
     expect(keys).toEqual(['1739-avatar.png'])
   })
 
+  it('extracts legit key from CDN URL with pathname prefix', () => {
+    const cdnWithPrefix = 'https://cdn.example.com/assets'
+    const keys = extractMediaKeysFromData(
+      SEED,
+      {
+        cover: 'https://cdn.example.com/assets/1739-avatar.png',
+        gallery: [
+          'https://cdn.example.com/assets/gallery-1.png',
+          'https://cdn.example.com/assets/sub/gallery-2.png',
+        ],
+      },
+      cdnWithPrefix
+    )
+    expect(keys).toEqual(['1739-avatar.png', 'gallery-1.png', 'sub/gallery-2.png'])
+  })
+
   it('safely ignores inherited prototype properties without false matches or errors', () => {
     const pollutedData = Object.create({
       cover: 'https://cdn.example.com/evil-prototype.png',
@@ -84,3 +114,4 @@ describe('extractMediaKeysFromData', () => {
     expect(keys).toEqual([])
   })
 })
+
