@@ -27,6 +27,8 @@ export interface Env {
   JWT_ISSUER?: string
   /** Expected `aud` claim on issued/verified JWTs. */
   JWT_AUDIENCE?: string
+  /** Native Cloudflare R2 bucket binding for media storage. */
+  MEDIA_BUCKET?: R2Bucket
   /** R2-compatible access key ID for media storage. */
   R2_ACCESS_KEY_ID?: string
   /** R2-compatible secret access key for media storage. */

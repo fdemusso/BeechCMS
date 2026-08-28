@@ -5,8 +5,11 @@
 import { BeechBucket, PutBucketOptions, GetBucketResult } from '@beechcms/core'
 import { Env } from '../../types'
 import { S3Bucket } from './s3-bucket'
+import { R2BucketAdapter } from './r2-bucket'
 
 import { HTTPException } from 'hono/http-exception'
+
+export { R2BucketAdapter } from './r2-bucket'
 
 export class NullBucket implements BeechBucket {
   private fail(): never {
@@ -51,6 +54,7 @@ export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
   const hasR2Secret = Object.hasOwn(env, 'R2_SECRET_ACCESS_KEY') && typeof env.R2_SECRET_ACCESS_KEY === 'string' && env.R2_SECRET_ACCESS_KEY.length > 0
   const hasR2Endpoint = Object.hasOwn(env, 'R2_ENDPOINT') && typeof env.R2_ENDPOINT === 'string' && env.R2_ENDPOINT.length > 0
   const hasR2Bucket = Object.hasOwn(env, 'R2_BUCKET_NAME') && typeof env.R2_BUCKET_NAME === 'string' && env.R2_BUCKET_NAME.length > 0
+  const hasMediaBucket = Object.hasOwn(env, 'MEDIA_BUCKET') && env.MEDIA_BUCKET !== null && env.MEDIA_BUCKET !== undefined && typeof env.MEDIA_BUCKET === 'object' && typeof (env.MEDIA_BUCKET as any).get === 'function'
 
   if (hasR2Id && hasR2Secret && hasR2Endpoint && hasR2Bucket) {
     return new S3Bucket({
@@ -61,6 +65,14 @@ export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
       baseUrl,
       cdnUrl: env.MEDIA_CDN_URL?.trim().replace(/\/$/, '') || undefined,
     })
+  }
+
+  if (hasMediaBucket) {
+    return new R2BucketAdapter(
+      env.MEDIA_BUCKET!,
+      baseUrl,
+      env.MEDIA_CDN_URL?.trim().replace(/\/$/, '') || undefined
+    )
   }
 
   if (env.ENV === 'development' && !hasWarnedNullBucket) {

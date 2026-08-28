@@ -372,4 +372,60 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       expect(mediaObj).toBeNull()
     })
   })
+
+  describe('GET /api/media/:key with native MEDIA_BUCKET binding (issue #307)', () => {
+    it('serves media from native MEDIA_BUCKET binding when S3 credentials are not set', async () => {
+      const mockStorage = new Map<string, { body: Uint8Array; contentType: string }>()
+      mockStorage.set('photos/cat.webp', {
+        body: new TextEncoder().encode('webp-binary-content'),
+        contentType: 'image/webp',
+      })
+
+      const mockMediaBucket: any = {
+        get: async (key: string) => {
+          const item = mockStorage.get(key)
+          if (!item) return null
+          return {
+            body: new ReadableStream({
+              start(controller) {
+                controller.enqueue(item.body)
+                controller.close()
+              },
+            }),
+            size: item.body.byteLength,
+            httpMetadata: { contentType: item.contentType },
+          }
+        },
+      }
+
+      const envWithoutS3 = {
+        DB: db,
+        JWT_SECRET: TEST_ENV.JWT_SECRET,
+        MEDIA_BUCKET: mockMediaBucket,
+      }
+
+      const res = await app.request('/api/media/photos/cat.webp', { method: 'GET' }, envWithoutS3 as any)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/webp')
+      expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+      expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff')
+      const text = await res.text()
+      expect(text).toBe('webp-binary-content')
+    })
+
+    it('returns 404 for non-existent key in native MEDIA_BUCKET', async () => {
+      const mockMediaBucket: any = {
+        get: async () => null,
+      }
+
+      const envWithoutS3 = {
+        DB: db,
+        JWT_SECRET: TEST_ENV.JWT_SECRET,
+        MEDIA_BUCKET: mockMediaBucket,
+      }
+
+      const res = await app.request('/api/media/non-existent.jpg', { method: 'GET' }, envWithoutS3 as any)
+      expect(res.status).toBe(404)
+    })
+  })
 })
