@@ -11,7 +11,8 @@
 import type { Seed } from '@beechcms/core'
 
 /** Pattern per estrarre la chiave R2 da URL in formato /api/media/KEY */
-const MEDIA_URL_PATTERN = /\/api\/media\/([^?#]+)/
+const MEDIA_URL_PATTERN = /\/api\/media\/([^?#\s"'`<>()[\]{}]+)/
+const MEDIA_URL_GLOBAL_PATTERN = /\/api\/media\/([^?#\s"'`<>()[\]{}]+)/g
 
 function safeDecodeKey(rawKey: string): string | null {
   try {
@@ -35,19 +36,18 @@ export function extractMediaKey(mediaUrl: string, cdnUrl?: string): string | nul
   if (cdnUrl) {
     try {
       const cdnParsed = new URL(cdnUrl)
-      const mediaUrlParsed = new URL(urlStr)
+      const cdnOrigin = cdnParsed.origin
       const cdnPathPrefix = cdnParsed.pathname.replace(/\/+$/, '')
-      if (
-        mediaUrlParsed.origin === cdnParsed.origin &&
-        (cdnPathPrefix === '' || mediaUrlParsed.pathname.startsWith(`${cdnPathPrefix}/`))
-      ) {
-        const keyPart = mediaUrlParsed.pathname
-          .slice(cdnPathPrefix.length)
-          .replace(/^\/+/, '')
-        return keyPart ? safeDecodeKey(keyPart) : null
+      const cdnPrefix = `${cdnOrigin}${cdnPathPrefix}/`
+      const escapedPrefix = cdnPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const cdnRegex = new RegExp(`${escapedPrefix}+([^?#\\s"'\`<>()[\\\\\\]{}]+)`)
+      const match = cdnRegex.exec(urlStr)
+      if (match) {
+        const key = match[1].replace(/^\/+/, '')
+        return key ? safeDecodeKey(key) : null
       }
     } catch {
-      // mediaUrl not absolute or cdnUrl invalid, fall through to pattern match
+      // invalid cdnUrl, fall through to pattern match
     }
   }
 
@@ -61,19 +61,42 @@ export function extractMediaKey(mediaUrl: string, cdnUrl?: string): string | nul
  */
 function collectMediaKeysRecursive(value: unknown, collectedKeys: Set<string>, cdnUrl?: string): void {
   if (typeof value === 'string') {
-    const r2Key = extractMediaKey(value, cdnUrl)
-    if (r2Key) {
-      collectedKeys.add(r2Key)
-      return
-    }
     // Legacy compat: campi json/file possono contenere JSON serializzato.
     try {
       const parsed = JSON.parse(value) as unknown
-      if (parsed !== value) {
+      if (parsed !== value && typeof parsed === 'object' && parsed !== null) {
         collectMediaKeysRecursive(parsed, collectedKeys, cdnUrl)
+        return
       }
     } catch {
       // ignore
+    }
+
+    if (cdnUrl) {
+      try {
+        const cdnParsed = new URL(cdnUrl)
+        const cdnOrigin = cdnParsed.origin
+        const cdnPathPrefix = cdnParsed.pathname.replace(/\/+$/, '')
+        const cdnPrefix = `${cdnOrigin}${cdnPathPrefix}/`
+        const escapedPrefix = cdnPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const cdnRegex = new RegExp(`${escapedPrefix}+([^?#\\s"'\`<>()[\\\\\\]{}]+)`, 'g')
+        for (const match of value.matchAll(cdnRegex)) {
+          const key = safeDecodeKey(match[1].replace(/^\/+/, ''))
+          if (key) collectedKeys.add(key)
+        }
+      } catch {
+        // ignore invalid cdnUrl
+      }
+    }
+
+    for (const match of value.matchAll(MEDIA_URL_GLOBAL_PATTERN)) {
+      const key = safeDecodeKey(match[1])
+      if (key) collectedKeys.add(key)
+    }
+
+    const singleKey = extractMediaKey(value, cdnUrl)
+    if (singleKey) {
+      collectedKeys.add(singleKey)
     }
     return
   }
