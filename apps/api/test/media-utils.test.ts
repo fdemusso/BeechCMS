@@ -111,5 +111,13 @@ describe('media-utils - extractMediaKeysFromData', () => {
     }
     expect(extractMediaKeysFromData(seed, data)).toEqual([])
   })
+
+  it('estrae chiavi multiple da stringhe con più URL o testo senza matching greedy corrotto (issue #357)', () => {
+    const data = {
+      title: 'Post con testo',
+      image: '/api/media/first.png e anche /api/media/second.png',
+    }
+    expect(extractMediaKeysFromData(seed, data)).toEqual(['first.png', 'second.png'])
+  })
 })
 

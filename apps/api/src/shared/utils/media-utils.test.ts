@@ -68,6 +68,12 @@ describe('extractMediaKey', () => {
     expect(extractMediaKey('https://cdn.example.com/assets/invalid_%E0%A4%A.png', 'https://cdn.example.com/assets')).toBeNull()
     expect(extractMediaKey('https://cdn.example.com/api/media/%E0%A4%A.png', CDN_URL)).toBeNull()
   })
+
+  it('does not greedily match multi-URL or space-separated strings (issue #357)', () => {
+    expect(extractMediaKey('/api/media/pic1.png and /api/media/pic2.png')).toBe('pic1.png')
+    expect(extractMediaKey('https://example.com/api/media/pic1.png" data-other="/api/media/pic2.png"')).toBe('pic1.png')
+    expect(extractMediaKey('/api/media/pic1.png /api/media/pic2.png')).toBe('pic1.png')
+  })
 })
 
 // ─── extractMediaKeysFromData ───────────────────────────────────────────────
@@ -172,6 +178,24 @@ describe('extractMediaKeysFromData', () => {
     }
     const keys = extractMediaKeysFromData(SEED, malformedData, CDN_URL)
     expect(keys).toEqual(['valid.png'])
+  })
+
+  it('extracts all individual media keys from multi-URL or space-separated strings without greedy corruption (issue #357)', () => {
+    const multiData = {
+      cover: '/api/media/pic1.png and /api/media/pic2.png',
+      gallery: '<img src="/api/media/gallery1.png" alt="one"><img src="/api/media/gallery2.png" alt="two">',
+    }
+    const keys = extractMediaKeysFromData(SEED, multiData)
+    expect(keys).toEqual(['pic1.png', 'pic2.png', 'gallery1.png', 'gallery2.png'])
+  })
+
+  it('extracts multiple CDN media keys from rich strings when cdnUrl is configured (issue #357)', () => {
+    const multiData = {
+      cover: `${CDN_URL}/assets/pic1.png and ${CDN_URL}/assets/pic2.png`,
+      gallery: `<a href="${CDN_URL}/assets/nested/doc.pdf">Doc</a> [photo](${CDN_URL}/assets/gallery1.png)`,
+    }
+    const keys = extractMediaKeysFromData(SEED, multiData, `${CDN_URL}/assets`)
+    expect(keys).toEqual(['pic1.png', 'pic2.png', 'nested/doc.pdf', 'gallery1.png'])
   })
 })
 
