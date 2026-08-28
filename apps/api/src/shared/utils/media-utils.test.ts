@@ -60,6 +60,14 @@ describe('extractMediaKey', () => {
   it('returns null for unrelated strings', () => {
     expect(extractMediaKey('not a url', CDN_URL)).toBeNull()
   })
+
+  it('safely handles malformed percent-encoded sequences without throwing URIError (issue #355)', () => {
+    expect(extractMediaKey('https://example.com/api/media/discount_%E0%A4%A.png')).toBeNull()
+    expect(extractMediaKey('/api/media/promo%99.png')).toBeNull()
+    expect(extractMediaKey('https://cdn.example.com/%E0%A4%A.png', CDN_URL)).toBeNull()
+    expect(extractMediaKey('https://cdn.example.com/assets/invalid_%E0%A4%A.png', 'https://cdn.example.com/assets')).toBeNull()
+    expect(extractMediaKey('https://cdn.example.com/api/media/%E0%A4%A.png', CDN_URL)).toBeNull()
+  })
 })
 
 // ─── extractMediaKeysFromData ───────────────────────────────────────────────
@@ -155,6 +163,15 @@ describe('extractMediaKeysFromData', () => {
       'slide1.png',
       'slide2.png',
     ])
+  })
+
+  it('safely handles malformed percent-encoded sequences in entry data without throwing URIError (issue #355)', () => {
+    const malformedData = {
+      cover: 'https://example.com/api/media/discount_%E0%A4%A.png',
+      gallery: ['/api/media/promo%99.png', 'https://cdn.example.com/valid.png'],
+    }
+    const keys = extractMediaKeysFromData(SEED, malformedData, CDN_URL)
+    expect(keys).toEqual(['valid.png'])
   })
 })
 
