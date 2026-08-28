@@ -75,4 +75,33 @@ describe('media-utils - extractMediaKeysFromData', () => {
     const keys = extractMediaKeysFromData(seed, pollutedData, 'https://cdn.my-site.com')
     expect(keys).toEqual([])
   })
+
+  it('estrae chiavi media da campi repeater con subfield file (issue #356)', () => {
+    const seedWithRepeater = {
+      slug: 'pages',
+      displayNameAlias: 'title',
+      allowDrafts: true,
+      branches: [
+        {
+          id: 'br_slides',
+          alias: 'slides',
+          type: 'repeater',
+          label: 'Slides',
+          fields: [{ id: 'br_img', alias: 'image', type: 'file', label: 'Image' }],
+        },
+      ],
+    } as unknown as typeof seed
+
+    const rowData = {
+      title: 'Home Page',
+      slides: [
+        { image: 'https://example.com/api/media/slide1.png' },
+        { image: 'https://example.com/api/media/slide2.png' },
+      ],
+    }
+
+    const keys = extractMediaKeysFromData(seedWithRepeater, rowData)
+    expect(keys).toEqual(['slide1.png', 'slide2.png'])
+  })
 })
+

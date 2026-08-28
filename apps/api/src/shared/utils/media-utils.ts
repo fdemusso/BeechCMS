@@ -82,11 +82,11 @@ function collectMediaKeysRecursive(value: unknown, collectedKeys: Set<string>, c
 
 /**
  * Estrae tutte le chiavi R2 dal data di un'entry.
- * Cerca nei campi `file` (stringa URL) e `json` (array/oggetto con URL).
- * Il data è in formato DB: chiavi = branch.id (es. art_03, prd_05).
+ * Cerca nei campi `file` (stringa URL), `json` (array/oggetto con URL) e `repeater` (array di record).
+ * Il data è in formato DB o deserializzato (chiavi = branch alias).
  *
  * @param seed - Schema del tipo di contenuto
- * @param entryData - Payload in formato DB (chiavi = branch ID)
+ * @param entryData - Payload (chiavi = branch alias)
  * @param cdnUrl - URL CDN opzionale configurato
  * @returns Array di chiavi R2 uniche da eliminare
  */
@@ -97,7 +97,7 @@ export function extractMediaKeysFromData(
 ): string[] {
   const r2Keys = new Set<string>()
   for (const branch of seed.branches) {
-    if (branch.type !== 'file' && branch.type !== 'json') continue
+    if (branch.type !== 'file' && branch.type !== 'json' && branch.type !== 'repeater') continue
     const fieldValue = Object.hasOwn(entryData, branch.alias) ? entryData[branch.alias] : undefined
     if (fieldValue == null) continue
     collectMediaKeysRecursive(fieldValue, r2Keys, cdnUrl)

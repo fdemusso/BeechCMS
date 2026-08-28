@@ -113,5 +113,49 @@ describe('extractMediaKeysFromData', () => {
     const keys = extractMediaKeysFromData(SEED, pollutedData, CDN_URL)
     expect(keys).toEqual([])
   })
+
+  it('extracts media keys from repeater branches with object arrays and serialized JSON (issue #356)', () => {
+    const seedWithRepeater = {
+      slug: 'pages',
+      displayNameAlias: 'title',
+      allowDrafts: true,
+      branches: [
+        { id: 'br_01', alias: 'cover', type: 'file' },
+        {
+          id: 'br_slides',
+          alias: 'slides',
+          type: 'repeater',
+          fields: [{ id: 'br_img', alias: 'image', type: 'file' }],
+        },
+      ],
+    } as unknown as Seed
+
+    const parsedData = {
+      cover: `${CDN_URL}/cover.png`,
+      slides: [
+        { image: `${CDN_URL}/slide1.png`, caption: 'First' },
+        { image: `${CDN_URL}/slide2.png`, caption: 'Second' },
+      ],
+    }
+    expect(extractMediaKeysFromData(seedWithRepeater, parsedData, CDN_URL)).toEqual([
+      'cover.png',
+      'slide1.png',
+      'slide2.png',
+    ])
+
+    const rawDbData = {
+      cover: `${CDN_URL}/cover.png`,
+      slides: JSON.stringify([
+        { image: `${CDN_URL}/slide1.png` },
+        { image: `${CDN_URL}/slide2.png` },
+      ]),
+    }
+    expect(extractMediaKeysFromData(seedWithRepeater, rawDbData, CDN_URL)).toEqual([
+      'cover.png',
+      'slide1.png',
+      'slide2.png',
+    ])
+  })
 })
+
 
