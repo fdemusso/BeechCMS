@@ -12,7 +12,7 @@ Output: A verified Pull Request submitted via `gh` targeting `devs` with linked 
 # REMEDIATION LIFECYCLE (Never skip a phase)
 
 ### PHASE 1: ISSUE INGESTION & BRANCH SETUP
-1. Fetch and parse the issue details using `gh issue view <id>`:
+1. Fetch and parse the issue details using `gh issue view <id> --json title,body,state,labels` (or `gh issue view <id>`):
    - Extract **Problem statement** (affected files, symptoms, error logs).
    - Extract **Failure scenario** (concrete input → unexpected outcome).
    - Extract **Why existing tests missed it** (untested edge case, missing assertion, regression).
