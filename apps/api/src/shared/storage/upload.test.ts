@@ -138,4 +138,78 @@ describe('deleteR2Objects', () => {
     expect(mediaRepository.untrack).toHaveBeenCalledWith('good.png')
     expect(systemStatsRepository.decrementStorage).toHaveBeenCalledWith(100)
   })
+
+  it('Issue #347: deduplicates duplicate keys and decrements storage only once', async () => {
+    const bucket = { delete: vi.fn().mockResolvedValue(undefined) }
+    const mediaRepository = {
+      getByKey: vi.fn().mockResolvedValue({ key: 'duplicate.png', size_bytes: 500 }),
+      untrack: vi.fn().mockResolvedValue(undefined),
+    }
+    const systemStatsRepository = {
+      decrementStorage: vi.fn().mockResolvedValue(undefined),
+    }
+    const c = { var: { bucket, mediaRepository, systemStatsRepository } } as any
+
+    await deleteR2Objects(c, ['duplicate.png', 'duplicate.png', 'duplicate.png'])
+
+    expect(mediaRepository.getByKey).toHaveBeenCalledTimes(1)
+    expect(bucket.delete).toHaveBeenCalledTimes(1)
+    expect(mediaRepository.untrack).toHaveBeenCalledTimes(1)
+    expect(systemStatsRepository.decrementStorage).toHaveBeenCalledTimes(1)
+    expect(systemStatsRepository.decrementStorage).toHaveBeenCalledWith(500)
+  })
+
+  it('Issue #349: waits for all operations to settle and aggregates both bucket and untrack failures', async () => {
+    const bucket = {
+      delete: vi.fn().mockImplementation((key: string) =>
+        key === 'keyA.png' ? Promise.reject(new Error('S3 network timeout')) : Promise.resolve(undefined)
+      ),
+    }
+    const mediaRepository = {
+      getByKey: vi.fn().mockImplementation((key: string) =>
+        Promise.resolve({ key, size_bytes: 300 })
+      ),
+      untrack: vi.fn().mockImplementation((key: string) =>
+        key === 'keyB.png' ? Promise.reject(new Error('D1 database busy')) : Promise.resolve(undefined)
+      ),
+    }
+    const systemStatsRepository = {
+      decrementStorage: vi.fn().mockResolvedValue(undefined),
+    }
+    const c = { var: { bucket, mediaRepository, systemStatsRepository } } as any
+
+    let thrownError: Error | null = null
+    try {
+      await deleteR2Objects(c, ['keyA.png', 'keyB.png'])
+    } catch (err: any) {
+      thrownError = err
+    }
+
+    expect(thrownError).not.toBeNull()
+    expect(thrownError?.message).toContain('S3 network timeout')
+    expect(thrownError?.message).toContain('1 media row(s) now out of sync (R2 object deleted but DB untrack/decrement failed): keyB.png')
+
+    // keyA failed at bucket delete, so mediaRepository.untrack should NOT be called for keyA
+    expect(mediaRepository.untrack).not.toHaveBeenCalledWith('keyA.png')
+    // keyB succeeded at bucket delete, so untrack was called and failed
+    expect(bucket.delete).toHaveBeenCalledWith('keyB.png')
+    expect(mediaRepository.untrack).toHaveBeenCalledWith('keyB.png')
+  })
+
+  it('Security: safely handles prototype pollution keys without throwing unexpected prototype errors', async () => {
+    const bucket = { delete: vi.fn().mockResolvedValue(undefined) }
+    const mediaRepository = {
+      getByKey: vi.fn().mockResolvedValue(null),
+      untrack: vi.fn().mockResolvedValue(undefined),
+    }
+    const systemStatsRepository = {
+      decrementStorage: vi.fn().mockResolvedValue(undefined),
+    }
+    const c = { var: { bucket, mediaRepository, systemStatsRepository } } as any
+
+    const reservedKeys = ['constructor', 'toString', '__proto__', 'valueOf', 'hasOwnProperty']
+    for (const key of reservedKeys) {
+      await expect(deleteR2Objects(c, [key])).rejects.toThrow(`Media object not found: ${key}`)
+    }
+  })
 })

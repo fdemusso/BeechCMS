@@ -46,4 +46,24 @@ describe('media-utils - extractMediaKeysFromData', () => {
     const keys = extractMediaKeysFromData(seed, data)
     expect(keys).toEqual(['avatars/user-1.png'])
   })
+
+  it('estrae chiave correttamente con trailing slash nel CDN e doppio slash nel path', () => {
+    const data = {
+      title: 'Post',
+      image: 'https://cdn.my-site.com//avatars/123-img.png'
+    }
+    const keys = extractMediaKeysFromData(seed, data, 'https://cdn.my-site.com/')
+    expect(keys).toEqual(['avatars/123-img.png'])
+  })
+
+  it('ignora proprietà prototipiche ereditate come constructor e toString', () => {
+    const pollutedData = Object.create({
+      image: 'https://cdn.my-site.com/evil.png',
+      constructor: 'test',
+      toString: 'test',
+    })
+    pollutedData.title = 'Clean Post'
+    const keys = extractMediaKeysFromData(seed, pollutedData, 'https://cdn.my-site.com')
+    expect(keys).toEqual([])
+  })
 })

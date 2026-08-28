@@ -38,6 +38,11 @@ describe('extractMediaKey', () => {
     expect(extractMediaKey('https://other.com/api/media/123-foto.png', CDN_URL)).toBe('123-foto.png')
   })
 
+  it('extracts key correctly when CDN URL has trailing slashes and media URL has double leading slash', () => {
+    expect(extractMediaKey('https://cdn.example.com//1739-avatar.png', 'https://cdn.example.com/')).toBe('1739-avatar.png')
+    expect(extractMediaKey('https://cdn.example.com///folder/sub/1739-avatar.png', 'https://cdn.example.com///')).toBe('folder/sub/1739-avatar.png')
+  })
+
   it('returns null for unrelated strings', () => {
     expect(extractMediaKey('not a url', CDN_URL)).toBeNull()
   })
@@ -65,5 +70,17 @@ describe('extractMediaKeysFromData', () => {
   it('extracts legit key from same-origin CDN URL', () => {
     const keys = extractMediaKeysFromData(SEED, { cover: `${CDN_URL}/1739-avatar.png` }, CDN_URL)
     expect(keys).toEqual(['1739-avatar.png'])
+  })
+
+  it('safely ignores inherited prototype properties without false matches or errors', () => {
+    const pollutedData = Object.create({
+      cover: 'https://cdn.example.com/evil-prototype.png',
+      gallery: ['https://cdn.example.com/evil-gallery.png'],
+      constructor: 'https://cdn.example.com/evil-constructor.png',
+      toString: 'https://cdn.example.com/evil-toString.png',
+    })
+
+    const keys = extractMediaKeysFromData(SEED, pollutedData, CDN_URL)
+    expect(keys).toEqual([])
   })
 })

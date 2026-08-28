@@ -8,7 +8,12 @@ import os from "node:os"
 import { fileURLToPath } from "node:url"
 import { execa } from "execa"
 
+import { execSync } from "node:child_process"
+import crypto from "node:crypto"
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const ROOT_DIR = path.resolve(__dirname, "..")
+const CACHE_DIR = path.resolve(__dirname, "../node_modules/.cache/beech-test-runner")
 const LOCK_DIR = path.resolve(__dirname, "../node_modules/.cache")
 const LOCK_FILE = path.join(LOCK_DIR, "beech-test-runner.lock")
 
@@ -73,10 +78,126 @@ function acquireLock() {
   return cleanup
 }
 
+function computeRepoFingerprint() {
+  const raw = execSync("git ls-files -z --cached --others --exclude-standard", {
+    cwd: ROOT_DIR,
+    maxBuffer: 32 * 1024 * 1024
+  })
+
+  const files = raw.toString().split("\0").filter(Boolean)
+  // Exclude all .md files (case-insensitive)
+  const nonMdFiles = files.filter(f => !f.toLowerCase().endsWith(".md"))
+
+  // Exclude files matching .gitignore even if tracked
+  let ignoredSet = new Set()
+  if (nonMdFiles.length > 0) {
+    try {
+      const ignoredRaw = execSync("git check-ignore -z --no-index --stdin", {
+        cwd: ROOT_DIR,
+        input: nonMdFiles.join("\0"),
+        maxBuffer: 32 * 1024 * 1024,
+        stdio: ["pipe", "pipe", "ignore"]
+      })
+      ignoredSet = new Set(ignoredRaw.toString().split("\0").filter(Boolean))
+    } catch (e) {
+      if (e.stdout) {
+        ignoredSet = new Set(e.stdout.toString().split("\0").filter(Boolean))
+      }
+    }
+  }
+
+  const finalFiles = nonMdFiles.filter(f => !ignoredSet.has(f)).sort()
+
+  const hasher = crypto.createHash("sha256")
+  for (const relPath of finalFiles) {
+    const fullPath = path.resolve(ROOT_DIR, relPath)
+    hasher.update(relPath)
+    hasher.update("\0")
+    try {
+      const stats = fs.statSync(fullPath)
+      if (stats.isFile()) {
+        const content = fs.readFileSync(fullPath)
+        hasher.update(content)
+      } else {
+        hasher.update("__DIR__")
+      }
+    } catch {
+      hasher.update("__DELETED__")
+    }
+    hasher.update("\0")
+  }
+
+  return {
+    fingerprint: hasher.digest("hex"),
+    fileCount: finalFiles.length
+  }
+}
+
 const releaseLock = acquireLock()
 
 const isCoverage = process.argv.includes("--coverage")
 const taskName = isCoverage ? "test:coverage" : "test"
+const sanitizedTaskName = taskName.replace(/[^a-zA-Z0-9_-]/g, "_")
+const CACHE_FILE = path.join(CACHE_DIR, `cache-${sanitizedTaskName}.json`)
+
+function readCache(currentFingerprint) {
+  if (process.env.BEECH_NO_CACHE === "1" || process.argv.includes("--no-cache") || process.argv.includes("--force")) {
+    return null
+  }
+  if (!fs.existsSync(CACHE_FILE)) {
+    return null
+  }
+  try {
+    const data = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"))
+    if (data.fingerprint === currentFingerprint && data.taskName === taskName) {
+      return data
+    }
+  } catch {}
+  return null
+}
+
+function writeCache(data) {
+  try {
+    if (!fs.existsSync(CACHE_DIR)) {
+      fs.mkdirSync(CACHE_DIR, { recursive: true })
+    }
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(data, null, 2), "utf8")
+  } catch (err) {
+    console.warn(`\x1b[33m⚠️  [Test Cache] Failed to write cache: ${err.message}\x1b[0m`)
+  }
+}
+
+function clearCache() {
+  try {
+    if (fs.existsSync(CACHE_FILE)) {
+      fs.unlinkSync(CACHE_FILE)
+    }
+  } catch {}
+}
+
+const { fingerprint, fileCount } = computeRepoFingerprint()
+const cachedResult = readCache(fingerprint)
+
+if (cachedResult) {
+  console.log(`\n\x1b[32m✔ [Test Cache] Snapshot fingerprint matched: ${fingerprint.slice(0, 12)} (${fileCount} files scanned)\x1b[0m`)
+  console.log(`\x1b[36m⚡ [Test Cache] Replaying cached results from ${new Date(cachedResult.timestamp).toLocaleTimeString()} (Task: ${taskName})...\x1b[0m\n`)
+  
+  if (cachedResult.output) {
+    process.stdout.write(cachedResult.output)
+  }
+  printConsolidatedSummary(cachedResult.output)
+
+  console.log(`\x1b[32m⚡ [Test Cache] Instant replay from cache completed. All ${fileCount} files match snapshot.\x1b[0m\n`)
+  releaseLock()
+  process.exit(cachedResult.exitCode ?? 0)
+}
+
+if (fs.existsSync(CACHE_FILE)) {
+  clearCache()
+  console.log(`\x1b[33m🔄 [Test Cache] Repository snapshot changed (${fileCount} files, fingerprint: ${fingerprint.slice(0, 12)}). Cache invalidated.\x1b[0m`)
+} else {
+  console.log(`\x1b[36m⚡ [Test Cache] Calculating snapshot for ${fileCount} files (fingerprint: ${fingerprint.slice(0, 12)})...\x1b[0m`)
+}
 
 // Auto hardware profiling for Thermal & Memory Protection
 const totalCores = os.cpus().length || 4
@@ -110,10 +231,27 @@ try {
   const { all: output } = await child
 
   printConsolidatedSummary(output)
+
+  writeCache({
+    fingerprint,
+    taskName,
+    fileCount,
+    timestamp: new Date().toISOString(),
+    exitCode: 0,
+    output: output || ""
+  })
 } catch (err) {
   if (err.all) {
     printConsolidatedSummary(err.all)
   }
+  writeCache({
+    fingerprint,
+    taskName,
+    fileCount,
+    timestamp: new Date().toISOString(),
+    exitCode: err.exitCode || 1,
+    output: err.all || err.message || ""
+  })
   process.exit(err.exitCode || 1)
 } finally {
   releaseLock()

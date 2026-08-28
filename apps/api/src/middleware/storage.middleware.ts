@@ -17,7 +17,7 @@ export const storageMiddleware = (overrides?: StorageOverrides) => {
       context.set('bucket', overrides.bucket)
     } else {
       // Determine base URL for getUrl() only if we need to create the provider
-      const baseUrl = context.env.MEDIA_BASE_URL?.trim().replace(/\/$/, '') || new URL(context.req.url).origin
+      const baseUrl = context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '') || new URL(context.req.url).origin
       context.set('bucket', createBucketProvider(context.env, baseUrl))
     }
     await next()
