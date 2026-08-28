@@ -51,6 +51,77 @@ function isActiveMimeType(mime: string): boolean {
 
 export const uploadRoutes = new Hono<AppEnv>()
 
+/** POST /upload — Direct proxied upload fallback (used when presigning is unconfigured). */
+uploadRoutes.post('/upload', async (c) => {
+  const { bucket, mediaRepository: mediaRepo, systemStatsRepository: statsRepo } = c.var
+
+  let body: FormData
+  try {
+    body = await c.req.formData()
+  } catch {
+    return c.json({ error: 'Invalid multipart form data' }, 400)
+  }
+
+  const file = body.get('file')
+  if (!file || typeof file === 'string') {
+    return c.json({ error: 'file is required' }, 400)
+  }
+
+  const fileObj = file as File
+  const filename = fileObj.name || 'upload'
+  const mimeType = fileObj.type || 'application/octet-stream'
+  const sizeBytes = fileObj.size
+
+  if (!sizeBytes || sizeBytes <= 0) {
+    return c.json({ error: 'File is empty' }, 400)
+  }
+
+  const maxBytes = resolveMaxUploadBytes(c.env)
+  if (sizeBytes > maxBytes) {
+    return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
+  }
+
+  if (!isMimeAccepted(mimeType, 'any')) {
+    return c.json({ error: 'File type not allowed' }, 400)
+  }
+
+  const key = generateObjectKey(filename)
+  const arrayBuffer = await fileObj.arrayBuffer()
+
+  await bucket.put(key, arrayBuffer, {
+    contentType: mimeType,
+  })
+
+  const uploadedBy = c.var.jwtPayload?.sub ?? ''
+  const sanitizedFilename = key.replace(/^\d+-/, '') || key
+
+  await statsRepo.incrementStorage(sizeBytes)
+  await mediaRepo.trackUpload({
+    key,
+    filename: sanitizedFilename,
+    mime_type: mimeType,
+    size_bytes: sizeBytes,
+    uploaded_by: uploadedBy,
+  })
+
+  const jwtPayload = c.get('jwtPayload')
+  if (jwtPayload) {
+    c.get('activityLogger').log({
+      action: 'upload',
+      entityType: 'media',
+      entityId: key,
+      details: { name: sanitizedFilename, size: sizeBytes, type: mimeType },
+      actor: {
+        id: jwtPayload.sub,
+        email: jwtPayload.email ?? 'unknown',
+        name: [jwtPayload.name, jwtPayload.surname].filter(Boolean).join(' ') || null,
+      },
+    })
+  }
+
+  return c.json({ url: bucket.getUrl(key), key }, 200)
+})
+
 /** POST /upload/presign — Request a presigned URL for direct R2 upload. */
 uploadRoutes.post('/upload/presign', async (c) => {
   let body: { filename?: unknown, mimeType?: unknown, sizeBytes?: unknown }

@@ -51,6 +51,8 @@ const COMMANDS = {
   'test':           cmdTest,
   'lint':           cmdLint,
   'doctor':         cmdDoctor,
+  'setup:cloudflare': cmdSetupCloudflare,
+  'setup:cf':         cmdSetupCloudflare,
 }
 
 function help() {
@@ -116,6 +118,10 @@ function help() {
       --coverage      Generate coverage reports
       --diff          Run test coverage only for files modified on the branch
     ${pc.cyan('lint')}            Run ESLint quality checks
+    ${pc.cyan('setup:cloudflare')} (alias: ${pc.cyan('setup:cf')})
+      Interactive 1-step Cloudflare provisioning (D1, R2, Presigned S3 secrets)
+      --name <n>      Project name override
+      --yes, -y       Non-interactive mode
     ${pc.cyan('deploy')}          Compile, test, deploy to Cloudflare environment
       --skip-seed     Skip remote seed:load step
       --skip-check    Skip /admin reachability check
@@ -372,6 +378,14 @@ async function cmdLint(args) {
 async function cmdDoctor(args) {
   const { doctor } = await import('@beechcms/cli')
   await doctor()
+}
+
+async function cmdSetupCloudflare(args) {
+  const yes = args.includes('--yes') || args.includes('-y')
+  const nameIdx = args.indexOf('--name')
+  const projectName = nameIdx !== -1 ? args[nameIdx + 1] : undefined
+  const { setupCloudflare } = await import('@beechcms/cli')
+  await setupCloudflare({ projectName, nonInteractive: yes })
 }
 
 const handler = COMMANDS[command]

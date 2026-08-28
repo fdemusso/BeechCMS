@@ -428,4 +428,103 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       expect(res.status).toBe(404)
     })
   })
+
+  describe('POST /api/upload (direct proxied fallback upload)', () => {
+    it('returns 401 without JWT', async () => {
+      const formData = new FormData()
+      formData.append('file', new File(['dummy content'], 'avatar.png', { type: 'image/png' }))
+
+      const res = await app.request('/api/upload', {
+        method: 'POST',
+        body: formData,
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(401)
+    })
+
+    it('returns 400 when file is missing in form data', async () => {
+      const formData = new FormData()
+      formData.append('unrelated', 'value')
+
+      const res = await app.request('/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+        body: formData,
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+    })
+
+    it('returns 400 when file type is not allowed', async () => {
+      const formData = new FormData()
+      formData.append('file', new File(['malicious script'], 'evil.exe', { type: 'application/x-msdownload' }))
+
+      const res = await app.request('/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+        body: formData,
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+    })
+
+    it('successfully uploads file directly via native MEDIA_BUCKET and tracks in DB', async () => {
+      const storageMap = new Map<string, { body: ArrayBuffer; options?: any }>()
+      const mockMediaBucket: any = {
+        put: async (key: string, body: ArrayBuffer, options?: any) => {
+          storageMap.set(key, { body, options })
+          return {}
+        },
+        get: async (key: string) => {
+          const item = storageMap.get(key)
+          if (!item) return null
+          return {
+            body: item.body,
+            size: item.body.byteLength,
+            httpMetadata: { contentType: item.options?.httpMetadata?.contentType },
+          }
+        },
+        head: async (key: string) => {
+          const item = storageMap.get(key)
+          if (!item) return null
+          return {
+            size: item.body.byteLength,
+            httpMetadata: { contentType: item.options?.httpMetadata?.contentType },
+          }
+        },
+        delete: async (key: string) => {
+          storageMap.delete(key)
+        },
+        list: async () => ({ objects: [], truncated: false }),
+      }
+
+      const envWithNative = {
+        DB: db,
+        JWT_SECRET: TEST_ENV.JWT_SECRET,
+        MEDIA_BUCKET: mockMediaBucket,
+      }
+
+      const fileContent = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
+      const formData = new FormData()
+      formData.append('file', new File([fileContent], 'photo.png', { type: 'image/png' }))
+
+      const res = await app.request('/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+        body: formData,
+      }, envWithNative as any)
+
+      expect(res.status).toBe(200)
+      const data = await res.json<any>()
+      expect(data.url).toBeDefined()
+      expect(data.key).toMatch(/^\d+-photo\.png$/)
+
+      // Verify stored in storage
+      expect(storageMap.has(data.key)).toBe(true)
+
+      // Verify tracked in DB
+      const record = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(data.key).first<any>()
+      expect(record).toBeDefined()
+      expect(record.filename).toBe('photo.png')
+      expect(record.mime_type).toBe('image/png')
+      expect(record.size_bytes).toBe(fileContent.byteLength)
+    })
+  })
 })

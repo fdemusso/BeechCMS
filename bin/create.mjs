@@ -239,27 +239,47 @@ async function askCloudflareConfig(name) {
   })
   if (p.isCancel(accountId)) return null
 
-  const d1Name = await p.text({
-    message: 'D1 Database name',
-    initialValue: `${name}-db`,
-    validate: (v) => { if (!v.trim()) return 'Required' },
+  const autoCreate = await p.confirm({
+    message: `Auto-create Cloudflare D1 (${name}-db) and R2 (${name}-media) now?`,
+    hint: 'Runs `wrangler d1 create` and `wrangler r2 bucket create`',
+    initialValue: true,
   })
-  if (p.isCancel(d1Name)) return null
+  if (p.isCancel(autoCreate)) return null
 
-  const d1Id = await p.text({
-    message: 'D1 Database ID',
-    placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-    hint: `Run: npx wrangler d1 create ${d1Name} — copy the "database_id" from the output`,
-    validate: (v) => { if (!v.trim()) return 'Required — create the D1 database first and paste its ID here' },
-  })
-  if (p.isCancel(d1Id)) return null
+  let d1Id = ''
+  const d1Name = `${name}-db`
+  const r2Bucket = `${name}-media`
 
-  const r2Bucket = await p.text({
-    message: 'R2 Bucket name',
-    initialValue: `${name}-media`,
-    validate: (v) => { if (!v.trim()) return 'Required' },
-  })
-  if (p.isCancel(r2Bucket)) return null
+  if (autoCreate) {
+    const s = p.spinner()
+    s.start(`Creating D1 database: ${pc.bold(d1Name)}…`)
+    const d1Res = spawnSync('npx', ['wrangler', 'd1', 'create', d1Name], { encoding: 'utf-8', shell: true })
+    const d1Out = (d1Res.stdout || '') + (d1Res.stderr || '')
+    const idMatch = d1Out.match(/database_id\s*=\s*["']?([a-f0-9-]{36})["']?/i) ||
+                    d1Out.match(/"database_id":\s*"([a-f0-9-]{36})"/i) ||
+                    d1Out.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i)
+    if (idMatch) {
+      d1Id = idMatch[1]
+      s.stop(pc.green(`✓ D1 database ready (${d1Id})`))
+    } else {
+      s.stop(pc.yellow(`ℹ D1 status: ${d1Out.trim().slice(0, 100)}`))
+    }
+
+    s.start(`Creating R2 bucket: ${pc.bold(r2Bucket)}…`)
+    spawnSync('npx', ['wrangler', 'r2', 'bucket', 'create', r2Bucket], { encoding: 'utf-8', shell: true })
+    s.stop(pc.green(`✓ R2 bucket ready (${r2Bucket})`))
+  }
+
+  if (!d1Id) {
+    const d1IdInput = await p.text({
+      message: 'D1 Database ID',
+      placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+      hint: `Run: npx wrangler d1 create ${d1Name} — paste the "database_id" here`,
+      validate: (v) => { if (!v.trim()) return 'Required — paste database_id from D1' },
+    })
+    if (p.isCancel(d1IdInput)) return null
+    d1Id = d1IdInput.trim()
+  }
 
   p.note(
     [
