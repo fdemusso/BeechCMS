@@ -56,6 +56,15 @@ describe('media-utils - extractMediaKeysFromData', () => {
     expect(keys).toEqual(['avatars/123-img.png'])
   })
 
+  it('estrae chiave da URL con CDN configurato con prefisso di percorso', () => {
+    const data = {
+      title: 'Post',
+      image: 'https://cdn.my-site.com/assets/avatars/123-img.png'
+    }
+    const keys = extractMediaKeysFromData(seed, data, 'https://cdn.my-site.com/assets')
+    expect(keys).toEqual(['avatars/123-img.png'])
+  })
+
   it('ignora proprietà prototipiche ereditate come constructor e toString', () => {
     const pollutedData = Object.create({
       image: 'https://cdn.my-site.com/evil.png',

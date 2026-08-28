@@ -26,10 +26,16 @@ export function extractMediaKey(mediaUrl: string, cdnUrl?: string): string | nul
 
   if (cdnUrl) {
     try {
-      const cdnOrigin = new URL(cdnUrl).origin
+      const cdnParsed = new URL(cdnUrl)
       const mediaUrlParsed = new URL(urlStr)
-      if (mediaUrlParsed.origin === cdnOrigin) {
-        const keyPart = mediaUrlParsed.pathname.replace(/^\/+/, '')
+      const cdnPathPrefix = cdnParsed.pathname.replace(/\/+$/, '')
+      if (
+        mediaUrlParsed.origin === cdnParsed.origin &&
+        (cdnPathPrefix === '' || mediaUrlParsed.pathname.startsWith(`${cdnPathPrefix}/`))
+      ) {
+        const keyPart = mediaUrlParsed.pathname
+          .slice(cdnPathPrefix.length)
+          .replace(/^\/+/, '')
         return keyPart ? decodeURIComponent(keyPart) : null
       }
     } catch {
