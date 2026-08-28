@@ -13,6 +13,14 @@ import type { Seed } from '@beechcms/core'
 /** Pattern per estrarre la chiave R2 da URL in formato /api/media/KEY */
 const MEDIA_URL_PATTERN = /\/api\/media\/([^?#]+)/
 
+function safeDecodeKey(rawKey: string): string | null {
+  try {
+    return decodeURIComponent(rawKey)
+  } catch {
+    return null
+  }
+}
+
 /**
  * Estrae la chiave R2 da un URL di media.
  * Es: "https://x.com/api/media/1739123456-avatar.png" → "1739123456-avatar.png"
@@ -36,7 +44,7 @@ export function extractMediaKey(mediaUrl: string, cdnUrl?: string): string | nul
         const keyPart = mediaUrlParsed.pathname
           .slice(cdnPathPrefix.length)
           .replace(/^\/+/, '')
-        return keyPart ? decodeURIComponent(keyPart) : null
+        return keyPart ? safeDecodeKey(keyPart) : null
       }
     } catch {
       // mediaUrl not absolute or cdnUrl invalid, fall through to pattern match
@@ -44,7 +52,7 @@ export function extractMediaKey(mediaUrl: string, cdnUrl?: string): string | nul
   }
 
   const match = MEDIA_URL_PATTERN.exec(urlStr)
-  return match ? decodeURIComponent(match[1]) : null
+  return match ? safeDecodeKey(match[1]) : null
 }
 
 /**

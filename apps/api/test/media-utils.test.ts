@@ -103,5 +103,13 @@ describe('media-utils - extractMediaKeysFromData', () => {
     const keys = extractMediaKeysFromData(seedWithRepeater, rowData)
     expect(keys).toEqual(['slide1.png', 'slide2.png'])
   })
+
+  it('gestisce in modo sicuro sequenze percent-encoded malformate senza generare URIError (issue #355)', () => {
+    const data = {
+      title: 'Post con media malformato',
+      image: 'https://example.com/api/media/discount_%E0%A4%A.png',
+    }
+    expect(extractMediaKeysFromData(seed, data)).toEqual([])
+  })
 })
 
