@@ -77,4 +77,24 @@ describe('D1ContentScanRepository', () => {
     const result = await repo.getReferencedMediaKeys([seedWithFiles])
     expect(result.size).toBe(0)
   })
+
+  it('handles malformed percent-encoded media URLs without throwing URIError', async () => {
+    const mockResults = [
+      { cover: '/api/media/valid.jpg', gallery: '/api/media/malformed%99%ZZ% /api/media/another-valid.png' },
+    ]
+    const { db } = makeMockDb(mockResults)
+    const repo = new D1ContentScanRepository(db)
+    const seedWithFiles: Seed = {
+      slug: 'articles',
+      label: 'Article',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'cover', type: 'file', label: 'Cover' },
+        { id: 'br_02', alias: 'gallery', type: 'file', label: 'Gallery' },
+      ],
+    }
+
+    const result = await repo.getReferencedMediaKeys([seedWithFiles])
+    expect(result).toEqual(new Set(['valid.jpg', 'another-valid.png']))
+  })
 })
