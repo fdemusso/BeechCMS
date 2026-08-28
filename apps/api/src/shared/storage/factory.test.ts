@@ -268,19 +268,49 @@ describe('R2BucketAdapter', () => {
     expect(mockR2Bucket.delete).toHaveBeenCalledWith('test.jpg')
   })
 
-  it('generates getUrl with base URL and optional cdnUrl and strips leading slashes', () => {
+  it('correctly delegates put(), get(), delete(), and head() while stripping leading slashes', async () => {
+    const mockR2Bucket: any = {
+      put: vi.fn().mockResolvedValue({}),
+      get: vi.fn().mockResolvedValue(null),
+      delete: vi.fn().mockResolvedValue(undefined),
+      head: vi.fn().mockResolvedValue(null),
+    }
+
+    const adapter = new R2BucketAdapter(mockR2Bucket, 'http://localhost:8787')
+    const buffer = new Uint8Array([1, 2, 3])
+
+    await adapter.put('/test.jpg', buffer, {
+      contentType: 'image/jpeg',
+      metadata: { env: 'prod' },
+    })
+    expect(mockR2Bucket.put).toHaveBeenCalledWith('test.jpg', buffer, {
+      httpMetadata: { contentType: 'image/jpeg' },
+      customMetadata: { env: 'prod' },
+    })
+
+    await adapter.get('//test.jpg')
+    expect(mockR2Bucket.get).toHaveBeenCalledWith('test.jpg')
+
+    await adapter.delete('///test.jpg')
+    expect(mockR2Bucket.delete).toHaveBeenCalledWith('test.jpg')
+
+    await adapter.head('/test.jpg')
+    expect(mockR2Bucket.head).toHaveBeenCalledWith('test.jpg')
+  })
+
+  it('generates getUrl with base URL and optional cdnUrl and strips leading slashes and trailing slashes in baseUrl/cdnUrl', () => {
     const mockR2Bucket: any = {}
-    const adapterWithoutCdn = new R2BucketAdapter(mockR2Bucket, 'https://api.example.com')
+    const adapterWithoutCdn = new R2BucketAdapter(mockR2Bucket, 'https://api.example.com///')
     expect(adapterWithoutCdn.getUrl('folder/image 1.png')).toBe('https://api.example.com/api/media/folder/image%201.png')
     expect(adapterWithoutCdn.getUrl('/folder/image 1.png')).toBe('https://api.example.com/api/media/folder/image%201.png')
     expect(adapterWithoutCdn.getUrl('///folder/image 1.png')).toBe('https://api.example.com/api/media/folder/image%201.png')
 
-    const adapterWithCdn = new R2BucketAdapter(mockR2Bucket, 'https://api.example.com', 'https://cdn.example.com')
+    const adapterWithCdn = new R2BucketAdapter(mockR2Bucket, 'https://api.example.com/', 'https://cdn.example.com///')
     expect(adapterWithCdn.getUrl('folder/image 1.png')).toBe('https://cdn.example.com/folder/image%201.png')
     expect(adapterWithCdn.getUrl('/folder/image 1.png')).toBe('https://cdn.example.com/folder/image%201.png')
   })
 
-  it('calculates getTotalSize by iterating paginated list', async () => {
+  it('calculates getTotalSize by iterating paginated list and handles undefined objects safely', async () => {
     const mockR2Bucket: any = {
       list: vi.fn().mockImplementation(({ cursor }: { cursor?: string }) => {
         if (!cursor) {
@@ -288,6 +318,13 @@ describe('R2BucketAdapter', () => {
             objects: [{ size: 100 }, { size: 200 }],
             truncated: true,
             cursor: 'cursor-page-2',
+          })
+        }
+        if (cursor === 'cursor-page-2') {
+          return Promise.resolve({
+            objects: undefined,
+            truncated: true,
+            cursor: 'cursor-page-3',
           })
         }
         return Promise.resolve({
@@ -301,7 +338,7 @@ describe('R2BucketAdapter', () => {
     const totalSize = await adapter.getTotalSize()
 
     expect(totalSize).toBe(600)
-    expect(mockR2Bucket.list).toHaveBeenCalledTimes(2)
+    expect(mockR2Bucket.list).toHaveBeenCalledTimes(3)
   })
 
   it('correctly delegates list() with options and cursor pagination', async () => {
@@ -349,13 +386,13 @@ describe('R2BucketAdapter', () => {
 })
 
 describe('S3Bucket', () => {
-  it('generates getUrl with base URL and optional cdnUrl and strips leading slashes', () => {
+  it('generates getUrl with base URL and optional cdnUrl and strips leading slashes and trailing slashes in baseUrl/cdnUrl', () => {
     const bucket = new S3Bucket({
       endpoint: 'http://localhost:9000',
       accessKeyId: 'key',
       secretAccessKey: 'secret',
       bucketName: 'bucket',
-      baseUrl: 'https://api.example.com',
+      baseUrl: 'https://api.example.com///',
     })
     expect(bucket.getUrl('folder/image 1.png')).toBe('https://api.example.com/api/media/folder/image%201.png')
     expect(bucket.getUrl('/folder/image 1.png')).toBe('https://api.example.com/api/media/folder/image%201.png')
@@ -366,11 +403,71 @@ describe('S3Bucket', () => {
       accessKeyId: 'key',
       secretAccessKey: 'secret',
       bucketName: 'bucket',
-      baseUrl: 'https://api.example.com',
-      cdnUrl: 'https://cdn.example.com',
+      baseUrl: 'https://api.example.com/',
+      cdnUrl: 'https://cdn.example.com///',
     })
     expect(bucketWithCdn.getUrl('folder/image 1.png')).toBe('https://cdn.example.com/folder/image%201.png')
     expect(bucketWithCdn.getUrl('/folder/image 1.png')).toBe('https://cdn.example.com/folder/image%201.png')
+  })
+
+  it('strips leading slashes in put, get, delete, head, presignPut, and presignGet', async () => {
+    const bucket = new S3Bucket({
+      endpoint: 'http://localhost:9000',
+      accessKeyId: 'key',
+      secretAccessKey: 'secret',
+      bucketName: 'bucket',
+      baseUrl: 'https://api.example.com',
+    })
+
+    const clientSendSpy = vi.spyOn((bucket as any).client, 'send').mockResolvedValue({})
+
+    await bucket.put('/uploads/photo.jpg', new Uint8Array([1, 2, 3]))
+    expect(clientSendSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Bucket: 'bucket',
+          Key: 'uploads/photo.jpg',
+        }),
+      })
+    )
+
+    await bucket.get('//uploads/photo.jpg')
+    expect(clientSendSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Bucket: 'bucket',
+          Key: 'uploads/photo.jpg',
+        }),
+      })
+    )
+
+    await bucket.delete('///uploads/photo.jpg')
+    expect(clientSendSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Bucket: 'bucket',
+          Key: 'uploads/photo.jpg',
+        }),
+      })
+    )
+
+    await bucket.head('/uploads/photo.jpg')
+    expect(clientSendSpy).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        input: expect.objectContaining({
+          Bucket: 'bucket',
+          Key: 'uploads/photo.jpg',
+        }),
+      })
+    )
+
+    const presignedPutUrl = await bucket.presignPut('/uploads/photo.jpg', { expiresIn: 900 })
+    expect(presignedPutUrl).toContain('uploads/photo.jpg')
+    expect(presignedPutUrl).not.toContain('//uploads/photo.jpg')
+
+    const presignedGetUrl = await bucket.presignGet('/uploads/photo.jpg', { expiresIn: 900 })
+    expect(presignedGetUrl).toContain('uploads/photo.jpg')
+    expect(presignedGetUrl).not.toContain('//uploads/photo.jpg')
   })
 
   it('handles NoSuchKey, NotFound, message NoSuchKey, and HTTP 404 status codes in get and head without throwing', async () => {

@@ -43,7 +43,7 @@ statsApp.get('/stats/media-library', async (context) => {
         const mediaRepository = context.get('mediaRepository')
         const limit = Math.min(Number.parseInt(context.req.query('limit') ?? String(DEFAULT_LIMIT), 10), MAX_LIMIT)
         const offset = Number.parseInt(context.req.query('offset') ?? '0', 10)
-        const mediaBaseUrl = (context.env.MEDIA_BASE_URL?.trim().replace(/\/$/, '')) ?? new URL(context.req.url).origin
+        const mediaBaseUrl = (context.env.MEDIA_BASE_URL?.trim().replace(/\/+$/, '')) ?? new URL(context.req.url).origin
 
         // 1. Files tracked in the media library
         // Take the first MAX_MEDIA_SCAN for cross-scanning

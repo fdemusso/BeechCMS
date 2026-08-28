@@ -34,8 +34,8 @@ export class R2BucketAdapter implements BeechBucket {
    */
   constructor(bucket: R2Bucket, baseUrl: string, cdnUrl?: string) {
     this.bucket = bucket
-    this.baseUrl = baseUrl
-    this.cdnUrl = cdnUrl ?? null
+    this.baseUrl = baseUrl.replace(/\/+$/, '')
+    this.cdnUrl = cdnUrl ? cdnUrl.replace(/\/+$/, '') : null
   }
 
   /**
@@ -48,7 +48,8 @@ export class R2BucketAdapter implements BeechBucket {
    * @returns A promise that resolves when the upload completes.
    */
   async put(key: string, body: ArrayBuffer | Uint8Array | ReadableStream, options?: PutBucketOptions): Promise<void> {
-    await this.bucket.put(key, body, {
+    const cleanKey = key.replace(/^\/+/, '')
+    await this.bucket.put(cleanKey, body, {
       httpMetadata: options?.contentType ? { contentType: options.contentType } : undefined,
       customMetadata: options?.metadata,
     })
@@ -62,7 +63,8 @@ export class R2BucketAdapter implements BeechBucket {
    * @throws {Error} If reading from the R2 binding fails.
    */
   async get(key: string): Promise<GetBucketResult | null> {
-    const r2Object = await this.bucket.get(key)
+    const cleanKey = key.replace(/^\/+/, '')
+    const r2Object = await this.bucket.get(cleanKey)
     if (!r2Object) return null
 
     return {
@@ -81,7 +83,8 @@ export class R2BucketAdapter implements BeechBucket {
    * @returns A promise that resolves when the object is deleted.
    */
   async delete(key: string): Promise<void> {
-    await this.bucket.delete(key)
+    const cleanKey = key.replace(/^\/+/, '')
+    await this.bucket.delete(cleanKey)
   }
 
   /**
@@ -92,7 +95,8 @@ export class R2BucketAdapter implements BeechBucket {
    * @throws {Error} If the head request fails.
    */
   async head(key: string): Promise<{ size: number; contentType?: string; metadata?: Record<string, string> } | null> {
-    const r2HeadObject = await this.bucket.head(key)
+    const cleanKey = key.replace(/^\/+/, '')
+    const r2HeadObject = await this.bucket.head(cleanKey)
     if (!r2HeadObject) return null
 
     return {
@@ -134,7 +138,7 @@ export class R2BucketAdapter implements BeechBucket {
     let paginationCursor: string | undefined
     do {
       const listResult = await this.bucket.list({ cursor: paginationCursor })
-      for (const objectItem of listResult.objects) {
+      for (const objectItem of listResult.objects ?? []) {
         totalSizeBytes += objectItem.size
       }
       paginationCursor = listResult.truncated ? (listResult as { cursor: string }).cursor : undefined

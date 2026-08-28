@@ -145,7 +145,7 @@ export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
       secretAccessKey: env.R2_SECRET_ACCESS_KEY!.trim(),
       bucketName: env.R2_BUCKET_NAME!.trim(),
       baseUrl,
-      cdnUrl: env.MEDIA_CDN_URL?.trim().replace(/\/$/, '') || undefined,
+      cdnUrl: env.MEDIA_CDN_URL?.trim().replace(/\/+$/, '') || undefined,
     })
   }
 
@@ -161,7 +161,7 @@ export function createBucketProvider(env: Env, baseUrl: string): BeechBucket {
     return new R2BucketAdapter(
       env.MEDIA_BUCKET!,
       baseUrl,
-      env.MEDIA_CDN_URL?.trim().replace(/\/$/, '') || undefined
+      env.MEDIA_CDN_URL?.trim().replace(/\/+$/, '') || undefined
     )
   }
 

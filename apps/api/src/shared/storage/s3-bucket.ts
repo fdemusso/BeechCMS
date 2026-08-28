@@ -64,8 +64,8 @@ export class S3Bucket implements BeechBucket {
       responseChecksumValidation: 'when_required',
     } as unknown as import('@aws-sdk/client-s3').S3ClientConfig)
     this.bucketName = config.bucketName
-    this.baseUrl = config.baseUrl
-    this.cdnUrl = config.cdnUrl ?? null
+    this.baseUrl = config.baseUrl.replace(/\/+$/, '')
+    this.cdnUrl = config.cdnUrl ? config.cdnUrl.replace(/\/+$/, '') : null
   }
 
   /**
@@ -78,6 +78,7 @@ export class S3Bucket implements BeechBucket {
    * @returns A promise that resolves when the upload completes.
    */
   async put(key: string, body: ArrayBuffer | Uint8Array | ReadableStream, options?: PutBucketOptions): Promise<void> {
+    const cleanKey = key.replace(/^\/+/, '')
     const payload = body instanceof ReadableStream
       ? body
       : body instanceof Uint8Array
@@ -86,7 +87,7 @@ export class S3Bucket implements BeechBucket {
 
     const putCommand = new PutObjectCommand({
       Bucket: this.bucketName,
-      Key: key,
+      Key: cleanKey,
       Body: payload,
       ContentType: options?.contentType,
       Metadata: options?.metadata,
@@ -102,10 +103,11 @@ export class S3Bucket implements BeechBucket {
    * @throws {Error} If an S3 error other than `NoSuchKey` or `NotFound` occurs (e.g. `AccessDenied`, timeout).
    */
   async get(key: string): Promise<GetBucketResult | null> {
+    const cleanKey = key.replace(/^\/+/, '')
     try {
       const getCommand = new GetObjectCommand({
         Bucket: this.bucketName,
-        Key: key,
+        Key: cleanKey,
       })
       const response = await this.client.send(getCommand)
       
@@ -142,9 +144,10 @@ export class S3Bucket implements BeechBucket {
    * @returns A promise that resolves when the object has been deleted.
    */
   async delete(key: string): Promise<void> {
+    const cleanKey = key.replace(/^\/+/, '')
     const deleteCommand = new DeleteObjectCommand({
       Bucket: this.bucketName,
-      Key: key,
+      Key: cleanKey,
     })
     await this.client.send(deleteCommand)
   }
@@ -157,10 +160,11 @@ export class S3Bucket implements BeechBucket {
    * @throws {Error} If an S3 error other than `NoSuchKey` or `NotFound` occurs.
    */
   async head(key: string): Promise<{ size: number; contentType?: string; metadata?: Record<string, string> } | null> {
+    const cleanKey = key.replace(/^\/+/, '')
     try {
       const headCommand = new HeadObjectCommand({
         Bucket: this.bucketName,
-        Key: key,
+        Key: cleanKey,
       })
       const response = await this.client.send(headCommand)
       return {
@@ -234,11 +238,12 @@ export class S3Bucket implements BeechBucket {
    * @returns A promise resolving to the presigned PUT URL.
    */
   async presignPut(key: string, options: PresignOptions): Promise<string> {
+    const cleanKey = key.replace(/^\/+/, '')
     // ContentLength is included to enforce expected size constraints via signature/policy
     // headers on direct PUT uploads, ensuring the client cannot upload a different size.
     const putCommand = new PutObjectCommand({
       Bucket: this.bucketName,
-      Key: key,
+      Key: cleanKey,
       ContentType: options.contentType,
       ContentLength: options.contentLength,
     })
@@ -253,9 +258,10 @@ export class S3Bucket implements BeechBucket {
    * @returns A promise resolving to the presigned GET URL.
    */
   async presignGet(key: string, options: PresignOptions): Promise<string> {
+    const cleanKey = key.replace(/^\/+/, '')
     const getCommand = new GetObjectCommand({
       Bucket: this.bucketName,
-      Key: key,
+      Key: cleanKey,
     })
     return getSignedUrl(this.client, getCommand, { expiresIn: options.expiresIn })
   }

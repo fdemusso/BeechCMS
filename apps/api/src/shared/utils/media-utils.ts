@@ -29,7 +29,7 @@ export function extractMediaKey(mediaUrl: string, cdnUrl?: string): string | nul
       const cdnOrigin = new URL(cdnUrl).origin
       const mediaUrlParsed = new URL(urlStr)
       if (mediaUrlParsed.origin === cdnOrigin) {
-        const keyPart = mediaUrlParsed.pathname.replace(/^\//, '')
+        const keyPart = mediaUrlParsed.pathname.replace(/^\/+/, '')
         return keyPart ? decodeURIComponent(keyPart) : null
       }
     } catch {
@@ -92,7 +92,7 @@ export function extractMediaKeysFromData(
   const r2Keys = new Set<string>()
   for (const branch of seed.branches) {
     if (branch.type !== 'file' && branch.type !== 'json') continue
-    const fieldValue = entryData[branch.alias]
+    const fieldValue = Object.hasOwn(entryData, branch.alias) ? entryData[branch.alias] : undefined
     if (fieldValue == null) continue
     collectMediaKeysRecursive(fieldValue, r2Keys, cdnUrl)
   }
