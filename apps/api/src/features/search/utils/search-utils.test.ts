@@ -56,6 +56,14 @@ describe('encodeCursor / decodeCursor', () => {
     expect(decoded?.entryId).toBe(entryId)
   })
 
+  it('entryId containing colons roundtrips correctly without truncation', () => {
+    const entryId = 'urn:article:123:section:456'
+    const cursor = encodeCursor(-1.5, entryId)
+    const decoded = decodeCursor(cursor)
+    expect(decoded?.rank).toBeCloseTo(-1.5)
+    expect(decoded?.entryId).toBe(entryId)
+  })
+
   it('returns null for invalid base64', () => {
     expect(decodeCursor('!!!not-base64!!!')).toBeNull()
   })

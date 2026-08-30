@@ -45,10 +45,12 @@ export function encodeCursor(rank: number, entryId: string): string {
 export function decodeCursor(cursor: string): { rank: number; entryId: string } | null {
   try {
     const decoded = atob(cursor)
-    const separatorIndex = decoded.lastIndexOf(':')
+    const separatorIndex = decoded.indexOf(':')
     if (separatorIndex === -1) return null
+    const rank = Number.parseFloat(decoded.slice(0, separatorIndex))
+    if (Number.isNaN(rank)) return null
     return {
-      rank:    Number.parseFloat(decoded.slice(0, separatorIndex)),
+      rank,
       entryId: decoded.slice(separatorIndex + 1),
     }
   } catch {
