@@ -80,15 +80,14 @@ describe('semanticSearchHooks', () => {
     })
   })
 
-  it('afterUpdate removes vector and updates manifest on unpublish (e.g. draft/archived)', async () => {
-    const { ctx, enqueueMock, prepareMock, bindMock } = makeMockCtx(SEARCHABLE_SEED)
+  it('afterUpdate enqueues delete_vector on unpublish (e.g. draft/archived)', async () => {
+    const { ctx, enqueueMock } = makeMockCtx(SEARCHABLE_SEED)
 
     await semanticSearchHooks.afterUpdate?.({ id: 'e1', status: 'draft' }, ctx)
 
-    expect(prepareMock).toHaveBeenCalledWith('DELETE FROM vector_posts WHERE entry_id = ?')
-    expect(bindMock).toHaveBeenCalledWith('e1')
-    expect(enqueueMock).toHaveBeenCalledWith('update_r2_manifest', {
+    expect(enqueueMock).toHaveBeenCalledWith('delete_vector', {
       seedSlug: 'posts',
+      entryId: 'e1',
     })
   })
 
@@ -102,15 +101,14 @@ describe('semanticSearchHooks', () => {
     })
   })
 
-  it('afterDelete removes vector from D1 and enqueues update_r2_manifest', async () => {
-    const { ctx, enqueueMock, prepareMock, bindMock } = makeMockCtx(SEARCHABLE_SEED)
+  it('afterDelete enqueues delete_vector without synchronous D1 calls', async () => {
+    const { ctx, enqueueMock } = makeMockCtx(SEARCHABLE_SEED)
 
     await semanticSearchHooks.afterDelete?.('e1', ctx)
 
-    expect(prepareMock).toHaveBeenCalledWith('DELETE FROM vector_posts WHERE entry_id = ?')
-    expect(bindMock).toHaveBeenCalledWith('e1')
-    expect(enqueueMock).toHaveBeenCalledWith('update_r2_manifest', {
+    expect(enqueueMock).toHaveBeenCalledWith('delete_vector', {
       seedSlug: 'posts',
+      entryId: 'e1',
     })
   })
 })

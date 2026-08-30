@@ -24,6 +24,9 @@ export { semanticSearchHooks } from './jobs/semantic-search.hooks'
 export {
   semanticSearchJobs,
   compileR2Manifest,
+  computeVectorJob,
+  deleteVectorJob,
+  updateR2ManifestJob,
   type ComputeVectorPayload,
   type UpdateR2ManifestPayload,
 } from './jobs/semantic-search.worker'

@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, vi } from 'vitest'
-import { compileR2Manifest, computeVectorJob, updateR2ManifestJob } from './semantic-search.worker'
+import { compileR2Manifest, computeVectorJob, deleteVectorJob, updateR2ManifestJob } from './semantic-search.worker'
 import type { Seed, JobContext } from '@beechcms/core'
 
 const SEARCH_SEED: Seed = {
@@ -145,6 +145,43 @@ describe('semantic-search worker and manifest compilation', () => {
 
     await updateR2ManifestJob({ seedSlug: 'articles' }, context)
 
+    expect(putMock).toHaveBeenCalledWith('articles.bin', expect.any(Uint8Array), expect.any(Object))
+    expect(putMock).toHaveBeenCalledWith('articles.json', JSON.stringify([]), expect.any(Object))
+  })
+
+  it('deleteVectorJob deletes vector from D1 and recompiles R2 manifest', async () => {
+    const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } })
+    const firstMock = vi.fn().mockResolvedValue({
+      slug: 'articles',
+      definition: JSON.stringify(SEARCH_SEED),
+    })
+    const allMock = vi.fn().mockResolvedValue({ results: [] })
+
+    const mockDb = {
+      prepare: vi.fn().mockReturnValue({
+        bind: vi.fn().mockReturnValue({ run: runMock, first: firstMock, all: allMock }),
+        first: firstMock,
+        all: allMock,
+      }),
+    } as unknown as D1Database
+
+    const putMock = vi.fn().mockResolvedValue({})
+    const mockSearchR2 = { put: putMock } as unknown as R2Bucket
+
+    const context: JobContext = {
+      repository: {} as any,
+      bucket: {} as any,
+      clock: {} as any,
+      idGenerator: {} as any,
+      env: {
+        DB: mockDb as any,
+        SEARCH_R2: mockSearchR2 as any,
+      },
+    }
+
+    await deleteVectorJob({ seedSlug: 'articles', entryId: 'art-1' }, context)
+
+    expect(mockDb.prepare).toHaveBeenCalledWith('DELETE FROM vector_articles WHERE entry_id = ?')
     expect(putMock).toHaveBeenCalledWith('articles.bin', expect.any(Uint8Array), expect.any(Object))
     expect(putMock).toHaveBeenCalledWith('articles.json', JSON.stringify([]), expect.any(Object))
   })

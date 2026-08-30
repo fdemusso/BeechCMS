@@ -18,7 +18,6 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { BeechHooks, HookContext } from '@beechcms/core'
 import { indexableSearchBranches } from '@beechcms/core'
-import { D1VectorRepository } from '../../../shared/db/repositories/d1-vector.repository'
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -47,30 +46,17 @@ async function enqueueComputeVector(entryId: string, ctx: HookContext): Promise<
 }
 
 /**
- * Enqueues an `update_r2_manifest` job to recompile the R2 binary manifest
- * after a vector has been removed.
- *
- * @param ctx - Hook execution context providing the queue service.
- */
-async function enqueueUpdateR2Manifest(ctx: HookContext): Promise<void> {
-  await ctx.queue?.enqueue('update_r2_manifest', {
-    seedSlug: ctx.seed.slug,
-  })
-}
-
-/**
- * Removes the vector for `entryId` from D1 and enqueues an R2 manifest update.
- * Used when an entry is deleted or unpublished.
+ * Enqueues a `delete_vector` job to remove the vector from D1 and recompile
+ * the R2 manifest asynchronously in the background.
  *
  * @param entryId - Unique identifier of the entry whose vector should be deleted.
- * @param ctx     - Hook execution context providing the D1 database and queue service.
+ * @param ctx     - Hook execution context providing the queue service.
  */
-async function deleteVectorAndRecompileManifest(entryId: string, ctx: HookContext): Promise<void> {
-  if (ctx.db) {
-    const vectorRepository = new D1VectorRepository(ctx.db as D1Database)
-    await vectorRepository.deleteVector(ctx.seed, entryId)
-  }
-  await enqueueUpdateR2Manifest(ctx)
+async function enqueueDeleteVector(entryId: string, ctx: HookContext): Promise<void> {
+  await ctx.queue?.enqueue('delete_vector', {
+    seedSlug: ctx.seed.slug,
+    entryId,
+  })
 }
 
 // ─── Hook definitions ─────────────────────────────────────────────────────────
@@ -106,8 +92,8 @@ export const semanticSearchHooks: BeechHooks = {
    * new publication status:
    *
    * - **`published`**: Enqueue vector computation (create or refresh).
-   * - **Any other status** (e.g. `draft`, `archived`): Delete the existing
-   *   vector and recompile the R2 manifest.
+   * - **Any other status** (e.g. `draft`, `archived`): Enqueue `delete_vector` job
+   *   to remove the vector and recompile the R2 manifest in background.
    * - **`status` absent** (partial update): Enqueue vector computation only
    *   when an indexable branch field is present in the updated payload.
    *
@@ -124,7 +110,7 @@ export const semanticSearchHooks: BeechHooks = {
 
     if (entry.status !== undefined) {
       // Entry was explicitly unpublished (e.g. moved to draft or archived)
-      await deleteVectorAndRecompileManifest(entry.id as string, ctx)
+      await enqueueDeleteVector(entry.id as string, ctx)
       return
     }
 
@@ -139,15 +125,14 @@ export const semanticSearchHooks: BeechHooks = {
   },
 
   /**
-   * After an entry is deleted, remove its vector from D1 and recompile
-   * the R2 manifest so the deleted entry is no longer returned by
-   * semantic search queries.
+   * After an entry is deleted, enqueue a `delete_vector` job to remove its vector
+   * from D1 and recompile the R2 manifest in background.
    *
    * @param entryId - Unique identifier of the deleted entry.
    * @param ctx     - Hook execution context.
    */
   afterDelete: async (entryId: string, ctx: HookContext): Promise<void> => {
     if (!seedHasIndexableBranches(ctx)) return
-    await deleteVectorAndRecompileManifest(entryId, ctx)
+    await enqueueDeleteVector(entryId, ctx)
   },
 }

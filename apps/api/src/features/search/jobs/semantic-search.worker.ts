@@ -238,6 +238,40 @@ export const computeVectorJob: JobHandler<ComputeVectorPayload> = async (
 }
 
 /**
+ * Worker job that removes an embedding vector from D1 for a specific entry
+ * and recompiles the R2 binary and JSON manifest files.
+ *
+ * Enqueued when an entry is unpublished or deleted.
+ *
+ * @param payload - `{ seedSlug, entryId }` identifying the entry whose vector should be removed.
+ * @param context - Job execution context providing env bindings.
+ */
+export const deleteVectorJob: JobHandler<ComputeVectorPayload> = async (
+  payload,
+  context,
+): Promise<void> => {
+  const { db, searchR2 } = resolveWorkerBindings(context)
+
+  if (!db) {
+    console.warn('[semantic-search] DB binding not found — skipping delete_vector job')
+    return
+  }
+
+  const seedRepository = new D1SeedRepository(db)
+  const seedRecord     = await seedRepository.get(payload.seedSlug)
+  const seed           = seedRecord?.definition
+
+  if (!seed) {
+    console.warn(`[semantic-search] Seed "${payload.seedSlug}" not found — skipping delete_vector job`)
+    return
+  }
+
+  const vectorRepository = new D1VectorRepository(db)
+  await vectorRepository.deleteVector(seed, payload.entryId)
+  await compileR2Manifest(seed, db, searchR2)
+}
+
+/**
  * Worker job that recompiles the R2 binary and JSON manifest files for a seed
  * without touching the stored embedding vectors.
  *
@@ -278,5 +312,6 @@ export const updateR2ManifestJob: JobHandler<UpdateR2ManifestPayload> = async (
  */
 export const semanticSearchJobs: JobRegistry = {
   compute_vector:     computeVectorJob,
+  delete_vector:      deleteVectorJob,
   update_r2_manifest: updateR2ManifestJob,
 }
