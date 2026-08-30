@@ -100,6 +100,7 @@ describe('buildFtsQuery', () => {
     )
     expect(result.sql).toContain('fts_articoli')
     expect(result.sql).toContain('content_articoli')
+    expect(result.sql).toContain('snippet(fts_articoli, -1,')
     expect(result.sql).toContain('LIMIT ?')
     expect(result.binds.at(-1)).toBe(21) // pageSize + 1 for has-more detection
   })

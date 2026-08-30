@@ -191,7 +191,7 @@ export function buildFtsQuery(params: FtsQueryParams, seeds: Seed[]): FtsQueryRe
     perSeedQueryParts.push(
       `SELECT f.entry_id, '${seed.slug}' AS schema_slug, ce.slug, ce.status,` +
       ` ce.${titleColumn} AS title,` +
-      ` snippet(${ftsTable}, 1, '<mark>', '</mark>', '…', 16) AS excerpt,` +
+      ` snippet(${ftsTable}, -1, '<mark>', '</mark>', '…', 16) AS excerpt,` +
       ` bm25(${ftsTable}) AS rank` +
       ` FROM ${ftsTable} f JOIN ${contentTable} ce ON ce.id = f.entry_id` +
       ` WHERE ${whereConditions.join(' AND ')}`,
