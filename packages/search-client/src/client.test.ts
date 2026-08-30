@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SearchClient } from './client.js';
 import { IndexManifest } from './types.js';
 
@@ -255,4 +255,51 @@ describe('SearchClient', () => {
       expect(results).toHaveLength(0);
     });
   });
+
+  // ── debounce ───────────────────────────────────────────────────────────────
+
+  describe('debounce', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('cancels pending search and only executes the latest call when called rapidly', async () => {
+      const manifest: IndexManifest = {
+        model: 'bge-small-en-v1.5',
+        dimensions: DIMS,
+        fingerprint: 'fp',
+        records: [
+          { id: '1', title: 'TypeScript Guide' },
+          { id: '2', title: 'React Handbook' },
+        ],
+      };
+      const buffer = makeBuffer(2);
+      stubFetch(
+        () => jsonResponse(manifest),
+        () => bufferResponse(buffer),
+      );
+      await client.loadIndex('https://cdn/manifest.json', 'https://cdn/vectors.bin');
+
+      vi.useFakeTimers();
+
+      const fetchSpy = vi.fn(() => Promise.resolve(new Response(null, { status: 503 })));
+      vi.stubGlobal('fetch', fetchSpy);
+
+      // Call search rapidly
+      client.search('type', 10);
+      vi.advanceTimersByTime(100);
+
+      const searchPromise2 = client.search('react', 10);
+      vi.advanceTimersByTime(250);
+
+      const results = await searchPromise2;
+      expect(results).toHaveLength(1);
+      expect(results[0].record.id).toBe('2');
+
+      // Only 1 fetch call should have been made for the second query, first was cancelled
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledWith('https://api.example.com/api/v1/public/search/embed?q=react');
+    });
+  });
 });
+

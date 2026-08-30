@@ -7,8 +7,7 @@ export class SearchClient {
   private vectors: Float32Array | null = null;
   private dimensions = 384;
   private apiOrigin: string;
-  // Each query carries its own debounce timer so argument clobbering cannot occur.
-  private debounceTimers = new Map<symbol, ReturnType<typeof setTimeout>>();
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(apiOrigin: string) {
     this.apiOrigin = apiOrigin;
@@ -34,17 +33,12 @@ export class SearchClient {
 
   async search(query: string, limit = 10): Promise<SearchResult[]> {
     return new Promise((resolve, reject) => {
-      const key = Symbol();
+      if (this.debounceTimer) clearTimeout(this.debounceTimer);
 
-      const prev = this.debounceTimers.get(key);
-      if (prev) clearTimeout(prev);
-
-      const timer = setTimeout(() => {
-        this.debounceTimers.delete(key);
+      this.debounceTimer = setTimeout(() => {
+        this.debounceTimer = null;
         this._executeSearch(query, limit).then(resolve).catch(reject);
       }, 250);
-
-      this.debounceTimers.set(key, timer);
     });
   }
 
