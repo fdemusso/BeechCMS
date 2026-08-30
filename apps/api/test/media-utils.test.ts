@@ -46,4 +46,78 @@ describe('media-utils - extractMediaKeysFromData', () => {
     const keys = extractMediaKeysFromData(seed, data)
     expect(keys).toEqual(['avatars/user-1.png'])
   })
+
+  it('estrae chiave correttamente con trailing slash nel CDN e doppio slash nel path', () => {
+    const data = {
+      title: 'Post',
+      image: 'https://cdn.my-site.com//avatars/123-img.png'
+    }
+    const keys = extractMediaKeysFromData(seed, data, 'https://cdn.my-site.com/')
+    expect(keys).toEqual(['avatars/123-img.png'])
+  })
+
+  it('estrae chiave da URL con CDN configurato con prefisso di percorso', () => {
+    const data = {
+      title: 'Post',
+      image: 'https://cdn.my-site.com/assets/avatars/123-img.png'
+    }
+    const keys = extractMediaKeysFromData(seed, data, 'https://cdn.my-site.com/assets')
+    expect(keys).toEqual(['avatars/123-img.png'])
+  })
+
+  it('ignora proprietà prototipiche ereditate come constructor e toString', () => {
+    const pollutedData = Object.create({
+      image: 'https://cdn.my-site.com/evil.png',
+      constructor: 'test',
+      toString: 'test',
+    })
+    pollutedData.title = 'Clean Post'
+    const keys = extractMediaKeysFromData(seed, pollutedData, 'https://cdn.my-site.com')
+    expect(keys).toEqual([])
+  })
+
+  it('estrae chiavi media da campi repeater con subfield file (issue #356)', () => {
+    const seedWithRepeater = {
+      slug: 'pages',
+      displayNameAlias: 'title',
+      allowDrafts: true,
+      branches: [
+        {
+          id: 'br_slides',
+          alias: 'slides',
+          type: 'repeater',
+          label: 'Slides',
+          fields: [{ id: 'br_img', alias: 'image', type: 'file', label: 'Image' }],
+        },
+      ],
+    } as unknown as typeof seed
+
+    const rowData = {
+      title: 'Home Page',
+      slides: [
+        { image: 'https://example.com/api/media/slide1.png' },
+        { image: 'https://example.com/api/media/slide2.png' },
+      ],
+    }
+
+    const keys = extractMediaKeysFromData(seedWithRepeater, rowData)
+    expect(keys).toEqual(['slide1.png', 'slide2.png'])
+  })
+
+  it('gestisce in modo sicuro sequenze percent-encoded malformate senza generare URIError (issue #355)', () => {
+    const data = {
+      title: 'Post con media malformato',
+      image: 'https://example.com/api/media/discount_%E0%A4%A.png',
+    }
+    expect(extractMediaKeysFromData(seed, data)).toEqual([])
+  })
+
+  it('estrae chiavi multiple da stringhe con più URL o testo senza matching greedy corrotto (issue #357)', () => {
+    const data = {
+      title: 'Post con testo',
+      image: '/api/media/first.png e anche /api/media/second.png',
+    }
+    expect(extractMediaKeysFromData(seed, data)).toEqual(['first.png', 'second.png'])
+  })
 })
+

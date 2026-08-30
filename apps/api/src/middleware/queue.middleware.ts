@@ -46,6 +46,10 @@ export const queueMiddleware = (jobs: JobRegistry = {}, overrides?: QueueOverrid
     }
 
     context.set('queue', queue)
+    const repository = context.get('repository') as any
+    if (repository && typeof repository.setQueue === 'function') {
+      repository.setQueue(queue)
+    }
     await next()
   })
 }

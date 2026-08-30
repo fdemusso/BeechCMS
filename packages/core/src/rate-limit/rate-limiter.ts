@@ -4,18 +4,26 @@
 export interface RateLimitResult {
   isAllowed: boolean
   /**
-   * The number of seconds after which the client may retry the request.
-   * Note: This field is optional and may not be supported by all implementations
-   * (e.g. Cloudflare Rate Limit binding does not return retry-after information).
+   * The number of whole seconds after which the client may retry the request.
    */
   retryAfterSeconds?: number
+  /**
+   * The maximum token capacity configured for this limiter.
+   */
+  limit?: number
+  /**
+   * The number of whole tokens remaining in the bucket.
+   */
+  remaining?: number
 }
 
 export interface IRateLimiter {
   /**
    * Checks whether the given key is within the rate limit.
-   * The key should combine the client IP address and an endpoint-specific prefix
-   * to prevent one endpoint's limit from being shared with another.
    */
   checkLimit(key: string): Promise<RateLimitResult>
+  /**
+   * Clears cached bucket state (for testing and isolation).
+   */
+  reset?(): void
 }

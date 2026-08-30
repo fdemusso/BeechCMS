@@ -95,6 +95,15 @@ Custom editor form layout. Absent when no override is stored.
 
 ***
 
+### retentionDays?
+
+> `optional` **retentionDays?**: `number`
+
+Number of days to retain entries before automatic cleanup or anonymization (GDPR compliance).
+Must be a positive integer (\>= 1) when specified.
+
+***
+
 ### slug
 
 > **slug**: `string`

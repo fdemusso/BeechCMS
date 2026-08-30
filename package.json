@@ -65,6 +65,9 @@
     "setup:graph": "node scripts/setup-graph.mjs",
     "release": "node scripts/release.mjs",
     "release:preview": "node scripts/release.mjs --preview",
+    "version:list": "node scripts/release.mjs list",
+    "version:get": "node scripts/release.mjs get",
+    "version:set": "node scripts/release.mjs set",
     "postinstall": "node scripts/check-docker.mjs",
     "prepare": "husky",
     "doctor": "react-doctor -y --no-dead-code"

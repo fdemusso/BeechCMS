@@ -131,6 +131,8 @@ export interface Branch {
     sort?: boolean
     /** Whether the field is included in Public API responses. Default: true. */
     public?: boolean
+    /** Whether the field can be updated via public edit endpoints. Default: false for confidential/internal/restricted, true for public. */
+    publicEdit?: boolean
   }
   /** Advanced options for number fields. Ignored if type !== 'number'. */
   numberOptions?: NumberFieldOptions
@@ -238,6 +240,11 @@ export interface Seed {
    * Required — UIs use it for display without heuristics.
    */
   displayNameAlias: string
+  /**
+   * Number of days to retain entries before automatic cleanup or anonymization (GDPR compliance).
+   * Must be a positive integer (>= 1) when specified.
+   */
+  retentionDays?: number
   /** List of fields (Branch). */
   branches: Branch[]
   /** Optional dashboard-specific UI config. Ignored by the Botanical Engine. */

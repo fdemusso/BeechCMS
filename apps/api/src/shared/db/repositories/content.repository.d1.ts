@@ -21,6 +21,7 @@ import {
   type HookActor,
   type HookContext,
   type IPrivacyService,
+  type IQueueService,
   buildSelectQuery,
   deserializeFromDb,
   serializeForDb,
@@ -110,17 +111,25 @@ function jDraftTable(seedSlug: string, branchAlias: string): string {
  * once the write has already committed and therefore cannot roll back the mutation.
  */
 export class D1ContentRepository extends BaseD1Repository implements ContentRepository {
+  private queue?: IQueueService
+
   constructor(
     database: D1Database,
     private readonly hooks?: BeechHooks,
     private readonly privacyService?: IPrivacyService,
+    queue?: IQueueService,
   ) {
     super(database)
+    this.queue = queue
+  }
+
+  setQueue(queue: IQueueService): void {
+    this.queue = queue
   }
 
   /** Assembles the {@link HookContext} passed to every lifecycle hook invocation. */
   private hookCtx(seed: Seed, actor?: HookActor): HookContext {
-    return { seed, repository: this, actor, db: this.database }
+    return { seed, repository: this, actor, db: this.database, queue: this.queue }
   }
 
   private async serializeAndProtect(

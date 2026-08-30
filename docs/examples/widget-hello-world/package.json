@@ -16,7 +16,7 @@
     "react": "^19.0.0"
   },
   "dependencies": {
-    "@beechcms/widget-sdk": "workspace:^0.6.0-preview.3",
+    "@beechcms/widget-sdk": "workspace:^0.8.0-preview.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

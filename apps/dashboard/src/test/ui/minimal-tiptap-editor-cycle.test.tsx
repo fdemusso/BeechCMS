@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi } from "vitest"
 import { render, waitFor } from "@testing-library/react"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { MinimalTiptapEditor } from "@/components/ui/minimal-tiptap"
@@ -11,7 +11,6 @@ import type { JSONContent } from "@tiptap/react"
 
 describe("MinimalTiptapEditor & RichtextEditor lifecycle and encoding", () => {
   it("emits native TipTap JSON on update by default without HTML double-wrapping", async () => {
-    let emittedContent: unknown = null
     const initialDoc: JSONContent = {
       type: "doc",
       content: [
@@ -26,9 +25,7 @@ describe("MinimalTiptapEditor & RichtextEditor lifecycle and encoding", () => {
       <TooltipProvider>
         <RichtextEditor
           value={initialDoc}
-          onChange={(val) => {
-            emittedContent = val
-          }}
+          onChange={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -48,15 +45,12 @@ describe("MinimalTiptapEditor & RichtextEditor lifecycle and encoding", () => {
   it("handles multi-cycle save and reload without recursive nesting or double-encoding", async () => {
     // Cycle 1: initial save from HTML input
     const initialHtml = "<p class=\"text-node\">First cycle content</p>"
-    let savedContentCycle1: unknown = null
 
     const { unmount: unmount1 } = render(
       <TooltipProvider>
         <RichtextEditor
           value={initialHtml}
-          onChange={(val) => {
-            savedContentCycle1 = val
-          }}
+          onChange={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -79,15 +73,12 @@ describe("MinimalTiptapEditor & RichtextEditor lifecycle and encoding", () => {
         },
       ],
     }
-    let savedContentCycle2: unknown = null
 
     const { unmount: unmount2 } = render(
       <TooltipProvider>
         <RichtextEditor
           value={docCycle2}
-          onChange={(val) => {
-            savedContentCycle2 = val
-          }}
+          onChange={vi.fn()}
         />
       </TooltipProvider>
     )

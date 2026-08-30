@@ -184,6 +184,8 @@ function buildWranglerJsonc(cfg) {
 function buildDevVars(cloudflare) {
   if (cloudflare) {
     return [
+      `# Cloudflare R2 S3 credentials (required for direct client upload via Presigned URLs)`,
+      `# Guide: https://developers.cloudflare.com/r2/api/s3/tokens/`,
       `R2_ACCESS_KEY_ID=${cloudflare.r2AccessKey}`,
       `R2_SECRET_ACCESS_KEY=${cloudflare.r2SecretKey}`,
       `R2_ENDPOINT=${cloudflare.r2Endpoint}`,
@@ -191,9 +193,8 @@ function buildDevVars(cloudflare) {
     ].join('\n') + '\n'
   }
   return [
-    '# R2 credentials — only needed if you want production-like S3 media uploads locally.',
-    '# For local development, media uploads work automatically via the Miniflare R2 binding.',
-    '# Fill these in only when testing production media behaviour:',
+    '# Cloudflare R2 S3 credentials (required for direct client upload via Presigned URLs)',
+    '# Create an R2 API Token: Cloudflare Dashboard → R2 → "Manage R2 API Tokens" (Object Read & Write)',
     '# Guide: https://developers.cloudflare.com/r2/api/s3/tokens/',
     'R2_ACCESS_KEY_ID=',
     'R2_SECRET_ACCESS_KEY=',
@@ -238,35 +239,57 @@ async function askCloudflareConfig(name) {
   })
   if (p.isCancel(accountId)) return null
 
-  const d1Name = await p.text({
-    message: 'D1 Database name',
-    initialValue: `${name}-db`,
-    validate: (v) => { if (!v.trim()) return 'Required' },
+  const autoCreate = await p.confirm({
+    message: `Auto-create Cloudflare D1 (${name}-db) and R2 (${name}-media) now?`,
+    hint: 'Runs `wrangler d1 create` and `wrangler r2 bucket create`',
+    initialValue: true,
   })
-  if (p.isCancel(d1Name)) return null
+  if (p.isCancel(autoCreate)) return null
 
-  const d1Id = await p.text({
-    message: 'D1 Database ID',
-    placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-    hint: `Run: npx wrangler d1 create ${d1Name} — copy the "database_id" from the output`,
-    validate: (v) => { if (!v.trim()) return 'Required — create the D1 database first and paste its ID here' },
-  })
-  if (p.isCancel(d1Id)) return null
+  let d1Id = ''
+  const d1Name = `${name}-db`
+  const r2Bucket = `${name}-media`
 
-  const r2Bucket = await p.text({
-    message: 'R2 Bucket name',
-    initialValue: `${name}-media`,
-    validate: (v) => { if (!v.trim()) return 'Required' },
-  })
-  if (p.isCancel(r2Bucket)) return null
+  if (autoCreate) {
+    const s = p.spinner()
+    s.start(`Creating D1 database: ${pc.bold(d1Name)}…`)
+    const d1Res = spawnSync('npx', ['wrangler', 'd1', 'create', d1Name], { encoding: 'utf-8', shell: true })
+    const d1Out = (d1Res.stdout || '') + (d1Res.stderr || '')
+    const idMatch = d1Out.match(/database_id\s*=\s*["']?([a-f0-9-]{36})["']?/i) ||
+                    d1Out.match(/"database_id":\s*"([a-f0-9-]{36})"/i) ||
+                    d1Out.match(/([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})/i)
+    if (idMatch) {
+      d1Id = idMatch[1]
+      s.stop(pc.green(`✓ D1 database ready (${d1Id})`))
+    } else {
+      s.stop(pc.yellow(`ℹ D1 status: ${d1Out.trim().slice(0, 100)}`))
+    }
+
+    s.start(`Creating R2 bucket: ${pc.bold(r2Bucket)}…`)
+    spawnSync('npx', ['wrangler', 'r2', 'bucket', 'create', r2Bucket], { encoding: 'utf-8', shell: true })
+    s.stop(pc.green(`✓ R2 bucket ready (${r2Bucket})`))
+  }
+
+  if (!d1Id) {
+    const d1IdInput = await p.text({
+      message: 'D1 Database ID',
+      placeholder: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+      hint: `Run: npx wrangler d1 create ${d1Name} — paste the "database_id" here`,
+      validate: (v) => { if (!v.trim()) return 'Required — paste database_id from D1' },
+    })
+    if (p.isCancel(d1IdInput)) return null
+    d1Id = d1IdInput.trim()
+  }
 
   p.note(
     [
+      'Direct client uploads use Presigned URLs (SigV4) to stream files directly to R2.',
       'Create an R2 API token:',
       '  Cloudflare Dashboard → R2 → "Manage R2 API Tokens"',
       `  → Create Token → Object Read & Write → bucket: ${r2Bucket}`,
+      'Guide: https://developers.cloudflare.com/r2/api/s3/tokens/',
     ].join('\n'),
-    'R2 credentials'
+    'R2 S3 Credentials (for Presigned URLs)'
   )
 
   const r2AccessKey = await p.text({
@@ -429,10 +452,17 @@ async function main() {
       ...(pendingConfig ? [
         `${pc.bold('3. Complete Cloudflare configuration')}  ${pc.yellow('← pending')}`,
         `   Edit ${pc.underline('wrangler.jsonc')}  →  fill in ${pc.yellow('database_id')} (D1) and ${pc.yellow('bucket_name')} (R2)`,
-        `   Guide: https://developers.cloudflare.com/d1/`,
-        `   ${pc.dim('Note: media uploads work locally without R2 credentials (.dev.vars optional)')}`,
+        `   Set R2 S3 secrets for Presigned uploads in ${pc.underline('.dev.vars')} (dev) and via ${pc.cyan('npx wrangler secret put')} (prod)`,
+        `   Guide: https://developers.cloudflare.com/r2/api/s3/tokens/`,
         '',
-      ] : []),
+      ] : [
+        `${pc.bold('3. Production R2 secrets')} (when deploying to Cloudflare)`,
+        `   ${pc.cyan('npx wrangler secret put R2_ACCESS_KEY_ID')}`,
+        `   ${pc.cyan('npx wrangler secret put R2_SECRET_ACCESS_KEY')}`,
+        `   ${pc.cyan('npx wrangler secret put R2_ENDPOINT')}  →  ${cloudflare.r2Endpoint}`,
+        `   ${pc.cyan('npx wrangler secret put R2_BUCKET_NAME')}  →  ${cloudflare.r2Bucket}`,
+        '',
+      ]),
       `${step(3)}. Run local migrations`,
       `   ${pc.cyan('npm run db:migrate:local')}`,
       '',

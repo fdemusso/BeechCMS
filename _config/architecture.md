@@ -37,4 +37,8 @@ You are assisting with the Beech CMS codebase. You MUST strictly adhere to the f
 ## 6. Testing
 - **Integration**: Uses real services via Docker (MinIO, Mailpit, webhook-tester). NO external mocks.
 - **Database**: Uses `D1TestDatabase` (better-sqlite3 in-memory) for exact D1/FTS5 emulation.
+
+## 7. RichText Architecture & Schema Invariants
+- **TipTap Schema Parity**: All TipTap marks and nodes supported in `@beechcms/dashboard` (e.g., `textStyle`, `color`, `taskList`, `taskItem`, `underline`, `horizontalRule`, math) MUST be registered in `@beechcms/core` (`createRichTextHtmlExtensions`), allowlisted in `@beechcms/core` validation (`ALLOWED_RICHTEXT_MARK_TYPES`, `ALLOWED_RICHTEXT_NODE_TYPES`), and handled in `@beechcms/client` (`render.ts`).
+- **Fault-Tolerant Rendering**: `renderRichText()` in `@beechcms/core` and dashboard display components (e.g. `RichtextDisplay`) MUST defensively catch schema deserialization errors (returning empty string / fallback text) so that malformed or legacy marks never crash table, gallery, or public pages.
 </architecture_rules>

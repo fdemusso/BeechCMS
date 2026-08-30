@@ -24,7 +24,11 @@ export class D1ContentScanRepository implements IContentScanRepository {
         for (const contentRow of contentData.results ?? []) {
           const rowContentString = Object.values(contentRow).filter(Boolean).join(' ')
           for (const keyMatch of rowContentString.matchAll(/\/api\/media\/([^"'\s\\,}\]]+)/g)) {
-            referencedMediaKeys.add(decodeURIComponent(keyMatch[1]))
+            try {
+              referencedMediaKeys.add(decodeURIComponent(keyMatch[1]))
+            } catch {
+              // Ignore malformed URI
+            }
           }
         }
       } catch {

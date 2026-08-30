@@ -651,6 +651,29 @@ Copy the `database_id` from the output and update `wrangler.jsonc`:
 ]
 ```
 
+### Configure R2 S3 Secrets (for Presigned Direct Uploads)
+
+BeechCMS uses direct **Presigned URLs (SigV4)** for media uploads so that binary file bytes stream directly from the browser to Cloudflare R2, bypassing the Worker memory and CPU.
+
+To enable Presigned URLs in production:
+1. Go to **Cloudflare Dashboard** → **R2** → **Manage R2 API Tokens**.
+2. Click **Create API Token** → Select **Object Read & Write** permissions for bucket `my-blog-media`.
+3. Set the secrets on your Worker:
+
+```bash
+npx wrangler secret put R2_ACCESS_KEY_ID
+npx wrangler secret put R2_SECRET_ACCESS_KEY
+```
+
+And define `R2_ENDPOINT` and `R2_BUCKET_NAME` in `wrangler.jsonc` `vars` (or as secrets):
+
+```jsonc
+"vars": {
+  "R2_ENDPOINT": "https://<YOUR_ACCOUNT_ID>.r2.cloudflarestorage.com",
+  "R2_BUCKET_NAME": "my-blog-media"
+}
+```
+
 ### Deploy Command
 
 BeechCMS includes a unified deploy command that builds the worker, deploys assets, and syncs your remote D1 schema:

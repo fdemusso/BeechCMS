@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { isValidContentStatus, resolvePolicies, EntryNotFoundError } from '@beechcms/core'
+import { isValidContentStatus, resolveClassification, resolvePolicies, EntryNotFoundError } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../shared/utils/query-utils'
@@ -75,25 +75,93 @@ function resolveData(
 
   const rawData = asRecord(body.data)
   if (!rawData) {
-    return { ok: false, response: publicProblem(context, { type: 'invalid-data-object', title: 'Bad Request', status: 400, detail: "Field 'data' must be an object when provided" }) }
+    return {
+      ok: false,
+      response: publicProblem(context, {
+        type: 'invalid-data-object',
+        title: 'Bad Request',
+        status: 400,
+        detail: "Field 'data' must be an object when provided",
+      }),
+    }
   }
 
-  const sensitiveAliases = Object.keys(rawData).filter((alias) => {
+  // 1. Check for internal/restricted fields
+  const internalOrRestricted = Object.keys(rawData).filter((alias) => {
     const branch = seed.branches.find((b) => b.alias === alias)
     if (!branch) return false
-    const policies = resolvePolicies(branch)
-    return policies.privacy !== 'plain' || policies.public === false
+    const classification = resolveClassification(branch).classification
+    return classification === 'internal' || classification === 'restricted'
   })
-  if (sensitiveAliases.length > 0) {
-    return { ok: false, response: publicProblem(context, { type: 'sensitive-field-edit', title: 'Unprocessable Entity', status: 422, detail: `Cannot edit sensitive fields: ${sensitiveAliases.join(', ')}` }) }
+
+  if (internalOrRestricted.length > 0) {
+    return {
+      ok: false,
+      response: publicProblem(context, {
+        type: 'sensitive-field-edit',
+        title: 'Unprocessable Entity',
+        status: 422,
+        detail: `Cannot write internal/restricted fields: ${internalOrRestricted.join(', ')}`,
+      }),
+    }
   }
 
-  const sanitized = sanitizePublicPayload(seed, rawData, { allowNull: true, operation: 'update', requireAtLeastOneValidField: true, enforceRequiredFields: true })
+  // 2. Check for confidential fields without explicit publicEdit permission
+  const unauthorizedConfidential = Object.keys(rawData).filter((alias) => {
+    const branch = seed.branches.find((b) => b.alias === alias)
+    if (!branch) return false
+    const classification = resolveClassification(branch).classification
+    if (classification === 'confidential') {
+      const policies = resolvePolicies(branch)
+      return !policies.publicEdit
+    }
+    // Also block non-confidential branches where public === false
+    const policies = resolvePolicies(branch)
+    return policies.public === false && !policies.publicEdit
+  })
+
+  if (unauthorizedConfidential.length > 0) {
+    const alias = unauthorizedConfidential[0]
+    return {
+      ok: false,
+      response: publicProblem(context, {
+        type: 'sensitive-field-edit',
+        title: 'Unprocessable Entity',
+        status: 422,
+        detail: `Cannot edit sensitive field '${alias}': edit permission not granted by seed declaration`,
+      }),
+    }
+  }
+
+  const sanitized = sanitizePublicPayload(seed, rawData, {
+    allowNull: true,
+    operation: 'update',
+    requireAtLeastOneValidField: true,
+    enforceRequiredFields: true,
+  })
+
   if (!sanitized.ok) {
     if (sanitized.status === 422) {
-      return { ok: false, response: publicProblem(context, { type: sanitized.code, title: 'Unprocessable Entity', status: 422, detail: sanitized.message }) }
+      return {
+        ok: false,
+        response: publicProblem(context, {
+          type: sanitized.code,
+          title: 'Unprocessable Entity',
+          status: 422,
+          detail: sanitized.message,
+        }),
+      }
     }
-    return { ok: false, response: publicProblem(context, { type: sanitized.code, title: 'Bad Request', status: 400, detail: sanitized.message, errors: sanitized.details }) }
+    return {
+      ok: false,
+      response: publicProblem(context, {
+        type: sanitized.code,
+        title: 'Bad Request',
+        status: 400,
+        detail: sanitized.message,
+        errors: sanitized.details,
+      }),
+    }
   }
 
   return { ok: true, value: removeNullishFields(sanitized.data) }

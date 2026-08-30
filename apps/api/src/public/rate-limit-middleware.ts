@@ -21,17 +21,30 @@ export function publicRateLimitMiddleware() {
     if (path.startsWith('/api/v1/public/')) {
       const remaining = path.slice('/api/v1/public/'.length)
       const firstSegment = remaining.split('/')[0]
-      if (firstSegment && firstSegment !== 'health' && firstSegment !== 'schema' && firstSegment !== 'schema.html') {
+      if (firstSegment && firstSegment !== 'health' && firstSegment !== 'timetrap' && firstSegment !== 'search') {
         seed = c.get('seedRegistry').get(firstSegment) ? firstSegment : 'invalid-seed'
       }
     }
     const key = `${getClientIp(c.req)}:${seed}:${limiterName}`
     const result = await c.get('rateLimiters').getLimiter(limiterName).checkLimit(key)
 
+    if (result.limit !== undefined) {
+      c.header('X-RateLimit-Limit', String(result.limit))
+    }
+    if (result.remaining !== undefined) {
+      c.header('X-RateLimit-Remaining', String(result.remaining))
+    }
+
     if (!result.isAllowed) {
       const headers: Record<string, string> = {}
       if (result.retryAfterSeconds !== undefined) {
         headers['Retry-After'] = String(result.retryAfterSeconds)
+      }
+      if (result.limit !== undefined) {
+        headers['X-RateLimit-Limit'] = String(result.limit)
+      }
+      if (result.remaining !== undefined) {
+        headers['X-RateLimit-Remaining'] = String(result.remaining)
       }
       return publicProblem(c, {
         type: 'rate-limit-exceeded',

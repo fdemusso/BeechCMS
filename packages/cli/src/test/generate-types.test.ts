@@ -7,6 +7,7 @@ import { resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import type { Seed } from '@beechcms/core'
 import { generateTypes } from '../commands/generate-types.js'
+import * as wrangler from '../lib/wrangler.js'
 
 const ARTICLES_SEED: Seed = {
   slug: 'articles',
@@ -18,41 +19,116 @@ const ARTICLES_SEED: Seed = {
   ],
 } as Seed
 
-const registry: Record<string, Seed> = { articles: ARTICLES_SEED }
+const SAMPLE_ROWS = [
+  {
+    slug: 'articles',
+    definition: JSON.stringify(ARTICLES_SEED),
+    status: 'active',
+  },
+]
 
-const outPath = resolve(tmpdir(), `beech-test-${Date.now()}.ts`)
+describe('generateTypes command', () => {
+  const outDir = resolve(tmpdir(), `beech-gen-test-${Date.now()}`)
+  const outPath = resolve(outDir, 'nested', 'beech-types.ts')
 
-afterEach(() => {
-  if (existsSync(outPath)) rmSync(outPath)
-})
-
-describe('generateTypes — local registry (injected)', () => {
-  it('writes the output file', async () => {
-    await generateTypes({ out: outPath, local: true, registry })
-    expect(existsSync(outPath)).toBe(true)
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    vi.spyOn(wrangler, 'findWranglerConfig').mockReturnValue('/fake/wrangler.jsonc')
+    vi.spyOn(wrangler, 'resolveDbName').mockReturnValue('beech-db')
+    vi.spyOn(wrangler, 'getLocalD1SqlitePath').mockReturnValue('/fake/path.sqlite')
+    vi.spyOn(wrangler, 'queryD1').mockReturnValue(SAMPLE_ROWS)
   })
 
-  it('output contains the interface', async () => {
-    await generateTypes({ out: outPath, local: true, registry })
+  afterEach(() => {
+    if (existsSync(outDir)) rmSync(outDir, { recursive: true, force: true })
+  })
+
+  it('writes output to file when out option is specified and creates directories', async () => {
+    await generateTypes({ out: outPath, local: true })
+    expect(existsSync(outPath)).toBe(true)
     const content = readFileSync(outPath, 'utf-8')
     expect(content).toContain('export interface Articles {')
-  })
-
-  it('output starts with the auto-generated banner', async () => {
-    await generateTypes({ out: outPath, local: true, registry })
-    const content = readFileSync(outPath, 'utf-8')
+    expect(content).toContain('export interface BeechDatabase {')
+    expect(content).toContain('export type SeedRegistryTypes = BeechDatabase')
     expect(content).toContain('generato automaticamente')
   })
 
-  it('output contains SeedRegistryTypes', async () => {
-    await generateTypes({ out: outPath, local: true, registry })
-    const content = readFileSync(outPath, 'utf-8')
-    expect(content).toContain('export interface SeedRegistryTypes {')
+  it('streams to stdout when out option is omitted or null', async () => {
+    let stdoutData = ''
+    const stdoutSpy = vi.spyOn(process.stdout, 'write').mockImplementation((chunk: any) => {
+      stdoutData += chunk
+      return true
+    })
+
+    await generateTypes({})
+    expect(stdoutSpy).toHaveBeenCalled()
+    expect(stdoutData).toContain('export interface Articles {')
+    expect(stdoutData).toContain('export interface BeechDatabase {')
   })
 
-  it('exits with an error when registry is empty', async () => {
-    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit') })
-    await expect(generateTypes({ out: outPath, local: true, registry: {} })).rejects.toThrow('exit')
-    exitSpy.mockRestore()
+  it('passes local and db options to queryD1', async () => {
+    const querySpy = vi.spyOn(wrangler, 'queryD1').mockReturnValue(SAMPLE_ROWS)
+
+    await generateTypes({ local: false, db: 'custom-db', out: outPath })
+    expect(querySpy).toHaveBeenCalledWith(
+      expect.stringContaining("SELECT slug, definition FROM seeds WHERE status = 'active'"),
+      expect.objectContaining({ local: false, db: 'custom-db' })
+    )
+  })
+
+  it('exits with code 1 when local SQLite database file is missing in local mode', async () => {
+    vi.spyOn(wrangler, 'getLocalD1SqlitePath').mockReturnValue(null)
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit:1') })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(generateTypes({ local: true })).rejects.toThrow('exit:1')
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Local D1 database state not found'))
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('exits with code 1 when seeds table is missing', async () => {
+    vi.spyOn(wrangler, 'queryD1').mockImplementation(() => {
+      throw new Error('no such table: seeds')
+    })
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit:1') })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(generateTypes({})).rejects.toThrow('exit:1')
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('System table `seeds` not found in database'))
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('exits with code 1 on generic query error', async () => {
+    vi.spyOn(wrangler, 'queryD1').mockImplementation(() => {
+      throw new Error('connection timeout')
+    })
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit:1') })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(generateTypes({})).rejects.toThrow('exit:1')
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to introspect D1 database'))
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('exits with code 1 when active seeds table is empty', async () => {
+    vi.spyOn(wrangler, 'queryD1').mockReturnValue([])
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit:1') })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(generateTypes({})).rejects.toThrow('exit:1')
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('No active seeds found in D1 database'))
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('exits with code 1 when seed definition JSON is malformed', async () => {
+    vi.spyOn(wrangler, 'queryD1').mockReturnValue([
+      { slug: 'bad', definition: '{ invalid json' },
+    ])
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit:1') })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(generateTypes({})).rejects.toThrow('exit:1')
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Failed to parse seed definitions from database'))
+    expect(exitSpy).toHaveBeenCalledWith(1)
   })
 })

@@ -459,6 +459,59 @@ describe('validateSeedDefinitions', () => {
     expect(validateSeedDefinitions(seeds)).toEqual([])
   })
 
+  // ── Fatal 13: retentionDays validation ─────────────────────────────────────
+
+  it('fatal: rejects non-integer or non-positive retentionDays', () => {
+    const invalidValues = [0, -5, 1.5, NaN, -Infinity]
+    for (const val of invalidValues) {
+      const seeds = [makeSeed({ slug: 'leads', retentionDays: val })]
+      const issues = validateSeedDefinitions(seeds)
+      const fatal = issues.filter(i => i.fatal && i.slug === 'leads')
+      expect(fatal.length).toBeGreaterThan(0)
+      expect(fatal[0].messages.some(m => m.includes('retentionDays must be a positive integer'))).toBe(true)
+    }
+  })
+
+  it('accepts valid positive integer retentionDays', () => {
+    const seeds = [makeSeed({ slug: 'leads', retentionDays: 30 })]
+    const issues = validateSeedDefinitions(seeds)
+    expect(issues.filter(i => i.fatal)).toEqual([])
+  })
+
+  // ── Fatal 14: publicEdit validation ─────────────────────────────────────────
+
+  it('fatal: rejects non-boolean publicEdit on branch policies', () => {
+    const invalidValues = ['yes', 1, null, {}, []]
+    for (const val of invalidValues) {
+      const seeds = [
+        makeSeed({
+          slug: 'leads',
+          branches: [
+            { id: 'br_01', alias: 'title', label: 'Title', type: 'text', policies: { publicEdit: val as any } },
+          ],
+        }),
+      ]
+      const issues = validateSeedDefinitions(seeds)
+      const fatal = issues.filter(i => i.fatal && i.slug === 'leads')
+      expect(fatal.length).toBeGreaterThan(0)
+      expect(fatal[0].messages.some(m => m.includes('policies.publicEdit must be a boolean'))).toBe(true)
+    }
+  })
+
+  it('accepts valid boolean publicEdit on branch policies', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'leads',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text', policies: { publicEdit: true } },
+          { id: 'br_02', alias: 'email', label: 'Email', type: 'text', policies: { publicEdit: false } },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    expect(issues.filter(i => i.fatal)).toEqual([])
+  })
+
   // ── isSeedSetValid ────────────────────────────────────────────────────────────
 
   it('isSeedSetValid returns true for clean set', () => {

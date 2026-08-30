@@ -11,7 +11,16 @@
 import type { Seed } from '@beechcms/core'
 
 /** Pattern per estrarre la chiave R2 da URL in formato /api/media/KEY */
-const MEDIA_URL_PATTERN = /\/api\/media\/([^?#]+)/
+const MEDIA_URL_PATTERN = /\/api\/media\/([^?#\s"'`<>()[\]{}]+)/
+const MEDIA_URL_GLOBAL_PATTERN = /\/api\/media\/([^?#\s"'`<>()[\]{}]+)/g
+
+function safeDecodeKey(rawKey: string): string | null {
+  try {
+    return decodeURIComponent(rawKey)
+  } catch {
+    return null
+  }
+}
 
 /**
  * Estrae la chiave R2 da un URL di media.
@@ -26,19 +35,24 @@ export function extractMediaKey(mediaUrl: string, cdnUrl?: string): string | nul
 
   if (cdnUrl) {
     try {
-      const cdnOrigin = new URL(cdnUrl).origin
-      const mediaUrlParsed = new URL(urlStr)
-      if (mediaUrlParsed.origin === cdnOrigin) {
-        const keyPart = mediaUrlParsed.pathname.replace(/^\//, '')
-        return keyPart ? decodeURIComponent(keyPart) : null
+      const cdnParsed = new URL(cdnUrl)
+      const cdnOrigin = cdnParsed.origin
+      const cdnPathPrefix = cdnParsed.pathname.replace(/\/+$/, '')
+      const cdnPrefix = `${cdnOrigin}${cdnPathPrefix}/`
+      const escapedPrefix = cdnPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      const cdnRegex = new RegExp(`${escapedPrefix}+([^?#\\s"'\`<>()[\\\\\\]{}]+)`)
+      const match = cdnRegex.exec(urlStr)
+      if (match) {
+        const key = match[1].replace(/^\/+/, '')
+        return key ? safeDecodeKey(key) : null
       }
     } catch {
-      // mediaUrl not absolute or cdnUrl invalid, fall through to pattern match
+      // invalid cdnUrl, fall through to pattern match
     }
   }
 
   const match = MEDIA_URL_PATTERN.exec(urlStr)
-  return match ? decodeURIComponent(match[1]) : null
+  return match ? safeDecodeKey(match[1]) : null
 }
 
 /**
@@ -47,19 +61,42 @@ export function extractMediaKey(mediaUrl: string, cdnUrl?: string): string | nul
  */
 function collectMediaKeysRecursive(value: unknown, collectedKeys: Set<string>, cdnUrl?: string): void {
   if (typeof value === 'string') {
-    const r2Key = extractMediaKey(value, cdnUrl)
-    if (r2Key) {
-      collectedKeys.add(r2Key)
-      return
-    }
     // Legacy compat: campi json/file possono contenere JSON serializzato.
     try {
       const parsed = JSON.parse(value) as unknown
-      if (parsed !== value) {
+      if (parsed !== value && typeof parsed === 'object' && parsed !== null) {
         collectMediaKeysRecursive(parsed, collectedKeys, cdnUrl)
+        return
       }
     } catch {
       // ignore
+    }
+
+    if (cdnUrl) {
+      try {
+        const cdnParsed = new URL(cdnUrl)
+        const cdnOrigin = cdnParsed.origin
+        const cdnPathPrefix = cdnParsed.pathname.replace(/\/+$/, '')
+        const cdnPrefix = `${cdnOrigin}${cdnPathPrefix}/`
+        const escapedPrefix = cdnPrefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+        const cdnRegex = new RegExp(`${escapedPrefix}+([^?#\\s"'\`<>()[\\\\\\]{}]+)`, 'g')
+        for (const match of value.matchAll(cdnRegex)) {
+          const key = safeDecodeKey(match[1].replace(/^\/+/, ''))
+          if (key) collectedKeys.add(key)
+        }
+      } catch {
+        // ignore invalid cdnUrl
+      }
+    }
+
+    for (const match of value.matchAll(MEDIA_URL_GLOBAL_PATTERN)) {
+      const key = safeDecodeKey(match[1])
+      if (key) collectedKeys.add(key)
+    }
+
+    const singleKey = extractMediaKey(value, cdnUrl)
+    if (singleKey) {
+      collectedKeys.add(singleKey)
     }
     return
   }
@@ -76,11 +113,11 @@ function collectMediaKeysRecursive(value: unknown, collectedKeys: Set<string>, c
 
 /**
  * Estrae tutte le chiavi R2 dal data di un'entry.
- * Cerca nei campi `file` (stringa URL) e `json` (array/oggetto con URL).
- * Il data è in formato DB: chiavi = branch.id (es. art_03, prd_05).
+ * Cerca nei campi `file` (stringa URL), `json` (array/oggetto con URL) e `repeater` (array di record).
+ * Il data è in formato DB o deserializzato (chiavi = branch alias).
  *
  * @param seed - Schema del tipo di contenuto
- * @param entryData - Payload in formato DB (chiavi = branch ID)
+ * @param entryData - Payload (chiavi = branch alias)
  * @param cdnUrl - URL CDN opzionale configurato
  * @returns Array di chiavi R2 uniche da eliminare
  */
@@ -91,8 +128,8 @@ export function extractMediaKeysFromData(
 ): string[] {
   const r2Keys = new Set<string>()
   for (const branch of seed.branches) {
-    if (branch.type !== 'file' && branch.type !== 'json') continue
-    const fieldValue = entryData[branch.alias]
+    if (branch.type !== 'file' && branch.type !== 'json' && branch.type !== 'repeater') continue
+    const fieldValue = Object.hasOwn(entryData, branch.alias) ? entryData[branch.alias] : undefined
     if (fieldValue == null) continue
     collectMediaKeysRecursive(fieldValue, r2Keys, cdnUrl)
   }

@@ -111,6 +111,11 @@ export function resolvePolicies(branch: Branch): Required<NonNullable<Branch['po
   const defaultSort = isRepeater || isEncryptedOrHashed ? false : branch.policies?.sort ?? true
   const defaultSearch = isRepeater || isEncryptedOrHashed ? false : branch.policies?.search ?? true
 
+  // publicEdit default: true for public fields (unless public: false), false for confidential/internal/restricted
+  const defaultPublicEdit = resolved.classification === 'public'
+    ? (branch.policies?.publicEdit ?? isPublicAllowed)
+    : (branch.policies?.publicEdit ?? false)
+
   return {
     classification: resolved.classification,
     privacy: resolved.storage,
@@ -119,6 +124,7 @@ export function resolvePolicies(branch: Branch): Required<NonNullable<Branch['po
     filter: defaultFilter,
     sort: defaultSort,
     public: isPublicAllowed,
+    publicEdit: defaultPublicEdit,
   }
 }
 

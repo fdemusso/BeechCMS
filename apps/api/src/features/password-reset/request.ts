@@ -8,6 +8,7 @@ import type { Env, Variables } from '../../types'
 import { sendPasswordResetEmail, resolveEmailLocale } from '../../shared/email'
 import { sha256hex } from '@beechcms/core'
 import { getClientIp } from '../../shared/utils/request-utils'
+import { checkDualKeyRateLimit, normalizeAccountKey } from '../../shared/utils/dual-key-rate-limiter'
 
 const PASSWORD_RESET_TOKEN_EXPIRY_SECONDS = 30 * 60
 
@@ -25,30 +26,53 @@ export async function requestPasswordReset(
     return context.json({ error: 'Service not available' }, 503)
   }
 
+  const clientIpAddress = getClientIp(req)
+
   let payload: Record<string, unknown>
   try {
     payload = await req.json()
   } catch {
+    const ipLimit = await context.get('rateLimiters').getLimiter('forgotPassword').checkLimit(clientIpAddress)
+    if (!ipLimit.isAllowed) {
+      const headers: Record<string, string> = {}
+      if (ipLimit.retryAfterSeconds !== undefined) {
+        headers['Retry-After'] = String(ipLimit.retryAfterSeconds)
+      }
+      return context.json({ error: 'Too many requests' }, 429, headers)
+    }
     return context.json({ error: 'Invalid request body' }, 400)
   }
 
   const emailInput = payload.email
   if (typeof emailInput !== 'string' || !emailInput.trim()) {
+    const ipLimit = await context.get('rateLimiters').getLimiter('forgotPassword').checkLimit(clientIpAddress)
+    if (!ipLimit.isAllowed) {
+      const headers: Record<string, string> = {}
+      if (ipLimit.retryAfterSeconds !== undefined) {
+        headers['Retry-After'] = String(ipLimit.retryAfterSeconds)
+      }
+      return context.json({ error: 'Too many requests' }, 429, headers)
+    }
     return context.json({ error: 'Invalid request' }, 400)
   }
 
-  const normalizedEmail = emailInput.trim().toLowerCase()
-  const emailLocale = resolveEmailLocale(payload.locale)
+  const dualKeyResult = await checkDualKeyRateLimit({
+    ipLimiter: context.get('rateLimiters').getLimiter('forgotPassword'),
+    accountLimiter: context.get('rateLimiters').getLimiter('forgotPasswordAccount'),
+    clientIp: clientIpAddress,
+    accountKey: emailInput,
+  })
 
-  const clientIpAddress = getClientIp(req)
-  const forgotPasswordRateLimit = await context.get('rateLimiters').getLimiter('forgotPassword').checkLimit(clientIpAddress)
-  if (!forgotPasswordRateLimit.isAllowed) {
+  if (!dualKeyResult.isAllowed) {
     const headers: Record<string, string> = {}
-    if (forgotPasswordRateLimit.retryAfterSeconds !== undefined) {
-      headers['Retry-After'] = String(forgotPasswordRateLimit.retryAfterSeconds)
+    if (dualKeyResult.retryAfterSeconds !== undefined) {
+      headers['Retry-After'] = String(dualKeyResult.retryAfterSeconds)
     }
     return context.json({ error: 'Too many requests' }, 429, headers)
   }
+
+  const normalizedEmail = normalizeAccountKey(emailInput)
+  const emailLocale = resolveEmailLocale(payload.locale)
 
   // Always return 200 even when the user is not found to prevent user enumeration.
   const registeredUser = await context.get('userRepository').findByEmail(normalizedEmail)

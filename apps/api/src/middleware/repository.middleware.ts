@@ -25,8 +25,9 @@ import { D1DashboardLayoutRepository } from '../shared/db/repositories/dashboard
 import { D1SeedRepository } from '../shared/db/repositories/seed.repository.d1'
 import { D1SchemaMutator } from '../shared/db/migrations/schema-mutator.d1'
 import { D1KanbanPositionRepository } from '../shared/db/repositories/kanban-position.repository.d1'
-import { SystemClock, SystemIdGenerator } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository } from '@beechcms/core'
+import { D1TimeTrapTokenRepository } from '../shared/db/repositories/time-trap-token.repository.d1'
+import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations/engine/automation-runner'
 import { D1AutomationRepository } from '../shared/db/repositories/automations.repository.d1'
@@ -59,6 +60,8 @@ interface RepositoryOverrides {
   schemaMutator?: ISchemaMutator
   dashboardLayoutRepository?: IDashboardLayoutRepository
   kanbanPositionRepository?: IKanbanPositionRepository
+  antivirusProvider?: IAntivirusProvider
+  timeTrapTokenRepository?: ITimeTrapTokenRepository
   hooks?: BeechHooks
 }
 
@@ -116,6 +119,8 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('schemaMutator', overrides?.schemaMutator ?? new D1SchemaMutator(database))
     context.set('dashboardLayoutRepository', overrides?.dashboardLayoutRepository ?? new D1DashboardLayoutRepository(database))
     context.set('kanbanPositionRepository', overrides?.kanbanPositionRepository ?? new D1KanbanPositionRepository(database))
+    context.set('antivirusProvider', overrides?.antivirusProvider ?? new VirusTotalAntivirusProvider(context.env.VIRUSTOTAL_API_KEY))
+    context.set('timeTrapTokenRepository', overrides?.timeTrapTokenRepository ?? new D1TimeTrapTokenRepository(database))
     await next()
   })
 }

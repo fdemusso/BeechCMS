@@ -6,8 +6,8 @@
  * Upload feature — presigned R2 uploads and media serving.
  * The Worker never receives file bytes: it acts as auth gatekeeper and signer only.
  */
-import { Hono } from 'hono'
-import { isMimeAccepted } from '@beechcms/core'
+import { Hono, type Context } from 'hono'
+import { isMimeAccepted, SystemClock } from '@beechcms/core'
 import { AppEnv } from '../../types'
 import { deleteR2Objects } from '../../shared/storage/upload'
 
@@ -29,8 +29,33 @@ function sanitizeFilename(name: string): string {
 }
 
 function generateObjectKey(originalName: string): string {
-  const timestamp = Math.floor(Date.now() / 1000)
-  return `${timestamp}-${sanitizeFilename(originalName)}`
+  const timestamp = SystemClock.nowSeconds()
+  const randomSuffix = crypto.randomUUID().slice(0, 8)
+  return `${timestamp}-${randomSuffix}-${sanitizeFilename(originalName)}`
+}
+
+function extractOriginalFilename(key: string): string {
+  return key.replace(/^\d+(?:-[a-zA-Z0-9]+)?-/, '') || key
+}
+
+function safeDecodeKey(rawKey: string): string | null {
+  try {
+    return decodeURIComponent(rawKey)
+  } catch {
+    return null
+  }
+}
+
+function sanitizeStorageKey(rawKey: string): string {
+  let key = rawKey
+  while (/\.\.[/\\]/.test(key)) {
+    key = key.replace(/\.\.[/\\]/g, '')
+  }
+  while (key.includes('..')) {
+    key = key.replace(/\.\./g, '')
+  }
+  key = key.replace(/^[/]+/, '')
+  return key.replace(/[^a-zA-Z0-9._\-/]/g, '')
 }
 
 // MIME types that browsers can render as active content — must be served as
@@ -50,6 +75,76 @@ function isActiveMimeType(mime: string): boolean {
 }
 
 export const uploadRoutes = new Hono<AppEnv>()
+
+/** POST /upload — Direct proxied upload fallback (used when presigning is unconfigured). */
+uploadRoutes.post('/upload', async (c) => {
+  const { bucket, mediaRepository: mediaRepo, systemStatsRepository: statsRepo } = c.var
+
+  let body: FormData
+  try {
+    body = await c.req.formData()
+  } catch {
+    return c.json({ error: 'Invalid multipart form data' }, 400)
+  }
+
+  const file = body.get('file')
+  if (!file || typeof file === 'string') {
+    return c.json({ error: 'file is required' }, 400)
+  }
+
+  const fileObj = file as File
+  const filename = fileObj.name || 'upload'
+  const mimeType = fileObj.type || 'application/octet-stream'
+  const sizeBytes = fileObj.size
+
+  if (!sizeBytes || sizeBytes <= 0) {
+    return c.json({ error: 'File is empty' }, 400)
+  }
+
+  const maxBytes = resolveMaxUploadBytes(c.env)
+  if (sizeBytes > maxBytes) {
+    return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
+  }
+
+  if (!isMimeAccepted(mimeType, 'any')) {
+    return c.json({ error: 'File type not allowed' }, 400)
+  }
+
+  const key = generateObjectKey(filename)
+
+  await bucket.put(key, fileObj.stream(), {
+    contentType: mimeType,
+  })
+
+  const uploadedBy = c.var.jwtPayload?.sub ?? ''
+  const sanitizedFilename = extractOriginalFilename(key)
+
+  await statsRepo.incrementStorage(sizeBytes)
+  await mediaRepo.trackUpload({
+    key,
+    filename: sanitizedFilename,
+    mime_type: mimeType,
+    size_bytes: sizeBytes,
+    uploaded_by: uploadedBy,
+  })
+
+  const jwtPayload = c.get('jwtPayload')
+  if (jwtPayload) {
+    c.get('activityLogger').log({
+      action: 'upload',
+      entityType: 'media',
+      entityId: key,
+      details: { name: sanitizedFilename, size: sizeBytes, type: mimeType },
+      actor: {
+        id: jwtPayload.sub,
+        email: jwtPayload.email ?? 'unknown',
+        name: [jwtPayload.name, jwtPayload.surname].filter(Boolean).join(' ') || null,
+      },
+    })
+  }
+
+  return c.json({ url: bucket.getUrl(key), key }, 200)
+})
 
 /** POST /upload/presign — Request a presigned URL for direct R2 upload. */
 uploadRoutes.post('/upload/presign', async (c) => {
@@ -86,9 +181,14 @@ uploadRoutes.post('/upload/confirm', async (c) => {
   const { key } = body
   if (typeof key !== 'string' || !key.trim()) return c.json({ error: 'key is required' }, 400)
 
+  const decoded = safeDecodeKey(key)
+  if (!decoded) {
+    return c.json({ error: 'Invalid key format' }, 400)
+  }
+
   // Sanitize and validate key format to prevent arbitrary file adoption/traversal
-  const sanitizedKey = decodeURIComponent(key).replace(/\.\.[/\\]/g, '').replace(/[^a-zA-Z0-9._\-/]/g, '')
-  if (!sanitizedKey || !/^\d+-[a-zA-Z0-9._-]+$/.test(sanitizedKey)) {
+  const sanitizedKey = sanitizeStorageKey(decoded)
+  if (!sanitizedKey || !/^\d+(?:-[a-zA-Z0-9]+)?-[a-zA-Z0-9._-]+$/.test(sanitizedKey)) {
     return c.json({ error: 'Invalid key format' }, 400)
   }
 
@@ -104,9 +204,13 @@ uploadRoutes.post('/upload/confirm', async (c) => {
     return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
   }
 
-  const uploadedBy = c.var.jwtPayload?.sub ?? ''
   const mime = head.contentType ?? 'application/octet-stream'
-  const filename = sanitizedKey.replace(/^\d+-/, '') || sanitizedKey
+  if (!isMimeAccepted(mime, 'any')) {
+    return c.json({ error: 'File type not allowed' }, 400)
+  }
+
+  const uploadedBy = c.var.jwtPayload?.sub ?? ''
+  const filename = extractOriginalFilename(sanitizedKey)
 
   await statsRepo.incrementStorage(size)
   await mediaRepo.trackUpload({
@@ -137,13 +241,14 @@ uploadRoutes.post('/upload/confirm', async (c) => {
 
 /** GET /upload/download-url/:key — Presigned read URL for private assets. */
 uploadRoutes.get('/upload/download-url/:key', async (c) => {
-  let key = c.req.param('key')
-  if (!key) return c.json({ error: 'Missing key' }, 400)
+  const rawKey = c.req.param('key')
+  if (!rawKey) return c.json({ error: 'Missing key' }, 400)
+
+  const decoded = safeDecodeKey(rawKey)
+  if (!decoded) return c.json({ error: 'Invalid key' }, 400)
 
   // Sanitize path parameter to prevent path traversal and restrict to standard storage characters
-  key = decodeURIComponent(key)
-  key = key.replace(/\.\.[/\\]/g, '')
-  key = key.replace(/[^a-zA-Z0-9._\-/]/g, '')
+  const key = sanitizeStorageKey(decoded)
   if (!key) return c.json({ error: 'Invalid key' }, 400)
 
   // Retrieve the file metadata to check existence and ownership
@@ -170,12 +275,14 @@ uploadRoutes.get('/upload/download-url/:key', async (c) => {
 
 /** DELETE /upload/:key */
 uploadRoutes.delete('/upload/:key', async (c) => {
-  let key = c.req.param('key')
-  if (!key) return c.json({ error: 'Missing key' }, 400)
+  const rawKey = c.req.param('key')
+  if (!rawKey) return c.json({ error: 'Missing key' }, 400)
+
+  const decoded = safeDecodeKey(rawKey)
+  if (!decoded) return c.json({ error: 'Invalid key' }, 400)
 
   // Sanitize path parameter to prevent path traversal and restrict to standard storage characters
-  key = key.replace(/\.\.[/\\]/g, '')
-  key = key.replace(/[^a-zA-Z0-9._\-/]/g, '')
+  const key = sanitizeStorageKey(decoded)
   if (!key) return c.json({ error: 'Invalid key' }, 400)
 
   // Retrieve the file metadata to check existence
@@ -198,18 +305,26 @@ uploadRoutes.delete('/upload/:key', async (c) => {
 })
 
 /** Serve a file from storage (used by the public /api/media/:key route). */
-export async function serveMediaHandler(c: any): Promise<Response> {
-  const key = c.req.param('key')
-  if (!key) return new Response('Missing key', { status: 400 })
+export async function serveMediaHandler(c: Context<AppEnv>): Promise<Response> {
+  const rawKey = c.req.param('key')
+  if (!rawKey) return new Response('Missing key', { status: 400 })
+
+  const decoded = safeDecodeKey(rawKey)
+  if (!decoded) return new Response('Invalid key', { status: 400 })
+
+  const key = sanitizeStorageKey(decoded)
+  if (!key) return new Response('Invalid key', { status: 400 })
+
   try {
     const object = await c.var.bucket.get(key)
     if (!object) return new Response('Not found', { status: 404 })
     const headers = new Headers()
     const originalMime = object.contentType ?? 'application/octet-stream'
+    const filename = extractOriginalFilename(key)
 
     if (isActiveMimeType(originalMime)) {
       headers.set('Content-Type', 'application/octet-stream')
-      headers.set('Content-Disposition', 'attachment')
+      headers.set('Content-Disposition', `attachment; filename="${filename}"`)
     } else {
       headers.set('Content-Type', originalMime)
     }

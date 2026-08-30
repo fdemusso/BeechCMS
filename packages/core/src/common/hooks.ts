@@ -4,6 +4,8 @@
 import type { ContentRepository } from '../content/content.repository.js'
 import type { Seed } from '../engine/types.js'
 
+import type { IQueueService } from '../queue/queue.interface.js'
+
 export interface HookActor {
   id: string
   role?: string
@@ -22,6 +24,8 @@ export interface HookContext {
    * scrivere qui bypassa la Botanical Engine.
    */
   db: unknown
+  /** Optional queue service for enqueuing async jobs from hooks. */
+  queue?: IQueueService
 }
 
 export interface BeechHooks {

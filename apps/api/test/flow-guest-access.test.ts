@@ -3,8 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { defineSeed, sha256hex } from '@beechcms/core'
+import { defineSeed, sha256hex, generateTimeTrapToken } from '@beechcms/core'
 import { createBeechApp } from '../src/factory'
+import type { IRateLimiterRegistry } from '../src/middleware/rate-limit.middleware'
 import { StaticAutomationRepository } from './mocks/static-automation.repository'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
@@ -100,53 +101,78 @@ describe('Flow: Guest Access (Public API)', () => {
     })
 
     it('security: read rate limiting returns 429 when too many requests', async () => {
-      const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: false }) }
-      const res = await app.request('/api/v1/public/posts', {
+      const blockedLimiter = { checkLimit: vi.fn().mockResolvedValue({ isAllowed: false }) }
+      const blockedRegistry: IRateLimiterRegistry = { getLimiter: () => blockedLimiter }
+      const rateLimitedApp = createBeechApp({
+        seeds: TEST_SEEDS,
+        repository: repo,
+        idempotencyRepository: idempotencyRepo,
+        automationRepository: new StaticAutomationRepository(),
+        rateLimiterRegistry: blockedRegistry,
+      })
+      const res = await rateLimitedApp.request('/api/v1/public/posts', {
         headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
-      }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+      }, TEST_ENV)
 
       expect(res.status).toBe(429)
     })
 
     it('security: rate limiter key contains the seed slug to ensure distinct buckets per registered seed', async () => {
-      const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: true }) }
-
-      await app.request('/api/v1/public/posts', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
-      }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
-
-      expect(mockLimiter.limit).toHaveBeenCalledWith({
-        key: 'unknown:posts:publicApiRead'
+      const checkedKeys: string[] = []
+      const spyLimiter = {
+        checkLimit: vi.fn().mockImplementation(async (key: string) => {
+          checkedKeys.push(key)
+          return { isAllowed: true }
+        }),
+      }
+      const spyRegistry: IRateLimiterRegistry = { getLimiter: () => spyLimiter }
+      const spyApp = createBeechApp({
+        seeds: TEST_SEEDS,
+        repository: repo,
+        idempotencyRepository: idempotencyRepo,
+        automationRepository: new StaticAutomationRepository(),
+        rateLimiterRegistry: spyRegistry,
       })
 
-      await app.request('/api/v1/public/documentation', {
+      await spyApp.request('/api/v1/public/posts', {
         headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
-      }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+      }, TEST_ENV)
+      expect(checkedKeys.at(-1)).toContain(':posts:')
 
-      expect(mockLimiter.limit).toHaveBeenLastCalledWith({
-        key: 'unknown:documentation:publicApiRead'
-      })
-
-      await app.request('/api/v1/public/health', {
+      await spyApp.request('/api/v1/public/documentation', {
         headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
-      }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+      }, TEST_ENV)
+      expect(checkedKeys.at(-1)).toContain(':documentation:')
 
-      expect(mockLimiter.limit).toHaveBeenLastCalledWith({
-        key: 'unknown:no-seed:publicApiRead'
-      })
+      await spyApp.request('/api/v1/public/health', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(checkedKeys.at(-1)).toContain(':no-seed:')
     })
 
     it('security: unregistered seed segments collapse into a single shared bucket, not one per segment', async () => {
-      const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: true }) }
+      const checkedKeys: string[] = []
+      const spyLimiter = {
+        checkLimit: vi.fn().mockImplementation(async (key: string) => {
+          checkedKeys.push(key)
+          return { isAllowed: true }
+        }),
+      }
+      const spyRegistry: IRateLimiterRegistry = { getLimiter: () => spyLimiter }
+      const spyApp = createBeechApp({
+        seeds: TEST_SEEDS,
+        repository: repo,
+        idempotencyRepository: idempotencyRepo,
+        automationRepository: new StaticAutomationRepository(),
+        rateLimiterRegistry: spyRegistry,
+      })
 
       for (const segment of ['aaaa1', 'aaaa2', 'aaaa3', 'constructor', '__proto__']) {
-        await app.request(`/api/v1/public/${segment}`, {
+        await spyApp.request(`/api/v1/public/${segment}`, {
           headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
-        }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+        }, TEST_ENV)
 
-        expect(mockLimiter.limit).toHaveBeenLastCalledWith({
-          key: 'unknown:invalid-seed:publicApiRead'
-        })
+        expect(checkedKeys.at(-1)).toContain(':invalid-seed:')
       }
     })
   })
@@ -167,61 +193,80 @@ describe('Flow: Guest Access (Public API)', () => {
 
   describe('POST /api/v1/public/:seed/add (Submit)', () => {
     it('success: valid payload creates a new entry', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { title: 'User Submission' } }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { title: 'User Submission' }, _timeTrapToken: token }),
       }, TEST_ENV)
 
       expect(res.status).toBe(201)
     })
 
+    it('error: missing time-trap token returns 422', async () => {
+      const res = await app.request('/api/v1/public/posts/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { title: 'User Submission' } }),
+      }, TEST_ENV)
+
+      expect(res.status).toBe(422)
+    })
+
     it('error: invalid JSON body returns 400', async () => {
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
+        headers: { 'Content-Type': 'application/json' },
         body: 'not-json',
       }, TEST_ENV)
       expect(res.status).toBe(400)
     })
 
     it('error: missing data object returns 400', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ title: 'Missing data wrapper' }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: 'Missing data wrapper', _timeTrapToken: token }),
       }, TEST_ENV)
       expect(res.status).toBe(400)
     })
 
-    it('error: invalid status returns 400', async () => {
+    it('success: client status is ignored and backend default status is used', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { title: 'X' }, status: 'invalid' }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { title: 'X' }, status: 'draft', _timeTrapToken: token }),
       }, TEST_ENV)
-      expect(res.status).toBe(400)
+      expect(res.status).toBe(201)
     })
 
     it('error: slug conflict returns 409', async () => {
       repo.load('posts', [{ id: 'existing', slug: 'conflict', status: 'published', title: 'Existing' }])
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { title: 'X' }, slug: 'conflict' }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { title: 'X' }, slug: 'conflict', _timeTrapToken: token }),
       }, TEST_ENV)
       expect(res.status).toBe(409)
     })
 
     it('success: idempotency-key returns cached result', async () => {
       const key = 'test-key'
-      const payload = JSON.stringify({ data: { title: 'Idempotent' } })
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const payload = JSON.stringify({ data: { title: 'Idempotent' }, _timeTrapToken: token })
       
       const res1 = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json', 
-          'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY,
           'Idempotency-Key': key
         },
         body: payload,
@@ -233,7 +278,6 @@ describe('Flow: Guest Access (Public API)', () => {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json', 
-          'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY,
           'Idempotency-Key': key
         },
         body: payload,
@@ -242,23 +286,19 @@ describe('Flow: Guest Access (Public API)', () => {
       const body2 = await res2.json<{ id: string }>()
       expect(body1.id).toBe(body2.id)
     })
+
     it('security: ignores reserved prototype keys in data payload and resolves safely', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { title: 'Prototype Test', constructor: 'evil', toString: 'bad' }, slug: 'constructor', status: 'constructor' }),
-      }, TEST_ENV)
-      expect(res.status).toBe(400) // status='constructor' is invalid
-      
-      const res2 = await app.request('/api/v1/public/posts/add', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { title: 'Prototype Test', constructor: 'evil', toString: 'bad' }, slug: 'constructor' }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { title: 'Prototype Test', constructor: 'evil', toString: 'bad' }, slug: 'constructor', status: 'constructor', _timeTrapToken: token }),
       }, TEST_ENV)
       
       // Since 'constructor' and 'toString' are not defined in the seed branches,
       // they are considered unknown aliases and should be rejected with a 400 error.
-      expect(res2.status).toBe(400)
+      expect(res.status).toBe(400)
     })
   })
 
@@ -519,48 +559,58 @@ describe('Flow: Guest Access (Public API)', () => {
     })
 
     it('POST /api/v1/public/:seed/add returns 400 when missing required fields', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { body: 'Just body, no required title' } }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { body: 'Just body, no required title' }, _timeTrapToken: token }),
       }, TEST_ENV)
       expect(res.status).toBe(400)
     })
 
     it('POST /api/v1/public/:seed/add returns 409 on idempotency key fingerprint conflict', async () => {
       const key = 'test-conflict-key'
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token1 = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+      const token2 = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+
       // First call
       await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY, 'Idempotency-Key': key },
-        body: JSON.stringify({ data: { title: 'First call' } }),
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
+        body: JSON.stringify({ data: { title: 'First call' }, _timeTrapToken: token1 }),
       }, TEST_ENV)
 
       // Second call with different body but same key
       const res2 = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY, 'Idempotency-Key': key },
-        body: JSON.stringify({ data: { title: 'Different call' } }),
+        headers: { 'Content-Type': 'application/json', 'Idempotency-Key': key },
+        body: JSON.stringify({ data: { title: 'Different call' }, _timeTrapToken: token2 }),
       }, TEST_ENV)
       expect(res2.status).toBe(409)
     })
 
     it('POST /api/v1/public/:seed/add returns 500 when repository throws generic error', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
       vi.spyOn(repo, 'create').mockRejectedValueOnce(new Error('Generic create error'))
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { title: 'Testing 500 error' } }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { title: 'Testing 500 error' }, _timeTrapToken: token }),
       }, TEST_ENV)
       expect(res.status).toBe(500)
     })
 
     // Regression: GH #201 - public-add never applied privacy policy
     it('error: returns 422 when writing an internal-only (public: false) field', async () => {
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
       const res = await app.request('/api/v1/public/posts/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { title: 'X', internal_note: 'sneaky seed' } }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { title: 'X', internal_note: 'sneaky seed' }, _timeTrapToken: token }),
       }, TEST_ENV)
       expect(res.status).toBe(422)
     })
@@ -581,10 +631,13 @@ describe('Flow: Guest Access (Public API)', () => {
       const localApp = createBeechApp({ seeds: [HASH_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo, automationRepository: new StaticAutomationRepository() })
       __resetSeedRegistryCache()
 
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+
       const res = await localApp.request('/api/v1/public/hash_test/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { title: 'X', pin: '1234' } }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { title: 'X', pin: '1234' }, _timeTrapToken: token }),
       }, TEST_ENV)
 
       expect(res.status).toBe(201)
@@ -609,10 +662,13 @@ describe('Flow: Guest Access (Public API)', () => {
       const localApp = createBeechApp({ seeds: [ENCRYPT_SEED], repository: localRepo, idempotencyRepository: idempotencyRepo, automationRepository: new StaticAutomationRepository() })
       __resetSeedRegistryCache()
 
+      const t0 = Math.floor(Date.now() / 1000) - 2
+      const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
+
       const res = await localApp.request('/api/v1/public/encrypt_test/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-API-Key': TEST_ENV.PUBLIC_WRITE_API_KEY },
-        body: JSON.stringify({ data: { secret: 'secret-val' } }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { secret: 'secret-val' }, _timeTrapToken: token }),
       }, TEST_ENV)
       expect(res.status).toBe(201)
     })

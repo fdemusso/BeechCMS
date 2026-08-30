@@ -22,8 +22,13 @@ export function RichtextDisplay({ value, options }: FieldDisplayProps) {
   if (value == null || value === "") {
     return <div className="text-muted-foreground">-</div>
   }
-  const html = renderRichText(value)
-  const plain = stripTags(html)
+  let plain = ""
+  try {
+    const html = renderRichText(value)
+    plain = stripTags(html)
+  } catch {
+    plain = ""
+  }
   if (!plain) {
     return <div className="text-muted-foreground">-</div>
   }

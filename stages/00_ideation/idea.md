@@ -1,186 +1,54 @@
-# Data Classification & Privacy System (Ideation)
+# Feature Idea: Rate Limiting Modernization & Auth Hardening (Issue #338)
 
-## Obiettivo
-Rifattorizzare l'attuale sistema di privacy frammentato (`privacy`, `visibility`, `public`) in un sistema basato su **Data Classification a 4 livelli**. Questo sistema fungerà da interfaccia globale per la privacy in tutta l'applicazione, centralizzando anche la logica crittografica dell'autenticazione.
+## 1. Visione & Obiettivo
+Attualmente il sistema di rate limiting in BeechCMS soffre di due criticità principali:
+1. **Friction su Route Pubbliche (Read/Write)**: l'uso di finestre fisse (Cloudflare simple fixed-window / in-memory counters) causa starvation sui burst leciti di traffico (es. rendering iniziale di pagine con query parallele) e boundary spikes (chiamate ravvicinate a cavallo della finestra di 60s).
+2. **Vulnerabilità Brute Force / Credential Stuffing su Auth**: gli endpoint sensibili (`/auth/login`, `/auth/forgot-password`, `/auth/refresh`) limitano unicamente per `clientIp`, esponendo gli account ad attacchi distribuiti tramite proxy rotanti.
 
----
-
-## 1. I 4 Livelli di Classificazione (La Matrice)
-
-Invece di dire al sistema *come* gestire il dato, si definisce *che tipo* di dato è. Il sistema applica automaticamente le policy di archiviazione (Storage) ed esposizione (Serving).
-
-| Livello | Storage | Serving | Esempi |
-| :--- | :--- | :--- | :--- |
-| **Public** | Plain text | **Full** ovunque (API pubbliche e interne). Indicizzabile e filtrabile. | Titoli, slug, descrizioni, immagini di copertina |
-| **Internal** | Plain text | **Full** solo in API autenticate (Admin). **Hidden** (rimosso) in API pubbliche. | Note di redazione, ID di sistemi terzi, status interni |
-| **Confidential** | **Encrypted** (AES-256-GCM) | **Hidden** in API pubbliche. **Masked** (es. `j***@email.com`) in liste admin. **Full** solo in detail views con permessi specifici. | Email, numeri di telefono, dati PII (Personally Identifiable Information) |
-| **Restricted** | **Hashed** (Bcrypt) | **MAI** servito al client (`Hidden`). Nessuna ricerca. Audit log obbligatorio in caso di accesso di sistema (es. reset password). | Password, secret OAuth, API keys critiche |
+L'obiettivo è elevare la robustezza e la qualità dell'esperienza API introducendo un rate limiting a **Token Bucket** per le route pubbliche e un modello **Dual-Key / Composite** per l'autenticazione, garantendo al contempo la massima aderenza all'ambiente di produzione anche in fase di test e sviluppo locale.
 
 ---
 
-## 2. Refactoring dei Tipi (Schema)
+## 2. Pilastri Fondamentali della Soluzione
 
-Attualmente il `Branch` definisce le policy così:
-```typescript
-policies?: {
-  privacy?: 'plain' | 'hash' | 'encrypt'
-  visibility?: 'full' | 'masked' | 'hidden'
-  public?: boolean
-}
-```
+### A. Token Bucket con Supporto alla Persistenza Edge
+- **Comportamento & Capacità**:
+  - `publicApiRead`: Permettere burst iniziali (es. burst capacity 30–50 token) con refill fluido e continuo (es. 2–5 token/sec).
+  - `publicApiWrite`: Capacità di burst controllata (es. 10–20 token) con refill più restrittivo (es. 0.5–1 token/sec).
+- **Persistenza Edge**:
+  - Supportare la conservazione dello stato del bucket (token rimanenti e timestamp dell'ultimo refill) in ambienti edge / Cloudflare Workers per evitare che l'isolamento dei worker disperda lo stato del bucket tra richieste concorrenti o nodi distribuiti.
+- **Header Standard**:
+  - Restituire `Retry-After` (in caso di HTTP 429).
+  - Includere gli header informativi `X-RateLimit-Limit` e `X-RateLimit-Remaining` per consentire ai client/frontend di auto-regolarsi.
 
-Verrà semplificato e tipizzato in questo modo:
-```typescript
-export interface BranchPolicies {
-  /** Livello semantico di classificazione del dato */
-  classification: 'public' | 'internal' | 'confidential' | 'restricted';
-  
-  /** Eventuali override puntuali per casi limite */
-  overrides?: {
-    searchable?: boolean;
-    // ...
-  }
-}
-```
+### B. Hardening Endpoint di Autenticazione (Dual-Key Composite Limiting)
+- **Doppia Barriera di Protezione**:
+  1. **IP Limiter (`ip:${clientIp}:login`)**: Protegge l'infrastruttura contro scansioni ad alto volume e attacchi volumetrici da singolo IP.
+  2. **Account Limiter (`account:${normalizedEmail}:login`)**: Protegge l'identità dell'utente contro attacchi di password guessing / credential stuffing distribuiti su più IP.
+- **Applicazione Rigida**:
+  - Validazione sia per `/auth/login` che per `/auth/forgot-password` (e monitoraggio di `/auth/refresh`).
+  - L'email viene normalizzata (`trim().toLowerCase()`) per evitare bypass tramite casing o spazi.
+  - Se uno qualsiasi dei due limiti viene superato, la richiesta viene immediatamente bloccata con HTTP 429 e relativo header `Retry-After`.
 
----
-
-## 3. PrivacyService (Interfaccia Globale)
-
-Creeremo un servizio globale (es. in `@beechcms/core` o nel livello API condiviso) in grado di gestire sia la crittografia reversibile (AES-GCM nativo con `crypto.subtle`) sia l'hashing (delegando all'esistente `HashProvider` basato su bcrypt dell'auth).
-
-### Struttura proposta:
-
-```typescript
-export class PrivacyService {
-  constructor(
-    private hashProvider: HashProvider, // Bcrypt (già esistente)
-    private masterKey: CryptoKey        // AES-256-GCM
-  ) {}
-
-  /** Protezione del dato prima della scrittura su DB */
-  async protectData(value: string, classification: 'public' | 'internal' | 'confidential' | 'restricted'): Promise<string> {
-    switch (classification) {
-      case 'restricted':
-        return this.hashProvider.hash(value);
-      case 'confidential':
-        return this.encryptSymmetric(value); // AES-GCM
-      case 'internal':
-      case 'public':
-        return value;
-    }
-  }
-
-  /** Lettura del dato dal DB per servirlo (se permesso) */
-  async unprotectData(cipherText: string, classification: string): Promise<string> {
-    if (classification === 'confidential') {
-      return this.decryptSymmetric(cipherText);
-    }
-    // I campi Restricted (password) restano hash, Public e Internal restano plain
-    return cipherText;
-  }
-  
-  private async encryptSymmetric(value: string): Promise<string> { ... }
-  private async decryptSymmetric(cipherText: string): Promise<string> { ... }
-}
-```
-
-## 4. Vantaggi Architetturali
-- **Sicurezza by Design**: Lo sviluppatore sceglie semplicemente `confidential` e il dato viene automaticamente cifrato a riposo e rimosso dalle API pubbliche.
-- **Retrocompatibilità**: Le password degli utenti (create via Bcrypt) continueranno a funzionare perché il livello `restricted` utilizzerà il medesimo `HashProvider`.
-- **Performance all'Edge**: Sfruttando `crypto.subtle` (Web Crypto API), la crittografia `confidential` funzionerà perfettamente su ambienti edge (es. Cloudflare Workers).
+### C. Armonizzazione Dev / Test con Massima Fedeltà a Produzione
+- Piuttosto che creare divergenze o sostituire bruscamente i componenti con mock semplicistici, armonizzare l'architettura dei limiter:
+  - Integrare il `TokenBucketRateLimiter` di `@beechcms/core` come motore unificato di riferimento.
+  - Nei test di integrazione (`vitest`) utilizzare il `TokenBucketRateLimiter` con clock controllabile (`IClock` / virtual time), assicurando che il comportamento del middleware rispecchi fedelmente la logica di produzione senza dipendere da simulatori esterni instabili.
+  - Mantenere la gestione controllata e trasparente dei fallback locali per sviluppo senza degradare la sicurezza o la fedeltà dei test.
 
 ---
 
-## 5. Accortezze per il Serving (Exposure / Data in Transit)
-
-Per evitare *Data Leak* accidentali, la logica di esposizione dei dati deve agire come un filtro severo prima che il JSON venga inviato al client, seguendo queste accortezze:
-
-1. **Context-Aware Filtering**: Il filtro deve conoscere l'identità e il ruolo di chi sta facendo la richiesta (es. Anonimo, Admin, SuperAdmin).
-2. **Default Deny per Livello**:
-   - Nelle **API Pubbliche**: Eliminare sempre (`hidden`) i dati `Internal`, `Confidential` e `Restricted`.
-   - Nelle **API Autenticate**: 
-     - I `Restricted` (password) restano eliminati (`hidden`).
-     - I `Confidential` (email) vengono serviti offuscati (`masked`) per le chiamate List (tabella). Vengono restituiti in chiaro (`full`) solo nelle chiamate di Dettaglio, a patto che l'utente abbia il permesso di leggerli.
-3. **Ottimizzazione (Zero-Decryption su Liste)**: Nelle richieste di Lista (es. 500 utenti), per motivi di performance i campi `Confidential` non vengono decrittati. Viene semplicemente inserita una stringa statica (es. `***@***.***`). 
-4. **Limitazioni su Ricerca e Filtri**: I campi crittografati con AES-GCM (IV randomico) non supportano query `LIKE` nativamente su DB. Nel caso in cui si voglia cercare l'email esatta per il Login, bisognerà creare un *Blind Index* (Hash SHA-256 dell'email affiancato al campo cifrato).
+## 3. Entità Coinvolte
+- **`@beechcms/core`**: `TokenBucketRateLimiter`, `IRateLimiter`, `RateLimitResult`, `IClock`.
+- **`apps/api` Middleware**: `rate-limit.middleware.ts`, `public/rate-limit-middleware.ts`.
+- **`apps/api` Auth Endpoints**: `factory.ts` (route handlers per `login`, `refresh`, `forgot-password`).
+- **Edge Storage / Persistence**: Adattatore per sincronizzazione dello stato dei bucket a livello Edge.
 
 ---
 
-## 6. Integrazione nell'Architettura (Hono Middleware)
-
-Essendo l'applicazione basata su `createBeechApp()` via **Hono** (in `apps/api/src/factory.ts`), il layer Privacy si integrerà tramite i Middleware.
-
-### Soluzione proposta: Middleware + Helper di Serializzazione
-1. **`privacyMiddleware.ts`**: Un nuovo middleware (simile all'`authProvidersMiddleware`) da iniettare globalmente. Inietterà il `PrivacyService` e la Master Key nel Context (`c.set('privacyService', service)`).
-2. **Helper `serializeResponse`**: Invece di manipolare pesantemente lo stream di risposta Hono (che all'edge può dare problemi), i controller utilizzeranno una funzione centralizzata prima di rispondere:
-   ```typescript
-   // Nel Controller
-   const rawData = await repository.findMany();
-   const safeData = await c.get('privacyService').applyPrivacyOnServe(rawData, c);
-   return c.json(safeData);
-   ```
-   Questa combinazione garantisce sicurezza by-default senza appesantire l'infrastruttura di routing.
-
----
-
-## 7. Prevenzione IDOR e Sicurezza delle Risorse (RBAC) - [DEFERRED TO NEXT SPRINT]
-
-*Nota: Questa implementazione è formalmente **fuori dallo sprint attuale**. Tuttavia, prepareremo le basi nel layer Privacy (attraverso l'uso del `context.actor`) lasciando dei `TODO: RBAC Sprint` nel codice per facilitarne l'introduzione futura.*
-
-Attualmente il sistema passa l'informazione sul ruolo (estratta dal JWT) fino ai repository, ma **non ne fa enforcing**. Questo apre a vulnerabilità IDOR (Insecure Direct Object Reference), dove un utente a basso privilegio potrebbe eliminare o alterare record di altri semplicemente indovinando l'ID (es. `DELETE /api/users/superadmin-id`).
-
-Per bloccare by-design questo vettore d'attacco, nel prossimo sprint si formalizzerà il sistema di ruoli (Role-Based Access Control):
-
-### A. Formalizzazione dei Ruoli (Core)
-Tipizzazione stretta dei ruoli invece del generico `string`:
-```typescript
-export type SystemRole = 'admin' | 'editor' | 'author' | 'viewer';
-```
-
-### B. Estensione dello Schema Seed
-Ogni `Seed` (tabella) dichiarerà esplicitamente a livello di configurazione chi può compiere le operazioni CRUD:
-```typescript
-export interface Seed {
-  slug: string;
-  // ...
-  permissions?: {
-    read?: SystemRole[];   // Es: ['admin', 'editor', 'author']
-    create?: SystemRole[]; // Es: ['admin', 'editor']
-    update?: SystemRole[]; // Es: ['admin', 'editor']
-    delete?: SystemRole[]; // Es: ['admin']
-  }
-}
-```
-
-### C. Enforcement via Middleware (`rbacMiddleware.ts`)
-Per mantenere i controller "thin", le policy verranno fatte rispettare da un middleware Hono (posizionato subito dopo l'`authMiddleware`). 
-Il middleware controllerà dinamicamente:
-1. Quale operazione si sta tentando (`GET` -> `read`, `DELETE` -> `delete`).
-2. Lo `slug` richiesto (es. `users`).
-3. Il ruolo dell'utente (`c.get('jwtPayload').role`).
-
-Se il ruolo non è incluso nell'array `permissions.<azione>` di quel Seed, la richiesta verrà immediatamente terminata con un **`403 Forbidden`**, rendendo il database inattaccabile via IDOR o BOLA.
-
----
-
-## 8. Considerazioni Architetturali Finali (Edge Cases & Encryption)
-
-### A. L'Email di Login (Classificazione `Internal`)
-In un CMS pensato per PMI (team ristretti da 1 a 3 persone), l'email di accesso degli admin è considerata **dato operativo di servizio**, non PII critico (come lo sarebbero i dati sanitari o bancari dei *clienti* finali).
-Per questo motivo, l'email di login in `users` sarà classificata come **`Internal`** (salvata in chiaro).
-**Vantaggi:**
-- Il login resta nativo, veloce e non richiede indici speciali (Blind Indexes).
-- Mantiene l'email protetta dalle API pubbliche senza introdurre overhead di decrittazione per le normali operazioni di amministrazione.
-
-La classificazione **`Confidential`** (AES-GCM) verrà riservata strettamente ai dati sensibili inseriti *dall'esterno* (es. raccolte dati, anagrafiche, leads) tramite il CMS.
-
-### B. Key Versioning per AES-GCM (Necessario per questo Sprint)
-Per i dati che *saranno* crittografati in `Confidential`, è vitale implementare subito il **Key Versioning**.
-Le chiavi crittografiche (Master Key) non sono eterne e vanno ruotate in caso di leak. Se non implementiamo il versionamento oggi, la rotazione di domani romperà tutto.
-Il `PrivacyService` formatterà il dato cifrato secondo questo pattern:
-`v1:<base64-iv>:<base64-ciphertext>`
-Così facendo, in futuro il sistema potrà leggere la versione `v1` e usare la chiave corrispondente per decifrarla, mentre scriverà con una nuova chiave `v2`.
-
-### C. Log di Accesso ai Dati (Audit Trail) - [DEFERRED TO FUTURE]
-Quando un utente decripta e legge un dato `Confidential` (es. aprendo una vista di dettaglio), la normativa di sicurezza richiede che l'accesso venga tracciato. In uno sprint futuro, le letture dei campi `Confidential` dovranno richiamare il sistema `logContentActivity` (già presente) per registrare l'accesso.
+## 4. Criteri di Accettazione Iniziali
+1. Burst di traffico lecito su API pubbliche gestito senza 429 prematuri fino a esaurimento della capacità del bucket.
+2. Refill fluido e continuo dei token calcolato correttamente su base temporale frazionaria.
+3. Attacco distribuito verso singola email bloccato tempestivamente dal limiter di account anche con IP differenti.
+4. Response header standard (`Retry-After`, `X-RateLimit-*`) popolati accuratamente.
+5. Suite di test di integrazione coerente ed eseguibile in locale con comportamento allineato a produzione.

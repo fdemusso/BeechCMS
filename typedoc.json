@@ -4,6 +4,7 @@
   "entryPoints": [
     "packages/core",
     "packages/client",
+    "packages/forms-react",
     "packages/widget-sdk",
     "packages/cli"
   ],

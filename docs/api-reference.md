@@ -797,10 +797,11 @@ Elimina l'oggetto da R2 e rimuove il tracciamento da D1 (`media_objects` + `syst
 
 ### 5.7 Storage Abstraction
 
-BeechCMS usa uno storage layer vendor-agnostic (`BeechBucket`, `@beechcms/core`) con path unico:
+BeechCMS usa uno storage layer vendor-agnostic (`BeechBucket`, `@beechcms/core`):
 
-- **`S3Bucket`**: S3-compatible HTTP API. Usato in produzione (R2) e in sviluppo (MinIO). Supporta presigning.
-- **`NullBucket`**: fail-safe — lancia errore solo quando le operazioni storage vengono invocate.
+- **`S3Bucket`**: S3-compatible HTTP API. Usato per generare **Presigned URLs (SigV4)** sia in produzione (Cloudflare R2 con API Token) sia in sviluppo locale (MinIO). I file vengono caricati direttamente dal browser su R2 senza impegnare la memoria del Worker.
+- **`R2BucketAdapter`**: Wrapper del binding nativo Cloudflare `env.MEDIA_BUCKET` (`R2Bucket`). Ottimizzato per servire file e leggere/eliminare oggetti in-memory all'interno del runtime Worker.
+- **`NullBucket`**: Fail-safe — restituisce un errore esplicito 503 con istruzioni di configurazione quando lo storage non è configurato.
 
 **Storage Tracking:** ogni upload e cancellazione è tracciato in `media_objects`. Il counter `total_storage_bytes` in `system_stats` è aggiornato atomicamente al confirm/delete.
 

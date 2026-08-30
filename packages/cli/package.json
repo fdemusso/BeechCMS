@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@beechcms/core": "workspace:^0.7.0",
+    "@clack/prompts": "^0.9.1",
     "picocolors": "^1.1.1"
   },
   "devDependencies": {

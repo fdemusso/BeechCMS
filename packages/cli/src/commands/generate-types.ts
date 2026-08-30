@@ -10,56 +10,98 @@ import {
   queryD1,
   findWranglerConfig,
   resolveDbName,
+  getLocalD1SqlitePath,
   type WranglerOptions,
 } from '../lib/wrangler.js'
 
 export interface GenerateTypesOptions {
-  /** Output path for the generated .ts file. */
-  out: string
-  /** Read from in-code SEED_REGISTRY (true) instead of introspecting D1 (false). */
-  local: boolean
-  /** Pre-resolved registry (injected by bin/ for --local, and by tests). */
-  registry?: Record<string, Seed> | null
-  /** Override D1 database name (remote path only). */
+  /** Output file destination. If omitted or null, output is written to standard output. */
+  out?: string | null
+  /** Target local D1 SQLite state (default: true). Set false for remote D1. */
+  local?: boolean
+  /** Override D1 database name. */
   db?: string
 }
 
-interface SeedRow { slug: string; definition: string; [key: string]: unknown }
-
-/** Remote path: read canonical Seed JSON from the `seeds` system table. */
-function loadSeedsFromD1(db: string): Seed[] {
-  const configPath = findWranglerConfig()
-  const options: WranglerOptions = { db, local: false, configPath }
-  const rows = queryD1<SeedRow>(
-    `SELECT slug, definition FROM seeds WHERE status = 'active';`,
-    options,
-  )
-  return rows.map(r => JSON.parse(r.definition) as Seed)
+interface SeedRow {
+  slug: string
+  definition: string
+  status?: string
+  [key: string]: unknown
 }
 
-export async function generateTypes(args: GenerateTypesOptions): Promise<void> {
-  let seeds: Seed[]
+export async function generateTypes(args: GenerateTypesOptions = {}): Promise<void> {
+  const isLocal = args.local !== false
+  const configPath = findWranglerConfig()
+  const db = args.db ?? resolveDbName(configPath)
 
-  if (args.local) {
-    const registry = args.registry ?? {}
-    if (Object.keys(registry).length === 0) {
-      console.log(pc.red('\n  ✗ No seeds found (seeds.ts empty or missing).\n'))
-      process.exit(1)
-    }
-    seeds = Object.values(registry)
-  } else {
-    const db = args.db ?? resolveDbName(findWranglerConfig())
-    seeds = loadSeedsFromD1(db)
-    if (seeds.length === 0) {
-      console.log(pc.red(`\n  ✗ No active seeds in D1 (${db}). Run \`beech seed:load\` first.\n`))
+  if (isLocal) {
+    const sqlitePath = getLocalD1SqlitePath()
+    if (!sqlitePath) {
+      console.error(
+        pc.red('\n  ✗ Local D1 database state not found.') +
+        pc.gray('\n    Start your local development environment with `beech dev` or initialize with `beech init --db`.\n')
+      )
       process.exit(1)
     }
   }
 
-  const code = generateSeedTypes(seeds)
-  const outPath = resolve(process.cwd(), args.out)
-  mkdirSync(dirname(outPath), { recursive: true })
-  writeFileSync(outPath, code, 'utf-8')
+  const options: WranglerOptions = {
+    db,
+    local: isLocal,
+    configPath,
+  }
 
-  console.log(pc.green(`\n  ✓ Generated ${seeds.length} interface(s) → ${args.out}\n`))
+  let rows: SeedRow[]
+  try {
+    rows = queryD1<SeedRow>(
+      `SELECT slug, definition FROM seeds WHERE status = 'active' ORDER BY slug ASC;`,
+      options
+    )
+  } catch (error: any) {
+    const errMsg = error?.message || String(error)
+    if (errMsg.includes('no such table: seeds')) {
+      console.error(
+        pc.red('\n  ✗ System table `seeds` not found in database.') +
+        pc.gray('\n    Run `beech init --db` or `beech onboard` to initialize system tables.\n')
+      )
+    } else {
+      console.error(
+        pc.red(`\n  ✗ Failed to introspect D1 database (${db}):`) +
+        pc.gray(`\n    ${errMsg}\n`)
+      )
+    }
+    process.exit(1)
+  }
+
+  if (!rows || rows.length === 0) {
+    console.error(
+      pc.red(`\n  ✗ No active seeds found in D1 database (${db}).`) +
+      pc.gray('\n    Run `beech seed:load` to synchronize your schemas into the database.\n')
+    )
+    process.exit(1)
+  }
+
+  let seeds: Seed[]
+  try {
+    seeds = rows.map(r => JSON.parse(r.definition) as Seed)
+  } catch (err: any) {
+    console.error(
+      pc.red('\n  ✗ Failed to parse seed definitions from database:') +
+      pc.gray(`\n    ${err?.message || err}\n`)
+    )
+    process.exit(1)
+  }
+
+  const code = generateSeedTypes(seeds)
+
+  if (args.out) {
+    const outPath = resolve(process.cwd(), args.out)
+    mkdirSync(dirname(outPath), { recursive: true })
+    writeFileSync(outPath, code, 'utf-8')
+    console.log(pc.green(`\n  ✓ Generated ${seeds.length} interface(s) → ${args.out}\n`))
+  } else {
+    process.stdout.write(code)
+  }
 }
+

@@ -112,7 +112,7 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       expect(res.status).toBe(200)
       const body = await res.json<{ uploadUrl: string; key: string; expiresIn: number }>()
       expect(body.uploadUrl).toContain('X-Amz-Signature')
-      expect(body.key).toMatch(/^\d+-photo\.png$/)
+      expect(body.key).toMatch(/^\d+-[a-zA-Z0-9]+-photo\.png$/)
       expect(body.expiresIn).toBe(900)
     })
   })
@@ -372,4 +372,374 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       expect(mediaObj).toBeNull()
     })
   })
+
+  describe('GET /api/media/:key with native MEDIA_BUCKET binding (issue #307)', () => {
+    it('serves media from native MEDIA_BUCKET binding when S3 credentials are not set', async () => {
+      const mockStorage = new Map<string, { body: Uint8Array; contentType: string }>()
+      mockStorage.set('photos/cat.webp', {
+        body: new TextEncoder().encode('webp-binary-content'),
+        contentType: 'image/webp',
+      })
+
+      const mockMediaBucket: any = {
+        get: async (key: string) => {
+          const item = mockStorage.get(key)
+          if (!item) return null
+          return {
+            body: new ReadableStream({
+              start(controller) {
+                controller.enqueue(item.body)
+                controller.close()
+              },
+            }),
+            size: item.body.byteLength,
+            httpMetadata: { contentType: item.contentType },
+          }
+        },
+      }
+
+      const envWithoutS3 = {
+        DB: db,
+        JWT_SECRET: TEST_ENV.JWT_SECRET,
+        MEDIA_BUCKET: mockMediaBucket,
+      }
+
+      const res = await app.request('/api/media/photos/cat.webp', { method: 'GET' }, envWithoutS3 as any)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/webp')
+      expect(res.headers.get('Cache-Control')).toBe('public, max-age=31536000, immutable')
+      expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff')
+      const text = await res.text()
+      expect(text).toBe('webp-binary-content')
+    })
+
+    it('returns 404 for non-existent key in native MEDIA_BUCKET', async () => {
+      const mockMediaBucket: any = {
+        get: async () => null,
+      }
+
+      const envWithoutS3 = {
+        DB: db,
+        JWT_SECRET: TEST_ENV.JWT_SECRET,
+        MEDIA_BUCKET: mockMediaBucket,
+      }
+
+      const res = await app.request('/api/media/non-existent.jpg', { method: 'GET' }, envWithoutS3 as any)
+      expect(res.status).toBe(404)
+    })
+  })
+
+  describe('POST /api/upload (direct proxied fallback upload)', () => {
+    it('returns 401 without JWT', async () => {
+      const formData = new FormData()
+      formData.append('file', new File(['dummy content'], 'avatar.png', { type: 'image/png' }))
+
+      const res = await app.request('/api/upload', {
+        method: 'POST',
+        body: formData,
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(401)
+    })
+
+    it('returns 400 when file is missing in form data', async () => {
+      const formData = new FormData()
+      formData.append('unrelated', 'value')
+
+      const res = await app.request('/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+        body: formData,
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+    })
+
+    it('returns 400 when file type is not allowed', async () => {
+      const formData = new FormData()
+      formData.append('file', new File(['malicious script'], 'evil.exe', { type: 'application/x-msdownload' }))
+
+      const res = await app.request('/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+        body: formData,
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+    })
+
+    it('successfully uploads file directly via native MEDIA_BUCKET and tracks in DB', async () => {
+      const storageMap = new Map<string, { body: ArrayBuffer; options?: any }>()
+      const mockMediaBucket: any = {
+        put: async (key: string, body: ArrayBuffer, options?: any) => {
+          storageMap.set(key, { body, options })
+          return {}
+        },
+        get: async (key: string) => {
+          const item = storageMap.get(key)
+          if (!item) return null
+          return {
+            body: item.body,
+            size: item.body.byteLength,
+            httpMetadata: { contentType: item.options?.httpMetadata?.contentType },
+          }
+        },
+        head: async (key: string) => {
+          const item = storageMap.get(key)
+          if (!item) return null
+          return {
+            size: item.body.byteLength,
+            httpMetadata: { contentType: item.options?.httpMetadata?.contentType },
+          }
+        },
+        delete: async (key: string) => {
+          storageMap.delete(key)
+        },
+        list: async () => ({ objects: [], truncated: false }),
+      }
+
+      const envWithNative = {
+        DB: db,
+        JWT_SECRET: TEST_ENV.JWT_SECRET,
+        MEDIA_BUCKET: mockMediaBucket,
+      }
+
+      const fileContent = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10])
+      const formData = new FormData()
+      formData.append('file', new File([fileContent], 'photo.png', { type: 'image/png' }))
+
+      const res = await app.request('/api/upload', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+        body: formData,
+      }, envWithNative as any)
+
+      expect(res.status).toBe(200)
+      const data = await res.json<any>()
+      expect(data.url).toBeDefined()
+      expect(data.key).toMatch(/^\d+-[a-zA-Z0-9]+-photo\.png$/)
+
+      // Verify stored in storage
+      expect(storageMap.has(data.key)).toBe(true)
+
+      // Verify tracked in DB
+      const record = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(data.key).first<any>()
+      expect(record).toBeDefined()
+      expect(record.filename).toBe('photo.png')
+      expect(record.mime_type).toBe('image/png')
+      expect(record.size_bytes).toBe(fileContent.byteLength)
+    })
+  })
+
+  describe('Issue #342: key entropy and collision prevention', () => {
+    it('generates distinct keys for concurrent uploads with identical filenames', async () => {
+      const presignPromises = Array.from({ length: 5 }, () =>
+        app.request('/api/upload/presign', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filename: 'avatar.png', mimeType: 'image/png', sizeBytes: 100 }),
+        }, { ...TEST_ENV, DB: db })
+      )
+
+      const responses = await Promise.all(presignPromises)
+      const keys: string[] = []
+      for (const res of responses) {
+        expect(res.status).toBe(200)
+        const body = await res.json<{ key: string }>()
+        expect(body.key).toMatch(/^\d+-[a-zA-Z0-9]+-avatar\.png$/)
+        keys.push(body.key)
+      }
+
+      const uniqueKeys = new Set(keys)
+      expect(uniqueKeys.size).toBe(5)
+    })
+  })
+
+  describe('Issue #343: POST /upload/confirm MIME type validation', () => {
+    it('returns 400 when confirmed object has disallowed MIME type in storage', async () => {
+      const key = `${Date.now()}-a1b2c3d4-evil.exe`
+      await s3.send(new PutObjectCommand({
+        Bucket: TEST_ENV.R2_BUCKET_NAME,
+        Key: key,
+        Body: new Uint8Array([1, 2, 3]),
+        ContentType: 'application/x-msdownload',
+      }))
+
+      const res = await app.request('/api/upload/confirm', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key }),
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(400)
+      const body = await res.json<{ error: string }>()
+      expect(body.error).toBe('File type not allowed')
+
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).toBeNull()
+    })
+  })
+
+  describe('Issue #344: malformed percent-encoding handling', () => {
+    it('returns 400 instead of 500 on POST /upload/confirm with malformed key', async () => {
+      const res = await app.request('/api/upload/confirm', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: '123-%E0%A4%A' }),
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(400)
+      const body = await res.json<{ error: string }>()
+      expect(body.error).toBe('Invalid key format')
+    })
+
+    it('returns 400 instead of 500 on GET /upload/download-url/:key with malformed key', async () => {
+      const res = await app.request('/api/upload/download-url/%E0%A4%A', {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(400)
+      const body = await res.json<{ error: string }>()
+      expect(body.error).toBe('Invalid key')
+    })
+
+    it('returns 400 instead of 500 on DELETE /upload/:key with malformed key', async () => {
+      const res = await app.request('/api/upload/%E0%A4%A', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(400)
+      const body = await res.json<{ error: string }>()
+      expect(body.error).toBe('Invalid key')
+    })
+
+    it('returns 400 on GET /api/media/:key with malformed key', async () => {
+      const res = await app.request('/api/media/%E0%A4%A', {
+        method: 'GET',
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(400)
+    })
+  })
+
+  describe('Issue #345: DELETE /upload/:key with URL-encoded characters', () => {
+    it('successfully deletes media whose key contains encoded spaces and special characters', async () => {
+      const key = `${Date.now()}-a1b2c3d4-my_file.png`
+      const fileSize = 512
+
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'my_file.png', 'image/png', fileSize, TEST_USERS[0].id).run()
+      await db.prepare("UPDATE system_stats SET value = ? WHERE id = 'total_storage_bytes'").bind(String(fileSize)).run()
+
+      await s3.send(new PutObjectCommand({
+        Bucket: TEST_ENV.R2_BUCKET_NAME,
+        Key: key,
+        Body: new Uint8Array([1, 2, 3]),
+        ContentType: 'image/png'
+      }))
+
+      const encodedKey = key.replace(/_/g, '%5F').replace(/\./g, '%2E')
+      const res = await app.request(`/api/upload/${encodedKey}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(200)
+
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).toBeNull()
+    })
+  })
+
+  describe('Issue #346: path traversal stripping and Content-Disposition filename', () => {
+    it('sanitizes nested path traversal sequences in DELETE /upload/:key', async () => {
+      const key = `${Date.now()}-a1b2c3d4-nested.png`
+      await db.prepare('INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)').bind(key, 'nested.png', 'image/png', 100, TEST_USERS[0].id).run()
+
+      await s3.send(new PutObjectCommand({
+        Bucket: TEST_ENV.R2_BUCKET_NAME,
+        Key: key,
+        Body: new Uint8Array([1, 2, 3]),
+        ContentType: 'image/png'
+      }))
+
+      // Nested traversal pattern: ....//....//
+      const nestedTraversal = `....//....//${key}`
+      const res = await app.request(`/api/upload/${encodeURIComponent(nestedTraversal)}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(200)
+      const mediaObj = await db.prepare('SELECT * FROM media_objects WHERE key = ?').bind(key).first()
+      expect(mediaObj).toBeNull()
+    })
+
+    it('sets Content-Disposition with original filename for active MIME types in media serving', async () => {
+      const mockStorage = new Map<string, { body: Uint8Array; contentType: string }>()
+      const key = '1700000000-a1b2c3d4-vector_graphic.svg'
+      mockStorage.set(key, {
+        body: new TextEncoder().encode('<svg></svg>'),
+        contentType: 'image/svg+xml',
+      })
+
+      const mockMediaBucket: any = {
+        get: async (k: string) => {
+          const item = mockStorage.get(k)
+          if (!item) return null
+          return {
+            body: item.body,
+            size: item.body.byteLength,
+            httpMetadata: { contentType: item.contentType },
+          }
+        },
+      }
+
+      const envWithoutS3 = {
+        DB: db,
+        JWT_SECRET: TEST_ENV.JWT_SECRET,
+        MEDIA_BUCKET: mockMediaBucket,
+      }
+
+      const res = await app.request(`/api/media/${key}`, { method: 'GET' }, envWithoutS3 as any)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+      expect(res.headers.get('Content-Disposition')).toBe('attachment; filename="vector_graphic.svg"')
+    })
+  })
+
+  describe('Security: prototype pollution and reserved prototype property safety', () => {
+    it('safely rejects reserved prototype properties without throwing unhandled errors', async () => {
+      const reservedKeys = ['constructor', 'toString', '__proto__', 'valueOf', 'hasOwnProperty']
+
+      for (const key of reservedKeys) {
+        // 1. Confirm endpoint
+        const confirmRes = await app.request('/api/upload/confirm', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key }),
+        }, { ...TEST_ENV, DB: db })
+        expect(confirmRes.status).toBe(400)
+
+        // 2. Download URL endpoint
+        const downloadRes = await app.request(`/api/upload/download-url/${key}`, {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${adminToken}` },
+        }, { ...TEST_ENV, DB: db })
+        expect([400, 404]).toContain(downloadRes.status)
+
+        // 3. Delete endpoint
+        const deleteRes = await app.request(`/api/upload/${key}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${adminToken}` },
+        }, { ...TEST_ENV, DB: db })
+        expect([400, 404]).toContain(deleteRes.status)
+
+        // 4. Media serve endpoint
+        const mediaRes = await app.request(`/api/media/${key}`, {
+          method: 'GET',
+        }, { ...TEST_ENV, DB: db })
+        expect([400, 404]).toContain(mediaRes.status)
+      }
+    })
+  })
 })
+
