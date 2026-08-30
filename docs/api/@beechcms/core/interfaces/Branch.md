@@ -176,6 +176,12 @@ How the value is stored. Default: 'plain'.
 
 Whether the field is included in Public API responses. Default: true.
 
+#### publicEdit?
+
+> `optional` **publicEdit?**: `boolean`
+
+Whether the field can be updated via public edit endpoints. Default: false for confidential/internal/restricted, true for public.
+
 #### search?
 
 > `optional` **search?**: `boolean`

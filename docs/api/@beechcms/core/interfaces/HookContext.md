@@ -26,6 +26,14 @@ scrivere qui bypassa la Botanical Engine.
 
 ***
 
+### queue?
+
+> `optional` **queue?**: [`IQueueService`](IQueueService.md)
+
+Optional queue service for enqueuing async jobs from hooks.
+
+***
+
 ### repository
 
 > **repository**: [`ContentRepository`](ContentRepository.md)

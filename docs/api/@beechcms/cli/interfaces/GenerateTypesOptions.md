@@ -12,28 +12,20 @@
 
 > `optional` **db?**: `string`
 
-Override D1 database name (remote path only).
+Override D1 database name.
 
 ***
 
-### local
+### local?
 
-> **local**: `boolean`
+> `optional` **local?**: `boolean`
 
-Read from in-code SEED_REGISTRY (true) instead of introspecting D1 (false).
-
-***
-
-### out
-
-> **out**: `string`
-
-Output path for the generated .ts file.
+Target local D1 SQLite state (default: true). Set false for remote D1.
 
 ***
 
-### registry?
+### out?
 
-> `optional` **registry?**: `Record`&lt;`string`, [`Seed`](../../core/interfaces/Seed.md)&gt; \| `null`
+> `optional` **out?**: `string` \| `null`
 
-Pre-resolved registry (injected by bin/ for --local, and by tests).
+Output file destination. If omitted or null, output is written to standard output.

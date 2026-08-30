@@ -6,14 +6,23 @@
 
 # @beechcms/client
 
+## Classes
+
+- [WebhookVerificationError](classes/WebhookVerificationError.md)
+
 ## Interfaces
 
-- [BeechClient](interfaces/BeechClient.md)
+- [BeechBrowserClient](interfaces/BeechBrowserClient.md)
 - [BeechClientConfig](interfaces/BeechClientConfig.md)
 - [BeechProblem](interfaces/BeechProblem.md)
-- [ContentResource](interfaces/ContentResource.md)
+- [BeechServerClient](interfaces/BeechServerClient.md)
+- [BrowserContentResource](interfaces/BrowserContentResource.md)
+- [ConstructWebhookEventOptions](interfaces/ConstructWebhookEventOptions.md)
 - [ListMeta](interfaces/ListMeta.md)
 - [ListQuery](interfaces/ListQuery.md)
+- [RequestOptions](interfaces/RequestOptions.md)
+- [ServerContentResource](interfaces/ServerContentResource.md)
+- [VerifyWebhookSignatureOptions](interfaces/VerifyWebhookSignatureOptions.md)
 
 ## Type Aliases
 
@@ -23,8 +32,12 @@
 - [Listable](type-aliases/Listable.md)
 - [Single](type-aliases/Single.md)
 
+## Variables
+
+- [BEECH\_SIGNATURE\_HEADER](variables/BEECH_SIGNATURE_HEADER.md)
+
 ## Functions
 
 - [buildSearchParams](functions/buildSearchParams.md)
-- [createBeechClient](functions/createBeechClient.md)
-- [verifyBeechSignature](functions/verifyBeechSignature.md)
+- [constructWebhookEvent](functions/constructWebhookEvent.md)
+- [verifyBeechWebhookSignature](functions/verifyBeechWebhookSignature.md)
