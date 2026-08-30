@@ -21,6 +21,10 @@ import type { ISetupChecklistRepository } from './shared/db/repositories/d1-setu
 export interface Env {
   /** D1 database binding, the source of truth for all content and system tables. */
   DB: D1Database
+  /** Cloudflare Workers AI binding for embeddings / LLMs. */
+  AI?: any
+  /** Cloudflare R2 bucket binding for compiled search vectors and manifests. */
+  SEARCH_R2?: R2Bucket
   /** Secret used to sign and verify JWTs. */
   JWT_SECRET: string
   /** Expected `iss` claim on issued/verified JWTs. */

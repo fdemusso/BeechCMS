@@ -10,7 +10,11 @@ import type {
   SearchResultRow,
   SearchCountResult,
 } from '@beechcms/core'
-import { buildFtsQuery, type FtsRow } from '../../../features/search/search-utils'
+import {
+  buildFtsQuery,
+  mapFtsRowToResultRow,
+  type FtsRow,
+} from './d1-search.query'
 
 const EMPTY_QUERY_ERROR = 'EMPTY_QUERY'
 
@@ -29,11 +33,11 @@ export class D1SearchRepository implements ISearchRepository {
     try {
       queryParts = buildFtsQuery(
         {
-          q: options.queryText,
-          schemaSlug: options.schemaSlug,
-          status: options.statusFilter,
-          limit: options.limit,
-          cursor: options.cursor,
+          queryText:    options.queryText,
+          schemaSlug:   options.schemaSlug,
+          statusFilter: options.statusFilter,
+          pageSize:     options.limit,
+          cursor:       options.cursor,
         },
         seeds,
       )
@@ -54,11 +58,11 @@ export class D1SearchRepository implements ISearchRepository {
     try {
       queryParts = buildFtsQuery(
         {
-          q: options.queryText,
-          schemaSlug: options.schemaSlug,
-          status: options.statusFilter,
-          limit: 0,
-          cursor: null,
+          queryText:    options.queryText,
+          schemaSlug:   options.schemaSlug,
+          statusFilter: options.statusFilter,
+          pageSize:     0,
+          cursor:       null,
         },
         seeds,
       )
@@ -72,17 +76,5 @@ export class D1SearchRepository implements ISearchRepository {
       .bind(...queryParts.countBinds)
       .first<{ total: number }>()
     return { total: row?.total ?? 0 }
-  }
-}
-
-function mapFtsRowToResultRow(row: FtsRow): SearchResultRow {
-  return {
-    entryId: row.entry_id,
-    schemaSlug: row.schema_slug,
-    slug: row.slug,
-    status: row.status,
-    title: row.title,
-    excerpt: row.excerpt,
-    rank: row.rank,
   }
 }

@@ -21,7 +21,7 @@ export function publicRateLimitMiddleware() {
     if (path.startsWith('/api/v1/public/')) {
       const remaining = path.slice('/api/v1/public/'.length)
       const firstSegment = remaining.split('/')[0]
-      if (firstSegment && firstSegment !== 'health' && firstSegment !== 'timetrap') {
+      if (firstSegment && firstSegment !== 'health' && firstSegment !== 'timetrap' && firstSegment !== 'search') {
         seed = c.get('seedRegistry').get(firstSegment) ? firstSegment : 'invalid-seed'
       }
     }

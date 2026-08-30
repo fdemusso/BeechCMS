@@ -42,7 +42,7 @@ import { uploadRoutes, serveMediaHandler } from './features/upload'
 import { publicRoutes } from './public/public-routes'
 import { apiKeyMiddleware } from './public/api-key-middleware'
 import { publicRateLimitMiddleware } from './public/rate-limit-middleware'
-import { searchRouter } from "./features/search/search"
+import { searchRouter } from './features/search'
 import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository } from '@beechcms/core'
 import { repositoryMiddleware } from './middleware/repository.middleware'
 import { seedRegistryMiddleware } from './middleware/seed-registry.middleware'

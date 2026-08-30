@@ -8,6 +8,9 @@ import {
   generateAddColumn,
   generateFtsTable,
   generateFtsTriggers,
+  vectorTableName,
+  generateVectorTable,
+  generateDropTable,
   getExpectedColumns,
   junctionTableName,
   generateJunctionTable,
@@ -120,6 +123,39 @@ describe('DDL', () => {
       const sql = generateFtsTable(seed)
       expect(sql).toContain('  name')
       expect(sql).not.toContain('ssn')
+    })
+
+    it('generates correct vector table name', () => {
+      expect(vectorTableName(mockSeed)).toBe('vector_articles')
+    })
+
+    it('generates vector table if search branches exist', () => {
+      const sql = generateVectorTable(mockSeed)
+      expect(sql).toContain('CREATE TABLE IF NOT EXISTS vector_articles (')
+      expect(sql).toContain('entry_id TEXT NOT NULL PRIMARY KEY REFERENCES content_articles(id) ON DELETE CASCADE')
+      expect(sql).toContain('vector   BLOB NOT NULL')
+    })
+
+    it('returns null for vector table if no search branches exist', () => {
+      const noSearchSeed: Seed = {
+        ...mockSeed,
+        branches: [{ id: 'br_price', alias: 'price', type: 'number', label: 'Price' }],
+      }
+      expect(generateVectorTable(noSearchSeed)).toBeNull()
+    })
+
+    it('drops vector table when search branches exist', () => {
+      const stmts = generateDropTable(mockSeed)
+      expect(stmts).toContain('DROP TABLE IF EXISTS vector_articles;')
+    })
+
+    it('omits vector table drop when no search branches exist', () => {
+      const noSearchSeed: Seed = {
+        ...mockSeed,
+        branches: [{ id: 'br_price', alias: 'price', type: 'number', label: 'Price' }],
+      }
+      const stmts = generateDropTable(noSearchSeed)
+      expect(stmts.some(s => s.includes('vector_articles'))).toBe(false)
     })
 
     it('returns expected columns for the seed', () => {
