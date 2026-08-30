@@ -62,7 +62,7 @@ describe('encodeCursor / decodeCursor', () => {
 describe('buildFtsQuery', () => {
   it('returns empty-result query when no seed has a searchable FTS branch', () => {
     const result = buildFtsQuery(
-      { q: 'hello', schemaSlug: null, status: null, limit: 20, cursor: null },
+      { queryText: 'hello', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: null },
       [NO_FTS_SEED],
     )
     expect(result.sql).toContain('WHERE 1=0')
@@ -72,24 +72,24 @@ describe('buildFtsQuery', () => {
 
   it('throws EMPTY_QUERY when all terms are stripped or too short (single chars)', () => {
     expect(() =>
-      buildFtsQuery({ q: 'a b', schemaSlug: null, status: null, limit: 20, cursor: null }, [TEXT_SEED]),
+      buildFtsQuery({ queryText: 'a b', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: null }, [TEXT_SEED]),
     ).toThrow('EMPTY_QUERY')
   })
 
   it('generates a query referencing the seed FTS and content tables', () => {
     const result = buildFtsQuery(
-      { q: 'hello', schemaSlug: null, status: null, limit: 20, cursor: null },
+      { queryText: 'hello', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: null },
       [TEXT_SEED],
     )
     expect(result.sql).toContain('fts_articoli')
     expect(result.sql).toContain('content_articoli')
     expect(result.sql).toContain('LIMIT ?')
-    expect(result.binds.at(-1)).toBe(21) // limit + 1 for has-more detection
+    expect(result.binds.at(-1)).toBe(21) // pageSize + 1 for has-more detection
   })
 
   it('UNION ALLs multiple seeds when no schemaSlug filter is set', () => {
     const result = buildFtsQuery(
-      { q: 'test', schemaSlug: null, status: null, limit: 10, cursor: null },
+      { queryText: 'test', schemaSlug: null, statusFilter: null, pageSize: 10, cursor: null },
       [TEXT_SEED, SECOND_SEED],
     )
     expect(result.sql).toContain('UNION ALL')
@@ -99,16 +99,16 @@ describe('buildFtsQuery', () => {
 
   it('limits query to the requested schemaSlug when provided', () => {
     const result = buildFtsQuery(
-      { q: 'test', schemaSlug: 'articoli', status: null, limit: 20, cursor: null },
+      { queryText: 'test', schemaSlug: 'articoli', statusFilter: null, pageSize: 20, cursor: null },
       [TEXT_SEED, SECOND_SEED],
     )
     expect(result.sql).toContain('fts_articoli')
     expect(result.sql).not.toContain('fts_team')
   })
 
-  it('adds status filter to WHERE clause and bind values', () => {
+  it('adds statusFilter to WHERE clause and bind values', () => {
     const result = buildFtsQuery(
-      { q: 'hello', schemaSlug: null, status: 'published', limit: 20, cursor: null },
+      { queryText: 'hello', schemaSlug: null, statusFilter: 'published', pageSize: 20, cursor: null },
       [TEXT_SEED],
     )
     expect(result.sql).toContain('ce.status = ?')
@@ -118,7 +118,7 @@ describe('buildFtsQuery', () => {
   it('adds cursor-based pagination condition when cursor is valid', () => {
     const cursor = encodeCursor(-1.5, 'entry-123')
     const result = buildFtsQuery(
-      { q: 'hello', schemaSlug: null, status: null, limit: 20, cursor },
+      { queryText: 'hello', schemaSlug: null, statusFilter: null, pageSize: 20, cursor },
       [TEXT_SEED],
     )
     expect(result.sql).toContain('bm25')
@@ -127,7 +127,7 @@ describe('buildFtsQuery', () => {
 
   it('ignores an invalid cursor and produces no pagination condition', () => {
     const result = buildFtsQuery(
-      { q: 'hello', schemaSlug: null, status: null, limit: 20, cursor: 'bad-cursor' },
+      { queryText: 'hello', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: 'bad-cursor' },
       [TEXT_SEED],
     )
     expect(result.binds).not.toContain('entry-123')
@@ -135,7 +135,7 @@ describe('buildFtsQuery', () => {
 
   it('countSql wraps each seed count in a SUM', () => {
     const result = buildFtsQuery(
-      { q: 'test', schemaSlug: null, status: null, limit: 10, cursor: null },
+      { queryText: 'test', schemaSlug: null, statusFilter: null, pageSize: 10, cursor: null },
       [TEXT_SEED, SECOND_SEED],
     )
     expect(result.countSql).toContain('SUM')
@@ -143,24 +143,24 @@ describe('buildFtsQuery', () => {
     expect(result.countSql).toContain('fts_team')
   })
 
-  it('count binds do not include the limit+1 sentinel', () => {
+  it('count binds do not include the pageSize+1 sentinel', () => {
     const result = buildFtsQuery(
-      { q: 'hello', schemaSlug: null, status: null, limit: 5, cursor: null },
+      { queryText: 'hello', schemaSlug: null, statusFilter: null, pageSize: 5, cursor: null },
       [TEXT_SEED],
     )
-    expect(result.countBinds).not.toContain(6) // limit + 1 must not appear in count binds
+    expect(result.countBinds).not.toContain(6) // pageSize + 1 must not appear in count binds
   })
 
   it('single-character terms (length < 2) are filtered out', () => {
     // 'a b c' — single-char terms discarded; result depends on remaining terms
     expect(() =>
-      buildFtsQuery({ q: 'a b c', schemaSlug: null, status: null, limit: 20, cursor: null }, [TEXT_SEED]),
+      buildFtsQuery({ queryText: 'a b c', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: null }, [TEXT_SEED]),
     ).toThrow('EMPTY_QUERY')
   })
 
   it('numeric terms are quoted without prefix expansion', () => {
     const result = buildFtsQuery(
-      { q: '2024', schemaSlug: null, status: null, limit: 20, cursor: null },
+      { queryText: '2024', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: null },
       [TEXT_SEED],
     )
     expect(result.binds[0]).toContain('"2024"')

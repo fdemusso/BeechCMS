@@ -10,11 +10,12 @@ import { D1AutomationRepository } from './shared/db/repositories/automations.rep
 import { D1ContentRepository } from './shared/db/repositories/content.repository.d1'
 import { D1SeedRepository } from './shared/db/repositories/seed.repository.d1'
 import { dispatchQueueBatch } from './shared/jobs/queue-consumer'
+import { semanticSearchHooks, semanticSearchJobs } from './features/search'
 import type { Env } from './types'
 
-const jobs = {} satisfies Record<string, never>
+const jobs = { ...semanticSearchJobs }
 
-const app = createBeechApp({ seeds: [], jobs })
+const app = createBeechApp({ seeds: [], jobs, hooks: semanticSearchHooks })
 
 // // TODO: remove debug log endpoints
 // const globalLogs: any[] = []

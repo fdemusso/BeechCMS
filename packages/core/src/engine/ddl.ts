@@ -88,6 +88,17 @@ export function ftsTableName(seed: Seed): string {
 
 
 /**
+ * Returns the vector table name for a given Seed.
+ * 
+ * @param seed The seed definition.
+ * @returns The vector table name.
+ */
+export function vectorTableName(seed: Seed): string {
+  return `vector_${seed.slug}`
+}
+
+
+/**
  * Determines whether a column is valid for a given Seed (either system column or branch alias).
  * 
  * @param seed The seed definition.
@@ -331,6 +342,26 @@ export function generateFtsTriggers(seed: Seed): string[] {
 
 
 /**
+ * Generates the SQL `CREATE TABLE IF NOT EXISTS vector_{slug}` statement
+ * for indexable text/richtext branches.
+ * 
+ * @param seed The seed definition.
+ * @returns The CREATE TABLE SQL statement, or null if no branches are indexable.
+ */
+export function generateVectorTable(seed: Seed): string | null {
+  const rtBranches = indexableSearchBranches(seed)
+  if (rtBranches.length === 0) return null
+  const table = vectorTableName(seed)
+  return [
+    `CREATE TABLE IF NOT EXISTS ${table} (`,
+    `  entry_id TEXT NOT NULL PRIMARY KEY REFERENCES content_${seed.slug}(id) ON DELETE CASCADE,`,
+    `  vector   BLOB NOT NULL`,
+    `);`,
+  ].join('\n')
+}
+
+
+/**
  * Expected database schema column interface.
  */
 export interface SchemaColumn {
@@ -492,6 +523,7 @@ export function generateDropTable(seed: Seed): string[] {
     stmts.push(`DROP TRIGGER IF EXISTS fts_${slug}_update;`)
     stmts.push(`DROP TRIGGER IF EXISTS fts_${slug}_delete;`)
     stmts.push(`DROP TABLE IF EXISTS ${ftsTableName(seed)};`)
+    stmts.push(`DROP TABLE IF EXISTS ${vectorTableName(seed)};`)
   }
 
   stmts.push(`DROP TABLE IF EXISTS ${tableName(seed)};`)

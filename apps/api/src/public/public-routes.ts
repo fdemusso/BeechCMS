@@ -9,6 +9,7 @@ import { publicReadHandler } from './public-read'
 import { publicAddHandler } from './public-add'
 import { publicEditHandler } from './public-edit'
 import { publicProblem } from './problem-details'
+import { publicSearchRouter } from '../features/search/public-search.router'
 
 const publicApp = new Hono<AppEnv>()
 
@@ -22,6 +23,8 @@ publicApp.get('/timetrap/token', async (c) => {
   const token = await generateTimeTrapToken(secret)
   return c.json({ token, minDeltaSeconds: 1.5 }, 200)
 })
+
+publicApp.route('/search', publicSearchRouter)
 
 /** Returns the scoped public-facing schema for a single seed (e.g. GET /api/v1/public/clienti/schema) */
 publicApp.get('/:seed/schema', (c) => {
