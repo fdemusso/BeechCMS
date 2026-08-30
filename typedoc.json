@@ -5,6 +5,7 @@
     "packages/core",
     "packages/client",
     "packages/forms-react",
+    "packages/search-client",
     "packages/widget-sdk",
     "packages/cli"
   ],

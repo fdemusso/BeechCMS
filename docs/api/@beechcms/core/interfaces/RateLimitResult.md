@@ -14,10 +14,24 @@
 
 ***
 
+### limit?
+
+> `optional` **limit?**: `number`
+
+The maximum token capacity configured for this limiter.
+
+***
+
+### remaining?
+
+> `optional` **remaining?**: `number`
+
+The number of whole tokens remaining in the bucket.
+
+***
+
 ### retryAfterSeconds?
 
 > `optional` **retryAfterSeconds?**: `number`
 
-The number of seconds after which the client may retry the request.
-Note: This field is optional and may not be supported by all implementations
-(e.g. Cloudflare Rate Limit binding does not return retry-after information).
+The number of whole seconds after which the client may retry the request.

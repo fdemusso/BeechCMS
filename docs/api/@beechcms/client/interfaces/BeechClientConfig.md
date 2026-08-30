@@ -63,3 +63,9 @@
 ##### Returns
 
 `Promise`&lt;`Response`&gt;
+
+***
+
+### headers?
+
+> `optional` **headers?**: `Record`&lt;`string`, `string`&gt; \| `Headers`

@@ -6,13 +6,13 @@
 
 # Function: generateTypes()
 
-> **generateTypes**(`args`): `Promise`&lt;`void`&gt;
+> **generateTypes**(`args?`): `Promise`&lt;`void`&gt;
 
 ## Parameters
 
-### args
+### args?
 
-[`GenerateTypesOptions`](../interfaces/GenerateTypesOptions.md)
+[`GenerateTypesOptions`](../interfaces/GenerateTypesOptions.md) = `{}`
 
 ## Returns
 

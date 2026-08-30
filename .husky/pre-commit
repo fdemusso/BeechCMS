@@ -2,3 +2,6 @@
 
 node scripts/update-license.mjs
 git add .github/LICENSE
+
+pnpm docs:generate
+git add docs/api
