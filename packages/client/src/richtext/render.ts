@@ -144,6 +144,15 @@ function renderNode(node: TipTapNode): string {
     case 'bulletList':
       return `<ul>${renderChildren(node.content)}</ul>`
 
+    case 'taskList':
+      return `<ul class="task-list">${renderChildren(node.content)}</ul>`
+
+    case 'taskItem': {
+      const checked = attrs.checked === true
+      const checkInput = `<input type="checkbox" ${checked ? 'checked ' : ''}disabled /> `
+      return `<li class="task-item">${checkInput}${renderChildren(node.content)}</li>`
+    }
+
     case 'orderedList': {
       const start = typeof attrs.start === 'number' && attrs.start !== 1 ? ` start="${attrs.start}"` : ''
       return `<ol${start}>${renderChildren(node.content)}</ol>`

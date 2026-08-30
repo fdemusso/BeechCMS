@@ -11,11 +11,12 @@ const ALLOWED_RICHTEXT_NODE_TYPES = new Set([
   'listItem', 'codeBlock', 'horizontalRule', 'hardBreak', 'image',
   'table', 'tableRow', 'tableHeader', 'tableCell',
   'inlineMath', 'blockMath', // Mathematics extension
+  'taskList', 'taskItem',
 ])
 /** Allowlisted TipTap mark `type` values. */
 const ALLOWED_RICHTEXT_MARK_TYPES = new Set([
   'bold', 'italic', 'strike', 'code', 'link', 'highlight',
-  'superscript', 'subscript', 'textStyle',
+  'superscript', 'subscript', 'textStyle', 'underline',
 ])
 /** Keys that may carry URLs inside a node/mark attrs. */
 const URL_LIKE_RICHTEXT_KEYS = new Set(['href', 'src'])

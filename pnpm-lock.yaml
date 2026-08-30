@@ -508,6 +508,9 @@ importers:
       '@tiptap/core':
         specifier: ^3.22.3
         version: 3.26.1(@tiptap/pm@3.26.1)
+      '@tiptap/extension-color':
+        specifier: ^3.26.1
+        version: 3.26.1(@tiptap/extension-text-style@3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1)))
       '@tiptap/extension-highlight':
         specifier: ^3.22.3
         version: 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))
@@ -516,6 +519,9 @@ importers:
         version: 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))
       '@tiptap/extension-link':
         specifier: ^3.22.3
+        version: 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))(@tiptap/pm@3.26.1)
+      '@tiptap/extension-list':
+        specifier: ^3.26.1
         version: 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))(@tiptap/pm@3.26.1)
       '@tiptap/extension-mathematics':
         specifier: ^3.22.3
@@ -531,6 +537,12 @@ importers:
         version: 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))(@tiptap/pm@3.26.1)
       '@tiptap/extension-text-align':
         specifier: ^3.22.3
+        version: 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))
+      '@tiptap/extension-text-style':
+        specifier: ^3.26.1
+        version: 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))
+      '@tiptap/extension-underline':
+        specifier: ^3.26.1
         version: 3.26.1(@tiptap/core@3.26.1(@tiptap/pm@3.26.1))
       '@tiptap/html':
         specifier: ^3.22.3

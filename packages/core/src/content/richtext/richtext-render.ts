@@ -11,6 +11,9 @@ import Superscript from '@tiptap/extension-superscript'
 import { Table, TableCell, TableHeader, TableRow } from '@tiptap/extension-table'
 import TextAlign from '@tiptap/extension-text-align'
 import { Mathematics } from '@tiptap/extension-mathematics'
+import { TextStyle } from '@tiptap/extension-text-style'
+import Color from '@tiptap/extension-color'
+import { TaskItem, TaskList } from '@tiptap/extension-list'
 import StarterKit from '@tiptap/starter-kit'
 
 import { isRichtextEnvelopeV1 } from './richtext.js'
@@ -42,6 +45,10 @@ function createRichTextHtmlExtensions() {
     Highlight,
     Superscript,
     Subscript,
+    TextStyle,
+    Color,
+    TaskList,
+    TaskItem,
     Image.configure({
       allowBase64: false,
     }),
@@ -78,5 +85,10 @@ export function normalizeRichtextForRender(value: unknown): JSONContent | null {
 export function renderRichText(value: unknown): string {
   const normalized = normalizeRichtextForRender(value)
   if (normalized == null) return ''
-  return generateHTML(normalized, createRichTextHtmlExtensions())
+  try {
+    return generateHTML(normalized, createRichTextHtmlExtensions())
+  } catch (error) {
+    console.warn('[BeechCMS RichText] Failed to render rich text document:', error)
+    return ''
+  }
 }
