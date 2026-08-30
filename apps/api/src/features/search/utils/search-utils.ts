@@ -11,6 +11,7 @@
  */
 
 import type { Seed } from '@beechcms/core'
+import { indexableSearchBranches } from '@beechcms/core'
 import type { FtsRow, FtsQueryParams, SearchResultItem } from '../types'
 
 export type { FtsRow, FtsQueryParams, SearchResultItem }
@@ -58,19 +59,15 @@ export function decodeCursor(cursor: string): { rank: number; entryId: string } 
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
 /**
- * Returns `true` when the seed has at least one `text` or `richtext` branch
- * that is not explicitly excluded from search via `policies.search = false`.
+ * Returns `true` when the seed has at least one text or richtext branch
+ * that is indexable for search (search !== false and public !== false).
  *
  * Only seeds satisfying this predicate will be included in FTS queries.
  *
  * @param seed - Seed definition to inspect.
  */
 function isSeedFullTextSearchable(seed: Seed): boolean {
-  return seed.branches.some(
-    (branch) =>
-      (branch.type === 'text' || branch.type === 'richtext') &&
-      branch.policies?.search !== false,
-  )
+  return indexableSearchBranches(seed).length > 0
 }
 
 /**

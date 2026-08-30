@@ -30,6 +30,14 @@ const NO_FTS_SEED = {
   ],
 } as unknown as Seed
 
+const PRIVATE_TEXT_SEED = {
+  slug: 'internal_notes',
+  displayNameAlias: 'note',
+  branches: [
+    { id: 'br_01', alias: 'note', type: 'text', policies: { public: false, search: true } },
+  ],
+} as unknown as Seed
+
 // ─── encodeCursor / decodeCursor ─────────────────────────────────────────────
 
 describe('encodeCursor / decodeCursor', () => {
@@ -68,6 +76,15 @@ describe('buildFtsQuery', () => {
     expect(result.sql).toContain('WHERE 1=0')
     expect(result.binds).toHaveLength(0)
     expect(result.countSql).toContain('SELECT 0 as total')
+  })
+
+  it('excludes seeds with private text branches from FTS queries', () => {
+    const result = buildFtsQuery(
+      { queryText: 'hello', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: null },
+      [PRIVATE_TEXT_SEED],
+    )
+    expect(result.sql).toContain('WHERE 1=0')
+    expect(result.sql).not.toContain('fts_internal_notes')
   })
 
   it('throws EMPTY_QUERY when all terms are stripped or too short (single chars)', () => {
