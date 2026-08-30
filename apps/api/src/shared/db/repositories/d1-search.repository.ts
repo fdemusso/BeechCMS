@@ -10,7 +10,11 @@ import type {
   SearchResultRow,
   SearchCountResult,
 } from '@beechcms/core'
-import { buildFtsQuery, type FtsRow } from '../../../features/search/utils/search-utils'
+import {
+  buildFtsQuery,
+  mapFtsRowToResultRow,
+  type FtsRow,
+} from './d1-search.query'
 
 const EMPTY_QUERY_ERROR = 'EMPTY_QUERY'
 
@@ -72,17 +76,5 @@ export class D1SearchRepository implements ISearchRepository {
       .bind(...queryParts.countBinds)
       .first<{ total: number }>()
     return { total: row?.total ?? 0 }
-  }
-}
-
-function mapFtsRowToResultRow(row: FtsRow): SearchResultRow {
-  return {
-    entryId: row.entry_id,
-    schemaSlug: row.schema_slug,
-    slug: row.slug,
-    status: row.status,
-    title: row.title,
-    excerpt: row.excerpt,
-    rank: row.rank,
   }
 }

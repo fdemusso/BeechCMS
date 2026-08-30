@@ -9,7 +9,7 @@ import { publicReadHandler } from './public-read'
 import { publicAddHandler } from './public-add'
 import { publicEditHandler } from './public-edit'
 import { publicProblem } from './problem-details'
-import { publicSearchRouter } from '../features/search/public-search.router'
+import { publicSearchRouter } from '../features/search'
 
 const publicApp = new Hono<AppEnv>()
 
