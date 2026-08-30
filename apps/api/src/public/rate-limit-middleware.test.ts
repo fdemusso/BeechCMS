@@ -7,7 +7,10 @@ import { Hono } from 'hono'
 import type { AppEnv } from '../types'
 import { publicRateLimitMiddleware } from './rate-limit-middleware'
 
-function buildApp(knownSlugs: string[]) {
+function buildApp(
+  knownSlugs: string[],
+  limiterResult: { isAllowed: boolean; retryAfterSeconds?: number; limit?: number; remaining?: number } = { isAllowed: true, limit: 60, remaining: 59 }
+) {
   const checkedKeys: string[] = []
   const seedRegistry = {
     get: (slug: string) => (knownSlugs.includes(slug) ? { slug } : null),
@@ -16,7 +19,7 @@ function buildApp(knownSlugs: string[]) {
     getLimiter: () => ({
       checkLimit: async (key: string) => {
         checkedKeys.push(key)
-        return { isAllowed: true }
+        return limiterResult
       },
     }),
   }
@@ -77,5 +80,36 @@ describe('publicRateLimitMiddleware', () => {
     for (const key of checkedKeys) {
       expect(key.split(':')[1]).toBe('no-seed')
     }
+  })
+
+  it('injects X-RateLimit-Limit and X-RateLimit-Remaining on 2xx responses', async () => {
+    const { app } = buildApp(['articles'], { isAllowed: true, limit: 60, remaining: 42 })
+
+    const res = await app.request('/api/v1/public/articles')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('X-RateLimit-Limit')).toBe('60')
+    expect(res.headers.get('X-RateLimit-Remaining')).toBe('42')
+  })
+
+  it('injects Retry-After and rate-limit headers on 429 responses', async () => {
+    const { app } = buildApp(
+      ['articles'],
+      { isAllowed: false, retryAfterSeconds: 15, limit: 60, remaining: 0 }
+    )
+
+    const res = await app.request('/api/v1/public/articles')
+    expect(res.status).toBe(429)
+    expect(res.headers.get('Retry-After')).toBe('15')
+    expect(res.headers.get('X-RateLimit-Limit')).toBe('60')
+    expect(res.headers.get('X-RateLimit-Remaining')).toBe('0')
+  })
+
+  it('omits rate-limit headers when limiter does not return them', async () => {
+    const { app } = buildApp(['articles'], { isAllowed: true })
+
+    const res = await app.request('/api/v1/public/articles')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('X-RateLimit-Limit')).toBeNull()
+    expect(res.headers.get('X-RateLimit-Remaining')).toBeNull()
   })
 })

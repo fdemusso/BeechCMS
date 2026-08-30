@@ -12,6 +12,8 @@ import type { Env, Variables, AppEnv } from './types'
 
 export type { Env, Variables, AppEnv } from './types'
 import { getClientIp } from './shared/utils/request-utils'
+import { checkDualKeyRateLimit, normalizeAccountKey } from './shared/utils/dual-key-rate-limiter'
+import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 
 // Imports delle rotte e middleware
 import { AUTH_ERRORS } from './auth/constants'
@@ -86,6 +88,12 @@ export interface BeechConfig {
    * export. Handlers receive an engine-mediated JobContext — never raw D1.
    */
   jobs?: JobRegistry
+  /**
+   * Optional rate limiter registry override. When provided, replaces the default
+   * in-memory TokenBucket registry for all requests. Useful in tests to inject
+   * a pre-exhausted limiter without relying on Cloudflare bindings.
+   */
+  rateLimiterRegistry?: IRateLimiterRegistry
 }
 
 // --- Costanti e helper ---
@@ -167,7 +175,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.use('*', queueMiddleware(config.jobs ?? {}))
 
   app.use('*', authProvidersMiddleware())
-  app.use('*', rateLimiterMiddleware())
+  app.use('*', rateLimiterMiddleware(config.rateLimiterRegistry ? { registry: config.rateLimiterRegistry } : undefined))
   app.use('*', observabilityMiddleware())
 
   app.use('*', async (context, next) => {
@@ -246,30 +254,80 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   // 3. Auth Routes
   app.post('/auth/login', async (context) => {
     try {
-      let body: any
-      try { body = await context.req.json() } catch { return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400) }
-      const credentials = parseLoginBody(body)
-      if (!credentials) return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
-      const { email, password } = credentials
-      if (!validateLoginInput(email, password)) return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
-
       const clientIp = getClientIp(context.req)
-      const loginRateLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(clientIp)
-      if (!loginRateLimit.isAllowed) {
+
+      let body: any
+      try {
+        body = await context.req.json()
+      } catch {
+        // Evaluate IP rate limit on malformed body before rejecting
+        const ipLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(clientIp)
+        if (!ipLimit.isAllowed) {
+          const headers: Record<string, string> = {}
+          if (ipLimit.retryAfterSeconds !== undefined) {
+            headers['Retry-After'] = String(ipLimit.retryAfterSeconds)
+          }
+          return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429, headers)
+        }
+        return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
+      }
+
+      const credentials = parseLoginBody(body)
+      if (!credentials) {
+        const ipLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(clientIp)
+        if (!ipLimit.isAllowed) {
+          const headers: Record<string, string> = {}
+          if (ipLimit.retryAfterSeconds !== undefined) {
+            headers['Retry-After'] = String(ipLimit.retryAfterSeconds)
+          }
+          return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429, headers)
+        }
+        return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
+      }
+
+      const { email, password } = credentials
+      if (!validateLoginInput(email, password)) {
+        const ipLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(clientIp)
+        if (!ipLimit.isAllowed) {
+          const headers: Record<string, string> = {}
+          if (ipLimit.retryAfterSeconds !== undefined) {
+            headers['Retry-After'] = String(ipLimit.retryAfterSeconds)
+          }
+          return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429, headers)
+        }
+        return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
+      }
+
+      // Dual-Key Rate Limit Check (pre-database, pre-crypto)
+      const dualKeyResult = await checkDualKeyRateLimit({
+        ipLimiter: context.get('rateLimiters').getLimiter('login'),
+        accountLimiter: context.get('rateLimiters').getLimiter('loginAccount'),
+        clientIp,
+        accountKey: email,
+      })
+
+      if (!dualKeyResult.isAllowed) {
         const headers: Record<string, string> = {}
-        if (loginRateLimit.retryAfterSeconds !== undefined) {
-          headers['Retry-After'] = String(loginRateLimit.retryAfterSeconds)
+        if (dualKeyResult.retryAfterSeconds !== undefined) {
+          headers['Retry-After'] = String(dualKeyResult.retryAfterSeconds)
         }
         return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429, headers)
       }
 
-      const user = await context.get('userRepository').findByEmail(email)
+      const normalizedEmail = normalizeAccountKey(email)
+      const user = await context.get('userRepository').findByEmail(normalizedEmail)
       const hashToCompare = user?.passwordHash ?? DUMMY_PASSWORD_HASH
       const isValid = await verifyPassword(password, hashToCompare, context.get('hashProvider'))
 
       if (!user || !isValid) return context.json({ error: AUTH_ERRORS.INVALID_CREDENTIALS }, 401)
 
-      const accessToken = await context.get('tokenService').issue({ sub: user.id, email: user.email, name: user.name ?? undefined, surname: user.surname ?? undefined, role: user.role })
+      const accessToken = await context.get('tokenService').issue({
+        sub: user.id,
+        email: user.email,
+        name: user.name ?? undefined,
+        surname: user.surname ?? undefined,
+        role: user.role,
+      })
       const refreshToken = generateRefreshToken()
       const refreshTokenHash = await sha256hex(refreshToken)
       const nowSeconds = SystemClock.nowSeconds()

@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { defineSeed, sha256hex, generateTimeTrapToken } from '@beechcms/core'
 import { createBeechApp } from '../src/factory'
+import type { IRateLimiterRegistry } from '../src/middleware/rate-limit.middleware'
 import { StaticAutomationRepository } from './mocks/static-automation.repository'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { StaticIdempotencyRepository } from './mocks/static-idempotency.repository'
@@ -100,53 +101,78 @@ describe('Flow: Guest Access (Public API)', () => {
     })
 
     it('security: read rate limiting returns 429 when too many requests', async () => {
-      const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: false }) }
-      const res = await app.request('/api/v1/public/posts', {
+      const blockedLimiter = { checkLimit: vi.fn().mockResolvedValue({ isAllowed: false }) }
+      const blockedRegistry: IRateLimiterRegistry = { getLimiter: () => blockedLimiter }
+      const rateLimitedApp = createBeechApp({
+        seeds: TEST_SEEDS,
+        repository: repo,
+        idempotencyRepository: idempotencyRepo,
+        automationRepository: new StaticAutomationRepository(),
+        rateLimiterRegistry: blockedRegistry,
+      })
+      const res = await rateLimitedApp.request('/api/v1/public/posts', {
         headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
-      }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+      }, TEST_ENV)
 
       expect(res.status).toBe(429)
     })
 
     it('security: rate limiter key contains the seed slug to ensure distinct buckets per registered seed', async () => {
-      const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: true }) }
-
-      await app.request('/api/v1/public/posts', {
-        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
-      }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
-
-      expect(mockLimiter.limit).toHaveBeenCalledWith({
-        key: 'unknown:posts:publicApiRead'
+      const checkedKeys: string[] = []
+      const spyLimiter = {
+        checkLimit: vi.fn().mockImplementation(async (key: string) => {
+          checkedKeys.push(key)
+          return { isAllowed: true }
+        }),
+      }
+      const spyRegistry: IRateLimiterRegistry = { getLimiter: () => spyLimiter }
+      const spyApp = createBeechApp({
+        seeds: TEST_SEEDS,
+        repository: repo,
+        idempotencyRepository: idempotencyRepo,
+        automationRepository: new StaticAutomationRepository(),
+        rateLimiterRegistry: spyRegistry,
       })
 
-      await app.request('/api/v1/public/documentation', {
+      await spyApp.request('/api/v1/public/posts', {
         headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
-      }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+      }, TEST_ENV)
+      expect(checkedKeys.at(-1)).toContain(':posts:')
 
-      expect(mockLimiter.limit).toHaveBeenLastCalledWith({
-        key: 'unknown:documentation:publicApiRead'
-      })
-
-      await app.request('/api/v1/public/health', {
+      await spyApp.request('/api/v1/public/documentation', {
         headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
-      }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+      }, TEST_ENV)
+      expect(checkedKeys.at(-1)).toContain(':documentation:')
 
-      expect(mockLimiter.limit).toHaveBeenLastCalledWith({
-        key: 'unknown:no-seed:publicApiRead'
-      })
+      await spyApp.request('/api/v1/public/health', {
+        headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
+      }, TEST_ENV)
+      expect(checkedKeys.at(-1)).toContain(':no-seed:')
     })
 
     it('security: unregistered seed segments collapse into a single shared bucket, not one per segment', async () => {
-      const mockLimiter = { limit: vi.fn().mockResolvedValue({ success: true }) }
+      const checkedKeys: string[] = []
+      const spyLimiter = {
+        checkLimit: vi.fn().mockImplementation(async (key: string) => {
+          checkedKeys.push(key)
+          return { isAllowed: true }
+        }),
+      }
+      const spyRegistry: IRateLimiterRegistry = { getLimiter: () => spyLimiter }
+      const spyApp = createBeechApp({
+        seeds: TEST_SEEDS,
+        repository: repo,
+        idempotencyRepository: idempotencyRepo,
+        automationRepository: new StaticAutomationRepository(),
+        rateLimiterRegistry: spyRegistry,
+      })
 
       for (const segment of ['aaaa1', 'aaaa2', 'aaaa3', 'constructor', '__proto__']) {
-        await app.request(`/api/v1/public/${segment}`, {
+        await spyApp.request(`/api/v1/public/${segment}`, {
           headers: { 'X-API-Key': TEST_ENV.PUBLIC_READ_API_KEY },
-        }, { ...TEST_ENV, PUBLIC_READ_RATE_LIMITER: mockLimiter as any })
+        }, TEST_ENV)
 
-        expect(mockLimiter.limit).toHaveBeenLastCalledWith({
-          key: 'unknown:invalid-seed:publicApiRead'
-        })
+        expect(checkedKeys.at(-1)).toContain(':invalid-seed:')
       }
     })
   })

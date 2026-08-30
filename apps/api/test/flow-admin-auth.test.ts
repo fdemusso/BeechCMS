@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { sha256hex } from '@beechcms/core'
 import { createBeechApp } from '../src/factory'
 import { AUTH_ERRORS } from '../src/auth/constants'
+import { rateLimiterMiddleware, type IRateLimiterRegistry } from '../src/middleware/rate-limit.middleware'
 import { D1TestDatabase } from './helpers/d1-test-database'
 import { seedTestUsers } from './helpers/seed-fixtures'
 import { TEST_USERS, TEST_ENV } from './fixtures'
@@ -90,27 +91,40 @@ describe('Flow: Admin Authentication', () => {
       expect(res.status).toBe(200)
     })
 
-    it('rate limit returns 429 when LOGIN_RATE_LIMITER blocks the request', async () => {
-      const blockedLimiter = { limit: () => Promise.resolve({ success: false }) }
-      const res = await app.request('/auth/login', {
+    it('rate limit returns 429 when the login limiter blocks the request', async () => {
+      const blockedLimiterInstance = {
+        checkLimit: async () => ({ isAllowed: false as const, retryAfterSeconds: undefined }),
+      }
+      const blockedRegistry: IRateLimiterRegistry = {
+        getLimiter: () => blockedLimiterInstance,
+      }
+      const rateLimitedApp = createBeechApp({ seeds: [], rateLimiterRegistry: blockedRegistry })
+      const res = await rateLimitedApp.request('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: VALID_EMAIL, password: VALID_PASSWORD }),
-      }, { ...TEST_ENV, DB: db as any, LOGIN_RATE_LIMITER: blockedLimiter as any })
+      }, { ...TEST_ENV, DB: db as any })
       expect(res.status).toBe(429)
     })
 
-    it('rate limit returns 429 with Retry-After header when LOGIN_RATE_LIMITER blocks with retryAfterSeconds', async () => {
-      const blockedLimiter = { limit: () => Promise.resolve({ success: false, retryAfterSeconds: 30 }) }
-      const res = await app.request('/auth/login', {
+    it('rate limit returns 429 with Retry-After header when login limiter blocks with retryAfterSeconds', async () => {
+      const blockedLimiterInstance = {
+        checkLimit: async () => ({ isAllowed: false as const, retryAfterSeconds: 30 }),
+      }
+      const blockedRegistry: IRateLimiterRegistry = {
+        getLimiter: () => blockedLimiterInstance,
+      }
+      const rateLimitedApp = createBeechApp({ seeds: [], rateLimiterRegistry: blockedRegistry })
+      const res = await rateLimitedApp.request('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: VALID_EMAIL, password: VALID_PASSWORD }),
-      }, { ...TEST_ENV, DB: db as any, LOGIN_RATE_LIMITER: blockedLimiter as any })
+      }, { ...TEST_ENV, DB: db as any })
       expect(res.status).toBe(429)
       expect(res.headers.get('Retry-After')).toBe('30')
     })
   })
+
 
   // ---------------------------------------------------------------------------
   // Protected Route Access

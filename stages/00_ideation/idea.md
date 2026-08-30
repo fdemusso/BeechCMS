@@ -1,67 +1,54 @@
-# Feature Idea: Edge-Native & Client-Side Vector Search SDK (@beechcms/search-client)
+# Feature Idea: Rate Limiting Modernization & Auth Hardening (Issue #338)
 
-## 1. Executive Summary & Core Value Proposition
+## 1. Visione & Obiettivo
+Attualmente il sistema di rate limiting in BeechCMS soffre di due criticità principali:
+1. **Friction su Route Pubbliche (Read/Write)**: l'uso di finestre fisse (Cloudflare simple fixed-window / in-memory counters) causa starvation sui burst leciti di traffico (es. rendering iniziale di pagine con query parallele) e boundary spikes (chiamate ravvicinate a cavallo della finestra di 60s).
+2. **Vulnerabilità Brute Force / Credential Stuffing su Auth**: gli endpoint sensibili (`/auth/login`, `/auth/forgot-password`, `/auth/refresh`) limitano unicamente per `clientIp`, esponendo gli account ad attacchi distribuiti tramite proxy rotanti.
 
-The goal is to introduce **zero-cost, edge-native, and client-side semantic vector search** to the BeechCMS ecosystem. 
-
-Modern websites and web applications demand fast, intelligent search that understands user intent, synonyms, and natural language concepts (e.g. searching for "machine learning tutorial" finds articles titled "Deep Neural Networks Guide"). Traditional vector search architectures rely on expensive, hosted vector databases (Pinecone, Algolia, Qdrant) that impose recurring monthly fees, cold-start latencies, and vendor lock-in.
-
-This feature introduces a decentralized, binary-matrix architecture:
-- **Serverless & Incremental on the Edge:** Embeddings are generated per-record when content is created or updated, avoiding full re-indexing operations and keeping compute costs near zero.
-- **Client-Side Vector Math:** Search indices are packaged into ultra-compact binary files (`.bin` as `Float32Array` + `.json` metadata) stored on Cloudflare R2 / CDN and downloaded in the background. The consumer's browser computes vector dot-products locally in **< 0.5 ms**.
-- **Universal Application:** The search capability is delivered as an isomorphic SDK (`@beechcms/search-client` / `useBeechSearch`) for external web projects, while simultaneously powering the internal BeechCMS Dashboard (Command Palette `CMD+K` and content list views).
+L'obiettivo è elevare la robustezza e la qualità dell'esperienza API introducendo un rate limiting a **Token Bucket** per le route pubbliche e un modello **Dual-Key / Composite** per l'autenticazione, garantendo al contempo la massima aderenza all'ambiente di produzione anche in fase di test e sviluppo locale.
 
 ---
 
-## 2. Where It Needs to Be Implemented
+## 2. Pilastri Fondamentali della Soluzione
 
-The feature spans across the existing monorepo layers following the project's strict architecture:
+### A. Token Bucket con Supporto alla Persistenza Edge
+- **Comportamento & Capacità**:
+  - `publicApiRead`: Permettere burst iniziali (es. burst capacity 30–50 token) con refill fluido e continuo (es. 2–5 token/sec).
+  - `publicApiWrite`: Capacità di burst controllata (es. 10–20 token) con refill più restrittivo (es. 0.5–1 token/sec).
+- **Persistenza Edge**:
+  - Supportare la conservazione dello stato del bucket (token rimanenti e timestamp dell'ultimo refill) in ambienti edge / Cloudflare Workers per evitare che l'isolamento dei worker disperda lo stato del bucket tra richieste concorrenti o nodi distribuiti.
+- **Header Standard**:
+  - Restituire `Retry-After` (in caso di HTTP 429).
+  - Includere gli header informativi `X-RateLimit-Limit` e `X-RateLimit-Remaining` per consentire ai client/frontend di auto-regolarsi.
 
-1. **`packages/core` (Shared Contracts & Botanical Engine Extension)**
-   - Define contracts for embedding providers (`IEmbeddingProvider`) and vector index storage (`IVectorIndexRepository`).
-   - Provide deterministic text extraction utilities from Seed definitions, strictly adhering to Branch policies (extracting clean text only from indexable, public `text` and `richtext` fields).
-   - Provide binary packing and serialization utilities to build compact `Float32Array` buffers and metadata manifests.
+### B. Hardening Endpoint di Autenticazione (Dual-Key Composite Limiting)
+- **Doppia Barriera di Protezione**:
+  1. **IP Limiter (`ip:${clientIp}:login`)**: Protegge l'infrastruttura contro scansioni ad alto volume e attacchi volumetrici da singolo IP.
+  2. **Account Limiter (`account:${normalizedEmail}:login`)**: Protegge l'identità dell'utente contro attacchi di password guessing / credential stuffing distribuiti su più IP.
+- **Applicazione Rigida**:
+  - Validazione sia per `/auth/login` che per `/auth/forgot-password` (e monitoraggio di `/auth/refresh`).
+  - L'email viene normalizzata (`trim().toLowerCase()`) per evitare bypass tramite casing o spazi.
+  - Se uno qualsiasi dei due limiti viene superato, la richiesta viene immediatamente bloccata con HTTP 429 e relativo header `Retry-After`.
 
-2. **`apps/api` (Asynchronous Edge Pipeline & Cloudflare Bindings)**
-   - New Vertical Slice / Feature module under `apps/api/src/features/search/` with thin handlers.
-   - Incremental vector calculation triggered asynchronously on content mutations (`create`, `update`, `delete`, `publishDraft`) using `c.get('scheduler').waitUntil(...)` or Cloudflare Queues (`IQueueService`).
-   - Integration with **Cloudflare Workers AI** (`c.env.AI`) using lightweight 384-dimensional models (e.g. `@cf/baai/bge-small-en-v1.5`), with local ONNX Runtime (`@xenova/transformers`) fallback for Docker / Node.js development.
-   - Storage of compiled `.bin` and `.json` index assets in Cloudflare R2 via the `BeechBucket` abstraction.
-   - Public lightweight query embedding endpoint (`GET /api/v1/public/search/embed?q=...`) cached with Cloudflare Edge Cache API.
-
-3. **`packages/search-client` (New Consumer SDK Package)**
-   - Lightweight, dependency-minimal client package exportable to vanilla TypeScript and modern React applications.
-   - Provides the `useBeechSearch({ seed, mode, ... })` React hook and vanilla search client.
-   - Built-in background index prefetching, ETag-aware caching (Cache API / IndexedDB), and SIMD-friendly vector similarity execution.
-
-4. **`apps/dashboard` (CMS Admin Interface Integration)**
-   - **Command Palette (`CMD + K`):** Hybrid search combining SQLite FTS5 lexical matching with local semantic vector similarity.
-   - **Content List Views (Table, Gallery, Kanban):** Instant, live semantic filtering in `ContentToolbar` without firing redundant SQL queries to D1.
+### C. Armonizzazione Dev / Test con Massima Fedeltà a Produzione
+- Piuttosto che creare divergenze o sostituire bruscamente i componenti con mock semplicistici, armonizzare l'architettura dei limiter:
+  - Integrare il `TokenBucketRateLimiter` di `@beechcms/core` come motore unificato di riferimento.
+  - Nei test di integrazione (`vitest`) utilizzare il `TokenBucketRateLimiter` con clock controllabile (`IClock` / virtual time), assicurando che il comportamento del middleware rispecchi fedelmente la logica di produzione senza dipendere da simulatori esterni instabili.
+  - Mantenere la gestione controllata e trasparente dei fallback locali per sviluppo senza degradare la sicurezza o la fedeltà dei test.
 
 ---
 
-## 3. Mandatory Obligations & Constraints
+## 3. Entità Coinvolte
+- **`@beechcms/core`**: `TokenBucketRateLimiter`, `IRateLimiter`, `RateLimitResult`, `IClock`.
+- **`apps/api` Middleware**: `rate-limit.middleware.ts`, `public/rate-limit-middleware.ts`.
+- **`apps/api` Auth Endpoints**: `factory.ts` (route handlers per `login`, `refresh`, `forgot-password`).
+- **Edge Storage / Persistence**: Adattatore per sincronizzazione dello stato dei bucket a livello Edge.
 
-The implementation must strictly satisfy the following invariants:
+---
 
-1. **Zero-Cost & Cloudflare Free Tier Invariant (Absolute Requirement)**
-   - Must operate 100% within Cloudflare Free Tier quotas:
-     - **Workers AI:** Maximum 10,000 Neurons/day free. Incremental single-record updates use ~0.8 Neurons per edit (e.g. 200 edits/day = ~160 Neurons, < 2% of quota).
-     - **D1 Database:** Minimal writes (1 vector write per content update) and sub-5% daily read allocation.
-     - **R2 Storage & Bandwidth:** < 2 MB total index storage for 1,000 records; zero egress fees.
-     - **Workers Compute Time:** Binary index compilation must execute in < 2 ms CPU time per update.
-
-2. **Botanical Engine, Privacy & Data Classification Compliance**
-   - Must strictly respect Branch policies (`resolvePolicies`).
-   - Sensitive fields marked as `confidential` (encrypted with ALE) or `restricted` (`hash`) must **never** be extracted, embedded, or exposed in public search indices.
-
-3. **Vertical Slice Architecture & Thin Handler Rules**
-   - API route handlers must remain thin: parse request -> delegate to injected repository/service -> return response.
-   - Handlers must **never** execute heavy embedding generation or R2 uploads synchronously in the request-response lifecycle. All side-effects must run asynchronously via `IScheduler` or `IQueueService`.
-
-4. **Speed & Lightweight Footprint**
-   - Client index payload must remain small (~400 KB gzipped for 1,000 records).
-   - In-browser vector dot-product / cosine similarity must complete in **< 0.5 milliseconds** for 1,000 items, enabling 60 FPS search-as-you-type UX.
-
-5. **Graceful Fallback & Resilience**
-   - If AI bindings or embeddings are temporarily unavailable or disabled, the system must seamlessly fall back to SQLite FTS5 full-text search without breaking content mutation or search operations.
+## 4. Criteri di Accettazione Iniziali
+1. Burst di traffico lecito su API pubbliche gestito senza 429 prematuri fino a esaurimento della capacità del bucket.
+2. Refill fluido e continuo dei token calcolato correttamente su base temporale frazionaria.
+3. Attacco distribuito verso singola email bloccato tempestivamente dal limiter di account anche con IP differenti.
+4. Response header standard (`Retry-After`, `X-RateLimit-*`) popolati accuratamente.
+5. Suite di test di integrazione coerente ed eseguibile in locale con comportamento allineato a produzione.
