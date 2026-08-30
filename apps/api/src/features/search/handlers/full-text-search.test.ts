@@ -88,7 +88,7 @@ describe('fullTextSearchHandler', () => {
         queryText: 'hello',
         schemaSlug: null,
         statusFilter: null,
-        pageSize: 20,
+        limit: 20,
         cursor: null,
       },
       [MOCK_SEED],
@@ -98,8 +98,6 @@ describe('fullTextSearchHandler', () => {
         queryText: 'hello',
         schemaSlug: null,
         statusFilter: null,
-        pageSize: 0,
-        cursor: null,
       },
       [MOCK_SEED],
     )
@@ -134,14 +132,14 @@ describe('fullTextSearchHandler', () => {
     // Below min
     await app.request('/search?q=hello&limit=0')
     expect(searchMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ pageSize: 1 }),
+      expect.objectContaining({ limit: 1 }),
       expect.any(Array),
     )
 
     // Above max
     await app.request('/search?q=hello&limit=100')
     expect(searchMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ pageSize: 50 }),
+      expect.objectContaining({ limit: 50 }),
       expect.any(Array),
     )
   })

@@ -38,8 +38,8 @@ export async function fullTextSearchHandler(c: Context<AppEnv>): Promise<Respons
   const queryText    = c.req.query('q')?.trim() ?? ''
   const schemaSlug   = c.req.query('schema_slug') ?? null
   const statusFilter = c.req.query('status') ?? null
-  const rawPageSize  = Number.parseInt(c.req.query('limit') ?? String(SEARCH_LIMITS.DEFAULT_PAGE_SIZE), 10)
-  const pageSize     = Math.min(Math.max(rawPageSize, SEARCH_LIMITS.MIN_PAGE_SIZE), SEARCH_LIMITS.MAX_PAGE_SIZE)
+  const rawLimit     = Number.parseInt(c.req.query('limit') ?? String(SEARCH_LIMITS.DEFAULT_PAGE_SIZE), 10)
+  const limit        = Math.min(Math.max(rawLimit, SEARCH_LIMITS.MIN_PAGE_SIZE), SEARCH_LIMITS.MAX_PAGE_SIZE)
   const cursor       = c.req.query('cursor') ?? null
 
   if (queryText.length < SEARCH_LIMITS.QUERY_MIN_LENGTH) {
@@ -49,16 +49,16 @@ export async function fullTextSearchHandler(c: Context<AppEnv>): Promise<Respons
   const allSeeds        = c.get('seedRegistry').all()
   const searchRepository = c.get('searchRepository')
 
-  const searchOptions = { queryText, schemaSlug, statusFilter, pageSize, cursor }
-  const countOptions  = { queryText, schemaSlug, statusFilter, pageSize: 0, cursor: null }
+  const searchOptions = { queryText, schemaSlug, statusFilter, limit, cursor }
+  const countOptions  = { queryText, schemaSlug, statusFilter }
 
   const [rawRows, countResult] = await Promise.all([
     searchRepository.search(searchOptions, allSeeds),
     searchRepository.count(countOptions, allSeeds),
   ])
 
-  const hasNextPage  = rawRows.length > pageSize
-  const pageRows     = hasNextPage ? rawRows.slice(0, pageSize) : rawRows
+  const hasNextPage  = rawRows.length > limit
+  const pageRows     = hasNextPage ? rawRows.slice(0, limit) : rawRows
 
   const lastRow   = pageRows.at(-1)
   const nextCursor = hasNextPage && lastRow
