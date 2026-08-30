@@ -69,5 +69,54 @@ describe('Richtext Render', () => {
       const html = renderRichText(doc)
       expect(html).toContain('<strong>Bold</strong>')
     })
+
+    it('renders textStyle marks and horizontalRule (reproduction for changelog divider and styling)', () => {
+      const doc = {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: 'v0.7.1',
+                marks: [
+                  {
+                    type: 'textStyle',
+                    attrs: { color: 'var(--mt-accent-bold-blue)' }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            type: 'horizontalRule'
+          }
+        ]
+      }
+      const html = renderRichText(doc)
+      expect(html).toContain('<span style="color: var(--mt-accent-bold-blue);">v0.7.1</span>')
+      expect(html).toContain('<hr')
+    })
+
+    it('gracefully handles malformed or unknown marks without throwing exceptions', () => {
+      const doc = {
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [
+              {
+                type: 'text',
+                text: 'Bad mark',
+                marks: [{ type: 'completelyUnknownMark' }]
+              }
+            ]
+          }
+        ]
+      }
+      expect(() => renderRichText(doc)).not.toThrow()
+      expect(renderRichText(doc)).toBe('')
+    })
   })
 })
