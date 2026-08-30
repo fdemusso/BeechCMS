@@ -99,17 +99,7 @@ function buildFtsMatchExpression(rawQuery: string): string {
         return `"${term}"`
       }
 
-      if (term.length <= SEARCH_LIMITS.FTS_PREFIX_MIN_LENGTH) {
-        // Short alphabetic terms: single prefix token
-        return `"${term}"*`
-      }
-
-      // Longer terms: expand into all prefixes from FTS_PREFIX_MIN_LENGTH to full length
-      const prefixTokens: string[] = []
-      for (let prefixLength = SEARCH_LIMITS.FTS_PREFIX_MIN_LENGTH; prefixLength <= term.length; prefixLength++) {
-        prefixTokens.push(`"${term.slice(0, prefixLength)}"*`)
-      }
-      return `(${prefixTokens.join(' OR ')})`
+      return `"${term}"*`
     })
     .join(' ')
 }

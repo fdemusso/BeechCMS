@@ -163,7 +163,15 @@ describe('buildFtsQuery', () => {
       { queryText: '2024', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: null },
       [TEXT_SEED],
     )
-    expect(result.binds[0]).toContain('"2024"')
+    expect(result.binds[0]).toBe('"2024"')
+  })
+
+  it('generates a single prefix token for alphabetic terms without backwards prefix expansion', () => {
+    const result = buildFtsQuery(
+      { queryText: 'superman', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: null },
+      [TEXT_SEED],
+    )
+    expect(result.binds[0]).toBe('"superman"*')
   })
 })
 
