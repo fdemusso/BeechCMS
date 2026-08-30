@@ -1,0 +1,61 @@
+name: Generate & Verify Documentation
+
+on:
+  push:
+    branches: [master, devs]
+    paths:
+      - 'packages/**'
+      - 'typedoc.json'
+      - 'docs/**'
+      - '.github/workflows/generate-docs.yml'
+  pull_request:
+    branches: [master, devs]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: docs-generate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate-docs:
+    name: Generate & Verify Docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate API Docs (TypeDoc)
+        run: pnpm run docs:generate
+
+      - name: Build VitePress Documentation
+        run: pnpm exec vitepress build docs
+
+      - name: Commit and push updated docs
+        if: github.event_name == 'push'
+        run: |
+          if [ -n "$(git status --porcelain docs/api)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add docs/api
+            git commit -m "chore(docs): auto-generate API documentation [skip ci]"
+            git push origin ${{ github.ref_name }}
+          else
+            echo "No documentation changes detected."
+          fi
