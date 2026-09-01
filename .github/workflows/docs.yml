@@ -35,7 +35,7 @@ jobs:
         run: pnpm install
 
       - name: Build packages
-        run: pnpm exec turbo run build --filter=@beechcms/core --filter=@beechcms/client --filter=@beechcms/widget-sdk --filter=@beechcms/cli
+        run: pnpm exec turbo run build
 
       - name: Build docs
         run: pnpm run docs:build
