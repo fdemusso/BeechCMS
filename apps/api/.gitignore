@@ -4,7 +4,6 @@ dist/
 # dev
 .yarn/
 !.yarn/releases
-seed.ts
 .vscode/*
 !.vscode/launch.json
 !.vscode/*.code-snippets
