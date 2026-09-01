@@ -6,4 +6,6 @@
 
 # Variable: ARCHIVE\_MIME\_TYPES
 
-> `const` **ARCHIVE\_MIME\_TYPES**: readonly \[`"application/zip"`, `"application/x-zip-compressed"`, `"application/x-7z-compressed"`, `"application/x-tar"`, `"application/gzip"`, `"application/json"`\]
+> `const` **ARCHIVE\_MIME\_TYPES**: readonly `string`[]
+
+List of supported archive MIME types.

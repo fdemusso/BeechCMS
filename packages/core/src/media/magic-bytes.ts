@@ -1,70 +1,100 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
+import {
+  SUPPORTED_FILE_TYPES,
+  getFileTypeByMime,
+  BLOCKED_IMAGE_MIME_TYPES,
+  matchesFileSignature,
+  type FileTypeDefinition,
+} from './file-types.js'
+
+/**
+ * Result of a file magic bytes signature validation.
+ */
 export interface MagicBytesValidationResult {
+  /** Whether the byte buffer matches the declared format signature. */
   valid: boolean
+  /** Detected canonical primary MIME type if valid or identified. */
   detectedMime?: string
+  /** Human-readable error description when validation fails. */
   error?: string
 }
 
+/**
+ * Iterates across supported binary definitions to find any matching file signature.
+ *
+ * @param bytes - The raw byte buffer to analyze.
+ * @returns The matching FileTypeDefinition if recognized, or undefined.
+ */
+function detectBinaryType(bytes: Uint8Array): FileTypeDefinition | undefined {
+  for (const def of Object.values(SUPPORTED_FILE_TYPES)) {
+    if (def.isBinary && matchesFileSignature(def, bytes)) {
+      return def
+    }
+  }
+  return undefined
+}
+
+/**
+ * Validates that an uploaded file's binary content matches its declared MIME type,
+ * protecting against MIME-spoofing, disguised executables, and blocked formats (e.g. SVG).
+ *
+ * @param buffer - The raw binary buffer (ArrayBuffer or Uint8Array).
+ * @param declaredMime - The client-declared MIME type string.
+ * @returns A MagicBytesValidationResult indicating validity and details.
+ */
 export function verifyMagicBytes(
   buffer: ArrayBuffer | Uint8Array,
   declaredMime: string
 ): MagicBytesValidationResult {
   const bytes = buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer)
-  if (bytes.length < 4) {
+  if (bytes.length < 2) {
     return { valid: false, error: 'File buffer too small for signature inspection' }
   }
 
   const normalizedDeclared = declaredMime.split(';')[0].trim().toLowerCase()
 
-  // PDF: %PDF- (0x25 0x50 0x44 0x46)
-  if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) {
-    return normalizedDeclared === 'application/pdf'
-      ? { valid: true, detectedMime: 'application/pdf' }
-      : { valid: false, detectedMime: 'application/pdf', error: `Signature mismatch: file is PDF but declared as ${declaredMime}` }
+  // Unconditionally reject blocked MIME types (e.g. SVG)
+  if (BLOCKED_IMAGE_MIME_TYPES.includes(normalizedDeclared)) {
+    return {
+      valid: false,
+      error: `File type '${declaredMime}' is blocked for security reasons`,
+    }
   }
 
-  // PNG: 0x89 0x50 0x4E 0x47 0x0D 0x0A 0x1A 0x0A
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47 &&
-    bytes[4] === 0x0D && bytes[5] === 0x0A && bytes[6] === 0x1A && bytes[7] === 0x0A
-  ) {
-    return normalizedDeclared === 'image/png'
-      ? { valid: true, detectedMime: 'image/png' }
-      : { valid: false, detectedMime: 'image/png', error: `Signature mismatch: file is PNG but declared as ${declaredMime}` }
+  const declaredDef = getFileTypeByMime(normalizedDeclared)
+  if (!declaredDef) {
+    return { valid: false, error: `Unrecognized file signature for declared MIME ${declaredMime}` }
   }
 
-  // JPEG: 0xFF 0xD8 0xFF
-  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
-    return normalizedDeclared === 'image/jpeg' || normalizedDeclared === 'image/jpg'
-      ? { valid: true, detectedMime: 'image/jpeg' }
-      : { valid: false, detectedMime: 'image/jpeg', error: `Signature mismatch: file is JPEG but declared as ${declaredMime}` }
+  // Non-binary types (e.g. text/plain, text/csv, text/markdown, application/json)
+  if (!declaredDef.isBinary) {
+    return { valid: true, detectedMime: declaredDef.primaryMime }
   }
 
-  // GIF: GIF87a or GIF89a (0x47 0x49 0x46 0x38)
-  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) {
-    return normalizedDeclared === 'image/gif'
-      ? { valid: true, detectedMime: 'image/gif' }
-      : { valid: false, detectedMime: 'image/gif', error: `Signature mismatch: file is GIF but declared as ${declaredMime}` }
+  // If buffer is smaller than the minimum bytes needed for initial signature inspection (typically 4, or 2-3 for short signatures)
+  const minInspectionLength = Math.min(4, declaredDef.magicBytes?.length ?? 4)
+  if (bytes.length < minInspectionLength) {
+    return { valid: false, error: 'File buffer too small for signature inspection' }
   }
 
-  // WebP: RIFF....WEBP (0x52 0x49 0x46 0x46 ... 0x57 0x45 0x42 0x50)
-  if (
-    bytes.length >= 12 &&
-    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
-    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
-  ) {
-    return normalizedDeclared === 'image/webp'
-      ? { valid: true, detectedMime: 'image/webp' }
-      : { valid: false, detectedMime: 'image/webp', error: `Signature mismatch: file is WebP but declared as ${declaredMime}` }
+  // Binary types: verify signature against declared definition
+  if (matchesFileSignature(declaredDef, bytes)) {
+    return { valid: true, detectedMime: declaredDef.primaryMime }
   }
 
-  // Allow text/plain and other non-binary types without strict magic bytes if declared
-  if (normalizedDeclared === 'text/plain' || normalizedDeclared === 'text/csv') {
-    return { valid: true, detectedMime: normalizedDeclared }
+  // Signature mismatch: check if it matches another known binary signature
+  const detectedDef = detectBinaryType(bytes)
+  if (detectedDef) {
+    return {
+      valid: false,
+      detectedMime: detectedDef.primaryMime,
+      error: `Signature mismatch: file is ${detectedDef.extension.toUpperCase()} but declared as ${declaredMime}`,
+    }
   }
 
   return { valid: false, error: `Unrecognized file signature for declared MIME ${declaredMime}` }
 }
+
+
