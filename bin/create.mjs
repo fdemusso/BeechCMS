@@ -3,7 +3,7 @@
 
 import * as p from '@clack/prompts'
 import pc from 'picocolors'
-import { execSync } from 'node:child_process'
+import { spawnSync, execSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
@@ -11,78 +11,6 @@ import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-
-// ── Template registry ─────────────────────────────────────────────────────────
-
-const TEMPLATES = {
-  blog: {
-    label: 'Blog',
-    hint: 'posts with rich text, cover image, tags and authors',
-    file: 'blog.ts',
-    registryEntries: ['posts: POST_SEED', 'authors: AUTHOR_SEED'],
-  },
-  gallery: {
-    label: 'Gallery',
-    hint: 'media items with image, tags and featured flag',
-    file: 'gallery.ts',
-    registryEntries: ['gallery: GALLERY_SEED'],
-  },
-  contact: {
-    label: 'Contact',
-    hint: 'public form submissions with masked email and read status',
-    file: 'contact.ts',
-    registryEntries: ['messages: MESSAGE_SEED'],
-  },
-  commerce: {
-    label: 'Commerce',
-    hint: 'e-commerce product catalog with prices, inventory and ratings',
-    file: 'commerce.ts',
-    registryEntries: ['products: PRODUCT_SEED', 'reviews: REVIEW_SEED'],
-  },
-  tasks: {
-    label: 'Tasks',
-    hint: 'project management tasks with progress slider',
-    file: 'tasks.ts',
-    registryEntries: ['tasks: TASK_SEED'],
-  },
-}
-
-function readTemplate(filename) {
-  return readFileSync(join(__dirname, 'templates', filename), 'utf8')
-}
-
-function buildSeedsFile(selectedKeys) {
-  const header = `import type { Seed } from '@beechcms/core'\n\n`
-
-  if (selectedKeys.length === 0) {
-    const example = readFileSync(join(__dirname, 'templates', 'empty.ts'), 'utf8')
-    return (
-      header +
-      example +
-      '\nexport const SEED_REGISTRY: Record<string, Seed> = {}\n\n' +
-      'export function getSeed(slug: string): Seed | null {\n' +
-      '  return SEED_REGISTRY[slug] ?? null\n' +
-      '}\n'
-    )
-  }
-
-  const blocks = selectedKeys.map((key) =>
-    readFileSync(join(__dirname, 'templates', TEMPLATES[key].file), 'utf8')
-  )
-
-  const registryEntries = selectedKeys.flatMap((key) => TEMPLATES[key].registryEntries)
-  const registry =
-    'export const SEED_REGISTRY: Record<string, Seed> = {\n' +
-    registryEntries.map((e) => `  ${e},`).join('\n') +
-    '\n}\n'
-
-  const getSeed =
-    '\nexport function getSeed(slug: string): Seed | null {\n' +
-    '  return SEED_REGISTRY[slug] ?? null\n' +
-    '}\n'
-
-  return header + blocks.join('\n') + '\n' + registry + getSeed
-}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -97,14 +25,9 @@ function writeFile(path, content) {
 function buildWorkerTs() {
   return `/// <reference types="@cloudflare/workers-types" />
 import { createBeechApp } from '@beechcms/api'
-import { SEED_REGISTRY } from './seeds'
 
-export default createBeechApp({ seeds: Object.values(SEED_REGISTRY) })
+export default createBeechApp({ seeds: [] })
 `
-}
-
-function buildSeedsTs(selectedKeys) {
-  return buildSeedsFile(selectedKeys)
 }
 
 function getCurrentVersion() {
@@ -126,8 +49,6 @@ function buildPackageJson(name) {
     scripts: {
       dev: 'wrangler dev --port 8789',
       deploy: 'wrangler deploy --minify',
-      'seed:load': 'npx beech seed:load',
-      'seed:load:local': 'npx beech seed:load --local',
       'db:migrate:local': 'wrangler d1 migrations apply ' + name + '-db --local',
       'db:reset:local': 'node -e "require(\'fs\').rmSync(\'.wrangler/state\',{recursive:true,force:true})" && npm run db:migrate:local',
     },
@@ -332,17 +253,14 @@ async function main() {
   console.log()
   p.intro(pc.bgGreen(pc.black(' @beechcms/cms ')))
 
-  let name, selectedTemplates, cloudflare
+  let name, cloudflare
 
   if (silent) {
     // Non-interactive: use first positional arg or default name, skip Cloudflare
     const positional = argv.find((a) => !a.startsWith('-'))
     name = positional ?? 'my-beech-project'
-    const withExamples = argv.includes('--with-examples') || argv.includes('--examples')
-    selectedTemplates = withExamples ? ['blog'] : []
     cloudflare = null
-    const examplesNote = withExamples ? ' (with blog example content types)' : ''
-    console.log(pc.dim(`  Running in non-interactive mode. Project name: ${name}${examplesNote}`))
+    console.log(pc.dim(`  Running in non-interactive mode. Project name: ${name}`))
   } else {
     // Project name
     const projectName = await p.text({
@@ -355,22 +273,6 @@ async function main() {
     })
     if (p.isCancel(projectName)) { p.cancel('Cancelled'); process.exit(0) }
     name = projectName.trim()
-
-    // Content types
-    const tmpl = await p.multiselect({
-      message: 'Which content types do you need?',
-      hint: 'Space to select, Enter to confirm. You can add more later in seeds.ts',
-      options: [
-        { value: 'blog',    label: 'Blog',    hint: 'posts with rich text, cover image, tags and authors' },
-        { value: 'gallery', label: 'Gallery', hint: 'media items with image, tags and featured flag' },
-        { value: 'contact', label: 'Contact', hint: 'public form submissions with masked email and read status' },
-        { value: 'commerce',label: 'Commerce',hint: 'e-commerce product catalog with prices, inventory and ratings' },
-        { value: 'tasks',   label: 'Tasks',   hint: 'project management tasks with progress slider' },
-      ],
-      required: false,
-    })
-    if (p.isCancel(tmpl)) { p.cancel('Cancelled'); process.exit(0) }
-    selectedTemplates = tmpl
 
     // Cloudflare now or later?
     const configureNow = await p.confirm({
@@ -407,7 +309,6 @@ async function main() {
 
   mkdirSync(targetDir, { recursive: true })
 
-  writeFile(join(targetDir, 'seeds.ts'), buildSeedsTs(selectedTemplates))
   writeFile(join(targetDir, 'worker.ts'), buildWorkerTs())
   writeFile(join(targetDir, 'package.json'), buildPackageJson(name))
   writeFile(join(targetDir, 'tsconfig.json'), buildTsConfig())
@@ -473,7 +374,7 @@ async function main() {
       `${step(5)}. Deploy to production`,
       `   ${pc.cyan('npm run deploy')}`,
       '',
-      `${pc.dim('Your content types are defined in seeds.ts')}`,
+      `${pc.dim('Manage content types dynamically in the BeechCMS Dashboard at /admin.')}`,
       `${pc.dim('JWT secret and API keys have been auto-generated.')}`,
     ].join('\n'),
     'Next steps'
@@ -485,3 +386,4 @@ main().catch((err) => {
   console.error(err)
   process.exit(1)
 })
+

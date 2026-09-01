@@ -133,100 +133,14 @@ describe('buildMigrationSql — additive emission', () => {
 describe('schemaDiff command', () => {
   beforeEach(() => { vi.resetModules() })
 
-  it('exits early when registry is empty', async () => {
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    const { schemaDiff } = await import('../commands/schema-diff.js')
-    await schemaDiff({ local: true, write: false, registry: {} })
-    expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('No seeds found'))
-    consoleSpy.mockRestore()
-  })
-
-  it('prints preview SQL without writing files when no --write', async () => {
-    vi.doMock('../lib/wrangler.js', () => ({
-      findWranglerConfig: () => null,
-      resolveDbName: () => 'beech-db',
-      queryD1: () => [],
-    }))
-    vi.doMock('../lib/schema-diff.js', async () => {
-      const actual = await vi.importActual('../lib/schema-diff.js') as object
-      return {
-        ...actual,
-        diffSeed: vi.fn().mockResolvedValue({
-          slug: 'articles', tableExists: false, columns: [],
-        }),
-      }
-    })
-
+  it('logs deprecation message and exits cleanly without errors', async () => {
     const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
     const { schemaDiff } = await import('../commands/schema-diff.js')
     await schemaDiff({ local: true, write: false, registry: REGISTRY })
     const output = consoleSpy.mock.calls.flat().join('\n')
-    expect(output).toContain('Re-run with --write')
+    expect(output).toContain('beech schema:diff')
+    expect(output).toContain('deprecated')
     consoleSpy.mockRestore()
-    vi.doUnmock('../lib/wrangler.js')
-    vi.doUnmock('../lib/schema-diff.js')
-  })
-
-  it('writes migration file when --write and additive drift exists', async () => {
-    const dir = join(tmpdir(), `beech-schema-diff-test-${Date.now()}`)
-    mkdirSync(dir, { recursive: true })
-
-    vi.doMock('../lib/wrangler.js', () => ({
-      findWranglerConfig: () => null,
-      resolveDbName: () => 'beech-db',
-      queryD1: () => [],
-    }))
-    vi.doMock('../lib/schema-diff.js', async () => {
-      const actual = await vi.importActual('../lib/schema-diff.js') as object
-      return {
-        ...actual,
-        diffSeed: vi.fn().mockResolvedValue({
-          slug: 'articles', tableExists: false, columns: [],
-        }),
-      }
-    })
-
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    const { schemaDiff } = await import('../commands/schema-diff.js')
-    await schemaDiff({ local: true, write: true, name: 'test_migration', migrationsDir: dir, registry: REGISTRY })
-
-    const files = readdirSync(dir)
-    expect(files.some(f => f.endsWith('.sql'))).toBe(true)
-    const output = consoleSpy.mock.calls.flat().join('\n')
-    expect(output).toContain('Wrote')
-
-    consoleSpy.mockRestore()
-    rmSync(dir, { recursive: true, force: true })
-    vi.doUnmock('../lib/wrangler.js')
-    vi.doUnmock('../lib/schema-diff.js')
-  })
-
-  it('does not write file when only destructive drift', async () => {
-    vi.doMock('../lib/wrangler.js', () => ({
-      findWranglerConfig: () => null,
-      resolveDbName: () => 'beech-db',
-      queryD1: () => [],
-    }))
-    vi.doMock('../lib/schema-diff.js', async () => {
-      const actual = await vi.importActual('../lib/schema-diff.js') as object
-      return {
-        ...actual,
-        diffSeed: vi.fn().mockResolvedValue({
-          slug: 'articles',
-          tableExists: true,
-          columns: [{ name: 'title', status: 'type_mismatch', expectedType: 'TEXT', actualType: 'INTEGER' }],
-        }),
-      }
-    })
-
-    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    const { schemaDiff } = await import('../commands/schema-diff.js')
-    await schemaDiff({ local: true, write: true, registry: REGISTRY })
-    const output = consoleSpy.mock.calls.flat().join('\n')
-    expect(output).toContain('Only destructive drift')
-
-    consoleSpy.mockRestore()
-    vi.doUnmock('../lib/wrangler.js')
-    vi.doUnmock('../lib/schema-diff.js')
   })
 })
+

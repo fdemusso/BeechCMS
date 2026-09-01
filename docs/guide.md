@@ -47,7 +47,7 @@ npx @beechcms/cms my-app
 Or scaffold non-interactively with the starter template:
 
 ```bash
-npx @beechcms/cms my-app --yes --with-examples
+npx @beechcms/cms my-app --yes
 cd my-app
 pnpm install
 ```
@@ -56,14 +56,13 @@ pnpm install
 
 ```
 my-app/
-├── seeds.ts        # Content model schema definitions (Source of Truth)
 ├── worker.ts       # Worker entry point running the @beechcms/api engine
 ├── wrangler.jsonc  # Cloudflare bindings (D1, R2, environment variables)
 ├── .dev.vars       # Local development secrets (git-ignored)
 └── package.json    # Scripts and dependencies
 ```
 
-The entire CMS engine and admin SPA live inside `@beechcms/api`. Your workspace remains lightweight and focused purely on your schema and configuration.
+The entire CMS engine and admin SPA live inside `@beechcms/api`. Your workspace remains lightweight and focused purely on configuration, with all content models managed directly in the Cloudflare D1 database.
 
 ### Local Development
 
@@ -144,8 +143,8 @@ The **Botanical Engine** guarantees safe schema migrations without locking or br
   <img src="/images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
 </p>
 
-### Safe Non-Destructive Changes
-Adding new Seeds or appending new Branches is non-destructive. When you edit `seeds.ts` and run `npx beech seed:load --local`, the engine automatically performs `ALTER TABLE ... ADD COLUMN` and generates matching indexes.
+### Canonical D1 Database Authority
+Content schemas are persisted directly in Cloudflare D1's `seeds` system table. When you create or update content types via the Dashboard or `/api/seeds`, the engine automatically performs `ALTER TABLE ... ADD COLUMN` and generates matching indexes.
 
 ### The Botanical Invariant
 Because each field has a permanent `id` (e.g. `br_pst1`), you can safely rename aliases (`title` → `headline`) without dropping columns or losing data. Triggers and search tables update automatically.
@@ -162,17 +161,17 @@ Uploaded assets in R2 are served with high caching efficiency:
 
 ## CLI Reference
 
-The `beech` CLI provides unified workflows for schema synchronization, updates, and deployment:
+The `beech` CLI provides unified workflows for database management, code generation, and deployment:
 
 | Command | Description |
 | :--- | :--- |
 | `npx @beechcms/cms` | Interactive scaffolding assistant |
-| `npx beech onboard [--local]` | End-to-end database setup, file verification, and schema sync |
-| `npx beech seed:load [--local]` | Syncs `seeds.ts` schema into D1 SQL tables |
-| `npx beech seed:load --diff` | Shows differences between TypeScript definitions and live database tables |
-| `npx beech validate` | Validates schema integrity and invariants (CI/CD friendly) |
+| `npx beech onboard [--local]` | One-command database provisioning and file verification |
+| `npx beech init --db [--local]` | Initialises D1 database system tables |
+| `npx beech gen-types [--local]` | Generates TypeScript interfaces directly from active D1 tables |
+| `npx beech validate` | Validates runtime schema integrity |
 | `npx beech update` | Upgrades core engine packages and applies system migrations |
-| `npx beech deploy` | Builds the Worker, deploys assets, and syncs remote D1 database |
+| `npx beech deploy` | Builds and deploys the Worker and dashboard static assets to Cloudflare |
 
 ## Next Steps
 

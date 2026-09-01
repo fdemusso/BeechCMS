@@ -1,51 +1,32 @@
 # 1. Feature Definition and Core Value
+BeechCMS ha introdotto la gestione dinamica a runtime dei content type (Seed), persistiti direttamente nella tabella di sistema `seeds` su Cloudflare D1 e gestiti tramite API transazionali dedicate. Tuttavia, la CLI (`seed:load`, `seed:create`, `schema:diff`), lo scaffolding di nuovi progetti (`create-beech`), il comando di rilascio (`beech deploy`) e la documentazione ufficiale sono rimasti ancorati a un modello legacy basato sul file statico `seeds.ts`.
 
-Il sistema attuale di rate limiting soffre di starvation su burst leciti di traffico nelle API pubbliche (dovuto a finestre temporali fisse e rigide) e di vulnerabilità ad attacchi brute force / credential stuffing distribuiti su endpoint di autenticazione critici (poiché limitati unicamente per IP client).
+Questa dualità genera disallineamenti silenti (schema drift), esecuzioni DDL parziali o fallimentari in produzione durante i deploy e confusione architetturale per sviluppatori e agenti IA.
 
-Questa feature modernizza l'infrastruttura di protezione di BeechCMS introducendo:
-1. Un algoritmo di rate limiting a Token Bucket con riempimento fluido e continuo per assorbire burst leciti su route pubbliche senza incorrere in falsi positivi o boundary spikes.
-2. Un meccanismo Dual-Key (IP + Account normalizzato) sugli endpoint di autenticazione sensibili per mitigare attacchi distribuiti tramite proxy rotanti e tentativi di password guessing mirati.
-3. Un'architettura deterministica e unificata tra ambienti di sviluppo, test di integrazione e produzione, eliminando divergenze comportamentali.
+La feature disaccoppia completamente BeechCMS, la sua CLI e il ciclo di vita del deployment dal file `seeds.ts`, formalizzando il Database Cloudflare D1 come unica sorgente di verità canonica per gli schemi e i content types.
 
 # 2. Domain Boundaries and Business Rules
-
-### Entità Logiche e Responsabilità
-* **Rate Limiter Engine**: Motore in-memory responsabile del calcolo dei token rimanenti, del rate di ricarica continuo su base temporale e della determinazione del tempo di attesa per le richieste respinte.
-* **Dual-Key Coordinator / Middleware**: Componente di coordinamento preposto all'estrazione, normalizzazione delle chiavi (IP client ed identificativo account) e alla valutazione atomica dei limiti applicabili.
-* **Clock Abstraction**: Fornitore di riferimento temporale per consentire avanzamento virtuale del tempo nei test e tempo reale in runtime.
-* **Public Problem Details Formatter**: Formattatore delle risposte di errore standardizzate conformi a RFC 7807 con arricchimento degli header di controllo del traffico.
-
-### Regole di Business
-* **Isolamento dello Stato Utente**: Il rate limiting non deve in alcun caso alterare lo stato persistente o lo schema dell'entità Utente nel database (nessuna colonna di blocco o flag di lockout).
-* **Priorità di Blocco nel Dual-Key**: Se una richiesta viola anche solo uno dei due limiti associati (chiave IP o chiave Account), l'accesso deve essere immediatamente respinto con stato HTTP 429.
-* **Normalizzazione Rigorosa dell'Account**: Qualsiasi indirizzo email utilizzato come chiave di rate limit deve essere normalizzato (rimozione di spazi perimetrali e conversione in minuscolo) prima della verifica del bucket.
-* **Protezione Pre-Database su Refresh**: L'endpoint di rinnovo token deve essere protetto esclusivamente a livello di IP client a monte, senza effettuare lookup o decodifiche su database prima della validazione del rate limit.
-* **Politica di Riservatezza degli Header**: Gli header informativi sulla quota residua non devono essere esposti sugli endpoint di autenticazione per prevenire attività di ricognizione da parte di attaccanti.
+* **Canonical Schema Authority:** Il database Cloudflare D1 (tabella di sistema `seeds` e tabelle fisiche `content_*`) è l'unica sorgente canonica della struttura dei dati. Nessun file statico su filesystem locale può agire da autorità di schema.
+* **Pure Worker Deployment:** Il comando di deploy rilascia esclusivamente il codice del Worker Cloudflare e gli asset correlati. Non esegue sincronizzazioni né manipolazioni DDL sul database D1 durante il deploy.
+* **Clean Database Provisioning:** Il processo di onboarding e inizializzazione crea unicamente le tabelle di sistema fondamentali (`seeds`, `seed_meta`, `users`, ecc.), senza richiedere né verificare la presenza di file di seed locali.
+* **Atomic Runtime Schema Evolution:** Tutte le operazioni di creazione, modifica ed eliminazione dei content types sono delegate esclusivamente all'API di runtime, che garantisce validazione semantica, esecuzione DDL atomica e invalidazione della cache.
+* **Static Types Independence:** La generazione dei tipi TypeScript interroga direttamente lo schema fisico e le tabelle attive su D1, restando totalmente disaccoppiata da file di definizione su disco.
 
 # 3. Primary Requirements (User Stories)
-
-* AS A sviluppatore frontend / consumatore API I WANT poter effettuare richieste concorrenti e burst iniziali sulle route pubbliche SO THAT l'applicazione possa caricare i dati necessari senza subire blocchi prematuri dovuti a finestre fisse.
-* AS A utente del sistema I WANT che il mio account sia protetto da attacchi di credential stuffing distribuiti su molteplici IP SO THAT malintenzionati non possano violare le mie credenziali tramite tentativi massivi automatizzati.
-* AS A amministratore di sistema I WANT che gli endpoint di login e recupero password blocchino tempestivamente sia attacchi volumetrici da singolo IP sia attacchi distribuiti verso una specifica email SO THAT l'infrastruttura e le identità digitali rimangano protette.
-* AS A client API I WANT ricevere l'header HTTP standard di attesa quando supero il limite consentito SO THAT possa implementare strategie corrette di backoff e riprovare la richiesta solo quando consentito.
-* AS A sviluppatore del team I WANT eseguire la suite di test di integrazione in locale con lo stesso comportamento del rate limiting di produzione SO THAT i test siano stabili, veloci e privi di falsi fallimenti dovuti a simulatori esterni.
+* AS A developer deploying BeechCMS I WANT the deploy command to publish only the Worker without running seed sync routines SO THAT production deployments are fast, decoupled from database state, and immune to silent schema corruption.
+* AS A developer provisioning a new BeechCMS project I WANT the onboarding and initialization commands to bootstrap system tables without requiring a static seeds file SO THAT I can start a fresh instance immediately and manage schemas via runtime interfaces.
+* AS A developer scaffolding a new project with the creation wizard I WANT the generated project structure to be free of legacy static seed definition files SO THAT my project relies exclusively on the database as the canonical source of truth.
+* AS A developer using the BeechCMS CLI I WANT obsolete and confusing code-first schema sync commands to be removed SO THAT the CLI interface is clean, coherent, and aligned with the runtime architecture.
+* AS A developer consulting the project documentation I WANT the guides, architectural maps, and reference manuals to reflect the database-first schema model and highlight the breaking changes SO THAT I have clear instructions on how to create and manage content types.
 
 # 4. Secondary Requirements and Logical Constraints
-
-### Gestione degli Header HTTP
-* Sulle route pubbliche consentite (2xx) e respinte (429), includere gli header indicanti la capacità massima consentita e i token rimanenti nel bucket.
-* In caso di risposta HTTP 429 su qualsiasi endpoint (pubblico o di autenticazione), includere obbligatoriamente l'header con il numero intero di secondi da attendere prima del successivo tentativo utile.
-* Sugli endpoint di autenticazione non devono mai essere inclusi header di quota residua o limite massimo nelle risposte con stato 2xx o 401.
-
-### Gestione Errori e Casi Limite
-* **Payload Malformato o Mancante**: Se una richiesta verso un endpoint protetto da Dual-Key presenta un body non valido o privo di email, la richiesta deve essere valutata sul rate limiter dell'IP e successivamente respinta con HTTP 400 Bad Request, senza allocare o consumare token per chiavi account fittizie.
-* **Calcolo del Tempo di Attesa Frazionario**: Il calcolo del tempo di attesa deve arrotondare per eccesso al secondo intero successivo per garantire che, alla scadenza del tempo indicato, sia effettivamente disponibile almeno un token intero.
-* **Decadimento Naturale della Memoria**: La struttura in-memory deve consentire il naturale rilascio dei bucket non più attivi senza causare memory leak nel lungo periodo.
-* **Comportamento su Refresh Token**: La verifica del limite per la richiesta di refresh token deve avvenire tassativamente prima di qualsiasi operazione di hashing crittografico o interrogazione alle tabelle delle sessioni.
+* **Scaffolding Wizard Cleanup:** Il comando di creazione guidata del progetto non deve richiedere la selezione di template di seed né generare file di schema su disco.
+* **Non-blocking Initialization:** I controlli di preflight e il comando di inizializzazione non devono sollevare avvisi né bloccare l'esecuzione se non trovano file di seed nel filesystem.
+* **Graceful Command Deprecation:** I comandi rimossi o deprecati (`seed:load`, `seed:create`, `schema:diff`, `validate` basato su file) devono restituire indicazioni chiare sulla nuova architettura se invocati per errore.
+* **Documentation Migration Notes:** Tutta la documentazione ufficiale deve formalizzare il Breaking Change, fornendo una guida di migrazione chiara per i progetti esistenti.
+* **Architectural Maps Consistency:** Le mappe di sistema interne e gli schemi visuali devono eliminare ogni riferimento al compilatore di seed alimentato da file statici.
 
 # 5. Out of Scope (Discarded during sparring)
-
-* **Persistenza Distribuita / Cross-Edge del Token Bucket**: Esclusa l'adozione di layer di sincronizzazione distribuita (Durable Objects, KV, storage centralizzato) per le route pubbliche, a favore della gestione in-memory locale per nodo/isolate, evitando overhead di latenza e complessità architetturale.
-* **Device Fingerprinting e Blacklist/Whitelist Dispositivi**: Esclusa la creazione di sottosistemi di tracciamento browser/dispositivo, regole di whitelist o gestione manuale di IP bloccati, demandando la difesa ai meccanismi standard di rate limiting HTTP.
-* **Account Lockout Persistente a Database**: Escluso qualsiasi blocco temporale dell'account memorizzato su database (es. disabilitazione utente per 30 minuti), per eliminare il rischio critico di Denial-of-Service mirato e asimmetrico ai danni di utenti legittimi.
-* **Rate Limiting Basato su Risultato Post-Auth**: Esclusa la differenziazione complessa tra credenziali valide ed errate a fini di addebito quota, mantenendo la barriera protettiva a livello di middleware/handler prima della logica di business.
+* **MCP Server for AI Agents:** L'implementazione del server Model Context Protocol (MCP) e dei tool dedicati alla manipolazione dei content types da parte di agenti IA è esplicitamente esclusa da questa fase e verrà gestita in un'iniziativa separata.
+* **Bidirectional Schema Sync / GitOps Sync:** Qualsiasi meccanismo di sincronizzazione bidirezionale (push/pull da database a file di schema su disco) e di generazione automatica di migrazioni D1 da sorgenti locali è scartato per mantenere il principio YAGNI.
+* **Modifiche al Motore DDL di Backend:** Nessuna modifica logica o architetturale alle routine di migrazione a runtime già presenti nell'API, che restano il riferimento canonico.

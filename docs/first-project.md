@@ -48,22 +48,15 @@ npx @beechcms/cms
 The setup assistant prompts you for:
 
 1. **Project Name**: Directory name and prefix for your Cloudflare resources (e.g., `my-blog`).
-2. **Starter Content Types**: Pre-configured content templates.
-   - **Blog** (Recommended for this guide): Posts with rich text, cover images, tags, SEO fields, and Authors.
-   - **Gallery**: Media items with tags and featured flags.
-   - **Contact**: Form submissions with masked emails and read statuses.
-   - **Commerce**: Product catalog with prices, inventory, and ratings.
-   - **Tasks**: Task manager with sliders and statuses.
-   - **Empty**: A blank canvas.
-3. **Cloudflare Credentials**:
+2. **Cloudflare Credentials**:
    - Choose **No** (configure later) if you want to develop locally first without touching Cloudflare.
    - Choose **Yes** to let the wizard provision or bind your remote D1 and R2 resources immediately.
 
 > [!TIP]
 > **Non-Interactive Quickstart**:
-> To scaffold immediately with the Blog template and skip all prompts:
+> To scaffold immediately and skip all prompts:
 > ```bash
-> npx @beechcms/cms my-blog --yes --with-examples
+> npx @beechcms/cms my-blog --yes
 > cd my-blog
 > pnpm install # or npm install
 > ```
@@ -72,7 +65,6 @@ The setup assistant prompts you for:
 
 ```
 my-blog/
-├── seeds.ts        # TypeScript content schema definitions (Source of Truth)
 ├── worker.ts       # Cloudflare Worker entry point (delegates to @beechcms/api)
 ├── wrangler.jsonc  # Cloudflare configuration, D1/R2 bindings, and API keys
 ├── .dev.vars       # Local secrets (R2 tokens, private keys — git-ignored)
@@ -80,7 +72,7 @@ my-blog/
 └── package.json    # Scripts and project dependencies
 ```
 
-The entire CMS engine, admin dashboard, and REST API live inside `node_modules/@beechcms/api`. Your project only contains configuration and schema definitions.
+The entire CMS engine, admin dashboard, and REST API live inside `node_modules/@beechcms/api`. Your project only contains configuration, with content schemas managed dynamically in the Cloudflare D1 database.
 
 ## Configuration
 
@@ -138,20 +130,25 @@ The entire CMS engine, admin dashboard, and REST API live inside `node_modules/@
 | `PUBLIC_WRITE_API_KEY` | Public API | Passed via `X-API-Key` to submit entries like contact forms (`POST /api/v1/public/*`). |
 | `CORS_ORIGINS` | Network | Comma-separated list of allowed frontend origins (e.g. `https://myblog.com`). |
 
-## Defining Seeds
+## Defining & Managing Seeds
 
 In BeechCMS, content types are called **Seeds**, and individual fields are called **Branches**.
 
-The **Botanical Engine** reads your Seed definitions and compiles them into:
+Cloudflare D1 is the **canonical single source of truth** for all schemas. Instead of managing static files on disk, content types are defined and evolved dynamically:
+1. **Admin Dashboard UI**: Create and edit content models visually via the **Seed Builder** in the admin panel (`/admin`).
+2. **Runtime REST API**: Programmatically create and update models via `POST /api/seeds` or `PUT /api/seeds/:slug`.
+
+The **Botanical Engine** processes your Seed definitions and automatically compiles them into:
 1. Native SQLite DDL (`CREATE TABLE content_<seed>`).
 2. Indexes, foreign keys, and FTS5 search virtual tables.
-3. REST API endpoints with validation.
-4. Auto-generated UI form controls in the admin dashboard.
+3. REST API endpoints with schema validation.
+4. Dynamic UI form controls in the admin dashboard.
 
-Open `seeds.ts` to inspect or customize your models:
+### Seed Schema Anatomy
+
+Below is an example of how Seeds and Branches are structured within BeechCMS (using the `Seed` definition model from `@beechcms/core`):
 
 ```typescript
-// seeds.ts
 import { defineSeed, type Seed } from '@beechcms/core'
 
 /** Author: Content creator profiles */
@@ -280,9 +277,7 @@ export const posts: Seed = defineSeed({
     },
   ],
 })
-
-// Export all seeds for the Botanical Engine and Worker entry point
-export const seeds: Seed[] = [authors, posts]
+```
 ```
 
 ### Policies & Invariants
@@ -296,9 +291,9 @@ export const seeds: Seed[] = [authors, posts]
   - `visibility`: `'full'` | `'masked'` | `'hidden'`
   - `public`: `false` (strips this field from public read responses, e.g. internal notes).
 
-## Database & Schema Sync
+## Database Provisioning
 
-Before running the dashboard, initialize your local SQLite database and compile your Seeds into D1 tables.
+Before running the dashboard, initialize your local SQLite database system tables.
 
 Run the onboarding command:
 
@@ -312,9 +307,12 @@ npx beech onboard --local
   <img src="/images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
 </p>
 
-Alternatively, you can run the individual steps manually:
-1. `npx beech init --db --local`: Verifies files and creates base system tables.
-2. `npx beech seed:load --local`: Reads `seeds.ts` and syncs schema changes into the local D1 database.
+Alternatively, you can run the step manually:
+```bash
+npx beech init --db --local
+```
+
+Content types are created and managed dynamically in the admin dashboard at `/admin` or via the `/api/seeds` API.
 
 ## Dashboard & Content
 
@@ -676,7 +674,7 @@ And define `R2_ENDPOINT` and `R2_BUCKET_NAME` in `wrangler.jsonc` `vars` (or as 
 
 ### Deploy Command
 
-BeechCMS includes a unified deploy command that builds the worker, deploys assets, and syncs your remote D1 schema:
+BeechCMS includes a deploy command that builds the worker, deploys dashboard assets, and checks admin reachability:
 
 ```bash
 npx beech deploy
@@ -684,9 +682,7 @@ npx beech deploy
 
 What `beech deploy` performs:
 1. Executes `wrangler deploy --minify` to upload your Worker and dashboard static assets.
-2. Applies base database migrations to the remote D1 database.
-3. Synchronizes all Seed definitions from `seeds.ts` into remote tables (`beech seed:load`).
-4. Performs a health-check against your live production `/admin` URL.
+2. Performs a reachability check against your live production `/admin` URL.
 
 Once complete, visit your production URL (e.g. `https://my-blog-api.<your-subdomain>.workers.dev/admin`) and perform your initial production onboarding.
 
@@ -698,7 +694,7 @@ Once complete, visit your production URL (e.g. `https://my-blog-api.<your-subdom
 | **Database** | Local SQLite (`.wrangler/state/v3/d1`) | Cloudflare D1 Serverless Database |
 | **Media Storage** | Local simulated R2 | Global Cloudflare R2 Bucket |
 | **Dashboard URL** | `http://localhost:8789/admin` | `https://<worker-name>.<subdomain>.workers.dev/admin` |
-| **Schema Sync** | `npx beech seed:load --local` | `npx beech seed:load` |
+| **Schema Management** | Admin Dashboard (`/admin`) or `/api/seeds` | Admin Dashboard (`/admin`) or `/api/seeds` |
 
 > [!WARNING]
 > **Beta Status**: BeechCMS is actively evolving. While core schema operations and data models are tested and stable, always maintain regular D1 database backups (`npx wrangler d1 export`) before applying major schema refactors in production.

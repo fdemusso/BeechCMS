@@ -5,9 +5,9 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { sortSeedsByDependencies } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 import { sqlQuote } from '../lib/wrangler.js'
-import { buildSeedRegistrationSql } from '../commands/seed-load.js'
+import { seedLoad } from '../commands/seed-load.js'
 
-// These seeds declare articles BEFORE team (arbitrary user order in seed.ts)
+// These seeds declare articles BEFORE team (arbitrary user order)
 const TEAM_SEED: Seed = {
   slug: 'team',
   label: 'Team',
@@ -25,9 +25,28 @@ const ARTICLES_SEED: Seed = {
   ],
 } as Seed
 
+describe('seedLoad — deprecation behavior', () => {
+  let logSpy: any
+
+  beforeEach(() => {
+    logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('logs deprecation message and exits cleanly without errors', async () => {
+    await seedLoad()
+    expect(logSpy).toHaveBeenCalled()
+    const output = logSpy.mock.calls.flat().join('\n')
+    expect(output).toContain('beech seed:load')
+    expect(output).toContain('deprecated')
+  })
+})
+
 describe('sortSeedsByDependencies — topological ordering', () => {
   it('puts team before articles even when articles is declared first', () => {
-    // articles declared first — arbitrary insertion order
     const sorted = sortSeedsByDependencies([ARTICLES_SEED, TEAM_SEED])
     const slugs = sorted.map(s => s.slug)
     expect(slugs.indexOf('team')).toBeLessThan(slugs.indexOf('articles'))
@@ -92,67 +111,3 @@ describe('sqlQuote', () => {
   })
 })
 
-// ── buildSeedRegistrationSql ─────────────────────────────────────────────
-
-describe('buildSeedRegistrationSql', () => {
-  const SIMPLE_SEED: Seed = {
-    slug: 'posts',
-    label: 'Posts',
-    displayNameAlias: 'title',
-    branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' }],
-  } as Seed
-
-  it('produces INSERT … ON CONFLICT for the correct slug', () => {
-    const sql = buildSeedRegistrationSql(SIMPLE_SEED)
-    expect(sql).toContain("INSERT INTO seeds")
-    expect(sql).toContain("ON CONFLICT(slug) DO UPDATE SET")
-    expect(sql).toContain("'posts'")
-  })
-
-  it("sets source to 'code'", () => {
-    const sql = buildSeedRegistrationSql(SIMPLE_SEED)
-    expect(sql).toContain("'code'")
-  })
-
-  it('escapes single quotes in slug and JSON literal', () => {
-    const seedWithApostrophe: Seed = {
-      ...SIMPLE_SEED,
-      slug: "it's",
-      label: "It's",
-    }
-    const sql = buildSeedRegistrationSql(seedWithApostrophe)
-    // Slug value must have its single quote doubled
-    expect(sql).toContain("'it''s'")
-    // JSON label must also have its single quote doubled
-    expect(sql).toContain("It''s")
-  })
-
-  it('does not contain unescaped single quotes inside the JSON literal', () => {
-    const sql = buildSeedRegistrationSql(SIMPLE_SEED)
-    const jsonStart = sql.indexOf("VALUES (")
-    const jsonPart = sql.slice(jsonStart)
-    // Extract the JSON literal between the second pair of outer quotes
-    // Verify it round-trips back to the original seed
-    const inner = JSON.stringify(SIMPLE_SEED).replace(/'/g, "''")
-    expect(sql).toContain(inner)
-  })
-})
-
-// ── Dry-run output ordering ───────────────────────────────────────────────
-// Verify that seed-load uses sortSeedsByDependencies (not Object.values order)
-// by testing the pure function behavior that underpins it.
-
-describe('seed-load dry-run ordering contract', () => {
-  it('content_team CREATE TABLE appears before content_articles when articles declared first', () => {
-    // The dry-run loops over sortSeedsByDependencies(Object.values(registry)).
-    // We verify the sort result here — the integration is in seed-load.ts.
-    const registry = {
-      articles: ARTICLES_SEED, // declared first
-      team: TEAM_SEED,
-    }
-    const sorted = sortSeedsByDependencies(Object.values(registry))
-    const slugs = sorted.map(s => s.slug)
-    // team must come first so its CREATE TABLE is emitted before articles'
-    expect(slugs.indexOf('team')).toBeLessThan(slugs.indexOf('articles'))
-  })
-})

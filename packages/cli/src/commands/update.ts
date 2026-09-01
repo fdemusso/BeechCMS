@@ -45,10 +45,6 @@ export async function update(_args: UpdateOptions): Promise<void> {
 
   console.log(pc.dim('\n  Local update complete.\n'))
   console.log(pc.dim('  Next steps:'))
-  console.log(pc.cyan('  1. npx beech seed:load --local'))
-  console.log(pc.dim('      → sync content schema to local DB'))
-  console.log(pc.cyan('  2. npm run deploy'))
-  console.log(pc.dim('      → deploy updated API + dashboard'))
-  console.log(pc.cyan('  3. npx beech seed:load'))
-  console.log(pc.dim('      → sync remote schema\n'))
+  console.log(pc.cyan('  1. npm run deploy'))
+  console.log(pc.dim('      → deploy updated API + dashboard\n'))
 }
