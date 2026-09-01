@@ -7,8 +7,9 @@ import { readFileSync } from 'node:fs'
 import { findWranglerConfig } from '../lib/wrangler.js'
 
 export interface DeployOptions {
-  skipSeed?: boolean
   skipCheck?: boolean
+  /** @deprecated Content schemas are managed in Cloudflare D1; seed:load is no longer executed during deploy. */
+  skipSeed?: boolean
 }
 
 function readWorkerName(configPath: string | null): string | null {
@@ -50,7 +51,7 @@ export async function deploy(args: DeployOptions): Promise<void> {
 
   // Step 1: wrangler deploy via npm run deploy.
   // stdout captured to extract the deployed URL; stderr stays on the terminal for live progress.
-  console.log(pc.dim('  [1/3] Deploying Worker…\n'))
+  console.log(pc.dim('  [1/2] Deploying Worker…\n'))
   const deployResult = spawnSync('npm', ['run', 'deploy'], {
     stdio: ['inherit', 'pipe', 'inherit'],
     encoding: 'utf-8',
@@ -72,30 +73,10 @@ export async function deploy(args: DeployOptions): Promise<void> {
   const deployedUrl = extractWorkerUrl(deployStdout)
   console.log(pc.green('\n  ✓ Worker deployed'))
 
-  // Step 2: seed:load --remote as a subprocess so that wrangler failures
-  // (which call process.exit internally) don't abort our own process.
-  if (args.skipSeed) {
-    console.log(pc.dim('\n  [2/3] Skipping seed:load (--skip-seed)'))
-  } else {
-    console.log(pc.dim('\n  [2/3] Syncing content schema to remote D1…\n'))
-    const seedResult = spawnSync('npx', ['beech', 'seed:load'], {
-      stdio: 'inherit',
-      cwd: process.cwd(),
-      shell: true,
-    })
-    if (seedResult.status !== 0) {
-      console.log(pc.yellow('\n  ⚠ seed:load failed\n'))
-      console.log(pc.dim('  Sync the remote content schema manually:'))
-      console.log(pc.cyan('  → Run: npx beech seed:load\n'))
-    } else {
-      console.log(pc.green('\n  ✓ Content schema synced'))
-    }
-  }
-
-  // Step 3: check /admin reachability.
+  // Step 2: check /admin reachability.
   // Use URL extracted from deploy output; fall back to worker name from wrangler.jsonc.
   if (args.skipCheck) {
-    console.log(pc.dim('\n  [3/3] Skipping admin check (--skip-check)\n'))
+    console.log(pc.dim('\n  [2/2] Skipping admin check (--skip-check)\n'))
     return
   }
 
@@ -107,12 +88,12 @@ export async function deploy(args: DeployOptions): Promise<void> {
   })()
 
   if (!adminBase) {
-    console.log(pc.dim('\n  [3/3] Could not determine worker URL — skipping admin check\n'))
+    console.log(pc.dim('\n  [2/2] Could not determine worker URL — skipping admin check\n'))
     console.log(pc.dim('  The deployed URL is printed by wrangler above. Open <url>/admin to verify.\n'))
     return
   }
 
-  console.log(pc.dim(`\n  [3/3] Checking ${adminBase}/admin…\n`))
+  console.log(pc.dim(`\n  [2/2] Checking ${adminBase}/admin…\n`))
   const { ok, status } = await checkAdmin(adminBase)
 
   if (ok) {

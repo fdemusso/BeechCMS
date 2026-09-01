@@ -6,13 +6,13 @@
 
 # Function: schemaDiff()
 
-> **schemaDiff**(`args`): `Promise`&lt;`void`&gt;
+> **schemaDiff**(`_args?`): `Promise`&lt;`void`&gt;
 
 ## Parameters
 
-### args
+### \_args?
 
-[`SchemaDiffOptions`](../interfaces/SchemaDiffOptions.md)
+[`SchemaDiffOptions`](../interfaces/SchemaDiffOptions.md) = `{}`
 
 ## Returns
 

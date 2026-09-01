@@ -1,10 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
 
-import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { resolve } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import pc from 'picocolors'
 
 let [,, command, ...args] = process.argv
@@ -65,7 +61,7 @@ function help() {
       --remote        Target remote D1 instead of local (default: local)
       --db-name <n>   Override D1 database name
       --yes, -y       Run in non-interactive mode
-    ${pc.cyan('onboard')}         One-command local provisioning (init --db + seed:load)
+    ${pc.cyan('onboard')}         One-command local provisioning (init --db)
       --remote        Target remote D1 instead of local (default: local)
       --yes, -y       Skip all interactive prompts (non-interactive mode)
       --db <name>     Override D1 database name
@@ -75,25 +71,14 @@ function help() {
     ${pc.cyan('db:migrate')}      Apply all pending local migrations
     ${pc.cyan('db:reset')}        Remove local Wrangler state and re-bootstrap database
 
-  ${pc.bold('3. Seed & Schema Management')}
-    ${pc.cyan('seed:create')}     Interactive wizard — generate a new Seed schema in seeds.ts
-    ${pc.cyan('seed:load')}       Create/update content tables from SEED_REGISTRY
-      --dry-run       Print SQL without executing
-      --diff          Show schema differences vs current DB
-      --remote        Execute against remote D1 (default: local)
-      --db <name>     Override D1 database name
-    ${pc.cyan('schema:diff')}     Diff SEED_REGISTRY vs D1 and generate additive SQL migration
-      --write         Write the migration file (default: preview only)
-      --name <name>   Migration name used in the filename
-      --remote        Diff against remote D1 (default: local)
-      --db <name>     Override D1 database name
-    ${pc.cyan('validate')}        Validate seeds registry for errors
+  ${pc.bold('3. Database & Types Management')}
     ${pc.cyan('gen types typescript')} (alias: ${pc.cyan('gen-types')})
       Generate TypeScript interfaces from active D1 database
       --local         Target local D1 SQLite state (default)
       --remote        Target remote Cloudflare D1
       --db <name>     Override D1 database name
       -o, --output    Output file path (default: standard output)
+    ${pc.cyan('validate')}        Validate runtime schema status
 
   ${pc.bold('4. Forms & Frontend Generation')}
     ${pc.cyan('forms / form')}    Interactive wizard to generate React, Vue, Svelte, or Web Component forms
@@ -123,7 +108,6 @@ function help() {
       --name <n>      Project name override
       --yes, -y       Non-interactive mode
     ${pc.cyan('deploy')}          Compile, test, deploy to Cloudflare environment
-      --skip-seed     Skip remote seed:load step
       --skip-check    Skip /admin reachability check
     ${pc.cyan('doctor')}          Execute React diagnostics check on Dashboard
 `)
@@ -132,76 +116,8 @@ function help() {
 function cmdBuild() {
   console.log(
     '\nNo build step needed for BeechCMS projects.\n' +
-    'Edit seeds.ts then run `npx beech seed:load` to sync schema changes to D1.\n'
+    'Manage content types dynamically in the BeechCMS Dashboard at /admin.\n'
   )
-}
-
-async function tryLoadLocalRegistry() {
-  const cwd = process.cwd()
-
-  // Try compiled JS first (root or apps/api)
-  const searchDirs = [cwd, resolve(cwd, 'apps', 'api')]
-  for (const dir of searchDirs) {
-    for (const name of ['seeds.js', 'seeds.mjs', 'seed.js', 'seed.mjs']) {
-      const p = resolve(dir, name)
-      if (existsSync(p)) {
-        try {
-          const mod = await import(pathToFileURL(p).href)
-          if (mod.SEED_REGISTRY && typeof mod.SEED_REGISTRY === 'object') {
-            return mod.SEED_REGISTRY
-          }
-          if (Array.isArray(mod.seeds)) {
-            return Object.fromEntries(mod.seeds.map(s => [s.slug, s]))
-          }
-          if (Array.isArray(mod.default)) {
-            return Object.fromEntries(mod.default.map(s => [s.slug, s]))
-          }
-        } catch {}
-      }
-    }
-  }
-
-  // Try seeds.ts / seed.ts (root or apps/api)
-  let tsPath = null
-  for (const dir of searchDirs) {
-    const p = existsSync(resolve(dir, 'seeds.ts')) 
-      ? resolve(dir, 'seeds.ts') 
-      : resolve(dir, 'seed.ts')
-    if (existsSync(p)) {
-      tsPath = p
-      break
-    }
-  }
-
-  if (tsPath) {
-    const result = spawnSync(process.execPath, [
-      '--experimental-strip-types',
-      '--input-type=module',
-      '--eval',
-      `
-import * as mod from ${JSON.stringify(pathToFileURL(tsPath).href)};
-let out = null;
-if (mod.SEED_REGISTRY && typeof mod.SEED_REGISTRY === 'object') out = mod.SEED_REGISTRY;
-else if (Array.isArray(mod.seeds)) out = Object.fromEntries(mod.seeds.map(s => [s.slug, s]));
-else if (Array.isArray(mod.default)) out = Object.fromEntries(mod.default.map(s => [s.slug, s]));
-if (out) process.stdout.write(JSON.stringify(out));
-      `.trim(),
-    ], { encoding: 'utf-8' })
-    
-    if (result.status === 0 && result.stdout) {
-      try { return JSON.parse(result.stdout) } catch (err) {
-        console.error('  Failed to parse seeds.ts output:', err)
-      }
-    } else if (result.status !== 0) {
-      console.error('  Error loading seeds.ts:')
-      console.error(result.stderr || result.stdout || 'Unknown error')
-      if (process.version.slice(1).split('.')[0] < 22) {
-        console.warn('  Note: Node.js 22.6+ is required to load .ts files directly. Current version:', process.version)
-      }
-    }
-  }
-
-  return null
 }
 
 async function cmdInit(args) {
@@ -212,26 +128,17 @@ async function cmdInit(args) {
   const yes     = args.includes('--yes') || args.includes('-y')
 
   const { init } = await import('@beechcms/cli')
-  await init({ initDb, local: !remote, db, yes })
+  await init({ initDb, local: !remote, db, nonInteractive: yes })
 }
 
-async function cmdSeedLoad(args) {
-  const dryRun = args.includes('--dry-run')
-  const diff   = args.includes('--diff')
-  const remote = args.includes('--remote')
-  const dbIdx  = args.indexOf('--db')
-  const db     = dbIdx !== -1 ? args[dbIdx + 1] : undefined
-
-  const registry = await tryLoadLocalRegistry()
-
+async function cmdSeedLoad(_args) {
   const { seedLoad } = await import('@beechcms/cli')
-  await seedLoad({ dryRun, diff, local: !remote, db, registry })
+  await seedLoad({})
 }
 
-async function cmdValidate(args) {
-  const registry = await tryLoadLocalRegistry()
+async function cmdValidate(_args) {
   const { validate } = await import('@beechcms/cli')
-  await validate({ registry })
+  await validate({})
 }
 
 async function cmdSeedCreate(_args) {
@@ -242,9 +149,8 @@ async function cmdSeedCreate(_args) {
 async function cmdDeploy(args) {
   const skipSeed  = args.includes('--skip-seed')
   const skipCheck = args.includes('--skip-check')
-  const registry  = skipSeed ? null : await tryLoadLocalRegistry()
   const { deploy } = await import('@beechcms/cli')
-  await deploy({ registry, skipSeed, skipCheck })
+  await deploy({ skipSeed, skipCheck })
 }
 
 async function cmdUpdate(_args) {
@@ -257,9 +163,8 @@ async function cmdOnboard(args) {
   const yes      = args.includes('--yes') || args.includes('-y')
   const dbIdx    = args.indexOf('--db')
   const db       = dbIdx !== -1 ? args[dbIdx + 1] : undefined
-  const registry = await tryLoadLocalRegistry()
   const { onboard } = await import('@beechcms/cli')
-  await onboard({ local, yes, db, registry })
+  await onboard({ local, yes, db })
 }
 
 async function cmdReset(args) {
@@ -279,9 +184,8 @@ async function cmdSchemaDiff(args) {
   const name    = nameIdx !== -1 ? args[nameIdx + 1] : undefined
   const dbIdx   = args.indexOf('--db')
   const db      = dbIdx !== -1 ? args[dbIdx + 1] : undefined
-  const registry = await tryLoadLocalRegistry()
   const { schemaDiff } = await import('@beechcms/cli')
-  await schemaDiff({ local: !remote, write, name, db, registry })
+  await schemaDiff({ local: !remote, write, name, db })
 }
 
 async function cmdGenerateTypes(args) {
@@ -391,7 +295,7 @@ async function cmdSetupCloudflare(args) {
 const handler = COMMANDS[command]
 if (!handler) {
   help()
-  if (command) process.exit(1)
+  if (command && command !== '--help' && command !== '-h' && command !== 'help') process.exit(1)
 } else if (args.includes('--help') || args.includes('-h')) {
   help()
 } else {

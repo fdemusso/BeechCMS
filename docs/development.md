@@ -116,25 +116,19 @@ npx wrangler d1 execute DB --local --command "SELECT * FROM seeds;"
 
 ## Working with Runtime Seeds
 
-In BeechCMS, content models (Seeds) are database-resident. The D1 `seeds` table serves as the runtime source of truth.
+In BeechCMS, content models (Seeds) are database-resident. The Cloudflare D1 `seeds` table serves as the canonical runtime source of truth.
 
 ### Local Provisioning & Onboarding
 
-To seed your local database with default schemas from `seeds.ts`:
+To provision your local database system tables:
 
 ```bash
 npx beech onboard --local --yes
 ```
 
-### Schema Syncing during Development
+### Dynamic Content Models during Development
 
-When editing `seeds.ts` in the codebase:
-
-```bash
-npx beech seed:load --local
-```
-
-This compiles changes, updates SQLite table structures via the Botanical Engine, and invalidates the cached registry version (`seed_meta.registry_version`) so running API instances update immediately without restarts.
+Content types are created and managed dynamically at runtime via the BeechCMS Dashboard (`http://localhost:8789/admin`) or through the `/api/seeds` endpoints. The Botanical Engine handles schema changes, generates table structures, and updates the cached registry version (`seed_meta.registry_version`) so running API instances update immediately without restarts.
 
 ## Testing Strategy
 

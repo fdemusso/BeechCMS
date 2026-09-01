@@ -6,13 +6,13 @@
 
 # Function: seedLoad()
 
-> **seedLoad**(`args`): `Promise`&lt;`void`&gt;
+> **seedLoad**(`_args?`): `Promise`&lt;`void`&gt;
 
 ## Parameters
 
-### args
+### \_args?
 
-[`SeedLoadOptions`](../interfaces/SeedLoadOptions.md)
+[`SeedLoadOptions`](../interfaces/SeedLoadOptions.md) = `{}`
 
 ## Returns
 
