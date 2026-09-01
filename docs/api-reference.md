@@ -520,7 +520,7 @@ Content-Type: application/json
 
 Il sistema di bozze pendenti permette di salvare modifiche su un'entry già pubblicata senza renderle immediatamente visibili al pubblico. In v0.4.0, questo è gestito tramite una tabella speculare `content_{slug}_drafts` che contiene le modifiche non ancora pubblicate.
 
-**Prerequisito:** il Seed deve avere `allowDrafts: true` in `@beechcms/core/src/seeds.ts`. Se il flag è assente o `false`, tutti gli endpoint di questa sezione rispondono `405 Method Not Allowed`.
+**Prerequisito:** il Seed deve avere `allowDrafts: true` nello schema del Seed (configurabile via Seed Builder nella Dashboard o tramite API `/api/seeds`). Se il flag è assente o `false`, tutti gli endpoint di questa sezione rispondono `405 Method Not Allowed`.
 
 > **Distinzione fondamentale:** `status = 'draft'` identifica un'entry mai pubblicata. Una bozza pendente è invece un'entry **già pubblicata** che ha una riga corrispondente nella tabella dei draft.
 
@@ -815,7 +815,7 @@ The Public API (`/api/v1/public/`) is a purpose-built, hardened endpoint for ext
 
 Access is controlled at two levels:
 
-**Level 1 — Seed capability flags** (defined in `@beechcms/core/src/seeds.ts`):
+**Level 1 — Seed capability flags** (defined in the `Seed` schema via Dashboard or API):
 
 ```typescript
 interface Seed {

@@ -130,20 +130,25 @@ The entire CMS engine, admin dashboard, and REST API live inside `node_modules/@
 | `PUBLIC_WRITE_API_KEY` | Public API | Passed via `X-API-Key` to submit entries like contact forms (`POST /api/v1/public/*`). |
 | `CORS_ORIGINS` | Network | Comma-separated list of allowed frontend origins (e.g. `https://myblog.com`). |
 
-## Defining Seeds
+## Defining & Managing Seeds
 
 In BeechCMS, content types are called **Seeds**, and individual fields are called **Branches**.
 
-The **Botanical Engine** reads your Seed definitions and compiles them into:
+Cloudflare D1 is the **canonical single source of truth** for all schemas. Instead of managing static files on disk, content types are defined and evolved dynamically:
+1. **Admin Dashboard UI**: Create and edit content models visually via the **Seed Builder** in the admin panel (`/admin`).
+2. **Runtime REST API**: Programmatically create and update models via `POST /api/seeds` or `PUT /api/seeds/:slug`.
+
+The **Botanical Engine** processes your Seed definitions and automatically compiles them into:
 1. Native SQLite DDL (`CREATE TABLE content_<seed>`).
 2. Indexes, foreign keys, and FTS5 search virtual tables.
-3. REST API endpoints with validation.
-4. Auto-generated UI form controls in the admin dashboard.
+3. REST API endpoints with schema validation.
+4. Dynamic UI form controls in the admin dashboard.
 
-Open `seeds.ts` to inspect or customize your models:
+### Seed Schema Anatomy
+
+Below is an example of how Seeds and Branches are structured within BeechCMS (using the `Seed` definition model from `@beechcms/core`):
 
 ```typescript
-// seeds.ts
 import { defineSeed, type Seed } from '@beechcms/core'
 
 /** Author: Content creator profiles */
@@ -272,9 +277,7 @@ export const posts: Seed = defineSeed({
     },
   ],
 })
-
-// Export all seeds for the Botanical Engine and Worker entry point
-export const seeds: Seed[] = [authors, posts]
+```
 ```
 
 ### Policies & Invariants

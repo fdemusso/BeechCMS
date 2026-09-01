@@ -47,7 +47,7 @@ npx @beechcms/cms my-app
 Or scaffold non-interactively with the starter template:
 
 ```bash
-npx @beechcms/cms my-app --yes --with-examples
+npx @beechcms/cms my-app --yes
 cd my-app
 pnpm install
 ```
