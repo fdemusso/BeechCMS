@@ -4,22 +4,25 @@ services:
   minio:
     image: minio/minio:latest
     container_name: beech-minio
+    restart: unless-stopped
     ports:
-      - "${BEECH_MINIO_PORT:-9000}:9000"
-      - "${BEECH_MINIO_CONSOLE_PORT:-9001}:9001"
+      - "127.0.0.1:${BEECH_MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${BEECH_MINIO_CONSOLE_PORT:-9001}:9001"
     environment:
-      MINIO_ROOT_USER: beechdev
-      MINIO_ROOT_PASSWORD: beechdevsecret
+      MINIO_ROOT_USER: ${BEECH_MINIO_USER:-beechdev}
+      MINIO_ROOT_PASSWORD: ${BEECH_MINIO_PASSWORD:-beechdevsecret}
     command: server /data --console-address ":9001"
     volumes:
       - beech-minio-data:/data
 
   minio-init:
     image: minio/mc:latest
-    depends_on: [minio]
+    restart: "no"
+    depends_on:
+      - minio
     entrypoint: >
       /bin/sh -c "
-      until /usr/bin/mc alias set local http://minio:9000 beechdev beechdevsecret; do sleep 1; done;
+      until /usr/bin/mc alias set local http://minio:9000 ${BEECH_MINIO_USER:-beechdev} ${BEECH_MINIO_PASSWORD:-beechdevsecret}; do sleep 1; done;
       /usr/bin/mc mb -p local/beech-media || true;
       /usr/bin/mc anonymous set download local/beech-media || true;
       /usr/bin/mc mb -p local/beech-media-test || true;
@@ -50,21 +53,20 @@ services:
     ports:
       - "127.0.0.1:${BEECH_SQLITE_WEB_PORT:-8080}:8080"
     volumes:
-      - ../apps/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject:/data
+      - ../apps/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject:/data:ro
     working_dir: /data
     entrypoint: ["sh", "-c"]
     command:
       - >
-        DB_FILE=$$(ls /data/*.sqlite 2>/dev/null | grep -v metadata | head -n 1);
-        if [ -z "$$DB_FILE" ]; then
-          echo "[sqlite-web] No D1 database found. Run 'pnpm --filter @beechcms/api db:migrate:local' first." >&2;
-          sleep infinity;
-        fi;
-        echo "[sqlite-web] Serving $$DB_FILE";
-        sqlite_web -H 0.0.0.0 -p 8080 --read-only "$$DB_FILE"
-    depends_on:
-      minio:
-        condition: service_started
+        while true; do
+          DB_FILE=$$(ls /data/*.sqlite 2>/dev/null | grep -v metadata | head -n 1);
+          if [ -n "$$DB_FILE" ]; then
+            echo "[sqlite-web] Serving $$DB_FILE";
+            exec sqlite_web -H 0.0.0.0 -p 8080 --read-only "$$DB_FILE";
+          fi;
+          echo "[sqlite-web] No D1 database found yet. Waiting for migrations..." >&2;
+          sleep 3;
+        done
 
   webhook-tester:
     image: tarampampam/webhook-tester:latest
