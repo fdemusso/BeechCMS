@@ -23,10 +23,10 @@ All endpoints are served from a single Cloudflare Worker. The routing is handled
 
 ### 2.1 JWT Authentication
 
-The internal API uses **JSON Web Tokens** signed with HMAC-SHA256 (`HS256`). Token issuance and verification are handled by `ITokenService` (implemented by `JoseTokenService` using the `jose` library — the only file in the project that imports jose). The middleware in `apps/api/src/middleware.ts` intercepts every protected request:
+The internal API uses **JSON Web Tokens** signed with HMAC-SHA256 (`HS256`). Token issuance and verification are handled by `ITokenService` (implemented by `JoseTokenService` using the `jose` library — the only file in the project that imports jose). The middleware in `apps/api/src/middleware/auth.middleware.ts` intercepts every protected request:
 
 ```typescript
-// apps/api/src/middleware.ts
+// apps/api/src/middleware/auth.middleware.ts
 export function authMiddleware() {
   return async (c: Context<AppEnv>, next: Next) => {
     const auth = c.req.header('Authorization')
@@ -49,9 +49,13 @@ Access tokens have a **15-minute TTL**. They are stored **in-memory only** (`_ac
 **Token payload shape:**
 
 ```typescript
-type JwtPayload = {
-  sub: string;    // User ID (UUID)
+export interface JwtClaims {
+  sub: string;     // User ID (UUID)
   email?: string;
+  name?: string;
+  surname?: string;
+  role?: string;
+  [key: string]: unknown;
 }
 ```
 
@@ -70,7 +74,7 @@ sequenceDiagram
     API->>D1: SELECT user WHERE email = ? (via IUserRepository)
     API->>API: IHashProvider.verify(password, hash)
     API->>API: ITokenService.issue (15min access token)
-    API->>API: crypto.randomUUID() → refresh token
+    API->>API: generateRefreshToken() (32-byte secure hex)
     API->>D1: INSERT refresh_tokens (SHA-256 hash, expires +7d) (via ISessionRepository)
     API-->>Client: 200 { token } + Set-Cookie: refresh_token (HttpOnly)
 
@@ -119,7 +123,7 @@ DELETE FROM refresh_tokens WHERE expires_at < unixepoch() OR revoked_at IS NOT N
 | Timing attack prevention | `IHashProvider.verify` always runs against a dummy hash when the user does not exist (`DUMMY_PASSWORD_HASH`) |
 | SQL injection prevention | All D1 queries use `.bind(...)` prepared statements — no string interpolation |
 | User enumeration prevention | `401 Invalid credentials` for both "user not found" and "wrong password" |
-| Token storage | Refresh token: `HttpOnly`, `Secure`, `SameSite=Strict` cookie. Access token: `localStorage` (XSS risk accepted, mitigated by CSP) |
+| Token storage | Refresh token: `HttpOnly`, `Secure`, `SameSite=Strict` cookie. Access token: in-memory only (`_accessToken` in dashboard client, never in `localStorage`/`sessionStorage`) |
 | JWT hardening | Algorithm locked to `HS256`; `typ: JWT` header required |
 | Short-lived access tokens | 15-minute TTL reduces the attack window |
 | Rate limiting (login) | 5 attempts per IP+email per 60 seconds (Cloudflare Rate Limiting API) |
