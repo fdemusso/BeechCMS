@@ -306,13 +306,14 @@ export function generateColumns(
     }
 
     const maxLength = maxLengths?.[branch.alias]
+    const displayOptions = typeof maxLength === "number" ? { maxLength } : undefined
     return {
       ...baseColumn,
       cell: ({ row }) => (
         <FieldDisplay
           branch={branch}
           value={row.original.data[branch.alias]}
-          options={typeof maxLength === "number" ? { maxLength } : undefined}
+          options={displayOptions}
         />
       ),
     }
