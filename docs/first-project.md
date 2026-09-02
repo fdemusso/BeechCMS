@@ -27,7 +27,7 @@ Along the way, you will learn how to configure all core system variables, define
 - **Resend Account (Optional)**: Only required if you want to deliver live transactional emails (password resets, notifications) in production. In local development, BeechCMS routes emails to local Mailpit without requiring any API key or third-party account.
 - **Upstash Account / QStash (Optional)**: Only needed if you require serverless HTTP queues with automated retry backoff for high-volume background notifications and webhooks. When omitted, BeechCMS seamlessly processes background tasks in-memory.
 
-## 1. Scaffolding
+## Scaffolding
 
 BeechCMS provides an automated scaffolding CLI that configures a production-ready edge backend in seconds:
 
@@ -58,7 +58,7 @@ my-app/
 
 The entire CMS engine, admin dashboard, and REST API are packaged inside `@beechcms/api`. Your application repository contains purely your configuration, while content models (**Seeds**) are managed dynamically in the Cloudflare D1 database.
 
-## 2. Configuration
+## Configuration
 
 BeechCMS relies on Cloudflare bindings and specific environment variables to manage authentication, media storage, email delivery, and public API access.
 
@@ -178,7 +178,7 @@ R2_BUCKET_NAME=my-app-media
 | `QSTASH_CURRENT_SIGNING_KEY` & `QSTASH_NEXT_SIGNING_KEY` | **Optional** | HMAC SHA-256 signing keys used to cryptographically verify inbound callbacks sent to `/api/webhooks/qstash`. |
 | `QSTASH_CALLBACK_URL` | **Optional** | Public Worker URL called by QStash. Auto-populated by `pnpm dev:full` tunnel; falls back to local in-memory processing when omitted. |
 
-## 3. Database & Setup
+## Database & Setup
 
 Once variables are in place, BeechCMS is ready to initialize and launch.
 
@@ -212,7 +212,7 @@ Because BeechCMS detects a fresh database, it automatically presents the initial
 
 You are now logged in to the live BeechCMS administration console.
 
-## 4. Seeds & Admin UI
+## Seeds & Admin UI
 
 In BeechCMS, Cloudflare D1 is the **canonical single source of truth**. You do not need to edit static schema files on disk; content types (**Seeds**) and fields (**Branches**) are created and evolved directly through the visual dashboard.
 
@@ -300,7 +300,7 @@ Automations in BeechCMS are scoped directly to the Seed you are working on and c
 
 For variables interpolation syntax (`\{\{this.field\}\}`), aggregates, and webhook signature verification, see the **[Automations Guide](./automations.md)**, the **[Email Module Guide](./email-module.md)**, and **[Observability & Notifications](./observability-and-notifications.md)**.
 
-## 5. Frontend & SDKs
+## Frontend & SDKs
 
 Now that your CMS is running with published content, let's connect your frontend application.
 
@@ -570,7 +570,7 @@ export function SearchModal() {
 
 Read the complete guide at **[Search SDK](./search-sdk.md)**.
 
-## 6. Edge Deployment
+## Edge Deployment
 
 When your application is ready for production, deploying BeechCMS to Cloudflare takes just a few steps:
 
