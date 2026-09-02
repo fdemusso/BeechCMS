@@ -14,27 +14,9 @@ Along the way, you will learn how to configure all core system variables, define
 
 ## What We Are Building
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                       CLOUDFLARE EDGE                       │
-│  ┌────────────────────┐   ┌──────────────────────────────┐  │
-│  │ Cloudflare Workers │   │ Cloudflare D1 (SQLite Engine)│  │
-│  │ Hono REST API +    │◄──┤ System Tables & Seeds        │  │
-│  │ Bundled Admin SPA  │   └──────────────────────────────┘  │
-│  └─────────┬──────────┘   ┌──────────────────────────────┐  │
-│            │              │ Cloudflare R2 Object Storage │  │
-│            └─────────────►│ Media & Asset Direct Uploads │  │
-│                           └──────────────────────────────┘  │
-└────────────────────────────┬────────────────────────────────┘
-                             │ Public REST API & SDKs
-       ┌─────────────────────┼──────────────────────┐
-       ▼                     ▼                      ▼
-┌──────────────┐      ┌──────────────┐      ┌──────────────┐
-│  Client SDK  │      │  Forms SDK   │      │  Search SDK  │
-│ Content Data │      │ Dynamic Form │      │ Hybrid Vector│
-│   Fetching   │      │  + Anti-Bot  │      │  + Lexical   │
-└──────────────┘      └──────────────┘      └──────────────┘
-```
+<p align="center">
+  <img src="/images/first-project-architecture.svg" alt="BeechCMS Full-Stack Edge Architecture and Official SDKs" style="width: 100%; max-width: 860px; margin: 16px 0;" />
+</p>
 
 ---
 

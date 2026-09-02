@@ -1,0 +1,178 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 460" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="cfEdgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f6821f" stop-opacity="0.10"/>
+      <stop offset="100%" stop-color="#faad3f" stop-opacity="0.03"/>
+    </linearGradient>
+
+    <linearGradient id="workerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+
+    <linearGradient id="d1Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0284c7"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+
+    <linearGradient id="r2Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8b5cf6"/>
+      <stop offset="100%" stop-color="#6d28d9"/>
+    </linearGradient>
+
+    <linearGradient id="clientSdkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#1e40af"/>
+    </linearGradient>
+
+    <linearGradient id="formsSdkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+
+    <linearGradient id="searchSdkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7c3aed"/>
+      <stop offset="100%" stop-color="#5b21b6"/>
+    </linearGradient>
+
+    <!-- Filters & Shadows -->
+    <filter id="shadow-worker" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#1d4ed8" flood-opacity="0.28"/>
+    </filter>
+    <filter id="shadow-d1" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#0284c7" flood-opacity="0.25"/>
+    </filter>
+    <filter id="shadow-r2" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="0" dy="5" stdDeviation="6" flood-color="#8b5cf6" flood-opacity="0.25"/>
+    </filter>
+    <filter id="shadow-sdk" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="0" dy="6" stdDeviation="7" flood-color="#0f172a" flood-opacity="0.18"/>
+    </filter>
+
+    <!-- Markers -->
+    <marker id="arrow-down" viewBox="0 0 10 10" refX="5" refY="6" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 1 0 L 5 8 L 9 0 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-right" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-left" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 8 1 L 0 5 L 8 9 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <style>
+    .edge-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; font-weight: 700; letter-spacing: 0.8px; fill: #f6821f; text-transform: uppercase; }
+    .card-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; fill: #ffffff; }
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15px; font-weight: 700; fill: #ffffff; }
+    .card-subtitle { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 11px; font-weight: 600; fill: rgba(255, 255, 255, 0.9); }
+    .card-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11.5px; fill: rgba(255, 255, 255, 0.88); }
+    .label-pill { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 10.5px; font-weight: 600; fill: #334155; }
+    .conn-label { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; font-weight: 600; fill: #475569; }
+  </style>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- TOP CONTAINER: CLOUDFLARE GLOBAL EDGE                                  -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <rect x="25" y="20" width="870" height="235" rx="16" fill="url(#cfEdgeGrad)" stroke="#f6821f" stroke-width="1.5" stroke-dasharray="5 5"/>
+  
+  <g transform="translate(48, 38)">
+    <rect width="180" height="22" rx="6" fill="rgba(246, 130, 31, 0.15)"/>
+    <text x="14" y="15" class="edge-badge">Cloudflare Global Edge</text>
+  </g>
+
+  <!-- Card 1: Cloudflare Workers Engine -->
+  <g transform="translate(50, 75)" filter="url(#shadow-worker)">
+    <rect width="320" height="155" rx="12" fill="url(#workerGrad)"/>
+    <rect x="18" y="16" width="105" height="18" rx="4" fill="rgba(0, 0, 0, 0.22)"/>
+    <text x="70" y="29" text-anchor="middle" class="card-badge">Compute Engine</text>
+    <text x="18" y="58" class="card-title">Cloudflare Workers</text>
+    <text x="18" y="82" class="card-desc">• Hono REST API Core (/api/v1)</text>
+    <text x="18" y="104" class="card-desc">• Bundled React Admin SPA (/admin)</text>
+    <text x="18" y="126" class="card-desc">• Sub-millisecond Edge Cold Starts</text>
+    <text x="18" y="148" class="card-desc">• Botanical Engine Schema Compiler</text>
+  </g>
+
+  <!-- Connector: Workers <-> D1 -->
+  <path d="M 370 115 L 530 115" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-right)" marker-start="url(#arrow-left)"/>
+  <text x="450" y="106" text-anchor="middle" class="conn-label">SQL / Schema Sync</text>
+
+  <!-- Connector: Workers -> R2 -->
+  <path d="M 370 190 L 530 190" stroke="#64748b" stroke-width="2" marker-end="url(#arrow-right)"/>
+  <text x="450" y="181" text-anchor="middle" class="conn-label">SigV4 Presigned URL</text>
+
+  <!-- Card 2: Cloudflare D1 -->
+  <g transform="translate(540, 75)" filter="url(#shadow-d1)">
+    <rect width="330" height="70" rx="10" fill="url(#d1Grad)"/>
+    <rect x="16" y="12" width="95" height="16" rx="4" fill="rgba(0, 0, 0, 0.2)"/>
+    <text x="63" y="24" text-anchor="middle" class="card-badge">Edge Database</text>
+    <text x="16" y="46" class="card-title">Cloudflare D1 (SQLite)</text>
+    <text x="16" y="62" class="card-desc">Compiled Seeds, FTS5 Search &amp; Foreign Keys</text>
+  </g>
+
+  <!-- Card 3: Cloudflare R2 -->
+  <g transform="translate(540, 160)" filter="url(#shadow-r2)">
+    <rect width="330" height="70" rx="10" fill="url(#r2Grad)"/>
+    <rect x="16" y="12" width="100" height="16" rx="4" fill="rgba(0, 0, 0, 0.2)"/>
+    <text x="66" y="24" text-anchor="middle" class="card-badge">Object Storage</text>
+    <text x="16" y="46" class="card-title">Cloudflare R2 Media Bucket</text>
+    <text x="16" y="62" class="card-desc">Zero-Egress Direct Presigned Media Uploads</text>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- MIDDLE CONNECTOR: PUBLIC REST API & SDK DISPATCH                       -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- Central trunk line from edge to SDK bus -->
+  <line x1="460" y1="255" x2="460" y2="288" stroke="#64748b" stroke-width="2"/>
+
+  <!-- Protocol Badge -->
+  <g transform="translate(330, 275)">
+    <rect x="0" y="0" width="260" height="26" rx="13" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5" filter="url(#shadow-sdk)"/>
+    <circle cx="16" cy="13" r="5" fill="#10b981"/>
+    <text x="28" y="17" class="label-pill">Public REST API &amp; SDKs (X-API-Key)</text>
+  </g>
+
+  <!-- Bus line splitting to 3 SDK cards -->
+  <path d="M 175 315 L 745 315" stroke="#94a3b8" stroke-width="1.5"/>
+  <path d="M 175 315 L 175 332" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow-down)"/>
+  <path d="M 460 301 L 460 332" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow-down)"/>
+  <path d="M 745 315 L 745 332" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrow-down)"/>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+  <!-- BOTTOM TIER: OFFICIAL SDKs                                             -->
+  <!-- ═══════════════════════════════════════════════════════════════════════ -->
+
+  <!-- SDK 1: Client SDK -->
+  <g transform="translate(45, 335)" filter="url(#shadow-sdk)">
+    <rect width="260" height="110" rx="12" fill="url(#clientSdkGrad)"/>
+    <rect x="14" y="12" width="75" height="16" rx="4" fill="rgba(0, 0, 0, 0.22)"/>
+    <text x="51" y="24" text-anchor="middle" class="card-badge">Data Client</text>
+    <text x="14" y="46" class="card-title">Client SDK</text>
+    <text x="14" y="63" class="card-subtitle">@beechcms/client</text>
+    <text x="14" y="83" class="card-desc">• Type-safe content querying</text>
+    <text x="14" y="100" class="card-desc">• Webhook signature verification</text>
+  </g>
+
+  <!-- SDK 2: Forms SDK -->
+  <g transform="translate(330, 335)" filter="url(#shadow-sdk)">
+    <rect width="260" height="110" rx="12" fill="url(#formsSdkGrad)"/>
+    <rect x="14" y="12" width="75" height="16" rx="4" fill="rgba(0, 0, 0, 0.22)"/>
+    <text x="51" y="24" text-anchor="middle" class="card-badge">Forms &amp; Input</text>
+    <text x="14" y="46" class="card-title">Forms SDK</text>
+    <text x="14" y="63" class="card-subtitle">@beechcms/forms-react</text>
+    <text x="14" y="83" class="card-desc">• Dynamic schema &amp; auto-save</text>
+    <text x="14" y="100" class="card-desc">• Invisible honeypot &amp; time-trap</text>
+  </g>
+
+  <!-- SDK 3: Search SDK -->
+  <g transform="translate(615, 335)" filter="url(#shadow-sdk)">
+    <rect width="260" height="110" rx="12" fill="url(#searchSdkGrad)"/>
+    <rect x="14" y="12" width="75" height="16" rx="4" fill="rgba(0, 0, 0, 0.22)"/>
+    <text x="51" y="24" text-anchor="middle" class="card-badge">Vector Search</text>
+    <text x="14" y="46" class="card-title">Search SDK</text>
+    <text x="14" y="63" class="card-subtitle">@beechcms/search-client</text>
+    <text x="14" y="83" class="card-desc">• In-memory hybrid vector + FTS</text>
+    <text x="14" y="100" class="card-desc">• Reciprocal rank fusion (RRF)</text>
+  </g>
+</svg>
