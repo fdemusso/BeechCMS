@@ -300,16 +300,22 @@ For more on the editor interface and publishing lifecycle, see the **[Content Ed
 
 ### 4. Setting Up Automations
 
-BeechCMS includes a visual **Automations Engine** under **Settings → Automations**. Automations run on the Cloudflare edge without external servers, leveraging Upstash QStash for resilient, asynchronous message delivery and automated retries:
+Automations in BeechCMS are scoped directly to the Seed you are working on and configured without leaving the content workspace:
 
-- **Triggers**: Content lifecycle events (`create`, `update`, `delete`) or recurring schedules (`cron`).
-- **Actions**:
-  - `send_mail`: Dispatches transactional emails via Resend (e.g. sending a confirmation email when a user submits a contact form).
-  - `webhook`: Dispatches signed HTTP requests to external services (n8n, Zapier, Slack, Discord) with retry backoff.
-  - `edit_field`: Automatically updates field values (e.g. setting an approved date).
-  - `create_entry`: Automatically spawns records in another Seed.
+1. **Open the Automations Panel**: In the sidebar, select the Seed you want to automate (e.g., **Posts** or **Customers**). In the top toolbar of the listing views (next to the Table/Gallery/Kanban view switcher), click the **Automations** button.
+2. **Automations Lateral Sheet**: A dedicated side panel slides out from the right displaying the active automations for this Seed, along with toggle switches to enable or disable them. Click **+ New automation**.
+3. **Configure Trigger & Actions (Editor Modal)**: The visual Automation Editor opens in the center:
+   - **Name**: Give your automation a descriptive name (e.g., *Publish Alert to Slack* or *Customer Confirmation Email*).
+   - **When (Trigger)**: Select the initiating lifecycle event (`create`, `update`, `delete`, or recurring `cron` schedule) and attach any optional filter conditions (e.g., `status == 'published'`).
+   - **Do (Actions Pipeline)**: Click **+ Add action** to chain operations:
+     - **Send email**: Sends transactional emails via Resend (e.g. sending a confirmation email upon contact form submission).
+     - **Webhook**: Dispatches signed HTTP requests to external services (n8n, Zapier, Slack, Discord) with automated retry backoff via QStash.
+     - **Edit field**: Automatically mutates entry values (e.g. setting an approved date or assigning a ticket).
+     - **Create entry**: Spawns an entry in another Seed (e.g. generating an audit log).
+     - **Set variable**: Preloads and aggregates data from other Seeds for use in later actions.
+4. **Enable**: Click **Enable**. Your edge workflow is immediately active.
 
-To configure email triggers, background queues, or webhook signing, visit the **[Automations Guide](./automations.md)**, the **[Email Module Guide](./email-module.md)**, and **[Observability & Notifications](./observability-and-notifications.md)**.
+For variables interpolation syntax (`\{\{this.field\}\}`), aggregates, and webhook signature verification, see the **[Automations Guide](./automations.md)**, the **[Email Module Guide](./email-module.md)**, and **[Observability & Notifications](./observability-and-notifications.md)**.
 
 ---
 
