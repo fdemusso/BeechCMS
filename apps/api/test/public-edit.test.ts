@@ -158,4 +158,26 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
       }),
     })
   })
+
+  it('accepts flat JSON payload on PUT /edit/:id and returns enriched response with data and meta', async () => {
+    const res = await app.request(`/api/v1/public/profiles/edit/${existingEntry.id}`, {
+      method: 'PUT',
+      headers: {
+        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: 'Jane Renamed',
+      }),
+    }, TEST_ENV)
+
+    expect(res.status).toBe(200)
+    const body = await res.json<{ success: boolean; id: string; slug: string; data: Record<string, unknown>; meta: { seed: string } }>()
+    expect(body.success).toBe(true)
+    expect(body.id).toBe(existingEntry.id)
+    expect(body.slug).toBe('jane-profile')
+    expect(body.data).toBeDefined()
+    expect(body.data.name).toBe('Jane Renamed')
+    expect(body.meta.seed).toBe('profiles')
+  })
 })

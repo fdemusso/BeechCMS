@@ -78,7 +78,7 @@ export interface BeechBrowserClient<TRegistry = Record<string, unknown>> {
   content<K extends keyof TRegistry & string>(seed: K): BrowserContentResource<TRegistry[K]>
 }
 
-/** Server Client Content Resource: Full CRUD operations. */
+/** Server Client Content Resource: Content mutation and query operations (create, update, list, get). */
 export interface ServerContentResource<TRow> {
   list(query?: ListQuery<TRow>, options?: RequestOptions): Promise<BeechResult<Listable<TRow>>>
   get(selector: { id: string } | { slug: string }, options?: RequestOptions): Promise<BeechResult<Single<TRow>>>

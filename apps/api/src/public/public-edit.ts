@@ -68,21 +68,33 @@ function resolveData(
   seed: Seed,
   body: Record<string, unknown>
 ): ResolveResult<Record<string, unknown>> {
-  if (!Object.hasOwn(body, 'data')) {
-    // No data update — return empty patch
-    return { ok: true, value: {} }
-  }
+  let rawData: Record<string, unknown> | null = null
 
-  const rawData = asRecord(body.data)
-  if (!rawData) {
-    return {
-      ok: false,
-      response: publicProblem(context, {
-        type: 'invalid-data-object',
-        title: 'Bad Request',
-        status: 400,
-        detail: "Field 'data' must be an object when provided",
-      }),
+  if (Object.hasOwn(body, 'data')) {
+    rawData = asRecord(body.data)
+    if (!rawData) {
+      return {
+        ok: false,
+        response: publicProblem(context, {
+          type: 'invalid-data-object',
+          title: 'Bad Request',
+          status: 400,
+          detail: "Field 'data' must be an object when provided",
+        }),
+      }
+    }
+  } else {
+    const flatData: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(body)) {
+      if (k !== 'slug' && k !== 'status') {
+        flatData[k] = v
+      }
+    }
+    if (Object.keys(flatData).length > 0) {
+      rawData = flatData
+    } else {
+      // No data update — return empty patch
+      return { ok: true, value: {} }
     }
   }
 
@@ -242,7 +254,13 @@ export async function publicEditHandler(context: PublicCtx) {
       })
     )
 
-    return context.json({ success: true, id, slug: slugResult.value.nextSlug }, 200)
+    return context.json({
+      success: true,
+      id,
+      slug: slugResult.value.nextSlug,
+      data: { ...updatedEntry, status: statusResult.value },
+      meta: { seed: seedSlug },
+    }, 200)
   } catch (error) {
     if (error instanceof EntryNotFoundError) {
       return publicProblem(context, { type: 'entry-not-found', title: 'Not Found', status: 404, detail: `Entry '${id}' not found for content type '${seedSlug}'.` })
