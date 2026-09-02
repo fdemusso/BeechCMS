@@ -22,13 +22,14 @@ Along the way, you will learn how to configure all core system variables, define
 
 ## Prerequisites
 
-Before starting, make sure you have:
-
+### Essential
 - **Node.js**: `v20.0.0` or higher (`v22 LTS` recommended).
 - **Package Manager**: `pnpm` (recommended), `npm`, or `yarn`.
-- **Cloudflare Account**: A free account is sufficient. [Sign up here](https://dash.cloudflare.com/sign-up).
-- **Resend Account**: For transactional emails and automations. [Sign up at resend.com](https://resend.com/).
-- **Upstash Account (QStash)**: Serverless HTTP queue for background tasks, webhook retries, and asynchronous notifications at the edge. [Sign up at upstash.com](https://upstash.com/).
+- **Cloudflare Account**: A free tier account is sufficient. [Sign up here](https://dash.cloudflare.com/sign-up) (only needed for edge deployment; local development runs completely offline).
+
+### Optional Integrations
+- **Resend Account (Optional)**: Only required if you want to deliver live transactional emails (password resets, notifications) in production. In local development, BeechCMS routes emails to local Mailpit without requiring any API key or third-party account.
+- **Upstash Account / QStash (Optional)**: Only needed if you require serverless HTTP queues with automated retry backoff for high-volume background notifications and webhooks. When omitted, BeechCMS seamlessly processes background tasks in-memory.
 
 ---
 
@@ -169,21 +170,21 @@ R2_BUCKET_NAME=my-app-media
 
 ### Environment Variables Reference
 
-| Variable | Scope | Purpose |
-| :--- | :--- | :--- |
-| `JWT_SECRET` | Backend Secret | Cryptographically signs session tokens for dashboard users. |
-| `APP_URL` | Backend / Links | Canonical base URL used for password recovery links and notifications. |
-| `CORS_ORIGINS` | Network | Comma-separated list of allowed frontend origins (e.g. `https://my-site.com`). |
-| `PUBLIC_READ_API_KEY` | Public API | Passed via `X-API-Key` by your frontend to read content (`GET /api/v1/public/*`). |
-| `PUBLIC_WRITE_API_KEY` | Public API | Passed via `X-API-Key` by frontend forms to submit entries (`POST /api/v1/public/*`). |
-| `RESEND_API_KEY` | Email Provider | Transactional email delivery for password resets and automation actions. |
-| `EMAIL_PROVIDER` | Email Setting | `smtp` for local testing (Mailpit) or `resend` for cloud production. |
-| `EMAIL_FROM` | Email Setting | Sender address displayed to recipients (e.g. `Beech CMS <noreply@yourdomain.com>`). |
-| `R2_ACCESS_KEY_ID` & `R2_SECRET_ACCESS_KEY` | Media Storage | S3-compatible credentials used to generate **direct presigned upload URLs (SigV4)**. Files upload directly from the browser to R2 without hitting Worker memory limits. |
-| `WEBHOOK_SECRET` | Automations | Secret key used to generate SHA-256 HMAC signatures (`x-beech-signature`) on outbound webhooks. |
-| `QSTASH_TOKEN` | Background Queues | Upstash QStash Bearer token for serverless message queues, automated retries, and high-volume background notifications at the edge. |
-| `QSTASH_CURRENT_SIGNING_KEY` & `QSTASH_NEXT_SIGNING_KEY` | Security | HMAC SHA-256 signing keys used to cryptographically verify inbound callbacks sent to `/api/webhooks/qstash`. |
-| `QSTASH_CALLBACK_URL` | Network Callback | Public Worker URL called by QStash to deliver queued tasks. In development, `pnpm dev:full` binds this automatically via Cloudflare Tunnel. When omitted, BeechCMS falls back to local in-memory background processing. |
+| Variable | Requirement | Purpose |
+| :--- | :---: | :--- |
+| `JWT_SECRET` | **Required** | Cryptographically signs session tokens for dashboard users. |
+| `APP_URL` | **Recommended** | Canonical base URL used for password recovery links and notifications. |
+| `CORS_ORIGINS` | **Required** | Comma-separated list of allowed frontend origins (e.g. `https://my-site.com`). |
+| `PUBLIC_READ_API_KEY` | **Required** | Passed via `X-API-Key` by your frontend to read content (`GET /api/v1/public/*`). |
+| `PUBLIC_WRITE_API_KEY` | **Optional** | Passed via `X-API-Key` by frontend forms to submit entries (`POST /api/v1/public/*`). |
+| `R2_ACCESS_KEY_ID` & `R2_SECRET_ACCESS_KEY` | **Required (Media)** | S3-compatible credentials used to generate **direct presigned upload URLs (SigV4)** to Cloudflare R2 without hitting Worker memory limits. |
+| `RESEND_API_KEY` | **Optional** | Production transactional emails. In local development, BeechCMS routes to Mailpit with zero config. |
+| `EMAIL_PROVIDER` | **Optional** | `smtp` for local testing (Mailpit) or `resend` for cloud production. |
+| `EMAIL_FROM` | **Optional** | Sender address displayed to recipients (e.g. `Beech CMS <noreply@yourdomain.com>`). |
+| `WEBHOOK_SECRET` | **Optional** | Secret key used to generate SHA-256 HMAC signatures (`x-beech-signature`) on outbound webhooks. |
+| `QSTASH_TOKEN` | **Optional** | Upstash QStash Bearer token for serverless message queues, automated retries, and high-volume background notifications. |
+| `QSTASH_CURRENT_SIGNING_KEY` & `QSTASH_NEXT_SIGNING_KEY` | **Optional** | HMAC SHA-256 signing keys used to cryptographically verify inbound callbacks sent to `/api/webhooks/qstash`. |
+| `QSTASH_CALLBACK_URL` | **Optional** | Public Worker URL called by QStash. Auto-populated by `pnpm dev:full` tunnel; falls back to local in-memory processing when omitted. |
 
 ---
 
@@ -627,18 +628,23 @@ Copy the generated `database_id` and update `wrangler.jsonc`:
 
 ### 3. Store Production Secrets
 
-Set production secrets securely on Cloudflare:
+Set production secrets securely on Cloudflare. Only the core credentials are strictly required; Resend and QStash secrets are optional:
 
 ```bash
+# ── Core Required Secrets ──
 npx wrangler secret put JWT_SECRET --env production
-npx wrangler secret put RESEND_API_KEY --env production
 npx wrangler secret put PUBLIC_READ_API_KEY --env production
-npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
-npx wrangler secret put WEBHOOK_SECRET --env production
 npx wrangler secret put R2_ACCESS_KEY_ID --env production
 npx wrangler secret put R2_SECRET_ACCESS_KEY --env production
 
-# Upstash QStash Secrets (for Edge Queue Notifications & Webhooks)
+# ── Optional: Public Write API Key (for frontend forms) ──
+npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
+
+# ── Optional: Transactional Email & Outbound Webhooks (Resend) ──
+npx wrangler secret put RESEND_API_KEY --env production
+npx wrangler secret put WEBHOOK_SECRET --env production
+
+# ── Optional: Serverless Queues & Background Retries (Upstash QStash) ──
 npx wrangler secret put QSTASH_TOKEN --env production
 npx wrangler secret put QSTASH_CURRENT_SIGNING_KEY --env production
 npx wrangler secret put QSTASH_NEXT_SIGNING_KEY --env production
