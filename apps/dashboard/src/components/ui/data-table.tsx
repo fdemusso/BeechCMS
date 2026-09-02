@@ -150,7 +150,7 @@ interface DataTableProps<TData, TValue> {
   cellActivateExcludedColumnIds?: string[]
 }
 
-export function DataTable<TData, TValue>(
+export const DataTable = React.memo(function DataTable<TData, TValue>(
   props: Readonly<DataTableProps<TData, TValue>>
 ) {
   const {
@@ -795,4 +795,4 @@ export function DataTable<TData, TValue>(
       )}
     </div>
   )
-}
+})
