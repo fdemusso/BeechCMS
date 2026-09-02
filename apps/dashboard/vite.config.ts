@@ -6,6 +6,7 @@ import path from 'path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+import { visualizer } from 'rollup-plugin-visualizer'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -13,7 +14,16 @@ export default defineConfig({
   build: {
     outDir: 'dist/admin',
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(), 
+    tailwindcss(),
+    visualizer({
+      filename: 'stats.html',
+      open: false, // metti a true se vuoi che si apra in automatico dopo la build
+      gzipSize: true,
+      brotliSize: true,
+    }) as any, // "as any" per evitare conflitti di tipi con vite in alcune versioni
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
