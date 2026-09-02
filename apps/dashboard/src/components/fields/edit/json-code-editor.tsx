@@ -48,6 +48,8 @@ const beechBaseTheme = EditorView.theme({
     overflow: "auto",
     lineHeight: "1.5",
     fontFamily: "inherit",
+    scrollbarWidth: "thin",
+    scrollbarColor: "var(--border) transparent",
   },
   ".cm-content": {
     padding: "8px 0",
