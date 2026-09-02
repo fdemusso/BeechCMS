@@ -10,6 +10,7 @@ pnpm-debug.log*
 dist/
 build/
 apps/api/assets/
+stats.html
 .next/
 out/
 *.tsbuildinfo

@@ -219,7 +219,7 @@ export function BuilderPane({ seed, branchById, onClose }: Readonly<BuilderPaneP
   return (
     <>
       {/* ── Scrollable body ── */}
-      <div className="flex-1 overflow-y-auto px-6 pt-4 pb-4 space-y-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-6 pt-4 pb-4 space-y-4 min-w-0 max-w-full">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
 
           {/* Tab strip */}
@@ -389,7 +389,7 @@ function TabPill({
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             e.stopPropagation()
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
               onRenameCommit()
             }
             if (e.key === 'Escape') {

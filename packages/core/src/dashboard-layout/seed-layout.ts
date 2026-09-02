@@ -88,7 +88,7 @@ export interface FormLayout {
 // ---------------------------------------------------------------------------
 
 /** Branch types that must occupy a section alone, full width. */
-export const FULL_WIDTH_BRANCH_TYPES = new Set<Branch['type']>(['richtext'])
+export const FULL_WIDTH_BRANCH_TYPES = new Set<Branch['type']>(['richtext', 'json'])
 
 /** Returns true when a branch is a gallery (file + multiple/asset-list). */
 export function isGalleryBranch(branch: Branch): boolean {
@@ -97,7 +97,7 @@ export function isGalleryBranch(branch: Branch): boolean {
 }
 
 /** Branch types currently unsupported in the Layout Builder. */
-export const UNSUPPORTED_BRANCH_TYPES = new Set<Branch['type']>(['json'])
+export const UNSUPPORTED_BRANCH_TYPES = new Set<Branch['type']>([])
 
 /** Aliases that are NEVER included in the editor form (handled by other UI). */
 export const SYSTEM_ALIASES = new Set<string>([
@@ -334,13 +334,22 @@ export function validateLayoutAgainstSeed(
         }
       }
 
-      // Full-width branches must occupy a dedicated section
+      // Full-width branches must occupy a dedicated single-column section
       const fullWidthInSection = fieldsInSection.filter(isFullWidthBranch)
-      if (fullWidthInSection.length > 0 && fieldsInSection.length > fullWidthInSection.length) {
-        for (const fw of fullWidthInSection) {
-          errors.push(
-            `Branch '${fw.alias}' (type=${fw.type}) must occupy a dedicated section and cannot share it with other fields.`,
-          )
+      if (fullWidthInSection.length > 0) {
+        if (fieldsInSection.length > 1) {
+          for (const fw of fullWidthInSection) {
+            errors.push(
+              `Branch '${fw.alias}' (type=${fw.type}) must occupy a dedicated section and cannot share it with other fields.`,
+            )
+          }
+        }
+        if (section.columns.length > 1) {
+          for (const fw of fullWidthInSection) {
+            errors.push(
+              `Branch '${fw.alias}' (type=${fw.type}) must occupy a single-column section.`,
+            )
+          }
         }
       }
     }

@@ -2,6 +2,14 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { scan } from 'react-scan'
+if (typeof window !== 'undefined') {
+  scan({
+    enabled: true,
+    log: true, // Registra anche i log in console
+  })
+}
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ThemeProvider } from 'next-themes'

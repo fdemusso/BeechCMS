@@ -61,6 +61,7 @@ export interface ColumnRendererProps {
   readonly fieldErrors: Record<string, string>
   /** Callback fired when any field changes. */
   readonly onChange: (alias: string, value: unknown) => void
+  readonly isReadOnly?: boolean
 }
 
 /**
@@ -73,6 +74,7 @@ function ColumnRenderer({
   formData,
   fieldErrors,
   onChange,
+  isReadOnly,
 }: ColumnRendererProps) {
   const { t: translate } = useTranslation()
 
@@ -110,6 +112,8 @@ function ColumnRenderer({
               branch={branch as any}
               value={formData[branch.alias]}
               onChange={(value) => onChange(branch.alias, value)}
+              disabled={isReadOnly}
+              readOnly={isReadOnly || Boolean((branch as unknown as { readOnly?: boolean }).readOnly)}
             />
             {fieldErrors[branch.alias] && (
               <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
@@ -135,6 +139,7 @@ export interface SectionRendererProps {
   readonly fieldErrors: Record<string, string>
   /** Callback fired when any field changes. */
   readonly onChange: (alias: string, value: unknown) => void
+  readonly isReadOnly?: boolean
 }
 
 /**
@@ -148,6 +153,7 @@ function SectionRenderer({
   formData,
   fieldErrors,
   onChange,
+  isReadOnly,
 }: SectionRendererProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false)
   const showBorder = !section.hideBorder && !isLast
@@ -186,6 +192,7 @@ function SectionRenderer({
               formData={formData}
               fieldErrors={fieldErrors}
               onChange={onChange}
+              isReadOnly={isReadOnly}
             />
           ))}
         </div>
@@ -206,6 +213,7 @@ export interface TabSectionsProps {
   readonly fieldErrors: Record<string, string>
   /** Callback fired when any field changes. */
   readonly onChange: (alias: string, value: unknown) => void
+  readonly isReadOnly?: boolean
 }
 
 /**
@@ -218,6 +226,7 @@ export function TabSections({
   formData,
   fieldErrors,
   onChange,
+  isReadOnly,
 }: TabSectionsProps) {
   const { t: translate } = useTranslation()
 
@@ -236,6 +245,7 @@ export function TabSections({
           formData={formData}
           fieldErrors={fieldErrors}
           onChange={onChange}
+          isReadOnly={isReadOnly}
         />
       ))}
     </div>

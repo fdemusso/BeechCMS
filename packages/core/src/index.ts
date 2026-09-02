@@ -18,7 +18,7 @@ export * from './engine/seeds.js'
 export * from './engine/engine.js'
 export * from './engine/validation/index.js'
 export * from './content/richtext/richtext.js'
-export * from './content/richtext/richtext-render.js'
+
 export * from './content/slug-utils.js'
 export * from './content/content.repository.js'
 export * from './common/hooks.js'

@@ -77,7 +77,7 @@ export function SectionCard({
   )
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded-lg border">
+    <div ref={setNodeRef} style={style} className="rounded-lg border min-w-0 max-w-full">
       {/* Section header */}
       <div className="flex items-center gap-2 px-3 py-2 border-b">
         <button
@@ -192,7 +192,7 @@ export function SectionCard({
       </div>
 
       {/* Columns */}
-      <div className={`p-3 grid gap-2`} style={{ gridTemplateColumns: `repeat(${columnCount}, 1fr)` }}>
+      <div className="p-3 grid gap-2 min-w-0 max-w-full" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
         <SortableContext items={colDragIds} strategy={horizontalListSortingStrategy}>
           {section.columns.map((col) => {
             const colDragId = `column:${tabId}:${section.id}:${col.id}`
