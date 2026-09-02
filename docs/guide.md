@@ -8,7 +8,7 @@ category: Getting Started
 
 BeechCMS is an **edge-native, schema-driven headless CMS** engineered to run entirely on Cloudflare's global edge network (Workers, D1, and R2).
 
-With BeechCMS, you define your content models (**Seeds**) in TypeScript or visually via the dashboard, and the system instantly provides an embedded React admin panel, a high-performance REST API, and edge-native media storage with zero server management.
+With BeechCMS, your content models (**Seeds**) are canonically persisted and managed directly in Cloudflare D1 via the dashboard or REST API. The system instantly provides an embedded React admin panel, a high-performance REST API, and edge-native media storage with zero server management.
 
 ## Edge Architecture
 
@@ -19,7 +19,7 @@ BeechCMS replaces traditional server-hosted CMS stacks with serverless edge prim
 - **Cloudflare R2**: S3-compatible object storage with zero egress fees for uploaded media, photos, and files.
 
 <p align="center">
-  <img src="/images/architecture-cloudflare.svg" alt="Cloudflare Edge Architecture" style="width: 100%; max-width: 820px; margin: 16px 0;" />
+  <img :src="$withBase('/images/architecture-cloudflare.svg')" alt="Cloudflare Edge Architecture" style="width: 100%; max-width: 820px; margin: 16px 0;" />
 </p>
 
 ## Core Concepts
@@ -49,7 +49,7 @@ Or scaffold non-interactively with the starter template:
 ```bash
 npx @beechcms/cms my-app --yes
 cd my-app
-pnpm install
+npm install
 ```
 
 ### Project Layout
@@ -59,6 +59,8 @@ my-app/
 ├── worker.ts       # Worker entry point running the @beechcms/api engine
 ├── wrangler.jsonc  # Cloudflare bindings (D1, R2, environment variables)
 ├── .dev.vars       # Local development secrets (git-ignored)
+├── tsconfig.json   # TypeScript configuration for Cloudflare Workers
+├── .gitignore      # Git ignore rules (.wrangler, .dev.vars, node_modules)
 └── package.json    # Scripts and dependencies
 ```
 
@@ -66,13 +68,21 @@ The entire CMS engine and admin SPA live inside `@beechcms/api`. Your workspace 
 
 ### Local Development
 
-Start the local server with one command:
+1. Initialise the local D1 database and apply the base system tables:
 
 ```bash
-npx wrangler dev --port 8789
+npm run db:migrate:local
+# or: npx beech init --db
 ```
 
-Open [http://localhost:8789/admin](http://localhost:8789/admin) to access the admin dashboard and complete the initial setup.
+2. Start the local development server:
+
+```bash
+npm run dev
+# or: npx wrangler dev --port 8789
+```
+
+3. Open [http://localhost:8789/admin](http://localhost:8789/admin) to access the admin dashboard and complete the initial setup.
 
 ## External Services
 
@@ -88,9 +98,10 @@ BeechCMS leverages lightweight external services to deliver enterprise capabilit
 Used for password-reset emails and automated notification triggers.
 
 1. Sign up at [resend.com](https://resend.com) and create an API Key.
-2. Add your key to `.dev.vars` (local) and Cloudflare secrets (production):
+2. Add your sender address to `wrangler.jsonc` under `vars` (e.g. `"EMAIL_FROM": "notifications@yourdomain.com"`).
+3. Add your key to `.dev.vars` (local) and Cloudflare secrets (production):
    ```bash
-   npx wrangler secret put RESEND_API_KEY --env production
+   npx wrangler secret put RESEND_API_KEY
    ```
 
 ### Upstash QStash (Background Queues)
@@ -98,7 +109,10 @@ Used for password-reset emails and automated notification triggers.
 Used for asynchronous background jobs, retries, and high-volume webhook dispatches.
 
 1. Create a free account at [upstash.com](https://upstash.com) and navigate to QStash.
-2. Copy your `QSTASH_TOKEN` and signing keys into your environment secrets.
+2. Configure your environment variables in `.dev.vars` (local) and via `npx wrangler secret put` (production):
+   - `QSTASH_TOKEN`: Upstash API authentication token.
+   - `QSTASH_CURRENT_SIGNING_KEY`: Current signing key for verifying inbound webhooks.
+   - `QSTASH_NEXT_SIGNING_KEY`: Next signing key for zero-downtime rotation.
 
 ## Branch Types Reference
 
@@ -107,13 +121,15 @@ BeechCMS supports a rich array of typed fields out of the box:
 | Type | Stored In D1 | Common Use Cases | Example Options |
 | :--- | :--- | :--- | :--- |
 | `text` | `TEXT` | Titles, slugs, summaries, single-line text | `policies: { search: true, sort: true }` |
-| `number` | `REAL` / `INTEGER` | Prices, ratings, inventory, metrics | `numberOptions: { format: 'currency', currency: 'EUR' }` |
-| `boolean` | `INTEGER (0/1)` | Featured toggles, active statuses | `default: false` |
-| `date` | `TEXT (ISO)` | Event dates, deadlines, publication times | `format: 'date'` or `'datetime'` |
-| `file` | `TEXT (R2 Key/URL)` | Images, PDF documents, avatar photos | `fileOptions: { accept: 'image' }` |
+| `number` | `REAL` | Prices, ratings, inventory, metrics | `numberOptions: { format: 'currency', currency: 'EUR' }` |
+| `boolean` | `INTEGER (0/1)` | Featured toggles, active statuses | `policies: { filter: true }` |
+| `date` | `INTEGER (Unix timestamp)` | Event dates, deadlines, publication times | `format: 'date'` or `'datetime'` (REST API returns ISO string) |
+| `file` | `TEXT (R2 Key/URL)` | Images, PDF documents, avatar photos | `fileOptions: { accept: 'image' }`, `multiple: true` |
 | `relation` | `TEXT (Foreign Key)` | Author links, category references | `targetSeed: 'authors'`, `onDelete: 'SET NULL'` |
-| `richtext` | `TEXT (HTML/JSON)` | Long-form blog posts, articles, documentation | TipTap rich-text formatting |
-| `json` | `TEXT (JSON String)` | Tag arrays, metadata dictionaries, nested lists | `options: ['news', 'tech', 'design']` |
+| `tags` | `TEXT (JSON Array)` | Controlled tag arrays, category badges | `options: ['news', 'tech', 'design']` |
+| `repeater` | `TEXT (JSON Array)` | Structured repeatable blocks, feature lists | `fields: [...]`, `minItems: 1, maxItems: 5` |
+| `richtext` | `TEXT (HTML/JSON)` | Long-form blog posts, articles, documentation | TipTap rich-text formatting (`format: 'html'`) |
+| `json` | `TEXT (JSON String)` | Metadata dictionaries, custom payload configurations | Raw JSON payload |
 
 ### Field Policies
 
@@ -123,13 +139,23 @@ You can attach granular security and indexing policies to any Branch:
 branches: [
   {
     id: 'br_sec1',
-    alias: 'api_token',
-    label: 'API Token',
+    alias: 'phone',
+    label: 'Phone Number',
     type: 'text',
     policies: {
-      privacy: 'hash',      // 'plain' | 'hash' | 'encrypt'
-      visibility: 'masked', // 'full' | 'masked' | 'hidden'
+      privacy: 'encrypt',   // 'plain' | 'hash' | 'encrypt' — AES-GCM at rest
+      visibility: 'masked', // 'full' | 'masked' | 'hidden' — renders as •••• in API
       public: false,        // Strips field from Public REST API responses
+    }
+  },
+  {
+    id: 'br_sec2',
+    alias: 'password_hash',
+    label: 'Password',
+    type: 'text',
+    policies: {
+      privacy: 'hash',      // SHA-256 one-way hash — field is ALWAYS omitted from API responses
+      public: false,
     }
   }
 ]
@@ -140,7 +166,7 @@ branches: [
 The **Botanical Engine** guarantees safe schema migrations without locking or breaking your database.
 
 <p align="center">
-  <img src="/images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
+  <img :src="$withBase('/images/botanical-engine-pipeline.svg')" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
 </p>
 
 ### Canonical D1 Database Authority
@@ -157,21 +183,26 @@ Destructive operations (dropping fields, changing types, or deleting Seeds) requ
 Uploaded assets in R2 are served with high caching efficiency:
 
 - **Local / Proxy Route**: `GET /api/media/:key`
-- **Direct CDN Delivery**: Point a custom domain to your R2 bucket and set `MEDIA_CDN_URL` in `wrangler.jsonc` (e.g. `https://cdn.my-site.com`). All media helpers will automatically return direct CDN links.
+- **Direct CDN Delivery**: Point a custom domain to your R2 bucket and set `MEDIA_CDN_URL` under `vars` in `wrangler.jsonc` (e.g. `"vars": { "MEDIA_CDN_URL": "https://cdn.my-site.com" }`). All media helpers will automatically return direct CDN links.
 
 ## CLI Reference
 
-The `beech` CLI provides unified workflows for database management, code generation, and deployment:
+The `beech` CLI provides unified workflows for database management, code generation, and deployment (commands target local environment by default; use `--remote` for Cloudflare):
 
 | Command | Description |
 | :--- | :--- |
 | `npx @beechcms/cms` | Interactive scaffolding assistant |
-| `npx beech onboard [--local]` | One-command database provisioning and file verification |
-| `npx beech init --db [--local]` | Initialises D1 database system tables |
-| `npx beech gen-types [--local]` | Generates TypeScript interfaces directly from active D1 tables |
+| `npx beech db:migrate` | Applies local database migrations (runs `npm run db:migrate:local` when available, falls back to `beech init --db`) |
+| `npx beech db:reset` | Removes local Wrangler state and re-bootstraps database |
+| `npx beech onboard [--remote]` | One-command database provisioning and file verification |
+| `npx beech init --db [--remote]` | Initialises D1 database system tables |
+| `npx beech gen types typescript` | Generates TypeScript interfaces from active Seed definitions stored in D1 (`--remote`, `-o <file>`) |
+| `npx beech forms` | Interactive wizard to generate React, Vue, Svelte, or Web Component forms |
+| `npx beech setup:cloudflare` | 1-step Cloudflare provisioning (D1, R2, presigned S3 secrets) |
+| `npx beech dev` | Starts the monorepo local dev environment (Docker + API + Dashboard). **In generated consumer projects**, use `npm run dev` (`wrangler dev`) instead. |
 | `npx beech validate` | Validates runtime schema integrity |
 | `npx beech update` | Upgrades core engine packages and applies system migrations |
-| `npx beech deploy` | Builds and deploys the Worker and dashboard static assets to Cloudflare |
+| `npx beech deploy` | Deploys the Worker and embedded dashboard to Cloudflare (runs `wrangler deploy`) |
 
 ## Next Steps
 
