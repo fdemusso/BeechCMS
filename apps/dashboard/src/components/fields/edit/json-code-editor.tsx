@@ -108,20 +108,9 @@ export function JsonCodeEditor({
   const { resolvedTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
 
-  const themeCompartment = React.useRef<Compartment | null>(null)
-  if (themeCompartment.current === null) {
-    themeCompartment.current = new Compartment()
-  }
-
-  const readOnlyCompartment = React.useRef<Compartment | null>(null)
-  if (readOnlyCompartment.current === null) {
-    readOnlyCompartment.current = new Compartment()
-  }
-
-  const initialDocRef = React.useRef<string | null>(null)
-  if (initialDocRef.current === null) {
-    initialDocRef.current = formatInitialValue(value)
-  }
+  const [themeCompartment] = React.useState(() => new Compartment())
+  const [readOnlyCompartment] = React.useState(() => new Compartment())
+  const [initialDoc] = React.useState(() => formatInitialValue(value))
 
   const onChangeRef = React.useRef(onChange)
   React.useEffect(() => {
@@ -140,7 +129,7 @@ export function JsonCodeEditor({
 
   // Inizializzazione di CodeMirror
   React.useEffect(() => {
-    if (!containerRef.current || !themeCompartment.current || !readOnlyCompartment.current) return
+    if (!containerRef.current) return
 
     const extensions = [
       basicSetup,
@@ -149,10 +138,10 @@ export function JsonCodeEditor({
       linter(jsonParseLinter()),
       EditorView.lineWrapping,
       beechBaseTheme,
-      themeCompartment.current.of(
+      themeCompartment.of(
         isDarkRef.current ? [beechDarkTheme, syntaxHighlighting(oneDarkHighlightStyle)] : []
       ),
-      readOnlyCompartment.current.of([
+      readOnlyCompartment.of([
         EditorView.editable.of(!readOnlyRef.current),
         EditorState.readOnly.of(readOnlyRef.current),
       ]),
@@ -164,7 +153,7 @@ export function JsonCodeEditor({
     ]
 
     const startState = EditorState.create({
-      doc: initialDocRef.current ?? "",
+      doc: initialDoc,
       extensions,
     })
 
@@ -179,32 +168,32 @@ export function JsonCodeEditor({
       view.destroy()
       viewRef.current = null
     }
-  }, [])
+  }, [themeCompartment, readOnlyCompartment, initialDoc])
 
   // Sincronizzazione dinamica del tema
   React.useEffect(() => {
     const view = viewRef.current
-    if (!view || !themeCompartment.current) return
+    if (!view) return
 
     view.dispatch({
-      effects: themeCompartment.current.reconfigure(
+      effects: themeCompartment.reconfigure(
         isDark ? [beechDarkTheme, syntaxHighlighting(oneDarkHighlightStyle)] : []
       ),
     })
-  }, [isDark])
+  }, [isDark, themeCompartment])
 
   // Sincronizzazione dinamica di readOnly
   React.useEffect(() => {
     const view = viewRef.current
-    if (!view || !readOnlyCompartment.current) return
+    if (!view) return
 
     view.dispatch({
-      effects: readOnlyCompartment.current.reconfigure([
+      effects: readOnlyCompartment.reconfigure([
         EditorView.editable.of(!readOnly),
         EditorState.readOnly.of(readOnly),
       ]),
     })
-  }, [readOnly])
+  }, [readOnly, readOnlyCompartment])
 
   // Sincronizzazione controllata del valore da sorgente esterna
   React.useEffect(() => {
