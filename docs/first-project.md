@@ -173,7 +173,7 @@ R2_BUCKET_NAME=my-app-media
 | `RESEND_API_KEY` | **Optional** | Production transactional emails. In local development, BeechCMS routes to Mailpit with zero config. |
 | `EMAIL_PROVIDER` | **Optional** | `smtp` for local testing (Mailpit) or `resend` for cloud production. |
 | `EMAIL_FROM` | **Optional** | Sender address displayed to recipients (e.g. `Beech CMS <noreply@yourdomain.com>`). |
-| `WEBHOOK_SECRET` | **Optional** | Secret key used to generate SHA-256 HMAC signatures (`x-beech-signature`) on outbound webhooks. |
+| `WEBHOOK_SECRET` | **Optional** | Secret key used to generate SHA-256 HMAC signatures (`X-BeechCMS-Signature`) on outbound webhooks. |
 | `QSTASH_TOKEN` | **Optional** | Upstash QStash Bearer token for serverless message queues, automated retries, and high-volume background notifications. |
 | `QSTASH_CURRENT_SIGNING_KEY` & `QSTASH_NEXT_SIGNING_KEY` | **Optional** | HMAC SHA-256 signing keys used to cryptographically verify inbound callbacks sent to `/api/webhooks/qstash`. |
 | `QSTASH_CALLBACK_URL` | **Optional** | Public Worker URL called by QStash. Auto-populated by `pnpm dev:full` tunnel; falls back to local in-memory processing when omitted. |
@@ -187,7 +187,7 @@ Once variables are in place, BeechCMS is ready to initialize and launch.
 Run the onboarding command to provision the local SQLite database:
 
 ```bash
-npx beech onboard --local
+npx beech onboard
 ```
 
 This runs the base schema migrations in your local Cloudflare D1 environment (`.wrangler/state/v3/d1`), preparing the core tables for authentication, content definitions, layouts, and automations.
@@ -365,7 +365,7 @@ pnpm add @beechcms/client # or npm install @beechcms/client
 
 ```typescript
 // lib/beech.ts
-import { createBeechClient } from '@beechcms/client'
+import { createBeechClient } from '@beechcms/client/server'
 
 // 1. Define your Seed interfaces
 export interface Post {
@@ -400,10 +400,10 @@ import { beech } from '../lib/beech'
 
 const result = await beech.content('posts').list({
   limit: 10,
-  sort: { createdAt: 'desc' },
+  sort: { created_at: 'desc' },
 })
 
-const posts = result.ok ? result.data.data : []
+const posts = result.data ? result.data.data : []
 ---
 
 <html lang="en">
@@ -438,7 +438,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
   const { slug } = await params
 
   const result = await beech.content('posts').get({ slug })
-  if (!result.ok || !result.data.data) {
+  if (result.error || !result.data) {
     notFound()
   }
 
@@ -456,7 +456,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 }
 ```
 
-Learn more in the **[Client SDK Guide](./client-sdk.md)** (including webhook signature verification via `verifyBeechSignature`).
+Learn more in the **[Client SDK Guide](./client-sdk.md)** (including webhook signature verification via `verifyBeechWebhookSignature`).
 
 ### Forms SDK (`@beechcms/forms-react`)
 
@@ -474,7 +474,7 @@ pnpm add @beechcms/forms-react # or npm install @beechcms/forms-react
 > **CLI Form Generator**:
 > BeechCMS can scaffold a form component tailored to your schema and framework:
 > ```bash
-> npx @beechcms/cli forms
+> npx beech forms
 > ```
 > Supports React, Vue 3, Svelte 5, and Vanilla JS / Web Components.
 
@@ -502,7 +502,7 @@ export function ContactSection() {
 #### What the Forms SDK Handles Automatically:
 1. **Dynamic Schema Fetching**: Queries `GET /api/v1/public/:seed/schema` to render exact validation rules.
 2. **Invisible Anti-Bot Defense**: Embeds an invisible HMAC time-trap token and camouflaged honeypot—blocking automated spam bots without irritating CAPTCHAs.
-3. **Draft Auto-Save**: Saves unsubmitted form entries in `sessionStorage` so visitors never lose typed data on accidental page refreshes.
+3. **Draft Auto-Save**: Saves unsubmitted form entries in `localStorage` so visitors never lose typed data on accidental page refreshes.
 4. **Headless Hook (`useBeechForm`)**: Full UI freedom to build completely custom form controls with Tailwind CSS or Shadcn UI.
 
 Read the complete guide at **[Forms SDK](./forms-sdk.md)**.
@@ -529,10 +529,10 @@ export function SearchModal() {
   const [results, setResults] = useState<any[]>([])
 
   useEffect(() => {
-    // 1. Preload cached search index manifest and vector binary
+    // 1. Preload cached search index manifest and vector binary (hosted on R2 or CDN)
     client.loadIndex(
-      'http://localhost:8789/api/v1/public/search/manifest.json',
-      'http://localhost:8789/api/v1/public/search/vectors.bin'
+      'https://cdn.my-site.com/search/manifest.json',
+      'https://cdn.my-site.com/search/vectors.bin'
     )
   }, [])
 
