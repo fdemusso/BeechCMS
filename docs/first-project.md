@@ -10,15 +10,11 @@ This end-to-end tutorial guides you from an empty directory to a fully functioni
 
 Along the way, you will learn how to configure all core system variables, define content models visually through the admin interface, customize your dashboard and editor layouts, trigger automated workflows, and consume content using BeechCMS's official SDKs (**Client SDK**, **Forms SDK**, and **Search SDK**).
 
----
-
-## What We Are Building
+## Overview
 
 <p align="center">
   <img src="/images/first-project-architecture.svg" alt="BeechCMS Full-Stack Edge Architecture and Official SDKs" style="width: 100%; max-width: 860px; margin: 16px 0;" />
 </p>
-
----
 
 ## Prerequisites
 
@@ -31,9 +27,7 @@ Along the way, you will learn how to configure all core system variables, define
 - **Resend Account (Optional)**: Only required if you want to deliver live transactional emails (password resets, notifications) in production. In local development, BeechCMS routes emails to local Mailpit without requiring any API key or third-party account.
 - **Upstash Account / QStash (Optional)**: Only needed if you require serverless HTTP queues with automated retry backoff for high-volume background notifications and webhooks. When omitted, BeechCMS seamlessly processes background tasks in-memory.
 
----
-
-## Step 1: Scaffolding with NPX
+## 1. Scaffolding
 
 BeechCMS provides an automated scaffolding CLI that configures a production-ready edge backend in seconds:
 
@@ -64,15 +58,13 @@ my-app/
 
 The entire CMS engine, admin dashboard, and REST API are packaged inside `@beechcms/api`. Your application repository contains purely your configuration, while content models (**Seeds**) are managed dynamically in the Cloudflare D1 database.
 
----
-
-## Step 2: Environment Variables & Services Configuration
+## 2. Configuration
 
 BeechCMS relies on Cloudflare bindings and specific environment variables to manage authentication, media storage, email delivery, and public API access.
 
 Let's configure both your **local development** environment and your **production secrets**.
 
-### 1. `wrangler.jsonc` (Bindings & Non-Sensitive Vars)
+### Wrangler Bindings (`wrangler.jsonc`)
 
 Open `wrangler.jsonc` and inspect the configuration:
 
@@ -141,7 +133,7 @@ Open `wrangler.jsonc` and inspect the configuration:
 }
 ```
 
-### 2. Local Secrets (`.dev.vars`)
+### Local Secrets (`.dev.vars`)
 
 Create or update `.dev.vars` in the root of your project. This file is read automatically by `wrangler dev` and should **never** be committed to Git:
 
@@ -149,7 +141,7 @@ Create or update `.dev.vars` in the root of your project. This file is read auto
 # Admin Session Token Signing (generate a 32+ character random hex string)
 JWT_SECRET=4f8b9e6a7c3d2e1f0b5a8c7d6e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f
 
-# Resend API Key for Transactional Emails & Automations
+# Resend API Key for Transactional Emails & Automations (Optional in dev)
 RESEND_API_KEY=re_123456789_abcdefghijklmnopqrstuvwxyz
 
 # Webhook Verification Secret (for signed outbound webhooks)
@@ -161,7 +153,7 @@ R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
 R2_ENDPOINT=https://<YOUR_CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com
 R2_BUCKET_NAME=my-app-media
 
-# --- Upstash QStash (Background Queues & Notifications) ---
+# Upstash QStash (Background Queues & Notifications — Optional)
 # QSTASH_TOKEN=ey...
 # QSTASH_CURRENT_SIGNING_KEY=sig_...
 # QSTASH_NEXT_SIGNING_KEY=sig_...
@@ -186,13 +178,11 @@ R2_BUCKET_NAME=my-app-media
 | `QSTASH_CURRENT_SIGNING_KEY` & `QSTASH_NEXT_SIGNING_KEY` | **Optional** | HMAC SHA-256 signing keys used to cryptographically verify inbound callbacks sent to `/api/webhooks/qstash`. |
 | `QSTASH_CALLBACK_URL` | **Optional** | Public Worker URL called by QStash. Auto-populated by `pnpm dev:full` tunnel; falls back to local in-memory processing when omitted. |
 
----
-
-## Step 3: Database Provisioning & Startup
+## 3. Database & Setup
 
 Once variables are in place, BeechCMS is ready to initialize and launch.
 
-### 1. Initialize System Tables
+### Initialize Database
 
 Run the onboarding command to provision the local SQLite database:
 
@@ -202,7 +192,7 @@ npx beech onboard --local
 
 This runs the base schema migrations in your local Cloudflare D1 environment (`.wrangler/state/v3/d1`), preparing the core tables for authentication, content definitions, layouts, and automations.
 
-### 2. Start the Local Server
+### Start Local Server
 
 Launch the development server:
 
@@ -212,7 +202,7 @@ npx wrangler dev --port 8789
 
 Open your browser at **[http://localhost:8789/admin](http://localhost:8789/admin)**.
 
-### 3. Complete First-Time Onboarding
+### First-Time Onboarding
 
 Because BeechCMS detects a fresh database, it automatically presents the initial **Setup Wizard**:
 
@@ -222,15 +212,13 @@ Because BeechCMS detects a fresh database, it automatically presents the initial
 
 You are now logged in to the live BeechCMS administration console.
 
----
-
-## Step 4: Defining Seeds & Customizing the CMS
+## 4. Seeds & Admin UI
 
 In BeechCMS, Cloudflare D1 is the **canonical single source of truth**. You do not need to edit static schema files on disk; content types (**Seeds**) and fields (**Branches**) are created and evolved directly through the visual dashboard.
 
 When you define a Seed, the **Botanical Engine** compiles it into native SQLite DDL, indexes, and full-text search tables in D1.
 
-### 1. Create a Seed in the Seed Builder
+### Create Seed in Builder
 
 1. Navigate to **Settings** (gear icon in the bottom-left sidebar) → **Content Types**.
 2. Click **+ New Content Type**.
@@ -261,9 +249,7 @@ When you define a Seed, the **Botanical Engine** compiles it into native SQLite 
 
 Click **Save Seed**. The Botanical Engine executes `CREATE TABLE content_posts` and sets up FTS5 search indexes automatically.
 
----
-
-### 2. Dashboard Personalization & Views
+### Views & Customization
 
 Once your Seed is created, you can customize how content is displayed and monitored:
 
@@ -278,9 +264,7 @@ Once your Seed is created, you can customize how content is displayed and monito
   Need to display bespoke analytics, Stripe revenues, or external service metrics directly in the admin dashboard? BeechCMS provides the official **`@beechcms/widget-sdk`**.
   Explore the full guide at **[Custom Dashboard Widgets](./custom-widgets.md)**.
 
----
-
-### 3. Entry Editor Layout Customization
+### Entry Editor Layout
 
 BeechCMS allows you to tailor the editing experience **for each individual Seed** directly inside the Entry Editor:
 
@@ -294,11 +278,10 @@ BeechCMS allows you to tailor the editing experience **for each individual Seed*
    - **Field Picker & Context Menu**: Add unassigned branches or configure section headers and descriptions.
 4. **Save**: Click **Save Layout**. All team members creating or editing entries in that Seed will immediately benefit from your customized form layout.
 5. **Per-Seed Personalization**: Repeat this process for any other Seed (**Authors**, **Clients**, **Products**) to give each content type its ideal editing structure.
+
 For more on the editor interface and publishing lifecycle, see the **[Content Editor Guide](./content-editor-guide.md)**.
 
----
-
-### 4. Setting Up Automations
+### Setting Up Automations
 
 Automations in BeechCMS are scoped directly to the Seed you are working on and configured without leaving the content workspace:
 
@@ -317,9 +300,7 @@ Automations in BeechCMS are scoped directly to the Seed you are working on and c
 
 For variables interpolation syntax (`\{\{this.field\}\}`), aggregates, and webhook signature verification, see the **[Automations Guide](./automations.md)**, the **[Email Module Guide](./email-module.md)**, and **[Observability & Notifications](./observability-and-notifications.md)**.
 
----
-
-## Step 5: Frontend Integration & Consuming APIs
+## 5. Frontend & SDKs
 
 Now that your CMS is running with published content, let's connect your frontend application.
 
@@ -331,9 +312,7 @@ BeechCMS provides both a standardized **Public REST API** and dedicated **Offici
 | **Forms SDK** | `@beechcms/forms-react` | Dynamic schema rendering, invisible honeypot & time-trap anti-bot, auto-save |
 | **Search SDK** | `@beechcms/search-client` | Client-side hybrid search (FTS + vector embeddings) with 250ms debouncing |
 
----
-
-### 1. The Public REST API
+### Public REST API
 
 All seeds configured with `allowPublicRead: true` expose public endpoints authenticated with `PUBLIC_READ_API_KEY`:
 
@@ -372,9 +351,7 @@ curl -X GET "http://localhost:8789/api/v1/public/posts?orderBy=created_at&orderD
 
 For advanced querying, relational joins, and filter operators, see the **[Content API Reference](./content-api.md)**.
 
----
-
-### 2. Official Client SDK (`@beechcms/client`)
+### Client SDK (`@beechcms/client`)
 
 The **Client SDK** provides an ergonomic, type-safe HTTP client for Node.js, Astro, Next.js, Remix, and Nuxt.
 
@@ -481,9 +458,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
 Learn more in the **[Client SDK Guide](./client-sdk.md)** (including webhook signature verification via `verifyBeechSignature`).
 
----
-
-### 3. Official Forms SDK (`@beechcms/forms-react`)
+### Forms SDK (`@beechcms/forms-react`)
 
 Need to collect leads, newsletter signups, contact messages, or customer feedback directly into your BeechCMS database?
 
@@ -532,9 +507,7 @@ export function ContactSection() {
 
 Read the complete guide at **[Forms SDK](./forms-sdk.md)**.
 
----
-
-### 4. Official Search SDK (`@beechcms/search-client`)
+### Search SDK (`@beechcms/search-client`)
 
 BeechCMS includes a dedicated edge-native vector and hybrid search engine. The **Search SDK** brings hybrid search directly to your client frontend.
 
@@ -597,19 +570,17 @@ export function SearchModal() {
 
 Read the complete guide at **[Search SDK](./search-sdk.md)**.
 
----
-
-## Step 6: Deploying to Cloudflare's Global Edge
+## 6. Edge Deployment
 
 When your application is ready for production, deploying BeechCMS to Cloudflare takes just a few steps:
 
-### 1. Authenticate with Cloudflare
+### Authenticate Cloudflare
 
 ```bash
 npx wrangler login
 ```
 
-### 2. Provision Remote Resources
+### Provision Resources
 
 Create your production D1 database and R2 media bucket:
 
@@ -634,7 +605,7 @@ Copy the generated `database_id` and update `wrangler.jsonc`:
 ]
 ```
 
-### 3. Store Production Secrets
+### Production Secrets
 
 Set production secrets securely on Cloudflare. Only the core credentials are strictly required; Resend and QStash secrets are optional:
 
@@ -658,7 +629,7 @@ npx wrangler secret put QSTASH_CURRENT_SIGNING_KEY --env production
 npx wrangler secret put QSTASH_NEXT_SIGNING_KEY --env production
 ```
 
-### 4. Deploy
+### Deploy Command
 
 Run the Beech deploy workflow:
 
@@ -670,9 +641,7 @@ npx beech deploy
 
 Once deployed, visit `https://my-app-api.<your-subdomain>.workers.dev/admin` to complete your production onboarding.
 
----
-
-## Official SDKs & Tooling Ecosystem
+## SDK Ecosystem
 
 Here is a quick reference to all official BeechCMS packages and their documentation:
 
