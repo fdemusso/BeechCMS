@@ -13,6 +13,10 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
     },
+    "./richtext-render": {
+      "import": "./dist/content/richtext/richtext-render.js",
+      "types": "./dist/content/richtext/richtext-render.d.ts"
+    },
     "./webhook-crypto": {
       "import": "./dist/webhooks/webhook-crypto.js",
       "types": "./dist/webhooks/webhook-crypto.d.ts"
