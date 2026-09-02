@@ -282,17 +282,24 @@ Once your Seed is created, you can customize how content is displayed and monito
 
 ### 3. Entry Editor Layout Customization
 
-BeechCMS allows you to tailor the content editing experience for your editorial team using the visual **Layout Builder**:
+BeechCMS allows you to tailor the editing experience **for each individual Seed** directly inside the Entry Editor:
 
-1. In **Settings → Content Types**, select your Seed and click **Edit Form Layout**.
-2. Use drag-and-drop to organize fields:
-   - **Tabs**: Group related fields into tabs (e.g., *Content*, *SEO & Metadata*, *Publishing Settings*).
-   - **Sections & Grids**: Place `title` and `slug` side-by-side in a 2-column row.
-   - **Full-Width Blocks**: Dedicate a wide section for the `body` TipTap rich text editor.
-   - **Sidebar Fields**: Position `cover_image`, `status`, and `tags` in a compact side panel.
-3. Click **Save Layout**. When editors click **+ New Post**, they will see your tailored layout.
+1. **Open the Entry Editor**: Navigate to any Seed from the sidebar (e.g., **Posts**) and click **+ New Post** (or open an existing entry to edit it).
+2. **Launch the Layout Builder**: In the top-right header of the editor modal, administrators will see the **Edit Layout** icon button (the layout template icon next to the close button). Click it to switch the dialog into **Builder Mode**.
+3. **Customize Layout via Drag & Drop**:
+   - **Tabs**: Create and organize tabs to divide lengthy content models (e.g., *Article Body*, *SEO & Social Cards*, *Publishing Meta*).
+   - **Sections & Multi-Column Rows**: Arrange fields side-by-side in 1, 2, or 3-column responsive grid rows.
+   - **Full-Width Blocks**: Reserve full-width sections for TipTap rich text editors (`body`) or code blocks.
+   - **Sidebars & Metadata**: Group secondary branches (`cover_image`, `tags`, author relations) into a compact sidebar column.
+   - **Field Picker & Context Menu**: Add unassigned branches or configure section headers and descriptions.
+4. **Save**: Click **Save Layout**. All team members creating or editing entries in that Seed will immediately benefit from your customized form layout.
+5. **Per-Seed Personalization**: Repeat this process for any other Seed (**Authors**, **Clients**, **Products**) to give each content type its ideal editing structure.
 
-For details on the editor interface and publishing lifecycle, see the **[Content Editor Guide](./content-editor-guide.md)**.
+<p align="center">
+  <img src="/images/editorPersonalizzazione.png" alt="BeechCMS Entry Editor Layout Builder" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
+</p>
+
+For more on the editor interface and publishing lifecycle, see the **[Content Editor Guide](./content-editor-guide.md)**.
 
 ---
 
