@@ -28,6 +28,7 @@ Before starting, make sure you have:
 - **Package Manager**: `pnpm` (recommended), `npm`, or `yarn`.
 - **Cloudflare Account**: A free account is sufficient. [Sign up here](https://dash.cloudflare.com/sign-up).
 - **Resend Account**: For transactional emails and automations. [Sign up at resend.com](https://resend.com/).
+- **Upstash Account (QStash)**: Serverless HTTP queue for background tasks, webhook retries, and asynchronous notifications at the edge. [Sign up at upstash.com](https://upstash.com/).
 
 ---
 
@@ -158,6 +159,12 @@ R2_ACCESS_KEY_ID=your_r2_access_key_id
 R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
 R2_ENDPOINT=https://<YOUR_CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com
 R2_BUCKET_NAME=my-app-media
+
+# --- Upstash QStash (Background Queues & Notifications) ---
+# QSTASH_TOKEN=ey...
+# QSTASH_CURRENT_SIGNING_KEY=sig_...
+# QSTASH_NEXT_SIGNING_KEY=sig_...
+# QSTASH_CALLBACK_URL= (Populated automatically by the Cloudflare tunnel during `pnpm dev:full`)
 ```
 
 ### Environment Variables Reference
@@ -174,6 +181,9 @@ R2_BUCKET_NAME=my-app-media
 | `EMAIL_FROM` | Email Setting | Sender address displayed to recipients (e.g. `Beech CMS <noreply@yourdomain.com>`). |
 | `R2_ACCESS_KEY_ID` & `R2_SECRET_ACCESS_KEY` | Media Storage | S3-compatible credentials used to generate **direct presigned upload URLs (SigV4)**. Files upload directly from the browser to R2 without hitting Worker memory limits. |
 | `WEBHOOK_SECRET` | Automations | Secret key used to generate SHA-256 HMAC signatures (`x-beech-signature`) on outbound webhooks. |
+| `QSTASH_TOKEN` | Background Queues | Upstash QStash Bearer token for serverless message queues, automated retries, and high-volume background notifications at the edge. |
+| `QSTASH_CURRENT_SIGNING_KEY` & `QSTASH_NEXT_SIGNING_KEY` | Security | HMAC SHA-256 signing keys used to cryptographically verify inbound callbacks sent to `/api/webhooks/qstash`. |
+| `QSTASH_CALLBACK_URL` | Network Callback | Public Worker URL called by QStash to deliver queued tasks. In development, `pnpm dev:full` binds this automatically via Cloudflare Tunnel. When omitted, BeechCMS falls back to local in-memory background processing. |
 
 ---
 
@@ -287,16 +297,16 @@ For details on the editor interface and publishing lifecycle, see the **[Content
 
 ### 4. Setting Up Automations
 
-BeechCMS includes a visual **Automations Engine** under **Settings → Automations**. Automations run on the Cloudflare edge without external webhooks or server infrastructure:
+BeechCMS includes a visual **Automations Engine** under **Settings → Automations**. Automations run on the Cloudflare edge without external servers, leveraging Upstash QStash for resilient, asynchronous message delivery and automated retries:
 
 - **Triggers**: Content lifecycle events (`create`, `update`, `delete`) or recurring schedules (`cron`).
 - **Actions**:
   - `send_mail`: Dispatches transactional emails via Resend (e.g. sending a confirmation email when a user submits a contact form).
-  - `webhook`: Dispatches signed HTTP requests to external services (n8n, Zapier, Slack, Discord).
+  - `webhook`: Dispatches signed HTTP requests to external services (n8n, Zapier, Slack, Discord) with retry backoff.
   - `edit_field`: Automatically updates field values (e.g. setting an approved date).
   - `create_entry`: Automatically spawns records in another Seed.
 
-To configure email triggers or webhook signing, visit the **[Automations Guide](./automations.md)** and the **[Email Module Guide](./email-module.md)**.
+To configure email triggers, background queues, or webhook signing, visit the **[Automations Guide](./automations.md)**, the **[Email Module Guide](./email-module.md)**, and **[Observability & Notifications](./observability-and-notifications.md)**.
 
 ---
 
@@ -306,15 +316,11 @@ Now that your CMS is running with published content, let's connect your frontend
 
 BeechCMS provides both a standardized **Public REST API** and dedicated **Official SDKs**:
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Official BeechCMS SDKs                     │
-├───────────────────┬──────────────────────┬──────────────────────┤
-│ @beechcms/client  │ @beechcms/forms-react│@beechcms/search-client│
-│ Data Fetching     │ Dynamic Forms        │ Hybrid Vector + FTS  │
-│ Type-Safe Queries │ Invisible Anti-Bot   │ In-Memory Search     │
-└───────────────────┴──────────────────────┴──────────────────────┘
-```
+| SDK | Package | Core Capabilities |
+| :--- | :--- | :--- |
+| **Client SDK** | `@beechcms/client` | Type-safe content querying, auto-pagination, webhook signature verification |
+| **Forms SDK** | `@beechcms/forms-react` | Dynamic schema rendering, invisible honeypot & time-trap anti-bot, auto-save |
+| **Search SDK** | `@beechcms/search-client` | Client-side hybrid search (FTS + vector embeddings) with 250ms debouncing |
 
 ---
 
@@ -631,6 +637,11 @@ npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
 npx wrangler secret put WEBHOOK_SECRET --env production
 npx wrangler secret put R2_ACCESS_KEY_ID --env production
 npx wrangler secret put R2_SECRET_ACCESS_KEY --env production
+
+# Upstash QStash Secrets (for Edge Queue Notifications & Webhooks)
+npx wrangler secret put QSTASH_TOKEN --env production
+npx wrangler secret put QSTASH_CURRENT_SIGNING_KEY --env production
+npx wrangler secret put QSTASH_NEXT_SIGNING_KEY --env production
 ```
 
 ### 4. Deploy
@@ -660,3 +671,4 @@ Here is a quick reference to all official BeechCMS packages and their documentat
 | **`@beechcms/widget-sdk`** | Custom dashboard widgets, analytics cards, and KPI charts | **[Custom Widgets](./custom-widgets.md)** |
 | **`@beechcms/search-client`**| Edge-native hybrid search (full-text + vector semantic search) | **[Search SDK](./search-sdk.md)** |
 | **Automations & Email** | Native lifecycle workflows, Resend transactional emails, and webhooks | **[Automations](./automations.md)** & **[Email Module](./email-module.md)** |
+| **Queues & Notifications** | Serverless background tasks, QStash queues, and activity audit logging | **[Observability & Notifications](./observability-and-notifications.md)** |
