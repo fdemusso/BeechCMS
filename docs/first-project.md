@@ -52,6 +52,7 @@ my-app/
 ├── worker.ts       # Cloudflare Worker entry point (delegates to @beechcms/api)
 ├── wrangler.jsonc  # Cloudflare bindings, environment variables, and assets
 ├── .dev.vars       # Local secrets (R2 tokens, private keys — git-ignored)
+├── .gitignore      # Git ignore rules for state and dependencies
 ├── tsconfig.json   # TypeScript configuration for the Workers runtime
 └── package.json    # Project scripts and dependencies
 ```
@@ -112,7 +113,7 @@ Open `wrangler.jsonc` and inspect the configuration:
     "DATE_FORMAT": "DD-MM-YYYY",
     "EMAIL_PROVIDER": "smtp", // Points to local Mailpit in dev
     "SMTP_HOST": "localhost",
-    "SMTP_PORT": "8025",
+    "SMTP_PORT": "8025", // Mailpit HTTP API port (BeechCMS routes local email via Mailpit's REST API)
     "EMAIL_FROM": "Beech CMS <dev@my-app.local>"
   },
 
@@ -164,7 +165,7 @@ R2_BUCKET_NAME=my-app-media
 
 | Variable | Requirement | Purpose |
 | :--- | :---: | :--- |
-| `JWT_SECRET` | **Required** | Cryptographically signs session tokens for dashboard users. |
+| `JWT_SECRET` | **Required** | Cryptographically signs session tokens for dashboard users. Keep in `.dev.vars` or Cloudflare secrets. |
 | `APP_URL` | **Recommended** | Canonical base URL used for password recovery links and notifications. |
 | `CORS_ORIGINS` | **Required** | Comma-separated list of allowed frontend origins (e.g. `https://my-site.com`). |
 | `PUBLIC_READ_API_KEY` | **Required** | Passed via `X-API-Key` by your frontend to read content (`GET /api/v1/public/*`). |
@@ -172,6 +173,7 @@ R2_BUCKET_NAME=my-app-media
 | `R2_ACCESS_KEY_ID` & `R2_SECRET_ACCESS_KEY` | **Required (Media)** | S3-compatible credentials used to generate **direct presigned upload URLs (SigV4)** to Cloudflare R2 without hitting Worker memory limits. |
 | `RESEND_API_KEY` | **Optional** | Production transactional emails. In local development, BeechCMS routes to Mailpit with zero config. |
 | `EMAIL_PROVIDER` | **Optional** | `smtp` for local testing (Mailpit) or `resend` for cloud production. |
+| `SMTP_HOST` & `SMTP_PORT` | **Optional** | Host and HTTP port for local Mailpit (`localhost` and `8025`). In local dev, BeechCMS delivers emails via Mailpit's REST API. |
 | `EMAIL_FROM` | **Optional** | Sender address displayed to recipients (e.g. `Beech CMS <noreply@yourdomain.com>`). |
 | `WEBHOOK_SECRET` | **Optional** | Secret key used to generate SHA-256 HMAC signatures (`X-BeechCMS-Signature`) on outbound webhooks. |
 | `QSTASH_TOKEN` | **Optional** | Upstash QStash Bearer token for serverless message queues, automated retries, and high-volume background notifications. |
@@ -184,13 +186,15 @@ Once variables are in place, BeechCMS is ready to initialize and launch.
 
 ### Initialize Database
 
-Run the onboarding command to provision the local SQLite database:
+Provision the local SQLite D1 database and apply core system migrations:
 
 ```bash
+npm run db:migrate:local
+# or using the Beech CLI:
 npx beech onboard
 ```
 
-This runs the base schema migrations in your local Cloudflare D1 environment (`.wrangler/state/v3/d1`), preparing the core tables for authentication, content definitions, layouts, and automations.
+This prepares your local Cloudflare D1 environment (`.wrangler/state/v3/d1`) with the core tables for authentication, content definitions, layouts, and automations.
 
 ### Start Local Server
 
@@ -241,7 +245,7 @@ When you define a Seed, the **Botanical Engine** compiles it into native SQLite 
 | `cover_image` | Cover Image | `file` | Accept: `image/*` |
 | `excerpt` | Summary | `text` | Multi-line excerpt for SEO & article cards |
 | `body` | Article Content | `richtext` | Long-form rich text editor |
-| `tags` | Tags | `json` | Array of strings (e.g. `['tech', 'news', 'tutorials']`) |
+| `tags` | Tags | `tags` | Array of string tags (or `json`) |
 
 > [!NOTE]
 > **The Botanical Invariant (`id: 'br_...'`)**:
@@ -374,7 +378,7 @@ export interface Post {
   title: string
   excerpt: string
   cover_image?: string
-  body: string
+  body: unknown // RichText TipTap AST or HTML string
   tags?: string[]
   created_at: number
 }
@@ -433,6 +437,7 @@ const posts = result.data ? result.data.data : []
 // app/blog/[slug]/page.tsx
 import { notFound } from 'next/navigation'
 import { beech } from '@/lib/beech'
+import { renderRichText } from '@beechcms/client/richtext'
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
@@ -450,7 +455,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       {post.cover_image && (
         <img src={post.cover_image} alt={post.title} className="w-full h-64 object-cover rounded-xl mb-6" />
       )}
-      <div className="prose" dangerouslySetInnerHTML={{ __html: post.body }} />
+      <div className="prose" dangerouslySetInnerHTML={{ __html: renderRichText(post.body) }} />
     </article>
   )
 }
@@ -631,13 +636,15 @@ npx wrangler secret put QSTASH_NEXT_SIGNING_KEY --env production
 
 ### Deploy Command
 
-Run the Beech deploy workflow:
+Run the deployment workflow:
 
 ```bash
+npm run deploy
+# or using the Beech CLI wrapper (which includes an automated /admin reachability check):
 npx beech deploy
 ```
 
-`beech deploy` compiles the Worker, uploads the dashboard static assets to Cloudflare Workers Assets, and validates that the production `/admin` endpoint is live and reachable.
+The deploy process compiles the Worker, uploads dashboard static assets to Cloudflare Workers Assets, and validates that your production `/admin` endpoint is live and reachable.
 
 Once deployed, visit `https://my-app-api.<your-subdomain>.workers.dev/admin` to complete your production onboarding.
 
