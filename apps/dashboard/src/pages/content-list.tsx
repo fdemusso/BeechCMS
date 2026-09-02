@@ -801,6 +801,9 @@ export function ContentListPage() {
     setPageSize(size)
     setPageIndex(0)
   }, [])
+  // We must define this hook before the early return below to satisfy the Rules of Hooks.
+  // eslint-disable-next-line
+  // react-doctor-disable-next-line
   const tableEmptyState = React.useMemo(
     () =>
       isEmptySeed ? (
