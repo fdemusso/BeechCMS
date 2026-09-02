@@ -294,11 +294,6 @@ BeechCMS allows you to tailor the editing experience **for each individual Seed*
    - **Field Picker & Context Menu**: Add unassigned branches or configure section headers and descriptions.
 4. **Save**: Click **Save Layout**. All team members creating or editing entries in that Seed will immediately benefit from your customized form layout.
 5. **Per-Seed Personalization**: Repeat this process for any other Seed (**Authors**, **Clients**, **Products**) to give each content type its ideal editing structure.
-
-<p align="center">
-  <img src="/images/editorPersonalizzazione.png" alt="BeechCMS Entry Editor Layout Builder" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
-</p>
-
 For more on the editor interface and publishing lifecycle, see the **[Content Editor Guide](./content-editor-guide.md)**.
 
 ---
