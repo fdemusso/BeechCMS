@@ -55,7 +55,8 @@ export default defineConfig({
           items: [
             { text: 'Client SDK', link: '/client-sdk' },
             { text: 'Forms SDK', link: '/forms-sdk' },
-            { text: 'Widget SDK', link: '/custom-widgets' }
+            { text: 'Widget SDK', link: '/custom-widgets' },
+            { text: 'Search SDK', link: '/search-sdk' }
           ]
         },
         {
