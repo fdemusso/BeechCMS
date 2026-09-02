@@ -10,6 +10,7 @@ const config: ReactDoctorConfig = {
       "**/dist/**",
       "**/build/**",
       ".next/**",
+      "**/stats.html",
     ],
   },
 };

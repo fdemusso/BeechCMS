@@ -389,7 +389,7 @@ function TabPill({
           onClick={(e) => e.stopPropagation()}
           onKeyDown={(e) => {
             e.stopPropagation()
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
               onRenameCommit()
             }
             if (e.key === 'Escape') {
