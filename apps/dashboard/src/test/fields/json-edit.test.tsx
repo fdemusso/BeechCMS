@@ -51,7 +51,7 @@ describe("JsonEdit", () => {
     expect(screen.queryByTestId("json-code-editor")).not.toBeInTheDocument()
   })
 
-  it("renderizza JsonCodeEditor per branch con type json", () => {
+  it("renderizza JsonCodeEditor per branch con type json", async () => {
     const onChange = vi.fn()
     render(
       <JsonEdit
@@ -61,11 +61,11 @@ describe("JsonEdit", () => {
       />
     )
 
-    const editor = screen.getByTestId("json-code-editor")
+    const editor = await screen.findByTestId("json-code-editor")
     expect(editor).toBeInTheDocument()
   })
 
-  it("renderizza JsonCodeEditor per branch tags senza opzioni predefinite", () => {
+  it("renderizza JsonCodeEditor per branch tags senza opzioni predefinite", async () => {
     const onChange = vi.fn()
     render(
       <JsonEdit
@@ -75,11 +75,11 @@ describe("JsonEdit", () => {
       />
     )
 
-    const editor = screen.getByTestId("json-code-editor")
+    const editor = await screen.findByTestId("json-code-editor")
     expect(editor).toBeInTheDocument()
   })
 
-  it("propaga readOnly e disabled a JsonCodeEditor", () => {
+  it("propaga readOnly e disabled a JsonCodeEditor", async () => {
     const onChange = vi.fn()
     const { rerender } = render(
       <JsonEdit
@@ -90,7 +90,7 @@ describe("JsonEdit", () => {
       />
     )
 
-    let editor = screen.getByTestId("json-code-editor")
+    let editor = await screen.findByTestId("json-code-editor")
     expect(editor).toHaveClass("cursor-not-allowed")
 
     rerender(
@@ -102,7 +102,7 @@ describe("JsonEdit", () => {
       />
     )
 
-    editor = screen.getByTestId("json-code-editor")
+    editor = await screen.findByTestId("json-code-editor")
     expect(editor).toHaveClass("cursor-not-allowed")
   })
 })

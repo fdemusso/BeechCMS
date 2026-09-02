@@ -13,7 +13,10 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import type { FieldEditProps } from "../types"
-import { JsonCodeEditor } from "./json-code-editor"
+
+const LazyJsonCodeEditor = React.lazy(() => 
+  import("./json-code-editor").then(m => ({ default: m.JsonCodeEditor }))
+)
 
 function parseTagsValue(value: unknown): Record<string, string> {
   if (!value) return {}
@@ -158,11 +161,13 @@ export function JsonEdit({ branch, value, onChange, disabled, readOnly: propRead
   }
 
   return (
-    <JsonCodeEditor
-      id={branch.alias}
-      value={value}
-      onChange={(text) => onChange(text)}
-      readOnly={isReadOnly}
-    />
+    <React.Suspense fallback={<div className="h-40 w-full animate-pulse rounded-md bg-muted/50 border border-input" />}>
+      <LazyJsonCodeEditor
+        id={branch.alias}
+        value={value}
+        onChange={(text) => onChange(text)}
+        readOnly={isReadOnly}
+      />
+    </React.Suspense>
   )
 }
