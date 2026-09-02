@@ -14,9 +14,12 @@
 
 - [IndexManifest](interfaces/IndexManifest.md)
 - [IndexManifestRecord](interfaces/IndexManifestRecord.md)
+- [SearchClientOptions](interfaces/SearchClientOptions.md)
 - [SearchResult](interfaces/SearchResult.md)
 
 ## Functions
 
+- [cosineSimilarity](functions/cosineSimilarity.md)
+- [createBeechSearchClient](functions/createBeechSearchClient.md)
 - [dotProduct](functions/dotProduct.md)
 - [fetchWithCache](functions/fetchWithCache.md)

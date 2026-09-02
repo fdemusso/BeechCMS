@@ -139,7 +139,7 @@ Cloudflare D1 is the **canonical single source of truth** for all schemas. Inste
 2. **Runtime REST API**: Programmatically create and update models via `POST /api/seeds` or `PUT /api/seeds/:slug`.
 
 The **Botanical Engine** processes your Seed definitions and automatically compiles them into:
-1. Native SQLite DDL (`CREATE TABLE content_<seed>`).
+1. Native SQLite DDL (`CREATE TABLE content_[seed]`).
 2. Indexes, foreign keys, and FTS5 search virtual tables.
 3. REST API endpoints with schema validation.
 4. Dynamic UI form controls in the admin dashboard.
@@ -277,7 +277,6 @@ export const posts: Seed = defineSeed({
     },
   ],
 })
-```
 ```
 
 ### Policies & Invariants

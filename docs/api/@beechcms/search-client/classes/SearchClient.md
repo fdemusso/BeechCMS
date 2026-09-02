@@ -10,13 +10,17 @@
 
 ### Constructor
 
-> **new SearchClient**(`apiOrigin`): `SearchClient`
+> **new SearchClient**(`apiOrigin`, `options?`): `SearchClient`
 
 #### Parameters
 
 ##### apiOrigin
 
 `string`
+
+##### options?
+
+[`SearchClientOptions`](../interfaces/SearchClientOptions.md)
 
 #### Returns
 

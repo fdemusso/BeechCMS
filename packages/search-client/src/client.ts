@@ -1,4 +1,4 @@
-import { IndexManifest, SearchResult } from './types.js';
+import { IndexManifest, SearchResult, SearchClientOptions } from './types.js';
 import { fetchWithCache } from './utils/cache.js';
 import { dotProduct } from './utils/math.js';
 
@@ -7,10 +7,18 @@ export class SearchClient {
   private vectors: Float32Array | null = null;
   private dimensions = 384;
   private apiOrigin: string;
+  private debounceMs = 250;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingResolve: ((results: SearchResult[]) => void) | null = null;
 
-  constructor(apiOrigin: string) {
+  constructor(apiOrigin: string, options?: SearchClientOptions) {
     this.apiOrigin = apiOrigin;
+    if (options?.dimensions !== undefined) {
+      this.dimensions = options.dimensions;
+    }
+    if (options?.debounceMs !== undefined) {
+      this.debounceMs = options.debounceMs;
+    }
   }
 
   async loadIndex(manifestUrl: string, vectorsUrl: string): Promise<void> {
@@ -33,12 +41,22 @@ export class SearchClient {
 
   async search(query: string, limit = 10): Promise<SearchResult[]> {
     return new Promise((resolve, reject) => {
-      if (this.debounceTimer) clearTimeout(this.debounceTimer);
+      if (this.debounceTimer) {
+        clearTimeout(this.debounceTimer);
+        this.debounceTimer = null;
+        if (this.pendingResolve) {
+          this.pendingResolve([]);
+          this.pendingResolve = null;
+        }
+      }
+
+      this.pendingResolve = resolve;
 
       this.debounceTimer = setTimeout(() => {
         this.debounceTimer = null;
+        this.pendingResolve = null;
         this._executeSearch(query, limit).then(resolve).catch(reject);
-      }, 250);
+      }, this.debounceMs);
     });
   }
 
@@ -46,13 +64,22 @@ export class SearchClient {
     if (!this.manifest || !this.vectors) throw new Error('Index not loaded');
 
     // Lexical Search (Tier 1)
-    const lowerQuery = query.toLowerCase();
+    const lowerQuery = query.toLowerCase().trim();
+    const terms = lowerQuery.split(/\s+/).filter(t => t.length > 0);
     const lexicalResults = this.manifest.records.map(record => {
       let score = 0;
-      if (record.title?.toLowerCase().includes(lowerQuery)) score += 10;
-      for (const [key, value] of Object.entries(record)) {
-        if (key !== 'title' && typeof value === 'string' && value.toLowerCase().includes(lowerQuery)) {
-          score += 1;
+      const lowerTitle = (record.title || '').toLowerCase();
+      if (lowerQuery.length > 0 && lowerTitle.includes(lowerQuery)) {
+        score += 10;
+      }
+      for (const term of terms) {
+        if (lowerTitle.includes(term)) {
+          score += 5;
+        }
+        for (const [key, value] of Object.entries(record)) {
+          if (key !== 'title' && typeof value === 'string' && value.toLowerCase().includes(term)) {
+            score += 1;
+          }
         }
       }
       return { record, score };
@@ -112,3 +139,8 @@ export class SearchClient {
       .map(r => ({ record: r.record, score: r.rrfScore }));
   }
 }
+
+export function createBeechSearchClient(apiOrigin: string, options?: SearchClientOptions): SearchClient {
+  return new SearchClient(apiOrigin, options);
+}
+
