@@ -26,8 +26,8 @@ export async function signWebhookBody(body: string, secret: string): Promise<str
   return SIG_PREFIX + toHex(sig)
 }
 
-/** Constant-time comparison of two equal-or-unequal-length hex strings. */
-function timingSafeEqual(a: string, b: string): boolean {
+/** Constant-time comparison of two equal-or-unequal-length strings. */
+export function timingSafeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false
   let mismatch = 0
   for (let i = 0; i < a.length; i++) mismatch |= a.charCodeAt(i) ^ b.charCodeAt(i)

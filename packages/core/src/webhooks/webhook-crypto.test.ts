@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { signWebhookBody, verifyWebhookSignature } from './webhook-crypto.js'
+import { signWebhookBody, verifyWebhookSignature, timingSafeEqual } from './webhook-crypto.js'
 
 const SECRET = 'test-secret-key'
 const BODY = '{"event":"entry.created","data":{"id":"1"}}'
@@ -58,5 +58,24 @@ describe('verifyWebhookSignature', () => {
 
   it('returns false for malformed signature (wrong length)', async () => {
     expect(await verifyWebhookSignature(BODY, 'sha256=deadbeef', SECRET)).toBe(false)
+  })
+})
+
+describe('timingSafeEqual', () => {
+  it('returns true for identical strings', () => {
+    expect(timingSafeEqual('my-secret-key', 'my-secret-key')).toBe(true)
+    expect(timingSafeEqual('', '')).toBe(true)
+  })
+
+  it('returns false for strings of different length', () => {
+    expect(timingSafeEqual('short', 'longer-string')).toBe(false)
+    expect(timingSafeEqual('longer-string', 'short')).toBe(false)
+    expect(timingSafeEqual('', 'a')).toBe(false)
+  })
+
+  it('returns false for differences at start, middle, or end', () => {
+    expect(timingSafeEqual('Xbcdef', 'abcdef')).toBe(false)
+    expect(timingSafeEqual('abcXef', 'abcdef')).toBe(false)
+    expect(timingSafeEqual('abcdeX', 'abcdef')).toBe(false)
   })
 })

@@ -331,6 +331,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [slugify](functions/slugify.md)
 - [sortSeedsByDependencies](functions/sortSeedsByDependencies.md)
 - [tableName](functions/tableName.md)
+- [timingSafeEqual](functions/timingSafeEqual.md)
 - [tsTypeForBranch](functions/tsTypeForBranch.md)
 - [validateAndSanitizeSeedPayload](functions/validateAndSanitizeSeedPayload.md)
 - [validateCardConfigAgainstSeed](functions/validateCardConfigAgainstSeed.md)
