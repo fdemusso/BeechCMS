@@ -495,3 +495,12 @@ input[type="search"]::-webkit-search-results-decoration {
   appearance: none;
   display: none;
 }
+
+/* CodeMirror transparent background to inherit BeechCMS theme background */
+.cm-editor,
+.cm-editor .cm-scroller,
+.cm-editor .cm-content,
+.cm-editor .cm-gutters,
+.cm-editor .cm-line {
+  background-color: transparent !important;
+}

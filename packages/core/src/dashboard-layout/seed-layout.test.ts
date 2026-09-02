@@ -2,7 +2,14 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { seedViewConfigSchema, kanbanViewConfigSchema, validateLayoutAgainstSeed, validateCardConfigAgainstSeed, METADATA_SLOT_CAP } from './seed-layout.js'
+import {
+  seedViewConfigSchema,
+  kanbanViewConfigSchema,
+  validateLayoutAgainstSeed,
+  validateCardConfigAgainstSeed,
+  generateDefaultLayout,
+  METADATA_SLOT_CAP,
+} from './seed-layout.js'
 
 describe('kanbanViewConfigSchema', () => {
   it('accepts a valid config', () => {
@@ -267,6 +274,138 @@ describe('validateLayoutAgainstSeed', () => {
     const result = validateLayoutAgainstSeed(corruptLayout, mockSeed)
     expect(result.ok).toBe(true) // will filter down cleanly using default empty arrays
     expect(result.cleaned.tabs[0].sections).toEqual([])
+  })
+
+  it('validates a correct form layout containing a single-column dedicated json branch section', () => {
+    const seedWithJson = {
+      slug: 'configs',
+      label: 'Configs',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
+        { id: 'br_02', alias: 'settings', type: 'json', label: 'Settings' },
+      ],
+    } as any
+
+    const layout = {
+      version: 1,
+      tabs: [
+        {
+          id: 'tab-1',
+          label: 'Data',
+          sections: [
+            {
+              id: 'sec-1',
+              columns: [{ id: 'col-1', fields: [{ branchId: 'br_01' }] }],
+            },
+            {
+              id: 'sec-2',
+              columns: [{ id: 'col-2', fields: [{ branchId: 'br_02' }] }],
+            },
+          ],
+        },
+      ],
+    } as any
+
+    const result = validateLayoutAgainstSeed(layout, seedWithJson)
+    expect(result.ok).toBe(true)
+    expect(result.cleaned.tabs[0].sections).toHaveLength(2)
+  })
+
+  it('rejects a json branch sharing a section with another branch', () => {
+    const seedWithJson = {
+      slug: 'configs',
+      label: 'Configs',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
+        { id: 'br_02', alias: 'settings', type: 'json', label: 'Settings' },
+      ],
+    } as any
+
+    const layout = {
+      version: 1,
+      tabs: [
+        {
+          id: 'tab-1',
+          label: 'Data',
+          sections: [
+            {
+              id: 'sec-1',
+              columns: [
+                { id: 'col-1', fields: [{ branchId: 'br_01' }, { branchId: 'br_02' }] },
+              ],
+            },
+          ],
+        },
+      ],
+    } as any
+
+    const result = validateLayoutAgainstSeed(layout, seedWithJson)
+    expect(result.ok).toBe(false)
+    expect(result.errors.some((e: string) => e.includes('must occupy a dedicated section'))).toBe(true)
+  })
+
+  it('rejects a json branch section with multiple columns', () => {
+    const seedWithJson = {
+      slug: 'configs',
+      label: 'Configs',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_02', alias: 'settings', type: 'json', label: 'Settings' },
+      ],
+    } as any
+
+    const layout = {
+      version: 1,
+      tabs: [
+        {
+          id: 'tab-1',
+          label: 'Data',
+          sections: [
+            {
+              id: 'sec-1',
+              columns: [
+                { id: 'col-1', fields: [{ branchId: 'br_02' }] },
+                { id: 'col-2', fields: [] },
+              ],
+            },
+          ],
+        },
+      ],
+    } as any
+
+    const result = validateLayoutAgainstSeed(layout, seedWithJson)
+    expect(result.ok).toBe(false)
+    expect(result.errors.some((e: string) => e.includes('must occupy a single-column section'))).toBe(true)
+  })
+})
+
+describe('generateDefaultLayout', () => {
+  it('generates a dedicated single-column full-width section for json branches', () => {
+    const seedWithJson = {
+      slug: 'configs',
+      label: 'Configs',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
+        { id: 'br_02', alias: 'settings', type: 'json', label: 'Settings' },
+        { id: 'br_03', alias: 'notes', type: 'text', label: 'Notes' },
+      ],
+    } as any
+
+    const layout = generateDefaultLayout(seedWithJson)
+    const dataTab = layout.tabs[0]
+    expect(dataTab).toBeDefined()
+
+    // br_02 should be in its own dedicated section with 1 column
+    const jsonSection = dataTab.sections.find((s) =>
+      s.columns.some((c) => c.fields.some((f) => f.branchId === 'br_02'))
+    )
+    expect(jsonSection).toBeDefined()
+    expect(jsonSection?.columns).toHaveLength(1)
+    expect(jsonSection?.columns[0].fields).toHaveLength(1)
+    expect(jsonSection?.columns[0].fields[0].branchId).toBe('br_02')
   })
 })
 

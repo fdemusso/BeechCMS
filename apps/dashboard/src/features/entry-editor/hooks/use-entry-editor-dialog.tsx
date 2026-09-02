@@ -114,11 +114,15 @@ export function prepareSubmissionPayload({
   const processed: Record<string, unknown> = {}
 
   for (const branch of branches) {
-    const value = Object.hasOwn(formData, branch.alias) ? formData[branch.alias] : undefined
+    if (!Object.hasOwn(formData, branch.alias)) continue
+    const value = formData[branch.alias]
     if (branch.type === "relation" && value === "") {
       processed[branch.alias] = branch.multiple ? [] : null
-    } else if (branch.type === "json" && value) {
-      if (typeof value === "string") {
+    } else if (branch.type === "json") {
+      // Invariant: empty string, whitespace, null, or undefined normalizes to an empty valid object {}
+      if (value === undefined || value === null || value === "" || (typeof value === "string" && !value.trim())) {
+        processed[branch.alias] = {}
+      } else if (typeof value === "string") {
         try {
           processed[branch.alias] = JSON.parse(value)
         } catch {
@@ -146,12 +150,14 @@ export function validateEntryJsonFields(
   for (const branch of branches) {
     if (branch.type !== "json") continue
     const value = Object.hasOwn(formData, branch.alias) ? formData[branch.alias] : undefined
-    if (!value || typeof value !== "string") continue
-
-    try {
-      JSON.parse(value)
-    } catch {
-      return { isValid: false, errorFieldLabel: branch.label }
+    if (value === undefined || value === null || value === "") continue
+    if (typeof value === "string") {
+      if (!value.trim()) continue // Empty whitespace will be normalized to {}
+      try {
+        JSON.parse(value)
+      } catch {
+        return { isValid: false, errorFieldLabel: branch.label }
+      }
     }
   }
   return { isValid: true }

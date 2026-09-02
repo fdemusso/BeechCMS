@@ -74,6 +74,8 @@ function wouldViolateFullWidthWithMap(
   excludeBranchId?: string,
 ): boolean {
   if (isFullWidthBranch(incomingBranch)) {
+    // Cannot place full-width field in a multi-column section
+    if (section.columns.length > 1) return true
     return section.columns.some((c) => {
       const fieldsToCheck = (c.id === excludeColId && excludeBranchId)
         ? c.fields.filter((f) => f.branchId !== excludeBranchId)
@@ -81,6 +83,7 @@ function wouldViolateFullWidthWithMap(
       return fieldsToCheck.length > 0
     })
   } else {
+    // Non-full-width branch cannot be placed into a section containing a full-width branch
     return section.columns.some((c) =>
       c.fields.some((f) => {
         if (c.id === excludeColId && f.branchId === excludeBranchId) return false
@@ -231,6 +234,15 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
           ...t,
           sections: t.sections.map((s) => {
             if (s.id !== sectionId) return s
+            // If section contains a full-width branch, refuse splitting into multiple columns
+            const hasFullWidth = s.columns.some((c) =>
+              c.fields.some((f) => {
+                const b = branchMap.get(f.branchId)
+                return b != null && isFullWidthBranch(b)
+              })
+            )
+            if (hasFullWidth && n > 1) return s
+
             const current = s.columns
             if (n > current.length) {
               return { ...s, columns: [...current, ...Array.from({ length: n - current.length }, () => makeColumn())] }
@@ -241,7 +253,7 @@ export function useLayoutBuilder({ seed, initialLayout }: UseLayoutBuilderArgs):
         }
       }),
     }))
-  }, [mutate])
+  }, [mutate, branchMap])
 
   // ── Column ops ───────────────────────────────────────────────────────────
   const reorderColumns = useCallback((tabId: string, sectionId: string, fromIndex: number, toIndex: number) => {
