@@ -4,382 +4,363 @@ group: User & Builder Guide
 category: Getting Started
 ---
 
-# First Project: From Zero to Live with BeechCMS
+# First Project: From Zero to Full-Stack with BeechCMS
 
-This guide walks you step-by-step through building, running, and deploying your first project with **BeechCMS** — an edge-native headless CMS built on Cloudflare Workers, D1, and R2.
+This end-to-end tutorial guides you from an empty directory to a fully functioning **BeechCMS** backend, a configured content management workspace, and a connected frontend application.
 
-By the end of this tutorial, you will:
-1. Scaffold a BeechCMS project using the official CLI.
-2. Define custom content models (**Seeds**) for a blog in TypeScript.
-3. Compile the schema into native Cloudflare D1 SQL tables.
-4. Create and manage content in the React admin dashboard.
-5. Fetch and render content from frontend frameworks (Astro and Next.js).
-6. Deploy the backend and admin SPA to Cloudflare's global edge network.
+Along the way, you will learn how to configure all core system variables, define content models visually through the admin interface, customize your dashboard and editor layouts, trigger automated workflows, and consume content using BeechCMS's official SDKs (**Client SDK**, **Forms SDK**, and **Search SDK**).
 
-## Architecture & Prerequisites
+---
 
-Before starting, ensure you have:
+## What We Are Building
 
-- **Node.js**: `v18.0.0` or higher (Node 20+ / 22 LTS recommended).
-- **Package Manager**: `pnpm` (recommended), `npm`, or `yarn`.
-- **Cloudflare Account**: A free account is sufficient. [Sign up here](https://dash.cloudflare.com/sign-up) if you don't have one.
-- **Wrangler CLI**: Cloudflare's official CLI (installed automatically as a dev dependency, but having `npx wrangler` available is useful).
-
-### Cloudflare Services
-
-<p align="center">
-  <img src="/images/architecture-cloudflare.svg" alt="Cloudflare Services at a Glance" style="width: 100%; max-width: 820px; margin: 16px 0;" />
-</p>
-
-- **Cloudflare Workers**: Runs the fast Hono API engine and serves the bundled React admin SPA directly from `/admin` using Workers Static Assets.
-- **Cloudflare D1**: Serverless SQLite at the edge. BeechCMS generates physical SQL tables (`content_posts`, `content_authors`, etc.) with composite indexes and full-text search (FTS5).
-- **Cloudflare R2**: S3-compatible object storage with zero egress fees, storing uploaded assets (images, documents).
-
-## Project Scaffolding
-
-Create a new BeechCMS project using the CLI wizard:
-
-```bash
-npx @beechcms/cms
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       CLOUDFLARE EDGE                       │
+│  ┌────────────────────┐   ┌──────────────────────────────┐  │
+│  │ Cloudflare Workers │   │ Cloudflare D1 (SQLite Engine)│  │
+│  │ Hono REST API +    │◄──┤ System Tables & Seeds        │  │
+│  │ Bundled Admin SPA  │   └──────────────────────────────┘  │
+│  └─────────┬──────────┘   ┌──────────────────────────────┐  │
+│            │              │ Cloudflare R2 Object Storage │  │
+│            └─────────────►│ Media & Asset Direct Uploads │  │
+│                           └──────────────────────────────┘  │
+└────────────────────────────┬────────────────────────────────┘
+                             │ Public REST API & SDKs
+       ┌─────────────────────┼──────────────────────┐
+       ▼                     ▼                      ▼
+┌──────────────┐      ┌──────────────┐      ┌──────────────┐
+│  Client SDK  │      │  Forms SDK   │      │  Search SDK  │
+│ Content Data │      │ Dynamic Form │      │ Hybrid Vector│
+│   Fetching   │      │  + Anti-Bot  │      │  + Lexical   │
+└──────────────┘      └──────────────┘      └──────────────┘
 ```
 
-### Interactive Wizard
+---
 
-The setup assistant prompts you for:
+## Prerequisites
 
-1. **Project Name**: Directory name and prefix for your Cloudflare resources (e.g., `my-blog`).
-2. **Cloudflare Credentials**:
-   - Choose **No** (configure later) if you want to develop locally first without touching Cloudflare.
-   - Choose **Yes** to let the wizard provision or bind your remote D1 and R2 resources immediately.
+Before starting, make sure you have:
+
+- **Node.js**: `v20.0.0` or higher (`v22 LTS` recommended).
+- **Package Manager**: `pnpm` (recommended), `npm`, or `yarn`.
+- **Cloudflare Account**: A free account is sufficient. [Sign up here](https://dash.cloudflare.com/sign-up).
+- **Resend Account**: For transactional emails and automations. [Sign up at resend.com](https://resend.com/).
+
+---
+
+## Step 1: Scaffolding with NPX
+
+BeechCMS provides an automated scaffolding CLI that configures a production-ready edge backend in seconds:
+
+```bash
+npx @beechcms/cms my-app
+```
 
 > [!TIP]
 > **Non-Interactive Quickstart**:
-> To scaffold immediately and skip all prompts:
+> To scaffold immediately and skip the interactive prompts, run:
 > ```bash
-> npx @beechcms/cms my-blog --yes
-> cd my-blog
+> npx @beechcms/cms my-app --yes
+> cd my-app
 > pnpm install # or npm install
 > ```
+> For an in-depth explanation of the scaffolding flags, system requirements, and architecture, refer to the **[Getting Started Guide](./guide.md)**.
 
-### Project Structure
+### Generated Project Structure
 
 ```
-my-blog/
+my-app/
 ├── worker.ts       # Cloudflare Worker entry point (delegates to @beechcms/api)
-├── wrangler.jsonc  # Cloudflare configuration, D1/R2 bindings, and API keys
+├── wrangler.jsonc  # Cloudflare bindings, environment variables, and assets
 ├── .dev.vars       # Local secrets (R2 tokens, private keys — git-ignored)
-├── tsconfig.json   # TypeScript configuration for Workers runtime
-└── package.json    # Scripts and project dependencies
+├── tsconfig.json   # TypeScript configuration for the Workers runtime
+└── package.json    # Project scripts and dependencies
 ```
 
-The entire CMS engine, admin dashboard, and REST API live inside `node_modules/@beechcms/api`. Your project only contains configuration, with content schemas managed dynamically in the Cloudflare D1 database.
+The entire CMS engine, admin dashboard, and REST API are packaged inside `@beechcms/api`. Your application repository contains purely your configuration, while content models (**Seeds**) are managed dynamically in the Cloudflare D1 database.
 
-## Configuration
+---
 
-### Wrangler Config
+## Step 2: Environment Variables & Services Configuration
 
-`wrangler.jsonc` manages your worker configuration and resource bindings:
+BeechCMS relies on Cloudflare bindings and specific environment variables to manage authentication, media storage, email delivery, and public API access.
+
+Let's configure both your **local development** environment and your **production secrets**.
+
+### 1. `wrangler.jsonc` (Bindings & Non-Sensitive Vars)
+
+Open `wrangler.jsonc` and inspect the configuration:
 
 ```jsonc
 {
-  "name": "my-blog-api",
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "my-app-api",
   "main": "worker.ts",
-  "compatibility_date": "2025-01-01",
+  "compatibility_date": "2026-02-13",
+  "compatibility_flags": ["nodejs_compat"],
 
-  // Environment variables accessible inside the Worker
-  "vars": {
-    "JWT_SECRET": "your-32-byte-hex-secret",
-    "CORS_ORIGINS": "http://localhost:5173,http://localhost:3000,http://localhost:4321",
-    "PUBLIC_READ_API_KEY": "read-api-key-here",
-    "PUBLIC_WRITE_API_KEY": "write-api-key-here",
-    "APP_URL": "http://localhost:8789"
-  },
-
-  // Serves the bundled admin SPA
+  // 1. Bundled React Admin SPA served directly via Workers Assets
   "assets": {
     "binding": "ASSETS",
-    "directory": "node_modules/@beechcms/api/assets/dashboard"
+    "directory": "node_modules/@beechcms/api/assets/dashboard",
+    "not_found_handling": "none"
   },
 
-  // SQLite database binding
+  // 2. Cloudflare D1 Database Binding
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "my-blog-db",
-      "database_id": "FILL_IN_YOUR_D1_DATABASE_ID", // Populated on remote deploy
+      "database_name": "my-app-db",
+      "database_id": "YOUR_D1_DATABASE_ID_ON_DEPLOY",
       "migrations_dir": "node_modules/@beechcms/api/migrations"
     }
   ],
 
-  // Media bucket binding
+  // 3. Cloudflare R2 Media Bucket Binding
   "r2_buckets": [
     {
       "binding": "MEDIA_BUCKET",
-      "bucket_name": "my-blog-media"
+      "bucket_name": "my-app-media"
     }
-  ]
+  ],
+
+  // 4. Local Development Variables (wrangler dev)
+  "vars": {
+    "ENV": "development",
+    "APP_URL": "http://localhost:8789",
+    "CORS_ORIGINS": "http://localhost:5173,http://localhost:3000,http://localhost:4321",
+    "PUBLIC_READ_API_KEY": "dev-read-key-changeme",
+    "PUBLIC_WRITE_API_KEY": "dev-write-key-changeme",
+    "PUBLIC_PUBLISHED_ONLY": "true",
+    "DATE_FORMAT": "DD-MM-YYYY",
+    "EMAIL_PROVIDER": "smtp", // Points to local Mailpit in dev
+    "SMTP_HOST": "localhost",
+    "SMTP_PORT": "8025",
+    "EMAIL_FROM": "Beech CMS <dev@my-app.local>"
+  },
+
+  // 5. Production Overrides
+  "env": {
+    "production": {
+      "vars": {
+        "ENV": "production",
+        "APP_URL": "https://my-app.workers.dev",
+        "CORS_ORIGINS": "https://my-site.com,https://admin.my-site.com",
+        "PUBLIC_PUBLISHED_ONLY": "true",
+        "DATE_FORMAT": "DD-MM-YYYY",
+        "EMAIL_PROVIDER": "resend",
+        "EMAIL_FROM": "Beech CMS <noreply@my-site.com>"
+      }
+    }
+  }
 }
 ```
 
-### Environment Variables
+### 2. Local Secrets (`.dev.vars`)
 
-| Variable | Scope | Purpose |
-|---|---|---|
-| `JWT_SECRET` | Backend | Signs session tokens for dashboard users. Auto-generated by the CLI. |
-| `PUBLIC_READ_API_KEY` | Public API | Passed via `X-API-Key` by your frontend to read content (`GET /api/v1/public/*`). |
-| `PUBLIC_WRITE_API_KEY` | Public API | Passed via `X-API-Key` to submit entries like contact forms (`POST /api/v1/public/*`). |
-| `CORS_ORIGINS` | Network | Comma-separated list of allowed frontend origins (e.g. `https://myblog.com`). |
+Create or update `.dev.vars` in the root of your project. This file is read automatically by `wrangler dev` and should **never** be committed to Git:
 
-## Defining & Managing Seeds
+```bash
+# Admin Session Token Signing (generate a 32+ character random hex string)
+JWT_SECRET=4f8b9e6a7c3d2e1f0b5a8c7d6e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f
 
-In BeechCMS, content types are called **Seeds**, and individual fields are called **Branches**.
+# Resend API Key for Transactional Emails & Automations
+RESEND_API_KEY=re_123456789_abcdefghijklmnopqrstuvwxyz
 
-Cloudflare D1 is the **canonical single source of truth** for all schemas. Instead of managing static files on disk, content types are defined and evolved dynamically:
-1. **Admin Dashboard UI**: Create and edit content models visually via the **Seed Builder** in the admin panel (`/admin`).
-2. **Runtime REST API**: Programmatically create and update models via `POST /api/seeds` or `PUT /api/seeds/:slug`.
+# Webhook Verification Secret (for signed outbound webhooks)
+WEBHOOK_SECRET=my-super-secret-webhook-signing-key
 
-The **Botanical Engine** processes your Seed definitions and automatically compiles them into:
-1. Native SQLite DDL (`CREATE TABLE content_[seed]`).
-2. Indexes, foreign keys, and FTS5 search virtual tables.
-3. REST API endpoints with schema validation.
-4. Dynamic UI form controls in the admin dashboard.
-
-### Seed Schema Anatomy
-
-Below is an example of how Seeds and Branches are structured within BeechCMS (using the `Seed` definition model from `@beechcms/core`):
-
-```typescript
-import { defineSeed, type Seed } from '@beechcms/core'
-
-/** Author: Content creator profiles */
-export const authors: Seed = defineSeed({
-  slug: 'authors',
-  label: 'Author',
-  labelPlural: 'Authors',
-  displayNameAlias: 'name',
-  dashboard: {
-    icon: 'Users',
-    group: 'Editorial',
-    order: 1,
-    views: ['table', 'gallery'],
-  },
-  allowPublicRead: true,
-  allowDrafts: false,
-  branches: [
-    {
-      id: 'br_aut1',
-      alias: 'name',
-      label: 'Full Name',
-      type: 'text',
-      requiredOnCreate: true,
-      requiredOnUpdate: true,
-    },
-    {
-      id: 'br_aut2',
-      alias: 'bio',
-      label: 'Bio',
-      type: 'text',
-    },
-    {
-      id: 'br_aut3',
-      alias: 'photo',
-      label: 'Avatar Photo',
-      type: 'file',
-      fileOptions: { accept: 'image' },
-    },
-    {
-      id: 'br_aut4',
-      alias: 'twitter',
-      label: 'Twitter / X Handle',
-      type: 'text',
-    },
-  ],
-})
-
-/** Post: Blog articles with rich text, media, tags, and relations */
-export const posts: Seed = defineSeed({
-  slug: 'posts',
-  label: 'Post',
-  labelPlural: 'Posts',
-  displayNameAlias: 'title',
-  dashboard: {
-    icon: 'FileText',
-    group: 'Editorial',
-    order: 2,
-    views: ['table', 'gallery'],
-  },
-  allowPublicRead: true, // Enables GET /api/v1/public/posts
-  allowDrafts: true,     // Enables Draft vs Published staging tables
-  branches: [
-    {
-      id: 'br_pst1',
-      alias: 'title',
-      label: 'Title',
-      type: 'text',
-      requiredOnCreate: true,
-      requiredOnUpdate: true,
-      policies: { search: true, sort: true },
-    },
-    {
-      id: 'br_pst2',
-      alias: 'slug',
-      label: 'URL Slug',
-      type: 'text',
-      requiredOnCreate: true,
-      requiredOnUpdate: true,
-      policies: { filter: true },
-    },
-    {
-      id: 'br_pst3',
-      alias: 'cover_image',
-      label: 'Cover Image',
-      type: 'file',
-      fileOptions: { accept: 'image' },
-    },
-    {
-      id: 'br_pst4',
-      alias: 'excerpt',
-      label: 'Summary / Excerpt',
-      type: 'text',
-    },
-    {
-      id: 'br_pst5',
-      alias: 'author_id',
-      label: 'Author',
-      type: 'relation',
-      targetSeed: 'authors', // Foreign key reference to content_authors table
-      onDelete: 'SET NULL',
-    },
-    {
-      id: 'br_pst6',
-      alias: 'tags',
-      label: 'Tags',
-      type: 'json',
-      options: ['engineering', 'design', 'tutorials', 'product'],
-    },
-    {
-      id: 'br_pst7',
-      alias: 'body',
-      label: 'Article Content',
-      type: 'richtext',
-    },
-    {
-      id: 'br_pst8',
-      alias: 'meta_title',
-      label: 'Meta Title (SEO)',
-      type: 'text',
-    },
-    {
-      id: 'br_pst9',
-      alias: 'meta_description',
-      label: 'Meta Description (SEO)',
-      type: 'text',
-    },
-  ],
-})
+# R2 S3 Direct Presigned Uploads (Credentials from Cloudflare R2 API Tokens)
+R2_ACCESS_KEY_ID=your_r2_access_key_id
+R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
+R2_ENDPOINT=https://<YOUR_CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com
+R2_BUCKET_NAME=my-app-media
 ```
 
-### Policies & Invariants
+### Environment Variables Reference
 
-- **The Botanical Invariant (`id: 'br_...'`)**: Every branch ID must strictly match `^br_[A-Za-z0-9]+$` (e.g. `br_pst1`, `br_aut1`, `br_01`). This logical handle is permanent: if an editor renames an alias (e.g. `title` → `headline`), all SQLite triggers, FTS5 virtual tables, and automations stay connected without schema breakage.
-- **`alias` (e.g. `title`, `cover_image`)**: The human-readable property name used in SQL table columns and returned in JSON API responses.
-- **`allowPublicRead: true`**: Exposes the seed to unauthenticated Public API endpoints (`/api/v1/public/:seed`).
-- **`allowDrafts: true`**: Creates a dedicated draft staging table (`content_posts_drafts`), allowing editors to review and stage changes before publishing.
-- **`policies`**: Fine-grained field controls:
-  - `privacy`: `'plain'` | `'hash'` | `'encrypt'`
-  - `visibility`: `'full'` | `'masked'` | `'hidden'`
-  - `public`: `false` (strips this field from public read responses, e.g. internal notes).
+| Variable | Scope | Purpose |
+| :--- | :--- | :--- |
+| `JWT_SECRET` | Backend Secret | Cryptographically signs session tokens for dashboard users. |
+| `APP_URL` | Backend / Links | Canonical base URL used for password recovery links and notifications. |
+| `CORS_ORIGINS` | Network | Comma-separated list of allowed frontend origins (e.g. `https://my-site.com`). |
+| `PUBLIC_READ_API_KEY` | Public API | Passed via `X-API-Key` by your frontend to read content (`GET /api/v1/public/*`). |
+| `PUBLIC_WRITE_API_KEY` | Public API | Passed via `X-API-Key` by frontend forms to submit entries (`POST /api/v1/public/*`). |
+| `RESEND_API_KEY` | Email Provider | Transactional email delivery for password resets and automation actions. |
+| `EMAIL_PROVIDER` | Email Setting | `smtp` for local testing (Mailpit) or `resend` for cloud production. |
+| `EMAIL_FROM` | Email Setting | Sender address displayed to recipients (e.g. `Beech CMS <noreply@yourdomain.com>`). |
+| `R2_ACCESS_KEY_ID` & `R2_SECRET_ACCESS_KEY` | Media Storage | S3-compatible credentials used to generate **direct presigned upload URLs (SigV4)**. Files upload directly from the browser to R2 without hitting Worker memory limits. |
+| `WEBHOOK_SECRET` | Automations | Secret key used to generate SHA-256 HMAC signatures (`x-beech-signature`) on outbound webhooks. |
 
-## Database Provisioning
+---
 
-Before running the dashboard, initialize your local SQLite database system tables.
+## Step 3: Database Provisioning & Startup
 
-Run the onboarding command:
+Once variables are in place, BeechCMS is ready to initialize and launch.
+
+### 1. Initialize System Tables
+
+Run the onboarding command to provision the local SQLite database:
 
 ```bash
 npx beech onboard --local
 ```
 
-### Engine Pipeline
+This runs the base schema migrations in your local Cloudflare D1 environment (`.wrangler/state/v3/d1`), preparing the core tables for authentication, content definitions, layouts, and automations.
 
-<p align="center">
-  <img src="/images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
-</p>
+### 2. Start the Local Server
 
-Alternatively, you can run the step manually:
-```bash
-npx beech init --db --local
-```
-
-Content types are created and managed dynamically in the admin dashboard at `/admin` or via the `/api/seeds` API.
-
-## Dashboard & Content
-
-Start the local development server:
+Launch the development server:
 
 ```bash
 npx wrangler dev --port 8789
 ```
 
-Open your browser at [http://localhost:8789/admin](http://localhost:8789/admin).
+Open your browser at **[http://localhost:8789/admin](http://localhost:8789/admin)**.
 
-### Admin Onboarding
+### 3. Complete First-Time Onboarding
 
-When you open the dashboard for the first time, BeechCMS detects a fresh database and automatically routes you to the **Setup Wizard**:
+Because BeechCMS detects a fresh database, it automatically presents the initial **Setup Wizard**:
 
-1. **Admin Account**: Enter your Name, Email, and a secure Password.
-2. **Site Preferences**: Select your default Language, Timezone, and Base Currency.
-3. Click **Complete Setup & Launch Dashboard** to create your administrator profile and enter the content manager.
+1. **Administrator Profile**: Enter your full name, email address, and a secure password.
+2. **Site Preferences**: Select your site title, default language (`en`, `it`, etc.), timezone, and currency.
+3. Click **Complete Setup & Launch Dashboard**.
 
-### Creating First Post
+You are now logged in to the live BeechCMS administration console.
 
-1. **Create an Author**:
-   - In the left sidebar, select **Authors**.
-   - Click **+ New Author**.
-   - Set Name to `Jane Doe`, Bio to `Lead Software Architect`, and click **Publish**.
-2. **Create a Blog Post**:
-   - In the left sidebar, click **Posts**.
-   - Click **+ New Post**.
-   - Fill in:
-     - **Title**: `Hello BeechCMS Edge World`
-     - **URL Slug**: `hello-beechcms-edge-world`
-     - **Author**: Select `Jane Doe` from the dropdown.
-     - **Tags**: Select `engineering` and `tutorials`.
-     - **Article Content**: Add headings, formatted text, and code blocks.
-   - Click **Publish** (or **Save Draft** to test draft workflows).
+---
 
-## Frontend Integration
+## Step 4: Defining Seeds & Customizing the CMS
 
-BeechCMS exposes a public REST API under `/api/v1/public/:seed`.
+In BeechCMS, Cloudflare D1 is the **canonical single source of truth**. You do not need to edit static schema files on disk; content types (**Seeds**) and fields (**Branches**) are created and evolved directly through the visual dashboard.
 
-### REST API
+When you define a Seed, the **Botanical Engine** compiles it into native SQLite DDL, indexes, and full-text search tables in D1.
 
-To fetch published posts, send a `GET` request with the `X-API-Key` header:
+### 1. Create a Seed in the Seed Builder
 
-```bash
-curl -X GET "http://localhost:8789/api/v1/public/posts?orderBy=created_at&orderDir=desc" \
-  -H "X-API-Key: YOUR_PUBLIC_READ_API_KEY"
+1. Navigate to **Settings** (gear icon in the bottom-left sidebar) → **Content Types**.
+2. Click **+ New Content Type**.
+3. Configure the general properties:
+   - **Name (Singular)**: `Post`
+   - **Name (Plural)**: `Posts`
+   - **Slug**: `posts`
+   - **Icon**: Select `FileText` or `BookOpen`.
+   - **Group**: `Editorial`
+   - **Public Read Access**: Toggle **ON** (allows public frontend reading via API).
+   - **Drafts Workflow**: Toggle **ON** (enables Draft vs Published state staging).
+   - **Display Name Field**: Select `title`.
+
+4. Add the **Branches (Fields)** for your post:
+
+| Field Alias | Label | Type | Settings / Policies |
+| :--- | :--- | :--- | :--- |
+| `title` | Title | `text` | **Required**, Enable Search & Sort policies |
+| `slug` | URL Slug | `text` | **Required**, Unique, Enable Filter policy |
+| `cover_image` | Cover Image | `file` | Accept: `image/*` |
+| `excerpt` | Summary | `text` | Multi-line excerpt for SEO & article cards |
+| `body` | Article Content | `richtext` | Long-form rich text editor |
+| `tags` | Tags | `json` | Array of strings (e.g. `['tech', 'news', 'tutorials']`) |
+
+> [!NOTE]
+> **The Botanical Invariant (`id: 'br_...'`)**:
+> Every field created receives a permanent identifier under the hood (e.g. `br_pst1`). Even if you rename an alias (e.g., changing `title` to `headline`), your database integrity, triggers, search tables, and automations remain intact without data loss.
+
+Click **Save Seed**. The Botanical Engine executes `CREATE TABLE content_posts` and sets up FTS5 search indexes automatically.
+
+---
+
+### 2. Dashboard Personalization & Views
+
+Once your Seed is created, you can customize how content is displayed and monitored:
+
+- **List Views (Table, Gallery, Kanban)**:
+  Open your **Posts** collection from the sidebar. Use the view switcher in the top right:
+  - **Table View**: Classic high-density spreadsheet view with sorting and bulk actions.
+  - **Gallery View**: Visual grid displaying the `cover_image` and excerpt.
+  - **Kanban View**: Status board grouped by `Draft` and `Published`, allowing drag-and-drop state changes.
+- **Custom Metrics & Dashboard Customization**:
+  The main dashboard home screen is modular. You can arrange metric widgets, activity feeds, and charts into responsive sections and columns.
+- **The Widget SDK**:
+  Need to display bespoke analytics, Stripe revenues, or external service metrics directly in the admin dashboard? BeechCMS provides the official **`@beechcms/widget-sdk`**.
+  Explore the full guide at **[Custom Dashboard Widgets](./custom-widgets.md)**.
+
+---
+
+### 3. Entry Editor Layout Customization
+
+BeechCMS allows you to tailor the content editing experience for your editorial team using the visual **Layout Builder**:
+
+1. In **Settings → Content Types**, select your Seed and click **Edit Form Layout**.
+2. Use drag-and-drop to organize fields:
+   - **Tabs**: Group related fields into tabs (e.g., *Content*, *SEO & Metadata*, *Publishing Settings*).
+   - **Sections & Grids**: Place `title` and `slug` side-by-side in a 2-column row.
+   - **Full-Width Blocks**: Dedicate a wide section for the `body` TipTap rich text editor.
+   - **Sidebar Fields**: Position `cover_image`, `status`, and `tags` in a compact side panel.
+3. Click **Save Layout**. When editors click **+ New Post**, they will see your tailored layout.
+
+For details on the editor interface and publishing lifecycle, see the **[Content Editor Guide](./content-editor-guide.md)**.
+
+---
+
+### 4. Setting Up Automations
+
+BeechCMS includes a visual **Automations Engine** under **Settings → Automations**. Automations run on the Cloudflare edge without external webhooks or server infrastructure:
+
+- **Triggers**: Content lifecycle events (`create`, `update`, `delete`) or recurring schedules (`cron`).
+- **Actions**:
+  - `send_mail`: Dispatches transactional emails via Resend (e.g. sending a confirmation email when a user submits a contact form).
+  - `webhook`: Dispatches signed HTTP requests to external services (n8n, Zapier, Slack, Discord).
+  - `edit_field`: Automatically updates field values (e.g. setting an approved date).
+  - `create_entry`: Automatically spawns records in another Seed.
+
+To configure email triggers or webhook signing, visit the **[Automations Guide](./automations.md)** and the **[Email Module Guide](./email-module.md)**.
+
+---
+
+## Step 5: Frontend Integration & Consuming APIs
+
+Now that your CMS is running with published content, let's connect your frontend application.
+
+BeechCMS provides both a standardized **Public REST API** and dedicated **Official SDKs**:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      Official BeechCMS SDKs                     │
+├───────────────────┬──────────────────────┬──────────────────────┤
+│ @beechcms/client  │ @beechcms/forms-react│@beechcms/search-client│
+│ Data Fetching     │ Dynamic Forms        │ Hybrid Vector + FTS  │
+│ Type-Safe Queries │ Invisible Anti-Bot   │ In-Memory Search     │
+└───────────────────┴──────────────────────┴──────────────────────┘
 ```
 
-**Response Format (`200 OK`)**:
+---
+
+### 1. The Public REST API
+
+All seeds configured with `allowPublicRead: true` expose public endpoints authenticated with `PUBLIC_READ_API_KEY`:
+
+```bash
+# Fetch published posts ordered by publication date
+curl -X GET "http://localhost:8789/api/v1/public/posts?orderBy=created_at&orderDir=desc" \
+  -H "X-API-Key: dev-read-key-changeme"
+```
+
+**JSON Response (`200 OK`)**:
 
 ```json
 {
   "data": [
     {
-      "id": "c7a82e9b-4321-4f8a-92bf-304918239012",
-      "slug": "hello-beechcms-edge-world",
+      "id": "a1b2c3d4-0000-0000-0000-123456789abc",
+      "slug": "welcome-to-beechcms",
       "status": "published",
       "created_at": 1741507200,
-      "updated_at": 1741507200,
-      "title": "Hello BeechCMS Edge World",
-      "excerpt": "Getting started with edge-native content management.",
-      "author_id": "aut_8921a9c1",
-      "tags": ["engineering", "tutorials"],
-      "cover_image": "https://api.example.com/api/media/cover-1.webp",
-      "body": "<p>Welcome to BeechCMS running at the edge!</p>",
-      "meta_title": "Hello BeechCMS Edge World",
-      "meta_description": "Learn how to build edge-fast websites."
+      "title": "Welcome to BeechCMS",
+      "excerpt": "Edge-native headless CMS built on Cloudflare Workers.",
+      "cover_image": "https://my-app.workers.dev/api/media/cover-image.webp",
+      "body": "<p>Content delivered at lightning speed with zero cold starts.</p>",
+      "tags": ["cms", "cloudflare", "edge"]
     }
   ],
   "meta": {
@@ -392,103 +373,77 @@ curl -X GET "http://localhost:8789/api/v1/public/posts?orderBy=created_at&orderD
 }
 ```
 
-> [!NOTE]
-> Responses are **flat**. Content fields (`title`, `slug`, `author_id`, `tags`, `cover_image`) sit directly alongside system attributes (`id`, `status`, `created_at`).
+For advanced querying, relational joins, and filter operators, see the **[Content API Reference](./content-api.md)**.
 
-### Fetching Content
+---
 
-You can use standard `fetch` or the lightweight `@beechcms/client` SDK (`npm install @beechcms/client`).
+### 2. Official Client SDK (`@beechcms/client`)
 
-#### Vanilla Fetch
+The **Client SDK** provides an ergonomic, type-safe HTTP client for Node.js, Astro, Next.js, Remix, and Nuxt.
+
+Install the client:
+
+```bash
+pnpm add @beechcms/client # or npm install @beechcms/client
+```
+
+#### TypeScript Setup & Content Queries
 
 ```typescript
 // lib/beech.ts
-const BEECH_API_URL = process.env.BEECH_API_URL || 'http://localhost:8789'
-const BEECH_API_KEY = process.env.BEECH_READ_KEY || ''
+import { createBeechClient } from '@beechcms/client'
 
+// 1. Define your Seed interfaces
 export interface Post {
   id: string
   slug: string
   title: string
   excerpt: string
   cover_image?: string
-  author_id?: string
-  tags?: string[]
   body: string
+  tags?: string[]
   created_at: number
-  meta_title?: string
-  meta_description?: string
 }
 
-export async function getPosts(): Promise<Post[]> {
-  const response = await fetch(`${BEECH_API_URL}/api/v1/public/posts?orderBy=created_at&orderDir=desc`, {
-    headers: {
-      'X-API-Key': BEECH_API_KEY,
-    },
-    // Next.js ISR cache revalidation
-    next: { revalidate: 60 },
-  })
-
-  if (!response.ok) {
-    throw new Error(`Failed to fetch posts: ${response.statusText}`)
-  }
-
-  const json = await response.json()
-  return json.data
+// 2. Map Seed slugs to types
+export interface AppRegistry {
+  posts: Post
 }
 
-export async function getPostBySlug(slug: string): Promise<Post | null> {
-  const response = await fetch(
-    `${BEECH_API_URL}/api/v1/public/posts?filter=${encodeURIComponent(
-      JSON.stringify({
-        logic: 'AND',
-        where: [{ field: 'slug', op: 'eq', value: slug }],
-      })
-    )}`,
-    {
-      headers: { 'X-API-Key': BEECH_API_KEY },
-      next: { revalidate: 60 },
-    }
-  )
-
-  if (!response.ok) return null
-  const json = await response.json()
-  return json.data[0] || null
-}
+// 3. Instantiate the typed client
+export const beech = createBeechClient<AppRegistry>({
+  baseUrl: process.env.BEECH_API_URL || 'http://localhost:8789',
+  apiKey: process.env.BEECH_READ_API_KEY || 'dev-read-key-changeme',
+})
 ```
 
-#### Astro
-
-Astro provides an ideal companion for BeechCMS with fast static builds and on-demand edge rendering.
-
-**1. Blog Listing Page (`src/pages/index.astro`)**:
+#### Fetching in an Astro Page (`src/pages/index.astro`)
 
 ```astro
 ---
 // src/pages/index.astro
-import { getPosts } from '../lib/beech'
+import { beech } from '../lib/beech'
 
-const posts = await getPosts()
+const result = await beech.content('posts').list({
+  limit: 10,
+  sort: { createdAt: 'desc' },
+})
+
+const posts = result.ok ? result.data.data : []
 ---
 
 <html lang="en">
   <head>
-    <meta charset="utf-8" />
     <title>My BeechCMS Blog</title>
   </head>
   <body class="max-w-3xl mx-auto py-12 px-4">
     <h1 class="text-4xl font-bold mb-8">Latest Articles</h1>
-
-    <div class="grid gap-6">
+    <div class="space-y-6">
       {posts.map((post) => (
-        <article class="p-6 border rounded-lg hover:shadow-md transition">
-          {post.cover_image && (
-            <img src={post.cover_image} alt={post.title} class="w-full h-48 object-cover rounded mb-4" />
-          )}
-          <h2 class="text-2xl font-semibold">
-            <a href={`/blog/${post.slug}`} class="text-blue-600 hover:underline">
-              {post.title}
-            </a>
+        <article class="p-6 border rounded-lg">
+          {post.cover_image && <img src={post.cover_image} alt={post.title} class="rounded mb-4" />}
+          <h2 class="text-2xl font-bold">
+            <a href={`/blog/${post.slug}`}>{post.title}</a>
           </h2>
           <p class="text-gray-600 mt-2">{post.excerpt}</p>
         </article>
@@ -498,212 +453,228 @@ const posts = await getPosts()
 </html>
 ```
 
-**2. Dynamic Article Page (`src/pages/blog/[slug].astro`)**:
-
-```astro
----
-// src/pages/blog/[slug].astro
-import { getPosts, getPostBySlug } from '../../lib/beech'
-
-export async function getStaticPaths() {
-  const posts = await getPosts()
-  return posts.map((post) => ({
-    params: { slug: post.slug },
-  }))
-}
-
-const { slug } = Astro.params
-const post = await getPostBySlug(slug)
-
-if (!post) {
-  return Astro.redirect('/404')
-}
----
-
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>{post.meta_title || post.title}</title>
-    <meta name="description" content={post.meta_description || post.excerpt} />
-  </head>
-  <body class="max-w-2xl mx-auto py-12 px-4">
-    <a href="/" class="text-sm text-gray-500 hover:underline">← Back to articles</a>
-    
-    <header class="my-8">
-      <h1 class="text-4xl font-extrabold">{post.title}</h1>
-      <div class="flex gap-2 mt-4">
-        {post.tags?.map((tag) => (
-          <span class="px-2 py-1 text-xs bg-gray-100 rounded-full text-gray-700">
-            #{tag}
-          </span>
-        ))}
-      </div>
-    </header>
-
-    <div class="prose prose-lg" set:html={post.body} />
-  </body>
-</html>
-```
-
-#### Next.js
+#### Fetching in Next.js App Router (`app/blog/[slug]/page.tsx`)
 
 ```tsx
 // app/blog/[slug]/page.tsx
 import { notFound } from 'next/navigation'
-import type { Metadata } from 'next'
-import { getPostBySlug, getPosts } from '@/lib/beech'
+import { beech } from '@/lib/beech'
 
-interface Props {
-  params: Promise<{ slug: string }>
-}
-
-export async function generateStaticParams() {
-  const posts = await getPosts()
-  return posts.map((post) => ({ slug: post.slug }))
-}
-
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const post = await getPostBySlug(slug)
-  if (!post) return {}
 
-  return {
-    title: post.meta_title || post.title,
-    description: post.meta_description || post.excerpt,
-    openGraph: {
-      title: post.title,
-      description: post.excerpt,
-      images: post.cover_image ? [post.cover_image] : [],
-    },
-  }
-}
-
-export default async function BlogPostPage({ params }: Props) {
-  const { slug } = await params
-  const post = await getPostBySlug(slug)
-
-  if (!post) {
+  const result = await beech.content('posts').get({ slug })
+  if (!result.ok || !result.data.data) {
     notFound()
   }
 
+  const post = result.data.data
+
   return (
     <article className="max-w-3xl mx-auto py-12 px-4">
-      <h1 className="text-4xl font-bold mb-4">{post.title}</h1>
+      <h1 className="text-4xl font-extrabold mb-4">{post.title}</h1>
       {post.cover_image && (
-        <img
-          src={post.cover_image}
-          alt={post.title}
-          className="w-full h-64 object-cover rounded-xl mb-6"
-        />
+        <img src={post.cover_image} alt={post.title} className="w-full h-64 object-cover rounded-xl mb-6" />
       )}
-      <div
-        className="prose dark:prose-invert max-w-none"
-        dangerouslySetInnerHTML={{ __html: post.body }}
-      />
+      <div className="prose" dangerouslySetInnerHTML={{ __html: post.body }} />
     </article>
   )
 }
 ```
 
-## Deployment
+Learn more in the **[Client SDK Guide](./client-sdk.md)** (including webhook signature verification via `verifyBeechSignature`).
 
-Deploying your BeechCMS project to Cloudflare's edge takes three straightforward steps:
+---
 
-### Cloudflare Auth
+### 3. Official Forms SDK (`@beechcms/forms-react`)
 
-Ensure your CLI is authenticated:
+Need to collect leads, newsletter signups, contact messages, or customer feedback directly into your BeechCMS database?
+
+The **Forms SDK** eliminates manual form state management, validation boilerplate, and anti-spam configurations.
+
+Install the Forms SDK:
+
+```bash
+pnpm add @beechcms/forms-react # or npm install @beechcms/forms-react
+```
+
+> [!TIP]
+> **CLI Form Generator**:
+> BeechCMS can scaffold a form component tailored to your schema and framework:
+> ```bash
+> npx @beechcms/cli forms
+> ```
+> Supports React, Vue 3, Svelte 5, and Vanilla JS / Web Components.
+
+#### One-Line Dynamic Form Component
+
+```tsx
+import React from 'react'
+import { BeechForm } from '@beechcms/forms-react'
+
+export function ContactSection() {
+  return (
+    <div className="max-w-lg mx-auto p-6 bg-white rounded-xl shadow-sm border">
+      <h2 className="text-2xl font-bold mb-4">Contact Us</h2>
+      <BeechForm
+        seed="contact_requests"
+        baseUrl={process.env.NEXT_PUBLIC_BEECH_API_URL || 'http://localhost:8789'}
+        apiKey={process.env.NEXT_PUBLIC_BEECH_WRITE_API_KEY || 'dev-write-key-changeme'}
+        onSuccess={({ id }) => alert(`Thank you! Message received (ID: ${id})`)}
+      />
+    </div>
+  )
+}
+```
+
+#### What the Forms SDK Handles Automatically:
+1. **Dynamic Schema Fetching**: Queries `GET /api/v1/public/:seed/schema` to render exact validation rules.
+2. **Invisible Anti-Bot Defense**: Embeds an invisible HMAC time-trap token and camouflaged honeypot—blocking automated spam bots without irritating CAPTCHAs.
+3. **Draft Auto-Save**: Saves unsubmitted form entries in `sessionStorage` so visitors never lose typed data on accidental page refreshes.
+4. **Headless Hook (`useBeechForm`)**: Full UI freedom to build completely custom form controls with Tailwind CSS or Shadcn UI.
+
+Read the complete guide at **[Forms SDK](./forms-sdk.md)**.
+
+---
+
+### 4. Official Search SDK (`@beechcms/search-client`)
+
+BeechCMS includes a dedicated edge-native vector and hybrid search engine. The **Search SDK** brings hybrid search directly to your client frontend.
+
+Install the Search SDK:
+
+```bash
+pnpm add @beechcms/search-client # or npm install @beechcms/search-client
+```
+
+#### Implementation
+
+```tsx
+import React, { useState, useEffect } from 'react'
+import { SearchClient } from '@beechcms/search-client'
+
+const client = new SearchClient('http://localhost:8789')
+
+export function SearchModal() {
+  const [results, setResults] = useState<any[]>([])
+
+  useEffect(() => {
+    // 1. Preload cached search index manifest and vector binary
+    client.loadIndex(
+      'http://localhost:8789/api/v1/public/search/manifest.json',
+      'http://localhost:8789/api/v1/public/search/vectors.bin'
+    )
+  }, [])
+
+  const handleQueryChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    // 2. Automatically debounced hybrid search (Reciprocal Rank Fusion)
+    const hits = await client.search(e.target.value, 5)
+    setResults(hits)
+  }
+
+  return (
+    <div className="p-4 bg-white rounded-lg shadow-lg">
+      <input
+        type="search"
+        placeholder="Search articles and docs..."
+        onChange={handleQueryChange}
+        className="w-full p-3 border rounded-lg"
+      />
+      <ul className="mt-4 divide-y">
+        {results.map((hit) => (
+          <li key={hit.record.id} className="py-2">
+            <h4 className="font-semibold">{hit.record.title}</h4>
+            <p className="text-sm text-gray-500">{hit.record.excerpt}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+```
+
+#### Why It Is Fast:
+- **Reciprocal Rank Fusion (RRF)**: Combines lexical keyword matching with vector semantic embeddings.
+- **In-Memory Calculations**: Vector dot-product calculations run in browser memory with zero server lag.
+- **Built-in Debouncing**: Safely handles real-time keystroke searches with a 250ms debounce window.
+
+Read the complete guide at **[Search SDK](./search-sdk.md)**.
+
+---
+
+## Step 6: Deploying to Cloudflare's Global Edge
+
+When your application is ready for production, deploying BeechCMS to Cloudflare takes just a few steps:
+
+### 1. Authenticate with Cloudflare
 
 ```bash
 npx wrangler login
 ```
 
-### Provision Resources
+### 2. Provision Remote Resources
 
-If you did not provision resources during initial scaffolding, create them now:
+Create your production D1 database and R2 media bucket:
 
 ```bash
-# 1. Create the remote D1 Database
-npx wrangler d1 create my-blog-db
+# Create D1 database
+npx wrangler d1 create my-app-db
 
-# 2. Create the remote R2 Media Bucket
-npx wrangler r2 bucket create my-blog-media
+# Create R2 storage bucket
+npx wrangler r2 bucket create my-app-media
 ```
 
-Copy the `database_id` from the output and update `wrangler.jsonc`:
+Copy the generated `database_id` and update `wrangler.jsonc`:
 
 ```jsonc
 "d1_databases": [
   {
     "binding": "DB",
-    "database_name": "my-blog-db",
+    "database_name": "my-app-db",
     "database_id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
     "migrations_dir": "node_modules/@beechcms/api/migrations"
-  }
-],
-"r2_buckets": [
-  {
-    "binding": "MEDIA_BUCKET",
-    "bucket_name": "my-blog-media"
   }
 ]
 ```
 
-### Configure R2 S3 Secrets (for Presigned Direct Uploads)
+### 3. Store Production Secrets
 
-BeechCMS uses direct **Presigned URLs (SigV4)** for media uploads so that binary file bytes stream directly from the browser to Cloudflare R2, bypassing the Worker memory and CPU.
-
-To enable Presigned URLs in production:
-1. Go to **Cloudflare Dashboard** → **R2** → **Manage R2 API Tokens**.
-2. Click **Create API Token** → Select **Object Read & Write** permissions for bucket `my-blog-media`.
-3. Set the secrets on your Worker:
+Set production secrets securely on Cloudflare:
 
 ```bash
-npx wrangler secret put R2_ACCESS_KEY_ID
-npx wrangler secret put R2_SECRET_ACCESS_KEY
+npx wrangler secret put JWT_SECRET --env production
+npx wrangler secret put RESEND_API_KEY --env production
+npx wrangler secret put PUBLIC_READ_API_KEY --env production
+npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
+npx wrangler secret put WEBHOOK_SECRET --env production
+npx wrangler secret put R2_ACCESS_KEY_ID --env production
+npx wrangler secret put R2_SECRET_ACCESS_KEY --env production
 ```
 
-And define `R2_ENDPOINT` and `R2_BUCKET_NAME` in `wrangler.jsonc` `vars` (or as secrets):
+### 4. Deploy
 
-```jsonc
-"vars": {
-  "R2_ENDPOINT": "https://<YOUR_ACCOUNT_ID>.r2.cloudflarestorage.com",
-  "R2_BUCKET_NAME": "my-blog-media"
-}
-```
-
-### Deploy Command
-
-BeechCMS includes a deploy command that builds the worker, deploys dashboard assets, and checks admin reachability:
+Run the Beech deploy workflow:
 
 ```bash
 npx beech deploy
 ```
 
-What `beech deploy` performs:
-1. Executes `wrangler deploy --minify` to upload your Worker and dashboard static assets.
-2. Performs a reachability check against your live production `/admin` URL.
+`beech deploy` compiles the Worker, uploads the dashboard static assets to Cloudflare Workers Assets, and validates that the production `/admin` endpoint is live and reachable.
 
-Once complete, visit your production URL (e.g. `https://my-blog-api.<your-subdomain>.workers.dev/admin`) and perform your initial production onboarding.
+Once deployed, visit `https://my-app-api.<your-subdomain>.workers.dev/admin` to complete your production onboarding.
 
-## Environments Comparison
+---
 
-| Feature | Local Development | Cloudflare Production |
-|---|---|---|
-| **Runtime** | Miniflare (Local Worker emulation) | Cloudflare Edge Network (300+ locations) |
-| **Database** | Local SQLite (`.wrangler/state/v3/d1`) | Cloudflare D1 Serverless Database |
-| **Media Storage** | Local simulated R2 | Global Cloudflare R2 Bucket |
-| **Dashboard URL** | `http://localhost:8789/admin` | `https://<worker-name>.<subdomain>.workers.dev/admin` |
-| **Schema Management** | Admin Dashboard (`/admin`) or `/api/seeds` | Admin Dashboard (`/admin`) or `/api/seeds` |
+## Official SDKs & Tooling Ecosystem
 
-> [!WARNING]
-> **Beta Status**: BeechCMS is actively evolving. While core schema operations and data models are tested and stable, always maintain regular D1 database backups (`npx wrangler d1 export`) before applying major schema refactors in production.
+Here is a quick reference to all official BeechCMS packages and their documentation:
 
-## Next Steps
-
-Now that your first BeechCMS project is live, explore these deeper capabilities:
-
-- **[Automations Guide](./automations.md)**: Set up automated email triggers with Resend or dispatch outbound webhooks whenever a post is published.
-- **[Content API & SDK Guide](./content-api.md)**: Discover advanced querying, tag filtering, relational field joins, and full-text search operators.
-- **[API Reference](./api-reference.md)**: Complete specification of all administrative and public REST endpoints.
-- **[Custom Widgets SDK](./custom-widgets.md)**: Build custom dashboard metrics, charts, and interactive controls for your editorial team.
-- **[Architecture Deep-Dive](./architecture.md)**: Learn about the Botanical Engine, alias mapping, and Vertical Slice architecture.
+| Package | Role | Documentation Link |
+| :--- | :--- | :--- |
+| **`@beechcms/cms`** | Project creation & CLI scaffolding assistant | **[Getting Started](./guide.md)** |
+| **`@beechcms/cli`** | Local DB migrations, schema diffing, type generation, and deployments | **[CLI Reference](./guide.md#cli-reference)** |
+| **`@beechcms/client`** | Lightweight TypeScript HTTP client for fetching content & verifying webhooks | **[Client SDK](./client-sdk.md)** |
+| **`@beechcms/forms-react`** | Zero-config dynamic forms with invisible anti-bot & auto-save | **[Forms SDK](./forms-sdk.md)** |
+| **`@beechcms/widget-sdk`** | Custom dashboard widgets, analytics cards, and KPI charts | **[Custom Widgets](./custom-widgets.md)** |
+| **`@beechcms/search-client`**| Edge-native hybrid search (full-text + vector semantic search) | **[Search SDK](./search-sdk.md)** |
+| **Automations & Email** | Native lifecycle workflows, Resend transactional emails, and webhooks | **[Automations](./automations.md)** & **[Email Module](./email-module.md)** |
