@@ -99,19 +99,11 @@ async function copyContent() {
           </div>
 
           <div class="card-body">
-            <div
-              class="tab-content prompt-text"
-              :class="{ 'is-active': activeTab === 'ai' }"
-              :aria-hidden="activeTab !== 'ai'"
-            >
+            <div v-show="activeTab === 'ai'" class="prompt-text">
               Help me get set up with BeechCMS. Do the following: 1. Scaffold a new project with <code class="code-badge">npx @beechcms/cms my-app</code> (or <code class="code-badge">npx @beechcms/cms my-app --yes</code>). 2. Review project structure and verify that <code class="code-badge">.dev.vars</code> and <code class="code-badge">wrangler.jsonc</code> are configured. 3. Initialize the database with <code class="code-badge">npx beech onboard</code>. 4. Connect <code class="code-badge">@beechcms/client</code> to Cloudflare Workers and D1 SQLite. 5. Suggest the most relevant next steps.
             </div>
 
-            <div
-              class="tab-content cli-text"
-              :class="{ 'is-active': activeTab === 'cli' }"
-              :aria-hidden="activeTab !== 'cli'"
-            >
+            <div v-show="activeTab === 'cli'" class="cli-text">
               <pre><code><span class="cmd-prompt">$</span> npx @beechcms/cms my-app</code></pre>
             </div>
           </div>
@@ -290,30 +282,12 @@ html.dark .logo-dark,
 }
 
 .card-body {
-  position: relative;
-  display: grid;
-  grid-template-areas: "content";
-  align-items: start;
   padding: 20px;
   background: var(--vp-c-bg-alt);
-}
-
-.tab-content {
-  grid-area: content;
-  width: 100%;
-  transition: opacity 0.15s ease;
-}
-
-.tab-content:not(.is-active) {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
-.tab-content.is-active {
-  opacity: 1;
-  visibility: visible;
-  pointer-events: auto;
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
 }
 
 .prompt-text {
@@ -341,23 +315,30 @@ html.dark .logo-dark,
   color: #fbfbfe !important;
 }
 
+.cli-text {
+  width: 100%;
+}
+
 .cli-text pre {
   margin: 0;
-  padding: 4px 0;
-  background: transparent;
+  padding: 0;
+  background: transparent !important;
   font-family: var(--vp-font-family-mono);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.6;
 }
 
 .cli-text code {
   color: var(--vp-c-text-1) !important;
   background: transparent !important;
+  font-weight: 500;
 }
 
 .cmd-prompt {
   user-select: none;
   color: var(--vp-c-brand-1);
-  margin-right: 8px;
+  margin-right: 10px;
+  font-weight: 600;
 }
 
 @media (max-width: 960px) {
