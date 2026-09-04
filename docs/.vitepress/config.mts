@@ -4,9 +4,10 @@ export default defineConfig({
   title: "BeechCMS",
   base: '/BeechCMS/',
   description: "Edge-native headless CMS",
+  lang: 'en-US',
   srcExclude: ['Sprints/**'],
   ignoreDeadLinks: true,
-    head: [
+  head: [
     ['link', { rel: 'icon', type: 'image/svg+xml', href: '/BeechCMS/images/BeechLogo.svg' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
@@ -32,50 +33,63 @@ export default defineConfig({
       alt: 'BeechCMS'
     },
     siteTitle: 'BeechCMS',
+    search: {
+      provider: 'local'
+    },
     nav: [
-      { text: 'Guide', link: '/guide' },
-      { text: 'API', link: '/api/' }
+      { text: 'Start', link: '/start/' },
+      { text: 'Features', link: '/features/' },
+      { text: 'Build', link: '/build/' },
+      { text: 'Manage', link: '/manage/' },
+      { text: 'Reference', link: '/reference/' },
+      { text: 'Resources', link: '/resources/' }
     ],
     sidebar: {
-      '/': [
+      '/start/': [
         {
-          text: 'User & Builder Guide',
+          text: 'Start',
           items: [
-            { text: 'Getting Started', link: '/guide' },
-            { text: 'First Project', link: '/first-project' },
-            { text: 'Content Editor Guide', link: '/content-editor-guide' },
-            { text: 'Content API (REST)', link: '/content-api' },
-            { text: 'Automations', link: '/automations' },
-            { text: 'Email Module', link: '/email-module' },
-            { text: 'Observability & Notifications', link: '/observability-and-notifications' }
+            { text: 'Introduction', link: '/start/' }
           ]
-        },
+        }
+      ],
+      '/features/': [
         {
-          text: 'Official SDKs',
+          text: 'Features',
           items: [
-            { text: 'Client SDK', link: '/client-sdk' },
-            { text: 'Forms SDK', link: '/forms-sdk' },
-            { text: 'Widget SDK', link: '/custom-widgets' },
-            { text: 'Search SDK', link: '/search-sdk' }
+            { text: 'Overview', link: '/features/' }
           ]
-        },
+        }
+      ],
+      '/build/': [
         {
-          text: 'Developer Guide (Internals)',
+          text: 'Build',
           items: [
-            { text: 'Development', link: '/development' },
-            { text: 'Architecture', link: '/architecture' },
-            { text: 'Vertical Slice', link: '/vertical-slice' }
+            { text: 'Integration', link: '/build/' }
           ]
-        },
+        }
+      ],
+      '/manage/': [
         {
-          text: 'API Reference',
+          text: 'Manage',
           items: [
-            { text: 'REST API', link: '/api-reference' },
-            { text: 'Core API', link: '/api/@beechcms/core/' },
-            { text: 'Client API', link: '/api/@beechcms/client/' },
-            { text: 'Forms API', link: '/api/@beechcms/forms-react/' },
-            { text: 'Widget API', link: '/api/@beechcms/widget-sdk/' },
-            { text: 'CLI Tools', link: '/api/@beechcms/cli/' }
+            { text: 'Management', link: '/manage/' }
+          ]
+        }
+      ],
+      '/reference/': [
+        {
+          text: 'Reference',
+          items: [
+            { text: 'API Reference', link: '/reference/' }
+          ]
+        }
+      ],
+      '/resources/': [
+        {
+          text: 'Resources',
+          items: [
+            { text: 'Assets', link: '/resources/' }
           ]
         }
       ]

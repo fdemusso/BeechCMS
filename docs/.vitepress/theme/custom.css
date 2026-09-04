@@ -455,3 +455,169 @@ html.dark .VPHomeHero .image-src.light {
 .VPNavBarMenuLink.active {
   color: var(--vp-c-brand-1) !important;
 }
+
+/* ==========================================================================
+   Topbar Layout: Menu (Links/Categories) on Left, Search on Right, Theme Toggle on Far Right
+   ========================================================================== */
+@media (min-width: 768px) {
+  .VPNavBar .content-body {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+  }
+
+  /* 1. Menu (Links / Categories) on the Left */
+  .VPNavBar .content-body .menu {
+    order: 1 !important;
+    margin-right: auto !important;
+    padding-left: 24px !important;
+  }
+
+  /* 2. Search Bar on the Right */
+  .VPNavBar .content-body .search {
+    order: 2 !important;
+    flex-grow: 0 !important;
+    padding-left: 0 !important;
+    margin-left: auto !important;
+    margin-right: 4px !important;
+  }
+
+  .VPNavBar .content-body .search .VPNavBarSearch {
+    flex-grow: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  .VPNavBar .content-body .search .DocSearch-Button {
+    min-width: 170px !important;
+    width: 200px !important;
+    max-width: 240px !important;
+    justify-content: space-between !important;
+  }
+
+  .VPNavBar .content-body .search .DocSearch-Button-Container {
+    flex-grow: 1 !important;
+  }
+
+  /* 3. Translations (if any) */
+  .VPNavBar .content-body .translations {
+    order: 3 !important;
+  }
+
+  /* 4. Appearance / Theme Toggle stays on the Right */
+  .VPNavBar .content-body .appearance {
+    order: 4 !important;
+  }
+
+  /* 5. Social Links / GitHub stays on the Right */
+  .VPNavBar .content-body .social-links {
+    order: 5 !important;
+  }
+
+  /* 6. Extra */
+  .VPNavBar .content-body .extra {
+    order: 6 !important;
+  }
+}
+
+/* ==========================================================================
+   VPHome Content Width & Lateral Margins (Override VitePress VPHomeContent)
+   ========================================================================== */
+.VPHome .vp-doc.container {
+  max-width: 1440px !important;
+  padding: 0 24px !important;
+}
+
+@media (min-width: 640px) {
+  .VPHome .vp-doc.container {
+    padding: 0 28px !important;
+  }
+}
+
+@media (min-width: 960px) {
+  .VPHome .vp-doc.container {
+    width: 100% !important;
+    max-width: 1440px !important;
+    padding: 0 32px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .VPHome .vp-doc.container {
+    padding: 0 16px !important;
+  }
+}
+
+/* ==========================================================================
+   Main Hub & Bento Grid Styling
+   ========================================================================== */
+.main-hub-section {
+  width: 100%;
+  max-width: 100%;
+  margin: 40px auto;
+  padding: 0;
+}
+
+.main-hub-section h2 {
+  font-family: var(--vp-font-family-heading);
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin: 48px 0 16px 0;
+  border-top: none;
+  padding-top: 0;
+  color: var(--vp-c-text-1);
+}
+
+.main-hub-section > p {
+  color: var(--vp-c-text-2);
+  margin-bottom: 24px;
+  font-size: 1rem;
+}
+
+.hub-macro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.macro-card {
+  display: flex;
+  flex-direction: column;
+  padding: 22px;
+  border-radius: 12px;
+  border: 1px solid var(--vp-c-border);
+  background: var(--vp-c-bg-elv);
+  text-decoration: none !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--vp-shadow-1);
+}
+
+.macro-card:hover {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-bg-alt);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(63, 61, 86, 0.15), 0 0 0 1px rgba(255, 101, 132, 0.2);
+}
+
+.macro-card h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 8px 0 !important;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--vp-c-text-1) !important;
+}
+
+.macro-card p {
+  margin: 0 !important;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-2) !important;
+}
+
+@media (max-width: 640px) {
+  .hub-macro-grid {
+    grid-template-columns: 1fr;
+  }
+}
