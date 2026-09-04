@@ -26,7 +26,7 @@ BeechCMS replaces traditional server-hosted CMS stacks with serverless edge prim
 
 Understanding BeechCMS boils down to three core concepts:
 
-- **Seeds (Content Blueprints)**: A Seed is a content model (like `posts`, `authors`, or `products`). Each Seed defines rules, permissions (`allowPublicRead`, `allowPublicPost`, `allowPublicEdit`, `allowDrafts`), display settings, and mandatory `displayNameAlias`.
+- **Seeds (Content Blueprints)**: A Seed is a content model (like `posts`, `authors`, or `products`). Each Seed requires an identifying `slug`, UI labels (`label`, optional `labelPlural`), branches, and a `displayNameAlias` (auto-inferred from the first `text` branch in the API if omitted). Seeds configure public REST API permissions (`allowPublicRead`, `allowPublicPost`, `allowPublicEdit`), content versioning (`allowDrafts`), GDPR compliance (`retentionDays`), and dashboard presentation/layout (`dashboard`, `layout`).
 - **Branches (Fields & Attributes)**: Individual properties inside a Seed (such as `title`, `cover_image`, `body`, or `tags`). Every branch carries a permanent identifier (`id: 'br_...'`) that keeps your database, triggers, and automations connected even if you rename fields later.
 - **Fruits (Content Records)**: Concrete content items generated from a Seed and persisted in Cloudflare D1.
 
@@ -41,7 +41,7 @@ Seed (Blueprint)  ──►  Branches (Fields)  ──►  Fruits (Records)
 Create a new project in seconds using the interactive setup wizard:
 
 ```bash
-npx @beechcms/cms my-app
+npx @beechcms/cms
 ```
 
 Or scaffold non-interactively with the starter template:
@@ -72,7 +72,7 @@ The entire CMS engine and admin SPA live inside `@beechcms/api`. Your workspace 
 
 ```bash
 npm run db:migrate:local
-# or: npx beech init --db
+# or via CLI: npx beech init --db
 ```
 
 2. Start the local development server:
@@ -91,7 +91,7 @@ BeechCMS leverages lightweight external services to deliver enterprise capabilit
 ### Cloudflare D1 & R2
 
 - **D1 (Database)**: Create via `npx wrangler d1 create <name>` and paste the generated `database_id` into `wrangler.jsonc`.
-- **R2 (Storage)**: Create via `npx wrangler r2 bucket create <name>` and bind it in `wrangler.jsonc`.
+- **R2 (Storage)**: Create via `npx wrangler r2 bucket create <name>` and bind it in `wrangler.jsonc`. Direct client uploads via Presigned URLs also require S3 API credentials (`R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_ENDPOINT`, `R2_BUCKET_NAME`) configured in `.dev.vars` / Cloudflare secrets (or provisioned automatically via `npx beech setup:cloudflare`).
 
 ### Resend (Transactional Email)
 
@@ -106,15 +106,25 @@ Used for password-reset emails and automated notification triggers.
 
 ### Upstash QStash (Asynchronous Notifications)
 
-While BeechCMS uses native Cloudflare Queues (`QUEUE` binding) for core background jobs, Upstash QStash can be configured as a serverless delivery provider for delayed, scheduled, and retryable notification webhooks:
+While BeechCMS includes in-process background execution and optional Cloudflare Queues (`QUEUE` binding), Upstash QStash can be configured as a serverless delivery provider for delayed, scheduled, and retryable notification webhooks:
 
 1. Create a free account at [upstash.com](https://upstash.com) and navigate to QStash.
 2. Configure your environment variables in `.dev.vars` (local) and via `npx wrangler secret put` (production):
    - `QSTASH_TOKEN`: Upstash API authentication token.
-   - `QSTASH_CURRENT_SIGNING_KEY`: Current signing key for verifying inbound webhooks.
-   - `QSTASH_NEXT_SIGNING_KEY`: Next signing key for zero-downtime rotation.
+   - `QSTASH_CURRENT_SIGNING_KEY`: Current signing key for verifying inbound webhooks (required).
+   - `QSTASH_NEXT_SIGNING_KEY`: Next signing key for zero-downtime rotation (required).
    - `QSTASH_URL`: Optional custom QStash API base URL.
    - `QSTASH_CALLBACK_URL`: Public base URL reachable by QStash (falls back to `APP_URL`). Inbound notification webhooks are received at `/api/webhooks/qstash`.
+
+### Application-Level Encryption (ALE)
+
+When using `privacy: 'encrypt'` on sensitive branches, BeechCMS utilizes AES-256-GCM authenticated encryption at rest. Configure your master encryption key:
+
+1. Set `PRIVACY_MASTER_KEY` in `.dev.vars` for local development.
+2. Add the master key to Cloudflare secrets for production:
+   ```bash
+   npx wrangler secret put PRIVACY_MASTER_KEY
+   ```
 
 ## Branch Types Reference
 
@@ -123,14 +133,14 @@ BeechCMS supports a rich array of typed fields out of the box:
 | Type | Stored In D1 | Common Use Cases | Example Options |
 | :--- | :--- | :--- | :--- |
 | `text` | `TEXT` | Titles, slugs, summaries, single-line text | `policies: { search: true, sort: true }` |
-| `number` | `REAL` | Prices, ratings, inventory, metrics | `numberOptions: { format: 'currency', currency: 'EUR' }` |
+| `number` | `REAL` | Prices, ratings, inventory, metrics | `numberOptions: { format: 'currency', currency: 'EUR', min: 0, max: 100, step: 1, control: 'slider' \| 'rating' \| 'stepper' }` |
 | `boolean` | `INTEGER (0/1)` | Featured toggles, active statuses | `policies: { filter: true }` |
-| `date` | `INTEGER (Unix timestamp)` | Event dates, deadlines, publication times | `format: 'date'` (YYYY-MM-DD) or `'datetime'` (ISO 8601 string) |
-| `file` | `TEXT (URL or JSON Array)` | Images, PDF documents, avatar photos | `fileOptions: { accept: 'image' }` (or `multiple: true` / `format: 'asset-list'`) |
-| `relation` | `TEXT (Foreign Key)` | Author links, category references | `targetSeed: 'authors'`, `onDelete: 'SET NULL'` |
+| `date` | `INTEGER (Unix timestamp in seconds)` | Event dates, deadlines, publication times (API accepts & returns ISO strings) | `format: 'date'` (YYYY-MM-DD) or `format: 'datetime'` (ISO 8601 string) |
+| `file` | `TEXT (URL or JSON Array)` | Images, PDF documents, avatar photos | `fileOptions: { accept: 'image' \| 'document' \| 'any', maxSize: 5242880 }`, `multiple: true`, `format: 'asset-list'` |
+| `relation` | `TEXT (FK)` or Junction Table (`multiple: true`) | Author links, category references, many-to-many tags | `targetSeed: 'authors'`, `onDelete: 'SET NULL' \| 'CASCADE' \| 'RESTRICT'` (`SET NULL` disallowed on `multiple: true`) |
 | `tags` | `TEXT (JSON Array)` | Controlled tag arrays, category badges | `options: ['news', 'tech', 'design']` |
-| `repeater` | `TEXT (JSON Array)` | Structured repeatable blocks, feature lists | `fields: [...]`, `minItems: 1, maxItems: 5` |
-| `richtext` | `TEXT (HTML/JSON)` | Long-form blog posts, articles, documentation | TipTap rich-text formatting (`format: 'html'`) |
+| `repeater` | `TEXT (JSON Array)` | Structured repeatable blocks, feature lists | `fields: [...]` (leaf scalars only), `minItems: 1, maxItems: 5` |
+| `richtext` | `TEXT (HTML/JSON)` | Long-form blog posts, articles, documentation | TipTap rich-text formatting (`format: 'html' \| 'markdown' \| 'plain'`) |
 | `json` | `TEXT (JSON String)` | Metadata dictionaries, custom payload configurations | Raw JSON payload |
 
 ### Field Policies
@@ -159,7 +169,7 @@ branches: [
     type: 'text',
     policies: {
       classification: 'restricted',
-      privacy: 'hash',               // Keyed HMAC-SHA256 digest (ALE) — field is ALWAYS omitted from API responses
+      privacy: 'hash',               // Keyed HMAC-SHA256 digest — field is omitted from public and authenticated API responses
       public: false,
     }
   }
@@ -181,7 +191,9 @@ Content schemas are persisted directly in Cloudflare D1's `seeds` system table. 
 Because each field has a permanent `id` (e.g. `br_pst1`), you can safely rename aliases (`title` → `headline`) without dropping columns or losing data. Triggers and search tables update automatically.
 
 ### Danger Zone Operations
-Destructive operations (dropping fields, changing types, or deleting Seeds) require explicit confirmation and perform relational back-reference checks to prevent accidental data loss.
+Destructive operations enforce strict safeguards to prevent accidental data loss:
+- **Seed Deletion**: Performs relational back-reference checks (`backrefMap`) and returns `409 Conflict` if other Seeds reference the target. Hard deletion (`DELETE /api/seeds/:slug/hard`) drops physical D1 tables and requires an explicit confirmation payload (`{ "confirm": "<slug>" }`).
+- **Branch Modification**: Dropping fields (`DELETE .../branches/:id`), changing field types (`PATCH .../retype`), and renaming aliases (`PATCH .../rename`) require explicit target confirmation tokens (`{ "confirm": "<slug>.<alias>" }`). Standard additive updates via `PUT /api/seeds/:slug` disallow inline renames or retypes.
 
 ## Media Delivery
 
@@ -193,23 +205,30 @@ Uploaded assets in R2 are served with high caching efficiency:
 
 ## CLI Reference
 
-The `beech` CLI provides unified workflows for database management, code generation, and deployment (commands target local environment by default; use `--remote` for Cloudflare):
+The `beech` CLI provides unified workflows for database management, code generation, and deployment (commands target local environment by default; `--remote` is supported for Cloudflare verification and remote generation on selected commands):
 
 | Command | Description |
 | :--- | :--- |
-| `npx @beechcms/cms <name>` | Interactive scaffolding assistant (or `--yes` for non-interactive starter) |
+| `npx @beechcms/cms` | Interactive scaffolding assistant (or `npx @beechcms/cms <name> --yes` for non-interactive starter) |
 | `npx beech db:migrate` | Applies local database migrations (runs `npm run db:migrate:local` when available, falls back to `beech init --db`) |
 | `npx beech db:reset` | Removes local Wrangler state and re-bootstraps database (runs `npm run db:reset:local` or clears `.wrangler/state`) |
-| `npx beech onboard [--remote]` | One-command database provisioning and file verification (`--yes`, `--db <name>`) |
-| `npx beech init --db [--remote]` | Initialises D1 database system tables (`--db-name <n>`, `--yes`) |
-| `npx beech gen types typescript` | Generates TypeScript interfaces from active Seed definitions stored in D1 (`--local` default, `--remote`, `-o` / `--output <file>`, `--db <name>`) |
-| `npx beech forms` | Interactive wizard to generate React, Vue, Svelte, or Vanilla / Web Component forms (`--framework`, `--seed`, `--mode`, `--out`, `--yes`, `--json`) |
+| `npx beech reset` | Comprehensive environment reset (`--db`, `--docker`, `--all`, `--yes`) |
+| `npx beech onboard [--remote]` | One-command database verification and project integrity check (`--yes`, `--db <name>`; `--remote` verifies remote schema readiness) |
+| `npx beech init [--db] [--remote]` | Verifies project configuration (`worker.ts`, `wrangler.jsonc`); with `--db` applies base system tables locally or checks remote schema integrity (`--db-name <n>`, `--yes`) |
+| `npx beech gen types typescript` | Generates TypeScript interfaces from active Seed definitions stored in D1 (`--local` default, `--remote`, `-o` / `--out` / `--output <file>`, `--db <name>`; aliases: `gen-types`, `gen:types`, `generate:types`) |
+| `npx beech forms` | Interactive wizard to generate React, Vue, Svelte, or Vanilla / Web Component forms (`--framework`, `--seed`, `--mode`, `--out`, `--yes`, `--json`; aliases: `form`, `forms:add`) |
 | `npx beech setup:cloudflare` | 1-step Cloudflare provisioning (D1, R2, presigned S3 secrets; alias: `setup:cf`, options: `--name <n>`, `--yes`) |
-| `npx beech dev` | Starts the monorepo local dev environment (Docker + API + Dashboard, `--plain`). **In generated consumer projects**, use `npm run dev` (`wrangler dev`) instead. |
-| `npx beech validate` | Validates runtime schema integrity |
+| `npx beech dev` | Starts the monorepo local dev environment (Docker + API + Dashboard, `--plain`; alias: `start`). **In generated consumer projects**, use `npm run dev` (`wrangler dev`) instead. |
+| `npx beech dev:stop` | Stops local monorepo Docker containers without removing persistent data |
+| `npx beech dev:reset` | Stops local monorepo Docker containers and purges volumes (`docker compose down -v`) |
+| `npx beech dev:tunnel` | Displays the active Cloudflare quick tunnel public URL from Docker container logs |
+| `npx beech mailpit:clear` | Clears local Mailpit development inbox |
+| `npx beech validate` | Confirms active runtime schema validation status on `/api/seeds` mutations |
+| `npx beech test` | Executes test runner (`--coverage`, `--diff`) |
+| `npx beech lint` | Runs project linter checks via Turborepo |
 | `npx beech update` | Upgrades core engine packages and applies system migrations |
 | `npx beech doctor` | Runs health checks and React diagnostics on the Dashboard |
-| `npx beech logs <service>` | Streams logs for local Docker services (`mailpit`, `db`/`sqlite`, `tunnel`, `storage`/`minio`) |
+| `npx beech logs <service>` | Streams logs for local Docker services (`mailpit`, `db`/`sqlite` → `sqlite-web`, `tunnel`, `storage`/`minio` → `minio`) |
 | `npx beech deploy` | Deploys the Worker and embedded dashboard to Cloudflare (runs `wrangler deploy`, supports `--skip-check`) |
 
 ## Next Steps

@@ -26,8 +26,8 @@ import { D1SeedRepository } from '../shared/db/repositories/seed.repository.d1'
 import { D1SchemaMutator } from '../shared/db/migrations/schema-mutator.d1'
 import { D1KanbanPositionRepository } from '../shared/db/repositories/kanban-position.repository.d1'
 import { D1TimeTrapTokenRepository } from '../shared/db/repositories/time-trap-token.repository.d1'
-import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository } from '@beechcms/core'
+import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations/engine/automation-runner'
 import { D1AutomationRepository } from '../shared/db/repositories/automations.repository.d1'
@@ -63,6 +63,7 @@ interface RepositoryOverrides {
   antivirusProvider?: IAntivirusProvider
   timeTrapTokenRepository?: ITimeTrapTokenRepository
   hooks?: BeechHooks
+  privacyService?: IPrivacyService
 }
 
 function buildScheduler(context: Context): IScheduler {
@@ -73,13 +74,22 @@ function buildScheduler(context: Context): IScheduler {
   }
 }
 
+class NoOpPrivacyService implements IPrivacyService {
+  async encrypt(plaintext: string): Promise<string> { return plaintext }
+  async decrypt(ciphertext: string): Promise<string> { return ciphertext }
+  async hash(plaintext: string): Promise<string> { return plaintext }
+}
+
 export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
   return createMiddleware<{ Bindings: Env; Variables: Variables }>(async (context, next) => {
     const resolvedClock = overrides?.clock ?? SystemClock
     const resolvedIdGenerator = overrides?.idGenerator ?? SystemIdGenerator
     const database = context.env.DB
 
-    context.set('repository', overrides?.repository ?? new D1ContentRepository(database, overrides?.hooks))
+    const privacyService = overrides?.privacyService ?? (context.env.PRIVACY_MASTER_KEY ? new PrivacyService(context.env.PRIVACY_MASTER_KEY) : new NoOpPrivacyService())
+    context.set('privacyService', privacyService)
+
+    context.set('repository', overrides?.repository ?? new D1ContentRepository(database, overrides?.hooks, privacyService))
     context.set('idempotencyRepository', overrides?.idempotencyRepository ?? new D1IdempotencyRepository(database))
     context.set('mediaRepository', overrides?.mediaRepository ?? new D1MediaRepository(database))
     context.set('systemStatsRepository', overrides?.systemStatsRepository ?? new D1SystemStatsRepository(database))
