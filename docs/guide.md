@@ -104,9 +104,9 @@ Used for password-reset emails and automated notification triggers.
    npx wrangler secret put RESEND_API_KEY
    ```
 
-### Upstash QStash (Background Queues)
+### Upstash QStash (Asynchronous Notifications)
 
-Used for asynchronous background jobs, retries, and high-volume webhook dispatches.
+While BeechCMS uses native Cloudflare Queues (`QUEUE` binding) for core background jobs, Upstash QStash can be configured as a serverless delivery provider for delayed, scheduled, and retryable notification webhooks:
 
 1. Create a free account at [upstash.com](https://upstash.com) and navigate to QStash.
 2. Configure your environment variables in `.dev.vars` (local) and via `npx wrangler secret put` (production):
@@ -114,7 +114,7 @@ Used for asynchronous background jobs, retries, and high-volume webhook dispatch
    - `QSTASH_CURRENT_SIGNING_KEY`: Current signing key for verifying inbound webhooks.
    - `QSTASH_NEXT_SIGNING_KEY`: Next signing key for zero-downtime rotation.
    - `QSTASH_URL`: Optional custom QStash API base URL.
-   - `QSTASH_CALLBACK_URL`: Public base URL reachable by QStash (falls back to `APP_URL`). Inbound webhooks are received at `/api/webhooks/qstash`.
+   - `QSTASH_CALLBACK_URL`: Public base URL reachable by QStash (falls back to `APP_URL`). Inbound notification webhooks are received at `/api/webhooks/qstash`.
 
 ## Branch Types Reference
 
@@ -159,7 +159,7 @@ branches: [
     type: 'text',
     policies: {
       classification: 'restricted',
-      privacy: 'hash',               // SHA-256 one-way hash — field is ALWAYS omitted from API responses
+      privacy: 'hash',               // Keyed HMAC-SHA256 digest (ALE) — field is ALWAYS omitted from API responses
       public: false,
     }
   }
@@ -188,7 +188,7 @@ Destructive operations (dropping fields, changing types, or deleting Seeds) requ
 Uploaded assets in R2 are served with high caching efficiency:
 
 - **Local / Proxy Route**: `GET /api/media/:key{.+}` (Hono wildcard route supporting nested paths and folder prefixes)
-- **Base Media URL**: Configured in `wrangler.jsonc` under `vars.MEDIA_BASE_URL` (e.g. `"http://localhost:5173"` or production worker URL).
+- **Base Media URL**: Configured in `wrangler.jsonc` under `vars.MEDIA_BASE_URL` (e.g. `"http://localhost:8789"` or production worker URL; defaults dynamically to the incoming request origin if omitted).
 - **Direct CDN Delivery (Optional)**: Point a custom domain to your R2 bucket and set `MEDIA_CDN_URL` under `vars` in `wrangler.jsonc` (e.g. `"vars": { "MEDIA_CDN_URL": "https://cdn.my-site.com" }`). All media helpers will automatically return direct CDN links instead of proxying through the Worker.
 
 ## CLI Reference

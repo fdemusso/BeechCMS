@@ -69,6 +69,7 @@ function buildWranglerJsonc(cfg) {
   "name": "${cfg.name}-api",
   "main": "worker.ts",
   "compatibility_date": "2025-01-01",
+  "compatibility_flags": ["nodejs_compat"],
 
   "vars": {
     "JWT_SECRET": "${cfg.jwtSecret}",
