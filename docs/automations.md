@@ -8,7 +8,7 @@ category: Features
 
 Automations in BeechCMS allow you to trigger automated workflows—such as sending transactional emails, dispatching webhooks, updating fields, or generating new records—based on content lifecycle events (`create`, `update`, `delete`) or recurring schedules (`cron`).
 
-Automations are configured visually in the dashboard under **Settings → Automations** without writing backend code.
+Automations are scoped per Seed and configured visually in the dashboard: open any content collection from the sidebar (e.g. **Articoli**, **Customers**) and click the **Automations** button in the top toolbar to open the lateral automations panel.
 
 ## Architecture & Triggers
 

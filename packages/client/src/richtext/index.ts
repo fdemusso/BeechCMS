@@ -12,3 +12,7 @@ export type {
   TipTapMarkType,
   RichtextEnvelopeV1,
 } from './types.js'
+
+// Aliases
+export { renderRichText as renderRichTextHtml } from './render.js'
+export { richTextToPlainText as extractPlainText } from './plain-text.js'

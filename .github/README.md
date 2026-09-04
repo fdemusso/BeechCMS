@@ -28,21 +28,29 @@ Cloudflare's free tier covers D1, R2, and Workers for the vast majority of real-
 Unlike other "flexible" CMSs that store data in slow JSON blobs, Beech generates **dedicated SQL tables** for every content type. Enjoy native B-Tree indexing, `REAL` and `INTEGER` types for mathematical operations, and ultra-fast queries.
 
 ### Schema-as-Code & Runtime Definitions
-Define your content model dynamically via the dashboard UI or in code (TypeScript). The **Botanical Engine** compiles your definitions into deterministic SQL DDL at runtime. Bootstrap your schema from code using `beech onboard` or `beech seed:load`, then let the D1 database act as the single source of truth—with real-time updates and zero server downtime.
+Define your content model dynamically via the dashboard UI or in code (TypeScript). The **Botanical Engine** compiles your definitions into deterministic SQL DDL at runtime. Initialize your database system tables using `npx beech onboard` or `npx beech init --db`, then manage your content models dynamically via the dashboard or REST API—with real-time updates and zero server downtime.
 
 ### Works as a dependency, not a boilerplate
 
-Your project is four files. The BeechCMS engine, dashboard, and API live inside `node_modules/@beechcms/api`. Update with `pnpm update @beechcms/api`.
+Your project is lightweight and focused purely on configuration. The BeechCMS engine, dashboard, and API live inside `@beechcms/api`. Update effortlessly with `npx beech update`.
 
 ---
 
 ## Getting Started
 
+Scaffold a new project in seconds using the interactive wizard:
+
 ```bash
-npx @beechcms/cms
+npx @beechcms/cms my-app
 ```
 
-The interactive wizard scaffolds a ready-to-use project in seconds. For everything from configuration to deployment, see the **[Developer Guide](https://fdemusso.github.io/BeechCMS/guide)**.
+Or scaffold non-interactively with the starter template:
+
+```bash
+npx @beechcms/cms my-app --yes
+```
+
+For everything from configuration to deployment, see the **[Developer Guide](https://fdemusso.github.io/BeechCMS/guide)**.
 
 ---
 

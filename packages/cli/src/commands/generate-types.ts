@@ -77,7 +77,7 @@ export async function generateTypes(args: GenerateTypesOptions = {}): Promise<vo
   if (!rows || rows.length === 0) {
     console.error(
       pc.red(`\n  ✗ No active seeds found in D1 database (${db}).`) +
-      pc.gray('\n    Run `beech seed:load` to synchronize your schemas into the database.\n')
+      pc.gray('\n    Create or activate seeds via the dashboard (/admin) or REST API (/api/seeds).\n')
     )
     process.exit(1)
   }
