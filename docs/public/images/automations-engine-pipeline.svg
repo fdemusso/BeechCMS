@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 290" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="trigGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="condGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="actGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.04"/>
+    </linearGradient>
+
+    <!-- Markers -->
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-emerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <style>
+    .diagram-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; fill: #1d4ed8; text-transform: uppercase; }
+    .card-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; fill: #ffffff; }
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13.5px; font-weight: 700; fill: #ffffff; }
+    .card-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10.5px; fill: rgba(255, 255, 255, 0.9); }
+    .code-pill { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 9.5px; font-weight: 600; }
+  </style>
+
+  <!-- Container Box -->
+  <rect x="15" y="15" width="850" height="260" rx="16" fill="url(#bgBoxGrad)" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <text x="36" y="42" class="diagram-title">BeechCMS Automations Pipeline: Trigger, Filter &amp; Action Execution</text>
+
+  <!-- Step 1: Trigger (Left) -->
+  <g transform="translate(38, 65)">
+    <rect width="220" height="185" rx="12" fill="url(#trigGrad)" filter="drop-shadow(0 6px 14px rgba(59, 130, 246, 0.3))"/>
+    <rect x="16" y="16" width="70" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="51" y="30" text-anchor="middle" class="card-badge">Step 1</text>
+    <text x="16" y="60" class="card-title">Event Triggers</text>
+    <text x="16" y="82" class="card-desc">• Lifecycle: create Fruit</text>
+    <text x="16" y="102" class="card-desc">• Lifecycle: update Fruit</text>
+    <text x="16" y="122" class="card-desc">• Lifecycle: delete Fruit</text>
+    <text x="16" y="142" class="card-desc">• Recurring schedule: cron</text>
+    <text x="16" y="162" class="card-desc">• Scoped per Botanical Seed</text>
+  </g>
+
+  <!-- Connector: Trigger -> Conditions -->
+  <path d="M 258 155 L 328 155" fill="none" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <g transform="translate(260, 135)">
+    <rect x="0" y="0" width="65" height="18" rx="4" fill="#fffbeb" stroke="#d97706" stroke-width="1"/>
+    <text x="32" y="12" text-anchor="middle" class="code-pill" fill="#b45309">Evaluate</text>
+  </g>
+
+  <!-- Step 2: Conditions (Center) -->
+  <g transform="translate(335, 65)">
+    <rect width="220" height="185" rx="12" fill="url(#condGrad)" filter="drop-shadow(0 6px 14px rgba(245, 158, 11, 0.3))"/>
+    <rect x="16" y="16" width="70" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="51" y="30" text-anchor="middle" class="card-badge">Step 2</text>
+    <text x="16" y="60" class="card-title">Filter Conditions</text>
+    <text x="16" y="82" class="card-desc">• status == 'published'</text>
+    <text x="16" y="102" class="card-desc">• priority == 'high'</text>
+    <text x="16" y="122" class="card-desc">• Interpolated field rules</text>
+    <text x="16" y="142" class="card-desc">• Boolean AND/OR logic</text>
+    <text x="16" y="162" class="card-desc">• Short-circuits false runs</text>
+  </g>
+
+  <!-- Connector: Conditions -> Actions -->
+  <path d="M 555 155 L 625 155" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+  <g transform="translate(557, 135)">
+    <rect x="0" y="0" width="65" height="18" rx="4" fill="#ecfdf5" stroke="#10b981" stroke-width="1"/>
+    <text x="32" y="12" text-anchor="middle" class="code-pill" fill="#047857">Execute</text>
+  </g>
+
+  <!-- Step 3: Action Pipeline (Right) -->
+  <g transform="translate(632, 65)">
+    <rect width="220" height="185" rx="12" fill="url(#actGrad)" filter="drop-shadow(0 6px 14px rgba(16, 185, 129, 0.3))"/>
+    <rect x="16" y="16" width="70" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="51" y="30" text-anchor="middle" class="card-badge">Step 3</text>
+    <text x="16" y="60" class="card-title">Actions Pipeline</text>
+    <text x="16" y="82" class="card-desc">• send_mail (Resend)</text>
+    <text x="16" y="102" class="card-desc">• webhook (HTTP POST)</text>
+    <text x="16" y="122" class="card-desc">• edit_field (mutate)</text>
+    <text x="16" y="142" class="card-desc">• create_entry (spawn)</text>
+    <text x="16" y="162" class="card-desc">• set_variable (preloads)</text>
+  </g>
+</svg>

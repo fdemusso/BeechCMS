@@ -152,6 +152,11 @@ h1, h2, h3, h4, h5, h6,
   padding-top: 24px;
 }
 
+.vp-doc hr + h2 {
+  border-top: none;
+  padding-top: 0;
+}
+
 .vp-doc h3 {
   font-weight: 600;
   font-size: 1.3rem;
@@ -455,3 +460,309 @@ html.dark .VPHomeHero .image-src.light {
 .VPNavBarMenuLink.active {
   color: var(--vp-c-brand-1) !important;
 }
+
+/* ==========================================================================
+   Topbar Layout: Menu (Links/Categories) on Left, Search on Right, Theme Toggle on Far Right
+   ========================================================================== */
+@media (min-width: 768px) {
+  .VPNavBar .content-body {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+  }
+
+  /* 1. Menu (Links / Categories) on the Left */
+  .VPNavBar .content-body .menu {
+    order: 1 !important;
+    margin-right: auto !important;
+    padding-left: 24px !important;
+  }
+
+  /* 2. Search Bar on the Right */
+  .VPNavBar .content-body .search {
+    order: 2 !important;
+    flex-grow: 0 !important;
+    padding-left: 0 !important;
+    margin-left: auto !important;
+    margin-right: 4px !important;
+  }
+
+  .VPNavBar .content-body .search .VPNavBarSearch {
+    flex-grow: 0 !important;
+    padding-left: 0 !important;
+  }
+
+  .VPNavBar .content-body .search .DocSearch-Button {
+    min-width: 170px !important;
+    width: 200px !important;
+    max-width: 240px !important;
+    justify-content: space-between !important;
+  }
+
+  .VPNavBar .content-body .search .DocSearch-Button-Container {
+    flex-grow: 1 !important;
+  }
+
+  /* 3. Translations (if any) */
+  .VPNavBar .content-body .translations {
+    order: 3 !important;
+  }
+
+  /* 4. Appearance / Theme Toggle stays on the Right */
+  .VPNavBar .content-body .appearance {
+    order: 4 !important;
+  }
+
+  /* 5. Social Links / GitHub stays on the Right */
+  .VPNavBar .content-body .social-links {
+    order: 5 !important;
+  }
+
+  /* 6. Extra */
+  .VPNavBar .content-body .extra {
+    order: 6 !important;
+  }
+}
+
+/* ==========================================================================
+   VPHome Content Width & Lateral Margins (Override VitePress VPHomeContent)
+   ========================================================================== */
+.VPHome .vp-doc.container {
+  max-width: 1440px !important;
+  padding: 0 24px !important;
+}
+
+@media (min-width: 640px) {
+  .VPHome .vp-doc.container {
+    padding: 0 28px !important;
+  }
+}
+
+@media (min-width: 960px) {
+  .VPHome .vp-doc.container {
+    width: 100% !important;
+    max-width: 1440px !important;
+    padding: 0 32px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .VPHome .vp-doc.container {
+    padding: 0 16px !important;
+  }
+}
+
+/* ==========================================================================
+   Main Hub & Bento Grid Styling
+   ========================================================================== */
+.main-hub-section {
+  width: 100%;
+  max-width: 100%;
+  margin: 40px auto;
+  padding: 0;
+}
+
+.main-hub-section h2 {
+  font-family: var(--vp-font-family-heading);
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin: 48px 0 16px 0;
+  border-top: none;
+  padding-top: 0;
+  color: var(--vp-c-text-1);
+}
+
+.main-hub-section > p {
+  color: var(--vp-c-text-2);
+  margin-bottom: 24px;
+  font-size: 1rem;
+}
+
+.hub-macro-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+
+.macro-card {
+  display: flex;
+  flex-direction: column;
+  padding: 22px;
+  border-radius: 12px;
+  border: 1px solid var(--vp-c-border);
+  background: var(--vp-c-bg-elv);
+  text-decoration: none !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--vp-shadow-1);
+}
+
+.macro-card:hover {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-bg-alt);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(63, 61, 86, 0.15), 0 0 0 1px rgba(255, 101, 132, 0.2);
+}
+
+.macro-card h3 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0 0 8px 0 !important;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--vp-c-text-1) !important;
+}
+
+.macro-card p {
+  margin: 0 !important;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-2) !important;
+}
+
+@media (max-width: 640px) {
+  .hub-macro-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   Asymmetrical Bento Grid Styling
+   ========================================================================== */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 20px 0 36px 0;
+}
+
+.bento-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 22px;
+  border-radius: 16px;
+  border: 1px solid var(--vp-c-border);
+  background: var(--vp-c-bg-elv);
+  text-decoration: none !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--vp-shadow-1);
+  position: relative;
+  overflow: hidden;
+}
+
+.bento-card:hover {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-bg-alt);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px -6px rgba(63, 61, 86, 0.15), 0 0 0 1px rgba(255, 101, 132, 0.25);
+}
+
+.bento-span-1 {
+  grid-column: span 1;
+}
+
+.bento-span-2 {
+  grid-column: span 2;
+}
+
+.bento-card-top {
+  display: flex;
+  flex-direction: column;
+}
+
+.bento-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.bento-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 9999px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  border: 1px solid rgba(255, 101, 132, 0.18);
+}
+
+
+.bento-card h3 {
+  margin: 0 0 8px 0 !important;
+  font-size: 1.12rem;
+  font-weight: 600;
+  color: var(--vp-c-text-1) !important;
+  line-height: 1.35;
+}
+
+.bento-card p {
+  margin: 0 !important;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-2) !important;
+}
+
+.bento-preview {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--vp-c-bg);
+  border: 1px solid var(--vp-c-divider);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.78rem;
+  color: var(--vp-c-text-2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.bento-preview code,
+.bento-preview .token-code {
+  background: transparent !important;
+  padding: 0 !important;
+  color: var(--vp-c-brand-1);
+  font-size: 0.78rem;
+  font-family: var(--vp-font-family-mono);
+}
+
+@media (max-width: 960px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bento-span-2 {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+  .bento-span-1,
+  .bento-span-2 {
+    grid-column: span 1;
+  }
+}
+
+.features-bento-layout .content-container {
+  max-width: 1180px !important;
+}
+
+.features-bento-layout .VPDoc:not(.has-aside) .content-container {
+  max-width: 1180px !important;
+}
+
+.features-bento-layout .vp-doc {
+  max-width: 100% !important;
+}
+
+
