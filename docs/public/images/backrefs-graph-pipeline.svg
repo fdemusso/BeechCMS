@@ -51,7 +51,7 @@
     <text x="16" y="82" class="card-desc">• Forward link: authorId</text>
     <text x="16" y="102" class="card-desc">• Forward link: categoryId[]</text>
     <text x="16" y="122" class="card-desc">• Botanical schema relation</text>
-    <text x="16" y="142" class="card-desc">• No junction tables needed</text>
+    <text x="16" y="142" class="card-desc">• Automated junction tables</text>
     <text x="16" y="162" class="card-desc">• Fast parameterized queries</text>
   </g>
 
@@ -94,10 +94,10 @@
     <rect x="16" y="16" width="98" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
     <text x="65" y="30" text-anchor="middle" class="card-badge">Target Seed</text>
     <text x="16" y="60" class="card-title">Authors / Tags</text>
-    <text x="16" y="82" class="card-desc">• "Referenced By" tab in UI</text>
+    <text x="16" y="82" class="card-desc">• "Referenced By" panel in UI</text>
     <text x="16" y="102" class="card-desc">• Visual inbound chips</text>
     <text x="16" y="122" class="card-desc">• Deletion safety warnings</text>
     <text x="16" y="142" class="card-desc">• Zero orphaned records</text>
-    <text x="16" y="162" class="card-desc">• 422 on broken relation</text>
+    <text x="16" y="162" class="card-desc">• 409 on restricted delete</text>
   </g>
 </svg>
