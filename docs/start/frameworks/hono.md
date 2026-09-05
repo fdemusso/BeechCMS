@@ -8,15 +8,45 @@ Consume BeechCMS content from a lightweight, high-performance Hono edge microser
   description="Copy this prompt into Cursor, Claude, or ChatGPT to generate your Hono integration code:"
 />
 
-## Step 1: Install Official Client SDK
+## 1. Set up your BeechCMS backend & sample Seed
 
-Install `@beechcms/client` and `hono` in your consumer project:
+Before querying data in Hono, ensure you have a running BeechCMS instance with sample content:
 
-<PackageManagerTabs command="@beechcms/client hono" />
+1. **Start BeechCMS**: If running locally, start your backend via `pnpm run dev` (running on `http://localhost:8789`), or use your deployed Cloudflare Worker URL.
+2. **Verify or Create the Seed**: In your BeechCMS admin dashboard (`/admin`), verify you have an `articles` Seed with:
+   - **Branches**: `title` (Text), `slug` (Slug), and `body` (Rich Text).
+   - **Permissions**: Ensure **Allow Public Read** (`allowPublicRead`) is checked so public requests can fetch content without admin secrets.
+3. **Publish a Fruit (Record)**: Create at least one article and click **Publish**.
 
-## Step 2: Initialize Beech Client in Hono Context
+## 2. Create a Hono app
 
-Create a Hono app and bind the client via middleware:
+Create a new Hono project targeting Cloudflare Workers (or Node.js):
+
+```bash
+npm create hono@latest my-hono-app
+cd my-hono-app
+```
+
+## 3. Install the official client SDK
+
+Install `@beechcms/client` in your Hono project:
+
+<PackageManagerTabs command="@beechcms/client" />
+
+## 4. Declare environment variables
+
+For Cloudflare Workers development, configure variables in `.dev.vars`:
+
+```bash
+BEECH_API_URL=http://localhost:8789
+BEECH_READ_KEY=dev-read-key-changeme
+```
+
+> In local development, the default read key is pre-configured. In production, configure secrets via `wrangler secret put BEECH_READ_KEY`.
+
+## 5. Initialize the Beech client
+
+Define your content types and inject a typed Beech client into Hono context variables:
 
 ```typescript
 // src/index.ts
@@ -24,7 +54,7 @@ import { Hono } from 'hono'
 import { createBeechServerClient, type BeechServerClient } from '@beechcms/client/server'
 import { renderRichText } from '@beechcms/client/richtext'
 
-export interface Post {
+export interface Article {
   id: string
   title: string
   slug: string
@@ -35,7 +65,7 @@ export interface Post {
 }
 
 export interface AppRegistry {
-  posts: Post
+  articles: Article
 }
 
 type Bindings = {
@@ -49,7 +79,7 @@ type Variables = {
 
 const app = new Hono<{ Bindings: Bindings; Variables: Variables }>()
 
-// Middleware to inject BeechClient
+// Middleware: Attach Beech client to Hono context
 app.use('*', async (c, next) => {
   const client = createBeechServerClient<AppRegistry>({
     baseUrl: c.env.BEECH_API_URL || 'http://localhost:8789',
@@ -60,18 +90,18 @@ app.use('*', async (c, next) => {
 })
 ```
 
-## Step 3: Route Handlers Returning JSON / HTML
+## 6. Query and render content
 
-Implement typed route endpoints consuming content from BeechCMS:
+Add JSON and HTML endpoints consuming BeechCMS content:
 
 ```typescript
 // src/index.ts (continued)
 
-// JSON API Gateway endpoint
+// JSON API Endpoint
 app.get('/api/articles', async (c) => {
   const beech = c.get('beech')
 
-  const result = await beech.content('posts').list({
+  const result = await beech.content('articles').list({
     sort: { created_at: 'desc' },
     limit: 10
   })
@@ -81,42 +111,84 @@ app.get('/api/articles', async (c) => {
   }
 
   return c.json({
-    success: true,
     count: result.data.data.length,
     articles: result.data.data
   })
 })
 
 // Edge SSR HTML Route with TipTap RichText
-app.get('/articles/:slug', async (c) => {
+app.get('/', async (c) => {
   const beech = c.get('beech')
-  const slug = c.req.param('slug')
 
-  const result = await beech.content('posts').get({ slug })
+  const result = await beech.content('articles').list({
+    sort: { created_at: 'desc' },
+    limit: 10
+  })
 
-  if (result.error || !result.data) {
-    return c.html('<h1>Article Not Found</h1>', 404)
-  }
+  const articles = result.data ? result.data.data : []
 
-  const post = result.data.data
-  const bodyHtml = renderRichText(post.body)
-
-  return c.html(`
+  const html = `
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
       <head>
-        <title>${post.title}</title>
+        <meta charset="utf-8">
+        <title>BeechCMS + Hono</title>
       </head>
-      <body>
-        <article>
-          <h1>${post.title}</h1>
-          ${post.cover_image ? `<img src="${post.cover_image}" alt="${post.title}" />` : ''}
-          <div>${bodyHtml}</div>
-        </article>
+      <body style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem;">
+        <h1>BeechCMS + Hono Edge Microservice</h1>
+        ${articles.length === 0 ? '<p>No articles found.</p>' : ''}
+        ${articles.map(article => `
+          <article style="border: 1px solid #e2e8f0; border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+            <h2>${article.title}</h2>
+            <div>${renderRichText(article.body)}</div>
+          </article>
+        `).join('')}
       </body>
     </html>
-  `)
+  `
+
+  return c.html(html)
 })
 
 export default app
 ```
+
+## 7. Start the app
+
+Run the Hono development server (e.g. via Wrangler for Cloudflare Workers):
+
+```bash
+npm run dev
+```
+
+Open [http://localhost:8787](http://localhost:8787) in your browser. You will see your BeechCMS articles rendered directly from your edge handler.
+
+## Production requirements
+
+Before deploying to production:
+
+- **Configure Seed Permissions**: Ensure your Seed has `allowPublicRead: true` enabled in the admin dashboard so public visitors can fetch published content.
+- **Production API URL**: Point `BEECH_API_URL` to your production Cloudflare Worker URL (`https://api.yourdomain.com`).
+- **Production API Keys**: Set `BEECH_READ_KEY` to your `PUBLIC_READ_API_KEY`.
+- **Edge Performance**: Running Hono alongside BeechCMS on Cloudflare Workers allows sub-millisecond edge invocation with zero cold starts.
+
+## Cloudflare Edge Deployment
+
+Hono and BeechCMS share the exact same Cloudflare Workers isolate runtime, making them the ultimate edge pairing:
+
+- **Deploying to Cloudflare Workers**: Run `wrangler deploy` to publish your consumer service to Cloudflare's global edge network.
+- **Service Bindings (Zero Network Overhead)**: If your Hono microservice runs in the same Cloudflare account as BeechCMS, connect them via a **Service Binding** in `wrangler.jsonc`:
+  ```jsonc
+  "services": [
+    { "binding": "BEECH_API", "service": "beech-api" }
+  ]
+  ```
+  Service Bindings allow your Hono worker to invoke BeechCMS directly in memory across edge isolates with **sub-millisecond latency, zero SSL overhead, and zero public internet exposure**.
+- **Edge Streaming**: Hono natively supports Web Streams (`c.streamText()` or chunked HTML streaming), allowing you to stream large BeechCMS content payloads straight to the client without memory buffering.
+
+## Next steps
+
+- **[5-Minute First Project Tutorial](/start/first-project)**: Follow a step-by-step tutorial covering project scaffolding, database bootstrap, visual modeling, and deployment.
+- **[Client SDK Reference](/reference/client-sdk)**: Explore advanced querying, filtering, and pagination parameters.
+- **[Public API Reference](/reference/public-api)**: Understand Edge REST endpoints, caching headers, and RFC 7807 error responses.
+- **[Forms SDK (@beechcms/forms-react)](/features/forms)**: Capture user submissions and feedback with zero secrets and built-in bot defense.

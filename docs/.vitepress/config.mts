@@ -1,8 +1,16 @@
 import { defineConfig } from 'vitepress'
 
+/**
+ * Public documentation base URL for AI prompts and external references.
+ * Set your production domain here when going live (e.g. 'https://beechcms.dev/' or 'https://docs.beechcms.dev/').
+ * Can also be overridden dynamically via the DOCS_BASE_URL environment variable.
+ */
+export const DOCS_BASE_URL = process.env.DOCS_BASE_URL || 'https://beechcms.dev/'
+export const DOCS_BASE_PATH = process.env.DOCS_BASE_PATH || '/BeechCMS/'
+
 export default defineConfig({
   title: "BeechCMS",
-  base: '/BeechCMS/',
+  base: DOCS_BASE_PATH,
   description: "Edge-native headless CMS",
   lang: 'en-US',
   srcExclude: ['Sprints/**', 'personal/**', 'examples/**', 'ci/**'],
@@ -10,7 +18,7 @@ export default defineConfig({
     /^https?:\/\/localhost/,
   ],
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/BeechCMS/images/BeechLogo.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${DOCS_BASE_PATH.endsWith('/') ? DOCS_BASE_PATH : `${DOCS_BASE_PATH}/`}images/BeechLogo.svg` }],
     ['link', { rel: 'preconnect', href: 'https://fonts.googleapis.com' }],
     ['link', { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' }],
     ['link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800&family=Inter:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=JetBrains+Mono:wght@400;500;600&display=swap' }]
@@ -29,6 +37,11 @@ export default defineConfig({
     }
   },
   themeConfig: {
+    docsBaseUrl: DOCS_BASE_URL,
+    outline: {
+      level: [2, 3],
+      label: 'On this page'
+    },
     logo: {
       light: '/images/LightBeech.svg',
       dark: '/images/DarkBeech.svg',
@@ -52,7 +65,7 @@ export default defineConfig({
           text: 'Getting Started',
           items: [
             { text: 'Overview', link: '/start/' },
-            { text: 'First Project (5 min)', link: '/start/first-project' }
+            { text: 'Your First Project', link: '/start/first-project' }
           ]
         },
         {
@@ -117,20 +130,20 @@ export default defineConfig({
           text: 'Editorial Experience',
           items: [
             { text: 'Views: Kanban & Bulk', link: '/features/editorial-views' },
-            { text: 'Command Palette (Cmd+K)', link: '/features/command-palette' }
+            { text: 'Command Palette (Cmd+K)', link: '/features/command-palette' },
+            { text: 'Forms & Anti-Bot', link: '/features/forms' },
+            { text: 'Email Module', link: '/features/email-module' }
           ]
         },
         {
           text: 'Workflows & Security',
           items: [
             { text: 'Automations', link: '/features/automations' },
-            { text: 'Forms & Anti-Bot', link: '/features/forms' },
             { text: 'Search & Hybrid Retrieval', link: '/features/search' },
-            { text: 'Webhooks & Events', link: '/features/webhooks' },
-            { text: 'Confidential Data', link: '/features/confidential-data' },
             { text: 'Edge Analytics', link: '/features/analytics' },
-            { text: 'Observability', link: '/features/observability' },
-            { text: 'Email Module', link: '/features/email-module' }
+            { text: 'Confidential Data', link: '/features/confidential-data' },
+            { text: 'Webhooks & Events', link: '/features/webhooks' },
+            { text: 'Observability', link: '/features/observability' }
           ]
         }
       ],

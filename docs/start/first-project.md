@@ -1,8 +1,8 @@
-# First Project: 5-Minute Zero-to-Fullstack Tutorial
+# Your First Project
 
-This guide takes you from an empty directory to a fully functioning **BeechCMS** edge backend, a visually modeled content structure, and a connected frontend consumer in just 5 minutes.
+Follow this step-by-step guide to scaffold a BeechCMS edge backend, visually model your content schema, and query published entries with the official SDK in just 5 minutes.
 
-## Overview
+## Architecture overview
 
 BeechCMS eliminates server management by running natively on Cloudflare's serverless primitives:
 
@@ -10,13 +10,9 @@ BeechCMS eliminates server management by running natively on Cloudflare's server
   <img src="/images/first-project-architecture.svg" alt="BeechCMS Full-Stack Edge Architecture" style="width: 100%; max-width: 860px; margin: 16px 0;" />
 </p>
 
-```text
-Scaffold Project ──► Bootstrap D1 ──► Model Seed ──► Staging & Drafts ──► Query with SDK ──► Edge Deploy
-```
-
 ---
 
-## Step 1: Project Scaffolding
+## 1. Project scaffolding
 
 Generate a new BeechCMS project using the scaffolding CLI:
 
@@ -27,7 +23,9 @@ Generate a new BeechCMS project using the scaffolding CLI:
   bun="bunx @beechcms/cms my-app"
 />
 
-To skip interactive prompts and scaffold immediately with defaults:
+### Automated setup
+
+To skip interactive prompts and scaffold immediately with sensible defaults:
 
 ```bash
 npx @beechcms/cms my-app --yes
@@ -35,7 +33,7 @@ cd my-app
 npm install
 ```
 
-### Directory Layout
+### Project layout
 
 ```text
 my-app/
@@ -50,32 +48,38 @@ The entire CMS engine and admin SPA live inside `@beechcms/api`. Your workspace 
 
 ---
 
-## Step 2: Database Bootstrap & Dev Server
+## 2. Local environment setup
 
-1. **Bootstrap local D1 database**:
-   Execute the migration script to apply the base system tables (`seeds`, `users`, `sessions`, `api_keys`, `media`):
+### Bootstrap the D1 database
 
-   ```bash
-   npm run db:migrate:local
-   # or via CLI: npx beech init --db
-   ```
+Apply the base system schema (`seeds`, `users`, `sessions`, `api_keys`, `media`) to your local Cloudflare D1 emulator:
 
-2. **Start the local development server**:
+```bash
+npm run db:migrate:local
+# or via CLI: npx beech init --db
+```
 
-   ```bash
-   npm run dev
-   ```
+### Launch the dev server
 
-   Wrangler starts the local Workers emulator on `http://localhost:8789`.
+Start the local Wrangler Workers runtime:
 
-3. **Access the Admin Dashboard**:
-   Open [http://localhost:8789/admin](http://localhost:8789/admin) in your browser. Complete the initial setup by creating your administrator credentials.
+```bash
+npm run dev
+```
+
+Wrangler starts the local Workers emulator on `http://localhost:8789`.
+
+### Open dashboard
+
+Open [http://localhost:8789/admin](http://localhost:8789/admin) in your browser. Complete the initial setup by creating your administrator credentials.
 
 ---
 
-## Step 3: Visual Seed Modeling
+## 3. Visual Seed modeling
 
-BeechCMS models content through **Seeds** (Blueprints) containing **Branches** (Fields):
+BeechCMS models content through **Seeds** (Blueprints) containing **Branches** (Fields).
+
+### Create the Posts Seed
 
 1. In the Admin Dashboard navigation, click **Content Modeling** (or **Seeds**).
 2. Click **Create Seed** and configure the blueprint:
@@ -84,18 +88,20 @@ BeechCMS models content through **Seeds** (Blueprints) containing **Branches** (
    - **Display Name Branch**: `title`
    - **Public Read Access**: Toggle **ON** (`allowPublicRead: true`) to enable public REST API queries.
    - **Drafts Workflow**: Toggle **ON** (`allowDrafts: true`) to enable dual-table draft staging.
-3. Add the following Branches:
-   - **Title**: Type `text`, alias `title`, required, search indexed (`search: true`).
-   - **Slug**: Type `text`, alias `slug`, required.
-   - **Cover Image**: Type `file`, alias `cover_image`, accept `image`.
-   - **Body**: Type `richtext`, alias `body`.
-4. Click **Save Seed**.
 
-Under the hood, the Botanical Engine automatically compiles SQLite DDL: provisioning `content_posts`, draft mirror table `content_posts_drafts`, B-tree indexes, and full-text search table `fts_content_posts`.
+### Configure Branches
+
+Add the following Branches to the Seed:
+- **Title**: Type `text`, alias `title`, required, search indexed (`search: true`).
+- **Slug**: Type `text`, alias `slug`, required.
+- **Cover Image**: Type `file`, alias `cover_image`, accept `image`.
+- **Body**: Type `richtext`, alias `body`.
+
+Click **Save Seed**. Under the hood, the Botanical Engine compiles the SQLite DDL: provisioning `content_posts`, the draft mirror table `content_posts_drafts`, B-tree indexes, and the full-text search virtual table `fts_content_posts`.
 
 ---
 
-## Step 4: Staging vs Production (Dual-Table Staging)
+## 4. Publish content
 
 BeechCMS guarantees draft isolation using **Dual-Table Mirror Staging**:
 
@@ -103,25 +109,30 @@ BeechCMS guarantees draft isolation using **Dual-Table Mirror Staging**:
   <img src="/images/dual-table-drafts-pipeline.svg" alt="Dual-Table Mirror Staging Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
 </p>
 
-- **Draft Table (`content_posts_drafts`)**: Every draft save or live edit is written to the draft staging table. Editors can preview unpublished drafts safely without leaking unapproved content.
+### Dual-Table Mirror Staging
+
+- **Draft Table (`content_posts_drafts`)**: Every draft save or live edit is written to the staging table. Editors can preview unpublished drafts safely without leaking unapproved changes.
 - **Production Table (`content_posts`)**: When you click **Publish**, BeechCMS atomically promotes the staging record into the production table.
 - **Public API Safety**: Public queries (`GET /api/v1/public/posts`) query ONLY the production table by default. The internal route `GET /api/content/posts` requires authenticated admin session permissions.
 
-Create your first post in the dashboard:
-1. Navigate to **Content > Posts** and click **New Entry**.
-2. Fill in the title `"Hello BeechCMS"`, write body text, and click **Publish**.
+### Publish your first post
+
+1. Navigate to **Content > Posts** in the dashboard and click **New Entry**.
+2. Fill in the title `"Hello BeechCMS"`, write some body text, and click **Publish**.
 
 ---
 
-## Step 5: Consuming Content with `@beechcms/client`
+## 5. Query with SDK
 
-Now connect any frontend to your BeechCMS backend using the official Client SDK.
+Connect your frontend to BeechCMS using the official `@beechcms/client` SDK.
 
-1. Install `@beechcms/client`:
+### Install the SDK
 
 <PackageManagerTabs command="@beechcms/client" />
 
-2. Initialize the client and query your published posts:
+### Fetch published posts
+
+Create a script or module to query your published entries:
 
 ```typescript
 import { createBeechServerClient } from '@beechcms/client/server'
@@ -173,31 +184,35 @@ fetchPosts()
 
 ---
 
-## Step 6: Edge Deployment to Cloudflare
+## 6. Cloudflare edge deployment
 
-When you are ready to deploy your production edge CMS:
+When you are ready to deploy your production edge CMS to Cloudflare:
 
-1. **Log in to Cloudflare**:
-   ```bash
-   npx wrangler login
-   ```
+### Authenticate with Wrangler
 
-2. **Automated Cloudflare Provisioning**:
-   Let the Beech CLI provision your D1 database, R2 media bucket, and secrets:
-   ```bash
-   npx beech setup:cloudflare
-   ```
+```bash
+npx wrangler login
+```
 
-3. **Deploy to Cloudflare Workers**:
-   ```bash
-   npx beech deploy
-   ```
+### Provision edge resources
+
+Let the Beech CLI provision your D1 database, R2 media bucket, and secrets:
+
+```bash
+npx beech setup:cloudflare
+```
+
+### Deploy to Workers
+
+```bash
+npx beech deploy
+```
 
 Your CMS API and embedded Admin Dashboard are now live worldwide on Cloudflare's global edge network with zero cold starts!
 
 ---
 
-## Next Steps
+## Next steps
 
 - Explore [Schema Modeling & Evolution](/build/schema-modeling) for advanced field types and relations.
 - Connect your frontend with dedicated [Framework Quickstarts](/start/frameworks/react).

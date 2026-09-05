@@ -8,6 +8,7 @@ const props = withDefaults(
     framework?: string
     title?: string
     description?: string
+    baseUrl?: string
   }>(),
   {
     title: 'AI Quickstart Prompt',
@@ -15,16 +16,29 @@ const props = withDefaults(
   }
 )
 
-const { site } = useData()
+const { site, theme } = useData()
 const copied = ref(false)
 
 const docBaseUrl = computed(() => {
+  // 1. Explicit prop override
+  if (props.baseUrl) {
+    return props.baseUrl.endsWith('/') ? props.baseUrl : `${props.baseUrl}/`
+  }
+
+  // 2. Configured in themeConfig (docs/.vitepress/config.mts) or DOCS_BASE_URL env var
+  const configured = (theme.value as Record<string, any>)?.docsBaseUrl
+  if (configured) {
+    return configured.endsWith('/') ? configured : `${configured}/`
+  }
+
+  // 3. Fallback to current browser origin if in browser
   if (typeof window !== 'undefined' && window.location.origin) {
     const base = site.value.base || '/'
     const cleanBase = base.endsWith('/') ? base : `${base}/`
     return `${window.location.origin}${cleanBase}`
   }
-  return 'https://flaviodemusso.github.io/BeechCMS/'
+
+  return 'https://beechcms.dev/'
 })
 
 const defaultPrompt = computed(() => {

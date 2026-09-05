@@ -152,6 +152,11 @@ h1, h2, h3, h4, h5, h6,
   padding-top: 24px;
 }
 
+.vp-doc hr + h2 {
+  border-top: none;
+  padding-top: 0;
+}
+
 .vp-doc h3 {
   font-weight: 600;
   font-size: 1.3rem;
@@ -621,3 +626,143 @@ html.dark .VPHomeHero .image-src.light {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   Asymmetrical Bento Grid Styling
+   ========================================================================== */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 20px 0 36px 0;
+}
+
+.bento-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 22px;
+  border-radius: 16px;
+  border: 1px solid var(--vp-c-border);
+  background: var(--vp-c-bg-elv);
+  text-decoration: none !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--vp-shadow-1);
+  position: relative;
+  overflow: hidden;
+}
+
+.bento-card:hover {
+  border-color: var(--vp-c-brand-1);
+  background: var(--vp-c-bg-alt);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px -6px rgba(63, 61, 86, 0.15), 0 0 0 1px rgba(255, 101, 132, 0.25);
+}
+
+.bento-span-1 {
+  grid-column: span 1;
+}
+
+.bento-span-2 {
+  grid-column: span 2;
+}
+
+.bento-card-top {
+  display: flex;
+  flex-direction: column;
+}
+
+.bento-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.bento-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-radius: 9999px;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  border: 1px solid rgba(255, 101, 132, 0.18);
+}
+
+
+.bento-card h3 {
+  margin: 0 0 8px 0 !important;
+  font-size: 1.12rem;
+  font-weight: 600;
+  color: var(--vp-c-text-1) !important;
+  line-height: 1.35;
+}
+
+.bento-card p {
+  margin: 0 !important;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: var(--vp-c-text-2) !important;
+}
+
+.bento-preview {
+  margin-top: 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--vp-c-bg);
+  border: 1px solid var(--vp-c-divider);
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.78rem;
+  color: var(--vp-c-text-2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.bento-preview code,
+.bento-preview .token-code {
+  background: transparent !important;
+  padding: 0 !important;
+  color: var(--vp-c-brand-1);
+  font-size: 0.78rem;
+  font-family: var(--vp-font-family-mono);
+}
+
+@media (max-width: 960px) {
+  .bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .bento-span-2 {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 640px) {
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+  .bento-span-1,
+  .bento-span-2 {
+    grid-column: span 1;
+  }
+}
+
+.features-bento-layout .content-container {
+  max-width: 1180px !important;
+}
+
+.features-bento-layout .VPDoc:not(.has-aside) .content-container {
+  max-width: 1180px !important;
+}
+
+.features-bento-layout .vp-doc {
+  max-width: 100% !important;
+}
+
+

@@ -27,29 +27,26 @@ Scaffold a production-ready edge backend in seconds:
   bun="bunx @beechcms/cms my-app"
 />
 
-## Core Concepts
-
-Understanding BeechCMS boils down to three core concepts:
-
-- **Seeds (Content Blueprints)**: A Seed is a content model (such as `posts`, `authors`, or `products`). Each Seed defines an identifying `slug`, UI labels, branches, and presentation policies. Seeds configure REST API permissions (`allowPublicRead`, `allowPublicPost`, `allowPublicEdit`), content staging (`allowDrafts`), and GDPR retention.
-- **Branches (Fields & Attributes)**: Individual properties inside a Seed (such as `title`, `cover_image`, `body`, or `tags`). Every branch carries a permanent identifier (`id: 'br_...'`, e.g. `br_01`, `br_02`) that preserves database integrity and relationships even across alias renames.
-- **Fruits (Content Records)**: Concrete content items generated from a Seed and persisted in Cloudflare D1 (`Entry` records).
-
-```text
-Seed (Blueprint)  ──►  Branches (Fields)  ──►  Fruits (Records)
-```
-
 ## AI Assistant Quickstart
 
 Accelerate your integration by copying this prompt directly into your AI coding assistant:
 
 <LlmPromptNode />
 
+## Core Concepts
+
+BeechCMS is designed around an intuitive botanical mental model, inspired by the growth cycle of a beech tree. Rather than dealing with sterile technical terms, content modeling follows a natural journey from blueprint to harvest:
+
+- **The Seed (Blueprint)**: Every content type begins as a Seed. It acts as the genetic blueprint—the schema defining the nature and rules of what can grow, without storing any practical data yet.
+- **The Tree & Branches (Structure & Fields)**: When a Seed is planted, it grows into an organized structure defined by its Branches. Each Branch represents an individual field or property that shapes the attributes of your content.
+- **The Fruits (Content Records)**: The harvest of your tree. Every time you create and publish an entry, the tree bears a Fruit—a concrete content record holding real, tangible data.
+- **The Forest (Your Content Ecosystem)**: A complete digital experience is rarely a single tree. Multiple Seeds grow alongside each other, forming a rich, interconnected Forest that powers your entire project.
+
 ## Onboarding Pathways
 
 Choose the fastest path to integrate BeechCMS into your stack:
 
-- **[5-Minute First Project Tutorial](/start/first-project)**: Follow a step-by-step tutorial covering project scaffolding, database bootstrap, visual modeling, dual-table staging, and Cloudflare deployment.
+- **[Your First Project](/start/first-project)**: Follow a step-by-step tutorial covering project scaffolding, database bootstrap, visual modeling, dual-table staging, and Cloudflare deployment.
 - **Framework Quickstarts**: Jump straight to an idiomatic integration guide for your frontend framework:
   - [React](/start/frameworks/react) — Single-page application with `@beechcms/client`.
   - [Next.js](/start/frameworks/nextjs) — Server Components, caching, and dynamic static generation.
