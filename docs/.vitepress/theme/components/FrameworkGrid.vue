@@ -8,14 +8,14 @@ interface FrameworkItem {
 }
 
 const frameworks: FrameworkItem[] = [
-  { name: 'React', link: '/start/', icon: 'react' },
-  { name: 'Next.js', link: '/start/', icon: 'nextjs' },
-  { name: 'Astro', link: '/start/', icon: 'astro' },
-  { name: 'Vue', link: '/start/', icon: 'vue' },
-  { name: 'Nuxt', link: '/start/', icon: 'nuxt' },
-  { name: 'Remix', link: '/start/', icon: 'remix' },
-  { name: 'SvelteKit', link: '/start/', icon: 'svelte' },
-  { name: 'Hono', link: '/start/', icon: 'hono' }
+  { name: 'React', link: '/start/frameworks/react', icon: 'react' },
+  { name: 'Next.js', link: '/start/frameworks/nextjs', icon: 'nextjs' },
+  { name: 'Astro', link: '/start/frameworks/astro', icon: 'astro' },
+  { name: 'Vue', link: '/start/frameworks/vue', icon: 'vue' },
+  { name: 'Nuxt', link: '/start/frameworks/nuxt', icon: 'nuxt' },
+  { name: 'Remix', link: '/start/frameworks/remix', icon: 'remix' },
+  { name: 'SvelteKit', link: '/start/frameworks/sveltekit', icon: 'svelte' },
+  { name: 'Hono', link: '/start/frameworks/hono', icon: 'hono' }
 ]
 </script>
 

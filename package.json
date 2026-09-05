@@ -42,7 +42,8 @@
   "scripts": {
     "docs:generate": "turbo run build && typedoc",
     "docs:dev": "vitepress dev docs",
-    "docs:build": "turbo run build && typedoc && vitepress build docs",
+    "docs:check": "node scripts/docs-fact-check.mjs",
+    "docs:build": "turbo run build && typedoc && node scripts/docs-fact-check.mjs && vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "beech": "node bin/cli.mjs",
     "dev": "node scripts/dev.mjs",

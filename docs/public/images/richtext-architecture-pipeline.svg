@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 310" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="editorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="astGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="renderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.04"/>
+    </linearGradient>
+
+    <!-- Markers -->
+    <marker id="arrow-dark" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#1e293b"/>
+    </marker>
+    <marker id="arrow-indigo" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#6366f1"/>
+    </marker>
+    <marker id="arrow-emerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <style>
+    .diagram-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; fill: #4f46e5; text-transform: uppercase; }
+    .card-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; fill: #ffffff; }
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; font-weight: 700; fill: #ffffff; }
+    .card-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: rgba(255, 255, 255, 0.9); }
+    .step-pill { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 9.5px; font-weight: 600; }
+  </style>
+
+  <!-- Container Box -->
+  <rect x="15" y="15" width="850" height="280" rx="16" fill="url(#bgBoxGrad)" stroke="#6366f1" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <text x="36" y="42" class="diagram-title">BeechCMS TipTap Rich Text &amp; Structured AST Architecture</text>
+
+  <!-- Node 1: Visual Editor (Left) -->
+  <g transform="translate(38, 70)">
+    <rect width="215" height="200" rx="12" fill="url(#editorGrad)" filter="drop-shadow(0 6px 16px rgba(15, 23, 42, 0.35))"/>
+    <rect x="16" y="16" width="108" height="20" rx="5" fill="rgba(255, 255, 255, 0.18)"/>
+    <text x="70" y="30" text-anchor="middle" class="card-badge">Visual Editor</text>
+    <text x="16" y="60" class="card-title">TipTap UI Canvas</text>
+    <text x="16" y="82" class="card-desc">• Block formatting (H1-H6, lists)</text>
+    <text x="16" y="102" class="card-desc">• Drag-and-drop image uploads</text>
+    <text x="16" y="122" class="card-desc">• Session image tracking</text>
+    <text x="16" y="142" class="card-desc">• Tables, code blocks &amp; quotes</text>
+    <text x="16" y="162" class="card-desc">• Client-side XSS prevention</text>
+  </g>
+
+  <!-- Connector: Editor -> JSON AST Engine -->
+  <path d="M 253 140 L 332 140" fill="none" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)"/>
+  <g transform="translate(254, 120)">
+    <rect x="0" y="0" width="76" height="18" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1"/>
+    <text x="38" y="12" text-anchor="middle" class="step-pill" fill="#4338ca">output="json"</text>
+  </g>
+
+  <!-- Node 2: JSON AST & Session Garbage Collector (Center) -->
+  <g transform="translate(340, 70)">
+    <rect width="230" height="200" rx="12" fill="url(#astGrad)" filter="drop-shadow(0 6px 16px rgba(99, 102, 241, 0.3))"/>
+    <rect x="16" y="16" width="124" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="78" y="30" text-anchor="middle" class="card-badge">Data Layer</text>
+    <text x="16" y="60" class="card-title">ProseMirror JSON AST</text>
+    <text x="16" y="82" class="card-desc">• Structured nodes &amp; marks</text>
+    <text x="16" y="102" class="card-desc">• Auto-purge orphaned R2 media</text>
+    <text x="16" y="122" class="card-desc">• Strict link protocol whitelist</text>
+    <text x="16" y="142" class="card-desc">• Seed validation &amp; sanitize</text>
+    <text x="16" y="162" class="card-desc">• Portable multi-channel storage</text>
+  </g>
+
+  <!-- Connector: AST Engine -> Frontend Renderers -->
+  <path d="M 570 140 L 632 140" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+  <g transform="translate(572, 120)">
+    <rect x="0" y="0" width="60" height="18" rx="4" fill="#ecfdf5" stroke="#10b981" stroke-width="1"/>
+    <text x="30" y="12" text-anchor="middle" class="step-pill" fill="#047857">Consume</text>
+  </g>
+
+  <!-- Node 3: Frontend Renderers (Right) -->
+  <g transform="translate(640, 70)">
+    <rect width="210" height="200" rx="12" fill="url(#renderGrad)" filter="drop-shadow(0 6px 16px rgba(16, 185, 129, 0.3))"/>
+    <rect x="16" y="16" width="115" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="73" y="30" text-anchor="middle" class="card-badge">Omnichannel</text>
+    <text x="16" y="60" class="card-title">Frontend Consumers</text>
+    <text x="16" y="82" class="card-desc">• React / Next.js (@tiptap/react)</text>
+    <text x="16" y="102" class="card-desc">• Astro / Vue Native Components</text>
+    <text x="16" y="122" class="card-desc">• Mobile (React Native / Flutter)</text>
+    <text x="16" y="142" class="card-desc">• Headless HTML Compiler</text>
+    <text x="16" y="162" class="card-desc">• Zero style coupling</text>
+  </g>
+</svg>

@@ -39,9 +39,12 @@ Search Client: @beechcms/search-client
 
 Key Architecture Guidelines:
 - Edge Native: Sub-millisecond latency on Cloudflare edge.
-- Client SDK: Use BeechClient with baseURL and token for typed content querying.
+- Client SDK: Use createBeechBrowserClient / createBeechServerClient from '@beechcms/client/browser' or '@beechcms/client/server' with baseUrl and apiKey.
+- Content Querying: Use beech.content('seedSlug').list({ sort: { created_at: 'desc' }, limit: 10 }) or beech.content('seedSlug').get({ slug }).
+- Result Unwrapping: Extract records from result.data.data and handle errors via result.error.
+- RichText: Render TipTap body AST via renderRichText(post.body) from '@beechcms/client/richtext'.
 - Content Models: Seeds define schemas, Branches define fields, Fruits represent content items.
-- Dual-Table Mirror Staging: Drafts stay isolated in staging tables and promote atomically to production.
+- Dual-Table Mirror Staging: Drafts stay isolated in draft staging tables and promote atomically to production.
 
 Generate the integration code following strict TypeScript typing, clean error handling, and modern edge-rendering patterns.`
 })

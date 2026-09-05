@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="reqGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="edgeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="bufferGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="dashGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.04"/>
+    </linearGradient>
+
+    <!-- Markers -->
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-emerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+    <marker id="arrow-indigo" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#6366f1"/>
+    </marker>
+  </defs>
+
+  <style>
+    .diagram-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; fill: #d97706; text-transform: uppercase; }
+    .card-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; fill: #ffffff; }
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13.5px; font-weight: 700; fill: #ffffff; }
+    .card-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10.5px; fill: rgba(255, 255, 255, 0.9); }
+    .code-pill { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 9.5px; font-weight: 600; }
+  </style>
+
+  <!-- Container Box -->
+  <rect x="15" y="15" width="850" height="270" rx="16" fill="url(#bgBoxGrad)" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <text x="36" y="42" class="diagram-title">BeechCMS Non-Blocking Edge Telemetry Pipeline</text>
+
+  <!-- Node 1: Incoming Content API Traffic (Left) -->
+  <g transform="translate(38, 65)">
+    <rect width="210" height="195" rx="12" fill="url(#reqGrad)" filter="drop-shadow(0 6px 14px rgba(59, 130, 246, 0.3))"/>
+    <rect x="16" y="16" width="98" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="65" y="30" text-anchor="middle" class="card-badge">Public Traffic</text>
+    <text x="16" y="60" class="card-title">Content Requests</text>
+    <text x="16" y="82" class="card-desc">• GET /api/v1/public/:seed</text>
+    <text x="16" y="102" class="card-desc">• Client SDK queries</text>
+    <text x="16" y="122" class="card-desc">• Edge cached or fresh</text>
+    <text x="16" y="142" class="card-desc">• Immediate 200 OK delivery</text>
+    <text x="16" y="162" class="card-desc">• Zero latency added</text>
+  </g>
+
+  <!-- Connector: Traffic -> Middleware -->
+  <path d="M 248 150 L 318 150" fill="none" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <g transform="translate(250, 130)">
+    <rect x="0" y="0" width="65" height="18" rx="4" fill="#fffbeb" stroke="#d97706" stroke-width="1"/>
+    <text x="32" y="12" text-anchor="middle" class="code-pill" fill="#b45309">Analytics</text>
+  </g>
+
+  <!-- Node 2: Non-Blocking Edge Handler (Center) -->
+  <g transform="translate(325, 65)">
+    <rect width="230" height="195" rx="12" fill="url(#edgeGrad)" filter="drop-shadow(0 6px 16px rgba(245, 158, 11, 0.3))"/>
+    <rect x="16" y="16" width="128" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="80" y="30" text-anchor="middle" class="card-badge">Edge Worker Hook</text>
+    <text x="16" y="60" class="card-title">executionCtx.waitUntil()</text>
+    <text x="16" y="82" class="card-desc">• Extracts target Seed slug</text>
+    <text x="16" y="102" class="card-desc">• Asynchronous D1 buffer write</text>
+    <text x="16" y="122" class="card-desc">• Bypasses critical render path</text>
+    <text x="16" y="142" class="card-desc">• Handles worker isolate restart</text>
+    <text x="16" y="162" class="card-desc">• Error-isolated (fail-safe)</text>
+  </g>
+
+  <!-- Connectors from Center to Right -->
+  <path d="M 555 110 L 615 100" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+  <path d="M 555 190 L 615 200" fill="none" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)"/>
+
+  <!-- Storage Node 3A: D1 Analytics Buffer -->
+  <g transform="translate(625, 65)">
+    <rect width="220" height="85" rx="10" fill="url(#bufferGrad)" filter="drop-shadow(0 4px 12px rgba(16, 185, 129, 0.25))"/>
+    <text x="14" y="24" class="card-title" font-size="12.5px">D1 Analytics Buffer</text>
+    <text x="14" y="44" class="card-desc">• Per-seed request rollups</text>
+    <text x="14" y="62" class="card-desc">• 24h / 7d / 30d time windows</text>
+  </g>
+
+  <!-- Storage Node 3B: Stats & Audits -->
+  <g transform="translate(625, 165)">
+    <rect width="220" height="95" rx="10" fill="url(#dashGrad)" filter="drop-shadow(0 4px 12px rgba(99, 102, 241, 0.25))"/>
+    <text x="14" y="24" class="card-title" font-size="12.5px">Dashboard Telemetry</text>
+    <text x="14" y="44" class="card-desc">• /stats/unused-media detection</text>
+    <text x="14" y="62" class="card-desc">• /stats/setup-checklist status</text>
+    <text x="14" y="80" class="card-desc">• R2 &amp; D1 storage quota dials</text>
+  </g>
+</svg>

@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 310" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="sourceGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="engineGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="targetGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF6584"/>
+      <stop offset="100%" stop-color="#3F3D56"/>
+    </linearGradient>
+    <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#FF6584" stop-opacity="0.04"/>
+    </linearGradient>
+
+    <!-- Markers -->
+    <marker id="arrow-indigo" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#6366f1"/>
+    </marker>
+    <marker id="arrow-pink" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#FF6584"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#3b82f6"/>
+    </marker>
+  </defs>
+
+  <style>
+    .diagram-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; fill: #6366f1; text-transform: uppercase; }
+    .card-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; fill: #ffffff; }
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; font-weight: 700; fill: #ffffff; }
+    .card-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: rgba(255, 255, 255, 0.9); }
+    .step-pill { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 9.5px; font-weight: 600; }
+  </style>
+
+  <!-- Container Box -->
+  <rect x="15" y="15" width="850" height="280" rx="16" fill="url(#bgBoxGrad)" stroke="#6366f1" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <text x="36" y="42" class="diagram-title">BeechCMS Bidirectional Relationship &amp; Backref Indexing</text>
+
+  <!-- Node 1: Source Seed (Left) -->
+  <g transform="translate(38, 70)">
+    <rect width="210" height="200" rx="12" fill="url(#sourceGrad)" filter="drop-shadow(0 6px 16px rgba(59, 130, 246, 0.3))"/>
+    <rect x="16" y="16" width="95" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="63" y="30" text-anchor="middle" class="card-badge">Source Seeds</text>
+    <text x="16" y="60" class="card-title">Articles &amp; Posts</text>
+    <text x="16" y="82" class="card-desc">• Forward link: authorId</text>
+    <text x="16" y="102" class="card-desc">• Forward link: categoryId[]</text>
+    <text x="16" y="122" class="card-desc">• Botanical schema relation</text>
+    <text x="16" y="142" class="card-desc">• No junction tables needed</text>
+    <text x="16" y="162" class="card-desc">• Fast parameterized queries</text>
+  </g>
+
+  <!-- Forward Link Connector (Top) -->
+  <path d="M 248 115 L 332 115" fill="none" stroke="#3b82f6" stroke-width="2" marker-end="url(#arrow-blue)"/>
+  <g transform="translate(247, 95)">
+    <rect x="0" y="0" width="84" height="18" rx="4" fill="#eff6ff" stroke="#3b82f6" stroke-width="1"/>
+    <text x="42" y="12" text-anchor="middle" class="step-pill" fill="#1d4ed8">Forward Link</text>
+  </g>
+
+  <!-- Node 2: Botanical Graph Engine (Center) -->
+  <g transform="translate(340, 70)">
+    <rect width="220" height="200" rx="12" fill="url(#engineGrad)" filter="drop-shadow(0 6px 16px rgba(99, 102, 241, 0.3))"/>
+    <rect x="16" y="16" width="112" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="72" y="30" text-anchor="middle" class="card-badge">Graph Engine</text>
+    <text x="16" y="60" class="card-title">Backref Resolver</text>
+    <text x="16" y="82" class="card-desc">• Runtime backrefMap</text>
+    <text x="16" y="102" class="card-desc">• In-memory inverted index</text>
+    <text x="16" y="122" class="card-desc">• GET /:slug/:id/backrefs</text>
+    <text x="16" y="142" class="card-desc">• Deep relation pagination</text>
+    <text x="16" y="162" class="card-desc">• Referenced By aggregates</text>
+  </g>
+
+  <!-- Connectors: Center <-> Right -->
+  <path d="M 560 115 L 632 115" fill="none" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)"/>
+  <g transform="translate(562, 95)">
+    <rect x="0" y="0" width="70" height="18" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1"/>
+    <text x="35" y="12" text-anchor="middle" class="step-pill" fill="#4338ca">Resolves</text>
+  </g>
+
+  <path d="M 632 185 L 248 185" fill="none" stroke="#FF6584" stroke-width="2" stroke-dasharray="5 3" marker-end="url(#arrow-pink)"/>
+  <g transform="translate(390, 205)">
+    <rect x="0" y="0" width="140" height="18" rx="4" fill="#fff1f2" stroke="#FF6584" stroke-width="1"/>
+    <text x="70" y="12" text-anchor="middle" class="step-pill" fill="#e11d48">Cascade Delete Guard</text>
+  </g>
+
+  <!-- Node 3: Target Seed & Guard (Right) -->
+  <g transform="translate(640, 70)">
+    <rect width="210" height="200" rx="12" fill="url(#targetGrad)" filter="drop-shadow(0 6px 16px rgba(255, 101, 132, 0.3))"/>
+    <rect x="16" y="16" width="98" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="65" y="30" text-anchor="middle" class="card-badge">Target Seed</text>
+    <text x="16" y="60" class="card-title">Authors / Tags</text>
+    <text x="16" y="82" class="card-desc">• "Referenced By" tab in UI</text>
+    <text x="16" y="102" class="card-desc">• Visual inbound chips</text>
+    <text x="16" y="122" class="card-desc">• Deletion safety warnings</text>
+    <text x="16" y="142" class="card-desc">• Zero orphaned records</text>
+    <text x="16" y="162" class="card-desc">• 422 on broken relation</text>
+  </g>
+</svg>
