@@ -19,20 +19,41 @@ Add it to your MCP client config (e.g. `.mcp.json`, `claude_desktop_config.json`
       "command": "node",
       "args": ["/absolute/path/to/packages/mcp/dist/index.js"],
       "env": {
-        "BEECH_API_URL": "http://localhost:8787",
-        "BEECH_EMAIL": "admin@example.com",
-        "BEECH_PASSWORD": "your-admin-password"
+        "BEECH_API_URL": "http://localhost:8787"
       }
     }
   }
 }
 ```
 
-- `BEECH_API_URL` defaults to `http://localhost:8787`; if unset, the server falls back to a
-  `BEECH_API_URL=` line in a local `.dev.vars` file (never credentials — `.dev.vars` holds Worker
-  secrets, not user accounts).
-- `BEECH_EMAIL` / `BEECH_PASSWORD` are required — the server authenticates via
-  `POST /auth/login` like any other admin user. There is no API-key / service-token path.
+On first use, the server opens your system browser to `/oauth/authorize`, you log in and
+approve the "BeechCMS MCP Server" consent screen, and the resulting token pair is cached at
+`~/.beechcms/mcp-tokens.json` (mode `0600`). Every later tool call reuses or silently refreshes
+that token — no password ever touches the MCP client config.
+
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `BEECH_API_URL` | No | `.dev.vars` → `http://localhost:8787` | Token endpoint + REST API origin. |
+| `BEECH_AUTH_URL` | No | `BEECH_API_URL` | Origin the browser opens for `/oauth/authorize`. Must be the **dashboard** origin in local dev (Vite, `:5173`). |
+| `BEECH_OAUTH_CLIENT_ID` | No | `beech-mcp` | Must match the client row from migration `0039`. |
+| `BEECH_OAUTH_SCOPE` | No | `schema:read schema:write` | Set to `schema:read` for a read-only agent. |
+| `BEECH_OAUTH_TIMEOUT_MS` | No | `180000` | Browser round-trip budget. |
+| `BEECH_TOKEN_CACHE` | No | `~/.beechcms/mcp-tokens.json` | Cache override (tests, containers). |
+
+**Local dev**: set `BEECH_AUTH_URL=http://localhost:5173` (the dashboard's Vite origin) alongside
+`BEECH_API_URL=http://127.0.0.1:8789` (`wrangler dev --port 8789`) — the Worker cannot serve the
+consent screen itself in dev.
+
+To revoke access, open **Settings → Connected apps** in the dashboard and revoke
+"BeechCMS MCP Server"; the next tool call re-opens the browser to re-authorize.
+
+### Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| `400 invalid_client` | Migration `0039_oauth_client_beech_mcp.sql` not applied — run `pnpm beech db:migrate`. |
+| `403 insufficient_scope` | Cached token is narrower than the tool needs — revoke and re-authorize with a wider `BEECH_OAUTH_SCOPE`. |
+| Authorization timed out | Browser consent was not completed within `BEECH_OAUTH_TIMEOUT_MS` — re-run the tool. |
 
 ## Tools
 
@@ -58,7 +79,7 @@ is tracked as a follow-up (Issue #328), not part of this release.
 | Status | Meaning | Agent action |
 |---|---|---|
 | 400 | Bad input (bad slug, non-object candidate, non-integer `expectedVersion`) | Fix the input, do not retry blindly |
-| 401 | Auth failed after one re-login attempt | Check `BEECH_EMAIL` / `BEECH_PASSWORD` |
+| 401 | Auth failed after one refresh-and-retry attempt | Re-run any Beech tool to re-authorize in the browser |
 | 403 | Account lacks `admin` role | Ask the developer for an admin account |
 | 409 | Registry drift — another writer moved `registry_version` | Re-run `beech_schema_plan` |
 | 422 | Validation failure, destructive intent, or DDL failure | Show the developer the detail; do not retry the same candidate |

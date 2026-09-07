@@ -64,9 +64,7 @@ Edit your `claude_desktop_config.json`:
       "command": "node",
       "args": ["/ABSOLUTE/PATH/TO/packages/mcp/dist/index.js"],
       "env": {
-        "BEECH_API_URL": "http://localhost:8787",
-        "BEECH_EMAIL": "admin@example.com",
-        "BEECH_PASSWORD": "your-admin-password"
+        "BEECH_API_URL": "http://localhost:8787"
       }
     }
   }
@@ -84,9 +82,7 @@ In Cursor, open **Settings > Features > MCP**, click **Add New MCP Server**, or 
       "command": "node",
       "args": ["/ABSOLUTE/PATH/TO/packages/mcp/dist/index.js"],
       "env": {
-        "BEECH_API_URL": "http://localhost:8787",
-        "BEECH_EMAIL": "admin@example.com",
-        "BEECH_PASSWORD": "your-admin-password"
+        "BEECH_API_URL": "http://localhost:8787"
       }
     }
   }
@@ -97,12 +93,26 @@ In Cursor, open **Settings > Features > MCP**, click **Add New MCP Server**, or 
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `BEECH_API_URL` | Optional | `http://localhost:8787` | BeechCMS API base URL. If unset and a `.dev.vars` file exists in the working directory, the server reads `BEECH_API_URL` from it. |
-| `BEECH_EMAIL` | **Yes** | — | Administrator email account. |
-| `BEECH_PASSWORD` | **Yes** | — | Administrator password. |
+| `BEECH_API_URL` | Optional | `http://localhost:8787` | BeechCMS API base URL (token endpoint + REST API origin). If unset and a `.dev.vars` file exists in the working directory, the server reads `BEECH_API_URL` from it. |
+| `BEECH_AUTH_URL` | Optional | `BEECH_API_URL` | Origin the browser opens for `/oauth/authorize`. Must be the **dashboard** origin in local dev. |
+| `BEECH_OAUTH_CLIENT_ID` | Optional | `beech-mcp` | Must match the registered client from migration `0039`. |
+| `BEECH_OAUTH_SCOPE` | Optional | `schema:read schema:write` | Set to `schema:read` for a read-only agent. |
+| `BEECH_OAUTH_TIMEOUT_MS` | Optional | `180000` | Browser round-trip budget, in milliseconds. |
+| `BEECH_TOKEN_CACHE` | Optional | `~/.beechcms/mcp-tokens.json` | Cache override (tests, containers). |
 
 > [!NOTE]
-> The MCP server authenticates via `POST /auth/login` and receives a 15-minute JWT. It automatically handles token refreshing on 401 responses. Because schema endpoints are admin-protected, the credentials must belong to a user with role `admin`.
+> The MCP server authenticates via the OAuth 2.1 authorization-code flow with PKCE, not a password. On first use it opens your system browser to `/oauth/authorize`; after you log in and approve the consent screen, the server exchanges the code for a short-lived access token and a refresh token, cached at `~/.beechcms/mcp-tokens.json` (mode `0600`). Later tool calls silently reuse or refresh that token. Revoke access any time from **Settings → Connected apps** in the dashboard — the next tool call re-opens the browser to re-authorize.
+
+> [!NOTE]
+> **Local dev**: the dashboard runs on Vite (`:5173`) while the API runs on `wrangler dev --port 8789`. Set `BEECH_AUTH_URL=http://localhost:5173` alongside `BEECH_API_URL=http://127.0.0.1:8789` — the Worker cannot serve the consent screen itself in dev.
+
+### Troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| `400 invalid_client` | Migration `0039_oauth_client_beech_mcp.sql` not applied — run `pnpm beech db:migrate`. |
+| `403 insufficient_scope` | Cached token is narrower than the tool needs — revoke and re-authorize with a wider `BEECH_OAUTH_SCOPE`. |
+| Authorization timed out | Browser consent was not completed within `BEECH_OAUTH_TIMEOUT_MS` — re-run the tool. |
 
 ---
 

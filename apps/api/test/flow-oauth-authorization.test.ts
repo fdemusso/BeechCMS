@@ -50,7 +50,7 @@ describe('Flow: OAuth 2.1 Authorization', () => {
     const authorizeRes = await app.request(`/oauth/authorize?${authorizeQuery}`, { redirect: 'manual' }, { ...TEST_ENV, DB: db })
     expect(authorizeRes.status).toBe(302)
     const consentLocation = authorizeRes.headers.get('Location')!
-    expect(new URL(consentLocation).pathname).toBe('/admin/oauth/consent')
+    expect(new URL(consentLocation, 'http://localhost').pathname).toBe('/admin/oauth/consent')
 
     // 3. GET /oauth/authorize/request with admin JWT
     const requestRes = await app.request(`/oauth/authorize/request?${authorizeQuery}`, {

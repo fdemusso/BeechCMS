@@ -9,8 +9,8 @@ currently in flight ever gets Task Details.
 | 1 | `oauth-core-foundation` | **DONE** (commit `00e3315`; archived plan: `../../../../docs/Sprints/oauth-core-foundation/oauth-core-foundation.md`) |
 | 2 | `oauth-authorization-server` | **DONE** (commit `07ff827`; archived plan: `../../../../docs/Sprints/oauth-authorization-server/oauth-authorization-server.md`) |
 | 3 | `oauth-resource-server-scopes` | **DONE** (detailed plan: `../../../../docs/Sprints/oauth-resource-server-scopes/oauth-resource-server-scopes.md`) |
-| 4 | `oauth-dashboard-consent-ui` | **PLANNED** (detailed plan: `../oauth-dashboard-consent-ui.md`) |
-| 5 | `mcp-pkce-client` | PENDING |
+| 4 | `oauth-dashboard-consent-ui` | **DONE** (detailed plan: `../../../../docs/Sprints/oauth-dashboard-consent-ui/oauth-dashboard-consent-ui.md`) |
+| 5 | `mcp-pkce-client` | **DONE** (detailed plan: `../mcp-pkce-client.md`) |
 
 ---
 
@@ -119,3 +119,25 @@ in-flight plan state, removal of the password code path from `client.ts`, and do
 
 **Depends on:** Sprint 3 — the MCP client is only usable once scoped tokens are actually
 accepted by the resource server.
+
+**Corrections found during Sprint 5 planning:** (a) **no OAuth client is registered
+anywhere** — `grep -rn "INSERT INTO oauth_clients"` over the repo returns nothing, and
+`0038_oauth_authorization.sql` declares the registry static, so `GET /oauth/authorize`
+answers `400 invalid_client` today. Sprint 5 therefore also ships
+`apps/api/migrations/0039_oauth_client_beech_mcp.sql`, a data-only `INSERT OR IGNORE`
+registering `beech-mcp` with the port-less loopback redirect
+`http://127.0.0.1/oauth/callback` (`matchesRegisteredRedirectUri` ignores the port for
+loopback hosts, OAuth 2.1 §8.4.2). (b) `apps/api/wrangler.jsonc` declares only
+`"migrations_dir"` with no file list, so the "register in wrangler.jsonc" step of
+`_config/database_workflow.md` is stale and must NOT be performed. (c) The consent
+redirect at `authorize.ts:L110` is **absolute**: in local dev the browser sits on the
+Vite origin proxying `/oauth` to the Worker with `changeOrigin: true`, so the emitted
+`Location` points at the Worker port, which serves no dashboard assets — a one-line
+change to a relative `Location` (plus one line in `authorize.test.ts`) is part of
+Sprint 5. (d) `POST /oauth/token` reads its body with `context.req.parseBody()`, so the
+client MUST post `application/x-www-form-urlencoded`; a JSON body is a silent
+`400 invalid_request`. (e) The browser entry origin and the token-endpoint origin differ
+in local dev, hence a new `BEECH_AUTH_URL` (defaulting to `BEECH_API_URL`, identical in
+production where the Worker serves the dashboard from `ASSETS`). (f) `plans.ts` keys
+plans by `planId` with no token reference, so the "token expires mid-plan" requirement of
+the brief needs no new code — only a regression test.

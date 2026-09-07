@@ -57,7 +57,7 @@ describe('OAuth authorize handlers', () => {
       const res = await app.request(`/oauth/authorize?${query}`, { redirect: 'manual' }, { ...TEST_ENV, DB: db })
       expect(res.status).toBe(302)
       const location = res.headers.get('Location')!
-      const url = new URL(location)
+      const url = new URL(location, 'http://localhost')
       expect(url.pathname).toBe('/admin/oauth/consent')
       expect(url.search.slice(1)).toBe(query)
     })

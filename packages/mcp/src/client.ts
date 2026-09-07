@@ -5,8 +5,8 @@
  * HTTP client for communicating with the BeechCMS REST API from the MCP server.
  *
  * @remarks
- * Handles authentication via credentials (`BEECH_EMAIL` / `BEECH_PASSWORD`),
- * bearer token caching and automatic re-authentication upon HTTP 401 responses,
+ * Handles OAuth 2.1 authorization-code-with-PKCE authentication, on-disk token
+ * caching with automatic refresh-and-retry upon HTTP 401 responses,
  * environment resolution (including local `.dev.vars` fallbacks), and RFC 7807 problem details parsing.
  *
  * @module
@@ -14,6 +14,9 @@
 
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import type { OAuthConfig } from './oauth.js'
+import { authorize, refresh } from './oauth.js'
+import { type CachedGrant, clearGrant, readGrant, writeGrant } from './token-store.js'
 
 /**
  * RFC 7807 Problem Details object structure returned by the BeechCMS API on HTTP error responses.
@@ -47,70 +50,94 @@ function readDevVarsApiUrl(): string | undefined {
   return match ? match[1].trim() : undefined
 }
 
+/** Seconds of clock skew treated as "already expired", so a token that dies
+ *  in flight is refreshed before the request rather than after a 401. */
+const EXPIRY_SKEW_MS = 30_000
+
 /**
- * Configuration options resolved for connecting to the BeechCMS API.
+ * Resolved connection configuration. Credentials are gone: the only secrets
+ * this process ever holds are OAuth tokens, in `~/.beechcms/mcp-tokens.json`.
  */
 interface Config {
-  /** The base URL of the BeechCMS API (e.g. `'http://localhost:8787'`). */
   baseUrl: string
-  /** Email address for admin authentication. */
-  email: string | undefined
-  /** Password for admin authentication. */
-  password: string | undefined
+  oauth: OAuthConfig
 }
 
 /**
- * Loads API connection configuration from environment variables, `.dev.vars`, or default fallback.
+ * Loads API connection and OAuth configuration from environment variables, `.dev.vars`, or defaults.
  *
  * @returns The resolved {@link Config} object.
  */
 function loadConfig(): Config {
+  const baseUrl = process.env.BEECH_API_URL ?? readDevVarsApiUrl() ?? 'http://localhost:8787'
   return {
-    baseUrl: process.env.BEECH_API_URL ?? readDevVarsApiUrl() ?? 'http://localhost:8787',
-    email: process.env.BEECH_EMAIL,
-    password: process.env.BEECH_PASSWORD,
+    baseUrl,
+    oauth: {
+      apiUrl: baseUrl,
+      authUrl: process.env.BEECH_AUTH_URL ?? baseUrl,
+      clientId: process.env.BEECH_OAUTH_CLIENT_ID ?? 'beech-mcp',
+      scope: process.env.BEECH_OAUTH_SCOPE ?? 'schema:read schema:write',
+      timeoutMs: process.env.BEECH_OAUTH_TIMEOUT_MS ? Number(process.env.BEECH_OAUTH_TIMEOUT_MS) : 180_000,
+    },
   }
 }
 
 /** Active client configuration instance loaded at module evaluation time. */
 const config = loadConfig()
 
-/** Cached JWT bearer token obtained from a successful `/auth/login` request. */
-let token: string | undefined
+/** In-memory copy of the active grant. */
+let grant: CachedGrant | undefined
+
+/** Guards against two concurrent MCP tool calls opening two browser windows. */
+let inFlightAuth: Promise<CachedGrant> | undefined
 
 /**
- * Authenticates with BeechCMS using the configured admin email and password.
+ * Resolves a valid access token, transparently refreshing or launching the
+ * browser authorization flow when the cached grant is missing or expired.
  *
- * @returns A promise that resolves to the acquired JWT bearer token string.
- * @throws {@link BeechClientError} If credentials are missing, the server cannot be reached, or authentication fails.
+ * @param forceRefresh - Bypass the expiry check and force a token refresh.
+ * @returns A promise resolving to a valid bearer access token.
  */
-async function login(): Promise<string> {
-  if (!config.email || !config.password) {
-    throw new BeechClientError(
-      'Missing BEECH_EMAIL / BEECH_PASSWORD. Add them to the env block of your MCP client config (e.g. .mcp.json / claude_desktop_config.json).'
-    )
+async function getAccessToken(forceRefresh = false): Promise<string> {
+  if (grant === undefined) {
+    grant = readGrant(config.baseUrl, config.oauth.clientId)
   }
-  let response: Response
-  try {
-    response = await fetch(`${config.baseUrl}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: config.email, password: config.password }),
-    })
-  } catch (error) {
-    if (error instanceof TypeError || (error as NodeJS.ErrnoException)?.code === 'ECONNREFUSED') {
-      throw new BeechClientError(`Cannot reach the BeechCMS API at ${config.baseUrl}. Start the local stack with: pnpm beech dev`)
+
+  if (grant && !forceRefresh && grant.expiresAt - Date.now() > EXPIRY_SKEW_MS) {
+    return grant.accessToken
+  }
+
+  if (inFlightAuth) {
+    const resolved = await inFlightAuth
+    return resolved.accessToken
+  }
+
+  const authPromise = (async () => {
+    if (grant?.refreshToken) {
+      try {
+        const refreshed = await refresh(config.oauth, grant.refreshToken)
+        writeGrant(config.baseUrl, config.oauth.clientId, refreshed)
+        grant = refreshed
+        return refreshed
+      } catch {
+        clearGrant(config.baseUrl, config.oauth.clientId)
+        grant = undefined
+      }
     }
-    throw error
+
+    const authorized = await authorize(config.oauth)
+    writeGrant(config.baseUrl, config.oauth.clientId, authorized)
+    grant = authorized
+    return authorized
+  })()
+
+  inFlightAuth = authPromise
+  try {
+    const resolved = await authPromise
+    return resolved.accessToken
+  } finally {
+    inFlightAuth = undefined
   }
-  if (!response.ok) {
-    throw new BeechClientError(
-      "Authentication failed. Check BEECH_EMAIL / BEECH_PASSWORD, and that the account has role 'admin'."
-    )
-  }
-  const data = (await response.json()) as { token: string; expiresIn: string }
-  token = data.token
-  return token
 }
 
 /**
@@ -118,17 +145,18 @@ async function login(): Promise<string> {
  *
  * @param method - The HTTP method (e.g. `'GET'`, `'POST'`).
  * @param path - The API endpoint path (e.g. `'/api/seeds'`).
+ * @param accessToken - The bearer token to authenticate the request with.
  * @param body - Optional request payload to be serialized as JSON.
  * @returns The raw fetch `Response` object.
  * @throws {@link BeechClientError} If the server is unreachable or connection is refused.
  */
-async function rawFetch(method: string, path: string, body?: unknown): Promise<Response> {
+async function rawFetch(method: string, path: string, accessToken: string, body?: unknown): Promise<Response> {
   try {
     return await fetch(`${config.baseUrl}${path}`, {
       method,
       headers: {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        Authorization: `Bearer ${accessToken}`,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     })
@@ -156,8 +184,9 @@ export interface ApiResponse<T> {
  * Sends an authenticated HTTP request to the BeechCMS API endpoint.
  *
  * @remarks
- * - Automatically performs initial login if no token is cached.
- * - Handles token expiry by attempting a single re-login when receiving an HTTP 401.
+ * - Resolves a cached, refreshed, or freshly-authorized OAuth access token before sending.
+ * - Handles token expiry by attempting a single refresh-and-retry when receiving an HTTP 401.
+ * - Surfaces a dedicated error when the token lacks a required scope (HTTP 403).
  * - Parses RFC 7807 error responses into a descriptive {@link BeechClientError}.
  *
  * @typeParam T - Expected response payload type.
@@ -168,18 +197,29 @@ export interface ApiResponse<T> {
  * @throws {@link BeechClientError} When authentication fails, the server is unreachable, or the request fails with a non-2xx status.
  */
 export async function request<T = unknown>(method: string, path: string, body?: unknown): Promise<ApiResponse<T>> {
-  if (!token) await login()
-
-  let response = await rawFetch(method, path, body)
+  let accessToken = await getAccessToken()
+  let response = await rawFetch(method, path, accessToken, body)
 
   if (response.status === 401) {
-    await login()
-    response = await rawFetch(method, path, body)
+    accessToken = await getAccessToken(true)
+    response = await rawFetch(method, path, accessToken, body)
     if (response.status === 401) {
       throw new BeechClientError(
-        "Authentication failed. Check BEECH_EMAIL / BEECH_PASSWORD, and that the account has role 'admin'."
+        "Authorization failed. Run any Beech tool again to re-authorize in the browser, or revoke and re-grant the client from Settings → Connected apps."
       )
     }
+  }
+
+  if (response.status === 403) {
+    let body: { error?: string; error_description?: string } = {}
+    try { body = (await response.json()) as { error?: string; error_description?: string } } catch { /* non-JSON error body */ }
+    if (body.error === 'insufficient_scope') {
+      const scope = body.error_description?.match(/'([^']+)'/)?.[1] ?? ''
+      throw new BeechClientError(
+        `Token lacks the '${scope}' scope. Revoke 'BeechCMS MCP Server' under Settings → Connected apps and re-authorize.`
+      )
+    }
+    throw new BeechClientError(JSON.stringify({ status: 403, title: body.error ?? response.statusText, detail: body.error_description ?? '' }))
   }
 
   if (!response.ok) {

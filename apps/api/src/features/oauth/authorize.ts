@@ -110,8 +110,11 @@ export async function authorizeHandler(context: OAuthContext): Promise<Response>
     return context.redirect(buildErrorRedirect(validation!.redirectUri, validation!.error, validation!.description, validation!.state), 302)
   }
 
-  const consentUrl = new URL(CONSENT_SCREEN_PATH + '?' + url.search.slice(1), context.req.url)
-  return context.redirect(consentUrl.toString(), 302)
+  // Relative Location: resolves against the origin the *browser* used. In production
+  // the Worker serves the dashboard from ASSETS on its own origin; in local dev the
+  // browser is on the Vite origin proxying /oauth to the Worker, and an absolute
+  // Location would bounce it to the Worker port, which serves no dashboard assets.
+  return context.redirect(`${CONSENT_SCREEN_PATH}?${url.search.slice(1)}`, 302)
 }
 
 /**

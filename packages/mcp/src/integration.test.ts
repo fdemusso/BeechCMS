@@ -3,16 +3,21 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest'
 import http from 'node:http'
-import { resolve } from 'node:path'
+import { mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { resolve, join } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { Seed } from '@beechcms/core'
+import { writeGrant } from './token-store.js'
 
 describe('MCP Server Integration & Operational Test', () => {
   let server: http.Server
   let apiUrl: string
   let client: Client
   let transport: StdioClientTransport
+  let tokenCacheDir: string
+  let tokenCachePath: string
 
   let registryVersion = 3
   const activeSeeds: Seed[] = [
@@ -54,17 +59,6 @@ describe('MCP Server Integration & Operational Test', () => {
           res.end(JSON.stringify({ status: 401, title: 'Unauthorized', detail: 'Invalid or missing token' }))
           return
         }
-      }
-
-      if (url.pathname === '/auth/login' && req.method === 'POST') {
-        if (parsedBody?.email === 'admin@beechcms.test' && parsedBody?.password === 'correct-password') {
-          res.writeHead(200, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ token: 'test-valid-jwt', expiresIn: '1h' }))
-        } else {
-          res.writeHead(401, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ status: 401, title: 'Unauthorized', detail: 'Invalid credentials' }))
-        }
-        return
       }
 
       if (url.pathname === '/api/seeds' && req.method === 'GET') {
@@ -171,6 +165,18 @@ describe('MCP Server Integration & Operational Test', () => {
     const address = server.address() as { port: number }
     apiUrl = `http://127.0.0.1:${address.port}`
 
+    // Pre-seed the token cache so the subprocess finds a valid grant on its
+    // first request instead of opening a browser for the OAuth flow.
+    tokenCacheDir = mkdtempSync(join(tmpdir(), 'beech-mcp-integration-'))
+    tokenCachePath = join(tokenCacheDir, 'mcp-tokens.json')
+    process.env.BEECH_TOKEN_CACHE = tokenCachePath
+    writeGrant(apiUrl, 'beech-mcp', {
+      accessToken: 'test-valid-jwt',
+      refreshToken: 'test-refresh-token',
+      scope: 'schema:read schema:write',
+      expiresAt: Date.now() + 3_600_000,
+    })
+
     const mcpIndexPath = resolve(__dirname, '../dist/index.js')
     transport = new StdioClientTransport({
       command: 'node',
@@ -178,8 +184,7 @@ describe('MCP Server Integration & Operational Test', () => {
       env: {
         ...process.env,
         BEECH_API_URL: apiUrl,
-        BEECH_EMAIL: 'admin@beechcms.test',
-        BEECH_PASSWORD: 'correct-password',
+        BEECH_TOKEN_CACHE: tokenCachePath,
       },
     })
 
@@ -190,6 +195,8 @@ describe('MCP Server Integration & Operational Test', () => {
   afterAll(async () => {
     await client?.close()
     await new Promise<void>(resolve => server.close(() => resolve()))
+    delete process.env.BEECH_TOKEN_CACHE
+    rmSync(tokenCacheDir, { recursive: true, force: true })
   })
 
   it('lists all registered BeechCMS MCP tools', async () => {
