@@ -6,6 +6,7 @@
 import { Hono } from 'hono'
 import type { Seed } from '@beechcms/core'
 import {
+  nextBranchId,
   planCreateSeed,
   planExtendSeed,
   planFtsRebuild,
@@ -14,6 +15,47 @@ import {
 import { publicProblem, internalErrorDetail } from '../../public/problem-details'
 import type { Env, Variables } from '../../types'
 import { SLUG_RE, parseJsonBody, actorFromContext } from './seeds.helpers'
+
+/**
+ * Normalizes a candidate seed definition for MCP operations:
+ * - Preserves existing branch IDs from stored definition by alias matching if omitted.
+ * - Auto-assigns sequential branch IDs via `nextBranchId` for new branches that lack one.
+ * - Defaults `displayNameAlias` from stored definition or first text branch if omitted.
+ */
+export function normalizeCandidate(candidate: Seed, storedDef: Seed | null): Seed {
+  const normalized: Seed = {
+    ...candidate,
+    branches: Array.isArray(candidate.branches) ? candidate.branches.map(b => ({ ...b })) : [],
+  }
+
+  const storedByAlias = new Map((storedDef?.branches ?? []).map(b => [b.alias, b]))
+  const accSeed: Pick<Seed, 'branches'> = { branches: [] }
+
+  for (const branch of normalized.branches) {
+    if (!branch.id) {
+      const stored = storedByAlias.get(branch.alias)
+      if (stored?.id) {
+        branch.id = stored.id
+      } else {
+        branch.id = nextBranchId(accSeed)
+      }
+    }
+    accSeed.branches.push(branch)
+  }
+
+  if (!normalized.displayNameAlias) {
+    if (storedDef?.displayNameAlias) {
+      normalized.displayNameAlias = storedDef.displayNameAlias
+    } else {
+      const firstText = normalized.branches.find(b => b.type === 'text')
+      if (firstText) {
+        normalized.displayNameAlias = firstText.alias
+      }
+    }
+  }
+
+  return normalized
+}
 
 /**
  * Classification of schema migration intent for MCP agents:
@@ -90,10 +132,14 @@ mcpApp.post('/:slug/mcp-plan', async (context) => {
   if (!candidateInput || typeof candidateInput !== 'object') {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: '`candidate` must be a Seed object.' })
   }
-  const candidate: Seed = { ...(candidateInput as Seed), slug }
+  const rawCandidate: Seed = { ...(candidateInput as Seed), slug }
 
   const repo = context.get('seedRepository')
   const schemaMutator = context.get('schemaMutator')
+
+  const stored = await repo.get(slug)
+  const storedDef = stored && stored.status !== 'deleted' ? stored.definition : null
+  const candidate = normalizeCandidate(rawCandidate, storedDef)
 
   // Full-set validation: relation targets can only be checked against every active seed.
   const activeSeeds = await repo.listActive()
@@ -102,8 +148,6 @@ mcpApp.post('/:slug/mcp-plan', async (context) => {
     .filter(i => i.slug === slug)
     .map(i => ({ fatal: i.fatal, messages: i.messages }))
 
-  const stored = await repo.get(slug)
-  const storedDef = stored && stored.status !== 'deleted' ? stored.definition : null
   const { classification, blockedReasons } = classifyCandidate(storedDef, candidate)
 
   // Physical columns — the ONLY correct input for planExtendSeed.
@@ -174,10 +218,14 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
   if (!Number.isInteger(expectedVersion)) {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: '`expectedVersion` must be an integer. Obtain it from POST /api/seeds/:slug/mcp-plan.' })
   }
-  const candidate: Seed = { ...(candidateInput as Seed), slug }
+  const rawCandidate: Seed = { ...(candidateInput as Seed), slug }
 
   const repo = context.get('seedRepository')
   const schemaMutator = context.get('schemaMutator')
+
+  const stored = await repo.get(slug)
+  const storedDef = stored && stored.status !== 'deleted' ? stored.definition : null
+  const candidate = normalizeCandidate(rawCandidate, storedDef)
 
   // 1 — validate against the full active set (relation targets, reserved aliases, slug format)
   const activeSeeds = await repo.listActive()
@@ -194,8 +242,6 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
 
   // 2 — additive-only gate. Destructive intent is REJECTED, never confirmed here: drop /
   //     rename / retype have dedicated endpoints with their own typed confirm tokens.
-  const stored = await repo.get(slug)
-  const storedDef = stored && stored.status !== 'deleted' ? stored.definition : null
   const { classification, blockedReasons } = classifyCandidate(storedDef, candidate)
   if (blockedReasons.length > 0) {
     return publicProblem(context, {

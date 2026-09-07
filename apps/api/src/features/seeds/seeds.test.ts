@@ -1265,6 +1265,29 @@ describe('POST /:slug/mcp-plan', () => {
     expect(body.blockedReasons).toEqual([])
   })
 
+  it('classifies "additive" when new branches omit id (auto-assigned sequentially)', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([baseSeed]) })
+    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body'])) })
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const candidate: Seed = {
+      ...baseSeed,
+      branches: [
+        ...baseSeed.branches,
+        { alias: 'price', label: 'Price', type: 'number' } as Branch,
+      ],
+    }
+    const res = await app.request('/articles/mcp-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidate }),
+    })
+    const body = await res.json() as any
+    expect(body.classification).toBe('additive')
+    expect(body.blockedReasons).toEqual([])
+    expect(body.applicable).toBe(true)
+  })
+
   it('classifies "destructive" when a branch would be dropped', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord), listActive: vi.fn().mockResolvedValue([baseSeed]) })
     const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body'])) })
@@ -1358,6 +1381,34 @@ describe('POST /:slug/mcp-apply', () => {
     })
     expect(res.status).toBe(200)
     expect(mutator.getColumns).toHaveBeenCalledWith('content_articles')
+  })
+
+  it('happy path (extend): assigns sequential id when branch omits id in candidate', async () => {
+    const repo = makeRepo({
+      get: vi.fn().mockResolvedValue(baseRecord),
+      listActive: vi.fn().mockResolvedValue([baseSeed]),
+      getRegistryVersion: vi.fn().mockResolvedValue(3),
+      applyAtomic: vi.fn().mockResolvedValue({ applied: true, version: 4 }),
+    })
+    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body'])) })
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const candidate: Seed = {
+      ...baseSeed,
+      branches: [
+        ...baseSeed.branches,
+        { alias: 'price', label: 'Price', type: 'number' } as Branch,
+      ],
+    }
+    const res = await app.request('/articles/mcp-apply', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidate, expectedVersion: 3 }),
+    })
+    expect(res.status).toBe(200)
+    const appliedDef = (repo.applyAtomic as ReturnType<typeof vi.fn>).mock.calls[0][0].definition as Seed
+    const priceBranch = appliedDef.branches.find(b => b.alias === 'price')
+    expect(priceBranch?.id).toMatch(/^br_\d+$/)
   })
 
   it('409 on stale version: nothing applied, live version surfaced', async () => {

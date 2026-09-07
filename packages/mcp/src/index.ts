@@ -21,7 +21,7 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
 import type { Seed } from '@beechcms/core'
-import { validateSeedDefinitions } from '@beechcms/core'
+import { nextBranchId, validateSeedDefinitions } from '@beechcms/core'
 import { request, BeechClientError } from './client.js'
 import { savePlan, takePlan } from './plans.js'
 
@@ -209,8 +209,41 @@ async function handleTool(name: string, args: Record<string, unknown>) {
     }
 
     case 'beech_schema_validate': {
-      const candidate = args.candidate as Seed
+      const rawCandidate = args.candidate as Seed
       const { data: activeSeeds } = await request<Seed[]>('GET', '/api/schema')
+      const stored = activeSeeds.find(s => s.slug === rawCandidate.slug)
+
+      const candidate: Seed = {
+        ...rawCandidate,
+        branches: Array.isArray(rawCandidate.branches) ? rawCandidate.branches.map(b => ({ ...b })) : [],
+      }
+
+      const storedByAlias = new Map((stored?.branches ?? []).map(b => [b.alias, b]))
+      const accSeed: Pick<Seed, 'branches'> = { branches: [] }
+
+      for (const branch of candidate.branches) {
+        if (!branch.id) {
+          const matched = storedByAlias.get(branch.alias)
+          if (matched?.id) {
+            branch.id = matched.id
+          } else {
+            branch.id = nextBranchId(accSeed)
+          }
+        }
+        accSeed.branches.push(branch)
+      }
+
+      if (!candidate.displayNameAlias) {
+        if (stored?.displayNameAlias) {
+          candidate.displayNameAlias = stored.displayNameAlias
+        } else {
+          const firstText = candidate.branches.find(b => b.type === 'text')
+          if (firstText) {
+            candidate.displayNameAlias = firstText.alias
+          }
+        }
+      }
+
       const candidateSet = [...activeSeeds.filter(s => s.slug !== candidate.slug), candidate]
       const issues = validateSeedDefinitions(candidateSet).filter(i => i.slug === candidate.slug)
       return textResult({ issues })
