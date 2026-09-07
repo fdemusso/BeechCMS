@@ -34,6 +34,8 @@
     "node": ">=18.0.0"
   },
   "bin": {
+    "cms": "bin/create.mjs",
+    "@beechcms/cms": "bin/create.mjs",
     "beechcms": "bin/create.mjs",
     "beech": "bin/cli.mjs"
   },

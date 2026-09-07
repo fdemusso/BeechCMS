@@ -4,7 +4,9 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
   renderRichText,
+  renderRichTextHtml,
   richTextToPlainText,
+  extractPlainText,
   normalizeRichtextDocument,
   escapeHtml,
   stripControlChars,
@@ -459,6 +461,11 @@ describe('@beechcms/client/richtext', () => {
         ],
       }
       expect(renderRichText(doc)).toBe('<h6><span style="color: #ff0000;">Colored text</span></h6><h1>Heading 1 fallback</h1>')
+    })
+
+    it('exposes renderRichTextHtml and extractPlainText as functional aliases', () => {
+      expect(renderRichTextHtml).toBe(renderRichText)
+      expect(extractPlainText).toBe(richTextToPlainText)
     })
   })
 })

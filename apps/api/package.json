@@ -12,9 +12,7 @@
   },
   "files": [
     "dist/",
-    "migrations/0000_v040_base.sql",
-    "migrations/0029_automations.sql",
-    "migrations/0030_test_seeds.sql",
+    "migrations/",
     "assets/"
   ],
   "scripts": {

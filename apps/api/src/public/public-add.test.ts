@@ -214,5 +214,59 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
       expect(body.type).toBe('https://beechcms.dev/problems/sensitive-field-write')
       expect(body.detail).toBe('Cannot write internal/restricted fields: private_flag')
     })
+
+    it('allows authenticated write with X-API-Key to bypass Time-Trap and return enriched single payload', async () => {
+      const testApp = createBeechApp({
+        seeds: [leadsSeed],
+        repository: new StaticContentRepository([leadsSeed]),
+        idempotencyRepository: new StaticIdempotencyRepository(),
+        automationRepository: new StaticAutomationRepository(),
+      })
+
+      const res = await testApp.request('/api/v1/public/leads/add', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Direct Server Lead',
+          email: 'server@example.com',
+        }),
+      }, TEST_ENV)
+
+      expect(res.status).toBe(201)
+      const body = await res.json<{ success: boolean; id: string; slug: string; data: Record<string, unknown>; meta: { seed: string } }>()
+      expect(body.success).toBe(true)
+      expect(body.id).toBeDefined()
+      expect(body.slug).toBeDefined()
+      expect(body.data).toBeDefined()
+      expect(body.data.name).toBe('Direct Server Lead')
+      expect(body.meta.seed).toBe('leads')
+    })
+
+    it('rejects POST /add when an invalid X-API-Key is provided', async () => {
+      const testApp = createBeechApp({
+        seeds: [leadsSeed],
+        repository: new StaticContentRepository([leadsSeed]),
+      })
+
+      const res = await testApp.request('/api/v1/public/leads/add', {
+        method: 'POST',
+        headers: {
+          'X-API-Key': 'wrong-key',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Hacker',
+        }),
+      }, TEST_ENV)
+
+      expect(res.status).toBe(401)
+      const body = await res.json<{ type: string; status: number }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/public-api-key-unauthorized')
+      expect(body.status).toBe(401)
+    })
   })
 })
+
