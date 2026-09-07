@@ -112,11 +112,14 @@ export class D1SeedRepository implements ISeedRepository {
     // match, the SELECT yields zero rows and the statement is a no-op.
     // This is what makes the check atomic: reading the version in a separate round-trip and
     // comparing it in JS is a TOCTOU race between two concurrent agents.
+    // Compared as INTEGER, not TEXT: the D1 driver binds a JS number with REAL
+    // affinity, so CAST(? AS TEXT) on e.g. 1 yields '1.0' — never equal to the
+    // stored '1' — which trips the guard on every call (issue #388).
     const guard = this.db
       .prepare(
         `INSERT INTO seed_meta (id, value)
          SELECT 'registry_version', 'occ-conflict'
-         WHERE (SELECT value FROM seed_meta WHERE id = 'registry_version') <> CAST(? AS TEXT)`
+         WHERE (SELECT CAST(value AS INTEGER) FROM seed_meta WHERE id = 'registry_version') <> CAST(? AS INTEGER)`
       )
       .bind(expectedVersion)
 

@@ -68,7 +68,7 @@ describe('D1OAuthConsentRepository', () => {
       expect(sql).toContain('revoked_at = NULL')
     })
 
-    it('binds insert values followed by one (token, token) pair per requested scope', async () => {
+    it('binds insert values followed by a single JSON array of the requested scopes', async () => {
       const { db, bindMock } = makeMockDb()
       await new D1OAuthConsentRepository(db, idGenerator).grant(
         'oc1',
@@ -84,15 +84,24 @@ describe('D1OAuthConsentRepository', () => {
         'schema:read schema:write',
         NOW,
         NOW,
-        'schema:read',
-        'schema:read',
-        'schema:write',
-        'schema:write',
+        '["schema:read","schema:write"]',
       )
     })
 
-    it('dedupes repeated scopes before building the CASE expression', async () => {
-      const { db, prepareMock } = makeMockDb()
+    it('keeps a fixed bind count regardless of how many scopes are granted', async () => {
+      const { db, bindMock } = makeMockDb()
+      await new D1OAuthConsentRepository(db, idGenerator).grant(
+        'oc1',
+        'c1',
+        'u1',
+        ['schema:read'],
+        NOW,
+      )
+      expect(bindMock.mock.calls[0]).toHaveLength(7)
+    })
+
+    it('dedupes repeated scopes before serializing them', async () => {
+      const { db, bindMock } = makeMockDb()
       await new D1OAuthConsentRepository(db, idGenerator).grant(
         'oc1',
         'c1',
@@ -100,8 +109,7 @@ describe('D1OAuthConsentRepository', () => {
         ['schema:read', 'schema:read'],
         NOW,
       )
-      const sql = prepareMock.mock.calls[0][0] as string
-      expect(sql.match(/CASE WHEN/g)?.length).toBe(1)
+      expect(bindMock.mock.calls[0].at(-1)).toBe('["schema:read"]')
     })
   })
 

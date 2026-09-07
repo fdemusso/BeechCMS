@@ -56,24 +56,31 @@ export class D1OAuthConsentRepository implements IOAuthConsentRepository {
   ): Promise<void> {
     // Atomic upsert: SET expression unions old scopes (pre-update value,
     // referenced directly per SQLite ON CONFLICT semantics) with the new
-    // ones, token-by-token, so no read-then-write race can drop a scope.
+    // ones via a JSON-set union, so no read-then-write race can drop a scope.
+    // Placeholder count stays fixed (one extra bind for the new-scopes JSON
+    // array) regardless of how many scopes are granted.
     const uniqueScopes = [...new Set(scopes)]
-    const binds: unknown[] = []
-    let scopesExpr = 'oauth_consents.scopes'
-    for (const scope of uniqueScopes) {
-      scopesExpr = `CASE WHEN (' ' || ${scopesExpr} || ' ') LIKE ('% ' || ? || ' %') THEN ${scopesExpr} ELSE TRIM(${scopesExpr} || ' ' || ?) END`
-      binds.push(scope, scope)
-    }
     await this.db
       .prepare(
         `INSERT INTO oauth_consents (id, client_id, user_id, scopes, created_at, updated_at, revoked_at)
          VALUES (?, ?, ?, ?, ?, ?, NULL)
          ON CONFLICT(client_id, user_id) DO UPDATE SET
-           scopes = ${scopesExpr},
+           scopes = (
+             SELECT COALESCE(GROUP_CONCAT(s, ' '), '')
+             FROM (
+               SELECT value AS s FROM json_each(
+                 CASE WHEN oauth_consents.scopes = '' THEN '[]'
+                      ELSE '["' || REPLACE(oauth_consents.scopes, ' ', '","') || '"]'
+                 END
+               )
+               UNION
+               SELECT value AS s FROM json_each(?)
+             )
+           ),
            updated_at = excluded.updated_at,
            revoked_at = NULL`
       )
-      .bind(id, clientId, userId, formatScopes(scopes), nowTimestamp, nowTimestamp, ...binds)
+      .bind(id, clientId, userId, formatScopes(scopes), nowTimestamp, nowTimestamp, JSON.stringify(uniqueScopes))
       .run()
   }
 
