@@ -228,7 +228,7 @@ export function MediaGalleryWidget({ seedSlug = "", variant: initialVariant = "g
 
   const deleteMutation = useMutation({
     mutationFn: async (key: string) => {
-      await api.delete(`/${encodeURIComponent(key)}`)
+      await api.delete(`/upload/${encodeURIComponent(key)}`)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["widget", "media-library"] })

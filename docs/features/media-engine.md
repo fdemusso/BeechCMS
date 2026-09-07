@@ -21,11 +21,12 @@ BeechCMS solves this with an edge-native **Direct-to-R2 Media Engine**:
 ## Core Capabilities
 
 - **Zero Worker Memory Footprint**: Large images, PDFs, and assets bypass Worker RAM completely.
-- **Strict Edge Validation**: Filename sanitization, MIME-type whitelisting, and file-size ceilings (50 MB default) are enforced prior to issuing the presigned URL.
+- **Strict Edge Validation**: Filename sanitization, MIME-type whitelisting, and file-size ceilings (50 MB default, up to 500 MB max) are enforced prior to issuing the presigned URL.
 - **Collision-Resistant Keys**: Files are keyed with `${timestamp}-${randomSuffix}-${cleanFilename}`, preventing accidental overwrites.
-- **Streaming Fallback Route**: For local development or environments without S3 SigV4 credentials, BeechCMS provides an automatic fallback (`POST /api/upload`) using chunked streaming directly to the storage bucket.
-- **Edge Media Serving**: Public and authenticated assets are served via `GET /api/media/:key` with optimal caching headers (`Cache-Control: public, max-age=31536000, immutable`).
-- **Visual Media Gallery**: Embedded directly in the Dashboard with thumbnail previews, dimension extraction, and instant insertion into Rich Text and Image fields.
+- **Streaming Fallback Route**: For local development or environments without S3 SigV4 credentials, BeechCMS provides an automatic fallback (`POST /api/upload`, `multipart/form-data`) using chunked streaming directly to the storage bucket.
+- **Edge Media Serving & Stored-XSS Protection**: Public assets are served via `GET /api/media/:key` with edge caching headers (`Cache-Control: public, max-age=31536000, immutable`), `X-Content-Type-Options: nosniff`, and `Content-Security-Policy: default-src 'none'; sandbox`. Active MIME types (SVG, HTML, XML) are forced to download as attachments.
+- **Private Asset Downloads**: Private/authenticated downloads with ownership and role-based access control are issued as temporary presigned URLs via `GET /api/upload/download-url/:key`.
+- **Visual Media Gallery & Editors**: Embedded in the Dashboard via the `MediaGalleryWidget` (with thumbnail overview and automated cross-seed orphan cleanup), schema-driven `file` field editors (`MediaEdit`), and TipTap Rich Text with session-based orphan pruning.
 
 ---
 
@@ -80,7 +81,7 @@ const confirmResponse = await fetch('/api/upload/confirm', {
   body: JSON.stringify({ key })
 })
 
-const { url, filename, mimeType } = await confirmResponse.json()
+const { url } = await confirmResponse.json()
 ```
 
 ---
@@ -98,43 +99,55 @@ Response:
 HTTP/1.1 200 OK
 Content-Type: image/webp
 Cache-Control: public, max-age=31536000, immutable
-ETag: "w/1717000000"
+X-Content-Type-Options: nosniff
+Content-Security-Policy: default-src 'none'; sandbox
 ```
+
+> [!NOTE]
+> **Stored-XSS Prevention**: Active content MIME types (`image/svg`, `text/`, `application/xml`, `application/xhtml`, `application/javascript`) are forced to download with `Content-Type: application/octet-stream` and `Content-Disposition: attachment; filename="<original-filename>"`.
+> When `MEDIA_CDN_URL` is set, public links point directly to the CDN domain rather than routing through the Worker proxy.
 
 ---
 
 ## Storage Configuration
 
-In your Cloudflare `wrangler.jsonc` (or `wrangler.toml`), bind the R2 bucket:
+In your Cloudflare `wrangler.jsonc` (or `wrangler.toml`), bind the native R2 bucket:
 
 ```jsonc
 {
   "r2_buckets": [
     {
-      "binding": "BUCKET",
+      "binding": "MEDIA_BUCKET",
       "bucket_name": "beech-media-production"
     }
   ]
 }
 ```
 
-For presigned URL generation, provide S3-compatible API credentials in environment variables:
+For presigned URL generation (client-direct uploads), provide S3-compatible API credentials in environment variables:
 
 ```bash
 # Cloudflare R2 S3-Compatible API Credentials
 R2_ACCESS_KEY_ID="<your-r2-access-key-id>"
 R2_SECRET_ACCESS_KEY="<your-r2-secret-access-key>"
 R2_ENDPOINT="https://<account-id>.r2.cloudflarestorage.com"
+R2_BUCKET_NAME="beech-media-production"
+
+# Optional settings
+# MEDIA_CDN_URL="https://cdn.example.com"
+# MAX_UPLOAD_BYTES="52428800" # 50 MB (hard cap: 500 MB)
 ```
 
 > [!TIP]
-> If credentials are not provided (e.g. during local offline tests), the system gracefully switches to the internal `POST /api/upload` stream handler.
+> If S3 credentials are not configured, the system automatically falls back to native Worker streaming via `POST /api/upload`. If no storage is configured at all, `NullBucket` safely throws `503 Service Unavailable` with setup instructions.
 
 ---
 
-## Dashboard Media Gallery
+## Dashboard Media Gallery & Field Integration
 
-The BeechCMS Dashboard provides a dedicated **Media Gallery** interface:
-- **Drag-and-Drop Uploader**: Upload single or multiple files with real-time progress indicators.
-- **Card and Grid Views**: Search media by name, filter by MIME category (`image/*`, `application/pdf`, etc.), and copy CDN URLs.
-- **Field Pickers**: Embedded directly into Seed field editors for single images, multi-image galleries, and file attachments.
+The BeechCMS Dashboard integrates media management across several layers:
+- **Dashboard Composer Widget (`MediaGalleryWidget`)**: 
+  - **All Grid View**: Displays thumbnail previews of tracked media items from `/api/content/stats/media-library`.
+  - **Unused View (Orphan Detection)**: Identifies untracked or orphaned media unreferenced in any Seed file column via `/api/content/stats/unused-media`, allowing one-click deletion via `DELETE /api/upload/:key`.
+- **Field Editors (`MediaEdit`)**: Embedded in content entries for single images and multi-asset lists (`branch.type === "file"`). Supports drag-and-drop file uploads, file pickers, external URL input with offscreen rendering probes (`canRenderImageUrl`), and reordering.
+- **TipTap Rich Text Integration**: Enables inline drag-and-drop and file uploads. Features session-based orphan pruning that automatically issues `DELETE /api/upload/:key` for images uploaded during an editing session if they are discarded before saving.
