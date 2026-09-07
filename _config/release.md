@@ -44,6 +44,7 @@ The release script detects which packages were modified since their last release
 | `@beechcms/forms-react` | `packages/forms-react` | ✅ Yes | Secure React form toolkit & anti-bot |
 | `@beechcms/widget-sdk` | `packages/widget-sdk` | ✅ Yes | Custom dashboard widgets SDK |
 | `@beechcms/cli` | `packages/cli` | ✅ Yes | `npx beech` CLI (seed:load, forms, etc.) |
+| `@beechcms/mcp` | `packages/mcp` | ✅ Yes | Model Context Protocol server & agent skill |
 | `@beechcms/api` | `apps/api` | ✅ Yes | Worker factory, migrations, dashboard bundle |
 | `@beechcms/dashboard` | `apps/dashboard` | ❌ No | Bundled into `@beechcms/api/assets/dashboard` |
 | `@beechcms/cms` | `.` (root) | ✅ Yes | Root scaffolder (`npx @beechcms/cms`) |
