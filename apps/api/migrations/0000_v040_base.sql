@@ -276,3 +276,173 @@ CREATE TABLE IF NOT EXISTS setup_completed (
     id INTEGER NOT NULL PRIMARY KEY CHECK (id = 1)
 );
 
+
+-- =============================================================================
+-- 15. RUNTIME SEEDS
+--     `seeds`     : one row per content type. `definition` is the full Seed JSON.
+--     `seed_meta` : single-row table holding the registry version token used for
+--                   multi-isolate cache invalidation.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS seeds (
+    slug        TEXT    NOT NULL PRIMARY KEY,
+    definition  TEXT    NOT NULL,
+    status      TEXT    NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'deleted')),
+    source      TEXT    NOT NULL DEFAULT 'runtime'
+                        CHECK (source IN ('code', 'runtime')),
+    created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+CREATE INDEX IF NOT EXISTS idx_seeds_status ON seeds(status);
+
+CREATE TABLE IF NOT EXISTS seed_meta (
+    id      TEXT NOT NULL PRIMARY KEY,
+    value   TEXT NOT NULL
+);
+
+INSERT OR IGNORE INTO seed_meta (id, value) VALUES ('registry_version', '1');
+
+
+-- =============================================================================
+-- 16. DASHBOARD LAYOUTS
+--     One row per scope: 'default' | 'role:admin' | 'role:editor' ...
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS dashboard_layouts (
+    scope        TEXT NOT NULL PRIMARY KEY,
+    layout       TEXT NOT NULL,
+    updated_at   INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_by   TEXT NOT NULL
+);
+
+
+-- =============================================================================
+-- 17. KANBAN FOUNDATION
+--     kanban_positions : per-(seed, axis, entry) fractional-index ordering.
+--     seed_layouts.view_config : additive JSON blob for per-seed dashboard view
+--     preferences (kanban axis/sort/hidden columns).
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS kanban_positions (
+    seed_slug      TEXT    NOT NULL,
+    entry_id       TEXT    NOT NULL,
+    axis_branch_id TEXT    NOT NULL,
+    position       TEXT    NOT NULL,
+    updated_at     INTEGER NOT NULL DEFAULT (unixepoch()),
+    PRIMARY KEY (seed_slug, entry_id, axis_branch_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_kanban_positions_column
+    ON kanban_positions (seed_slug, axis_branch_id, position);
+
+ALTER TABLE seed_layouts ADD COLUMN view_config TEXT;
+
+
+-- =============================================================================
+-- 18. PUBLIC TIME-TRAP TOKENS
+--     Single-use tracking for HMAC time-trap tokens to prevent replay attacks.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS public_time_trap_tokens (
+    token_hash  TEXT    NOT NULL PRIMARY KEY,
+    used_at     INTEGER NOT NULL,
+    expires_at  INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_time_trap_tokens_expires
+ON public_time_trap_tokens (expires_at);
+
+
+-- =============================================================================
+-- 19. OAUTH 2.1 AUTHORIZATION SERVER
+--     Authorization code + PKCE grant. Every credential (code, access token,
+--     refresh token) is persisted as a SHA-256 hex hash only — never plaintext.
+--     Expired rows are filtered at read time via expires_at; no pruning job.
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS oauth_clients (
+    client_id       TEXT    NOT NULL PRIMARY KEY,
+    name            TEXT    NOT NULL,
+    redirect_uris   TEXT    NOT NULL,
+    allowed_scopes  TEXT    NOT NULL,
+    is_public       INTEGER NOT NULL DEFAULT 1
+                            CHECK (is_public IN (0, 1)),
+    created_at      INTEGER NOT NULL DEFAULT (unixepoch()),
+    disabled_at     INTEGER DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS oauth_authorization_codes (
+    code_hash               TEXT    NOT NULL PRIMARY KEY,
+    client_id               TEXT    NOT NULL REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
+    user_id                 TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    scope                   TEXT    NOT NULL,
+    redirect_uri            TEXT    NOT NULL,
+    code_challenge          TEXT    NOT NULL,
+    code_challenge_method   TEXT    NOT NULL DEFAULT 'S256'
+                                    CHECK (code_challenge_method = 'S256'),
+    expires_at              INTEGER NOT NULL,
+    created_at              INTEGER NOT NULL DEFAULT (unixepoch()),
+    consumed_at             INTEGER DEFAULT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_codes_user    ON oauth_authorization_codes(user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_codes_expires ON oauth_authorization_codes(expires_at);
+
+CREATE TABLE IF NOT EXISTS oauth_tokens (
+    id                      TEXT    NOT NULL PRIMARY KEY,
+    token_hash              TEXT    NOT NULL,
+    token_type              TEXT    NOT NULL
+                                    CHECK (token_type IN ('access', 'refresh')),
+    client_id               TEXT    NOT NULL REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
+    user_id                 TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    scope                   TEXT    NOT NULL,
+    authorization_code_hash TEXT    NOT NULL,
+    expires_at              INTEGER NOT NULL,
+    created_at              INTEGER NOT NULL DEFAULT (unixepoch()),
+    revoked_at              INTEGER DEFAULT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_hash    ON oauth_tokens(token_hash);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_code    ON oauth_tokens(authorization_code_hash);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_client  ON oauth_tokens(client_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_user    ON oauth_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_tokens_expires ON oauth_tokens(expires_at);
+
+CREATE TABLE IF NOT EXISTS oauth_consents (
+    id          TEXT    NOT NULL PRIMARY KEY,
+    client_id   TEXT    NOT NULL REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
+    user_id     TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    scopes      TEXT    NOT NULL,
+    created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    revoked_at  INTEGER DEFAULT NULL
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_oauth_consents_pair ON oauth_consents(client_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_oauth_consents_user ON oauth_consents(user_id);
+
+-- Static registry, no dynamic client registration (RFC 7591). Seeded client
+-- is @beechcms/mcp — public client (stdio CLI, no secret), PKCE S256 proof of
+-- possession. Redirect URI registered WITHOUT a port: matchesRegisteredRedirectUri()
+-- compares loopback URIs on protocol+hostname+pathname only (OAuth 2.1 §8.4.2),
+-- because the CLI binds an ephemeral port at runtime.
+INSERT OR IGNORE INTO oauth_clients (client_id, name, redirect_uris, allowed_scopes, is_public)
+VALUES (
+    'beech-mcp',
+    'BeechCMS MCP Server',
+    '["http://127.0.0.1/oauth/callback"]',
+    'schema:read schema:write',
+    1
+);
+
+INSERT OR IGNORE INTO oauth_clients (client_id, name, redirect_uris, allowed_scopes, is_public)
+VALUES (
+    'beech-mcp-cli',
+    'BeechCMS MCP Server',
+    '["http://127.0.0.1/callback"]',
+    'schema:read schema:write',
+    1
+);
+
