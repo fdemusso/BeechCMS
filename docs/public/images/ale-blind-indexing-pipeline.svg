@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 340" width="100%" height="100%">
+  <defs>
+    <linearGradient id="inputGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4338ca"/>
+    </linearGradient>
+    <linearGradient id="aesGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ec4899"/>
+      <stop offset="100%" stop-color="#be185d"/>
+    </linearGradient>
+    <linearGradient id="hmacGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0ea5e9"/>
+      <stop offset="100%" stop-color="#0369a1"/>
+    </linearGradient>
+    <linearGradient id="dbGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <marker id="arrow-pink" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#ec4899"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#0ea5e9"/>
+    </marker>
+    <marker id="arrow-gray" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#94a3b8"/>
+    </marker>
+  </defs>
+
+  <style>
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; font-weight: 700; fill: #ffffff; }
+    .card-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: rgba(255, 255, 255, 0.9); }
+    .code-text { font-family: "JetBrains Mono", monospace; font-size: 11px; fill: #cbd5e1; }
+    .table-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13px; font-weight: 600; fill: #ffffff; }
+    .table-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: #94a3b8; }
+  </style>
+
+  <!-- Left: Plaintext Input -->
+  <g transform="translate(30, 115)">
+    <rect width="180" height="95" rx="10" fill="url(#inputGrad)"/>
+    <text x="18" y="34" class="card-title">Plaintext Input</text>
+    <text x="18" y="56" class="code-text">"user@domain.com"</text>
+    <text x="18" y="76" class="card-sub">classification: 'confidential'</text>
+  </g>
+
+  <!-- Branching Arrows -->
+  <path d="M 210 145 C 245 145, 245 75, 275 75" fill="none" stroke="#ec4899" stroke-width="2" marker-end="url(#arrow-pink)"/>
+  <path d="M 210 175 C 245 175, 245 245, 275 245" fill="none" stroke="#0ea5e9" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <!-- Upper: AES-256-GCM Engine -->
+  <g transform="translate(285, 30)">
+    <rect width="240" height="90" rx="10" fill="url(#aesGrad)"/>
+    <text x="18" y="30" class="card-title">AES-256-GCM Encryption</text>
+    <text x="18" y="50" class="card-sub">• Derived Key: SHA-256(MasterKey)</text>
+    <text x="18" y="68" class="card-sub">• 12-byte random IV per write</text>
+  </g>
+
+  <!-- Lower: Blind Index HMAC-SHA256 Engine -->
+  <g transform="translate(285, 200)">
+    <rect width="240" height="90" rx="10" fill="url(#hmacGrad)"/>
+    <text x="18" y="30" class="card-title">Blind Indexing (HMAC-SHA256)</text>
+    <text x="18" y="50" class="card-sub">• Deterministic search token</text>
+    <text x="18" y="68" class="card-sub">• Normalization + Keyed Digest</text>
+  </g>
+
+  <!-- Output Arrows to Database -->
+  <path d="M 525 75 L 575 75" stroke="#ec4899" stroke-width="2" marker-end="url(#arrow-pink)"/>
+  <path d="M 525 245 L 575 245" stroke="#0ea5e9" stroke-width="2" marker-end="url(#arrow-blue)"/>
+
+  <!-- Right: D1 Database Storage -->
+  <g transform="translate(585, 30)">
+    <rect width="245" height="90" rx="10" fill="url(#dbGrad)" stroke="#475569" stroke-width="1"/>
+    <text x="16" y="28" class="table-title">Column: email</text>
+    <text x="16" y="48" class="code-text" fill="#f472b6">"v1:&lt;iv_b64&gt;:&lt;cipher_b64&gt;"</text>
+    <text x="16" y="70" class="table-sub">Zero-knowledge ciphertext at rest</text>
+  </g>
+
+  <g transform="translate(585, 200)">
+    <rect width="245" height="90" rx="10" fill="url(#dbGrad)" stroke="#475569" stroke-width="1"/>
+    <text x="16" y="28" class="table-title">Column: email_bidx (INDEXED)</text>
+    <text x="16" y="48" class="code-text" fill="#38bdf8">"7a9e3b...4f8c" (B-Tree)</text>
+    <text x="16" y="70" class="table-sub">Fast O(log N) lookup without decrypt</text>
+  </g>
+</svg>

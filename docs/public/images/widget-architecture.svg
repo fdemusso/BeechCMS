@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 360" width="100%" height="100%">
+  <defs>
+    <linearGradient id="dashGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="fieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#047857"/>
+    </linearGradient>
+    <linearGradient id="hostGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <style>
+    .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15px; font-weight: 700; fill: #ffffff; }
+    .subtitle { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: rgba(255, 255, 255, 0.85); }
+    .code { font-family: "JetBrains Mono", monospace; font-size: 11px; fill: #e2e8f0; }
+    .sec-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+  </style>
+
+  <!-- Left: Paradigm 1 - Dashboard Analytics Widgets -->
+  <g transform="translate(40, 20)">
+    <rect width="370" height="320" rx="12" fill="#0f172a" stroke="#3b82f6" stroke-width="1.5"/>
+    <rect x="0" y="0" width="370" height="42" rx="12" fill="url(#dashGrad)"/>
+    <text x="16" y="26" class="title">1. Dashboard Analytics Widget</text>
+    
+    <g transform="translate(16, 56)">
+      <rect width="338" height="30" rx="6" fill="#1e293b"/>
+      <text x="12" y="19" class="sec-badge" fill="#60a5fa">Security: Trusted Build-Time Code</text>
+    </g>
+
+    <text x="16" y="115" class="code" fill="#93c5fd">• defineWidget&lt;TConfig&gt;({ ... })</text>
+    <text x="16" y="138" class="code" fill="#93c5fd">• React 19 + TanStack Query</text>
+    <text x="16" y="161" class="code" fill="#93c5fd">• useWidgetAggregate(seedSlug, op)</text>
+    <text x="16" y="184" class="code" fill="#93c5fd">• WidgetShell, WidgetEmpty, WidgetError</text>
+
+    <!-- Component Box -->
+    <g transform="translate(16, 205)">
+      <rect width="338" height="95" rx="8" fill="#1e293b" stroke="#334155"/>
+      <text x="14" y="24" class="title" font-size="13px">Admin Dashboard Home Grid</text>
+      <text x="14" y="46" class="subtitle">Compiled directly into dashboard bundle</text>
+      <text x="14" y="66" class="subtitle">Registered via widgets.custom.ts</text>
+      <text x="14" y="84" class="subtitle">No iframe isolation required</text>
+    </g>
+  </g>
+
+  <!-- Right: Paradigm 2 - Sandboxed Iframe Field Widgets -->
+  <g transform="translate(450, 20)">
+    <rect width="370" height="320" rx="12" fill="#0f172a" stroke="#10b981" stroke-width="1.5"/>
+    <rect x="0" y="0" width="370" height="42" rx="12" fill="url(#fieldGrad)"/>
+    <text x="16" y="26" class="title">2. Sandboxed Iframe Field Control</text>
+
+    <g transform="translate(16, 56)">
+      <rect width="338" height="30" rx="6" fill="#1e293b"/>
+      <text x="12" y="19" class="sec-badge" fill="#34d399">Security: Sandboxed Runtime Isolation</text>
+    </g>
+
+    <text x="16" y="115" class="code" fill="#6ee7b7">• Entry Editor Custom Field Control</text>
+    <text x="16" y="138" class="code" fill="#6ee7b7">• sandbox="allow-scripts allow-forms"</text>
+    <text x="16" y="161" class="code" fill="#6ee7b7">• initWidgetBridge() PostMessage</text>
+    <text x="16" y="184" class="code" fill="#6ee7b7">• BEECH_INIT, BEECH_CHANGE, BEECH_RESIZE</text>
+
+    <!-- Component Box -->
+    <g transform="translate(16, 205)">
+      <rect width="338" height="95" rx="8" fill="#1e293b" stroke="#334155"/>
+      <text x="14" y="24" class="title" font-size="13px">Isolated Third-Party Embed</text>
+      <text x="14" y="46" class="subtitle">Zero access to admin cookies/session storage</text>
+      <text x="14" y="66" class="subtitle">Manifest declared in widget.json</text>
+      <text x="14" y="84" class="subtitle">Dynamic height auto-resizing via bridge</text>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 320" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="clientGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="workerGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="r2Grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.05"/>
+    </linearGradient>
+
+    <!-- Markers -->
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#3b82f6"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-emerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <style>
+    .diagram-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; fill: #1d4ed8; text-transform: uppercase; }
+    .card-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; fill: #ffffff; }
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; font-weight: 700; fill: #ffffff; }
+    .card-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: rgba(255, 255, 255, 0.9); }
+    .step-pill { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 9.5px; font-weight: 600; }
+  </style>
+
+  <!-- Container Box -->
+  <rect x="15" y="15" width="850" height="290" rx="16" fill="url(#bgBoxGrad)" stroke="#3b82f6" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <text x="36" y="42" class="diagram-title">BeechCMS Direct-to-R2 Zero-Memory Upload Pipeline</text>
+
+  <!-- Node 1: Client / Dashboard (Left) -->
+  <g transform="translate(38, 70)">
+    <rect width="210" height="210" rx="12" fill="url(#clientGrad)" filter="drop-shadow(0 6px 16px rgba(59, 130, 246, 0.3))"/>
+    <rect x="16" y="16" width="112" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="72" y="30" text-anchor="middle" class="card-badge">Client Runtime</text>
+    <text x="16" y="60" class="card-title">Dashboard &amp; SDK</text>
+    <text x="16" y="84" class="card-desc">• Drag-and-drop media picker</text>
+    <text x="16" y="106" class="card-desc">• Client-side MIME sniffing</text>
+    <text x="16" y="128" class="card-desc">• Direct binary PUT to R2</text>
+    <text x="16" y="150" class="card-desc">• Real-time upload progress</text>
+    <text x="16" y="172" class="card-desc">• Instant confirm &amp; insertion</text>
+  </g>
+
+  <!-- Connectors: Client <-> Worker -->
+  <!-- 1. Presign Request -->
+  <path d="M 248 110 L 332 110" fill="none" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <g transform="translate(249, 90)">
+    <rect x="0" y="0" width="82" height="18" rx="4" fill="#fffbeb" stroke="#d97706" stroke-width="1"/>
+    <text x="41" y="12" text-anchor="middle" class="step-pill" fill="#b45309">1. /presign</text>
+  </g>
+
+  <!-- 3. Confirm Request -->
+  <path d="M 248 165 L 332 165" fill="none" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <g transform="translate(249, 145)">
+    <rect x="0" y="0" width="82" height="18" rx="4" fill="#fffbeb" stroke="#d97706" stroke-width="1"/>
+    <text x="41" y="12" text-anchor="middle" class="step-pill" fill="#b45309">3. /confirm</text>
+  </g>
+
+  <!-- Node 2: Cloudflare Edge Worker (Center) -->
+  <g transform="translate(340, 70)">
+    <rect width="230" height="210" rx="12" fill="url(#workerGrad)" filter="drop-shadow(0 6px 16px rgba(245, 158, 11, 0.3))"/>
+    <rect x="16" y="16" width="125" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="78" y="30" text-anchor="middle" class="card-badge">Gatekeeper</text>
+    <text x="16" y="60" class="card-title">Cloudflare Worker</text>
+    <text x="16" y="84" class="card-desc">• Auth &amp; JWT Verification</text>
+    <text x="16" y="106" class="card-desc">• AWS SigV4 Presign (TTL 900s)</text>
+    <text x="16" y="128" class="card-desc">• MIME &amp; Max Size Verification</text>
+    <text x="16" y="150" class="card-desc">• D1 Media Record Indexing</text>
+    <text x="16" y="172" class="card-desc">• Zero upload RAM usage</text>
+  </g>
+
+  <!-- Direct Upload Path (Arc bypassing Worker completely) -->
+  <path d="M 143 70 C 143 35, 740 35, 740 70" fill="none" stroke="#10b981" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#arrow-emerald)"/>
+  <g transform="translate(400, 22)">
+    <rect x="0" y="0" width="170" height="20" rx="5" fill="#ecfdf5" stroke="#10b981" stroke-width="1.2"/>
+    <text x="85" y="14" text-anchor="middle" class="step-pill" fill="#047857">2. Direct Binary PUT (SigV4)</text>
+  </g>
+
+  <!-- Node 3: Cloudflare R2 Storage (Right) -->
+  <g transform="translate(635, 70)">
+    <rect width="210" height="210" rx="12" fill="url(#r2Grad)" filter="drop-shadow(0 6px 16px rgba(16, 185, 129, 0.3))"/>
+    <rect x="16" y="16" width="105" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="68" y="30" text-anchor="middle" class="card-badge">Object Storage</text>
+    <text x="16" y="60" class="card-title">Cloudflare R2</text>
+    <text x="16" y="84" class="card-desc">• S3-compatible bucket</text>
+    <text x="16" y="106" class="card-desc">• High throughput streaming</text>
+    <text x="16" y="128" class="card-desc">• Zero egress fee model</text>
+    <text x="16" y="150" class="card-desc">• Edge CDN caching headers</text>
+    <text x="16" y="172" class="card-desc">• Immutable key collision guard</text>
+  </g>
+</svg>
