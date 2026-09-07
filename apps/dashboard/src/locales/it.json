@@ -1323,6 +1323,19 @@
       "reservedAliasError": "Uno o più alias confliggono con nomi di campo di sistema riservati."
     },
     "policies": {
+      "classification": "Classificazione dati",
+      "classification_public": "Pubblico",
+      "classification_public_desc": "Memorizzazione in chiaro, esposto nelle API pubbliche, ricercabile e ordinabile.",
+      "classification_internal": "Interno",
+      "classification_internal_desc": "Memorizzazione in chiaro, nascosto nelle API pubbliche, accessibile agli utenti autenticati.",
+      "classification_confidential": "Riservato",
+      "classification_confidential_desc": "Crittografato at-rest (AES-256-GCM), nascosto nelle API pubbliche, filtrabile con blind index.",
+      "classification_restricted": "Ristretto",
+      "classification_restricted_desc": "Hash at-rest (SHA-256), nascosto a tutte le API, nessuna ricerca od ordinamento.",
+      "classification_locked_entries": "Riservato e Ristretto sono selezionabili solo se la tabella non contiene record.",
+      "classification_locked_encrypted": "Non è possibile decifrare o convertire una colonna crittografata se la tabella contiene dati.",
+      "classification_locked_restricted": "Non è possibile convertire o mostrare una colonna con hash se la tabella contiene dati.",
+      "storage_encrypted": "Crittografato at-rest",
       "search": "Ricerca full-text",
       "filter": "Filtrabile",
       "sort": "Ordinabile",
@@ -1445,7 +1458,10 @@
       "scopes": {
         "schema:read": "Leggi i tuoi content type e lo schema (inclusi i piani di migrazione dry-run)",
         "schema:write": "Applica migrazioni dello schema che modificano i tuoi content type"
-      }
+      },
+      "signedInAs": "Connesso come",
+      "required": "Obbligatorio",
+      "disclaimer": "I permessi sono obbligatori per l'integrazione MCP. Puoi revocare l'accesso in qualsiasi momento da Impostazioni > App connesse."
     },
     "apps": {
       "title": "App connesse",

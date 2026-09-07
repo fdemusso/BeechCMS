@@ -35,6 +35,7 @@ export interface BuildMetaBranchesOptions {
   branchAliasOptions: string[]
   activeSeedsForRelation: Seed[]
   iconNames: string[]
+  tableEmpty?: boolean
 }
 
 export function buildMetaBranches(t: TFunction, opts: BuildMetaBranchesOptions): Branch[] {
@@ -82,7 +83,10 @@ export function buildMetaBranches(t: TFunction, opts: BuildMetaBranchesOptions):
       repeater: {
         itemKind: "branch",
         itemLabel: t("seedBuilder.branchEditor.addField"),
-        branchItemContext: { activeSeedsForRelation: opts.activeSeedsForRelation },
+        branchItemContext: {
+          activeSeedsForRelation: opts.activeSeedsForRelation,
+          tableEmpty: opts.tableEmpty,
+        },
       },
     } as Branch,
     { id: META.dashIcon, alias: "dash_icon", label: t("seedBuilder.editor.dashIcon"),

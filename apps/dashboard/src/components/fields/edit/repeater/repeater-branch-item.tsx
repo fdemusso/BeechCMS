@@ -83,6 +83,8 @@ export interface BranchItemRowProps {
   subField?: boolean
   /** Disable the remove button (e.g. minItems constraints). */
   disableRemove?: boolean
+  /** Whether the parent table has no entries (allowing unrestricted classification). */
+  tableEmpty?: boolean
 }
 
 /**
@@ -96,6 +98,7 @@ export function BranchItemRow({
   onRemove,
   subField = false,
   disableRemove = false,
+  tableEmpty,
 }: BranchItemRowProps) {
   const { t } = useTranslation()
   const [open, setOpen] = useState(false)
@@ -269,7 +272,12 @@ export function BranchItemRow({
           )}
 
           {/* Policies — sub-fields live inside a JSON blob, not a SQL column */}
-          <PoliciesOptionsForm branch={branch} onChange={onChange} subField={subField} />
+          <PoliciesOptionsForm
+            branch={branch}
+            onChange={onChange}
+            subField={subField}
+            tableEmpty={tableEmpty}
+          />
         </div>
       </CollapsibleContent>
     </Collapsible>

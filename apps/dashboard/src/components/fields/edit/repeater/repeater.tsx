@@ -108,6 +108,7 @@ export function FieldEditRepeater({ branch, value, onChange }: FieldEditProps) {
                 branch={item as Branch}
                 activeSeedsForRelation={meta.branchItemContext?.activeSeedsForRelation ?? []}
                 subField={meta.branchItemContext?.subField}
+                tableEmpty={meta.branchItemContext?.tableEmpty}
                 onChange={(b) => update(idx, b)}
                 onRemove={() => remove(idx)}
                 disableRemove={!canRemove}
