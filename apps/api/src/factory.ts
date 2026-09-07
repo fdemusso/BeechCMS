@@ -14,6 +14,7 @@ import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 // Imports delle rotte e middleware
 import { authApp } from './auth'
 import { authMiddleware } from './middleware/auth.middleware'
+import { oauthScopeMiddleware } from './middleware/oauth-scope.middleware'
 import contentFeature from './features/content'
 import { widgetApp } from './features/widget/widget'
 import { rotateFieldApp } from './features/rotate-field'
@@ -222,7 +223,11 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
   // 4. Protected CMS API
   const apiProtected = new Hono<{ Bindings: Env; Variables: Variables }>()
-  apiProtected.use('*', authMiddleware())
+  // Accepts the dashboard admin JWT and, additionally, OAuth 2.1 access tokens.
+  apiProtected.use('*', authMiddleware({ acceptOAuth: true }))
+  // Fail-closed: an OAuth token reaches only the routes listed in OAUTH_SCOPE_ROUTES.
+  // Must stay immediately after authMiddleware — it consumes the `oauthGrant` it sets.
+  apiProtected.use('*', oauthScopeMiddleware())
 
   apiProtected.route('/settings', settingsApp)
   apiProtected.route('/schema', schemaApp)

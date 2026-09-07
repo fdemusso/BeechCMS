@@ -10,7 +10,7 @@
  */
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { ISetupChecklistRepository } from './shared/db/repositories/d1-setup-checklist.repository'
 
@@ -114,6 +114,24 @@ export interface Env {
 }
 
 /**
+ * Authentication material carried by a request that authenticated with an OAuth 2.1
+ * access token instead of the dashboard admin JWT.
+ *
+ * `null` means the request authenticated with the admin JWT (or, on routers where
+ * `authMiddleware` is not registered, did not authenticate at all). The scope gate
+ * treats `null` as "not an OAuth request" and lets it through unchanged, so admin
+ * dashboard behaviour is never affected by scope enforcement.
+ */
+export interface OAuthGrantContext {
+  /** Client that presented the access token (`oauth_tokens.client_id`). */
+  clientId: string
+  /** Resource owner the token acts for (`oauth_tokens.user_id`). */
+  userId: string
+  /** Scopes frozen into the token record at issuance time. Never re-derived per request. */
+  scope: OAuthScope[]
+}
+
+/**
  * Per-request context values (`c.get(...)` / `c.set(...)`), injected by middleware
  * before route handlers run. Every entry here must be set by some middleware on the request path.
  */
@@ -122,6 +140,11 @@ export interface Variables {
   actor?: ActorContext
   /** Decoded JWT claims of the authenticated user. */
   jwtPayload: JwtClaims
+  /**
+   * Set by `authMiddleware({ acceptOAuth: true })`. Non-null only when the request
+   * presented an OAuth access token. Read by `oauthScopeMiddleware()`.
+   */
+  oauthGrant: OAuthGrantContext | null
   /** Application-level privacy and encryption service. */
   privacyService: IPrivacyService
   /** Looks up a Seed definition by slug from the loaded schema. */
