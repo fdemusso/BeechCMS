@@ -7,8 +7,8 @@ currently in flight ever gets Task Details.
 | # | Slug | Status |
 |---|------|--------|
 | 1 | `oauth-core-foundation` | **DONE** (commit `00e3315`; archived plan: `../../../../docs/Sprints/oauth-core-foundation/oauth-core-foundation.md`) |
-| 2 | `oauth-authorization-server` | **PLANNED** (detailed plan: `../oauth-authorization-server.md`) |
-| 3 | `oauth-resource-server-scopes` | PENDING |
+| 2 | `oauth-authorization-server` | **DONE** (commit `07ff827`; archived plan: `../../../../docs/Sprints/oauth-authorization-server/oauth-authorization-server.md`) |
+| 3 | `oauth-resource-server-scopes` | **DONE** (detailed plan: `../../../../docs/Sprints/oauth-resource-server-scopes/oauth-resource-server-scopes.md`) |
 | 4 | `oauth-dashboard-consent-ui` | PENDING |
 | 5 | `mcp-pkce-client` | PENDING |
 
@@ -59,6 +59,22 @@ admin JWT, and enforce `schema:read` / `schema:write` per route.
 middleware registered before it on `apiProtected`), a `requireScope()` guard applied to the
 6 MCP-backing routes, and the documented classification of `beech_schema_plan` as
 `schema:read` (dry-run, no mutation).
+
+**Correction found during Sprint 3 planning:** the deliverable is NOT a per-route
+`requireScope()` decorator. Per-route guards are fail-open — a route where the decorator is
+forgotten hands an OAuth token the full admin privileges that the in-slice `requireAdmin`
+gate confers. Sprint 3 ships instead a single fail-closed gate,
+`apps/api/src/middleware/oauth-scope.middleware.ts`, holding a closed allowlist
+(`OAUTH_SCOPE_ROUTES`, 5 routes for the 6 tools): any `/api/*` path absent from the table is
+refused `403 insufficient_scope`. This also keeps every file under
+`apps/api/src/features/` unmodified, so no cross-slice import is created.
+
+Two further facts, discovered while mapping and folded into the plan: (a) OAuth acceptance
+must be OPT-IN (`authMiddleware({ acceptOAuth: true })`, default false), because the
+consent APIs at `features/oauth/index.ts:L40-41` must stay JWT-only — an access token there
+could mint fresh authorization codes; (b) `seeds.handler.ts:L38` runs `requireAdmin` on all
+`/api/seeds/*`, so an OAuth request must arrive with `jwtPayload` hydrated from
+`userRepository.findById(record.userId)` or every MCP route 403s.
 
 **Depends on:** Sprint 2 — no token with a `scope` claim exists until the token endpoint
 issues one, so this cannot be validated end-to-end before it.
