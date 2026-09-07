@@ -30,6 +30,8 @@ Unlike traditional headless CMSs that require code-level schema declarations or 
    All Seed definitions are stored as structured JSON records inside the `seeds` system table in D1.
 2. **Multi-Isolate Cache Invalidation (`seed_meta`)**:
    Because Cloudflare Workers execute across hundreds of worldwide edge isolates, local in-memory schema caches could become stale. BeechCMS maintains a `registry_version` counter in the `seed_meta` table. Every schema mutation increments `registry_version`, instructing edge worker isolates to atomically invalidate their cached schemas on the next request.
+3. **AI Control Plane (`@beechcms/mcp`)**:
+   Because schemas reside exclusively in D1 without local static files, AI assistants (Cursor, Claude Desktop, Antigravity) interact with the Botanical Engine using the official [MCP Server (`@beechcms/mcp`)](/reference/mcp-server) via an atomic Inspect → Validate → Plan → Apply cycle.
 
 ---
 
@@ -125,3 +127,12 @@ Because physical storage maps to permanent branch IDs (`br_XX`), the engine exec
   }
   ```
 Permanently removes the branch metadata and drops the corresponding column from physical tables.
+
+---
+
+## AI-Driven Schema Evolution
+
+Developers can also evolve schemas interactively using AI agents connected to the **[BeechCMS MCP Server (`@beechcms/mcp`)](/reference/mcp-server)**. The MCP server enforces the Additive Invariant: agents can inspect definitions, validate candidate structures, and apply additive migrations, while any destructive intent is caught and blocked automatically.
+
+For complete setup instructions, see the **[AI & MCP Setup Guide](/start/mcp)**.
+

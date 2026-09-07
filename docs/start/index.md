@@ -27,11 +27,17 @@ Scaffold a production-ready edge backend in seconds:
   bun="bunx @beechcms/cms my-app"
 />
 
-## AI Assistant Quickstart
+## AI Assistant & MCP Quickstart
 
 Accelerate your integration by copying this prompt directly into your AI coding assistant:
 
 <LlmPromptNode />
+
+### Native AI Control Plane (MCP)
+
+BeechCMS includes an official Model Context Protocol (MCP) server (`@beechcms/mcp`) that enables IDE agents (Claude Desktop, Cursor, Antigravity, VSCode) to directly inspect your schema, validate content models, plan migrations, and execute additive schema updates through the Botanical Engine.
+
+👉 **[Set up the AI Control Plane (MCP)](/start/mcp)** to connect your IDE agent in 2 minutes.
 
 ## Core Concepts
 
@@ -47,6 +53,7 @@ BeechCMS is designed around an intuitive botanical mental model, inspired by the
 Choose the fastest path to integrate BeechCMS into your stack:
 
 - **[Your First Project](/start/first-project)**: Follow a step-by-step tutorial covering project scaffolding, database bootstrap, visual modeling, dual-table staging, and Cloudflare deployment.
+- **[AI & MCP Setup](/start/mcp)**: Connect Claude Desktop, Cursor, Antigravity, or VSCode to inspect and evolve content schemas automatically via the Model Context Protocol.
 - **Framework Quickstarts**: Jump straight to an idiomatic integration guide for your frontend framework:
   - [React](/start/frameworks/react) — Single-page application with `@beechcms/client`.
   - [Next.js](/start/frameworks/nextjs) — Server Components, caching, and dynamic static generation.
