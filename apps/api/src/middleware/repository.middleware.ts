@@ -30,8 +30,8 @@ import { D1OAuthClientRepository } from '../shared/db/repositories/d1-oauth-clie
 import { D1OAuthAuthorizationCodeRepository } from '../shared/db/repositories/d1-oauth-authorization-code.repository'
 import { D1OAuthTokenRepository } from '../shared/db/repositories/d1-oauth-token.repository'
 import { D1OAuthConsentRepository } from '../shared/db/repositories/d1-oauth-consent.repository'
-import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository } from '@beechcms/core'
+import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService, AllowAllRoleGuard } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations/engine/automation-runner'
 import { D1AutomationRepository } from '../shared/db/repositories/automations.repository.d1'
@@ -70,6 +70,7 @@ interface RepositoryOverrides {
   oauthAuthorizationCodeRepository?: IOAuthAuthorizationCodeRepository
   oauthTokenRepository?: IOAuthTokenRepository
   oauthConsentRepository?: IOAuthConsentRepository
+  roleGuard?: IRoleGuard
   hooks?: BeechHooks
   privacyService?: IPrivacyService
 }
@@ -143,6 +144,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('oauthAuthorizationCodeRepository', overrides?.oauthAuthorizationCodeRepository ?? new D1OAuthAuthorizationCodeRepository(database, resolvedClock))
     context.set('oauthTokenRepository', overrides?.oauthTokenRepository ?? new D1OAuthTokenRepository(database, resolvedClock))
     context.set('oauthConsentRepository', overrides?.oauthConsentRepository ?? new D1OAuthConsentRepository(database, resolvedIdGenerator))
+    context.set('roleGuard', overrides?.roleGuard ?? new AllowAllRoleGuard())
     await next()
   })
 }

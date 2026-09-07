@@ -34,7 +34,8 @@ import { publicRoutes } from './public/public-routes'
 import { apiKeyMiddleware } from './public/api-key-middleware'
 import { publicRateLimitMiddleware } from './public/rate-limit-middleware'
 import { searchRouter } from './features/search'
-import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository } from '@beechcms/core'
+import { oauthApp } from './features/oauth'
+import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository, IRoleGuard } from '@beechcms/core'
 import { repositoryMiddleware } from './middleware/repository.middleware'
 import { seedRegistryMiddleware } from './middleware/seed-registry.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'
@@ -83,6 +84,11 @@ export interface BeechConfig {
    * a pre-exhausted limiter without relying on Cloudflare bindings.
    */
   rateLimiterRegistry?: IRateLimiterRegistry
+  /**
+   * Optional role-guard override. Defaults to AllowAllRoleGuard, which grants
+   * every requested scope; inject a restrictive guard to exercise the denial path.
+   */
+  roleGuard?: IRoleGuard
 }
 
 // --- Costanti e helper ---
@@ -118,6 +124,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     automationRepository: config.automationRepository,
     automationRunner: config.automationRunner,
     hooks: config.hooks,
+    roleGuard: config.roleGuard,
   }))
 
   // 2. Seed Registry Hydration (D1-backed, version-token-cached per isolate)
@@ -211,6 +218,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.route('/', authApp)
   app.route('/', setupApp)
   app.route('/', passwordResetApp)
+  app.route('/', oauthApp)
 
   // 4. Protected CMS API
   const apiProtected = new Hono<{ Bindings: Env; Variables: Variables }>()

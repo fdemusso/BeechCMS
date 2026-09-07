@@ -19,7 +19,7 @@ import {
   verifyPassword,
   DUMMY_PASSWORD_HASH,
 } from './utils/login-helpers'
-import { generateRefreshToken } from './utils/refresh-token'
+import { generateOpaqueToken } from '../shared/utils/opaque-token'
 import { getClientIp } from '../shared/utils/request-utils'
 import { checkDualKeyRateLimit, normalizeAccountKey } from '../shared/utils/dual-key-rate-limiter'
 
@@ -161,7 +161,7 @@ authApp.post('/auth/login', async (context) => {
       surname: user.surname ?? undefined,
       role: user.role,
     })
-    const refreshToken = generateRefreshToken()
+    const refreshToken = generateOpaqueToken()
     const refreshTokenHash = await sha256hex(refreshToken)
     const nowSeconds = SystemClock.nowSeconds()
 
@@ -215,7 +215,7 @@ authApp.post('/auth/refresh', async (context) => {
       surname: user.surname ?? undefined,
       role: user.role,
     })
-    const newRefreshToken = generateRefreshToken()
+    const newRefreshToken = generateOpaqueToken()
     const newRefreshTokenHash = await sha256hex(newRefreshToken)
 
     await context.get('sessionRepository').saveRefreshToken({
