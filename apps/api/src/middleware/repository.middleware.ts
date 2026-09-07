@@ -26,8 +26,12 @@ import { D1SeedRepository } from '../shared/db/repositories/seed.repository.d1'
 import { D1SchemaMutator } from '../shared/db/migrations/schema-mutator.d1'
 import { D1KanbanPositionRepository } from '../shared/db/repositories/kanban-position.repository.d1'
 import { D1TimeTrapTokenRepository } from '../shared/db/repositories/time-trap-token.repository.d1'
+import { D1OAuthClientRepository } from '../shared/db/repositories/d1-oauth-client.repository'
+import { D1OAuthAuthorizationCodeRepository } from '../shared/db/repositories/d1-oauth-authorization-code.repository'
+import { D1OAuthTokenRepository } from '../shared/db/repositories/d1-oauth-token.repository'
+import { D1OAuthConsentRepository } from '../shared/db/repositories/d1-oauth-consent.repository'
 import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations/engine/automation-runner'
 import { D1AutomationRepository } from '../shared/db/repositories/automations.repository.d1'
@@ -62,6 +66,10 @@ interface RepositoryOverrides {
   kanbanPositionRepository?: IKanbanPositionRepository
   antivirusProvider?: IAntivirusProvider
   timeTrapTokenRepository?: ITimeTrapTokenRepository
+  oauthClientRepository?: IOAuthClientRepository
+  oauthAuthorizationCodeRepository?: IOAuthAuthorizationCodeRepository
+  oauthTokenRepository?: IOAuthTokenRepository
+  oauthConsentRepository?: IOAuthConsentRepository
   hooks?: BeechHooks
   privacyService?: IPrivacyService
 }
@@ -131,6 +139,10 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('kanbanPositionRepository', overrides?.kanbanPositionRepository ?? new D1KanbanPositionRepository(database))
     context.set('antivirusProvider', overrides?.antivirusProvider ?? new VirusTotalAntivirusProvider(context.env.VIRUSTOTAL_API_KEY))
     context.set('timeTrapTokenRepository', overrides?.timeTrapTokenRepository ?? new D1TimeTrapTokenRepository(database))
+    context.set('oauthClientRepository', overrides?.oauthClientRepository ?? new D1OAuthClientRepository(database))
+    context.set('oauthAuthorizationCodeRepository', overrides?.oauthAuthorizationCodeRepository ?? new D1OAuthAuthorizationCodeRepository(database, resolvedClock))
+    context.set('oauthTokenRepository', overrides?.oauthTokenRepository ?? new D1OAuthTokenRepository(database, resolvedClock))
+    context.set('oauthConsentRepository', overrides?.oauthConsentRepository ?? new D1OAuthConsentRepository(database, resolvedIdGenerator))
     await next()
   })
 }

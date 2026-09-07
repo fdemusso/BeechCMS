@@ -10,7 +10,7 @@
  */
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { ISetupChecklistRepository } from './shared/db/repositories/d1-setup-checklist.repository'
 
@@ -200,6 +200,14 @@ export interface Variables {
   antivirusProvider: IAntivirusProvider
   /** Repository for single-use time-trap token deduplication. */
   timeTrapTokenRepository: ITimeTrapTokenRepository
+  /** Registry of OAuth clients authorized to use the authorization-code flow. */
+  oauthClientRepository: IOAuthClientRepository
+  /** Repository for single-use OAuth authorization codes (hash-only). */
+  oauthAuthorizationCodeRepository: IOAuthAuthorizationCodeRepository
+  /** Repository for OAuth access/refresh tokens (hash-only). */
+  oauthTokenRepository: IOAuthTokenRepository
+  /** Repository for per-(client,user) OAuth scope consents. */
+  oauthConsentRepository: IOAuthConsentRepository
 }
 
 /** Combined Hono generic type (`Bindings` + `Variables`) used to type every app/router in the API. */

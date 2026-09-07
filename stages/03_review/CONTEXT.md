@@ -9,7 +9,7 @@ You are an independent Review Agent operating with a fresh context. You did not 
 
 ## Process
 1. **Independent Validation:** Re-run yourself every command listed in the plan's "SECTION 5 — VALIDATION". Do not trust execution_log.md.
-2. **Code Review:** Run the `/code-review` skill on the branch diff. Triage findings: correctness bugs and invariant violations are blocking; style nits are not.
+2. **Code Review:** Run a code-review on the branch diff. Triage findings: correctness bugs and invariant violations are blocking; style nits are not.
 3. **Runtime Verification:** If the sprint changes user-visible behavior (API responses, dashboard UI), verify it at runtime (`/verify` skill, or `pnpm beech dev` and exercise the affected flow). A green test suite alone does not prove a UI bug is fixed.
 4. **Invariant Audit:** Check the diff against the ponytail invariants: no D1 access bypassing `@beechcms/core` (`apiToDb`/`dbToApi`), no hardcoded field names (Branch IDs `br_XX` only), no cross-slice imports in `apps/api/features/` or `apps/dashboard/src/features/`, and nothing touching the plan's "SECTION 7 — OUT OF SCOPE".
 5. **Acceptance Criteria:** Walk "SECTION 6 — ACCEPTANCE CRITERIA" item by item, verifying each one independently.
