@@ -1,0 +1,92 @@
+# ROADMAP — OAuth 2.1 Authorization Server for MCP (and future external consumers)
+
+Multi-sprint feature. Each sprint must merge before the next is planned in detail:
+the graph, the interfaces and the D1 schema change at every step, so only the sprint
+currently in flight ever gets Task Details.
+
+| # | Slug | Status |
+|---|------|--------|
+| 1 | `oauth-core-foundation` | **DONE** (commit `00e3315`; archived plan: `../../../../docs/Sprints/oauth-core-foundation/oauth-core-foundation.md`) |
+| 2 | `oauth-authorization-server` | **PLANNED** (detailed plan: `../oauth-authorization-server.md`) |
+| 3 | `oauth-resource-server-scopes` | PENDING |
+| 4 | `oauth-dashboard-consent-ui` | PENDING |
+| 5 | `mcp-pkce-client` | PENDING |
+
+---
+
+## Sprint 1 — `oauth-core-foundation`
+
+**Goal:** Land the persistence layer and the zero-dependency contracts for OAuth in
+`@beechcms/core` + D1, with no HTTP surface at all.
+
+**Deliverables summary:** migration `0038_oauth_authorization.sql` (4 tables), OAuth
+interfaces in `packages/core/src/oauth/` (client, authorization code, token, consent,
+scopes, PKCE verifier, `IRoleGuard` + `AllowAllRoleGuard` stub), the four D1 repository
+implementations in `apps/api/src/shared/db/repositories/`, and their injection into
+`repositoryMiddleware` / `Variables`.
+
+**Depends on:** nothing. This is the base sprint.
+
+---
+
+## Sprint 2 — `oauth-authorization-server`
+
+**Goal:** Expose `/oauth/authorize`, `/oauth/token`, `/oauth/revoke` as a new
+`apps/api/src/features/oauth/` slice, consuming only the Sprint 1 contracts.
+
+**Deliverables summary:** the three endpoints, PKCE `S256` enforcement, single-use
+authorization-code redemption with cascade revocation on replay, refresh-token rotation
+reusing the `saveRefreshToken` hash pattern, `oauthToken` / `oauthTokenAccount` entries in
+`RateLimiterName` + `buildDefaultRegistry`, and the `IRoleGuard` call site at consent time.
+
+**Correction found during Sprint 2 planning:** Sprint 1 shipped `IRoleGuard` /
+`AllowAllRoleGuard` in `@beechcms/core` but never bound them in `apps/api`
+(`graphify explain "AllowAllRoleGuard"` shows its only importer is its own test).
+Adding `roleGuard` to `Variables`, to `repositoryMiddleware` and to `BeechConfig` is
+therefore part of Sprint 2, not a Sprint 1 leftover to assume present.
+
+**Depends on:** Sprint 1 — the repositories and the `oauth_*` tables must exist and be
+injected in context before any handler can be written.
+
+---
+
+## Sprint 3 — `oauth-resource-server-scopes`
+
+**Goal:** Make the existing protected API accept OAuth access tokens alongside the current
+admin JWT, and enforce `schema:read` / `schema:write` per route.
+
+**Deliverables summary:** scope-aware verification in `authMiddleware()` (or a sibling
+middleware registered before it on `apiProtected`), a `requireScope()` guard applied to the
+6 MCP-backing routes, and the documented classification of `beech_schema_plan` as
+`schema:read` (dry-run, no mutation).
+
+**Depends on:** Sprint 2 — no token with a `scope` claim exists until the token endpoint
+issues one, so this cannot be validated end-to-end before it.
+
+---
+
+## Sprint 4 — `oauth-dashboard-consent-ui`
+
+**Goal:** Consent screen and "Connected apps" management page in the dashboard.
+
+**Deliverables summary:** a `apps/dashboard/src/features/oauth-consent/` slice (consent
+screen rendered by `/oauth/authorize`), a connected-apps tab under Settings listing
+authorized clients with per-client revoke, built strictly on the existing shadcn/ui
+primitives (`card`, `data-table`, `confirm-dialog`, `sheet`, `tabs`, `field`).
+
+**Depends on:** Sprint 2 (the authorize endpoint that renders/redirects to the consent
+screen) and Sprint 1 (`oauth_consents` rows to list and revoke).
+
+---
+
+## Sprint 5 — `mcp-pkce-client`
+
+**Goal:** Replace `BEECH_EMAIL` / `BEECH_PASSWORD` in `packages/mcp` with the browser
+authorization-code + PKCE flow.
+
+**Deliverables summary:** loopback listener with explicit timeout, system-browser launch,
+verifier/challenge generation, on-disk token cache, transparent refresh on 401 preserving
+in-flight plan state, removal of the password code path from `client.ts`, and docs update.
+
+**Depends on:** Sprint 3 — the MCP client is only usable once scoped tokens are actually
+accepted by the resource server.
