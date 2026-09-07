@@ -11,6 +11,7 @@ import {
   Bell,
   Settings,
   Layers,
+  Key,
   X as XIcon,
 } from "reicon-react"
 
@@ -31,6 +32,7 @@ import { StorageTab } from "./storage-tab"
 import { NotificationsTab } from "./notifications-tab"
 import { GeneralTab } from "./general-tab"
 import { SeedBuilderPage } from "@/features/seed-builder"
+import { ConnectedAppsTab } from "@/features/oauth-consent"
 import type { SettingsTab } from "../types/settings.types"
 
 /** Props for the modal settings dialog component */
@@ -76,6 +78,8 @@ function TabContent({ tab }: { readonly tab: SettingsTab }) {
       return <GeneralTab />
     case "content-types":
       return <SeedBuilderPage />
+    case "connected-apps":
+      return <ConnectedAppsTab />
     default:
       return <ProfileTab />
   }
@@ -100,6 +104,7 @@ export function SettingsDialog({
       items: [
         { id: "profile", label: t("settings.tabs.profile", "Profile"), icon: User },
         { id: "security", label: t("settings.tabs.security", "Security"), icon: Shield },
+        { id: "connected-apps", label: t("settings.tabs.connectedApps", "Connected apps"), icon: Key },
         { id: "notifications", label: t("settings.tabs.notifications", "Notifications"), icon: Bell },
       ],
     },

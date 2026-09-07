@@ -9,7 +9,7 @@ currently in flight ever gets Task Details.
 | 1 | `oauth-core-foundation` | **DONE** (commit `00e3315`; archived plan: `../../../../docs/Sprints/oauth-core-foundation/oauth-core-foundation.md`) |
 | 2 | `oauth-authorization-server` | **DONE** (commit `07ff827`; archived plan: `../../../../docs/Sprints/oauth-authorization-server/oauth-authorization-server.md`) |
 | 3 | `oauth-resource-server-scopes` | **DONE** (detailed plan: `../../../../docs/Sprints/oauth-resource-server-scopes/oauth-resource-server-scopes.md`) |
-| 4 | `oauth-dashboard-consent-ui` | PENDING |
+| 4 | `oauth-dashboard-consent-ui` | **PLANNED** (detailed plan: `../oauth-dashboard-consent-ui.md`) |
 | 5 | `mcp-pkce-client` | PENDING |
 
 ---
@@ -92,6 +92,19 @@ primitives (`card`, `data-table`, `confirm-dialog`, `sheet`, `tabs`, `field`).
 
 **Depends on:** Sprint 2 (the authorize endpoint that renders/redirects to the consent
 screen) and Sprint 1 (`oauth_consents` rows to list and revoke).
+
+**Corrections found during Sprint 4 planning:** (a) the "Connected apps" tab has **no API
+behind it** — `apps/api/src/features/oauth/index.ts` exposes only authorize/token/revoke, so
+Sprint 4 also ships `GET /oauth/consents` and `DELETE /oauth/consents/:clientId` inside the
+existing oauth slice. They are mounted under `/oauth/*` (outside `apiProtected`) with plain
+`authMiddleware()`, so an OAuth access token can never enumerate or revoke consents.
+(b) No `packages/core` change is needed: `listForUser`, `revoke`,
+`listAuthorizedClientsForUser` and `revokeAllForClientAndUser` already exist from Sprint 1.
+(c) The flow is currently **broken for a logged-out user**: `ProtectedRoute` redirects to
+`/login` discarding the location, and `use-login-form.ts:L94` hard-codes `navigate('/')`, so
+every OAuth query parameter is lost. A `returnTo` round-trip (with an open-redirect guard)
+is part of Sprint 4. (d) `vite.config.ts` proxies only `/api` and `/auth`; `/oauth` must be
+added or the consent screen cannot be exercised in local dev.
 
 ---
 

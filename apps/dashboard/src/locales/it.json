@@ -404,7 +404,8 @@
       "security": "Sicurezza",
       "storage": "Storage",
       "notifications": "Notifiche",
-      "general": "Sito"
+      "general": "Sito",
+      "connectedApps": "App connesse"
     },
     "notifications": {
       "title": "Notifiche in-app",
@@ -1428,6 +1429,34 @@
       "metadataSlot": "Metadati",
       "noField": "Nessun campo",
       "openConfig": "Configura layout scheda"
+    }
+  },
+  "oauth": {
+    "consent": {
+      "title": "{{client}} vuole accedere a BeechCMS",
+      "subtitle": "Verifica i permessi prima di concedere l'accesso.",
+      "alreadyGranted": "già concesso",
+      "redirectNotice": "Dopo l'approvazione verrai reindirizzato a {{uri}}.",
+      "approve": "Consenti accesso",
+      "deny": "Nega",
+      "errorTitle": "Questa richiesta di autorizzazione non è valida",
+      "backToDashboard": "Torna alla dashboard",
+      "submitError": "Impossibile completare l'autorizzazione",
+      "scopes": {
+        "schema:read": "Leggi i tuoi content type e lo schema (inclusi i piani di migrazione dry-run)",
+        "schema:write": "Applica migrazioni dello schema che modificano i tuoi content type"
+      }
+    },
+    "apps": {
+      "title": "App connesse",
+      "description": "Applicazioni che hai autorizzato ad accedere a BeechCMS per tuo conto.",
+      "empty": "Nessuna app connessa",
+      "grantedAt": "Autorizzata il {{date}}",
+      "noActiveTokens": "nessun token attivo",
+      "revokeTitle": "Revocare l'accesso?",
+      "revokeDesc": "{{client}} perderà immediatamente l'accesso. Ogni token attivo viene invalidato.",
+      "revokeSuccess": "Accesso revocato",
+      "revokeError": "Errore nella revoca dell'accesso"
     }
   }
 }

@@ -404,7 +404,8 @@
       "security": "Security",
       "storage": "Storage",
       "notifications": "Notifications",
-      "general": "Site"
+      "general": "Site",
+      "connectedApps": "Connected apps"
     },
     "notifications": {
       "title": "In-app notifications",
@@ -1428,6 +1429,34 @@
       "metadataSlot": "Metadata",
       "noField": "No field",
       "openConfig": "Configure card layout"
+    }
+  },
+  "oauth": {
+    "consent": {
+      "title": "{{client}} wants to access BeechCMS",
+      "subtitle": "Review the permissions before granting access.",
+      "alreadyGranted": "already granted",
+      "redirectNotice": "After approving you will be sent back to {{uri}}.",
+      "approve": "Allow access",
+      "deny": "Deny",
+      "errorTitle": "This authorization request is not valid",
+      "backToDashboard": "Back to dashboard",
+      "submitError": "Could not complete the authorization",
+      "scopes": {
+        "schema:read": "Read your content types and schema (including dry-run migration plans)",
+        "schema:write": "Apply schema migrations that change your content types"
+      }
+    },
+    "apps": {
+      "title": "Connected apps",
+      "description": "Applications you have authorized to access BeechCMS on your behalf.",
+      "empty": "No connected apps",
+      "grantedAt": "Authorized on {{date}}",
+      "noActiveTokens": "no active token",
+      "revokeTitle": "Revoke access?",
+      "revokeDesc": "{{client}} will immediately lose access. Any active token is invalidated.",
+      "revokeSuccess": "Access revoked",
+      "revokeError": "Error revoking access"
     }
   }
 }

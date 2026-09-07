@@ -26,6 +26,7 @@ import { contentApi } from "@/features/content-management/api/content.api"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
 import { EntryEditorDialog } from "@/features/entry-editor"
 import { RichtextEditor } from "@/features/richtext-editor"
+import { ConsentPage } from "@/features/oauth-consent"
 import "./App.css"
 
 /**
@@ -67,8 +68,14 @@ function LoginPage() {
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { status } = useAuth()
+  const location = useLocation()
   if (status === 'loading') return <SplashScreen />
-  if (status === 'unauthenticated') return <Navigate to="/login" replace />
+  if (status === 'unauthenticated') {
+    // Deep links (notably /oauth/consent, whose query string IS the OAuth
+    // authorization request) must survive the login bounce.
+    const returnTo = encodeURIComponent(location.pathname + location.search)
+    return <Navigate to={`/login?returnTo=${returnTo}`} replace />
+  }
   return <>{children}</>
 }
 
@@ -211,6 +218,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <SettingsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/oauth/consent",
+        element: (
+          <ProtectedRoute>
+            <ConsentPage />
           </ProtectedRoute>
         ),
       },

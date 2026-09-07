@@ -9,6 +9,7 @@ import { authMiddleware } from '../../middleware/auth.middleware'
 import { authorizeHandler, authorizeRequestHandler, consentHandler } from './authorize'
 import { tokenHandler } from './token'
 import { revokeHandler } from './revoke'
+import { listConsentsHandler, revokeConsentHandler } from './consents'
 
 /**
  * OAuth 2.1 Authorization Server feature router.
@@ -29,6 +30,11 @@ import { revokeHandler } from './revoke'
  *    - `POST /oauth/token` -> Public endpoint authenticated by grant parameters
  *      (code + code_verifier, or refresh_token).
  *    - `POST /oauth/revoke` -> Public RFC 7009 endpoint for token invalidation.
+ * 4. **Connected-apps management**:
+ *    - `GET /oauth/consents` -> Protected by `authMiddleware()` (admin JWT).
+ *      Lists the OAuth clients the resource owner has authorized.
+ *    - `DELETE /oauth/consents/:clientId` -> Protected by `authMiddleware()` (admin JWT).
+ *      Cascade-revokes the consent and every live token for that client.
  */
 export const oauthApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -45,3 +51,10 @@ oauthApp.post('/oauth/authorize/consent', consentHandler)
 // Client-facing endpoints: no session, authenticated by the grant material itself.
 oauthApp.post('/oauth/token', tokenHandler)
 oauthApp.post('/oauth/revoke', revokeHandler)
+
+// Connected-apps management: admin JWT only (never `acceptOAuth`), so a leaked
+// access token cannot list the user's other clients or revoke its own audit row.
+oauthApp.use('/oauth/consents', authMiddleware())
+oauthApp.use('/oauth/consents/:clientId', authMiddleware())
+oauthApp.get('/oauth/consents', listConsentsHandler)
+oauthApp.delete('/oauth/consents/:clientId', revokeConsentHandler)
