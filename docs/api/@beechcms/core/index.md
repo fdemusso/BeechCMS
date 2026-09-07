@@ -141,6 +141,8 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [SearchQueryOptions](interfaces/SearchQueryOptions.md)
 - [SearchResultRow](interfaces/SearchResultRow.md)
 - [Seed](interfaces/Seed.md)
+- [SeedApplyInput](interfaces/SeedApplyInput.md)
+- [SeedApplyResult](interfaces/SeedApplyResult.md)
 - [SeedLayoutRecord](interfaces/SeedLayoutRecord.md)
 - [SeedRecord](interfaces/SeedRecord.md)
 - [SeedValidationIssue](interfaces/SeedValidationIssue.md)
