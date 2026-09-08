@@ -175,6 +175,7 @@ export function sortSeedsByDependencies(seeds: ReadonlyArray<Seed>): Seed[] {
         .map(b => b.targetSeed as string),
     )
     for (const target of targets) {
+      if (target === seed.slug) continue // self-reference needs no ordering
       // seed depends on target → increment seed's in-degree
       inDegree.set(seed.slug, (inDegree.get(seed.slug) ?? 0) + 1)
       dependents.get(target)!.push(seed.slug)
