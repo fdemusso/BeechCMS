@@ -11,10 +11,11 @@
   },
   "files": [
     "dist",
+    "resources",
     "SKILL.md"
   ],
   "scripts": {
-    "build": "tsc --noEmit && esbuild src/index.ts --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js",
+    "build": "tsc --noEmit && node scripts/bundle-resources.mjs && esbuild src/index.ts --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js",
     "dev": "esbuild src/index.ts --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js --watch",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",

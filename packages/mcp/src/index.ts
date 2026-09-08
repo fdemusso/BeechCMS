@@ -19,11 +19,17 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
-import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js'
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
+} from '@modelcontextprotocol/sdk/types.js'
 import type { Seed } from '@beechcms/core'
 import { nextBranchId, validateSeedDefinitions } from '@beechcms/core'
 import { request, BeechClientError } from './client.js'
 import { savePlan, takePlan } from './plans.js'
+import { listResources, readResource } from './resources.js'
 
 /**
  * Lightweight summary of a BeechCMS seed schema.
@@ -119,7 +125,7 @@ const TOOLS = [
   },
   {
     name: 'beech_schema_plan',
-    description: 'Server-computes the exact DDL and safety classification for a candidate seed change. Always call before beech_schema_apply.',
+    description: 'Server-computes the exact DDL and safety classification for a candidate seed change. Always call before beech_schema_apply. Destructive changes (dropping/renaming/retyping a branch, deleting a seed) are classified but never applicable via MCP — those require the BeechCMS dashboard UI.',
     inputSchema: {
       type: 'object',
       properties: { slug: { type: 'string' }, candidate: { type: 'object' } },
@@ -129,7 +135,7 @@ const TOOLS = [
   },
   {
     name: 'beech_schema_apply',
-    description: 'Atomically applies a previously planned, additive-only schema change. Requires a planId from beech_schema_plan.',
+    description: 'Atomically applies a previously planned, additive-only schema change. Requires a planId from beech_schema_plan. Refuses any destructive classification (drop/rename/retype branch, delete seed) — use the BeechCMS dashboard UI for those instead.',
     inputSchema: {
       type: 'object',
       properties: { planId: { type: 'string' } },
@@ -313,7 +319,7 @@ function safeParseProblem(message: string): { status?: number; title?: string; d
 /**
  * BeechCMS Model Context Protocol (MCP) server instance.
  */
-const server = new Server({ name: 'beechcms-mcp', version: '0.1.0' }, { capabilities: { tools: {} } })
+const server = new Server({ name: 'beechcms-mcp', version: '0.1.0' }, { capabilities: { tools: {}, resources: {} } })
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }))
 
@@ -324,6 +330,13 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const message = error instanceof BeechClientError ? error.message : error instanceof Error ? error.message : String(error)
     return errorResult(message)
   }
+})
+
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({ resources: listResources() }))
+
+server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
+  const { uri, mimeType, text } = readResource(req.params.uri)
+  return { contents: [{ uri, mimeType, text }] }
 })
 
 /**

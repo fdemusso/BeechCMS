@@ -69,6 +69,7 @@ const baseOverride = getFlag('--base')
 const WORKSPACES = [
   { name: 'packages/core',      dir: 'packages/core',      config: 'vitest.config.ts' },
   { name: 'packages/cli',       dir: 'packages/cli',       config: 'vitest.config.ts' },
+  { name: 'packages/mcp',       dir: 'packages/mcp',       config: 'vitest.config.ts' },
   { name: 'apps/api',           dir: 'apps/api',           config: 'vitest.config.ts' },
   { name: 'apps/dashboard',     dir: 'apps/dashboard',     config: 'vitest.config.ts' },
 ]
