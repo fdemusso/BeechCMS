@@ -21,7 +21,7 @@ describe('resources', () => {
     vi.resetModules()
   })
 
-  it('listResources maps the fixture manifest to MCP resource descriptors', async () => {
+  it('listResources maps the fixture manifest to MCP resource descriptors and caches manifest', async () => {
     const { listResources } = await import('./resources.js')
     expect(listResources()).toEqual([
       {
@@ -31,6 +31,8 @@ describe('resources', () => {
         mimeType: 'text/markdown',
       },
     ])
+    // Second call to test caching branch
+    expect(listResources()).toHaveLength(1)
   })
 
   it('readResource returns the file content for a known URI', async () => {
