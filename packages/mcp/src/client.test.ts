@@ -136,6 +136,29 @@ describe('client', () => {
     expect(authorizeMock).toHaveBeenCalledTimes(1)
   })
 
+  it('retries a transient 503 and succeeds without exhausting the retry budget', async () => {
+    readGrantMock.mockReturnValue(FRESH_GRANT)
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ ok: true }), { status: 200 }))
+    globalThis.fetch = fetchMock
+    const { request } = await freshClient()
+
+    const result = await request<{ ok: boolean }>('GET', '/api/seeds')
+    expect(result.data).toEqual({ ok: true })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('gives up after exhausting retries on a persistent 503', async () => {
+    readGrantMock.mockReturnValue(FRESH_GRANT)
+    const fetchMock = vi.fn().mockResolvedValue(new Response('', { status: 503, statusText: 'Service Unavailable' }))
+    globalThis.fetch = fetchMock
+    const { request, BeechClientError } = await freshClient()
+
+    await expect(request('GET', '/api/seeds')).rejects.toThrow(BeechClientError)
+    expect(fetchMock).toHaveBeenCalledTimes(1 + 2)
+  })
+
   it('surfaces the offline diagnostic when the backend is unreachable', async () => {
     readGrantMock.mockReturnValue(FRESH_GRANT)
     globalThis.fetch = vi.fn().mockRejectedValue(new TypeError('fetch failed'))
