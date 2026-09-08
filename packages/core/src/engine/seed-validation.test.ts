@@ -108,6 +108,19 @@ describe('validateSeedDefinitions', () => {
     expect(fatal.some(i => i.slug === 'b' && i.messages.some(m => m.toLowerCase().includes('cyclic')))).toBe(true)
   })
 
+  it('allows self-referencing relation without cyclic dependency issue (#392)', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'scratch_self',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'parent', label: 'Parent', type: 'relation', targetSeed: 'scratch_self' },
+        ],
+      }),
+    ]
+    expect(validateSeedDefinitions(seeds)).toEqual([])
+  })
+
   // ── Fatal 5: invalid branch id ───────────────────────────────────────────────
 
   it('fatal: invalid branch id format', () => {

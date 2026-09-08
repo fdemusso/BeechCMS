@@ -310,6 +310,13 @@ describe('sortSeedsByDependencies', () => {
     const a = makeRelationSeed('a', ['missing_target'])
     expect(() => sortSeedsByDependencies([a])).toThrow(/missing_target/)
   })
+
+  it('allows self-referencing relations without detecting a cycle (#392)', () => {
+    const selfRef = makeRelationSeed('scratch_self', ['scratch_self'])
+    const result = sortSeedsByDependencies([selfRef])
+    expect(result).toHaveLength(1)
+    expect(result[0].slug).toBe('scratch_self')
+  })
 })
 
 // ─── InMemorySeedRegistry ─────────────────────────────────────────────────────
