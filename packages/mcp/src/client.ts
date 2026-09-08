@@ -54,6 +54,21 @@ function readDevVarsApiUrl(): string | undefined {
  *  in flight is refreshed before the request rather than after a 401. */
 const EXPIRY_SKEW_MS = 30_000
 
+/** Max retry attempts for transient 5xx responses (Workers/D1 cold starts). */
+const MAX_TRANSIENT_RETRIES = 2
+
+/** Base delay for the retry backoff; doubled per attempt plus jitter. */
+const RETRY_BASE_DELAY_MS = 100
+
+/** Statuses treated as transient and safe to retry unconditionally. */
+function isRetryableStatus(status: number): boolean {
+  return status === 502 || status === 503 || status === 504
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
 /**
  * Resolved connection configuration. Credentials are gone: the only secrets
  * this process ever holds are OAuth tokens, in `~/.beechcms/mcp-tokens.json`.
@@ -208,6 +223,11 @@ export async function request<T = unknown>(method: string, path: string, body?: 
         "Authorization failed. Run any Beech tool again to re-authorize in the browser, or revoke and re-grant the client from Settings → Connected apps."
       )
     }
+  }
+
+  for (let attempt = 0; isRetryableStatus(response.status) && attempt < MAX_TRANSIENT_RETRIES; attempt++) {
+    await sleep(RETRY_BASE_DELAY_MS * 2 ** attempt + Math.random() * RETRY_BASE_DELAY_MS)
+    response = await rawFetch(method, path, accessToken, body)
   }
 
   if (response.status === 403) {
