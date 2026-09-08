@@ -214,6 +214,17 @@ Executes an atomic, OCC-guarded migration using a previously planned `planId`.
 
 ---
 
+## Resources
+
+In addition to tools, `@beechcms/mcp` exposes a curated snapshot of `docs/` as MCP **resources** — read-only reference material an agent can list and fetch without calling a tool.
+
+- **URI scheme**: `beechcms-docs://<path>`, e.g. `beechcms-docs://features/analytics.md`.
+- **Discovery**: `resources/list` returns `{ uri, name, description, mimeType }` for every bundled document; `resources/read` returns the full Markdown text for a given `uri`.
+- **Bundled subset**: `docs/api`, `docs/build`, `docs/features`, `docs/manage`, `docs/reference`, and `docs/start/first-project.md`. Internal/CI/example/personal docs, sprint notes, and the MCP quickstart itself are excluded.
+- **Staleness caveat**: resources are static files copied into the package at **build time** (`pnpm --filter @beechcms/mcp build`), not read from disk at runtime. Content reflects the last `@beechcms/mcp` publish, not the live `docs/` tree — there is no live-refresh or cache-busting mechanism.
+
+---
+
 ## Plan Lifecycle & Security
 
 ```text
