@@ -17,6 +17,8 @@ Authorization: Bearer eyJ...
 ```
 
 **Response `200 OK`**
+- Headers: `X-Schema-Version: <number>` (current `seed_meta.registry_version` token for OCC)
+
 ```json
 [
   {
@@ -309,3 +311,100 @@ Authorization: Bearer eyJ...
   "orphans": ["old_isbn_field", "deprecated_field"]
 }
 ```
+
+---
+
+## `POST /api/seeds/:slug/mcp-plan`
+
+Computes a dry-run migration plan for AI agents (or programmatic tools) without executing any mutations. Inspects physical SQLite table columns (`PRAGMA table_info`), validates candidate relations against the full active seed registry, classifies migration safety, and produces exact DDL statements.
+
+**Request**
+```http
+POST /api/seeds/books/mcp-plan
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "candidate": {
+    "slug": "books",
+    "label": "Book",
+    "labelPlural": "Books",
+    "displayNameAlias": "title",
+    "allowDrafts": true,
+    "branches": [
+      { "id": "br_01", "alias": "title", "label": "Title", "type": "text", "requiredOnCreate": true },
+      { "alias": "pages", "label": "Pages", "type": "number" }
+    ]
+  }
+}
+```
+
+**Response `200 OK`**
+```json
+{
+  "slug": "books",
+  "classification": "additive",
+  "requiresConfirmation": false,
+  "applicable": true,
+  "blockedReasons": [],
+  "statements": [
+    "ALTER TABLE content_books ADD COLUMN pages REAL;"
+  ],
+  "ftsRebuildNeeded": false,
+  "expectedVersion": 4,
+  "issues": []
+}
+```
+
+- `classification`: `'create'` (table does not exist), `'additive'` (safe additions only), or `'destructive'` (dropped branch, alias rename, type change).
+- `expectedVersion`: The current `seed_meta.registry_version` value that must be echoed back to `mcp-apply`.
+
+---
+
+## `POST /api/seeds/:slug/mcp-apply`
+
+Executes an atomic, OCC-guarded, additive-only migration. Guarantees that additive DDL, the definition upsert in the `seeds` table, and the `registry_version` bump succeed as **one transactional batch** (`db.batch()`).
+
+If a concurrent edit has incremented `registry_version` since `mcp-plan` was executed, the batch is rolled back and returns `409 Conflict`. Destructive changes are rejected with `422 Unprocessable Entity`.
+
+**Request**
+```http
+POST /api/seeds/books/mcp-apply
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{
+  "candidate": {
+    "slug": "books",
+    "label": "Book",
+    "labelPlural": "Books",
+    "displayNameAlias": "title",
+    "allowDrafts": true,
+    "branches": [
+      { "id": "br_01", "alias": "title", "label": "Title", "type": "text", "requiredOnCreate": true },
+      { "alias": "pages", "label": "Pages", "type": "number" }
+    ]
+  },
+  "expectedVersion": 4,
+  "planId": "optional-uuid"
+}
+```
+
+**Response `200 OK`**
+```json
+{
+  "slug": "books",
+  "newVersion": 5,
+  "ftsRebuilt": false
+}
+```
+
+**Error Responses**
+- `400 Bad Request`: Invalid slug or non-integer `expectedVersion`.
+- `409 Conflict` (`conflict`): Schema drift detected (`expectedVersion` ≠ live version). Nothing was written.
+- `422 Unprocessable Entity` (`destructive-change-not-supported`): Blocked destructive intent (points to dedicated endpoints).
+- `422 Unprocessable Entity` (`validation-failed`): Core schema validation errors.
+
+> [!TIP]
+> For higher-level usage via IDE agents over Stdio JSON-RPC, see the dedicated [MCP Server (@beechcms/mcp) Reference](/reference/mcp-server).
+

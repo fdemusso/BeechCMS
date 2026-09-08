@@ -38,6 +38,7 @@ const PACKAGES = [
   { path: resolve(ROOT, 'packages/forms-react/package.json'), dir: 'packages/forms-react', name: '@beechcms/forms-react', shortName: 'forms-react', publish: true },
   { path: resolve(ROOT, 'packages/widget-sdk/package.json'),  dir: 'packages/widget-sdk',  name: '@beechcms/widget-sdk',  shortName: 'widget-sdk',  publish: true },
   { path: resolve(ROOT, 'packages/cli/package.json'),         dir: 'packages/cli',         name: '@beechcms/cli',         shortName: 'cli',         publish: true },
+  { path: resolve(ROOT, 'packages/mcp/package.json'),         dir: 'packages/mcp',         name: '@beechcms/mcp',         shortName: 'mcp',         publish: true },
   { path: resolve(ROOT, 'apps/api/package.json'),             dir: 'apps/api',             name: '@beechcms/api',         shortName: 'api',         publish: true },
   { path: resolve(ROOT, 'apps/dashboard/package.json'),       dir: 'apps/dashboard',       name: '@beechcms/dashboard',   shortName: 'dashboard',   publish: false }, // Built into API assets
   { path: resolve(ROOT, 'package.json'),                      dir: '.',                    name: '@beechcms/cms',         shortName: 'cms',         publish: true, rootOnly: true },

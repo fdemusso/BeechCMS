@@ -63,6 +63,17 @@ describe('DDL', () => {
       expect(indexes).toContain('CREATE INDEX IF NOT EXISTS idx_articles_price ON content_articles(price);')
     })
 
+    it('does not generate indexes for restricted branches with default filter policy', () => {
+      const seed: Seed = {
+        ...mockSeed,
+        branches: [
+          { id: 'br_pin', alias: 'pin', type: 'text', label: 'PIN', policies: { classification: 'restricted' } },
+        ],
+      }
+      const indexes = generateIndexes(seed)
+      expect(indexes).not.toContain('CREATE INDEX IF NOT EXISTS idx_articles_pin ON content_articles(pin);')
+    })
+
     it('generates a valid ALTER TABLE statement for a branch', () => {
       const branch: Branch = { id: 'br_new_field', alias: 'new_field', type: 'text', label: 'New Field' }
       const sql = generateAddColumn(mockSeed, branch)

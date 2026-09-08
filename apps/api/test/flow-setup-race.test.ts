@@ -52,4 +52,27 @@ describe('Flow: /auth/setup race condition (#233)', () => {
     const { count } = (await db.prepare('SELECT COUNT(*) as count FROM users').first()) as { count: number }
     expect(count).toBe(1)
   })
+
+  it('rejects setup with 501 feature-not-implemented when loadDemoData is true and demo seeds are missing', async () => {
+    const res = await app.request('/auth/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: 'admin-demo@beech.local',
+        password: 'password123',
+        settings: { language: 'en', timezone: 'Europe/Rome', currency: 'EUR' },
+        track: 'developer',
+        loadDemoData: true,
+      }),
+    }, { ...TEST_ENV, DB: db })
+
+    expect(res.status).toBe(501)
+    const body = (await res.json()) as any
+    expect(body.type).toBe('https://beechcms.dev/problems/feature-not-implemented')
+    expect(body.title).toBe('Feature not implemented')
+
+    // Ensure no admin was created
+    const { count } = (await db.prepare('SELECT COUNT(*) as count FROM users').first()) as { count: number }
+    expect(count).toBe(0)
+  })
 })

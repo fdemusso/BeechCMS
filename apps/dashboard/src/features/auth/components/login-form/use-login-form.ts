@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import React, { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import axios from "axios"
 import { type LoginResponse } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
@@ -27,8 +27,20 @@ const ERROR_MESSAGES = {
   CREDENTIALS_INVALID: "Invalid email or password",
 } as const
 
+/**
+ * Only same-origin absolute paths are honoured. A protocol-relative value
+ * ("//evil.tld") or an absolute URL would turn the login form into an open
+ * redirect, so anything that is not a single-slash path falls back to "/".
+ */
+export function safeReturnTo(raw: string | null): string {
+  if (!raw) return '/'
+  if (!raw.startsWith('/') || raw.startsWith('//')) return '/'
+  return raw
+}
+
 export function useLoginForm() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { setToken } = useAuth()
   const [emailValue, setEmailValue] = useState("")
   const [passwordValue, setPasswordValue] = useState("")
@@ -91,7 +103,7 @@ export function useLoginForm() {
       })
       setToken(data.token)
       setIsLoading(false)
-      navigate('/', { replace: true })
+      navigate(safeReturnTo(searchParams.get('returnTo')), { replace: true })
     } catch (error) {
       setIsLoading(false)
       if (axios.isAxiosError(error)) {

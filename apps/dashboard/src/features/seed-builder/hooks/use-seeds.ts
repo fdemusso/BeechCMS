@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 import { seedsApi } from "../api/seeds.api"
+import { contentApi } from "@/features/content-management/api/content.api"
 import type { Seed } from "@beechcms/core"
 import type { AxiosError } from "axios"
 
@@ -21,6 +22,16 @@ function extractDetail(err: unknown): string {
 
 export function useSeeds() {
   return useQuery({ queryKey: ["seeds"], queryFn: seedsApi.list, staleTime: 1000 * 30 })
+}
+
+export function useSeedHasEntries(slug?: string): boolean {
+  const { data } = useQuery({
+    queryKey: ["seed-content-total", slug],
+    queryFn: () => contentApi.fetchList(slug!, { page: 1, limit: 1 }),
+    enabled: !!slug,
+    staleTime: 1000 * 30,
+  })
+  return (data?.total ?? 0) > 0
 }
 
 function useInvalidate() {

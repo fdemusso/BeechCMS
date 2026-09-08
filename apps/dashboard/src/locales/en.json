@@ -404,7 +404,8 @@
       "security": "Security",
       "storage": "Storage",
       "notifications": "Notifications",
-      "general": "Site"
+      "general": "Site",
+      "connectedApps": "Connected apps"
     },
     "notifications": {
       "title": "In-app notifications",
@@ -1322,6 +1323,19 @@
       "reservedAliasError": "One or more aliases conflict with reserved system field names."
     },
     "policies": {
+      "classification": "Data classification",
+      "classification_public": "Public",
+      "classification_public_desc": "Plain storage, exposed in public API, searchable and sortable.",
+      "classification_internal": "Internal",
+      "classification_internal_desc": "Plain storage, hidden from public API, accessible to authenticated users.",
+      "classification_confidential": "Confidential",
+      "classification_confidential_desc": "Encrypted at rest (AES-256-GCM), hidden from public API, blind-index filterable.",
+      "classification_restricted": "Restricted",
+      "classification_restricted_desc": "Hashed at rest (SHA-256), hidden from all APIs, no search or sorting.",
+      "classification_locked_entries": "Confidential and Restricted are only available when the table has no entries.",
+      "classification_locked_encrypted": "Encrypted columns cannot be decrypted or converted when the table contains entries.",
+      "classification_locked_restricted": "Hashed columns cannot be decrypted or converted when the table contains entries.",
+      "storage_encrypted": "Encrypted at rest",
       "search": "Full-text search",
       "filter": "Filterable",
       "sort": "Sortable",
@@ -1428,6 +1442,37 @@
       "metadataSlot": "Metadata",
       "noField": "No field",
       "openConfig": "Configure card layout"
+    }
+  },
+  "oauth": {
+    "consent": {
+      "title": "{{client}} wants to access BeechCMS",
+      "subtitle": "Review permissions before granting access.",
+      "alreadyGranted": "already granted",
+      "redirectNotice": "After approving you will be sent back to {{uri}}.",
+      "approve": "Allow access",
+      "deny": "Deny",
+      "errorTitle": "This authorization request is not valid",
+      "backToDashboard": "Back to dashboard",
+      "submitError": "Could not complete the authorization",
+      "scopes": {
+        "schema:read": "Read your content types and schema (including dry-run migration plans)",
+        "schema:write": "Apply schema migrations that change your content types"
+      },
+      "signedInAs": "Signed in as",
+      "required": "Required",
+      "disclaimer": "Permissions are required for the MCP integration. You can revoke access at any time in Settings > Connected apps."
+    },
+    "apps": {
+      "title": "Connected apps",
+      "description": "Applications you have authorized to access BeechCMS on your behalf.",
+      "empty": "No connected apps",
+      "grantedAt": "Authorized on {{date}}",
+      "noActiveTokens": "no active token",
+      "revokeTitle": "Revoke access?",
+      "revokeDesc": "{{client}} will immediately lose access. Any active token is invalidated.",
+      "revokeSuccess": "Access revoked",
+      "revokeError": "Error revoking access"
     }
   }
 }

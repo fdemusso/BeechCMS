@@ -39,6 +39,10 @@ export default defineConfig({
         target: 'http://127.0.0.1:8789',
         changeOrigin: true,
       },
+      '/oauth': {
+        target: 'http://127.0.0.1:8789',
+        changeOrigin: true,
+      },
     },
   },
 })

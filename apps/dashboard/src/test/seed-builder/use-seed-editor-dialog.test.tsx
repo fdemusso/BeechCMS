@@ -26,6 +26,7 @@ const mockUpdateMutateAsync = vi.fn().mockResolvedValue(undefined)
 vi.mock("@/features/seed-builder/hooks/use-seeds", () => ({
   useCreateSeed: () => ({ mutateAsync: mockCreateMutateAsync, isPending: false }),
   useUpdateSeed: () => ({ mutateAsync: mockUpdateMutateAsync, isPending: false }),
+  useSeedHasEntries: () => false,
 }))
 
 import { useSeedEditorDialog } from "@/features/seed-builder/hooks/use-seed-editor-dialog"

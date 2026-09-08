@@ -3,6 +3,7 @@
 
 import type { Seed } from './types.js'
 import { AUTOMATION_RESERVED_WORDS } from '../automations/automations-grammar-words.js'
+import { SYSTEM_COLUMNS } from './ddl.js'
 import { sortSeedsByDependencies } from './seed-registry.js'
 import { SQL_RESERVED_WORDS } from './sql-reserved-words.js'
 
@@ -128,7 +129,12 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
   for (const seed of seeds) {
     const messages: string[] = []
     for (const branch of seed.branches) {
-      if (AUTOMATION_RESERVED_WORDS.has(branch.alias)) {
+      if (SYSTEM_COLUMNS.has(branch.alias)) {
+        messages.push(
+          `branch '${branch.alias}' collides with reserved system column. ` +
+          `System columns (id, slug, status, created_at, updated_at) cannot be used as branch aliases.`,
+        )
+      } else if (AUTOMATION_RESERVED_WORDS.has(branch.alias)) {
         messages.push(
           `branch '${branch.alias}' uses reserved alias. ` +
           `This word is used by the automation template grammar.`,
@@ -266,6 +272,15 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
         messages: [
           `displayNameAlias '${seed.displayNameAlias}' is invalid. Expected format ${BRANCH_ALIAS_RE.source} ` +
           `(lowercase letter followed by alphanumeric characters or underscores).`,
+        ],
+        fatal: true,
+      })
+    } else if (SYSTEM_COLUMNS.has(seed.displayNameAlias)) {
+      result.push({
+        slug: seed.slug,
+        messages: [
+          `displayNameAlias '${seed.displayNameAlias}' collides with reserved system column. ` +
+          `System columns (id, slug, status, created_at, updated_at) cannot be used as displayNameAlias.`,
         ],
         fatal: true,
       })

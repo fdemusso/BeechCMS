@@ -16,6 +16,7 @@ vi.mock("./security-tab", () => ({ SecurityTab: () => <div>SECURITY_TAB_CONTENT<
 vi.mock("./storage-tab", () => ({ StorageTab: () => <div>STORAGE_TAB_CONTENT</div> }))
 vi.mock("./notifications-tab", () => ({ NotificationsTab: () => <div>NOTIFICATIONS_TAB_CONTENT</div> }))
 vi.mock("@/features/seed-builder", () => ({ SeedBuilderPage: () => <div>SEED_BUILDER_CONTENT</div> }))
+vi.mock("@/features/oauth-consent", () => ({ ConnectedAppsTab: () => <div>CONNECTED_APPS_CONTENT</div> }))
 
 const renderDialog = (
   activeTab: SettingsTab = "profile",

@@ -65,7 +65,8 @@ export default defineConfig({
           text: 'Getting Started',
           items: [
             { text: 'Overview', link: '/start/' },
-            { text: 'Your First Project', link: '/start/first-project' }
+            { text: 'Your First Project', link: '/start/first-project' },
+            { text: 'AI & MCP Setup', link: '/start/mcp' }
           ]
         },
         {
@@ -189,6 +190,7 @@ export default defineConfig({
           text: 'Official SDKs & APIs',
           items: [
             { text: 'Client SDK (@beechcms/client)', link: '/reference/client-sdk' },
+            { text: 'MCP Server (@beechcms/mcp)', link: '/reference/mcp-server' },
             { text: 'TypeScript API (TypeDoc)', link: '/api/' }
           ]
         }

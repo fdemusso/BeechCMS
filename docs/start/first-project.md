@@ -99,6 +99,9 @@ Add the following Branches to the Seed:
 
 Click **Save Seed**. Under the hood, the Botanical Engine compiles the SQLite DDL: provisioning `content_posts`, the draft mirror table `content_posts_drafts`, B-tree indexes, and the full-text search virtual table `fts_content_posts`.
 
+> [!TIP]
+> **AI-Assisted Modeling:** Prefer using an AI coding assistant in your editor? You can connect Cursor, Claude Desktop, Antigravity, or VSCode to create and evolve seeds automatically via the native [AI & MCP Setup](/start/mcp).
+
 ---
 
 ## 4. Publish content
@@ -215,5 +218,6 @@ Your CMS API and embedded Admin Dashboard are now live worldwide on Cloudflare's
 ## Next steps
 
 - Explore [Schema Modeling & Evolution](/build/schema-modeling) for advanced field types and relations.
+- Connect your AI assistant via [AI & MCP Setup](/start/mcp) to inspect and evolve content models directly from your editor.
 - Connect your frontend with dedicated [Framework Quickstarts](/start/frameworks/react).
 - Learn about [Field Policies & ALE Encryption](/build/field-policies).

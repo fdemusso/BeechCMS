@@ -38,4 +38,28 @@ export interface ISeedRepository {
   getRegistryVersion(): Promise<number>
   /** Atomically increment and return the new token. Call after any write. */
   bumpRegistryVersion(): Promise<number>
+  /** Applies additive DDL, the definition upsert and the registry-version bump as ONE
+   *  transactional batch, guarded by compare-and-swap on seed_meta.registry_version.
+   *  All-or-nothing: a guard mismatch or a failing statement writes nothing.
+   *  The DDL strings MUST come from the core planners — this method never generates SQL. */
+  applyAtomic(input: SeedApplyInput): Promise<SeedApplyResult>
+}
+
+/** Input for an atomic, OCC-guarded schema apply. */
+export interface SeedApplyInput {
+  slug: string
+  /** Full canonical definition to store in `seeds.definition`. */
+  definition: Seed
+  /** Additive DDL produced by planCreateSeed / planExtendSeed. Never destructive. */
+  ddl: string[]
+  /** The registry_version the caller planned against (compare-and-swap guard). */
+  expectedVersion: number
+  source?: 'code' | 'runtime'
+}
+
+export interface SeedApplyResult {
+  /** false when the CAS guard did not match — nothing was written. */
+  applied: boolean
+  /** The version now in D1: expectedVersion + 1 on success, the live value on conflict. */
+  version: number
 }

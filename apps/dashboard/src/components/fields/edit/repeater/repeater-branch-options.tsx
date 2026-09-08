@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useTranslation } from "react-i18next"
-import type { Branch, Seed } from "@beechcms/core"
+import { resolvePolicies, type Branch, type DataClassification, type Seed } from "@beechcms/core"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -301,48 +301,181 @@ export interface PoliciesOptionsFormProps {
   onChange: (updated: Branch) => void
   /** If true, policies editing is skipped (subfields do not map directly to SQL search/sort). */
   subField?: boolean
+  /**
+   * If false, indicates the table already has entries.
+   * Transitioning plain fields to confidential/restricted is forbidden when table has data.
+   */
+  tableEmpty?: boolean
 }
 
-/**
- * Form fragment for configuring CRUD and search index policies on top-level branch fields.
- */
-export function PoliciesOptionsForm({ branch, onChange, subField }: PoliciesOptionsFormProps) {
-  const { t } = useTranslation()
+const CLASSIFICATIONS: DataClassification[] = ["public", "internal", "confidential", "restricted"]
 
-  function setPolicy(key: keyof NonNullable<Branch["policies"]>, value: boolean | string) {
-    onChange({ ...branch, policies: { ...branch.policies, [key]: value } })
-  }
+/**
+ * Form fragment for configuring CRUD, privacy, and search index policies on top-level branch fields.
+ */
+export function PoliciesOptionsForm({
+  branch,
+  onChange,
+  subField,
+  tableEmpty = true,
+}: PoliciesOptionsFormProps) {
+  const { t } = useTranslation()
 
   if (subField) return null
 
+  const effective = resolvePolicies(branch)
+
+  const isRepeater = branch.type === "repeater"
+  const isRestricted = effective.classification === "restricted"
+  const isConfidential = effective.classification === "confidential"
+  const isInternal = effective.classification === "internal"
+
+  // Initial classification of the branch (before any unsaved edits on this branch)
+  const initialClassification = effective.classification
+  const isInitiallyPlain = initialClassification === "public" || initialClassification === "internal"
+
+  function isClassificationOptionDisabled(opt: DataClassification): boolean {
+    if (tableEmpty) return false
+    // When table is not empty, changing storage tier across plain <-> encrypt <-> hash is forbidden
+    if (isInitiallyPlain) {
+      return opt === "confidential" || opt === "restricted"
+    }
+    if (initialClassification === "confidential") {
+      return opt !== "confidential"
+    }
+    if (initialClassification === "restricted") {
+      return opt !== "restricted"
+    }
+    return false
+  }
+
+  function isPolicyDisabled(pol: "search" | "filter" | "sort" | "public"): boolean {
+    if (isRestricted) return true
+    if (pol === "search" || pol === "sort") return isRepeater || isConfidential
+    if (pol === "filter") return isRepeater
+    if (pol === "public") return isConfidential || isInternal
+    return false
+  }
+
+  function handleClassificationChange(selected: DataClassification) {
+    const currentPolicies = branch.policies ?? {}
+    const nextPolicies: NonNullable<Branch["policies"]> = {
+      ...currentPolicies,
+      classification: selected,
+    }
+
+    if (selected === "restricted") {
+      delete nextPolicies.search
+      delete nextPolicies.filter
+      delete nextPolicies.sort
+      delete nextPolicies.public
+      delete nextPolicies.publicEdit
+      delete nextPolicies.visibility
+    } else if (selected === "confidential") {
+      delete nextPolicies.search
+      delete nextPolicies.sort
+      delete nextPolicies.public
+      delete nextPolicies.publicEdit
+    } else if (selected === "internal") {
+      delete nextPolicies.public
+      delete nextPolicies.publicEdit
+    }
+
+    onChange({
+      ...branch,
+      policies: nextPolicies,
+    })
+  }
+
+  function setPolicy<K extends keyof NonNullable<Branch["policies"]>>(
+    key: K,
+    value: NonNullable<Branch["policies"]>[K]
+  ) {
+    onChange({
+      ...branch,
+      policies: {
+        ...branch.policies,
+        classification: effective.classification,
+        [key]: value,
+      },
+    })
+  }
+
   return (
-    <div className="space-y-2 rounded-md border p-2">
+    <div className="space-y-3 rounded-md border p-2.5">
       <p className="text-xs font-medium">{t("seedBuilder.branchEditor.policies")}</p>
-      <div className="grid grid-cols-2 gap-2">
-        {(["search", "filter", "sort", "public"] as const).map(pol => (
-          <div key={pol} className="flex items-center gap-2">
-            <Checkbox
-              id={`policy-${branch.id}-${pol}`}
-              checked={branch.policies?.[pol] !== false}
-              onCheckedChange={v => setPolicy(pol, !!v)}
-            />
-            <Label htmlFor={`policy-${branch.id}-${pol}`} className="text-xs">{t(`seedBuilder.policies.${pol}`)}</Label>
-          </div>
-        ))}
-        <div className="space-y-1 col-span-2">
-          <Label className="text-xs">{t("seedBuilder.policies.visibility")}</Label>
-          <Select
-            value={branch.policies?.visibility ?? "full"}
-            onValueChange={v => setPolicy("visibility", v)}
-          >
-            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {["full", "masked", "hidden"].map(vis => (
-                <SelectItem key={vis} value={vis} className="text-xs">{t(`seedBuilder.policies.visibility_${vis}`)}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+
+      {/* Primary Selector: Data Classification */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <Label className="text-xs">{t("seedBuilder.policies.classification")}</Label>
+          {effective.privacy === "encrypt" && (
+            <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800">
+              {t("seedBuilder.policies.storage_encrypted")}
+            </span>
+          )}
         </div>
+        <Select
+          value={effective.classification}
+          onValueChange={(v) => handleClassificationChange(v as DataClassification)}
+        >
+          <SelectTrigger className="h-7 text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {CLASSIFICATIONS.map((c) => (
+              <SelectItem
+                key={c}
+                value={c}
+                disabled={isClassificationOptionDisabled(c)}
+                className="text-xs"
+              >
+                {t(`seedBuilder.policies.classification_${c}`)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="text-[11px] text-muted-foreground">
+          {t(`seedBuilder.policies.classification_${effective.classification}_desc`)}
+        </p>
+        {!tableEmpty && isInitiallyPlain && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">
+            {t("seedBuilder.policies.classification_locked_entries")}
+          </p>
+        )}
+        {!tableEmpty && initialClassification === "confidential" && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">
+            {t("seedBuilder.policies.classification_locked_encrypted")}
+          </p>
+        )}
+        {!tableEmpty && initialClassification === "restricted" && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">
+            {t("seedBuilder.policies.classification_locked_restricted")}
+          </p>
+        )}
+      </div>
+
+      {/* Advanced Flags */}
+      <div className="grid grid-cols-2 gap-2 pt-1 border-t">
+        {(["search", "filter", "sort", "public"] as const).map((pol) => {
+          const disabled = isPolicyDisabled(pol)
+          return (
+            <div key={pol} className="flex items-center gap-2">
+              <Checkbox
+                id={`policy-${branch.id}-${pol}`}
+                checked={effective[pol]}
+                disabled={disabled}
+                onCheckedChange={(v) => setPolicy(pol, !!v)}
+              />
+              <Label
+                htmlFor={`policy-${branch.id}-${pol}`}
+                className={`text-xs ${disabled ? "text-muted-foreground cursor-not-allowed opacity-70" : ""}`}
+              >
+                {t(`seedBuilder.policies.${pol}`)}
+              </Label>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

@@ -174,6 +174,23 @@ describe('validateSeedDefinitions', () => {
     expect(fatal.some(i => i.messages.some(m => m.includes('SQL reserved keyword')))).toBe(true)
   })
 
+  it('fatal: system column alias collision', () => {
+    // 'id', 'created_at', 'status', etc. are in SYSTEM_COLUMNS
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        displayNameAlias: 'title',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'created_at', label: 'Created At', type: 'text' },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes('reserved system column')))).toBe(true)
+  })
+
   // ── Fatal 5b: unsafe branch alias (SQL injection guard) ──────────────────────
 
   it.each([

@@ -15,6 +15,27 @@ cache token (see docs/Sprints/runtime-seeds/00-overview.md).
 
 ## Methods
 
+### applyAtomic()
+
+> **applyAtomic**(`input`): `Promise`&lt;[`SeedApplyResult`](SeedApplyResult.md)&gt;
+
+Applies additive DDL, the definition upsert and the registry-version bump as ONE
+ transactional batch, guarded by compare-and-swap on seed_meta.registry_version.
+ All-or-nothing: a guard mismatch or a failing statement writes nothing.
+ The DDL strings MUST come from the core planners — this method never generates SQL.
+
+#### Parameters
+
+##### input
+
+[`SeedApplyInput`](SeedApplyInput.md)
+
+#### Returns
+
+`Promise`&lt;[`SeedApplyResult`](SeedApplyResult.md)&gt;
+
+***
+
 ### bumpRegistryVersion()
 
 > **bumpRegistryVersion**(): `Promise`&lt;`number`&gt;

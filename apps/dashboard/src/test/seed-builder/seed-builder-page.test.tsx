@@ -57,6 +57,7 @@ vi.mock("@/features/seed-builder/hooks/use-seeds", () => ({
   useRetypeBranch: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useRebuildFts: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false }),
   useOrphans: () => ({ data: { orphans: [] }, refetch: vi.fn(), isFetching: false }),
+  useSeedHasEntries: () => false,
 }))
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
