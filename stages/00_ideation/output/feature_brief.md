@@ -1,55 +1,62 @@
 # 1. Feature Definition and Core Value
 
-Il pacchetto `packages/mcp` autentica oggi passando `BEECH_EMAIL` / `BEECH_PASSWORD` in chiaro via variabili d'ambiente al client MCP, che li scambia per un JWT bearer con privilegi admin completi su `/auth/login`. Questo espone tre problemi concreti: la password dell'account admin risiede in chiaro nella configurazione del client MCP (es. `claude_desktop_config.json`, `.env`); non esiste scoping dei permessi, quindi chi possiede il token ha accesso identico all'utente admin; non esiste revoca granulare, l'unico modo per invalidare l'accesso di un client è cambiare la password dell'intero account.
+`@beechcms/mcp` currently exposes only *tools* (schema inspect/validate/plan/apply). It has no way to hand an AI agent BeechCMS's own conceptual knowledge — architecture, field policies, widget API, feature semantics. Agents are left guessing domain rules from tool output alone, producing schema proposals that are syntactically valid but semantically wrong (e.g. ignoring ALE policy constraints, misusing widget contracts).
 
-La feature introduce un authorization server OAuth 2.1 (authorization code + PKCE) sopra l'infrastruttura di autenticazione JWT esistente. Il client MCP non vede mai più la password: apre un browser di sistema, l'utente si autentica direttamente su BeechCMS, concede scope specifici tramite consent screen, e il client riceve un access/refresh token scoped e revocabile indipendentemente dalla password dell'account.
+The feature adds an **MCP Resources** surface to `@beechcms/mcp`: a curated, static snapshot of BeechCMS's consumer-facing documentation and generated API reference (typedoc), shipped inside the npm package itself, so any agent connected to the server can read authoritative docs before acting — without needing local repo access, network calls, or a live docs site.
 
-Il valore è duplice: elimina l'esposizione di credenziali admin in chiaro per il caso d'uso MCP, e costruisce un authorization server riusabile per ogni futuro consumer esterno (dashboard integrazioni, API pubblica partner, CLI, app mobile, altri agent AI) senza dover ripetere il lavoro.
+Indispensable because: `@beechcms/mcp` is installed standalone via npm/pnpm into arbitrary consumer projects (never inside the BeechCMS monorepo). Today those installs have zero way to consult BeechCMS documentation — the agent's only knowledge is pretraining cutoff + tool schemas. This is the only mechanism to close that gap without depending on external fetches or repo paths that won't exist at install time.
 
 # 2. Domain Boundaries and Business Rules
 
-**Entità logiche coinvolte:**
+**Entities:**
+- **Doc Source** — the `/docs` markdown tree in the BeechCMS monorepo (author-maintained, source of truth).
+- **Typedoc Source** — generated API reference from project TypeScript, produced by `typedoc.json` at build time.
+- **Resource Bundle** — a static, versioned snapshot (curated docs subset + pregenerated typedoc output) packaged inside `packages/mcp` at publish time.
+- **MCP Resource Registry** — the list `@beechcms/mcp` exposes over the MCP resources protocol (URI, title, one-line description per entry).
+- **MCP Client / Agent** — the consumer (Claude Desktop, Cursor, etc.) that lists and selectively reads resources.
 
-- **Client** (es. `packages/mcp`) — richiede scope specifici, non conosce mai la password dell'utente, riceve solo authorization code e token.
-- **Resource Owner** (l'utente con credenziali Beech, oggi principalmente lo sviluppatore) — autentica sé stesso, concede o nega scope tramite consent screen.
-- **Authorization Server** (nuovo layer in `apps/api`, endpoint `/oauth/authorize`, `/oauth/token`, `/oauth/revoke`) — valida PKCE, genera authorization code, emette access/refresh token scoped, gestisce revoca.
-- **Resource Server** (API BeechCMS esistente) — valida i token scoped su ogni endpoint protetto, in aggiunta al JWT admin esistente.
-- **Role Guard** (interfaccia astratta, stub oggi) — arbitra quali scope un ruolo utente può concedere; oggi ritorna sempre consenso (esiste solo ruolo admin), pensata per essere sostituita da un adapter reale quando il sistema di ruoli sarà introdotto.
-
-**Regole ferree (business rules):**
-
-1. `/auth/login` resta invariato ed è riservato al login umano via dashboard. `/oauth/authorize` è un layer superiore: se l'utente non è già autenticato, redirige al login esistente; solo dopo genera un authorization code — non un token diretto.
-2. Il flusso OAuth non deve mai emettere token con privilegi superiori a quelli del `resource owner` che ha effettuato il consent.
-3. Authorization code, access token e refresh token vengono salvati in D1 sempre come hash (mai plaintext), replicando esattamente il pattern già in uso in `sessionRepository.saveRefreshToken`.
-4. Il layer OAuth non deve mai contenere logica di autorizzazione basata su ruoli. Ogni decisione "questo ruolo può concedere questo scope" passa esclusivamente attraverso l'interfaccia `Role Guard`, cosicché l'introduzione futura di ruoli reali non richieda modifiche a `/oauth/authorize` o `/oauth/token`.
-5. Gli scope OAuth sono definiti 1:1 sui tool MCP esposti oggi, non su ipotesi future:
-   - `schema:read` → `beech_list_seeds`, `beech_get_seed`, `beech_schema_export`, `beech_schema_validate`, `beech_schema_plan` (dry-run, nessuna mutazione).
-   - `schema:write` → `beech_schema_apply` (unico tool che muta lo stato).
-6. Il rate-limiting su `/oauth/token` (scambio code→token) è obbligatorio fin dal primo rilascio, riusando `dual-key-rate-limiter` esistente — nessuna eccezione per ambienti locali, perché `BEECH_API_URL` è già configurabile verso istanze remote.
+**Rules:**
+- The MCP server MUST NOT read `/docs` or typedoc output from the filesystem of the project it's installed into. It has zero guarantee such a path exists (standalone install, non-monorepo context). All resource content is bundled into the `@beechcms/mcp` package at publish time.
+- The Resource Bundle is a **build-time artifact**, not runtime-generated. Typedoc is pregenerated and committed/bundled alongside the doc subset; there is no on-demand typedoc trigger inside the running MCP server.
+- Resource selection is a **static allowlist** curated at build time (see subset below), not a runtime filter. Internal-only docs (monorepo-contributor guides, branding/starter-kit pages) are excluded at build time and never enter the bundle.
+- No retrieval infrastructure (embeddings, vector index, precomputed similarity matrix) is in scope. The MCP resources list carries titles + one-line descriptions; the agent selects and reads full files itself. This is a deliberate YAGNI decision — corpus is small (~25 files, few hundred KB) and doesn't justify embedding-pipeline complexity or index-staleness risk.
+- The Resource Bundle is versioned/refreshed only on `@beechcms/mcp` package publish. It has no live-update mechanism and can go stale relative to the monorepo's current `/docs` between releases — accepted tradeoff, not a defect to solve here.
+- This feature adds **read-only resources**, strictly additive to the existing tool surface (`beech_list_seeds`, `beech_schema_plan`, etc.). It does not modify tool behavior, auth model, or the OCC/additive-safety invariants documented in `reference/mcp-server.md`.
 
 # 3. Primary Requirements (User Stories)
 
-* AS A sviluppatore che usa il client MCP AS A l'utente Beech I WANT autenticarmi tramite browser di sistema invece di inserire email/password in chiaro nella config del client SO THAT la mia password admin non risiede mai in un file di configurazione o variabile d'ambiente del client MCP
-* AS A utente Beech I WANT vedere una consent screen che mostra quale client richiede accesso e con quali scope prima di autorizzarlo SO THAT ho controllo esplicito su cosa ogni client esterno può fare per mio conto
-* AS A utente Beech I WANT poter revocare l'accesso di un client OAuth specifico senza cambiare la mia password SO THAT posso invalidare un client compromesso o non più necessario senza impatto sugli altri client autorizzati
-* AS A client MCP I WANT ricevere un token scoped alle sole operazioni che mi servono (lettura schema o scrittura schema) SO THAT un eventuale leak del mio token non espone privilegi amministrativi completi
-* AS A client MCP I WANT un refresh automatico del token in scadenza SO THAT non devo richiedere all'utente di ripetere il consent ad ogni sessione
+* AS A developer using an AI coding assistant connected to `@beechcms/mcp` I WANT the assistant to read BeechCMS's own architecture, field-policy, and widget-API documentation as MCP resources SO THAT it proposes schema changes and code that respect BeechCMS's actual domain rules instead of guessing from tool output alone.
+
+* AS A developer using an AI coding assistant I WANT the assistant to read pregenerated TypeDoc API reference as an MCP resource SO THAT it gets accurate type signatures for `@beechcms/core`, `@beechcms/client`, and other packages without needing local source access.
+
+* AS AN MCP client (agent) I WANT a resource list with clear titles and one-line descriptions SO THAT I can select the relevant doc myself without fetching the entire corpus into context.
+
+* AS A BeechCMS maintainer I WANT the resource bundle built and curated at package-publish time, sourced entirely from files packaged with `@beechcms/mcp` SO THAT the server works identically whether installed inside the monorepo or standalone in an arbitrary consumer project.
 
 # 4. Secondary Requirements and Logical Constraints
 
-- **Token scaduto durante operazione lunga:** se l'access token scade a metà di una sequenza di chiamate MCP (es. `schema_plan` seguito da `schema_apply`), il client deve rifare refresh trasparente senza perdere lo stato del piano generato — il piano stesso non è legato al token che lo ha creato.
-- **Authorization code monouso:** un code riutilizzato (replay) deve invalidare immediatamente tutti i token già emessi da quel code, non solo rifiutare la seconda richiesta — mitigazione standard OAuth 2.1 contro code interception.
-- **PKCE obbligatorio, non opzionale:** anche se il client MCP è "confidential" in alcuni contesti, PKCE va richiesto sempre, per non lasciare una configurazione debole di fallback.
-- **Consent già dato (re-auth silenziosa):** se un client ha già ottenuto consent per un set di scope e li richiede identici in una sessione successiva, il flusso può saltare la consent screen (skip UX ripetitiva) — ma se richiede scope aggiuntivi rispetto al consent precedente, la consent screen deve ripresentarsi limitata ai soli nuovi scope.
-- **Revoca a cascata:** revocare un client dalla pagina "app connesse" deve invalidare sia access token attivo sia refresh token associato, non uno dei due.
-- **Role Guard non ancora vincolante:** finché il sistema di ruoli non esiste, il Role Guard concede sempre tutti gli scope richiesti — questo comportamento deve essere esplicito e testato, non un default implicito, perché cambierà comportamento quando l'adapter reale arriverà.
-- **Fallback di rete già coperto:** gli errori di connessione (`ECONNREFUSED`, unreachable API) già gestiti in `client.ts` restano validi; il nuovo flusso PKCE aggiunge solo la gestione di un listener locale per il redirect, che deve avere timeout esplicito se l'utente non completa il consent nel browser.
-- **Scoping di `beech_schema_plan`:** essendo dry-run, è classificato sotto `schema:read` — questa scelta deve essere documentata nel codice/API perché non ovvia a prima vista (il nome suggerisce un'azione, ma non muta stato).
-- **UI consent screen e pagina "app connesse":** costruite riusando i componenti shadcn/ui già presenti in `apps/dashboard/src/components/ui/` (es. `card`, `alert-dialog`/`confirm-dialog`, `data-table` per la lista client autorizzati, `sheet`, `tabs`, `field`) — nessun componente custom o libreria UI alternativa, coerenza visiva e di codice con il resto della dashboard.
+- **Build-time curation list (final, locked during sparring):** include `docs/api/`, `docs/build/`, `docs/features/`, `docs/manage/`, `docs/reference/` (all `.md`), plus `docs/start/first-project.md` only.
+- **Explicitly excluded and why:**
+  - `docs/resources/architecture.md`, `docs/resources/development.md` — tagged `group: Developer Guide (Internals)`, written for monorepo contributors, explicitly redirect consumers elsewhere.
+  - `docs/resources/community-assets.md` and `docs/resources/index.md` — branding/starter-kit links, no technical consulting value; with the two internals files gone, `resources/` is dropped entirely.
+  - `docs/start/mcp.md` — MCP install/setup tutorial; an agent already running inside a configured MCP session has no use for its own installation instructions.
+  - `docs/start/frameworks/*` — per-framework scaffolding snippets (astro/vue/nextjs/etc.), installer-specific, no domain/architecture value.
+  - `docs/ci/` — GitHub Actions YAML, not documentation content.
+  - `docs/examples/` — example package source (package.json/tsconfig), not documentation content.
+  - `docs/public/` — binary image assets (svg/png), not consultable text.
+  - `docs/personal/` — dated internal dev notes, not user-facing.
+  - `docs/Sprints/` — internal planning artifacts.
+- **Naming ambiguity resolved:** `reference/internal-content.md` is *kept* despite its name — it documents the authenticated admin Content API (a legitimate reference doc), not monorepo-internal engineering; distinct from the "Developer Guide (Internals)" tagged group which is excluded.
+- **Mixed-content file resolved:** `build/cli-workflows.md` contains both consumer and monorepo-contributor sections; kept in full since consumer content is the majority and file isn't tagged internals-only.
+- **Typedoc pregeneration:** run at `@beechcms/mcp` build/publish step (not at server runtime, not by the running MCP process), output bundled as static files alongside the doc subset.
+- **Staleness is accepted:** bundle reflects docs/typedoc as of the last `@beechcms/mcp` publish; no live sync, no runtime regeneration, no cache-busting mechanism required for v1.
+- **No new auth/permission surface:** resources are static and read-only; they carry no admin-gated content, so they don't need to sit behind the existing OAuth/JWT flow used by tools.
 
 # 5. Out of Scope (Discarded during sparring)
 
-- **API key statica scoped come alternativa completa a OAuth:** scartata esplicitamente — coprirebbe il bisogno con una frazione del lavoro, ma non risponde al requisito "production-ready" in vista dell'introduzione di ruoli e di consumer esterni multipli.
-- **Role-Based Access Control reale nel consent flow:** il sistema di ruoli non esiste ancora. Il Role Guard è costruito come interfaccia stub oggi; l'adapter con logica reale è deliberatamente rimandato a quando i ruoli saranno introdotti come feature a sé stante.
-- **Consent multi-tenant / gestione organizzazioni:** oggi esiste un solo resource owner reale (l'admin/sviluppatore). Flussi di delega multi-utente o organizzazioni sono fuori perimetro.
-- **Scope granulari oltre `schema:read` / `schema:write`:** nessuno scope aggiuntivo (es. per singole tabelle di contenuto, per operazioni di rete/deploy) viene introdotto ora — si mappa strettamente sui 6 tool MCP esistenti.
+- **Vector search / embeddings / precomputed similarity matrix for retrieval** — discarded as premature optimization. Corpus is ~25 files / a few hundred KB; MCP's native resource list (title + description) already lets the client select relevant files without an embedding pipeline, index-staleness risk, or extra runtime dependency.
+- **Runtime/on-demand typedoc generation inside the MCP server** — discarded; typedoc is pregenerated at build time only, since the server must work standalone without local source or a build toolchain present.
+- **Reading `/docs` from the filesystem at runtime** — discarded; incompatible with the standalone npm/pnpm install model, where no monorepo checkout is guaranteed to exist alongside the installed package.
+- **Including monorepo-contributor / internals documentation** (`resources/architecture.md`, `resources/development.md`) — discarded; irrelevant and potentially misleading for an agent operating on a consumer project, not the BeechCMS engine itself.
+- **Including framework-scaffolding guides and the MCP setup tutorial itself** — discarded; installer/onboarding content has no domain-consulting value for an agent already connected and working.
+- **Live/auto-refreshing resource bundle** — discarded for v1; staleness between publishes is an accepted tradeoff, not solved here.
