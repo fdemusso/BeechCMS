@@ -33,8 +33,12 @@ CREATE TABLE IF NOT EXISTS users (
     surname             TEXT,
     avatar_url          TEXT,
     notification_prefs  TEXT    NOT NULL DEFAULT '{}',
+    -- Reversible deactivation (brief §4: no hard-delete split in this iteration).
+    is_active           INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
     created_at          INTEGER NOT NULL DEFAULT (unixepoch())
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
 
 
 -- =============================================================================
@@ -446,3 +450,99 @@ VALUES (
     1
 );
 
+
+-- =============================================================================
+-- 20. RBAC — ROLES, PERMISSIONS, ASSIGNMENTS
+--
+--     Runtime-composable roles over a CLOSED atomic permission vocabulary,
+--     applied through (user, role, scope) triples. Scope is either '*' or a
+--     seeds.slug: isolation is per-seed, never row-level.
+--
+--     `manage_seeds` is deliberately ABSENT from the role_permissions CHECK
+--     list. Schema mutation stays a developer-only, out-of-dashboard
+--     capability; making the permission unrepresentable at rest is the
+--     strongest guarantee available.
+-- =============================================================================
+
+-- Reusable, runtime-composable named permission bundles.
+CREATE TABLE IF NOT EXISTS roles (
+    id          TEXT    NOT NULL PRIMARY KEY,
+    name        TEXT    NOT NULL UNIQUE,
+    description TEXT,
+    is_system   INTEGER NOT NULL DEFAULT 0 CHECK (is_system IN (0, 1)),
+    created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_at  INTEGER NOT NULL DEFAULT (unixepoch())
+);
+
+-- The closed atomic vocabulary, enforced at rest.
+-- Extending this CHECK list is a developer-only schema edit, never a runtime write.
+CREATE TABLE IF NOT EXISTS role_permissions (
+    role_id    TEXT NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    permission TEXT NOT NULL CHECK (permission IN (
+                   'content:read',
+                   'content:create',
+                   'content:update',
+                   'content:delete',
+                   'manage_users',
+                   'manage_roles',
+                   'view_analytics'
+               )),
+    PRIMARY KEY (role_id, permission)
+);
+
+-- The (user, role, scope) triple.
+-- `scope` is either '*' (global) or a seeds.slug. No FK to seeds(slug): the '*'
+-- sentinel is not a slug. Decay of scopes pointing at a deleted or missing seed
+-- is resolved at READ time by a LEFT JOIN predicate, which keeps the row
+-- recoverable if the seed is restored.
+CREATE TABLE IF NOT EXISTS user_role_assignments (
+    id         TEXT    NOT NULL PRIMARY KEY,
+    user_id    TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role_id    TEXT    NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    scope      TEXT    NOT NULL,
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    UNIQUE (user_id, role_id, scope)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ura_user  ON user_role_assignments(user_id);
+CREATE INDEX IF NOT EXISTS idx_ura_role  ON user_role_assignments(role_id);
+CREATE INDEX IF NOT EXISTS idx_ura_scope ON user_role_assignments(scope);
+
+-- SYSTEM ROLE SEED
+--    Static data, seeded exactly like the `oauth_clients` rows at the tail of
+--    this file. No user exists yet on a fresh database, so there is nothing to
+--    backfill: granting SuperAdmin to the first account is runtime work on the
+--    `POST /auth/setup` path, owned by the enforcement sprint.
+--
+--    Ids are RFC 4122 v4-shaped, matching `SystemIdGenerator.uuid()`
+--    (`packages/core/src/common/id-generator.ts`). `IIdGenerator.isValid()` is the
+--    ONLY id-format authority in the codebase and later sprints will run route
+--    params through it, so a migration must not mint a differently shaped id.
+--    `roles.name` is UNIQUE, so `INSERT OR IGNORE` keeps the seed idempotent and
+--    every downstream statement resolves the id by name rather than assuming it.
+INSERT OR IGNORE INTO roles (id, name, description, is_system)
+VALUES (
+    lower(
+        hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' ||
+        substr(hex(randomblob(2)), 2) || '-' ||
+        substr('89ab', abs(random()) % 4 + 1, 1) ||
+        substr(hex(randomblob(2)), 2) || '-' || hex(randomblob(6))
+    ),
+    'SuperAdmin',
+    'Full platform control across every scope. Cannot manage schema.',
+    1
+);
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, p.permission
+FROM roles r
+CROSS JOIN (
+    SELECT 'content:read'   AS permission UNION ALL
+    SELECT 'content:create' UNION ALL
+    SELECT 'content:update' UNION ALL
+    SELECT 'content:delete' UNION ALL
+    SELECT 'manage_users'   UNION ALL
+    SELECT 'manage_roles'   UNION ALL
+    SELECT 'view_analytics'
+) p
+WHERE r.name = 'SuperAdmin';

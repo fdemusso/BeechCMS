@@ -10,7 +10,7 @@
  */
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope, IRoleRepository, IRoleAssignmentRepository } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { ISetupChecklistRepository } from './shared/db/repositories/d1-setup-checklist.repository'
 
@@ -233,6 +233,10 @@ export interface Variables {
   oauthConsentRepository: IOAuthConsentRepository
   /** Arbitrates which requested scopes a user's role may grant. Sole role-authorization seam in the OAuth flow. */
   roleGuard: IRoleGuard
+  /** Storage for roles and their permission bundles. Read by RBAC enforcement from the next sprint on. */
+  roleRepository: IRoleRepository
+  /** Storage for (user, role, scope) assignments, decay-filtered on read. */
+  roleAssignmentRepository: IRoleAssignmentRepository
 }
 
 /** Combined Hono generic type (`Bindings` + `Variables`) used to type every app/router in the API. */
