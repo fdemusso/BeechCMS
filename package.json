@@ -96,7 +96,7 @@
     "typedoc-plugin-markdown": "^4.12.0",
     "typescript": "^5.9.3",
     "vitepress": "^1.6.4",
-    "vitest": "^4.1.0"
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "@beechcms/cli": "workspace:^0.8.0",
