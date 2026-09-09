@@ -20,13 +20,16 @@ export class D1DemoDataRepository implements IDemoDataRepository {
   ): Promise<void> {
     for (const [slug, fixtures] of Object.entries(DEMO_FIXTURES_BY_SEED_SLUG)) {
       const seed = getSeed(slug)
-      if (!seed) continue
+      if (!seed) {
+        throw new Error(`Feature not implemented: demo seed '${slug}' is not registered in runtime seed registry.`)
+      }
 
       for (const entry of fixtures) {
         try {
           await repository.create(seed, entry.id, entry.slug, entry.status, entry.data)
-        } catch {
+        } catch (err) {
           // Idempotent: ignore if entry with this ID/slug already exists
+          console.warn(`[demo-data] Failed to insert fixture entry ${entry.id} for seed '${slug}':`, err)
         }
       }
     }

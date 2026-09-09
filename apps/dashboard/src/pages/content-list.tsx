@@ -746,6 +746,82 @@ export function ContentListPage() {
     return [...hidden, ...metaAliases]
   }, [seed])
 
+  const handleRowDoubleClick = React.useCallback((entry: ContentEntry) => handleEdit(entry.id), [handleEdit])
+  const handleCellActivate = React.useCallback((columnId: string, entry: ContentEntry) => applyCellFilter(columnId, entry), [applyCellFilter])
+  const memoizedExcludedColumns = React.useMemo(() => ["select", "actions"], [])
+  const handleGroupingChange = React.useCallback(
+    (g: GroupingState | ((old: GroupingState) => GroupingState)) => {
+      setGroupBy((prev) => {
+        const next = typeof g === "function" ? g(prev ? [prev] : []) : g
+        return next[0] ?? null
+      })
+    },
+    []
+  )
+  const renderContextMenuContent = React.useCallback(
+    (entry: ContentEntry) => (
+      <>
+        <ContextMenuLabel>Actions</ContextMenuLabel>
+        {selectedIds.length > 1 ? (
+          <ContextMenuItem
+            onSelect={() => handleBulkDelete(selectedIds)}
+            className="text-destructive focus:text-destructive"
+          >
+            Delete
+          </ContextMenuItem>
+        ) : (
+          <>
+            <ContextMenuItem
+              onSelect={() => {
+                navigator.clipboard.writeText(entry.id).then(
+                  () => toast.success("ID copied"),
+                  () => toast.error("Copy failed")
+                )
+              }}
+            >
+              Copy ID
+            </ContextMenuItem>
+            <ContextMenuSeparator />
+            <ContextMenuItem onSelect={() => handleEdit(entry.id)}>
+              Edit
+            </ContextMenuItem>
+            <ContextMenuItem
+              onSelect={() => handleDelete(entry.id)}
+              className="text-destructive focus:text-destructive"
+            >
+              Delete
+            </ContextMenuItem>
+          </>
+        )}
+      </>
+    ),
+    [selectedIds, handleBulkDelete, handleEdit, handleDelete]
+  )
+  const handlePageSizeChange = React.useCallback((size: number) => {
+    setPageSize(size)
+    setPageIndex(0)
+  }, [])
+  // We must define this hook before the early return below to satisfy the Rules of Hooks.
+  // eslint-disable-next-line
+  // react-doctor-disable-next-line
+  const tableEmptyState = React.useMemo(
+    () =>
+      isEmptySeed ? (
+        <SmallCta
+          svgPath={`${import.meta.env.BASE_URL}working.svg`}
+          title={t("content.list.emptyTitle")}
+          buttonText={t("content.list.emptyCreateFirst", { label: seed?.label })}
+          onButtonClick={handleCreate}
+        />
+      ) : (
+        <SmallCta
+          svgPath={`${import.meta.env.BASE_URL}noResult.svg`}
+          title={t("common.noResults")}
+        />
+      ),
+    [isEmptySeed, t, seed?.label, handleCreate]
+  )
+
   // Show error if seed doesn't exist
   if (!seed && !isSeedLoading) {
     return (
@@ -878,54 +954,14 @@ export function ContentListPage() {
                       getRowStyles={getRowStyles}
                       rowSelection={rowSelection}
                       onRowSelectionChange={setRowSelection}
-                      onRowDoubleClick={(entry) => handleEdit(entry.id)}
-                      onCellActivate={(columnId, entry) => applyCellFilter(columnId, entry)}
-                      cellActivateExcludedColumnIds={["select", "actions"]}
+                      onRowDoubleClick={handleRowDoubleClick}
+                      onCellActivate={handleCellActivate}
+                      cellActivateExcludedColumnIds={memoizedExcludedColumns}
                       grouping={grouping}
-                      onGroupingChange={(g) => setGroupBy(g[0] ?? null)}
-                      renderRowContextMenuContent={(entry) => (
-                        <>
-                          <ContextMenuLabel>Actions</ContextMenuLabel>
-                          {selectedIds.length > 1 ? (
-                            <ContextMenuItem
-                              onSelect={() => handleBulkDelete(selectedIds)}
-                              className="text-destructive focus:text-destructive"
-                            >
-                              Delete
-                            </ContextMenuItem>
-                          ) : (
-                            <>
-                              <ContextMenuItem
-                                onSelect={() => {
-                                  navigator.clipboard.writeText(entry.id).then(
-                                    () => toast.success("ID copied"),
-                                    () => toast.error("Copy failed")
-                                  )
-                                }}
-                              >
-                                Copy ID
-                              </ContextMenuItem>
-                              <ContextMenuSeparator />
-                              <ContextMenuItem
-                                onSelect={() => handleEdit(entry.id)}
-                              >
-                                Edit
-                              </ContextMenuItem>
-                              <ContextMenuItem
-                                onSelect={() => handleDelete(entry.id)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                Delete
-                              </ContextMenuItem>
-                            </>
-                          )}
-                        </>
-                      )}
+                      onGroupingChange={handleGroupingChange}
+                      renderRowContextMenuContent={renderContextMenuContent}
                       pageSize={pageSize}
-                      onPageSizeChange={(size) => {
-                        setPageSize(size)
-                        setPageIndex(0)
-                      }}
+                      onPageSizeChange={handlePageSizeChange}
                       pageIndex={pageIndex}
                       onPageIndexChange={setPageIndex}
                       pageCount={pageCount}
@@ -940,21 +976,7 @@ export function ContentListPage() {
                       sorting={sorting}
                       onSortingChange={handleTableSortingChange}
                       columnFilters={columnFilters}
-                      emptyState={
-                        isEmptySeed ? (
-                          <SmallCta
-                            svgPath={`${import.meta.env.BASE_URL}working.svg`}
-                            title={t("content.list.emptyTitle")}
-                            buttonText={t("content.list.emptyCreateFirst", { label: seed.label })}
-                            onButtonClick={handleCreate}
-                          />
-                        ) : (
-                          <SmallCta
-                            svgPath={`${import.meta.env.BASE_URL}noResult.svg`}
-                            title={t("common.noResults")}
-                          />
-                        )
-                      }
+                      emptyState={tableEmptyState}
                     />
                   )}
                   {!error && activeViewId === "gallery" && (

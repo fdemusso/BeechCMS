@@ -1,0 +1,114 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 320" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="eventGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="hmacGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="nextGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="astroGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="extGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1" stop-opacity="0.06"/>
+      <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.04"/>
+    </linearGradient>
+
+    <!-- Markers -->
+    <marker id="arrow-indigo" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#6366f1"/>
+    </marker>
+    <marker id="arrow-dark" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#1e293b"/>
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrow-emerald" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 1 L 8 5 L 0 9 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <style>
+    .diagram-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; fill: #4f46e5; text-transform: uppercase; }
+    .card-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; fill: #ffffff; }
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13.5px; font-weight: 700; fill: #ffffff; }
+    .card-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10.5px; fill: rgba(255, 255, 255, 0.9); }
+    .code-pill { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 9.5px; font-weight: 600; }
+  </style>
+
+  <!-- Container Box -->
+  <rect x="15" y="15" width="850" height="290" rx="16" fill="url(#bgBoxGrad)" stroke="#6366f1" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <text x="36" y="42" class="diagram-title">BeechCMS Cryptographic Webhook Delivery &amp; ISR Pipeline</text>
+
+  <!-- Node 1: Content Lifecycle Event (Left) -->
+  <g transform="translate(38, 70)">
+    <rect width="210" height="205" rx="12" fill="url(#eventGrad)" filter="drop-shadow(0 6px 14px rgba(59, 130, 246, 0.3))"/>
+    <rect x="16" y="16" width="105" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="68" y="30" text-anchor="middle" class="card-badge">Mutation Event</text>
+    <text x="16" y="60" class="card-title">Content Trigger</text>
+    <text x="16" y="82" class="card-desc">• content.created</text>
+    <text x="16" y="102" class="card-desc">• content.updated</text>
+    <text x="16" y="122" class="card-desc">• content.deleted</text>
+    <text x="16" y="142" class="card-desc">• Seed-scoped filtering</text>
+    <text x="16" y="162" class="card-desc">• Non-blocking waitUntil()</text>
+  </g>
+
+  <!-- Connector: Trigger -> Dispatcher -->
+  <path d="M 248 165 L 318 165" fill="none" stroke="#6366f1" stroke-width="2" marker-end="url(#arrow-indigo)"/>
+  <g transform="translate(250, 145)">
+    <rect x="0" y="0" width="65" height="18" rx="4" fill="#eef2ff" stroke="#6366f1" stroke-width="1"/>
+    <text x="32" y="12" text-anchor="middle" class="code-pill" fill="#4338ca">Sign &amp; Push</text>
+  </g>
+
+  <!-- Node 2: Webhook Signing Engine (Center) -->
+  <g transform="translate(325, 70)">
+    <rect width="225" height="205" rx="12" fill="url(#hmacGrad)" filter="drop-shadow(0 6px 16px rgba(99, 102, 241, 0.3))"/>
+    <rect x="16" y="16" width="112" height="20" rx="5" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="72" y="30" text-anchor="middle" class="card-badge">Signing Engine</text>
+    <text x="16" y="60" class="card-title">HMAC Dispatcher</text>
+    <text x="16" y="82" class="card-desc">• Web Crypto HMAC-SHA256</text>
+    <text x="16" y="102" class="card-desc">• Header: X-BeechCMS-Signature</text>
+    <text x="16" y="122" class="card-desc">• Timing-safe verification</text>
+    <text x="16" y="142" class="card-desc">• Optional QStash queue</text>
+    <text x="16" y="162" class="card-desc">• Delivery audit &amp; retries</text>
+  </g>
+
+  <!-- Fan-out Connectors to Consumers -->
+  <path d="M 550 105 L 610 95" fill="none" stroke="#0f172a" stroke-width="2" marker-end="url(#arrow-dark)"/>
+  <path d="M 550 170 L 610 170" fill="none" stroke="#d97706" stroke-width="2" marker-end="url(#arrow-amber)"/>
+  <path d="M 550 235 L 610 245" fill="none" stroke="#10b981" stroke-width="2" marker-end="url(#arrow-emerald)"/>
+
+  <!-- Consumer Node 3A: Next.js ISR -->
+  <g transform="translate(620, 65)">
+    <rect width="225" height="60" rx="9" fill="url(#nextGrad)" filter="drop-shadow(0 4px 10px rgba(15, 23, 42, 0.35))"/>
+    <text x="14" y="24" class="card-title" font-size="12px">Next.js On-Demand ISR</text>
+    <text x="14" y="44" class="card-desc">constructWebhookEvent() + revalidateTag()</text>
+  </g>
+
+  <!-- Consumer Node 3B: Astro / SSG -->
+  <g transform="translate(620, 140)">
+    <rect width="225" height="65" rx="9" fill="url(#astroGrad)" filter="drop-shadow(0 4px 10px rgba(245, 158, 11, 0.25))"/>
+    <text x="14" y="24" class="card-title" font-size="12px">Astro / Cloudflare Pages</text>
+    <text x="14" y="44" class="card-desc">Deploy Hooks &amp; Edge Cache Invalidation</text>
+  </g>
+
+  <!-- Consumer Node 3C: External Services -->
+  <g transform="translate(620, 215)">
+    <rect width="225" height="65" rx="9" fill="url(#extGrad)" filter="drop-shadow(0 4px 10px rgba(16, 185, 129, 0.25))"/>
+    <text x="14" y="24" class="card-title" font-size="12px">Third-Party Automation</text>
+    <text x="14" y="44" class="card-desc">Slack, Discord, Zapier, n8n Notifications</text>
+  </g>
+</svg>

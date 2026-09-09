@@ -14,21 +14,21 @@
 
 ***
 
-### diff
+### diff?
 
-> **diff**: `boolean`
-
-***
-
-### dryRun
-
-> **dryRun**: `boolean`
+> `optional` **diff?**: `boolean`
 
 ***
 
-### local
+### dryRun?
 
-> **local**: `boolean`
+> `optional` **dryRun?**: `boolean`
+
+***
+
+### local?
+
+> `optional` **local?**: `boolean`
 
 ***
 

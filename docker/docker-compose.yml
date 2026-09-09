@@ -2,24 +2,27 @@ name: beech-development-suite
 
 services:
   minio:
-    image: minio/minio:latest
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: beech-minio
+    restart: unless-stopped
     ports:
-      - "${BEECH_MINIO_PORT:-9000}:9000"
-      - "${BEECH_MINIO_CONSOLE_PORT:-9001}:9001"
+      - "127.0.0.1:${BEECH_MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${BEECH_MINIO_CONSOLE_PORT:-9001}:9001"
     environment:
-      MINIO_ROOT_USER: beechdev
-      MINIO_ROOT_PASSWORD: beechdevsecret
+      MINIO_ROOT_USER: ${BEECH_MINIO_USER:-beechdev}
+      MINIO_ROOT_PASSWORD: ${BEECH_MINIO_PASSWORD:-beechdevsecret}
     command: server /data --console-address ":9001"
     volumes:
       - beech-minio-data:/data
 
   minio-init:
-    image: minio/mc:latest
-    depends_on: [minio]
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    restart: "no"
+    depends_on:
+      - minio
     entrypoint: >
       /bin/sh -c "
-      until /usr/bin/mc alias set local http://minio:9000 beechdev beechdevsecret; do sleep 1; done;
+      until /usr/bin/mc alias set local http://minio:9000 ${BEECH_MINIO_USER:-beechdev} ${BEECH_MINIO_PASSWORD:-beechdevsecret}; do sleep 1; done;
       /usr/bin/mc mb -p local/beech-media || true;
       /usr/bin/mc anonymous set download local/beech-media || true;
       /usr/bin/mc mb -p local/beech-media-test || true;
@@ -27,7 +30,7 @@ services:
       "
 
   mailpit:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:v1.30.0
     container_name: beech-mailpit
     restart: unless-stopped
     ports:
@@ -50,24 +53,23 @@ services:
     ports:
       - "127.0.0.1:${BEECH_SQLITE_WEB_PORT:-8080}:8080"
     volumes:
-      - ../apps/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject:/data
+      - ../apps/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject:/data:ro
     working_dir: /data
     entrypoint: ["sh", "-c"]
     command:
       - >
-        DB_FILE=$$(ls /data/*.sqlite 2>/dev/null | grep -v metadata | head -n 1);
-        if [ -z "$$DB_FILE" ]; then
-          echo "[sqlite-web] No D1 database found. Run 'pnpm --filter @beechcms/api db:migrate:local' first." >&2;
-          sleep infinity;
-        fi;
-        echo "[sqlite-web] Serving $$DB_FILE";
-        sqlite_web -H 0.0.0.0 -p 8080 --read-only "$$DB_FILE"
-    depends_on:
-      minio:
-        condition: service_started
+        while true; do
+          DB_FILE=$$(ls /data/*.sqlite 2>/dev/null | grep -v metadata | head -n 1);
+          if [ -n "$$DB_FILE" ]; then
+            echo "[sqlite-web] Serving $$DB_FILE";
+            exec sqlite_web -H 0.0.0.0 -p 8080 --read-only "$$DB_FILE";
+          fi;
+          echo "[sqlite-web] No D1 database found yet. Waiting for migrations..." >&2;
+          sleep 3;
+        done
 
   webhook-tester:
-    image: tarampampam/webhook-tester:latest
+    image: tarampampam/webhook-tester:2.3.0
     container_name: beech-webhook-tester
     restart: unless-stopped
     ports:
@@ -80,7 +82,7 @@ services:
       retries: 5
 
   tunnel:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.5.1
     container_name: beech-tunnel
     restart: unless-stopped
     command: tunnel --no-autoupdate --url http://host.docker.internal:8789

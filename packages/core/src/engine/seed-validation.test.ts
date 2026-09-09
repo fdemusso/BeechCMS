@@ -108,6 +108,57 @@ describe('validateSeedDefinitions', () => {
     expect(fatal.some(i => i.slug === 'b' && i.messages.some(m => m.toLowerCase().includes('cyclic')))).toBe(true)
   })
 
+  it('allows self-referencing relation without cyclic dependency issue (#392)', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'scratch_self',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'parent', label: 'Parent', type: 'relation', targetSeed: 'scratch_self' },
+        ],
+      }),
+    ]
+    expect(validateSeedDefinitions(seeds)).toEqual([])
+  })
+
+  it('does not falsely implicate downstream seeds in cyclic dependency (#393)', () => {
+    // a ↔ b (cycle), c depends on b, d depends on c
+    const seeds = [
+      makeSeed({
+        slug: 'a',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'b_ref', label: 'B', type: 'relation', targetSeed: 'b' },
+        ],
+      }),
+      makeSeed({
+        slug: 'b',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'a_ref', label: 'A', type: 'relation', targetSeed: 'a' },
+        ],
+      }),
+      makeSeed({
+        slug: 'c',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'b_ref', label: 'B', type: 'relation', targetSeed: 'b' },
+        ],
+      }),
+      makeSeed({
+        slug: 'd',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'c_ref', label: 'C', type: 'relation', targetSeed: 'c' },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal)
+    expect(fatal.length).toBe(2)
+    expect(fatal.map(i => i.slug).sort()).toEqual(['a', 'b'])
+  })
+
   // ── Fatal 5: invalid branch id ───────────────────────────────────────────────
 
   it('fatal: invalid branch id format', () => {
@@ -172,6 +223,23 @@ describe('validateSeedDefinitions', () => {
     const issues = validateSeedDefinitions(seeds)
     const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
     expect(fatal.some(i => i.messages.some(m => m.includes('SQL reserved keyword')))).toBe(true)
+  })
+
+  it('fatal: system column alias collision', () => {
+    // 'id', 'created_at', 'status', etc. are in SYSTEM_COLUMNS
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        displayNameAlias: 'title',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'created_at', label: 'Created At', type: 'text' },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes('reserved system column')))).toBe(true)
   })
 
   // ── Fatal 5b: unsafe branch alias (SQL injection guard) ──────────────────────
@@ -510,6 +578,28 @@ describe('validateSeedDefinitions', () => {
     ]
     const issues = validateSeedDefinitions(seeds)
     expect(issues.filter(i => i.fatal)).toEqual([])
+  })
+
+  // ── Fatal: seed slug format ───────────────────────────────────────────────
+
+  it('fatal: rejects invalid slug format', () => {
+    const invalidSlugs = ['Test-Slug Con Spazi', 'has-hyphen', 'UpperCase', 'has space', '', '123_invalid!']
+    for (const slug of invalidSlugs) {
+      const seeds = [makeSeed({ slug })]
+      const issues = validateSeedDefinitions(seeds)
+      const fatal = issues.filter(i => i.fatal && i.slug === slug)
+      expect(fatal.length).toBeGreaterThan(0)
+      expect(fatal[0].messages.some(m => m.includes('slug') && m.includes('invalid'))).toBe(true)
+    }
+  })
+
+  it('accepts valid slug format', () => {
+    const validSlugs = ['posts', 'user_profile', 'item_123', 'a']
+    for (const slug of validSlugs) {
+      const seeds = [makeSeed({ slug })]
+      const issues = validateSeedDefinitions(seeds)
+      expect(issues.filter(i => i.fatal)).toEqual([])
+    }
   })
 
   // ── isSeedSetValid ────────────────────────────────────────────────────────────

@@ -1,67 +1,55 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
+import { verifyMagicBytes } from '@beechcms/core'
 import type { FormFileAttachment } from '../types.js'
 
+/**
+ * Result of client-side file magic bytes validation before form upload.
+ */
 export interface ClientMagicBytesResult {
+  /** Whether the file matches its declared MIME signature. */
   valid: boolean
+  /** Validation error message if the file is invalid or mismatched. */
   error?: string
 }
 
+/**
+ * Validates a binary byte array against the declared MIME type using @beechcms/core.
+ *
+ * @param bytes - The binary data of the file.
+ * @param declaredMime - The MIME type reported by the browser File object.
+ * @returns An object indicating whether the file signature is valid, with optional error message.
+ */
 export function verifyClientMagicBytes(bytes: Uint8Array, declaredMime: string): ClientMagicBytesResult {
-  if (bytes.length < 4) {
-    return { valid: false, error: 'File buffer too small for signature inspection' }
+  const result = verifyMagicBytes(bytes, declaredMime)
+  return {
+    valid: result.valid,
+    error: result.error,
   }
-
-  const normalized = declaredMime.split(';')[0].trim().toLowerCase()
-
-  // PDF: %PDF-
-  if (bytes[0] === 0x25 && bytes[1] === 0x50 && bytes[2] === 0x44 && bytes[3] === 0x46) {
-    return normalized === 'application/pdf'
-      ? { valid: true }
-      : { valid: false, error: `Invalid file signature: expected PDF for ${declaredMime}` }
-  }
-
-  // PNG
-  if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) {
-    return normalized === 'image/png'
-      ? { valid: true }
-      : { valid: false, error: `Invalid file signature: expected PNG for ${declaredMime}` }
-  }
-
-  // JPEG
-  if (bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) {
-    return normalized === 'image/jpeg' || normalized === 'image/jpg'
-      ? { valid: true }
-      : { valid: false, error: `Invalid file signature: expected JPEG for ${declaredMime}` }
-  }
-
-  // GIF
-  if (bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38) {
-    return normalized === 'image/gif'
-      ? { valid: true }
-      : { valid: false, error: `Invalid file signature: expected GIF for ${declaredMime}` }
-  }
-
-  // WebP
-  if (
-    bytes.length >= 12 &&
-    bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
-    bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
-  ) {
-    return normalized === 'image/webp'
-      ? { valid: true }
-      : { valid: false, error: `Invalid file signature: expected WebP for ${declaredMime}` }
-  }
-
-  // Fallback for non-binary formats like plaintext/csv
-  if (normalized === 'text/plain' || normalized === 'text/csv') {
-    return { valid: true }
-  }
-
-  return { valid: false, error: `Unsupported or invalid file signature for ${declaredMime}` }
 }
 
+/**
+ * Encodes a Uint8Array buffer into a standard Base64 string in client/browser environments.
+ *
+ * @param bytes - The byte array to encode.
+ * @returns The Base64 encoded string.
+ */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
+/**
+ * Reads a browser File object, verifies its magic bytes signature, and converts it
+ * to a FormFileAttachment ready for submission to the BeechCMS Public Form API.
+ *
+ * @param file - The browser File instance to convert and validate.
+ * @returns A promise resolving to the attachment payload and any validation error encountered.
+ */
 export async function fileToAttachment(file: File): Promise<{ attachment: FormFileAttachment; error?: string }> {
   let buffer: ArrayBuffer
   if (typeof file.arrayBuffer === 'function') {
@@ -86,17 +74,12 @@ export async function fileToAttachment(file: File): Promise<{ attachment: FormFi
     }
   }
 
-  let binary = ''
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i])
-  }
-  const base64 = btoa(binary)
-
   return {
     attachment: {
       filename: file.name,
       mimeType: file.type || 'application/octet-stream',
-      data: base64,
+      data: bytesToBase64(bytes),
     },
   }
 }
+

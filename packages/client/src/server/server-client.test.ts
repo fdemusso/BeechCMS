@@ -38,7 +38,7 @@ describe('Server Client (@beechcms/client/server)', () => {
       expect.objectContaining({
         method: 'POST',
         headers: expect.any(Headers),
-        body: JSON.stringify({ title: 'New Article' }),
+        body: JSON.stringify({ data: { title: 'New Article' } }),
       }),
     )
   })
@@ -54,9 +54,30 @@ describe('Server Client (@beechcms/client/server)', () => {
       expect.objectContaining({
         method: 'PUT',
         headers: expect.any(Headers),
-        body: JSON.stringify({ title: 'Updated' }),
+        body: JSON.stringify({ data: { title: 'Updated' } }),
       }),
     )
+  })
+
+  it('create supports pre-wrapped { data: ... } without double-wrapping', async () => {
+    const fetchMock = mockFetch(201, { data: { id: 'p_1', title: 'Pre-wrapped' }, meta: { seed: 'articles' } })
+    const client = createBeechServerClient({ ...baseConfig, fetch: fetchMock })
+    await client.content('articles').create({ data: { title: 'Pre-wrapped' } } as any)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.example.com/api/v1/public/articles/add',
+      expect.objectContaining({
+        body: JSON.stringify({ data: { title: 'Pre-wrapped' } }),
+      }),
+    )
+  })
+
+  it('normalizes legacy response without .data wrapper safely', async () => {
+    const fetchMock = mockFetch(201, { success: true, id: 'p_legacy', slug: 'legacy-entry' })
+    const client = createBeechServerClient({ ...baseConfig, fetch: fetchMock })
+    const res = await client.content('articles').create({ title: 'Legacy' })
+    expect(res.error).toBeNull()
+    expect(res.data?.data).toEqual({ success: true, id: 'p_legacy', slug: 'legacy-entry' })
+    expect(res.data?.meta.seed).toBe('articles')
   })
 
   it('forwards custom RequestOptions (headers, signal, next tags)', async () => {

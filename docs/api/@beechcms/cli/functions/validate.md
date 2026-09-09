@@ -6,13 +6,13 @@
 
 # Function: validate()
 
-> **validate**(`args`): `Promise`&lt;`void`&gt;
+> **validate**(`_args?`): `Promise`&lt;`void`&gt;
 
 ## Parameters
 
-### args
+### \_args?
 
-[`ValidateOptions`](../interfaces/ValidateOptions.md)
+[`ValidateOptions`](../interfaces/ValidateOptions.md) = `{}`
 
 ## Returns
 

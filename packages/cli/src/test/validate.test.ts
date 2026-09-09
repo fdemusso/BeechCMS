@@ -205,57 +205,21 @@ describe('validateSeeds — existing warning checks', () => {
 
 describe('validate CLI command wrapper', () => {
   let logSpy: any
-  let warnSpy: any
-  let exitSpy: any
 
   beforeEach(() => {
     logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
-    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
-    exitSpy = vi.spyOn(process, 'exit').mockImplementation((() => {}) as any)
   })
 
   afterEach(() => {
     vi.restoreAllMocks()
   })
 
-  it('warns when registry is empty', async () => {
-    await validate({ registry: {} })
-    expect(warnSpy).toHaveBeenCalled()
-    expect(warnSpy.mock.calls[0][0]).toContain('SEED_REGISTRY is empty')
-  })
-
-  it('logs success when all seeds are valid', async () => {
-    const registry = {
-      articles: makeSeed('articles'),
-    }
-    await validate({ registry })
+  it('logs runtime schema validation status', async () => {
+    await validate()
     expect(logSpy).toHaveBeenCalled()
-    expect(logSpy.mock.calls.some((c: any[]) => c[0].includes('All seeds valid'))).toBe(true)
-  })
-
-  it('logs warnings when seeds have non-fatal issues', async () => {
-    const registry = {
-      items: {
-        slug: 'items',
-        label: 'Items',
-        displayNameAlias: 'nonexistent',
-        branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' }],
-      },
-    }
-    await validate({ registry: registry as any })
-    expect(logSpy).toHaveBeenCalled()
-    expect(logSpy.mock.calls.some((c: any[]) => c[0].includes('Found 1 warning'))).toBe(true)
-  })
-
-  it('exits with 1 when seeds have fatal errors', async () => {
-    const registry = {
-      articles: makeSeed('articles', [
-        { alias: 'title', label: 'Title', type: 'text' },
-        { alias: 'author_id', label: 'Author', type: 'relation', targetSeed: 'team' },
-      ]),
-    }
-    await validate({ registry: registry as any })
-    expect(exitSpy).toHaveBeenCalledWith(1)
+    const output = logSpy.mock.calls.flat().join('\n')
+    expect(output).toContain('beech validate')
+    expect(output).toContain('Runtime schema validation active')
   })
 })
 

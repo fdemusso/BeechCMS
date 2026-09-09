@@ -128,7 +128,7 @@ BeechCMS/
   - Automation CRUD routes (`/api/automations`, `/api/automations/:id`, `/api/automations/:id/toggle`).
 - **Key integrations**
   - Imports types and functions from `@beechcms/core` (`getSeed`, Botanical Engine).
-  - Uses Cloudflare D1 for persistence (schema hydrated dynamically at runtime from the `seeds` table; bootstrapped via `beech onboard` or `beech seed:load`).
+  - Uses Cloudflare D1 for persistence (schema hydrated dynamically at runtime from the `seeds` table; initialized via `beech init --db` or `beech onboard`).
   - Uses Cloudflare R2 for binary files.
 
 ### `apps/dashboard` – Schema-driven React Dashboard
@@ -143,7 +143,7 @@ BeechCMS/
 - **Main responsibilities**
   - Shared typings: `Branch`, `Seed`, `DbPayload`, `ApiPayload`.
   - **Botanical Engine** — generates SQL DDL and optimized queries from Seed definitions.
-  - **Seed Registry** (`SEED_REGISTRY`, `getSeed`) — defines all content schemas.
+  - **Seed Registry** (`SEED_REGISTRY`, `getSeed`) — defines content schemas and validation.
   - Schema-driven validation (`validateAndSanitizeSeedPayload`) — reused by both the internal and public API.
   - RichText schema and sanitization (`richtext.ts`, `richtext-render.ts`).
 
@@ -156,7 +156,7 @@ BeechCMS/
   - **Must** declare `displayNameAlias` on every `Seed`.
   - **Branch policies** must be enforced via `resolvePolicies`.
   - **Pending drafts** are opt-in: set `allowDrafts: true` on the Seed to enable the `/draft` endpoint family. Uses mirror tables `content_{slug}_drafts`.
-  - **Must** treat the D1 database (`seeds` table) as the single source of truth for content types. Running workers load definitions dynamically; `seed.ts` is only a bootstrapping tool.
+  - **Must** treat the D1 database (`seeds` table) as the single canonical source of truth for content types. Running workers load definitions dynamically at runtime.
   - **Must** perform destructive operations only via the authorized admin API routes (`/api/seeds/...`) and after explicit confirmation checks.
 
 - **Monorepo & shared code**

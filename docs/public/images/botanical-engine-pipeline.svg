@@ -27,22 +27,22 @@
     .table-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; fill: #94a3b8; }
   </style>
 
-  <!-- Left: seeds.ts -->
+  <!-- Left: Cloudflare D1 / Dashboard UI -->
   <g transform="translate(30, 115)">
     <rect width="180" height="90" rx="10" fill="url(#sourceGrad)" filter="drop-shadow(0 4px 12px rgba(59, 130, 246, 0.25))"/>
-    <text x="18" y="38" class="card-title">seeds.ts</text>
-    <text x="18" y="58" class="card-sub">TypeScript Content Model</text>
-    <text x="18" y="74" class="card-sub">(Single Source of Truth)</text>
+    <text x="18" y="36" class="card-title">Cloudflare D1</text>
+    <text x="18" y="56" class="card-sub">Dashboard &amp; REST API</text>
+    <text x="18" y="74" class="card-sub">(Canonical Seeds Table)</text>
   </g>
 
-  <!-- Arrow: seeds.ts -> Botanical Engine -->
+  <!-- Arrow: Schema Source -> Botanical Engine -->
   <path d="M 215 160 L 290 160" stroke="#FF6584" stroke-width="2.5" marker-end="url(#arrow)"/>
 
   <!-- Center: Botanical Engine -->
   <g transform="translate(295, 95)">
     <rect width="210" height="130" rx="12" fill="url(#engineGrad)" filter="drop-shadow(0 6px 16px rgba(5, 150, 105, 0.3))"/>
     <text x="18" y="36" class="card-title">Botanical Engine</text>
-    <text x="18" y="60" class="card-sub">• Compiles TypeScript to DDL</text>
+    <text x="18" y="60" class="card-sub">• Compiles Schemas to DDL</text>
     <text x="18" y="80" class="card-sub">• Generates SQLite Tables</text>
     <text x="18" y="100" class="card-sub">• Creates FTS5 Triggers &amp; FKs</text>
   </g>
@@ -57,7 +57,7 @@
   <g transform="translate(580, 25)">
     <rect width="250" height="58" rx="8" fill="url(#targetGrad)"/>
     <text x="16" y="26" class="table-title">Base System Tables</text>
-    <text x="16" y="44" class="table-sub">users, refresh_tokens, activity_logs</text>
+    <text x="16" y="44" class="table-sub">seeds, users, activity_logs</text>
   </g>
 
   <g transform="translate(580, 95)">

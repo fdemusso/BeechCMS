@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { resolveClassification, SlugConflictError, verifyMagicBytes, verifyTimeTrapToken, sha256hex, SystemClock } from '@beechcms/core'
+import { resolveClassification, SlugConflictError, verifyMagicBytes, verifyTimeTrapToken, sha256hex, SystemClock, timingSafeEqual, isValidContentStatus } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../shared/utils/query-utils.js'
@@ -169,7 +169,41 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     return publicProblem(context, { type: 'invalid-json-body', title: 'Bad Request', status: 400, detail: 'Invalid JSON body' })
   }
 
-  const rawData = asRecord(body.data)
+  // Authenticate API key if provided
+  const configuredWriteKey = context.env.PUBLIC_WRITE_API_KEY
+  const providedKey = context.req.header('X-API-Key')
+  const isApiKeyAuthenticated = Boolean(
+    configuredWriteKey && providedKey && timingSafeEqual(providedKey, configuredWriteKey)
+  )
+
+  if (providedKey && !isApiKeyAuthenticated) {
+    return publicProblem(context, {
+      type: 'public-api-key-unauthorized',
+      title: 'Unauthorized',
+      status: 401,
+      detail: 'Invalid or unauthorized API key',
+    })
+  }
+
+  let rawData = asRecord(body.data)
+  if (!rawData && isApiKeyAuthenticated) {
+    const nonDataKeys = new Set([
+      'slug',
+      'status',
+      '_timeTrapToken',
+      'attachments',
+      ...DECOY_FIELDS,
+    ])
+    const candidateData: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(body)) {
+      if (!nonDataKeys.has(k)) {
+        candidateData[k] = v
+      }
+    }
+    if (Object.keys(candidateData).length > 0) {
+      rawData = candidateData
+    }
+  }
 
   // Camouflage Honeypot check
   for (const decoy of DECOY_FIELDS) {
@@ -193,9 +227,9 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     }
   }
 
-  // Time Trap verification (Mandatory for public submissions)
+  // Time Trap verification (Mandatory for public submissions, bypassed for authenticated API key requests)
   const timeTrapToken = (typeof body._timeTrapToken === 'string' ? body._timeTrapToken : null) || context.req.header('x-time-trap')
-  if (!timeTrapToken) {
+  if (!isApiKeyAuthenticated && !timeTrapToken) {
     return publicProblem(context, {
       type: 'time-trap-missing',
       title: 'Unprocessable Entity',
@@ -204,37 +238,43 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     })
   }
 
-  const tokenHash = await sha256hex(timeTrapToken)
   const timeTrapTokenRepo = context.get('timeTrapTokenRepository')
-  if (timeTrapTokenRepo) {
-    const isUsed = await timeTrapTokenRepo.isTokenUsed(tokenHash)
-    if (isUsed) {
+  let tokenHash: string | null = null
+  if (timeTrapToken) {
+    tokenHash = await sha256hex(timeTrapToken)
+    if (timeTrapTokenRepo) {
+      const isUsed = await timeTrapTokenRepo.isTokenUsed(tokenHash)
+      if (isUsed) {
+        return publicProblem(context, {
+          type: 'time-trap-replayed',
+          title: 'Unprocessable Entity',
+          status: 422,
+          detail: 'Time-Trap token has already been used',
+        })
+      }
+    }
+
+    const secret = context.env.PUBLIC_TIME_TRAP_SECRET || 'beech-public-timetrap-default-secret'
+    const verification = await verifyTimeTrapToken(timeTrapToken, secret, 1.5, 3600)
+    if (!verification.valid) {
       return publicProblem(context, {
-        type: 'time-trap-replayed',
+        type: 'time-trap-violation',
         title: 'Unprocessable Entity',
         status: 422,
-        detail: 'Time-Trap token has already been used',
+        detail: verification.reason || 'Invalid submission timing.',
       })
     }
-  }
-
-  const secret = context.env.PUBLIC_TIME_TRAP_SECRET || 'beech-public-timetrap-default-secret'
-  const verification = await verifyTimeTrapToken(timeTrapToken, secret, 1.5, 3600)
-  if (!verification.valid) {
-    return publicProblem(context, {
-      type: 'time-trap-violation',
-      title: 'Unprocessable Entity',
-      status: 422,
-      detail: verification.reason || 'Invalid submission timing.',
-    })
   }
 
   if (!rawData || Object.keys(rawData).length === 0) {
     return publicProblem(context, { type: 'invalid-data-object', title: 'Bad Request', status: 400, detail: "Field 'data' is required and must be a non-empty object" })
   }
 
-  // Backend-Driven Status Management (disregard client status, enforce backend default)
-  const statusValue = ((seed as any).defaultPublicStatus as string) || 'published'
+  // Backend-Driven Status Management (disregard client status on unauthenticated submissions, allow on authenticated)
+  const defaultStatus = ((seed as any).defaultPublicStatus as string) || 'published'
+  const statusValue = (isApiKeyAuthenticated && typeof body.status === 'string' && isValidContentStatus(body.status))
+    ? body.status
+    : defaultStatus
 
   // Reject internal and restricted fields on public add
   const disallowedAliases = Object.keys(rawData).filter((alias) => {
@@ -329,7 +369,7 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     }
 
     // Mark single-use Time-Trap token as consumed
-    if (timeTrapTokenRepo) {
+    if (timeTrapToken && timeTrapTokenRepo && tokenHash) {
       let t0 = now
       const parts = timeTrapToken.split('.')
       if (parts[0]?.startsWith('t0_')) {
@@ -341,7 +381,13 @@ export async function publicAddHandler(context: Context<AppEnv>) {
       await timeTrapTokenRepo.markTokenUsed(tokenHash, now, t0 + 3600)
     }
 
-    const responseBody = { success: true, id, slug: finalSlug }
+    const responseBody = {
+      success: true,
+      id,
+      slug: finalSlug,
+      data: { id, slug: finalSlug, status: statusValue, ...sanitized.data },
+      meta: { seed: seedSlug },
+    }
     if (idempotencyKey) {
       await idempotencyRepository.store({ key: idempotencyKey, fingerprint, responseStatus: 201, responseBody: JSON.stringify(responseBody), expiresAt: now + idempotencyTtl })
     }

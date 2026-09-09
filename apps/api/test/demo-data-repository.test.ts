@@ -47,4 +47,25 @@ describe('D1DemoDataRepository (Repository-Driven Ingestion)', () => {
     expect(elisa).toBeDefined()
     expect(elisa?.data.email).toBe('elisa.colombo@vertexdigital.com')
   })
+
+  it('throws feature-not-implemented error when any demo seed is missing from seed registry', async () => {
+    const repo = new D1DemoDataRepository({} as any)
+    const mockContentRepo: Partial<ContentRepository> = { create: vi.fn() }
+    const mockGetSeed = (slug: string): Seed | null => {
+      // simulate missing 'articoli'
+      if (slug === 'articoli') return null
+      return {
+        slug,
+        label: slug,
+        labelPlural: slug,
+        displayNameAlias: 'name',
+        allowDrafts: false,
+        branches: [],
+      } as Seed
+    }
+
+    await expect(repo.loadDemoData(mockContentRepo as ContentRepository, mockGetSeed)).rejects.toThrow(
+      /Feature not implemented: demo seed 'articoli' is not registered/
+    )
+  })
 })

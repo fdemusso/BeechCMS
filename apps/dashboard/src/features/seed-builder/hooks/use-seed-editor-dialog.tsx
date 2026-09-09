@@ -9,7 +9,7 @@ import { toast } from "sonner"
 import type { Branch, Seed } from "@beechcms/core"
 import { ICON_NAMES } from "@/lib/icon-registry"
 import type { SchemaFormCapabilities, SchemaFormViewModel, RendererBranchMap } from "@/features/entry-editor"
-import { useCreateSeed, useUpdateSeed } from "./use-seeds"
+import { useCreateSeed, useUpdateSeed, useSeedHasEntries } from "./use-seeds"
 import type { SeedRecordDTO } from "../api/seeds.api"
 import { buildMetaBranches, buildMetaLayout } from "../lib/meta-seed-layout"
 import { seedToFormData, formDataToSeed } from "../lib/seed-form-mapping"
@@ -34,6 +34,9 @@ export function useSeedEditorDialog({
 
   const create = useCreateSeed()
   const update = useUpdateSeed()
+
+  const hasEntries = useSeedHasEntries(editRecord?.slug)
+  const tableEmpty = editRecord ? !hasEntries : true
 
   const [formData, setFormData] = React.useState<Record<string, unknown>>(() => seedToFormData(editRecord))
   const [fieldErrors] = React.useState<Record<string, string>>({})
@@ -61,8 +64,9 @@ export function useSeedEditorDialog({
       branchAliasOptions,
       activeSeedsForRelation,
       iconNames: ICON_NAMES,
+      tableEmpty,
     }),
-    [t, isCreate, branchAliasOptions, activeSeedsForRelation]
+    [t, isCreate, branchAliasOptions, activeSeedsForRelation, tableEmpty]
   )
 
   const branchById = React.useMemo<RendererBranchMap>(

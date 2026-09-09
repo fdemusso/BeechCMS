@@ -85,16 +85,44 @@ function computeRepoFingerprint() {
   })
 
   const files = raw.toString().split("\0").filter(Boolean)
-  // Exclude all .md files (case-insensitive)
-  const nonMdFiles = files.filter(f => !f.toLowerCase().endsWith(".md"))
+
+  // Exclude patterns that do not influence runtime code or test execution
+  const NON_CODE_PATTERNS = [
+    /\.md$/i,
+    /^docs\//i,
+    /^\.github\//i,
+    /^\.husky\//i,
+    /(^|\/)\.gitignore$/i,
+    /(^|\/)\.npmignore$/i,
+    /(^|\/)\.semgrepignore$/i,
+    /(^|\/)\.gitkeep$/i,
+    /(^|\/)\.graphifyignore$/i,
+    /\.(png|jpg|jpeg|gif|svg|ico|webp|bmp|tiff|avif)$/i,
+    /^(sonar-project\.properties|skills-lock\.json|typedoc\.json|doctor\.config\.ts)$/i,
+    /(^|\/)doctor\.config\.json$/i,
+    /^\.react-doctor\//i,
+    /(^|\/)\.agents(\/|$)/i,
+    /(^|\/)\.cursor(\/|$)/i,
+    /(^|\/)\.claude(\/|$)/i,
+    /(^|\/)\.gemini(\/|$)/i,
+    /(^|\/)\.antigravity(\/|$)/i,
+    /(^|\/)\.cursorrules$/i,
+    /(^|\/)\.cursorignore$/i,
+    /(^|\/)\.mcp\.json$/i,
+    /^graphify/i,
+    /^scratch(\/|$)/i,
+    /\.example$/i
+  ]
+
+  const candidateFiles = files.filter(f => !NON_CODE_PATTERNS.some(p => p.test(f)))
 
   // Exclude files matching .gitignore even if tracked
   let ignoredSet = new Set()
-  if (nonMdFiles.length > 0) {
+  if (candidateFiles.length > 0) {
     try {
       const ignoredRaw = execSync("git check-ignore -z --no-index --stdin", {
         cwd: ROOT_DIR,
-        input: nonMdFiles.join("\0"),
+        input: candidateFiles.join("\0"),
         maxBuffer: 32 * 1024 * 1024,
         stdio: ["pipe", "pipe", "ignore"]
       })
@@ -106,7 +134,7 @@ function computeRepoFingerprint() {
     }
   }
 
-  const finalFiles = nonMdFiles.filter(f => !ignoredSet.has(f)).sort()
+  const finalFiles = candidateFiles.filter(f => !ignoredSet.has(f)).sort()
 
   const hasher = crypto.createHash("sha256")
   for (const relPath of finalFiles) {

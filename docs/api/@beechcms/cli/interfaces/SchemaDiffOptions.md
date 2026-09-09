@@ -12,15 +12,11 @@
 
 > `optional` **db?**: `string`
 
-Override D1 database name.
-
 ***
 
-### local
+### local?
 
-> **local**: `boolean`
-
-Compare against remote D1 (default: local).
+> `optional` **local?**: `boolean`
 
 ***
 
@@ -28,15 +24,11 @@ Compare against remote D1 (default: local).
 
 > `optional` **migrationsDir?**: `string`
 
-Override migrations dir (default: \<cwd\>/apps/api/migrations).
-
 ***
 
 ### name?
 
 > `optional` **name?**: `string`
-
-Optional migration name (used in the filename).
 
 ***
 
@@ -46,8 +38,6 @@ Optional migration name (used in the filename).
 
 ***
 
-### write
+### write?
 
-> **write**: `boolean`
-
-When set, write an additive migration file instead of just printing.
+> `optional` **write?**: `boolean`

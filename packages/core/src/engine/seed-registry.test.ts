@@ -310,6 +310,36 @@ describe('sortSeedsByDependencies', () => {
     const a = makeRelationSeed('a', ['missing_target'])
     expect(() => sortSeedsByDependencies([a])).toThrow(/missing_target/)
   })
+
+  it('allows self-referencing relations without detecting a cycle (#392)', () => {
+    const selfRef = makeRelationSeed('scratch_self', ['scratch_self'])
+    const result = sortSeedsByDependencies([selfRef])
+    expect(result).toHaveLength(1)
+    expect(result[0].slug).toBe('scratch_self')
+  })
+
+  it('isolates cycle members and excludes downstream dependents (#393)', () => {
+    // a ↔ b (cycle), c depends on b, d depends on c
+    const a = makeRelationSeed('a', ['b'])
+    const b = makeRelationSeed('b', ['a'])
+    const c = makeRelationSeed('c', ['b'])
+    const d = makeRelationSeed('d', ['c'])
+    expect(() => sortSeedsByDependencies([a, b, c, d])).toThrowError(
+      /^Cyclic dependency detected among seeds: a, b$/,
+    )
+  })
+
+  it('isolates multiple cycles while excluding downstream dependents (#393)', () => {
+    // a ↔ b, x ↔ y, z depends on b and y
+    const a = makeRelationSeed('a', ['b'])
+    const b = makeRelationSeed('b', ['a'])
+    const x = makeRelationSeed('x', ['y'])
+    const y = makeRelationSeed('y', ['x'])
+    const z = makeRelationSeed('z', ['b', 'y'])
+    expect(() => sortSeedsByDependencies([a, b, x, y, z])).toThrowError(
+      /^Cyclic dependency detected among seeds: a, b, x, y$/,
+    )
+  })
 })
 
 // ─── InMemorySeedRegistry ─────────────────────────────────────────────────────

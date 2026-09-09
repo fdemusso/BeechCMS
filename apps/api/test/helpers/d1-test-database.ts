@@ -73,6 +73,17 @@ export class D1TestDatabase implements D1Database {
   close(): void { this.db.close() }
 }
 
+/**
+ * node:sqlite binds a JS `number` by its runtime type, not its value: an integral
+ * `number` like `1` still goes over the wire as SQLite REAL (`1.0`), not INTEGER (`1`).
+ * The real Cloudflare D1 binds any safe-integer JS number as SQLite INTEGER. Without this
+ * coercion, integer-affinity comparisons (e.g. `CAST(? AS TEXT)` against a TEXT column
+ * holding `'1'`) silently mismatch only in tests, never in production.
+ */
+function toSqliteParams(params: unknown[]): unknown[] {
+  return params.map(p => (typeof p === 'number' && Number.isInteger(p) ? BigInt(p) : p))
+}
+
 class D1TestStatement implements D1PreparedStatement {
   constructor(
     private readonly db: DatabaseSync,
@@ -85,7 +96,7 @@ class D1TestStatement implements D1PreparedStatement {
   }
 
   async first<T = unknown>(colName?: string): Promise<T | null> {
-    const row = this.db.prepare(this.sql).get(...(this.params as Parameters<typeof this.db.prepare>)) as Record<string, unknown> | undefined
+    const row = this.db.prepare(this.sql).get(...(toSqliteParams(this.params) as Parameters<typeof this.db.prepare>)) as Record<string, unknown> | undefined
     if (!row) return null
     return (colName ? row[colName] : row) as T
   }
@@ -96,7 +107,7 @@ class D1TestStatement implements D1PreparedStatement {
 
   _runAll<T = unknown>(): D1Result<T> {
     const start = performance.now()
-    const results = this.db.prepare(this.sql).all(...(this.params as Parameters<typeof this.db.prepare>)) as T[]
+    const results = this.db.prepare(this.sql).all(...(toSqliteParams(this.params) as Parameters<typeof this.db.prepare>)) as T[]
     return {
       results,
       success: true,
@@ -106,7 +117,7 @@ class D1TestStatement implements D1PreparedStatement {
 
   async run<T = unknown>(): Promise<D1Result<T>> {
     const start = performance.now()
-    const info = this.db.prepare(this.sql).run(...(this.params as Parameters<typeof this.db.prepare>)) as { changes: number; lastInsertRowid: number | bigint }
+    const info = this.db.prepare(this.sql).run(...(toSqliteParams(this.params) as Parameters<typeof this.db.prepare>)) as { changes: number; lastInsertRowid: number | bigint }
     return {
       results: [] as T[],
       success: true,
@@ -117,7 +128,7 @@ class D1TestStatement implements D1PreparedStatement {
   raw<T = unknown[]>(options: { columnNames: true }): Promise<[string[], ...T[]]>
   raw<T = unknown[]>(options?: { columnNames?: false }): Promise<T[]>
   async raw<T = unknown[]>(options?: { columnNames?: boolean }): Promise<[string[], ...T[]] | T[]> {
-    const rows = this.db.prepare(this.sql).all(...(this.params as Parameters<typeof this.db.prepare>)) as Record<string, unknown>[]
+    const rows = this.db.prepare(this.sql).all(...(toSqliteParams(this.params) as Parameters<typeof this.db.prepare>)) as Record<string, unknown>[]
     if (rows.length === 0) return options?.columnNames ? [[]] as unknown as [string[], ...T[]] : []
     const cols = Object.keys(rows[0])
     const data = rows.map(r => cols.map(c => r[c])) as unknown as T[]

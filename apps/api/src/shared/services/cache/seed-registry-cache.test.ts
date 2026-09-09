@@ -23,6 +23,7 @@ function makeRepo(version: number, seeds: Seed[] = [mockSeed]): ISeedRepository 
     hardDelete: vi.fn().mockResolvedValue(undefined),
     getRegistryVersion: vi.fn().mockResolvedValue(version),
     bumpRegistryVersion: vi.fn().mockResolvedValue(version + 1),
+    applyAtomic: vi.fn().mockResolvedValue({ applied: true, version: version + 1 }),
   }
 }
 

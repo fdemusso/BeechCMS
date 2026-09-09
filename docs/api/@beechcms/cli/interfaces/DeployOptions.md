@@ -14,6 +14,10 @@
 
 ***
 
-### skipSeed?
+### ~~skipSeed?~~
 
 > `optional` **skipSeed?**: `boolean`
+
+#### Deprecated
+
+Content schemas are managed in Cloudflare D1; seed:load is no longer executed during deploy.

@@ -6,4 +6,6 @@
 
 # Variable: IMAGE\_EXTENSIONS
 
-> `const` **IMAGE\_EXTENSIONS**: `Set`&lt;`string`&gt;
+> `const` **IMAGE\_EXTENSIONS**: `ReadonlySet`&lt;`string`&gt;
+
+Set of supported image file extensions.

@@ -300,6 +300,81 @@ describe('SearchClient', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(fetchSpy).toHaveBeenCalledWith('https://api.example.com/api/v1/public/search/embed?q=react');
     });
+
+    it('resolves superseded pending search with an empty array instead of hanging', async () => {
+      const manifest = makeManifest(2);
+      const buffer = makeBuffer(2);
+      stubFetch(
+        () => jsonResponse(manifest),
+        () => bufferResponse(buffer),
+      );
+      await client.loadIndex('https://cdn/manifest.json', 'https://cdn/vectors.bin');
+
+      vi.useFakeTimers();
+      vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(null, { status: 503 }))));
+
+      const firstCall = client.search('first', 10);
+      vi.advanceTimersByTime(100);
+
+      const secondCall = client.search('second', 10);
+      vi.advanceTimersByTime(250);
+
+      const [firstRes, secondRes] = await Promise.all([firstCall, secondCall]);
+      expect(firstRes).toEqual([]);
+      expect(secondRes).toBeDefined();
+    });
+  });
+
+  // ── tokenized lexical search ───────────────────────────────────────────────
+
+  describe('tokenized lexical search', () => {
+    it('matches multi-term queries in different word order', async () => {
+      const manifest: IndexManifest = {
+        model: 'bge-small-en-v1.5',
+        dimensions: DIMS,
+        fingerprint: 'fp',
+        records: [
+          { id: '1', title: 'React Complete Handbook' },
+          { id: '2', title: 'Vue Essentials' },
+        ],
+      };
+      const buffer = makeBuffer(2);
+      stubFetch(
+        () => jsonResponse(manifest),
+        () => bufferResponse(buffer),
+      );
+      await client.loadIndex('https://cdn/manifest.json', 'https://cdn/vectors.bin');
+
+      // 503 so we only test lexical fallback
+      vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(null, { status: 503 }))));
+
+      // Query has terms in inverted order: "handbook react"
+      const results = await client.search('handbook react', 10);
+      expect(results).toHaveLength(1);
+      expect(results[0].record.id).toBe('1');
+    });
+  });
+
+  // ── factory & options ──────────────────────────────────────────────────────
+
+  describe('createBeechSearchClient factory & options', () => {
+    it('instantiates client with custom dimensions and debounceMs', async () => {
+      const { createBeechSearchClient } = await import('./client.js');
+      const customClient = createBeechSearchClient('https://api.custom.com', {
+        dimensions: 512,
+        debounceMs: 50,
+      });
+
+      const manifest = makeManifest(2, 512);
+      const buffer = makeBuffer(2, 0, 512);
+      stubFetch(
+        () => jsonResponse(manifest),
+        () => bufferResponse(buffer),
+      );
+
+      await expect(customClient.loadIndex('https://cdn/manifest.json', 'https://cdn/vectors.bin')).resolves.toBeUndefined();
+    });
   });
 });
+
 

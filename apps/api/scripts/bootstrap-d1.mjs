@@ -6,11 +6,6 @@
  * D1 database exists and contains the base schema; if not, applies migrations
  * 0000 → latest in order.
  *
- * NOTE: Migration 0028_v040_seed_data.sql inserts into content_{slug} tables
- * that are created at runtime by `beech seed:load --local`. If those tables
- * don't exist yet (first run), the migration is skipped with a warning.
- * Run `cd apps/api && npm run db:reset:local` after `seed:load` to load demo data.
- *
  * Safe to run repeatedly: a fully-migrated DB is a no-op.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
@@ -21,7 +16,6 @@ import { DatabaseSync } from 'node:sqlite'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const API_DIR = join(__dirname, '..')
-const REPO_ROOT = join(API_DIR, '../..')
 const D1_DIR = join(API_DIR, '.wrangler/state/v3/d1/miniflare-D1DatabaseObject')
 const MIGRATIONS_DIR = join(API_DIR, 'migrations')
 
@@ -95,7 +89,7 @@ function applyMigrationsInOrder() {
           db.exec(sql)
           applied++
         } catch {
-          console.warn(`[bootstrap-d1] ⚠  ${f} skipped (tables may not exist yet — run seed:load first)`)
+          console.warn(`[bootstrap-d1] ⚠  ${f} skipped`)
           skipped++
         }
       }
@@ -114,7 +108,7 @@ function applyMigrationsInOrder() {
       )
       applied++
     } catch {
-      console.warn(`[bootstrap-d1] ⚠  ${f} skipped (tables may not exist yet — run seed:load first)`)
+      console.warn(`[bootstrap-d1] ⚠  ${f} skipped`)
       skipped++
     }
   }
@@ -130,21 +124,6 @@ if (hasSqliteFile() && hasBaseSchema()) {
 console.log('[bootstrap-d1] local D1 not initialized — applying migrations…')
 const { applied, skipped } = applyMigrationsInOrder()
 
-console.log('[bootstrap-d1] creating content tables (seed:load)…')
-try {
-  execSync('node bin/cli.mjs seed:load', { cwd: REPO_ROOT, stdio: 'inherit' })
-} catch {
-  console.warn('[bootstrap-d1] ⚠  seed:load failed — content tables may be missing. Run: node bin/cli.mjs seed:load')
-}
+console.log(`[bootstrap-d1] done. (${applied} applied${skipped ? `, ${skipped} skipped` : ''})`)
 
-let finalApplied = applied
-let finalSkipped = skipped
-if (skipped > 0) {
-  console.log('[bootstrap-d1] retrying skipped migrations after seed:load…')
-  const retryResult = applyMigrationsInOrder()
-  finalApplied += retryResult.applied
-  finalSkipped = retryResult.skipped
-}
-
-console.log(`[bootstrap-d1] done. (${finalApplied} applied${finalSkipped ? `, ${finalSkipped} skipped` : ''})`)
 

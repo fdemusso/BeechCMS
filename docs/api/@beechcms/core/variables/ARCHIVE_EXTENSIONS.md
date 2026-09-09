@@ -6,4 +6,6 @@
 
 # Variable: ARCHIVE\_EXTENSIONS
 
-> `const` **ARCHIVE\_EXTENSIONS**: `Set`&lt;`string`&gt;
+> `const` **ARCHIVE\_EXTENSIONS**: `ReadonlySet`&lt;`string`&gt;
+
+Set of supported archive file extensions.

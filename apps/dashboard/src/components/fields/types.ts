@@ -20,4 +20,6 @@ export interface FieldEditProps {
   readonly branch: Branch
   readonly value: unknown
   readonly onChange: (value: unknown) => void
+  readonly disabled?: boolean
+  readonly readOnly?: boolean
 }

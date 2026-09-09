@@ -20,9 +20,13 @@
 
 ***
 
-### registry?
+### ~~registry?~~
 
 > `optional` **registry?**: `Record`&lt;`string`, [`Seed`](../../core/interfaces/Seed.md)&gt; \| `null`
+
+#### Deprecated
+
+Database is the canonical source of truth; registry is no longer loaded from file.
 
 ***
 

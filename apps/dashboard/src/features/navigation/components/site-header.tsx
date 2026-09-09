@@ -70,7 +70,7 @@ function useBreadcrumbs(): BreadcrumbSegment[] {
   return [{ label: "Beech CMS", href: "/" }]
 }
 
-export function SiteHeader() {
+export const SiteHeader = React.memo(function SiteHeader() {
   const { toggleSidebar } = useSidebar()
   const breadcrumbs = useBreadcrumbs()
 
@@ -111,4 +111,4 @@ export function SiteHeader() {
       </div>
     </header>
   )
-}
+})

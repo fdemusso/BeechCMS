@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { ISeedRepository, Seed, SeedRecord } from '@beechcms/core'
+import type { ISeedRepository, Seed, SeedRecord, SeedApplyInput, SeedApplyResult } from '@beechcms/core'
 
 /**
  * In-memory ISeedRepository for testing and for the config.seeds back-compat shim.
@@ -54,5 +54,12 @@ export class InMemorySeedRepository implements ISeedRepository {
 
   async bumpRegistryVersion(): Promise<number> {
     return ++this.version
+  }
+
+  async applyAtomic(input: SeedApplyInput): Promise<SeedApplyResult> {
+    if (input.expectedVersion !== this.version) {
+      return { applied: false, version: this.version }
+    }
+    return { applied: true, version: ++this.version }
   }
 }

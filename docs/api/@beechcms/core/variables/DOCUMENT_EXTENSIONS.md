@@ -6,4 +6,6 @@
 
 # Variable: DOCUMENT\_EXTENSIONS
 
-> `const` **DOCUMENT\_EXTENSIONS**: `Set`&lt;`string`&gt;
+> `const` **DOCUMENT\_EXTENSIONS**: `ReadonlySet`&lt;`string`&gt;
+
+Set of supported document file extensions.

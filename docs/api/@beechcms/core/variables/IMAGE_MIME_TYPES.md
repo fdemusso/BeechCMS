@@ -6,4 +6,6 @@
 
 # Variable: IMAGE\_MIME\_TYPES
 
-> `const` **IMAGE\_MIME\_TYPES**: readonly \[`"image/jpeg"`, `"image/png"`, `"image/gif"`, `"image/webp"`, `"image/avif"`, `"image/bmp"`, `"image/x-icon"`, `"image/vnd.microsoft.icon"`\]
+> `const` **IMAGE\_MIME\_TYPES**: readonly `string`[]
+
+List of supported image MIME types.

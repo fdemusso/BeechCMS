@@ -37,7 +37,7 @@ interface RepeaterMeta {
   /** Optional UI label for the add button / empty state.                         */
   itemLabel?: string
   /** Context the branch-item editor needs (active seeds for relation targets).    */
-  branchItemContext?: { activeSeedsForRelation: Seed[]; subField?: boolean }
+  branchItemContext?: { activeSeedsForRelation: Seed[]; subField?: boolean; tableEmpty?: boolean }
 }
 
 /**
@@ -108,6 +108,7 @@ export function FieldEditRepeater({ branch, value, onChange }: FieldEditProps) {
                 branch={item as Branch}
                 activeSeedsForRelation={meta.branchItemContext?.activeSeedsForRelation ?? []}
                 subField={meta.branchItemContext?.subField}
+                tableEmpty={meta.branchItemContext?.tableEmpty}
                 onChange={(b) => update(idx, b)}
                 onRemove={() => remove(idx)}
                 disableRemove={!canRemove}

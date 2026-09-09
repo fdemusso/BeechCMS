@@ -107,6 +107,18 @@ export const TEST_SEEDS = [
       }
     ],
   }),
+  defineSeed({
+    slug: 'generic_submissions',
+    label: 'Generic Submission',
+    labelPlural: 'Generic Submissions',
+    displayNameAlias: 'title',
+    allowPublicRead: true,
+    allowPublicPost: true,
+    branches: [
+      { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true, policies: { public: true } },
+      { id: 'br_02', alias: 'attachment', label: 'Attachment', type: 'file', fileOptions: { accept: 'any' }, policies: { public: true } },
+    ],
+  }),
 ]
 
 /**

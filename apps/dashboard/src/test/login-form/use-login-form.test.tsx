@@ -10,10 +10,12 @@ const mocked = vi.hoisted(() => ({
   axiosPost: vi.fn(),
   isAxiosError: vi.fn(),
   setToken: vi.fn(),
+  returnTo: null as string | null,
 }))
 
 vi.mock("react-router-dom", () => ({
   useNavigate: () => mocked.navigate,
+  useSearchParams: () => [{ get: (key: string) => (key === "returnTo" ? mocked.returnTo : null) }],
 }))
 
 vi.mock("axios", () => ({
@@ -33,13 +35,14 @@ vi.mock("@/lib/auth-context", () => ({
   useAuth: () => ({ setToken: mocked.setToken }),
 }))
 
-import { useLoginForm } from "@/features/auth/components/login-form/use-login-form"
+import { useLoginForm, safeReturnTo } from "@/features/auth/components/login-form/use-login-form"
 
 const TEST_PASS = "x".repeat(10)
 
 describe("useLoginForm", () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mocked.returnTo = null
   })
 
   it("inizialmente form non valido, toggle password visibile funziona", () => {
@@ -117,5 +120,34 @@ describe("useLoginForm", () => {
     })
 
     expect(result.current.passwordError).toBe("Invalid email or password")
+  })
+
+  it("navigates to a validated returnTo path after login", async () => {
+    mocked.returnTo = "/oauth/consent?client_id=beech-mcp-cli"
+    mocked.axiosPost.mockResolvedValueOnce({ data: { token: "jwt-token", expiresIn: "15m" } })
+
+    const { result } = renderHook(() => useLoginForm())
+    act(() => {
+      result.current.handleEmailChange({ target: { value: "a@b.com" } } as any)
+      result.current.handlePasswordChange({ target: { value: TEST_PASS } } as any)
+    })
+    await act(async () => {
+      await result.current.handleSubmit({ preventDefault: vi.fn() } as any)
+    })
+
+    expect(mocked.navigate).toHaveBeenCalledWith("/oauth/consent?client_id=beech-mcp-cli", { replace: true })
+  })
+})
+
+describe("safeReturnTo", () => {
+  it("falls back to '/' for null, protocol-relative, and absolute URLs", () => {
+    expect(safeReturnTo(null)).toBe("/")
+    expect(safeReturnTo("//evil.tld")).toBe("/")
+    expect(safeReturnTo("https://evil.tld")).toBe("/")
+    expect(safeReturnTo("not-a-path")).toBe("/")
+  })
+
+  it("accepts a single-slash same-origin path", () => {
+    expect(safeReturnTo("/oauth/consent?client_id=x")).toBe("/oauth/consent?client_id=x")
   })
 })

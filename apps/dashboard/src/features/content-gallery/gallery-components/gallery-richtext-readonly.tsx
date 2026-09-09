@@ -2,8 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { renderRichText } from "@beechcms/core"
-
+import * as React from "react"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 import { cn } from "@/lib/utils"
 
@@ -19,9 +18,30 @@ interface GalleryRichtextReadonlyProps {
 
 /**
  * Anteprima richtext: stesso schema JSON/envelope dell'editor, output HTML via `@beechcms/core`.
+ * Caricata in modo asincrono (Lazy) per non scaricare KaTeX/highlight.js nel bundle iniziale.
  */
 export function GalleryRichtextReadonly({ value, className }: GalleryRichtextReadonlyProps) {
-  const html = renderRichText(value)
+  const [html, setHtml] = React.useState<string | null>(null)
+
+  React.useEffect(() => {
+    let mounted = true
+    
+    // Caricamento dinamico: scarica renderRichText (e le sue dipendenze pesanti) solo ora!
+    import("@beechcms/core/richtext-render").then(({ renderRichText }) => {
+      if (mounted) {
+        setHtml(renderRichText(value))
+      }
+    }).catch(err => {
+      console.error("Failed to load rich text renderer", err)
+      if (mounted) setHtml("")
+    })
+
+    return () => { mounted = false }
+  }, [value])
+
+  if (html === null) {
+    return <div className="text-muted-foreground text-sm animate-pulse">Caricamento anteprima...</div>
+  }
 
   if (isRenderedEmpty(html)) {
     return <div className="text-muted-foreground text-sm">—</div>

@@ -18,6 +18,7 @@ const mockSeed: Seed = {
     { id: "b-published", alias: "published", label: "Published", type: "boolean" },
     { id: "b-seo", alias: "seo", label: "SEO Description", type: "text" },
     { id: "b-gallery", alias: "gallery", label: "Gallery", type: "file", multiple: true }, // Full width mock field
+    { id: "b-json", alias: "metadata", label: "Metadata", type: "json" },
   ],
 } as any
 
@@ -256,6 +257,98 @@ describe("useLayoutBuilder", () => {
         assignOk = result.current.assignField("tab-main", "sec-general", "col-left", "b-gallery")
       })
       expect(assignOk).toBe(false)
+    })
+
+    it("rejects assigning a json branch into a multi-column section", () => {
+      const layoutWithEmptyMultiCol: FormLayout = {
+        version: 1,
+        tabs: [
+          {
+            id: "tab-main",
+            label: "Main",
+            sections: [
+              {
+                id: "sec-empty-2col",
+                columns: [
+                  { id: "col-1", fields: [] },
+                  { id: "col-2", fields: [] },
+                ],
+              },
+            ],
+          },
+        ],
+      }
+      const { result } = renderHook(() =>
+        useLayoutBuilder({ seed: mockSeed, initialLayout: layoutWithEmptyMultiCol })
+      )
+
+      let assignOk = true
+      act(() => {
+        assignOk = result.current.assignField("tab-main", "sec-empty-2col", "col-1", "b-json")
+      })
+      expect(assignOk).toBe(false)
+    })
+
+    it("rejects assigning a non-full-width branch into a section containing a json branch", () => {
+      const layoutWithJson: FormLayout = {
+        version: 1,
+        tabs: [
+          {
+            id: "tab-main",
+            label: "Main",
+            sections: [
+              {
+                id: "sec-json",
+                columns: [
+                  { id: "col-1", fields: [{ branchId: "b-json" }] },
+                ],
+              },
+            ],
+          },
+        ],
+      }
+      const { result } = renderHook(() =>
+        useLayoutBuilder({ seed: mockSeed, initialLayout: layoutWithJson })
+      )
+
+      let assignOk = true
+      act(() => {
+        assignOk = result.current.assignField("tab-main", "sec-json", "col-1", "b-published")
+      })
+      expect(assignOk).toBe(false)
+    })
+
+    it("refuses to increase column count beyond 1 for a section containing a json branch", () => {
+      const layoutWithJson: FormLayout = {
+        version: 1,
+        tabs: [
+          {
+            id: "tab-main",
+            label: "Main",
+            sections: [
+              {
+                id: "sec-json",
+                columns: [
+                  { id: "col-1", fields: [{ branchId: "b-json" }] },
+                ],
+              },
+            ],
+          },
+        ],
+      }
+      const { result } = renderHook(() =>
+        useLayoutBuilder({ seed: mockSeed, initialLayout: layoutWithJson })
+      )
+
+      act(() => {
+        result.current.setSectionColumnCount("tab-main", "sec-json", 2)
+      })
+      expect(result.current.draft.tabs[0].sections[0].columns).toHaveLength(1)
+
+      act(() => {
+        result.current.setSectionColumnCount("tab-main", "sec-json", 3)
+      })
+      expect(result.current.draft.tabs[0].sections[0].columns).toHaveLength(1)
     })
   })
 

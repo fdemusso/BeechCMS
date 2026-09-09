@@ -82,8 +82,8 @@ function FieldItem({ tabId, sectionId, columnId, field, branch, ops, dragId }: F
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded border group">
-      <div className="flex items-start gap-2 p-2">
+    <div ref={setNodeRef} style={style} className="rounded border group min-w-0 max-w-full overflow-hidden">
+      <div className="flex items-start gap-2 p-2 min-w-0 max-w-full">
         <button
           type="button"
           className="mt-1 flex-shrink-0 cursor-grab text-muted-foreground hover:text-foreground"
@@ -93,7 +93,7 @@ function FieldItem({ tabId, sectionId, columnId, field, branch, ops, dragId }: F
           <GripVertical className="size-4" />
         </button>
 
-        <div className="flex-1 min-w-0 space-y-1.5 pointer-events-none select-none opacity-70">
+        <div className="flex-1 min-w-0 max-w-full space-y-1.5 pointer-events-none select-none opacity-70 overflow-hidden">
           <Label className="text-xs font-medium">{branch.label}</Label>
           <FieldEdit branch={branch as any} value={emptyValue(branch)} onChange={() => {}} />
         </div>
@@ -168,7 +168,7 @@ export function ColumnCard({
   const fieldDragIds = fields.map((field) => `field:${tabId}:${sectionId}:${columnId}:${field.branchId}`)
 
   return (
-    <div ref={setNodeRef} style={style} className="rounded border min-h-[48px] flex flex-col gap-1 p-1">
+    <div ref={setNodeRef} style={style} className="rounded border min-h-[48px] flex flex-col gap-1 p-1 min-w-0 max-w-full overflow-hidden">
       {/* Column drag handle — top strip */}
       <div className="flex justify-center">
         <button

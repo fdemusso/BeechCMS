@@ -6,4 +6,6 @@
 
 # Variable: BLOCKED\_IMAGE\_MIME\_TYPES
 
-> `const` **BLOCKED\_IMAGE\_MIME\_TYPES**: readonly \[`"image/svg+xml"`, `"image/svg"`\]
+> `const` **BLOCKED\_IMAGE\_MIME\_TYPES**: readonly `string`[]
+
+Blocked MIME types associated with unsafe image formats.

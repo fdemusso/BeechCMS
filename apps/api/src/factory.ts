@@ -5,26 +5,16 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, BeechHooks, JobRegistry } from '@beechcms/core'
-import { sha256hex, SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { Env, Variables, AppEnv } from './types'
 
 export type { Env, Variables, AppEnv } from './types'
-import { getClientIp } from './shared/utils/request-utils'
-import { checkDualKeyRateLimit, normalizeAccountKey } from './shared/utils/dual-key-rate-limiter'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 
 // Imports delle rotte e middleware
-import { AUTH_ERRORS } from './auth/constants'
-import {
-  parseLoginBody,
-  validateLoginInput,
-  verifyPassword,
-  DUMMY_PASSWORD_HASH,
-} from './auth/utils/login-helpers'
-import { generateRefreshToken } from './auth/utils/refresh-token'
+import { authApp } from './auth'
 import { authMiddleware } from './middleware/auth.middleware'
+import { oauthScopeMiddleware } from './middleware/oauth-scope.middleware'
 import contentFeature from './features/content'
 import { widgetApp } from './features/widget/widget'
 import { rotateFieldApp } from './features/rotate-field'
@@ -45,7 +35,8 @@ import { publicRoutes } from './public/public-routes'
 import { apiKeyMiddleware } from './public/api-key-middleware'
 import { publicRateLimitMiddleware } from './public/rate-limit-middleware'
 import { searchRouter } from './features/search'
-import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository } from '@beechcms/core'
+import { oauthApp } from './features/oauth'
+import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository, IRoleGuard } from '@beechcms/core'
 import { repositoryMiddleware } from './middleware/repository.middleware'
 import { seedRegistryMiddleware } from './middleware/seed-registry.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'
@@ -94,42 +85,14 @@ export interface BeechConfig {
    * a pre-exhausted limiter without relying on Cloudflare bindings.
    */
   rateLimiterRegistry?: IRateLimiterRegistry
+  /**
+   * Optional role-guard override. Defaults to AllowAllRoleGuard, which grants
+   * every requested scope; inject a restrictive guard to exercise the denial path.
+   */
+  roleGuard?: IRoleGuard
 }
 
 // --- Costanti e helper ---
-const REFRESH_TOKEN_EXPIRY_DAYS = 7
-const SECONDS_PER_DAY = 24 * 60 * 60
-
-function isRequestSecure(url: string): boolean {
-  return new URL(url).protocol === 'https:'
-}
-
-function getRefreshTokenCookieOptions(secure: boolean) {
-  return {
-    httpOnly: true,
-    secure,
-    sameSite: 'Strict' as const,
-    maxAge: REFRESH_TOKEN_EXPIRY_DAYS * SECONDS_PER_DAY,
-    path: '/auth',
-  }
-}
-
-function getRefreshTokenDeleteCookieOptions(secure: boolean) {
-  return {
-    httpOnly: true,
-    secure,
-    sameSite: 'Strict' as const,
-    path: '/auth',
-  }
-}
-
-function handleAuthError(context: any, error: unknown, operationName: string): Response {
-  if (context.env.ENV !== 'production') {
-    console.error(`${operationName} error:`, error)
-  }
-  return context.json({ error: AUTH_ERRORS.GENERIC_ERROR }, 500)
-}
-
 function extractPublicSeed(path: string): string {
   const match = path.match(/^\/api\/v1\/public\/([^/?]+)/)
   return match ? match[1] : ''
@@ -162,6 +125,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     automationRepository: config.automationRepository,
     automationRunner: config.automationRunner,
     hooks: config.hooks,
+    roleGuard: config.roleGuard,
   }))
 
   // 2. Seed Registry Hydration (D1-backed, version-token-cached per isolate)
@@ -251,179 +215,19 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     )
   })
 
-  // 3. Auth Routes
-  app.post('/auth/login', async (context) => {
-    try {
-      const clientIp = getClientIp(context.req)
-
-      let body: any
-      try {
-        body = await context.req.json()
-      } catch {
-        // Evaluate IP rate limit on malformed body before rejecting
-        const ipLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(clientIp)
-        if (!ipLimit.isAllowed) {
-          const headers: Record<string, string> = {}
-          if (ipLimit.retryAfterSeconds !== undefined) {
-            headers['Retry-After'] = String(ipLimit.retryAfterSeconds)
-          }
-          return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429, headers)
-        }
-        return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
-      }
-
-      const credentials = parseLoginBody(body)
-      if (!credentials) {
-        const ipLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(clientIp)
-        if (!ipLimit.isAllowed) {
-          const headers: Record<string, string> = {}
-          if (ipLimit.retryAfterSeconds !== undefined) {
-            headers['Retry-After'] = String(ipLimit.retryAfterSeconds)
-          }
-          return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429, headers)
-        }
-        return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
-      }
-
-      const { email, password } = credentials
-      if (!validateLoginInput(email, password)) {
-        const ipLimit = await context.get('rateLimiters').getLimiter('login').checkLimit(clientIp)
-        if (!ipLimit.isAllowed) {
-          const headers: Record<string, string> = {}
-          if (ipLimit.retryAfterSeconds !== undefined) {
-            headers['Retry-After'] = String(ipLimit.retryAfterSeconds)
-          }
-          return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429, headers)
-        }
-        return context.json({ error: AUTH_ERRORS.INVALID_REQUEST }, 400)
-      }
-
-      // Dual-Key Rate Limit Check (pre-database, pre-crypto)
-      const dualKeyResult = await checkDualKeyRateLimit({
-        ipLimiter: context.get('rateLimiters').getLimiter('login'),
-        accountLimiter: context.get('rateLimiters').getLimiter('loginAccount'),
-        clientIp,
-        accountKey: email,
-      })
-
-      if (!dualKeyResult.isAllowed) {
-        const headers: Record<string, string> = {}
-        if (dualKeyResult.retryAfterSeconds !== undefined) {
-          headers['Retry-After'] = String(dualKeyResult.retryAfterSeconds)
-        }
-        return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429, headers)
-      }
-
-      const normalizedEmail = normalizeAccountKey(email)
-      const user = await context.get('userRepository').findByEmail(normalizedEmail)
-      const hashToCompare = user?.passwordHash ?? DUMMY_PASSWORD_HASH
-      const isValid = await verifyPassword(password, hashToCompare, context.get('hashProvider'))
-
-      if (!user || !isValid) return context.json({ error: AUTH_ERRORS.INVALID_CREDENTIALS }, 401)
-
-      const accessToken = await context.get('tokenService').issue({
-        sub: user.id,
-        email: user.email,
-        name: user.name ?? undefined,
-        surname: user.surname ?? undefined,
-        role: user.role,
-      })
-      const refreshToken = generateRefreshToken()
-      const refreshTokenHash = await sha256hex(refreshToken)
-      const nowSeconds = SystemClock.nowSeconds()
-
-      await context.get('sessionRepository').saveRefreshToken({
-        id: SystemIdGenerator.uuid(),
-        userId: user.id,
-        tokenHash: refreshTokenHash,
-        expiresAt: nowSeconds + REFRESH_TOKEN_EXPIRY_DAYS * SECONDS_PER_DAY,
-      })
-      setCookie(context, 'refresh_token', refreshToken, getRefreshTokenCookieOptions(isRequestSecure(context.req.url)))
-      return context.json({ token: accessToken, expiresIn: '15m' }, 200)
-    } catch (error) {
-      return handleAuthError(context, error, 'Login')
-    }
-  })
-
-  app.post('/auth/refresh', async (context) => {
-    try {
-      const refreshClientIp = getClientIp(context.req)
-      const refreshRateLimit = await context.get('rateLimiters').getLimiter('tokenRefresh').checkLimit(refreshClientIp)
-      if (!refreshRateLimit.isAllowed) {
-        const headers: Record<string, string> = {}
-        if (refreshRateLimit.retryAfterSeconds !== undefined) {
-          headers['Retry-After'] = String(refreshRateLimit.retryAfterSeconds)
-        }
-        return context.json({ error: AUTH_ERRORS.RATE_LIMIT_EXCEEDED }, 429, headers)
-      }
-
-      const refreshToken = getCookie(context, 'refresh_token')
-      if (!refreshToken) return context.json({ error: 'Refresh token missing' }, 401)
-
-      const nowSeconds = SystemClock.nowSeconds()
-      const tokenHash = await sha256hex(refreshToken)
-      const activeSession = await context.get('sessionRepository').findActiveByHash(tokenHash, nowSeconds)
-      if (!activeSession) return context.json({ error: 'Invalid refresh token' }, 401)
-
-      const user = await context.get('userRepository').findById(activeSession.userId)
-      if (!user) {
-        await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
-        return context.json({ error: 'User not found' }, 401)
-      }
-
-      // Issue new tokens before revoking the old one: if saveRefreshToken fails,
-      // the old token stays valid and the user is not locked out.
-      const newAccessToken = await context.get('tokenService').issue({ sub: user.id, email: user.email, name: user.name ?? undefined, surname: user.surname ?? undefined, role: user.role })
-      const newRefreshToken = generateRefreshToken()
-      const newRefreshTokenHash = await sha256hex(newRefreshToken)
-
-      await context.get('sessionRepository').saveRefreshToken({
-        id: SystemIdGenerator.uuid(),
-        userId: user.id,
-        tokenHash: newRefreshTokenHash,
-        expiresAt: nowSeconds + REFRESH_TOKEN_EXPIRY_DAYS * SECONDS_PER_DAY,
-      })
-
-      try {
-        const revoked = await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
-        if (!revoked) {
-          await context.get('sessionRepository').revokeByHash(newRefreshTokenHash, nowSeconds)
-          return context.json({ error: 'Invalid refresh token' }, 401)
-        }
-
-        setCookie(context, 'refresh_token', newRefreshToken, getRefreshTokenCookieOptions(isRequestSecure(context.req.url)))
-        return context.json({ token: newAccessToken, expiresIn: '15m' }, 200)
-      } catch (error) {
-        await context.get('sessionRepository').revokeByHash(newRefreshTokenHash, nowSeconds).catch(() => {})
-        throw error
-      }
-    } catch (error) {
-      return handleAuthError(context, error, 'Refresh')
-    }
-  })
-
-  app.post('/auth/logout', async (context) => {
-    try {
-      const refreshToken = getCookie(context, 'refresh_token')
-      if (refreshToken) {
-        const nowSeconds = SystemClock.nowSeconds()
-        const tokenHash = await sha256hex(refreshToken)
-        await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
-      }
-      deleteCookie(context, 'refresh_token', getRefreshTokenDeleteCookieOptions(isRequestSecure(context.req.url)))
-      return context.json({ message: 'Logged out' }, 200)
-    } catch (error) {
-      return handleAuthError(context, error, 'Logout')
-    }
-  })
-
-  // 4. Setup & Password Reset
+  // 3. Auth, Setup & Password Reset
+  app.route('/', authApp)
   app.route('/', setupApp)
   app.route('/', passwordResetApp)
+  app.route('/', oauthApp)
 
-  // 5. Protected CMS API
+  // 4. Protected CMS API
   const apiProtected = new Hono<{ Bindings: Env; Variables: Variables }>()
-  apiProtected.use('*', authMiddleware())
+  // Accepts the dashboard admin JWT and, additionally, OAuth 2.1 access tokens.
+  apiProtected.use('*', authMiddleware({ acceptOAuth: true }))
+  // Fail-closed: an OAuth token reaches only the routes listed in OAUTH_SCOPE_ROUTES.
+  // Must stay immediately after authMiddleware — it consumes the `oauthGrant` it sets.
+  apiProtected.use('*', oauthScopeMiddleware())
 
   apiProtected.route('/settings', settingsApp)
   apiProtected.route('/schema', schemaApp)
@@ -437,9 +241,10 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   apiProtected.route('/content', contentFeature)
   apiProtected.route('/widget', widgetApp)
   apiProtected.route('/automations', automationsApp)
+  apiProtected.route('/search', searchRouter)
   apiProtected.route('/', uploadRoutes)
   
-  // 6. Public API (must be registered before apiProtected to avoid auth middleware interception)
+  // 5. Public API (must be registered before apiProtected to avoid auth middleware interception)
   const apiPublic = new Hono<{ Bindings: Env; Variables: Variables }>()
   apiPublic.use('*', publicRateLimitMiddleware())
   apiPublic.use('*', apiKeyMiddleware())
@@ -468,7 +273,6 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   }
 
   app.route('/api', apiProtected)
-  app.route('/api/search', searchRouter)
 
   // 7. Dashboard SPA — serve static assets from Workers Assets binding
   app.get('/admin', (context) => context.redirect('/admin/', 301))

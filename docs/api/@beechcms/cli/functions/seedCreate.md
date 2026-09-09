@@ -6,13 +6,13 @@
 
 # Function: seedCreate()
 
-> **seedCreate**(`_args`): `Promise`&lt;`void`&gt;
+> **seedCreate**(`_args?`): `Promise`&lt;`void`&gt;
 
 ## Parameters
 
-### \_args
+### \_args?
 
-[`SeedCreateOptions`](../type-aliases/SeedCreateOptions.md)
+[`SeedCreateOptions`](../type-aliases/SeedCreateOptions.md) = `{}`
 
 ## Returns
 

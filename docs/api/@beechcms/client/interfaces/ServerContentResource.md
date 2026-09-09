@@ -6,7 +6,7 @@
 
 # Interface: ServerContentResource&lt;TRow&gt;
 
-Server Client Content Resource: Full CRUD operations.
+Server Client Content Resource: Content mutation and query operations (create, update, list, get).
 
 ## Type Parameters
 

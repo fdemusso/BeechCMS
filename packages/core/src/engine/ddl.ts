@@ -260,7 +260,7 @@ export function generateIndexes(seed: Seed): string[] {
   for (const branch of seed.branches) {
     if (branch.type === 'relation' && branch.multiple === true) continue
     const isRelation = branch.type === 'relation'
-    if (!isRelation && branch.policies?.filter === false) continue
+    if (!isRelation && !resolvePolicies(branch).filter) continue
     if (['text', 'number', 'date', 'boolean', 'relation'].includes(branch.type)) {
       indexes.push(
         `CREATE INDEX IF NOT EXISTS idx_${slug}_${branch.alias} ON ${table}(${branch.alias});`

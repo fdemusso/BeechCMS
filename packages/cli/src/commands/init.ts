@@ -371,18 +371,6 @@ function checkFiles(cwd: string, checkDevVars: boolean): boolean {
     console.log(pc.green(`  ✓ ${basename(configPath!)}`))
   }
 
-  const seedsExists =
-    existsSync(resolve(cwd, 'seeds.ts')) ||
-    existsSync(resolve(cwd, 'seeds.js')) ||
-    existsSync(resolve(cwd, 'seed.ts')) ||
-    existsSync(resolve(cwd, 'seed.js'))
-
-  if (!seedsExists) {
-    console.log(pc.yellow('  ⚠ seeds.ts         — not found (optional: needed only for the one-time code → DB load; after `beech seed:load`, the DB is canonical)'))
-  } else {
-    console.log(pc.green('  ✓ seeds.ts'))
-  }
-
   if (checkDevVars) {
     if (!existsSync(resolve(cwd, '.dev.vars'))) {
       console.log(pc.dim('  ○ .dev.vars        — not found (optional: only needed for production R2 credentials)'))
@@ -395,13 +383,11 @@ function checkFiles(cwd: string, checkDevVars: boolean): boolean {
 }
 
 function printNextSteps(local: boolean): void {
-  const localFlag = local ? ' --local' : ''
   console.log(pc.dim('  Next steps:'))
-  console.log(pc.cyan(`  1. npx beech seed:load${localFlag}`))
-  console.log(pc.dim('      → create content tables and register seed definitions in D1'))
-  console.log(pc.cyan('  2. npx wrangler dev'))
+  console.log(pc.cyan('  1. npx wrangler dev'))
   console.log(pc.dim('      → start API + dashboard'))
-  console.log(pc.dim('  3. Open http://localhost:8789/admin\n'))
+  console.log(pc.cyan('  2. Open http://localhost:8789/admin'))
+  console.log(pc.dim('      → complete initial admin setup and manage content types\n'))
 }
 
 function getExistingTables(options: WranglerOptions): string[] | null {
@@ -437,9 +423,8 @@ export async function init(args: InitOptions): Promise<void> {
     const localFlag = args.local ? ' --local' : ''
     console.log(pc.dim('  Next steps:'))
     console.log(pc.dim(`  1. npx beech init --db${localFlag}     # initialise D1 database`))
-    console.log(pc.dim(`  2. npx beech seed:load${localFlag}     # create content tables`))
-    console.log(pc.dim('  3. npx wrangler dev                 # start API + dashboard'))
-    console.log(pc.dim('  4. Open http://localhost:8789/admin\n'))
+    console.log(pc.dim('  2. npx wrangler dev                 # start API + dashboard'))
+    console.log(pc.dim('  3. Open http://localhost:8789/admin\n'))
     return
   }
 
@@ -606,7 +591,6 @@ export async function init(args: InitOptions): Promise<void> {
 
   console.log(pc.green('\n  ✓ worker.ts'))
   console.log(pc.green(`  ✓ ${configPath ? basename(configPath) : 'wrangler.jsonc'}`))
-  console.log(pc.green('  ✓ seeds.ts'))
   console.log(pc.green('  ✓ Local D1 system tables ready\n'))
   echoApiKeys(configPath)
   printNextSteps(args.local)

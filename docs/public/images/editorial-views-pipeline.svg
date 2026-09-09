@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 320" width="100%" height="100%">
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="tableGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="kanbanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b"/>
+      <stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="galleryGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="bulkGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+    <linearGradient id="bgBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f59e0b" stop-opacity="0.05"/>
+      <stop offset="100%" stop-color="#6366f1" stop-opacity="0.04"/>
+    </linearGradient>
+  </defs>
+
+  <style>
+    .diagram-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 12px; font-weight: 600; letter-spacing: 0.5px; fill: #d97706; text-transform: uppercase; }
+    .card-badge { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; fill: #ffffff; }
+    .card-title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 13.5px; font-weight: 700; fill: #ffffff; }
+    .card-desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 10.5px; fill: rgba(255, 255, 255, 0.9); }
+    .action-pill { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 9.5px; font-weight: 600; fill: #ffffff; }
+  </style>
+
+  <!-- Container Box -->
+  <rect x="15" y="15" width="850" height="290" rx="16" fill="url(#bgBoxGrad)" stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="4 4"/>
+  <text x="36" y="42" class="diagram-title">BeechCMS Multi-Perspective Editorial Experience</text>
+
+  <!-- View 1: Data Table (Left) -->
+  <g transform="translate(38, 65)">
+    <rect width="250" height="150" rx="12" fill="url(#tableGrad)" filter="drop-shadow(0 6px 14px rgba(59, 130, 246, 0.3))"/>
+    <rect x="14" y="14" width="76" height="18" rx="4" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="52" y="27" text-anchor="middle" class="card-badge">Grid View</text>
+    <text x="14" y="52" class="card-title">Data Table &amp; Toolbar</text>
+    <text x="14" y="72" class="card-desc">• Multi-column sorting &amp; filters</text>
+    <text x="14" y="90" class="card-desc">• Configurable column visibility</text>
+    <text x="14" y="108" class="card-desc">• Checkbox multi-row selection</text>
+    <text x="14" y="126" class="card-desc">• Rapid inline record navigation</text>
+  </g>
+
+  <!-- View 2: Kanban Pipeline (Center) -->
+  <g transform="translate(315, 65)">
+    <rect width="250" height="150" rx="12" fill="url(#kanbanGrad)" filter="drop-shadow(0 6px 14px rgba(245, 158, 11, 0.3))"/>
+    <rect x="14" y="14" width="94" height="18" rx="4" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="61" y="27" text-anchor="middle" class="card-badge">Workflow View</text>
+    <text x="14" y="52" class="card-title">Kanban Status Board</text>
+    <text x="14" y="72" class="card-desc">• Drag-and-drop state mutation</text>
+    <text x="14" y="90" class="card-desc">• Draft / In Review / Published</text>
+    <text x="14" y="108" class="card-desc">• Column WIP counters &amp; limits</text>
+    <text x="14" y="126" class="card-desc">• Status-driven field groupings</text>
+  </g>
+
+  <!-- View 3: Visual Gallery (Right) -->
+  <g transform="translate(592, 65)">
+    <rect width="250" height="150" rx="12" fill="url(#galleryGrad)" filter="drop-shadow(0 6px 14px rgba(16, 185, 129, 0.3))"/>
+    <rect x="14" y="14" width="86" height="18" rx="4" fill="rgba(0, 0, 0, 0.25)"/>
+    <text x="57" y="27" text-anchor="middle" class="card-badge">Visual View</text>
+    <text x="14" y="52" class="card-title">Media &amp; Card Gallery</text>
+    <text x="14" y="72" class="card-desc">• Intelligent thumbnail resolution</text>
+    <text x="14" y="90" class="card-desc">• Hover peek metadata inspector</text>
+    <text x="14" y="108" class="card-desc">• Media assets &amp; portfolio display</text>
+    <text x="14" y="126" class="card-desc">• Responsive card grid layout</text>
+  </g>
+
+  <!-- Bottom: Bulk Operations Bar (Spanning across views) -->
+  <g transform="translate(38, 230)">
+    <rect width="804" height="60" rx="10" fill="url(#bulkGrad)" filter="drop-shadow(0 4px 12px rgba(99, 102, 241, 0.25))"/>
+    <text x="24" y="35" class="card-title" font-size="14px">⚡ Bulk Batch Operations</text>
+    <text x="240" y="35" class="card-desc" font-size="11px">Select records across views to execute atomic batch operations:</text>
+    
+    <!-- Action Pills inside Bar -->
+    <g transform="translate(575, 19)">
+      <rect width="70" height="22" rx="4" fill="rgba(255, 255, 255, 0.2)"/>
+      <text x="35" y="15" text-anchor="middle" class="action-pill">Publish (N)</text>
+    </g>
+    <g transform="translate(655, 19)">
+      <rect width="78" height="22" rx="4" fill="rgba(255, 255, 255, 0.2)"/>
+      <text x="39" y="15" text-anchor="middle" class="action-pill">Bulk Edit</text>
+    </g>
+    <g transform="translate(742, 19)">
+      <rect width="50" height="22" rx="4" fill="#ef4444"/>
+      <text x="25" y="15" text-anchor="middle" class="action-pill">Delete</text>
+    </g>
+  </g>
+</svg>

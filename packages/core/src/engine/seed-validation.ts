@@ -3,6 +3,7 @@
 
 import type { Seed } from './types.js'
 import { AUTOMATION_RESERVED_WORDS } from '../automations/automations-grammar-words.js'
+import { SYSTEM_COLUMNS } from './ddl.js'
 import { sortSeedsByDependencies } from './seed-registry.js'
 import { SQL_RESERVED_WORDS } from './sql-reserved-words.js'
 
@@ -16,6 +17,15 @@ const BRANCH_ID_RE = /^br_[A-Za-z0-9]+$/
  * exact same guard — do not inline a divergent copy.
  */
 export const BRANCH_ALIAS_RE = /^[a-z][a-zA-Z0-9_]*$/
+
+/**
+ * Allowed charset for a seed slug identifier.
+ * Must consist solely of lowercase ASCII letters, digits, and underscores.
+ * Exported so route handlers and validation functions reuse the exact same guard.
+ */
+export const SEED_SLUG_RE = /^[a-z0-9_]+$/
+export const SLUG_RE = SEED_SLUG_RE
+
 
 export interface SeedValidationIssue {
   slug: string
@@ -128,7 +138,12 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
   for (const seed of seeds) {
     const messages: string[] = []
     for (const branch of seed.branches) {
-      if (AUTOMATION_RESERVED_WORDS.has(branch.alias)) {
+      if (SYSTEM_COLUMNS.has(branch.alias)) {
+        messages.push(
+          `branch '${branch.alias}' collides with reserved system column. ` +
+          `System columns (id, slug, status, created_at, updated_at) cannot be used as branch aliases.`,
+        )
+      } else if (AUTOMATION_RESERVED_WORDS.has(branch.alias)) {
         messages.push(
           `branch '${branch.alias}' uses reserved alias. ` +
           `This word is used by the automation template grammar.`,
@@ -269,6 +284,15 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
         ],
         fatal: true,
       })
+    } else if (SYSTEM_COLUMNS.has(seed.displayNameAlias)) {
+      result.push({
+        slug: seed.slug,
+        messages: [
+          `displayNameAlias '${seed.displayNameAlias}' collides with reserved system column. ` +
+          `System columns (id, slug, status, created_at, updated_at) cannot be used as displayNameAlias.`,
+        ],
+        fatal: true,
+      })
     } else if (SQL_RESERVED_WORDS.has(seed.displayNameAlias.toLowerCase())) {
       result.push({
         slug: seed.slug,
@@ -303,6 +327,20 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
       }
     }
     if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
+  }
+
+  // ── Fatal 15: seed slug format validation ─────────────────────────────────
+  for (const seed of seeds) {
+    if (typeof seed.slug !== 'string' || !SEED_SLUG_RE.test(seed.slug)) {
+      result.push({
+        slug: seed.slug,
+        messages: [
+          `slug '${seed.slug}' is invalid. Expected format ${SEED_SLUG_RE.source} ` +
+          `(lowercase letters, numbers, and underscores only).`,
+        ],
+        fatal: true,
+      })
+    }
   }
 
   return result

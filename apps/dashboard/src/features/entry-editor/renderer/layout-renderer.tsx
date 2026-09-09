@@ -107,6 +107,7 @@ export function LayoutRenderer({
               formData={formData}
               fieldErrors={fieldErrors}
               onChange={onChange}
+              isReadOnly={isReadOnly}
             />
           </fieldset>
         </TabsContent>

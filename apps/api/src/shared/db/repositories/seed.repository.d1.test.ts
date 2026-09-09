@@ -17,15 +17,33 @@ function makeMockDb(opts: {
   firstResult?: unknown
   allResults?: unknown[]
   runOk?: boolean
+  batchImpl?: (statements: unknown[]) => Promise<unknown>
 } = {}) {
-  const { firstResult = null, allResults = [], runOk = true } = opts
+  const { firstResult = null, allResults = [], runOk = true, batchImpl } = opts
   const runMock = vi.fn().mockResolvedValue({ success: runOk })
   const firstMock = vi.fn().mockResolvedValue(firstResult)
   const allMock = vi.fn().mockResolvedValue({ results: allResults })
-  const bindMock = vi.fn(() => ({ run: runMock, first: firstMock, all: allMock }))
-  const stmt = { bind: bindMock, run: runMock, first: firstMock, all: allMock }
-  const prepareMock = vi.fn(() => stmt)
-  return { db: { prepare: prepareMock } as unknown as D1Database, prepareMock, bindMock, runMock, firstMock, allMock }
+  const preparedStatements: { sql: string; bindArgs?: unknown[] }[] = []
+  const bindMock = vi.fn(function (this: { sql: string; bindArgs?: unknown[] }, ...args: unknown[]) {
+    this.bindArgs = args
+    return this
+  })
+  const prepareMock = vi.fn((sql: string) => {
+    const stmt = { sql, bindArgs: undefined as unknown[] | undefined, bind: bindMock, run: runMock, first: firstMock, all: allMock }
+    preparedStatements.push(stmt)
+    return stmt
+  })
+  const batchMock = vi.fn(batchImpl ?? (async () => []))
+  return {
+    db: { prepare: prepareMock, batch: batchMock } as unknown as D1Database,
+    prepareMock,
+    bindMock,
+    runMock,
+    firstMock,
+    allMock,
+    batchMock,
+    preparedStatements,
+  }
 }
 
 describe('D1SeedRepository', () => {
@@ -138,6 +156,78 @@ describe('D1SeedRepository', () => {
     it('returns 1 as fallback when RETURNING yields nothing', async () => {
       const { db } = makeMockDb({ firstResult: null })
       expect(await new D1SeedRepository(db).bumpRegistryVersion()).toBe(1)
+    })
+  })
+
+  describe('applyAtomic', () => {
+    it('issues exactly one db.batch() with statements in order: guard, DDL, upsert, bump', async () => {
+      const { db, batchMock } = makeMockDb()
+      const ddl = ['ALTER TABLE content_posts ADD COLUMN price REAL']
+      await new D1SeedRepository(db).applyAtomic({
+        slug: 'posts',
+        definition: mockSeed,
+        ddl,
+        expectedVersion: 3,
+      })
+
+      expect(batchMock).toHaveBeenCalledTimes(1)
+      const batched = batchMock.mock.calls[0]![0] as { sql: string }[]
+      expect(batched).toHaveLength(1 + ddl.length + 2)
+
+      expect(batched[0]!.sql).toContain('INSERT INTO seed_meta')
+      expect(batched[1]!.sql).toBe(ddl[0])
+      expect(batched[2]!.sql).toContain('INSERT INTO seeds')
+      expect(batched[3]!.sql).toContain('UPDATE seed_meta')
+      expect(batched[3]!.sql).toContain('registry_version')
+    })
+
+    it('returns applied:true with version = expectedVersion + 1 on success', async () => {
+      const { db } = makeMockDb()
+      const result = await new D1SeedRepository(db).applyAtomic({
+        slug: 'posts',
+        definition: mockSeed,
+        ddl: [],
+        expectedVersion: 3,
+      })
+      expect(result).toEqual({ applied: true, version: 4 })
+    })
+
+    it('CAS guard conflict: a UNIQUE constraint error yields applied:false and leaves the batch unwritten', async () => {
+      const { db, batchMock } = makeMockDb({
+        firstResult: { value: '9' },
+        batchImpl: async () => { throw new Error('D1_ERROR: UNIQUE constraint failed: seed_meta.id') },
+      })
+      const result = await new D1SeedRepository(db).applyAtomic({
+        slug: 'posts',
+        definition: mockSeed,
+        ddl: ['ALTER TABLE content_posts ADD COLUMN price REAL'],
+        expectedVersion: 3,
+      })
+      expect(batchMock).toHaveBeenCalledTimes(1)
+      expect(result).toEqual({ applied: false, version: 9 })
+    })
+
+    it('re-throws a genuine DDL failure instead of swallowing it as a conflict', async () => {
+      const { db } = makeMockDb({
+        batchImpl: async () => { throw new Error('D1_ERROR: table content_posts already exists') },
+      })
+      await expect(
+        new D1SeedRepository(db).applyAtomic({ slug: 'posts', definition: mockSeed, ddl: [], expectedVersion: 3 })
+      ).rejects.toThrow('already exists')
+    })
+
+    it('binds source=runtime by default and honors an explicit source', async () => {
+      const { db, bindMock, preparedStatements } = makeMockDb()
+      await new D1SeedRepository(db).applyAtomic({
+        slug: 'posts',
+        definition: mockSeed,
+        ddl: [],
+        expectedVersion: 1,
+        source: 'code',
+      })
+      const upsertBindArgs = preparedStatements.find(s => s.sql.includes('INSERT INTO seeds'))?.bindArgs
+      expect(upsertBindArgs?.[2]).toBe('code')
+      expect(bindMock).toHaveBeenCalled()
     })
   })
 })

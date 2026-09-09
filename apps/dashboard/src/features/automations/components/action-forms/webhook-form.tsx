@@ -1,13 +1,18 @@
-﻿// SPDX-License-Identifier: BUSL-1.1
+// SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024â€“2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import * as React from 'react'
 import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useFormContext, useFieldArray } from 'react-hook-form'
+import { useFormContext, useFieldArray, Controller } from 'react-hook-form'
 import { Plus, Trash2 } from 'reicon-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
+
+const LazyJsonCodeEditor = React.lazy(() =>
+  import('@/components/fields/edit/json-code-editor').then((m) => ({ default: m.JsonCodeEditor }))
+)
 import {
   Select,
   SelectContent,
@@ -123,11 +128,19 @@ export function WebhookForm({ index, triggerSeedSlug }: WebhookFormProps) {
         <label className="text-xs font-medium text-muted-foreground mb-1 block">
           {t('automations.actions.webhookBody')} *
         </label>
-        <textarea
-          {...register(`actions.${index}.body_template` as any)}
-          rows={4}
-          placeholder='{"event": "{{trigger_event}}"}'
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-xs font-mono resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        <Controller
+          control={control}
+          name={`actions.${index}.body_template` as any}
+          render={({ field }) => (
+            <React.Suspense fallback={<div className="h-40 w-full animate-pulse rounded-md bg-muted/50 border border-input" />}>
+              <LazyJsonCodeEditor
+                id={`webhook-body-${index}`}
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                className="text-xs"
+              />
+            </React.Suspense>
+          )}
         />
         {actionErrors?.body_template && (
           <p className="mt-1 text-xs text-destructive">{t(actionErrors.body_template.message)}</p>

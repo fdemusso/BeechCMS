@@ -64,7 +64,7 @@ export function renderSeedDiff(diff: SeedDiff): void {
   for (const col of problems) {
     switch (col.status) {
       case 'missing':       console.log(pc.red(`    + missing column: ${col.name} ${col.expectedType}`)); break
-      case 'extra':         console.log(pc.dim(`    ~ orphaned column: "${col.name}" (${col.actualType}) — in DB, not in seeds.ts`)); break
+      case 'extra':         console.log(pc.dim(`    ~ orphaned column: "${col.name}" (${col.actualType}) — in DB, not in schema definition`)); break
       case 'type_mismatch': console.log(pc.red(`    ≠ type mismatch:  ${col.name} (expected ${col.expectedType}, got ${col.actualType})`)); break
       case 'fk_missing':    console.log(pc.red(`    ⤬ missing FK: ${col.name} → content_${col.expectedTarget}(id)`)); break
       case 'fk_mismatch':   console.log(pc.yellow(`    ⤬ FK mismatch: ${col.name} expected ${col.expected}, got ${col.actual}`)); break

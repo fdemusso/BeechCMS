@@ -6,6 +6,7 @@
 import { Hono } from 'hono'
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/problem-details'
+import { DEMO_FIXTURES_BY_SEED_SLUG } from '../../shared/db/fixtures/demo-data.fixtures'
 
 const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -182,6 +183,19 @@ setupApp.post('/auth/setup', async (context) => {
     }
   }
 
+  if (track === 'developer' && loadDemoData === true) {
+    const getSeed = context.get('getSeed')
+    const hasDemoSeeds = Object.keys(DEMO_FIXTURES_BY_SEED_SLUG).every((slug) => Boolean(getSeed(slug)))
+    if (!hasDemoSeeds) {
+      return publicProblem(context, {
+        type: 'feature-not-implemented',
+        title: 'Feature not implemented',
+        status: 501,
+        detail: 'Demo data seeding is currently not implemented with runtime D1 seeds.',
+      })
+    }
+  }
+
   const passwordHash = await context.get('hashProvider').hash(password)
   const normalizedEmail = email.trim().toLowerCase()
   const normalizedName = typeof name === 'string' ? name.trim() : null
@@ -206,10 +220,19 @@ setupApp.post('/auth/setup', async (context) => {
   }
 
   if (track === 'developer' && loadDemoData === true) {
-    await context.get('demoDataRepository').loadDemoData(
-      context.get('repository'),
-      context.get('getSeed')
-    )
+    try {
+      await context.get('demoDataRepository').loadDemoData(
+        context.get('repository'),
+        context.get('getSeed')
+      )
+    } catch (err: unknown) {
+      return publicProblem(context, {
+        type: 'feature-not-implemented',
+        title: 'Feature not implemented',
+        status: 501,
+        detail: err instanceof Error ? err.message : 'Demo data seeding is not implemented.',
+      })
+    }
 
     // Inject custom SaaS dashboard layout
     const layout = {

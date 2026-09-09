@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
-
+import * as React from "react"
 import { resolvePolicies } from "@beechcms/core"
 import { getDisplayComponent } from "./registry"
 import type { FieldDisplayProps } from "./types"
@@ -11,7 +11,7 @@ import type { FieldDisplayProps } from "./types"
  * Applica la visibility policy prima di delegare al registro dei renderer.
  * FieldEdit non è interessato: l'editor mostra sempre il valore raw.
  */
-export function FieldDisplay(props: FieldDisplayProps) {
+export const FieldDisplay = React.memo(function FieldDisplay(props: FieldDisplayProps) {
   const { branch } = props
   const { visibility } = resolvePolicies(branch)
 
@@ -24,4 +24,4 @@ export function FieldDisplay(props: FieldDisplayProps) {
   }
 
   return <Component {...props} />
-}
+})

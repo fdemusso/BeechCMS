@@ -15,3 +15,8 @@ export interface SearchResult {
   record: IndexManifestRecord;
   score: number;
 }
+
+export interface SearchClientOptions {
+  dimensions?: number;
+  debounceMs?: number;
+}

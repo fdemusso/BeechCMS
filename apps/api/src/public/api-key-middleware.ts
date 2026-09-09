@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 
 import type { Context, Next } from 'hono'
+import { timingSafeEqual } from '@beechcms/core'
 import { PUBLIC_ERRORS } from './public-errors.js'
 import { publicProblem } from './problem-details.js'
 
@@ -47,7 +48,7 @@ export function apiKeyMiddleware() {
     }
 
     const providedKey = c.req.header('X-API-Key')
-    if (!providedKey || providedKey !== configuredKey) {
+    if (!providedKey || !timingSafeEqual(providedKey, configuredKey)) {
       return publicProblem(c, {
         type: 'public-api-key-unauthorized',
         title: PUBLIC_ERRORS.API_KEY_UNAUTHORIZED.error,

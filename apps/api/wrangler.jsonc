@@ -94,6 +94,7 @@
   //   PUBLIC_READ_API_KEY → npx wrangler secret put PUBLIC_READ_API_KEY --env production
   //   PUBLIC_WRITE_API_KEY→ npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
   //   WEBHOOK_SECRET      → npx wrangler secret put WEBHOOK_SECRET --env production
+  //   PRIVACY_MASTER_KEY  → npx wrangler secret put PRIVACY_MASTER_KEY --env production
   //   R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME
   "vars": {
     "ENV": "development",
@@ -124,6 +125,7 @@
   //   npx wrangler secret put PUBLIC_READ_API_KEY --env production
   //   npx wrangler secret put PUBLIC_WRITE_API_KEY --env production
   //   npx wrangler secret put WEBHOOK_SECRET --env production
+  //   npx wrangler secret put PRIVACY_MASTER_KEY --env production
   //   npx wrangler secret put R2_ACCESS_KEY_ID --env production
   //   npx wrangler secret put R2_SECRET_ACCESS_KEY --env production
   //   npx wrangler secret put R2_ENDPOINT --env production

@@ -1,7 +1,7 @@
 {
   "name": "@beechcms/cms",
-  "version": "0.7.0",
-  "packageManager": "pnpm@11.5.2",
+  "version": "0.8.0",
+  "packageManager": "pnpm@11.25.0",
   "description": "Edge-Native, Schema-Driven Headless CMS built on Cloudflare Workers, D1, and R2. Features the Botanical Engine for alias-stable field management, a modular widget layer, and a React + Vite admin dashboard.",
   "keywords": [
     "cms",
@@ -34,13 +34,16 @@
     "node": ">=18.0.0"
   },
   "bin": {
+    "cms": "bin/create.mjs",
+    "@beechcms/cms": "bin/create.mjs",
     "beechcms": "bin/create.mjs",
     "beech": "bin/cli.mjs"
   },
   "scripts": {
-    "docs:generate": "typedoc",
+    "docs:generate": "turbo run build && typedoc",
     "docs:dev": "vitepress dev docs",
-    "docs:build": "typedoc && vitepress build docs",
+    "docs:check": "node scripts/docs-fact-check.mjs",
+    "docs:build": "turbo run build && typedoc && node scripts/docs-fact-check.mjs && vitepress build docs",
     "docs:preview": "vitepress preview docs",
     "beech": "node bin/cli.mjs",
     "dev": "node scripts/dev.mjs",
@@ -65,6 +68,7 @@
     "setup:graph": "node scripts/setup-graph.mjs",
     "release": "node scripts/release.mjs",
     "release:preview": "node scripts/release.mjs --preview",
+    "release:current": "node scripts/release.mjs --current",
     "version:list": "node scripts/release.mjs list",
     "version:get": "node scripts/release.mjs get",
     "version:set": "node scripts/release.mjs set",
@@ -95,7 +99,7 @@
     "vitest": "^4.1.0"
   },
   "dependencies": {
-    "@beechcms/cli": "workspace:^0.7.0",
+    "@beechcms/cli": "workspace:^0.8.0",
     "@clack/prompts": "^0.9.1",
     "picocolors": "^1.1.1"
   },

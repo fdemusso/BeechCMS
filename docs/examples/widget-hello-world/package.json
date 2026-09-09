@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@beechcms/widget-sdk": "workspace:^0.8.0-preview.1",
+    "lucide-react": "^0.564.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {
