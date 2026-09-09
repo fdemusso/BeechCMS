@@ -203,6 +203,7 @@ describe('MCP Server Integration & Operational Test', () => {
     const tools = await client.listTools()
     const names = tools.tools.map(t => t.name).sort()
     expect(names).toEqual([
+      'beech_docs_search',
       'beech_get_seed',
       'beech_list_seeds',
       'beech_mcp_reload',
