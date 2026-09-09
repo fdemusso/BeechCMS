@@ -10,6 +10,8 @@ import {
   validateSeedDefinitions,
   planCreateSeed,
   planExtendSeed,
+  SLUG_RE,
+  SEED_SLUG_RE,
 } from '@beechcms/core'
 import { publicProblem, internalErrorDetail } from '../../public/problem-details'
 import { deleteR2Objects } from '../../shared/storage/upload'
@@ -18,11 +20,7 @@ import type { Env, Variables } from '../../types'
 
 export type AppContext = Context<{ Bindings: Env; Variables: Variables }>
 
-/**
- * Regular expression validating seed slug identifiers.
- * Must consist solely of lowercase ASCII letters, digits, and underscores.
- */
-export const SLUG_RE = /^[a-z0-9_]+$/
+export { SLUG_RE, SEED_SLUG_RE }
 
 /**
  * Guard ensuring the authenticated caller possesses the `'admin'` role.

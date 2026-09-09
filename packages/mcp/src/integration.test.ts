@@ -285,6 +285,21 @@ describe('MCP Server Integration & Operational Test', () => {
     const invalidParsed = JSON.parse(invalidRes.content[0].text)
     expect(invalidParsed.issues.length).toBeGreaterThan(0)
     expect(invalidParsed.issues.some((i: any) => i.fatal && i.messages.some((m: string) => m.includes('reserved system column')))).toBe(true)
+
+    // Invalid candidate: invalid slug format (#394)
+    const invalidSlugCandidate = {
+      slug: 'Test-Slug Con Spazi',
+      label: 'X',
+      displayNameAlias: 'nome',
+      branches: [{ alias: 'nome', label: 'Nome', type: 'text' }],
+    }
+    const invalidSlugRes = (await client.callTool({
+      name: 'beech_schema_validate',
+      arguments: { candidate: invalidSlugCandidate },
+    })) as any
+    const invalidSlugParsed = JSON.parse(invalidSlugRes.content[0].text)
+    expect(invalidSlugParsed.issues.length).toBeGreaterThan(0)
+    expect(invalidSlugParsed.issues.some((i: any) => i.fatal && i.messages.some((m: string) => m.includes('slug')))).toBe(true)
   })
 
   it('performs full plan -> apply lifecycle for additive change', async () => {

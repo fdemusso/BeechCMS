@@ -1337,6 +1337,18 @@ describe('POST /:slug/mcp-plan', () => {
     })
     expect(res.status).toBe(403)
   })
+
+  it('400 when slug format is invalid', async () => {
+    const { app } = buildApp({ role: 'admin' })
+    const res = await app.request('/Invalid%20Slug/mcp-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ candidate: baseSeed }),
+    })
+    expect(res.status).toBe(400)
+    const body = await res.json() as any
+    expect(body.detail).toContain('slug must match')
+  })
 })
 
 // ─── POST /:slug/mcp-apply ────────────────────────────────────────────────────

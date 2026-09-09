@@ -18,6 +18,15 @@ const BRANCH_ID_RE = /^br_[A-Za-z0-9]+$/
  */
 export const BRANCH_ALIAS_RE = /^[a-z][a-zA-Z0-9_]*$/
 
+/**
+ * Allowed charset for a seed slug identifier.
+ * Must consist solely of lowercase ASCII letters, digits, and underscores.
+ * Exported so route handlers and validation functions reuse the exact same guard.
+ */
+export const SEED_SLUG_RE = /^[a-z0-9_]+$/
+export const SLUG_RE = SEED_SLUG_RE
+
+
 export interface SeedValidationIssue {
   slug: string
   messages: string[]
@@ -318,6 +327,20 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
       }
     }
     if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
+  }
+
+  // ── Fatal 15: seed slug format validation ─────────────────────────────────
+  for (const seed of seeds) {
+    if (typeof seed.slug !== 'string' || !SEED_SLUG_RE.test(seed.slug)) {
+      result.push({
+        slug: seed.slug,
+        messages: [
+          `slug '${seed.slug}' is invalid. Expected format ${SEED_SLUG_RE.source} ` +
+          `(lowercase letters, numbers, and underscores only).`,
+        ],
+        fatal: true,
+      })
+    }
   }
 
   return result
