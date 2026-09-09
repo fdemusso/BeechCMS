@@ -97,7 +97,7 @@ Add the following Branches to the Seed:
 - **Cover Image**: Type `file`, alias `cover_image`, accept `image`.
 - **Body**: Type `richtext`, alias `body`.
 
-Click **Save Seed**. Under the hood, the Botanical Engine compiles the SQLite DDL: provisioning `content_posts`, the draft mirror table `content_posts_drafts`, B-tree indexes, and the full-text search virtual table `fts_content_posts`.
+Click **Save Seed**. Under the hood, the Botanical Engine compiles the SQLite DDL: provisioning `content_posts`, the draft mirror table `content_posts_drafts`, B-tree indexes, and the full-text search virtual table `fts_posts`.
 
 > [!TIP]
 > **AI-Assisted Modeling:** Prefer using an AI coding assistant in your editor? You can connect Cursor, Claude Desktop, Antigravity, or VSCode to create and evolve seeds automatically via the native [AI & MCP Setup](/start/mcp).

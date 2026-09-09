@@ -6,8 +6,8 @@ BeechCMS supports two complementary extension paradigms to enrich the admin expe
   <img src="/images/widget-architecture.svg" alt="BeechCMS Dual Custom Widget Architecture" style="width: 100%; max-width: 860px; margin: 16px 0;" />
 </p>
 
-1. **Dashboard Analytics Widgets**: First-class React components compiled directly into the admin dashboard build to display interactive analytics, metrics, and custom charts.
-2. **Sandboxed Iframe Field Widgets**: Isolated runtime controls embedded inside the Entry Editor communicating via a bidirectional PostMessage protocol.
+1. **Dashboard Analytics Widgets** *(available today)*: First-class React components compiled directly into the admin dashboard build to display interactive analytics, metrics, and custom charts.
+2. **Sandboxed Iframe Field Widgets** *(roadmap)*: Isolated runtime controls embedded inside the Entry Editor communicating via a bidirectional PostMessage protocol. Specified below; not yet implemented.
 
 ---
 
@@ -16,7 +16,7 @@ BeechCMS supports two complementary extension paradigms to enrich the admin expe
 > [!CAUTION]
 > ### Security Boundaries
 > 1. **Dashboard Analytics Widgets (Trusted Build-Time Code)**: The BeechCMS dashboard is an edge-native static SPA. There is no remote code execution; widgets are trusted React code compiled directly into the dashboard bundle. Never store private API secrets or master keys inside widget configuration (`dashboard_layouts` is accessible to authenticated users).
-> 2. **Field Widgets (Isolated Runtime Sandbox)**: Custom field widgets execute within an iframe sandbox (`allow-scripts allow-forms allow-same-origin`) with zero access to parent cookies, local storage, or session tokens.
+> 2. **Field Widgets (Isolated Runtime Sandbox) — roadmap**: Once shipped, custom field widgets will execute within an iframe sandbox (`allow-scripts allow-forms allow-same-origin`) with zero access to parent cookies, local storage, or session tokens. This boundary does not exist yet; see [Paradigm 2](#paradigm-2-sandboxed-iframe-field-widgets).
 
 ---
 
@@ -81,11 +81,11 @@ function MetricsWidget({ config }: DashboardWidgetProps<WidgetConfig>) {
 
 // 3. Export definition
 export default defineWidget<WidgetConfig>({
-  type: 'analytics.content-growth',
+  type: '@acme/content-growth',
   labelKey: 'Content Growth',
   descriptionKey: 'Tracks total entries created over time',
-  icon: Activity,
-  category: 'analytics',
+  icon: 'Activity',        // Lucide icon NAME (string), not the imported component
+  category: 'custom',      // 'stats' | 'charts' | 'content' | 'system' | 'custom'
   configSchema,
   defaultConfig: { seedSlug: 'posts', window: 'month' },
   component: MetricsWidget,
@@ -111,21 +111,32 @@ export default defineWidget<WidgetConfig>({
 Register your widget in `apps/dashboard/src/widgets.custom.ts`:
 
 ```typescript
-import { registerWidget } from '@beechcms/widget-sdk'
+import { registerWidget } from '@/features/dashboard'
 import contentGrowthWidget from './widgets/content-growth'
 
 registerWidget(contentGrowthWidget)
 ```
 
+> [!NOTE]
+> `registerWidget` is exported by the dashboard app (`apps/dashboard/src/features/dashboard/registry/widget-registry.ts`), **not** by `@beechcms/widget-sdk`. The SDK package provides the authoring primitives (`defineWidget`, the `useWidget*` hooks, `WidgetShell` / `WidgetEmpty` / `WidgetError`); registration happens inside the dashboard build.
+
 ---
 
-## Paradigm 2: Sandboxed Iframe Field Widgets
+## Paradigm 2: Sandboxed Iframe Field Widgets <Badge type="warning" text="Roadmap" />
 
-Field widgets replace standard form controls in the Entry Editor with custom, sandboxed interactive components (such as visual color pickers, markdown editors, or geocoding map selectors).
+> [!IMPORTANT]
+> **Planned — not yet implemented.** The iframe field-widget runtime described below is a design
+> specification for an upcoming release. `initWidgetBridge`, the `widget.json` manifest, and the
+> `BEECH_*` PostMessage protocol are **not** available in the current `@beechcms/widget-sdk`, which
+> ships only the Paradigm 1 authoring primitives (`defineWidget`, the `useWidget*` hooks, and the
+> `WidgetShell` / `WidgetEmpty` / `WidgetError` components). The API described here may change before
+> it ships — do not build against it yet.
+
+Field widgets will replace standard form controls in the Entry Editor with custom, sandboxed interactive components (such as visual color pickers, markdown editors, or geocoding map selectors).
 
 ### Widget Manifest (`widget.json`)
 
-Distributable packages include a `widget.json` manifest:
+Distributable packages will include a `widget.json` manifest:
 
 ```json
 {
@@ -144,7 +155,7 @@ Distributable packages include a `widget.json` manifest:
 
 ### PostMessage Communication Protocol
 
-Host editor and iframe communicate bi-directionally using typed messages:
+Host editor and iframe will communicate bi-directionally using typed messages:
 
 - **`BEECH_INIT` (Host &rarr; Widget)**: Sent when iframe loads, transmitting `{ type, value, schema, disabled, locale, theme }`.
 - **`BEECH_CHANGE` (Widget &rarr; Host)**: Dispatched on input change, transmitting `{ type, value }`.

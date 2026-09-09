@@ -23,29 +23,35 @@ When defining branches in a Seed, developers configure the `privacy` policy:
 | :--- | :--- | :--- | :--- |
 | `plain` (default) | Plaintext string/JSON | Returned in read queries | Standard CRUD |
 | `hash` | Salted SHA-256 hash | Never returned (`null` on reads) | Rotated via `POST /rotate-field` |
-| `confidential` / `encrypted` | Encrypted payload | Only decrypted for authorized roles | Direct authenticated update |
+| `encrypt` / `confidential` | Encrypted payload | Only decrypted for authorized roles | Direct authenticated update |
 
 ```typescript
 import { defineSeed } from '@beechcms/core'
 
 export const CustomerSeed = defineSeed({
   slug: 'customers',
-  name: 'Customers',
+  label: 'Customer',
+  labelPlural: 'Customers',
+  displayNameAlias: 'email',
   branches: [
-    { alias: 'name', type: 'text', required: true },
-    { alias: 'email', type: 'text', required: true },
+    { id: 'br_01', alias: 'name',  label: 'Name',  type: 'text', requiredOnCreate: true },
+    { id: 'br_02', alias: 'email', label: 'Email', type: 'text', requiredOnCreate: true },
     {
-      alias: 'apiSecret',
+      id: 'br_03',
+      alias: 'api_secret',
+      label: 'API Secret',
       type: 'text',
       policies: {
         privacy: 'hash', // [!code highlight]
       }
     },
     {
-      alias: 'taxId',
+      id: 'br_04',
+      alias: 'tax_id',
+      label: 'Tax ID',
       type: 'text',
       policies: {
-        privacy: 'confidential', // [!code highlight]
+        privacy: 'encrypt', // [!code highlight]
       }
     }
   ]

@@ -12,7 +12,7 @@ BeechCMS exposes two primary API surfaces:
 
 | Environment | Base URL | Description |
 |---|---|---|
-| Local (Wrangler dev) | `http://localhost:8787` | Local development and testing environment |
+| Local (Wrangler dev) | `http://localhost:8789` | Local development and testing environment |
 | Production | Deployment-specific | Configured via Cloudflare Workers custom domain / route |
 
 All endpoints are served from a single edge Worker orchestrated with Hono.

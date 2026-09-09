@@ -113,13 +113,15 @@ export function RichTextRenderer({ content }: { content: any }) {
 
 ### Headless / Astro / Vue / HTML Export
 
-If your frontend consumes static HTML, BeechCMS provides utility helpers in `@beechcms/core` to compile the AST to sanitized HTML during build time:
+If your frontend consumes static HTML, BeechCMS provides utility helpers to compile the AST to sanitized HTML during build time:
 
 ```typescript
-import { renderRichTextToHtml } from '@beechcms/core'
+import { renderRichText } from '@beechcms/client/richtext'
 
-const html = renderRichTextToHtml(article.body)
+const html = renderRichText(article.body)
 ```
+
+The same function is available server-side from `@beechcms/core/richtext-render`. Note it is **not** exported from the `@beechcms/core` root entry point — use the `/richtext-render` subpath.
 
 ---
 

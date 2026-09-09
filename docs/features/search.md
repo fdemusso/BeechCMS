@@ -30,14 +30,26 @@ const searchClient = createBeechSearchClient('https://your-api.beechcms.com');
 
 ## Loading the Index
 
-Before performing searches, you must load the index manifest and the pre-computed vectors.
+Before performing searches, you must load the index manifest and the pre-computed vectors. `loadIndex` accepts **any two URLs** you host — these are static assets you publish yourself (typically to R2 or your CDN), not endpoints the BeechCMS Worker serves:
 
 ```typescript
 await searchClient.loadIndex(
-  'https://your-api.beechcms.com/api/v1/public/search/manifest.json',
-  'https://your-api.beechcms.com/api/v1/public/search/vectors.bin'
+  'https://cdn.example.com/search/manifest.json',
+  'https://cdn.example.com/search/vectors.bin'
 );
 ```
+
+<!-- FACTCHECK: The BeechCMS API registers exactly one public search route, `GET /api/v1/public/search/embed`
+     (apps/api/src/features/search/public-search.router.ts) — used at query time to embed the user's query.
+     Nothing in apps/api, packages/core, or scripts/ serves or generates `manifest.json` / `vectors.bin`;
+     the only related hint is a comment in packages/core/src/search/vector.repository.ts ("Retrieves all
+     vectors for a given seed to compile to R2"), suggesting the compile step is not yet implemented or
+     lives outside this repo. The previous text pointed both URLs at /api/v1/public/search/, which does not
+     exist. Corrected to neutral URLs, but the actual index-generation workflow still needs documenting. -->
+
+> [!IMPORTANT]
+> The Worker exposes only `GET /api/v1/public/search/embed`, which the SDK calls internally to embed the
+> query at search time. Producing and hosting `manifest.json` and `vectors.bin` is a separate build step.
 
 ### Client-Side Vector Indexing & Caching
 

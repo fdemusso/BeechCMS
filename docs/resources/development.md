@@ -17,7 +17,7 @@ If you are building a website or using BeechCMS as a consumer, refer to the **[G
 ## Prerequisites
 
 - **Node.js**: `v20.0.0` or higher (Node 22 LTS recommended)
-- **pnpm**: `v9.0.0` or higher
+- **pnpm**: pinned to `11.25.0` via the root `packageManager` field — run `corepack enable` and let it select the right version
 - **Docker Desktop** or **Docker Engine**: Required for the local development services (MinIO, Mailpit, SQLite Web, webhook-tester, and cloudflared tunnel).
 
 > [!IMPORTANT]

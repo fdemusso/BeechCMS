@@ -202,7 +202,7 @@ Generates an encrypted, single-use Time-Trap token for zero-secret form submissi
 ```json
 {
   "token": "ey...",
-  "minDelaySeconds": 3
+  "minDeltaSeconds": 1.5
 }
 ```
 
@@ -214,7 +214,7 @@ Creates an entry via the Public API. Requires `allowPublicPost: true`.
 
 **Authentication Modes:**
 1. **Authenticated Mode:** Send `X-API-Key: <PUBLIC_WRITE_API_KEY>`.
-2. **Zero-Secret Form Mode:** Include `_timeTrapToken` in the payload (or `x-time-trap` header) and ensure anti-bot honeypot fields (`fax_number`, `website_url`, `_gotcha`) remain empty.
+2. **Zero-Secret Form Mode:** Include `_timeTrapToken` in the payload (or `x-time-trap` header) and ensure the anti-bot honeypot fields (`fax_number`, `website_url`, `middle_name`, `secondary_phone`, `_gotcha`, `honeypot`) remain empty.
 
 **Request**
 
