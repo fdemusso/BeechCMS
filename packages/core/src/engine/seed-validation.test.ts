@@ -121,6 +121,44 @@ describe('validateSeedDefinitions', () => {
     expect(validateSeedDefinitions(seeds)).toEqual([])
   })
 
+  it('does not falsely implicate downstream seeds in cyclic dependency (#393)', () => {
+    // a ↔ b (cycle), c depends on b, d depends on c
+    const seeds = [
+      makeSeed({
+        slug: 'a',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'b_ref', label: 'B', type: 'relation', targetSeed: 'b' },
+        ],
+      }),
+      makeSeed({
+        slug: 'b',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'a_ref', label: 'A', type: 'relation', targetSeed: 'a' },
+        ],
+      }),
+      makeSeed({
+        slug: 'c',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'b_ref', label: 'B', type: 'relation', targetSeed: 'b' },
+        ],
+      }),
+      makeSeed({
+        slug: 'd',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          { id: 'br_02', alias: 'c_ref', label: 'C', type: 'relation', targetSeed: 'c' },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal)
+    expect(fatal.length).toBe(2)
+    expect(fatal.map(i => i.slug).sort()).toEqual(['a', 'b'])
+  })
+
   // ── Fatal 5: invalid branch id ───────────────────────────────────────────────
 
   it('fatal: invalid branch id format', () => {

@@ -201,11 +201,30 @@ export function sortSeedsByDependencies(seeds: ReadonlyArray<Seed>): Seed[] {
   }
 
   if (result.length !== seeds.length) {
-    // Cycle exists — collect participating slugs (those with in-degree > 0 after BFS)
-    const cycle = [...inDegree.entries()]
-      .filter(([, deg]) => deg > 0)
-      .map(([slug]) => slug)
-      .sort()
+    // Isolate true cycle members
+    const stuck = new Set(
+      [...inDegree.entries()]
+        .filter(([, deg]) => deg > 0)
+        .map(([slug]) => slug),
+    )
+
+    const cycleNodes = [...stuck].filter(slug => {
+      const visited = new Set<string>()
+      const queue = [...(dependents.get(slug) ?? [])].filter(s => stuck.has(s))
+      while (queue.length > 0) {
+        const curr = queue.shift()!
+        if (curr === slug) return true
+        if (!visited.has(curr)) {
+          visited.add(curr)
+          for (const next of dependents.get(curr) ?? []) {
+            if (stuck.has(next)) queue.push(next)
+          }
+        }
+      }
+      return false
+    })
+
+    const cycle = (cycleNodes.length > 0 ? cycleNodes : [...stuck]).sort()
     throw new Error(
       `Cyclic dependency detected among seeds: ${cycle.join(', ')}`,
     )
