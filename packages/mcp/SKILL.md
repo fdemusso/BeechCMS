@@ -15,6 +15,9 @@ there are no `seeds.ts` files to edit, and raw SQL is never an option.
 - A relation branch must target a slug that already exists.
 
 ## Mandatory workflow: Inspect → Validate → Plan → Apply
+0. Before building a candidate, use `beech_docs_search` for anything you are unsure about
+   (field types, branch policies, API reference). Do not guess from training data when the
+   answer is one search away.
 1. `beech_list_seeds`, then `beech_get_seed` for any seed you intend to change. Never propose a
    change to a seed you have not read.
 2. `beech_schema_validate` on your candidate for a zero-latency syntax check.

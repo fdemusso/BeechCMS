@@ -31,7 +31,7 @@ import type { Seed } from '@beechcms/core'
 import { nextBranchId, validateSeedDefinitions } from '@beechcms/core'
 import { request, BeechClientError } from './client.js'
 import { savePlan, takePlan } from './plans.js'
-import { listResources, readResource, clearResourceCache, getResourceCount } from './resources.js'
+import { listResources, readResource, clearResourceCache, getResourceCount, searchResources } from './resources.js'
 import { computeBundleHash, startSupervisorStdio } from './supervisor.js'
 
 /**
@@ -98,7 +98,7 @@ interface McpPlanResponse {
 const TOOLS = [
   {
     name: 'beech_list_seeds',
-    description: 'List all BeechCMS seed schemas (summaries only) plus the current schema version.',
+    description: 'List all BeechCMS seed schemas (summaries only) plus the current schema version. Start here for any schema task — bundled beechcms-docs:// MCP resources (API reference, field types, branch policies) are also available via resources/list and are worth checking before proposing a candidate.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
   {
@@ -128,7 +128,7 @@ const TOOLS = [
   },
   {
     name: 'beech_schema_plan',
-    description: 'Server-computes the exact DDL and safety classification for a candidate seed change. Always call before beech_schema_apply. Destructive changes (dropping/renaming/retyping a branch, deleting a seed) are classified but never applicable via MCP — those require the BeechCMS dashboard UI.',
+    description: 'Server-computes the exact DDL and safety classification for a candidate seed change. Always call before beech_schema_apply. Destructive changes (dropping/renaming/retyping a branch, deleting a seed) are classified but never applicable via MCP — those require the BeechCMS dashboard UI. Unsure about a field type or branch policy? Check the beechcms-docs:// resources before building the candidate.',
     inputSchema: {
       type: 'object',
       properties: { slug: { type: 'string' }, candidate: { type: 'object' } },
@@ -143,6 +143,19 @@ const TOOLS = [
       type: 'object',
       properties: { planId: { type: 'string' } },
       required: ['planId'],
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'beech_docs_search',
+    description: 'Full-text search over the bundled beechcms-docs:// resources (API reference, field types, branch policies, guides). Use this before proposing a candidate when unsure about a field type, policy, or workflow — cheaper than listing all resources and guessing a URI.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string' },
+        limit: { type: 'number', description: 'Max results to return. Defaults to 10.' },
+      },
+      required: ['query'],
       additionalProperties: false,
     },
   },
@@ -312,6 +325,12 @@ async function handleTool(name: string, args: Record<string, unknown>) {
         }
         throw error
       }
+    }
+
+    case 'beech_docs_search': {
+      const query = args.query as string
+      const limit = typeof args.limit === 'number' ? args.limit : 10
+      return textResult({ query, results: searchResources(query, limit) })
     }
 
     case 'beech_mcp_status': {

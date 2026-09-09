@@ -67,3 +67,80 @@ export function readResource(uri: string): { uri: string; mimeType: string; text
   const text = readFileSync(join(RESOURCES_DIR, entry.file), 'utf8')
   return { uri: entry.uri, mimeType: 'text/markdown', text }
 }
+
+export interface ResourceSearchHit {
+  uri: string
+  title: string
+  description: string
+  score: number
+  snippet: string
+}
+
+/** Builds a short excerpt around the first query match in `text`, or the start of the text if none. */
+function buildSnippet(text: string, query: string, radius = 100): string {
+  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return text.slice(0, radius * 2).replace(/\s+/g, ' ').trim()
+  const start = Math.max(0, idx - radius)
+  const end = Math.min(text.length, idx + query.length + radius)
+  const prefix = start > 0 ? '…' : ''
+  const suffix = end < text.length ? '…' : ''
+  return prefix + text.slice(start, end).replace(/\s+/g, ' ').trim() + suffix
+}
+
+/**
+ * Full-text search over the bundled resource corpus (title, description, file content).
+ * The query is split into whitespace-separated tokens; a resource must contain every token
+ * (case-insensitive substring, AND logic) somewhere across title/description/content to match —
+ * a single-phrase substring search would miss any resource that doesn't repeat the exact typed
+ * phrase verbatim. Scoring is a simple weighted sum per token: title hits rank highest, then
+ * description, then content occurrence count. No external index; scans the manifest and reads
+ * each candidate file directly, which is fine at this corpus size (low hundreds of short
+ * markdown files, rebuilt on every build).
+ */
+export function searchResources(query: string, limit = 10): ResourceSearchHit[] {
+  const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean)
+  if (tokens.length === 0) return []
+
+  const hits: ResourceSearchHit[] = []
+  for (const entry of loadManifest()) {
+    const titleLower = entry.title.toLowerCase()
+    const descLower = entry.description.toLowerCase()
+
+    let content = ''
+    try {
+      content = readFileSync(join(RESOURCES_DIR, entry.file), 'utf8')
+    } catch {
+      continue
+    }
+    const contentLower = content.toLowerCase()
+
+    let score = 0
+    let matchedAllTokens = true
+    let firstMatchToken: string | undefined
+    for (const token of tokens) {
+      const titleMatch = titleLower.includes(token)
+      const descMatch = descLower.includes(token)
+      const contentOccurrences = contentLower.split(token).length - 1
+      if (!titleMatch && !descMatch && contentOccurrences === 0) {
+        matchedAllTokens = false
+        break
+      }
+      if (firstMatchToken === undefined && (titleMatch || descMatch || contentOccurrences > 0)) {
+        firstMatchToken = token
+      }
+      score += (titleMatch ? 100 : 0) + (descMatch ? 20 : 0) + Math.min(contentOccurrences, 10) * 2
+    }
+    if (!matchedAllTokens) continue
+
+    hits.push({
+      uri: entry.uri,
+      title: entry.title,
+      description: entry.description,
+      score,
+      snippet: buildSnippet(content, firstMatchToken ?? tokens[0]),
+    })
+  }
+
+  hits.sort((a, b) => b.score - a.score)
+  return hits.slice(0, limit)
+}
