@@ -26,12 +26,19 @@ Rather than giving AI agents raw database access or asking them to invent migrat
 
 Before connecting an MCP client:
 
-1. **Local Stack Running**: Ensure your local BeechCMS development server is active:
+1. **Dependencies Installed**: Install workspace dependencies from the root of your BeechCMS project or monorepo:
+   <PackageManagerTabs
+     npm="npm install"
+     pnpm="pnpm install"
+     yarn="yarn install"
+     bun="bun install"
+   />
+2. **Local Stack Running**: Ensure your local BeechCMS development server is active:
    ```bash
    pnpm beech dev
    # API running at http://localhost:8787 (or http://localhost:8789 depending on your port configuration)
    ```
-2. **Admin Account**: You need credentials for an account with the `admin` role (created during onboarding or initial setup).
+3. **Admin Account**: You need credentials for an account with the `admin` role (created during onboarding or initial setup).
 
 ---
 
@@ -43,7 +50,7 @@ From the root of your BeechCMS project or monorepo:
 pnpm --filter @beechcms/mcp build
 ```
 
-This compiles the TypeScript source and packages a self-contained Node.js ESM executable at `packages/mcp/dist/index.js`.
+This compiles the TypeScript source and packages a Node.js ESM executable at `packages/mcp/dist/index.js`. The build uses `esbuild --packages=external`, so dependencies (`@modelcontextprotocol/sdk`, `@beechcms/core`) are **not** inlined into the bundle — `node_modules` must stay installed (step 1) for `node dist/index.js` to run.
 
 ---
 
@@ -95,7 +102,7 @@ In Cursor, open **Settings > Features > MCP**, click **Add New MCP Server**, or 
 |---|---|---|---|
 | `BEECH_API_URL` | Optional | `http://localhost:8787` | BeechCMS API base URL (token endpoint + REST API origin). If unset and a `.dev.vars` file exists in the working directory, the server reads `BEECH_API_URL` from it. |
 | `BEECH_AUTH_URL` | Optional | `BEECH_API_URL` | Origin the browser opens for `/oauth/authorize`. Must be the **dashboard** origin in local dev. |
-| `BEECH_OAUTH_CLIENT_ID` | Optional | `beech-mcp` | Must match the registered client from migration `0039`. |
+| `BEECH_OAUTH_CLIENT_ID` | Optional | `beech-mcp` | Must match the registered OAuth client seeded in D1 (`apps/api/migrations/0000_v040_base.sql`). |
 | `BEECH_OAUTH_SCOPE` | Optional | `schema:read schema:write` | Set to `schema:read` for a read-only agent. |
 | `BEECH_OAUTH_TIMEOUT_MS` | Optional | `180000` | Browser round-trip budget, in milliseconds. |
 | `BEECH_TOKEN_CACHE` | Optional | `~/.beechcms/mcp-tokens.json` | Cache override (tests, containers). |
@@ -110,7 +117,7 @@ In Cursor, open **Settings > Features > MCP**, click **Add New MCP Server**, or 
 
 | Symptom | Cause |
 |---|---|
-| `400 invalid_client` | Migration `0039_oauth_client_beech_mcp.sql` not applied — run `pnpm beech db:migrate`. |
+| `400 invalid_client` | OAuth client seed (`beech-mcp`) not present in D1 — run `pnpm beech db:migrate` to apply the base migration. |
 | `403 insufficient_scope` | Cached token is narrower than the tool needs — revoke and re-authorize with a wider `BEECH_OAUTH_SCOPE`. |
 | Authorization timed out | Browser consent was not completed within `BEECH_OAUTH_TIMEOUT_MS` — re-run the tool. |
 
