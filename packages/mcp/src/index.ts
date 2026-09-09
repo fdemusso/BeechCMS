@@ -17,6 +17,8 @@
  * @module
  */
 
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Server } from '@modelcontextprotocol/sdk/server/index.js'
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
@@ -29,7 +31,8 @@ import type { Seed } from '@beechcms/core'
 import { nextBranchId, validateSeedDefinitions } from '@beechcms/core'
 import { request, BeechClientError } from './client.js'
 import { savePlan, takePlan } from './plans.js'
-import { listResources, readResource } from './resources.js'
+import { listResources, readResource, clearResourceCache, getResourceCount } from './resources.js'
+import { computeBundleHash, startSupervisorStdio } from './supervisor.js'
 
 /**
  * Lightweight summary of a BeechCMS seed schema.
@@ -142,6 +145,16 @@ const TOOLS = [
       required: ['planId'],
       additionalProperties: false,
     },
+  },
+  {
+    name: 'beech_mcp_status',
+    description: 'Inspect the active MCP server process, bundle SHA-256 hash, and bundled resource count.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+  },
+  {
+    name: 'beech_mcp_reload',
+    description: 'Forces an immediate in-memory cache refresh of bundled resources and broadcasts list_changed notifications to the MCP client without requiring a manual /mcp reconnect.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
 ]
 
@@ -301,6 +314,30 @@ async function handleTool(name: string, args: Record<string, unknown>) {
       }
     }
 
+    case 'beech_mcp_status': {
+      const bundleHash = computeBundleHash([fileURLToPath(import.meta.url)])
+      return textResult({
+        name: 'beechcms-mcp',
+        version: '0.1.0',
+        pid: process.pid,
+        uptime: Math.round(process.uptime()),
+        bundleHash,
+        resourceCount: getResourceCount(),
+      })
+    }
+
+    case 'beech_mcp_reload': {
+      clearResourceCache()
+      await server.sendResourceListChanged()
+      await server.sendToolListChanged()
+      const bundleHash = computeBundleHash([fileURLToPath(import.meta.url)])
+      return textResult({
+        reloaded: true,
+        bundleHash,
+        resourceCount: getResourceCount(),
+      })
+    }
+
     default:
       return errorResult(`Unknown tool '${name}'.`)
   }
@@ -319,7 +356,10 @@ function safeParseProblem(message: string): { status?: number; title?: string; d
 /**
  * BeechCMS Model Context Protocol (MCP) server instance.
  */
-const server = new Server({ name: 'beechcms-mcp', version: '0.1.0' }, { capabilities: { tools: {}, resources: {} } })
+const server = new Server(
+  { name: 'beechcms-mcp', version: '0.1.0' },
+  { capabilities: { tools: { listChanged: true }, resources: { listChanged: true, subscribe: true } } }
+)
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }))
 
@@ -340,11 +380,38 @@ server.setRequestHandler(ReadResourceRequestSchema, async (req) => {
 })
 
 /**
- * Connects the MCP server to standard I/O (stdio) transport and starts listening for client requests.
+ * Runs the MCP server directly on standard I/O (stdio) transport.
  */
-async function main() {
+async function runServer() {
   const transport = new StdioServerTransport()
   await server.connect(transport)
+}
+
+/**
+ * Main process entry point. Launches the supervisor proxy in development or watch mode,
+ * or runs the server directly when invoked as a child process or with `--no-watch`.
+ */
+async function main() {
+  const isChild = process.env.BEECH_MCP_CHILD === '1'
+  const disableWatch =
+    process.argv.includes('--no-watch') ||
+    process.env.NODE_ENV === 'production' ||
+    process.env.BEECH_MCP_WATCH === '0'
+
+  if (isChild || disableWatch) {
+    await runServer()
+    return
+  }
+
+  const currentFile = fileURLToPath(import.meta.url)
+  const resourcesManifest = join(dirname(currentFile), '..', 'resources', 'manifest.json')
+
+  await startSupervisorStdio({
+    entryFile: currentFile,
+    childArgs: process.argv.slice(2),
+    watchTargets: [currentFile, resourcesManifest],
+    debounceMs: 200,
+  })
 }
 
 main().catch((error) => {
