@@ -22,7 +22,7 @@ beforeEach(async () => {
   ids = new SequentialIdGenerator()
   repo = new D1RoleAssignmentRepository(db, ids)
   roles = new D1RoleRepository(db, ids)
-  await seedTestUsers(db, [{ id: USER_ID, email: 'rbac-test@beechcms.io', password_hash: 'x' }])
+  await seedTestUsers(db, [{ id: USER_ID, email: 'rbac-test@beechcms.io', password_hash: 'x', grantSuperAdmin: false }])
 })
 
 describe('D1RoleAssignmentRepository', () => {
@@ -78,8 +78,8 @@ describe('D1RoleAssignmentRepository', () => {
     const nonAdminRoleId = await roles.create({ name: 'NonAdmin', description: null, permissions: ['content:read'] })
 
     await seedTestUsers(db, [
-      { id: 'user_inactive_01', email: 'inactive@beechcms.io', password_hash: 'x' },
-      { id: 'user_nonadmin_01', email: 'nonadmin@beechcms.io', password_hash: 'x' },
+      { id: 'user_inactive_01', email: 'inactive@beechcms.io', password_hash: 'x', grantSuperAdmin: false },
+      { id: 'user_nonadmin_01', email: 'nonadmin@beechcms.io', password_hash: 'x', grantSuperAdmin: false },
     ])
     await db.prepare(`UPDATE users SET is_active = 0 WHERE id = 'user_inactive_01'`).run()
 

@@ -32,7 +32,7 @@ import { D1OAuthTokenRepository } from '../shared/db/repositories/d1-oauth-token
 import { D1OAuthConsentRepository } from '../shared/db/repositories/d1-oauth-consent.repository'
 import { D1RoleRepository } from '../shared/db/repositories/d1-role.repository'
 import { D1RoleAssignmentRepository } from '../shared/db/repositories/d1-role-assignment.repository'
-import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService, AllowAllRoleGuard } from '@beechcms/core'
+import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService, PermissionRoleGuard } from '@beechcms/core'
 import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, IRoleRepository, IRoleAssignmentRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations/engine/automation-runner'
@@ -148,7 +148,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('oauthAuthorizationCodeRepository', overrides?.oauthAuthorizationCodeRepository ?? new D1OAuthAuthorizationCodeRepository(database, resolvedClock))
     context.set('oauthTokenRepository', overrides?.oauthTokenRepository ?? new D1OAuthTokenRepository(database, resolvedClock))
     context.set('oauthConsentRepository', overrides?.oauthConsentRepository ?? new D1OAuthConsentRepository(database, resolvedIdGenerator))
-    context.set('roleGuard', overrides?.roleGuard ?? new AllowAllRoleGuard())
+    context.set('roleGuard', overrides?.roleGuard ?? new PermissionRoleGuard())
     context.set('roleRepository', overrides?.roleRepository ?? new D1RoleRepository(database, resolvedIdGenerator))
     context.set('roleAssignmentRepository', overrides?.roleAssignmentRepository ?? new D1RoleAssignmentRepository(database, resolvedIdGenerator))
     await next()

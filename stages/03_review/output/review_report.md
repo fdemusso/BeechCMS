@@ -2,102 +2,94 @@
 PASS
 
 # Findings
-1. (Non-blocking, informational) `apps/api/src/shared/db/repositories/d1-role.repository.ts:86-97` — `update()` guards the `UPDATE roles ... WHERE id = ? AND is_system = 0` statement, but the `DELETE FROM role_permissions` + reinsert in the same `db.batch()` carries no `is_system` guard. Calling `update()` against a system role (e.g. `SuperAdmin`) silently leaves name/description untouched but replaces its permission set. This is present verbatim in the approved plan (SECTION 4.6) — not introduced by the executor. No caller exists in this sprint (`update()` is storage-only, unwired), so there is no live behavior to regress and no acceptance criterion covers it. Flagging so `RbacUserRoleAdminApi` (roadmap entry 3) either adds the same `is_system` guard to the permission statements or documents the asymmetry deliberately before wiring a route to `update()`.
+1. (non-blocking, doc drift) `apps/api/src/features/oauth/authorize.ts:175` — the docstring comment still reads `roleGuard.arbitrate(role, scopes)`, describing the pre-sprint role-string signature. The actual call two lines below (`arbitrate(effective, request.scopes)`) is correct; only the comment is stale. Fix opportunistically, does not affect behavior.
+2. (non-blocking, scoped by plan itself, not an execution deviation) `POST /oauth/authorize/consent` runs on `oauthApp` with a bare `authMiddleware()`, outside `apiProtected`. Its JWT branch performs no user lookup, so a deactivated account holding an unexpired (≤15 min) access JWT can still complete OAuth consent and have `PermissionRoleGuard.arbitrate()` evaluate its *assignments* (which deactivation does not revoke) — the `account_disabled` guarantee does not reach this one route. This is called out explicitly in the plan (Section 2) as a known consequence of the VSA boundary, not something this sprint promised to close. Documented here for the record; no action required this sprint.
 
 # Verification Evidence
 
-Commands re-run independently (not trusted from execution_log.md):
-
+**Build**
 ```
 $ pnpm --filter @beechcms/core run build
 $ tsc
 (exit 0)
+```
 
+**Typecheck — apps/api**
+```
 $ cd apps/api && npx tsc --noEmit
-32 errors — identical set on devs baseline (git stash verified): all in full-text-search.test.ts,
-semantic-search.*.test.ts, public-search.router.test.ts, rate-limit.middleware.test.ts,
-api-key-middleware.test.ts, d1-vector.repository.test.ts, packages/client/src/types.ts.
-Zero errors in any RBAC file. (execution_log claimed 31; actual count both branches is 32 —
-same pre-existing set, discrepancy is a stale count in the log, not a new error.)
+32 errors, exit 0 (tsc --noEmit reports via stdout, not exit code)
+```
+Errors confirmed pre-existing / unrelated to this sprint: `full-text-search.test.ts`, `semantic-search.*.test.ts`, `rate-limit.middleware.test.ts`, `api-key-middleware.test.ts`, `d1-vector.repository.test.ts`, `packages/client/src/types.ts` (`RequestCache`). None touch RBAC files. Count matches execution_log.md's claimed 32.
 
-$ pnpm beech db:reset
-[bootstrap-d1] applying 0000_v040_base.sql
-[bootstrap-d1] applying 0030_test_seeds.sql
-✓ Local database reset completed.
+**Typecheck — apps/dashboard**
+```
+$ cd apps/dashboard && npx tsc --noEmit
+(no output — 0 errors)
+```
 
-$ npx wrangler d1 execute beech-db --local --command "SELECT rp.permission FROM role_permissions rp JOIN roles r ON r.id = rp.role_id WHERE r.name = 'SuperAdmin' ORDER BY rp.permission;"
--> 7 rows: content:create, content:delete, content:read, content:update, manage_roles, manage_users, view_analytics. No manage_seeds.
+**Migrations / RBAC repositories untouched**
+```
+$ git diff devs -- apps/api/migrations | wc -l
+0
+$ git diff devs -- apps/api/src/shared/db/repositories/d1-role.repository.ts apps/api/src/shared/db/repositories/d1-role-assignment.repository.ts | wc -l
+0
+$ git diff devs --stat -- apps/dashboard
+(empty — no dashboard file touched)
+$ test -d apps/api/src/features/rbac && echo EXISTS || echo ABSENT
+ABSENT
+```
 
-$ npx wrangler d1 execute beech-db --local --command "SELECT id FROM roles WHERE name = 'SuperAdmin';"
--> 194cf0f3-37b7-458e-b8b6-3e51ace9c1b5 (v4-shaped)
+**Full API test suite**
+```
+$ pnpm --filter @beechcms/api test -- run
+Test Files  139 passed (139)
+     Tests  1553 passed (1553)
+```
+Matches execution_log.md's claim exactly.
 
-$ npx wrangler d1 execute beech-db --local --command "SELECT COUNT(*) AS n FROM user_role_assignments;"
--> 0
+**RBAC-specific suites run in isolation (direct vitest invocation, not trusting the aggregate run alone)**
+```
+$ npx vitest run test/flow-rbac-enforcement.test.ts src/middleware/permission.middleware.test.ts \
+    test/flow-setup-race.test.ts test/flow-stats.test.ts src/shared/rbac/effective-permissions.test.ts
+Test Files  5 passed (5)
+     Tests  18 passed (18)
+```
 
-$ npx wrangler d1 execute beech-db --local --command "SELECT name, type, dflt_value FROM pragma_table_info('users') WHERE name = 'is_active';"
--> is_active | INTEGER | 1
-
-$ cd apps/api && npx vitest run src/shared/db/repositories/d1-role.repository.test.ts src/shared/db/repositories/d1-role-assignment.repository.test.ts
--> Test Files 2 passed (2), Tests 11 passed (11) — real D1TestDatabase, no mocked prepare/bind.
-
-$ cd apps/api && npx vitest run
--> Test Files 136 passed (136), Tests 1540 passed (1540). Matches execution_log claim exactly.
-
-$ cd apps/dashboard && npx vitest run
--> Test Files 111 passed (111), Tests 827 passed (827). Matches execution_log claim exactly.
-
-$ pnpm beech test   (full monorepo run)
--> @beechcms/mcp#test fails: src/auto-restart.test.ts, "McpSupervisor detects rebuild and
-   restarts child server" (1 of 47 tests). This is what triggered the log's "[ELIFECYCLE]"
-   cascade for api/dashboard, NOT a real regression there (confirmed above by running api/
-   dashboard suites standalone — both fully green). packages/mcp has zero diff on this branch
-   (`git diff devs -- packages/mcp` empty) and the failing test passes in isolation
-   (`npx vitest run src/auto-restart.test.ts` -> 3 passed) — a pre-existing flaky/racy test,
-   unrelated to this sprint's changes.
-
+**Lint**
+```
 $ pnpm lint
-Tasks: 12 successful, 12 total (cache hit on all packages touched by this diff — core, api)
+Tasks: 12 successful, 12 total
 ```
 
-Invariant / acceptance-criteria checks re-run directly against the working tree:
-
+**Invariant grep checks**
 ```
-$ git diff devs -- apps/api/src/factory.ts | wc -l          -> 0 (unchanged)
-$ git diff devs -- apps/api/wrangler.jsonc | wc -l           -> 0 (unchanged)
-$ git diff devs -- packages/core/src/oauth/role-guard.ts | wc -l -> 0 (unchanged)
-$ git diff devs -- apps/api/src/features/seeds/seeds.helpers.ts | wc -l -> 0 (unchanged)
-$ git diff devs --stat | grep -i "features/\|dashboard/"     -> no matches
-$ ls apps/api/migrations/                                     -> 0000_v040_base.sql, 0030_test_seeds.sql, _archive (no new file)
-$ grep -n "ALTER TABLE users" apps/api/migrations/0000_v040_base.sql -> no matches
-$ grep -n "^-- [0-9]" apps/api/migrations/0000_v040_base.sql  -> banners 1-19 unchanged, RBAC appended as "20."
-$ grep -n "extends BaseD1Repository" d1-role*.ts              -> no matches (both take plain `db: D1Database`)
+$ grep -n "PERMISSIONS = \[" -A 10 packages/core/src/rbac/permissions.ts
+  → exactly 7 entries, manage_seeds absent
+$ grep -rn "\.arbitrate(" apps/api packages/core   → single production call site, features/oauth/authorize.ts:224
 ```
 
-Full diff (`git diff devs -- <4 modified files>` plus direct read of all 9 new files) reviewed
-line-by-line against SECTION 4 of the plan: `packages/core/src/rbac/{permissions,types,evaluate}.ts`,
-`packages/core/src/index.ts`, `apps/api/src/types.ts`, `apps/api/src/middleware/repository.middleware.ts`,
-and both D1 repositories are byte-identical to the plan's specified code. No scope creep, no
-undocumented deviation.
+**Runtime verification (`pnpm beech dev`, real Worker + D1 + Docker stack, port 8789)**
+```
+$ curl /api/schema (no token)                          → 401 Unauthorized
+$ curl -X POST /auth/setup {..., settings:{...}}        → {"success":true}
+$ wrangler d1 execute ... user_role_assignments JOIN roles
+  → exactly one row: scope '*', name 'SuperAdmin'
+$ wrangler d1 execute ... SELECT users
+  → role 'admin', is_active 1
+$ login → token; GET /api/schema with token             → 200
+$ GET /api/settings/me with token                       → 200
+$ GET /api/does-not-exist with token                    → 403 route_not_registered
+$ GET /api/seeds with token (role=admin, legacy-admin)  → 200
+$ UPDATE users SET is_active=0 WHERE email=...
+$ GET /api/schema with the SAME still-unexpired token   → 403 account_disabled
+$ GET /api/settings/me with the SAME token              → 403 account_disabled
+$ POST /auth/login with deactivated account             → 401 "Invalid credentials"
+$ (restored is_active=1, stopped dev stack)
+```
+All observed statuses match Section 6 acceptance criteria exactly, including the "self-service and settings/me are not exempt from deactivation" requirement and the "no account-status oracle on login" requirement (401, not a distinct code).
 
 # Sprint Documentation
-`RbacCorePrimitives` (roadmap 1/5) ships the RBAC vocabulary, storage and pure evaluator with
-zero enforcement. New: `packages/core/src/rbac/{permissions,types,evaluate}.ts` (closed
-7-permission vocabulary, `IRoleRepository`/`IRoleAssignmentRepository`, additive evaluator with
-`hasPermission`/`canGrant`); `D1RoleRepository` and `D1RoleAssignmentRepository` as system-table
-adapters (no Branch, no `apiToDb`/`dbToApi`); `roles`/`role_permissions`/`user_role_assignments`
-tables plus `users.is_active`, all folded into `0000_v040_base.sql` in place per the project's beta
-reset policy (no new migration file). Scope decay (assignments on a deleted/missing seed grant
-nothing) is resolved with a `LEFT JOIN seeds` predicate at read time, covered by a dedicated
-revive-on-restore test. `AllowAllRoleGuard`, `requireAdmin()`, `factory.ts` and every
-`features/`/dashboard file are deliberately untouched — this sprint is additive-only, verified
-by a clean `apps/api` typecheck (32 pre-existing errors, none new) and a full green test suite
-(1540 + 827 tests). One non-blocking design gap found: `D1RoleRepository.update()`'s system-role
-guard doesn't extend to the permission-replacement statements in the same batch — harmless now
-(no caller), but must be addressed before `RbacUserRoleAdminApi` wires a route to it. Known,
-documented lockout risk for the next sprint: `user_role_assignments` ships empty, so
-`RbacRequestEnforcement` must grant `SuperAdmin` to the `POST /auth/setup` account in the same
-transaction that creates it, or the dashboard becomes unreachable the moment enforcement goes live.
+Shipped the fail-closed RBAC enforcement gate (`permissionMiddleware`) on `apiProtected`, registered after `oauthScopeMiddleware`. New `PROTECTED_ROUTES` allowlist maps every mounted `/api/*` route to `permission`/`authenticated`/`legacy-admin`, verified complete by a test driven off `app.routes`. `IRoleGuard.arbitrate()` widened from a role string to `EffectivePermissions`; production binding switched from `AllowAllRoleGuard` to the new `PermissionRoleGuard` (requires global `manage_users` to delegate OAuth/MCP scopes). Added reversible `users.is_active` deactivation, enforced at login, refresh, the OAuth-token auth path, and every `apiProtected` route including self-service (`/api/settings/me`) — closing access instantly despite 15-minute JWTs, with one documented exception: `/oauth/authorize/consent` sits outside `apiProtected` and its bare-JWT auth path does not check `is_active` (called out in the plan itself, not a new gap). `POST /auth/setup` now grants the seeded `SuperAdmin` role at `'*'` to the account it creates, resolved by name and idempotent, preventing the empty-`user_role_assignments` lockout. `seedTestUsers()` mirrors this so all 19 pre-existing authenticated test suites keep passing without a production admin-role bridge. No migration, no dashboard file, no `features/rbac/` slice — all deferred per roadmap. Deviation from plan: none of substance; three pre-existing test files were adapted to the new default-grant/is_active behavior, documented in execution_log.md and independently re-verified here.
 
 ## Handoff (Human Gate)
-STOP here per stage contract — human decides next step (merge + `pnpm pipeline next`, since this
-is sprint 1/5 of a multi-sprint feature, not the final sprint).
+Human reviews this verdict. This is an intermediate sprint (roadmap 2/5) — on acceptance, merge the branch and run `pnpm pipeline next`.

@@ -26,6 +26,16 @@
 
 ***
 
+### isActive
+
+> **isActive**: `boolean`
+
+Reversible deactivation (`users.is_active`). A deactivated account keeps its rows,
+its assignments and its refresh tokens, but is refused at every authorization
+boundary — which is what makes revocation instant despite 15-minute access JWTs.
+
+***
+
 ### name
 
 > **name**: `string` \| `null`

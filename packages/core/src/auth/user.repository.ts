@@ -10,6 +10,12 @@ export interface UserRecord {
   role: string
   avatarUrl: string | null
   notificationPreferences: string
+  /**
+   * Reversible deactivation (`users.is_active`). A deactivated account keeps its rows,
+   * its assignments and its refresh tokens, but is refused at every authorization
+   * boundary — which is what makes revocation instant despite 15-minute access JWTs.
+   */
+  isActive: boolean
 }
 
 export interface NewUserInput {

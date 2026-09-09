@@ -72,9 +72,11 @@ describe('Flow: Stats', () => {
 
   it('GET /api/content/stats/setup-checklist returns adminExists=false when user table is empty', async () => {
     const emptyDb = new D1TestDatabase()
-    // No users seeded — adminExists must be false
+    // No role='admin' user seeded — adminExists must be false. The caller still needs a
+    // real, active, permission-holding account to clear the RBAC gate (sprint 2), so seed
+    // an editor-role account granted SuperAdmin directly, which is orthogonal to `role`.
+    await seedTestUsers(emptyDb, [{ id: 'u_fake', email: 'ghost@test.io', password_hash: 'x', role: 'editor', grantSuperAdmin: true }])
 
-    // Use a pre-issued token since we cannot login without users
     const { JoseTokenService } = await import('../src/auth/providers/jwt-token.service')
     const { SystemClock } = await import('@beechcms/core')
     const tokenService = new JoseTokenService(TEST_ENV.JWT_SECRET, {}, SystemClock)

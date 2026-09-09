@@ -6,26 +6,27 @@
 
 # Interface: IRoleGuard
 
-Arbitrates which of the requested scopes a given user role may grant.
+Arbitrates which of the requested scopes a given caller may grant.
 
 This is the ONLY place role-based authorization may live in the OAuth flow.
-`/oauth/authorize` and `/oauth/token` must never branch on `role` themselves,
-so introducing a real role system later requires swapping the implementation
-bound in repositoryMiddleware and nothing else.
+`/oauth/authorize` and `/oauth/token` must never branch on authority themselves.
+
+The parameter is the caller's RESOLVED authority, not a role string: the role
+string is the pre-RBAC vocabulary and is on its way out.
 
 ## Methods
 
 ### arbitrate()
 
-> **arbitrate**(`role`, `requestedScopes`): `Promise`&lt;[`ScopeGrantDecision`](ScopeGrantDecision.md)&gt;
+> **arbitrate**(`effective`, `requestedScopes`): `Promise`&lt;[`ScopeGrantDecision`](ScopeGrantDecision.md)&gt;
 
 #### Parameters
 
-##### role
+##### effective
 
-`string` \| `undefined`
+[`EffectivePermissions`](EffectivePermissions.md)
 
-The resource owner's role claim, or undefined when absent.
+The resource owner's effective permissions, already folded.
 
 ##### requestedScopes
 

@@ -10,10 +10,10 @@ the next lands. Detailed Task Details exist ONLY for the sprint currently in fli
 | # | Slug | Goal (one line) | Deliverables summary | Depends on |
 |---|------|-----------------|----------------------|------------|
 | 1 | `RbacCorePrimitives` | Land the closed permission vocabulary, the ABAC evaluator and the D1 tables, with zero behaviour change. | `packages/core/src/rbac/*` (enum, types, pure evaluator, repository interfaces), schema folded into `migrations/0000_v040_base.sql`, D1 repositories, `Variables` wiring. No routes, no UI, no enforcement. | — (first) |
-| 2 | `RbacRequestEnforcement` | Turn the evaluator into the single authorization gate on every protected request. | `permission.middleware.ts` on `apiProtected`, scope resolution from the seed slug in the route, replacement of `requireAdmin`, real `IRoleGuard` adapter swapped for `AllowAllRoleGuard` (**widening `arbitrate()` — 1 production call site, `features/oauth/authorize.ts:222`**), `is_active` session revocation on the auth path, **and the SuperAdmin grant at `POST /auth/setup` (see lockout warning)**. May also drop the legacy `users.role` column outright. | Sprint 1 (evaluator + tables must exist and be queryable) |
-| 3 | `RbacUserRoleAdminApi` | Expose account/role/assignment administration with anti-escalation and the last-SuperAdmin guardrail. | New VSA slice `apps/api/src/features/rbac/` (users CRUD, roles CRUD, assignment CRUD, activate/deactivate), `canGrant` enforcement, guardrail refusing revocation of the last active SuperAdmin. Route gating and `RBAC_ERRORS` follow the `features/oauth/index.ts` + `oauth/constants.ts` conventions. | Sprint 2 (endpoints must be gated by the middleware they configure) |
+| 2 | `RbacRequestEnforcement` | Turn the evaluator into the single authorization gate on every protected request. | `permission.middleware.ts` on `apiProtected` (fail-closed route table, scope from the seed slug in the route), `shared/rbac/effective-permissions.ts` resolver, `PermissionRoleGuard` replacing `AllowAllRoleGuard` (**widening `arbitrate()` to take `EffectivePermissions` — 1 production call site, `features/oauth/authorize.ts:222`**), `is_active` refusal on login/refresh/OAuth + every gated request, **and the SuperAdmin grant at `POST /auth/setup` (see lockout warning)**. **PLANNED, detail in `output/RbacRequestEnforcement.md`.** | Sprint 1 (evaluator + tables must exist and be queryable) |
+| 3 | `RbacUserRoleAdminApi` | Expose account/role/assignment administration with anti-escalation and the last-SuperAdmin guardrail. | New VSA slice `apps/api/src/features/rbac/` (users CRUD, roles CRUD, assignment CRUD, activate/deactivate), `canGrant` enforcement, guardrail refusing revocation of the last active SuperAdmin. Route gating and `RBAC_ERRORS` follow the `features/oauth/index.ts` + `oauth/constants.ts` conventions. **Also inherits from sprint 2:** dropping the legacy `users.role` column (and with it `requireAdmin()` / `requireLayoutEditPermission()`), plus closing the `is_system` guard gap in `D1RoleRepository.update()` flagged by the sprint-1 review before any route is wired to it. | Sprint 2 (endpoints must be gated by the middleware they configure) |
 | 4 | `RbacInvitations` | Invite-only onboarding: single-use expiring tokens carrying a pre-assigned role+scope. | `invitations` table, invite issue/regenerate/redeem endpoints inside the `rbac` slice, email dispatch via `INotificationService`, activation flow setting credentials via the existing `IHashProvider`. Token handling reuses `generateOpaqueToken()` + `sha256hex()`; the repository mirrors `IPasswordResetTokenRepository`. | Sprint 3 (an invite pre-assigns a role that must already be creatable) |
-| 5 | `RbacDashboardSurfaces` | Make the dashboard reflect exactly the caller's effective permissions. | `apps/dashboard/src/features/rbac/` (users, roles, invites screens), permission-derived navigation/section visibility, `/api/settings/me` permission payload consumption. | Sprint 4 (UI must be able to drive the full invite lifecycle) |
+| 5 | `RbacDashboardSurfaces` | Make the dashboard reflect exactly the caller's effective permissions. | `apps/dashboard/src/features/rbac/` (users, roles, invites screens), permission-derived navigation/section visibility, `/api/settings/me` permission payload consumption. **Also inherits from sprint 2:** the scope-filtered projections sprint 2 left coarse — `GET /api/schema` (full seed list to any authenticated caller), `GET /api/content/drafts` and `GET /api/search` (global `content:read` instead of a scope-filtered list), `/api/upload*` (global `content:*`, since R2 media is not seed-partitioned), `/api/automations*` and `/api/dashboard-layout` writes (global-only). | Sprint 4 (UI must be able to drive the full invite lifecycle) |
 
 ## Ordering rationale
 
@@ -27,6 +27,17 @@ the next lands. Detailed Task Details exist ONLY for the sprint currently in fli
   pre-assign a role+scope that no endpoint can create yet.
 - UI last: the dashboard is a projection of the effective permission set. It has no
   independent contract to validate before the API emits one.
+
+## The developer axis (decided in sprint 2's VETO audit — binding on every later sprint)
+
+`manage_seeds` does not exist and must never exist (brief §2), so **no RBAC permission may gate
+`/api/seeds/*` or `/api/schema/:slug/layout`**. Sprint 2 therefore classes those routes `legacy-admin`
+in its permission table: the gate requires authentication and defers to the in-slice
+`requireAdmin()` / `requireLayoutEditPermission()`, which read `users.role === 'admin'`.
+
+That keeps `users.role` alive **as the developer/owner axis** — orthogonal to RBAC, not a rung above
+it — which is why dropping the column moved from sprint 2 to sprint 3. Sprint 3 must replace those
+guards deliberately, not incidentally.
 
 ## Migration policy for this feature (beta)
 
@@ -71,6 +82,12 @@ The identity tier already exists. No sprint in this feature may re-implement any
 - **Slice conventions** — per-route gating as in `features/oauth/index.ts` (note:
   admin surfaces use bare `authMiddleware()`, never `acceptOAuth: true`), and a frozen
   error-code map per slice as in `auth/constants.ts` / `oauth/constants.ts`.
+- **Test-user authority** — `seedTestUsers()` (`apps/api/test/helpers/seed-fixtures.ts`) is the single
+  choke point through which all 19 authenticated suites hydrate users (`graphify affected
+  "seedTestUsers" --depth 1`). Sprint 2 makes it grant `SuperAdmin` at `'*'` for `role === 'admin'`.
+  Later sprints seed narrower authority through the same helper (`grantSuperAdmin: false` plus
+  hand-built assignments) — never by adding a second seeding path, and never by weakening production
+  code to keep a test green.
 - **Test doubles** — `apps/api/src/auth/__fixtures__/` (`in-memory-hash-provider.ts`,
   `static-token-service.ts`), `shared/services/id-generator/sequential-id-generator.ts`,
   `shared/services/clock/fixed-clock.ts`, `test/mocks/` — instead of new ad-hoc doubles.
