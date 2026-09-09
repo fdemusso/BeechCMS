@@ -103,7 +103,104 @@ async function exchangeToken(apiUrl: string, body: URLSearchParams): Promise<Tok
 
 /** Self-contained loopback landing page; no external asset so it renders offline. */
 function renderClosePage(): string {
-  return '<!doctype html><html><body><p>You can close this tab.</p></body></html>'
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Authorization Successful - BeechCMS</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --text-primary: #0f172a;
+      --text-muted: #64748b;
+      --success-bg: #dcfce7;
+      --success-border: #bbf7d0;
+      --success-text: #15803d;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #09090b;
+        --card-bg: #121215;
+        --card-border: #27272a;
+        --text-primary: #f4f4f5;
+        --text-muted: #a1a1aa;
+        --success-bg: rgba(34, 197, 94, 0.15);
+        --success-border: rgba(34, 197, 94, 0.3);
+        --success-text: #4ade80;
+      }
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      -webkit-font-smoothing: antialiased;
+    }
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 1rem;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      max-width: 380px;
+      width: 100%;
+      padding: 2.5rem 2rem;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .icon-badge {
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 50%;
+      background-color: var(--success-bg);
+      border: 1px solid var(--success-border);
+      color: var(--success-text);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.25rem;
+    }
+    .icon-badge svg {
+      width: 1.75rem;
+      height: 1.75rem;
+    }
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      line-height: 1.5;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    </div>
+    <h1>Authorization Successful</h1>
+    <p>You can safely close this tab and return to your terminal or editor.</p>
+  </div>
+  <script>try { window.close(); } catch (_) {}</script>
+</body>
+</html>`
 }
 
 interface CallbackResult {
