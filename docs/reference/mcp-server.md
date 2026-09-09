@@ -214,14 +214,51 @@ Executes an atomic, OCC-guarded migration using a previously planned `planId`.
 
 ---
 
-## Resources
+### 7. `beech_mcp_status`
+
+Inspects the running MCP server instance, process ID, uptime, active bundle SHA-256 hash, and loaded resource count.
+
+- **Parameters**: None (`{}`)
+- **Transport**: In-process execution.
+- **Returns**:
+  ```json
+  {
+    "name": "beechcms-mcp",
+    "version": "0.1.0",
+    "pid": 54120,
+    "uptime": 120,
+    "bundleHash": "7b8f9a...",
+    "resourceCount": 532
+  }
+  ```
+
+---
+
+### 8. `beech_mcp_reload`
+
+Forces an immediate in-memory cache refresh of bundled resources and broadcasts `notifications/tools/list_changed` and `notifications/resources/list_changed` to the MCP client without requiring a manual `/mcp` reconnect.
+
+- **Parameters**: None (`{}`)
+- **Transport**: In-process cache invalidation and MCP notification broadcast.
+- **Returns**:
+  ```json
+  {
+    "reloaded": true,
+    "bundleHash": "7b8f9a...",
+    "resourceCount": 532
+  }
+  ```
+
+---
+
+## Resources & Auto-Reload
 
 In addition to tools, `@beechcms/mcp` exposes a curated snapshot of `docs/` as MCP **resources** — read-only reference material an agent can list and fetch without calling a tool.
 
 - **URI scheme**: `beechcms-docs://<path>`, e.g. `beechcms-docs://features/analytics.md`.
 - **Discovery**: `resources/list` returns `{ uri, name, description, mimeType }` for every bundled document; `resources/read` returns the full Markdown text for a given `uri`.
 - **Bundled subset**: `docs/api`, `docs/build`, `docs/features`, `docs/manage`, `docs/reference`, and `docs/start/first-project.md`. Internal/CI/example/personal docs, sprint notes, and the MCP quickstart itself are excluded.
-- **Staleness caveat**: resources are static files copied into the package at **build time** (`pnpm --filter @beechcms/mcp build`), not read from disk at runtime. Content reflects the last `@beechcms/mcp` publish, not the live `docs/` tree — there is no live-refresh or cache-busting mechanism.
+- **Auto-restart & Hot-reload**: When running in development, `@beechcms/mcp` runs via an integrated stdio supervisor (`McpSupervisor`). Upon every `pnpm build`, changes to `packages/mcp/dist/index.js` and `resources/manifest.json` are automatically detected: the supervisor restarts the child server, replays the initialization handshake, and broadcasts `notifications/tools/list_changed` and `notifications/resources/list_changed` to the client without dropping the stdio stream. To disable watch mode, pass `--no-watch` or run in `NODE_ENV=production`.
 
 ---
 

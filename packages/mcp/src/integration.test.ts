@@ -205,11 +205,33 @@ describe('MCP Server Integration & Operational Test', () => {
     expect(names).toEqual([
       'beech_get_seed',
       'beech_list_seeds',
+      'beech_mcp_reload',
+      'beech_mcp_status',
       'beech_schema_apply',
       'beech_schema_export',
       'beech_schema_plan',
       'beech_schema_validate',
     ])
+  })
+
+  it('beech_mcp_status returns server status and bundle hash', async () => {
+    const res = (await client.callTool({ name: 'beech_mcp_status', arguments: {} })) as any
+    expect(res.isError).toBeFalsy()
+    const parsed = JSON.parse(res.content[0].text)
+    expect(parsed.name).toBe('beechcms-mcp')
+    expect(parsed.version).toBe('0.1.0')
+    expect(typeof parsed.pid).toBe('number')
+    expect(typeof parsed.bundleHash).toBe('string')
+    expect(typeof parsed.resourceCount).toBe('number')
+  })
+
+  it('beech_mcp_reload refreshes cache and returns success payload', async () => {
+    const res = (await client.callTool({ name: 'beech_mcp_reload', arguments: {} })) as any
+    expect(res.isError).toBeFalsy()
+    const parsed = JSON.parse(res.content[0].text)
+    expect(parsed.reloaded).toBe(true)
+    expect(typeof parsed.bundleHash).toBe('string')
+    expect(typeof parsed.resourceCount).toBe('number')
   })
 
   it('beech_list_seeds returns seed summaries and parsed X-Schema-Version', async () => {

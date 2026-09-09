@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024-2026 Flavio De Musso
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -16,12 +16,38 @@ export interface ResourceEntry {
 }
 
 let cachedManifest: ResourceEntry[] | null = null
+let cachedManifestMtime = 0
+
+/** Clears the cached resource manifest. */
+export function clearResourceCache(): void {
+  cachedManifest = null
+  cachedManifestMtime = 0
+}
+
+/** Returns the number of bundled resources currently loaded. */
+export function getResourceCount(): number {
+  return loadManifest().length
+}
 
 function loadManifest(): ResourceEntry[] {
-  if (cachedManifest) return cachedManifest
-  const raw = readFileSync(join(RESOURCES_DIR, 'manifest.json'), 'utf8')
-  cachedManifest = JSON.parse(raw) as ResourceEntry[]
-  return cachedManifest
+  const manifestPath = join(RESOURCES_DIR, 'manifest.json')
+  try {
+    let mtime = 0
+    try {
+      mtime = typeof statSync === 'function' ? (statSync(manifestPath)?.mtimeMs ?? 0) : 0
+    } catch {}
+
+    if (cachedManifest && (mtime === 0 || cachedManifestMtime === mtime)) {
+      return cachedManifest
+    }
+    const raw = readFileSync(manifestPath, 'utf8')
+    cachedManifest = JSON.parse(raw) as ResourceEntry[]
+    cachedManifestMtime = mtime
+    return cachedManifest
+  } catch (err) {
+    if (cachedManifest) return cachedManifest
+    throw err
+  }
 }
 
 /** Lists all bundled MCP resources (title + description only, no file content). */
