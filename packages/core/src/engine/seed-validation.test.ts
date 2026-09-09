@@ -580,6 +580,28 @@ describe('validateSeedDefinitions', () => {
     expect(issues.filter(i => i.fatal)).toEqual([])
   })
 
+  // ── Fatal: seed slug format ───────────────────────────────────────────────
+
+  it('fatal: rejects invalid slug format', () => {
+    const invalidSlugs = ['Test-Slug Con Spazi', 'has-hyphen', 'UpperCase', 'has space', '', '123_invalid!']
+    for (const slug of invalidSlugs) {
+      const seeds = [makeSeed({ slug })]
+      const issues = validateSeedDefinitions(seeds)
+      const fatal = issues.filter(i => i.fatal && i.slug === slug)
+      expect(fatal.length).toBeGreaterThan(0)
+      expect(fatal[0].messages.some(m => m.includes('slug') && m.includes('invalid'))).toBe(true)
+    }
+  })
+
+  it('accepts valid slug format', () => {
+    const validSlugs = ['posts', 'user_profile', 'item_123', 'a']
+    for (const slug of validSlugs) {
+      const seeds = [makeSeed({ slug })]
+      const issues = validateSeedDefinitions(seeds)
+      expect(issues.filter(i => i.fatal)).toEqual([])
+    }
+  })
+
   // ── isSeedSetValid ────────────────────────────────────────────────────────────
 
   it('isSeedSetValid returns true for clean set', () => {
