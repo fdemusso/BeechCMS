@@ -15,6 +15,7 @@ import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import { authApp } from './auth'
 import { authMiddleware } from './middleware/auth.middleware'
 import { oauthScopeMiddleware } from './middleware/oauth-scope.middleware'
+import { permissionMiddleware } from './middleware/permission.middleware'
 import contentFeature from './features/content'
 import { widgetApp } from './features/widget/widget'
 import { rotateFieldApp } from './features/rotate-field'
@@ -228,6 +229,10 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   // Fail-closed: an OAuth token reaches only the routes listed in OAUTH_SCOPE_ROUTES.
   // Must stay immediately after authMiddleware — it consumes the `oauthGrant` it sets.
   apiProtected.use('*', oauthScopeMiddleware())
+  // Fail-closed RBAC gate. Runs last of the three: authentication has produced a
+  // subject, the OAuth scope allowlist has already refused off-limits tokens, and this
+  // decides what the subject may do on the scope named by the route.
+  apiProtected.use('*', permissionMiddleware())
 
   apiProtected.route('/settings', settingsApp)
   apiProtected.route('/schema', schemaApp)

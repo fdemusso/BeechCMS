@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, beforeEach } from 'vitest'
+import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME } from '@beechcms/core'
 import { createBeechApp } from '../src/factory'
 import { D1TestDatabase } from './helpers/d1-test-database'
 import { TEST_ENV } from './fixtures'
@@ -50,6 +51,41 @@ describe('Flow: /auth/setup race condition (#233)', () => {
     expect(second.status).toBe(403)
 
     const { count } = (await db.prepare('SELECT COUNT(*) as count FROM users').first()) as { count: number }
+    expect(count).toBe(1)
+  })
+
+  it('POST /auth/setup creates exactly one SuperAdmin assignment at GLOBAL_SCOPE, and the account then reaches a protected route', async () => {
+    const res = await setupRequest('admin-lockout@beech.local')
+    expect(res.status).toBe(201)
+
+    const row = await db
+      .prepare(
+        `SELECT a.scope, r.name FROM user_role_assignments a JOIN roles r ON r.id = a.role_id`
+      )
+      .first<{ scope: string; name: string }>()
+    expect(row).toEqual({ scope: GLOBAL_SCOPE, name: SUPER_ADMIN_ROLE_NAME })
+
+    const { count } = (await db.prepare('SELECT COUNT(*) as count FROM user_role_assignments').first()) as { count: number }
+    expect(count).toBe(1)
+
+    const loginRes = await app.request('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'admin-lockout@beech.local', password: 'password123' }),
+    }, { ...TEST_ENV, DB: db })
+    const { token } = await loginRes.json<{ token: string }>()
+
+    const settingsRes = await app.request('/api/settings/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    }, { ...TEST_ENV, DB: db })
+    expect(settingsRes.status).toBe(200)
+  })
+
+  it('setup called twice does not produce a duplicate assignment', async () => {
+    await setupRequest('admin-a@beech.local')
+    await setupRequest('admin-b@beech.local')
+
+    const { count } = (await db.prepare('SELECT COUNT(*) as count FROM user_role_assignments').first()) as { count: number }
     expect(count).toBe(1)
   })
 

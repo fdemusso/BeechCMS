@@ -14,6 +14,7 @@ type UserRow = {
   role: string
   avatar_url: string | null
   notification_prefs: string
+  is_active: number
 }
 
 function rowToRecord(row: UserRow): UserRecord {
@@ -26,6 +27,7 @@ function rowToRecord(row: UserRow): UserRecord {
     role: row.role,
     avatarUrl: row.avatar_url,
     notificationPreferences: row.notification_prefs,
+    isActive: row.is_active === 1,
   }
 }
 
@@ -41,7 +43,7 @@ export class D1UserRepository implements IUserRepository {
 
   async findById(userId: string): Promise<UserRecord | null> {
     const row = await this.db
-      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs FROM users WHERE id = ? LIMIT 1')
+      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs, is_active FROM users WHERE id = ? LIMIT 1')
       .bind(userId)
       .first<UserRow>()
     return row ? rowToRecord(row) : null
@@ -49,7 +51,7 @@ export class D1UserRepository implements IUserRepository {
 
   async findByEmail(email: string): Promise<UserRecord | null> {
     const row = await this.db
-      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs FROM users WHERE email = ? LIMIT 1')
+      .prepare('SELECT id, email, name, surname, password_hash, role, avatar_url, notification_prefs, is_active FROM users WHERE email = ? LIMIT 1')
       .bind(email)
       .first<UserRow>()
     return row ? rowToRecord(row) : null

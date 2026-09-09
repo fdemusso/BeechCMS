@@ -13,6 +13,7 @@ const USER_ROW = {
   role: 'admin',
   avatar_url: null,
   notification_prefs: '{}',
+  is_active: 1,
 }
 
 function makeMockDb(opts: {
@@ -56,6 +57,7 @@ describe('D1UserRepository', () => {
         role: 'admin',
         avatarUrl: null,
         notificationPreferences: '{}',
+        isActive: true,
       })
     })
 

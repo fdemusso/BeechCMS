@@ -7,6 +7,7 @@ import type { Context } from 'hono'
 import { sha256hex, type OAuthScope } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { generateOpaqueToken } from '../../shared/utils/opaque-token'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { AUTHORIZATION_CODE_TTL_SECONDS, CONSENT_SCREEN_PATH, OAUTH_ERRORS } from './constants'
 import {
   buildErrorRedirect,
@@ -219,7 +220,8 @@ export async function consentHandler(context: OAuthContext): Promise<Response> {
   const userId = context.get('jwtPayload').sub
   const nowSeconds = context.get('clock').nowSeconds()
 
-  const decision = await context.get('roleGuard').arbitrate(context.get('jwtPayload').role, request.scopes)
+  const effective = await resolveEffectivePermissions(context)
+  const decision = await context.get('roleGuard').arbitrate(effective, request.scopes)
   if (decision.grantedScopes.length === 0) {
     return context.json(
       { redirectTo: buildErrorRedirect(request.redirectUri, OAUTH_ERRORS.ACCESS_DENIED, 'no requested scope may be granted to this role', request.state) },
