@@ -45,6 +45,7 @@ The release script detects which packages were modified since their last release
 | `@beechcms/widget-sdk` | `packages/widget-sdk` | ✅ Yes | Custom dashboard widgets SDK |
 | `@beechcms/cli` | `packages/cli` | ✅ Yes | `npx beech` CLI (seed:load, forms, etc.) |
 | `@beechcms/mcp` | `packages/mcp` | ✅ Yes | Model Context Protocol server & agent skill |
+| `@beechcms/search-client` | `packages/search-client` | ✅ Yes | Client library for BeechCMS search endpoints |
 | `@beechcms/api` | `apps/api` | ✅ Yes | Worker factory, migrations, dashboard bundle |
 | `@beechcms/dashboard` | `apps/dashboard` | ❌ No | Bundled into `@beechcms/api/assets/dashboard` |
 | `@beechcms/cms` | `.` (root) | ✅ Yes | Root scaffolder (`npx @beechcms/cms`) |
@@ -66,6 +67,7 @@ Or via pnpm shortcuts:
 ```bash
 pnpm release                 # Stable release for modified packages
 pnpm release:preview         # Preview release for modified packages
+pnpm release:current         # Publish current versions as-is (no bump, no diff detection)
 pnpm release patch           # Bump patch on modified packages
 pnpm release minor           # Bump minor on modified packages
 pnpm release major           # Bump major on modified packages
@@ -88,6 +90,7 @@ pnpm release major           # Bump major on modified packages
 | `--bump <type>` | `patch`, `minor`, `major` | Explicit semver increment type |
 | `--filter <pkg>` | `-p <pkg>` | Target specific package(s), comma-separated (e.g. `-p client` or `-p client,forms-react`) |
 | `--all` | `--force` | Force bump and release of ALL packages regardless of git diff |
+| `--current` | | Publish packages at their **current** version — skips bump, git diff detection, and LICENSE update; just builds and publishes what's already in `package.json` |
 | `--no-cascade` | | Do not bump dependent packages when an upstream package is bumped |
 | `--since <ref>` | | Custom git ref/commit to compare diff against (default: auto-detected per package) |
 | `--help` | `-h` | Display help manual |
@@ -149,6 +152,21 @@ pnpm release --all minor
 pnpm release --dry-run patch
 ```
 
+### 6. Publish Current Versions (no bump)
+
+Use this to (re-)publish packages exactly as they are — e.g. a previous publish failed partway, or a version was set manually via `pnpm release set` and never pushed to npm. No version bump, no git diff detection, no LICENSE change, no commit — only build, publish, and tag (skipping any tag that already exists).
+
+```bash
+# Publish current versions of all publishable packages
+pnpm release:current
+
+# Publish current version of a single package
+pnpm release --current -p client
+
+# Simulate without publishing
+pnpm release --current --dry-run
+```
+
 ---
 
 ## 🔄 Release Execution Pipeline
@@ -166,6 +184,8 @@ When executed, the script performs the following atomic steps:
    - Commits modified `package.json` files and lockfile.
    - Tags each published package with `@beechcms/<pkg>@<version>`.
    - Tags root release `v<version>` when applicable.
+
+> **With `--current`**: steps 2–4 (version bump, dependency sync, LICENSE update, lockfile refresh) are skipped entirely. The script goes straight to build → publish, then tags the published package(s) at their current version (git tag only, no commit) — skipping any tag that already exists.
 
 ---
 

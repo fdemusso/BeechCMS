@@ -17,6 +17,7 @@
  *   --bump <type>                         Bump type: patch | minor | major
  *   --filter, -p <name>                   Target specific package(s), comma-separated
  *   --all, --force                        Force bump all packages regardless of git diff
+ *   --current                             Publish packages at their current version (no bump, no diff detection)
  *   --no-cascade                          Do not cascade bumps to dependent packages
  *   --since <ref>                         Custom git ref/commit to compare diff against
  *   -h, --help                            Show help message
@@ -39,6 +40,7 @@ const PACKAGES = [
   { path: resolve(ROOT, 'packages/widget-sdk/package.json'),  dir: 'packages/widget-sdk',  name: '@beechcms/widget-sdk',  shortName: 'widget-sdk',  publish: true },
   { path: resolve(ROOT, 'packages/cli/package.json'),         dir: 'packages/cli',         name: '@beechcms/cli',         shortName: 'cli',         publish: true },
   { path: resolve(ROOT, 'packages/mcp/package.json'),         dir: 'packages/mcp',         name: '@beechcms/mcp',         shortName: 'mcp',         publish: true },
+  { path: resolve(ROOT, 'packages/search-client/package.json'), dir: 'packages/search-client', name: '@beechcms/search-client', shortName: 'search-client', publish: true },
   { path: resolve(ROOT, 'apps/api/package.json'),             dir: 'apps/api',             name: '@beechcms/api',         shortName: 'api',         publish: true },
   { path: resolve(ROOT, 'apps/dashboard/package.json'),       dir: 'apps/dashboard',       name: '@beechcms/dashboard',   shortName: 'dashboard',   publish: false }, // Built into API assets
   { path: resolve(ROOT, 'package.json'),                      dir: '.',                    name: '@beechcms/cms',         shortName: 'cms',         publish: true, rootOnly: true },
@@ -249,6 +251,7 @@ Release Options:
   --bump <type>               Bump type: patch | minor | major
   --filter, -p <name>         Target specific package(s), comma-separated (e.g. -p client,forms-react)
   --all, --force              Force bump and release of ALL packages regardless of git diff
+  --current                   Publish packages at their current version (no bump, no diff detection)
   --no-cascade                Do not cascade bumps to dependent packages
   --since <ref>               Custom git ref to compare diff against
   -h, --help                  Show this help message
@@ -261,6 +264,7 @@ Examples:
   pnpm release:preview                Release modified packages to preview channel
   pnpm release -p client patch        Release only @beechcms/client
   pnpm release --dry-run patch        Simulate release plan
+  pnpm release --current              Publish current versions as-is (no version bump)
 `)
   process.exit(0)
 }
@@ -397,6 +401,7 @@ if (firstArg === 'set') {
 const isPreview = args.includes('--preview') || process.env.npm_config_preview === 'true'
 const isDryRun = args.includes('--dry-run') || process.env.npm_config_dry_run === 'true'
 const forceAll = args.includes('--all') || args.includes('--force') || process.env.npm_config_all === 'true'
+const isCurrent = args.includes('--current') || process.env.npm_config_current === 'true'
 const noCascade = args.includes('--no-cascade') || process.env.npm_config_no_cascade === 'true'
 
 // --filter / -p <pkg>
@@ -450,8 +455,8 @@ function rollback(reason) {
 log('')
 log('  🌿 BeechCMS Smart Release')
 log('  ────────────────────────────────────────────────────────')
-log(`  Mode      : ${isPreview ? 'Preview (npm tag: next)' : 'Stable (npm tag: latest)'}`)
-log(`  Bump type : ${bump ?? (isPreview ? 'increment preview' : 'auto (promote or patch)')}`)
+log(`  Mode      : ${isCurrent ? 'Current (publish as-is, no bump)' : isPreview ? 'Preview (npm tag: next)' : 'Stable (npm tag: latest)'}`)
+log(`  Bump type : ${isCurrent ? 'none' : bump ?? (isPreview ? 'increment preview' : 'auto (promote or patch)')}`)
 log(`  Dry run   : ${isDryRun ? 'YES (no files will be modified)' : 'NO'}`)
 if (filterPkg) log(`  Filter    : ${filterPkg}`)
 if (forceAll)  log(`  Force All : YES`)
@@ -478,12 +483,21 @@ const packageStates = []
 
 for (const pkg of PACKAGES) {
   const currentVer = readJson(pkg.path).version
-  const changeInfo = detectPackageChanges(pkg, sinceRef)
-  
+
+  // --current skips git diff detection entirely: never bumps, just marks
+  // packages to (re-)publish at their existing version.
+  const changeInfo = isCurrent ? { changed: false, files: [], baseRef: null } : detectPackageChanges(pkg, sinceRef)
+
   let willBump = false
   let reason = 'unchanged'
 
-  if (forceAll) {
+  if (isCurrent) {
+    if (!filterPkg || matchesFilter(pkg)) {
+      reason = 'publish current version'
+    } else {
+      reason = 'filtered out'
+    }
+  } else if (forceAll) {
     willBump = true
     reason = 'forced (--all)'
   } else if (filterPkg) {
@@ -504,6 +518,9 @@ for (const pkg of PACKAGES) {
     currentVersion: currentVer,
     nextVersion: currentVer,
     willBump,
+    // In --current mode, publish eligibility is tracked separately (willPublishCurrent)
+    // since willBump stays false (no version file changes, no commit/tag).
+    willPublishCurrent: isCurrent && reason === 'publish current version',
     reason,
     changeInfo
   })
@@ -518,7 +535,7 @@ if (dashboardState && dashboardState.willBump && apiState && !apiState.willBump)
 }
 
 // 2. Cascade dependency bumps if enabled
-if (!noCascade && !filterPkg) {
+if (!isCurrent && !noCascade && !filterPkg) {
   let changed = true
   while (changed) {
     changed = false
@@ -565,17 +582,27 @@ log('  ' + '─'.repeat(75))
 for (const pkg of packageStates) {
   const nameStr = pkg.name.padEnd(25)
   const currStr = pkg.currentVersion.padEnd(18)
+  const willPublish = pkg.willBump || pkg.willPublishCurrent
   const nextStr = (pkg.willBump ? pkg.nextVersion : '-').padEnd(18)
-  const statusStr = pkg.willBump ? `🚀 ${pkg.reason}` : `💤 ${pkg.reason}`
+  const statusStr = willPublish ? `🚀 ${pkg.reason}` : `💤 ${pkg.reason}`
   log(`  ${nameStr}${currStr}${nextStr}${statusStr}`)
 }
 log('  ' + '─'.repeat(75))
 log('')
 
 const packagesToBump = packageStates.filter(p => p.willBump)
-const packagesToPublish = packagesToBump.filter(p => p.publish)
+const packagesToPublish = isCurrent
+  ? packageStates.filter(p => p.willPublishCurrent && p.publish)
+  : packagesToBump.filter(p => p.publish)
 
-if (packagesToBump.length === 0) {
+if (isCurrent) {
+  if (packagesToPublish.length === 0) {
+    log('  ✓ No publishable packages selected.')
+    log('  To publish a specific package:  pnpm release --current -p <name>')
+    log('')
+    process.exit(0)
+  }
+} else if (packagesToBump.length === 0) {
   log('  ✓ All packages are up to date. No changes detected via git diff since last release.')
   log('  To force a release anyway, use: pnpm release --all [patch|minor|major]')
   log('  To release a specific package:  pnpm release -p <name> [patch|minor|major]')
@@ -585,59 +612,63 @@ if (packagesToBump.length === 0) {
 
 const npmTag = isPreview ? 'next' : 'latest'
 
-// ── Step 1: Bump versions & workspace dependencies ───────────────────────────
+if (isCurrent) {
+  log('1/4  Skipping version bump (--current: publishing packages as-is).')
+} else {
+  // ── Step 1: Bump versions & workspace dependencies ─────────────────────────
 
-log(`1/4  Bumping versions and updating internal dependencies...`)
+  log(`1/4  Bumping versions and updating internal dependencies...`)
 
-// Create a map of bumped package versions
-const bumpedVersionMap = new Map(packagesToBump.map(p => [p.name, p.nextVersion]))
+  // Create a map of bumped package versions
+  const bumpedVersionMap = new Map(packagesToBump.map(p => [p.name, p.nextVersion]))
 
-for (const pkg of PACKAGES) {
-  const json = readJson(pkg.path)
-  const state = packageStates.find(p => p.name === pkg.name)
-  
-  if (state && state.willBump) {
-    json.version = state.nextVersion
-    log(`     ${pkg.name.padEnd(24)} ${state.currentVersion} → ${state.nextVersion}`)
-  }
+  for (const pkg of PACKAGES) {
+    const json = readJson(pkg.path)
+    const state = packageStates.find(p => p.name === pkg.name)
 
-  // Update internal workspace dependencies across all packages
-  let depsUpdated = false
-  for (const key of DEP_KEYS) {
-    if (!json[key]) continue
-    for (const dep of Object.keys(json[key])) {
-      if (bumpedVersionMap.has(dep)) {
-        const newVer = bumpedVersionMap.get(dep)
-        const prefix = json[key][dep].startsWith('workspace:') ? 'workspace:' : ''
-        json[key][dep] = `${prefix}^${newVer}`
-        depsUpdated = true
+    if (state && state.willBump) {
+      json.version = state.nextVersion
+      log(`     ${pkg.name.padEnd(24)} ${state.currentVersion} → ${state.nextVersion}`)
+    }
+
+    // Update internal workspace dependencies across all packages
+    let depsUpdated = false
+    for (const key of DEP_KEYS) {
+      if (!json[key]) continue
+      for (const dep of Object.keys(json[key])) {
+        if (bumpedVersionMap.has(dep)) {
+          const newVer = bumpedVersionMap.get(dep)
+          const prefix = json[key][dep].startsWith('workspace:') ? 'workspace:' : ''
+          json[key][dep] = `${prefix}^${newVer}`
+          depsUpdated = true
+        }
       }
     }
+
+    writeJson(pkg.path, json, isDryRun)
   }
 
-  writeJson(pkg.path, json, isDryRun)
-}
+  log('')
+  log('1b/4  Updating LICENSE change date...')
 
-log('')
-log('1b/4  Updating LICENSE change date...')
+  const licensePath = resolve(ROOT, '.github/LICENSE')
+  let licenseContent = readRaw(licensePath)
+  const changeDate = new Date()
+  changeDate.setFullYear(changeDate.getFullYear() + 4)
+  const changeDateStr = changeDate.toISOString().split('T')[0]
+  licenseContent = licenseContent.replace(/Change Date:\s+\d{4}-\d{2}-\d{2}/, `Change Date:          ${changeDateStr}`)
+  writeRaw(licensePath, licenseContent, isDryRun)
 
-const licensePath = resolve(ROOT, '.github/LICENSE')
-let licenseContent = readRaw(licensePath)
-const changeDate = new Date()
-changeDate.setFullYear(changeDate.getFullYear() + 4)
-const changeDateStr = changeDate.toISOString().split('T')[0]
-licenseContent = licenseContent.replace(/Change Date:\s+\d{4}-\d{2}-\d{2}/, `Change Date:          ${changeDateStr}`)
-writeRaw(licensePath, licenseContent, isDryRun)
+  // ── Step 1c: Sync lockfile after version bump ───────────────────────────────
 
-// ── Step 1c: Sync lockfile after version bump ─────────────────────────────────
+  log('')
+  log('1c/4  Syncing lockfile after version bump...')
 
-log('')
-log('1c/4  Syncing lockfile after version bump...')
-
-try {
-  run('pnpm install --no-frozen-lockfile', { isDryRun })
-} catch {
-  rollback('pnpm install failed after version bump.')
+  try {
+    run('pnpm install --no-frozen-lockfile', { isDryRun })
+  } catch {
+    rollback('pnpm install failed after version bump.')
+  }
 }
 
 // ── Step 2: Build ─────────────────────────────────────────────────────────────
@@ -692,38 +723,67 @@ for (const pkg of packagesToPublish) {
 // ── Step 4: Git commit + tags ─────────────────────────────────────────────────
 
 log('')
-log('4/4  Creating git commit and tags...')
 
-const tagList = packagesToBump.map(p => `${p.name}@${p.nextVersion}`)
+let tagList = []
+let commitMsg = ''
 
-// Also include root vX.Y.Z tag if root package (@beechcms/cms) was bumped
-const cmsPkg = packagesToBump.find(p => p.name === '@beechcms/cms')
-if (cmsPkg) {
-  tagList.push(`v${cmsPkg.nextVersion}`)
-}
+if (isCurrent) {
+  log('4/4  Tagging published packages (no version files changed, nothing to commit)...')
 
-const commitMsg = packagesToBump.length === 1
-  ? `chore: release ${packagesToBump[0].name}@${packagesToBump[0].nextVersion}`
-  : `chore: release ${packagesToBump.map(p => `${p.shortName}@${p.nextVersion}`).join(', ')}`
+  tagList = packagesToPublish
+    .map(p => `${p.name}@${p.currentVersion}`)
+    .filter(tag => {
+      try {
+        execSync(`git rev-parse "${tag}"`, { cwd: ROOT, stdio: 'pipe' })
+        return false // tag already exists, skip
+      } catch {
+        return true
+      }
+    })
 
-try {
-  run(`pnpm install --no-frozen-lockfile`, { isDryRun })
-
-  // Add all modified package.json files
-  for (const pkg of PACKAGES) run(`git add ${pkg.path}`, { isDryRun })
-  run(`git add .github/LICENSE`, { isDryRun })
-  run(`git add pnpm-lock.yaml`, { isDryRun })
-  
-  if (packagesToBump.length > 0) {
-    run(`git commit -m "${commitMsg}"`, { isDryRun })
+  try {
     for (const tag of tagList) {
       run(`git tag ${tag}`, { isDryRun })
     }
+  } catch {
+    console.error('  ✗ Git tag step failed. Packages were published on npm but tags may be incomplete.')
+    process.exit(1)
   }
-} catch {
-  console.error('  ✗ Git step failed. Packages may be published on npm but git commit/tags failed.')
-  console.error(`  Run manually: git add -A && git commit -m "${commitMsg}"`)
-  process.exit(1)
+} else {
+  log('4/4  Creating git commit and tags...')
+
+  const packagesToBumpForTag = packagesToBump
+  tagList = packagesToBumpForTag.map(p => `${p.name}@${p.nextVersion}`)
+
+  // Also include root vX.Y.Z tag if root package (@beechcms/cms) was bumped
+  const cmsPkg = packagesToBumpForTag.find(p => p.name === '@beechcms/cms')
+  if (cmsPkg) {
+    tagList.push(`v${cmsPkg.nextVersion}`)
+  }
+
+  commitMsg = packagesToBumpForTag.length === 1
+    ? `chore: release ${packagesToBumpForTag[0].name}@${packagesToBumpForTag[0].nextVersion}`
+    : `chore: release ${packagesToBumpForTag.map(p => `${p.shortName}@${p.nextVersion}`).join(', ')}`
+
+  try {
+    run(`pnpm install --no-frozen-lockfile`, { isDryRun })
+
+    // Add all modified package.json files
+    for (const pkg of PACKAGES) run(`git add ${pkg.path}`, { isDryRun })
+    run(`git add .github/LICENSE`, { isDryRun })
+    run(`git add pnpm-lock.yaml`, { isDryRun })
+
+    if (packagesToBumpForTag.length > 0) {
+      run(`git commit -m "${commitMsg}"`, { isDryRun })
+      for (const tag of tagList) {
+        run(`git tag ${tag}`, { isDryRun })
+      }
+    }
+  } catch {
+    console.error('  ✗ Git step failed. Packages may be published on npm but git commit/tags failed.')
+    console.error(`  Run manually: git add -A && git commit -m "${commitMsg}"`)
+    process.exit(1)
+  }
 }
 
 log('')
@@ -733,6 +793,13 @@ if (isDryRun) {
   for (const tag of tagList) {
     log(`    - ${tag}`)
   }
+} else if (isCurrent) {
+  log(`  ✓ Successfully published ${packagesToPublish.length} package(s) at current version(s) (${npmTag})`)
+  log('  Tags:')
+  for (const tag of tagList) {
+    log(`    - ${tag}`)
+  }
+  if (tagList.length > 0) log(`  Push: git push --tags`)
 } else {
   log(`  ✓ Successfully released ${packagesToBump.length} package(s) (${npmTag})`)
   log(`  Commit: ${commitMsg}`)
