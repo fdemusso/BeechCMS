@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/client",
-  "version": "0.8.0-preview.1",
+  "version": "0.8.1",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/mcp",
-  "version": "0.1.0",
+  "version": "0.8.1",
   "type": "module",
   "main": "./dist/index.js",
   "exports": {
@@ -23,7 +23,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.7.0",
+    "@beechcms/core": "workspace:^0.8.1",
     "@modelcontextprotocol/sdk": "^1.29.0"
   },
   "devDependencies": {
