@@ -84,7 +84,7 @@ interface Config {
  * @returns The resolved {@link Config} object.
  */
 function loadConfig(): Config {
-  const baseUrl = process.env.BEECH_API_URL ?? readDevVarsApiUrl() ?? 'http://localhost:8787'
+  const baseUrl = process.env.BEECH_API_URL ?? readDevVarsApiUrl() ?? 'http://localhost:8789'
   return {
     baseUrl,
     oauth: {
