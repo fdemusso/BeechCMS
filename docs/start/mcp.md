@@ -36,7 +36,7 @@ Before connecting an MCP client:
 2. **Local Stack Running**: Ensure your local BeechCMS development server is active:
    ```bash
    pnpm beech dev
-   # API running at http://localhost:8787 (or http://localhost:8789 depending on your port configuration)
+   # API running at http://localhost:8789, dashboard at http://localhost:5173
    ```
 3. **Admin Account**: You need credentials for an account with the `admin` role (created during onboarding or initial setup).
 
@@ -71,7 +71,8 @@ Edit your `claude_desktop_config.json`:
       "command": "node",
       "args": ["/ABSOLUTE/PATH/TO/packages/mcp/dist/index.js"],
       "env": {
-        "BEECH_API_URL": "http://localhost:8787"
+        "BEECH_API_URL": "http://127.0.0.1:8789",
+        "BEECH_AUTH_URL": "http://localhost:5173"
       }
     }
   }
@@ -89,7 +90,8 @@ In Cursor, open **Settings > Features > MCP**, click **Add New MCP Server**, or 
       "command": "node",
       "args": ["/ABSOLUTE/PATH/TO/packages/mcp/dist/index.js"],
       "env": {
-        "BEECH_API_URL": "http://localhost:8787"
+        "BEECH_API_URL": "http://127.0.0.1:8789",
+        "BEECH_AUTH_URL": "http://localhost:5173"
       }
     }
   }
@@ -100,7 +102,7 @@ In Cursor, open **Settings > Features > MCP**, click **Add New MCP Server**, or 
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `BEECH_API_URL` | Optional | `http://localhost:8787` | BeechCMS API base URL (token endpoint + REST API origin). If unset and a `.dev.vars` file exists in the working directory, the server reads `BEECH_API_URL` from it. |
+| `BEECH_API_URL` | Optional | `http://localhost:8789` | BeechCMS API base URL (token endpoint + REST API origin). Matches the port `beech dev` runs Wrangler on. If unset and a `.dev.vars` file exists in the working directory, the server reads `BEECH_API_URL` from it. |
 | `BEECH_AUTH_URL` | Optional | `BEECH_API_URL` | Origin the browser opens for `/oauth/authorize`. Must be the **dashboard** origin in local dev. |
 | `BEECH_OAUTH_CLIENT_ID` | Optional | `beech-mcp` | Must match the registered OAuth client seeded in D1 (`apps/api/migrations/0000_v040_base.sql`). |
 | `BEECH_OAUTH_SCOPE` | Optional | `schema:read schema:write` | Set to `schema:read` for a read-only agent. |
@@ -151,37 +153,9 @@ Once configured, start a conversation with your AI assistant. Here is an example
 
 ### Agent Actions Under the Hood
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant Agent as AI Assistant
-    participant MCP as @beechcms/mcp
-    participant API as BeechCMS API
-
-    User->>Agent: "Create products seed..."
-    Agent->>MCP: beech_list_seeds()
-    MCP->>API: GET /api/seeds
-    API-->>MCP: Seeds list + X-Schema-Version: 4
-    MCP-->>Agent: Summaries + version 4
-
-    Agent->>MCP: beech_schema_validate(candidate)
-    MCP-->>Agent: Validation OK (0 issues)
-
-    Agent->>MCP: beech_schema_plan(slug: "products", candidate)
-    MCP->>API: POST /api/seeds/products/mcp-plan
-    API-->>MCP: planId: "b3f1...", classification: "create", expectedVersion: 4
-    MCP-->>Agent: Plan preview & DDL statements
-
-    Agent->>User: "Plan generated: CREATE TABLE content_products (...). Proceed?"
-    User->>Agent: "Yes, apply it."
-
-    Agent->>MCP: beech_schema_apply(planId: "b3f1...")
-    MCP->>API: POST /api/seeds/products/mcp-apply
-    API-->>MCP: applied: true, newVersion: 5
-    MCP-->>Agent: Success (version 5)
-    Agent->>User: "Seed 'products' created successfully!"
-```
+<p align="center">
+  <img src="/images/mcp-agent-schema-sequence.svg" alt="MCP Agent Schema Creation Sequence: Inspect, Validate, Plan, Apply" style="width: 100%; max-width: 860px; margin: 16px 0;" />
+</p>
 
 1. **Inspect**: The agent calls `beech_list_seeds` to check for existing seeds and fetch the current `schemaVersion`.
 2. **Validate**: The agent calls `beech_schema_validate` to verify relations, naming rules, and structure in `@beechcms/core`.

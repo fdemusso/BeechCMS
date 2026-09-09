@@ -27,7 +27,7 @@ BeechCMS is built around a natural, botanical metaphor:
 ## Access & Security
 
 ### Log In
-1. Open your browser and navigate to your team's BeechCMS dashboard URL (usually `https://your-domain.com/admin` or `http://localhost:8787/admin` in local development).
+1. Open your browser and navigate to your team's BeechCMS dashboard URL (usually `https://your-domain.com/admin` or `http://localhost:8789/admin` in local development).
 2. Enter your work **Email** and **Password**.
 3. Click **Sign in**.
 

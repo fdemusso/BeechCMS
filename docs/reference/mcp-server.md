@@ -43,7 +43,7 @@ The MCP apply endpoint (`mcp-apply`) is **strictly additive**. Any candidate sch
 pnpm --filter @beechcms/mcp build
 ```
 
-This compiles TypeScript definitions and bundles a standalone Node executable via `esbuild` to `packages/mcp/dist/index.js`.
+This type-checks the source, regenerates the bundled doc resources, and bundles a Node ESM entry point via `esbuild` to `packages/mcp/dist/index.js`. The bundle is built with `--packages=external`, so dependencies (`@modelcontextprotocol/sdk`, `@beechcms/core`) are **not** inlined: `node_modules` must remain installed for `node dist/index.js` to run.
 
 ---
 
@@ -60,9 +60,8 @@ Configure your MCP client (such as Claude Desktop, Cursor, or Antigravity) to la
       "command": "node",
       "args": ["/absolute/path/to/packages/mcp/dist/index.js"],
       "env": {
-        "BEECH_API_URL": "http://localhost:8787",
-        "BEECH_EMAIL": "admin@example.com",
-        "BEECH_PASSWORD": "your-admin-password"
+        "BEECH_API_URL": "http://127.0.0.1:8789",
+        "BEECH_AUTH_URL": "http://localhost:5173"
       }
     }
   }
@@ -73,18 +72,21 @@ Configure your MCP client (such as Claude Desktop, Cursor, or Antigravity) to la
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `BEECH_API_URL` | No | `http://localhost:8787` | Target BeechCMS API origin. If unset and `.dev.vars` exists in `process.cwd()`, the server extracts `BEECH_API_URL` from that file. |
-| `BEECH_EMAIL` | **Yes** | — | Administrator email address. |
-| `BEECH_PASSWORD` | **Yes** | — | Administrator password. |
+| `BEECH_API_URL` | No | `http://localhost:8789` | Target BeechCMS API origin (token endpoint + REST API). Matches the port `beech dev` runs Wrangler on. If unset and `.dev.vars` exists in `process.cwd()`, the server extracts `BEECH_API_URL` from that file. |
+| `BEECH_AUTH_URL` | No | `BEECH_API_URL` | Origin the *browser* opens for `/oauth/authorize`. In local dev this must be the **dashboard** origin (`http://localhost:5173`), since the Worker does not serve the consent screen. |
+| `BEECH_OAUTH_CLIENT_ID` | No | `beech-mcp` | Must match the OAuth client seeded in D1 (`apps/api/migrations/0000_v040_base.sql`). |
+| `BEECH_OAUTH_SCOPE` | No | `schema:read schema:write` | Set to `schema:read` for a read-only agent. |
+| `BEECH_OAUTH_TIMEOUT_MS` | No | `180000` | Browser round-trip budget, in milliseconds. |
+| `BEECH_TOKEN_CACHE` | No | `~/.beechcms/mcp-tokens.json` | Token cache path override (tests, containers). |
 
 > [!NOTE]
-> The server connects to `POST /auth/login` to obtain an administrative JWT with a 15-minute expiration. If the token expires during a session, the HTTP client performs a single transparent re-login before failing.
+> The server authenticates with the **OAuth 2.1 authorization-code flow with PKCE** (RFC 7636, no client secret) — there is no password-based configuration. On first use it starts a loopback listener and opens your system browser at `/oauth/authorize`; after login and consent, it exchanges the code against `POST /oauth/token` for an access token plus refresh token, cached at `~/.beechcms/mcp-tokens.json` (file mode `0600`, directory mode `0700`). Subsequent calls reuse the cached grant and refresh it transparently; a `401` triggers a single silent refresh-and-retry before failing. Revoke access from **Settings → Connected apps** in the dashboard.
 
 ---
 
 ## Tools Reference
 
-The server registers 6 tools prefixed with `beech_`:
+The server registers 9 tools prefixed with `beech_`:
 
 ### 1. `beech_list_seeds`
 
@@ -214,7 +216,33 @@ Executes an atomic, OCC-guarded migration using a previously planned `planId`.
 
 ---
 
-### 7. `beech_mcp_status`
+### 7. `beech_docs_search`
+
+Full-text search over the bundled `beechcms-docs://` resources (API reference, field types, branch policies, guides). Cheaper than listing every resource and guessing a URI when the agent is unsure about a field type, policy, or workflow.
+
+- **Parameters**:
+  - `query` (string, required): Search terms. Tokenized on whitespace; a document must match **every** token (in its title, description, or body) to be returned.
+  - `limit` (number, optional): Maximum results. Defaults to `10`.
+- **Transport**: In-process search over the bundled resource manifest.
+- **Returns**:
+  ```json
+  {
+    "query": "richtext policies",
+    "results": [
+      {
+        "uri": "beechcms-docs://build/field-policies.md",
+        "title": "Field Policies",
+        "description": "Per-branch policy flags and ALE encryption.",
+        "score": 122,
+        "snippet": "…policies: { search: true, encrypted: true }…"
+      }
+    ]
+  }
+  ```
+
+---
+
+### 8. `beech_mcp_status`
 
 Inspects the running MCP server instance, process ID, uptime, active bundle SHA-256 hash, and loaded resource count.
 
@@ -234,7 +262,7 @@ Inspects the running MCP server instance, process ID, uptime, active bundle SHA-
 
 ---
 
-### 8. `beech_mcp_reload`
+### 9. `beech_mcp_reload`
 
 Forces an immediate in-memory cache refresh of bundled resources and broadcasts `notifications/tools/list_changed` and `notifications/resources/list_changed` to the MCP client without requiring a manual `/mcp` reconnect.
 
@@ -321,10 +349,17 @@ SQLite virtual tables (`fts5`) cannot be modified using standard `ALTER TABLE AD
 
 ## Permission Model & Known Limitations
 
-Every route used by `@beechcms/mcp` sits behind `authMiddleware()` (JWT Bearer) and the `requireAdmin` role gate:
+Every route used by `@beechcms/mcp` sits behind `authMiddleware({ acceptOAuth: true })`, which accepts both the dashboard admin JWT and OAuth 2.1 access tokens. Immediately after it, `oauthScopeMiddleware()` applies a **fail-closed** scope gate: an OAuth token reaches only the routes explicitly listed in `OAUTH_SCOPE_ROUTES`, and only with the required scope.
 
-- **Current Behavior**: All tool calls require credentials belonging to an account with role `admin`.
-- **Known Limitation**: Read-only tools (`beech_list_seeds`, `beech_get_seed`) require admin privileges because `/api/seeds` is gated as a whole. Fine-grained machine tokens with scoped permissions (read-only vs. plan vs. apply) are tracked for a future release (Issue #328).
+| Method | Route | Required scope | Tools |
+|---|---|---|---|
+| `GET` | `/api/seeds` | `schema:read` | `beech_list_seeds` |
+| `GET` | `/api/seeds/:slug` | `schema:read` | `beech_get_seed` |
+| `GET` | `/api/schema` | `schema:read` | `beech_schema_export`, `beech_schema_validate` |
+| `POST` | `/api/seeds/:slug/mcp-plan` | `schema:read` | `beech_schema_plan` (dry-run — computes but writes nothing) |
+| `POST` | `/api/seeds/:slug/mcp-apply` | `schema:write` | `beech_schema_apply` |
+
+Requesting `BEECH_OAUTH_SCOPE=schema:read` therefore yields a genuinely read-only agent: it can inspect, validate, and plan, but `beech_schema_apply` fails with `403 insufficient_scope`. Any protected route *not* in the table above is unreachable with an OAuth token regardless of scope.
 
 ---
 
@@ -333,8 +368,8 @@ Every route used by `@beechcms/mcp` sits behind `authMiddleware()` (JWT Bearer) 
 | HTTP Status | Error Type | Cause | Agent Remediation |
 |---|---|---|---|
 | **400** | `invalid-json` | Malformed JSON, invalid slug characters, or non-integer `expectedVersion`. | Fix payload syntax. Do not retry identical request. |
-| **401** | `unauthorized` | Invalid credentials or expired session after re-login retry. | Verify `BEECH_EMAIL` and `BEECH_PASSWORD`. |
-| **403** | `forbidden` | Authenticated user lacks `admin` role. | Provide credentials with administrator role. |
+| **401** | `unauthorized` | Cached grant expired and the silent refresh retry also failed. | Re-authorize in the browser; clear `~/.beechcms/mcp-tokens.json` if it persists. |
+| **403** | `forbidden` / `insufficient_scope` | Authenticated user lacks the `admin` role, or the OAuth token's scope does not cover the route (e.g. `schema:read` calling `mcp-apply`). | Authorize with an admin account, or re-authorize with a wider `BEECH_OAUTH_SCOPE`. |
 | **409** | `conflict` | Registry version mismatch (`expectedVersion` ≠ current database version). | Discard old plan, call `beech_schema_plan` again, and review new diff. |
 | **422** | `destructive-change-not-supported` | Candidate attempts to drop, rename, or retype a field. | Reject request or guide developer to dedicated endpoints. |
 | **422** | `validation-failed` | Syntax or relational schema validation error. | Correct candidate structure according to `@beechcms/core` rules. |

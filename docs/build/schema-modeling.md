@@ -164,7 +164,7 @@ When a Seed is created or updated, the Botanical Engine compiles the abstract de
 1. **Table Provisioning**: Creates the physical table `content_{slug}` with system columns (`id`, `slug`, `status`, `created_at`, `updated_at`).
 2. **Draft Mirror Staging**: When `allowDrafts: true`, provisions `content_{slug}_drafts` with identical column definitions to isolate unpublished drafts.
 3. **Column Additions**: On schema updates, generates non-destructive `ALTER TABLE ... ADD COLUMN` statements for newly added branches.
-4. **Index Generation**: `text`/`number`/`date`/`boolean`/`relation` branches whose *resolved* `policies.filter` is `true` get a B-tree index (`idx_{slug}_{branch_alias}`); `confidential` branches additionally get a blind-index column + index (`idx_{slug}_{branch_alias}_bidx`) unless `filter: false` is explicit.
+4. **Index Generation**: `text`/`number`/`date`/`boolean` branches whose *resolved* `policies.filter` is `true` get a B-tree index (`idx_{slug}_{branch_alias}`). Single-value `relation` branches are always indexed regardless of `policies.filter` (the FK column needs it); `multiple: true` relations are skipped here — their junction table carries its own `idx_rel_{seed}_{alias}_parent` / `_target` indexes. `confidential` branches additionally get a blind-index column + index (`idx_{slug}_{branch_alias}_bidx`) unless `filter: false` is explicit. Every table also gets `idx_{slug}_status` and `idx_{slug}_created_at`.
 5. **Full-Text Search (FTS5)**: `text`/`richtext` branches whose *resolved* `policies.search` **and** `policies.public` are both `true` are added to the seed's `fts_{slug}` virtual table and its synchronizing triggers (`AFTER INSERT`, `AFTER UPDATE`, `AFTER DELETE`).
 
 ---

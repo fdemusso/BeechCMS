@@ -6,7 +6,7 @@ BeechCMS uses a layered licensing model to ensure the project remains sustainabl
 
 | Component | Path | License | Description |
 |---|---|---|---|
-| **Core Packages** | `packages/core/` | **MIT** | Free for any use, including commercial. |
+| **Shared Packages** | `packages/*` | **MIT** | Free for any use, including commercial. Covers `core`, `client`, `cli`, `mcp`, `widget-sdk`, `forms-react`, and `search-client`. |
 | **API Application** | `apps/api/` | **BUSL-1.1** | Free for self-hosting; restricts offering managed SaaS competing with BeechCMS Cloud. |
 | **Dashboard** | `apps/dashboard/` | **BUSL-1.1** | Free for self-hosting; restricts offering managed SaaS competing with BeechCMS Cloud. |
 | **Documentation** | `docs/` | **CC BY 4.0** | Free to share and adapt. |
@@ -27,7 +27,7 @@ The BSL is a source-available license that allows free use for almost all purpos
 
 ### The "Change Date"
 
-The BSL is temporary. On the **Change Date** (which is 2030-05-26 for the current version), the license for these components automatically converts to the **GNU General Public License v2.0 or later (GPLv2+)**, which is a fully Open Source Initiative (OSI) approved license. 
+The BSL is temporary. On the **Change Date** (which is 2030-09-09 for the current version, per `.github/LICENSE`), the license for these components automatically converts to the **GNU General Public License v2.0 or later (GPLv2+)**, which is a fully Open Source Initiative (OSI) approved license. 
 Every new release will have its own 4-year rolling Change Date.
 
 ---
@@ -50,7 +50,7 @@ Every new release will have its own 4-year rolling Change Date.
 **NO**. This requires a commercial license. Offering a hosted version of BeechCMS as a service to third parties is restricted.
 
 ### When does the code become fully open source? 
-The code converts to GPL v2.0 or later on **2030-05-26** (the "Change Date").
+The code converts to GPL v2.0 or later on **2030-09-09** (the "Change Date").
 
 ---
 

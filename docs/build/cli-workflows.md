@@ -23,10 +23,10 @@ Commands are categorized by operational scope:
 | `npx beech db:migrate` | Consumer | Applies local D1 database migrations. | Runs `npm run db:migrate:local` or `beech init --db` |
 | `npx beech db:reset` | Consumer | Clears local Wrangler state and re-bootstraps fresh database. | Runs `npm run db:reset:local` or purges `.wrangler/state` |
 | `npx beech reset` | Monorepo | Comprehensive environment reset. | `--db`, `--docker`, `--all`, `--yes` |
-| `npx beech gen types typescript` | Consumer | Generates typed TypeScript interfaces from active D1 Seeds. | `--local` (default), `--remote`, `-o`/`--out`/`--output <file>`, `--db <name>` (aliases: `gen-types`, `gen:types`, `generate:types`) |
+| `npx beech gen types typescript` | Consumer | Generates typed TypeScript interfaces from active D1 Seeds. | `--remote` (local D1 is the default), `-o`/`--out`/`--output <file>`, `--db <name>` (aliases: `gen-types`, `gen:types`, `generate:types`) |
 | `npx beech forms` | Consumer | Interactive wizard generating React, Vue, Svelte, or Web Component forms. | `--seed <slug>`, `--framework <name>`, `--mode <create\|edit>`, `--out <path>`, `--yes`, `--json` (aliases: `form`, `forms:add`) |
 | `npx beech setup:cloudflare` | Consumer | 1-step Cloudflare edge provisioning (D1, R2, S3 secrets). | `--name <name>`, `--yes` (alias: `setup:cf`) |
-| `npx beech deploy` | Consumer | Deploys Worker and embedded admin dashboard to Cloudflare. | `--skip-check` |
+| `npx beech deploy` | Consumer | Deploys Worker and embedded admin dashboard to Cloudflare. | `--skip-check`, `--skip-seed` |
 | `npx beech build` | Consumer | Informational check confirming BeechCMS requires no static build step. | None |
 | `npx beech update` | Consumer | Upgrades core engine packages and applies system migrations. | None |
 | `npx beech doctor` | Consumer | Runs health checks and React diagnostics on the Dashboard. | None |
@@ -37,9 +37,9 @@ Commands are categorized by operational scope:
 | `npx beech dev:tunnel` | Monorepo | Displays active Cloudflare quick tunnel public URL from container logs. | None |
 | `npx beech mailpit:clear` | Monorepo | Clears local Mailpit development inbox. | None |
 | `npx beech logs <service>` | Monorepo | Streams logs from Docker services. | Services: `mailpit`, `sqlite` (`db`), `tunnel`, `minio` (`storage`) |
-| `npx beech schema:diff` | Consumer | Computes schema drift against Seed blueprints; `--write` generates migration. | `--write`, `--remote`, `--db <name>` |
-| `npx beech seed:load` | Consumer | Synchronizes Seed blueprints into active D1 runtime tables. | `--diff`, `--remote`, `--db <name>` |
-| `npx beech seed:create` | Consumer | Interactive CLI wizard to scaffold a new Seed blueprint. | None |
+| `npx beech schema:diff` | **Deprecated** | Prints a deprecation notice and exits. D1 is the canonical schema authority; the Botanical Engine applies runtime mutations automatically. | Flags accepted but ignored |
+| `npx beech seed:load` | **Deprecated** | Prints a deprecation notice and exits. Static `seeds.ts` files are no longer synchronized to the database. | Flags accepted but ignored |
+| `npx beech seed:create` | **Deprecated** | Prints a deprecation notice and exits. Create content types in the dashboard (`/admin`) or via `POST /api/seeds`. | Flags accepted but ignored |
 | `npx beech test` | Monorepo | Executes Turborepo test runner. | `--coverage`, `--diff` |
 | `npx beech lint` | Monorepo | Executes project linter checks via Turborepo. | None |
 
@@ -109,24 +109,16 @@ npx beech setup:cloudflare
 npx beech deploy
 ```
 
-### 6. Schema Sync & GitOps Migrations
+### 6. Schema Evolution & GitOps Migrations
 
-Detect schema drift between your TypeScript Seed blueprints and the physical D1 database, then generate versioned SQL migrations:
+> [!IMPORTANT]
+> `beech schema:diff`, `beech seed:load`, and `beech seed:create` are **deprecated** and now only print a notice. There are no static `seeds.ts` blueprints to diff against: Cloudflare D1 is the canonical schema authority, and the Botanical Engine compiles and applies content-table DDL at runtime when a Seed is saved through the dashboard or `POST /api/seeds`. AI agents can drive the same path through the [MCP plan/apply tools](/reference/mcp-server).
 
-```bash
-# Preview additive SQL changes without writing
-npx beech schema:diff
-
-# Write next migration file (e.g. apps/api/migrations/0034_add_status.sql)
-npx beech schema:diff --write
-
-# Target remote production D1
-npx beech schema:diff --remote
-```
+The versioned SQL files in `apps/api/migrations/` cover the **system** schema (`seeds`, `users`, `sessions`, `api_keys`, `media`, OAuth clients), not per-Seed content tables. Apply them with Wrangler.
 
 #### Automated GitOps in GitHub Actions
 
-Apply versioned D1 migrations in CI/CD before deploying the Worker:
+Apply versioned D1 system migrations in CI/CD before deploying the Worker:
 
 ```yaml
 name: Deploy (D1 migrations + Worker)
@@ -168,7 +160,7 @@ For developers working directly on the BeechCMS monorepo, `npx beech dev` orches
 | **MinIO** | `beech-minio` | `9000` (S3 API), `9001` (Console) | Local Cloudflare R2 emulation with presigned URL support. |
 | **Mailpit** | `beech-mailpit` | `1025` (SMTP), `8025` (Web UI/API) | Zero-config local email delivery and verification. |
 | **SQLite Web** | `beech-sqlite-web`| `8080` (Web UI) | Visual database browser for local D1 SQLite state. |
-| **Webhook Tester**| `beech-webhook` | `8084` (HTTP API) | Local endpoint for testing notification webhooks. |
+| **Webhook Tester**| `beech-webhook-tester` | `8084` (HTTP API) | Local endpoint for testing notification webhooks. |
 | **Cloudflare Tunnel**| `beech-tunnel` | Public URL (`*.trycloudflare.com`)| Public HTTPS URL forwarding to local Worker for webhooks. |
 
 ### Interactive TUI Dashboard
@@ -178,7 +170,12 @@ When executing `npx beech dev`, an interactive Ink terminal interface is launche
 - Press `1`: **Status** overview of all background services.
 - Press `2`: **API Logs** from the Hono Worker.
 - Press `3`: **Dashboard Logs** from the Vite React app.
-- Press `4`: **Endpoints** quick reference list with local URLs.
-- Press `5`: **Versions** of all monorepo packages.
-- Press `q`: Gracefully terminate all services.
+- Press `4`: **Core Logs** from the `@beechcms/core` watch build.
+- Press `5`: **System Logs** from the Docker infrastructure services.
+- Press `6`: **Endpoints** quick reference list with local URLs.
+- Press `7`: **Versions** of all monorepo packages.
+- Press `Tab` / `Shift+Tab` (or `←` / `→`): Cycle between tabs.
+- Press `r`: Restart the API and Dashboard dev servers.
+- Press `d` / `x`: Expand or dismiss the currently selected error in the error bar.
+- Press `q` (or `Ctrl+C`): Gracefully terminate all services.
 - Flag `--plain`: Launches services without TUI formatting for CI/CD environments.

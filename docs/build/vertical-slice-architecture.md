@@ -24,13 +24,14 @@ Each API feature lives in an isolated folder under `apps/api/src/features/`:
 apps/api/src/features/content/
 ├── index.ts              # Feature entry point: mounts scoped Hono sub-app
 ├── constants.ts          # Feature-scoped strings and error identifiers
-├── types.ts              # Local request/response interfaces
 └── handlers/             # Thin route handlers
     ├── list.ts
     ├── get.ts
     ├── create.ts
     ├── update.ts
-    └── delete.ts
+    ├── delete.ts
+    ├── helpers.ts        # Shared validation/serialization for this slice
+    └── …                 # bulk, facets, kanban-move, kanban-position, view-config
 ```
 
 ### 1. The Thin Handler Pattern
@@ -53,7 +54,7 @@ export async function getHandler(c: Context<{ Bindings: Env; Variables: Variable
   const entryId = c.req.param('id')
 
   // Retrieve injected repository service
-  const repository = c.get('contentRepository')
+  const repository = c.get('repository')
 
   const entry = await repository.getById(seedSlug, entryId)
   if (!entry) {
@@ -75,18 +76,24 @@ export async function getHandler(c: Context<{ Bindings: Env; Variables: Variable
 ### 2. Middleware & Interface Injection
 
 To eliminate cross-slice dependencies:
-- Abstract service interfaces (e.g. `IContentRepository`, `ISeedRepository`) are defined centrally in `@beechcms/core`.
-- Concrete database persistence classes live in `apps/api/src/shared/`.
+- Abstract service interfaces (e.g. `ContentRepository`, `ISeedRepository`) are defined centrally in `@beechcms/core`.
+- Concrete database persistence classes live in `apps/api/src/shared/db/repositories/`.
 - Repositories are instantiated in global middleware and injected into the Hono context:
 
 ```typescript
-// apps/api/src/middleware/services.ts
-app.use('*', async (c, next) => {
-  const contentRepo = new D1ContentRepository(c.env.DB)
-  c.set('contentRepository', contentRepo)
-  await next()
-})
+// apps/api/src/middleware/repository.middleware.ts
+import { createMiddleware } from 'hono/factory'
+import { D1ContentRepository } from '../shared/db/repositories/content.repository.d1'
+
+export const repositoryMiddleware = (overrides?: RepositoryOverrides) =>
+  createMiddleware(async (context, next) => {
+    context.set('repository', overrides?.repository ?? new D1ContentRepository(database, overrides?.hooks, privacyService))
+    // …every other repository is injected the same way
+    await next()
+  })
 ```
+
+The injected content repository is read back as `context.get('repository')` — see the handler example above.
 
 ---
 
@@ -95,16 +102,18 @@ app.use('*', async (c, next) => {
 The React admin dashboard mirrors the backend feature slicing:
 
 ```text
-apps/dashboard/src/features/seeds/
+apps/dashboard/src/features/seed-builder/
 ├── index.ts              # Public barrel: explicitly exports allowed components
-├── api/                  # Slice HTTP client API calls (e.g. seeds.api.ts)
+├── api/                  # Slice HTTP client API calls
+│   └── seeds.api.ts
 ├── components/           # Feature-scoped UI components
-│   ├── SeedForm.tsx
-│   ├── BranchList.tsx
-│   └── SeedTable.tsx
+│   ├── SeedBuilderPage.tsx
+│   ├── SeedDangerZone.tsx
+│   └── DeleteSeedDialog.tsx
 ├── hooks/                # TanStack Query hooks
-│   └── useSeedMutations.ts
-└── types/                # UI-scoped state types
+│   ├── use-seeds.ts
+│   └── use-seed-editor-dialog.tsx
+└── lib/                  # Slice-local helpers
 ```
 
 ### The Public Barrel Rule
@@ -113,10 +122,11 @@ A slice's `index.ts` is its only public contract. External parts of the dashboar
 
 ```typescript
 // VALID: importing through public barrel
-import { SeedForm, useSeed } from '@/features/seeds'
+import { SeedBuilderPage, useSeeds } from '@/features/seed-builder'
 
 // INVALID (VETO): deep import into sibling feature slice internals
-import { BranchRow } from '@/features/seeds/components/BranchRow'
+// (DeleteSeedDialog is deliberately absent from the barrel — it is slice-private)
+import { DeleteSeedDialog } from '@/features/seed-builder/components/DeleteSeedDialog'
 ```
 
 ---
