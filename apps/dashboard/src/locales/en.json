@@ -1512,7 +1512,10 @@
       "permissions": "Permissions",
       "system": "System",
       "deleteWarning": "Every assignment through this role is removed by cascade.",
-      "saveSuccess": "Role saved"
+      "saveSuccess": "Role saved",
+      "morePermissions": "+{{count}} more",
+      "groupContent": "Content",
+      "groupSystem": "System"
     },
     "invitations": {
       "title": "Invitations",

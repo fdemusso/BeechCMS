@@ -1512,7 +1512,10 @@
       "permissions": "Permessi",
       "system": "Sistema",
       "deleteWarning": "Ogni assegnazione tramite questo ruolo viene rimossa a cascata.",
-      "saveSuccess": "Ruolo salvato"
+      "saveSuccess": "Ruolo salvato",
+      "morePermissions": "+{{count}} altri",
+      "groupContent": "Contenuto",
+      "groupSystem": "Sistema"
     },
     "invitations": {
       "title": "Inviti",

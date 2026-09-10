@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { PERMISSIONS, permissionsHeldAnywhere, type Permission, type RoleRecord } from "@beechcms/core"
+import { permissionsHeldAnywhere, type Permission, type RoleRecord } from "@beechcms/core"
 import {
   Dialog,
   DialogContent,
@@ -15,13 +15,37 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { usePermissions } from "@/features/shared"
+import { cn } from "@/lib/utils"
 import { useCreateRole, useUpdateRole } from "../hooks/use-rbac"
 import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
+
+export const PERMISSION_GROUPS = [
+  {
+    id: "content",
+    titleKey: "rbac.roles.groupContent",
+    defaultTitle: "Content",
+    permissions: [
+      "content:read",
+      "content:create",
+      "content:update",
+      "content:delete",
+    ] as const,
+  },
+  {
+    id: "system",
+    titleKey: "rbac.roles.groupSystem",
+    defaultTitle: "System",
+    permissions: [
+      "manage_users",
+      "manage_roles",
+      "view_analytics",
+    ] as const,
+  },
+] as const
 
 export interface RoleFormDialogProps {
   open: boolean
@@ -92,36 +116,56 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="rf-name">{t("rbac.roles.name", "Name")}</FieldLabel>
-              <Input id="rf-name" required maxLength={80} value={name} onChange={(e) => setName(e.target.value)} />
+              <Input id="rf-name" required maxLength={32} value={name} onChange={(e) => setName(e.target.value)} />
             </Field>
             <Field>
               <FieldLabel htmlFor="rf-description">{t("rbac.roles.description", "Description")}</FieldLabel>
-              <Textarea id="rf-description" maxLength={400} value={description ?? ""} onChange={(e) => setDescription(e.target.value)} />
+              <Input
+                id="rf-description"
+                maxLength={50}
+                value={description ?? ""}
+                onChange={(e) => setDescription(e.target.value)}
+              />
             </Field>
             <Field>
               <FieldLabel>{t("rbac.roles.permissions", "Permissions")}</FieldLabel>
-              <TooltipProvider>
-                <div className="grid grid-cols-2 gap-2">
-                  {PERMISSIONS.map((permission) => {
-                    const disabled = !heldAnywhere.has(permission)
-                    const checkbox = (
-                      <label key={permission} className="flex items-center gap-2 text-sm">
-                        <Checkbox
-                          checked={permissions.includes(permission)}
-                          disabled={disabled}
-                          onCheckedChange={() => togglePermission(permission)}
-                        />
-                        {t(`rbac.permissions.${permission}`, permission)}
-                      </label>
-                    )
-                    if (!disabled) return checkbox
-                    return (
-                      <Tooltip key={permission}>
-                        <TooltipTrigger asChild>{checkbox}</TooltipTrigger>
-                        <TooltipContent>{t("rbac.errors.escalation-refused")}</TooltipContent>
-                      </Tooltip>
-                    )
-                  })}
+              <TooltipProvider delayDuration={100} disableHoverableContent>
+                <div className="grid grid-cols-2 gap-4">
+                  {PERMISSION_GROUPS.map((group) => (
+                    <div key={group.id}>
+                      <span className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                        {t(group.titleKey, group.defaultTitle)}
+                      </span>
+                      <div className="space-y-2">
+                        {group.permissions.map((permission) => {
+                          const disabled = !heldAnywhere.has(permission)
+                          const checkbox = (
+                            <label
+                              key={permission}
+                              className={cn(
+                                "flex items-center gap-2 text-sm",
+                                disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                              )}
+                            >
+                              <Checkbox
+                                checked={permissions.includes(permission)}
+                                disabled={disabled}
+                                onCheckedChange={() => togglePermission(permission)}
+                              />
+                              {permission.replace(/^content:/, "").replace(/_/g, " ")}
+                            </label>
+                          )
+                          if (!disabled) return checkbox
+                          return (
+                            <Tooltip key={permission}>
+                              <TooltipTrigger asChild>{checkbox}</TooltipTrigger>
+                              <TooltipContent>{t("rbac.errors.escalation-refused")}</TooltipContent>
+                            </Tooltip>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </TooltipProvider>
             </Field>

@@ -5,10 +5,9 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { Plus, Edit as Pencil, Trash2 } from "reicon-react"
+import { Plus, Edit as Pencil, Trash2, Shield } from "reicon-react"
 import type { RoleRecord } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -24,8 +23,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { usePermissions } from "@/features/shared"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useRbacRoles, useDeleteRole } from "../hooks/use-rbac"
 import { RoleFormDialog } from "./role-form-dialog"
+import { PermissionBadgeGroup } from "./permission-badge"
 import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
 
 export function RolesTab() {
@@ -68,55 +69,76 @@ export function RolesTab() {
             {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
         ) : (
+        <TooltipProvider delayDuration={100} disableHoverableContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>{t("rbac.roles.name", "Name")}</TableHead>
-                <TableHead>{t("rbac.roles.description", "Description")}</TableHead>
-                <TableHead>{t("rbac.roles.permissions", "Permissions")}</TableHead>
-                {canManageRoles && <TableHead className="text-right">{t("common.actions", "Actions")}</TableHead>}
+                <TableHead className="w-[200px]">{t("rbac.roles.name", "Name")}</TableHead>
+                <TableHead className="max-w-[320px]">{t("rbac.roles.description", "Description")}</TableHead>
+                <TableHead className="w-[130px]">{t("rbac.roles.permissions", "Permissions")}</TableHead>
+                {canManageRoles && <TableHead className="w-[100px] text-right">{t("common.actions", "Actions")}</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {roles.map((role) => (
                 <TableRow key={role.id}>
-                  <TableCell className="font-medium">
-                    {role.name}
-                    {role.isSystem && <Badge variant="secondary" className="ml-2 text-[10px]">{t("rbac.roles.system", "System")}</Badge>}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{role.description ?? "—"}</TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {role.permissions.map((permission) => (
-                        <Badge key={permission} variant="secondary" className="text-[10px]">{permission}</Badge>
-                      ))}
+                  <TableCell className="font-medium whitespace-nowrap">
+                    <div className="flex items-center">
+                      <span className="truncate">{role.name}</span>
+                      {role.isSystem && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center text-muted-foreground ml-1.5 shrink-0 cursor-default">
+                              <Shield className="size-3.5" />
+                              <span className="sr-only">{t("rbac.roles.system", "System")}</span>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            {t("rbac.roles.system", "System")}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
                   </TableCell>
+                  <TableCell className="text-muted-foreground max-w-[320px] truncate" title={role.description ?? undefined}>
+                    {role.description ?? "—"}
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    <PermissionBadgeGroup permissions={role.permissions} max={3} />
+                  </TableCell>
                   {canManageRoles && (
-                    <TableCell className="text-right space-x-2">
-                      {!role.isSystem && (
-                        <>
-                          <Button variant="ghost" size="icon" className="size-8" onClick={() => { setEditingRole(role); setFormOpen(true) }}>
-                            <Pencil className="size-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="size-8 text-destructive">
-                                <Trash2 className="size-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>{t("rbac.roles.delete", "Delete role")}</AlertDialogTitle>
-                                <AlertDialogDescription>{t("rbac.roles.deleteWarning", "Every assignment through this role is removed by cascade.")}</AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(role.id)}>{t("common.confirm")}</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </>
+                    <TableCell className="w-[100px] text-right space-x-2 whitespace-nowrap">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
+                        disabled={role.isSystem}
+                        onClick={() => { setEditingRole(role); setFormOpen(true) }}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                      {role.isSystem ? (
+                        <Button variant="ghost" size="icon" className="size-8 text-destructive" disabled>
+                          <Trash2 className="size-4" />
+                        </Button>
+                      ) : (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-8 text-destructive">
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>{t("rbac.roles.delete", "Delete role")}</AlertDialogTitle>
+                              <AlertDialogDescription>{t("rbac.roles.deleteWarning", "Every assignment through this role is removed by cascade.")}</AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDelete(role.id)}>{t("common.confirm")}</AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
                     </TableCell>
                   )}
@@ -124,6 +146,7 @@ export function RolesTab() {
               ))}
             </TableBody>
           </Table>
+        </TooltipProvider>
         )}
       </CardContent>
 
