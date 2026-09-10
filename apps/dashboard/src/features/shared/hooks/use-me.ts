@@ -32,7 +32,11 @@ export interface MeResponse {
   avatarUrl: string | null
   notificationPrefs: MeNotificationPrefs
   permissions: EffectivePermissionsPayload
-  /** `users.role === 'admin'` — the developer/owner axis, NOT an RBAC permission. */
+  /**
+   * Developer/owner axis (`users.role === 'admin'`), NOT an RBAC permission.
+   * - 'admin': Developer / instance owner with access to Seed Builder and system configs.
+   * - 'editor': Generic Beech user whose rights are determined by RBAC permissions.
+   */
   isDeveloper: boolean
   manageableScopes: Scope[]
 }

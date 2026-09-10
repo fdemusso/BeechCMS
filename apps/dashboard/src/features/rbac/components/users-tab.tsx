@@ -148,6 +148,7 @@ export function UsersTab() {
         onOpenChange={(next) => { if (!next) setAssignmentsUser(null) }}
         userId={assignmentsUser?.id ?? null}
         userEmail={assignmentsUser?.email}
+        isDeveloper={assignmentsUser?.role === "admin"}
       />
     </Card>
   )

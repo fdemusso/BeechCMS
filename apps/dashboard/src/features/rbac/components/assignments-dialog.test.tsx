@@ -46,4 +46,74 @@ describe("AssignmentsDialog", () => {
     // permission — on any scope, so Add must stay disabled even once a role is picked.
     expect(screen.getByRole("button", { name: "Add" })).toBeDisabled()
   })
+
+  it("renders assignments with role name and permission badges", () => {
+    mockAssignments.mockReturnValue({
+      data: [
+        {
+          id: "a1",
+          userId: "u2",
+          roleId: "r1",
+          roleName: "Editor",
+          scope: "articles",
+          active: true,
+          permissions: ["content:read", "content:update"],
+        },
+      ],
+    })
+    mockRoles.mockReturnValue({ data: [] })
+
+    render(
+      <AssignmentsDialog open={true} onOpenChange={vi.fn()} userId="u2" userEmail="u2@beech.local" />
+    )
+
+    expect(screen.getByText("Editor")).toBeInTheDocument()
+    expect(screen.getByText("articles")).toBeInTheDocument()
+    // PermissionBadge renders accessible aria-label or tooltip for permissions
+    expect(screen.getByLabelText("Read content")).toBeInTheDocument()
+    expect(screen.getByLabelText("Update content")).toBeInTheDocument()
+  })
+
+  it("disables delete action for SuperAdmin assignment when isDeveloper is true", () => {
+    mockAssignments.mockReturnValue({
+      data: [
+        {
+          id: "a1",
+          userId: "u1",
+          roleId: "r-sa",
+          roleName: "SuperAdmin",
+          scope: "*",
+          active: true,
+          permissions: ["content:read", "manage_users"],
+        },
+        {
+          id: "a2",
+          userId: "u1",
+          roleId: "r-ed",
+          roleName: "Editor",
+          scope: "articles",
+          active: true,
+          permissions: ["content:read"],
+        },
+      ],
+    })
+    mockRoles.mockReturnValue({ data: [] })
+
+    render(
+      <AssignmentsDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        userId="u1"
+        userEmail="admin@beech.local"
+        isDeveloper={true}
+      />
+    )
+
+    const deleteButtons = screen.getAllByRole("button", { name: "Delete" })
+    expect(deleteButtons).toHaveLength(2)
+    // SuperAdmin delete button must be disabled for developer account
+    expect(deleteButtons[0]).toBeDisabled()
+    // Other roles remain deletable
+    expect(deleteButtons[1]).not.toBeDisabled()
+  })
 })

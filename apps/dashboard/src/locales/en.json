@@ -1539,6 +1539,7 @@
       "role": "Role",
       "scope": "Scope",
       "inactiveScope": "Inactive scope",
+      "cannotRemoveDevSuperAdmin": "The developer account must retain the SuperAdmin role",
       "empty": "No assignments yet"
     },
     "scope": {

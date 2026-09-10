@@ -1539,6 +1539,7 @@
       "role": "Ruolo",
       "scope": "Ambito",
       "inactiveScope": "Ambito inattivo",
+      "cannotRemoveDevSuperAdmin": "L'account sviluppatore non può rimuovere il ruolo SuperAdmin",
       "empty": "Ancora nessuna assegnazione"
     },
     "scope": {

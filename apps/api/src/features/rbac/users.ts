@@ -11,10 +11,13 @@ import { canAdministerAccount, rbacProblem, readJson, type AppContext } from './
 import { createUserSchema, setActiveSchema } from './rbac.schema'
 
 /**
- * The developer/owner axis (`users.role`) is NOT grantable from the dashboard: every
- * account minted here is an `'editor'`, so no RBAC path can ever produce an account that
- * clears `requireAdmin()` and reaches `/api/seeds/*` (brief §2). `POST /auth/setup`
- * remains the only producer of `role = 'admin'`.
+ * The developer/owner axis (`users.role`) is NOT grantable from the dashboard:
+ * - 'admin' is the Developer / instance owner (minted only by `POST /auth/setup`).
+ * - 'editor' is a generic Beech user whose permissions are managed via RBAC.
+ *   (Named 'editor' for legacy/CHECK-constraint compatibility, representing a standard user).
+ *
+ * Every account minted here receives CREATED_ACCOUNT_ROLE ('editor'), so no RBAC path can
+ * produce an account that clears `requireAdmin()` and reaches `/api/seeds/*`.
  */
 const CREATED_ACCOUNT_ROLE = 'editor'
 

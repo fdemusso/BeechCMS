@@ -5,10 +5,11 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import type { Scope } from "@beechcms/core"
+import { SUPER_ADMIN_ROLE_NAME, type Scope } from "@beechcms/core"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
@@ -20,6 +21,7 @@ import { Trash2 } from "reicon-react"
 import { usePermissions } from "@/features/shared"
 import { useUserAssignments, useCreateAssignment, useDeleteAssignment, useRbacRoles } from "../hooks/use-rbac"
 import { ScopeSelect } from "./scope-select"
+import { PermissionBadgeGroup } from "./permission-badge"
 import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
 
 export interface AssignmentsDialogProps {
@@ -27,9 +29,16 @@ export interface AssignmentsDialogProps {
   onOpenChange: (open: boolean) => void
   userId: string | null
   userEmail?: string
+  isDeveloper?: boolean
 }
 
-export function AssignmentsDialog({ open, onOpenChange, userId, userEmail }: AssignmentsDialogProps) {
+export function AssignmentsDialog({
+  open,
+  onOpenChange,
+  userId,
+  userEmail,
+  isDeveloper = false,
+}: AssignmentsDialogProps) {
   const { t } = useTranslation()
   const { can } = usePermissions()
   const { data: assignments = [] } = useUserAssignments(userId ?? "", open && !!userId)
@@ -71,33 +80,69 @@ export function AssignmentsDialog({ open, onOpenChange, userId, userEmail }: Ass
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{t("rbac.assignments.title", "Roles for {{email}}", { email: userEmail })}</DialogTitle>
+          <DialogDescription className="sr-only">
+            {t("rbac.assignments.title", "Roles for {{email}}", { email: userEmail })}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {assignments.map((assignment) => (
-            <div key={assignment.id} className="flex items-center justify-between gap-2 rounded-md border p-2">
-              <div className="min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {assignment.roleName ?? assignment.roleId} @ {assignment.scope}
-                </p>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {assignment.permissions.map((permission) => (
-                    <Badge key={permission} variant="secondary" className="text-[10px]">{permission}</Badge>
-                  ))}
-                  {!assignment.active && (
-                    <Badge variant="outline" className="text-[10px]">{t("rbac.assignments.inactiveScope", "Inactive scope")}</Badge>
-                  )}
+        <TooltipProvider delayDuration={100} disableHoverableContent>
+          <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+            {assignments.map((assignment) => {
+              const isSuperAdmin =
+                assignment.roleName === SUPER_ADMIN_ROLE_NAME || assignment.roleName === "SuperAdmin"
+              const cannotDelete = isDeveloper && isSuperAdmin
+
+              return (
+                <div
+                  key={assignment.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border/70 bg-muted/20 p-2.5 transition-colors"
+                >
+                  <div className="min-w-0 flex-1 flex items-center gap-2.5 flex-wrap">
+                    <span className="text-sm font-medium text-foreground">
+                      {assignment.roleName ?? assignment.roleId}
+                    </span>
+                    <PermissionBadgeGroup permissions={assignment.permissions} max={3} />
+                    <span className="text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded border border-border/50">
+                      {assignment.scope}
+                    </span>
+                    {!assignment.active && (
+                      <Badge variant="outline" className="text-[10px] text-destructive border-destructive/40">
+                        {t("rbac.assignments.inactiveScope", "Inactive scope")}
+                      </Badge>
+                    )}
+                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={cannotDelete}
+                          className="size-8 shrink-0 text-muted-foreground hover:text-destructive disabled:opacity-40 disabled:cursor-not-allowed"
+                          onClick={() => handleRemove(assignment.id)}
+                          aria-label={t("common.delete", "Delete")}
+                        >
+                          <Trash2 className="size-4" />
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {cannotDelete && (
+                      <TooltipContent side="left">
+                        {t(
+                          "rbac.assignments.cannotRemoveDevSuperAdmin",
+                          "The developer account must retain the SuperAdmin role"
+                        )}
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
                 </div>
-              </div>
-              <Button variant="ghost" size="icon" className="size-8 shrink-0" onClick={() => handleRemove(assignment.id)}>
-                <Trash2 className="size-4" />
-              </Button>
-            </div>
-          ))}
-          {assignments.length === 0 && (
-            <p className="text-sm text-muted-foreground py-2 text-center">{t("rbac.assignments.empty", "No assignments yet")}</p>
-          )}
-        </div>
+              )
+            })}
+            {assignments.length === 0 && (
+              <p className="text-sm text-muted-foreground py-3 text-center">{t("rbac.assignments.empty", "No assignments yet")}</p>
+            )}
+          </div>
+        </TooltipProvider>
 
         <div className="flex items-end gap-2 pt-2 border-t">
           <div className="flex-1 space-y-1">
