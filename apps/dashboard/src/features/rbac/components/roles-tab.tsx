@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { Plus, Edit as Pencil, Trash2, Shield } from "reicon-react"
+import { Plus, Edit as Pencil, Trash2 } from "reicon-react"
 import type { RoleRecord } from "@beechcms/core"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -23,7 +23,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { usePermissions } from "@/features/shared"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { TooltipProvider } from "@/components/ui/tooltip"
+import { resolveIcon } from "@/lib/icon-registry"
 import { useRbacRoles, useDeleteRole } from "../hooks/use-rbac"
 import { RoleFormDialog } from "./role-form-dialog"
 import { PermissionBadgeGroup } from "./permission-badge"
@@ -80,26 +81,16 @@ export function RolesTab() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {roles.map((role) => (
-                <TableRow key={role.id}>
-                  <TableCell className="font-medium whitespace-nowrap">
-                    <div className="flex items-center">
-                      <span className="truncate">{role.name}</span>
-                      {role.isSystem && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="inline-flex items-center text-muted-foreground ml-1.5 shrink-0 cursor-default">
-                              <Shield className="size-3.5" />
-                              <span className="sr-only">{t("rbac.roles.system", "System")}</span>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top">
-                            {t("rbac.roles.system", "System")}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                  </TableCell>
+              {roles.map((role) => {
+                const RoleIcon = resolveIcon(role.icon ?? (role.isSystem ? "Shield" : "Users"))
+                return (
+                  <TableRow key={role.id}>
+                    <TableCell className="font-medium whitespace-nowrap">
+                      <div className="flex items-center gap-2">
+                        <RoleIcon className="size-4 text-muted-foreground shrink-0" aria-hidden="true" />
+                        <span className="truncate">{role.name}</span>
+                      </div>
+                    </TableCell>
                   <TableCell className="text-muted-foreground max-w-[320px] truncate" title={role.description ?? undefined}>
                     {role.description ?? "—"}
                   </TableCell>
@@ -143,7 +134,8 @@ export function RolesTab() {
                     </TableCell>
                   )}
                 </TableRow>
-              ))}
+                )
+              })}
             </TableBody>
           </Table>
         </TooltipProvider>

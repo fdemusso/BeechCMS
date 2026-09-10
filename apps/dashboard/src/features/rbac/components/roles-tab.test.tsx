@@ -29,7 +29,6 @@ describe("RolesTab", () => {
     render(<RolesTab />)
 
     expect(screen.getByText("SuperAdmin")).toBeInTheDocument()
-    expect(screen.getByText("System")).toBeInTheDocument()
     const row = screen.getByText("SuperAdmin").closest("tr")!
     const buttons = row.querySelectorAll("button")
     expect(buttons.length).toBe(2)
@@ -143,5 +142,22 @@ describe("RolesTab", () => {
     expect(screen.queryByLabelText("Update content")).not.toBeInTheDocument()
 
     vi.useRealTimers()
+  })
+
+  it("renders role icon to the left of the role name", () => {
+    mockRoles.mockReturnValue({
+      data: [
+        { id: "r1", name: "SuperAdmin", icon: "Shield", description: null, isSystem: true, permissions: [], createdAt: 0, updatedAt: 0 },
+        { id: "r2", name: "CustomRole", icon: "Star", description: null, isSystem: false, permissions: [], createdAt: 0, updatedAt: 0 },
+      ],
+      isLoading: false,
+    })
+    render(<RolesTab />)
+
+    const superAdminCell = screen.getByText("SuperAdmin").closest("td")!
+    expect(superAdminCell.querySelector("svg")).toBeInTheDocument()
+
+    const customRoleCell = screen.getByText("CustomRole").closest("td")!
+    expect(customRoleCell.querySelector("svg")).toBeInTheDocument()
   })
 })

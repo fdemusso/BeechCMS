@@ -18,6 +18,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -144,6 +145,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
               <FieldLabel htmlFor="rf-name">{t("rbac.roles.name", "Name")}</FieldLabel>
               <div className="flex items-center gap-2">
                 <Popover
+                  modal={true}
                   open={iconPickerOpen}
                   onOpenChange={(next) => {
                     setIconPickerOpen(next)
@@ -174,37 +176,39 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
                           autoFocus
                         />
                       </div>
-                      <div className="grid grid-cols-6 gap-1 max-h-48 overflow-y-auto p-0.5">
-                        {filteredIcons.map((iconName) => {
-                          const IconComp = resolveIcon(iconName)
-                          const isSelected = (icon || "Users") === iconName
-                          return (
-                            <button
-                              key={iconName}
-                              type="button"
-                              onClick={() => {
-                                setIcon(iconName)
-                                setIconPickerOpen(false)
-                                setIconSearch("")
-                              }}
-                              title={iconName}
-                              className={cn(
-                                "size-8 rounded-md flex items-center justify-center transition-colors cursor-pointer",
-                                isSelected
-                                  ? "bg-primary text-primary-foreground shadow-xs"
-                                  : "hover:bg-accent text-muted-foreground hover:text-foreground"
-                              )}
-                            >
-                              <IconComp className="size-4" />
-                            </button>
-                          )
-                        })}
-                        {filteredIcons.length === 0 && (
-                          <p className="col-span-6 text-center text-xs text-muted-foreground py-4">
-                            {t("rbac.roles.noIconsFound", "No icons found")}
-                          </p>
-                        )}
-                      </div>
+                      <ScrollArea className="h-48" onWheel={(e) => e.stopPropagation()}>
+                        <div className="grid grid-cols-6 gap-1 p-0.5 pr-2.5">
+                          {filteredIcons.map((iconName) => {
+                            const IconComp = resolveIcon(iconName)
+                            const isSelected = (icon || "Users") === iconName
+                            return (
+                              <button
+                                key={iconName}
+                                type="button"
+                                onClick={() => {
+                                  setIcon(iconName)
+                                  setIconPickerOpen(false)
+                                  setIconSearch("")
+                                }}
+                                title={iconName}
+                                className={cn(
+                                  "size-8 rounded-md flex items-center justify-center transition-colors cursor-pointer",
+                                  isSelected
+                                    ? "bg-primary text-primary-foreground shadow-xs"
+                                    : "hover:bg-accent text-muted-foreground hover:text-foreground"
+                                )}
+                              >
+                                <IconComp className="size-4" />
+                              </button>
+                            )
+                          })}
+                          {filteredIcons.length === 0 && (
+                            <p className="col-span-6 text-center text-xs text-muted-foreground py-4">
+                              {t("rbac.roles.noIconsFound", "No icons found")}
+                            </p>
+                          )}
+                        </div>
+                      </ScrollArea>
                     </div>
                   </PopoverContent>
                 </Popover>
