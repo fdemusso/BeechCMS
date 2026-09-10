@@ -153,6 +153,10 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'DELETE', pattern: /^\/api\/rbac\/roles\/[^/]+$/,              requirement: anyScope('manage_roles') },
   { method: 'POST',   pattern: /^\/api\/rbac\/assignments$/,               requirement: anyScope('manage_users') },
   { method: 'DELETE', pattern: /^\/api\/rbac\/assignments\/[^/]+$/,        requirement: anyScope('manage_users') },
+  { method: 'GET',    pattern: /^\/api\/rbac\/invitations$/,                         requirement: anyScope('manage_users') },
+  { method: 'POST',   pattern: /^\/api\/rbac\/invitations$/,                         requirement: anyScope('manage_users') },
+  { method: 'POST',   pattern: /^\/api\/rbac\/invitations\/[^/]+\/regenerate$/,      requirement: anyScope('manage_users') },
+  { method: 'DELETE', pattern: /^\/api\/rbac\/invitations\/[^/]+$/,                  requirement: anyScope('manage_users') },
 ]
 
 /** Resolves the rule for a request, plus the scope its pattern captured. */

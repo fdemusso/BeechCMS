@@ -44,3 +44,19 @@ export const createAssignmentSchema = z.object({
   /** `'*'` or a seeds.slug; existence is checked against the live registry in the handler. */
   scope: z.string().trim().min(1),
 })
+
+export const createInvitationSchema = z.object({
+  email: z.string().trim().max(254).regex(EMAIL_RE),
+  roleId: z.string().min(1),
+  /** `'*'` or a seeds.slug; existence is checked against the live registry in the handler. */
+  scope: z.string().trim().min(1),
+  /** Email language. Anything unknown falls back to 'en' via resolveEmailLocale. */
+  locale: z.string().trim().max(8).optional(),
+})
+
+export const acceptInvitationSchema = z.object({
+  token: z.string().min(1).max(128),
+  password: passwordSchema,
+  name: z.string().trim().max(120).nullish(),
+  surname: z.string().trim().max(120).nullish(),
+})

@@ -16,11 +16,12 @@ export type AppContext = Context<{ Bindings: Env; Variables: Variables }>
 export function rbacProblem(
   context: AppContext,
   type: RbacErrorCode,
-  status: 400 | 403 | 404 | 409 | 422,
+  status: 400 | 403 | 404 | 409 | 422 | 429,
   title: string,
   detail: string,
+  headers?: Record<string, string>,
 ) {
-  return publicProblem(context, { type, title, status, detail })
+  return publicProblem(context, { type, title, status, detail, headers })
 }
 
 /**

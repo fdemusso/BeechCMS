@@ -32,8 +32,9 @@ import { D1OAuthTokenRepository } from '../shared/db/repositories/d1-oauth-token
 import { D1OAuthConsentRepository } from '../shared/db/repositories/d1-oauth-consent.repository'
 import { D1RoleRepository } from '../shared/db/repositories/d1-role.repository'
 import { D1RoleAssignmentRepository } from '../shared/db/repositories/d1-role-assignment.repository'
+import { D1InvitationRepository } from '../shared/db/repositories/d1-invitation.repository'
 import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService, PermissionRoleGuard } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, IRoleRepository, IRoleAssignmentRepository } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, IRoleRepository, IRoleAssignmentRepository, IInvitationRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations/engine/automation-runner'
 import { D1AutomationRepository } from '../shared/db/repositories/automations.repository.d1'
@@ -75,6 +76,7 @@ interface RepositoryOverrides {
   roleGuard?: IRoleGuard
   roleRepository?: IRoleRepository
   roleAssignmentRepository?: IRoleAssignmentRepository
+  invitationRepository?: IInvitationRepository
   hooks?: BeechHooks
   privacyService?: IPrivacyService
 }
@@ -151,6 +153,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('roleGuard', overrides?.roleGuard ?? new PermissionRoleGuard())
     context.set('roleRepository', overrides?.roleRepository ?? new D1RoleRepository(database, resolvedIdGenerator))
     context.set('roleAssignmentRepository', overrides?.roleAssignmentRepository ?? new D1RoleAssignmentRepository(database, resolvedIdGenerator))
+    context.set('invitationRepository', overrides?.invitationRepository ?? new D1InvitationRepository(database, resolvedIdGenerator))
     await next()
   })
 }

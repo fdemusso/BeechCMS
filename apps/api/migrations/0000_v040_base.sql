@@ -546,3 +546,47 @@ CROSS JOIN (
     SELECT 'view_analytics'
 ) p
 WHERE r.name = 'SuperAdmin';
+
+-- =============================================================================
+-- 21. RBAC — INVITATIONS
+--
+--     Single-use, expiring onboarding tokens carrying a PRE-ASSIGNED (role, scope)
+--     pair. Hash-only at rest, exactly like password_reset_tokens and oauth_tokens:
+--     the plaintext exists once, inside the email that carries it.
+--
+--     No `users` row is created at invite time. The account is materialised at
+--     redemption, which is why regeneration (brief §4) reuses this row and never
+--     "recreates the account": the pre-assignment lives HERE, not on a ghost user.
+--
+--     Status is derived, not stored:
+--       used_at IS NOT NULL          -> accepted
+--       used_at IS NULL AND expired  -> expired (regenerable)
+--       otherwise                    -> pending
+-- =============================================================================
+
+CREATE TABLE IF NOT EXISTS invitations (
+    id          TEXT    NOT NULL PRIMARY KEY,
+    -- Lowercased at the handler boundary, like users.email. NOT UNIQUE: an accepted
+    -- or revoked invite may legitimately be followed by another one for the same
+    -- address. One-pending-per-email is enforced by invalidatePending(), mirroring
+    -- IPasswordResetTokenRepository.
+    email       TEXT    NOT NULL,
+    token_hash  TEXT    NOT NULL,
+    -- The pre-assignment. ON DELETE CASCADE: deleting the role destroys every
+    -- invitation that would have granted it, which is the same guarantee
+    -- user_role_assignments already gives.
+    role_id     TEXT    NOT NULL REFERENCES roles(id) ON DELETE CASCADE,
+    -- '*' or a seeds.slug. No FK, for the same reason as user_role_assignments:
+    -- the '*' sentinel is not a slug. Validity is re-checked at redemption.
+    scope       TEXT    NOT NULL,
+    -- The issuer. Their LIVE authority is re-evaluated at redemption, so this is a
+    -- load-bearing column, not an audit field.
+    invited_by  TEXT    NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at  INTEGER NOT NULL,
+    created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
+    used_at     INTEGER DEFAULT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_invitations_hash  ON invitations(token_hash);
+CREATE INDEX IF NOT EXISTS idx_invitations_email ON invitations(email);
+CREATE INDEX IF NOT EXISTS idx_invitations_role  ON invitations(role_id);

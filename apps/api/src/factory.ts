@@ -27,6 +27,7 @@ import { schemaApp } from './features/schema/schema.handler'
 import { dashboardLayoutApp } from './features/dashboard-layout'
 import { seedsApp } from './features/seeds'
 import { rbacApp } from './features/rbac'
+import { rbacPublicApp } from './features/rbac/public'
 import { notificationsApp } from './features/notifications'
 import { automationsApp } from './features/automations/api/automations.handler'
 import { statsApp } from './features/stats'
@@ -221,6 +222,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.route('/', authApp)
   app.route('/', setupApp)
   app.route('/', passwordResetApp)
+  app.route('/', rbacPublicApp)   // unauthenticated invite preview + redeem
   app.route('/', oauthApp)
 
   // 4. Protected CMS API
