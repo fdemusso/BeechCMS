@@ -5,23 +5,14 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { Plus } from "reicon-react"
+import { Plus, ShieldCheck } from "reicon-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { Switch } from "@/components/ui/switch"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMe } from "@/features/shared"
 import { useRbacUsers, useSetUserActive } from "../hooks/use-rbac"
 import { UserFormDialog } from "./user-form-dialog"
@@ -34,6 +25,15 @@ export function UsersTab() {
   const { data: currentUser } = useMe()
   const { data: users = [], isLoading } = useRbacUsers()
   const setUserActive = useSetUserActive()
+
+  const sortedUsers = React.useMemo(() => {
+    if (!currentUser?.id) return users
+    return [...users].sort((a, b) => {
+      if (a.id === currentUser.id) return -1
+      if (b.id === currentUser.id) return 1
+      return 0
+    })
+  }, [users, currentUser?.id])
 
   const [createOpen, setCreateOpen] = React.useState(false)
   const [assignmentsUser, setAssignmentsUser] = React.useState<AccountView | null>(null)
@@ -66,18 +66,18 @@ export function UsersTab() {
             {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
         ) : (
+        <TooltipProvider delayDuration={100} disableHoverableContent>
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>{t("rbac.users.email", "Email")}</TableHead>
                 <TableHead>{t("rbac.users.name", "Name")}</TableHead>
                 <TableHead>{t("rbac.users.roles", "Roles")}</TableHead>
-                <TableHead>{t("rbac.users.status", "Status")}</TableHead>
-                <TableHead className="text-right">{t("common.actions", "Actions")}</TableHead>
+                <TableHead className="w-[120px] text-right">{t("common.actions", "Actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((accountUser) => {
+              {sortedUsers.map((accountUser) => {
                 const isSelf = currentUser?.id === accountUser.id
                 return (
                   <TableRow key={accountUser.id}>
@@ -98,52 +98,47 @@ export function UsersTab() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={accountUser.isActive ? "default" : "outline"}>
-                        {accountUser.isActive ? t("rbac.users.active", "Active") : t("rbac.users.disabled", "Disabled")}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => setAssignmentsUser(accountUser)}>
-                        {t("rbac.users.manageRoles", "Manage roles")}
-                      </Button>
-                      {!isSelf && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                              {accountUser.isActive
-                                ? t("rbac.users.deactivate", "Deactivate")
-                                : t("rbac.users.reactivate", "Reactivate")}
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => setAssignmentsUser(accountUser)}
+                              aria-label={t("rbac.users.manageRoles", "Manage roles")}
+                            >
+                              <ShieldCheck className="size-4" />
                             </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                {accountUser.isActive
-                                  ? t("rbac.users.deactivate", "Deactivate")
-                                  : t("rbac.users.reactivate", "Reactivate")}
-                              </AlertDialogTitle>
-                              {accountUser.isActive && (
-                                <AlertDialogDescription>
-                                  {t("rbac.users.deactivateWarning", "All active sessions are revoked immediately.")}
-                                </AlertDialogDescription>
-                              )}
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleToggleActive(accountUser)}>
-                                {t("common.confirm")}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            {t("rbac.users.manageRoles", "Manage roles")}
+                          </TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Switch
+                                checked={accountUser.isActive}
+                                disabled={isSelf || setUserActive.isPending}
+                                onCheckedChange={() => handleToggleActive(accountUser)}
+                                aria-label={t("rbac.users.status", "Status")}
+                              />
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            {t("rbac.users.status", "Status")}
+                          </TooltipContent>
+                        </Tooltip>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
               })}
             </TableBody>
           </Table>
+        </TooltipProvider>
         )}
       </CardContent>
 

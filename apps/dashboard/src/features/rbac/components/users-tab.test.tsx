@@ -29,7 +29,7 @@ function renderTab() {
 }
 
 describe("UsersTab", () => {
-  it("renders rows from the mocked hook, hides Deactivate on the caller's own row, shows the 'You' badge", () => {
+  it("renders rows from the mocked hook, disables the switch on caller's own row, and renders manage roles icon button", () => {
     mockUsers.mockReturnValue({
       data: [
         { id: "u1", email: "me@beech.local", name: "Me", surname: null, isActive: true, assignments: [] },
@@ -43,8 +43,32 @@ describe("UsersTab", () => {
     expect(screen.getByText("You")).toBeInTheDocument()
     expect(screen.getByText("other@beech.local")).toBeInTheDocument()
 
-    // Only one Deactivate button should exist (for the non-self row).
-    const deactivateButtons = screen.getAllByText("Deactivate")
-    expect(deactivateButtons).toHaveLength(1)
+    // Status switches
+    const switches = screen.getAllByRole("switch")
+    expect(switches).toHaveLength(2)
+    // The caller's own row switch is disabled
+    expect(switches[0]).toBeDisabled()
+    // The other user's switch is enabled
+    expect(switches[1]).not.toBeDisabled()
+
+    // Manage roles icon buttons with accessible label
+    const manageRolesButtons = screen.getAllByRole("button", { name: "Manage roles" })
+    expect(manageRolesButtons).toHaveLength(2)
+  })
+
+  it("always renders the current user in the first position even if returned later in the list", () => {
+    mockUsers.mockReturnValue({
+      data: [
+        { id: "u2", email: "other@beech.local", name: "Other", surname: null, isActive: true, assignments: [] },
+        { id: "u3", email: "third@beech.local", name: "Third", surname: null, isActive: true, assignments: [] },
+        { id: "u1", email: "me@beech.local", name: "Me", surname: null, isActive: true, assignments: [] },
+      ],
+      isLoading: false,
+    })
+    renderTab()
+
+    const rows = screen.getAllByRole("row")
+    // rows[0] is table header, rows[1] is the first user row
+    expect(rows[1]).toHaveTextContent("me@beech.local")
   })
 })
