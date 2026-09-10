@@ -26,6 +26,7 @@ import { settingsApp } from './features/settings/settings.handler'
 import { schemaApp } from './features/schema/schema.handler'
 import { dashboardLayoutApp } from './features/dashboard-layout'
 import { seedsApp } from './features/seeds'
+import { rbacApp } from './features/rbac'
 import { notificationsApp } from './features/notifications'
 import { automationsApp } from './features/automations/api/automations.handler'
 import { statsApp } from './features/stats'
@@ -238,6 +239,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   apiProtected.route('/schema', schemaApp)
   apiProtected.route('/dashboard-layout', dashboardLayoutApp)
   apiProtected.route('/seeds', seedsApp)
+  apiProtected.route('/rbac', rbacApp)
   apiProtected.route('/content', notificationsApp)
   apiProtected.route('/content', statsApp)
   apiProtected.route('/content', rotateFieldApp)

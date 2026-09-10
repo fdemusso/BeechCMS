@@ -94,3 +94,39 @@ export function canGrant(
   const held = permissionsForScope(actor, targetScope)
   return targetPermissions.every(permission => held.has(permission))
 }
+
+/**
+ * Every permission the actor holds at ANY scope — global or seed-scoped — folded into
+ * one set.
+ *
+ * This is deliberately NOT an authorization primitive: it answers "could this actor
+ * ever grant X somewhere", not "may this actor do X here". Only {@link hasPermission}
+ * and {@link canGrant} answer the latter, and every route-level decision must keep
+ * using them.
+ */
+export function permissionsHeldAnywhere(effective: EffectivePermissions): ReadonlySet<Permission> {
+  const held = new Set<Permission>(effective.global)
+  for (const bucket of effective.byScope.values()) {
+    for (const permission of bucket) held.add(permission)
+  }
+  return held
+}
+
+/**
+ * Whether the actor holds `permission` on at least one scope.
+ *
+ * Backs the coarse route gate for administration endpoints whose scope is not in the
+ * URL: the gate keeps out callers with no administrative authority at all, and the
+ * slice then makes the exact per-scope decision with {@link hasPermission} /
+ * {@link canGrant}. Never use it as the final authorization check.
+ */
+export function hasPermissionAnywhere(
+  effective: EffectivePermissions,
+  permission: Permission,
+): boolean {
+  if (effective.global.has(permission)) return true
+  for (const bucket of effective.byScope.values()) {
+    if (bucket.has(permission)) return true
+  }
+  return false
+}

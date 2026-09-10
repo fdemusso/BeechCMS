@@ -109,4 +109,57 @@ export class D1RoleAssignmentRepository implements IRoleAssignmentRepository {
 
     return row?.total ?? 0
   }
+
+  async findById(assignmentId: string): Promise<PermissionAssignment | null> {
+    const row = await this.db
+      .prepare(`SELECT id, user_id, role_id, scope FROM user_role_assignments WHERE id = ? LIMIT 1`)
+      .bind(assignmentId)
+      .first<AssignmentRow>()
+    return row ? rowToRecord(row) : null
+  }
+
+  async listAll(): Promise<PermissionAssignment[]> {
+    const rows = await this.db
+      .prepare(`SELECT id, user_id, role_id, scope FROM user_role_assignments`)
+      .all<AssignmentRow>()
+    return (rows.results ?? []).map(rowToRecord)
+  }
+
+  async listAllForUser(userId: string): Promise<PermissionAssignment[]> {
+    const rows = await this.db
+      .prepare(`SELECT id, user_id, role_id, scope FROM user_role_assignments WHERE user_id = ?`)
+      .bind(userId)
+      .all<AssignmentRow>()
+    return (rows.results ?? []).map(rowToRecord)
+  }
+
+  async countActiveGlobalAdminsExcludingUser(userId: string): Promise<number> {
+    const row = await this.db
+      .prepare(
+        `SELECT COUNT(DISTINCT a.user_id) AS total
+         FROM user_role_assignments a
+         JOIN role_permissions rp ON rp.role_id = a.role_id
+         JOIN users u ON u.id = a.user_id
+         WHERE a.scope = ? AND rp.permission = 'manage_users'
+           AND u.is_active = 1 AND a.user_id != ?`
+      )
+      .bind(GLOBAL_SCOPE, userId)
+      .first<{ total: number }>()
+    return row?.total ?? 0
+  }
+
+  async countActiveGlobalAdminsExcludingRole(roleId: string): Promise<number> {
+    const row = await this.db
+      .prepare(
+        `SELECT COUNT(DISTINCT a.user_id) AS total
+         FROM user_role_assignments a
+         JOIN role_permissions rp ON rp.role_id = a.role_id
+         JOIN users u ON u.id = a.user_id
+         WHERE a.scope = ? AND rp.permission = 'manage_users'
+           AND u.is_active = 1 AND a.role_id != ?`
+      )
+      .bind(GLOBAL_SCOPE, roleId)
+      .first<{ total: number }>()
+    return row?.total ?? 0
+  }
 }

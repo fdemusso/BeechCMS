@@ -97,9 +97,14 @@ Lists every role, system roles included, ordered by name.
 
 ### update()
 
-> **update**(`roleId`, `input`): `Promise`&lt;`void`&gt;
+> **update**(`roleId`, `input`): `Promise`&lt;`boolean`&gt;
 
 Replaces a role's name, description and full permission set atomically.
+
+Returns false — changing NOTHING, permissions included — when the role does not
+exist or is a system role. System roles are seeded by migration and are immutable
+in both halves of the write, which is the guarantee callers rely on to keep
+`SuperAdmin` intact.
 
 #### Parameters
 
@@ -113,4 +118,4 @@ Replaces a role's name, description and full permission set atomically.
 
 #### Returns
 
-`Promise`&lt;`void`&gt;
+`Promise`&lt;`boolean`&gt;

@@ -3,7 +3,17 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { IUserRepository, UserRecord, NewUserInput } from '@beechcms/core'
+import type { IUserRepository, UserRecord, NewUserInput, AccountSummary } from '@beechcms/core'
+
+type AccountRow = {
+  id: string
+  email: string
+  name: string | null
+  surname: string | null
+  role: string
+  is_active: number
+  created_at: number
+}
 
 type UserRow = {
   id: string
@@ -132,5 +142,32 @@ export class D1UserRepository implements IUserRepository {
       .bind(email, currentUserId)
       .first()
     return row !== null
+  }
+
+  async listAccounts(): Promise<AccountSummary[]> {
+    const rows = await this.db
+      .prepare(
+        `SELECT id, email, name, surname, role, is_active, created_at
+         FROM users ORDER BY created_at ASC`
+      )
+      .all<AccountRow>()
+
+    return (rows.results ?? []).map(row => ({
+      id: row.id,
+      email: row.email,
+      name: row.name,
+      surname: row.surname,
+      role: row.role,
+      isActive: row.is_active === 1,
+      createdAt: row.created_at,
+    }))
+  }
+
+  async setActive(userId: string, isActive: boolean): Promise<boolean> {
+    const result = await this.db
+      .prepare('UPDATE users SET is_active = ? WHERE id = ?')
+      .bind(isActive ? 1 : 0, userId)
+      .run()
+    return (result.meta.changes ?? 0) > 0
   }
 }
