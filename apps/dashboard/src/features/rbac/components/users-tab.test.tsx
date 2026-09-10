@@ -10,6 +10,7 @@ import { UsersTab } from "./users-tab"
 const mockUsers = vi.fn()
 vi.mock("../hooks/use-rbac", () => ({
   useRbacUsers: () => mockUsers(),
+  useRbacRoles: () => ({ data: [], isLoading: false }),
   useSetUserActive: () => ({ mutateAsync: vi.fn() }),
 }))
 vi.mock("@/features/shared", () => ({
