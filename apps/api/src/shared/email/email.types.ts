@@ -89,6 +89,18 @@ export interface PasswordChangedEmailParams extends BaseEmailParams {
   smtpBaseUrl?: string
 }
 
+/** Parameters for the invitation email — adds the activation URL and what it grants. */
+export interface InvitationEmailParams extends BaseEmailParams {
+  /** Complete activation URL, `?token=<opaque hex>`. */
+  inviteUrl: string
+  /** `roles.name` of the pre-assigned role. */
+  roleName: string
+  /** Seed slug, or the localized label for the global scope. */
+  scopeLabel: string
+  provider?: 'smtp' | 'resend'
+  smtpBaseUrl?: string
+}
+
 export interface AutomationMailParams {
   to: string
   subject: string

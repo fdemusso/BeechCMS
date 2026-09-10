@@ -7,11 +7,13 @@ import { SmtpEmailProvider } from './providers/smtp'
 import { buildPasswordResetEmail } from './templates/password-reset'
 import { buildPasswordChangedEmail } from './templates/password-changed'
 import { buildAutomationEmail } from './templates/automation-mail'
+import { buildInvitationEmail } from './templates/invitation'
 import type { EmailProvider } from '@beechcms/core'
 import type {
   PasswordResetEmailParams,
   PasswordChangedEmailParams,
   AutomationMailParams,
+  InvitationEmailParams,
 } from './email.types'
 
 const DEFAULT_FROM = 'Beech CMS <onboarding@resend.dev>'
@@ -62,6 +64,27 @@ export async function sendPasswordChangedEmail(
     isDev: params.isDev ?? false,
   })
   const { subject, html } = buildPasswordChangedEmail(params.locale)
+  await provider.send({
+    from: params.from ?? DEFAULT_FROM,
+    to: [params.to],
+    subject,
+    html,
+  })
+}
+
+export async function sendInvitationEmail(params: InvitationEmailParams): Promise<void> {
+  const provider = createProvider({
+    provider: params.provider,
+    apiKey: params.apiKey,
+    smtpBaseUrl: params.smtpBaseUrl,
+    isDev: params.isDev ?? false,
+  })
+  const { subject, html } = buildInvitationEmail(
+    params.inviteUrl,
+    params.roleName,
+    params.scopeLabel,
+    params.locale,
+  )
   await provider.send({
     from: params.from ?? DEFAULT_FROM,
     to: [params.to],

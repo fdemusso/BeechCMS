@@ -8,6 +8,8 @@ import { render, screen, fireEvent } from "@testing-library/react"
 import { DataTable } from "@/components/ui/data-table"
 import { generateColumns, type ContentEntry } from "@/lib/dynamic-columns"
 
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
+
 function makeSeed() {
   return {
     slug: "items",

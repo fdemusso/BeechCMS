@@ -12,6 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { useContentDeleteDialog, type ContentDeleteDialogProps } from "./use-content-delete-dialog"
 
 export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
@@ -25,6 +27,9 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
     previewIds,
     hasMore,
   } = useContentDeleteDialog(props)
+
+  const { can } = usePermissions()
+  const canDelete = can("content:delete", seed.slug)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -57,14 +62,33 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
           >
             {t("common.cancel")}
           </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={handleConfirm}
-            disabled={isDeleting}
-          >
-            {isDeleting ? t("common.deleting") : t("common.delete")}
-          </Button>
+          {canDelete ? (
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleConfirm}
+              disabled={isDeleting}
+            >
+              {isDeleting ? t("common.deleting") : t("common.delete")}
+            </Button>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    disabled
+                  >
+                    {t("common.delete")}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                Manca il permesso 'content:delete'
+              </TooltipContent>
+            </Tooltip>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

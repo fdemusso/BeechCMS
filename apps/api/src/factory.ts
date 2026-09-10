@@ -15,6 +15,7 @@ import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import { authApp } from './auth'
 import { authMiddleware } from './middleware/auth.middleware'
 import { oauthScopeMiddleware } from './middleware/oauth-scope.middleware'
+import { permissionMiddleware } from './middleware/permission.middleware'
 import contentFeature from './features/content'
 import { widgetApp } from './features/widget/widget'
 import { rotateFieldApp } from './features/rotate-field'
@@ -25,6 +26,8 @@ import { settingsApp } from './features/settings/settings.handler'
 import { schemaApp } from './features/schema/schema.handler'
 import { dashboardLayoutApp } from './features/dashboard-layout'
 import { seedsApp } from './features/seeds'
+import { rbacApp } from './features/rbac'
+import { rbacPublicApp } from './features/rbac/public'
 import { notificationsApp } from './features/notifications'
 import { automationsApp } from './features/automations/api/automations.handler'
 import { statsApp } from './features/stats'
@@ -219,6 +222,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   app.route('/', authApp)
   app.route('/', setupApp)
   app.route('/', passwordResetApp)
+  app.route('/', rbacPublicApp)   // unauthenticated invite preview + redeem
   app.route('/', oauthApp)
 
   // 4. Protected CMS API
@@ -228,11 +232,16 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   // Fail-closed: an OAuth token reaches only the routes listed in OAUTH_SCOPE_ROUTES.
   // Must stay immediately after authMiddleware — it consumes the `oauthGrant` it sets.
   apiProtected.use('*', oauthScopeMiddleware())
+  // Fail-closed RBAC gate. Runs last of the three: authentication has produced a
+  // subject, the OAuth scope allowlist has already refused off-limits tokens, and this
+  // decides what the subject may do on the scope named by the route.
+  apiProtected.use('*', permissionMiddleware())
 
   apiProtected.route('/settings', settingsApp)
   apiProtected.route('/schema', schemaApp)
   apiProtected.route('/dashboard-layout', dashboardLayoutApp)
   apiProtected.route('/seeds', seedsApp)
+  apiProtected.route('/rbac', rbacApp)
   apiProtected.route('/content', notificationsApp)
   apiProtected.route('/content', statsApp)
   apiProtected.route('/content', rotateFieldApp)

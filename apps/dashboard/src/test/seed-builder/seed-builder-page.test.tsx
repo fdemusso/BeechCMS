@@ -21,6 +21,8 @@ const mockAuthAdmin = { user: { email: "admin@test.com", role: "admin" as const 
 const mockAuthEditor = { user: { email: "editor@test.com", role: "editor" as const } }
 const mockAuthRef = { current: mockAuthAdmin as { user: { email: string; role: "admin" | "editor" } } }
 
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
+
 vi.mock("@/lib/auth-context", () => ({
   useAuth: () => mockAuthRef.current,
 }))

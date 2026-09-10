@@ -359,11 +359,14 @@ export class Orchestrator extends TypedEmitter<OrchestratorEvents> {
     process.env.BEECH_SQLITE_WEB_PORT = String(ports.sqliteWebPort)
     process.env.BEECH_WEBHOOK_TESTER_PORT = String(ports.webhookTesterPort)
 
-    updateDevVars({
-      R2_ENDPOINT: `http://localhost:${ports.minioPort}`,
-      SMTP_PORT: String(ports.mailpitUiPort),
-      WEBHOOK_TESTER_URL: `http://localhost:${ports.webhookTesterPort}`,
-    })
+    updateDevVars(
+      {
+        R2_ENDPOINT: `http://localhost:${ports.minioPort}`,
+        SMTP_PORT: String(ports.mailpitUiPort),
+        WEBHOOK_TESTER_URL: `http://localhost:${ports.webhookTesterPort}`,
+      },
+      ['R2_ENDPOINT', 'SMTP_PORT', 'WEBHOOK_TESTER_URL'],
+    )
 
     this.emit('ports:update', ports)
   }

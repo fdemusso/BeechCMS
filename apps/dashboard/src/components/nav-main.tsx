@@ -38,6 +38,8 @@ type NavMainItem = {
   readonly icon: IconComponent
   readonly isActive?: boolean
   readonly items?: ReadonlyArray<NavMainSubItem>
+  readonly disabled?: boolean
+  readonly disabledReason?: string
 }
 
 type NavMainProps = {
@@ -103,6 +105,22 @@ function NavMainMenuItem({
       setTimeout(scroll, 50)
       setTimeout(scroll, 100)
     }
+  }
+
+  if (item.disabled) {
+    return (
+      <SidebarMenuItem ref={itemRef}>
+        <SidebarMenuButton
+          disabled
+          aria-disabled="true"
+          tooltip={item.disabledReason ?? item.title}
+          className="cursor-not-allowed opacity-50"
+        >
+          <item.icon />
+          <span>{item.title}</span>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    )
   }
 
   return (

@@ -6,6 +6,8 @@
 import { Hono } from 'hono'
 import { sha256hex, type SiteSettings } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
+import { manageableScopes, serializeEffectivePermissions } from '../../shared/rbac/scoped-projection'
 
 const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -134,6 +136,9 @@ settingsApp.get('/me', async (context) => {
     avatarUrl = `https://gravatar.com/avatar/${emailHash}?d=mp`
   }
 
+  const effective = await resolveEffectivePermissions(context)
+  const seedRegistry = context.get('seedRegistry')
+
   return context.json({
     id: currentUser.id,
     email: currentUser.email,
@@ -146,6 +151,17 @@ settingsApp.get('/me', async (context) => {
       contentDelete: notificationPreferences.contentDelete ?? true,
       mediaUpload: notificationPreferences.mediaUpload ?? false,
     },
+    /** The caller's raw RBAC authority. Sprint 6 derives every UI visibility rule from
+     *  this and from nothing else. */
+    permissions: serializeEffectivePermissions(effective),
+    /** Developer/owner axis (`users.role === 'admin'`), orthogonal to RBAC and NOT a
+     *  permission: `manage_seeds` does not exist and must never exist (brief §2). Gates
+     *  the Seed Builder surface only. */
+    isDeveloper: currentUser.role === 'admin',
+    /** Scopes this caller may ASSIGN on (`'*'` + slugs for a global `manage_users`
+     *  holder; own scopes for a scoped one; `[]` otherwise). NOT derivable from
+     *  `GET /api/schema`, which is filtered by `content:read`. */
+    manageableScopes: manageableScopes(effective, seedRegistry.all()),
   })
 })
 

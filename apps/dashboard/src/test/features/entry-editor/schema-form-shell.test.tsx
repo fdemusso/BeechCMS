@@ -67,6 +67,8 @@ vi.mock("@/components/fields", () => ({
 
 import { SchemaFormShell } from "@/features/entry-editor"
 
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
+
 const branchTitle: Branch = { id: "br_title", alias: "title", label: "Title", type: "text" }
 
 const layout = {

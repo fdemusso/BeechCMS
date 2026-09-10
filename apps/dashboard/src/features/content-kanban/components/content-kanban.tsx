@@ -5,9 +5,10 @@ import type { Branch, KanbanColumnDescriptor, FilterGroup } from '@beechcms/core
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useKanbanColumns } from '../hooks/use-kanban-columns'
-import { useKanbanColumnQuery } from '../hooks/use-kanban-column-query'
 import { KanbanColumn } from './kanban-column'
 import { KanbanCard } from './kanban-card'
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
+import { useKanbanColumnQuery } from '../hooks/use-kanban-column-query'
 import { useKanbanBoard } from '../utils/use-kanban-board'
 import { useKanbanDrag } from '../utils/use-kanban-drag'
 import { buildKanbanCardDisplayModel } from '../utils/kanban-card-display'
@@ -28,6 +29,7 @@ interface ColumnProps {
   search: string
   collapsed: boolean
   canEdit: boolean
+  canCreate: boolean
   sortActive: boolean
   pendingCards: Map<string, { destColValue: string | null; position: string; axisValue: string | null }>
   cardConfig?: import('@beechcms/core').KanbanCardConfig
@@ -38,7 +40,7 @@ interface ColumnProps {
 
 function KanbanColumnConnected({
   seedSlug, seed, axisBranch, col, config, activeFilters, search, collapsed,
-  canEdit, sortActive, pendingCards, cardConfig,
+  canEdit, canCreate, sortActive, pendingCards, cardConfig,
   onToggleCollapse, onEdit, onCreateEntry,
 }: ColumnProps) {
   const fetchState = useKanbanColumnQuery(seedSlug, axisBranch, col, config, activeFilters, search, seed, cardConfig)
@@ -149,6 +151,7 @@ function KanbanColumnConnected({
       cards={cards}
       collapsed={collapsed}
       canEdit={canEdit}
+      canCreate={canCreate}
       sortActive={sortActive}
       onToggleCollapse={onToggleCollapse}
       onEdit={onEdit}
@@ -169,6 +172,7 @@ export function ContentKanban({
   cardConfig,
 }: ContentKanbanProps) {
   const { t } = useTranslation()
+  const { can } = usePermissions()
   const compat = React.useMemo(() => resolveKanbanConfig(seed), [seed])
 
   const axisBranch = React.useMemo(
@@ -285,7 +289,8 @@ export function ContentKanban({
                 activeFilters={activeFilters}
                 search={search}
                 collapsed={collapsed.has(colKey)}
-                canEdit={DEFAULT_CAN_EDIT}
+                canEdit={can('content:update', seedSlug)}
+                canCreate={can('content:create', seedSlug)}
                 sortActive={activeSort}
                 pendingCards={boardState.pending}
                 onToggleCollapse={() => toggleCollapse(col.value)}

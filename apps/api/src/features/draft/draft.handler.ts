@@ -17,12 +17,23 @@ import { applyVisibility } from '../../shared/policies/apply-policies'
 import { AppEnv } from '../../types'
 import { CONTENT_ERRORS } from '../content/constants'
 import { draftGuard } from './draft.middleware'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
+import { filterSeedsByPermission } from '../../shared/rbac/scoped-projection'
 
 const draftApp = new Hono<AppEnv>()
 
-// GET /drafts — Unified list of pending drafts across all draft-enabled seeds.
+// GET /drafts — Pending drafts across every draft-enabled seed the caller may read.
 draftApp.get('/drafts', async (context) => {
-  const seeds = context.get('seedRegistry').draftEnabled()
+  const effective = await resolveEffectivePermissions(context)
+  const seeds = filterSeedsByPermission(
+    context.get('seedRegistry').draftEnabled(),
+    effective,
+    'content:read',
+  )
+  // No readable draft-enabled seed: answer with an empty list rather than handing the
+  // repository an empty seed set.
+  if (seeds.length === 0) return context.json([])
+
   const repository = context.get('repository')
   const drafts = await repository.findPendingDrafts(seeds)
   return context.json(drafts)

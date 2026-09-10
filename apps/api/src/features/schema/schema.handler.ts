@@ -8,6 +8,8 @@ import { canEditLayout, formLayoutSchema, validateLayoutAgainstSeed } from '@bee
 import { publicProblem } from '../../public/problem-details'
 import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
+import { filterSeedsByPermission } from '../../shared/rbac/scoped-projection'
 
 type AppContext = Context<{ Bindings: Env; Variables: Variables }>
 
@@ -50,9 +52,15 @@ const schemaApp = new Hono<{ Bindings: Env; Variables: Variables }>()
  */
 schemaApp.get('/', async (context) => {
   const registry = context.get('seedRegistry')
+  const effective = await resolveEffectivePermissions(context)
+  // Seed isolation is per-seed, never row-level (brief §2): a caller who cannot read a
+  // seed must not learn it exists. `content:read` is the visibility floor — every other
+  // content permission is useless without it.
+  const visible = filterSeedsByPermission(registry.all(), effective, 'content:read')
+
   const layouts = await context.get('seedLayoutRepository').getAllAsMap()
 
-  const enriched = registry.all().map((seed) => {
+  const enriched = visible.map((seed) => {
     const stored = layouts.get(seed.slug)
     if (!stored) return seed
     const result = validateLayoutAgainstSeed(stored, seed)

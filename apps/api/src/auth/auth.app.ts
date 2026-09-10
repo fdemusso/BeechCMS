@@ -152,7 +152,7 @@ authApp.post('/auth/login', async (context) => {
     const hashToCompare = user?.passwordHash ?? DUMMY_PASSWORD_HASH
     const isValid = await verifyPassword(password, hashToCompare, context.get('hashProvider'))
 
-    if (!user || !isValid) return context.json({ error: AUTH_ERRORS.INVALID_CREDENTIALS }, 401)
+    if (!user || !isValid || !user.isActive) return context.json({ error: AUTH_ERRORS.INVALID_CREDENTIALS }, 401)
 
     const accessToken = await context.get('tokenService').issue({
       sub: user.id,
@@ -205,6 +205,10 @@ authApp.post('/auth/refresh', async (context) => {
     if (!user) {
       await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
       return context.json({ error: 'User not found' }, 401)
+    }
+    if (!user.isActive) {
+      await context.get('sessionRepository').revokeByHash(tokenHash, nowSeconds)
+      return context.json({ error: 'Invalid refresh token' }, 401)
     }
 
     // Issue new tokens before revoking the old one to avoid lockout on persistence failure

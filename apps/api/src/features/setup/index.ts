@@ -4,6 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
+import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/problem-details'
 import { DEMO_FIXTURES_BY_SEED_SLUG } from '../../shared/db/fixtures/demo-data.fixtures'
@@ -201,8 +202,9 @@ setupApp.post('/auth/setup', async (context) => {
   const normalizedName = typeof name === 'string' ? name.trim() : null
   const normalizedSurname = typeof surname === 'string' ? surname.trim() : null
 
+  const adminUserId = context.get('idGenerator').uuid()
   const created = await context.get('userRepository').createInitialAdmin({
-    id: context.get('idGenerator').uuid(),
+    id: adminUserId,
     email: normalizedEmail,
     passwordHash,
     role: 'admin',
@@ -218,6 +220,27 @@ setupApp.post('/auth/setup', async (context) => {
       detail: 'An administrator account already exists. Initial setup can only be performed once.',
     })
   }
+
+  // LOCKOUT GUARD. `user_role_assignments` ships empty, so without this grant the account
+  // just created would hold nothing and every `/api/*` route would 403 it. The role id is
+  // minted per-database by `0000_v040_base.sql`, so it is resolved BY NAME, never hardcoded.
+  const superAdminRole = (await context.get('roleRepository').listAll())
+    .find(role => role.name === SUPER_ADMIN_ROLE_NAME)
+
+  if (!superAdminRole) {
+    return publicProblem(context, {
+      type: 'rbac-not-provisioned',
+      title: 'RBAC not provisioned',
+      status: 500,
+      detail: `The '${SUPER_ADMIN_ROLE_NAME}' system role is missing. Run \`pnpm beech db:reset\`.`,
+    })
+  }
+
+  await context.get('roleAssignmentRepository').create({
+    userId: adminUserId,
+    roleId: superAdminRole.id,
+    scope: GLOBAL_SCOPE,
+  })
 
   if (track === 'developer' && loadDemoData === true) {
     try {

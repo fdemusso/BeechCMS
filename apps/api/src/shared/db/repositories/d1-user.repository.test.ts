@@ -13,6 +13,7 @@ const USER_ROW = {
   role: 'admin',
   avatar_url: null,
   notification_prefs: '{}',
+  is_active: 1,
 }
 
 function makeMockDb(opts: {
@@ -25,8 +26,8 @@ function makeMockDb(opts: {
   const firstMock = vi.fn().mockResolvedValue(firstResult)
   const allMock = vi.fn().mockResolvedValue({ results: allResults })
   const bindMock = vi.fn<(...args: any[]) => any>(() => ({ first: firstMock, all: allMock, run: runMock }))
-  // prepare() may be called without bind() for countAll (which calls .first() directly)
-  const prepareMock = vi.fn<(...args: any[]) => any>(() => ({ bind: bindMock, first: firstMock, run: runMock }))
+  // prepare() may be called without bind() for countAll/listAccounts (which call .first()/.all() directly)
+  const prepareMock = vi.fn<(...args: any[]) => any>(() => ({ bind: bindMock, first: firstMock, run: runMock, all: allMock }))
   return { db: { prepare: prepareMock } as any, prepareMock, bindMock, runMock, firstMock }
 }
 
@@ -56,6 +57,7 @@ describe('D1UserRepository', () => {
         role: 'admin',
         avatarUrl: null,
         notificationPreferences: '{}',
+        isActive: true,
       })
     })
 
@@ -200,6 +202,40 @@ describe('D1UserRepository', () => {
     it('returns false when no other user owns the email', async () => {
       const { db } = makeMockDb({ firstResult: null })
       expect(await new D1UserRepository(db).emailBelongsToAnotherUser('free@test.com', 'current')).toBe(false)
+    })
+  })
+
+  describe('listAccounts', () => {
+    it('maps rows to AccountSummary carrying no passwordHash key and reflecting is_active', async () => {
+      const { db } = makeMockDb({
+        allResults: [
+          { id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', is_active: 1, created_at: 100 },
+          { id: 'u2', email: 'c@d.com', name: null, surname: null, role: 'admin', is_active: 0, created_at: 200 },
+        ],
+      })
+      const accounts = await new D1UserRepository(db).listAccounts()
+
+      expect(accounts).toEqual([
+        { id: 'u1', email: 'a@b.com', name: 'A', surname: null, role: 'editor', isActive: true, createdAt: 100 },
+        { id: 'u2', email: 'c@d.com', name: null, surname: null, role: 'admin', isActive: false, createdAt: 200 },
+      ])
+      for (const account of accounts) {
+        expect(Object.hasOwn(account, 'passwordHash')).toBe(false)
+      }
+    })
+  })
+
+  describe('setActive', () => {
+    it('flips the column and returns true when a row changed', async () => {
+      const { db, bindMock } = makeMockDb({ runChanges: 1 })
+      const changed = await new D1UserRepository(db).setActive('u1', false)
+      expect(changed).toBe(true)
+      expect(bindMock).toHaveBeenCalledWith(0, 'u1')
+    })
+
+    it('returns false for an unknown id', async () => {
+      const { db } = makeMockDb({ runChanges: 0 })
+      expect(await new D1UserRepository(db).setActive('unknown', true)).toBe(false)
     })
   })
 })

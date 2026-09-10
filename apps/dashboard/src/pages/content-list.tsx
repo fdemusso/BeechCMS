@@ -6,6 +6,7 @@ import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useParams, useNavigate, useSearchParams, useLocation } from "react-router-dom"
 import { EntryEditorDialog } from "@/features/entry-editor"
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import type {
   SortingState,
   ColumnFiltersState,
@@ -102,6 +103,7 @@ export function ContentListPage() {
   const { slug, id: entryId } = useParams<{ slug: string; id?: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const { can } = usePermissions()
 
   const location = useLocation()
   const isCreatePath = location.pathname.endsWith("/create")
@@ -782,12 +784,13 @@ export function ContentListPage() {
               Copy ID
             </ContextMenuItem>
             <ContextMenuSeparator />
-            <ContextMenuItem onSelect={() => handleEdit(entry.id)}>
+            <ContextMenuItem onSelect={() => handleEdit(entry.id)} disabled={!can("content:update", slug!)}>
               Edit
             </ContextMenuItem>
             <ContextMenuItem
               onSelect={() => handleDelete(entry.id)}
               className="text-destructive focus:text-destructive"
+              disabled={!can("content:delete", slug!)}
             >
               Delete
             </ContextMenuItem>
@@ -795,7 +798,7 @@ export function ContentListPage() {
         )}
       </>
     ),
-    [selectedIds, handleBulkDelete, handleEdit, handleDelete]
+    [selectedIds, handleBulkDelete, handleEdit, handleDelete, can, slug]
   )
   const handlePageSizeChange = React.useCallback((size: number) => {
     setPageSize(size)
@@ -812,6 +815,8 @@ export function ContentListPage() {
           title={t("content.list.emptyTitle")}
           buttonText={t("content.list.emptyCreateFirst", { label: seed?.label })}
           onButtonClick={handleCreate}
+          buttonDisabled={!can("content:create", slug!)}
+          buttonTooltip="Manca il permesso 'content:create'"
         />
       ) : (
         <SmallCta
@@ -819,7 +824,7 @@ export function ContentListPage() {
           title={t("common.noResults")}
         />
       ),
-    [isEmptySeed, t, seed?.label, handleCreate]
+    [isEmptySeed, t, seed?.label, handleCreate, can, slug]
   )
 
   // Show error if seed doesn't exist
@@ -1055,6 +1060,7 @@ export function ContentListPage() {
           open={dialogOpen}
           onClose={handleDialogClose}
           defaultValues={createDefaults}
+          readonly={!can("content:update", target.schemaSlug)}
           onSaved={(info) => { if (activeViewId === 'kanban') kanbanSync(info) }}
         />
       )}

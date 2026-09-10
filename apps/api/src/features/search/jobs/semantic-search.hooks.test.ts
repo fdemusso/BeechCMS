@@ -7,25 +7,25 @@ import { semanticSearchHooks } from './semantic-search.hooks'
 import type { Seed, HookContext, IQueueService } from '@beechcms/core'
 
 const SEARCHABLE_SEED: Seed = {
-  id: 'seed_posts',
   slug: 'posts',
   label: 'Posts',
+  displayNameAlias: 'title',
   labelPlural: 'Posts',
   allowDrafts: false,
   branches: [
-    { id: 'br_01', alias: 'title', type: 'text', policies: { public: true, search: true } },
-    { id: 'br_02', alias: 'body', type: 'richtext', policies: { public: true, search: true } },
+    { id: 'br_01', alias: 'title', label: 'Title', type: 'text', policies: { public: true, search: true } },
+    { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext', policies: { public: true, search: true } },
   ],
 }
 
 const NON_SEARCHABLE_SEED: Seed = {
-  id: 'seed_logs',
   slug: 'logs',
   label: 'Logs',
+  displayNameAlias: 'count',
   labelPlural: 'Logs',
   allowDrafts: false,
   branches: [
-    { id: 'br_01', alias: 'count', type: 'number' },
+    { id: 'br_01', alias: 'count', label: 'Count', type: 'number' },
   ],
 }
 

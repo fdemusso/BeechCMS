@@ -64,6 +64,8 @@ vi.mock("react-router-dom", async () => {
   }
 })
 
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
+
 vi.mock("@/lib/auth-context", () => ({
   useAuth: () => ({
     user: { id: "u1", role: "admin" },

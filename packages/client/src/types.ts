@@ -14,10 +14,14 @@ export interface BeechClientConfig {
   headers?: Record<string, string> | Headers
 }
 
+/** Mirrors the DOM `RequestCache` union without depending on the `dom` lib. */
+export type FetchCacheMode =
+  | 'default' | 'no-store' | 'reload' | 'no-cache' | 'force-cache' | 'only-if-cached'
+
 export interface RequestOptions {
   headers?: Record<string, string> | Headers
   signal?: AbortSignal | null
-  cache?: RequestCache
+  cache?: FetchCacheMode
   next?: {
     revalidate?: number | false
     tags?: string[]
