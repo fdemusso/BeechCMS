@@ -12,6 +12,7 @@ import { WidgetLabPage } from "@/pages/widget-lab"
 import { ErrorPage } from "@/pages/error-page"
 import { ForgotPasswordPage } from "@/pages/forgot-password/ForgotPasswordPage"
 import { ResetPasswordPage } from "@/pages/reset-password/ResetPasswordPage"
+import { AcceptInvitePage } from "@/pages/accept-invite/AcceptInvitePage"
 import { SetupPage } from "@/pages/setup/SetupPage"
 import { DashboardPage } from "@/features/dashboard"
 import { DraftsListPage } from "@/pages/drafts-list"
@@ -148,6 +149,10 @@ const router = createBrowserRouter([
       {
         path: "/reset-password",
         element: <ResetPasswordPage />,
+      },
+      {
+        path: "/accept-invite",
+        element: <AcceptInvitePage />,
       },
       {
         path: "/",

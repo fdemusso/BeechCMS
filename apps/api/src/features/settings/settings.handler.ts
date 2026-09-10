@@ -7,7 +7,7 @@ import { Hono } from 'hono'
 import { sha256hex, type SiteSettings } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
-import { serializeEffectivePermissions } from '../../shared/rbac/scoped-projection'
+import { manageableScopes, serializeEffectivePermissions } from '../../shared/rbac/scoped-projection'
 
 const settingsApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -137,6 +137,7 @@ settingsApp.get('/me', async (context) => {
   }
 
   const effective = await resolveEffectivePermissions(context)
+  const seedRegistry = context.get('seedRegistry')
 
   return context.json({
     id: currentUser.id,
@@ -157,6 +158,10 @@ settingsApp.get('/me', async (context) => {
      *  permission: `manage_seeds` does not exist and must never exist (brief §2). Gates
      *  the Seed Builder surface only. */
     isDeveloper: currentUser.role === 'admin',
+    /** Scopes this caller may ASSIGN on (`'*'` + slugs for a global `manage_users`
+     *  holder; own scopes for a scoped one; `[]` otherwise). NOT derivable from
+     *  `GET /api/schema`, which is filtered by `content:read`. */
+    manageableScopes: manageableScopes(effective, seedRegistry.all()),
   })
 })
 

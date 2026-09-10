@@ -141,18 +141,22 @@ describe('Flow: RBAC scoped projections', () => {
     // 6. GET /api/settings/me as the scoped account.
     const scopedMeRes = await authed('/api/settings/me', scopedToken)
     expect(scopedMeRes.status).toBe(200)
-    const scopedMe = await scopedMeRes.json<{ permissions: { global: string[]; byScope: Record<string, string[]> }; isDeveloper: boolean }>()
+    const scopedMe = await scopedMeRes.json<{ permissions: { global: string[]; byScope: Record<string, string[]> }; isDeveloper: boolean; manageableScopes: string[] }>()
     expect(scopedMe.permissions.global).toEqual([])
     expect(scopedMe.permissions.byScope.posts).toContain('content:read')
     expect(scopedMe.isDeveloper).toBe(false)
+    // A content:read-only holder holds no manage_users anywhere ⇒ [].
+    expect(scopedMe.manageableScopes).toEqual([])
 
     // 7. GET /api/settings/me as the setup admin.
     const superMeRes = await authed('/api/settings/me', superToken)
-    const superMe = await superMeRes.json<{ permissions: { global: string[] }; isDeveloper: boolean }>()
+    const superMe = await superMeRes.json<{ permissions: { global: string[] }; isDeveloper: boolean; manageableScopes: string[] }>()
     expect(superMe.isDeveloper).toBe(true)
     expect(superMe.permissions.global.sort()).toEqual(
       ['content:read', 'content:create', 'content:update', 'content:delete', 'manage_users', 'manage_roles', 'view_analytics'].sort(),
     )
+    // Global manage_users holder ⇒ '*' plus every seed slug, sorted.
+    expect(superMe.manageableScopes).toEqual(['*', ...TEST_SEEDS.map(s => s.slug).sort()])
 
     // 8. A zero-trust account (created, never assigned): 200 with empty payloads
     //    everywhere, never a 500 and never a 403.
@@ -167,7 +171,10 @@ describe('Flow: RBAC scoped projections', () => {
 
     const zeroTrustMeRes = await authed('/api/settings/me', zeroTrustToken)
     expect(zeroTrustMeRes.status).toBe(200)
-    expect((await zeroTrustMeRes.json<{ permissions: unknown }>()).permissions).toEqual({ global: [], byScope: {} })
+    const zeroTrustMe = await zeroTrustMeRes.json<{ permissions: unknown; manageableScopes: string[] }>()
+    expect(zeroTrustMe.permissions).toEqual({ global: [], byScope: {} })
+    // No manage_users anywhere ⇒ learns nothing about the seed catalogue.
+    expect(zeroTrustMe.manageableScopes).toEqual([])
 
     const zeroTrustSchemaRes = await authed('/api/schema', zeroTrustToken)
     expect(zeroTrustSchemaRes.status).toBe(200)

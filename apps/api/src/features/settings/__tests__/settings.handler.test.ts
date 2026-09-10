@@ -249,6 +249,7 @@ describe('Settings Handler', () => {
       expect(body.surname).toBe('User')
       expect(body.avatarUrl).toContain('gravatar.com')
       expect(body.notificationPrefs.contentUpdate).toBe(false)
+      expect(body.manageableScopes).toEqual([])
     })
 
     it('emits the caller\'s serialized permissions and isDeveloper=false for a non-admin', async () => {
@@ -263,6 +264,19 @@ describe('Settings Handler', () => {
       const body = await res.json() as any
       expect(body.permissions).toEqual({ global: [], byScope: { posts: ['content:read'] } })
       expect(body.isDeveloper).toBe(false)
+      expect(body.manageableScopes).toEqual([])
+    })
+
+    it('emits manageableScopes for a seed-scoped manage_users holder', async () => {
+      const app = buildApp({
+        effectivePermissions: {
+          global: new Set(),
+          byScope: new Map([['posts', new Set(['manage_users'])]]),
+        },
+      })
+      const res = await app.request('/me')
+      const body = await res.json() as any
+      expect(body.manageableScopes).toEqual(['posts'])
     })
 
     it('emits isDeveloper=true when users.role is admin', async () => {
@@ -279,6 +293,7 @@ describe('Settings Handler', () => {
       const body = await res.json() as any
       expect(body.isDeveloper).toBe(true)
       expect(body.permissions.global).toEqual(['content:read', 'manage_users'])
+      expect(body.manageableScopes).toEqual(['*', 'posts'])
     })
   })
 

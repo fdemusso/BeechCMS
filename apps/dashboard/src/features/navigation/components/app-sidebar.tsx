@@ -13,7 +13,8 @@ import { getStaticMenu, getContentCategoryMenu, getSettingsMenu, buildContentMen
 import { logout } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { useProfile } from "@/features/settings"
-import { useSchema } from "@/features/shared"
+import { useSchema, usePermissions } from "@/features/shared"
+import type { MenuGates } from "@/config/dashboard-menu"
 import {
   Sidebar,
   SidebarContent,
@@ -30,7 +31,14 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
   const { user: storedUser } = useAuth()
   const { data: profile } = useProfile()
   const { data: seeds = [] } = useSchema()
-  
+  const { canGlobally, canAnywhere } = usePermissions()
+
+  const gates: MenuGates = React.useMemo(() => ({
+    viewAnalytics: canGlobally('view_analytics'),
+    readContent: canAnywhere('content:read'),
+    createContent: canAnywhere('content:create'),
+  }), [canGlobally, canAnywhere])
+
   const fullName = profile
     ? [profile.name, profile.surname].filter(Boolean).join(' ')
     : storedUser
@@ -44,6 +52,7 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
   }
 
   const contentGroups = buildContentMenu(seeds, t("sidebar.contents"))
+  const contentCategoryItems = getContentCategoryMenu(t, gates)
 
   return (
     <Sidebar
@@ -72,8 +81,10 @@ export const AppSidebar = React.memo(function AppSidebar({ ...props }: React.Com
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={getStaticMenu(t)} groupLabel={t("sidebar.navigation")} />
-        <NavMain items={getContentCategoryMenu(t)} groupLabel={t("sidebar.contentGroup")} />
+        <NavMain items={getStaticMenu(t, gates)} groupLabel={t("sidebar.navigation")} />
+        {contentCategoryItems.length > 0 && (
+          <NavMain items={contentCategoryItems} groupLabel={t("sidebar.contentGroup")} />
+        )}
         {contentGroups.map((group, i) => (
           <NavMain
             key={group.label}

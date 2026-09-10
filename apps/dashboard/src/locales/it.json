@@ -396,7 +396,8 @@
     "groups": {
       "account": "Account",
       "system": "Sistema & UI",
-      "models": "Modelli Dati"
+      "models": "Modelli Dati",
+      "access": "Accesso"
     },
     "tabs": {
       "profile": "Profilo",
@@ -405,7 +406,10 @@
       "storage": "Storage",
       "notifications": "Notifiche",
       "general": "Sito",
-      "connectedApps": "App connesse"
+      "connectedApps": "App connesse",
+      "users": "Utenti",
+      "roles": "Ruoli",
+      "invitations": "Inviti"
     },
     "notifications": {
       "title": "Notifiche in-app",
@@ -799,7 +803,10 @@
     "contentGroup": "Content",
     "createNew": "Crea Nuovo",
     "scheduled": "Programmati",
-    "analytics": "Analitiche"
+    "analytics": "Analitiche",
+    "disabled": {
+      "createContent": "Non puoi creare contenuti qui"
+    }
   },
   "drafts": {
     "title": "Bozze",
@@ -1474,5 +1481,108 @@
       "revokeSuccess": "Accesso revocato",
       "revokeError": "Errore nella revoca dell'accesso"
     }
+  },
+  "rbac": {
+    "users": {
+      "title": "Utenti",
+      "create": "Crea account",
+      "email": "Email",
+      "name": "Nome",
+      "surname": "Cognome",
+      "password": "Password",
+      "status": "Stato",
+      "active": "Attivo",
+      "disabled": "Disattivato",
+      "roles": "Ruoli",
+      "you": "Tu",
+      "deactivate": "Disattiva",
+      "reactivate": "Riattiva",
+      "manageRoles": "Gestisci ruoli",
+      "zeroTrustHint": "L'account viene creato senza ruolo e senza accesso finché non viene assegnato.",
+      "deactivateWarning": "Tutte le sessioni attive vengono revocate immediatamente.",
+      "createSuccess": "Account creato"
+    },
+    "roles": {
+      "title": "Ruoli",
+      "create": "Crea ruolo",
+      "edit": "Modifica ruolo",
+      "delete": "Elimina ruolo",
+      "name": "Nome",
+      "description": "Descrizione",
+      "permissions": "Permessi",
+      "system": "Sistema",
+      "deleteWarning": "Ogni assegnazione tramite questo ruolo viene rimossa a cascata.",
+      "saveSuccess": "Ruolo salvato"
+    },
+    "invitations": {
+      "title": "Inviti",
+      "invite": "Invita",
+      "status": "Stato",
+      "expires": "Scade",
+      "regenerate": "Rigenera",
+      "revoke": "Revoca",
+      "emailSent": "Invito inviato via email",
+      "revokeWarning": "Questo link di invito smetterà di funzionare.",
+      "statuses": {
+        "pending": "In attesa",
+        "accepted": "Accettato",
+        "expired": "Scaduto"
+      }
+    },
+    "assignments": {
+      "title": "Ruoli per {{email}}",
+      "add": "Aggiungi",
+      "remove": "Rimuovi",
+      "role": "Ruolo",
+      "scope": "Ambito",
+      "inactiveScope": "Ambito inattivo",
+      "empty": "Ancora nessuna assegnazione"
+    },
+    "scope": {
+      "global": "Tutti i seed (globale)",
+      "none": "Nessun ambito disponibile",
+      "select": "Seleziona un ambito"
+    },
+    "permissions": {
+      "content:read": "Leggi contenuti",
+      "content:create": "Crea contenuti",
+      "content:update": "Aggiorna contenuti",
+      "content:delete": "Elimina contenuti",
+      "manage_users": "Gestisci utenti",
+      "manage_roles": "Gestisci ruoli",
+      "view_analytics": "Visualizza analitiche"
+    },
+    "errors": {
+      "generic": "Qualcosa è andato storto. Riprova.",
+      "validation-failed": "Alcuni campi non sono validi.",
+      "not-found": "Non trovato.",
+      "forbidden": "Non sei autorizzato a farlo.",
+      "escalation-refused": "Non puoi concedere autorità che non possiedi.",
+      "email-taken": "Questa email è già registrata.",
+      "role-name-taken": "Questo nome ruolo è già in uso.",
+      "system-role-immutable": "I ruoli di sistema non possono essere modificati.",
+      "last-global-admin": "Questo lascerebbe la piattaforma senza un amministratore globale attivo.",
+      "unknown-scope": "Quell'ambito non è un seed valido né l'ambito globale.",
+      "email-unavailable": "Il servizio email non è configurato. L'invito non può essere inviato.",
+      "invitation-invalid": "Questo link di invito non è valido o è scaduto.",
+      "invitation-revoked": "Questo invito è stato revocato.",
+      "invitation-already-used": "Questo invito è già stato utilizzato."
+    }
+  },
+  "acceptInvite": {
+    "title": "Accetta invito",
+    "desc": "Imposta una password per attivare il tuo account.",
+    "invitedAs": "Sei stato invitato come {{role}}",
+    "onScope": "su {{scope}}",
+    "invalidOrExpired": "Questo link di invito non è valido o è scaduto.",
+    "password": "Password",
+    "confirm": "Conferma password",
+    "mismatch": "Le password non coincidono",
+    "tooShort": "La password deve contenere almeno 8 caratteri",
+    "tooLong": "La password non può superare i 128 caratteri",
+    "submit": "Attiva account",
+    "success": "Account attivato. Ora puoi accedere.",
+    "accountExists": "Un account con questa email esiste già. Accedi invece.",
+    "genericError": "Qualcosa è andato storto. Riprova."
   }
 }

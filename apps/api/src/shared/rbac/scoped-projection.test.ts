@@ -4,7 +4,8 @@
 
 import { describe, it, expect } from 'vitest'
 import type { EffectivePermissions, Seed } from '@beechcms/core'
-import { filterSeedsByPermission, serializeEffectivePermissions } from './scoped-projection'
+import { GLOBAL_SCOPE } from '@beechcms/core'
+import { filterSeedsByPermission, manageableScopes, serializeEffectivePermissions } from './scoped-projection'
 
 const ARTICLES: Seed = {
   slug: 'articles',
@@ -73,5 +74,32 @@ describe('serializeEffectivePermissions', () => {
 
   it('empty authority serializes to { global: [], byScope: {} }', () => {
     expect(serializeEffectivePermissions(EMPTY)).toEqual({ global: [], byScope: {} })
+  })
+})
+
+describe('manageableScopes', () => {
+  it('a global manage_users holder gets GLOBAL_SCOPE plus every sorted seed slug', () => {
+    const effective: EffectivePermissions = { global: new Set(['manage_users']), byScope: new Map() }
+    expect(manageableScopes(effective, [PAGES, ARTICLES])).toEqual([GLOBAL_SCOPE, 'articles', 'pages'])
+  })
+
+  it('a seed-scoped manage_users holder gets only their own scopes, never GLOBAL_SCOPE', () => {
+    const effective: EffectivePermissions = {
+      global: new Set(),
+      byScope: new Map([['articles', new Set(['manage_users'])]]),
+    }
+    expect(manageableScopes(effective, [ARTICLES, PAGES])).toEqual(['articles'])
+  })
+
+  it('no manage_users anywhere returns []', () => {
+    expect(manageableScopes(EMPTY, [ARTICLES, PAGES])).toEqual([])
+  })
+
+  it('a scope holding a different permission is excluded', () => {
+    const effective: EffectivePermissions = {
+      global: new Set(),
+      byScope: new Map([['articles', new Set(['content:update'])]]),
+    }
+    expect(manageableScopes(effective, [ARTICLES, PAGES])).toEqual([])
   })
 })
