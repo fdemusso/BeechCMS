@@ -521,7 +521,7 @@ CREATE INDEX IF NOT EXISTS idx_ura_scope ON user_role_assignments(scope);
 --    params through it, so a migration must not mint a differently shaped id.
 --    `roles.name` is UNIQUE, so `INSERT OR IGNORE` keeps the seed idempotent and
 --    every downstream statement resolves the id by name rather than assuming it.
-INSERT OR IGNORE INTO roles (id, name, description, is_system)
+INSERT OR IGNORE INTO roles (id, name, description, is_system, icon)
 VALUES (
     lower(
         hex(randomblob(4)) || '-' || hex(randomblob(2)) || '-4' ||
@@ -531,7 +531,8 @@ VALUES (
     ),
     'SuperAdmin',
     'Full platform control across every scope. Cannot manage schema.',
-    1
+    1,
+    'Shield'
 );
 
 INSERT OR IGNORE INTO role_permissions (role_id, permission)

@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { IRoleRepository, RoleRecord, NewRoleInput, IIdGenerator, Permission } from '@beechcms/core'
-import { isPermission } from '@beechcms/core'
+import { isPermission, SUPER_ADMIN_ROLE_NAME } from '@beechcms/core'
 
 type RoleRow = {
   id: string
@@ -138,7 +138,7 @@ export class D1RoleRepository implements IRoleRepository {
       id: row.id,
       name: row.name,
       description: row.description,
-      icon: row.icon ?? null,
+      icon: row.icon ?? (row.name === SUPER_ADMIN_ROLE_NAME ? 'Shield' : null),
       isSystem: row.is_system === 1,
       permissions: byRole.get(row.id) ?? [],
       createdAt: row.created_at,

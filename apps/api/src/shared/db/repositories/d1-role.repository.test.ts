@@ -105,6 +105,7 @@ describe('D1RoleRepository', () => {
     const found = await repo.findById(superAdmin!.id)
 
     expect(found?.isSystem).toBe(true)
+    expect(found?.icon).toBe('Shield')
     expect(new Set(found?.permissions)).toEqual(
       new Set([
         'content:read',
