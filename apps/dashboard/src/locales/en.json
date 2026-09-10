@@ -396,7 +396,8 @@
     "groups": {
       "account": "Account",
       "system": "System & UI",
-      "models": "Data Models"
+      "models": "Data Models",
+      "access": "Access"
     },
     "tabs": {
       "profile": "Profile",
@@ -405,7 +406,10 @@
       "storage": "Storage",
       "notifications": "Notifications",
       "general": "Site",
-      "connectedApps": "Connected apps"
+      "connectedApps": "Connected apps",
+      "users": "Users",
+      "roles": "Roles",
+      "invitations": "Invitations"
     },
     "notifications": {
       "title": "In-app notifications",
@@ -799,7 +803,10 @@
     "contentGroup": "Content",
     "createNew": "Create New",
     "scheduled": "Scheduled",
-    "analytics": "Analytics"
+    "analytics": "Analytics",
+    "disabled": {
+      "createContent": "You cannot create content here"
+    }
   },
   "drafts": {
     "title": "Drafts",
@@ -1474,5 +1481,108 @@
       "revokeSuccess": "Access revoked",
       "revokeError": "Error revoking access"
     }
+  },
+  "rbac": {
+    "users": {
+      "title": "Users",
+      "create": "Create account",
+      "email": "Email",
+      "name": "Name",
+      "surname": "Surname",
+      "password": "Password",
+      "status": "Status",
+      "active": "Active",
+      "disabled": "Disabled",
+      "roles": "Roles",
+      "you": "You",
+      "deactivate": "Deactivate",
+      "reactivate": "Reactivate",
+      "manageRoles": "Manage roles",
+      "zeroTrustHint": "The account is created with no role and no access until assigned.",
+      "deactivateWarning": "All active sessions are revoked immediately.",
+      "createSuccess": "Account created"
+    },
+    "roles": {
+      "title": "Roles",
+      "create": "Create role",
+      "edit": "Edit role",
+      "delete": "Delete role",
+      "name": "Name",
+      "description": "Description",
+      "permissions": "Permissions",
+      "system": "System",
+      "deleteWarning": "Every assignment through this role is removed by cascade.",
+      "saveSuccess": "Role saved"
+    },
+    "invitations": {
+      "title": "Invitations",
+      "invite": "Invite",
+      "status": "Status",
+      "expires": "Expires",
+      "regenerate": "Regenerate",
+      "revoke": "Revoke",
+      "emailSent": "Invitation emailed",
+      "revokeWarning": "This invitation link will stop working.",
+      "statuses": {
+        "pending": "Pending",
+        "accepted": "Accepted",
+        "expired": "Expired"
+      }
+    },
+    "assignments": {
+      "title": "Roles for {{email}}",
+      "add": "Add",
+      "remove": "Remove",
+      "role": "Role",
+      "scope": "Scope",
+      "inactiveScope": "Inactive scope",
+      "empty": "No assignments yet"
+    },
+    "scope": {
+      "global": "All seeds (global)",
+      "none": "No scopes available",
+      "select": "Select a scope"
+    },
+    "permissions": {
+      "content:read": "Read content",
+      "content:create": "Create content",
+      "content:update": "Update content",
+      "content:delete": "Delete content",
+      "manage_users": "Manage users",
+      "manage_roles": "Manage roles",
+      "view_analytics": "View analytics"
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "validation-failed": "Some fields are invalid.",
+      "not-found": "Not found.",
+      "forbidden": "You are not allowed to do this.",
+      "escalation-refused": "You cannot grant authority you do not hold.",
+      "email-taken": "This email is already registered.",
+      "role-name-taken": "This role name is already in use.",
+      "system-role-immutable": "System roles cannot be modified.",
+      "last-global-admin": "This would leave the platform with no active global administrator.",
+      "unknown-scope": "That scope is not a valid seed or the global scope.",
+      "email-unavailable": "The email service is not configured. The invitation could not be sent.",
+      "invitation-invalid": "This invitation link is invalid or has expired.",
+      "invitation-revoked": "This invitation has been revoked.",
+      "invitation-already-used": "This invitation was already used."
+    }
+  },
+  "acceptInvite": {
+    "title": "Accept invitation",
+    "desc": "Set a password to activate your account.",
+    "invitedAs": "You were invited as {{role}}",
+    "onScope": "on {{scope}}",
+    "invalidOrExpired": "This invitation link is invalid or has expired.",
+    "password": "Password",
+    "confirm": "Confirm password",
+    "mismatch": "Passwords do not match",
+    "tooShort": "Password must be at least 8 characters",
+    "tooLong": "Password cannot exceed 128 characters",
+    "submit": "Activate account",
+    "success": "Account activated. You can now log in.",
+    "accountExists": "An account with this email already exists. Sign in instead.",
+    "genericError": "Something went wrong. Please try again."
   }
 }

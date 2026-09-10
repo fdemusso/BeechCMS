@@ -5,10 +5,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi } from '../api/settings.api'
 import type { NotificationPrefs } from '../types/settings.types'
+import { ME_QUERY_KEY, useMe } from "@/features/shared"
 
 export const SETTINGS_QUERY_KEYS = {
   all: ['settings'] as const,
-  profile: () => [...SETTINGS_QUERY_KEYS.all, 'profile'] as const,
+  /** Same key as `features/shared`'s `useMe()` — one cache entry for `/settings/me`. */
+  profile: () => ME_QUERY_KEY,
   sessions: () => [...SETTINGS_QUERY_KEYS.all, 'sessions'] as const,
   activity: () => [...SETTINGS_QUERY_KEYS.all, 'activity'] as const,
   storage: () => [...SETTINGS_QUERY_KEYS.all, 'storage'] as const,
@@ -34,12 +36,10 @@ export function useUpdateGeneralSettings() {
   })
 }
 
+/** @deprecated for new code — prefer `useMe()` from `@/features/shared`.
+ *  Kept as the profile-shaped view onto the same query. */
 export function useProfile() {
-  return useQuery({
-    queryKey: SETTINGS_QUERY_KEYS.profile(),
-    queryFn: settingsApi.getProfile,
-    staleTime: 5 * 60 * 1000,
-  })
+  return useMe()
 }
 
 export function useUpdateProfile() {
