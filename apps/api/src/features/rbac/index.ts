@@ -8,6 +8,7 @@ import type { Env, Variables } from '../../types'
 import { createUserHandler, getUserHandler, listUsersHandler, setUserActiveHandler } from './users'
 import { createRoleHandler, deleteRoleHandler, listRolesHandler, updateRoleHandler } from './roles'
 import { createAssignmentHandler, deleteAssignmentHandler, listAssignmentsHandler } from './assignments'
+import { createInvitationHandler, listInvitationsHandler, regenerateInvitationHandler, revokeInvitationHandler } from './invitations'
 
 /**
  * RBAC administration feature router, mounted at `/api/rbac` under `apiProtected`.
@@ -39,3 +40,8 @@ rbacApp.delete('/roles/:roleId', deleteRoleHandler)
 
 rbacApp.post('/assignments', createAssignmentHandler)
 rbacApp.delete('/assignments/:assignmentId', deleteAssignmentHandler)
+
+rbacApp.get('/invitations', listInvitationsHandler)
+rbacApp.post('/invitations', createInvitationHandler)
+rbacApp.post('/invitations/:invitationId/regenerate', regenerateInvitationHandler)
+rbacApp.delete('/invitations/:invitationId', revokeInvitationHandler)

@@ -20,7 +20,7 @@
  *   PasswordChangedEmailParams — shape dei parametri per sendPasswordChangedEmail
  */
 
-export { sendPasswordResetEmail, sendPasswordChangedEmail, sendAutomationMail } from './email.service'
+export { sendPasswordResetEmail, sendPasswordChangedEmail, sendAutomationMail, sendInvitationEmail } from './email.service'
 export {
   resolveEmailLocale,
   SUPPORTED_EMAIL_LOCALES,
@@ -30,4 +30,5 @@ export type {
   PasswordResetEmailParams,
   PasswordChangedEmailParams,
   AutomationMailParams,
+  InvitationEmailParams,
 } from './email.types'

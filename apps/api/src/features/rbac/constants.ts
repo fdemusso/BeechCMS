@@ -28,6 +28,14 @@ export const RBAC_ERRORS = {
   LAST_GLOBAL_ADMIN: 'last-global-admin',
   /** Scope is neither `'*'` nor the slug of an active seed. */
   UNKNOWN_SCOPE: 'unknown-scope',
+  /** Email service is not configured, so no invitation can be delivered. */
+  EMAIL_UNAVAILABLE: 'email-unavailable',
+  /** Token is unknown, expired or already redeemed (deliberately indistinguishable). */
+  INVITATION_INVALID: 'invitation-invalid',
+  /** The issuer no longer holds the authority the invitation would grant. */
+  INVITATION_REVOKED: 'invitation-revoked',
+  /** A consumed invitation cannot be regenerated. */
+  INVITATION_ALREADY_USED: 'invitation-already-used',
 } as const
 
 export type RbacErrorCode = (typeof RBAC_ERRORS)[keyof typeof RBAC_ERRORS]
