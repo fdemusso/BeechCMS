@@ -73,4 +73,26 @@ describe("AcceptInvitePage", () => {
       )
     })
   })
+
+  it("shows password strength indicator when typing password", async () => {
+    vi.mocked(axios.get).mockResolvedValueOnce({
+      data: { email: "invitee@beech.local", roleName: "Editor", scope: "articles" },
+    })
+
+    const user = userEvent.setup()
+    renderPage("/accept-invite?token=good-token")
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue("invitee@beech.local")).toBeInTheDocument()
+    })
+
+    const strengthIndicator = screen.getByTestId("password-strength-indicator")
+    expect(strengthIndicator).toHaveClass("invisible")
+
+    const passwordInput = screen.getByLabelText(/^password$/i)
+    await user.type(passwordInput, "weak")
+    expect(strengthIndicator).not.toHaveClass("invisible")
+    expect(screen.getByText(/weak|debole/i)).toBeInTheDocument()
+  })
 })
+

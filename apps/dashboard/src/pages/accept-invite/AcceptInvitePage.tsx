@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
+import { PasswordStrengthIndicator } from "@/components/ui/password-strength-indicator"
 import { GLOBAL_SCOPE } from "@beechcms/core"
 
 const MIN_PASSWORD_LENGTH = 8
@@ -156,6 +157,7 @@ export function AcceptInvitePage() {
                       id="ai-password"
                       type={isPasswordVisible ? "text" : "password"}
                       autoComplete="new-password"
+                      placeholder={t("acceptInvite.passwordPlaceholder", { defaultValue: t("setup.passwordPlaceholder") })}
                       value={password}
                       className={cn("pr-10", error ? "border-destructive" : "")}
                       onChange={(e) => { setPassword(e.target.value); setError(null) }}
@@ -175,6 +177,12 @@ export function AcceptInvitePage() {
                       )}
                     </Button>
                   </div>
+                  <PasswordStrengthIndicator
+                    password={password}
+                    name={name}
+                    surname={surname}
+                    email={preview.email}
+                  />
                 </Field>
                 <Field>
                   <FieldLabel htmlFor="ai-confirm">{t("acceptInvite.confirm")}</FieldLabel>
@@ -183,6 +191,7 @@ export function AcceptInvitePage() {
                       id="ai-confirm"
                       type={isConfirmVisible ? "text" : "password"}
                       autoComplete="new-password"
+                      placeholder={t("acceptInvite.confirmPlaceholder", { defaultValue: t("setup.confirmPlaceholder") })}
                       value={confirm}
                       className={cn("pr-10", error ? "border-destructive" : "")}
                       onChange={(e) => { setConfirm(e.target.value); setError(null) }}
