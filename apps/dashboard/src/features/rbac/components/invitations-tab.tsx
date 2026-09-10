@@ -26,10 +26,12 @@ import { useInvitations, useRegenerateInvitation, useRevokeInvitation } from "..
 import { InviteDialog } from "./invite-dialog"
 import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
 
+const relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" })
+
 function formatRelative(ts: number): string {
   const diffMs = ts * 1000 - Date.now()
   const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
-  return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(diffDays, "day")
+  return relativeTimeFormatter.format(diffDays, "day")
 }
 
 export function InvitationsTab() {

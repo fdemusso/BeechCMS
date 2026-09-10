@@ -47,7 +47,7 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    if (!roleId || !scope) return
+    if (!roleId || !scope || createInvitation.isPending) return
     setError(null)
     try {
       await createInvitation.mutateAsync({ email, roleId, scope })

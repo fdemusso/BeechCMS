@@ -42,7 +42,6 @@ export function AutomationPanel({
   const { t } = useTranslation()
   const { can } = usePermissions()
   const canUpdateGlobal = can('content:update', '*')
-  const canDeleteGlobal = can('content:delete', '*')
 
   const { data: automations = [], isLoading } = useAutomations(open ? seedSlug : undefined)
   const toggleMutation = useToggleAutomation(seedSlug)

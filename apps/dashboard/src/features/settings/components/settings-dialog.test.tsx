@@ -35,9 +35,9 @@ function setPermissions(overrides: Partial<ReturnType<typeof basePermissions>> =
 function basePermissions() {
   return {
     effective: { global: new Set(), byScope: new Map() },
-    can: () => false,
-    canAnywhere: () => false,
-    canGlobally: () => false,
+    can: (_permission: string, _scope?: string) => false,
+    canAnywhere: (_permission: string) => false,
+    canGlobally: (_permission: string) => false,
     isDeveloper: false,
     manageableScopes: [],
     isLoading: false,

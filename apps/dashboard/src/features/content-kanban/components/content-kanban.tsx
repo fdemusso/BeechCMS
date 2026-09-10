@@ -5,7 +5,6 @@ import type { Branch, KanbanColumnDescriptor, FilterGroup } from '@beechcms/core
 import { useQueryClient, type InfiniteData } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { useKanbanColumns } from '../hooks/use-kanban-columns'
-import type { Seed, ResolvedKanbanConfig, ContentCardConfig } from '@beechcms/core'
 import { KanbanColumn } from './kanban-column'
 import { KanbanCard } from './kanban-card'
 import { usePermissions } from "@/features/shared/hooks/use-permissions"

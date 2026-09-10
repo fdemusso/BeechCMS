@@ -5,27 +5,11 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import type { Permission } from "@beechcms/core"
-import { Eye, Plus, Edit, Trash2, Users, ShieldCheck, Chart } from "reicon-react"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
-
-export interface PermissionMeta {
-  readonly icon: React.ComponentType<{ className?: string }>
-  readonly translationKey: string
-  readonly defaultLabel: string
-}
-
-export const PERMISSION_METADATA: Record<Permission, PermissionMeta> = {
-  "content:read": { icon: Eye, translationKey: "rbac.permissions.content:read", defaultLabel: "Read content" },
-  "content:create": { icon: Plus, translationKey: "rbac.permissions.content:create", defaultLabel: "Create content" },
-  "content:update": { icon: Edit, translationKey: "rbac.permissions.content:update", defaultLabel: "Update content" },
-  "content:delete": { icon: Trash2, translationKey: "rbac.permissions.content:delete", defaultLabel: "Delete content" },
-  "manage_users": { icon: Users, translationKey: "rbac.permissions.manage_users", defaultLabel: "Manage users" },
-  "manage_roles": { icon: ShieldCheck, translationKey: "rbac.permissions.manage_roles", defaultLabel: "Manage roles" },
-  "view_analytics": { icon: Chart, translationKey: "rbac.permissions.view_analytics", defaultLabel: "View analytics" },
-}
+import { PERMISSION_METADATA } from "./permission-metadata"
 
 export interface PermissionBadgeProps {
   readonly permission: string

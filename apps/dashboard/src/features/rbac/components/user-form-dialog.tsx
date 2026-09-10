@@ -39,6 +39,7 @@ export function UserFormDialog({ open, onOpenChange }: UserFormDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (createUser.isPending) return
     setError(null)
     try {
       await createUser.mutateAsync({ email, password, name: name || null, surname: surname || null })

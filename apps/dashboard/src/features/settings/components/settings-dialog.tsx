@@ -114,10 +114,10 @@ export function SettingsDialog({
       id: "account",
       title: t("settings.groups.account", "Account"),
       items: [
-        { id: "profile", label: t("settings.tabs.profile", "Profile"), icon: User },
-        { id: "security", label: t("settings.tabs.security", "Security"), icon: Shield },
-        { id: "connected-apps", label: t("settings.tabs.connectedApps", "Connected apps"), icon: Key },
-        { id: "notifications", label: t("settings.tabs.notifications", "Notifications"), icon: Bell },
+        { id: "profile" as const, label: t("settings.tabs.profile", "Profile"), icon: User },
+        { id: "security" as const, label: t("settings.tabs.security", "Security"), icon: Shield },
+        { id: "connected-apps" as const, label: t("settings.tabs.connectedApps", "Connected apps"), icon: Key },
+        { id: "notifications" as const, label: t("settings.tabs.notifications", "Notifications"), icon: Bell },
       ],
     },
     {

@@ -27,30 +27,7 @@ import { resolveIcon, ICON_NAMES } from "@/lib/icon-registry"
 import { cn } from "@/lib/utils"
 import { useCreateRole, useUpdateRole } from "../hooks/use-rbac"
 import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
-
-export const PERMISSION_GROUPS = [
-  {
-    id: "content",
-    titleKey: "rbac.roles.groupContent",
-    defaultTitle: "Content",
-    permissions: [
-      "content:read",
-      "content:create",
-      "content:update",
-      "content:delete",
-    ] as const,
-  },
-  {
-    id: "system",
-    titleKey: "rbac.roles.groupSystem",
-    defaultTitle: "System",
-    permissions: [
-      "manage_users",
-      "manage_roles",
-      "view_analytics",
-    ] as const,
-  },
-] as const
+import { PERMISSION_GROUPS } from "./permission-groups"
 
 export interface RoleFormDialogProps {
   open: boolean
@@ -94,6 +71,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
 
   const SelectedIcon = resolveIcon(icon || "Users")
   const heldAnywhere = React.useMemo(() => permissionsHeldAnywhere(effective), [effective])
+  const permissionSet = React.useMemo(() => new Set(permissions), [permissions])
 
   const togglePermission = (permission: Permission) => {
     setPermissions((current) =>
@@ -103,6 +81,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
+    if (createRole.isPending || updateRole.isPending) return
     setError(null)
     try {
       const payload = {
@@ -246,7 +225,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
                               )}
                             >
                               <Checkbox
-                                checked={permissions.includes(permission)}
+                                checked={permissionSet.has(permission)}
                                 disabled={disabled}
                                 onCheckedChange={() => togglePermission(permission)}
                               />
