@@ -5,6 +5,8 @@ import { AutomationPanel } from "../features/automations/components/automation-p
 import { ContentToolbar } from "../features/content-toolbar/content-toolbar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
+
 vi.mock("@/lib/auth-context", () => ({
   useAuth: () => ({ user: { name: "Test User", email: "test@example.com" } }),
 }))

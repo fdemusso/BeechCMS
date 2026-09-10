@@ -2,6 +2,7 @@ import * as React from 'react'
 import { ChevronDown, ChevronRight, Plus } from 'reicon-react'
 import { useDroppable } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_WIDTH_PX } from '../constants'
 import type { KanbanCardDisplayModel, KanbanColumnFetchState } from '../types'
 import { KanbanColumnVirtualizer } from './kanban-column-virtualizer'
@@ -13,6 +14,7 @@ interface KanbanColumnProps {
   cards: KanbanCardDisplayModel[]
   collapsed: boolean
   canEdit: boolean
+  canCreate: boolean
   sortActive: boolean
   onToggleCollapse: () => void
   onEdit: (id: string) => void
@@ -35,6 +37,7 @@ export const KanbanColumn = React.memo(function KanbanColumn({
   cards,
   collapsed,
   canEdit,
+  canCreate,
   sortActive,
   onToggleCollapse,
   onEdit,
@@ -74,9 +77,24 @@ export const KanbanColumn = React.memo(function KanbanColumn({
             {hasUnloaded && <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-primary align-middle" aria-hidden="true" />}
           </span>
           {onCreateEntry && (
-            <button type="button" onClick={onCreateEntry} className="rounded p-0.5 hover:bg-muted" aria-label={`Nuova voce in ${label}`}>
-              <Plus className="h-3.5 w-3.5" />
-            </button>
+            canCreate ? (
+              <button type="button" onClick={onCreateEntry} className="rounded p-0.5 hover:bg-muted" aria-label={`Nuova voce in ${label}`}>
+                <Plus className="h-3.5 w-3.5" />
+              </button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <button type="button" disabled className="rounded p-0.5 opacity-50 cursor-not-allowed" aria-label={`Nuova voce in ${label}`}>
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Manca il permesso 'content:create'
+                </TooltipContent>
+              </Tooltip>
+            )
           )}
         </div>
       </div>
@@ -100,9 +118,24 @@ export const KanbanColumn = React.memo(function KanbanColumn({
                 <div className="flex flex-col items-center justify-center gap-2 flex-grow h-full p-4 text-center">
                   <p className="text-xs text-muted-foreground">Nessuna voce</p>
                   {onCreateEntry && (
-                    <button type="button" onClick={onCreateEntry} className="text-xs text-primary hover:opacity-80 transition-opacity">
-                      + Nuova entry
-                    </button>
+                    canCreate ? (
+                      <button type="button" onClick={onCreateEntry} className="text-xs text-primary hover:opacity-80 transition-opacity">
+                        + Nuova entry
+                      </button>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <button type="button" disabled className="text-xs text-muted-foreground opacity-50 cursor-not-allowed">
+                              + Nuova entry
+                            </button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          Manca il permesso 'content:create'
+                        </TooltipContent>
+                      </Tooltip>
+                    )
                   )}
                 </div>
               ) : (

@@ -153,6 +153,8 @@ vi.mock("@/components/ui/data-table", () => ({
 
 import { ContentListPage } from "@/pages/content-list"
 
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: { retry: false },

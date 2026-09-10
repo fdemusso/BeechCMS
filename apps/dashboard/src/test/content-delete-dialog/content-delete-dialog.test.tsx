@@ -7,6 +7,8 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 
 import { ContentDeleteDialog } from "@/features/content-delete-dialog/content-delete-dialog"
 
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
+
 const seed = {
   slug: "items",
   label: "Item",

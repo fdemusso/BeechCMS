@@ -16,6 +16,8 @@ import {
 } from "@/components/ui/dialog"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import {
   pendingDraftBadgeClass,
   shouldShowPendingDraftBadge,
@@ -85,6 +87,9 @@ export function GalleryPeekPanel({
   onClose,
   onEdit,
 }: GalleryPeekPanelProps) {
+  const { can } = usePermissions()
+  const canUpdate = can('content:update', seed.slug)
+
   const { tagsBranch, seoBranches, mainBranches } = React.useMemo(
     () => partitionGalleryDetailBranches(seed),
     [seed]
@@ -180,16 +185,38 @@ export function GalleryPeekPanel({
                 )}
               </div>
             </div>
-            <Button
-              type="button"
-              variant="default"
-              size="sm"
-              className="shrink-0 gap-1.5"
-              onClick={() => onEdit(entry.id)}
-            >
-              <Pencil className="size-3.5" />
-              Modifica
-            </Button>
+            {canUpdate ? (
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="shrink-0 gap-1.5"
+                onClick={() => onEdit(entry.id)}
+              >
+                <Pencil className="size-3.5" />
+                Modifica
+              </Button>
+            ) : (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      type="button"
+                      variant="default"
+                      size="sm"
+                      className="shrink-0 gap-1.5"
+                      disabled
+                    >
+                      <Pencil className="size-3.5" />
+                      Modifica
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+                <TooltipContent side="bottom">
+                  Manca il permesso 'content:update'
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
         </DialogHeader>
 

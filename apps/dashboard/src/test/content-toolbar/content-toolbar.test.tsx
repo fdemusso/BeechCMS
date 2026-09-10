@@ -50,6 +50,8 @@ vi.mock("@/features/content-toolbar/toolbar-components/filter-pills-bar", () => 
 
 import { ContentToolbar } from "@/features/content-toolbar/content-toolbar"
 
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
+
 describe("ContentToolbar", () => {
   it("renderizza strumenti e crea nuova entry", () => {
     const onCreate = vi.fn()

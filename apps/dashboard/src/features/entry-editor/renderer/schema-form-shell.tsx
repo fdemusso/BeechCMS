@@ -5,6 +5,7 @@ import { useState, useEffect } from "react"
 import type { ReactNode } from "react"
 import { ChevronDown, Loader as Loader2, Edit as Pencil, Trash2, Layout as LayoutTemplate } from 'reicon-react'
 import type { Seed } from "@beechcms/core"
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
 
 import {
   AlertDialog,
@@ -151,6 +152,9 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
   const isNotFound = !isLoading && !seed
   const isError = !isLoading && !!seed && !!entryId && !!errorEntry
 
+  const { can } = usePermissions()
+  const canUpdate = can('content:update', seed?.slug ?? vm.schemaSlug)
+
   let body: ReactNode
   if (isLoading) {
     body = <ShellSkeletonBody />
@@ -164,19 +168,35 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
         <div className="absolute top-2 right-10 flex items-center gap-1">
           {vm.isReadOnly && (
             <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => vm.setIsReadOnly?.(false)}
-                >
-                  <Pencil className="size-4" />
-                  <span className="sr-only">Passa alla modalità modifica</span>
-                </Button>
-              </TooltipTrigger>
+              {canUpdate ? (
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => vm.setIsReadOnly?.(false)}
+                  >
+                    <Pencil className="size-4" />
+                    <span className="sr-only">Passa alla modalità modifica</span>
+                  </Button>
+                </TooltipTrigger>
+              ) : (
+                <TooltipTrigger asChild>
+                  <span className="inline-flex">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled
+                    >
+                      <Pencil className="size-4" />
+                      <span className="sr-only">Passa alla modalità modifica</span>
+                    </Button>
+                  </span>
+                </TooltipTrigger>
+              )}
               <TooltipContent side="bottom">
-                Passa alla modalità modifica
+                {canUpdate ? "Passa alla modalità modifica" : "Manca il permesso 'content:update'"}
               </TooltipContent>
             </Tooltip>
           )}

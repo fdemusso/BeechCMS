@@ -16,6 +16,8 @@ import { DataTable } from "@/components/ui/data-table"
 import { SmallCta } from "@/components/ui/small-cta"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -127,6 +129,10 @@ function ActionsCell({ row }: Readonly<{ row: { original: DraftSummary } }>) {
   const discardDraft = useDiscardDraft()
   const [showDiscard, setShowDiscard] = React.useState(false)
   const { seedSlug, id } = row.original
+  
+  const { can } = usePermissions()
+  const canUpdate = can('content:update', seedSlug)
+  const canDelete = can('content:delete', seedSlug)
 
   return (
     <>
@@ -141,24 +147,54 @@ function ActionsCell({ row }: Readonly<{ row: { original: DraftSummary } }>) {
           <DropdownMenuItem onClick={() => navigate(`/content/${seedSlug}/${id}`, { state: { isDraftContext: true } })}>
             {t("drafts.actions.edit")}
           </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={async () => {
-              try {
-                await publishDraft.mutateAsync({ slug: seedSlug, id })
-                toast.success(t("drafts.published"))
-              } catch {
-                toast.error(t("drafts.error"))
-              }
-            }}
-          >
-            {t("drafts.actions.publish")}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className="text-destructive"
-            onClick={() => setShowDiscard(true)}
-          >
-            {t("drafts.actions.discard")}
-          </DropdownMenuItem>
+          {canUpdate ? (
+            <DropdownMenuItem
+              onClick={async () => {
+                try {
+                  await publishDraft.mutateAsync({ slug: seedSlug, id })
+                  toast.success(t("drafts.published"))
+                } catch {
+                  toast.error(t("drafts.error"))
+                }
+              }}
+            >
+              {t("drafts.actions.publish")}
+            </DropdownMenuItem>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <DropdownMenuItem disabled>
+                    {t("drafts.actions.publish")}
+                  </DropdownMenuItem>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                Manca il permesso 'content:update'
+              </TooltipContent>
+            </Tooltip>
+          )}
+          {canDelete ? (
+            <DropdownMenuItem
+              className="text-destructive"
+              onClick={() => setShowDiscard(true)}
+            >
+              {t("drafts.actions.discard")}
+            </DropdownMenuItem>
+          ) : (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <DropdownMenuItem disabled className="text-destructive">
+                    {t("drafts.actions.discard")}
+                  </DropdownMenuItem>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                Manca il permesso 'content:delete'
+              </TooltipContent>
+            </Tooltip>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -196,6 +232,7 @@ export function DraftsListPage() {
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const dateFnsLocale = DATE_FNS_LOCALE[i18n.language] ?? enUS
+  const { can } = usePermissions()
 
   const { data, isLoading, isError, refetch } = useGlobalDrafts()
   const { data: seeds } = useSchema()
@@ -443,21 +480,41 @@ export function DraftsListPage() {
             <DialogTitle>{t("drafts.selectType")}</DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-1 pt-2">
-            {draftSeeds.map((seed) => (
-              <Button
-                key={seed.slug}
-                variant="ghost"
-                className="justify-start"
-                onClick={() => {
-                  setSeedPickerOpen(false)
-                  navigate(`/content/${seed.slug}/create`, {
-                    state: { isDraftContext: true, defaultValues: { status: "draft" } },
-                  })
-                }}
-              >
-                {seed.labelPlural ?? seed.label}
-              </Button>
-            ))}
+            {draftSeeds.map((seed) => {
+              const canCreate = can("content:create", seed.slug)
+              return canCreate ? (
+                <Button
+                  key={seed.slug}
+                  variant="ghost"
+                  className="justify-start"
+                  onClick={() => {
+                    setSeedPickerOpen(false)
+                    navigate(`/content/${seed.slug}/create`, {
+                      state: { isDraftContext: true, defaultValues: { status: "draft" } },
+                    })
+                  }}
+                >
+                  {seed.labelPlural ?? seed.label}
+                </Button>
+              ) : (
+                <Tooltip key={seed.slug}>
+                  <TooltipTrigger asChild>
+                    <span className="inline-flex w-full">
+                      <Button
+                        variant="ghost"
+                        className="justify-start w-full opacity-50 cursor-not-allowed"
+                        disabled
+                      >
+                        {seed.labelPlural ?? seed.label}
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    Manca il permesso 'content:create'
+                  </TooltipContent>
+                </Tooltip>
+              )
+            })}
           </div>
         </DialogContent>
       </Dialog>

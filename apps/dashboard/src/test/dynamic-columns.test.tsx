@@ -20,6 +20,8 @@ import { DataTable } from "@/components/ui/data-table"
 import { generateColumns, computeMaxLengths } from "@/lib/dynamic-columns"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 
+vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
+
 function makeSeed({
   branches,
   slug = "items",

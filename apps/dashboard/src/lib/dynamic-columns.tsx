@@ -14,6 +14,7 @@ import { getStatusTone, STATUS_TONE_DOT_CLASS } from "@/lib/status-tone"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -325,9 +326,12 @@ export function generateColumns(
     enableHiding: false,
     enableResizing: false,
     size: 56,
-    cell: ({ row }) => {
+    cell: function ActionsCellRender({ row }) {
       const entry = row.original
       const hasBulkSelection = selectedIds.length > 1
+      const { can } = usePermissions()
+      const canUpdate = can("content:update", seed.slug)
+      const canDelete = can("content:delete", seed.slug)
 
       return (
         <div className="text-right">
@@ -342,13 +346,14 @@ export function generateColumns(
               <DropdownMenuLabel>{translate("content.actions.label")}</DropdownMenuLabel>
               {hasBulkSelection ? (
                 <>
-                  <DropdownMenuItem onClick={() => onBulkEdit?.(selectedIds)}>
+                  <DropdownMenuItem onClick={() => onBulkEdit?.(selectedIds)} disabled={!canUpdate}>
                     {translate("bulkEdit.trigger")}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => onBulkDelete?.(selectedIds)}
                     className="text-destructive focus:text-destructive"
+                    disabled={!canDelete}
                   >
                     {translate("common.delete")}
                   </DropdownMenuItem>
@@ -370,12 +375,14 @@ export function generateColumns(
                     onClick={() => {
                       onEdit(entry.id)
                     }}
+                    disabled={!canUpdate}
                   >
                     {translate("common.edit")}
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => onDelete(entry.id)}
                     className="text-destructive focus:text-destructive"
+                    disabled={!canDelete}
                   >
                     {translate("common.delete")}
                   </DropdownMenuItem>

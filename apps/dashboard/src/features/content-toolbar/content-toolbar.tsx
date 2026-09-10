@@ -19,10 +19,15 @@ import { SettingsMenu } from "./toolbar-components/settings-menu"
 import { useContentToolbar } from "./use-content-toolbar"
 import type { ContentToolbarProps } from "./types"
 
+import { usePermissions } from "@/features/shared/hooks/use-permissions"
+
 export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
   const { seed, views, children, filters = {}, availableTagsByColumnId = {} } = props
   const { t } = useTranslation()
   const toolbarState = useContentToolbar(props)
+  
+  const { can } = usePermissions()
+  const canCreate = can("content:create", seed?.slug ?? "")
 
   const {
     activeViewId,
@@ -273,15 +278,36 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                 )}
 
                 {isToolEnabled("create") && (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={onCreate}
-                    className="gap-1.5"
-                  >
-                    <Plus className="size-4" />
-                    {t("siteHeader.new")}
-                  </Button>
+                  canCreate ? (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={onCreate}
+                      className="gap-1.5"
+                    >
+                      <Plus className="size-4" />
+                      {t("siteHeader.new")}
+                    </Button>
+                  ) : (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex">
+                          <Button
+                            variant="default"
+                            size="sm"
+                            className="gap-1.5"
+                            disabled
+                          >
+                            <Plus className="size-4" />
+                            {t("siteHeader.new")}
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom">
+                        Manca il permesso 'content:create'
+                      </TooltipContent>
+                    </Tooltip>
+                  )
                 )}
               </div>
             </div>
