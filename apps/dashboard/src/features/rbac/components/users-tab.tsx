@@ -14,9 +14,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Switch } from "@/components/ui/switch"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useMe } from "@/features/shared"
-import { useRbacUsers, useSetUserActive } from "../hooks/use-rbac"
+import { useRbacUsers, useRbacRoles, useSetUserActive } from "../hooks/use-rbac"
 import { UserFormDialog } from "./user-form-dialog"
 import { AssignmentsDialog } from "./assignments-dialog"
+import { RoleBadgeGroup } from "./role-badge"
 import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
 import type { AccountView } from "../types/rbac.types"
 
@@ -24,7 +25,13 @@ export function UsersTab() {
   const { t } = useTranslation()
   const { data: currentUser } = useMe()
   const { data: users = [], isLoading } = useRbacUsers()
+  const { data: roles = [] } = useRbacRoles()
   const setUserActive = useSetUserActive()
+
+  const roleById = React.useMemo(
+    () => new Map(roles.map((role) => [role.id, role])),
+    [roles]
+  )
 
   const sortedUsers = React.useMemo(() => {
     if (!currentUser?.id) return users
@@ -91,16 +98,19 @@ export function UsersTab() {
                     </TableCell>
                     <TableCell>{[accountUser.name, accountUser.surname].filter(Boolean).join(" ") || "—"}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {accountUser.assignments.map((assignment) => (
-                          <Badge key={assignment.id} variant="secondary" className="text-[10px]">
-                            {assignment.scope}
-                          </Badge>
-                        ))}
-                        {accountUser.assignments.length === 0 && (
+                      {(() => {
+                        const uniqueRoles = new Map(
+                          accountUser.assignments
+                            .map((assignment) => roleById.get(assignment.roleId))
+                            .filter((role): role is NonNullable<typeof role> => !!role)
+                            .map((role) => [role.id, role])
+                        )
+                        return uniqueRoles.size === 0 ? (
                           <span className="text-xs text-muted-foreground">{t("rbac.users.zeroTrustHint", "No access")}</span>
-                        )}
-                      </div>
+                        ) : (
+                          <RoleBadgeGroup roles={[...uniqueRoles.values()]} max={3} />
+                        )
+                      })()}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-2">
