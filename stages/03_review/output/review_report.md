@@ -2,70 +2,69 @@
 PASS
 
 # Findings
-None.
+None. Code diff matches sprint plan SECTION 4 (T1–T7) exactly: `scoped-projection.ts` implements `filterSeedsByPermission`/`serializeEffectivePermissions` verbatim to spec, all four handlers (`settings`, `schema`, `draft`, `search`) wired per plan, `permission.middleware.ts` changes exactly 2 rows (drafts, search) to `AUTHED`, no row added/removed/reordered. No Botanical/VSA/Cloudflare-purity violations found.
 
 # Verification Evidence
 
-Re-ran independently (fresh context, not trusting execution_log.md):
-
 ```
 $ pnpm --filter @beechcms/core run build
-$ tsc
-(exit 0)
+$ tsc  (clean)
 
 $ cd apps/api && npx tsc --noEmit | grep -c "error TS"
-32   (matches claimed pre-existing baseline)
+0
 
-$ grep -rn "from '\.\./\(oauth\|seeds\|settings\|content\|password-reset\|setup\)" apps/api/src/features/rbac
-(no output — VSA gate green)
+$ cd apps/dashboard && npx tsc --noEmit
+(clean, 0 errors)
 
-$ grep -rn "randomUUID\|getRandomValues" apps/api/src/features/rbac apps/api/src/shared/db/repositories/d1-invitation.repository.ts
-(no output — generateOpaqueToken() is the sole token source)
+$ grep -rn "features/" apps/api/src/shared/rbac/
+(only pre-existing comment in effective-permissions.ts, no import)
 
-$ grep -n "token" apps/api/src/features/rbac/invitations.ts
-Only tokenHash / dispatchInvitationEmail args — plaintext never reaches context.json.
+$ grep -rn "from '\.\./\(oauth\|seeds\|rbac\|content\|settings\)" apps/api/src/features/{schema,draft,search,settings}
+(only pre-existing: draft.{handler,middleware}.ts -> '../content/constants'; settings test self-import)
 
-$ npx vitest run --root apps/api src/features/rbac src/shared/db/repositories/d1-invitation.repository.test.ts \
-    src/middleware/permission.middleware.test.ts test/flow-rbac-invitations.test.ts \
-    test/flow-rbac-admin.test.ts test/flow-rbac-enforcement.test.ts
-Test Files  9 passed (9)
-     Tests  40 passed (40)
+$ git diff devs -- apps/api/src/features apps/api/src/shared | grep -iE "SELECT |INSERT |UPDATE |DELETE FROM"
+(empty)
+
+$ git diff devs --stat -- apps/api/migrations apps/dashboard
+(empty)
+
+$ grep -rn "manage_seeds" packages/core apps/api
+(only comments/tests — categorical exclusion intact)
+
+$ npx vitest run src/shared/rbac/scoped-projection.test.ts src/features/search/handlers/full-text-search.test.ts \
+  src/middleware/permission.middleware.test.ts test/flow-rbac-projections.test.ts test/flow-rbac-enforcement.test.ts \
+  test/flow-rbac-admin.test.ts test/flow-rbac-invitations.test.ts test/flow-draft-management.test.ts \
+  test/flow-content-management.test.ts test/flow-system-schema.test.ts
+Test Files  10 passed (10)
+     Tests  64 passed (64)
 
 $ pnpm --filter @beechcms/core test
 Test Files  37 passed (37)
      Tests  659 passed (659)
 
 $ pnpm --filter @beechcms/api test
-Test Files  146 passed (146)
-     Tests  1596 passed (1596)
+Test Files  148 passed (148)
+     Tests  1607 passed (1607)
 
 $ pnpm lint
 Tasks: 12 successful, 12 total
 ```
 
-**Diff review** (`git diff devs` — uncommitted working tree on `feature/rbac-invitations`, no commits ahead of `devs` yet): read every touched/new file in full — `factory.ts`, `guards.ts`, `index.ts`, `permission.middleware.ts`, `rate-limit.middleware.ts`, `repository.middleware.ts`, `types.ts`, `packages/core/src/index.ts`, `0000_v040_base.sql` (section 21), `constants.ts`, `rbac.schema.ts`, `email.service.ts` / `email.types.ts` / `email/index.ts`, `d1-invitation.repository.ts`, `invitations.ts`, `invitations.public.ts`, `public.ts`. Content matches SECTION 4 of `RbacInvitations.md` line for line — no drift between plan and implementation found.
+**Note:** execution_log.md's targeted-suite command claimed 70 tests; independent re-run of the identical command shows 64. All 10 files still pass; full-suite counts (659/1607) match exactly. Not blocking — no evidence of a hidden failure, likely a stale/miscounted log line.
 
-**Invariant audit (Ponytail):**
-- Botanical: `invitations` is system-tier, `D1InvitationRepository` does not extend `BaseD1Repository`, no `content_{slug}` table touched, no `apiToDb`/`dbToApi` bypass.
-- VSA: `features/rbac/` imports nothing from another `features/*` slice (grep confirmed empty); `rbacPublicApp` is a second router of the same slice, mounted from the composition root only — no cross-slice import introduced.
-- Cloudflare purity: D1 + WebCrypto (`sha256hex`, `generateOpaqueToken`) + `executionCtx.waitUntil`, no ORM, no background job, deterministic DDL folded into `0000_v040_base.sql` (beta policy respected — edit, not a new migration).
-- `PROTECTED_ROUTES`: 4 new rows, all fully anchored (`^...$`), placed after `/assignments`; no shadowing of pre-existing patterns, no earlier pattern swallows `/invitations*`. Regex ordering verified by direct read of `permission.middleware.ts:156-159`.
+**Acceptance criteria (SECTION 6), walked independently:**
+- `scoped-projection.ts` exports exactly the 3 named symbols, zero `features/**` imports — confirmed by reading the file and the grep gate above.
+- `packages/core`, `apps/api/migrations`, `apps/dashboard` — zero diff, confirmed via `git diff devs --stat`.
+- `/api/settings/me` — read `settings.handler.ts`: all pre-existing keys preserved, `permissions` + `isDeveloper` added additively; `isDeveloper` derives from `currentUser.role === 'admin'`, and `d1-user.repository.ts` confirms `role` is selected in the `findById` query.
+- Zero-trust account 200-everywhere — covered by `flow-rbac-projections.test.ts` step 8, passing.
+- `/api/schema` scope filtering — read `schema.handler.ts`, matches T3 exactly; bare-array envelope preserved.
+- `PROTECTED_ROUTES` — read `permission.middleware.ts`, confirmed exactly 2 rows changed to `AUTHED`, none added/removed/reordered.
+- `/api/search?schema_slug=<unreadable>` → `200 { items: [], total: 0 }`, repository not called — read `full-text-search.ts` logic and its test asserting `searchMock`/`countMock` not called.
+- `manage_seeds` — grep confirms comments/tests only.
+- Typecheck baseline deviation (0 errors instead of the plan's documented 32) — approved mid-execution by the user per execution_log.md; independently re-verified at 0 for both `apps/api` and `apps/dashboard`; the plan's SECTION 6 checkbox text ("still 32") is superseded by this explicit user approval, not a defect.
+- `test/flow-rbac-projections.test.ts` — read in full: covers all 8 T7 steps, seeds only through `seedTestUsers`-equivalent flow (`/api/rbac/users` + `/api/rbac/assignments` via the SuperAdmin, consistent with the admin-API pattern the plan cites).
 
-**Runtime/logic trace (manual, not just test-green):**
-- `acceptInvitationHandler`: `markUsed` (atomic consume) runs BEFORE the `findByEmail` email-taken check — this is a deliberate ordering from SECTION 4.6 step 7/8 of the plan (a consumed token can, in the email-taken race, leave the invite burned without an account; the plan accepts this trade explicitly and directs the admin to regenerate). Confirmed intentional, not a defect.
-- `revokeInvitationHandler` returns 404 (not 403) when the caller lacks `manage_users` on the row's scope — matches the enumeration-oracle precedent set by `deleteAssignmentHandler`.
-- `previewInvitationHandler` returns only `{email, roleName, scope}` — no invitation id, no issuer, no permission list, as specified.
-- Redemption re-evaluates issuer's LIVE authority via `resolveIssuerAuthority` (not `resolveEffectivePermissions`, which requires a JWT) — correctly reflects that the redeem path is unauthenticated.
-
-No runtime UI to verify — this sprint ships zero `apps/dashboard/` files (confirmed: no dashboard path in the diff), so the `/verify` skill / browser check is not applicable. Mailpit manual delivery check is correctly marked NOT RUN in the execution log (requires interactive `pnpm beech dev`); this is an acceptable gap for an API-only sprint whose email path is otherwise covered by unit + e2e tests through the same `dispatchInvitationEmail` → `sendInvitationEmail` → provider chain used by `password-reset`.
+**Runtime verification:** skipped by user decision (this sprint changes API responses only, no dashboard UI; `flow-rbac-projections.test.ts` already exercises all 4 endpoints end-to-end against a real Hono app + D1 test database, covering the same scenarios SECTION 5 item 8 specifies for `pnpm beech dev`).
 
 # Sprint Documentation
-
-`RbacInvitations` (sprint 4 of the RBAC/multi-tenant feature) adds invitation-based onboarding: `POST /api/rbac/invitations` (issue), `GET /api/rbac/invitations` (scope-filtered list), `POST /api/rbac/invitations/:id/regenerate`, `DELETE /api/rbac/invitations/:id` — all under `apiProtected` with `manage_users`. Two new unauthenticated routes, `GET /auth/invitations/:token` (preview) and `POST /auth/invitations/accept` (redeem), are mounted via a second slice router (`rbacPublicApp`) at the composition root, since the invitee has no JWT.
-
-Key design decisions: invitations are hash-only bearer tokens (`generateOpaqueToken` + `sha256hex`), single-use via an atomic `used_at IS NULL` UPDATE guard; no `users` row is created until redemption, so regeneration never "recreates" an account — it just swaps the token/expiry on the existing `invitations` row. The issuer's authority is re-checked live at redemption time (not just at issue time), closing the window where an issuer's permissions could be reduced between invite and accept. Redeemed accounts are always minted `role: 'editor'`; no invite can produce an admin account.
-
-No deviations from the sprint plan found during review. No known limitations beyond the documented ones: dashboard UI is out of scope (sprint 5), and the Mailpit manual-delivery smoke test was not run (requires interactive dev stack).
-
-## Handoff (Human Gate)
-STOP — no merge, no archive performed. This is the final sprint of the RBAC/multi-tenant feature per the roadmap; on approval the human should merge the branch and run `pnpm pipeline reset`.
+`RbacScopedProjections` (roadmap entry 5) ships scope-correct listings for `GET /api/schema`, `GET /api/content/drafts`, `GET /api/search`, and adds `permissions`/`isDeveloper` to `GET /api/settings/me`. New shared module `apps/api/src/shared/rbac/scoped-projection.ts` (`filterSeedsByPermission`, `serializeEffectivePermissions`) is the single narrowing seam, consumed by four slices with zero cross-slice imports. `/api/content/drafts` and `/api/search` moved from a global `content:read` gate to `{ kind: 'authenticated' }` — the in-handler projection is now the authorization decision for those two routes, strictly narrower than what it replaced. No core, migration, or dashboard changes. Key deviation (user-approved mid-execution): the plan's typecheck baseline (32 pre-existing `apps/api` errors, "must not grow") was replaced with a full fix to 0 errors — all changes were type-only (test fixtures, casts, one DOM-lib-free type alias in `packages/client`), no production logic touched. Known limitation: `pnpm beech dev` runtime smoke was not executed by the executor or the reviewer; coverage gap is judged closed by the equivalent real-DB E2E flow test. Roadmap entry 6 (`RbacDashboardSurfaces`) consumes this payload next.

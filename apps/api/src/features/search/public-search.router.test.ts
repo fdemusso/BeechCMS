@@ -14,7 +14,7 @@ describe('publicSearchRouter', () => {
 
     const res = await app.request('/search/embed')
     expect(res.status).toBe(400)
-    const json = await res.json()
+    const json = await res.json() as any
     expect(json.error).toContain("Parametro 'q' obbligatorio")
   })
 
@@ -25,7 +25,7 @@ describe('publicSearchRouter', () => {
     const longQuery = 'a'.repeat(151)
     const res = await app.request(`/search/embed?q=${longQuery}`)
     expect(res.status).toBe(400)
-    const json = await res.json()
+    const json = await res.json() as any
     expect(json.error).toContain('150 caratteri')
   })
 
@@ -48,7 +48,7 @@ describe('publicSearchRouter', () => {
     const res = await app.request('/search/embed?q=test')
     expect(res.status).toBe(429)
     expect(res.headers.get('Retry-After')).toBe('60')
-    const json = await res.json()
+    const json = await res.json() as any
     expect(json.error).toBe('Too Many Requests')
   })
 
@@ -81,7 +81,7 @@ describe('publicSearchRouter', () => {
     expect(res.headers.get('Cache-Control')).toBe('public, max-age=604800')
     expect(res.headers.get('Edge-Control')).toBe('s-maxage=604800')
 
-    const json = await res.json()
+    const json = await res.json() as any
     expect(aiMock.run).toHaveBeenCalledWith('@cf/baai/bge-small-en-v1.5', { text: 'deep learning' })
     expect(json.data).toEqual([0.11999999731779099, -0.3400000035762787, 0.5600000023841858])
   })

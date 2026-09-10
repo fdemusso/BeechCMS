@@ -12,23 +12,37 @@ import { decodeCursor } from '../utils/search-utils'
 import type { Seed, ISearchRepository, SearchResultRow } from '@beechcms/core'
 
 const MOCK_SEED: Seed = {
-  id: 'seed_articles',
   slug: 'articles',
   label: 'Articles',
   labelPlural: 'Articles',
   displayNameAlias: 'title',
   allowDrafts: false,
   branches: [
-    { id: 'br_01', alias: 'title', type: 'text', policies: { public: true, search: true } },
-    { id: 'br_02', alias: 'body', type: 'richtext', policies: { public: true, search: true } },
+    { id: 'br_01', alias: 'title', label: 'Title', type: 'text', policies: { public: true, search: true } },
+    { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext', policies: { public: true, search: true } },
   ],
 }
+
+const MOCK_SEED_PAGES: Seed = {
+  slug: 'pages',
+  label: 'Pages',
+  labelPlural: 'Pages',
+  displayNameAlias: 'title',
+  allowDrafts: false,
+  branches: [
+    { id: 'br_03', alias: 'title', label: 'Title', type: 'text', policies: { public: true, search: true } },
+  ],
+}
+
+const GLOBAL_READ_PERMISSIONS = { global: new Set(['content:read']), byScope: new Map() }
 
 function createTestApp(options?: {
   searchRows?: SearchResultRow[]
   total?: number
   searchFn?: (...args: any[]) => Promise<SearchResultRow[]>
   countFn?: (...args: any[]) => Promise<{ total: number }>
+  seeds?: Seed[]
+  effectivePermissions?: { global: Set<string>; byScope: Map<string, Set<string>> }
 }) {
   const app = new Hono<AppEnv>()
 
@@ -40,14 +54,16 @@ function createTestApp(options?: {
     count: countMock,
   }
 
+  const seeds = options?.seeds ?? [MOCK_SEED]
   const mockSeedRegistry = {
-    all: vi.fn().mockReturnValue([MOCK_SEED]),
-    get: vi.fn().mockReturnValue(MOCK_SEED),
+    all: vi.fn().mockReturnValue(seeds),
+    get: vi.fn().mockReturnValue(seeds[0]),
   }
 
   app.use('*', async (c, next) => {
     c.set('searchRepository', mockSearchRepo as any)
     c.set('seedRegistry', mockSeedRegistry as any)
+    c.set('effectivePermissions', (options?.effectivePermissions ?? GLOBAL_READ_PERMISSIONS) as any)
     await next()
   })
 
@@ -61,7 +77,7 @@ describe('fullTextSearchHandler', () => {
     const { app } = createTestApp()
     const res = await app.request('/search')
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = await res.json() as any
     expect(body.error).toBe(SEARCH_ERRORS.QUERY_TOO_SHORT)
   })
 
@@ -69,7 +85,7 @@ describe('fullTextSearchHandler', () => {
     const { app } = createTestApp()
     const res = await app.request('/search?q=a')
     expect(res.status).toBe(400)
-    const body = await res.json()
+    const body = await res.json() as any
     expect(body.error).toBe(SEARCH_ERRORS.QUERY_TOO_SHORT)
   })
 
@@ -77,7 +93,7 @@ describe('fullTextSearchHandler', () => {
     const { app, searchMock, countMock } = createTestApp({ searchRows: [], total: 0 })
     const res = await app.request('/search?q=hello')
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as any
     expect(body).toEqual({
       items: [],
       nextCursor: null,
@@ -166,7 +182,7 @@ describe('fullTextSearchHandler', () => {
     const { app } = createTestApp({ searchRows: [row], total: 1 })
     const res = await app.request('/search?q=first')
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as any
     expect(body.items).toHaveLength(1)
     expect(body.items[0]).toEqual({
       id: 'e-1',
@@ -214,7 +230,7 @@ describe('fullTextSearchHandler', () => {
     const { app } = createTestApp({ searchRows: [row1, row2, row3], total: 10 })
     const res = await app.request('/search?q=post&limit=2')
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await res.json() as any
 
     expect(body.items).toHaveLength(2)
     expect(body.items[0].id).toBe('e-1')
@@ -225,6 +241,30 @@ describe('fullTextSearchHandler', () => {
     expect(decoded?.rank).toBe(-4.0)
     expect(decoded?.entryId).toBe('e-2')
     expect(body.total).toBe(10)
+  })
+
+  it('a scoped caller: searchRepository.search receives only the readable seeds', async () => {
+    const { app, searchMock, countMock } = createTestApp({
+      searchRows: [],
+      total: 0,
+      seeds: [MOCK_SEED, MOCK_SEED_PAGES],
+      effectivePermissions: { global: new Set(), byScope: new Map([['articles', new Set(['content:read'])]]) },
+    })
+    await app.request('/search?q=hello')
+    expect(searchMock).toHaveBeenCalledWith(expect.anything(), [MOCK_SEED])
+    expect(countMock).toHaveBeenCalledWith(expect.anything(), [MOCK_SEED])
+  })
+
+  it('schema_slug naming an unreadable seed returns 200 { items: [], total: 0 } without calling the repository', async () => {
+    const { app, searchMock, countMock } = createTestApp({
+      seeds: [MOCK_SEED, MOCK_SEED_PAGES],
+      effectivePermissions: { global: new Set(), byScope: new Map([['articles', new Set(['content:read'])]]) },
+    })
+    const res = await app.request('/search?q=hello&schema_slug=pages')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ items: [], nextCursor: null, total: 0 })
+    expect(searchMock).not.toHaveBeenCalled()
+    expect(countMock).not.toHaveBeenCalled()
   })
 })
 

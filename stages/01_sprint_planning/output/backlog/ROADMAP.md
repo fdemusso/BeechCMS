@@ -13,7 +13,8 @@ the next lands. Detailed Task Details exist ONLY for the sprint currently in fli
 | 2 | `RbacRequestEnforcement` | Turn the evaluator into the single authorization gate on every protected request. | `permission.middleware.ts` on `apiProtected` (fail-closed route table, scope from the seed slug in the route), `shared/rbac/effective-permissions.ts` resolver, `PermissionRoleGuard` replacing `AllowAllRoleGuard` (**widening `arbitrate()` to take `EffectivePermissions` — 1 production call site, `features/oauth/authorize.ts:222`**), `is_active` refusal on login/refresh/OAuth + every gated request, **and the SuperAdmin grant at `POST /auth/setup` (see lockout warning)**. **PLANNED, detail in `output/RbacRequestEnforcement.md`.** | Sprint 1 (evaluator + tables must exist and be queryable) |
 | 3 | `RbacUserRoleAdminApi` | Expose account/role/assignment administration with anti-escalation and the last-SuperAdmin guardrail. | New VSA slice `apps/api/src/features/rbac/` (accounts create/list/read/activate-deactivate, roles CRUD, assignment create/delete/list), `canGrant` enforcement, guardrail refusing revocation of the last active global admin, new `permission-any-scope` gate kind, and closure of the `is_system` guard gap in `D1RoleRepository.update()` flagged by the sprint-1 review. Route gating and `RBAC_ERRORS` follow the `features/oauth/index.ts` + `oauth/constants.ts` conventions. No migration (every table already exists). **PLANNED, detail in `output/RbacUserRoleAdminApi.md`.** | Sprint 2 (endpoints must be gated by the middleware they configure) |
 | 4 | `RbacInvitations` | Invite-only onboarding: single-use expiring tokens carrying a pre-assigned role+scope. | `invitations` table, invite issue/list/regenerate/revoke inside the `rbac` slice plus an unauthenticated preview/redeem router mounted next to `passwordResetApp`, email dispatch via **`apps/api/src/shared/email` (`sendInvitationEmail`)**, activation flow setting credentials via the existing `IHashProvider`. Token handling reuses `generateOpaqueToken()` + `sha256hex()`; the repository mirrors `IPasswordResetTokenRepository`. **PLANNED, detail in `output/RbacInvitations.md`.** | Sprint 3 (an invite pre-assigns a role that must already be creatable) |
-| 5 | `RbacDashboardSurfaces` | Make the dashboard reflect exactly the caller's effective permissions. | `apps/dashboard/src/features/rbac/` (users, roles, invites screens), permission-derived navigation/section visibility, `/api/settings/me` permission payload consumption. **Also inherits from sprint 2:** the scope-filtered projections sprint 2 left coarse — `GET /api/schema` (full seed list to any authenticated caller), `GET /api/content/drafts` and `GET /api/search` (global `content:read` instead of a scope-filtered list), `/api/upload*` (global `content:*`, since R2 media is not seed-partitioned), `/api/automations*` and `/api/dashboard-layout` writes (global-only). | Sprint 4 (UI must be able to drive the full invite lifecycle) |
+| 5 | `RbacScopedProjections` | Make every LISTING endpoint return exactly what the caller could open one by one, and emit the caller's authority. | Shared `apps/api/src/shared/rbac/scoped-projection.ts`; scope-filtered `GET /api/schema`, `GET /api/content/drafts`, `GET /api/search` (the last two move from a global `content:read` gate to `authenticated` + in-handler projection); `GET /api/settings/me` gains `permissions` + `isDeveloper`. No migration, zero dashboard files. **PLANNED, detail in `output/RbacScopedProjections.md`.** | Sprint 4 (the projection is layered on the gate and slice conventions sprints 2–4 established) |
+| 6 | `RbacDashboardSurfaces` | Make the dashboard reflect exactly the caller's effective permissions. | `apps/dashboard/src/features/rbac/` (users, roles, invites screens), the invitation redemption page next to `ResetPasswordPage`, permission-derived navigation (`AppSidebar` / `dashboard-menu.ts`) and settings-tab visibility (`settings-dialog.tsx`), all driven by the `/api/settings/me` permission payload sprint 5 emits. Seed Builder visibility keys off `isDeveloper`, never off an RBAC permission. | Sprint 5 (the UI is a projection of a payload that must exist and already be scope-correct) |
 
 ## Ordering rationale
 
@@ -27,6 +28,24 @@ the next lands. Detailed Task Details exist ONLY for the sprint currently in fli
   pre-assign a role+scope that no endpoint can create yet.
 - UI last: the dashboard is a projection of the effective permission set. It has no
   independent contract to validate before the API emits one.
+- **Sprint 5 split (decided in sprint 5's planning run).** The original entry 5 bundled
+  the API's scope-filtered projections with the dashboard screens that render them.
+  Those merge sequentially — the API must emit a scope-correct listing and a permission
+  payload before any UI can consume one — so they are now entries 5 and 6. Hiding
+  sections client-side over an unfiltered `/api/schema` would have been a cosmetic
+  filter over a leaking endpoint, which is the extra attack surface the brief (§3)
+  exists to remove.
+
+## Scope refinements refused permanently (sprint 5 VETO audit §6)
+
+`/api/upload*`, `/api/automations*` and `/api/dashboard-layout` writes stay **global-only**.
+This is a decision, not deferred debt, and no sprint inherits it:
+- R2 media carries no seed ownership column; partitioning it is a data-model feature.
+- An automation rule is cross-seed by construction (trigger seed ≠ action seed).
+- `dashboard-layout` is one global document per installation.
+
+`/api/content/stats/*` and `/api/settings/{activity,storage}` likewise stay
+`view_analytics` at `'*'`.
 
 ## The developer axis (decided in sprint 2's VETO audit — binding on every later sprint)
 

@@ -7,14 +7,14 @@ import { D1VectorRepository } from './d1-vector.repository'
 import type { Seed } from '@beechcms/core'
 
 const TEST_SEED: Seed = {
-  id: 'seed_articles',
   slug: 'articles',
   label: 'Articles',
+  displayNameAlias: 'title',
   labelPlural: 'Articles',
   allowDrafts: false,
   branches: [
-    { id: 'br_01', alias: 'title', type: 'text', policies: { public: true, search: true } },
-    { id: 'br_02', alias: 'content', type: 'richtext', policies: { public: true, search: true } },
+    { id: 'br_01', alias: 'title', label: 'Title', type: 'text', policies: { public: true, search: true } },
+    { id: 'br_02', alias: 'content', label: 'Content', type: 'richtext', policies: { public: true, search: true } },
   ],
 }
 

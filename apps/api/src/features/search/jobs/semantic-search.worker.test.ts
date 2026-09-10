@@ -7,14 +7,14 @@ import { compileR2Manifest, computeVectorJob, deleteVectorJob, updateR2ManifestJ
 import type { Seed, JobContext } from '@beechcms/core'
 
 const SEARCH_SEED: Seed = {
-  id: 'seed_articles',
   slug: 'articles',
   label: 'Articles',
+  displayNameAlias: 'title',
   labelPlural: 'Articles',
   allowDrafts: false,
   branches: [
-    { id: 'br_01', alias: 'title', type: 'text', policies: { public: true, search: true } },
-    { id: 'br_02', alias: 'body', type: 'text', policies: { public: true, search: true } },
+    { id: 'br_01', alias: 'title', label: 'Title', type: 'text', policies: { public: true, search: true } },
+    { id: 'br_02', alias: 'body', label: 'Body', type: 'text', policies: { public: true, search: true } },
   ],
 }
 
@@ -45,7 +45,7 @@ describe('semantic-search worker and manifest compilation', () => {
     // Check .bin put
     const binCall = putMock.mock.calls.find((call: any[]) => call[0] === 'articles.bin')
     expect(binCall).toBeDefined()
-    const binBuffer = binCall[1] as Uint8Array
+    const binBuffer = binCall![1] as Uint8Array
     expect(binBuffer).toBeInstanceOf(Uint8Array)
     expect(binBuffer.byteLength).toBe(6 * Float32Array.BYTES_PER_ELEMENT)
     const floatView = new Float32Array(binBuffer.buffer, binBuffer.byteOffset, 6)
@@ -54,7 +54,7 @@ describe('semantic-search worker and manifest compilation', () => {
     // Check .json put
     const jsonCall = putMock.mock.calls.find((call: any[]) => call[0] === 'articles.json')
     expect(jsonCall).toBeDefined()
-    expect(JSON.parse(jsonCall[1])).toEqual(['art-1', 'art-2'])
+    expect(JSON.parse(jsonCall![1])).toEqual(['art-1', 'art-2'])
   })
 
   it('computeVectorJob generates embedding using Workers AI, saves to D1, and compiles R2', async () => {

@@ -22,7 +22,7 @@ describe('resolveRouteRule', () => {
   it('does not let /api/content/notifications or /api/content/drafts fall through to :slug patterns', () => {
     expect(resolveRouteRule('GET', '/api/content/notifications')).toMatchObject({ requirement: { kind: 'authenticated' } })
     expect(resolveRouteRule('GET', '/api/content/drafts')).toMatchObject({
-      requirement: { kind: 'permission', permission: 'content:read' },
+      requirement: { kind: 'authenticated' },
     })
   })
 })

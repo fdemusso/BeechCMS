@@ -1,101 +1,71 @@
-# Execution Log — `RbacInvitations`
+# Execution Log — `RbacScopedProjections`
 
 ## SECTION 6 — ACCEPTANCE CRITERIA
 
-**Contracts & typing**
-- [x] `packages/core/src/rbac/invitation.repository.ts` contains ONLY types and `IInvitationRepository` — no runtime code, no import outside `./permissions.js`, no D1/CF type reference.
-- [x] `packages/core` builds clean (`tsc`, exit 0); exported from `src/index.ts`.
-- [x] `apps/api` `tsc --noEmit` error count still 32 (pre-existing baseline), zero errors in any file this sprint touches.
-- [x] `apps/dashboard` `tsc --noEmit` exits 0; no dashboard file in the diff.
-- [x] No `any` in new code; repository return types are the core-declared ones.
+- [x] `apps/api/src/shared/rbac/scoped-projection.ts` exists, exports exactly `filterSeedsByPermission`, `serializeEffectivePermissions`, `EffectivePermissionsPayload`, imports nothing from `apps/api/src/features/**`.
+- [x] `packages/core/**` has zero diff. No new core export.
+- [x] `apps/api/migrations/**` has zero diff.
+- [x] `apps/dashboard/**` has zero diff.
+- [x] `GET /api/settings/me` returns every pre-existing key unchanged, plus `permissions` and `isDeveloper`. Arrays sorted deterministically.
+- [x] A zero-trust account gets `200` from `/api/settings/me`, `/api/schema`, `/api/content/drafts`, `/api/search` — empty payloads, never 500/403.
+- [x] `GET /api/schema` returns a bare array containing only seeds the caller holds `content:read` on; global holder gets every seed.
+- [x] `GET /api/content/drafts` and `GET /api/search` are `{ kind: 'authenticated' }` in `PROTECTED_ROUTES`; no row added/removed/reordered.
+- [x] `GET /api/search?schema_slug=<unreadable>` returns `200 { items: [], total: 0 }`, repository not called.
+- [x] `isDeveloper` derives only from `users.role === 'admin'`; `manage_seeds` still absent (grep matches only comments/tests).
+- [x] `apps/api` typecheck: 0 errors (see note below). `apps/dashboard` typecheck: 0.
+- [x] `pnpm --filter @beechcms/api test` and `pnpm --filter @beechcms/core test` fully green; `pnpm lint` green.
+- [x] `test/flow-rbac-projections.test.ts` covers all 8 T7 steps, seeds users only through `seedTestUsers()`.
+- [x] No production code weakened to keep a pre-existing test green. Adapted tests listed below.
 
-**Schema**
-- [x] `invitations` added as an EDIT to `0000_v040_base.sql` (section 21). No new migration file, no `ALTER TABLE`.
-- [x] FKs to `roles(id)` and `users(id)` with `ON DELETE CASCADE`, no FK on `scope`, 3 indexes present.
-- [x] `pnpm beech db:reset` path exercised via `D1TestDatabase` in every test; full API suite passes.
+**Deviation from plan, approved mid-execution by the user:** the plan's SECTION 5 baselined `apps/api` typecheck at 32 pre-existing errors and required the count "not grow." The user instructed fixing all pre-existing errors instead of preserving the baseline. Result: **0 errors**, not 32. Fixes were type-only (test fixtures, casts) — no production code changed:
+- Added missing `label` / `displayNameAlias` fields and removed an invalid `id` field on `Seed`/`Branch` literals in `full-text-search.test.ts`, `semantic-search.hooks.test.ts`, `semantic-search.worker.test.ts`, `d1-vector.repository.test.ts`.
+- Cast `res.json()` results in `full-text-search.test.ts`, `public-search.router.test.ts`, `api-key-middleware.test.ts` (previously untyped `unknown`).
+- Non-null-asserted two mock-array lookups in `semantic-search.worker.test.ts`.
+- Fixed a mismatched mock signature and an untyped `c.get()` in `rate-limit.middleware.test.ts`.
+- Replaced a DOM-only `RequestCache` reference in `packages/client/src/types.ts` with a local `FetchCacheMode` union (that package's own `tsconfig.json` already includes `lib: ["DOM"]`, but its source is also type-checked in-place as part of `apps/api`'s `tsc --noEmit`, whose `lib` is `["ESNext"]` only).
 
-**Invariants**
-- [x] `D1InvitationRepository` does not extend `BaseD1Repository`, no `content_{slug}` query.
-- [x] No `invitations` column name outside `d1-invitation.repository.ts`.
-- [x] `features/rbac/` imports no other `features/*` slice (grep gate prints nothing).
-- [x] `manage_seeds` still absent from `PERMISSIONS` / CHECK list.
-- [x] Redeemed accounts get `users.role = 'editor'`; asserted in e2e test.
+**Other test adaptation:** `src/middleware/permission.middleware.test.ts` — `resolveRouteRule('GET', '/api/content/drafts')` assertion updated from `{ kind: 'permission', permission: 'content:read' }` to `{ kind: 'authenticated' }`, per T6.
 
-**Token handling**
-- [x] Token produced only by `generateOpaqueToken()`; no `randomUUID`/`getRandomValues` in touched files.
-- [x] Only `sha256hex(token)` persisted; repository test asserts stored value ≠ plaintext.
-- [x] Plaintext token appears only in the dispatched email; admin responses never contain it (grep gate).
-- [x] `markUsed` atomic (`WHERE used_at IS NULL`), false on 2nd call; accept handler consumes before creating the account.
-- [x] Both public endpoints rate-limit by IP via `rateLimiters.getLimiter('acceptInvitation')`, 429 + `Retry-After`.
-
-**Authorization**
-- [x] All 4 admin routes carry a `PROTECTED_ROUTES` row (`anyScope('manage_users')`); public routes not added.
-- [x] Issue applies `hasPermission` + `canGrant`, identical to `createAssignmentHandler`.
-- [x] Redemption re-evaluates issuer's live authority, refuses `409 invitation-revoked` (asserted e2e).
-- [x] Redemption refuses `422 unknown-scope` when the seed is gone.
-- [x] Unknown/expired/used tokens all answer `404 invitation-invalid` on both public endpoints.
-- [x] `GET /invitations` scope-filtered; `DELETE` outside perimeter → 404, not 403.
-- [x] Email-taken refused at issue AND at redemption.
-
-**Lifecycle**
-- [x] Regeneration preserves email/role/scope, swaps token+expiry, refuses `409` on a used row.
-- [x] `invalidatePending` consumes prior pending invites for the address.
-
-**Build & suite**
-- [x] `pnpm lint` — 12/12 tasks pass.
-- [x] `pnpm beech test` — all packages pass except the documented `@beechcms/mcp` flake (verified green in isolation).
-- [x] `flow-rbac-invitations.test.ts` covers full lifecycle: issue → preview → accept → login → scope isolation → single-use replay → issuer revocation → expiry → regenerate.
-- [ ] Mailpit manual delivery check — NOT RUN (requires `pnpm beech dev` interactive stack; out of scope for this automated pass).
-
-## Validation command output
+## Validation — success output
 
 ```
 $ pnpm --filter @beechcms/core run build
 $ tsc
-(exit 0)
+(clean)
 
 $ cd apps/api && npx tsc --noEmit | grep -c "error TS"
-32   (unchanged baseline)
-
+0
 $ cd apps/dashboard && npx tsc --noEmit
-(exit 0, no output)
+(clean, 0 errors)
 
-$ grep -rn "from '\.\./\(oauth\|seeds\|settings\|content\|password-reset\|setup\)" apps/api/src/features/rbac
-(no output)
+$ grep -rn "features/" apps/api/src/shared/rbac/
+(only a pre-existing comment in effective-permissions.ts; no import)
+$ grep -rn "from '\.\./\(oauth\|seeds\|rbac\|content\|settings\)" apps/api/src/features/{schema,draft,search,settings}
+(only pre-existing, unrelated to this sprint: draft.{handler,middleware}.ts -> '../content/constants'; settings test self-import)
 
-$ grep -rn "manage_seeds" packages/core apps/api
-(only comments/tests — unchanged)
+$ git diff devs -- apps/api/src/features apps/api/src/shared | grep -iE "SELECT |INSERT |UPDATE |DELETE FROM"
+(empty)
 
-$ grep -rn "randomUUID\|getRandomValues" apps/api/src/features/rbac apps/api/src/shared/db/repositories/d1-invitation.repository.ts
-(no output)
+$ git diff devs --stat -- apps/api/migrations apps/dashboard
+(empty)
 
-$ grep -rn "token" apps/api/src/features/rbac/invitations.ts
-(only tokenHash / generateOpaqueToken / dispatch args — never in context.json)
-
-$ cd apps/api && npx vitest run src/features/rbac src/shared/db/repositories/d1-invitation.repository.test.ts src/middleware/permission.middleware.test.ts test/flow-rbac-invitations.test.ts test/flow-rbac-admin.test.ts test/flow-rbac-enforcement.test.ts
-Test Files  9 passed (9)
-     Tests  40 passed (40)
+$ npx vitest run src/shared/rbac/scoped-projection.test.ts src/features/search/handlers/full-text-search.test.ts src/middleware/permission.middleware.test.ts test/flow-rbac-projections.test.ts test/flow-rbac-enforcement.test.ts test/flow-rbac-admin.test.ts test/flow-rbac-invitations.test.ts test/flow-draft-management.test.ts test/flow-content-management.test.ts test/flow-system-schema.test.ts
+Test Files  10 passed (10)
+     Tests  70 passed (70)
 
 $ pnpm --filter @beechcms/core test
 Test Files  37 passed (37)
      Tests  659 passed (659)
 
-$ pnpm lint
-Tasks: 12 successful, 12 total
-
 $ pnpm --filter @beechcms/api test
-Test Files  146 passed (146)
-     Tests  1596 passed (1596)
+Test Files  148 passed (148)
+     Tests  1607 passed (1607)
 
-$ pnpm beech test
-All packages pass except @beechcms/mcp#test (documented pre-existing flake:
-Bundle hash and supervisor change detection > ... restarts child server while keeping client connected)
-
-$ cd packages/mcp && npx vitest run src/auto-restart.test.ts
-Test Files  1 passed (1)
-     Tests  3 passed (3)
-(confirms the flake, green in isolation)
+$ pnpm lint
+Tasks:    12 successful, 12 total
 
 $ graphify update .
-Graph has 12276 nodes, 21699 edges, 985 communities. Synced.
+Code graph updated. 12355 nodes, 21819 edges, 945 communities.
 ```
+
+`pnpm beech dev` runtime smoke (item 8) was not executed in this session — no Docker/D1 dev stack was started. Everything else in SECTION 5 was run and is green.
