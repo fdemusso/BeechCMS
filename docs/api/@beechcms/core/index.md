@@ -32,6 +32,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 
 ## Interfaces
 
+- [AccountSummary](interfaces/AccountSummary.md)
 - [ActiveSessionSummary](interfaces/ActiveSessionSummary.md)
 - [ActivityActor](interfaces/ActivityActor.md)
 - [ActivityLogEntry](interfaces/ActivityLogEntry.md)
@@ -330,6 +331,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [getSeed](functions/getSeed.md)
 - [hasBlindIndex](functions/hasBlindIndex.md)
 - [hasPermission](functions/hasPermission.md)
+- [hasPermissionAnywhere](functions/hasPermissionAnywhere.md)
 - [indexableSearchBranches](functions/indexableSearchBranches.md)
 - [interfaceForSeed](functions/interfaceForSeed.md)
 - [isCardEligibleBranch](functions/isCardEligibleBranch.md)
@@ -360,6 +362,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [parseScopeString](functions/parseScopeString.md)
 - [pascalCase](functions/pascalCase.md)
 - [permissionsForScope](functions/permissionsForScope.md)
+- [permissionsHeldAnywhere](functions/permissionsHeldAnywhere.md)
 - [planCreateSeed](functions/planCreateSeed.md)
 - [planExtendSeed](functions/planExtendSeed.md)
 - [planFtsRebuild](functions/planFtsRebuild.md)

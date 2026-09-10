@@ -4,7 +4,14 @@
 import { describe, it, expect } from 'vitest'
 import { GLOBAL_SCOPE, type Permission } from './permissions.js'
 import type { PermissionAssignment, RoleRecord } from './types.js'
-import { buildEffectivePermissions, permissionsForScope, hasPermission, canGrant } from './evaluate.js'
+import {
+  buildEffectivePermissions,
+  permissionsForScope,
+  hasPermission,
+  canGrant,
+  permissionsHeldAnywhere,
+  hasPermissionAnywhere,
+} from './evaluate.js'
 
 function role(id: string, permissions: Permission[]): RoleRecord {
   return {
@@ -92,5 +99,40 @@ describe('canGrant', () => {
     const actor = buildEffectivePermissions([assignment('r1', 'postsOnly')], roles)
 
     expect(canGrant(actor, 'postsOnly', ['content:read'])).toBe(true)
+  })
+})
+
+describe('hasPermissionAnywhere', () => {
+  it('is true for a permission held only on a seed scope', () => {
+    const roles = [role('r1', ['manage_users'])]
+    const actor = buildEffectivePermissions([assignment('r1', 'blog')], roles)
+
+    expect(hasPermissionAnywhere(actor, 'manage_users')).toBe(true)
+  })
+
+  it('is false for a permission held nowhere', () => {
+    const roles = [role('r1', ['content:read'])]
+    const actor = buildEffectivePermissions([assignment('r1', 'blog')], roles)
+
+    expect(hasPermissionAnywhere(actor, 'manage_users')).toBe(false)
+  })
+
+  it('returns false for manage_users when the actor only holds content:read on one seed', () => {
+    const roles = [role('r1', ['content:read'])]
+    const actor = buildEffectivePermissions([assignment('r1', 'blog')], roles)
+
+    expect(hasPermissionAnywhere(actor, 'manage_users')).toBe(false)
+  })
+})
+
+describe('permissionsHeldAnywhere', () => {
+  it('unions global and every scoped bucket, de-duplicating', () => {
+    const roles = [role('r1', ['content:read']), role('r2', ['content:read', 'manage_users'])]
+    const actor = buildEffectivePermissions(
+      [assignment('r1', GLOBAL_SCOPE), assignment('r2', 'blog')],
+      roles,
+    )
+
+    expect(permissionsHeldAnywhere(actor)).toEqual(new Set(['content:read', 'manage_users']))
   })
 })

@@ -11,7 +11,7 @@ the next lands. Detailed Task Details exist ONLY for the sprint currently in fli
 |---|------|-----------------|----------------------|------------|
 | 1 | `RbacCorePrimitives` | Land the closed permission vocabulary, the ABAC evaluator and the D1 tables, with zero behaviour change. | `packages/core/src/rbac/*` (enum, types, pure evaluator, repository interfaces), schema folded into `migrations/0000_v040_base.sql`, D1 repositories, `Variables` wiring. No routes, no UI, no enforcement. | — (first) |
 | 2 | `RbacRequestEnforcement` | Turn the evaluator into the single authorization gate on every protected request. | `permission.middleware.ts` on `apiProtected` (fail-closed route table, scope from the seed slug in the route), `shared/rbac/effective-permissions.ts` resolver, `PermissionRoleGuard` replacing `AllowAllRoleGuard` (**widening `arbitrate()` to take `EffectivePermissions` — 1 production call site, `features/oauth/authorize.ts:222`**), `is_active` refusal on login/refresh/OAuth + every gated request, **and the SuperAdmin grant at `POST /auth/setup` (see lockout warning)**. **PLANNED, detail in `output/RbacRequestEnforcement.md`.** | Sprint 1 (evaluator + tables must exist and be queryable) |
-| 3 | `RbacUserRoleAdminApi` | Expose account/role/assignment administration with anti-escalation and the last-SuperAdmin guardrail. | New VSA slice `apps/api/src/features/rbac/` (users CRUD, roles CRUD, assignment CRUD, activate/deactivate), `canGrant` enforcement, guardrail refusing revocation of the last active SuperAdmin. Route gating and `RBAC_ERRORS` follow the `features/oauth/index.ts` + `oauth/constants.ts` conventions. **Also inherits from sprint 2:** dropping the legacy `users.role` column (and with it `requireAdmin()` / `requireLayoutEditPermission()`), plus closing the `is_system` guard gap in `D1RoleRepository.update()` flagged by the sprint-1 review before any route is wired to it. | Sprint 2 (endpoints must be gated by the middleware they configure) |
+| 3 | `RbacUserRoleAdminApi` | Expose account/role/assignment administration with anti-escalation and the last-SuperAdmin guardrail. | New VSA slice `apps/api/src/features/rbac/` (accounts create/list/read/activate-deactivate, roles CRUD, assignment create/delete/list), `canGrant` enforcement, guardrail refusing revocation of the last active global admin, new `permission-any-scope` gate kind, and closure of the `is_system` guard gap in `D1RoleRepository.update()` flagged by the sprint-1 review. Route gating and `RBAC_ERRORS` follow the `features/oauth/index.ts` + `oauth/constants.ts` conventions. No migration (every table already exists). **PLANNED, detail in `output/RbacUserRoleAdminApi.md`.** | Sprint 2 (endpoints must be gated by the middleware they configure) |
 | 4 | `RbacInvitations` | Invite-only onboarding: single-use expiring tokens carrying a pre-assigned role+scope. | `invitations` table, invite issue/regenerate/redeem endpoints inside the `rbac` slice, email dispatch via `INotificationService`, activation flow setting credentials via the existing `IHashProvider`. Token handling reuses `generateOpaqueToken()` + `sha256hex()`; the repository mirrors `IPasswordResetTokenRepository`. | Sprint 3 (an invite pre-assigns a role that must already be creatable) |
 | 5 | `RbacDashboardSurfaces` | Make the dashboard reflect exactly the caller's effective permissions. | `apps/dashboard/src/features/rbac/` (users, roles, invites screens), permission-derived navigation/section visibility, `/api/settings/me` permission payload consumption. **Also inherits from sprint 2:** the scope-filtered projections sprint 2 left coarse — `GET /api/schema` (full seed list to any authenticated caller), `GET /api/content/drafts` and `GET /api/search` (global `content:read` instead of a scope-filtered list), `/api/upload*` (global `content:*`, since R2 media is not seed-partitioned), `/api/automations*` and `/api/dashboard-layout` writes (global-only). | Sprint 4 (UI must be able to drive the full invite lifecycle) |
 
@@ -36,8 +36,18 @@ in its permission table: the gate requires authentication and defers to the in-s
 `requireAdmin()` / `requireLayoutEditPermission()`, which read `users.role === 'admin'`.
 
 That keeps `users.role` alive **as the developer/owner axis** — orthogonal to RBAC, not a rung above
-it — which is why dropping the column moved from sprint 2 to sprint 3. Sprint 3 must replace those
-guards deliberately, not incidentally.
+it.
+
+**DECIDED in sprint 3's VETO audit §5 — binding, supersedes the earlier "drop it in sprint 3" note:
+`users.role` is RETAINED PERMANENTLY.** Dropping it would leave `/api/seeds/*` and
+`/api/schema/:slug/layout` with no gate at all, since no RBAC permission may ever cover them
+(`manage_seeds` does not exist). No sprint in this feature inherits its removal;
+`requireAdmin()` and `requireLayoutEditPermission()` stay as they are.
+
+The one hardening sprint 3 does add on this axis: accounts created through `POST /api/rbac/users`
+are always minted `users.role = 'editor'`. `POST /auth/setup` stays the sole producer of
+`role = 'admin'`, so no dashboard path at any privilege level can mint an account that clears
+`requireAdmin()`.
 
 ## Migration policy for this feature (beta)
 

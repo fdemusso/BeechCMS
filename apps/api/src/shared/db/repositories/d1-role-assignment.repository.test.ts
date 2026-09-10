@@ -96,4 +96,52 @@ describe('D1RoleAssignmentRepository', () => {
 
     expect(await repo.countActiveGlobalAdmins()).toBe(1)
   })
+
+  it('findById returns the row, or null when absent', async () => {
+    const roleId = await roles.create({ name: 'FindMe', description: null, permissions: ['content:read'] })
+    const id = await repo.create({ userId: USER_ID, roleId, scope: GLOBAL_SCOPE })
+
+    expect((await repo.findById(id))?.roleId).toBe(roleId)
+    expect(await repo.findById('missing-id')).toBeNull()
+  })
+
+  it('listAll returns rows across several users', async () => {
+    const roleId = await roles.create({ name: 'ListAllRole', description: null, permissions: ['content:read'] })
+    await seedTestUsers(db, [{ id: 'user_second_01', email: 'second@beechcms.io', password_hash: 'x', grantSuperAdmin: false }])
+    await repo.create({ userId: USER_ID, roleId, scope: GLOBAL_SCOPE })
+    await repo.create({ userId: 'user_second_01', roleId, scope: GLOBAL_SCOPE })
+
+    const all = await repo.listAll()
+    expect(all.map(a => a.userId).sort()).toEqual([USER_ID, 'user_second_01'].sort())
+  })
+
+  it('listAllForUser includes an assignment on a deleted seed, unlike listActiveForUser', async () => {
+    const roleId = await roles.create({ name: 'DecayRole', description: null, permissions: ['content:read'] })
+    await db.prepare(`INSERT INTO seeds (slug, definition, status) VALUES ('gone', '{}', 'deleted')`).run()
+    await repo.create({ userId: USER_ID, roleId, scope: 'gone' })
+
+    expect(await repo.listAllForUser(USER_ID)).toHaveLength(1)
+    expect(await repo.listActiveForUser(USER_ID)).toHaveLength(0)
+  })
+
+  it('countActiveGlobalAdminsExcludingUser returns 0 with a single admin and 1 with two', async () => {
+    const adminRoleId = await roles.create({ name: 'ExclUserAdmin', description: null, permissions: ['manage_users'] })
+    await repo.create({ userId: USER_ID, roleId: adminRoleId, scope: GLOBAL_SCOPE })
+    expect(await repo.countActiveGlobalAdminsExcludingUser(USER_ID)).toBe(0)
+
+    await seedTestUsers(db, [{ id: 'user_second_admin', email: 'admin2@beechcms.io', password_hash: 'x', grantSuperAdmin: false }])
+    await repo.create({ userId: 'user_second_admin', roleId: adminRoleId, scope: GLOBAL_SCOPE })
+    expect(await repo.countActiveGlobalAdminsExcludingUser(USER_ID)).toBe(1)
+  })
+
+  it('countActiveGlobalAdminsExcludingRole returns 0 when that role is the only source of admins and 1 when another role also grants it', async () => {
+    const adminRoleId = await roles.create({ name: 'ExclRoleAdmin', description: null, permissions: ['manage_users'] })
+    await repo.create({ userId: USER_ID, roleId: adminRoleId, scope: GLOBAL_SCOPE })
+    expect(await repo.countActiveGlobalAdminsExcludingRole(adminRoleId)).toBe(0)
+
+    const otherAdminRoleId = await roles.create({ name: 'OtherAdminRole', description: null, permissions: ['manage_users'] })
+    await seedTestUsers(db, [{ id: 'user_other_admin', email: 'other-admin@beechcms.io', password_hash: 'x', grantSuperAdmin: false }])
+    await repo.create({ userId: 'user_other_admin', roleId: otherAdminRoleId, scope: GLOBAL_SCOPE })
+    expect(await repo.countActiveGlobalAdminsExcludingRole(adminRoleId)).toBe(1)
+  })
 })

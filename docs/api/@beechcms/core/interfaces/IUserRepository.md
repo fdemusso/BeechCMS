@@ -119,6 +119,41 @@ Retrieves a user by their unique identifier, or null if not found.
 
 ***
 
+### listAccounts()
+
+> **listAccounts**(): `Promise`&lt;[`AccountSummary`](AccountSummary.md)[]&gt;
+
+Every account, oldest first, without credential material.
+
+#### Returns
+
+`Promise`&lt;[`AccountSummary`](AccountSummary.md)[]&gt;
+
+***
+
+### setActive()
+
+> **setActive**(`userId`, `isActive`): `Promise`&lt;`boolean`&gt;
+
+Flips `users.is_active`. Returns false when the user does not exist.
+Reversible by design (brief §4): rows, assignments and tokens are all preserved.
+
+#### Parameters
+
+##### userId
+
+`string`
+
+##### isActive
+
+`boolean`
+
+#### Returns
+
+`Promise`&lt;`boolean`&gt;
+
+***
+
 ### updateAvatarUrl()
 
 > **updateAvatarUrl**(`userId`, `avatarUrl`): `Promise`&lt;`void`&gt;

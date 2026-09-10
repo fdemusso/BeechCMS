@@ -18,6 +18,21 @@ export interface UserRecord {
   isActive: boolean
 }
 
+/**
+ * Administrative projection of an account. Deliberately carries NO `passwordHash`:
+ * account listings must never put credential material on the wire.
+ */
+export interface AccountSummary {
+  id: string
+  email: string
+  name: string | null
+  surname: string | null
+  /** Developer/owner axis (`'admin' | 'editor'`), orthogonal to RBAC permissions. */
+  role: string
+  isActive: boolean
+  createdAt: number
+}
+
 export interface NewUserInput {
   id: string
   email: string
@@ -68,4 +83,13 @@ export interface IUserRepository {
    * an unrelated account exists.
    */
   emailBelongsToAnotherUser(email: string, currentUserId: string): Promise<boolean>
+
+  /** Every account, oldest first, without credential material. */
+  listAccounts(): Promise<AccountSummary[]>
+
+  /**
+   * Flips `users.is_active`. Returns false when the user does not exist.
+   * Reversible by design (brief §4): rows, assignments and tokens are all preserved.
+   */
+  setActive(userId: string, isActive: boolean): Promise<boolean>
 }

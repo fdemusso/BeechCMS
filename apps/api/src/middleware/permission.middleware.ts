@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { Context, Next } from 'hono'
-import { GLOBAL_SCOPE, hasPermission, type Permission } from '@beechcms/core'
+import { GLOBAL_SCOPE, hasPermission, hasPermissionAnywhere, type Permission } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../shared/rbac/effective-permissions'
 import type { Env, Variables } from '../types'
 
@@ -25,6 +25,11 @@ export type ScopeSource = 'global' | 'capture1'
 /**
  * What a route demands.
  * - `{ permission, scope }`     — a real RBAC check.
+ * - `{ permissions }` (any-scope) — a COARSE gate for administration endpoints whose
+ *                                 scope is not in the URL: the caller must hold at
+ *                                 least one listed permission on at least one scope.
+ *                                 The slice behind it MUST still make the exact
+ *                                 per-scope decision (`hasPermission` / `canGrant`).
  * - `'authenticated'`           — any active account; self-service and dashboard chrome.
  * - `'legacy-admin'`            — deferred to the slice's own `users.role === 'admin'`
  *                                 guard. The developer axis (brief §2): schema mutation
@@ -33,6 +38,7 @@ export type ScopeSource = 'global' | 'capture1'
  */
 export type RouteRequirement =
   | { kind: 'permission'; permission: Permission; scope: ScopeSource }
+  | { kind: 'permission-any-scope'; permissions: readonly Permission[] }
   | { kind: 'authenticated' }
   | { kind: 'legacy-admin' }
 
@@ -45,6 +51,8 @@ export interface ProtectedRoute {
 
 const perm = (permission: Permission, scope: ScopeSource): RouteRequirement =>
   ({ kind: 'permission', permission, scope })
+const anyScope = (...permissions: Permission[]): RouteRequirement =>
+  ({ kind: 'permission-any-scope', permissions })
 const AUTHED: RouteRequirement = { kind: 'authenticated' }
 const LEGACY_ADMIN: RouteRequirement = { kind: 'legacy-admin' }
 
@@ -132,6 +140,19 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'POST',   pattern: /^\/api\/upload(\/(presign|confirm))?$/,    requirement: perm('content:create', 'global') },
   { method: 'GET',    pattern: /^\/api\/upload\/download-url\/.+$/,        requirement: perm('content:read',   'global') },
   { method: 'DELETE', pattern: /^\/api\/upload\/.+$/,                      requirement: perm('content:delete', 'global') },
+
+  // --- RBAC administration: coarse gate here, exact scope decided inside the slice ---
+  { method: 'GET',    pattern: /^\/api\/rbac\/users$/,                     requirement: anyScope('manage_users') },
+  { method: 'POST',   pattern: /^\/api\/rbac\/users$/,                     requirement: anyScope('manage_users') },
+  { method: 'GET',    pattern: /^\/api\/rbac\/users\/[^/]+\/assignments$/, requirement: anyScope('manage_users') },
+  { method: 'PATCH',  pattern: /^\/api\/rbac\/users\/[^/]+\/active$/,      requirement: anyScope('manage_users') },
+  { method: 'GET',    pattern: /^\/api\/rbac\/users\/[^/]+$/,              requirement: anyScope('manage_users') },
+  { method: 'GET',    pattern: /^\/api\/rbac\/roles$/,                     requirement: anyScope('manage_users', 'manage_roles') },
+  { method: 'POST',   pattern: /^\/api\/rbac\/roles$/,                     requirement: anyScope('manage_roles') },
+  { method: 'PUT',    pattern: /^\/api\/rbac\/roles\/[^/]+$/,              requirement: anyScope('manage_roles') },
+  { method: 'DELETE', pattern: /^\/api\/rbac\/roles\/[^/]+$/,              requirement: anyScope('manage_roles') },
+  { method: 'POST',   pattern: /^\/api\/rbac\/assignments$/,               requirement: anyScope('manage_users') },
+  { method: 'DELETE', pattern: /^\/api\/rbac\/assignments\/[^/]+$/,        requirement: anyScope('manage_users') },
 ]
 
 /** Resolves the rule for a request, plus the scope its pattern captured. */
@@ -195,6 +216,21 @@ export function permissionMiddleware() {
     }
 
     if (rule.requirement.kind === 'authenticated' || rule.requirement.kind === 'legacy-admin') {
+      await next()
+      return
+    }
+
+    if (rule.requirement.kind === 'permission-any-scope') {
+      const effective = await resolveEffectivePermissions(c)
+      const permitted = rule.requirement.permissions.some(permission =>
+        hasPermissionAnywhere(effective, permission),
+      )
+      if (!permitted) {
+        return forbidden(
+          PERMISSION_ERRORS.FORBIDDEN,
+          `This endpoint requires one of '${rule.requirement.permissions.join("', '")}' on any scope.`,
+        )
+      }
       await next()
       return
     }

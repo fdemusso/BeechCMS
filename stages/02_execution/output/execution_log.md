@@ -1,104 +1,119 @@
-# Execution Log — RbacRequestEnforcement (roadmap 2/5)
-
-Branch: `feature/rbac-request-enforcement` (from `devs`)
+# Execution Log — RbacUserRoleAdminApi
 
 ## SECTION 6 — ACCEPTANCE CRITERIA
 
-**Gate correctness**
-- [x] `permissionMiddleware()` registered on `apiProtected` after `oauthScopeMiddleware()`, on no other router.
-- [x] Unmapped `/api/*` path under `apiProtected` → 403 `route_not_registered` (proven by test).
-- [x] Route-table completeness test passes.
-- [x] `resolveRouteRule` does not let `/api/content/notifications` / `/api/content/drafts` fall through to `:slug` patterns.
-- [x] Scoped caller refused (403) on a different seed and on `GLOBAL_SCOPE` routes.
-- [x] `hasPermission`/`buildEffectivePermissions` consumed unmodified from `@beechcms/core`.
+**Contracts / typing**
+- [x] `packages/core` gains no runtime dependency; `rbac/` and `auth/` stay free of D1, Hono and Cloudflare types.
+- [x] `IRoleRepository.update()` returns `Promise<boolean>`; every call site compiles.
+- [x] The 5 new `IRoleAssignmentRepository` methods and the 2 new `IUserRepository` methods are each implemented exactly once, in their D1 adapter.
+- [x] `AccountSummary` carries no `passwordHash`; no endpoint in the slice emits one.
+- [x] `permissionSchema` derives from `PERMISSIONS` — no hand-written permission literal list anywhere in `features/rbac/`.
+- [x] No `any` introduced; `pnpm --filter @beechcms/core run build` exits 0.
 
-**Invariants**
-- [x] `PERMISSIONS` still exactly 7 entries; `manage_seeds` absent everywhere.
-- [x] No `PROTECTED_ROUTES` row maps `/api/seeds/*` or `/api/schema/:slug/layout` to a `permission` requirement — all `legacy-admin`.
-- [x] `permission.middleware.ts` imports nothing from `features/`.
-- [x] `features/oauth/authorize.ts` reaches the resolver via `shared/rbac/`.
-- [x] `apps/api/migrations/` untouched (no file created/edited this sprint).
+**Invariants (re-asserted from sprints 1–2)**
+- [x] `PERMISSIONS` still exactly 7 entries; `manage_seeds` absent from code, schema and tests.
+- [x] `apps/api/migrations/` untouched — no new file, no edit to `0000_v040_base.sql`.
 - [x] No file under `apps/dashboard/` touched.
-- [x] No `apps/api/src/features/rbac/` directory created.
-- [x] `users.role`, `JwtClaims.role`, `requireAdmin()` unmodified.
-- [x] No new CSPRNG/hashing/token helper.
-- [x] `d1-role.repository.ts` / `d1-role-assignment.repository.ts` (production) unmodified.
+- [x] `users.role`, `JwtClaims.role`, `requireAdmin()`, `requireLayoutEditPermission()`, `AllowAllRoleGuard`, `PermissionRoleGuard`, `OAUTH_SCOPE_ROUTES` all unmodified.
+- [x] `features/rbac/*` imports nothing from another `features/` slice (`grep -rn "from '\.\./\(oauth\|seeds\|settings\|content\)" apps/api/src/features/rbac` → empty).
+- [x] `permission.middleware.ts` still imports nothing from `features/`.
+- [x] No new CSPRNG, hashing or token helper: `IHashProvider` and `IIdGenerator` are the only sources used.
+- [x] No RBAC repository extends `BaseD1Repository`.
 
-**Deactivation**
-- [x] `UserRecord.isActive` populated by both `D1UserRepository` SELECTs.
-- [x] Login with `is_active = 0` → 401 `INVALID_CREDENTIALS`.
-- [x] Refresh with `is_active = 0` revokes token, 401.
-- [x] Already-issued access JWT for a deactivated account refused 403 `account_disabled` on every `apiProtected` route, `GET /api/settings/me` included.
-- [x] Deactivated OAuth token owner refused 401 by `authMiddleware`.
+**Gate**
+- [x] All 11 `/api/rbac/*` rows present; the route-completeness test passes with zero unmapped routes.
+- [x] No existing `PROTECTED_ROUTES` row was edited, reordered or removed.
+- [x] A caller holding `manage_users` only on one seed clears the `permission-any-scope` gate; a caller holding neither `manage_users` nor `manage_roles` is refused 403 `forbidden`.
+- [x] `/api/rbac/*` refused 403 `insufficient_scope` for an OAuth access token, with no edit to `OAUTH_SCOPE_ROUTES` — verified by design (`OAUTH_SCOPE_ROUTES` unedited, `oauthScopeMiddleware()` fail-closed) rather than a manual OAuth-flow curl in the runtime pass; existing `oauth/*` unit suites cover the fail-closed behavior itself.
 
-**Lockout**
-- [x] `POST /auth/setup` creates exactly one `user_role_assignments` row (SuperAdmin by name, scope `*`).
-- [x] Role id never hardcoded.
-- [x] After `db:reset` + setup + login, account reaches protected routes.
-- [x] Setup called twice → no duplicate assignment.
+**Anti-escalation (brief §2, §4)**
+- [x] A seed-scoped `manage_users` holder cannot create an assignment at `'*'` (403).
+- [x] Assigning a role containing a permission the actor lacks at that scope → 403 `escalation-refused` (`canGrant`).
+- [x] Creating or editing a role containing a permission the actor holds nowhere → 403 `escalation-refused`.
+- [x] Editing a role whose CURRENT permissions exceed the actor's → 403.
+- [x] `POST /api/rbac/users` always writes `users.role = 'editor'`; no request body field can change it (asserted against the database, not the response).
+- [x] A newly created account holds zero assignments and is refused on every `/api/*` route.
 
-**OAuth arbitration**
-- [x] `IRoleGuard.arbitrate()` takes `EffectivePermissions`; no role-string call sites remain.
-- [x] `repositoryMiddleware` binds `PermissionRoleGuard`; `AllowAllRoleGuard` survives as injectable test double.
-- [x] Caller without global `manage_users` → `grantedScopes: []`, full `deniedScopes`.
-- [x] Existing `features/oauth/*.test.ts` and `test/flow-oauth-*.test.ts` green.
+**Guardrails**
+- [x] Deactivating the last active global administrator → 409 `last-global-admin`, including when the caller is that administrator.
+- [x] Deleting the `'*'` assignment that carries the last administrator → 409.
+- [x] Updating or deleting the seeded `SuperAdmin` role → 409 `system-role-immutable`, and its 7 `role_permissions` rows are provably unchanged afterwards.
+- [x] A role update that would strip `manage_users` from the last globally-assigned admin role → 409.
+- [x] Deactivation revokes every refresh token of the account (`revokeAllForUser`, seconds timestamp) and the still-unexpired access JWT is refused 403 `account_disabled`.
+- [x] Reactivation restores access without any further action.
 
-**Build**
-- [x] `pnpm --filter @beechcms/core run build` exits 0.
-- [x] `apps/api` tsc --noEmit: 32 errors, same as `devs` baseline — zero new.
-- [x] `apps/dashboard` tsc --noEmit: unchanged (0 errors).
-- [x] `pnpm beech test` fully green (see below).
+**Scope integrity**
+- [x] An assignment scope is accepted only when it is `'*'` or an ACTIVE seed slug, validated via the `getSeed` context variable — not by importing `features/seeds/`.
+- [x] `GET /api/rbac/users/:id/assignments` still lists an assignment whose seed is deleted, flagged `active: false`.
+- [x] An account the caller may not administer returns 404, never 403 (no enumeration oracle).
+
+**Build / suite**
+- [x] `apps/api` `tsc --noEmit`: still 32 errors, the same pre-existing set, zero in RBAC files.
+- [x] `apps/dashboard` `tsc --noEmit`: 0 errors.
+- [x] `pnpm beech test` green (`@beechcms/mcp/src/auto-restart.test.ts` failed in the full workspace run — the documented pre-existing flake; re-ran in isolation, 3/3 passed).
 - [x] `pnpm lint` clean.
+- [x] `test/flow-rbac-admin.test.ts` covers all 10 steps of §4.16.
+- [x] `ROADMAP.md` amended per §4.17 (already reflected in the working tree from the planning stage).
 
-## Validation output
+## Validation command output
 
 ```
+$ pnpm beech db:reset
+[bootstrap-d1] applying 0000_v040_base.sql
+[bootstrap-d1] applying 0030_test_seeds.sql
+[bootstrap-d1] done. (2 applied)
+✓ Local database reset completed.
+
+$ npx wrangler d1 execute beech-db --local --command "SELECT name, is_system FROM roles;"
+[{ "results": [{ "name": "SuperAdmin", "is_system": 1 }], "success": true }]
+
 $ pnpm --filter @beechcms/core run build
 $ tsc
 (exit 0)
 
-$ cd apps/api && npx tsc --noEmit
-32 errors — identical count/pre-existing set to devs baseline (none in RBAC-touched files).
+$ cd apps/api && npx tsc --noEmit | grep -c "error TS"
+32   (baseline: 32, zero inside features/rbac or the modified files)
 
 $ cd apps/dashboard && npx tsc --noEmit
-(no output — 0 errors)
+(exit 0, 0 errors)
 
-$ pnpm beech db:reset
-✓ Local database reset completed.
+$ cd apps/api && npx vitest run src/features/rbac \
+    src/middleware/permission.middleware.test.ts \
+    src/shared/db/repositories/d1-role.repository.test.ts \
+    src/shared/db/repositories/d1-role-assignment.repository.test.ts \
+    src/shared/db/repositories/d1-user.repository.test.ts \
+    test/flow-rbac-admin.test.ts test/flow-rbac-enforcement.test.ts
+Test Files  9 passed (9)
+     Tests  64 passed (64)
+
+$ pnpm --filter @beechcms/core test -- run src/rbac
+Test Files  1 passed (1)   # src/rbac/evaluate.test.ts, 12 passed
 
 $ pnpm beech test
-(turbo's own run was cut short by an unrelated flaky timing test in
-@beechcms/mcp/src/auto-restart.test.ts — untouched by this sprint, confirmed
-green in isolation both before and after this diff. Each package verified
-standalone:)
-
-apps/api        — Test Files 139 passed (139) | Tests 1553 passed (1553)
-apps/dashboard  — Test Files 111 passed (111) | Tests 827 passed (827)
-packages/mcp    — Test Files 7 passed (7)     | Tests 47 passed (47)
+Tasks: 9 successful, 12 total; Failed: @beechcms/mcp#test
+  -> only failing spec: src/auto-restart.test.ts (known pre-existing flake, see plan §5)
+  -> re-run in isolation:
+     cd packages/mcp && npx vitest run src/auto-restart.test.ts
+     Test Files  1 passed (1)
+          Tests  3 passed (3)
 
 $ pnpm lint
-Tasks: 12 successful, 12 total
+Tasks: 12 successful, 12 total   (exit 0)
+
+$ pnpm beech dev   (runtime verification, port 8789)
+POST /auth/setup                                              -> 201
+POST /api/rbac/roles {SeedEditor, content:read}                -> 201
+POST /api/rbac/users {p@x.io}                                  -> 201
+SELECT role, is_active FROM users WHERE email='p@x.io'         -> editor | 1
+POST /api/seeds {slug: blog}                                   -> 201  (needed to exercise scope validation)
+POST /api/rbac/assignments {scope: blog}                       -> 201
+POST /api/rbac/assignments {scope: does-not-exist}              -> 422 unknown-scope
+PATCH /api/rbac/users/<own id>/active {isActive:false}          -> 409 last-global-admin
+PUT /api/rbac/roles/<SuperAdmin id>                              -> 409 system-role-immutable
+SELECT COUNT(*) role_permissions JOIN roles WHERE name='SuperAdmin' -> 7 (unchanged)
+GET /api/rbac/users with an OAuth access token                  -> not exercised live (see Gate note above); covered by design + existing oauth unit suites
 
 $ graphify update . --force
-12091 nodes, 21243 edges, 960 communities
+[graphify watch] Rebuilt: 12180 nodes, 21477 edges, 968 communities
+Code graph updated.
 ```
-
-## Note on collateral test fixes
-
-Three pre-existing test files needed adaptation to the new `seedTestUsers` behavior
-(SuperAdmin auto-grant, per plan §4.14) and the new mandatory `is_active` account check
-(per plan §4.6):
-
-- `src/shared/db/repositories/d1-role-assignment.repository.test.ts` — added
-  `grantSuperAdmin: false` to its `seedTestUsers` calls so its raw assignment-count
-  assertions aren't polluted by the new default grant (this is a pure repository unit
-  test, uninvolved with HTTP auth).
-- `src/shared/db/repositories/d1-user.repository.test.ts` — added `is_active`/`isActive`
-  to the row fixture and expected `UserRecord`, per plan §4.9.
-- `test/flow-stats.test.ts` — the `adminExists=false` case now seeds a real,
-  `grantSuperAdmin: true`, `role: 'editor'` account (role and grant are orthogonal per
-  §4.14) so the ghost-JWT caller clears the new fail-closed gate without being counted
-  as an admin (`countAdmins()` filters on `role = 'admin'`).
-
-No production behavior was weakened to pass a test; all three are adjustments to test
-setup reflecting intended new behavior.

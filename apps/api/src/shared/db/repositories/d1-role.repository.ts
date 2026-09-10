@@ -83,7 +83,18 @@ export class D1RoleRepository implements IRoleRepository {
     return roleId
   }
 
-  async update(roleId: string, input: NewRoleInput): Promise<void> {
+  async update(roleId: string, input: NewRoleInput): Promise<boolean> {
+    // The is_system guard must cover the permission statements too, not just the row
+    // update: replacing SuperAdmin's permission set while leaving its name intact would
+    // be a silent authority change. `is_system` is written only by the migration, so
+    // reading it first cannot race with any runtime write.
+    const row = await this.db
+      .prepare(`SELECT is_system FROM roles WHERE id = ? LIMIT 1`)
+      .bind(roleId)
+      .first<{ is_system: number }>()
+
+    if (!row || row.is_system === 1) return false
+
     await this.db.batch([
       this.db
         .prepare(
@@ -94,6 +105,7 @@ export class D1RoleRepository implements IRoleRepository {
       this.db.prepare(`DELETE FROM role_permissions WHERE role_id = ?`).bind(roleId),
       ...this.permissionInserts(roleId, input.permissions),
     ])
+    return true
   }
 
   async delete(roleId: string): Promise<boolean> {

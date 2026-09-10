@@ -62,8 +62,15 @@ export interface IRoleRepository {
   /** Creates a role and its permission rows atomically. Returns the new role id. */
   create(input: NewRoleInput): Promise<string>
 
-  /** Replaces a role's name, description and full permission set atomically. */
-  update(roleId: string, input: NewRoleInput): Promise<void>
+  /**
+   * Replaces a role's name, description and full permission set atomically.
+   *
+   * Returns false — changing NOTHING, permissions included — when the role does not
+   * exist or is a system role. System roles are seeded by migration and are immutable
+   * in both halves of the write, which is the guarantee callers rely on to keep
+   * `SuperAdmin` intact.
+   */
+  update(roleId: string, input: NewRoleInput): Promise<boolean>
 
   /**
    * Deletes a non-system role and, by cascade, its permissions and assignments.
@@ -97,4 +104,36 @@ export interface IRoleAssignmentRepository {
    * Backs the last-SuperAdmin guardrail consumed by a later sprint.
    */
   countActiveGlobalAdmins(): Promise<number>
+
+  /** One assignment by id, decay filter NOT applied. Null when absent. */
+  findById(assignmentId: string): Promise<PermissionAssignment | null>
+
+  /**
+   * Every assignment in the system, decay filter NOT applied.
+   *
+   * Exists so the account-list endpoint can resolve each account's scopes in ONE round
+   * trip instead of one query per account. Administration tables are small by nature;
+   * content never flows through here.
+   */
+  listAll(): Promise<PermissionAssignment[]>
+
+  /**
+   * Every assignment of one user, decay filter NOT applied — administration screens must
+   * see (and be able to remove) a row whose seed is currently deleted, which
+   * {@link listActiveForUser} deliberately hides.
+   */
+  listAllForUser(userId: string): Promise<PermissionAssignment[]>
+
+  /**
+   * {@link countActiveGlobalAdmins} ignoring one user. `0` means that user is the last
+   * account able to administer the platform, and any operation revoking their authority
+   * must be refused.
+   */
+  countActiveGlobalAdminsExcludingUser(userId: string): Promise<number>
+
+  /**
+   * {@link countActiveGlobalAdmins} ignoring every assignment that goes through one role.
+   * `0` means mutating that role would strip the platform of its last administrator.
+   */
+  countActiveGlobalAdminsExcludingRole(roleId: string): Promise<number>
 }
