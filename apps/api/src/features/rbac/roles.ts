@@ -53,6 +53,7 @@ export const createRoleHandler = async (context: AppContext) => {
     const id = await roleRepository.create({
       name: parsed.data.name,
       description: parsed.data.description ?? null,
+      icon: parsed.data.icon ?? null,
       permissions: parsed.data.permissions,
     })
     return context.json({ id }, 201)
@@ -116,6 +117,7 @@ export const updateRoleHandler = async (context: AppContext) => {
   const updated = await roleRepository.update(roleId, {
     name: parsed.data.name,
     description: parsed.data.description ?? null,
+    icon: parsed.data.icon ?? null,
     permissions: parsed.data.permissions,
   })
   if (!updated) return notFound()

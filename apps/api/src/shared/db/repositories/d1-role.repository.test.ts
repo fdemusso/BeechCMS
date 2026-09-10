@@ -18,10 +18,11 @@ beforeEach(() => {
 })
 
 describe('D1RoleRepository', () => {
-  it('create then findById round-trips name, description, isSystem and the exact permission set', async () => {
+  it('create then findById round-trips name, description, icon, isSystem and the exact permission set', async () => {
     const roleId = await repo.create({
       name: 'Editor',
       description: 'Content editor',
+      icon: 'Users',
       permissions: ['content:read', 'content:update'],
     })
 
@@ -30,25 +31,29 @@ describe('D1RoleRepository', () => {
     expect(found).not.toBeNull()
     expect(found?.name).toBe('Editor')
     expect(found?.description).toBe('Content editor')
+    expect(found?.icon).toBe('Users')
     expect(found?.isSystem).toBe(false)
     expect(new Set(found?.permissions)).toEqual(new Set(['content:read', 'content:update']))
   })
 
-  it('update fully replaces the permission set and returns true', async () => {
+  it('update fully replaces the permission set and updates icon and returns true', async () => {
     const roleId = await repo.create({
       name: 'Editor',
       description: null,
+      icon: 'Users',
       permissions: ['content:read', 'content:update'],
     })
 
     const updated = await repo.update(roleId, {
       name: 'Editor',
       description: null,
+      icon: 'Shield',
       permissions: ['content:delete'],
     })
 
     expect(updated).toBe(true)
     const found = await repo.findById(roleId)
+    expect(found?.icon).toBe('Shield')
     expect(found?.permissions).toEqual(['content:delete'])
   })
 

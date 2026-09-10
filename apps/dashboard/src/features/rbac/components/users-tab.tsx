@@ -39,6 +39,8 @@ export function UsersTab() {
   const [assignmentsUser, setAssignmentsUser] = React.useState<AccountView | null>(null)
 
   const handleToggleActive = async (targetUser: AccountView) => {
+    const isDev = targetUser.role === "admin" || (targetUser as { isDeveloper?: boolean }).isDeveloper === true
+    if (isDev) return
     try {
       await setUserActive.mutateAsync({ userId: targetUser.id, isActive: !targetUser.isActive })
     } catch (err) {
@@ -79,6 +81,8 @@ export function UsersTab() {
             <TableBody>
               {sortedUsers.map((accountUser) => {
                 const isSelf = currentUser?.id === accountUser.id
+                const isDev = accountUser.role === "admin" || (accountUser as { isDeveloper?: boolean }).isDeveloper === true
+                const isSwitchDisabled = isSelf || isDev || setUserActive.isPending
                 return (
                   <TableRow key={accountUser.id}>
                     <TableCell className="font-medium">
@@ -121,14 +125,18 @@ export function UsersTab() {
                             <span className="inline-flex">
                               <Switch
                                 checked={accountUser.isActive}
-                                disabled={isSelf || setUserActive.isPending}
+                                disabled={isSwitchDisabled}
                                 onCheckedChange={() => handleToggleActive(accountUser)}
                                 aria-label={t("rbac.users.status", "Status")}
                               />
                             </span>
                           </TooltipTrigger>
                           <TooltipContent side="top">
-                            {t("rbac.users.status", "Status")}
+                            {isDev
+                              ? t("rbac.users.cannotDeactivateDev", "Developer account cannot be deactivated")
+                              : isSelf
+                              ? t("rbac.users.cannotDeactivateSelf", "You cannot deactivate your own account")
+                              : t("rbac.users.status", "Status")}
                           </TooltipContent>
                         </Tooltip>
                       </div>

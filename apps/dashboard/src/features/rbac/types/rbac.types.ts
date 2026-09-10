@@ -41,6 +41,7 @@ export interface CreateUserPayload {
 export interface RoleBodyPayload {
   name: string
   description?: string | null
+  icon?: string | null
   permissions: Permission[]   // min 1 — server rejects an empty array (422)
 }
 

@@ -10,6 +10,7 @@ type RoleRow = {
   id: string
   name: string
   description: string | null
+  icon: string | null
   is_system: number
   created_at: number
   updated_at: number
@@ -42,7 +43,7 @@ export class D1RoleRepository implements IRoleRepository {
 
     const roleRows = await this.db
       .prepare(
-        `SELECT id, name, description, is_system, created_at, updated_at
+        `SELECT id, name, description, icon, is_system, created_at, updated_at
          FROM roles WHERE id IN (${placeholders}) ORDER BY name`
       )
       .bind(...roleIds)
@@ -59,7 +60,7 @@ export class D1RoleRepository implements IRoleRepository {
   async listAll(): Promise<RoleRecord[]> {
     const roleRows = await this.db
       .prepare(
-        `SELECT id, name, description, is_system, created_at, updated_at
+        `SELECT id, name, description, icon, is_system, created_at, updated_at
          FROM roles ORDER BY name`
       )
       .all<RoleRow>()
@@ -75,8 +76,8 @@ export class D1RoleRepository implements IRoleRepository {
     const roleId = this.idGenerator.uuid()
     const statements: D1PreparedStatement[] = [
       this.db
-        .prepare(`INSERT INTO roles (id, name, description, is_system) VALUES (?, ?, ?, 0)`)
-        .bind(roleId, input.name, input.description),
+        .prepare(`INSERT INTO roles (id, name, description, icon, is_system) VALUES (?, ?, ?, ?, 0)`)
+        .bind(roleId, input.name, input.description, input.icon ?? null),
       ...this.permissionInserts(roleId, input.permissions),
     ]
     await this.db.batch(statements)
@@ -98,10 +99,10 @@ export class D1RoleRepository implements IRoleRepository {
     await this.db.batch([
       this.db
         .prepare(
-          `UPDATE roles SET name = ?, description = ?, updated_at = unixepoch()
+          `UPDATE roles SET name = ?, description = ?, icon = ?, updated_at = unixepoch()
            WHERE id = ? AND is_system = 0`
         )
-        .bind(input.name, input.description, roleId),
+        .bind(input.name, input.description, input.icon ?? null, roleId),
       this.db.prepare(`DELETE FROM role_permissions WHERE role_id = ?`).bind(roleId),
       ...this.permissionInserts(roleId, input.permissions),
     ])
@@ -137,6 +138,7 @@ export class D1RoleRepository implements IRoleRepository {
       id: row.id,
       name: row.name,
       description: row.description,
+      icon: row.icon ?? null,
       isSystem: row.is_system === 1,
       permissions: byRole.get(row.id) ?? [],
       createdAt: row.created_at,

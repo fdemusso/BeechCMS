@@ -34,6 +34,7 @@ export const setActiveSchema = z.object({
 export const roleBodySchema = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().max(400).nullish(),
+  icon: z.string().trim().max(64).nullish(),
   /** At least one permission: a role granting nothing is a footgun, not a use case. */
   permissions: z.array(permissionSchema).min(1),
 })

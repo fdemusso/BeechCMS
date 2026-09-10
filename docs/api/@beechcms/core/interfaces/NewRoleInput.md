@@ -14,6 +14,12 @@
 
 ***
 
+### icon?
+
+> `optional` **icon?**: `string` \| `null`
+
+***
+
 ### name
 
 > **name**: `string`

@@ -22,6 +22,12 @@ A named, reusable bundle of atomic permissions.
 
 ***
 
+### icon?
+
+> `optional` **icon?**: `string` \| `null`
+
+***
+
 ### id
 
 > **id**: `string`

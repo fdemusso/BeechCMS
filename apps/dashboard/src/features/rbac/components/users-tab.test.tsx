@@ -71,4 +71,22 @@ describe("UsersTab", () => {
     // rows[0] is table header, rows[1] is the first user row
     expect(rows[1]).toHaveTextContent("me@beech.local")
   })
+
+  it("disables status switch for a developer account (role === 'admin')", () => {
+    mockUsers.mockReturnValue({
+      data: [
+        { id: "u2", email: "dev@beech.local", role: "admin", name: "Dev", surname: null, isActive: true, assignments: [] },
+        { id: "u3", email: "editor@beech.local", role: "editor", name: "Editor", surname: null, isActive: true, assignments: [] },
+      ],
+      isLoading: false,
+    })
+    renderTab()
+
+    const switches = screen.getAllByRole("switch")
+    expect(switches).toHaveLength(2)
+    // Developer account switch must be disabled even if not current user
+    expect(switches[0]).toBeDisabled()
+    // Standard user switch remains enabled
+    expect(switches[1]).not.toBeDisabled()
+  })
 })

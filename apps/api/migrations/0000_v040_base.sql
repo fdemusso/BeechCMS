@@ -469,6 +469,7 @@ CREATE TABLE IF NOT EXISTS roles (
     id          TEXT    NOT NULL PRIMARY KEY,
     name        TEXT    NOT NULL UNIQUE,
     description TEXT,
+    icon        TEXT,
     is_system   INTEGER NOT NULL DEFAULT 0 CHECK (is_system IN (0, 1)),
     created_at  INTEGER NOT NULL DEFAULT (unixepoch()),
     updated_at  INTEGER NOT NULL DEFAULT (unixepoch())

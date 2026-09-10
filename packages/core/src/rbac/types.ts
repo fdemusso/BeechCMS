@@ -8,6 +8,7 @@ export interface RoleRecord {
   id: string
   name: string
   description: string | null
+  icon?: string | null
   /** System roles (e.g. SuperAdmin) are seeded by migration and may not be deleted. */
   isSystem: boolean
   /** Always a subset of `PERMISSIONS`; unknown values are dropped at the storage boundary. */
@@ -27,6 +28,7 @@ export interface PermissionAssignment {
 export interface NewRoleInput {
   name: string
   description: string | null
+  icon?: string | null
   permissions: readonly Permission[]
 }
 
