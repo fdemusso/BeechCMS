@@ -104,7 +104,10 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'PATCH',  pattern: /^\/api\/content\/notifications\/[^/]+\/(read|unread)$/, requirement: AUTHED },
   { method: 'DELETE', pattern: /^\/api\/content\/notifications\/[^/]+$/,   requirement: AUTHED },
   { method: 'POST',   pattern: /^\/api\/content\/notifications\/mark-all-read$/, requirement: AUTHED },
-  { method: 'GET',    pattern: /^\/api\/content\/drafts$/,                 requirement: perm('content:read', 'global') },
+  // The handler's scope projection is the authorization decision for this route and is
+  // strictly narrower than a global `content:read` gate — a caller with no readable seed
+  // receives an empty list, a seed-scoped caller receives their own subset.
+  { method: 'GET',    pattern: /^\/api\/content\/drafts$/,                 requirement: AUTHED },
   { method: 'GET',    pattern: /^\/api\/content\/stats\/[^/]+$/,           requirement: perm('view_analytics', 'global') },
   { method: 'POST',   pattern: /^\/api\/content\/stats\/storage\/sync$/,   requirement: perm('view_analytics', 'global') },
 
@@ -136,7 +139,10 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'PUT',    pattern: /^\/api\/automations\/[^/]+$/,              requirement: perm('content:update', 'global') },
   { method: 'PATCH',  pattern: /^\/api\/automations\/[^/]+\/toggle$/,      requirement: perm('content:update', 'global') },
   { method: 'DELETE', pattern: /^\/api\/automations\/[^/]+$/,              requirement: perm('content:delete', 'global') },
-  { method: 'GET',    pattern: /^\/api\/search\/?$/,                       requirement: perm('content:read',   'global') },
+  // The handler's scope projection is the authorization decision for this route and is
+  // strictly narrower than a global `content:read` gate — a caller with no readable seed
+  // receives an empty list, a seed-scoped caller receives their own subset.
+  { method: 'GET',    pattern: /^\/api\/search\/?$/,                       requirement: AUTHED },
   { method: 'POST',   pattern: /^\/api\/upload(\/(presign|confirm))?$/,    requirement: perm('content:create', 'global') },
   { method: 'GET',    pattern: /^\/api\/upload\/download-url\/.+$/,        requirement: perm('content:read',   'global') },
   { method: 'DELETE', pattern: /^\/api\/upload\/.+$/,                      requirement: perm('content:delete', 'global') },

@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { Hono } from 'hono'
-import { rateLimiterMiddleware, buildDefaultRegistry, type RateLimiterName } from './rate-limit.middleware'
+import { rateLimiterMiddleware, buildDefaultRegistry, type RateLimiterName, type IRateLimiterRegistry } from './rate-limit.middleware'
 
 describe('rateLimiterMiddleware', () => {
   it('injects a registry into context and forwards to handler', async () => {
@@ -32,7 +32,7 @@ describe('rateLimiterMiddleware', () => {
     let called = false
     const fakeRegistry = {
       getLimiter: (_name: RateLimiterName) => ({
-        checkLimit: async () => {
+        checkLimit: async (_key: string) => {
           called = true
           return { isAllowed: true as const }
         },
@@ -42,7 +42,7 @@ describe('rateLimiterMiddleware', () => {
     const app = new Hono()
     app.use('*', rateLimiterMiddleware({ registry: fakeRegistry }))
     app.get('/test', async (c) => {
-      await c.get('rateLimiters').getLimiter('login').checkLimit('x')
+      await ((c as any).get('rateLimiters') as IRateLimiterRegistry).getLimiter('login').checkLimit('x')
       return c.text('ok')
     })
 

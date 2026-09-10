@@ -20,6 +20,8 @@ import type { AppEnv } from '../../../types'
 import { SEARCH_ERRORS, SEARCH_LIMITS } from '../constants'
 import type { SearchResponse } from '../types'
 import { encodeCursor, mapSearchResultRow } from '../utils/search-utils'
+import { resolveEffectivePermissions } from '../../../shared/rbac/effective-permissions'
+import { filterSeedsByPermission } from '../../../shared/rbac/scoped-projection'
 
 /**
  * Handles `GET /api/search?q=…&schema_slug=…&status=…&limit=20&cursor=…`.
@@ -46,15 +48,31 @@ export async function fullTextSearchHandler(c: Context<AppEnv>): Promise<Respons
     return c.json({ error: SEARCH_ERRORS.QUERY_TOO_SHORT }, 400)
   }
 
-  const allSeeds        = c.get('seedRegistry').all()
-  const searchRepository = c.get('searchRepository')
+  const effective = await resolveEffectivePermissions(c)
+  const readableSeeds = filterSeedsByPermission(
+    c.get('seedRegistry').all(),
+    effective,
+    'content:read',
+  )
 
+  // An explicit `schema_slug` outside the caller's perimeter yields an empty result,
+  // NOT a 403: search must not become an existence oracle for seeds the caller cannot
+  // see (same reasoning as the 404-not-403 rule in features/rbac).
+  const searchableSeeds = schemaSlug === null
+    ? readableSeeds
+    : readableSeeds.filter(seed => seed.slug === schemaSlug)
+
+  if (searchableSeeds.length === 0) {
+    return c.json({ items: [], nextCursor: null, total: 0 } satisfies SearchResponse)
+  }
+
+  const searchRepository = c.get('searchRepository')
   const searchOptions = { queryText, schemaSlug, statusFilter, limit, cursor }
   const countOptions  = { queryText, schemaSlug, statusFilter }
 
   const [rawRows, countResult] = await Promise.all([
-    searchRepository.search(searchOptions, allSeeds),
-    searchRepository.count(countOptions, allSeeds),
+    searchRepository.search(searchOptions, searchableSeeds),
+    searchRepository.count(countOptions, searchableSeeds),
   ])
 
   const hasNextPage  = rawRows.length > limit

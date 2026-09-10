@@ -32,6 +32,7 @@ function buildApp(mocks: any = {}) {
         email: 'test@beechcms.com',
         name: 'Test',
         surname: 'User',
+        role: 'editor',
         passwordHash: 'hashed-pwd',
         avatarUrl: null,
         notificationPreferences: JSON.stringify({
@@ -96,6 +97,10 @@ function buildApp(mocks: any = {}) {
     })
 
     c.set('jwtPayload', mocks.jwtPayload ?? { sub: 'u1' })
+    c.set('effectivePermissions', mocks.effectivePermissions ?? {
+      global: new Set(['content:read']),
+      byScope: new Map(),
+    })
 
     c.env = mocks.env ?? {
       DATE_FORMAT: 'YYYY-MM-DD',
@@ -244,6 +249,36 @@ describe('Settings Handler', () => {
       expect(body.surname).toBe('User')
       expect(body.avatarUrl).toContain('gravatar.com')
       expect(body.notificationPrefs.contentUpdate).toBe(false)
+    })
+
+    it('emits the caller\'s serialized permissions and isDeveloper=false for a non-admin', async () => {
+      const app = buildApp({
+        effectivePermissions: {
+          global: new Set(),
+          byScope: new Map([['posts', new Set(['content:read'])]]),
+        },
+      })
+      const res = await app.request('/me')
+      expect(res.status).toBe(200)
+      const body = await res.json() as any
+      expect(body.permissions).toEqual({ global: [], byScope: { posts: ['content:read'] } })
+      expect(body.isDeveloper).toBe(false)
+    })
+
+    it('emits isDeveloper=true when users.role is admin', async () => {
+      const app = buildApp({
+        userRepository: {
+          findById: vi.fn().mockResolvedValue({
+            id: 'u1', email: 'admin@beechcms.com', name: 'Admin', surname: 'User', role: 'admin',
+            passwordHash: 'hashed-pwd', avatarUrl: null, notificationPreferences: '{}',
+          }),
+        },
+        effectivePermissions: { global: new Set(['content:read', 'manage_users']), byScope: new Map() },
+      })
+      const res = await app.request('/me')
+      const body = await res.json() as any
+      expect(body.isDeveloper).toBe(true)
+      expect(body.permissions.global).toEqual(['content:read', 'manage_users'])
     })
   })
 

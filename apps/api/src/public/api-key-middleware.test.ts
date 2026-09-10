@@ -39,7 +39,7 @@ describe('apiKeyMiddleware', () => {
 
     const res = await app.request('/posts', { method: 'GET' })
     expect(res.status).toBe(403)
-    const body = await res.json()
+    const body = await res.json() as any
     expect(body.type).toBe('https://beechcms.dev/problems/public-api-not-configured')
   })
 
@@ -48,7 +48,7 @@ describe('apiKeyMiddleware', () => {
 
     const res = await app.request('/posts', { method: 'GET' })
     expect(res.status).toBe(401)
-    const body = await res.json()
+    const body = await res.json() as any
     expect(body.type).toBe('https://beechcms.dev/problems/public-api-key-unauthorized')
   })
 
