@@ -41,6 +41,10 @@
       "cache": false,
       "dependsOn": ["^build"]
     },
+    "test:scale": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
     "test:coverage": {
       "cache": false,
       "dependsOn": ["^build"]

@@ -7,10 +7,10 @@
 // .mjs from its bundled build. packages/cli/src/test/test.test.ts asserts the two agree.
 
 /** Every tier that exists. */
-export const TIERS = ['unit', 'flow', 'integration', 'e2e']
+export const TIERS = ['unit', 'flow', 'integration', 'e2e', 'scale']
 
 /** Tiers with a runner today. `e2e` runs via `pnpm beech test --tier e2e` (Playwright, e2e/). */
-export const RUNNABLE_TIERS = ['unit', 'flow', 'integration', 'e2e']
+export const RUNNABLE_TIERS = ['unit', 'flow', 'integration', 'e2e', 'scale']
 
 /** Tiers `--diff` may select. `e2e` is excluded by policy: pre-merge/nightly only. */
 export const DIFF_SELECTABLE_TIERS = ['unit', 'flow', 'integration']
@@ -58,6 +58,7 @@ export const WORKSPACES = [
       flow:  { mode: 'related', project: 'flow', config: null, coverage: true },
       // One suite, workerd pool, no v8 coverage: selection is all-or-nothing by design.
       integration: { mode: 'all', project: null, config: 'vitest.workers.config.ts', coverage: false },
+      scale: { mode: 'all', project: null, config: 'vitest.scale.config.ts', coverage: false },
     },
   },
 ]

@@ -19,8 +19,8 @@ will have moved by then, and stale SQL/interfaces are worse than no plan.
 | 1 | `harness-foundation` | **SHIPPED — archived: `docs/Sprints/S1_Harness_Foundation/`** |
 | 2 | `slice-test-layout` | **SHIPPED — archived: `docs/Sprints/S2_Slice_Test_Layout/`** |
 | 3 | `ci-test-tiering` | **SHIPPED — archived: `docs/Sprints/S3_CI_Test_Tiering/`** |
-| 4 | `e2e-playwright` | **PLANNED — detailed plan: `../S4_E2E_Playwright.md`** |
-| 5 | `scale-perf-tier` | pending |
+| 4 | `e2e-playwright` | **SHIPPED — archived: `docs/Sprints/S4_E2E_Playwright.md`** |
+| 5 | `scale-perf-tier` | active |
 
 ---
 

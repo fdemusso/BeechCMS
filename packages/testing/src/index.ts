@@ -22,3 +22,6 @@ export type { CanonicalUser, CanonicalUserKey, CanonicalEntry, CanonicalClaims }
 
 export { provisionSeeds, resetContentTables, seedUsers, seedCanonicalEntries } from './seeds/provision'
 export type { SeededCanonicalEntry } from './seeds/provision'
+
+export { generateScaleEntries } from './seeds/scale.data'
+export { seedScaleEntries } from './seeds/scale.provision'

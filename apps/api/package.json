@@ -28,6 +28,7 @@
     "test:unit": "vitest run --project unit",
     "test:flow": "vitest run --project flow",
     "test:integration": "vitest run --config vitest.workers.config.ts",
+    "test:scale": "vitest run --config vitest.scale.config.ts",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {

@@ -14,6 +14,8 @@ const SHARED_EXCLUDE = ['**/node_modules/**', '**/dist/**']
 
 export default defineConfig({
   test: {
+    reporters: ['verbose'],
+    silent: true,
     projects: [
       {
         test: {
@@ -21,9 +23,7 @@ export default defineConfig({
           pool: 'forks',
           include: ['src/**/*.test.ts'],
           // Integration tier is owned by vitest.workers.config.ts (real D1 via workerd).
-          exclude: [...SHARED_EXCLUDE, 'src/features/**/test/integration/**', ...DOCKER_BOUND_SUITES],
-          silent: 'passed-only',
-          reporters: ['verbose'],
+          exclude: [...SHARED_EXCLUDE, 'src/features/**/test/integration/**', 'src/features/**/test/scale/**', ...DOCKER_BOUND_SUITES],
         },
       },
       {
@@ -34,8 +34,6 @@ export default defineConfig({
           include: ['test/**/*.test.ts', ...DOCKER_BOUND_SUITES],
           exclude: [...SHARED_EXCLUDE],
           globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
-          silent: 'passed-only',
-          reporters: ['verbose'],
         },
       },
     ],
