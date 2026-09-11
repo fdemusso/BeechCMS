@@ -89,7 +89,7 @@ describe('Flow: /auth/setup race condition (#233)', () => {
     expect(count).toBe(1)
   })
 
-  it('rejects setup with 501 feature-not-implemented when loadDemoData is true and demo seeds are missing', async () => {
+  it('provisions the canonical demo seeds and ingests fixtures when loadDemoData is true (#387)', async () => {
     const res = await app.request('/auth/setup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -102,13 +102,13 @@ describe('Flow: /auth/setup race condition (#233)', () => {
       }),
     }, { ...TEST_ENV, DB: db })
 
-    expect(res.status).toBe(501)
-    const body = (await res.json()) as any
-    expect(body.type).toBe('https://beechcms.dev/problems/feature-not-implemented')
-    expect(body.title).toBe('Feature not implemented')
+    expect(res.status).toBe(201)
 
-    // Ensure no admin was created
-    const { count } = (await db.prepare('SELECT COUNT(*) as count FROM users').first()) as { count: number }
-    expect(count).toBe(0)
+    const seedRows = (await db.prepare(`SELECT slug FROM seeds WHERE status = 'active'`).all()).results as { slug: string }[]
+    const seedSlugs = seedRows.map((r) => r.slug).sort()
+    expect(seedSlugs).toEqual(['abbonamenti', 'articoli', 'changelog', 'clienti', 'ticket'])
+
+    const { count: clientiCount } = (await db.prepare('SELECT COUNT(*) as count FROM content_clienti').first()) as { count: number }
+    expect(clientiCount).toBeGreaterThan(0)
   })
 })
