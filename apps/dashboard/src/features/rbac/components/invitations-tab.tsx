@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { RelativeTime } from "@/components/ui/relative-time"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,14 +26,6 @@ import {
 import { useInvitations, useRegenerateInvitation, useRevokeInvitation } from "../hooks/use-rbac"
 import { InviteDialog } from "./invite-dialog"
 import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
-
-const relativeTimeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" })
-
-function formatRelative(ts: number): string {
-  const diffMs = ts * 1000 - Date.now()
-  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24))
-  return relativeTimeFormatter.format(diffDays, "day")
-}
 
 export function InvitationsTab() {
   const { t } = useTranslation()
@@ -94,7 +87,7 @@ export function InvitationsTab() {
                       {t(`rbac.invitations.statuses.${invitation.status}`, invitation.status)}
                     </Badge>
                   </TableCell>
-                  <TableCell>{formatRelative(invitation.expiresAt)}</TableCell>
+                  <TableCell><RelativeTime value={invitation.expiresAt} /></TableCell>
                   <TableCell className="text-right space-x-2">
                     {invitation.status !== "accepted" && (
                       <Button variant="ghost" size="icon" className="size-8" onClick={() => handleRegenerate(invitation.id)}>
