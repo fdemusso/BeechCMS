@@ -83,6 +83,15 @@ describe('Issue #391: Auto-restart MCP server and dynamic resource reload on reb
 
       await supervisor.start()
 
+      const waitForOutput = async (str: string, maxWait = 2000) => {
+        const start = Date.now()
+        while (Date.now() - start < maxWait) {
+          if (clientOutputs.some((l) => l.includes(str))) return true
+          await new Promise((r) => setTimeout(r, 50))
+        }
+        return false
+      }
+
       // Client sends initialize
       supervisor.handleClientInput(
         JSON.stringify({
@@ -93,9 +102,7 @@ describe('Issue #391: Auto-restart MCP server and dynamic resource reload on reb
         }) + '\n'
       )
 
-      // Wait for initialize response
-      await new Promise((r) => setTimeout(r, 200))
-      expect(clientOutputs.some((l) => l.includes('mock-mcp'))).toBe(true)
+      expect(await waitForOutput('mock-mcp')).toBe(true)
 
       // Send initial ping
       supervisor.handleClientInput(
@@ -105,8 +112,8 @@ describe('Issue #391: Auto-restart MCP server and dynamic resource reload on reb
           method: 'test/ping',
         }) + '\n'
       )
-      await new Promise((r) => setTimeout(r, 200))
-      expect(clientOutputs.some((l) => l.includes('"version":"1"'))).toBe(true)
+      
+      expect(await waitForOutput('"version":"1"')).toBe(true)
 
       // Simulate file rebuild
       writeFileSync(
@@ -131,12 +138,8 @@ describe('Issue #391: Auto-restart MCP server and dynamic resource reload on reb
       await supervisor.restart()
 
       // Supervisor must have emitted list_changed notifications to the client
-      expect(
-        clientOutputs.some((l) => l.includes('notifications/tools/list_changed'))
-      ).toBe(true)
-      expect(
-        clientOutputs.some((l) => l.includes('notifications/resources/list_changed'))
-      ).toBe(true)
+      expect(await waitForOutput('notifications/tools/list_changed')).toBe(true)
+      expect(await waitForOutput('notifications/resources/list_changed')).toBe(true)
 
       // Client sends a request to verify the new server responds with version 2
       supervisor.handleClientInput(
@@ -147,8 +150,7 @@ describe('Issue #391: Auto-restart MCP server and dynamic resource reload on reb
         }) + '\n'
       )
 
-      await new Promise((r) => setTimeout(r, 200))
-      expect(clientOutputs.some((l) => l.includes('"version":"2"'))).toBe(true)
+      expect(await waitForOutput('"version":"2"')).toBe(true)
     })
   })
 })
