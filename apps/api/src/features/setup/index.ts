@@ -7,7 +7,9 @@ import { Hono } from 'hono'
 import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { publicProblem } from '../../public/problem-details'
-import { DEMO_FIXTURES_BY_SEED_SLUG } from '../../shared/db/fixtures/demo-data.fixtures'
+import { DEMO_SEED_DEFINITIONS } from '../../shared/db/fixtures/demo-seeds'
+import { validateAndApplySeedDef } from '../seeds/seeds.helpers'
+import { getHydratedRegistry } from '../../shared/services/cache/seed-registry-cache'
 
 const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -185,16 +187,25 @@ setupApp.post('/auth/setup', async (context) => {
   }
 
   if (track === 'developer' && loadDemoData === true) {
-    const getSeed = context.get('getSeed')
-    const hasDemoSeeds = Object.keys(DEMO_FIXTURES_BY_SEED_SLUG).every((slug) => Boolean(getSeed(slug)))
-    if (!hasDemoSeeds) {
-      return publicProblem(context, {
-        type: 'feature-not-implemented',
-        title: 'Feature not implemented',
-        status: 501,
-        detail: 'Demo data seeding is currently not implemented with runtime D1 seeds.',
+    // Provision the canonical demo seeds (table + registry row) before creating the
+    // admin account, so a DDL/validation failure never leaves setup half-done.
+    const seedRepository = context.get('seedRepository')
+    for (const seedDef of DEMO_SEED_DEFINITIONS) {
+      const existing = await seedRepository.get(seedDef.slug)
+      if (existing?.status === 'active') continue
+
+      const error = await validateAndApplySeedDef(context, seedDef.slug, seedDef, 'create', {
+        slug: seedDef.slug,
+        source: 'demo-seed',
       })
+      if (error) return error
     }
+
+    // Rehydrate the registry in-request: getSeed() was captured by seedRegistryMiddleware
+    // before the seeds above existed, so it must be refreshed before loadDemoData() runs.
+    const { registry } = await getHydratedRegistry(seedRepository)
+    context.set('seedRegistry', registry)
+    context.set('getSeed', (slug: string) => registry.get(slug))
   }
 
   const passwordHash = await context.get('hashProvider').hash(password)
