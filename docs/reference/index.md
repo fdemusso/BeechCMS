@@ -64,6 +64,13 @@ Technical contracts and schemas for content operations, authentication, media, a
 </div>
 
 <div style="border: 1px solid var(--vp-c-border); border-radius: 8px; padding: 18px; background: var(--vp-c-bg-elv);">
+  <h3 style="margin-top: 0;"><a href="/reference/rbac-api">RBAC Administration API</a></h3>
+  <p style="color: var(--vp-c-text-2); font-size: 0.9rem;">
+    <code>/api/rbac/*</code> accounts, roles, scoped assignments, and the invitation onboarding lifecycle with anti-escalation guards.
+  </p>
+</div>
+
+<div style="border: 1px solid var(--vp-c-border); border-radius: 8px; padding: 18px; background: var(--vp-c-bg-elv);">
   <h3 style="margin-top: 0;"><a href="/reference/internal-content">Internal Content API</a></h3>
   <p style="color: var(--vp-c-text-2); font-size: 0.9rem;">
     CRUD endpoints for content records, field alias resolution, hashed field rotation, and pending draft lifecycles.

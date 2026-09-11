@@ -154,6 +154,7 @@ export default defineConfig({
           items: [
             { text: 'Overview', link: '/manage/' },
             { text: 'Content Editor', link: '/manage/content-editor' },
+            { text: 'Roles & Permissions', link: '/manage/roles-permissions' },
             { text: 'Environments', link: '/manage/environments' }
           ]
         }
@@ -172,6 +173,7 @@ export default defineConfig({
           text: 'API Endpoints',
           items: [
             { text: 'Auth Endpoints', link: '/reference/auth-endpoints' },
+            { text: 'RBAC Administration', link: '/reference/rbac-api' },
             { text: 'Internal Content', link: '/reference/internal-content' },
             { text: 'Public API', link: '/reference/public-api' },
             { text: 'Media Engine', link: '/reference/media-engine' },

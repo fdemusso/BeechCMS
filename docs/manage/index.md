@@ -12,5 +12,5 @@ Manage operational workflows, content authoring, assets, and security in the Bee
 - **[Content Editor Guide](/manage/content-editor)**: Comprehensive visual guide for content creators, drafting workflows, and media handling.
 - **[Environment Configuration & AppEnv](/manage/environments)**: Managing Cloudflare Worker bindings, secrets, and environment variables.
 - **Media Asset Library**: Direct-to-R2 image and asset management with presigned upload workflows.
-- **Access Control & Roles**: JWT token lifecycle with short-lived tokens and refresh rotation.
+- **[Roles & Permissions](/manage/roles-permissions)**: Scoped RBAC model, permission vocabulary, anti-escalation invariants, and invitation-based onboarding.
 - **Hardening & Rate Limiting**: Dual-key token bucket protection and security audits.
