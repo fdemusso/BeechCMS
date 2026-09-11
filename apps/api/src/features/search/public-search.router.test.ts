@@ -85,4 +85,64 @@ describe('publicSearchRouter', () => {
     expect(aiMock.run).toHaveBeenCalledWith('@cf/baai/bge-small-en-v1.5', { text: 'deep learning' })
     expect(json.data).toEqual([0.11999999731779099, -0.3400000035762787, 0.5600000023841858])
   })
+
+  it('serves the compiled manifest.json for a seed', async () => {
+    const app = new Hono<AppEnv>()
+    app.route('/search', publicSearchRouter)
+
+    const manifestBody = JSON.stringify({
+      model: '@cf/baai/bge-small-en-v1.5',
+      dimensions: 384,
+      fingerprint: 'abc123',
+      records: [{ id: 'art-1', title: 'Hello' }],
+    })
+    const getMock = vi.fn().mockResolvedValue({
+      body: manifestBody,
+      httpEtag: '"etag-1"',
+    })
+    const envMock = { SEARCH_R2: { get: getMock } }
+
+    const res = await app.request('/search/index/articles/manifest.json', {}, envMock as any)
+
+    expect(getMock).toHaveBeenCalledWith('articles/manifest.json')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('application/json')
+    expect(res.headers.get('ETag')).toBe('"etag-1"')
+    expect(await res.text()).toBe(manifestBody)
+  })
+
+  it('serves the compiled vectors.bin for a seed', async () => {
+    const app = new Hono<AppEnv>()
+    app.route('/search', publicSearchRouter)
+
+    const vectorBuffer = new Float32Array([0.1, 0.2, 0.3]).buffer
+    const getMock = vi.fn().mockResolvedValue({ body: vectorBuffer, httpEtag: undefined })
+    const envMock = { SEARCH_R2: { get: getMock } }
+
+    const res = await app.request('/search/index/articles/vectors.bin', {}, envMock as any)
+
+    expect(getMock).toHaveBeenCalledWith('articles/vectors.bin')
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Content-Type')).toBe('application/octet-stream')
+    expect(await res.arrayBuffer()).toEqual(vectorBuffer)
+  })
+
+  it('returns 404 when the seed has no compiled index yet', async () => {
+    const app = new Hono<AppEnv>()
+    app.route('/search', publicSearchRouter)
+
+    const getMock = vi.fn().mockResolvedValue(null)
+    const envMock = { SEARCH_R2: { get: getMock } }
+
+    const res = await app.request('/search/index/unknown/manifest.json', {}, envMock as any)
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 404 for an unrecognised file name', async () => {
+    const app = new Hono<AppEnv>()
+    app.route('/search', publicSearchRouter)
+
+    const res = await app.request('/search/index/articles/secrets.txt', {}, {} as any)
+    expect(res.status).toBe(404)
+  })
 })

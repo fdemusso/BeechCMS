@@ -22,7 +22,8 @@ import type { JobHandler, JobRegistry, Seed, JobContext } from '@beechcms/core'
 import { extractIndexableText, indexableSearchBranches } from '@beechcms/core'
 import { D1SeedRepository } from '../../../shared/db/repositories/seed.repository.d1'
 import { D1VectorRepository } from '../../../shared/db/repositories/d1-vector.repository'
-import { EMBEDDING_MODEL } from '../constants'
+import { EMBEDDING_MODEL, EMBEDDING_DIMENSIONS } from '../constants'
+import type { IndexManifest } from '@beechcms/search-client'
 
 // ─── Job payload types ────────────────────────────────────────────────────────
 
@@ -108,12 +109,41 @@ function normaliseEmbeddingResponse(aiResponse: unknown): Float32Array {
 // ─── R2 manifest compilation ──────────────────────────────────────────────────
 
 /**
- * Compiles all stored vectors for a seed into binary and JSON manifest files
- * and writes them to the `SEARCH_R2` bucket.
+ * Returns the R2 object key holding the `IndexManifest` JSON for a seed slug.
+ * Consumed by the public `/search/index/:seedSlug/manifest.json` route.
+ */
+export function manifestKey(seedSlug: string): string {
+  return `${seedSlug}/manifest.json`
+}
+
+/**
+ * Returns the R2 object key holding the concatenated vector buffer for a seed slug.
+ * Consumed by the public `/search/index/:seedSlug/vectors.bin` route.
+ */
+export function vectorsKey(seedSlug: string): string {
+  return `${seedSlug}/vectors.bin`
+}
+
+/**
+ * Derives a stable fingerprint for an `IndexManifest` from its ordered records,
+ * so `SearchClient` can cache-bust the paired vectors file whenever the index
+ * content changes (see `fetchWithCache` in `@beechcms/search-client`).
+ */
+async function computeFingerprint(records: { id: string; title: string }[]): Promise<string> {
+  const encoder = new TextEncoder()
+  const data = encoder.encode(records.map((r) => `${r.id}:${r.title}`).join('|'))
+  const digest = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+/**
+ * Compiles all stored vectors for a seed into a binary vector file and a
+ * companion `IndexManifest` JSON file, and writes both to the `SEARCH_R2`
+ * bucket at {@link manifestKey} / {@link vectorsKey}.
  *
- * The two files produced per seed are:
- * - `{slug}.bin`  – Concatenated `Float32Array` buffers in entry-index order.
- * - `{slug}.json` – JSON array of entry IDs in the same order as the binary file.
+ * The manifest conforms to `IndexManifest` from `@beechcms/search-client`
+ * (`model`, `dimensions`, `fingerprint`, `records`), so `SearchClient.loadIndex()`
+ * can consume it directly.
  *
  * These files are consumed by the client-side semantic search runtime to perform
  * in-memory cosine-similarity ranking without a Vectorize index.
@@ -135,10 +165,18 @@ export async function compileR2Manifest(
   const vectorRepository = new D1VectorRepository(db)
   const storedVectors    = await vectorRepository.getAllVectors(seed)
 
-  // Build the JSON manifest: ordered list of entry IDs
-  const entryIdManifest = JSON.stringify(storedVectors.map((v) => v.entryId))
+  const records = storedVectors.map((v) => ({ id: v.entryId, title: v.title }))
+  const fingerprint = await computeFingerprint(records)
 
-  // Build the binary manifest: concatenated Float32Array buffers
+  const manifest: IndexManifest = {
+    model: EMBEDDING_MODEL,
+    dimensions: EMBEDDING_DIMENSIONS,
+    fingerprint,
+    records,
+  }
+
+  // Build the binary manifest: concatenated Float32Array buffers, in the same
+  // order as `manifest.records`.
   const totalFloatCount   = storedVectors.reduce((sum, v) => sum + v.vector.length, 0)
   const concatenatedFloats = new Float32Array(totalFloatCount)
   let writeOffset = 0
@@ -153,10 +191,10 @@ export async function compileR2Manifest(
   )
 
   await Promise.all([
-    searchR2.put(`${seed.slug}.bin`, binaryManifest, {
+    searchR2.put(vectorsKey(seed.slug), binaryManifest, {
       httpMetadata: { contentType: 'application/octet-stream' },
     }),
-    searchR2.put(`${seed.slug}.json`, entryIdManifest, {
+    searchR2.put(manifestKey(seed.slug), JSON.stringify(manifest), {
       httpMetadata: { contentType: 'application/json' },
     }),
   ])

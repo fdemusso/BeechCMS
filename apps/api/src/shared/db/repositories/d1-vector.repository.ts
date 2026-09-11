@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { Seed, IVectorRepository } from '@beechcms/core'
-import { vectorTableName } from '@beechcms/core'
+import { vectorTableName, tableName, isValidColumn } from '@beechcms/core'
 
 export class D1VectorRepository implements IVectorRepository {
   constructor(private readonly db: D1Database) {}
@@ -25,11 +25,16 @@ export class D1VectorRepository implements IVectorRepository {
     await this.db.prepare(`DELETE FROM ${table} WHERE entry_id = ?`).bind(entryId).run()
   }
 
-  async getAllVectors(seed: Seed): Promise<{ entryId: string; vector: Float32Array }[]> {
-    const table = vectorTableName(seed)
+  async getAllVectors(seed: Seed): Promise<{ entryId: string; vector: Float32Array; title: string }[]> {
+    const vTable = vectorTableName(seed)
+    const cTable = tableName(seed)
+    const titleColumn = isValidColumn(seed, seed.displayNameAlias) ? seed.displayNameAlias : null
+    const sql = titleColumn
+      ? `SELECT v.entry_id, v.vector, c.${titleColumn} AS title FROM ${vTable} v LEFT JOIN ${cTable} c ON c.id = v.entry_id`
+      : `SELECT entry_id, vector, NULL AS title FROM ${vTable}`
     const { results } = await this.db
-      .prepare(`SELECT entry_id, vector FROM ${table}`)
-      .all<{ entry_id: string; vector: ArrayBuffer | ArrayBufferView | number[] }>()
+      .prepare(sql)
+      .all<{ entry_id: string; vector: ArrayBuffer | ArrayBufferView | number[]; title: string | null }>()
 
     return (results ?? []).map((row) => {
       let float32: Float32Array
@@ -55,6 +60,7 @@ export class D1VectorRepository implements IVectorRepository {
       return {
         entryId: row.entry_id,
         vector: float32,
+        title: row.title ?? '',
       }
     })
   }

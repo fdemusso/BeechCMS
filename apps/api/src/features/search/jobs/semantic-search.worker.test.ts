@@ -5,6 +5,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { compileR2Manifest, computeVectorJob, deleteVectorJob, updateR2ManifestJob } from './semantic-search.worker'
 import type { Seed, JobContext } from '@beechcms/core'
+import type { IndexManifest } from '@beechcms/search-client'
 
 const SEARCH_SEED: Seed = {
   slug: 'articles',
@@ -19,14 +20,14 @@ const SEARCH_SEED: Seed = {
 }
 
 describe('semantic-search worker and manifest compilation', () => {
-  it('compileManifest writes valid .bin and .json files to R2', async () => {
+  it('compileR2Manifest writes a compliant IndexManifest and vectors.bin to R2', async () => {
     const vec1 = new Float32Array([0.1, 0.2, 0.3])
     const vec2 = new Float32Array([0.4, 0.5, 0.6])
 
     const allMock = vi.fn().mockResolvedValue({
       results: [
-        { entry_id: 'art-1', vector: vec1.buffer },
-        { entry_id: 'art-2', vector: vec2.buffer },
+        { entry_id: 'art-1', vector: vec1.buffer, title: 'First Post' },
+        { entry_id: 'art-2', vector: vec2.buffer, title: 'Second Post' },
       ],
     })
     const mockDb = {
@@ -42,8 +43,8 @@ describe('semantic-search worker and manifest compilation', () => {
 
     expect(putMock).toHaveBeenCalledTimes(2)
 
-    // Check .bin put
-    const binCall = putMock.mock.calls.find((call: any[]) => call[0] === 'articles.bin')
+    // Check vectors.bin put
+    const binCall = putMock.mock.calls.find((call: any[]) => call[0] === 'articles/vectors.bin')
     expect(binCall).toBeDefined()
     const binBuffer = binCall![1] as Uint8Array
     expect(binBuffer).toBeInstanceOf(Uint8Array)
@@ -51,10 +52,18 @@ describe('semantic-search worker and manifest compilation', () => {
     const floatView = new Float32Array(binBuffer.buffer, binBuffer.byteOffset, 6)
     expect(Array.from(floatView)).toEqual(Array.from(new Float32Array([0.1, 0.2, 0.3, 0.4, 0.5, 0.6])))
 
-    // Check .json put
-    const jsonCall = putMock.mock.calls.find((call: any[]) => call[0] === 'articles.json')
+    // Check manifest.json put — must satisfy the search-client IndexManifest contract
+    const jsonCall = putMock.mock.calls.find((call: any[]) => call[0] === 'articles/manifest.json')
     expect(jsonCall).toBeDefined()
-    expect(JSON.parse(jsonCall![1])).toEqual(['art-1', 'art-2'])
+    const manifest = JSON.parse(jsonCall![1]) as IndexManifest
+    expect(manifest.model).toBe('@cf/baai/bge-small-en-v1.5')
+    expect(manifest.dimensions).toBe(384)
+    expect(typeof manifest.fingerprint).toBe('string')
+    expect(manifest.fingerprint.length).toBeGreaterThan(0)
+    expect(manifest.records).toEqual([
+      { id: 'art-1', title: 'First Post' },
+      { id: 'art-2', title: 'Second Post' },
+    ])
   })
 
   it('computeVectorJob generates embedding using Workers AI, saves to D1, and compiles R2', async () => {
@@ -65,7 +74,7 @@ describe('semantic-search worker and manifest compilation', () => {
 
     const runMock = vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } })
     const allMock = vi.fn().mockResolvedValue({
-      results: [{ entry_id: 'art-1', vector: new Float32Array([0.5, 0.25, -0.75]).buffer }],
+      results: [{ entry_id: 'art-1', vector: new Float32Array([0.5, 0.25, -0.75]).buffer, title: 'Machine Learning Guide' }],
     })
     const firstMock = vi.fn().mockResolvedValue({
       slug: 'articles',
@@ -110,8 +119,12 @@ describe('semantic-search worker and manifest compilation', () => {
     expect(aiRunMock).toHaveBeenCalledWith('@cf/baai/bge-small-en-v1.5', {
       text: 'Machine Learning Guide Intro to Deep Neural Networks',
     })
-    expect(putMock).toHaveBeenCalledWith('articles.bin', expect.any(Uint8Array), expect.any(Object))
-    expect(putMock).toHaveBeenCalledWith('articles.json', JSON.stringify(['art-1']), expect.any(Object))
+    expect(putMock).toHaveBeenCalledWith('articles/vectors.bin', expect.any(Uint8Array), expect.any(Object))
+    expect(putMock).toHaveBeenCalledWith(
+      'articles/manifest.json',
+      expect.stringContaining('"id":"art-1","title":"Machine Learning Guide"'),
+      expect.any(Object),
+    )
   })
 
   it('updateR2ManifestJob updates manifest in R2', async () => {
@@ -145,8 +158,12 @@ describe('semantic-search worker and manifest compilation', () => {
 
     await updateR2ManifestJob({ seedSlug: 'articles' }, context)
 
-    expect(putMock).toHaveBeenCalledWith('articles.bin', expect.any(Uint8Array), expect.any(Object))
-    expect(putMock).toHaveBeenCalledWith('articles.json', JSON.stringify([]), expect.any(Object))
+    expect(putMock).toHaveBeenCalledWith('articles/vectors.bin', expect.any(Uint8Array), expect.any(Object))
+    expect(putMock).toHaveBeenCalledWith(
+      'articles/manifest.json',
+      expect.stringContaining('"records":[]'),
+      expect.any(Object),
+    )
   })
 
   it('deleteVectorJob deletes vector from D1 and recompiles R2 manifest', async () => {
@@ -182,7 +199,11 @@ describe('semantic-search worker and manifest compilation', () => {
     await deleteVectorJob({ seedSlug: 'articles', entryId: 'art-1' }, context)
 
     expect(mockDb.prepare).toHaveBeenCalledWith('DELETE FROM vector_articles WHERE entry_id = ?')
-    expect(putMock).toHaveBeenCalledWith('articles.bin', expect.any(Uint8Array), expect.any(Object))
-    expect(putMock).toHaveBeenCalledWith('articles.json', JSON.stringify([]), expect.any(Object))
+    expect(putMock).toHaveBeenCalledWith('articles/vectors.bin', expect.any(Uint8Array), expect.any(Object))
+    expect(putMock).toHaveBeenCalledWith(
+      'articles/manifest.json',
+      expect.stringContaining('"records":[]'),
+      expect.any(Object),
+    )
   })
 })

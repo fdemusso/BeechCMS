@@ -63,8 +63,8 @@ describe('D1VectorRepository', () => {
 
     const allMock = vi.fn().mockResolvedValue({
       results: [
-        { entry_id: 'e1', vector: vec1.buffer },
-        { entry_id: 'e2', vector: new Uint8Array(vec2.buffer) },
+        { entry_id: 'e1', vector: vec1.buffer, title: 'First Article' },
+        { entry_id: 'e2', vector: new Uint8Array(vec2.buffer), title: 'Second Article' },
       ],
     })
     const prepareMock = vi.fn().mockReturnValue({ all: allMock })
@@ -73,11 +73,15 @@ describe('D1VectorRepository', () => {
     const repo = new D1VectorRepository(mockDb)
     const results = await repo.getAllVectors(TEST_SEED)
 
-    expect(prepareMock).toHaveBeenCalledWith('SELECT entry_id, vector FROM vector_articles')
+    expect(prepareMock).toHaveBeenCalledWith(
+      'SELECT v.entry_id, v.vector, c.title AS title FROM vector_articles v LEFT JOIN content_articles c ON c.id = v.entry_id',
+    )
     expect(results).toHaveLength(2)
     expect(results[0].entryId).toBe('e1')
+    expect(results[0].title).toBe('First Article')
     expect(Array.from(results[0].vector)).toEqual(Array.from(vec1))
     expect(results[1].entryId).toBe('e2')
+    expect(results[1].title).toBe('Second Article')
     expect(Array.from(results[1].vector)).toEqual(Array.from(vec2))
   })
 })

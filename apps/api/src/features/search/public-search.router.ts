@@ -12,15 +12,20 @@
  *
  * Routes:
  * - `GET /embed` → {@link embedHandler}
+ * - `GET /index/:seedSlug/:file` → {@link serveIndexHandler}
  */
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono }        from 'hono'
 import type { AppEnv } from '../../types'
 import { embedHandler } from './handlers/embed'
+import { serveIndexHandler } from './handlers/serve-index'
 
 /** Hono sub-app for the public search endpoints (embedding generation). */
 export const publicSearchRouter = new Hono<AppEnv>()
 
 // GET /api/v1/public/search/embed?q=…
 publicSearchRouter.get('/embed', embedHandler)
+
+// GET /api/v1/public/search/index/:seedSlug/manifest.json | vectors.bin
+publicSearchRouter.get('/index/:seedSlug/:file', serveIndexHandler)
