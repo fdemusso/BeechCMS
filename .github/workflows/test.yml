@@ -73,8 +73,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build packages (Core)
-        run: pnpm --filter @beechcms/core build
+      - name: Build packages (Core & Search Client)
+        run: |
+          pnpm --filter @beechcms/core build
+          pnpm --filter @beechcms/search-client build
 
       - name: Verify Docker stack reachable
         run: |

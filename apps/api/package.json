@@ -38,6 +38,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@beechcms/search-client": "workspace:*",
     "@cloudflare/workers-types": "^4.20260213.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^24.10.1",

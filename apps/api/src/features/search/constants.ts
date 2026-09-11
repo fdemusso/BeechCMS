@@ -47,5 +47,8 @@ export const SEARCH_LIMITS = {
 /** Worker AI model identifier used to generate text embeddings. */
 export const EMBEDDING_MODEL = '@cf/baai/bge-small-en-v1.5' as const
 
+/** Dimensionality of vectors produced by {@link EMBEDDING_MODEL}. */
+export const EMBEDDING_DIMENSIONS = 384 as const
+
 /** Rate limiter key used for the public embed endpoint. */
 export const EMBED_RATE_LIMITER_KEY = 'publicApiRead' as const

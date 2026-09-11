@@ -10,6 +10,6 @@ export interface IVectorRepository {
   /** Removes the embedding vector (used when unpublished/deleted) */
   deleteVector(seed: Seed, entryId: string): Promise<void>
 
-  /** Retrieves all vectors for a given seed to compile to R2 */
-  getAllVectors(seed: Seed): Promise<{ entryId: string; vector: Float32Array }[]>
+  /** Retrieves all vectors (with entry title) for a given seed to compile to R2 */
+  getAllVectors(seed: Seed): Promise<{ entryId: string; vector: Float32Array; title: string }[]>
 }

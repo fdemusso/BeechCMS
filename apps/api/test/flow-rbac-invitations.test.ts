@@ -41,9 +41,9 @@ describe('Flow: RBAC invitations lifecycle', () => {
   }
 
   /**
-   * The plaintext token never leaves the API (it exists only inside the email), so the
-   * test overwrites the persisted hash with one it controls and drives the flow through
-   * a token it chose itself — same technique the sprint plan prescribes.
+   * create/regenerate do return the plaintext token embedded in `inviteUrl` (copy-link
+   * feature), but the test still drives the flow through a token it chose itself — the
+   * pinning technique keeps assertions independent of the generated token's value.
    */
   async function pinToken(invitationId: string, plaintext: string) {
     const hash = await sha256hex(plaintext)
@@ -80,8 +80,11 @@ describe('Flow: RBAC invitations lifecycle', () => {
       body: JSON.stringify({ email: 'invitee@beech.local', roleId, scope: 'posts' }),
     })
     expect(inviteRes.status).toBe(201)
-    const invitePayload = await inviteRes.json<{ id: string; email: string }>()
-    expect(JSON.stringify(invitePayload)).not.toContain('token')
+    const invitePayload = await inviteRes.json<{ id: string; email: string; inviteUrl: string }>()
+    // The plaintext token is intentionally embedded in `inviteUrl` for the copy-link
+    // feature, but must never appear as a bare top-level field on the response.
+    expect(invitePayload).not.toHaveProperty('token')
+    expect(invitePayload.inviteUrl).toContain('token=')
 
     const plainToken = 'test-plain-token-01'
     await pinToken(invitePayload.id, plainToken)

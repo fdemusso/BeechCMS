@@ -34,7 +34,7 @@ Removes the embedding vector (used when unpublished/deleted)
 
 > **getAllVectors**(`seed`): `Promise`&lt;`object`[]&gt;
 
-Retrieves all vectors for a given seed to compile to R2
+Retrieves all vectors (with entry title) for a given seed to compile to R2
 
 #### Parameters
 
