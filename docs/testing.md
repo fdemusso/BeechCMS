@@ -71,3 +71,240 @@ the slice tree and `*.test.ts` out of `e2e/`.
 
 The tier never runs from `--diff` and never on a push: CI runs it on pull requests targeting `master`
 and nightly (`.github/workflows/e2e.yml`).
+
+---
+
+## Integration testing with `@beechcms/testing`
+
+The `@beechcms/testing` package provides an in-process integration harness designed to run against real Cloudflare D1 databases inside `@cloudflare/vitest-pool-workers`. It eliminates repository mocks while keeping tests fast and deterministic.
+
+### Core Principles
+
+1. **Real D1 Engine**: Runs against real SQLite/D1 in Cloudflare `workerd`. Foreign keys, triggers, constraints, and JSON functions behave identically to production.
+2. **Minimal Fakes**: Only `IClock` and `ITokenService` are faked. All Hono middlewares, repository layers, and validation pipelines are executed for real.
+3. **Automatic D1 Provisioning**: When seeds are passed, the harness automatically runs migrations, provisions the `_beech_seeds` registry, creates content tables/indices, and resets content between runs.
+
+---
+
+### `createTestHarness` Options & Return Values
+
+```ts
+import { createTestHarness } from '@beechcms/testing'
+
+const harness = await createTestHarness({
+  db: env.DB,                          // Real D1 binding from cloudflare:test
+  createApp: (authProviders) => ...,   // Factory returning the Hono app under test
+  seeds?: readonly Seed[],             // Custom seeds/sections (defaults to CANONICAL_SEEDS)
+  users?: readonly CanonicalUser[],    // Custom test users (defaults to CANONICAL_USERS)
+  nowMs?: number,                      // Initial frozen epoch ms (defaults to 2026-01-01)
+  env?: Record<string, unknown>,       // Additional Cloudflare environment variables
+})
+```
+
+The returned `TestHarness` object exposes:
+
+| Property / Method | Description |
+|---|---|
+| `harness.asUser('admin' \| 'editor' \| CanonicalUser, options?)` | Returns an authenticated `TestClient` injecting `Authorization: Bearer <token>` with specified roles and claims. Supports `{ ttlSeconds }`. |
+| `harness.anonymous()` | Returns an unauthenticated `TestClient` for testing public endpoints and 401 unauthenticated access. |
+| `harness.clock` | `FixedClock` instance with `.now()`, `.nowSeconds()`, `.advance(ms)`, and `.set(epochMs)` to test token expiry and time-based rules. |
+| `harness.tokenService` | `FakeTokenService` for issuing or inspecting deterministic test tokens. |
+| `harness.db` | Direct access to the `D1Database` instance for assertions or manual inserts. |
+
+---
+
+### Recipe 1: Testing a Custom Section (Seed)
+
+To test a custom content type / section, pass your custom seed definition to `seeds`:
+
+```ts
+// apps/api/src/features/catalog/test/integration/products.integration.test.ts
+import { describe, it, expect, beforeEach } from 'vitest'
+import { env } from 'cloudflare:test'
+import { defineSeed, field } from '@beechcms/core'
+import { createTestHarness, UUID_V4_PATTERN, type TestHarness, type TestClient } from '@beechcms/testing'
+import { createBeechApp } from '../../../../factory'
+import { __resetSeedRegistryCache } from '../../../../shared/services/cache/seed-registry-cache'
+
+// Define the custom section
+const productsSeed = defineSeed({
+  slug: 'products',
+  name: 'Products',
+  fields: {
+    title: field.text().required(),
+    sku: field.text().required(),
+    price: field.number().required(),
+  },
+})
+
+describe('Custom Section: Products (real D1)', () => {
+  let harness: TestHarness
+  let admin: TestClient
+
+  beforeEach(async () => {
+    __resetSeedRegistryCache()
+    harness = await createTestHarness({
+      db: env.DB,
+      seeds: [productsSeed], // Auto-provisions D1 tables & indexes for 'products'
+      createApp: (authProviders) =>
+        createBeechApp({
+          seeds: [productsSeed],
+          authProviders,
+        }),
+    })
+    admin = await harness.asUser('admin')
+  })
+
+  it('creates and retrieves a product entry', async () => {
+    const createRes = await admin.post('/api/content/products', {
+      title: 'Ergonomic Keyboard',
+      sku: 'KB-001',
+      price: 120,
+    })
+
+    expect(createRes.status).toBe(201)
+    const { id } = await createRes.json<{ id: string }>()
+    expect(id).toMatch(UUID_V4_PATTERN)
+
+    const getRes = await admin.get(`/api/content/products/${id}`)
+    expect(getRes.status).toBe(200)
+    const product = await getRes.json<{ title: string; price: number }>()
+    expect(product.title).toBe('Ergonomic Keyboard')
+    expect(product.price).toBe(120)
+  })
+})
+```
+
+---
+
+### Recipe 2: Testing Lifecycle Hooks & Business Logic
+
+Test `beforeCreate`, `beforeUpdate`, or other lifecycle hooks configured in `BeechConfig`:
+
+```ts
+// apps/api/src/features/orders/test/integration/orders-hook.integration.test.ts
+import { describe, it, expect, beforeEach } from 'vitest'
+import { env } from 'cloudflare:test'
+import { defineSeed, field } from '@beechcms/core'
+import { createTestHarness, type TestHarness, type TestClient } from '@beechcms/testing'
+import { createBeechApp } from '../../../../factory'
+
+const ordersSeed = defineSeed({
+  slug: 'orders',
+  name: 'Orders',
+  fields: {
+    amount: field.number().required(),
+    status: field.text().default('pending'),
+  },
+})
+
+describe('Orders Lifecycle Hooks', () => {
+  let harness: TestHarness
+  let client: TestClient
+
+  beforeEach(async () => {
+    harness = await createTestHarness({
+      db: env.DB,
+      seeds: [ordersSeed],
+      createApp: (authProviders) =>
+        createBeechApp({
+          seeds: [ordersSeed],
+          hooks: {
+            beforeCreate: async ({ seedSlug, data }) => {
+              if (seedSlug === 'orders' && (data.amount as number) <= 0) {
+                throw new Error('Order amount must be greater than zero')
+              }
+            },
+          },
+          authProviders,
+        }),
+    })
+    client = await harness.asUser('admin')
+  })
+
+  it('rejects order creation with negative amount via beforeCreate hook', async () => {
+    const res = await client.post('/api/content/orders', { amount: -50 })
+    expect(res.status).toBe(500)
+    const body = await res.json<{ error?: string; message?: string }>()
+    expect(JSON.stringify(body)).toContain('Order amount must be greater than zero')
+  })
+})
+```
+
+---
+
+### Recipe 3: Testing Custom Routes & Authorization Roles
+
+Verify developer-defined routes with RBAC roles (`admin`, `editor`, etc.) or public unauthenticated access:
+
+```ts
+// apps/api/src/features/custom-routes/test/integration/custom-routes.integration.test.ts
+import { describe, it, expect, beforeEach } from 'vitest'
+import { env } from 'cloudflare:test'
+import { createTestHarness, type TestHarness } from '@beechcms/testing'
+import { createBeechApp } from '../../../../factory'
+
+describe('Custom developer routes', () => {
+  let harness: TestHarness
+
+  beforeEach(async () => {
+    harness = await createTestHarness({
+      db: env.DB,
+      createApp: (authProviders) =>
+        createBeechApp({
+          seeds: [],
+          customRoutes: ({ publicRouter, protectedRouter }) => {
+            publicRouter.get('/hello', (c) => c.json({ message: 'public' }))
+            protectedRouter.get('/secret', (c) => {
+              const user = c.get('user')
+              return c.json({ message: `hello ${user?.name}` })
+            })
+          },
+          authProviders,
+        }),
+    })
+  })
+
+  it('allows unauthenticated access to public routes', async () => {
+    const anonymous = harness.anonymous()
+    const res = await anonymous.get('/api/custom/hello')
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ message: 'public' })
+  })
+
+  it('rejects unauthenticated access to protected routes', async () => {
+    const anonymous = harness.anonymous()
+    const res = await anonymous.get('/api/custom/secret')
+    expect(res.status).toBe(401)
+  })
+
+  it('allows authenticated editor access to protected routes', async () => {
+    const editor = await harness.asUser('editor')
+    const res = await editor.get('/api/custom/secret')
+    expect(res.status).toBe(200)
+    const body = await res.json<{ message: string }>()
+    expect(body.message).toContain('Editor')
+  })
+})
+```
+
+---
+
+### Recipe 4: Testing Token Expiry & Time Manipulation with `FixedClock`
+
+```ts
+it('rejects requests when the JWT token has expired', async () => {
+  // Issue a token valid for 60 seconds
+  const client = await harness.asUser('admin', { ttlSeconds: 60 })
+
+  const validRes = await client.get('/api/content/posts')
+  expect(validRes.status).toBe(200)
+
+  // Advance clock forward by 61 seconds
+  harness.clock.advance(61 * 1000)
+
+  const expiredRes = await client.get('/api/content/posts')
+  expect(expiredRes.status).toBe(401)
+})
+```
+

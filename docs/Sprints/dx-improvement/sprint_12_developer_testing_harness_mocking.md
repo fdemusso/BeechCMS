@@ -1,5 +1,9 @@
 ## ── Sprint 12: Developer Testing Harness & Mocking ──
 
+> [!NOTE]
+> Questa proposta iniziale è stata implementata e consolidata nel pacchetto [`@beechcms/testing`](file:///Users/flaviodemusso/Documents/Progetti/BeechCMS/packages/testing).
+> Per la guida ufficiale, la documentazione dell'API `createTestHarness` e gli esempi pratici (sezioni personalizzate, hook, rotte custom), consultare [docs/testing.md](../../testing.md#integration-testing-with-beechcmstesting).
+
 ### Problema
 Quando uno sviluppatore implementa logiche custom complesse (come middleware di cifratura, hook sincroni di validazione o elaborazioni su code), ha bisogno di poterle testare in modo rapido e automatico tramite unit test locali. Tuttavia, configurare un test environment per Cloudflare Workers (inizializzare D1 locale, creare le tabelle dei seed, configurare il token service, firmare JWT di prova e simulare richieste Hono) richiede una quantità enorme di boilerplate e configurazioni manuali (es. configurare Miniflare o wrangler runner).
 
