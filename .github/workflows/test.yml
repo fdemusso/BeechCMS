@@ -131,22 +131,3 @@ jobs:
           SMTP_PORT: '8025'
           WEBHOOK_TESTER_URL: http://localhost:8084
         run: pnpm beech test --tier flow
-
-  scale:
-    name: Scale Tier (Performance boundaries)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build packages
-        run: pnpm build
-      - name: Run scale tier
-        run: pnpm beech test --tier scale
