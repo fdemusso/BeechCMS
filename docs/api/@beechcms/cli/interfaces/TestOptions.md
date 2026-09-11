@@ -17,3 +17,11 @@
 ### diff?
 
 > `optional` **diff?**: `boolean`
+
+***
+
+### tier?
+
+> `optional` **tier?**: `string`
+
+Comma-separated tier list, e.g. "unit" or "unit,integration".

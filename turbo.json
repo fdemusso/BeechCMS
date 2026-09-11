@@ -25,6 +25,18 @@
       "cache": false,
       "dependsOn": ["^build"]
     },
+    "test:unit": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
+    "test:flow": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
+    "test:integration": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
     "test:coverage": {
       "cache": false,
       "dependsOn": ["^build"]

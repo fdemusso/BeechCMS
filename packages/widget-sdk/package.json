@@ -19,6 +19,7 @@
     "dev": "tsc -w --preserveWatchOutput",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
   "peerDependencies": {

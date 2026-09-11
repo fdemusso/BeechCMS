@@ -4,18 +4,41 @@
 
 import { defineConfig } from 'vitest/config'
 
+// Slice-local suites that cross an I/O boundary (real Mailpit + webhook-tester) and therefore
+// belong to the Docker-bound flow tier, wherever they live on disk. Pinning them by path keeps
+// the unit tier Docker-free without moving a file out of its owning slice (VSA) and without
+// losing its coverage: the root-level coverage block below aggregates both projects.
+const DOCKER_BOUND_SUITES = ['src/features/automations/executors/action-executors.test.ts']
+
+const SHARED_EXCLUDE = ['**/node_modules/**', '**/dist/**']
+
 export default defineConfig({
   test: {
-    pool: 'forks',
-    globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
-    // test/flow/ = cross-slice HTTP flow suites (forks tier). They cross slices by nature, so they
-    // live outside the slice tree — same rationale as the top-level e2e/ suite.
-    include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
-    // Owned by vitest.workers.config.ts (real D1 via @cloudflare/vitest-pool-workers).
-    exclude: ['**/node_modules/**', '**/dist/**', 'src/features/**/test/integration/**'],
-    /** Show console/stderr only for failing tests */
-    silent: 'passed-only',
-    reporters: ['verbose'],
+    projects: [
+      {
+        test: {
+          name: 'unit',
+          pool: 'forks',
+          include: ['src/**/*.test.ts'],
+          // Integration tier is owned by vitest.workers.config.ts (real D1 via workerd).
+          exclude: [...SHARED_EXCLUDE, 'src/features/**/test/integration/**', ...DOCKER_BOUND_SUITES],
+          silent: 'passed-only',
+          reporters: ['verbose'],
+        },
+      },
+      {
+        test: {
+          name: 'flow',
+          pool: 'forks',
+          // test/ = cross-slice HTTP flow suites + Docker-backed suites (Sprint 2 layout).
+          include: ['test/**/*.test.ts', ...DOCKER_BOUND_SUITES],
+          exclude: [...SHARED_EXCLUDE],
+          globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
+          silent: 'passed-only',
+          reporters: ['verbose'],
+        },
+      },
+    ],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'lcov', 'html'],

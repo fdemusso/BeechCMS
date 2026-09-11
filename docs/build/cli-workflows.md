@@ -40,7 +40,7 @@ Commands are categorized by operational scope:
 | `npx beech schema:diff` | **Deprecated** | Prints a deprecation notice and exits. D1 is the canonical schema authority; the Botanical Engine applies runtime mutations automatically. | Flags accepted but ignored |
 | `npx beech seed:load` | **Deprecated** | Prints a deprecation notice and exits. Static `seeds.ts` files are no longer synchronized to the database. | Flags accepted but ignored |
 | `npx beech seed:create` | **Deprecated** | Prints a deprecation notice and exits. Create content types in the dashboard (`/admin`) or via `POST /api/seeds`. | Flags accepted but ignored |
-| `npx beech test` | Monorepo | Executes Turborepo test runner. | `--coverage`, `--diff` |
+| `npx beech test` | Monorepo | Executes Turborepo test runner. | `--coverage`, `--diff`, `--tier <unit\|flow\|integration>` |
 | `npx beech lint` | Monorepo | Executes project linter checks via Turborepo. | None |
 
 ---

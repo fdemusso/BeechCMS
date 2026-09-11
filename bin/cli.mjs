@@ -102,6 +102,7 @@ function help() {
     ${pc.cyan('test')}            Run the test suite via Turborepo / Vitest
       --coverage      Generate coverage reports
       --diff          Run test coverage only for files modified on the branch
+      --tier <list>   Run one or more tiers: unit, flow, integration (comma-separated)
     ${pc.cyan('lint')}            Run ESLint quality checks
     ${pc.cyan('setup:cloudflare')} (alias: ${pc.cyan('setup:cf')})
       Interactive 1-step Cloudflare provisioning (D1, R2, Presigned S3 secrets)
@@ -270,8 +271,12 @@ async function cmdLogs(args) {
 async function cmdTest(args) {
   const coverage = args.includes('--coverage')
   const diff     = args.includes('--diff')
+  const tierIdx  = args.indexOf('--tier')
+  const tier     = tierIdx !== -1 && args[tierIdx + 1] && !args[tierIdx + 1].startsWith('--')
+    ? args[tierIdx + 1]
+    : undefined
   const { test } = await import('@beechcms/cli')
-  await test({ coverage, diff })
+  await test({ coverage, diff, tier })
 }
 
 async function cmdLint(args) {

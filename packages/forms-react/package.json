@@ -21,6 +21,7 @@
     "type-check": "tsc --noEmit",
     "playground": "vite --port 5175",
     "test": "vitest run",
+    "test:unit": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
   "peerDependencies": {

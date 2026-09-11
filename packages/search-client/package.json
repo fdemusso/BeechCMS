@@ -19,7 +19,8 @@
     "dev": "tsc -w --preserveWatchOutput",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:unit": "vitest run"
   },
   "devDependencies": {
     "@types/node": "^24.10.1",

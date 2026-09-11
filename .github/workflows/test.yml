@@ -7,8 +7,44 @@ on:
     branches: [master, devs]
 
 jobs:
-  test-api:
-    name: API Tests
+  unit:
+    name: Unit Tier
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # No Docker: the unit tier is Docker-free by construction (vitest project 'unit').
+      - name: Run unit tier
+        run: pnpm beech test --tier unit
+
+  integration:
+    name: Integration Tier (real D1)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      # workerd + miniflare D1 only — no Docker stack.
+      - name: Run integration tier
+        run: pnpm beech test --tier integration
+
+  flow:
+    name: Flow Tier (Docker stack)
     runs-on: ubuntu-latest
 
     # Mailpit and webhook-tester via services (their default entrypoints are correct).
@@ -40,17 +76,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-
       - name: Setup pnpm
         uses: pnpm/action-setup@v6
-
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: '22'
           cache: 'pnpm'
 
-      # MinIO requires `server /data --console-address ":9001"` which services: cannot pass.
       - name: Start MinIO
         run: |
           docker run -d --name beech-minio \
@@ -73,18 +106,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build packages (Core & Search Client)
-        run: |
-          pnpm --filter @beechcms/core build
-          pnpm --filter @beechcms/search-client build
-
       - name: Verify Docker stack reachable
         run: |
           curl -sf http://localhost:9000/minio/health/live
           curl -sf http://localhost:8025/livez
           curl -sf http://localhost:8084/ready
 
-      - name: Run API Tests
+      - name: Run flow tier
         env:
           BEECH_TEST_BUCKET: beech-media-test-ci
           R2_ENDPOINT: http://localhost:9000
@@ -95,30 +123,4 @@ jobs:
           SMTP_HOST: localhost
           SMTP_PORT: '8025'
           WEBHOOK_TESTER_URL: http://localhost:8084
-        run: pnpm --filter @beechcms/api test
-
-  test-dashboard:
-    name: Dashboard Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build packages (Core & Widget SDK)
-        run: |
-          pnpm --filter @beechcms/core build
-          pnpm --filter @beechcms/widget-sdk build
-
-      - name: Run Dashboard Tests
-        run: pnpm --filter @beechcms/dashboard test
+        run: pnpm beech test --tier flow

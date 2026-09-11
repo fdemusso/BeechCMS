@@ -25,7 +25,8 @@
     "deploy": "wrangler deploy --minify --env production",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings",
     "test": "vitest run && vitest run --config vitest.workers.config.ts",
-    "test:unit": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:flow": "vitest run --project flow",
     "test:integration": "vitest run --config vitest.workers.config.ts",
     "test:coverage": "vitest run --coverage"
   },

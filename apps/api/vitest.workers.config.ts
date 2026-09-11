@@ -12,6 +12,7 @@ const migrations = await readD1Migrations(path.join(dirname, 'migrations'))
 
 export default defineConfig({
   test: {
+    name: 'integration',
     // The integration tier lives inside its owning slice (VSA), never in apps/api/test/.
     include: ['src/features/**/test/integration/**/*.test.ts'],
     setupFiles: ['./test/harness/apply-migrations.ts'],

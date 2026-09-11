@@ -40,3 +40,19 @@ truth.
 
 A test that needs two feature slices is not a slice test. It goes to the cross-slice location above —
 never into one of the slices it spans, which would manufacture the cross-slice import VSA forbids.
+
+## Running one tier
+
+| Tier | Command | CI job | Needs Docker |
+|------|---------|--------|--------------|
+| unit | `pnpm beech test --tier unit` | `unit` | no |
+| flow | `pnpm beech test --tier flow` | `flow` | yes (`pnpm beech dev` stack) |
+| integration | `pnpm beech test --tier integration` | `integration` | no (workerd + miniflare D1) |
+| e2e | — | — | Sprint 4, not built yet |
+
+`pnpm beech test --diff` runs the **unit and integration** tiers for the workspaces whose files
+changed on the branch. The flow tier is never implicit — it costs the whole Docker stack — and the
+e2e tier is refused outright. Add `--tier flow` to include it.
+
+Tiers are declared once in `scripts/lib/test-tiers.mjs`; the vitest projects in
+`apps/api/vitest.config.ts` and the CI jobs in `.github/workflows/test.yml` are its two consumers.
