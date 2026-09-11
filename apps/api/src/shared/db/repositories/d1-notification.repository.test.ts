@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { D1NotificationRepository } from './d1-notification.repository'
-import { FixedClock } from '../../services/clock/fixed-clock'
+import { FixedClock } from '@beechcms/testing'
 import { SequentialIdGenerator } from '../../services/id-generator/sequential-id-generator'
 
 const clock = new FixedClock(1700000000_000)

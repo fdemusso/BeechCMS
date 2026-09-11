@@ -5,9 +5,18 @@
 import { describe, it, expect } from 'vitest'
 import { SystemClock } from '@beechcms/core'
 import { JoseTokenService } from './jwt-token.service'
-import { StaticTokenService } from '../__fixtures__/static-token-service'
+import { FixedClock, FakeTokenService } from '@beechcms/testing'
 
 const TEST_SECRET = 'super-secret-key-used-only-in-the-vitest-suite-min-length'
+
+function base64UrlEncode(bytes: Uint8Array): string {
+  return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
+function base64UrlDecode(value: string): Uint8Array {
+  const padded = value.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(value.length / 4) * 4, '=')
+  return Uint8Array.from(atob(padded), (char) => char.charCodeAt(0))
+}
 
 describe('JoseTokenService', () => {
   const service = new JoseTokenService(TEST_SECRET, {}, SystemClock)
@@ -80,36 +89,68 @@ describe('JoseTokenService', () => {
   it('throws if the secret is shorter than 32 bytes', () => {
     expect(() => new JoseTokenService('short-secret', {}, SystemClock)).toThrow('JWT secret must be at least 32 bytes')
   })
+
+  it('verify returns null for a token whose payload segment was tampered with', async () => {
+    const token = await service.issue({ sub: 'user-1', role: 'viewer' })
+    const [header, payload, signature] = token.split('.')
+    const decoded = JSON.parse(new TextDecoder().decode(base64UrlDecode(payload)))
+    const forged = base64UrlEncode(new TextEncoder().encode(JSON.stringify({ ...decoded, role: 'admin' })))
+    expect(await service.verify(`${header}.${forged}.${signature}`)).toBeNull()
+  })
+
+  it('verify returns null for an unsigned token that claims alg: none', async () => {
+    const header = base64UrlEncode(new TextEncoder().encode(JSON.stringify({ alg: 'none', typ: 'JWT' })))
+    const payload = base64UrlEncode(new TextEncoder().encode(JSON.stringify({ sub: 'user-1', exp: 9_999_999_999 })))
+    expect(await service.verify(`${header}.${payload}.`)).toBeNull()
+  })
+
+  it('verify returns null on audience mismatch', async () => {
+    const issuerAudienceA = new JoseTokenService(TEST_SECRET, { audience: 'audience-a' }, SystemClock)
+    const issuerAudienceB = new JoseTokenService(TEST_SECRET, { audience: 'audience-b' }, SystemClock)
+    const token = await issuerAudienceA.issue({ sub: 'user-1' })
+    expect(await issuerAudienceB.verify(token)).toBeNull()
+  })
 })
 
-describe('StaticTokenService', () => {
-  it('issue returns "test:" + claims.sub', async () => {
-    const service = new StaticTokenService()
-    expect(await service.issue({ sub: 'abc' })).toBe('test:abc')
+describe('FakeTokenService', () => {
+  it('issue returns a "test:" prefixed handle carrying claims.sub', async () => {
+    const service = new FakeTokenService(new FixedClock(0))
+    const token = await service.issue({ sub: 'abc' })
+    expect(token.startsWith('test:abc:')).toBe(true)
   })
 
   it('verify returns the stored claims for an issued token', async () => {
-    const service = new StaticTokenService()
-    await service.issue({ sub: 'abc', email: 'x@y.com' })
-    const claims = await service.verify('test:abc')
+    const service = new FakeTokenService(new FixedClock(0))
+    const token = await service.issue({ sub: 'abc', email: 'x@y.com' })
+    const claims = await service.verify(token)
     expect(claims?.email).toBe('x@y.com')
     expect(claims?.sub).toBe('abc')
   })
 
-  it('verify returns null for an unknown test sub', async () => {
-    const service = new StaticTokenService()
-    expect(await service.verify('test:unknown')).toBeNull()
+  it('verify returns null for an unknown token', async () => {
+    const service = new FakeTokenService(new FixedClock(0))
+    expect(await service.verify('test:unknown:0')).toBeNull()
   })
 
   it('verify returns null for a token that does not start with "test:"', async () => {
-    const service = new StaticTokenService()
+    const service = new FakeTokenService(new FixedClock(0))
     expect(await service.verify('real.jwt.token')).toBeNull()
   })
 
-  it('each StaticTokenService instance has its own isolated claims store', async () => {
-    const serviceA = new StaticTokenService()
-    const serviceB = new StaticTokenService()
-    await serviceA.issue({ sub: 'user-1' })
-    expect(await serviceB.verify('test:user-1')).toBeNull()
+  it('verify returns null once the clock advances past the issued TTL', async () => {
+    const clock = new FixedClock(0)
+    const service = new FakeTokenService(clock)
+    const token = await service.issue({ sub: 'abc' }, { ttlSeconds: 900 })
+
+    clock.advance(901 * 1000)
+
+    expect(await service.verify(token)).toBeNull()
+  })
+
+  it('each FakeTokenService instance has its own isolated claims store', async () => {
+    const serviceA = new FakeTokenService(new FixedClock(0))
+    const serviceB = new FakeTokenService(new FixedClock(0))
+    const token = await serviceA.issue({ sub: 'user-1' })
+    expect(await serviceB.verify(token)).toBeNull()
   })
 })

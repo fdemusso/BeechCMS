@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { createBeechApp } from '../src/factory'
 import { TEST_ENV, TEST_USERS, TEST_SEEDS } from './fixtures'
 import { D1TestDatabase } from './helpers/d1-test-database'
@@ -10,6 +10,9 @@ import { seedTestUsers } from './helpers/seed-fixtures'
 import { JoseTokenService } from '../src/auth/providers/jwt-token.service'
 import { SystemClock } from '@beechcms/core'
 import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import * as uploadModule from '../src/shared/storage/upload'
+import { StaticContentRepository } from './mocks/static-content.repository'
+import { __resetSeedRegistryCache } from '../src/shared/services/cache/seed-registry-cache'
 
 const s3 = new S3Client({
   region: 'auto',
@@ -739,6 +742,55 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
         }, { ...TEST_ENV, DB: db })
         expect([400, 404]).toContain(mediaRes.status)
       }
+    })
+  })
+
+  // Relocated from the deleted apps/api/test/flow-content-management.test.ts (harness-foundation
+  // sprint): entry deletion cascading into R2 cleanup needs the MinIO stack, which the workers
+  // integration tier does not bind — these cases stay on the forks project. Content storage
+  // (content_posts) is never provisioned on D1TestDatabase, so — exactly like the deleted
+  // suite — content is served from StaticContentRepository, real D1 only for media_objects.
+  describe('DELETE /api/content/:slug/:id (R2 cascade cleanup)', () => {
+    let contentRepo: StaticContentRepository
+    let contentApp: ReturnType<typeof createBeechApp>
+    let s3SendSpy: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+      contentRepo = new StaticContentRepository(TEST_SEEDS)
+      contentApp = createBeechApp({ seeds: TEST_SEEDS, repository: contentRepo })
+      __resetSeedRegistryCache()
+      s3SendSpy = vi.spyOn(S3Client.prototype, 'send')
+      s3SendSpy.mockReset()
+    })
+
+    it('removes the entry and triggers R2 cleanup for its tracked media field', async () => {
+      await db.prepare(
+        'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
+      ).bind('f.png', 'f.png', 'image/png', 100, TEST_USERS[0].id).run()
+      s3SendSpy.mockResolvedValue({ ContentLength: 100 } as any)
+      contentRepo.load('posts', [{ id: 'p_del', status: 'published', image: 'https://ex.com/api/media/f.png' }])
+
+      const res = await contentApp.request('/api/content/posts/p_del', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(200)
+      expect(s3SendSpy).toHaveBeenCalled()
+    })
+
+    it('logs but does not fail the request when R2 cleanup on delete fails', async () => {
+      vi.spyOn(uploadModule, 'deleteR2Objects').mockRejectedValueOnce(new Error('R2 unreachable'))
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+      contentRepo.load('posts', [{ id: 'p_del_r2', status: 'published', image: 'https://ex.com/api/media/f2.png' }])
+
+      const res = await contentApp.request('/api/content/posts/p_del_r2', {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+      }, { ...TEST_ENV, DB: db })
+
+      expect(res.status).toBe(200)
+      expect(warnSpy).toHaveBeenCalledWith('R2 cleanup on delete failed (orphaned files):', expect.any(Error))
     })
   })
 })

@@ -535,19 +535,30 @@ VALUES (
     'Shield'
 );
 
+-- One INSERT OR IGNORE per permission, not a 7-way UNION ALL CROSS JOIN: D1's SQLite
+-- backend caps compound SELECTs at 6 terms (SQLITE_LIMIT_COMPOUND_SELECT) and rejects
+-- a 7-term UNION ALL with "too many terms in compound SELECT" (cloudflare/workerd#795).
+-- Same end state, no compound SELECT to hit the limit.
 INSERT OR IGNORE INTO role_permissions (role_id, permission)
-SELECT r.id, p.permission
-FROM roles r
-CROSS JOIN (
-    SELECT 'content:read'   AS permission UNION ALL
-    SELECT 'content:create' UNION ALL
-    SELECT 'content:update' UNION ALL
-    SELECT 'content:delete' UNION ALL
-    SELECT 'manage_users'   UNION ALL
-    SELECT 'manage_roles'   UNION ALL
-    SELECT 'view_analytics'
-) p
-WHERE r.name = 'SuperAdmin';
+SELECT r.id, 'content:read' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'content:create' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'content:update' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'content:delete' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'manage_users' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'manage_roles' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'view_analytics' FROM roles r WHERE r.name = 'SuperAdmin';
 
 -- =============================================================================
 -- 21. RBAC — INVITATIONS

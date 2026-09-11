@@ -48,6 +48,7 @@ import { authProvidersMiddleware } from './middleware/auth-providers.middleware'
 import { rateLimiterMiddleware } from './middleware/rate-limit.middleware'
 import { observabilityMiddleware } from './middleware/observability.middleware'
 import { queueMiddleware } from './middleware/queue.middleware'
+import type { AuthProviderOverrides } from './middleware/auth-providers.middleware'
 
 export interface BeechConfig {
   seeds: Seed[] | Record<string, Seed>
@@ -93,6 +94,12 @@ export interface BeechConfig {
    * every requested scope; inject a restrictive guard to exercise the denial path.
    */
   roleGuard?: IRoleGuard
+  /**
+   * Overrides for the auth provider seam (`IHashProvider`, `ITokenService`, `IClock`).
+   * Intended for `@beechcms/testing`: the integration harness fakes the clock and the token
+   * service and nothing else. Omitted in production — `apps/api/src/index.ts` never sets it.
+   */
+  authProviders?: AuthProviderOverrides
 }
 
 // --- Costanti e helper ---
@@ -141,7 +148,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
 
   app.use('*', queueMiddleware(config.jobs ?? {}))
 
-  app.use('*', authProvidersMiddleware())
+  app.use('*', authProvidersMiddleware(config.authProviders))
   app.use('*', rateLimiterMiddleware(config.rateLimiterRegistry ? { registry: config.rateLimiterRegistry } : undefined))
   app.use('*', observabilityMiddleware())
 

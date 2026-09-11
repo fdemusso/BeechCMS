@@ -1,33 +1,46 @@
-# Idea: Sistema Multi-Account, Ruoli, Scope e Permessi in Beech CMS
+# Idea: Test Harness & Strategia di Testing (Issue 108)
 
 ## Visione e Obiettivo
-Trasformare la dashboard di Beech CMS non solo in uno strumento editoriale interno, ma anche in una piattaforma collaborativa e un **portale B2B sicuro multi-stakeholder** (es. proprietario del sito, partner, fornitori esterni che caricano e gestiscono i propri contenuti in modo isolato).
+Risolvere il debito tecnico legato all'attuale suite di test e migliorare drasticamente la Developer Experience (DX) per gli sviluppatori di BeechCMS. L'obiettivo è sostituire l'attuale proliferazione di mock caotici dei repository con un **Test Harness** standardizzato che esegua test di integrazione reali e affidabili.
 
 ---
 
-## I Pilastri Concettuali
-
-### 1. Identità e Account
-* **Sistema Chiuso a Invito:** Gli account non si registrano liberamente; vengono creati o invitati esclusivamente da un amministratore.
-* **Autenticazione & Identità:** Ogni richiesta trasporta l'identità dell'utente autenticato (es. tramite token/JWT).
-* **Zero-Trust di default:** Un nuovo account creato senza ruoli o scope associati non ha visibilità né poteri su alcun dato.
-
-### 2. Ruoli Dinamici (Capacità Astratte)
-* **Componibilità a Runtime:** I ruoli non sono hardcoded nel codice, ma possono essere definiti e personalizzati a runtime dall'amministratore per adattarsi alla natura headless e mutevole di Beech CMS.
-* **Permessi Atomici:** I ruoli sono collezioni nominative di permessi elementari:
-  * Operazioni sui contenuti (`read`, `create`, `update`, `delete`).
-  * Funzionalità e schermate di sistema (`manage_users`, `manage_roles`, `manage_seeds`).
-
-### 3. Scope (Perimetro di Applicazione)
-* **Associazione Tripla (Utente ↔ Ruolo ↔ Scope):** Il ruolo è astratto (es. "Editor"); lo scope determina *dove* ha valore quel ruolo per un dato utente (es. *"L'utente Marco ha il ruolo Editor sul Seed `prodotti_acme`"*).
-* **Isolamento a Livello di Seed:** L'isolamento dei dati tra soggetti diversi avviene a livello di Seed (ogni venditore/partner ha il proprio Seed dedicato), evitando la complessità di filtri row-level sulla medesima tabella. Le aggregazioni avvengono tramite relazioni e automazioni.
-* **Scope Globale (`*`):** Riservato a figure di coordinamento o amministrazione per operare trasversalmente su tutti i seed.
-
-### 4. Regola di Risoluzione dei Permessi
-* **Modello Puramente Additivo:** Nessun sistema di permessi negativi o conflitti gerarchici complessi. I permessi associati all'utente (anche attraverso ruoli multipli) si sommano in modo prevedibile e trasparente.
+## Il Problema Attuale
+1. **Confusione e Disordine:** I test correnti sono spesso "illeggibili" perché confondono unit test e integration test.
+2. **Falsi Positivi/Negativi:** Molti test usano `vi.fn()` per creare mock manuali che tentano di simulare il comportamento di un vero database (es. memorizzando dati in array in memoria). Questo porta a logiche di test fragili e fallaci.
+3. **Mancanza di Standard:** Non c'è una netta separazione tra test unitari (che dovrebbero validare pure funzioni/schemi senza DB) e test di integrazione (che dovrebbero testare il flusso end-to-end e il routing HTTP).
 
 ---
 
-## Guardrail Logici Fondamentali
-* **Protezione SuperAdmin:** Deve essere impossibile auto-revocare o eliminare l'ultimo SuperAdmin attivo del sistema.
-* **Ciclo di vita delle risorse:** Se un Seed viene eliminato o disattivato, gli scope associati a quel Seed per i vari account decadono coerentemente.
+## La Soluzione: `@beechcms/testing` (Test Harness)
+
+Il **Test Harness** funge da *Test Environment Builder*. È una funzione (`createTestHarness`) che maschera la complessità dell'infrastruttura iniettando dipendenze stabili e controllabili. L'Harness non "finge" le query al DB, ma fornisce un DB reale e isolato.
+
+### 1. Database Reale (In-Memory)
+Invece di mockare le query tramite funzioni JavaScript, la Harness istanzia un vero database SQLite in-memory (tramite `better-sqlite3` o l'ambiente D1 di `@cloudflare/vitest-pool-workers`).
+*   **Vantaggio:** Il test esegue vere query SQL. Vengono testati i vincoli, le foreign keys, le relazioni e l'esatta esecuzione delle Seed (creazione tabelle/indici).
+
+### 2. Dependency Injection per Servizi Instabili
+L'Harness si occupa di mockare internamente solo i servizi infrastrutturali collaterali necessari per avere test veloci e deterministici:
+*   **`IClock`:** Congela il tempo o lo avanza artificialmente (es. per testare la scadenza dei token o dei task cron).
+*   **`ITokenService`:** Evita l'overhead della crittografia vera e propria per generare e validare JWT durante i test.
+
+### 3. Test Client Intelligente
+La funzione restituisce un oggetto che contiene l'app configurata e un client helper (es. `.asUser({ role: 'admin' })`). Quest'ultimo avvolge `app.request()` e inietta automaticamente i token fittizi negli header delle richieste HTTP in base all'identità passata, eliminando la necessità di firmare JWT a mano in ogni test.
+
+---
+
+## La Nuova Piramide dei Test
+
+L'introduzione della Test Harness diventa lo standard architettonico per la qualità del codice:
+
+1. **Unit Tests (Puri):** Test isolati, immediati e privi di side-effect per logiche di validazione (es. Zod schemas), utilità ed engine rules. Non coinvolgono istanze Hono né il database in-memory.
+2. **Integration / E2E Tests (con Test Harness):** Tutti i test su handler API, flussi core e middleware passano all'uso esclusivo della Harness. Non ci saranno più mock dei Repository: i dati si preparano inserendoli nel DB, si fa la chiamata HTTP e si verifica lo stato nel DB o nella risposta.
+
+---
+
+## Piano di Migrazione Graduale (Boy Scout Rule)
+
+*   **Evitare il Big Bang:** Non riscrivere tutti i 70+ test esistenti in un colpo solo.
+*   **Nuovi Sviluppi:** Tutti i nuovi endpoint e le nuove feature devono utilizzare l'Harness per l'integrazione o essere puramente unitari.
+*   **Rifattorizzazione Continua:** Ogni volta che si tocca un vecchio endpoint (es. per un bugfix o una nuova feature), i vecchi test confusi basati sui mock vengono eliminati e sostituiti da un test pulito usando la Test Harness.

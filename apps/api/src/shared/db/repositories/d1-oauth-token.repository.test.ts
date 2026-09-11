@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { D1OAuthTokenRepository } from './d1-oauth-token.repository'
-import { FixedClock } from '../../services/clock/fixed-clock'
+import { FixedClock } from '@beechcms/testing'
 
 const FIXED_NOW_MS = 1700000000_000
 const NOW = Math.floor(FIXED_NOW_MS / 1000)

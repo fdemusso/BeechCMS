@@ -6,14 +6,16 @@ You are an independent Review Agent operating with a fresh context. You did not 
 - Layer 4 (working): the git diff of the feature branch against `devs` (`git diff devs...HEAD`)
 - Layer 4 (working, optional): ../00_ideation/output/feature_brief.md (Original intent, to catch spec drift)
 - Layer 3 (reference): ../../_config/ponytail_arch.md (Invariants to audit against)
+- Layer 3 (reference): ../../_config/testing_conventions.md (Test rules to audit against when the diff touches any test file; its §8 checklist is the review procedure)
 
 ## Process
 1. **Independent Validation:** Re-run yourself every command listed in the plan's "SECTION 5 — VALIDATION". Do not trust execution_log.md.
 2. **Code Review:** Run a code-review on the branch diff. Triage findings: correctness bugs and invariant violations are blocking; style nits are not.
 3. **Runtime Verification:** If the sprint changes user-visible behavior (API responses, dashboard UI), verify it at runtime (`/verify` skill, or `pnpm beech dev` and exercise the affected flow). A green test suite alone does not prove a UI bug is fixed.
 4. **Invariant Audit:** Check the diff against the ponytail invariants: no D1 access bypassing `@beechcms/core` (`apiToDb`/`dbToApi`), no hardcoded field names (Branch IDs `br_XX` only), no cross-slice imports in `apps/api/features/` or `apps/dashboard/src/features/`, and nothing touching the plan's "SECTION 7 — OUT OF SCOPE".
-5. **Acceptance Criteria:** Walk "SECTION 6 — ACCEPTANCE CRITERIA" item by item, verifying each one independently.
-6. **Verdict:**
+5. **Test Audit:** For every test file in the diff, walk the §8 checklist in `_config/testing_conventions.md`. A `MUST` violation is a blocking finding, ranked with correctness bugs — a green suite written against hand-rolled fixtures is the exact failure mode this pipeline exists to prevent.
+6. **Acceptance Criteria:** Walk "SECTION 6 — ACCEPTANCE CRITERIA" item by item, verifying each one independently.
+7. **Verdict:**
    - Everything passes -> **PASS**.
    - Implementation defects -> **REWORK_CODE**: list precise, actionable findings (file:line, what is wrong, expected behavior). The execution stage will re-run against your report.
    - The plan itself is flawed (wrong design, missing requirement, invariant violation baked into the spec) -> **REWORK_PLAN**: append the reason to `../01_sprint_planning/output/rejections.md` (dated, with the plan filename) and state it in the report.

@@ -6,6 +6,7 @@
 - Layer 3 (reference): ../../_config/ponytail_arch.md 
 - Layer 3 (reference): ../../_config/tooling_graphify.md
 - Layer 3 (reference): ../../_config/sprint_template.md 
+- Layer 3 (reference): ../../_config/testing_conventions.md (Read when the sprint produces or reorganizes tests: plans must specify tier, placement and fixture source, and must never spec a test that violates it)
 
 ## Process
 You are a Senior Systems Architect planning a new feature for the BeechCMS monorepo. Your output is a comprehensive Sprint Plan.

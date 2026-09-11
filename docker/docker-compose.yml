@@ -53,7 +53,11 @@ services:
     ports:
       - "127.0.0.1:${BEECH_SQLITE_WEB_PORT:-8080}:8080"
     volumes:
-      - ../apps/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject:/data:ro
+      # Not :ro — sqlite3 needs to create a -journal/-wal companion file even for
+      # read-only introspection (--read-only below only stops sqlite_web issuing
+      # writes at the app level); a read-only bind mount made every open fail with
+      # "unable to open database file", crash-looping the container.
+      - ../apps/api/.wrangler/state/v3/d1/miniflare-D1DatabaseObject:/data
     working_dir: /data
     entrypoint: ["sh", "-c"]
     command:

@@ -10,6 +10,8 @@ export default defineConfig({
     globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
     // Flow tests in test/ + unit tests colocated in src/
     include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
+    // Owned by vitest.workers.config.ts (real D1 via @cloudflare/vitest-pool-workers).
+    exclude: ['**/node_modules/**', '**/dist/**', 'src/features/**/test/integration/**'],
     /** Show console/stderr only for failing tests */
     silent: 'passed-only',
     reporters: ['verbose'],
@@ -33,7 +35,6 @@ export default defineConfig({
         // Demo data TS fixtures definition
         'src/shared/db/fixtures/demo-data.fixtures.ts',
         // Test doubles and helpers used in test suites but not in production
-        'src/shared/services/clock/fixed-clock.ts',
         'src/shared/services/id-generator/sequential-id-generator.ts',
         'src/shared/services/activity-log/in-memory-activity-logger.ts',
         'src/shared/services/notification/in-memory-notification-service.ts',
