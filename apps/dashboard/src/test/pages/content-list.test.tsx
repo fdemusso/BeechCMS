@@ -44,12 +44,15 @@ vi.mock("@/features/schema", () => ({
   })
 }))
 
-vi.mock("@/features/content-management", () => ({
+vi.mock("@/features/content-management/hooks/use-content-list", () => ({
   useContentList: (...args: any[]) => ({
     data: mockFetchContentListServer(...args),
     isLoading: false,
     error: null,
   }),
+}))
+
+vi.mock("@/features/content-management/hooks/use-content-facets", () => ({
   useContentFacets: (...args: any[]) => ({
     data: mockFetchFacets(...args),
     isLoading: false,
@@ -58,14 +61,34 @@ vi.mock("@/features/content-management", () => ({
   useDeleteContent: () => ({
     mutateAsync: async (...args: any[]) => mockDeleteContent(...args),
   }),
-  useBulkUpdate: () => ({
-    mutateAsync: async () => ({ updated: 0, failed: [] }),
-    isPending: false,
-  }),
-  contentApi: {
-    delete: (...args: any[]) => mockDeleteContent(...args),
-  }
 }))
+
+vi.mock("@/features/content-management", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/features/content-management")>()
+  return {
+    ...actual,
+    useContentList: (...args: any[]) => ({
+      data: mockFetchContentListServer(...args),
+      isLoading: false,
+      error: null,
+    }),
+    useContentFacets: (...args: any[]) => ({
+      data: mockFetchFacets(...args),
+      isLoading: false,
+      error: null,
+    }),
+    useDeleteContent: () => ({
+      mutateAsync: async (...args: any[]) => mockDeleteContent(...args),
+    }),
+    useBulkUpdate: () => ({
+      mutateAsync: async () => ({ updated: 0, failed: [] }),
+      isPending: false,
+    }),
+    contentApi: {
+      delete: (...args: any[]) => mockDeleteContent(...args),
+    },
+  }
+})
 
 // Mock for facets return value
 const mockFetchFacets = vi.fn()
