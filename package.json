@@ -59,6 +59,7 @@
     "dev:reset": "docker compose -f docker/docker-compose.yml down -v",
     "build": "turbo run build",
     "lint": "turbo run lint",
+    "lint:tests": "node scripts/check-test-placement.mjs",
     "type-check": "turbo run type-check",
     "test": "node scripts/test-runner.mjs",
     "test:coverage": "node scripts/test-runner.mjs --coverage",

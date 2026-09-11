@@ -535,19 +535,33 @@ VALUES (
     'Shield'
 );
 
+-- One INSERT OR IGNORE per permission, not a 7-way UNION ALL CROSS JOIN: D1's SQLite backend
+-- caps compound SELECT terms (SQLITE_LIMIT_COMPOUND_SELECT) and rejects the 7-term form with
+-- "too many terms in compound SELECT". Identical end state, no compound SELECT.
+-- Decision: edited in the base migration rather than shipped as a forward migration, because
+-- applyD1Migrations/wrangler apply 0000 first and fail there — a later migration is never reached.
+-- 0000_v040_base.sql has never been applied to a production D1 (it could not have succeeded).
+-- See docs/Sprints/S1_Harness_Foundation/ARCH_FINDING_d1_compound_select.md.
 INSERT OR IGNORE INTO role_permissions (role_id, permission)
-SELECT r.id, p.permission
-FROM roles r
-CROSS JOIN (
-    SELECT 'content:read'   AS permission UNION ALL
-    SELECT 'content:create' UNION ALL
-    SELECT 'content:update' UNION ALL
-    SELECT 'content:delete' UNION ALL
-    SELECT 'manage_users'   UNION ALL
-    SELECT 'manage_roles'   UNION ALL
-    SELECT 'view_analytics'
-) p
-WHERE r.name = 'SuperAdmin';
+SELECT r.id, 'content:read' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'content:create' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'content:update' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'content:delete' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'manage_users' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'manage_roles' FROM roles r WHERE r.name = 'SuperAdmin';
+
+INSERT OR IGNORE INTO role_permissions (role_id, permission)
+SELECT r.id, 'view_analytics' FROM roles r WHERE r.name = 'SuperAdmin';
 
 -- =============================================================================
 -- 21. RBAC — INVITATIONS

@@ -22,3 +22,21 @@ that document, not a second copy of its rules.
 
 For everything else — the four-zone test anatomy, comment policy, naming, and the full forbidden
 list — read `_config/testing_conventions.md`.
+
+## Where a test file lives
+
+| Kind | apps/api | apps/dashboard |
+|------|----------|----------------|
+| unit, subject inside a feature slice | co-located in the slice, or `src/features/<slice>/test/unit/` | `src/features/<slice>/test/unit/` |
+| unit, subject outside any slice (`lib/`, `components/`, `middleware/`, `shared/`) | next to the source file | next to the source file |
+| integration (real D1, `@beechcms/testing`) | `src/features/<slice>/test/integration/<name>.integration.test.ts` | — |
+| crosses two or more slices | `test/flow/` | `src/test/cross-slice/` |
+| e2e (browser) | top-level `e2e/` (Sprint 4, not built yet) | ← same |
+
+`pnpm beech lint` runs `scripts/check-test-placement.mjs`, which fails the build on a misplaced test
+file or a cross-slice import from inside a slice. The rules it enforces are the normative ones in
+`_config/testing_conventions.md` §0-§1; the script is their executable form, not a second source of
+truth.
+
+A test that needs two feature slices is not a slice test. It goes to the cross-slice location above —
+never into one of the slices it spans, which would manufacture the cross-slice import VSA forbids.

@@ -16,8 +16,8 @@ will have moved by then, and stale SQL/interfaces are worse than no plan.
 
 | # | Slug | Status |
 |---|------|--------|
-| 1 | `harness-foundation` | **PLANNED — detailed plan: `../S1_Harness_Foundation.md`** |
-| 2 | `slice-test-layout` | pending |
+| 1 | `harness-foundation` | **SHIPPED — archived: `docs/Sprints/S1_Harness_Foundation/`** |
+| 2 | `slice-test-layout` | **PLANNED — detailed plan: `../S2_Slice_Test_Layout.md`** |
 | 3 | `ci-test-tiering` | pending |
 | 4 | `e2e-playwright` | pending |
 | 5 | `scale-perf-tier` | pending |
@@ -58,6 +58,15 @@ existing test files); short `docs/` page documenting the layout.
 **Depends on:** Sprint 1 — the harness must exist before a suite can be relocated
 *and* converted, and the integration-tier glob it introduces is what Sprint 2 fans
 out across slices.
+
+**Scope note (set at planning time, 2026-09-11):** "migration of the flow-* suites"
+is honoured as *relocation + tier labelling* (`apps/api/test/flow/`), NOT as
+conversion to the real-D1 harness. The 21 flow suites depend on `D1TestDatabase`,
+MinIO, Mailpit and the webhook tester, which the workers tier deliberately does not
+bind (Sprint 1 out-of-scope item 8). Conversion is per-suite Boy Scout work at the
+moment an endpoint is touched, in no sprint's deliverables. Sprint 2 also carries the
+Sprint 1 architect sign-off on `ARCH_FINDING_d1_compound_select.md` (the integration
+tier is red on `HEAD` until that migration statement is fixed).
 
 ---
 

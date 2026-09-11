@@ -49,3 +49,16 @@ sign-off before landing, since it touches `apps/api/migrations/`.)
 Whether editing an already-merged migration file (`0000_v040_base.sql`, applied via
 `applyD1Migrations` and never yet run against a production D1 instance) is acceptable
 pre-release, or whether the fix must instead ship as a new forward migration.
+
+## Resolution (Sprint 2 `slice-test-layout`, architect sign-off)
+
+Applied: the base migration is edited in place, exactly as the "Recommended fix" section describes.
+
+Rationale for editing `0000_v040_base.sql` rather than shipping a forward migration: both
+`applyD1Migrations` (integration tier) and `wrangler d1 execute` (local bootstrap) replay migrations in
+order and abort on `0000`, so a forward migration is never reached and cannot repair the failure. The
+base migration has never been applied to a production D1 instance — the statement would have failed
+there too. Existing local databases already carry the seeded rows and are unaffected (the ledger does
+not re-apply `0000`); `pnpm beech db:reset` rebuilds from the corrected file.
+
+Finding closed.

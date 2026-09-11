@@ -8,7 +8,6 @@ import type {
   ColumnFiltersState,
   ColumnSizingState,
   GroupingState,
-  PaginationState,
   RowSelectionState,
   SortingState,
   VisibilityState,

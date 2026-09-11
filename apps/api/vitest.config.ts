@@ -8,7 +8,8 @@ export default defineConfig({
   test: {
     pool: 'forks',
     globalSetup: ['./test/docker-precheck.runner.ts', './test/global-setup.ts'],
-    // Flow tests in test/ + unit tests colocated in src/
+    // test/flow/ = cross-slice HTTP flow suites (forks tier). They cross slices by nature, so they
+    // live outside the slice tree — same rationale as the top-level e2e/ suite.
     include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
     // Owned by vitest.workers.config.ts (real D1 via @cloudflare/vitest-pool-workers).
     exclude: ['**/node_modules/**', '**/dist/**', 'src/features/**/test/integration/**'],
