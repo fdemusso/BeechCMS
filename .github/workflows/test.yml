@@ -21,6 +21,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm build
       # No Docker: the unit tier is Docker-free by construction (vitest project 'unit').
       - name: Run unit tier
         run: pnpm beech test --tier unit
@@ -39,6 +41,8 @@ jobs:
           cache: 'pnpm'
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm build
       # workerd + miniflare D1 only — no Docker stack.
       - name: Run integration tier
         run: pnpm beech test --tier integration
@@ -106,6 +110,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build packages
+        run: pnpm build
+
       - name: Verify Docker stack reachable
         run: |
           curl -sf http://localhost:9000/minio/health/live
@@ -124,3 +131,22 @@ jobs:
           SMTP_PORT: '8025'
           WEBHOOK_TESTER_URL: http://localhost:8084
         run: pnpm beech test --tier flow
+
+  scale:
+    name: Scale Tier (Performance boundaries)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build packages
+        run: pnpm build
+      - name: Run scale tier
+        run: pnpm beech test --tier scale
