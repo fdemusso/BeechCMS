@@ -4,10 +4,10 @@
 
 import type { Permission } from "@beechcms/core"
 import { Eye, Plus, Edit, Trash2, Users, ShieldCheck, Chart } from "reicon-react"
-import type React from "react"
+import type { IconComponent } from "@/lib/icon-registry"
 
 export interface PermissionMeta {
-  readonly icon: React.ComponentType<{ className?: string }>
+  readonly icon: IconComponent
   readonly translationKey: string
   readonly defaultLabel: string
 }
