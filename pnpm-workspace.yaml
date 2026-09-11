@@ -2,6 +2,7 @@ packages:
   - "apps/*"
   - "packages/*"
   - "docs/examples/*"
+  - "e2e"
 
 allowBuilds:
   esbuild: true

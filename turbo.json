@@ -37,6 +37,10 @@
       "cache": false,
       "dependsOn": ["^build"]
     },
+    "test:e2e": {
+      "cache": false,
+      "dependsOn": ["^build"]
+    },
     "test:coverage": {
       "cache": false,
       "dependsOn": ["^build"]

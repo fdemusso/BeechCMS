@@ -102,7 +102,8 @@ function help() {
     ${pc.cyan('test')}            Run the test suite via Turborepo / Vitest
       --coverage      Generate coverage reports
       --diff          Run test coverage only for files modified on the branch
-      --tier <list>   Run one or more tiers: unit, flow, integration (comma-separated)
+      --tier <list>   Run one or more tiers: unit, flow, integration, e2e (comma-separated)
+                      e2e is Playwright-driven and is never selected by --diff
     ${pc.cyan('lint')}            Run ESLint quality checks
     ${pc.cyan('setup:cloudflare')} (alias: ${pc.cyan('setup:cf')})
       Interactive 1-step Cloudflare provisioning (D1, R2, Presigned S3 secrets)

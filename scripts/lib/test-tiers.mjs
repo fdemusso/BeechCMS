@@ -6,11 +6,14 @@
 // mirrored (names only) by packages/cli/src/commands/test.ts, which cannot import a root
 // .mjs from its bundled build. packages/cli/src/test/test.test.ts asserts the two agree.
 
-/** Every tier that exists. `e2e` is declared so it can be refused, not run (Sprint 4 builds it). */
+/** Every tier that exists. */
 export const TIERS = ['unit', 'flow', 'integration', 'e2e']
 
-/** Tiers with a runner today. */
-export const RUNNABLE_TIERS = ['unit', 'flow', 'integration']
+/** Tiers with a runner today. `e2e` runs via `pnpm beech test --tier e2e` (Playwright, e2e/). */
+export const RUNNABLE_TIERS = ['unit', 'flow', 'integration', 'e2e']
+
+/** Tiers `--diff` may select. `e2e` is excluded by policy: pre-merge/nightly only. */
+export const DIFF_SELECTABLE_TIERS = ['unit', 'flow', 'integration']
 
 /** What `--diff` selects when no --tier is given. `flow` (Docker) and `e2e` are never implicit. */
 export const DEFAULT_DIFF_TIERS = ['unit', 'integration']
@@ -67,14 +70,14 @@ export function parseTiers(value) {
   if (!value) return { tiers: [...DEFAULT_DIFF_TIERS], error: null }
 
   const requested = value.split(',').map((t) => t.trim()).filter(Boolean)
-  if (requested.length === 0) return { tiers: [], error: `--tier needs at least one of: ${RUNNABLE_TIERS.join(', ')}` }
+  if (requested.length === 0) return { tiers: [], error: `--tier needs at least one of: ${DIFF_SELECTABLE_TIERS.join(', ')}` }
 
   for (const tier of requested) {
     if (tier === 'e2e') {
-      return { tiers: [], error: `tier 'e2e' has no runner yet and is never selected by --diff (see ROADMAP Sprint 4)` }
+      return { tiers: [], error: `tier 'e2e' is never selected by --diff (pre-merge/nightly only). Run it with: pnpm beech test --tier e2e` }
     }
-    if (!RUNNABLE_TIERS.includes(tier)) {
-      return { tiers: [], error: `unknown tier '${tier}'. Valid tiers: ${RUNNABLE_TIERS.join(', ')}` }
+    if (!DIFF_SELECTABLE_TIERS.includes(tier)) {
+      return { tiers: [], error: `unknown tier '${tier}'. Valid tiers: ${DIFF_SELECTABLE_TIERS.join(', ')}` }
     }
   }
   return { tiers: [...new Set(requested)], error: null }

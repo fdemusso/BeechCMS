@@ -8,6 +8,10 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { visualizer } from 'rollup-plugin-visualizer'
 
+// The dev proxy target is configurable so a second dashboard instance (the e2e tier, on its own
+// ports) can proxy to its own wrangler process instead of a developer's running `pnpm beech dev`.
+const DEV_API_TARGET = process.env.BEECH_DEV_API_TARGET ?? 'http://127.0.0.1:8789'
+
 // https://vite.dev/config/
 export default defineConfig({
   base: '/admin/',
@@ -31,18 +35,9 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:8789', // Indirizzo del Worker locale
-        changeOrigin: true,
-      },
-      '/auth': {
-        target: 'http://127.0.0.1:8789',
-        changeOrigin: true,
-      },
-      '/oauth': {
-        target: 'http://127.0.0.1:8789',
-        changeOrigin: true,
-      },
+      '/api':   { target: DEV_API_TARGET, changeOrigin: true },
+      '/auth':  { target: DEV_API_TARGET, changeOrigin: true },
+      '/oauth': { target: DEV_API_TARGET, changeOrigin: true },
     },
   },
 })

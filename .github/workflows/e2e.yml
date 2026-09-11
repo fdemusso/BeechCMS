@@ -1,0 +1,39 @@
+name: E2E
+
+on:
+  pull_request:
+    branches: [master]
+  schedule:
+    # Nightly, 03:00 UTC. The e2e tier is too slow for push-triggered runs (brief rule 5).
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: E2E Tier (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install Playwright browser
+        run: pnpm --filter @beechcms/e2e exec playwright install --with-deps chromium
+      # No Docker: the e2e tier uses wrangler dev + miniflare D1 and touches no MinIO, Mailpit or
+      # webhook-tester. It is not the flow tier.
+      - name: Run e2e tier
+        run: pnpm beech test --tier e2e
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7

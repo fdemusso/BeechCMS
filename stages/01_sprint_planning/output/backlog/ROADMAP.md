@@ -17,9 +17,9 @@ will have moved by then, and stale SQL/interfaces are worse than no plan.
 | # | Slug | Status |
 |---|------|--------|
 | 1 | `harness-foundation` | **SHIPPED — archived: `docs/Sprints/S1_Harness_Foundation/`** |
-| 2 | `slice-test-layout` | **PLANNED — detailed plan: `../S2_Slice_Test_Layout.md`** |
-| 3 | `ci-test-tiering` | pending |
-| 4 | `e2e-playwright` | pending |
+| 2 | `slice-test-layout` | **SHIPPED — archived: `docs/Sprints/S2_Slice_Test_Layout/`** |
+| 3 | `ci-test-tiering` | **SHIPPED — archived: `docs/Sprints/S3_CI_Test_Tiering/`** |
+| 4 | `e2e-playwright` | **PLANNED — detailed plan: `../S4_E2E_Playwright.md`** |
 | 5 | `scale-perf-tier` | pending |
 
 ---
@@ -85,6 +85,16 @@ split into per-tier jobs.
 **Depends on:** Sprint 2 — tier selection needs the folder convention as its
 selector; there is nothing to select by before the layout lands.
 
+**Scope note (set at planning time, 2026-09-11):** four tiers are declared
+(`unit`, `flow`, `integration`, `e2e`); three are runnable. `flow` is the name given
+to the Docker-backed cross-slice suites in `apps/api/test/` — it is neither implicit in
+`--diff` nor Docker-free, and `e2e` exists only to be refused until Sprint 4 builds its
+runner. The `apps/api` forks config becomes a two-project config (`unit` Docker-free,
+`flow` carrying the Docker `globalSetup`), with `action-executors.test.ts` pinned into
+`flow` by path so the unit tier is Docker-free without moving a file out of its slice or
+losing its coverage. Making `scripts/` itself testable (no root vitest project covers it)
+stays unowned by any sprint.
+
 ---
 
 ## Sprint 4 — `e2e-playwright`
@@ -101,6 +111,21 @@ explicit exclusion from push-triggered runs.
 
 **Depends on:** Sprint 3 — e2e must be excluded from `--diff` by construction,
 which requires the tier mechanism to exist first.
+
+**Scope note (set at planning time, 2026-09-11):** the deliverable is the runner plus two specs, not a
+suite — one authenticated-session flow and one entry-id contract flow, the defect class behind issue #108.
+`e2e/` is a real pnpm workspace (`pnpm-workspace.yaml` gains it) driving Playwright against a `wrangler dev`
+API on 8799 and a Vite dashboard on 5273, over a throwaway D1 persist directory recreated per run; it is
+Docker-free, so MinIO/Mailpit/webhook-tester flows stay in the `flow` tier. Two deviations from this entry's
+original one-liner, both deliberate: (1) **no concurrency cap is added to `scripts/test-runner.mjs`** — that
+runner selects by task name and the e2e workspace deliberately declares no `test` script, so the cap would
+be unreachable code; the executing cap is Playwright's own `workers: 1`. (2) CI gating lands in a **new**
+`.github/workflows/e2e.yml` (PR→master + nightly) rather than in `test.yml`, whose exact three-job shape is
+a Sprint 3 acceptance criterion. `e2e` joins `RUNNABLE_TIERS` but is kept out of a new
+`DIFF_SELECTABLE_TIERS`, so `--diff --tier e2e` still exits 1. Two config seams are touched and nothing
+else outside tooling: `BEECH_D1_PERSIST_DIR` in `apps/api/scripts/bootstrap-d1.mjs` and
+`BEECH_DEV_API_TARGET` in `apps/dashboard/vite.config.ts`, both no-ops when unset. Adding `data-testid`
+attributes to dashboard source is forbidden; selectors are accessible names only.
 
 ---
 

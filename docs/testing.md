@@ -31,7 +31,7 @@ list — read `_config/testing_conventions.md`.
 | unit, subject outside any slice (`lib/`, `components/`, `middleware/`, `shared/`) | next to the source file | next to the source file |
 | integration (real D1, `@beechcms/testing`) | `src/features/<slice>/test/integration/<name>.integration.test.ts` | — |
 | crosses two or more slices | `test/flow/` | `src/test/cross-slice/` |
-| e2e (browser) | top-level `e2e/` (Sprint 4, not built yet) | ← same |
+| e2e (browser) | top-level `e2e/` — `<flow>.e2e.ts` | ← same |
 
 `pnpm beech lint` runs `scripts/check-test-placement.mjs`, which fails the build on a misplaced test
 file or a cross-slice import from inside a slice. The rules it enforces are the normative ones in
@@ -48,11 +48,26 @@ never into one of the slices it spans, which would manufacture the cross-slice i
 | unit | `pnpm beech test --tier unit` | `unit` | no |
 | flow | `pnpm beech test --tier flow` | `flow` | yes (`pnpm beech dev` stack) |
 | integration | `pnpm beech test --tier integration` | `integration` | no (workerd + miniflare D1) |
-| e2e | — | — | Sprint 4, not built yet |
+| e2e | `pnpm beech test --tier e2e` | `e2e` (PR→master + nightly) | no (wrangler dev + miniflare D1) |
 
 `pnpm beech test --diff` runs the **unit and integration** tiers for the workspaces whose files
-changed on the branch. The flow tier is never implicit — it costs the whole Docker stack — and the
-e2e tier is refused outright. Add `--tier flow` to include it.
+changed on the branch. The flow tier is never implicit — it costs the whole Docker stack. `--diff`
+still refuses `--tier e2e`: the e2e tier is pre-merge/nightly only, never selected by a diff. Add
+`--tier flow` to include the flow tier.
 
 Tiers are declared once in `scripts/lib/test-tiers.mjs`; the vitest projects in
 `apps/api/vitest.config.ts` and the CI jobs in `.github/workflows/test.yml` are its two consumers.
+
+## Running the e2e tier
+
+`pnpm beech test --tier e2e` boots a throwaway database (`e2e/.wrangler-e2e/`, recreated on every run),
+a `wrangler dev` API on port 8799 and a Vite dashboard on port 5273, then drives Chromium against them.
+It needs no Docker stack — the flow tier owns MinIO, Mailpit and the webhook tester.
+
+Specs live in `e2e/tests/` as `<flow>.e2e.ts` and are provisioned by `e2e/tests/global.setup.ts`, which
+creates the administrator, the canonical seeds and one canonical entry over HTTP using the fixtures
+exported by `@beechcms/testing`. `scripts/check-test-placement.mjs` rules R6/R7 keep `*.e2e.ts` out of
+the slice tree and `*.test.ts` out of `e2e/`.
+
+The tier never runs from `--diff` and never on a push: CI runs it on pull requests targeting `master`
+and nightly (`.github/workflows/e2e.yml`).

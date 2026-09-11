@@ -1,0 +1,21 @@
+{
+  "name": "@beechcms/e2e",
+  "version": "0.8.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "type-check": "tsc -p tsconfig.json --noEmit",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@beechcms/api": "workspace:*",
+    "@beechcms/core": "workspace:^0.8.0",
+    "@beechcms/dashboard": "workspace:*",
+    "@beechcms/testing": "workspace:*",
+    "@playwright/test": "^1.63.0",
+    "@types/node": "^24.10.1",
+    "typescript": "^5.9.3"
+  },
+  "license": "BUSL-1.1"
+}

@@ -7,7 +7,7 @@ import { resolve } from 'node:path'
  * Tiers with a runner. Mirrors RUNNABLE_TIERS in scripts/lib/test-tiers.mjs, which this
  * bundled package cannot import; packages/cli/src/test/test.test.ts asserts the two agree.
  */
-export const RUNNABLE_TIERS = ['unit', 'flow', 'integration'] as const
+export const RUNNABLE_TIERS = ['unit', 'flow', 'integration', 'e2e'] as const
 export type TestTier = (typeof RUNNABLE_TIERS)[number]
 
 export interface TestOptions {
@@ -26,9 +26,13 @@ export async function test(args: TestOptions): Promise<void> {
   const invalid = tiers.filter((t) => !RUNNABLE_TIERS.includes(t as TestTier))
   if (invalid.length > 0) {
     console.log(pc.red(`  ✗ Unknown tier(s): ${invalid.join(', ')}. Valid tiers: ${RUNNABLE_TIERS.join(', ')}.`))
-    if (invalid.includes('e2e')) {
-      console.log(pc.yellow('    The e2e tier is not built yet (see ROADMAP Sprint 4).'))
-    }
+    process.exit(1)
+    return
+  }
+
+  if (args.diff && tiers.includes('e2e')) {
+    console.log(pc.red('  ✗ The e2e tier is never selected by --diff (pre-merge/nightly only).'))
+    console.log(pc.yellow('    Run it on its own: pnpm beech test --tier e2e'))
     process.exit(1)
     return
   }

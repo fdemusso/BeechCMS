@@ -11,13 +11,14 @@ import process from 'node:process'
 const SHARED_SLICES = new Set(['shared'])
 
 const TEST_FILE = /\.test\.tsx?$/
+const E2E_FILE = /\.e2e\.tsx?$/
 const IMPORT_SPECIFIER = /(?:from\s*|import\s*\(\s*|require\s*\(\s*)['"]([^'"]+)['"]/g
 
 /** Tracked files only: an untracked scratch test must not fail a teammate's commit. */
 function trackedFiles() {
   return execFileSync('git', ['ls-files'], { encoding: 'utf8' })
     .split('\n')
-    .filter((file) => TEST_FILE.test(file))
+    .filter((file) => TEST_FILE.test(file) || E2E_FILE.test(file))
 }
 
 /** Returns the slice name when `file` lives inside a feature slice of `app`, else null. */
@@ -78,6 +79,17 @@ function violations() {
     // R5
     if (/^apps\/api\/test\/flow-[^/]+\.test\.ts$/.test(file)) {
       found.push(`${file}: R5 — cross-slice flow suites live in apps/api/test/flow/.`)
+    }
+
+    // R6 — an e2e flow crosses slices by nature; inside the slice tree it would manufacture the
+    // cross-slice coupling R3 rejects.
+    if (E2E_FILE.test(file) && !file.startsWith('e2e/')) {
+      found.push(`${file}: R6 — *.e2e.ts belongs to the top-level e2e/ workspace, never inside a slice.`)
+    }
+
+    // R7 — e2e/ is a Playwright project; a *.test.ts there is invisible to it and to every vitest tier.
+    if (file.startsWith('e2e/') && TEST_FILE.test(file)) {
+      found.push(`${file}: R7 — e2e/ holds *.e2e.ts specs only. A vitest suite belongs to its owning slice.`)
     }
   }
   return found

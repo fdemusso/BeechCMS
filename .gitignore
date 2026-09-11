@@ -79,3 +79,11 @@ docs/personal/
 docs_backup_original.tar.gz
 docs_backup_original/
 cas.db
+
+# E2E (Playwright)
+e2e/.wrangler-e2e/
+e2e/.auth/
+e2e/test-results/
+e2e/playwright-report/
+e2e/blob-report/
+e2e/.playwright/

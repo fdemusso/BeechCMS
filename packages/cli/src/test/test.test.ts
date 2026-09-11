@@ -76,13 +76,23 @@ describe('test command', () => {
     }
   })
 
-  it('rejects the e2e tier, which has no runner yet', async () => {
+  it('maps --tier e2e to turbo run test:e2e', async () => {
+    await test({ tier: 'e2e' })
+
+    expect(spawnSync).toHaveBeenCalledWith(
+      'turbo',
+      ['run', 'test:e2e'],
+      expect.objectContaining({ stdio: 'inherit', shell: true })
+    )
+  })
+
+  it('refuses --diff combined with the e2e tier and spawns nothing', async () => {
     const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
       throw new Error('process.exit called')
     })
 
     try {
-      await expect(test({ tier: 'e2e' })).rejects.toThrow('process.exit called')
+      await expect(test({ diff: true, tier: 'e2e' })).rejects.toThrow('process.exit called')
 
       expect(mockExit).toHaveBeenCalledWith(1)
       expect(spawnSync).not.toHaveBeenCalled()
