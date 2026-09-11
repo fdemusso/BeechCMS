@@ -9,7 +9,7 @@ import { D1TestDatabase } from './helpers/d1-test-database'
 import { seedTestUsers } from './helpers/seed-fixtures'
 import { JoseTokenService } from '../src/auth/providers/jwt-token.service'
 import { SystemClock } from '@beechcms/core'
-import { S3Client, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, HeadObjectCommand, PutObjectCommand, type HeadObjectCommandOutput } from '@aws-sdk/client-s3'
 import * as uploadModule from '../src/shared/storage/upload'
 import { StaticContentRepository } from './mocks/static-content.repository'
 import { __resetSeedRegistryCache } from '../src/shared/services/cache/seed-registry-cache'
@@ -767,7 +767,7 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       await db.prepare(
         'INSERT INTO media_objects (key, filename, mime_type, size_bytes, uploaded_by) VALUES (?, ?, ?, ?, ?)'
       ).bind('f.png', 'f.png', 'image/png', 100, TEST_USERS[0].id).run()
-      s3SendSpy.mockResolvedValue({ ContentLength: 100 } as any)
+      s3SendSpy.mockResolvedValue({ ContentLength: 100 } satisfies Partial<HeadObjectCommandOutput>)
       contentRepo.load('posts', [{ id: 'p_del', status: 'published', image: 'https://ex.com/api/media/f.png' }])
 
       const res = await contentApp.request('/api/content/posts/p_del', {
