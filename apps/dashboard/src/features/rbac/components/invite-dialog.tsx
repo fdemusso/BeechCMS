@@ -26,9 +26,10 @@ import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
 export interface InviteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
+  onInvited?: (invitationId: string, inviteUrl: string) => void
 }
 
-export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
+export function InviteDialog({ open, onOpenChange, onInvited }: InviteDialogProps) {
   const { t } = useTranslation()
   const { can } = usePermissions()
   const { data: roles = [] } = useRbacRoles()
@@ -50,7 +51,8 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
     if (!roleId || !scope || createInvitation.isPending) return
     setError(null)
     try {
-      await createInvitation.mutateAsync({ email, roleId, scope })
+      const result = await createInvitation.mutateAsync({ email, roleId, scope })
+      onInvited?.(result.id, result.inviteUrl)
       toast.success(t("rbac.invitations.emailSent", "Invitation emailed"))
       reset()
       onOpenChange(false)
@@ -58,8 +60,6 @@ export function InviteDialog({ open, onOpenChange }: InviteDialogProps) {
       const code = rbacErrorCode(err)
       if (code === RBAC_ERROR_CODES.ESCALATION_REFUSED) {
         setError(t("rbac.errors.escalation-refused"))
-      } else if (code === RBAC_ERROR_CODES.EMAIL_UNAVAILABLE) {
-        setError(t("rbac.errors.email-unavailable"))
       } else {
         setError(t("rbac.errors.generic"))
       }

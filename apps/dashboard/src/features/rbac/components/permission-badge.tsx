@@ -4,11 +4,14 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import type { Permission } from "@beechcms/core"
+import { Globe } from "reicon-react"
+import { GLOBAL_SCOPE, type Permission } from "@beechcms/core"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { cn } from "@/lib/utils"
+import { resolveIcon } from "@/lib/icon-registry"
+import { useSchema } from "@/features/shared"
 import { PERMISSION_METADATA } from "./permission-metadata"
 
 export interface PermissionBadgeProps {
@@ -33,7 +36,7 @@ export function PermissionBadge({
         <Badge
           variant="secondary"
           className={cn(
-            "transition-colors",
+            "transition-colors leading-none",
             showLabel
               ? "h-5 px-1.5 inline-flex items-center gap-1 text-[10px]"
               : "size-6 p-0 inline-flex items-center justify-center rounded-md",
@@ -41,7 +44,7 @@ export function PermissionBadge({
           )}
           aria-label={label}
         >
-          {Icon ? <Icon className="size-3.5" /> : null}
+          {Icon ? <Icon size={14} className="!size-3.5 shrink-0 block" /> : null}
           {showLabel && <span className="text-[10px]">{label}</span>}
         </Badge>
       </TooltipTrigger>
@@ -168,5 +171,40 @@ export function PermissionBadgeGroup({
         </Popover>
       )}
     </div>
+  )
+}
+
+export interface ScopeBadgeProps {
+  readonly scope: string
+  readonly className?: string
+}
+
+export function ScopeBadge({ scope, className }: ScopeBadgeProps) {
+  const { t } = useTranslation()
+  const { data: seeds = [] } = useSchema()
+
+  const isGlobal = scope === GLOBAL_SCOPE
+  const seed = isGlobal ? undefined : seeds.find((s) => s.slug === scope)
+  const Icon = isGlobal ? Globe : resolveIcon(seed?.dashboard?.icon)
+  const label = isGlobal
+    ? t("rbac.scope.global", "All seeds (global)")
+    : seed?.labelPlural ?? seed?.label ?? scope
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge
+          variant="secondary"
+          className={cn(
+            "transition-colors leading-none size-6 p-0 inline-flex items-center justify-center rounded-md",
+            className
+          )}
+          aria-label={label}
+        >
+          <Icon size={14} className="!size-3.5 shrink-0 block" />
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent side="top">{label}</TooltipContent>
+    </Tooltip>
   )
 }

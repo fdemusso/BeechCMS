@@ -31,12 +31,12 @@ export function RoleBadge({ role, className }: RoleBadgeProps) {
         <Badge
           variant="secondary"
           className={cn(
-            "transition-colors size-6 p-0 inline-flex items-center justify-center rounded-md",
+            "transition-colors leading-none size-6 p-0 inline-flex items-center justify-center rounded-md",
             className
           )}
           aria-label={role.name}
         >
-          <Icon className="size-3.5" />
+          <Icon size={14} className="!size-3.5 shrink-0 block" />
         </Badge>
       </TooltipTrigger>
       <TooltipContent side="top">

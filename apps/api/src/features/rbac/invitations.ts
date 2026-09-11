@@ -15,17 +15,32 @@ import { createInvitationSchema } from './rbac.schema'
 /** 72 hours (brief §3: "link di invito con scadenza"; §4: an expired one is regenerable). */
 const INVITATION_TTL_SECONDS = 72 * 60 * 60
 
+/** Whether an email provider is configured; email delivery is best-effort, never a precondition. */
+function isEmailConfigured(context: AppContext): boolean {
+  return context.env.EMAIL_PROVIDER === 'smtp' || !!context.env.RESEND_API_KEY
+}
+
+/** Absolute accept-invite URL. Also returned to the caller so it can be copied manually
+ *  when no email provider is configured, or as a secondary delivery channel when one is. */
+function buildInviteUrl(context: AppContext, token: string): string {
+  const { env, req } = context
+  const baseUrl = (env.APP_URL ?? new URL(req.url).origin).replace(/\/$/, '')
+  return `${baseUrl}/admin/accept-invite?token=${token}`
+}
+
 /**
  * Copied structurally from `password-reset/request.ts:96-126`, including the
  * `executionCtx` fallback that keeps tests working outside a Workers runtime.
+ * No-ops when no email provider is configured: the invitation still exists and its
+ * link is returned to the caller, so email is a convenience, not a requirement.
  */
 function dispatchInvitationEmail(
   context: AppContext,
-  args: { to: string; token: string; roleName: string; scope: string; locale: EmailLocale },
+  args: { to: string; inviteUrl: string; roleName: string; scope: string; locale: EmailLocale },
 ): void {
-  const { env, req } = context
-  const baseUrl = (env.APP_URL ?? new URL(req.url).origin).replace(/\/$/, '')
-  const inviteUrl = `${baseUrl}/admin/accept-invite?token=${args.token}`
+  if (!isEmailConfigured(context)) return
+
+  const { env } = context
   const smtpBaseUrl = env.SMTP_HOST ? `http://${env.SMTP_HOST}:${env.SMTP_PORT ?? '8025'}` : undefined
   const scopeLabel = args.scope === GLOBAL_SCOPE ? 'all content' : args.scope
 
@@ -33,7 +48,7 @@ function dispatchInvitationEmail(
     try {
       await sendInvitationEmail({
         to: args.to,
-        inviteUrl,
+        inviteUrl: args.inviteUrl,
         roleName: args.roleName,
         scopeLabel,
         locale: args.locale,
@@ -68,17 +83,6 @@ export const createInvitationHandler = async (context: AppContext) => {
   const parsed = createInvitationSchema.safeParse(body)
   if (!parsed.success) {
     return rbacProblem(context, RBAC_ERRORS.VALIDATION_FAILED, 422, 'Unprocessable Entity', parsed.error.message)
-  }
-
-  const useSmtp = context.env.EMAIL_PROVIDER === 'smtp'
-  if (!useSmtp && !context.env.RESEND_API_KEY) {
-    return rbacProblem(
-      context,
-      RBAC_ERRORS.EMAIL_UNAVAILABLE,
-      409,
-      'Conflict',
-      'Email delivery is not configured; an invitation cannot be sent.',
-    )
   }
 
   const email = parsed.data.email.toLowerCase()
@@ -133,15 +137,17 @@ export const createInvitationHandler = async (context: AppContext) => {
     expiresAt,
   })
 
+  const inviteUrl = buildInviteUrl(context, token)
+
   dispatchInvitationEmail(context, {
     to: email,
-    token,
+    inviteUrl,
     roleName: role.name,
     scope,
     locale: resolveEmailLocale(parsed.data.locale),
   })
 
-  return context.json({ id, email, roleId, scope, expiresAt }, 201)
+  return context.json({ id, email, roleId, scope, expiresAt, inviteUrl }, 201)
 }
 
 /**
@@ -197,17 +203,6 @@ export const regenerateInvitationHandler = async (context: AppContext) => {
     )
   }
 
-  const useSmtp = context.env.EMAIL_PROVIDER === 'smtp'
-  if (!useSmtp && !context.env.RESEND_API_KEY) {
-    return rbacProblem(
-      context,
-      RBAC_ERRORS.EMAIL_UNAVAILABLE,
-      409,
-      'Conflict',
-      'Email delivery is not configured; an invitation cannot be sent.',
-    )
-  }
-
   const role = await context.get('roleRepository').findById(row.roleId)
   if (!role) return notFound()
 
@@ -251,15 +246,17 @@ export const regenerateInvitationHandler = async (context: AppContext) => {
     )
   }
 
+  const inviteUrl = buildInviteUrl(context, token)
+
   dispatchInvitationEmail(context, {
     to: row.email,
-    token,
+    inviteUrl,
     roleName: role.name,
     scope: row.scope,
     locale: resolveEmailLocale(undefined),
   })
 
-  return context.json({ id: invitationId, expiresAt })
+  return context.json({ id: invitationId, expiresAt, inviteUrl })
 }
 
 /**

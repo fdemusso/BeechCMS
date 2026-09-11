@@ -46,11 +46,11 @@ export const rbacApi = {
   listInvitations: async (): Promise<InvitationView[]> =>
     (await api.get<{ invitations: InvitationView[] }>("/rbac/invitations")).data.invitations,
 
-  createInvitation: async (payload: CreateInvitationPayload): Promise<{ id: string; expiresAt: number }> =>
-    (await api.post<{ id: string; expiresAt: number }>("/rbac/invitations", payload)).data,
+  createInvitation: async (payload: CreateInvitationPayload): Promise<{ id: string; expiresAt: number; inviteUrl: string }> =>
+    (await api.post<{ id: string; expiresAt: number; inviteUrl: string }>("/rbac/invitations", payload)).data,
 
-  regenerateInvitation: async (invitationId: string): Promise<{ id: string; expiresAt: number }> =>
-    (await api.post<{ id: string; expiresAt: number }>(`/rbac/invitations/${invitationId}/regenerate`, {})).data,
+  regenerateInvitation: async (invitationId: string): Promise<{ id: string; expiresAt: number; inviteUrl: string }> =>
+    (await api.post<{ id: string; expiresAt: number; inviteUrl: string }>(`/rbac/invitations/${invitationId}/regenerate`, {})).data,
 
   revokeInvitation: async (invitationId: string): Promise<void> => {
     await api.delete(`/rbac/invitations/${invitationId}`)

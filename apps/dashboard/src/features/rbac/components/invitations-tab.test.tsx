@@ -9,10 +9,14 @@ import { InvitationsTab } from "./invitations-tab"
 const mockInvitations = vi.fn()
 vi.mock("../hooks/use-rbac", () => ({
   useInvitations: () => mockInvitations(),
+  useRbacRoles: () => ({ data: [{ id: "r1", name: "Editor" }] }),
   useRegenerateInvitation: () => ({ mutateAsync: vi.fn() }),
   useRevokeInvitation: () => ({ mutate: vi.fn() }),
 }))
 vi.mock("./invite-dialog", () => ({ InviteDialog: () => null }))
+vi.mock("@/features/shared", () => ({
+  useSchema: () => ({ data: [{ slug: "articles", label: "Article", labelPlural: "Articles" }] }),
+}))
 
 describe("InvitationsTab", () => {
   it("an accepted invitation exposes no Regenerate action", () => {

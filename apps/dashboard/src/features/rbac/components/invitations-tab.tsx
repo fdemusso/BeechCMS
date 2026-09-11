@@ -5,12 +5,13 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
-import { Plus, Refresh as RefreshCw, Trash2 } from "reicon-react"
+import { Plus, Refresh as RefreshCw, Trash2, Copy } from "reicon-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { RelativeTime } from "@/components/ui/relative-time"
 import {
   AlertDialog,
@@ -23,31 +24,42 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
-import { useInvitations, useRegenerateInvitation, useRevokeInvitation } from "../hooks/use-rbac"
+import { useInvitations, useRbacRoles, useRegenerateInvitation, useRevokeInvitation } from "../hooks/use-rbac"
 import { InviteDialog } from "./invite-dialog"
+import { ScopeBadge } from "./permission-badge"
+import { RoleBadge } from "./role-badge"
 import { rbacErrorCode, RBAC_ERROR_CODES } from "../constants"
 
 export function InvitationsTab() {
   const { t } = useTranslation()
   const { data: invitations = [], isLoading } = useInvitations()
+  const { data: roles = [] } = useRbacRoles()
+  const roleById = React.useMemo(() => new Map(roles.map((role) => [role.id, role])), [roles])
   const regenerate = useRegenerateInvitation()
   const revoke = useRevokeInvitation()
   const [inviteOpen, setInviteOpen] = React.useState(false)
+  const [pendingLinks, setPendingLinks] = React.useState<Record<string, string>>({})
 
   const handleRegenerate = async (invitationId: string) => {
     try {
-      await regenerate.mutateAsync(invitationId)
+      const result = await regenerate.mutateAsync(invitationId)
+      setPendingLinks((prev) => ({ ...prev, [invitationId]: result.inviteUrl }))
       toast.success(t("rbac.invitations.emailSent", "Invitation emailed"))
     } catch (err) {
       const code = rbacErrorCode(err)
       if (code === RBAC_ERROR_CODES.INVITATION_ALREADY_USED) {
         toast.error(t("rbac.errors.invitation-already-used"))
-      } else if (code === RBAC_ERROR_CODES.EMAIL_UNAVAILABLE) {
-        toast.error(t("rbac.errors.email-unavailable"))
       } else {
         toast.error(t("rbac.errors.generic"))
       }
     }
+  }
+
+  const handleCopyLink = async (invitationId: string) => {
+    const url = pendingLinks[invitationId]
+    if (!url) return
+    await navigator.clipboard.writeText(url)
+    toast.success(t("rbac.invitations.linkCopied", "Invite link copied"))
   }
 
   return (
@@ -65,6 +77,7 @@ export function InvitationsTab() {
             {[1, 2, 3].map((i) => <Skeleton key={i} className="h-10 w-full" />)}
           </div>
         ) : (
+          <TooltipProvider delayDuration={100} disableHoverableContent>
           <Table>
             <TableHeader>
               <TableRow>
@@ -80,8 +93,12 @@ export function InvitationsTab() {
               {invitations.map((invitation) => (
                 <TableRow key={invitation.id}>
                   <TableCell className="font-medium">{invitation.email}</TableCell>
-                  <TableCell>{invitation.roleName ?? invitation.roleId}</TableCell>
-                  <TableCell>{invitation.scope}</TableCell>
+                  <TableCell>
+                    <RoleBadge
+                      role={roleById.get(invitation.roleId) ?? { id: invitation.roleId, name: invitation.roleName ?? invitation.roleId }}
+                    />
+                  </TableCell>
+                  <TableCell><ScopeBadge scope={invitation.scope} /></TableCell>
                   <TableCell>
                     <Badge variant={invitation.status === "pending" ? "default" : "outline"}>
                       {t(`rbac.invitations.statuses.${invitation.status}`, invitation.status)}
@@ -89,17 +106,37 @@ export function InvitationsTab() {
                   </TableCell>
                   <TableCell><RelativeTime value={invitation.expiresAt} /></TableCell>
                   <TableCell className="text-right space-x-2">
+                    {pendingLinks[invitation.id] && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="size-8" onClick={() => handleCopyLink(invitation.id)}>
+                            <Copy className="size-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">{t("rbac.invitations.copyLink", "Copy invite link")}</TooltipContent>
+                      </Tooltip>
+                    )}
                     {invitation.status !== "accepted" && (
-                      <Button variant="ghost" size="icon" className="size-8" onClick={() => handleRegenerate(invitation.id)}>
-                        <RefreshCw className="size-4" />
-                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button variant="ghost" size="icon" className="size-8" onClick={() => handleRegenerate(invitation.id)}>
+                            <RefreshCw className="size-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">{t("rbac.invitations.regenerate", "Regenerate")}</TooltipContent>
+                      </Tooltip>
                     )}
                     <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="size-8 text-destructive">
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </AlertDialogTrigger>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="ghost" size="icon" className="size-8 text-destructive">
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                        </TooltipTrigger>
+                        <TooltipContent side="top">{t("rbac.invitations.revoke", "Revoke")}</TooltipContent>
+                      </Tooltip>
                       <AlertDialogContent>
                         <AlertDialogHeader>
                           <AlertDialogTitle>{t("rbac.invitations.revoke", "Revoke")}</AlertDialogTitle>
@@ -116,10 +153,15 @@ export function InvitationsTab() {
               ))}
             </TableBody>
           </Table>
+          </TooltipProvider>
         )}
       </CardContent>
 
-      <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} />
+      <InviteDialog
+        open={inviteOpen}
+        onOpenChange={setInviteOpen}
+        onInvited={(id, inviteUrl) => setPendingLinks((prev) => ({ ...prev, [id]: inviteUrl }))}
+      />
     </Card>
   )
 }
