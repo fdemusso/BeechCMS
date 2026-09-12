@@ -12,32 +12,20 @@
 
 > `optional` **db?**: `string`
 
+Override the D1 database name.
+
 ***
 
 ### local?
 
 > `optional` **local?**: `boolean`
 
-***
-
-### migrationsDir?
-
-> `optional` **migrationsDir?**: `string`
+Target local D1 SQLite state (default: true).
 
 ***
 
-### name?
+### manifest?
 
-> `optional` **name?**: `string`
+> `optional` **manifest?**: `string`
 
-***
-
-### registry?
-
-> `optional` **registry?**: `Record`&lt;`string`, [`Seed`](../../core/interfaces/Seed.md)&gt; \| `null`
-
-***
-
-### write?
-
-> `optional` **write?**: `boolean`
+Manifest to compare against. Default: `beech.schema.ts`, skipped when absent.

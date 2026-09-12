@@ -21,6 +21,8 @@ export { generateTypes } from './commands/generate-types.js'
 export type { GenerateTypesOptions } from './commands/generate-types.js'
 export { schemaDiff } from './commands/schema-diff.js'
 export type { SchemaDiffOptions } from './commands/schema-diff.js'
+export { schemaExport } from './commands/schema-export.js'
+export type { SchemaExportOptions } from './commands/schema-export.js'
 
 // New unified command mappings:
 export { dbMigrate } from './commands/db-migrate.js'

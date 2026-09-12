@@ -23,7 +23,8 @@ Commands are categorized by operational scope:
 | `npx beech db:migrate` | Consumer | Applies local D1 database migrations. | Runs `npm run db:migrate:local` or `beech init --db` |
 | `npx beech db:reset` | Consumer | Clears local Wrangler state and re-bootstraps fresh database. | Runs `npm run db:reset:local` or purges `.wrangler/state` |
 | `npx beech reset` | Monorepo | Comprehensive environment reset. | `--db`, `--docker`, `--all`, `--yes` |
-| `npx beech gen types typescript` | Consumer | Generates typed TypeScript interfaces from active D1 Seeds. | `--remote` (local D1 is the default), `-o`/`--out`/`--output <file>`, `--db <name>` (aliases: `gen-types`, `gen:types`, `generate:types`) |
+| `npx beech types generate` (`beech types:generate`) | Consumer | Generates `beech.generated.ts` (`SeedRegistryTypes` + `SCHEMA_FINGERPRINT`) from live D1. | `--remote`, `-o`/`--output <file>`, `--db <name>` (aliases: `beech gen types typescript`, `beech gen-types`, `beech gen:types`, `beech generate:types` — these print to stdout by default) |
+| `npx beech schema export` (`beech schema:export`) | Consumer | Writes `beech.schema.ts` — a reviewable snapshot of the live D1 schema. | `--out <file>`, `--stdout`, `--remote`, `--db <name>` |
 | `npx beech forms` | Consumer | Interactive wizard generating React, Vue, Svelte, or Web Component forms. | `--seed <slug>`, `--framework <name>`, `--mode <create\|edit>`, `--out <path>`, `--yes`, `--json` (aliases: `form`, `forms:add`) |
 | `npx beech setup:cloudflare` | Consumer | 1-step Cloudflare edge provisioning (D1, R2, S3 secrets). | `--name <name>`, `--yes` (alias: `setup:cf`) |
 | `npx beech deploy` | Consumer | Deploys Worker and embedded admin dashboard to Cloudflare. | `--skip-check`, `--skip-seed` |
@@ -37,7 +38,7 @@ Commands are categorized by operational scope:
 | `npx beech dev:tunnel` | Monorepo | Displays active Cloudflare quick tunnel public URL from container logs. | None |
 | `npx beech mailpit:clear` | Monorepo | Clears local Mailpit development inbox. | None |
 | `npx beech logs <service>` | Monorepo | Streams logs from Docker services. | Services: `mailpit`, `sqlite` (`db`), `tunnel`, `minio` (`storage`) |
-| `npx beech schema:diff` | **Deprecated** | Prints a deprecation notice and exits. D1 is the canonical schema authority; the Botanical Engine applies runtime mutations automatically. | Flags accepted but ignored |
+| `npx beech schema diff` (`beech schema:diff`) | Consumer | Reports manifest-vs-deployed drift and definition-vs-physical-table drift. Exits 1 on drift. | `--manifest <file>`, `--remote`, `--db <name>` |
 | `npx beech seed:load` | **Deprecated** | Prints a deprecation notice and exits. Static `seeds.ts` files are no longer synchronized to the database. | Flags accepted but ignored |
 | `npx beech seed:create` | **Deprecated** | Prints a deprecation notice and exits. Create content types in the dashboard (`/admin`) or via `POST /api/seeds`. | Flags accepted but ignored |
 | `npx beech test` | Monorepo | Executes Turborepo test runner. | `--coverage`, `--diff`, `--tier <unit\|flow\|integration\|e2e>` |
@@ -81,15 +82,21 @@ npx beech db:reset
 
 ### 3. TypeScript Type Generation
 
-BeechCMS generates typed TypeScript interfaces directly from your live Seed schemas stored in D1:
+BeechCMS generates typed TypeScript interfaces directly from your live Seed schemas stored in D1.
+`npx beech types generate` writes `beech.generated.ts`, containing `SeedRegistryTypes` **and** a
+`SCHEMA_FINGERPRINT` constant — the value a future `@beechcms/client` compares against the API's
+`X-Schema-Revision` response header to detect a stale build:
 
 ```bash
-# Generate types for all seeds to src/types/beech.ts
-npx beech gen types typescript -o src/types/beech.ts
+# Generate types + fingerprint for all seeds to beech.generated.ts
+npx beech types generate
 
-# Generate types from remote production database
-npx beech gen types typescript --remote -o src/types/beech.ts
+# Generate types from remote production database, to a custom path
+npx beech types generate --remote -o src/types/beech.ts
 ```
+
+The historical aliases (`gen-types`, `gen:types`, `generate:types`, `gen types typescript`) still
+work and keep printing to stdout by default, so no existing script changes behaviour.
 
 ### 4. Interactive Form Generation
 
@@ -112,7 +119,7 @@ npx beech deploy
 ### 6. Schema Evolution & GitOps Migrations
 
 > [!IMPORTANT]
-> `beech schema:diff`, `beech seed:load`, and `beech seed:create` are **deprecated** and now only print a notice. There are no static `seeds.ts` blueprints to diff against: Cloudflare D1 is the canonical schema authority, and the Botanical Engine compiles and applies content-table DDL at runtime when a Seed is saved through the dashboard or `POST /api/seeds`. AI agents can drive the same path through the [MCP plan/apply tools](/reference/mcp-server).
+> `beech schema export` and `beech schema diff` read live D1 through `@beechcms/core`'s introspection primitive; D1 remains the sole runtime authority, the Worker never imports `beech.schema.ts`, and no deploy applies it. `beech seed:load` / `beech seed:create` stay deprecated. **Applying** a manifest (`beech schema plan` / `apply`) is not shipped yet — manifest reconciliation today goes through the [MCP plan/apply tools](/reference/mcp-server).
 
 The versioned SQL files in `apps/api/migrations/` cover the **system** schema (`seeds`, `users`, `sessions`, `api_keys`, `media`, OAuth clients), not per-Seed content tables. Apply them with Wrangler.
 

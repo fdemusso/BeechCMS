@@ -99,5 +99,23 @@ describe('generateSeedTypes', () => {
   it('is deterministic — same input same output', () => {
     expect(generateSeedTypes(seeds)).toBe(generateSeedTypes([...seeds].reverse()))
   })
+
+  it('embeds the fingerprint as an exported constant when one is given', () => {
+    const out = generateSeedTypes(seeds, { fingerprint: 'v1:0123456789abcdef0123456789abcdef' })
+
+    expect(out).toContain("export const SCHEMA_FINGERPRINT = 'v1:0123456789abcdef0123456789abcdef'")
+  })
+
+  it('emits no fingerprint constant when the option is omitted, keeping legacy output identical', () => {
+    const withoutOption = generateSeedTypes(seeds)
+    const withEmptyOptions = generateSeedTypes(seeds, {})
+
+    expect(withoutOption).toBe(withEmptyOptions)
+    expect(withoutOption).not.toContain('SCHEMA_FINGERPRINT')
+  })
+
+  it('refuses a fingerprint that is not the v{n}:{32 hex} form', () => {
+    expect(() => generateSeedTypes(seeds, { fingerprint: "x'; drop" })).toThrow()
+  })
 })
 

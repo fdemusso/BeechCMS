@@ -181,6 +181,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [SeedApplyResult](interfaces/SeedApplyResult.md)
 - [SeedLayoutRecord](interfaces/SeedLayoutRecord.md)
 - [SeedRecord](interfaces/SeedRecord.md)
+- [SeedTypesOptions](interfaces/SeedTypesOptions.md)
 - [SeedValidationIssue](interfaces/SeedValidationIssue.md)
 - [SelectOptions](interfaces/SelectOptions.md)
 - [SetVariableAction](interfaces/SetVariableAction.md)

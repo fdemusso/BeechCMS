@@ -92,8 +92,27 @@ export function interfaceForSeed(seed: Seed): string {
   )
 }
 
-/** Pure entry point. Deterministic: sorts seeds by slug for stable diffs. */
-export function generateSeedTypes(seeds: Seed[]): string {
+/** `v{version}:{32 hex}` — the exact shape `computeSchemaFingerprint` returns. */
+const FINGERPRINT_RE = /^v\d+:[0-9a-f]{32}$/
+
+/** Options that affect the emitted module beyond the seed interfaces themselves. */
+export interface SeedTypesOptions {
+  /**
+   * Schema fingerprint to embed as `SCHEMA_FINGERPRINT`, from `computeSchemaFingerprint`.
+   * Omitted ⇒ no constant is emitted and the output is byte-identical to a pre-fingerprint build,
+   * which is what keeps the legacy `beech gen-types` aliases non-breaking.
+   */
+  fingerprint?: string
+}
+
+/**
+ * Pure entry point. Deterministic: sorts seeds by slug for stable diffs.
+ *
+ * The embedded fingerprint is the client's half of the drift check: `@beechcms/client` compares it
+ * against the `X-Schema-Revision` header the API returns and raises an actionable error on a
+ * mismatch, instead of trusting a stale response shape.
+ */
+export function generateSeedTypes(seeds: Seed[], options: SeedTypesOptions = {}): string {
   const sorted = [...seeds].sort((a, b) => a.slug.localeCompare(b.slug))
   const interfaces = sorted.map(interfaceForSeed).join('\n')
   const registryProps = sorted
@@ -106,6 +125,30 @@ export function generateSeedTypes(seeds: Seed[]): string {
     `}\n\n` +
     `export type SeedRegistryTypes = BeechDatabase\n`
 
-  return `${HEADER}\n${interfaces}\n${databaseRegistry}`
+  return `${HEADER}\n${fingerprintBlock(options.fingerprint)}${interfaces}\n${databaseRegistry}`
+}
+
+/**
+ * Emits the fingerprint constant, or nothing.
+ *
+ * The value is interpolated into source, so its shape is verified first: a fingerprint carrying a
+ * quote or a newline would emit a file that does not parse, and the failure would surface in the
+ * consumer's build rather than here.
+ */
+function fingerprintBlock(fingerprint: string | undefined): string {
+  if (fingerprint === undefined) return ''
+  if (!FINGERPRINT_RE.test(fingerprint)) {
+    throw new Error(
+      `Refusing to embed '${fingerprint}' as a schema fingerprint: expected the v{n}:{32 hex} form produced by computeSchemaFingerprint().`,
+    )
+  }
+  return (
+    `/**\n` +
+    ` * Schema revision these types were generated from. \`@beechcms/client\` compares it against the\n` +
+    ` * \`X-Schema-Revision\` response header; a mismatch means the backend schema moved and this file\n` +
+    ` * must be regenerated with \`beech types generate\`.\n` +
+    ` */\n` +
+    `export const SCHEMA_FINGERPRINT = '${fingerprint}'\n\n`
+  )
 }
 

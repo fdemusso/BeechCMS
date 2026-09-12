@@ -2,9 +2,9 @@
 
 ***
 
-[BeechCMS](../../../index.md) / [@beechcms/cli](../index.md) / GenerateTypesOptions
+[BeechCMS](../../../index.md) / [@beechcms/cli](../index.md) / SchemaExportOptions
 
-# Interface: GenerateTypesOptions
+# Interface: SchemaExportOptions
 
 ## Properties
 
@@ -28,4 +28,4 @@ Target local D1 SQLite state (default: true). Set false for remote D1.
 
 > `optional` **out?**: `string` \| `null`
 
-Output destination. `null` writes to standard output. Default: `beech.generated.ts`.
+Destination path. `null` writes to standard output. Default: `beech.schema.ts`.

@@ -10,8 +10,9 @@ dependencies, never interfaces — the graph and the codebase will have moved by
 | # | Slug | Status |
 |---|------|--------|
 | 1 | `SchemaManifestDsl` | **DONE — merged, archived to `docs/Sprints/SchemaManifestDsl/`** |
-| 2 | `SchemaIntrospectionFingerprint` | **PLANNED — detailed plan in `stages/01_sprint_planning/output/SchemaIntrospectionFingerprint.md`** |
-| 3 | `CliSchemaTooling` | pending |
+| 2 | `SchemaIntrospectionFingerprint` | **DONE — merged, archived to `docs/Sprints/SchemaIntrospectionFingerprint/`** |
+| 3a | `CliSchemaExportTypes` | **IN PLANNING — detailed plan in `output/CliSchemaExportTypes.md`** |
+| 3b | `CliSchemaPlanApply` | pending (was part of entry 3 `CliSchemaTooling`, split during 3a planning) |
 | 4 | `PublicApiRelationExpansion` | pending |
 | 5 | `FluentClientQueryBuilder` | pending |
 | 6 | `ClientRelationSubqueries` | pending |
@@ -55,17 +56,50 @@ report, not a contract to version.
 
 ---
 
-## 3 — `CliSchemaTooling` (#382, part B)
+## 3 — `CliSchemaTooling` (#382, part B) — SPLIT into 3a + 3b
 
-**Goal:** `beech schema export | diff | plan | apply` and `beech types generate`, all reading live D1
-through the sprint-2 primitive, all mutating only through the existing MCP control plane
-(`POST /api/seeds/:slug/mcp-plan` / `mcp-apply`), never raw SQL.
+Entry 3 was one sprint on paper: `beech schema export | diff | plan | apply` + `beech types generate`.
+Planning it revealed two boundaries that are validated separately and merge sequentially:
 
-**Deliverables summary:** the four `beech schema` subcommands; `beech types generate` emitting
-`SeedRegistryTypes` plus the embedded fingerprint header (today's `beech generate-types` reads
-`seeds.definition` and embeds no fingerprint); manifest apply writing `source = 'code'`.
+- everything that only **reads** D1 and **writes files** (export, diff, type generation) needs no
+  authentication, no HTTP surface and no server change;
+- everything that **mutates** D1 must travel the MCP control plane (`POST /api/seeds/:slug/mcp-plan`
+  / `mcp-apply`), which means the CLI needs an authenticated HTTP client it does not have today
+  (only `@beechcms/mcp` has one, behind an OAuth browser flow), plus a server-side change so
+  manifest apply can write `source = 'code'` (`seeds.mcp.ts:275` hardcodes `'runtime'`).
 
-**Depends on:** sprints 1 and 2 — it consumes the manifest DSL and the introspection primitive.
+Shipping both at once means the read path waits on an auth decision it does not depend on, and the
+write path lands untested against a manifest loader merged in the same PR. Split accordingly.
+
+### 3a — `CliSchemaExportTypes`
+
+**Goal:** the read half. `beech schema export` (live D1 → `beech.schema.ts`), `beech schema diff`
+(manifest vs live declared seeds, and declared seeds vs physical tables), and `beech types generate`
+(live D1 → `beech.generated.ts` with `SeedRegistryTypes` + the embedded sprint-2 fingerprint).
+
+**Deliverables summary:** manifest module emitter in `@beechcms/core/schema`; an optional
+`fingerprint` option on `generateSeedTypes`; manifest loader + manifest/live comparator +
+executor-context helper in `packages/cli/src/lib/`; three CLI commands; `bin/cli.mjs` + docs wiring.
+Every D1 read goes through sprint 2's `introspectSeedDefinitions` / `introspectTable`. Nothing under
+`apps/api/` or `apps/dashboard/` is opened; no D1 write of any kind.
+
+**Depends on:** sprints 1 and 2 — it consumes the manifest DSL, the canonical serializer, the
+introspection primitive and the fingerprint.
+
+### 3b — `CliSchemaPlanApply`
+
+**Goal:** the write half. `beech schema plan` and `beech schema apply`, computing and executing
+schema change **only** through `POST /api/seeds/:slug/mcp-plan` / `mcp-apply` — never raw SQL, never
+a direct D1 write from the CLI — with rename/destructive/data-transforming/FTS/relation impact
+surfaced from the server's own classification before anything executes.
+
+**Deliverables summary:** an authenticated CLI→API client (the auth mechanism is 3b's first
+architectural decision: reuse of `@beechcms/mcp`'s OAuth grant store, or a dedicated CLI credential
+— unresolved today, deliberately); the two commands; and the `apps/api` seeds-slice change letting a
+manifest apply record `source = 'code'` on creation, which `mcp-apply` cannot express today.
+
+**Depends on:** 3a — it consumes 3a's manifest loader and comparator, and a plan is only meaningful
+against a manifest a user can already export and diff.
 
 ---
 
@@ -77,7 +111,7 @@ through the sprint-2 primitive, all mutating only through the existing MCP contr
 **Deliverables summary:** query-parameter parsing and relation expansion in the public slice; the
 fingerprint header emitted on every public response; additive-only within `/api/v1`.
 
-**Depends on:** sprint 2 (fingerprint). Parallelizable with sprint 3 — they touch disjoint boundaries.
+**Depends on:** sprint 2 (fingerprint). Parallelizable with 3a and 3b — disjoint boundaries.
 
 ---
 
@@ -91,7 +125,7 @@ runtime fingerprint check and the opt-in `.list({ validate: true })` strict mode
 `Record<string, unknown>` registry in `types.ts`; `X-Schema-Revision` compared against the
 build-time fingerprint, mismatch surfacing an actionable `BeechProblem`, never a silent pass-through.
 
-**Depends on:** sprint 3 (no `SeedRegistryTypes` + fingerprint without it) and sprint 4 (no typed
+**Depends on:** sprint 3a (no `SeedRegistryTypes` + fingerprint without it) and sprint 4 (no typed
 `.include()` against an unstable server contract).
 
 ---
@@ -118,4 +152,4 @@ traversal stay rejected and require a separate architectural RFC.
 - **No implicit schema authority.** The Worker never imports or executes `beech.schema.ts`; no D1
   mutation is a deploy side effect. Every apply is an explicit CLI/MCP action.
 - **Types derive from introspection, never from the manifest file.** Established in sprint 2 and
-  binding on sprint 3.
+  binding on sprints 3a and 3b.

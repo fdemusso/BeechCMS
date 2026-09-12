@@ -5,7 +5,7 @@ import pc from 'picocolors'
 
 let [,, command, ...args] = process.argv
 
-if (command && args[0] && ['db', 'seed', 'schema', 'dev', 'generate', 'mailpit'].includes(command)) {
+if (command && args[0] && ['db', 'seed', 'schema', 'types', 'dev', 'generate', 'mailpit'].includes(command)) {
   command = `${command}:${args.shift()}`
 }
 
@@ -22,6 +22,8 @@ const COMMANDS = {
   'seed:load':      cmdSeedLoad,
   'seed:create':    cmdSeedCreate,
   'schema:diff':    cmdSchemaDiff,
+  'schema:export':  cmdSchemaExport,
+  'types:generate': cmdGenerateTypes,
   'init':           cmdInit,
   'validate':       cmdValidate,
   'deploy':         cmdDeploy,
@@ -72,12 +74,19 @@ function help() {
     ${pc.cyan('db:reset')}        Remove local Wrangler state and re-bootstrap database
 
   ${pc.bold('3. Database & Types Management')}
-    ${pc.cyan('gen types typescript')} (alias: ${pc.cyan('gen-types')})
-      Generate TypeScript interfaces from active D1 database
-      --local         Target local D1 SQLite state (default)
-      --remote        Target remote Cloudflare D1
-      --db <name>     Override D1 database name
-      -o, --output    Output file path (default: standard output)
+    ${pc.cyan('types generate')} (aliases: ${pc.cyan('gen-types')}, ${pc.cyan('gen types typescript')})
+      Generate TypeScript interfaces + schema fingerprint from live D1
+      --local / --remote   Target local SQLite state (default) or remote D1
+      --db <name>          Override D1 database name
+      -o, --output <file>  Output path (default: beech.generated.ts; aliases print to stdout)
+    ${pc.cyan('schema export')}   Write beech.schema.ts from live D1 state
+      --out <file>    Destination (default: beech.schema.ts)
+      --stdout        Print instead of writing
+      --remote        Target remote D1
+    ${pc.cyan('schema diff')}     Report manifest-vs-deployed and definition-vs-table drift
+      --manifest <f>  Manifest path (default: beech.schema.ts)
+      --remote        Target remote D1
+      Exits 1 when drift is found.
     ${pc.cyan('validate')}        Validate runtime schema status
 
   ${pc.bold('4. Forms & Frontend Generation')}
@@ -180,14 +189,28 @@ async function cmdReset(args) {
 }
 
 async function cmdSchemaDiff(args) {
-  const remote  = args.includes('--remote')
-  const write   = args.includes('--write')
-  const nameIdx = args.indexOf('--name')
-  const name    = nameIdx !== -1 ? args[nameIdx + 1] : undefined
-  const dbIdx   = args.indexOf('--db')
-  const db      = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const remote      = args.includes('--remote')
+  const manifestIdx = args.indexOf('--manifest')
+  const manifest    = manifestIdx !== -1 ? args[manifestIdx + 1] : undefined
+  const dbIdx       = args.indexOf('--db')
+  const db          = dbIdx !== -1 ? args[dbIdx + 1] : undefined
   const { schemaDiff } = await import('@beechcms/cli')
-  await schemaDiff({ local: !remote, write, name, db })
+  await schemaDiff({ local: !remote, manifest, db })
+}
+
+async function cmdSchemaExport(args) {
+  const remote  = args.includes('--remote')
+  const stdout  = args.includes('--stdout')
+  const outIdx  = args.indexOf('--out')
+  const oIdx    = args.indexOf('-o')
+  const out     = stdout ? null
+    : outIdx !== -1 ? args[outIdx + 1]
+    : oIdx !== -1 ? args[oIdx + 1]
+    : undefined
+  const dbIdx = args.indexOf('--db')
+  const db    = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+  const { schemaExport } = await import('@beechcms/cli')
+  await schemaExport({ out, local: !remote, db })
 }
 
 async function cmdGenerateTypes(args) {
@@ -198,7 +221,7 @@ async function cmdGenerateTypes(args) {
   const outIdx = args.indexOf('--out')
   const outputIdx = args.indexOf('--output')
   const oIdx = args.indexOf('-o')
-  
+
   if (outIdx !== -1 && args[outIdx + 1]) out = args[outIdx + 1]
   else if (outputIdx !== -1 && args[outputIdx + 1]) out = args[outputIdx + 1]
   else if (oIdx !== -1 && args[oIdx + 1]) out = args[oIdx + 1]
@@ -206,8 +229,13 @@ async function cmdGenerateTypes(args) {
   const dbIdx = args.indexOf('--db')
   const db = dbIdx !== -1 ? args[dbIdx + 1] : undefined
 
+  // `beech types generate` writes beech.generated.ts; the historical `gen-types` aliases keep
+  // their stdout default, so no existing script changes behaviour.
+  const isTypesGenerate = command === 'types:generate'
+  const destination = out ?? (isTypesGenerate ? undefined : null)
+
   const { generateTypes } = await import('@beechcms/cli')
-  await generateTypes({ out, local, db })
+  await generateTypes({ out: destination, local, db })
 }
 
 async function cmdForms(args) {
