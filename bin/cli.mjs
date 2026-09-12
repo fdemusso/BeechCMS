@@ -26,6 +26,7 @@ const COMMANDS = {
   'schema:plan':    cmdSchemaPlan,
   'schema:apply':   cmdSchemaApply,
   'types:generate': cmdGenerateTypes,
+  'types:check':    cmdTypesCheck,
   'init':           cmdInit,
   'validate':       cmdValidate,
   'deploy':         cmdDeploy,
@@ -81,6 +82,11 @@ function help() {
       --local / --remote   Target local SQLite state (default) or remote D1
       --db <name>          Override D1 database name
       -o, --output <file>  Output path (default: beech.generated.ts; aliases print to stdout)
+    ${pc.cyan('types check')}     Diff committed generated types against live D1 (writes nothing)
+      --local / --remote   Target local SQLite state (default) or remote D1
+      --db <name>          Override D1 database name
+      -o, --output <file>  File to check (default: beech.generated.ts)
+      Exits 1 when the file is missing or stale.
     ${pc.cyan('schema export')}   Write beech.schema.ts from live D1 state
       --out <file>    Destination (default: beech.schema.ts)
       --stdout        Print instead of writing
@@ -265,6 +271,26 @@ async function cmdGenerateTypes(args) {
 
   const { generateTypes } = await import('@beechcms/cli')
   await generateTypes({ out: destination, local, db })
+}
+
+async function cmdTypesCheck(args) {
+  const remote = args.includes('--remote')
+  const local = !remote
+
+  let out
+  const outIdx = args.indexOf('--out')
+  const outputIdx = args.indexOf('--output')
+  const oIdx = args.indexOf('-o')
+
+  if (outIdx !== -1 && args[outIdx + 1]) out = args[outIdx + 1]
+  else if (outputIdx !== -1 && args[outputIdx + 1]) out = args[outputIdx + 1]
+  else if (oIdx !== -1 && args[oIdx + 1]) out = args[oIdx + 1]
+
+  const dbIdx = args.indexOf('--db')
+  const db = dbIdx !== -1 ? args[dbIdx + 1] : undefined
+
+  const { typesCheck } = await import('@beechcms/cli')
+  await typesCheck({ out, local, db })
 }
 
 async function cmdForms(args) {

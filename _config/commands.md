@@ -16,6 +16,7 @@ All commands are unified under the `pnpm beech` CLI.
 - `pnpm beech db:migrate`      : Applies D1 schema migrations locally
 - `pnpm beech db:reset`        : Removes Wrangler local state and boots DB from scratch
 - `pnpm beech gen-types`       : Generates TypeScript interfaces from active D1 database
+- `pnpm beech types check`     : Diffs committed generated types against live D1, writes nothing, exits 1 on drift
 - `pnpm beech validate`        : Validates runtime schema status
 - `pnpm beech seed:create`     : (Deprecated) Content types are created via dashboard or /api/seeds
 - `pnpm beech seed:load`       : (Deprecated) Schemas are stored canonically in D1

@@ -24,6 +24,7 @@ Commands are categorized by operational scope:
 | `npx beech db:reset` | Consumer | Clears local Wrangler state and re-bootstraps fresh database. | Runs `npm run db:reset:local` or purges `.wrangler/state` |
 | `npx beech reset` | Monorepo | Comprehensive environment reset. | `--db`, `--docker`, `--all`, `--yes` |
 | `npx beech types generate` (`beech types:generate`) | Consumer | Generates `beech.generated.ts` (`SeedRegistryTypes` + `SCHEMA_FINGERPRINT`) from live D1. | `--remote`, `-o`/`--output <file>`, `--db <name>` (aliases: `beech gen types typescript`, `beech gen-types`, `beech gen:types`, `beech generate:types` — these print to stdout by default) |
+| `npx beech types check` (`beech types:check`) | Consumer | Diffs the committed generated types against live D1 in memory. Writes nothing. Exits 1 when the file is missing or stale. | `--remote`, `-o`/`--output <file>`, `--db <name>` |
 | `npx beech schema export` (`beech schema:export`) | Consumer | Writes `beech.schema.ts` — a reviewable snapshot of the live D1 schema. | `--out <file>`, `--stdout`, `--remote`, `--db <name>` |
 | `npx beech schema diff` (`beech schema:diff`) | Consumer | Compares `beech.schema.ts` against the deployed schema and reports drift. Exits 1 when drift is detected. | `--manifest <file>`, `--remote`, `--db <name>` |
 | `npx beech schema plan` (`beech schema:plan`) | Consumer | Shows the exact DDL applying `beech.schema.ts` would run. Writes nothing. Exits 1 when a seed cannot be applied. | `--manifest <file>`, `--api-url <url>` |
@@ -100,6 +101,18 @@ npx beech types generate --remote -o src/types/beech.ts
 
 The historical aliases (`gen-types`, `gen:types`, `generate:types`, `gen types typescript`) still
 work and keep printing to stdout by default, so no existing script changes behaviour.
+
+`npx beech types check` closes the CI gap: it regenerates types from live D1 in memory and diffs
+them against the committed file, without writing anything on a clean run. It replaces the older
+`types generate` + `git diff --exit-code` two-step, and exits 1 the same way `schema diff` does so
+both can gate a pipeline:
+
+```bash
+# Fail if beech.generated.ts is missing or out of sync with live D1
+npx beech types check
+
+npx beech types check --remote -o src/types/beech.ts
+```
 
 ### 4. Interactive Form Generation
 

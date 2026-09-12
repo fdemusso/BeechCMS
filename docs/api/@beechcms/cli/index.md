@@ -26,6 +26,7 @@
 - [SeedValidationError](interfaces/SeedValidationError.md)
 - [SetupCloudflareOptions](interfaces/SetupCloudflareOptions.md)
 - [TestOptions](interfaces/TestOptions.md)
+- [TypesCheckOptions](interfaces/TypesCheckOptions.md)
 - [UpdateOptions](interfaces/UpdateOptions.md)
 - [ValidateOptions](interfaces/ValidateOptions.md)
 
@@ -59,6 +60,7 @@
 - [seedLoad](functions/seedLoad.md)
 - [setupCloudflare](functions/setupCloudflare.md)
 - [test](functions/test.md)
+- [typesCheck](functions/typesCheck.md)
 - [update](functions/update.md)
 - [validate](functions/validate.md)
 - [validateSeeds](functions/validateSeeds.md)
