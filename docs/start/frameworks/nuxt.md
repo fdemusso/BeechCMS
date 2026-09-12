@@ -106,10 +106,11 @@ import { renderRichText } from '@beechcms/client/richtext'
 const { $beech } = useNuxtApp()
 
 const { data: articles, pending, error } = await useAsyncData('articles', async () => {
-  const result = await $beech.content('articles').list({
-    sort: { created_at: 'desc' },
-    limit: 10
-  })
+  const result = await $beech
+    .collection('articles')
+    .orderBy('created_at', 'desc')
+    .limit(10)
+    .list()
   return result.data ? result.data.data : []
 })
 </script>

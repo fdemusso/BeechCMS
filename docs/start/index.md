@@ -48,12 +48,48 @@ BeechCMS is designed around an intuitive botanical mental model, inspired by the
 - **The Fruits (Content Records)**: The harvest of your tree. Every time you create and publish an entry, the tree bears a Fruit—a concrete content record holding real, tangible data.
 - **The Forest (Your Content Ecosystem)**: A complete digital experience is rarely a single tree. Multiple Seeds grow alongside each other, forming a rich, interconnected Forest that powers your entire project.
 
+## Querying Your Content
+
+Reads go through one typed, chainable entry point in `@beechcms/client`. Every method compiles to the [Public REST API](/reference/public-api) query string, so there is no second query language and no manual URL encoding:
+
+```typescript
+import { createBeechBrowserClient } from '@beechcms/client/browser'
+import type { BeechDatabase } from './beech.generated' // npx beech types generate
+
+const beech = createBeechBrowserClient<BeechDatabase>({
+  baseUrl: 'https://api.yourdomain.com',
+  apiKey: process.env.NEXT_PUBLIC_BEECH_READ_KEY!,
+})
+
+// List: filter, sort, paginate
+const posts = await beech
+  .collection('posts')
+  .where({ status: 'published', views: { gte: 100 } })
+  .orderBy('created_at', 'desc')
+  .limit(10)
+  .list()
+
+// Single entry, with its related author resolved in the same request
+const post = await beech
+  .collection('posts')
+  .where({ slug: 'hello-world' })
+  .include(['author'])
+  .first()
+```
+
+- **Typed end to end** — `npx beech types generate` derives the seed registry from your live D1 schema, so slugs, field names, and sort keys are compile-checked.
+- **No N+1** — `.include()` expands relations server-side (depth 1, up to 3 branches); `.whereRelation()` filters *through* a relation without a client-side pre-query.
+- **Policy-safe** — expansion never widens what an API key may read: target seeds still need `allowPublicRead`, and field policies still apply.
+
+👉 Full reference: **[Client SDK](/reference/client-sdk)** · **[Public REST API](/reference/public-api)**
+
 ## Onboarding Pathways
 
 Choose the fastest path to integrate BeechCMS into your stack:
 
 - **[Your First Project](/start/first-project)**: Follow a step-by-step tutorial covering project scaffolding, database bootstrap, visual modeling, dual-table staging, and Cloudflare deployment.
 - **[AI & MCP Setup](/start/mcp)**: Connect Claude Desktop, Cursor, Antigravity, or VSCode to inspect and evolve content schemas automatically via the Model Context Protocol.
+- **[Schema as Code](/build/schema-manifest)**: Author your content model in a typed `beech.schema.ts` manifest and reconcile it with D1 through `export` → `diff` → `plan` → `apply`.
 - **Framework Quickstarts**: Jump straight to an idiomatic integration guide for your frontend framework:
   - [React](/start/frameworks/react) — Single-page application with `@beechcms/client`.
   - [Next.js](/start/frameworks/nextjs) — Server Components, caching, and dynamic static generation.

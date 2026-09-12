@@ -2,7 +2,7 @@
 
 BeechCMS test files belong to exactly one tier. The full binding rules — placement, anatomy,
 fixtures, forbidden patterns, the review checklist — live in
-[`_config/testing_conventions.md`](../_config/testing_conventions.md); this page is only a map to
+`_config/testing_conventions.md`; this page is only a map to
 that document, not a second copy of its rules.
 
 | Tier | What is real | What may be faked | Where it lives |

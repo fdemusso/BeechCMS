@@ -123,6 +123,7 @@ npx beech deploy
 
 > [!NOTE]
 > **The manifest loop is closed.** `export` → review in Git → `diff` → `plan` → `apply` → `types generate`. The CLI never executes SQL and never opens D1 directly; every write goes through `POST /api/seeds/:slug/mcp-*`.
+> Authoring reference for the manifest file itself (`defineSchema`, `defineSeed`, `defineField`, `defineGroup`): [Schema Manifest](/build/schema-manifest).
 > The first `plan` or `apply` opens the browser once to authorize the `beech-mcp-cli` OAuth client. The grant is cached in `~/.beechcms/mcp-tokens.json` and revocable from Settings → Connected apps.
 > `apply` never deletes a seed absent from the manifest and never performs a drop, rename, or retype — the server refuses destructive intent and names the endpoint that can perform it.
 

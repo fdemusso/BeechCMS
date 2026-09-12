@@ -203,10 +203,11 @@ const client = createBeechServerClient<AppRegistry>({
 })
 
 async function fetchPosts() {
-  const result = await client.content('posts').list({
-    sort: { created_at: 'desc' },
-    limit: 10
-  })
+  const result = await client
+    .collection('posts')
+    .orderBy('created_at', 'desc')
+    .limit(10)
+    .list()
 
   if (result.error) {
     console.error('Failed to fetch posts:', result.error.detail)
@@ -225,6 +226,43 @@ async function fetchPosts() {
 
 fetchPosts()
 ```
+
+### Refine the query
+
+`collection(seed)` returns a chainable query builder. Each method compiles to the Public API query string — there is no second query language to learn:
+
+```typescript
+// Filter, search, project, paginate
+const result = await client
+  .collection('posts')
+  .where({ status: 'published', views: { gte: 100 } })
+  .search('edge rendering')
+  .select(['id', 'title', 'slug'])
+  .orderBy('created_at', 'desc')
+  .limit(12)
+  .page(1)
+  .list()
+
+// A single entry by slug — .first() returns a 404 problem when nothing matches
+const post = await client.collection('posts').where({ slug: 'hello-world' }).first()
+
+// Pull related entries in the SAME request instead of an N+1 follow-up
+const withAuthor = await client
+  .collection('posts')
+  .where({ slug: 'hello-world' })
+  .include(['author'])
+  .first()
+// → entry.author holds the raw id, entry._includes.author holds the expanded record
+
+// Filter through a relation, resolved server-side
+const byAuthorName = await client
+  .collection('posts')
+  .whereRelation('author', { where: { name: { contains: 'Jane' } } })
+  .list()
+```
+
+> [!TIP]
+> Stop hand-writing the row interfaces above: `npx beech types generate` reads the live schema and writes `beech.generated.ts`. Pass its `BeechDatabase` type as the client generic and every seed slug, field name, and sort key becomes compile-checked. Full reference: [Client SDK](/reference/client-sdk).
 
 ---
 
@@ -259,6 +297,8 @@ Your CMS API and embedded Admin Dashboard are now live worldwide on Cloudflare's
 ## Next steps
 
 - Explore [Schema Modeling & Evolution](/build/schema-modeling) for advanced field types and relations.
+- Move your content model into reviewable code with a [`beech.schema.ts` manifest](/build/schema-manifest).
+- Read the [Client SDK](/reference/client-sdk) reference for the full query builder, relation expansion, and typed registries.
 - Set up your team with [Roles & Permissions](/manage/roles-permissions) — scopes, invitations, and anti-escalation rules.
 - Connect your AI assistant via [AI & MCP Setup](/start/mcp) to inspect and evolve content models directly from your editor.
 - Connect your frontend with dedicated [Framework Quickstarts](/start/frameworks/react).

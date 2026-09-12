@@ -35,6 +35,9 @@ Unlike traditional headless CMSs that require code-level schema declarations or 
 3. **AI Control Plane (`@beechcms/mcp`)**:
    Because schemas reside exclusively in D1 without local static files, AI assistants (Cursor, Claude Desktop, Antigravity) interact with the Botanical Engine using the official [MCP Server (`@beechcms/mcp`)](/reference/mcp-server) via an atomic Inspect → Validate → Plan → Apply cycle.
 
+> [!TIP]
+> Prefer to model in code and review schema changes in a pull request? Author a [`beech.schema.ts` manifest](/build/schema-manifest) with `defineSchema`/`defineField`, then reconcile it with `beech schema diff` → `plan` → `apply`. The manifest is desired state, reviewable in Git; D1 stays the runtime authority described above.
+
 ---
 
 ## Seed: Full Field Reference

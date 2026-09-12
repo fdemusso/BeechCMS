@@ -10,8 +10,10 @@ category: Client SDK
 
 To ensure zero bundle bloat and eliminate frontend credential leakage, the SDK implements **architectural submodule segregation** into dedicated, purpose-built subpaths:
 
+Every read goes through one entry point — `client.collection(seed)` — which returns a **typed fluent query builder** that compiles to the documented [Public REST API](/reference/public-api) query string. There is no second query language: `.where()`, `.orderBy()`, `.include()` and friends serialize into the same `filter`, `orderBy`, `include` parameters you could type by hand.
+
 - **`@beechcms/client/browser`**: Safe read-only client for client-side and browser environments. Mutation methods (`create`, `update`) are physically omitted from both types and bundle runtime.
-- **`@beechcms/client/server`**: Read and write client with mutation operations (`create`, `update`), administrative authentication, and advanced fetch options (`next` cache tags, revalidation, AbortSignal). Deletion is intentionally omitted from public client scopes.
+- **`@beechcms/client/server`**: Read and write client with mutation operations (`create`, `update`) merged onto the same fluent builder, administrative authentication, and advanced fetch options (`next` cache tags, revalidation, AbortSignal). Deletion is intentionally omitted from public client scopes.
 - **`@beechcms/client/webhooks`**: Dedicated, zero-dependency submodule for HMAC-SHA256 signature verification (`verifyBeechWebhookSignature`), error handling (`WebhookVerificationError`), and strongly typed event deserialization (`constructWebhookEvent<T>`).
 - **`@beechcms/client/richtext`**: Isomorphic, zero-dependency TipTap AST HTML renderer (`renderRichText` / `renderRichTextHtml`), plain-text extractor (`richTextToPlainText` / `extractPlainText`), and AST normalizer/sanitizer utilities (`normalizeRichtextDocument`, `escapeHtml`, `isSafeUrl`).
 - **`@beechcms/client`**: Root entrypoint exporting shared contracts, TypeScript types (`BeechResult`, `BeechProblem`, `ListQuery`, `ListMeta`, `Listable`, `Single`, `RequestOptions`, `BeechClientConfig`), query serializer (`buildSearchParams`), and re-exporting webhook signature utilities.
@@ -32,8 +34,8 @@ npm install @beechcms/client
 
 | Entrypoint | Primary Purpose | Environment | Exposed Operations / Utilities |
 | :--- | :--- | :--- | :--- |
-| **`@beechcms/client/browser`** | Read-Only Client | Browsers, SPAs, Client Components, Mobile | `createBeechBrowserClient()`, `createBeechClient()`, `list()`, `get()` *(no mutation methods)* |
-| **`@beechcms/client/server`** | Read & Write Client | Node.js, Next.js Server Components, Workers | `createBeechServerClient()`, `createBeechClient()`, `list()`, `get()`, `create()`, `update()` |
+| **`@beechcms/client/browser`** | Read-Only Client | Browsers, SPAs, Client Components, Mobile | `createBeechBrowserClient()`, `createBeechClient()`, `collection()` → `.list()` / `.first()` *(no mutation methods)* |
+| **`@beechcms/client/server`** | Read & Write Client | Node.js, Next.js Server Components, Workers | `createBeechServerClient()`, `createBeechClient()`, `collection()` → `.list()` / `.first()` / `.create()` / `.update()` |
 | **`@beechcms/client/webhooks`** | Webhook Verification | Node.js, Edge Runtimes, Serverless | `verifyBeechWebhookSignature()`, `constructWebhookEvent<T>()`, `WebhookVerificationError`, `BEECH_SIGNATURE_HEADER` |
 | **`@beechcms/client/richtext`** | TipTap AST Rendering | Universal (Node, Edge, Browser) | `renderRichText()`, `renderRichTextHtml()`, `richTextToPlainText()`, `extractPlainText()`, `normalizeRichtextDocument()`, `escapeHtml()`, `isSafeUrl()` |
 | **`@beechcms/client`** | Core Types & Contracts | Universal | `buildSearchParams()`, `BeechResult<T>`, `BeechProblem`, `RequestOptions`, `ListQuery`, `ListMeta`, Webhook utilities |
@@ -63,15 +65,13 @@ export const beech = createBeechBrowserClient({
 
 ```typescript
 // Fetch published articles in descending chronological order
-const result = await beech.content('articles').list({
-  page: 1,
-  limit: 10,
-  filter: {
-    status: { eq: 'published' },
-    category: { eq: 'technology' },
-  },
-  sort: { created_at: 'desc' },
-})
+const result = await beech
+  .collection('articles')
+  .where({ status: 'published', category: 'technology' })
+  .orderBy('created_at', 'desc')
+  .limit(10)
+  .page(1)
+  .list()
 
 if (!result.error) {
   const { data: posts, meta } = result.data
@@ -82,14 +82,19 @@ if (!result.error) {
 }
 ```
 
-### 2. Fetch Single Entry by Slug or ID
+### 2. Fetch a Single Entry by Slug or ID
+
+`.first()` applies `limit=1` and unwraps the list response into a `Single<T>`:
 
 ```typescript
 // Lookup by URL slug
-const slugResult = await beech.content('articles').get({ slug: 'spring-release' })
+const slugResult = await beech.collection('articles').where({ slug: 'spring-release' }).first()
 
 // Lookup by UUID
-const idResult = await beech.content('articles').get({ id: 'c7a82e9b-4321-4f8a-92bf-304918239012' })
+const idResult = await beech
+  .collection('articles')
+  .where({ id: 'c7a82e9b-4321-4f8a-92bf-304918239012' })
+  .first()
 
 if (!slugResult.error) {
   const post = slugResult.data.data
@@ -97,9 +102,42 @@ if (!slugResult.error) {
 }
 ```
 
-### Supported Query Operators & Options
+> [!IMPORTANT]
+> An empty result is **not** `null`: `.first()` returns a `404` `BeechProblem` with `type: 'not_found'`. Branch on `result.error?.status === 404` to tell "no match" apart from a transport or authorization failure.
 
-When calling `.list()`, the `filter` field supports the following operators:
+---
+
+## Fluent Query Builder
+
+`collection(seed)` returns a `FluentQuery<TRow>`. Every method returns the same builder (chainable, mutating — one builder is one query), and nothing is sent until `.list()` or `.first()` is awaited.
+
+### Method reference
+
+| Method | Compiles to | Notes |
+| :--- | :--- | :--- |
+| `.where(filter)` | `filter` (JSON `{logic, where[]}`) | Repeated calls merge field-by-field |
+| `.logic('AND' \| 'OR')` | `filter.logic` | Combines every condition in the chain. Default `AND` |
+| `.whereRelation(alias, subquery)` | nested `in` condition inside `filter` | Filters through a relation target — see below |
+| `.orderBy(field, 'asc' \| 'desc')` | `orderBy` + `orderDir` | Single sort key; a second call **replaces** the first. Direction defaults to `desc` |
+| `.search(term)` | `search` | Full-text search across searchable branches |
+| `.select(fields)` | `fields` | Projection; typed against `keyof TRow` |
+| `.include(relations)` | `include` | Relation expansion, depth 1, max 3 branches |
+| `.limit(n)` | `limit` | Clamped to `100` by the serializer |
+| `.page(n)` | `page` | 1-based |
+| `.list(options?)` | `GET /api/v1/public/:seed` | Resolves `BeechResult<Listable<TRow>>` |
+| `.first(options?)` | same, with `limit=1` | Resolves `BeechResult<Single<TRow>>` |
+| `.build()` | — | Returns the `URLSearchParams` without issuing a request. Useful for debugging and cache keys |
+
+```typescript
+// Inspect exactly what the chain sends — no request is made
+const params = beech.collection('articles').where({ views: { gte: 100 } }).orderBy('views').build()
+console.log(params.toString())
+// filter=%7B%22logic%22%3A%22AND%22%2C%22where%22%3A%5B...&orderBy=views&orderDir=desc
+```
+
+### Supported Filter Operators
+
+`.where()` accepts a `{ field: comparator }` map. Comparators support the following operators:
 
 | Operator | Description | Example |
 | :--- | :--- | :--- |
@@ -115,28 +153,79 @@ When calling `.list()`, the `filter` field supports the following operators:
 > [!TIP]
 > **Scalar Equality Shorthand:** For simple equality filters, you can pass scalar values directly (e.g. `{ status: 'published' }` is automatically expanded to `{ status: { eq: 'published' } }` by the query builder).
 
-#### Additional Query Options
+An invalid operator (`{ price: { bogus: 1 } }`) throws a `TypeError` at serialization time — before any request leaves the process.
 
-- **`logic`**: Combine filters with `'AND'` (default) or `'OR'` (e.g. `{ logic: 'OR', filter: { ... } }`).
-- **`sort`**: Accepts an object mapping field to `'asc' | 'desc'`. The query builder maps the first specified key to `orderBy` and `orderDir`.
-- **`limit`**: Maximum number of records to return. Automatically capped at `100` by the query builder.
-- **`page`**: 1-based page number for pagination.
-- **`search`**: Full-text keyword search query across configured searchable fields.
-- **`fields`**: Array of column names to project (e.g. `['id', 'title', 'slug']`).
-- **`latest`**: Shorthand integer limit to fetch the most recent entries.
-
-#### Filtering Through a Relation (`.whereRelation()`)
-
-The fluent chain (`client.collection(seed)`) exposes `.whereRelation(alias, { where, logic })`, which filters the collection by a condition evaluated against the **target** of a declared relation branch:
-
-```ts
-const { data } = await client
-  .collection('posts')
-  .whereRelation('category_id', { where: { name: 'Tech' } })
+```typescript
+// Combine several axes in one chain
+const result = await beech
+  .collection('articles')
+  .where({ views: { gte: 100 }, tags: { has_any_tag: ['typescript', 'api'] } })
+  .search('edge rendering')
+  .select(['id', 'title', 'slug', 'views'])
+  .orderBy('views', 'desc')
+  .limit(20)
   .list()
 ```
 
-`.whereRelation()` types the *alias* against the row's own keys, but the inner `where` field names are `Record<string, FieldFilter>` — validated server-side, not at compile time, since the server does not (yet) publish a relation → target-seed type map. It composes with `.where()/.include()/.select()/.first()/.list()` in the same chain, encoding into the existing `filter` query parameter alongside ordinary conditions.
+### Relation Expansion (`.include()`)
+
+`.include()` asks the server to resolve related entries in the same round trip, removing the N+1 follow-up requests. Expanded targets arrive under `_includes` on each entry, keyed by relation alias — the raw foreign-key value stays untouched at the root:
+
+```typescript
+const result = await beech
+  .collection('posts')
+  .where({ slug: 'my-first-post' })
+  .include(['category_id', 'related_posts'])
+  .first()
+
+if (!result.error) {
+  const post = result.data.data as Post & {
+    _includes?: { category_id?: Category; related_posts?: Post[] }
+  }
+
+  post.category_id           // ' 8a01f92e-…' — the raw id, always present
+  post._includes?.category_id?.name   // 'Technology' — the expanded target
+}
+```
+
+Server-side limits (enforced, not clamped silently):
+
+- **Depth 1 only** — `include(['category_id.author'])` is refused with `400 invalid-include`.
+- **Max 3 branches** per request.
+- **Public policy gate** — a branch expands only if its resolved policy is public *and* the target seed sets `allowPublicRead: true`. Expansion never widens what an API key may read.
+- Works alongside `.select()`: omitting the foreign key from the projection still populates `_includes`.
+
+`_includes` is not yet part of the generated row types; cast or extend the row type as shown until the schema generator publishes the relation → target map.
+
+### Filtering Through a Relation (`.whereRelation()`)
+
+`.whereRelation(alias, { where, logic })` filters the collection by a condition evaluated against the **target** of a declared relation branch — a server-side subquery, not a client-side second pass:
+
+```typescript
+// Posts whose category is named "Tech"
+const { data } = await beech
+  .collection('posts')
+  .whereRelation('category_id', { where: { name: 'Tech' } })
+  .list()
+
+// Composes with ordinary conditions in the same filter payload
+const recent = await beech
+  .collection('posts')
+  .where({ status: 'published' })
+  .whereRelation('author_id', { where: { name: { contains: 'Jane' } }, logic: 'AND' })
+  .orderBy('created_at', 'desc')
+  .list()
+```
+
+It encodes into the existing `filter` parameter as a nested `in` condition, so no new query grammar reaches the server. Limits mirror [Relation Subquery Filters](/reference/public-api#relation-subquery-filters):
+
+- **Max 2** relation subqueries per request; each inner `where` carries at most **5** conditions.
+- **Depth 1** — a subquery inside a subquery returns `400`.
+- Resolved target-id sets above **200** (or parent sets above **500**) are **refused with `400`**, never truncated.
+- The inner query resolves against published entries only.
+
+> [!NOTE]
+> `.whereRelation()` types the *alias* against the row's own keys, but the inner `where` field names are `Record<string, FieldFilter>` — validated server-side, not at compile time, since the server does not yet publish a relation → target-seed type map.
 
 ---
 
@@ -164,7 +253,7 @@ export const beechAdmin = createBeechServerClient({
 Submits a `POST` request to `/api/v1/public/:seed/add`:
 
 ```typescript
-const result = await beechAdmin.content('articles').create({
+const result = await beechAdmin.collection('articles').create({
   title: 'Announcing BeechCMS 1.0',
   slug: 'announcing-beechcms-1-0',
   category: 'news',
@@ -192,7 +281,7 @@ if (!result.error) {
 Submits a `PUT` request to `/api/v1/public/:seed/edit/:id`:
 
 ```typescript
-const result = await beechAdmin.content('articles').update(
+const result = await beechAdmin.collection('articles').update(
   'c7a82e9b-4321-4f8a-92bf-304918239012',
   {
     title: 'Announcing BeechCMS 1.0 (Updated)',
@@ -206,16 +295,19 @@ if (!result.error) {
 
 ### 3. Request Options & Next.js Revalidation
 
-Methods support an optional `RequestOptions` parameter to configure Next.js cache revalidation tags, fetch cache modes, abort signals, or custom HTTP headers:
+`RequestOptions` configures Next.js cache revalidation tags, fetch cache modes, abort signals, and custom HTTP headers. The query itself lives in the chain, so options are the **only** argument the terminal methods take:
 
-- For `.list(query?, options?)`, `.get(selector, options?)`, and `.create(input, options?)`, `RequestOptions` is passed as the **second** argument.
-- For `.update(id, input, options?)`, `RequestOptions` is passed as the **third** argument.
+- `.list(options?)` and `.first(options?)` — options are the sole argument.
+- `.create(input, options?)` — **second** argument.
+- `.update(id, input, options?)` — **third** argument.
 
 ```typescript
-// Revalidation with .list() (second argument)
-const result = await beechAdmin.content('articles').list(
-  { limit: 20 },
-  {
+// Revalidation on a fluent read
+const result = await beechAdmin
+  .collection('articles')
+  .where({ status: 'published' })
+  .limit(20)
+  .list({
     next: {
       revalidate: 3600, // Revalidate every hour in Next.js
       tags: ['articles'],
@@ -224,11 +316,10 @@ const result = await beechAdmin.content('articles').list(
       'X-Custom-Client': 'Website-SSR',
     },
     signal: AbortSignal.timeout(5000), // 5-second abort signal
-  },
-)
+  })
 
 // Custom audit header with .update() (third argument)
-const updateResult = await beechAdmin.content('articles').update(
+const updateResult = await beechAdmin.collection('articles').update(
   'c7a82e9b-4321-4f8a-92bf-304918239012',
   { title: 'Announcing BeechCMS 1.0 (Patched)' },
   { headers: { 'X-Audit-Reason': 'editorial-fix' } },
@@ -239,7 +330,41 @@ const updateResult = await beechAdmin.content('articles').update(
 
 ## Type Safety & Generics
 
-Pass your Seed schema TypeScript interfaces to either `createBeechBrowserClient` or `createBeechServerClient` for full IDE autocomplete and compile-time validation:
+The client takes a **Seed registry** generic: a map of seed slug → row interface. `collection()` restricts its argument to the registry keys, and `.select()` / `.orderBy()` restrict theirs to the keys of the selected row.
+
+### Recommended: generate the registry from live D1
+
+Do not hand-maintain the registry. [`beech types generate`](/build/cli-workflows#_3-typescript-type-generation) introspects the deployed schema and writes `beech.generated.ts`, exporting `BeechDatabase` (aliased as `SeedRegistryTypes`) plus a `SCHEMA_FINGERPRINT` constant:
+
+```bash
+npx beech types generate                      # → beech.generated.ts (local D1)
+npx beech types generate --remote -o src/types/beech.ts
+```
+
+```typescript
+import { createBeechBrowserClient } from '@beechcms/client/browser'
+import type { BeechDatabase } from './beech.generated'
+
+export const beech = createBeechBrowserClient<BeechDatabase>({
+  baseUrl: process.env.NEXT_PUBLIC_BEECH_API_URL!,
+  apiKey: process.env.NEXT_PUBLIC_BEECH_READ_KEY!,
+})
+
+await beech.collection('artciles')            // ✗ compile error — not a seed slug
+await beech.collection('articles').select(['titel'])  // ✗ compile error — not a branch alias
+```
+
+> [!WARNING]
+> Generated types go stale the moment someone applies a schema change, and the SDK does **not** yet catch it at runtime: its `SCHEMA_FINGERPRINT` ships as an empty stub, so the `X-Schema-Revision` comparison inside the client is inert until that constant is populated at build time. Guard drift in CI instead — regenerate and fail on a dirty tree:
+>
+> ```bash
+> npx beech types generate --remote -o src/types/beech.ts
+> git diff --exit-code src/types/beech.ts   # non-zero when the committed types are stale
+> ```
+>
+> For manifest-vs-deployed drift, `npx beech schema diff` already exits `1` on its own.
+
+### Hand-written registry (dynamic or partial schemas)
 
 ```typescript
 import type { TipTapDoc, RichtextEnvelopeV1 } from '@beechcms/client/richtext'
@@ -277,12 +402,15 @@ export const beech = createBeechBrowserClient<AppContentRegistry>({
 })
 
 // Types are automatically inferred!
-const listRes = await beech.content('articles').list()
+const listRes = await beech.collection('articles').where({ status: 'published' }).list()
 if (!listRes.error) {
   // listRes.data.data is typed as Article[]
   const firstTitle = listRes.data.data[0].title
 }
 ```
+
+> [!NOTE]
+> The typed surface stops at the row: `.where()` field names and `.whereRelation()` inner conditions are `Record<string, FieldFilter>`, validated server-side. Untyped JavaScript consumers can omit the generic entirely — `collection()` then accepts any string and returns `Record<string, unknown>` rows.
 
 ---
 
@@ -385,7 +513,7 @@ import { renderRichText } from '@beechcms/client/richtext'
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const result = await beech.content('articles').get({ slug })
+  const result = await beech.collection('articles').where({ slug }).first()
   if (result.error) return <div>Post not found</div>
 
   const post = result.data.data
@@ -417,7 +545,7 @@ console.log(plainSnippet)
 // Perfect for Next.js metadata:
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const result = await beech.content('articles').get({ slug })
+  const result = await beech.collection('articles').where({ slug }).first()
   if (result.error) return { title: 'Not Found' }
 
   const snippet = richTextToPlainText(result.data.data.body).slice(0, 160)
@@ -436,7 +564,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 Both `@beechcms/client/browser` and `@beechcms/client/server` encapsulate network errors into a deterministic `BeechResult<T>` discriminated union (`{ data: T; error: null } | { data: null; error: BeechProblem }`). Requests **never throw unexpected network exceptions**:
 
 ```typescript
-const result = await beech.content('articles').list()
+const result = await beech.collection('articles').list()
 
 if (!result.error) {
   // TypeScript narrows result to: { data: Listable<Article>, error: null }

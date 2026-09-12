@@ -91,10 +91,11 @@ export default function App() {
     async function loadArticles() {
       try {
         setLoading(true)
-        const result = await beech.content('articles').list({
-          sort: { created_at: 'desc' },
-          limit: 10
-        })
+        const result = await beech
+          .collection('articles')
+          .orderBy('created_at', 'desc')
+          .limit(10)
+          .list()
 
         if (result.error) {
           setError(result.error.detail || 'Failed to load articles')

@@ -94,6 +94,7 @@ export default defineConfig({
           text: 'Content Modeling',
           items: [
             { text: 'Schema Modeling', link: '/build/schema-modeling' },
+            { text: 'Schema Manifest (beech.schema.ts)', link: '/build/schema-manifest' },
             { text: 'Field Policies & Encryption', link: '/build/field-policies' }
           ]
         },

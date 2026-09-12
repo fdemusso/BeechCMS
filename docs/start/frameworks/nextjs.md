@@ -85,10 +85,11 @@ import Link from 'next/link'
 export const revalidate = 60 // Revalidate cache every 60 seconds (ISR)
 
 export default async function HomePage() {
-  const result = await beech.content('articles').list({
-    sort: { created_at: 'desc' },
-    limit: 10
-  })
+  const result = await beech
+    .collection('articles')
+    .orderBy('created_at', 'desc')
+    .limit(10)
+    .list()
 
   const articles = result.data ? result.data.data : []
 
@@ -149,14 +150,14 @@ interface ArticlePageProps {
 }
 
 export async function generateStaticParams() {
-  const result = await beech.content('articles').list({ limit: 100 })
+  const result = await beech.collection('articles').limit(100).list()
   const articles = result.data ? result.data.data : []
   return articles.map((article) => ({ slug: article.slug }))
 }
 
 export default async function ArticleDetailPage({ params }: ArticlePageProps) {
   const { slug } = await params
-  const result = await beech.content('articles').get({ slug })
+  const result = await beech.collection('articles').where({ slug }).first()
 
   if (result.error || !result.data) {
     notFound()

@@ -20,6 +20,13 @@ Explore the key building blocks and engineering guides:
 </div>
 
 <div style="border: 1px solid var(--vp-c-border); border-radius: 8px; padding: 18px; background: var(--vp-c-bg-elv);">
+  <h3 style="margin-top: 0;"><a href="/build/schema-manifest">Schema Manifest (beech.schema.ts)</a></h3>
+  <p style="color: var(--vp-c-text-2); font-size: 0.9rem;">
+    Author your content model as typed, reviewable code with <code>defineSchema</code>/<code>defineField</code>, then reconcile it with D1 through export → diff → plan → apply.
+  </p>
+</div>
+
+<div style="border: 1px solid var(--vp-c-border); border-radius: 8px; padding: 18px; background: var(--vp-c-bg-elv);">
   <h3 style="margin-top: 0;"><a href="/build/field-policies">Field Policies & Encryption</a></h3>
   <p style="color: var(--vp-c-text-2); font-size: 0.9rem;">
     Enforce granular branch security, AES-256-GCM Application-Level Encryption (ALE), blind indexing with HMAC-SHA256, and data classification tiers.
