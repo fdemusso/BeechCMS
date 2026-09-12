@@ -9,7 +9,7 @@ import { resolve, join } from 'node:path'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { Seed } from '@beechcms/core'
-import { writeGrant } from './token-store.js'
+import { writeGrant } from '@beechcms/api-client'
 
 describe('MCP Server Integration & Operational Test', () => {
   let server: http.Server

@@ -177,6 +177,9 @@ mcpApp.post('/:slug/mcp-plan', async (context) => {
     ftsRebuildNeeded,
     expectedVersion: currentVersion,                  // feed this straight back into mcp-apply
     issues,
+    // Current owner, so a client can warn that applying will not transfer ownership.
+    // null ⇒ the seed does not exist yet and the apply that creates it decides the owner.
+    source: stored && stored.status !== 'deleted' ? stored.source : null,
   }, 200)
 })
 
@@ -191,6 +194,7 @@ mcpApp.post('/:slug/mcp-plan', async (context) => {
  * - Executes physical DDL and definition upsert in a single CAS-guarded atomic batch (`applyAtomic`).
  * - Rejects with 409 Conflict if registry version drifted (`expectedVersion !== currentVersion`).
  * - Executes post-apply FTS5 rebuilding if required.
+ * - Accepts an optional `source` (default `'runtime'`) applied only on creation.
  * - Appends a structured audit event to the activity logger recording actor, plan ID, DDL count, and schema revision.
  *
  * @route POST /api/seeds/:slug/mcp-apply
@@ -206,10 +210,11 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
   const body = await parseJsonBody(context)
   if (body instanceof Response) return body
 
-  const { candidate: candidateInput, expectedVersion, planId } = body as {
+  const { candidate: candidateInput, expectedVersion, planId, source } = body as {
     candidate?: unknown
     expectedVersion?: unknown
     planId?: unknown
+    source?: unknown
   }
 
   if (!candidateInput || typeof candidateInput !== 'object') {
@@ -217,6 +222,14 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
   }
   if (!Number.isInteger(expectedVersion)) {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: '`expectedVersion` must be an integer. Obtain it from POST /api/seeds/:slug/mcp-plan.' })
+  }
+  if (source !== undefined && source !== 'code' && source !== 'runtime') {
+    return publicProblem(context, {
+      type: 'invalid-json',
+      title: 'Bad Request',
+      status: 400,
+      detail: "`source` must be 'code' or 'runtime' when present.",
+    })
   }
   const rawCandidate: Seed = { ...(candidateInput as Seed), slug }
 
@@ -272,7 +285,9 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
       definition: candidate,
       ddl,
       expectedVersion: expectedVersion as number,
-      source: 'runtime',
+      // Honoured on INSERT only: UPSERT_SEED_SQL's ON CONFLICT clause deliberately omits `source`,
+      // so a manifest apply over a dashboard-created seed cannot seize ownership of it.
+      source: (source as 'code' | 'runtime' | undefined) ?? 'runtime',
     })
   } catch (err) {
     return publicProblem(context, {
@@ -316,6 +331,7 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
       op: 'mcp-apply',
       planId: typeof planId === 'string' ? planId : null,
       classification,
+      source: (source as 'code' | 'runtime' | undefined) ?? 'runtime',
       expectedVersion,
       newVersion: result.version,
       ddlCount: ddl.length,

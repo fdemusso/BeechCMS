@@ -6,98 +6,43 @@ None.
 
 # Verification Evidence
 
-Diff scoped: `git diff devs` (working tree — branch `feature/cli-schema-export-types` has not
-diverged from `devs` by commit; all sprint work is uncommitted in the working tree). Confirmed via
-`git rev-parse HEAD devs` (identical SHA) and `git diff devs --stat`.
+Diff scoped: `git diff devs` confirms exact changes according to the plan (uncommitted in the working tree).
 
-Commands re-run independently (not taken from execution_log.md):
+Commands re-run independently:
 
 ```
-$ pnpm --filter @beechcms/core build        → tsc clean
-$ pnpm --filter @beechcms/core test         → 45 files / 718 tests passed
-$ pnpm --filter @beechcms/cli build         → tsc --noEmit clean, esbuild 94.9kb
-$ pnpm --filter @beechcms/cli test          → 19 files / 97 tests passed
-$ pnpm --filter @beechcms/api exec tsc --noEmit   → clean, no output
-$ pnpm beech test --diff                    → 3/3 changed files meet 50% coverage threshold
-$ pnpm lint                                 → 17/17 tasks successful, 0 errors
-$ graphify update . --force                 → 13099 nodes / 23623 edges / 1044 communities
-$ graphify path "createBeechApp" "queryD1"  → "No directed path found" (confirmed, matches acceptance criterion)
-$ node bin/cli.mjs --help                   → schema export / schema diff / types generate all
-                                               registered and documented at runtime (manual check)
+$ pnpm --filter @beechcms/api-client build && pnpm --filter @beechcms/api-client test
+  → Test Files 3 passed, Tests 27 passed
+$ pnpm --filter @beechcms/mcp build && pnpm --filter @beechcms/mcp test
+  → Test Files 5 passed, Tests 24 passed
+$ pnpm --filter @beechcms/cli build && pnpm --filter @beechcms/cli test
+  → Test Files 23 passed, Tests 116 passed
+$ pnpm --filter @beechcms/api test
+  → Test Files 2 passed, Tests 12 passed
+$ graphify path "schemaApply" "mcpApp"
+  → "No directed path found" (CLI connects over HTTP)
+$ graphify path "createBeechApp" "createControlPlane"
+  → "No directed path found" (Worker remains isolated from Node-only logic)
+$ graphify path "createBeechApp" "readGrant"
+  → "No directed path found"
 ```
 
-Invariant audit (grep-based, independent of claims in execution_log.md):
-- No `SELECT`/DDL literal in any new/rewritten CLI file (`schema-export.ts`, `schema-diff.ts`,
-  `generate-types.ts`, `d1-context.ts`, `manifest-loader.ts`, `manifest-compare.ts`) — zero hits.
-- `packages/cli/src/lib/wrangler.ts`, `d1-executor.ts`, `migration-writer.ts` — empty diff vs `devs`
-  (unchanged, as required).
-- `packages/core/src/index.ts`, `packages/core/package.json`, `packages/cli/package.json` — empty
-  diff vs `devs` (unchanged, as required).
-- `engines.node` — empty diff vs `devs` (unchanged, as required).
-- No `beech schema plan`/`apply`, no MCP HTTP client, no `apps/api`/`apps/dashboard` file touched
-  (`git diff devs --stat` confirms zero files under either app).
-- No `any`/`<any>`/`as any` in any new production file.
-- No `it.only`/`it.skip`/`describe.only`/`describe.skip` in any new or modified test file.
-- All new test files carry the MIT SPDX header on lines 1–2.
-
-Read and diffed against the sprint plan's TASK 1–13 code blocks: `emit.ts`, `d1-context.ts`,
-`manifest-loader.ts`, `manifest-compare.ts`, `schema-export.ts`, `schema-diff.ts`,
-`generate-types.ts` (rewrite), `seed-types-generator.ts` (diff), `bin/cli.mjs` (diff),
-`docs/build/cli-workflows.md` (grep for parity strings) — all byte-for-byte match the plan's
-specified implementation, including doc comments, error classes, and the deliberate design
-decisions from the VETO Audit (frozen canonical-JSON literal, no call-tree emitter, sequential
-`diffSeed` loop, stdout-vs-file split preserving legacy alias behavior).
-
-Test audit (`testing_conventions.md` §8 checklist) on the six new/touched test files
-(`emit.test.ts`, `manifest-compare.test.ts`, `manifest-loader.test.ts`, `schema-export.test.ts`,
-`schema-diff.test.ts`, `generate-types.test.ts`): single unit tier, correct placement
-(colocated in `core`, `src/test/` in `cli`), SPDX headers present, no forbidden §7 patterns found,
-`node:fs` and `../lib/wrangler.js` are the only mocked boundaries. `schema-diff.test.ts`'s
-`nextMigrationIndex`/`buildMigrationSql` blocks confirmed present (2 matches) and untouched by this
-sprint's changes (diff only touches the `describe('schemaDiff command')` block per the plan).
-
-Acceptance criteria (SECTION 6): walked item by item against the above evidence — all satisfied.
-Out-of-scope audit (SECTION 7): grepped for `mcp-plan`/`mcp-apply`/`X-Schema-Revision` — all hits
-are pre-existing references in comments/docs or in `apps/api` code this sprint did not touch; no
-new production code calls the control plane, adds an HTTP client, or emits DDL.
-
-Runtime verification: this sprint's user-visible surface is CLI-only (no dashboard/API behavior
-change), so the `/verify` browser flow does not apply; `node bin/cli.mjs --help` was run directly
-as the applicable runtime check and confirms the three new/rewritten commands are wired and
-documented correctly.
-
-Manual D1 smoke check: not re-run independently (would mutate the shared local D1 state). The
-execution log's own account of steps (b)–(e) being skipped due to a monorepo-root-only package
-resolution quirk (root `@beechcms/cms`'s pinned `@beechcms/core@^0.6.6` predating the `./schema`
-subpath) is plausible and orthogonal to the shipped code: the unit suites for
-`manifest-loader.ts`/`manifest-compare.ts`/`schema-diff.ts` (which do exercise this logic against
-mocked boundaries) all pass, and `packages/cli`'s own `node_modules` symlink resolves
-`@beechcms/core` to workspace source, confirmed by the clean `tsc --noEmit` on `@beechcms/cli`
-build above. Not independently re-verified against a real scaffolded consumer project — treated as
-a known limitation, not a defect, since it does not touch any code this sprint ships.
+Invariant audit (grep-based against diff):
+- Zero `apps/dashboard/` and `packages/core/src/` files touched.
+- Exactly one `apps/api/src/` file touched: `features/seeds/seeds.mcp.ts` (along with its integration test).
+- Zero migrations added.
+- `schema-plan.ts` and `schema-apply.ts` do not contain SQL literals or wrangler API calls; schema mutation correctly defers to the server control plane.
+- The shared client logic was extracted to the new `@beechcms/api-client` without duplicate implementations.
+- No test failures. Test files follow the `testing_conventions.md` guidelines correctly.
 
 # Sprint Documentation
 
-Shipped the read half of roadmap entry 3 (`CliSchemaExportTypes`, sprint 3a of 7 in the Typed
-Fluent Query Builder chain): `beech schema export` (live D1 → `beech.schema.ts`), `beech schema
-diff` (manifest-vs-deployed + deployed-vs-physical-table drift, exit 1 on drift), and `beech types
-generate` (now writes `beech.generated.ts` by default and embeds `SCHEMA_FINGERPRINT`, while legacy
-`gen-types` aliases keep the stdout-first behavior unchanged). New `@beechcms/core/schema/emit.ts`
-renders manifests as frozen-canonical-JSON literals rather than a second `defineField.*`
-call-tree serializer (deliberate YAGNI rejection, avoids a second source of truth).
-`generate-types.ts`'s hand-written `SELECT slug, definition FROM seeds …` is gone — every D1 read in
-the CLI now goes through `@beechcms/core`'s `introspectSeedDefinitions`/`introspectTable` via
-`createWranglerExecutor`, closing the last raw-SQL bypass of the Botanical Invariant in the CLI
-tier. Zero D1 writes, zero new dependencies, zero files touched under `apps/api` or `apps/dashboard`.
-Known limitation: `beech schema plan`/`apply` (the write half) and the MCP-based control-plane
-client are explicitly deferred to sprint 3b — this sprint reports drift but cannot reconcile it.
-The manual end-to-end smoke test's steps (b)–(e) were skipped in execution due to a pre-existing,
-sprint-unrelated package-resolution quirk when running `beech schema diff` from the monorepo root
-(the root project's own pinned `@beechcms/core@^0.6.6` dependency predates the `./schema` subpath);
-this does not affect a real scaffolded consumer and is covered by the unit suites instead.
+Shipped sprint 3b of the Typed Fluent Query Builder chain: `beech schema plan` and `beech schema apply`. The manifest loop is now fully closed, allowing operators to diff, review, plan, and apply `beech.schema.ts` against the live D1 database. The CLI executes zero local DDL, instead delegating writes via HTTP to the control plane (`/api/seeds/:slug/mcp-*`). The OAuth loopback logic and token cache were successfully extracted into a new, shared `@beechcms/api-client` package, consumed by both the CLI and the MCP server without the Worker ever accessing Node-only credential code.
 
 ## Handoff (Human Gate)
-STOP. Human decision required: this is sprint 3a of a 7-sprint chain, so `PASS` here means the
-human merges the branch, then runs `pnpm pipeline next` (archives this sprint, keeps the brief +
-`ROADMAP.md`; stage 01 plans sprint 3b `CliSchemaPlanApply`). No `pnpm pipeline next` /
-`pnpm pipeline reset` run by this agent.
+After writing the report, STOP. Do not merge, do not archive. The human reviews the verdict and decides:
+- PASS on an intermediate sprint of a multi-sprint feature -> human merges the branch, then runs `pnpm pipeline next` (archives this sprint, keeps brief + ROADMAP; stage 01 then plans the next sprint).
+- PASS on the final (or only) sprint -> human merges, then runs `pnpm pipeline reset` (archives everything to docs/Sprints/ and closes the feature).
+- REWORK_CODE -> human re-launches stage 02 in rework mode.
+- REWORK_PLAN -> human re-launches stage 01 against rejections.md.
+NEVER run `pnpm pipeline next` or `pnpm pipeline reset` yourself: they are the human confirmation gates of the pipeline.

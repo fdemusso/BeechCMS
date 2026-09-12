@@ -25,6 +25,9 @@ Commands are categorized by operational scope:
 | `npx beech reset` | Monorepo | Comprehensive environment reset. | `--db`, `--docker`, `--all`, `--yes` |
 | `npx beech types generate` (`beech types:generate`) | Consumer | Generates `beech.generated.ts` (`SeedRegistryTypes` + `SCHEMA_FINGERPRINT`) from live D1. | `--remote`, `-o`/`--output <file>`, `--db <name>` (aliases: `beech gen types typescript`, `beech gen-types`, `beech gen:types`, `beech generate:types` — these print to stdout by default) |
 | `npx beech schema export` (`beech schema:export`) | Consumer | Writes `beech.schema.ts` — a reviewable snapshot of the live D1 schema. | `--out <file>`, `--stdout`, `--remote`, `--db <name>` |
+| `npx beech schema diff` (`beech schema:diff`) | Consumer | Compares `beech.schema.ts` against the deployed schema and reports drift. Exits 1 when drift is detected. | `--manifest <file>`, `--remote`, `--db <name>` |
+| `npx beech schema plan` (`beech schema:plan`) | Consumer | Shows the exact DDL applying `beech.schema.ts` would run. Writes nothing. Exits 1 when a seed cannot be applied. | `--manifest <file>`, `--api-url <url>` |
+| `npx beech schema apply` (`beech schema:apply`) | Consumer | Applies `beech.schema.ts` through the control plane (`mcp-plan` / `mcp-apply`). Additive only. | `--manifest <file>`, `--api-url <url>`, `-y`/`--yes` |
 | `npx beech forms` | Consumer | Interactive wizard generating React, Vue, Svelte, or Web Component forms. | `--seed <slug>`, `--framework <name>`, `--mode <create\|edit>`, `--out <path>`, `--yes`, `--json` (aliases: `form`, `forms:add`) |
 | `npx beech setup:cloudflare` | Consumer | 1-step Cloudflare edge provisioning (D1, R2, S3 secrets). | `--name <name>`, `--yes` (alias: `setup:cf`) |
 | `npx beech deploy` | Consumer | Deploys Worker and embedded admin dashboard to Cloudflare. | `--skip-check`, `--skip-seed` |
@@ -118,8 +121,10 @@ npx beech deploy
 
 ### 6. Schema Evolution & GitOps Migrations
 
-> [!IMPORTANT]
-> `beech schema export` and `beech schema diff` read live D1 through `@beechcms/core`'s introspection primitive; D1 remains the sole runtime authority, the Worker never imports `beech.schema.ts`, and no deploy applies it. `beech seed:load` / `beech seed:create` stay deprecated. **Applying** a manifest (`beech schema plan` / `apply`) is not shipped yet — manifest reconciliation today goes through the [MCP plan/apply tools](/reference/mcp-server).
+> [!NOTE]
+> **The manifest loop is closed.** `export` → review in Git → `diff` → `plan` → `apply` → `types generate`. The CLI never executes SQL and never opens D1 directly; every write goes through `POST /api/seeds/:slug/mcp-*`.
+> The first `plan` or `apply` opens the browser once to authorize the `beech-mcp-cli` OAuth client. The grant is cached in `~/.beechcms/mcp-tokens.json` and revocable from Settings → Connected apps.
+> `apply` never deletes a seed absent from the manifest and never performs a drop, rename, or retype — the server refuses destructive intent and names the endpoint that can perform it.
 
 The versioned SQL files in `apps/api/migrations/` cover the **system** schema (`seeds`, `users`, `sessions`, `api_keys`, `media`, OAuth clients), not per-Seed content tables. Apply them with Wrangler.
 

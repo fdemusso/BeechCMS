@@ -23,6 +23,8 @@ const COMMANDS = {
   'seed:create':    cmdSeedCreate,
   'schema:diff':    cmdSchemaDiff,
   'schema:export':  cmdSchemaExport,
+  'schema:plan':    cmdSchemaPlan,
+  'schema:apply':   cmdSchemaApply,
   'types:generate': cmdGenerateTypes,
   'init':           cmdInit,
   'validate':       cmdValidate,
@@ -83,10 +85,18 @@ function help() {
       --out <file>    Destination (default: beech.schema.ts)
       --stdout        Print instead of writing
       --remote        Target remote D1
-    ${pc.cyan('schema diff')}     Report manifest-vs-deployed and definition-vs-table drift
+    ${pc.cyan('schema diff')}     Compare beech.schema.ts against the deployed schema
       --manifest <f>  Manifest path (default: beech.schema.ts)
-      --remote        Target remote D1
-      Exits 1 when drift is found.
+      Exits 1 when drift is detected.
+    ${pc.cyan('schema plan')}     Show what applying beech.schema.ts would change (writes nothing)
+      --manifest <f>  Manifest path (default: beech.schema.ts)
+      --api-url <url> API origin (default: BEECH_API_URL or http://localhost:8789)
+      Exits 1 when a seed cannot be applied.
+    ${pc.cyan('schema apply')}    Apply beech.schema.ts through the control plane
+      --manifest <f>  Manifest path (default: beech.schema.ts)
+      --api-url <url> API origin
+      -y, --yes       Skip the confirmation prompt
+      Additive only. Authorizes in the browser on first use.
     ${pc.cyan('validate')}        Validate runtime schema status
 
   ${pc.bold('4. Forms & Frontend Generation')}
@@ -211,6 +221,25 @@ async function cmdSchemaExport(args) {
   const db    = dbIdx !== -1 ? args[dbIdx + 1] : undefined
   const { schemaExport } = await import('@beechcms/cli')
   await schemaExport({ out, local: !remote, db })
+}
+
+async function cmdSchemaPlan(args) {
+  const manifestIdx = args.indexOf('--manifest')
+  const manifest    = manifestIdx !== -1 ? args[manifestIdx + 1] : undefined
+  const apiIdx      = args.indexOf('--api-url')
+  const apiUrl      = apiIdx !== -1 ? args[apiIdx + 1] : undefined
+  const { schemaPlan } = await import('@beechcms/cli')
+  await schemaPlan({ manifest, apiUrl })
+}
+
+async function cmdSchemaApply(args) {
+  const manifestIdx = args.indexOf('--manifest')
+  const manifest    = manifestIdx !== -1 ? args[manifestIdx + 1] : undefined
+  const apiIdx      = args.indexOf('--api-url')
+  const apiUrl      = apiIdx !== -1 ? args[apiIdx + 1] : undefined
+  const yes         = args.includes('--yes') || args.includes('-y')
+  const { schemaApply } = await import('@beechcms/cli')
+  await schemaApply({ manifest, apiUrl, yes })
 }
 
 async function cmdGenerateTypes(args) {

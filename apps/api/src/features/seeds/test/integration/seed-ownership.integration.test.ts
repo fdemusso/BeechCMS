@@ -44,9 +44,9 @@ describe('seeds slice — manifest ownership (real D1)', () => {
     if (response.status !== 201) throw new Error(`createSeed: POST /api/seeds returned ${response.status}`)
   }
 
-  // No production path writes source='code' until the manifest apply command lands, so the
-  // ownership row is arranged directly. The column, its CHECK and its default already exist in
-  // apps/api/migrations/0000_v040_base.sql.
+  // The CLI's manifest apply command writes source='code' on creation, but we keep this raw UPDATE
+  // helper to arrange manifest-owned seeds for the interactive endpoints without going through the
+  // control plane. The column, its CHECK and its default exist in 0000_v040_base.sql.
   async function markManifestOwned(slug: string): Promise<void> {
     await harness.db.prepare(`UPDATE seeds SET source = 'code' WHERE slug = ?`).bind(slug).run()
   }
@@ -134,6 +134,36 @@ describe('seeds slice — manifest ownership (real D1)', () => {
   })
 
   describe('POST /api/seeds/:slug/mcp-apply', () => {
+    it('records source=code when a manifest apply creates the seed', async () => {
+      const candidate = { slug: 'seed_mcp_new', branches: [{ alias: 'title', type: 'text' }] }
+      const plan = await admin.post('/api/seeds/seed_mcp_new/mcp-plan', { candidate })
+      const { expectedVersion } = await plan.json<{ expectedVersion: number }>()
+
+      const response = await admin.post('/api/seeds/seed_mcp_new/mcp-apply', { candidate, expectedVersion, source: 'code' })
+
+      expect(response.status).toBe(200)
+      const stored = await admin.get('/api/seeds/seed_mcp_new')
+      const record = await stored.json<SeedRecordBody>()
+      expect(record.source).toBe('code')
+    })
+
+    it('leaves a dashboard-created seed as runtime when a manifest apply targets it', async () => {
+      await createSeed('seed_mcp_runtime')
+      const existing = await (await admin.get('/api/seeds/seed_mcp_runtime')).json<SeedRecordBody & { definition: { branches: unknown[] } }>()
+
+      const candidate = { ...existing.definition, slug: 'seed_mcp_runtime', branches: [...existing.definition.branches, { alias: 'subtitle', label: 'Subtitle', type: 'text' }] }
+      const plan = await admin.post('/api/seeds/seed_mcp_runtime/mcp-plan', { candidate })
+      const { expectedVersion } = await plan.json<{ expectedVersion: number }>()
+
+      // ON CONFLICT DO UPDATE clause deliberately omits source; ownership does not transfer
+      const response = await admin.post('/api/seeds/seed_mcp_runtime/mcp-apply', { candidate, expectedVersion, source: 'code' })
+
+      expect(response.status).toBe(200)
+      const stored = await admin.get('/api/seeds/seed_mcp_runtime')
+      const record = await stored.json<SeedRecordBody>()
+      expect(record.source).toBe('runtime')
+    })
+
     it('succeeds against a manifest-owned seed and leaves source unchanged as code', async () => {
       await createSeed('seed_mcp_owned')
       await markManifestOwned('seed_mcp_owned')

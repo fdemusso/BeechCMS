@@ -16,7 +16,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { spawn } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { deriveCodeChallenge } from '@beechcms/core'
-import { BeechClientError } from './client.js'
+import { BeechClientError } from './errors.js'
 
 /** Resolved OAuth configuration for one authorization attempt. */
 export interface OAuthConfig {
@@ -30,6 +30,10 @@ export interface OAuthConfig {
   scope: string
   /** Milliseconds to wait for the browser round-trip (`BEECH_OAUTH_TIMEOUT_MS`, default 180000). */
   timeoutMs: number
+  /** Loopback path the browser is redirected to. MUST match the client's registered
+   *  `redirect_uris` pathname — `matchesRegisteredRedirectUri` compares protocol + hostname +
+   *  pathname and ignores only the port. Default '/oauth/callback' (client `beech-mcp`). */
+  callbackPath?: string
 }
 
 /** The credential pair returned by `POST /oauth/token`, plus the derived absolute expiry. */
@@ -209,14 +213,14 @@ interface CallbackResult {
 
 /** Starts the loopback listener and resolves with the authorization code once the
  *  browser redirects back with a matching `state`, or rejects on mismatch/error/timeout. */
-function waitForCallback(state: string, timeoutMs: number): { redirectUriPromise: Promise<string>; result: Promise<CallbackResult> } {
+function waitForCallback(state: string, timeoutMs: number, callbackPath: string): { redirectUriPromise: Promise<string>; result: Promise<CallbackResult> } {
   let resolvePort: (uri: string) => void
   const redirectUriPromise = new Promise<string>(resolve => { resolvePort = resolve })
 
   const result = new Promise<CallbackResult>((resolve, reject) => {
     const server = createServer((req: IncomingMessage, res: ServerResponse) => {
       const url = new URL(req.url ?? '/', 'http://127.0.0.1')
-      if (url.pathname !== '/oauth/callback') {
+      if (url.pathname !== callbackPath) {
         res.writeHead(404)
         res.end()
         return
@@ -263,7 +267,7 @@ function waitForCallback(state: string, timeoutMs: number): { redirectUriPromise
     server.listen(0, '127.0.0.1', () => {
       const address = server.address()
       const port = typeof address === 'object' && address ? address.port : 0
-      resolvePort(`http://127.0.0.1:${port}/oauth/callback`)
+      resolvePort(`http://127.0.0.1:${port}${callbackPath}`)
     })
 
     timer = setTimeout(() => {
@@ -294,8 +298,9 @@ function openBrowser(url: string): void {
 export async function authorize(config: OAuthConfig): Promise<TokenGrant> {
   const { verifier, challenge } = await createPkcePair()
   const state = base64Url(randomBytes(16))
+  const callbackPath = config.callbackPath ?? '/oauth/callback'
 
-  const { redirectUriPromise, result } = waitForCallback(state, config.timeoutMs)
+  const { redirectUriPromise, result } = waitForCallback(state, config.timeoutMs, callbackPath)
   const redirectUri = await redirectUriPromise
 
   const authorizeUrl = new URL(`${config.authUrl}/oauth/authorize`)

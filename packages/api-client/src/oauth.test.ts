@@ -172,4 +172,20 @@ describe('oauth', () => {
 
     expect(stdoutSpy).not.toHaveBeenCalled()
   })
+
+  it('redirects the browser to the configured callback path so a client registered with /callback matches', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(tokenResponse())
+    const { authorize } = await import('./oauth.js')
+    
+    const config = { ...BASE_CONFIG, callbackPath: '/callback' }
+    const grantPromise = authorize(config)
+    await waitForSpawn()
+    const authUrl = new URL(fetchAuthUrl())
+    const redirectUri = authUrl.searchParams.get('redirect_uri')!
+    expect(redirectUri).toMatch(/\/callback$/)
+    
+    const state = authUrl.searchParams.get('state')!
+    await hitCallback(redirectUri, { code: 'auth-code-2', state })
+    await grantPromise
+  })
 })

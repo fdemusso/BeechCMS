@@ -24,6 +24,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@beechcms/api-client": "workspace:^0.1.0",
     "@beechcms/core": "workspace:^0.8.0",
     "@modelcontextprotocol/sdk": "^1.29.0"
   },

@@ -11,8 +11,8 @@ dependencies, never interfaces — the graph and the codebase will have moved by
 |---|------|--------|
 | 1 | `SchemaManifestDsl` | **DONE — merged, archived to `docs/Sprints/SchemaManifestDsl/`** |
 | 2 | `SchemaIntrospectionFingerprint` | **DONE — merged, archived to `docs/Sprints/SchemaIntrospectionFingerprint/`** |
-| 3a | `CliSchemaExportTypes` | **IN PLANNING — detailed plan in `output/CliSchemaExportTypes.md`** |
-| 3b | `CliSchemaPlanApply` | pending (was part of entry 3 `CliSchemaTooling`, split during 3a planning) |
+| 3a | `CliSchemaExportTypes` | **DONE — merged, archived to `docs/Sprints/CliSchemaExportTypes/`** |
+| 3b | `CliSchemaPlanApply` | **IN PLANNING — detailed plan in `stages/01_sprint_planning/output/CliSchemaPlanApply.md`** |
 | 4 | `PublicApiRelationExpansion` | pending |
 | 5 | `FluentClientQueryBuilder` | pending |
 | 6 | `ClientRelationSubqueries` | pending |
@@ -93,10 +93,21 @@ schema change **only** through `POST /api/seeds/:slug/mcp-plan` / `mcp-apply` �
 a direct D1 write from the CLI — with rename/destructive/data-transforming/FTS/relation impact
 surfaced from the server's own classification before anything executes.
 
-**Deliverables summary:** an authenticated CLI→API client (the auth mechanism is 3b's first
-architectural decision: reuse of `@beechcms/mcp`'s OAuth grant store, or a dedicated CLI credential
-— unresolved today, deliberately); the two commands; and the `apps/api` seeds-slice change letting a
-manifest apply record `source = 'code'` on creation, which `mcp-apply` cannot express today.
+**Deliverables summary:** an authenticated CLI→API client; the two commands; and the `apps/api`
+seeds-slice change letting a manifest apply record `source = 'code'` on creation, which `mcp-apply`
+cannot express today.
+
+**Resolved during sprint-3b planning:** the auth mechanism is **OAuth 2.1 authorization-code + PKCE
+under the already-seeded public client `beech-mcp-cli`** (`0000_v040_base.sql:443`, scopes
+`schema:read schema:write`, loopback `/callback`), not a dedicated CLI credential and not an admin
+JWT: `POST …/mcp-apply` is already allowlisted to `schema:write` in the fail-closed OAuth scope table,
+so the server needs no auth work, and a grant stays revocable per-tool from Settings → Connected apps.
+To avoid a second implementation of a security-critical flow, `packages/mcp/src/{oauth,token-store}.ts`
+and the transport half of its `client.ts` **move** into a new dependency-free package
+`@beechcms/api-client` consumed by both the MCP server and the CLI; `packages/mcp/src/client.ts`
+becomes a singleton adapter that keeps exporting `request` and `BeechClientError` unchanged, so
+`packages/mcp/src/index.ts` is never opened. `apply` is additive-only and never deletes, renames or
+retypes: destructive intent is surfaced from the server's own `blockedReasons` and refused.
 
 **Depends on:** 3a — it consumes 3a's manifest loader and comparator, and a plan is only meaningful
 against a manifest a user can already export and diff.

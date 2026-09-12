@@ -23,6 +23,10 @@ export { schemaDiff } from './commands/schema-diff.js'
 export type { SchemaDiffOptions } from './commands/schema-diff.js'
 export { schemaExport } from './commands/schema-export.js'
 export type { SchemaExportOptions } from './commands/schema-export.js'
+export { schemaPlan } from './commands/schema-plan.js'
+export type { SchemaPlanOptions } from './commands/schema-plan.js'
+export { schemaApply } from './commands/schema-apply.js'
+export type { SchemaApplyOptions } from './commands/schema-apply.js'
 
 // New unified command mappings:
 export { dbMigrate } from './commands/db-migrate.js'
