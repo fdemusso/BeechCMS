@@ -32,10 +32,17 @@ export type PublicFilterOperator =
   | 'has_any_tag'
   | 'has_all_tags'
 
+export type PublicSubquery = {
+  where: PublicFilterCondition[]
+  logic: PublicFilterLogic
+}
+
 export type PublicFilterCondition = {
   field: string
   op: PublicFilterOperator
   value?: unknown
+  /** Present only for a relation subquery: `value` is then unused. */
+  subquery?: PublicSubquery
 }
 
 export type ParsedPublicFilter = {
@@ -62,6 +69,38 @@ function validateLogic(logicRaw: unknown): PublicFilterLogic {
   return normalized
 }
 
+const MAX_RELATION_SUBQUERIES = 2
+const MAX_SUBQUERY_CONDITIONS = 5
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function parseSubquery(field: string, op: PublicFilterOperator, raw: Record<string, unknown>): PublicSubquery {
+  if (op !== 'in') {
+    throw new TypeError(`Invalid subquery: field '${field}' uses operator '${op}'; only 'in' accepts a subquery.`)
+  }
+  if (!Array.isArray(raw.where)) {
+    throw new TypeError(`Invalid subquery: field '${field}' requires a 'where' array.`)
+  }
+  if (raw.where.length === 0 || raw.where.length > MAX_SUBQUERY_CONDITIONS) {
+    throw new TypeError(
+      `Invalid subquery: field '${field}' must carry between 1 and ${MAX_SUBQUERY_CONDITIONS} conditions (got ${raw.where.length}).`,
+    )
+  }
+  const where = raw.where.map((inner) => {
+    const cond = parseWhereCondition(inner)
+    if (!cond) {
+      throw new TypeError(`Invalid subquery: field '${field}' carries an unreadable condition.`)
+    }
+    if (cond.subquery) {
+      throw new TypeError(`Invalid subquery: field '${field}' nests a second subquery; max depth is 1.`)
+    }
+    return cond
+  })
+  return { where, logic: validateLogic(raw.logic) }
+}
+
 function parseWhereCondition(raw: unknown): PublicFilterCondition | null {
   if (!raw || typeof raw !== 'object') return null
   const maybe = raw as Record<string, unknown>
@@ -69,6 +108,9 @@ function parseWhereCondition(raw: unknown): PublicFilterCondition | null {
   const opRaw = asString(maybe.op)
   if (!field || !opRaw || !PUBLIC_FILTER_OPERATORS.has(opRaw as PublicFilterOperator)) {
     throw new TypeError(`Invalid filter: unknown operator '${opRaw ?? 'undefined'}'`)
+  }
+  if (isPlainObject(maybe.value)) {
+    return { field, op: opRaw as PublicFilterOperator, subquery: parseSubquery(field, opRaw as PublicFilterOperator, maybe.value) }
   }
   return { field, op: opRaw as PublicFilterOperator, value: maybe.value }
 }
@@ -88,6 +130,14 @@ export function parsePublicFilter(raw: string | undefined): ParsedPublicFilter |
   const where = filterObj.where
     .map(parseWhereCondition)
     .filter((item): item is PublicFilterCondition => item !== null)
+
+  const subqueryCount = where.filter(c => c.subquery).length
+  if (subqueryCount > MAX_RELATION_SUBQUERIES) {
+    throw new TypeError(
+      `Invalid subquery: a request may carry at most ${MAX_RELATION_SUBQUERIES} relation subqueries (got ${subqueryCount}).`,
+    )
+  }
+
   return { where, logic }
 }
 
@@ -122,6 +172,9 @@ export function toEngineFilters(seed: Seed, parsedFilter: ParsedPublicFilter | n
   if (!parsedFilter || parsedFilter.where.length === 0) return []
 
   return parsedFilter.where.map((cond) => {
+    if (cond.subquery) {
+      throw new TypeError(`Invalid subquery: field '${cond.field}' reached the engine unresolved.`)
+    }
     const branch = seed.branches.find(b => b.alias === cond.field)
     if (branch) {
       const { public: isPublic, filter: filterable } = resolvePolicies(branch)

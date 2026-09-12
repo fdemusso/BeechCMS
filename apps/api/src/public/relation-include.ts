@@ -3,8 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import type { ContentRepository, Seed } from '@beechcms/core'
-import { resolvePolicies } from '@beechcms/core'
 import { toFlatPublicEntry } from './entry-projection'
+import { resolvePublicRelationTarget } from './relation-access'
 
 const MAX_INCLUDES = 3
 const MAX_TARGET_IDS = 200
@@ -32,24 +32,7 @@ export async function expandRelations(
       throw new Error(`Invalid include: nested includes are not supported (got '${include}'). Max depth is 1.`)
     }
 
-    const branch = parentSeed.branches.find(b => b.alias === include)
-    if (!branch) {
-      throw new Error(`Invalid include: branch '${include}' does not exist.`)
-    }
-    if (branch.type !== 'relation') {
-      throw new Error(`Invalid include: branch '${include}' is not a relation.`)
-    }
-    if (!resolvePolicies(branch).public) {
-      throw new Error(`Invalid include: branch '${include}' is not publicly readable.`)
-    }
-
-    if (!branch.targetSeed) {
-      throw new Error(`Invalid include: branch '${include}' is missing a target seed.`)
-    }
-    const targetSeed = getSeed(branch.targetSeed)
-    if (!targetSeed || !targetSeed.allowPublicRead) {
-      throw new Error(`Invalid include: target seed '${branch.targetSeed}' is not publicly readable.`)
-    }
+    const { branch, targetSeed } = resolvePublicRelationTarget(include, parentSeed, getSeed, 'include')
 
     const targetIds = new Set<string>()
     for (let i = 0; i < items.length; i++) {

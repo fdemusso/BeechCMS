@@ -466,6 +466,35 @@ describe('D1ContentRepository', () => {
 
   // ─── many-to-many (Sprint 5) ──────────────────────────────────────────────────
 
+  describe('findParentIdsByRelation', () => {
+    it('returns distinct parent ids from the junction table for a multi-relation branch', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb({ allResults: [{ parent_id: 'p1' }, { parent_id: 'p2' }] })
+
+      const result = await new D1ContentRepository(db).findParentIdsByRelation(M2M_SEED, 'tags', ['tag-1'], 500)
+
+      expect(result).toEqual(['p1', 'p2'])
+      const sql = prepareMock.mock.calls[0][0] as string
+      expect(sql).toContain('rel_articles_tags')
+      expect(bindMock).toHaveBeenCalledWith('tag-1', 500)
+    })
+
+    it('returns an empty array without querying when targetIds is empty', async () => {
+      const { db, prepareMock } = makeMockDb()
+
+      const result = await new D1ContentRepository(db).findParentIdsByRelation(M2M_SEED, 'tags', [], 500)
+
+      expect(result).toEqual([])
+      expect(prepareMock).not.toHaveBeenCalled()
+    })
+
+    it('throws RepositoryError when branchAlias is not a multi-relation branch of the seed', async () => {
+      const { db } = makeMockDb()
+
+      await expect(new D1ContentRepository(db).findParentIdsByRelation(M2M_SEED, 'title', ['x'], 500))
+        .rejects.toThrow("'title' is not a multi-relation branch")
+    })
+  })
+
   describe('many-to-many relations', () => {
     it('create: multi-relation values go to junction table, not main INSERT', async () => {
       const { db, prepareMock, batchMock } = makeMockDb({ firstResult: null })

@@ -1,94 +1,62 @@
-==========================================================================
-SECTION 6 — ACCEPTANCE CRITERIA
-==========================================================================
-- [x] `packages/client/src/query-builder.ts` implements a fluent chain API (`where`, `include`, `select`, `list`, `first`).
-- [x] `packages/client/src/types.ts` is strongly typed over a generic `TRegistry`.
-- [x] A mismatch between `X-Schema-Revision` header and the client's expected fingerprint returns a 409 `BeechProblem` instead of throwing implicitly.
-- [x] Client HTTP requests (in browser and server variants) are constructed accurately from the fluent chain state.
-- [x] Unit tests for `query-builder.ts` pass and strictly mock only network/fetch layers. No `any` types.
+# Execution Log — `ClientRelationSubqueries`
 
-==========================================================================
-REWORK — findings from review_report.md addressed
-==========================================================================
-1. `include?: string[]` added natively to `ListQuery` (types.ts); `(this.query as any).include` cast removed from `query-builder.ts`.
-2. `as any` removed from `query-builder.test.ts` (typed `vi.importActual<typeof import('./types.js')>`).
-3. `as any` removed from `server-client.test.ts` (typed generic + `as unknown as Partial<...>`).
-4. Coverage raised to threshold for all changed files by adding tests:
-   - `query-builder.test.ts`: logic OR, operator-object filters, invalid-operator throw, sort (default dir / explicit dir), search, fields, latest, page, limit cap/pass-through, `FluentQueryBuilder.first()`.
-   - `browser/browser-client.test.ts`: `first()` 404-on-empty, `validate` option passthrough.
-   - `server/server-client.test.ts`: `first()` 404-on-empty, `validate` option passthrough, slug/status extraction in `create`.
-   - `http.test.ts` (new, unit tier): non-JSON content-type, missing Content-Type on failure, string error payload, failed `json()` parse on success, custom header merge.
+## SECTION 6 — ACCEPTANCE CRITERIA
 
-==========================================================================
-POST-REWORK FIX — apps/api consumer e2e test broken by API rename
-==========================================================================
-`apps/api/test/client-sdk-e2e.test.ts` still called the old `.content(seed)` API removed by this
-sprint. Migrated it to the new fluent surface, per the sprint's own migration note
-(`.content(seed).list(params)` → `.collection(seed)...list()`; `.content(seed).get(...)` →
-`.collection(seed).where(...).first()`). 7 previously failing e2e tests now pass; full `apps/api`
-suite: 151/151 files, 1629/1629 tests pass.
+- [x] `ContentRepository` (core) declares `findParentIdsByRelation`; `D1ContentRepository` and `StaticContentRepository` both implement it; `npx tsc --noEmit` passes in `packages/core`, `packages/client` and `apps/api`.
+- [x] No file under `apps/api/src/public/` contains `prepare(`, `jTable(`, `rel_` or any SQL string in production code — verified by grep; all three `graphify path` guards still report no directed path.
+- [x] A subquery on a single relation (`category_id`) and on a multi relation (`related_posts`) both return exactly the matching parent entries against real D1.
+- [x] A subquery matching nothing returns `200` with `data: []` and `meta.total: 0` — never the unfiltered collection.
+- [x] Under `logic: 'OR'`, an empty subquery drops only its own disjunct; all-empty returns an empty page.
+- [x] A subquery over a relation `?include=` would refuse (`author_id`) returns `400` with `type: 'invalid-subquery'`; a non-filterable inner field returns `400 invalid-filter`.
+- [x] `not_in` on a relation, a nested subquery, more than 2 subqueries, more than 5 inner conditions, and an over-broad result set each return `400`, and the over-broad case is refused, not truncated.
+- [x] `X-Schema-Revision` is still emitted on every public response; `?include=` composes with a subquery filter in the same request.
+- [x] `relation-include.test.ts` and `public-relation-expansion.integration.test.ts` pass unmodified (the extraction changed no message and no behaviour).
+- [x] `.whereRelation()` is typed to the row's own keys, encodes into the existing `filter` parameter, and composes with `.where()/.include()/.select()/.first()/.list()`; `QueryExecutor` and both client factories are unchanged.
+- [x] `@beechcms/client` gains no runtime dependency.
+- [x] No `any` in production code or tests; new tests follow `_config/testing_conventions.md` (tier, placement, four zones, canonical fixtures, named ACT result).
+- [~] `pnpm beech test --diff` passes including coverage thresholds on every changed file — **one pre-existing exception, see Validation Note below.**
+- [x] `docs/reference/public-api.md` and `docs/reference/client-sdk.md` document the contract and its limits.
 
-==========================================================================
-REWORK 2 — findings from review_report.md (verdict REWORK_CODE) addressed
-==========================================================================
-1. Rule 1.1 / 1.4 — `describe('Client Schema Drift Validation', ...)` in `query-builder.test.ts`
-   moved to `browser/browser-client.test.ts` (it exercises `browser/client.ts` via dynamic import,
-   not `query-builder.ts`). Renamed to `describe('createBeechBrowserClient — schema fingerprint
-   drift', ...)` to name the exported symbol per Rule 1.4.
-2. Missing coverage — added the mirrored drift test to `server/server-client.test.ts`
-   (`returns a 409 BeechProblem when X-Schema-Revision header does not match expected fingerprint`),
-   asserting `verifySchemaFingerprint`'s 409 path on `.create()`.
-   Fix note: both drift tests re-import the client module after `vi.doMock('../types.js', ...)`;
-   without `vi.resetModules()` first, the statically-imported client (via `./index.js` at file top)
-   stays bound to the real, unmocked `SCHEMA_FINGERPRINT` and the test always sees `error: null`.
-3. Rule 2.2 (unassigned ACT result) — fixed in:
-   - `query-builder.test.ts`: `builder...list()` and `builder...first()` calls now assign to
-     `const result = await ...`, with `expect(result.error).toBeNull()` added.
-   - `server-client.test.ts`: the two uncaptured `.create(...)` calls now assign to
-     `const res = await ...`, with `expect(res.error).toBeNull()` added.
-   - `http.test.ts`: the custom-headers `request(...)` call now assigns to `const res = await ...`,
-     with `expect(res.error).toBeNull()` added.
+## Validation Note — `content.repository.d1.ts` branch coverage
 
-==========================================================================
-VALIDATION OUTPUT (REWORK 2)
-==========================================================================
+`pnpm beech test --diff` reports `content.repository.d1.ts` LOW: `branch 64.2%<70%`. Confirmed via `git stash` that this file is **already below the 70% branch gate on `devs`** (63.47%, pre-existing, unrelated to this sprint) — the file is large and several legacy methods (`updateWithKanbanPosition`, edge branches of `findPendingDrafts`, etc.) have no unit coverage. This sprint's own addition, `findParentIdsByRelation`, has full dedicated coverage: 3 unit cases (happy path, empty-targetIds short circuit, non-multi-relation rejection) plus exercise through all 7 new integration tests against real D1. Backfilling the legacy branches to clear the file-wide gate is out of this sprint's scope (SECTION 7) and was not attempted per Rule 2 (Out of Scope Veto) / YAGNI.
 
-tsc output:
-$ npx tsc --noEmit
-The command exited with code 0.
+## SECTION 5 — VALIDATION (commands and outcomes)
 
-build output:
-$ pnpm run build
-The command exited with code 0.
+```
+$ cd packages/core && npx tsc --noEmit && pnpm run build
+✓ clean, `tsc` (build) succeeded
 
-test output:
-$ node bin/cli.mjs test --diff
-  beech test — run test suite
+$ cd packages/client && npx tsc --noEmit && pnpm run build
+✓ clean, `tsc` (build) succeeded
 
-BeechCMS — Git Diff Coverage Runner
-  Runs Vitest coverage only for files changed on this branch
-Base: devs  (mode: related tests)
-Changed files detected: 9
-[packages/client]
-  ────────────────────────────────────────────────────────────
-   [unit] vitest (related) — 5 source file(s)…
-    Test Files  4 passed (4)
-         Tests  49 passed (49)
-      Duration  200ms (transform 9ms, setup 0ms, import 40ms, tests 96ms, environment 0ms)
+$ cd apps/api && npx tsc --noEmit && pnpm run build
+✓ clean, esbuild + tsc succeeded (dist/index.js 540.1kb)
 
-  [unit] coverage
-┌───────────────────────────────────────┬────────┬────────┬────────┬────────┬────────┐
-│ File                                   │ Stmts  │ Branch │ Funcs  │ Lines  │ Status │
-├───────────────────────────────────────┼────────┼────────┼────────┼────────┼────────┤
-│ packages/client/src/browser/client.ts │ 100.0% │ 100.0% │ 100.0% │ 100.0% │ PASS   │
-│ packages/client/src/http.ts           │ 100.0% │ 80.3%  │ 100.0% │ 100.0% │ PASS   │
-│ packages/client/src/query-builder.ts  │ 100.0% │ 91.2%  │ 100.0% │ 100.0% │ PASS   │
-│ packages/client/src/server/client.ts  │ 93.0%  │ 91.4%  │ 100.0% │ 95.1%  │ PASS   │
-│ packages/client/src/types.ts          │ 100.0% │ 100.0% │ 100.0% │ 100.0% │ PASS   │
-└───────────────────────────────────────┴────────┴────────┴────────┴────────┴────────┘
-PASS  All 5 changed file(s) meet coverage thresholds.
-The command exited with code 0.
+$ cd apps/api && npx vitest run -c vitest.workers.config.ts src/public/test/integration/public-relation-subquery.integration.test.ts
+✓ 7 passed (7)
 
-graph sync:
-$ graphify update .
-Code graph updated.
+$ cd apps/api && npx vitest run src/public/relation-include.test.ts src/public/test/integration/public-relation-expansion.integration.test.ts
+✓ relation-include.test.ts: 12 passed (12), unchanged
+✓ public-relation-expansion.integration.test.ts: 9 passed (9), unchanged
+
+$ pnpm beech test --diff
+packages/client: 3 test files / 48 tests passed, coverage PASS
+apps/api [unit]: 18 test files / 248 tests passed
+  - public-read.ts, query-builder.ts, read-list.ts, relation-include.ts: PASS
+  - content.repository.d1.ts: LOW branch 64.2%<70% (pre-existing, see Validation Note)
+apps/api [integration]: 4 test files / 28 tests passed, PASS
+Overall: FAIL 1/7 file(s) below threshold (pre-existing debt, not introduced by this sprint)
+
+$ graphify update . --force
+✓ 13522 nodes, 24135 edges, 1161 communities
+
+$ graphify path "publicReadHandler" "D1ContentRepository"
+No directed path found.
+
+$ graphify path "publicReadHandler" "queryD1"
+No directed path found.
+
+$ graphify path "readListEntries" "D1BackrefRepository"
+No directed path found.
+```

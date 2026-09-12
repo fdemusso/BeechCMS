@@ -190,6 +190,64 @@ describe('toEngineFilters', () => {
   })
 })
 
+// ─── relation subqueries ──────────────────────────────────────────────────────
+
+describe('parsePublicFilter — relation subqueries', () => {
+  it('parses a nested object value into the subquery field', () => {
+    const raw = JSON.stringify({
+      where: [{ field: 'category_id', op: 'in', value: { where: [{ field: 'name', op: 'eq', value: 'Tech' }] } }],
+    })
+    const result = parsePublicFilter(raw)!
+    expect(result.where[0].subquery).toEqual({
+      where: [{ field: 'name', op: 'eq', value: 'Tech' }],
+      logic: 'AND',
+    })
+  })
+
+  it('rejects a non-"in" operator paired with an object value', () => {
+    const raw = JSON.stringify({
+      where: [{ field: 'category_id', op: 'eq', value: { where: [{ field: 'name', op: 'eq', value: 'Tech' }] } }],
+    })
+    expect(() => parsePublicFilter(raw)).toThrow('Invalid subquery:')
+  })
+
+  it('rejects a subquery nested inside a subquery (depth 1 ceiling)', () => {
+    const raw = JSON.stringify({
+      where: [{
+        field: 'category_id', op: 'in',
+        value: { where: [{ field: 'category_id', op: 'in', value: { where: [{ field: 'name', op: 'eq', value: 'Tech' }] } }] },
+      }],
+    })
+    expect(() => parsePublicFilter(raw)).toThrow('max depth is 1')
+  })
+
+  it('rejects more than 2 relation subqueries per request', () => {
+    const raw = JSON.stringify({
+      where: [
+        { field: 'category_id', op: 'in', value: { where: [{ field: 'name', op: 'eq', value: 'A' }] } },
+        { field: 'related_posts', op: 'in', value: { where: [{ field: 'title', op: 'eq', value: 'B' }] } },
+        { field: 'author_id', op: 'in', value: { where: [{ field: 'name', op: 'eq', value: 'C' }] } },
+      ],
+    })
+    expect(() => parsePublicFilter(raw)).toThrow('at most 2 relation subqueries')
+  })
+
+  it('rejects an empty inner where array', () => {
+    const raw = JSON.stringify({ where: [{ field: 'category_id', op: 'in', value: { where: [] } }] })
+    expect(() => parsePublicFilter(raw)).toThrow('Invalid subquery:')
+  })
+
+  it('rejects an inner where array above 5 conditions', () => {
+    const raw = JSON.stringify({
+      where: [{
+        field: 'category_id', op: 'in',
+        value: { where: Array.from({ length: 6 }, () => ({ field: 'name', op: 'eq', value: 'x' })) },
+      }],
+    })
+    expect(() => parsePublicFilter(raw)).toThrow('Invalid subquery:')
+  })
+})
+
 // ─── parsePublicPagination ────────────────────────────────────────────────────
 
 describe('parsePublicPagination', () => {

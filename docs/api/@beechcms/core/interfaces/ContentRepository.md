@@ -222,6 +222,45 @@ Retrieves a paginated and filtered list of entries.
 
 ***
 
+### findParentIdsByRelation()
+
+> **findParentIdsByRelation**(`seed`, `branchAlias`, `targetIds`, `limit`): `Promise`&lt;`string`[]&gt;
+
+Resolves the parent entry ids that reference any of `targetIds` through a MULTI relation
+branch (junction table). Single-value relations need no lookup — their target id lives in a
+column on the parent row and is filterable directly.
+
+Returns at most `limit` distinct parent ids, in no guaranteed order. Callers that must
+distinguish "complete" from "truncated" pass `limit = cap + 1` and compare the length.
+
+#### Parameters
+
+##### seed
+
+[`Seed`](Seed.md)
+
+##### branchAlias
+
+`string`
+
+##### targetIds
+
+`string`[]
+
+##### limit
+
+`number`
+
+#### Returns
+
+`Promise`&lt;`string`[]&gt;
+
+#### Throws
+
+RepositoryError if `branchAlias` is not a `multiple: true` relation branch of `seed`.
+
+***
+
 ### findPendingDrafts()
 
 > **findPendingDrafts**(`seeds`): `Promise`&lt;[`DraftSummary`](DraftSummary.md)[]&gt;

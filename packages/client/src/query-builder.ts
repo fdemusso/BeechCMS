@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { BeechFilterOperator, ListQuery, FluentQuery, FieldFilter, RequestOptions, BeechResult, Single, Listable } from './types.js'
+import type { BeechFilterOperator, ListQuery, FluentQuery, FieldFilter, RequestOptions, BeechResult, Single, Listable, RelationSubquery } from './types.js'
 
 const OPERATORS = new Set<BeechFilterOperator>([
   'eq','neq','gt','gte','lt','lte','contains','not_contains','starts_with',
@@ -33,6 +33,11 @@ export class FluentQueryBuilder<TRow> implements FluentQuery<TRow> {
     return this
   }
 
+  whereRelation(alias: Extract<keyof TRow, string>, subquery: RelationSubquery): this {
+    this.query.relationFilters = { ...this.query.relationFilters, [alias]: subquery }
+    return this
+  }
+
   first(options?: RequestOptions): Promise<BeechResult<Single<TRow>>> {
     return this.executor.first(this.query, options)
   }
@@ -46,27 +51,41 @@ export class FluentQueryBuilder<TRow> implements FluentQuery<TRow> {
   }
 }
 
+type WireCondition = { field: string; op: BeechFilterOperator; value?: unknown }
+
+function toWireConditions(filter: Record<string, FieldFilter>): WireCondition[] {
+  const where: WireCondition[] = []
+  for (const [field, raw] of Object.entries(filter)) {
+    if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
+      for (const [op, value] of Object.entries(raw)) {
+        if (!OPERATORS.has(op as BeechFilterOperator)) {
+          throw new TypeError(`Invalid filter operator '${op}' on field '${field}'`)
+        }
+        where.push({ field, op: op as BeechFilterOperator, value })
+      }
+    } else {
+      where.push({ field, op: 'eq', value: raw })
+    }
+  }
+  return where
+}
+
 /** { status:'published', price:{ gt:10 } } → { where:[{field,op,value}], logic } */
 export function buildSearchParams(query: ListQuery<Record<string, unknown>> = {}): URLSearchParams {
   const params = new URLSearchParams()
 
-  if (query.filter) {
-    const where: { field: string; op: BeechFilterOperator; value?: unknown }[] = []
-    for (const [field, raw] of Object.entries(query.filter)) {
-      if (raw !== null && typeof raw === 'object' && !Array.isArray(raw)) {
-        for (const [op, value] of Object.entries(raw)) {
-          if (!OPERATORS.has(op as BeechFilterOperator)) {
-            throw new TypeError(`Invalid filter operator '${op}' on field '${field}'`)
-          }
-          where.push({ field, op: op as BeechFilterOperator, value })
-        }
-      } else {
-        where.push({ field, op: 'eq', value: raw })
-      }
-    }
-    if (where.length) {
-      params.set('filter', JSON.stringify({ logic: query.logic ?? 'AND', where }))
-    }
+  const where: WireCondition[] = query.filter ? toWireConditions(query.filter) : []
+
+  for (const [alias, subquery] of Object.entries(query.relationFilters ?? {})) {
+    where.push({
+      field: alias,
+      op: 'in',
+      value: { logic: subquery.logic ?? 'AND', where: toWireConditions(subquery.where) },
+    })
+  }
+
+  if (where.length) {
+    params.set('filter', JSON.stringify({ logic: query.logic ?? 'AND', where }))
   }
 
   if (query.sort) {

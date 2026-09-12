@@ -54,6 +54,9 @@ export async function publicReadHandler(context: Context<AppEnv>) {
     const result = await readListEntries({ seed, seedSlug, repository, query, publishedOnly, getSeed: context.get('getSeed') })
     return withCachedResponse(edgeCache, cacheKey, context.json(result, 200))
   } catch (error) {
+    if (error instanceof Error && error.message.startsWith('Invalid subquery:')) {
+      return publicProblem(context, { type: 'invalid-subquery', title: 'Invalid Subquery', status: 400, detail: error.message })
+    }
     if (error instanceof Error && error.message.startsWith('Invalid filter:')) {
       return publicProblem(context, { type: 'invalid-filter', title: 'Bad Request', status: 400, detail: error.message })
     }

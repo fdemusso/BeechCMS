@@ -134,6 +134,23 @@ export interface ContentRepository {
   findBySlug(seed: Seed, slug: string): Promise<Record<string, any>>
 
   /**
+   * Resolves the parent entry ids that reference any of `targetIds` through a MULTI relation
+   * branch (junction table). Single-value relations need no lookup — their target id lives in a
+   * column on the parent row and is filterable directly.
+   *
+   * Returns at most `limit` distinct parent ids, in no guaranteed order. Callers that must
+   * distinguish "complete" from "truncated" pass `limit = cap + 1` and compare the length.
+   *
+   * @throws RepositoryError if `branchAlias` is not a `multiple: true` relation branch of `seed`.
+   */
+  findParentIdsByRelation(
+    seed: Seed,
+    branchAlias: string,
+    targetIds: string[],
+    limit: number,
+  ): Promise<string[]>
+
+  /**
    * Computes facets (status counts and distinct tags) for a content type.
    */
   getFacets(seed: Seed): Promise<{

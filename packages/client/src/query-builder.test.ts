@@ -121,6 +121,72 @@ describe('FluentQueryBuilder', () => {
     expect(firstSpy).toHaveBeenCalledWith({ filter: { id: '1' } }, { cache: 'no-store' })
   })
 
+  it('whereRelation() emits the nested filter JSON on the relation alias', async () => {
+    const listSpy = vi.fn().mockResolvedValue({ data: { data: [], meta: { seed: 'posts' } }, error: null })
+    const builder = new FluentQueryBuilder<{ id: string; category_id: string }>({
+      first: vi.fn(),
+      list: listSpy,
+    })
+
+    builder.whereRelation('category_id', { where: { name: 'Tech' } })
+    const params = builder.build()
+    const filter = JSON.parse(params.get('filter')!)
+
+    expect(filter).toEqual({
+      logic: 'AND',
+      where: [{ field: 'category_id', op: 'in', value: { logic: 'AND', where: [{ field: 'name', op: 'eq', value: 'Tech' }] } }],
+    })
+  })
+
+  it('whereRelation() composes with where() in one where array', () => {
+    const builder = new FluentQueryBuilder<{ id: string; status: string; category_id: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ status: 'published' }).whereRelation('category_id', { where: { name: 'Tech' } })
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.where).toEqual([
+      { field: 'status', op: 'eq', value: 'published' },
+      { field: 'category_id', op: 'in', value: { logic: 'AND', where: [{ field: 'name', op: 'eq', value: 'Tech' }] } },
+    ])
+  })
+
+  it('logic: OR on the subquery reaches the inner encoded object', () => {
+    const builder = new FluentQueryBuilder<{ id: string; category_id: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.whereRelation('category_id', { where: { name: 'Tech' }, logic: 'OR' })
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.where[0].value.logic).toBe('OR')
+  })
+
+  it('an invalid operator inside the subquery throws TypeError', () => {
+    const builder = new FluentQueryBuilder<{ id: string; category_id: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.whereRelation('category_id', { where: { name: { bogus: 1 } as never } })
+
+    expect(() => builder.build()).toThrow(TypeError)
+  })
+
+  it('a chain with only whereRelation() still emits the filter parameter', () => {
+    const builder = new FluentQueryBuilder<{ id: string; category_id: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.whereRelation('category_id', { where: { name: 'Tech' } })
+
+    expect(builder.build().get('filter')).not.toBeNull()
+  })
+
   it('build() returns URLSearchParams matching the accumulated query', () => {
     const builder = new FluentQueryBuilder<{ id: string; title: string }>({
       first: vi.fn(),

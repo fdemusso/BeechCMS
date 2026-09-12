@@ -18,7 +18,7 @@ Server Client Interface.
 
 ### collection()
 
-> **collection**&lt;`K`&gt;(`seed`): `FluentQuery`&lt;`TRegistry`\[`K`\]&gt; & `object`
+> **collection**&lt;`K`&gt;(`seed`): [`FluentQuery`](FluentQuery.md)&lt;`TRegistry`\[`K`\]&gt; & `object`
 
 #### Type Parameters
 
@@ -34,4 +34,4 @@ Server Client Interface.
 
 #### Returns
 
-`FluentQuery`&lt;`TRegistry`\[`K`\]&gt; & `object`
+[`FluentQuery`](FluentQuery.md)&lt;`TRegistry`\[`K`\]&gt; & `object`

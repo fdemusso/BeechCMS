@@ -125,6 +125,19 @@ When calling `.list()`, the `filter` field supports the following operators:
 - **`fields`**: Array of column names to project (e.g. `['id', 'title', 'slug']`).
 - **`latest`**: Shorthand integer limit to fetch the most recent entries.
 
+#### Filtering Through a Relation (`.whereRelation()`)
+
+The fluent chain (`client.collection(seed)`) exposes `.whereRelation(alias, { where, logic })`, which filters the collection by a condition evaluated against the **target** of a declared relation branch:
+
+```ts
+const { data } = await client
+  .collection('posts')
+  .whereRelation('category_id', { where: { name: 'Tech' } })
+  .list()
+```
+
+`.whereRelation()` types the *alias* against the row's own keys, but the inner `where` field names are `Record<string, FieldFilter>` — validated server-side, not at compile time, since the server does not (yet) publish a relation → target-seed type map. It composes with `.where()/.include()/.select()/.first()/.list()` in the same chain, encoding into the existing `filter` query parameter alongside ordinary conditions.
+
 ---
 
 ## Server Client (`@beechcms/client/server`)

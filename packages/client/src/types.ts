@@ -52,6 +52,12 @@ export type FieldFilter =
   | string | number | boolean | null
   | Partial<Record<BeechFilterOperator, unknown>>
 
+/** Inner query of a relation subquery filter: resolved server-side against the relation's target seed. */
+export interface RelationSubquery {
+  where: Record<string, FieldFilter>
+  logic?: 'AND' | 'OR'
+}
+
 export interface ListQuery<TRow> {
   filter?: { [K in keyof TRow]?: FieldFilter } & Record<string, FieldFilter>
   logic?: 'AND' | 'OR'
@@ -59,6 +65,8 @@ export interface ListQuery<TRow> {
   search?: string
   fields?: (keyof TRow & string)[]
   include?: string[]
+  /** Relation alias → subquery. Encoded into the `filter` parameter as a nested `in` value. */
+  relationFilters?: Record<string, RelationSubquery>
   page?: number
   limit?: number
   latest?: number
@@ -90,6 +98,12 @@ export interface FluentQuery<TRow> {
   where(filter: Record<string, FieldFilter>): this
   include(relations: string[]): this
   select(fields: Extract<keyof TRow, string>[]): this
+  /**
+   * Filters the collection through a declared relation: keeps entries whose `alias` relation
+   * points at any entry of the target seed matching `subquery`. Depth 1; the server refuses a
+   * relation that `?include=` could not traverse, and refuses an over-broad subquery with 400.
+   */
+  whereRelation(alias: Extract<keyof TRow, string>, subquery: RelationSubquery): this
   first(options?: RequestOptions): Promise<BeechResult<Single<TRow>>>
   list(options?: RequestOptions & { validate?: boolean }): Promise<BeechResult<Listable<TRow>>>
 }

@@ -6,6 +6,7 @@ import type { Seed, ContentRepository } from '@beechcms/core'
 import { cleanStr } from '../shared/utils/query-utils'
 import { toFlatPublicEntry } from './entry-projection'
 import { expandRelations } from './relation-include'
+import { resolveRelationSubqueries } from './relation-subquery'
 import { buildPublicListMeta } from './response-builder'
 import { parsePublicFilter, parsePublicPagination, parseLatestCount, toEngineFilters } from './query-builder'
 
@@ -28,13 +29,20 @@ export async function readListEntries(input: ReadListInput) {
   const pagination = allMode ? { page: 1, limit: 100 } : parsePublicPagination(query)
   const offset = (pagination.page - 1) * pagination.limit
   const search = cleanStr(query.search) ?? ''
-  const engineFilters = toEngineFilters(seed, parsedFilter)
+  const resolved = await resolveRelationSubqueries(parsedFilter, seed, repository, getSeed, publishedOnly)
+  if (resolved.empty) {
+    const emptyMeta = latestMode
+      ? { total: 0, returned: 0, seed: seedSlug }
+      : buildPublicListMeta({ total: 0, page: pagination.page, limit: pagination.limit, returned: 0, seed: seedSlug })
+    return { data: [], meta: emptyMeta }
+  }
+  const engineFilters = toEngineFilters(seed, resolved.filter)
   const sortBy = cleanStr(query.orderBy) ?? 'created_at'
   const sortDir = (cleanStr(query.orderDir) ?? 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC'
 
   const { items, total } = await repository.findMany(seed, {
     filters: engineFilters,
-    filterLogic: parsedFilter?.logic,
+    filterLogic: resolved.filter?.logic,
     search: search || undefined,
     status: publishedOnly ? 'published' : null,
     pagination: {

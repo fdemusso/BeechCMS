@@ -18,7 +18,7 @@ Browser Client Interface.
 
 ### collection()
 
-> **collection**&lt;`K`&gt;(`seed`): `FluentQuery`&lt;`TRegistry`\[`K`\]&gt;
+> **collection**&lt;`K`&gt;(`seed`): [`FluentQuery`](FluentQuery.md)&lt;`TRegistry`\[`K`\]&gt;
 
 #### Type Parameters
 
@@ -34,4 +34,4 @@ Browser Client Interface.
 
 #### Returns
 
-`FluentQuery`&lt;`TRegistry`\[`K`\]&gt;
+[`FluentQuery`](FluentQuery.md)&lt;`TRegistry`\[`K`\]&gt;

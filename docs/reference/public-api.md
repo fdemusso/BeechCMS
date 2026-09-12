@@ -246,6 +246,36 @@ X-API-Key: dev-public-read-key-changeme
 
 ---
 
+## Relation Subquery Filters
+
+A relation subquery filters the collection by a condition evaluated against the **target** of a relation branch, instead of against the parent entry itself. It is a nested object in the `value` position of an existing `in` condition inside the `filter` query parameter — no new query parameter is introduced.
+
+**Request — posts in the category named "Tech":**
+
+```http
+GET /api/v1/public/posts?filter={"logic":"AND","where":[
+  {"field":"category_id","op":"in","value":{"logic":"AND","where":[{"field":"name","op":"eq","value":"Tech"}]}}
+]}
+X-API-Key: dev-public-read-key-changeme
+```
+
+The nested value is `{ where: [...], logic?: 'AND' | 'OR' }`; `where` entries share the ordinary `{field, op, value}` shape and are validated **against the target seed**, through the same public + filterable policy gate as a top-level filter. An `in` condition on a relation alias whose value is a **plain array of ids** (rather than a subquery object) stays legal and is routed through the same resolver — this also fixes a multi-relation `in` filter that answered `500` before this endpoint existed.
+
+### Operational Limits & Invariants
+- **Relation Reachability**: `field` must be a publicly reachable relation branch of the queried seed — the same five checks `?include=` enforces. Both single and multi relations are accepted.
+- **Operator**: `op` must be `in`. Any other operator paired with an object value returns `400` (`invalid-subquery`).
+- **Depth 1 Only**: A nested condition whose own `value` is an object (a subquery inside a subquery) returns `400`.
+- **Request Bound**: At most **2** relation subqueries per request; each inner `where` carries at most **5** conditions.
+- **Published Only**: The inner query resolves against published entries only, matching `?include=`.
+- **Refused, Not Truncated**: A resolved target-id set larger than **200**, or a resolved parent-id set larger than **500** (multi-relation fan-out), is refused with `400` — never silently truncated, since truncation would silently drop matching parent rows.
+- **Composability**: A subquery filter composes with `?include=` in the same request; the filtered set is resolved first, then relations are expanded on the surviving entries.
+
+### Error Responses
+- `400 invalid-subquery`: the relation is not publicly reachable, the operator/shape is wrong, or a resolved id set exceeds its cap.
+- `400 invalid-filter`: an inner `where` condition names a field on the target seed that is not public or not filterable — the same contract an ordinary top-level filter enforces.
+
+---
+
 ## Schema Revision Header — `X-Schema-Revision`
 
 All responses emitted across the Public API surface (`/api/v1/public/*`) carry the `X-Schema-Revision` response header:

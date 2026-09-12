@@ -17,6 +17,8 @@ export type {
   BeechBrowserClient,
   ServerContentResource,
   BeechServerClient,
+  FluentQuery,
+  RelationSubquery,
 } from './types.js'
 
 export {

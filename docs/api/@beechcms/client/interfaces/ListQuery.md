@@ -56,6 +56,14 @@
 
 ***
 
+### relationFilters?
+
+> `optional` **relationFilters?**: `Record`&lt;`string`, [`RelationSubquery`](RelationSubquery.md)&gt;
+
+Relation alias → subquery. Encoded into the `filter` parameter as a nested `in` value.
+
+***
+
 ### search?
 
 > `optional` **search?**: `string`

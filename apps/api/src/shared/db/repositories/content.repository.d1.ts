@@ -389,6 +389,38 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /**
+   * Reads the live junction table for a multi-relation branch and returns the distinct parent ids
+   * pointing at any of `targetIds`. Draft junction rows are deliberately excluded: the public
+   * surface filters published content only.
+   */
+  async findParentIdsByRelation(
+    seed: Seed,
+    branchAlias: string,
+    targetIds: string[],
+    limit: number,
+  ): Promise<string[]> {
+    if (targetIds.length === 0 || limit <= 0) return []
+
+    const branch = seed.branches.find(b => b.alias === branchAlias)
+    if (!branch || branch.type !== 'relation' || branch.multiple !== true) {
+      throw new RepositoryError(
+        `findParentIdsByRelation: '${branchAlias}' is not a multi-relation branch of ${seed.slug}`,
+      )
+    }
+
+    const table = jTable(seed.slug, branchAlias)
+    const placeholders = targetIds.map(() => '?').join(', ')
+    const { results } = await this.database
+      .prepare(
+        `SELECT DISTINCT parent_id FROM ${table} WHERE target_id IN (${placeholders}) LIMIT ?`,
+      )
+      .bind(...targetIds, limit)
+      .all<{ parent_id: string }>()
+
+    return (results ?? []).map(r => r.parent_id)
+  }
+
+  /**
    * Computes aggregate facets for a seed: entry counts per `status`, and the distinct set
    * of tag values present across all entries for each `tags`-typed branch (via `json_each`
    * over the JSON-serialized tag column).

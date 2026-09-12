@@ -131,6 +131,26 @@ export class StaticContentRepository implements ContentRepository {
     return { ...entry }
   }
 
+  async findParentIdsByRelation(
+    seed: Seed,
+    branchAlias: string,
+    targetIds: string[],
+    limit: number,
+  ): Promise<string[]> {
+    if (targetIds.length === 0 || limit <= 0) return []
+    const wanted = new Set(targetIds)
+    const parents: string[] = []
+    for (const entry of this.getTable(seed.slug)) {
+      const value = Object.hasOwn(entry, branchAlias) ? entry[branchAlias] : undefined
+      if (!Array.isArray(value)) continue
+      if (value.some((v) => typeof v === 'string' && wanted.has(v))) {
+        parents.push(entry.id as string)
+        if (parents.length >= limit) break
+      }
+    }
+    return parents
+  }
+
   async getFacets(seed: Seed): Promise<{ statuses: Record<string, number>; tagsByColumn: Record<string, string[]> }> {
     const items = this.getTable(seed.slug)
 

@@ -15,7 +15,7 @@ dependencies, never interfaces — the graph and the codebase will have moved by
 | 3b | `CliSchemaPlanApply` | **DONE — merged, archived to `docs/Sprints/CliSchemaPlanApply/`** |
 | 4 | `PublicApiRelationExpansion` | **DONE — merged, archived to `docs/Sprints/PublicApiRelationExpansion/`** |
 | 5 | `FluentClientQueryBuilder` | **DONE — merged, archived to `docs/Sprints/FluentClientQueryBuilder/`** |
-| 6 | `ClientRelationSubqueries` | pending |
+| 6 | `ClientRelationSubqueries` | **PLANNED — detailed plan issued at `stages/01_sprint_planning/output/ClientRelationSubqueries.md`** |
 
 ---
 
@@ -150,6 +150,24 @@ restricted to declared relations. Arbitrary `JOIN`, client-side SQL AST, and unb
 traversal stay rejected and require a separate architectural RFC.
 
 **Depends on:** sprint 5.
+
+**Resolved during sprint-6 planning:** the subquery is **not** a new query parameter — it is a nested
+`{where, logic}` object in the `value` position of an existing `in` condition inside `filter=`, so the
+public contract stays additive within `/api/v1` (brief rule 6). Admission is the *same* five checks
+`?include=` already applies, extracted once into `apps/api/src/public/relation-access.ts` and shared by
+both, so "a relation a public caller may traverse" keeps exactly one definition. Resolution is two
+repository calls, never SQL from the slice: `findMany` on the target seed, plus — for multi-relations
+only — a new `ContentRepository.findParentIdsByRelation` whose single parameterized junction `SELECT`
+lives in `D1ContentRepository` beside the junction statements it already owns. The dashboard's
+`features/backrefs/d1-backref.repository.ts` answers the inverse question over the same tables and is
+deliberately NOT reused: it is another slice, and it ignores public policy entirely.
+Three refusals are load-bearing rather than cosmetic: `not_in` over a relation (NULL rows vanish
+silently), depth > 1, and an over-broad result set — which is **refused with 400, never truncated**,
+because a truncated id set makes a parent page silently miss rows. An id set that resolves to empty
+short-circuits to an empty page: `buildSelectQuery` DROPS an `in` with an empty array
+(`packages/core/src/engine/query.ts:209`), so letting it through would answer the whole collection.
+Typed *inner* fields are out of scope — they need a relation→target map in the generated registry, which
+is its own brief.
 
 ---
 
