@@ -187,6 +187,81 @@ describe('FluentQueryBuilder', () => {
     expect(builder.build().get('filter')).not.toBeNull()
   })
 
+  it('orderBy() emits orderBy and orderDir on the wire', () => {
+    const builder = new FluentQueryBuilder<{ id: string; created_at: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.orderBy('created_at', 'asc')
+    const params = builder.build()
+
+    expect(params.get('orderBy')).toBe('created_at')
+    expect(params.get('orderDir')).toBe('asc')
+  })
+
+  it('orderBy() without a direction sorts descending', () => {
+    const builder = new FluentQueryBuilder<{ id: string; created_at: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.orderBy('created_at')
+
+    expect(builder.build().get('orderDir')).toBe('desc')
+  })
+
+  it('a second orderBy() replaces the first sort key instead of accumulating one the server drops', () => {
+    const builder = new FluentQueryBuilder<{ id: string; title: string; created_at: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.orderBy('created_at', 'desc').orderBy('title', 'asc')
+    const params = builder.build()
+
+    expect(params.get('orderBy')).toBe('title')
+    expect(params.get('orderDir')).toBe('asc')
+  })
+
+  it('limit() and page() reach the executor as pagination state', async () => {
+    const listSpy = vi.fn().mockResolvedValue({ data: { data: [], meta: { seed: 'posts' } }, error: null })
+    const builder = new FluentQueryBuilder<{ id: string }>({ first: vi.fn(), list: listSpy })
+
+    await builder.limit(12).page(3).list()
+
+    expect(listSpy).toHaveBeenCalledWith({ limit: 12, page: 3 }, undefined)
+  })
+
+  it('limit() above the Public API cap is clamped to 100 by the serializer', () => {
+    const builder = new FluentQueryBuilder<{ id: string }>({ first: vi.fn(), list: vi.fn() })
+
+    builder.limit(500)
+
+    expect(builder.build().get('limit')).toBe('100')
+  })
+
+  it('search() sets the full-text search param', () => {
+    const builder = new FluentQueryBuilder<{ id: string }>({ first: vi.fn(), list: vi.fn() })
+
+    builder.search('edge cms')
+
+    expect(builder.build().get('search')).toBe('edge cms')
+  })
+
+  it('logic() switches the filter combinator to OR', () => {
+    const builder = new FluentQueryBuilder<{ id: string; status: string; title: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ status: 'draft', title: { contains: 'beech' } }).logic('OR')
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.logic).toBe('OR')
+    expect(filter.where).toHaveLength(2)
+  })
+
   it('build() returns URLSearchParams matching the accumulated query', () => {
     const builder = new FluentQueryBuilder<{ id: string; title: string }>({
       first: vi.fn(),

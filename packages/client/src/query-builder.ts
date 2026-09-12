@@ -38,6 +38,33 @@ export class FluentQueryBuilder<TRow> implements FluentQuery<TRow> {
     return this
   }
 
+  logic(operator: 'AND' | 'OR'): this {
+    this.query.logic = operator
+    return this
+  }
+
+  // The wire contract carries a single orderBy/orderDir pair, so a second call replaces
+  // the first rather than accumulating a sort list the server would discard.
+  orderBy(field: Extract<keyof TRow, string>, direction: 'asc' | 'desc' = 'desc'): this {
+    this.query.sort = { [field]: direction } as ListQuery<TRow>['sort']
+    return this
+  }
+
+  search(term: string): this {
+    this.query.search = term
+    return this
+  }
+
+  limit(count: number): this {
+    this.query.limit = count
+    return this
+  }
+
+  page(number: number): this {
+    this.query.page = number
+    return this
+  }
+
   first(options?: RequestOptions): Promise<BeechResult<Single<TRow>>> {
     return this.executor.first(this.query, options)
   }

@@ -46,6 +46,24 @@
 
 ***
 
+### limit()
+
+> **limit**(`count`): `this`
+
+Page size. The serializer caps it at the Public API maximum of 100.
+
+#### Parameters
+
+##### count
+
+`number`
+
+#### Returns
+
+`this`
+
+***
+
 ### list()
 
 > **list**(`options?`): `Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;[`Listable`](../type-aliases/Listable.md)&lt;`TRow`&gt;&gt;&gt;
@@ -59,6 +77,82 @@
 #### Returns
 
 `Promise`&lt;[`BeechResult`](../type-aliases/BeechResult.md)&lt;[`Listable`](../type-aliases/Listable.md)&lt;`TRow`&gt;&gt;&gt;
+
+***
+
+### logic()
+
+> **logic**(`operator`): `this`
+
+Combines every `where()`/`whereRelation()` condition with AND (default) or OR.
+
+#### Parameters
+
+##### operator
+
+`"AND"` \| `"OR"`
+
+#### Returns
+
+`this`
+
+***
+
+### orderBy()
+
+> **orderBy**(`field`, `direction?`): `this`
+
+Sorts on one column. The Public API honours a single sort key; a later call replaces the earlier one.
+
+#### Parameters
+
+##### field
+
+`Extract`&lt;keyof `TRow`, `string`&gt;
+
+##### direction?
+
+`"asc"` \| `"desc"`
+
+#### Returns
+
+`this`
+
+***
+
+### page()
+
+> **page**(`number`): `this`
+
+1-based page number.
+
+#### Parameters
+
+##### number
+
+`number`
+
+#### Returns
+
+`this`
+
+***
+
+### search()
+
+> **search**(`term`): `this`
+
+Full-text keyword search across the seed's searchable branches.
+
+#### Parameters
+
+##### term
+
+`string`
+
+#### Returns
+
+`this`
 
 ***
 

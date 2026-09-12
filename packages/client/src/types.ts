@@ -104,6 +104,16 @@ export interface FluentQuery<TRow> {
    * relation that `?include=` could not traverse, and refuses an over-broad subquery with 400.
    */
   whereRelation(alias: Extract<keyof TRow, string>, subquery: RelationSubquery): this
+  /** Combines every `where()`/`whereRelation()` condition with AND (default) or OR. */
+  logic(operator: 'AND' | 'OR'): this
+  /** Sorts on one column. The Public API honours a single sort key; a later call replaces the earlier one. */
+  orderBy(field: Extract<keyof TRow, string>, direction?: 'asc' | 'desc'): this
+  /** Full-text keyword search across the seed's searchable branches. */
+  search(term: string): this
+  /** Page size. The serializer caps it at the Public API maximum of 100. */
+  limit(count: number): this
+  /** 1-based page number. */
+  page(number: number): this
   first(options?: RequestOptions): Promise<BeechResult<Single<TRow>>>
   list(options?: RequestOptions & { validate?: boolean }): Promise<BeechResult<Listable<TRow>>>
 }
