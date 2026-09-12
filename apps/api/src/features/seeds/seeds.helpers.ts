@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import type { Context } from 'hono'
-import type { Branch, Seed } from '@beechcms/core'
+import type { Branch, Seed, SeedRecord } from '@beechcms/core'
 import {
   nextBranchId,
   validateSeedDefinitions,
@@ -82,6 +82,31 @@ export async function getActiveSeed(context: AppContext, slug: string) {
     return publicProblem(context, { type: 'seed-not-found', title: 'Seed not found', status: 404, detail: `No active seed with slug '${slug}'.` })
   }
   return existing
+}
+
+/**
+ * Refuses an interactive (dashboard/REST) mutation of a manifest-owned seed.
+ *
+ * A seed with `source = 'code'` is owned by `beech.schema.ts`. Letting the dashboard edit it would
+ * make `beech schema diff` report drift it can never explain — the manifest would be silently wrong
+ * about a schema it is supposed to describe. Ownership is set at row creation and is immutable:
+ * `D1SeedRepository.UPSERT_SEED_SQL`'s `ON CONFLICT DO UPDATE` clause deliberately omits `source`.
+ *
+ * NOT called on creation (`POST /api/seeds`) — a seed that does not exist has no owner — and NOT
+ * called on the MCP control-plane routes, which are the sanctioned manifest apply path.
+ *
+ * @returns A 409 Problem Details Response when the seed is manifest-owned, or `null` when it is not.
+ */
+export function rejectManifestOwned(context: AppContext, record: SeedRecord) {
+  if (record.source !== 'code') return null
+  return publicProblem(context, {
+    type: 'seed-manifest-owned',
+    title: 'Seed is manifest-owned',
+    status: 409,
+    detail:
+      `Seed '${record.slug}' is owned by beech.schema.ts (source='code') and cannot be edited here. ` +
+      `Edit the manifest and re-apply it.`,
+  })
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   parseJsonBody,
   requireConfirm,
   getActiveSeed,
+  rejectManifestOwned,
   deleteSeedMediaObjects,
   applyDestructiveSeedDef,
   actorFromContext,
@@ -51,6 +52,8 @@ destructiveApp.delete('/:slug/hard', async (context) => {
 
   const existing = await getActiveSeed(context, slug)
   if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
 
   const backrefMap = context.get('backrefMap')
   const inbound = backrefMap.get(slug)
@@ -102,6 +105,8 @@ destructiveApp.delete('/:slug/branches/:branchId', async (context) => {
 
   const existing = await getActiveSeed(context, slug)
   if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
 
   const branch = existing.definition.branches.find((b: Branch) => b.id === branchId)
   if (!branch) {
@@ -151,6 +156,8 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
 
   const existing = await getActiveSeed(context, slug)
   if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
 
   const branch = existing.definition.branches.find((b: Branch) => b.id === branchId)
   if (!branch) {
@@ -217,6 +224,8 @@ destructiveApp.patch('/:slug/branches/:branchId/retype', async (context) => {
 
   const existing = await getActiveSeed(context, slug)
   if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
 
   const branch = existing.definition.branches.find((b: Branch) => b.id === branchId)
   if (!branch) {

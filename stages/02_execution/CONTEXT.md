@@ -14,7 +14,34 @@ You are the Execution Agent (Caveman). Your only purpose is to implement the exa
 4. **Validation:** Execute the exact commands listed in "SECTION 5 — VALIDATION" (e.g., `pnpm run build`, `pnpm run test`, `npx tsc --noEmit`). If any command fails, fix your code until it passes. Do not modify the tests to make them pass unless explicitly instructed.
 5. **Graph Sync (CRITICAL):** Once the code is written and validation passes, you MUST execute `graphify update .` to synchronize the AST graph for future tasks.
 6. **Readability** Use self-explanatory variable and function names, English comments only where the code is not self-explanatory.
-7. **Test Discipline:** Any test file you create or modify MUST follow `_config/testing_conventions.md` — tier placement, SPDX header, `describe`/`it` naming, the four zones (arrange / act / assert response / assert state), canonical fixtures, and the comment policy. Self-check against its §8 checklist before declaring validation complete.
+7. **Test Discipline & Writing Schema (`_config/testing_conventions.md`):** Any test file you create or modify MUST strictly follow `_config/testing_conventions.md`. Inside every `it()`, enforce the **Four-Zone Test Schema** in order, separated by ONE blank line:
+
+```ts
+it('observable behaviour and expected outcome without the word should', async () => {
+  // 1. ARRANGE — state needed on top of suite baseline (beforeEach)
+  const admin = await harness.asUser('admin')
+
+  // 2. ACT — exactly one action under test, result assigned to named variable
+  const response = await admin.post('/api/content/posts', { slug: 'new-post' })
+
+  // 3. ASSERT RESPONSE — contract caller sees: status first, body typed, no any
+  expect(response.status).toBe(201)
+  const body = await response.json<{ id: string }>()
+  expect(body.id).toMatch(UUID_V4_PATTERN)
+
+  // 4. ASSERT STATE — what was persisted in D1/storage (or count 0 / no-op on rejections)
+  const row = await harness.db.prepare('SELECT COUNT(*) AS n FROM content_posts WHERE id = ?').bind(body.id).first<{ n: number }>()
+  expect(row?.n).toBe(1)
+})
+```
+
+   - **Four Zones**: 1. ARRANGE, 2. ACT, 3. ASSERT RESPONSE, 4. ASSERT STATE. Never interleaved. Do not write `// ARRANGE` labels in final code (the single blank line carries structure).
+   - **One Act**: Exactly one action under test. Result assigned to named variable (`response`, `result`, `created`), never asserted inline.
+   - **Response Assertions**: Status code asserted first and explicitly; body typed at call-site (`await response.json<T>()`); contract asserted, never implementation; no `any`.
+   - **State Assertions**: Writes MUST assert persisted state; negative/rejected actions MUST assert nothing changed (`COUNT = 0`).
+   - **Tiers & Placement**: Exactly ONE tier per file (`unit`, `integration`, `e2e`). Placement mirrors VSA (`<slice>/test/unit/`, `<slice>/test/integration/`).
+   - **Fixtures**: Canonical seeds and entities from `@beechcms/testing`; UUIDv4 patterns (`UUID_V4_PATTERN`); real D1 & middleware in integration (only `IClock`/`ITokenService` faked).
+   - **Self-Check**: Audit against the `_config/testing_conventions.md` §8 checklist before declaring validation complete.
 
 ## Outputs
 execution_log.md -> output/ 

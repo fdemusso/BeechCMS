@@ -1,46 +1,72 @@
-# Idea: Test Harness & Strategia di Testing (Issue 108)
+# Idea: Typed Fluent Query Builder per Public Content (Issue 384)
 
 ## Visione e Obiettivo
-Risolvere il debito tecnico legato all'attuale suite di test e migliorare drasticamente la Developer Experience (DX) per gli sviluppatori di BeechCMS. L'obiettivo è sostituire l'attuale proliferazione di mock caotici dei repository con un **Test Harness** standardizzato che esegua test di integrazione reali e affidabili.
+Aggiungere a `@beechcms/client` un fluent query builder tipizzato, leggero (no dipendenze pesanti), che compili verso il contratto REST Public API esistente. Deve eliminare l'encoding manuale di JSON nei consumer senza introdurre un secondo linguaggio di query e senza cambiare la semantica del backend.
+
+```ts
+const post = await client
+  .collection<'posts'>('posts')
+  .where('slug', 'eq', slug)
+  .include('author')
+  .select(['id', 'title', 'slug', 'body', 'author'])
+  .first()
+```
 
 ---
 
-## Il Problema Attuale
-1. **Confusione e Disordine:** I test correnti sono spesso "illeggibili" perché confondono unit test e integration test.
-2. **Falsi Positivi/Negativi:** Molti test usano `vi.fn()` per creare mock manuali che tentano di simulare il comportamento di un vero database (es. memorizzando dati in array in memoria). Questo porta a logiche di test fragili e fallaci.
-3. **Mancanza di Standard:** Non c'è una netta separazione tra test unitari (che dovrebbero validare pure funzioni/schemi senza DB) e test di integrazione (che dovrebbero testare il flusso end-to-end e il routing HTTP).
+## Stato Attuale (verificato nel repo)
+- `packages/client/src/query-builder.ts` esiste già ma in stile oggetto (`content(seed).list({filter:{...}})`), non fluent chain. Manca `.first()`/`.one()`, manca `.include()`.
+- `types.ts` usa registry generico non schema-derived (`Record<string, unknown>`).
+- Nessun `beech.schema.ts` / `defineSchema` / `defineSeed` in `packages/core` → issue #381 (manifest DSL) non fatta.
+- Nessun comando `beech schema export/diff/plan/apply` / `types generate` in `packages/cli` → issue #382 (codegen tipi) non fatta.
+- Nessun parametro `include=` nelle route `apps/api/src/public/*` → issue #383 (relation expansion) non fatta.
+- #328 (MCP control plane) CLOSED, disponibile come base.
+- #104 (GitOps sprint) OPEN, si sovrappone parzialmente a #382 (`schema-diff.ts` parziale) — da chiarire se assorbito o mantenuto separato.
+
+## Catena di Dipendenze (blocking, non solo documentata)
+```
+#381 (manifest DSL) → #382 (schema export/type-gen) → #384 (fluent client typed)
+#383 (include API)  ─────────────────────────────────→ #384 (.include())
+#384 → #385 (subquery/join extension)
+```
+#384 non può chiudersi typed-completo senza #382 (niente `SeedRegistryTypes`) e senza #383 (niente `.include()` reale). Oggi può partire solo in forma untyped/escape-hatch, refactorando `query-builder.ts` esistente in wrapper fluent.
+
+## Conflitto da Risolvere: #385
+#385 propone `JOIN`/subquery/`EXISTS` con AST SQL lato client. Contraddice lo scope esplicito di #384/#383 ("no arbitrary graph traversal", "no SQL parser lato client", planning/resolution solo server-side). Va ridimensionato (solo subquery IN su relation già dichiarate via #383) o riaperto come RFC architetturale separata prima di implementare.
+
+## Perché NON adottare l'approccio Sanity/GROQ
+Valutata l'alternativa "linguaggio di query dinamico non tipizzato + typegen per analisi statica" (come Sanity/GROQ). Scartata perché:
+- Viola esplicitamente lo scope di #384 ("no second query language", "no embedded GROQ-like parser").
+- Richiederebbe un interprete/compilatore GROQ→SQL lato backend, superficie di attacco più grande rispetto al filter-object attuale che compila diretto a SQL parametrizzato.
+- Non risolve comunque il problema di runtime drift (vedi sotto) — sposta solo dove il tipo viene generato (da usage-analysis invece che da chain-generics), stesso rischio di staleness.
+
+Si mantiene l'approccio filter-object/fluent-chain con generics (`SeedRegistryTypes`), scartando GROQ.
+
+## Problema di Runtime Drift (critico, emerso in sparring)
+I tipi generati da `beech types generate` sono validi solo al momento della generazione (compile-time). Se lo schema D1 cambia dopo che un client è stato buildato/deployato, il client continua a fidarsi di tipi stale → mismatch di shape silenzioso a runtime (TypeScript non può ri-verificare a runtime, è già compilato). `types check` in CI copre solo i consumer nello stesso monorepo/pipeline — un consumer esterno che installa `@beechcms/client` da npm non ha questa rete di sicurezza.
+
+### Soluzione: Schema Fingerprint a Runtime
+Da inserire come requisito esplicito in #382/#383/#384:
+
+1. **Fingerprint nella risposta** — ogni risposta Public API porta un header/campo `X-Schema-Revision` (fingerprint deterministico dello schema, generato dallo stesso export canonico usato da `beech types generate`).
+2. **Fingerprint nei tipi generati** — `beech.generated.ts` include il fingerprint con cui è stato generato (già previsto in #382 come "generated-file header con revision/fingerprint").
+3. **Verifica a runtime nel client** — il fluent client confronta il fingerprint di risposta con quello embeddato nei tipi al build time. Mismatch → non fidarsi silenziosamente del payload, restituire un errore azionabile (stile `BeechProblem`: "client types stale, rigenera con `beech types generate`") invece di lasciare passare dati di shape sbagliata.
+4. **Versioning come contratto reale** — `/api/v1/public/*` resta additive-only entro la stessa major version; una modifica breaking al seed deve forzare bump di versione API, non solo rigenerazione tipi. Questo è la garanzia di fondo per i consumer esterni che non hanno CI condivisa.
+5. **Validazione runtime opt-in** — non forzare validazione runtime (zod-derived) su ogni chiamata di default (contraddice "dependency-light" di #384). Esporre come strict mode opzionale (`.list({ validate: true })`) per chi preferisce fail-fast a drift silenzioso.
+
+Il fingerprint runtime non sostituisce la codegen — la completa: la codegen risolve l'ergonomia di authoring, il fingerprint risolve la sicurezza a runtime contro schema drift.
 
 ---
 
-## La Soluzione: `@beechcms/testing` (Test Harness)
+## Ordine di Esecuzione Consigliato
+1. **#381** — DSL `defineSchema/defineSeed/defineField`, round-trip JSON, no callback/codice eseguibile persistito.
+2. **#382** — CLI schema export/diff/plan/apply + `types generate`, con fingerprint/revision nel header del file generato.
+3. **#383** (parallelizzabile con #382) — `include=` su Public API, depth=1, policy-aware, batched, fingerprint nella risposta.
+4. **#384** — refactor `query-builder.ts` in fluent builder, generic su registry da #382, verifica fingerprint runtime, `.include()` tipato solo dopo #383 stabile.
+5. **#385** — solo dopo #384, forma ridotta (subquery IN, no JOIN arbitrario) o RFC separata.
 
-Il **Test Harness** funge da *Test Environment Builder*. È una funzione (`createTestHarness`) che maschera la complessità dell'infrastruttura iniettando dipendenze stabili e controllabili. L'Harness non "finge" le query al DB, ma fornisce un DB reale e isolato.
-
-### 1. Database Reale (In-Memory)
-Invece di mockare le query tramite funzioni JavaScript, la Harness istanzia un vero database SQLite in-memory (tramite `better-sqlite3` o l'ambiente D1 di `@cloudflare/vitest-pool-workers`).
-*   **Vantaggio:** Il test esegue vere query SQL. Vengono testati i vincoli, le foreign keys, le relazioni e l'esatta esecuzione delle Seed (creazione tabelle/indici).
-
-### 2. Dependency Injection per Servizi Instabili
-L'Harness si occupa di mockare internamente solo i servizi infrastrutturali collaterali necessari per avere test veloci e deterministici:
-*   **`IClock`:** Congela il tempo o lo avanza artificialmente (es. per testare la scadenza dei token o dei task cron).
-*   **`ITokenService`:** Evita l'overhead della crittografia vera e propria per generare e validare JWT durante i test.
-
-### 3. Test Client Intelligente
-La funzione restituisce un oggetto che contiene l'app configurata e un client helper (es. `.asUser({ role: 'admin' })`). Quest'ultimo avvolge `app.request()` e inietta automaticamente i token fittizi negli header delle richieste HTTP in base all'identità passata, eliminando la necessità di firmare JWT a mano in ogni test.
-
----
-
-## La Nuova Piramide dei Test
-
-L'introduzione della Test Harness diventa lo standard architettonico per la qualità del codice:
-
-1. **Unit Tests (Puri):** Test isolati, immediati e privi di side-effect per logiche di validazione (es. Zod schemas), utilità ed engine rules. Non coinvolgono istanze Hono né il database in-memory.
-2. **Integration / E2E Tests (con Test Harness):** Tutti i test su handler API, flussi core e middleware passano all'uso esclusivo della Harness. Non ci saranno più mock dei Repository: i dati si preparano inserendoli nel DB, si fa la chiamata HTTP e si verifica lo stato nel DB o nella risposta.
-
----
-
-## Piano di Migrazione Graduale (Boy Scout Rule)
-
-*   **Evitare il Big Bang:** Non riscrivere tutti i 70+ test esistenti in un colpo solo.
-*   **Nuovi Sviluppi:** Tutti i nuovi endpoint e le nuove feature devono utilizzare l'Harness per l'integrazione o essere puramente unitari.
-*   **Rifattorizzazione Continua:** Ogni volta che si tocca un vecchio endpoint (es. per un bugfix o una nuova feature), i vecchi test confusi basati sui mock vengono eliminati e sostituiti da un test pulito usando la Test Harness.
+## Out of Scope (scartato durante sparring)
+- Linguaggio query dinamico stile GROQ (Sanity) — violerebbe scope #384, aumenta superficie d'attacco backend.
+- JOIN arbitrario / graph traversal lato client (#385 nella forma attuale).
+- Validazione runtime forzata di default su ogni chiamata (solo opt-in).
+- Sync implicito di `beech.schema.ts` all'avvio del Worker (resta manifest desired-state, mai autorità runtime).

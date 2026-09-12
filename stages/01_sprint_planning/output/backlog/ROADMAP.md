@@ -1,154 +1,112 @@
-# ROADMAP — Test Harness & Test Suite Redesign (issue #108)
+# ROADMAP — Typed Fluent Query Builder chain (#381 → #385)
 
-Source brief: `stages/00_ideation/output/feature_brief.md`.
+The feature brief does not fit one sprint: it requires sequential merges across
+`@beechcms/core` → `packages/cli` / `apps/api` → `packages/client`, and each boundary must be
+validated on its own before the next one can compile against it.
 
-The brief does NOT fit one sprint: it requires sequential merges (a new
-`@beechcms/testing` package and a `BeechConfig` seam must land before any test
-can be relocated; the relocation must land before CI can select tests by tier;
-CI tiering must exist before an e2e tier can be excluded from it), and its
-deliverables span independent boundaries (`packages/testing`, `apps/api`,
-`apps/dashboard`, root `scripts/`, `.github/workflows/`) that must be validated
-separately.
-
-Detailed Task Details are written ONLY for the sprint currently being executed.
-Future entries stay as one-liners until their turn: the graph and the codebase
-will have moved by then, and stale SQL/interfaces are worse than no plan.
+Detailed Task Details exist ONLY for the sprint currently in planning. Future entries are goals and
+dependencies, never interfaces — the graph and the codebase will have moved by the time they run.
 
 | # | Slug | Status |
 |---|------|--------|
-| 1 | `harness-foundation` | **SHIPPED — archived: `docs/Sprints/S1_Harness_Foundation/`** |
-| 2 | `slice-test-layout` | **SHIPPED — archived: `docs/Sprints/S2_Slice_Test_Layout/`** |
-| 3 | `ci-test-tiering` | **SHIPPED — archived: `docs/Sprints/S3_CI_Test_Tiering/`** |
-| 4 | `e2e-playwright` | **SHIPPED — archived: `docs/Sprints/S4_E2E_Playwright.md`** |
-| 5 | `scale-perf-tier` | active |
+| 1 | `SchemaManifestDsl` | **PLANNED — detailed plan in `output/SchemaManifestDsl.md`** |
+| 2 | `SchemaIntrospectionFingerprint` | pending |
+| 3 | `CliSchemaTooling` | pending |
+| 4 | `PublicApiRelationExpansion` | pending |
+| 5 | `FluentClientQueryBuilder` | pending |
+| 6 | `ClientRelationSubqueries` | pending |
 
 ---
 
-## Sprint 1 — `harness-foundation`
+## 1 — `SchemaManifestDsl` (#381)
 
-**Goal:** ship `@beechcms/testing` — a real-D1 (`@cloudflare/vitest-pool-workers`)
-integration harness with `IClock`/`ITokenService` injection, an `.asUser({ role })`
-client, and canonical seed data — and prove it on one migrated flow suite.
+**Goal:** give `beech.schema.ts` a real, pure, serializable authoring DSL in `@beechcms/core/schema`,
+and make `seeds.source = 'code'` a load-bearing ownership signal instead of a dormant column.
 
-**Deliverables summary:** new `packages/testing` workspace; `BeechConfig.authProviders`
-passthrough in `apps/api/src/factory.ts`; a second Vitest project in `apps/api`
-(`vitest.workers.config.ts`, workerd pool) coexisting with the existing `forks`
-project; canonical seeds + canonical entity IDs built from `@beechcms/core`
-`defineSeed`; pilot migration of `flow-content-management.test.ts` to the harness;
-dedicated real-JWT unit coverage (the blind spot created by faking `ITokenService`).
+**Deliverables summary:** new `packages/core/src/schema/` module (`defineSchema` / `defineSeed` /
+`defineField.*` / `defineGroup`, canonical JSON round-trip, manifest validation), a `./schema` subpath
+export on `@beechcms/core`, and a manifest-ownership guard in the `apps/api` seeds slice that refuses
+dashboard edits to a `source = 'code'` seed.
 
-**Depends on:** nothing. It is the root of the chain — every later sprint imports
-`@beechcms/testing` or selects on the folder layout it establishes.
+**Depends on:** nothing. It is the only sprint in the chain with no upstream.
 
 ---
 
-## Sprint 2 — `slice-test-layout`
+## 2 — `SchemaIntrospectionFingerprint` (#382, part A)
 
-**Goal:** move tests to the VSA-mirrored layout — `apps/api/src/features/<slice>/test/{unit,integration}/`
-and `apps/dashboard/src/features/<slice>/test/unit/` — and make placement enforceable.
+**Goal:** one D1 pragma-based introspection primitive, executor-agnostic (Worker `D1Database` binding
+AND the CLI's `queryD1` shell path), plus a deterministic schema fingerprint computed from its output.
 
-**Deliverables summary:** per-slice `test/` folders for slices whose tests already
-exist; updated `include`/`exclude` globs in both `vitest.config.ts` files plus the
-workers project; a placement lint/check (test file outside its owning slice fails);
-enforcement of `_config/testing_conventions.md` on every suite as it is migrated;
-migration of the `apps/api/test/flow-*.test.ts` suites that Sprint 1 did not pilot,
-under the Boy Scout Rule (touched code only — no big-bang rewrite of the 345
-existing test files); short `docs/` page documenting the layout.
+**Deliverables summary:** introspection + fingerprint functions in `@beechcms/core`;
+`packages/cli/src/lib/schema-diff.ts` refactored onto the primitive instead of reading PRAGMA itself.
+The fingerprint's input is the canonical JSON shape frozen in sprint 1.
 
-**Depends on:** Sprint 1 — the harness must exist before a suite can be relocated
-*and* converted, and the integration-tier glob it introduces is what Sprint 2 fans
-out across slices.
-
-**Scope note (set at planning time, 2026-09-11):** "migration of the flow-* suites"
-is honoured as *relocation + tier labelling* (`apps/api/test/flow/`), NOT as
-conversion to the real-D1 harness. The 21 flow suites depend on `D1TestDatabase`,
-MinIO, Mailpit and the webhook tester, which the workers tier deliberately does not
-bind (Sprint 1 out-of-scope item 8). Conversion is per-suite Boy Scout work at the
-moment an endpoint is touched, in no sprint's deliverables. Sprint 2 also carries the
-Sprint 1 architect sign-off on `ARCH_FINDING_d1_compound_select.md` (the integration
-tier is red on `HEAD` until that migration statement is fixed).
+**Depends on:** sprint 1 — the canonical serializer defines what is fingerprinted; without it the
+fingerprint would have to be re-specified later, invalidating every already-published client.
 
 ---
 
-## Sprint 3 — `ci-test-tiering`
+## 3 — `CliSchemaTooling` (#382, part B)
 
-**Goal:** make the existing `--diff` selection tier-aware so unit/integration run
-per-affected-workspace on every push, and slow tiers are never pulled in implicitly.
+**Goal:** `beech schema export | diff | plan | apply` and `beech types generate`, all reading live D1
+through the sprint-2 primitive, all mutating only through the existing MCP control plane
+(`POST /api/seeds/:slug/mcp-plan` / `mcp-apply`), never raw SQL.
 
-**Deliverables summary:** `--tier` support in `scripts/test-coverage-diff.mjs`
-(currently 5 hardcoded workspaces, `vitest related` mode only) and in
-`packages/cli/src/commands/test.ts`; explicit exclusion of any future `e2e/`
-directory from the diff runner; tier-aware filtering that stops `vitest related`
-from pulling a real-D1 integration suite into a fast unit run; `.github/workflows/test.yml`
-split into per-tier jobs.
+**Deliverables summary:** the four `beech schema` subcommands; `beech types generate` emitting
+`SeedRegistryTypes` plus the embedded fingerprint header (today's `beech generate-types` reads
+`seeds.definition` and embeds no fingerprint); manifest apply writing `source = 'code'`.
 
-**Depends on:** Sprint 2 — tier selection needs the folder convention as its
-selector; there is nothing to select by before the layout lands.
-
-**Scope note (set at planning time, 2026-09-11):** four tiers are declared
-(`unit`, `flow`, `integration`, `e2e`); three are runnable. `flow` is the name given
-to the Docker-backed cross-slice suites in `apps/api/test/` — it is neither implicit in
-`--diff` nor Docker-free, and `e2e` exists only to be refused until Sprint 4 builds its
-runner. The `apps/api` forks config becomes a two-project config (`unit` Docker-free,
-`flow` carrying the Docker `globalSetup`), with `action-executors.test.ts` pinned into
-`flow` by path so the unit tier is Docker-free without moving a file out of its slice or
-losing its coverage. Making `scripts/` itself testable (no root vitest project covers it)
-stays unowned by any sprint.
+**Depends on:** sprints 1 and 2 — it consumes the manifest DSL and the introspection primitive.
 
 ---
 
-## Sprint 4 — `e2e-playwright`
+## 4 — `PublicApiRelationExpansion` (#383)
 
-**Goal:** a top-level `e2e/` suite driving the real dashboard against the real API
-and real D1, gated to pre-merge/nightly.
+**Goal:** `include=` on `/api/v1/public/*` — depth 1, policy-aware, batched — and an
+`X-Schema-Revision` response header carrying the sprint-2 fingerprint.
 
-**Deliverables summary:** `e2e/` workspace (Playwright) outside the slice tree
-(e2e crosses slices by nature; VSA forbids that inside it); its own concurrency cap
-in `scripts/test-runner.mjs` (current defaults are tuned for Vitest workers on an
-8GB fanless machine, not for browser processes); compatibility with the existing
-fingerprint cache and single-run PID lock; PR→master + nightly workflow triggers;
-explicit exclusion from push-triggered runs.
+**Deliverables summary:** query-parameter parsing and relation expansion in the public slice; the
+fingerprint header emitted on every public response; additive-only within `/api/v1`.
 
-**Depends on:** Sprint 3 — e2e must be excluded from `--diff` by construction,
-which requires the tier mechanism to exist first.
-
-**Scope note (set at planning time, 2026-09-11):** the deliverable is the runner plus two specs, not a
-suite — one authenticated-session flow and one entry-id contract flow, the defect class behind issue #108.
-`e2e/` is a real pnpm workspace (`pnpm-workspace.yaml` gains it) driving Playwright against a `wrangler dev`
-API on 8799 and a Vite dashboard on 5273, over a throwaway D1 persist directory recreated per run; it is
-Docker-free, so MinIO/Mailpit/webhook-tester flows stay in the `flow` tier. Two deviations from this entry's
-original one-liner, both deliberate: (1) **no concurrency cap is added to `scripts/test-runner.mjs`** — that
-runner selects by task name and the e2e workspace deliberately declares no `test` script, so the cap would
-be unreachable code; the executing cap is Playwright's own `workers: 1`. (2) CI gating lands in a **new**
-`.github/workflows/e2e.yml` (PR→master + nightly) rather than in `test.yml`, whose exact three-job shape is
-a Sprint 3 acceptance criterion. `e2e` joins `RUNNABLE_TIERS` but is kept out of a new
-`DIFF_SELECTABLE_TIERS`, so `--diff --tier e2e` still exits 1. Two config seams are touched and nothing
-else outside tooling: `BEECH_D1_PERSIST_DIR` in `apps/api/scripts/bootstrap-d1.mjs` and
-`BEECH_DEV_API_TARGET` in `apps/dashboard/vite.config.ts`, both no-ops when unset. Adding `data-testid`
-attributes to dashboard source is forbidden; selectors are accessible names only.
+**Depends on:** sprint 2 (fingerprint). Parallelizable with sprint 3 — they touch disjoint boundaries.
 
 ---
 
-## Sprint 5 — `scale-perf-tier`
+## 5 — `FluentClientQueryBuilder` (#384)
 
-**Goal:** an opt-in scale tier seeded with low-thousands-of-rows-per-content-type
-datasets to validate pagination and query behaviour at BeechCMS's real target scale.
+**Goal:** refactor `packages/client/src/query-builder.ts` into the fluent chain
+(`.collection().where().include().select().first()`), generic over `SeedRegistryTypes`, with the
+runtime fingerprint check and the opt-in `.list({ validate: true })` strict mode.
 
-**Deliverables summary:** scale seed generator in `@beechcms/testing` (distinct from
-canonical seeds, never the default); opt-in tier flag; assertions on pagination and
-query cost; explicitly excluded from push and PR runs.
+**Deliverables summary:** the fluent builder; generated-registry generics replacing the
+`Record<string, unknown>` registry in `types.ts`; `X-Schema-Revision` compared against the
+build-time fingerprint, mismatch surfacing an actionable `BeechProblem`, never a silent pass-through.
 
-**Depends on:** Sprint 4 — last in the chain; the tier machinery, the harness
-seeding API, and the concurrency budget all need to be settled before a deliberately
-heavy tier is added on top.
+**Depends on:** sprint 3 (no `SeedRegistryTypes` + fingerprint without it) and sprint 4 (no typed
+`.include()` against an unstable server contract).
 
 ---
 
-## Permanently out of scope (per brief §5)
+## 6 — `ClientRelationSubqueries` (#385, reduced form)
 
-- Public/third-party testing tool built on the internal harness.
-- `better-sqlite3` as the harness DB engine.
-- Production-scale/fuzzed datasets as the default integration seed.
-- Running e2e on every push.
-- Big-bang rewrite of all existing tests.
-- Rebuilding the fingerprint cache / thermal lock / Turbo concurrency system.
+**Goal:** `IN` filters over relations already declared through sprint 4's `include=` contract.
+
+**Deliverables summary:** subquery encoding in the fluent builder and its server-side counterpart,
+restricted to declared relations. Arbitrary `JOIN`, client-side SQL AST, and unbounded graph
+traversal stay rejected and require a separate architectural RFC.
+
+**Depends on:** sprint 5.
+
+---
+
+## Standing decisions that outlive any single sprint
+
+- **Ownership never transfers implicitly.** `seeds.source` is set at row creation and the
+  `ON CONFLICT DO UPDATE` clause in `D1SeedRepository.UPSERT_SEED_SQL` deliberately does not update
+  it. Manifest plan/apply against an existing `source = 'runtime'` seed is allowed and leaves it
+  dashboard-editable; it does not claim ownership. A `'runtime'` → `'code'` transfer command is out
+  of scope for the whole chain and needs its own brief.
+- **No implicit schema authority.** The Worker never imports or executes `beech.schema.ts`; no D1
+  mutation is a deploy side effect. Every apply is an explicit CLI/MCP action.
+- **Types derive from introspection, never from the manifest file.** Established in sprint 2 and
+  binding on sprint 3.

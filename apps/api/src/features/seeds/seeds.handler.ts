@@ -25,6 +25,7 @@ import {
   actorFromContext,
   parseJsonBody,
   getActiveSeed,
+  rejectManifestOwned,
   validateAndApplySeedDef,
   validateIncomingBranches,
 } from './seeds.helpers'
@@ -171,6 +172,8 @@ seedsApp.put('/:slug', async (context) => {
 
   const existing = await getActiveSeed(context, slug)
   if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
 
   const incoming = body as Seed
   const storedBranches = existing.definition.branches
@@ -206,6 +209,8 @@ seedsApp.post('/:slug/branches', async (context) => {
 
   const existing = await getActiveSeed(context, slug)
   if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
 
   const newBranch = body as Branch
   newBranch.id = nextBranchId(existing.definition)
@@ -238,6 +243,8 @@ seedsApp.delete('/:slug', async (context) => {
   
   const existing = await getActiveSeed(context, slug)
   if (existing instanceof Response) return existing
+  const owned = rejectManifestOwned(context, existing)
+  if (owned) return owned
 
   const backrefMap = context.get('backrefMap')
   const inbound = backrefMap.get(slug)
