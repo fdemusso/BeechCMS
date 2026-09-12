@@ -2,90 +2,133 @@
 PASS
 
 # Findings
-None.
+
+1. **Non-blocking nit** — `packages/core/src/engine/introspection.ts:731` (`listTables`). The `prefix` argument is interpolated straight into a `LIKE '${prefix}%'` clause without escaping SQL LIKE metacharacters (`_`, `%`). `assertSafeIdentifier` validates `prefix` as a plain identifier but does not forbid `_`, so `LIKE 'content_%'` is itself a wildcard pattern (matches `content` + any one char + anything), not a literal-prefix match. Harmless today — the only caller passes the hardcoded literal `'content_'` and no current table name collides — but it's a latent correctness gap in a primitive this sprint documents as the shared source of truth for schema export/drift. Not blocking: no acceptance criterion depends on `listTables`' prefix semantics, and it ships with zero current callers outside `introspectSchema`'s own hardcoded use. Worth a follow-up (escape `_`/`%` in `prefix` before interpolation, or use `substr`/`glob` instead of `LIKE`) before sprint 3 grows more callers of `listTables`.
 
 # Verification Evidence
 
-All commands re-run independently by this review agent (not trusted from execution_log.md), against the uncommitted working tree of `feature/schema-manifest-dsl` (no commits exist yet on this branch, so the diff base is `git diff devs -- <paths>`, not `devs...HEAD`).
+Independent re-execution (not trusting `execution_log.md`'s claims):
 
 ```
+$ git diff devs --stat          # confirms devs/HEAD share a commit; the sprint's changes are
+                                 # uncommitted working-tree diff, not a merged branch diff
+ 16 files changed, 1252 insertions(+), 1399 deletions(-)
+ (docs/stage churn: SchemaManifestDsl.md archived, ROADMAP.md, execution_log.md, review_report.md)
+ (code: d1-executor.ts new, schema-diff.ts refactored, canonical-json.ts new, introspection.ts new,
+  schema-fingerprint.ts new, index.ts +2 lines, schema/canonical.ts delegated, 4 new test files)
+
+$ grep -nE "node:|@cloudflare|\.\./schema/" packages/core/src/engine/introspection.ts packages/core/src/engine/schema-fingerprint.ts
+(no output — Worker-safe, confirmed)
+
+$ git diff devs -- packages/core/package.json
+(empty — no new dependency)
+
+$ git diff devs -- packages/cli/src/lib/wrangler.ts
+(empty — untouched)
+
+$ git diff devs --stat -- apps/api apps/dashboard
+(empty — nothing under either app touched)
+
+$ git diff devs -- packages/core/src/schema/canonical.test.ts
+(empty — zero characters edited, per acceptance criterion)
+
 $ pnpm --filter @beechcms/core build
-$ tsc
-(exit 0)
+$ tsc                                     (exit 0)
 
 $ pnpm --filter @beechcms/core test
- Test Files  41 passed (41)
-      Tests  682 passed (682)
+ Test Files  44 passed (44)
+      Tests  710 passed (710)
 
-$ pnpm --filter @beechcms/api type-check
-$ tsc -p tsconfig.build.json --noEmit
-(exit 0)
+$ pnpm --filter @beechcms/cli build
+ dist/index.js  82.7kb   ⚡ Done in 10ms
 
-$ pnpm --filter @beechcms/api test
- Test Files  148 passed (148)   [unit]
-      Tests  1600 passed (1600)
- Test Files  2 passed (2)       [integration]
-      Tests  10 passed (10)
+$ pnpm --filter @beechcms/cli test
+ Test Files  16 passed (16)
+      Tests  78 passed (78)
+
+$ pnpm --filter @beechcms/api exec tsc --noEmit
+(exit 0, no output — API still compiles against the grown @beechcms/core export surface)
 
 $ pnpm beech test --diff
-[packages/core] unit — 4 source files, 23 tests, coverage PASS
-  canonical.ts 88.9%/83.3%/100%/100%, define.ts 92.8%/100%/87.5%/100%,
-  manifest-seeds.ts 100%/100%/100%/100%, manifest-validation.ts 87.5%/75.0%/100%/87.5%
-[apps/api] unit — 3 source files, 164 tests, coverage PASS
-  seeds.destructive.ts 96.2%/90.9%/100%/100%, seeds.handler.ts 96.3%/85.0%/100%/100%,
-  seeds.helpers.ts 98.9%/95.5%/100%/98.8%
-[apps/api] integration — 2 files, 10 tests passed
-PASS  All 7 changed file(s) meet coverage thresholds.
+[packages/core] 5 Test Files / 40 Tests passed
+  canonical-json.ts 88.9%/84.2%, introspection.ts 100%/100%, schema-fingerprint.ts 100%/76.9%,
+  canonical.ts 88.9%/75.0% — all PASS
+[packages/cli] 1 Test File / 1 Test passed — d1-executor.ts 100%/100% PASS
+PASS  All 5 changed file(s) meet coverage thresholds.
+(schema-diff.ts and index.ts are pre-existing coverage exclusions in each package's vitest.config.ts
+ — not something this sprint's execution introduced — so they legitimately fall outside this gate;
+ schema-diff.ts's new diffSeed logic is exercised by the 7 tests in diff-seed.test.ts, run and green
+ above under `pnpm --filter @beechcms/cli test`.)
 
 $ pnpm lint
  Tasks: 17 successful, 17 total
 
-$ pnpm lint:tests
- test placement — OK
+$ graphify update . --force
+Graph has 12889 nodes, 23306 edges, 992 communities. Updated.
 
-$ pnpm build
- Tasks: 10 successful, 10 total
+$ graphify path "createBeechApp" "queryD1"
+No directed path found between 'createBeechApp' and 'queryD1'.
+
+$ node --input-type=module -e "... instanceof checks on the built dist ..."
+same class: true
+e1 instanceof ManifestSerializationError: true
+e2 instanceof CanonicalSerializationError: true
 ```
 
-Numbers match `execution_log.md`'s claims exactly — independently reproduced, not assumed.
+**Code review** (`/code-review medium`, independent pass over the diff): one finding surfaced (the
+`listTables` LIKE-escaping nit above, folded into Findings §1); everything else checked and ruled
+out as non-issues — `diffSeed`'s new executor signature has no production caller yet (expected, it's
+sprint-3 plumbing); the `ManifestSerializationError`/`CanonicalSerializationError` rename is a true
+class-identity re-export; the MIT SPDX header on the new files matches `packages/core`'s/`packages/cli`'s
+pre-existing license convention (not a `testing_conventions.md` violation — that package is genuinely
+MIT); no export collisions from the two new root barrel exports; the new `introspectTable`'s FK/index
+null-handling is strictly more defensive than the PRAGMA-inlining code it replaced.
 
-**Invariant / scope audit (grep, not trusted from the plan's narrative):**
-- `grep -n "schema/" packages/core/src/index.ts` → empty. God node untouched.
-- `git diff devs -- packages/core/src/engine/define-seed.ts` → empty. Engine `defineSeed` untouched.
-- `grep -rn "from 'apps/\|node:\|cloudflare" packages/core/src/schema/*.ts` → empty. No forbidden imports.
-- `grep -n "zod" packages/core/src/schema/*.ts` → empty. No zod in the new module.
-- `git diff devs -- packages/core/package.json` → only the new `"./schema"` entry added; the two pre-existing subpath exports are byte-identical.
-- `grep -n ": any|as any" ` on every added/modified sprint file → zero hits in new code. The `any` occurrences that do exist in `seeds.helpers.ts` / `seeds.handler.ts` / `seeds.destructive.ts` are pre-existing (confirmed via `git diff ... | grep '^+'` — none of the `+` lines contain `any`), so the "no `any`" acceptance item is satisfied for the code this sprint actually added.
-- `grep -rn "rejectManifestOwned"` → exactly 7 call sites (`seeds.handler.ts` ×3, `seeds.destructive.ts` ×4), and confirmed absent from `POST /api/seeds`, `mcp-plan`, `mcp-apply`, `fts/rebuild`, and every `GET`.
-- `find . -iname "beech.schema.ts"` → no hits. No manifest artifact committed.
-- No diff against `apps/dashboard/`, `apps/api/migrations/`, `packages/cli/`, `seed-types-generator.ts`, or `seeds.mcp.ts`'s `source: 'runtime'` literal.
-- `ls packages/core/dist/schema/index.d.ts` → present after build.
+**Invariant audit** (`_config/ponytail_arch.md`): no D1 connection opened outside the injected
+`SchemaQueryExecutor`; only hardcoded literals are the pre-existing system columns/table-name patterns
+(`content_{slug}`, `SYSTEM_COLUMNS`) already owned by `ddl.ts`; zero cross-feature imports (nothing
+under `apps/api/src/features/**` or `apps/dashboard/src/features/**` touched); zero new dependency;
+`crypto.subtle.digest` is Web Crypto, already used elsewhere in the package (`webhook-crypto.ts`).
 
-**Test-tier audit (§8 checklist, `testing_conventions.md`):**
-- One tier per file, correct placement (`packages/core/src/schema/*.test.ts` next to source; `apps/api/.../test/integration/seed-ownership.integration.test.ts` under the slice's integration folder — the path `vitest.workers.config.ts` selects).
-- SPDX headers correct per package (MIT in `packages/core`, BUSL in `apps/api`).
-- `describe`/`it` naming follows Rule 1.4/1.5 (no "should", behaviour+outcome).
-- Integration test uses the real harness (`createTestHarness`, `harness.asUser('admin')`), real D1, no hand-rolled repository — Rule 0.1/3.4 satisfied.
-- The direct-SQL `source='code'` arrangement carries the required §6.2.1 coupling comment verbatim, naming the migration file.
-- Every write asserts persisted state (Rule 5.5); every 409 rejection reads the row back and asserts nothing changed (Rule 5.6).
-- The 4-case destructive-route assertion is a legitimate Rule 1.6 matrix (one cause — ownership guard, one arrangement — single seed), driven from an array.
-- No `any`, no sleep, no fake timers, no `it.only`/`it.skip`, no snapshot of an API response — confirmed by grep across all 5 new test files.
-- One judgment call, not a violation: the integration test arranges its "subject seed" via `POST /api/seeds` with an ad hoc definition rather than a canonical `@beechcms/testing` seed. Rule 3.5 restricts hand-rolled fixtures to "feeding deliberately malformed input" — but the seed here is not a fixture standing in for unrelated test data, it IS the entity under test (the seeds-slice CRUD surface itself). Canonical seeds exist to give *content* tests a trustworthy content-type; they don't apply when the content type's own lifecycle is the subject. Not a blocking finding.
+**Test audit** (`_config/testing_conventions.md` §8, all 4 new test files): single tier (unit) per
+file; SPDX header present (MIT, correct for `packages/core`/`packages/cli`); `describe` names the
+subject, `it` states outcome without "should"; four zones observed with act results named
+(`diff`, `fingerprint`, `contract`, `table`, `rows`, `json`); the fake `SchemaQueryExecutor` rejects on
+an unstubbed statement rather than returning `[]` (checked in `introspection.test.ts` and
+`diff-seed.test.ts`); error-path tests assert `.path`/`.found`/error-class identity, never message
+text; no `any`, no `.only`/`.skip`; matrix-style tests (Date/Map/RegExp, mutation list) share one cause
+per Rule 1.6.
 
-**Runtime verification:** Not applicable — this sprint changes no user-visible behavior beyond a new 409 on seed-mutation routes for a state (`source='code'`) nothing in production can currently produce (by design, confirmed by grep above). That behavior is fully exercised by the real-D1 integration tests already run above; there is no dashboard-visible path to manually verify today.
+**Acceptance criteria (SECTION 6)** — walked item by item against the evidence above: every checkbox
+under Architecture, Canonical serializer move, Fingerprint, Typing, CLI refactor, Tests and Build is
+independently confirmed. No item required a runtime/UI smoke check (no user-visible behavior changed
+this sprint — nothing under `apps/api` or `apps/dashboard`), so no `/verify` or `pnpm beech dev` run
+was needed per stage 3's Runtime Verification step.
+
+**Out-of-scope audit (SECTION 7)**: no `beech schema` subcommand added, `generate-types.ts` untouched,
+no file under `apps/api/src/`, no `packages/client/` change, no `seeds.source` write, no migration
+generation touched, no PRAGMA hashing / index_info expansion, no second canonicalizer, no
+caching/memoization in the executor or primitive, `ddl.ts`/`seed-ddl.ts`/`seed-registry.ts` untouched.
 
 # Sprint Documentation
 
-Sprint #381 (`SchemaManifestDsl`) ships two independent, minimally-coupled deliverables:
-
-1. A new pure, I/O-free `@beechcms/core/schema` subpath module (`defineSchema`/`defineSeed`/`defineField.*`/`defineGroup`, `toCanonicalJson`/`fromCanonicalJson`, `manifestToSeeds`/`seedsToManifest`, `validateManifest`) — the authoring DSL and canonical-serialization contract that sprint 2's schema fingerprint will hash. Deliberately kept out of `packages/core/src/index.ts` (the 81-degree god node) via a separate `"./schema"` package export, so it never reaches the Worker bundle.
-2. `rejectManifestOwned()` in the seeds slice's `seeds.helpers.ts`, wired into exactly the seven interactive mutation routes (not creation, not the MCP control plane, not FTS rebuild, not reads) — a 409 guard that makes a `source='code'` seed's row immutable outside `beech.schema.ts` re-apply. This closes the ownership surface *before* sprint 3 lands the first producer of `source='code'` rows.
-
-Key decisions: branch `id` is optional at authoring time and filled in non-authoritatively by `manifestToSeeds()`; the real id assignment still happens at plan/apply time. `defineGroup()` is an author-time-only macro with zero persisted trace. `ManifestSeed` excludes `layout` (server-populated, not a schema concern). 409 (not 403) chosen for the ownership conflict, consistent with the slice's existing `seed-referenced` semantics.
-
-Known deviation from the plan's literal text: `manifest-validation.test.ts`'s duplicate-alias case asserts a *non-fatal* issue, because `validateSeedDefinitions` treats a duplicate branch alias as a warning, not a fatal rejection — the plan's acceptance bullet paraphrased this loosely as "returns a fatal issue"; the test was correctly written against the engine's real, verified behavior instead.
-
-No migration, no CLI command, no dashboard change, no fingerprint — all correctly deferred per `SECTION 7 — OUT OF SCOPE`, confirmed absent by diff/grep in this review.
+`SchemaIntrospectionFingerprint` (sprint 2/6 of the Typed Fluent Query Builder chain, issue #382 part
+A) shipped the executor-agnostic D1 introspection primitive (`engine/introspection.ts`) and the schema
+contract fingerprint (`engine/schema-fingerprint.ts`, `v1:<32-hex>` = SHA-256 of a canonicalized
+contract projection), both exported from `@beechcms/core`'s root entry so the Worker can reach them
+without importing the authoring-only `schema/` subpath. The sprint-1 canonical JSON serializer moved
+verbatim to `common/canonical-json.ts` so both the manifest writer and the fingerprint share one frozen
+byte format; `schema/canonical.ts` keeps its exact public surface via a same-class re-export
+(`ManifestSerializationError` is `CanonicalSerializationError`, verified by `instanceof` both ways).
+`packages/cli/src/lib/schema-diff.ts` was refactored onto the new primitive, deleting its local
+`PragmaRow`/`FkRow`/`IndexRow` duplication; a new `d1-executor.ts` adapts the CLI's synchronous
+`queryD1` shell path to the primitive's `SchemaQueryExecutor` interface. No file under `apps/api` or
+`apps/dashboard` was touched, no migration was added, and `packages/core/package.json` gained no
+dependency. One non-blocking nit survived code review: `listTables`'s `LIKE` prefix isn't
+metacharacter-escaped (latent, currently harmless — see Findings). Known limitation, by design: the
+manual local-D1 smoke check in the plan's SECTION 5 was skipped in favor of the unit-test suites
+against a fake executor, which the plan itself designates as the binding gate.
 
 ## Handoff (Human Gate)
-PASS on sprint 1 of a multi-sprint feature (#381→#385). Next: human merges the branch, then runs `pnpm pipeline next`.
+This is an intermediate sprint (2 of 6) in the Typed Fluent Query Builder chain — human merges the
+branch, then runs `pnpm pipeline next`.

@@ -9,8 +9,8 @@ dependencies, never interfaces — the graph and the codebase will have moved by
 
 | # | Slug | Status |
 |---|------|--------|
-| 1 | `SchemaManifestDsl` | **PLANNED — detailed plan in `output/SchemaManifestDsl.md`** |
-| 2 | `SchemaIntrospectionFingerprint` | pending |
+| 1 | `SchemaManifestDsl` | **DONE — merged, archived to `docs/Sprints/SchemaManifestDsl/`** |
+| 2 | `SchemaIntrospectionFingerprint` | **PLANNED — detailed plan in `stages/01_sprint_planning/output/SchemaIntrospectionFingerprint.md`** |
 | 3 | `CliSchemaTooling` | pending |
 | 4 | `PublicApiRelationExpansion` | pending |
 | 5 | `FluentClientQueryBuilder` | pending |
@@ -43,6 +43,15 @@ The fingerprint's input is the canonical JSON shape frozen in sprint 1.
 
 **Depends on:** sprint 1 — the canonical serializer defines what is fingerprinted; without it the
 fingerprint would have to be re-specified later, invalidating every already-published client.
+
+**Resolved during sprint-2 planning:** the fingerprint hashes a *contract projection* of the live
+seed definitions (aliases, types, required flags, relation targets, resolved public policies),
+serialized with sprint 1's frozen canonical serializer — not the whole manifest. Hashing labels,
+hints or dashboard config would fire a hard "types are stale" error in external clients over edits
+that cannot change a response byte. The serializer itself moves to `core/src/common/canonical-json.ts`
+so the Worker can share it without importing the authoring-only `schema/` module; byte format
+unchanged. Physical PRAGMA state is introspected but NOT hashed — physical drift is a fault to
+report, not a contract to version.
 
 ---
 

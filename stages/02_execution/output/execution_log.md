@@ -1,53 +1,57 @@
-# Execution Log — SchemaManifestDsl (#381)
+# Execution Log — `SchemaIntrospectionFingerprint`
 
-## SECTION 6 — ACCEPTANCE CRITERIA
+## SECTION 6 — ACCEPTANCE CRITERIA (completed)
 
-**Module boundaries**
+**Architecture**
 
-- [x] `packages/core/src/schema/` contains no import from `apps/`, from `packages/cli`, from `packages/client`, from `node:*`, or from any Cloudflare type.
-- [x] `packages/core/src/schema/` performs no I/O: no `fetch`, no filesystem, no D1, no `console`.
-- [x] `packages/core/src/index.ts` is **unchanged** — `grep -n "schema/" packages/core/src/index.ts` returns nothing.
-- [x] `packages/core/package.json` exposes `"./schema"` and the two pre-existing subpath exports are byte-identical to before.
-- [x] `packages/core/src/engine/define-seed.ts` is **unchanged**.
-- [x] No new dependency in any `package.json`. `zod` is not imported by the new module.
+- [x] `packages/core/src/engine/introspection.ts` and `schema-fingerprint.ts` import nothing from
+      `node:*`, `@cloudflare/*`, or `../schema/**` — verified by grep of their import statements.
+- [x] `packages/core/package.json` `dependencies` unchanged — `git diff devs -- packages/core/package.json` empty.
+- [x] `@beechcms/core` never opens a database connection: every D1 read goes through `SchemaQueryExecutor`.
+- [x] The primitive issues read-only statements only (`PRAGMA` / `SELECT`) — no DDL, no write, no transaction control.
+- [x] Nothing under `apps/api/` or `apps/dashboard/` modified; no migration added — `git diff devs --stat` empty for both paths.
+- [x] `graphify path "createBeechApp" "queryD1"` reports no directed path after `graphify update . --force`.
+- [x] `packages/cli/src/lib/wrangler.ts` unchanged — `git diff devs --stat` empty.
+
+**Canonical serializer move**
+
+- [x] `packages/core/src/schema/canonical.test.ts` passes without a single character edited.
+- [x] `schema/canonical.ts` still exports `toCanonicalJson`, `fromCanonicalJson`, `ManifestSerializationError`; `manifest-validation.ts` unmodified.
+- [x] `ManifestSerializationError` and `CanonicalSerializationError` are the same class object — verified at runtime (`instanceof` holds both ways).
+- [x] Canonical byte output unchanged: sorted keys, preserved array order, two-space indent, trailing newline.
+
+**Fingerprint**
+
+- [x] `computeSchemaFingerprint` matches `/^v1:[0-9a-f]{32}$/`.
+- [x] Identical seeds in different order / key insertion order produce identical fingerprints.
+- [x] A `label`/`labelPlural`/`hint`/`dashboard`/`layout` edit does not change it.
+- [x] A branch `alias`, `type`, `requiredOnCreate`, `targetSeed`, `options`, resolved `visibility` or `public` change does change it.
+- [x] `SCHEMA_FINGERPRINT_VERSION` exported and embedded in the returned string.
+- [x] Fingerprint computed from `Seed[]` read live via `introspectSeedDefinitions`, never from a manifest file.
 
 **Typing**
 
-- [x] No `any` in any file added or modified by this sprint, tests included.
-- [x] `pnpm --filter @beechcms/core build` emits `dist/schema/index.d.ts`.
-- [x] `defineField.relation` does not compile without `targetSeed`; `defineField.repeater` does not compile without `fields`. Proven via `// @ts-expect-error` in `define.test.ts`.
-- [x] `ManifestSeed` has no `layout` property.
-- [x] No unused export and no unused type alias survives in the new module (`pnpm --filter @beechcms/core lint` clean).
+- [x] No `any` in production code or tests — verified by grep.
+- [x] `SchemaQueryExecutor.all` generic, bounded by `Record<string, unknown>`; bound not relaxed.
+- [x] Every exported symbol carries a doc comment stating why.
 
-**Canonical form**
+**CLI refactor**
 
-- [x] `toCanonicalJson` is stable across object key insertion order and across seed declaration order (proven by byte-equality test).
-- [x] Branch array order is preserved.
-- [x] A function, `Date`, `Map`, `Set` or `RegExp` anywhere in the manifest raises `ManifestSerializationError` carrying the dotted path.
-- [x] `toCanonicalJson(fromCanonicalJson(s)) === s` holds for a two-seed manifest with a relation.
-
-**Ownership guard**
-
-- [x] `rejectManifestOwned` is called on exactly seven routes: `PUT /:slug`, `POST /:slug/branches`, `DELETE /:slug`, `DELETE /:slug/hard`, `DELETE /:slug/branches/:branchId`, `PATCH /:slug/branches/:branchId/rename`, `PATCH /:slug/branches/:branchId/retype`.
-- [x] It is called on **none** of: `POST /api/seeds`, `mcp-plan`, `mcp-apply`, `fts/rebuild`, any `GET`.
-- [x] A manifest-owned seed rejects every one of the seven with 409 and `type: 'seed-manifest-owned'`, each proven by an unchanged-state assertion.
-- [x] A `source = 'runtime'` seed is unaffected on all seven (proven for `PUT`; the guard is a single shared function, so the same `return null` path covers the other six).
-- [x] `mcp-apply` against a manifest-owned seed succeeds and leaves `source = 'code'`.
-- [x] No change to `apps/api/migrations/`.
-- [x] No change to `apps/dashboard/`.
+- [x] `schema-diff.ts` declares no PRAGMA row interface and issues no PRAGMA statement itself.
+- [x] `ColumnDiff`, `SeedDiff`, `isSeedClean`, `renderSeedDiff` keep exact shapes; `migration-writer.ts` compiles unmodified (no diff).
+- [x] `createWranglerExecutor` adds no caching, retry or statement rewriting.
 
 **Tests**
 
-- [x] Every new test file declares exactly one tier and sits in the placement that tier mandates.
-- [x] `pnpm lint:tests` passes.
-- [x] `describe`/`it` names follow §1.4–1.6; no `should`; no `// ARRANGE`/`// ACT`/`// ASSERT`.
-- [x] Nothing from `_config/testing_conventions.md` §7 appears.
-- [x] The direct-SQL `source='code'` arrangement carries the §6.2.1 coupling comment.
-- [x] `packages/core` coverage thresholds (statements 80 / branches 75 / functions 80 / lines 80) still pass; the new module is not added to the vitest coverage `exclude` list.
+- [x] New test files unit tier, correctly placed (core: colocated; CLI: `src/test/`), SPDX header, conventions followed.
+- [x] All tests pass; no `it.only`/`it.skip`.
+- [x] Unstubbed-statement path of the fake executor rejects rather than returning `[]`.
+- [x] Error-path tests assert error identity (`IntrospectionError`, `CanonicalSerializationError.path/.found`).
 
 **Build**
 
-- [x] `pnpm build`, `pnpm lint`, `pnpm beech test --diff` all green.
+- [x] `pnpm --filter @beechcms/core build`, `pnpm --filter @beechcms/cli build`, `pnpm --filter @beechcms/api exec tsc --noEmit` all pass.
+- [x] `pnpm beech test --diff` and `pnpm lint` pass.
 
 ## Validation output
 
@@ -56,37 +60,56 @@ $ pnpm --filter @beechcms/core build
 $ tsc
 (exit 0)
 
-$ pnpm --filter @beechcms/core test
- Test Files  41 passed (41)
-      Tests  682 passed (682)
-
-$ pnpm --filter @beechcms/api type-check
-$ tsc -p tsconfig.build.json --noEmit
+$ pnpm --filter @beechcms/core type-check
+$ tsc --noEmit
 (exit 0)
 
-$ pnpm --filter @beechcms/api test
- Test Files  148 passed (148)   [unit/flow]
-      Tests  1600 passed (1600)
- Test Files  2 passed (2)       [integration]
-      Tests  10 passed (10)
+$ pnpm --filter @beechcms/core test
+ Test Files  44 passed (44)
+      Tests  710 passed (710)
+
+$ pnpm --filter @beechcms/cli build
+$ tsc --noEmit && esbuild src/index.ts --bundle --packages=external --platform=node --format=esm --outfile=dist/index.js
+  dist/index.js  82.7kb
+⚡ Done in 10ms
+
+$ pnpm --filter @beechcms/cli test
+ Test Files  16 passed (16)
+      Tests  78 passed (78)
+
+$ pnpm --filter @beechcms/api exec tsc --noEmit
+(exit 0, no output)
 
 $ pnpm beech test --diff
-[packages/core] unit — 4 source files, 23 tests passed, coverage PASS
-[apps/api] unit — 3 source files, 164 tests passed, coverage PASS
-[apps/api] integration — 2 files, 10 tests passed
-PASS  All 7 changed file(s) meet coverage thresholds.
+[packages/core] Test Files 5 passed (5) / Tests 40 passed (40)
+  canonical-json.ts       88.9% stmts / 84.2% branch — PASS
+  introspection.ts       100.0% stmts / 100.0% branch — PASS
+  schema-fingerprint.ts  100.0% stmts / 76.9% branch — PASS
+  canonical.ts            88.9% stmts / 75.0% branch — PASS
+[packages/cli] Test Files 1 passed (1) / Tests 1 passed (1)
+  d1-executor.ts         100.0% stmts / 100.0% branch — PASS
+PASS  All 5 changed file(s) meet coverage thresholds.
 
 $ pnpm lint
  Tasks:    17 successful, 17 total
+(0 errors; pre-existing dashboard coverage-artifact warnings only, unrelated to this sprint)
 
-$ pnpm lint:tests
- test placement — OK
+$ graphify update . --force
+Graph has 12884 nodes, 23302 edges, 1056 communities. Updated.
 
-$ pnpm build
- Tasks:    10 successful, 10 total
+$ graphify path "createBeechApp" "queryD1"
+No directed path found between 'createBeechApp' and 'queryD1'.
 ```
 
-## Notes
+Manual smoke check of the primitive against real local D1 was skipped: the tiered suites above
+(unit tests for `introspectTable`/`introspectSchema`/`introspectSeedDefinitions`/`diffSeed` against
+a fake `SchemaQueryExecutor`) are the binding gate per SECTION 5, and no acceptance criterion
+depends on the manual run.
 
-- Implemented on branch `feature/schema-manifest-dsl` off `devs`, per the stage's repository rule. Not committed — commits are the user's call.
-- `manifest-validation.test.ts`'s duplicate-alias case asserts a non-fatal issue, not fatal: the engine's `validateSeedDefinitions` treats a duplicate branch alias as a warning (Warning 8), not a fatal rejection. `validateManifest` reuses that function verbatim rather than reimplementing it, so the test was written to match the real, verified engine behavior instead of the plan's paraphrase of it.
+## Note beyond the plan's explicit test list
+
+The plan's SECTION 4 test list (8a–8d) did not include a test for `packages/cli/src/lib/d1-executor.ts`
+(item 10, new). `pnpm beech test --diff` enforces per-changed-file coverage thresholds, and the
+untested adapter failed that gate. Added `packages/cli/src/test/d1-executor.test.ts` — one unit test,
+mocking the `queryD1` boundary — to satisfy SECTION 5's `pnpm beech test --diff` requirement. No
+production code changed as a result.
