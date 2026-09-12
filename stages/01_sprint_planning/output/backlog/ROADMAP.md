@@ -14,7 +14,7 @@ dependencies, never interfaces — the graph and the codebase will have moved by
 | 3a | `CliSchemaExportTypes` | **DONE — merged, archived to `docs/Sprints/CliSchemaExportTypes/`** |
 | 3b | `CliSchemaPlanApply` | **DONE — merged, archived to `docs/Sprints/CliSchemaPlanApply/`** |
 | 4 | `PublicApiRelationExpansion` | **DONE — merged, archived to `docs/Sprints/PublicApiRelationExpansion/`** |
-| 5 | `FluentClientQueryBuilder` | pending |
+| 5 | `FluentClientQueryBuilder` | **DONE — merged, archived to `docs/Sprints/FluentClientQueryBuilder/`** |
 | 6 | `ClientRelationSubqueries` | pending |
 
 ---
