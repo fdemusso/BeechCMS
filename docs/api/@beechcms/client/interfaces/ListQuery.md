@@ -26,6 +26,12 @@
 
 ***
 
+### include?
+
+> `optional` **include?**: `string`[]
+
+***
+
 ### latest?
 
 > `optional` **latest?**: `number`

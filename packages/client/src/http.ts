@@ -56,10 +56,10 @@ export async function request<T>(
   const payload = ct.includes('json') ? await res.json().catch(() => null) : null
 
   if (!res.ok) {
-    return { data: null, error: normalizeProblem(res.status, payload, res.statusText) }
+    return { data: null, error: normalizeProblem(res.status, payload, res.statusText), headers: res.headers }
   }
 
-  return { data: payload as T, error: null }
+  return { data: payload as T, error: null, headers: res.headers }
 }
 
 function networkProblem(e: unknown): BeechProblem {

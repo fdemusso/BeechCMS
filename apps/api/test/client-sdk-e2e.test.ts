@@ -84,11 +84,9 @@ describe('End-to-End: @beechcms/client SDK with Real BeechCMS API Engine', () =>
     })
 
     it('lists published articles with filters and sort', async () => {
-      const result = await browserClient.content('articles').list({
-        filter: {
-          category: { eq: 'technology' },
-        },
-      })
+      const result = await browserClient.collection('articles')
+        .where({ category: { eq: 'technology' } })
+        .list()
 
       expect(result.error).toBeNull()
       expect(result.data).toBeDefined()
@@ -98,7 +96,7 @@ describe('End-to-End: @beechcms/client SDK with Real BeechCMS API Engine', () =>
     })
 
     it('fetches a single article by slug', async () => {
-      const result = await browserClient.content('articles').get({ slug: 'advanced-patterns' })
+      const result = await browserClient.collection('articles').where({ slug: 'advanced-patterns' }).first()
       expect(result.error).toBeNull()
       expect(result.data).toBeDefined()
       expect(result.data!.data.title).toBe('Advanced Edge Patterns')
@@ -106,14 +104,14 @@ describe('End-to-End: @beechcms/client SDK with Real BeechCMS API Engine', () =>
     })
 
     it('fetches a single article by UUID', async () => {
-      const result = await browserClient.content('articles').get({ id: 'a0000000-0000-4000-8000-000000000001' })
+      const result = await browserClient.collection('articles').where({ id: 'a0000000-0000-4000-8000-000000000001' }).first()
       expect(result.error).toBeNull()
       expect(result.data).toBeDefined()
       expect(result.data!.data.slug).toBe('intro-to-beech')
     })
 
     it('returns RFC 9457 problem on missing article without throwing', async () => {
-      const result = await browserClient.content('articles').get({ slug: 'non-existent' })
+      const result = await browserClient.collection('articles').where({ slug: 'non-existent' }).first()
       expect(result.data).toBeNull()
       expect(result.error).toBeDefined()
       expect(result.error!.status).toBe(404)
@@ -128,7 +126,7 @@ describe('End-to-End: @beechcms/client SDK with Real BeechCMS API Engine', () =>
     })
 
     it('creates content using flat payload and bypasses Time-Trap anti-bot via PUBLIC_WRITE_API_KEY', async () => {
-      const result = await serverClient.content('articles').create({
+      const result = await serverClient.collection('articles').create({
         title: 'Brand New Post',
         slug: 'brand-new-post',
         category: 'news',
@@ -145,7 +143,7 @@ describe('End-to-End: @beechcms/client SDK with Real BeechCMS API Engine', () =>
     })
 
     it('updates content using flat payload and receives updated entity in result.data.data', async () => {
-      const result = await serverClient.content('articles').update(
+      const result = await serverClient.collection('articles').update(
         'a0000000-0000-4000-8000-000000000002',
         {
           title: 'Advanced Edge Patterns (Updated Edition)',
@@ -167,7 +165,7 @@ describe('End-to-End: @beechcms/client SDK with Real BeechCMS API Engine', () =>
         fetch: appFetch,
       })
 
-      const result = await unauthorizedClient.content('articles').create({
+      const result = await unauthorizedClient.collection('articles').create({
         title: 'Malicious Post',
       })
 

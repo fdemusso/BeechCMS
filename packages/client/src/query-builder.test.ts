@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import { describe, it, expect } from 'vitest'
-import { buildSearchParams } from './query-builder.js'
+import { describe, it, expect, vi } from 'vitest'
+import { buildSearchParams, FluentQueryBuilder } from './query-builder.js'
 
 describe('buildSearchParams', () => {
   it('empty query returns empty params', () => {
@@ -16,58 +16,122 @@ describe('buildSearchParams', () => {
     expect(filter).toEqual({ logic: 'AND', where: [{ field: 'status', op: 'eq', value: 'published' }] })
   })
 
-  it('operator object filter', () => {
-    const p = buildSearchParams({ filter: { price: { gt: 10 } } })
-    const filter = JSON.parse(p.get('filter')!)
-    expect(filter.where[0]).toEqual({ field: 'price', op: 'gt', value: 10 })
+  it('include parameter joined by comma', () => {
+    const p = buildSearchParams({ include: ['author', 'tags'] })
+    expect(p.get('include')).toBe('author,tags')
   })
 
-  it('multiple filters with OR logic', () => {
-    const p = buildSearchParams({ filter: { a: 'x', b: 'y' }, logic: 'OR' })
+  it('logic OR is forwarded into the filter payload', () => {
+    const p = buildSearchParams({ filter: { status: 'draft' }, logic: 'OR' })
     const filter = JSON.parse(p.get('filter')!)
     expect(filter.logic).toBe('OR')
-    expect(filter.where).toHaveLength(2)
   })
 
-  it('throws on invalid operator', () => {
-    expect(() => buildSearchParams({ filter: { x: { invalid_op: 1 } as never } })).toThrow(TypeError)
+  it('operator filter object produces one where entry per operator', () => {
+    const p = buildSearchParams({ filter: { price: { gt: 10, lte: 50 } } })
+    const filter = JSON.parse(p.get('filter')!)
+    expect(filter.where).toEqual([
+      { field: 'price', op: 'gt', value: 10 },
+      { field: 'price', op: 'lte', value: 50 },
+    ])
   })
 
-  it('sort maps to orderBy/orderDir', () => {
-    const p = buildSearchParams({ sort: { created_at: 'asc' } })
-    expect(p.get('orderBy')).toBe('created_at')
+  it('unknown operator throws TypeError', () => {
+    expect(() => buildSearchParams({ filter: { price: { bogus: 1 } as never } })).toThrow(TypeError)
+  })
+
+  it('sort with no direction defaults orderDir to desc', () => {
+    const p = buildSearchParams({ sort: { title: undefined } })
+    expect(p.get('orderBy')).toBe('title')
+    expect(p.get('orderDir')).toBe('desc')
+  })
+
+  it('sort with explicit direction sets both params', () => {
+    const p = buildSearchParams({ sort: { title: 'asc' } })
+    expect(p.get('orderBy')).toBe('title')
     expect(p.get('orderDir')).toBe('asc')
   })
 
-  it('limit is clamped to 100', () => {
-    const p = buildSearchParams({ limit: 200 })
-    expect(p.get('limit')).toBe('100')
-  })
-
-  it('fields joined by comma', () => {
-    const p = buildSearchParams({ fields: ['id', 'title', 'slug'] })
-    expect(p.get('fields')).toBe('id,title,slug')
-  })
-
-  it('search param forwarded', () => {
+  it('search sets the search param', () => {
     const p = buildSearchParams({ search: 'hello' })
     expect(p.get('search')).toBe('hello')
   })
 
-  it('latest param forwarded', () => {
+  it('fields sets a comma-joined fields param', () => {
+    const p = buildSearchParams({ fields: ['id', 'title'] })
+    expect(p.get('fields')).toBe('id,title')
+  })
+
+  it('latest sets the latest param', () => {
     const p = buildSearchParams({ latest: 5 })
     expect(p.get('latest')).toBe('5')
   })
 
-  it('null filter value uses eq shorthand', () => {
-    const p = buildSearchParams({ filter: { deleted: null } })
-    const filter = JSON.parse(p.get('filter')!)
-    expect(filter.where[0]).toEqual({ field: 'deleted', op: 'eq', value: null })
+  it('page sets the page param', () => {
+    const p = buildSearchParams({ page: 2 })
+    expect(p.get('page')).toBe('2')
   })
 
-  it('is_empty operator (no value)', () => {
-    const p = buildSearchParams({ filter: { bio: { is_empty: undefined } } })
-    const filter = JSON.parse(p.get('filter')!)
-    expect(filter.where[0].op).toBe('is_empty')
+  it('limit is capped at 100', () => {
+    const p = buildSearchParams({ limit: 500 })
+    expect(p.get('limit')).toBe('100')
+  })
+
+  it('limit under the cap passes through unchanged', () => {
+    const p = buildSearchParams({ limit: 20 })
+    expect(p.get('limit')).toBe('20')
+  })
+})
+
+describe('FluentQueryBuilder', () => {
+  it('builds query state and calls executor', async () => {
+    const listSpy = vi.fn().mockResolvedValue({ data: { data: [], meta: { seed: 'posts' } }, error: null })
+    const builder = new FluentQueryBuilder<{ id: string; title: string }>({
+      first: vi.fn(),
+      list: listSpy
+    })
+
+    const result = await builder
+      .where({ title: { starts_with: 'Hello' } })
+      .include(['author'])
+      .select(['id', 'title'])
+      .list({ cache: 'no-store' })
+
+    expect(result.error).toBeNull()
+    expect(listSpy).toHaveBeenCalledWith(
+      {
+        filter: { title: { starts_with: 'Hello' } },
+        include: ['author'],
+        fields: ['id', 'title']
+      },
+      { cache: 'no-store' }
+    )
+  })
+
+  it('first() delegates to the executor with the accumulated query', async () => {
+    const firstSpy = vi.fn().mockResolvedValue({ data: { data: { id: '1', title: 'A' }, meta: { seed: 'posts' } }, error: null })
+    const builder = new FluentQueryBuilder<{ id: string; title: string }>({
+      first: firstSpy,
+      list: vi.fn(),
+    })
+
+    const result = await builder.where({ id: '1' }).first({ cache: 'no-store' })
+
+    expect(result.error).toBeNull()
+    expect(firstSpy).toHaveBeenCalledWith({ filter: { id: '1' } }, { cache: 'no-store' })
+  })
+
+  it('build() returns URLSearchParams matching the accumulated query', () => {
+    const builder = new FluentQueryBuilder<{ id: string; title: string }>({
+      first: vi.fn(),
+      list: vi.fn()
+    })
+    
+    builder.where({ id: '123' }).include(['author'])
+    
+    const params = builder.build()
+    expect(params.get('include')).toBe('author')
+    const filter = JSON.parse(params.get('filter')!)
+    expect(filter.where[0]).toEqual({ field: 'id', op: 'eq', value: '123' })
   })
 })

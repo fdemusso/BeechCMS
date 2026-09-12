@@ -41,8 +41,8 @@ export interface BeechProblem {
 
 /** Discriminated result — the client NEVER throws on HTTP/validation errors. */
 export type BeechResult<T> =
-  | { data: T; error: null }
-  | { data: null; error: BeechProblem }
+  | { data: T; error: null; headers?: Headers }
+  | { data: null; error: BeechProblem; headers?: Headers }
 
 export type Listable<TRow> = { data: TRow[]; meta: ListMeta }
 export type Single<TRow>   = { data: TRow;   meta: { seed: string } }
@@ -58,6 +58,7 @@ export interface ListQuery<TRow> {
   sort?: Partial<Record<keyof TRow & string, 'asc' | 'desc'>>
   search?: string
   fields?: (keyof TRow & string)[]
+  include?: string[]
   page?: number
   limit?: number
   latest?: number
@@ -71,15 +72,31 @@ export interface ListMeta {
   seed: string
 }
 
+/** Stub for the auto-generated registry types */
+export interface SeedRegistryTypes {
+  [key: string]: Record<string, unknown>
+}
+
+/** Stub for the auto-generated schema fingerprint */
+export const SCHEMA_FINGERPRINT = ''
+
 /** Browser Client Content Resource: Strictly Read-Only (no create/update). */
 export interface BrowserContentResource<TRow> {
   list(query?: ListQuery<TRow>, options?: RequestOptions): Promise<BeechResult<Listable<TRow>>>
   get(selector: { id: string } | { slug: string }, options?: RequestOptions): Promise<BeechResult<Single<TRow>>>
 }
 
+export interface FluentQuery<TRow> {
+  where(filter: Record<string, FieldFilter>): this
+  include(relations: string[]): this
+  select(fields: Extract<keyof TRow, string>[]): this
+  first(options?: RequestOptions): Promise<BeechResult<Single<TRow>>>
+  list(options?: RequestOptions & { validate?: boolean }): Promise<BeechResult<Listable<TRow>>>
+}
+
 /** Browser Client Interface. */
-export interface BeechBrowserClient<TRegistry = Record<string, unknown>> {
-  content<K extends keyof TRegistry & string>(seed: K): BrowserContentResource<TRegistry[K]>
+export interface BeechBrowserClient<TRegistry = SeedRegistryTypes> {
+  collection<K extends keyof TRegistry & string>(seed: K): FluentQuery<TRegistry[K]>
 }
 
 /** Server Client Content Resource: Content mutation and query operations (create, update, list, get). */
@@ -91,6 +108,9 @@ export interface ServerContentResource<TRow> {
 }
 
 /** Server Client Interface. */
-export interface BeechServerClient<TRegistry = Record<string, unknown>> {
-  content<K extends keyof TRegistry & string>(seed: K): ServerContentResource<TRegistry[K]>
+export interface BeechServerClient<TRegistry = SeedRegistryTypes> {
+  collection<K extends keyof TRegistry & string>(seed: K): FluentQuery<TRegistry[K]> & {
+    create(input: Partial<TRegistry[K]>, options?: RequestOptions): Promise<BeechResult<Single<TRegistry[K]>>>
+    update(id: string, input: Partial<TRegistry[K]>, options?: RequestOptions): Promise<BeechResult<Single<TRegistry[K]>>>
+  }
 }
