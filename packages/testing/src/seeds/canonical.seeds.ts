@@ -6,6 +6,16 @@ import { defineSeed, type Seed } from '@beechcms/core'
 
 export const CANONICAL_SEEDS: readonly Seed[] = [
   defineSeed({
+    slug: 'categories',
+    label: 'Category',
+    labelPlural: 'Categories',
+    displayNameAlias: 'name',
+    allowPublicRead: true,
+    branches: [
+      { id: 'br_01', alias: 'name', label: 'Name', type: 'text', requiredOnCreate: true, policies: { public: true } },
+    ],
+  }),
+  defineSeed({
     slug: 'authors',
     label: 'Author',
     labelPlural: 'Authors',
@@ -32,6 +42,8 @@ export const CANONICAL_SEEDS: readonly Seed[] = [
       { id: 'br_06', alias: 'image', label: 'Featured Image', type: 'file', fileOptions: { accept: 'image' } },
       { id: 'br_07', alias: 'tags', label: 'Tags', type: 'tags' },
       { id: 'br_08', alias: 'author_id', label: 'Author', type: 'relation', targetSeed: 'authors' },
+      { id: 'br_09', alias: 'category_id', label: 'Category', type: 'relation', targetSeed: 'categories', multiple: false, policies: { public: true } },
+      { id: 'br_10', alias: 'related_posts', label: 'Related Posts', type: 'relation', targetSeed: 'posts', multiple: true, policies: { public: true } },
     ],
   }),
 ] as const

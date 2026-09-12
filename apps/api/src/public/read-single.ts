@@ -5,6 +5,7 @@
 import { EntryNotFoundError } from '@beechcms/core'
 import type { Seed, ContentRepository } from '@beechcms/core'
 import { toFlatPublicEntry } from './entry-projection'
+import { expandRelations } from './relation-include'
 import { buildPublicSingleMeta } from './response-builder'
 
 type ReadSingleInput = {
@@ -15,6 +16,8 @@ type ReadSingleInput = {
   slug: string | null
   publishedOnly: boolean
   fieldsParam?: string
+  query: Record<string, string | undefined>
+  getSeed: (slug: string) => Seed | null
 }
 
 export type ReadSingleResult =
@@ -22,7 +25,7 @@ export type ReadSingleResult =
   | { ok: false; detail: string }
 
 export async function readSingleEntry(input: ReadSingleInput): Promise<ReadSingleResult> {
-  const { seed, seedSlug, repository, id, slug, publishedOnly, fieldsParam } = input
+  const { seed, seedSlug, repository, id, slug, publishedOnly, fieldsParam, query, getSeed } = input
   const label = id ?? slug!
 
   try {
@@ -34,9 +37,12 @@ export async function readSingleEntry(input: ReadSingleInput): Promise<ReadSingl
       return { ok: false, detail: `Entry '${label}' not found or not published.` }
     }
 
+    const data = toFlatPublicEntry(entry, seed, fieldsParam)
+    await expandRelations([data], query.include, seed, repository, getSeed, [entry])
+
     return {
       ok: true,
-      data: toFlatPublicEntry(entry, seed, fieldsParam),
+      data,
       meta: buildPublicSingleMeta(seedSlug),
     }
   } catch (error) {

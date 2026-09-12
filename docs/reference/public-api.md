@@ -123,6 +123,7 @@ Reads entries for a seed. Requires `allowPublicRead: true` and `PUBLIC_READ_API_
 | `orderBy` / `orderDir` | Sorting by field alias or system timestamp (`asc` \| `desc`) |
 | `filter` | JSON-encoded filter object (see below) |
 | `fields` | Comma-separated list of aliases to project |
+| `include` | Comma-separated relation aliases to expand at depth 1 (max 3 includes) |
 
 **Filter syntax:**
 
@@ -192,6 +193,71 @@ X-API-Key: dev-public-read-key-changeme
 ```
 
 ---
+
+## Relation Expansion — `?include=`
+
+The `include` query parameter enables server-side resolution and expansion of related entries in a single request. Expanded targets are returned under the `_includes` object on each entry.
+
+**Request with relation expansion:**
+
+```http
+GET /api/v1/public/posts?slug=my-first-post&include=category_id,related_posts
+X-API-Key: dev-public-read-key-changeme
+```
+
+**Response `200 OK` with `_includes`:**
+
+```json
+{
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "my-first-post",
+    "status": "published",
+    "title": "My First Post",
+    "category_id": "8a01f92e-3367-42f2-8ce1-b9242a7fa5bc",
+    "related_posts": ["661e8400-e29b-41d4-a716-446655440111"],
+    "_includes": {
+      "category_id": {
+        "id": "8a01f92e-3367-42f2-8ce1-b9242a7fa5bc",
+        "slug": "technology",
+        "name": "Technology",
+        "status": "published"
+      },
+      "related_posts": [
+        {
+          "id": "661e8400-e29b-41d4-a716-446655440111",
+          "slug": "second-post",
+          "title": "Second Post",
+          "status": "published"
+        }
+      ]
+    }
+  },
+  "meta": { "seed": "posts" }
+}
+```
+
+### Operational Limits & Invariants
+- **Depth 1 Only**: Nested dot paths (e.g., `include=category_id.author`) are rejected with `400 Bad Request` (`invalid-include`).
+- **Maximum 3 Includes**: A single request may request at most 3 distinct include branches. Requests with >3 branches return `400 Bad Request`.
+- **Target ID Clamping**: Sub-queries for included entries are bounded at a maximum of 200 target IDs per branch.
+- **Access Policies**: A relation branch is expandable only if its resolved policy allows public read (`resolvePolicies(branch).public`) and the target seed specifies `allowPublicRead: true`.
+- **Projection Independence**: Relation expansion works seamlessly with `?fields=`. Even if the foreign key alias is omitted from `?fields=`, `_includes` is still populated.
+
+---
+
+## Schema Revision Header — `X-Schema-Revision`
+
+All responses emitted across the Public API surface (`/api/v1/public/*`) carry the `X-Schema-Revision` response header:
+
+```http
+X-Schema-Revision: v1:a1b2c3d4e5f60718293a4b5c6d7e8f90
+```
+
+- **Format**: `v<version>:<32_hex_sha256>`.
+- **Ubiquity**: Injected early by `schemaRevisionMiddleware` on all status codes (`200`, `201`, `400`, `401`, `404`, `429`).
+- **Cache Memoization**: Computed once from `computeSchemaFingerprint` and cached per isolate via a `WeakMap` on the `SeedRegistry` instance.
+- **Drift Detection**: Used by the Fluent Client Query Builder to verify contract alignment and detect schema updates without out-of-band polling.
 
 ## Anti-Bot Helper — `GET /api/v1/public/timetrap/token`
 

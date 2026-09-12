@@ -37,6 +37,7 @@ import { uploadRoutes, serveMediaHandler } from './features/upload'
 import { publicRoutes } from './public/public-routes'
 import { apiKeyMiddleware } from './public/api-key-middleware'
 import { publicRateLimitMiddleware } from './public/rate-limit-middleware'
+import { schemaRevisionMiddleware } from './public/schema-revision'
 import { searchRouter } from './features/search'
 import { oauthApp } from './features/oauth'
 import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository, IRoleGuard } from '@beechcms/core'
@@ -262,6 +263,7 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
   
   // 5. Public API (must be registered before apiProtected to avoid auth middleware interception)
   const apiPublic = new Hono<{ Bindings: Env; Variables: Variables }>()
+  apiPublic.use('*', schemaRevisionMiddleware())
   apiPublic.use('*', publicRateLimitMiddleware())
   apiPublic.use('*', apiKeyMiddleware())
   apiPublic.route('/', publicRoutes)

@@ -12,8 +12,8 @@ dependencies, never interfaces — the graph and the codebase will have moved by
 | 1 | `SchemaManifestDsl` | **DONE — merged, archived to `docs/Sprints/SchemaManifestDsl/`** |
 | 2 | `SchemaIntrospectionFingerprint` | **DONE — merged, archived to `docs/Sprints/SchemaIntrospectionFingerprint/`** |
 | 3a | `CliSchemaExportTypes` | **DONE — merged, archived to `docs/Sprints/CliSchemaExportTypes/`** |
-| 3b | `CliSchemaPlanApply` | **IN PLANNING — detailed plan in `stages/01_sprint_planning/output/CliSchemaPlanApply.md`** |
-| 4 | `PublicApiRelationExpansion` | pending |
+| 3b | `CliSchemaPlanApply` | **DONE — merged, archived to `docs/Sprints/CliSchemaPlanApply/`** |
+| 4 | `PublicApiRelationExpansion` | **DONE — merged, archived to `docs/Sprints/PublicApiRelationExpansion/`** |
 | 5 | `FluentClientQueryBuilder` | pending |
 | 6 | `ClientRelationSubqueries` | pending |
 

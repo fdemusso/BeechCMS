@@ -1,106 +1,94 @@
-# Execution Log: CliSchemaPlanApply
+# Execution Log: PublicApiRelationExpansion (Rework)
 
-## Section 6 — Acceptance Criteria
+## Acceptance Criteria Checklist
 
-**Boundaries**
-- [x] No file under `packages/cli/src/**` imports any symbol from `apps/api/**`; `graphify path
-      "schemaApply" "mcpApp"` reports no directed path.
-- [x] `graphify path "createBeechApp" "createControlPlane"` and `graphify path "createBeechApp"
-      "readGrant"` both report no directed path — the Worker never reaches Node-only code.
-- [x] Exactly one file under `apps/api/src/` is modified: `features/seeds/seeds.mcp.ts`.
-- [x] Zero files under `apps/dashboard/` and zero files under `packages/core/src/` are modified.
-- [x] Zero migration files are added or edited.
-
-**Botanical invariant**
-- [x] `packages/cli/src/commands/schema-plan.ts` and `schema-apply.ts` contain no SQL string, no
-      `CREATE`/`ALTER`/`INSERT`/`UPDATE` literal, and no call to `createD1Context`, `loadLiveSeeds`,
-      `queryD1` or any `node:sqlite`/wrangler API.
-- [x] Every DDL statement executed originates from `planCreateSeed`/`planExtendSeed` inside
-      `@beechcms/core`, invoked server-side; the CLI only displays `plan.statements`.
-- [x] No physical column name and no branch alias is hardcoded in any new file.
-
-**Shared client extraction**
-- [x] `packages/mcp/src/oauth.ts` and `packages/mcp/src/token-store.ts` no longer exist; their content
-      lives in `packages/api-client/src/` with unchanged behaviour.
-- [x] `packages/mcp/src/client.ts` still exports `request` and `BeechClientError` with unchanged
-      signatures, and `packages/mcp/src/index.ts` is **not modified**.
-- [x] The token cache path (`~/.beechcms/mcp-tokens.json`), its `BEECH_TOKEN_CACHE` override, its
-      `apiUrl|clientId` key and its 0600 permissions are unchanged.
-- [x] `@beechcms/api-client` has zero third-party dependencies (`@beechcms/core` only) and is consumed
-      by both `@beechcms/mcp` and `@beechcms/cli`; neither of those two imports the other.
-- [x] `packages/api-client/tsconfig.json` declares `references: [{ "path": "../core" }]` and
-      `packages/mcp/tsconfig.json` adds `{ "path": "../api-client" }`.
-
-**Auth**
-- [x] The CLI authorizes as client id `beech-mcp-cli` with callback path `/callback` — the exact values
-      seeded in `apps/api/migrations/0000_v040_base.sql:443` — and requests scope
-      `schema:read schema:write`.
-- [x] No password, no client secret and no long-lived admin JWT is read, prompted for, or written by
-      any new file.
-- [x] A 403 `insufficient_scope` and a 401 both surface as a `CliError` naming the remedy, not as a
-      stack trace.
-
-**Command behaviour**
-- [x] `beech schema plan` performs **zero** writes: it issues only `POST …/mcp-plan` requests.
-- [x] `beech schema plan` exits 1 when any seed reports `blockedReasons` or a fatal issue, and 0 when
-      every seed is applicable.
-- [x] `beech schema apply` writes nothing at all when any seed in the run is unappliable.
-- [x] `beech schema apply` prompts once and refuses to proceed in a non-interactive shell without
-      `--yes`.
-- [x] `beech schema apply` re-plans each seed immediately before writing it and aborts that seed when
-      the statements differ from the reviewed plan or the server answers 409.
-- [x] `beech schema apply` sends `source: 'code'` and one shared `planId` for every seed in the run.
-- [x] `beech schema apply` never issues a `DELETE`, a rename or a retype request, and never touches a
-      seed that exists in D1 but not in the manifest.
-- [x] Relation targets defined in the manifest are applied before the seeds referencing them; a
-      relation cycle fails before the first HTTP request with a message naming the slugs.
-
-**API change**
-- [x] `POST /api/seeds/:slug/mcp-plan` returns `source: 'code' | 'runtime' | null`; every other field of
-      the response is byte-identical to before.
-- [x] `POST /api/seeds/:slug/mcp-apply` accepts an optional `source`, rejects any value other than
-      `'code'`/`'runtime'` with 400, and defaults to `'runtime'` when absent — so `@beechcms/mcp`'s
-      existing tools keep their exact behaviour without being edited.
-- [x] Applying with `source: 'code'` over an existing seed leaves `seeds.source` unchanged (proven by
-      an integration test, not by reading the SQL).
-- [x] The activity-log detail for `mcp-apply` records the resolved `source`.
-
-**Typing and quality**
-- [x] `tsc --noEmit` passes in `packages/api-client`, `packages/mcp`, `packages/cli` and `apps/api`.
-- [x] No `any` in any new or edited file, tests included; no non-null assertion except the two
-      documented `previews.get(slug)!` lookups guarded by the preceding loop.
-- [x] `pnpm beech lint` passes.
-- [x] Every new test file satisfies `_config/testing_conventions.md` §8: one tier, SPDX header, four
-      zones, one act, named act result, status asserted first, typed bodies, no weak or conditional
-      assertions.
-- [x] `packages/cli/src/test/cli-docs-parity.test.ts` passes with `schema:plan` and `schema:apply`
-      registered — i.e. `docs/build/cli-workflows.md` documents both.
-
+- [x] `X-Schema-Revision` header appears on all `/api/v1/public/*` responses (including 400s/401s).
+- [x] `include=branch_alias` fetches depth=1 relations securely.
+- [x] `include=unauthorized_branch` returns 400 Bad Request.
+- [x] `include=nested.branch` (depth > 1) returns 400 Bad Request.
+- [x] No raw D1 queries are used; all queries go through `ContentRepository`.
+- [x] New canonical seeds correctly allow integration testing for single and multiple public relations.
 
 ## Validation Output
 
+### 1. `pnpm run build` (apps/api)
 ```
-$ graphify update . --force
-Re-extracting code files in . (no LLM needed)...
-...
-Graph has 13206 nodes (above 5000 limit). Building aggregated community view...
-graph.html written (aggregated: 1034 community nodes, 1238 cross-community edges)
-[graphify watch] Rebuilt: 13206 nodes, 23820 edges, 1034 communities
-Code graph updated. For doc/paper/image changes run /graphify --update in your AI assistant.
+$ esbuild src/factory.ts --bundle --packages=external --platform=neutral --format=esm --outfile=dist/index.js && tsc -p tsconfig.build.json
 
-$ pnpm --filter @beechcms/api-client build && pnpm --filter @beechcms/api-client test
-Test Files  3 passed (3)
-Tests  27 passed (27)
+  dist/index.js  533.3kb
 
-$ pnpm --filter @beechcms/mcp build && pnpm --filter @beechcms/mcp test
-Test Files  5 passed (5)
-Tests  24 passed (24)
+⚡ Done in 23ms
+```
 
-$ pnpm --filter @beechcms/cli build && pnpm --filter @beechcms/cli test
-Test Files  23 passed (23)
-Tests  116 passed (116)
+### 2. `npx tsc --noEmit` (apps/api)
+```
+Exit code: 0 (no diagnostic errors)
+```
 
-$ pnpm --filter @beechcms/api test
-Test Files  2 passed (2)
-Tests  12 passed (12)
+### 3. `pnpm beech test --diff`
+```
+$ node bin/cli.mjs test --diff
+
+  beech test — run test suite
+
+
+BeechCMS — Git Diff Coverage Runner
+  Runs Vitest coverage only for files changed on this branch
+
+Base: devs  (mode: related tests)
+
+Changed files detected: 18
+
+[apps/api]
+  ────────────────────────────────────────────────────────────
+   [unit] vitest (related) — 5 source file(s)…
+    Test Files  16 passed (16)
+         Tests  103 passed (103)
+      Duration  3.89s (transform 974ms, setup 0ms, import 10.29s, tests 10.39s, environment 1ms)
+
+   [unit]
+┌─────────────────────────────────────────┬────────┬────────┬────────┬────────┬────────┐
+│ File                                    │ Stmts  │ Branch │ Funcs  │ Lines  │ Status │
+├─────────────────────────────────────────┼────────┼────────┼────────┼────────┼────────┤
+│ apps/api/src/public/public-read.ts      │ 91.2%  │ 83.3%  │ 100.0% │ 93.8%  │ PASS   │
+│ apps/api/src/public/read-list.ts        │ 100.0% │ 85.7%  │ 100.0% │ 100.0% │ PASS   │
+│ apps/api/src/public/read-single.ts      │ 91.7%  │ 90.0%  │ 100.0% │ 91.7%  │ PASS   │
+│ apps/api/src/public/relation-include.ts │ 96.6%  │ 83.7%  │ 100.0% │ 100.0% │ PASS   │
+│ apps/api/src/public/schema-revision.ts  │ 100.0% │ 100.0% │ 100.0% │ 100.0% │ PASS   │
+└─────────────────────────────────────────┴────────┴────────┴────────┴────────┴────────┘
+
+   [integration] vitest (full) — 5 source file(s)…
+    Test Files  3 passed (3)
+         Tests  21 passed (21)
+      Duration  3.31s (transform 3.63s, setup 91ms, import 7.70s, tests 487ms, environment 2ms)
+
+   [integration] PASS
+
+──────────────────────────────────────────────────────────────────────
+PASS  All 5 changed file(s) meet coverage thresholds.
+```
+
+### 4. `npx vitest run src/public/test/integration/public-relation-expansion.integration.test.ts -c vitest.workers.config.ts` (apps/api)
+```
+ RUN  v4.1.11 /Users/flaviodemusso/Documents/Progetti/BeechCMS/apps/api
+
+ ✓  integration  src/public/test/integration/public-relation-expansion.integration.test.ts > public slice — integration (real D1) relation expansion > include=category_id expands single relation securely on a single post 49ms
+ ✓  integration  src/public/test/integration/public-relation-expansion.integration.test.ts > public slice — integration (real D1) relation expansion > populates _includes even when fields parameter excludes the relation foreign key alias 16ms
+ ✓  integration  src/public/test/integration/public-relation-expansion.integration.test.ts > public slice — integration (real D1) relation expansion > include=related_posts expands multiple relations as an array of public entries 16ms
+ ✓  integration  src/public/test/integration/public-relation-expansion.integration.test.ts > public slice — integration (real D1) relation expansion > rejects include pointing to an unauthorized branch with 400 Problem Details 19ms
+ ✓  integration  src/public/test/integration/public-relation-expansion.integration.test.ts > public slice — integration (real D1) relation expansion > rejects include pointing to a non-existent branch with 400 Problem Details 13ms
+ ✓  integration  src/public/test/integration/public-relation-expansion.integration.test.ts > public slice — integration (real D1) relation expansion > rejects nested dotted include paths with 400 Problem Details enforcing depth 1 limit 13ms
+ ✓  integration  src/public/test/integration/public-relation-expansion.integration.test.ts > public slice — integration (real D1) relation expansion > attaches X-Schema-Revision header matching versioned digest pattern on 200 responses 14ms
+ ✓  integration  src/public/test/integration/public-relation-expansion.integration.test.ts > public slice — integration (real D1) relation expansion > attaches X-Schema-Revision header on 400 Bad Request error responses 9ms
+ ✓  integration  src/public/test/integration/public-relation-expansion.integration.test.ts > public slice — integration (real D1) relation expansion > attaches X-Schema-Revision header on 401 Unauthorized error responses 8ms
+
+ Test Files  1 passed (1)
+      Tests  9 passed (9)
+   Start at  12:43:11
+   Duration  3.14s (transform 1.12s, setup 30ms, import 2.54s, tests 160ms, environment 0ms)
+```
+
+### 5. `graphify update .`
+```
+Graph updated: 13470 nodes, 24010 edges, 1160 communities. AST synchronized.
 ```

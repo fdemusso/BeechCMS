@@ -5,6 +5,7 @@
 import type { Seed, ContentRepository } from '@beechcms/core'
 import { cleanStr } from '../shared/utils/query-utils'
 import { toFlatPublicEntry } from './entry-projection'
+import { expandRelations } from './relation-include'
 import { buildPublicListMeta } from './response-builder'
 import { parsePublicFilter, parsePublicPagination, parseLatestCount, toEngineFilters } from './query-builder'
 
@@ -14,10 +15,11 @@ type ReadListInput = {
   repository: ContentRepository
   query: Record<string, string | undefined>
   publishedOnly: boolean
+  getSeed: (slug: string) => Seed | null
 }
 
 export async function readListEntries(input: ReadListInput) {
-  const { seed, seedSlug, repository, query, publishedOnly } = input
+  const { seed, seedSlug, repository, query, publishedOnly, getSeed } = input
 
   const parsedFilter = parsePublicFilter(query.filter)
   const allMode = cleanStr(query.all)?.toLowerCase() === 'true'
@@ -43,6 +45,7 @@ export async function readListEntries(input: ReadListInput) {
   })
 
   const data = items.map(item => toFlatPublicEntry(item, seed, query.fields))
+  await expandRelations(data, query.include, seed, repository, getSeed, items)
 
   if (latestMode) {
     return { data, meta: { total, returned: data.length, seed: seedSlug } }

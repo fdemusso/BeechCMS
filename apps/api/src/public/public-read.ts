@@ -44,18 +44,21 @@ export async function publicReadHandler(context: Context<AppEnv>) {
 
   try {
     if (id || slug) {
-      const result = await readSingleEntry({ seed, seedSlug, repository, id, slug, publishedOnly, fieldsParam: query.fields })
+      const result = await readSingleEntry({ seed, seedSlug, repository, id, slug, publishedOnly, fieldsParam: query.fields, query, getSeed: context.get('getSeed') })
       if (!result.ok) {
         return publicProblem(context, { type: 'entry-not-found', title: 'Not Found', status: 404, detail: result.detail })
       }
       return withCachedResponse(edgeCache, cacheKey, context.json({ data: result.data, meta: result.meta }, 200))
     }
 
-    const result = await readListEntries({ seed, seedSlug, repository, query, publishedOnly })
+    const result = await readListEntries({ seed, seedSlug, repository, query, publishedOnly, getSeed: context.get('getSeed') })
     return withCachedResponse(edgeCache, cacheKey, context.json(result, 200))
   } catch (error) {
     if (error instanceof Error && error.message.startsWith('Invalid filter:')) {
       return publicProblem(context, { type: 'invalid-filter', title: 'Bad Request', status: 400, detail: error.message })
+    }
+    if (error instanceof Error && error.message.startsWith('Invalid include:')) {
+      return publicProblem(context, { type: 'invalid-include', title: 'Invalid Include', status: 400, detail: error.message })
     }
     console.error('Public read error:', error)
     return publicProblem(context, { type: 'internal-server-error', title: 'Internal Server Error', status: 500, detail: internalErrorDetail(context.env, error) })

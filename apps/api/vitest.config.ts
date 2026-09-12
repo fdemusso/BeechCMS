@@ -23,7 +23,7 @@ export default defineConfig({
           pool: 'forks',
           include: ['src/**/*.test.ts'],
           // Integration tier is owned by vitest.workers.config.ts (real D1 via workerd).
-          exclude: [...SHARED_EXCLUDE, 'src/features/**/test/integration/**', 'src/features/**/test/scale/**', ...DOCKER_BOUND_SUITES],
+          exclude: [...SHARED_EXCLUDE, 'src/**/test/integration/**', 'src/**/test/scale/**', ...DOCKER_BOUND_SUITES],
         },
       },
       {
