@@ -104,3 +104,11 @@ Full-text search — uses FTS5 if the seed has indexable richtext/text branches.
 > `optional` **status?**: `string` \| `null`
 
 Filters by status. null = no status filter.
+
+***
+
+### trashed?
+
+> `optional` **trashed?**: [`TrashedMode`](../type-aliases/TrashedMode.md)
+
+Soft-delete visibility. Defaults to 'active': omitting it can never leak a trashed row.

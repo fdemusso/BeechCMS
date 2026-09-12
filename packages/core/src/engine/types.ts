@@ -236,6 +236,13 @@ export interface Seed {
    */
   allowDrafts?: boolean
   /**
+   * Enables the Trash for this content type. When true, `content_{slug}` carries a
+   * `deleted_at INTEGER NULL` column, `DELETE` becomes a reversible soft delete, and every
+   * read excludes trashed rows unless the caller opts in via `SelectOptions.trashed`.
+   * Default: false.
+   */
+  softDelete?: boolean
+  /**
    * Alias of the branch used as the entry's human-readable name (e.g. "title", "name", "author").
    * Required — UIs use it for display without heuristics.
    */
@@ -297,6 +304,15 @@ export interface FilterGroup {
   conditions: FilterCondition[]
 }
 
+/**
+ * Soft-delete visibility for a read.
+ *  - 'active'  (default) — only rows with `deleted_at IS NULL`
+ *  - 'trashed'           — only rows with `deleted_at IS NOT NULL` (the Trash view)
+ *  - 'any'               — no predicate (restore/purge lookups, reconciliation)
+ * Ignored entirely for seeds without `softDelete: true`.
+ */
+export type TrashedMode = 'active' | 'trashed' | 'any'
+
 export interface SelectOptions {
   /** Filter groups. Joined by `filterLogic` (default AND); conditions within a group are always ANDed. */
   filters?: FilterGroup[]
@@ -308,6 +324,8 @@ export interface SelectOptions {
   pagination?: { limit: number; offset: number }
   /** Filters by status. null = no status filter. */
   status?: string | null
+  /** Soft-delete visibility. Defaults to 'active': omitting it can never leak a trashed row. */
+  trashed?: TrashedMode
   /** Full-text search — uses FTS5 if the seed has indexable richtext/text branches. */
   search?: string
   /** Column projection. Empty = SELECT *. */

@@ -790,7 +790,8 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       }, { ...TEST_ENV, DB: db })
 
       expect(res.status).toBe(200)
-      expect(warnSpy).toHaveBeenCalledWith('R2 cleanup on delete failed (orphaned files):', expect.any(Error))
+      // 'posts' has no softDelete, so DELETE resolves through the purge path (soft-delete sprint).
+      expect(warnSpy).toHaveBeenCalledWith('R2 cleanup on purge failed (orphaned files):', expect.any(Error))
     })
   })
 })

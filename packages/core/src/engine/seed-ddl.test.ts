@@ -171,4 +171,27 @@ describe('planExtendSeed', () => {
       expect(s.toUpperCase()).not.toContain('RENAME ')
     }
   })
+
+  describe('softDelete', () => {
+    const softDeleteSeed: Seed = {
+      slug: 'posts',
+      label: 'Posts',
+      displayNameAlias: 'title',
+      softDelete: true,
+      branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' }],
+    }
+
+    it('emits the enable statements once when deleted_at is absent', () => {
+      const { statements } = planExtendSeed(softDeleteSeed, new Set(['title']))
+      const alters = statements.filter(s => s.includes('ADD COLUMN deleted_at'))
+      expect(alters).toHaveLength(1)
+      expect(statements.some(s => s.includes('idx_posts_deleted_at'))).toBe(true)
+      expect(statements.some(s => s.includes('idx_posts_slug_active'))).toBe(true)
+    })
+
+    it('emits nothing when deleted_at already exists', () => {
+      const { statements } = planExtendSeed(softDeleteSeed, new Set(['title', 'deleted_at']))
+      expect(statements.some(s => s.includes('ADD COLUMN deleted_at'))).toBe(false)
+    })
+  })
 })

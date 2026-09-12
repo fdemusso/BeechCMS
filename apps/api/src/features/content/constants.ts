@@ -13,4 +13,5 @@ export const CONTENT_ERRORS = {
   SENSITIVE_FIELD_EDIT: 'Cannot edit sensitive fields',
   BULK_SIZE_EXCEEDED: 'Cannot edit more than 500 entries at once',
   FIELD_NOT_BULK_EDITABLE: 'Field cannot be bulk-edited',
+  SOFT_DELETE_DISABLED: 'Soft delete is not enabled for this content type',
 } as const

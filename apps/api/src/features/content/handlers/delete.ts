@@ -40,25 +40,34 @@ export async function deleteHandler(context: Context<AppEnv>) {
     const repository = context.get('repository')
     const jwtPayload = context.get('jwtPayload')
     const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
-    // Repository.delete returns the row data for cleanup
-    const { row } = await repository.delete(seed, entryId, { actor })
+
+    const forcePurge = context.req.query('purge') === 'true'
+    const useSoftDelete = seed.softDelete === true && !forcePurge
+
+    const { row } = useSoftDelete
+      ? await repository.softDelete(seed, entryId, { actor })
+      : await repository.purge(seed, entryId, { actor })
 
     const title = row.title || row.name || entryId
 
     logContentActivity(context, 'delete', entryId, schemaSlug, String(title))
     dispatchContentAutomation(context, schemaSlug, 'delete', { ...row, id: entryId })
 
-    const cdnUrl = context.env.MEDIA_CDN_URL
-    const r2ObjectKeys = extractMediaKeysFromData(seed, row, cdnUrl)
-    if (r2ObjectKeys.length > 0) {
-      await deleteR2Objects(context, r2ObjectKeys).catch((error) => {
-        if (context.env.ENV !== 'production') {
-          console.warn('R2 cleanup on delete failed (orphaned files):', error)
-        }
-      })
+    // R2 lives outside the row's lifecycle: a trashed entry must stay restorable WITH its media
+    // (feature brief §4). Only an irreversible purge touches the bucket.
+    if (!useSoftDelete) {
+      const cdnUrl = context.env.MEDIA_CDN_URL
+      const r2ObjectKeys = extractMediaKeysFromData(seed, row, cdnUrl)
+      if (r2ObjectKeys.length > 0) {
+        await deleteR2Objects(context, r2ObjectKeys).catch((error) => {
+          if (context.env.ENV !== 'production') {
+            console.warn('R2 cleanup on purge failed (orphaned files):', error)
+          }
+        })
+      }
     }
 
-    return context.json({ success: true })
+    return context.json({ success: true, softDeleted: useSoftDelete })
   } catch (error) {
     return handleContentDatabaseError(context, error)
   }

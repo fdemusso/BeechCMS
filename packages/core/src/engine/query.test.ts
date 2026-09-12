@@ -244,4 +244,30 @@ describe('Query', () => {
       expect(withoutKanban.sql).not.toContain('kanban_positions')
     })
   })
+
+  describe('softDelete', () => {
+    const trashSeed: Seed = { ...mockSeed, softDelete: true }
+
+    it('appends deleted_at IS NULL by default for a soft-delete seed', () => {
+      const query = buildSelectQuery(trashSeed)
+      expect(query.sql).toContain('content_articles.deleted_at IS NULL')
+    })
+
+    it('appends deleted_at IS NOT NULL for trashed: "trashed"', () => {
+      const query = buildSelectQuery(trashSeed, { trashed: 'trashed' })
+      expect(query.sql).toContain('content_articles.deleted_at IS NOT NULL')
+    })
+
+    it('emits no deleted_at predicate for trashed: "any"', () => {
+      const query = buildSelectQuery(trashSeed, { trashed: 'any' })
+      expect(query.sql).not.toContain('deleted_at')
+    })
+
+    it('emits no deleted_at predicate at all for a seed without softDelete, regardless of trashed', () => {
+      // Regression guard for the whole existing suite: a caller that forgets softDelete on
+      // the seed must get today's SQL back, byte-identical.
+      const query = buildSelectQuery(mockSeed, { trashed: 'trashed' })
+      expect(query.sql).not.toContain('deleted_at')
+    })
+  })
 })

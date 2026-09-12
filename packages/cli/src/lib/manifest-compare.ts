@@ -35,7 +35,7 @@ export interface ManifestDrift {
 }
 
 /** Seed-level flags the engine materializes as `false` when omitted by an author. */
-const SEED_FLAGS = ['allowDrafts', 'allowPublicRead', 'allowPublicPost', 'allowPublicEdit'] as const
+const SEED_FLAGS = ['allowDrafts', 'allowPublicRead', 'allowPublicPost', 'allowPublicEdit', 'softDelete'] as const
 
 /** Branch-level flags with the same omitted-means-false semantics. */
 const BRANCH_FLAGS = ['requiredOnCreate', 'requiredOnUpdate', 'multiple'] as const

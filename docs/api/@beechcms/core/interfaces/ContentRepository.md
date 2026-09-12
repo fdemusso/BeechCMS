@@ -11,6 +11,58 @@ This is platform-agnostic and should be implemented for specific databases (e.g.
 
 ## Methods
 
+### bulkPurge()
+
+> **bulkPurge**(`seed`, `ids`, `options?`): `Promise`&lt;[`BulkDeleteResult`](BulkDeleteResult.md) & `object`&gt;
+
+`purge` applied per id. Returns the purged rows so the caller can collect R2 media keys.
+
+#### Parameters
+
+##### seed
+
+[`Seed`](Seed.md)
+
+##### ids
+
+`string`[]
+
+##### options?
+
+[`RepositoryOptions`](RepositoryOptions.md)
+
+#### Returns
+
+`Promise`&lt;[`BulkDeleteResult`](BulkDeleteResult.md) & `object`&gt;
+
+***
+
+### bulkRestore()
+
+> **bulkRestore**(`seed`, `ids`, `options?`): `Promise`&lt;[`BulkDeleteResult`](BulkDeleteResult.md)&gt;
+
+`restore` applied per id. Never partially fails the batch: each id reports its own outcome.
+
+#### Parameters
+
+##### seed
+
+[`Seed`](Seed.md)
+
+##### ids
+
+`string`[]
+
+##### options?
+
+[`RepositoryOptions`](RepositoryOptions.md)
+
+#### Returns
+
+`Promise`&lt;[`BulkDeleteResult`](BulkDeleteResult.md)&gt;
+
+***
+
 ### bulkUpdate()
 
 > **bulkUpdate**(`seed`, `ids`, `fields`): `Promise`&lt;\{ `failed`: `object`[]; `updated`: `number`; \}&gt;
@@ -156,9 +208,10 @@ Checks if a slug is already taken by another entry.
 
 ### findById()
 
-> **findById**(`seed`, `id`): `Promise`&lt;`Record`&lt;`string`, `any`&gt;&gt;
+> **findById**(`seed`, `id`, `options?`): `Promise`&lt;`Record`&lt;`string`, `any`&gt;&gt;
 
 Finds a single entry by its unique ID.
+Trashed rows are invisible unless `options.trashed` says otherwise.
 Throws EntryNotFoundError if not found.
 
 #### Parameters
@@ -170,6 +223,12 @@ Throws EntryNotFoundError if not found.
 ##### id
 
 `string`
+
+##### options?
+
+###### trashed?
+
+[`TrashedMode`](../type-aliases/TrashedMode.md)
 
 #### Returns
 
@@ -197,6 +256,36 @@ Throws EntryNotFoundError if not found.
 #### Returns
 
 `Promise`&lt;`Record`&lt;`string`, `any`&gt;&gt;
+
+***
+
+### findExpiredByRetention()
+
+> **findExpiredByRetention**(`seed`, `now`, `limit`): `Promise`&lt;`string`[]&gt;
+
+Pure query, no side effects: ids of trashed entries whose retention window has elapsed
+(`deleted_at + seed.retentionDays * 86400 <= now`).
+Returns [] when the seed has no `retentionDays` or no `softDelete`.
+Deliberately NOT wired to any scheduler — the recurring-automation adapter is future work
+(feature brief §2). `now` is supplied by the caller's `IClock`; never read the clock here.
+
+#### Parameters
+
+##### seed
+
+[`Seed`](Seed.md)
+
+##### now
+
+`number`
+
+##### limit
+
+`number`
+
+#### Returns
+
+`Promise`&lt;`string`[]&gt;
 
 ***
 
@@ -420,6 +509,74 @@ Must use a transaction (db.batch) to update live and delete draft.
 
 ***
 
+### purge()
+
+> **purge**(`seed`, `id`, `options?`): `Promise`&lt;[`PurgeResult`](PurgeResult.md)&gt;
+
+Irreversible erasure: runs `beforeDelete`, reads the row, deletes it (junction and
+`_drafts` rows follow via ON DELETE CASCADE), appends the ledger event, runs `afterDelete`.
+Works on a live row and on a trashed one.
+R2 media deletion is NOT performed here — the caller owns it (VSA: no external I/O in the
+repository beyond the ledger port).
+
+#### Parameters
+
+##### seed
+
+[`Seed`](Seed.md)
+
+##### id
+
+`string`
+
+##### options?
+
+[`RepositoryOptions`](RepositoryOptions.md)
+
+#### Returns
+
+`Promise`&lt;[`PurgeResult`](PurgeResult.md)&gt;
+
+#### Throws
+
+EntryNotFoundError if no row with `id` exists.
+
+***
+
+### restore()
+
+> **restore**(`seed`, `id`, `options?`): `Promise`&lt;\{ `row`: `Record`&lt;`string`, `any`&gt;; \}&gt;
+
+Clears `deleted_at`. When the entry's slug was taken by a live entry in the meantime the
+UNIQUE constraint rejects the update; the implementation catches it and restores under an
+auto-renamed slug rather than failing the operation (feature brief §4).
+
+#### Parameters
+
+##### seed
+
+[`Seed`](Seed.md)
+
+##### id
+
+`string`
+
+##### options?
+
+[`RepositoryOptions`](RepositoryOptions.md)
+
+#### Returns
+
+`Promise`&lt;\{ `row`: `Record`&lt;`string`, `any`&gt;; \}&gt;
+
+The restored row, carrying the slug it actually ended up with.
+
+#### Throws
+
+EntryNotFoundError if no TRASHED row with `id` exists.
+
+***
+
 ### runBatch()
 
 > **runBatch**(`operations`): `Promise`&lt;`void`&gt;
@@ -462,6 +619,43 @@ Saves or updates a pending draft in the mirror table.
 #### Returns
 
 `Promise`&lt;`void`&gt;
+
+***
+
+### softDelete()
+
+> **softDelete**(`seed`, `id`, `options?`): `Promise`&lt;\{ `row`: `Record`&lt;`string`, `any`&gt;; \}&gt;
+
+Reversible delete: stamps `deleted_at` and returns the row as it was.
+Runs `beforeDelete`/`afterDelete`, exactly like `delete`.
+Leaves junction rows, `_drafts` rows and R2 media untouched — a trashed entry must be
+restorable whole.
+
+#### Parameters
+
+##### seed
+
+[`Seed`](Seed.md)
+
+##### id
+
+`string`
+
+##### options?
+
+[`RepositoryOptions`](RepositoryOptions.md)
+
+#### Returns
+
+`Promise`&lt;\{ `row`: `Record`&lt;`string`, `any`&gt;; \}&gt;
+
+#### Throws
+
+RepositoryError if `seed.softDelete` is not true.
+
+#### Throws
+
+EntryNotFoundError if no live row with `id` exists.
 
 ***
 

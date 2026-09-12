@@ -22,6 +22,10 @@ import {
   type HookContext,
   type IPrivacyService,
   type IQueueService,
+  type IDeletionLedger,
+  type TrashedMode,
+  type PurgeResult,
+  type BulkDeleteResult,
   buildSelectQuery,
   deserializeFromDb,
   serializeForDb,
@@ -118,6 +122,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     private readonly hooks?: BeechHooks,
     private readonly privacyService?: IPrivacyService,
     queue?: IQueueService,
+    private readonly deletionLedger?: IDeletionLedger,
   ) {
     super(database)
     this.queue = queue
@@ -130,6 +135,12 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   /** Assembles the {@link HookContext} passed to every lifecycle hook invocation. */
   private hookCtx(seed: Seed, actor?: HookActor): HookContext {
     return { seed, repository: this, actor, db: this.database, queue: this.queue }
+  }
+
+  /** ` AND deleted_at IS NULL` for a soft-delete seed, `''` otherwise. */
+  private activeClause(seed: Seed, mode: TrashedMode = 'active'): string {
+    if (!seed.softDelete || mode === 'any') return ''
+    return mode === 'trashed' ? ' AND deleted_at IS NOT NULL' : ' AND deleted_at IS NULL'
   }
 
   private async serializeAndProtect(
@@ -341,11 +352,11 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * @throws EntryNotFoundError if no row with `id` exists in the seed's table.
    * @throws RepositoryError on any other database failure.
    */
-  async findById(seed: Seed, id: string): Promise<Record<string, any>> {
+  async findById(seed: Seed, id: string, options?: { trashed?: TrashedMode }): Promise<Record<string, any>> {
     try {
       const tableName = this.getTableName(seed.slug)
       const entryRow = await this.database
-        .prepare(`SELECT * FROM ${tableName} WHERE id = ? LIMIT 1`)
+        .prepare(`SELECT * FROM ${tableName} WHERE id = ?${this.activeClause(seed, options?.trashed)} LIMIT 1`)
         .bind(id)
         .first()
 
@@ -371,7 +382,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     try {
       const tableName = this.getTableName(seed.slug)
       const entryRow = await this.database
-        .prepare(`SELECT * FROM ${tableName} WHERE slug = ? LIMIT 1`)
+        .prepare(`SELECT * FROM ${tableName} WHERE slug = ?${this.activeClause(seed)} LIMIT 1`)
         .bind(slug)
         .first()
 
@@ -409,10 +420,17 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
 
     const table = jTable(seed.slug, branchAlias)
+    const parentTable = this.getTableName(seed.slug)
     const placeholders = targetIds.map(() => '?').join(', ')
+    // A trashed parent's junction row must not resolve — otherwise a Public API relation
+    // subquery would return a trashed parent's id and the caller would fetch it by id.
     const { results } = await this.database
       .prepare(
-        `SELECT DISTINCT parent_id FROM ${table} WHERE target_id IN (${placeholders}) LIMIT ?`,
+        `SELECT DISTINCT j.parent_id FROM ${table} j ` +
+        (seed.softDelete ? `INNER JOIN ${parentTable} p ON p.id = j.parent_id ` : '') +
+        `WHERE j.target_id IN (${placeholders})` +
+        (seed.softDelete ? ` AND p.deleted_at IS NULL` : '') +
+        ` LIMIT ?`,
       )
       .bind(...targetIds, limit)
       .all<{ parent_id: string }>()
@@ -433,7 +451,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       const tableName = this.getTableName(seed.slug)
 
       const statusResults = await this.database
-        .prepare(`SELECT status, COUNT(*) as count FROM ${tableName} GROUP BY status`)
+        .prepare(`SELECT status, COUNT(*) as count FROM ${tableName} WHERE 1=1${this.activeClause(seed)} GROUP BY status`)
         .all()
 
       const statusesCount: Record<string, number> = {}
@@ -446,7 +464,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       for (const branch of tagBranches) {
         const tagResults = await this.database
-          .prepare(`SELECT DISTINCT value FROM ${tableName}, json_each(${tableName}.${branch.alias}) WHERE value IS NOT NULL`)
+          .prepare(`SELECT DISTINCT value FROM ${tableName}, json_each(${tableName}.${branch.alias}) WHERE value IS NOT NULL${this.activeClause(seed)}`)
           .all()
         tagsByColumn[branch.alias] = (tagResults.results || []).map(row => row.value as string)
       }
@@ -464,7 +482,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   async existsSlug(seed: Seed, slug: string, excludeId?: string): Promise<boolean> {
     try {
       const tableName = this.getTableName(seed.slug)
-      let sql = `SELECT 1 FROM ${tableName} WHERE slug = ?`
+      let sql = `SELECT 1 FROM ${tableName} WHERE slug = ?${this.activeClause(seed)}`
       const queryBindings: any[] = [slug]
 
       if (excludeId) {
@@ -758,7 +776,8 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
     stmts.unshift(
       this.database
-        .prepare(`UPDATE ${tableName} SET ${setClauses.join(', ')} WHERE id = ?`)
+        // A bulk edit must never resurrect or mutate a trashed row.
+        .prepare(`UPDATE ${tableName} SET ${setClauses.join(', ')} WHERE id = ?${this.activeClause(seed)}`)
         .bind(...setBindings, id),
     )
 
@@ -979,6 +998,199 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     }
 
     return { row }
+  }
+
+  /**
+   * Reversible delete: stamps `deleted_at` and returns the row as it was.
+   * Runs `beforeDelete`/`afterDelete`, exactly like `delete`.
+   */
+  async softDelete(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }> {
+    if (!seed.softDelete) {
+      throw new RepositoryError(`softDelete(${seed.slug}): seed has no softDelete enabled`)
+    }
+
+    if (this.hooks?.beforeDelete) {
+      await this.hooks.beforeDelete(id, this.hookCtx(seed, options?.actor))
+    }
+
+    let row: Record<string, any>
+    try {
+      const tableName = this.getTableName(seed.slug)
+
+      const entryRow = await this.database
+        .prepare(`SELECT * FROM ${tableName} WHERE id = ? AND deleted_at IS NULL`)
+        .bind(id)
+        .first()
+
+      if (!entryRow) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
+
+      await this.database
+        .prepare(`UPDATE ${tableName} SET deleted_at = (unixepoch()) WHERE id = ? AND deleted_at IS NULL`)
+        .bind(id)
+        .run()
+
+      row = await this.rowToData(seed, entryRow)
+    } catch (error) {
+      if (error instanceof EntryNotFoundError) throw error
+      throw this.mapError(error, `softDelete(${seed.slug}, ${id})`)
+    }
+
+    // afterDelete runs after the commit: it cannot roll the write back, same as delete().
+    if (this.hooks?.afterDelete) {
+      await this.hooks.afterDelete(id, this.hookCtx(seed, options?.actor))
+    }
+
+    return { row }
+  }
+
+  /**
+   * Clears `deleted_at`. Auto-renames the slug in `catch` when it was reassigned to a live
+   * entry while this one sat in the Trash (feature brief §4 — no confirmation round-trip).
+   */
+  async restore(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }> {
+    if (!seed.softDelete) {
+      throw new RepositoryError(`restore(${seed.slug}): seed has no softDelete enabled`)
+    }
+
+    const tableName = this.getTableName(seed.slug)
+    const entryRow = await this.database
+      .prepare(`SELECT * FROM ${tableName} WHERE id = ? AND deleted_at IS NOT NULL`)
+      .bind(id)
+      .first()
+
+    if (!entryRow) throw new EntryNotFoundError(`Trashed entry ${id} not found in ${seed.slug}`)
+
+    try {
+      await this.database
+        .prepare(`UPDATE ${tableName} SET deleted_at = NULL, updated_at = (unixepoch()) WHERE id = ?`)
+        .bind(id)
+        .run()
+    } catch (error) {
+      // The slug was reassigned to a live entry while this one sat in the Trash. The slug is a
+      // system detail, not a decision to hand back to the user (feature brief §5): rename and
+      // continue rather than answering 409.
+      const conflict = this.mapError(error, `restore(${seed.slug}, ${id})`)
+      if (!(conflict instanceof SlugConflictError)) throw conflict
+
+      const renamed = `${entryRow.slug as string}-restored-${id.slice(0, 8)}`
+      await this.database
+        .prepare(`UPDATE ${tableName} SET deleted_at = NULL, slug = ?, updated_at = (unixepoch()) WHERE id = ?`)
+        .bind(renamed, id)
+        .run()
+      entryRow.slug = renamed
+    }
+
+    entryRow.deleted_at = null
+    return { row: await this.rowToData(seed, entryRow) }
+  }
+
+  /**
+   * Irreversible erasure: runs `beforeDelete`, reads the row, deletes it (junction and
+   * `_drafts` rows follow via ON DELETE CASCADE), appends the ledger event, runs `afterDelete`.
+   * R2 media deletion is NOT performed here — the caller owns it.
+   */
+  async purge(seed: Seed, id: string, options?: RepositoryOptions): Promise<PurgeResult> {
+    if (this.hooks?.beforeDelete) {
+      await this.hooks.beforeDelete(id, this.hookCtx(seed, options?.actor))
+    }
+
+    let row: Record<string, any>
+    try {
+      const tableName = this.getTableName(seed.slug)
+
+      // No deleted_at guard: a purge is valid on a live row (seed without softDelete, or an
+      // explicit ?purge=true) and on a trashed one.
+      const entryRow = await this.database
+        .prepare(`SELECT * FROM ${tableName} WHERE id = ?`)
+        .bind(id)
+        .first()
+
+      if (!entryRow) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
+
+      // Junction rows and the _drafts row follow via ON DELETE CASCADE (ddl.ts).
+      await this.database.prepare(`DELETE FROM ${tableName} WHERE id = ?`).bind(id).run()
+
+      row = await this.rowToData(seed, entryRow)
+    } catch (error) {
+      if (error instanceof EntryNotFoundError) throw error
+      throw this.mapError(error, `purge(${seed.slug}, ${id})`)
+    }
+
+    // The ledger write is awaited and NOT swallowed: an erasure a restore could undo is worse
+    // than a failed request, because nothing downstream would ever notice.
+    let ledgerWritten = false
+    if (this.deletionLedger) {
+      await this.deletionLedger.append({
+        seedSlug: seed.slug,
+        entryId: id,
+        entrySlug: (row.slug as string) ?? null,
+        purgedAt: Math.floor(Date.now() / 1000),
+        actorId: options?.actor?.id ?? null,
+        reason: 'purge',
+      })
+      ledgerWritten = true
+    }
+
+    if (this.hooks?.afterDelete) {
+      await this.hooks.afterDelete(id, this.hookCtx(seed, options?.actor))
+    }
+
+    return { row, ledgerWritten }
+  }
+
+  /** `restore` applied per id. Never partially fails the batch: each id reports its own outcome. */
+  async bulkRestore(seed: Seed, ids: string[], options?: RepositoryOptions): Promise<BulkDeleteResult> {
+    const succeeded: string[] = []
+    const failed: Array<{ id: string; reason: string }> = []
+
+    for (const id of ids) {
+      try {
+        await this.restore(seed, id, options)
+        succeeded.push(id)
+      } catch (error) {
+        failed.push({ id, reason: error instanceof EntryNotFoundError ? 'not-found' : String((error as Error).message) })
+      }
+    }
+
+    return { succeeded, failed }
+  }
+
+  /** `purge` applied per id. Returns the purged rows so the caller can collect R2 media keys. */
+  async bulkPurge(seed: Seed, ids: string[], options?: RepositoryOptions): Promise<BulkDeleteResult & { rows: Record<string, any>[] }> {
+    const succeeded: string[] = []
+    const failed: Array<{ id: string; reason: string }> = []
+    const rows: Record<string, any>[] = []
+
+    for (const id of ids) {
+      try {
+        const { row } = await this.purge(seed, id, options)
+        succeeded.push(id)
+        rows.push(row)
+      } catch (error) {
+        failed.push({ id, reason: error instanceof EntryNotFoundError ? 'not-found' : String((error as Error).message) })
+      }
+    }
+
+    return { succeeded, failed, rows }
+  }
+
+  /**
+   * Pure query, no side effects: ids of trashed entries whose retention window has elapsed.
+   * Deliberately NOT wired to any scheduler — the recurring-automation adapter is future work.
+   */
+  async findExpiredByRetention(seed: Seed, now: number, limit: number): Promise<string[]> {
+    if (!seed.softDelete || !seed.retentionDays) return []
+
+    const tableName = this.getTableName(seed.slug)
+    const cutoff = now - seed.retentionDays * 86400
+    const { results } = await this.database
+      .prepare(
+        `SELECT id FROM ${tableName} WHERE deleted_at IS NOT NULL AND deleted_at <= ? ORDER BY deleted_at ASC LIMIT ?`,
+      )
+      .bind(cutoff, limit)
+      .all<{ id: string }>()
+
+    return (results ?? []).map(r => r.id)
   }
 
   /**

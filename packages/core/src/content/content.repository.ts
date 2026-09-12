@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import { Seed, SelectOptions } from '../engine/types.js'
+import { Seed, SelectOptions, TrashedMode } from '../engine/types.js'
 
 /**
  * One row of the cross-seed pending-drafts overview. Aggregates the minimum a
@@ -111,6 +111,20 @@ export type BatchWrite =
   | { kind: 'update'; seed: Seed; id: string; data: Record<string, any>; status?: string }
   | { kind: 'mutateField'; seed: Seed; id: string; fieldName: string; operation: { type: 'increment' | 'decrement'; value: number }; options?: { min?: number; max?: number } }
 
+/** Everything a purge caller needs to finish cleanup outside the database. */
+export interface PurgeResult {
+  /** The row as it existed immediately before erasure — the source of the R2 media keys. */
+  row: Record<string, any>
+  /** True when a ledger event was appended. False only for a seed without `softDelete`. */
+  ledgerWritten: boolean
+}
+
+/** Per-id outcome of a bulk trash operation, mirroring `bulkUpdate`'s shape. */
+export interface BulkDeleteResult {
+  succeeded: string[]
+  failed: Array<{ id: string; reason: string }>
+}
+
 /**
  * Interface defining the standard operations for content persistence.
  * This is platform-agnostic and should be implemented for specific databases (e.g., D1).
@@ -123,9 +137,10 @@ export interface ContentRepository {
 
   /**
    * Finds a single entry by its unique ID.
+   * Trashed rows are invisible unless `options.trashed` says otherwise.
    * Throws EntryNotFoundError if not found.
    */
-  findById(seed: Seed, id: string): Promise<Record<string, any>>
+  findById(seed: Seed, id: string, options?: { trashed?: TrashedMode }): Promise<Record<string, any>>
 
   /**
    * Finds a single entry by its unique slug.
@@ -261,5 +276,53 @@ export interface ContentRepository {
     ids: string[],
     fields: Record<string, BulkFieldUpdate>,
   ): Promise<{ updated: number; failed: Array<{ id: string; reason: string }> }>
+
+  /**
+   * Reversible delete: stamps `deleted_at` and returns the row as it was.
+   * Runs `beforeDelete`/`afterDelete`, exactly like `delete`.
+   * Leaves junction rows, `_drafts` rows and R2 media untouched — a trashed entry must be
+   * restorable whole.
+   * @throws RepositoryError if `seed.softDelete` is not true.
+   * @throws EntryNotFoundError if no live row with `id` exists.
+   */
+  softDelete(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }>
+
+  /**
+   * Clears `deleted_at`. When the entry's slug was taken by a live entry in the meantime the
+   * UNIQUE constraint rejects the update; the implementation catches it and restores under an
+   * auto-renamed slug rather than failing the operation (feature brief §4).
+   * @returns The restored row, carrying the slug it actually ended up with.
+   * @throws EntryNotFoundError if no TRASHED row with `id` exists.
+   */
+  restore(seed: Seed, id: string, options?: RepositoryOptions): Promise<{ row: Record<string, any> }>
+
+  /**
+   * Irreversible erasure: runs `beforeDelete`, reads the row, deletes it (junction and
+   * `_drafts` rows follow via ON DELETE CASCADE), appends the ledger event, runs `afterDelete`.
+   * Works on a live row and on a trashed one.
+   * R2 media deletion is NOT performed here — the caller owns it (VSA: no external I/O in the
+   * repository beyond the ledger port).
+   * @throws EntryNotFoundError if no row with `id` exists.
+   */
+  purge(seed: Seed, id: string, options?: RepositoryOptions): Promise<PurgeResult>
+
+  /** `restore` applied per id. Never partially fails the batch: each id reports its own outcome. */
+  bulkRestore(seed: Seed, ids: string[], options?: RepositoryOptions): Promise<BulkDeleteResult>
+
+  /**
+   * `purge` applied per id. Returns the purged rows so the caller can collect R2 media keys.
+   */
+  bulkPurge(seed: Seed, ids: string[], options?: RepositoryOptions): Promise<
+    BulkDeleteResult & { rows: Record<string, any>[] }
+  >
+
+  /**
+   * Pure query, no side effects: ids of trashed entries whose retention window has elapsed
+   * (`deleted_at + seed.retentionDays * 86400 <= now`).
+   * Returns [] when the seed has no `retentionDays` or no `softDelete`.
+   * Deliberately NOT wired to any scheduler — the recurring-automation adapter is future work
+   * (feature brief §2). `now` is supplied by the caller's `IClock`; never read the clock here.
+   */
+  findExpiredByRetention(seed: Seed, now: number, limit: number): Promise<string[]>
 }
 

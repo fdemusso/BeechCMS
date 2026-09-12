@@ -21,6 +21,7 @@ export * from './content/richtext/richtext.js'
 
 export * from './content/slug-utils.js'
 export * from './content/content.repository.js'
+export * from './content/deletion-ledger.js'
 export * from './common/hooks.js'
 export * from './content/idempotency.repository.js'
 export * from './media/media.repository.js'

@@ -12,6 +12,7 @@ import {
   generateJunctionTable,
   generateJunctionIndexes,
   generateJunctionDraftTable,
+  generateEnableSoftDelete,
   indexableSearchBranches,
 } from './engine.js'
 
@@ -69,6 +70,10 @@ export function planExtendSeed(seed: Seed, existingColumns: Set<string>): Extend
     if ((branch.type === 'text' || branch.type === 'richtext') && branch.policies?.search !== false) {
       ftsRebuildNeeded = true
     }
+  }
+  // System column, not a branch: the branch loop above can never emit it.
+  if (seed.softDelete && !existingColumns.has('deleted_at')) {
+    statements.push(...generateEnableSoftDelete(seed))
   }
   // CREATE INDEX IF NOT EXISTS — idempotent, safe to re-run
   statements.push(...generateIndexes(seed))

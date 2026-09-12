@@ -61,6 +61,18 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
     bindings.push(status)
   }
 
+  // Soft delete: 'active' is the default, so a caller that forgets the option can never
+  // observe a trashed row — including the Public API, relation expansion and subqueries,
+  // which all reach SQL only through repository.findMany.
+  if (seed.softDelete) {
+    const trashed = options.trashed ?? 'active'
+    if (trashed === 'active') {
+      whereClauses.push(`${table}.deleted_at IS NULL`)
+    } else if (trashed === 'trashed') {
+      whereClauses.push(`${table}.deleted_at IS NOT NULL`)
+    }
+  }
+
   const groupClauses: string[] = []
   for (const group of filters) {
     if (!isValidColumn(seed, group.column)) continue

@@ -343,6 +343,17 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
     }
   }
 
+  // ── Fatal 16: softDelete type validation ────────────────────────────────────
+  for (const seed of seeds) {
+    if (seed.softDelete !== undefined && typeof seed.softDelete !== 'boolean') {
+      result.push({
+        slug: seed.slug,
+        messages: [`softDelete must be a boolean (got ${typeof seed.softDelete}).`],
+        fatal: true,
+      })
+    }
+  }
+
   return result
 }
 

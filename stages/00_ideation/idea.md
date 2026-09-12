@@ -1,72 +1,168 @@
-# Idea: Typed Fluent Query Builder per Public Content (Issue 384)
+# Idea: Soft Deletes, Trash Bin Lifecycle & GDPR Deletion Ledger (Issue #110)
 
-## Visione e Obiettivo
-Aggiungere a `@beechcms/client` un fluent query builder tipizzato, leggero (no dipendenze pesanti), che compili verso il contratto REST Public API esistente. Deve eliminare l'encoding manuale di JSON nei consumer senza introdurre un secondo linguaggio di query e senza cambiare la semantica del backend.
+## 1. Visione e Obiettivo
+Introdurre in BeechCMS un ciclo di vita completo per la gestione della cancellazione dati (**Soft Delete & Cestino**), configurabile per singolo Seed (`softDelete: true`).
+Oggi i metodi di eliminazione eseguono un hard delete fisico immediato (`DELETE FROM`), rendendo irrecuperabili dati critici (ordini, clienti, lead) in caso di errore operativo.
 
-```ts
-const post = await client
-  .collection<'posts'>('posts')
-  .where('slug', 'eq', slug)
-  .include('author')
-  .select(['id', 'title', 'slug', 'body', 'author'])
-  .first()
-```
+L'implementazione deve:
+1. Consentire la cancellazione logica (**Soft Delete**) proteggendo i dati nelle viste standard e permettendo il recupero dal **Cestino**.
+2. Garantire la conformità al **GDPR (Diritto all'Oblio / Purge)** impedendo che i backup ripristinati (D1 Time Travel o R2 snapshot) facciano risorgere dati legalmente cancellati (**Deletion Ledger**).
+3. Allinearsi con l'autorità schema di D1, le Public API tipizzate (#382/#383) e il control plane MCP (#328).
 
 ---
 
-## Stato Attuale (verificato nel repo)
-- `packages/client/src/query-builder.ts` esiste già ma in stile oggetto (`content(seed).list({filter:{...}})`), non fluent chain. Manca `.first()`/`.one()`, manca `.include()`.
-- `types.ts` usa registry generico non schema-derived (`Record<string, unknown>`).
-- Nessun `beech.schema.ts` / `defineSchema` / `defineSeed` in `packages/core` → issue #381 (manifest DSL) non fatta.
-- Nessun comando `beech schema export/diff/plan/apply` / `types generate` in `packages/cli` → issue #382 (codegen tipi) non fatta.
-- Nessun parametro `include=` nelle route `apps/api/src/public/*` → issue #383 (relation expansion) non fatta.
-- #328 (MCP control plane) CLOSED, disponibile come base.
-- #104 (GitOps sprint) OPEN, si sovrappone parzialmente a #382 (`schema-diff.ts` parziale) — da chiarire se assorbito o mantenuto separato.
+## 2. Stato Attuale e Analisi dell'Esistente
 
-## Catena di Dipendenze (blocking, non solo documentata)
-```
-#381 (manifest DSL) → #382 (schema export/type-gen) → #384 (fluent client typed)
-#383 (include API)  ─────────────────────────────────→ #384 (.include())
-#384 → #385 (subquery/join extension)
-```
-#384 non può chiudersi typed-completo senza #382 (niente `SeedRegistryTypes`) e senza #383 (niente `.include()` reale). Oggi può partire solo in forma untyped/escape-hatch, refactorando `query-builder.ts` esistente in wrapper fluent.
-
-## Conflitto da Risolvere: #385
-#385 propone `JOIN`/subquery/`EXISTS` con AST SQL lato client. Contraddice lo scope esplicito di #384/#383 ("no arbitrary graph traversal", "no SQL parser lato client", planning/resolution solo server-side). Va ridimensionato (solo subquery IN su relation già dichiarate via #383) o riaperto come RFC architetturale separata prima di implementare.
-
-## Perché NON adottare l'approccio Sanity/GROQ
-Valutata l'alternativa "linguaggio di query dinamico non tipizzato + typegen per analisi statica" (come Sanity/GROQ). Scartata perché:
-- Viola esplicitamente lo scope di #384 ("no second query language", "no embedded GROQ-like parser").
-- Richiederebbe un interprete/compilatore GROQ→SQL lato backend, superficie di attacco più grande rispetto al filter-object attuale che compila diretto a SQL parametrizzato.
-- Non risolve comunque il problema di runtime drift (vedi sotto) — sposta solo dove il tipo viene generato (da usage-analysis invece che da chain-generics), stesso rischio di staleness.
-
-Si mantiene l'approccio filter-object/fluent-chain con generics (`SeedRegistryTypes`), scartando GROQ.
-
-## Problema di Runtime Drift (critico, emerso in sparring)
-I tipi generati da `beech types generate` sono validi solo al momento della generazione (compile-time). Se lo schema D1 cambia dopo che un client è stato buildato/deployato, il client continua a fidarsi di tipi stale → mismatch di shape silenzioso a runtime (TypeScript non può ri-verificare a runtime, è già compilato). `types check` in CI copre solo i consumer nello stesso monorepo/pipeline — un consumer esterno che installa `@beechcms/client` da npm non ha questa rete di sicurezza.
-
-### Soluzione: Schema Fingerprint a Runtime
-Da inserire come requisito esplicito in #382/#383/#384:
-
-1. **Fingerprint nella risposta** — ogni risposta Public API porta un header/campo `X-Schema-Revision` (fingerprint deterministico dello schema, generato dallo stesso export canonico usato da `beech types generate`).
-2. **Fingerprint nei tipi generati** — `beech.generated.ts` include il fingerprint con cui è stato generato (già previsto in #382 come "generated-file header con revision/fingerprint").
-3. **Verifica a runtime nel client** — il fluent client confronta il fingerprint di risposta con quello embeddato nei tipi al build time. Mismatch → non fidarsi silenziosamente del payload, restituire un errore azionabile (stile `BeechProblem`: "client types stale, rigenera con `beech types generate`") invece di lasciare passare dati di shape sbagliata.
-4. **Versioning come contratto reale** — `/api/v1/public/*` resta additive-only entro la stessa major version; una modifica breaking al seed deve forzare bump di versione API, non solo rigenerazione tipi. Questo è la garanzia di fondo per i consumer esterni che non hanno CI condivisa.
-5. **Validazione runtime opt-in** — non forzare validazione runtime (zod-derived) su ogni chiamata di default (contraddice "dependency-light" di #384). Esporre come strict mode opzionale (`.list({ validate: true })`) per chi preferisce fail-fast a drift silenzioso.
-
-Il fingerprint runtime non sostituisce la codegen — la completa: la codegen risolve l'ergonomia di authoring, il fingerprint risolve la sicurezza a runtime contro schema drift.
+### Limiti emersi nel codebase
+- **Cancellazione distruttiva immediata**: `D1ContentRepository.delete()` esegue `DELETE FROM ${tableName} WHERE id = ?`.
+- **Rischio distruzione media prematura**: `deleteHandler` in `apps/api/src/features/content/handlers/delete.ts` invoca `deleteR2Objects` all'istante. Se un elemento con immagini viene cestinato, i file su R2 verrebbero distrutti, rompendo il record in caso di futuro ripristino.
+- **Conflitto sui vincoli di unicità (`slug`)**: La colonna `slug` in D1 ha un vincolo inline `slug TEXT NOT NULL UNIQUE`. Se un post viene cancellato logicamente, non è possibile creare un nuovo post con lo stesso slug senza incorrere in un errore SQL.
+- **Assenza di filtro nelle letture**: `buildSelectQuery`, `findById` e `findBySlug` non conoscono lo stato di cancellazione e restituirebbero anche i record cestinati.
+- **Problema Zombie Data post-restore**: Un restore da backup D1 Time Travel ripristina lo stato del database a un istante $T_0$, resuscitando record che erano stati definitivamente cancellati per conformità GDPR tra $T_0$ e il presente.
 
 ---
 
-## Ordine di Esecuzione Consigliato
-1. **#381** — DSL `defineSchema/defineSeed/defineField`, round-trip JSON, no callback/codice eseguibile persistito.
-2. **#382** — CLI schema export/diff/plan/apply + `types generate`, con fingerprint/revision nel header del file generato.
-3. **#383** (parallelizzabile con #382) — `include=` su Public API, depth=1, policy-aware, batched, fingerprint nella risposta.
-4. **#384** — refactor `query-builder.ts` in fluent builder, generic su registry da #382, verifica fingerprint runtime, `.include()` tipato solo dopo #383 stabile.
-5. **#385** — solo dopo #384, forma ridotta (subquery IN, no JOIN arbitrario) o RFC separata.
+## 3. Decisioni Architetturali Fondamentali
 
-## Out of Scope (scartato durante sparring)
-- Linguaggio query dinamico stile GROQ (Sanity) — violerebbe scope #384, aumenta superficie d'attacco backend.
-- JOIN arbitrario / graph traversal lato client (#385 nella forma attuale).
-- Validazione runtime forzata di default su ogni chiamata (solo opt-in).
-- Sync implicito di `beech.schema.ts` all'avvio del Worker (resta manifest desired-state, mai autorità runtime).
+### A. Distinzione Netta: Soft Delete (Cestino) vs Purge (GDPR)
+Non confondere il cestino operativo con la cancellazione GDPR:
+- **Soft Delete (`delete`)**:
+  - Imposta `deleted_at = unixepoch()`.
+  - Il dato rimane integro nel DB, decifrabile e ripristinabile.
+  - Gli asset associati su **Cloudflare R2 rimangono intatti**.
+  - Non soddisfa una richiesta formale di cancellazione GDPR.
+- **Purge (`purge`)**:
+  - Esegue la cancellazione fisica definitiva (`DELETE FROM`).
+  - Rimuove le righe orfane dalle junction tables (multi-relation) e dalla tabella `_drafts`.
+  - Rimuove definitivamente gli oggetti associati su **Cloudflare R2**.
+  - Registra l'evento nel **Deletion Ledger** per proteggere l'oblio post-restore.
+
+### B. Indici Parziali SQLite per lo Slug
+Nei seed con `softDelete: true`, il vincolo di unicità sullo slug non può essere globale a livello di colonna. Viene sostituito da un **indice parziale**:
+```sql
+CREATE UNIQUE INDEX IF NOT EXISTS idx_{slug}_slug_active 
+  ON content_{slug}(slug) 
+  WHERE deleted_at IS NULL;
+```
+In questo modo, uno slug può essere riutilizzato per un nuovo contenuto attivo se la versione precedente è nel cestino.
+
+### C. Protezione Rigorosa delle Public API (#383)
+- Nessun endpoint Public API (`/api/v1/public/*`) accetterà parametri per accedere a record cestinati.
+- `GET /api/v1/public/:seed/:id` e `GET /api/v1/public/:seed/slug/:slug` restituiscono `404 Not Found` se `deleted_at IS NOT NULL`.
+- **Relation Expansion (`include=`)**: Se un record correlato espanso via `#383` è nel cestino, la Public API lo risolve a `null` (mantenendo l'ID grezzo nella chiave estera), prevenendo fughe di dati trashed.
+- **Relation Subqueries**: I filtri relazionali ignorano rigorosamente i record cestinati.
+
+### D. Deletion Ledger & Resurrezione Dati post-Restore (Commento 1)
+Per impedire che un restore di D1 (Time Travel o snapshot R2) ripristini record cancellati per GDPR:
+1. Tabella di sistema locale in D1:
+   ```sql
+   CREATE TABLE IF NOT EXISTS deletion_ledger (
+     id TEXT PRIMARY KEY,
+     tenant_id TEXT NOT NULL,
+     seed_slug TEXT NOT NULL,
+     entity_id TEXT NOT NULL,
+     deleted_at INTEGER NOT NULL,
+     purge_after INTEGER NOT NULL,
+     status TEXT NOT NULL CHECK (status IN ('active', 'expired')),
+     reason TEXT, -- gdpr_request | retention | admin | other
+     UNIQUE (tenant_id, seed_slug, entity_id)
+   );
+   CREATE INDEX IF NOT EXISTS idx_deletion_ledger_lookup
+     ON deletion_ledger (tenant_id, seed_slug, entity_id);
+   ```
+2. **Sopravvivenza al rollback del database**:
+   Poiché un restore di D1 riavvolge anche la tabella `deletion_ledger` locale, ogni evento di purge GDPR viene contestualmente accodato/sincronizzato su storage esterno duraturo (Cloudflare KV o file append-only JSONL su R2: `gdpr-ledger/purged.jsonl`).
+3. **Reconciliation Tool**:
+   Fornire un comando / hook post-restore (`beech gdpr:reconcile` o funzione interna al worker) che legge il log esterno e applica il purge forzato su qualsiasi record resuscitato.
+
+### E. Perimetro MCP (#328)
+- Attualmente `@beechcms/mcp` gestisce esclusivamente il **control plane dello schema** (`beech_schema_plan`, `beech_schema_validate`, `beech_list_seeds`, ecc.) e non manipola record a runtime.
+- **Decisione**: I tool di manipolazione contenuti via MCP (`beech_content_delete`, `restore`, ecc.) sono **fuori perimetro** per questa issue e saranno oggetto di un futuro upgrade dedicato all'MCP (Content CRUD & Operations).
+- MCP eredita automaticamente a costo zero il supporto a `softDelete` su `Seed` (per esportazione schema, validazione e piani DDL) poiché dipende direttamente da `@beechcms/core`.
+
+---
+
+## 4. Specifiche Tecniche di Implementazione
+
+### Fase 1: Core Engine (`@beechcms/core`)
+- **`packages/core/src/engine/types.ts`**:
+  - Aggiungere `softDelete?: boolean` all'interfaccia `Seed`.
+  - Estendere `SelectOptions` con `trashMode?: 'exclude' | 'include' | 'only'` (default: `'exclude'`).
+- **`packages/core/src/engine/ddl.ts`**:
+  - Aggiungere `'deleted_at'` a `SYSTEM_COLUMNS`.
+  - In `generateCreateTable`: se `seed.softDelete === true`, inserire la colonna `deleted_at INTEGER DEFAULT NULL`.
+  - In `generateIndexes`: se `seed.softDelete === true`, creare:
+    - `CREATE INDEX IF NOT EXISTS idx_{slug}_deleted_at ON content_{slug}(deleted_at);`
+    - `CREATE UNIQUE INDEX IF NOT EXISTS idx_{slug}_slug_active ON content_{slug}(slug) WHERE deleted_at IS NULL;` (omettendo `UNIQUE` inline sulla colonna slug).
+- **`packages/core/src/engine/seed-ddl.ts` (`planExtendSeed`)**:
+  - Supportare l'evoluzione di schema: se `seed.softDelete === true` e la colonna `deleted_at` non è presente nelle colonne esistenti, emettere `ALTER TABLE content_{slug} ADD COLUMN deleted_at INTEGER DEFAULT NULL;`.
+- **`packages/core/src/engine/seed-validation.ts`**:
+  - Validare che `seed.softDelete`, se definito, sia di tipo booleano.
+- **`packages/core/src/engine/schema-fingerprint.ts`**:
+  - Includere `softDelete` tra i campi rilevanti per il calcolo del fingerprint canonico dello schema.
+- **`packages/core/src/engine/query.ts` (`buildSelectQuery`)**:
+  - Se `seed.softDelete === true`:
+    - `trashMode === 'exclude'` (o non specificato) $\rightarrow$ inietta `${table}.deleted_at IS NULL`.
+    - `trashMode === 'only'` $\rightarrow$ inietta `${table}.deleted_at IS NOT NULL`.
+    - `trashMode === 'include'` $\rightarrow$ non aggiunge filtri su `deleted_at`.
+- **`packages/core/src/engine/seed-types-generator.ts`**:
+  - Nei tipi generati (`beech.generated.ts`), includere `deleted_at?: number | null` se il seed ha `softDelete: true`.
+
+### Fase 2: Repository Layer (`D1ContentRepository`)
+- **Metodi di Lettura**:
+  - `findMany`: propaga `trashMode` a `buildSelectQuery`.
+  - `findById`: se `seed.softDelete` è attivo, verifica `deleted_at IS NULL` (salvo opzione `trashMode`).
+  - `findBySlug`: aggiunge clausola `AND deleted_at IS NULL`.
+- **Metodi di Modifica Ciclo di Vita**:
+  - `delete(seed, id, options)`:
+    - Se `seed.softDelete === true`: esegue `UPDATE content_{slug} SET deleted_at = (unixepoch()) WHERE id = ?`. Esegue gli hook `beforeDelete` / `afterDelete`.
+    - Se `seed.softDelete !== true`: delega a `purge()`.
+  - `restore(seed, id, options)`:
+    - Verifica che il record esista ed abbia `deleted_at IS NOT NULL`.
+    - Verifica che non vi siano conflitti di unicità attiva su `slug`.
+    - Esegue `UPDATE content_{slug} SET deleted_at = NULL WHERE id = ?`.
+  - `purge(seed, id, options)`:
+    - Esegue la cancellazione fisica `DELETE FROM content_{slug} WHERE id = ?`.
+    - Cancella le relazioni nelle junction tables e le bozze in `_drafts`.
+    - Restituisce i dati per consentire l'eliminazione fisica su Cloudflare R2.
+    - Registra il record nella tabella `deletion_ledger`.
+
+### Fase 3: Handlers & Endpoints REST (`apps/api`)
+- **Modifica di `deleteHandler` (`apps/api/src/features/content/handlers/delete.ts`)**:
+  - Separare la rimozione asset R2: invocare `deleteR2Objects` **solo se l'operazione è un purge definitivo** (quando `seed.softDelete !== true` o con query flag esplicita `?purge=true`).
+  - In caso di soft delete, i file rimangono intatti su R2.
+- **Nuove Route Cestino (`/api/content/:slug/trash`)**:
+  - `GET /api/content/:slug/trash` — elenca i record cestinati (`trashMode: 'only'`), supporta paginazione e ordinamento per data di cancellazione.
+  - `POST /api/content/:slug/trash/:id/restore` — ripristina un record dal cestino.
+  - `DELETE /api/content/:slug/trash/:id/purge` — hard delete definitivo + rimozione R2.
+  - `POST /api/content/:slug/trash/bulk-restore` — ripristino massivo.
+  - `POST /api/content/:slug/trash/bulk-purge` — eliminazione definitiva massiva.
+- **Public API Isolation**:
+  - Verificare che `read-list.ts`, `read-single.ts`, `relation-include.ts` e `relation-subquery.ts` non espongano mai record con `deleted_at IS NOT NULL`.
+
+### Fase 4: Dashboard UI
+- Per i Seed che presentano `softDelete: true`:
+  - Aggiungere una tab/vista secondaria **"Cestino"** nella schermata lista contenuti.
+  - Modificare il pulsante "Elimina" standard in **"Sposta nel cestino"**.
+  - All'interno del cestino: azioni **"Ripristina"** e **"Elimina definitivamente"** (con modale di conferma per prevenire cancellazioni irreversibili).
+  - Se è configurato anche `retentionDays`, mostrare un banner informativo con il conto alla rovescia prima del purge automatico.
+
+---
+
+## 5. Out of Scope (Esclusioni deliberate)
+1. **Tool di contenuto MCP (`beech_content_*`)**: Deferiti al futuro upgrade MCP incentrato su Content CRUD/Operations.
+2. **Cascading polimorfo non dichiarato**: Non applicare soft-delete a cascata arbitrario su grafi non esplicitamente legati da foreign key dirette.
+3. **Cestino per configurazioni di schema**: Il soft-delete si applica esclusivamente alle istanze di contenuto (`content_*`), non alle definizioni dei Seed o tabelle di sistema.
+
+---
+
+## 6. Checklist Operativa di Implementazione
+- [ ] **Core Engine**: Aggiungere `softDelete: boolean` all'interfaccia `Seed`, validazione e inclusione nel fingerprint.
+- [ ] **DDL Generator**: Supportare `deleted_at INTEGER DEFAULT NULL`, indici dedicati e indice parziale per `slug`.
+- [ ] **Schema Migration Plan**: Aggiornare `planExtendSeed` per emettere `ALTER TABLE ADD COLUMN deleted_at`.
+- [ ] **Type Generator**: Includere `deleted_at` nei tipi generati per backend/admin.
+- [ ] **Repository Layer**: Aggiornare `D1ContentRepository` (`findMany`, `findById`, `findBySlug`, `delete`, `restore`, `purge`).
+- [ ] **API Content Handlers**: Implementare endpoints `/trash`, `/restore`, `/purge` e proteggere gli asset R2 dal delete prematuro.
+- [ ] **Public API**: Verificare l'isolamento totale da record cestinati (letture singole, liste, relazioni `#383`).
+- [ ] **GDPR Ledger**: Creare tabella D1 `deletion_ledger` e log di append-only per garantire l'oblio post Time-Travel restore.
+- [ ] **Dashboard UI**: Integrare vista Cestino, badge di stato e azioni contestuali di ripristino / svuotamento.
