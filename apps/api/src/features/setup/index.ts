@@ -5,8 +5,10 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import type { Env, Variables } from '../../types'
+import { sortSeedsByDependencies, planCreateSeed, planExtendSeed } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
-import { DEMO_FIXTURES_BY_SEED_SLUG } from '../../shared/db/fixtures/demo-data.fixtures'
+import { DEMO_SEEDS } from '../../shared/db/fixtures/demo-seeds.fixtures'
+import { getHydratedRegistry } from '../../shared/services/cache/seed-registry-cache'
 
 const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -183,19 +185,6 @@ setupApp.post('/auth/setup', async (context) => {
     }
   }
 
-  if (track === 'developer' && loadDemoData === true) {
-    const getSeed = context.get('getSeed')
-    const hasDemoSeeds = Object.keys(DEMO_FIXTURES_BY_SEED_SLUG).every((slug) => Boolean(getSeed(slug)))
-    if (!hasDemoSeeds) {
-      return publicProblem(context, {
-        type: 'feature-not-implemented',
-        title: 'Feature not implemented',
-        status: 501,
-        detail: 'Demo data seeding is currently not implemented with runtime D1 seeds.',
-      })
-    }
-  }
-
   const passwordHash = await context.get('hashProvider').hash(password)
   const normalizedEmail = email.trim().toLowerCase()
   const normalizedName = typeof name === 'string' ? name.trim() : null
@@ -221,9 +210,31 @@ setupApp.post('/auth/setup', async (context) => {
 
   if (track === 'developer' && loadDemoData === true) {
     try {
+      const seedRepo = context.get('seedRepository')
+      const schemaMutator = context.get('schemaMutator')
+
+      const sortedSeeds = sortSeedsByDependencies(DEMO_SEEDS)
+      for (const seed of sortedSeeds) {
+        const existingCols = await schemaMutator.getColumns(`content_${seed.slug}`)
+        const stmts = existingCols === null
+          ? planCreateSeed(seed)
+          : planExtendSeed(seed, existingCols).statements
+        if (stmts.length > 0) {
+          await schemaMutator.execDdl(stmts)
+        }
+        await seedRepo.upsert(seed.slug, seed, 'runtime')
+      }
+
+      await seedRepo.bumpRegistryVersion()
+      const { registry, backrefMap } = await getHydratedRegistry(seedRepo)
+      context.set('seedRegistry', registry)
+      const freshGetSeed = (slug: string) => registry.get(slug)
+      context.set('getSeed', freshGetSeed)
+      context.set('backrefMap', backrefMap)
+
       await context.get('demoDataRepository').loadDemoData(
         context.get('repository'),
-        context.get('getSeed')
+        freshGetSeed
       )
     } catch (err: unknown) {
       return publicProblem(context, {

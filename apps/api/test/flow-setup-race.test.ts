@@ -53,7 +53,7 @@ describe('Flow: /auth/setup race condition (#233)', () => {
     expect(count).toBe(1)
   })
 
-  it('rejects setup with 501 feature-not-implemented when loadDemoData is true and demo seeds are missing', async () => {
+  it('successfully completes setup with loadDemoData=true, provisioning seeds and demo entries', async () => {
     const res = await app.request('/auth/setup', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -66,13 +66,37 @@ describe('Flow: /auth/setup race condition (#233)', () => {
       }),
     }, { ...TEST_ENV, DB: db })
 
-    expect(res.status).toBe(501)
+    expect(res.status).toBe(201)
     const body = (await res.json()) as any
-    expect(body.type).toBe('https://beechcms.dev/problems/feature-not-implemented')
-    expect(body.title).toBe('Feature not implemented')
+    expect(body.success).toBe(true)
 
-    // Ensure no admin was created
-    const { count } = (await db.prepare('SELECT COUNT(*) as count FROM users').first()) as { count: number }
-    expect(count).toBe(0)
+    // Ensure admin user was created
+    const { count: userCount } = (await db.prepare('SELECT COUNT(*) as count FROM users').first()) as { count: number }
+    expect(userCount).toBe(1)
+
+    // Ensure 5 demo seeds were provisioned into D1 seeds table
+    const { count: seedCount } = (await db.prepare("SELECT COUNT(*) as count FROM seeds WHERE status = 'active'").first()) as { count: number }
+    expect(seedCount).toBe(5)
+
+    // Ensure demo fixtures were ingested into content tables
+    const { count: clientiCount } = (await db.prepare('SELECT COUNT(*) as count FROM content_clienti').first()) as { count: number }
+    expect(clientiCount).toBe(5)
+
+    const { count: abbonamentiCount } = (await db.prepare('SELECT COUNT(*) as count FROM content_abbonamenti').first()) as { count: number }
+    expect(abbonamentiCount).toBe(3)
+
+    const { count: ticketCount } = (await db.prepare('SELECT COUNT(*) as count FROM content_ticket').first()) as { count: number }
+    expect(ticketCount).toBe(2)
+
+    const { count: changelogCount } = (await db.prepare('SELECT COUNT(*) as count FROM content_changelog').first()) as { count: number }
+    expect(changelogCount).toBe(2)
+
+    const { count: articoliCount } = (await db.prepare('SELECT COUNT(*) as count FROM content_articoli').first()) as { count: number }
+    expect(articoliCount).toBe(2)
+
+    // Ensure custom SaaS dashboard layout was saved
+    const layoutRow = (await db.prepare("SELECT layout FROM dashboard_layouts WHERE scope = 'default'").first()) as { layout: string }
+    expect(layoutRow).toBeDefined()
+    expect(JSON.parse(layoutRow.layout).pages.length).toBe(2)
   })
 })
