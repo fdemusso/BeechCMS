@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { compileR2Manifest, computeVectorJob, deleteVectorJob, updateR2ManifestJob } from './semantic-search.worker'
+import { NoOpQueueService } from '@beechcms/core'
 import type { Seed, JobContext } from '@beechcms/core'
 import type { IndexManifest } from '@beechcms/search-client'
 
@@ -107,6 +108,7 @@ describe('semantic-search worker and manifest compilation', () => {
       bucket: {} as any,
       clock: {} as any,
       idGenerator: {} as any,
+      queue: new NoOpQueueService(),
       env: {
         DB: mockDb as any,
         AI: { run: aiRunMock } as any,
@@ -150,6 +152,7 @@ describe('semantic-search worker and manifest compilation', () => {
       bucket: {} as any,
       clock: {} as any,
       idGenerator: {} as any,
+      queue: new NoOpQueueService(),
       env: {
         DB: mockDb as any,
         SEARCH_R2: mockSearchR2 as any,
@@ -190,6 +193,7 @@ describe('semantic-search worker and manifest compilation', () => {
       bucket: {} as any,
       clock: {} as any,
       idGenerator: {} as any,
+      queue: new NoOpQueueService(),
       env: {
         DB: mockDb as any,
         SEARCH_R2: mockSearchR2 as any,

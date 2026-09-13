@@ -3,10 +3,11 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import { SystemClock, SystemIdGenerator } from '@beechcms/core'
+import { NoOpQueueService, SystemClock, SystemIdGenerator } from '@beechcms/core'
 import type { JobRegistry, JobContext, QueueMessage } from '@beechcms/core'
 import { D1ContentRepository } from '../db/repositories/content.repository.d1'
 import { createBucketProvider } from '../storage/factory'
+import { CloudflareQueueService } from '../services/queue/cloudflare-queue-service'
 import type { Env } from '../../types'
 
 /**
@@ -26,6 +27,11 @@ export async function dispatchQueueBatch(
     bucket: createBucketProvider(env, env.MEDIA_BASE_URL ?? ''),
     clock: SystemClock,
     idGenerator: SystemIdGenerator,
+    // Same binding the producer side uses. Absent only in local/test runs without the
+    // queue binding, where NoOp is correct: there is no transport to continue onto.
+    queue: env.QUEUE
+      ? new CloudflareQueueService(env.QUEUE as Queue<QueueMessage>)
+      : new NoOpQueueService(),
     env: env as unknown as Record<string, string | undefined>,
   }
 

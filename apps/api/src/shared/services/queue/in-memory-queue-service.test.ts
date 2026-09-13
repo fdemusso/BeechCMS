@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { InMemoryQueueService } from './in-memory-queue-service'
+import { NoOpQueueService } from '@beechcms/core'
 import type { JobContext, JobRegistry, IIdGenerator } from '@beechcms/core'
 
 function makeContext(): JobContext {
@@ -12,6 +13,7 @@ function makeContext(): JobContext {
     bucket: {} as any,
     clock: { now: () => 0, nowSeconds: () => 0 },
     idGenerator: { uuid: () => 'id' } as unknown as IIdGenerator,
+    queue: new NoOpQueueService(),
     env: {},
   }
 }
