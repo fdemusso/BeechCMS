@@ -28,7 +28,7 @@
   "dependencies": {
     "@beechcms/core": "workspace:^0.8.0",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.564.0",
+    "lucide-react": "^1.44.0",
     "tailwind-merge": "^3.4.0",
     "zod": "^4.3.6"
   },
