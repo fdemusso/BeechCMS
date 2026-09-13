@@ -11,17 +11,6 @@ if (typeof window !== "undefined") {
   await import("@testing-library/jest-dom/vitest")
 }
 
-vi.mock("lucide-react", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("lucide-react")>()
-  return new Proxy(actual, {
-    get: (target, prop) => {
-      if (typeof prop === "string" && /^[A-Z]/.test(prop)) {
-        return () => React.createElement("svg", { "data-testid": `icon-${prop}` })
-      }
-      return target[prop as keyof typeof target]
-    },
-  })
-})
 
 if (!i18n.isInitialized) {
   const itTranslations = await import("@/locales/it.json")
