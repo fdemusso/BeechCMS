@@ -16,8 +16,14 @@ import { kanbanMoveHandler } from './handlers/kanban-move'
 import { getViewConfigHandler, putViewConfigHandler } from './handlers/view-config'
 import { trashListHandler, restoreHandler, bulkRestoreHandler, bulkPurgeHandler, reconcilePurgesHandler } from './handlers/trash'
 import { exportHandler } from './handlers/export'
+import { importHandler } from './handlers/import'
+import { importJobStatusHandler } from './handlers/import-job-status'
 
 const content = new Hono<AppEnv>()
+
+// A literal path, and it must precede every `/:slug/...` pattern below — `/:slug/:id`
+// (registered further down) would otherwise capture 'import-jobs' as a seed slug.
+content.get('/import-jobs/:id', importJobStatusHandler)
 
 content.patch('/:slug/:id/kanban-move', kanbanMoveHandler)
 content.patch('/:slug/:id/kanban-position', kanbanPositionHandler)
@@ -28,6 +34,7 @@ content.post('/:slug/trash/bulk-restore', bulkRestoreHandler)       // NEW
 content.post('/:slug/trash/bulk-purge', bulkPurgeHandler)           // NEW
 content.post('/:slug/trash/reconcile', reconcilePurgesHandler)      // NEW
 content.get('/:slug/export', exportHandler)                         // before /:slug/:id
+content.post('/:slug/import', importHandler)                        // before /:slug/:id
 content.get('/:slug', listHandler)
 content.get('/:slug/facets', facetsHandler)
 content.get('/:schema_slug/by-slug/:entry_slug', getBySlugHandler)

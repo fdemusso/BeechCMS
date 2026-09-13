@@ -11,9 +11,10 @@ import { D1ContentRepository } from './shared/db/repositories/content.repository
 import { D1SeedRepository } from './shared/db/repositories/seed.repository.d1'
 import { dispatchQueueBatch } from './shared/jobs/queue-consumer'
 import { semanticSearchHooks, semanticSearchJobs } from './features/search'
+import { contentImportJobs } from './features/content/jobs/import-chunk.worker'
 import type { Env } from './types'
 
-const jobs = { ...semanticSearchJobs }
+const jobs = { ...semanticSearchJobs, ...contentImportJobs }
 
 const app = createBeechApp({ seeds: [], jobs, hooks: semanticSearchHooks })
 

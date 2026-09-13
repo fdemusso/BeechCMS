@@ -120,6 +120,118 @@ in the exported file too.
 
 ---
 
+## Import Entries — `POST /api/content/:seed/import`
+
+Starts a background import of an already-uploaded file into a content type. The endpoint answers
+without reading the file body: it checks the object's existence and size via a `HEAD`, creates a
+job record, and enqueues the first chunk. Import is **best-effort, not atomic** — a bad row is
+recorded in the job's error report and the rest of the file keeps processing. Import is
+**insert-only**: a row carrying an `id` is inserted as a new entry, never used to overwrite an
+existing one, and a colliding unique key is a failed row, never an upsert.
+
+**Client flow**
+
+1. `POST /api/upload/presign` — `{ filename, mimeType, sizeBytes }` → `{ uploadUrl, key }`.
+2. `PUT <uploadUrl>` with the file body.
+3. `POST /api/content/:seed/import` — `{ objectKey: key, format }`.
+
+`POST /api/upload/confirm` is **deliberately skipped**: an import file is not a media asset and
+must not enter `media_objects` or the storage counter.
+
+An NDJSON file is presigned as `application/json` or `text/plain` — `application/x-ndjson` is not
+in the upload MIME allowlist (`packages/core/src/media/file-types.ts`). The stored content type is
+not authoritative: `format` in the import request body is what the importer trusts.
+
+**Request**
+
+```http
+POST /api/content/posts/import
+Authorization: Bearer eyJ...
+Content-Type: application/json
+
+{ "objectKey": "1234567890-a1b2c3d4-posts.ndjson", "format": "ndjson" }
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `objectKey` | `string` | Key of an object already present in the bucket (from the presign/PUT flow). |
+| `format` | `csv \| ndjson` | NDJSON is universal; CSV requires a flat seed, same rule as export. |
+
+**Response `202 Accepted`**
+
+```json
+{ "jobId": "550e8400-e29b-41d4-a716-446655440000" }
+```
+
+Header `Location: /api/content/import-jobs/<jobId>` points at the job status endpoint below.
+
+**Error responses**
+
+| Status | Body `type` | Cause |
+|---|---|---|
+| `400` | `content-invalid-slug` | Missing `:seed` path param. |
+| `404` | `content-seed-not-found` | `:seed` does not match a loaded seed. |
+| `400` | `content-invalid-json` | Body is not valid JSON. |
+| `400` | `content-import-object-key-required` | `objectKey` missing or blank. |
+| `400` | `content-invalid-import-format` | `format` is neither `csv` nor `ndjson`. |
+| `400` | `content-csv-requires-flat-seed` | `format: 'csv'` against a seed with a relation, repeater, tags, `json`, or multi-file branch. |
+| `404` | `content-import-object-not-found` | No object exists at `objectKey`. |
+| `413` | `content-import-file-too-large` | Object size exceeds `IMPORT_MAX_BYTES` (default 50 MB). |
+
+Every rejection above happens **before** a job row is created.
+
+**Permission.** Requires `content:create` on the target seed.
+
+---
+
+## Import Job Status — `GET /api/content/import-jobs/:id`
+
+Reads back the state of an import started by the endpoint above. Jobs are stored as ordinary
+content entries of the system seed `import_jobs` (hidden from the dashboard sidebar), so this
+route exists only because the read authorization rule is narrower than a plain `content:read`
+grant.
+
+**Response `200 OK`**
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "targetSeed": "posts",
+  "format": "ndjson",
+  "state": "completed",
+  "rowsRead": 5,
+  "insertedRows": 5,
+  "failedRows": 0,
+  "errors": [],
+  "createdAt": 1713600000,
+  "updatedAt": 1713600030,
+  "finishedAt": 1713600030
+}
+```
+
+`state` is one of `pending | processing | completed | failed`. `errors` holds up to
+`MAX_JOB_ERROR_SAMPLES` (100) samples; `failedRows` keeps counting past that cap. `objectKey` and
+`createdBy` are never returned — the first is an R2 path, the second a user id, and neither is
+needed to act on the report.
+
+**Error responses**
+
+| Status | Body `type` | Cause |
+|---|---|---|
+| `404` | `content-import-job-not-found` | No job with that id. |
+| `403` | `content-import-job-forbidden` | Caller is neither the job's creator nor a holder of `content:create` on its target seed. |
+
+**Permission.** Any authenticated caller may reach the route; the handler makes the exact
+creator-or-scope decision. The `import_jobs` seed itself is also reachable through the generic
+`GET/POST/PUT/DELETE /api/content/import_jobs` routes, gated at `content:*` on scope `import_jobs`
+— true of every seed, not a hole specific to this one.
+
+**Operator task.** Configure an R2 lifecycle rule expiring objects older than 24h on the media
+bucket. The consumer deletes the import file on every terminal state; the rule exists only for
+jobs abandoned after the queue exhausts its `max_retries`.
+
+---
+
 ## Create Entry — `POST /api/content/:seed`
 
 Creates a new content entry. Content fields must be sent flat at the root of the JSON body (not nested under a `data` object).

@@ -72,6 +72,16 @@ export interface Env {
    * deployment, and an unset binding must mean "use the default", not "no limit".
    */
   EXPORT_MAX_ROWS?: string
+  /**
+   * Ceiling in bytes on an import file. Unset falls back to DEFAULT_IMPORT_MAX_BYTES.
+   * Deliberately absent from wrangler.jsonc `vars`, exactly like MAX_UPLOAD_BYTES.
+   */
+  IMPORT_MAX_BYTES?: string
+  /**
+   * Rows one queue invocation processes before persisting its cursor and re-enqueuing.
+   * Unset falls back to DEFAULT_IMPORT_CHUNK_ROWS from @beechcms/core.
+   */
+  IMPORT_CHUNK_ROWS?: string
   /** API key for the Resend transactional email provider. */
   RESEND_API_KEY?: string
   /** Generic email provider API key, used when `EMAIL_PROVIDER` is not Resend/SMTP-specific. */

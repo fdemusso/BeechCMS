@@ -17,4 +17,18 @@ export const CONTENT_ERRORS = {
   INVALID_EXPORT_FORMAT: 'Unsupported export format',
   CSV_REQUIRES_FLAT_SEED: 'CSV cannot represent relation, repeater, tags or json fields — request format=ndjson',
   EXPORT_TOO_LARGE: 'Export exceeds the synchronous row limit — narrow the filter or search range',
+  INVALID_IMPORT_FORMAT: 'Unsupported import format',
+  IMPORT_OBJECT_KEY_REQUIRED: 'objectKey is required',
+  IMPORT_OBJECT_NOT_FOUND: 'No uploaded object found for that key',
+  IMPORT_FILE_TOO_LARGE: 'Import file exceeds the maximum size — split the file and retry',
+  IMPORT_JOBS_SEED_MISSING: 'The import_jobs system content type is not installed — run database migrations',
+  IMPORT_JOB_NOT_FOUND: 'Import job not found',
+  IMPORT_JOB_FORBIDDEN: 'Not authorized to read this import job',
 } as const
+
+/**
+ * Default ceiling on the R2 object an import job will read. Matches DEFAULT_MAX_UPLOAD_BYTES in
+ * features/upload/index.ts:L15 — the presign route already refuses anything larger, so a bigger
+ * value here could never be reached, and a smaller one would accept an upload it then refuses.
+ */
+export const DEFAULT_IMPORT_MAX_BYTES = 50 * 1024 * 1024

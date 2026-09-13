@@ -110,12 +110,17 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'GET',    pattern: /^\/api\/content\/drafts$/,                 requirement: AUTHED },
   { method: 'GET',    pattern: /^\/api\/content\/stats\/[^/]+$/,           requirement: perm('view_analytics', 'global') },
   { method: 'POST',   pattern: /^\/api\/content\/stats\/storage\/sync$/,   requirement: perm('view_analytics', 'global') },
+  // Coarse gate only. The exact decision — creator OR holder of content:create on the job's
+  // TARGET seed — is made in the handler, because that scope is not in the URL. Same shape as
+  // the /api/content/drafts row above.
+  { method: 'GET',    pattern: /^\/api\/content\/import-jobs\/[^/]+$/,     requirement: AUTHED },
 
   // --- /api/content per-seed: capture group 1 IS the scope ---------------------
   { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/view-config$/,   requirement: perm('content:read',   'capture1') },
   { method: 'PUT',    pattern: /^\/api\/content\/([^/]+)\/view-config$/,   requirement: perm('content:update', 'capture1') },
   { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/facets$/,        requirement: perm('content:read',   'capture1') },
   { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/export$/,        requirement: perm('content:read',   'capture1') },
+  { method: 'POST',   pattern: /^\/api\/content\/([^/]+)\/import$/,        requirement: perm('content:create', 'capture1') },
   { method: 'PATCH',  pattern: /^\/api\/content\/([^/]+)\/bulk$/,          requirement: perm('content:update', 'capture1') },
   { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/trash$/,                 requirement: perm('content:read',   'capture1') },
   { method: 'POST',   pattern: /^\/api\/content\/([^/]+)\/trash\/bulk-restore$/,   requirement: perm('content:update', 'capture1') },
