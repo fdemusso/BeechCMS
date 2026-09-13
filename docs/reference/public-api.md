@@ -30,6 +30,11 @@ If a capability flag is `false` or absent, the endpoint fails closed and returns
 ### Level 3 — Published-Only Filter
 By default, all public read queries automatically filter by `AND status = 'published'` (`PUBLIC_PUBLISHED_ONLY !== 'false'`). Content in `draft` or `review` status is invisible to external consumers. To expose drafts publicly, explicitly set `PUBLIC_PUBLISHED_ONLY=false`.
 
+### Level 4 — Trashed-Row Exclusion
+On a Seed with `softDelete: true`, every public read additionally filters by `AND deleted_at IS NULL`. The predicate is compiled by the engine's single SQL compiler and defaults to active-only, so it covers list reads, single reads, relation expansion (`?include=`), and relation subquery filters at once — a trashed parent can never surface through a subquery, and there is no opt-out on any public route. Trashed entries are reachable only through the authenticated Trash endpoints. Unlike the published-only filter, this one has **no environment variable** and cannot be disabled.
+
+A live row never carries a `deleted_at` key, so payloads for Seeds with and without `softDelete` are shape-identical. See [Trash, Soft Delete & GDPR Purge](/features/trash).
+
 ---
 
 ## Rate Limiting

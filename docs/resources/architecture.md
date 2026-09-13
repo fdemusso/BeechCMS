@@ -112,6 +112,17 @@ For Seeds with `allowDrafts: true`, BeechCMS employs a **Dual-Table Mirror Archi
 
 This guarantees that public readers never query draft rows or suffer performance degradation from intermediate staging data.
 
+## Soft Delete & the Erasure Ledger
+
+For Seeds with `softDelete: true`, deletion is a row state rather than a row removal. `content_<seed>` gains a nullable `deleted_at INTEGER` system column, and uniqueness moves from an inline `slug ... UNIQUE` to a **partial unique index** (`WHERE deleted_at IS NULL`) so a trashed entry releases its slug for reuse.
+
+Two structural decisions carry the feature:
+
+- **A single read chokepoint.** The `deleted_at IS NULL` predicate is compiled inside `buildSelectQuery` — the one SQL compiler behind the dashboard list, the Public API, relation expansion, and relation subqueries. Applying it once in the engine closes all four paths at the same time; applying it per handler would have been four chances to leak.
+- **A ledger that outlives the database.** An irreversible purge appends an immutable JSON object per erasure to Cloudflare R2 (`_deletion-ledger/<seed>/<entryId>.json`), never to D1. A D1 Time Travel restore rewinds every table it wrote, so a ledger stored in D1 would be undone by the very event it exists to defend against. An operator route replays the R2 log and re-erases anything a restore resurrected.
+
+See [Trash, Soft Delete & GDPR Purge](/features/trash) for the full model.
+
 ## Media Architecture
 
 BeechCMS uses a **Direct-to-R2 Presigned Upload** architecture:

@@ -209,6 +209,38 @@ From the **Drafts Hub**, you can:
 ### Scheduled Content
 When you set content to go live at a specific future date and time, it appears in the **Scheduled** section in the sidebar, queued to be published automatically.
 
+## Deleting Content & the Trash
+
+How deletion behaves depends on how your administrator configured the Seed.
+
+### Content Types With a Trash
+
+For Seeds where the Trash is enabled (typically anything business-critical — orders, customers, leads), deleting is **reversible**:
+
+1. Delete an entry from the listing (row menu or bulk selection). The confirmation reads **"Move to Trash — you can restore it later"**.
+2. The entry disappears from the listing, from the public website, and from search — but nothing is destroyed. Its images and linked records stay attached.
+3. A **Trash** button appears in the listing header. Open it to see everything you have deleted, most recent first.
+
+From the Trash you can:
+
+- **Restore**: brings the entry straight back to the listing. No confirmation is asked — restoring is harmless.
+- **Delete forever**: erases the entry permanently, along with its uploaded images. This asks for an explicit confirmation, because it cannot be undone.
+- **Act in bulk**: tick several rows and restore or erase them together.
+
+The Trash also shows a **Retention** countdown when your administrator set a retention window (e.g. *"12 days left"*). It tells you how long the entry is meant to be kept. Nothing is deleted automatically when the countdown runs out — treat it as a reminder, not a timer.
+
+> [!TIP]
+> **Restored entries can come back with a different URL slug.** While an entry sits in the Trash, its slug is free for someone else to use. If that happened, BeechCMS restores your entry under a slightly different slug instead of refusing — and tells you the new one in a notification. Check any links pointing at the old URL.
+
+### Content Types Without a Trash
+
+On every other Seed, deleting is **immediate and permanent**: the entry and its uploaded images are gone, and no undo is available. The confirmation dialog says so explicitly. If you need a Trash for a content type that does not have one, ask your administrator — it is a per-Seed setting.
+
+> [!IMPORTANT]
+> **"Delete forever" really is forever.** A permanent deletion is recorded outside the database so it stays deleted even if the team later restores a database backup. Use **Move to Trash** whenever you are not certain.
+
+---
+
 ## Media & Images
 
 Adding media in BeechCMS is straightforward and fast. Images are stored securely on edge object storage (Cloudflare R2) and delivered with zero latency.
@@ -267,6 +299,8 @@ BeechCMS provides distinct permissions to ensure content creators have total fre
 | :--- | :---: | :---: |
 | **Create & Edit Fruits** (Articles, Pages, Data) | Full Access | Full Access |
 | **Publish & Manage Drafts** | Full Access | Full Access |
+| **Restore from the Trash** | Granted with edit rights | Full Access |
+| **Delete Forever (permanent erasure)** | Granted with delete rights | Full Access |
 | **Upload Media & Manage Images** | Full Access | Full Access |
 | **Personal Profile & Notification Settings** | Full Access | Full Access |
 | **Customize Dashboard Layouts & Widgets** | Read-Only | Full Access |
@@ -293,6 +327,7 @@ BeechCMS provides distinct permissions to ensure content creators have total fre
 
 ### Missing Entries
 - Check the **Drafts** section (`/drafts`) in the sidebar.
+- Check the **Trash**, if the listing has a Trash button — the entry may have been deleted and can be restored in one click.
 - Clear any active search filters in the toolbar.
 - Use the **Command Palette (`Cmd + K`)** to search across all Seeds simultaneously.
 

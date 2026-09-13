@@ -123,6 +123,7 @@ export default defineConfig({
           text: 'Content & Media Engine',
           items: [
             { text: 'Drafts & Publishing', link: '/features/drafts' },
+            { text: 'Trash & Soft Delete', link: '/features/trash' },
             { text: 'Direct-to-R2 Media', link: '/features/media-engine' },
             { text: 'Relationships & Backrefs', link: '/features/backrefs' },
             { text: 'TipTap Rich Text', link: '/features/richtext-editor' }
