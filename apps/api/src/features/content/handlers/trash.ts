@@ -3,7 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { EntryNotFoundError } from '@beechcms/core'
+import { EntryNotFoundError, type ActorContext } from '@beechcms/core'
+import { applyVisibility } from '../../../shared/policies/apply-policies'
 import { deleteR2Objects } from '../../../shared/storage/upload'
 import { extractMediaKeysFromData } from '../../../shared/utils/media-utils'
 import { parsePositiveInt } from '../../../shared/utils/query-utils'
@@ -77,7 +78,18 @@ export async function trashListHandler(context: Context<AppEnv>) {
       orderBy: { column: 'deleted_at', dir: 'DESC' },
     })
 
-    return context.json({ items, total, page, limit })
+    // Same envelope as listHandler: the dashboard consumes one entry shape, and a branch
+    // marked policies.visibility: 'masked' | 'hidden' must not become readable just because
+    // the row is in the Trash.
+    const jwtPayload = context.get('jwtPayload')
+    const actor: ActorContext = context.get('actor') ?? {
+      type: 'authenticated',
+      userId: jwtPayload?.sub,
+      role: jwtPayload?.role,
+    }
+    const entries = items.map((item) => ({ ...item, data: applyVisibility(item, seed, actor) }))
+
+    return context.json({ items: entries, total, page, limit })
   } catch (error) {
     return handleContentDatabaseError(context, error)
   }

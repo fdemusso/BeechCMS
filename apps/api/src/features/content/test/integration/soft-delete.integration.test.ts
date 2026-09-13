@@ -26,6 +26,7 @@ const trashSeed = defineSeed({
   allowDrafts: true,
   branches: [
     { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+    { id: 'br_02', alias: 'secret', label: 'Secret', type: 'text', policies: { visibility: 'masked' } },
   ],
 })
 
@@ -218,6 +219,38 @@ describe('content slice — soft delete integration (real D1)', () => {
     const ids = body.items.map(i => i.id)
     expect(ids).not.toContain(keptId)
     expect(ids).toEqual([newerId, olderId])
+  })
+
+  it('GET /:slug/trash returns each item with its deleted_at timestamp and a data envelope', async () => {
+    const created = await admin.post('/api/content/trash_orders', { title: 'Enveloped', slug: 'enveloped' })
+    const { id } = await created.json<{ id: string }>()
+    await admin.delete(`/api/content/trash_orders/${id}`)
+
+    const response = await admin.get('/api/content/trash_orders/trash')
+
+    expect(response.status).toBe(200)
+    const body = await response.json<{ items: Array<{ deleted_at: number; data: { title: string } }> }>()
+    const item = body.items.find((i) => i.data.title === 'Enveloped')
+    expect(typeof item?.deleted_at).toBe('number')
+    expect(item?.data.title).toBe('Enveloped')
+  })
+
+  // The trash route reuses applyVisibility so a branch hidden on the main list cannot be
+  // read through the Trash — regression guard for the field-level leak found in pre-computation.
+  it('a masked branch stays masked on the trash route', async () => {
+    const created = await admin.post('/api/content/trash_orders', {
+      title: 'Masked Owner',
+      slug: 'masked-owner',
+      secret: 'do-not-leak',
+    })
+    const { id } = await created.json<{ id: string }>()
+    await admin.delete(`/api/content/trash_orders/${id}`)
+
+    const response = await admin.get('/api/content/trash_orders/trash')
+
+    const body = await response.json<{ items: Array<{ data: { title: string; secret: string } }> }>()
+    const item = body.items.find((i) => i.data.title === 'Masked Owner')
+    expect(item?.data.secret).toBe('••••••••')
   })
 
   it('POST /:slug/trash/reconcile re-purges a row that exists in D1 but is recorded in the ledger', async () => {

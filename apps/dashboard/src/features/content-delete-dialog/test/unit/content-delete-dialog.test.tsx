@@ -28,7 +28,7 @@ describe("ContentDeleteDialog", () => {
       />
     )
 
-    expect(screen.getByText(/Are you sure you want to delete this entry/i)).toBeInTheDocument()
+    expect(screen.getByText(/Delete this .*entry forever/i)).toBeInTheDocument()
     expect(screen.getByText(/ID: id-1/)).toBeInTheDocument()
   })
 
@@ -43,7 +43,7 @@ describe("ContentDeleteDialog", () => {
       />
     )
 
-    expect(screen.getByText(/delete 4 entries/i)).toBeInTheDocument()
+    expect(screen.getByText(/Delete 4 .*entries forever/i)).toBeInTheDocument()
     expect(screen.getByText(/ID: id-1, id-2, id-3, …/)).toBeInTheDocument()
   })
 
@@ -77,7 +77,7 @@ describe("ContentDeleteDialog", () => {
       />
     )
 
-    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }))
+    fireEvent.click(screen.getByRole("button", { name: /delete forever/i }))
 
     await waitFor(() => {
       expect(onConfirm).toHaveBeenCalledTimes(1)
@@ -99,10 +99,41 @@ describe("ContentDeleteDialog", () => {
       />
     )
 
-    fireEvent.click(screen.getByRole("button", { name: /^delete$/i }))
+    fireEvent.click(screen.getByRole("button", { name: /delete forever/i }))
 
     expect(await screen.findByText("Custom delete error")).toBeInTheDocument()
     expect(onOpenChange).not.toHaveBeenCalledWith(false)
+  })
+
+  it("a trash-mode dialog offers a reversible move and no irreversibility warning", () => {
+    render(
+      <ContentDeleteDialog
+        open
+        onOpenChange={vi.fn()}
+        seed={seed}
+        entryIds={["id-1"]}
+        mode="trash"
+        onConfirm={vi.fn().mockResolvedValue(undefined)}
+      />
+    )
+
+    expect(screen.getAllByText(/Move to Trash/i).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/cannot be undone/i)).not.toBeInTheDocument()
+  })
+
+  it("a purge-mode dialog states the deletion is permanent", () => {
+    render(
+      <ContentDeleteDialog
+        open
+        onOpenChange={vi.fn()}
+        seed={seed}
+        entryIds={["id-1"]}
+        mode="purge"
+        onConfirm={vi.fn().mockResolvedValue(undefined)}
+      />
+    )
+
+    expect(screen.getByText(/cannot be undone/i)).toBeInTheDocument()
   })
 })
 

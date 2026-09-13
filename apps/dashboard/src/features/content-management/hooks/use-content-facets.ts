@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { contentApi } from "../api/content.api"
-import { FACET_QUERY_KEYS, CONTENT_QUERY_KEYS } from "../consts/content.keys"
+import { FACET_QUERY_KEYS, CONTENT_QUERY_KEYS, TRASH_QUERY_KEYS } from "../consts/content.keys"
 import { DASHBOARD_QUERY_KEYS } from "@/features/shared"
 import { BACKREF_QUERY_KEY } from "@/features/shared"
 
@@ -32,11 +32,13 @@ export function useContentFacets(slug: string | undefined) {
 export function useDeleteContent() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ slug, id }: { slug: string; id: string }) =>
-      contentApi.delete(slug, id),
+    mutationFn: ({ slug, id, purge }: { slug: string; id: string; purge?: boolean }) =>
+      contentApi.delete(slug, id, purge ? { purge: true } : undefined),
     onSuccess: () => {
       // Invalidate all content lists to trigger a refetch
       queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.all })
+      // A soft delete creates a Trash row; a purge removes one. Either way the Trash is stale.
+      queryClient.invalidateQueries({ queryKey: TRASH_QUERY_KEYS.all })
       // Invalidate recent-activity so the dashboard feed reflects the deletion immediately
       queryClient.invalidateQueries({ queryKey: DASHBOARD_QUERY_KEYS.activity() })
       // Invalidate back-refs — deleted entry may have been a source

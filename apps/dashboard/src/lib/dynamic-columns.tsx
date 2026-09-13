@@ -66,6 +66,8 @@ export interface ContentEntry {
   created_at: number | null
   /** Epoch timestamp of when this entry was last updated. */
   updated_at: number | null
+  /** Epoch timestamp of the soft deletion. Present only on rows read from the Trash endpoint. */
+  deleted_at?: number | null
 }
 
 /**

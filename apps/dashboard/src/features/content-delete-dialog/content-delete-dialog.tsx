@@ -26,20 +26,26 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
     entryCount,
     previewIds,
     hasMore,
+    resolvedMode,
   } = useContentDeleteDialog(props)
 
   const { can } = usePermissions()
   const canDelete = can("content:delete", seed.slug)
 
+  const titleKey = resolvedMode === "trash" ? "content.deleteDialog.trashTitle" : "content.deleteDialog.purgeTitle"
+  const singleKey = resolvedMode === "trash" ? "content.deleteDialog.trashSingle" : "content.deleteDialog.purgeSingle"
+  const multipleKey = resolvedMode === "trash" ? "content.deleteDialog.trashMultiple" : "content.deleteDialog.purgeMultiple"
+  const confirmKey = resolvedMode === "trash" ? "content.deleteDialog.trashConfirm" : "content.deleteDialog.purgeConfirm"
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>{t("content.deleteDialog.title")}</DialogTitle>
+          <DialogTitle>{t(titleKey)}</DialogTitle>
           <DialogDescription>
             {entryCount <= 1
-              ? t("content.deleteDialog.single", { type: seed.label })
-              : t("content.deleteDialog.multiple", { count: entryCount, type: seed.labelPlural ?? seed.label })}
+              ? t(singleKey, { type: seed.label })
+              : t(multipleKey, { count: entryCount, type: seed.labelPlural ?? seed.label })}
             {previewIds.length > 0 && (
               <span className="mt-2 block font-mono text-xs text-muted-foreground">
                 ID: {previewIds.join(", ")}
@@ -48,6 +54,9 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
             )}
           </DialogDescription>
         </DialogHeader>
+        {resolvedMode === "purge" && (
+          <p className="text-sm text-destructive">{t("content.deleteDialog.purgeWarning")}</p>
+        )}
         {error && (
           <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
             {error}
@@ -69,7 +78,7 @@ export function ContentDeleteDialog(props: Readonly<ContentDeleteDialogProps>) {
               onClick={handleConfirm}
               disabled={isDeleting}
             >
-              {isDeleting ? t("common.deleting") : t("common.delete")}
+              {isDeleting ? t("common.deleting") : t(confirmKey)}
             </Button>
           ) : (
             <Tooltip>
