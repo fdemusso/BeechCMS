@@ -65,6 +65,13 @@ export interface Env {
   MEDIA_CDN_URL?: string
   /** Maximum accepted upload size, in bytes. */
   MAX_UPLOAD_BYTES?: string
+  /**
+   * Maximum rows a single synchronous export may stream. Optional; falls back to
+   * `DEFAULT_EXPORT_MAX_ROWS` from @beechcms/core. Deliberately absent from
+   * wrangler.jsonc `vars`, exactly like MAX_UPLOAD_BYTES: an operator sets it per
+   * deployment, and an unset binding must mean "use the default", not "no limit".
+   */
+  EXPORT_MAX_ROWS?: string
   /** API key for the Resend transactional email provider. */
   RESEND_API_KEY?: string
   /** Generic email provider API key, used when `EMAIL_PROVIDER` is not Resend/SMTP-specific. */

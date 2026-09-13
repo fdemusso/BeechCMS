@@ -13,27 +13,33 @@ because the graph and the codebase will have moved by then.
 
 ---
 
-## S1 — `BulkTransferCorePrimitives` *(CURRENT — detailed plan in `output/BulkTransferCorePrimitives.md`)*
+## S1 — `BulkTransferCorePrimitives` *(SHIPPED — archived at `docs/Sprints/BulkTransferCorePrimitives/`, review verdict PASS)*
 
 - **Goal:** ship the pure, transport-free primitives every later sprint depends on: format
   encoders/decoders, the flat-vs-relational seed predicate, shared thresholds, and the
   `JobContext.queue` contract extension that makes chunk self-continuation possible.
-- **Deliverables:** new `packages/core/src/transfer/` module (CSV RFC4180 + NDJSON codecs,
-  `isFlatSeed`, `checkFormatCompatibility`, export column projection, import payload mapping,
-  shared constants) with unit tests; `JobContext.queue: IQueueService` added to
-  `packages/core/src/queue/queue.interface.ts`; the four `apps/api` construction sites updated
-  to satisfy the new required field. **Zero routes, zero migrations, zero UI.**
+- **Shipped:** `packages/core/src/transfer/` (CSV RFC4180 + NDJSON codecs, `isFlatSeed`,
+  `checkFormatCompatibility`, `exportColumns`, row↔payload mapping, shared constants) with four
+  unit suites; required `JobContext.queue: IQueueService` in
+  `packages/core/src/queue/queue.interface.ts`; the six `apps/api` `JobContext` construction sites
+  updated. Zero routes, zero migrations, zero UI. `InMemoryQueueService`'s self-reference resolved
+  by post-construction assignment rather than by making the field optional.
 - **Depends on:** nothing.
 
-## S2 — `ContentExportStream`
+## S2 — `ContentExportStream` *(CURRENT — detailed plan in `output/ContentExportStream.md`)*
 
-- **Goal:** expose synchronous, chunked, streaming export of a content type over HTTP.
+- **Goal:** expose synchronous, chunked, streaming export of a content type over HTTP — the first
+  production consumer of the S1 primitives.
 - **Deliverables:** `GET /api/content/:slug/export?format=` in the `content` slice; a
-  `ReadableStream` producer that pages `repository.findMany` and never materialises the whole
-  result set; `400` when CSV is requested for a non-flat seed; `413` when the row count exceeds
-  the configurable cap; `permission.middleware.ts` route rule at `content:read` / `capture1`;
-  integration tests against real D1.
-- **Depends on:** S1 (codecs, `checkFormatCompatibility`, `exportColumns`, cap constant).
+  `ReadableStream` producer that pages `repository.findMany` with a **keyset cursor on `id`** and
+  never materialises the whole result set; `400` when CSV is requested for a non-flat seed; `400`
+  for an unknown format; `413 content-export-too-large` when the row count exceeds the
+  `EXPORT_MAX_ROWS` cap, refused before the first byte; a `permission.middleware.ts` route rule at
+  `content:read` / `capture1`; `413` added to the `problem-details.ts` status union; one unit suite
+  for the producer and one integration suite against real D1. **Zero core changes, zero migrations,
+  zero UI.**
+- **Depends on:** S1 (codecs, `checkFormatCompatibility`, `exportColumns`,
+  `DEFAULT_EXPORT_MAX_ROWS`, `DEFAULT_EXPORT_PAGE_SIZE`).
 
 ## S3 — `ContentImportJobs`
 
@@ -49,7 +55,8 @@ because the graph and the codebase will have moved by then.
   terminal state); `GET /api/content/import-jobs/:id` with the creator-or-same-seed-write-scope
   authorization rule enforced in the handler; R2 lifecycle rule documented for orphans.
 - **Depends on:** S1 (codecs, chunk-size constant, error-sample cap, `JobContext.queue`) and on
-  S2 only for shared route-rule placement conventions — it does not import S2 code.
+  S2 only for shared route-rule placement conventions and the `413` status union — it does not
+  import S2 code.
 
 ## S4 — `BulkTransferDashboard`
 

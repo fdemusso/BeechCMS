@@ -115,6 +115,7 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/view-config$/,   requirement: perm('content:read',   'capture1') },
   { method: 'PUT',    pattern: /^\/api\/content\/([^/]+)\/view-config$/,   requirement: perm('content:update', 'capture1') },
   { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/facets$/,        requirement: perm('content:read',   'capture1') },
+  { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/export$/,        requirement: perm('content:read',   'capture1') },
   { method: 'PATCH',  pattern: /^\/api\/content\/([^/]+)\/bulk$/,          requirement: perm('content:update', 'capture1') },
   { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/trash$/,                 requirement: perm('content:read',   'capture1') },
   { method: 'POST',   pattern: /^\/api\/content\/([^/]+)\/trash\/bulk-restore$/,   requirement: perm('content:update', 'capture1') },

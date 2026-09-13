@@ -15,6 +15,7 @@ import { kanbanPositionHandler } from './handlers/kanban-position'
 import { kanbanMoveHandler } from './handlers/kanban-move'
 import { getViewConfigHandler, putViewConfigHandler } from './handlers/view-config'
 import { trashListHandler, restoreHandler, bulkRestoreHandler, bulkPurgeHandler, reconcilePurgesHandler } from './handlers/trash'
+import { exportHandler } from './handlers/export'
 
 const content = new Hono<AppEnv>()
 
@@ -26,6 +27,7 @@ content.get('/:slug/trash', trashListHandler)                       // NEW — b
 content.post('/:slug/trash/bulk-restore', bulkRestoreHandler)       // NEW
 content.post('/:slug/trash/bulk-purge', bulkPurgeHandler)           // NEW
 content.post('/:slug/trash/reconcile', reconcilePurgesHandler)      // NEW
+content.get('/:slug/export', exportHandler)                         // before /:slug/:id
 content.get('/:slug', listHandler)
 content.get('/:slug/facets', facetsHandler)
 content.get('/:schema_slug/by-slug/:entry_slug', getBySlugHandler)

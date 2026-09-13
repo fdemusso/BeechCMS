@@ -81,7 +81,7 @@ export interface PublicProblemDetailItem {
 type PublicProblemInput = {
   type: string
   title: string
-  status: 400 | 401 | 403 | 404 | 405 | 409 | 422 | 429 | 500 | 501
+  status: 400 | 401 | 403 | 404 | 405 | 409 | 413 | 422 | 429 | 500 | 501
   detail: string
   errors?: PublicProblemDetailItem[]
   headers?: Record<string, string>

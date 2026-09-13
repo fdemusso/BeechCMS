@@ -14,4 +14,7 @@ export const CONTENT_ERRORS = {
   BULK_SIZE_EXCEEDED: 'Cannot edit more than 500 entries at once',
   FIELD_NOT_BULK_EDITABLE: 'Field cannot be bulk-edited',
   SOFT_DELETE_DISABLED: 'Soft delete is not enabled for this content type',
+  INVALID_EXPORT_FORMAT: 'Unsupported export format',
+  CSV_REQUIRES_FLAT_SEED: 'CSV cannot represent relation, repeater, tags or json fields — request format=ndjson',
+  EXPORT_TOO_LARGE: 'Export exceeds the synchronous row limit — narrow the filter or search range',
 } as const

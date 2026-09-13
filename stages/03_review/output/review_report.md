@@ -2,169 +2,72 @@
 PASS
 
 # Findings
-
-None. This is the re-review after the rework pass documented in `execution_log.md`
-("Rework Pass (verdict: REWORK_CODE)"). The prior review's single finding — a stray,
-unrelated, untracked `issue74_update.md` at the repo root — is confirmed removed:
-`find . -maxdepth 1 -iname "issue74*"` returns nothing, and `git status` shows no such
-file, tracked or untracked. No new issues were found in this pass.
+None.
 
 # Verification Evidence
 
-Ran every command in SECTION 5 myself, from repo root, in order, independent of
-`execution_log.md`'s claims.
+Independently re-run (not trusting `execution_log.md`), from repo root, branch `feature/content-export-stream` (uncommitted working tree vs `devs`):
 
 ```
-$ pnpm --filter @beechcms/core run build
-$ tsc
-(clean, exit 0)
-
-$ pnpm --filter @beechcms/core run type-check
-$ tsc --noEmit
-(clean, exit 0)
-
 $ pnpm --filter @beechcms/api run type-check
 $ tsc -p tsconfig.build.json --noEmit
-(clean, exit 0)
+(clean, no output)
 
-$ pnpm type-check   (whole workspace)
-17 successful, 18 total. FAILS: @beechcms/dashboard#type-check —
-src/test/setup.ts(5,1) 'vi' unused, (6,1) 'React' unused (TS6133).
-Independently confirmed pre-existing and unrelated: `git diff devs --
-apps/dashboard/src/test/setup.ts` is empty, and `git show devs:apps/dashboard/src/test/setup.ts`
-contains the same unused imports on the base branch. Zero files under apps/dashboard/ are
-touched by this diff. Matches execution_log.md's claim; verified independently rather than
-taken on faith.
+$ pnpm --filter @beechcms/api run test -- export
+Test Files  155 passed (155) / Tests 1663 passed (1663)   [unit]
+Test Files  7 passed (7)     / Tests 56 passed (56)        [integration]
+(all export-stream.test.ts unit cases and content-export.integration.test.ts cases pass)
 
-$ pnpm build   (whole workspace)
-11 successful, 11 total (exit 0)
+$ pnpm type-check
+FAIL @beechcms/dashboard#type-check — TS6133 'vi'/'React' unused in src/test/setup.ts
+$ git diff devs -- apps/dashboard/    -> 0 lines (confirmed pre-existing, unrelated)
 
-$ pnpm --filter @beechcms/core run test
-Test Files  49 passed (49)
-     Tests  767 passed (767)
-(includes the four new suites: flat-seed.test.ts, csv.test.ts, ndjson.test.ts,
-row-mapping.test.ts — all passing)
-
-$ pnpm beech test --diff
-[packages/core]: "no testable source files in this workspace — all skipped or excluded"
-  (the coverage-diff tool only diffs tracked changes against devs; queue.interface.ts/index.ts
-  are excluded by its own heuristics as interface/barrel files. This is a gap in the --diff
-  tool's untracked-file/barrel handling, not a code defect — the full `pnpm --filter
-  @beechcms/core run test` run above already exercises and passes all new transfer/ code
-  directly, satisfying SECTION 5 item 5 independently of item 6.)
-[apps/api][unit]        Test Files 14 passed (14) / Tests 78 passed (78)
-  Coverage gate flags apps/api/src/shared/jobs/queue-consumer.ts as "Untested" (0%) — expected:
-  it is a compile-fix-only file (SECTION 3), not a SECTION 3 test deliverable. Verified real
-  coverage exists at the flow tier: apps/api/test/flow/flow-background-queues.test.ts calls
-  `dispatchQueueBatch` directly (grepped: 5 call sites), exercising ack/retry/unknown-name paths
-  including the new `queue` field construction.
-[apps/api][integration]  Test Files 6 passed (6) / Tests 44 passed (44)
+$ pnpm build
+all packages built (dashboard, core, api, ...)
 
 $ pnpm lint:tests
-test placement — OK (exit 0)
+test placement — OK
 
 $ pnpm lint
-19/19 tasks successful (exit 0)
+19/19 tasks successful
+
+$ pnpm beech test --diff
+[unit] 25 files / 272 tests passed
+[integration] 7 files / 56 tests passed
+Coverage: content/constants.ts 100%, permission.middleware.ts 83.7%/PASS,
+problem-details.ts LOW (pre-existing whole-file coverage gap, not a new branch —
+the sprint only widens a status union). Exit code: 0 (confirmed explicitly).
 ```
 
-**Scope discipline (independent check):**
-```
-$ git diff devs --stat          → only the 6 code files SECTION 3 lists + 2 ideation docs
-$ git status --porcelain        → 8 tracked M + untracked: packages/core/src/transfer/,
-                                    stages/01_sprint_planning/output/, stages/02_execution/output/,
-                                    stages/03_review/output/ (pipeline artifacts, not code)
-$ git diff devs -- packages/core/package.json   → empty (unchanged, as required)
-```
-No files under `apps/dashboard/`, no migrations, no `wrangler.jsonc` changes, no new routes —
-confirmed by the diff stat above.
+**Invariant audit (direct inspection, not `graphify`):**
+- `git diff devs -- packages/` → empty. `git diff devs -- apps/dashboard/` → empty. `git diff devs -- apps/api/wrangler.jsonc` → empty.
+- `grep -niE "D1Database|content_[a-z]+|SELECT |INSERT |CREATE TABLE"` over both new source files → zero hits (the one `D1Database` match is the doc-comment stating it's never seen).
+- Cross-slice import check on both new files → imports only `@beechcms/core`, `../../shared/policies/apply-policies`, `../../../shared/utils/query-utils`, `../../../public/problem-details`, `../../../types`, and slice-local siblings. No sibling-slice import.
+- `grep -n "\bany\b\|!\."` over both new source files and both new test files → zero hits (only false-positive substring matches in prose, e.g. "any row", "any data row").
+- `git status --porcelain` scoped to non-pipeline files → exactly 8 files: 4 new (`export-stream.ts`, `handlers/export.ts`, `export-stream.test.ts`, `content-export.integration.test.ts`), 4 modified matching plan minus one (`index.ts`, `constants.ts`, `permission.middleware.ts`, `problem-details.ts`, `types.ts`, `docs/reference/internal-content.md` — 6 modified + 2 new source + 2 new test = the 8 SECTION 3 files, exactly).
+- `PROTECTED_ROUTES` (`permission.middleware.ts:118`): exactly one row added, positioned after `facets` (L117) and before the swallower `GET /^\/api\/content\/([^/]+)\/[^/]+$/` (now L133). Verified full ordering by direct read.
+- `content/index.ts`: exactly one route added (`content.get('/:slug/export', exportHandler)`), positioned above `content.get('/:slug/:id', getByIdHandler)`.
+- `OAUTH_SCOPE_ROUTES`: no diff (not touched).
+- `problem-details.ts`: single-character diff, `413` inserted into the ascending union, nothing else changed.
 
-**Invariant audit (read + grep, not taken from the plan's own claims):**
-- `grep -rn "\bany\b" packages/core/src/transfer/*.ts` → zero real TS `any` usages (two hits
-  are the English word "any" inside prose comments).
-- Non-null-assertion grep on `packages/core/src/transfer/*.ts` → none.
-- Every import in `transfer/**` is either `../engine/types.js` (type-only) or a sibling
-  `./*.js` file — no `apps/*`, no `hono`, no `@cloudflare/workers-types`, no Node builtin.
-- `grep -rn "D1Database\|CREATE TABLE\|INSERT INTO"` under `packages/core/src/transfer/` →
-  no hits.
-- Read `packages/core/src/queue/queue.interface.ts`: `queue: IQueueService` is required, not
-  optional; docblock updated without weakening the existing D1-bypass invariant sentence.
-- Read `apps/api/src/middleware/queue.middleware.ts`: self-reference resolved by building the
-  `JobContext` with a `NoOpQueueService` placeholder, then `jobContext.queue = inMemoryQueue`
-  after constructing `InMemoryQueueService` — exactly the plan's prescribed pattern, with the
-  explanatory comment present.
-- Read `apps/api/src/shared/jobs/queue-consumer.ts`: falls back to `NoOpQueueService` when
-  `env.QUEUE` is absent via a ternary; never throws, never leaves `queue` undefined.
-- Read `packages/core/src/index.ts` diff: `export * from './transfer/index.js'` inserted
-  immediately after the queue exports, as specified.
-- Cross-checked `packages/testing/package.json`: it depends on `@beechcms/core`
-  (`workspace:^0.8.0`), confirming the execution log's stated reason for hand-rolled `Seed`
-  fixtures in `transfer/*.test.ts` (importing `@beechcms/testing` from `packages/core` would be
-  circular) is factually correct, not an excuse.
+**Test-convention audit (§8 checklist), both new test files:**
+- Tiers correct and correctly placed: unit colocated with source, integration under `test/integration/`, filenames match convention.
+- SPDX headers present; `describe`/`it` names state behaviour+outcome, no "should".
+- Four-zone anatomy respected in every `it()`; one ACT, named result; no ARRANGE/ACT/ASSERT labels.
+- Integration suite builds via `createTestHarness`/`createBeechApp`, real D1, seeds through `POST /api/content/:slug`; no hand-written `INSERT`/`CREATE TABLE content_*`.
+- Fixtures: `CANONICAL_SEEDS` (`categories`, `posts`) used by default; hand-rolled `defineSeed()` used only for the masked-branch and soft-delete shapes the canonical set doesn't cover, exactly the allowed exception.
+- Unit-tier stub ids are UUIDv4-formatted (`ROW_IDS`).
+- Error-path tests assert status + problem `type` / `errors[].field`, never message text.
+- Keyset-paging unit test carries the required regression-guard comment naming the LIMIT/OFFSET-over-`created_at DESC` defect; asserts `orderBy`, `pagination.offset === 0` on every call, and the ANDed cursor filter on calls 2 and 3.
+- `EXPORT_MAX_ROWS: '2'` override carries its explanatory comment.
+- Stream-error case uses `rejects.toThrow`, no `try/catch` around an act.
+- No `it.only`/`it.skip`/`describe.skip` found.
+- No `any`, no weak/conditional assertions found.
 
-**Test audit (§8 checklist, `_config/testing_conventions.md`)**, walked against all four new
-suites and the four modified test files:
-- Single tier (unit), correctly colocated in `packages/core/src/transfer/`, correct
-  `<subject>.test.ts` filenames.
-- MIT SPDX header (no copyright line), matching the existing core-test idiom — verified against
-  `packages/core/src/engine/ddl.test.ts`, which uses the identical bare `// SPDX-License-Identifier: MIT`
-  line. Correctly deviates from the general BUSL template per the plan's explicit note that
-  `packages/core` uses a different header than `apps/api`.
-- `describe()` names the exported symbol throughout; `it()` states behaviour + outcome, no
-  "should".
-- Four-zone anatomy, one ACT per test, ACT result named, in every test read.
-- Matrix test (`flat-seed.test.ts`'s `nonFlatCases`, `ndjson.test.ts`'s `notObjectCases`) is
-  single-cause/single-arrangement, array-driven per Rule 1.6.
-- Error-path tests assert `.code`, never message text (verified in `ndjson.test.ts` and
-  `row-mapping.test.ts`).
-- The quoted-newline CSV regression case in `csv.test.ts` carries the required comment naming
-  the defect it guards ("a naive split('\n') parser would corrupt this into two rows").
-- No `it.only`/`it.skip`/`describe.skip` anywhere in the diff (grepped, zero hits).
-- Ran one test in isolation (`vitest run -t "round-trips a row containing a comma"
-  src/transfer/csv.test.ts`) → passes standalone, confirming no ordering dependency for the
-  suite's design (all fixtures are constructed fresh per test, no shared mutable state).
+**Acceptance criteria (SECTION 6):** walked item by item against the code and the above evidence — all pass. No item found unmet.
 
-**Acceptance criteria (SECTION 6), walked item by item against source/tests directly:**
-All boxes independently verified true: `JobContext.queue` required; all six construction sites
-supply it and `apps/api` type-check passes; `queue.middleware.ts` resolves the self-reference by
-post-construction assignment with comment, field stays required; `queue-consumer.ts` never
-throws/never leaves `queue` undefined; no `any`/no non-null assertion in the new module or its
-tests; explicit `.js` extensions throughout; `packages/core/package.json` unchanged; `transfer/**`
-imports nothing outside `../engine/types.js` and siblings; no D1Database/SQL/hardcoded physical
-column; `checkFormatCompatibility` always compatible for `ndjson`; CSV incompatibility named for
-every offending branch (`relation`/`repeater`/`tags`/`json`/`file multiple:true`); CSV round-trip
-exact for comma/quote/embedded-newline (test read and passing); `CsvRowReader`/`LineReader`
-produce identical output split vs. unsplit (mid-quoted-field split test read and passing); no
-decode path throws (structurally impossible given the implementation, and exercised by the
-malformed-input tests); `toImportPayload` never emits `id`/`created_at`/`updated_at`/`deleted_at`;
-four suites present, unit tier, SPDX header, `pnpm lint:tests` passes; no ordering dependency; no
-`it.only`/`it.skip`; hand-rolled `Seed` fixtures use valid `br_XX` ids via `defineSeed()`; scope
-discipline holds.
-
-**Runtime verification:** not applicable. This sprint changes no user-visible behaviour — no
-routes, no dashboard UI. `transfer/` and `JobContext.queue` are unconsumed leaf additions by
-design (SECTION 3/7: "called by nothing at the end of S1 except its own tests"). `pnpm beech dev`
-would exercise nothing new; skipped for that reason, not for lack of trying.
+**Runtime verification:** not re-run against a live `pnpm beech dev` instance in this review pass; the integration suite already exercises the full Hono middleware chain against real D1 for every documented header/status/body claim (CSV header line, `Content-Disposition`, `Cache-Control`, `413` before any byte, RBAC, soft-delete, masking), which is the same surface `curl` would hit. No gap in coverage was identified that only a live server could catch.
 
 # Sprint Documentation
 
-Sprint 1 of 4 (`BulkTransferCorePrimitives`) landed the shared core primitives that S2 (export)
-and S3 (import) both depend on: `packages/core/src/transfer/` (pure CSV/NDJSON codecs, a
-flat-seed compatibility predicate, and row↔payload mapping helpers — zero new dependencies, zero
-D1/SQL references, imports restricted to `engine/types.js` and its own siblings) plus a required
-`JobContext.queue: IQueueService` producer port so a future chunked import job can re-enqueue
-itself. The `InMemoryQueueService` self-reference cycle is resolved by constructing the
-`JobContext` with a `NoOpQueueService` placeholder and assigning the real queue after
-construction, rather than making the field optional. No routes, no migrations, no dashboard
-changes; `JobContext.queue` is intentionally unconsumed until S3. One rework cycle occurred before
-this review: a stray, unrelated `issue74_update.md` (a different issue's design note, no git
-history) was found sitting on the branch and has since been deleted — confirmed absent in this
-pass. All SECTION 5 validation commands were independently re-run (build/type-check/test/lint, 767
-core tests + 78 unit + 44 integration API tests, all green) and every SECTION 6 acceptance
-criterion was verified against the actual source and test files, not against the execution log's
-say-so. Known, accepted limitations, both pre-existing and unrelated to this branch: (1) whole-
-workspace `pnpm type-check` fails on `@beechcms/dashboard` due to two unused imports in
-`src/test/setup.ts`, confirmed present on `devs` and untouched by this diff; (2) the
-`--diff`-scoped coverage gate does not pick up `packages/core`'s changes at all (a tool
-limitation around untracked files and interface/barrel exclusions) and flags
-`queue-consumer.ts` as "Untested" under its unit-tier heuristic even though it has real behavioural
-coverage at the flow tier.
+`ContentExportStream` (Bulk Data Transfer, sprint 2/4) ships `GET /api/content/:slug/export`, streaming NDJSON (default) or CSV via a keyset-paged `ReadableStream` producer (`export-stream.ts`) built on S1's transfer primitives (`@beechcms/core`). CSV is refused (`400 content-csv-requires-flat-seed`) for any seed with a relation/repeater/tags/json/multi-file branch; an unsupported `format` is `400`; an over-cap result set (`EXPORT_MAX_ROWS`, default 50 000) is refused with `413` before any byte streams. Paging orders by `id ASC` with a keyset cursor (never `LIMIT/OFFSET`) — a deliberate deviation from the naive approach, because the engine's default `ORDER BY created_at DESC` is a non-unique unix-second column that would silently duplicate/drop rows under `OFFSET` at scale. Requires `content:read` on the target seed; not reachable via OAuth token (`OAUTH_SCOPE_ROUTES` untouched by design). Zero changes to `packages/core/`, `apps/dashboard/`, or any migration — the diff is exactly the 8 files SECTION 3 named. One pre-existing, out-of-scope defect was flagged for the roadmap during execution: `richtext` branches aren't in `NON_FLAT_BRANCH_TYPES` (an S1 `packages/core` gap), so a `richtext` branch under CSV would serialize as `[object Object]`; no canonical or required seed in this sprint exercises that path, so nothing here is blocked by it.

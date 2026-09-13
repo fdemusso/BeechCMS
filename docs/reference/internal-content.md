@@ -59,6 +59,67 @@ Authorization: Bearer eyJ...
 
 ---
 
+## Export Entries — `GET /api/content/:seed/export`
+
+Streams every matching entry of a content type as a downloadable file, one page at a time. An
+export never materializes the full result set in memory: the response body is a `ReadableStream`
+paged internally at `DEFAULT_EXPORT_PAGE_SIZE` (500) rows per round-trip.
+
+**Query parameters**
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `format` | `csv \| ndjson` | `ndjson` | NDJSON is universal; CSV requires a flat seed (see below). |
+| `search` | `string` | — | Full-text search, same semantics as [List Entries](#list-entries). |
+| `filters` | `string` | — | Serialized `QueryFilterGroup[]`, same encoding as [List Entries](#list-entries). |
+
+Not supported: `sortBy`, `sortDir`, `page`, `limit`, `kanbanAxis`. Row order is **`id` ascending**,
+by contract — export paging relies on a unique, monotonic keyset cursor, so a caller-chosen sort
+is not offered. An export is the whole matching set by definition; a paginated subset is
+[`GET /api/content/:seed`](#list-entries) with different query parameters.
+
+**The flat-seed rule.** CSV cannot represent a `relation`, `repeater`, `tags` or `json` branch, or
+a `file` branch with `multiple: true` — there is no CSV cell shape for a collection or a nested
+document. Requesting `format=csv` on a seed with any such branch returns:
+
+```json
+{
+  "type": "https://beechcms.dev/problems/content-csv-requires-flat-seed",
+  "status": 400,
+  "errors": [
+    { "field": "tags", "expected": "a scalar branch type", "received": "tags", "message": "..." }
+  ]
+}
+```
+
+`errors[]` names every offending branch. The same seed still exports as `format=ndjson`.
+
+**The row cap.** A synchronous export is bounded by `EXPORT_MAX_ROWS` (operator-configured,
+defaulting to 50 000 rows). When the matching row count exceeds the cap, the endpoint refuses
+**before the first byte is sent** — never a truncated file — with:
+
+```json
+{ "type": "https://beechcms.dev/problems/content-export-too-large", "status": 413 }
+```
+
+**Soft delete and field visibility.** Trashed entries are never exported (the engine's default
+`trashed: 'active'` applies, exactly as on the list endpoint). Field-visibility policies apply
+per row: a branch masked or hidden for the caller on `GET /api/content/:seed` is masked or hidden
+in the exported file too.
+
+**Response headers on success**
+
+| Header | Value |
+|---|---|
+| `Content-Type` | `text/csv; charset=utf-8` or `application/x-ndjson; charset=utf-8` |
+| `Content-Disposition` | `attachment; filename="<seed>.<csv\|ndjson>"` |
+| `Cache-Control` | `no-store` |
+
+**Permission.** Requires `content:read` on the target seed, exactly as
+[List Entries](#list-entries). Not reachable with an OAuth token.
+
+---
+
 ## Create Entry — `POST /api/content/:seed`
 
 Creates a new content entry. Content fields must be sent flat at the root of the JSON body (not nested under a `data` object).
