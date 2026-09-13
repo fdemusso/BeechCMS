@@ -1,0 +1,92 @@
+name: Auto Release Dependencies
+
+on:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: auto-release-master
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Release & Sync
+    runs-on: ubuntu-latest
+    if: >-
+      (startsWith(github.event.head_commit.message, 'chore(deps') ||
+       startsWith(github.event.head_commit.message, 'chore(ci') ||
+       startsWith(github.event.head_commit.message, 'fix(deps')) &&
+      !contains(github.event.head_commit.message, 'chore: release') &&
+      !contains(github.event.head_commit.message, '[skip ci]')
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          token: ${{ secrets.RELEASE_PAT }}
+          fetch-depth: 0
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+
+      - name: Configure NPM credentials
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Configure Git Author
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Release Pipeline (Patch)
+        id: release
+        run: |
+          echo "Executing release pipeline for modified packages..."
+          node scripts/release.mjs patch
+
+      - name: Push release commit and tags
+        run: |
+          if git log -1 --pretty=%B | grep -q "chore: release"; then
+            echo "Pushing release commit and tags to master..."
+            git push origin master --follow-tags
+
+            echo "Generating GitHub Release Notes for new tags..."
+            NEW_TAGS=$(git tag --points-at HEAD)
+            for TAG in $NEW_TAGS; do
+              echo "Creating GitHub Release for $TAG..."
+              gh release create "$TAG" --generate-notes --title "$TAG" || true
+            done
+          else
+            echo "No packages were bumped or published."
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}
+
+      - name: Sync master into devs (Back-Merge)
+        run: |
+          echo "Checking out devs branch to back-merge master updates..."
+          git fetch origin devs:devs
+          git checkout devs
+          git merge master --no-edit -m "chore: sync master into devs after dependency release [skip ci]" || {
+            echo "::warning::Merge conflict encountered while syncing master into devs. Manual resolution required."
+            exit 0
+          }
+          git push origin devs
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PAT }}

@@ -198,7 +198,25 @@ function detectPackageChanges(pkg, customSince) {
     }
     const out = execSync(diffCmd, { cwd: ROOT, stdio: 'pipe' }).toString().trim()
     if (out) {
-      changedFiles = out.split('\n').filter(f => !f.endsWith('package.json') && !f.endsWith('.DS_Store'))
+      for (const f of out.split('\n')) {
+        if (f.endsWith('.DS_Store')) continue
+        if (f.endsWith('package.json')) {
+          try {
+            const diff = execSync(`git diff -U0 "${baseRef}..HEAD" -- "${resolve(ROOT, f)}"`, { cwd: ROOT, stdio: 'pipe' }).toString()
+            const meaningful = diff.split('\n').filter(l =>
+              (l.startsWith('+') || l.startsWith('-')) &&
+              !l.startsWith('+++') &&
+              !l.startsWith('---') &&
+              !l.includes('"version":')
+            )
+            if (meaningful.length > 0) changedFiles.push(f)
+          } catch {
+            changedFiles.push(f)
+          }
+        } else {
+          changedFiles.push(f)
+        }
+      }
     }
   } catch (err) {
     return { changed: true, files: [`Error: ${err.message}`], baseRef }
@@ -212,8 +230,26 @@ function detectPackageChanges(pkg, customSince) {
     }
     const uncommitted = execSync(uncommittedCmd, { cwd: ROOT, stdio: 'pipe' }).toString().trim()
     if (uncommitted) {
-      const files = uncommitted.split('\n').map(l => l.slice(3).trim()).filter(f => !f.endsWith('package.json') && !f.endsWith('.DS_Store'))
-      changedFiles.push(...files)
+      for (const l of uncommitted.split('\n')) {
+        const f = l.slice(3).trim()
+        if (f.endsWith('.DS_Store')) continue
+        if (f.endsWith('package.json')) {
+          try {
+            const diff = execSync(`git diff -U0 HEAD -- "${resolve(ROOT, f)}"`, { cwd: ROOT, stdio: 'pipe' }).toString()
+            const meaningful = diff.split('\n').filter(l =>
+              (l.startsWith('+') || l.startsWith('-')) &&
+              !l.startsWith('+++') &&
+              !l.startsWith('---') &&
+              !l.includes('"version":')
+            )
+            if (meaningful.length > 0) changedFiles.push(f)
+          } catch {
+            changedFiles.push(f)
+          }
+        } else {
+          changedFiles.push(f)
+        }
+      }
     }
   } catch {}
 
