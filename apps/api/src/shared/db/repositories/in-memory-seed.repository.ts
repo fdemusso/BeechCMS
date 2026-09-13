@@ -36,8 +36,13 @@ export class InMemorySeedRepository implements ISeedRepository {
     if (!s) return null
     return { slug: s.slug, definition: s, status: 'active', source: 'code', createdAt: 0, updatedAt: 0 }
   }
-  upsert(_slug: string, _definition: Seed, _source?: 'code' | 'runtime'): Promise<void> {
-    return Promise.resolve()
+  async upsert(slug: string, definition: Seed, _source?: 'code' | 'runtime'): Promise<void> {
+    const idx = this.seeds.findIndex(s => s.slug === slug)
+    if (idx >= 0) {
+      this.seeds[idx] = definition
+    } else {
+      this.seeds.push(definition)
+    }
   }
 
   softDelete(_slug: string): Promise<void> {
