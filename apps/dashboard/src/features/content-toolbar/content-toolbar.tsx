@@ -216,6 +216,15 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                   />
                 )}
 
+                {isToolEnabled("transfer") && (
+                  <TransferMenu
+                    seed={seed}
+                    onExport={onExport}
+                    onOpenImport={onOpenImport}
+                    isExportPending={isExportPending}
+                  />
+                )}
+
                 {isToolEnabled("settings") && (
                   <SettingsMenu
                     isSettingsMenuOpenEffective={isSettingsMenuOpenEffective}
@@ -275,15 +284,6 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                     onKanbanConfigChange={onKanbanConfigChange}
                     kanbanAxisBranch={kanbanAxisBranch}
                     onOpenCardConfig={onOpenCardConfig}
-                  />
-                )}
-
-                {isToolEnabled("transfer") && (
-                  <TransferMenu
-                    seed={seed}
-                    onExport={onExport}
-                    onOpenImport={onOpenImport}
-                    isExportPending={isExportPending}
                   />
                 )}
 
