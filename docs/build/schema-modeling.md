@@ -55,7 +55,8 @@ A `Seed` is the top-level content type definition. Only `slug`, `label`, `displa
 | `allowPublicPost` | `boolean` | — | `false` | Enables `POST /api/v1/public/:seed/add`. |
 | `allowPublicEdit` | `boolean` | — | `false` | Enables `PUT /api/v1/public/:seed/edit/:id`. |
 | `allowDrafts` | `boolean` | — | `false` | Provisions a mirror `content_{slug}_drafts` table and enables `/draft` endpoints for pending-review workflows. |
-| `retentionDays` | `number` | — | — | GDPR auto-cleanup/anonymization window. Must be a positive integer (`>= 1`) when set. |
+| `softDelete` | `boolean` | — | `false` | Provisions the `deleted_at` system column and turns `DELETE` into a reversible move to the Trash. Enables the `/trash` endpoints and the dashboard Trash view. Must be a boolean when present. See [Trash, Soft Delete & GDPR Purge](/features/trash). |
+| `retentionDays` | `number` | — | — | GDPR auto-cleanup/anonymization window. Must be a positive integer (`>= 1`) when set. With `softDelete: true` it drives the Trash retention countdown and `findExpiredByRetention`; **no scheduler deletes anything on a timer**. |
 | `dashboard` | `DashboardSeedConfig` | — | — | UI-only config (icon, sidebar group/order, feature toggles, authorized views). Completely ignored by the Botanical Engine — safe to omit. See below. |
 | `layout` | `unknown` | — | — | Custom editor form layout. Populated server-side; never set this from a candidate — it is engine-ignored and managed separately via the layout endpoints. |
 
@@ -82,7 +83,7 @@ A `Branch` is a single typed field on a Seed. Only `id`, `alias`, `label`, and `
 | Field | Type | Required | Notes |
 | :--- | :--- | :--- | :--- |
 | `id` | `string` | ✅ | Permanent logical handle, format `^br_[A-Za-z0-9]+$` (e.g. `br_01`, `br_title`). Never reuse an alias for this purpose — renaming an alias must never break FTS triggers, drafts, layouts, or automations, which all key off `id`. When calling `beech_schema_plan`/`apply` you may omit `id` on new branches — the server auto-assigns the next sequential `br_NN` (see `normalizeCandidate`), or preserves the existing stored id if the alias already exists. |
-| `alias` | `string` | ✅ | SQL column name **and** JSON payload key. Must match `^[a-z][a-zA-Z0-9_]*$` (lowercase, alphanumeric + underscore). Cannot collide with a system column (`id`, `slug`, `status`, `created_at`, `updated_at`), an automation-grammar reserved word, or a SQL reserved keyword — all three are fatal validation errors. |
+| `alias` | `string` | ✅ | SQL column name **and** JSON payload key. Must match `^[a-z][a-zA-Z0-9_]*$` (lowercase, alphanumeric + underscore). Cannot collide with a system column (`id`, `slug`, `status`, `created_at`, `updated_at`, `deleted_at`), an automation-grammar reserved word, or a SQL reserved keyword — all three are fatal validation errors. |
 | `label` | `string` | ✅ | UI display label. |
 | `type` | `BranchType` | ✅ | One of `text`, `number`, `boolean`, `date`, `file`, `relation`, `tags`, `repeater`, `richtext`, `json` — see the type table below. |
 | `hint` | `string` | — | Tooltip help text in the entry form. UI-only. |
@@ -164,10 +165,10 @@ When a Seed is created or updated, the Botanical Engine compiles the abstract de
   <img src="/images/botanical-engine-pipeline.svg" alt="Botanical Engine Compilation Pipeline" style="width: 100%; max-width: 860px; margin: 16px 0;" />
 </p>
 
-1. **Table Provisioning**: Creates the physical table `content_{slug}` with system columns (`id`, `slug`, `status`, `created_at`, `updated_at`).
+1. **Table Provisioning**: Creates the physical table `content_{slug}` with system columns (`id`, `slug`, `status`, `created_at`, `updated_at`). With `softDelete: true` the table additionally carries `deleted_at INTEGER` (nullable, no default — `NULL` means live), and the inline `slug ... UNIQUE` constraint is replaced by a *partial* unique index so a trashed entry releases its slug.
 2. **Draft Mirror Staging**: When `allowDrafts: true`, provisions `content_{slug}_drafts` with identical column definitions to isolate unpublished drafts.
 3. **Column Additions**: On schema updates, generates non-destructive `ALTER TABLE ... ADD COLUMN` statements for newly added branches.
-4. **Index Generation**: `text`/`number`/`date`/`boolean` branches whose *resolved* `policies.filter` is `true` get a B-tree index (`idx_{slug}_{branch_alias}`). Single-value `relation` branches are always indexed regardless of `policies.filter` (the FK column needs it); `multiple: true` relations are skipped here — their junction table carries its own `idx_rel_{seed}_{alias}_parent` / `_target` indexes. `confidential` branches additionally get a blind-index column + index (`idx_{slug}_{branch_alias}_bidx`) unless `filter: false` is explicit. Every table also gets `idx_{slug}_status` and `idx_{slug}_created_at`.
+4. **Index Generation**: `text`/`number`/`date`/`boolean` branches whose *resolved* `policies.filter` is `true` get a B-tree index (`idx_{slug}_{branch_alias}`). Single-value `relation` branches are always indexed regardless of `policies.filter` (the FK column needs it); `multiple: true` relations are skipped here — their junction table carries its own `idx_rel_{seed}_{alias}_parent` / `_target` indexes. `confidential` branches additionally get a blind-index column + index (`idx_{slug}_{branch_alias}_bidx`) unless `filter: false` is explicit. Every table also gets `idx_{slug}_status` and `idx_{slug}_created_at`. A `softDelete: true` seed also gets `idx_{slug}_deleted_at` and the partial unique index `idx_{slug}_slug_active ON content_{slug}(slug) WHERE deleted_at IS NULL`.
 5. **Full-Text Search (FTS5)**: `text`/`richtext` branches whose *resolved* `policies.search` **and** `policies.public` are both `true` are added to the seed's `fts_{slug}` virtual table and its synchronizing triggers (`AFTER INSERT`, `AFTER UPDATE`, `AFTER DELETE`).
 
 ---

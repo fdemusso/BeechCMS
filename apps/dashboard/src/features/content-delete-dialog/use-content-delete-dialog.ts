@@ -5,19 +5,29 @@
 import * as React from "react"
 import type { Seed } from "@beechcms/core"
 
+/** `trash` = reversible move to the Trash; `purge` = irreversible erasure (GDPR path). */
+export type ContentDeleteMode = "trash" | "purge"
+
 export interface ContentDeleteDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   seed: Seed
   entryIds: string[] | null
   onConfirm: () => Promise<void>
+  /** Defaults to the seed's own policy: a `softDelete` seed trashes, anything else erases. */
+  mode?: ContentDeleteMode
 }
 
 export function useContentDeleteDialog({
   entryIds,
   onConfirm,
   onOpenChange,
-}: Pick<ContentDeleteDialogProps, "entryIds" | "onConfirm" | "onOpenChange">) {
+  seed,
+  mode,
+}: Pick<ContentDeleteDialogProps, "entryIds" | "onConfirm" | "onOpenChange" | "mode"> & {
+  seed?: Seed | null
+}) {
+  const resolvedMode: ContentDeleteMode = mode ?? (seed?.softDelete === true ? "trash" : "purge")
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
 
@@ -48,5 +58,6 @@ export function useContentDeleteDialog({
     entryCount,
     previewIds,
     hasMore,
+    resolvedMode,
   }
 }

@@ -602,10 +602,39 @@
         "selectedItems": "Elementi selezionati"
       }
     },
+    "trash": {
+      "open": "Cestino",
+      "title": "Cestino — {{type}}",
+      "back": "Torna alla lista",
+      "deletedAt": "Eliminato",
+      "retention": "Conservazione",
+      "daysLeft_one": "{{count}} giorno rimasto",
+      "daysLeft_other": "{{count}} giorni rimasti",
+      "empty": "Il cestino è vuoto",
+      "disabled": "Questo tipo di contenuto non usa il cestino: le eliminazioni sono immediate e irreversibili.",
+      "restore": "Ripristina",
+      "purge": "Elimina definitivamente",
+      "selectedCount_one": "{{count}} entry selezionata",
+      "selectedCount_other": "{{count}} entry selezionate",
+      "restored": "Entry ripristinata",
+      "restoredRenamed": "Entry ripristinata con lo slug \"{{slug}}\" — lo slug originale era già in uso.",
+      "purged": "Entry eliminata definitivamente",
+      "partialFailure_one": "{{count}} entry non è stata elaborata",
+      "partialFailure_other": "{{count}} entry non sono state elaborate"
+    },
     "deleteDialog": {
       "title": "Conferma eliminazione",
       "single": "Sei sicuro di voler eliminare questa entry di tipo \"{{type}}\"?",
-      "multiple": "Sei sicuro di voler eliminare {{count}} entry di tipo \"{{type}}\"?"
+      "multiple": "Sei sicuro di voler eliminare {{count}} entry di tipo \"{{type}}\"?",
+      "trashTitle": "Sposta nel Cestino",
+      "trashSingle": "Spostare questa entry di tipo \"{{type}}\" nel Cestino? Potrai ripristinarla in seguito.",
+      "trashMultiple": "Spostare {{count}} entry di tipo \"{{type}}\" nel Cestino? Potrai ripristinarle in seguito.",
+      "trashConfirm": "Sposta nel Cestino",
+      "purgeTitle": "Elimina definitivamente",
+      "purgeSingle": "Eliminare definitivamente questa entry di tipo \"{{type}}\"?",
+      "purgeMultiple": "Eliminare definitivamente {{count}} entry di tipo \"{{type}}\"?",
+      "purgeWarning": "L'operazione è irreversibile. I media allegati vengono eliminati e la cancellazione viene registrata in modo permanente: la voce resta eliminata anche dopo un ripristino del database.",
+      "purgeConfirm": "Elimina definitivamente"
     },
     "actions": {
       "label": "Azioni",

@@ -4,8 +4,10 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { useParams, useSearchParams } from "react-router-dom"
+import { useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { Trash2 } from "reicon-react"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
+import { Button } from "@/components/ui/button"
 
 import {
   SidebarInset,
@@ -33,6 +35,7 @@ import type { ConditionalFormatRule } from "@/lib/conditional-format"
 
 export function ContentListPage() {
   const { slug } = useParams<{ slug: string; id?: string }>()
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const { can } = usePermissions()
   const [searchParams] = useSearchParams()
@@ -198,12 +201,20 @@ export function ContentListPage() {
             <div className="flex flex-1 flex-col gap-4 p-4 min-w-0">
               <div className="content-area-inner">
                 {/* Header with title */}
-                <div className="mb-6">
+                <div className="mb-6 flex items-start justify-between">
                   {/* TODO: Extract this header to a dedicated slice component */}
-                  <h1 className="font-heading text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
-                  <p className="text-muted-foreground text-sm">
-                    Manage "{seed.slug}" content
-                  </p>
+                  <div>
+                    <h1 className="font-heading text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
+                    <p className="text-muted-foreground text-sm">
+                      Manage "{seed.slug}" content
+                    </p>
+                  </div>
+                  {seed.softDelete === true && (
+                    <Button variant="outline" size="sm" onClick={() => navigate(`/content/${slug}/trash`)}>
+                      <Trash2 className="size-4" />
+                      {t("content.trash.open")}
+                    </Button>
+                  )}
                 </div>
 
                 {/* View toolbar, tools and content (table + controls) */}

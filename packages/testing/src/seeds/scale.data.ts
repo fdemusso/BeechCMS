@@ -45,7 +45,7 @@ export function generateScaleEntries(count: number): { posts: ScaleEntry[], auth
       slug: `scale-post-${i}`,
       status: 'published',
       title: `Scale Post ${i}`,
-      author_id: authors[authorIndex].id,
+      author_id: authors[authorIndex]!.id,
       created_at: baseTime + i,
       updated_at: baseTime + i,
     });

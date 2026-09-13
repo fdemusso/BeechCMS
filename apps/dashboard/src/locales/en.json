@@ -602,10 +602,39 @@
         "selectedItems": "Selected items"
       }
     },
+    "trash": {
+      "open": "Trash",
+      "title": "Trash — {{type}}",
+      "back": "Back to list",
+      "deletedAt": "Deleted",
+      "retention": "Retention",
+      "daysLeft_one": "{{count}} day left",
+      "daysLeft_other": "{{count}} days left",
+      "empty": "The Trash is empty",
+      "disabled": "This content type does not use the Trash: deletions are immediate and irreversible.",
+      "restore": "Restore",
+      "purge": "Delete forever",
+      "selectedCount_one": "{{count}} selected entry",
+      "selectedCount_other": "{{count}} selected entries",
+      "restored": "Entry restored",
+      "restoredRenamed": "Entry restored with the slug \"{{slug}}\" — the original slug was taken.",
+      "purged": "Entry deleted forever",
+      "partialFailure_one": "{{count}} entry could not be processed",
+      "partialFailure_other": "{{count}} entries could not be processed"
+    },
     "deleteDialog": {
       "title": "Confirm deletion",
       "single": "Are you sure you want to delete this entry of type \"{{type}}\"?",
-      "multiple": "Are you sure you want to delete {{count}} entries of type \"{{type}}\"?"
+      "multiple": "Are you sure you want to delete {{count}} entries of type \"{{type}}\"?",
+      "trashTitle": "Move to Trash",
+      "trashSingle": "Move this \"{{type}}\" entry to the Trash? You can restore it later.",
+      "trashMultiple": "Move {{count}} \"{{type}}\" entries to the Trash? You can restore them later.",
+      "trashConfirm": "Move to Trash",
+      "purgeTitle": "Delete forever",
+      "purgeSingle": "Delete this \"{{type}}\" entry forever?",
+      "purgeMultiple": "Delete {{count}} \"{{type}}\" entries forever?",
+      "purgeWarning": "This cannot be undone. Attached media are deleted and the erasure is recorded permanently, so the entry stays deleted even after a database restore.",
+      "purgeConfirm": "Delete forever"
     },
     "actions": {
       "label": "Actions",

@@ -12,7 +12,7 @@ YAGNI rule rejects, and that no integration test can validate.
 
 ---
 
-## Sprint 1 — `SoftDeleteBackend` (DETAILED PLAN: `output/SoftDeleteBackend.md`)
+## Sprint 1 — `SoftDeleteBackend` — ✅ SHIPPED (commit `7b1ca45`, archived in `docs/Sprints/SoftDeleteBackend/`)
 
 **Goal:** an entry of a `softDelete: true` seed can be trashed, listed, restored and
 irreversibly purged through the protected API, with a D1-restore-proof deletion ledger
@@ -28,7 +28,7 @@ trash/restore/purge/reconcile routes + permission rules; migration + evolution p
 
 ---
 
-## Sprint 2 — `SoftDeleteDashboardTrash`
+## Sprint 2 — `SoftDeleteDashboardTrash` (DETAILED PLAN: `output/SoftDeleteDashboardTrash.md`)
 
 **Goal:** an editor sees, selects and manages the Trash of a seed from the dashboard.
 
@@ -43,6 +43,15 @@ main list and the Trash stay consistent.
 (`GET /api/content/:slug/trash`, `POST /api/content/:slug/:id/restore`,
 `POST /api/content/:slug/trash/bulk-restore`, `POST /api/content/:slug/trash/bulk-purge`,
 `DELETE /api/content/:slug/:id?purge=true`). Cannot start before those routes exist.
+
+**Contract amendment found while planning Sprint 2:** the frozen contract is not consumable as
+shipped. `D1ContentRepository.rowToData` drops `deleted_at` (it hand-picks `id, slug, status,
+created_at, updated_at` + branch aliases), so the deletion timestamp and the retention countdown
+cannot be rendered; and `trashListHandler` returns repository rows raw, without the `data` envelope
+and without `applyVisibility` — so a branch marked `policies.visibility: 'masked' | 'hidden'` is
+emitted in the clear on the trash route while being masked on the main list. Sprint 2 therefore
+carries a bounded `apps/api` delta (2 files, no new route, no new permission, no schema change):
+see its SECTION 4 → T1.
 
 ---
 

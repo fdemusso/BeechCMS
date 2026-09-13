@@ -20,8 +20,8 @@ The vocabulary is **closed by design**. It is defined once in `packages/core/src
 |---|---|
 | `content:read` | Read entries within the scope |
 | `content:create` | Create entries |
-| `content:update` | Update entries |
-| `content:delete` | Delete entries |
+| `content:update` | Update entries — including **restoring** an entry from the Trash |
+| `content:delete` | Delete entries — moving to the Trash, **erasing permanently**, and reconciling purges |
 | `manage_users` | Administer accounts, assignments and invitations within the scope |
 | `manage_roles` | Author roles (create, edit, delete) |
 | `view_analytics` | See the analytics surface |
@@ -42,6 +42,21 @@ Every account minted through the RBAC API receives `'editor'`, so no RBAC path c
 ### One surface, one permission
 
 Each non-CRUD dashboard surface owns one dedicated permission (`view_analytics` being the first). Absence of the permission hides the surface. There is no default-visible exception.
+
+### The Trash reuses the CRUD vocabulary
+
+The [Trash](/features/trash) introduces no new permission. Its routes map onto the existing verbs, scoped to the Seed slug:
+
+| Route | Requirement |
+|---|---|
+| `GET /api/content/{slug}/trash` | `content:read` on `{slug}` |
+| `POST /api/content/{slug}/{id}/restore` | `content:update` on `{slug}` |
+| `POST /api/content/{slug}/trash/bulk-restore` | `content:update` on `{slug}` |
+| `DELETE /api/content/{slug}/{id}` (soft delete or `?purge=true`) | `content:delete` on `{slug}` |
+| `POST /api/content/{slug}/trash/bulk-purge` | `content:delete` on `{slug}` |
+| `POST /api/content/{slug}/trash/reconcile` | `content:delete` on `{slug}` |
+
+Restoring is an update, not a delete: a holder of `content:read` + `content:update` can pull an entry back out of the Trash but can neither put it there nor erase it. In the dashboard, actions the caller cannot perform render **disabled**, never hidden-and-clickable — and the server gate is the real enforcement.
 
 ---
 

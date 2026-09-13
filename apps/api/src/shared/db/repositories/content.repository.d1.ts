@@ -183,6 +183,12 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       updated_at: row.updated_at,
     }
 
+    // Active-path rows always carry deleted_at NULL, so this stays invisible to every
+    // public/active payload; only a row read via trashed: 'trashed' | 'all' gets the key.
+    if (row.deleted_at != null) {
+      data.deleted_at = row.deleted_at
+    }
+
     const branchEntries = await Promise.all(
       seed.branches.map(async (branch) => {
         if (branch.type === 'relation' && branch.multiple === true) return null

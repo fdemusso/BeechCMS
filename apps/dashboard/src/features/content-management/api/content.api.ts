@@ -117,10 +117,18 @@ export const contentApi = {
   },
 
   /**
-   * Delete content entry
+   * Delete a content entry.
+   * On a `softDelete: true` seed this moves the entry to the Trash; `options.purge` forces the
+   * irreversible path (row + junction + drafts + R2 + ledger event).
    */
-  delete: async (slug: string, id: string): Promise<{ success: boolean }> => {
-    const response = await api.delete<{ success: boolean }>(`/content/${slug}/${id}`)
+  delete: async (
+    slug: string,
+    id: string,
+    options?: { purge?: boolean }
+  ): Promise<{ success: boolean; softDeleted?: boolean }> => {
+    const response = await api.delete<{ success: boolean; softDeleted?: boolean }>(
+      `/content/${slug}/${id}${options?.purge ? "?purge=true" : ""}`
+    )
     return response.data
   },
 

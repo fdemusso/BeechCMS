@@ -88,13 +88,19 @@ jobs:
           node-version: '22'
           cache: 'pnpm'
 
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Start MinIO
         run: |
           docker run -d --name beech-minio \
             -p 9000:9000 -p 9001:9001 \
             -e MINIO_ROOT_USER=beechdev \
             -e MINIO_ROOT_PASSWORD=beechdevsecret \
-            minio/minio:latest server /data --console-address ":9001"
+            quay.io/minio/minio:latest server /data --console-address ":9001"
           for i in {1..20}; do
             curl -sf http://localhost:9000/minio/health/live && break
             sleep 1
@@ -102,7 +108,7 @@ jobs:
 
       - name: Create test bucket
         run: |
-          docker run --rm --network host --entrypoint sh minio/mc:latest -c "
+          docker run --rm --network host --entrypoint sh quay.io/minio/mc:latest -c "
             until mc alias set local http://localhost:9000 beechdev beechdevsecret; do sleep 1; done
             mc mb -p local/beech-media-test-ci || true
           "

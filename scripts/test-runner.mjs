@@ -164,12 +164,19 @@ function computeRepoFingerprint() {
 const releaseLock = acquireLock()
 
 const isCoverage = process.argv.includes("--coverage")
+const isNoCache = Boolean(
+  process.env.BEECH_NO_CACHE === "1" ||
+  process.argv.includes("--nocache") ||
+  process.argv.includes("--no-cache") ||
+  process.argv.includes("--force") ||
+  process.argv.includes("-f")
+)
 const taskName = isCoverage ? "test:coverage" : "test"
 const sanitizedTaskName = taskName.replace(/[^a-zA-Z0-9_-]/g, "_")
 const CACHE_FILE = path.join(CACHE_DIR, `cache-${sanitizedTaskName}.json`)
 
 function readCache(currentFingerprint) {
-  if (process.env.BEECH_NO_CACHE === "1" || process.argv.includes("--no-cache") || process.argv.includes("--force")) {
+  if (isNoCache) {
     return null
   }
   if (!fs.existsSync(CACHE_FILE)) {
@@ -220,7 +227,10 @@ if (cachedResult) {
   process.exit(cachedResult.exitCode ?? 0)
 }
 
-if (fs.existsSync(CACHE_FILE)) {
+if (isNoCache) {
+  clearCache()
+  console.log(`\n\x1b[33m🔄 [Test Cache] Cache invalidated via flag (--nocache). Running fresh test suite (${fileCount} files, fingerprint: ${fingerprint.slice(0, 12)})...\x1b[0m`)
+} else if (fs.existsSync(CACHE_FILE)) {
   clearCache()
   console.log(`\x1b[33m🔄 [Test Cache] Repository snapshot changed (${fileCount} files, fingerprint: ${fingerprint.slice(0, 12)}). Cache invalidated.\x1b[0m`)
 } else {

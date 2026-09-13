@@ -7,6 +7,7 @@ import { createBrowserRouter, RouterProvider, Navigate, Outlet, useLocation, use
 import { LoginForm } from "@/features/auth"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { ContentListPage } from "@/pages/content-list"
+import { ContentTrashPage } from "@/pages/content-trash"
 import { TestFieldsPage } from "@/pages/test-fields"
 import { WidgetLabPage } from "@/pages/widget-lab"
 import { ErrorPage } from "@/pages/error-page"
@@ -199,6 +200,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ContentListPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/content/:slug/trash",
+        element: (
+          <ProtectedRoute>
+            <ContentTrashPage />
           </ProtectedRoute>
         ),
       },

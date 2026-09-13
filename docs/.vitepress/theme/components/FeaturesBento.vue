@@ -76,6 +76,15 @@ const sections: BentoSection[] = [
         span: 2,
         icon: 'pen-tool',
         previewType: 'tiptap-toolbar'
+      },
+      {
+        title: 'Trash & Soft Delete',
+        badge: 'Recoverable Deletion',
+        link: '/features/trash',
+        description: 'Opt-in per Seed: DELETE becomes a reversible move to the Trash, filtered out at the engine’s single SQL chokepoint. Irreversible purges wipe attached media and append to an R2 erasure ledger that survives a D1 Time Travel restore.',
+        span: 3,
+        icon: 'trash',
+        previewType: 'trash-lifecycle'
       }
     ]
   },
@@ -284,6 +293,13 @@ const sections: BentoSection[] = [
                   <path d="m6 17 3.13-5.78c.53-.97.1-2.18-.5-3.1A4 4 0 1 1 14 7c0 .7-.2 1.4-.57 2L10.3 14.78"/>
                   <circle cx="18" cy="17" r="3"/>
                 </svg>
+                <svg v-else-if="feature.icon === 'trash'" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 6h18"/>
+                  <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/>
+                  <path d="M19 6v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6"/>
+                  <path d="M10 11v6"/>
+                  <path d="M14 11v6"/>
+                </svg>
               </div>
               <span class="bento-badge">{{ feature.badge }}</span>
             </div>
@@ -489,6 +505,23 @@ const sections: BentoSection[] = [
                 <span class="header-key">x-beech-signature:</span>
                 <span class="header-val">sha256=9b7a42ec7f1b90d8...</span>
                 <span class="verified-tag"><ReIcon name="check" :size="11" /> Verified</span>
+              </div>
+            </div>
+
+            <!-- 15. Trash Lifecycle (Wide hero card) -->
+            <div v-else-if="feature.previewType === 'trash-lifecycle'" class="preview-trash-wide">
+              <div class="trash-flow">
+                <span class="trash-step">DELETE</span>
+                <span class="trash-arrow">→</span>
+                <span class="trash-step trash-step-soft">deleted_at set</span>
+                <span class="trash-arrow">→</span>
+                <span class="trash-step trash-step-restore">Restore</span>
+                <span class="trash-retention">12 days left</span>
+              </div>
+              <div class="trash-ledger">
+                <span class="ledger-key">?purge=true</span>
+                <span class="ledger-val">_deletion-ledger/orders/550e8400.json</span>
+                <span class="ledger-tag">R2 · append-only</span>
               </div>
             </div>
           </div>
@@ -1214,6 +1247,67 @@ const sections: BentoSection[] = [
   gap: 4px;
   color: #10b981;
   font-weight: 600;
+}
+
+/* 15. Trash Lifecycle */
+.preview-trash-wide {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.trash-flow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.trash-step {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--vp-c-bg-elv);
+  border: 1px solid var(--vp-c-divider);
+  color: var(--vp-c-text-2);
+}
+.trash-step-soft {
+  color: var(--sec-accent);
+  border-color: var(--sec-border-hover);
+}
+.trash-step-restore {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: transparent;
+  color: #10b981;
+}
+.trash-arrow {
+  color: var(--vp-c-text-3);
+  font-size: 0.75rem;
+}
+.trash-retention {
+  margin-left: auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--vp-c-text-3);
+}
+.trash-ledger {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 0.72rem;
+  color: var(--vp-c-text-3);
+}
+.ledger-key {
+  color: var(--vp-c-text-2);
+  font-weight: 600;
+}
+.ledger-val {
+  color: var(--sec-accent);
+}
+.ledger-tag {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--vp-c-text-2);
 }
 
 /* ==========================================================================
