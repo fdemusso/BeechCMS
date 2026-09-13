@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { Seed } from "@beechcms/core"
+import type { Seed, TransferFormat } from "@beechcms/core"
 import type { VisibilityState } from "@tanstack/react-table"
 import type { DateGroupPrecision } from "@/lib/dynamic-columns"
 import type { ConditionalFormatRule } from "@/lib/conditional-format"
@@ -56,5 +56,12 @@ export interface ContentToolbarProps {
   onKanbanConfigChange?: (next: any) => void
   kanbanAxisBranch?: any
   onOpenCardConfig?: () => void
+  /** Fires the export download. Optional: drafts-list.tsx renders this toolbar over a
+   *  multi-seed list where a single-seed export has no meaning. */
+  onExport?: (format: TransferFormat) => void
+  /** Opens the import wizard. Optional, for the same reason. */
+  onOpenImport?: () => void
+  /** True while an export request is in flight, so the menu can show a spinner. */
+  isExportPending?: boolean
   children?: React.ReactNode
 }

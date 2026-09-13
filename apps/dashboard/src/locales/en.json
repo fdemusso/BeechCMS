@@ -1628,5 +1628,58 @@
     "success": "Account activated. You can now log in.",
     "accountExists": "An account with this email already exists. Sign in instead.",
     "genericError": "Something went wrong. Please try again."
+  },
+  "transfer": {
+    "menu": {
+      "tooltip": "Export / Import",
+      "exportGroup": "Export",
+      "csvDisabled": "CSV disabled: {{branches}} cannot be represented as flat columns",
+      "import": "Import…"
+    },
+    "export": {
+      "errors": {
+        "unknown": "Export failed"
+      }
+    },
+    "import": {
+      "title": "Import into {{label}}",
+      "description": "Upload a CSV or NDJSON file to insert new entries.",
+      "formatLabel": "Format",
+      "csvDisabled": "CSV disabled: {{branches}} cannot be represented as flat columns",
+      "fileLabel": "File",
+      "startUpload": "Upload and start import",
+      "uploading": "Uploading and starting the import job…",
+      "openJobPage": "Open the full job page",
+      "presignPermissionWarning": "Uploading an import file currently requires the global content-create permission.",
+      "errors": {
+        "unknown": "Import failed",
+        "storageNotConfigured": "Direct upload is not configured on this deployment. Ask an administrator to set up R2 S3 API credentials."
+      }
+    },
+    "job": {
+      "pageTitle": "Import job",
+      "loading": "Loading job…",
+      "rowsRead": "Rows read",
+      "insertedRows": "Inserted",
+      "failedRows": "Failed",
+      "state": {
+        "pending": "Pending",
+        "processing": "Processing",
+        "completed": "Completed",
+        "failed": "Failed"
+      },
+      "errorTable": {
+        "row": "Row",
+        "field": "Field",
+        "code": "Code",
+        "message": "Message",
+        "capped": "{{count}} additional failures are not listed"
+      },
+      "errors": {
+        "forbidden": "You are not authorised to view this job",
+        "notFound": "This job could not be found",
+        "unknown": "Failed to load the job"
+      }
+    }
   }
 }

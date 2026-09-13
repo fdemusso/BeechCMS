@@ -24,6 +24,10 @@ export default defineConfig({
         compatibilityDate: '2026-02-13',
         compatibilityFlags: ['nodejs_compat'],
         d1Databases: ['DB'],
+        // Real (simulated) R2, not a hand-rolled fake — the import scale test needs a working
+        // BeechBucket to exercise the chunk worker's self-continuation loop at volume, and
+        // Rule 0.3 only allows faking IClock/ITokenService.
+        r2Buckets: ['MEDIA_BUCKET'],
         bindings: { TEST_MIGRATIONS: migrations },
       },
     }),

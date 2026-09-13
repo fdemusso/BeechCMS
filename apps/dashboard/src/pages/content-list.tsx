@@ -32,6 +32,9 @@ import {
 } from "@/features/content-management"
 import { useActiveSeed } from "@/features/schema"
 import type { ConditionalFormatRule } from "@/lib/conditional-format"
+import { downloadExport, readProblem } from "@/features/content-transfer"
+import { toast } from "sonner"
+import type { TransferFormat } from "@beechcms/core"
 
 export function ContentListPage() {
   const { slug } = useParams<{ slug: string; id?: string }>()
@@ -46,6 +49,23 @@ export function ContentListPage() {
 
   // 1. Modals & Actions Hook
   const modals = useContentListModals(slug)
+
+  const [isExportPending, setIsExportPending] = React.useState(false)
+  const handleExport = React.useCallback(
+    async (format: TransferFormat) => {
+      if (!slug) return
+      setIsExportPending(true)
+      try {
+        await downloadExport(slug, format)
+      } catch (error) {
+        const problem = await readProblem(error)
+        toast.error(problem?.detail ?? t("transfer.export.errors.unknown"))
+      } finally {
+        setIsExportPending(false)
+      }
+    },
+    [slug, t],
+  )
 
   // 2. Query, Filtering, Sorting & Pagination Hook
   const query = useContentListQuery(slug, seed)
@@ -255,6 +275,9 @@ export function ContentListPage() {
                   onKanbanConfigChange={setKanbanConfig}
                   kanbanAxisBranch={kanbanAxisBranch}
                   onOpenCardConfig={() => modals.setCardConfigOpen(true)}
+                  onExport={handleExport}
+                  onOpenImport={() => modals.setImportWizardOpen(true)}
+                  isExportPending={isExportPending}
                 >
                   {query.error && (
                     <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
@@ -365,6 +388,8 @@ export function ContentListPage() {
         onSaved={(info) => {
           if (activeViewId === "kanban") kanbanSync(info)
         }}
+        importWizardOpen={modals.importWizardOpen}
+        onOpenChangeImportWizard={modals.setImportWizardOpen}
       />
     </div>
   )

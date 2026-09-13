@@ -1628,5 +1628,58 @@
     "success": "Account attivato. Ora puoi accedere.",
     "accountExists": "Un account con questa email esiste già. Accedi invece.",
     "genericError": "Qualcosa è andato storto. Riprova."
+  },
+  "transfer": {
+    "menu": {
+      "tooltip": "Esporta / Importa",
+      "exportGroup": "Esporta",
+      "csvDisabled": "CSV disabilitato: {{branches}} non possono essere colonne piatte",
+      "import": "Importa…"
+    },
+    "export": {
+      "errors": {
+        "unknown": "Esportazione fallita"
+      }
+    },
+    "import": {
+      "title": "Importa in {{label}}",
+      "description": "Carica un file CSV o NDJSON per inserire nuove voci.",
+      "formatLabel": "Formato",
+      "csvDisabled": "CSV disabilitato: {{branches}} non possono essere colonne piatte",
+      "fileLabel": "File",
+      "startUpload": "Carica e avvia l'importazione",
+      "uploading": "Caricamento e avvio del job di importazione…",
+      "openJobPage": "Apri la pagina completa del job",
+      "presignPermissionWarning": "Il caricamento di un file di importazione richiede attualmente il permesso globale content-create.",
+      "errors": {
+        "unknown": "Importazione fallita",
+        "storageNotConfigured": "Il caricamento diretto non è configurato su questo deployment. Chiedi a un amministratore di configurare le credenziali S3 API di R2."
+      }
+    },
+    "job": {
+      "pageTitle": "Job di importazione",
+      "loading": "Caricamento job…",
+      "rowsRead": "Righe lette",
+      "insertedRows": "Inserite",
+      "failedRows": "Fallite",
+      "state": {
+        "pending": "In attesa",
+        "processing": "In elaborazione",
+        "completed": "Completato",
+        "failed": "Fallito"
+      },
+      "errorTable": {
+        "row": "Riga",
+        "field": "Campo",
+        "code": "Codice",
+        "message": "Messaggio",
+        "capped": "{{count}} ulteriori errori non elencati"
+      },
+      "errors": {
+        "forbidden": "Non sei autorizzato a vedere questo job",
+        "notFound": "Job non trovato",
+        "unknown": "Impossibile caricare il job"
+      }
+    }
   }
 }

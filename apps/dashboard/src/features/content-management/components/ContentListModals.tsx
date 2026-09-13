@@ -2,12 +2,15 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useQueryClient } from "@tanstack/react-query"
 import type { Seed } from "@beechcms/core"
 import { EntryEditorDialog } from "@/features/entry-editor"
 import { ContentDeleteDialog } from "@/features/content-delete-dialog"
 import { BulkEditDialog } from "@/features/bulk-edit"
 import { CardConfigDialog } from "@/features/content-kanban"
 import { AutomationPanel } from "@/features/automations"
+import { ImportWizardDialog } from "@/features/content-transfer"
+import { CONTENT_QUERY_KEYS, FACET_QUERY_KEYS } from "../consts/content.keys"
 
 export interface ContentListModalsProps {
   seed: Seed
@@ -32,6 +35,8 @@ export interface ContentListModalsProps {
   createDefaults?: Record<string, unknown>
   readonly: boolean
   onSaved?: (info: any) => void
+  importWizardOpen: boolean
+  onOpenChangeImportWizard: (open: boolean) => void
 }
 
 export function ContentListModals({
@@ -57,9 +62,28 @@ export function ContentListModals({
   createDefaults,
   readonly,
   onSaved,
+  importWizardOpen,
+  onOpenChangeImportWizard,
 }: ContentListModalsProps) {
+  const queryClient = useQueryClient()
+
   return (
     <>
+      {slug && (
+        <ImportWizardDialog
+          open={importWizardOpen}
+          onOpenChange={onOpenChangeImportWizard}
+          seed={seed}
+          onImportCompleted={() => {
+            // The imported rows are new content entries; the list query must not keep serving the
+            // pre-import page from cache. Invalidated here rather than inside the wizard, because
+            // CONTENT_QUERY_KEYS belongs to this slice and content-transfer must not import it.
+            queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.lists() })
+            queryClient.invalidateQueries({ queryKey: FACET_QUERY_KEYS.bySlug(slug) })
+          }}
+        />
+      )}
+
       {slug && activeViewId === "kanban" && (
         <CardConfigDialog
           open={cardConfigOpen}

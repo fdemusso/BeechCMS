@@ -8,6 +8,7 @@ import { LoginForm } from "@/features/auth"
 import { AuthProvider, useAuth } from "@/lib/auth-context"
 import { ContentListPage } from "@/pages/content-list"
 import { ContentTrashPage } from "@/pages/content-trash"
+import { ImportJobDetailPage } from "@/pages/import-job-detail"
 import { TestFieldsPage } from "@/pages/test-fields"
 import { WidgetLabPage } from "@/pages/widget-lab"
 import { ErrorPage } from "@/pages/error-page"
@@ -192,6 +193,14 @@ const router = createBrowserRouter([
         element: (
           <ProtectedRoute>
             <ScheduledPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: "/content/import-jobs/:jobId",
+        element: (
+          <ProtectedRoute>
+            <ImportJobDetailPage />
           </ProtectedRoute>
         ),
       },

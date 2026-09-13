@@ -12,6 +12,12 @@ export const BASE_URL = `http://localhost:${DASHBOARD_PORT}`
 export const ADMIN_STATE = './.auth/admin.json'
 export const FIXTURE_FILE = './.auth/fixture.json'
 
+// Fixed dev credentials for the shared Docker MinIO (docker/docker-compose.yml
+// MINIO_ROOT_USER/PASSWORD, minio-init's 'beech-media' bucket) — never read from a developer's
+// .dev.vars, so the import wizard's presign -> PUT chain behaves identically in CI and locally
+// regardless of what that file happens to contain.
+export const MINIO_ENDPOINT = 'http://localhost:9000'
+
 // Passed with --var so a run is hermetic: apps/api/.dev.vars is gitignored and absent in CI.
 const API_VARS = [
   '--var', 'ENV:development',
@@ -19,6 +25,10 @@ const API_VARS = [
   '--var', `CORS_ORIGINS:${BASE_URL}`,
   '--var', `APP_URL:${BASE_URL}`,
   '--var', `MEDIA_BASE_URL:${BASE_URL}`,
+  '--var', 'R2_ACCESS_KEY_ID:beechdev',
+  '--var', 'R2_SECRET_ACCESS_KEY:beechdevsecret',
+  '--var', `R2_ENDPOINT:${MINIO_ENDPOINT}`,
+  '--var', 'R2_BUCKET_NAME:beech-media',
 ].join(' ')
 
 export default defineConfig({

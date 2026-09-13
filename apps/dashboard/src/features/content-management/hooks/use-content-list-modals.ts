@@ -49,6 +49,7 @@ export function useContentListModals(slug: string | undefined) {
   const [bulkEditOpen, setBulkEditOpen] = React.useState(false)
   const [automationPanelOpen, setAutomationPanelOpen] = React.useState(false)
   const [cardConfigOpen, setCardConfigOpen] = React.useState(false)
+  const [importWizardOpen, setImportWizardOpen] = React.useState(false)
 
   const { mutateAsync: deleteContent } = useDeleteContent()
 
@@ -142,5 +143,7 @@ export function useContentListModals(slug: string | undefined) {
     setAutomationPanelOpen,
     cardConfigOpen,
     setCardConfigOpen,
+    importWizardOpen,
+    setImportWizardOpen,
   }
 }

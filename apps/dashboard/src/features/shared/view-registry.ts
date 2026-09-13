@@ -11,6 +11,7 @@ export type ToolbarTool =
   | 'search'
   | 'settings'
   | 'create'
+  | 'transfer'
 
 export interface ViewDefinition {
   type: DashboardView

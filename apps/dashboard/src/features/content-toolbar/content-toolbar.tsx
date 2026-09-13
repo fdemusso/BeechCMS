@@ -15,6 +15,7 @@ import { FilterPillsBar } from "./toolbar-components/filter-pills-bar"
 import { ViewSwitcher } from "./toolbar-components/view-switcher"
 import { SearchBar } from "./toolbar-components/search-bar"
 import { SettingsMenu } from "./toolbar-components/settings-menu"
+import { TransferMenu } from "./toolbar-components/transfer-menu"
 
 import { useContentToolbar } from "./use-content-toolbar"
 import type { ContentToolbarProps } from "./types"
@@ -22,7 +23,7 @@ import type { ContentToolbarProps } from "./types"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 
 export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
-  const { seed, views, children, filters = {}, availableTagsByColumnId = {} } = props
+  const { seed, views, children, filters = {}, availableTagsByColumnId = {}, onExport, onOpenImport, isExportPending } = props
   const { t } = useTranslation()
   const toolbarState = useContentToolbar(props)
   
@@ -274,6 +275,15 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                     onKanbanConfigChange={onKanbanConfigChange}
                     kanbanAxisBranch={kanbanAxisBranch}
                     onOpenCardConfig={onOpenCardConfig}
+                  />
+                )}
+
+                {isToolEnabled("transfer") && (
+                  <TransferMenu
+                    seed={seed}
+                    onExport={onExport}
+                    onOpenImport={onOpenImport}
+                    isExportPending={isExportPending}
                   />
                 )}
 

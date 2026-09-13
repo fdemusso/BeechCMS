@@ -9,7 +9,7 @@ import { registerContentKanbanView } from '@/features/content-kanban'
 viewRegistry.register({
   type: 'table',
   labelKey: 'content.list.table',
-  enabledTools: ['filter', 'sort', 'automation', 'search', 'settings', 'create'],
+  enabledTools: ['filter', 'sort', 'automation', 'search', 'settings', 'create', 'transfer'],
 })
 registerContentGalleryView(viewRegistry)
 registerContentKanbanView(viewRegistry)

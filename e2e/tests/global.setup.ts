@@ -10,14 +10,48 @@
  * Engine inside the worker, exactly as a real operator would produce them.
  */
 
+import { execSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { dirname, resolve } from 'node:path'
 import { test as setup, expect } from '@playwright/test'
 import { CANONICAL_SEEDS, CANONICAL_USERS, CANONICAL_ENTRIES } from '@beechcms/testing'
-import { API_PORT, ADMIN_STATE, FIXTURE_FILE } from '../playwright.config'
+import { API_PORT, ADMIN_STATE, FIXTURE_FILE, MINIO_ENDPOINT } from '../playwright.config'
 
 const API = `http://127.0.0.1:${API_PORT}`
 const admin = CANONICAL_USERS.admin
+
+/**
+ * bulk-transfer.e2e.ts submits the import wizard for real (presign -> PUT -> import), which needs
+ * live S3-compatible storage. MinIO is shared Docker infra, already relied on by the flow tier —
+ * not a browser or an API surface, so bringing it up here (rather than declaring it as a Playwright
+ * webServer) matches how apps/api/test/docker-precheck.runner.ts treats it: ambient infra to
+ * ensure-ready, not a process this suite owns the lifecycle of.
+ */
+async function isMinioReady(): Promise<boolean> {
+  try {
+    const res = await fetch(`${MINIO_ENDPOINT}/minio/health/live`, { signal: AbortSignal.timeout(2000) })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
+async function ensureMinioRunning(): Promise<void> {
+  if (await isMinioReady()) return
+
+  // cwd when Playwright runs is e2e/ — the compose file lives at the repo root's docker/.
+  const composeRoot = resolve(process.cwd(), '../docker')
+  execSync('docker compose up -d minio minio-init', { cwd: composeRoot, stdio: 'inherit' })
+
+  for (let attempt = 0; attempt < 30; attempt++) {
+    if (await isMinioReady()) return
+    await new Promise((r) => setTimeout(r, 1000))
+  }
+  throw new Error(
+    `MinIO did not answer ${MINIO_ENDPOINT}/minio/health/live after 30s. ` +
+      'The import-wizard e2e spec needs real S3 storage — start it with `pnpm dev:full` or `docker compose up -d` in docker/, then re-run.',
+  )
+}
 
 export interface E2eFixture {
   readonly seedSlug: string
@@ -26,6 +60,8 @@ export interface E2eFixture {
 }
 
 setup('provisions the canonical world and stores an authenticated state', async ({ page, request }) => {
+  await ensureMinioRunning()
+
   const status = await request.get(`${API}/auth/setup`)
   expect(status.status()).toBe(200)
   const { needsSetup } = await status.json() as { needsSetup: boolean }

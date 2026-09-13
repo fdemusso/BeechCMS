@@ -41,7 +41,7 @@ because the graph and the codebase will have moved by then.
 - **Depends on:** S1 (codecs, `checkFormatCompatibility`, `exportColumns`,
   `DEFAULT_EXPORT_MAX_ROWS`, `DEFAULT_EXPORT_PAGE_SIZE`).
 
-## S3 — `ContentImportJobs` *(CURRENT — detailed plan at `output/ContentImportJobs.md`)*
+## S3 — `ContentImportJobs` *(SHIPPED — archived at `docs/Sprints/ContentImportJobs/ContentImportJobs.md`)*
 
 - **Goal:** asynchronous, chunked, best-effort, insert-only bulk import with a durable,
   engine-mediated job record.
@@ -67,7 +67,7 @@ because the graph and the codebase will have moved by then.
   presign an import file. Fixing it is an `upload`-slice route-rule change with its own blast
   radius across media uploads.
 
-## S4 — `BulkTransferDashboard`
+## S4 — `BulkTransferDashboard` *(PLANNED — detailed plan at `output/BulkTransferDashboard.md`)*
 
 - **Goal:** give the dashboard an export button and an import wizard with job progress.
 - **Deliverables:** export action in the content list toolbar (format picker, CSV disabled with

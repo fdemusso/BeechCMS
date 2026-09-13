@@ -65,6 +65,7 @@ export const DEFAULT_ENABLED_TOOLS: ToolbarTool[] = [
   "search",
   "settings",
   "create",
+  "transfer",
 ]
 
 export const CONDITIONAL_TONE_OPTIONS: Array<{

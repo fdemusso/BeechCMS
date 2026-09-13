@@ -7,7 +7,7 @@ export function registerContentKanbanView(registry: IViewRegistry): void {
   registry.register({
     type: 'kanban',
     labelKey: 'content.list.kanban',
-    enabledTools: ['filter', 'search', 'settings', 'create']
+    enabledTools: ['filter', 'search', 'settings', 'create', 'transfer']
   })
 }
 

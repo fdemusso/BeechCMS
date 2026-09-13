@@ -27,6 +27,7 @@ describe("content-toolbar/shared", () => {
       "search",
       "settings",
       "create",
+      "transfer",
     ])
     expect(CONDITIONAL_TONE_OPTIONS.map((t) => t.value)).toEqual([
       "success",

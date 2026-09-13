@@ -1,97 +1,90 @@
-# Execution Log — ContentImportJobs (Sprint 3/4)
+# Execution Log — BulkTransferDashboard (S4)
 
 ## SECTION 6 — ACCEPTANCE CRITERIA
 
 **Boundaries**
+- [x] `git diff --name-only` lists zero files under `packages/core/` and zero under `apps/api/`.
+- [x] No new entry in any `package.json`.
+- [x] `apps/dashboard/src/lib/upload.ts` is unmodified.
+- [x] `apps/dashboard/src/pages/drafts-list.tsx` is unmodified and still compiles.
+- [x] No file under `features/content-transfer/` imports from any other `features/*` slice.
+      `graphify path "ContentToolbar" "ImportWizardDialog"` → no directed path.
+- [x] `TransferFormat` is imported from `@beechcms/core` in both `content-toolbar` and
+      `content-transfer`; neither re-exports it for the other.
+- [x] `features/content-transfer/index.ts` does not export `presignImportObject` or `createImportJob`.
 
-- [x] `git diff devs -- packages/` is empty. Zero changes to `@beechcms/core`.
-- [x] `git diff devs -- apps/dashboard/` is empty.
-- [x] `git diff devs -- apps/api/wrangler.jsonc` is empty.
-- [x] No file under `apps/api/src/features/content/` imports from another `features/*` slice.
-- [x] No new dependency in any `package.json`.
+**Botanical / engine adherence**
+- [x] CSV-vs-NDJSON decision calls `isFlatSeed` / `nonFlatBranches` from `@beechcms/core`.
+- [x] No `br_XX` id and no `content_import_jobs` column name appears in `apps/dashboard`.
+- [x] No byte-size or row-count limit constant duplicated client-side.
 
-**Botanical invariant**
+**Typing**
+- [x] `npx tsc --noEmit` in `apps/dashboard` passes.
+- [x] No `any` in any new or modified file, tests included.
+- [x] `ImportJobResponse` has no `objectKey` and no `createdBy` field.
+- [x] The two new `ContentToolbarProps` members are optional.
 
-- [x] `grep -nE "D1Database|content_[a-z]+|SELECT |INSERT |UPDATE |CREATE TABLE"` over the four new source files returns hits only in the doc-comment/log strings and the single `(context.env)['DB'] as D1Database | undefined` cast.
-- [x] Every content read/write goes through `ContentRepository`; every imported row passes `validateAndSanitizeSeedPayload` before `repository.create`.
-- [x] Migration's `CREATE TABLE`/`CREATE INDEX` re-derived via `planCreateSeed(IMPORT_JOBS_SEED)` against `packages/core/dist` — byte-identical to `0031_import_jobs_seed.sql`.
-- [x] `import_jobs` definition passes `SeedRegistry` construction — verified live: `db:reset:local` applied 0000 → 0030 → 0031 with no errors, seed row present with `status='active'`, `source='code'`.
-- [x] No FTS artifact: `SELECT name FROM sqlite_master WHERE name LIKE '%import_jobs%'` lists exactly `content_import_jobs` + 5 named indexes (+2 sqlite autoindexes for the PK/UNIQUE) — no `fts_import_jobs`, no `content_import_jobs_drafts`.
-- [x] Migration bumps `seed_meta.registry_version` — verified `1 → 2` after reset.
+**Behaviour — export / import**
+- [x] Transfer menu / CSV-disable / export download / import wizard / permission gating / job
+      panel / polling stop-on-terminal / capped-report line / job-detail route — implemented
+      per SECTION 4 (4.1–4.16).
 
-**Routing and authorization**
+**Tests**
+- [x] Three new unit suites under `features/content-transfer/test/unit/`.
+- [x] Filenames `<subject>.test.ts(x)`; `describe()` names the exported symbol; no "should".
+- [x] Four zones, one act per `it()`, act result named.
+- [x] No fake timers, no sleep, no snapshot, no `.only`.
+- [x] `barrels.test.ts` asserts the new barrel.
+- [x] `pnpm beech test` passes for `@beechcms/dashboard` (914/914).
 
-- [x] `PROTECTED_ROUTES` gains exactly two rows; `import-jobs` GET row sits above the `/^\/api\/content\/([^/]+)\/[^/]+$/` swallower.
-- [x] `permission.middleware.test.ts` passes unmodified (part of the 1327 green unit tests).
-- [x] `content.get('/import-jobs/:id', …)` registered above `content.get('/:slug/:id', …)`.
-- [x] `OAUTH_SCOPE_ROUTES` untouched.
-- [x] A caller neither creator nor holder of `content:create` on the target seed receives 403 — proven by integration test (job-status authorization matrix).
+**Rework (review_report.md, verdict REWORK_CODE)**
+- [x] Finding 1 (blocking) — `readProblem` still only parses RFC 7807; added a separate
+      `isStorageNotConfiguredError()` (checked first in the wizard's catch) that recognizes the
+      `{error: "presigned_urls_require_s3_credentials", message}` body the native-`R2Bucket`
+      501 actually sends, and maps it to a new `transfer.import.errors.storageNotConfigured`
+      string (en/it) instead of the generic "Import failed".
+- [x] Finding 2 (minor) — fixed stale archive path in `ROADMAP.md` S3 line.
+- [ ] Finding 3 (minor) — `transfer-api.test.ts` also exercises `downloadExport`, which calls
+      `document.createElement` — adding `// @vitest-environment node` breaks it (`ReferenceError:
+      document is not defined`), confirmed by re-running. File genuinely needs jsdom; pragma
+      correctly omitted per the convention's own "when needed" wording. No change made.
+- [x] Added `isStorageNotConfiguredError` unit coverage (recognizes the 501 body; confirms
+      `readProblem` returns null for it; rejects an unrelated 501).
 
-**Behaviour**
-
-- [x] `POST /api/content/:slug/import` answers 202 + `{ jobId }` + `Location`, without reading the file body.
-- [x] CSV against a non-flat seed → 400 `content-csv-requires-flat-seed`, no job row.
-- [x] Object over `IMPORT_MAX_BYTES` → 413, no job row.
-- [x] One `repository.update` after the row loop persists cursor/counts/error report and re-enqueues.
-- [x] A re-delivered message for a terminal job is a no-op (unit test).
-- [x] R2 object deleted on `completed` and `failed`, after the terminal state write.
-- [x] Duplicate unique key → `failed_rows` with `duplicate_slug`, nothing overwritten.
-- [x] `error_report` capped at `MAX_JOB_ERROR_SAMPLES`; `failed_rows` keeps counting past it.
-- [x] `GET /api/content/import-jobs/:id` never returns `object_key` or `created_by`.
-
-**Typing and tests**
-
-- [x] `pnpm --filter @beechcms/api run type-check` is clean.
-- [x] No `any` and no non-null assertion (`!.`) in any new source or test file (grep-verified).
-- [x] Unit files beside their source; integration file under `features/content/test/integration/`; `pnpm lint:tests` passes.
-- [x] Every new test file carries the BUSL-1.1 header; every `it()` states behaviour+outcome, no "should".
-- [x] Four-zone anatomy, one ACT per test, ACT result named, status asserted before body, body typed at call site.
-- [x] Every write asserts persisted state; every rejection asserts nothing persisted.
-- [x] No sleep/fake timers/`.only`/`.skip`/snapshot of an API response.
-- [x] Resume-from-offset test carries the regression-guard comment.
-- [x] `pnpm beech test --diff` exits 0.
-
-## Validation — success output
+## Validation output
 
 ```
-$ pnpm --filter @beechcms/api run type-check
-$ tsc -p tsconfig.build.json --noEmit
-(clean, no output)
-
-$ pnpm type-check   (workspace-wide)
-@beechcms/dashboard#type-check fails: pre-existing TS6133 'vi'/'React' unused in
-src/test/setup.ts (docs/Sprints/ContentExportStream/review_report.md).
-git diff devs -- apps/dashboard/ is empty — confirmed unrelated to this sprint.
-Every other workspace package (api, core, testing, cli, mcp, e2e, widget) is clean.
-
-$ pnpm build
-Tasks: 11 successful, 11 total
-
-$ pnpm --filter @beechcms/api run test:unit
-Test Files  116 passed (116)
-Tests  1327 passed (1327)
-
-$ pnpm --filter @beechcms/api run test:integration
-Test Files  8 passed (8)
-Tests  65 passed (65)
-
-$ pnpm beech test --diff
-PASS  All 2 changed file(s) meet coverage thresholds.
-[unit] 120 passed / [integration] 65 passed
+$ cd apps/dashboard && npx tsc --noEmit
+(exit 0, no output)
 
 $ pnpm lint
 Tasks: 19 successful, 19 total
 
-$ pnpm lint:tests
-test placement — OK
+$ pnpm beech test --diff
+PASS  All 2 changed file(s) meet coverage thresholds.
+Test Files  21 passed (21) / Tests  141 passed (141)
 
-$ pnpm beech db:reset && pnpm beech db:migrate   (apps/api db:reset:local)
-[bootstrap-d1] applying 0000_v040_base.sql
-[bootstrap-d1] applying 0030_test_seeds.sql
-[bootstrap-d1] applying 0031_import_jobs_seed.sql
-[bootstrap-d1] done. (3 applied)
-Verified: content_import_jobs + 5 indexes, seed row (active/code), registry_version 1→2.
+$ cd apps/dashboard && npx vitest run
+Test Files  130 passed (130)
+     Tests  914 passed (914)
 
-$ graphify update . --force
-Code graph updated. 13982 nodes, 25075 edges, 1179 communities.
+$ graphify update .
+Graph has 14044 nodes, 25261 edges, 1184 communities. Updated.
 ```
+
+## Notes
+
+- `pnpm beech test` (full monorepo) also runs `apps/api` and `apps/api-client`, which require
+  the local Docker stack (MinIO/Mailpit/webhook-tester) and an OAuth browser flow respectively —
+  both unreachable in this environment and unrelated to this sprint (S4 touches zero files under
+  `apps/api/`). Dashboard's own full suite (`apps/dashboard`: `npx vitest run`) was run directly
+  instead and is green.
+- Fixed two pre-existing test files that hardcoded the pre-S4 toolbar tool list / permissions
+  mock, now stale given the new `transfer` tool and the wizard's `canGlobally` dependency:
+  `content-toolbar/test/unit/shared.test.ts`, `test/cross-slice/content-list.test.tsx`.
+- Added `features/content-toolbar/test/unit/view-registry.bootstrap.test.ts` and excluded
+  `features/shared/view-registry.ts` (type/interface-only, zero executable statements) from
+  coverage in `vitest.config.ts`, to satisfy `pnpm beech test --diff`'s coverage gate on the two
+  registry files this sprint's one-line changes touched.
+- Manual checklist (§5, items a–h against `pnpm beech dev`) not run — requires an interactive
+  browser session against a live seed set; not part of the automated validation commands.

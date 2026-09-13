@@ -10,6 +10,7 @@ import * as LoginFormIndex from "@/features/auth"
 import * as NotificationsIndex from "@/features/notifications"
 import * as ContentDeleteDialogIndex from "@/features/content-delete-dialog"
 import * as ContentToolbarIndex from "@/features/content-toolbar"
+import * as ContentTransferIndex from "@/features/content-transfer"
 
 describe("barrel exports", () => {
   it("espone simboli principali dai barrel", () => {
@@ -18,5 +19,6 @@ describe("barrel exports", () => {
     expect(ContentDeleteDialogIndex.ContentDeleteDialog).toBeTypeOf("function")
     expect(ContentToolbarIndex.ContentToolbar).toBeTypeOf("function")
     expect(ContentToolbarIndex.DEFAULT_ENABLED_TOOLS).toBeDefined()
+    expect(ContentTransferIndex.ImportWizardDialog).toBeTypeOf("function")
   })
 })

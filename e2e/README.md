@@ -11,10 +11,17 @@ pnpm beech test --tier e2e
 
 This recreates a throwaway database (`e2e/.wrangler-e2e/`, wiped on every run), starts:
 
-- the API on port `8799` (`wrangler dev`, `--persist-to ../../e2e/.wrangler-e2e`)
+- the API on port `8799` (`wrangler dev`, `--persist-to ../../e2e/.wrangler-e2e`), with explicit
+  `--var` R2 S3 credentials pointing at the shared Docker MinIO (`beechdev` / `beechdevsecret`,
+  `beech-media` bucket) so the import wizard's presign step is never at the mercy of a developer's
+  local `.dev.vars`
 - the dashboard on port `5273` (`vite`, proxying to the e2e API via `BEECH_DEV_API_TARGET`)
 
 and then runs the `setup` project (provisioning) followed by the `chromium` project (the specs).
+The `setup` project also ensures the Docker MinIO container is up before provisioning — starting
+it (`docker compose up -d minio minio-init`) if it isn't already, exactly as
+`apps/api/test/docker-precheck.runner.ts` does for the flow tier. It is left running afterwards;
+this suite does not own its lifecycle, only ensures it is ready.
 
 ## Config seams it relies on
 
@@ -39,6 +46,6 @@ declares `test:e2e` only, so it never enters that task graph.
 
 ## What this tier deliberately does not cover
 
-Uploads, email and webhooks need the Docker stack (MinIO, Mailpit, webhook-tester) and belong to
-the flow tier. RBAC matrices, drafts, kanban, search and the setup wizard UI are already covered
-at the unit/integration tiers.
+Email and webhooks need Mailpit/webhook-tester and belong to the flow tier — this suite starts
+only MinIO from the Docker stack (the import wizard's dependency), nothing else. RBAC matrices,
+drafts, kanban, search and the setup wizard UI are already covered at the unit/integration tiers.
