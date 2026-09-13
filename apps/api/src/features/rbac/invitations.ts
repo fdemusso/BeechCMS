@@ -59,7 +59,7 @@ function dispatchInvitationEmail(
         smtpBaseUrl,
       })
     } catch (error) {
-      if (env.ENV !== 'production') console.error('[rbac-invitations] Failed to send email:', error)
+      if (env.ENV !== 'production' && process.env.NODE_ENV !== 'test') console.error('[rbac-invitations] Failed to send email:', error)
     }
   }
 

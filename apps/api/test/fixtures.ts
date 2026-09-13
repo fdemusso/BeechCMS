@@ -30,8 +30,8 @@ export const TEST_ENV = {
   ENV: 'development',
   EMAIL_PROVIDER: 'smtp',
   SMTP_HOST: 'localhost',
-  // Dynamic: BEECH_MAILPIT_SMTP_PORT controls host port in docker-compose.
-  SMTP_PORT: process.env.BEECH_MAILPIT_SMTP_PORT ?? '1025',
+  // Dynamic: SMTP_PORT controls host port (Mailpit HTTP API is 8025).
+  SMTP_PORT: process.env.SMTP_PORT ?? process.env.BEECH_MAILPIT_SMTP_PORT ?? '8025',
   EMAIL_FROM: 'Test <test@beech.local>',
   // Dynamic: BEECH_WEBHOOK_TESTER_PORT controls host port in docker-compose.
   WEBHOOK_TESTER_URL: process.env.WEBHOOK_TESTER_URL ?? `http://localhost:${process.env.BEECH_WEBHOOK_TESTER_PORT ?? '8084'}`,
