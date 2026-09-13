@@ -5,7 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
-import { Trash2 } from "lucide-react"
+import { Trash2 } from "reicon-react"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { Button } from "@/components/ui/button"
 

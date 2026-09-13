@@ -24,7 +24,9 @@ export function useContentDeleteDialog({
   onOpenChange,
   seed,
   mode,
-}: Pick<ContentDeleteDialogProps, "entryIds" | "onConfirm" | "onOpenChange" | "seed" | "mode">) {
+}: Pick<ContentDeleteDialogProps, "entryIds" | "onConfirm" | "onOpenChange" | "mode"> & {
+  seed?: Seed | null
+}) {
   const resolvedMode: ContentDeleteMode = mode ?? (seed?.softDelete === true ? "trash" : "purge")
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
