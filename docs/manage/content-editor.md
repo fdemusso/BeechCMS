@@ -195,6 +195,9 @@ From the **Drafts Hub**, you can:
 3. **Publish**: Publish the draft directly to make it live on the public site immediately.
 4. **Discard**: Discard the draft to revert back to the last published version (or delete it if it was never published).
 
+> [!NOTE]
+> **Someone else edited it first?** If the live entry changed after your draft was created, publishing is refused with a conflict message instead of overwriting your colleague's work. Nothing is lost: your draft stays where it is. Discard it and re-open the entry to continue from the current version.
+
 <p align="center">
   <img src="/images/global-drafts-hub.png" alt="Dedicated Global Drafts Hub" style="width: 100%; max-width: 820px; margin: 16px 0; border-radius: 8px;" />
 </p>

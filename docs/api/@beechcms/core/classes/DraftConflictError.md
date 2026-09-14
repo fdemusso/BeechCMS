@@ -2,47 +2,52 @@
 
 ***
 
-[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / RepositoryError
+[BeechCMS](../../../index.md) / [@beechcms/core](../index.md) / DraftConflictError
 
-# Class: RepositoryError
+# Class: DraftConflictError
 
-Base Repository Error
+Thrown by `publishDraft` when the live entry was written after the draft captured its
+`live_snapshot_at`. Publishing would overwrite that write, so the repository refuses and the
+caller must discard the draft or re-create it from the current live version.
+Mapped to 409 Conflict by the API problem-mapper.
 
 ## Extends
 
-- `Error`
-
-## Extended by
-
-- [`EntryNotFoundError`](EntryNotFoundError.md)
-- [`SlugConflictError`](SlugConflictError.md)
-- [`RelationTargetNotFoundError`](RelationTargetNotFoundError.md)
-- [`HookValidationError`](HookValidationError.md)
-- [`DraftConflictError`](DraftConflictError.md)
+- [`RepositoryError`](RepositoryError.md)
 
 ## Constructors
 
 ### Constructor
 
-> **new RepositoryError**(`message`, `cause?`): `RepositoryError`
+> **new DraftConflictError**(`params`): `DraftConflictError`
 
 #### Parameters
 
-##### message
+##### params
+
+###### entryId
 
 `string`
 
-##### cause?
+###### liveUpdatedAt
 
-`unknown`
+`number`
+
+###### seedSlug
+
+`string`
+
+###### snapshotAt
+
+`number` \| `null`
 
 #### Returns
 
-`RepositoryError`
+`DraftConflictError`
 
 #### Overrides
 
-`Error.constructor`
+[`RepositoryError`](RepositoryError.md).[`constructor`](RepositoryError.md#constructor)
 
 ## Properties
 
@@ -52,7 +57,19 @@ Base Repository Error
 
 #### Inherited from
 
-`Error.cause`
+[`RepositoryError`](RepositoryError.md).[`cause`](RepositoryError.md#cause)
+
+***
+
+### entryId
+
+> `readonly` **entryId**: `string`
+
+***
+
+### liveUpdatedAt
+
+> `readonly` **liveUpdatedAt**: `number`
 
 ***
 
@@ -62,7 +79,7 @@ Base Repository Error
 
 #### Inherited from
 
-`Error.message`
+[`RepositoryError`](RepositoryError.md).[`message`](RepositoryError.md#message)
 
 ***
 
@@ -72,7 +89,19 @@ Base Repository Error
 
 #### Inherited from
 
-`Error.name`
+[`RepositoryError`](RepositoryError.md).[`name`](RepositoryError.md#name)
+
+***
+
+### seedSlug
+
+> `readonly` **seedSlug**: `string`
+
+***
+
+### snapshotAt
+
+> `readonly` **snapshotAt**: `number` \| `null`
 
 ***
 
@@ -82,7 +111,7 @@ Base Repository Error
 
 #### Inherited from
 
-`Error.stack`
+[`RepositoryError`](RepositoryError.md).[`stack`](RepositoryError.md#stack)
 
 ***
 
@@ -102,7 +131,7 @@ not capture any frames.
 
 #### Inherited from
 
-`Error.stackTraceLimit`
+[`RepositoryError`](RepositoryError.md).[`stackTraceLimit`](RepositoryError.md#stacktracelimit)
 
 ## Methods
 
@@ -170,7 +199,7 @@ a();
 
 #### Inherited from
 
-`Error.captureStackTrace`
+[`RepositoryError`](RepositoryError.md).[`captureStackTrace`](RepositoryError.md#capturestacktrace)
 
 ***
 
@@ -192,7 +221,7 @@ Indicates whether the argument provided is a built-in Error instance or not.
 
 #### Inherited from
 
-`Error.isError`
+[`RepositoryError`](RepositoryError.md).[`isError`](RepositoryError.md#iserror)
 
 ***
 
@@ -220,4 +249,4 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 #### Inherited from
 
-`Error.prepareStackTrace`
+[`RepositoryError`](RepositoryError.md).[`prepareStackTrace`](RepositoryError.md#preparestacktrace)

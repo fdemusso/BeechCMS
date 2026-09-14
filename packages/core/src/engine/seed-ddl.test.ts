@@ -172,6 +172,56 @@ describe('planExtendSeed', () => {
     }
   })
 
+  describe('live_snapshot_at (draft-table system column)', () => {
+    const draftSeed: Seed = {
+      slug: 'articles',
+      label: 'Articles',
+      displayNameAlias: 'title',
+      allowDrafts: true,
+      branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text' }],
+    }
+
+    it('adds live_snapshot_at when the draft table lacks it', () => {
+      const plan = planExtendSeed(draftSeed, new Set(['id', 'title']), new Set(['entry_id', 'title']))
+
+      expect(plan.statements).toContain(
+        'ALTER TABLE content_articles_drafts ADD COLUMN live_snapshot_at INTEGER;',
+      )
+    })
+
+    it('omits the ALTER when the draft table already carries the column', () => {
+      const plan = planExtendSeed(
+        draftSeed,
+        new Set(['id', 'title']),
+        new Set(['entry_id', 'title', 'live_snapshot_at']),
+      )
+
+      expect(plan.statements).not.toContain(
+        'ALTER TABLE content_articles_drafts ADD COLUMN live_snapshot_at INTEGER;',
+      )
+    })
+
+    // ADD COLUMN is not idempotent and execDdl aborts the whole batch on the first failure, so an
+    // un-introspected draft table must never be guessed at.
+    it('omits the ALTER when the caller did not introspect the draft table', () => {
+      const plan = planExtendSeed(draftSeed, new Set(['id', 'title']))
+
+      expect(plan.statements).not.toContain(
+        'ALTER TABLE content_articles_drafts ADD COLUMN live_snapshot_at INTEGER;',
+      )
+    })
+
+    it('never emits the ALTER for a seed with allowDrafts=false', () => {
+      const noDraftSeed: Seed = { ...draftSeed, allowDrafts: false }
+
+      const plan = planExtendSeed(noDraftSeed, new Set(['id', 'title']), new Set(['entry_id', 'title']))
+
+      expect(plan.statements).not.toContain(
+        'ALTER TABLE content_articles_drafts ADD COLUMN live_snapshot_at INTEGER;',
+      )
+    })
+  })
+
   describe('softDelete', () => {
     const softDeleteSeed: Seed = {
       slug: 'posts',

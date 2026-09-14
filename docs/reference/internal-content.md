@@ -706,6 +706,10 @@ Authorization: Bearer eyJ...
 
 Promotes the pending draft to live published content in an atomic Cloudflare D1 batch (`database.batch`), synchronizing relation tables and deleting the draft row.
 
+Publication is guarded by **optimistic concurrency**. When the draft is first created, the draft row records the live entry's `updated_at` in the `live_snapshot_at` system column. At publish time the repository performs a compare-and-set against the live row (`WHERE id = ? AND updated_at = <snapshot>`); if the live entry was written in the meantime — by another editor, a direct API call, a bulk update, or an import — the publish is refused with `409 draft-publish-conflict` **before** any statement of the batch runs. The draft row and the live entry are both left untouched, so nothing is lost: discard the draft and re-open the entry from the current live version.
+
+Drafts created before the column existed carry `live_snapshot_at NULL`, which disables the check and publishes as before.
+
 **Request**
 
 ```http
@@ -721,6 +725,18 @@ Authorization: Bearer eyJ...
 }
 ```
 
+**Response `409 Conflict`** (`Content-Type: application/problem+json`)
+
+```json
+{
+  "type": "https://beechcms.dev/problems/draft-publish-conflict",
+  "title": "Conflict",
+  "status": 409,
+  "detail": "The live entry was modified after this draft was created. Discard the draft and re-open the entry to start from the current version.",
+  "instance": "/api/content/articoli/550e8400-e29b-41d4-a716-446655440000/draft/publish"
+}
+```
+
 **Error responses:**
 
 | Status | `type` | Cause |
@@ -728,6 +744,7 @@ Authorization: Bearer eyJ...
 | `404` | `content-not-found` | Entry ID not found |
 | `404` | `draft-not-found` | No pending draft found for this entry |
 | `405` | `draft-not-allowed` | Seed does not have `allowDrafts: true` |
+| `409` | `draft-publish-conflict` | The live entry was modified after the draft was created |
 | `422` | `relation-target-not-found` | A target record referenced in a draft relation was deleted |
 
 ---

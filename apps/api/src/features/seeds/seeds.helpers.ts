@@ -144,11 +144,16 @@ export async function validateAndApplySeedDef(context: AppContext, slug: string,
   const schemaMutator = context.get('schemaMutator')
   const tableName = `content_${slug}`
   const existingCols = await schemaMutator.getColumns(tableName)
+  // The drafts table carries `live_snapshot_at`, a system column the branch loop in planExtendSeed
+  // cannot emit. Introspected only for draft-enabled seeds; null otherwise, which skips the check.
+  const existingDraftCols = candidate.allowDrafts
+    ? await schemaMutator.getColumns(`${tableName}_drafts`)
+    : null
 
   try {
     const stmts = existingCols === null
       ? planCreateSeed(candidate)
-      : planExtendSeed(candidate, existingCols).statements
+      : planExtendSeed(candidate, existingCols, existingDraftCols).statements
     await schemaMutator.execDdl(stmts)
   } catch (err) {
     return publicProblem(context, {

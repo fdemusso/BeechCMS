@@ -84,6 +84,36 @@ export class HookValidationError extends RepositoryError {
   }
 }
 
+/**
+ * Thrown by `publishDraft` when the live entry was written after the draft captured its
+ * `live_snapshot_at`. Publishing would overwrite that write, so the repository refuses and the
+ * caller must discard the draft or re-create it from the current live version.
+ * Mapped to 409 Conflict by the API problem-mapper.
+ */
+export class DraftConflictError extends RepositoryError {
+  readonly seedSlug: string
+  readonly entryId: string
+  readonly snapshotAt: number | null
+  readonly liveUpdatedAt: number
+
+  constructor(params: {
+    seedSlug: string
+    entryId: string
+    snapshotAt: number | null
+    liveUpdatedAt: number
+  }) {
+    super(
+      `Draft conflict: entry '${params.entryId}' in '${params.seedSlug}' was modified at ` +
+        `${params.liveUpdatedAt}, after the draft snapshot ${params.snapshotAt}`,
+    )
+    this.name = 'DraftConflictError'
+    this.seedSlug = params.seedSlug
+    this.entryId = params.entryId
+    this.snapshotAt = params.snapshotAt
+    this.liveUpdatedAt = params.liveUpdatedAt
+  }
+}
+
 export type BulkFieldUpdate =
   | { kind: 'set'; value: unknown }
   | { kind: 'array_replace'; value: string[] }

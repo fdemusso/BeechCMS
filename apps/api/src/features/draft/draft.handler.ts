@@ -9,6 +9,7 @@ import {
   resolvePolicies,
   EntryNotFoundError,
   RelationTargetNotFoundError,
+  DraftConflictError,
   ActorContext,
 } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
@@ -172,6 +173,16 @@ draftApp.post('/:slug/:id/draft/publish', draftGuard, async (context) => {
   try {
     await repository.publishDraft(seed, id)
   } catch (err) {
+    if (err instanceof DraftConflictError) {
+      return publicProblem(context, {
+        type: 'draft-publish-conflict',
+        title: 'Conflict',
+        status: 409,
+        detail:
+          'The live entry was modified after this draft was created. Discard the draft and ' +
+          're-open the entry to start from the current version.',
+      })
+    }
     if (err instanceof EntryNotFoundError) {
       return publicProblem(context, {
         type: 'draft-not-found',

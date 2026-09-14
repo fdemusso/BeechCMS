@@ -80,6 +80,7 @@ CREATE TABLE IF NOT EXISTS content_dr_articles_drafts (
   title      TEXT,
   author_id  TEXT,
   _touched_fields TEXT,
+  live_snapshot_at INTEGER,
   updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 `

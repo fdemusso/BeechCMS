@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { D1ContentRepository } from './content.repository.d1'
-import { EntryNotFoundError, SlugConflictError, RelationTargetNotFoundError } from '@beechcms/core'
+import { EntryNotFoundError, SlugConflictError, RelationTargetNotFoundError, DraftConflictError } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 
 const SEED = {
@@ -359,6 +359,16 @@ describe('D1ContentRepository', () => {
       expect(upsertSql).toContain('json_each(COALESCE(_touched_fields')
       expect(upsertSql).toContain("json_each(excluded._touched_fields)")
     })
+
+    it('writes live_snapshot_at only on insert, preserving it across autosaves', async () => {
+      const { db, prepareMock } = makeMockDb()
+
+      await new D1ContentRepository(db).saveDraft(SEED, 'e1', { title: 'T' })
+
+      const sql: string = prepareMock.mock.calls[0][0]
+      expect(sql).toContain('(SELECT updated_at FROM content_posts WHERE id = ?)')
+      expect(sql).toContain('live_snapshot_at = COALESCE(live_snapshot_at, excluded.live_snapshot_at)')
+    })
   })
 
   // ─── getDraft ────────────────────────────────────────────────────────────────
@@ -436,6 +446,46 @@ describe('D1ContentRepository', () => {
       expect(batchMock).toHaveBeenCalledTimes(1)
       const batchArgs: any[] = batchMock.mock.calls[0][0]
       expect(batchArgs).toHaveLength(2)
+    })
+
+    it('throws DraftConflictError when the guarded claim matches no row', async () => {
+      const draftRow = { entry_id: 'e1', title: 'Draft', body: null, live_snapshot_at: 1000 }
+      const { db, firstMock, batchMock } = makeMockDb({ runChanges: 0 })
+      firstMock
+        .mockResolvedValueOnce(draftRow)
+        .mockResolvedValueOnce({ updated_at: 2000 })
+
+      const publish = new D1ContentRepository(db).publishDraft(SEED, 'e1')
+
+      await expect(publish).rejects.toBeInstanceOf(DraftConflictError)
+      // The regression guard: a zero-row claim must abort BEFORE the batch, or the draft row is
+      // deleted while the live row keeps the other writer's content.
+      expect(batchMock).not.toHaveBeenCalled()
+    })
+
+    it('binds the snapshot into the claim WHERE clause rather than comparing in application code', async () => {
+      const draftRow = { entry_id: 'e1', title: 'Draft', body: null, live_snapshot_at: 1000 }
+      const { db, firstMock, prepareMock, batchMock } = makeMockDb()
+      firstMock.mockResolvedValueOnce(draftRow)
+      batchMock.mockResolvedValueOnce([{}, {}])
+
+      await new D1ContentRepository(db).publishDraft(SEED, 'e1')
+
+      const claimSql: string | undefined = prepareMock.mock.calls
+        .map((c: unknown[]) => c[0] as string)
+        .find((s: string) => s.includes('MAX(unixepoch()'))
+      expect(claimSql).toContain('WHERE id = ? AND (? IS NULL OR updated_at = ?)')
+    })
+
+    it('publishes a legacy draft whose live_snapshot_at is null', async () => {
+      const draftRow = { entry_id: 'e1', title: 'Draft', body: null }
+      const { db, firstMock, batchMock } = makeMockDb({ runChanges: 1 })
+      firstMock.mockResolvedValueOnce(draftRow)
+      batchMock.mockResolvedValueOnce([{}, {}])
+
+      await new D1ContentRepository(db).publishDraft(SEED, 'e1')
+
+      expect(batchMock).toHaveBeenCalledTimes(1)
     })
   })
 
