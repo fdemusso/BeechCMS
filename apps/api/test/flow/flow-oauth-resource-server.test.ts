@@ -65,6 +65,23 @@ async function issueToken(app: ReturnType<typeof createBeechApp>, db: D1TestData
   return exchangeCode(app, db, code)
 }
 
+async function createTargetSeed(app: ReturnType<typeof createBeechApp>, db: D1TestDatabase, adminToken: string) {
+  const planRes = await app.request(`/api/seeds/${SEED_SLUG}/mcp-plan`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ candidate: CANDIDATE_SEED }),
+  }, { ...TEST_ENV, DB: db })
+  expect(planRes.status).toBe(200)
+  const { expectedVersion } = await planRes.json<{ expectedVersion: number }>()
+
+  const createRes = await app.request(`/api/seeds/${SEED_SLUG}/mcp-apply`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ candidate: CANDIDATE_SEED, expectedVersion, planId: 'seed-init' }),
+  }, { ...TEST_ENV, DB: db })
+  expect(createRes.status).toBe(200)
+}
+
 describe('Flow: OAuth 2.1 Resource Server (scope enforcement)', () => {
   let db: D1TestDatabase
   let app: ReturnType<typeof createBeechApp>
@@ -96,12 +113,7 @@ describe('Flow: OAuth 2.1 Resource Server (scope enforcement)', () => {
     expect(listRes.status).toBe(200)
 
     // Create the seed first (via admin JWT) so /api/seeds/:slug and mcp-plan have a target.
-    const createRes = await app.request(`/api/seeds/${SEED_SLUG}/mcp-apply`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidate: CANDIDATE_SEED, expectedVersion: 1, planId: 'seed-init' }),
-    }, { ...TEST_ENV, DB: db })
-    console.log('CREATE STATUS', createRes.status, await createRes.clone().text()); expect(createRes.status).toBe(200)
+    await createTargetSeed(app, db, adminToken)
 
     const getSeedRes = await app.request(`/api/seeds/${SEED_SLUG}`, { headers: auth }, { ...TEST_ENV, DB: db })
     expect(getSeedRes.status).toBe(200)
@@ -124,11 +136,7 @@ describe('Flow: OAuth 2.1 Resource Server (scope enforcement)', () => {
   })
 
   it('write-scoped token: mcp-apply succeeds for the plan produced by a read-scoped call, audit actor is the resource owner', async () => {
-    await app.request(`/api/seeds/${SEED_SLUG}/mcp-apply`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidate: CANDIDATE_SEED, expectedVersion: 1, planId: 'seed-init' }),
-    }, { ...TEST_ENV, DB: db })
+    await createTargetSeed(app, db, adminToken)
 
     const rwToken = await issueToken(app, db, adminToken, 'schema:read schema:write', 'state-rw')
     const auth = { Authorization: `Bearer ${rwToken.access_token}` }
@@ -157,11 +165,7 @@ describe('Flow: OAuth 2.1 Resource Server (scope enforcement)', () => {
   })
 
   it('scope escalation refused: a read-only token gets 403 insufficient_scope on mcp-apply', async () => {
-    await app.request(`/api/seeds/${SEED_SLUG}/mcp-apply`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ candidate: CANDIDATE_SEED, expectedVersion: 1, planId: 'seed-init' }),
-    }, { ...TEST_ENV, DB: db })
+    await createTargetSeed(app, db, adminToken)
 
     const readToken = await issueToken(app, db, adminToken, 'schema:read', 'state-escalate')
     const res = await app.request(`/api/seeds/${SEED_SLUG}/mcp-apply`, {

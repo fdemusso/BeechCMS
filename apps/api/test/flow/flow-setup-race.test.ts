@@ -5,6 +5,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME } from '@beechcms/core'
 import { createBeechApp } from '../../src/factory'
+import { DEMO_SEED_DEFINITIONS } from '../../src/shared/db/fixtures/demo-seeds'
 import { D1TestDatabase } from '../helpers/d1-test-database'
 import { TEST_ENV } from '../fixtures'
 
@@ -104,9 +105,12 @@ describe('Flow: /auth/setup race condition (#233)', () => {
 
     expect(res.status).toBe(201)
 
-    const seedRows = (await db.prepare(`SELECT slug FROM seeds WHERE status = 'active'`).all()).results as { slug: string }[]
+    // Filter by `source = 'runtime'` to isolate the onboarding demo dataset
+    // from system seeds (e.g. `import_jobs` with source = 'code') bootstrapped by SQL migrations.
+    const seedRows = (await db.prepare(`SELECT slug FROM seeds WHERE source = 'runtime' AND status = 'active'`).all()).results as { slug: string }[]
     const seedSlugs = seedRows.map((r) => r.slug).sort()
-    expect(seedSlugs).toEqual(['abbonamenti', 'articoli', 'changelog', 'clienti', 'ticket'])
+    const expectedSlugs = DEMO_SEED_DEFINITIONS.map((s) => s.slug).sort()
+    expect(seedSlugs).toEqual(expectedSlugs)
 
     const { count: clientiCount } = (await db.prepare('SELECT COUNT(*) as count FROM content_clienti').first()) as { count: number }
     expect(clientiCount).toBeGreaterThan(0)
