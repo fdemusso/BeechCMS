@@ -57,6 +57,13 @@ describe('DDL', () => {
       expect(generateDraftTable(noDraftSeed)).toBeNull()
     })
 
+    it('emits live_snapshot_at as a nullable system column so legacy drafts publish unchecked', () => {
+      const sql = generateDraftTable(mockSeed)
+
+      expect(sql).toContain('live_snapshot_at  INTEGER,')
+      expect(sql).not.toContain('live_snapshot_at  INTEGER NOT NULL')
+    })
+
     it('generates indexes for filterable branches', () => {
       const indexes = generateIndexes(mockSeed)
       expect(indexes).toContain('CREATE INDEX IF NOT EXISTS idx_articles_status ON content_articles(status);')
@@ -329,6 +336,7 @@ describe('DDL', () => {
       const sql = generateDraftTable(multiRelSeed)
       expect(sql).not.toBeNull()
       expect(sql).not.toContain('tags  TEXT')
+      expect(sql).toContain('live_snapshot_at  INTEGER,')
     })
 
     it('generateIndexes does NOT emit an index for multi-relation branches', () => {

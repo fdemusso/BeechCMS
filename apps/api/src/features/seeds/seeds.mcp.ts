@@ -152,6 +152,9 @@ mcpApp.post('/:slug/mcp-plan', async (context) => {
 
   // Physical columns — the ONLY correct input for planExtendSeed.
   const existingCols = await schemaMutator.getColumns(`content_${slug}`)
+  const existingDraftCols = candidate.allowDrafts
+    ? await schemaMutator.getColumns(`content_${slug}_drafts`)
+    : null
 
   let statements: string[] = []
   let ftsRebuildNeeded = false
@@ -159,7 +162,7 @@ mcpApp.post('/:slug/mcp-plan', async (context) => {
     if (existingCols === null) {
       statements = planCreateSeed(candidate)
     } else {
-      const plan = planExtendSeed(candidate, existingCols)
+      const plan = planExtendSeed(candidate, existingCols, existingDraftCols)
       statements = plan.statements
       ftsRebuildNeeded = plan.ftsRebuildNeeded
     }
@@ -267,12 +270,15 @@ mcpApp.post('/:slug/mcp-apply', async (context) => {
 
   // 3 — plan the DDL against the PHYSICAL columns
   const existingCols = await schemaMutator.getColumns(`content_${slug}`)
+  const existingDraftCols = candidate.allowDrafts
+    ? await schemaMutator.getColumns(`content_${slug}_drafts`)
+    : null
   let ddl: string[]
   let ftsRebuildNeeded = false
   if (existingCols === null) {
     ddl = planCreateSeed(candidate)
   } else {
-    const plan = planExtendSeed(candidate, existingCols)
+    const plan = planExtendSeed(candidate, existingCols, existingDraftCols)
     ddl = plan.statements
     ftsRebuildNeeded = plan.ftsRebuildNeeded
   }

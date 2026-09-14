@@ -229,6 +229,10 @@ export function generateDraftTable(seed: Seed): string | null {
   }
 
   lines.push(`  _touched_fields  TEXT,`)
+  // Live-row `updated_at` as it stood when this draft was created, written once and never re-based.
+  // Nullable on purpose: drafts created before optimistic-concurrency publish existed carry NULL and
+  // publish unchecked, so enabling this feature cannot block an in-flight draft.
+  lines.push(`  live_snapshot_at  INTEGER,`)
   lines.push(`  updated_at  INTEGER NOT NULL DEFAULT (unixepoch())`)
   lines.push(`);`)
 
@@ -238,7 +242,7 @@ export function generateDraftTable(seed: Seed): string | null {
 
 /**
  * Generates the SQL `ALTER TABLE content_{slug} ADD COLUMN {alias} {type}` statement.
- * 
+ *
  * @param seed The seed definition.
  * @param branch The branch definition for the new column.
  * @returns The ALTER TABLE SQL statement.
@@ -246,6 +250,22 @@ export function generateDraftTable(seed: Seed): string | null {
 export function generateAddColumn(seed: Seed, branch: Branch): string {
   const { sqlType } = BRANCH_TYPE_SQL[branch.type]
   return `ALTER TABLE ${tableName(seed)} ADD COLUMN ${branch.alias} ${sqlType}${buildForeignKeyClause(branch)};`
+}
+
+/**
+ * Generates the `ALTER TABLE content_{slug}_drafts ADD COLUMN live_snapshot_at INTEGER` statement
+ * for a draft table provisioned before the column existed.
+ *
+ * System column, not a branch — `generateAddColumn` iterates `seed.branches` and can never emit it.
+ * NOT idempotent: `ADD COLUMN` fails when the column is already present and `ISchemaMutator.execDdl`
+ * aborts the whole batch on the first failing statement, so the caller MUST check the physical
+ * columns first (see `planExtendSeed`).
+ *
+ * @param seed The seed definition. Caller must have verified `seed.allowDrafts`.
+ * @returns The ALTER TABLE statement.
+ */
+export function generateAddDraftSnapshotColumn(seed: Seed): string {
+  return `ALTER TABLE content_${seed.slug}_drafts ADD COLUMN live_snapshot_at INTEGER;`
 }
 
 

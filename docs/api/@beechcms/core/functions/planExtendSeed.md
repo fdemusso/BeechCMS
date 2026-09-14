@@ -6,7 +6,7 @@
 
 # Function: planExtendSeed()
 
-> **planExtendSeed**(`seed`, `existingColumns`): [`ExtendPlan`](../interfaces/ExtendPlan.md)
+> **planExtendSeed**(`seed`, `existingColumns`, `existingDraftColumns?`): [`ExtendPlan`](../interfaces/ExtendPlan.md)
 
 Additive extension: given the columns that already exist on content_\{slug\}
 (from PRAGMA table_info, passed in by the caller), return ONLY the statements
@@ -17,6 +17,9 @@ FTS: SQLite cannot ALTER an fts5 table's columns. If a new text/richtext
 searchable branch was added, ftsRebuildNeeded=true signals the caller
 (sprint 03) to handle it — no DROP is emitted.
 
+Draft tables: pass `existingDraftColumns` (PRAGMA table_info on content_\{slug\}_drafts) to have the
+`live_snapshot_at` system column added retroactively; omit it to skip that check entirely.
+
 ## Parameters
 
 ### seed
@@ -26,6 +29,10 @@ searchable branch was added, ftsRebuildNeeded=true signals the caller
 ### existingColumns
 
 `Set`&lt;`string`&gt;
+
+### existingDraftColumns?
+
+`Set`&lt;`string`&gt; \| `null`
 
 ## Returns
 

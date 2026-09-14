@@ -16,6 +16,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 
 - [AllowAllRoleGuard](classes/AllowAllRoleGuard.md)
 - [CsvRowReader](classes/CsvRowReader.md)
+- [DraftConflictError](classes/DraftConflictError.md)
 - [EntryNotFoundError](classes/EntryNotFoundError.md)
 - [HookValidationError](classes/HookValidationError.md)
 - [InMemorySeedRegistry](classes/InMemorySeedRegistry.md)
@@ -350,6 +351,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [fromCsvCells](functions/fromCsvCells.md)
 - [ftsTableName](functions/ftsTableName.md)
 - [generateAddColumn](functions/generateAddColumn.md)
+- [generateAddDraftSnapshotColumn](functions/generateAddDraftSnapshotColumn.md)
 - [generateCreateTable](functions/generateCreateTable.md)
 - [generateDefaultDashboardLayout](functions/generateDefaultDashboardLayout.md)
 - [generateDefaultLayout](functions/generateDefaultLayout.md)

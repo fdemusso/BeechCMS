@@ -9,6 +9,7 @@ import {
   RepositoryError,
   SlugConflictError,
   RelationTargetNotFoundError,
+  DraftConflictError,
   type BulkFieldUpdate,
   type BatchWrite,
   type DraftSummary,
@@ -1307,6 +1308,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       }
 
       const draftTableName = this.getTableName(seed.slug, true)
+      const liveTableName = this.getTableName(seed.slug)
       const mRelBranches = multiRelBranches(seed)
       const mRelAliases = new Set(mRelBranches.map(b => b.alias))
 
@@ -1360,6 +1362,17 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
           SELECT value FROM json_each(excluded._touched_fields)
         )
       )`)
+
+      columnNames.push('live_snapshot_at')
+      // Read inside the INSERT rather than via a prior SELECT: one statement, no window in which the
+      // live row could move between the read and the write.
+      placeholders.push(`(SELECT updated_at FROM ${liveTableName} WHERE id = ?)`)
+      queryBindings.push(entryId)
+      // COALESCE keeps the value written at draft creation. An autosave must never re-base the
+      // snapshot onto a live row that changed in the meantime — doing so would silently re-authorise
+      // the overwrite this column exists to block. Unqualified on the left of COALESCE is the
+      // pre-existing row's value; `excluded.` is the value this statement would have inserted.
+      updateClauses.push('live_snapshot_at = COALESCE(live_snapshot_at, excluded.live_snapshot_at)')
 
       updateClauses.push('updated_at = (unixepoch())')
 
@@ -1511,6 +1524,9 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    *
    * @throws EntryNotFoundError if no draft row exists for `entryId`.
    * @throws RelationTargetNotFoundError if any relation the draft references no longer exists.
+   * @throws DraftConflictError if the live row was written after the draft captured
+   *   `live_snapshot_at`. A NULL snapshot (legacy draft, or a draft table that predates the column)
+   *   disables the check.
    */
   async publishDraft(seed: Seed, entryId: string): Promise<void> {
     try {
@@ -1551,6 +1567,43 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       const { mRelBranches, mRelDraftIds } = await this.validatePublishDraftRelations(seed, draftRow, entryId)
 
+      // Relation validation runs first on purpose: a validation failure must not leave a bumped
+      // updated_at behind on a live row that was never published.
+      const rawSnapshot = draftRow['live_snapshot_at']
+      const snapshotAt = typeof rawSnapshot === 'number' ? rawSnapshot : null
+
+      // Compare-and-set. The comparison MUST live in the WHERE clause: a SELECT-then-compare in
+      // application code lets two concurrent publishes both pass the check before either writes.
+      // MAX(unixepoch(), updated_at + 1) guarantees the post-claim value is strictly greater than
+      // any snapshot that just matched — unixepoch() is second-granular, so a plain
+      // `updated_at = (unixepoch())` could rewrite the same value and let the loser match too.
+      // This claim is therefore the sole writer of updated_at for the whole publish; the batch
+      // below deliberately does not set it again.
+      const claim = await this.database
+        .prepare(
+          `UPDATE ${liveTableName} SET updated_at = MAX(unixepoch(), updated_at + 1) ` +
+            `WHERE id = ? AND (? IS NULL OR updated_at = ?)`,
+        )
+        .bind(entryId, snapshotAt, snapshotAt)
+        .run()
+
+      if ((claim.meta?.changes ?? 0) === 0) {
+        const live = await this.database
+          .prepare(`SELECT updated_at FROM ${liveTableName} WHERE id = ?`)
+          .bind(entryId)
+          .first<{ updated_at: number }>()
+
+        if (!live) {
+          throw new EntryNotFoundError(`No live entry ${entryId} in ${seed.slug}`)
+        }
+        throw new DraftConflictError({
+          seedSlug: seed.slug,
+          entryId,
+          snapshotAt,
+          liveUpdatedAt: live.updated_at,
+        })
+      }
+
       const mRelAliases = new Set(mRelBranches.map(b => b.alias))
       const updateClauses: string[] = []
       const queryBindings: any[] = []
@@ -1566,7 +1619,9 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         }
       }
 
-      updateClauses.push("status = 'published'", 'updated_at = (unixepoch())')
+      // `updated_at` is already stamped by the claim above. Re-stamping here with a bare
+      // unixepoch() would undo the +1 the claim may have applied and reopen the same-second race.
+      updateClauses.push("status = 'published'")
       const updateSql = `UPDATE ${liveTableName} SET ${updateClauses.join(', ')} WHERE id = ?`
       queryBindings.push(entryId)
 
@@ -1595,6 +1650,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       await this.database.batch(batchStmts)
     } catch (error) {
+      if (error instanceof DraftConflictError) throw error
       if (error instanceof EntryNotFoundError) throw error
       if (error instanceof RelationTargetNotFoundError) throw error
       throw this.mapError(error, `publishDraft(${seed.slug}, ${entryId})`)

@@ -9,6 +9,7 @@ import {
   generateFtsTable,
   generateFtsTriggers,
   generateAddColumn,
+  generateAddDraftSnapshotColumn,
   generateJunctionTable,
   generateJunctionIndexes,
   generateJunctionDraftTable,
@@ -52,8 +53,15 @@ export interface ExtendPlan {
  * FTS: SQLite cannot ALTER an fts5 table's columns. If a new text/richtext
  * searchable branch was added, ftsRebuildNeeded=true signals the caller
  * (sprint 03) to handle it — no DROP is emitted.
+ *
+ * Draft tables: pass `existingDraftColumns` (PRAGMA table_info on content_{slug}_drafts) to have the
+ * `live_snapshot_at` system column added retroactively; omit it to skip that check entirely.
  */
-export function planExtendSeed(seed: Seed, existingColumns: Set<string>): ExtendPlan {
+export function planExtendSeed(
+  seed: Seed,
+  existingColumns: Set<string>,
+  existingDraftColumns?: Set<string> | null,
+): ExtendPlan {
   const statements: string[] = []
   let ftsRebuildNeeded = false
 
@@ -74,6 +82,16 @@ export function planExtendSeed(seed: Seed, existingColumns: Set<string>): Extend
   // System column, not a branch: the branch loop above can never emit it.
   if (seed.softDelete && !existingColumns.has('deleted_at')) {
     statements.push(...generateEnableSoftDelete(seed))
+  }
+  // Draft-table system column. Emitted only when the caller actually introspected
+  // content_{slug}_drafts: `undefined` means "not introspected" and `null` means "table absent",
+  // and in both cases emitting a non-idempotent ADD COLUMN would abort the caller's whole DDL batch.
+  if (
+    seed.allowDrafts &&
+    existingDraftColumns != null &&
+    !existingDraftColumns.has('live_snapshot_at')
+  ) {
+    statements.push(generateAddDraftSnapshotColumn(seed))
   }
   // CREATE INDEX IF NOT EXISTS — idempotent, safe to re-run
   statements.push(...generateIndexes(seed))
