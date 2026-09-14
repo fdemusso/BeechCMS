@@ -65,6 +65,7 @@ The JWT-authenticated content surface uses `content-`-prefixed slugs for the sam
 | `content-not-found` | `404` | No entry with that id — on `/restore`, no **trashed** entry with that id |
 | `content-slug-conflict` | `409` | Slug already taken by a live entry |
 | `content-soft-delete-disabled` | `409` | A `/trash` route was called on a Seed without `softDelete: true` |
+| `draft-publish-conflict` | `409` | The live entry was written after the draft captured its snapshot — publishing would overwrite that write |
 | `content-invalid-slug-or-id` | `400` | Missing seed slug or entry id in the path |
 | `content-invalid-json` | `400` | Request body is not valid JSON |
 | `bulk-invalid-ids` | `400` | `ids` is not a non-empty array of strings |

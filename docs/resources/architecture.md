@@ -112,6 +112,8 @@ For Seeds with `allowDrafts: true`, BeechCMS employs a **Dual-Table Mirror Archi
 
 This guarantees that public readers never query draft rows or suffer performance degradation from intermediate staging data.
 
+The draft table also carries a nullable `live_snapshot_at INTEGER` system column: the live row's `updated_at` as it stood when the draft was created. Publication compares it against the live row in the `WHERE` clause of an atomic compare-and-set, so a draft that would overwrite a concurrent write is refused with `409 draft-publish-conflict` rather than silently winning. `NULL` disables the check, which keeps drafts created before the column existed publishable. See [Drafts & Versioning](/features/drafts#publish-conflicts).
+
 ## Soft Delete & the Erasure Ledger
 
 For Seeds with `softDelete: true`, deletion is a row state rather than a row removal. `content_<seed>` gains a nullable `deleted_at INTEGER` system column, and uniqueness moves from an inline `slug ... UNIQUE` to a **partial unique index** (`WHERE deleted_at IS NULL`) so a trashed entry releases its slug for reuse.
