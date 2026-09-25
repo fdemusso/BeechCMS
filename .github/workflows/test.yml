@@ -94,24 +94,23 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # minio/minio and minio/mc were deleted from Docker Hub on 2026-09-11 (MinIO discontinued
+      # free Docker Hub images) and quay.io/minio/* now 401s too. bitnamilegacy/minio is the
+      # community-verified working mirror; see docker/docker-compose.yml for details. Its
+      # entrypoint creates MINIO_DEFAULT_BUCKETS synchronously before the server starts serving,
+      # so the separate mc-based bucket-creation step is no longer needed.
       - name: Start MinIO
         run: |
           docker run -d --name beech-minio \
             -p 9000:9000 -p 9001:9001 \
             -e MINIO_ROOT_USER=beechdev \
             -e MINIO_ROOT_PASSWORD=beechdevsecret \
-            quay.io/minio/minio:latest server /data --console-address ":9001"
+            -e MINIO_DEFAULT_BUCKETS=beech-media-test-ci:download \
+            bitnamilegacy/minio:2025.7.23-debian-12-r5
           for i in {1..20}; do
             curl -sf http://localhost:9000/minio/health/live && break
             sleep 1
           done
-
-      - name: Create test bucket
-        run: |
-          docker run --rm --network host --entrypoint sh quay.io/minio/mc:latest -c "
-            until mc alias set local http://localhost:9000 beechdev beechdevsecret; do sleep 1; done
-            mc mb -p local/beech-media-test-ci || true
-          "
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
