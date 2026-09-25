@@ -10,7 +10,7 @@
  */
 
 /// <reference types="@cloudflare/workers-types" />
-import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope, IRoleRepository, IRoleAssignmentRepository, EffectivePermissions, IInvitationRepository, IDeletionLedger } from '@beechcms/core'
+import type { Seed, ContentRepository, IdempotencyRepository, BeechBucket, MediaRepository, SystemStatsRepository, IHashProvider, ITokenService, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogger, IActivityLogRepository, INotificationRepository, INotificationService, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, ISeedRegistry, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, BackrefMap, ISiteSettingsRepository, IDemoDataRepository, JwtClaims, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, IQueueService, IKanbanPositionRepository, IPrivacyService, ActorContext, IAntivirusProvider, ITimeTrapTokenRepository, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, OAuthScope, IRoleRepository, IRoleAssignmentRepository, EffectivePermissions, IInvitationRepository, IDeletionLedger, IImageTransformer } from '@beechcms/core'
 import type { IRateLimiterRegistry } from './middleware/rate-limit.middleware'
 import type { ISetupChecklistRepository } from './shared/db/repositories/d1-setup-checklist.repository'
 
@@ -65,6 +65,18 @@ export interface Env {
   MEDIA_CDN_URL?: string
   /** Maximum accepted upload size, in bytes. */
   MAX_UPLOAD_BYTES?: string
+  /**
+   * Cloudflare Images binding. When present, `GET /api/media/:key?preset=…` transforms at the edge;
+   * when absent the route serves the original with `X-Beech-Media-Transform: passthrough-unsupported`.
+   */
+  IMAGES?: ImagesBinding
+  /**
+   * JSON object merged by name over DEFAULT_MEDIA_PRESETS from @beechcms/core; `null` removes a preset.
+   * Deliberately absent from wrangler.jsonc `vars`: unset must mean "defaults", exactly like MAX_UPLOAD_BYTES.
+   */
+  MEDIA_PRESETS?: string
+  /** Ceiling in pixels on either side of a derived variant. Unset → DEFAULT_MEDIA_MAX_DIMENSION; capped at ABSOLUTE_MAX_MEDIA_DIMENSION. */
+  MEDIA_MAX_DIMENSION?: string
   /**
    * Maximum rows a single synchronous export may stream. Optional; falls back to
    * `DEFAULT_EXPORT_MAX_ROWS` from @beechcms/core. Deliberately absent from
@@ -176,6 +188,8 @@ export interface Variables {
   idempotencyRepository: IdempotencyRepository
   /** Media storage bucket abstraction (R2-backed). */
   bucket: BeechBucket
+  /** Edge image transformer; `null` when the runtime has no `IMAGES` binding. Set by `storageMiddleware`. */
+  imageTransformer: IImageTransformer | null
   /** Repository for media asset metadata. */
   mediaRepository: MediaRepository
   /** Repository for aggregate system/dashboard statistics. */
