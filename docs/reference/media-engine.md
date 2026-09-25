@@ -137,9 +137,63 @@ Generates a presigned read URL with a 900-second TTL for private assets.
 
 Public proxy that streams assets from Cloudflare R2 / MinIO with `Cache-Control: public, max-age=31536000, immutable`. Does not require authentication.
 
+With no transform query, the route behaves byte-for-byte as it always has. Adding `preset` transforms the image at the edge through the Cloudflare Images binding — every legal variant is a pre-registered, named preset; no client-supplied number ever reaches the transformer.
+
+**Query contract**
+
+| Parameter | Values | Default | Notes |
+|---|---|---|---|
+| `preset` | any catalog preset name | — | Required to trigger a transform. Unknown name → `400 media_preset_unknown`. |
+| `format` | `original`, `webp`, `jpeg` | `original` | Requires `preset`. |
+| `quality` | `low`, `medium`, `high` (→ 60 / 82 / 92) | `medium` | Requires `preset`. |
+
+Any of `w`, `h`, `width`, `height`, `fit`, `q` in the query → `400 media_param_forbidden`. These free-form parameters are never accepted, never ignored: a fixed, pre-registered preset catalog is the anti-abuse mechanism, since the set of possible variants per asset (`|catalog| × 3 formats × 3 qualities`) is bounded at deploy time.
+
+**Default preset catalog**
+
+| Preset | Kind | Dimensions |
+|---|---|---|
+| `thumbnail` | crop | 200×200 |
+| `avatar` | crop | 128×128 |
+| `card` | crop | 400×300 |
+| `og-image` | crop | 1200×630 |
+| `hero` | crop | 1920×800 |
+| `w-320` … `w-5120` | scale (`fit=scale-down`, never upscales) | 320, 480, 640, 768, 1024, 1280, 1536, 1920, 2560, 3840, 5120 |
+
+**Errors**
+
+| Code | Status | Trigger |
+|---|---|---|
+| `media_param_forbidden` | 400 | A discarded free-form parameter (`w`, `h`, `width`, `height`, `fit`, `q`) is present |
+| `media_param_duplicated` | 400 | `preset`, `format` or `quality` repeated |
+| `media_preset_required` | 400 | `format`/`quality` given without `preset` |
+| `media_format_invalid` | 400 | `format` outside `original`/`webp`/`jpeg` |
+| `media_quality_invalid` | 400 | `quality` outside `low`/`medium`/`high` |
+| `media_preset_unknown` | 400 | `preset` not in the active catalog |
+| `media_not_transformable` | 400 | Source MIME is not jpeg/png/gif/webp |
+| `media_dimension_exceeded` | 400 | A scale preset's derived output would exceed `MEDIA_MAX_DIMENSION` on either side |
+| `media_preset_catalog_invalid` | 500 | `MEDIA_PRESETS` is malformed (fails closed) |
+| `media_transform_failed` | 502 | The Images binding rejected the probe or the transform |
+
+**Caching:** A transformed variant carries `Cache-Control: public, max-age=31536000, immutable` and a strong `ETag` (`"mv1-…"`, derived from the source key, its size, the canonical request and the preset's *definition* — not just its name — so redefining a preset never serves a stale variant under the same name). A matching `If-None-Match` answers `304`. Parameter order never changes the ETag or the edge-cache key: both are derived from the canonical query. The edge Cache API (`caches.default`) is keyed on that same canonical query, and a cache hit is revalidated with a metadata-only `bucket.head()` so a variant can never outlive its deleted source.
+
+Without the `IMAGES` binding, a preset request passes the original through unmodified: `200`, `X-Beech-Media-Transform: passthrough-unsupported`, `Cache-Control: no-store`, no `ETag`, and nothing is written to the edge cache — an immutable passthrough would otherwise pin the untransformed original under the variant URL for a year, in every browser or CDN that saw it before the binding was enabled.
+
+> **Operator note:** Do not redefine a preset under an existing name — browsers that already hold the old variant keep it (`immutable`). Add a new name instead.
+
 **Stored XSS Prevention:** Active content types (`image/svg`, `text/`, `application/xml`, `application/xhtml`, `application/javascript`) are forced to download as `Content-Type: application/octet-stream` with `Content-Disposition: attachment` and `Content-Security-Policy: default-src 'none'; sandbox`.
 
 **CDN Acceleration:** When `MEDIA_CDN_URL` is configured, public links point directly to the CDN domain rather than the Worker.
+
+**Client usage (`@beechcms/client`)**
+
+```ts
+import { media, mediaSrcSet } from '@beechcms/client'
+
+media(key, { preset: 'card', format: 'webp', baseUrl })
+
+// <img srcset={mediaSrcSet(key, ['w-640', 'w-1280', 'w-1920'], { format: 'webp', baseUrl })} sizes="100vw">
+```
 
 ---
 
@@ -169,6 +223,9 @@ Deletes the object from storage, removes its tracking row from `media_objects`, 
 | `MEDIA_CDN_URL` | Var (Optional) | CDN origin URL for public media |
 | `MEDIA_BASE_URL` | Var (Optional) | Custom base URL for media endpoints |
 | `MAX_UPLOAD_BYTES` | Var (Optional) | Max upload limit in bytes (default 50 MB, hard cap 500 MB) |
+| `IMAGES` | Binding (Optional) | Cloudflare Images binding; enables preset transformations on `GET /api/media/:key` |
+| `MEDIA_PRESETS` | Var (Optional) | JSON preset catalog merged by name over the defaults; `null` removes a preset |
+| `MEDIA_MAX_DIMENSION` | Var (Optional) | Ceiling in px on a derived variant's side (default 5120, hard cap 8192) |
 
 ---
 

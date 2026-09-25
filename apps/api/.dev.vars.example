@@ -25,6 +25,16 @@ MAX_UPLOAD_BYTES=52428800
 # Opzionale: URL base per i media (se non impostato, usa origin della richiesta)
 # MEDIA_BASE_URL=http://localhost:5173
 
+# --- Media transformations (opzionale) ---
+# Catalogo preset per GET /api/media/:key?preset=<nome>[&format=original|webp|jpeg][&quality=low|medium|high].
+# Se assente valgono i default del core: thumbnail 200x200, avatar 128x128, card 400x300,
+# og-image 1200x630, hero 1920x800 (crop, fit=cover) e w-320 … w-5120 (scala, fit=scale-down).
+# Il JSON viene unito ai default per nome; null rimuove un preset. I preset "scala" devono
+# chiamarsi esattamente "w-<width>". JSON non valido → 500 media_preset_catalog_invalid (fail closed).
+# MEDIA_PRESETS={"banner":{"kind":"crop","width":1600,"height":400},"w-1440":{"kind":"scale","width":1440},"hero":null}
+# Lato massimo in px di una variante derivata (default 5120, tetto 8192).
+# MEDIA_MAX_DIMENSION=5120
+
 # --- Email (Sprint 03) ---
 # In dev usa Mailpit. In prod (wrangler secret) imposta EMAIL_PROVIDER=resend e RESEND_API_KEY.
 EMAIL_PROVIDER=smtp
