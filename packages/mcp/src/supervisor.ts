@@ -139,6 +139,16 @@ export class McpSupervisor {
       return this.currentRestartPromise
     }
 
+    // A restart in progress (explicit or watcher-triggered) always picks up the
+    // current on-disk content, so any debounced watcher restart still pending
+    // for the same change is now moot — drop it, or it fires later and kills
+    // the freshly-restarted child mid-request.
+    if (this.restartTimeout) {
+      clearTimeout(this.restartTimeout)
+      this.restartTimeout = null
+    }
+    this.lastHash = computeBundleHash(this.watchTargets)
+
     this.restarting = true
     this.childReady = false
 

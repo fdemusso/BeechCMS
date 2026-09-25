@@ -11,8 +11,9 @@ const FIXTURE_CONTENT = '# Example\n\nFixture content.\n'
 vi.mock('node:fs', () => ({
   statSync: vi.fn(() => ({ mtimeMs: 1000 })),
   readFileSync: vi.fn((path: string) => {
-    if (path.endsWith('manifest.json')) return JSON.stringify(FIXTURE_MANIFEST)
-    if (path.endsWith('reference/example.md')) return FIXTURE_CONTENT
+    const normalized = path.replace(/\\/g, '/')
+    if (normalized.endsWith('manifest.json')) return JSON.stringify(FIXTURE_MANIFEST)
+    if (normalized.endsWith('reference/example.md')) return FIXTURE_CONTENT
     throw new Error(`unexpected readFileSync path in test: ${path}`)
   }),
 }))

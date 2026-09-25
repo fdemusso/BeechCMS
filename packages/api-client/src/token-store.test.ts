@@ -41,7 +41,9 @@ describe('token-store', () => {
     expect(readGrant('http://api.test', 'other-client')).toBeUndefined()
   })
 
-  it('creates the cache file with mode 0600 and its directory with 0700', async () => {
+  // NTFS has no POSIX mode bits: chmodSync only toggles the read-only attribute there,
+  // and mkdirSync's `mode` option is a no-op, so 0600/0700 only mean anything on POSIX.
+  it.skipIf(process.platform === 'win32')('creates the cache file with mode 0600 and its directory with 0700', async () => {
     const { writeGrant, cachePath } = await import('./token-store.js')
     writeGrant('http://api.test', 'beech-mcp', GRANT)
     const fileMode = statSync(cachePath()).mode & 0o777
