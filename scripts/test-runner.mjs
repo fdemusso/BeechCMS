@@ -49,7 +49,11 @@ function acquireLock() {
         fs.unlinkSync(LOCK_FILE)
       }
     } catch {
-      try { fs.unlinkSync(LOCK_FILE) } catch {}
+      try {
+        fs.unlinkSync(LOCK_FILE)
+      } catch {
+        // Swallow: best-effort cleanup of stale lock
+      }
     }
   }
 
@@ -67,7 +71,9 @@ function acquireLock() {
           fs.unlinkSync(LOCK_FILE)
         }
       }
-    } catch {}
+    } catch {
+      // Swallow: best-effort lock cleanup on exit
+    }
   }
 
   process.on("exit", cleanup)
@@ -187,7 +193,9 @@ function readCache(currentFingerprint) {
     if (data.fingerprint === currentFingerprint && data.taskName === taskName) {
       return data
     }
-  } catch {}
+  } catch {
+    // Swallow: corrupt or unreadable cache file
+  }
   return null
 }
 
@@ -207,7 +215,9 @@ function clearCache() {
     if (fs.existsSync(CACHE_FILE)) {
       fs.unlinkSync(CACHE_FILE)
     }
-  } catch {}
+  } catch {
+    // Swallow: best-effort cache cleanup
+  }
 }
 
 const { fingerprint, fileCount } = computeRepoFingerprint()
@@ -305,7 +315,7 @@ function printConsolidatedSummary(output) {
     
     const match = cleanLine.match(/^(\S+):test(?::coverage)?:\s+(Test Files|Tests|Duration|Start at)\s+(.+)$/i)
     if (match) {
-      const [_, pkg, type, value] = match
+      const [, pkg, type, value] = match
       const cleanPkg = pkg.replace(/:test(:coverage)?$/, "")
       if (!summaries[cleanPkg]) {
         summaries[cleanPkg] = {}

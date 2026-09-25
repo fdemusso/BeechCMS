@@ -30,6 +30,12 @@ Internal representation of fully resolved validation options with default values
 
 ***
 
+### localeConfig
+
+> **localeConfig**: [`LocaleConfig`](../interfaces/LocaleConfig.md) \| `undefined`
+
+***
+
 ### maxTextLength
 
 > **maxTextLength**: `number`

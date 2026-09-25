@@ -10,6 +10,7 @@
 
 Serializes a value for writing to the DB.
 boolean → 0/1 | date → Unix timestamp | json/tags/richtext/repeater → JSON string
+Localized branches: locale dictionary ↔ compact JSON.
 
 ## Parameters
 

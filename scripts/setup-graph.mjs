@@ -22,7 +22,7 @@ async function main() {
     try {
       execSync('python -m venv venv');
       s.stop('Virtual environment created');
-    } catch (e) {
+    } catch {
       s.stop('Failed to create venv. Make sure Python is installed and accessible via "python" command.');
       process.exit(1);
     }
@@ -47,7 +47,7 @@ async function main() {
     // Run hook install via the venv executable
     execSync(`"${graphifyPath}" hook install`);
     s.stop('Git Hooks installed successfully (post-commit, post-checkout)');
-  } catch (e) {
+  } catch {
     s.stop('Failed to install Git Hooks. Make sure you are in a Git repository.');
     process.exit(1);
   }

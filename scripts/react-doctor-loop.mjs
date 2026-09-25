@@ -34,7 +34,7 @@ async function fetchRulePrompt(plugin, rule) {
     const text = await res.text();
     fs.writeFileSync(cachePath, text, 'utf8');
     return text;
-  } catch (err) {
+  } catch {
     // Return empty prompt on network issues or 404
     return '';
   }
@@ -55,14 +55,14 @@ if (typeof scanResult === 'object' && scanResult.error) {
   // react-doctor returns a non-zero exit code if it finds issues; parse stdout anyway
   try {
     scanObj = JSON.parse(scanResult.stdout);
-  } catch (e) {
+  } catch {
     console.error('❌ Errore durante l\'esecuzione di react-doctor:', scanResult.stderr || scanResult.error.message);
     process.exit(1);
   }
 } else {
   try {
     scanObj = JSON.parse(scanResult);
-  } catch (e) {
+  } catch {
     console.error('❌ Output JSON non valido da react-doctor:', scanResult);
     process.exit(1);
   }
@@ -213,6 +213,8 @@ try {
   if (fs.existsSync(scratchPromptPath)) {
     fs.unlinkSync(scratchPromptPath);
   }
-} catch (e) {}
+} catch {
+  // Swallow: best-effort cleanup of temporary prompt file
+}
 
 console.log(`\n🎉 Processo di auto-triage completato!`);

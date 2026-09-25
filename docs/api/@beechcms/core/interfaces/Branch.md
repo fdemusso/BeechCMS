@@ -77,6 +77,19 @@ UI display label.
 
 ***
 
+### localized?
+
+> `optional` **localized?**: `boolean`
+
+Field-level localization. When true, the branch's existing column stores a locale dictionary
+(`{"it": "Scarpa", "en": "Shoe"}`) instead of a single value. Metadata-only: toggling it never
+emits DDL and never rewrites rows — values written before the toggle stay readable as-is.
+Valid only on top-level `text | richtext | json` branches with `plain` storage (not
+`confidential` / `restricted`); never on repeater sub-fields. Enforced by seed-validation.ts
+(Fatal 17). Default: false.
+
+***
+
 ### maxItems?
 
 > `optional` **maxItems?**: `number`

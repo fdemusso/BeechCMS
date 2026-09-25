@@ -160,9 +160,13 @@ function getPackageBaseRef(pkg, customSince) {
       try {
         execSync(`git merge-base --is-ancestor "${t}" HEAD`, { cwd: ROOT, stdio: 'pipe' })
         return t
-      } catch {}
+      } catch {
+        // Tag is not an ancestor of HEAD
+      }
     }
-  } catch {}
+  } catch {
+    // Git tag listing failed
+  }
 
   // 2. Find last commit modifying the package manifest
   try {
@@ -170,13 +174,17 @@ function getPackageBaseRef(pkg, customSince) {
       .toString()
       .trim()
     if (commit) return commit
-  } catch {}
+  } catch {
+    // Git log lookup failed
+  }
 
   // 3. Fallback: last global reachable tag
   try {
     const lastGlobalTag = execSync('git describe --tags --abbrev=0 2>/dev/null', { cwd: ROOT, stdio: 'pipe' }).toString().trim()
     if (lastGlobalTag) return lastGlobalTag
-  } catch {}
+  } catch {
+    // No reachable global tag found
+  }
 
   return null
 }
@@ -251,7 +259,9 @@ function detectPackageChanges(pkg, customSince) {
         }
       }
     }
-  } catch {}
+  } catch {
+    // Git diff failed or repo not available
+  }
 
   changedFiles = Array.from(new Set(changedFiles))
 
@@ -399,7 +409,6 @@ if (firstArg === 'set') {
   log(`  ✓ Updated ${pkg.name}: ${oldVer} → ${newVer}`)
 
   // Update references in all other package.jsons
-  let updatedDepsCount = 0
   for (const other of PACKAGES) {
     const json = readJson(other.path)
     let modified = false
@@ -416,7 +425,6 @@ if (firstArg === 'set') {
     if (modified) {
       writeJson(other.path, json)
       log(`     Updated dependency in ${other.name}`)
-      updatedDepsCount++
     }
   }
 
@@ -668,7 +676,6 @@ if (isCurrent) {
     }
 
     // Update internal workspace dependencies across all packages
-    let depsUpdated = false
     for (const key of DEP_KEYS) {
       if (!json[key]) continue
       for (const dep of Object.keys(json[key])) {
@@ -676,7 +683,6 @@ if (isCurrent) {
           const newVer = bumpedVersionMap.get(dep)
           const prefix = json[key][dep].startsWith('workspace:') ? 'workspace:' : ''
           json[key][dep] = `${prefix}^${newVer}`
-          depsUpdated = true
         }
       }
     }

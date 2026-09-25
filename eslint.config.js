@@ -31,6 +31,11 @@ export default defineConfig([
     '**/graphify-out/**',
     '**/*.d.ts',
     '**/assets/**',
+    'scratch/**',
+    '**/.vitepress/cache/**',
+    '**/.vitepress/dist/**',
+    '**/.next/**',
+    '**/.turbo/**',
   ]),
   {
     files: ['**/*.{ts,tsx,js,mjs,cjs}'],

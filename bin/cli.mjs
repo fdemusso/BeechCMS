@@ -158,17 +158,17 @@ async function cmdInit(args) {
   await init({ initDb, local: !remote, db, nonInteractive: yes })
 }
 
-async function cmdSeedLoad(_args) {
+async function cmdSeedLoad() {
   const { seedLoad } = await import('@beechcms/cli')
   await seedLoad({})
 }
 
-async function cmdValidate(_args) {
+async function cmdValidate() {
   const { validate } = await import('@beechcms/cli')
   await validate({})
 }
 
-async function cmdSeedCreate(_args) {
+async function cmdSeedCreate() {
   const { seedCreate } = await import('@beechcms/cli')
   await seedCreate({})
 }
@@ -180,7 +180,7 @@ async function cmdDeploy(args) {
   await deploy({ skipSeed, skipCheck })
 }
 
-async function cmdUpdate(_args) {
+async function cmdUpdate() {
   const { update } = await import('@beechcms/cli')
   await update({})
 }
@@ -310,12 +310,12 @@ async function cmdForms(args) {
 }
 
 // New unified command wrappers:
-async function cmdDbMigrate(args) {
+async function cmdDbMigrate() {
   const { dbMigrate } = await import('@beechcms/cli')
   await dbMigrate({})
 }
 
-async function cmdDbReset(args) {
+async function cmdDbReset() {
   const { dbReset } = await import('@beechcms/cli')
   await dbReset({})
 }
@@ -326,22 +326,22 @@ async function cmdDev(args) {
   await dev({ plain })
 }
 
-async function cmdDevStop(args) {
+async function cmdDevStop() {
   const { devStop } = await import('@beechcms/cli')
   await devStop()
 }
 
-async function cmdDevReset(args) {
+async function cmdDevReset() {
   const { devReset } = await import('@beechcms/cli')
   await devReset()
 }
 
-async function cmdDevTunnel(args) {
+async function cmdDevTunnel() {
   const { devTunnel } = await import('@beechcms/cli')
   await devTunnel()
 }
 
-async function cmdMailpitClear(args) {
+async function cmdMailpitClear() {
   const { mailpitClear } = await import('@beechcms/cli')
   await mailpitClear()
 }
@@ -363,12 +363,12 @@ async function cmdTest(args) {
   await test({ coverage, diff, tier })
 }
 
-async function cmdLint(args) {
+async function cmdLint() {
   const { lint } = await import('@beechcms/cli')
   await lint()
 }
 
-async function cmdDoctor(args) {
+async function cmdDoctor() {
   const { doctor } = await import('@beechcms/cli')
   await doctor()
 }
