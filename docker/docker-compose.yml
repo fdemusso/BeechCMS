@@ -1,8 +1,14 @@
 name: beech-development-suite
 
 services:
+  # minio/minio and minio/mc were deleted from Docker Hub on 2026-09-11 (MinIO discontinued free
+  # Docker Hub images in favor of the paid AIStor product) and quay.io/minio/* now 401s too — see
+  # https://github.com/minio/minio/issues (org-wide advisory). bitnamilegacy/minio is the
+  # community-verified working mirror. Its entrypoint creates MINIO_DEFAULT_BUCKETS synchronously
+  # before the server starts serving, so the separate mc-based minio-init container (also now
+  # unpullable) is no longer needed.
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
     container_name: beech-minio
     restart: unless-stopped
     ports:
@@ -11,23 +17,9 @@ services:
     environment:
       MINIO_ROOT_USER: ${BEECH_MINIO_USER:-beechdev}
       MINIO_ROOT_PASSWORD: ${BEECH_MINIO_PASSWORD:-beechdevsecret}
-    command: server /data --console-address ":9001"
+      MINIO_DEFAULT_BUCKETS: beech-media:download,beech-media-test:download
     volumes:
-      - beech-minio-data:/data
-
-  minio-init:
-    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
-    restart: "no"
-    depends_on:
-      - minio
-    entrypoint: >
-      /bin/sh -c "
-      until /usr/bin/mc alias set local http://minio:9000 ${BEECH_MINIO_USER:-beechdev} ${BEECH_MINIO_PASSWORD:-beechdevsecret}; do sleep 1; done;
-      /usr/bin/mc mb -p local/beech-media || true;
-      /usr/bin/mc anonymous set download local/beech-media || true;
-      /usr/bin/mc mb -p local/beech-media-test || true;
-      /usr/bin/mc anonymous set download local/beech-media-test || true;
-      "
+      - beech-minio-data:/bitnami/minio/data
 
   mailpit:
     image: axllent/mailpit:v1.30.0

@@ -41,9 +41,9 @@ describe('forms command (multi-framework generator)', () => {
   it('generates React form component in src/components/BeechForm.tsx', async () => {
     await forms({ framework: 'react', seed: 'clienti', mode: 'styled', yes: true })
 
-    expect(fs.mkdirSync).toHaveBeenCalledWith(expect.stringContaining('src/components'), { recursive: true })
+    expect(fs.mkdirSync).toHaveBeenCalledWith(expect.stringMatching(/src[/\\]components$/), { recursive: true })
     expect(fs.writeFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('src/components/BeechForm.tsx'),
+      expect.stringMatching(/src[/\\]components[/\\]BeechForm\.tsx$/),
       expect.stringContaining("export function BeechForm"),
       'utf-8'
     )
@@ -53,7 +53,7 @@ describe('forms command (multi-framework generator)', () => {
     await forms({ framework: 'vue', seed: 'leads', mode: 'styled', yes: true })
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('src/components/BeechForm.vue'),
+      expect.stringMatching(/src[/\\]components[/\\]BeechForm\.vue$/),
       expect.stringContaining("<script setup lang=\"ts\">"),
       'utf-8'
     )
@@ -63,7 +63,7 @@ describe('forms command (multi-framework generator)', () => {
     await forms({ framework: 'svelte', seed: 'contatti', mode: 'headless', yes: true })
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('src/components/BeechForm.svelte'),
+      expect.stringMatching(/src[/\\]components[/\\]BeechForm\.svelte$/),
       expect.stringContaining("$state"),
       'utf-8'
     )
@@ -73,7 +73,7 @@ describe('forms command (multi-framework generator)', () => {
     await forms({ framework: 'vanilla', seed: 'newsletter', yes: true })
 
     expect(fs.writeFileSync).toHaveBeenCalledWith(
-      expect.stringContaining('src/components/BeechForm.js'),
+      expect.stringMatching(/src[/\\]components[/\\]BeechForm\.js$/),
       expect.stringContaining("customElements.define('beech-form'"),
       'utf-8'
     )

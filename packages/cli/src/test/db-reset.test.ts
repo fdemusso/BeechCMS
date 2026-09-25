@@ -77,7 +77,7 @@ describe('db:reset command', () => {
         if (path.includes('apps/api') || path.includes('apps\\api')) {
           return false
         }
-        if (path.includes('.wrangler/state') || path.includes('bootstrap-d1.mjs') || path.endsWith('package.json')) {
+        if (/\.wrangler[/\\]state/.test(path) || path.includes('bootstrap-d1.mjs') || path.endsWith('package.json')) {
           return true
         }
       }
@@ -87,7 +87,7 @@ describe('db:reset command', () => {
 
     await dbReset({})
     expect(rmSync).toHaveBeenCalledWith(
-      expect.stringContaining('.wrangler/state'),
+      expect.stringMatching(/\.wrangler[/\\]state/),
       expect.any(Object)
     )
     expect(spawnSync).toHaveBeenCalledWith(
