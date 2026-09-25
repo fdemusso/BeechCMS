@@ -16,7 +16,7 @@ Every read goes through one entry point — `client.collection(seed)` — which 
 - **`@beechcms/client/server`**: Read and write client with mutation operations (`create`, `update`) merged onto the same fluent builder, administrative authentication, and advanced fetch options (`next` cache tags, revalidation, AbortSignal). Deletion is intentionally omitted from public client scopes.
 - **`@beechcms/client/webhooks`**: Dedicated, zero-dependency submodule for HMAC-SHA256 signature verification (`verifyBeechWebhookSignature`), error handling (`WebhookVerificationError`), and strongly typed event deserialization (`constructWebhookEvent<T>`).
 - **`@beechcms/client/richtext`**: Isomorphic, zero-dependency TipTap AST HTML renderer (`renderRichText` / `renderRichTextHtml`), plain-text extractor (`richTextToPlainText` / `extractPlainText`), and AST normalizer/sanitizer utilities (`normalizeRichtextDocument`, `escapeHtml`, `isSafeUrl`).
-- **`@beechcms/client`**: Root entrypoint exporting shared contracts, TypeScript types (`BeechResult`, `BeechProblem`, `ListQuery`, `ListMeta`, `Listable`, `Single`, `RequestOptions`, `BeechClientConfig`), query serializer (`buildSearchParams`), and re-exporting webhook signature utilities.
+- **`@beechcms/client`**: Root entrypoint exporting shared contracts, TypeScript types (`BeechResult`, `BeechProblem`, `ListQuery`, `ListMeta`, `Listable`, `Single`, `RequestOptions`, `BeechClientConfig`), query serializer (`buildSearchParams`), canonical media URL builders (`media`, `mediaSrcSet`), and re-exporting webhook signature utilities.
 
 ---
 
@@ -38,7 +38,7 @@ npm install @beechcms/client
 | **`@beechcms/client/server`** | Read & Write Client | Node.js, Next.js Server Components, Workers | `createBeechServerClient()`, `createBeechClient()`, `collection()` → `.list()` / `.first()` / `.create()` / `.update()` |
 | **`@beechcms/client/webhooks`** | Webhook Verification | Node.js, Edge Runtimes, Serverless | `verifyBeechWebhookSignature()`, `constructWebhookEvent<T>()`, `WebhookVerificationError`, `BEECH_SIGNATURE_HEADER` |
 | **`@beechcms/client/richtext`** | TipTap AST Rendering | Universal (Node, Edge, Browser) | `renderRichText()`, `renderRichTextHtml()`, `richTextToPlainText()`, `extractPlainText()`, `normalizeRichtextDocument()`, `escapeHtml()`, `isSafeUrl()` |
-| **`@beechcms/client`** | Core Types & Contracts | Universal | `buildSearchParams()`, `BeechResult<T>`, `BeechProblem`, `RequestOptions`, `ListQuery`, `ListMeta`, Webhook utilities |
+| **`@beechcms/client`** | Core Types & Contracts | Universal | `buildSearchParams()`, `media()`, `mediaSrcSet()`, `BeechResult<T>`, `BeechProblem`, `RequestOptions`, `ListQuery`, `ListMeta`, Webhook utilities |
 
 ---
 
@@ -555,6 +555,56 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   }
 }
 ```
+
+---
+
+## Media URL Builders (`media` & `mediaSrcSet`)
+
+The root `@beechcms/client` package provides zero-dependency URL builders for generating canonical media transformation URLs and responsive `srcset` strings for BeechCMS media routes:
+
+### 1. Generating Canonical Variant URLs (`media`)
+
+`media(keyOrUrl, options)` generates the deterministic, canonical query URL for named presets. It cleans up redundant defaults (`format=original`, `quality=medium`) and prevents parameter permutation attacks:
+
+```typescript
+import { media } from '@beechcms/client'
+
+// Root-relative URL: "/api/media/1717000000-a1b2c3d4-photo.jpg?preset=card"
+const cardUrl = media('1717000000-a1b2c3d4-photo.jpg', { preset: 'card' })
+
+// Absolute URL with format & quality:
+// "https://api.yourdomain.com/api/media/1717000000-a1b2c3d4-photo.jpg?preset=card&format=webp&quality=high"
+const webpUrl = media('1717000000-a1b2c3d4-photo.jpg', {
+  baseUrl: 'https://api.yourdomain.com',
+  preset: 'card',
+  format: 'webp',
+  quality: 'high',
+})
+```
+
+### 2. Generating Responsive `srcset` Attributes (`mediaSrcSet`)
+
+`mediaSrcSet(keyOrUrl, presets, options)` builds an ordered, de-duplicated `srcset` string using scale presets (`w-<width>`):
+
+```tsx
+import { media, mediaSrcSet } from '@beechcms/client'
+
+export function ArticleImage({ assetKey }: { assetKey: string }) {
+  return (
+    <img
+      src={media(assetKey, { preset: 'card', format: 'webp' })}
+      srcSet={mediaSrcSet(assetKey, ['w-640', 'w-1280', 'w-1920'], { format: 'webp' })}
+      sizes="(max-width: 768px) 100vw, 640px"
+      alt="Article cover"
+      loading="lazy"
+    />
+  )
+}
+```
+
+> [!NOTE]
+> `mediaSrcSet` accepts only scale presets (`w-<width>`). Supplying a fixed crop preset (like `card` or `thumbnail`) throws a `TypeError`, preventing misleading intrinsic width descriptors.
+> For details on available presets and edge cache behavior, see [Media Engine Reference](/reference/media-engine).
 
 ---
 

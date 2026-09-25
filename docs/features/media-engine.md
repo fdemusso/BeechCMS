@@ -25,6 +25,7 @@ BeechCMS solves this with an edge-native **Direct-to-R2 Media Engine**:
 - **Collision-Resistant Keys**: Files are keyed with `${timestamp}-${randomSuffix}-${cleanFilename}`, preventing accidental overwrites.
 - **Streaming Fallback Route**: For local development or environments without S3 SigV4 credentials, BeechCMS provides an automatic fallback (`POST /api/upload`, `multipart/form-data`) using chunked streaming directly to the storage bucket.
 - **Edge Media Serving & Stored-XSS Protection**: Public assets are served via `GET /api/media/:key` with edge caching headers (`Cache-Control: public, max-age=31536000, immutable`), `X-Content-Type-Options: nosniff`, and `Content-Security-Policy: default-src 'none'; sandbox`. Active MIME types (SVG, HTML, XML) are forced to download as attachments.
+- **Edge-Native Preset Transformations**: Transform raster assets on-the-fly through Cloudflare Images bindings using bounded presets (crop and scale). Protected against DoS via pre-registered catalog constraints and cached immutably at the edge with strong ETags.
 - **Private Asset Downloads**: Private/authenticated downloads with ownership and role-based access control are issued as temporary presigned URLs via `GET /api/upload/download-url/:key`.
 - **Visual Media Gallery & Editors**: Embedded in the Dashboard via the `MediaGalleryWidget` (with thumbnail overview and automated cross-seed orphan cleanup), schema-driven `file` field editors (`MediaEdit`), and TipTap Rich Text with session-based orphan pruning.
 
@@ -106,6 +107,21 @@ Content-Security-Policy: default-src 'none'; sandbox
 > [!NOTE]
 > **Stored-XSS Prevention**: Active content MIME types (`image/svg`, `text/`, `application/xml`, `application/xhtml`, `application/javascript`) are forced to download with `Content-Type: application/octet-stream` and `Content-Disposition: attachment; filename="<original-filename>"`.
 > When `MEDIA_CDN_URL` is set, public links point directly to the CDN domain rather than routing through the Worker proxy.
+
+### Edge Preset Transformations
+
+BeechCMS supports edge-native image transformations directly on the public media route using the Cloudflare Images binding:
+
+```http
+GET /api/media/1717000000-a1b2c3d4-hero-banner.webp?preset=card&format=webp&quality=high
+```
+
+- **Preset-Only Security**: Free-form dimension parameters (`w`, `h`, `fit`, `q`) are rejected (`400 media_param_forbidden`) to avoid cache-busting and resource-exhaustion attacks.
+- **Edge Cache API**: Variants are cached at Cloudflare edge colos (`caches.default`) with strong ETags and revalidated against storage metadata.
+- **Client SDK Integration**: Use `media()` and `mediaSrcSet()` from `@beechcms/client` to construct canonical URLs and responsive `srcset` markup.
+
+> [!TIP]
+> For complete details on the preset catalog, query parameters, error responses, and configuration variables (`IMAGES`, `MEDIA_PRESETS`, `MEDIA_MAX_DIMENSION`), see the [Media Engine Reference](/reference/media-engine#public-media-serving-get-apimediakey).
 
 ---
 
