@@ -7,9 +7,10 @@
  * The Worker never receives file bytes: it acts as auth gatekeeper and signer only.
  */
 import { Hono, type Context } from 'hono'
-import { isMimeAccepted, SystemClock } from '@beechcms/core'
+import { isMimeAccepted, parseMediaTransformQuery, SystemClock } from '@beechcms/core'
 import { AppEnv } from '../../types'
 import { deleteR2Objects } from '../../shared/storage/upload'
+import { mediaTransformError, serveTransformedMedia } from './media-transform'
 
 const DEFAULT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
 const ABSOLUTE_MAX_UPLOAD_BYTES = 500 * 1024 * 1024
@@ -315,7 +316,13 @@ export async function serveMediaHandler(c: Context<AppEnv>): Promise<Response> {
   const key = sanitizeStorageKey(decoded)
   if (!key) return new Response('Invalid key', { status: 400 })
 
+  // Decided before any storage I/O: an invalid transform request must not cost an R2 read.
+  const transformQuery = parseMediaTransformQuery(new URL(c.req.url).searchParams)
+  if (transformQuery.kind === 'invalid') return mediaTransformError(c, 400, transformQuery.code)
+
   try {
+    if (transformQuery.kind === 'transform') return await serveTransformedMedia(c, key, transformQuery.request)
+
     const object = await c.var.bucket.get(key)
     if (!object) return new Response('Not found', { status: 404 })
     const headers = new Headers()
