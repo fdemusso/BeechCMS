@@ -14,7 +14,6 @@ import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 import { isFlatSeed, nonFlatBranches } from "@beechcms/core"
 import type { Seed, TransferFormat } from "@beechcms/core"
-import { Upload as ImportIcon } from "reicon-react"
 
 import {
   Dialog,

@@ -2,8 +2,6 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { vi } from "vitest"
-import * as React from "react"
 import i18n from "i18next"
 import { initReactI18next } from "react-i18next"
 

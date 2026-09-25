@@ -40,7 +40,7 @@ describe("presignImportObject", () => {
     vi.mocked(api.post).mockResolvedValueOnce({
       data: { uploadUrl: "https://r2.example/upload", key: "objects/1", expiresIn: 60 },
     })
-    global.fetch = vi.fn().mockResolvedValueOnce({ ok: true }) as unknown as typeof fetch
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({ ok: true }) as unknown as typeof fetch
     const file = new File(["a"], "rows.ndjson", { type: "text/plain" })
 
     await presignImportObject(file, "ndjson")
@@ -59,7 +59,7 @@ describe("presignImportObject", () => {
       data: { uploadUrl: "https://r2.example/upload", key: "objects/2", expiresIn: 60 },
     })
     const putMock = vi.fn().mockResolvedValueOnce({ ok: true })
-    global.fetch = putMock as unknown as typeof fetch
+    globalThis.fetch = putMock as unknown as typeof fetch
     const file = new File(["a,b"], "rows.csv", { type: "text/csv" })
 
     const key = await presignImportObject(file, "csv")
@@ -75,7 +75,7 @@ describe("presignImportObject", () => {
     vi.mocked(api.post).mockResolvedValueOnce({
       data: { uploadUrl: "https://r2.example/upload", key: "objects/3", expiresIn: 60 },
     })
-    global.fetch = vi.fn().mockResolvedValueOnce({ ok: false, status: 500 }) as unknown as typeof fetch
+    globalThis.fetch = vi.fn().mockResolvedValueOnce({ ok: false, status: 500 }) as unknown as typeof fetch
     const file = new File(["a"], "rows.ndjson")
 
     await expect(presignImportObject(file, "ndjson")).rejects.toThrow(/Storage PUT failed: 500/)
