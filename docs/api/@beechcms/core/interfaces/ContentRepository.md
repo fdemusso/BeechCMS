@@ -665,6 +665,7 @@ EntryNotFoundError if no live row with `id` exists.
 
 Partially updates an existing entry in the live table.
 Throws EntryNotFoundError if the ID does not exist.
+Throws EntryConflictError if `options.ifMatch` is set and no longer matches the live row's `updated_at`.
 
 #### Parameters
 

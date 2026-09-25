@@ -114,6 +114,35 @@ export class DraftConflictError extends RepositoryError {
   }
 }
 
+/**
+ * Thrown by `update` when the caller supplied `options.ifMatch` and the live row's
+ * `updated_at` no longer matches it — another writer committed in between.
+ * Mapped to 409 Conflict by the API problem-mapper.
+ */
+export class EntryConflictError extends RepositoryError {
+  readonly seedSlug: string
+  readonly entryId: string
+  readonly expectedUpdatedAt: number
+  readonly actualUpdatedAt: number
+
+  constructor(params: {
+    seedSlug: string
+    entryId: string
+    expectedUpdatedAt: number
+    actualUpdatedAt: number
+  }) {
+    super(
+      `Entry conflict: entry '${params.entryId}' in '${params.seedSlug}' was modified at ` +
+        `${params.actualUpdatedAt}, expected ${params.expectedUpdatedAt}`,
+    )
+    this.name = 'EntryConflictError'
+    this.seedSlug = params.seedSlug
+    this.entryId = params.entryId
+    this.expectedUpdatedAt = params.expectedUpdatedAt
+    this.actualUpdatedAt = params.actualUpdatedAt
+  }
+}
+
 export type BulkFieldUpdate =
   | { kind: 'set'; value: unknown }
   | { kind: 'array_replace'; value: string[] }
@@ -126,6 +155,12 @@ export type BulkFieldUpdate =
  */
 export interface RepositoryOptions {
   actor?: { id: string; role?: string; email?: string }
+  /**
+   * Optimistic concurrency guard for `update`: the `updated_at` the caller last read.
+   * When set, the write only applies if the live row's `updated_at` still matches;
+   * otherwise `update` throws {@link EntryConflictError}.
+   */
+  ifMatch?: number
 }
 
 /**
@@ -212,6 +247,7 @@ export interface ContentRepository {
   /**
    * Partially updates an existing entry in the live table.
    * Throws EntryNotFoundError if the ID does not exist.
+   * Throws EntryConflictError if `options.ifMatch` is set and no longer matches the live row's `updated_at`.
    */
   update(seed: Seed, id: string, data: Record<string, any>, status?: string, options?: RepositoryOptions): Promise<void>
 

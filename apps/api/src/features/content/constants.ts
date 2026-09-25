@@ -10,6 +10,7 @@ export const CONTENT_ERRORS = {
   SEED_NOT_FOUND: 'Seed not found',
   DATABASE_ERROR: 'Database error',
   SLUG_CONFLICT: 'Slug already exists for this schema',
+  UPDATE_CONFLICT: 'The entry was modified after you last read it. Reload the entry and reapply your changes.',
   SENSITIVE_FIELD_EDIT: 'Cannot edit sensitive fields',
   BULK_SIZE_EXCEEDED: 'Cannot edit more than 500 entries at once',
   FIELD_NOT_BULK_EDITABLE: 'Field cannot be bulk-edited',

@@ -17,6 +17,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [AllowAllRoleGuard](classes/AllowAllRoleGuard.md)
 - [CsvRowReader](classes/CsvRowReader.md)
 - [DraftConflictError](classes/DraftConflictError.md)
+- [EntryConflictError](classes/EntryConflictError.md)
 - [EntryNotFoundError](classes/EntryNotFoundError.md)
 - [HookValidationError](classes/HookValidationError.md)
 - [InMemorySeedRegistry](classes/InMemorySeedRegistry.md)

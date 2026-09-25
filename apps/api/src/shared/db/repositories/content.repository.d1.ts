@@ -10,6 +10,7 @@ import {
   SlugConflictError,
   RelationTargetNotFoundError,
   DraftConflictError,
+  EntryConflictError,
   type BulkFieldUpdate,
   type BatchWrite,
   type DraftSummary,
@@ -578,7 +579,8 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     seed: Seed,
     id: string,
     data: Record<string, any>,
-    status?: string
+    status?: string,
+    ifMatch?: number
   ): Promise<{ stmt: D1PreparedStatement | null; junctionUpdates: any[] }> {
     const tableName = this.getTableName(seed.slug)
     const updateClauses: string[] = []
@@ -629,13 +631,42 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
     updateClauses.push('updated_at = (unixepoch())')
 
-    const mainSql = `UPDATE ${tableName} SET ${updateClauses.join(', ')} WHERE id = ?`
+    let whereSql = 'WHERE id = ?'
     queryBindings.push(id)
+
+    if (ifMatch !== undefined) {
+      whereSql += ' AND updated_at = ?'
+      queryBindings.push(ifMatch)
+    }
+
+    const mainSql = `UPDATE ${tableName} SET ${updateClauses.join(', ')} ${whereSql}`
 
     return {
       stmt: this.database.prepare(mainSql).bind(...queryBindings),
       junctionUpdates
     }
+  }
+
+  /**
+   * Distinguishes "no such row" from "row exists but ifMatch was stale" after a zero-change
+   * UPDATE, matching the shape `publishDraft`'s claim uses for the same ambiguity.
+   */
+  private async notFoundOrConflict(seed: Seed, id: string, ifMatch?: number): Promise<EntryNotFoundError | EntryConflictError> {
+    if (ifMatch !== undefined) {
+      const row = await this.database
+        .prepare(`SELECT updated_at FROM ${this.getTableName(seed.slug)} WHERE id = ?`)
+        .bind(id)
+        .first<{ updated_at: number }>()
+      if (row) {
+        return new EntryConflictError({
+          seedSlug: seed.slug,
+          entryId: id,
+          expectedUpdatedAt: ifMatch,
+          actualUpdatedAt: row.updated_at,
+        })
+      }
+    }
+    return new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
   }
 
   /** Builds one `INSERT` per target id into a live multi-relation junction table, preserving array order via `position`. */
@@ -886,6 +917,8 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * fields, no multi-relation fields, no status change) returns without touching the database.
    *
    * @throws EntryNotFoundError if the main-row `UPDATE` affects zero rows.
+   * @throws EntryConflictError if `options.ifMatch` is set and the live row's `updated_at`
+   *   no longer matches it.
    * @throws RepositoryError on any other database failure.
    * @remarks `afterUpdate` runs after the batch has committed, so it cannot roll back the write.
    */
@@ -928,7 +961,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         }
       }
 
-      const { stmt, junctionUpdates } = await this.buildUpdateMainStmt(seed, id, payloadToUpdate, status)
+      const { stmt, junctionUpdates } = await this.buildUpdateMainStmt(seed, id, payloadToUpdate, status, options?.ifMatch)
 
       if (!stmt && junctionUpdates.length === 0) return
 
@@ -945,16 +978,16 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       if (batchStmts.length === 1) {
         const updateResult = await batchStmts[0].run()
         if (updateResult.meta.changes === 0) {
-          throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
+          throw await this.notFoundOrConflict(seed, id, options?.ifMatch)
         }
       } else if (batchStmts.length > 1) {
         const results = await this.database.batch(batchStmts)
         if (stmt && (results[0].meta?.changes ?? 0) === 0) {
-          throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
+          throw await this.notFoundOrConflict(seed, id, options?.ifMatch)
         }
       }
     } catch (error) {
-      if (error instanceof EntryNotFoundError) throw error
+      if (error instanceof EntryNotFoundError || error instanceof EntryConflictError) throw error
       throw this.mapError(error, `update(${seed.slug}, ${id})`)
     }
 

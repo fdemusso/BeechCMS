@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { D1ContentRepository } from './content.repository.d1'
-import { EntryNotFoundError, SlugConflictError, RelationTargetNotFoundError, DraftConflictError } from '@beechcms/core'
+import { EntryNotFoundError, SlugConflictError, RelationTargetNotFoundError, DraftConflictError, EntryConflictError } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 
 const SEED = {
@@ -308,6 +308,34 @@ describe('D1ContentRepository', () => {
       // existsSlug is not called; only prepare calls would be for UPDATE which shouldn't happen
       const updateCalls = prepareMock.mock.calls.filter(c => (c[0] as string).includes('UPDATE content_posts'))
       expect(updateCalls).toHaveLength(0)
+    })
+
+    it('adds an updated_at equality guard to the WHERE clause when ifMatch is set', async () => {
+      const { db, prepareMock } = makeMockDb({ runChanges: 1 })
+      await new D1ContentRepository(db).update(SEED, 'e1', { title: 'New' }, 'published', { ifMatch: 1000 })
+      const updateSql = prepareMock.mock.calls
+        .map(c => c[0] as string)
+        .find(sql => sql.includes('UPDATE content_posts'))!
+      expect(updateSql).toContain('WHERE id = ? AND updated_at = ?')
+    })
+
+    it('throws EntryConflictError when ifMatch no longer matches the live row and leaves it untouched', async () => {
+      // firstResult backs both the pre-write findById() and the post-failure conflict check;
+      // the live row exists with a different updated_at than the caller expected.
+      const { db } = makeMockDb({ runChanges: 0, firstResult: { id: 'e1', slug: 'p', status: 'published', title: 'Live', updated_at: 2000 } })
+      const error = await new D1ContentRepository(db)
+        .update(SEED, 'e1', { title: 'Stale write' }, 'published', { ifMatch: 1000 })
+        .catch(e => e)
+      expect(error).toBeInstanceOf(EntryConflictError)
+      expect((error as EntryConflictError).expectedUpdatedAt).toBe(1000)
+      expect((error as EntryConflictError).actualUpdatedAt).toBe(2000)
+    })
+
+    it('throws EntryNotFoundError, not EntryConflictError, when ifMatch is set but the row does not exist', async () => {
+      const { db } = makeMockDb({ runChanges: 0, firstResult: null })
+      await expect(
+        new D1ContentRepository(db).update(SEED, 'ghost', { title: 'X' }, 'published', { ifMatch: 1000 }),
+      ).rejects.toBeInstanceOf(EntryNotFoundError)
     })
   })
 

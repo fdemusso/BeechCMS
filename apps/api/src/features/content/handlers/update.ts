@@ -3,9 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { 
-  slugify, 
-  isValidContentStatus, 
+import {
+  slugify,
+  isValidContentStatus,
   validateAndSanitizeSeedPayload,
   resolvePolicies
 } from '@beechcms/core'
@@ -13,6 +13,7 @@ import { applyPrivacy, PrivacyPolicyError } from '../../../shared/policies/apply
 import { publicProblem } from '../../../public/problem-details'
 import {
   normalizeBody,
+  resolveIfMatch,
   contentValidationProblem,
   logContentActivity,
   dispatchContentAutomation,
@@ -58,9 +59,12 @@ export async function updateHandler(context: Context<AppEnv>) {
     })
   }
 
+  const ifMatch = resolveIfMatch(context, body)
+
   const bodyForData = { ...body }
   delete bodyForData.slug
   delete bodyForData.status
+  delete bodyForData.updated_at
 
   try {
     const repository = context.get('repository')
@@ -161,7 +165,7 @@ export async function updateHandler(context: Context<AppEnv>) {
 
     const jwtPayload = context.get('jwtPayload')
     const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
-    await repository.update(seed, id, mergedData, newStatus, { actor })
+    await repository.update(seed, id, mergedData, newStatus, { actor, ifMatch })
 
     const title = mergedData.title || mergedData.name || newSlug
 
