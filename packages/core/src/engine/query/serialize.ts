@@ -8,8 +8,8 @@ import type {
   FilterCondition,
   SelectOptions,
   ParameterizedQuery,
-} from './types.js';
-import { compactLocalizedDictionary, isLocaleDictionary, isLocalizedBranch } from './localization.js'
+} from '../types.js';
+import { compactLocalizedDictionary, isLocaleDictionary, isLocalizedBranch } from '../localization/localization.js'
 
 
 /**

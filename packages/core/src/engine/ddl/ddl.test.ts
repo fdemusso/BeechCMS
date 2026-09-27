@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 import { describe, it, expect } from 'vitest'
-import type { Seed, Branch } from './types.js'
+import type { Seed, Branch } from '../types.js'
 import {
   generateCreateTable,
   generateDraftTable,
@@ -19,7 +19,7 @@ import {
   generateEnableSoftDelete,
   indexableSearchBranches,
 } from './ddl.js'
-import { serializeForDb, deserializeFromDb } from './serialize.js'
+import { serializeForDb, deserializeFromDb } from '../query/serialize.js'
 
 const mockSeed: Seed = {
   slug: 'articles',

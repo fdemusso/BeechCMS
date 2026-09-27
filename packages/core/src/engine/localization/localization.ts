@@ -9,8 +9,8 @@
  * no settings access — callers pass the project's {@link LocaleConfig}.
  */
 
-import type { Branch, BranchType, Seed } from './types.js'
-import { cleanString, isPlainObject } from './validation/primitives.js'
+import type { Branch, BranchType, Seed } from '../types.js'
+import { cleanString, isPlainObject } from '../validation/primitives.js'
 
 /**
  * Locale code grammar (v1): ISO 639 language (2–3 lowercase letters), optionally followed by an ISO 3166

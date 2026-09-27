@@ -6,7 +6,7 @@
  * In v0.4.0 ogni Seed genera una tabella `content_{slug}` con colonne reali.
  * `branch.alias` è il nome della colonna SQL.
  */
-import type { Seed } from './types.js'
+import type { Seed } from '../types.js'
 
 /**
  * Registro globale dei Seed. 

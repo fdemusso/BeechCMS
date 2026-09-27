@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import type { Seed, Branch } from './types.js'
+import type { Seed, Branch } from '../types.js'
 import { pascalCase, tsTypeForBranch, interfaceForSeed, generateSeedTypes } from './seed-types-generator.js'
 
 describe('pascalCase', () => {

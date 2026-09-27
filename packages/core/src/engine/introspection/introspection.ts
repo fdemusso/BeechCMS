@@ -14,7 +14,7 @@
  * the exclusive business of the Botanical Engine's DDL path (`engine/seed-ddl.ts`).
  */
 
-import type { Seed } from './types.js'
+import type { Seed } from '../types.js'
 
 /**
  * The one capability the introspection primitive needs from a database connection.

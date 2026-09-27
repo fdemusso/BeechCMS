@@ -5,7 +5,7 @@ import { z } from 'zod'
 import type { Branch, BranchType, Seed, NumberFieldOptions, FileFieldOptions } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
-import { isLocalizedBranch } from '../localization.js'
+import { isLocalizedBranch } from '../localization/localization.js'
 import { schemaForBranch, localizedSchema } from './schema-builders.js'
 
 type CompiledSchema = z.ZodObject<Record<string, z.ZodTypeAny>>

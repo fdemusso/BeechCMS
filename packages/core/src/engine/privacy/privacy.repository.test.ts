@@ -3,7 +3,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { PrivacyService } from './privacy.service.js'
-import type { Seed, Branch } from './types.js'
+import type { Seed, Branch } from '../types.js'
 
 const PRIVACY_SEED: Seed = {
   slug: 'users',

@@ -2,8 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { Seed } from '../engine/types.js'
-import { indexableSearchBranches } from '../engine/ddl.js'
-import { isLocaleDictionary, isLocalizedBranch } from '../engine/localization.js'
+import { indexableSearchBranches } from '../engine/ddl/ddl.js'
+import { isLocaleDictionary, isLocalizedBranch } from '../engine/localization/localization.js'
 
 /**
  * Extracts and concatenates text from all public indexable text/richtext branches of a seed.

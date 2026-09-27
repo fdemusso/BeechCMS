@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { Seed } from './types.js'
+import type { Seed } from '../types.js'
 import {
   generateCreateTable,
   generateDraftTable,
@@ -15,7 +15,7 @@ import {
   generateJunctionDraftTable,
   generateEnableSoftDelete,
   indexableSearchBranches,
-} from './engine.js'
+} from './ddl.js'
 
 /**
  * Full create-from-scratch statement set for a seed. Mirrors the CLI's buildStatements.

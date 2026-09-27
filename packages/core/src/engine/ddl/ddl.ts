@@ -8,8 +8,8 @@ import type {
   FilterCondition,
   SelectOptions,
   ParameterizedQuery,
-} from './types.js';
-import { resolvePolicies, resolveClassification } from './policies.js'
+} from '../types.js';
+import { resolvePolicies, resolveClassification } from '../privacy/policies.js'
 
 
 /**

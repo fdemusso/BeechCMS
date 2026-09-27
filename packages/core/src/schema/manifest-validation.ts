@@ -7,8 +7,8 @@
  * reimplementing it: a manifest that passes here is a candidate set the API would also accept.
  */
 
-import { validateSeedDefinitions } from '../engine/seed-validation.js'
-import type { SeedValidationIssue } from '../engine/seed-validation.js'
+import { validateSeedDefinitions } from '../engine/seeds/seed-validation.js'
+import type { SeedValidationIssue } from '../engine/seeds/seed-validation.js'
 import { MANIFEST_VERSION } from './manifest.types.js'
 import { toCanonicalJson, ManifestSerializationError } from './canonical.js'
 import { manifestToSeeds } from './manifest-seeds.js'

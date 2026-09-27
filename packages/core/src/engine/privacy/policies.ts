@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { ActorContext, Branch, DataClassification, Seed } from './types.js'
-import { isLocaleDictionary, isLocalizedBranch } from './localization.js'
+import type { ActorContext, Branch, DataClassification, Seed } from '../types.js'
+import { isLocaleDictionary, isLocalizedBranch } from '../localization/localization.js'
 
 /**
  * Computes an un-salted SHA-256 hex digest of a string value.

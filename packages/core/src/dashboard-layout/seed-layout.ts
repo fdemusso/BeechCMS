@@ -3,7 +3,7 @@
 
 import { z } from 'zod'
 import type { Seed, Branch } from '../engine/types.js'
-import { findBranchById } from '../engine/seed-registry.js'
+import { findBranchById } from '../engine/seeds/seed-registry.js'
 
 // ---------------------------------------------------------------------------
 // View config — per-seed, per-view dashboard preferences (KB-S02)
