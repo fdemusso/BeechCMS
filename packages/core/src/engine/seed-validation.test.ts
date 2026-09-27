@@ -602,6 +602,117 @@ describe('validateSeedDefinitions', () => {
     }
   })
 
+  // ── Fatal 17: localization ──────────────────────────────────────────────────
+
+  it('fatal: localized on a non-localizable type', () => {
+    const targets = [makeSeed({ slug: 'targets' })]
+    const cases: Array<{ type: string; targetSeed?: string }> = [
+      { type: 'number' },
+      { type: 'boolean' },
+      { type: 'date' },
+      { type: 'file' },
+      { type: 'tags' },
+      { type: 'relation', targetSeed: 'targets' },
+      { type: 'repeater' },
+    ]
+    for (const { type, targetSeed } of cases) {
+      const seeds = [
+        ...targets,
+        makeSeed({
+          slug: 'posts',
+          branches: [
+            { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+            {
+              id: 'br_02',
+              alias: 'field',
+              label: 'Field',
+              type: type as Seed['branches'][number]['type'],
+              localized: true,
+              ...(targetSeed ? { targetSeed } : {}),
+            },
+          ],
+        }),
+      ]
+      const issues = validateSeedDefinitions(seeds)
+      const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+      expect(fatal.some(i => i.messages.some(m => m.includes('localized is only supported')))).toBe(true)
+    }
+  })
+
+  it('fatal: localized on confidential, restricted and legacy privacy encrypt/hash storage', () => {
+    const policiesCases = [
+      { classification: 'confidential' as const },
+      { classification: 'restricted' as const },
+      { privacy: 'encrypt' as const },
+      { privacy: 'hash' as const },
+    ]
+    for (const policies of policiesCases) {
+      const seeds = [
+        makeSeed({
+          slug: 'posts',
+          branches: [
+            { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+            { id: 'br_02', alias: 'secret', label: 'Secret', type: 'text', localized: true, policies },
+          ],
+        }),
+      ]
+      const issues = validateSeedDefinitions(seeds)
+      const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+      expect(fatal.some(i => i.messages.some(m => m.includes('localized cannot be combined')))).toBe(true)
+    }
+  })
+
+  it('fatal: localized on a repeater sub-field of text type', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+          {
+            id: 'br_02',
+            alias: 'items',
+            label: 'Items',
+            type: 'repeater',
+            fields: [{ id: 'br_03', alias: 'name', label: 'Name', type: 'text', localized: true }],
+          },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes('Repeater sub-fields are never localized')))).toBe(true)
+  })
+
+  it('fatal: non-boolean localized', () => {
+    const seeds = [
+      makeSeed({
+        slug: 'posts',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text', localized: 'yes' as unknown as boolean },
+        ],
+      }),
+    ]
+    const issues = validateSeedDefinitions(seeds)
+    const fatal = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatal.some(i => i.messages.some(m => m.includes('localized must be a boolean')))).toBe(true)
+  })
+
+  it('accepts localized text, richtext and json with public or internal classification', () => {
+    for (const classification of ['public', 'internal'] as const) {
+      const seeds = [
+        makeSeed({
+          slug: 'posts',
+          branches: [
+            { id: 'br_01', alias: 'title', label: 'Title', type: 'text', localized: true, policies: { classification } },
+            { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext', localized: true, policies: { classification } },
+            { id: 'br_03', alias: 'meta', label: 'Meta', type: 'json', localized: true, policies: { classification } },
+          ],
+        }),
+      ]
+      expect(validateSeedDefinitions(seeds)).toEqual([])
+    }
+  })
+
   // ── isSeedSetValid ────────────────────────────────────────────────────────────
 
   it('isSeedSetValid returns true for clean set', () => {

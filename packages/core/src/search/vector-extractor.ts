@@ -3,6 +3,7 @@
 
 import type { Seed } from '../engine/types.js'
 import { indexableSearchBranches } from '../engine/ddl.js'
+import { isLocaleDictionary, isLocalizedBranch } from '../engine/localization.js'
 
 /**
  * Extracts and concatenates text from all public indexable text/richtext branches of a seed.
@@ -21,6 +22,11 @@ export function extractIndexableText(seed: Seed, entry: Record<string, any>): st
     const val = entry[branch.alias]
     if (val && typeof val === 'string') {
       texts.push(val)
+    } else if (isLocalizedBranch(branch) && isLocaleDictionary(val)) {
+      // Every language is indexed, so a query matches regardless of the language it is typed in.
+      for (const localeValue of Object.values(val)) {
+        if (typeof localeValue === 'string' && localeValue) texts.push(localeValue)
+      }
     }
   }
 

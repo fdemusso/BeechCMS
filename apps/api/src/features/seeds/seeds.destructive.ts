@@ -241,6 +241,18 @@ destructiveApp.patch('/:slug/branches/:branchId/retype', async (context) => {
     })
   }
 
+  // Retype persists through applyDestructiveSeedDef, which never runs validateSeedDefinitions: without
+  // this guard `localized: true` would survive onto a non-localizable type and stored dictionaries would
+  // be reinterpreted as the new type. Disabling localization is metadata-only, so the owner can do that first.
+  if (branch.localized === true) {
+    return publicProblem(context, {
+      type: 'retype-localized-not-supported',
+      title: 'Retype not supported',
+      status: 422,
+      detail: `Branch '${branch.alias}' is localized. Disable localization on it before retyping.`,
+    })
+  }
+
   const confirmErr = requireConfirm(context, `${slug}.${branch.alias}`, body)
   if (confirmErr) return confirmErr
 

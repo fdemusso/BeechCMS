@@ -6,6 +6,7 @@ import type { Branch, BranchType } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
 import { extensionFromUrl, isExtensionAccepted } from '../../media/file-types.js'
+import { isLocalizedWriteDictionary, toLocalizedPatch, type LocaleConfig, type LocalizedPatch } from '../localization.js'
 import { cleanString, stripControlChars, byteLength, isPlainObject } from './primitives.js'
 import { sanitizeRichtext } from './richtext-sanitizer.js'
 import { resolveFileOptions, isAssetListBranch, collectAssetListItems, extractFileCandidate } from './file-branch.js'
@@ -436,4 +437,53 @@ export function schemaForBranch(branch: Branch, options: ResolvedOptions): z.Zod
     throw new Error(`Unhandled branch type: ${(branch as { type: string }).type}`)
   }
   return builder(branch, options)
+}
+
+/**
+ * Compiles the schema of a localized branch. Top level only: `compileSeedSchema` is the sole caller, so
+ * repeater sub-fields (validated through `schemaForBranch`) can never reach it.
+ *
+ * Accepts a plain value (→ default locale) or a locale dictionary, normalises it with
+ * {@link toLocalizedPatch}, and validates every non-null locale value with the branch's base-type schema.
+ * Output is a {@link LocalizedPatch}. Failures are reported at `<alias>.<locale>` for dictionary input
+ * and at `<alias>` for a plain value, i.e. always at a path that exists in the client's payload.
+ *
+ * @param branch - A branch for which `isLocalizedBranch(branch)` is true.
+ * @param options - The resolved validation options.
+ * @param config - The project language configuration.
+ * @returns The compiled localized schema.
+ */
+export function localizedSchema(branch: Branch, options: ResolvedOptions, config: LocaleConfig): z.ZodTypeAny {
+  const valueSchema = schemaForBranch({ ...branch, localized: false }, { ...options, allowNull: false })
+  return z.any().transform((raw, ctx) => {
+    if (raw === null) {
+      if (!options.allowNull) ctx.addIssue({ code: 'custom', message: 'Expected localized-value' })
+      return null
+    }
+    const isDictionaryInput = isLocalizedWriteDictionary(raw, config)
+    const patch = toLocalizedPatch(raw, config)
+    const validated: LocalizedPatch = {}
+    for (const [locale, localeValue] of Object.entries(patch)) {
+      if (localeValue === null) {
+        validated[locale] = null
+        continue
+      }
+      const parsed = valueSchema.safeParse(localeValue)
+      if (parsed.success) {
+        validated[locale] = parsed.data
+        continue
+      }
+      for (const issue of parsed.error.issues) {
+        const innerPath = issue.path as (string | number)[]
+        ctx.addIssue({
+          code: 'custom',
+          path: isDictionaryInput ? [locale, ...innerPath] : innerPath,
+          // Keep the "Expected <type>" convention expectedFromIssue() relies on.
+          message: issue.code === 'invalid_type' ? `Expected ${issue.expected}` : issue.message,
+          params: (issue as { params?: Record<string, unknown> }).params,
+        })
+      }
+    }
+    return validated
+  })
 }

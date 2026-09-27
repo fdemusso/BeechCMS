@@ -5,6 +5,7 @@ import { z } from 'zod'
 import type { Seed } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 import { isRichtextEnvelopeV1 } from '../../content/richtext/richtext.js'
+import { isLocalizedBranch, toLocalizedPatch, type LocaleConfig } from '../localization.js'
 import { cleanString, isPlainObject } from './primitives.js'
 import { isRichtextDocEmpty } from './richtext-sanitizer.js'
 import { compileSeedSchema } from './cache.js'
@@ -71,6 +72,13 @@ export interface ValidateSeedPayloadOptions {
    * Do NOT pass a concrete class — inject via the middleware / factory.
    */
   idGenerator?: IIdGenerator
+  /**
+   * Project language configuration. When provided, branches with `localized: true` accept a plain
+   * value (stored under `defaultLocale`) or a locale dictionary, and validate to a `LocalizedPatch`.
+   * When omitted, localized branches validate exactly like their base type — the pre-localization
+   * contract. `requiredOnCreate` / `requiredOnUpdate` then check the default locale only.
+   */
+  localeConfig?: LocaleConfig
 }
 
 /**
@@ -104,6 +112,7 @@ export type ResolvedOptions = {
   enforceRequiredFields: boolean
   maxTextLength: number
   idGenerator: IIdGenerator | undefined
+  localeConfig: LocaleConfig | undefined
 }
 
 /** Default maximum character length allowed for text and rich text branches. */
@@ -173,7 +182,17 @@ function detectMissingRequired(
       continue
     }
 
-    const candidate = parseSucceeded ? parsedData[branch.alias] : filtered[branch.alias]
+    const value = parseSucceeded ? parsedData[branch.alias] : filtered[branch.alias]
+    let candidate = value
+    if (options.localeConfig && isLocalizedBranch(branch)) {
+      // A localized branch is present when its default locale is; other locales are optional (brief §4).
+      const { defaultLocale } = options.localeConfig
+      const patch = toLocalizedPatch(value, options.localeConfig)
+      // An update that does not name the default locale leaves it as stored — the write path merges
+      // (applyLocalizedPatch) — so saving one translation cannot trip requiredOnUpdate.
+      if (op === 'update' && !Object.hasOwn(patch, defaultLocale)) continue
+      candidate = patch[defaultLocale]
+    }
     if (isEffectivelyEmpty(candidate, branch.type)) {
       missing.push(branch.alias)
       details.push({
@@ -421,6 +440,7 @@ export function validateAndSanitizeSeedPayload(
     enforceRequiredFields: options.enforceRequiredFields ?? true,
     maxTextLength: options.maxTextLength ?? DEFAULT_MAX_TEXT_LENGTH,
     idGenerator: options.idGenerator,
+    localeConfig: options.localeConfig,
   }
 
   const { filtered, unknown: preUnknown, details: preDetails } = splitUnknownAliases(seed, payload)

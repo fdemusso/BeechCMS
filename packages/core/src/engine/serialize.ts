@@ -9,6 +9,7 @@ import type {
   SelectOptions,
   ParameterizedQuery,
 } from './types.js';
+import { compactLocalizedDictionary, isLocaleDictionary, isLocalizedBranch } from './localization.js'
 
 
 /**
@@ -78,13 +79,21 @@ function normalizeAssetListValue(rawValue: unknown): string[] {
 /**
  * Serializes a value for writing to the DB.
  * boolean → 0/1 | date → Unix timestamp | json/tags/richtext/repeater → JSON string
- * 
+ * Localized branches: locale dictionary ↔ compact JSON.
+ *
  * @param branch The branch definition.
  * @param value The value to serialize.
  * @returns The serialized DB value (string, number, or null).
  */
 export function serializeForDb(branch: Branch, value: unknown): string | number | null {
   if (value === null || value === undefined) return null
+
+  // Must precede the type switch: its `text` case returns null for any object, which would silently
+  // erase a dictionary on a localized text branch.
+  if (isLocalizedBranch(branch) && isLocaleDictionary(value)) {
+    const compact = compactLocalizedDictionary(value)
+    return compact === null ? null : JSON.stringify(compact)
+  }
 
   switch (branch.type) {
     case 'boolean':
@@ -127,7 +136,8 @@ export function serializeForDb(branch: Branch, value: unknown): string | number 
 /**
  * Deserializes a value read from the DB to its API/JS representation.
  * 0/1 → boolean | Unix timestamp → ISO 8601 | JSON string → object/array
- * 
+ * Localized branches: locale dictionary ↔ compact JSON.
+ *
  * @param branch The branch definition.
  * @param value The raw database value.
  * @returns The deserialized value.
@@ -140,6 +150,13 @@ export function deserializeFromDb(branch: Branch, value: unknown): unknown {
   }
 
   if (value === null || value === undefined) return null
+
+  // richtext/json already JSON.parse below; text must opt in. A legacy plain string written before the
+  // branch became localized is returned unchanged — the read-side fallback chain handles it.
+  if (branch.type === 'text' && isLocalizedBranch(branch) && typeof value === 'string' && value.startsWith('{')) {
+    const parsed = parseJsonSafe(value)
+    return isLocaleDictionary(parsed) ? parsed : value
+  }
 
   switch (branch.type) {
     case 'boolean':

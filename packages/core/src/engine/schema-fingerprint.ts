@@ -43,6 +43,8 @@ export interface ContractBranch {
   publicEdit: boolean
   minItems?: number
   maxItems?: number
+  /** Present only when true: the dictionary shape is part of the public contract (`?lang=all`, writes). */
+  localized?: boolean
   /** Repeater sub-fields, same projection, recursively. */
   fields?: ContractBranch[]
 }
@@ -81,6 +83,8 @@ function projectBranch(branch: Branch): ContractBranch {
     publicEdit: policies.publicEdit,
     ...(branch.minItems !== undefined ? { minItems: branch.minItems } : {}),
     ...(branch.maxItems !== undefined ? { maxItems: branch.maxItems } : {}),
+    // Spread only when true so every schema without localized branches keeps its fingerprint.
+    ...(branch.localized === true ? { localized: true } : {}),
     ...(branch.fields ? { fields: branch.fields.map(projectBranch) } : {}),
   }
 }
