@@ -187,11 +187,51 @@ describe('missing required field dedup with Zod v4 (#175)', () => {
     expect(titleDetails[0]).toMatchObject({ expected: 'required-field', received: 'missing' })
   })
 
+  it('reports exactly one detail for a missing required richtext field (#445)', () => {
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T' }, { operation: 'create' })
+
+    const bodyDetails = r.details.filter(d => d.field === 'body')
+    expect(bodyDetails).toHaveLength(1)
+    expect(bodyDetails[0]).toMatchObject({ expected: 'required-field', received: 'missing' })
+  })
+
   it('still reports a real type-mismatch detail for a present-but-wrong-typed field', () => {
     const r = safeValidate({ ...validBase(), qty: 'not-a-number' })
     const qtyDetails = r.details.filter(d => d.field === 'qty')
     expect(qtyDetails.length).toBeGreaterThan(0)
     expect(qtyDetails.some(d => d.expected === 'number')).toBe(true)
+  })
+})
+
+describe('requireAtLeastOneValidField and undefined key stripping (#445)', () => {
+  it('does not treat empty-string-to-undefined keys as valid fields when requireAtLeastOneValidField is enabled', () => {
+    const r = validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { price: '' },
+      { enforceRequiredFields: false, requireAtLeastOneValidField: true },
+    )
+
+    expect(r.hasAnyValidField).toBe(false)
+    expect(r.details).toContainEqual(
+      expect.objectContaining({
+        field: 'data',
+        expected: 'at-least-one-valid-field',
+        received: 'empty',
+      }),
+    )
+    expect(r.data).not.toHaveProperty('price')
+  })
+
+  it('strips keys whose value resolved to undefined from validated data', () => {
+    const r = validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { title: 'Valid Title', qty: 1, price: '' },
+      { operation: 'create' },
+    )
+
+    expect(r.data.title).toBe('Valid Title')
+    expect(r.data.qty).toBe(1)
+    expect(r.data).not.toHaveProperty('price')
   })
 })
 

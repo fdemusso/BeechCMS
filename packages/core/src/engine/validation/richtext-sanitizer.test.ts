@@ -269,6 +269,30 @@ describe('richtext field', () => {
     expect(r.details.some(d => d.field === 'body' && d.expected.includes('richtext(max:5)'))).toBe(true)
   })
 
+  it('fails fast on an oversize string richtext payload before parsing or walking (#445)', () => {
+    const hugeString = '{"type":"doc","content":[]}'.padEnd(50, ' ')
+
+    const r = sanitizeRichtext(hugeString, 20)
+
+    expect(r.oversize).toBe(true)
+    expect(r.valid).toBe(false)
+  })
+
+  it('accepts a valid JSON string richtext payload and coerces it into a TipTap doc (#445)', () => {
+    const jsonStr = JSON.stringify({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'from string' }] }],
+    })
+
+    const r = safeValidate({ ...validBase(), body: jsonStr })
+
+    expect(r.dangerousFields).not.toContain('body')
+    expect(r.data.body).toEqual({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'from string' }] }],
+    })
+  })
+
   // Regression: #181 — size guard must count UTF-8 bytes, not UTF-16 code units.
   // CJK chars serialize to 3 bytes each in JSON but count as 1 in `.length`.
   it('#181: rejects multi-byte (CJK) content whose byte size exceeds maxBytes even though .length does not', () => {
@@ -431,6 +455,39 @@ describe('required richtext field emptiness detection', () => {
   it('treats a doc with actual text content as non-empty', () => {
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello' }] }] }
     const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: doc }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).not.toContain('body')
+  })
+
+  it('treats a doc with only an image as non-empty (#445)', () => {
+    const imageDoc = {
+      type: 'doc',
+      content: [{ type: 'image', attrs: { src: 'https://x.test/a.png' } }],
+    }
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: imageDoc }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).not.toContain('body')
+  })
+
+  it('treats a doc with only a horizontalRule as non-empty (#445)', () => {
+    const hrDoc = {
+      type: 'doc',
+      content: [{ type: 'horizontalRule' }],
+    }
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: hrDoc }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).not.toContain('body')
+  })
+
+  it('treats a doc with only a table as non-empty (#445)', () => {
+    const tableDoc = {
+      type: 'doc',
+      content: [{
+        type: 'table',
+        content: [{
+          type: 'tableRow',
+          content: [{ type: 'tableCell', content: [] }],
+        }],
+      }],
+    }
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: tableDoc }, { operation: 'create' })
     expect(r.requiredFieldsMissing).not.toContain('body')
   })
 })
