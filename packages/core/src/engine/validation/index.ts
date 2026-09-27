@@ -171,7 +171,13 @@ function detectMissingRequired(
     const isRequired = op === 'create' ? branch.requiredOnCreate : branch.requiredOnUpdate
     if (!isRequired) continue
 
+    const isLocalizedUpdate = op === 'update' && options.localeConfig != null && isLocalizedBranch(branch)
+
     if (!Object.hasOwn(rawPayload, branch.alias)) {
+      // Localized branches use patch semantics on update: the dashboard omits the branch entirely
+      // when no locale was touched (see buildLocalizedPatch), which is equivalent to a patch that
+      // does not name the default locale — leave it as stored rather than flagging it missing.
+      if (isLocalizedUpdate) continue
       missing.push(branch.alias)
       details.push({
         field: branch.alias,
