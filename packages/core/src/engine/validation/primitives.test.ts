@@ -413,6 +413,11 @@ describe('json and tags fields', () => {
     const r = safeValidate({ ...validBase(), tags: [' news ', 'tech '] })
     expect(r.data.tags).toEqual(['news', 'tech'])
   })
+
+  it('filters out blank tags and deduplicates tags (#445)', () => {
+    const r = safeValidate({ ...validBase(), tags: ['  ', 'a', 'a', '\0'] })
+    expect(r.data.tags).toEqual(['a'])
+  })
 })
 
 describe('number field with numberOptions (min/max/step)', () => {

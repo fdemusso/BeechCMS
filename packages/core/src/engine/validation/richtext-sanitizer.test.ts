@@ -249,10 +249,48 @@ describe('richtext field', () => {
     expect(r.dangerousFields).toContain('body')
   })
 
+  // Regression: #443 — JSON.stringify (recursive) ran BEFORE the depth guard as a
+  // fail-fast size pre-check, so a payload nested past a few thousand levels threw
+  // an uncaught RangeError from inside the Zod transform instead of failing validation.
+  it('#443: rejects content nested past RICHTEXT_MAX_DEPTH by orders of magnitude without a RangeError', () => {
+    let node: Record<string, unknown> = { type: 'paragraph', content: [{ type: 'text', text: 'leaf' }] }
+    for (let i = 0; i < 5000; i++) {
+      node = { type: 'paragraph', content: [node] }
+    }
+    const doc = { type: 'doc', content: [node] }
+    expect(() => safeValidate({ ...validBase(), body: doc })).not.toThrow()
+    const r = safeValidate({ ...validBase(), body: doc })
+    expect(r.details.some(d => d.field === 'body')).toBe(true)
+  })
+
   it('fails fast on oversize payload before the sanitizing walk', () => {
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x'.repeat(50) }] }] }
     const r = safeValidate({ ...validBase(), body: doc }, { maxTextLength: 5 })
     expect(r.details.some(d => d.field === 'body' && d.expected.includes('richtext(max:5)'))).toBe(true)
+  })
+
+  it('fails fast on an oversize string richtext payload before parsing or walking (#445)', () => {
+    const hugeString = '{"type":"doc","content":[]}'.padEnd(50, ' ')
+
+    const r = sanitizeRichtext(hugeString, 20)
+
+    expect(r.oversize).toBe(true)
+    expect(r.valid).toBe(false)
+  })
+
+  it('accepts a valid JSON string richtext payload and coerces it into a TipTap doc (#445)', () => {
+    const jsonStr = JSON.stringify({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'from string' }] }],
+    })
+
+    const r = safeValidate({ ...validBase(), body: jsonStr })
+
+    expect(r.dangerousFields).not.toContain('body')
+    expect(r.data.body).toEqual({
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'from string' }] }],
+    })
   })
 
   // Regression: #181 — size guard must count UTF-8 bytes, not UTF-16 code units.
@@ -334,6 +372,43 @@ describe('richtext field', () => {
     expect((r.value as any).content).toHaveLength(0)
   })
 
+  // Regression: #442 — TipTap v3 OrderedList emits `attrs: { start, type }`. The `type` key
+  // inside an attrs bag is ordinary attribute data (list-style marker), not a node discriminator,
+  // and must not be checked against the node/mark allowlist.
+  it('#442: accepts a TipTap ordered list whose attrs carry a `type` key (list-style)', () => {
+    const doc = {
+      type: 'doc',
+      content: [{
+        type: 'orderedList',
+        attrs: { start: 1, type: null },
+        content: [{
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
+        }],
+      }],
+    }
+    const r = safeValidate({ ...validBase(), body: doc })
+    expect(r.dangerousFields).not.toContain('body')
+    expect(r.data.body).toEqual(doc)
+  })
+
+  it('#442: accepts an ordered list style attrs.type string value ("a", "i", etc.)', () => {
+    const doc = {
+      type: 'doc',
+      content: [{
+        type: 'orderedList',
+        attrs: { start: 1, type: 'a' },
+        content: [{
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
+        }],
+      }],
+    }
+    const r = sanitizeRichtext(doc, 10000)
+    expect(r.dangerous).toBe(false)
+    expect((r.value as any).content[0].attrs).toEqual({ start: 1, type: 'a' })
+  })
+
   it('prevents prototype pollution via __proto__, constructor, and prototype keys', () => {
     const maliciousDoc = JSON.parse(
       '{"type": "doc", "__proto__": {"polluted": "yes"}, "constructor": {"prototype": {"polluted": "yes"}}, "prototype": {"polluted": "yes"}, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "hello"}]}]}'
@@ -380,6 +455,39 @@ describe('required richtext field emptiness detection', () => {
   it('treats a doc with actual text content as non-empty', () => {
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello' }] }] }
     const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: doc }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).not.toContain('body')
+  })
+
+  it('treats a doc with only an image as non-empty (#445)', () => {
+    const imageDoc = {
+      type: 'doc',
+      content: [{ type: 'image', attrs: { src: 'https://x.test/a.png' } }],
+    }
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: imageDoc }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).not.toContain('body')
+  })
+
+  it('treats a doc with only a horizontalRule as non-empty (#445)', () => {
+    const hrDoc = {
+      type: 'doc',
+      content: [{ type: 'horizontalRule' }],
+    }
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: hrDoc }, { operation: 'create' })
+    expect(r.requiredFieldsMissing).not.toContain('body')
+  })
+
+  it('treats a doc with only a table as non-empty (#445)', () => {
+    const tableDoc = {
+      type: 'doc',
+      content: [{
+        type: 'table',
+        content: [{
+          type: 'tableRow',
+          content: [{ type: 'tableCell', content: [] }],
+        }],
+      }],
+    }
+    const r = validateAndSanitizeSeedPayload(RICHTEXT_REQUIRED_SEED, { title: 'T', body: tableDoc }, { operation: 'create' })
     expect(r.requiredFieldsMissing).not.toContain('body')
   })
 })

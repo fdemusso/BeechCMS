@@ -7,7 +7,7 @@ import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
 import { extensionFromUrl, isExtensionAccepted } from '../../media/file-types.js'
 import { isLocalizedWriteDictionary, toLocalizedPatch, type LocaleConfig, type LocalizedPatch } from '../localization.js'
-import { cleanString, stripControlChars, byteLength, isPlainObject } from './primitives.js'
+import { cleanString, stripControlChars, byteLength, isPlainObject, exceedsMaxDepth } from './primitives.js'
 import { isEffectivelyEmpty } from './emptiness.js'
 import { sanitizeRichtext } from './richtext-sanitizer.js'
 import { resolveFileOptions, isAssetListBranch, collectAssetListItems, extractFileCandidate } from './file-branch.js'
@@ -246,6 +246,13 @@ function jsonSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
   const base = z
     .union([z.record(z.string(), z.unknown()), z.array(z.unknown())])
     .transform((val, ctx) => {
+      // Fail-fast depth pre-check BEFORE any JSON.stringify: deep nesting stack-
+      // overflows JSON.stringify (recursive) before the size check or the
+      // depth-guarded sanitizing walk below ever run (#443).
+      if (exceedsMaxDepth(val, JSON_MAX_DEPTH)) {
+        ctx.addIssue({ code: 'custom', message: `Expected json(maxDepth:${JSON_MAX_DEPTH})` })
+        return z.NEVER
+      }
       // Fail-fast size check before the sanitizing walk, same order as richtext.
       const rawSize = byteLength(JSON.stringify(val))
       if (rawSize > options.maxTextLength) {
@@ -278,9 +285,12 @@ function tagsSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
     .refine((value) => byteLength(value) <= options.maxTextLength, {
       message: `Expected string(max:${options.maxTextLength})`,
     })
-  const base = z.array(tagSchema).max(MAX_TAGS_COUNT, {
-    message: `Expected tags(max:${MAX_TAGS_COUNT})`,
-  })
+  const base = z
+    .array(tagSchema)
+    .max(MAX_TAGS_COUNT, {
+      message: `Expected tags(max:${MAX_TAGS_COUNT})`,
+    })
+    .transform((tags) => Array.from(new Set(tags.filter((t) => t.length > 0))))
   return withEmptyPreprocessing(base, allowNull)
 }
 
