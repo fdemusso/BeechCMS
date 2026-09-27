@@ -5,10 +5,8 @@
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
 import type { Branch } from "@beechcms/core"
-import {
-  LocalizedOptionsForm,
-  withoutIneligibleLocalized,
-} from "@/components/fields/edit/repeater/repeater-branch-options"
+import { LocalizedOptionsForm } from "@/components/fields/edit/repeater/repeater-branch-options"
+import { withoutIneligibleLocalized } from "@/components/fields/edit/repeater/repeater-localization"
 
 describe("LocalizedOptionsForm", () => {
   it("a top-level text branch gets an enabled Localized toggle that sets localized: true", () => {

@@ -24,8 +24,8 @@ import {
   TagsOptionsForm,
   PoliciesOptionsForm,
   LocalizedOptionsForm,
-  withoutIneligibleLocalized,
 } from "./repeater-branch-options"
+import { withoutIneligibleLocalized } from "./repeater-localization"
 
 /** Full list of all registered BranchTypes. */
 const BRANCH_TYPES: BranchType[] = [

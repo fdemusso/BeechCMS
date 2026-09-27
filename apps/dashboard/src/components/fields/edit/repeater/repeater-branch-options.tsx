@@ -4,12 +4,13 @@
 
 import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { LOCALIZABLE_BRANCH_TYPES, resolveClassification, resolvePolicies, type Branch, type DataClassification, type Seed } from "@beechcms/core"
+import { LOCALIZABLE_BRANCH_TYPES, resolvePolicies, type Branch, type DataClassification, type Seed } from "@beechcms/core"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { FieldEditRepeater } from "./repeater"
+import { localizationBlocker, type LocalizationBlocker } from "./repeater-localization"
 
 /**
  * Properties for the {@link RelationOptionsForm} component.
@@ -483,25 +484,7 @@ export function PoliciesOptionsForm({
 }
 
 /** Why a text / richtext / json branch cannot be localized; mirrors seed-validation Fatal 17. */
-export type LocalizationBlocker = "sub-field" | "classification"
-
-/** The reason `branch` cannot carry `localized: true`, or `null` when it can (the type check is the caller's). */
-export function localizationBlocker(branch: Branch, subField: boolean): LocalizationBlocker | null {
-  if (subField) return "sub-field"
-  return resolveClassification(branch).storage === "plain" ? null : "classification"
-}
-
-/**
- * Drops `localized: true` from a branch that a type or classification change made ineligible, since `PUT /api/seeds`
- * would refuse the whole seed (Fatal 17). Returns `branch` itself when nothing changes.
- */
-export function withoutIneligibleLocalized(branch: Branch, subField: boolean): Branch {
-  if (branch.localized !== true) return branch
-  if (LOCALIZABLE_BRANCH_TYPES.has(branch.type) && localizationBlocker(branch, subField) === null) return branch
-  const next: Branch = { ...branch }
-  delete next.localized
-  return next
-}
+export type { LocalizationBlocker }
 
 /** Properties for the {@link LocalizedOptionsForm} component. */
 export interface LocalizedOptionsFormProps {
