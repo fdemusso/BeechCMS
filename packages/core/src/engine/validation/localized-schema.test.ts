@@ -162,6 +162,13 @@ describe('validateAndSanitizeSeedPayload — localized branches', () => {
     )
 
     expect(result.requiredFieldsMissing).toEqual([])
+    // Regression: the compiled object schema must not mark a required localized branch as a
+    // non-optional key on update either — otherwise Zod fails the whole payload's parse (because
+    // the key is entirely absent) and every other submitted field is silently dropped from `data`,
+    // surfacing only the generic "no valid fields" error with nothing to highlight in the editor.
+    expect(result.data).toEqual({ code: 'x' })
+    expect(result.hasAnyValidField).toBe(true)
+    expect(result.details).toEqual([])
   })
 
   it('reports requiredOnUpdate when an update clears the default locale', () => {
