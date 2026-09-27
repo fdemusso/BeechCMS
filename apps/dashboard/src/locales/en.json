@@ -491,6 +491,25 @@
       "savedError": "Error saving settings",
       "saveChanges": "Save changes"
     },
+    "contentLanguages": {
+      "title": "Content languages",
+      "description": "Languages your content can be translated into. The default language is shown wherever a translation is missing.",
+      "defaultBadge": "Default",
+      "makeDefault": "Make default",
+      "remove": "Remove {{code}}",
+      "addLabel": "Add a language",
+      "addPlaceholder": "e.g. en, fr, pt-BR",
+      "add": "Add",
+      "keptOnRemoveHint": "Removing a language never deletes its translations: they stay stored and come back if you add it again.",
+      "errors": {
+        "invalid": "Use a language code such as \"en\", \"fr\" or \"pt-BR\".",
+        "duplicate": "This language is already in the list.",
+        "limit": "You can add up to 50 languages."
+      },
+      "save": "Save languages",
+      "savedSuccess": "Content languages saved",
+      "savedError": "Error saving content languages"
+    },
     "security": {
       "sessionsTitle": "Active sessions",
       "sessionsDesc": "Login sessions currently open for your account.",
@@ -587,6 +606,13 @@
       "jsonError": "Field \"{{field}}\" must contain valid JSON",
       "emptyTab": "No fields in this tab yet.",
       "emptyColumn": "Empty",
+      "localization": {
+        "switcherLabel": "Content language",
+        "defaultBadge": "default",
+        "completion": "{{filled}}/{{total}} translated",
+        "missing": "No {{locale}} value yet: readers in {{locale}} see a fallback language.",
+        "copyFromDefault": "Copy from default ({{locale}})"
+      },
       "relation": {
         "placeholder": "Select a related entry…",
         "search": "Search…",
@@ -1356,7 +1382,13 @@
       "optionsHint": "Comma-separated list of allowed values.",
       "policies": "Policies",
       "removeExistingWarning": "The field stops being used; existing data is retained in the database and not deleted. Continue?",
-      "reservedAliasError": "One or more aliases conflict with reserved system field names."
+      "reservedAliasError": "One or more aliases conflict with reserved system field names.",
+      "localized": "Localized",
+      "localizedBadge": "localized",
+      "localizedHint": "Editors fill this field once per content language (Settings → Site → Content languages).",
+      "localizedBlockedSubField": "Repeater sub-fields can't be localized.",
+      "localizedBlockedClassification": "Confidential and restricted fields are stored encrypted or hashed, so they can't be localized.",
+      "localizedDisableWarning": "Existing translations stay stored. Until you turn localization back on, this field shows them as raw text."
     },
     "policies": {
       "classification": "Data classification",

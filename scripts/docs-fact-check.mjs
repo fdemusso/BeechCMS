@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs'
-import { resolve, join, dirname, normalize, relative } from 'node:path'
+import { readFileSync, existsSync, readdirSync } from 'node:fs'
+import { resolve, join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pc from 'picocolors'
 
@@ -52,7 +52,7 @@ const mdFiles = getMarkdownFiles(DOCS_DIR)
 let linkErrors = 0
 let totalLinksChecked = 0
 
-const LINK_REGEX = /\[([^\]]+)\]\(([^)#\s]+)(?:#[^\)]*)?\)/g
+const LINK_REGEX = /\[([^\]]+)\]\(([^)#\s]+)(?:#[^)]*)?\)/g
 
 for (const filePath of mdFiles) {
   const relPath = relative(DOCS_DIR, filePath)

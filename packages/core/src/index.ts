@@ -17,6 +17,7 @@ export * from './engine/define-seed.js'
 export * from './engine/seeds.js'
 export * from './engine/engine.js'
 export * from './engine/validation/index.js'
+export * from './engine/localization.js'
 export * from './content/richtext/richtext.js'
 
 export * from './content/slug-utils.js'

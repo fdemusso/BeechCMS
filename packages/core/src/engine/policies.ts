@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { ActorContext, Branch, DataClassification, Seed } from './types.js'
+import { isLocaleDictionary, isLocalizedBranch } from './localization.js'
 
 /**
  * Computes an un-salted SHA-256 hex digest of a string value.
@@ -128,6 +129,25 @@ export function resolvePolicies(branch: Branch): Required<NonNullable<Branch['po
   }
 }
 
+const MASK = '••••••••'
+
+/**
+ * The masked form of a value. A localized dictionary (a `?lang=all` read) masks each translation, exactly as
+ * a single-language read masks the one translation it resolves to; before this, any object became `null`.
+ */
+function maskValue(branch: Branch, value: unknown): unknown {
+  if (typeof value === 'string') return value.length > 0 ? MASK : null
+  if (isLocalizedBranch(branch) && isLocaleDictionary(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([locale, translation]) => [
+        locale,
+        typeof translation === 'string' && translation.length > 0 ? MASK : null,
+      ]),
+    )
+  }
+  return null
+}
+
 const SYSTEM_FIELDS = new Set(['id', 'slug', 'status', 'created_at', 'updated_at', 'version', 'has_pending_draft'])
 
 /**
@@ -188,7 +208,7 @@ export function filterEntryForActor(
 
     // Masking rule check
     if (branch.policies?.visibility === 'masked') {
-      result[key] = typeof value === 'string' && value.length > 0 ? '••••••••' : null
+      result[key] = maskValue(branch, value)
     } else {
       result[key] = value
     }

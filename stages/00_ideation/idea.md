@@ -1,52 +1,98 @@
-# Proposta Feature: Unified Media Delivery & Edge Transformation Layer (Issue #111)
+# Proposta Feature: Multi-Language & Field Localization (i18n) (Issue #109)
 
-## 1. Visione & Contesto (Sintesi di Issue #111 e Commenti)
-La gestione dei media in BeechCMS attualmente serve i file caricati su R2 in modo statico e diretto tramite `GET /api/media/:key`. Se un autore carica immagini non compresse ad alta risoluzione (es. foto da 4-8 MB), i siti vetrina e i frontend subiscono un forte degrado di performance (Core Web Vitals / LCP) e gli sviluppatori sono costretti a delegare a servizi esterni a pagamento (Cloudinary, Imgix).
+## 1. Visione & Contesto (Sintesi di Issue #109 ed Evoluzione Architetturale)
+Nelle applicazioni reali (siti vetrina commerciali, e-commerce internazionali, cataloghi multilingua), supportare più lingue è un requisito standard.
+Senza supporto nativo all'internazionalizzazione (i18n), gli sviluppatori sono costretti a due compromessi deleteri:
+1. **Inquinare lo schema con campi duplicati** (es. `title_it`, `title_en`, `desc_it`, `desc_en`), degradando la DX del codice, la chiarezza delle query e l'usabilità del pannello di amministrazione.
+2. **Duplicare i record (Document-level localization)**, compromettendo la coerenza delle relazioni (Foreign Keys), frammentando la gestione di magazzino/inventario, gli identificativi di sistema e le metriche di analytics.
 
-La proposta originaria ipotizzava un endpoint dedicato `/api/media/resize/:key`. 
-Tuttavia, come definito nel **Refined delivery contract** (commento all'Issue #111), l'obiettivo reale non è una semplice "rotta di resize", ma un **layer unificato e sicuro di media-delivery** che estende `GET /api/media/:key` trasformandolo nel punto di accesso canonico e cachabile per tutti gli asset gestiti.
+### L'approccio scelto: Field-Level Localization
+Vogliamo implementare una **localizzazione a livello di Branch (Field-Level Localization)** in cui i campi abilitati memorizzano un dizionario JSON all'interno di una colonna SQLite `TEXT`.
+Questa scelta preserva l'identità univoca dell'entità (un solo ID, una sola riga, relazioni FK e analytics intatte), eliminando al contempo tabelle ponte di traduzione complesse che appesantirebbero D1 e le transazioni serverless.
+
+Rispetto alla bozza originaria preliminare di Issue #109, la feature deve superare le criticità tecniche emerse dall'architettura consolidata di BeechCMS:
+- **Gestione sicura di FTS5**: evitare che chiavi JSON e sintassi inquinino gli indici di ricerca full-text.
+- **Logica di Fallback deterministica (`COALESCE`)**: non restituire mai `NULL` o errori se un contenuto non è ancora stato tradotto nella lingua richiesta ma esiste nel locale predefinito.
+- **Supporto a filtri e ordinamento**: consentire query e filtri su campi localizzati senza full-table scan cieche.
+- **Integrazione con lo stack moderno di BeechCMS**: piena interoperabilità con Typed Client SDK (`@beechcms/client`), Schema Manifest (`beech.schema.ts`), CLI type generation (`@beechcms/cli`) e l'Entry Editor della Dashboard.
 
 ---
 
-## 2. Pilastri Chiave della Feature
+## 2. Cosa Vogliamo dalla Feature (Pilastri Architetturali)
 
-### A. Endpoint Unificato & Backward Compatibility
-- Mantenimento dell'endpoint `GET /api/media/:key`.
-- Se richiesto **senza parametri**: serve l'asset originale R2 preservando l'attuale comportamento e gli header di sicurezza/cache (`max-age=31536000, immutable`).
-- Se richiesto **con parametri di trasformazione validi**: applica la trasformazione e restituisce la variante derivata ottimizzata.
+### A. Definizione di Schema e Configurazione dei Locales (Single Source of Truth)
+- **Configurazione globale delle lingue di progetto**:
+  - Definizione centralizzata nel manifest di schema (`beech.schema.ts`) e nelle impostazioni di sistema (`SiteSettings`):
+    - `locales: string[]` (elenco dei codici lingua supportati dal progetto, es. `['it', 'en', 'de']`).
+    - `defaultLocale: string` (lingua predefinita di fallback, es. `'it'`).
+- **Abilitazione a livello di Branch**:
+  - Proprietà booleana `localized?: boolean` sull'interfaccia `Branch`.
+  - Applicabile rigorosamente ai soli tipi testuali/contenutistici: `text`, `richtext`, `json` (escludendo tipi intrinsecamente condivisi o strutturali come `number`, `boolean`, `date`, `file`, `relation`, `repeater`).
+  - Esposizione nel manifest DSL: `defineField.text({ alias: 'name', label: 'Nome', localized: true })`.
 
-### B. Sicurezza e Protezione DoS (Source & Transformation Safety)
-- **Zero Proxying Esterno**: trasformazione applicabile esclusivamente a chiavi R2 gestite da BeechCMS.
-- **Validazione & Sanificazione rigorosa**:
-  - Parametri supportati: `w` (width), `h` (height), `fit` (`cover`, `contain`, `scale-down`), `format` (`original`, `webp`, `jpeg`), `quality` (range 10–100, default 82).
-  - **Flessibilità con Pixel Budget**: supporto a dimensioni continue (non vincolate a breakpoint fissi) fino a una dimensione massima per lato (es. `max 3840px`) e un budget di pixel totale (es. `width * height <= 16.777.216`, ~16 Mpx / 4K). Se il calcolo sfora, rifiuto immediato con errore `400 Bad Request`.
-  - **Gestione asset non-raster**: i file non trasformabili (SVG, PDF, video, audio o documenti) con parametri di trasformazione allegati vengono **rigorosamente rifiutati con errore `400 Bad Request`** (`Cannot transform non-raster asset`). Zero spreco di calcolo ed evidenziazione immediata di errori di markup.
-  - Mantenimento delle protezioni stored-XSS già attive (CSP sandbox su tipi attivi).
-  - Correzione automatica dell'orientamento EXIF e emissione corretta degli header `Content-Type`.
+### B. Storage, Serializzazione e Botanical Engine (D1 / SQLite)
+- **Rappresentazione a Database**:
+  - La colonna fisica su SQLite rimane di tipo `TEXT`.
+  - Il dato viene serializzato come JSON compatto normalizzato: `{"it": "Scarpa", "en": "Shoe"}`.
+  - Normalizzazione trasparente: se un payload o un import passa una stringa semplice, questa viene automaticamente associata al `defaultLocale`. Stringhe vuote e chiavi orfane vengono ripulite.
+- **Query SELECT e Fallback Trasparente**:
+  - Quando una query richiede una lingua (`locale: 'en'`), il Botanical Engine estrae il valore garantendo il fallback SQL:
+    ```sql
+    COALESCE(
+      json_extract(table.col, '$.' || :lang),
+      json_extract(table.col, '$.' || :defaultLang),
+      table.col
+    ) AS col
+    ```
+  - Questo garantisce che le API pubbliche e il frontend non ricevano mai valori vuoti/nulli in caso di traduzione parziale, rispettando i vincoli di schema (`requiredOnCreate`).
+- **Filtri e Ricerca su Campi Localizzati**:
+  - Il compilatore query traduce le condizioni `WHERE` sui campi localizzati estraendo la chiave JSON corrispondente al locale attivo (`json_extract(table.col, '$.' || :lang)`).
+- **Full-Text Search (FTS5) Pulito**:
+  - I trigger automatici SQLite della tabella virtuale FTS (`fts_<slug>`) non devono indicizzare il JSON grezzo (chiavi `"it":` e virgolette inquinerebbero il tokenizzatore).
+  - I trigger devono estrarre e indicizzare i soli valori testuali puliti di tutte le lingue registrate, garantendo che una ricerca trovi il record indipendentemente dalla lingua usata dall'utente.
 
-### C. Normalizzazione Parametri, Canonical Caching ed ETag
-- **Canonicalizzazione della query string**: ordinamento deterministico e normalizzazione dei parametri per garantire che `?w=800&h=450` e `?h=450&w=800` condividano la medesima chiave di cache sulla CDN.
-- **Header HTTP e Cache**:
-  - `Cache-Control: public, max-age=31536000, immutable` su varianti derivate stabili.
-  - `ETag` deterministico derivato dall'identità dell'asset sorgente + hash dei parametri normalizzati.
-- Compatibilità con richieste condizionali HTTP (`If-None-Match: 304 Not Modified`).
+### C. Public API Layer & Content Negotiation (`apps/api`)
+- **Negoziazione della Lingua**:
+  - Risoluzione automatica della lingua con la seguente gerarchia:
+    1. Parametro di query `?lang=<code>` (priorità massima)
+    2. Header HTTP standard `Accept-Language`
+    3. Fallback sul `defaultLocale` di progetto.
+  - Risposta sempre "piatta" per il frontend pubblico: `{ id: "123", name: "Shoe", price: 10 }` (zero parsing JSON a carico del client).
+- **Modalità Raw / Tutte le Traduzioni**:
+  - Parametro speciale `?lang=all` (o `?lang=*`) per consentire a client speciali, export o backoffice di ottenere l'intero dizionario traduzioni (`{ name: { it: "Scarpa", en: "Shoe" } }`).
+- **Edge Caching & ETag Awareness**:
+  - Inclusione della lingua risolta nella chiave di cache di Cloudflare Edge Cache e aggiunta automatica dell'header `Vary: Accept-Language`.
 
-### D. Edge Runtime & Strategia di Fallback
-- Esecuzione delle trasformazioni tramite le capacità native di Cloudflare Workers (`fetch(..., { cf: { image: { ... } } })`).
-- **Politica di Fallback (Strict YAGNI)**: negli ambienti privi di supporto nativo a `cf.image` (test locali Vitest, Miniflare, self-hosted senza zone add-on), l'endpoint effettua un **passthrough trasparente** dell'asset originale R2, iniettando un header diagnostico `X-Beech-Media-Transform: passthrough-unsupported`. Nessuna dipendenza da motori WASM esterni.
+### D. Typed Client SDK & Type Generation (`@beechcms/client` & `@beechcms/cli`)
+- **Fluent Query Builder (`@beechcms/client`)**:
+  - Aggiunta del metodo `.lang(code: string)` (e `.locale(...)`) per impostare in modo dichiarativo e leggibile la lingua richiesta nelle chiamate REST.
+- **Type Generation (`@beechcms/cli`)**:
+  - I tipi generati da `beech schema types` per il consumo API pubblico mantengono i campi localizzati tipizzati come `string` (coerentemente con la proiezione piatta dell'API).
+  - Generazione di un tipo helper utility `LocalizedField<T>` (`Record<string, T>`) utilizzabile per script di popolamento o logiche di gestione avanzate.
 
-### E. Developer Experience (DX) & Client Helper
-- **Pure Utility Functions in `@beechcms/client` (Zero Framework Lock-in)**:
-  - Utility per generazione URL canonico: `media(keyOrUrl, options)`
-  - Utility per generazione attributi responsive: `mediaSrcSet(keyOrUrl, widths, options)`
-  - Documentazione con pattern/esempi pronti per HTML, React (`next/image`, `<img>`), Astro.
-  - Nessun componente React JSX/UI pesante nel core o nei package client per questa fase.
+### E. Dashboard UX (Entry Editor & Content Management)
+- **Global Locale Switcher nell'Entry Editor**:
+  - Eliminazione di controlli/tab duplicati e dispersivi su ciascun campo.
+  - Un unico selettore di lingua principale nell'header dell'Entry Editor (`[ IT | EN | DE ]`).
+  - La selezione del locale aggiorna contestualmente tutti i campi `localized` della maschera.
+- **Visual Feedback & Fallback nello Studio**:
+  - Se un campo non è ancora tradotto nella lingua attiva:
+    - Indicazione visiva chiara ("Non tradotto, in uso fallback") con testo placeholder proveniente dalla lingua di default.
+    - Pulsante rapido "Copia dal valore predefinito".
+  - Indicatore sintetico dello stato di completamento delle traduzioni nella scheda dell'articolo.
+- **Supporto RichText**:
+  - Integrazione nell'editor Tiptap per la gestione del documento strutturato JSON differenziato per ciascuna lingua.
 
 ---
 
 ## 3. Delimitazioni e Ambito Fuori Scope (YAGNI v1)
-- **NO AVIF nella prima release**: supporto limitato a WebP e JPEG per verificare costi, supporto runtime e cache hit rate prima di introdurre AVIF.
-- **NO Image Proxy per URL esterni**: nessun fetch su domini terzi.
-- **NO Filtri avanzati / Watermarking**: niente blur, contrasto, rotazioni arbitrarie o watermark.
-- **NO Editor visuale di Crop/Focal Point nel Dashboard (per ora)**: predisposizione del contratto a livello di schema per futuri metadati (Issue #381), ma senza implementazione UI in questo sprint.
-- **NO Componenti React JSX dedicati**: solo utility pure TypeScript.
+Per mantenere il lavoro focalizzato, pulito ed evitare derive di complessità non necessarie:
+- **NO Localized System Slugs (URL Slugs Tradotti)**:
+  - Lo `slug` del record resta un identificatore univoco di sistema globale (es. `scarpa-running-pro`).
+  - Non si gestiscono routing complessi o slug differenziati per lingua in questa v1 (richiederebbe routing a documenti separati e tabelle di alias).
+- **NO Traduzione Automatica Integrata (AI / DeepL out-of-the-box)**:
+  - Nessuna integrazione nativa con provider di traduzione automatica in questo core sprint (delegabile a script esterni, automazioni o al tool MCP `@beechcms/mcp`).
+- **NO Traduzione dell'Interfaccia Dashboard (UI i18n)**:
+  - L'ambito è esclusivamente il **Content i18n** (i dati del CMS), non la traduzione dei testi o dei menu della console di amministrazione.
+- **NO Permessi di Modifica per Singola Lingua (RBAC granulare)**:
+  - Nessuna restrizione del tipo "l'editor X può modificare solo la lingua DE". I permessi di scrittura sul record rimangono unificati.

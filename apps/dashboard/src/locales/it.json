@@ -491,6 +491,25 @@
       "savedError": "Errore durante il salvataggio delle impostazioni",
       "saveChanges": "Salva modifiche"
     },
+    "contentLanguages": {
+      "title": "Lingue dei contenuti",
+      "description": "Lingue in cui i contenuti possono essere tradotti. La lingua predefinita viene mostrata dove manca una traduzione.",
+      "defaultBadge": "Predefinita",
+      "makeDefault": "Rendi predefinita",
+      "remove": "Rimuovi {{code}}",
+      "addLabel": "Aggiungi una lingua",
+      "addPlaceholder": "es. en, fr, pt-BR",
+      "add": "Aggiungi",
+      "keptOnRemoveHint": "Rimuovere una lingua non cancella mai le sue traduzioni: restano salvate e ricompaiono se la aggiungi di nuovo.",
+      "errors": {
+        "invalid": "Usa un codice lingua come \"en\", \"fr\" o \"pt-BR\".",
+        "duplicate": "Questa lingua è già nell'elenco.",
+        "limit": "Puoi aggiungere al massimo 50 lingue."
+      },
+      "save": "Salva lingue",
+      "savedSuccess": "Lingue dei contenuti salvate",
+      "savedError": "Errore durante il salvataggio delle lingue dei contenuti"
+    },
     "security": {
       "sessionsTitle": "Sessioni attive",
       "sessionsDesc": "Sessioni di accesso correntemente aperte per il tuo account.",
@@ -587,6 +606,13 @@
       "jsonError": "Il campo \"{{field}}\" deve contenere JSON valido",
       "emptyTab": "Nessun campo in questa tab.",
       "emptyColumn": "Vuoto",
+      "localization": {
+        "switcherLabel": "Lingua del contenuto",
+        "defaultBadge": "predefinita",
+        "completion": "{{filled}}/{{total}} tradotti",
+        "missing": "Nessun valore in {{locale}}: chi legge in {{locale}} vede una lingua di ripiego.",
+        "copyFromDefault": "Copia dal valore predefinito ({{locale}})"
+      },
       "relation": {
         "placeholder": "Seleziona una voce correlata…",
         "search": "Cerca…",
@@ -1356,7 +1382,13 @@
       "optionsHint": "Lista separata da virgole dei valori consentiti.",
       "policies": "Policy",
       "removeExistingWarning": "Il campo smette di essere usato; i dati esistenti vengono conservati nel database e non eliminati. Continuare?",
-      "reservedAliasError": "Uno o più alias confliggono con nomi di campo di sistema riservati."
+      "reservedAliasError": "Uno o più alias confliggono con nomi di campo di sistema riservati.",
+      "localized": "Localizzato",
+      "localizedBadge": "localizzato",
+      "localizedHint": "Gli editor compilano questo campo per ogni lingua dei contenuti (Impostazioni → Sito → Lingue dei contenuti).",
+      "localizedBlockedSubField": "I sotto-campi di un repeater non possono essere localizzati.",
+      "localizedBlockedClassification": "I campi riservati e ristretti sono salvati cifrati o come hash, quindi non possono essere localizzati.",
+      "localizedDisableWarning": "Le traduzioni esistenti restano salvate. Finché non riattivi la localizzazione, questo campo le mostra come testo grezzo."
     },
     "policies": {
       "classification": "Classificazione dati",

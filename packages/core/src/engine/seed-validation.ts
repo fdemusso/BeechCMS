@@ -4,6 +4,8 @@
 import type { Seed } from './types.js'
 import { AUTOMATION_RESERVED_WORDS } from '../automations/automations-grammar-words.js'
 import { SYSTEM_COLUMNS } from './ddl.js'
+import { LOCALIZABLE_BRANCH_TYPES } from './localization.js'
+import { resolveClassification } from './policies.js'
 import { sortSeedsByDependencies } from './seed-registry.js'
 import { SQL_RESERVED_WORDS } from './sql-reserved-words.js'
 
@@ -352,6 +354,43 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
         fatal: true,
       })
     }
+  }
+
+  // ── Fatal 17: field-level localization constraints ─────────────────────────
+  // A localized value is a readable locale dictionary. Encrypted or hashed storage turns it into an
+  // opaque blob: per-locale extraction would be meaningless and would break decryption. Repeater
+  // sub-fields are excluded by domain rule, whatever their type.
+  for (const seed of seeds) {
+    const messages: string[] = []
+    for (const branch of seed.branches) {
+      if (branch.localized !== undefined && typeof branch.localized !== 'boolean') {
+        messages.push(`branch '${branch.alias}': localized must be a boolean`)
+      } else if (branch.localized === true) {
+        if (!LOCALIZABLE_BRANCH_TYPES.has(branch.type)) {
+          messages.push(
+            `branch '${branch.alias}': localized is only supported on text, richtext and json branches ` +
+            `(got '${branch.type}').`,
+          )
+        } else {
+          const { classification, storage } = resolveClassification(branch)
+          if (storage !== 'plain') {
+            messages.push(
+              `branch '${branch.alias}': localized cannot be combined with '${classification}' classification ` +
+              `(values are stored ${storage === 'encrypt' ? 'encrypted' : 'hashed'}).`,
+            )
+          }
+        }
+      }
+      for (const sub of branch.fields ?? []) {
+        if (sub.localized !== undefined && sub.localized !== false) {
+          messages.push(
+            `branch '${branch.alias}': sub-field '${sub.alias}' cannot be localized. ` +
+            `Repeater sub-fields are never localized.`,
+          )
+        }
+      }
+    }
+    if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: true })
   }
 
   return result

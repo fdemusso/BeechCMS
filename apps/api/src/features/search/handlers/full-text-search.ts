@@ -22,6 +22,7 @@ import type { SearchResponse } from '../types'
 import { encodeCursor, mapSearchResultRow } from '../utils/search-utils'
 import { resolveEffectivePermissions } from '../../../shared/rbac/effective-permissions'
 import { filterSeedsByPermission } from '../../../shared/rbac/scoped-projection'
+import { loadDisplayLocaleConfig, resolveDisplayName } from '../../../shared/localization/display-name'
 
 /**
  * Handles `GET /api/search?q=…&schema_slug=…&status=…&limit=20&cursor=…`.
@@ -87,7 +88,12 @@ export async function fullTextSearchHandler(c: Context<AppEnv>): Promise<Respons
     return c.json({ items: [], nextCursor: null, total: countResult.total } satisfies SearchResponse)
   }
 
-  const items = pageRows.map(mapSearchResultRow)
+  const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), searchableSeeds)
+  const seedsBySlug = new Map(searchableSeeds.map((seed) => [seed.slug, seed]))
+  const items = pageRows.map((row) => {
+    const seed = seedsBySlug.get(row.schemaSlug)
+    return mapSearchResultRow(seed ? { ...row, title: resolveDisplayName(seed, row.title, localeConfig) } : row)
+  })
 
   return c.json({ items, nextCursor, total: countResult.total } satisfies SearchResponse)
 }

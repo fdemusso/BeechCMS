@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { compileSeedSchema } from './cache.js'
 import type { ResolvedOptions } from './index.js'
+import type { LocaleConfig } from '../localization.js'
 import type { Seed } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 
@@ -35,7 +36,7 @@ const numericGen: IIdGenerator = {
   isValid: (v): v is string => typeof v === 'string' && /^[0-9]+$/.test(v),
 }
 
-function baseOptions(idGenerator?: IIdGenerator): ResolvedOptions {
+function baseOptions(idGenerator?: IIdGenerator, localeConfig?: LocaleConfig): ResolvedOptions {
   return {
     allowNull: false,
     operation: 'create',
@@ -43,7 +44,17 @@ function baseOptions(idGenerator?: IIdGenerator): ResolvedOptions {
     enforceRequiredFields: true,
     maxTextLength: 50_000,
     idGenerator,
+    localeConfig,
   }
+}
+
+const LOCALIZED_SEED: Seed = {
+  slug: 'products',
+  label: 'Product',
+  displayNameAlias: 'title',
+  branches: [
+    { id: 'br_title', alias: 'title', label: 'Title', type: 'text', localized: true },
+  ],
 }
 
 describe('compileSeedSchema caching', () => {
@@ -73,5 +84,32 @@ describe('compileSeedSchema caching', () => {
     const first = compileSeedSchema(PLAIN_SEED, baseOptions())
     const second = compileSeedSchema(PLAIN_SEED, baseOptions())
     expect(second).toBe(first)
+  })
+
+  it('compiles distinct schemas for different locale configurations', () => {
+    const wide = compileSeedSchema(LOCALIZED_SEED, baseOptions(undefined, { locales: ['it', 'en'], defaultLocale: 'it' }))
+    const narrow = compileSeedSchema(LOCALIZED_SEED, baseOptions(undefined, { locales: ['it'], defaultLocale: 'it' }))
+
+    const payload = { title: { it: 'a', en: 'b' } }
+    const wideParsed = wide.safeParse(payload)
+    const narrowParsed = narrow.safeParse(payload)
+
+    expect(wideParsed.success && wideParsed.data.title).toEqual({ it: 'a', en: 'b' })
+    expect(narrowParsed.success && narrowParsed.data.title).toEqual({ it: 'a' })
+  })
+
+  it('recompiles when a branch is toggled to localized', () => {
+    const config = { locales: ['it'], defaultLocale: 'it' }
+    const seedPlain: Seed = { ...LOCALIZED_SEED, branches: [{ ...LOCALIZED_SEED.branches[0], localized: false }] }
+    const seedLocalized: Seed = { ...LOCALIZED_SEED, branches: [{ ...LOCALIZED_SEED.branches[0], localized: true }] }
+
+    const plainSchema = compileSeedSchema(seedPlain, baseOptions(undefined, config))
+    const localizedSchemaCompiled = compileSeedSchema(seedLocalized, baseOptions(undefined, config))
+
+    const plainParsed = plainSchema.safeParse({ title: 'x' })
+    const localizedParsed = localizedSchemaCompiled.safeParse({ title: 'x' })
+
+    expect(plainParsed.success && plainParsed.data.title).toBe('x')
+    expect(localizedParsed.success && localizedParsed.data.title).toEqual({ it: 'x' })
   })
 })

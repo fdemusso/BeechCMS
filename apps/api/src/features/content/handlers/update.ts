@@ -7,7 +7,10 @@ import {
   slugify,
   isValidContentStatus,
   validateAndSanitizeSeedPayload,
-  resolvePolicies
+  resolvePolicies,
+  localizedAliasesIn,
+  mergeLocalizedFields,
+  resolveLocalizedFields
 } from '@beechcms/core'
 import { applyPrivacy, PrivacyPolicyError } from '../../../shared/policies/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
@@ -21,6 +24,7 @@ import {
 } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import { cleanStr } from '../../../shared/utils/query-utils'
+import { loadLocaleConfig } from '../../../shared/localization/locale-config'
 import { AppEnv } from '../../../types'
 
 
@@ -93,6 +97,9 @@ export async function updateHandler(context: Context<AppEnv>) {
       })
     }
 
+    const localeConfig = await loadLocaleConfig(context.get('siteSettingsRepository'), seed)
+    let mergesLocalized = false
+
     const mergedData: Record<string, unknown> = Object.create(null)
 
     if (Object.keys(bodyForData).length > 0) {
@@ -116,6 +123,7 @@ export async function updateHandler(context: Context<AppEnv>) {
         requireAtLeastOneValidField: true,
         enforceRequiredFields: true,
         idGenerator: context.get('idGenerator'),
+        localeConfig,
       })
 
       if (validation.dangerousFields.length > 0) {
@@ -144,8 +152,12 @@ export async function updateHandler(context: Context<AppEnv>) {
         throw error
       }
 
+      mergesLocalized = localeConfig !== undefined && localizedAliasesIn(seed, privacyPatch).length > 0
+      // A localized field is merged into its stored dictionary, never replaced: translations this
+      // request does not mention survive (brief §2).
+      const patch = mergeLocalizedFields(seed, current, privacyPatch, localeConfig)
       // Pass null values to patch (patch semantics: null = clear field)
-      for (const [k, v] of Object.entries(privacyPatch)) {
+      for (const [k, v] of Object.entries(patch)) {
         if (v !== undefined) mergedData[k] = v
       }
     }
@@ -165,9 +177,14 @@ export async function updateHandler(context: Context<AppEnv>) {
 
     const jwtPayload = context.get('jwtPayload')
     const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
-    await repository.update(seed, id, mergedData, newStatus, { actor, ifMatch })
+    // The merge above is read-modify-write against `current`: without a version guard a concurrent write
+    // landing in between would lose its translation silently. Fall back to the version we merged against
+    // when the client sent none, turning that race into the usual 409.
+    const guard = ifMatch ?? (mergesLocalized ? (current.updated_at as number) : undefined)
+    await repository.update(seed, id, mergedData, newStatus, { actor, ifMatch: guard })
 
-    const title = mergedData.title || mergedData.name || newSlug
+    const displayData = resolveLocalizedFields(seed, mergedData, localeConfig)
+    const title = displayData.title || displayData.name || newSlug
 
     logContentActivity(context, 'update', id, slug, String(title))
     dispatchContentAutomation(context, slug, 'update', { ...current, ...mergedData, id, status: newStatus })

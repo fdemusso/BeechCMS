@@ -81,6 +81,11 @@ describe('buildSearchParams', () => {
     const p = buildSearchParams({ limit: 20 })
     expect(p.get('limit')).toBe('20')
   })
+
+  it('omits lang when no language was requested', () => {
+    const p = buildSearchParams({})
+    expect(p.has('lang')).toBe(false)
+  })
 })
 
 describe('FluentQueryBuilder', () => {
@@ -260,6 +265,14 @@ describe('FluentQueryBuilder', () => {
 
     expect(filter.logic).toBe('OR')
     expect(filter.where).toHaveLength(2)
+  })
+
+  it('lang() sends the language as the lang parameter', () => {
+    const builder = new FluentQueryBuilder<{ id: string }>({ first: vi.fn(), list: vi.fn() })
+
+    builder.lang('en')
+
+    expect(builder.build().get('lang')).toBe('en')
   })
 
   it('build() returns URLSearchParams matching the accumulated query', () => {

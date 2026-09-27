@@ -7,7 +7,7 @@ async function checkDocker() {
     p = await import('@clack/prompts');
     pc = (await import('picocolors')).default;
     hasClack = true;
-  } catch (e) {
+  } catch {
     // Fallback to simple console log if dependencies are not loaded yet
   }
 
@@ -45,7 +45,7 @@ async function checkDocker() {
   try {
     execSync('docker --version', { stdio: 'ignore' });
     dockerInstalled = true;
-  } catch (e) {
+  } catch {
     // Docker is not installed or not in PATH
   }
 
@@ -79,7 +79,9 @@ async function checkDocker() {
             try {
               execSync('brew --version', { stdio: 'ignore' });
               hasBrew = true;
-            } catch (e) {}
+            } catch {
+              // Homebrew not found or failed
+            }
 
             if (hasBrew) {
               console.log('Homebrew found. Starting installation via Homebrew Cask...');
@@ -95,7 +97,9 @@ async function checkDocker() {
             execSync('sudo sh get-docker.sh', { stdio: 'inherit' });
             try {
               execSync('rm get-docker.sh', { stdio: 'ignore' });
-            } catch (e) {}
+            } catch {
+              // Best-effort cleanup of temporary install script
+            }
             installedSuccessfully = true;
           } else {
             installSpinner.stop(`Unsupported platform: ${platform}`);
@@ -161,7 +165,7 @@ async function checkDocker() {
   try {
     execSync('docker info', { stdio: 'ignore' });
     dockerRunning = true;
-  } catch (e) {
+  } catch {
     // Docker is installed, but daemon is not running
   }
 

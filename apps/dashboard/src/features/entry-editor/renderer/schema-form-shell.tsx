@@ -136,6 +136,8 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
     dangerZoneSlot,
     schemaSlug,
     entryId,
+    headerSlot,
+    localization,
   } = vm
 
   const [activeTabId, setActiveTabId] = useState(() => layout?.tabs[0]?.id ?? "")
@@ -166,6 +168,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
     body = (
       <>
         <div className="absolute top-2 right-10 flex items-center gap-1">
+          {headerSlot}
           {vm.isReadOnly && (
             <Tooltip>
               {canUpdate ? (
@@ -281,6 +284,7 @@ export function SchemaFormShell({ vm, open }: SchemaFormShellProps) {
                 activeTabId={activeTabId}
                 onActiveTabChange={setActiveTabId}
                 isReadOnly={vm.isReadOnly}
+                localization={localization}
               />
             )}
 

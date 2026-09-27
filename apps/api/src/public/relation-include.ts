@@ -5,6 +5,7 @@
 import type { ContentRepository, Seed } from '@beechcms/core'
 import { toFlatPublicEntry } from './entry-projection'
 import { resolvePublicRelationTarget } from './relation-access'
+import type { PublicLanguage } from './public-language'
 
 const MAX_INCLUDES = 3
 const MAX_TARGET_IDS = 200
@@ -15,7 +16,8 @@ export async function expandRelations(
   parentSeed: Seed,
   repository: ContentRepository,
   getSeed: (slug: string) => Seed | null,
-  rawItems: Record<string, unknown>[] = items
+  rawItems: Record<string, unknown>[] = items,
+  language?: PublicLanguage,
 ): Promise<void> {
   if (!includesParam) return
 
@@ -60,7 +62,7 @@ export async function expandRelations(
 
     const targetMap = new Map<string, Record<string, unknown>>()
     for (const ti of targetItems) {
-      targetMap.set(ti.id as string, toFlatPublicEntry(ti, targetSeed))
+      targetMap.set(ti.id as string, toFlatPublicEntry(ti, targetSeed, undefined, language))
     }
 
     for (let i = 0; i < items.length; i++) {

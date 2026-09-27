@@ -30,6 +30,14 @@ Repeater sub-fields, same projection, recursively.
 
 ***
 
+### localized?
+
+> `optional` **localized?**: `boolean`
+
+Present only when true: the dictionary shape is part of the public contract (`?lang=all`, writes).
+
+***
+
 ### maxItems?
 
 > `optional` **maxItems?**: `number`

@@ -9,6 +9,14 @@ export interface SiteSettings {
   companyName: string | null
   companyWebsite: string | null
   companyAbbreviation: string | null
+  /**
+   * Content locales for field-level localization, in display order. `null` = never configured
+   * (resolveLocaleConfig then falls back to `[defaultLanguage]`). Distinct from `defaultLanguage`,
+   * which is the dashboard UI language.
+   */
+  locales: string[] | null
+  /** Default content locale. `null` = never configured. */
+  defaultLocale: string | null
 }
 
 export interface ISiteSettingsRepository {

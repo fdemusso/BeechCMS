@@ -135,4 +135,34 @@ describe('extractIndexableText', () => {
     expect(extractIndexableText(seed, { title: '', content: '   ' })).toBeNull()
     expect(extractIndexableText(seed, { title: null, content: undefined })).toBeNull()
   })
+
+  it('indexes every locale of a localized text dictionary', () => {
+    const seed: Seed = {
+      slug: 'products',
+      label: 'Products',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'title', label: 'Title', type: 'text', localized: true },
+      ],
+    }
+
+    const entry = { title: { it: 'Scarpa', en: 'Shoe' } }
+    const result = extractIndexableText(seed, entry)
+    expect(result).toContain('Scarpa')
+    expect(result).toContain('Shoe')
+  })
+
+  it('ignores a dictionary-shaped object on a non-localized branch', () => {
+    const seed: Seed = {
+      slug: 'products',
+      label: 'Products',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+      ],
+    }
+
+    const entry = { title: { it: 'Scarpa', en: 'Shoe' } }
+    expect(extractIndexableText(seed, entry)).toBeNull()
+  })
 })

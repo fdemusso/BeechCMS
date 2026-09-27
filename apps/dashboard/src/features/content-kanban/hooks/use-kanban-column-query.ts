@@ -2,6 +2,7 @@ import { useInfiniteQuery } from '@tanstack/react-query'
 import { kanbanColumnFilter } from '@beechcms/core'
 import type { Branch, KanbanColumnDescriptor, FilterGroup, Seed, KanbanCardConfig } from '@beechcms/core'
 import { fetchKanbanColumn } from '@/lib/content-api'
+import { useLocalizeEntryData } from '@/features/shared'
 import { buildKanbanCardDisplayModel } from '../utils/kanban-card-display'
 import type { KanbanBoardConfig, KanbanColumnFetchState } from '../types'
 import { KANBAN_COLUMN_PAGE_SIZE } from '../constants'
@@ -16,6 +17,7 @@ export function useKanbanColumnQuery(
   seed?: Seed,
   cardConfig?: KanbanCardConfig,
 ): KanbanColumnFetchState {
+  const localize = useLocalizeEntryData()
   const colFilter = kanbanColumnFilter(axisBranch, col.value)
   const allFilters: FilterGroup[] = [colFilter, ...activeFilters]
 
@@ -44,7 +46,9 @@ export function useKanbanColumnQuery(
 
   const total = data?.pages[0]?.total ?? 0
   const cards = (data?.pages ?? []).flatMap(page =>
-    page.items.map(item => buildKanbanCardDisplayModel(item, axisBranch, col.value, seed, cardConfig)),
+    page.items.map(item =>
+      buildKanbanCardDisplayModel({ ...item, data: localize(seed, item.data) }, axisBranch, col.value, seed, cardConfig),
+    ),
   )
 
   return { cards, total, hasNextPage: Boolean(hasNextPage), isFetching, isLoading, fetchNextPage }

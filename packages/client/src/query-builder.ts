@@ -65,6 +65,11 @@ export class FluentQueryBuilder<TRow> implements FluentQuery<TRow> {
     return this
   }
 
+  lang(code: string): this {
+    this.query.lang = code
+    return this
+  }
+
   first(options?: RequestOptions): Promise<BeechResult<Single<TRow>>> {
     return this.executor.first(this.query, options)
   }
@@ -125,6 +130,7 @@ export function buildSearchParams(query: ListQuery<Record<string, unknown>> = {}
   if (typeof query.latest === 'number') params.set('latest', String(query.latest))
   if (typeof query.page === 'number') params.set('page', String(query.page))
   if (typeof query.limit === 'number') params.set('limit', String(Math.min(query.limit, 100)))
+  if (query.lang) params.set('lang', query.lang)
 
   return params
 }

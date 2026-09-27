@@ -315,8 +315,7 @@ function renderTable(rows) {
   console.log(`│${header}│`)
   console.log(`├${sep}┤`)
 
-  for (const [ri, row] of colData.entries()) {
-    const r = rows[ri]
+  for (const r of rows) {
     const stmts  = formatPct(r.stmts)
     const branch = formatPct(r.branch)
     const funcs  = formatPct(r.funcs)
@@ -344,7 +343,6 @@ function renderTable(rows) {
 
 // Strip ANSI for length calculation
 function stripAnsi(str) {
-  // eslint-disable-next-line no-control-regex
   return str.replace(/\x1b\[[0-9;]*m/g, '')
 }
 
@@ -423,8 +421,6 @@ async function main() {
 
     for (const absFile of files) {
       const relToWs = path.relative(workspaceDir, absFile).replace(/\\/g, '/')
-      const relToRoot = path.relative(ROOT, absFile).replace(/\\/g, '/')
-      const display   = relToRoot
 
       // Skip test files themselves — we care about source files
       if (/\.test\.(ts|tsx|js|jsx)$/.test(relToWs)) continue

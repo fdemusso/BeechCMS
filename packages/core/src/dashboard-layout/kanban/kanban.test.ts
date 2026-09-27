@@ -95,6 +95,14 @@ describe('resolveKanbanConfig', () => {
     expect(result.candidates[0].branchId).toBe('br_42')
     expect(result.candidates[0].alias).toBe('category')
   })
+
+  it('excludes a localized text branch with options', () => {
+    const seed: Seed = { ...baseSeed, branches: [
+      { id: 'br_01', alias: 'priority', type: 'text', label: 'Priority', options: ['a', 'b'], localized: true },
+    ] }
+    const result = resolveKanbanConfig(seed)
+    expect(result).toEqual({ compatible: false, reason: 'no-candidate-branch', candidates: [] })
+  })
 })
 
 describe('resolveKanbanColumns', () => {

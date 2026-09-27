@@ -114,6 +114,7 @@ const mockSeed: Seed = {
     { alias: "title", label: "Title", type: "text" },
     { alias: "hidden_field", label: "Hidden", type: "text", policies: { visibility: "hidden" } },
     { alias: "secret_field", label: "Secret", type: "text", policies: { privacy: "encrypt" } },
+    { alias: "localized_field", label: "Localized", type: "text", localized: true },
   ] as Branch[],
 }
 
@@ -170,6 +171,14 @@ describe("BulkEditDialog", () => {
     expect(labels).toContain("Title")
     expect(labels).not.toContain("Hidden")
     expect(labels).not.toContain("Secret")
+  })
+
+  it("does not offer a localized field in the field picker", () => {
+    renderDialog()
+    const options = screen.getAllByRole("option")
+    const labels = options.map(o => o.textContent)
+    expect(labels).not.toContain("Localized")
+    expect(labels).toContain("Title")
   })
 
   it("enables Confirm and moves to step 2 after selecting a field", () => {

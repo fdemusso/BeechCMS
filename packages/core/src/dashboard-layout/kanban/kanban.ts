@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { Seed, Branch, FilterGroup } from '../../engine/types.js'
+import { isLocalizedBranch } from '../../engine/localization.js'
 
 /** Branch types that can form a discrete, finite set of columns (KB §2). */
 export type KanbanAxisBranchType = 'text' | 'tags' | 'boolean'
@@ -48,6 +49,9 @@ const NON_AXIS_TYPES = new Set<Branch['type']>([
 
 function isAxisCandidate(b: Branch): KanbanAxisBranchType | null {
   if (b.alias === 'status') return null            // system status excluded (KB §2)
+  // A localized value is a locale dictionary, not one discrete column value, and a card move would
+  // overwrite every translation with the column value.
+  if (isLocalizedBranch(b)) return null
   if (NON_AXIS_TYPES.has(b.type)) return null
   if (b.type === 'text') return (b.options && b.options.length > 0) ? 'text' : null
   if (b.type === 'tags') return 'tags'

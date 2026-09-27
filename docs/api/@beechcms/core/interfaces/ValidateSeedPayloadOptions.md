@@ -49,6 +49,17 @@ Do NOT pass a concrete class — inject via the middleware / factory.
 
 ***
 
+### localeConfig?
+
+> `optional` **localeConfig?**: [`LocaleConfig`](LocaleConfig.md)
+
+Project language configuration. When provided, branches with `localized: true` accept a plain
+value (stored under `defaultLocale`) or a locale dictionary, and validate to a `LocalizedPatch`.
+When omitted, localized branches validate exactly like their base type — the pre-localization
+contract. `requiredOnCreate` / `requiredOnUpdate` then check the default locale only.
+
+***
+
 ### maxTextLength?
 
 > `optional` **maxTextLength?**: `number`

@@ -51,6 +51,10 @@ export interface GeneralSettings {
   siteTitle: string
   siteLogo?: string
   defaultLanguage: string
+  /** Content locales (never empty: the API resolves an unconfigured project to `[defaultLanguage]`). */
+  locales: string[]
+  /** Content default locale; always one of `locales`. */
+  defaultLocale: string
   timezone: string
   currency: string
   company: {

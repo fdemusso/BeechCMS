@@ -6,7 +6,7 @@ import type React from "react"
 import type { TFunction } from "i18next"
 import type { FormLayout } from "@beechcms/core"
 import type { Blocker, NavigateFunction } from "react-router-dom"
-import type { RendererBranchMap } from "./layout-renderer"
+import type { RendererBranchMap, RendererLocalization } from "./layout-renderer"
 
 /**
  * Capability flags gate the *entry-specific* chrome of the shell.
@@ -94,4 +94,10 @@ export interface SchemaFormViewModel {
   // readonly mode
   isReadOnly?: boolean
   setIsReadOnly?: (v: boolean) => void
+
+  // content localization (entry editor only; both absent → the shell renders exactly as before)
+  /** Extra header control rendered first in the top-right action group (the entry editor's locale switcher). */
+  headerSlot?: React.ReactNode
+  /** Forwarded to LayoutRenderer; see {@link RendererLocalization}. */
+  localization?: RendererLocalization
 }

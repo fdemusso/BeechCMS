@@ -10,6 +10,7 @@
 
 Deserializes a value read from the DB to its API/JS representation.
 0/1 → boolean | Unix timestamp → ISO 8601 | JSON string → object/array
+Localized branches: locale dictionary ↔ compact JSON.
 
 ## Parameters
 

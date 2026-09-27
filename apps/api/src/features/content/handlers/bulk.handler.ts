@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { resolvePolicies, type BulkFieldUpdate } from '@beechcms/core'
+import { isLocalizedBranch, resolvePolicies, type BulkFieldUpdate } from '@beechcms/core'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
@@ -120,6 +120,16 @@ export async function bulkHandler(context: Context<AppEnv>) {
         title: 'Bad Request',
         status: 400,
         detail: `Field '${alias}' cannot be bulk-edited (hidden or non-plain privacy)`,
+      })
+    }
+
+    // Bulk writes are blind per-row UPDATEs: a value here would replace every stored translation.
+    if (isLocalizedBranch(branch)) {
+      return publicProblem(context, {
+        type: 'field-not-bulk-editable',
+        title: 'Bad Request',
+        status: 400,
+        detail: `Field '${alias}' is localized and cannot be bulk-edited`,
       })
     }
 

@@ -8,8 +8,9 @@ import { ChevronDown } from 'reicon-react'
 import type { LayoutSection, LayoutTab, LayoutColumn } from "@beechcms/core"
 import { Label } from "@/components/ui/label"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Button } from "@/components/ui/button"
 import { FieldEdit } from "@/components/fields"
-import type { RendererBranchMap } from "./layout-renderer"
+import type { RendererBranchMap, RendererLocalization } from "./layout-renderer"
 
 function Asterisk({ className }: { className?: string }) {
   return (
@@ -62,6 +63,8 @@ export interface ColumnRendererProps {
   /** Callback fired when any field changes. */
   readonly onChange: (alias: string, value: unknown) => void
   readonly isReadOnly?: boolean
+  /** Content-localization context, forwarded to each field. */
+  readonly localization?: RendererLocalization
 }
 
 /**
@@ -75,6 +78,7 @@ function ColumnRenderer({
   fieldErrors,
   onChange,
   isReadOnly,
+  localization,
 }: ColumnRendererProps) {
   const { t: translate } = useTranslation()
 
@@ -91,6 +95,7 @@ function ColumnRenderer({
       {column.fields.map((field) => {
         const branch = branchById[field.branchId]
         if (branch == null) return null
+        const localizedState = localization?.fields[branch.alias]
         return (
           <div key={field.branchId} className="space-y-2">
             <Label htmlFor={branch.alias} className="flex items-center gap-1">
@@ -107,14 +112,42 @@ function ColumnRenderer({
                 branch.label
               )}
               {branch.requiredOnCreate && <Asterisk className="inline size-3 text-destructive" />}
+              {localizedState && localization && (
+                <span className="ml-1 rounded border px-1 text-[10px] font-medium uppercase text-muted-foreground">
+                  {localization.activeLocale}
+                </span>
+              )}
             </Label>
             <FieldEdit
+              // TipTap and CodeMirror keep internal state and ignore a null value: remount per locale so each
+              // language opens on its own value instead of the previous language's text.
+              key={localizedState && localization ? localization.activeLocale : undefined}
               branch={branch as any}
               value={formData[branch.alias]}
               onChange={(value) => onChange(branch.alias, value)}
               disabled={isReadOnly}
               readOnly={isReadOnly || Boolean((branch as unknown as { readOnly?: boolean }).readOnly)}
             />
+            {localizedState?.isMissing && localization && (
+              <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                <span>
+                  {translate("content.editor.localization.missing", { locale: localization.activeLocale.toUpperCase() })}
+                </span>
+                {localizedState.copyFromLocale && (
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs"
+                    onClick={() => localization.onCopyFromDefault(branch.alias)}
+                  >
+                    {translate("content.editor.localization.copyFromDefault", {
+                      locale: localizedState.copyFromLocale.toUpperCase(),
+                    })}
+                  </Button>
+                )}
+              </div>
+            )}
             {fieldErrors[branch.alias] && (
               <p className="text-xs text-destructive">{fieldErrors[branch.alias]}</p>
             )}
@@ -140,6 +173,8 @@ export interface SectionRendererProps {
   /** Callback fired when any field changes. */
   readonly onChange: (alias: string, value: unknown) => void
   readonly isReadOnly?: boolean
+  /** Content-localization context, forwarded to each field. */
+  readonly localization?: RendererLocalization
 }
 
 /**
@@ -154,6 +189,7 @@ function SectionRenderer({
   fieldErrors,
   onChange,
   isReadOnly,
+  localization,
 }: SectionRendererProps) {
   const [isCollapsed, setIsCollapsed] = React.useState(false)
   const showBorder = !section.hideBorder && !isLast
@@ -193,6 +229,7 @@ function SectionRenderer({
               fieldErrors={fieldErrors}
               onChange={onChange}
               isReadOnly={isReadOnly}
+              localization={localization}
             />
           ))}
         </div>
@@ -214,6 +251,8 @@ export interface TabSectionsProps {
   /** Callback fired when any field changes. */
   readonly onChange: (alias: string, value: unknown) => void
   readonly isReadOnly?: boolean
+  /** Content-localization context, forwarded to each field. */
+  readonly localization?: RendererLocalization
 }
 
 /**
@@ -227,6 +266,7 @@ export function TabSections({
   fieldErrors,
   onChange,
   isReadOnly,
+  localization,
 }: TabSectionsProps) {
   const { t: translate } = useTranslation()
 
@@ -246,6 +286,7 @@ export function TabSections({
           fieldErrors={fieldErrors}
           onChange={onChange}
           isReadOnly={isReadOnly}
+          localization={localization}
         />
       ))}
     </div>

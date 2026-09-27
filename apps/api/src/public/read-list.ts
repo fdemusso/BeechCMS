@@ -9,6 +9,7 @@ import { expandRelations } from './relation-include'
 import { resolveRelationSubqueries } from './relation-subquery'
 import { buildPublicListMeta } from './response-builder'
 import { parsePublicFilter, parsePublicPagination, parseLatestCount, toEngineFilters } from './query-builder'
+import { selectLocaleOf, type PublicLanguage } from './public-language'
 
 type ReadListInput = {
   seed: Seed
@@ -17,10 +18,11 @@ type ReadListInput = {
   query: Record<string, string | undefined>
   publishedOnly: boolean
   getSeed: (slug: string) => Seed | null
+  language?: PublicLanguage
 }
 
 export async function readListEntries(input: ReadListInput) {
-  const { seed, seedSlug, repository, query, publishedOnly, getSeed } = input
+  const { seed, seedSlug, repository, query, publishedOnly, getSeed, language } = input
 
   const parsedFilter = parsePublicFilter(query.filter)
   const allMode = cleanStr(query.all)?.toLowerCase() === 'true'
@@ -29,7 +31,8 @@ export async function readListEntries(input: ReadListInput) {
   const pagination = allMode ? { page: 1, limit: 100 } : parsePublicPagination(query)
   const offset = (pagination.page - 1) * pagination.limit
   const search = cleanStr(query.search) ?? ''
-  const resolved = await resolveRelationSubqueries(parsedFilter, seed, repository, getSeed, publishedOnly)
+  const locale = selectLocaleOf(language)
+  const resolved = await resolveRelationSubqueries(parsedFilter, seed, repository, getSeed, publishedOnly, locale)
   if (resolved.empty) {
     const emptyMeta = latestMode
       ? { total: 0, returned: 0, seed: seedSlug }
@@ -50,10 +53,11 @@ export async function readListEntries(input: ReadListInput) {
       offset: latestMode ? 0 : offset,
     },
     orderBy: latestMode ? { column: 'created_at', dir: 'DESC' } : { column: sortBy, dir: sortDir },
+    ...(locale ? { locale } : {}),
   })
 
-  const data = items.map(item => toFlatPublicEntry(item, seed, query.fields))
-  await expandRelations(data, query.include, seed, repository, getSeed, items)
+  const data = items.map(item => toFlatPublicEntry(item, seed, query.fields, language))
+  await expandRelations(data, query.include, seed, repository, getSeed, items, language)
 
   if (latestMode) {
     return { data, meta: { total, returned: data.length, seed: seedSlug } }

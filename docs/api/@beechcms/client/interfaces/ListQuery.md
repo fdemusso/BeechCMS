@@ -32,6 +32,14 @@
 
 ***
 
+### lang?
+
+> `optional` **lang?**: `string`
+
+Response language (`?lang`). The API falls back to Accept-Language, then the project default.
+
+***
+
 ### latest?
 
 > `optional` **latest?**: `number`

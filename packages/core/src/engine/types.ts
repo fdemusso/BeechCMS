@@ -10,6 +10,7 @@
 
 import type { FileAccept } from '../media/file-types.js'
 import type { DashboardView } from '../dashboard-layout/view-authorization.js'
+import type { LocaleConfig } from './localization.js'
 
 /** All supported field value types for a Branch. */
 export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation' | 'repeater'
@@ -138,6 +139,15 @@ export interface Branch {
   numberOptions?: NumberFieldOptions
   /** Advanced options for file fields. Ignored if type !== 'file'. */
   fileOptions?: FileFieldOptions
+  /**
+   * Field-level localization. When true, the branch's existing column stores a locale dictionary
+   * (`{"it": "Scarpa", "en": "Shoe"}`) instead of a single value. Metadata-only: toggling it never
+   * emits DDL and never rewrites rows — values written before the toggle stay readable as-is.
+   * Valid only on top-level `text | richtext | json` branches with `plain` storage (not
+   * `confidential` / `restricted`); never on repeater sub-fields. Enforced by seed-validation.ts
+   * (Fatal 17). Default: false.
+   */
+  localized?: boolean
 
   /**
    * Slug of the referenced Seed (without the `content_` prefix).
@@ -313,6 +323,13 @@ export interface FilterGroup {
  */
 export type TrashedMode = 'active' | 'trashed' | 'any'
 
+/** The language a read resolves localized branches to (consumed by `buildSelectQuery`). */
+export interface SelectLocale {
+  /** Locale that filters and ORDER BY compare in. Must match `LOCALE_CODE_RE`; the builder throws otherwise. */
+  readonly code: string
+  readonly config: LocaleConfig
+}
+
 export interface SelectOptions {
   /** Filter groups. Joined by `filterLogic` (default AND); conditions within a group are always ANDed. */
   filters?: FilterGroup[]
@@ -339,6 +356,12 @@ export interface SelectOptions {
    * while keeping the join/where clauses intact for accurate counts.
    */
   isCount?: boolean
+  /**
+   * When set, filters and ORDER BY on localized branches compare the value resolved to `locale.code`
+   * (requested → default → first stored translation → legacy raw value) instead of the stored JSON.
+   * Absent: every column is compared raw, exactly as before localization existed.
+   */
+  locale?: SelectLocale
 }
 
 /** SQL string paired with its ordered parameter bindings, ready for a D1 `.bind(...)` call. */

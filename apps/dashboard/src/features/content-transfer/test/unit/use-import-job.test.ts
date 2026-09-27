@@ -40,12 +40,11 @@ describe("useImportJob", () => {
   it("computes a numeric interval while processing and false once completed", () => {
     renderHook(() => useImportJob("job-1"), { wrapper: makeWrapper() })
 
-    const options = vi.mocked(useQuery).mock.calls[0][0] as {
-      refetchInterval: (query: { state: { data: { state: string } | undefined } }) => number | false
-    }
+    const options = vi.mocked(useQuery).mock.calls[0][0]
+    const refetchInterval = options.refetchInterval as (query: { state: { data: { state: string } | undefined } }) => number | false
 
-    expect(options.refetchInterval({ state: { data: { state: "processing" } } })).toBe(2_000)
-    expect(options.refetchInterval({ state: { data: { state: "completed" } } })).toBe(false)
+    expect(refetchInterval({ state: { data: { state: "processing" } } })).toBe(2_000)
+    expect(refetchInterval({ state: { data: { state: "completed" } } })).toBe(false)
   })
 
   it("surfaces a rejected fetch as an error without retrying", async () => {

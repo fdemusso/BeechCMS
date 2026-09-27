@@ -24,7 +24,7 @@ import { AnalyticsPage } from "@/pages/analytics"
 import { CreateNewPage } from "@/pages/create-new"
 import { ScheduledPage } from "@/pages/scheduled"
 import { FieldsProvider } from "@/components/fields/context"
-import { useSchema } from "@/features/shared"
+import { useLocaleConfig, useSchema } from "@/features/shared"
 import { contentApi } from "@/features/content-management/api/content.api"
 import { CONTENT_QUERY_KEYS } from "@/features/content-management/consts/content.keys"
 import { EntryEditorDialog } from "@/features/entry-editor"
@@ -38,6 +38,7 @@ import "./App.css"
  */
 const fieldsConfig = {
   useSchema,
+  useLocaleConfig,
   fetchById: (slug: string, id: string) => contentApi.fetchById(slug, id),
   searchRelations: (slug: string, params: { search?: string; limit?: number }) =>
     contentApi.fetchList(slug, { ...params, page: 1 }).then((response) => response.items),

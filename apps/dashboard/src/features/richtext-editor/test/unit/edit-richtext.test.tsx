@@ -18,6 +18,7 @@ const mockBranch = {
 
 const mockFieldsConfig: FieldsContextType = {
   useSchema: () => ({ data: [] }) as any,
+  useLocaleConfig: () => undefined,
   fetchById: async () => ({ id: "" }) as any,
   searchRelations: async () => [],
   queryKeys: { detail: () => [], lists: () => [] },

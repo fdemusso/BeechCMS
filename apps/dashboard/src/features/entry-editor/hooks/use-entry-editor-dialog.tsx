@@ -13,7 +13,9 @@ import {
   slugify,
   generateDefaultLayout,
   canEditLayout,
-  type FormLayout
+  isLocalizedBranch,
+  type Branch,
+  type FormLayout,
 } from "@beechcms/core"
 import {
   useContentEntry,
@@ -24,10 +26,24 @@ import {
   useDiscardDraft,
   useDeleteContent,
 } from "@/features/content-management"
-import { useActiveSeed } from "@/features/shared"
+import { useActiveSeed, useLocaleConfig } from "@/features/shared"
 import { useAuth } from "@/lib/auth-context"
 import { Loader as Loader2 } from 'reicon-react'
-import type { RendererBranchMap } from "../renderer/layout-renderer"
+import type { RendererBranchMap, RendererLocalization } from "../renderer/layout-renderer"
+import { LocaleSwitcher } from "../renderer/locale-switcher"
+import {
+  buildLocalizedPatch,
+  findInvalidLocalizedJson,
+  foldFieldErrors,
+  localeCompletion,
+  localeValue,
+  localizedFieldStates,
+  markTouched,
+  projectLocale,
+  withLocaleValue,
+  type ApiFieldError,
+  type TouchedLocales,
+} from "../lib/localized-form"
 import type { SchemaFormCapabilities, SchemaFormViewModel } from "../renderer/schema-form-view-model"
 
 export interface UseEntryEditorDialogProps {
@@ -230,6 +246,21 @@ export function useEntryEditorDialog({
     [seed]
   )
 
+  const seedBranches = React.useMemo<readonly Branch[]>(() => seed?.branches ?? [], [seed])
+  const localizedByAlias = React.useMemo(
+    () => new Map(seedBranches.filter(isLocalizedBranch).map((branch) => [branch.alias, branch])),
+    [seedBranches]
+  )
+  const projectLocaleConfig = useLocaleConfig()
+  // Scoped to the active seed: a seed without localized branches edits exactly as before, even when another seed is localized.
+  const localeConfig = localizedByAlias.size > 0 ? projectLocaleConfig : undefined
+  const isLocaleConfigPending = localizedByAlias.size > 0 && !projectLocaleConfig
+  const [selectedLocale, setSelectedLocale] = React.useState<string | undefined>(undefined)
+  const activeLocale = localeConfig
+    ? (selectedLocale && localeConfig.locales.includes(selectedLocale) ? selectedLocale : localeConfig.defaultLocale)
+    : undefined
+  const [touchedLocales, setTouchedLocales] = React.useState<TouchedLocales>({})
+
   // Build branchById map keyed by branch.id
   const branchById = React.useMemo<RendererBranchMap>(() => {
     if (!seed) return Object.create(null)
@@ -247,9 +278,25 @@ export function useEntryEditorDialog({
   }, [seed])
 
   const handleInputChange = React.useCallback((alias: string, value: unknown) => {
-    setFormData((prev) => ({ ...prev, [alias]: value }))
+    const localizedBranch = localizedByAlias.get(alias)
+    if (localizedBranch && localeConfig && activeLocale) {
+      setFormData((prev) => ({
+        ...prev,
+        [alias]: withLocaleValue(localizedBranch, prev[alias], activeLocale, value, localeConfig),
+      }))
+      setTouchedLocales((prev) => markTouched(prev, alias, activeLocale))
+    } else {
+      setFormData((prev) => ({ ...prev, [alias]: value }))
+    }
     setIsDirty(true)
-  }, [])
+  }, [localizedByAlias, localeConfig, activeLocale])
+
+  /** "Copy from default": writes the default-locale value into the active locale (a touched edit like any other). */
+  const handleCopyFromDefault = React.useCallback((alias: string) => {
+    const localizedBranch = localizedByAlias.get(alias)
+    if (!localizedBranch || !localeConfig) return
+    handleInputChange(alias, localeValue(localizedBranch, formData[alias], localeConfig.defaultLocale, localeConfig))
+  }, [localizedByAlias, localeConfig, formData, handleInputChange])
 
   const goBack = React.useCallback(() => {
     if (effectiveDraftContext || (isDraftContext && isCreate)) {
@@ -321,6 +368,7 @@ export function useEntryEditorDialog({
       setStatus(entryData.status ?? "draft")
       setSlug(entryData.slug ?? "")
       setIsDirty(false)
+      setTouchedLocales({})
     }
   }
 
@@ -350,18 +398,20 @@ export function useEntryEditorDialog({
       setStatus(getInitialStatus(defaultValues, isDraftContext))
       setSlug("")
       setSlugTouched(false)
+      setTouchedLocales({})
     }
   }
 
   // Auto-slug from first text field
-  const firstTextAlias = React.useMemo(
-    () => branches.find((b) => b.type === "text")?.alias,
-    [branches]
-  )
+  const firstTextBranch = React.useMemo(() => seedBranches.find((b) => b.type === "text"), [seedBranches])
+  const firstTextAlias = firstTextBranch?.alias
+  const rawFirstTextValue =
+    firstTextAlias && Object.hasOwn(formData, firstTextAlias) ? formData[firstTextAlias] : undefined
+  // Slugs are global, never translated (brief §5): a localized source field feeds the slug from its default locale.
   const firstTextValue =
-    firstTextAlias && Object.hasOwn(formData, firstTextAlias)
-      ? formData[firstTextAlias]
-      : undefined
+    firstTextBranch && localeConfig && localizedByAlias.has(firstTextBranch.alias)
+      ? localeValue(firstTextBranch, rawFirstTextValue, localeConfig.defaultLocale, localeConfig)
+      : rawFirstTextValue
 
   React.useEffect(() => {
     if (!isCreate || slugTouched || firstTextAlias == null) return
@@ -383,19 +433,47 @@ export function useEntryEditorDialog({
     }
   }
 
+  /** Non-localized branches keep today's payload rules; localized ones send only the touched locales (patch semantics). */
+  const buildPayload = (): Record<string, unknown> => {
+    const payload = prepareSubmissionPayload({
+      branches: localeConfig ? branches.filter((branch) => !localizedByAlias.has(branch.alias)) : branches,
+      formData,
+      slug,
+      status,
+    })
+    return localeConfig
+      ? { ...payload, ...buildLocalizedPatch(seedBranches, formData, touchedLocales, localeConfig) }
+      : payload
+  }
+
+  /** Toasts and returns true when a json field, or one touched json translation, holds invalid JSON. */
+  const hasInvalidJson = (): boolean => {
+    const jsonValidation = validateEntryJsonFields(branches, formData)
+    if (!jsonValidation.isValid) {
+      toast.error(t("content.editor.jsonError", { field: jsonValidation.errorFieldLabel }))
+      return true
+    }
+    const invalidTranslation = localeConfig
+      ? findInvalidLocalizedJson(seedBranches, formData, touchedLocales, localeConfig)
+      : null
+    if (invalidTranslation) {
+      toast.error(t("content.editor.jsonError", {
+        field: `${invalidTranslation.label} (${invalidTranslation.locale.toUpperCase()})`,
+      }))
+      return true
+    }
+    return false
+  }
+
   const handleSaveLive = async () => {
     if (!schemaSlug || !seed) return
     if (!isCreate && !entryId) return
 
-    const jsonValidation = validateEntryJsonFields(branches, formData)
-    if (!jsonValidation.isValid) {
-      toast.error(t("content.editor.jsonError", { field: jsonValidation.errorFieldLabel }))
-      return
-    }
+    if (hasInvalidJson()) return
 
     setFieldErrors({})
     try {
-      const payload = prepareSubmissionPayload({ branches, formData, slug, status })
+      const payload = buildPayload()
       const result = await saveContent({ slug: schemaSlug, id: isCreate ? undefined : entryId, data: payload })
       toast.success(isCreate ? t("content.editor.createdSuccess") : t("content.editor.savedSuccess"))
       setIsDirty(false)
@@ -411,7 +489,7 @@ export function useEntryEditorDialog({
         onClose()
       }
     } catch (err) {
-      type ApiValidationError = { field: string; message: string }
+      type ApiValidationError = ApiFieldError
       type ApiErrorBody = { error?: string; status?: number; errors?: ApiValidationError[] }
       const ax = err as AxiosError<ApiErrorBody>
       if (ax.response?.status === 409) {
@@ -421,9 +499,7 @@ export function useEntryEditorDialog({
       if (ax.response?.status === 400) {
         const errors = ax.response.data?.errors
         if (errors && errors.length > 0) {
-          const mapped: Record<string, string> = {}
-          errors.forEach((errItem) => { mapped[errItem.field] = errItem.message })
-          setFieldErrors(mapped)
+          setFieldErrors(foldFieldErrors(errors, seedBranches))
           toast.error(t("content.editor.validationError", { count: errors.length }))
           return
         }
@@ -435,15 +511,11 @@ export function useEntryEditorDialog({
   const handleSaveDraftOnly = async () => {
     if (!schemaSlug || !entryId || !seed) return
 
-    const jsonValidation = validateEntryJsonFields(branches, formData)
-    if (!jsonValidation.isValid) {
-      toast.error(t("content.editor.jsonError", { field: jsonValidation.errorFieldLabel }))
-      return
-    }
+    if (hasInvalidJson()) return
 
     setFieldErrors({})
     try {
-      const fullPayload = prepareSubmissionPayload({ branches, formData, slug, status })
+      const fullPayload = buildPayload()
       const draftPayload = { ...fullPayload }
       delete draftPayload.slug
       delete draftPayload.status
@@ -497,6 +569,33 @@ export function useEntryEditorDialog({
     saveLabel = t("content.editor.save")
   }
 
+  const fieldStates = React.useMemo(
+    () => (localeConfig && activeLocale ? localizedFieldStates(seedBranches, formData, activeLocale, localeConfig) : {}),
+    [seedBranches, formData, activeLocale, localeConfig]
+  )
+  const completion = React.useMemo(
+    () => (localeConfig ? localeCompletion(seedBranches, formData, localeConfig) : {}),
+    [seedBranches, formData, localeConfig]
+  )
+  const viewFormData = React.useMemo(
+    () => (localeConfig && activeLocale ? projectLocale(seedBranches, formData, activeLocale, localeConfig) : formData),
+    [seedBranches, formData, activeLocale, localeConfig]
+  )
+  // With one content language, dictionaries are still edited (under the default locale), but there is nothing to switch.
+  const isMultilingual = localeConfig !== undefined && localeConfig.locales.length > 1
+  const localization: RendererLocalization | undefined = isMultilingual && activeLocale
+    ? { activeLocale, fields: fieldStates, onCopyFromDefault: handleCopyFromDefault }
+    : undefined
+  const headerSlot = isMultilingual && localeConfig && activeLocale ? (
+    <LocaleSwitcher
+      locales={localeConfig.locales}
+      defaultLocale={localeConfig.defaultLocale}
+      activeLocale={activeLocale}
+      completion={completion}
+      onLocaleChange={setSelectedLocale}
+    />
+  ) : undefined
+
   const capabilities: SchemaFormCapabilities = {
     drafts: true,
     backrefs: true,
@@ -511,7 +610,7 @@ export function useEntryEditorDialog({
     isCreate,
     isDraftContext,
     seed,
-    isSeedLoading,
+    isSeedLoading: isSeedLoading || isLocaleConfigPending,
     isLoadingEntry,
     errorEntry,
     notFoundLabel,
@@ -522,7 +621,7 @@ export function useEntryEditorDialog({
     isDiscarding,
     isDeleting,
     isPublishing,
-    formData,
+    formData: viewFormData,
     fieldErrors,
     hasRestrictedRefs,
     setHasRestrictedRefs,
@@ -549,5 +648,7 @@ export function useEntryEditorDialog({
     entryId,
     isReadOnly,
     setIsReadOnly,
+    headerSlot,
+    localization,
   }
 }

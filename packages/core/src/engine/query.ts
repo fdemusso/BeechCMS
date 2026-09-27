@@ -7,10 +7,70 @@ import type {
   FilterType,
   FilterCondition,
   SelectOptions,
+  SelectLocale,
   ParameterizedQuery,
 } from './types.js';
 import { tableName, ftsTableName, isValidColumn, indexableSearchBranches, SYSTEM_COLUMNS } from './ddl.js';
 import { resolveClassification } from './policies.js';
+import { isLocaleCode, isLocalizedBranch } from './localization.js';
+
+/** SQLite GLOB twins of `LOCALE_CODE_RE` (`it`, `ast`, `pt-BR`, `es-419`, …). Keep both in sync. */
+const LOCALE_KEY_GLOBS = [
+  '[a-z][a-z]',
+  '[a-z][a-z][a-z]',
+  '[a-z][a-z]-[A-Z][A-Z]',
+  '[a-z][a-z][a-z]-[A-Z][A-Z]',
+  '[a-z][a-z]-[0-9][0-9][0-9]',
+  '[a-z][a-z][a-z]-[0-9][0-9][0-9]',
+]
+
+/** A locale code checked for inlining into SQL. The grammar check IS the injection guard — never skip it. */
+function inlineLocale(code: string): string {
+  if (!isLocaleCode(code)) throw new TypeError(`Invalid locale code '${code}'`)
+  return code
+}
+
+/**
+ * SQL twin of `resolveLocalizedValue`: the value of a localized column in `locale.code`. Self-contained
+ * (no bindings), because `buildFilterCondition` may interpolate a column more than once per clause.
+ * The nested CASE is deliberate: SQLite does not guarantee AND short-circuits, and `json_type` /
+ * `json_each` raise on malformed JSON (a legacy plain-text value).
+ * Dictionary detection mirrors `isStoredLocaleDictionary`: a non-empty object whose keys all match the
+ * locale grammar, and — for `json` only — at least one registered locale key.
+ */
+function localizedColumnSql(column: string, branch: Branch, locale: SelectLocale): string {
+  const keyIsLocale = LOCALE_KEY_GLOBS.map((glob) => `key GLOB '${glob}'`).join(' OR ')
+  const conditions = [
+    `json_type(${column}) = 'object'`,
+    `EXISTS (SELECT 1 FROM json_each(${column}))`,
+    `NOT EXISTS (SELECT 1 FROM json_each(${column}) WHERE NOT (${keyIsLocale}))`,
+  ]
+  if (branch.type === 'json') {
+    const registered = locale.config.locales.map((code) => `'${inlineLocale(code)}'`).join(', ')
+    conditions.push(`EXISTS (SELECT 1 FROM json_each(${column}) WHERE key IN (${registered}))`)
+  }
+  const path = (code: string) => `'$."${inlineLocale(code)}"'`
+  const resolved = `COALESCE(` +
+    `NULLIF(json_extract(${column}, ${path(locale.code)}), ''), ` +
+    `NULLIF(json_extract(${column}, ${path(locale.config.defaultLocale)}), ''), ` +
+    `(SELECT value FROM json_each(${column}) WHERE value IS NOT NULL AND value != '' LIMIT 1))`
+  return `(CASE WHEN json_valid(${column}) THEN ` +
+    `(CASE WHEN ${conditions.join(' AND ')} THEN ${resolved} ELSE ${column} END) ` +
+    `ELSE ${column} END)`
+}
+
+/**
+ * The SQL reference for `alias` in WHERE / ORDER BY: table-qualified system column, localized expression
+ * when `locale` is set, bare alias otherwise (unchanged pre-localization behaviour).
+ */
+function columnSql(seed: Seed, table: string, alias: string, locale: SelectLocale | undefined): string {
+  if (SYSTEM_COLUMNS.has(alias)) return `${table}.${alias}`
+  const branch = seed.branches.find((b) => b.alias === alias)
+  if (locale && branch && isLocalizedBranch(branch)) {
+    return localizedColumnSql(`${table}.${alias}`, branch, locale)
+  }
+  return alias
+}
 
 
 /**
@@ -80,9 +140,7 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
     const branch = seed.branches.find(b => b.alias === group.column)
     const isEncrypted = branch ? resolveClassification(branch).storage === 'encrypt' : false
 
-    const col = SYSTEM_COLUMNS.has(group.column)
-      ? `${table}.${group.column}`
-      : group.column
+    const col = columnSql(seed, table, group.column, options.locale)
 
     const condClauses: string[] = []
     for (const cond of group.conditions) {
@@ -130,9 +188,7 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
       sql += kanbanOrderClause
     } else if (orderBy && isValidColumn(seed, orderBy.column)) {
       const dir = orderBy.dir === 'DESC' ? 'DESC' : 'ASC'
-      const col = SYSTEM_COLUMNS.has(orderBy.column)
-        ? `${table}.${orderBy.column}`
-        : orderBy.column
+      const col = columnSql(seed, table, orderBy.column, options.locale)
       sql += ` ORDER BY ${col} ${dir}`
     } else {
       sql += ` ORDER BY ${table}.created_at DESC`

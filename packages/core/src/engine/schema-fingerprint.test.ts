@@ -83,6 +83,16 @@ describe('projectSchemaContract', () => {
       }],
     })
   })
+
+  // Regression guard: published clients' fingerprints must not move.
+  it('omits localized from the projection when false or absent', () => {
+    const absent = projectSchemaContract([baseSeed({ branches: [textBranch()] })])
+    const explicitFalse = projectSchemaContract([baseSeed({ branches: [textBranch({ localized: false })] })])
+
+    expect(explicitFalse).toEqual(absent)
+    expect(absent.seeds[0].branches[0]).not.toHaveProperty('localized')
+    expect(explicitFalse.seeds[0].branches[0]).not.toHaveProperty('localized')
+  })
 })
 
 describe('computeSchemaFingerprint', () => {
@@ -132,5 +142,12 @@ describe('computeSchemaFingerprint', () => {
     const twoSeeds = await computeSchemaFingerprint([baseSeed(), baseSeed({ slug: 'authors' })])
 
     expect(twoSeeds).not.toBe(oneSeed)
+  })
+
+  it('changes the fingerprint when a branch becomes localized', async () => {
+    const baseline = await computeSchemaFingerprint([baseSeed()])
+    const localized = await computeSchemaFingerprint([baseSeed({ branches: [textBranch({ localized: true })] })])
+
+    expect(localized).not.toBe(baseline)
   })
 })

@@ -11,6 +11,9 @@ import {
   RelationTargetNotFoundError,
   DraftConflictError,
   ActorContext,
+  localizedAliasesIn,
+  mergeLocalizedFields,
+  resolveLocalizedFields,
 } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
 import { cleanStr } from '../../shared/utils/query-utils'
@@ -18,6 +21,8 @@ import { applyVisibility } from '../../shared/policies/apply-policies'
 import { AppEnv } from '../../types'
 import { CONTENT_ERRORS } from '../content/constants'
 import { draftGuard } from './draft.middleware'
+import { loadLocaleConfig } from '../../shared/localization/locale-config'
+import { loadDisplayLocaleConfig, resolveDisplayName } from '../../shared/localization/display-name'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { filterSeedsByPermission } from '../../shared/rbac/scoped-projection'
 
@@ -37,7 +42,13 @@ draftApp.get('/drafts', async (context) => {
 
   const repository = context.get('repository')
   const drafts = await repository.findPendingDrafts(seeds)
-  return context.json(drafts)
+  const localeConfig = await loadDisplayLocaleConfig(context.get('siteSettingsRepository'), seeds)
+  if (!localeConfig) return context.json(drafts)
+  const seedsBySlug = new Map(seeds.map((seed) => [seed.slug, seed]))
+  return context.json(drafts.map((draft) => {
+    const seed = seedsBySlug.get(draft.seedSlug)
+    return seed ? { ...draft, title: resolveDisplayName(seed, draft.title, localeConfig) } : draft
+  }))
 })
 
 function normalizeBody(raw: unknown): Record<string, unknown> {
@@ -98,12 +109,14 @@ draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
     })
   }
 
+  const localeConfig = await loadLocaleConfig(context.get('siteSettingsRepository'), seed)
   const validation = validateAndSanitizeSeedPayload(seed, body, {
     operation: 'update',
     allowNull: true,
     requireAtLeastOneValidField: true,
     enforceRequiredFields: false,
     idGenerator: context.get('idGenerator'),
+    localeConfig,
   })
   
   if (validation.dangerousFields.length > 0) {
@@ -126,9 +139,17 @@ draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
   }
 
   const repository = context.get('repository')
-  await repository.saveDraft(seed, id, validation.data)
+  let draftData = validation.data
+  if (localeConfig && localizedAliasesIn(seed, validation.data).length > 0) {
+    // publishDraft copies each touched column over the live row, so the draft must hold the complete
+    // dictionary: base it on the pending draft value when this field was already drafted, else on live.
+    const [pending, live] = await Promise.all([repository.getDraft(seed, id), repository.findById(seed, id)])
+    draftData = mergeLocalizedFields(seed, { ...live, ...(pending ?? {}) }, validation.data, localeConfig)
+  }
+  await repository.saveDraft(seed, id, draftData)
 
-  const displayTitle = cleanStr(validation.data[seed.displayNameAlias]) ?? id
+  const displayData = resolveLocalizedFields(seed, draftData, localeConfig)
+  const displayTitle = cleanStr(displayData[seed.displayNameAlias]) ?? id
   logDraftActivity(context, id, slug, displayTitle, 'draft saved')
 
   return context.json({ success: true })

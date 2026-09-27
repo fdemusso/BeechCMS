@@ -9,8 +9,10 @@ import {
   LineReader,
   SlugConflictError,
   fromCsvCells,
+  mergeLocalizedFields,
   parseNdjsonLine,
   resolveClassification,
+  resolveLocalizedFields,
   slugify,
   toImportPayload,
   validateAndSanitizeSeedPayload,
@@ -20,6 +22,8 @@ import {
   type Seed,
 } from '@beechcms/core'
 import { D1SeedRepository } from '../../../shared/db/repositories/seed.repository.d1'
+import { D1SiteSettingsRepository } from '../../../shared/db/repositories/site-settings.repository.d1'
+import { loadLocaleConfig } from '../../../shared/localization/locale-config'
 import {
   CONTENT_IMPORT_CHUNK_JOB,
   IMPORT_JOBS_SLUG,
@@ -119,6 +123,8 @@ export const contentImportChunkJob: JobHandler<ImportChunkPayload> = async (payl
     return
   }
 
+  const localeConfig = await loadLocaleConfig(new D1SiteSettingsRepository(db), targetSeed)
+
   const object = await context.bucket.get(job.objectKey)
   if (!object) {
     await failBeforeLoop(context, jobSeed, job, {
@@ -157,6 +163,7 @@ export const contentImportChunkJob: JobHandler<ImportChunkPayload> = async (payl
         requireAtLeastOneValidField: true,
         enforceRequiredFields: true,
         idGenerator: context.idGenerator,
+        localeConfig,
       })
 
       if (validation.dangerousFields.length > 0) {
@@ -172,14 +179,17 @@ export const contentImportChunkJob: JobHandler<ImportChunkPayload> = async (payl
         return
       }
 
+      const localizedData = mergeLocalizedFields(targetSeed, null, validation.data, localeConfig)
+      const displayData = resolveLocalizedFields(targetSeed, localizedData, localeConfig)
+
       const id = context.idGenerator.uuid()
       const entrySlug = rawSlug
         ? slugify(rawSlug)
-        : slugify(String(validation.data[targetSeed.displayNameAlias] ?? id))
+        : slugify(String(displayData[targetSeed.displayNameAlias] ?? id))
 
       // toImportPayload already drops id/created_at/updated_at/deleted_at (brief §2), so this
       // is always an insert — never an overwrite of an existing entry.
-      await context.repository.create(targetSeed, id, entrySlug, status ?? 'draft', validation.data)
+      await context.repository.create(targetSeed, id, entrySlug, status ?? 'draft', localizedData)
       inserted++
     } catch (error) {
       if (error instanceof SlugConflictError) {

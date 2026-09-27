@@ -1,70 +1,84 @@
 # 1. Feature Definition and Core Value
 
-BeechCMS serve oggi i media caricati su R2 in modo statico tramite `GET /api/media/:key`. Autori che caricano immagini non compresse ad alta risoluzione (4-8 MB) degradano le Core Web Vitals (LCP) dei siti che consumano il CMS, e gli sviluppatori sono costretti a delegare la trasformazione a servizi esterni a pagamento (Cloudinary, Imgix), aggiungendo costo, latenza di integrazione e una dipendenza esterna non necessaria.
+BeechCMS non ha oggi alcun supporto nativo alla localizzazione dei contenuti. Chi vuole servire più lingue è costretto a uno dei due compromessi standard del settore: duplicare i campi nello schema (`title_it`, `title_en`, ...), degradando DX e usabilità del pannello, oppure duplicare l'intero record per lingua, frammentando relazioni, inventario e analytics.
 
-La feature estende l'endpoint pubblico esistente `GET /api/media/:key` in un layer di media-delivery con trasformazione edge-native (ridimensionamento, conversione di formato, compressione), cacheabile in modo canonico. Il valore indispensabile è eliminare la necessità di un servizio esterno per il caso d'uso più comune (resize/conversione di immagini raster pubbliche) senza introdurre superfici di attacco nuove: ogni trasformazione possibile è pre-registrata in un catalogo finito di preset, non generata da parametri numerici liberi. Questo rende il costo di storage/cache/compute della feature strutturalmente limitato e prevedibile, a differenza di un resize-endpoint a parametri arbitrari.
+La feature introduce la **Field-Level Localization**: i campi testuali/contenutistici abilitati (`text`, `richtext`, `json`) memorizzano un dizionario JSON compatto (`{"it": "Scarpa", "en": "Shoe"}`) nella stessa colonna `TEXT` già esistente, preservando id, relazioni FK e metriche intatte — zero tabelle ponte, zero record duplicati.
+
+Il valore indispensabile non è solo tecnico ma di **modello di controllo**: BeechCMS possiede già un motore di editing runtime dello schema (Seed/Branch editabili da Dashboard senza redeploy, senza migrazione). Questa feature attiva la i18n sullo stesso motore, come un'opzione di campo tra le altre — il che significa che **è chi compra/gestisce il sito, non lo sviluppatore, ad attivare la localizzazione su un campo**, in qualsiasi momento, senza toccare codice. Attivare/disattivare `localized` su un Branch è un'operazione di solo metadato: nessuna DDL, nessuna migrazione, nessun backfill, perché il tipo di colonna fisica non cambia mai.
 
 # 2. Domain Boundaries and Business Rules
 
 **Entità logiche coinvolte:**
-- **Media Object (R2/S3)**: il binario sorgente, identificato da una `key`. Esiste indipendentemente da qualsiasi content item che lo referenzi.
-- **Preset di Trasformazione**: entità di configurazione (non un content item), un catalogo finito e nominato di trasformazioni valide. Due famiglie: *crop fisso* (`w`×`h`×`fit=cover`) e *scala responsive* (`w` fisso, `fit=scale-down`, `h` derivato).
-- **Variante Derivata**: il risultato cacheable di (Media Object + Preset + format + quality), mai generata da combinazioni libere di parametri.
+- **Locale Configuration** (livello progetto): `locales: string[]` + `defaultLocale: string`, persistiti come chiavi nel `site_settings` esistente (key-value store), con default sicuro (`locales: [defaultLanguage]`) che rende la feature invisibile a un progetto mono-lingua.
+- **Branch localizzabile**: proprietà opzionale `localized?: boolean` su un Branch di tipo `text | richtext | json`. Nessuna entità "seed localizzato" esiste: un Seed è localizzato solo per derivazione (possiede ≥1 branch con `localized: true`).
+- **Valore Localizzato**: il dizionario JSON stesso, sempre memorizzato nella colonna nativa del branch, mai in una tabella separata.
 
-**Confine architetturale con il sistema di autorizzazione esistente:** BeechCMS ha già un sistema di classificazione a 4 livelli (`DataClassification`: `public | internal | confidential | restricted`, risolto da `resolveClassification()` in `packages/core/src/engine/policies.ts`), ma questo governa la visibilità dei **campi di un content entry**, non i singoli oggetti binari in R2. Il controllo d'accesso sui media segue un binario separato e ownership-based, esposto da `GET /api/upload/download-url/:key` (richiede ruolo `admin` o `uploaded_by === userId`, presigned URL con TTL 900s). Questa feature **non tocca e non estende** quel binario: `GET /api/media/:key` resta, per design, pubblico e non autenticato, con cache `immutable` a livello edge. La trasformazione media si applica esclusivamente al binario pubblico; qualunque esigenza di trasformare asset privati/ownership-gated è un dominio distinto, fuori da questa feature.
+**Confine architetturale con il motore Seed/Branch runtime (già esistente):** questa feature **non introduce una nuova superficie di controllo schema** — riusa quella già presente per la modifica runtime di content type e campi. Il toggle "Localizzato" è un'opzione di branch tra le altre (stesso livello di `numberOptions`, `fileOptions`), non un sotto-sistema separato.
 
-**Regola di dominio non negoziabile:** nessun parametro di trasformazione (`w`, `h`, `quality`) può accettare un valore numerico libero fornito dal client. Ogni richiesta di trasformazione deve risolvere a un nome di preset pre-registrato nel catalogo attivo (default imbustato + estensioni via env var). Questa regola esiste per eliminare — non limitare — la cardinalità delle varianti derivate, che altrimenti costituirebbe una superficie di amplificazione di costo (compute Workers + storage cache) sfruttabile da un attaccante non autenticato, dato che l'endpoint è pubblico per design.
+**Confine con il sistema di classificazione dati (4 livelli):** un Branch con `localized: true` **non può** avere una classificazione che comporta storage cifrato o hashato (`confidential`/`restricted`). Il valore memorizzato per un campo del genere è un blob cifrato o un digest, non un dizionario JSON leggibile: applicare l'estrazione per-lingua a un valore del genere non ha senso semantico e romperebbe la decifratura. Questa combinazione deve essere **rifiutata esplicitamente in validazione**, non ignorata silenziosamente.
+
+**Confine con filtri, ordinamento e ricerca full-text:** un campo localizzato resta filtrabile, ordinabile e ricercabile, ma sempre **attraverso la lingua attiva della richiesta**, mai contro il JSON grezzo. L'indicizzazione full-text copre simultaneamente tutti i valori di tutte le lingue presenti nel dizionario, indipendentemente da quante lingue sono registrate nella configurazione di progetto — aggiungere o rimuovere una lingua da `locales` non richiede mai reindicizzazione.
+
+**Regola di dominio non negoziabile — opt-in a tre livelli indipendenti:**
+1. Livello progetto: se `locales` non è configurato, la feature è totalmente inattiva.
+2. Livello Seed: nessun flag seed-wide; un Seed può avere un mix arbitrario di branch localizzati e non.
+3. Livello Branch: ogni branch attiva la localizzazione individualmente; default `false`.
+
+**Regola di dominio non negoziabile — nessuna perdita di dati:** rimuovere una lingua da `locales` non cancella mai le traduzioni già scritte per quella lingua; restano come chiavi orfane nel dizionario finché uno strumento esplicito di pulizia (fuori scope v1) non viene invocato. Coerente con l'invariante "additive-only, no data loss" che già governa ogni altra modifica di schema a runtime in BeechCMS.
 
 # 3. Primary Requirements (User Stories)
 
-* AS A frontend developer I WANT to request a pre-registered crop preset (es. `thumbnail`, `card`, `og-image`, `hero`, `avatar`) via query string su `GET /api/media/:key` SO THAT ottengo una variante ottimizzata a dimensioni fisse senza gestire io stesso il resize o pagare un servizio esterno.
+* AS A site owner non tecnico I WANT attivare la localizzazione su un campo di contenuto direttamente dal Seed Builder nella Dashboard SO THAT posso offrire contenuti multilingua senza assumere uno sviluppatore o attendere un deploy.
 
-* AS A frontend developer I WANT to request a pre-registered "scala responsive" preset (es. `w-640`, `w-1920`, `w-3840`) SO THAT posso costruire layout responsive (srcset) senza specificare altezze o parametri liberi, lasciando che l'aspect ratio nativo dell'asset sia preservato.
+* AS A content editor I WANT un unico selettore di lingua nell'header dell'Entry Editor che aggiorna contestualmente tutti i campi localizzati SO THAT non devo cercare tab di lingua separati per ogni campo mentre scrivo.
 
-* AS AN unauthenticated site visitor I WANT che l'immagine trasformata richiesta venga servita con header di cache aggressivi e deterministici (`Cache-Control: immutable`, `ETag` stabile) SO THAT il mio browser e la CDN evitano richieste ripetute per lo stesso asset+preset.
+* AS A content editor I WANT vedere quali campi non sono ancora tradotti nella lingua attiva, con un'azione rapida "Copia dal valore predefinito" SO THAT posso individuare e colmare le lacune di traduzione senza indovinare.
 
-* AS A platform operator I WANT che ogni richiesta con parametri di trasformazione non riconosciuti (preset inesistente, asset non-raster, combinazione non valida) venga rifiutata immediatamente con `400 Bad Request` SO THAT il sistema non spreca cicli di calcolo né genera varianti di cache indesiderate.
+* AS A frontend developer I WANT che le richieste pubbliche a `apps/api` risolvano automaticamente la lingua (parametro `?lang`, header `Accept-Language`, o default di progetto) SO THAT ricevo un payload piatto e pronto al rendering senza fare parsing di alcun dizionario lato client.
 
-* AS A BeechCMS core maintainer I WANT che il catalogo dei preset e il ceiling massimo di dimensione abbiano un default sicuro imbustato nel core, sovrascrivibile via env var SO THAT ogni progetto ottiene protezione anti-DoS out-of-the-box, con la possibilità di personalizzare il catalogo per esigenze specifiche.
+* AS A frontend developer I WANT un metodo `.lang(code)` sul query builder dell'SDK tipizzato SO THAT posso richiedere una lingua specifica in modo dichiarativo senza costruire manualmente la query string.
 
-* AS A frontend developer I WANT una utility pura (`media(keyOrUrl, { preset, format?, quality? })`) per generare l'URL canonico di una variante SO THAT non devo costruire a mano query string né conoscere le regole di canonicalizzazione/ordinamento dei parametri.
+* AS AN unauthenticated site visitor I WANT che la ricerca full-text trovi contenuti indipendentemente dalla lingua in cui ho digitato la query SO THAT la ricerca non esclude silenziosamente contenuti tradotti.
 
-* AS A frontend developer I WANT una utility pura (`mediaSrcSet(keyOrUrl, presetNames[], options)`) che accetti solo nomi di preset "a scala" SO THAT posso generare un attributo `srcset` responsive standard restando comunque dentro il catalogo whitelisted, senza reintrodurre parametri liberi.
+* AS A BeechCMS core maintainer I WANT che attivare/disattivare la localizzazione su un campo sia un'operazione di solo metadato, senza migrazione né riscrittura dati SO THAT la feature non comprometta mai le garanzie di DDL additiva già offerte dal motore Seed runtime.
+
+* AS A platform operator I WANT che rimuovere una lingua dall'elenco del progetto non cancelli o corrompa mai le traduzioni già salvate SO THAT un errore di configurazione non possa mai causare perdita silenziosa di dati.
 
 # 4. Secondary Requirements and Logical Constraints
 
-**Vincoli sul catalogo preset:**
-- Il catalogo di default include preset a crop fisso (`thumbnail` 200×200, `avatar` 128×128, `card` 400×300, `og-image` 1200×630, `hero` 1920×800, tutti `fit=cover`) e preset a scala (`w-320` … `w-5120`, `fit=scale-down`, passo standard fino a `5120px` per coprire pannelli ultrawide 32:9 nativi).
-- Il catalogo è sovrascrivibile/estendibile via env var; se la env var è assente, si applica interamente il default sopra descritto. Va documentato con un esempio concreto nel file env di riferimento.
-- Un nome di preset non presente nel catalogo attivo produce sempre `400 Bad Request`, mai un fallback silenzioso a un preset simile.
+**Vincoli sui tipi di campo:**
+- `localized` è valido esclusivamente su branch `text`, `richtext`, `json`. Su qualsiasi altro tipo (`number`, `boolean`, `date`, `file`, `tags`, `relation`, `repeater` — inclusi i sub-branch di un repeater) la validazione dello schema **rifiuta** esplicitamente la combinazione, non la ignora silenziosamente.
+- `localized: true` è incompatibile con una classificazione che comporta storage `encrypt` o `hash` (branch `confidential`/`restricted`); rifiutato in validazione allo stesso modo.
+- Per `json`, la localizzazione è **whole-value swap** al livello top (`{"it": {...}, "en": {...}}`): nessuna traduzione annidata dentro la struttura. Traduzione parziale di sotto-chiavi è esplicitamente fuori scope.
 
-**Vincolo anti-DoS sull'asse derivato (edge case emerso in sparring):** nei preset "a scala", l'altezza è sempre derivata dall'aspect ratio nativo dell'asset sorgente, mai fornita dal client. Un asset con aspect ratio patologico (es. screenshot estremamente verticale) potrebbe generare un'altezza derivata enorme anche a partire da una `w` whitelisted, vanificando la protezione. L'altezza derivata deve quindi essere clampata al ceiling globale di dimensione massima (default `5120px` per lato); se il calcolo la supera, la richiesta è rifiutata con `400 Bad Request`, non troncata silenziosamente.
+**Normalizzazione e fallback:**
+- Un payload che scrive una stringa semplice su un campo localizzato viene automaticamente incapsulato sotto `defaultLocale`. Stringhe vuote e chiavi di lingua non registrate vengono ripulite in scrittura.
+- In lettura, la risoluzione segue sempre la catena: valore nella lingua richiesta → valore in `defaultLocale` → valore grezzo pre-esistente (per contenuti scritti prima che il campo diventasse localizzato). Questa catena garantisce che **attivare `localized` su un campo con righe già esistenti non richieda mai un job di backfill**: il fallback gestisce il dato legacy in modo trasparente fin dalla prima query.
+- `requiredOnCreate`/`requiredOnUpdate` su un branch localizzato validano la presenza della sola chiave `defaultLocale`, non di tutte le lingue registrate.
 
-**Vincoli su format e quality:**
-- `format` accetta solo `original | webp | jpeg` (AVIF esplicitamente fuori scope v1). È l'unico parametro non derivato da un preset, ma essendo un enum a 3 valori non reintroduce cardinalità significativa.
-- `quality` non è più un range continuo (`10-100`): è vincolato a un enum fisso `low | medium | high` (default `medium`, ≈82), per la stessa ragione anti-cardinalità applicata a `w`/`h`.
+**API pubblica e negoziazione:**
+- Risoluzione lingua con priorità: parametro `?lang=<code>` → header `Accept-Language` → `defaultLocale` di progetto.
+- Risposta di default sempre "piatta" (zero parsing JSON lato client); modalità `?lang=all` (o `?lang=*`) per ottenere il dizionario completo, riservata a client speciali/backoffice/export.
+- La lingua risolta entra nella chiave di cache edge; header `Vary: Accept-Language` applicato automaticamente.
 
-**Gestione asset non trasformabili:** file non raster (SVG, PDF, video, audio, documenti) richiesti con un preset qualsiasi allegato vengono rifiutati con `400 Bad Request` (`Cannot transform non-raster asset`). Le protezioni stored-XSS già attive sui tipi di contenuto pericolosi restano invariate e si applicano prima di qualunque logica di trasformazione.
+**Dashboard UX:**
+- Selettore di lingua unico nell'header dell'Entry Editor, non tab/controlli duplicati per campo.
+- Indicatore visivo di fallback quando la lingua attiva non ha ancora un valore, con azione rapida di copia dal default.
+- Indicatore sintetico di completamento traduzioni nella scheda dell'articolo.
 
-**Canonicalizzazione e cache:**
-- La combinazione (asset key, preset name, format, quality) produce una chiave di cache canonica e deterministica; l'ordine dei parametri nella query string non deve influenzare la chiave.
-- `ETag` deterministico derivato dall'identità dell'asset sorgente + preset + format + quality.
-- Supporto a richieste condizionali HTTP (`If-None-Match` → `304 Not Modified`).
-- Correzione automatica dell'orientamento EXIF prima della trasformazione, con emissione dell'header `Content-Type` corretto per il formato di output.
-
-**Fallback edge runtime:** negli ambienti privi di supporto nativo alle trasformazioni immagine di Cloudflare Workers (test locali Vitest, Miniflare, self-hosted senza zone add-on), l'endpoint effettua passthrough trasparente dell'asset originale, con header diagnostico `X-Beech-Media-Transform: passthrough-unsupported`. Nessuna dipendenza da motori WASM esterni per coprire questi ambienti.
-
-**Backward compatibility:** `GET /api/media/:key` richiesto senza alcun parametro di preset continua a servire l'asset originale, preservando esattamente il comportamento e gli header attuali (`Cache-Control: public, max-age=31536000, immutable`).
-
-**Confine con il sistema di autorizzazione:** nessuna interazione con `DataClassification` o con l'endpoint ownership-gated `GET /api/upload/download-url/:key`. La feature assume che tutto ciò che passa per `GET /api/media/:key` sia, per definizione architetturale pre-esistente, pubblico.
+**Compatibilità e non-distruttività:**
+- Un progetto senza `locales` configurato non osserva alcuna differenza di comportamento rispetto a oggi.
+- Un Seed può avere qualsiasi combinazione di branch localizzati/non localizzati.
+- Rimuovere una lingua da `locales` non tocca mai i dati già scritti; è un'operazione di sola configurazione. Un eventuale strumento di pulizia delle chiavi orfane è un'estensione futura, non parte di questa v1.
 
 # 5. Out of Scope (Discarded during sparring)
 
-- **Parametri di trasformazione numerici liberi** (`w`, `h`, `quality` come range continuo) — sostituiti interamente da un catalogo di preset nominati per eliminare (non limitare) la superficie di amplificazione DoS su un endpoint pubblico non autenticato.
-- **Rate limiting come meccanismo primario anti-abuso** — scartato a favore della whitelist di preset, giudicata più efficiente per questo caso specifico.
-- **Trasformazione di asset privati/ownership-gated** (`GET /api/upload/download-url/:key`) — resta un dominio separato, invariato da questa feature; un'eventuale trasformazione autenticata e non cacheable all'edge è un problema distinto, non affrontato qui.
-- **AVIF nella prima release** — solo WebP e JPEG, per verificare costi/supporto runtime/cache hit rate prima di estendere il set di formati.
-- **Image proxy per URL esterni** — zero fetch su domini terzi, trasformazione applicabile esclusivamente a chiavi R2 gestite da BeechCMS.
-- **Filtri avanzati, watermarking, crop/focal point editor nel Dashboard** — nessun blur, contrasto, rotazione arbitraria o watermark; nessuna UI di crop visuale in questo sprint (predisposizione dati per Issue #381 non inclusa).
-- **Componenti React JSX/UI dedicati** — solo utility pure TypeScript, nessun componente framework-specific nel core o nei package client.
-- **Registro preset per-schema / per-content-type** — il catalogo preset è globale (env var), non personalizzabile a livello di singolo content type o campo in questa fase; emerso in sparring come possibile estensione futura ma non richiesto per v1.
+- **Localized System Slugs (URL Slugs Tradotti)** — lo slug resta identificatore univoco globale; nessun routing/alias differenziato per lingua.
+- **Traduzione Automatica Integrata (AI / DeepL out-of-the-box)** — nessuna integrazione nativa; delegabile a script esterni o al tool MCP.
+- **Traduzione dell'Interfaccia Dashboard (UI i18n)** — ambito esclusivamente Content i18n, non i testi/menu della console admin.
+- **Permessi di Modifica per Singola Lingua (RBAC granulare)** — nessuna restrizione tipo "editor X può modificare solo la lingua DE"; i permessi di scrittura restano unificati sul record.
+- **Traduzione annidata/parziale dentro un campo `json`** — solo whole-value swap al livello top.
+- **Localizzazione di `number`, `boolean`, `date`, `file`, `tags`, `relation`, `repeater`** — esclusi per semantica di dominio (vedi §2) o per complessità sproporzionata (repeater).
+- **Localizzazione di campi `confidential`/`restricted`** (storage cifrato/hashato) — combinazione incompatibile e rifiutata in validazione.
+- **Strumento di purge delle chiavi di lingua orfane** dopo rimozione di una lingua da `locales` — la non-distruttività è garantita, la pulizia attiva è un'estensione futura.
+- **Multi-currency / formattazione numerica per mercato** — dominio distinto dalla lingua, non affrontato qui.

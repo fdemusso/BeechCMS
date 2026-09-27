@@ -3,10 +3,12 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { 
-  slugify, 
-  isValidContentStatus, 
-  validateAndSanitizeSeedPayload
+import {
+  slugify,
+  isValidContentStatus,
+  validateAndSanitizeSeedPayload,
+  mergeLocalizedFields,
+  resolveLocalizedFields
 } from '@beechcms/core'
 import { applyPrivacy, PrivacyPolicyError } from '../../../shared/policies/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
@@ -19,6 +21,7 @@ import {
 } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import { cleanStr } from '../../../shared/utils/query-utils'
+import { loadLocaleConfig } from '../../../shared/localization/locale-config'
 import { AppEnv } from '../../../types'
 
 
@@ -71,12 +74,14 @@ export async function createHandler(context: Context<AppEnv>) {
   delete bodyForData.slug
   delete bodyForData.status
 
+  const localeConfig = await loadLocaleConfig(context.get('siteSettingsRepository'), seed)
   const validation = validateAndSanitizeSeedPayload(seed, bodyForData, {
     operation: 'create',
     allowNull: false,
     requireAtLeastOneValidField: true,
     enforceRequiredFields: true,
     idGenerator: context.get('idGenerator'),
+    localeConfig,
   })
 
   if (validation.dangerousFields.length > 0) {
@@ -105,10 +110,16 @@ export async function createHandler(context: Context<AppEnv>) {
     throw error
   }
 
+  // Compacts each localized patch into the dictionary that is stored (null entries dropped), so the
+  // automation payload below carries exactly what was persisted.
+  privacyData = mergeLocalizedFields(seed, null, privacyData, localeConfig)
+  // Slug and activity title need one string per field, never a dictionary ("object-object").
+  const displayData = resolveLocalizedFields(seed, privacyData, localeConfig)
+
   const id = context.get('idGenerator').uuid()
   let finalSlug = entrySlug
   if (!finalSlug) {
-    const fallbackSource = privacyData[seed.displayNameAlias ?? 'title'] || privacyData.title || privacyData.name || id
+    const fallbackSource = displayData[seed.displayNameAlias ?? 'title'] || displayData.title || displayData.name || id
     finalSlug = slugify(String(fallbackSource))
   }
 
@@ -118,7 +129,7 @@ export async function createHandler(context: Context<AppEnv>) {
     const actor = { id: jwtPayload.sub, role: jwtPayload.role, email: jwtPayload.email }
     await repository.create(seed, id, finalSlug, status, privacyData, { actor })
 
-    const title = privacyData.title || privacyData.name || finalSlug
+    const title = displayData.title || displayData.name || finalSlug
 
     logContentActivity(context, 'create', id, slug, String(title))
     dispatchContentAutomation(context, slug, 'create', { id, slug: finalSlug, status, ...privacyData })

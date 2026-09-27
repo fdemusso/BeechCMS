@@ -5,7 +5,8 @@ import { z } from 'zod'
 import type { Branch, BranchType, Seed, NumberFieldOptions, FileFieldOptions } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
-import { schemaForBranch } from './schema-builders.js'
+import { isLocalizedBranch } from '../localization.js'
+import { schemaForBranch, localizedSchema } from './schema-builders.js'
 
 type CompiledSchema = z.ZodObject<Record<string, z.ZodTypeAny>>
 
@@ -80,6 +81,8 @@ interface BranchFingerprint {
   ma: number | null
   /** Nested sub-branches fingerprints (for repeaters), or null. */
   sub: BranchFingerprint[] | null
+  /** Whether the branch is localized. */
+  lo: boolean
 }
 
 /**
@@ -101,6 +104,7 @@ function buildBranchFingerprint(branch: Branch): BranchFingerprint {
     mi: branch.minItems ?? null,
     ma: branch.maxItems ?? null,
     sub: branch.fields?.map(buildBranchFingerprint) ?? null,
+    lo: branch.localized === true,
   }
 }
 
@@ -129,6 +133,9 @@ function buildCacheKey(seed: Seed, options: ResolvedOptions): string {
     options.allowNull ? '1' : '0',
     options.enforceRequiredFields ? '1' : '0',
     String(options.maxTextLength),
+    options.localeConfig
+      ? `${options.localeConfig.defaultLocale}>${options.localeConfig.locales.join(',')}`
+      : '-',
   ].join('|')
 }
 
@@ -168,7 +175,9 @@ export function compileSeedSchema(seed: Seed, options: ResolvedOptions): z.ZodOb
   const requiredFlag = options.operation === 'create' ? 'requiredOnCreate' : 'requiredOnUpdate'
   const shape: Record<string, z.ZodTypeAny> = {}
   for (const branch of seed.branches) {
-    const branchSchema = schemaForBranch(branch, options)
+    const branchSchema = options.localeConfig && isLocalizedBranch(branch)
+      ? localizedSchema(branch, options, options.localeConfig)
+      : schemaForBranch(branch, options)
     const isRequired = branch[requiredFlag] && options.enforceRequiredFields
     shape[branch.alias] = isRequired ? branchSchema : branchSchema.optional()
   }

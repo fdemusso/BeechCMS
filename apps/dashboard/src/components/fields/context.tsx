@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
-import type { Seed } from "@beechcms/core"
+import type { LocaleConfig, Seed } from "@beechcms/core"
 import type { UseQueryResult } from "@tanstack/react-query"
 
 /**
@@ -31,6 +31,12 @@ export interface FieldsContextType {
    * @returns A react-query query result containing the array of schema seeds.
    */
   useSchema: () => UseQueryResult<Seed[]>
+
+  /**
+   * Project content-language config, or `undefined` when no seed has a localized branch. Relation labels
+   * resolve a localized display name to the default locale through it. Typically proxies `useLocaleConfig`.
+   */
+  useLocaleConfig: () => LocaleConfig | undefined
 
   /**
    * Fetches a single entry by its schema slug and ID.

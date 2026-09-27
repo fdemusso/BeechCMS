@@ -76,7 +76,7 @@ export function UsersTab() {
           </div>
         ) : (
         <TooltipProvider delayDuration={100} disableHoverableContent>
-          <Table>
+          <Table containerClassName="overflow-x-hidden">
             <TableHeader>
               <TableRow>
                 <TableHead>{t("rbac.users.email", "Email")}</TableHead>
@@ -92,11 +92,13 @@ export function UsersTab() {
                 const isSwitchDisabled = isSelf || isDev || setUserActive.isPending
                 return (
                   <TableRow key={accountUser.id}>
-                    <TableCell className="font-medium">
-                      {accountUser.email}
-                      {isSelf && <Badge variant="secondary" className="ml-2 text-[10px]">{t("rbac.users.you", "You")}</Badge>}
+                    <TableCell className="font-medium max-w-[240px]">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="truncate" title={accountUser.email}>{accountUser.email}</span>
+                        {isSelf && <Badge variant="secondary" className="text-[10px] shrink-0">{t("rbac.users.you", "You")}</Badge>}
+                      </div>
                     </TableCell>
-                    <TableCell>{[accountUser.name, accountUser.surname].filter(Boolean).join(" ") || "—"}</TableCell>
+                    <TableCell className="truncate max-w-[180px]">{[accountUser.name, accountUser.surname].filter(Boolean).join(" ") || "—"}</TableCell>
                     <TableCell>
                       {(() => {
                         const uniqueRoles = new Map(

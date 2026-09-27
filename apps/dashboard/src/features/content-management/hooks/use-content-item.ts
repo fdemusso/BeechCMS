@@ -7,20 +7,35 @@ import { contentApi } from "../api/content.api"
 import { CONTENT_QUERY_KEYS, FACET_QUERY_KEYS } from "../consts/content.keys"
 import { DASHBOARD_QUERY_KEYS, GLOBAL_DRAFTS_QUERY_KEY } from "@/features/shared"
 import { BACKREF_QUERY_KEY } from "@/features/shared"
+import type { ContentEntry } from "@/lib/dynamic-columns"
 
 /**
- * Hook for fetching a single content entry.
+ * True for the relation-label stub `useContentList` primes into the detail cache: `updated_at: null` and `data` holding
+ * only the target's display name. A row read from `GET /api/content/:slug/:id` always carries `updated_at`.
+ */
+export function isRelationLabelStub(entry: ContentEntry | undefined): boolean {
+  return entry !== undefined && entry.updated_at === null
+}
+
+/**
+ * Hook for fetching a single content entry. A primed relation-label stub is never returned as the entry: it is
+ * stale at once (so mounting the editor refetches it), and reports it as loading until the full row lands.
  */
 export function useContentEntry(slug: string | undefined, id: string | undefined) {
-  return useQuery({
+  const query = useQuery({
     queryKey: CONTENT_QUERY_KEYS.detail(slug || "", id || ""),
     queryFn: () => {
       if (!slug || !id) throw new Error("Slug and ID are required")
       return contentApi.fetchById(slug, id)
     },
     enabled: Boolean(slug && id),
-    staleTime: 10 * 1000, // 10 seconds
+    staleTime: (cached) => (isRelationLabelStub(cached.state.data) ? 0 : 10 * 1000), // 10 seconds for real rows
   })
+  // The editor seeds its form from `data`: seeding it from `{ title: label }` would show an almost empty entry.
+  if (isRelationLabelStub(query.data)) {
+    return Object.assign(Object.create(query), { data: undefined, isLoading: true })
+  }
+  return query
 }
 
 export function useDraftEntry(slug: string | undefined, id: string | undefined) {

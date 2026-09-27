@@ -13,6 +13,7 @@ import { LanguageSelect } from '@/components/ui/language-select'
 import { TimezoneSelect } from '@/components/ui/timezone-select'
 import { CurrencySelect } from '@/components/ui/currency-select'
 import { useGeneralTabLogic } from '../hooks/use-general-tab'
+import { ContentLanguagesCard } from './content-languages-card'
 
 export function GeneralTab() {
   const { t } = useTranslation()
@@ -121,6 +122,8 @@ export function GeneralTab() {
           </form>
         </CardContent>
       </Card>
+
+      <ContentLanguagesCard />
     </div>
   )
 }
