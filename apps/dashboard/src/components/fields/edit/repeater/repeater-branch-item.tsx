@@ -23,6 +23,8 @@ import {
   RepeaterOptionsForm,
   TagsOptionsForm,
   PoliciesOptionsForm,
+  LocalizedOptionsForm,
+  withoutIneligibleLocalized,
 } from "./repeater-branch-options"
 
 /** Full list of all registered BranchTypes. */
@@ -118,8 +120,13 @@ export function BranchItemRow({
     opacity: isDragging ? 0.4 : 1,
   }
 
+  // A type or classification change must never leave `localized: true` where seed validation refuses it (Fatal 17).
+  function emitChange(updated: Branch) {
+    onChange(withoutIneligibleLocalized(updated, subField))
+  }
+
   function set<K extends keyof Branch>(key: K, value: Branch[K]) {
-    onChange({ ...branch, [key]: value })
+    emitChange({ ...branch, [key]: value })
   }
 
   return (
@@ -149,6 +156,9 @@ export function BranchItemRow({
             <Badge variant="secondary" className="text-xs">
               {branch.type}
             </Badge>
+            {branch.localized === true && (
+              <Badge variant="outline" className="text-xs">{t("seedBuilder.branchEditor.localizedBadge")}</Badge>
+            )}
           </div>
           {branch.label && <p className="text-xs text-muted-foreground truncate">{branch.label}</p>}
         </div>
@@ -250,31 +260,39 @@ export function BranchItemRow({
             />
           </div>
 
+          <LocalizedOptionsForm
+            branch={branch}
+            onChange={emitChange}
+            subField={subField}
+            isExisting={isExisting}
+            tableEmpty={tableEmpty}
+          />
+
           {/* Type-specific sub-forms */}
           {branch.type === "relation" && (
             <RelationOptionsForm
               branch={branch}
               activeSeedsForRelation={activeSeedsForRelation}
-              onChange={onChange}
+              onChange={emitChange}
             />
           )}
 
-          {branch.type === "number" && <NumberOptionsForm branch={branch} onChange={onChange} />}
+          {branch.type === "number" && <NumberOptionsForm branch={branch} onChange={emitChange} />}
 
-          {branch.type === "file" && <FileOptionsForm branch={branch} onChange={onChange} />}
+          {branch.type === "file" && <FileOptionsForm branch={branch} onChange={emitChange} />}
 
           {branch.type === "repeater" && (
-            <RepeaterOptionsForm branch={branch} onChange={onChange} subField={subField} />
+            <RepeaterOptionsForm branch={branch} onChange={emitChange} subField={subField} />
           )}
 
           {(branch.type === "tags" || branch.type === "json") && (
-            <TagsOptionsForm branch={branch} onChange={onChange} />
+            <TagsOptionsForm branch={branch} onChange={emitChange} />
           )}
 
           {/* Policies — sub-fields live inside a JSON blob, not a SQL column */}
           <PoliciesOptionsForm
             branch={branch}
-            onChange={onChange}
+            onChange={emitChange}
             subField={subField}
             tableEmpty={tableEmpty}
           />

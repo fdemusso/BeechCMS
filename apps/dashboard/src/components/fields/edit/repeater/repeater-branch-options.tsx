@@ -2,8 +2,9 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
-import { resolvePolicies, type Branch, type DataClassification, type Seed } from "@beechcms/core"
+import { LOCALIZABLE_BRANCH_TYPES, resolveClassification, resolvePolicies, type Branch, type DataClassification, type Seed } from "@beechcms/core"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -477,6 +478,94 @@ export function PoliciesOptionsForm({
           )
         })}
       </div>
+    </div>
+  )
+}
+
+/** Why a text / richtext / json branch cannot be localized; mirrors seed-validation Fatal 17. */
+export type LocalizationBlocker = "sub-field" | "classification"
+
+/** The reason `branch` cannot carry `localized: true`, or `null` when it can (the type check is the caller's). */
+export function localizationBlocker(branch: Branch, subField: boolean): LocalizationBlocker | null {
+  if (subField) return "sub-field"
+  return resolveClassification(branch).storage === "plain" ? null : "classification"
+}
+
+/**
+ * Drops `localized: true` from a branch that a type or classification change made ineligible, since `PUT /api/seeds`
+ * would refuse the whole seed (Fatal 17). Returns `branch` itself when nothing changes.
+ */
+export function withoutIneligibleLocalized(branch: Branch, subField: boolean): Branch {
+  if (branch.localized !== true) return branch
+  if (LOCALIZABLE_BRANCH_TYPES.has(branch.type) && localizationBlocker(branch, subField) === null) return branch
+  const next: Branch = { ...branch }
+  delete next.localized
+  return next
+}
+
+/** Properties for the {@link LocalizedOptionsForm} component. */
+export interface LocalizedOptionsFormProps {
+  /** The branch being edited. */
+  branch: Branch
+  /** Fired with the updated branch. */
+  onChange: (updated: Branch) => void
+  /** True for a repeater sub-field (never localizable). */
+  subField?: boolean
+  /** True when the branch is already persisted (its column exists). */
+  isExisting: boolean
+  /** False when the seed's table already has entries. */
+  tableEmpty?: boolean
+}
+
+/**
+ * The "Localized" toggle. Shown only for text, richtext and json branches; disabled, with the reason, on repeater
+ * sub-fields and on confidential / restricted fields. Turning it off is metadata-only (translations stay stored), so
+ * unchecking a persisted branch of a table with entries warns that the field shows raw text until re-enabled.
+ */
+export function LocalizedOptionsForm({
+  branch,
+  onChange,
+  subField = false,
+  isExisting,
+  tableEmpty = true,
+}: LocalizedOptionsFormProps) {
+  const { t } = useTranslation()
+  const [showDisableWarning, setShowDisableWarning] = useState(false)
+
+  if (!LOCALIZABLE_BRANCH_TYPES.has(branch.type)) return null
+
+  const blocker = localizationBlocker(branch, subField)
+  const checkboxId = `localized-${branch.id}`
+
+  function handleToggle(checked: boolean) {
+    setShowDisableWarning(!checked && isExisting && !tableEmpty)
+    const next: Branch = { ...branch }
+    if (checked) next.localized = true
+    else delete next.localized
+    onChange(next)
+  }
+
+  let hint = t("seedBuilder.branchEditor.localizedHint")
+  if (blocker === "sub-field") hint = t("seedBuilder.branchEditor.localizedBlockedSubField")
+  if (blocker === "classification") hint = t("seedBuilder.branchEditor.localizedBlockedClassification")
+
+  return (
+    <div className="space-y-1 rounded-md border p-2">
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={checkboxId}
+          checked={branch.localized === true}
+          disabled={blocker !== null}
+          onCheckedChange={(value) => handleToggle(value === true)}
+        />
+        <Label htmlFor={checkboxId} className="text-xs">{t("seedBuilder.branchEditor.localized")}</Label>
+      </div>
+      <p className="text-[11px] text-muted-foreground">{hint}</p>
+      {showDisableWarning && (
+        <p role="status" className="text-[11px] text-amber-600 dark:text-amber-400">
+          {t("seedBuilder.branchEditor.localizedDisableWarning")}
+        </p>
+      )}
     </div>
   )
 }

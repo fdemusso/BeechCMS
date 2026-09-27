@@ -133,7 +133,8 @@ vi.mock("@/features/shared", () => ({
   useActiveSeed: (slug: string) => ({
     seed: slug === "posts" ? seedPosts : null,
     isLoading: false,
-  })
+  }),
+  useLocaleConfig: () => undefined,
 }))
 
 vi.mock("@/features/content-management", () => ({

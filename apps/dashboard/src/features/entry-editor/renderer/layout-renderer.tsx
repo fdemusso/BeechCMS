@@ -6,10 +6,24 @@ import * as React from "react"
 import type { FormLayout, Branch } from "@beechcms/core"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { TabSections } from "./layout-elements"
+import type { LocalizedFieldState } from "../lib/localized-form"
 
 /** Dictionary mapping schema branch IDs to their corresponding Branch configuration. */
 export interface RendererBranchMap {
   [id: string]: Branch
+}
+
+/**
+ * Content-localization context for the renderer. Present only when the entry's seed has localized branches and the
+ * project has two or more content languages; absent, every field renders exactly as before.
+ */
+export interface RendererLocalization {
+  /** The locale every localized field currently shows and edits. */
+  readonly activeLocale: string
+  /** Localized branch aliases → their state in the active locale. Aliases absent here are not localized. */
+  readonly fields: Readonly<Record<string, LocalizedFieldState>>
+  /** Copies the default-locale value into the active locale of `alias`. */
+  readonly onCopyFromDefault: (alias: string) => void
 }
 
 /** Properties for the {@link LayoutRenderer} component. */
@@ -34,6 +48,8 @@ export interface RendererProps {
   readonly onActiveTabChange?: (tabId: string) => void
   /** Disables editing inputs when set to true. */
   readonly isReadOnly?: boolean
+  /** Content-localization context; see {@link RendererLocalization}. */
+  readonly localization?: RendererLocalization
 }
 
 /** Static ID representing the injected Danger Zone tab structure. */
@@ -57,6 +73,7 @@ export function LayoutRenderer({
   activeTabId: propActiveTabId,
   onActiveTabChange,
   isReadOnly,
+  localization,
 }: RendererProps) {
   const [internalActiveTabId, setInternalActiveTabId] = React.useState(
     () => layout.tabs[0]?.id ?? ""
@@ -108,6 +125,7 @@ export function LayoutRenderer({
               fieldErrors={fieldErrors}
               onChange={onChange}
               isReadOnly={isReadOnly}
+              localization={localization}
             />
           </fieldset>
         </TabsContent>
