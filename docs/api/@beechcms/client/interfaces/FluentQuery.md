@@ -46,6 +46,25 @@
 
 ***
 
+### lang()
+
+> **lang**(`code`): `this`
+
+Requests one language: localized fields come back as plain values in that language, and filters and
+sort compare in it. An unregistered code falls back to the project default; a malformed one is a 400.
+
+#### Parameters
+
+##### code
+
+`string`
+
+#### Returns
+
+`this`
+
+***
+
 ### limit()
 
 > **limit**(`count`): `this`

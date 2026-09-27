@@ -59,6 +59,16 @@ When set, LEFT JOIN kanban_positions and order by fractional index (KB-S04c/S05)
 
 ***
 
+### locale?
+
+> `optional` **locale?**: [`SelectLocale`](SelectLocale.md)
+
+When set, filters and ORDER BY on localized branches compare the value resolved to `locale.code`
+(requested → default → first stored translation → legacy raw value) instead of the stored JSON.
+Absent: every column is compared raw, exactly as before localization existed.
+
+***
+
 ### orderBy?
 
 > `optional` **orderBy?**: `object`
