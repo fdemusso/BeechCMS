@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next"
 import { Check, SortV as ChevronsUpDown, X, ChevronUp, ChevronDown } from 'reicon-react'
 
 import { useFieldsConfig } from "../../context"
+import { useRelationLabel } from "../../relation-label"
 import { useDebounce } from "@/hooks/use-debounce"
 import { Button } from "@/components/ui/button"
 import {
@@ -61,13 +62,14 @@ interface ChipLabelProps {
  */
 function useChipLabel({ targetSlug, targetId, labelAlias }: ChipLabelProps): string {
   const { fetchById, queryKeys } = useFieldsConfig()
+  const labelOf = useRelationLabel(targetSlug)
   const { data: entry } = useQuery({
     queryKey: queryKeys.detail(targetSlug, targetId),
     queryFn: () => fetchById(targetSlug, targetId),
     enabled: Boolean(targetSlug && targetId),
     staleTime: RELATION_STALE_MS,
   })
-  return String(entry?.data?.[labelAlias] ?? targetId)
+  return String(labelOf(entry?.data, labelAlias) ?? targetId)
 }
 
 interface SortableChipProps {
@@ -175,6 +177,7 @@ export function MultiRelationEdit({
   const { data: seeds } = useSchema()
   const targetSeed = seeds?.find((schemaSeed) => schemaSeed.slug === targetSlug)
   const labelAlias = targetSeed?.displayNameAlias ?? "title"
+  const labelOf = useRelationLabel(targetSlug)
 
   const { data: entriesData, isFetching } = useQuery({
     queryKey: [...queryKeys.lists(), targetSlug, "relation-multi-search", debouncedSearch],
@@ -191,7 +194,7 @@ export function MultiRelationEdit({
   const entries = (entriesData ?? []).filter((item) => !selectedIds.includes(item.id))
 
   const resolveLabel = (item: (typeof entries)[0]): string => {
-    const raw = item.data?.[labelAlias]
+    const raw = labelOf(item.data, labelAlias)
     if (raw != null && raw !== "") return String(raw)
     const slug = (item as { slug?: unknown }).slug
     return typeof slug === "string" ? slug : item.id

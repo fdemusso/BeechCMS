@@ -8,7 +8,9 @@ import { applyVisibility } from '../../../shared/policies/apply-policies'
 import { publicProblem } from '../../../public/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
-import { resolveKanbanConfig, type FilterGroup, type ActorContext } from '@beechcms/core'
+import { resolveKanbanConfig, type FilterGroup, type ActorContext, type LocaleConfig, type Seed } from '@beechcms/core'
+import { loadLocaleConfig } from '../../../shared/localization/locale-config'
+import { loadDisplayLocaleConfig, resolveDisplayName } from '../../../shared/localization/display-name'
 
 /**
  * Builds a compact `relations` map for the list response.
@@ -22,7 +24,8 @@ import { resolveKanbanConfig, type FilterGroup, type ActorContext } from '@beech
 async function buildRelationsMap(
   context: Context<AppEnv>,
   seed: Parameters<typeof applyVisibility>[1],
-  entries: Record<string, unknown>[]
+  entries: Record<string, unknown>[],
+  localeConfig: LocaleConfig | undefined,
 ): Promise<Record<string, Record<string, string>>> {
   const relationBranches = seed.branches.filter(
     (b: { type: string }) => b.type === 'relation'
@@ -33,6 +36,11 @@ async function buildRelationsMap(
   const relations: Record<string, Record<string, string>> = {}
   const repository = context.get('repository')
   const seedRegistry = context.get('seedRegistry')
+  const targetSeeds = relationBranches
+    .map((branch) => (branch.targetSeed ? seedRegistry.get(branch.targetSeed) : undefined))
+    .filter((target): target is Seed => target !== null && target !== undefined)
+  // Reuse the list's config when it was loaded; otherwise read settings only if a target's label is localized.
+  const labelConfig = localeConfig ?? await loadDisplayLocaleConfig(context.get('siteSettingsRepository'), targetSeeds)
 
   for (const branch of relationBranches) {
     const targetSlug = branch.targetSeed
@@ -76,7 +84,7 @@ async function buildRelationsMap(
       for (const item of items) {
         const row = item as Record<string, unknown>
         const id = row.id as string
-        const label = row[labelAlias]
+        const label = resolveDisplayName(targetSeedDef, row[labelAlias], labelConfig)
         map[id] = label != null && label !== '' ? String(label) : id
       }
 
@@ -168,6 +176,9 @@ export async function listHandler(context: Context<AppEnv>) {
       }
     }
 
+    // Sort and filter compare the value the dashboard shows (default locale), not the stored JSON text.
+    const localeConfig = await loadLocaleConfig(context.get('siteSettingsRepository'), seed)
+
     const repository = context.get('repository')
     const { items, total } = await repository.findMany(seed, {
       filters: allFilters,
@@ -175,6 +186,7 @@ export async function listHandler(context: Context<AppEnv>) {
       search: search || undefined,
       pagination: { limit, offset },
       kanbanOrder,
+      locale: localeConfig ? { code: localeConfig.defaultLocale, config: localeConfig } : undefined,
     })
 
     const jwtPayload = context.get('jwtPayload')
@@ -205,7 +217,7 @@ export async function listHandler(context: Context<AppEnv>) {
     }
 
     // Build compact relation labels map for N+1 mitigation
-    const relations = await buildRelationsMap(context, seed, entries)
+    const relations = await buildRelationsMap(context, seed, entries, localeConfig)
 
     return context.json({ items: entries, total, page, limit, relations })
   } catch (error) {

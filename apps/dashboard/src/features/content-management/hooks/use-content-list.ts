@@ -2,10 +2,11 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useEffect } from "react"
+import { useCallback, useEffect } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useSchema } from "@/features/shared"
-import { contentApi, type ContentListQueryParams } from "../api/content.api"
+import { isLocalizedBranch } from "@beechcms/core"
+import { useLocalizeEntryData, useSchema } from "@/features/shared"
+import { contentApi, type ContentListQueryParams, type ContentListWithMeta } from "../api/content.api"
 import { CONTENT_QUERY_KEYS } from "../consts/content.keys"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 
@@ -21,6 +22,18 @@ import type { ContentEntry } from "@/lib/dynamic-columns"
 export function useContentList(slug: string | undefined, params: ContentListQueryParams) {
   const queryClient = useQueryClient()
   const { data: seeds } = useSchema()
+  const localize = useLocalizeEntryData()
+  const seed = seeds?.find((s) => s.slug === slug)
+
+  // Table, gallery cards and the gallery peek all render these items: resolve them once, here. The query
+  // cache keeps the raw dictionaries; only this observer's view is flat.
+  const select = useCallback(
+    (response: ContentListWithMeta): ContentListWithMeta =>
+      seed?.branches.some(isLocalizedBranch)
+        ? { ...response, items: response.items.map((entry) => ({ ...entry, data: localize(seed, entry.data) })) }
+        : response,
+    [localize, seed],
+  )
 
   const query = useQuery({
     queryKey: CONTENT_QUERY_KEYS.list(slug || "", params),
@@ -32,6 +45,7 @@ export function useContentList(slug: string | undefined, params: ContentListQuer
     // Keep previous data while fetching new data to avoid flickering
     placeholderData: (previous) => previous,
     staleTime: 10 * 1000, // 10 seconds
+    select,
   })
 
   // Prime the TanStack Query cache with relation labels from the list response.
@@ -64,7 +78,7 @@ export function useContentList(slug: string | undefined, params: ContentListQuer
             status: "published",
             data: { [labelAlias]: label },
             created_at: null,
-            updated_at: null,
+            updated_at: null, // stub marker read by isRelationLabelStub (use-content-item.ts)
           })
         }
       }

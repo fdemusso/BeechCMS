@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { DataTable } from "@/components/ui/data-table"
 import { RelativeTime } from "@/components/ui/relative-time"
 import { SmallCta } from "@/components/ui/small-cta"
+import { useLocalizeEntryData } from "@/features/shared"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { retentionRemainingDays } from "../lib/retention"
 
@@ -57,13 +58,14 @@ export function ContentTrashView(props: Readonly<ContentTrashViewProps>) {
     onBulkPurge,
   } = props
   const { t } = useTranslation()
+  const localize = useLocalizeEntryData()
 
   const columns = React.useMemo<ColumnDef<ContentEntry>[]>(
     () => [
       {
         id: "display",
         header: seed.label,
-        accessorFn: (row) => String(row.data[seed.displayNameAlias ?? "title"] ?? row.id),
+        accessorFn: (row) => String(localize(seed, row.data)[seed.displayNameAlias ?? "title"] ?? row.id),
         cell: ({ getValue }) => <span className="truncate">{getValue<string>()}</span>,
       },
       {
@@ -112,7 +114,7 @@ export function ContentTrashView(props: Readonly<ContentTrashViewProps>) {
         ),
       },
     ],
-    [seed, t, nowSeconds, canRestore, canPurge, isMutating, onRestore, onPurge]
+    [seed, t, nowSeconds, canRestore, canPurge, isMutating, onRestore, onPurge, localize]
   )
 
   return (

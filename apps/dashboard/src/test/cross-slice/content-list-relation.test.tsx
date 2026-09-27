@@ -25,6 +25,7 @@ vi.mock("@/lib/api", () => ({
 vi.mock("@/features/shared", () => ({
   useSchema: vi.fn(),
   useActiveSeed: vi.fn(),
+  useLocalizeEntryData: () => (_seed: unknown, data: Record<string, unknown>) => data,
 }))
 
 import { api } from "@/lib/api"
@@ -36,6 +37,7 @@ import { FieldsProvider, type FieldsContextType } from "@/components/fields/cont
 
 const mockFieldsConfig: FieldsContextType = {
   useSchema,
+  useLocaleConfig: () => undefined,
   fetchById: async (slug, id) => (await api.get(`/content/${slug}/${id}`)).data,
   searchRelations: async (slug, params) =>
     (await api.get(`/content/${slug}`, { params: { ...params, page: 1 } })).data.items,

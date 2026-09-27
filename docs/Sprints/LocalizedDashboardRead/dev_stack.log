@@ -1,0 +1,136 @@
+$ node bin/cli.mjs "dev"
+[36m
+  beech dev — start development environment
+[39m
+🔍 Checking port availability...
+[36m
+📊 Port allocation mapping:[39m
+  - MinIO API (S3):      http://localhost:[1m9000[22m (default: 9000)
+  - MinIO Console:       http://localhost:[1m9003[22m (default: 9001)
+  - Mailpit SMTP:        [1m1026[22m (default: 1025)
+  - Mailpit HTTP UI/API: http://localhost:[1m8026[22m (default: 8025)
+  - SQLite Web UI:       http://localhost:[1m8081[22m (default: 8080)
+  - Webhook Tester UI:   http://localhost:[1m8085[22m (default: 8084)
+
+🚀 Starting Docker containers...
+[docker] Starting Docker containers via docker compose up -d... Container beech-tunnel Running 
+[docker]  Container beech-mailpit Recreate 
+[docker]  Container beech-minio Recreate 
+[docker]  Container beech-sqlite-web Recreate 
+[docker]  Container beech-webhook-tester Recreate 
+[docker]  Container beech-webhook-tester Recreated 
+[docker]  Container beech-minio Recreated 
+[docker]  Container beech-mailpit Recreated 
+[docker]  Container beech-sqlite-web Recreated 
+[docker]  Container beech-minio Starting 
+[docker]  Container beech-webhook-tester Starting 
+[docker]  Container beech-sqlite-web Starting 
+[docker]  Container beech-mailpit Starting 
+[docker]  Container beech-webhook-tester Started 
+[docker]  Container beech-mailpit Started 
+[docker]  Container beech-sqlite-web Started 
+[docker]  Container beech-minio Started 
+🌐 Waiting for Cloudflare quick tunnel...
+⚙️  Bootstrapping local D1 database...
+  - Tunnel URL:          [1mhttps://approx-certification-harbour-dealtime.trycloudflare.com[22m
+[bootstrap] [bootstrap-d1] DB already initialized — skipping.
+⚡ Starting Beech dev servers (API + Dashboard)...
+[core] Starting dev server: pnpm --filter @beechcms/core run dev...$ tsc -w --preserveWatchOutput
+[api] Starting dev server: pnpm --filter @beechcms/api run dev...$ wrangler dev --port 8789
+[dashboard] Starting dev server: pnpm --filter @beechcms/dashboard run dev...$ vite
+[core] 
+[core] 15:31:17 - Starting compilation in watch mode...
+[core] 
+[dashboard] 15:31:18 [vite] (client) Re-optimizing dependencies because vite config has changed
+[dashboard] 
+[dashboard]   VITE v8.1.3  ready in 574 ms
+[dashboard] 
+[dashboard]   ➜  Local:   http://localhost:5173/admin/
+[dashboard]   ➜  Network: use --host to expose
+✅ Dashboard (vite): http://localhost:5173
+[api] 
+[api]  ⛅️ wrangler 4.100.0
+[api] ────────────────────
+[api] Using secrets defined in .dev.vars
+[api] Your Worker has access to the following bindings:
+[api] Binding                                                                              Resource                  Mode
+[api] env.QUEUE (beech-jobs)                                                               Queue                     local
+[api] env.DB (beech-db)                                                                    D1 Database               local
+[api] env.LOGIN_RATE_LIMITER (5 requests/60s)                                              Rate Limit                local
+[api] env.REFRESH_RATE_LIMITER (20 requests/60s)                                           Rate Limit                local
+[api] env.PUBLIC_READ_RATE_LIMITER (120 requests/60s)                                      Rate Limit                local
+[api] env.PUBLIC_WRITE_RATE_LIMITER (20 requests/60s)                                      Rate Limit                local
+[api] env.FORGOT_PASSWORD_RATE_LIMITER (3 requests/60s)                                    Rate Limit                local
+[api] env.RESET_PASSWORD_RATE_LIMITER (5 requests/60s)                                     Rate Limit                local
+[api] env.ASSETS                                                                           Assets                    local
+[api] env.ENV ("development")                                                              Environment Variable      local
+[api] env.CORS_ORIGINS ("http://localhost:5173,http://localhos...")                        Environment Variable      local
+[api] env.PUBLIC_READ_API_KEY ("dev-public-read-key-changeme")                             Environment Variable      local
+[api] env.PUBLIC_WRITE_API_KEY ("dev-public-write-key-changeme")                           Environment Variable      local
+[api] env.PUBLIC_PUBLISHED_ONLY ("true")                                                   Environment Variable      local
+[api] env.PUBLIC_IDEMPOTENCY_TTL_SECONDS ("86400")                                         Environment Variable      local
+[api] env.MEDIA_BASE_URL ("http://localhost:5173")                                         Environment Variable      local
+[api] env.DATE_FORMAT ("DD-MM-YYYY")                                                       Environment Variable      local
+[api] env.APP_URL ("(hidden)")                                                             Environment Variable      local
+[api] env.EMAIL_PROVIDER ("(hidden)")                                                      Environment Variable      local
+[api] env.SMTP_HOST ("(hidden)")                                                           Environment Variable      local
+[api] env.SMTP_PORT ("(hidden)")                                                           Environment Variable      local
+[api] env.EMAIL_FROM ("(hidden)")                                                          Environment Variable      local
+[api] env.WEBHOOK_TESTER_URL ("(hidden)")                                                  Environment Variable      local
+[api] env.WEBHOOK_SECRET ("dev-webhook-secret-changeme")                                   Environment Variable      local
+[api] env.JWT_SECRET ("(hidden)")                                                          Environment Variable      local
+[api] env.R2_ACCESS_KEY_ID ("(hidden)")                                                    Environment Variable      local
+[api] env.R2_SECRET_ACCESS_KEY ("(hidden)")                                                Environment Variable      local
+[api] env.R2_ENDPOINT ("(hidden)")                                                         Environment Variable      local
+[api] env.R2_BUCKET_NAME ("(hidden)")                                                      Environment Variable      local
+[api] env.QSTASH_URL ("(hidden)")                                                          Environment Variable      local
+[api] env.QSTASH_TOKEN ("(hidden)")                                                        Environment Variable      local
+[api] env.QSTASH_CURRENT_SIGNING_KEY ("(hidden)")                                          Environment Variable      local
+[api] env.QSTASH_NEXT_SIGNING_KEY ("(hidden)")                                             Environment Variable      local
+[api] env.QSTASH_CALLBACK_URL ("(hidden)")                                                 Environment Variable      local
+[api] 
+[api] ❓ Your types might be out of date. Re-run `wrangler types` to ensure your types are correct.
+[33m[api] ▲ [WARNING] Scheduled Workers are not automatically triggered during local development.[39m
+[api] 
+[api]   To manually trigger a scheduled event, run:
+[api]     curl "http://127.0.0.1:8789/cdn-cgi/handler/scheduled"
+[api]   For more details, see https://developers.cloudflare.com/workers/configuration/cron-triggers/#test-cron-triggers-locally
+[api] 
+[api] 
+[core] 
+[core] 15:31:20 - Found 0 errors. Watching for file changes.
+✅ Core (tsc -w): ready
+[api] ⎔ Starting local server...
+[dashboard] 15:31:20 [vite] (client) [optimizer] bundling dependencies...
+[api] [wrangler:info] Ready on http://127.0.0.1:8789
+✅ API (wrangler): http://127.0.0.1:8789
+[33m[api] [wrangler:info] GET /api/settings 401 Unauthorized (41ms)[39m
+[31m[api] X [ERROR] Error: D1_ERROR: no such column: is_active at offset 86: SQLITE_ERROR[39m
+[api] 
+[31m[api]       at D1DatabaseSessionAlwaysPrimary._sendOrThrow (cloudflare-internal:d1-api:139:19)[39m
+[31m[api]       at null.<anonymous> (async cloudflare-internal:d1-api:323:39)[39m
+[api]       ... 7 lines matching cause stack trace ...
+[31m[api]       at null.<anonymous> (async file:///C:/Users/flavi/Desktop/beech-cms/apps/api/.wrangler/tmp/dev-pB9uzn/index.js:76065:5) {[39m
+[31m[api]     [cause]: Error: no such column: is_active at offset 86: SQLITE_ERROR[39m
+[31m[api]         at D1DatabaseSessionAlwaysPrimary._sendOrThrow (cloudflare-internal:d1-api:140:24)[39m
+[31m[api]         at null.<anonymous> (async cloudflare-internal:d1-api:323:39)[39m
+[31m[api]         at async D1UserRepository.findById (file:///C:/Users/flavi/Desktop/beech-cms/apps/api/src/shared/db/repositories/d1-user.repository.ts:55:17)[39m
+[31m[api]         at null.<anonymous> (async file:///C:/Users/flavi/Desktop/beech-cms/apps/api/.wrangler/tmp/dev-pB9uzn/index.js:39404:18)[39m
+[31m[api]         at async dispatch (file:///C:/Users/flavi/Desktop/beech-cms/node_modules/.pnpm/hono@4.13.7/node_modules/hono/dist/compose.js:22:17)[39m
+[31m[api]         at null.<anonymous> (async file:///C:/Users/flavi/Desktop/beech-cms/apps/api/.wrangler/tmp/dev-pB9uzn/index.js:39232:7)[39m
+[31m[api]         at async dispatch (file:///C:/Users/flavi/Desktop/beech-cms/node_modules/.pnpm/hono@4.13.7/node_modules/hono/dist/compose.js:22:17)[39m
+[31m[api]         at null.<anonymous> (async file:///C:/Users/flavi/Desktop/beech-cms/apps/api/.wrangler/tmp/dev-pB9uzn/index.js:39196:5)[39m
+[31m[api]         at async dispatch (file:///C:/Users/flavi/Desktop/beech-cms/node_modules/.pnpm/hono@4.13.7/node_modules/hono/dist/compose.js:22:17)[39m
+[31m[api]         at null.<anonymous> (async file:///C:/Users/flavi/Desktop/beech-cms/apps/api/.wrangler/tmp/dev-pB9uzn/index.js:76065:5)[39m
+[api]   }
+[api] 
+[api] 
+[33m[api] [wrangler:info] GET /api/settings 500 Internal Server Error (27ms)[39m
+[api] [wrangler:info] GET / 200 OK (9ms)
+[dashboard] C:\Users\flavi\Desktop\beech-cms\apps\dashboard:
+[dashboard] [ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @beechcms/dashboard@0.8.0 dev: `vite`
+[dashboard] Exit status 4294967295
+[31m❌ Dashboard (vite): process exited with code 4294967295[39m
+[core] 
+[core] 16:27:01 - File change detected. Starting incremental compilation...
+[core] 

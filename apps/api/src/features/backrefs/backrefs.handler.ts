@@ -5,9 +5,11 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import { resolvePolicies } from '@beechcms/core'
+import type { LocaleConfig, Seed } from '@beechcms/core'
 import { publicProblem } from '../../public/problem-details'
 import type { AppEnv } from '../../types'
 import { D1BackrefRepository, type BackrefItem } from './d1-backref.repository'
+import { loadDisplayLocaleConfig, resolveDisplayName } from '../../shared/localization/display-name'
 
 const PREVIEW_LIMIT = 3
 const DEFAULT_PAGE_LIMIT = 20
@@ -58,6 +60,11 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
     return c.json({ groups: [] })
   }
 
+  const sourceSeeds = sources
+    .map((source) => getSeed(source.sourceSlug))
+    .filter((seed): seed is Seed => seed !== null)
+  const localeConfig = await loadDisplayLocaleConfig(c.get('siteSettingsRepository'), sourceSeeds)
+
   // 4. Pagination
   const page = Math.max(1, Number.parseInt(pageParam ?? '1', 10) || 1)
   const rawLimit = Number.parseInt(limitParam ?? String(DEFAULT_PAGE_LIMIT), 10) || DEFAULT_PAGE_LIMIT
@@ -96,7 +103,7 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
     }
 
     const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, limit, offset)
-    const filteredItems = filterVisibility(items, sourceSeed)
+    const filteredItems = filterVisibility(localizeDisplayNames(items, sourceSeed, localeConfig), sourceSeed)
 
     return c.json({
       groups: [{
@@ -119,7 +126,7 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
       if (!sourceSeed) return null
 
       const { items, total } = await backrefRepository.queryGroup(source, sourceSeed, targetId, PREVIEW_LIMIT, 0)
-      const filteredItems = filterVisibility(items, sourceSeed)
+      const filteredItems = filterVisibility(localizeDisplayNames(items, sourceSeed, localeConfig), sourceSeed)
 
       return {
         sourceSlug: source.sourceSlug,
@@ -144,6 +151,12 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
+
+/** Resolves localized display names to the default locale; masking then applies to the resolved string. */
+function localizeDisplayNames(items: BackrefItem[], sourceSeed: Seed, localeConfig: LocaleConfig | undefined): BackrefItem[] {
+  if (!localeConfig) return items
+  return items.map((item) => ({ ...item, displayName: resolveDisplayName(sourceSeed, item.displayName, localeConfig) }))
+}
 
 function filterVisibility(
   items: BackrefItem[],

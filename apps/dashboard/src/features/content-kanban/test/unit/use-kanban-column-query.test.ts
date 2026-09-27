@@ -20,6 +20,10 @@ vi.mock('@/lib/content-api', () => ({
   fetchKanbanColumn: vi.fn(),
 }))
 
+vi.mock('@/features/shared', () => ({
+  useLocalizeEntryData: () => (_seed: unknown, data: Record<string, unknown>) => data,
+}))
+
 const buildModelMock = vi.fn((item: any, _axis: any, _col: any, _seed?: any, _cfg?: any) => ({
   entryId: item.id,
   title: item.data?.title ?? item.id,

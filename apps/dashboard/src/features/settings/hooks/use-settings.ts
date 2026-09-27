@@ -5,7 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { settingsApi } from '../api/settings.api'
 import type { NotificationPrefs } from '../types/settings.types'
-import { ME_QUERY_KEY, useMe } from "@/features/shared"
+import { GENERAL_SETTINGS_QUERY_KEY, ME_QUERY_KEY, useMe } from "@/features/shared"
 
 export const SETTINGS_QUERY_KEYS = {
   all: ['settings'] as const,
@@ -15,7 +15,7 @@ export const SETTINGS_QUERY_KEYS = {
   activity: () => [...SETTINGS_QUERY_KEYS.all, 'activity'] as const,
   storage: () => [...SETTINGS_QUERY_KEYS.all, 'storage'] as const,
   notifications: () => [...SETTINGS_QUERY_KEYS.all, 'notifications'] as const,
-  general: () => [...SETTINGS_QUERY_KEYS.all, 'general'] as const,
+  general: () => GENERAL_SETTINGS_QUERY_KEY,
 }
 
 export function useGeneralSettings() {

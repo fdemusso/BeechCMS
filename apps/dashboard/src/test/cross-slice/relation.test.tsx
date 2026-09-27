@@ -45,6 +45,7 @@ function makeQueryClient() {
 
 const mockFieldsConfig: FieldsContextType = {
   useSchema,
+  useLocaleConfig: () => undefined,
   fetchById: async (slug, id) => (await api.get(`/content/${slug}/${id}`)).data,
   searchRelations: async (slug, params) =>
     (await api.get(`/content/${slug}`, { params: { ...params, page: 1 } })).data.items,

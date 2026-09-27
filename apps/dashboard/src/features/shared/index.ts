@@ -4,6 +4,7 @@
 
 export * from "./query-keys"
 export * from "./hooks/use-schema"
+export * from "./hooks/use-locale-config"
 export * from "./view-registry"
 export * from "./hooks/use-me"
 export * from "./hooks/use-permissions"

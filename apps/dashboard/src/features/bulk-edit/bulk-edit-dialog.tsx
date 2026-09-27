@@ -4,7 +4,7 @@
 
 import * as React from "react"
 import { useTranslation } from "react-i18next"
-import { resolvePolicies } from "@beechcms/core"
+import { isLocalizedBranch, resolvePolicies } from "@beechcms/core"
 import type { Seed, Branch } from "@beechcms/core"
 
 import {
@@ -55,9 +55,11 @@ function isMultiRelBranch(branch: Branch): boolean {
  * Checks if a schema branch can be bulk edited based on its visibility and privacy policies.
  *
  * @param branch - The schema branch definition to inspect.
- * @returns True if the branch is visible and not encrypted.
+ * @returns True if the branch is visible, not encrypted, and not localized.
  */
 function isBulkEditable(branch: Branch): boolean {
+  // The API refuses localized fields in bulk edit (it cannot merge one value into every locale).
+  if (isLocalizedBranch(branch)) return false
   const { visibility, privacy } = resolvePolicies(branch)
   if (visibility === "hidden") return false
   if (privacy !== "plain") return false
