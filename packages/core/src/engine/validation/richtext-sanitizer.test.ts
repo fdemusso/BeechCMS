@@ -249,6 +249,20 @@ describe('richtext field', () => {
     expect(r.dangerousFields).toContain('body')
   })
 
+  // Regression: #443 — JSON.stringify (recursive) ran BEFORE the depth guard as a
+  // fail-fast size pre-check, so a payload nested past a few thousand levels threw
+  // an uncaught RangeError from inside the Zod transform instead of failing validation.
+  it('#443: rejects content nested past RICHTEXT_MAX_DEPTH by orders of magnitude without a RangeError', () => {
+    let node: Record<string, unknown> = { type: 'paragraph', content: [{ type: 'text', text: 'leaf' }] }
+    for (let i = 0; i < 5000; i++) {
+      node = { type: 'paragraph', content: [node] }
+    }
+    const doc = { type: 'doc', content: [node] }
+    expect(() => safeValidate({ ...validBase(), body: doc })).not.toThrow()
+    const r = safeValidate({ ...validBase(), body: doc })
+    expect(r.details.some(d => d.field === 'body')).toBe(true)
+  })
+
   it('fails fast on oversize payload before the sanitizing walk', () => {
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x'.repeat(50) }] }] }
     const r = safeValidate({ ...validBase(), body: doc }, { maxTextLength: 5 })

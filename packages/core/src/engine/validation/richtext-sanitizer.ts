@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { RICHTEXT_SCHEMA_VERSION, isRichtextEnvelopeV1 } from '../../content/richtext/richtext.js'
-import { stripControlChars, cleanString, isPlainObject, byteLength } from './primitives.js'
+import { stripControlChars, cleanString, isPlainObject, byteLength, exceedsMaxDepth } from './primitives.js'
 
 /** Allowlisted TipTap node `type` values. Keep in sync with
  *  richtext-render.ts::createRichTextHtmlExtensions. */
@@ -185,6 +185,13 @@ export function sanitizeRichtext(raw: unknown, maxBytes: number): RichtextSaniti
   }
   if (!isPlainObject(payload)) {
     return { value: raw, dangerous: false, valid: false, size: 0 }
+  }
+
+  // Fail-fast depth pre-check BEFORE anything touches JSON.stringify: it recurses
+  // unboundedly and throws RangeError on a few thousand levels of nesting, well
+  // before the size check below or the depth-guarded walk ever run (#443).
+  if (exceedsMaxDepth(payload, RICHTEXT_MAX_DEPTH)) {
+    return { value: raw, dangerous: true, valid: false, size: 0, oversize: true }
   }
 
   // Fail-fast DoS pre-check: size BEFORE the sanitizing walk.
