@@ -334,6 +334,43 @@ describe('richtext field', () => {
     expect((r.value as any).content).toHaveLength(0)
   })
 
+  // Regression: #442 — TipTap v3 OrderedList emits `attrs: { start, type }`. The `type` key
+  // inside an attrs bag is ordinary attribute data (list-style marker), not a node discriminator,
+  // and must not be checked against the node/mark allowlist.
+  it('#442: accepts a TipTap ordered list whose attrs carry a `type` key (list-style)', () => {
+    const doc = {
+      type: 'doc',
+      content: [{
+        type: 'orderedList',
+        attrs: { start: 1, type: null },
+        content: [{
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
+        }],
+      }],
+    }
+    const r = safeValidate({ ...validBase(), body: doc })
+    expect(r.dangerousFields).not.toContain('body')
+    expect(r.data.body).toEqual(doc)
+  })
+
+  it('#442: accepts an ordered list style attrs.type string value ("a", "i", etc.)', () => {
+    const doc = {
+      type: 'doc',
+      content: [{
+        type: 'orderedList',
+        attrs: { start: 1, type: 'a' },
+        content: [{
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
+        }],
+      }],
+    }
+    const r = sanitizeRichtext(doc, 10000)
+    expect(r.dangerous).toBe(false)
+    expect((r.value as any).content[0].attrs).toEqual({ start: 1, type: 'a' })
+  })
+
   it('prevents prototype pollution via __proto__, constructor, and prototype keys', () => {
     const maliciousDoc = JSON.parse(
       '{"type": "doc", "__proto__": {"polluted": "yes"}, "constructor": {"prototype": {"polluted": "yes"}}, "prototype": {"polluted": "yes"}, "content": [{"type": "paragraph", "content": [{"type": "text", "text": "hello"}]}]}'

@@ -91,7 +91,7 @@ function isProtocolAllowed(raw: string): boolean {
  * @param state - The shared sanitization state tracking danger flags.
  * @returns The cleaned rich text node, or `undefined` if it must be removed.
  */
-function walkRichtextNode(node: unknown, state: SanitizeState): unknown {
+function walkRichtextNode(node: unknown, state: SanitizeState, insideAttrs = false): unknown {
   if (state.depth > RICHTEXT_MAX_DEPTH) {
     state.dangerous = true
     return undefined
@@ -101,7 +101,7 @@ function walkRichtextNode(node: unknown, state: SanitizeState): unknown {
     state.depth++
     const mapped: unknown[] = []
     for (const child of node) {
-      const walked = walkRichtextNode(child, state)
+      const walked = walkRichtextNode(child, state, insideAttrs)
       if (walked !== undefined) mapped.push(walked)
     }
     state.depth--
@@ -110,8 +110,9 @@ function walkRichtextNode(node: unknown, state: SanitizeState): unknown {
   if (!isPlainObject(node)) return node
 
   // Node/mark type allowlist: any present `type` that isn't an allowlisted string is dropped.
-  // Objects with no `type` key (e.g. attrs bags) are not nodes and skip this check.
-  if ('type' in node) {
+  // Skipped inside `attrs` bags: a `type` key there is ordinary attribute data (e.g. TipTap's
+  // OrderedList `attrs.type` list-style marker), not a node/mark discriminator.
+  if (!insideAttrs && 'type' in node) {
     const rawType = node.type
     const isAllowed =
       typeof rawType === 'string' &&
@@ -141,7 +142,7 @@ function walkRichtextNode(node: unknown, state: SanitizeState): unknown {
       state.dangerous = true
       continue // drop disallowed URL
     }
-    const walked = walkRichtextNode(entry, state)
+    const walked = walkRichtextNode(entry, state, insideAttrs || key === 'attrs')
     if (walked !== undefined) result[key] = walked
   }
   state.depth--
