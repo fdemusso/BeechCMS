@@ -152,6 +152,18 @@ describe('validateAndSanitizeSeedPayload — localized branches', () => {
     expect(result.requiredFieldsMissing).toEqual([])
   })
 
+  it('satisfies requiredOnUpdate when the branch is omitted entirely (patch semantics)', () => {
+    // Dashboard's buildLocalizedPatch omits a localized branch completely when no locale was
+    // touched in the edit session — this must not trip requiredOnUpdate for untouched fields.
+    const result = validateAndSanitizeSeedPayload(
+      REQUIRED_ON_UPDATE_SEED,
+      { code: 'x' },
+      { localeConfig: CONFIG, operation: 'update' },
+    )
+
+    expect(result.requiredFieldsMissing).toEqual([])
+  })
+
   it('reports requiredOnUpdate when an update clears the default locale', () => {
     const result = validateAndSanitizeSeedPayload(
       REQUIRED_ON_UPDATE_SEED,
