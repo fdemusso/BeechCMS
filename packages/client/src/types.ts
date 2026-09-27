@@ -70,6 +70,8 @@ export interface ListQuery<TRow> {
   page?: number
   limit?: number
   latest?: number
+  /** Response language (`?lang`). The API falls back to Accept-Language, then the project default. */
+  lang?: string
 }
 
 export interface ListMeta {
@@ -114,6 +116,11 @@ export interface FluentQuery<TRow> {
   limit(count: number): this
   /** 1-based page number. */
   page(number: number): this
+  /**
+   * Requests one language: localized fields come back as plain values in that language, and filters and
+   * sort compare in it. An unregistered code falls back to the project default; a malformed one is a 400.
+   */
+  lang(code: string): this
   first(options?: RequestOptions): Promise<BeechResult<Single<TRow>>>
   list(options?: RequestOptions & { validate?: boolean }): Promise<BeechResult<Listable<TRow>>>
 }

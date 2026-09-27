@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { resolveClassification, SlugConflictError, verifyMagicBytes, verifyTimeTrapToken, sha256hex, SystemClock, timingSafeEqual, isValidContentStatus } from '@beechcms/core'
+import { resolveClassification, SlugConflictError, verifyMagicBytes, verifyTimeTrapToken, sha256hex, SystemClock, timingSafeEqual, isValidContentStatus, mergeLocalizedFields, resolveLocalizedFields, localizedAliasesIn } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../shared/utils/query-utils.js'
@@ -12,6 +12,8 @@ import { generateEntrySlug, slugify } from './slug-utils.js'
 import { sanitizePublicPayload } from './sanitize.js'
 import { parseIdempotencyKey, buildRequestFingerprint } from './idempotency.js'
 import { applyPrivacy, PrivacyPolicyError } from '../shared/policies/apply-policies.js'
+import { loadLocaleConfig } from '../shared/localization/locale-config.js'
+import { negotiatePublicLanguage, localizePublicEntry } from './public-language.js'
 import type { AppEnv } from '../types.js'
 
 interface ParsedAttachment {
@@ -311,7 +313,17 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     }
   }
 
-  const sanitized = sanitizePublicPayload(seed, rawData, { operation: 'create', allowNull: false, requireAtLeastOneValidField: true, enforceRequiredFields: true })
+  const localeConfig = await loadLocaleConfig(context.get('siteSettingsRepository'), seed)
+
+  const negotiated = localeConfig
+    ? negotiatePublicLanguage({ lang: context.req.query('lang'), acceptLanguage: context.req.header('Accept-Language') }, localeConfig)
+    : undefined
+  if (negotiated && !negotiated.ok) {
+    return publicProblem(context, { type: 'invalid-lang', title: 'Bad Request', status: 400, detail: negotiated.detail })
+  }
+  const language = negotiated?.ok ? negotiated.language : undefined
+
+  const sanitized = sanitizePublicPayload(seed, rawData, { operation: 'create', allowNull: false, requireAtLeastOneValidField: true, enforceRequiredFields: true, localeConfig })
   if (!sanitized.ok) {
     if (sanitized.status === 422) {
       return publicProblem(context, { type: sanitized.code, title: 'Unprocessable Entity', status: 422, detail: sanitized.message })
@@ -329,8 +341,11 @@ export async function publicAddHandler(context: Context<AppEnv>) {
     throw error
   }
 
+  privacyData = mergeLocalizedFields(seed, null, privacyData, localeConfig)
+  const displayData = resolveLocalizedFields(seed, privacyData, localeConfig)
+
   const idempotencyKey = parseIdempotencyKey(context.req.header('Idempotency-Key'))
-  const finalSlug = pickSlug(body, privacyData) || context.get('idGenerator').uuid().slice(0, 8)
+  const finalSlug = pickSlug(body, displayData) || context.get('idGenerator').uuid().slice(0, 8)
   const repository = context.get('repository')
   const idempotencyRepository = context.get('idempotencyRepository')
 
@@ -381,19 +396,23 @@ export async function publicAddHandler(context: Context<AppEnv>) {
       await timeTrapTokenRepo.markTokenUsed(tokenHash, now, t0 + 3600)
     }
 
+    // Localized fields echo their stored (merged, compacted) value, not the raw write.
+    const echoed: Record<string, unknown> = { id, slug: finalSlug, status: statusValue, ...sanitized.data }
+    for (const alias of localizedAliasesIn(seed, sanitized.data)) echoed[alias] = privacyData[alias]
+
     const responseBody = {
       success: true,
       id,
       slug: finalSlug,
-      data: { id, slug: finalSlug, status: statusValue, ...sanitized.data },
+      data: localizePublicEntry(seed, echoed, language),
       meta: { seed: seedSlug },
     }
     if (idempotencyKey) {
       await idempotencyRepository.store({ key: idempotencyKey, fingerprint, responseStatus: 201, responseBody: JSON.stringify(responseBody), expiresAt: now + idempotencyTtl })
     }
 
-    const safeTitle = Object.hasOwn(privacyData, 'title') ? privacyData.title : undefined
-    const safeName = Object.hasOwn(privacyData, 'name') ? privacyData.name : undefined
+    const safeTitle = Object.hasOwn(displayData, 'title') ? displayData.title : undefined
+    const safeName = Object.hasOwn(displayData, 'name') ? displayData.name : undefined
     context.get('notificationService').notify({
       title: `${seed.label}: New entry`,
       message: `A new entry ("${safeTitle || safeName || finalSlug}") has been added via the public API.`,

@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { validateAndSanitizeSeedPayload } from '@beechcms/core'
-import type { Seed, ValidationDetail } from '@beechcms/core'
+import type { LocaleConfig, Seed, ValidationDetail } from '@beechcms/core'
 
 type PublicSanitizeSuccess = {
   ok: true
@@ -31,6 +31,7 @@ export function sanitizePublicPayload(
     operation?: 'create' | 'update'
     requireAtLeastOneValidField?: boolean
     enforceRequiredFields?: boolean
+    localeConfig?: LocaleConfig
   } = {}
 ): PublicSanitizeResult {
   const operation = options.operation ?? 'create'
@@ -39,6 +40,7 @@ export function sanitizePublicPayload(
     operation,
     requireAtLeastOneValidField: options.requireAtLeastOneValidField ?? true,
     enforceRequiredFields: options.enforceRequiredFields ?? true,
+    localeConfig: options.localeConfig,
   })
 
   if (result.dangerousFields.length > 0) {

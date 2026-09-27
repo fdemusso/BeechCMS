@@ -275,5 +275,36 @@ describe('filterEntryForActor', () => {
     expect(res.pin).toBe('1234')
     expect(res.extra).toBe('unknown_value')
   })
+
+  it('masks each translation of a masked localized dictionary', () => {
+    const localizedSeed: Seed = {
+      slug: 'products',
+      label: 'Products',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'tagline', type: 'text', localized: true, policies: { visibility: 'masked' } },
+      ],
+    }
+
+    const res = filterEntryForActor({ id: 'p1', tagline: { it: 'Scarpa', en: '' } }, localizedSeed, { type: 'public' })
+
+    expect(res.tagline).toEqual({ it: '••••••••', en: null })
+  })
+
+  it('still masks a non-localized object value to null', () => {
+    // Regression guard for the unchanged path: a masked json branch is not a localized dictionary.
+    const jsonSeed: Seed = {
+      slug: 'products',
+      label: 'Products',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'meta', type: 'json', policies: { visibility: 'masked' } },
+      ],
+    }
+
+    const res = filterEntryForActor({ id: 'p1', meta: { a: 1 } }, jsonSeed, { type: 'public' })
+
+    expect(res.meta).toBeNull()
+  })
 })
 

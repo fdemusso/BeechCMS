@@ -4,6 +4,7 @@
 
 import { filterEntryForActor } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
+import { localizePublicEntry, type PublicLanguage } from './public-language'
 
 const IDENTITY_FIELDS = ['id', 'slug']
 
@@ -11,8 +12,14 @@ function applyPublicPolicies(data: Record<string, unknown>, seed: Seed): Record<
   return filterEntryForActor(data, seed, { type: 'public' })
 }
 
-export function toFlatPublicEntry(data: Record<string, unknown>, seed: Seed, fieldsParam?: string): Record<string, unknown> {
-  const projected = applyPublicPolicies(data, seed)
+export function toFlatPublicEntry(
+  data: Record<string, unknown>,
+  seed: Seed,
+  fieldsParam?: string,
+  language?: PublicLanguage,
+): Record<string, unknown> {
+  // Resolve first: masking and `?fields` then see the value the reader gets, not the stored dictionary.
+  const projected = applyPublicPolicies(localizePublicEntry(seed, data, language), seed)
   const requestedFields = (fieldsParam ?? '').split(',').map(f => f.trim()).filter(Boolean)
 
   if (requestedFields.length === 0) return projected

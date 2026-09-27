@@ -2,14 +2,16 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { isValidContentStatus, resolveClassification, resolvePolicies, EntryNotFoundError } from '@beechcms/core'
-import type { Seed } from '@beechcms/core'
+import { isValidContentStatus, resolveClassification, resolvePolicies, EntryConflictError, EntryNotFoundError, localizedAliasesIn, mergeLocalizedFields, resolveLocalizedFields } from '@beechcms/core'
+import type { LocaleConfig, Seed } from '@beechcms/core'
 import type { Context } from 'hono'
 import { cleanStr } from '../shared/utils/query-utils'
 import { checkPublicOperation } from './access-policy'
 import { publicProblem } from './problem-details'
 import { slugify } from './slug-utils'
 import { sanitizePublicPayload } from './sanitize'
+import { loadLocaleConfig } from '../shared/localization/locale-config'
+import { negotiatePublicLanguage, localizePublicEntry } from './public-language'
 import { AppEnv } from '../types'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -66,7 +68,8 @@ function resolveStatus(context: PublicCtx, body: Record<string, unknown>, curren
 function resolveData(
   context: PublicCtx,
   seed: Seed,
-  body: Record<string, unknown>
+  body: Record<string, unknown>,
+  localeConfig: LocaleConfig | undefined
 ): ResolveResult<Record<string, unknown>> {
   let rawData: Record<string, unknown> | null = null
 
@@ -150,6 +153,7 @@ function resolveData(
     operation: 'update',
     requireAtLeastOneValidField: true,
     enforceRequiredFields: true,
+    localeConfig,
   })
 
   if (!sanitized.ok) {
@@ -199,6 +203,15 @@ export async function publicEditHandler(context: PublicCtx) {
 
   try {
     const entry = await repository.findById(seed, id)
+    const localeConfig = await loadLocaleConfig(context.get('siteSettingsRepository'), seed)
+
+    const negotiated = localeConfig
+      ? negotiatePublicLanguage({ lang: context.req.query('lang'), acceptLanguage: context.req.header('Accept-Language') }, localeConfig)
+      : undefined
+    if (negotiated && !negotiated.ok) {
+      return publicProblem(context, { type: 'invalid-lang', title: 'Bad Request', status: 400, detail: negotiated.detail })
+    }
+    const language = negotiated?.ok ? negotiated.language : undefined
 
     const bodyResult = await parseBody(context)
     if (!bodyResult.ok) return bodyResult.response
@@ -209,7 +222,7 @@ export async function publicEditHandler(context: PublicCtx) {
     const statusResult = resolveStatus(context, bodyResult.value, (entry.status as string) ?? 'draft')
     if (!statusResult.ok) return statusResult.response
 
-    const dataResult = resolveData(context, seed, bodyResult.value)
+    const dataResult = resolveData(context, seed, bodyResult.value, localeConfig)
     if (!dataResult.ok) return dataResult.response
 
     if (slugResult.value.slugRequested && slugResult.value.nextSlug !== entry.slug) {
@@ -219,12 +232,18 @@ export async function publicEditHandler(context: PublicCtx) {
       }
     }
 
-    const updateData = { ...dataResult.value }
+    // Merged into the stored dictionaries so translations the caller does not mention survive (brief §2).
+    const updateData: Record<string, unknown> = { ...mergeLocalizedFields(seed, entry, dataResult.value, localeConfig) }
     if (slugResult.value.slugRequested) {
       (updateData as any).slug = slugResult.value.nextSlug
     }
 
-    await repository.update(seed, id, updateData, statusResult.value)
+    // Read-modify-write against `entry`: guard with the version merged against so a concurrent write
+    // yields 409 instead of silently losing a translation.
+    const ifMatch = localeConfig && localizedAliasesIn(seed, dataResult.value).length > 0
+      ? (entry.updated_at as number)
+      : undefined
+    await repository.update(seed, id, updateData, statusResult.value, { ifMatch })
 
     context.get('notificationService').notify({
       title: `${seed.label}: Update`,
@@ -233,8 +252,9 @@ export async function publicEditHandler(context: PublicCtx) {
     })
 
     const updatedEntry = { ...entry, ...updateData }
-    const safeTitle = Object.hasOwn(updatedEntry, 'title') ? updatedEntry.title : undefined
-    const safeName = Object.hasOwn(updatedEntry, 'name') ? updatedEntry.name : undefined
+    const displayEntry = resolveLocalizedFields(seed, updatedEntry, localeConfig)
+    const safeTitle = Object.hasOwn(displayEntry, 'title') ? displayEntry.title : undefined
+    const safeName = Object.hasOwn(displayEntry, 'name') ? displayEntry.name : undefined
     const title = String(safeTitle || safeName || slugResult.value.nextSlug)
 
     context.get('activityLogger').log({
@@ -258,10 +278,13 @@ export async function publicEditHandler(context: PublicCtx) {
       success: true,
       id,
       slug: slugResult.value.nextSlug,
-      data: { ...updatedEntry, status: statusResult.value },
+      data: localizePublicEntry(seed, { ...updatedEntry, status: statusResult.value }, language),
       meta: { seed: seedSlug },
     }, 200)
   } catch (error) {
+    if (error instanceof EntryConflictError) {
+      return publicProblem(context, { type: 'entry-update-conflict', title: 'Conflict', status: 409, detail: `Entry '${id}' was modified concurrently. Re-read it and retry.` })
+    }
     if (error instanceof EntryNotFoundError) {
       return publicProblem(context, { type: 'entry-not-found', title: 'Not Found', status: 404, detail: `Entry '${id}' not found for content type '${seedSlug}'.` })
     }

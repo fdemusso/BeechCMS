@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { ContentRepository, Seed } from '@beechcms/core'
+import type { ContentRepository, Seed, SelectLocale } from '@beechcms/core'
 import { resolvePublicRelationTarget } from './relation-access'
 import { toEngineFilters, type ParsedPublicFilter, type PublicFilterCondition } from './query-builder'
 
@@ -32,6 +32,7 @@ export async function resolveRelationSubqueries(
   repository: ContentRepository,
   getSeed: (slug: string) => Seed | null,
   publishedOnly: boolean,
+  locale?: SelectLocale,
 ): Promise<ResolvedSubqueryFilter> {
   if (!parsed || parsed.where.length === 0) return { filter: parsed, empty: false }
 
@@ -61,7 +62,7 @@ export async function resolveRelationSubqueries(
     const { branch: relBranch, targetSeed } = resolvePublicRelationTarget(cond.field, parentSeed, getSeed, 'subquery')
 
     const targetIds = cond.subquery
-      ? await resolveTargetIds(cond.field, cond.subquery, targetSeed, repository, publishedOnly)
+      ? await resolveTargetIds(cond.field, cond.subquery, targetSeed, repository, publishedOnly, locale)
       : normalizeIdArray(cond.field, cond.value)
 
     if (targetIds.length === 0) {
@@ -106,6 +107,7 @@ async function resolveTargetIds(
   targetSeed: Seed,
   repository: ContentRepository,
   publishedOnly: boolean,
+  locale?: SelectLocale,
 ): Promise<string[]> {
   // Reuses the public filter policy gate: inner fields must be public AND filterable on the TARGET seed.
   const innerFilters = toEngineFilters(targetSeed, { where: subquery.where, logic: subquery.logic })
@@ -115,6 +117,7 @@ async function resolveTargetIds(
     filterLogic: subquery.logic,
     status: publishedOnly ? 'published' : null,
     pagination: { limit: MAX_SUBQUERY_TARGET_IDS, offset: 0 },
+    ...(locale ? { locale } : {}),
   })
 
   if (total > MAX_SUBQUERY_TARGET_IDS) {

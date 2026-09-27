@@ -76,5 +76,44 @@ describe('toFlatPublicEntry', () => {
       username: 'alice',
     })
   })
+
+  it('resolves a localized field before masking, so a masked translation shows the mask instead of null', () => {
+    // Regression guard: a masked field that held a dictionary became null.
+    const seed = {
+      slug: 'products',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'tagline', type: 'text', localized: true, policies: { visibility: 'masked' } },
+      ],
+    } as unknown as Seed
+    const config = { locales: ['it', 'en'], defaultLocale: 'it' }
+
+    const result = toFlatPublicEntry(
+      { id: '1', tagline: { it: 'Ciao', en: 'Hi' } },
+      seed,
+      undefined,
+      { mode: 'single', locale: 'en', config },
+    )
+
+    expect(result.tagline).toBe('••••••••')
+  })
+
+  it('resolves localized fields to the requested language', () => {
+    const seed = {
+      slug: 'products',
+      displayNameAlias: 'title',
+      branches: [{ id: 'br_01', alias: 'title', type: 'text', localized: true }],
+    } as unknown as Seed
+    const config = { locales: ['it', 'en'], defaultLocale: 'it' }
+
+    const result = toFlatPublicEntry(
+      { id: '1', title: { it: 'Scarpa', en: 'Shoe' } },
+      seed,
+      undefined,
+      { mode: 'single', locale: 'en', config },
+    )
+
+    expect(result.title).toBe('Shoe')
+  })
 })
 

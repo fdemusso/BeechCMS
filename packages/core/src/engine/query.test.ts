@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 import { describe, it, expect } from 'vitest'
-import type { Seed, Branch } from './types.js'
+import type { Seed, Branch, SelectLocale } from './types.js'
 import { buildSelectQuery } from './query.js'
 
 const mockSeed: Seed = {
@@ -268,6 +268,83 @@ describe('Query', () => {
       // the seed must get today's SQL back, byte-identical.
       const query = buildSelectQuery(mockSeed, { trashed: 'trashed' })
       expect(query.sql).not.toContain('deleted_at')
+    })
+  })
+
+  describe('buildSelectQuery — localized columns', () => {
+    const locArticlesSeed: Seed = {
+      slug: 'loc_articles',
+      label: 'Loc Articles',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_title', alias: 'title', type: 'text', label: 'Title', localized: true },
+        { id: 'br_data', alias: 'data', type: 'json', label: 'Data', localized: true },
+        { id: 'br_code', alias: 'code', type: 'text', label: 'Code' },
+      ],
+    }
+    const LOCALE: SelectLocale = { code: 'en', config: { locales: ['it', 'en'], defaultLocale: 'it' } }
+
+    it('a filter on a localized text branch compares the value resolved in the requested locale', () => {
+      const query = buildSelectQuery(locArticlesSeed, {
+        filters: [{ column: 'title', type: 'text', conditions: [{ op: 'eq', value: 'Shoe' }] }],
+        locale: LOCALE,
+      })
+      expect(query.sql).toContain(`json_extract(content_loc_articles.title, '$."en"')`)
+      expect(query.sql).toContain(`json_extract(content_loc_articles.title, '$."it"')`)
+      expect(query.bindings).toEqual(['Shoe'])
+    })
+
+    it('ORDER BY a localized branch sorts on the resolved value', () => {
+      const query = buildSelectQuery(locArticlesSeed, {
+        orderBy: { column: 'title', dir: 'ASC' },
+        locale: LOCALE,
+      })
+      expect(query.sql).toContain('ORDER BY (CASE WHEN json_valid(content_loc_articles.title)')
+      expect(query.sql.trimEnd().endsWith('ASC')).toBe(true)
+    })
+
+    it('without a locale a localized branch is compared raw, exactly as before', () => {
+      // Regression guard: the non-localized path must stay byte-identical.
+      const query = buildSelectQuery(locArticlesSeed, {
+        filters: [{ column: 'title', type: 'text', conditions: [{ op: 'eq', value: 'Shoe' }] }],
+      })
+      expect(query.sql).toContain('WHERE title = ?')
+      expect(query.sql).not.toContain('json_extract')
+    })
+
+    it('a non-localized branch is compared raw even when a locale is set', () => {
+      const query = buildSelectQuery(locArticlesSeed, {
+        filters: [{ column: 'code', type: 'text', conditions: [{ op: 'eq', value: 'X1' }] }],
+        locale: LOCALE,
+      })
+      expect(query.sql).toContain('WHERE code = ?')
+    })
+
+    it('a localized json branch also requires a registered locale key before treating a value as a dictionary', () => {
+      const dataQuery = buildSelectQuery(locArticlesSeed, {
+        filters: [{ column: 'data', type: 'json', conditions: [{ op: 'eq', value: 'x' }] }],
+        locale: LOCALE,
+      })
+      const titleQuery = buildSelectQuery(locArticlesSeed, {
+        filters: [{ column: 'title', type: 'text', conditions: [{ op: 'eq', value: 'x' }] }],
+        locale: LOCALE,
+      })
+      expect(dataQuery.sql).toContain(`key IN ('it', 'en')`)
+      expect(titleQuery.sql).not.toContain(`key IN ('it', 'en')`)
+    })
+
+    it('a locale code outside the grammar throws before any SQL is built', () => {
+      // Regression guard: codes are inlined, so the grammar is the injection guard.
+      const badCodes = ["en'); DROP TABLE x;--", 'EN', 'en_US']
+      for (const code of badCodes) {
+        const badLocale: SelectLocale = { code, config: { locales: ['it', 'en'], defaultLocale: 'it' } }
+        expect(() =>
+          buildSelectQuery(locArticlesSeed, {
+            filters: [{ column: 'title', type: 'text', conditions: [{ op: 'eq', value: 'x' }] }],
+            locale: badLocale,
+          }),
+        ).toThrow(TypeError)
+      }
     })
   })
 })
