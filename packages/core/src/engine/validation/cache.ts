@@ -175,10 +175,17 @@ export function compileSeedSchema(seed: Seed, options: ResolvedOptions): z.ZodOb
   const requiredFlag = options.operation === 'create' ? 'requiredOnCreate' : 'requiredOnUpdate'
   const shape: Record<string, z.ZodTypeAny> = {}
   for (const branch of seed.branches) {
-    const branchSchema = options.localeConfig && isLocalizedBranch(branch)
-      ? localizedSchema(branch, options, options.localeConfig)
+    const branchLocaleConfig = options.localeConfig && isLocalizedBranch(branch) ? options.localeConfig : undefined
+    const branchSchema = branchLocaleConfig
+      ? localizedSchema(branch, options, branchLocaleConfig)
       : schemaForBranch(branch, options)
-    const isRequired = branch[requiredFlag] && options.enforceRequiredFields
+    // A localized branch uses patch semantics on update (buildLocalizedPatch omits it entirely when no
+    // locale was touched), so the object schema must accept the key being absent even when required —
+    // detectMissingRequired() checks the *value* (default-locale presence/emptiness) with full patch
+    // awareness; a non-optional key here would fail the whole payload's parse and silently drop every
+    // other submitted field with it.
+    const isPatchExempt = branchLocaleConfig != null && options.operation === 'update'
+    const isRequired = branch[requiredFlag] && options.enforceRequiredFields && !isPatchExempt
     shape[branch.alias] = isRequired ? branchSchema : branchSchema.optional()
   }
   const compiled = z.object(shape).strict()
