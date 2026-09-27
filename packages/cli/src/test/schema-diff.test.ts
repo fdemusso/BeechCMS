@@ -4,8 +4,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { mkdirSync, readdirSync, rmSync } from 'node:fs'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import type { Seed } from '@beechcms/core'
+import { nextMigrationIndex, buildMigrationSql } from '../lib/migration-writer.js'
 
 // ── fixtures ─────────────────────────────────────────────────────────────────
 
@@ -33,22 +34,18 @@ describe('nextMigrationIndex', () => {
 
   afterEach(() => { rmSync(dir, { recursive: true, force: true }) })
 
-  it('returns 0000 when directory is empty', async () => {
-    const { nextMigrationIndex } = await import('../lib/migration-writer.js')
+  it('returns 0000 when directory is empty', () => {
     expect(nextMigrationIndex(dir)).toBe('0000')
   })
 
-  it('returns 0034 when highest prefix is 0033', async () => {
-    const { nextMigrationIndex } = await import('../lib/migration-writer.js')
+  it('returns 0034 when highest prefix is 0033', () => {
     for (const name of ['0031_foo.sql', '0033_bar.sql', '0029_baz.sql']) {
-      const { writeFileSync } = await import('node:fs')
       writeFileSync(join(dir, name), '')
     }
     expect(nextMigrationIndex(dir)).toBe('0034')
   })
 
-  it('returns 0000 when directory does not exist', async () => {
-    const { nextMigrationIndex } = await import('../lib/migration-writer.js')
+  it('returns 0000 when directory does not exist', () => {
     expect(nextMigrationIndex(join(tmpdir(), 'no-such-dir-beech'))).toBe('0000')
   })
 })
@@ -56,8 +53,7 @@ describe('nextMigrationIndex', () => {
 // ── buildMigrationSql ─────────────────────────────────────────────────────────
 
 describe('buildMigrationSql — additive emission', () => {
-  it('emits planCreateSeed statements when table is missing', async () => {
-    const { buildMigrationSql } = await import('../lib/migration-writer.js')
+  it('emits planCreateSeed statements when table is missing', () => {
     const diffs = [{ slug: 'articles', tableExists: false, columns: [] }]
     const plan = buildMigrationSql(diffs, REGISTRY)
     expect(plan.additiveCount).toBeGreaterThan(0)
@@ -65,8 +61,7 @@ describe('buildMigrationSql — additive emission', () => {
     expect(plan.destructiveSlugs).toHaveLength(0)
   })
 
-  it('emits generateAddColumn for missing columns', async () => {
-    const { buildMigrationSql } = await import('../lib/migration-writer.js')
+  it('emits generateAddColumn for missing columns', () => {
     const diffs = [{
       slug: 'articles',
       tableExists: true,
@@ -81,8 +76,7 @@ describe('buildMigrationSql — additive emission', () => {
     expect(plan.destructiveSlugs).toHaveLength(0)
   })
 
-  it('emits commented block for destructive drift, not executable SQL', async () => {
-    const { buildMigrationSql } = await import('../lib/migration-writer.js')
+  it('emits commented block for destructive drift, not executable SQL', () => {
     const diffs = [{
       slug: 'articles',
       tableExists: true,
@@ -98,8 +92,7 @@ describe('buildMigrationSql — additive emission', () => {
     expect(plan.sql).not.toMatch(/^DROP/m)
   })
 
-  it('additiveCount is 0 when only destructive drift exists', async () => {
-    const { buildMigrationSql } = await import('../lib/migration-writer.js')
+  it('additiveCount is 0 when only destructive drift exists', () => {
     const diffs = [{
       slug: 'articles',
       tableExists: true,
@@ -112,8 +105,7 @@ describe('buildMigrationSql — additive emission', () => {
     expect(plan.destructiveSlugs).toContain('articles')
   })
 
-  it('processes seeds with no drift as no-op', async () => {
-    const { buildMigrationSql } = await import('../lib/migration-writer.js')
+  it('processes seeds with no drift as no-op', () => {
     const diffs = [{
       slug: 'articles',
       tableExists: true,

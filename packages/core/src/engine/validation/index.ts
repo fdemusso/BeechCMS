@@ -4,7 +4,7 @@
 import { z } from 'zod'
 import type { Seed } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
-import { isLocalizedBranch, toLocalizedPatch, type LocaleConfig } from '../localization.js'
+import { isLocalizedBranch, toLocalizedPatch, type LocaleConfig } from '../localization/localization.js'
 import { compileSeedSchema } from './cache.js'
 import { isEffectivelyEmpty } from './emptiness.js'
 
