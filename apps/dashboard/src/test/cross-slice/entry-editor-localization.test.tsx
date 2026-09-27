@@ -42,9 +42,20 @@ vi.mock("@/components/ui/select", async () => {
     SelectTrigger: ({ children }: { children: ReactNode }) => <div>{children}</div>,
     SelectValue: () => null,
     SelectContent: ({ children }: { children: ReactNode }) => <div role="listbox">{children}</div>,
-    SelectItem: ({ value, children }: { value: string; children: ReactNode }) => {
+    SelectItem: ({ value, className, children, ...rest }: { value: string; className?: string; children: ReactNode }) => {
       const onValueChange = React.useContext(SelectContext)
-      return <button type="button" role="option" aria-selected={false} onClick={() => onValueChange(value)}>{children}</button>
+      return (
+        <button
+          type="button"
+          role="option"
+          aria-selected={false}
+          className={className}
+          onClick={() => onValueChange(value)}
+          {...rest}
+        >
+          {children}
+        </button>
+      )
     },
   }
 })
@@ -160,12 +171,31 @@ describe("EntryEditorDialog — content localization", () => {
     expect(screen.getByLabelText(/^Title/)).toHaveValue("Scarpa")
   })
 
-  it("the locale switcher counts filled localized fields per language", async () => {
+  it("the locale switcher styles locales according to translation status without counters", async () => {
+    routeApi({ locales: ["it", "en", "es"], defaultLocale: "it", defaultLanguage: "it" })
     renderEditor(ENTRY_ID)
     await waitFor(() => expect(screen.getByLabelText(/^Title/)).toHaveValue("Scarpa"))
 
-    expect(screen.getByRole("option", { name: /^IT/ })).toHaveTextContent(/2\/2 translated/)
-    expect(screen.getByRole("option", { name: /^EN/ })).toHaveTextContent(/1\/2 translated/)
+    const itOption = screen.getByRole("option", { name: /^IT/ })
+    const enOption = screen.getByRole("option", { name: /^EN/ })
+    const esOption = screen.getByRole("option", { name: /^ES/ })
+
+    // No counters
+    expect(itOption).not.toHaveTextContent(/translated/)
+    expect(enOption).not.toHaveTextContent(/translated/)
+    expect(esOption).not.toHaveTextContent(/translated/)
+
+    // IT is fully translated (2/2) -> normal styling
+    expect(itOption).toHaveAttribute("data-status", "translated")
+    expect(itOption.className).not.toMatch(/text-destructive|text-amber/)
+
+    // EN is partially translated (1/2) -> amber styling
+    expect(enOption).toHaveAttribute("data-status", "partial")
+    expect(enOption.className).toMatch(/text-amber/)
+
+    // ES is untranslated (0/2) -> red / destructive styling
+    expect(esOption).toHaveAttribute("data-status", "untranslated")
+    expect(esOption.className).toMatch(/text-destructive/)
   })
 
   it("with one content language the editor shows no locale switcher", async () => {
