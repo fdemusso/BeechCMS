@@ -530,6 +530,53 @@ describe('#184 — repeater sub-fields respect enforceRequiredFields (#5)', () =
   })
 })
 
+describe('#444 — repeater required sub-fields reject value-level emptiness', () => {
+  const REPEATER_VALUE_EMPTINESS_SEED: Seed = {
+    slug: 'rep',
+    label: 'Rep',
+    displayNameAlias: 'title',
+    branches: [
+      { id: 'br_title', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+      {
+        id: 'br_items', alias: 'items', label: 'Items', type: 'repeater',
+        fields: [
+          { id: 'br_item_title', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+          { id: 'br_price', alias: 'price', label: 'Price', type: 'number', requiredOnCreate: true },
+        ],
+      },
+    ],
+  }
+
+  function validate(items: unknown) {
+    return validateAndSanitizeSeedPayload(
+      REPEATER_VALUE_EMPTINESS_SEED,
+      { title: 'T', items },
+      { operation: 'create' },
+    )
+  }
+
+  it('rejects a whitespace-only value for a required text sub-field', () => {
+    const r = validate([{ title: '   ', price: 1 }])
+
+    expect(r.details.some(d => d.field === 'items[0].title')).toBe(true)
+    expect(r.data).not.toHaveProperty('items')
+  })
+
+  it('rejects an empty string for a required number sub-field instead of silently dropping the key', () => {
+    const r = validate([{ title: 'Widget', price: '' }])
+
+    expect(r.details.some(d => d.field === 'items[0].price')).toBe(true)
+    expect(r.data).not.toHaveProperty('items')
+  })
+
+  it('accepts a fully populated item unaffected by the emptiness check', () => {
+    const r = validate([{ title: 'Widget', price: 9.99 }])
+
+    expect(r.details).toEqual([])
+    expect(r.data.items).toEqual([{ title: 'Widget', price: 9.99 }])
+  })
+})
+
 // Regression: https://github.com/ (issue #152) — empty string on a nullable field
 // must resolve to `null`, not be rejected by the `withNullable` union.
 describe('empty string on nullable fields (issue #152)', () => {
