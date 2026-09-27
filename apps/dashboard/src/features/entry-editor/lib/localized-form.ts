@@ -138,8 +138,9 @@ export function buildLocalizedPatch(
   config: LocaleConfig,
 ): Record<string, Record<string, unknown>> {
   const patch: Record<string, Record<string, unknown>> = {}
+  const registered = new Set(config.locales)
   for (const branch of localizedBranchesOf(branches)) {
-    const locales = (touched[branch.alias] ?? []).filter((locale) => config.locales.includes(locale))
+    const locales = (touched[branch.alias] ?? []).filter((locale) => registered.has(locale))
     if (locales.length === 0) continue
     const entry: Record<string, unknown> = {}
     for (const locale of locales) {

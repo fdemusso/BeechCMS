@@ -32,7 +32,10 @@ export function useContentEntry(slug: string | undefined, id: string | undefined
     staleTime: (cached) => (isRelationLabelStub(cached.state.data) ? 0 : 10 * 1000), // 10 seconds for real rows
   })
   // The editor seeds its form from `data`: seeding it from `{ title: label }` would show an almost empty entry.
-  return isRelationLabelStub(query.data) ? { ...query, data: undefined, isLoading: true } : query
+  if (isRelationLabelStub(query.data)) {
+    return Object.assign(Object.create(query), { data: undefined, isLoading: true })
+  }
+  return query
 }
 
 export function useDraftEntry(slug: string | undefined, id: string | undefined) {

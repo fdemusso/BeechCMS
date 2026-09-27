@@ -69,7 +69,7 @@ export function ContentLanguagesCard() {
               placeholder={t("settings.contentLanguages.addPlaceholder")}
               onChange={(e) => actions.setDraft(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
+                if (e.key === "Enter" && !e.nativeEvent.isComposing) {
                   e.preventDefault()
                   actions.add()
                 }
