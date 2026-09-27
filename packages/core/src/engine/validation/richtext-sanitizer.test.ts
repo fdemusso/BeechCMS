@@ -249,6 +249,20 @@ describe('richtext field', () => {
     expect(r.dangerousFields).toContain('body')
   })
 
+  // Regression: #443 — JSON.stringify (recursive) ran BEFORE the depth guard as a
+  // fail-fast size pre-check, so a payload nested past a few thousand levels threw
+  // an uncaught RangeError from inside the Zod transform instead of failing validation.
+  it('#443: rejects content nested past RICHTEXT_MAX_DEPTH by orders of magnitude without a RangeError', () => {
+    let node: Record<string, unknown> = { type: 'paragraph', content: [{ type: 'text', text: 'leaf' }] }
+    for (let i = 0; i < 5000; i++) {
+      node = { type: 'paragraph', content: [node] }
+    }
+    const doc = { type: 'doc', content: [node] }
+    expect(() => safeValidate({ ...validBase(), body: doc })).not.toThrow()
+    const r = safeValidate({ ...validBase(), body: doc })
+    expect(r.details.some(d => d.field === 'body')).toBe(true)
+  })
+
   it('fails fast on oversize payload before the sanitizing walk', () => {
     const doc = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'x'.repeat(50) }] }] }
     const r = safeValidate({ ...validBase(), body: doc }, { maxTextLength: 5 })
@@ -356,6 +370,43 @@ describe('richtext field', () => {
     const r = sanitizeRichtext(maliciousDoc, 10000)
     expect(r.dangerous).toBe(true)
     expect((r.value as any).content).toHaveLength(0)
+  })
+
+  // Regression: #442 — TipTap v3 OrderedList emits `attrs: { start, type }`. The `type` key
+  // inside an attrs bag is ordinary attribute data (list-style marker), not a node discriminator,
+  // and must not be checked against the node/mark allowlist.
+  it('#442: accepts a TipTap ordered list whose attrs carry a `type` key (list-style)', () => {
+    const doc = {
+      type: 'doc',
+      content: [{
+        type: 'orderedList',
+        attrs: { start: 1, type: null },
+        content: [{
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
+        }],
+      }],
+    }
+    const r = safeValidate({ ...validBase(), body: doc })
+    expect(r.dangerousFields).not.toContain('body')
+    expect(r.data.body).toEqual(doc)
+  })
+
+  it('#442: accepts an ordered list style attrs.type string value ("a", "i", etc.)', () => {
+    const doc = {
+      type: 'doc',
+      content: [{
+        type: 'orderedList',
+        attrs: { start: 1, type: 'a' },
+        content: [{
+          type: 'listItem',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }],
+        }],
+      }],
+    }
+    const r = sanitizeRichtext(doc, 10000)
+    expect(r.dangerous).toBe(false)
+    expect((r.value as any).content[0].attrs).toEqual({ start: 1, type: 'a' })
   })
 
   it('prevents prototype pollution via __proto__, constructor, and prototype keys', () => {

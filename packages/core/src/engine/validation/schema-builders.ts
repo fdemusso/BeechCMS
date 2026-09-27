@@ -6,8 +6,9 @@ import type { Branch, BranchType } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
 import type { ResolvedOptions } from './index.js'
 import { extensionFromUrl, isExtensionAccepted } from '../../media/file-types.js'
-import { isLocalizedWriteDictionary, toLocalizedPatch, type LocaleConfig, type LocalizedPatch } from '../localization/localization.js'
-import { cleanString, stripControlChars, byteLength, isPlainObject } from './primitives.js'
+import { isLocalizedWriteDictionary, toLocalizedPatch, type LocaleConfig, type LocalizedPatch } from '../localization.js'
+import { cleanString, stripControlChars, byteLength, isPlainObject, exceedsMaxDepth } from './primitives.js'
+import { isEffectivelyEmpty } from './emptiness.js'
 import { sanitizeRichtext } from './richtext-sanitizer.js'
 import { resolveFileOptions, isAssetListBranch, collectAssetListItems, extractFileCandidate } from './file-branch.js'
 
@@ -245,6 +246,13 @@ function jsonSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
   const base = z
     .union([z.record(z.string(), z.unknown()), z.array(z.unknown())])
     .transform((val, ctx) => {
+      // Fail-fast depth pre-check BEFORE any JSON.stringify: deep nesting stack-
+      // overflows JSON.stringify (recursive) before the size check or the
+      // depth-guarded sanitizing walk below ever run (#443).
+      if (exceedsMaxDepth(val, JSON_MAX_DEPTH)) {
+        ctx.addIssue({ code: 'custom', message: `Expected json(maxDepth:${JSON_MAX_DEPTH})` })
+        return z.NEVER
+      }
       // Fail-fast size check before the sanitizing walk, same order as richtext.
       const rawSize = byteLength(JSON.stringify(val))
       if (rawSize > options.maxTextLength) {
@@ -391,14 +399,26 @@ function repeaterSchema(branch: Branch, options: ResolvedOptions): z.ZodTypeAny 
   const subBranches = (branch.fields ?? []).filter((sub) => !REPEATER_DISALLOWED_SUBTYPES.has(sub.type))
 
   const shape: Record<string, z.ZodTypeAny> = {}
+  const requiredSubs: Branch[] = []
   for (const sub of subBranches) {
     const subSchema = schemaForBranch(sub, options)
     const isRequired = options.enforceRequiredFields && sub[requiredFlag]
     shape[sub.alias] = isRequired ? subSchema : subSchema.optional()
+    if (isRequired) requiredSubs.push(sub)
   }
   // z.object() strips unknown keys by default — old item shapes from a renamed/
   // removed sub-field are dropped rather than rejected (sprint 10 §5.1).
-  const itemSchema = z.object(shape)
+  // Making the key non-optional above only guards presence: leaf schemas fold ""
+  // to `undefined` (withEmptyPreprocessing) or accept whitespace-only text, so a
+  // required sub-field still needs the same value-level emptiness check top-level
+  // required branches get from detectMissingRequired (issue #444).
+  const itemSchema = z.object(shape).superRefine((item, ctx) => {
+    for (const sub of requiredSubs) {
+      if (isEffectivelyEmpty(item[sub.alias], sub.type)) {
+        ctx.addIssue({ code: 'custom', path: [sub.alias], message: 'Expected non-empty(required)' })
+      }
+    }
+  })
   let arraySchema = z.array(itemSchema)
   if (Number.isInteger(branch.minItems) && (branch.minItems as number) >= 0) {
     arraySchema = arraySchema.min(branch.minItems as number, {

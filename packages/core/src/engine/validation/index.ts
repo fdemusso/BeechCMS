@@ -4,11 +4,9 @@
 import { z } from 'zod'
 import type { Seed } from '../types.js'
 import type { IIdGenerator } from '../../common/id-generator.js'
-import { isRichtextEnvelopeV1 } from '../../content/richtext/richtext.js'
-import { isLocalizedBranch, toLocalizedPatch, type LocaleConfig } from '../localization/localization.js'
-import { cleanString, isPlainObject } from './primitives.js'
-import { isRichtextDocEmpty } from './richtext-sanitizer.js'
+import { isLocalizedBranch, toLocalizedPatch, type LocaleConfig } from '../localization.js'
 import { compileSeedSchema } from './cache.js'
+import { isEffectivelyEmpty } from './emptiness.js'
 
 // Re-export the public file-branch symbol so the barrel surface stays complete.
 export { resolveFileOptions } from './file-branch.js'
@@ -122,27 +120,6 @@ const DEFAULT_MAX_TEXT_LENGTH = 50_000
 const STATUS_VALUES = ['draft', 'review', 'published'] as const
 /** Zod schema for content status enum validation. */
 const statusSchema = z.enum(STATUS_VALUES)
-
-/**
- * Checks if a value is effectively empty (e.g. null, undefined, empty string, empty array, or empty rich text).
- *
- * @param value - The value to check.
- * @param branchType - The type of the branch being checked.
- * @returns True if effectively empty, false otherwise.
- */
-function isEffectivelyEmpty(value: unknown, branchType?: string): boolean {
-  if (value === null || value === undefined) return true
-  if (typeof value === 'string') return cleanString(value).length === 0
-  if (Array.isArray(value)) return value.length === 0
-  if (isPlainObject(value)) {
-    // Richtext envelope: delegate to the richtext emptiness check.
-    if (isRichtextEnvelopeV1(value)) return isRichtextDocEmpty(value.doc)
-    // Raw TipTap doc root: only delegate for richtext branches to avoid misclassifying generic json fields.
-    if (branchType === 'richtext' && value.type === 'doc') return isRichtextDocEmpty(value)
-    return Object.keys(value).length === 0
-  }
-  return false
-}
 
 /**
  * Detects missing or empty required fields based on whether the operation is create or update.
