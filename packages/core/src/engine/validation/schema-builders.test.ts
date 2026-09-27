@@ -603,6 +603,32 @@ describe('empty string on nullable fields (issue #152)', () => {
   })
 })
 
+// Regression: issue #443 — JSON.stringify (recursive) ran BEFORE the depth guard as a
+// fail-fast size pre-check, so a `json` branch payload nested past a few thousand
+// levels threw an uncaught RangeError from inside the Zod transform instead of
+// failing validation with a normal issue.
+describe('json branch: deep nesting past JSON_MAX_DEPTH (issue #443)', () => {
+  it('rejects a json payload nested by orders of magnitude past the depth cap without a RangeError', () => {
+    let deep: Record<string, unknown> = { leaf: true }
+    for (let i = 0; i < 5000; i++) {
+      deep = { child: deep }
+    }
+
+    expect(() => validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { title: 'Valid Title', qty: 1, meta: deep },
+      { operation: 'update', requireAtLeastOneValidField: false },
+    )).not.toThrow()
+
+    const r = validateAndSanitizeSeedPayload(
+      CHAOS_SEED,
+      { title: 'Valid Title', qty: 1, meta: deep },
+      { operation: 'update', requireAtLeastOneValidField: false },
+    )
+    expect(r.details.some(d => d.field === 'meta' && d.expected.includes('maxDepth'))).toBe(true)
+  })
+})
+
 // Regression: issue #182 — explicit null when allowNull is false
 // must produce a ValidationDetail and NOT be coerced to undefined.
 describe('explicit null when allowNull is false (issue #182)', () => {
