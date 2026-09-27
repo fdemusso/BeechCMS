@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { Seed } from './types.js'
-import { AUTOMATION_RESERVED_WORDS } from '../automations/automations-grammar-words.js'
-import { SYSTEM_COLUMNS } from './ddl.js'
-import { LOCALIZABLE_BRANCH_TYPES } from './localization.js'
-import { resolveClassification } from './policies.js'
+import type { Seed } from '../types.js'
+import { AUTOMATION_RESERVED_WORDS } from '../../automations/automations-grammar-words.js'
+import { SYSTEM_COLUMNS } from '../ddl/ddl.js'
+import { LOCALIZABLE_BRANCH_TYPES } from '../localization/localization.js'
+import { resolveClassification } from '../privacy/policies.js'
 import { sortSeedsByDependencies } from './seed-registry.js'
-import { SQL_RESERVED_WORDS } from './sql-reserved-words.js'
+import { SQL_RESERVED_WORDS } from '../sql-reserved-words.js'
 
 const BRANCH_ID_RE = /^br_[A-Za-z0-9]+$/
 

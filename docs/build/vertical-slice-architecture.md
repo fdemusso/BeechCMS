@@ -172,6 +172,19 @@ To maintain clear separation between business logic and visual presentation:
 1. **Direct SQL / D1 Queries in Handlers**: Bypasses Botanical Engine serialization (`apiToDb` / `dbToApi`) and breaks column security policies.
 2. **Cross-Slice Imports**: Feature A (`features/content/`) must never import from Feature B (`features/auth/`). Shared contracts belong in `@beechcms/core` or `shared/`.
 3. **Synchronous Side-Effects**: Do not trigger long-running email delivery or remote webhooks synchronously inside request handlers; use `c.executionCtx.waitUntil()` or queues.
+4. **Nested Barrels ("Barrel-inside-Barrel")**: Creating chains of pass-through barrels (`index.ts` in every internal subfolder) obscures source definitions, degrades tree-shaking, and complicates IDE navigation.
+
+---
+
+## Internal Slice Organization: Thematic Clustering vs. Nested Sub-Slices
+
+When an architectural slice or core module (such as `packages/core/src/engine/` or a complex feature slice) contains numerous cohesive files, internal subdirectories are organized by **thematic clustering of files** (e.g., `seeds/`, `privacy/`, `ddl/`, `query/`, `introspection/`, `localization/`) rather than being treated as autonomous nested sub-slices with redundant internal `index.ts` barrels.
+
+### Guidelines for Thematic Clustering:
+1. **AI & Human Bounded Context**: The primary objective is to group related files so that AI assistants and engineers can operate within a tightly focused context window (e.g., viewing only `engine/privacy/` when dealing with data classification and encryption, without loading DDL or query builders).
+2. **No Intermediate Barrels**: Avoid generating intermediate `index.ts` barrels inside thematic subfolders. Root modules and barrels export directly from the concrete domain files (e.g., `export * from './engine/seeds/define-seed.js'`).
+3. **Direct Navigation**: TypeScript language servers and IDEs jump directly to the target implementation file rather than through multiple layers of re-export shims.
+
 
 ---
 

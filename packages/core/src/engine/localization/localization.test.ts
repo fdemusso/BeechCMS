@@ -20,7 +20,7 @@ import {
   asLocaleDictionaries,
   type LocaleConfig,
 } from './localization.js'
-import type { Branch, BranchType, Seed } from './types.js'
+import type { Branch, BranchType, Seed } from '../types.js'
 
 const CONFIG: LocaleConfig = { locales: ['it', 'en', 'pt-BR'], defaultLocale: 'it' }
 

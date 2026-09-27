@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { SeedRegistry, InMemorySeedRegistry, sortSeedsByDependencies, findBranchById, nextBranchId } from './seed-registry.js'
-import type { Seed, Branch } from './types.js'
+import type { Seed, Branch } from '../types.js'
 
 // ─── Fixtures ────────────────────────────────────────────────────────────────
 

@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { validateAndSanitizeSeedPayload } from './index.js'
-import type { LocaleConfig } from '../localization.js'
+import type { LocaleConfig } from '../localization/localization.js'
 import type { Seed } from '../types.js'
 
 const CONFIG: LocaleConfig = { locales: ['it', 'en', 'pt-BR'], defaultLocale: 'it' }

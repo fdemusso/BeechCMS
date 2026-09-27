@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { Seed, Branch } from './types.js'
-import { AUTOMATION_RESERVED_WORDS } from '../automations/automations-grammar-words.js'
-import { SQL_RESERVED_WORDS } from './sql-reserved-words.js'
+import type { Seed, Branch } from '../types.js'
+import { AUTOMATION_RESERVED_WORDS } from '../../automations/automations-grammar-words.js'
+import { SQL_RESERVED_WORDS } from '../sql-reserved-words.js'
 
 export interface ISeedRegistry {
   /**

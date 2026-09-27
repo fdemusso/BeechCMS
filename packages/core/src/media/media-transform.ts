@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import { sha256hex } from '../engine/policies.js'
+import { sha256hex } from '../engine/privacy/policies.js'
 import type { ImageOutputMime, ImageTransformSpec, MediaDimensions } from './image-transformer.js'
 
 /** Default ceiling, in pixels, on either side of a derived variant. Covers native 32:9 ultrawide panels. */

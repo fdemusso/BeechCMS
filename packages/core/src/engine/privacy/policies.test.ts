@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { resolvePolicies, resolveClassification, normalizeClassification, verifyHashField, filterEntryForActor } from './policies.js'
-import type { Branch, Seed } from './types.js'
+import type { Branch, Seed } from '../types.js'
 
 
 const baseBranch: Branch = {

@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { projectSchemaContract, computeSchemaFingerprint, SCHEMA_FINGERPRINT_VERSION } from './schema-fingerprint.js'
-import type { Branch, Seed } from './types.js'
+import type { Branch, Seed } from '../types.js'
 
 function textBranch(overrides: Partial<Branch> = {}): Branch {
   return { id: 'br_01', alias: 'title', label: 'Title', type: 'text', ...overrides }

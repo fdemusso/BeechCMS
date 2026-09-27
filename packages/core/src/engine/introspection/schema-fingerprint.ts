@@ -16,9 +16,9 @@
  * `BeechProblem` in someone else's production client over a typo fix.
  */
 
-import { canonicalStringify } from '../common/canonical-json.js'
-import { resolvePolicies } from './policies.js'
-import type { Branch, Seed } from './types.js'
+import { canonicalStringify } from '../../common/canonical-json.js'
+import { resolvePolicies } from '../privacy/policies.js'
+import type { Branch, Seed } from '../types.js'
 
 /**
  * Bumped ONLY when the projection below or the canonical byte format changes — i.e. when

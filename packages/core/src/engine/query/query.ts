@@ -9,10 +9,10 @@ import type {
   SelectOptions,
   SelectLocale,
   ParameterizedQuery,
-} from './types.js';
-import { tableName, ftsTableName, isValidColumn, indexableSearchBranches, SYSTEM_COLUMNS } from './ddl.js';
-import { resolveClassification } from './policies.js';
-import { isLocaleCode, isLocalizedBranch } from './localization.js';
+} from '../types.js';
+import { tableName, ftsTableName, isValidColumn, indexableSearchBranches, SYSTEM_COLUMNS } from '../ddl/ddl.js';
+import { resolveClassification } from '../privacy/policies.js';
+import { isLocaleCode, isLocalizedBranch } from '../localization/localization.js';
 
 /** SQLite GLOB twins of `LOCALE_CODE_RE` (`it`, `ast`, `pt-BR`, `es-419`, …). Keep both in sync. */
 const LOCALE_KEY_GLOBS = [

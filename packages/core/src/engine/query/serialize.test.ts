@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 import { describe, it, expect } from 'vitest'
-import type { Seed, Branch } from './types.js'
+import type { Seed, Branch } from '../types.js'
 import { serializeForDb, deserializeFromDb } from './serialize.js'
 
 const mockSeed: Seed = {

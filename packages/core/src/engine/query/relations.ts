@@ -8,7 +8,7 @@
  * and builds a lookup map: targetSlug → sources that point to it.
  * Build this once at app factory time and cache it for the process lifetime.
  */
-import type { Seed } from './types.js'
+import type { Seed } from '../types.js'
 
 export interface BackrefSource {
   /** Slug of the seed that owns the relation branch */

@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, expect, it } from 'vitest'
-import { defineSeed } from '../engine/define-seed.js'
+import { defineSeed } from '../engine/seeds/define-seed.js'
 import { exportColumns, fromCsvCells, toCsvCells, toImportPayload } from './row-mapping.js'
 
 const MIXED_SEED = defineSeed({

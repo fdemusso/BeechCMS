@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { planCreateSeed, planExtendSeed } from './seed-ddl.js'
-import type { Seed } from './types.js'
+import type { Seed } from '../types.js'
 
 const fullSeed: Seed = {
   slug: 'posts',

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 import { describe, it, expect } from 'vitest'
-import type { Seed, Branch, SelectLocale } from './types.js'
+import type { Seed, Branch, SelectLocale } from '../types.js'
 import { buildSelectQuery } from './query.js'
 
 const mockSeed: Seed = {

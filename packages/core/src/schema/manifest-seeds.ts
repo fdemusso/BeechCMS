@@ -6,7 +6,7 @@
  * Bridges the manifest shape and the engine's `Seed` shape, in both directions.
  */
 
-import { nextBranchId } from '../engine/seed-registry.js'
+import { nextBranchId } from '../engine/seeds/seed-registry.js'
 import { MANIFEST_VERSION } from './manifest.types.js'
 import type { BeechSchemaManifest, ManifestBranch, ManifestSeed } from './manifest.types.js'
 import type { Branch, Seed } from '../engine/types.js'

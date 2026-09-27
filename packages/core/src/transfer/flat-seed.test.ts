@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, expect, it } from 'vitest'
-import { defineSeed } from '../engine/define-seed.js'
+import { defineSeed } from '../engine/seeds/define-seed.js'
 import type { Branch, BranchType } from '../engine/types.js'
 import { checkFormatCompatibility, isFlatSeed, nonFlatBranches } from './flat-seed.js'
 

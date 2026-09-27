@@ -10,7 +10,7 @@
 
 import type { FileAccept } from '../media/file-types.js'
 import type { DashboardView } from '../dashboard-layout/view-authorization.js'
-import type { LocaleConfig } from './localization.js'
+import type { LocaleConfig } from './localization/localization.js'
 
 /** All supported field value types for a Branch. */
 export type BranchType = 'text' | 'number' | 'boolean' | 'json' | 'date' | 'richtext' | 'file' | 'tags' | 'relation' | 'repeater'

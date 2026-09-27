@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 // Copyright (c) 2024–2026 Flavio De Musso
 
-import type { Seed, Branch, BranchType } from './types.js'
-import { junctionTableName, generateFtsTable, generateFtsTriggers } from './engine.js'
+import type { Seed, Branch, BranchType } from '../types.js'
+import { junctionTableName, generateFtsTable, generateFtsTriggers } from './ddl.js'
 
 const BRANCH_SQL_TYPE: Record<BranchType, 'TEXT' | 'REAL' | 'INTEGER'> = {
   text:     'TEXT',

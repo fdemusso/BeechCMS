@@ -1,4 +1,4 @@
 // SPDX-License-Identifier: MIT
-export * from './ddl.js'
-export * from './query.js'
-export * from './serialize.js'
+export * from './ddl/ddl.js'
+export * from './query/query.js'
+export * from './query/serialize.js'
