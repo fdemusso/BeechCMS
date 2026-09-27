@@ -277,9 +277,12 @@ function tagsSchema(options: ResolvedOptions, allowNull: boolean): z.ZodTypeAny 
     .refine((value) => byteLength(value) <= options.maxTextLength, {
       message: `Expected string(max:${options.maxTextLength})`,
     })
-  const base = z.array(tagSchema).max(MAX_TAGS_COUNT, {
-    message: `Expected tags(max:${MAX_TAGS_COUNT})`,
-  })
+  const base = z
+    .array(tagSchema)
+    .max(MAX_TAGS_COUNT, {
+      message: `Expected tags(max:${MAX_TAGS_COUNT})`,
+    })
+    .transform((tags) => Array.from(new Set(tags.filter((t) => t.length > 0))))
   return withEmptyPreprocessing(base, allowNull)
 }
 

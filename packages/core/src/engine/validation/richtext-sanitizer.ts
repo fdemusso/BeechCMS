@@ -170,7 +170,7 @@ function sanitizeRichtextJson(raw: Record<string, unknown>): RichtextSanitizeRes
 
 /**
  * Main entrance helper to sanitize rich text, handling both v1 envelope formats and raw JSON payloads.
- * String-form input is rejected (JSON-only). Byte size is fail-fast checked before the sanitizing walk.
+ * String-form input (JSON string or plain text) is coerced to a valid TipTap doc. Byte size is fail-fast checked before the sanitizing walk.
  *
  * @param raw - The raw rich text input.
  * @param maxBytes - Maximum allowed serialized size, checked before the walk.
@@ -181,6 +181,10 @@ export function sanitizeRichtext(raw: unknown, maxBytes: number): RichtextSaniti
   const payload = envelopeMode ? (raw as { doc: unknown }).doc : raw
 
   if (typeof payload === 'string') {
+    const rawSize = byteLength(payload)
+    if (rawSize > maxBytes) {
+      return { value: raw, dangerous: false, valid: false, size: rawSize, oversize: true }
+    }
     return sanitizeRichtextString(payload)
   }
   if (!isPlainObject(payload)) {
@@ -229,6 +233,9 @@ function gatherRichtextText(node: unknown, sink: string[], depth = 0): void {
   }
   if (isPlainObject(node.attrs) && typeof node.attrs.latex === 'string') {
     sink.push(cleanString(node.attrs.latex))
+  }
+  if (node.type === 'image' || node.type === 'horizontalRule' || node.type === 'table') {
+    sink.push(node.type)
   }
   if (Array.isArray(node.content)) {
     for (const child of node.content) gatherRichtextText(child, sink, depth + 1)

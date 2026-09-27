@@ -385,9 +385,8 @@ function processZodIssues(
     }
 
     // detectMissingRequired() already reports top-level required-and-missing branches;
-    // skip the redundant native invalid_type/undefined issue Zod v4 raises for the same field.
+    // skip redundant Zod issues when a required top-level field is omitted/undefined.
     if (
-      issue.code === 'invalid_type' &&
       options.enforceRequiredFields &&
       issuePath.length === 1 &&
       valByPath === undefined
@@ -460,7 +459,11 @@ export function validateAndSanitizeSeedPayload(
   let data: Record<string, unknown> = {}
 
   if (parsed.success) {
-    data = { ...parsed.data }
+    for (const [key, value] of Object.entries(parsed.data)) {
+      if (value !== undefined) {
+        data[key] = value
+      }
+    }
   } else {
     const zodOutcome = processZodIssues(seed, parsed.error.issues, filtered, resolved)
     accumulatedDetails.push(...zodOutcome.details)
