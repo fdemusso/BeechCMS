@@ -205,6 +205,16 @@ describe('edit_field executor', () => {
     const ctx = makeCtx({ entry: { title: 'No ID' } })
     await expect(executeAction({ type: 'edit_field', field: 'x', value: 'y' }, ctx)).rejects.toThrow('entry.id missing')
   })
+
+  it('rejects a localized target and never writes', async () => {
+    const ctx = makeCtx({
+      entry: { id: 'entry-1', title: 'Old Title' },
+      seed: { slug: 'posts', branches: [{ id: 'br_title', alias: 'title', label: 'Title', type: 'text', localized: true }] } as unknown as Seed,
+    })
+
+    await expect(executeAction({ type: 'edit_field', field: 'title', value: 'x' }, ctx)).rejects.toThrow(/localized/)
+    expect(ctx.repository.update).not.toHaveBeenCalled()
+  })
 })
 
 // ── create_entry ──────────────────────────────────────────────────────────────

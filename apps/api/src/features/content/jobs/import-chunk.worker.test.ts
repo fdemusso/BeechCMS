@@ -130,8 +130,8 @@ function getRows(tables: Map<string, Map<string, StoredRow>>, seedSlug: string):
   return [...(tables.get(seedSlug)?.values() ?? [])]
 }
 
-function createSeedDb(): D1Database {
-  const bySlug: Record<string, Seed> = { [JOB_SEED.slug]: JOB_SEED, [TARGET_SEED.slug]: TARGET_SEED }
+function createSeedDb(target: Seed = TARGET_SEED, settingsRows: Array<{ key: string; value: string }> = []): D1Database {
+  const bySlug: Record<string, Seed> = { [JOB_SEED.slug]: JOB_SEED, [target.slug]: target }
   return {
     prepare: () => ({
       bind: (slug: string) => ({
@@ -141,6 +141,7 @@ function createSeedDb(): D1Database {
           return { slug, definition: JSON.stringify(definition), status: 'active', source: 'code', created_at: 0, updated_at: 0 }
         },
       }),
+      all: async () => ({ results: settingsRows }),
     }),
   } as unknown as D1Database
 }
@@ -189,7 +190,13 @@ function createQueueStub(accepted: boolean): IQueueService & { messages: Array<{
   }
 }
 
-function buildContext(options: { bodyText: string; env?: Record<string, string>; accepted?: boolean }): {
+function buildContext(options: {
+  bodyText: string
+  env?: Record<string, string>
+  accepted?: boolean
+  targetSeed?: Seed
+  settingsRows?: Array<{ key: string; value: string }>
+}): {
   context: JobContext
   repository: ContentRepository
   tables: Map<string, Map<string, StoredRow>>
@@ -200,8 +207,9 @@ function buildContext(options: { bodyText: string; env?: Record<string, string>;
   const bucket = createBucketStub(options.bodyText)
   const queue = createQueueStub(options.accepted ?? true)
   // `D1SeedRepository` is constructed inside the worker from `context.env['DB']` — this
-  // stub answers its two lookups (import_jobs, posts) without touching real D1.
-  const env = { DB: createSeedDb(), ...options.env } as unknown as JobContext['env']
+  // stub answers its two lookups (import_jobs, posts) without touching real D1. The same
+  // stub also answers the locale-config `site_settings` read for a localized target seed.
+  const env = { DB: createSeedDb(options.targetSeed ?? TARGET_SEED, options.settingsRows ?? []), ...options.env } as unknown as JobContext['env']
   const context: JobContext = {
     repository,
     bucket,
@@ -351,5 +359,28 @@ describe('contentImportChunkJob', () => {
     expect(job[IMPORT_JOB_FIELDS.finishedAt]).not.toBeNull()
     expect(job[IMPORT_JOB_FIELDS.errorReport]).toMatchObject([{ code: 'queue_unavailable' }])
     expect(bucket.deletes).toHaveLength(1)
+  })
+
+  // Regression guard: export → import round-trip of localized content.
+  it('imports a localized dictionary row keeping registered locales and derives the slug from the default locale', async () => {
+    const localizedTargetSeed: Seed = {
+      ...TARGET_SEED,
+      branches: [{ id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true, localized: true }],
+    }
+    const { context, repository, tables } = buildContext({
+      bodyText: '{"title":{"it":"Scarpa","en":"Shoe"}}\n',
+      targetSeed: localizedTargetSeed,
+      settingsRows: [
+        { key: 'locales', value: '["it","en"]' },
+        { key: 'defaultLocale', value: 'it' },
+      ],
+    })
+    await seedJobRow(repository)
+
+    await contentImportChunkJob({ jobId: 'job-1' }, context)
+
+    const inserted = getRows(tables, 'posts')
+    expect(inserted[0].title).toEqual({ it: 'Scarpa', en: 'Shoe' })
+    expect(inserted[0].slug).toBe('scarpa')
   })
 })

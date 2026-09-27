@@ -13,6 +13,19 @@ const DEFAULTS: SiteSettings = {
   companyName: null,
   companyWebsite: null,
   companyAbbreviation: null,
+  locales: null,
+  defaultLocale: null,
+}
+
+/** A malformed stored array reads as "never configured" — resolveLocaleConfig then falls back safely. */
+function parseLocales(raw: string | undefined): string[] | null {
+  if (!raw) return null
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed) && parsed.every((code) => typeof code === 'string') ? parsed : null
+  } catch {
+    return null
+  }
 }
 
 export class D1SiteSettingsRepository implements ISiteSettingsRepository {
@@ -33,11 +46,13 @@ export class D1SiteSettingsRepository implements ISiteSettingsRepository {
       companyName: map.get('companyName') || null,
       companyWebsite: map.get('companyWebsite') || null,
       companyAbbreviation: map.get('companyAbbreviation') || null,
+      locales: parseLocales(map.get('locales')),
+      defaultLocale: map.get('defaultLocale') || null,
     }
   }
 
   async setMany(values: Partial<SiteSettings>): Promise<void> {
-    const entries = Object.entries(values).filter(([, v]) => v !== undefined) as [string, string | null][]
+    const entries = Object.entries(values).filter(([, v]) => v !== undefined) as [string, string | string[] | null][]
     if (entries.length === 0) return
 
     const stmts = entries.map(([key, value]) =>
@@ -45,7 +60,7 @@ export class D1SiteSettingsRepository implements ISiteSettingsRepository {
         .prepare(
           'INSERT INTO site_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
         )
-        .bind(key, value ?? ''),
+        .bind(key, Array.isArray(value) ? JSON.stringify(value) : (value ?? '')),
     )
 
     await this.db.batch(stmts)

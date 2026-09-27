@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { sha256hex, type SiteSettings } from '@beechcms/core'
+import { isLocaleCode, resolveLocaleConfig, sha256hex, type SiteSettings } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 import { manageableScopes, serializeEffectivePermissions } from '../../shared/rbac/scoped-projection'
@@ -18,6 +18,8 @@ const MAX_PASSWORD_LENGTH = 128
 const MAX_PASSWORD_BYTES = 72
 const SESSION_LIST_LIMIT = 20
 const ACTIVITY_LOG_LIMIT = 30
+/** Upper bound on content locales: each localized value holds one validated value per locale. */
+const MAX_LOCALES = 50
 
 /**
  * GET /api/settings
@@ -25,10 +27,13 @@ const ACTIVITY_LOG_LIMIT = 30
  */
 settingsApp.get('/', async (context) => {
   const s = await context.get('siteSettingsRepository').getAll()
+  const localeConfig = resolveLocaleConfig(s)
   return context.json({
     siteTitle: s.siteTitle,
     siteLogo: '/beechLogoDark.svg',
     defaultLanguage: s.defaultLanguage,
+    locales: localeConfig.locales,
+    defaultLocale: localeConfig.defaultLocale,
     timezone: s.timezone,
     currency: s.currency,
     company: {
@@ -93,6 +98,29 @@ settingsApp.put('/', async (context) => {
     }
   }
 
+  const hasLocales = payload.locales !== undefined
+  const hasDefaultLocale = payload.defaultLocale !== undefined
+  let nextLocales: string[] | undefined
+  let nextDefaultLocale: string | undefined
+  if (hasLocales || hasDefaultLocale) {
+    const localesInput = payload.locales
+    if (hasLocales && (
+      !Array.isArray(localesInput) || localesInput.length === 0 || localesInput.length > MAX_LOCALES ||
+      !localesInput.every(isLocaleCode) || new Set(localesInput).size !== localesInput.length
+    )) {
+      return context.json({ type: 'settings-invalid-locales', title: 'Bad Request', status: 400, detail: `locales must be 1–${MAX_LOCALES} distinct locale codes (e.g. "it", "pt-BR")` }, 400)
+    }
+    if (hasDefaultLocale && !isLocaleCode(payload.defaultLocale)) {
+      return context.json({ type: 'settings-invalid-default-locale', title: 'Bad Request', status: 400, detail: 'defaultLocale must be a locale code (e.g. "it", "pt-BR")' }, 400)
+    }
+    const current = resolveLocaleConfig(await context.get('siteSettingsRepository').getAll())
+    nextLocales = hasLocales ? (localesInput as string[]) : [...current.locales]
+    nextDefaultLocale = hasDefaultLocale ? (payload.defaultLocale as string) : current.defaultLocale
+    if (!nextLocales.includes(nextDefaultLocale)) {
+      return context.json({ type: 'settings-default-locale-not-in-locales', title: 'Bad Request', status: 400, detail: `defaultLocale '${nextDefaultLocale}' must be one of locales` }, 400)
+    }
+  }
+
   const fieldsToUpdate: Partial<SiteSettings> = {}
   if (siteTitle !== undefined) fieldsToUpdate.siteTitle = siteTitle
   if (defaultLanguage !== undefined) fieldsToUpdate.defaultLanguage = defaultLanguage
@@ -105,6 +133,14 @@ settingsApp.put('/', async (context) => {
   // If companyName is updated and siteTitle isn't specified, sync siteTitle
   if (companyName && siteTitle === undefined) {
     fieldsToUpdate.siteTitle = companyName
+  }
+
+  // Both keys are persisted together so, once configured, content locales no longer follow the dashboard
+  // UI language (defaultLanguage). Removing a locale only rewrites this setting: stored translations in
+  // that locale stay in their dictionaries (brief §2, no data loss).
+  if (nextLocales !== undefined && nextDefaultLocale !== undefined) {
+    fieldsToUpdate.locales = nextLocales
+    fieldsToUpdate.defaultLocale = nextDefaultLocale
   }
 
   await context.get('siteSettingsRepository').setMany(fieldsToUpdate)
