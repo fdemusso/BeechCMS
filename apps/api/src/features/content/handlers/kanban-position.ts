@@ -4,7 +4,7 @@
 
 import type { Context } from 'hono'
 import { resolveKanbanConfig, EntryNotFoundError } from '@beechcms/core'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import type { AppEnv } from '../../../types'
 

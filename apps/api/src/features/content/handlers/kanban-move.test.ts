@@ -6,7 +6,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { Seed } from '@beechcms/core'
 import { kanbanMoveHandler } from './kanban-move'
 
-vi.mock('../../../public/problem-details', () => ({
+vi.mock('../../../public/errors/problem-details', () => ({
   publicProblem: vi.fn((_ctx, details) => ({ mockProblem: true, ...details })),
 }))
 

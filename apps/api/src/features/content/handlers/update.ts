@@ -13,7 +13,7 @@ import {
   resolveLocalizedFields
 } from '@beechcms/core'
 import { applyPrivacy, PrivacyPolicyError } from '../../../shared/policies/apply-policies'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem } from '../../../public/errors/problem-details'
 import {
   normalizeBody,
   resolveIfMatch,

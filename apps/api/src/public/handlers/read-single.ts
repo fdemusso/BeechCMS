@@ -4,10 +4,10 @@
 
 import { EntryNotFoundError } from '@beechcms/core'
 import type { Seed, ContentRepository } from '@beechcms/core'
-import { toFlatPublicEntry } from './entry-projection'
-import { expandRelations } from './relation-include'
-import { buildPublicSingleMeta } from './response-builder'
-import type { PublicLanguage } from './public-language'
+import { toFlatPublicEntry } from '../query/entry-projection'
+import { expandRelations } from '../relations/relation-include'
+import { buildPublicSingleMeta } from '../query/response-builder'
+import type { PublicLanguage } from '../localization/public-language'
 
 type ReadSingleInput = {
   seed: Seed

@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { Hono } from 'hono'
-import type { AppEnv } from '../types'
+import type { AppEnv } from '../../types'
 import { publicRateLimitMiddleware } from './rate-limit-middleware'
 
 function buildApp(

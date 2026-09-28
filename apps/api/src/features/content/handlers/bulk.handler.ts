@@ -4,7 +4,7 @@
 
 import { Context } from 'hono'
 import { isLocalizedBranch, resolvePolicies, type BulkFieldUpdate } from '@beechcms/core'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 

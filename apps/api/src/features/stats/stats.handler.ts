@@ -6,7 +6,7 @@
 import { Hono } from 'hono'
 import { SystemClock } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem } from '../../public/errors/problem-details'
 import { cleanStr } from '../../shared/utils/query-utils'
 
 const DATABASE_ERROR = 'Database error'

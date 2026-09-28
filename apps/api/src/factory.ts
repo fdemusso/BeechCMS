@@ -34,10 +34,12 @@ import { statsApp } from './features/stats'
 import { backrefsApp } from './features/backrefs'
 import { webhooksApp } from './features/webhooks'
 import { uploadRoutes, serveMediaHandler } from './features/upload'
-import { publicRoutes } from './public/public-routes'
-import { apiKeyMiddleware } from './public/api-key-middleware'
-import { publicRateLimitMiddleware } from './public/rate-limit-middleware'
-import { schemaRevisionMiddleware } from './public/schema-revision'
+import {
+  publicRoutes,
+  apiKeyMiddleware,
+  publicRateLimitMiddleware,
+  schemaRevisionMiddleware,
+} from './public'
 import { searchRouter } from './features/search'
 import { oauthApp } from './features/oauth'
 import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository, IRoleGuard } from '@beechcms/core'

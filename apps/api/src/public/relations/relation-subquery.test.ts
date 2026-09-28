@@ -5,7 +5,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import type { ContentRepository, Seed } from '@beechcms/core'
 import { resolveRelationSubqueries } from './relation-subquery'
-import type { ParsedPublicFilter } from './query-builder'
+import type { ParsedPublicFilter } from '../query/query-builder'
 
 describe('resolveRelationSubqueries', () => {
   let mockRepo: ContentRepository

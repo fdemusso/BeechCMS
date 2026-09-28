@@ -5,7 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { GLOBAL_SCOPE, buildEffectivePermissions, canGrant, hasPermission, sha256hex, type EffectivePermissions } from '@beechcms/core'
 import { getClientIp } from '../../shared/utils/request-utils'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem } from '../../public/errors/problem-details'
 import { RBAC_ERRORS } from './constants'
 import { rbacProblem, readJson, type AppContext } from './guards'
 import { acceptInvitationSchema } from './rbac.schema'

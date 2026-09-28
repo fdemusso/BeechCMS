@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 

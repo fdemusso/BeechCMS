@@ -15,7 +15,7 @@ import {
   mergeLocalizedFields,
   resolveLocalizedFields,
 } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem } from '../../public/errors/problem-details'
 import { cleanStr } from '../../shared/utils/query-utils'
 import { applyVisibility } from '../../shared/policies/apply-policies'
 import { AppEnv } from '../../types'

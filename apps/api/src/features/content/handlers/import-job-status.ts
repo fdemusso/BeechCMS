@@ -5,7 +5,7 @@
 import { Context } from 'hono'
 import { EntryNotFoundError, hasPermission } from '@beechcms/core'
 import { resolveEffectivePermissions } from '../../../shared/rbac/effective-permissions'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 import { IMPORT_JOBS_SLUG, readImportJobRecord, toImportJobResponse, type ImportJobRecord } from '../import-job'

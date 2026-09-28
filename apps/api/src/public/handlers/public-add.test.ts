@@ -4,12 +4,12 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { generateTimeTrapToken, type IAntivirusProvider, type INotificationService, type BeechBucket } from '@beechcms/core'
-import { createBeechApp } from '../factory'
-import { __resetSeedRegistryCache } from '../shared/services/cache/seed-registry-cache'
-import { StaticContentRepository } from '../../test/mocks/static-content.repository'
-import { StaticIdempotencyRepository } from '../../test/mocks/static-idempotency.repository'
-import { StaticAutomationRepository } from '../../test/mocks/static-automation.repository'
-import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_WRITE_KEY } from '../../test/fixtures'
+import { createBeechApp } from '../../factory'
+import { __resetSeedRegistryCache } from '../../shared/services/cache/seed-registry-cache'
+import { StaticContentRepository } from '../../../test/mocks/static-content.repository'
+import { StaticIdempotencyRepository } from '../../../test/mocks/static-idempotency.repository'
+import { StaticAutomationRepository } from '../../../test/mocks/static-automation.repository'
+import { TEST_SEEDS, TEST_ENV, TEST_PUBLIC_WRITE_KEY } from '../../../test/fixtures'
 
 describe('publicAddHandler Quarantine & Security Integration', () => {
   let app: ReturnType<typeof createBeechApp>

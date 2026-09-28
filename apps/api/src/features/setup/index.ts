@@ -6,7 +6,7 @@
 import { Hono } from 'hono'
 import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem } from '../../public/errors/problem-details'
 import { DEMO_SEED_DEFINITIONS } from '../../shared/db/fixtures/demo-seeds'
 import { validateAndApplySeedDef } from '../seeds/seeds.helpers'
 import { getHydratedRegistry } from '../../shared/services/cache/seed-registry-cache'

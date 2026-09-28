@@ -11,7 +11,7 @@ import {
   type TransferFormat,
 } from '@beechcms/core'
 import { cleanStr, parseQueryFilters, toEngineFilters } from '../../../shared/utils/query-utils'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 import { createContentExportStream } from '../export-stream'
