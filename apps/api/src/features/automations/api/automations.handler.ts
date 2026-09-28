@@ -5,7 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import type { Env, Variables } from '../../../types'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem } from '../../../public/errors/problem-details'
 import {
   createAutomationSchema,
   updateAutomationSchema,

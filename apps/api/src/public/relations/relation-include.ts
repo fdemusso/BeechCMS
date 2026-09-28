@@ -3,9 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import type { ContentRepository, Seed } from '@beechcms/core'
-import { toFlatPublicEntry } from './entry-projection'
+import { toFlatPublicEntry } from '../query/entry-projection'
 import { resolvePublicRelationTarget } from './relation-access'
-import type { PublicLanguage } from './public-language'
+import type { PublicLanguage } from '../localization/public-language'
 
 const MAX_INCLUDES = 3
 const MAX_TARGET_IDS = 200

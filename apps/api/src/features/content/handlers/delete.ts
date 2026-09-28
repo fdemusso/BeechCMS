@@ -5,7 +5,7 @@
 import { Context } from 'hono'
 import { deleteR2Objects } from '../../../shared/storage/upload'
 import { extractMediaKeysFromData } from '../../../shared/utils/media-utils'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem } from '../../../public/errors/problem-details'
 import {
   logContentActivity,
   dispatchContentAutomation,

@@ -4,7 +4,7 @@
 
 import { Context } from 'hono'
 import { applyVisibility } from '../../../shared/policies/apply-policies'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 import { EntryNotFoundError, ActorContext } from '@beechcms/core'

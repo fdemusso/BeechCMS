@@ -3,14 +3,14 @@
 // See LICENSE in the repository root for license terms.
 
 import type { Context } from 'hono'
-import { cleanStr } from '../shared/utils/query-utils'
-import { checkPublicOperation } from './access-policy'
-import { publicProblem, internalErrorDetail } from './problem-details'
-import { resolveEdgeCache, withCachedResponse } from './cache-utils'
+import { cleanStr } from '../../shared/utils/query-utils'
+import { checkPublicOperation } from '../validation/access-policy'
+import { publicProblem, internalErrorDetail } from '../errors/problem-details'
+import { resolveEdgeCache, withCachedResponse } from '../utils/cache-utils'
 import { readSingleEntry } from './read-single'
 import { readListEntries } from './read-list'
-import { loadPublicLanguage, languageCacheKey, setLanguageHeaders } from './public-language'
-import { AppEnv } from '../types'
+import { loadPublicLanguage, languageCacheKey, setLanguageHeaders } from '../localization/public-language'
+import { AppEnv } from '../../types'
 
 export async function publicReadHandler(context: Context<AppEnv>) {
   const seedSlug = context.req.param('seed') ?? ''

@@ -89,7 +89,7 @@ export default defineConfig({
         'src/shared/db/repositories/demo-data.repository.d1.ts',
         // External orchestrators or empty wrappers
         'src/shared/services/scheduler/execution-context-scheduler.ts',
-        'src/public/slug-utils.ts',
+        'src/public/utils/slug-utils.ts',
         // Pure barrel export files
         'src/**/index.ts',
       ],

@@ -178,11 +178,11 @@ To maintain clear separation between business logic and visual presentation:
 
 ## Internal Slice Organization: Thematic Clustering vs. Nested Sub-Slices
 
-When an architectural slice or core module (such as `packages/core/src/engine/` or a complex feature slice) contains numerous cohesive files, internal subdirectories are organized by **thematic clustering of files** (e.g., `seeds/`, `privacy/`, `ddl/`, `query/`, `introspection/`, `localization/`) rather than being treated as autonomous nested sub-slices with redundant internal `index.ts` barrels.
+When an architectural slice or core module (such as `packages/core/src/engine/` or `apps/api/src/public/`) contains numerous cohesive files, internal subdirectories are organized by **thematic clustering of files** (e.g., `seeds/`, `privacy/`, `ddl/`, `query/`, `introspection/`, `localization/`, `middleware/`, `handlers/`, `relations/`, `errors/`, `validation/`, `utils/`) rather than being treated as autonomous nested sub-slices with redundant internal `index.ts` barrels.
 
 ### Guidelines for Thematic Clustering:
-1. **AI & Human Bounded Context**: The primary objective is to group related files so that AI assistants and engineers can operate within a tightly focused context window (e.g., viewing only `engine/privacy/` when dealing with data classification and encryption, without loading DDL or query builders).
-2. **No Intermediate Barrels**: Avoid generating intermediate `index.ts` barrels inside thematic subfolders. Root modules and barrels export directly from the concrete domain files (e.g., `export * from './engine/seeds/define-seed.js'`).
+1. **AI & Human Bounded Context**: The primary objective is to group related files so that AI assistants and engineers can operate within a tightly focused context window (e.g., viewing only `engine/privacy/` when dealing with data classification and encryption, or `public/relations/` when resolving nested relation filters, without loading unrelated handlers or DDL).
+2. **No Intermediate Barrels**: Avoid generating intermediate `index.ts` barrels inside thematic subfolders. Root modules and barrels export directly from the concrete domain files (e.g., `export * from './engine/seeds/define-seed.js'` or `export { publicRoutes } from './handlers/public-routes.js'`).
 3. **Direct Navigation**: TypeScript language servers and IDEs jump directly to the target implementation file rather than through multiple layers of re-export shims.
 
 

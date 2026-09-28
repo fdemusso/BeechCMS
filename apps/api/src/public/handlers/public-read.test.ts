@@ -8,7 +8,7 @@ import { EntryNotFoundError, type ContentRepository, type Seed, type ISeedRegist
 import { readListEntries } from './read-list'
 import { readSingleEntry } from './read-single'
 import { publicReadHandler } from './public-read'
-import type { AppEnv } from '../types.js'
+import type { AppEnv } from '../../types.js'
 
 function createMockRegistry(seeds: Seed[]): ISeedRegistry {
   return {

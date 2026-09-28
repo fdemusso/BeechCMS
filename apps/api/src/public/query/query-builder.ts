@@ -4,7 +4,7 @@
 
 import type { Seed, FilterGroup, FilterOperator, FilterType, BranchType } from '@beechcms/core'
 import { resolvePolicies } from '@beechcms/core'
-import { parsePositiveInt } from '../shared/utils/query-utils'
+import { parsePositiveInt } from '../../shared/utils/query-utils'
 
 export type PublicQueryInput = {
   page?: string

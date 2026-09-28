@@ -5,7 +5,7 @@
 import { Context } from 'hono'
 import { checkFormatCompatibility, isTransferFormat, type TransferFormat } from '@beechcms/core'
 import { cleanStr } from '../../../shared/utils/query-utils'
-import { publicProblem } from '../../../public/problem-details'
+import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 import { normalizeBody } from './helpers'
