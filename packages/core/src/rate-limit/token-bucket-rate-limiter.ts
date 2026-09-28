@@ -15,6 +15,8 @@ export interface TokenBucketOptions {
   refillRatePerSecond?: number
   clock?: IClock
   maxIdleTimeSeconds?: number
+  maxBuckets?: number
+  pruneIntervalSeconds?: number
 }
 
 export class TokenBucketRateLimiter implements IRateLimiter {
@@ -23,6 +25,9 @@ export class TokenBucketRateLimiter implements IRateLimiter {
   private readonly refillRatePerSecond: number
   private readonly clock: IClock
   private readonly maxIdleTimeSeconds: number
+  private readonly maxBuckets: number
+  private readonly pruneIntervalSeconds: number
+  private lastPruneTimestamp = 0
 
   constructor(options?: TokenBucketOptions) {
     this.capacity = options?.capacity ?? 17
@@ -30,10 +35,15 @@ export class TokenBucketRateLimiter implements IRateLimiter {
     this.refillRatePerSecond = options?.refillRatePerSecond ?? (1 / 3.53)
     this.clock = options?.clock ?? SystemClock
     this.maxIdleTimeSeconds = options?.maxIdleTimeSeconds ?? 3600 // 1 hour idle TTL
+    this.maxBuckets = options?.maxBuckets ?? 5000 // Prevent unbounded memory growth
+    this.pruneIntervalSeconds = options?.pruneIntervalSeconds ?? 60 // Throttle O(n) scans
   }
 
   private pruneExpiredBuckets(now: number): void {
     if (this.buckets.size < 500) return
+    if (now - this.lastPruneTimestamp < this.pruneIntervalSeconds) return
+    this.lastPruneTimestamp = now
+
     for (const [key, state] of this.buckets.entries()) {
       if (now - state.lastRefillTimestamp > this.maxIdleTimeSeconds) {
         this.buckets.delete(key)
@@ -47,6 +57,13 @@ export class TokenBucketRateLimiter implements IRateLimiter {
 
     let bucket = this.buckets.get(key)
     if (!bucket) {
+      if (this.buckets.size >= this.maxBuckets) {
+        // LRU / FIFO eviction: delete oldest inserted bucket
+        const oldestKey = this.buckets.keys().next().value
+        if (oldestKey !== undefined) {
+          this.buckets.delete(oldestKey)
+        }
+      }
       bucket = {
         tokens: this.capacity,
         lastRefillTimestamp: now,
@@ -55,6 +72,8 @@ export class TokenBucketRateLimiter implements IRateLimiter {
       const elapsed = Math.max(0, now - bucket.lastRefillTimestamp)
       bucket.tokens = Math.min(this.capacity, bucket.tokens + elapsed * this.refillRatePerSecond)
       bucket.lastRefillTimestamp = now
+      // Re-insert to maintain LRU access order
+      this.buckets.delete(key)
     }
 
     if (bucket.tokens >= 1) {
@@ -81,5 +100,6 @@ export class TokenBucketRateLimiter implements IRateLimiter {
 
   reset(): void {
     this.buckets.clear()
+    this.lastPruneTimestamp = 0
   }
 }

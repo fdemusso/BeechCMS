@@ -160,4 +160,85 @@ describe('TokenBucketRateLimiter', () => {
     // key-0 was pruned so it was re-created with full capacity and then consumed once
     expect(result.remaining).toBe(4)
   })
+
+  it('evicts the least recently used bucket when maxBuckets capacity is exceeded', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 1, clock, maxBuckets: 3 })
+    await limiter.checkLimit('key-1')
+    await limiter.checkLimit('key-2')
+    await limiter.checkLimit('key-3')
+    await limiter.checkLimit('key-1')
+    await limiter.checkLimit('key-4')
+
+    const result = await limiter.checkLimit('key-2')
+
+    // key-2 was evicted as LRU, so checking it creates a fresh bucket with capacity 5 minus 1
+    expect(result.remaining).toBe(4)
+  })
+
+  it('preserves the recently accessed bucket when maxBuckets capacity triggers eviction of older buckets', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 1, clock, maxBuckets: 3 })
+    await limiter.checkLimit('key-1')
+    await limiter.checkLimit('key-2')
+    await limiter.checkLimit('key-3')
+    await limiter.checkLimit('key-1')
+    await limiter.checkLimit('key-4')
+
+    const result = await limiter.checkLimit('key-1')
+
+    // key-1 was accessed before key-4, so it was preserved; remaining was 3, consumed 1 more -> 2
+    expect(result.remaining).toBe(2)
+  })
+
+  it('skips pruning idle buckets when called within pruneIntervalSeconds', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({
+      capacity: 5,
+      refillRatePerSecond: 0,
+      clock,
+      maxIdleTimeSeconds: 1,
+      pruneIntervalSeconds: 60,
+    })
+    for (let i = 0; i < 501; i++) {
+      await limiter.checkLimit(`key-${i}`)
+    }
+    // Deplete key-0 completely
+    for (let i = 0; i < 4; i++) {
+      await limiter.checkLimit('key-0')
+    }
+    clock.advanceSeconds(5)
+    await limiter.checkLimit('trigger-key')
+
+    const result = await limiter.checkLimit('key-0')
+
+    // Prune was throttled (< 60s), so key-0 was not reset and remains exhausted
+    expect(result.isAllowed).toBe(false)
+  })
+
+  it('prunes idle buckets once pruneIntervalSeconds has elapsed', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({
+      capacity: 5,
+      refillRatePerSecond: 0,
+      clock,
+      maxIdleTimeSeconds: 1,
+      pruneIntervalSeconds: 60,
+    })
+    for (let i = 0; i < 501; i++) {
+      await limiter.checkLimit(`key-${i}`)
+    }
+    // Deplete key-0 completely
+    for (let i = 0; i < 4; i++) {
+      await limiter.checkLimit('key-0')
+    }
+    clock.advanceSeconds(65)
+    await limiter.checkLimit('trigger-key')
+
+    const result = await limiter.checkLimit('key-0')
+
+    // Prune ran after 65s (> 60s), so key-0 was evicted and recreated fresh
+    expect(result.isAllowed).toBe(true)
+    expect(result.remaining).toBe(4)
+  })
 })

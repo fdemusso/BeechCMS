@@ -8,13 +8,19 @@ import type { IRateLimiter, RateLimitResult } from '@beechcms/core'
 export interface CloudflareRateLimiterOptions {
   failClosed?: boolean
   fallbackLimiter?: IRateLimiter
+  periodSeconds?: number
+  limiterName?: string
 }
 
 export class CloudflareRateLimiter implements IRateLimiter {
+  private readonly periodSeconds: number
+
   constructor(
     private readonly binding: RateLimit,
     private readonly options: CloudflareRateLimiterOptions = {}
-  ) {}
+  ) {
+    this.periodSeconds = options.periodSeconds ?? 60
+  }
 
   async checkLimit(key: string): Promise<RateLimitResult> {
     let localResult: RateLimitResult | undefined
@@ -28,8 +34,9 @@ export class CloudflareRateLimiter implements IRateLimiter {
     try {
       const res = await this.binding.limit({ key })
       if (!res.success) {
+        const outcome = res as { retryAfterSeconds?: number; retryAfter?: number }
         const retryAfterSeconds =
-          (res as any).retryAfterSeconds ?? (res as any).retryAfter ?? localResult?.retryAfterSeconds ?? 1
+          outcome.retryAfterSeconds ?? outcome.retryAfter ?? localResult?.retryAfterSeconds ?? this.periodSeconds
         return {
           isAllowed: false,
           retryAfterSeconds,
@@ -43,9 +50,10 @@ export class CloudflareRateLimiter implements IRateLimiter {
         remaining: localResult?.remaining,
       }
     } catch (error) {
-      console.warn(`Rate limiter binding error for key "${key}":`, error)
+      const target = this.options.limiterName ? ` for ${this.options.limiterName}` : ''
+      console.warn(`Rate limiter binding error${target}:`, error)
       if (this.options.failClosed) {
-        return { isAllowed: false, retryAfterSeconds: localResult?.retryAfterSeconds ?? 1 }
+        return { isAllowed: false, retryAfterSeconds: localResult?.retryAfterSeconds ?? this.periodSeconds }
       }
       return localResult ?? { isAllowed: true }
     }

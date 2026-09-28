@@ -44,22 +44,27 @@ export function buildDefaultRegistry(env?: Env): IRateLimiterRegistry {
   const wrapWithBinding = (
     binding?: RateLimit,
     fallback?: IRateLimiter,
-    failClosed = false
+    options: { failClosed?: boolean; periodSeconds?: number; limiterName?: string } = {}
   ): IRateLimiter => {
     if (!binding) return fallback!
-    return new CloudflareRateLimiter(binding, { failClosed, fallbackLimiter: fallback })
+    return new CloudflareRateLimiter(binding, {
+      failClosed: options.failClosed ?? false,
+      periodSeconds: options.periodSeconds ?? 60,
+      limiterName: options.limiterName,
+      fallbackLimiter: fallback,
+    })
   }
 
   const limiters: Record<RateLimiterName, IRateLimiter> = {
-    login: wrapWithBinding(env?.LOGIN_RATE_LIMITER, localLimiters.login, true),
+    login: wrapWithBinding(env?.LOGIN_RATE_LIMITER, localLimiters.login, { failClosed: true, periodSeconds: 60, limiterName: 'login' }),
     loginAccount: localLimiters.loginAccount,
-    tokenRefresh: wrapWithBinding(env?.REFRESH_RATE_LIMITER, localLimiters.tokenRefresh, true),
-    forgotPassword: wrapWithBinding(env?.FORGOT_PASSWORD_RATE_LIMITER, localLimiters.forgotPassword, true),
+    tokenRefresh: wrapWithBinding(env?.REFRESH_RATE_LIMITER, localLimiters.tokenRefresh, { failClosed: true, periodSeconds: 60, limiterName: 'tokenRefresh' }),
+    forgotPassword: wrapWithBinding(env?.FORGOT_PASSWORD_RATE_LIMITER, localLimiters.forgotPassword, { failClosed: true, periodSeconds: 60, limiterName: 'forgotPassword' }),
     forgotPasswordAccount: localLimiters.forgotPasswordAccount,
-    resetPassword: wrapWithBinding(env?.RESET_PASSWORD_RATE_LIMITER, localLimiters.resetPassword, true),
+    resetPassword: wrapWithBinding(env?.RESET_PASSWORD_RATE_LIMITER, localLimiters.resetPassword, { failClosed: true, periodSeconds: 60, limiterName: 'resetPassword' }),
     acceptInvitation: localLimiters.acceptInvitation,
-    publicApiRead: wrapWithBinding(env?.PUBLIC_READ_RATE_LIMITER, localLimiters.publicApiRead, false),
-    publicApiWrite: wrapWithBinding(env?.PUBLIC_WRITE_RATE_LIMITER, localLimiters.publicApiWrite, false),
+    publicApiRead: wrapWithBinding(env?.PUBLIC_READ_RATE_LIMITER, localLimiters.publicApiRead, { failClosed: false, periodSeconds: 60, limiterName: 'publicApiRead' }),
+    publicApiWrite: wrapWithBinding(env?.PUBLIC_WRITE_RATE_LIMITER, localLimiters.publicApiWrite, { failClosed: false, periodSeconds: 60, limiterName: 'publicApiWrite' }),
     oauthToken: localLimiters.oauthToken,
     oauthTokenAccount: localLimiters.oauthTokenAccount,
   }
