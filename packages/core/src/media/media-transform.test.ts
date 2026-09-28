@@ -214,6 +214,16 @@ describe('buildImageTransformSpec', () => {
 
     expect(spec.outputMime).toBe('image/png')
   })
+
+  // Regression guard for #452: the image/jpg alias must canonicalize to a valid ImageOutputMime,
+  // never leak through as 'image/jpg' (not a member of the output union the transformer accepts).
+  it('canonicalizes the image/jpg alias to image/jpeg when format is original', () => {
+    const request: MediaTransformRequest = { preset: 'card', format: 'original', quality: 'medium' }
+
+    const spec = buildImageTransformSpec({ kind: 'crop', width: 400, height: 300 }, request, 'image/jpg')
+
+    expect(spec.outputMime).toBe('image/jpeg')
+  })
 })
 
 describe('computeMediaVariantEtag', () => {
@@ -280,5 +290,11 @@ describe('isTransformableMime', () => {
     for (const [mime, expected] of cases) {
       expect(isTransformableMime(mime)).toBe(expected)
     }
+  })
+
+  // Regression guard for #452: an asset stored with the registered 'image/jpg' alias
+  // (a real JPEG uploaded with a non-canonical Content-Type) must stay transformable.
+  it('accepts the image/jpg alias uploads register as a valid JPEG MIME', () => {
+    expect(isTransformableMime('image/jpg')).toBe(true)
   })
 })

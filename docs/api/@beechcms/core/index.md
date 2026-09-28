@@ -371,6 +371,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [canEditDashboard](functions/canEditDashboard.md)
 - [canEditLayout](functions/canEditLayout.md)
 - [canGrant](functions/canGrant.md)
+- [canonicalizeMime](functions/canonicalizeMime.md)
 - [canonicalMediaTransformQuery](functions/canonicalMediaTransformQuery.md)
 - [checkFormatCompatibility](functions/checkFormatCompatibility.md)
 - [compactLocalizedDictionary](functions/compactLocalizedDictionary.md)
