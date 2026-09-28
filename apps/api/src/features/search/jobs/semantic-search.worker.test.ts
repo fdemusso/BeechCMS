@@ -16,7 +16,7 @@ const SEARCH_SEED: Seed = {
   allowDrafts: false,
   branches: [
     { id: 'br_01', alias: 'title', label: 'Title', type: 'text', policies: { public: true, search: true } },
-    { id: 'br_02', alias: 'body', label: 'Body', type: 'text', policies: { public: true, search: true } },
+    { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext', policies: { public: true, search: true } },
   ],
 }
 
@@ -99,7 +99,11 @@ describe('semantic-search worker and manifest compilation', () => {
         slug: 'article-one',
         status: 'published',
         title: 'Machine Learning Guide',
-        body: 'Intro to Deep Neural Networks',
+        // Real richtext values are deserialized TipTap doc objects, never plain strings (#451).
+        body: {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Intro to Deep Neural Networks' }] }],
+        },
       }),
     }
 

@@ -4,6 +4,8 @@
 import { describe, it, expect } from 'vitest'
 import type { Seed } from '../engine/types.js'
 import { extractIndexableText } from './vector-extractor.js'
+import { sanitizeRichtext } from '../engine/validation/richtext-sanitizer.js'
+import { serializeForDb, deserializeFromDb } from '../engine/query/serialize.js'
 
 describe('extractIndexableText', () => {
   it('extracts and concatenates indexable text and richtext fields', () => {
@@ -27,6 +29,69 @@ describe('extractIndexableText', () => {
 
     const result = extractIndexableText(seed, entry)
     expect(result).toBe('Hello World This is the body of the article.')
+  })
+
+  it('extracts text from a richtext value that went through the real sanitize/serialize/deserialize pipeline (#451)', () => {
+    const seed: Seed = {
+      slug: 'articles',
+      label: 'Articles',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+        { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext' },
+      ],
+    }
+    const bodyBranch = seed.branches[1]
+
+    const sanitized = sanitizeRichtext('Quantum entanglement explained for beginners', 1_000_000)
+    const stored = serializeForDb(bodyBranch, sanitized.value)
+    const body = deserializeFromDb(bodyBranch, stored)
+
+    expect(typeof body).toBe('object') // deserialized richtext is a TipTap doc object, never a string
+
+    const result = extractIndexableText(seed, { title: 'Intro', body })
+    expect(result).toBe('Intro Quantum entanglement explained for beginners')
+  })
+
+  it('extracts richtext body text even when the entry has no other indexable text', () => {
+    const seed: Seed = {
+      slug: 'articles',
+      label: 'Articles',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+        { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext' },
+      ],
+    }
+    const bodyBranch = seed.branches[1]
+
+    const sanitized = sanitizeRichtext('Quantum entanglement explained for beginners', 1_000_000)
+    const stored = serializeForDb(bodyBranch, sanitized.value)
+    const body = deserializeFromDb(bodyBranch, stored)
+
+    const result = extractIndexableText(seed, { title: '', body })
+    expect(result).toBe('Quantum entanglement explained for beginners')
+  })
+
+  it('indexes every locale of a localized richtext dictionary', () => {
+    const seed: Seed = {
+      slug: 'products',
+      label: 'Products',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'body', label: 'Body', type: 'richtext', localized: true },
+      ],
+    }
+    const bodyBranch = seed.branches[0]
+
+    const it = sanitizeRichtext('Scarpa da corsa', 1_000_000).value
+    const en = sanitizeRichtext('Running shoe', 1_000_000).value
+    const stored = serializeForDb(bodyBranch, { it, en })
+    const body = deserializeFromDb(bodyBranch, stored)
+
+    const result = extractIndexableText(seed, { body })
+    expect(result).toContain('Scarpa da corsa')
+    expect(result).toContain('Running shoe')
   })
 
   it('excludes confidential, internal, and restricted fields', () => {
