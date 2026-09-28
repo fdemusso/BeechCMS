@@ -241,4 +241,31 @@ describe('TokenBucketRateLimiter', () => {
     expect(result.isAllowed).toBe(true)
     expect(result.remaining).toBe(4)
   })
+
+  it('stops pruning early as soon as the first active bucket is encountered', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({
+      capacity: 5,
+      refillRatePerSecond: 0,
+      clock,
+      maxIdleTimeSeconds: 10,
+      pruneIntervalSeconds: 0,
+    })
+    for (let i = 0; i < 500; i++) {
+      await limiter.checkLimit(`filler-${i}`)
+    }
+    // key-old added at t=1000000
+    await limiter.checkLimit('key-old')
+    // Advance 8s (t=1000008), key-recent added
+    clock.advanceSeconds(8)
+    await limiter.checkLimit('key-recent')
+    // Advance 4s (t=1000012). key-old is idle for 12s (> 10s TTL), key-recent is idle for 4s (< 10s TTL)
+    clock.advanceSeconds(4)
+    await limiter.checkLimit('trigger-prune')
+
+    const result = await limiter.checkLimit('key-recent')
+
+    // key-recent was not pruned because loop stopped early upon encountering it; consumes 2nd token
+    expect(result.remaining).toBe(3)
+  })
 })

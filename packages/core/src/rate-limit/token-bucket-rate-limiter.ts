@@ -47,6 +47,11 @@ export class TokenBucketRateLimiter implements IRateLimiter {
     for (const [key, state] of this.buckets.entries()) {
       if (now - state.lastRefillTimestamp > this.maxIdleTimeSeconds) {
         this.buckets.delete(key)
+      } else {
+        // Since Map preserves insertion order and checkLimit re-inserts on every access,
+        // entries are monotonically ordered by lastRefillTimestamp. The first non-expired
+        // entry guarantees all subsequent entries are also active, allowing an immediate O(1) exit.
+        break
       }
     }
   }
