@@ -4,7 +4,7 @@
 
 import { Context } from 'hono'
 import { EntryNotFoundError, SlugConflictError, HookValidationError, EntryConflictError } from '@beechcms/core'
-import { publicProblem, fkProblemOrNull } from '../../../public/problem-details'
+import { publicProblem, fkProblemOrNull } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 

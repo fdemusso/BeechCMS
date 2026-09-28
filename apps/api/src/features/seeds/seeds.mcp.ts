@@ -12,7 +12,7 @@ import {
   planFtsRebuild,
   validateSeedDefinitions,
 } from '@beechcms/core'
-import { publicProblem, internalErrorDetail } from '../../public/problem-details'
+import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
 import { SLUG_RE, parseJsonBody, actorFromContext } from './seeds.helpers'
 

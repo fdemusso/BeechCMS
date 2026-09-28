@@ -4,7 +4,7 @@
 
 import { filterEntryForActor } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
-import { localizePublicEntry, type PublicLanguage } from './public-language'
+import { localizePublicEntry, type PublicLanguage } from '../localization/public-language'
 
 const IDENTITY_FIELDS = ['id', 'slug']
 

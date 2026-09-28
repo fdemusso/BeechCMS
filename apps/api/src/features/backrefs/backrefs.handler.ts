@@ -6,7 +6,7 @@
 import { Hono } from 'hono'
 import { resolvePolicies } from '@beechcms/core'
 import type { LocaleConfig, Seed } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem } from '../../public/errors/problem-details'
 import type { AppEnv } from '../../types'
 import { D1BackrefRepository, type BackrefItem } from './d1-backref.repository'
 import { loadDisplayLocaleConfig, resolveDisplayName } from '../../shared/localization/display-name'

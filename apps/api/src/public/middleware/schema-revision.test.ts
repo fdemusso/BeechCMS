@@ -6,7 +6,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { Hono } from 'hono'
 import type { ISeedRegistry, Seed } from '@beechcms/core'
 import { schemaRevisionMiddleware, fingerprintCache } from './schema-revision'
-import type { AppEnv } from '../types.js'
+import type { AppEnv } from '../../types.js'
 
 function createMockRegistry(seeds: Seed[]): ISeedRegistry {
   return {

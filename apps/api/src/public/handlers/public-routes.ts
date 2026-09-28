@@ -4,12 +4,12 @@
 
 import { Hono } from 'hono'
 import { generateTimeTrapToken, resolveClassification } from '@beechcms/core'
-import type { AppEnv } from '../types'
+import type { AppEnv } from '../../types'
 import { publicReadHandler } from './public-read'
 import { publicAddHandler } from './public-add'
 import { publicEditHandler } from './public-edit'
-import { publicProblem } from './problem-details'
-import { publicSearchRouter } from '../features/search'
+import { publicProblem } from '../errors/problem-details'
+import { publicSearchRouter } from '../../features/search'
 
 const publicApp = new Hono<AppEnv>()
 

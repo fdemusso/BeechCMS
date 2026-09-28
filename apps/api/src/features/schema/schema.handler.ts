@@ -5,7 +5,7 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import { canEditLayout, formLayoutSchema, validateLayoutAgainstSeed } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem } from '../../public/errors/problem-details'
 import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
 import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'

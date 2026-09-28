@@ -6,7 +6,7 @@
 import type { Context } from 'hono'
 import type { EffectivePermissions, Permission, PermissionAssignment } from '@beechcms/core'
 import { hasPermission, permissionsHeldAnywhere } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
 import { RBAC_ERRORS, type RbacErrorCode } from './constants'
 

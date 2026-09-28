@@ -3,8 +3,8 @@
 
 import type { Context, Next } from 'hono'
 import { timingSafeEqual } from '@beechcms/core'
-import { PUBLIC_ERRORS } from './public-errors.js'
-import { publicProblem } from './problem-details.js'
+import { PUBLIC_ERRORS } from '../errors/public-errors.js'
+import { publicProblem } from '../errors/problem-details.js'
 
 type PublicBindings = {
   PUBLIC_READ_API_KEY?: string

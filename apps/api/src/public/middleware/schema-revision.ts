@@ -5,7 +5,7 @@
 import type { MiddlewareHandler } from 'hono'
 import { computeSchemaFingerprint } from '@beechcms/core'
 import type { ISeedRegistry } from '@beechcms/core'
-import type { AppEnv } from '../types.js'
+import type { AppEnv } from '../../types.js'
 
 export const fingerprintCache = new WeakMap<ISeedRegistry, string>()
 

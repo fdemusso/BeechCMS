@@ -13,7 +13,7 @@ import {
   SLUG_RE,
   SEED_SLUG_RE,
 } from '@beechcms/core'
-import { publicProblem, internalErrorDetail } from '../../public/problem-details'
+import { publicProblem, internalErrorDetail } from '../../public/errors/problem-details'
 import { deleteR2Objects } from '../../shared/storage/upload'
 import { extractMediaKeysFromData } from '../../shared/utils/media-utils'
 import type { Env, Variables } from '../../types'

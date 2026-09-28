@@ -4,7 +4,7 @@
 
 import type { ContentRepository, Seed, SelectLocale } from '@beechcms/core'
 import { resolvePublicRelationTarget } from './relation-access'
-import { toEngineFilters, type ParsedPublicFilter, type PublicFilterCondition } from './query-builder'
+import { toEngineFilters, type ParsedPublicFilter, type PublicFilterCondition } from '../query/query-builder'
 
 /** A subquery resolving to more targets than this is refused, never truncated: truncation silently drops parent rows. */
 const MAX_SUBQUERY_TARGET_IDS = 200

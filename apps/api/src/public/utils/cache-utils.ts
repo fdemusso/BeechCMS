@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { resolveEdgeCache, type EdgeCache } from '../shared/utils/edge-cache'
+import { resolveEdgeCache, type EdgeCache } from '../../shared/utils/edge-cache'
 
 export { resolveEdgeCache }
 

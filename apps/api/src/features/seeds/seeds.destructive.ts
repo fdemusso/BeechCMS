@@ -13,7 +13,7 @@ import {
   planFtsRebuild,
   BRANCH_ALIAS_RE,
 } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
 import {
   parseJsonBody,

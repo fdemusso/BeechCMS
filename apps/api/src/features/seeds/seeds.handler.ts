@@ -17,7 +17,7 @@
 import { Hono } from 'hono'
 import type { Branch, Seed } from '@beechcms/core'
 import { nextBranchId, planFtsRebuild } from '@beechcms/core'
-import { publicProblem } from '../../public/problem-details'
+import { publicProblem } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
 import {
   SLUG_RE,
