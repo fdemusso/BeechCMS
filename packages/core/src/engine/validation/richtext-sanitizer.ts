@@ -266,3 +266,18 @@ export function isRichtextDocEmpty(value: unknown): boolean {
   gatherRichtextText(value, sink)
   return sink.join('').trim().length === 0
 }
+
+/**
+ * Flattens a rich text value (raw TipTap doc or v1 envelope) into plain text for indexing,
+ * joining block-level pieces with spaces. Depth-guarded via {@link gatherRichtextText}.
+ *
+ * @param value - The deserialized richtext value (object), as returned by `deserializeFromDb`.
+ * @returns The flattened text, or an empty string if `value` carries no text.
+ */
+export function extractRichtextText(value: unknown): string {
+  if (!isPlainObject(value)) return ''
+  const doc = isRichtextEnvelopeV1(value) ? value.doc : value
+  const sink: string[] = []
+  gatherRichtextText(doc, sink)
+  return sink.join(' ').trim()
+}
