@@ -39,6 +39,12 @@ export class TokenBucketRateLimiter implements IRateLimiter {
     this.pruneIntervalSeconds = options?.pruneIntervalSeconds ?? 60 // Throttle O(n) scans
   }
 
+  // Bound the eviction scan so a flood of unique keys (each forcing an eviction attempt)
+  // cannot turn checkLimit into an O(maxBuckets) operation per request. Only the oldest
+  // slice of the map is examined; if nothing there qualifies, the map is allowed to grow
+  // past maxBuckets rather than evict something it shouldn't (see below).
+  private static readonly MAX_EVICTION_SCAN = 32
+
   private pruneExpiredBuckets(now: number): void {
     if (this.buckets.size < 500) return
     if (now - this.lastPruneTimestamp < this.pruneIntervalSeconds) return
@@ -56,6 +62,26 @@ export class TokenBucketRateLimiter implements IRateLimiter {
     }
   }
 
+  // Evicts the oldest bucket ONLY if it has refilled to full capacity, in which case it is
+  // behaviourally equivalent to an absent bucket and dropping it loses no state. A bucket
+  // that hasn't refilled — including one sitting at 0 tokens and actively blocking its key —
+  // is never evicted: doing so would let an attacker flood distinct keys to silently reset a
+  // victim's exhausted bucket and bypass its limit (#458).
+  private evictRefilledBucket(now: number): void {
+    let scanned = 0
+    for (const [key, state] of this.buckets.entries()) {
+      if (scanned >= TokenBucketRateLimiter.MAX_EVICTION_SCAN) return
+      scanned++
+
+      const elapsed = Math.max(0, now - state.lastRefillTimestamp)
+      const refilled = Math.min(this.capacity, state.tokens + elapsed * this.refillRatePerSecond)
+      if (refilled >= this.capacity) {
+        this.buckets.delete(key)
+        return
+      }
+    }
+  }
+
   async checkLimit(key: string): Promise<RateLimitResult> {
     const now = this.clock.now() / 1000 // fractional seconds for continuous refill
     this.pruneExpiredBuckets(now)
@@ -63,11 +89,7 @@ export class TokenBucketRateLimiter implements IRateLimiter {
     let bucket = this.buckets.get(key)
     if (!bucket) {
       if (this.buckets.size >= this.maxBuckets) {
-        // LRU / FIFO eviction: delete oldest inserted bucket
-        const oldestKey = this.buckets.keys().next().value
-        if (oldestKey !== undefined) {
-          this.buckets.delete(oldestKey)
-        }
+        this.evictRefilledBucket(now)
       }
       bucket = {
         tokens: this.capacity,

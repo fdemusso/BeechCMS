@@ -161,34 +161,56 @@ describe('TokenBucketRateLimiter', () => {
     expect(result.remaining).toBe(4)
   })
 
-  it('evicts the least recently used bucket when maxBuckets capacity is exceeded', async () => {
+  it('evicts the oldest bucket once it has idled back up to full capacity', async () => {
     const clock = new MutableClock(1000000)
     const limiter = new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 1, clock, maxBuckets: 3 })
     await limiter.checkLimit('key-1')
     await limiter.checkLimit('key-2')
     await limiter.checkLimit('key-3')
-    await limiter.checkLimit('key-1')
+    // Let every bucket refill back to full capacity (5s at rate 1/s) before overflowing.
+    clock.advanceSeconds(5)
+
     await limiter.checkLimit('key-4')
+    const result = await limiter.checkLimit('key-1')
 
-    const result = await limiter.checkLimit('key-2')
-
-    // key-2 was evicted as LRU, so checking it creates a fresh bucket with capacity 5 minus 1
+    // key-1 was the oldest and had refilled to capacity, so it was eligible for eviction;
+    // checking it now creates a fresh bucket with capacity 5 minus 1.
     expect(result.remaining).toBe(4)
   })
 
-  it('preserves the recently accessed bucket when maxBuckets capacity triggers eviction of older buckets', async () => {
+  it('does not evict any bucket, and instead grows past maxBuckets, when no bucket has refilled to capacity', async () => {
     const clock = new MutableClock(1000000)
-    const limiter = new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 1, clock, maxBuckets: 3 })
+    const limiter = new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 0, clock, maxBuckets: 3 })
     await limiter.checkLimit('key-1')
     await limiter.checkLimit('key-2')
     await limiter.checkLimit('key-3')
-    await limiter.checkLimit('key-1')
-    await limiter.checkLimit('key-4')
 
+    // No refill (rate 0), so none of the existing buckets are eligible for eviction.
+    await limiter.checkLimit('key-4')
     const result = await limiter.checkLimit('key-1')
 
-    // key-1 was accessed before key-4, so it was preserved; remaining was 3, consumed 1 more -> 2
-    expect(result.remaining).toBe(2)
+    // key-1 survived the overflow: its consumed token is still gone, not reset to capacity - 1.
+    expect(result.remaining).toBe(3)
+  })
+
+  it('regression #458: an exhausted bucket stays blocked after maxBuckets is overflowed by unique keys', async () => {
+    const clock = new MutableClock(1000000)
+    const limiter = new TokenBucketRateLimiter({ capacity: 1, refillRatePerSecond: 0, clock, maxBuckets: 5 })
+
+    // Exhaust the victim's bucket.
+    await limiter.checkLimit('victim')
+    const victimBeforeFlood = await limiter.checkLimit('victim')
+    expect(victimBeforeFlood.isAllowed).toBe(false)
+
+    // Flood with far more unique keys than maxBuckets. With rate 0, no bucket ever refills,
+    // so eviction never finds an eligible candidate and none of these calls can reset 'victim'.
+    for (let i = 0; i < 50; i++) {
+      await limiter.checkLimit(`flood-${i}`)
+    }
+
+    const victimAfterFlood = await limiter.checkLimit('victim')
+
+    expect(victimAfterFlood.isAllowed).toBe(false)
   })
 
   it('skips pruning idle buckets when called within pruneIntervalSeconds', async () => {

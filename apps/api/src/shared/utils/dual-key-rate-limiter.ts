@@ -14,7 +14,7 @@ export interface DualKeyRateLimitOptions {
 export interface DualKeyRateLimitResult {
   isAllowed: boolean
   retryAfterSeconds?: number
-  blockedBy?: 'ip' | 'account' | 'both'
+  blockedBy?: 'ip' | 'account'
 }
 
 /**
@@ -25,35 +25,33 @@ export function normalizeAccountKey(rawKey: string): string {
 }
 
 /**
- * Coordinates atomic evaluation of IP and Account rate limiters.
- * If either bucket violates its limit, access is rejected (HTTP 429).
+ * Coordinates sequential evaluation of IP and Account rate limiters.
+ * Checks the IP limiter first and short-circuits before touching the account limiter when the
+ * IP is already blocked. The account limiter is local, keyed by attacker-controlled input (email,
+ * client_id) and has no shared binding, so consulting it unconditionally let a flood of requests
+ * from a single already-throttled IP force account bucket eviction and reset a victim's limit
+ * (#458). Requests from a throttled IP can no longer create or touch account buckets.
  */
 export async function checkDualKeyRateLimit(
   options: DualKeyRateLimitOptions
 ): Promise<DualKeyRateLimitResult> {
   const normalizedAccount = normalizeAccountKey(options.accountKey)
 
-  const [ipResult, accountResult] = await Promise.all([
-    options.ipLimiter.checkLimit(options.clientIp),
-    options.accountLimiter.checkLimit(normalizedAccount),
-  ])
-
-  if (!ipResult.isAllowed || !accountResult.isAllowed) {
-    const ipRetry = ipResult.retryAfterSeconds ?? 0
-    const accountRetry = accountResult.retryAfterSeconds ?? 0
-    const retryAfterSeconds = Math.max(ipRetry, accountRetry, 1)
-
-    let blockedBy: 'ip' | 'account' | 'both' = 'both'
-    if (!ipResult.isAllowed && accountResult.isAllowed) {
-      blockedBy = 'ip'
-    } else if (ipResult.isAllowed && !accountResult.isAllowed) {
-      blockedBy = 'account'
-    }
-
+  const ipResult = await options.ipLimiter.checkLimit(options.clientIp)
+  if (!ipResult.isAllowed) {
     return {
       isAllowed: false,
-      retryAfterSeconds,
-      blockedBy,
+      retryAfterSeconds: Math.max(ipResult.retryAfterSeconds ?? 0, 1),
+      blockedBy: 'ip',
+    }
+  }
+
+  const accountResult = await options.accountLimiter.checkLimit(normalizedAccount)
+  if (!accountResult.isAllowed) {
+    return {
+      isAllowed: false,
+      retryAfterSeconds: Math.max(accountResult.retryAfterSeconds ?? 0, 1),
+      blockedBy: 'account',
     }
   }
 
