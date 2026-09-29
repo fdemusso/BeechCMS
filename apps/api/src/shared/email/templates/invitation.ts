@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import type { EmailLocale } from '../email.types'
-import { buildEmailShell } from './shell'
+import { buildEmailShell, escapeHtml } from './shell'
 
 const COPY: Record<EmailLocale, {
   subject: string
@@ -16,7 +16,7 @@ const COPY: Record<EmailLocale, {
     subject: 'You have been invited to Beech CMS',
     title: 'Activate your account',
     body: (roleName, scopeLabel) =>
-      `You have been invited to Beech CMS as <strong>${roleName}</strong> on <strong>${scopeLabel}</strong>. Click the button below to set your password and activate your account. This link expires in 72 hours and can be used once.`,
+      `You have been invited to Beech CMS as <strong>${escapeHtml(roleName)}</strong> on <strong>${escapeHtml(scopeLabel)}</strong>. Click the button below to set your password and activate your account. This link expires in 72 hours and can be used once.`,
     ctaLabel: 'Activate account',
     footer: "If you weren't expecting this invitation, you can safely ignore this email.",
   },
@@ -24,7 +24,7 @@ const COPY: Record<EmailLocale, {
     subject: 'Sei stato invitato su Beech CMS',
     title: 'Attiva il tuo account',
     body: (roleName, scopeLabel) =>
-      `Sei stato invitato su Beech CMS come <strong>${roleName}</strong> su <strong>${scopeLabel}</strong>. Clicca il pulsante qui sotto per impostare la password e attivare il tuo account. Questo link scade tra 72 ore e può essere usato una sola volta.`,
+      `Sei stato invitato su Beech CMS come <strong>${escapeHtml(roleName)}</strong> su <strong>${escapeHtml(scopeLabel)}</strong>. Clicca il pulsante qui sotto per impostare la password e attivare il tuo account. Questo link scade tra 72 ore e può essere usato una sola volta.`,
     ctaLabel: 'Attiva account',
     footer: 'Se non ti aspettavi questo invito, puoi ignorare questa email in tutta sicurezza.',
   },
