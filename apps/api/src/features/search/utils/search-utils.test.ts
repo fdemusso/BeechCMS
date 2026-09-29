@@ -38,6 +38,15 @@ const PRIVATE_TEXT_SEED = {
   ],
 } as unknown as Seed
 
+const SOFT_DELETE_SEED = {
+  slug: 'articoli_soft',
+  displayNameAlias: 'title',
+  softDelete: true,
+  branches: [
+    { id: 'br_01', alias: 'title', type: 'text', policies: { search: true } },
+  ],
+} as unknown as Seed
+
 // ─── encodeCursor / decodeCursor ─────────────────────────────────────────────
 
 describe('encodeCursor / decodeCursor', () => {
@@ -198,6 +207,24 @@ describe('buildFtsQuery', () => {
       [TEXT_SEED],
     )
     expect(result.binds[0]).toBe('"superman"*')
+  })
+
+  it('appends ce.deleted_at IS NULL to data query and count query for soft-delete seeds (#465)', () => {
+    const result = buildFtsQuery(
+      { queryText: 'hello', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: null },
+      [SOFT_DELETE_SEED],
+    )
+    expect(result.sql).toContain('ce.deleted_at IS NULL')
+    expect(result.countSql).toContain('ce.deleted_at IS NULL')
+  })
+
+  it('does not include deleted_at condition for seeds without softDelete (#465)', () => {
+    const result = buildFtsQuery(
+      { queryText: 'hello', schemaSlug: null, statusFilter: null, pageSize: 20, cursor: null },
+      [TEXT_SEED],
+    )
+    expect(result.sql).not.toContain('deleted_at')
+    expect(result.countSql).not.toContain('deleted_at')
   })
 })
 

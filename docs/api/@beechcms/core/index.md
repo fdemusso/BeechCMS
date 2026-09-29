@@ -359,6 +359,8 @@ Seeds and generates deterministic DDL + parameterized queries.
 
 ## Functions
 
+- [activeClause](functions/activeClause.md)
+- [activeCondition](functions/activeCondition.md)
 - [applyLocalizedPatch](functions/applyLocalizedPatch.md)
 - [asLocaleDictionaries](functions/asLocaleDictionaries.md)
 - [asLocaleDictionary](functions/asLocaleDictionary.md)
