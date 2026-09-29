@@ -71,6 +71,6 @@ Integrate BeechCMS field types and form builders into your existing design syste
 
 BeechCMS is built in the open with an active community of developers and designers.
 
-- **GitHub Repository**: [github.com/flaviodemusso/BeechCMS](https://github.com/flaviodemusso/BeechCMS)
+- **GitHub Repository**: [github.com/fdemusso/BeechCMS](https://github.com/fdemusso/BeechCMS)
 - **Report Issues**: Submit bug reports and feature requests via GitHub Issues.
 - **Pull Requests**: We welcome contributions! Review our contribution guidelines and code style before opening PRs.

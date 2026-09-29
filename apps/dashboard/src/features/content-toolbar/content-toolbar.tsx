@@ -96,6 +96,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
     // Filters
     addConditionToColumn,
     removeColumnFilters,
+    clearAllFilters,
     updateCondition,
     removeCondition,
     visibleFilterColumns,
@@ -133,6 +134,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
   }
 
   const hasFiltersOrGroup = Object.keys(filters).length > 0 || !!activeGroupLabel
+  const activeFilterLabels = Object.values(filters).map((group) => group.label)
 
   return (
     <div data-seed-slug={seed.slug}>
@@ -285,6 +287,21 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
                 )}
               </div>
             </div>
+
+            {activeFilterLabels.length > 0 && (
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-200">
+                <span>{t("toolbar.filterBanner.message", { filters: activeFilterLabels.join(", ") })}</span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
+                  onClick={clearAllFilters}
+                >
+                  {t("toolbar.filterBanner.clearAll")}
+                </Button>
+              </div>
+            )}
 
             {hasFiltersOrGroup && (
               <div className="mt-3 pt-3 border-t">
