@@ -11,9 +11,10 @@ vi.mock('node:child_process', () => ({ spawn: spawnMock }))
 function fetchAuthUrl(): string {
   const call = (spawnMock.mock.calls.at(-1) ?? []) as unknown[]
   const args = (call[1] as unknown[] | undefined) ?? []
-  const found = [call[0], ...args].find(arg => typeof arg === 'string' && arg.startsWith('http'))
+  // On win32 the URL arg is wrapped in literal quotes for cmd.exe (see openBrowser).
+  const found = [call[0], ...args].find(arg => typeof arg === 'string' && arg.replace(/^"|"$/g, '').startsWith('http'))
   if (!found) throw new Error('no URL found in spawn call')
-  return found as string
+  return (found as string).replace(/^"|"$/g, '')
 }
 
 async function waitForSpawn(): Promise<void> {
