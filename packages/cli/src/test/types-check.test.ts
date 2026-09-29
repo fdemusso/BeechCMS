@@ -61,8 +61,31 @@ describe('typesCheck command', () => {
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('matches live D1'))
   })
 
+  it('passes when the committed file has CRLF line endings but matches live D1 schema', async () => {
+    const fingerprint = await computeSchemaFingerprint([ARTICLES_SEED])
+    const freshTypes = generateSeedTypes([ARTICLES_SEED], { fingerprint })
+    const crlfTypes = freshTypes.replace(/\n/g, '\r\n')
+    writeFileSync(outPath, crlfTypes, 'utf-8')
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await typesCheck({ out: outPath, local: true })
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('matches live D1'))
+  })
+
   it('exits with code 1 when the committed file is stale', async () => {
     writeFileSync(outPath, 'export interface Stale {}\n', 'utf-8')
+    const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit:1') })
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
+
+    await expect(typesCheck({ out: outPath, local: true })).rejects.toThrow('exit:1')
+
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('is stale'))
+    expect(exitSpy).toHaveBeenCalledWith(1)
+  })
+
+  it('exits with code 1 when the committed file has CRLF line endings and is stale', async () => {
+    writeFileSync(outPath, 'export interface Stale {}\r\n', 'utf-8')
     const exitSpy = vi.spyOn(process, 'exit').mockImplementation(() => { throw new Error('exit:1') })
     const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
