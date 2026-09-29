@@ -641,6 +641,7 @@
       "filtersOn": "Filtri su \"{{label}}\"",
       "removeColumn": "Rimuovi colonna dai filtri",
       "addFilter": "Aggiungi filtro",
+      "removeAll": "Rimuovi tutto",
       "removeCondition": "Rimuovi condizione",
       "operator": "Operatore"
     },
@@ -649,6 +650,10 @@
     },
     "filterPills": {
       "groupedBy": "Raggruppato per: {{label}}"
+    },
+    "filterBanner": {
+      "message": "Sono stati applicati dei filtri: {{filters}}",
+      "clearAll": "Rimuovi tutti i filtri"
     },
     "settings": {
       "selectAxisField": "Per favore seleziona un campo per raggruppare le schede dalle impostazioni (icona ingranaggio) in alto a destra.",
