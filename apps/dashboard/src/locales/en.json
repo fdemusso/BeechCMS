@@ -1581,6 +1581,7 @@
       "deleteWarning": "Every assignment through this role is removed by cascade.",
       "saveSuccess": "Role saved",
       "morePermissions": "+{{count}} more",
+      "moreRoles": "+{{count}} more",
       "groupContent": "Content",
       "groupSystem": "System"
     },
@@ -1593,6 +1594,8 @@
       "revoke": "Revoke",
       "emailSent": "Invitation emailed",
       "revokeWarning": "This invitation link will stop working.",
+      "copyLink": "Copy invite link",
+      "linkCopied": "Invite link copied",
       "statuses": {
         "pending": "Pending",
         "accepted": "Accepted",

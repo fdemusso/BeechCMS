@@ -68,4 +68,17 @@ describe('toImportPayload', () => {
 
     expect(payload).toEqual({ data: { title: 'Hello' } })
   })
+
+  it('prevents prototype pollution and creates data with a null prototype', () => {
+    const raw = JSON.parse('{"__proto__": {"polluted": true}, "constructor": "bad", "prototype": "bad", "title": "Safe"}')
+    const payload = toImportPayload(raw)
+
+    expect(Object.getPrototypeOf(payload.data)).toBeNull()
+    expect(Object.hasOwn(payload.data, '__proto__')).toBe(false)
+    expect(Object.hasOwn(payload.data, 'constructor')).toBe(false)
+    expect(Object.hasOwn(payload.data, 'prototype')).toBe(false)
+    expect((payload.data as any).polluted).toBeUndefined()
+    expect(payload.data.title).toBe('Safe')
+  })
 })
+

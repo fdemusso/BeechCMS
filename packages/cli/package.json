@@ -3,7 +3,8 @@
   "version": "0.8.0",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "!dist/.tsbuildinfo"
   ],
   "main": "dist/index.js",
   "exports": {
