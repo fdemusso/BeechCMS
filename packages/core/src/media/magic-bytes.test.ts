@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { verifyMagicBytes } from './magic-bytes.js'
-import { SUPPORTED_FILE_TYPES, getFileTypeByExtension, getFileTypeByMime } from './file-types.js'
+import { SUPPORTED_FILE_TYPES, extensionFromUrl, getFileTypeByExtension, getFileTypeByMime } from './file-types.js'
 
 describe('verifyMagicBytes & File Types Registry', () => {
   it('exposes SUPPORTED_FILE_TYPES registry with all key-value mappings', () => {
@@ -192,6 +192,30 @@ describe('verifyMagicBytes & File Types Registry', () => {
       expect(res.valid).toBe(false)
       expect(res.error).toContain('Unrecognized file signature')
     })
+  })
+})
+
+describe('getFileTypeByExtension', () => {
+  // Regression guard for #452: SUPPORTED_FILE_TYPES is a plain object literal, so an unguarded
+  // index access reaches inherited Object.prototype members for these keys.
+  it('returns undefined for __proto__ and constructor instead of an inherited Object.prototype member', () => {
+    expect(getFileTypeByExtension('__proto__')).toBeUndefined()
+    expect(getFileTypeByExtension('constructor')).toBeUndefined()
+  })
+})
+
+describe('extensionFromUrl', () => {
+  // Regression guard for #452: lastIndexOf('.') ran over the whole pathname, so a dot in a
+  // directory segment (a versioned path, a CDN transform segment) was misread as the extension.
+  it('ignores a dot in a directory segment and falls back to the query-param extension', () => {
+    expect(extensionFromUrl('https://cdn.example.com/v1.2/photo')).toBeNull()
+    expect(extensionFromUrl('https://res.cloudinary.com/demo/image/upload/w_0.5/sample')).toBeNull()
+    expect(extensionFromUrl('https://example.com/photo?fm=jpg')).toBe('jpg')
+  })
+
+  it('reads the extension from the last path segment, ignoring a trailing slash', () => {
+    expect(extensionFromUrl('https://example.com/photo.jpg')).toBe('jpg')
+    expect(extensionFromUrl('https://example.com/photo.jpg/')).toBeNull()
   })
 })
 

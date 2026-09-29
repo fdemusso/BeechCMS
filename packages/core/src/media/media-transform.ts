@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { sha256hex } from '../engine/privacy/policies.js'
+import { canonicalizeMime } from './file-types.js'
 import type { ImageOutputMime, ImageTransformSpec, MediaDimensions } from './image-transformer.js'
 
 /** Default ceiling, in pixels, on either side of a derived variant. Covers native 32:9 ultrawide panels. */
@@ -182,8 +183,7 @@ export function buildMediaPresetCatalog(overrides: unknown, maxDimension: number
 
 export function isTransformableMime(mime: string | null | undefined): boolean {
   if (!mime) return false
-  const normalised = mime.split(';')[0].trim().toLowerCase()
-  return (TRANSFORMABLE_MEDIA_MIME_TYPES as readonly string[]).includes(normalised)
+  return (TRANSFORMABLE_MEDIA_MIME_TYPES as readonly string[]).includes(canonicalizeMime(mime))
 }
 
 /**
@@ -209,7 +209,7 @@ export function buildImageTransformSpec(preset: MediaPreset, request: MediaTrans
     ? 'image/webp'
     : request.format === 'jpeg'
       ? 'image/jpeg'
-      : (sourceMime.split(';')[0].trim().toLowerCase() as ImageOutputMime)
+      : (canonicalizeMime(sourceMime) as ImageOutputMime)
   const quality = MEDIA_QUALITY_VALUES[request.quality]
   return preset.kind === 'crop'
     ? { width: preset.width, height: preset.height, fit: 'cover', outputMime, quality }

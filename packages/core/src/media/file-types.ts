@@ -357,6 +357,7 @@ const ARCHIVE_MIME_SET: ReadonlySet<string> = new Set(ARCHIVE_MIME_TYPES)
 export function getFileTypeByExtension(ext: string | null | undefined): FileTypeDefinition | undefined {
   if (!ext) return undefined
   const normalised = ext.replace(/^\./, '').toLowerCase().trim()
+  if (!Object.hasOwn(SUPPORTED_FILE_TYPES, normalised)) return undefined
   return SUPPORTED_FILE_TYPES[normalised]
 }
 
@@ -375,6 +376,18 @@ export function getFileTypeByMime(mime: string | null | undefined): FileTypeDefi
 }
 
 /**
+ * Canonicalizes a declared MIME type to its registered primary form (e.g. 'image/jpg' -> 'image/jpeg').
+ * Unrecognized MIME types pass through unchanged (lowercased, parameters stripped).
+ *
+ * @param mime - The declared MIME string (e.g. 'image/jpg' or 'image/png; charset=utf-8').
+ * @returns The canonical primary MIME type, or the normalised input if unrecognized.
+ */
+export function canonicalizeMime(mime: string): string {
+  const normalised = mime.split(';')[0].trim().toLowerCase()
+  return getFileTypeByMime(normalised)?.primaryMime ?? normalised
+}
+
+/**
  * Extracts a lowercase file extension from a URL string or query parameters.
  *
  * @param url - The URL string to parse.
@@ -383,10 +396,10 @@ export function getFileTypeByMime(mime: string | null | undefined): FileTypeDefi
 export function extensionFromUrl(url: string): string | null {
   try {
     const parsed = new URL(url)
-    const path = parsed.pathname
-    const dot = path.lastIndexOf('.')
-    if (dot >= 0 && dot < path.length - 1) {
-      return path.slice(dot + 1).toLowerCase()
+    const segment = parsed.pathname.slice(parsed.pathname.lastIndexOf('/') + 1)
+    const dot = segment.lastIndexOf('.')
+    if (dot >= 0 && dot < segment.length - 1) {
+      return segment.slice(dot + 1).toLowerCase()
     }
     const param = parsed.searchParams.get('fm') || parsed.searchParams.get('format') || parsed.searchParams.get('ext')
     if (param && /^[a-z0-9]+$/i.test(param)) {
