@@ -49,6 +49,9 @@ export function toCsvCells(record: TransferRecord, columns: string[]): Array<str
     const value = record[column]
     if (value === null || value === undefined) return null
     if (typeof value === 'boolean') return value ? 'true' : 'false'
+    if (typeof value === 'object') {
+      throw new TypeError(`Cannot serialize non-scalar value for column "${column}" to CSV cell`)
+    }
     return String(value)
   })
 }

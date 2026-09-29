@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import type { Branch, BranchType, Seed } from '../engine/types.js'
+import { isLocalizedBranch } from '../engine/localization/localization.js'
 import type { FormatCompatibility, TransferFormat } from './transfer.types.js'
 
 /**
@@ -14,10 +15,12 @@ const NON_FLAT_BRANCH_TYPES: ReadonlySet<BranchType> = new Set<BranchType>([
   'repeater',
   'tags',
   'json',
+  'richtext',
 ])
 
 /** True for a branch that cannot be represented as a single scalar CSV cell. */
 function isNonFlat(branch: Branch): boolean {
+  if (isLocalizedBranch(branch)) return true
   // A `file` branch is a single URL string — flat — unless it is an asset list.
   if (branch.type === 'file') return branch.multiple === true
   return NON_FLAT_BRANCH_TYPES.has(branch.type)

@@ -91,7 +91,38 @@ describe('content slice — export integration (real D1)', () => {
       expect(response.status).toBe(400)
       const body = await response.json<{ type: string; errors: Array<{ field: string }> }>()
       expect(body.type).toBe('https://beechcms.dev/problems/content-csv-requires-flat-seed')
-      expect(new Set(body.errors.map((e) => e.field))).toEqual(new Set(['tags', 'author_id', 'category_id', 'related_posts']))
+      expect(new Set(body.errors.map((e) => e.field))).toEqual(new Set(['body', 'tags', 'author_id', 'category_id', 'related_posts']))
+    })
+
+    it('refuses CSV export for a seed with a localized branch', async () => {
+      const localizedSeed = defineSeed({
+        slug: 'localized_articles',
+        label: 'Localized Article',
+        labelPlural: 'Localized Articles',
+        displayNameAlias: 'title',
+        branches: [
+          { id: 'br_01', alias: 'title', label: 'Title', type: 'text', localized: true },
+        ],
+      })
+      const locHarness = await createTestHarness({
+        db: env.DB,
+        seeds: [localizedSeed],
+        createApp: (authProviders) => createBeechApp({ seeds: [], authProviders }),
+      })
+      const locAdmin = await locHarness.asUser('admin')
+      const response = await locAdmin.get('/api/content/localized_articles/export?format=csv')
+
+      expect(response.status).toBe(400)
+      const body = await response.json<{ type: string; errors: Array<{ field: string }> }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/content-csv-requires-flat-seed')
+      expect(body.errors).toEqual([
+        {
+          field: 'title',
+          expected: 'a scalar branch type',
+          received: 'text',
+          message: expect.any(String),
+        },
+      ])
     })
 
     it('NDJSON on the same non-flat seed succeeds, proving the refusal is format-specific', async () => {
