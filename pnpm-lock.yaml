@@ -36,7 +36,7 @@ importers:
         specifier: ^0.6.6
         version: 0.6.6(@tiptap/pm@3.31.3)(happy-dom@20.14.5)
       '@beechcms/cli':
-        specifier: workspace:^0.8.0
+        specifier: workspace:^0.8.1
         version: link:packages/cli
       '@beechcms/core':
         specifier: ^0.6.6
@@ -115,7 +115,7 @@ importers:
         specifier: ^3.995.0
         version: 3.1068.0
       '@beechcms/core':
-        specifier: workspace:^0.8.0
+        specifier: workspace:^0.8.1
         version: link:../../packages/core
       '@upstash/qstash':
         specifier: ^2.11.0
@@ -161,10 +161,10 @@ importers:
   apps/dashboard:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.8.0
+        specifier: workspace:^0.8.1
         version: link:../../packages/core
       '@beechcms/widget-sdk':
-        specifier: workspace:^0.8.0-preview.1
+        specifier: workspace:^0.8.0
         version: link:../../packages/widget-sdk
       '@blocknote/code-block':
         specifier: ^0.49.0
@@ -496,7 +496,7 @@ importers:
   packages/cli:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.8.0
+        specifier: workspace:^0.8.1
         version: link:../core
       '@clack/prompts':
         specifier: ^0.9.1
@@ -600,10 +600,10 @@ importers:
   packages/forms-react:
     dependencies:
       '@beechcms/client':
-        specifier: workspace:^0.8.0-preview.1
+        specifier: workspace:^0.8.0
         version: link:../client
       '@beechcms/core':
-        specifier: workspace:^0.8.0
+        specifier: workspace:^0.8.1
         version: link:../core
     devDependencies:
       '@testing-library/jest-dom':
@@ -649,7 +649,7 @@ importers:
   packages/mcp:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.8.0
+        specifier: workspace:^0.8.1
         version: link:../core
       '@modelcontextprotocol/sdk':
         specifier: ^1.29.0
@@ -683,7 +683,7 @@ importers:
   packages/widget-sdk:
     dependencies:
       '@beechcms/core':
-        specifier: workspace:^0.8.0
+        specifier: workspace:^0.8.1
         version: link:../core
       clsx:
         specifier: ^2.1.1
@@ -5911,10 +5911,6 @@ packages:
   lowlight@3.3.0:
     resolution: {integrity: sha512-0JNhgFoPvP6U6lE/UdVsSq99tn6DhjjpAj5MxG49ewd2mOBVtwWYIT8ClyABhq198aXXODMU6Ox8DrGy/CpTZQ==}
 
-  lru-cache@11.5.2:
-    resolution: {integrity: sha512-4pfM1Ff0x50o0tQwb5ucw/RzNyD0/YJME6IVcStalZuMWxdt3sR3huStTtxz4PUmvZfRguvDejasvQ2kifR11g==}
-    engines: {node: 20 || >=22}
-
   lru-cache@11.5.3:
     resolution: {integrity: sha512-U4N8FgzmWxc8k1VH8Kr6lQg18U7Fjvby6wXHVRX/ZZ7IwWbRMgrRbP0Wrb5q5NVinryp4SQampHKdvtecItxUg==}
     engines: {node: 20 || >=22}
@@ -7831,7 +7827,7 @@ snapshots:
       '@csstools/css-color-parser': 4.2.3(@csstools/css-parser-algorithms@4.0.0(@csstools/css-tokenizer@4.0.0))(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-parser-algorithms': 4.0.0(@csstools/css-tokenizer@4.0.0)
       '@csstools/css-tokenizer': 4.0.0
-      lru-cache: 11.5.2
+      lru-cache: 11.5.3
 
   '@asamuzakjp/dom-selector@9.2.1':
     dependencies:
@@ -12724,7 +12720,7 @@ snapshots:
       decimal.js: 10.6.0
       html-encoding-sniffer: 6.0.0(@noble/hashes@1.8.0)
       is-potential-custom-element-name: 1.0.1
-      lru-cache: 11.5.2
+      lru-cache: 11.5.3
       parse5: 8.0.1
       saxes: 6.0.0
       tough-cookie: 6.0.2
@@ -12909,8 +12905,6 @@ snapshots:
       '@types/hast': 3.0.4
       devlop: 1.1.0
       highlight.js: 11.11.1
-
-  lru-cache@11.5.2: {}
 
   lru-cache@11.5.3: {}
 
