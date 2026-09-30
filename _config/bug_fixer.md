@@ -11,17 +11,34 @@ Output: A verified Pull Request submitted via `gh` targeting `devs` with linked 
 
 # REMEDIATION LIFECYCLE (Never skip a phase)
 
-### PHASE 1: ISSUE INGESTION & BRANCH SETUP
+### PHASE 0: ISOLATED WORKTREE FROM UPDATED `devs` (ALWAYS THE FIRST STEP)
+Every fix lives in its own git worktree, created from an up-to-date `origin/devs`, before anything else is read or changed. Never fix in the main checkout, and never reuse one worktree for two issues.
+1. Update `devs` from the remote:
+   ```bash
+   git fetch origin devs
+   ```
+2. Create the dedicated worktree and fix branch in one step, from `origin/devs` (not from the local `devs`, which may be stale). Derive `<description-slug>` from the issue title (`gh issue view <id> --json title`), using kebab-case with at most 5 words:
+   ```bash
+   git worktree add -b fix/issue-<id>-<description-slug> ../beech-cms-worktrees/issue-<id> origin/devs
+   cd ../beech-cms-worktrees/issue-<id>
+   ```
+   If the branch or worktree already exists, stop and report it. Do not overwrite it or reset it.
+3. Bootstrap the worktree. Gitignored files are not copied by `git worktree add`:
+   ```bash
+   pnpm install --frozen-lockfile
+   cp ../../beech-cms/apps/api/.dev.vars apps/api/.dev.vars   # only if present in the main checkout
+   pnpm build
+   graphify update .                                          # graphify-out/ is gitignored, so build the graph here
+   ```
+4. From here on, run every command (tests, graphify, git, gh) **inside the worktree**.
+
+### PHASE 1: ISSUE INGESTION
 1. Fetch and parse the issue details using `gh issue view <id> --json title,body,state,labels` (or `gh issue view <id>`):
    - Extract **Problem statement** (affected files, symptoms, error logs).
    - Extract **Failure scenario** (concrete input → unexpected outcome).
    - Extract **Why existing tests missed it** (untested edge case, missing assertion, regression).
    - Extract **Severity** (`severity:high`, `severity:medium`, `severity:low`).
-2. Sync with remote and create the dedicated fix branch:
-   ```bash
-   git fetch origin devs
-   git checkout -b fix/issue-<id>-<description-slug> origin/devs
-   ```
+2. Verify the defect still exists on the fresh `origin/devs` code in the worktree. If it was already fixed upstream, stop and report that instead of fixing it again.
 
 ### PHASE 2: ROOT CAUSE DIAGNOSIS & BLAST RADIUS ANALYSIS
 1. **Trace Upstream Data Flow:** Do not assume the point of failure is where the bug originated. Trace back through callers, serializers, validators, and repositories.
@@ -106,6 +123,12 @@ Execute the full verification gate in order:
    - Verified full test suite and type-checks pass"
    ```
 4. **Do NOT manually close the issue.** GitHub will automatically close issue `#<id>` when the PR is merged into `devs`.
+5. **Worktree cleanup:** once the PR is merged (or closed), return to the main checkout and remove the worktree:
+   ```bash
+   git worktree remove ../beech-cms-worktrees/issue-<id>
+   git branch -d fix/issue-<id>-<description-slug>
+   ```
+   While the PR is still open, keep the worktree, because review fixes go into it.
 
 ---
 
@@ -114,6 +137,6 @@ Execute the full verification gate in order:
 2. **TDD REPRODUCTION MANDATORY:** Every bug fix must include an automated test that fails before the fix and passes after.
 3. **ARCHITECTURAL COMPLIANCE:** Every modification must adhere to `_config/architecture.md` (Botanical Engine, VSA boundaries, single source of truth in `@beechcms/core`).
 4. **GRAPH TOOLING DISCIPLINE:** Follow `_config/tooling_graphify.md` for AST queries. Do not load `_config/graph_router.md` as an execution persona. Run `graphify update .` once at the end of successful verification.
-5. **STRICT GIT WORKFLOW:** Always branch from `origin/devs` as `fix/issue-<id>-<slug>`. Always use non-interactive CLI flags (`gh pr create`). Never push directly to `devs`.
+5. **STRICT GIT WORKFLOW:** The first action of every fix is PHASE 0: `git fetch origin devs`, then a dedicated worktree at `../beech-cms-worktrees/issue-<id>` on branch `fix/issue-<id>-<slug>`, created from `origin/devs`. Never work in the main checkout, and never share a worktree between issues. Always use non-interactive CLI flags (`gh pr create`). Never push directly to `devs`.
 6. **DEFER OUT-OF-SCOPE ISSUES:** Never bundle unrelated fixes or speculative refactors into the bugfix PR. File separate tracked issues via `gh issue create`.
 7. **ZERO FLUFF:** No greetings, conversational filler, or verbose apologies. Analyze, verify, fix, test, and report status cleanly.

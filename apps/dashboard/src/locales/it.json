@@ -700,6 +700,7 @@
       "filtersOn": "Filtri su \"{{label}}\"",
       "removeColumn": "Rimuovi colonna dai filtri",
       "addFilter": "Aggiungi filtro",
+      "removeAll": "Rimuovi tutto",
       "removeCondition": "Rimuovi condizione",
       "operator": "Operatore"
     },
@@ -708,6 +709,10 @@
     },
     "filterPills": {
       "groupedBy": "Raggruppato per: {{label}}"
+    },
+    "filterBanner": {
+      "message": "Sono stati applicati dei filtri: {{filters}}",
+      "clearAll": "Rimuovi tutti i filtri"
     },
     "settings": {
       "selectAxisField": "Per favore seleziona un campo per raggruppare le schede dalle impostazioni (icona ingranaggio) in alto a destra.",
@@ -1581,6 +1586,7 @@
       "deleteWarning": "Ogni assegnazione tramite questo ruolo viene rimossa a cascata.",
       "saveSuccess": "Ruolo salvato",
       "morePermissions": "+{{count}} altri",
+      "moreRoles": "+{{count}} altri",
       "groupContent": "Contenuto",
       "groupSystem": "Sistema"
     },
@@ -1593,6 +1599,8 @@
       "revoke": "Revoca",
       "emailSent": "Invito inviato via email",
       "revokeWarning": "Questo link di invito smetterà di funzionare.",
+      "copyLink": "Copia link di invito",
+      "linkCopied": "Link di invito copiato",
       "statuses": {
         "pending": "In attesa",
         "accepted": "Accettato",

@@ -700,6 +700,7 @@
       "filtersOn": "Filters on \"{{label}}\"",
       "removeColumn": "Remove column from filters",
       "addFilter": "Add filter",
+      "removeAll": "Remove all",
       "removeCondition": "Remove condition",
       "operator": "Operator"
     },
@@ -708,6 +709,10 @@
     },
     "filterPills": {
       "groupedBy": "Grouped by: {{label}}"
+    },
+    "filterBanner": {
+      "message": "Filters applied: {{filters}}",
+      "clearAll": "Clear all filters"
     },
     "settings": {
       "selectAxisField": "Please select a field to group the cards by from the settings menu (gear icon) in the top right.",
@@ -1581,6 +1586,7 @@
       "deleteWarning": "Every assignment through this role is removed by cascade.",
       "saveSuccess": "Role saved",
       "morePermissions": "+{{count}} more",
+      "moreRoles": "+{{count}} more",
       "groupContent": "Content",
       "groupSystem": "System"
     },
@@ -1593,6 +1599,8 @@
       "revoke": "Revoke",
       "emailSent": "Invitation emailed",
       "revokeWarning": "This invitation link will stop working.",
+      "copyLink": "Copy invite link",
+      "linkCopied": "Invite link copied",
       "statuses": {
         "pending": "Pending",
         "accepted": "Accepted",

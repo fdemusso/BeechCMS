@@ -13,6 +13,7 @@ import type {
 import { tableName, ftsTableName, isValidColumn, indexableSearchBranches, SYSTEM_COLUMNS } from '../ddl/ddl.js';
 import { resolveClassification } from '../privacy/policies.js';
 import { isLocaleCode, isLocalizedBranch } from '../localization/localization.js';
+import { activeCondition } from './active-clause.js';
 
 /** SQLite GLOB twins of `LOCALE_CODE_RE` (`it`, `ast`, `pt-BR`, `es-419`, …). Keep both in sync. */
 const LOCALE_KEY_GLOBS = [
@@ -126,10 +127,9 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
   // which all reach SQL only through repository.findMany.
   if (seed.softDelete) {
     const trashed = options.trashed ?? 'active'
-    if (trashed === 'active') {
-      whereClauses.push(`${table}.deleted_at IS NULL`)
-    } else if (trashed === 'trashed') {
-      whereClauses.push(`${table}.deleted_at IS NOT NULL`)
+    const cond = activeCondition(seed, trashed, table)
+    if (cond) {
+      whereClauses.push(cond)
     }
   }
 

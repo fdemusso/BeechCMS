@@ -34,6 +34,17 @@ describe('apiKeyMiddleware', () => {
     expect(resAdd.status).toBe(200)
   })
 
+  it('does not bypass authentication on routes merely containing /add as substring', async () => {
+    const app = buildApp({ PUBLIC_WRITE_API_KEY: 'valid-write-key' })
+
+    const resAddBatch = await app.request('/posts/add-batch', { method: 'POST' })
+    expect(resAddBatch.status).toBe(401)
+
+    const resAddExtra = await app.request('/posts/add/extra', { method: 'POST' })
+    expect(resAddExtra.status).toBe(401)
+  })
+
+
   it('returns 403 when configured key is missing in environment', async () => {
     const app = buildApp({})
 

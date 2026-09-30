@@ -25,7 +25,7 @@ const API = `http://127.0.0.1:${API_PORT}`
 const admin = CANONICAL_USERS.admin
 
 const POSTS_CSV_DISABLED_TEXT =
-  'CSV disabled: tags, author_id, category_id, related_posts cannot be represented as flat columns'
+  'CSV disabled: body, tags, author_id, category_id, related_posts cannot be represented as flat columns'
 
 test.describe('bulk transfer — export', () => {
   test('exporting the categories seed as NDJSON downloads a real file from the export endpoint', async ({ page }) => {
