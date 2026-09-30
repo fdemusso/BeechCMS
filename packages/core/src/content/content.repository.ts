@@ -143,6 +143,36 @@ export class EntryConflictError extends RepositoryError {
   }
 }
 
+/**
+ * Thrown by `saveDraft` when the caller supplied `options.ifMatch` and the pending draft
+ * row's `updated_at` no longer matches it — another writer saved a draft in between, and
+ * blindly merging on top of it would silently drop that writer's fields.
+ * Mapped to 409 Conflict by the API problem-mapper.
+ */
+export class DraftSaveConflictError extends RepositoryError {
+  readonly seedSlug: string
+  readonly entryId: string
+  readonly expectedUpdatedAt: number
+  readonly actualUpdatedAt: number
+
+  constructor(params: {
+    seedSlug: string
+    entryId: string
+    expectedUpdatedAt: number
+    actualUpdatedAt: number
+  }) {
+    super(
+      `Draft save conflict: draft for entry '${params.entryId}' in '${params.seedSlug}' was saved at ` +
+        `${params.actualUpdatedAt}, expected ${params.expectedUpdatedAt}`,
+    )
+    this.name = 'DraftSaveConflictError'
+    this.seedSlug = params.seedSlug
+    this.entryId = params.entryId
+    this.expectedUpdatedAt = params.expectedUpdatedAt
+    this.actualUpdatedAt = params.actualUpdatedAt
+  }
+}
+
 export type BulkFieldUpdate =
   | { kind: 'set'; value: unknown }
   | { kind: 'array_replace'; value: string[] }
@@ -294,14 +324,23 @@ export interface ContentRepository {
 
   /**
    * Saves or updates a pending draft in the mirror table.
+   * Throws DraftSaveConflictError if `options.ifMatch` is set and no longer matches the
+   * pending draft row's `updated_at`.
    */
-  saveDraft(seed: Seed, entryId: string, data: Record<string, any>): Promise<void>
+  saveDraft(seed: Seed, entryId: string, data: Record<string, any>, options?: RepositoryOptions): Promise<void>
 
   /**
    * Retrieves the pending draft for a given entry.
    * Returns null if no draft exists.
    */
   getDraft(seed: Seed, entryId: string): Promise<Record<string, any> | null>
+
+  /**
+   * Retrieves the pending draft row's `updated_at`, for use as an optimistic-concurrency
+   * guard by callers that read the draft before merging into it.
+   * Returns null if no draft exists (or drafts are disallowed for the seed).
+   */
+  getDraftUpdatedAt(seed: Seed, entryId: string): Promise<number | null>
 
   /**
    * Atomic promotion of a draft to the live table.

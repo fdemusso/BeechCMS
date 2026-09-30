@@ -10,6 +10,7 @@ import {
   EntryNotFoundError,
   RelationTargetNotFoundError,
   DraftConflictError,
+  DraftSaveConflictError,
   ActorContext,
   localizedAliasesIn,
   mergeLocalizedFields,
@@ -20,6 +21,7 @@ import { cleanStr } from '../../shared/utils/query-utils'
 import { applyVisibility } from '../../shared/policies/apply-policies'
 import { AppEnv } from '../../types'
 import { CONTENT_ERRORS } from '../content/constants'
+import { resolveIfMatch } from '../content/handlers/helpers'
 import { draftGuard } from './draft.middleware'
 import { loadLocaleConfig } from '../../shared/localization/locale-config'
 import { loadDisplayLocaleConfig, resolveDisplayName } from '../../shared/localization/display-name'
@@ -139,14 +141,37 @@ draftApp.put('/:slug/:id/draft', draftGuard, async (context) => {
   }
 
   const repository = context.get('repository')
+  const ifMatch = resolveIfMatch(context, body)
   let draftData = validation.data
+  let guard = ifMatch
   if (localeConfig && localizedAliasesIn(seed, validation.data).length > 0) {
     // publishDraft copies each touched column over the live row, so the draft must hold the complete
     // dictionary: base it on the pending draft value when this field was already drafted, else on live.
-    const [pending, live] = await Promise.all([repository.getDraft(seed, id), repository.findById(seed, id)])
+    const [pending, live, pendingUpdatedAt] = await Promise.all([
+      repository.getDraft(seed, id),
+      repository.findById(seed, id),
+      repository.getDraftUpdatedAt(seed, id),
+    ])
     draftData = mergeLocalizedFields(seed, { ...live, ...(pending ?? {}) }, validation.data, localeConfig)
+    // This is a read-modify-write against `pending`: without a version guard, a concurrent draft
+    // save landing in between would lose its translation silently. Fall back to the version we
+    // merged against when the client sent no explicit guard, turning that race into a 409.
+    if (guard === undefined && pending !== null) guard = pendingUpdatedAt ?? undefined
   }
-  await repository.saveDraft(seed, id, draftData)
+
+  try {
+    await repository.saveDraft(seed, id, draftData, { ifMatch: guard })
+  } catch (error) {
+    if (error instanceof DraftSaveConflictError) {
+      return publicProblem(context, {
+        type: 'draft-save-conflict',
+        title: 'Conflict',
+        status: 409,
+        detail: CONTENT_ERRORS.DRAFT_SAVE_CONFLICT,
+      })
+    }
+    throw error
+  }
 
   const displayData = resolveLocalizedFields(seed, draftData, localeConfig)
   const displayTitle = cleanStr(displayData[seed.displayNameAlias]) ?? id

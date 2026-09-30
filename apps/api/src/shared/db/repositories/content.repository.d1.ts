@@ -10,6 +10,7 @@ import {
   SlugConflictError,
   RelationTargetNotFoundError,
   DraftConflictError,
+  DraftSaveConflictError,
   EntryConflictError,
   type BulkFieldUpdate,
   type BatchWrite,
@@ -1362,11 +1363,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /**
+   * Distinguishes a stale `ifMatch` from every other reason the ON CONFLICT DO UPDATE branch
+   * of `saveDraft` could report zero changes.
+   */
+  private async draftSaveConflict(seed: Seed, entryId: string, ifMatch: number): Promise<DraftSaveConflictError> {
+    const row = await this.database
+      .prepare(`SELECT updated_at FROM ${this.getTableName(seed.slug, true)} WHERE entry_id = ?`)
+      .bind(entryId)
+      .first<{ updated_at: number }>()
+    return new DraftSaveConflictError({
+      seedSlug: seed.slug,
+      entryId,
+      expectedUpdatedAt: ifMatch,
+      actualUpdatedAt: row?.updated_at ?? ifMatch,
+    })
+  }
+
+  /**
    * Upserts a draft row for `entryId` (`INSERT ... ON CONFLICT DO UPDATE` keyed on `entry_id`)
    * plus a full delete+reinsert of each multi-relation branch's draft junction rows.
    * @throws RepositoryError if `seed.allowDrafts` is false, or on any database failure.
+   * @throws DraftSaveConflictError if `options.ifMatch` is set and no longer matches the
+   *   pending draft row's `updated_at`.
    */
-  async saveDraft(seed: Seed, entryId: string, data: Record<string, any>): Promise<void> {
+  async saveDraft(seed: Seed, entryId: string, data: Record<string, any>, options?: RepositoryOptions): Promise<void> {
+    const ifMatch = options?.ifMatch
     try {
       if (!seed.allowDrafts) {
         throw new RepositoryError(`Drafts not allowed for ${seed.slug}`)
@@ -1441,21 +1462,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
 
       updateClauses.push('updated_at = (unixepoch())')
 
+      // Guards the conflict branch only: a caller that read the draft's `updated_at` before
+      // computing `data` wants this write to no-op (rather than silently overwrite) if another
+      // writer's save landed in between. The very first save of a draft never hits this branch,
+      // so ifMatch is meaningless there and is intentionally not checked on the INSERT path.
+      const conflictGuard = ifMatch !== undefined ? ' WHERE updated_at = ?' : ''
+      const bindings = ifMatch !== undefined ? [...queryBindings, ifMatch] : queryBindings
+
       const sql = `
         INSERT INTO ${draftTableName} (${columnNames.join(', ')})
         VALUES (${placeholders.join(', ')})
-        ON CONFLICT(entry_id) DO UPDATE SET ${updateClauses.join(', ')}
+        ON CONFLICT(entry_id) DO UPDATE SET ${updateClauses.join(', ')}${conflictGuard}
       `
 
       const junctionUpdates = mRelBranches.filter(b => Object.hasOwn(data, b.alias))
 
       if (junctionUpdates.length === 0) {
-        await this.database.prepare(sql).bind(...queryBindings).run()
+        const result = await this.database.prepare(sql).bind(...bindings).run()
+        if (ifMatch !== undefined && (result.meta?.changes ?? 0) === 0) {
+          throw await this.draftSaveConflict(seed, entryId, ifMatch)
+        }
         return
       }
 
       const batchStmts: D1PreparedStatement[] = [
-        this.database.prepare(sql).bind(...queryBindings),
+        this.database.prepare(sql).bind(...bindings),
       ]
 
       for (const branch of junctionUpdates) {
@@ -1473,9 +1504,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         }
       }
 
-      await this.database.batch(batchStmts)
+      const results = await this.database.batch(batchStmts)
+      if (ifMatch !== undefined && (results[0].meta?.changes ?? 0) === 0) {
+        throw await this.draftSaveConflict(seed, entryId, ifMatch)
+      }
     } catch (error) {
+      if (error instanceof DraftSaveConflictError) throw error
       throw this.mapError(error, `saveDraft(${seed.slug}, ${entryId})`)
+    }
+  }
+
+  /**
+   * Retrieves the pending draft row's `updated_at`, for use as an optimistic-concurrency
+   * guard by callers that read the draft before merging into it.
+   * @returns null if `seed.allowDrafts` is false or no draft row exists.
+   */
+  async getDraftUpdatedAt(seed: Seed, entryId: string): Promise<number | null> {
+    try {
+      if (!seed.allowDrafts) return null
+      const row = await this.database
+        .prepare(`SELECT updated_at FROM ${this.getTableName(seed.slug, true)} WHERE entry_id = ?`)
+        .bind(entryId)
+        .first<{ updated_at: number }>()
+      return row?.updated_at ?? null
+    } catch (error) {
+      throw this.mapError(error, `getDraftUpdatedAt(${seed.slug}, ${entryId})`)
     }
   }
 
