@@ -12,6 +12,7 @@ import type {
 import {
   generateConditionId,
   buildFilterableColumns,
+  MAX_CONDITIONS_PER_FILTER,
   type FilterableColumn,
 } from "@/features/content-toolbar/shared"
 
@@ -53,6 +54,7 @@ export function useToolbarFilters({
       if (!col || !onFiltersChange) return
 
       const existing = filters[columnId]
+      if (existing && existing.conditions.length >= MAX_CONDITIONS_PER_FILTER) return
       const defaultOp: FilterOperator = col.type === "tags" ? "contains" : "eq"
       const nextCondition: ToolbarFilterCondition = {
         id: generateConditionId(),
@@ -89,6 +91,11 @@ export function useToolbarFilters({
     },
     [filters, onFiltersChange]
   )
+
+  const clearAllFilters = React.useCallback(() => {
+    if (!onFiltersChange) return
+    onFiltersChange({})
+  }, [onFiltersChange])
 
   const updateCondition = React.useCallback(
     (
@@ -138,6 +145,7 @@ export function useToolbarFilters({
     formattableColumns,
     addConditionToColumn,
     removeColumnFilters,
+    clearAllFilters,
     updateCondition,
     removeCondition,
   }

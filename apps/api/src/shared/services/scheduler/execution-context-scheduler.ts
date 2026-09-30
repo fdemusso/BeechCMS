@@ -4,8 +4,13 @@
 
 import type { IScheduler } from '@beechcms/core'
 
+/** The only slice of Cloudflare's `ExecutionContext` this scheduler needs. */
+interface WaitUntilContext {
+  waitUntil(promise: Promise<unknown>): void
+}
+
 export class ExecutionContextScheduler implements IScheduler {
-  constructor(private readonly ctx: ExecutionContext) {}
+  constructor(private readonly ctx: WaitUntilContext) {}
 
   waitUntil(promise: Promise<unknown>): void {
     this.ctx.waitUntil(promise)

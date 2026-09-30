@@ -96,6 +96,7 @@ export function useContentToolbar({
     formattableColumns,
     addConditionToColumn,
     removeColumnFilters,
+    clearAllFilters,
     updateCondition,
     removeCondition,
   } = useToolbarFilters({
@@ -198,6 +199,7 @@ export function useContentToolbar({
     formattableColumns,
     addConditionToColumn,
     removeColumnFilters,
+    clearAllFilters,
     updateCondition,
     removeCondition,
     visibleFilterColumns,
