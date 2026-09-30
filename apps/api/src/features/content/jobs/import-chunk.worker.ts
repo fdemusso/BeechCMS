@@ -48,6 +48,21 @@ async function deleteObjectSafely(context: JobContext, objectKey: string): Promi
   }
 }
 
+/**
+ * Fallback slug source for a row with neither an explicit slug nor a display-name value.
+ * Must be the SAME value on every retry of the same job/row (Cloudflare Queues re-delivers
+ * a failed chunk from the last saved `rowOffset`), so `existsSlug` recognizes it as the row
+ * already inserted before the failure and takes the SlugConflictError dedup path — the same
+ * path a row with a real slug or display name already gets. A hash keeps that stable across
+ * retries while still fitting `slugify`'s 15-char truncation without every row in the same
+ * job colliding on the job id's own leading characters.
+ */
+async function fallbackSlugSeed(jobId: string, rowNumber: number): Promise<string> {
+  const bytes = new TextEncoder().encode(`${jobId}:${rowNumber}`)
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 /** Terminates a job before the row loop ever ran (missing seed, object, or unsupported branch). */
 async function failBeforeLoop(
   context: JobContext,
@@ -181,11 +196,12 @@ export const contentImportChunkJob: JobHandler<ImportChunkPayload> = async (payl
 
       const localizedData = mergeLocalizedFields(targetSeed, null, validation.data, localeConfig)
       const displayData = resolveLocalizedFields(targetSeed, localizedData, localeConfig)
+      const displayName = displayData[targetSeed.displayNameAlias]
 
       const id = context.idGenerator.uuid()
       const entrySlug = rawSlug
         ? slugify(rawSlug)
-        : slugify(String(displayData[targetSeed.displayNameAlias] ?? id))
+        : slugify(displayName != null ? String(displayName) : await fallbackSlugSeed(job.id, rowNumber))
 
       // toImportPayload already drops id/created_at/updated_at/deleted_at (brief §2), so this
       // is always an insert — never an overwrite of an existing entry.
