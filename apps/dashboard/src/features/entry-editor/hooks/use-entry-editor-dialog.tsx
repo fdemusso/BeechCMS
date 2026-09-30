@@ -25,6 +25,8 @@ import {
   usePublishDraft,
   useDiscardDraft,
   useDeleteContent,
+  CONTENT_ERROR_CODES,
+  contentErrorCode,
 } from "@/features/content-management"
 import { useActiveSeed, useLocaleConfig } from "@/features/shared"
 import { useAuth } from "@/lib/auth-context"
@@ -198,6 +200,7 @@ export function useEntryEditorDialog({
     data: entryData,
     isLoading: isLoadingEntry,
     error: errorEntryQuery,
+    refetch: refetchEntry,
   } = useContentEntry(schemaSlug, entryId)
 
   const { mutateAsync: saveContent, isPending: isSaving } = useSaveContent()
@@ -474,7 +477,8 @@ export function useEntryEditorDialog({
     setFieldErrors({})
     try {
       const payload = buildPayload()
-      const result = await saveContent({ slug: schemaSlug, id: isCreate ? undefined : entryId, data: payload })
+      const ifMatch = !isCreate && entryData?.updated_at != null ? String(entryData.updated_at) : undefined
+      const result = await saveContent({ slug: schemaSlug, id: isCreate ? undefined : entryId, data: payload, ifMatch })
       toast.success(isCreate ? t("content.editor.createdSuccess") : t("content.editor.savedSuccess"))
       setIsDirty(false)
       hasJustSavedRef.current = true
@@ -493,6 +497,15 @@ export function useEntryEditorDialog({
       type ApiErrorBody = { error?: string; status?: number; errors?: ApiValidationError[] }
       const ax = err as AxiosError<ApiErrorBody>
       if (ax.response?.status === 409) {
+        if (contentErrorCode(ax) === CONTENT_ERROR_CODES.UPDATE_CONFLICT) {
+          toast.error(t("content.editor.updateConflict"), {
+            action: {
+              label: t("content.editor.reload"),
+              onClick: () => { void refetchEntry() },
+            },
+          })
+          return
+        }
         toast.error(t("content.editor.slugDuplicate"))
         return
       }

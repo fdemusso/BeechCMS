@@ -105,14 +105,19 @@ export const contentApi = {
   },
 
   /**
-   * Update existing content entry
+   * Update existing content entry.
+   * `ifMatch`, when given, is sent as `If-Match` so the API's optimistic-concurrency guard
+   * (`resolveIfMatch`) can detect a concurrent edit and reject with `content-update-conflict`.
    */
   update: async (
     slug: string,
     id: string,
-    data: Record<string, unknown>
+    data: Record<string, unknown>,
+    ifMatch?: string
   ): Promise<{ success: boolean }> => {
-    const response = await api.put<{ success: boolean }>(`/content/${slug}/${id}`, data)
+    const response = await api.put<{ success: boolean }>(`/content/${slug}/${id}`, data, {
+      headers: ifMatch !== undefined ? { "If-Match": ifMatch } : undefined,
+    })
     return response.data
   },
 

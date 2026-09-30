@@ -15,5 +15,6 @@ export * from "./api/content.api"
 export * from "./hooks/use-content-trash"
 export * from "./api/trash.api"
 export * from "./lib/retention"
+export * from "./lib/errors"
 export * from "./components/ContentTrashView"
 

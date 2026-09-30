@@ -106,17 +106,19 @@ export function useSaveContent() {
   const queryClient = useQueryClient()
   
   return useMutation({
-    mutationFn: async ({ 
-      slug, 
-      id, 
-      data 
-    }: { 
-      slug: string; 
-      id?: string; 
-      data: Record<string, unknown> 
+    mutationFn: async ({
+      slug,
+      id,
+      data,
+      ifMatch,
+    }: {
+      slug: string;
+      id?: string;
+      data: Record<string, unknown>;
+      ifMatch?: string;
     }) => {
       if (id) {
-        return contentApi.update(slug, id, data)
+        return contentApi.update(slug, id, data, ifMatch)
       }
       return contentApi.create(slug, data)
     },

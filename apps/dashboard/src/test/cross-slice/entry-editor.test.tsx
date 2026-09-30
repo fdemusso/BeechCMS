@@ -44,6 +44,7 @@ const mockFetchDraft = vi.fn()
 const mockSaveDraft = vi.fn()
 const mockPublishDraft = vi.fn()
 const mockDiscardDraft = vi.fn()
+const mockRefetchEntry = vi.fn()
 
 vi.mock("react-router-dom", async () => {
   const { useState, useEffect } = await import("react")
@@ -143,14 +144,25 @@ vi.mock("@/features/content-management", () => ({
     create: (...args: unknown[]) => mockCreateContent(...args),
     update: (...args: unknown[]) => mockUpdateContent(...args),
   },
+  CONTENT_ERROR_CODES: {
+    SLUG_CONFLICT: "content-slug-conflict",
+    UPDATE_CONFLICT: "content-update-conflict",
+  },
+  contentErrorCode: (error: unknown) => {
+    const type = (error as { response?: { data?: { type?: unknown } } })?.response?.data?.type
+    if (typeof type !== "string") return null
+    const code = type.split("/").pop() ?? ""
+    return code === "content-slug-conflict" || code === "content-update-conflict" ? code : null
+  },
   useContentEntry: (slug: string, id: string) => ({
     data: id ? mockFetchContentById(slug, id) : undefined,
     isLoading: false,
     error: null,
+    refetch: mockRefetchEntry,
   }),
   useSaveContent: () => ({
-    mutateAsync: async ({ slug, id, data }: any) => {
-      if (id) return mockUpdateContent(slug, id, data)
+    mutateAsync: async ({ slug, id, data, ifMatch }: any) => {
+      if (id) return mockUpdateContent(slug, id, data, ifMatch)
       return mockCreateContent(slug, data)
     },
     isPending: false,
@@ -247,6 +259,9 @@ vi.mock("react-i18next", () => ({
         "content.editor.editEntry": `Edit entry ${params?.label}`,
         "content.editor.createdSuccess": "Entry created",
         "content.editor.savedSuccess": "Changes saved",
+        "content.editor.slugDuplicate": "Slug already exists for this schema",
+        "content.editor.updateConflict": "This entry was changed elsewhere — reload to see the latest version",
+        "content.editor.reload": "Reload",
         "content.editor.metadataSeo": "Metadata / SEO",
         "content.editor.content": "Content",
         "content.editor.status": "Status",
@@ -385,6 +400,102 @@ describe("EntryEditorPage", () => {
     
     await waitFor(() => expect(mockUpdateContent).toHaveBeenCalled())
     expect(mockToastSuccess).toHaveBeenCalledWith("Changes saved")
+  })
+
+  it("invia If-Match con l'updated_at caricato quando salva un'entry esistente", async () => {
+    mockUseParams.mockReturnValue({ slug: "posts", id: "42" })
+    mockFetchContentById.mockReturnValue({
+      id: "42",
+      slug: "entry-42",
+      status: "draft",
+      updated_at: 1717000000000,
+      data: {
+        title: "Old",
+        content: { type: "doc", content: [{ type: "paragraph" }] },
+        metaData: "{\"a\":1}",
+      },
+    })
+    mockUpdateContent.mockResolvedValueOnce({ success: true })
+
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="42" />)
+    await waitFor(() => expect(mockFetchContentById).toHaveBeenCalledWith("posts", "42"))
+
+    fireEvent.click(await screen.findByRole("button", { name: "Save" }))
+
+    await waitFor(() => expect(mockUpdateContent).toHaveBeenCalledWith(
+      "posts",
+      "42",
+      expect.objectContaining({ title: "Old" }),
+      "1717000000000"
+    ))
+  })
+
+  it("distingue un conflitto di aggiornamento (409 content-update-conflict) da uno slug duplicato e offre un reload", async () => {
+    mockUseParams.mockReturnValue({ slug: "posts", id: "42" })
+    mockFetchContentById.mockReturnValue({
+      id: "42",
+      slug: "entry-42",
+      status: "draft",
+      updated_at: 1717000000000,
+      data: {
+        title: "Old",
+        content: { type: "doc", content: [{ type: "paragraph" }] },
+        metaData: "{}",
+      },
+    })
+    mockUpdateContent.mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: { type: "https://beechcms.dev/problems/content-update-conflict" },
+      },
+    })
+
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="42" />)
+    await waitFor(() => expect(mockFetchContentById).toHaveBeenCalledWith("posts", "42"))
+
+    fireEvent.click(await screen.findByRole("button", { name: "Save" }))
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith(
+        "This entry was changed elsewhere — reload to see the latest version",
+        expect.objectContaining({ action: expect.objectContaining({ label: "Reload" }) })
+      )
+    })
+    expect(mockToastError).not.toHaveBeenCalledWith("Slug already exists for this schema")
+
+    const [, options] = mockToastError.mock.calls[0]
+    options.action.onClick()
+    expect(mockRefetchEntry).toHaveBeenCalled()
+  })
+
+  it("mostra ancora l'errore di slug duplicato per un 409 content-slug-conflict", async () => {
+    mockUseParams.mockReturnValue({ slug: "posts", id: "42" })
+    mockFetchContentById.mockReturnValue({
+      id: "42",
+      slug: "entry-42",
+      status: "draft",
+      updated_at: 1717000000000,
+      data: {
+        title: "Old",
+        content: { type: "doc", content: [{ type: "paragraph" }] },
+        metaData: "{}",
+      },
+    })
+    mockUpdateContent.mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: { type: "https://beechcms.dev/problems/content-slug-conflict" },
+      },
+    })
+
+    renderWithProvider(<TestEntryEditorDialogWrapper schemaSlug="posts" entryId="42" />)
+    await waitFor(() => expect(mockFetchContentById).toHaveBeenCalledWith("posts", "42"))
+
+    fireEvent.click(await screen.findByRole("button", { name: "Save" }))
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("Slug already exists for this schema")
+    })
   })
 
   it("mostra un avviso esplicito quando l'entry ha una bozza in sospeso", async () => {

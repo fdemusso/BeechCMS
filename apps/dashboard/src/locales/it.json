@@ -600,6 +600,8 @@
       "savedSuccess": "Modifiche salvate",
       "createdSuccess": "Entry creata",
       "slugDuplicate": "Slug già esistente per questo schema",
+      "updateConflict": "Questa entry è stata modificata altrove — ricarica per vedere la versione più recente",
+      "reload": "Ricarica",
       "saveError": "Errore durante il salvataggio",
       "validationError_one": "{{count}} campo ha un errore di validazione — controlla i campi evidenziati",
       "validationError_other": "{{count}} campi hanno errori di validazione — controlla i campi evidenziati",
