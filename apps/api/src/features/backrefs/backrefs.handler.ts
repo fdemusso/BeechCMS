@@ -44,7 +44,7 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
   }
 
   // 2. Verify targetId exists
-  const exists = await backrefRepository.entryExists(targetSlug, targetId)
+  const exists = await backrefRepository.entryExists(targetSeed, targetId)
   if (!exists) {
     return publicProblem(c, {
       type: 'not-found',
