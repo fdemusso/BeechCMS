@@ -212,7 +212,7 @@ export default defineConfig({
       ]
     },
     socialLinks: [
-      { icon: 'github', link: 'https://github.com/flaviodemusso/BeechCMS' }
+      { icon: 'github', link: 'https://github.com/fdemusso/BeechCMS' }
     ]
   }
 })

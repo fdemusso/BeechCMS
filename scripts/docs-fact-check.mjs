@@ -66,7 +66,7 @@ for (const filePath of mdFiles) {
     }
 
     totalLinksChecked++
-    let candidatePaths = []
+    let candidatePaths
 
     if (target.startsWith('/')) {
       const clean = target.replace(/^\//, '')

@@ -282,9 +282,13 @@ function waitForCallback(state: string, timeoutMs: number, callbackPath: string)
  *  writes to stdout — that channel carries the MCP JSON-RPC transport. */
 function openBrowser(url: string): void {
   const platform = process.platform
+  // cmd.exe re-parses its command line and treats an unquoted `&` in the OAuth
+  // query string as a command separator, silently dropping every param after
+  // the first one (e.g. client_id). windowsVerbatimArguments + explicit quotes
+  // keep the URL a single literal token.
   const child =
     platform === 'darwin' ? spawn('open', [url], { detached: true, stdio: 'ignore' }) :
-    platform === 'win32' ? spawn('cmd', ['/c', 'start', '', url], { detached: true, stdio: 'ignore' }) :
+    platform === 'win32' ? spawn('cmd', ['/d', '/c', 'start', '""', `"${url}"`], { detached: true, stdio: 'ignore', windowsVerbatimArguments: true }) :
     spawn('xdg-open', [url], { detached: true, stdio: 'ignore' })
 
   child.on('error', () => {

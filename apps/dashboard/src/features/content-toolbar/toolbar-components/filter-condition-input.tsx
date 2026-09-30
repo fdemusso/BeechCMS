@@ -84,7 +84,7 @@ export function FilterConditionInput({
       }
       return (
         <Select value={selectValue} onValueChange={handleValueChange}>
-          <SelectTrigger size="sm" className={`${className} ${textClassName}`.trim()}>
+          <SelectTrigger size="sm" className={`${className} !rounded-lg ${textClassName}`.trim()}>
             <SelectValue placeholder={valuePlaceholder} />
           </SelectTrigger>
           <SelectContent>
@@ -103,7 +103,7 @@ export function FilterConditionInput({
               type="button"
               variant="outline"
               size="sm"
-              className={`${className} justify-between ${textClassName}`.trim()}
+              className={`${className} rounded-lg justify-between ${textClassName}`.trim()}
             >
               <span className="truncate">
                 {typeof value === "string" && value ? value : choosePlaceholder}
@@ -136,7 +136,7 @@ export function FilterConditionInput({
               type="button"
               variant="outline"
               size="sm"
-              className={`${className} justify-between ${textClassName}`.trim()}
+              className={`${className} rounded-lg justify-between ${textClassName}`.trim()}
             >
               <span className="truncate">
                 {typeof value === "string" && value ? value : t("toolbar.conditionInput.tag")}
