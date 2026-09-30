@@ -340,6 +340,50 @@ describe('D1ContentRepository', () => {
     })
   })
 
+  // ─── updateWithKanbanPosition ──────────────────────────────────────────────
+
+  describe('updateWithKanbanPosition', () => {
+    it('adds an updated_at equality guard to the axis-patch UPDATE when ctx.ifMatch is set', async () => {
+      const { db, prepareMock, batchMock } = makeMockDb()
+      batchMock.mockResolvedValueOnce([{ meta: { changes: 1 } }, { meta: { changes: 1 } }])
+      await new D1ContentRepository(db).updateWithKanbanPosition(
+        TAGS_SEED, 'e1', { labels: ['a', 'b'] }, 'a0', 'br_02', { actor: 'user-1', ifMatch: 1000 },
+      )
+      const updateSql = prepareMock.mock.calls
+        .map(c => c[0] as string)
+        .find(sql => sql.includes('UPDATE content_posts'))!
+      expect(updateSql).toContain('WHERE id = ? AND updated_at = ?')
+    })
+
+    it('throws EntryConflictError, leaving the caller\'s result unresolved as success, when two concurrent tag swaps race: the second writer\'s ifMatch no longer matches the live row', async () => {
+      // Simulates two clients reading the same `current` snapshot and racing to write their own
+      // tag swap: the second writer's main-row UPDATE matches zero rows because the first writer
+      // already advanced updated_at. firstResult backs the post-failure conflict check.
+      const { db, batchMock, firstMock } = makeMockDb()
+      batchMock.mockResolvedValueOnce([{ meta: { changes: 0 } }, { meta: { changes: 1 } }])
+      firstMock.mockResolvedValueOnce({ updated_at: 2000 })
+
+      const error = await new D1ContentRepository(db)
+        .updateWithKanbanPosition(TAGS_SEED, 'e1', { labels: ['b', 'c'] }, 'a1', 'br_02', { actor: 'user-2', ifMatch: 1000 })
+        .catch(e => e)
+
+      expect(error).toBeInstanceOf(EntryConflictError)
+      expect((error as EntryConflictError).expectedUpdatedAt).toBe(1000)
+      expect((error as EntryConflictError).actualUpdatedAt).toBe(2000)
+    })
+
+    it('does not require ctx.ifMatch when patch is null (position-only reorder)', async () => {
+      const { db, batchMock, prepareMock } = makeMockDb()
+      batchMock.mockResolvedValueOnce([{ meta: { changes: 1 } }])
+      const result = await new D1ContentRepository(db).updateWithKanbanPosition(
+        TAGS_SEED, 'e1', null, 'a2', 'br_02', { actor: 'user-1' },
+      )
+      expect(result).toEqual({ success: true })
+      const updateCalls = prepareMock.mock.calls.filter(c => (c[0] as string).includes('UPDATE content_posts'))
+      expect(updateCalls).toHaveLength(0)
+    })
+  })
+
   // ─── delete ─────────────────────────────────────────────────────────────────
 
   describe('delete', () => {

@@ -730,6 +730,20 @@ Atomically applies an axis-value patch AND a kanban_positions upsert in one DB b
 
 `string`
 
+###### ifMatch?
+
+`number`
+
+Optimistic concurrency guard for the axis-value patch: the `updated_at`
+  the caller last read. When set and `patch` is non-null, the write only applies if the live
+  row's `updated_at` still matches; otherwise throws [EntryConflictError](../classes/EntryConflictError.md). Ignored when
+  `patch` is null, since a position-only reorder does not read-modify-write column data.
+
 #### Returns
 
 `Promise`&lt;\{ `success`: `boolean`; \}&gt;
+
+#### Throws
+
+EntryConflictError if `ctx.ifMatch` is set, `patch` is non-null, and the live row's
+  `updated_at` no longer matches it.

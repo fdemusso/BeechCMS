@@ -276,6 +276,13 @@ export interface ContentRepository {
   /**
    * Atomically applies an axis-value patch AND a kanban_positions upsert in one DB batch (KB-S04e).
    * `patch` is null for same-column reorders (position only).
+   *
+   * @param ctx.ifMatch Optimistic concurrency guard for the axis-value patch: the `updated_at`
+   *   the caller last read. When set and `patch` is non-null, the write only applies if the live
+   *   row's `updated_at` still matches; otherwise throws {@link EntryConflictError}. Ignored when
+   *   `patch` is null, since a position-only reorder does not read-modify-write column data.
+   * @throws EntryConflictError if `ctx.ifMatch` is set, `patch` is non-null, and the live row's
+   *   `updated_at` no longer matches it.
    */
   updateWithKanbanPosition(
     seed: Seed,
@@ -283,7 +290,7 @@ export interface ContentRepository {
     patch: Record<string, unknown> | null,
     position: string,
     axisBranchId: string,
-    ctx: { actor: string },
+    ctx: { actor: string; ifMatch?: number },
   ): Promise<{ success: boolean }>
 
   /**
