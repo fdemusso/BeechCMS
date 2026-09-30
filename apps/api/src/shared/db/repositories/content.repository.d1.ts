@@ -1867,9 +1867,15 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * @param patch Field changes to apply alongside the drag/drop, or `null` if only position changed.
    * @param position Opaque fractional-index (or similar) position value used for ordering within the axis bucket.
    * @param axisBranchId Identifies which branch/column axis this position is relative to (e.g. status column).
+   * @param ctx.ifMatch Optimistic concurrency guard for `patch`: the `updated_at` the caller read
+   *   `patch` from (e.g. a tag swap computed against `current`). When `patch` is non-null and this
+   *   is set, the main-row `UPDATE` only applies if the live row's `updated_at` still matches.
    * @remarks Unlike {@link create}/{@link update}, this method does not invoke `beforeUpdate`/`afterUpdate`
    *   lifecycle hooks — the `_ctx.actor` parameter is currently unused. Kanban drag-and-drop writes
    *   therefore bypass hook-based side effects (e.g. audit logging) that `update()` would trigger.
+   * @throws EntryConflictError if `patch` is non-null, `ctx.ifMatch` is set, and the live row's
+   *   `updated_at` no longer matches it — e.g. two concurrent tag-column moves reading the same
+   *   `current` snapshot and racing to write their own swap.
    */
   async updateWithKanbanPosition(
     seed: Seed,
@@ -1877,14 +1883,18 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     patch: Record<string, unknown> | null,
     position: string,
     axisBranchId: string,
-    _ctx: { actor: string },
+    ctx: { actor: string; ifMatch?: number },
   ): Promise<{ success: boolean }> {
     try {
       const stmts: D1PreparedStatement[] = []
+      let mainStmtIndex = -1
 
       if (patch) {
-        const { stmt, junctionUpdates } = await this.buildUpdateMainStmt(seed, id, patch as Record<string, any>)
-        if (stmt) stmts.push(stmt)
+        const { stmt, junctionUpdates } = await this.buildUpdateMainStmt(seed, id, patch as Record<string, any>, undefined, ctx.ifMatch)
+        if (stmt) {
+          mainStmtIndex = stmts.length
+          stmts.push(stmt)
+        }
         for (const branch of junctionUpdates) {
           const jt = jTable(seed.slug, branch.alias)
           const value = ((patch as Record<string, any>)[branch.alias] ?? []) as string[]
@@ -1902,9 +1912,15 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         `).bind(seed.slug, id, axisBranchId, position),
       )
 
-      await this.database.batch(stmts)
+      const results = await this.database.batch(stmts)
+
+      if (mainStmtIndex !== -1 && (results[mainStmtIndex].meta?.changes ?? 0) === 0) {
+        throw await this.notFoundOrConflict(seed, id, ctx.ifMatch)
+      }
+
       return { success: true }
     } catch (error) {
+      if (error instanceof EntryNotFoundError || error instanceof EntryConflictError) throw error
       throw this.mapError(error, `updateWithKanbanPosition(${seed.slug}, ${id})`)
     }
   }

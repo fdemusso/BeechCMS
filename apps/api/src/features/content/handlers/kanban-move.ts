@@ -9,6 +9,7 @@ import {
   type KanbanMoveBody,
 } from '@beechcms/core'
 import { publicProblem } from '../../../public/errors/problem-details'
+import { handleContentDatabaseError } from './helpers'
 import { CONTENT_ERRORS } from '../constants'
 import type { AppEnv } from '../../../types'
 
@@ -83,7 +84,14 @@ export async function kanbanMoveHandler(context: Context<AppEnv>) {
   }
 
   const jwtPayload = context.get('jwtPayload')
-  await repository.updateWithKanbanPosition(seed, id, patch, body.position, body.axisBranchId, { actor: jwtPayload.sub })
+  try {
+    await repository.updateWithKanbanPosition(seed, id, patch, body.position, body.axisBranchId, {
+      actor: jwtPayload.sub,
+      ifMatch: current.updated_at as number,
+    })
+  } catch (error) {
+    return handleContentDatabaseError(context, error)
+  }
 
   return context.json({ success: true })
 }

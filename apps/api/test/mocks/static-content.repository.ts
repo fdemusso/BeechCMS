@@ -320,7 +320,7 @@ export class StaticContentRepository implements ContentRepository {
     patch: Record<string, unknown> | null,
     _position: string,
     _axisBranchId: string,
-    _ctx: { actor: string },
+    _ctx: { actor: string; ifMatch?: number },
   ): Promise<{ success: boolean }> {
     if (patch) await this.update(seed, id, patch as Record<string, any>)
     return { success: true }
