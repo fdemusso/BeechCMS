@@ -700,6 +700,7 @@
       "filtersOn": "Filters on \"{{label}}\"",
       "removeColumn": "Remove column from filters",
       "addFilter": "Add filter",
+      "removeAll": "Remove all",
       "removeCondition": "Remove condition",
       "operator": "Operator"
     },
@@ -708,6 +709,10 @@
     },
     "filterPills": {
       "groupedBy": "Grouped by: {{label}}"
+    },
+    "filterBanner": {
+      "message": "Filters applied: {{filters}}",
+      "clearAll": "Clear all filters"
     },
     "settings": {
       "selectAxisField": "Please select a field to group the cards by from the settings menu (gear icon) in the top right.",
