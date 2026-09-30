@@ -755,15 +755,31 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
    * `array_replace` (delete-all + reinsert), `array_add` (append via `INSERT OR IGNORE`
    * with position computed from current max), or `array_remove` (targeted delete).
    * Returns an empty array for a no-op (e.g. `array_remove` with an empty value list).
+   *
+   * Every statement carries an `EXISTS` guard against the live row in `tableName` (mirroring
+   * the main-row `activeClause`), so a batch that also contains a zero-change main `UPDATE`
+   * (trashed/missing id) can never commit a junction write for it — see #467.
    */
-  private getBulkArrayUpdateStmts(seedSlug: string, id: string, alias: string, update: BulkFieldUpdate): D1PreparedStatement[] {
-    const jt = jTable(seedSlug, alias)
+  private getBulkArrayUpdateStmts(seed: Seed, tableName: string, id: string, alias: string, update: BulkFieldUpdate): D1PreparedStatement[] {
+    const jt = jTable(seed.slug, alias)
     const stmts: D1PreparedStatement[] = []
+    const liveCondition = activeCondition(seed, 'active')
+    const existsGuard = liveCondition ? `EXISTS (SELECT 1 FROM ${tableName} WHERE id = ? AND ${liveCondition})` : ''
+    // DELETE already has a WHERE clause to extend with AND; INSERT ... SELECT has none, so it
+    // needs its own WHERE — appending "AND EXISTS(...)" there would silently fold into the
+    // `position` result column instead of filtering rows.
+    const deleteGuard = existsGuard ? ` AND ${existsGuard}` : ''
+    const insertGuard = existsGuard ? ` WHERE ${existsGuard}` : ''
+    const guardBind = existsGuard ? [id] : []
 
     if (update.kind === 'array_replace') {
-      const deleteStmt = this.database.prepare(`DELETE FROM ${jt} WHERE parent_id = ?`).bind(id)
-      const insertStmts = update.value.map((v, i) => 
-        this.database.prepare(`INSERT INTO ${jt} (parent_id, target_id, position) VALUES (?, ?, ?)`).bind(id, v, i)
+      const deleteStmt = this.database
+        .prepare(`DELETE FROM ${jt} WHERE parent_id = ?${deleteGuard}`)
+        .bind(id, ...guardBind)
+      const insertStmts = update.value.map((v, i) =>
+        this.database
+          .prepare(`INSERT INTO ${jt} (parent_id, target_id, position) SELECT ?, ?, ?${insertGuard}`)
+          .bind(id, v, i, ...guardBind)
       )
       stmts.push(deleteStmt, ...insertStmts)
     } else if (update.kind === 'array_add') {
@@ -771,17 +787,17 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         stmts.push(
           this.database
             .prepare(
-              `INSERT OR IGNORE INTO ${jt} (parent_id, target_id, position) VALUES (?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM ${jt} WHERE parent_id = ?))`,
+              `INSERT OR IGNORE INTO ${jt} (parent_id, target_id, position) SELECT ?, ?, (SELECT COALESCE(MAX(position), -1) + 1 FROM ${jt} WHERE parent_id = ?)${insertGuard}`,
             )
-            .bind(id, targetId, id),
+            .bind(id, targetId, id, ...guardBind),
         )
       }
     } else if (update.kind === 'array_remove' && update.value.length > 0) {
       const placeholders = update.value.map(() => '?').join(', ')
       stmts.push(
         this.database
-          .prepare(`DELETE FROM ${jt} WHERE parent_id = ? AND target_id IN (${placeholders})`)
-          .bind(id, ...update.value),
+          .prepare(`DELETE FROM ${jt} WHERE parent_id = ? AND target_id IN (${placeholders})${deleteGuard}`)
+          .bind(id, ...update.value, ...guardBind),
       )
     }
     return stmts
@@ -814,7 +830,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
           setBindings.push(protectedResult.bidx)
         }
       } else {
-        stmts.push(...this.getBulkArrayUpdateStmts(seed.slug, id, alias, update))
+        stmts.push(...this.getBulkArrayUpdateStmts(seed, tableName, id, alias, update))
       }
     }
 

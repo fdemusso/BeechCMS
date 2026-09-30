@@ -40,6 +40,28 @@ const plainSeed = defineSeed({
   ],
 })
 
+const bulkTargetSeed = defineSeed({
+  slug: 'bulk_rel_targets',
+  label: 'Bulk Rel Target',
+  labelPlural: 'Bulk Rel Targets',
+  displayNameAlias: 'name',
+  branches: [
+    { id: 'br_01', alias: 'name', label: 'Name', type: 'text', requiredOnCreate: true },
+  ],
+})
+
+const bulkSourceSeed = defineSeed({
+  slug: 'bulk_rel_sources',
+  label: 'Bulk Rel Source',
+  labelPlural: 'Bulk Rel Sources',
+  displayNameAlias: 'title',
+  softDelete: true,
+  branches: [
+    { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
+    { id: 'br_02', alias: 'tags', label: 'Tags', type: 'relation', targetSeed: 'bulk_rel_targets', multiple: true },
+  ],
+})
+
 describe('content slice — soft delete integration (real D1)', () => {
   let harness: TestHarness
   let admin: TestClient
@@ -50,7 +72,7 @@ describe('content slice — soft delete integration (real D1)', () => {
     hooks = { beforeDelete: vi.fn(), afterDelete: vi.fn() }
     harness = await createTestHarness({
       db: env.DB,
-      seeds: [trashSeed, plainSeed],
+      seeds: [trashSeed, plainSeed, bulkTargetSeed, bulkSourceSeed],
       // Purge writes to the deletion ledger, which needs a working BeechBucket; the r2Buckets
       // binding in vitest.workers.config.ts provisions a real (simulated) one for this tier.
       env: { MEDIA_BUCKET: (env as unknown as Record<string, unknown>).MEDIA_BUCKET },
@@ -317,5 +339,44 @@ describe('content slice — soft delete integration (real D1)', () => {
     const restoredBody = await restoredSearch.json<{ items: Array<{ id: string }>; total: number }>()
     expect(restoredBody.total).toBe(1)
     expect(restoredBody.items.map(i => i.id)).toContain(id)
+  })
+
+  it('bulk edit of a trashed entry reports not-found and never writes its multi-relation junction rows (#467)', async () => {
+    const target = await admin.post('/api/content/bulk_rel_targets', { name: 'Tag A', slug: 'tag-a' })
+    expect(target.status).toBe(201)
+    const { id: targetId } = await target.json<{ id: string }>()
+
+    const source = await admin.post('/api/content/bulk_rel_sources', { title: 'Source 1', slug: 'source-1' })
+    expect(source.status).toBe(201)
+    const { id: sourceId } = await source.json<{ id: string }>()
+
+    const delRes = await admin.delete(`/api/content/bulk_rel_sources/${sourceId}`)
+    expect(delRes.status).toBe(200)
+
+    const bulkRes = await admin.patch('/api/content/bulk_rel_sources/bulk', {
+      ids: [sourceId],
+      fields: { tags: { mode: 'add', value: [targetId] } },
+    })
+
+    expect(bulkRes.status).toBe(200)
+    const bulkBody = await bulkRes.json<{ updated: number; failed: Array<{ id: string; problem: { type: string } }> }>()
+    expect(bulkBody.updated).toBe(0)
+    expect(bulkBody.failed.map(f => f.id)).toEqual([sourceId])
+    expect(bulkBody.failed[0].problem.type).toBe('content-not-found')
+
+    const junctionRow = await harness.db
+      .prepare('SELECT COUNT(*) AS n FROM rel_bulk_rel_sources_tags WHERE parent_id = ?')
+      .bind(sourceId)
+      .first<{ n: number }>()
+    expect(junctionRow?.n).toBe(0)
+
+    const restoreRes = await admin.post(`/api/content/bulk_rel_sources/${sourceId}/restore`)
+    expect(restoreRes.status).toBe(200)
+
+    const junctionRowAfterRestore = await harness.db
+      .prepare('SELECT COUNT(*) AS n FROM rel_bulk_rel_sources_tags WHERE parent_id = ?')
+      .bind(sourceId)
+      .first<{ n: number }>()
+    expect(junctionRowAfterRestore?.n).toBe(0)
   })
 })
