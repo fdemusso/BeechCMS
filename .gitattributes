@@ -1,0 +1,46 @@
+# Set default behavior to automatically normalize line endings to LF
+* text=auto eol=lf
+
+# Source code files
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.vue text eol=lf
+
+# Data and configuration
+*.json text eol=lf
+*.jsonc text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.sql text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.svg text eol=lf
+
+# Shell scripts
+*.sh text eol=lf
+
+# Generated types
+beech.generated.ts text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.sqlite binary
+*.sqlite3 binary
+*.db binary
+*.tar binary
+*.gz binary
+*.zip binary

@@ -45,7 +45,7 @@ export async function typesCheck(args: TypesCheckOptions = {}): Promise<void> {
     }
 
     const committed = readFileSync(outPath, 'utf-8')
-    if (committed !== fresh) {
+    if (normalizeEol(committed) !== normalizeEol(fresh)) {
       console.log(
         pc.yellow(`\n  ⚠ ${target} is stale — it does not match the live D1 schema.`) +
         pc.gray(`\n    Run \`beech types generate\` and commit the result.\n`)
@@ -61,3 +61,8 @@ export async function typesCheck(args: TypesCheckOptions = {}): Promise<void> {
     exitWithError(error)
   }
 }
+
+function normalizeEol(text: string): string {
+  return text.replace(/\r\n/g, '\n')
+}
+
