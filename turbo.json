@@ -11,7 +11,17 @@
         "!**/test/**",
         "!**/*.md"
       ],
-      "outputs": ["dist/**"]
+      "outputs": ["dist/**", "resources/**"]
+    },
+    "@beechcms/mcp#build": {
+      "dependsOn": ["^build"],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "!**/*.test.ts",
+        "!**/*.test.tsx",
+        "!**/test/**"
+      ],
+      "outputs": ["dist/**", "resources/**"]
     },
     "type-check": {
       "dependsOn": ["^build"]

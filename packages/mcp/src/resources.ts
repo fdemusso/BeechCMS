@@ -46,6 +46,12 @@ function loadManifest(): ResourceEntry[] {
     return cachedManifest
   } catch (err) {
     if (cachedManifest) return cachedManifest
+    const isEnoent =
+      (err as NodeJS.ErrnoException)?.code === 'ENOENT' ||
+      (err instanceof Error && (err.message.includes('ENOENT') || err.message.includes('no such file')))
+    if (isEnoent) {
+      return []
+    }
     throw err
   }
 }

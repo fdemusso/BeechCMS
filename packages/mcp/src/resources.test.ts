@@ -52,4 +52,22 @@ describe('resources', () => {
       "Unknown resource URI 'beechcms-docs://does/not-exist.md'.",
     )
   })
+
+  it('returns empty array and zero count when manifest.json does not exist (#496)', async () => {
+    const fs = await import('node:fs')
+    vi.mocked(fs.statSync).mockImplementation(() => {
+      const err = new Error('ENOENT: no such file or directory') as NodeJS.ErrnoException
+      err.code = 'ENOENT'
+      throw err
+    })
+    vi.mocked(fs.readFileSync).mockImplementation(() => {
+      const err = new Error('ENOENT: no such file or directory') as NodeJS.ErrnoException
+      err.code = 'ENOENT'
+      throw err
+    })
+
+    const { listResources, getResourceCount } = await import('./resources.js')
+    expect(listResources()).toEqual([])
+    expect(getResourceCount()).toBe(0)
+  })
 })
