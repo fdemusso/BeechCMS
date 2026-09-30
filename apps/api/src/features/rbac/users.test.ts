@@ -8,6 +8,7 @@ import { createBeechApp } from '../../factory'
 import { D1TestDatabase } from '../../../test/helpers/d1-test-database'
 import { seedTestUsers } from '../../../test/helpers/seed-fixtures'
 import { TEST_ENV } from '../../../test/fixtures'
+import { __resetSeedRegistryCache } from '../../shared/services/cache/seed-registry-cache'
 
 describe('features/rbac/users', () => {
   let db: D1TestDatabase
@@ -16,6 +17,11 @@ describe('features/rbac/users', () => {
   const ADMIN = { id: 'user_rbac_admin', email: 'rbac-admin@beechcms.io' }
 
   beforeEach(async () => {
+    // This suite uses `seeds: []`, so seedRegistryMiddleware hydrates SeedRegistry
+    // for real from D1 on every request (see content-management.integration.test.ts
+    // for the same pattern). Reset the per-isolate cache so a seed row inserted mid-test
+    // is picked up deterministically instead of depending on TTL/version-token luck.
+    __resetSeedRegistryCache()
     db = new D1TestDatabase()
     const passwordHash = await bcrypt.hash('password123', 10)
     await seedTestUsers(db, [{ ...ADMIN, password_hash: passwordHash }])
@@ -99,10 +105,17 @@ describe('features/rbac/users', () => {
       // A scoped manager with manage_users only on 'posts' cannot see a zero-trust account.
       const scopedPasswordHash = await bcrypt.hash('password123', 10)
       await seedTestUsers(db, [{ id: 'user_scoped_mgr', email: 'scoped-mgr@beechcms.io', password_hash: scopedPasswordHash, grantSuperAdmin: false }])
-      await db.prepare(`INSERT INTO seeds (slug, definition, status) VALUES ('posts', '{}', 'active')`).run()
+      await db.prepare(`INSERT INTO seeds (slug, definition, status) VALUES ('posts', ?, 'active')`)
+        .bind(JSON.stringify({ slug: 'posts', label: 'Post', displayNameAlias: 'title', branches: [] }))
+        .run()
       await db.prepare(`INSERT INTO roles (id, name, description, is_system) VALUES ('role_scoped_mgr', 'ScopedManager', NULL, 0)`).run()
       await db.prepare(`INSERT INTO role_permissions (role_id, permission) VALUES ('role_scoped_mgr', 'manage_users')`).run()
       await db.prepare(`INSERT INTO user_role_assignments (id, user_id, role_id, scope) VALUES ('ura_scoped_mgr', 'user_scoped_mgr', 'role_scoped_mgr', 'posts')`).run()
+
+      // Force the next request to rebuild SeedRegistry from D1 instead of serving the
+      // isolate cache, so the row just inserted above is actually parsed. In production
+      // this happens naturally once the 5s TTL lapses or a new isolate cold-starts.
+      __resetSeedRegistryCache()
 
       const scopedToken = await login('scoped-mgr@beechcms.io')
       const res = await authed(`/api/rbac/users/${id}`, scopedToken)
