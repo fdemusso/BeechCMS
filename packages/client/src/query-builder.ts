@@ -13,13 +13,78 @@ export type QueryExecutor<TRow> = {
   list(query: ListQuery<TRow>, options?: RequestOptions & { validate?: boolean }): Promise<BeechResult<Listable<TRow>>>
 }
 
+function areFilterValuesEqual(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true
+  if (typeof a !== 'object' || a === null || typeof b !== 'object' || b === null) {
+    return false
+  }
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
+    for (let i = 0; i < a.length; i++) {
+      if (!areFilterValuesEqual(a[i], b[i])) return false
+    }
+    return true
+  }
+  const aKeys = Object.keys(a)
+  const bKeys = Object.keys(b)
+  if (aKeys.length !== bKeys.length) return false
+  for (const key of aKeys) {
+    if (!Object.hasOwn(b, key) || !areFilterValuesEqual((a as Record<string, unknown>)[key], (b as Record<string, unknown>)[key])) {
+      return false
+    }
+  }
+  return true
+}
+
+function toOperatorRecord(filter: FieldFilter): Record<string, unknown> {
+  if (filter !== null && typeof filter === 'object' && !Array.isArray(filter)) {
+    return { ...filter }
+  }
+  return { eq: filter }
+}
+
+function mergeFieldFilter(existing: FieldFilter, incoming: FieldFilter, field: string): FieldFilter {
+  const existingIsRecord = existing !== null && typeof existing === 'object' && !Array.isArray(existing)
+  const incomingIsRecord = incoming !== null && typeof incoming === 'object' && !Array.isArray(incoming)
+
+  if (!existingIsRecord && !incomingIsRecord) {
+    if (areFilterValuesEqual(existing, incoming)) {
+      return existing
+    }
+    throw new Error(`Conflicting filter operator 'eq' on field '${field}' with different values`)
+  }
+
+  const merged = toOperatorRecord(existing)
+  const incomingRecord = toOperatorRecord(incoming)
+
+  for (const [op, value] of Object.entries(incomingRecord)) {
+    if (Object.hasOwn(merged, op)) {
+      if (!areFilterValuesEqual(merged[op], value)) {
+        throw new Error(`Conflicting filter operator '${op}' on field '${field}' with different values`)
+      }
+    } else {
+      merged[op] = value
+    }
+  }
+
+  return merged as FieldFilter
+}
+
 export class FluentQueryBuilder<TRow> implements FluentQuery<TRow> {
   private query: ListQuery<TRow> = {}
 
   constructor(private executor: QueryExecutor<TRow>) {}
 
   where(filter: Record<string, FieldFilter>): this {
-    this.query.filter = { ...this.query.filter, ...filter } as ListQuery<TRow>['filter']
+    const current: Record<string, FieldFilter> = { ...(this.query.filter ?? {}) }
+    for (const [field, incoming] of Object.entries(filter)) {
+      if (Object.hasOwn(current, field) && current[field] !== undefined) {
+        current[field] = mergeFieldFilter(current[field], incoming, field)
+      } else {
+        current[field] = incoming
+      }
+    }
+    this.query.filter = current as ListQuery<TRow>['filter']
     return this
   }
 

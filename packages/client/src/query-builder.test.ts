@@ -288,4 +288,69 @@ describe('FluentQueryBuilder', () => {
     const filter = JSON.parse(params.get('filter')!)
     expect(filter.where[0]).toEqual({ field: 'id', op: 'eq', value: '123' })
   })
+
+  it('chained where() on the same field merges operator conditions without dropping earlier ones', () => {
+    const builder = new FluentQueryBuilder<{ id: string; price: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ price: { gt: 10 } }).where({ price: { lt: 100 } })
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.where).toEqual([
+      { field: 'price', op: 'gt', value: 10 },
+      { field: 'price', op: 'lt', value: 100 },
+    ])
+  })
+
+  it('chained where() with conflicting values for the same operator throws', () => {
+    const builder = new FluentQueryBuilder<{ id: string; price: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ price: { gt: 10 } })
+    expect(() => builder.where({ price: { gt: 20 } })).toThrow(/Conflicting filter operator 'gt'/)
+  })
+
+  it('chained where() with identical operator and value preserves condition without error', () => {
+    const builder = new FluentQueryBuilder<{ id: string; price: number }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ price: { gt: 10 } }).where({ price: { gt: 10 } })
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.where).toEqual([
+      { field: 'price', op: 'gt', value: 10 },
+    ])
+  })
+
+  it('chained where() merges shorthand equality with other operators on same field', () => {
+    const builder = new FluentQueryBuilder<{ id: string; status: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ status: 'published' }).where({ status: { neq: 'archived' } })
+    const filter = JSON.parse(builder.build().get('filter')!)
+
+    expect(filter.where).toEqual([
+      { field: 'status', op: 'eq', value: 'published' },
+      { field: 'status', op: 'neq', value: 'archived' },
+    ])
+  })
+
+  it('chained where() with conflicting shorthand equality throws', () => {
+    const builder = new FluentQueryBuilder<{ id: string; status: string }>({
+      first: vi.fn(),
+      list: vi.fn(),
+    })
+
+    builder.where({ status: 'published' })
+    expect(() => builder.where({ status: 'draft' })).toThrow(/Conflicting filter operator 'eq'/)
+  })
 })
+
