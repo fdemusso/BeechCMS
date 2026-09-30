@@ -56,6 +56,9 @@ describe("RoleFormDialog", () => {
     })
   })
 
+  // Opens the icon popover on top of two userEvent.type() sequences (search + name),
+  // which is enough real-timer keystroke/render work to clear the 5000ms default
+  // under full-suite parallel load on Windows (observed 5.1-7.2s; see #486).
   it("allows selecting a different icon from the popover", async () => {
     mockCreateRole.mockResolvedValue({ id: "new-r2" })
     const onOpenChange = vi.fn()
@@ -85,5 +88,5 @@ describe("RoleFormDialog", () => {
       icon: "Shield",
       permissions: ["content:read"],
     })
-  })
+  }, 15000)
 })
