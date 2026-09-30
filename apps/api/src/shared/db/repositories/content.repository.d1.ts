@@ -33,8 +33,12 @@ import {
   serializeForDb,
   resolveClassification,
   hasBlindIndex,
+  activeClause,
+  activeCondition,
 } from '@beechcms/core'
 import { BaseD1Repository } from './base.repository.d1'
+
+export { activeClause, activeCondition }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
@@ -140,9 +144,8 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /** ` AND deleted_at IS NULL` for a soft-delete seed, `''` otherwise. */
-  private activeClause(seed: Seed, mode: TrashedMode = 'active'): string {
-    if (!seed.softDelete || mode === 'any') return ''
-    return mode === 'trashed' ? ' AND deleted_at IS NOT NULL' : ' AND deleted_at IS NULL'
+  private activeClause(seed: Seed, mode: TrashedMode = 'active', tableAlias?: string): string {
+    return activeClause(seed, mode, tableAlias)
   }
 
   private async serializeAndProtect(

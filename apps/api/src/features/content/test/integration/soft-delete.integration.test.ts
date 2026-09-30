@@ -284,4 +284,38 @@ describe('content slice — soft delete integration (real D1)', () => {
     const body = await response.json<{ type: string }>()
     expect(body.type).toBe('https://beechcms.dev/problems/content-soft-delete-disabled')
   })
+
+  it('GET /api/search excludes soft-deleted entries (#465)', async () => {
+    const created = await admin.post('/api/content/trash_orders', { title: 'Searchable Trash Item', slug: 'searchable-trash-item' })
+    expect(created.status).toBe(201)
+    const { id } = await created.json<{ id: string }>()
+
+    // Before deletion: should be found by search
+    const beforeSearch = await admin.get('/api/search?q=Searchable')
+    expect(beforeSearch.status).toBe(200)
+    const beforeBody = await beforeSearch.json<{ items: Array<{ id: string }>; total: number }>()
+    expect(beforeBody.total).toBe(1)
+    expect(beforeBody.items.map(i => i.id)).toContain(id)
+
+    // Move entry to trash (soft delete)
+    const deleted = await admin.delete(`/api/content/trash_orders/${id}`)
+    expect(deleted.status).toBe(200)
+
+    // After soft-delete: trashed entry must not appear in search results or total
+    const afterSearch = await admin.get('/api/search?q=Searchable')
+    expect(afterSearch.status).toBe(200)
+    const afterBody = await afterSearch.json<{ items: Array<{ id: string }>; total: number }>()
+    expect(afterBody.total).toBe(0)
+    expect(afterBody.items.map(i => i.id)).not.toContain(id)
+
+    // Restore entry: should appear in search results again
+    const restored = await admin.post(`/api/content/trash_orders/${id}/restore`)
+    expect(restored.status).toBe(200)
+
+    const restoredSearch = await admin.get('/api/search?q=Searchable')
+    expect(restoredSearch.status).toBe(200)
+    const restoredBody = await restoredSearch.json<{ items: Array<{ id: string }>; total: number }>()
+    expect(restoredBody.total).toBe(1)
+    expect(restoredBody.items.map(i => i.id)).toContain(id)
+  })
 })
