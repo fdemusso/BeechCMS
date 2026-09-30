@@ -202,6 +202,47 @@ function forbidden(code: string, detail: string): Response {
 }
 
 /**
+ * Resolves the active account behind `jwtPayload`, or the 403 to return instead.
+ *
+ * Single source of truth for the "is this JWT holder still active" check, shared by
+ * {@link permissionMiddleware} and {@link requireActiveAccount} so both refuse a
+ * deactivated account with the exact same `account_disabled` shape.
+ */
+async function resolveActiveAccount(
+  c: Context<{ Bindings: Env; Variables: Variables }>,
+): Promise<{ ok: true; userId: string } | { ok: false; response: Response }> {
+  const userId = c.get('jwtPayload')?.sub
+  if (!userId) {
+    return { ok: false, response: forbidden(PERMISSION_ERRORS.FORBIDDEN, 'No authenticated subject on this request.') }
+  }
+
+  const user = await c.get('userRepository').findById(userId)
+  if (!user || !user.isActive) {
+    return { ok: false, response: forbidden(PERMISSION_ERRORS.ACCOUNT_DISABLED, 'This account is deactivated.') }
+  }
+
+  return { ok: true, userId }
+}
+
+/**
+ * Refuses a deactivated account with 403 `account_disabled`, same as {@link permissionMiddleware}.
+ *
+ * For JWT-only routes that never reach `permissionMiddleware` — their action isn't
+ * representable as an RBAC permission (e.g. the OAuth authorize/consent flow, gated
+ * solely on "an active account owns this JWT") — but must still honor the same
+ * instant-revocation guarantee despite a still-valid 15-minute JWT.
+ *
+ * Registered AFTER `authMiddleware` (it needs `jwtPayload`).
+ */
+export function requireActiveAccount() {
+  return async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next): Promise<Response | void> => {
+    const active = await resolveActiveAccount(c)
+    if (!active.ok) return active.response
+    await next()
+  }
+}
+
+/**
  * The single authorization gate for every request under `apiProtected`.
  *
  * Registered AFTER `authMiddleware` (it needs `jwtPayload`) and AFTER
@@ -220,13 +261,8 @@ function forbidden(code: string, detail: string): Response {
  */
 export function permissionMiddleware() {
   return async (c: Context<{ Bindings: Env; Variables: Variables }>, next: Next): Promise<Response | void> => {
-    const userId = c.get('jwtPayload')?.sub
-    if (!userId) return forbidden(PERMISSION_ERRORS.FORBIDDEN, 'No authenticated subject on this request.')
-
-    const user = await c.get('userRepository').findById(userId)
-    if (!user || !user.isActive) {
-      return forbidden(PERMISSION_ERRORS.ACCOUNT_DISABLED, 'This account is deactivated.')
-    }
+    const active = await resolveActiveAccount(c)
+    if (!active.ok) return active.response
 
     const rule = resolveRouteRule(c.req.method, c.req.path)
     if (!rule) {
