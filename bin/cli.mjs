@@ -5,7 +5,7 @@ import pc from 'picocolors'
 
 let [,, command, ...args] = process.argv
 
-if (command && args[0] && ['db', 'seed', 'schema', 'dev', 'generate', 'mailpit'].includes(command)) {
+if (command && args[0] && !args[0].startsWith('-') && ['db', 'seed', 'schema', 'dev', 'generate', 'mailpit'].includes(command)) {
   command = `${command}:${args.shift()}`
 }
 
