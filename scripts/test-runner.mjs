@@ -4,12 +4,12 @@
 
 import fs from "node:fs"
 import path from "node:path"
-import os from "node:os"
 import { fileURLToPath } from "node:url"
 import { execa } from "execa"
 
 import { execSync } from "node:child_process"
 import crypto from "node:crypto"
+import { resolveTestResources, testResourceEnv, lowerProcessPriority, describeTestResources } from "./lib/test-resources.mjs"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, "..")
@@ -247,28 +247,19 @@ if (isNoCache) {
   console.log(`\x1b[36m⚡ [Test Cache] Calculating snapshot for ${fileCount} files (fingerprint: ${fingerprint.slice(0, 12)})...\x1b[0m`)
 }
 
-// Auto hardware profiling for Thermal & Memory Protection
-const totalCores = os.cpus().length || 4
-const totalMemGb = Math.round(os.totalmem() / (1024 * 1024 * 1024)) || 8
+// Thermal & Memory Protection (local only — see scripts/lib/test-resources.mjs)
+const resources = resolveTestResources()
+if (resources) lowerProcessPriority()
+const concurrencyArgs = resources ? [`--concurrency=${resources.turboConcurrency}`] : []
 
-// For MacBook Air (8 Cores: 4P+4E, 8GB RAM, Fanless):
-// Limit Turbo concurrency to 2 packages & Vitest worker threads to 2 per package.
-// Total active workers = 4 threads (perfect fit for the 4 Performance cores without memory swap thrashing).
-const defaultTurboConcurrency = totalMemGb <= 8 ? "2" : Math.min(4, Math.max(2, Math.floor(totalCores / 2))).toString()
-const defaultVitestThreads = totalMemGb <= 8 ? "2" : Math.min(4, Math.max(2, Math.floor(totalCores / 2))).toString()
-
-const concurrency = process.env.TURBO_CONCURRENCY || process.env.BEECH_MAX_CONCURRENCY || defaultTurboConcurrency
-const maxThreads = process.env.VITEST_MAX_THREADS || defaultVitestThreads
-
-console.log(`\x1b[36mRunning BeechCMS tests via Turbo [Hardware Profile: ${totalCores} CPUs, ${totalMemGb}GB RAM | Concurrency=${concurrency}, VitestThreads=${maxThreads}]...\x1b[0m`)
+console.log(`\x1b[36mRunning BeechCMS tests via Turbo [${describeTestResources(resources)}]...\x1b[0m`)
 
 try {
-  const child = execa("pnpm", ["turbo", "run", taskName, `--concurrency=${concurrency}`, "--log-order=grouped"], {
+  const child = execa("pnpm", ["turbo", "run", taskName, ...concurrencyArgs, "--log-order=grouped"], {
     all: true,
     env: {
       FORCE_COLOR: "1",
-      VITEST_MAX_THREADS: maxThreads,
-      VITEST_MIN_THREADS: "1",
+      ...testResourceEnv(resources),
       UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || "4"
     }
   })

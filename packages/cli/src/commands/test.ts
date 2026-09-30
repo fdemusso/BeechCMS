@@ -2,6 +2,7 @@ import pc from 'picocolors'
 import { spawnSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { pathToFileURL } from 'node:url'
 
 /**
  * Tiers with a runner. Mirrors RUNNABLE_TIERS in scripts/lib/test-tiers.mjs, which this
@@ -15,6 +16,33 @@ export interface TestOptions {
   diff?: boolean
   /** Comma-separated tier list, e.g. "unit" or "unit,integration". */
   tier?: string
+}
+
+interface TestResourcesModule {
+  resolveTestResources(): { turboConcurrency: number } | null
+  testResourceEnv(resources: unknown): Record<string, string>
+  lowerProcessPriority(): void
+  describeTestResources(resources: unknown): string
+}
+
+/**
+ * Local-only CPU budget (thermal protection). The policy lives in scripts/lib/test-resources.mjs,
+ * shared with scripts/test-runner.mjs; this bundled package loads it from the repo at runtime and
+ * runs unthrottled when it is absent (e.g. outside the monorepo).
+ */
+async function loadTestResources(cwd: string): Promise<{ env: Record<string, string>; turboArgs: string[] }> {
+  const modulePath = resolve(cwd, 'scripts', 'lib', 'test-resources.mjs')
+  if (!existsSync(modulePath)) return { env: {}, turboArgs: [] }
+  try {
+    const mod = (await import(pathToFileURL(modulePath).href)) as TestResourcesModule
+    const resources = mod.resolveTestResources()
+    console.log(pc.dim(`  ${mod.describeTestResources(resources)}\n`))
+    if (!resources) return { env: {}, turboArgs: [] }
+    mod.lowerProcessPriority()
+    return { env: mod.testResourceEnv(resources), turboArgs: [`--concurrency=${resources.turboConcurrency}`] }
+  } catch {
+    return { env: {}, turboArgs: [] }
+  }
 }
 
 export async function test(args: TestOptions): Promise<void> {
@@ -56,10 +84,14 @@ export async function test(args: TestOptions): Promise<void> {
     commandArgs = ['run', 'test:coverage']
   }
 
+  const resources = await loadTestResources(cwd)
+  if (command === 'turbo') commandArgs.push(...resources.turboArgs)
+
   const result = spawnSync(command, commandArgs, {
     stdio: 'inherit',
     cwd,
     shell: true,
+    env: { ...process.env, ...resources.env },
   })
 
   if (result.status !== 0) {

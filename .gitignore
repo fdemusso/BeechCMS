@@ -50,6 +50,7 @@ apps/api/worker-configuration.d.ts
 
 # Test coverage & E2E
 coverage/
+.vitest/
 e2e/.auth/
 e2e/.wrangler-e2e/
 e2e/test-results/

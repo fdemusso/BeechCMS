@@ -25,6 +25,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import picomatch from 'picomatch'
 import { WORKSPACES, parseTiers, isNeverSelected, NEVER_SELECTED_PREFIXES } from './lib/test-tiers.mjs'
+import { resolveTestResources, lowerProcessPriority, describeTestResources } from './lib/test-resources.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -351,6 +352,15 @@ async function main() {
   console.log()
   console.log(bold(cyan('BeechCMS — Git Diff Coverage Runner')))
   console.log(dim('  Runs Vitest coverage only for files changed on this branch'))
+
+  // Workspaces run one at a time, so a single Vitest may use the whole local budget.
+  // Inherited by every spawnSync below; an outer `beech test --diff` cap already set wins.
+  const resources = resolveTestResources()
+  if (resources) {
+    lowerProcessPriority()
+    process.env.VITEST_MAX_WORKERS ??= String(resources.budget)
+  }
+  console.log(dim(`  ${describeTestResources(resources)}`))
   console.log()
 
   const base = detectBase()
