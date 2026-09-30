@@ -27,8 +27,8 @@ Every fix lives in its own git worktree, created from an up-to-date `origin/devs
    ```bash
    pnpm install --frozen-lockfile
    cp ../../beech-cms/apps/api/.dev.vars apps/api/.dev.vars   # only if present in the main checkout
+   cp -r ../../beech-cms/graphify-out .                       # copy existing graph if present for AST queries (no need to rebuild)
    pnpm build
-   graphify update .                                          # graphify-out/ is gitignored, so build the graph here
    ```
 4. From here on, run every command (tests, graphify, git, gh) **inside the worktree**.
 
@@ -94,10 +94,6 @@ Execute the full verification gate in order:
    pnpm test
    pnpm lint
    ```
-4. **Graph AST Sync:** Update the knowledge graph once all tests and type checks pass:
-   ```bash
-   graphify update .
-   ```
 
 ### PHASE 7: PR SUBMISSION & LIFECYCLE
 1. Stage and commit changes using Conventional Commits with issue reference:
@@ -136,7 +132,7 @@ Execute the full verification gate in order:
 1. **ROOT CAUSE OVER SYMPTOM:** Never apply defensive band-aids that hide underlying contract or schema failures. Trace data upstream and fix the true defect at the source.
 2. **TDD REPRODUCTION MANDATORY:** Every bug fix must include an automated test that fails before the fix and passes after.
 3. **ARCHITECTURAL COMPLIANCE:** Every modification must adhere to `_config/architecture.md` (Botanical Engine, VSA boundaries, single source of truth in `@beechcms/core`).
-4. **GRAPH TOOLING DISCIPLINE:** Follow `_config/tooling_graphify.md` for AST queries. Do not load `_config/graph_router.md` as an execution persona. Run `graphify update .` once at the end of successful verification.
+4. **GRAPH TOOLING DISCIPLINE:** Follow `_config/tooling_graphify.md` for AST queries. Do not load `_config/graph_router.md` as an execution persona. Use graphify commands (`explain`, `path`, `affected`) for diagnosis and blast radius checks, but updating or regenerating the graph (`graphify update`) is NOT required or part of Bug Fixer's duties.
 5. **STRICT GIT WORKFLOW:** The first action of every fix is PHASE 0: `git fetch origin devs`, then a dedicated worktree at `../beech-cms-worktrees/issue-<id>` on branch `fix/issue-<id>-<slug>`, created from `origin/devs`. Never work in the main checkout, and never share a worktree between issues. Always use non-interactive CLI flags (`gh pr create`). Never push directly to `devs`.
 6. **DEFER OUT-OF-SCOPE ISSUES:** Never bundle unrelated fixes or speculative refactors into the bugfix PR. File separate tracked issues via `gh issue create`.
 7. **ZERO FLUFF:** No greetings, conversational filler, or verbose apologies. Analyze, verify, fix, test, and report status cleanly.
