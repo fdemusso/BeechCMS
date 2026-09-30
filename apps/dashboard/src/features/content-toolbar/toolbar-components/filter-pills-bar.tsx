@@ -25,7 +25,7 @@ import type {
   ToolbarFilterGroup,
   ToolbarFiltersState,
 } from "../shared"
-import { getOperatorOptions, operatorRequiresValue } from "../shared"
+import { getOperatorOptions, operatorRequiresValue, MAX_CONDITIONS_PER_FILTER } from "../shared"
 
 interface FilterPillsBarProps {
   readonly filters: ToolbarFiltersState
@@ -119,32 +119,34 @@ function FilterPill({
   const { t } = useTranslation()
   return (
     <DropdownMenu open={isOpen} onOpenChange={onOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="h-8 rounded-full px-3 text-xs"
-          aria-label={t("toolbar.filter.ariaLabel", { label: group.label })}
+      <div className="group relative inline-flex h-8 items-center rounded-full bg-secondary text-xs">
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex h-8 items-center gap-1.5 truncate rounded-full pl-3 pr-3 outline-none transition-[padding] duration-200 ease-in-out group-hover:pr-7"
+            aria-label={t("toolbar.filter.ariaLabel", { label: group.label })}
+          >
+            <span className="truncate">{group.label}</span>
+            <span className="opacity-70 transition-opacity duration-150 group-hover:opacity-0">{group.conditions.length}</span>
+          </button>
+        </DropdownMenuTrigger>
+        <button
+          type="button"
+          className="absolute right-1 flex size-6 items-center justify-center rounded-full text-destructive opacity-0 transition-opacity duration-150 hover:bg-destructive/10 group-hover:opacity-100 group-hover:delay-100"
+          aria-label={t("toolbar.filter.removeColumn")}
+          onClick={(e) => {
+            e.stopPropagation()
+            removeColumnFilters(group.columnId)
+          }}
         >
-          <span className="truncate">{group.label}</span>
-          <span className="opacity-70">{group.conditions.length}</span>
-        </Button>
-      </DropdownMenuTrigger>
+          <Trash2 className="size-3.5" />
+        </button>
+      </div>
       <DropdownMenuContent align="start" className="w-[420px] p-2">
-        <div className="mb-2 flex items-center justify-between gap-2">
+        <div className="mb-2 flex items-center gap-2">
           <DropdownMenuLabel className="px-0 py-0 text-xs font-medium text-muted-foreground">
             {t("toolbar.filter.filtersOn", { label: group.label })}
           </DropdownMenuLabel>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-xs"
-            className="h-7 w-7"
-            aria-label={t("toolbar.filter.removeColumn")}
-            onClick={() => removeColumnFilters(group.columnId)}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
         </div>
 
         <div className="space-y-2">
@@ -162,7 +164,7 @@ function FilterPill({
                     })
                   }
                 >
-                  <SelectTrigger size="sm" className="h-8 w-40 text-xs">
+                  <SelectTrigger size="sm" className="h-8 w-40 !rounded-lg text-xs">
                     <SelectValue placeholder={t("toolbar.filter.operator")} />
                   </SelectTrigger>
                   <SelectContent>
@@ -203,16 +205,27 @@ function FilterPill({
           })}
 
           <DropdownMenuSeparator />
-          <div className="flex justify-center">
+          <div className="flex justify-center gap-2 pt-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              className="h-8"
+              className="h-8 w-36 justify-center"
+              disabled={group.conditions.length >= MAX_CONDITIONS_PER_FILTER}
               onClick={() => addConditionToColumn(group.columnId)}
             >
               <Plus className="size-4" />
               {t("toolbar.filter.addFilter")}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 w-36 justify-center border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => removeColumnFilters(group.columnId)}
+            >
+              <Trash2 className="size-4" />
+              {t("toolbar.filter.removeAll")}
             </Button>
           </div>
         </div>

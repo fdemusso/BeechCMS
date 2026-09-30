@@ -766,7 +766,7 @@ for (const pkg of packagesToPublish) {
 
 log('')
 
-let tagList = []
+let tagList
 let commitMsg = ''
 
 if (isCurrent) {
