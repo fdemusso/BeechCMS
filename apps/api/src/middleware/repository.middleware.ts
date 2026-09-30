@@ -114,7 +114,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     const deletionLedger = overrides?.deletionLedger ?? new R2DeletionLedger(createBucketProvider(context.env, baseUrl))
     context.set('deletionLedger', deletionLedger)
 
-    context.set('repository', overrides?.repository ?? new D1ContentRepository(database, overrides?.hooks, privacyService, undefined, deletionLedger))
+    context.set('repository', overrides?.repository ?? new D1ContentRepository(database, overrides?.hooks, privacyService, undefined, deletionLedger, resolvedClock))
     context.set('idempotencyRepository', overrides?.idempotencyRepository ?? new D1IdempotencyRepository(database))
     context.set('mediaRepository', overrides?.mediaRepository ?? new D1MediaRepository(database))
     context.set('systemStatsRepository', overrides?.systemStatsRepository ?? new D1SystemStatsRepository(database))
