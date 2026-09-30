@@ -135,4 +135,56 @@ describe('Flow: OAuth 2.1 Authorization', () => {
     const secondRefreshBody = await secondRefreshRes.json<{ error: string }>()
     expect(secondRefreshBody.error).toBe('invalid_grant')
   })
+
+  it('rejects authorize/consent for a deactivated account still holding a live JWT', async () => {
+    const loginRes = await app.request('/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: TEST_USERS[0].email, password: 'password123' }),
+    }, { ...TEST_ENV, DB: db })
+    const { token: adminToken } = await loginRes.json<{ token: string }>()
+
+    // The admin panel deactivates the account; the JWT above is unrevoked for up to 15 more minutes.
+    await db.prepare('UPDATE users SET is_active = 0 WHERE id = ?').bind(TEST_USERS[0].id).run()
+
+    const codeChallenge = await deriveCodeChallenge(CODE_VERIFIER)
+    const authorizeQuery = new URLSearchParams({
+      response_type: 'code',
+      client_id: CLIENT_ID,
+      redirect_uri: REDIRECT_URI,
+      scope: 'schema:read schema:write',
+      state: 'integration-state',
+      code_challenge: codeChallenge,
+      code_challenge_method: 'S256',
+    }).toString()
+
+    const requestRes = await app.request(`/oauth/authorize/request?${authorizeQuery}`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    }, { ...TEST_ENV, DB: db })
+    expect(requestRes.status).toBe(403)
+    expect(await requestRes.json()).toMatchObject({ error: 'account_disabled' })
+
+    const consentRes = await app.request('/oauth/authorize/consent', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        response_type: 'code',
+        client_id: CLIENT_ID,
+        redirect_uri: REDIRECT_URI,
+        scope: 'schema:read schema:write',
+        state: 'integration-state',
+        code_challenge: codeChallenge,
+        code_challenge_method: 'S256',
+        approved: true,
+      }),
+    }, { ...TEST_ENV, DB: db })
+    expect(consentRes.status).toBe(403)
+    expect(await consentRes.json()).toMatchObject({ error: 'account_disabled' })
+
+    const consentsRes = await app.request('/oauth/consents', {
+      headers: { Authorization: `Bearer ${adminToken}` },
+    }, { ...TEST_ENV, DB: db })
+    expect(consentsRes.status).toBe(403)
+    expect(await consentsRes.json()).toMatchObject({ error: 'account_disabled' })
+  })
 })

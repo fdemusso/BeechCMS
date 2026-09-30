@@ -3,8 +3,9 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, beforeEach } from 'vitest'
+import { Hono } from 'hono'
 import { createBeechApp } from '../factory'
-import { resolveRouteRule } from './permission.middleware'
+import { resolveRouteRule, requireActiveAccount } from './permission.middleware'
 import { D1TestDatabase } from '../../test/helpers/d1-test-database'
 import { seedTestUsers } from '../../test/helpers/seed-fixtures'
 import { TEST_SEEDS, TEST_ENV } from '../../test/fixtures'
@@ -136,5 +137,39 @@ describe('permissionMiddleware', () => {
     }, { ...TEST_ENV, DB: db })
     expect(res.status).toBe(403)
     expect(await res.json()).toMatchObject({ error: 'forbidden' })
+  })
+})
+
+describe('requireActiveAccount', () => {
+  function buildApp(findById: (id: string) => Promise<{ isActive: boolean } | null>) {
+    const app = new Hono<any>()
+    app.use('*', async (c, next) => {
+      c.set('jwtPayload', { sub: 'user-1' })
+      c.set('userRepository', { findById })
+      await next()
+    })
+    app.use('/gated', requireActiveAccount())
+    app.get('/gated', (c) => c.json({ ok: true }))
+    return app
+  }
+
+  it('refuses a deactivated account with 403 account_disabled', async () => {
+    const app = buildApp(async () => ({ isActive: false }))
+    const res = await app.request('/gated')
+    expect(res.status).toBe(403)
+    expect(await res.json()).toMatchObject({ error: 'account_disabled' })
+  })
+
+  it('refuses a missing user record with 403 account_disabled', async () => {
+    const app = buildApp(async () => null)
+    const res = await app.request('/gated')
+    expect(res.status).toBe(403)
+    expect(await res.json()).toMatchObject({ error: 'account_disabled' })
+  })
+
+  it('calls next() for an active account', async () => {
+    const app = buildApp(async () => ({ isActive: true }))
+    const res = await app.request('/gated')
+    expect(res.status).toBe(200)
   })
 })
