@@ -396,6 +396,30 @@ Returns null if no draft exists.
 
 ***
 
+### getDraftUpdatedAt()
+
+> **getDraftUpdatedAt**(`seed`, `entryId`): `Promise`&lt;`number` \| `null`&gt;
+
+Retrieves the pending draft row's `updated_at`, for use as an optimistic-concurrency
+guard by callers that read the draft before merging into it.
+Returns null if no draft exists (or drafts are disallowed for the seed).
+
+#### Parameters
+
+##### seed
+
+[`Seed`](Seed.md)
+
+##### entryId
+
+`string`
+
+#### Returns
+
+`Promise`&lt;`number` \| `null`&gt;
+
+***
+
 ### getFacets()
 
 > **getFacets**(`seed`): `Promise`&lt;\{ `statuses`: `Record`&lt;`string`, `number`&gt;; `tagsByColumn`: `Record`&lt;`string`, `string`[]&gt;; \}&gt;
@@ -598,9 +622,11 @@ Document-level lifecycle hooks do NOT run for operations inside this call.
 
 ### saveDraft()
 
-> **saveDraft**(`seed`, `entryId`, `data`): `Promise`&lt;`void`&gt;
+> **saveDraft**(`seed`, `entryId`, `data`, `options?`): `Promise`&lt;`void`&gt;
 
 Saves or updates a pending draft in the mirror table.
+Throws DraftSaveConflictError if `options.ifMatch` is set and no longer matches the
+pending draft row's `updated_at`.
 
 #### Parameters
 
@@ -615,6 +641,10 @@ Saves or updates a pending draft in the mirror table.
 ##### data
 
 `Record`&lt;`string`, `any`&gt;
+
+##### options?
+
+[`RepositoryOptions`](RepositoryOptions.md)
 
 #### Returns
 

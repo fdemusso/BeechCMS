@@ -7,6 +7,7 @@ import {
   EntryNotFoundError,
   RepositoryError,
   SlugConflictError,
+  DraftSaveConflictError,
   type BulkFieldUpdate,
   type BatchWrite,
   type RepositoryOptions,
@@ -338,14 +339,29 @@ export class StaticContentRepository implements ContentRepository {
     }
   }
 
-  async saveDraft(seed: Seed, entryId: string, data: Record<string, any>): Promise<void> {
+  async saveDraft(seed: Seed, entryId: string, data: Record<string, any>, options?: RepositoryOptions): Promise<void> {
     if (!seed.allowDrafts) throw new RepositoryError(`Drafts not allowed for ${seed.slug}`)
-    this.drafts.get(seed.slug)!.set(entryId, { ...data, updated_at: Math.floor(Date.now() / 1000) })
+    const draftMap = this.drafts.get(seed.slug)!
+    const existing = draftMap.get(entryId)
+    if (options?.ifMatch !== undefined && existing !== undefined && existing.updated_at !== options.ifMatch) {
+      throw new DraftSaveConflictError({
+        seedSlug: seed.slug,
+        entryId,
+        expectedUpdatedAt: options.ifMatch,
+        actualUpdatedAt: existing.updated_at,
+      })
+    }
+    draftMap.set(entryId, { ...data, updated_at: Math.floor(Date.now() / 1000) })
   }
 
   async getDraft(seed: Seed, entryId: string): Promise<Entry | null> {
     if (!seed.allowDrafts) return null
     return this.drafts.get(seed.slug)?.get(entryId) ?? null
+  }
+
+  async getDraftUpdatedAt(seed: Seed, entryId: string): Promise<number | null> {
+    if (!seed.allowDrafts) return null
+    return this.drafts.get(seed.slug)?.get(entryId)?.updated_at ?? null
   }
 
   async hasDraft(seed: Seed, entryId: string): Promise<boolean> {

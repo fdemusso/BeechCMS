@@ -40,7 +40,7 @@ describe('draft slice — localization (real D1)', () => {
     if (createdSeed.status !== 201) {
       throw new Error(`failed to provision seed '${SLUG}': ${createdSeed.status} ${JSON.stringify(await createdSeed.json())}`)
     }
-    const configured = await admin.put('/api/settings', { locales: ['it', 'en'], defaultLocale: 'it' })
+    const configured = await admin.put('/api/settings', { locales: ['it', 'en', 'de', 'fr'], defaultLocale: 'it' })
     if (configured.status !== 200) {
       throw new Error(`failed to configure locales: ${configured.status}`)
     }
@@ -96,6 +96,55 @@ describe('draft slice — localization (real D1)', () => {
 
       expect(response.status).toBe(200)
       expect(await rawDraftTitle(id)).toEqual({ it: 'Scarpetta', en: 'Shoe' })
+    })
+
+    it('a PUT carrying a stale If-Match on a localized merge answers 409 draft-save-conflict and leaves the concurrent write intact', async () => {
+      const created = await admin.post(`/api/content/${SLUG}`, { title: { it: 'Scarpa' }, slug: 'scarpa5', status: 'published' })
+      expect(created.status).toBe(201) // precondition
+      const { id } = await created.json<{ id: string }>()
+      // Translator B reads the draft here (it/en), capturing its version to merge against later.
+      const firstDraft = await admin.put(`/api/content/${SLUG}/${id}/draft`, { title: { en: 'Shoe' } })
+      expect(firstDraft.status).toBe(200) // precondition
+      const before = await harness.db
+        .prepare(`SELECT updated_at FROM content_${SLUG}_drafts WHERE entry_id = ?`)
+        .bind(id)
+        .first<{ updated_at: number }>()
+
+      // Translator A's save commits before B's PUT lands — the scenario the version guard exists
+      // to catch. unixepoch() is second-granular, so force the "other writer" edit into a later second.
+      await harness.db
+        .prepare(`UPDATE content_${SLUG}_drafts SET title = ?, updated_at = updated_at + 10 WHERE entry_id = ?`)
+        .bind(JSON.stringify({ it: 'Scarpa', en: 'Shoe', de: 'Schuh' }), id)
+        .run()
+
+      const response = await admin.put(`/api/content/${SLUG}/${id}/draft`, { title: { fr: 'Chaussure' } }, {
+        headers: { 'If-Match': String(before!.updated_at) },
+      })
+
+      expect(response.status).toBe(409)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/draft-save-conflict')
+      // Translator A's "de" translation must survive — not be overwritten by B's stale merge.
+      expect(await rawDraftTitle(id)).toEqual({ it: 'Scarpa', en: 'Shoe', de: 'Schuh' })
+    })
+
+    it('a PUT carrying the current If-Match value applies the localized merge', async () => {
+      const created = await admin.post(`/api/content/${SLUG}`, { title: { it: 'Scarpa' }, slug: 'scarpa6', status: 'published' })
+      expect(created.status).toBe(201) // precondition
+      const { id } = await created.json<{ id: string }>()
+      const firstDraft = await admin.put(`/api/content/${SLUG}/${id}/draft`, { title: { en: 'Shoe' } })
+      expect(firstDraft.status).toBe(200) // precondition
+      const before = await harness.db
+        .prepare(`SELECT updated_at FROM content_${SLUG}_drafts WHERE entry_id = ?`)
+        .bind(id)
+        .first<{ updated_at: number }>()
+
+      const response = await admin.put(`/api/content/${SLUG}/${id}/draft`, { title: { de: 'Schuh' } }, {
+        headers: { 'If-Match': String(before!.updated_at) },
+      })
+
+      expect(response.status).toBe(200)
+      expect(await rawDraftTitle(id)).toEqual({ it: 'Scarpa', en: 'Shoe', de: 'Schuh' })
     })
   })
 

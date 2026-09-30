@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { D1ContentRepository } from './content.repository.d1'
-import { EntryNotFoundError, SlugConflictError, RelationTargetNotFoundError, DraftConflictError, EntryConflictError } from '@beechcms/core'
+import { EntryNotFoundError, SlugConflictError, RelationTargetNotFoundError, DraftConflictError, EntryConflictError, DraftSaveConflictError } from '@beechcms/core'
 import type { Seed, IDeletionLedger } from '@beechcms/core'
 import { FixedClock } from '@beechcms/testing'
 
@@ -493,6 +493,39 @@ describe('D1ContentRepository', () => {
       expect(sql).toContain('(SELECT updated_at FROM content_posts WHERE id = ?)')
       expect(sql).toContain('live_snapshot_at = COALESCE(live_snapshot_at, excluded.live_snapshot_at)')
     })
+
+    it('adds an updated_at equality guard to the ON CONFLICT DO UPDATE clause when ifMatch is set', async () => {
+      const { db, prepareMock } = makeMockDb({ runChanges: 1 })
+      await new D1ContentRepository(db).saveDraft(SEED, 'e1', { title: 'New' }, { ifMatch: 1000 })
+      const upsertSql = prepareMock.mock.calls.map(c => c[0] as string).find(sql => sql.includes('ON CONFLICT(entry_id)'))!
+      expect(upsertSql).toMatch(/DO UPDATE SET .* WHERE updated_at = \?/s)
+    })
+
+    it('omits the WHERE guard entirely when no ifMatch is given', async () => {
+      const { db, prepareMock } = makeMockDb({ runChanges: 1 })
+      await new D1ContentRepository(db).saveDraft(SEED, 'e1', { title: 'New' })
+      const upsertSql = prepareMock.mock.calls.map(c => c[0] as string).find(sql => sql.includes('ON CONFLICT(entry_id)'))!
+      expect(upsertSql).not.toContain('WHERE updated_at')
+    })
+
+    it('throws DraftSaveConflictError when ifMatch no longer matches the pending draft and leaves it untouched', async () => {
+      // firstResult backs the post-failure conflict check: the draft row exists with a different
+      // updated_at than the caller expected.
+      const { db } = makeMockDb({ runChanges: 0, firstResult: { entry_id: 'e1', updated_at: 2000 } })
+      const error = await new D1ContentRepository(db)
+        .saveDraft(SEED, 'e1', { title: 'Stale write' }, { ifMatch: 1000 })
+        .catch(e => e)
+      expect(error).toBeInstanceOf(DraftSaveConflictError)
+      expect((error as DraftSaveConflictError).expectedUpdatedAt).toBe(1000)
+      expect((error as DraftSaveConflictError).actualUpdatedAt).toBe(2000)
+    })
+
+    it('does not throw when ifMatch is set and the write applies (no conflict)', async () => {
+      const { db } = makeMockDb({ runChanges: 1 })
+      await expect(
+        new D1ContentRepository(db).saveDraft(SEED, 'e1', { title: 'Fresh write' }, { ifMatch: 1000 }),
+      ).resolves.toBeUndefined()
+    })
   })
 
   // ─── getDraft ────────────────────────────────────────────────────────────────
@@ -515,6 +548,25 @@ describe('D1ContentRepository', () => {
       expect(result).not.toBeNull()
       expect(result!.title).toBe('Draft T')
       expect(result).not.toHaveProperty('body') // null branch values are omitted
+    })
+  })
+
+  // ─── getDraftUpdatedAt ──────────────────────────────────────────────────────
+
+  describe('getDraftUpdatedAt', () => {
+    it('returns null when seed does not allow drafts', async () => {
+      const { db } = makeMockDb()
+      expect(await new D1ContentRepository(db).getDraftUpdatedAt(NO_DRAFT_SEED, 'e1')).toBeNull()
+    })
+
+    it('returns null when no draft row exists', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+      expect(await new D1ContentRepository(db).getDraftUpdatedAt(SEED, 'e1')).toBeNull()
+    })
+
+    it("returns the draft row's updated_at", async () => {
+      const { db } = makeMockDb({ firstResult: { updated_at: 12345 } })
+      expect(await new D1ContentRepository(db).getDraftUpdatedAt(SEED, 'e1')).toBe(12345)
     })
   })
 
