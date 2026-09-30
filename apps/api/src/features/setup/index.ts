@@ -6,9 +6,11 @@
 import { Hono } from 'hono'
 import { GLOBAL_SCOPE, SUPER_ADMIN_ROLE_NAME } from '@beechcms/core'
 import type { Env, Variables } from '../../types'
+import { sortSeedsByDependencies, planCreateSeed, planExtendSeed } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import { DEMO_SEED_DEFINITIONS } from '../../shared/db/fixtures/demo-seeds'
 import { validateAndApplySeedDef } from '../seeds/seeds.helpers'
+import { DEMO_SEEDS } from '../../shared/db/fixtures/demo-seeds.fixtures'
 import { getHydratedRegistry } from '../../shared/services/cache/seed-registry-cache'
 
 const setupApp = new Hono<{ Bindings: Env; Variables: Variables }>()
@@ -255,9 +257,31 @@ setupApp.post('/auth/setup', async (context) => {
 
   if (track === 'developer' && loadDemoData === true) {
     try {
+      const seedRepo = context.get('seedRepository')
+      const schemaMutator = context.get('schemaMutator')
+
+      const sortedSeeds = sortSeedsByDependencies(DEMO_SEEDS)
+      for (const seed of sortedSeeds) {
+        const existingCols = await schemaMutator.getColumns(`content_${seed.slug}`)
+        const stmts = existingCols === null
+          ? planCreateSeed(seed)
+          : planExtendSeed(seed, existingCols).statements
+        if (stmts.length > 0) {
+          await schemaMutator.execDdl(stmts)
+        }
+        await seedRepo.upsert(seed.slug, seed, 'runtime')
+      }
+
+      await seedRepo.bumpRegistryVersion()
+      const { registry, backrefMap } = await getHydratedRegistry(seedRepo)
+      context.set('seedRegistry', registry)
+      const freshGetSeed = (slug: string) => registry.get(slug)
+      context.set('getSeed', freshGetSeed)
+      context.set('backrefMap', backrefMap)
+
       await context.get('demoDataRepository').loadDemoData(
         context.get('repository'),
-        context.get('getSeed')
+        freshGetSeed
       )
     } catch (err: unknown) {
       return publicProblem(context, {

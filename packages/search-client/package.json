@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/search-client",
-  "version": "0.1.0-preview.1",
+  "version": "0.1.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -23,9 +23,9 @@
     "test:unit": "vitest run"
   },
   "devDependencies": {
-    "@types/node": "^24.10.1",
-    "vitest": "^4.1.11",
-    "typescript": "^5.0.0"
+    "@types/node": "^26.5.1",
+    "vitest": "^5.0.0",
+    "typescript": "^7.0.2"
   },
   "license": "MIT"
 }

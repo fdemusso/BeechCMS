@@ -48,8 +48,11 @@ Thumbs.db
 .wrangler/
 apps/api/worker-configuration.d.ts
 
-# Test coverage
+# Test coverage & E2E
 coverage/
+e2e/.auth/
+e2e/.wrangler-e2e/
+e2e/test-results/
 
 # Python
 venv/
