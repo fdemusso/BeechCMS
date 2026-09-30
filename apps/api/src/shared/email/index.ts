@@ -21,6 +21,7 @@
  */
 
 export { sendPasswordResetEmail, sendPasswordChangedEmail, sendAutomationMail, sendInvitationEmail } from './email.service'
+export { escapeHtml } from './templates/shell'
 export {
   resolveEmailLocale,
   SUPPORTED_EMAIL_LOCALES,
