@@ -70,8 +70,9 @@ export function fromCsvCells(columns: string[], cells: string[]): LineParseResul
     }
   }
 
-  const record: TransferRecord = {}
+  const record: TransferRecord = Object.create(null)
   for (const [index, column] of columns.entries()) {
+    if (column === '__proto__' || column === 'constructor' || column === 'prototype') continue
     const cell = cells[index] ?? ''
     if (cell === '') continue
     record[column] = cell
@@ -86,8 +87,9 @@ export function fromCsvCells(columns: string[], cells: string[]): LineParseResul
  * `data` straight to `validateAndSanitizeSeedPayload` without re-filtering.
  */
 export function toImportPayload(record: TransferRecord): ImportPayload {
-  const data: TransferRecord = {}
+  const data: TransferRecord = Object.create(null)
   for (const [key, value] of Object.entries(record)) {
+    if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue
     if (IMPORT_REJECTED_COLUMNS.has(key)) continue
     if (key === 'slug' || key === 'status') continue
     data[key] = value
