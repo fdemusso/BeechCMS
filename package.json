@@ -96,9 +96,9 @@
     "turbo": "^2.9.18",
     "typedoc": "^0.28.20",
     "typedoc-plugin-markdown": "^4.12.0",
-    "typescript": "^7.0.2",
+    "typescript": "^5.9.3",
     "vitepress": "^1.6.4",
-    "vitest": "^5.0.0"
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "@beechcms/cli": "workspace:^0.8.1",
