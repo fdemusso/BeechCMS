@@ -8,6 +8,7 @@ import {
   toEngineFilters,
   parsePublicPagination,
   parseLatestCount,
+  validateSortColumn,
 } from './query-builder'
 import type { Seed } from '@beechcms/core'
 
@@ -187,6 +188,32 @@ describe('toEngineFilters', () => {
     expect(group.column).toBe('title')
     expect(group.conditions[0].op).toBe('contains')
     expect(group.conditions[0].value).toBe('hi')
+  })
+})
+
+// ─── validateSortColumn ────────────────────────────────────────────────────────
+
+describe('validateSortColumn', () => {
+  it('allows sorting on a public, sortable branch', () => {
+    expect(() => validateSortColumn(SEED, 'title')).not.toThrow()
+  })
+
+  it('allows sorting on system columns not backed by a branch', () => {
+    for (const column of ['id', 'slug', 'status', 'created_at', 'updated_at']) {
+      expect(() => validateSortColumn(SEED, column)).not.toThrow()
+    }
+  })
+
+  it('rejects sorting on a branch with policies.public false', () => {
+    expect(() => validateSortColumn(SEED, 'ssn')).toThrow("field 'ssn' is not sortable")
+  })
+
+  it('rejects sorting on a branch with policies.sort false', () => {
+    const seedWithUnsortable = {
+      ...SEED,
+      branches: [...SEED.branches, { id: 'br_11', alias: 'internal_score', type: 'number', policies: { sort: false } }],
+    } as unknown as Seed
+    expect(() => validateSortColumn(seedWithUnsortable, 'internal_score')).toThrow("field 'internal_score' is not sortable")
   })
 })
 

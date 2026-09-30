@@ -8,7 +8,7 @@ import { toFlatPublicEntry } from '../query/entry-projection'
 import { expandRelations } from '../relations/relation-include'
 import { resolveRelationSubqueries } from '../relations/relation-subquery'
 import { buildPublicListMeta } from '../query/response-builder'
-import { parsePublicFilter, parsePublicPagination, parseLatestCount, toEngineFilters } from '../query/query-builder'
+import { parsePublicFilter, parsePublicPagination, parseLatestCount, toEngineFilters, validateSortColumn } from '../query/query-builder'
 import { selectLocaleOf, type PublicLanguage } from '../localization/public-language'
 
 type ReadListInput = {
@@ -42,6 +42,7 @@ export async function readListEntries(input: ReadListInput) {
   const engineFilters = toEngineFilters(seed, resolved.filter)
   const sortBy = cleanStr(query.orderBy) ?? 'created_at'
   const sortDir = (cleanStr(query.orderDir) ?? 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC'
+  if (!latestMode) validateSortColumn(seed, sortBy)
 
   const { items, total } = await repository.findMany(seed, {
     filters: engineFilters,

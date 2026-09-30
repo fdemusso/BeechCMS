@@ -236,6 +236,37 @@ describe('public-read module', () => {
       expect(body.detail).toBe("Invalid include: branch 'non_existent' does not exist.")
     })
 
+    it('returns 400 invalid-filter Problem Details when orderBy targets a non-public branch', async () => {
+      const seedWithPrivateScore: Seed = {
+        ...testSeed,
+        branches: [
+          ...testSeed.branches,
+          { id: 'br_03', alias: 'internal_score', label: 'Internal Score', type: 'number', policies: { public: false } },
+        ],
+      } as unknown as Seed
+      const app = new Hono<AppEnv>()
+      const mockRegistry = createMockRegistry([seedWithPrivateScore])
+      app.use('*', async (c, next) => {
+        c.set('seedRegistry', mockRegistry)
+        c.set('getSeed', () => seedWithPrivateScore)
+        c.set('repository', mockRepo)
+        await next()
+      })
+      app.get('/api/v1/public/:seed', publicReadHandler)
+
+      const response = await app.request(
+        '/api/v1/public/posts?orderBy=internal_score&orderDir=desc',
+        {},
+        { PUBLIC_PUBLISHED_ONLY: 'true' },
+      )
+
+      expect(response.status).toBe(400)
+      expect(mockRepo.findMany).not.toHaveBeenCalled()
+      const body = await response.json<{ type: string; title: string; detail: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/invalid-filter')
+      expect(body.detail).toBe("Invalid filter: field 'internal_score' is not sortable")
+    })
+
     it('returns 200 with list data on successful read request', async () => {
       const app = buildTestApp()
       vi.mocked(mockRepo.findMany).mockResolvedValueOnce({

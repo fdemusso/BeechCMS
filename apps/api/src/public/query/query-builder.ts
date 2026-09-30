@@ -197,6 +197,20 @@ export function toEngineFilters(seed: Seed, parsedFilter: ParsedPublicFilter | n
   })
 }
 
+/**
+ * Guardia contro l'ordinamento pubblico su branch non pubbliche o non sortable.
+ * L'ordinamento relativo delle righe rivela l'informazione anche se il valore
+ * non appare mai nel payload, quindi va negato con la stessa policy del filter.
+ */
+export function validateSortColumn(seed: Seed, column: string): void {
+  const branch = seed.branches.find(b => b.alias === column)
+  if (!branch) return
+  const { public: isPublic, sort: sortable } = resolvePolicies(branch)
+  if (!isPublic || !sortable) {
+    throw new TypeError(`Invalid filter: field '${column}' is not sortable`)
+  }
+}
+
 export function parsePublicPagination(input: PublicQueryInput): { page: number; limit: number } {
   const page = parsePositiveInt(input.page, 1)
   const limit = Math.min(parsePositiveInt(input.limit, 25), 100)
