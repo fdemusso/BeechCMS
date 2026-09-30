@@ -13,6 +13,8 @@ const MIXED_SEED = defineSeed({
     { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
     { id: 'br_02', alias: 'category_id', label: 'Category', type: 'relation' },
     { id: 'br_03', alias: 'views', label: 'Views', type: 'number' },
+    { id: 'br_04', alias: 'body', label: 'Body', type: 'richtext' },
+    { id: 'br_05', alias: 'localized_note', label: 'Localized Note', type: 'text', localized: true },
   ],
 })
 
@@ -29,6 +31,11 @@ describe('toCsvCells', () => {
     const cells = toCsvCells({ title: null, active: true, views: 42 }, ['title', 'active', 'views'])
 
     expect(cells).toEqual([null, 'true', '42'])
+  })
+
+  it('throws TypeError when a column value is an object or array', () => {
+    expect(() => toCsvCells({ title: 'Hi', content: { type: 'doc' } }, ['title', 'content'])).toThrow(TypeError)
+    expect(() => toCsvCells({ title: 'Hi', tags: ['a', 'b'] }, ['title', 'tags'])).toThrow(TypeError)
   })
 })
 
@@ -68,4 +75,17 @@ describe('toImportPayload', () => {
 
     expect(payload).toEqual({ data: { title: 'Hello' } })
   })
+
+  it('prevents prototype pollution and creates data with a null prototype', () => {
+    const raw = JSON.parse('{"__proto__": {"polluted": true}, "constructor": "bad", "prototype": "bad", "title": "Safe"}')
+    const payload = toImportPayload(raw)
+
+    expect(Object.getPrototypeOf(payload.data)).toBeNull()
+    expect(Object.hasOwn(payload.data, '__proto__')).toBe(false)
+    expect(Object.hasOwn(payload.data, 'constructor')).toBe(false)
+    expect(Object.hasOwn(payload.data, 'prototype')).toBe(false)
+    expect((payload.data as any).polluted).toBeUndefined()
+    expect(payload.data.title).toBe('Safe')
+  })
 })
+

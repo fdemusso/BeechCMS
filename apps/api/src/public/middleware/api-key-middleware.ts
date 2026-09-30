@@ -13,15 +13,15 @@ type PublicBindings = {
 
 function isZeroSecretPath(path: string, method: string): boolean {
   // Public health & Time-Trap token endpoints are strictly zero-secret
-  if (path === '/health' || path === '/timetrap/token' || path.endsWith('/timetrap/token')) {
+  if (path === '/health' || path.endsWith('/health') || /(?:^|\/)timetrap\/token\/?$/.test(path)) {
     return true
   }
   // Scoped schema lookup is zero-secret for public form rendering
-  if (method === 'GET' && path.endsWith('/schema')) {
+  if (method === 'GET' && /(?:^|\/)[^/]+\/schema\/?$/.test(path)) {
     return true
   }
   // Public form creation is zero-secret (defenses handled by publicAddHandler)
-  if (method === 'POST' && (path.endsWith('/add') || path.includes('/add'))) {
+  if (method === 'POST' && /(?:^|\/)[^/]+\/add\/?$/.test(path)) {
     return true
   }
   return false

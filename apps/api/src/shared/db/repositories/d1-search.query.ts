@@ -8,7 +8,7 @@
  */
 
 import type { Seed, SearchResultRow } from '@beechcms/core'
-import { indexableSearchBranches } from '@beechcms/core'
+import { indexableSearchBranches, activeCondition } from '@beechcms/core'
 import { SEARCH_LIMITS } from '../../../features/search/constants'
 
 /**
@@ -137,6 +137,11 @@ export function buildFtsQuery(params: FtsQueryParams, seeds: Seed[]): FtsQueryRe
     const whereConditions: string[]  = [`${ftsTable} MATCH ?`]
     const subQueryBinds:   unknown[] = [matchExpression]
 
+    const activeCond = activeCondition(seed, 'active', 'ce')
+    if (activeCond) {
+      whereConditions.push(activeCond)
+    }
+
     if (statusFilter) {
       whereConditions.push('ce.status = ?')
       subQueryBinds.push(statusFilter)
@@ -164,6 +169,11 @@ export function buildFtsQuery(params: FtsQueryParams, seeds: Seed[]): FtsQueryRe
     // ── Count sub-select (no cursor, no LIMIT) ────────────────────────────
     const countConditions: string[]  = [`${ftsTable} MATCH ?`]
     const subCountBinds:   unknown[] = [matchExpression]
+
+    const activeCountCond = activeCondition(seed, 'active', 'ce')
+    if (activeCountCond) {
+      countConditions.push(activeCountCond)
+    }
 
     if (statusFilter) {
       countConditions.push('ce.status = ?')
@@ -200,3 +210,6 @@ export function mapFtsRowToResultRow(row: FtsRow): SearchResultRow {
     rank: row.rank,
   }
 }
+
+export { activeClause, activeCondition } from '@beechcms/core'
+

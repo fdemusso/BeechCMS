@@ -20,6 +20,8 @@ export interface EmailShellSlots {
    * Safe inline HTML is allowed (e.g., `<strong>`, `<a href="...">`),
    * but avoid block elements (`<p>`, `<div>`) that could break
    * the layout structure in rigid email clients (Outlook, Gmail).
+   * Dynamic user-provided values interpolated into this string
+   * MUST be escaped using `escapeHtml()`.
    */
   body: string
 
@@ -43,6 +45,24 @@ export interface EmailShellSlots {
   footer: string
 }
 
+const HTML_ESCAPE_LOOKUP: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+}
+
+const HTML_ESCAPE_REGEX = /[&<>"']/g
+
+/**
+ * Escapes special HTML characters in strings to prevent Cross-Site Scripting (XSS) / HTML injection.
+ */
+export function escapeHtml(str: unknown): string {
+  if (!str) return ''
+  return String(str).replace(HTML_ESCAPE_REGEX, (char) => HTML_ESCAPE_LOOKUP[char] || char)
+}
+
 /**
  * Builds the base HTML layout shared by all Beech CMS transactional emails.
  *
@@ -64,17 +84,17 @@ export interface EmailShellSlots {
  */
 export function buildEmailShell(locale: EmailLocale, slots: EmailShellSlots): string {
   const ctaBlock = slots.cta
-    ? `<a href="${slots.cta.href}"
+    ? `<a href="${escapeHtml(slots.cta.href)}"
           style="display:inline-block;background:#111;color:#fff;padding:12px 24px;
                  border-radius:6px;text-decoration:none;font-size:15px;font-weight:500;
                  margin-bottom:24px">
-         ${slots.cta.label}
+         ${escapeHtml(slots.cta.label)}
        </a>`
     : ''
 
   const warningBlock = slots.warning
     ? `<p style="margin:0 0 24px;color:#ef4444;font-size:15px;line-height:1.5;font-weight:500">
-         ${slots.warning}
+         ${escapeHtml(slots.warning)}
        </p>`
     : ''
 
@@ -87,9 +107,9 @@ export function buildEmailShell(locale: EmailLocale, slots: EmailShellSlots): st
 <body style="font-family:sans-serif;background:#f9f9f9;margin:0;padding:32px">
   <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:8px;
               padding:32px;border:1px solid #e5e5e5">
-    <h2 style="margin:0 0 16px;font-size:20px;color:#111">${slots.title}</h2>
+    <h2 style="margin:0 0 16px;font-size:20px;color:#111">${escapeHtml(slots.title)}</h2>
     <p style="margin:0 0 24px;color:#555;font-size:15px;line-height:1.5">${slots.body}</p>
-    ${ctaBlock}${warningBlock}<p style="margin:0;color:#999;font-size:13px">${slots.footer}</p>
+    ${ctaBlock}${warningBlock}<p style="margin:0;color:#999;font-size:13px">${escapeHtml(slots.footer)}</p>
   </div>
 </body>
 </html>`
