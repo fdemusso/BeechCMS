@@ -13,6 +13,8 @@ const MIXED_SEED = defineSeed({
     { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true },
     { id: 'br_02', alias: 'category_id', label: 'Category', type: 'relation' },
     { id: 'br_03', alias: 'views', label: 'Views', type: 'number' },
+    { id: 'br_04', alias: 'body', label: 'Body', type: 'richtext' },
+    { id: 'br_05', alias: 'localized_note', label: 'Localized Note', type: 'text', localized: true },
   ],
 })
 
@@ -29,6 +31,11 @@ describe('toCsvCells', () => {
     const cells = toCsvCells({ title: null, active: true, views: 42 }, ['title', 'active', 'views'])
 
     expect(cells).toEqual([null, 'true', '42'])
+  })
+
+  it('throws TypeError when a column value is an object or array', () => {
+    expect(() => toCsvCells({ title: 'Hi', content: { type: 'doc' } }, ['title', 'content'])).toThrow(TypeError)
+    expect(() => toCsvCells({ title: 'Hi', tags: ['a', 'b'] }, ['title', 'tags'])).toThrow(TypeError)
   })
 })
 
