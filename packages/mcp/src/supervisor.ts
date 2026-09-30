@@ -51,6 +51,8 @@ export interface McpSupervisorOptions {
   watchTargets?: string[]
   /** Debounce interval in milliseconds before triggering restart. */
   debounceMs?: number
+  /** Milliseconds to wait for a restarted child to answer `initialize` before treating the restart as failed (default: 10000). */
+  restartTimeoutMs?: number
   /** Additional or overridden environment variables for the child process. */
   env?: NodeJS.ProcessEnv
   /** Custom callback when output is ready for the client (default: writes to `process.stdout`). */
@@ -67,6 +69,7 @@ export class McpSupervisor {
   private childArgs: string[]
   private watchTargets: string[]
   private debounceMs: number
+  private restartTimeoutMs: number
   private env: NodeJS.ProcessEnv
   private onClientOutput: (line: string) => void
   private onRestartCallback?: () => void
@@ -87,12 +90,15 @@ export class McpSupervisor {
   private clientInputRemainder = ''
   private restartResolve: (() => void) | null = null
   private currentRestartPromise: Promise<void> | null = null
+  private childStderrBuffer = ''
+  private cleanupRestartWait: (() => void) | null = null
 
   constructor(options: McpSupervisorOptions) {
     this.entryFile = options.entryFile
     this.childArgs = options.childArgs ?? []
     this.watchTargets = options.watchTargets ?? [this.entryFile]
     this.debounceMs = options.debounceMs ?? 150
+    this.restartTimeoutMs = options.restartTimeoutMs ?? 10_000
     this.env = options.env ?? process.env
     this.onClientOutput = options.onClientOutput ?? ((line) => process.stdout.write(line + '\n'))
     this.onRestartCallback = options.onRestart
@@ -155,9 +161,28 @@ export class McpSupervisor {
     this.currentRestartPromise = (async () => {
       await this.killChild()
       await this.spawnChild()
+      const restartingChild = this.child
 
       await new Promise<void>((resolve) => {
         this.restartResolve = resolve
+
+        const onNewChildExit = (code: number | null, signal: NodeJS.Signals | null) => {
+          this.failRestart(
+            `new child exited before answering initialize (code: ${code}, signal: ${signal})`
+          )
+        }
+        restartingChild?.once('exit', onNewChildExit)
+
+        const timer = setTimeout(() => {
+          this.failRestart(`timed out after ${this.restartTimeoutMs}ms waiting for initialize response`)
+        }, this.restartTimeoutMs)
+
+        this.cleanupRestartWait = () => {
+          restartingChild?.off('exit', onNewChildExit)
+          clearTimeout(timer)
+          this.cleanupRestartWait = null
+        }
+
         if (this.savedInitRequest && this.child?.stdin?.writable) {
           this.child.stdin.write(this.savedInitRequest + '\n')
         } else {
@@ -208,13 +233,19 @@ export class McpSupervisor {
 
   private async spawnChild(): Promise<void> {
     return new Promise((resolve) => {
+      this.childStderrBuffer = ''
       this.child = spawn(process.execPath, [this.entryFile, ...this.childArgs], {
         env: { ...this.env, BEECH_MCP_CHILD: '1' },
-        stdio: ['pipe', 'pipe', 'inherit'],
+        stdio: ['pipe', 'pipe', 'pipe'],
       })
 
       this.child.stdout?.on('data', (chunk: Buffer) => {
         this.handleChildData(chunk.toString('utf8'))
+      })
+
+      this.child.stderr?.on('data', (chunk: Buffer) => {
+        this.childStderrBuffer = (this.childStderrBuffer + chunk.toString('utf8')).slice(-4000)
+        process.stderr.write(chunk)
       })
 
       this.child.on('error', (err) => {
@@ -266,6 +297,7 @@ export class McpSupervisor {
   }
 
   private onChildRestartReady(): void {
+    this.cleanupRestartWait?.()
     this.childReady = true
     this.restarting = false
 
@@ -288,6 +320,49 @@ export class McpSupervisor {
       this.restartResolve = null
       resolve()
     }
+  }
+
+  /**
+   * Aborts a stuck restart attempt: logs the diagnostic reason, resets restart
+   * state, and answers every buffered request with a JSON-RPC error instead of
+   * leaving it pending forever.
+   */
+  private failRestart(reason: string): void {
+    if (!this.restartResolve) return
+
+    this.cleanupRestartWait?.()
+    console.error(
+      `[beech-mcp-supervisor] Restart failed: ${reason}${
+        this.childStderrBuffer.trim() ? `\nChild stderr:\n${this.childStderrBuffer.trim()}` : ''
+      }`
+    )
+
+    this.childReady = false
+    this.restarting = false
+
+    while (this.messageBuffer.length > 0) {
+      const buffered = this.messageBuffer.shift()
+      if (!buffered) continue
+      let id: string | number | null = null
+      try {
+        id = JSON.parse(buffered)?.id ?? null
+      } catch {
+        // Not parseable JSON-RPC; nothing to reply to.
+      }
+      if (id !== null) {
+        this.onClientOutput(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id,
+            error: { code: -32000, message: `MCP server restart failed: ${reason}` },
+          })
+        )
+      }
+    }
+
+    const resolve = this.restartResolve
+    this.restartResolve = null
+    resolve()
   }
 
   private async killChild(): Promise<void> {
