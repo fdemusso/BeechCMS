@@ -126,7 +126,8 @@ export default defineConfig({
             { text: 'Trash & Soft Delete', link: '/features/trash' },
             { text: 'Direct-to-R2 Media', link: '/features/media-engine' },
             { text: 'Relationships & Backrefs', link: '/features/backrefs' },
-            { text: 'TipTap Rich Text', link: '/features/richtext-editor' }
+            { text: 'TipTap Rich Text', link: '/features/richtext-editor' },
+            { text: 'Field-Level Localization', link: '/features/localization' }
           ]
         },
         {

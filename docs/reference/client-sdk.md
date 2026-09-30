@@ -124,6 +124,7 @@ if (!slugResult.error) {
 | `.include(relations)` | `include` | Relation expansion, depth 1, max 3 branches |
 | `.limit(n)` | `limit` | Clamped to `100` by the serializer |
 | `.page(n)` | `page` | 1-based |
+| `.lang(code)` | `lang` | Response language for localized fields — a locale code or `'all'`. See [Localization](#localization-lang) |
 | `.list(options?)` | `GET /api/v1/public/:seed` | Resolves `BeechResult<Listable<TRow>>` |
 | `.first(options?)` | same, with `limit=1` | Resolves `BeechResult<Single<TRow>>` |
 | `.build()` | — | Returns the `URLSearchParams` without issuing a request. Useful for debugging and cache keys |
@@ -196,6 +197,56 @@ Server-side limits (enforced, not clamped silently):
 - Works alongside `.select()`: omitting the foreign key from the projection still populates `_includes`.
 
 `_includes` is not yet part of the generated row types; cast or extend the row type as shown until the schema generator publishes the relation → target map.
+
+### Localization (`.lang()`)
+
+For seeds with [localized fields](/features/localization), `.lang(code)` picks the response language. Localized fields then come back as **plain values** in that language, and `.where()` / `.orderBy()` on them compare in it:
+
+```typescript
+const result = await beech
+  .collection('products')
+  .where({ slug: 'trail-shoe' })
+  .lang('en')
+  .first()
+
+if (!result.error) {
+  result.data.data.name // 'Trail shoe' — or the default-locale value if no English translation exists
+}
+```
+
+- **Fallback, not failure.** A missing translation falls back to the project default locale (then to any stored translation). A well-formed code the project does not register falls back the same way, so a stale `.lang('fr')` keeps rendering. A **malformed** code (`.lang('english')`) resolves to a `400 invalid-lang` problem.
+- **Without `.lang()`** the server negotiates from `Accept-Language`, then the default locale. In the browser, `fetch` sends the visitor's `Accept-Language` automatically; on the server, forward it with `RequestOptions.headers`.
+- **Which language was served?** Single-language responses carry `Content-Language`. `.list()` results expose it on `result.headers?.get('Content-Language')`.
+- **Every language.** `.lang('all')` returns each localized field as a `{ locale: value }` dictionary. Generated row types describe the single-language shape (`string` for a localized `text` field), so cast the row when you use `'all'`.
+
+```typescript
+// Server-side rendering: follow the visitor's browser language
+const list = await beechAdmin
+  .collection('products')
+  .limit(20)
+  .list({ headers: { 'Accept-Language': request.headers.get('Accept-Language') ?? '' } })
+
+// Build a language switcher from every translation
+const all = await beech.collection('products').where({ slug: 'trail-shoe' }).lang('all').first()
+const names = (all.data?.data as unknown as { name: Record<string, string> } | undefined)?.name
+// { it: 'Scarpa da trail', en: 'Trail shoe' }
+```
+
+**Writing translations.** `create()` and `update()` accept a plain value (stored as the default-locale translation) or a dictionary for each localized field. Writes merge: locales you do not name are kept, and `{ fr: null }` clears one locale. `update()` has no `.lang()`; pass `Accept-Language` in `RequestOptions.headers` to choose the language of the echoed `data`. With a generated registry, cast the dictionary input, since the row types model the single-language shape:
+
+```typescript
+const result = await beechAdmin.collection('products').update(
+  '550e8400-e29b-41d4-a716-446655440000',
+  { name: { en: 'Trail running shoe' } },
+  { headers: { 'Accept-Language': 'en' } },
+)
+
+if (result.error?.status === 409) {
+  // entry-update-conflict: a concurrent write changed the entry — re-read and retry
+}
+```
+
+See [Public API → Localization](/reference/public-api#localization) for the full negotiation and merge rules.
 
 ### Filtering Through a Relation (`.whereRelation()`)
 

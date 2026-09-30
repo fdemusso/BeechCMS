@@ -129,6 +129,7 @@ Reads entries for a seed. Requires `allowPublicRead: true` and `PUBLIC_READ_API_
 | `filter` | JSON-encoded filter object (see below) |
 | `fields` | Comma-separated list of aliases to project |
 | `include` | Comma-separated relation aliases to expand at depth 1 (max 3 includes) |
+| `lang` | Response language for localized fields: a locale code (`en`, `pt-BR`) or `all`. See [Localization](#localization) |
 
 **Filter syntax:**
 
@@ -278,6 +279,112 @@ The nested value is `{ where: [...], logic?: 'AND' | 'OR' }`; `where` entries sh
 ### Error Responses
 - `400 invalid-subquery`: the relation is not publicly reachable, the operator/shape is wrong, or a resolved id set exceeds its cap.
 - `400 invalid-filter`: an inner `where` condition names a field on the target seed that is not public or not filterable — the same contract an ordinary top-level filter enforces.
+
+---
+
+## Localization
+
+When a seed has [localized fields](/features/localization), every Public API endpoint that returns entry data negotiates a **response language**. If no seed in the project has a localized branch, none of this applies: `lang` and `Accept-Language` are ignored, no settings are read, and no language headers are added.
+
+### Language negotiation
+
+The response language is the first match of:
+
+1. **`?lang=<code>`** — if the code is registered in the project's content languages. An exact match wins, then the primary language subtag (`?lang=en-US` resolves to `en` when only `en` is registered). Codes are case-normalised (`EN-us` → `en-US`).
+2. **`Accept-Language`** — each tag in preference order (`q` descending, header order among equals), with the same exact-then-primary lookup. `*`, `q=0` and malformed entries are skipped.
+3. **The default locale** of the project.
+
+A well-formed `lang` that the project does not register (for example after a language was removed) is **not** an error: negotiation falls through to `Accept-Language` and then the default, so a stale frontend keeps rendering. A **malformed** `lang` is refused:
+
+```json
+{
+  "type": "invalid-lang",
+  "title": "Bad Request",
+  "status": 400,
+  "detail": "'lang' must be a language code such as 'en' or 'pt-BR', or 'all'."
+}
+```
+
+### Single language (default)
+
+Localized fields are returned as **plain values** in the resolved language, following the fallback chain requested locale → default locale → first stored translation → `null`:
+
+```http
+GET /api/v1/public/products?slug=trail-shoe&lang=en
+X-API-Key: dev-public-read-key-changeme
+```
+
+```json
+{
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "trail-shoe",
+    "status": "published",
+    "name": "Trail shoe",
+    "price": 129
+  },
+  "meta": { "seed": "products" }
+}
+```
+
+### Every language — `?lang=all`
+
+`?lang=all` (or `?lang=*`) returns each localized field as its full `{ locale: value }` dictionary, including translations for locales no longer registered. A legacy plain value is returned as `{ "<defaultLocale>": value }`, an empty field as `null`:
+
+```json
+{
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "slug": "trail-shoe",
+    "name": { "it": "Scarpa da trail", "en": "Trail shoe" },
+    "price": 129
+  },
+  "meta": { "seed": "products" }
+}
+```
+
+### Filters, sort, search and includes
+
+- `filter` and `orderBy` on a localized field compare the value **resolved to the response language** — what the reader sees. Under `?lang=all` they compare the default-locale value.
+- `search` matches **every** translation.
+- `include` expands related entries in the **same language** as the parent response; relation subquery filters resolve in that language too.
+- Field policies apply per translation: under `?lang=all` a masked field masks every entry of its dictionary.
+
+### Response headers and caching
+
+| Header | When | Value |
+| :--- | :--- | :--- |
+| `Content-Language` | Single-language responses | The locale the response resolved to (use it to detect a fallback) |
+| `Vary` | Every negotiated response | Includes `Accept-Language` |
+
+The edge cache keys each read on the URL **plus** the resolved language, so two visitors sending different `Accept-Language` headers never share a cached response.
+
+### Writing localized fields
+
+`POST /add` and `PUT`/`PATCH /edit/:id` accept, for each localized field, either a plain value or a dictionary. Writes are **merged** into the stored translations:
+
+| Value sent | Effect |
+| :--- | :--- |
+| Plain value (`"Trail shoe"`) | Sets the **default-locale** translation |
+| Dictionary (`{ "en": "Trail shoe" }`) | Sets each named registered locale; unnamed locales are kept; unregistered keys are dropped |
+| `{ "fr": null }` | Clears that locale only |
+| `null` for the field | Clears every translation |
+
+```http
+PUT /api/v1/public/products/edit/550e8400-e29b-41d4-a716-446655440000?lang=en
+X-API-Key: dev-public-write-key-changeme
+Content-Type: application/json
+
+{
+  "data": {
+    "name": { "en": "Trail running shoe" }
+  }
+}
+```
+
+The `data` echoed in the response follows the same negotiation as a read (`lang`, then `Accept-Language`, then the default), and a malformed `lang` is a `400 invalid-lang` before anything is written. `requiredOnCreate` checks the default-locale translation only.
+
+**Concurrency.** An edit that merges a localized field is a read-modify-write, so it is version-guarded: if the entry changed between the read and the write, the request fails with `409 entry-update-conflict` instead of silently dropping a translation. Re-read the entry and retry.
 
 ---
 

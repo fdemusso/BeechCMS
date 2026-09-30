@@ -92,6 +92,7 @@ A `Branch` is a single typed field on a Seed. Only `id`, `alias`, `label`, and `
 | `options` | `string[]` | — | Static vocabulary for `text` (select dropdown) or `tags` branches. Not persisted as a DB constraint — advisory/UI only (and generates a TS union in generated types). |
 | `requiredOnCreate` | `boolean` | — | Generates `NOT NULL` in the physical column. |
 | `requiredOnUpdate` | `boolean` | — | Enforced at the API validation layer on update payloads. |
+| `localized` | `boolean` | — | Stores a `{ locale: value }` dictionary in the branch's column so editors translate it per content language. Top-level `text`, `richtext` and `json` branches with `plain` storage only — never repeater sub-fields or `confidential`/`restricted` fields (fatal validation error). Metadata-only: toggling it never emits DDL or rewrites rows. See [Field-Level Localization](/features/localization). |
 | `policies` | `object` | — | Access/handling policy — see [Policies & Data Classification](#policies--data-classification). All sub-fields optional, resolved with defaults via `resolvePolicies()`. |
 | `numberOptions` | `NumberFieldOptions` | — | Only meaningful when `type: 'number'`. Ignored otherwise. |
 | `fileOptions` | `FileFieldOptions` | — | Only meaningful when `type: 'file'`. Ignored otherwise. |
@@ -220,6 +221,7 @@ Because physical storage maps to permanent branch IDs (`br_XX`), the engine exec
   }
   ```
 *(Note: Retyping to or from `'repeater'` is strictly disallowed and returns `422` due to incompatible nested JSON structures).*
+*(A `localized: true` branch cannot be retyped either: the endpoint returns `422 retype-localized-not-supported`. Disable localization on the branch first.)*
 
 ### 4. Dropping a Branch
 - Endpoint: `DELETE /api/seeds/:slug/branches/:branchId`
