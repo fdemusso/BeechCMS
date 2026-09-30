@@ -2,16 +2,9 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { useTranslation } from "react-i18next";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Button } from "@/components/ui/button";
 import type { UserViewInstance, ViewType } from "../shared";
-import { Grid as Table, Plus, Grid as LayoutGrid, List as LayoutList, ChartPie as PieChart } from 'reicon-react';
+import { Grid as Table, Grid as LayoutGrid, List as LayoutList, ChartPie as PieChart } from 'reicon-react';
 
 const VIEW_TYPE_ICONS: Record<
   ViewType,
@@ -35,9 +28,7 @@ export function ViewSwitcher({
   views,
   activeViewId,
   onChangeView,
-  onCreateView,
 }: ViewSwitcherProps) {
-  const { t } = useTranslation();
   return (
     <div className="flex min-w-0 items-center gap-1 overflow-hidden">
       <ToggleGroup
@@ -63,22 +54,6 @@ export function ViewSwitcher({
           );
         })}
       </ToggleGroup>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="h-8 w-8 shrink-0"
-            aria-label={t("toolbar.viewSwitcher.addView")}
-            onClick={() => onCreateView?.()}
-          >
-            <Plus className="size-4" />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="top">
-          {t("toolbar.viewSwitcher.addView")}
-        </TooltipContent>
-      </Tooltip>
     </div>
   );
 }

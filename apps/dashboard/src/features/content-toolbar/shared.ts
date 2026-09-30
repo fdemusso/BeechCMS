@@ -58,6 +58,8 @@ export interface ToolbarFilterGroup {
 
 export type ToolbarFiltersState = Record<string, ToolbarFilterGroup>
 
+export const MAX_CONDITIONS_PER_FILTER = 3
+
 export const DEFAULT_ENABLED_TOOLS: ToolbarTool[] = [
   "filter",
   "sort",
