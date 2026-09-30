@@ -5,7 +5,8 @@
 import { describe, it, expect, vi } from 'vitest'
 import { D1ContentRepository } from './content.repository.d1'
 import { EntryNotFoundError, SlugConflictError, RelationTargetNotFoundError, DraftConflictError, EntryConflictError } from '@beechcms/core'
-import type { Seed } from '@beechcms/core'
+import type { Seed, IDeletionLedger } from '@beechcms/core'
+import { FixedClock } from '@beechcms/testing'
 
 const SEED = {
   slug: 'posts',
@@ -354,6 +355,57 @@ describe('D1ContentRepository', () => {
     it('throws EntryNotFoundError when the entry does not exist', async () => {
       const { db } = makeMockDb({ firstResult: null })
       await expect(new D1ContentRepository(db).delete(SEED, 'missing')).rejects.toBeInstanceOf(EntryNotFoundError)
+    })
+  })
+
+  // ─── purge ────────────────────────────────────────────────────────────────────
+
+  describe('purge', () => {
+    it('appends the ledger event, using the injected clock, before issuing DELETE', async () => {
+      const row = { id: 'e1', slug: 'p', status: 'published', title: 'T', body: null }
+      const { db, prepareMock } = makeMockDb({ firstResult: row })
+      const appendOrder: string[] = []
+      const ledger: IDeletionLedger = {
+        append: vi.fn(async () => { appendOrder.push('append') }),
+        list: vi.fn(),
+      }
+      const clock = new FixedClock(5000)
+
+      const result = await new D1ContentRepository(db, undefined, undefined, undefined, ledger, clock).purge(SEED, 'e1')
+
+      expect(result.ledgerWritten).toBe(true)
+      expect(ledger.append).toHaveBeenCalledWith(expect.objectContaining({ entryId: 'e1', purgedAt: clock.nowSeconds() }))
+      const sqls = prepareMock.mock.calls.map(c => c[0] as string)
+      const deleteIndex = sqls.findIndex(s => s.includes('DELETE FROM content_posts'))
+      expect(deleteIndex).toBeGreaterThan(-1)
+      // The ledger append (recorded via appendOrder) must precede the DELETE statement:
+      // a ledger failure must leave the row intact rather than erase data no restore
+      // could undo (#470).
+      expect(appendOrder).toEqual(['append'])
+    })
+
+    // Regression guard for #470: purge() used to DELETE the row before writing the GDPR
+    // deletion ledger, so a ledger failure after a successful delete left an un-erasure
+    // that no restore could ever surface. The ledger write must happen first.
+    it('leaves the row undeleted when the deletion ledger write fails', async () => {
+      const row = { id: 'e1', slug: 'p', status: 'published', title: 'T', body: null }
+      const { db, prepareMock } = makeMockDb({ firstResult: row })
+      const ledger: IDeletionLedger = {
+        append: vi.fn().mockRejectedValue(new Error('R2 quota exceeded')),
+        list: vi.fn(),
+      }
+
+      await expect(
+        new D1ContentRepository(db, undefined, undefined, undefined, ledger).purge(SEED, 'e1'),
+      ).rejects.toThrow('R2 quota exceeded')
+
+      const sqls = prepareMock.mock.calls.map(c => c[0] as string)
+      expect(sqls.some(s => s.includes('DELETE FROM content_posts'))).toBe(false)
+    })
+
+    it('throws EntryNotFoundError when the entry does not exist', async () => {
+      const { db } = makeMockDb({ firstResult: null })
+      await expect(new D1ContentRepository(db).purge(SEED, 'missing')).rejects.toBeInstanceOf(EntryNotFoundError)
     })
   })
 

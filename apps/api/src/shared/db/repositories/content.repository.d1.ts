@@ -28,6 +28,7 @@ import {
   type TrashedMode,
   type PurgeResult,
   type BulkDeleteResult,
+  type IClock,
   buildSelectQuery,
   deserializeFromDb,
   serializeForDb,
@@ -35,6 +36,7 @@ import {
   hasBlindIndex,
   activeClause,
   activeCondition,
+  SystemClock,
 } from '@beechcms/core'
 import { BaseD1Repository } from './base.repository.d1'
 
@@ -129,6 +131,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
     private readonly privacyService?: IPrivacyService,
     queue?: IQueueService,
     private readonly deletionLedger?: IDeletionLedger,
+    private readonly clock: IClock = SystemClock,
   ) {
     super(database)
     this.queue = queue
@@ -1128,19 +1131,25 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
   }
 
   /**
-   * Irreversible erasure: runs `beforeDelete`, reads the row, deletes it (junction and
-   * `_drafts` rows follow via ON DELETE CASCADE), appends the ledger event, runs `afterDelete`.
+   * Irreversible erasure: runs `beforeDelete`, reads the row, appends the ledger event, deletes
+   * the row (junction and `_drafts` rows follow via ON DELETE CASCADE), runs `afterDelete`.
    * R2 media deletion is NOT performed here — the caller owns it.
+   *
+   * The ledger write happens BEFORE the delete commits, not after: a ledger failure must leave
+   * the row intact so the caller can retry the purge, rather than erasing data that a restore
+   * could silently bring back with nothing recorded to reconcile it (#470). If the ledger write
+   * lands but the delete then fails, the row survives with its erasure already recorded — a
+   * retry (or `reconcilePurgesHandler`) finishes the job, since the ledger is the source of truth.
    */
   async purge(seed: Seed, id: string, options?: RepositoryOptions): Promise<PurgeResult> {
     if (this.hooks?.beforeDelete) {
       await this.hooks.beforeDelete(id, this.hookCtx(seed, options?.actor))
     }
 
+    const tableName = this.getTableName(seed.slug)
+
     let row: Record<string, any>
     try {
-      const tableName = this.getTableName(seed.slug)
-
       // No deleted_at guard: a purge is valid on a live row (seed without softDelete, or an
       // explicit ?purge=true) and on a trashed one.
       const entryRow = await this.database
@@ -1149,9 +1158,6 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         .first()
 
       if (!entryRow) throw new EntryNotFoundError(`Entry ${id} not found in ${seed.slug}`)
-
-      // Junction rows and the _drafts row follow via ON DELETE CASCADE (ddl.ts).
-      await this.database.prepare(`DELETE FROM ${tableName} WHERE id = ?`).bind(id).run()
 
       row = await this.rowToData(seed, entryRow)
     } catch (error) {
@@ -1167,11 +1173,18 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
         seedSlug: seed.slug,
         entryId: id,
         entrySlug: (row.slug as string) ?? null,
-        purgedAt: Math.floor(Date.now() / 1000),
+        purgedAt: this.clock.nowSeconds(),
         actorId: options?.actor?.id ?? null,
         reason: 'purge',
       })
       ledgerWritten = true
+    }
+
+    try {
+      // Junction rows and the _drafts row follow via ON DELETE CASCADE (ddl.ts).
+      await this.database.prepare(`DELETE FROM ${tableName} WHERE id = ?`).bind(id).run()
+    } catch (error) {
+      throw this.mapError(error, `purge(${seed.slug}, ${id})`)
     }
 
     if (this.hooks?.afterDelete) {
