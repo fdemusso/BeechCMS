@@ -48,10 +48,10 @@
     "@cloudflare/workers-types": "^5.20260911.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^26.5.1",
-    "@vitest/coverage-v8": "^5.0.0",
+    "@vitest/coverage-v8": "^4.1.11",
     "esbuild": "0.28.2",
     "vite": "8.3.0",
-    "vitest": "^5.0.0",
+    "vitest": "^4.1.11",
     "wrangler": "^4.100.0"
   },
   "license": "BUSL-1.1",
