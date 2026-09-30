@@ -1,6 +1,6 @@
 {
   "name": "@beechcms/widget-sdk",
-  "version": "0.8.0-preview.1",
+  "version": "0.8.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",
@@ -27,7 +27,7 @@
     "react": "^19.0.0"
   },
   "dependencies": {
-    "@beechcms/core": "workspace:^0.8.0",
+    "@beechcms/core": "workspace:^0.8.1",
     "clsx": "^2.1.1",
     "lucide-react": "^0.564.0",
     "tailwind-merge": "^3.4.0",
@@ -36,14 +36,14 @@
   "devDependencies": {
     "@tanstack/react-query": "^5.90.21",
     "@testing-library/react": "^16.3.0",
-    "@types/node": "^24.10.1",
+    "@types/node": "^26.5.1",
     "@types/react": "^19.2.7",
-    "@vitest/coverage-v8": "^4.1.11",
-    "jsdom": "^25.0.1",
+    "@vitest/coverage-v8": "^5.0.0",
+    "jsdom": "^30.0.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "typescript": "^5.9.3",
-    "vitest": "^4.1.11"
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.0"
   },
   "license": "MIT"
 }
