@@ -600,6 +600,8 @@
       "savedSuccess": "Changes saved",
       "createdSuccess": "Entry created",
       "slugDuplicate": "Slug already exists for this schema",
+      "updateConflict": "This entry was changed elsewhere — reload to see the latest version",
+      "reload": "Reload",
       "saveError": "Error saving",
       "validationError_one": "{{count}} field has a validation error — check the highlighted fields",
       "validationError_other": "{{count}} fields have validation errors — check the highlighted fields",
