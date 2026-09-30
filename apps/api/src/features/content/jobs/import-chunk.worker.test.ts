@@ -361,6 +361,47 @@ describe('contentImportChunkJob', () => {
     expect(bucket.deletes).toHaveLength(1)
   })
 
+  it('retrying a chunk after a lost checkpoint does not duplicate a row with neither slug nor display name', async () => {
+    const targetSeed: Seed = {
+      slug: 'posts',
+      label: 'Post',
+      displayNameAlias: 'title',
+      branches: [
+        { id: 'br_01', alias: 'title', label: 'Title', type: 'text' },
+        { id: 'br_02', alias: 'body', label: 'Body', type: 'text' },
+      ],
+    }
+    const { context, repository, tables } = buildContext({
+      bodyText: '{"body":"hello"}\n',
+      targetSeed,
+    })
+    await seedJobRow(repository)
+
+    await contentImportChunkJob({ jobId: 'job-1' }, context)
+
+    // Simulate the checkpoint write never landing (isolate eviction, or the update
+    // itself throwing, between the row loop finishing and `row_offset` being saved):
+    // the retried delivery replays from the SAME row_offset, exactly like Cloudflare
+    // Queues' at-least-once retry of the whole chunk.
+    await repository.update(JOB_SEED, 'job-1', {
+      [IMPORT_JOB_FIELDS.rowOffset]: 0,
+      [IMPORT_JOB_FIELDS.insertedRows]: 0,
+      [IMPORT_JOB_FIELDS.state]: 'processing',
+      [IMPORT_JOB_FIELDS.finishedAt]: null,
+    })
+
+    await contentImportChunkJob({ jobId: 'job-1' }, context)
+
+    // The first call's insert must survive untouched; the retry's own delta (recorded
+    // against the reset counters) must show the row deduped, not re-inserted.
+    const inserted = getRows(tables, 'posts')
+    expect(inserted).toHaveLength(1)
+    const job = getRow(tables, IMPORT_JOBS_SLUG, 'job-1')
+    expect(job[IMPORT_JOB_FIELDS.insertedRows]).toBe(0)
+    expect(job[IMPORT_JOB_FIELDS.failedRows]).toBe(1)
+    expect(job[IMPORT_JOB_FIELDS.errorReport]).toMatchObject([{ code: 'duplicate_slug' }])
+  })
+
   // Regression guard: export → import round-trip of localized content.
   it('imports a localized dictionary row keeping registered locales and derives the slug from the default locale', async () => {
     const localizedTargetSeed: Seed = {
