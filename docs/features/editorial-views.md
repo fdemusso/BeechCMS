@@ -34,6 +34,17 @@ Collections rich in imagery (such as Portfolio Projects, Products, Team Members,
 - **Peek Inspector**: Hover over cards to preview title, creation dates, and metadata chips.
 - **Intelligent Thumbnail Resolution**: Automatically identifies the primary image field in the Seed (or falls back to rich text embedded images).
 
+### Category Folders
+
+If the Seed has a `text` branch whose alias contains `categor` (for example `categoria` or `category`), the Gallery groups entries into **folders**, one per distinct value:
+
+- **Folders screen**: each folder shows preview thumbnails and the number of entries. Values are compared ignoring case and surrounding spaces, so `Wedding` and `wedding ` land in the same folder. Folders are sorted alphabetically; entries without a category go into a last folder named "Altre foto".
+- **Inside a folder**: the cards of that category, a "Torna alle cartelle" button, and an "Aggiungi foto qui" button that opens the create form with the category already filled in.
+- **New folder**: the "Nuova cartella" button asks for a name and opens the create form with that category prefilled. A folder only exists once an entry with that category is saved; typing the name of an existing folder opens it instead of creating a duplicate.
+- **URL state**: the open folder is stored in the `?album=` query parameter, so the browser back button returns to the folders and the folder survives a reload or closing the create/edit dialog.
+
+Seeds without such a branch keep the flat card grid.
+
 ---
 
 ## 3. Data Table & Filter Toolbar
