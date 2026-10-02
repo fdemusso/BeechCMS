@@ -96,22 +96,35 @@ describe("resolveCardFields", () => {
     expect(result.tagsBranch).toBeNull()
   })
 
-  it("seleziona categoryBranch dal primo branch text con alias contenente 'categor'", () => {
+  it("senza groupByAlias non seleziona categoryBranch, anche se un branch si chiama 'categoria'", () => {
     const result = resolveCardFields(
       makeSeed([makeBranch("title", "text"), makeBranch("categoria", "text")])
     )
-    expect(result.categoryBranch?.alias).toBe("categoria")
-    expect(resolveCardFields(makeSeed([makeBranch("category", "text")])).categoryBranch?.alias).toBe("category")
-  })
-
-  it("non seleziona categoryBranch se il branch non è di tipo text", () => {
-    const result = resolveCardFields(makeSeed([makeBranch("categoria", "number")]))
     expect(result.categoryBranch).toBeNull()
   })
 
-  it("non usa il campo categoria come excerpt", () => {
+  it("seleziona categoryBranch per corrispondenza esatta con groupByAlias (lo stesso stato del 'Raggruppa per' della tabella)", () => {
     const result = resolveCardFields(
-      makeSeed([makeBranch("title", "text"), makeBranch("categoria", "text"), makeBranch("descrizione", "text")])
+      makeSeed([makeBranch("title", "text"), makeBranch("categoria", "text")]),
+      "categoria"
+    )
+    expect(result.categoryBranch?.alias).toBe("categoria")
+  })
+
+  it("non seleziona categoryBranch se groupByAlias non corrisponde a nessun branch del seed", () => {
+    const result = resolveCardFields(makeSeed([makeBranch("categoria", "text")]), "altro-campo")
+    expect(result.categoryBranch).toBeNull()
+  })
+
+  it("seleziona categoryBranch anche se il tipo non è text: il tipo è già stato validato da chi ha scelto il groupBy", () => {
+    const result = resolveCardFields(makeSeed([makeBranch("priorita", "number")]), "priorita")
+    expect(result.categoryBranch?.alias).toBe("priorita")
+  })
+
+  it("non usa il campo scelto come groupBy come excerpt", () => {
+    const result = resolveCardFields(
+      makeSeed([makeBranch("title", "text"), makeBranch("categoria", "text"), makeBranch("descrizione", "text")]),
+      "categoria"
     )
     expect(result.excerptBranch?.alias).toBe("descrizione")
   })

@@ -30,6 +30,7 @@ const seedPosts = {
   slug: "posts",
   label: "Post",
   labelPlural: "Post",
+  dashboard: { views: ["table", "gallery"] },
   branches: [
     { id: "b1", alias: "title", label: "Title", type: "text" },
     { id: "b2", alias: "createdAt", label: "Date", type: "date" },
@@ -127,6 +128,8 @@ vi.mock("@/features/content-toolbar", async (importOriginal) => {
     ...actual,
     ContentToolbar: (props: any) => (
       <div>
+        <div data-testid="active-view">{props.activeViewId}</div>
+        <button onClick={() => props.onChangeView?.("gallery")}>change-view</button>
         <button onClick={props.onCreate}>create-entry</button>
         <button onClick={() => props.onSearchChange?.("ciao")}>search</button>
         <button onClick={() => props.onSortChange?.({ columnId: "title", desc: false })}>
@@ -196,6 +199,7 @@ describe("ContentListPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    localStorage.clear()
     mockUseParams.mockReturnValue({ slug: "posts" })
     mockFetchFacets.mockReturnValue({ statuses: ["draft"], tagsByColumnId: { tags: ["cms"] } })
     mockFetchContentListServer.mockReturnValue({
@@ -233,6 +237,24 @@ describe("ContentListPage", () => {
     await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
     fireEvent.click(screen.getByText("create-entry"))
     expect(mockNavigate).toHaveBeenCalledWith("/content/posts/create")
+  })
+
+  it("salva la vista scelta in localStorage, per seed, quando l'utente la cambia", async () => {
+    renderWithProviders(<ContentListPage />)
+    await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByText("change-view"))
+
+    expect(screen.getByTestId("active-view")).toHaveTextContent("gallery")
+    expect(localStorage.getItem("beech_content_view_posts")).toBe("gallery")
+  })
+
+  it("al mount usa la vista salvata in localStorage per quel seed, se presente", async () => {
+    localStorage.setItem("beech_content_view_posts", "gallery")
+    renderWithProviders(<ContentListPage />)
+    await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
+
+    expect(screen.getByTestId("active-view")).toHaveTextContent("gallery")
   })
 
   it("apre dialog ed esegue delete con refresh dati", async () => {

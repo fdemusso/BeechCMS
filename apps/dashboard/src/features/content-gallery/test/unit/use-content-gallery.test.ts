@@ -36,7 +36,7 @@ const data: ContentEntry[] = [makeEntry("e1"), makeEntry("e2")]
 
 describe("useContentGallery", () => {
   it("parte con peekId null e restituisce cardModels per ogni entry", () => {
-    const { result } = renderHook(() => useContentGallery(seed, data))
+    const { result } = renderHook(() => useContentGallery(seed, data, null))
 
     expect(result.current.peekId).toBeNull()
     expect(result.current.peekEntry).toBeNull()
@@ -45,7 +45,7 @@ describe("useContentGallery", () => {
   })
 
   it("setPeekId aggiorna peekEntry all'entry corrispondente", () => {
-    const { result } = renderHook(() => useContentGallery(seed, data))
+    const { result } = renderHook(() => useContentGallery(seed, data, null))
 
     act(() => {
       result.current.setPeekId("e2")
@@ -58,7 +58,7 @@ describe("useContentGallery", () => {
   it("reimposta peekId a null quando l'entry viene rimossa dai dati", () => {
     let entries = [...data]
     const { result, rerender } = renderHook(
-      ({ d }: { d: ContentEntry[] }) => useContentGallery(seed, d),
+      ({ d }: { d: ContentEntry[] }) => useContentGallery(seed, d, null),
       { initialProps: { d: entries } }
     )
 
@@ -78,7 +78,7 @@ describe("useContentGallery", () => {
   it("cardModels aggiornano quando cambiano i dati", () => {
     let entries = [makeEntry("e1")]
     const { result, rerender } = renderHook(
-      ({ d }: { d: ContentEntry[] }) => useContentGallery(seed, d),
+      ({ d }: { d: ContentEntry[] }) => useContentGallery(seed, d, null),
       { initialProps: { d: entries } }
     )
 
@@ -92,26 +92,26 @@ describe("useContentGallery", () => {
   })
 
   it("gestisce dataset vuoto senza errori", () => {
-    const { result } = renderHook(() => useContentGallery(seed, []))
+    const { result } = renderHook(() => useContentGallery(seed, [], null))
 
     expect(result.current.cardModels).toHaveLength(0)
     expect(result.current.peekEntry).toBeNull()
   })
 
-  it("senza campo categoria: categoryAlias null e nessun gruppo", () => {
-    const { result } = renderHook(() => useContentGallery(seed, data))
+  it("senza groupBy attivo: categoryAlias null e nessun gruppo", () => {
+    const { result } = renderHook(() => useContentGallery(seed, data, null))
     expect(result.current.categoryAlias).toBeNull()
     expect(result.current.categoryGroups).toEqual([])
   })
 
-  it("con campo categoria: raggruppa le voci e mette quelle senza categoria in coda", () => {
+  it("con groupBy su un campo esistente: raggruppa le voci e mette quelle senza categoria in coda", () => {
     const seedWithCategory = { ...seed, branches: [makeBranch("title"), makeBranch("categoria")] } as Seed
     const entries = [
       makeEntry("e1", { data: { title: "A", categoria: "Matrimonio" } } as Partial<ContentEntry>),
       makeEntry("e2", { data: { title: "B" } } as Partial<ContentEntry>),
       makeEntry("e3", { data: { title: "C", categoria: "matrimonio " } } as Partial<ContentEntry>),
     ]
-    const { result } = renderHook(() => useContentGallery(seedWithCategory, entries))
+    const { result } = renderHook(() => useContentGallery(seedWithCategory, entries, "categoria"))
 
     expect(result.current.categoryAlias).toBe("categoria")
     expect(result.current.categoryGroups.map((g) => [g.label, g.models.length])).toEqual([
@@ -120,10 +120,16 @@ describe("useContentGallery", () => {
     ])
   })
 
-  it("con campo categoria ma nessuna voce: nessun gruppo (mostra l'invito a creare la cartella)", () => {
+  it("con groupBy su un campo esistente ma nessuna voce: nessun gruppo (mostra l'invito a creare la cartella)", () => {
     const seedWithCategory = { ...seed, branches: [makeBranch("title"), makeBranch("categoria")] } as Seed
-    const { result } = renderHook(() => useContentGallery(seedWithCategory, []))
+    const { result } = renderHook(() => useContentGallery(seedWithCategory, [], "categoria"))
     expect(result.current.categoryAlias).toBe("categoria")
+    expect(result.current.categoryGroups).toEqual([])
+  })
+
+  it("con groupBy che non corrisponde a nessun branch del seed: nessun gruppo", () => {
+    const { result } = renderHook(() => useContentGallery(seed, data, "campo-inesistente"))
+    expect(result.current.categoryAlias).toBeNull()
     expect(result.current.categoryGroups).toEqual([])
   })
 })

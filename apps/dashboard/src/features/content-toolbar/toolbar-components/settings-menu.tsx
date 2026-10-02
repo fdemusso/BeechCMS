@@ -576,42 +576,48 @@ export function SettingsMenu({
                   </DropdownMenuSubContent>
                 </DropdownMenuPortal>
               </DropdownMenuSub>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <Palette className="size-4" />
-                  {t("toolbar.settings.conditionalColors")}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent className="w-[620px] p-3">
-                    <ConditionalFormatsEditor
-                      enabled={Boolean(onConditionalFormatsChange)}
-                      formattableColumns={formattableColumns}
-                      conditionalFormats={conditionalFormats}
-                      activeConditionalRule={activeConditionalRule}
-                      isConditionalEditorOpen={isConditionalEditorOpen}
-                      setIsConditionalEditorOpen={setIsConditionalEditorOpen}
-                      setActiveConditionalRuleId={setActiveConditionalRuleId}
-                      addConditionalFormatRule={addConditionalFormatRule}
-                      updateConditionalRule={updateConditionalRule}
-                      updateConditionalTextStyles={updateConditionalTextStyles}
-                      removeConditionalRule={removeConditionalRule}
-                      moveConditionalRule={moveConditionalRule}
-                      updateConditionalCondition={updateConditionalCondition}
-                      addConditionalCondition={addConditionalCondition}
-                      removeConditionalCondition={removeConditionalCondition}
-                      availableTagsByColumnId={availableTagsByColumnId}
-                    />
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
+              {/* Colori condizionali: concetto strettamente tabellare (celle/righe), non si applica a gallery/kanban. */}
+              {activeViewId === "table" && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Palette className="size-4" />
+                    {t("toolbar.settings.conditionalColors")}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent className="w-[620px] p-3">
+                      <ConditionalFormatsEditor
+                        enabled={Boolean(onConditionalFormatsChange)}
+                        formattableColumns={formattableColumns}
+                        conditionalFormats={conditionalFormats}
+                        activeConditionalRule={activeConditionalRule}
+                        isConditionalEditorOpen={isConditionalEditorOpen}
+                        setIsConditionalEditorOpen={setIsConditionalEditorOpen}
+                        setActiveConditionalRuleId={setActiveConditionalRuleId}
+                        addConditionalFormatRule={addConditionalFormatRule}
+                        updateConditionalRule={updateConditionalRule}
+                        updateConditionalTextStyles={updateConditionalTextStyles}
+                        removeConditionalRule={removeConditionalRule}
+                        moveConditionalRule={moveConditionalRule}
+                        updateConditionalCondition={updateConditionalCondition}
+                        addConditionalCondition={addConditionalCondition}
+                        removeConditionalCondition={removeConditionalCondition}
+                        availableTagsByColumnId={availableTagsByColumnId}
+                      />
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+              )}
             </DropdownMenuGroup>
 
             <DropdownMenuSeparator />
 
-            {/* Tabella */}
+            {/* Tabella (solo vista tabella) / Visualizzazione (altre viste non-kanban) */}
             <DropdownMenuGroup>
-              <DropdownMenuLabel>{t("toolbar.settings.table")}</DropdownMenuLabel>
-              {columnVisibility && onColumnVisibilityChange && (
+              <DropdownMenuLabel>
+                {t(activeViewId === "table" ? "toolbar.settings.table" : "toolbar.settings.display")}
+              </DropdownMenuLabel>
+              {/* Colonne visibili: concetto strettamente tabellare, non si applica a gallery. */}
+              {activeViewId === "table" && columnVisibility && onColumnVisibilityChange && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <Eye className="size-4" />

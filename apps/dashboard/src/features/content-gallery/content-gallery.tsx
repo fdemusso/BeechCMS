@@ -59,8 +59,9 @@ export function ContentGallery({
   isLoading = false,
   onEdit,
   onCreate,
+  groupBy,
 }: ContentGalleryProps) {
-  const { setPeekId, peekEntry, cardModels, categoryGroups, categoryAlias } = useContentGallery(seed, data)
+  const { setPeekId, peekEntry, cardModels, categoryGroups, categoryAlias } = useContentGallery(seed, data, groupBy)
   const [searchParams, setSearchParams] = useSearchParams()
   const [newFolderOpen, setNewFolderOpen] = React.useState(false)
 
@@ -143,7 +144,7 @@ export function ContentGallery({
               <ChevronLeft className="size-4" />
               Torna alle cartelle
             </Button>
-            <h3 className="flex flex-1 items-baseline gap-2 text-xl font-semibold">
+            <h3 className="font-heading flex flex-1 items-baseline gap-2 text-xl font-semibold">
               {openGroup.label ?? UNCATEGORIZED_LABEL}
               <span className="text-sm font-normal text-muted-foreground">
                 {formatItemCount(openGroup.models.length)}
@@ -164,7 +165,7 @@ export function ContentGallery({
       ) : (
         <section aria-label="Cartelle">
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-xl font-semibold">Le tue cartelle</h3>
+            <h3 className="font-heading text-xl font-semibold">Le tue cartelle</h3>
             {onCreate && (
               <Button size="lg" onClick={() => setNewFolderOpen(true)}>
                 <FolderAdd className="size-4" />

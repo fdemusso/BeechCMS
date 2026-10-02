@@ -731,6 +731,7 @@
       "recommended": "Recommended",
       "active": "active",
       "table": "Table",
+      "display": "Display",
       "columnSearch": "Search column...",
       "noColumns": "No columns found",
       "invertOrder": "Invert order",

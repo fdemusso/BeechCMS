@@ -18,4 +18,9 @@ describe("view-registry.bootstrap", () => {
       expect(def.enabledTools).toContain("transfer")
     }
   })
+
+  it("abilita 'settings' anche sulla vista gallery, per il raggruppamento in cartelle", () => {
+    const gallery = viewRegistry.get("gallery")
+    expect(gallery?.enabledTools).toContain("settings")
+  })
 })

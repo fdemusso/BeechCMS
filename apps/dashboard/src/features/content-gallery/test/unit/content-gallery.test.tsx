@@ -14,7 +14,7 @@ import type { ContentEntry } from "@/lib/dynamic-columns"
 // ---------------------------------------------------------------------------
 
 vi.mock("@/features/content-gallery/gallery-hooks", () => ({
-  useContentGallery: (mockSeed: Seed, data: ContentEntry[]) => {
+  useContentGallery: (mockSeed: Seed, data: ContentEntry[], groupBy: string | null) => {
     const cardModels = data.map((entry) => ({
       entryId: entry.id,
       status: entry.status ?? "draft",
@@ -27,8 +27,10 @@ vi.mock("@/features/content-gallery/gallery-hooks", () => ({
       ariaLabel: `Apri dettaglio: ${entry.data?.["title"] ?? entry.id}`,
       statusVariant: "outline",
     }))
-    // Raggruppamento minimale: la logica reale è coperta da group-by-category.test.ts
-    const categoryAlias = mockSeed.branches.some((b) => b.alias === "categoria") ? "categoria" : null
+    // Raggruppamento minimale: la logica reale è coperta da group-by-category.test.ts.
+    // categoryAlias riflette lo stesso "Raggruppa per" passato dal chiamante (groupBy),
+    // non viene più indovinato dalla forma del seed.
+    const categoryAlias = groupBy && mockSeed.branches.some((b) => b.alias === groupBy) ? groupBy : null
     const labels = [...new Set(cardModels.map((m) => m.category).filter(Boolean))]
     const categoryGroups = categoryAlias
       ? labels.map((label) => ({
@@ -97,18 +99,18 @@ function makeEntry(id: string, title = `Entry ${id}`, categoria?: string): Conte
 
 describe("ContentGallery", () => {
   it("mostra lo skeleton durante il caricamento", () => {
-    renderGallery(<ContentGallery seed={seed} data={[]} isLoading onEdit={vi.fn()} />)
+    renderGallery(<ContentGallery seed={seed} data={[]} isLoading onEdit={vi.fn()} groupBy={null} />)
     expect(screen.getByTestId("skeleton-grid")).toBeInTheDocument()
   })
 
   it("mostra il messaggio vuoto quando data è un array vuoto", () => {
-    renderGallery(<ContentGallery seed={seed} data={[]} isLoading={false} onEdit={vi.fn()} />)
+    renderGallery(<ContentGallery seed={seed} data={[]} isLoading={false} onEdit={vi.fn()} groupBy={null} />)
     expect(screen.getByText(/Nessun elemento/i)).toBeInTheDocument()
   })
 
   it("renderizza una card per ogni entry", () => {
     const data = [makeEntry("e1", "Articolo uno"), makeEntry("e2", "Articolo due")]
-    renderGallery(<ContentGallery seed={seed} data={data} isLoading={false} onEdit={vi.fn()} />)
+    renderGallery(<ContentGallery seed={seed} data={data} isLoading={false} onEdit={vi.fn()} groupBy={null} />)
 
     expect(screen.getByTestId("card-e1")).toBeInTheDocument()
     expect(screen.getByTestId("card-e2")).toBeInTheDocument()
@@ -118,7 +120,7 @@ describe("ContentGallery", () => {
 
   it("non mostra lo skeleton quando isLoading è false e ci sono dati", () => {
     const data = [makeEntry("e1")]
-    renderGallery(<ContentGallery seed={seed} data={data} isLoading={false} onEdit={vi.fn()} />)
+    renderGallery(<ContentGallery seed={seed} data={data} isLoading={false} onEdit={vi.fn()} groupBy={null} />)
     expect(screen.queryByTestId("skeleton-grid")).not.toBeInTheDocument()
   })
 
@@ -129,14 +131,14 @@ describe("ContentGallery", () => {
   ]
 
   it("con categorie mostra prima le cartelle, senza le card", () => {
-    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} />)
+    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" />)
     expect(screen.getByRole("button", { name: "Apri cartella Matrimonio, 2 foto" })).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Apri cartella Battesimo, 1 foto" })).toBeInTheDocument()
     expect(screen.queryByTestId("card-1")).not.toBeInTheDocument()
   })
 
   it("aprendo una cartella mostra solo le sue card, e 'Torna alle cartelle' riporta alle cartelle", () => {
-    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} />)
+    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" />)
 
     fireEvent.click(screen.getByRole("button", { name: /Apri cartella Matrimonio/ }))
     const section = screen.getByRole("region", { name: "Matrimonio" })
@@ -150,7 +152,7 @@ describe("ContentGallery", () => {
 
   it("apre direttamente la cartella indicata nell'URL (parametro album)", () => {
     renderGallery(
-      <ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} />,
+      <ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" />,
       "/?album=battesimo"
     )
     expect(screen.getByRole("region", { name: "Battesimo" })).toBeInTheDocument()
@@ -159,21 +161,21 @@ describe("ContentGallery", () => {
 
   it("torna alle cartelle se la cartella nell'URL non esiste", () => {
     renderGallery(
-      <ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} />,
+      <ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" />,
       "/?album=inesistente"
     )
     expect(screen.getByRole("button", { name: /Apri cartella Matrimonio/ })).toBeInTheDocument()
   })
 
   it("con il campo categoria ma senza foto mostra l'invito a creare la prima cartella", () => {
-    renderGallery(<ContentGallery seed={seedWithCategory} data={[]} onEdit={vi.fn()} onCreate={vi.fn()} />)
+    renderGallery(<ContentGallery seed={seedWithCategory} data={[]} onEdit={vi.fn()} groupBy="categoria" onCreate={vi.fn()} />)
     expect(screen.getByText("Non hai ancora nessuna cartella")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "Nuova cartella" })).toBeInTheDocument()
   })
 
   it("'Aggiungi foto qui' apre la creazione con la categoria precompilata", () => {
     const onCreate = vi.fn()
-    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} onCreate={onCreate} />)
+    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" onCreate={onCreate} />)
 
     fireEvent.click(screen.getByRole("button", { name: /Apri cartella Matrimonio/ }))
     fireEvent.click(screen.getByRole("button", { name: "Aggiungi foto qui" }))
@@ -182,7 +184,7 @@ describe("ContentGallery", () => {
 
   it("'Nuova cartella' chiede il nome e apre la creazione con la categoria precompilata", () => {
     const onCreate = vi.fn()
-    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} onCreate={onCreate} />)
+    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" onCreate={onCreate} />)
 
     fireEvent.click(screen.getByRole("button", { name: "Nuova cartella" }))
     const confirm = screen.getByRole("button", { name: "Crea e aggiungi foto" })
@@ -195,7 +197,7 @@ describe("ContentGallery", () => {
 
   it("'Nuova cartella' con un nome già esistente apre quella cartella invece di duplicarla", () => {
     const onCreate = vi.fn()
-    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} onCreate={onCreate} />)
+    renderGallery(<ContentGallery seed={seedWithCategory} data={categorized} onEdit={vi.fn()} groupBy="categoria" onCreate={onCreate} />)
 
     fireEvent.click(screen.getByRole("button", { name: "Nuova cartella" }))
     fireEvent.change(screen.getByLabelText("Nome della cartella"), { target: { value: "matrimonio" } })
@@ -206,7 +208,7 @@ describe("ContentGallery", () => {
   })
 
   it("senza campo categoria mostra la griglia piatta, senza cartelle", () => {
-    renderGallery(<ContentGallery seed={seed} data={[makeEntry("1"), makeEntry("2")]} onEdit={vi.fn()} onCreate={vi.fn()} />)
+    renderGallery(<ContentGallery seed={seed} data={[makeEntry("1"), makeEntry("2")]} onEdit={vi.fn()} groupBy={null} onCreate={vi.fn()} />)
     expect(screen.queryAllByRole("region")).toHaveLength(0)
     expect(screen.queryByRole("button", { name: "Nuova cartella" })).not.toBeInTheDocument()
     expect(screen.getByTestId("card-1")).toBeInTheDocument()

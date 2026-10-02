@@ -12,6 +12,7 @@ import { pendingDraftBadgeClass } from "@/lib/pending-draft"
 import { cn } from "@/lib/utils"
 
 import type { GalleryCardDisplayModel } from "../gallery-card-display"
+import { GALLERY_CARD_SURFACE_CLASS } from "./gallery-card-surface"
 
 interface GalleryCardProps {
   readonly model: GalleryCardDisplayModel
@@ -35,16 +36,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
       type="button"
       onClick={() => onOpen(model.entryId)}
       aria-label={model.ariaLabel}
-      className={cn(
-        "group flex w-full flex-col overflow-hidden rounded-2xl text-left",
-        "bg-card border border-border",
-        "shadow-[0_1px_3px_0_rgb(0,0,0,0.05),0_1px_2px_-1px_rgb(0,0,0,0.04)]",
-        "transition-all duration-200",
-        "hover:-translate-y-0.5 hover:shadow-[0_8px_24px_0_rgb(0,0,0,0.10),0_2px_6px_-1px_rgb(0,0,0,0.06)]",
-        "hover:border-border/80",
-        "dark:hover:border-border/60 dark:hover:shadow-[0_8px_24px_0_rgb(0,0,0,0.3)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-      )}
+      className={GALLERY_CARD_SURFACE_CLASS}
     >
       {/* ── Image area ── */}
       <div className="relative h-44 w-full shrink-0 overflow-hidden bg-gradient-to-br from-muted/40 to-muted/80">

@@ -17,16 +17,14 @@ function includesAnyToken(value: string, tokens: string[]): boolean {
   return tokens.some((token) => value.includes(token))
 }
 
-export function isCategoryBranch(branch: Branch): boolean {
-  if (branch.type !== "text") return false
-  const alias = branch.alias.trim().toLowerCase()
-  return includesAnyToken(alias, ["categor"])
-}
-
-export function resolveCardFields(seed: Seed): ResolvedCardFields {
+export function resolveCardFields(seed: Seed, groupByAlias: string | null = null): ResolvedCardFields {
   const branches = seed.branches
 
-  const categoryBranch = branches.find(isCategoryBranch) ?? null
+  // La categoria non è indovinata dal nome del campo: è lo stesso campo che
+  // l'utente ha scelto nel "Raggruppa per" del toolbar (coerente con la tabella).
+  const categoryBranch = groupByAlias
+    ? branches.find((branch) => branch.alias === groupByAlias) ?? null
+    : null
 
   const coverBranch =
     branches.find((branch) => {

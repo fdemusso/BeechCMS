@@ -36,6 +36,26 @@ import { downloadExport, readProblem } from "@/features/content-transfer"
 import { toast } from "sonner"
 import type { TransferFormat } from "@beechcms/core"
 
+/** La densità in vista gallery è no-op per ora: vedi commento sul relativo prop più sotto. */
+const NOOP_DENSITY_CHANGE = () => {}
+
+/**
+ * Persistenza locale (per seed) della vista attiva in /admin/content/:slug.
+ * Non gestisce la pulizia se il seed viene poi eliminato: la entry resta
+ * orfana in localStorage, inoffensiva, finché non viene sovrascritta.
+ */
+const ACTIVE_VIEW_STORAGE_PREFIX = "beech_content_view_"
+
+function getStoredActiveView(slug: string | undefined): string | null {
+  if (!slug) return null
+  return localStorage.getItem(`${ACTIVE_VIEW_STORAGE_PREFIX}${slug}`)
+}
+
+function setStoredActiveView(slug: string | undefined, viewId: string): void {
+  if (!slug) return
+  localStorage.setItem(`${ACTIVE_VIEW_STORAGE_PREFIX}${slug}`, viewId)
+}
+
 export function ContentListPage() {
   const { slug } = useParams<{ slug: string; id?: string }>()
   const navigate = useNavigate()
@@ -71,7 +91,14 @@ export function ContentListPage() {
   const query = useContentListQuery(slug, seed)
 
   // 3. Views, Overlays & Kanban Config
-  const [activeViewId, setActiveViewId] = React.useState("table")
+  const [activeViewId, setActiveViewId] = React.useState(() => getStoredActiveView(slug) ?? "table")
+  const handleChangeView = React.useCallback(
+    (viewId: string) => {
+      setActiveViewId(viewId)
+      setStoredActiveView(slug, viewId)
+    },
+    [slug]
+  )
   const kanbanSync = useKanbanEntrySync(seed ?? undefined, slug ?? "")
   const kanbanCompat = React.useMemo(() => (seed ? resolveKanbanConfig(seed) : null), [seed])
   const {
@@ -117,9 +144,15 @@ export function ContentListPage() {
 
   React.useEffect(() => {
     if (!seed) return
-    const target = requestedView && isViewAuthorized(seed, requestedView) ? requestedView : "table"
+    const stored = getStoredActiveView(slug)
+    const target =
+      requestedView && isViewAuthorized(seed, requestedView)
+        ? requestedView
+        : stored && authorizedViews.includes(stored as DashboardView)
+          ? stored
+          : "table"
     setActiveViewId((cur) => (authorizedViews.includes(cur as DashboardView) ? cur : target))
-  }, [seed, requestedView, authorizedViews])
+  }, [seed, slug, requestedView, authorizedViews])
 
   const VIEW_LABELS: Record<string, string> = {
     table: t("content.list.table"),
@@ -243,7 +276,7 @@ export function ContentListPage() {
                   seed={seed}
                   views={translatedViews}
                   activeViewId={activeViewId}
-                  onChangeView={setActiveViewId}
+                  onChangeView={handleChangeView}
                   onRenameView={handleRenameView}
                   onConditionalFormatsChange={handleConditionalFormatsChange}
                   onCreate={modals.handleCreate}
@@ -269,7 +302,11 @@ export function ContentListPage() {
                   onOpenAutomation={() => modals.setAutomationPanelOpen(true)}
                   isAutomationActive={modals.automationPanelOpen}
                   density={tableConfig.density}
-                  onDensityChange={tableConfig.setDensity}
+                  // La densità in vista gallery è no-op per ora: il controllo resta visibile
+                  // nel menu impostazioni (lo risolveremo quando la gallery avrà un suo
+                  // concetto di densità, es. card più/meno compatte) ma non deve toccare
+                  // lo stato della tabella.
+                  onDensityChange={activeViewId === "gallery" ? NOOP_DENSITY_CHANGE : tableConfig.setDensity}
                   kanbanCandidates={kanbanCandidates}
                   kanbanConfig={kanbanConfig}
                   onKanbanConfigChange={setKanbanConfig}
@@ -337,6 +374,7 @@ export function ContentListPage() {
                       isLoading={query.isLoading}
                       onEdit={modals.handleEdit}
                       onCreate={modals.handleCreate}
+                      groupBy={tableConfig.groupBy}
                     />
                   )}
                   {!query.error && activeViewId === "kanban" && slug && seed && (

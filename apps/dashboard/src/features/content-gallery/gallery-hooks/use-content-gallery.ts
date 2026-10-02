@@ -17,13 +17,22 @@ export interface UseContentGalleryResult {
   setPeekId: React.Dispatch<React.SetStateAction<string | null>>
   peekEntry: ContentEntry | null
   cardModels: GalleryCardDisplayModel[]
-  /** Gruppi per categoria; vuoto se il seed non ha un campo categoria (vista piatta). */
+  /** Gruppi per categoria; vuoto se non c'è un "Raggruppa per" attivo (vista piatta). */
   categoryGroups: GalleryCategoryGroup[]
-  /** Alias del campo categoria, `null` se il seed non ne ha uno. */
+  /** Alias del campo scelto come "Raggruppa per", `null` se nessuno. */
   categoryAlias: string | null
 }
 
-export function useContentGallery(seed: Seed, data: ContentEntry[]): UseContentGalleryResult {
+/**
+ * `groupBy` è lo stesso stato del "Raggruppa per" del toolbar della tabella
+ * (`tableConfig.groupBy`): le cartelle della gallery non indovinano il campo
+ * categoria dal nome, usano la scelta esplicita dell'utente.
+ */
+export function useContentGallery(
+  seed: Seed,
+  data: ContentEntry[],
+  groupBy: string | null
+): UseContentGalleryResult {
   const [peekId, setPeekId] = React.useState<string | null>(null)
 
   const peekEntry = React.useMemo(
@@ -37,7 +46,7 @@ export function useContentGallery(seed: Seed, data: ContentEntry[]): UseContentG
     setPeekId(null)
   }, [data, peekId])
 
-  const cardFields = React.useMemo(() => resolveCardFields(seed), [seed])
+  const cardFields = React.useMemo(() => resolveCardFields(seed, groupBy), [seed, groupBy])
 
   const cardModels = React.useMemo(
     () => data.map((entry) => buildGalleryCardDisplayModel(entry, cardFields)),

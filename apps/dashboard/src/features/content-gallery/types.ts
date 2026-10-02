@@ -13,4 +13,6 @@ export interface ContentGalleryProps {
   readonly onEdit: (entryId: string) => void
   /** Apre il modulo di creazione con valori precompilati (es. la categoria). */
   readonly onCreate?: (defaultValues: Record<string, unknown>) => void
+  /** Campo scelto nel "Raggruppa per" del toolbar; stesso stato usato dalla tabella. */
+  readonly groupBy: string | null
 }
