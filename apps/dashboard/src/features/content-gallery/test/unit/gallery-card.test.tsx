@@ -13,6 +13,7 @@ function makeModel(overrides: Partial<GalleryCardDisplayModel> = {}): GalleryCar
     entryId: "entry-1",
     status: "published",
     tags: [],
+    category: "",
     imageUrl: null,
     title: "Published entry",
     excerpt: "",

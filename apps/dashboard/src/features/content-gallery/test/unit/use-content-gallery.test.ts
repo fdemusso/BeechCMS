@@ -97,4 +97,33 @@ describe("useContentGallery", () => {
     expect(result.current.cardModels).toHaveLength(0)
     expect(result.current.peekEntry).toBeNull()
   })
+
+  it("senza campo categoria: categoryAlias null e nessun gruppo", () => {
+    const { result } = renderHook(() => useContentGallery(seed, data))
+    expect(result.current.categoryAlias).toBeNull()
+    expect(result.current.categoryGroups).toEqual([])
+  })
+
+  it("con campo categoria: raggruppa le voci e mette quelle senza categoria in coda", () => {
+    const seedWithCategory = { ...seed, branches: [makeBranch("title"), makeBranch("categoria")] } as Seed
+    const entries = [
+      makeEntry("e1", { data: { title: "A", categoria: "Matrimonio" } } as Partial<ContentEntry>),
+      makeEntry("e2", { data: { title: "B" } } as Partial<ContentEntry>),
+      makeEntry("e3", { data: { title: "C", categoria: "matrimonio " } } as Partial<ContentEntry>),
+    ]
+    const { result } = renderHook(() => useContentGallery(seedWithCategory, entries))
+
+    expect(result.current.categoryAlias).toBe("categoria")
+    expect(result.current.categoryGroups.map((g) => [g.label, g.models.length])).toEqual([
+      ["Matrimonio", 2],
+      [null, 1],
+    ])
+  })
+
+  it("con campo categoria ma nessuna voce: nessun gruppo (mostra l'invito a creare la cartella)", () => {
+    const seedWithCategory = { ...seed, branches: [makeBranch("title"), makeBranch("categoria")] } as Seed
+    const { result } = renderHook(() => useContentGallery(seedWithCategory, []))
+    expect(result.current.categoryAlias).toBe("categoria")
+    expect(result.current.categoryGroups).toEqual([])
+  })
 })

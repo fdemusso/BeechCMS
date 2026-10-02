@@ -20,8 +20,9 @@ export function useContentListModals(slug: string | undefined) {
   const createDefaults = (location.state as { defaultValues?: Record<string, unknown> } | null)?.defaultValues
 
   const handleDialogClose = React.useCallback(
-    () => navigate(`/content/${slug}`),
-    [navigate, slug]
+    // Conserva i parametri (es. la cartella aperta nella galleria) al ritorno dal modulo.
+    () => navigate(`/content/${slug}${location.search}`),
+    [navigate, slug, location.search]
   )
 
   const [target, setTarget] = React.useState<{
@@ -55,9 +56,9 @@ export function useContentListModals(slug: string | undefined) {
 
   const handleEdit = React.useCallback(
     (id: string) => {
-      if (slug) navigate(`/content/${slug}/${id}`)
+      if (slug) navigate(`/content/${slug}/${id}${location.search}`)
     },
-    [slug, navigate]
+    [slug, navigate, location.search]
   )
 
   const handleDelete = React.useCallback((id: string) => {
@@ -83,14 +84,14 @@ export function useContentListModals(slug: string | undefined) {
             ("nativeEvent" in defaultValues || "preventDefault" in defaultValues)))
 
       if (defaultValues && !isEvent) {
-        navigate(`/content/${slug}/create`, {
+        navigate(`/content/${slug}/create${location.search}`, {
           state: { defaultValues: defaultValues as Record<string, unknown> },
         })
       } else {
-        navigate(`/content/${slug}/create`)
+        navigate(`/content/${slug}/create${location.search}`)
       }
     },
-    [slug, navigate],
+    [slug, navigate, location.search],
   )
 
   const handleConfirmDelete = React.useCallback(async () => {

@@ -10,14 +10,23 @@ export interface ResolvedCardFields {
   excerptBranch: Branch | null
   dateBranch: Branch | null
   tagsBranch: Branch | null
+  categoryBranch: Branch | null
 }
 
 function includesAnyToken(value: string, tokens: string[]): boolean {
   return tokens.some((token) => value.includes(token))
 }
 
+export function isCategoryBranch(branch: Branch): boolean {
+  if (branch.type !== "text") return false
+  const alias = branch.alias.trim().toLowerCase()
+  return includesAnyToken(alias, ["categor"])
+}
+
 export function resolveCardFields(seed: Seed): ResolvedCardFields {
   const branches = seed.branches
+
+  const categoryBranch = branches.find(isCategoryBranch) ?? null
 
   const coverBranch =
     branches.find((branch) => {
@@ -35,6 +44,7 @@ export function resolveCardFields(seed: Seed): ResolvedCardFields {
   const excerptBranch =
     branches.find((branch) => {
       if (branch.type !== "richtext" && branch.type !== "text") return false
+      if (branch.alias === categoryBranch?.alias) return false
       if (!titleBranch) return true
       return branch.alias !== titleBranch.alias
     }) ?? null
@@ -53,5 +63,6 @@ export function resolveCardFields(seed: Seed): ResolvedCardFields {
     excerptBranch,
     dateBranch,
     tagsBranch,
+    categoryBranch,
   }
 }

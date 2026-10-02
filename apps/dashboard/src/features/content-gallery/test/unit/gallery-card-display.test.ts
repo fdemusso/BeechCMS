@@ -38,6 +38,7 @@ const emptyBranches: ResolvedCardFields = {
   excerptBranch: null,
   dateBranch: null,
   tagsBranch: null,
+  categoryBranch: null,
 }
 
 // ---------------------------------------------------------------------------
@@ -277,5 +278,15 @@ describe("buildGalleryCardDisplayModel", () => {
     expect(model.excerpt).not.toContain("<p>")
     expect(model.excerpt).toContain("Hello")
     expect(model.excerpt).toContain("world")
+  })
+
+  it("legge la categoria dal categoryBranch, stringa vuota se assente", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      categoryBranch: makeBranch("categoria", "text"),
+    }
+    expect(buildGalleryCardDisplayModel(makeEntry({ data: { categoria: "Matrimonio" } }), branches).category).toBe("Matrimonio")
+    expect(buildGalleryCardDisplayModel(makeEntry({ data: {} }), branches).category).toBe("")
+    expect(buildGalleryCardDisplayModel(makeEntry({ data: { categoria: "X" } }), emptyBranches).category).toBe("")
   })
 })

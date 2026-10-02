@@ -11,4 +11,6 @@ export interface ContentGalleryProps {
   readonly data: ContentEntry[]
   readonly isLoading?: boolean
   readonly onEdit: (entryId: string) => void
+  /** Apre il modulo di creazione con valori precompilati (es. la categoria). */
+  readonly onCreate?: (defaultValues: Record<string, unknown>) => void
 }
