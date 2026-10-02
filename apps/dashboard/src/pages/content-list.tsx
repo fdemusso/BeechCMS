@@ -336,6 +336,7 @@ export function ContentListPage() {
                       data={query.data}
                       isLoading={query.isLoading}
                       onEdit={modals.handleEdit}
+                      onCreate={modals.handleCreate}
                     />
                   )}
                   {!query.error && activeViewId === "kanban" && slug && seed && (

@@ -38,6 +38,7 @@ describe("resolveCardFields", () => {
     expect(result.excerptBranch).toBeNull()
     expect(result.dateBranch).toBeNull()
     expect(result.tagsBranch).toBeNull()
+    expect(result.categoryBranch).toBeNull()
   })
 
   it("seleziona coverBranch dal primo branch file con alias 'cover'", () => {
@@ -93,5 +94,25 @@ describe("resolveCardFields", () => {
     const branches = [makeBranch("metadata", "json")]
     const result = resolveCardFields(makeSeed(branches))
     expect(result.tagsBranch).toBeNull()
+  })
+
+  it("seleziona categoryBranch dal primo branch text con alias contenente 'categor'", () => {
+    const result = resolveCardFields(
+      makeSeed([makeBranch("title", "text"), makeBranch("categoria", "text")])
+    )
+    expect(result.categoryBranch?.alias).toBe("categoria")
+    expect(resolveCardFields(makeSeed([makeBranch("category", "text")])).categoryBranch?.alias).toBe("category")
+  })
+
+  it("non seleziona categoryBranch se il branch non è di tipo text", () => {
+    const result = resolveCardFields(makeSeed([makeBranch("categoria", "number")]))
+    expect(result.categoryBranch).toBeNull()
+  })
+
+  it("non usa il campo categoria come excerpt", () => {
+    const result = resolveCardFields(
+      makeSeed([makeBranch("title", "text"), makeBranch("categoria", "text"), makeBranch("descrizione", "text")])
+    )
+    expect(result.excerptBranch?.alias).toBe("descrizione")
   })
 })

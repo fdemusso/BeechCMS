@@ -14,6 +14,8 @@ export interface GalleryCardDisplayModel {
   entryId: string
   status: string
   tags: TagChipData[]
+  /** Valore della categoria, stringa vuota se assente: usato per raggruppare la galleria. */
+  category: string
   imageUrl: string | null
   title: string
   excerpt: string
@@ -104,6 +106,9 @@ export function buildGalleryCardDisplayModel(
   const tags = branches.tagsBranch
     ? extractTagChips(entry.data[branches.tagsBranch.alias])
     : []
+  const category = branches.categoryBranch
+    ? toPlainText(entry.data[branches.categoryBranch.alias])
+    : ""
   const imageUrl = branches.coverBranch
     ? resolveImageUrl(entry.data[branches.coverBranch.alias])
     : null
@@ -121,6 +126,7 @@ export function buildGalleryCardDisplayModel(
     entryId: entry.id,
     status,
     tags,
+    category,
     imageUrl,
     title,
     excerpt,

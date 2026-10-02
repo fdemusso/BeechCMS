@@ -18,7 +18,7 @@ vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
   useParams: () => mockUseParams(),
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
-  useLocation: () => ({ pathname: "/content/posts" }),
+  useLocation: () => ({ pathname: "/content/posts", search: "" }),
 }))
 
 vi.mock("@/features/automations", () => ({
