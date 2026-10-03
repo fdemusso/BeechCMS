@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { TagChips } from "@/components/ui/tag-chips"
@@ -17,6 +18,7 @@ interface GalleryDetailTagsProps {
 }
 
 export function GalleryDetailTags({ tags, className }: GalleryDetailTagsProps) {
+  const { t } = useTranslation()
   const [expanded, setExpanded] = React.useState(false)
 
   if (tags.length === 0) return null
@@ -26,7 +28,7 @@ export function GalleryDetailTags({ tags, className }: GalleryDetailTagsProps) {
   return (
     <div className={cn("space-y-1.5", className)}>
       <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
-        Tag
+        {t("gallery.tags.label")}
       </p>
       <TagChips
         tags={tags}
@@ -45,7 +47,7 @@ export function GalleryDetailTags({ tags, className }: GalleryDetailTagsProps) {
             className="h-6 rounded-full px-2.5 text-xs"
             onClick={onExpand}
           >
-            +{hiddenCount} altri
+            {t("gallery.tags.more", { count: hiddenCount })}
           </Button>
         )}
       />
@@ -57,7 +59,7 @@ export function GalleryDetailTags({ tags, className }: GalleryDetailTagsProps) {
           className="h-7 px-2 text-xs text-muted-foreground"
           onClick={() => setExpanded(false)}
         >
-          Mostra meno
+          {t("gallery.tags.showLess")}
         </Button>
       )}
     </div>

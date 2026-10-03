@@ -18,7 +18,7 @@ function makeModel(overrides: Partial<GalleryCardDisplayModel> = {}): GalleryCar
     title: "Published entry",
     excerpt: "",
     dateText: "",
-    ariaLabel: "Apri dettaglio: Published entry",
+    ariaLabel: "Open detail: Published entry",
     statusVariant: "default",
     hasPendingDraft: false,
     ...overrides,
@@ -35,6 +35,6 @@ describe("GalleryCard", () => {
     )
 
     expect(screen.getByText("published")).toBeInTheDocument()
-    expect(screen.getByText("Bozza in sospeso")).toBeInTheDocument()
+    expect(screen.getByText("Pending draft")).toBeInTheDocument()
   })
 })

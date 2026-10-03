@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import { sanitizeHtml } from "@/lib/sanitize-html"
 import { cn } from "@/lib/utils"
 
@@ -21,6 +22,7 @@ interface GalleryRichtextReadonlyProps {
  * Caricata in modo asincrono (Lazy) per non scaricare KaTeX/highlight.js nel bundle iniziale.
  */
 export function GalleryRichtextReadonly({ value, className }: GalleryRichtextReadonlyProps) {
+  const { t } = useTranslation()
   const [html, setHtml] = React.useState<string | null>(null)
 
   React.useEffect(() => {
@@ -40,7 +42,7 @@ export function GalleryRichtextReadonly({ value, className }: GalleryRichtextRea
   }, [value])
 
   if (html === null) {
-    return <div className="text-muted-foreground text-sm animate-pulse">Caricamento anteprima...</div>
+    return <div className="text-muted-foreground text-sm animate-pulse">{t("gallery.loadingPreview")}</div>
   }
 
   if (isRenderedEmpty(html)) {

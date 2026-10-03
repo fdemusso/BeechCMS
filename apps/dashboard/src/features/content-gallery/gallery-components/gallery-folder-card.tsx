@@ -3,16 +3,16 @@
 // See LICENSE in the repository root for license terms.
 
 import { Folder } from 'reicon-react'
+import { useTranslation } from "react-i18next"
+import type { TFunction } from "i18next"
 
 import type { GalleryCategoryGroup } from "../group-by-category"
 import { GALLERY_CARD_SURFACE_CLASS } from "./gallery-card-surface"
 
 const MAX_PREVIEWS = 3
 
-export const UNCATEGORIZED_LABEL = "Altre foto"
-
-export function formatItemCount(count: number): string {
-  return count === 1 ? "1 foto" : `${count} foto`
+export function formatItemCount(t: TFunction, count: number): string {
+  return t("gallery.folders.itemCount", { count })
 }
 
 interface GalleryFolderCardProps {
@@ -21,7 +21,8 @@ interface GalleryFolderCardProps {
 }
 
 export function GalleryFolderCard({ group, onOpen }: GalleryFolderCardProps) {
-  const label = group.label ?? UNCATEGORIZED_LABEL
+  const { t } = useTranslation()
+  const label = group.label ?? t("gallery.folders.uncategorized")
   const previews = group.models
     .map((model) => model.imageUrl)
     .filter((url): url is string => !!url)
@@ -31,7 +32,7 @@ export function GalleryFolderCard({ group, onOpen }: GalleryFolderCardProps) {
     <button
       type="button"
       onClick={() => onOpen(group.key)}
-      aria-label={`Apri cartella ${label}, ${formatItemCount(group.models.length)}`}
+      aria-label={t("gallery.folders.openAriaLabel", { label, count: formatItemCount(t, group.models.length) })}
       className={GALLERY_CARD_SURFACE_CLASS}
     >
       <div className="flex h-36 w-full items-center justify-center bg-gradient-to-br from-muted/40 to-muted/80">
@@ -56,7 +57,7 @@ export function GalleryFolderCard({ group, onOpen }: GalleryFolderCardProps) {
         <Folder className="size-5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <h3 className="font-heading truncate text-base font-semibold">{label}</h3>
-          <p className="text-sm text-muted-foreground">{formatItemCount(group.models.length)}</p>
+          <p className="text-sm text-muted-foreground">{formatItemCount(t, group.models.length)}</p>
         </div>
       </div>
     </button>

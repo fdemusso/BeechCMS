@@ -851,7 +851,35 @@
     "status": "Stato",
     "noContent": "Nessun campo contenuto.",
     "edit": "Modifica",
-    "cover": "Copertina"
+    "cover": "Copertina",
+    "untitled": "Senza titolo",
+    "preview": "Anteprima",
+    "imageUnavailable": "Immagine non disponibile",
+    "openDetailAriaLabel": "Apri dettaglio: {{title}}",
+    "openDetailAriaLabelFallback": "Apri dettaglio entry {{id}}",
+    "loadingPreview": "Caricamento anteprima...",
+    "missingUpdatePermission": "Manca il permesso 'content:update'",
+    "tags": {
+      "label": "Tag",
+      "more": "+{{count}} altri",
+      "showLess": "Mostra meno"
+    },
+    "folders": {
+      "title": "Le tue cartelle",
+      "sectionAriaLabel": "Cartelle",
+      "backToFolders": "Torna alle cartelle",
+      "addPhotoHere": "Aggiungi foto qui",
+      "newFolder": "Nuova cartella",
+      "newFolderDescription": "Scrivi il nome della cartella, per esempio “Matrimonio”. Poi aggiungi la prima foto.",
+      "namePlaceholder": "Nome della cartella",
+      "createAndAddPhoto": "Crea e aggiungi foto",
+      "emptyTitle": "Non hai ancora nessuna cartella",
+      "emptyDescription": "Premi “Nuova cartella” per iniziare, poi aggiungi la prima foto.",
+      "uncategorized": "Altre foto",
+      "itemCount_one": "{{count}} foto",
+      "itemCount_other": "{{count}} foto",
+      "openAriaLabel": "Apri cartella {{label}}, {{count}}"
+    }
   },
   "siteHeader": {
     "settings": "Impostazioni",

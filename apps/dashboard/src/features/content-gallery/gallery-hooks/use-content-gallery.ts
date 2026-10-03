@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import type { Seed } from "@beechcms/core"
 
 import type { ContentEntry } from "@/lib/dynamic-columns"
@@ -33,6 +34,7 @@ export function useContentGallery(
   data: ContentEntry[],
   groupBy: string | null
 ): UseContentGalleryResult {
+  const { t, i18n } = useTranslation()
   const [peekId, setPeekId] = React.useState<string | null>(null)
 
   const peekEntry = React.useMemo(
@@ -49,8 +51,8 @@ export function useContentGallery(
   const cardFields = React.useMemo(() => resolveCardFields(seed, groupBy), [seed, groupBy])
 
   const cardModels = React.useMemo(
-    () => data.map((entry) => buildGalleryCardDisplayModel(entry, cardFields)),
-    [data, cardFields]
+    () => data.map((entry) => buildGalleryCardDisplayModel(entry, cardFields, t, i18n.language)),
+    [data, cardFields, t, i18n.language]
   )
 
   const categoryAlias = cardFields.categoryBranch?.alias ?? null

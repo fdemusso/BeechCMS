@@ -851,7 +851,35 @@
     "status": "Status",
     "noContent": "No content fields.",
     "edit": "Edit",
-    "cover": "Cover"
+    "cover": "Cover",
+    "untitled": "Untitled",
+    "preview": "Preview",
+    "imageUnavailable": "Image unavailable",
+    "openDetailAriaLabel": "Open detail: {{title}}",
+    "openDetailAriaLabelFallback": "Open detail for entry {{id}}",
+    "loadingPreview": "Loading preview...",
+    "missingUpdatePermission": "Missing 'content:update' permission",
+    "tags": {
+      "label": "Tags",
+      "more": "+{{count}} more",
+      "showLess": "Show less"
+    },
+    "folders": {
+      "title": "Your folders",
+      "sectionAriaLabel": "Folders",
+      "backToFolders": "Back to folders",
+      "addPhotoHere": "Add photo here",
+      "newFolder": "New folder",
+      "newFolderDescription": "Type the folder name, for example “Wedding”. Then add the first photo.",
+      "namePlaceholder": "Folder name",
+      "createAndAddPhoto": "Create and add photo",
+      "emptyTitle": "You don't have any folders yet",
+      "emptyDescription": "Press “New folder” to get started, then add the first photo.",
+      "uncategorized": "Other photos",
+      "itemCount_one": "{{count}} photo",
+      "itemCount_other": "{{count}} photos",
+      "openAriaLabel": "Open folder {{label}}, {{count}}"
+    }
   },
   "siteHeader": {
     "settings": "Settings",

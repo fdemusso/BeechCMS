@@ -4,6 +4,7 @@
 
 import * as React from "react"
 import { useSearchParams } from "react-router-dom"
+import { useTranslation } from "react-i18next"
 import { ChevronLeft, FolderAdd, Image as ImageIcon } from 'reicon-react'
 
 import { Button } from "@/components/ui/button"
@@ -18,7 +19,6 @@ import type { GalleryCardDisplayModel } from "./gallery-card-display"
 import { GalleryCard } from "./gallery-components/gallery-card"
 import {
   GalleryFolderCard,
-  UNCATEGORIZED_LABEL,
   formatItemCount,
 } from "./gallery-components/gallery-folder-card"
 import { GalleryNewFolderDialog } from "./gallery-components/gallery-new-folder-dialog"
@@ -33,6 +33,24 @@ const FOLDER_PARAM = "album"
 /** Valore del parametro per la cartella "Altre foto" (foto senza categoria). */
 const UNCATEGORIZED_PARAM = "__altre"
 
+/**
+ * Griglia condivisa da card foto e card cartella, perché occupino esattamente
+ * lo stesso spazio: auto-fit, 220px min / 420px max per evitare card troppo
+ * larghe su monitor 21:9 dove 1fr diventerebbe enorme. clamp(220px, ...) non
+ * è supportato direttamente in grid-template-columns, quindi usiamo minmax
+ * con un cap esplicito.
+ */
+function GalleryGridContainer({ children }: { readonly children: React.ReactNode }) {
+  return (
+    <div
+      className="grid gap-5"
+      style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 420px))", justifyContent: "center" }}
+    >
+      {children}
+    </div>
+  )
+}
+
 function GalleryGrid({
   models,
   onOpen,
@@ -41,15 +59,11 @@ function GalleryGrid({
   readonly onOpen: (entryId: string) => void
 }) {
   return (
-    // auto-fill: si adatta da 280px min a 420px max per evitare card
-    // troppo larghe su monitor 21:9 dove 1fr diventerebbe enorme.
-    // clamp(280px, ...) non è supportato direttamente in grid-template-columns
-    // quindi usiamo minmax con un cap esplicito.
-    <div className="grid gap-5" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 420px))", justifyContent: "center" }}>
+    <GalleryGridContainer>
       {models.map((model) => (
         <GalleryCard key={model.entryId} model={model} onOpen={onOpen} />
       ))}
-    </div>
+    </GalleryGridContainer>
   )
 }
 
@@ -61,6 +75,7 @@ export function ContentGallery({
   onCreate,
   groupBy,
 }: ContentGalleryProps) {
+  const { t } = useTranslation()
   const { setPeekId, peekEntry, cardModels, categoryGroups, categoryAlias } = useContentGallery(seed, data, groupBy)
   const [searchParams, setSearchParams] = useSearchParams()
   const [newFolderOpen, setNewFolderOpen] = React.useState(false)
@@ -113,9 +128,9 @@ export function ContentGallery({
             <EmptyMedia variant="icon">
               <ImageIcon className="size-5" />
             </EmptyMedia>
-            <EmptyTitle>Nessun elemento da visualizzare</EmptyTitle>
+            <EmptyTitle>{t("gallery.noItems")}</EmptyTitle>
             <EmptyDescription>
-              Non ci sono contenuti disponibili per questa vista galleria.
+              {t("gallery.noItemsDesc")}
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -138,16 +153,16 @@ export function ContentGallery({
   return (
     <>
       {openGroup ? (
-        <section aria-label={openGroup.label ?? UNCATEGORIZED_LABEL}>
+        <section aria-label={openGroup.label ?? t("gallery.folders.uncategorized")}>
           <div className="mb-5 flex flex-wrap items-center gap-3">
             <Button variant="outline" size="lg" onClick={closeFolder}>
               <ChevronLeft className="size-4" />
-              Torna alle cartelle
+              {t("gallery.folders.backToFolders")}
             </Button>
             <h3 className="font-heading flex flex-1 items-baseline gap-2 text-xl font-semibold">
-              {openGroup.label ?? UNCATEGORIZED_LABEL}
+              {openGroup.label ?? t("gallery.folders.uncategorized")}
               <span className="text-sm font-normal text-muted-foreground">
-                {formatItemCount(openGroup.models.length)}
+                {formatItemCount(t, openGroup.models.length)}
               </span>
             </h3>
             {onCreate && (
@@ -156,20 +171,20 @@ export function ContentGallery({
                 onClick={() => onCreate(openGroup.label ? { [categoryAlias]: openGroup.label } : {})}
               >
                 <ImageIcon className="size-4" />
-                Aggiungi foto qui
+                {t("gallery.folders.addPhotoHere")}
               </Button>
             )}
           </div>
           <GalleryGrid models={openGroup.models} onOpen={setPeekId} />
         </section>
       ) : (
-        <section aria-label="Cartelle">
+        <section aria-label={t("gallery.folders.sectionAriaLabel")}>
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="font-heading text-xl font-semibold">Le tue cartelle</h3>
+            <h3 className="font-heading text-xl font-semibold">{t("gallery.folders.title")}</h3>
             {onCreate && (
               <Button size="lg" onClick={() => setNewFolderOpen(true)}>
                 <FolderAdd className="size-4" />
-                Nuova cartella
+                {t("gallery.folders.newFolder")}
               </Button>
             )}
           </div>
@@ -179,17 +194,14 @@ export function ContentGallery({
                 <EmptyMedia variant="icon">
                   <FolderAdd className="size-5" />
                 </EmptyMedia>
-                <EmptyTitle>Non hai ancora nessuna cartella</EmptyTitle>
+                <EmptyTitle>{t("gallery.folders.emptyTitle")}</EmptyTitle>
                 <EmptyDescription>
-                  Premi “Nuova cartella” per iniziare, poi aggiungi la prima foto.
+                  {t("gallery.folders.emptyDescription")}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
           ) : (
-            <div
-              className="grid gap-5"
-              style={{ gridTemplateColumns: "repeat(auto-fill, minmax(min(100%, 220px), 280px))" }}
-            >
+            <GalleryGridContainer>
               {categoryGroups.map((group) => (
                 <GalleryFolderCard
                   key={group.key ?? UNCATEGORIZED_PARAM}
@@ -197,7 +209,7 @@ export function ContentGallery({
                   onOpen={openFolder}
                 />
               ))}
-            </div>
+            </GalleryGridContainer>
           )}
         </section>
       )}

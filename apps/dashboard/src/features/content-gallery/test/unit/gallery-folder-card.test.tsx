@@ -4,10 +4,10 @@
 
 import { describe, it, expect, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
+import i18n from "i18next"
 
 import {
   GalleryFolderCard,
-  UNCATEGORIZED_LABEL,
   formatItemCount,
 } from "@/features/content-gallery/gallery-components/gallery-folder-card"
 import type { GalleryCategoryGroup } from "@/features/content-gallery/group-by-category"
@@ -17,17 +17,22 @@ import type { GalleryCardDisplayModel } from "@/features/content-gallery/gallery
 // Helpers
 // ---------------------------------------------------------------------------
 
+// Test env lingua di default "en" (src/test/setup.ts): le assertion sotto
+// usano le stringhe inglesi, prese dalla stessa istanza i18next reale usata
+// dal componente (nessuna duplicazione a mano della logica di pluralizzazione).
+const t = i18n.t.bind(i18n)
+
 function makeModel(imageUrl: string | null): GalleryCardDisplayModel {
   return {
     entryId: imageUrl ?? "no-image",
     status: "published",
     tags: [],
-    category: "Matrimonio",
+    category: "Wedding",
     imageUrl,
-    title: "Foto",
+    title: "Photo",
     excerpt: "",
     dateText: "",
-    ariaLabel: "Apri dettaglio: Foto",
+    ariaLabel: "Open detail: Photo",
     statusVariant: "default",
     hasPendingDraft: false,
   }
@@ -35,8 +40,8 @@ function makeModel(imageUrl: string | null): GalleryCardDisplayModel {
 
 function makeGroup(overrides: Partial<GalleryCategoryGroup> = {}): GalleryCategoryGroup {
   return {
-    key: "matrimonio",
-    label: "Matrimonio",
+    key: "wedding",
+    label: "Wedding",
     models: [makeModel("a.jpg"), makeModel("b.jpg")],
     ...overrides,
   }
@@ -48,12 +53,12 @@ function makeGroup(overrides: Partial<GalleryCategoryGroup> = {}): GalleryCatego
 
 describe("formatItemCount", () => {
   it("usa il singolare per una sola foto", () => {
-    expect(formatItemCount(1)).toBe("1 foto")
+    expect(formatItemCount(t, 1)).toBe("1 photo")
   })
 
   it("usa il plurale per zero o più foto", () => {
-    expect(formatItemCount(0)).toBe("0 foto")
-    expect(formatItemCount(2)).toBe("2 foto")
+    expect(formatItemCount(t, 0)).toBe("0 photos")
+    expect(formatItemCount(t, 2)).toBe("2 photos")
   })
 })
 
@@ -64,13 +69,13 @@ describe("formatItemCount", () => {
 describe("GalleryFolderCard", () => {
   it("mostra l'etichetta del gruppo e il conteggio foto", () => {
     render(<GalleryFolderCard group={makeGroup()} onOpen={vi.fn()} />)
-    expect(screen.getByText("Matrimonio")).toBeInTheDocument()
-    expect(screen.getByText("2 foto")).toBeInTheDocument()
+    expect(screen.getByText("Wedding")).toBeInTheDocument()
+    expect(screen.getByText("2 photos")).toBeInTheDocument()
   })
 
-  it("usa UNCATEGORIZED_LABEL quando il gruppo non ha un'etichetta", () => {
+  it("usa l'etichetta 'senza categoria' quando il gruppo non ne ha una propria", () => {
     render(<GalleryFolderCard group={makeGroup({ key: null, label: null })} onOpen={vi.fn()} />)
-    expect(screen.getByText(UNCATEGORIZED_LABEL)).toBeInTheDocument()
+    expect(screen.getByText("Other photos")).toBeInTheDocument()
   })
 
   it("mostra al massimo 3 anteprime, ignorando le entry senza immagine", () => {
@@ -98,9 +103,9 @@ describe("GalleryFolderCard", () => {
     const onOpen = vi.fn()
     render(<GalleryFolderCard group={makeGroup()} onOpen={onOpen} />)
 
-    const button = screen.getByRole("button", { name: "Apri cartella Matrimonio, 2 foto" })
+    const button = screen.getByRole("button", { name: "Open folder Wedding, 2 photos" })
     button.click()
 
-    expect(onOpen).toHaveBeenCalledWith("matrimonio")
+    expect(onOpen).toHaveBeenCalledWith("wedding")
   })
 })

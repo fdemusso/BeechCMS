@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 import type { Seed } from "@beechcms/core"
 import { Edit as Pencil } from 'reicon-react'
 
@@ -87,6 +88,7 @@ export function GalleryPeekPanel({
   onClose,
   onEdit,
 }: GalleryPeekPanelProps) {
+  const { t } = useTranslation()
   const { can } = usePermissions()
   const canUpdate = can('content:update', seed.slug)
 
@@ -138,7 +140,7 @@ export function GalleryPeekPanel({
           <div className="relative h-[200px] w-full shrink-0 overflow-hidden">
             <img
               src={coverImageUrl!}
-              alt={title || "Copertina"}
+              alt={title || t("gallery.cover")}
               className="h-full w-full object-cover"
             />
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/80 via-background/20 to-transparent" />
@@ -159,7 +161,7 @@ export function GalleryPeekPanel({
               <GalleryDetailTags tags={tags} />
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1.5">
-                  <span className="font-medium">Stato</span>
+                  <span className="font-medium">{t("gallery.status")}</span>
                   <Badge
                     variant="outline"
                     className={cn("text-[11px] font-medium", statusBadgeClass(entry.status?.trim() || ""))}
@@ -171,7 +173,7 @@ export function GalleryPeekPanel({
                       variant="outline"
                       className={cn("text-[11px] font-medium", pendingDraftBadgeClass)}
                     >
-                      Bozza in sospeso
+                      {t("content.table.pendingDraft")}
                     </Badge>
                   )}
                 </span>
@@ -194,7 +196,7 @@ export function GalleryPeekPanel({
                 onClick={() => onEdit(entry.id)}
               >
                 <Pencil className="size-3.5" />
-                Modifica
+                {t("gallery.edit")}
               </Button>
             ) : (
               <Tooltip>
@@ -208,12 +210,12 @@ export function GalleryPeekPanel({
                       disabled
                     >
                       <Pencil className="size-3.5" />
-                      Modifica
+                      {t("gallery.edit")}
                     </Button>
                   </span>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  Manca il permesso 'content:update'
+                  {t("gallery.missingUpdatePermission")}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -227,7 +229,7 @@ export function GalleryPeekPanel({
             <div className="shrink-0 border-b border-border bg-muted/30 px-6">
               <TabsList variant="line" className="h-10 w-full justify-start gap-1 bg-transparent p-0">
                 <TabsTrigger value="content" className="text-sm">
-                  Contenuto
+                  {t("gallery.content")}
                 </TabsTrigger>
                 <TabsTrigger value="seo" className="text-sm">
                   SEO

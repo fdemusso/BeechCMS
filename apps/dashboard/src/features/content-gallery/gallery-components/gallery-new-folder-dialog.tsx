@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import * as React from "react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -23,6 +24,7 @@ interface GalleryNewFolderDialogProps {
 }
 
 export function GalleryNewFolderDialog({ open, onOpenChange, onConfirm }: GalleryNewFolderDialogProps) {
+  const { t } = useTranslation()
   const [name, setName] = React.useState("")
 
   React.useEffect(() => {
@@ -41,25 +43,25 @@ export function GalleryNewFolderDialog({ open, onOpenChange, onConfirm }: Galler
       <DialogContent>
         <form onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
-            <DialogTitle>Nuova cartella</DialogTitle>
+            <DialogTitle>{t("gallery.folders.newFolder")}</DialogTitle>
             <DialogDescription>
-              Scrivi il nome della cartella, per esempio “Matrimonio”. Poi aggiungi la prima foto.
+              {t("gallery.folders.newFolderDescription")}
             </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Nome della cartella"
-            aria-label="Nome della cartella"
+            placeholder={t("gallery.folders.namePlaceholder")}
+            aria-label={t("gallery.folders.namePlaceholder")}
             className="h-11 text-base"
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Annulla
+              {t("common.cancel")}
             </Button>
             <Button type="submit" disabled={!trimmed}>
-              Crea e aggiungi foto
+              {t("gallery.folders.createAndAddPhoto")}
             </Button>
           </DialogFooter>
         </form>

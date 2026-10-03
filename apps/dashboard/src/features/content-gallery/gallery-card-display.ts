@@ -2,6 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import type { TFunction } from "i18next"
+
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 import { extractTagChips, type TagChipData } from "@/lib/tags-utils"
@@ -85,13 +87,13 @@ function toExcerpt(value: unknown, maxChars = 50): string {
   return `${plain.slice(0, maxChars).trimEnd()}…`
 }
 
-function formatDate(value: unknown): string {
+function formatDate(value: unknown, language: string): string {
   if (value == null || value === "") return ""
   const rawNum = typeof value === "number" ? value : (typeof value === "string" && !isNaN(Number(value)) ? Number(value) : NaN)
   const finalVal = !isNaN(rawNum) && rawNum < 1e11 ? rawNum * 1000 : value
   const date = new Date(finalVal as string | number)
   if (Number.isNaN(date.getTime())) return String(value)
-  return date.toLocaleDateString("it-IT", {
+  return date.toLocaleDateString(language, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -100,7 +102,9 @@ function formatDate(value: unknown): string {
 
 export function buildGalleryCardDisplayModel(
   entry: ContentEntry,
-  branches: ResolvedCardFields
+  branches: ResolvedCardFields,
+  t: TFunction,
+  language: string
 ): GalleryCardDisplayModel {
   const status = entry.status?.trim() || "—"
   const tags = branches.tagsBranch
@@ -116,11 +120,11 @@ export function buildGalleryCardDisplayModel(
   const excerpt = branches.excerptBranch
     ? toExcerpt(entry.data[branches.excerptBranch.alias], 90)
     : ""
-  const dateText = branches.dateBranch ? formatDate(entry.data[branches.dateBranch.alias]) : ""
+  const dateText = branches.dateBranch ? formatDate(entry.data[branches.dateBranch.alias], language) : ""
 
   const ariaLabel = title
-    ? `Apri dettaglio: ${title}`
-    : `Apri dettaglio entry ${entry.id}`
+    ? t("gallery.openDetailAriaLabel", { title })
+    : t("gallery.openDetailAriaLabelFallback", { id: entry.id })
 
   return {
     entryId: entry.id,

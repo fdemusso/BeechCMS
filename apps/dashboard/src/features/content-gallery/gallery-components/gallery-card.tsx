@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Calendar, Image as ImageIcon, Image as ImageOff } from 'reicon-react'
 
 import { Badge } from "@/components/ui/badge"
@@ -28,6 +29,7 @@ function statusBadgeClass(status: string): string {
 }
 
 export function GalleryCard({ model, onOpen }: GalleryCardProps) {
+  const { t } = useTranslation()
   const [imgError, setImgError] = useState(false)
   const showImage = !!model.imageUrl && !imgError
 
@@ -43,7 +45,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
         {showImage ? (
           <img
             src={model.imageUrl!}
-            alt={model.title || "Anteprima"}
+            alt={model.title || t("gallery.preview")}
             className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
             loading="lazy"
             onError={() => setImgError(true)}
@@ -54,7 +56,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
               <>
                 <ImageOff className="size-7 text-muted-foreground/30" />
                 <span className="text-[10px] text-muted-foreground/50">
-                  Immagine non disponibile
+                  {t("gallery.imageUnavailable")}
                 </span>
               </>
             ) : (
@@ -82,7 +84,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
                 pendingDraftBadgeClass,
               )}
             >
-              Bozza in sospeso
+              {t("content.table.pendingDraft")}
             </Badge>
           )}
         </div>
@@ -95,7 +97,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
           "font-heading line-clamp-2 text-sm font-semibold leading-snug text-foreground",
           !model.title && "text-muted-foreground italic",
         )}>
-          {model.title || "Senza titolo"}
+          {model.title || t("gallery.untitled")}
         </h3>
 
         {/* Excerpt */}
