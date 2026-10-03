@@ -14,8 +14,13 @@ You are an independent Review Agent operating with a fresh context. You did not 
 3. **Runtime Verification:** If the sprint changes user-visible behavior (API responses, dashboard UI), verify it at runtime (`/verify` skill, or `pnpm beech dev` and exercise the affected flow). A green test suite alone does not prove a UI bug is fixed.
 4. **Invariant Audit:** Check the diff against the ponytail invariants: no D1 access bypassing `@beechcms/core` (`apiToDb`/`dbToApi`), no hardcoded field names (Branch IDs `br_XX` only), no cross-slice imports in `apps/api/features/` or `apps/dashboard/src/features/`, and nothing touching the plan's "SECTION 7 — OUT OF SCOPE".
 5. **Test Audit:** For every test file in the diff, walk the §8 checklist in `_config/testing_conventions.md`. A `MUST` violation is a blocking finding, ranked with correctness bugs — a green suite written against hand-rolled fixtures is the exact failure mode this pipeline exists to prevent.
-6. **Acceptance Criteria:** Walk "SECTION 6 — ACCEPTANCE CRITERIA" item by item, verifying each one independently.
-7. **Verdict:**
+6. **Plan Conformance:** The plan is a high-level map, so conformance is NOT a byte-for-byte match with the plan. Check three things:
+   - **Building blocks:** what the plan writes verbatim (SQL DDL, exported types/interfaces/signatures, props, route and permission rows, error codes, constants) matches exactly.
+   - **Decisions:** every decision the plan takes is honoured: chosen approach, file placement, the deliverables list in SECTION 3 and nothing beyond it.
+   - **Behaviour:** every prose rule and invariant in SECTION 4 holds in the code.
+   Implementation choices inside those bounds (function bodies, internal helpers, naming of locals) are not deviations and are never findings. A violated decision, an altered building block or a broken rule is a REWORK_CODE finding.
+7. **Acceptance Criteria:** Walk "SECTION 6 — ACCEPTANCE CRITERIA" item by item, verifying each one independently.
+8. **Verdict:**
    - Everything passes -> **PASS**.
    - Implementation defects -> **REWORK_CODE**: list precise, actionable findings (file:line, what is wrong, expected behavior). The execution stage will re-run against your report.
    - The plan itself is flawed (wrong design, missing requirement, invariant violation baked into the spec) -> **REWORK_PLAN**: append the reason to `../01_sprint_planning/output/rejections.md` (dated, with the plan filename) and state it in the report.

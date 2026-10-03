@@ -20,10 +20,13 @@ SECTION 3 — DELIVERABLES
 ==========================================================================
 SECTION 4 — TASK DETAILS
 ==========================================================================
-[Provide surgical implementation details for the downstream agent. 
-- For D1 migrations: provide the exact SQLite `CREATE TABLE` and `CREATE INDEX` statements.
-- For TypeScript: provide the exact interfaces, types, and stubs, including correct imports and strict typings.
-Leave zero ambiguity.]
+[Hand the executor the result of your research, not pre-written code. The executor trusts this section instead of re-searching the repo.
+- Per task: the chosen approach plus a one-line reason. No open alternatives.
+- Files to create/edit/delete, the exact symbols involved, and `path:line` pointers to the existing pattern to copy.
+- Verbatim ONLY for building blocks other code depends on: D1 SQL DDL (`CREATE TABLE`, `CREATE INDEX`, `ALTER`), exported TypeScript interfaces/types and function signatures (stubs = signatures, never bodies), component props, route + permission rows, error codes, constants.
+- Everything else in prose: rules, invariants, edge cases, data flow. No function bodies, no JSX, no test code.
+- Tests: per file, tier + path + fixture source + one line per `it()` (behaviour and outcome).
+Zero ambiguity comes from decisions and pointers, not from pasted code. The whole plan is at most 1000 lines (a ceiling, not a target); see stages/01_sprint_planning/CONTEXT.md step 5.]
 
 ==========================================================================
 SECTION 5 — VALIDATION
