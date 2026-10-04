@@ -4,7 +4,7 @@
 
 import { api } from "./api"
 import type { ContentEntry } from "./dynamic-columns"
-import type { FilterGroup, SeedViewConfig } from "@beechcms/core"
+import type { FilterGroup } from "@beechcms/core"
 
 export interface ContentFacets {
   statuses: string[]
@@ -147,16 +147,6 @@ export async function fetchKanbanColumn(slug: string, params: KanbanColumnQueryP
       filters: params.filters ? JSON.stringify(params.filters) : undefined,
     },
   })
-  return res.data
-}
-
-export async function fetchSeedViewConfig(slug: string): Promise<SeedViewConfig> {
-  const res = await api.get<SeedViewConfig>(`/content/${slug}/view-config`)
-  return res.data
-}
-
-export async function updateSeedViewConfig(slug: string, config: SeedViewConfig): Promise<{ ok: boolean }> {
-  const res = await api.put<{ ok: boolean }>(`/content/${slug}/view-config`, config)
   return res.data
 }
 

@@ -13,7 +13,7 @@ import { facetsHandler } from './handlers/facets'
 import { bulkHandler } from './handlers/bulk.handler'
 import { kanbanPositionHandler } from './handlers/kanban-position'
 import { kanbanMoveHandler } from './handlers/kanban-move'
-import { getViewConfigHandler, putViewConfigHandler } from './handlers/view-config'
+import { listViewsHandler, createViewHandler, updateViewHandler, deleteViewHandler, reorderViewsHandler } from './handlers/views'
 import { trashListHandler, restoreHandler, bulkRestoreHandler, bulkPurgeHandler, reconcilePurgesHandler } from './handlers/trash'
 import { exportHandler } from './handlers/export'
 import { importHandler } from './handlers/import'
@@ -27,8 +27,11 @@ content.get('/import-jobs/:id', importJobStatusHandler)
 
 content.patch('/:slug/:id/kanban-move', kanbanMoveHandler)
 content.patch('/:slug/:id/kanban-position', kanbanPositionHandler)
-content.get('/:slug/view-config', getViewConfigHandler)
-content.put('/:slug/view-config', putViewConfigHandler)
+content.get('/:slug/views', listViewsHandler)                       // before /:slug/:id
+content.post('/:slug/views', createViewHandler)
+content.put('/:slug/views/order', reorderViewsHandler)              // literal segment, before /:slug/views/:viewId
+content.patch('/:slug/views/:viewId', updateViewHandler)
+content.delete('/:slug/views/:viewId', deleteViewHandler)
 content.get('/:slug/trash', trashListHandler)                       // NEW — before /:slug/:id
 content.post('/:slug/trash/bulk-restore', bulkRestoreHandler)       // NEW
 content.post('/:slug/trash/bulk-purge', bulkPurgeHandler)           // NEW
