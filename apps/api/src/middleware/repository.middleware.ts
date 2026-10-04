@@ -21,6 +21,7 @@ import { D1SiteSettingsRepository } from '../shared/db/repositories/site-setting
 import { D1DemoDataRepository } from '../shared/db/repositories/demo-data.repository.d1'
 import { D1SetupChecklistRepository } from '../shared/db/repositories/d1-setup-checklist.repository'
 import { D1SeedLayoutRepository } from '../shared/db/repositories/seed-layout.repository.d1'
+import { D1ContentViewRepository } from '../shared/db/repositories/content-view.repository.d1'
 import { D1DashboardLayoutRepository } from '../shared/db/repositories/dashboard-layout.repository.d1'
 import { D1SeedRepository } from '../shared/db/repositories/seed.repository.d1'
 import { D1SchemaMutator } from '../shared/db/migrations/schema-mutator.d1'
@@ -34,7 +35,7 @@ import { D1RoleRepository } from '../shared/db/repositories/d1-role.repository'
 import { D1RoleAssignmentRepository } from '../shared/db/repositories/d1-role-assignment.repository'
 import { D1InvitationRepository } from '../shared/db/repositories/d1-invitation.repository'
 import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService, PermissionRoleGuard } from '@beechcms/core'
-import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, IRoleRepository, IRoleAssignmentRepository, IInvitationRepository, IDeletionLedger } from '@beechcms/core'
+import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, IRoleRepository, IRoleAssignmentRepository, IInvitationRepository, IDeletionLedger, IContentViewRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations/engine/automation-runner'
 import { D1AutomationRepository } from '../shared/db/repositories/automations.repository.d1'
@@ -65,6 +66,7 @@ interface RepositoryOverrides {
   siteSettingsRepository?: ISiteSettingsRepository
   demoDataRepository?: IDemoDataRepository
   seedLayoutRepository?: ISeedLayoutRepository
+  contentViewRepository?: IContentViewRepository
   seedRepository?: ISeedRepository
   schemaMutator?: ISchemaMutator
   dashboardLayoutRepository?: IDashboardLayoutRepository
@@ -150,6 +152,7 @@ export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
     context.set('demoDataRepository', overrides?.demoDataRepository ?? new D1DemoDataRepository(database))
     context.set('setupChecklistRepository', new D1SetupChecklistRepository(database))
     context.set('seedLayoutRepository', overrides?.seedLayoutRepository ?? new D1SeedLayoutRepository(database))
+    context.set('contentViewRepository', overrides?.contentViewRepository ?? new D1ContentViewRepository(database, resolvedIdGenerator, resolvedClock))
     context.set('seedRepository', overrides?.seedRepository ?? new D1SeedRepository(database))
     context.set('schemaMutator', overrides?.schemaMutator ?? new D1SchemaMutator(database))
     context.set('dashboardLayoutRepository', overrides?.dashboardLayoutRepository ?? new D1DashboardLayoutRepository(database))

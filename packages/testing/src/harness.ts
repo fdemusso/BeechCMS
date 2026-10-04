@@ -9,7 +9,7 @@ import { FakeTokenService } from './services/fake-token.service'
 import { TEST_ENV, type TestEnv } from './env'
 import { CANONICAL_SEEDS } from './seeds/canonical.seeds'
 import { CANONICAL_USERS, type CanonicalUser, type CanonicalUserKey } from './seeds/canonical.data'
-import { provisionSeeds, resetContentTables, seedUsers } from './seeds/provision'
+import { provisionSeeds, resetContentTables, resetSeedViews, seedUsers } from './seeds/provision'
 import { createTestClient, type TestClient } from './client/test-client'
 
 /** Structural type of a Hono app — keeps this package independent of `@beechcms/api`. */
@@ -65,6 +65,7 @@ export async function createTestHarness(options: HarnessOptions): Promise<TestHa
   const seeds = options.seeds ?? CANONICAL_SEEDS
   await provisionSeeds(options.db, seeds, clock.nowSeconds())
   await resetContentTables(options.db, seeds)
+  await resetSeedViews(options.db)
   await seedUsers(options.db, options.users ?? Object.values(CANONICAL_USERS))
 
   const app = options.createApp({ clock, tokenService })

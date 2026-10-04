@@ -38,6 +38,19 @@ export async function resetContentTables(db: D1Database, seeds: readonly Seed[])
 }
 
 /**
+ * Clears dashboard view instances. D1 is isolated per test *file* (see resetContentTables), and
+ * GET /api/content/:slug/views bootstraps rows on first read, so a prior test's rows would
+ * otherwise change what the next test's first read returns.
+ */
+export async function resetSeedViews(db: D1Database): Promise<void> {
+  try {
+    await db.prepare('DELETE FROM seed_views').run()
+  } catch {
+    // Database migrated before 0033 (no seed_views table) — nothing to clear.
+  }
+}
+
+/**
  * Registers seeds in the `seeds` table (so seedRegistryMiddleware hydrates them from D1)
  * and materializes their physical storage via the engine's DDL planner.
  */

@@ -26,6 +26,11 @@ export const CONTENT_ERRORS = {
   IMPORT_JOBS_SEED_MISSING: 'The import_jobs system content type is not installed — run database migrations',
   IMPORT_JOB_NOT_FOUND: 'Import job not found',
   IMPORT_JOB_FORBIDDEN: 'Not authorized to read this import job',
+  INVALID_VIEW: 'Invalid view payload',
+  VIEW_NOT_FOUND: 'View not found',
+  VIEW_TYPE_NOT_AUTHORIZED: 'This view type is not authorized for this content type',
+  VIEW_LAST_TABLE: 'A content type must keep at least one Table view',
+  VIEW_ORDER_MISMATCH: 'The order must list every visible view of this content type exactly once',
 } as const
 
 /**

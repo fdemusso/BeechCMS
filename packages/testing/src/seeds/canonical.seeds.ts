@@ -33,6 +33,7 @@ export const CANONICAL_SEEDS: readonly Seed[] = [
     allowPublicPost: true,
     allowPublicEdit: true,
     allowDrafts: true,
+    dashboard: { views: ['table', 'gallery'] },
     branches: [
       { id: 'br_01', alias: 'title', label: 'Title', type: 'text', requiredOnCreate: true, policies: { public: true } },
       { id: 'br_02', alias: 'body', label: 'Body', type: 'richtext', policies: { public: true } },
