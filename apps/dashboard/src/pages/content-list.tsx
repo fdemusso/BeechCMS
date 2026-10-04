@@ -5,6 +5,7 @@
 import * as React from "react"
 import { useTranslation } from "react-i18next"
 import { useNavigate, useParams, useSearchParams } from "react-router-dom"
+import { toast } from "sonner"
 import { Trash2 } from "reicon-react"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { Button } from "@/components/ui/button"
@@ -14,35 +15,28 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar"
 import { AppSidebar, SiteHeader } from "@/features/navigation"
-import { ContentGallery } from "@/features/content-gallery"
-import { ContentKanban, useKanbanEntrySync, useKanbanViewConfig } from "@/features/content-kanban"
-import { resolveKanbanConfig, resolveAuthorizedViews, isViewAuthorized } from "@beechcms/core"
-import type { DashboardView } from "@beechcms/core"
-import { viewRegistry } from "@/features/content-toolbar/view-registry"
-import {
-  ContentToolbar,
-  type UserViewInstance,
-} from "@/features/content-toolbar"
-import {
-  useContentListQuery,
-  useContentTableConfig,
-  useContentListModals,
-  ContentTableView,
-  ContentListModals,
-} from "@/features/content-management"
 import { useActiveSeed } from "@/features/schema"
-import type { ConditionalFormatRule } from "@/lib/conditional-format"
-import { downloadExport, readProblem } from "@/features/content-transfer"
-import { toast } from "sonner"
-import type { TransferFormat } from "@beechcms/core"
-
-/** La densità in vista gallery è no-op per ora: vedi commento sul relativo prop più sotto. */
-const NOOP_DENSITY_CHANGE = () => {}
+import { resolveAuthorizedViews, type ContentView, type DashboardView } from "@beechcms/core"
+import { ConfirmDialog } from "@/components/ui/confirm-dialog"
+import { DEFAULT_ENABLED_TOOLS, DEFAULT_VIEW_SETTINGS, ToolbarStrip, ViewSwitcher, type UserViewInstance } from "@/features/content-toolbar"
+import { viewRegistry } from "./view-registry"
+import {
+  resolveActiveViewId,
+  useContentViews,
+  useCreateContentView,
+  useDeleteContentView,
+  useReorderContentViews,
+  useUpdateContentView,
+  viewProblemType,
+  ViewEmptyState,
+} from "@/features/content-views"
+import { ContentViewWorkspace } from "./content-view-workspace"
 
 /**
  * Persistenza locale (per seed) della vista attiva in /admin/content/:slug.
- * Non gestisce la pulizia se il seed viene poi eliminato: la entry resta
- * orfana in localStorage, inoffensiva, finché non viene sovrascritta.
+ * Il valore memorizzato è un instance id. Non gestisce la pulizia se il seed
+ * viene poi eliminato: la entry resta orfana in localStorage, inoffensiva,
+ * finché non viene sovrascritta.
  */
 const ACTIVE_VIEW_STORAGE_PREFIX = "beech_content_view_"
 
@@ -56,146 +50,108 @@ function setStoredActiveView(slug: string | undefined, viewId: string): void {
   localStorage.setItem(`${ACTIVE_VIEW_STORAGE_PREFIX}${slug}`, viewId)
 }
 
+const EMPTY_VIEWS: ContentView[] = []
+
 export function ContentListPage() {
   const { slug } = useParams<{ slug: string; id?: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
   const { can } = usePermissions()
   const [searchParams] = useSearchParams()
-  const requestedView = searchParams.get("view")
 
   // Fetch the seed reactively
   const { seed, isLoading: isSeedLoading } = useActiveSeed(slug)
 
-  // 1. Modals & Actions Hook
-  const modals = useContentListModals(slug)
+  const requestedViewId = searchParams.get("view")
+  const viewsQuery = useContentViews(seed ? slug : undefined)
+  const views = viewsQuery.data ?? EMPTY_VIEWS
+  const createView = useCreateContentView(slug ?? "")
+  const updateView = useUpdateContentView(slug ?? "")
+  const deleteView = useDeleteContentView(slug ?? "")
+  const reorderViews = useReorderContentViews(slug ?? "")
+  const canManageViews = can("content:update", slug ?? "")
 
-  const [isExportPending, setIsExportPending] = React.useState(false)
-  const handleExport = React.useCallback(
-    async (format: TransferFormat) => {
-      if (!slug) return
-      setIsExportPending(true)
-      try {
-        await downloadExport(slug, format)
-      } catch (error) {
-        const problem = await readProblem(error)
-        toast.error(problem?.detail ?? t("transfer.export.errors.unknown"))
-      } finally {
-        setIsExportPending(false)
-      }
-    },
-    [slug, t],
+  const [selectedViewId, setSelectedViewId] = React.useState<string | null>(null)
+  const [viewPendingDelete, setViewPendingDelete] = React.useState<ContentView | null>(null)
+  const [emptyStateType, setEmptyStateType] = React.useState<DashboardView | null>(null)
+
+  const activeViewId = React.useMemo(
+    () => resolveActiveViewId(views, [selectedViewId, requestedViewId, getStoredActiveView(slug)]),
+    [views, selectedViewId, requestedViewId, slug]
   )
+  const activeView = views.find((view) => view.id === activeViewId)
 
-  // 2. Query, Filtering, Sorting & Pagination Hook
-  const query = useContentListQuery(slug, seed)
-
-  // 3. Views, Overlays & Kanban Config
-  const [activeViewId, setActiveViewId] = React.useState(() => getStoredActiveView(slug) ?? "table")
   const handleChangeView = React.useCallback(
     (viewId: string) => {
-      setActiveViewId(viewId)
+      setSelectedViewId(viewId)
       setStoredActiveView(slug, viewId)
+      setEmptyStateType(null)
     },
     [slug]
   )
-  const kanbanSync = useKanbanEntrySync(seed ?? undefined, slug ?? "")
-  const kanbanCompat = React.useMemo(() => (seed ? resolveKanbanConfig(seed) : null), [seed])
-  const {
-    kanbanConfig,
-    setKanbanConfig,
-    cardConfig,
-    setCardConfig,
-    isSaving: isKanbanConfigSaving,
-  } = useKanbanViewConfig(slug ?? "")
-
-  const kanbanCandidates = kanbanCompat?.compatible ? kanbanCompat.candidates : []
-  const kanbanAxisBranch = React.useMemo(
-    () => seed?.branches.find((b) => b.id === kanbanConfig?.axisBranchId),
-    [seed, kanbanConfig?.axisBranchId]
+  const handleReorderViews = React.useCallback(
+    (ids: string[]) => reorderViews.mutate(ids),
+    [reorderViews]
   )
 
-  // TODO: load and save view configuration at the user level (when a user preferences system exists).
-  const authorizedViews = React.useMemo<DashboardView[]>(
-    () => (seed ? resolveAuthorizedViews(seed) : ["table"]),
-    [seed]
+  const typeLabel = React.useCallback(
+    (type: DashboardView) => t(viewRegistry.get(type)?.labelKey ?? type),
+    [t]
   )
-
-  // Per-view mutable overlays (conditional formats, label overrides) — in-memory only.
-  const [viewOverlays, setViewOverlays] = React.useState<
-    Record<string, { conditionalFormats?: ConditionalFormatRule[]; label?: string }>
-  >({})
-
-  const views = React.useMemo<UserViewInstance[]>(
+  const switcherViews = React.useMemo<UserViewInstance[]>(
     () =>
-      authorizedViews.map((type) => {
-        const def = viewRegistry.get(type)
-        const overlay = viewOverlays[type] ?? {}
-        return {
-          id: type,
-          label: overlay.label ?? type,
-          type,
-          enabledTools: def?.enabledTools ?? ["filter", "search", "create"],
-          conditionalFormats: overlay.conditionalFormats ?? [],
+      views.map((view) => ({
+        id: view.id,
+        label: view.title ?? typeLabel(view.type),
+        type: view.type,
+        enabledTools: viewRegistry.get(view.type)?.enabledTools ?? DEFAULT_ENABLED_TOOLS,
+        settings: viewRegistry.get(view.type)?.settings ?? DEFAULT_VIEW_SETTINGS,
+      })),
+    [views, typeLabel]
+  )
+  const creatableViewTypes = React.useMemo(
+    () => (seed && canManageViews ? resolveAuthorizedViews(seed) : []),
+    [seed, canManageViews]
+  )
+  const tableViewCount = views.filter((view) => view.type === "table").length
+
+  const handleCreateView = React.useCallback(
+    (type: DashboardView) =>
+      createView.mutate(
+        { type },
+        {
+          onSuccess: (created) => handleChangeView(created.id),
+          onError: () => toast.error(t("content.views.errors.createFailed")),
         }
-      }),
-    [authorizedViews, viewOverlays]
+      ),
+    [createView, handleChangeView, t]
   )
-
-  React.useEffect(() => {
-    if (!seed) return
-    const stored = getStoredActiveView(slug)
-    const target =
-      requestedView && isViewAuthorized(seed, requestedView)
-        ? requestedView
-        : stored && authorizedViews.includes(stored as DashboardView)
-          ? stored
-          : "table"
-    setActiveViewId((cur) => (authorizedViews.includes(cur as DashboardView) ? cur : target))
-  }, [seed, slug, requestedView, authorizedViews])
-
-  const VIEW_LABELS: Record<string, string> = {
-    table: t("content.list.table"),
-    gallery: t("content.list.gallery"),
-    kanban: t("content.list.kanban", { defaultValue: "Kanban" }),
-  }
-  const translatedViews = React.useMemo(
-    () => views.map((v) => ({ ...v, label: VIEW_LABELS[v.type] ?? v.label })),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [views, t]
-  )
-
-  const activeView = React.useMemo(() => {
-    return views.find((v) => v.id === activeViewId)
-  }, [activeViewId, views])
-
-  const handleConditionalFormatsChange = React.useCallback(
-    (viewId: string, next: ConditionalFormatRule[]) => {
-      setViewOverlays((prev) => ({ ...prev, [viewId]: { ...prev[viewId], conditionalFormats: next } }))
-    },
-    []
-  )
-
   const handleRenameView = React.useCallback(
-    (viewId: string, label: string) => {
-      setViewOverlays((prev) => ({ ...prev, [viewId]: { ...prev[viewId], label } }))
-    },
-    []
+    (viewId: string, label: string) => updateView.mutate({ viewId, body: { title: label } }),
+    [updateView]
   )
-
-  // 4. Table Configuration Hook
-  const tableConfig = useContentTableConfig({
-    seed,
-    data: query.data,
-    pageSize: query.pageSize,
-    activeView,
-    selectedIds: modals.selectedIds,
-    handleEdit: modals.handleEdit,
-    handleDelete: modals.handleDelete,
-    handleBulkDelete: modals.handleBulkDelete,
-    handleBulkEdit: modals.handleBulkEdit,
-    t,
-  })
+  const handleRequestDeleteView = React.useCallback(
+    (viewId: string) => setViewPendingDelete(views.find((view) => view.id === viewId) ?? null),
+    [views]
+  )
+  const handleConfirmDeleteView = React.useCallback(() => {
+    if (!viewPendingDelete) return
+    const wasActive = viewPendingDelete.id === activeViewId
+    const isLastOfType = views.filter((view) => view.type === viewPendingDelete.type).length === 1
+    const type = viewPendingDelete.type
+    deleteView.mutate(viewPendingDelete.id, {
+      onSuccess: () => {
+        if (wasActive && isLastOfType && type !== "table") setEmptyStateType(type)
+      },
+      onError: (error) =>
+        toast.error(
+          viewProblemType(error) === "content-view-last-table"
+            ? t("content.views.errors.lastTable")
+            : t("content.views.errors.deleteFailed")
+        ),
+    })
+    setViewPendingDelete(null)
+  }, [deleteView, viewPendingDelete, activeViewId, views, t])
 
   // Show error if seed doesn't exist
   if (!seed && !isSeedLoading) {
@@ -213,7 +169,7 @@ export function ContentListPage() {
                       Error
                     </h2>
                     <p className="text-sm text-destructive/90">
-                      {query.error || `Seed "${slug}" not found`}
+                      {`Seed "${slug}" not found`}
                     </p>
                   </div>
                 </div>
@@ -225,8 +181,8 @@ export function ContentListPage() {
     )
   }
 
-  // Loading skeleton while seed is fetching
-  if (isSeedLoading || !seed) {
+  // Loading skeleton while the seed or the views are fetching
+  if (isSeedLoading || !seed || viewsQuery.isLoading) {
     return (
       <div className="[--header-height:calc(--spacing(14))]">
         <SidebarProvider className="flex flex-col">
@@ -255,7 +211,6 @@ export function ContentListPage() {
               <div className="content-area-inner">
                 {/* Header with title */}
                 <div className="mb-6 flex items-start justify-between">
-                  {/* TODO: Extract this header to a dedicated slice component */}
                   <div>
                     <h1 className="font-heading text-2xl font-semibold">{seed.labelPlural ?? seed.label}</h1>
                     <p className="text-muted-foreground text-sm">
@@ -270,165 +225,59 @@ export function ContentListPage() {
                   )}
                 </div>
 
-                {/* View toolbar, tools and content (table + controls) */}
-                {/* TODO: Consider moving ContentToolbar to content-management slice if not shared */}
-                <ContentToolbar
-                  seed={seed}
-                  views={translatedViews}
-                  activeViewId={activeViewId}
-                  onChangeView={handleChangeView}
-                  onRenameView={handleRenameView}
-                  onConditionalFormatsChange={handleConditionalFormatsChange}
-                  onCreate={modals.handleCreate}
-                  searchValue={query.tableSearch}
-                  onSearchChange={query.setTableSearch}
-                  sortState={{
-                    columnId: query.singleSort?.id ?? null,
-                    desc: query.singleSort?.desc ?? true,
-                  }}
-                  onSortChange={query.handleToolbarSortChange}
-                  filters={query.toolbarFilters}
-                  onFiltersChange={query.setToolbarFilters}
-                  availableTagsByColumnId={query.availableTagsByColumnId}
-                  availableStatusOptions={query.effectiveStatusOptions}
-                  pageSize={query.pageSize}
-                  onPageSizeChange={query.handlePageSizeChange}
-                  columnVisibility={tableConfig.columnVisibility}
-                  onColumnVisibilityChange={tableConfig.setColumnVisibility}
-                  groupBy={tableConfig.groupBy}
-                  onGroupByChange={tableConfig.setGroupBy}
-                  dateGroupPrecision={tableConfig.dateGroupPrecision}
-                  onDateGroupPrecisionChange={tableConfig.setDateGroupPrecision}
-                  onOpenAutomation={() => modals.setAutomationPanelOpen(true)}
-                  isAutomationActive={modals.automationPanelOpen}
-                  density={tableConfig.density}
-                  // La densità in vista gallery è no-op per ora: il controllo resta visibile
-                  // nel menu impostazioni (lo risolveremo quando la gallery avrà un suo
-                  // concetto di densità, es. card più/meno compatte) ma non deve toccare
-                  // lo stato della tabella.
-                  onDensityChange={activeViewId === "gallery" ? NOOP_DENSITY_CHANGE : tableConfig.setDensity}
-                  kanbanCandidates={kanbanCandidates}
-                  kanbanConfig={kanbanConfig}
-                  onKanbanConfigChange={setKanbanConfig}
-                  kanbanAxisBranch={kanbanAxisBranch}
-                  onOpenCardConfig={() => modals.setCardConfigOpen(true)}
-                  onExport={handleExport}
-                  onOpenImport={() => modals.setImportWizardOpen(true)}
-                  isExportPending={isExportPending}
-                >
-                  {query.error && (
-                    <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
-                      <p className="text-sm text-destructive">{query.error}</p>
-                    </div>
-                  )}
-                  {query.isLoading && !query.error && (
-                    activeViewId === "table" && (
-                      <div className="flex items-center justify-center py-12">
-                        <div className="text-muted-foreground">Loading...</div>
-                      </div>
-                    )
-                  )}
-                  {!query.isLoading && !query.error && activeViewId === "table" && (
-                    <ContentTableView
-                      seed={seed}
-                      slug={slug!}
-                      data={query.data}
-                      columns={tableConfig.columns}
-                      tableKey={tableConfig.tableKey}
-                      initialHiddenColumns={tableConfig.initialHiddenColumns}
-                      columnVisibility={tableConfig.columnVisibility}
-                      onColumnVisibilityChange={tableConfig.setColumnVisibility}
-                      columnSizing={tableConfig.columnSizing}
-                      onColumnSizingChange={tableConfig.setColumnSizing}
-                      density={tableConfig.density}
-                      getRowStyles={tableConfig.getRowStyles}
-                      rowSelection={modals.rowSelection}
-                      onRowSelectionChange={modals.setRowSelection}
-                      grouping={tableConfig.grouping}
-                      onGroupingChange={tableConfig.handleGroupingChange}
-                      pageSize={query.pageSize}
-                      onPageSizeChange={query.handlePageSizeChange}
-                      pageIndex={query.pageIndex}
-                      onPageIndexChange={query.setPageIndex}
-                      pageCount={query.pageCount}
-                      totalRows={query.totalRows}
-                      tableSearch={query.tableSearch}
-                      onSearchChange={query.setTableSearch}
-                      sorting={query.sorting}
-                      onSortingChange={query.handleTableSortingChange}
-                      columnFilters={query.columnFilters}
-                      isEmptySeed={query.isEmptySeed}
-                      selectedIds={modals.selectedIds}
-                      can={can}
-                      onEdit={modals.handleEdit}
-                      onDelete={modals.handleDelete}
-                      onBulkDelete={modals.handleBulkDelete}
-                      onCreate={modals.handleCreate}
-                      onCellActivate={query.applyCellFilter}
+                {viewsQuery.isError || (!activeView && !emptyStateType) ? (
+                  <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+                    <p className="text-sm text-destructive">{t("content.views.errors.loadFailed")}</p>
+                  </div>
+                ) : emptyStateType ? (
+                  <>
+                    <ToolbarStrip>
+                      <ViewSwitcher
+                        views={switcherViews}
+                        activeViewId={null}
+                        onChangeView={handleChangeView}
+                        onCreateView={canManageViews ? handleCreateView : undefined}
+                        creatableViewTypes={creatableViewTypes}
+                        onReorderViews={canManageViews ? handleReorderViews : undefined}
+                      />
+                    </ToolbarStrip>
+                    <ViewEmptyState
+                      typeLabel={typeLabel(emptyStateType)}
+                      onCreate={canManageViews ? () => handleCreateView(emptyStateType) : undefined}
                     />
-                  )}
-                  {!query.error && activeViewId === "gallery" && (
-                    <ContentGallery
-                      seed={seed}
-                      data={query.data}
-                      isLoading={query.isLoading}
-                      onEdit={modals.handleEdit}
-                      onCreate={modals.handleCreate}
-                      groupBy={tableConfig.groupBy}
-                    />
-                  )}
-                  {!query.error && activeViewId === "kanban" && slug && seed && (
-                    <ContentKanban
-                      seed={seed}
-                      seedSlug={slug}
-                      isLoading={query.isLoading}
-                      onEdit={modals.handleEdit}
-                      onCreateEntry={modals.handleCreate}
-                      search={query.debouncedSearch.trim() || undefined}
-                      kanbanConfig={kanbanConfig}
-                      setKanbanConfig={setKanbanConfig}
-                      cardConfig={cardConfig}
-                      setCardConfig={setCardConfig}
-                      isSaving={isKanbanConfigSaving}
-                    />
-                  )}
-                </ContentToolbar>
+                  </>
+                ) : (
+                  <ContentViewWorkspace
+                    key={activeView!.id}
+                    seed={seed}
+                    slug={slug!}
+                    view={activeView!}
+                    switcherViews={switcherViews}
+                    creatableViewTypes={creatableViewTypes}
+                    canManageViews={canManageViews}
+                    canDeleteView={canManageViews && !(activeView!.type === "table" && tableViewCount <= 1)}
+                    onChangeView={handleChangeView}
+                    onCreateView={canManageViews ? handleCreateView : undefined}
+                    onRenameView={canManageViews ? handleRenameView : undefined}
+                    onDeleteView={canManageViews ? handleRequestDeleteView : undefined}
+                    onReorderViews={canManageViews ? handleReorderViews : undefined}
+                  />
+                )}
               </div>
             </div>
           </SidebarInset>
         </div>
       </SidebarProvider>
 
-      <ContentListModals
-        seed={seed}
-        slug={slug}
-        activeViewId={activeViewId}
-        cardConfigOpen={modals.cardConfigOpen}
-        onCloseCardConfig={() => modals.setCardConfigOpen(false)}
-        cardConfig={cardConfig}
-        onSaveCardConfig={setCardConfig}
-        deleteDialogOpen={modals.deleteDialogOpen}
-        onOpenChangeDelete={modals.setDeleteDialogOpen}
-        entryIdsToDelete={modals.entryIdsToDelete}
-        onConfirmDelete={modals.handleConfirmDelete}
-        bulkEditOpen={modals.bulkEditOpen}
-        onOpenChangeBulkEdit={(open) => {
-          modals.setBulkEditOpen(open)
-          if (!open) modals.setRowSelection({})
-        }}
-        selectedIds={modals.selectedIds}
-        automationPanelOpen={modals.automationPanelOpen}
-        onOpenChangeAutomation={modals.setAutomationPanelOpen}
-        target={modals.target}
-        dialogOpen={modals.dialogOpen}
-        onCloseEntryEditor={modals.handleDialogClose}
-        createDefaults={modals.createDefaults}
-        readonly={!can("content:update", modals.target?.schemaSlug ?? "")}
-        onSaved={(info) => {
-          if (activeViewId === "kanban") kanbanSync(info)
-        }}
-        importWizardOpen={modals.importWizardOpen}
-        onOpenChangeImportWizard={modals.setImportWizardOpen}
+      <ConfirmDialog
+        open={viewPendingDelete !== null}
+        onOpenChange={(open) => { if (!open) setViewPendingDelete(null) }}
+        title={t("content.views.deleteConfirmTitle")}
+        description={t("content.views.deleteConfirmDescription", {
+          label: viewPendingDelete ? (viewPendingDelete.title ?? typeLabel(viewPendingDelete.type)) : "",
+        })}
+        confirmVariant="destructive"
+        onConfirm={handleConfirmDeleteView}
       />
     </div>
   )

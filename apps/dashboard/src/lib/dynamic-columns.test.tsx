@@ -16,9 +16,12 @@ vi.mock("sonner", () => ({
 import { toast } from "sonner"
 
 import type { Seed } from "@beechcms/core"
+import { CANONICAL_SEEDS } from "@beechcms/testing"
 import { DataTable } from "@/components/ui/data-table"
-import { generateColumns, computeMaxLengths } from "@/lib/dynamic-columns"
+import { generateColumns, computeMaxLengths, defaultHiddenColumns } from "@/lib/dynamic-columns"
 import type { ContentEntry } from "@/lib/dynamic-columns"
+
+const posts = CANONICAL_SEEDS.find((seed) => seed.slug === "posts")!
 
 vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, effective: {} }) }))
 
@@ -454,6 +457,26 @@ describe("dynamic-columns - generateColumns aggregazioni e azioni", () => {
       expect(await screen.findByText("customstatusb")).toBeInTheDocument()
       unmount()
     })
+  })
+})
+
+describe("defaultHiddenColumns", () => {
+  it("hides id, slug and created_at for the canonical posts seed", () => {
+    const hidden = defaultHiddenColumns(posts)
+
+    expect(hidden).toEqual(["id", "slug", "created_at"])
+  })
+
+  it("appends a json branch whose alias contains metadata after the system columns", () => {
+    // The canonical set has no json branch, so one is added here to exercise the metadata heuristic.
+    const seedWithMetadata: Seed = {
+      ...posts,
+      branches: [...posts.branches, { id: "br_11", alias: "metadata", label: "Metadata", type: "json" }],
+    }
+
+    const hidden = defaultHiddenColumns(seedWithMetadata)
+
+    expect(hidden).toEqual(["id", "slug", "created_at", "metadata"])
   })
 })
 

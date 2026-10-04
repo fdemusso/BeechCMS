@@ -45,6 +45,7 @@ import {
   ContentToolbar,
   type UserViewInstance,
   type ToolbarFiltersState,
+  DEFAULT_VIEW_SETTINGS,
 } from "@/features/content-toolbar"
 import {
   useGlobalDrafts,
@@ -297,6 +298,7 @@ export function DraftsListPage() {
     label: t("content.list.table"),
     type: "table",
     enabledTools: ["filter", "sort", "search", "settings", "create"],
+    settings: DEFAULT_VIEW_SETTINGS,
     conditionalFormats: [],
   }], [t])
 

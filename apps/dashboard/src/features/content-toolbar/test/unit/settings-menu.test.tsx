@@ -7,12 +7,22 @@ import { render, screen } from "@testing-library/react"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { SettingsMenu } from "@/features/content-toolbar/toolbar-components/settings-menu"
+import type { ViewSetting } from "@/features/shared"
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function renderSettingsMenu(activeViewId: string) {
+function renderSettingsMenu(
+  settings: readonly ViewSetting[],
+  overrides: {
+    showSort?: boolean
+    renderSettingsSection?: (ctx: { close: () => void }) => React.ReactNode
+    closeSettingsMenu?: () => void
+    onDeleteView?: () => void
+    canDeleteView?: boolean
+  } = {}
+) {
   return render(
     <TooltipProvider>
       <SettingsMenu
@@ -28,7 +38,7 @@ function renderSettingsMenu(activeViewId: string) {
         visibleFilterColumns={[]}
         addConditionToColumn={vi.fn()}
         setOpenPillId={vi.fn()}
-        closeSettingsMenu={vi.fn()}
+        closeSettingsMenu={overrides.closeSettingsMenu ?? vi.fn()}
         filters={{}}
         sortColumnSearchTerm=""
         setSortColumnSearchTerm={vi.fn()}
@@ -64,7 +74,11 @@ function renderSettingsMenu(activeViewId: string) {
         onPageSizeChange={vi.fn()}
         density="normal"
         onDensityChange={vi.fn()}
-        activeViewId={activeViewId}
+        settings={settings}
+        showSort={overrides.showSort ?? true}
+        renderSettingsSection={overrides.renderSettingsSection}
+        onDeleteView={overrides.onDeleteView}
+        canDeleteView={overrides.canDeleteView}
       />
     </TooltipProvider>
   )
@@ -75,34 +89,90 @@ function renderSettingsMenu(activeViewId: string) {
 // ---------------------------------------------------------------------------
 
 describe("SettingsMenu", () => {
-  it("in vista tabella mostra i controlli strettamente tabellari (colori condizionali, colonne visibili)", () => {
-    renderSettingsMenu("table")
+  it("with all five settings, shows Group, Conditional colors, Visible columns, Rows and Density under Display", () => {
+    renderSettingsMenu(["groupBy", "conditionalFormats", "columns", "pageSize", "density"])
 
-    expect(screen.getByText("Conditional colors")).toBeInTheDocument()
-    expect(screen.getByText("Visible columns")).toBeInTheDocument()
-    expect(screen.getByText("Table")).toBeInTheDocument()
-    expect(screen.queryByText("Display")).not.toBeInTheDocument()
-  })
-
-  it("in vista gallery nasconde i controlli tabellari ma mantiene raggruppamento, righe e densità", () => {
-    renderSettingsMenu("gallery")
-
-    expect(screen.queryByText("Conditional colors")).not.toBeInTheDocument()
-    expect(screen.queryByText("Visible columns")).not.toBeInTheDocument()
-    expect(screen.queryByText("Table")).not.toBeInTheDocument()
-
-    expect(screen.getByText("Display")).toBeInTheDocument()
     expect(screen.getByText("Group")).toBeInTheDocument()
+    expect(screen.getByText("Conditional colors")).toBeInTheDocument()
+    expect(screen.getByText("Display")).toBeInTheDocument()
+    expect(screen.getByText("Visible columns")).toBeInTheDocument()
     expect(screen.getByText("Rows")).toBeInTheDocument()
     expect(screen.getByText("Density")).toBeInTheDocument()
   })
 
-  it("in vista kanban non mostra né i controlli tabellari né quelli non-kanban (ha la sua sezione dedicata)", () => {
-    renderSettingsMenu("kanban")
+  it("with groupBy and pageSize only, hides conditional colors, visible columns and density, keeps Group and Rows", () => {
+    renderSettingsMenu(["groupBy", "pageSize"])
 
+    expect(screen.getByText("Group")).toBeInTheDocument()
+    expect(screen.getByText("Rows")).toBeInTheDocument()
     expect(screen.queryByText("Conditional colors")).not.toBeInTheDocument()
     expect(screen.queryByText("Visible columns")).not.toBeInTheDocument()
-    expect(screen.queryByText("Table")).not.toBeInTheDocument()
+    expect(screen.queryByText("Density")).not.toBeInTheDocument()
+  })
+
+  it("with no settings and no section, shows neither Layout & style nor Display", () => {
+    renderSettingsMenu([])
+
+    expect(screen.queryByText("Layout & style")).not.toBeInTheDocument()
     expect(screen.queryByText("Display")).not.toBeInTheDocument()
+  })
+
+  it("renders the node returned by renderSettingsSection, whose close calls closeSettingsMenu", () => {
+    const closeSettingsMenu = vi.fn()
+    renderSettingsMenu([], {
+      closeSettingsMenu,
+      renderSettingsSection: ({ close }) => <button onClick={close}>Section action</button>,
+    })
+
+    screen.getByText("Section action").click()
+
+    expect(closeSettingsMenu).toHaveBeenCalled()
+  })
+
+  it("hides the Sort submenu when showSort is false", () => {
+    renderSettingsMenu(["groupBy"], { showSort: false })
+
+    expect(screen.queryByText("Sort")).not.toBeInTheDocument()
+  })
+
+  it("offers no delete item when the caller passes no onDeleteView", () => {
+    renderSettingsMenu([])
+
+    expect(screen.queryByRole("menuitem", { name: /delete view|elimina vista/i })).toBeNull()
+  })
+
+  it("disables the delete item for the content type's only Table view", () => {
+    renderSettingsMenu([], { onDeleteView: vi.fn(), canDeleteView: false })
+
+    const deleteItem = screen.getByRole("menuitem", { name: /delete view|elimina vista/i })
+    expect(deleteItem).toHaveAttribute("data-disabled")
+  })
+
+  it("never renders two adjacent separators when a settings section and delete are both present", () => {
+    renderSettingsMenu([], {
+      onDeleteView: vi.fn(),
+      canDeleteView: true,
+      renderSettingsSection: () => <button>Section action</button>,
+    })
+
+    const separators = screen.getAllByRole("separator")
+    for (const separator of separators) {
+      expect(separator.nextElementSibling).not.toHaveAttribute("data-slot", "dropdown-menu-separator")
+    }
+  })
+
+  it("never renders two adjacent separators when a wired settings section renders nothing and delete is present", () => {
+    // Regression: a kanban-compatible seed with no axis candidate yet (the canonical `posts`
+    // fixture) wires renderSettingsSection but it returns null, same as KanbanSettingsSection.
+    renderSettingsMenu([], {
+      onDeleteView: vi.fn(),
+      canDeleteView: true,
+      renderSettingsSection: () => null,
+    })
+
+    const separators = screen.getAllByRole("separator")
+    for (const separator of separators) {
+      expect(separator.nextElementSibling).not.toHaveAttribute("data-slot", "dropdown-menu-separator")
+    }
   })
 })

@@ -39,7 +39,7 @@ import { useContentToolbar } from "@/features/content-toolbar/use-content-toolba
 
 const baseProps: any = {
   seed: { branches: [{ alias: "title", label: "Titolo", type: "text" }] },
-  views: [{ id: "table", label: "Tabella", type: "table", enabledTools: ["filter", "sort"] }],
+  views: [{ id: "table", label: "Tabella", type: "table", enabledTools: ["filter", "sort"], settings: [] }],
   activeViewId: "table",
   onCreate: vi.fn(),
 }
