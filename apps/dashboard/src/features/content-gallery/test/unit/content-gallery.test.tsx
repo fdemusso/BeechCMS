@@ -39,16 +39,22 @@ vi.mock("@/features/content-gallery/gallery-hooks", () => ({
           models: cardModels.filter((m) => m.category === label),
         }))
       : []
-    return { setPeekId: vi.fn(), peekEntry: null, cardModels, categoryGroups, categoryAlias }
+    return { cardModels, categoryGroups, categoryAlias }
   },
 }))
 
 vi.mock("@/features/content-gallery/gallery-components/gallery-card", () => ({
-  GalleryCard: ({ model }: any) => <div data-testid={`card-${model.entryId}`}>{model.title}</div>,
-}))
-
-vi.mock("@/features/content-gallery/gallery-components/gallery-peek-panel", () => ({
-  GalleryPeekPanel: () => null,
+  GalleryCard: ({
+    model,
+    onOpen,
+  }: {
+    model: { entryId: string; title: string }
+    onOpen: (id: string) => void
+  }) => (
+    <button data-testid={`card-${model.entryId}`} onClick={() => onOpen(model.entryId)}>
+      {model.title}
+    </button>
+  ),
 }))
 
 vi.mock("@/features/content-gallery/gallery-components/gallery-skeleton-grid", () => ({
@@ -212,5 +218,29 @@ describe("ContentGallery", () => {
     expect(screen.queryAllByRole("region")).toHaveLength(0)
     expect(screen.queryByRole("button", { name: "New folder" })).not.toBeInTheDocument()
     expect(screen.getByTestId("card-1")).toBeInTheDocument()
+  })
+
+  it("nella griglia piatta il click su una card chiama onEdit con l'id dell'entry", () => {
+    const onEdit = vi.fn()
+    const data = [makeEntry("e1"), makeEntry("e2")]
+    renderGallery(<ContentGallery seed={seed} data={data} onEdit={onEdit} groupBy={null} />)
+
+    fireEvent.click(screen.getByTestId("card-e2"))
+
+    expect(onEdit).toHaveBeenCalledTimes(1)
+    expect(onEdit).toHaveBeenCalledWith("e2")
+  })
+
+  it("dentro una cartella il click su una card chiama onEdit con l'id dell'entry", () => {
+    const onEdit = vi.fn()
+    renderGallery(
+      <ContentGallery seed={seedWithCategory} data={categorized} onEdit={onEdit} groupBy="categoria" />,
+      "/?album=matrimonio"
+    )
+
+    fireEvent.click(screen.getByTestId("card-3"))
+
+    expect(onEdit).toHaveBeenCalledTimes(1)
+    expect(onEdit).toHaveBeenCalledWith("3")
   })
 })

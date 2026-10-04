@@ -22,7 +22,6 @@ import {
   formatItemCount,
 } from "./gallery-components/gallery-folder-card"
 import { GalleryNewFolderDialog } from "./gallery-components/gallery-new-folder-dialog"
-import { GalleryPeekPanel } from "./gallery-components/gallery-peek-panel"
 import { GallerySkeletonGrid } from "./gallery-components/gallery-skeleton-grid"
 import { useContentGallery } from "./gallery-hooks"
 import { categoryKey } from "./group-by-category"
@@ -74,9 +73,10 @@ export function ContentGallery({
   onEdit,
   onCreate,
   groupBy,
+  formatElement,
 }: ContentGalleryProps) {
   const { t } = useTranslation()
-  const { setPeekId, peekEntry, cardModels, categoryGroups, categoryAlias } = useContentGallery(seed, data, groupBy)
+  const { cardModels, categoryGroups, categoryAlias } = useContentGallery(seed, data, groupBy, formatElement)
   const [searchParams, setSearchParams] = useSearchParams()
   const [newFolderOpen, setNewFolderOpen] = React.useState(false)
 
@@ -136,18 +136,7 @@ export function ContentGallery({
         </Empty>
       )
     }
-    return (
-      <>
-        <GalleryGrid models={cardModels} onOpen={setPeekId} />
-        <GalleryPeekPanel
-          seed={seed}
-          entry={peekEntry}
-          open={peekEntry != null}
-          onClose={() => setPeekId(null)}
-          onEdit={onEdit}
-        />
-      </>
-    )
+    return <GalleryGrid models={cardModels} onOpen={onEdit} />
   }
 
   return (
@@ -175,7 +164,7 @@ export function ContentGallery({
               </Button>
             )}
           </div>
-          <GalleryGrid models={openGroup.models} onOpen={setPeekId} />
+          <GalleryGrid models={openGroup.models} onOpen={onEdit} />
         </section>
       ) : (
         <section aria-label={t("gallery.folders.sectionAriaLabel")}>
@@ -218,14 +207,6 @@ export function ContentGallery({
         open={newFolderOpen}
         onOpenChange={setNewFolderOpen}
         onConfirm={handleNewFolder}
-      />
-
-      <GalleryPeekPanel
-        seed={seed}
-        entry={peekEntry}
-        open={peekEntry != null}
-        onClose={() => setPeekId(null)}
-        onEdit={onEdit}
       />
     </>
   )

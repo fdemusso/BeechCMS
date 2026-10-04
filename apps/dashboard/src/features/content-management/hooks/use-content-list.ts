@@ -25,7 +25,7 @@ export function useContentList(slug: string | undefined, params: ContentListQuer
   const localize = useLocalizeEntryData()
   const seed = seeds?.find((s) => s.slug === slug)
 
-  // Table, gallery cards and the gallery peek all render these items: resolve them once, here. The query
+  // Table rows and gallery/kanban cards render these items: resolve them once, here. The query
   // cache keeps the raw dictionaries; only this observer's view is flat.
   const select = useCallback(
     (response: ContentListWithMeta): ContentListWithMeta =>

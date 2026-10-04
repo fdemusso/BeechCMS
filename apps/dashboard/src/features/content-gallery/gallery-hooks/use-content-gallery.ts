@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next"
 import type { Seed } from "@beechcms/core"
 
 import type { ContentEntry } from "@/lib/dynamic-columns"
+import { NO_ELEMENT_FORMATTER, type ElementFormatter } from "@/lib/conditional-format"
 
 import { buildGalleryCardDisplayModel } from "../gallery-card-display"
 import type { GalleryCardDisplayModel } from "../gallery-card-display"
@@ -14,9 +15,6 @@ import { groupByCategory, type GalleryCategoryGroup } from "../group-by-category
 import { resolveCardFields } from "../resolve-card-fields"
 
 export interface UseContentGalleryResult {
-  peekId: string | null
-  setPeekId: React.Dispatch<React.SetStateAction<string | null>>
-  peekEntry: ContentEntry | null
   cardModels: GalleryCardDisplayModel[]
   /** Gruppi per categoria; vuoto se non c'è un "Raggruppa per" attivo (vista piatta). */
   categoryGroups: GalleryCategoryGroup[]
@@ -32,27 +30,16 @@ export interface UseContentGalleryResult {
 export function useContentGallery(
   seed: Seed,
   data: ContentEntry[],
-  groupBy: string | null
+  groupBy: string | null,
+  formatElement: ElementFormatter = NO_ELEMENT_FORMATTER
 ): UseContentGalleryResult {
   const { t, i18n } = useTranslation()
-  const [peekId, setPeekId] = React.useState<string | null>(null)
-
-  const peekEntry = React.useMemo(
-    () => data.find((entry) => entry.id === peekId) ?? null,
-    [data, peekId]
-  )
-
-  React.useEffect(() => {
-    if (!peekId) return
-    if (data.some((entry) => entry.id === peekId)) return
-    setPeekId(null)
-  }, [data, peekId])
 
   const cardFields = React.useMemo(() => resolveCardFields(seed, groupBy), [seed, groupBy])
 
   const cardModels = React.useMemo(
-    () => data.map((entry) => buildGalleryCardDisplayModel(entry, cardFields, t, i18n.language)),
-    [data, cardFields, t, i18n.language]
+    () => data.map((entry) => buildGalleryCardDisplayModel(entry, cardFields, t, i18n.language, formatElement(entry))),
+    [data, cardFields, t, i18n.language, formatElement]
   )
 
   const categoryAlias = cardFields.categoryBranch?.alias ?? null
@@ -63,9 +50,6 @@ export function useContentGallery(
   )
 
   return {
-    peekId,
-    setPeekId,
-    peekEntry,
     cardModels,
     categoryGroups,
     categoryAlias,

@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect } from "vitest"
-import { renderHook, act } from "@testing-library/react"
+import { renderHook } from "@testing-library/react"
 
 import { useContentGallery } from "@/features/content-gallery/gallery-hooks/use-content-gallery"
 import type { ContentEntry } from "@/lib/dynamic-columns"
@@ -35,44 +35,12 @@ const data: ContentEntry[] = [makeEntry("e1"), makeEntry("e2")]
 // ---------------------------------------------------------------------------
 
 describe("useContentGallery", () => {
-  it("parte con peekId null e restituisce cardModels per ogni entry", () => {
+  it("restituisce un cardModel per ogni entry, nell'ordine dei dati", () => {
     const { result } = renderHook(() => useContentGallery(seed, data, null))
 
-    expect(result.current.peekId).toBeNull()
-    expect(result.current.peekEntry).toBeNull()
     expect(result.current.cardModels).toHaveLength(2)
     expect(result.current.cardModels[0].entryId).toBe("e1")
-  })
-
-  it("setPeekId aggiorna peekEntry all'entry corrispondente", () => {
-    const { result } = renderHook(() => useContentGallery(seed, data, null))
-
-    act(() => {
-      result.current.setPeekId("e2")
-    })
-
-    expect(result.current.peekId).toBe("e2")
-    expect(result.current.peekEntry?.id).toBe("e2")
-  })
-
-  it("reimposta peekId a null quando l'entry viene rimossa dai dati", () => {
-    let entries = [...data]
-    const { result, rerender } = renderHook(
-      ({ d }: { d: ContentEntry[] }) => useContentGallery(seed, d, null),
-      { initialProps: { d: entries } }
-    )
-
-    act(() => {
-      result.current.setPeekId("e1")
-    })
-    expect(result.current.peekId).toBe("e1")
-
-    // Simulate removal of e1 from data
-    entries = [makeEntry("e2")]
-    rerender({ d: entries })
-
-    expect(result.current.peekId).toBeNull()
-    expect(result.current.peekEntry).toBeNull()
+    expect(result.current.cardModels[1].entryId).toBe("e2")
   })
 
   it("cardModels aggiornano quando cambiano i dati", () => {
@@ -95,7 +63,7 @@ describe("useContentGallery", () => {
     const { result } = renderHook(() => useContentGallery(seed, [], null))
 
     expect(result.current.cardModels).toHaveLength(0)
-    expect(result.current.peekEntry).toBeNull()
+    expect(result.current.categoryGroups).toEqual([])
   })
 
   it("senza groupBy attivo: categoryAlias null e nessun gruppo", () => {

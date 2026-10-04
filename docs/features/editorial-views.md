@@ -31,7 +31,7 @@ For content with editorial workflows (e.g. `draft`, `review`, `scheduled`, `publ
 Collections rich in imagery (such as Portfolio Projects, Products, Team Members, or Media Assets) benefit from the **Gallery View**:
 
 - **Adaptive Responsive Cards**: Displays media previews at optimal aspect ratios.
-- **Peek Inspector**: Hover over cards to preview title, creation dates, and metadata chips.
+- **Shared Entry Editor**: Clicking a card opens the entry in the same Entry Editor used by Table and Kanban; users without `content:update` see it read-only.
 - **Intelligent Thumbnail Resolution**: Automatically identifies the primary image field in the Seed (or falls back to rich text embedded images).
 
 ### Category Folders
