@@ -232,26 +232,26 @@ function ConditionalRuleEditor({
             size="sm"
             variant="ghost"
             className={
-              activeConditionalRule.target === "cell"
+              activeConditionalRule.target === "field"
                 ? "h-7 px-3 text-xs bg-black text-white hover:bg-black/90 hover:text-white"
                 : "h-7 px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
             }
-            onClick={() => updateConditionalRule(activeConditionalRule.id, { target: "cell" })}
+            onClick={() => updateConditionalRule(activeConditionalRule.id, { target: "field" })}
           >
-            {t("toolbar.conditionalFormats.cell")}
+            {t("toolbar.conditionalFormats.field")}
           </Button>
           <Button
             type="button"
             size="sm"
             variant="ghost"
             className={
-              activeConditionalRule.target === "row"
+              activeConditionalRule.target === "element"
                 ? "h-7 px-3 text-xs bg-black text-white hover:bg-black/90 hover:text-white"
                 : "h-7 px-3 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
             }
-            onClick={() => updateConditionalRule(activeConditionalRule.id, { target: "row" })}
+            onClick={() => updateConditionalRule(activeConditionalRule.id, { target: "element" })}
           >
-            {t("toolbar.conditionalFormats.row")}
+            {t("toolbar.conditionalFormats.element")}
           </Button>
         </div>
       </div>
@@ -337,7 +337,7 @@ function ConditionalRuleEditor({
         <div className="rounded-md border border-dashed p-2">
           <div
             className={`flex min-h-12 items-center rounded-md border px-3 ${
-              activeConditionalRule.target === "row"
+              activeConditionalRule.target === "element"
                 ? getConditionalFormatRowClass(
                     activeConditionalRule.tone,
                     activeConditionalRule.textStyles ?? []
@@ -347,7 +347,7 @@ function ConditionalRuleEditor({
           >
             <span
               className={
-                activeConditionalRule.target === "cell"
+                activeConditionalRule.target === "field"
                   ? getConditionalFormatCellClass(
                       activeConditionalRule.tone,
                       activeConditionalRule.textStyles ?? []

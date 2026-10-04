@@ -16,7 +16,7 @@ import {
   generateConditionId,
 } from "@/features/content-toolbar"
 import { extractTagNames } from "@/lib/tags-utils"
-import { normalizeDateToYmd, type FilterGroupType } from "@/lib/filter-dsl"
+import { normalizeDateToYmd, getEntryValueForColumn, type FilterGroupType } from "@/lib/filter-dsl"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { useContentList } from "./use-content-list"
 import { useContentFacets } from "./use-content-facets"
@@ -47,38 +47,52 @@ export function normalizeCellFilterValue(
   }
 }
 
-export function getEntryValueForColumn(entry: ContentEntry, columnId: string): unknown {
-  if (columnId === "id") return entry.id
-  if (columnId === "slug") return entry.slug
-  if (columnId === "status") return entry.status
-  return entry.data?.[columnId]
+export interface ContentListQueryInitialState {
+  filters?: ToolbarFiltersState
+  sort?: { id: string; desc: boolean } | null
+  pageSize?: number
 }
+
+/** Condition id of the `?status=` URL prefilter. That filter is a navigation lens, never part of a saved view. */
+export const STATUS_PREFILTER_CONDITION_ID = "status-prefilter"
 
 export function useContentListQuery(
   slug: string | undefined,
-  seed: Seed | null
+  seed: Seed | null,
+  initial?: ContentListQueryInitialState
 ) {
   const [pageIndex, setPageIndex] = React.useState(0)
   const ROWS_PER_PAGE = 10
-  const [pageSize, setPageSize] = React.useState<number>(ROWS_PER_PAGE)
+  const [pageSize, setPageSize] = React.useState<number>(initial?.pageSize ?? ROWS_PER_PAGE)
   const [tableSearch, setTableSearch] = React.useState("")
   const debouncedSearch = useDebounce(tableSearch, 300)
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [sorting, setSorting] = React.useState<SortingState>(() => (initial?.sort ? [initial.sort] : []))
   const [searchParams] = useSearchParams()
   const prefilterStatus = searchParams.get("status")
 
   const [toolbarFilters, setToolbarFilters] = React.useState<ToolbarFiltersState>(() => {
-    if (!prefilterStatus) return {} as ToolbarFiltersState
+    const base: ToolbarFiltersState = { ...(initial?.filters ?? {}) }
+    if (!prefilterStatus) return base
     return {
+      ...base,
       status: {
         columnId: "status",
         label: "Status",
         type: "select",
-        conditions: [{ id: "status-prefilter", op: "eq", value: prefilterStatus }],
+        conditions: [{ id: STATUS_PREFILTER_CONDITION_ID, op: "eq", value: prefilterStatus }],
         selectOptions: ["draft", "published"],
       },
     }
   })
+
+  const persistableFilters = React.useMemo<ToolbarFiltersState>(() => {
+    const next: ToolbarFiltersState = {}
+    for (const [columnId, group] of Object.entries(toolbarFilters)) {
+      const conditions = group.conditions.filter((condition) => condition.id !== STATUS_PREFILTER_CONDITION_ID)
+      if (conditions.length > 0) next[columnId] = { ...group, conditions }
+    }
+    return next
+  }, [toolbarFilters])
 
   // --- DATA FETCHING (TANSTACK QUERY) ---
   const { 
@@ -321,6 +335,7 @@ export function useContentListQuery(
     handleToolbarSortChange,
     toolbarFilters,
     setToolbarFilters,
+    persistableFilters,
     columnFilters,
     availableTagsByColumnId,
     effectiveStatusOptions,

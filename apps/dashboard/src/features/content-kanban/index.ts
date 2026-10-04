@@ -1,15 +1,7 @@
 export { ContentKanban } from './components/content-kanban'
 export { CardConfigDialog } from './components/card-config-dialog'
-export { useKanbanViewConfig } from './hooks/use-kanban-view-config'
-
-import type { IViewRegistry } from '@/features/shared'
-export function registerContentKanbanView(registry: IViewRegistry): void {
-  registry.register({
-    type: 'kanban',
-    labelKey: 'content.list.kanban',
-    enabledTools: ['filter', 'search', 'settings', 'create', 'transfer']
-  })
-}
+export { KanbanViewRenderer, KANBAN_VIEW_DEFINITION } from './components/kanban-view-renderer'
+export { KanbanSettingsSection } from './components/kanban-settings-section'
 
 export type {
   KanbanCardDisplayModel,

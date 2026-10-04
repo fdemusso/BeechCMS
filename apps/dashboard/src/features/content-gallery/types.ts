@@ -5,6 +5,7 @@
 import type { Seed } from "@beechcms/core"
 
 import type { ContentEntry } from "@/lib/dynamic-columns"
+import type { ElementFormatter } from "@/lib/conditional-format"
 
 export interface ContentGalleryProps {
   readonly seed: Seed
@@ -15,4 +16,5 @@ export interface ContentGalleryProps {
   readonly onCreate?: (defaultValues: Record<string, unknown>) => void
   /** Campo scelto nel "Raggruppa per" del toolbar; stesso stato usato dalla tabella. */
   readonly groupBy: string | null
+  readonly formatElement?: ElementFormatter
 }

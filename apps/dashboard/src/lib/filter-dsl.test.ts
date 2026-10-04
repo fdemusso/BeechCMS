@@ -7,6 +7,7 @@
 import { describe, it, expect } from "vitest"
 
 import {
+  getEntryValueForColumn,
   isEmptyValue,
   isToolbarFilterGroup,
   matchesCondition,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/filter-dsl"
 
 import type { ToolbarFilterGroup, FilterOperator } from "@/lib/filter-dsl"
+import type { ContentEntry } from "@/lib/dynamic-columns"
 
 const mkGroup = (group: Partial<ToolbarFilterGroup> & Pick<ToolbarFilterGroup, "type">) =>
   ({
@@ -25,6 +27,33 @@ const mkGroup = (group: Partial<ToolbarFilterGroup> & Pick<ToolbarFilterGroup, "
     conditions: group.conditions ?? [],
     selectOptions: group.selectOptions,
   }) as ToolbarFilterGroup
+
+describe("getEntryValueForColumn", () => {
+  const sampleEntry: ContentEntry = {
+    id: "entry-123",
+    schema_slug: "posts",
+    slug: "sample-slug",
+    status: "published",
+    created_at: Date.parse("2026-01-01T00:00:00Z"),
+    updated_at: Date.parse("2026-01-02T00:00:00Z"),
+    data: {
+      title: "Hello World",
+      views: 42,
+    },
+  }
+
+  it("recupera id, slug e status dai campi di primo livello", () => {
+    expect(getEntryValueForColumn(sampleEntry, "id")).toBe("entry-123")
+    expect(getEntryValueForColumn(sampleEntry, "slug")).toBe("sample-slug")
+    expect(getEntryValueForColumn(sampleEntry, "status")).toBe("published")
+  })
+
+  it("recupera i valori personalizzati dal record data", () => {
+    expect(getEntryValueForColumn(sampleEntry, "title")).toBe("Hello World")
+    expect(getEntryValueForColumn(sampleEntry, "views")).toBe(42)
+    expect(getEntryValueForColumn(sampleEntry, "non_existent")).toBeUndefined()
+  })
+})
 
 describe("filter-dsl - isToolbarFilterGroup", () => {
   it("ritorna false su valori non validi", () => {

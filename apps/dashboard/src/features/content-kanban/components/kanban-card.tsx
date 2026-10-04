@@ -5,6 +5,8 @@
 import * as React from 'react'
 import { KANBAN_CARD_HEIGHT_PX } from '../constants'
 import { FieldDisplay } from '@/components/fields'
+import { cn } from '@/lib/utils'
+import { getConditionalFormatCardClass, getConditionalFormatCellClass } from '@/lib/conditional-format'
 import type { KanbanCardDisplayModel, ResolvedSlotField } from '../types'
 
 /** Properties for the {@link KanbanCard} component. */
@@ -67,7 +69,11 @@ export const KanbanCard = React.memo(function KanbanCard({
       aria-label={model.title || model.entryId}
       aria-disabled={(!canEdit || model.isPending) || undefined}
       disabled={!canEdit || model.isPending}
-      className={`flex h-full w-full flex-col gap-1.5 rounded-md border bg-card p-3 shadow-sm transition-all select-none text-left hover:shadow-md ${model.isPending ? 'opacity-60' : ''}`}
+      className={cn(
+        'flex h-full w-full flex-col gap-1.5 rounded-md border bg-card p-3 shadow-sm transition-all select-none text-left hover:shadow-md',
+        model.isPending && 'opacity-60',
+        model.elementStyle && getConditionalFormatCardClass(model.elementStyle.tone, model.elementStyle.textStyles)
+      )}
       style={{ boxSizing: 'border-box', minHeight: KANBAN_CARD_HEIGHT_PX }}
       onClick={() => !isDragging && onEdit(model.entryId)}
     >
@@ -79,12 +85,18 @@ export const KanbanCard = React.memo(function KanbanCard({
             </div>
           )}
           {slots.header && (
-            <p className="truncate text-sm font-medium leading-tight">
+            <p className={cn(
+              "truncate text-sm font-medium leading-tight",
+              slots.header.style && getConditionalFormatCellClass(slots.header.style.tone, slots.header.style.textStyles)
+            )}>
               <SlotCell slot={slots.header} maxLength={40} />
             </p>
           )}
           {slots.subtitle && (
-            <p className="truncate text-xs text-muted-foreground">
+            <p className={cn(
+              "truncate text-xs text-muted-foreground",
+              slots.subtitle.style && getConditionalFormatCellClass(slots.subtitle.style.tone, slots.subtitle.style.textStyles)
+            )}>
               <SlotCell slot={slots.subtitle} maxLength={60} />
             </p>
           )}
@@ -93,7 +105,10 @@ export const KanbanCard = React.memo(function KanbanCard({
               {slots.metadata.map((slot) => (
                 <div key={slot.branch.id} className="flex flex-col gap-0.5 min-w-0">
                   <span className="text-[10px] text-muted-foreground truncate">{slot.branch.label}</span>
-                  <span className="text-xs truncate">
+                  <span className={cn(
+                    "text-xs truncate",
+                    slot.style && getConditionalFormatCellClass(slot.style.tone, slot.style.textStyles)
+                  )}>
                     <SlotCell slot={slot} maxLength={24} compact />
                   </span>
                 </div>
@@ -101,7 +116,10 @@ export const KanbanCard = React.memo(function KanbanCard({
             </div>
           )}
           {model.statusBadge && (
-            <span className="inline-block w-fit rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground mt-auto">
+            <span className={cn(
+              "inline-block w-fit rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground mt-auto",
+              model.statusStyle && getConditionalFormatCellClass(model.statusStyle.tone, model.statusStyle.textStyles)
+            )}>
               {model.statusBadge}
             </span>
           )}
@@ -121,9 +139,15 @@ export const KanbanCard = React.memo(function KanbanCard({
             />
           )}
           <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <p className="truncate text-sm font-medium leading-tight">{model.title || model.entryId}</p>
+            <p className={cn(
+              "truncate text-sm font-medium leading-tight",
+              model.titleStyle && getConditionalFormatCellClass(model.titleStyle.tone, model.titleStyle.textStyles)
+            )}>{model.title || model.entryId}</p>
             {model.statusBadge && (
-              <span className="inline-block w-fit rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground">
+              <span className={cn(
+                "inline-block w-fit rounded-sm bg-muted px-1.5 py-0.5 text-xs text-muted-foreground",
+                model.statusStyle && getConditionalFormatCellClass(model.statusStyle.tone, model.statusStyle.textStyles)
+              )}>
                 {model.statusBadge}
               </span>
             )}

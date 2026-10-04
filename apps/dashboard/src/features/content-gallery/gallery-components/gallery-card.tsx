@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { TagChips } from "@/components/ui/tag-chips"
 import { pendingDraftBadgeClass } from "@/lib/pending-draft"
 import { cn } from "@/lib/utils"
+import { getConditionalFormatCardClass, getConditionalFormatCellClass } from "@/lib/conditional-format"
 
 import type { GalleryCardDisplayModel } from "../gallery-card-display"
 import { GALLERY_CARD_SURFACE_CLASS } from "./gallery-card-surface"
@@ -38,7 +39,10 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
       type="button"
       onClick={() => onOpen(model.entryId)}
       aria-label={model.ariaLabel}
-      className={GALLERY_CARD_SURFACE_CLASS}
+      className={cn(
+        GALLERY_CARD_SURFACE_CLASS,
+        model.elementStyle && getConditionalFormatCardClass(model.elementStyle.tone, model.elementStyle.textStyles)
+      )}
     >
       {/* ── Image area ── */}
       <div className="relative h-44 w-full shrink-0 overflow-hidden bg-gradient-to-br from-muted/40 to-muted/80">
@@ -66,7 +70,13 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
         )}
 
         {/* Status badges overlaid top-left */}
-        <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
+        <div
+          className={cn(
+            "absolute left-3 top-3 flex flex-col items-start gap-1.5",
+            model.slotStyles?.status &&
+              getConditionalFormatCellClass(model.slotStyles.status.tone, model.slotStyles.status.textStyles)
+          )}
+        >
           <Badge
             variant="outline"
             className={cn(
@@ -96,13 +106,19 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
         <h3 className={cn(
           "font-heading line-clamp-2 text-sm font-semibold leading-snug text-foreground",
           !model.title && "text-muted-foreground italic",
+          model.slotStyles?.title &&
+            getConditionalFormatCellClass(model.slotStyles.title.tone, model.slotStyles.title.textStyles)
         )}>
           {model.title || t("gallery.untitled")}
         </h3>
 
         {/* Excerpt */}
         {model.excerpt && (
-          <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+          <p className={cn(
+            "line-clamp-2 text-xs leading-relaxed text-muted-foreground",
+            model.slotStyles?.excerpt &&
+              getConditionalFormatCellClass(model.slotStyles.excerpt.tone, model.slotStyles.excerpt.textStyles)
+          )}>
             {model.excerpt}
           </p>
         )}
@@ -113,7 +129,11 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
           {/* Tags + date */}
           <div className="flex items-center justify-between gap-2">
             {model.dateText ? (
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <div className={cn(
+                "flex items-center gap-1 text-[11px] text-muted-foreground",
+                model.slotStyles?.date &&
+                  getConditionalFormatCellClass(model.slotStyles.date.tone, model.slotStyles.date.textStyles)
+              )}>
                 <Calendar className="size-3 shrink-0 opacity-60" />
                 {model.dateText}
               </div>
@@ -126,7 +146,11 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
                 tags={model.tags}
                 maxVisible={2}
                 chipVariant="outline"
-                className="min-w-0 justify-end"
+                className={cn(
+                  "min-w-0 justify-end",
+                  model.slotStyles?.tags &&
+                    getConditionalFormatCellClass(model.slotStyles.tags.tone, model.slotStyles.tags.textStyles)
+                )}
                 chipClassName="min-w-0 max-w-20 text-[10px]"
                 countBadgeClassName="shrink-0 text-[10px]"
               />

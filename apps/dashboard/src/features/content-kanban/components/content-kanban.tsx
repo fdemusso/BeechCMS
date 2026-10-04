@@ -15,6 +15,7 @@ import { buildKanbanCardDisplayModel } from '../utils/kanban-card-display'
 import { KANBAN_COLUMN_WIDTH_PX, KANBAN_CARD_HEIGHT_PX, KANBAN_COLUMN_PADDING_PX } from '../constants'
 import type { ContentKanbanProps, KanbanBoardConfig, KanbanCardDisplayModel } from '../types'
 import type { ContentListWithMeta } from '@/lib/content-api'
+import { NO_ELEMENT_FORMATTER, type ElementFormatter } from '@/lib/conditional-format'
 
 // For now canEdit defaults to true; integrate with permission system when available
 const DEFAULT_CAN_EDIT = true
@@ -33,6 +34,7 @@ interface ColumnProps {
   sortActive: boolean
   pendingCards: Map<string, { destColValue: string | null; position: string; axisValue: string | null }>
   cardConfig?: import('@beechcms/core').KanbanCardConfig
+  formatElement: ElementFormatter
   onToggleCollapse: () => void
   onEdit: (id: string) => void
   onCreateEntry?: () => void
@@ -40,10 +42,10 @@ interface ColumnProps {
 
 function KanbanColumnConnected({
   seedSlug, seed, axisBranch, col, config, activeFilters, search, collapsed,
-  canEdit, canCreate, sortActive, pendingCards, cardConfig,
+  canEdit, canCreate, sortActive, pendingCards, cardConfig, formatElement,
   onToggleCollapse, onEdit, onCreateEntry,
 }: ColumnProps) {
-  const fetchState = useKanbanColumnQuery(seedSlug, axisBranch, col, config, activeFilters, search, seed, cardConfig)
+  const fetchState = useKanbanColumnQuery(seedSlug, axisBranch, col, config, activeFilters, search, seed, cardConfig, formatElement)
   const queryClient = useQueryClient()
 
   // Apply optimistic overlay: swap out/in cards based on pending moves
@@ -77,7 +79,14 @@ function KanbanColumnConnected({
                   [axisBranch.alias]: p.axisValue,
                 },
               }
-              displayModel = buildKanbanCardDisplayModel(patchedItem, axisBranch, p.axisValue, seed, cardConfig)
+              displayModel = buildKanbanCardDisplayModel(
+                patchedItem,
+                axisBranch,
+                p.axisValue,
+                seed,
+                cardConfig,
+                formatElement(patchedItem),
+              )
               break outer
             }
           }
@@ -141,7 +150,7 @@ function KanbanColumnConnected({
     // }).catch(() => {})
 
     return sorted
-  }, [fetchState.cards, pendingCards, col.value])
+  }, [fetchState.cards, pendingCards, col.value, formatElement])
 
   return (
     <KanbanColumn
@@ -170,6 +179,7 @@ export function ContentKanban({
   search = '',
   kanbanConfig,
   cardConfig,
+  formatElement = NO_ELEMENT_FORMATTER,
 }: ContentKanbanProps) {
   const { t } = useTranslation()
   const { can } = usePermissions()
@@ -284,6 +294,7 @@ export function ContentKanban({
                 seed={seed}
                 axisBranch={axisBranch}
                 cardConfig={cardConfig}
+                formatElement={formatElement}
                 col={col}
                 config={kanbanConfig}
                 activeFilters={activeFilters}

@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from 'vitest'
 import { buildKanbanCardDisplayModel } from '@/features/content-kanban/utils/kanban-card-display'
+import type { ElementFormat } from '@/lib/conditional-format'
 import type { Branch } from '@beechcms/core'
 
 const axisBranch = { id: 'br_01', alias: 'status', type: 'text', label: 'Status' } as Branch
@@ -64,6 +65,23 @@ describe('buildKanbanCardDisplayModel — legacy heuristic (no card config)', ()
     const model = buildKanbanCardDisplayModel(entry, axisBranch, null)
     expect(model.title).toBe('entry-2')
   })
+
+  it("titleStyle comes from the field of the heuristic title key", () => {
+    const titleStyle = { tone: 'danger' as const, textStyles: [] }
+    const format: ElementFormat = { element: null, fields: { title: titleStyle } }
+
+    const model = buildKanbanCardDisplayModel(baseEntry, axisBranch, 'open', undefined, undefined, format)
+
+    expect(model.titleStyle).toEqual(titleStyle)
+  })
+
+  it("does not carry a style on any field when called without a format argument", () => {
+    const model = buildKanbanCardDisplayModel(baseEntry, axisBranch, 'open')
+
+    expect(model.elementStyle).toBeUndefined()
+    expect(model.titleStyle).toBeUndefined()
+    expect(model.statusStyle).toBeUndefined()
+  })
 })
 
 describe('buildKanbanCardDisplayModel — slot resolution (with card config)', () => {
@@ -102,5 +120,23 @@ describe('buildKanbanCardDisplayModel — slot resolution (with card config)', (
     const model = buildKanbanCardDisplayModel(baseEntry, axisBranch, 'open', baseSeed, card)
     expect(model.slots?.metadata).toHaveLength(1)
     expect(model.slots?.metadata[0]?.branch.alias).toBe('due')
+  })
+
+  it("the header slot carries the style of fields.title", () => {
+    const titleStyle = { tone: 'warning' as const, textStyles: ['bold' as const] }
+    const format: ElementFormat = { element: null, fields: { title: titleStyle } }
+
+    const model = buildKanbanCardDisplayModel(baseEntry, axisBranch, 'open', baseSeed, cardConfig, format)
+
+    expect(model.slots?.header?.style).toEqual(titleStyle)
+  })
+
+  it("statusStyle comes from fields.status", () => {
+    const statusStyle = { tone: 'info' as const, textStyles: [] }
+    const format: ElementFormat = { element: null, fields: { status: statusStyle } }
+
+    const model = buildKanbanCardDisplayModel(baseEntry, axisBranch, 'open', baseSeed, cardConfig, format)
+
+    expect(model.statusStyle).toEqual(statusStyle)
   })
 })

@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import type { Seed, TransferFormat } from "@beechcms/core"
+import type { DashboardView, Seed, TransferFormat } from "@beechcms/core"
 import type { VisibilityState } from "@tanstack/react-table"
 import type { DateGroupPrecision } from "@/lib/dynamic-columns"
 import type { ConditionalFormatRule } from "@/lib/conditional-format"
@@ -18,8 +18,17 @@ export interface ContentToolbarProps {
     viewId: string,
     next: ConditionalFormatRule[]
   ) => void
-  onCreateView?: () => void
+  /** Present only for users who may create views. */
+  onCreateView?: (type: DashboardView) => void
+  /** Types the "+" picker enables: the seed allow-list, empty without content:update. */
+  creatableViewTypes?: readonly DashboardView[]
+  /** Present only for users who may reorder views. */
+  onReorderViews?: (orderedIds: string[]) => void
   onRenameView?: (viewId: string, label: string) => void
+  /** Present only for users who may delete views. */
+  onDeleteView?: (viewId: string) => void
+  /** false when the active view is the content type's only Table instance. */
+  canDeleteView?: boolean
   onCreate: () => void
   onOpenFilters?: () => void
   onOpenSort?: () => void
@@ -51,11 +60,8 @@ export interface ContentToolbarProps {
   onDateGroupPrecisionChange?: (precision: DateGroupPrecision) => void
   density?: TableDensity
   onDensityChange?: (density: TableDensity) => void
-  kanbanCandidates?: Array<{ branchId: string; label: string; alias: string }>
-  kanbanConfig?: any
-  onKanbanConfigChange?: (next: any) => void
-  kanbanAxisBranch?: any
-  onOpenCardConfig?: () => void
+  /** The active View Type's own settings block; `close` closes the settings menu. */
+  renderSettingsSection?: (ctx: { close: () => void }) => React.ReactNode
   /** Fires the export download. Optional: drafts-list.tsx renders this toolbar over a
    *  multi-seed list where a single-seed export has no meaning. */
   onExport?: (format: TransferFormat) => void

@@ -7,10 +7,13 @@ import type { TFunction } from "i18next"
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 import { extractTagChips, type TagChipData } from "@/lib/tags-utils"
+import { NO_ELEMENT_FORMAT, type ElementFormat, type ElementStyle } from "@/lib/conditional-format"
 
 import type { ResolvedCardFields } from "./resolve-card-fields"
 
 export type StatusBadgeVariant = "default" | "secondary" | "outline" | "destructive"
+
+export type GalleryCardSlot = "status" | "title" | "excerpt" | "date" | "tags"
 
 export interface GalleryCardDisplayModel {
   entryId: string
@@ -25,6 +28,10 @@ export interface GalleryCardDisplayModel {
   ariaLabel: string
   statusVariant: StatusBadgeVariant
   hasPendingDraft: boolean
+  /** Element-level conditional format. Absent when no `element` rule matches. */
+  elementStyle?: ElementStyle
+  /** Field-level conditional format per visible slot. Present only for slots whose column matched a `field` rule. */
+  slotStyles?: Partial<Record<GalleryCardSlot, ElementStyle>>
 }
 
 export function getStatusBadgeVariant(status: string): StatusBadgeVariant {
@@ -104,7 +111,8 @@ export function buildGalleryCardDisplayModel(
   entry: ContentEntry,
   branches: ResolvedCardFields,
   t: TFunction,
-  language: string
+  language: string,
+  format: ElementFormat = NO_ELEMENT_FORMAT
 ): GalleryCardDisplayModel {
   const status = entry.status?.trim() || "—"
   const tags = branches.tagsBranch
@@ -126,6 +134,20 @@ export function buildGalleryCardDisplayModel(
     ? t("gallery.openDetailAriaLabel", { title })
     : t("gallery.openDetailAriaLabelFallback", { id: entry.id })
 
+  const slotColumnId: Partial<Record<GalleryCardSlot, string>> = {
+    status: "status",
+    title: branches.titleBranch?.alias,
+    excerpt: branches.excerptBranch?.alias,
+    date: branches.dateBranch?.alias,
+    tags: branches.tagsBranch?.alias,
+  }
+  const slotStyles: Partial<Record<GalleryCardSlot, ElementStyle>> = {}
+  for (const [slot, columnId] of Object.entries(slotColumnId) as [GalleryCardSlot, string | undefined][]) {
+    if (!columnId) continue
+    const style = format.fields[columnId]
+    if (style) slotStyles[slot] = style
+  }
+
   return {
     entryId: entry.id,
     status,
@@ -138,5 +160,7 @@ export function buildGalleryCardDisplayModel(
     ariaLabel,
     statusVariant: getStatusBadgeVariant(status),
     hasPendingDraft: shouldShowPendingDraftBadge(status, entry.has_pending_draft),
+    ...(format.element ? { elementStyle: format.element } : {}),
+    ...(Object.keys(slotStyles).length > 0 ? { slotStyles } : {}),
   }
 }

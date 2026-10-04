@@ -14,6 +14,7 @@ import {
 } from "@/features/content-gallery/gallery-card-display"
 import type { ResolvedCardFields } from "@/features/content-gallery/resolve-card-fields"
 import type { ContentEntry } from "@/lib/dynamic-columns"
+import { NO_ELEMENT_FORMAT, type ElementFormat } from "@/lib/conditional-format"
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -293,5 +294,51 @@ describe("buildGalleryCardDisplayModel", () => {
     expect(buildModel(makeEntry({ data: { categoria: "Matrimonio" } }), branches).category).toBe("Matrimonio")
     expect(buildModel(makeEntry({ data: {} }), branches).category).toBe("")
     expect(buildModel(makeEntry({ data: { categoria: "X" } }), emptyBranches).category).toBe("")
+  })
+
+  it("maps fields.title and fields.status to slotStyles.title and slotStyles.status", () => {
+    const branches: ResolvedCardFields = { ...emptyBranches, titleBranch: makeBranch("title") }
+    const titleStyle = { tone: "danger", textStyles: [] } as const
+    const statusStyle = { tone: "warning", textStyles: ["bold"] } as const
+    const format: ElementFormat = { element: null, fields: { title: titleStyle, status: statusStyle } }
+
+    const model = buildGalleryCardDisplayModel(
+      makeEntry({ status: "draft", data: { title: "Hello" } }),
+      branches,
+      t,
+      language,
+      format
+    )
+
+    expect(model.slotStyles?.title).toEqual(titleStyle)
+    expect(model.slotStyles?.status).toEqual(statusStyle)
+  })
+
+  it("adds no slot style for a field rule on a column no slot displays", () => {
+    const format: ElementFormat = {
+      element: null,
+      fields: { view_count: { tone: "info", textStyles: [] } },
+    }
+
+    const model = buildGalleryCardDisplayModel(makeEntry(), emptyBranches, t, language, format)
+
+    expect(model.slotStyles).toBeUndefined()
+  })
+
+  it("maps format.element to elementStyle", () => {
+    const elementStyle = { tone: "success", textStyles: [] } as const
+    const format: ElementFormat = { element: elementStyle, fields: {} }
+
+    const model = buildGalleryCardDisplayModel(makeEntry(), emptyBranches, t, language, format)
+
+    expect(model.elementStyle).toEqual(elementStyle)
+  })
+
+  it("omits elementStyle and slotStyles when called without a format argument", () => {
+    const model = buildGalleryCardDisplayModel(makeEntry(), emptyBranches, t, language)
+
+    expect(model.elementStyle).toBeUndefined()
+    expect(model.slotStyles).toBeUndefined()
+    expect(NO_ELEMENT_FORMAT.element).toBeNull()
   })
 })

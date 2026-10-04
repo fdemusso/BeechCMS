@@ -13,6 +13,7 @@ import {
   getConditionalToneStripClass,
   getGroupableColumns,
   getOperatorOptions,
+  moveViewId,
   normalizeConditionalTarget,
   normalizeTextStyles,
   operatorRequiresValue,
@@ -39,9 +40,9 @@ describe("content-toolbar/shared", () => {
   })
 
   it("normalizza target e text styles", () => {
-    expect(normalizeConditionalTarget("cell")).toBe("cell")
-    expect(normalizeConditionalTarget("row")).toBe("row")
-    expect(normalizeConditionalTarget("other")).toBe("row")
+    expect(normalizeConditionalTarget("field")).toBe("field")
+    expect(normalizeConditionalTarget("element")).toBe("element")
+    expect(normalizeConditionalTarget("other")).toBe("element")
     expect(normalizeTextStyles(["bold", "x", "italic", "underline"])).toEqual([
       "bold",
       "italic",
@@ -131,5 +132,24 @@ describe("content-toolbar/shared", () => {
 
     const withManyStatus = getGroupableColumns(seed, Array.from({ length: 9 }, (_, i) => `s${i}`))
     expect(withManyStatus[0].section).toBe("other")
+  })
+})
+
+describe("moveViewId", () => {
+  it("moves a tab forward to the index of the tab it was dropped on", () => {
+    const result = moveViewId(["a", "b", "c"], "a", "c")
+
+    expect(result).toEqual(["b", "c", "a"])
+  })
+
+  it("moves a tab backward to the index of the tab it was dropped on", () => {
+    const result = moveViewId(["a", "b", "c"], "c", "a")
+
+    expect(result).toEqual(["c", "a", "b"])
+  })
+
+  it("returns null when the tab is dropped on itself or outside the list", () => {
+    expect(moveViewId(["a", "b", "c"], "a", "a")).toBeNull()
+    expect(moveViewId(["a", "b", "c"], "a", null)).toBeNull()
   })
 })

@@ -1,7 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { resolveKanbanColumns } from '@beechcms/core'
 import type { Seed } from '@beechcms/core'
-import { useKanbanViewConfig } from './use-kanban-view-config'
 import type { SavedEntryInfo } from '../types'
 
 function toColumnValue(raw: unknown, validValues: Set<string>): string | null {
@@ -11,13 +10,11 @@ function toColumnValue(raw: unknown, validValues: Set<string>): string | null {
   return validValues.has(s) ? s : null
 }
 
-export function useKanbanEntrySync(seed: Seed | undefined, seedSlug: string) {
+export function useKanbanEntrySync(seed: Seed | undefined, seedSlug: string, axisBranchId: string | null) {
   const queryClient = useQueryClient()
-  const { kanbanConfig } = useKanbanViewConfig(seedSlug)
 
   return (info: SavedEntryInfo) => {
     if (!seed) return
-    const axisBranchId = kanbanConfig.axisBranchId
     if (!axisBranchId) return
     const axisBranch = seed.branches.find(b => b.id === axisBranchId)
     if (!axisBranch) return

@@ -3,6 +3,8 @@
 // See LICENSE in the repository root for license terms.
 
 import { extractTagNames } from "@/lib/tags-utils"
+import { resolvePolicies, type Seed } from "@beechcms/core"
+import type { ContentEntry } from "@/lib/dynamic-columns"
 
 export type FilterGroupType =
   | "text"
@@ -22,6 +24,41 @@ export type FilterOperator =
   | "contains"
   | "is_empty"
   | "is_not_empty"
+
+export interface FilterableColumn {
+  columnId: string
+  label: string
+  type: FilterGroupType
+  selectOptions?: string[]
+}
+
+export function buildFilterableColumns(
+  seed: Seed,
+  availableStatusOptions: string[] = []
+): FilterableColumn[] {
+  const columns: FilterableColumn[] = [
+    { columnId: "slug", label: "Slug", type: "system" },
+    { columnId: "status", label: "Stato", type: "select", selectOptions: availableStatusOptions },
+  ]
+  for (const branch of seed.branches) {
+    if (!resolvePolicies(branch).filter) continue
+    const alias = branch.alias
+    if (branch.type === "number") columns.push({ columnId: alias, label: branch.label, type: "number" })
+    else if (branch.type === "date") columns.push({ columnId: alias, label: branch.label, type: "date" })
+    else if (branch.type === "boolean") columns.push({ columnId: alias, label: branch.label, type: "boolean" })
+    else if (branch.type === "json" && alias.toLowerCase().includes("tag"))
+      columns.push({ columnId: alias, label: branch.label, type: "tags" })
+    else columns.push({ columnId: alias, label: branch.label, type: "text" })
+  }
+  return columns
+}
+
+export function getEntryValueForColumn(entry: ContentEntry, columnId: string): unknown {
+  if (columnId === "id") return entry.id
+  if (columnId === "slug") return entry.slug
+  if (columnId === "status") return entry.status
+  return entry.data?.[columnId]
+}
 
 type FilterValue = string | number | boolean | null
 
