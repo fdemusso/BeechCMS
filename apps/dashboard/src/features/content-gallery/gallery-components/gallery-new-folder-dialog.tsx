@@ -26,10 +26,12 @@ interface GalleryNewFolderDialogProps {
 export function GalleryNewFolderDialog({ open, onOpenChange, onConfirm }: GalleryNewFolderDialogProps) {
   const { t } = useTranslation()
   const [name, setName] = React.useState("")
+  const [prevOpen, setPrevOpen] = React.useState(open)
 
-  React.useEffect(() => {
+  if (open !== prevOpen) {
+    setPrevOpen(open)
     if (open) setName("")
-  }, [open])
+  }
 
   const trimmed = name.trim()
 

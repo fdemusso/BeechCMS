@@ -6,10 +6,8 @@ import { describe, it, expect, vi } from "vitest"
 import { render, screen } from "@testing-library/react"
 import i18n from "i18next"
 
-import {
-  GalleryFolderCard,
-  formatItemCount,
-} from "@/features/content-gallery/gallery-components/gallery-folder-card"
+import { GalleryFolderCard } from "@/features/content-gallery/gallery-components/gallery-folder-card"
+import { formatItemCount } from "@/features/content-gallery/gallery-components/format-item-count"
 import type { GalleryCategoryGroup } from "@/features/content-gallery/group-by-category"
 import type { GalleryCardDisplayModel } from "@/features/content-gallery/gallery-card-display"
 

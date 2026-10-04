@@ -17,10 +17,8 @@ import {
 } from "@/components/ui/small-cta"
 import type { GalleryCardDisplayModel } from "./gallery-card-display"
 import { GalleryCard } from "./gallery-components/gallery-card"
-import {
-  GalleryFolderCard,
-  formatItemCount,
-} from "./gallery-components/gallery-folder-card"
+import { GalleryFolderCard } from "./gallery-components/gallery-folder-card"
+import { formatItemCount } from "./gallery-components/format-item-count"
 import { GalleryNewFolderDialog } from "./gallery-components/gallery-new-folder-dialog"
 import { GallerySkeletonGrid } from "./gallery-components/gallery-skeleton-grid"
 import { useContentGallery } from "./gallery-hooks"

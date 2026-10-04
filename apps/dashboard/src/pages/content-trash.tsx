@@ -10,7 +10,7 @@ import { toast } from "sonner"
 import { ArrowLeft } from "reicon-react"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { Button } from "@/components/ui/button"
-import { AppSidebar, SiteHeader } from "@/features/navigation"
+import { AppSidebar, SiteHeader, PageShellLoading } from "@/features/navigation"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import { useActiveSeed } from "@/features/schema"
 import { SmallCta } from "@/components/ui/small-cta"
@@ -137,21 +137,7 @@ export function ContentTrashPage() {
   }
 
   if (isSeedLoading || !seed) {
-    return (
-      <div className="[--header-height:calc(--spacing(14))]">
-        <SidebarProvider className="flex flex-col">
-          <SiteHeader />
-          <div className="flex flex-1">
-            <AppSidebar />
-            <SidebarInset>
-              <div className="flex flex-1 items-center justify-center py-12">
-                <div className="text-muted-foreground">Loading configuration...</div>
-              </div>
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
-      </div>
-    )
+    return <PageShellLoading message="Loading configuration..." />
   }
 
   return (

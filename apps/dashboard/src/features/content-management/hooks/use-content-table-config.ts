@@ -101,7 +101,7 @@ export function useContentTableConfig({
         return next[0] ?? null
       })
     },
-    []
+    [setGroupBy]
   )
 
   const initialHiddenColumns = React.useMemo(

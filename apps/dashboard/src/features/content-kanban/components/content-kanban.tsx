@@ -150,7 +150,7 @@ function KanbanColumnConnected({
     // }).catch(() => {})
 
     return sorted
-  }, [fetchState.cards, pendingCards, col.value, formatElement])
+  }, [fetchState.cards, pendingCards, col.value, formatElement, queryClient, seedSlug, config.axisBranchId, axisBranch, seed, cardConfig])
 
   return (
     <KanbanColumn

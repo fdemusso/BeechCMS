@@ -7,32 +7,9 @@ import { useTranslation } from "react-i18next"
 import type { ViewDefinition, ViewRendererProps } from "@/features/shared"
 import { usePermissions } from "@/features/shared/hooks/use-permissions"
 import type { ContentEntry } from "@/lib/dynamic-columns"
-import {
-  getConditionalFormatCellClass,
-  getConditionalFormatRowClass,
-  type ElementFormat,
-} from "@/lib/conditional-format"
 import { useContentTableConfig } from "../hooks/use-content-table-config"
 import { ContentTableView } from "./ContentTableView"
-
-export interface TableRowStyles {
-  rowClassName?: string
-  cellClassNameByColumnId: Record<string, string | undefined>
-}
-
-/** Adapts the harness's semantic `ElementFormat` to the table's row/cell class contract. */
-export function toTableRowStyles(format: ElementFormat): TableRowStyles {
-  const rowClassName = format.element
-    ? getConditionalFormatRowClass(format.element.tone, format.element.textStyles)
-    : undefined
-
-  const cellClassNameByColumnId: Record<string, string | undefined> = {}
-  for (const [columnId, style] of Object.entries(format.fields)) {
-    cellClassNameByColumnId[columnId] = getConditionalFormatCellClass(style.tone, style.textStyles)
-  }
-
-  return { rowClassName, cellClassNameByColumnId }
-}
+import { toTableRowStyles } from "./table-row-styles"
 
 /** The Table View Type's renderer: owns column/grouping derivation, the harness owns layout state. */
 export function ContentTableRenderer({ seed, slug, query, layout, formatElement, entries }: ViewRendererProps) {

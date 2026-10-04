@@ -13,7 +13,10 @@ import { useKanbanEntrySync } from "../hooks/use-kanban-entry-sync"
 export function KanbanViewRenderer({ seed, slug, query, layout, formatElement, entries, isSaving, configDialog }: ViewRendererProps) {
   const kanbanSync = useKanbanEntrySync(seed, slug, layout.kanban.axisBranchId)
   const kanbanSyncRef = React.useRef(kanbanSync)
-  kanbanSyncRef.current = kanbanSync
+
+  React.useEffect(() => {
+    kanbanSyncRef.current = kanbanSync
+  }, [kanbanSync])
 
   React.useEffect(
     () => entries.subscribeSaved((info) => kanbanSyncRef.current(info)),

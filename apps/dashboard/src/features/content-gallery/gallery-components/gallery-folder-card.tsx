@@ -4,16 +4,12 @@
 
 import { Folder } from 'reicon-react'
 import { useTranslation } from "react-i18next"
-import type { TFunction } from "i18next"
 
 import type { GalleryCategoryGroup } from "../group-by-category"
 import { GALLERY_CARD_SURFACE_CLASS } from "./gallery-card-surface"
+import { formatItemCount } from "./format-item-count"
 
 const MAX_PREVIEWS = 3
-
-export function formatItemCount(t: TFunction, count: number): string {
-  return t("gallery.folders.itemCount", { count })
-}
 
 interface GalleryFolderCardProps {
   readonly group: GalleryCategoryGroup
@@ -24,8 +20,7 @@ export function GalleryFolderCard({ group, onOpen }: GalleryFolderCardProps) {
   const { t } = useTranslation()
   const label = group.label ?? t("gallery.folders.uncategorized")
   const previews = group.models
-    .map((model) => model.imageUrl)
-    .filter((url): url is string => !!url)
+    .filter((model): model is typeof model & { imageUrl: string } => !!model.imageUrl)
     .slice(0, MAX_PREVIEWS)
 
   return (
@@ -38,10 +33,10 @@ export function GalleryFolderCard({ group, onOpen }: GalleryFolderCardProps) {
       <div className="flex h-36 w-full items-center justify-center bg-gradient-to-br from-muted/40 to-muted/80">
         {previews.length > 0 ? (
           <div className="flex -space-x-4">
-            {previews.map((url, index) => (
+            {previews.map((model) => (
               <img
-                key={`${url}-${index}`}
-                src={url}
+                key={model.entryId}
+                src={model.imageUrl}
                 alt=""
                 loading="lazy"
                 onError={(event) => { event.currentTarget.style.display = "none" }}

@@ -117,6 +117,7 @@ export function AcceptInvitePage() {
       } else {
         setError(t("acceptInvite.genericError"))
       }
+    } finally {
       setIsSubmitting(false)
     }
   }

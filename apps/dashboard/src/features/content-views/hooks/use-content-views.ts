@@ -96,10 +96,11 @@ export function useReorderContentViews(slug: string) {
       queryClient.setQueryData<ContentView[]>(queryKey, (prev) => {
         if (!prev) return prev
         const byId = new Map(prev.map((view) => [view.id, view]))
+        const orderedIdSet = new Set(orderedIds)
         const ordered = orderedIds
           .map((id) => byId.get(id))
           .filter((view): view is ContentView => view !== undefined)
-        const missing = prev.filter((view) => !orderedIds.includes(view.id))
+        const missing = prev.filter((view) => !orderedIdSet.has(view.id))
         return [...ordered, ...missing].map((view, index) => ({ ...view, position: index }))
       })
     },

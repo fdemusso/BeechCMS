@@ -6,7 +6,7 @@
 
 import { describe, expect, it } from "vitest"
 import { getConditionalFormatCellClass, getConditionalFormatRowClass, NO_ELEMENT_FORMAT, type ElementFormat } from "@/lib/conditional-format"
-import { toTableRowStyles } from "../../components/content-table-renderer"
+import { toTableRowStyles } from "../../components/table-row-styles"
 
 describe("toTableRowStyles", () => {
   it("maps a matching element style to rowClassName equal to getConditionalFormatRowClass", () => {

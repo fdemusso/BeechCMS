@@ -8,3 +8,4 @@
  */
 export { AppSidebar } from "./components/app-sidebar"
 export { SiteHeader } from "./components/site-header"
+export { PageShellLoading } from "./components/page-shell-loading"

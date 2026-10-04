@@ -31,5 +31,5 @@ export const VIEW_TYPE_CATALOGUE: readonly ViewTypeCatalogueEntry[] = [
 
 /** Icon of an implemented type, for the switcher tabs. DashboardView is a subset of the catalogue. */
 export function viewTypeIcon(type: DashboardView): ComponentType<{ className?: string }> {
-  return VIEW_TYPE_CATALOGUE.find((entry) => entry.type === type)!.Icon
+  return VIEW_TYPE_CATALOGUE.find((entry) => entry.type === type)?.Icon ?? Grid
 }

@@ -120,9 +120,12 @@ export function useContentListQuery(
   const error = listError ? (listError as Error).message : null
 
   // Reset pagination when filter/slug changes
-  React.useEffect(() => {
+  const paginationResetKey = JSON.stringify([slug, debouncedSearch, sorting, toolbarFilters, pageSize])
+  const [prevPaginationResetKey, setPrevPaginationResetKey] = React.useState(paginationResetKey)
+  if (paginationResetKey !== prevPaginationResetKey) {
+    setPrevPaginationResetKey(paginationResetKey)
     setPageIndex(0)
-  }, [slug, debouncedSearch, sorting, toolbarFilters, pageSize])
+  }
 
   const singleSort = sorting[0]
 

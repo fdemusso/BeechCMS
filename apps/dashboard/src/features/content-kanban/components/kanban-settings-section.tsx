@@ -25,6 +25,7 @@ export function KanbanSettingsSection({ seed, layout, onClose, onOpenConfigDialo
   const candidates = kanbanCompat.compatible ? kanbanCompat.candidates : []
   const axisBranch = seed.branches.find((b) => b.id === layout.kanban.axisBranchId)
   const kanbanCols = axisBranch ? resolveKanbanColumns(axisBranch) : []
+  const hiddenColumnValues = new Set(layout.kanban.hiddenColumnValues ?? [])
 
   if (candidates.length === 0) return null
 
@@ -85,7 +86,7 @@ export function KanbanSettingsSection({ seed, layout, onClose, onOpenConfigDialo
               <ScrollArea className="max-h-56 pr-2">
                 <div className="flex flex-col gap-1 py-1">
                   {kanbanCols.filter((c) => c.value !== null).map((c) => {
-                    const isHidden = (layout.kanban.hiddenColumnValues ?? []).includes(c.value!)
+                    const isHidden = hiddenColumnValues.has(c.value!)
                     return (
                       <Button
                         key={c.value}

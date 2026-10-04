@@ -14,7 +14,7 @@ import {
   SidebarInset,
   SidebarProvider,
 } from "@/components/ui/sidebar"
-import { AppSidebar, SiteHeader } from "@/features/navigation"
+import { AppSidebar, SiteHeader, PageShellLoading } from "@/features/navigation"
 import { useActiveSeed } from "@/features/schema"
 import { resolveAuthorizedViews, type ContentView, type DashboardView } from "@beechcms/core"
 import { ConfirmDialog } from "@/components/ui/confirm-dialog"
@@ -183,21 +183,7 @@ export function ContentListPage() {
 
   // Loading skeleton while the seed or the views are fetching
   if (isSeedLoading || !seed || viewsQuery.isLoading) {
-    return (
-      <div className="[--header-height:calc(--spacing(14))]">
-        <SidebarProvider className="flex flex-col">
-          <SiteHeader />
-          <div className="flex flex-1">
-            <AppSidebar />
-            <SidebarInset>
-              <div className="flex flex-1 items-center justify-center py-12">
-                <div className="text-muted-foreground">Loading configuration...</div>
-              </div>
-            </SidebarInset>
-          </div>
-        </SidebarProvider>
-      </div>
-    )
+    return <PageShellLoading message="Loading configuration..." />
   }
 
   return (
