@@ -32,7 +32,14 @@ You are a Senior Systems Architect planning a new feature for the BeechCMS monor
 
 4. **Drafting:** Write the Sprint Plan strictly following the structure defined in `sprint_template.md`. You must populate every section (Why This Sprint Exists First, Current State, Deliverables, Task Details, Validation, Acceptance Criteria, Out of Scope).
 
-5. **Concrete Artifacts:** Inside "Task Details", provide exact D1 SQL schemas, TypeScript interfaces, and middleware registration order based on your graphify exploration. Leave no ambiguity for the downstream execution agent.
+5. **Plan Altitude (what Task Details contain):** The plan does the executor's RESEARCH, not its WORK. You explore the repo, pick the single best path, and hand over a map the executor trusts instead of re-searching. A good plan does not do the executor's work in advance; it makes the executor's research dramatically simpler.
+   - **Decide, don't survey.** Each task states the chosen approach and, in one line, why. No alternatives left open, no "or" choices handed to the executor.
+   - **Point, don't paste.** Name every file to create/edit/delete, the exact symbols involved, and `path:line` references to the existing pattern to copy ("copy the shape of `getViewConfigHandler` in `handlers/view-config.ts:L11`"). Never reproduce existing code the executor can open itself.
+   - **Building blocks are exact.** Write verbatim only what other modules, the DB, or the next sprint depend on: D1 SQL DDL, exported TypeScript interfaces/types and function signatures, component props, route + permission table rows, error codes, constant names with values, middleware registration order.
+   - **Behaviour is prose.** Describe implementation as rules, invariants, edge cases and data flow ("drops refs that don't resolve; never throws; same input → same JSON"). NO function bodies, NO hook/component implementations, NO JSX, NO test code.
+   - **Tests are a behaviour list.** For each test file: tier, path, fixture source, and one line per `it()` stating behaviour + outcome. The executor writes the test bodies following `testing_conventions.md`.
+   - **Budget:** the whole plan file (Pre-Computation Analysis and VETO Audit included) is **at most 1000 lines**. This is a ceiling, not a target: a plan that fits in 400 lines must not be padded to 1000. If the sprint cannot be described within the budget, it is too big. Go back to step 3 and split it.
+   - `sprint_template.md` SECTION 4 states the same rules in short form. If the two ever diverge, this step wins.
 
 ## Outputs
 - [NameOfTheSprint].md -> output/ (exactly ONE detailed plan; the downstream execution agent refuses to run otherwise)

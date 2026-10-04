@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, existsSync } from 'node:fs'
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import process from 'node:process'
@@ -41,6 +41,7 @@ function importedSlice(specifier, file) {
 function violations() {
   const found = []
   for (const file of trackedFiles()) {
+    if (!existsSync(file)) continue
     const source = readFileSync(file, 'utf8')
     const specifiers = [...source.matchAll(IMPORT_SPECIFIER)].map((match) => match[1])
 

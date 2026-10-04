@@ -2,18 +2,25 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import type { TFunction } from "i18next"
+
 import type { ContentEntry } from "@/lib/dynamic-columns"
 import { shouldShowPendingDraftBadge } from "@/lib/pending-draft"
 import { extractTagChips, type TagChipData } from "@/lib/tags-utils"
+import { NO_ELEMENT_FORMAT, type ElementFormat, type ElementStyle } from "@/lib/conditional-format"
 
 import type { ResolvedCardFields } from "./resolve-card-fields"
 
 export type StatusBadgeVariant = "default" | "secondary" | "outline" | "destructive"
 
+export type GalleryCardSlot = "status" | "title" | "excerpt" | "date" | "tags"
+
 export interface GalleryCardDisplayModel {
   entryId: string
   status: string
   tags: TagChipData[]
+  /** Valore della categoria, stringa vuota se assente: usato per raggruppare la galleria. */
+  category: string
   imageUrl: string | null
   title: string
   excerpt: string
@@ -21,6 +28,10 @@ export interface GalleryCardDisplayModel {
   ariaLabel: string
   statusVariant: StatusBadgeVariant
   hasPendingDraft: boolean
+  /** Element-level conditional format. Absent when no `element` rule matches. */
+  elementStyle?: ElementStyle
+  /** Field-level conditional format per visible slot. Present only for slots whose column matched a `field` rule. */
+  slotStyles?: Partial<Record<GalleryCardSlot, ElementStyle>>
 }
 
 export function getStatusBadgeVariant(status: string): StatusBadgeVariant {
@@ -83,13 +94,13 @@ function toExcerpt(value: unknown, maxChars = 50): string {
   return `${plain.slice(0, maxChars).trimEnd()}…`
 }
 
-function formatDate(value: unknown): string {
+function formatDate(value: unknown, language: string): string {
   if (value == null || value === "") return ""
   const rawNum = typeof value === "number" ? value : (typeof value === "string" && !isNaN(Number(value)) ? Number(value) : NaN)
   const finalVal = !isNaN(rawNum) && rawNum < 1e11 ? rawNum * 1000 : value
   const date = new Date(finalVal as string | number)
   if (Number.isNaN(date.getTime())) return String(value)
-  return date.toLocaleDateString("it-IT", {
+  return date.toLocaleDateString(language, {
     year: "numeric",
     month: "short",
     day: "numeric",
@@ -98,12 +109,18 @@ function formatDate(value: unknown): string {
 
 export function buildGalleryCardDisplayModel(
   entry: ContentEntry,
-  branches: ResolvedCardFields
+  branches: ResolvedCardFields,
+  t: TFunction,
+  language: string,
+  format: ElementFormat = NO_ELEMENT_FORMAT
 ): GalleryCardDisplayModel {
   const status = entry.status?.trim() || "—"
   const tags = branches.tagsBranch
     ? extractTagChips(entry.data[branches.tagsBranch.alias])
     : []
+  const category = branches.categoryBranch
+    ? toPlainText(entry.data[branches.categoryBranch.alias])
+    : ""
   const imageUrl = branches.coverBranch
     ? resolveImageUrl(entry.data[branches.coverBranch.alias])
     : null
@@ -111,16 +128,31 @@ export function buildGalleryCardDisplayModel(
   const excerpt = branches.excerptBranch
     ? toExcerpt(entry.data[branches.excerptBranch.alias], 90)
     : ""
-  const dateText = branches.dateBranch ? formatDate(entry.data[branches.dateBranch.alias]) : ""
+  const dateText = branches.dateBranch ? formatDate(entry.data[branches.dateBranch.alias], language) : ""
 
   const ariaLabel = title
-    ? `Apri dettaglio: ${title}`
-    : `Apri dettaglio entry ${entry.id}`
+    ? t("gallery.openDetailAriaLabel", { title })
+    : t("gallery.openDetailAriaLabelFallback", { id: entry.id })
+
+  const slotColumnId: Partial<Record<GalleryCardSlot, string>> = {
+    status: "status",
+    title: branches.titleBranch?.alias,
+    excerpt: branches.excerptBranch?.alias,
+    date: branches.dateBranch?.alias,
+    tags: branches.tagsBranch?.alias,
+  }
+  const slotStyles: Partial<Record<GalleryCardSlot, ElementStyle>> = {}
+  for (const [slot, columnId] of Object.entries(slotColumnId) as [GalleryCardSlot, string | undefined][]) {
+    if (!columnId) continue
+    const style = format.fields[columnId]
+    if (style) slotStyles[slot] = style
+  }
 
   return {
     entryId: entry.id,
     status,
     tags,
+    category,
     imageUrl,
     title,
     excerpt,
@@ -128,5 +160,7 @@ export function buildGalleryCardDisplayModel(
     ariaLabel,
     statusVariant: getStatusBadgeVariant(status),
     hasPendingDraft: shouldShowPendingDraftBadge(status, entry.has_pending_draft),
+    ...(format.element ? { elementStyle: format.element } : {}),
+    ...(Object.keys(slotStyles).length > 0 ? { slotStyles } : {}),
   }
 }

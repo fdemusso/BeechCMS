@@ -556,9 +556,40 @@
     "list": {
       "table": "Table",
       "gallery": "Gallery",
+      "kanban": "Kanban",
       "deletionPartial": "Partial deletion: {{failures}} of {{total}} failed",
       "emptyTitle": "There isn't anything here",
       "emptyCreateFirst": "Create your first {{label}}"
+    },
+    "views": {
+      "add": "Add view",
+      "delete": "Delete view",
+      "deleteConfirmTitle": "Delete this view?",
+      "deleteConfirmDescription": "\"{{label}}\" will be removed for everyone who can access this content type. Entries are not affected.",
+      "tabsLabel": "Views",
+      "pickerTitle": "Add a new view",
+      "types": {
+        "chart": "Chart",
+        "board": "Board",
+        "list": "List",
+        "calendar": "Calendar",
+        "map": "Map",
+        "timeline": "Timeline",
+        "feed": "Feed",
+        "form": "Form",
+        "dashboard": "Dashboard"
+      },
+      "emptyTitle": "No {{label}} views yet",
+      "emptyDescription": "Create a view to see this content as a {{label}}.",
+      "emptyCreate": "Create your first view",
+      "errors": {
+        "loadFailed": "Could not load the views of this content type",
+        "createFailed": "Could not create the view",
+        "saveFailed": "Could not save the view",
+        "deleteFailed": "Could not delete the view",
+        "lastTable": "A content type must keep at least one Table view",
+        "reorderFailed": "Could not save the view order"
+      }
     },
     "editor": {
       "newEntry": "New {{label}}",
@@ -709,6 +740,12 @@
     "viewSwitcher": {
       "addView": "Add view"
     },
+    "newEntry": {
+      "moreOptions": "Templates",
+      "templatesTitle": "Templates for {{label}}",
+      "templatesDescription": "Create a reusable entry template for this content type.",
+      "newTemplate": "New template"
+    },
     "filterPills": {
       "groupedBy": "Grouped by: {{label}}"
     },
@@ -731,6 +768,7 @@
       "recommended": "Recommended",
       "active": "active",
       "table": "Table",
+      "display": "Display",
       "columnSearch": "Search column...",
       "noColumns": "No columns found",
       "invertOrder": "Invert order",
@@ -770,8 +808,8 @@
       "editRule": "Edit rule",
       "toggleRule": "Enable/disable rule",
       "applyTo": "Apply to",
-      "cell": "Cell",
-      "row": "Row",
+      "field": "Field",
+      "element": "Whole item",
       "useColorIf": "use color if",
       "formatStyle": "formatting style",
       "default": "Default",
@@ -844,13 +882,27 @@
   "gallery": {
     "noItems": "No items to display",
     "noItemsDesc": "There are no contents available for this gallery view.",
-    "mainContent": "Main content",
-    "content": "Content",
-    "seo": "Metadata / SEO",
-    "status": "Status",
-    "noContent": "No content fields.",
-    "edit": "Edit",
-    "cover": "Cover"
+    "untitled": "Untitled",
+    "preview": "Preview",
+    "imageUnavailable": "Image unavailable",
+    "openDetailAriaLabel": "Open detail: {{title}}",
+    "openDetailAriaLabelFallback": "Open detail for entry {{id}}",
+    "folders": {
+      "title": "Your folders",
+      "sectionAriaLabel": "Folders",
+      "backToFolders": "Back to folders",
+      "addPhotoHere": "Add photo here",
+      "newFolder": "New folder",
+      "newFolderDescription": "Type the folder name, for example “Wedding”. Then add the first photo.",
+      "namePlaceholder": "Folder name",
+      "createAndAddPhoto": "Create and add photo",
+      "emptyTitle": "You don't have any folders yet",
+      "emptyDescription": "Press “New folder” to get started, then add the first photo.",
+      "uncategorized": "Other photos",
+      "itemCount_one": "{{count}} photo",
+      "itemCount_other": "{{count}} photos",
+      "openAriaLabel": "Open folder {{label}}, {{count}}"
+    }
   },
   "siteHeader": {
     "settings": "Settings",

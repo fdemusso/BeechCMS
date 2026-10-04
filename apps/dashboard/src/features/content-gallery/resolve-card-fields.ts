@@ -10,14 +10,21 @@ export interface ResolvedCardFields {
   excerptBranch: Branch | null
   dateBranch: Branch | null
   tagsBranch: Branch | null
+  categoryBranch: Branch | null
 }
 
 function includesAnyToken(value: string, tokens: string[]): boolean {
   return tokens.some((token) => value.includes(token))
 }
 
-export function resolveCardFields(seed: Seed): ResolvedCardFields {
+export function resolveCardFields(seed: Seed, groupByAlias: string | null = null): ResolvedCardFields {
   const branches = seed.branches
+
+  // La categoria non è indovinata dal nome del campo: è lo stesso campo che
+  // l'utente ha scelto nel "Raggruppa per" del toolbar (coerente con la tabella).
+  const categoryBranch = groupByAlias
+    ? branches.find((branch) => branch.alias === groupByAlias) ?? null
+    : null
 
   const coverBranch =
     branches.find((branch) => {
@@ -35,6 +42,7 @@ export function resolveCardFields(seed: Seed): ResolvedCardFields {
   const excerptBranch =
     branches.find((branch) => {
       if (branch.type !== "richtext" && branch.type !== "text") return false
+      if (branch.alias === categoryBranch?.alias) return false
       if (!titleBranch) return true
       return branch.alias !== titleBranch.alias
     }) ?? null
@@ -53,5 +61,6 @@ export function resolveCardFields(seed: Seed): ResolvedCardFields {
     excerptBranch,
     dateBranch,
     tagsBranch,
+    categoryBranch,
   }
 }

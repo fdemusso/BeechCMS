@@ -116,8 +116,11 @@ export const PROTECTED_ROUTES: readonly ProtectedRoute[] = [
   { method: 'GET',    pattern: /^\/api\/content\/import-jobs\/[^/]+$/,     requirement: AUTHED },
 
   // --- /api/content per-seed: capture group 1 IS the scope ---------------------
-  { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/view-config$/,   requirement: perm('content:read',   'capture1') },
-  { method: 'PUT',    pattern: /^\/api\/content\/([^/]+)\/view-config$/,   requirement: perm('content:update', 'capture1') },
+  { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/views$/,          requirement: perm('content:read',   'capture1') },
+  { method: 'POST',   pattern: /^\/api\/content\/([^/]+)\/views$/,          requirement: perm('content:update', 'capture1') },
+  { method: 'PUT',    pattern: /^\/api\/content\/([^/]+)\/views\/order$/,   requirement: perm('content:update', 'capture1') },
+  { method: 'PATCH',  pattern: /^\/api\/content\/([^/]+)\/views\/[^/]+$/,   requirement: perm('content:update', 'capture1') },
+  { method: 'DELETE', pattern: /^\/api\/content\/([^/]+)\/views\/[^/]+$/,   requirement: perm('content:update', 'capture1') },
   { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/facets$/,        requirement: perm('content:read',   'capture1') },
   { method: 'GET',    pattern: /^\/api\/content\/([^/]+)\/export$/,        requirement: perm('content:read',   'capture1') },
   { method: 'POST',   pattern: /^\/api\/content\/([^/]+)\/import$/,        requirement: perm('content:create', 'capture1') },

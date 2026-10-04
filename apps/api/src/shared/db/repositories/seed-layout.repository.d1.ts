@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import { seedViewConfigSchema, type ISeedLayoutRepository, type SeedLayoutRecord, type FormLayout, type SeedViewConfig } from '@beechcms/core'
+import type { ISeedLayoutRepository, SeedLayoutRecord, FormLayout } from '@beechcms/core'
 
 export class D1SeedLayoutRepository implements ISeedLayoutRepository {
   constructor(private readonly db: D1Database) {}
@@ -58,30 +58,5 @@ export class D1SeedLayoutRepository implements ISeedLayoutRepository {
       .prepare('DELETE FROM seed_layouts WHERE slug = ?')
       .bind(slug)
       .run()
-  }
-
-  async getViewConfig(slug: string): Promise<SeedViewConfig | null> {
-    try {
-      const row = await this.db
-        .prepare('SELECT view_config FROM seed_layouts WHERE slug = ?')
-        .bind(slug)
-        .first<{ view_config: string | null }>()
-      if (!row?.view_config) return null
-      return seedViewConfigSchema.parse(JSON.parse(row.view_config))
-    } catch {
-      return null
-    }
-  }
-
-  async setViewConfig(slug: string, config: SeedViewConfig, updatedBy: string): Promise<void> {
-    const json = JSON.stringify(config)
-    await this.db.prepare(`
-      INSERT INTO seed_layouts (slug, layout, view_config, updated_at, updated_by)
-      VALUES (?, '{}', ?, unixepoch(), ?)
-      ON CONFLICT(slug) DO UPDATE SET
-        view_config = excluded.view_config,
-        updated_at  = excluded.updated_at,
-        updated_by  = excluded.updated_by
-    `).bind(slug, json, updatedBy).run()
   }
 }

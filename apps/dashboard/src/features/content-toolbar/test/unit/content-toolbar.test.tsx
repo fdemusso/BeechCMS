@@ -47,6 +47,9 @@ vi.mock("@/features/content-toolbar/toolbar-components/settings-menu", () => ({
 vi.mock("@/features/content-toolbar/toolbar-components/filter-pills-bar", () => ({
   FilterPillsBar: () => <div>FILTER_PILLS</div>,
 }))
+vi.mock("@/features/content-toolbar/toolbar-components/new-entry-button", () => ({
+  NewEntryButton: ({ onCreate }: any) => <button onClick={onCreate}>New</button>,
+}))
 
 import { ContentToolbar } from "@/features/content-toolbar/content-toolbar"
 
@@ -56,7 +59,7 @@ describe("ContentToolbar", () => {
   it("renderizza strumenti e crea nuova entry", () => {
     const onCreate = vi.fn()
     mockUseContentToolbar.mockReturnValue({
-      activeView: { id: "table" },
+      activeView: { id: "table", type: "table", settings: [] },
       enabledTools: ["filter", "sort", "search", "settings", "create", "automation"],
       isFilterActiveEffective: false,
       isSortActiveEffective: false,
@@ -118,7 +121,7 @@ describe("ContentToolbar", () => {
     render(
       <ContentToolbar
         seed={{ slug: "posts", branches: [] } as any}
-        views={[{ id: "table", label: "Tabella", type: "table", enabledTools: [] as any }]}
+        views={[{ id: "table", label: "Tabella", type: "table", enabledTools: [] as any, settings: [] }]}
         activeViewId="table"
         onChangeView={vi.fn()}
         onCreate={onCreate}
@@ -132,5 +135,81 @@ describe("ContentToolbar", () => {
     expect(screen.getByText("SEARCH_BAR")).toBeInTheDocument()
     expect(screen.getByText("SETTINGS_MENU")).toBeInTheDocument()
     expect(screen.getByText("CHILD")).toBeInTheDocument()
+  })
+
+  it("renders its children inside the view viewport", () => {
+    mockUseContentToolbar.mockReturnValue({
+      activeView: { id: "table", type: "table", settings: [] },
+      enabledTools: [],
+      isFilterActiveEffective: false,
+      isSortActiveEffective: false,
+      isAutomationActiveEffective: false,
+      isSettingsMenuOpenEffective: false,
+      closeSettingsMenu: vi.fn(),
+      isToolEnabled: () => false,
+      isSearchOpen: false,
+      searchInputRef: { current: null },
+      handleSearchOpen: vi.fn(),
+      handleSearchClose: vi.fn(),
+      handleSearchSubmit: vi.fn(),
+      handleSearchBlur: vi.fn(),
+      sortColumnSearchTerm: "",
+      setSortColumnSearchTerm: vi.fn(),
+      filterColumnSearchTerm: "",
+      setFilterColumnSearchTerm: vi.fn(),
+      columnSearchTerm: "",
+      setColumnSearchTerm: vi.fn(),
+      filterMenuOpen: false,
+      setFilterMenuOpen: vi.fn(),
+      openPillId: null,
+      setOpenPillId: vi.fn(),
+      setIsSettingsMenuOpenState: vi.fn(),
+      viewNameDraft: "Tabella",
+      setViewNameDraft: vi.fn(),
+      commitViewName: vi.fn(),
+      filteredSortableColumns: [],
+      handleToggleSortDirection: vi.fn(),
+      handleSortColumnSelect: vi.fn(),
+      addConditionToColumn: vi.fn(),
+      removeColumnFilters: vi.fn(),
+      updateCondition: vi.fn(),
+      removeCondition: vi.fn(),
+      visibleFilterColumns: [],
+      activeFiltersCountByColumn: {},
+      conditionalFormats: [],
+      activeConditionalRule: null,
+      isConditionalEditorOpen: false,
+      setActiveConditionalRuleId: vi.fn(),
+      setIsConditionalEditorOpen: vi.fn(),
+      addConditionalFormatRule: vi.fn(),
+      updateConditionalRule: vi.fn(),
+      updateConditionalTextStyles: vi.fn(),
+      removeConditionalRule: vi.fn(),
+      moveConditionalRule: vi.fn(),
+      updateConditionalCondition: vi.fn(),
+      addConditionalCondition: vi.fn(),
+      removeConditionalCondition: vi.fn(),
+      filteredTableColumns: [],
+      formattableColumns: [],
+      recommendedGroupColumns: [],
+      otherGroupColumns: [],
+      activeGroupLabel: null,
+      datePrecisionMode: "monthYear",
+      applyDatePrecisionMode: vi.fn(),
+    })
+
+    render(
+      <ContentToolbar
+        seed={{ slug: "posts", branches: [] } as any}
+        views={[{ id: "table", label: "Tabella", type: "table", enabledTools: [] as any, settings: [] }]}
+        activeViewId="table"
+        onChangeView={vi.fn()}
+        onCreate={vi.fn()}
+      >
+        <div>CHILD</div>
+      </ContentToolbar>
+    )
+
+    expect(document.querySelector('[data-slot="view-viewport"]')).toContainElement(screen.getByText("CHILD"))
   })
 })

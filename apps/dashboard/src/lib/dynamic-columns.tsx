@@ -115,6 +115,20 @@ function getIconForType(type: string) {
  * @param onBulkEdit - Callback to trigger bulk edit dialog.
  * @returns Column definitions list for TanStack Table.
  */
+
+/** Columns hidden until the user decides otherwise: id, slug, created_at, and json branches named like metadata. */
+export function defaultHiddenColumns(seed: Seed): string[] {
+  const hidden = ["id", "slug", "created_at"]
+  const metaAliases = seed.branches
+    .filter(
+      (b) =>
+        b.type === "json" &&
+        (b.alias.toLowerCase().includes("metadata") || b.alias.toLowerCase().includes("metadati"))
+    )
+    .map((b) => b.alias)
+  return [...hidden, ...metaAliases]
+}
+
 export function generateColumns(
   seed: Seed,
   onEdit: (id: string) => void,

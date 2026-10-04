@@ -556,9 +556,40 @@
     "list": {
       "table": "Tabella",
       "gallery": "Galleria",
+      "kanban": "Kanban",
       "deletionPartial": "Eliminazione parziale: {{failures}} su {{total}} fallite",
       "emptyTitle": "Qui non c'è nulla",
       "emptyCreateFirst": "Crea il tuo primo {{label}}"
+    },
+    "views": {
+      "add": "Aggiungi vista",
+      "delete": "Elimina vista",
+      "deleteConfirmTitle": "Eliminare questa vista?",
+      "deleteConfirmDescription": "\"{{label}}\" verrà rimossa per tutti coloro che accedono a questo tipo di contenuto. I contenuti non vengono toccati.",
+      "tabsLabel": "Viste",
+      "pickerTitle": "Aggiungi una nuova vista",
+      "types": {
+        "chart": "Grafico",
+        "board": "Bacheca",
+        "list": "Elenco",
+        "calendar": "Calendario",
+        "map": "Mappa",
+        "timeline": "Timeline",
+        "feed": "Feed",
+        "form": "Modulo",
+        "dashboard": "Dashboard"
+      },
+      "emptyTitle": "Nessuna vista {{label}}",
+      "emptyDescription": "Crea una vista per vedere questo contenuto come {{label}}.",
+      "emptyCreate": "Crea la tua prima vista",
+      "errors": {
+        "loadFailed": "Impossibile caricare le viste di questo tipo di contenuto",
+        "createFailed": "Impossibile creare la vista",
+        "saveFailed": "Impossibile salvare la vista",
+        "deleteFailed": "Impossibile eliminare la vista",
+        "lastTable": "Un tipo di contenuto deve mantenere almeno una vista Tabella",
+        "reorderFailed": "Impossibile salvare l'ordine delle viste"
+      }
     },
     "editor": {
       "newEntry": "Nuovo {{label}}",
@@ -709,6 +740,12 @@
     "viewSwitcher": {
       "addView": "Aggiungi vista"
     },
+    "newEntry": {
+      "moreOptions": "Template",
+      "templatesTitle": "Template per {{label}}",
+      "templatesDescription": "Crea un template riutilizzabile per le entry di questo tipo di contenuto.",
+      "newTemplate": "Nuovo template"
+    },
     "filterPills": {
       "groupedBy": "Raggruppato per: {{label}}"
     },
@@ -731,6 +768,7 @@
       "recommended": "Consigliati",
       "active": "attivo",
       "table": "Tabella",
+      "display": "Visualizzazione",
       "columnSearch": "Cerca colonna...",
       "noColumns": "Nessuna colonna trovata",
       "invertOrder": "Inverti ordine",
@@ -770,8 +808,8 @@
       "editRule": "Modifica regola",
       "toggleRule": "Attiva/disattiva regola",
       "applyTo": "Applica a",
-      "cell": "Cella",
-      "row": "Riga",
+      "field": "Campo",
+      "element": "Intero elemento",
       "useColorIf": "usa colore se",
       "formatStyle": "stile di formattazione",
       "default": "Predefinito",
@@ -844,13 +882,27 @@
   "gallery": {
     "noItems": "Nessun elemento da visualizzare",
     "noItemsDesc": "Non ci sono contenuti disponibili per questa vista galleria.",
-    "mainContent": "Contenuto principale",
-    "content": "Contenuto",
-    "seo": "Metadati / SEO",
-    "status": "Stato",
-    "noContent": "Nessun campo contenuto.",
-    "edit": "Modifica",
-    "cover": "Copertina"
+    "untitled": "Senza titolo",
+    "preview": "Anteprima",
+    "imageUnavailable": "Immagine non disponibile",
+    "openDetailAriaLabel": "Apri dettaglio: {{title}}",
+    "openDetailAriaLabelFallback": "Apri dettaglio entry {{id}}",
+    "folders": {
+      "title": "Le tue cartelle",
+      "sectionAriaLabel": "Cartelle",
+      "backToFolders": "Torna alle cartelle",
+      "addPhotoHere": "Aggiungi foto qui",
+      "newFolder": "Nuova cartella",
+      "newFolderDescription": "Scrivi il nome della cartella, per esempio “Matrimonio”. Poi aggiungi la prima foto.",
+      "namePlaceholder": "Nome della cartella",
+      "createAndAddPhoto": "Crea e aggiungi foto",
+      "emptyTitle": "Non hai ancora nessuna cartella",
+      "emptyDescription": "Premi “Nuova cartella” per iniziare, poi aggiungi la prima foto.",
+      "uncategorized": "Altre foto",
+      "itemCount_one": "{{count}} foto",
+      "itemCount_other": "{{count}} foto",
+      "openAriaLabel": "Apri cartella {{label}}, {{count}}"
+    }
   },
   "siteHeader": {
     "settings": "Impostazioni",

@@ -395,6 +395,9 @@ importers:
         specifier: ^4.4.3
         version: 4.4.3
     devDependencies:
+      '@beechcms/testing':
+        specifier: workspace:^0.8.0
+        version: link:../../packages/testing
       '@eslint/js':
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.11.0(jiti@2.7.0)(supports-color@10.2.2))

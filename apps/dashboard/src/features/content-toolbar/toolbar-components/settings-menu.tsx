@@ -22,12 +22,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Settings, Filter, SortV as ArrowUpDown, RowVertical as Rows3, Palette, Eye, EyeOff, RowVertical as Rows2, AlignLeft as AlignJustify, Minus, Plus, Check, Grid as LayoutGrid } from 'reicon-react'
-import { resolveKanbanColumns } from "@beechcms/core"
+import { Settings, Filter, SortV as ArrowUpDown, RowVertical as Rows3, Palette, Eye, EyeOff, RowVertical as Rows2, AlignLeft as AlignJustify, Minus, Plus, Check, Trash2 } from 'reicon-react'
 
 import type { VisibilityState } from "@tanstack/react-table"
 import type { TableDensity } from "@/lib/density"
 import type { ConditionalFormatRule } from "@/lib/conditional-format"
+import type { ViewSetting } from "@/features/shared"
 import { ConditionalFormatsEditor } from "./conditional-formats-editor"
 import type { DatePrecisionMode } from "../toolbar-hooks/use-toolbar-groupby"
 
@@ -83,12 +83,13 @@ interface SettingsMenuProps {
   readonly onPageSizeChange?: (size: number) => void
   readonly density?: TableDensity
   readonly onDensityChange?: (density: TableDensity) => void
-  readonly activeViewId?: string
-  readonly kanbanCandidates?: Array<{ branchId: string; label: string; alias: string }>
-  readonly kanbanConfig?: any
-  readonly onKanbanConfigChange?: (next: any) => void
-  readonly kanbanAxisBranch?: any
-  readonly onOpenCardConfig?: () => void
+  readonly settings: readonly ViewSetting[]
+  readonly showSort: boolean
+  /** The active View Type's own settings block; `close` closes the settings menu. */
+  readonly renderSettingsSection?: (ctx: { close: () => void }) => React.ReactNode
+  readonly isViewNameEditable?: boolean
+  readonly onDeleteView?: () => void
+  readonly canDeleteView?: boolean
 }
 
 export function SettingsMenu({
@@ -143,15 +144,22 @@ export function SettingsMenu({
   onPageSizeChange,
   density,
   onDensityChange,
-  activeViewId,
-  kanbanCandidates,
-  kanbanConfig,
-  onKanbanConfigChange,
-  kanbanAxisBranch,
-  onOpenCardConfig,
+  settings,
+  showSort,
+  renderSettingsSection,
+  isViewNameEditable,
+  onDeleteView,
+  canDeleteView,
 }: SettingsMenuProps) {
   const { t } = useTranslation()
-  const kanbanCols = kanbanAxisBranch ? resolveKanbanColumns(kanbanAxisBranch) : []
+  const showLayoutGroup = settings.includes("groupBy") || settings.includes("conditionalFormats")
+  const showDisplayGroup = settings.includes("columns") || settings.includes("pageSize") || settings.includes("density")
+  const settingsSectionNode = renderSettingsSection?.({ close: closeSettingsMenu }) ?? null
+  // The display group is the only block that does not end in its own separator (quick actions,
+  // the settings section and the layout group all do, or nothing rendered since the quick-actions
+  // separator, which then already stands alone before delete). So delete needs its own separator
+  // iff the display group rendered, regardless of what rendered before it.
+  const deleteSeparatorAlreadyEmitted = !showDisplayGroup
   return (
     <DropdownMenu
       open={isSettingsMenuOpenEffective}
@@ -199,6 +207,7 @@ export function SettingsMenu({
               }}
               className="h-8 text-sm"
               placeholder={t("toolbar.settings.viewName")}
+              disabled={isViewNameEditable === false}
             />
           </div>
         </DropdownMenuGroup>
@@ -264,7 +273,7 @@ export function SettingsMenu({
               </DropdownMenuSubContent>
             </DropdownMenuPortal>
           </DropdownMenuSub>
-          {activeViewId !== "kanban" && (
+          {showSort && (
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <ArrowUpDown className="size-4" />
@@ -333,119 +342,20 @@ export function SettingsMenu({
 
         <DropdownMenuSeparator />
 
-        {/* Layout e stile (Kanban) */}
-        {activeViewId === "kanban" && kanbanCandidates && kanbanCandidates.length > 0 && (
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>{t("toolbar.settings.layoutStyle")}</DropdownMenuLabel>
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>
-                <Rows3 className="size-4" />
-                {t("toolbar.settings.groupBy")}
-              </DropdownMenuSubTrigger>
-              <DropdownMenuPortal>
-                <DropdownMenuSubContent className="w-64 p-2">
-                  <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                    {t("toolbar.settings.groupBy")}
-                  </DropdownMenuLabel>
-                  <div className="flex flex-col gap-1">
-                    {kanbanCandidates.map(c => {
-                      const isSelected = kanbanConfig?.axisBranchId === c.branchId
-                      return (
-                        <Button
-                          key={c.branchId}
-                          type="button"
-                          variant={isSelected ? "secondary" : "ghost"}
-                          size="sm"
-                          className="h-8 w-full justify-between px-2 text-xs"
-                          onClick={() => {
-                            onKanbanConfigChange?.({
-                              axisBranchId: c.branchId,
-                              sort: null,
-                              hiddenColumnValues: [],
-                              collapsedColumnValues: kanbanConfig?.collapsedColumnValues ?? []
-                            })
-                            closeSettingsMenu()
-                          }}
-                        >
-                          <span className="truncate">{c.label}</span>
-                          {isSelected && <Check className="size-3.5 shrink-0 text-muted-foreground" />}
-                        </Button>
-                      )
-                    })}
-                  </div>
-                </DropdownMenuSubContent>
-              </DropdownMenuPortal>
-            </DropdownMenuSub>
-
-            {/* Colonne visibili per Kanban */}
-            {kanbanAxisBranch && kanbanCols.length > 0 && (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <Eye className="size-4" />
-                  {t("toolbar.settings.visibleColumns")}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent className="w-64 p-2">
-                    <DropdownMenuLabel className="px-0 pb-2 pt-0 text-xs font-medium text-muted-foreground">
-                      {t("toolbar.settings.columnVisibility")}
-                    </DropdownMenuLabel>
-                    <ScrollArea className="max-h-56 pr-2">
-                      <div className="flex flex-col gap-1 py-1">
-                        {kanbanCols.filter(c => c.value !== null).map(c => {
-                          const isHidden = (kanbanConfig?.hiddenColumnValues ?? []).includes(c.value!)
-                          return (
-                            <Button
-                              key={c.value}
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 justify-between px-2 text-xs"
-                              onClick={() => {
-                                const hiddenSet = new Set(kanbanConfig?.hiddenColumnValues ?? [])
-                                if (hiddenSet.has(c.value!)) {
-                                  hiddenSet.delete(c.value!)
-                                } else {
-                                  hiddenSet.add(c.value!)
-                                }
-                                onKanbanConfigChange?.({
-                                  axisBranchId: kanbanConfig?.axisBranchId ?? null,
-                                  sort: null,
-                                  hiddenColumnValues: Array.from(hiddenSet),
-                                  collapsedColumnValues: kanbanConfig?.collapsedColumnValues ?? []
-                                })
-                              }}
-                            >
-                              <span className="truncate">{c.label}</span>
-                              {!isHidden ? (
-                                <Eye className="size-3.5 shrink-0 text-muted-foreground" />
-                              ) : (
-                                <EyeOff className="size-3.5 shrink-0 text-muted-foreground/50" />
-                              )}
-                            </Button>
-                          )
-                        })}
-                      </div>
-                    </ScrollArea>
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
-            )}
-            {onOpenCardConfig && (
-              <DropdownMenuItem
-                onSelect={() => { onOpenCardConfig(); closeSettingsMenu() }}
-              >
-                <LayoutGrid className="size-4" />
-                {t('kanban.cardConfig.openConfig', 'Configure card layout')}
-              </DropdownMenuItem>
-            )}
-          </DropdownMenuGroup>
+        {/* The active View Type's own settings block (today: Kanban's layout & style group). */}
+        {settingsSectionNode && (
+          <>
+            {settingsSectionNode}
+            <DropdownMenuSeparator />
+          </>
         )}
 
-        {/* Layout e stile (Non-Kanban) */}
-        {activeViewId !== "kanban" && (
+        {/* Layout e stile (universale) */}
+        {showLayoutGroup && (
           <>
             <DropdownMenuGroup>
               <DropdownMenuLabel>{t("toolbar.settings.layoutStyle")}</DropdownMenuLabel>
+              {settings.includes("groupBy") && (
               <DropdownMenuSub>
                 <DropdownMenuSubTrigger>
                   <Rows3 className="size-4" />
@@ -576,42 +486,47 @@ export function SettingsMenu({
                   </DropdownMenuSubContent>
                 </DropdownMenuPortal>
               </DropdownMenuSub>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                  <Palette className="size-4" />
-                  {t("toolbar.settings.conditionalColors")}
-                </DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                  <DropdownMenuSubContent className="w-[620px] p-3">
-                    <ConditionalFormatsEditor
-                      enabled={Boolean(onConditionalFormatsChange)}
-                      formattableColumns={formattableColumns}
-                      conditionalFormats={conditionalFormats}
-                      activeConditionalRule={activeConditionalRule}
-                      isConditionalEditorOpen={isConditionalEditorOpen}
-                      setIsConditionalEditorOpen={setIsConditionalEditorOpen}
-                      setActiveConditionalRuleId={setActiveConditionalRuleId}
-                      addConditionalFormatRule={addConditionalFormatRule}
-                      updateConditionalRule={updateConditionalRule}
-                      updateConditionalTextStyles={updateConditionalTextStyles}
-                      removeConditionalRule={removeConditionalRule}
-                      moveConditionalRule={moveConditionalRule}
-                      updateConditionalCondition={updateConditionalCondition}
-                      addConditionalCondition={addConditionalCondition}
-                      removeConditionalCondition={removeConditionalCondition}
-                      availableTagsByColumnId={availableTagsByColumnId}
-                    />
-                  </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-              </DropdownMenuSub>
+              )}
+              {settings.includes("conditionalFormats") && (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <Palette className="size-4" />
+                    {t("toolbar.settings.conditionalColors")}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuPortal>
+                    <DropdownMenuSubContent className="w-[620px] p-3">
+                      <ConditionalFormatsEditor
+                        enabled={Boolean(onConditionalFormatsChange)}
+                        formattableColumns={formattableColumns}
+                        conditionalFormats={conditionalFormats}
+                        activeConditionalRule={activeConditionalRule}
+                        isConditionalEditorOpen={isConditionalEditorOpen}
+                        setIsConditionalEditorOpen={setIsConditionalEditorOpen}
+                        setActiveConditionalRuleId={setActiveConditionalRuleId}
+                        addConditionalFormatRule={addConditionalFormatRule}
+                        updateConditionalRule={updateConditionalRule}
+                        updateConditionalTextStyles={updateConditionalTextStyles}
+                        removeConditionalRule={removeConditionalRule}
+                        moveConditionalRule={moveConditionalRule}
+                        updateConditionalCondition={updateConditionalCondition}
+                        addConditionalCondition={addConditionalCondition}
+                        removeConditionalCondition={removeConditionalCondition}
+                        availableTagsByColumnId={availableTagsByColumnId}
+                      />
+                    </DropdownMenuSubContent>
+                  </DropdownMenuPortal>
+                </DropdownMenuSub>
+              )}
             </DropdownMenuGroup>
 
             <DropdownMenuSeparator />
+          </>
+        )}
 
-            {/* Tabella */}
+        {showDisplayGroup && (
             <DropdownMenuGroup>
-              <DropdownMenuLabel>{t("toolbar.settings.table")}</DropdownMenuLabel>
-              {columnVisibility && onColumnVisibilityChange && (
+              <DropdownMenuLabel>{t("toolbar.settings.display")}</DropdownMenuLabel>
+              {settings.includes("columns") && columnVisibility && onColumnVisibilityChange && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <Eye className="size-4" />
@@ -669,7 +584,7 @@ export function SettingsMenu({
                   </DropdownMenuPortal>
                 </DropdownMenuSub>
               )}
-              {pageSize != null && onPageSizeChange && (
+              {settings.includes("pageSize") && pageSize != null && onPageSizeChange && (
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="justify-between gap-4 focus:bg-transparent focus:text-inherit data-[highlighted]:bg-transparent data-[highlighted]:text-inherit cursor-default">
                   <div className="flex items-center gap-2">
                     <Rows2 className="size-4" />
@@ -710,7 +625,7 @@ export function SettingsMenu({
                   </div>
                 </DropdownMenuItem>
               )}
-              {density != null && onDensityChange && (
+              {settings.includes("density") && density != null && onDensityChange && (
                 <DropdownMenuSub>
                   <DropdownMenuSubTrigger>
                     <AlignJustify className="size-4" />
@@ -737,6 +652,22 @@ export function SettingsMenu({
                 </DropdownMenuSub>
               )}
             </DropdownMenuGroup>
+        )}
+
+        {onDeleteView && (
+          <>
+            {!deleteSeparatorAlreadyEmitted && <DropdownMenuSeparator />}
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={!canDeleteView}
+              onSelect={() => {
+                closeSettingsMenu()
+                onDeleteView()
+              }}
+            >
+              <Trash2 className="size-4" />
+              {t("content.views.delete")}
+            </DropdownMenuItem>
           </>
         )}
       </DropdownMenuContent>

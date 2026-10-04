@@ -32,7 +32,7 @@ describe("toolbar hooks", () => {
     const onRenameView = vi.fn()
     const { result } = renderHook(() =>
       useViewName({
-        activeView: { id: "table", label: "Tabella", type: "table", enabledTools: [] as any },
+        activeView: { id: "table", label: "Tabella", type: "table", enabledTools: [] as any, settings: [] },
         onRenameView,
       })
     )

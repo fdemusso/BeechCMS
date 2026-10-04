@@ -91,6 +91,7 @@ describe("ContentToolbar rendering", () => {
                 label: "table",
                 type: "table",
                 enabledTools: ["automation"],
+                settings: [],
                 conditionalFormats: [],
               },
             ]}

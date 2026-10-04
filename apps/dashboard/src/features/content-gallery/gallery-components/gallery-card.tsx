@@ -3,6 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 import { Calendar, Image as ImageIcon, Image as ImageOff } from 'reicon-react'
 
 import { Badge } from "@/components/ui/badge"
@@ -10,8 +11,10 @@ import { Separator } from "@/components/ui/separator"
 import { TagChips } from "@/components/ui/tag-chips"
 import { pendingDraftBadgeClass } from "@/lib/pending-draft"
 import { cn } from "@/lib/utils"
+import { getConditionalFormatCardClass, getConditionalFormatCellClass } from "@/lib/conditional-format"
 
 import type { GalleryCardDisplayModel } from "../gallery-card-display"
+import { GALLERY_CARD_SURFACE_CLASS } from "./gallery-card-surface"
 
 interface GalleryCardProps {
   readonly model: GalleryCardDisplayModel
@@ -27,6 +30,7 @@ function statusBadgeClass(status: string): string {
 }
 
 export function GalleryCard({ model, onOpen }: GalleryCardProps) {
+  const { t } = useTranslation()
   const [imgError, setImgError] = useState(false)
   const showImage = !!model.imageUrl && !imgError
 
@@ -36,14 +40,8 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
       onClick={() => onOpen(model.entryId)}
       aria-label={model.ariaLabel}
       className={cn(
-        "group flex w-full flex-col overflow-hidden rounded-2xl text-left",
-        "bg-card border border-border",
-        "shadow-[0_1px_3px_0_rgb(0,0,0,0.05),0_1px_2px_-1px_rgb(0,0,0,0.04)]",
-        "transition-all duration-200",
-        "hover:-translate-y-0.5 hover:shadow-[0_8px_24px_0_rgb(0,0,0,0.10),0_2px_6px_-1px_rgb(0,0,0,0.06)]",
-        "hover:border-border/80",
-        "dark:hover:border-border/60 dark:hover:shadow-[0_8px_24px_0_rgb(0,0,0,0.3)]",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+        GALLERY_CARD_SURFACE_CLASS,
+        model.elementStyle && getConditionalFormatCardClass(model.elementStyle.tone, model.elementStyle.textStyles)
       )}
     >
       {/* ── Image area ── */}
@@ -51,7 +49,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
         {showImage ? (
           <img
             src={model.imageUrl!}
-            alt={model.title || "Anteprima"}
+            alt={model.title || t("gallery.preview")}
             className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.04]"
             loading="lazy"
             onError={() => setImgError(true)}
@@ -62,7 +60,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
               <>
                 <ImageOff className="size-7 text-muted-foreground/30" />
                 <span className="text-[10px] text-muted-foreground/50">
-                  Immagine non disponibile
+                  {t("gallery.imageUnavailable")}
                 </span>
               </>
             ) : (
@@ -72,7 +70,13 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
         )}
 
         {/* Status badges overlaid top-left */}
-        <div className="absolute left-3 top-3 flex flex-col items-start gap-1.5">
+        <div
+          className={cn(
+            "absolute left-3 top-3 flex flex-col items-start gap-1.5",
+            model.slotStyles?.status &&
+              getConditionalFormatCellClass(model.slotStyles.status.tone, model.slotStyles.status.textStyles)
+          )}
+        >
           <Badge
             variant="outline"
             className={cn(
@@ -90,7 +94,7 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
                 pendingDraftBadgeClass,
               )}
             >
-              Bozza in sospeso
+              {t("content.table.pendingDraft")}
             </Badge>
           )}
         </div>
@@ -102,13 +106,19 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
         <h3 className={cn(
           "font-heading line-clamp-2 text-sm font-semibold leading-snug text-foreground",
           !model.title && "text-muted-foreground italic",
+          model.slotStyles?.title &&
+            getConditionalFormatCellClass(model.slotStyles.title.tone, model.slotStyles.title.textStyles)
         )}>
-          {model.title || "Senza titolo"}
+          {model.title || t("gallery.untitled")}
         </h3>
 
         {/* Excerpt */}
         {model.excerpt && (
-          <p className="line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+          <p className={cn(
+            "line-clamp-2 text-xs leading-relaxed text-muted-foreground",
+            model.slotStyles?.excerpt &&
+              getConditionalFormatCellClass(model.slotStyles.excerpt.tone, model.slotStyles.excerpt.textStyles)
+          )}>
             {model.excerpt}
           </p>
         )}
@@ -119,7 +129,11 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
           {/* Tags + date */}
           <div className="flex items-center justify-between gap-2">
             {model.dateText ? (
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+              <div className={cn(
+                "flex items-center gap-1 text-[11px] text-muted-foreground",
+                model.slotStyles?.date &&
+                  getConditionalFormatCellClass(model.slotStyles.date.tone, model.slotStyles.date.textStyles)
+              )}>
                 <Calendar className="size-3 shrink-0 opacity-60" />
                 {model.dateText}
               </div>
@@ -132,7 +146,11 @@ export function GalleryCard({ model, onOpen }: GalleryCardProps) {
                 tags={model.tags}
                 maxVisible={2}
                 chipVariant="outline"
-                className="min-w-0 justify-end"
+                className={cn(
+                  "min-w-0 justify-end",
+                  model.slotStyles?.tags &&
+                    getConditionalFormatCellClass(model.slotStyles.tags.tone, model.slotStyles.tags.textStyles)
+                )}
                 chipClassName="min-w-0 max-w-20 text-[10px]"
                 countBadgeClassName="shrink-0 text-[10px]"
               />

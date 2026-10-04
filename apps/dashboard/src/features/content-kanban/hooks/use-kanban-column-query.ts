@@ -3,6 +3,7 @@ import { kanbanColumnFilter } from '@beechcms/core'
 import type { Branch, KanbanColumnDescriptor, FilterGroup, Seed, KanbanCardConfig } from '@beechcms/core'
 import { fetchKanbanColumn } from '@/lib/content-api'
 import { useLocalizeEntryData } from '@/features/shared'
+import { NO_ELEMENT_FORMATTER, type ElementFormatter } from '@/lib/conditional-format'
 import { buildKanbanCardDisplayModel } from '../utils/kanban-card-display'
 import type { KanbanBoardConfig, KanbanColumnFetchState } from '../types'
 import { KANBAN_COLUMN_PAGE_SIZE } from '../constants'
@@ -16,6 +17,7 @@ export function useKanbanColumnQuery(
   search: string,
   seed?: Seed,
   cardConfig?: KanbanCardConfig,
+  formatElement: ElementFormatter = NO_ELEMENT_FORMATTER,
 ): KanbanColumnFetchState {
   const localize = useLocalizeEntryData()
   const colFilter = kanbanColumnFilter(axisBranch, col.value)
@@ -46,9 +48,17 @@ export function useKanbanColumnQuery(
 
   const total = data?.pages[0]?.total ?? 0
   const cards = (data?.pages ?? []).flatMap(page =>
-    page.items.map(item =>
-      buildKanbanCardDisplayModel({ ...item, data: localize(seed, item.data) }, axisBranch, col.value, seed, cardConfig),
-    ),
+    page.items.map(item => {
+      const localizedEntry = { ...item, data: localize(seed, item.data) }
+      return buildKanbanCardDisplayModel(
+        localizedEntry,
+        axisBranch,
+        col.value,
+        seed,
+        cardConfig,
+        formatElement(localizedEntry),
+      )
+    }),
   )
 
   return { cards, total, hasNextPage: Boolean(hasNextPage), isFetching, isLoading, fetchNextPage }

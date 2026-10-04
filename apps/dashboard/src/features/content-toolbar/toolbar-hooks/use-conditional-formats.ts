@@ -97,7 +97,7 @@ export function useConditionalFormats({
           conditions: [{ id: generateConditionId(), op: defaultOp, value: null }],
         },
         tone: "warning",
-        target: "row",
+        target: "element",
         textStyles: [],
       }
       commitConditionalFormats([...conditionalFormats, nextRule])

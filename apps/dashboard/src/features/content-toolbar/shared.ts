@@ -2,8 +2,8 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
-import { resolvePolicies } from "@beechcms/core"
-import type { Seed } from "@beechcms/core"
+import { arrayMove } from "@dnd-kit/sortable"
+import type { DashboardView, Seed } from "@beechcms/core"
 import type {
   ConditionalFormatRule,
   ConditionalFormatTarget,
@@ -11,16 +11,25 @@ import type {
   ConditionalFormatTone,
 } from "@/lib/conditional-format"
 
-export type ViewType = "table" | "gallery" | "grid" | "kanban" | "chart"
-import type { ToolbarTool } from "@/features/shared"
+import type { ToolbarTool, ViewSetting } from "@/features/shared"
 export type { ToolbarTool }
 
 export interface UserViewInstance {
   id: string
   label: string
-  type: ViewType
+  type: DashboardView
   enabledTools: ToolbarTool[]
+  settings: readonly ViewSetting[]
   conditionalFormats?: ConditionalFormatRule[]
+}
+
+/** New tab order after dragging `activeId` onto `overId`; null when nothing moves. */
+export function moveViewId(ids: readonly string[], activeId: string, overId: string | null): string[] | null {
+  if (overId === null || activeId === overId) return null
+  const fromIndex = ids.indexOf(activeId)
+  const toIndex = ids.indexOf(overId)
+  if (fromIndex === -1 || toIndex === -1) return null
+  return arrayMove([...ids], fromIndex, toIndex)
 }
 
 export type FilterGroupType =
@@ -70,6 +79,14 @@ export const DEFAULT_ENABLED_TOOLS: ToolbarTool[] = [
   "transfer",
 ]
 
+export const DEFAULT_VIEW_SETTINGS: readonly ViewSetting[] = [
+  "groupBy",
+  "conditionalFormats",
+  "columns",
+  "pageSize",
+  "density",
+]
+
 export const CONDITIONAL_TONE_OPTIONS: Array<{
   value: ConditionalFormatTone
   label: string
@@ -82,7 +99,7 @@ export const CONDITIONAL_TONE_OPTIONS: Array<{
 ]
 
 export function normalizeConditionalTarget(value: unknown): ConditionalFormatTarget {
-  return value === "cell" ? "cell" : "row"
+  return value === "field" ? "field" : "element"
 }
 
 export function normalizeTextStyles(value: unknown): ConditionalFormatTextStyle[] {
@@ -113,33 +130,7 @@ export function generateConditionId(): string {
   return `${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
 }
 
-export interface FilterableColumn {
-  columnId: string
-  label: string
-  type: FilterGroupType
-  selectOptions?: string[]
-}
-
-export function buildFilterableColumns(
-  seed: Seed,
-  availableStatusOptions: string[] = []
-): FilterableColumn[] {
-  const columns: FilterableColumn[] = [
-    { columnId: "slug", label: "Slug", type: "system" },
-    { columnId: "status", label: "Stato", type: "select", selectOptions: availableStatusOptions },
-  ]
-  for (const branch of seed.branches) {
-    if (!resolvePolicies(branch).filter) continue
-    const alias = branch.alias
-    if (branch.type === "number") columns.push({ columnId: alias, label: branch.label, type: "number" })
-    else if (branch.type === "date") columns.push({ columnId: alias, label: branch.label, type: "date" })
-    else if (branch.type === "boolean") columns.push({ columnId: alias, label: branch.label, type: "boolean" })
-    else if (branch.type === "json" && alias.toLowerCase().includes("tag"))
-      columns.push({ columnId: alias, label: branch.label, type: "tags" })
-    else columns.push({ columnId: alias, label: branch.label, type: "text" })
-  }
-  return columns
-}
+export { buildFilterableColumns, type FilterableColumn } from "@/lib/filter-dsl"
 
 export function defaultOperatorForType(type: FilterGroupType): FilterOperator {
   return type === "tags" ? "contains" : "eq"

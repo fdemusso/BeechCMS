@@ -50,7 +50,11 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
   const [permissions, setPermissions] = React.useState<Permission[]>(role?.permissions ?? [])
   const [error, setError] = React.useState<string | null>(null)
 
-  React.useEffect(() => {
+  const [prevOpen, setPrevOpen] = React.useState(open)
+  const [prevRoleId, setPrevRoleId] = React.useState(role?.id)
+  if (open !== prevOpen || role?.id !== prevRoleId) {
+    setPrevOpen(open)
+    setPrevRoleId(role?.id)
     if (open) {
       setName(role?.name ?? "")
       setDescription(role?.description ?? "")
@@ -60,7 +64,7 @@ export function RoleFormDialog({ open, onOpenChange, role }: RoleFormDialogProps
       setPermissions(role?.permissions ?? [])
       setError(null)
     }
-  }, [open, role])
+  }
 
   const uniqueIconNames = React.useMemo(() => Array.from(new Set(ICON_NAMES)), [])
   const filteredIcons = React.useMemo(() => {

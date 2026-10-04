@@ -6,6 +6,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, waitFor, fireEvent } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactNode } from "react"
+import { emptyViewConfig } from "@beechcms/core"
+import type { ContentToolbarProps } from "@/features/content-toolbar"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 const mockNavigate = vi.fn()
 const mockUseParams = vi.fn()
@@ -18,7 +21,7 @@ vi.mock("react-router-dom", () => ({
   useNavigate: () => mockNavigate,
   useParams: () => mockUseParams(),
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
-  useLocation: () => ({ pathname: "/content/posts" }),
+  useLocation: () => ({ pathname: "/content/posts", search: "" }),
 }))
 
 vi.mock("@/features/automations", () => ({
@@ -30,6 +33,7 @@ const seedPosts = {
   slug: "posts",
   label: "Post",
   labelPlural: "Post",
+  dashboard: { views: ["table", "gallery"] },
   branches: [
     { id: "b1", alias: "title", label: "Title", type: "text" },
     { id: "b2", alias: "createdAt", label: "Date", type: "date" },
@@ -119,14 +123,26 @@ vi.mock("@/lib/dynamic-columns", () => ({
   DEFAULT_DATE_GROUP_PRECISION: { year: true, month: true, day: false },
   computeMaxLengths: () => ({}),
   generateColumns: () => [],
+  defaultHiddenColumns: () => ["id", "slug", "created_at"],
 }))
 
 vi.mock("@/features/content-toolbar", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/features/content-toolbar")>()
   return {
     ...actual,
-    ContentToolbar: (props: any) => (
+    ContentToolbar: (props: ContentToolbarProps) => (
       <div>
+        <div data-testid="active-view">{props.activeViewId}</div>
+        <button
+          onClick={() =>
+            props.onChangeView?.(props.views.find((v: { type: string }) => v.type === "gallery")?.id ?? "")
+          }
+        >
+          change-view
+        </button>
+        <button onClick={() => props.onCreateView?.("gallery")}>create-view</button>
+        <button onClick={() => props.onReorderViews?.([GALLERY_VIEW_ID, TABLE_VIEW_ID])}>reorder-views</button>
+        <button onClick={() => props.onDeleteView?.(props.activeViewId)}>delete-view</button>
         <button onClick={props.onCreate}>create-entry</button>
         <button onClick={() => props.onSearchChange?.("ciao")}>search</button>
         <button onClick={() => props.onSortChange?.({ columnId: "title", desc: false })}>
@@ -174,6 +190,28 @@ vi.mock("@/components/ui/data-table", () => ({
   },
 }))
 
+const TABLE_VIEW_ID = "3f0b6a52-5c1e-4c8e-9a51-2f7f1c9b8d10"
+const GALLERY_VIEW_ID = "8a6d2c41-0e7b-4f3a-b1c2-6d9e8f7a5b43"
+const mockViews = [
+  { id: TABLE_VIEW_ID, seedSlug: "posts", type: "table", title: null, position: 0, config: emptyViewConfig(), createdAt: 1, updatedAt: 1, updatedBy: "u" },
+  { id: GALLERY_VIEW_ID, seedSlug: "posts", type: "gallery", title: null, position: 1, config: emptyViewConfig(), createdAt: 1, updatedAt: 1, updatedBy: "u" },
+]
+const mockCreateView = vi.fn()
+const mockUpdateView = vi.fn()
+const mockReorderView = vi.fn()
+const mockDeleteView = vi.fn((_viewId: string, options?: { onSuccess?: () => void }) => {
+  options?.onSuccess?.()
+})
+
+vi.mock("@/features/content-views/hooks/use-content-views", () => ({
+  CONTENT_VIEWS_QUERY_KEY: (slug: string) => ["content-views", slug],
+  useContentViews: () => ({ data: mockViews, isLoading: false, isError: false }),
+  useCreateContentView: () => ({ mutate: mockCreateView }),
+  useUpdateContentView: () => ({ mutate: mockUpdateView, isPending: false }),
+  useDeleteContentView: () => ({ mutate: mockDeleteView }),
+  useReorderContentViews: () => ({ mutate: mockReorderView }),
+}))
+
 import { ContentListPage } from "@/pages/content-list"
 
 vi.mock("@/features/shared/hooks/use-permissions", () => ({ usePermissions: () => ({ can: () => true, canAnywhere: () => true, canGlobally: () => true, effective: {} }) }))
@@ -187,7 +225,7 @@ const queryClient = new QueryClient({
 const renderWithProviders = (ui: ReactNode) => {
   return render(
     <QueryClientProvider client={queryClient}>
-      {ui}
+      <TooltipProvider>{ui}</TooltipProvider>
     </QueryClientProvider>
   )
 }
@@ -196,6 +234,7 @@ describe("ContentListPage", () => {
   beforeEach(() => {
     vi.clearAllMocks()
     queryClient.clear()
+    localStorage.clear()
     mockUseParams.mockReturnValue({ slug: "posts" })
     mockFetchFacets.mockReturnValue({ statuses: ["draft"], tagsByColumnId: { tags: ["cms"] } })
     mockFetchContentListServer.mockReturnValue({
@@ -233,6 +272,86 @@ describe("ContentListPage", () => {
     await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
     fireEvent.click(screen.getByText("create-entry"))
     expect(mockNavigate).toHaveBeenCalledWith("/content/posts/create")
+  })
+
+  it("salva la vista scelta in localStorage, per seed, quando l'utente la cambia", async () => {
+    renderWithProviders(<ContentListPage />)
+    await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByText("change-view"))
+
+    expect(screen.getByTestId("active-view")).toHaveTextContent(GALLERY_VIEW_ID)
+    expect(localStorage.getItem("beech_content_view_posts")).toBe(GALLERY_VIEW_ID)
+  })
+
+  it("al mount usa la vista salvata in localStorage per quel seed, se presente", async () => {
+    localStorage.setItem("beech_content_view_posts", GALLERY_VIEW_ID)
+    renderWithProviders(<ContentListPage />)
+    await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
+
+    expect(screen.getByTestId("active-view")).toHaveTextContent(GALLERY_VIEW_ID)
+  })
+
+  it("falls back to the first Table instance when the stored view no longer exists", async () => {
+    localStorage.setItem("beech_content_view_posts", "gallery")
+    renderWithProviders(<ContentListPage />)
+    await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
+
+    expect(screen.getByTestId("active-view")).toHaveTextContent(TABLE_VIEW_ID)
+  })
+
+  it("creates a view of the picked type through the views API", async () => {
+    renderWithProviders(<ContentListPage />)
+    await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByText("create-view"))
+
+    expect(mockCreateView).toHaveBeenCalledWith({ type: "gallery" }, expect.anything())
+  })
+
+  it("persists a new tab order through the views API", async () => {
+    renderWithProviders(<ContentListPage />)
+    await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByText("reorder-views"))
+
+    expect(mockReorderView).toHaveBeenCalledWith([GALLERY_VIEW_ID, TABLE_VIEW_ID])
+  })
+
+  it("switching to the Gallery instance unmounts the table renderer and mounts the gallery renderer", async () => {
+    mockFetchContentListServer.mockReturnValue({ items: [], total: 0 })
+    renderWithProviders(<ContentListPage />)
+    await waitFor(() => expect(screen.getByText("DATA_TABLE")).toBeInTheDocument())
+
+    fireEvent.click(screen.getByText("change-view"))
+
+    await waitFor(() => expect(screen.queryByText("DATA_TABLE")).not.toBeInTheDocument())
+    expect(screen.getByText("No items to display")).toBeInTheDocument()
+  })
+
+  async function reachGalleryEmptyState() {
+    localStorage.setItem("beech_content_view_posts", GALLERY_VIEW_ID)
+    renderWithProviders(<ContentListPage />)
+    await waitFor(() => expect(mockFetchContentListServer).toHaveBeenCalled())
+
+    fireEvent.click(screen.getByText("delete-view"))
+    fireEvent.click(await screen.findByText("Confirm"))
+    await waitFor(() => expect(screen.queryByTestId("active-view")).not.toBeInTheDocument())
+  }
+
+  it("shows the create-your-first-view state after the last Gallery view is deleted", async () => {
+    await reachGalleryEmptyState()
+
+    expect(screen.getByText(/views yet/i)).toBeInTheDocument()
+    expect(screen.queryByTestId("active-view")).not.toBeInTheDocument()
+  })
+
+  it("leaves the empty state when the user picks a view in the switcher", async () => {
+    await reachGalleryEmptyState()
+
+    fireEvent.click(screen.getByRole("tab", { name: /table/i }))
+
+    expect(screen.getByTestId("active-view")).toHaveTextContent(TABLE_VIEW_ID)
   })
 
   it("apre dialog ed esegue delete con refresh dati", async () => {

@@ -62,7 +62,7 @@ describe('useKanbanColumnQuery', () => {
     renderHook(() =>
       useKanbanColumnQuery('tasks', axisBranch, col as any, config as any, [], '', seed, cardConfig),
     )
-    expect(buildModelMock).toHaveBeenCalledWith(mockItem, axisBranch, col.value, seed, cardConfig)
+    expect(buildModelMock).toHaveBeenCalledWith(mockItem, axisBranch, col.value, seed, cardConfig, { element: null, fields: {} })
   })
 
   it('returned cards carry entryId from the model', () => {
@@ -76,7 +76,7 @@ describe('useKanbanColumnQuery', () => {
     renderHook(() =>
       useKanbanColumnQuery('tasks', axisBranch, col as any, config as any, [], '', seed, undefined),
     )
-    expect(buildModelMock).toHaveBeenCalledWith(mockItem, axisBranch, col.value, seed, undefined)
+    expect(buildModelMock).toHaveBeenCalledWith(mockItem, axisBranch, col.value, seed, undefined, { element: null, fields: {} })
     const callArgs = buildModelMock.mock.calls[0]
     expect(callArgs[4]).toBeUndefined()
   })

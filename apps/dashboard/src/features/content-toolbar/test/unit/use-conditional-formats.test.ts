@@ -64,7 +64,7 @@ describe("useConditionalFormats", () => {
           ],
         },
         tone: "warning",
-        target: "row",
+        target: "element",
         textStyles: [],
       },
       {
@@ -81,7 +81,7 @@ describe("useConditionalFormats", () => {
           conditions: [{ id: "c3", op: "eq", value: "draft" }],
         },
         tone: "info",
-        target: "row",
+        target: "element",
         textStyles: [],
       },
     ]

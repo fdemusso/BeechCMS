@@ -38,6 +38,7 @@ describe("resolveCardFields", () => {
     expect(result.excerptBranch).toBeNull()
     expect(result.dateBranch).toBeNull()
     expect(result.tagsBranch).toBeNull()
+    expect(result.categoryBranch).toBeNull()
   })
 
   it("seleziona coverBranch dal primo branch file con alias 'cover'", () => {
@@ -93,5 +94,38 @@ describe("resolveCardFields", () => {
     const branches = [makeBranch("metadata", "json")]
     const result = resolveCardFields(makeSeed(branches))
     expect(result.tagsBranch).toBeNull()
+  })
+
+  it("senza groupByAlias non seleziona categoryBranch, anche se un branch si chiama 'categoria'", () => {
+    const result = resolveCardFields(
+      makeSeed([makeBranch("title", "text"), makeBranch("categoria", "text")])
+    )
+    expect(result.categoryBranch).toBeNull()
+  })
+
+  it("seleziona categoryBranch per corrispondenza esatta con groupByAlias (lo stesso stato del 'Raggruppa per' della tabella)", () => {
+    const result = resolveCardFields(
+      makeSeed([makeBranch("title", "text"), makeBranch("categoria", "text")]),
+      "categoria"
+    )
+    expect(result.categoryBranch?.alias).toBe("categoria")
+  })
+
+  it("non seleziona categoryBranch se groupByAlias non corrisponde a nessun branch del seed", () => {
+    const result = resolveCardFields(makeSeed([makeBranch("categoria", "text")]), "altro-campo")
+    expect(result.categoryBranch).toBeNull()
+  })
+
+  it("seleziona categoryBranch anche se il tipo non è text: il tipo è già stato validato da chi ha scelto il groupBy", () => {
+    const result = resolveCardFields(makeSeed([makeBranch("priorita", "number")]), "priorita")
+    expect(result.categoryBranch?.alias).toBe("priorita")
+  })
+
+  it("non usa il campo scelto come groupBy come excerpt", () => {
+    const result = resolveCardFields(
+      makeSeed([makeBranch("title", "text"), makeBranch("categoria", "text"), makeBranch("descrizione", "text")]),
+      "categoria"
+    )
+    expect(result.excerptBranch?.alias).toBe("descrizione")
   })
 })

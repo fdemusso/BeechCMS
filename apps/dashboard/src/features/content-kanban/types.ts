@@ -1,7 +1,8 @@
 import type { Seed, KanbanConfig, KanbanCardConfig } from '@beechcms/core'
 import type { Branch } from '@beechcms/core'
+import type { ElementFormatter, ElementStyle } from '@/lib/conditional-format'
 
-export interface ResolvedSlotField { branch: Branch; value: unknown }
+export interface ResolvedSlotField { branch: Branch; value: unknown; style?: ElementStyle }
 
 export interface KanbanCardSlots {
   media?: ResolvedSlotField
@@ -24,6 +25,12 @@ export interface KanbanCardDisplayModel {
   isGhost?: boolean
   /** Slot-resolved fields when card config is present. Undefined = legacy heuristic path. */
   slots?: KanbanCardSlots
+  /** Element-level conditional format. Absent when no `element` rule matches. */
+  elementStyle?: ElementStyle
+  /** Field format of the legacy-path title (no card config). */
+  titleStyle?: ElementStyle
+  /** Field format of the status badge (`status` system column). */
+  statusStyle?: ElementStyle
 }
 
 export interface KanbanColumnModel {
@@ -67,6 +74,7 @@ export interface ContentKanbanProps {
   cardConfig?: KanbanCardConfig
   setCardConfig?: (next: KanbanCardConfig) => void
   isSaving?: boolean
+  formatElement?: ElementFormatter
 }
 
 /** Emitted by the entry editor after a successful LIVE save (create or edit). */

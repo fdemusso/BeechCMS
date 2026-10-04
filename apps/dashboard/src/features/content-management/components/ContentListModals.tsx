@@ -7,19 +7,14 @@ import type { Seed } from "@beechcms/core"
 import { EntryEditorDialog } from "@/features/entry-editor"
 import { ContentDeleteDialog } from "@/features/content-delete-dialog"
 import { BulkEditDialog } from "@/features/bulk-edit"
-import { CardConfigDialog } from "@/features/content-kanban"
 import { AutomationPanel } from "@/features/automations"
 import { ImportWizardDialog } from "@/features/content-transfer"
+import type { ViewEntrySavedInfo } from "@/features/shared"
 import { CONTENT_QUERY_KEYS, FACET_QUERY_KEYS } from "../consts/content.keys"
 
 export interface ContentListModalsProps {
   seed: Seed
   slug: string | undefined
-  activeViewId: string
-  cardConfigOpen: boolean
-  onCloseCardConfig: () => void
-  cardConfig: any
-  onSaveCardConfig: (config: any) => void
   deleteDialogOpen: boolean
   onOpenChangeDelete: (open: boolean) => void
   entryIdsToDelete: string[] | null
@@ -34,7 +29,7 @@ export interface ContentListModalsProps {
   onCloseEntryEditor: () => void
   createDefaults?: Record<string, unknown>
   readonly: boolean
-  onSaved?: (info: any) => void
+  onSaved?: (info: ViewEntrySavedInfo) => void
   importWizardOpen: boolean
   onOpenChangeImportWizard: (open: boolean) => void
 }
@@ -42,11 +37,6 @@ export interface ContentListModalsProps {
 export function ContentListModals({
   seed,
   slug,
-  activeViewId,
-  cardConfigOpen,
-  onCloseCardConfig,
-  cardConfig,
-  onSaveCardConfig,
   deleteDialogOpen,
   onOpenChangeDelete,
   entryIdsToDelete,
@@ -81,16 +71,6 @@ export function ContentListModals({
             queryClient.invalidateQueries({ queryKey: CONTENT_QUERY_KEYS.lists() })
             queryClient.invalidateQueries({ queryKey: FACET_QUERY_KEYS.bySlug(slug) })
           }}
-        />
-      )}
-
-      {slug && activeViewId === "kanban" && (
-        <CardConfigDialog
-          open={cardConfigOpen}
-          onClose={onCloseCardConfig}
-          seed={seed}
-          config={cardConfig}
-          onSave={onSaveCardConfig}
         />
       )}
 

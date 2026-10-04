@@ -5,6 +5,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect } from "vitest"
+import i18n from "i18next"
 
 import {
   getStatusBadgeVariant,
@@ -13,10 +14,18 @@ import {
 } from "@/features/content-gallery/gallery-card-display"
 import type { ResolvedCardFields } from "@/features/content-gallery/resolve-card-fields"
 import type { ContentEntry } from "@/lib/dynamic-columns"
+import { NO_ELEMENT_FORMAT, type ElementFormat } from "@/lib/conditional-format"
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+const t = i18n.t.bind(i18n)
+const language = i18n.language
+
+function buildModel(entry: ContentEntry, branches: ResolvedCardFields) {
+  return buildGalleryCardDisplayModel(entry, branches, t, language)
+}
 
 function makeEntry(overrides: Partial<ContentEntry> = {}): ContentEntry {
   return {
@@ -38,6 +47,7 @@ const emptyBranches: ResolvedCardFields = {
   excerptBranch: null,
   dateBranch: null,
   tagsBranch: null,
+  categoryBranch: null,
 }
 
 // ---------------------------------------------------------------------------
@@ -119,7 +129,7 @@ describe("resolveImageUrl", () => {
 describe("buildGalleryCardDisplayModel", () => {
   it("costruisce un modello minimo con branchesFields vuoti", () => {
     const entry = makeEntry({ id: "e1", status: "draft", data: {} })
-    const model = buildGalleryCardDisplayModel(entry, emptyBranches)
+    const model = buildModel(entry, emptyBranches)
 
     expect(model.entryId).toBe("e1")
     expect(model.status).toBe("draft")
@@ -132,15 +142,12 @@ describe("buildGalleryCardDisplayModel", () => {
   })
 
   it("imposta statusVariant in base allo status", () => {
-    const model = buildGalleryCardDisplayModel(
-      makeEntry({ status: "published" }),
-      emptyBranches
-    )
+    const model = buildModel(makeEntry({ status: "published" }), emptyBranches)
     expect(model.statusVariant).toBe("default")
   })
 
   it("segnala hasPendingDraft per entry pubblicate con bozza in sospeso", () => {
-    const model = buildGalleryCardDisplayModel(
+    const model = buildModel(
       makeEntry({ status: "published", has_pending_draft: true } as Partial<ContentEntry>),
       emptyBranches
     )
@@ -149,7 +156,7 @@ describe("buildGalleryCardDisplayModel", () => {
   })
 
   it("non segnala hasPendingDraft per entry archived", () => {
-    const model = buildGalleryCardDisplayModel(
+    const model = buildModel(
       makeEntry({ status: "archived", has_pending_draft: true } as Partial<ContentEntry>),
       emptyBranches
     )
@@ -158,7 +165,7 @@ describe("buildGalleryCardDisplayModel", () => {
   })
 
   it("non segnala hasPendingDraft per entry draft", () => {
-    const model = buildGalleryCardDisplayModel(
+    const model = buildModel(
       makeEntry({ status: "draft", has_pending_draft: true } as Partial<ContentEntry>),
       emptyBranches
     )
@@ -172,7 +179,7 @@ describe("buildGalleryCardDisplayModel", () => {
       titleBranch: makeBranch("title"),
     }
     const entry = makeEntry({ data: { title: "My Article" } })
-    const model = buildGalleryCardDisplayModel(entry, branches)
+    const model = buildModel(entry, branches)
 
     expect(model.title).toBe("My Article")
     expect(model.ariaLabel).toContain("My Article")
@@ -185,7 +192,7 @@ describe("buildGalleryCardDisplayModel", () => {
       excerptBranch: makeBranch("body", "text"),
     }
     const entry = makeEntry({ data: { body: longText } })
-    const model = buildGalleryCardDisplayModel(entry, branches)
+    const model = buildModel(entry, branches)
 
     expect(model.excerpt.endsWith("…")).toBe(true)
     expect(model.excerpt.length).toBeLessThanOrEqual(91) // 90 chars + ellipsis
@@ -193,7 +200,7 @@ describe("buildGalleryCardDisplayModel", () => {
 
   it("usa entry.slug come fallback per ariaLabel quando title è vuoto", () => {
     const entry = makeEntry({ id: "e2", slug: "my-slug", data: {} })
-    const model = buildGalleryCardDisplayModel(entry, emptyBranches)
+    const model = buildModel(entry, emptyBranches)
     expect(model.ariaLabel).toContain("e2")
   })
 
@@ -203,13 +210,13 @@ describe("buildGalleryCardDisplayModel", () => {
       coverBranch: makeBranch("cover", "file"),
     }
     const entry = makeEntry({ data: { cover: "https://cdn.example.com/img.jpg" } })
-    const model = buildGalleryCardDisplayModel(entry, branches)
+    const model = buildModel(entry, branches)
     expect(model.imageUrl).toBe("https://cdn.example.com/img.jpg")
   })
 
   it("usa '—' come status di fallback quando status è assente", () => {
     const entry = makeEntry({ status: undefined as any })
-    const model = buildGalleryCardDisplayModel(entry, emptyBranches)
+    const model = buildModel(entry, emptyBranches)
     expect(model.status).toBe("—")
   })
 
@@ -219,10 +226,10 @@ describe("buildGalleryCardDisplayModel", () => {
       excerptBranch: makeBranch("count", "text"),
     }
     const entryNum = makeEntry({ data: { count: 42 } })
-    expect(buildGalleryCardDisplayModel(entryNum, branches).excerpt).toBe("42")
+    expect(buildModel(entryNum, branches).excerpt).toBe("42")
 
     const entryBool = makeEntry({ data: { count: true } })
-    expect(buildGalleryCardDisplayModel(entryBool, branches).excerpt).toBe("true")
+    expect(buildModel(entryBool, branches).excerpt).toBe("true")
   })
 
   it("converte array in testo per excerpt (join con spazio)", () => {
@@ -231,7 +238,7 @@ describe("buildGalleryCardDisplayModel", () => {
       excerptBranch: makeBranch("items", "text"),
     }
     const entry = makeEntry({ data: { items: ["alpha", "beta"] } })
-    const model = buildGalleryCardDisplayModel(entry, branches)
+    const model = buildModel(entry, branches)
     expect(model.excerpt).toContain("alpha")
     expect(model.excerpt).toContain("beta")
   })
@@ -242,7 +249,7 @@ describe("buildGalleryCardDisplayModel", () => {
       excerptBranch: makeBranch("meta", "text"),
     }
     const entry = makeEntry({ data: { meta: { description: "Nested value" } } })
-    const model = buildGalleryCardDisplayModel(entry, branches)
+    const model = buildModel(entry, branches)
     expect(model.excerpt).toContain("Nested value")
   })
 
@@ -252,7 +259,7 @@ describe("buildGalleryCardDisplayModel", () => {
       dateBranch: makeBranch("publishedAt", "date"),
     }
     const entry = makeEntry({ data: { publishedAt: "2024-03-15" } })
-    const model = buildGalleryCardDisplayModel(entry, branches)
+    const model = buildModel(entry, branches)
     expect(model.dateText).not.toBe("")
   })
 
@@ -262,7 +269,7 @@ describe("buildGalleryCardDisplayModel", () => {
       dateBranch: makeBranch("publishedAt", "date"),
     }
     const entry = makeEntry({ data: { publishedAt: "not-a-date" } })
-    const model = buildGalleryCardDisplayModel(entry, branches)
+    const model = buildModel(entry, branches)
     // Invalid date: falls back to the raw string value
     expect(model.dateText).toBe("not-a-date")
   })
@@ -273,9 +280,65 @@ describe("buildGalleryCardDisplayModel", () => {
       excerptBranch: makeBranch("body", "richtext"),
     }
     const entry = makeEntry({ data: { body: "<p>Hello <strong>world</strong></p>" } })
-    const model = buildGalleryCardDisplayModel(entry, branches)
+    const model = buildModel(entry, branches)
     expect(model.excerpt).not.toContain("<p>")
     expect(model.excerpt).toContain("Hello")
     expect(model.excerpt).toContain("world")
+  })
+
+  it("legge la categoria dal categoryBranch, stringa vuota se assente", () => {
+    const branches: ResolvedCardFields = {
+      ...emptyBranches,
+      categoryBranch: makeBranch("categoria", "text"),
+    }
+    expect(buildModel(makeEntry({ data: { categoria: "Matrimonio" } }), branches).category).toBe("Matrimonio")
+    expect(buildModel(makeEntry({ data: {} }), branches).category).toBe("")
+    expect(buildModel(makeEntry({ data: { categoria: "X" } }), emptyBranches).category).toBe("")
+  })
+
+  it("maps fields.title and fields.status to slotStyles.title and slotStyles.status", () => {
+    const branches: ResolvedCardFields = { ...emptyBranches, titleBranch: makeBranch("title") }
+    const titleStyle = { tone: "danger", textStyles: [] } as const
+    const statusStyle = { tone: "warning", textStyles: ["bold"] } as const
+    const format: ElementFormat = { element: null, fields: { title: titleStyle, status: statusStyle } }
+
+    const model = buildGalleryCardDisplayModel(
+      makeEntry({ status: "draft", data: { title: "Hello" } }),
+      branches,
+      t,
+      language,
+      format
+    )
+
+    expect(model.slotStyles?.title).toEqual(titleStyle)
+    expect(model.slotStyles?.status).toEqual(statusStyle)
+  })
+
+  it("adds no slot style for a field rule on a column no slot displays", () => {
+    const format: ElementFormat = {
+      element: null,
+      fields: { view_count: { tone: "info", textStyles: [] } },
+    }
+
+    const model = buildGalleryCardDisplayModel(makeEntry(), emptyBranches, t, language, format)
+
+    expect(model.slotStyles).toBeUndefined()
+  })
+
+  it("maps format.element to elementStyle", () => {
+    const elementStyle = { tone: "success", textStyles: [] } as const
+    const format: ElementFormat = { element: elementStyle, fields: {} }
+
+    const model = buildGalleryCardDisplayModel(makeEntry(), emptyBranches, t, language, format)
+
+    expect(model.elementStyle).toEqual(elementStyle)
+  })
+
+  it("omits elementStyle and slotStyles when called without a format argument", () => {
+    const model = buildGalleryCardDisplayModel(makeEntry(), emptyBranches, t, language)
+
+    expect(model.elementStyle).toBeUndefined()
+    expect(model.slotStyles).toBeUndefined()
+    expect(NO_ELEMENT_FORMAT.element).toBeNull()
   })
 })
