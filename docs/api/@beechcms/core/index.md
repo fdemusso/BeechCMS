@@ -447,6 +447,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [generateJunctionTable](functions/generateJunctionTable.md)
 - [generateRenameColumn](functions/generateRenameColumn.md)
 - [generateRetypeColumn](functions/generateRetypeColumn.md)
+- [generateRetypeIncompatibleCount](functions/generateRetypeIncompatibleCount.md)
 - [generateSeedTypes](functions/generateSeedTypes.md)
 - [generateTimeTrapToken](functions/generateTimeTrapToken.md)
 - [generateVectorTable](functions/generateVectorTable.md)

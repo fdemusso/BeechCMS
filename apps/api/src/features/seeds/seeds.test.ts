@@ -54,6 +54,7 @@ function makeMutator(overrides: Partial<ISchemaMutator> = {}): ISchemaMutator {
     dropColumn: vi.fn().mockResolvedValue(undefined),
     renameColumn: vi.fn().mockResolvedValue(undefined),
     execDestructive: vi.fn().mockResolvedValue(undefined),
+    sumCounts: vi.fn().mockResolvedValue(0),
     ...overrides,
   }
 }
@@ -644,6 +645,23 @@ describe('PATCH /:slug/branches/:branchId/retype', () => {
     const upsertArg = (repo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as any
     expect(upsertArg.branches.find((b: any) => b.id === 'br_01')?.type).toBe('number')
     expect((repo.bumpRegistryVersion as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+  })
+
+  it('422 retype-data-incompatible when existing values would be lost, nothing applied', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator({ sumCounts: vi.fn().mockResolvedValue(3) })
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/branches/br_01/retype', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newType: 'number', confirm: 'articles.title' }),
+    })
+
+    expect(res.status).toBe(422)
+    expect(((await res.json()) as any).type).toContain('retype-data-incompatible')
+    expect((mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
+    expect((repo.upsert as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
   })
 
   it('422 retype-not-supported when retyping a repeater branch away', async () => {

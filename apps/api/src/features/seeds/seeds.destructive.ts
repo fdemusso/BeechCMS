@@ -10,6 +10,7 @@ import {
   generateDropColumn,
   generateRenameColumn,
   generateRetypeColumn,
+  generateRetypeIncompatibleCount,
   planFtsRebuild,
   BRANCH_ALIAS_RE,
   reservedBranchAliasReason,
@@ -211,6 +212,7 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
  * - Validates `newType` against supported types (`text`, `number`, `boolean`, `date`, `json`, `richtext`, `file`, `tags`, `relation`, `repeater`).
  * - Rejects retyping to or from `'repeater'`.
  * - Requires body `{ newType: string, confirm: "<slug>.<alias>" }`.
+ * - Rejects with 422 if any existing value would be zeroed or truncated by the conversion.
  * - Generates column retyping DDL and rebuilds FTS.
  *
  * @route PATCH /api/seeds/:slug/branches/:branchId/retype
@@ -265,6 +267,16 @@ destructiveApp.patch('/:slug/branches/:branchId/retype', async (context) => {
   if (confirmErr) return confirmErr
 
   const retypedBranch: Branch = { ...branch, type: newType as Branch['type'] }
+
+  const incompatible = await context.get('schemaMutator').sumCounts(generateRetypeIncompatibleCount(existing.definition, retypedBranch))
+  if (incompatible > 0) {
+    return publicProblem(context, {
+      type: 'retype-data-incompatible',
+      title: 'Retype would lose data',
+      status: 422,
+      detail: `${incompatible} existing value(s) in '${branch.alias}' cannot be converted to '${newType}' without data loss. Fix or clear them first.`,
+    })
+  }
   const retypedDef: Seed = {
     ...existing.definition,
     branches: existing.definition.branches.map((b: Branch) => b.id === branchId ? retypedBranch : b),
