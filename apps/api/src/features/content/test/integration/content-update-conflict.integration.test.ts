@@ -49,8 +49,8 @@ describe('content slice — update conflict integration (real D1)', () => {
     expect(body.type).toBe('https://beechcms.dev/problems/content-update-conflict')
 
     const live = await admin.get(`/api/content/posts/${id}`)
-    const liveBody = await live.json<{ title: string }>()
-    expect(liveBody.title).toBe('Other writer title')
+    const liveBody = await live.json<{ data: { title: string } }>()
+    expect(liveBody.data.title).toBe('Other writer title')
   })
 
   it('a PUT carrying a stale body updated_at answers 409 content-update-conflict and leaves the row untouched', async () => {
@@ -69,8 +69,8 @@ describe('content slice — update conflict integration (real D1)', () => {
 
     expect(response.status).toBe(409)
     const live = await admin.get(`/api/content/posts/${id}`)
-    const liveBody = await live.json<{ title: string }>()
-    expect(liveBody.title).toBe('Other writer title')
+    const liveBody = await live.json<{ data: { title: string } }>()
+    expect(liveBody.data.title).toBe('Other writer title')
   })
 
   it('a PUT carrying the current If-Match value applies the write', async () => {
@@ -84,8 +84,8 @@ describe('content slice — update conflict integration (real D1)', () => {
 
     expect(response.status).toBe(200)
     const live = await admin.get(`/api/content/posts/${id}`)
-    const liveBody = await live.json<{ title: string }>()
-    expect(liveBody.title).toBe('Fresh write')
+    const liveBody = await live.json<{ data: { title: string } }>()
+    expect(liveBody.data.title).toBe('Fresh write')
   })
 
   it('a PUT with no If-Match and no body updated_at applies unconditionally, unchanged from before OCC', async () => {
@@ -100,7 +100,7 @@ describe('content slice — update conflict integration (real D1)', () => {
 
     expect(response.status).toBe(200)
     const live = await admin.get(`/api/content/posts/${id}`)
-    const liveBody = await live.json<{ title: string }>()
-    expect(liveBody.title).toBe('Unconditional write')
+    const liveBody = await live.json<{ data: { title: string } }>()
+    expect(liveBody.data.title).toBe('Unconditional write')
   })
 })

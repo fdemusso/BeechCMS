@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { Context } from 'hono'
-import { applyVisibility } from '../../../shared/policies/apply-policies'
+import { toEntryEnvelope } from '../../../shared/policies/apply-policies'
 import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
@@ -48,9 +48,8 @@ export async function getByIdHandler(context: Context<AppEnv>) {
     }
 
     return context.json({
-      ...item,
+      ...toEntryEnvelope(item, seed, actor),
       has_pending_draft: hasPendingDraft,
-      data: applyVisibility(item, seed, actor)
     })
   } catch (error) {
     if (error instanceof EntryNotFoundError) {
@@ -110,9 +109,8 @@ export async function getBySlugHandler(context: Context<AppEnv>) {
     }
 
     return context.json({
-      ...item,
+      ...toEntryEnvelope(item, seed, actor),
       has_pending_draft: hasPendingDraft,
-      data: applyVisibility(item, seed, actor)
     })
   } catch (error) {
     if (error instanceof EntryNotFoundError) {

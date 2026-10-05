@@ -62,8 +62,8 @@ describe('content slice — import integration (real D1, real R2)', () => {
       expect(statusBody).toMatchObject({ state: 'completed', rowsRead: 5, insertedRows: 5, failedRows: 0 })
 
       const list = await admin.get('/api/content/categories')
-      const items = await list.json<Array<{ name: string }>>()
-      expect(items.map((item) => item.name).sort()).toEqual(['A', 'B', 'C', 'D', 'E'])
+      const items = await list.json<Array<{ data: { name: string } }>>()
+      expect(items.map((item) => item.data.name).sort()).toEqual(['A', 'B', 'C', 'D', 'E'])
 
       const head = await MEDIA_BUCKET.head(key)
       expect(head).toBeNull()
@@ -158,11 +158,11 @@ describe('content slice — import integration (real D1, real R2)', () => {
       // Regression guard for insert-only: toImportPayload drops `id`, so a client-supplied id
       // in the file can never overwrite an existing entry.
       const untouched = await admin.get(`/api/content/categories/${existingId}`)
-      expect((await untouched.json<{ name: string }>()).name).toBe('Existing')
+      expect((await untouched.json<{ data: { name: string } }>()).data.name).toBe('Existing')
 
       const list = await admin.get('/api/content/categories')
-      const items = await list.json<Array<{ id: string; name: string }>>()
-      const imported = items.find((item) => item.name === 'Imported')
+      const items = await list.json<Array<{ id: string; data: { name: string } }>>()
+      const imported = items.find((item) => item.data.name === 'Imported')
       expect(imported?.id).toMatch(UUID_V4_PATTERN)
       expect(imported?.id).not.toBe(existingId)
     })
@@ -183,7 +183,7 @@ describe('content slice — import integration (real D1, real R2)', () => {
       // this caller proves the handler's scope check rather than a coarse
       // "holds content:create somewhere" gate.
       const rolesResponse = await admin.get('/api/rbac/roles')
-      const { roles } = await rolesResponse.json<{ roles: Array<{ id: string; name: string }> }>()
+      const { roles } = await rolesResponse.json<{ roles: Array<{ id: string; data: { name: string } }> }>()
       const superAdminRole = roles.find((role) => role.name === 'SuperAdmin')
       if (!superAdminRole) throw new Error('expected the seeded SuperAdmin role to exist')
       await admin.post('/api/rbac/assignments', {

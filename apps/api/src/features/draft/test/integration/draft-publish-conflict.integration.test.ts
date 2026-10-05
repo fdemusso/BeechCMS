@@ -52,8 +52,8 @@ describe('draft slice — publish conflict integration (real D1)', () => {
     expect(body.type).toBe('https://beechcms.dev/problems/draft-publish-conflict')
 
     const live = await admin.get(`/api/content/posts/${id}`)
-    const liveBody = await live.json<{ title: string }>()
-    expect(liveBody.title).toBe('Other writer title')
+    const liveBody = await live.json<{ data: { title: string } }>()
+    expect(liveBody.data.title).toBe('Other writer title')
     expect((await admin.get(`/api/content/posts/${id}/draft`)).status).toBe(200)
   })
 
@@ -70,9 +70,9 @@ describe('draft slice — publish conflict integration (real D1)', () => {
 
     expect(response.status).toBe(200)
     const live = await admin.get(`/api/content/posts/${id}`)
-    const liveBody = await live.json<{ title: string; id: string }>()
+    const liveBody = await live.json<{ data: { title: string }; id: string }>()
     expect(liveBody.id).toMatch(UUID_V4_PATTERN)
-    expect(liveBody.title).toBe('Promoted title')
+    expect(liveBody.data.title).toBe('Promoted title')
     expect((await admin.get(`/api/content/posts/${id}/draft`)).status).toBe(404)
   })
 
@@ -99,8 +99,8 @@ describe('draft slice — publish conflict integration (real D1)', () => {
 
     expect(response.status).toBe(200)
     const live = await admin.get(`/api/content/posts/${id}`)
-    const liveBody = await live.json<{ title: string }>()
-    expect(liveBody.title).toBe('Legacy draft title')
+    const liveBody = await live.json<{ data: { title: string } }>()
+    expect(liveBody.data.title).toBe('Legacy draft title')
   })
 
   it('an entry created directly in draft status publishes without a conflict check', async () => {
