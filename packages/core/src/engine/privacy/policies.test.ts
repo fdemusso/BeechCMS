@@ -94,11 +94,11 @@ describe('resolvePolicies', () => {
     expect(result.visibility).toBe('masked')
   })
 
-  it('overrides visibility independently without affecting other defaults', () => {
+  it('overrides visibility independently without affecting storage or public defaults', () => {
     const result = resolvePolicies({ ...baseBranch, policies: { visibility: 'masked' } })
     expect(result.visibility).toBe('masked')
     expect(result.privacy).toBe('plain')
-    expect(result.search).toBe(true)
+    expect(result.public).toBe(true)
   })
 
   it('overrides search: false independently', () => {
@@ -148,6 +148,26 @@ describe('resolvePolicies', () => {
   it('handles visibility: hidden correctly', () => {
     const result = resolvePolicies({ ...baseBranch, policies: { visibility: 'hidden' } })
     expect(result.visibility).toBe('hidden')
+  })
+
+  it.each(['hidden', 'masked'] as const)(
+    'visibility: %s defaults filter, sort and search to false',
+    (visibility) => {
+      const result = resolvePolicies({ ...baseBranch, policies: { visibility } })
+      expect(result.filter).toBe(false)
+      expect(result.sort).toBe(false)
+      expect(result.search).toBe(false)
+    },
+  )
+
+  it('visibility: masked lets explicit filter, sort and search true opt back in', () => {
+    const result = resolvePolicies({
+      ...baseBranch,
+      policies: { visibility: 'masked', filter: true, sort: true, search: true },
+    })
+    expect(result.filter).toBe(true)
+    expect(result.sort).toBe(true)
+    expect(result.search).toBe(true)
   })
 
   it('privacy: encrypt / confidential defaults visibility to full for authenticated context, sort to false, and search to false', () => {

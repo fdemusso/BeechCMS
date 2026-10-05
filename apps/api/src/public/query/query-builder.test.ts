@@ -26,6 +26,8 @@ const SEED = {
     { id: 'br_08', alias: 'meta', type: 'json' },
     { id: 'br_09', alias: 'ssn', type: 'text', policies: { public: false } },
     { id: 'br_10', alias: 'internal_note', type: 'text', policies: { filter: false } },
+    { id: 'br_11', alias: 'salary', type: 'number', policies: { visibility: 'masked' } },
+    { id: 'br_12', alias: 'secret_score', type: 'number', policies: { visibility: 'hidden' } },
   ],
 } as unknown as Seed
 
@@ -171,6 +173,11 @@ describe('toEngineFilters', () => {
     expect(() => toEngineFilters(SEED, filter)).toThrow("field 'internal_note' is not filterable")
   })
 
+  it.each(['salary', 'secret_score'])("rejects filtering on hidden/masked field '%s'", (field) => {
+    const filter = { where: [{ field, op: 'gt' as const, value: 95000 }], logic: 'AND' as const }
+    expect(() => toEngineFilters(SEED, filter)).toThrow(`field '${field}' is not filterable`)
+  })
+
   it('produces one FilterGroup per condition', () => {
     const filter = {
       where: [
@@ -206,6 +213,10 @@ describe('validateSortColumn', () => {
 
   it('rejects sorting on a branch with policies.public false', () => {
     expect(() => validateSortColumn(SEED, 'ssn')).toThrow("field 'ssn' is not sortable")
+  })
+
+  it.each(['salary', 'secret_score'])("rejects sorting on hidden/masked field '%s'", (field) => {
+    expect(() => validateSortColumn(SEED, field)).toThrow(`field '${field}' is not sortable`)
   })
 
   it('rejects sorting on a branch with policies.sort false', () => {

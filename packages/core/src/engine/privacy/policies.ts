@@ -108,9 +108,13 @@ export function resolvePolicies(branch: Branch): Required<NonNullable<Branch['po
   const defaultVisibility = resolved.authVisibility
   const isPublicAllowed = branch.policies?.public ?? (resolved.publicVisibility === 'full')
 
-  const defaultFilter = isRepeater || resolved.storage === 'hash' ? false : branch.policies?.filter ?? true
-  const defaultSort = isRepeater || isEncryptedOrHashed ? false : branch.policies?.sort ?? true
-  const defaultSearch = isRepeater || isEncryptedOrHashed ? false : branch.policies?.search ?? true
+  const visibility = branch.policies?.visibility ?? defaultVisibility
+  // Concealed values must not be queryable: filter/sort/search leak them
+  const isConcealed = visibility === 'hidden' || visibility === 'masked'
+
+  const defaultFilter = isRepeater || resolved.storage === 'hash' ? false : branch.policies?.filter ?? !isConcealed
+  const defaultSort = isRepeater || isEncryptedOrHashed ? false : branch.policies?.sort ?? !isConcealed
+  const defaultSearch = isRepeater || isEncryptedOrHashed ? false : branch.policies?.search ?? !isConcealed
 
   // publicEdit default: true for public fields (unless public: false), false for confidential/internal/restricted
   const defaultPublicEdit = resolved.classification === 'public'
@@ -120,7 +124,7 @@ export function resolvePolicies(branch: Branch): Required<NonNullable<Branch['po
   return {
     classification: resolved.classification,
     privacy: resolved.storage,
-    visibility: branch.policies?.visibility ?? defaultVisibility,
+    visibility,
     search: defaultSearch,
     filter: defaultFilter,
     sort: defaultSort,
