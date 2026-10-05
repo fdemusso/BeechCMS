@@ -69,6 +69,14 @@ All valid MIME types associated with this format.
 
 ***
 
+### minSignatureLength?
+
+> `readonly` `optional` **minSignatureLength?**: `number`
+
+Minimum buffer length needed to evaluate the signature. Defaults to `min(4, magicBytes.length)`.
+
+***
+
 ### primaryMime
 
 > `readonly` **primaryMime**: `string`
