@@ -24,6 +24,8 @@ export const RBAC_ERRORS = {
   ROLE_NAME_TAKEN: 'role-name-taken',
   /** System roles are seeded by migration and immutable at runtime. */
   SYSTEM_ROLE_IMMUTABLE: 'system-role-immutable',
+  /** The Developer account (`users.role === 'admin'`) may not be deactivated or lose SuperAdmin. */
+  DEVELOPER_PROTECTED: 'developer-protected',
   /** Refused: would leave the platform with no active global administrator. */
   LAST_GLOBAL_ADMIN: 'last-global-admin',
   /** Scope is neither `'*'` nor the slug of an active seed. */

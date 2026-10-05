@@ -13,6 +13,7 @@ export const RBAC_ERROR_CODES = {
   ROLE_NAME_TAKEN: 'role-name-taken',
   SYSTEM_ROLE_IMMUTABLE: 'system-role-immutable',
   LAST_GLOBAL_ADMIN: 'last-global-admin',
+  DEVELOPER_PROTECTED: 'developer-protected',
   UNKNOWN_SCOPE: 'unknown-scope',
   EMAIL_UNAVAILABLE: 'email-unavailable',
   INVITATION_INVALID: 'invitation-invalid',
