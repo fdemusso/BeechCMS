@@ -14,15 +14,24 @@ export class D1TimeTrapTokenRepository extends BaseD1Repository implements ITime
     return row !== null
   }
 
-  async markTokenUsed(tokenHash: string, usedAt: number, expiresAt: number): Promise<void> {
-    if (!this.database) return
-    await this.database
+  async claimToken(tokenHash: string, usedAt: number, expiresAt: number): Promise<boolean> {
+    if (!this.database) return true
+    const result = await this.database
       .prepare(
         `INSERT INTO public_time_trap_tokens (token_hash, used_at, expires_at)
          VALUES (?, ?, ?)
-         ON CONFLICT(token_hash) DO UPDATE SET used_at = excluded.used_at`
+         ON CONFLICT(token_hash) DO NOTHING`
       )
       .bind(tokenHash, usedAt, expiresAt)
+      .run()
+    return (result.meta?.changes ?? 0) > 0
+  }
+
+  async releaseToken(tokenHash: string): Promise<void> {
+    if (!this.database) return
+    await this.database
+      .prepare('DELETE FROM public_time_trap_tokens WHERE token_hash = ?')
+      .bind(tokenHash)
       .run()
   }
 

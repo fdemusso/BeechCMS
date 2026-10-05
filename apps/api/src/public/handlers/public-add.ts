@@ -369,16 +369,8 @@ export async function publicAddHandler(context: Context<AppEnv>) {
 
     const id = context.get('idGenerator').uuid()
 
-    try {
-      await repository.create(seed, id, finalSlug, statusValue as any, privacyData)
-    } catch (error) {
-      if (error instanceof SlugConflictError) {
-        return publicProblem(context, { type: 'slug-conflict', title: 'Conflict', status: 409, detail: `An entry with slug '${finalSlug}' already exists for content type '${seedSlug}'.` })
-      }
-      throw error
-    }
-
-    // Mark single-use Time-Trap token as consumed
+    // Atomically claim the single-use Time-Trap token immediately before content
+    // creation, so no concurrent request can observe it as unused in between.
     if (timeTrapToken && timeTrapTokenRepo && tokenHash) {
       let t0 = now
       const parts = timeTrapToken.split('.')
@@ -388,7 +380,27 @@ export async function publicAddHandler(context: Context<AppEnv>) {
           t0 = parsedT0
         }
       }
-      await timeTrapTokenRepo.markTokenUsed(tokenHash, now, t0 + 3600)
+      const claimed = await timeTrapTokenRepo.claimToken(tokenHash, now, t0 + 3600)
+      if (!claimed) {
+        return publicProblem(context, {
+          type: 'time-trap-replayed',
+          title: 'Unprocessable Entity',
+          status: 422,
+          detail: 'Time-Trap token has already been used',
+        })
+      }
+    }
+
+    try {
+      await repository.create(seed, id, finalSlug, statusValue as any, privacyData)
+    } catch (error) {
+      if (timeTrapToken && timeTrapTokenRepo && tokenHash) {
+        await timeTrapTokenRepo.releaseToken(tokenHash)
+      }
+      if (error instanceof SlugConflictError) {
+        return publicProblem(context, { type: 'slug-conflict', title: 'Conflict', status: 409, detail: `An entry with slug '${finalSlug}' already exists for content type '${seedSlug}'.` })
+      }
+      throw error
     }
 
     // Localized fields echo their stored (merged, compacted) value, not the raw write.
