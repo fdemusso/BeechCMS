@@ -101,4 +101,17 @@ describe('D1OAuthTokenRepository', () => {
       })
     })
   })
+
+  describe('findByHash', () => {
+    it('does not filter on expiry or revocation', async () => {
+      const row = {
+        id: 't1', token_hash: 'h', token_type: 'refresh', client_id: 'beech-mcp-cli', user_id: 'u1',
+        scope: 'schema:read', authorization_code_hash: 'code-hash', expires_at: NOW - 1, created_at: NOW - 10, revoked_at: NOW - 5,
+      }
+      const { db, bindMock } = makeMockDb({ firstResult: row })
+      const record = await new D1OAuthTokenRepository(db, clock).findByHash('h', 'refresh')
+      expect(bindMock).toHaveBeenCalledWith('h', 'refresh')
+      expect(record?.revokedAt).toBe(NOW - 5)
+    })
+  })
 })

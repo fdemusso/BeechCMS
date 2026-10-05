@@ -41,6 +41,9 @@ export interface IOAuthTokenRepository {
     nowTimestamp: number,
   ): Promise<OAuthTokenRecord | null>
 
+  /** Finds a token by hash and type in any state (expired or revoked included). */
+  findByHash(tokenHash: string, tokenType: OAuthTokenType): Promise<OAuthTokenRecord | null>
+
   /** Revokes a single token. False when already revoked or absent. */
   revokeByHash(tokenHash: string, nowTimestamp: number): Promise<boolean>
 
