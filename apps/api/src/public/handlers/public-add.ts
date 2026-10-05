@@ -20,7 +20,6 @@ interface ParsedAttachment {
   filename: string
   declaredMime: string
   buffer: Uint8Array
-  fileKey?: string
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -71,7 +70,6 @@ function extractAttachments(body: Record<string, unknown>, rawData: Record<strin
         const rawContent = (obj.data || obj.content || obj.base64) as string | undefined
         const filename = String(obj.filename || obj.name || 'attachment')
         const declaredMime = String(obj.mimeType || obj.type || obj.contentType || 'application/octet-stream')
-        const fileKey = typeof obj.fileKey === 'string' ? obj.fileKey : (typeof obj.key === 'string' ? obj.key : undefined)
         if (typeof rawContent === 'string') {
           const parsed = parseBase64Data(rawContent)
           if (parsed) {
@@ -79,7 +77,6 @@ function extractAttachments(body: Record<string, unknown>, rawData: Record<strin
               filename,
               declaredMime: obj.mimeType || obj.type || obj.contentType ? declaredMime : (parsed.mime || declaredMime),
               buffer: parsed.bytes,
-              fileKey,
             })
           }
         }
@@ -109,7 +106,6 @@ function extractAttachments(body: Record<string, unknown>, rawData: Record<strin
             const rawContent = (obj.data || obj.content || obj.base64) as string | undefined
             const filename = String(obj.filename || obj.name || `${branch.alias}-attachment`)
             const declaredMime = String(obj.mimeType || obj.type || obj.contentType || 'application/octet-stream')
-            const fileKey = typeof obj.fileKey === 'string' ? obj.fileKey : (typeof obj.key === 'string' ? obj.key : undefined)
             if (typeof rawContent === 'string') {
               const parsed = parseBase64Data(rawContent)
               if (parsed) {
@@ -117,7 +113,6 @@ function extractAttachments(body: Record<string, unknown>, rawData: Record<strin
                   filename,
                   declaredMime: obj.mimeType || obj.type || obj.contentType ? declaredMime : (parsed.mime || declaredMime),
                   buffer: parsed.bytes,
-                  fileKey,
                 })
               }
             }
@@ -439,12 +434,9 @@ export async function publicAddHandler(context: Context<AppEnv>) {
             try {
               const scanResult = await av.scan(att.buffer, att.filename)
               if (scanResult.status === 'infected') {
-                if (att.fileKey && context.get('bucket')) {
-                  await context.get('bucket').delete(att.fileKey).catch(() => {})
-                }
                 context.get('notificationService').notify({
                   title: 'Security Alert: Infected file detected',
-                  message: `Attachment '${att.filename}' submitted to seed '${seedSlug}' was infected (${scanResult.details || scanResult.threatName || 'malware detected'}) and deleted.`,
+                  message: `Attachment '${att.filename}' submitted to seed '${seedSlug}' was infected (${scanResult.details || scanResult.threatName || 'malware detected'}).`,
                   type: 'error',
                 })
               }

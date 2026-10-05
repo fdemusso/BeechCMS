@@ -42,7 +42,7 @@ import {
 } from './public'
 import { searchRouter } from './features/search'
 import { oauthApp } from './features/oauth'
-import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository, IRoleGuard } from '@beechcms/core'
+import type { ISeedRepository, IAutomationRepository, IAutomationRunner, ITimeTrapTokenRepository, IRoleGuard, IAntivirusProvider, IScheduler } from '@beechcms/core'
 import { repositoryMiddleware } from './middleware/repository.middleware'
 import { seedRegistryMiddleware } from './middleware/seed-registry.middleware'
 import { storageMiddleware } from './middleware/storage.middleware'
@@ -103,6 +103,10 @@ export interface BeechConfig {
    * service and nothing else. Omitted in production — `apps/api/src/index.ts` never sets it.
    */
   authProviders?: AuthProviderOverrides
+  /** Test seam: replaces the VirusTotal provider. */
+  antivirusProvider?: IAntivirusProvider
+  /** Test seam: replaces the waitUntil-backed scheduler. */
+  scheduler?: IScheduler
 }
 
 // --- Costanti e helper ---
@@ -139,6 +143,8 @@ export function createBeechApp(config: BeechConfig): Hono<{ Bindings: Env; Varia
     automationRunner: config.automationRunner,
     hooks: config.hooks,
     roleGuard: config.roleGuard,
+    antivirusProvider: config.antivirusProvider,
+    scheduler: config.scheduler,
   }))
 
   // 2. Seed Registry Hydration (D1-backed, version-token-cached per isolate)
