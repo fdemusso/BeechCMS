@@ -32,7 +32,7 @@ export class D1TestDatabase implements D1Database {
         const sql = readFileSync(join(MIGRATIONS_DIR, f), 'utf8')
         // Skip data-only migrations (demo seeds): they INSERT into content tables
         // that the Botanical Engine creates at runtime, not via SQL migrations.
-        if (!/CREATE\s/i.test(sql) && !/ALTER\s+TABLE/i.test(sql)) continue
+        if (f === '0030_test_seeds.sql') continue
         this.db.exec(sql)
       }
     }
