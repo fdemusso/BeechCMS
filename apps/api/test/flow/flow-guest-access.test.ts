@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { defineSeed, sha256hex, generateTimeTrapToken } from '@beechcms/core'
+import { defineSeed, generateTimeTrapToken } from '@beechcms/core'
 import { createBeechApp } from '../../src/factory'
 import type { IRateLimiterRegistry } from '../../src/middleware/rate-limit.middleware'
 import { StaticAutomationRepository } from '../mocks/static-automation.repository'
@@ -615,7 +615,7 @@ describe('Flow: Guest Access (Public API)', () => {
       expect(res.status).toBe(422)
     })
 
-    it('success: hashes a privacy:"hash" field instead of storing it raw', async () => {
+    it('success: leaves a privacy:"hash" field unhashed for the repository to HMAC', async () => {
       const HASH_SEED = defineSeed({
         slug: 'hash_test',
         label: 'HashTest',
@@ -643,8 +643,7 @@ describe('Flow: Guest Access (Public API)', () => {
       expect(res.status).toBe(201)
       const body = await res.json<{ id: string }>()
       const created = await localRepo.findById(HASH_SEED, body.id)
-      expect(created.pin).toBe(await sha256hex('1234'))
-      expect(created.pin).not.toBe('1234')
+      expect(created.pin).toBe('1234')
     })
 
     it('creates entry with a privacy:"encrypt" field successfully', async () => {
