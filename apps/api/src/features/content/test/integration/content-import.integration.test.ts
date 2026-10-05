@@ -20,6 +20,7 @@ import { createBeechApp } from '../../../../factory'
 import { __resetSeedRegistryCache } from '../../../../shared/services/cache/seed-registry-cache'
 import { contentImportJobs } from '../../jobs/import-chunk.worker'
 
+const ADMIN_PREFIX = `imports/${CANONICAL_USERS.admin.id}/`
 const MEDIA_BUCKET = (env as unknown as Record<string, R2Bucket>).MEDIA_BUCKET
 
 describe('content slice — import integration (real D1, real R2)', () => {
@@ -47,7 +48,7 @@ describe('content slice — import integration (real D1, real R2)', () => {
 
   describe('POST /api/content/:slug/import', () => {
     it('a 5-row NDJSON import spanning three chunks completes with every row inserted', async () => {
-      const key = 'fixtures/categories-5.ndjson'
+      const key = `${ADMIN_PREFIX}categories-5.ndjson`
       const body = ['A', 'B', 'C', 'D', 'E'].map((name) => JSON.stringify({ name })).join('\n') + '\n'
       await MEDIA_BUCKET.put(key, body)
 
@@ -70,7 +71,7 @@ describe('content slice — import integration (real D1, real R2)', () => {
     })
 
     it('a CSV import against the flat canonical seed inserts its rows', async () => {
-      const key = 'fixtures/categories.csv'
+      const key = `${ADMIN_PREFIX}categories.csv`
       await MEDIA_BUCKET.put(key, 'name\r\nAlpha\r\nBeta\r\n')
 
       const response = await admin.post('/api/content/categories/import', { objectKey: key, format: 'csv' })
@@ -82,7 +83,7 @@ describe('content slice — import integration (real D1, real R2)', () => {
     })
 
     it('a CSV import against a seed with a relation branch is refused before any job row is created', async () => {
-      const key = 'fixtures/posts.csv'
+      const key = `${ADMIN_PREFIX}posts.csv`
       await MEDIA_BUCKET.put(key, 'title\r\nOne\r\n')
       const before = await jobRowCount()
 
@@ -95,17 +96,50 @@ describe('content slice — import integration (real D1, real R2)', () => {
     })
 
     it('an unsupported format value is refused with content-invalid-import-format', async () => {
-      const response = await admin.post('/api/content/categories/import', { objectKey: 'whatever', format: 'xml' })
+      const response = await admin.post('/api/content/categories/import', { objectKey: `${ADMIN_PREFIX}whatever`, format: 'xml' })
 
       expect(response.status).toBe(400)
       const body = await response.json<{ type: string }>()
       expect(body.type).toBe('https://beechcms.dev/problems/content-invalid-import-format')
     })
 
+    it('a media-library key is refused with 403 and the object survives', async () => {
+      const key = '1700000000-abcd1234-photo.png'
+      await MEDIA_BUCKET.put(key, 'binary')
+      const before = await jobRowCount()
+
+      const response = await admin.post('/api/content/categories/import', { objectKey: key, format: 'ndjson' })
+
+      expect(response.status).toBe(403)
+      const body = await response.json<{ type: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/content-import-object-forbidden')
+      expect(await jobRowCount()).toBe(before)
+      expect(await MEDIA_BUCKET.head(key)).not.toBeNull()
+    })
+
+    it("another user's import-prefixed key is refused with 403 and the object survives", async () => {
+      const key = `imports/${CANONICAL_USERS.editor.id}/1700000000-abcd1234-rows.ndjson`
+      await MEDIA_BUCKET.put(key, '{"name":"A"}\n')
+
+      const response = await admin.post('/api/content/categories/import', { objectKey: key, format: 'ndjson' })
+
+      expect(response.status).toBe(403)
+      expect(await MEDIA_BUCKET.head(key)).not.toBeNull()
+    })
+
+    it("an own import-prefixed key is accepted", async () => {
+      const key = `${ADMIN_PREFIX}own.ndjson`
+      await MEDIA_BUCKET.put(key, '{"name":"A"}\n')
+
+      const response = await admin.post('/api/content/categories/import', { objectKey: key, format: 'ndjson' })
+
+      expect(response.status).toBe(202)
+    })
+
     it('an unknown objectKey is refused with 404 and no job row is created', async () => {
       const before = await jobRowCount()
 
-      const response = await admin.post('/api/content/categories/import', { objectKey: 'no-such-key', format: 'ndjson' })
+      const response = await admin.post('/api/content/categories/import', { objectKey: `${ADMIN_PREFIX}no-such-key`, format: 'ndjson' })
 
       expect(response.status).toBe(404)
       const body = await response.json<{ type: string }>()
@@ -120,7 +154,7 @@ describe('content slice — import integration (real D1, real R2)', () => {
         createApp: (authProviders) => createBeechApp({ seeds: [], authProviders, jobs: contentImportJobs }),
       })
       const capAdmin = await capHarness.asUser('admin')
-      const key = 'fixtures/too-large.ndjson'
+      const key = `${ADMIN_PREFIX}too-large.ndjson`
       await MEDIA_BUCKET.put(key, JSON.stringify({ name: 'This line is longer than ten bytes' }) + '\n')
       const before = await jobRowCount()
 
@@ -133,7 +167,7 @@ describe('content slice — import integration (real D1, real R2)', () => {
     })
 
     it('a row missing a required branch is counted failed while sibling rows still insert', async () => {
-      const key = 'fixtures/categories-mixed.ndjson'
+      const key = `${ADMIN_PREFIX}categories-mixed.ndjson`
       const body = [JSON.stringify({}), JSON.stringify({ name: 'Valid' })].join('\n') + '\n'
       await MEDIA_BUCKET.put(key, body)
 
@@ -148,7 +182,7 @@ describe('content slice — import integration (real D1, real R2)', () => {
     it('a row carrying an id does not overwrite an existing entry — it is inserted as a new entry with a fresh id', async () => {
       const existing = await admin.post('/api/content/categories', { name: 'Existing' })
       const { id: existingId } = await existing.json<{ id: string }>()
-      const key = 'fixtures/categories-with-id.ndjson'
+      const key = `${ADMIN_PREFIX}categories-with-id.ndjson`
       await MEDIA_BUCKET.put(key, JSON.stringify({ id: existingId, name: 'Imported' }) + '\n')
 
       const response = await admin.post('/api/content/categories/import', { objectKey: key, format: 'ndjson' })
@@ -170,7 +204,7 @@ describe('content slice — import integration (real D1, real R2)', () => {
 
   describe('GET /api/content/import-jobs/:id', () => {
     async function createJob(): Promise<string> {
-      const key = `fixtures/status-${crypto.randomUUID()}.ndjson`
+      const key = `${ADMIN_PREFIX}status-${crypto.randomUUID()}.ndjson`
       await MEDIA_BUCKET.put(key, JSON.stringify({ name: 'Status Fixture' }) + '\n')
       const response = await admin.post('/api/content/categories/import', { objectKey: key, format: 'ndjson' })
       return (await response.json<{ jobId: string }>()).jobId

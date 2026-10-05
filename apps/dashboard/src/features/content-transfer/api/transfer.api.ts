@@ -148,6 +148,7 @@ export async function presignImportObject(file: File, format: TransferFormat): P
     filename: file.name,
     mimeType: PRESIGN_MIME_TYPES[format],
     sizeBytes: file.size,
+    purpose: "import",
   })
 
   const putResponse = await fetch(presign.data.uploadUrl, {

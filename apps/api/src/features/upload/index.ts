@@ -10,6 +10,7 @@ import { Hono, type Context } from 'hono'
 import { isMimeAccepted, parseMediaTransformQuery, SystemClock } from '@beechcms/core'
 import { AppEnv } from '../../types'
 import { deleteR2Objects } from '../../shared/storage/upload'
+import { importObjectKeyPrefix } from '../../shared/storage/import-object-key'
 import { mediaTransformError, serveTransformedMedia } from './media-transform'
 
 const DEFAULT_MAX_UPLOAD_BYTES = 50 * 1024 * 1024
@@ -149,10 +150,11 @@ uploadRoutes.post('/upload', async (c) => {
 
 /** POST /upload/presign — Request a presigned URL for direct R2 upload. */
 uploadRoutes.post('/upload/presign', async (c) => {
-  let body: { filename?: unknown, mimeType?: unknown, sizeBytes?: unknown }
+  let body: { filename?: unknown, mimeType?: unknown, sizeBytes?: unknown, purpose?: unknown }
   try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
 
-  const { filename, mimeType, sizeBytes } = body
+  const { filename, mimeType, sizeBytes, purpose } = body
+  if (purpose !== undefined && purpose !== 'import') return c.json({ error: 'Invalid purpose' }, 400)
   if (typeof filename !== 'string' || !filename.trim()) return c.json({ error: 'filename is required' }, 400)
   if (typeof mimeType !== 'string' || !mimeType.trim()) return c.json({ error: 'mimeType is required' }, 400)
   if (typeof sizeBytes !== 'number' || !Number.isFinite(sizeBytes) || sizeBytes <= 0) {
@@ -163,7 +165,8 @@ uploadRoutes.post('/upload/presign', async (c) => {
   if (sizeBytes > maxBytes) return c.json({ error: `File too large. Max ${maxBytes} bytes` }, 400)
   if (!isMimeAccepted(mimeType, 'any')) return c.json({ error: 'File type not allowed' }, 400)
 
-  const key = generateObjectKey(filename)
+  const generated = generateObjectKey(filename)
+  const key = purpose === 'import' ? `${importObjectKeyPrefix(c.var.jwtPayload?.sub ?? '')}${generated}` : generated
   const uploadUrl = await c.var.bucket.presignPut(key, {
     expiresIn: PRESIGN_TTL_SECONDS,
     contentType: mimeType,

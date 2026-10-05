@@ -21,6 +21,7 @@ export const CONTENT_ERRORS = {
   EXPORT_TOO_LARGE: 'Export exceeds the synchronous row limit — narrow the filter or search range',
   INVALID_IMPORT_FORMAT: 'Unsupported import format',
   IMPORT_OBJECT_KEY_REQUIRED: 'objectKey is required',
+  IMPORT_OBJECT_FORBIDDEN: 'objectKey must be an import file uploaded by the caller',
   IMPORT_OBJECT_NOT_FOUND: 'No uploaded object found for that key',
   IMPORT_FILE_TOO_LARGE: 'Import file exceeds the maximum size — split the file and retry',
   IMPORT_JOBS_SEED_MISSING: 'The import_jobs system content type is not installed — run database migrations',

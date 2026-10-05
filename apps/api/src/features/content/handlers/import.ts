@@ -9,6 +9,7 @@ import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
 import { normalizeBody } from './helpers'
+import { isImportObjectKeyOwnedBy } from '../../../shared/storage/import-object-key'
 import {
   CONTENT_IMPORT_CHUNK_JOB,
   IMPORT_JOBS_SLUG,
@@ -35,6 +36,13 @@ export async function importHandler(context: Context<AppEnv>) {
   if (!objectKey) {
     return problem(context, 'content-import-object-key-required', 'Bad Request', 400,
       CONTENT_ERRORS.IMPORT_OBJECT_KEY_REQUIRED)
+  }
+
+  // Only the caller's own presigned import files: never media assets or foreign objects,
+  // because the worker deletes the object on every terminal path.
+  if (!isImportObjectKeyOwnedBy(objectKey, context.get('jwtPayload').sub)) {
+    return problem(context, 'content-import-object-forbidden', 'Forbidden', 403,
+      CONTENT_ERRORS.IMPORT_OBJECT_FORBIDDEN)
   }
 
   const requestedFormat = cleanStr(body['format'])
@@ -113,6 +121,6 @@ export async function importHandler(context: Context<AppEnv>) {
 }
 
 function problem(context: Context<AppEnv>, type: string, title: string,
-  status: 400 | 404 | 413 | 500, detail: string) {
+  status: 400 | 403 | 404 | 413 | 500, detail: string) {
   return publicProblem(context, { type, title, status, detail })
 }

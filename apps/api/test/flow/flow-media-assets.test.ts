@@ -118,6 +118,26 @@ describe('Flow: Media & Assets (presigned URLs)', () => {
       expect(body.key).toMatch(/^\d+-[a-zA-Z0-9]+-photo\.png$/)
       expect(body.expiresIn).toBe(900)
     })
+
+    it('purpose=import namespaces the key under the caller', async () => {
+      const res = await app.request('/api/upload/presign', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: 'rows.ndjson', mimeType: 'application/json', sizeBytes: 10, purpose: 'import' }),
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(200)
+      const body = await res.json<{ key: string }>()
+      expect(body.key.startsWith(`imports/${TEST_USERS[0].id}/`)).toBe(true)
+    })
+
+    it('returns 400 for an unknown purpose', async () => {
+      const res = await app.request('/api/upload/presign', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename: 'photo.png', mimeType: 'image/png', sizeBytes: 1024, purpose: 'media' }),
+      }, { ...TEST_ENV, DB: db })
+      expect(res.status).toBe(400)
+    })
   })
 
   describe('POST /api/upload/confirm', () => {

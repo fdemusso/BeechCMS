@@ -15,7 +15,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { env } from 'cloudflare:test'
 import { DEFAULT_IMPORT_CHUNK_ROWS } from '@beechcms/core'
-import { createTestHarness, type TestClient, type TestHarness } from '@beechcms/testing'
+import { CANONICAL_USERS, createTestHarness, type TestClient, type TestHarness } from '@beechcms/testing'
 import { createBeechApp } from '../../../../factory'
 import { __resetSeedRegistryCache } from '../../../../shared/services/cache/seed-registry-cache'
 import { contentImportJobs } from '../../jobs/import-chunk.worker'
@@ -48,7 +48,7 @@ describe('content slice — import scale tier', () => {
 
   describe('POST /api/content/:slug/import', () => {
     it(`a ${ROW_COUNT}-row NDJSON import completes after ${ROW_COUNT / DEFAULT_IMPORT_CHUNK_ROWS} real chunk continuations, with every row inserted`, async () => {
-      const key = 'fixtures/categories-scale.ndjson'
+      const key = `imports/${CANONICAL_USERS.admin.id}/categories-scale.ndjson`
       const body = Array.from({ length: ROW_COUNT }, (_, i) => JSON.stringify({ name: `Category ${i}` })).join('\n') + '\n'
       await MEDIA_BUCKET.put(key, body)
 
