@@ -468,6 +468,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [introspectTable](functions/introspectTable.md)
 - [isCardEligibleBranch](functions/isCardEligibleBranch.md)
 - [isDateRange](functions/isDateRange.md)
+- [isEffectivelyEmpty](functions/isEffectivelyEmpty.md)
 - [isExtensionAccepted](functions/isExtensionAccepted.md)
 - [isFlatSeed](functions/isFlatSeed.md)
 - [isFullWidthBranch](functions/isFullWidthBranch.md)
