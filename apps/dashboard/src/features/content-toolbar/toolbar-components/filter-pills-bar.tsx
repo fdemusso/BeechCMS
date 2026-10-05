@@ -2,9 +2,11 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
-import { List as ListTree, Plus, Trash2, X } from 'reicon-react'
+import { Plus, Trash2, X } from 'reicon-react'
 import { Button } from "@/components/ui/button"
+import { Pill } from "@/components/ui/pill"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,9 +33,6 @@ interface FilterPillsBarProps {
   readonly filters: ToolbarFiltersState
   readonly openPillId: string | null
   readonly onOpenPillChange: (value: string | null) => void
-  readonly groupBy: string | null
-  readonly activeGroupLabel: string
-  readonly onGroupByChange?: (columnId: string | null) => void
   readonly addConditionToColumn: (columnId: string) => void
   readonly removeColumnFilters: (columnId: string) => void
   readonly updateCondition: (
@@ -43,37 +42,22 @@ interface FilterPillsBarProps {
   ) => void
   readonly removeCondition: (columnId: string, conditionId: string) => void
   readonly availableTagsByColumnId: Record<string, string[]>
+  readonly children?: ReactNode
 }
 
 export function FilterPillsBar({
   filters,
   openPillId,
   onOpenPillChange,
-  groupBy,
-  activeGroupLabel,
-  onGroupByChange,
   addConditionToColumn,
   removeColumnFilters,
   updateCondition,
   removeCondition,
   availableTagsByColumnId,
+  children,
 }: FilterPillsBarProps) {
-  const { t } = useTranslation()
   return (
     <div className="mb-2 flex min-h-9 flex-wrap items-center gap-2">
-      {groupBy && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 rounded-full px-3 text-xs"
-          onClick={() => onGroupByChange?.(null)}
-        >
-          <ListTree className="size-3.5" />
-          {t("toolbar.filterPills.groupedBy", { label: activeGroupLabel })}
-          <X className="size-3.5 opacity-70" />
-        </Button>
-      )}
-
       {Object.entries(filters).map(([columnId, group]) => (
         <FilterPill
           key={columnId}
@@ -87,6 +71,7 @@ export function FilterPillsBar({
           availableTagsByColumnId={availableTagsByColumnId}
         />
       ))}
+      {children}
     </div>
   )
 }
@@ -119,29 +104,19 @@ function FilterPill({
   const { t } = useTranslation()
   return (
     <DropdownMenu open={isOpen} onOpenChange={onOpenChange}>
-      <div className="group relative inline-flex h-8 items-center rounded-full bg-secondary text-xs">
-        <DropdownMenuTrigger asChild>
-          <button
-            type="button"
-            className="flex h-8 items-center gap-1.5 truncate rounded-full pl-3 pr-3 outline-none transition-[padding] duration-200 ease-in-out group-hover:pr-7"
-            aria-label={t("toolbar.filter.ariaLabel", { label: group.label })}
-          >
-            <span className="truncate">{group.label}</span>
-            <span className="opacity-70 transition-opacity duration-150 group-hover:opacity-0">{group.conditions.length}</span>
-          </button>
-        </DropdownMenuTrigger>
-        <button
-          type="button"
-          className="absolute right-1 flex size-6 items-center justify-center rounded-full text-destructive opacity-0 transition-opacity duration-150 hover:bg-destructive/10 group-hover:opacity-100 group-hover:delay-100"
-          aria-label={t("toolbar.filter.removeColumn")}
-          onClick={(e) => {
-            e.stopPropagation()
-            removeColumnFilters(group.columnId)
+      <DropdownMenuTrigger asChild>
+        <Pill
+          label={group.label}
+          trailing={group.conditions.length}
+          aria-label={t("toolbar.filter.ariaLabel", { label: group.label })}
+          action={{
+            icon: <Trash2 className="size-3.5" />,
+            label: t("toolbar.filter.removeColumn"),
+            tone: "destructive",
+            onClick: () => removeColumnFilters(group.columnId),
           }}
-        >
-          <Trash2 className="size-3.5" />
-        </button>
-      </div>
+        />
+      </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[420px] p-2">
         <div className="mb-2 flex items-center gap-2">
           <DropdownMenuLabel className="px-0 py-0 text-xs font-medium text-muted-foreground">

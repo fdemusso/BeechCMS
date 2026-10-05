@@ -2,6 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso. All rights reserved.
 // See LICENSE in the repository root for license terms.
 
+import { useState } from "react"
 import { useTranslation } from "react-i18next"
 import { Flash as Zap } from 'reicon-react'
 
@@ -27,6 +28,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
   const { seed, views, children, filters = {}, availableTagsByColumnId = {}, onExport, onOpenImport, isExportPending } = props
   const { t } = useTranslation()
   const toolbarState = useContentToolbar(props)
+  const [isFilterBannerDismissed, setIsFilterBannerDismissed] = useState(false)
   
   const { can } = usePermissions()
   const canCreate = can("content:create", seed?.slug ?? "")
@@ -131,7 +133,6 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
     // Group By
     recommendedGroupColumns,
     otherGroupColumns,
-    activeGroupLabel,
     datePrecisionMode,
     applyDatePrecisionMode,
   } = toolbarState
@@ -140,8 +141,7 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
     return null
   }
 
-  const hasFiltersOrGroup = Object.keys(filters).length > 0 || !!activeGroupLabel
-  const activeFilterLabels = Object.values(filters).map((group) => group.label)
+  const hasFilters = Object.keys(filters).length > 0
 
   return (
     <div data-seed-slug={seed.slug}>
@@ -295,36 +295,44 @@ export function ContentToolbar(props: Readonly<ContentToolbarProps>) {
           </div>
         </div>
 
-        {activeFilterLabels.length > 0 && (
-          <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800 dark:border-amber-800/60 dark:bg-amber-500/10 dark:text-amber-200">
-            <span>{t("toolbar.filterBanner.message", { filters: activeFilterLabels.join(", ") })}</span>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-200 dark:hover:bg-amber-900/30"
-              onClick={clearAllFilters}
-            >
-              {t("toolbar.filterBanner.clearAll")}
-            </Button>
-          </div>
-        )}
-
-        {hasFiltersOrGroup && (
+        {hasFilters && (
           <div className="mt-3 pt-3 border-t">
             <FilterPillsBar
               filters={filters}
               openPillId={openPillId}
               onOpenPillChange={setOpenPillId}
-              groupBy={groupBy ?? null}
-              activeGroupLabel={activeGroupLabel ?? ""}
-              onGroupByChange={onGroupByChange}
               addConditionToColumn={addConditionToColumn}
               removeColumnFilters={removeColumnFilters}
               updateCondition={updateCondition}
               removeCondition={removeCondition}
               availableTagsByColumnId={availableTagsByColumnId}
-            />
+            >
+              {!isFilterBannerDismissed && (
+                <div className="flex h-8 min-w-64 flex-1 items-center justify-between gap-3 rounded-full bg-amber-50 px-3 text-xs text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+                  <span className="min-w-0 truncate">{t("toolbar.filterBanner.message")}</span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-6 shrink-0 px-1 text-xs text-amber-800 underline hover:text-amber-950 dark:text-amber-200 dark:hover:text-amber-100"
+                      onClick={clearAllFilters}
+                    >
+                      {t("toolbar.filterBanner.clearAll")}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-6 shrink-0 px-1 text-xs text-amber-800 underline hover:text-amber-950 dark:text-amber-200 dark:hover:text-amber-100"
+                      onClick={() => setIsFilterBannerDismissed(true)}
+                    >
+                      {t("toolbar.filterBanner.dismiss")}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </FilterPillsBar>
           </div>
         )}
       </ToolbarStrip>

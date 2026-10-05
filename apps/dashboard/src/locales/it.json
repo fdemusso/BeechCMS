@@ -746,12 +746,10 @@
       "templatesDescription": "Crea un template riutilizzabile per le entry di questo tipo di contenuto.",
       "newTemplate": "Nuovo template"
     },
-    "filterPills": {
-      "groupedBy": "Raggruppato per: {{label}}"
-    },
     "filterBanner": {
-      "message": "Sono stati applicati dei filtri: {{filters}}",
-      "clearAll": "Rimuovi tutti i filtri"
+      "message": "I filtri vengono salvati automaticamente per tutti gli utenti che vedono questa vista.",
+      "clearAll": "Rimuovi tutti i filtri",
+      "dismiss": "Ho capito"
     },
     "settings": {
       "selectAxisField": "Per favore seleziona un campo per raggruppare le schede dalle impostazioni (icona ingranaggio) in alto a destra.",

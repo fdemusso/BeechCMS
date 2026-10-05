@@ -7,10 +7,24 @@ services:
   # community-verified working mirror. Its entrypoint creates MINIO_DEFAULT_BUCKETS synchronously
   # before the server starts serving, so the separate mc-based minio-init container (also now
   # unpullable) is no longer needed.
+  # The bitnami image runs as uid 1001, but volumes created by the old root-run minio/minio image
+  # are owned by root and make it crash-loop with "Permission denied" on .root_user.
+  # This one-shot service fixes ownership before minio starts.
+  minio-perms:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+    user: root
+    entrypoint: ["chown", "-R", "1001:1001", "/bitnami/minio/data"]
+    restart: "no"
+    volumes:
+      - beech-minio-data:/bitnami/minio/data
+
   minio:
     image: bitnamilegacy/minio:2025.7.23-debian-12-r5
     container_name: beech-minio
     restart: unless-stopped
+    depends_on:
+      minio-perms:
+        condition: service_completed_successfully
     ports:
       - "127.0.0.1:${BEECH_MINIO_PORT:-9000}:9000"
       - "127.0.0.1:${BEECH_MINIO_CONSOLE_PORT:-9001}:9001"

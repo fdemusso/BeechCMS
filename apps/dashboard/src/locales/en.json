@@ -746,12 +746,10 @@
       "templatesDescription": "Create a reusable entry template for this content type.",
       "newTemplate": "New template"
     },
-    "filterPills": {
-      "groupedBy": "Grouped by: {{label}}"
-    },
     "filterBanner": {
-      "message": "Filters applied: {{filters}}",
-      "clearAll": "Clear all filters"
+      "message": "Filters are saved automatically for everyone who can see this view.",
+      "clearAll": "Clear all filters",
+      "dismiss": "I know"
     },
     "settings": {
       "selectAxisField": "Please select a field to group the cards by from the settings menu (gear icon) in the top right.",
