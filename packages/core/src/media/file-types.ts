@@ -30,6 +30,10 @@ export interface FileTypeDefinition {
   readonly magicBytes?: readonly number[]
   /** Custom signature matching function for formats with complex, variable, or offset headers. */
   readonly matchSignature?: (bytes: Uint8Array) => boolean
+  /** Minimum buffer length `matchSignature` needs to decide; defaults to a short generic prefix check. */
+  readonly minSignatureLength?: number
+  /** Label for formats sharing one signature (ZIP, OLE2), used when the exact format is ambiguous. */
+  readonly signatureFamily?: string
 }
 
 /**
@@ -94,6 +98,7 @@ const OLE_DOCUMENT_DEFINITION = {
   isBinary: true,
   magicBytes: [...OLE_MAGIC],
   matchSignature: matchOleSignature,
+  signatureFamily: 'OLE2 container',
 }
 
 /** Common shared definition for OpenXML Office files. */
@@ -102,6 +107,7 @@ const OPENXML_DOCUMENT_DEFINITION = {
   isBinary: true,
   magicBytes: [0x50, 0x4B, 0x03, 0x04],
   matchSignature: matchZipSignature,
+  signatureFamily: 'ZIP container',
 }
 
 /**
@@ -132,6 +138,7 @@ export const SUPPORTED_FILE_TYPES: Record<string, FileTypeDefinition> = {
     category: 'image',
     isBinary: true,
     magicBytes: [0x47, 0x49, 0x46, 0x38],
+    minSignatureLength: 6,
     matchSignature: (bytes) =>
       bytes.length >= 6 &&
       bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x38 &&
@@ -144,6 +151,7 @@ export const SUPPORTED_FILE_TYPES: Record<string, FileTypeDefinition> = {
     category: 'image',
     isBinary: true,
     magicBytes: [0x52, 0x49, 0x46, 0x46],
+    minSignatureLength: 12,
     matchSignature: (bytes) =>
       bytes.length >= 12 &&
       bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
@@ -156,6 +164,7 @@ export const SUPPORTED_FILE_TYPES: Record<string, FileTypeDefinition> = {
     category: 'image',
     isBinary: true,
     magicBytes: [0x66, 0x74, 0x79, 0x70],
+    minSignatureLength: 12,
     matchSignature: (bytes) => {
       if (bytes.length < 12) return false
       // Check for 'ftyp' at offset 4
@@ -259,6 +268,7 @@ export const SUPPORTED_FILE_TYPES: Record<string, FileTypeDefinition> = {
     isBinary: true,
     magicBytes: [0x50, 0x4B, 0x03, 0x04],
     matchSignature: matchZipSignature,
+    signatureFamily: 'ZIP container',
   },
   '7z': {
     extension: '7z',
@@ -275,6 +285,7 @@ export const SUPPORTED_FILE_TYPES: Record<string, FileTypeDefinition> = {
     category: 'archive',
     isBinary: true,
     magicBytes: [0x75, 0x73, 0x74, 0x61, 0x72], // 'ustar'
+    minSignatureLength: 512,
     matchSignature: (bytes) => {
       if (bytes.length < 512) return false
       // Check for POSIX 'ustar' at offset 257

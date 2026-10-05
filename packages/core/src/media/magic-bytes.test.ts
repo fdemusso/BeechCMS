@@ -186,6 +186,42 @@ describe('verifyMagicBytes & File Types Registry', () => {
       expect(res.error).toBe('File buffer too small for signature inspection')
     })
 
+    it('does not mislabel ZIP-container bytes as DOCX (#531)', () => {
+      const zipBytes = new Uint8Array([0x50, 0x4B, 0x03, 0x04, 0x00, 0x00])
+      const res = verifyMagicBytes(zipBytes, 'image/png')
+      expect(res.valid).toBe(false)
+      expect(res.detectedMime).toBeUndefined()
+      expect(res.error).not.toContain('DOCX')
+      expect(res.error).toContain('ZIP')
+    })
+
+    it('does not mislabel OLE2 bytes as DOC (#531)', () => {
+      const oleBytes = new Uint8Array([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1, 0x00])
+      const res = verifyMagicBytes(oleBytes, 'image/png')
+      expect(res.valid).toBe(false)
+      expect(res.detectedMime).toBeUndefined()
+      expect(res.error).not.toContain('is DOC ')
+      expect(res.error).toContain('OLE')
+    })
+
+    it('still names unambiguous formats and dedupes JPG/JPEG aliases', () => {
+      const jpegBytes = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10])
+      const res = verifyMagicBytes(jpegBytes, 'image/png')
+      expect(res.detectedMime).toBe('image/jpeg')
+      expect(res.error).toContain('Signature mismatch: file is JPG')
+    })
+
+    it.each([
+      ['image/gif', 6, [0x47, 0x49, 0x46, 0x38]],
+      ['image/webp', 12, [0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00]],
+      ['image/avif', 12, [0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70]],
+      ['application/x-tar', 512, [0x75, 0x73, 0x74, 0x61, 0x72, 0x00]],
+    ])('reports "too small" for truncated %s buffer (#531)', (mime, _min, head) => {
+      const res = verifyMagicBytes(new Uint8Array(head), mime)
+      expect(res.valid).toBe(false)
+      expect(res.error).toBe('File buffer too small for signature inspection')
+    })
+
     it('rejects unknown binary signatures for image types', () => {
       const randomBytes = new Uint8Array([0x00, 0x01, 0x02, 0x03, 0x04, 0x05])
       const res = verifyMagicBytes(randomBytes, 'image/png')
