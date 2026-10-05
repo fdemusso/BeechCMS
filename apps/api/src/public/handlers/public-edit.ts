@@ -11,7 +11,8 @@ import { publicProblem } from '../errors/problem-details'
 import { slugify } from '../utils/slug-utils'
 import { sanitizePublicPayload } from '../validation/sanitize'
 import { loadLocaleConfig } from '../../shared/localization/locale-config'
-import { negotiatePublicLanguage, localizePublicEntry } from '../localization/public-language'
+import { negotiatePublicLanguage } from '../localization/public-language'
+import { toFlatPublicEntry } from '../query/entry-projection'
 import { AppEnv } from '../../types'
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
@@ -278,7 +279,7 @@ export async function publicEditHandler(context: PublicCtx) {
       success: true,
       id,
       slug: slugResult.value.nextSlug,
-      data: localizePublicEntry(seed, { ...updatedEntry, status: statusResult.value }, language),
+      data: toFlatPublicEntry({ ...updatedEntry, status: statusResult.value }, seed, undefined, language),
       meta: { seed: seedSlug },
     }, 200)
   } catch (error) {

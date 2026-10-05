@@ -326,5 +326,20 @@ describe('filterEntryForActor', () => {
 
     expect(res.meta).toBeNull()
   })
-})
 
+  it('omits branches with public: false for public actors only', () => {
+    const seed: Seed = {
+      slug: 'profiles',
+      label: 'Profiles',
+      displayNameAlias: 'name',
+      branches: [
+        { id: 'br_01', alias: 'name', type: 'text' },
+        { id: 'br_02', alias: 'bio', type: 'text', policies: { public: false } },
+      ],
+    }
+    const data = { id: 'p1', name: 'Jane', bio: 'private' }
+
+    expect(filterEntryForActor(data, seed, { type: 'public' })).not.toHaveProperty('bio')
+    expect(filterEntryForActor(data, seed, { type: 'authenticated' }).bio).toBe('private')
+  })
+})

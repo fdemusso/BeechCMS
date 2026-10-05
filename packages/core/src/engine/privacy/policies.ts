@@ -202,6 +202,7 @@ export function filterEntryForActor(
     // Public actor check
     if (isPublicActor) {
       if (resolved.publicVisibility === 'hidden') continue
+      if (branch.policies?.public === false) continue
     } else {
       // Authenticated actor check
       if (resolved.authVisibility === 'hidden') continue
