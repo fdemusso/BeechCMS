@@ -89,7 +89,7 @@ describe('GET /growth/:seed', () => {
     const repo = makeRepoStub()
     repo.growth = vi.fn().mockResolvedValue({ currentValue: -5, previousValue: 0 })
     const { app } = buildApp({ repo })
-    const res = await app.request('/growth/posts?formula={"op":"sum"}')
+    const res = await app.request('/growth/posts?formula={"op":"sum","column":"title"}')
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({
       current: -5,
@@ -189,3 +189,117 @@ describe('GET /timeseries/:seed', () => {
   })
 })
 
+
+describe('widget field visibility', () => {
+  const concealedSeed: Seed = {
+    slug: 'accounts',
+    label: 'Account',
+    displayNameAlias: 'title',
+    branches: [
+      { id: 'br_01', alias: 'title', type: 'text', label: 'Title' },
+      { id: 'br_02', alias: 'secret', type: 'text', label: 'Secret', policies: { classification: 'confidential', visibility: 'hidden' } },
+      { id: 'br_03', alias: 'note', type: 'text', label: 'Note', policies: { visibility: 'masked' } },
+      { id: 'br_04', alias: 'token', type: 'text', label: 'Token', policies: { classification: 'restricted' } },
+      { id: 'br_05', alias: 'views', type: 'number', label: 'Views' },
+    ],
+  }
+
+  const hiddenDisplaySeed: Seed = { ...concealedSeed, slug: 'people', displayNameAlias: 'secret' }
+  const seeds = { accounts: concealedSeed, people: hiddenDisplaySeed }
+
+  const concealedColumns = ['secret', 'note', 'token']
+
+  it('list omits hidden and restricted fields and masks masked fields', async () => {
+    const repo = makeRepoStub()
+    repo.list = vi.fn().mockResolvedValue({
+      entries: [{
+        id: '1', slug: 'a', status: 'draft', created_at: 1, updated_at: 2,
+        title: 'Visible', secret: 'private@example.com', note: 'internal memo', token: 'stored-hmac', views: 3,
+      }],
+      totalCount: 1,
+    })
+    const { app } = buildApp({ repo, seeds })
+
+    const res = await app.request('/list/accounts')
+
+    expect(res.status).toBe(200)
+    const body = await res.json() as { entries: Array<Record<string, unknown>> }
+    expect(body.entries[0]).toMatchObject({ id: '1', title: 'Visible', note: '••••••••', views: 3 })
+    expect(body.entries[0]).not.toHaveProperty('secret')
+    expect(body.entries[0]).not.toHaveProperty('token')
+  })
+
+  it('leaderboard replaces a hidden display label with the entry id', async () => {
+    const repo = makeRepoStub()
+    repo.leaderboard = vi.fn().mockResolvedValue([{ id: 'e1', label: 'private@example.com', score: 9 }])
+    const { app } = buildApp({ repo, seeds })
+
+    const res = await app.request('/leaderboard/people?scoreColumn=created_at')
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual([{ id: 'e1', label: 'e1', score: 9 }])
+  })
+
+  it.each(concealedColumns)('aggregate rejects concealed column %s with 400', async (column) => {
+    const repo = makeRepoStub()
+    const { app } = buildApp({ repo, seeds })
+    const formula = encodeURIComponent(JSON.stringify({ op: 'countWhere', column, value: 'x' }))
+
+    const res = await app.request(`/aggregate/accounts?formula=${formula}`)
+
+    expect(res.status).toBe(400)
+    expect(repo.aggregate).not.toHaveBeenCalled()
+  })
+
+  it.each(concealedColumns)('distribution, leaderboard and timeseries reject concealed column %s with 400', async (column) => {
+    const repo = makeRepoStub()
+    const { app } = buildApp({ repo, seeds })
+
+    const responses = [
+      await app.request(`/distribution/accounts?column=${column}`),
+      await app.request(`/leaderboard/accounts?scoreColumn=${column}`),
+      await app.request(`/timeseries/accounts?groupColumn=${column}`),
+      await app.request(`/timeseries/accounts?formula=sum&valueColumn=${column}`),
+    ]
+
+    expect(responses.map(r => r.status)).toEqual([400, 400, 400, 400])
+    expect(repo.distribution).not.toHaveBeenCalled()
+    expect(repo.leaderboard).not.toHaveBeenCalled()
+    expect(repo.timeseries).not.toHaveBeenCalled()
+  })
+
+  it.each(concealedColumns)('growth rejects concealed formula column %s with 400', async (column) => {
+    const repo = makeRepoStub()
+    const { app } = buildApp({ repo, seeds })
+    const formula = encodeURIComponent(JSON.stringify({ op: 'sum', column }))
+
+    const res = await app.request(`/growth/accounts?formula=${formula}`)
+
+    expect(res.status).toBe(400)
+    expect(repo.growth).not.toHaveBeenCalled()
+  })
+
+  it.each(concealedColumns)('list rejects filter and orderBy on concealed column %s with 400', async (column) => {
+    const repo = makeRepoStub()
+    const { app } = buildApp({ repo, seeds })
+    const filters = encodeURIComponent(JSON.stringify([{ column, op: 'like', value: 'p%' }]))
+
+    const responses = [
+      await app.request(`/list/accounts?filters=${filters}`),
+      await app.request(`/list/accounts?orderBy=${column}`),
+    ]
+
+    expect(responses.map(r => r.status)).toEqual([400, 400])
+    expect(repo.list).not.toHaveBeenCalled()
+  })
+
+  it('list rejects search when the display column is concealed', async () => {
+    const repo = makeRepoStub()
+    const { app } = buildApp({ repo, seeds })
+
+    const res = await app.request('/list/people?search=priv')
+
+    expect(res.status).toBe(400)
+    expect(repo.list).not.toHaveBeenCalled()
+  })
+})
