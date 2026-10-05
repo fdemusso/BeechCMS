@@ -265,4 +265,49 @@ describe('runCronAutomations', () => {
 
     expect(executeActionMock).not.toHaveBeenCalled()
   })
+
+  it('does not fire a batch action (webhook) when a non-pushdown OR condition matches no fetched entry', async () => {
+    const auto = makeAutomation({
+      trigger_conditions: {
+        kind: 'group',
+        op: 'OR',
+        children: [
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.title' }, op: 'eq', right: { kind: 'literal', value: 'zzz' } },
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.title' }, op: 'eq', right: { kind: 'literal', value: 'yyy' } },
+        ],
+      },
+    })
+    const entries = [{ id: 'e1', title: 'A' }, { id: 'e2', title: 'B' }]
+    const deps = makeDeps()
+    deps.findActiveSpy.mockResolvedValue([auto])
+    // OR root is not pushdown-able, so SQL returns everything unfiltered.
+    deps.listSpy.mockResolvedValue({ items: entries, total: 2 })
+
+    await runCronAutomations(deps, TICK)
+
+    expect(executeActionMock).not.toHaveBeenCalled()
+  })
+
+  it('still fires a batch action when a non-pushdown OR condition matches at least one fetched entry', async () => {
+    const auto = makeAutomation({
+      trigger_conditions: {
+        kind: 'group',
+        op: 'OR',
+        children: [
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.title' }, op: 'eq', right: { kind: 'literal', value: 'zzz' } },
+          { kind: 'predicate', left: { kind: 'ref', key: 'this.title' }, op: 'eq', right: { kind: 'literal', value: 'A' } },
+        ],
+      },
+    })
+    const entries = [{ id: 'e1', title: 'A' }, { id: 'e2', title: 'B' }]
+    const deps = makeDeps()
+    deps.findActiveSpy.mockResolvedValue([auto])
+    deps.listSpy.mockResolvedValue({ items: entries, total: 2 })
+
+    await runCronAutomations(deps, TICK)
+
+    expect(executeActionMock).toHaveBeenCalledTimes(1)
+    const [, ctx] = executeActionMock.mock.calls[0]
+    expect(ctx.entry).toMatchObject({ id: 'e1', title: 'A' })
+  })
 })
