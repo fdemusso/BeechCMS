@@ -154,7 +154,9 @@ async function handleAuthorizationCodeGrant(context: OAuthContext, body: Record<
  *    refresh token is returned alongside the new access token.
  * 2. **Scope Narrowing**: Allows the client to request an equal or smaller subset of the originally
  *    granted scopes. If omitted, retains the previous scope set.
- * 3. **Atomic rollback**: If revoking the previous refresh token fails (e.g. concurrent race condition),
+ * 3. **Reuse detection**: Replaying an already-rotated (revoked) refresh token revokes the whole
+ *    token family via its authorization code hash (OAuth 2.1 §4.3.1).
+ * 4. **Atomic rollback**: If revoking the previous refresh token fails (e.g. concurrent race condition),
  *    the newly created token pair is immediately invalidated.
  *
  * @param context - Hono request context.
@@ -177,7 +179,13 @@ async function handleRefreshTokenGrant(context: OAuthContext, body: Record<strin
   const oldHash = await sha256hex(refreshToken)
   const tokenRepository = context.get('oauthTokenRepository')
   const old = await tokenRepository.findActiveByHash(oldHash, 'refresh', nowSeconds)
-  if (!old) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'unknown, expired or revoked refresh token')
+  if (!old) {
+    const stale = await tokenRepository.findByHash(oldHash, 'refresh')
+    if (stale?.revokedAt != null && stale.clientId === clientId) {
+      await tokenRepository.revokeByAuthorizationCode(stale.authorizationCodeHash, nowSeconds)
+    }
+    return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'unknown, expired or revoked refresh token')
+  }
   if (old.clientId !== clientId) return tokenError(context, OAUTH_ERRORS.INVALID_GRANT, 'client_id does not match the refresh token')
 
   let resolvedScopes: OAuthScope[]

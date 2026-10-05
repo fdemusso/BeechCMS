@@ -93,6 +93,20 @@ export class D1OAuthTokenRepository implements IOAuthTokenRepository {
     return row ? rowToRecord(row) : null
   }
 
+  async findByHash(tokenHash: string, tokenType: OAuthTokenType): Promise<OAuthTokenRecord | null> {
+    const row = await this.db
+      .prepare(
+        `SELECT id, token_hash, token_type, client_id, user_id, scope,
+                authorization_code_hash, expires_at, created_at, revoked_at
+         FROM oauth_tokens
+         WHERE token_hash = ? AND token_type = ?
+         LIMIT 1`
+      )
+      .bind(tokenHash, tokenType)
+      .first<OAuthTokenRow>()
+    return row ? rowToRecord(row) : null
+  }
+
   async revokeByHash(tokenHash: string, nowTimestamp: number): Promise<boolean> {
     const result = await this.db
       .prepare('UPDATE oauth_tokens SET revoked_at = ? WHERE token_hash = ? AND revoked_at IS NULL')

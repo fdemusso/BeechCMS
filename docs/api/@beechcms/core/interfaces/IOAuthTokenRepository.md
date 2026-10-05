@@ -34,6 +34,28 @@ Finds an unexpired, unrevoked token by hash and type.
 
 ***
 
+### findByHash()
+
+> **findByHash**(`tokenHash`, `tokenType`): `Promise`&lt;[`OAuthTokenRecord`](OAuthTokenRecord.md) \| `null`&gt;
+
+Finds a token by hash and type in any state (expired or revoked included).
+
+#### Parameters
+
+##### tokenHash
+
+`string`
+
+##### tokenType
+
+[`OAuthTokenType`](../type-aliases/OAuthTokenType.md)
+
+#### Returns
+
+`Promise`&lt;[`OAuthTokenRecord`](OAuthTokenRecord.md) \| `null`&gt;
+
+***
+
 ### listAuthorizedClientsForUser()
 
 > **listAuthorizedClientsForUser**(`userId`, `nowTimestamp`): `Promise`&lt;[`AuthorizedClientSummary`](AuthorizedClientSummary.md)[]&gt;

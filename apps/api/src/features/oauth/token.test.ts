@@ -153,11 +153,29 @@ describe('OAuth token endpoint', () => {
       const { refresh_token: newRefresh } = await rotateRes.json<{ refresh_token: string }>()
       expect(newRefresh).not.toBe(oldRefresh)
 
-      const oldAgainRes = await tokenRequest({ grant_type: 'refresh_token', refresh_token: oldRefresh, client_id: CLIENT_ID })
-      expect(oldAgainRes.status).toBe(400)
-
       const newWorksRes = await tokenRequest({ grant_type: 'refresh_token', refresh_token: newRefresh, client_id: CLIENT_ID })
       expect(newWorksRes.status).toBe(200)
+
+      const oldAgainRes = await tokenRequest({ grant_type: 'refresh_token', refresh_token: oldRefresh, client_id: CLIENT_ID })
+      expect(oldAgainRes.status).toBe(400)
+    })
+
+    it('replaying a rotated refresh token revokes the whole token family', async () => {
+      const code = await loginAndGetCode()
+      const firstRes = await tokenRequest({
+        grant_type: 'authorization_code', code, redirect_uri: REDIRECT_URI, client_id: CLIENT_ID, code_verifier: CODE_VERIFIER,
+      })
+      const { refresh_token: r1 } = await firstRes.json<{ refresh_token: string }>()
+      const rotateRes = await tokenRequest({ grant_type: 'refresh_token', refresh_token: r1, client_id: CLIENT_ID })
+      const { refresh_token: r2 } = await rotateRes.json<{ refresh_token: string }>()
+
+      const replayRes = await tokenRequest({ grant_type: 'refresh_token', refresh_token: r1, client_id: CLIENT_ID })
+      expect(replayRes.status).toBe(400)
+
+      const descendantRes = await tokenRequest({ grant_type: 'refresh_token', refresh_token: r2, client_id: CLIENT_ID })
+      expect(descendantRes.status).toBe(400)
+      const live = await db.prepare('SELECT COUNT(*) AS n FROM oauth_tokens WHERE revoked_at IS NULL').first<{ n: number }>()
+      expect(live?.n).toBe(0)
     })
 
     it('narrowing scope succeeds; widening scope returns invalid_scope', async () => {
