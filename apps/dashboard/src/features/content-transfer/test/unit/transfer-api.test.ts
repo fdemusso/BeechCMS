@@ -51,6 +51,7 @@ describe("presignImportObject", () => {
       filename: "rows.ndjson",
       mimeType: "application/json",
       sizeBytes: file.size,
+      purpose: "import",
     })
   })
 
