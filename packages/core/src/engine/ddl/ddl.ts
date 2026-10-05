@@ -270,6 +270,44 @@ export function generateAddDraftSnapshotColumn(seed: Seed): string {
 
 
 /**
+ * Lists the indexes a branch column carries (value index + blind index), as name/column pairs.
+ * Single source for both index creation and column teardown.
+ */
+function branchIndexes(seed: Seed, branch: Branch): { name: string; column: string }[] {
+  if (branch.type === 'relation' && branch.multiple === true) return []
+  const isRelation = branch.type === 'relation'
+  if (!isRelation && !resolvePolicies(branch).filter) return []
+  const indexes: { name: string; column: string }[] = []
+  if (['text', 'number', 'date', 'boolean', 'relation'].includes(branch.type)) {
+    indexes.push({ name: `idx_${seed.slug}_${branch.alias}`, column: branch.alias })
+  }
+  if (hasBlindIndex(branch)) {
+    indexes.push({ name: `idx_${seed.slug}_${branch.alias}_bidx`, column: `${branch.alias}_bidx` })
+  }
+  return indexes
+}
+
+
+/**
+ * Statements that detach a column from everything SQLite refuses to drop it from:
+ * its indexes and, for searchable branches, the FTS table + triggers (rebuilt by `planFtsRebuild`).
+ */
+function generateColumnTeardown(seed: Seed, branch: Branch): string[] {
+  const slug = seed.slug
+  const stmts = branchIndexes(seed, branch).map(i => `DROP INDEX IF EXISTS ${i.name};`)
+  if (indexableSearchBranches(seed).some(b => b.alias === branch.alias)) {
+    stmts.push(
+      `DROP TRIGGER IF EXISTS fts_${slug}_insert;`,
+      `DROP TRIGGER IF EXISTS fts_${slug}_update;`,
+      `DROP TRIGGER IF EXISTS fts_${slug}_delete;`,
+      `DROP TABLE IF EXISTS ${ftsTableName(seed)};`,
+    )
+  }
+  return stmts
+}
+
+
+/**
  * Generates SQL index statements for system fields (status, created_at)
  * and indexable branch columns.
  * 
@@ -285,18 +323,8 @@ export function generateIndexes(seed: Seed): string[] {
   ]
 
   for (const branch of seed.branches) {
-    if (branch.type === 'relation' && branch.multiple === true) continue
-    const isRelation = branch.type === 'relation'
-    if (!isRelation && !resolvePolicies(branch).filter) continue
-    if (['text', 'number', 'date', 'boolean', 'relation'].includes(branch.type)) {
-      indexes.push(
-        `CREATE INDEX IF NOT EXISTS idx_${slug}_${branch.alias} ON ${table}(${branch.alias});`
-      )
-    }
-    if (hasBlindIndex(branch)) {
-      indexes.push(
-        `CREATE INDEX IF NOT EXISTS idx_${slug}_${branch.alias}_bidx ON ${table}(${branch.alias}_bidx);`
-      )
+    for (const { name, column } of branchIndexes(seed, branch)) {
+      indexes.push(`CREATE INDEX IF NOT EXISTS ${name} ON ${table}(${column});`)
     }
   }
 
@@ -588,7 +616,8 @@ export function generateDropColumn(seed: Seed, alias: string): string[] {
     ]
   }
 
-  const stmts: string[] = [`ALTER TABLE ${tableName(seed)} DROP COLUMN ${alias};`]
+  const stmts: string[] = branch ? generateColumnTeardown(seed, branch) : []
+  stmts.push(`ALTER TABLE ${tableName(seed)} DROP COLUMN ${alias};`)
   if (branch && seed.allowDrafts) {
     stmts.push(`ALTER TABLE ${draftTableName(seed)} DROP COLUMN ${alias};`)
   }
@@ -649,8 +678,13 @@ export function generateRetypeColumn(seed: Seed, branch: Branch): string[] {
     `ALTER TABLE ${table} RENAME COLUMN ${tmp} TO ${alias};`,
   ]
 
-  const stmts = rebuild(tableName(seed))
+  const current = seed.branches.find(b => b.alias === alias)
+  const stmts = current ? generateColumnTeardown(seed, current) : []
+  stmts.push(...rebuild(tableName(seed)))
   if (seed.allowDrafts) stmts.push(...rebuild(draftTableName(seed)))
+  for (const { name, column } of branchIndexes(seed, branch)) {
+    stmts.push(`CREATE INDEX IF NOT EXISTS ${name} ON ${tableName(seed)}(${column});`)
+  }
   return stmts
 }
 

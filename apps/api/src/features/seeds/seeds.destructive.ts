@@ -121,7 +121,7 @@ destructiveApp.delete('/:slug/branches/:branchId', async (context) => {
     branches: existing.definition.branches.filter((b: Branch) => b.id !== branchId),
   }
 
-  const stmts = generateDropColumn(existing.definition, branch.alias)
+  const stmts = [...generateDropColumn(existing.definition, branch.alias), ...planFtsRebuild(updatedDef)]
   const error = await applyDestructiveSeedDef(context, slug, updatedDef, stmts, { op: 'drop-branch', branchId, alias: branch.alias })
   if (error) return error
 
