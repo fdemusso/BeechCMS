@@ -514,6 +514,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [projectContentViews](functions/projectContentViews.md)
 - [projectSchemaContract](functions/projectSchemaContract.md)
 - [registerSeeds](functions/registerSeeds.md)
+- [reservedBranchAliasReason](functions/reservedBranchAliasReason.md)
 - [resolveAuthorizedViews](functions/resolveAuthorizedViews.md)
 - [resolveClassification](functions/resolveClassification.md)
 - [resolveDashboardScopeChain](functions/resolveDashboardScopeChain.md)

@@ -12,7 +12,7 @@ import {
   generateRetypeColumn,
   planFtsRebuild,
   BRANCH_ALIAS_RE,
-  SQL_RESERVED_WORDS,
+  reservedBranchAliasReason,
 } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
@@ -122,7 +122,7 @@ destructiveApp.delete('/:slug/branches/:branchId', async (context) => {
     branches: existing.definition.branches.filter((b: Branch) => b.id !== branchId),
   }
 
-  const stmts = [...generateDropColumn(existing.definition, branch.alias), ...planFtsRebuild(updatedDef)]
+  const stmts = generateDropColumn(existing.definition, branch.alias)
   const error = await applyDestructiveSeedDef(context, slug, updatedDef, stmts, { op: 'drop-branch', branchId, alias: branch.alias })
   if (error) return error
 
@@ -135,14 +135,14 @@ destructiveApp.delete('/:slug/branches/:branchId', async (context) => {
  * @remarks
  * Irreversible destructive operation.
  * - Requires body `{ newAlias: string, confirm: "<slug>.<alias>" }`.
- * - Validates `newAlias` against `BRANCH_ALIAS_RE` and `SQL_RESERVED_WORDS`.
+ * - Validates `newAlias` against `BRANCH_ALIAS_RE`, reserved words and sibling alias uniqueness.
  * - Generates rename column DDL and FTS rebuild statements.
  * - Scans automations repository for references to the old alias and returns affected automation IDs.
  *
  * @route PATCH /api/seeds/:slug/branches/:branchId/rename
  * @param slug - Seed slug identifier.
  * @param branchId - Unique branch identifier.
- * @returns 200 OK with `{ success: true, affectedAutomations: string[] }`, or 400/404/422 Problem Details on error.
+ * @returns 200 OK with `{ success: true, affectedAutomations: string[] }`, or 400/404/409/422 Problem Details on error.
  */
 destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
   const slug = context.req.param('slug')
@@ -154,8 +154,9 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
   if (typeof newAlias !== 'string' || !BRANCH_ALIAS_RE.test(newAlias)) {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: `newAlias must match ${BRANCH_ALIAS_RE.source} (lowercase letter followed by alphanumeric characters or underscores).` })
   }
-  if (SQL_RESERVED_WORDS.has(newAlias.toLowerCase())) {
-    return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: `newAlias '${newAlias}' is an SQL reserved keyword. Pick a different alias.` })
+  const reserved = reservedBranchAliasReason(newAlias)
+  if (reserved) {
+    return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: reserved })
   }
 
   const existing = await getActiveSeed(context, slug)
@@ -166,6 +167,9 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
   const branch = existing.definition.branches.find((b: Branch) => b.id === branchId)
   if (!branch) {
     return publicProblem(context, { type: 'branch-not-found', title: 'Branch not found', status: 404, detail: `No branch with id '${branchId}' in seed '${slug}'.` })
+  }
+  if (existing.definition.branches.some((b: Branch) => b.id !== branchId && b.alias === newAlias)) {
+    return publicProblem(context, { type: 'duplicate-alias', title: 'Conflict', status: 409, detail: `Seed '${slug}' already has a branch with alias '${newAlias}'.` })
   }
 
   const confirmErr = requireConfirm(context, `${slug}.${branch.alias}`, body)
