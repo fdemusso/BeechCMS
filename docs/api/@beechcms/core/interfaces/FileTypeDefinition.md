@@ -73,7 +73,7 @@ All valid MIME types associated with this format.
 
 > `readonly` `optional` **minSignatureLength?**: `number`
 
-Minimum buffer length needed to evaluate the signature. Defaults to `min(4, magicBytes.length)`.
+Minimum buffer length `matchSignature` needs to decide; defaults to a short generic prefix check.
 
 ***
 
@@ -82,3 +82,11 @@ Minimum buffer length needed to evaluate the signature. Defaults to `min(4, magi
 > `readonly` **primaryMime**: `string`
 
 Canonical primary MIME type (e.g. 'image/jpeg').
+
+***
+
+### signatureFamily?
+
+> `readonly` `optional` **signatureFamily?**: `string`
+
+Label for formats sharing one signature (ZIP, OLE2), used when the exact format is ambiguous.
