@@ -25,3 +25,8 @@ All commands are unified under the `pnpm beech` CLI.
 - `pnpm beech lint`            : Runs lint checks across the monorepo
 - `pnpm beech deploy`          : Compiles and deploys Worker and assets to Cloudflare production
 - `pnpm beech doctor`          : Executes dashboard diagnostics checks
+
+## Heavy commands with several agents (`scripts/cpu-slot.mjs`)
+- `node scripts/cpu-slot.mjs [--exclusive] -- <command>` : runs `<command>` inside a machine-wide CPU slot shared by every worktree (queues, never skips; exit 75 = timed out waiting, command not run). Also applies below-normal priority, caps `VITEST_MAX_WORKERS`, and shares the main checkout's Turbo cache.
+- Env: `BEECH_CPU_SLOTS` (default 1), `BEECH_CPU_SLOT_TIMEOUT_MIN` (default 30), `BEECH_CPU_SLOT=0` to disable. Off when `CI` is set.
+- `pnpm test` and `pnpm test:diff` take the slot themselves (full suite = exclusive).

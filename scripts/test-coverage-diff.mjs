@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url'
 import picomatch from 'picomatch'
 import { WORKSPACES, parseTiers, isNeverSelected, NEVER_SELECTED_PREFIXES } from './lib/test-tiers.mjs'
 import { resolveTestResources, lowerProcessPriority, describeTestResources } from './lib/test-resources.mjs'
+import { acquireCpuSlot, releaseOnExit, HELD_ENV, EXIT_SLOT_TIMEOUT } from './lib/cpu-slot.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT = path.resolve(__dirname, '..')
@@ -375,6 +376,16 @@ async function main() {
 
   console.log(`${bold('Changed files detected:')} ${changedFiles.length}`)
   console.log()
+
+  // Machine-wide slot shared with every worktree; flow shares one Docker stack, so it is exclusive.
+  try {
+    releaseOnExit(await acquireCpuSlot({ exclusive: selectedTiers.includes('flow'), label: `test:diff --tier ${selectedTiers.join(',')}` }))
+  } catch (err) {
+    if (err.code !== 'SLOT_TIMEOUT') throw err
+    console.error(red(`${err.message} The diff run did NOT run.`))
+    process.exit(EXIT_SLOT_TIMEOUT)
+  }
+  process.env[HELD_ENV] = '1'
 
   // Group files by workspace
   const workspaceGroups = new Map()

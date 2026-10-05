@@ -10,78 +10,29 @@ import { execa } from "execa"
 import { execSync } from "node:child_process"
 import crypto from "node:crypto"
 import { resolveTestResources, testResourceEnv, lowerProcessPriority, describeTestResources } from "./lib/test-resources.mjs"
+import { acquireCpuSlot, releaseOnExit, HELD_ENV, EXIT_SLOT_TIMEOUT } from "./lib/cpu-slot.mjs"
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, "..")
 const CACHE_DIR = path.resolve(__dirname, "../node_modules/.cache/beech-test-runner")
-const LOCK_DIR = path.resolve(__dirname, "../node_modules/.cache")
-const LOCK_FILE = path.join(LOCK_DIR, "beech-test-runner.lock")
 
-function acquireLock() {
+// Machine-wide, shared by every worktree. The full suite includes the Docker-bound flow tier
+// and uses the whole local budget, so it claims every slot. It queues behind other runs
+// instead of skipping: a skipped run exiting 0 reads as a green suite.
+async function acquireLock() {
   if (process.env.BEECH_FORCE_TEST === "1") {
     return () => {}
   }
 
-  if (!fs.existsSync(LOCK_DIR)) {
-    fs.mkdirSync(LOCK_DIR, { recursive: true })
+  try {
+    const release = await acquireCpuSlot({ exclusive: true, label: "pnpm test (full suite)" })
+    releaseOnExit(release)
+    return release
+  } catch (err) {
+    if (err.code !== "SLOT_TIMEOUT") throw err
+    console.error(`\n\x1b[33m⚠️  [Thermal Protection] ${err.message} The suite did NOT run.\x1b[0m\n`)
+    process.exit(EXIT_SLOT_TIMEOUT)
   }
-
-  if (fs.existsSync(LOCK_FILE)) {
-    try {
-      const lockData = JSON.parse(fs.readFileSync(LOCK_FILE, "utf8"))
-      const existingPid = lockData.pid
-      const startTime = lockData.startTime ? new Date(lockData.startTime).toLocaleTimeString() : "earlier"
-
-      let isAlive = false
-      try {
-        process.kill(existingPid, 0)
-        isAlive = true
-      } catch {
-        isAlive = false
-      }
-
-      if (isAlive) {
-        console.log(`\n\x1b[33m⚠️  [Thermal Protection] Test suite is already running in another process (PID: ${existingPid}, started at ${startTime}).\x1b[0m`)
-        console.log(`\x1b[33m    Skipping duplicate test execution to protect PC CPU from thermal throttling.\x1b[0m\n`)
-        process.exit(0)
-      } else {
-        // Remove stale lock
-        fs.unlinkSync(LOCK_FILE)
-      }
-    } catch {
-      try {
-        fs.unlinkSync(LOCK_FILE)
-      } catch {
-        // Swallow: best-effort cleanup of stale lock
-      }
-    }
-  }
-
-  const lockData = {
-    pid: process.pid,
-    startTime: new Date().toISOString()
-  }
-  fs.writeFileSync(LOCK_FILE, JSON.stringify(lockData), "utf8")
-
-  const cleanup = () => {
-    try {
-      if (fs.existsSync(LOCK_FILE)) {
-        const data = JSON.parse(fs.readFileSync(LOCK_FILE, "utf8"))
-        if (data.pid === process.pid) {
-          fs.unlinkSync(LOCK_FILE)
-        }
-      }
-    } catch {
-      // Swallow: best-effort lock cleanup on exit
-    }
-  }
-
-  process.on("exit", cleanup)
-  process.on("SIGINT", () => { cleanup(); process.exit(130) })
-  process.on("SIGTERM", () => { cleanup(); process.exit(143) })
-  process.on("uncaughtException", (err) => { cleanup(); console.error(err); process.exit(1) })
-
-  return cleanup
 }
 
 function computeRepoFingerprint() {
@@ -167,8 +118,6 @@ function computeRepoFingerprint() {
   }
 }
 
-const releaseLock = acquireLock()
-
 const isCoverage = process.argv.includes("--coverage")
 const isNoCache = Boolean(
   process.env.BEECH_NO_CACHE === "1" ||
@@ -233,9 +182,11 @@ if (cachedResult) {
   printConsolidatedSummary(cachedResult.output)
 
   console.log(`\x1b[32m⚡ [Test Cache] Instant replay from cache completed. All ${fileCount} files match snapshot.\x1b[0m\n`)
-  releaseLock()
   process.exit(cachedResult.exitCode ?? 0)
 }
+
+// A cache replay needs no CPU, so the slot is taken only for a real run.
+const releaseLock = await acquireLock()
 
 if (isNoCache) {
   clearCache()
@@ -259,6 +210,7 @@ try {
     all: true,
     env: {
       FORCE_COLOR: "1",
+      [HELD_ENV]: "1",
       ...testResourceEnv(resources),
       UV_THREADPOOL_SIZE: process.env.UV_THREADPOOL_SIZE || "4"
     }
