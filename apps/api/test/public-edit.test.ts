@@ -180,4 +180,28 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
     expect(body.data.name).toBe('Jane Renamed')
     expect(body.meta.seed).toBe('profiles')
   })
+
+  it.each([
+    ['permitted update', { name: 'Jane Smith' }],
+    ['empty object', {}],
+  ])('does not disclose non-public stored fields in the response (%s)', async (_label, payload) => {
+    const res = await app.request(`/api/v1/public/profiles/edit/${existingEntry.id}`, {
+      method: 'PATCH',
+      headers: {
+        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    }, TEST_ENV)
+
+    expect(res.status).toBe(200)
+    const body = await res.json<{ data: Record<string, unknown> }>()
+    const serialized = JSON.stringify(body.data)
+    for (const leaked of ['SECRET-SSN', 'VIP client', 'hash_pin_123', 'private bio']) {
+      expect(serialized).not.toContain(leaked)
+    }
+    expect(body.data).not.toHaveProperty('admin_notes')
+    expect(body.data).not.toHaveProperty('security_pin')
+    expect(body.data).not.toHaveProperty('hidden_bio')
+  })
 })
