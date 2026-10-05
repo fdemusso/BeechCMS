@@ -131,4 +131,56 @@ describe('features/rbac/roles', () => {
       expect(await res.json()).toMatchObject({ type: expect.stringContaining('last-global-admin') })
     })
   })
+
+  describe('scoped manage_roles actor (#595)', () => {
+    const insertRole = (id: string, perms: string[]) => db.batch([
+      db.prepare(`INSERT INTO roles (id, name, description, is_system) VALUES (?, ?, NULL, 0)`).bind(id, `N_${id}`),
+      ...perms.map(p => db.prepare(`INSERT INTO role_permissions (role_id, permission) VALUES (?, ?)`).bind(id, p)),
+    ])
+    const assign = (id: string, userId: string, roleId: string, scope: string) =>
+      db.prepare(`INSERT INTO user_role_assignments (id, user_id, role_id, scope) VALUES (?, ?, ?, ?)`).bind(id, userId, roleId, scope).run()
+
+    async function seedScopedActor() {
+      const passwordHash = await bcrypt.hash('password123', 10)
+      await seedTestUsers(db, [{ id: 'user_scoped', email: 'scoped@beechcms.io', password_hash: passwordHash, grantSuperAdmin: false }])
+      for (const slug of ['posts', 'blog2']) {
+        await db.prepare(`INSERT INTO seeds (slug, definition, status) VALUES (?, '{}', 'active')`).bind(slug).run()
+      }
+      await insertRole('00000000-0000-4000-8000-0000000000b1', ['manage_roles', 'content:read'])
+      await insertRole('00000000-0000-4000-8000-0000000000b2', ['content:delete'])
+      await insertRole('00000000-0000-4000-8000-0000000000b3', ['content:read'])
+      await assign('ura_blog', 'user_scoped', '00000000-0000-4000-8000-0000000000b1', 'posts')
+      await assign('ura_news', 'user_scoped', '00000000-0000-4000-8000-0000000000b2', 'blog2')
+      await assign('ura_shared_actor', 'user_scoped', '00000000-0000-4000-8000-0000000000b3', 'posts')
+      await assign('ura_shared_victim', ADMIN.id, '00000000-0000-4000-8000-0000000000b3', '*')
+      return login('scoped@beechcms.io')
+    }
+
+    const put = (token: string, id: string, permissions: string[]) =>
+      authed(`/api/rbac/roles/${id}`, token, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: `N_${id}`, permissions }),
+      })
+
+    it('refuses self-escalation with a permission held only on another scope', async () => {
+      const token = await seedScopedActor()
+      const res = await put(token, '00000000-0000-4000-8000-0000000000b1', ['manage_roles', 'content:read', 'content:delete'])
+      expect(res.status).toBe(403)
+    })
+
+    it('refuses editing a role assigned at a scope the actor does not administer', async () => {
+      const token = await seedScopedActor()
+      const res = await put(token, '00000000-0000-4000-8000-0000000000b3', ['content:read', 'content:delete'])
+      expect(res.status).toBe(403)
+    })
+
+    it('refuses deleting a role assigned at a scope the actor does not administer', async () => {
+      const token = await seedScopedActor()
+      const res = await authed('/api/rbac/roles/00000000-0000-4000-8000-0000000000b3', token, { method: 'DELETE' })
+      expect(res.status).toBe(403)
+      const row = await db.prepare(`SELECT id FROM user_role_assignments WHERE id = 'ura_shared_victim'`).first()
+      expect(row).not.toBeNull()
+    })
+  })
 })
