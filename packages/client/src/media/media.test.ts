@@ -29,6 +29,18 @@ describe('media', () => {
     expect(() => media('https://cdn.example.com/k.jpg', { preset: 'card' })).toThrow(TypeError)
   })
 
+  it('refuses a foreign host whose path merely contains the media route', () => {
+    expect(() => media('https://evil.example/x/api/media/a.jpg', { preset: 'card' })).toThrow(TypeError)
+  })
+
+  it('refuses a root-relative path that only contains the media route', () => {
+    expect(() => media('/x/api/media/a.jpg', { preset: 'card' })).toThrow(TypeError)
+  })
+
+  it('accepts an absolute URL on the media route', () => {
+    expect(media('https://cms.example.com/api/media/a.jpg?x=1', { preset: 'card' })).toBe('https://cms.example.com/api/media/a.jpg?preset=card')
+  })
+
   it('refuses an empty preset', () => {
     expect(() => media('k.jpg', { preset: '' })).toThrow(TypeError)
   })

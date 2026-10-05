@@ -261,6 +261,13 @@ describe('D1ContentRepository', () => {
       expect(calls.some(sql => sql.includes('INSERT INTO content_posts'))).toBe(true)
     })
 
+    it('stamps created_at and updated_at from the injected clock', async () => {
+      const { db, bindMock } = makeMockDb({ firstResult: null })
+      await new D1ContentRepository(db, undefined, undefined, undefined, undefined, new FixedClock(7_000_000)).create(SEED, 'new-id', 'my-slug', 'draft', { title: 'Hello' })
+      const insertBinds = bindMock.mock.calls.map(c => c as unknown[]).find(args => args.includes('new-id'))
+      expect(insertBinds?.slice(-2)).toEqual([7000, 7000])
+    })
+
     it('throws SlugConflictError when the slug already exists', async () => {
       const { db } = makeMockDb({ firstResult: { 1: 1 } }) // existsSlug → found
       await expect(

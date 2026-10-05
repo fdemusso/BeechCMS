@@ -557,7 +557,7 @@ export class D1ContentRepository extends BaseD1Repository implements ContentRepo
       }
     }
 
-    const nowEpoch = Math.floor(Date.now() / 1000)
+    const nowEpoch = this.clock.nowSeconds()
     const createdAtVal = Object.hasOwn(data, 'created_at') && data.created_at !== undefined && data.created_at !== null
       ? (typeof data.created_at === 'number' ? data.created_at : Math.floor(new Date(data.created_at as string).getTime() / 1000))
       : nowEpoch
