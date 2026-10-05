@@ -4,8 +4,18 @@
 import { spawnSync, type SpawnSyncReturns } from 'node:child_process'
 import { writeFileSync, rmSync, existsSync, readFileSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
+import { createRequire } from 'node:module'
+
+const require = createRequire(import.meta.url)
+
+function validateDbName(name: string): string {
+  if (typeof name !== 'string' || !/^[A-Za-z0-9_-]+$/.test(name)) {
+    throw new Error(`Invalid D1 database name: ${name}`)
+  }
+  return name
+}
 
 export interface WranglerOptions {
   db: string
@@ -56,6 +66,7 @@ export function getLocalD1SqlitePath(startDir: string = process.cwd()): string |
 
 /** Esegue SQL da file temporaneo via `wrangler d1 execute --file` o direct SQLite in local mode. Returns true on success. */
 export function executeD1File(sql: string, options: WranglerOptions): boolean {
+  validateDbName(options.db)
   if (options.local) {
     const sqlitePath = getLocalD1SqlitePath()
     if (sqlitePath) {
@@ -73,10 +84,10 @@ export function executeD1File(sql: string, options: WranglerOptions): boolean {
   try {
     writeFileSync(tmpFile, sql, 'utf-8')
     const args = ['d1', 'execute', options.db, '--file', tmpFile, ...buildArgs(options)]
-    const result = spawnSync('npx', ['wrangler', ...args], {
+    const result = spawnSync(process.execPath, [join(dirname(require.resolve('wrangler/package.json')), 'bin', 'wrangler.js'), ...args], {
       stdio: 'inherit',
       cwd: process.cwd(),
-      shell: true,
+      shell: false,
       env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },
     })
     return result.status === 0
@@ -89,6 +100,7 @@ export function executeD1File(sql: string, options: WranglerOptions): boolean {
  * Esegue una query SQL e ritorna i risultati come array di oggetti (--json).
  */
 export function queryD1<T extends D1Row = D1Row>(sql: string, options: WranglerOptions): T[] {
+  validateDbName(options.db)
   if (options.local) {
     const sqlitePath = getLocalD1SqlitePath()
     if (sqlitePath) {
@@ -106,10 +118,10 @@ export function queryD1<T extends D1Row = D1Row>(sql: string, options: WranglerO
   try {
     writeFileSync(tmpFile, sql, 'utf-8')
     const args = ['d1', 'execute', options.db, '--file', tmpFile, '--json', ...buildArgs(options)]
-    result = spawnSync('npx', ['wrangler', ...args], {
+    result = spawnSync(process.execPath, [join(dirname(require.resolve('wrangler/package.json')), 'bin', 'wrangler.js'), ...args], {
       encoding: 'utf-8',
       cwd: process.cwd(),
-      shell: true,
+      shell: false,
       env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },
     })
   } finally {
@@ -155,6 +167,7 @@ export function sqlQuote(value: string): string {
 /** Risolve il nome del database D1 da wrangler.jsonc (stripping JSONC comments). */
 export function resolveDbName(configPath: string | null): string {
   if (!configPath) return 'beech-db'
+  let name = 'beech-db'
   try {
     const raw = readFileSync(configPath, 'utf-8')
     
@@ -165,18 +178,18 @@ export function resolveDbName(configPath: string | null): string {
       if (d1SectionMatch) {
         const section = d1SectionMatch[0]
         const dbNameMatch = section.match(/database_name\s*=\s*["'](.+?)["']/)
-        if (dbNameMatch) return dbNameMatch[1]
+        if (dbNameMatch) name = dbNameMatch[1]
       }
-      return 'beech-db'
+    } else {
+      const stripped = raw
+        .replace(/\/\/[^\n]*/g, '')
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+      const parsed = JSON.parse(stripped)
+      const bindings: { database_name?: string }[] = parsed?.d1_databases ?? []
+      name = bindings[0]?.database_name ?? 'beech-db'
     }
-
-    const stripped = raw
-      .replace(/\/\/[^\n]*/g, '')
-      .replace(/\/\*[\s\S]*?\*\//g, '')
-    const parsed = JSON.parse(stripped)
-    const bindings: { database_name?: string }[] = parsed?.d1_databases ?? []
-    return bindings[0]?.database_name ?? 'beech-db'
   } catch {
     return 'beech-db'
   }
+  return validateDbName(name)
 }
