@@ -10,8 +10,14 @@ export class StaticTimeTrapTokenRepository implements ITimeTrapTokenRepository {
     return this.usedTokens.has(tokenHash)
   }
 
-  async markTokenUsed(tokenHash: string, _usedAt: number, _expiresAt: number): Promise<void> {
+  async claimToken(tokenHash: string, _usedAt: number, _expiresAt: number): Promise<boolean> {
+    if (this.usedTokens.has(tokenHash)) return false
     this.usedTokens.add(tokenHash)
+    return true
+  }
+
+  async releaseToken(tokenHash: string): Promise<void> {
+    this.usedTokens.delete(tokenHash)
   }
 
   async cleanup(_nowSeconds: number): Promise<void> {
