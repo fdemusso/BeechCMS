@@ -101,7 +101,7 @@ describe('Flow: /auth/setup race condition (#233)', () => {
         track: 'developer',
         loadDemoData: true,
       }),
-    }, { ...TEST_ENV, DB: db })
+    }, { ...TEST_ENV, PRIVACY_MASTER_KEY: 'test-master-key-32-chars-minimum-1234567890', DB: db })
 
     expect(res.status).toBe(201)
 

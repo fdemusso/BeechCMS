@@ -2,7 +2,7 @@
 // Copyright (c) 2024–2026 Flavio De Musso
 
 import { describe, it, expect } from 'vitest'
-import { PrivacyService } from './privacy.service.js'
+import { PrivacyService, UnconfiguredPrivacyService, PrivacyNotConfiguredError } from './privacy.service.js'
 
 describe('PrivacyService', () => {
   const masterKey = 'test-master-key-32-chars-long!!'
@@ -49,5 +49,19 @@ describe('PrivacyService', () => {
 
   it('throws error if constructed with empty masterKey', () => {
     expect(() => new PrivacyService('')).toThrow('PrivacyService requires a non-empty masterKey')
+  })
+})
+
+describe('UnconfiguredPrivacyService', () => {
+  it('fails closed on encrypt and hash', async () => {
+    const service = new UnconfiguredPrivacyService()
+    await expect(service.encrypt('secret')).rejects.toBeInstanceOf(PrivacyNotConfiguredError)
+    await expect(service.hash('secret')).rejects.toBeInstanceOf(PrivacyNotConfiguredError)
+  })
+
+  it('reads legacy plaintext but rejects v1 ciphertext', async () => {
+    const service = new UnconfiguredPrivacyService()
+    await expect(service.decrypt('legacy')).resolves.toBe('legacy')
+    await expect(service.decrypt('v1:aa:bb')).rejects.toBeInstanceOf(PrivacyNotConfiguredError)
   })
 })
