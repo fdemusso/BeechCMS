@@ -41,8 +41,8 @@ export class TokenBucketRateLimiter implements IRateLimiter {
 
   // Bound the eviction scan so a flood of unique keys (each forcing an eviction attempt)
   // cannot turn checkLimit into an O(maxBuckets) operation per request. Only the oldest
-  // slice of the map is examined; if nothing there qualifies, the map is allowed to grow
-  // past maxBuckets rather than evict something it shouldn't (see below).
+  // slice of the map is examined; if nothing there qualifies, admission of the new key is
+  // denied instead of evicting something it shouldn't (see below).
   private static readonly MAX_EVICTION_SCAN = 32
 
   private pruneExpiredBuckets(now: number): void {
@@ -67,19 +67,32 @@ export class TokenBucketRateLimiter implements IRateLimiter {
   // that hasn't refilled — including one sitting at 0 tokens and actively blocking its key —
   // is never evicted: doing so would let an attacker flood distinct keys to silently reset a
   // victim's exhausted bucket and bypass its limit (#458).
-  private evictRefilledBucket(now: number): void {
+  //
+  // When nothing in the scanned slice is eligible, the caller must not admit a new bucket
+  // anyway (#634) — that would make the map grow without bound under a distinct-key flood.
+  // Instead, report how long until the earliest-refilling scanned bucket would become a
+  // legitimate eviction candidate, so the caller can deny admission with a meaningful
+  // retryAfterSeconds rather than guessing.
+  private evictRefilledBucket(now: number): { evicted: boolean; retryAfterSeconds: number } {
     let scanned = 0
+    let minSecondsUntilRefilled = this.maxIdleTimeSeconds
     for (const [key, state] of this.buckets.entries()) {
-      if (scanned >= TokenBucketRateLimiter.MAX_EVICTION_SCAN) return
+      if (scanned >= TokenBucketRateLimiter.MAX_EVICTION_SCAN) break
       scanned++
 
       const elapsed = Math.max(0, now - state.lastRefillTimestamp)
       const refilled = Math.min(this.capacity, state.tokens + elapsed * this.refillRatePerSecond)
       if (refilled >= this.capacity) {
         this.buckets.delete(key)
-        return
+        return { evicted: true, retryAfterSeconds: 0 }
+      }
+
+      if (this.refillRatePerSecond > 0) {
+        const secondsUntilRefilled = (this.capacity - refilled) / this.refillRatePerSecond
+        minSecondsUntilRefilled = Math.min(minSecondsUntilRefilled, secondsUntilRefilled)
       }
     }
+    return { evicted: false, retryAfterSeconds: Math.max(1, Math.ceil(minSecondsUntilRefilled)) }
   }
 
   async checkLimit(key: string): Promise<RateLimitResult> {
@@ -89,7 +102,17 @@ export class TokenBucketRateLimiter implements IRateLimiter {
     let bucket = this.buckets.get(key)
     if (!bucket) {
       if (this.buckets.size >= this.maxBuckets) {
-        this.evictRefilledBucket(now)
+        const { evicted, retryAfterSeconds } = this.evictRefilledBucket(now)
+        if (!evicted) {
+          // No safe eviction candidate: admitting a bucket for this never-seen key would
+          // grow the map past maxBuckets. Deny it instead of allocating state (#634).
+          return {
+            isAllowed: false,
+            retryAfterSeconds,
+            limit: this.capacity,
+            remaining: 0,
+          }
+        }
       }
       bucket = {
         tokens: this.capacity,

@@ -178,19 +178,52 @@ describe('TokenBucketRateLimiter', () => {
     expect(result.remaining).toBe(4)
   })
 
-  it('does not evict any bucket, and instead grows past maxBuckets, when no bucket has refilled to capacity', async () => {
+  it('denies admission of a new key, without growing past maxBuckets, when no bucket has refilled to capacity', async () => {
     const clock = new MutableClock(1000000)
     const limiter = new TokenBucketRateLimiter({ capacity: 5, refillRatePerSecond: 0, clock, maxBuckets: 3 })
     await limiter.checkLimit('key-1')
     await limiter.checkLimit('key-2')
     await limiter.checkLimit('key-3')
 
-    // No refill (rate 0), so none of the existing buckets are eligible for eviction.
-    await limiter.checkLimit('key-4')
+    // No refill (rate 0), so none of the existing buckets are eligible for eviction: a
+    // never-seen key must be denied rather than admitted as unbounded new state (#634).
+    const overflowResult = await limiter.checkLimit('key-4')
+    expect(overflowResult.isAllowed).toBe(false)
+    expect((limiter as unknown as { buckets: Map<string, unknown> }).buckets.size).toBe(3)
+
     const result = await limiter.checkLimit('key-1')
 
     // key-1 survived the overflow: its consumed token is still gone, not reset to capacity - 1.
     expect(result.remaining).toBe(3)
+  })
+
+  it('#634: stays bounded at maxBuckets under a sustained distinct-key flood at production refill rates', async () => {
+    const clock = new MutableClock(1000000)
+    // Mirrors the production `login` limiter: capacity 10, 1 token/5s, maxBuckets 5000.
+    const limiter = new TokenBucketRateLimiter({ capacity: 10, refillRatePerSecond: 0.2, clock, maxBuckets: 5000 })
+
+    // Exhaust 32 distinct keys at time zero, matching the eviction scan window exactly.
+    for (let i = 0; i < 32; i++) {
+      for (let j = 0; j < 10; j++) {
+        await limiter.checkLimit(`exhausted-${i}`)
+      }
+    }
+
+    // Flood with far more unique keys than maxBuckets over 10 simulated seconds, well inside
+    // the 50s it takes the exhausted buckets to refill to capacity.
+    for (let i = 0; i < 20000; i++) {
+      await limiter.checkLimit(`flood-${i}`)
+      clock.advanceMs(0.5)
+    }
+
+    const size = (limiter as unknown as { buckets: Map<string, unknown> }).buckets.size
+    expect(size).toBeLessThanOrEqual(5000)
+
+    // The pre-existing exhausted bucket was never evicted and reset to full capacity by the
+    // flood; its only change after 10s is the natural refill of 10s * 0.2/s = 2 tokens.
+    const victim = await limiter.checkLimit('exhausted-0')
+    expect(victim.isAllowed).toBe(true)
+    expect(victim.remaining).toBe(1)
   })
 
   it('regression #458: an exhausted bucket stays blocked after maxBuckets is overflowed by unique keys', async () => {
