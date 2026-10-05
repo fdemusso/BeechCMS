@@ -97,7 +97,7 @@ export class D1WidgetRepository implements IWidgetRepository {
 
   async leaderboard(seed: Seed, options: LeaderboardOptions): Promise<LeaderboardEntry[]> {
     const scoreColumn = this.resolveColumnExpression(seed, options.scoreColumn)
-    const labelColumn = this.resolveColumnExpression(seed, seed.displayNameAlias)
+    const labelColumn = this.resolveDisplayColumn(seed)
     const tableName = `content_${seed.slug}`
     const orderClause = options.orderDirection === 'ASC'
       ? `ORDER BY CAST(${scoreColumn} AS REAL) ASC`
@@ -133,7 +133,7 @@ export class D1WidgetRepository implements IWidgetRepository {
         .replace(/\\/g, '\\\\')
         .replace(/%/g, '\\%')
         .replace(/_/g, '\\_')
-      const displayColumn = this.resolveColumnExpression(seed, seed.displayNameAlias)
+      const displayColumn = this.resolveDisplayColumn(seed)
       conditions.push(`${displayColumn} LIKE ? ESCAPE '\\'`)
       bindings.push(`%${escapedSearch}%`)
     }
@@ -244,6 +244,15 @@ export class D1WidgetRepository implements IWidgetRepository {
     const branch = seed.branches.find(candidate => candidate.alias === alias)
     if (!branch) throw new Error(UNSAFE_COLUMN_ERROR)
     return branch.alias
+  }
+
+  /** Display column, falling back to id when displayNameAlias is stale. */
+  private resolveDisplayColumn(seed: Seed): string {
+    try {
+      return this.resolveColumnExpression(seed, seed.displayNameAlias)
+    } catch {
+      return 'id'
+    }
   }
 
   private buildAggregateExpression(seed: Seed, formula: AggregateFormula): { sql: string; bindings: unknown[] } {

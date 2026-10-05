@@ -24,6 +24,8 @@ const seed: Seed = {
   ],
 }
 
+const staleSeed: Seed = { ...seed, displayNameAlias: 'removed_branch' }
+
 describe('D1WidgetRepository', () => {
   describe('aggregate', () => {
     it('returns 0 when no rows match', async () => {
@@ -150,6 +152,17 @@ describe('D1WidgetRepository', () => {
       })
       expect(entry).toEqual({ id: 'x', label: 'x', score: 1 })
     })
+
+    it('selects id as label when displayNameAlias is stale', async () => {
+      const { db, prepareMock } = makeMockDb([{ id: 'x', label: 'x', score: 1 }])
+      const [entry] = await new D1WidgetRepository(db).leaderboard(staleSeed, {
+        scoreColumn: 'price',
+        limit: 1,
+        orderDirection: 'DESC',
+      })
+      expect(entry).toEqual({ id: 'x', label: 'x', score: 1 })
+      expect(prepareMock.mock.calls[0]![0] as string).toMatch(/SELECT id, id as label/)
+    })
   })
 
   describe('list', () => {
@@ -170,6 +183,14 @@ describe('D1WidgetRepository', () => {
       await new D1WidgetRepository(db).list(seed, { limit: 5, offset: 0, search: 'hello' })
       const sql = (prepareMock.mock.calls[1]?.[0] ?? prepareMock.mock.calls[0]![0]) as string
       expect(sql).toMatch(/title LIKE \? ESCAPE '\\'/)
+      expect(bindMock).toHaveBeenCalledWith('%hello%', 5, 0)
+    })
+
+    it('searches id column when displayNameAlias is stale', async () => {
+      const { db, prepareMock, bindMock } = makeMockDb([], { total: 0 })
+      await new D1WidgetRepository(db).list(staleSeed, { limit: 5, offset: 0, search: 'hello' })
+      const sql = (prepareMock.mock.calls[1]?.[0] ?? prepareMock.mock.calls[0]![0]) as string
+      expect(sql).toMatch(/id LIKE \? ESCAPE '\\'/)
       expect(bindMock).toHaveBeenCalledWith('%hello%', 5, 0)
     })
 
