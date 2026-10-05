@@ -153,6 +153,8 @@ export function buildSelectQuery(seed: Seed, options: SelectOptions = {}): Param
         } else if (op === 'is_empty' || op === 'is_not_empty') {
           const clause = buildFilterCondition(col, group.type, cond, bindings)
           if (clause) condClauses.push(clause)
+        } else {
+          throw new TypeError(`Invalid filter: operator '${op}' is not supported for encrypted field '${group.column}'`)
         }
       } else {
         const clause = buildFilterCondition(col, group.type, cond, bindings)

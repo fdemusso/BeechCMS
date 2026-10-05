@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 import { describe, it, expect } from 'vitest'
-import type { Seed, Branch, SelectLocale } from '../types.js'
+import type { Seed, Branch, SelectLocale, FilterOperator } from '../types.js'
 import { buildSelectQuery } from './query.js'
 
 const mockSeed: Seed = {
@@ -20,6 +20,50 @@ const mockSeed: Seed = {
 
 describe('Query', () => {
   describe('Query Builder', () => {
+    describe('encrypted field filters', () => {
+      const seed: Seed = {
+        ...mockSeed,
+        branches: [{
+          id: 'br_01', alias: 'bio', type: 'text',
+          policies: { classification: 'confidential', public: true },
+        }],
+      }
+      const unsupported: FilterOperator[] = [
+        'contains', 'not_contains', 'starts_with', 'ends_with',
+        'gt', 'gte', 'lt', 'lte', 'has_tag', 'has_any_tag', 'has_all_tags',
+      ]
+
+      it.each(unsupported)('rejects %s instead of dropping the condition', (op) => {
+        const options = {
+          filters: [{ column: 'bio', type: 'text' as const, conditions: [{ op, value: 'secret-substring' }] }],
+        }
+
+        const build = () => buildSelectQuery(seed, options)
+
+        expect(build).toThrow(TypeError)
+      })
+
+      it.each(['eq', 'neq', 'in', 'not_in'] as const)('preserves blind-index filtering for %s', (op) => {
+        const value = op === 'in' || op === 'not_in' ? ['digest'] : 'digest'
+
+        const query = buildSelectQuery(seed, {
+          filters: [{ column: 'bio', type: 'text', conditions: [{ op, value }] }],
+        })
+
+        expect(query.sql).toContain('WHERE content_articles.bio_bidx ')
+        expect(query.bindings).toEqual(['digest'])
+      })
+
+      it.each(['is_empty', 'is_not_empty'] as const)('preserves ciphertext emptiness filtering for %s', (op) => {
+        const query = buildSelectQuery(seed, {
+          filters: [{ column: 'bio', type: 'text', conditions: [{ op }] }],
+        })
+
+        expect(query.sql).toContain(op === 'is_empty' ? 'WHERE (bio IS NULL' : 'WHERE (bio IS NOT NULL')
+        expect(query.bindings).toEqual([])
+      })
+    })
+
     it('builds a basic SELECT query', () => {
       const query = buildSelectQuery(mockSeed)
       expect(query.sql).toContain('SELECT content_articles.* FROM content_articles')
