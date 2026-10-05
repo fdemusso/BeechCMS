@@ -32,6 +32,7 @@ describe('resolvePublicRelationTarget', () => {
       { id: 'br_03', alias: 'author_id', label: 'Author', type: 'relation', targetSeed: 'authors', multiple: false, policies: { public: true } },
       { id: 'br_04', alias: 'secret_rel', label: 'Secret', type: 'relation', targetSeed: 'categories', multiple: false, policies: { public: false } },
       { id: 'br_05', alias: 'rel_no_target', label: 'No Target', type: 'relation', policies: { public: true } },
+      { id: 'br_06', alias: 'multi_no_filter', label: 'Multi No Filter', type: 'relation', targetSeed: 'categories', multiple: true, policies: { public: true, filter: false } },
     ],
   } as unknown as Seed
 
@@ -75,5 +76,11 @@ describe('resolvePublicRelationTarget', () => {
   it('rejects a relation whose target seed is not publicly readable — the author_id negative case', () => {
     expect(() => resolvePublicRelationTarget('author_id', postsSeed, getSeed, 'subquery'))
       .toThrow("Invalid subquery: target seed 'authors' is not publicly readable.")
+  })
+
+  it('rejects a relation with filter disabled for subquery, but allows it for include', () => {
+    expect(() => resolvePublicRelationTarget('multi_no_filter', postsSeed, getSeed, 'subquery'))
+      .toThrow("Invalid subquery: branch 'multi_no_filter' is not filterable.")
+    expect(() => resolvePublicRelationTarget('multi_no_filter', postsSeed, getSeed, 'include')).not.toThrow()
   })
 })

@@ -267,6 +267,69 @@ describe('public-read module', () => {
       expect(body.detail).toBe("Invalid filter: field 'internal_score' is not sortable")
     })
 
+    it('returns 400 invalid-subquery when a direct id-array filter targets a non-filterable multi-relation', async () => {
+      const seedWithRestrictedRelation: Seed = {
+        ...testSeed,
+        branches: [
+          ...testSeed.branches,
+          { id: 'br_03', alias: 'links', label: 'Links', type: 'relation', targetSeed: 'posts', multiple: true, policies: { public: true, filter: false } },
+        ],
+      } as unknown as Seed
+      const app = new Hono<AppEnv>()
+      const mockRegistry = createMockRegistry([seedWithRestrictedRelation])
+      app.use('*', async (c, next) => {
+        c.set('seedRegistry', mockRegistry)
+        c.set('getSeed', () => seedWithRestrictedRelation)
+        c.set('repository', mockRepo)
+        await next()
+      })
+      app.get('/api/v1/public/:seed', publicReadHandler)
+
+      const response = await app.request(
+        `/api/v1/public/posts?filter=${encodeURIComponent(JSON.stringify({ where: [{ field: 'links', op: 'in', value: ['t1'] }] }))}`,
+        {},
+        { PUBLIC_PUBLISHED_ONLY: 'true' },
+      )
+
+      expect(response.status).toBe(400)
+      expect(mockRepo.findMany).not.toHaveBeenCalled()
+      const body = await response.json<{ type: string; detail: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/invalid-subquery')
+      expect(body.detail).toBe("Invalid subquery: branch 'links' is not filterable.")
+    })
+
+    it('returns 400 invalid-subquery when a subquery filter targets a non-filterable multi-relation', async () => {
+      const seedWithRestrictedRelation: Seed = {
+        ...testSeed,
+        branches: [
+          ...testSeed.branches,
+          { id: 'br_03', alias: 'links', label: 'Links', type: 'relation', targetSeed: 'posts', multiple: true, policies: { public: true, filter: false } },
+        ],
+      } as unknown as Seed
+      const app = new Hono<AppEnv>()
+      const mockRegistry = createMockRegistry([seedWithRestrictedRelation])
+      app.use('*', async (c, next) => {
+        c.set('seedRegistry', mockRegistry)
+        c.set('getSeed', () => seedWithRestrictedRelation)
+        c.set('repository', mockRepo)
+        await next()
+      })
+      app.get('/api/v1/public/:seed', publicReadHandler)
+
+      const filter = { where: [{ field: 'links', op: 'in', subquery: { where: [{ field: 'title', op: 'eq', value: 'A' }] } }] }
+      const response = await app.request(
+        `/api/v1/public/posts?filter=${encodeURIComponent(JSON.stringify(filter))}`,
+        {},
+        { PUBLIC_PUBLISHED_ONLY: 'true' },
+      )
+
+      expect(response.status).toBe(400)
+      expect(mockRepo.findMany).not.toHaveBeenCalled()
+      const body = await response.json<{ type: string; detail: string }>()
+      expect(body.type).toBe('https://beechcms.dev/problems/invalid-subquery')
+      expect(body.detail).toBe("Invalid subquery: branch 'links' is not filterable.")
+    })
+
     it('returns 200 with list data on successful read request', async () => {
       const app = buildTestApp()
       vi.mocked(mockRepo.findMany).mockResolvedValueOnce({

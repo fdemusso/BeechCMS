@@ -35,8 +35,14 @@ export function resolvePublicRelationTarget(
   if (branch.type !== 'relation') {
     throw new Error(`${prefix}: branch '${alias}' is not a relation.`)
   }
-  if (!resolvePolicies(branch).public) {
+  const policies = resolvePolicies(branch)
+  if (!policies.public) {
     throw new Error(`${prefix}: branch '${alias}' is not publicly readable.`)
+  }
+  // Inclusion only projects the relation's existing value; filtering lets a caller probe membership,
+  // so only `subquery` enforces the filter policy (same gate `toEngineFilters` applies to plain fields).
+  if (kind === 'subquery' && !policies.filter) {
+    throw new Error(`${prefix}: branch '${alias}' is not filterable.`)
   }
   if (!branch.targetSeed) {
     throw new Error(`${prefix}: branch '${alias}' is missing a target seed.`)
