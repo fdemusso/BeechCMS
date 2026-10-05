@@ -4,12 +4,13 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { resolvePolicies } from '@beechcms/core'
+import { hasPermission, resolvePolicies } from '@beechcms/core'
 import type { LocaleConfig, Seed } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import type { AppEnv } from '../../types'
 import { D1BackrefRepository, type BackrefItem } from './d1-backref.repository'
 import { loadDisplayLocaleConfig, resolveDisplayName } from '../../shared/localization/display-name'
+import { resolveEffectivePermissions } from '../../shared/rbac/effective-permissions'
 
 const PREVIEW_LIMIT = 3
 const DEFAULT_PAGE_LIMIT = 20
@@ -55,8 +56,11 @@ backrefsApp.get('/:targetSlug/:targetId/backrefs', async (c) => {
   }
 
   // 3. Get sources for this target
-  const sources = backrefMap.get(targetSlug)
-  if (!sources || sources.length === 0) {
+  const effective = await resolveEffectivePermissions(c)
+  const sources = (backrefMap.get(targetSlug) ?? []).filter(source =>
+    hasPermission(effective, 'content:read', source.sourceSlug)
+  )
+  if (sources.length === 0 && !groupParam) {
     return c.json({ groups: [] })
   }
 
