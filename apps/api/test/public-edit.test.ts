@@ -25,6 +25,7 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
       { id: 'br_04', alias: 'admin_notes', label: 'Admin Notes', type: 'text', policies: { classification: 'internal' } },
       { id: 'br_05', alias: 'security_pin', label: 'Security PIN', type: 'text', policies: { classification: 'restricted' } },
       { id: 'br_06', alias: 'hidden_bio', label: 'Hidden Bio', type: 'text', policies: { public: false } },
+      { id: 'br_07', alias: 'locked_title', label: 'Locked Title', type: 'text', policies: { public: true, publicEdit: false } },
     ],
   })
 
@@ -42,6 +43,7 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
     admin_notes: 'VIP client',
     security_pin: 'hash_pin_123',
     hidden_bio: 'private bio',
+    locked_title: 'Official Title',
     created_at: 1000,
     updated_at: 1000,
   }
@@ -123,6 +125,26 @@ describe('Public Edit Integration & Confidential Lifecycle', () => {
     const body = await res.json<{ type: string; title: string; detail: string }>()
     expect(body.type).toBe('https://beechcms.dev/problems/sensitive-field-edit')
     expect(body.detail).toBe("Cannot edit sensitive field 'hidden_bio': edit permission not granted by seed declaration")
+  })
+
+  it('rejects a visible public field with explicit publicEdit: false', async () => {
+    const res = await app.request(`/api/v1/public/profiles/edit/${existingEntry.id}`, {
+      method: 'PATCH',
+      headers: {
+        'X-API-Key': TEST_PUBLIC_WRITE_KEY,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        data: {
+          locked_title: 'Tampered Title',
+        },
+      }),
+    }, TEST_ENV)
+
+    expect(res.status).toBe(422)
+    const body = await res.json<{ type: string; title: string; detail: string }>()
+    expect(body.type).toBe('https://beechcms.dev/problems/sensitive-field-edit')
+    expect(body.detail).toBe("Cannot edit sensitive field 'locked_title': edit permission not granted by seed declaration")
   })
 
   it('permits modifying confidential fields when publicEdit is true and dispatches cleartext to automation', async () => {

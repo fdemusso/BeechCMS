@@ -122,22 +122,16 @@ function resolveData(
     }
   }
 
-  // 2. Check for confidential fields without explicit publicEdit permission
-  const unauthorizedConfidential = Object.keys(rawData).filter((alias) => {
+  // 2. Check the resolved publicEdit permission for every supplied field, so an
+  // explicit publicEdit: false is honored even on an otherwise-visible public field.
+  const unauthorizedFields = Object.keys(rawData).filter((alias) => {
     const branch = seed.branches.find((b) => b.alias === alias)
     if (!branch) return false
-    const classification = resolveClassification(branch).classification
-    if (classification === 'confidential') {
-      const policies = resolvePolicies(branch)
-      return !policies.publicEdit
-    }
-    // Also block non-confidential branches where public === false
-    const policies = resolvePolicies(branch)
-    return policies.public === false && !policies.publicEdit
+    return !resolvePolicies(branch).publicEdit
   })
 
-  if (unauthorizedConfidential.length > 0) {
-    const alias = unauthorizedConfidential[0]
+  if (unauthorizedFields.length > 0) {
+    const alias = unauthorizedFields[0]
     return {
       ok: false,
       response: publicProblem(context, {
