@@ -234,14 +234,14 @@ export function validateSeedDefinitions(seeds: Seed[]): SeedValidationIssue[] {
     if (messages.length > 0) result.push({ slug: seed.slug, messages, fatal: false })
   }
 
-  // ── Warning 9: displayNameAlias not in branches ───────────────────────────
+  // ── Fatal 9: displayNameAlias not in branches ───────────────────────────
   for (const seed of seeds) {
     const allAliases = new Set(seed.branches.map(b => b.alias))
     if (!allAliases.has(seed.displayNameAlias)) {
       result.push({
         slug: seed.slug,
         messages: [`displayNameAlias "${seed.displayNameAlias}" not found in branches`],
-        fatal: false,
+        fatal: true,
       })
     }
   }

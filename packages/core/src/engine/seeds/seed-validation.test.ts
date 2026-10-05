@@ -433,11 +433,11 @@ describe('validateSeedDefinitions', () => {
 
   // ── Warning 9: displayNameAlias not in branches ──────────────────────────────
 
-  it('warning: displayNameAlias not in branches', () => {
+  it('fatal: displayNameAlias not in branches', () => {
     const seeds = [makeSeed({ slug: 'posts', displayNameAlias: 'nonexistent' })]
     const issues = validateSeedDefinitions(seeds)
-    const warnings = issues.filter(i => !i.fatal && i.slug === 'posts')
-    expect(warnings.some(i => i.messages.some(m => m.includes('displayNameAlias')))).toBe(true)
+    const fatals = issues.filter(i => i.fatal && i.slug === 'posts')
+    expect(fatals.some(i => i.messages.some(m => m.includes('not found in branches')))).toBe(true)
   })
 
   it('fatal: displayNameAlias has invalid format (SQL Injection or illegal characters)', () => {

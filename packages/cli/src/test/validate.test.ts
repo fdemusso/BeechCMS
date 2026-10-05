@@ -186,7 +186,7 @@ describe('validateSeeds — junction table name collision', () => {
 // ── Existing warning checks still work ────────────────────────────────────
 
 describe('validateSeeds — existing warning checks', () => {
-  it('flags missing displayNameAlias as warning (not fatal)', () => {
+  it('flags missing displayNameAlias as fatal', () => {
     const registry = {
       items: {
         slug: 'items',
@@ -197,9 +197,9 @@ describe('validateSeeds — existing warning checks', () => {
     }
 
     const errors = validateSeeds(registry as Record<string, Seed>)
-    const warnings = errors.filter(e => !e.fatal)
-    expect(warnings.length).toBeGreaterThan(0)
-    expect(warnings[0].messages[0]).toContain('displayNameAlias')
+    const fatals = errors.filter(e => e.fatal)
+    expect(fatals.length).toBeGreaterThan(0)
+    expect(fatals[0].messages[0]).toContain('displayNameAlias')
   })
 })
 

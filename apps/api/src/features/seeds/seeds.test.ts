@@ -305,6 +305,20 @@ describe('PUT /:slug (edit)', () => {
     expect(body.type).toContain('alias-rename-not-supported')
   })
 
+  it('422 when PUT omits the displayNameAlias branch', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...baseSeed, branches: [baseSeed.branches[1]] }),
+    })
+    expect(res.status).toBe(422)
+    expect((repo.upsert as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
+  })
+
   it('422 on branch type change', async () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const { app } = buildApp({ role: 'admin', repo })
@@ -539,7 +553,7 @@ describe('DELETE /:slug/branches/:branchId', () => {
     const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
     const { app } = buildApp({ role: 'admin', repo })
 
-    const res = await app.request('/articles/branches/br_01', {
+    const res = await app.request('/articles/branches/br_02', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ confirm: 'wrong' }),
@@ -563,6 +577,21 @@ describe('DELETE /:slug/branches/:branchId', () => {
     const upsertArg = (repo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as any
     expect(upsertArg.branches.find((b: any) => b.id === 'br_02')).toBeUndefined()
     expect((repo.bumpRegistryVersion as ReturnType<typeof vi.fn>).mock.calls.length).toBe(1)
+  })
+
+  it('422 when dropping the displayNameAlias branch, no DDL run', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/branches/br_01', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'articles.title' }),
+    })
+    expect(res.status).toBe(422)
+    expect((mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
+    expect((repo.upsert as ReturnType<typeof vi.fn>).mock.calls.length).toBe(0)
   })
 
   it('404 for unknown branchId', async () => {
@@ -613,6 +642,36 @@ describe('PATCH /:slug/branches/:branchId/rename', () => {
 
     const body = await res.json() as any
     expect(body.affectedAutomations).toContain('auto_1')
+  })
+
+  it('renaming the displayNameAlias branch repoints displayNameAlias', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo })
+
+    const res = await app.request('/articles/branches/br_01/rename', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newAlias: 'headline', confirm: 'articles.title' }),
+    })
+    expect(res.status).toBe(200)
+
+    const upsertArg = (repo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as any
+    expect(upsertArg.displayNameAlias).toBe('headline')
+  })
+
+  it('renaming a non-display branch keeps displayNameAlias', async () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const { app } = buildApp({ role: 'admin', repo })
+
+    const res = await app.request('/articles/branches/br_02/rename', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newAlias: 'content', confirm: 'articles.body' }),
+    })
+    expect(res.status).toBe(200)
+
+    const upsertArg = (repo.upsert as ReturnType<typeof vi.fn>).mock.calls[0][1] as any
+    expect(upsertArg.displayNameAlias).toBe('title')
   })
 })
 
