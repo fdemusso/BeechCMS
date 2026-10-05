@@ -198,7 +198,7 @@ export async function validateAndApplySeedDef(context: AppContext, slug: string,
  *
  * @remarks
  * Used for operations that cannot be planned additively (e.g. column drops, renames, and type conversions).
- * Runs SQL statements through `schemaMutator.execDestructive`, updates the stored definition,
+ * Rejects fatal validation issues, then runs SQL statements through `schemaMutator.execDestructive`, updates the stored definition,
  * increments the schema registry version, and logs the operation.
  *
  * @param context - The Hono request context.
@@ -211,6 +211,18 @@ export async function validateAndApplySeedDef(context: AppContext, slug: string,
 export async function applyDestructiveSeedDef(context: AppContext, slug: string, updatedDef: Seed, stmts: string[], logDetails: any) {
   const repo = context.get('seedRepository')
   const schemaMutator = context.get('schemaMutator')
+
+  const activeSeeds = await repo.listActive()
+  const candidateSet = [...activeSeeds.filter((s: any) => s.slug !== slug), updatedDef]
+  const fatalIssues = validateSeedDefinitions(candidateSet).filter(i => i.fatal && i.slug === slug)
+  if (fatalIssues.length > 0) {
+    return publicProblem(context, {
+      type: 'validation-failed',
+      title: 'Validation failed',
+      status: 422,
+      detail: fatalIssues.flatMap(i => i.messages).join('; '),
+    })
+  }
 
   try {
     await schemaMutator.execDestructive(stmts)

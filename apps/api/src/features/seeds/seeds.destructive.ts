@@ -115,6 +115,15 @@ destructiveApp.delete('/:slug/branches/:branchId', async (context) => {
     return publicProblem(context, { type: 'branch-not-found', title: 'Branch not found', status: 404, detail: `No branch with id '${branchId}' in seed '${slug}'.` })
   }
 
+  if (branch.alias === existing.definition.displayNameAlias) {
+    return publicProblem(context, {
+      type: 'display-branch-drop-not-supported',
+      title: 'Drop not supported',
+      status: 422,
+      detail: `Branch '${branch.alias}' is the display name of seed '${slug}'. Point displayNameAlias at another branch first.`,
+    })
+  }
+
   const confirmErr = requireConfirm(context, `${slug}.${branch.alias}`, body)
   if (confirmErr) return confirmErr
 
@@ -178,6 +187,7 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
 
   const renamedDef: Seed = {
     ...existing.definition,
+    displayNameAlias: existing.definition.displayNameAlias === branch.alias ? newAlias : existing.definition.displayNameAlias,
     branches: existing.definition.branches.map((b: Branch) =>
       b.id === branchId ? { ...b, alias: newAlias } : b
     ),
@@ -251,7 +261,7 @@ destructiveApp.patch('/:slug/branches/:branchId/retype', async (context) => {
     })
   }
 
-  // Retype persists through applyDestructiveSeedDef, which never runs validateSeedDefinitions: without
+  // Validation does not cover localized on retyped types: without
   // this guard `localized: true` would survive onto a non-localizable type and stored dictionaries would
   // be reinterpreted as the new type. Disabling localization is metadata-only, so the owner can do that first.
   if (branch.localized === true) {
