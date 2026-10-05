@@ -410,6 +410,70 @@ describe('POST /:slug/branches (add branch)', () => {
   })
 })
 
+describe('FTS rebuild on searchable branch add (#525)', () => {
+  const ftsStmts = (mutator: ISchemaMutator): string[] =>
+    (mutator.execDestructive as ReturnType<typeof vi.fn>).mock.calls.flatMap((c: any) => c[0])
+
+  const setup = () => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator({ getColumns: vi.fn().mockResolvedValue(new Set(['id', 'title', 'body'])) })
+    return { mutator, ...buildApp({ role: 'admin', repo, mutator }) }
+  }
+
+  it('PUT adding searchable text branch rebuilds fts via execDestructive', async () => {
+    const { app, mutator } = setup()
+    const withNew: Seed = {
+      ...baseSeed,
+      branches: [...baseSeed.branches, { id: 'br_03', alias: 'summary', label: 'Summary', type: 'text' }],
+    }
+    const res = await app.request('/articles', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(withNew),
+    })
+    expect(res.status).toBe(200)
+    const stmts = ftsStmts(mutator)
+    expect(stmts.some(s => s.includes('DROP TABLE IF EXISTS fts_articles'))).toBe(true)
+    expect(stmts.some(s => s.includes('summary'))).toBe(true)
+    const ddl: string[] = (mutator.execDdl as ReturnType<typeof vi.fn>).mock.calls.flatMap((c: any) => c[0])
+    expect(ddl.every(s => !s.includes('DROP'))).toBe(true)
+  })
+
+  it('POST /:slug/branches adding searchable branch rebuilds fts', async () => {
+    const { app, mutator } = setup()
+    const res = await app.request('/articles/branches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alias: 'excerpt', label: 'Excerpt', type: 'text' }),
+    })
+    expect(res.status).toBe(200)
+    expect(ftsStmts(mutator).some(s => s.includes('DROP TABLE IF EXISTS fts_articles'))).toBe(true)
+  })
+
+  it('non-searchable branch add does not rebuild fts', async () => {
+    const { app, mutator } = setup()
+    const res = await app.request('/articles/branches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alias: 'views', label: 'Views', type: 'number' }),
+    })
+    expect(res.status).toBe(200)
+    expect(mutator.execDestructive).not.toHaveBeenCalled()
+  })
+
+  it('fts rebuild failure does not fail request, schema already applied', async () => {
+    const { app, mutator, repo } = setup()
+    ;(mutator.execDestructive as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('fts boom'))
+    const res = await app.request('/articles/branches', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alias: 'excerpt', label: 'Excerpt', type: 'text' }),
+    })
+    expect(res.status).toBe(200)
+    expect(repo.upsert).toHaveBeenCalled()
+  })
+})
+
 describe('DELETE /:slug', () => {
   it('403 for non-admin', async () => {
     const { app } = buildApp({ role: 'user' })
