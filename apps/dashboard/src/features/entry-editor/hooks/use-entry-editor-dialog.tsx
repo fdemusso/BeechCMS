@@ -212,7 +212,7 @@ export function useEntryEditorDialog({
 
   const [showDiscardConfirm, setShowDiscardConfirm] = React.useState(false)
 
-  const { data: draftData } = useDraftEntry(
+  const { data: draftData, refetch: refetchDraft } = useDraftEntry(
     (hasPendingDraftNotice || effectiveDraftContext) ? schemaSlug : undefined,
     (hasPendingDraftNotice || effectiveDraftContext) ? entryId : undefined
   )
@@ -309,8 +309,51 @@ export function useEntryEditorDialog({
     }
   }, [effectiveDraftContext, isDraftContext, isCreate, navigate, onClose])
 
+  const reloadDraft = async () => {
+    const [live, draft] = await Promise.all([refetchEntry(), refetchDraft()])
+    if (live.isError || draft.isError || !live.data) {
+      toast.error(t("content.editor.saveError"))
+      return
+    }
+    setFormData({ ...live.data.data, ...draft.data })
+    setStatus(live.data.status ?? "draft")
+    setSlug(live.data.slug ?? "")
+    setFieldErrors({})
+    setTouchedLocales({})
+    setIsDirty(false)
+  }
+
+  const handleDraftError = (err: unknown) => {
+    const ax = err as AxiosError<{ detail?: string; errors?: ApiFieldError[] }>
+    if (ax.response?.status === 400 && ax.response.data.errors?.length) {
+      const errors = ax.response.data.errors
+      setFieldErrors(foldFieldErrors(errors, seedBranches))
+      toast.error(t("content.editor.validationError", { count: errors.length }))
+      return
+    }
+    const code = contentErrorCode(ax)
+    if (ax.response?.status === 409 && (
+      code === CONTENT_ERROR_CODES.DRAFT_SAVE_CONFLICT ||
+      code === CONTENT_ERROR_CODES.DRAFT_PUBLISH_CONFLICT
+    )) {
+      const publishConflict = code === CONTENT_ERROR_CODES.DRAFT_PUBLISH_CONFLICT
+      toast.error(ax.response.data.detail || t("content.editor.updateConflict"), {
+        action: {
+          label: t(publishConflict ? "content.editor.discardDraft" : "content.editor.reload"),
+          onClick: () => {
+            if (publishConflict) setShowDiscardConfirm(true)
+            else void reloadDraft()
+          },
+        },
+      })
+      return
+    }
+    toast.error(err instanceof Error ? err.message : t("content.editor.saveError"))
+  }
+
   const handlePublishDraft = async () => {
     if (!schemaSlug || !entryId) return
+    setFieldErrors({})
     try {
       await publishDraft({ slug: schemaSlug, id: entryId })
       toast.success(t("content.editor.draftPublishSuccess"))
@@ -320,8 +363,8 @@ export function useEntryEditorDialog({
       } else {
         onClose()
       }
-    } catch {
-      toast.error(t("content.editor.saveError"))
+    } catch (err) {
+      handleDraftError(err)
     }
   }
 
@@ -541,8 +584,8 @@ export function useEntryEditorDialog({
       } else {
         onClose()
       }
-    } catch {
-      toast.error(t("content.editor.saveError"))
+    } catch (err) {
+      handleDraftError(err)
     }
   }
 

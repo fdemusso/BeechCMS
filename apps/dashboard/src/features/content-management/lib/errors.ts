@@ -6,6 +6,8 @@
 export const CONTENT_ERROR_CODES = {
   SLUG_CONFLICT: "content-slug-conflict",
   UPDATE_CONFLICT: "content-update-conflict",
+  DRAFT_SAVE_CONFLICT: "draft-save-conflict",
+  DRAFT_PUBLISH_CONFLICT: "draft-publish-conflict",
 } as const
 
 export type ContentErrorCode = (typeof CONTENT_ERROR_CODES)[keyof typeof CONTENT_ERROR_CODES]
