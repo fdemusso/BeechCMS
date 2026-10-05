@@ -163,4 +163,27 @@ describe('features/rbac/assignments', () => {
     expect(res.status).toBe(409)
     expect(await res.json()).toMatchObject({ type: expect.stringContaining('last-global-admin') })
   })
+
+  it('DELETE refuses removing the Developer account SuperAdmin assignment even when another admin exists (409)', async () => {
+    const hash = await bcrypt.hash('password123', 10)
+    const ownerId = '22222222-2222-4222-8222-222222222222'
+    const ownerAssignmentId = '33333333-3333-4333-8333-333333333333'
+    await seedTestUsers(db, [
+      { id: ownerId, email: 'owner@beechcms.io', password_hash: hash, grantSuperAdmin: false },
+      { id: 'user_co_admin', email: 'co-admin@beechcms.io', password_hash: hash, role: 'editor', grantSuperAdmin: true },
+    ])
+    await db
+      .prepare(
+        `INSERT INTO user_role_assignments (id, user_id, role_id, scope)
+         SELECT ?, ?, r.id, '*' FROM roles r WHERE r.name = 'SuperAdmin'`,
+      )
+      .bind(ownerAssignmentId, ownerId)
+      .run()
+
+    const coAdminToken = await login('co-admin@beechcms.io')
+    const res = await authed(`/api/rbac/assignments/${ownerAssignmentId}`, coAdminToken, { method: 'DELETE' })
+
+    expect(res.status).toBe(409)
+    expect(await res.json()).toMatchObject({ type: expect.stringContaining('developer-protected') })
+  })
 })

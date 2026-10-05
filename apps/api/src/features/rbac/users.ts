@@ -187,6 +187,16 @@ export const setUserActiveHandler = async (context: AppContext) => {
     }
   }
 
+  if (!parsed.data.isActive && target.role === 'admin') {
+    return rbacProblem(
+      context,
+      RBAC_ERRORS.DEVELOPER_PROTECTED,
+      409,
+      'Conflict',
+      'The developer account cannot be deactivated.',
+    )
+  }
+
   const changed = await userRepository.setActive(userId, parsed.data.isActive)
   if (!changed) return notFound()
 

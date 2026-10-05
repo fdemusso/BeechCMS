@@ -122,4 +122,27 @@ describe('features/rbac/users', () => {
       expect(res.status).toBe(404)
     })
   })
+
+  describe('PATCH /api/rbac/users/:userId/active', () => {
+    it('refuses deactivating the Developer account even when another admin exists (409)', async () => {
+      const hash = await bcrypt.hash('password123', 10)
+      const ownerId = '22222222-2222-4222-8222-222222222222'
+      await seedTestUsers(db, [
+        { id: ownerId, email: 'owner@beechcms.io', password_hash: hash },
+        { id: 'user_co_admin', email: 'co-admin@beechcms.io', password_hash: hash, role: 'editor', grantSuperAdmin: true },
+      ])
+
+      const coAdminToken = await login('co-admin@beechcms.io')
+      const res = await authed(`/api/rbac/users/${ownerId}/active`, coAdminToken, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isActive: false }),
+      })
+
+      expect(res.status).toBe(409)
+      expect(await res.json()).toMatchObject({ type: expect.stringContaining('developer-protected') })
+      const row = await db.prepare('SELECT is_active FROM users WHERE id = ?').bind(ownerId).first<{ is_active: number }>()
+      expect(row?.is_active).toBe(1)
+    })
+  })
 })
