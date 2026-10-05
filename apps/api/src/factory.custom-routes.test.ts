@@ -20,9 +20,13 @@ import type { Env } from './types'
 
 const TEST_SECRET = 'super-secret-key-used-only-in-the-vitest-suite-min-length'
 
-function buildEnv(): Env {
+function buildEnv(isActive = 1): Env {
+  const userRow = { id: 'user-1', email: 'dev@example.com', role: 'admin', is_active: isActive }
+  const db = {
+    prepare: () => ({ bind: () => ({ first: async () => userRow }) }),
+  } as unknown as D1Database
   return {
-    DB: {} as D1Database,
+    DB: db,
     JWT_SECRET: TEST_SECRET,
     ENV: 'test',
   } as Env
@@ -71,6 +75,30 @@ describe('customRoutes — injected router pattern (sprint 2)', () => {
 
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual({ ok: true })
+  })
+
+  it('protectedRouter route returns 403 account_disabled for a deactivated account with a valid JWT', async () => {
+    let handlerRan = false
+    const app = createBeechApp({
+      seeds: [],
+      seedRepository: new InMemorySeedRepository([]),
+      customRoutes: ({ protectedRouter }) => {
+        protectedRouter.get('/probe', (c) => {
+          handlerRan = true
+          return c.json({ ok: true })
+        })
+      },
+    })
+    const token = await issueToken()
+    const res = await app.request(
+      '/api/custom/probe',
+      { headers: { Authorization: `Bearer ${token}` } },
+      buildEnv(0),
+    )
+
+    expect(res.status).toBe(403)
+    expect(await res.json()).toMatchObject({ error: 'account_disabled' })
+    expect(handlerRan).toBe(false)
   })
 
   it('public custom routes are not intercepted by the /api auth middleware', async () => {
