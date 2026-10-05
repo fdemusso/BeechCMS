@@ -15,6 +15,8 @@ import {
   localizedAliasesIn,
   mergeLocalizedFields,
   resolveLocalizedFields,
+  resolveClassification,
+  type Seed,
 } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import { cleanStr } from '../../shared/utils/query-utils'
@@ -45,13 +47,30 @@ draftApp.get('/drafts', async (context) => {
   const repository = context.get('repository')
   const drafts = await repository.findPendingDrafts(seeds)
   const localeConfig = await loadDisplayLocaleConfig(context.get('siteSettingsRepository'), seeds)
-  if (!localeConfig) return context.json(drafts)
+  const jwtPayload = context.get('jwtPayload')
+  const actor: ActorContext = context.get('actor') ?? {
+    type: 'authenticated',
+    userId: jwtPayload?.sub,
+    role: jwtPayload?.role,
+  }
   const seedsBySlug = new Map(seeds.map((seed) => [seed.slug, seed]))
   return context.json(drafts.map((draft) => {
     const seed = seedsBySlug.get(draft.seedSlug)
-    return seed ? { ...draft, title: resolveDisplayName(seed, draft.title, localeConfig) } : draft
+    if (!seed) return draft
+    const title = localeConfig ? resolveDisplayName(seed, draft.title, localeConfig) : draft.title
+    return { ...draft, title: concealedTitle(seed, title, draft.id, actor) }
   }))
 })
+
+// Title column is raw SQL: re-apply the detail-read visibility pipeline.
+function concealedTitle(seed: Seed, title: string, id: string, actor: ActorContext): string {
+  const alias = seed.displayNameAlias
+  const branch = seed.branches.find((b) => b.alias === alias)
+  if (!branch) return title
+  if (resolveClassification(branch).storage === 'encrypt') return id
+  const visible = applyVisibility({ [alias]: title }, seed, actor)
+  return Object.hasOwn(visible, alias) ? String(visible[alias]) : id
+}
 
 function normalizeBody(raw: unknown): Record<string, unknown> {
   return typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
