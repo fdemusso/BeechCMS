@@ -48,4 +48,26 @@ export function applyVisibility(
   return filterEntryForActor(data, seed, resolvedActor)
 }
 
+const ENVELOPE_COLUMNS = ['id', 'slug', 'status', 'created_at', 'updated_at', 'deleted_at'] as const
 
+/**
+ * Builds a content response entry: system columns at top level, visibility-filtered fields
+ * only inside `data`. Never spread the raw row — hidden/masked values would leak.
+ *
+ * @param item - Raw record from repository.
+ * @param seed - Content type seed definition.
+ * @param actor - Context of the caller.
+ * @returns Envelope with system columns plus filtered `data`.
+ */
+export function toEntryEnvelope(
+  item: Record<string, unknown>,
+  seed: Seed,
+  actor?: ActorContext,
+): Record<string, unknown> {
+  const envelope: Record<string, unknown> = {}
+  for (const column of ENVELOPE_COLUMNS) {
+    if (Object.hasOwn(item, column)) envelope[column] = item[column]
+  }
+  envelope.data = applyVisibility(item, seed, actor)
+  return envelope
+}

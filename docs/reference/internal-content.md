@@ -40,9 +40,11 @@ Authorization: Bearer eyJ...
       "created_at": 1713600000,
       "updated_at": 1713600000,
       "has_pending_draft": false,
-      "title": "Hello World",
-      "budget": 5000,
-      "published_at": "2024-04-20"
+      "data": {
+        "title": "Hello World",
+        "budget": 5000,
+        "published_at": "2024-04-20"
+      }
     }
   ],
   "total": 42,
@@ -52,7 +54,7 @@ Authorization: Bearer eyJ...
 }
 ```
 
-> **Note:** Calling `GET /api/content/:seed` without query parameters returns the items array directly (`[...]`). Each item includes a `has_pending_draft` boolean indicating whether a draft exists in `content_{slug}_drafts`.
+> **Note:** Calling `GET /api/content/:seed` without query parameters returns the items array directly (`[...]`). Each item has system columns at the top level and field values only inside `data`, already filtered by visibility policies (`hidden` dropped, `masked` masked). Each item also includes a `has_pending_draft` boolean indicating whether a draft exists in `content_{slug}_drafts`.
 
 > [!NOTE]
 > On a Seed with `softDelete: true`, trashed entries are excluded from this listing. Retrieve them from [`GET /api/content/:seed/trash`](#list-trash).

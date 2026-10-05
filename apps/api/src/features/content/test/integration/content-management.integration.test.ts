@@ -37,8 +37,8 @@ describe('content slice — integration (real D1)', () => {
       const response = await admin.get('/api/content/posts')
 
       expect(response.status).toBe(200)
-      const body = await response.json<Array<Record<string, unknown>>>()
-      expect(body[0].internal_note).toBe('SECRET')
+      const body = await response.json<Array<{ data: Record<string, unknown> }>>()
+      expect(body[0].data.internal_note).toBe('SECRET')
     })
   })
 

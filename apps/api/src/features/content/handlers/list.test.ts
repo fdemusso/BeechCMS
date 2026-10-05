@@ -10,7 +10,7 @@ vi.mock('../../../public/errors/problem-details', () => ({
 }))
 
 vi.mock('../../../shared/policies/apply-policies', () => ({
-  applyVisibility: vi.fn((item: Record<string, unknown>) => item),
+  toEntryEnvelope: vi.fn((item: Record<string, unknown>) => ({ ...item, data: item })),
 }))
 
 const SEED = {

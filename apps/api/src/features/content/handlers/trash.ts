@@ -4,7 +4,7 @@
 
 import { Context } from 'hono'
 import { EntryNotFoundError, type ActorContext } from '@beechcms/core'
-import { applyVisibility } from '../../../shared/policies/apply-policies'
+import { toEntryEnvelope } from '../../../shared/policies/apply-policies'
 import { deleteR2Objects } from '../../../shared/storage/upload'
 import { extractMediaKeysFromData } from '../../../shared/utils/media-utils'
 import { parsePositiveInt } from '../../../shared/utils/query-utils'
@@ -87,7 +87,7 @@ export async function trashListHandler(context: Context<AppEnv>) {
       userId: jwtPayload?.sub,
       role: jwtPayload?.role,
     }
-    const entries = items.map((item) => ({ ...item, data: applyVisibility(item, seed, actor) }))
+    const entries = items.map((item) => toEntryEnvelope(item, seed, actor))
 
     return context.json({ items: entries, total, page, limit })
   } catch (error) {

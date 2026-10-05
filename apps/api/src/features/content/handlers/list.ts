@@ -4,7 +4,7 @@
 
 import { Context } from 'hono'
 import { parsePositiveInt, parseQueryFilters, cleanStr, toEngineFilters } from '../../../shared/utils/query-utils'
-import { applyVisibility } from '../../../shared/policies/apply-policies'
+import { toEntryEnvelope } from '../../../shared/policies/apply-policies'
 import { publicProblem } from '../../../public/errors/problem-details'
 import { CONTENT_ERRORS } from '../constants'
 import { AppEnv } from '../../../types'
@@ -23,7 +23,7 @@ import { loadDisplayLocaleConfig, resolveDisplayName } from '../../../shared/loc
  */
 async function buildRelationsMap(
   context: Context<AppEnv>,
-  seed: Parameters<typeof applyVisibility>[1],
+  seed: Seed,
   entries: Record<string, unknown>[],
   localeConfig: LocaleConfig | undefined,
 ): Promise<Record<string, Record<string, string>>> {
@@ -204,9 +204,8 @@ export async function listHandler(context: Context<AppEnv>) {
       }
 
       return {
-        ...item,
+        ...toEntryEnvelope(item, seed, actor),
         has_pending_draft: hasPendingDraft,
-        data: applyVisibility(item, seed, actor) // Repository returns "pure" data including system fields
       }
     }))
 
