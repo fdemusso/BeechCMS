@@ -10,6 +10,7 @@ import {
   validateSeedDefinitions,
   planCreateSeed,
   planExtendSeed,
+  planFtsRebuild,
   SLUG_RE,
   SEED_SLUG_RE,
 } from '@beechcms/core'
@@ -117,7 +118,8 @@ export function rejectManifestOwned(context: AppContext, record: SeedRecord) {
  * 2. Compares definition against physical database columns (`content_<slug>`).
  * 3. Plans and executes DDL via `planCreateSeed` (new table) or `planExtendSeed` (additive columns).
  * 4. Upserts definition into `SeedRepository` with `'runtime'` source and bumps the registry version for OCC.
- * 5. Dispatches an audit event to the activity logger.
+ * 5. Rebuilds the FTS5 table (destructive) when a new searchable branch was added; failure is audit-logged, not fatal.
+ * 6. Dispatches an audit event to the activity logger.
  *
  * @param context - The Hono request context.
  * @param slug - The target seed slug.
@@ -150,10 +152,16 @@ export async function validateAndApplySeedDef(context: AppContext, slug: string,
     ? await schemaMutator.getColumns(`${tableName}_drafts`)
     : null
 
+  let ftsRebuildNeeded = false
   try {
-    const stmts = existingCols === null
-      ? planCreateSeed(candidate)
-      : planExtendSeed(candidate, existingCols, existingDraftCols).statements
+    let stmts: string[]
+    if (existingCols === null) {
+      stmts = planCreateSeed(candidate)
+    } else {
+      const plan = planExtendSeed(candidate, existingCols, existingDraftCols)
+      stmts = plan.statements
+      ftsRebuildNeeded = plan.ftsRebuildNeeded
+    }
     await schemaMutator.execDdl(stmts)
   } catch (err) {
     return publicProblem(context, {
@@ -167,8 +175,20 @@ export async function validateAndApplySeedDef(context: AppContext, slug: string,
   await repo.upsert(slug, candidate, 'runtime')
   await repo.bumpRegistryVersion()
 
+  // FTS5 cannot ALTER columns: rebuild is destructive, runs after the additive commit.
+  let ftsRebuildError: string | undefined
+  if (ftsRebuildNeeded) {
+    try {
+      const ftsStmts = planFtsRebuild(candidate)
+      if (ftsStmts.length > 0) await schemaMutator.execDestructive(ftsStmts)
+    } catch (err) {
+      ftsRebuildError = internalErrorDetail(context.env, err)
+    }
+  }
+
   const actor = actorFromContext(context)
-  context.get('activityLogger').log({ action, entityType: 'seed', entityId: slug, details: logDetails, actor })
+  const details = ftsRebuildError ? { ...logDetails, ftsRebuildError } : logDetails
+  context.get('activityLogger').log({ action, entityType: 'seed', entityId: slug, details, actor })
 
   return null
 }
