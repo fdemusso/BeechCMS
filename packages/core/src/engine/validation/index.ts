@@ -8,6 +8,8 @@ import { isLocalizedBranch, toLocalizedPatch, type LocaleConfig } from '../local
 import { compileSeedSchema } from './cache.js'
 import { isEffectivelyEmpty } from './emptiness.js'
 
+export { isEffectivelyEmpty }
+
 // Re-export the public file-branch symbol so the barrel surface stays complete.
 export { resolveFileOptions } from './file-branch.js'
 
