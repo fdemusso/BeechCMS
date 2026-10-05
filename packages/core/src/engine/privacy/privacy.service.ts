@@ -177,3 +177,30 @@ export class PrivacyService implements IPrivacyService {
       .join('')
   }
 }
+
+/** Thrown when a protected field is processed but no master key is configured. */
+export class PrivacyNotConfiguredError extends Error {
+  constructor() {
+    super('PRIVACY_MASTER_KEY is not configured: cannot encrypt or hash protected fields')
+    this.name = 'PrivacyNotConfiguredError'
+  }
+}
+
+/**
+ * Fail-closed {@link IPrivacyService} for installs without a master key.
+ * Never returns plaintext as protected output; legacy non-`v1:` values still read through.
+ */
+export class UnconfiguredPrivacyService implements IPrivacyService {
+  async encrypt(_plaintext: string): Promise<string> {
+    throw new PrivacyNotConfiguredError()
+  }
+
+  async decrypt(ciphertext: string): Promise<string> {
+    if (ciphertext?.startsWith('v1:')) throw new PrivacyNotConfiguredError()
+    return ciphertext
+  }
+
+  async hash(_plaintext: string): Promise<string> {
+    throw new PrivacyNotConfiguredError()
+  }
+}

@@ -29,12 +29,14 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [NoOpQueueService](classes/NoOpQueueService.md)
 - [NoOpScheduler](classes/NoOpScheduler.md)
 - [PermissionRoleGuard](classes/PermissionRoleGuard.md)
+- [PrivacyNotConfiguredError](classes/PrivacyNotConfiguredError.md)
 - [PrivacyService](classes/PrivacyService.md)
 - [RelationTargetNotFoundError](classes/RelationTargetNotFoundError.md)
 - [RepositoryError](classes/RepositoryError.md)
 - [SeedRegistry](classes/SeedRegistry.md)
 - [SlugConflictError](classes/SlugConflictError.md)
 - [TokenBucketRateLimiter](classes/TokenBucketRateLimiter.md)
+- [UnconfiguredPrivacyService](classes/UnconfiguredPrivacyService.md)
 - [VirusTotalAntivirusProvider](classes/VirusTotalAntivirusProvider.md)
 
 ## Interfaces

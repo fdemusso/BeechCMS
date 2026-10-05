@@ -34,7 +34,7 @@ import { D1OAuthConsentRepository } from '../shared/db/repositories/d1-oauth-con
 import { D1RoleRepository } from '../shared/db/repositories/d1-role.repository'
 import { D1RoleAssignmentRepository } from '../shared/db/repositories/d1-role-assignment.repository'
 import { D1InvitationRepository } from '../shared/db/repositories/d1-invitation.repository'
-import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService, PermissionRoleGuard } from '@beechcms/core'
+import { SystemClock, SystemIdGenerator, VirusTotalAntivirusProvider, PrivacyService, UnconfiguredPrivacyService, PermissionRoleGuard } from '@beechcms/core'
 import type { ContentRepository, IdempotencyRepository, MediaRepository, SystemStatsRepository, IUserRepository, ISessionRepository, IPasswordResetTokenRepository, IActivityLogRepository, INotificationRepository, IWidgetRepository, ISearchRepository, IAnalyticsRepository, IContentScanRepository, IClock, IIdGenerator, IAutomationRunner, IAutomationRepository, IScheduler, ISiteSettingsRepository, IDemoDataRepository, ISeedLayoutRepository, ISeedRepository, ISchemaMutator, IDashboardLayoutRepository, BeechHooks, IKanbanPositionRepository, IAntivirusProvider, ITimeTrapTokenRepository, IPrivacyService, IOAuthClientRepository, IOAuthAuthorizationCodeRepository, IOAuthTokenRepository, IOAuthConsentRepository, IRoleGuard, IRoleRepository, IRoleAssignmentRepository, IInvitationRepository, IDeletionLedger, IContentViewRepository } from '@beechcms/core'
 import { NoOpScheduler } from '@beechcms/core'
 import { AutomationRunner } from '../features/automations/engine/automation-runner'
@@ -94,19 +94,13 @@ function buildScheduler(context: Context): IScheduler {
   }
 }
 
-class NoOpPrivacyService implements IPrivacyService {
-  async encrypt(plaintext: string): Promise<string> { return plaintext }
-  async decrypt(ciphertext: string): Promise<string> { return ciphertext }
-  async hash(plaintext: string): Promise<string> { return plaintext }
-}
-
 export const repositoryMiddleware = (overrides?: RepositoryOverrides) => {
   return createMiddleware<{ Bindings: Env; Variables: Variables }>(async (context, next) => {
     const resolvedClock = overrides?.clock ?? SystemClock
     const resolvedIdGenerator = overrides?.idGenerator ?? SystemIdGenerator
     const database = context.env.DB
 
-    const privacyService = overrides?.privacyService ?? (context.env.PRIVACY_MASTER_KEY ? new PrivacyService(context.env.PRIVACY_MASTER_KEY) : new NoOpPrivacyService())
+    const privacyService = overrides?.privacyService ?? (context.env.PRIVACY_MASTER_KEY ? new PrivacyService(context.env.PRIVACY_MASTER_KEY) : new UnconfiguredPrivacyService())
     context.set('privacyService', privacyService)
 
     // Built here rather than read from context.get('bucket'): storageMiddleware runs AFTER
