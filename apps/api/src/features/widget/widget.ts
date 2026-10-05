@@ -5,8 +5,17 @@
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
 import { deserializeFromDb, resolveClassification } from '@beechcms/core'
-import type { AggregateFormula, TimeWindow, WidgetWindow } from '@beechcms/core'
+import type { ActorContext, AggregateFormula, TimeWindow, WidgetWindow } from '@beechcms/core'
+import type { Context } from 'hono'
 import type { Env, Variables } from '../../types'
+import { applyVisibility } from '../../shared/policies/apply-policies'
+import {
+  assertColumnExposed,
+  assertFilterable,
+  assertFormulaColumns,
+  assertSearchable,
+  assertSortable,
+} from './widget-access'
 
 const widgetApp = new Hono<{ Bindings: Env; Variables: Variables }>()
 
@@ -57,6 +66,15 @@ function parseBoundedInt(raw: string | undefined, fallback: number, maximum: num
   return Math.min(parsed, maximum)
 }
 
+function resolveActor(context: Context<{ Bindings: Env; Variables: Variables }>): ActorContext {
+  const jwtPayload = context.get('jwtPayload')
+  return context.get('actor') ?? {
+    type: 'authenticated',
+    userId: jwtPayload?.sub,
+    role: jwtPayload?.role,
+  }
+}
+
 function problem(status: number, title: string, detail: string) {
   return { type: 'about:blank', title, status, detail }
 }
@@ -76,6 +94,7 @@ widgetApp.get('/aggregate/:seed', async (context) => {
   const window = parseWidgetWindow(context.req.query())
 
   try {
+    assertFormulaColumns(seed, formula, resolveActor(context))
     const value = await context.get('widgetRepository').aggregate(seed, formula, window)
     return context.json({ value, window })
   } catch (error) {
@@ -96,6 +115,7 @@ widgetApp.get('/growth/:seed', async (context) => {
   const window = parseWidgetWindow(context.req.query())
 
   try {
+    assertFormulaColumns(seed, formula, resolveActor(context))
     const { currentValue, previousValue } = await context
       .get('widgetRepository')
       .growth(seed, formula, window)
@@ -133,6 +153,8 @@ widgetApp.get('/leaderboard/:seed', async (context) => {
   const orderDirection: 'ASC' | 'DESC' = context.req.query('orderDir') === 'asc' ? 'ASC' : 'DESC'
 
   try {
+    const actor = resolveActor(context)
+    assertColumnExposed(seed, scoreColumn, actor)
     const entries = await context
       .get('widgetRepository')
       .leaderboard(seed, { scoreColumn, limit, orderDirection })
@@ -144,7 +166,13 @@ widgetApp.get('/leaderboard/:seed', async (context) => {
     const processedEntries = await Promise.all(
       entries.map(async (entry) => {
         let label = entry.label
+        if (displayBranch) {
+          const visible = applyVisibility({ [displayBranch.alias]: label }, seed, actor)
+          if (!Object.hasOwn(visible, displayBranch.alias)) return { ...entry, label: entry.id }
+          label = visible[displayBranch.alias] as typeof label
+        }
         if (
+          label !== '••••••••' &&
           displayResolved?.storage === 'encrypt' &&
           privacyService &&
           typeof label === 'string' &&
@@ -195,6 +223,11 @@ widgetApp.get('/list/:seed', async (context) => {
   }
 
   try {
+    const actor = resolveActor(context)
+    if (search) assertSearchable(seed, actor)
+    if (orderByColumn) assertSortable(seed, orderByColumn, actor)
+    for (const filter of filters ?? []) assertFilterable(seed, filter.column, actor)
+
     const { entries, totalCount } = await context.get('widgetRepository').list(seed, {
       limit,
       offset,
@@ -231,7 +264,7 @@ widgetApp.get('/list/:seed', async (context) => {
           status: row.status as string,
           createdAt: (row.created_at as number) ?? 0,
           updatedAt: (row.updated_at as number) ?? 0,
-          ...data,
+          ...applyVisibility(data, seed, actor),
         }
       })
     )
@@ -265,6 +298,9 @@ widgetApp.get('/timeseries/:seed', async (context) => {
   else return context.json(problem(400, 'Bad Request', 'formula must be sum, avg, or count'), 400)
 
   try {
+    const actor = resolveActor(context)
+    assertColumnExposed(seed, groupColumn, actor)
+    if (valueColumn) assertColumnExposed(seed, valueColumn, actor)
     const points = await context
       .get('widgetRepository')
       .timeseries(seed, formula, window, groupColumn)
@@ -288,6 +324,7 @@ widgetApp.get('/distribution/:seed', async (context) => {
   const limit = parseBoundedInt(context.req.query('limit'), DEFAULT_DISTRIBUTION_LIMIT, MAXIMUM_DISTRIBUTION_LIMIT)
 
   try {
+    assertColumnExposed(seed, column, resolveActor(context))
     const slices = await context
       .get('widgetRepository')
       .distribution(seed, column, window, limit)
