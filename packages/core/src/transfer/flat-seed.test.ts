@@ -27,20 +27,21 @@ describe('isFlatSeed', () => {
     expect(result).toBe(true)
   })
 
-  const nonFlatCases: Array<{ type: BranchType; multiple?: boolean; localized?: boolean }> = [
+  const nonFlatCases: Array<{ type: BranchType; multiple?: boolean; localized?: boolean; format?: string }> = [
     { type: 'relation' },
     { type: 'repeater' },
     { type: 'tags' },
     { type: 'json' },
     { type: 'richtext' },
     { type: 'file', multiple: true },
+    { type: 'file', format: 'asset-list' },
     { type: 'text', localized: true },
     { type: 'richtext', localized: true },
     { type: 'json', localized: true },
   ]
 
-  it.each(nonFlatCases)('is false when a branch is $type (multiple: $multiple, localized: $localized)', ({ type, multiple, localized }) => {
-    const seed = seedWithBranch({ id: 'br_02', alias: 'offender', label: 'Offender', type, multiple, localized })
+  it.each(nonFlatCases)('is false when a branch is $type (multiple: $multiple, localized: $localized, format: $format)', ({ type, multiple, localized, format }) => {
+    const seed = seedWithBranch({ id: 'br_02', alias: 'offender', label: 'Offender', type, multiple, localized, format })
 
     const result = isFlatSeed(seed)
 
