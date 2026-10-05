@@ -57,13 +57,14 @@ function canonicalize(value: unknown, path: string): Json {
 
   if (value === null) return null
   if (Array.isArray(value)) {
-    return value.map((item, index) => {
+    return Array.from({ length: value.length }, (_, index) => {
+      const item = Object.hasOwn(value, index) ? value[index] : undefined
       if (item === undefined) throw new CanonicalSerializationError(`${path}[${index}]`, 'undefined')
       return canonicalize(item, `${path}[${index}]`)
     })
   }
   if (typeof value === 'object') {
-    const out: { [key: string]: Json } = {}
+    const out: { [key: string]: Json } = Object.create(null)
     for (const key of Object.keys(value as object).sort()) {
       const child = (value as Record<string, unknown>)[key]
       if (child === undefined) continue
