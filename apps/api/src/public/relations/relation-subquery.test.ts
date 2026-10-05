@@ -31,6 +31,7 @@ describe('resolveRelationSubqueries', () => {
         { id: 'br_01', alias: 'title', label: 'Title', type: 'text', policies: { public: true } },
         { id: 'br_02', alias: 'category_id', label: 'Category', type: 'relation', targetSeed: 'categories', multiple: false, policies: { public: true } },
         { id: 'br_03', alias: 'related_posts', label: 'Related Posts', type: 'relation', targetSeed: 'posts', multiple: true, policies: { public: true } },
+        { id: 'br_04', alias: 'restricted_related', label: 'Restricted Related', type: 'relation', targetSeed: 'posts', multiple: true, policies: { public: true, filter: false } },
       ],
     } as unknown as Seed
 
@@ -156,5 +157,27 @@ describe('resolveRelationSubqueries', () => {
 
     await expect(resolveRelationSubqueries(parsed, postsSeed, mockRepo, getSeed, true))
       .rejects.toThrow("Invalid subquery: field 'related_posts' is a relation and only supports the 'in' operator (got 'not_in').")
+  })
+
+  it('rejects a multi-relation direct id-array condition when the branch is not filterable', async () => {
+    const parsed: ParsedPublicFilter = {
+      logic: 'AND',
+      where: [{ field: 'restricted_related', op: 'in', value: ['post-1'] }],
+    }
+
+    await expect(resolveRelationSubqueries(parsed, postsSeed, mockRepo, getSeed, true))
+      .rejects.toThrow("Invalid subquery: branch 'restricted_related' is not filterable.")
+    expect(mockRepo.findParentIdsByRelation).not.toHaveBeenCalled()
+  })
+
+  it('rejects a multi-relation subquery condition when the branch is not filterable', async () => {
+    const parsed: ParsedPublicFilter = {
+      logic: 'AND',
+      where: [{ field: 'restricted_related', op: 'in', subquery: { where: [{ field: 'title', op: 'eq', value: 'X' }], logic: 'AND' } }],
+    }
+
+    await expect(resolveRelationSubqueries(parsed, postsSeed, mockRepo, getSeed, true))
+      .rejects.toThrow("Invalid subquery: branch 'restricted_related' is not filterable.")
+    expect(mockRepo.findMany).not.toHaveBeenCalled()
   })
 })
