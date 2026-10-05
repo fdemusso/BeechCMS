@@ -7,6 +7,7 @@ import {
   generateDropColumn,
   generateRenameColumn,
   generateRetypeColumn,
+  generateRetypeIncompatibleCount,
 } from './ddl.js'
 import { planFtsRebuild } from './seed-ddl.js'
 import type { Seed } from '../types.js'
@@ -121,6 +122,33 @@ describe('generateRetypeColumn', () => {
   it('rejects a multi-relation branch (no column to retype)', () => {
     const multi = { id: 'br_03', alias: 'tags', label: 'Tags', type: 'relation' as const, targetSeed: 'tags', multiple: true }
     expect(() => generateRetypeColumn(fullSeed, multi)).toThrow()
+  })
+})
+
+describe('generateRetypeIncompatibleCount', () => {
+  const branch = (type: 'text' | 'number' | 'boolean' | 'date') => ({ id: 'br_04', alias: 'views', label: 'Views', type })
+
+  it('emits no statements for a lossless TEXT target', () => {
+    expect(generateRetypeIncompatibleCount(fullSeed, branch('text'))).toEqual([])
+  })
+
+  it('counts non-convertible rows for a REAL target, mirrored onto drafts', () => {
+    const stmts = generateRetypeIncompatibleCount(fullSeed, branch('number'))
+    expect(stmts).toHaveLength(2)
+    expect(stmts[0]).toContain('FROM content_posts WHERE views IS NOT NULL')
+    expect(stmts[1]).toContain('FROM content_posts_drafts WHERE')
+    expect(stmts[0]).toContain('json_type(views) IN (\'integer\', \'real\')')
+  })
+
+  it('accepts only whole integers for an INTEGER target', () => {
+    const [stmt] = generateRetypeIncompatibleCount(fullSeed, branch('boolean'))
+    expect(stmt).toContain('views = CAST(views AS INTEGER)')
+    expect(stmt).toContain("json_type(views) IN ('integer')")
+  })
+
+  it('rejects a multi-relation branch', () => {
+    const multi = { id: 'br_03', alias: 'tags', label: 'Tags', type: 'relation' as const, targetSeed: 'tags', multiple: true }
+    expect(() => generateRetypeIncompatibleCount(fullSeed, multi)).toThrow()
   })
 })
 

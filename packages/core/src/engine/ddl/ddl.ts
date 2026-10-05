@@ -690,6 +690,41 @@ export function generateRetypeColumn(seed: Seed, branch: Branch): string[] {
 
 
 /**
+ * Returns `SELECT COUNT(*)` statements counting rows whose current value would be silently altered
+ * (zeroed or truncated) by the `CAST` in {@link generateRetypeColumn}. Empty when the target type
+ * is lossless for any input (`TEXT`).
+ *
+ * A text value is convertible only if it is a complete JSON number; `CAST` alone accepts trailing garbage.
+ *
+ * @param seed The seed definition.
+ * @param branch The target branch definition (carrying the new type).
+ * @throws {Error} If called on a multi-relation branch.
+ * @returns An array of SQL statements, each yielding a single `count` column.
+ */
+export function generateRetypeIncompatibleCount(seed: Seed, branch: Branch): string[] {
+  if (branch.type === 'relation' && branch.multiple === true) {
+    throw new Error(`Branch "${branch.alias}" is a multi-relation and has no column to retype`)
+  }
+  const { sqlType } = BRANCH_TYPE_SQL[branch.type]
+  if (sqlType === 'TEXT') return []
+
+  const col = branch.alias
+  const jsonNumber = (types: string): string =>
+    `(typeof(${col}) = 'text' AND CASE WHEN json_valid(${col}) THEN json_type(${col}) IN (${types}) ELSE 0 END)`
+  const convertible = sqlType === 'REAL'
+    ? `typeof(${col}) IN ('integer', 'real') OR ${jsonNumber("'integer', 'real'")}`
+    : `typeof(${col}) = 'integer' OR (typeof(${col}) = 'real' AND ${col} = CAST(${col} AS INTEGER)) OR ${jsonNumber("'integer'")}`
+
+  const count = (table: string): string =>
+    `SELECT COUNT(*) AS count FROM ${table} WHERE ${col} IS NOT NULL AND NOT (${convertible});`
+
+  const stmts = [count(tableName(seed))]
+  if (seed.allowDrafts) stmts.push(count(draftTableName(seed)))
+  return stmts
+}
+
+
+/**
  * Additive statements that turn soft delete on for a table that already exists.
  *
  * The partial unique index is emitted for correctness on tables that were CREATED with

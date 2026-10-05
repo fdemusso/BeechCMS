@@ -30,6 +30,10 @@ export interface ISchemaMutator {
    *  statements; the impl validates identifiers and runs them as one D1 batch. */
   execDestructive(statements: string[]): Promise<void>
 
+  /** Runs read-only `SELECT COUNT(*) AS count` statements as one batch and returns the summed count.
+   *  Used to pre-check data compatibility before a lossy destructive operation. */
+  sumCounts(statements: string[]): Promise<number>
+
   /** Reads all rows from a table for the specified columns only.
    *  Used before DROP TABLE to collect R2 keys for media cleanup.
    *  All identifiers are validated against `^[A-Za-z0-9_]+$`. */
