@@ -210,33 +210,12 @@ setupApp.post('/auth/setup', async (context) => {
     context.set('getSeed', (slug: string) => registry.get(slug))
   }
 
-  const passwordHash = await context.get('hashProvider').hash(password)
-  const normalizedEmail = email.trim().toLowerCase()
-  const normalizedName = typeof name === 'string' ? name.trim() : null
-  const normalizedSurname = typeof surname === 'string' ? surname.trim() : null
-
-  const adminUserId = context.get('idGenerator').uuid()
-  const created = await context.get('userRepository').createInitialAdmin({
-    id: adminUserId,
-    email: normalizedEmail,
-    passwordHash,
-    role: 'admin',
-    name: normalizedName,
-    surname: normalizedSurname,
-  })
-
-  if (!created) {
-    return publicProblem(context, {
-      type: 'setup-already-done',
-      title: 'Setup already completed',
-      status: 403,
-      detail: 'An administrator account already exists. Initial setup can only be performed once.',
-    })
-  }
-
   // LOCKOUT GUARD. `user_role_assignments` ships empty, so without this grant the account
-  // just created would hold nothing and every `/api/*` route would 403 it. The role id is
-  // minted per-database by `0000_v040_base.sql`, so it is resolved BY NAME, never hardcoded.
+  // about to be created would hold nothing and every `/api/*` route would 403 it. Resolved
+  // BEFORE any write: `createInitialAdmin` below commits the admin and this grant in one
+  // D1 batch, so a missing role aborts setup with nothing persisted instead of leaving a
+  // stranded admin that `countAll() > 0` then makes unrecoverable. The role id is minted
+  // per-database by `0000_v040_base.sql`, so it is resolved BY NAME, never hardcoded.
   const superAdminRole = (await context.get('roleRepository').listAll())
     .find(role => role.name === SUPER_ADMIN_ROLE_NAME)
 
@@ -249,11 +228,37 @@ setupApp.post('/auth/setup', async (context) => {
     })
   }
 
-  await context.get('roleAssignmentRepository').create({
-    userId: adminUserId,
-    roleId: superAdminRole.id,
-    scope: GLOBAL_SCOPE,
-  })
+  const passwordHash = await context.get('hashProvider').hash(password)
+  const normalizedEmail = email.trim().toLowerCase()
+  const normalizedName = typeof name === 'string' ? name.trim() : null
+  const normalizedSurname = typeof surname === 'string' ? surname.trim() : null
+
+  const adminUserId = context.get('idGenerator').uuid()
+  const roleAssignmentId = context.get('idGenerator').uuid()
+  const created = await context.get('userRepository').createInitialAdmin(
+    {
+      id: adminUserId,
+      email: normalizedEmail,
+      passwordHash,
+      role: 'admin',
+      name: normalizedName,
+      surname: normalizedSurname,
+    },
+    {
+      id: roleAssignmentId,
+      roleId: superAdminRole.id,
+      scope: GLOBAL_SCOPE,
+    },
+  )
+
+  if (!created) {
+    return publicProblem(context, {
+      type: 'setup-already-done',
+      title: 'Setup already completed',
+      status: 403,
+      detail: 'An administrator account already exists. Initial setup can only be performed once.',
+    })
+  }
 
   if (track === 'developer' && loadDemoData === true) {
     try {

@@ -90,6 +90,42 @@ describe('Flow: /auth/setup race condition (#233)', () => {
     expect(count).toBe(1)
   })
 
+  it('a missing SuperAdmin role aborts before writing anything, so setup stays retryable (#602)', async () => {
+    const role = await db
+      .prepare(`SELECT id, name, description, icon, is_system FROM roles WHERE name = ?`)
+      .bind(SUPER_ADMIN_ROLE_NAME)
+      .first<{ id: string; name: string; description: string | null; icon: string | null; is_system: number }>()
+    // Simulates an unprovisioned RBAC table (the exact reproduction in #602):
+    // cascades role_permissions too, so the role is gone the same way a fresh,
+    // not-yet-migrated roles table would be.
+    await db.prepare(`DELETE FROM roles WHERE name = ?`).bind(SUPER_ADMIN_ROLE_NAME).run()
+
+    const firstAttempt = await setupRequest('admin-lockout@beech.local')
+
+    expect(firstAttempt.status).toBe(500)
+    const body = await firstAttempt.json<{ type: string }>()
+    expect(body.type).toBe('https://beechcms.dev/problems/rbac-not-provisioned')
+
+    // Regression guard: before the fix, `createInitialAdmin` committed
+    // `setup_completed` + `users` before this check ran, so this count was 1 and
+    // every retry died at the `countAll() > 0` guard with no way back in.
+    const { count: usersAfterFailure } = (await db.prepare('SELECT COUNT(*) as count FROM users').first()) as { count: number }
+    expect(usersAfterFailure).toBe(0)
+
+    await db
+      .prepare(`INSERT INTO roles (id, name, description, icon, is_system) VALUES (?, ?, ?, ?, ?)`)
+      .bind(role!.id, role!.name, role!.description, role!.icon, role!.is_system)
+      .run()
+
+    const retry = await setupRequest('admin-lockout@beech.local')
+
+    expect(retry.status).toBe(201)
+    const { count: usersAfterRetry } = (await db.prepare('SELECT COUNT(*) as count FROM users').first()) as { count: number }
+    expect(usersAfterRetry).toBe(1)
+    const { count: assignmentsAfterRetry } = (await db.prepare('SELECT COUNT(*) as count FROM user_role_assignments').first()) as { count: number }
+    expect(assignmentsAfterRetry).toBe(1)
+  })
+
   it('provisions the canonical demo seeds and ingests fixtures when loadDemoData is true (#387)', async () => {
     const res = await app.request('/auth/setup', {
       method: 'POST',

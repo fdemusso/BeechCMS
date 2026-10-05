@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import type { IUserRepository, UserRecord, NewUserInput, AccountSummary } from '@beechcms/core'
+import type { IUserRepository, UserRecord, NewUserInput, AccountSummary, InitialRoleGrant } from '@beechcms/core'
 
 type AccountRow = {
   id: string
@@ -74,13 +74,16 @@ export class D1UserRepository implements IUserRepository {
       .run()
   }
 
-  async createInitialAdmin(user: NewUserInput): Promise<boolean> {
+  async createInitialAdmin(user: NewUserInput, roleGrant: InitialRoleGrant): Promise<boolean> {
     try {
       await this.db.batch([
         this.db.prepare('INSERT INTO setup_completed (id) VALUES (1)'),
         this.db
           .prepare('INSERT INTO users (id, email, password_hash, role, name, surname) VALUES (?, ?, ?, ?, ?, ?)')
           .bind(user.id, user.email, user.passwordHash, user.role, user.name, user.surname),
+        this.db
+          .prepare('INSERT INTO user_role_assignments (id, user_id, role_id, scope) VALUES (?, ?, ?, ?)')
+          .bind(roleGrant.id, user.id, roleGrant.roleId, roleGrant.scope),
       ])
       return true
     } catch (err) {

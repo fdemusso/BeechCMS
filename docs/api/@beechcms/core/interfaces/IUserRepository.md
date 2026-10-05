@@ -41,17 +41,25 @@ Inserts a new user record.
 
 ### createInitialAdmin()
 
-> **createInitialAdmin**(`user`): `Promise`&lt;`boolean`&gt;
+> **createInitialAdmin**(`user`, `roleGrant`): `Promise`&lt;`boolean`&gt;
 
-Atomically creates the first administrator account, guarded by a
-setup-completed marker row inserted in the same transaction. Returns
-false instead of throwing when setup was already completed concurrently.
+Atomically creates the first administrator account AND its `roleGrant`,
+guarded by a setup-completed marker row inserted in the same transaction.
+The account can never exist without its role: callers must resolve the
+grant before calling this, so a missing or unresolvable role aborts setup
+with nothing written instead of leaving a stranded, unrecoverable admin.
+Returns false instead of throwing when setup was already completed
+concurrently.
 
 #### Parameters
 
 ##### user
 
 [`NewUserInput`](NewUserInput.md)
+
+##### roleGrant
+
+[`InitialRoleGrant`](InitialRoleGrant.md)
 
 #### Returns
 
