@@ -12,6 +12,7 @@ import {
   generateRetypeColumn,
   planFtsRebuild,
   BRANCH_ALIAS_RE,
+  SQL_RESERVED_WORDS,
 } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import type { Env, Variables } from '../../types'
@@ -134,7 +135,7 @@ destructiveApp.delete('/:slug/branches/:branchId', async (context) => {
  * @remarks
  * Irreversible destructive operation.
  * - Requires body `{ newAlias: string, confirm: "<slug>.<alias>" }`.
- * - Validates `newAlias` against `BRANCH_ALIAS_RE`.
+ * - Validates `newAlias` against `BRANCH_ALIAS_RE` and `SQL_RESERVED_WORDS`.
  * - Generates rename column DDL and FTS rebuild statements.
  * - Scans automations repository for references to the old alias and returns affected automation IDs.
  *
@@ -152,6 +153,9 @@ destructiveApp.patch('/:slug/branches/:branchId/rename', async (context) => {
   const newAlias = (body as Record<string, unknown>)?.newAlias
   if (typeof newAlias !== 'string' || !BRANCH_ALIAS_RE.test(newAlias)) {
     return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: `newAlias must match ${BRANCH_ALIAS_RE.source} (lowercase letter followed by alphanumeric characters or underscores).` })
+  }
+  if (SQL_RESERVED_WORDS.has(newAlias.toLowerCase())) {
+    return publicProblem(context, { type: 'invalid-json', title: 'Bad Request', status: 400, detail: `newAlias '${newAlias}' is an SQL reserved keyword. Pick a different alias.` })
   }
 
   const existing = await getActiveSeed(context, slug)

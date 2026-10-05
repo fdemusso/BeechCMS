@@ -362,6 +362,7 @@ Seeds and generates deterministic DDL + parameterized queries.
 - [SEED\_REGISTRY](variables/SEED_REGISTRY.md)
 - [SEED\_SLUG\_RE](variables/SEED_SLUG_RE.md)
 - [SLUG\_RE](variables/SLUG_RE.md)
+- [SQL\_RESERVED\_WORDS](variables/SQL_RESERVED_WORDS.md)
 - [SUPER\_ADMIN\_ROLE\_NAME](variables/SUPER_ADMIN_ROLE_NAME.md)
 - [SUPPORTED\_FILE\_TYPES](variables/SUPPORTED_FILE_TYPES.md)
 - [SYSTEM\_ALIASES](variables/SYSTEM_ALIASES.md)

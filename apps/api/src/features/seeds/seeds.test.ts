@@ -1104,6 +1104,20 @@ describe('PATCH /:slug/branches/:branchId/rename — extra validation paths', ()
     expect(res.status).toBe(400)
   })
 
+  it.each(['order', 'oRder', 'select'])('400 when newAlias %s is an SQL reserved word', async (newAlias) => {
+    const repo = makeRepo({ get: vi.fn().mockResolvedValue(baseRecord) })
+    const mutator = makeMutator()
+    const { app } = buildApp({ role: 'admin', repo, mutator })
+
+    const res = await app.request('/articles/branches/br_01/rename', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newAlias, confirm: 'articles.title' }),
+    })
+    expect(res.status).toBe(400)
+    expect(mutator.execDestructive).not.toHaveBeenCalled()
+  })
+
   it('404 for non-existent seed', async () => {
     const { app } = buildApp({ role: 'admin' })
     const res = await app.request('/nope/branches/br_01/rename', {
