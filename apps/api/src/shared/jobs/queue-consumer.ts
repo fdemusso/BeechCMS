@@ -27,8 +27,7 @@ export async function dispatchQueueBatch(
     bucket: createBucketProvider(env, env.MEDIA_BASE_URL ?? ''),
     clock: SystemClock,
     idGenerator: SystemIdGenerator,
-    // Same binding the producer side uses. Absent only in local/test runs without the
-    // queue binding, where NoOp is correct: there is no transport to continue onto.
+    // Missing transport reports dropped continuations.
     queue: env.QUEUE
       ? new CloudflareQueueService(env.QUEUE as Queue<QueueMessage>)
       : new NoOpQueueService(),

@@ -5,7 +5,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createBeechApp } from '../../src/factory'
 import { dispatchQueueBatch } from '../../src/shared/jobs/queue-consumer'
-import { NoOpQueueService } from '@beechcms/core'
 import type { JobHandler, JobRegistry, QueueMessage } from '@beechcms/core'
 import { StaticContentRepository } from '../mocks/static-content.repository'
 import { StaticIdempotencyRepository } from '../mocks/static-idempotency.repository'
@@ -88,11 +87,6 @@ describe('Flow: Background Queues — enqueue from custom route', () => {
     // InMemoryQueueService awaits inline (no executionCtx in test env)
     expect(executed).toHaveBeenCalledOnce()
     expect(executed.mock.calls[0][0]).toEqual({ userId: 'u_42' })
-  })
-
-  it('NoOpQueueService does not throw, ignores enqueue, and reports success', async () => {
-    const noop = new NoOpQueueService()
-    await expect(noop.enqueue('anything', { x: 1 })).resolves.toBe(true)
   })
 })
 

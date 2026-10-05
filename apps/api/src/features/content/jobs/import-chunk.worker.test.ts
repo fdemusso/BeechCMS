@@ -12,6 +12,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   EntryNotFoundError,
+  NoOpQueueService,
   SlugConflictError,
   MAX_JOB_ERROR_SAMPLES,
   SystemIdGenerator,
@@ -359,6 +360,28 @@ describe('contentImportChunkJob', () => {
     expect(job[IMPORT_JOB_FIELDS.finishedAt]).not.toBeNull()
     expect(job[IMPORT_JOB_FIELDS.errorReport]).toMatchObject([{ code: 'queue_unavailable' }])
     expect(bucket.deletes).toHaveLength(1)
+  })
+
+  it('a no-op queue fails a multi-chunk import with queue_unavailable and deletes its object', async () => {
+    const { context, repository, tables, bucket } = buildContext({
+      bodyText: '{"title":"A"}\n{"title":"B"}\n',
+      env: { IMPORT_CHUNK_ROWS: '1' },
+    })
+    context.queue = new NoOpQueueService()
+    await seedJobRow(repository)
+
+    // Dropped continuations cannot remain processing.
+    const result = await contentImportChunkJob({ jobId: 'job-1' }, context)
+
+    expect(result).toBeUndefined()
+
+    const job = getRow(tables, IMPORT_JOBS_SLUG, 'job-1')
+    expect(job[IMPORT_JOB_FIELDS.state]).toBe('failed')
+    expect(job[IMPORT_JOB_FIELDS.rowOffset]).toBe(1)
+    expect(job[IMPORT_JOB_FIELDS.finishedAt]).toBe(context.clock.nowSeconds())
+    expect(job[IMPORT_JOB_FIELDS.errorReport]).toMatchObject([{ code: 'queue_unavailable' }])
+    expect(getRows(tables, 'posts').map((row) => row.title)).toEqual(['A'])
+    expect(bucket.deletes).toEqual(['objects/fixture.ndjson'])
   })
 
   it('retrying a chunk after a lost checkpoint does not duplicate a row with neither slug nor display name', async () => {
