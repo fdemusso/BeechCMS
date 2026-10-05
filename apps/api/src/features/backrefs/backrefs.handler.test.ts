@@ -4,7 +4,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { Hono } from 'hono'
-import type { BackrefMap } from '@beechcms/core'
+import type { BackrefMap, EffectivePermissions } from '@beechcms/core'
 import { backrefsApp } from './backrefs.handler'
 
 // ---------------------------------------------------------------------------
@@ -101,11 +101,12 @@ function buildApp({
   backrefMap: BackrefMap
   getSeed: (slug: string) => unknown
 }) {
-  const app = new Hono()
+  const app = new Hono<{ Variables: { effectivePermissions: EffectivePermissions } }>()
   app.use('*', async (c, next) => {
     ;(c as any).env = { DB: db }
     ;(c as any).set('backrefMap', backrefMap)
     ;(c as any).set('getSeed', getSeed)
+    c.set('effectivePermissions', { global: new Set(['content:read']), byScope: new Map() })
     await next()
   })
   app.route('/', backrefsApp)
