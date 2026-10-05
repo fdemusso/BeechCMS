@@ -31,7 +31,7 @@ function resolveMediaPath(keyOrUrl: string, baseUrl?: string): string {
   const bare = keyOrUrl.split('#')[0].split('?')[0]
   if (!bare) throw new TypeError('media(): keyOrUrl is empty')
   if (/^https?:\/\//i.test(bare) || bare.startsWith('/')) {
-    if (!bare.includes(MEDIA_PATH)) {
+    if (!new URL(bare, 'http://placeholder.invalid').pathname.startsWith(MEDIA_PATH)) {
       throw new TypeError(`media(): "${keyOrUrl}" is not a ${MEDIA_PATH} URL; only the BeechCMS media route transforms images`)
     }
     return bare

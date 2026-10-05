@@ -4,7 +4,7 @@
 
 /// <reference types="@cloudflare/workers-types" />
 import { Hono } from 'hono'
-import { resolvePolicies, verifyHashField, sha256hex, validateAndSanitizeSeedPayload, EntryNotFoundError } from '@beechcms/core'
+import { resolvePolicies, verifyHashField, sha256hex, validateAndSanitizeSeedPayload, EntryNotFoundError, EntryConflictError } from '@beechcms/core'
 import { publicProblem } from '../../public/errors/problem-details'
 import { rotateFieldRequestSchema } from './rotate-field.schema'
 import type { Env, Variables } from '../../types'
@@ -122,7 +122,25 @@ rotateFieldApp.post('/:slug/:id/rotate-field', async (context) => {
 
   const newFieldValueHash = await sha256hex(nextValue)
 
-  await context.get('repository').update(seed, entryId, { [targetFieldBranch.alias]: newFieldValueHash })
+  try {
+    await context.get('repository').update(
+      seed,
+      entryId,
+      { [targetFieldBranch.alias]: newFieldValueHash },
+      undefined,
+      { ifMatch: contentRecord.updated_at as number },
+    )
+  } catch (error) {
+    if (error instanceof EntryConflictError) {
+      return publicProblem(context, {
+        type: 'rotate-field-conflict',
+        title: 'Conflict',
+        status: 409,
+        detail: `Entry '${entryId}' was modified concurrently. Re-read it and retry.`
+      })
+    }
+    throw error
+  }
 
   return context.json({ success: true })
 })

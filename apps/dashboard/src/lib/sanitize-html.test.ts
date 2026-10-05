@@ -30,4 +30,18 @@ describe("sanitizeHtml", () => {
     const input = '<a href="javascript:alert(1)">Click</a>'
     expect(sanitizeHtml(input)).not.toContain("javascript:")
   })
+  it.each([
+    ["tab", "jav\tascript:alert(1)"],
+    ["newline", "jav\nascript:alert(1)"],
+    ["leading control char", "\u0001javascript:alert(1)"],
+    ["vbscript", "vbscript:msgbox(1)"],
+  ])("strips obfuscated script URIs (%s)", (_label, href) => {
+    const out = sanitizeHtml(`<a href="${href}">Click</a>`)
+    expect(out).not.toContain("href")
+  })
+
+  it("keeps safe http, mailto and relative links", () => {
+    const input = '<a href="https://a.example/x">a</a><a href="mailto:a@b.c">b</a><a href="/rel">c</a>'
+    expect(sanitizeHtml(input)).toBe(input)
+  })
 })
