@@ -3,7 +3,7 @@
 // See LICENSE in the repository root for license terms.
 
 /// <reference types="@cloudflare/workers-types" />
-import { resolvePolicies, sha256hex, filterEntryForActor } from '@beechcms/core'
+import { filterEntryForActor } from '@beechcms/core'
 import type { Seed, ActorContext } from '@beechcms/core'
 
 class PrivacyPolicyError extends Error {
@@ -17,33 +17,17 @@ class PrivacyPolicyError extends Error {
 export { PrivacyPolicyError }
 
 /**
- * Applies privacy transformation rules to payload fields before database insertion/update.
+ * Privacy pass-through. `encrypt` and `hash` fields reach the repository as plaintext,
+ * which encrypts or HMAC-hashes them exactly once via PrivacyService.
  * @param data - Raw record fields object.
- * @param seed - Seed definition containing field policy definitions.
- * @returns A Promise resolving to the transformed data payload.
+ * @param _seed - Seed definition containing field policy definitions.
+ * @returns A Promise resolving to the data payload.
  */
 export async function applyPrivacy(
   data: Record<string, unknown>,
-  seed: Seed,
+  _seed: Seed,
 ): Promise<Record<string, unknown>> {
-  const result: Record<string, unknown> = {}
-  for (const [alias, value] of Object.entries(data)) {
-    const branch = seed.branches.find((b) => b.alias === alias)
-    if (!branch) {
-      result[alias] = value
-      continue
-    }
-    const { privacy } = resolvePolicies(branch)
-    if (privacy === 'encrypt') {
-      result[alias] = value
-    } else if (privacy === 'hash' && value != null) {
-      const serialized = typeof value === 'string' ? value : JSON.stringify(value)
-      result[alias] = await sha256hex(serialized)
-    } else {
-      result[alias] = value
-    }
-  }
-  return result
+  return { ...data }
 }
 
 /**
