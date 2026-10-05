@@ -44,24 +44,29 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
     })
   })
 
-  it('triggers quarantine deletion and admin notification when infected attachment is detected', async () => {
+  it('never deletes a caller-supplied bucket key when an attachment is infected', async () => {
     const pngBytes = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00])
     let binaryStr = ''
     for (let i = 0; i < pngBytes.length; i++) binaryStr += String.fromCharCode(pngBytes[i])
     const validPngBase64 = btoa(binaryStr)
 
-    // Build app with mocked antivirus, notification service, and bucket
+    const pending: Promise<unknown>[] = []
+    const scan = vi.fn().mockResolvedValue({ status: 'infected', threatName: 'EICAR' })
+    const del = vi.fn().mockResolvedValue(undefined)
+
     const customApp = createBeechApp({
       seeds: TEST_SEEDS,
       repository: new StaticContentRepository(TEST_SEEDS),
       idempotencyRepository: new StaticIdempotencyRepository(),
       automationRepository: new StaticAutomationRepository(),
+      bucket: { delete: del } as unknown as BeechBucket,
+      antivirusProvider: { name: 'mock-av', scan },
+      scheduler: { waitUntil: (p: Promise<unknown>) => { pending.push(p) } },
     })
 
     const t0 = Math.floor(Date.now() / 1000) - 2
     const token = await generateTimeTrapToken('beech-public-timetrap-default-secret', t0)
 
-    // Override middleware values during request by mounting mock in middleware or testing handler directly
     const res = await customApp.request('/api/v1/public/posts/add', {
       method: 'POST',
       headers: {
@@ -76,13 +81,16 @@ describe('publicAddHandler Quarantine & Security Integration', () => {
             filename: 'malware.png',
             mimeType: 'image/png',
             data: validPngBase64,
-            fileKey: 'uploads/malware.png',
+            fileKey: 'unrelated/victim.txt',
           },
         ],
       }),
     }, TEST_ENV)
+    await Promise.all(pending)
 
     expect(res.status).toBe(201)
+    expect(scan).toHaveBeenCalledTimes(1)
+    expect(del).not.toHaveBeenCalled()
   })
 
   describe('Confidential Data & Access Policies on Public Add', () => {
